@@ -105,6 +105,19 @@ def test_mini_fast_tier(mini: Path) -> None:
     assert release.fast == ["tests"]
 
 
+def test_lockfile_local_version_only_does_not_select_all_families(mini: Path) -> None:
+    old = '[[package]]\nname="fastforks-core"\nversion="0.1.1"\nsource={editable="."}\n'
+    old += '[[package]]\nname="torch"\nversion="2.8"\nsource={registry="https://example.com"}\n'
+    new = old.replace('version="0.1.1"', 'version="0.2.0"')
+    assert st.same_lock_dependencies(old, new)
+    assert not st.same_lock_dependencies(old, new.replace('version="2.8"', 'version="2.9"'))
+    assert not st.same_lock_dependencies(old, "not valid toml")
+    sel = st.select(["uv.lock"], mini, metadata_only=st.same_lock_dependencies(old, new))
+    assert not sel.release
+    assert not sel.families
+    assert sel.fast != ["tests"]
+
+
 def test_mini_ref_table(mini: Path) -> None:
     table = "src/fastforks/_core/table.json"
     assert set(st.select([table], mini).families) == ALL  # no diff text: the owner rule (_core)

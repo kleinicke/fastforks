@@ -15,8 +15,9 @@ that loads its submodules with `pkgutil.iter_modules` (the task specs) imports a
 existing package, except the ref tables of _core (`REF_TABLES`: auto_portable.json, sizes.json): with a git range they
 select the families whose refs occur in their changed lines. tests/test_golden.py itself selects every family;
 `GATE_TOOLS` (this file and the gate's timing tools) only the fast tier. pyproject.toml / uv.lock select every family
-and flag `release` (dependencies changed: run the release suite). Everything else (docs, tools, other tests) selects no
-family.
+and flag `release` (dependencies changed: use the broad gate). For a git range, a lockfile change limited to the local
+editable package's version does not count as a dependency change. Without both snapshots the selector stays
+conservative. Everything else (docs, tools, other tests) selects no family.
 
 Fast tier (`-m "not gpu and not model"`): every test file whose closure reaches no family module, the family-specific
 files of the selected families and every test file whose closure holds a changed file; all of tests/ when conftest.py,
@@ -226,16 +227,21 @@ def _table_refs(fams: dict[str, dict], text: str) -> dict[str, bool]:
     return {name: bool(found & {r.split("@")[0] for r in f["refs"]}) for name, f in fams.items()}
 
 
-def select(changed: list[str], root: Path = ROOT, diff: Callable[[str], str] | None = None) -> Selection:
-    """The selection of `changed` files; `diff(file)` (the file's unified diff) narrows the ref tables."""
+def select(
+    changed: list[str], root: Path = ROOT, diff: Callable[[str], str] | None = None, *, metadata_only: bool = False
+) -> Selection:
+    """Select changed files; `metadata_only` says the lockfile changed only its local package version."""
     graph = Graph(root)
     fams = families(root)
     closures = family_closures(graph, fams)
-    sel = Selection(changed=sorted(changed), release=bool(DEPENDENCIES & set(changed)))
+    dependencies = DEPENDENCIES & set(changed)
+    if metadata_only:
+        dependencies -= {"uv.lock"}
+    sel = Selection(changed=sorted(changed), release=bool(dependencies))
     tables = {c: _table_refs(fams, diff(c)) for c in changed if diff and REF_TABLES.fullmatch(c)}
     owners = {c: graph.owner(c) for c in changed if c not in GATE_TOOLS and c not in tables}
     for name, cl in closures.items():
-        why = sorted(c for c, o in owners.items() if o in cl or (sel.release and c in DEPENDENCIES))
+        why = sorted(c for c, o in owners.items() if o in cl or (sel.release and c in dependencies))
         why += sorted(c for c, hit in tables.items() if hit[name])
         if why:
             sel.families[name] = {"task": fams[name]["task"], "refs": fams[name]["refs"], "why": why}
@@ -272,6 +278,31 @@ def git_diff(base: str, head: str, root: Path = ROOT) -> Callable[[str], str]:
     return diff
 
 
+def same_lock_dependencies(old: str, new: str) -> bool:
+    """Whether two lockfiles differ only in the editable local package's version; invalid input stays conservative."""
+    try:
+        docs = [tomllib.loads(text) for text in (old, new)]
+        for doc in docs:
+            local = [
+                p for p in doc["package"] if p.get("name") == "fastforks-core" and p.get("source") == {"editable": "."}
+            ]
+            if len(local) != 1 or "version" not in local[0]:
+                return False
+            del local[0]["version"]
+        return docs[0] == docs[1]
+    except (AttributeError, KeyError, TypeError, tomllib.TOMLDecodeError):
+        return False
+
+
+def git_lock_metadata_only(base: str, head: str, root: Path = ROOT) -> bool:
+    """Compare both tracked lockfile snapshots; missing or invalid snapshots require the broad gate."""
+    snapshots = [
+        subprocess.run(["git", "-C", str(root), "show", f"{rev}:uv.lock"], capture_output=True, text=True, check=False)
+        for rev in (base, head)
+    ]
+    return all(s.returncode == 0 for s in snapshots) and same_lock_dependencies(*(s.stdout for s in snapshots))
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("base", nargs="?")
@@ -282,7 +313,8 @@ def main(argv: list[str] | None = None) -> int:
     if a.files is None and not a.base:
         ap.error("give BASE [HEAD] or --files")
     files, diff = (a.files, None) if a.files is not None else (git_changed(a.base, a.head), git_diff(a.base, a.head))
-    sel = select(files, diff=diff)
+    metadata_only = a.files is None and "uv.lock" in files and git_lock_metadata_only(a.base, a.head)
+    sel = select(files, diff=diff, metadata_only=metadata_only)
     if a.json:
         print(json.dumps(sel.as_dict(), indent=1))
         return 0
