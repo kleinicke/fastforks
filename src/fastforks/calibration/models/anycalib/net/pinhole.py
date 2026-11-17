@@ -274,7 +274,7 @@ class Pinhole(BaseCamera):
         proj = x[..., :2]  # (..., N, 2)
         x_inorm = 1 / torch.linalg.norm(x, dim=-1, keepdim=True)[..., None]
         db_dmxy = x_inorm * (
-            x.new_zeros((3, 2)).fill_diagonal_(1)
+            torch.eye(3, 2, device=x.device, dtype=x.dtype)
             - x_inorm**2 * x[..., None] * proj[..., None, :]
         )  # (..., N, 3, 2)
 
@@ -308,7 +308,7 @@ class Pinhole(BaseCamera):
         proj = x[..., :2]  # (..., N, 2)
         x_inorm = 1 / torch.linalg.norm(x, dim=-1, keepdim=True)[..., None]
         db_dmxy = x_inorm * (
-            x.new_zeros((3, 2)).fill_diagonal_(1)
+            torch.eye(3, 2, device=x.device, dtype=x.dtype)
             - x_inorm**2 * x[..., None] * proj[..., None, :]
         )  # (..., N, 3, 2)
         db_dim = db_dmxy / params[..., None, None, : self.NUM_F]

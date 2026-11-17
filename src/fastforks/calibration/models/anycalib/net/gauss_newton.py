@@ -272,7 +272,8 @@ class GaussNewtonCalib:
         JtW = WJs.flatten(-3, -2).transpose(-1, -2)  # (..., D, 2*N)
         JtWJ = JtW @ Js.flatten(-3, -2)  # (..., D, D)
         JtWr = JtW @ neg_res.flatten(-2, -1)[..., None]  # (..., D, 1)
-        delta, info = torch.linalg.solve_ex(JtWJ, JtWr.squeeze(-1))  # (..., D)
+        solve = ut.solve_small_export if torch.compiler.is_exporting() else torch.linalg.solve_ex
+        delta, info = solve(JtWJ, JtWr.squeeze(-1))  # (..., D)
         delta = torch.where((info == 0)[..., None], delta.nan_to_num(0, 0, 0), 0)
         # assert (info == 0).all(), "Gauss-Newton failed to converge"
         return delta
