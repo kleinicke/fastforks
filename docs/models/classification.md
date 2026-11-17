@@ -2312,6 +2312,7 @@ fastforks: the model's own resize / crop on the GPU; original: the library's pre
 | `wd-convnext-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.92 / 99.80 | 99.90 / 99.60 |  | 99.88 / 99.80 |  |
 | `wd-vit-large-tagger-v3` | ImageNet-1k val, 5000 random images, top-1 / top-5 % |  |  |  | 0.06 / 0.34 |  |  |
 | `wd-vit-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.87 / 99.40 |  | 99.88 / 99.80 |  |
+| `wd-eva02-large-tagger-v3` | ImageNet-1k val, 5000 random images, top-1 / top-5 % |  |  |  | 0.08 / 0.36 |  |  |
 | `wd-eva02-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.84 / 99.80 |  | 99.84 / 99.40 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16.
