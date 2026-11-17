@@ -101,7 +101,7 @@ def test_kernels_graph_cache_per_bucket():
     assert graphs[8, 0] is text_only
     assert graphs[8, BOX_BUCKET] is boxed
     twice(text="a yellow school bus with a long black roof rack", input_boxes=one * scale)
-    assert set(graphs) == {(8, 0), (8, BOX_BUCKET), (16, BOX_BUCKET)}
+    assert set(graphs) == {(16, BOX_BUCKET)}  # a shape >= 2x larger than every held graph frees them
 
 
 @pytest.mark.model

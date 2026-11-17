@@ -12,8 +12,9 @@ row fills: "original fp32", "original fp16", "portable", "kernels" (null: a tier
 
 "original fp16" = `upstream16`: the authors' own precision option where the code has one, else autocast float16
 (`upstreamac` where the own option fails), as measured, also where it loses accuracy (the point of the column; user
-2026-11-06). `--write` replaces docs/data/<task>_eval.jsonl and appends the original speed rows (fp32 + fp16) to
-docs/data/speed.jsonl (rows already there are not repeated); `--task` limits both to the tasks measured completely.
+2026-11-06). `--write` updates docs/data/<task>_eval.jsonl (replaces only the (ref, mode, dataset) rows it
+collected) and appends the original speed rows (fp32 + fp16) to docs/data/speed.jsonl (rows already there are not
+repeated); `--task` limits both to the tasks measured completely.
 """
 
 from __future__ import annotations
@@ -202,15 +203,20 @@ def _ports(rows: list[dict[str, Any]]) -> None:
 def choose(rows: list[dict[str, Any]]) -> dict[str, str]:
     """Set `column` / `mode` on the rows; map ref -> its fp16 original tier.
 
-    `upstream16`, or `upstreamac` where the authors' own option fails (c-foundationstereo-s: "CUDA error: invalid
-    argument").
+    `upstream16`, or `upstreamac` on the datasets where the authors' own option fails (c-foundationstereo-s on
+    Middlebury: "CUDA error: invalid argument"; its ETH3D rows keep the own option). The map (for the speed rows) names
+    `upstreamac` where any dataset of the ref uses it.
     """
     _ports(rows)
-    failed = {r["ref"] for r in rows if r["tier"] == "upstream16" and "error" in r}
-    ok = {r["ref"] for r in rows if r["tier"] == "upstreamac" and "error" not in r}
-    picked = {r["ref"]: "upstreamac" if r["ref"] in failed & ok else "upstream16" for r in rows if r["tier"] in FP16}
+    failed = {(r["ref"], r.get("dataset")) for r in rows if r["tier"] == "upstream16" and "error" in r}
+    ok = {(r["ref"], r.get("dataset")) for r in rows if r["tier"] == "upstreamac" and "error" not in r}
+    use = {(r["ref"], r.get("dataset")): "upstreamac" if (r["ref"], r.get("dataset")) in failed & ok else "upstream16"
+           for r in rows if r["tier"] in FP16}  # fmt: skip
+    picked: dict[str, str] = {}
+    for (ref, _), tier in use.items():
+        picked[ref] = "upstreamac" if "upstreamac" in (tier, picked.get(ref)) else tier
     for r in rows:
-        fp16 = r["tier"] == picked.get(r["ref"])
+        fp16 = r["tier"] == use.get((r["ref"], r.get("dataset")))
         r["column"] = "original fp16" if fp16 else COLUMN.get(r["tier"])
         r["mode"] = "upstream-fp16" if fp16 else MODE.get(r["tier"], r["tier"])
     return picked
@@ -244,13 +250,24 @@ def speed_rows(raw: Path, picked: dict[str, dict[str, str]]) -> list[dict[str, A
     return out
 
 
+def merge_lines(old: list[str], new: list[dict[str, Any]]) -> list[str]:
+    """Old lines (verbatim, in order) minus those the new rows replace by (ref, mode, dataset), then the new rows."""
+    gone = {(r["ref"], r["mode"], r.get("dataset")) for r in new}
+    keep = []
+    for x in old:
+        if x.strip():
+            r = json.loads(x)
+            if (r["ref"], r["mode"], r.get("dataset")) in gone:
+                continue
+        keep.append(x if x.endswith("\n") else x + "\n")
+    return keep + [json.dumps(r) + "\n" for r in new]
+
+
 def write(rows: dict[str, list[dict[str, Any]]], sp: list[dict[str, Any]], tasks: list[str] | tuple[str, ...]) -> None:
-    """Replace docs/data/<task>_eval.jsonl (earlier rows of a model column not re-measured are kept), add speed rows."""
+    """Update docs/data/<task>_eval.jsonl (only collected (ref, mode, dataset) rows are replaced), add speed rows."""
     for t in tasks:
         f = ROOT / "docs/data" / f"{t}_eval.jsonl"
-        have = {(r["ref"], r["column"]) for r in rows[t] if r.get("column")}
-        old = [r for r in _jl(f) if r["mode"] in DOCS_MODE and (r["ref"], DOCS_MODE[r["mode"]]) not in have]
-        f.write_text("".join(json.dumps(r) + "\n" for r in old + rows[t]))
+        f.write_text("".join(merge_lines(f.read_text().splitlines(keepends=True) if f.exists() else [], rows[t])))
     sj = ROOT / "docs/data/speed.jsonl"
     key = ("ref", "mode", "tier", "input", "date")
     have_sp = {tuple(r.get(k) for k in key) for r in _jl(sj)}

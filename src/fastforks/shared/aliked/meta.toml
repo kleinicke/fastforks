@@ -1,0 +1,4 @@
+summary = "ALIKED (Zhao et al., IEEE TIM 2023): the keypoint detector-descriptor with deformable sparse descriptors (aliked-n16 etc.), used by the lightglue and flexglue matching families."
+licence = "BSD-3-Clause"
+files = ["LICENSE"]
+derived_from = "https://github.com/cvg/LightGlue (5a650c444718caffc2669dc0094cde908f42dd73), lightglue/aliked.py = https://github.com/Shiaoming/ALIKED (BSD-3-Clause); torchvision deform_conv2d -> the `deform_op` argument"

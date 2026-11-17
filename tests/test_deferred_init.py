@@ -124,6 +124,14 @@ def test_data_assignment_keeps_its_values() -> None:
     assert torch.equal(net.lin.weight, fused)
 
 
+def test_data_copy_keeps_its_values() -> None:
+    fused = torch.full((4, 8), 0.25)
+    with deferred_init():
+        net = _Net()
+        net.lin.weight.data.copy_(fused)  # timm's `fuse()` (RepViT): an in-place write that bumps no version counter
+    assert torch.equal(net.lin.weight, fused)
+
+
 def test_moved_unloaded_tensors_hold_zeros() -> None:
     with deferred_init():
         net = _Net().to(torch.float64)

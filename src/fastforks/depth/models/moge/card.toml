@@ -1,7 +1,7 @@
 schema = 2
 name = "MoGe"
 summary = "MoGe-2 / MoGe-3 (Wang et al., Microsoft): monocular metric geometry; a DINOv2 ViT with conv heads predicts an affine point map, a validity mask, normals and a metric scale, and the focal length and shift are recovered from the points (MoGe-3 adds a sparse 3-D refiner)."
-tier = "experimental"
+tier = "stable"
 outputs = ["depth", "points", "intrinsics", "mask", "normals"]  # intrinsics: the camera of the points (given ones: only fx is used; fy != fx or an off-centre principal point raise); normals: option `normals`
 uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports
 
@@ -30,7 +30,7 @@ normals = false  # also run the normal head
 
 [modes.portable]
 cuda_dtype = "float16"
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 # Kernels keeps the class token (the only source of the metric scale) in a float32 residual. Its golden error (synthetic
 # test image, vs CPU float32: ~1e-3..4e-3 relative depth) is fp16-stream noise, not the model's error: on 16 real images
@@ -40,11 +40,31 @@ kernels = ["fastbb", "dpt_fused", "sparse_conv"]  # sparse_conv: the MoGe-3 refi
 mps_kernels = ["sparse_metal"]  # the MoGe-3 refiner's sparse convs (MoGe-2: the portable network as is)
 mps_dtype = "float32"  # the portable network's float16 misses the metric scale (no float32 class-token residual)
 
+[[papers]]
+title = "MoGe-2: Accurate Monocular Geometry with Metric Scale and Sharp Details"
+url = "https://arxiv.org/abs/2507.02546"
+date = "2025-07-03"
+venue = "arXiv"
+variants = ["moge-2-vits-normal", "moge-2-vitl-normal"]
+
+[[papers]]
+title = "MoGe-3: Fine-Detail Monocular Geometry Estimation with Self-Guided Sparse Volumetric Refinement"
+url = "https://arxiv.org/abs/2607.17967"
+date = "2026-07-20"
+venue = "arXiv"
+variants = ["moge-3-vitl"]
+
 [[variants]]
 id = "moge-2-vits-normal"
 revision = 1
 params = { arch = "vits", version = 2 }
 weights = [{ name = "moge-2-vits-normal/model.pt", size = 140550416, sha256 = "79a16621928c2bf0ed04659218c55c01075e950507f40bb3332fb4c873d3e1dc", url = "https://huggingface.co/Ruicheng/moge-2-vits-normal/resolve/26b477f41595707c5db6770294c0d1721e8ed4ed/model.pt" }]
+
+[[variants]]
+id = "moge-2-vitb-normal"
+revision = 1
+params = { arch = "vitb", version = 2 }
+weights = [{ name = "moge-2-vitb-normal/model.pt", size = 419110160, sha256 = "16b8110e86d5dc5a849db120ca96ef3a223fd30b0c9146d1d81db504073da5f6", url = "https://huggingface.co/Ruicheng/moge-2-vitb-normal/resolve/ca5f0e07ff01d3e5a364c1d954ed12ee1814b368/model.pt" }]
 
 [[variants]]
 id = "moge-2-vitl-normal"
@@ -54,6 +74,7 @@ weights = [{ name = "moge-2-vitl-normal/model.pt", size = 1323815904, sha256 = "
 
 [[variants]]
 id = "moge-3-vitl"
+planned = { onnx = "torch.export fails (TorchExportError, step 1/3 of the ONNX export)", compile = "Inductor fails a value-range assertion (0 not in [2, inf])" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { arch = "vitl", version = 3 }
 weights = [{ name = "moge-3-vitl/model.pt", size = 1481333394, sha256 = "9b41b7b9f65ad80aab7ad686f5e9cc0d1fd33f1964022618dfbcd52fc1fb7925", url = "https://huggingface.co/Ruicheng/moge-3-vitl/resolve/184008f877d7ad1ad4c2cd2182a9bd1f63d0e5be/model.pt" }]

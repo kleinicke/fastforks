@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeAlias
 
@@ -13,7 +14,7 @@ from fastforks._core import model as core
 from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
 from fastforks._core.errors import InputError
-from fastforks._core.image import ImageLike, is_batch, to_rgb_batch, unbatch
+from fastforks._core.image import ImageLike, is_batch, to_rgb_batch
 from fastforks._core.io import MAP_SUFFIXES, check_suffix, write_png_x256
 from fastforks._core.model import Backend
 from fastforks._core.outputs import MapOutputs
@@ -31,6 +32,7 @@ __all__ = ["Backend", "DepthKind", "DepthModel", "DepthResult", "list_models", "
 TASK = "depth"
 _STANDARD = spec(TASK).standard
 _VECTOR_MAPS = ("points", "normals")
+_MAP_DIMS = 2
 ArrayLike: TypeAlias = "torch.Tensor | np.ndarray | Sequence[Sequence[float]] | Sequence[Sequence[Sequence[float]]]"
 
 
@@ -164,9 +166,14 @@ class DepthModel(core.Model):
     Has the attributes of `fastforks.Model`.
     """
 
+    _list_images = 1
+    _per_input = ("intrinsics", "prompt_depth")
+
     _runner: Runner
 
-    def __call__(self, image: ImageLike, *, intrinsics: ArrayLike | None = None) -> DepthResult:
+    def __call__(
+        self, image: ImageLike, *, intrinsics: ArrayLike | None = None, prompt_depth: ArrayLike | None = None
+    ) -> DepthResult:
         """Estimate depth (and whatever else the model produces) for an image.
 
         Args:
@@ -174,19 +181,77 @@ class DepthModel(core.Model):
             intrinsics: Pinhole matrix `[3, 3]` (or `[B, 3, 3]`; tensor, numpy array or nested lists) in pixels of
                 `image`, for models that use it (see the card); `None` lets the model estimate it. OpenCV pixel
                 centres (pixel `i` centred at `i`), as the estimates.
+            prompt_depth: For depth-prompted models (Prompt Depth Anything, LingBot-Depth; see the card): a metric
+                depth map in metres, `[h, w]` (shared by a batch) or `[B, h, w]`, e.g. from a LiDAR; any size, it is
+                resampled inside the network. It is required by those models and an error for the others. Depth
+                completion models (LingBot-Depth) take maps with holes (0, NaN or inf: missing).
 
         Returns:
             The result; batched inputs give batched maps.
 
         Raises:
             InputError: Unsupported or too small image, intrinsics of the wrong shape, intrinsics passed to a model
-                that does not use them, or missing for one that needs them.
+                that does not use them, or missing for one that needs them; the same for `prompt_depth`, or a
+                dense `prompt_depth` that is not a finite, positive map.
         """
         x = to_rgb_batch(image, self.device)
         self._check_size(x)
+        if self._runner.video and x.shape[0] > 1:
+            warnings.warn(
+                f"{self.variant.ref} is a video model but a batch of {x.shape[0]} images is depth-estimated frame by "
+                "frame, not as a clip (flicker); use model.video(frames) for temporal consistency",
+                stacklevel=2,
+            )
         k = self._intrinsics(intrinsics, x.shape[0])
+        p = self._prompt(prompt_depth, x.shape[0])
+        maps = self._batched(self._runner, x, k) if p is None else self._batched(self._runner, x, k, p)
+        return self._result(maps, x, k, batched=is_batch(image))
+
+    def video(self, frames: Sequence[ImageLike] | np.ndarray | torch.Tensor) -> DepthResult:
+        """Depth of every frame of one video, consistent over time (video models, e.g. Video Depth Anything).
+
+        Calling a video model with a batch gives independent frames; `video` runs the frames as one clip.
+
+        Args:
+            frames: The frames in time order: a sequence of images (paths, PIL, numpy HWC, torch CHW; one size), or a
+                `[T, H, W, 3]` / `[T, 3, H, W]` batch.
+
+        Returns:
+            The result with maps `[T, h, w]`, frame `t` at index `t`.
+
+        Raises:
+            InputError: The model is an image model, or an empty, mixed-size or too small video.
+        """
+        if not self._runner.video:
+            msg = (
+                f"{self.variant.ref} is an image model: call it with an image or a batch (`video` is for video models)"
+            )
+            raise InputError(msg)
+        if isinstance(frames, np.ndarray | torch.Tensor):
+            x = to_rgb_batch(frames, self.device)
+        elif isinstance(frames, str | bytes) or not hasattr(frames, "__len__"):
+            msg = f"frames must be a sequence of frames or a [T, ...] frame batch, got {type(frames).__name__}"
+            raise InputError(msg)
+        else:
+            parts = [to_rgb_batch(f, self.device) for f in frames]
+            if not parts:
+                msg = "video has no frames"
+                raise InputError(msg)
+            for t, f in enumerate(parts):
+                if f.shape[0] != 1 or f.shape[-2:] != parts[0].shape[-2:]:
+                    msg = f"video frame {t} has shape {tuple(f.shape)}; frames must be single images of one size"
+                    raise InputError(msg)
+            x = torch.cat(parts)
+        self._check_size(x)
+        with self._session():
+            maps = self._runner(x, None)
+        return self._result(maps, x, None, batched=True)
+
+    def _result(
+        self, maps: dict[str, torch.Tensor], x: torch.Tensor, k: torch.Tensor | None, *, batched: bool
+    ) -> DepthResult:
+        """The checked maps of `x` `[B, 3, h, w]` as a result (without the batch dim unless `batched`)."""
         b, (h, w) = x.shape[0], x.shape[-2:]
-        maps = self._batched(self._runner, x, k)
         shapes = {
             name: (b, h, w, 3)
             if name in _VECTOR_MAPS
@@ -200,7 +265,8 @@ class DepthModel(core.Model):
         out = self._check_outputs(maps, shapes)
         if k is not None and "intrinsics" not in out:
             out["intrinsics"] = k
-        out = unbatch(out, image)
+        if not batched:
+            out = {name: v[0] for name, v in out.items()}
         result = DepthResult(
             **{name: out.pop(name, None) for name in _STANDARD},
             extras=out,
@@ -209,8 +275,46 @@ class DepthModel(core.Model):
             backend=self.backend,
             options=self.options,
         )
-        object.__setattr__(result, "_image", x if is_batch(image) else x[0])  # not a field: colours of `save`
+        object.__setattr__(result, "_image", x if batched else x[0])  # not a field: colours of `save`
         return result
+
+    def example_inputs(
+        self, height: int | None = None, width: int | None = None, *, batch: int = 1
+    ) -> tuple[torch.Tensor, ...]:
+        """Example `module()` inputs: the image `[batch, 3, H, W]`, then the prompt `[batch, 1, H/8, W/8]` if needed."""
+        (image,) = super().example_inputs(height, width, batch=batch)[:1]
+        if self._runner.prompt_depth != "required":
+            return (image,)
+        prompt = synthetic_prompt(*image.shape[-2:], self.device)
+        return image, prompt.expand(batch, 1, -1, -1).contiguous()
+
+    def _prompt(self, p: ArrayLike | None, batch: int) -> torch.Tensor | None:
+        use = self._runner.prompt_depth
+        if p is None:
+            if use == "required":
+                msg = f"{self.variant.ref} needs a depth prompt (prompt_depth=[h, w] metric depth map in metres)"
+                raise InputError(msg)
+            return None
+        if use == "unused":
+            msg = f"{self.variant.ref} does not use a depth prompt; call it without prompt_depth"
+            raise InputError(msg)
+        try:
+            p = torch.as_tensor(p, dtype=torch.float32)
+        except (TypeError, ValueError, RuntimeError) as e:
+            msg = f"prompt_depth must be a [h, w] or [B, h, w] array: {e}"
+            raise InputError(msg) from e
+        if p.ndim == _MAP_DIMS:
+            p = p[None]
+        if p.ndim != _MAP_DIMS + 1 or p.shape[0] not in {1, batch} or min(p.shape[-2:]) < 1:
+            msg = f"prompt_depth must be [h, w] or [{batch}, h, w], got shape {tuple(p.shape)}"
+            raise InputError(msg)
+        p = p.to(self.device)
+        if not self._runner.prompt_sparse and not bool(
+            torch.isfinite(p).all() & (p.amin() > 0)
+        ):  # one sync, as the other input checks
+            msg = "prompt_depth must be finite and positive (metres); fill missing LiDAR pixels before the call"
+            raise InputError(msg)
+        return p.expand(batch, -1, -1)[:, None].contiguous()  # [B, 1, h, w]
 
     def _intrinsics(self, k: ArrayLike | None, batch: int) -> torch.Tensor | None:
         use = self._runner.intrinsics
@@ -218,6 +322,12 @@ class DepthModel(core.Model):
             if use == "required":
                 msg = f"{self.variant.ref} needs the camera intrinsics (intrinsics=[3, 3] pixel matrix)"
                 raise InputError(msg)
+            if use == "optional" and self._runner.assumed_camera:
+                warnings.warn(
+                    f"{self.variant.ref} was called without intrinsics: its metres assume "
+                    f"{self._runner.assumed_camera}, wrong for a real camera; pass intrinsics=K (3 x 3, pixels)",
+                    stacklevel=5,
+                )
             return None
         if use == "unused":
             msg = f"{self.variant.ref} does not use camera intrinsics; call it without them"
@@ -244,13 +354,25 @@ class DepthModel(core.Model):
 
 
 def bench_inputs(model: DepthModel, size: BenchSize) -> BenchInputs:
-    """`fastforks bench` call: one synthetic image `[1, 3, H, W]`, plus pinhole intrinsics if the model needs them."""
+    """`fastforks bench` call: one synthetic image `[1, 3, H, W]`, plus the intrinsics / prompt the model needs."""
     h, w = size.height, size.width
     image = synthetic_image(h, w, model.device)
-    if model._runner.intrinsics != "required":  # noqa: SLF001 - the task's own runner contract
-        return (image,), {}
-    k = torch.tensor([[0.9 * w, 0.0, (w - 1) / 2], [0.0, 0.9 * w, (h - 1) / 2], [0.0, 0.0, 1.0]])  # OpenCV pixels
-    return (image,), {"intrinsics": k}
+    r = model._runner  # noqa: SLF001 - the task's own runner contract
+    kwargs: dict[str, Any] = {}
+    if r.intrinsics == "required":
+        kwargs["intrinsics"] = torch.tensor(
+            [[0.9 * w, 0.0, (w - 1) / 2], [0.0, 0.9 * w, (h - 1) / 2], [0.0, 0.0, 1.0]]
+        )  # OpenCV pixels
+    if r.prompt_depth == "required":
+        kwargs["prompt_depth"] = synthetic_prompt(h, w, model.device)
+    return (image,), kwargs
+
+
+def synthetic_prompt(h: int, w: int, device: torch.device | str) -> torch.Tensor:
+    """A smooth positive depth prompt `[h // 8, w // 8]` in metres (the LiDAR-like 1/8-resolution map)."""
+    y = torch.linspace(0, 1, max(h // 8, 1), device=device)[:, None]
+    x = torch.linspace(0, 1, max(w // 8, 1), device=device)[None]
+    return 1.5 + 2.0 * y + 1.0 * x + 0.3 * torch.sin(9 * x + 5 * y)
 
 
 list_models, model_card, load = task_api(TASK, DepthModel)

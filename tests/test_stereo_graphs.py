@@ -27,7 +27,7 @@ def _load(**options: bool) -> stereo.StereoModel:
     if not torch.cuda.is_available():
         pytest.skip("no CUDA")
     try:
-        return stereo.load(REF, mode="kernels", device="cuda", options=options or None)
+        return stereo.load(REF, mode="kernels", device="cuda", **(options or {}))
     except WeightsError as e:
         pytest.skip(f"{REF} weights not available: {e}")
 

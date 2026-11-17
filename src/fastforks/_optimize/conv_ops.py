@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.half import cublas_gemms_on, graph_sized_on
 from fastforks._core.kernels import current_stream, note_fallback
 from fastforks.kernels import fvm_conv
 
@@ -111,6 +112,14 @@ def _stem_c8_weight(w: torch.Tensor) -> torch.Tensor:
     return wt
 
 
+def _need_half(op: str, **ts: torch.Tensor | None) -> None:
+    """Raise unless every given tensor is fp16: the kernels read raw fp16 pointers, another dtype would be garbage."""
+    bad = [k for k, t in ts.items() if t is not None and t.dtype != _HALF]
+    if bad:
+        msg = f"{op}: {', '.join(bad)} must be float16"
+        raise ValueError(msg)
+
+
 def _conv_impl(
     x: torch.Tensor,
     w: torch.Tensor,
@@ -129,6 +138,7 @@ def _conv_impl(
     if not w.is_contiguous(memory_format=_CL):
         msg = "conv_fused: weight must be channels-last"
         raise ValueError(msg)
+    _need_half("conv_fused", x=x, weight=w, bias=bias, residual=res)
     if res is not None:
         res = res.contiguous(memory_format=_CL)
     n, c, h, wd = x.shape
@@ -291,6 +301,7 @@ def dwconv(
 ) -> torch.Tensor:
     """Depthwise conv, fp32 accumulation; w_rsc `[R, S, C]` contiguous."""
     x = x.contiguous(memory_format=_CL)
+    _need_half("dwconv", weight=w_rsc, bias=bias)
     if x.dtype != _HALF or x.shape[1] % 8 or not w_rsc.is_contiguous():
         msg = "dwconv: fp16 x with C % 8 == 0 and a contiguous [R, S, C] weight"
         raise ValueError(msg)
@@ -337,6 +348,24 @@ def input_nhwc8(x: torch.Tensor) -> torch.Tensor:
 
 LIN_MAX_ROWS = 2048  # residual GEMMs with fewer rows (batch * tokens) and ...
 LIN_MIN_WORK = 1 << 29  # ... at least this many multiply-adds (rows * K * N) run cuBLAS + add
+LIN_GRAPH_ROWS = 600  # inside `graph_sized()` (opt-in): GEMMs with at most this many rows run cuBLAS + epilogue
+
+_ACTS = {  # the fused epilogue's codes (module docstring)
+    0: lambda y: y,
+    1: F.relu,
+    2: F.relu6,
+    3: F.silu,
+    4: F.hardswish,
+    5: F.gelu,
+    6: lambda y: F.gelu(y, approximate="tanh"),
+}
+
+
+def _lin_cublas(
+    x: torch.Tensor, w4: torch.Tensor, b: torch.Tensor | None, res: torch.Tensor | None, act: int
+) -> torch.Tensor:
+    y = F.linear(x, w4.reshape(w4.shape[0], x.shape[-1]), b)
+    return _ACTS[act](y if res is None else y + res.reshape(y.shape))  # the fused epilogue's order: act(. + res)
 
 
 def lin(
@@ -349,15 +378,25 @@ def lin(
     (e.g. SigLIP-so400m 378, 729 rows: attention projection 35.2 vs 38.8 us, MLP down-projection 97 vs 121 us on an
     RTX 5060 Ti) while the extra add launch is negligible. Smaller GEMMs are launch bound and the fused kernel saves a
     launch (DeiT-B 224: 2.88 vs 3.61 ms), larger ones favour the fused kernel (up to 1.7x from 4096 rows).
+
+    Two opt-in dispatches, off unless the runner enters the context (no other runner's GEMMs change): inside
+    `fastforks._core.half.graph_sized()` a GEMM of at most `LIN_GRAPH_ROWS` rows runs as `F.linear` + epilogue
+    (in a replayed CUDA graph the launches cost nothing and cuBLAS wins there; `shared.libnet.features.Kernels`
+    enters it for every call small enough for a graph, eager or captured, so the two agree); inside
+    `fastforks._core.half.cublas_gemms()` every GEMM does. cuBLAS accumulates as the caller's flag says.
     """
     sh = x.shape
     k = sh[-1]
     x2 = x.reshape(-1, k)
     m = x2.shape[0]
-    if res is not None and act == 0 and m < LIN_MAX_ROWS and m * k * w4.shape[0] >= LIN_MIN_WORK and x.is_cuda:
-        # cuBLAS: faster here (coarse fused tile grid) and more accurate (fp32 accumulate); a dispatch, not a fallback
-        y = F.linear(x, w4.reshape(w4.shape[0], k), b)
-        return y + res.reshape(y.shape)
+    if x.is_cuda and (
+        cublas_gemms_on()
+        or (res is not None and act == 0 and m < LIN_MAX_ROWS and m * k * w4.shape[0] >= LIN_MIN_WORK)
+        or (m <= LIN_GRAPH_ROWS and graph_sized_on())
+    ):
+        # cuBLAS: faster there (coarse fused tile grid; no launch cost in a graph), or asked for; accumulates as
+        # the cuBLAS flag says (fp16 inside `fp16_accumulate`). A dispatch, not a fallback.
+        return _lin_cublas(x, w4, b, res, act)
     r = None if res is None else res.reshape(m, -1).view(1, m, 1, -1).permute(0, 3, 1, 2)
     y = conv_fused(x2.view(1, m, 1, k).permute(0, 3, 1, 2), w4, b, r, [0, 0], [1, 1], act)
     return y.permute(0, 2, 3, 1).reshape(*sh[:-1], -1)

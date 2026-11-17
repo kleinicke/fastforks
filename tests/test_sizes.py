@@ -43,6 +43,19 @@ def test_tested_max_and_not_measured():
     assert measured  # sizes.json is packaged and matches refs
 
 
+# refs without a measured largest size, with the reason (cards never say "not measured" for anything else)
+UNMEASURED: dict[str, str] = {  # ref: why it has no tested size
+}
+
+
+def test_every_ref_has_a_tested_size():
+    """A new ref needs its sizes.json entry: tools/bench_sizes.py on a GPU, then tools/extract_sizes.py."""
+    refs = {v.ref.split("@")[0]: size_range(v, card) for t in registry.TASKS for card, v in registry.cards(t).values()}
+    missing = sorted(r for r, s in refs.items() if not s.tested_max and r not in UNMEASURED)
+    assert not missing, f"no tested size (run tools/bench_sizes.py + tools/extract_sizes.py): {missing}"
+    assert not [r for r in UNMEASURED if r in refs and refs[r].tested_max], "measured now: drop it from UNMEASURED"
+
+
 def test_card_lines_cover_every_variant():
     card, _ = registry.resolve_any("s2m2-s")
     lines = card_size_lines(card)
@@ -63,8 +76,7 @@ def _stub(  # noqa: PLR0913 - a stub with the fields the tests vary
     model.card = SimpleNamespace(task=task, family=family)
     model.variant = SimpleNamespace(ref="x@1", outputs=("depth",))
     model.backend = SimpleNamespace(mode="portable")
-    model.export_size = lambda: default
-    model.size_range = lambda: SizeRange(min_size=min_size, multiple=multiple, native=native)
+    model.size_range = lambda: SizeRange(min_size=min_size, multiple=multiple, native=native, export_size=default)
     return model
 
 

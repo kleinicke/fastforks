@@ -123,10 +123,9 @@ def test_capture_builds_at_once(conv: cudnn_hacc.CudnnHalfConv) -> None:
 
 
 def test_captured_workspace_is_the_graphs(conv: cudnn_hacc.CudnnHalfConv) -> None:
-    """A graph keeps its own workspace, not the stream's cached one.
+    """A graph keeps its own workspace: memory allocated after the capture is not written by a replay.
 
-    A later plan with a bigger workspace on the capture stream (the next shape's capture) replaces the cached one; a
-    graph holding it then wrote into freed memory (ETH3D size streams: illegal address on the next replay).
+    A graph holding a workspace freed later wrote into reused memory (ETH3D size streams: illegal address on replay).
     """
     g = torch.Generator("cuda").manual_seed(0)
     x = torch.randn(1, 64, 112, 184, device="cuda", generator=g).half().contiguous(memory_format=CL)
@@ -139,10 +138,9 @@ def test_captured_workspace_is_the_graphs(conv: cudnn_hacc.CudnnHalfConv) -> Non
     side.wait_stream(torch.cuda.current_stream())
     graph = torch.cuda.CUDAGraph()
     with torch.cuda.stream(side):
-        conv.deconv(x, w, [1, 1], [2, 2])  # eager warm-up: caches the side stream's workspace
+        conv.deconv(x, w, [1, 1], [2, 2])  # eager warm-up
         with torch.cuda.graph(graph, stream=side):
             y = conv.deconv(x, w, [1, 1], [2, 2])
-        conv.free_workspaces()  # as a bigger plan replacing it
         junk = torch.full((e.workspace,), 7, device="cuda", dtype=torch.uint8)  # may reuse the freed block
         graph.replay()
     torch.cuda.current_stream().wait_stream(side)
@@ -350,8 +348,8 @@ def test_capture_after_follows_the_plans(monkeypatch: pytest.MonkeyPatch) -> Non
     assert cudnn_hacc.capture_after() == 5
 
 
-def test_workspace_freed_with_the_last_model() -> None:
-    """A loaded kernels model keeps the plan workspace; it goes back to the allocator with the last one."""
+def test_no_workspace_stays_resident() -> None:
+    """A kernels model holds no plan workspace between calls: it goes back to the allocator with the model."""
     if not torch.cuda.is_available():
         pytest.skip("no CUDA")
     from fastforks import stereo  # noqa: PLC0415
@@ -362,15 +360,7 @@ def test_workspace_freed_with_the_last_model() -> None:
     base = torch.cuda.memory_allocated()
     a = stereo.load("coex-sceneflow@1", mode="kernels", device="cuda")
     a(*(torch.rand(1, 3, 384, 640, device="cuda") for _ in range(2)))
-    held = torch.cuda.memory_allocated()
-    b = stereo.load("coex-sceneflow@1", mode="kernels", device="cuda")
     del a
     gc.collect()
-    assert cudnn_hacc._users == 1
-    assert any(c.numel() for c in cudnn_hacc._instance()._ws.values()) or held > base
-    del b
-    gc.collect()
     torch.cuda.empty_cache()
-    assert cudnn_hacc._users == 0
-    assert not cudnn_hacc._instance()._ws
     assert torch.cuda.memory_allocated() - base < 8 * 2**20

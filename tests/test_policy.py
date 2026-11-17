@@ -28,10 +28,22 @@ OPTIONAL = {
     "onnx": {"_core/export.py"},  # the dynamic-export check reads the written file
     "onnxruntime": {"_core/export.py"},  # ... and runs it in range, when installed
     "timm": {"shared/libnet/__init__.py"},  # the timm / torchvision extras: families built by those libraries
-    "torchvision": {"detection/_ops.py", "shared/libnet/__init__.py"},  # + R-CNN ROIAlign / NMS
-    "transformers": {"shared/seginfer/__init__.py"},  # the transformers extra: families built by transformers
+    "torchvision": {  # R-CNN ops and lazily constructed optional library networks
+        "detection/_ops.py",
+        "shared/libnet/__init__.py",
+        "shared/rfdetr/net/utilities/box_ops.py",
+        "shared/rfdetr/net/utilities/tensors.py",
+    },
+    "transformers": {  # optional libraries imported only when constructing their networks
+        "shared/seginfer/__init__.py",
+        "shared/rfdetr/net/models/backbone/dinov2.py",
+        "shared/rfdetr/net/models/backbone/dinov2_with_windowed_attn.py",
+    },
     "laspy": {"stereo/geometry/ply.py"},  # .las / .laz point clouds (dependencies, imported in this module only)
     "lazrs": {"stereo/geometry/ply.py"},
+    "pycolmap": {"matching/sfm.py"},  # `sfm.reconstruct` (the `sfm` extra)
+    "nibabel": {"volume/_nifti.py"},  # `read_nifti` / `write_nifti` (the `nifti` extra)
+    "pydicom": {"volume/_nifti.py"},  # `read_dicom` (the `dicom` extra)
 }
 # Files allowed to import computed module names: the registry imports `fastforks.<task>.models.<family>.model`, the
 # task package its own `<task>` spec modules, the top level the module of each lazily re-exported name.
@@ -39,17 +51,43 @@ DYNAMIC = {"__init__.py", "_core/registry.py", "_core/tasks/__init__.py"}
 # Known violations of three rules on main, open in the depth / features workstreams. Exempt per file (and per name),
 # so the rules stay active for every other file of these tasks; remove an entry when its file is fixed.
 # DPT conversions shared from the DAv2 `fused` module (should move to shared/):
-CROSS_FAMILY_IMPORTS = {
-    f"depth/models/{family}/model.py": "fastforks.depth.models.depth_anything_v2.fused"
-    for family in ("depth_anything_3", "depth_pro", "moge", "unik3d")
+CROSS_FAMILY_IMPORTS: dict[str, str | tuple[str, ...]] = {
+    f"depth/models/{family}/{file}.py": "fastforks.depth.models.depth_anything_v2.fused"
+    for family, file in (
+        ("depth_anything_3", "model"),
+        ("depth_pro", "model"),
+        ("moge", "model"),
+        ("unik3d", "model"),
+        ("prompt_depth_anything", "fused"),
+        ("any2full", "model"),
+        ("omni_dc", "model"),
+    )
 }
+# LingBot-Depth reuses MoGe's neck / heads and its kernels-mode helpers (upstream builds on MoGe's modules):
+CROSS_FAMILY_IMPORTS |= {
+    f"depth/models/lingbot_depth/{file}.py": (
+        "fastforks.depth.models.moge",
+        "fastforks.depth.models.depth_anything_v2.fused",
+    )
+    for file in ("model", "net")
+}
+# LingBot-Map is VGGT's code with a streaming aggregator: it reuses VGGT's modules and fast path.
+CROSS_FAMILY_IMPORTS |= {
+    f"multiview/models/lingbot_map/{file}.py": "fastforks.multiview.models.vggt" for file in ("model", "net")
+}
+# ReSplat builds on DepthSplat's code (same authors): it reuses its depth network modules and kernels-mode helpers.
+CROSS_FAMILY_IMPORTS |= {
+    f"multiview/models/resplat/{file}.py": "fastforks.multiview.models.depthsplat"
+    for file in ("model", "net/mv_unimatch")
+}
+# YuNet reuses RetinaFace's greedy NMS (same face-detection decode).
+CROSS_FAMILY_IMPORTS["pose/models/yunet/model.py"] = "fastforks.pose.models.retinaface.model"
 TORCH_LOAD = {"depth/models/midas/model.py", "depth/models/zoedepth/model.py"}  # per-family checkpoint loaders
 UNDOCUMENTED_CONSTANTS = {
     ("depth/models/depth_anything_3/model.py", "PATCH"),
     ("depth/models/depth_anything_3/model.py", "HEAD_DIM"),
     ("depth/models/depth_anything_3/model.py", "_FEATURES"),
     ("depth/models/depth_anything_v2/model.py", "PATCH"),
-    ("depth/models/marigold/model.py", "LATENT_SCALE"),
     ("depth/models/midas/model.py", "MULTIPLE"),
     ("depth/models/moge/model.py", "_REFINE_STEPS"),
     ("depth/models/moge/model.py", "_DEPTH_RES"),
@@ -182,18 +220,37 @@ def test_families_do_not_import_each_other(task):
         own = models + card.family
         for path in _family_files(task, card.family):
             allowed = CROSS_FAMILY_IMPORTS.get(str(path.relative_to(SRC)), own)
+            prefixes = tuple(p + "." for p in ((allowed,) if isinstance(allowed, str) else allowed))
             bad = {
                 m
                 for m in imported_modules(path)
-                if m.startswith(models) and not (m + ".").startswith((own + ".", allowed + "."))
+                if m.startswith(models) and not (m + ".").startswith((own + ".", *prefixes))
             }
             assert not bad, f"{path.relative_to(SRC)} imports another family: {bad} (move shared code to shared/)"
+
+
+def _task_model_imports(modules: set[str]) -> set[str]:
+    """Separate forbidden task-family dependencies from upstream shared net/models packages."""
+    return {
+        m
+        for m in modules
+        if any(m == f"fastforks.{t}.models" or m.startswith(f"fastforks.{t}.models.") for t in registry.TASKS)
+    }
+
+
+def test_task_model_boundary_includes_all_tasks_but_not_shared_vendor_models():
+    forbidden = {f"fastforks.{task}.models.family.model" for task in registry.TASKS}
+    forbidden |= {"fastforks.pose.models"}
+    allowed = {"fastforks.shared.rfdetr.net.models.lwdetr", "fastforks.pose.models_extra", "torchvision.models"}
+    assert _task_model_imports(forbidden | allowed) == forbidden
 
 
 @pytest.mark.parametrize("area", ["_core", "kernels", "shared"])
 def test_core_does_not_import_models(area):
     for path in sorted((SRC / area).rglob("*.py")):
-        bad = {m for m in imported_modules(path) if ".models" in m}
+        # Vendored shared architectures may retain an upstream package named "models".
+        # The boundary forbids dependencies on task-specific model families.
+        bad = _task_model_imports(imported_modules(path))
         assert not bad, f"{path.relative_to(SRC)} imports model code {bad}"
 
 
@@ -220,7 +277,8 @@ def test_shared_directories_have_meta():
 @pytest.mark.slow
 @pytest.mark.parametrize("task", registry.TASKS)
 def test_card_uses_matches_imports(task):
-    for card, _ in registry.cards(task).values():
+    cards = {card.family: card for card, _ in registry.cards(task).values()}
+    for card in cards.values():
         used = {
             m.split(".")[2]
             for p in _family_files(task, card.family)
@@ -270,6 +328,19 @@ def _module_file(name: str) -> Path | None:
     return next((f for f in (p.with_suffix(".py"), p / "__init__.py") if f.is_file()), None)
 
 
+def _task_helpers(task: str, files: list[Path]) -> list[Path]:
+    """The task's own helper modules (`fastforks.<task>._*`) that `files` import, transitively."""
+    found: list[Path] = []
+    queue = list(files)
+    while queue:
+        for m in imported_modules(queue.pop()):
+            f = _module_file(m) if m.startswith(f"fastforks.{task}._") else None
+            if f is not None and f not in found and f not in files:
+                found.append(f)
+                queue.append(f)
+    return found
+
+
 def _optimize_imports(files: list[Path]) -> set[str]:
     """Modules imported, transitively, through the `fastforks._optimize` modules that `files` import.
 
@@ -311,21 +382,48 @@ def _optimize_imports(files: list[Path]) -> set[str]:
 @pytest.mark.slow
 @pytest.mark.parametrize("task", registry.TASKS)
 def test_card_kernels_match_imports(task):
+    """Declare direct dependencies; shared modules may contain alternative backends.
+
+    Static imports give bounds, not the exact executed set: for example libnet also defines a Perception Encoder
+    Metal runner that AlexNet never calls. GPU parity tests separately check the libraries actually launched for
+    each exercised input, including CUDA graph capture and cuDNN half-accumulate calls.
+    """
     libs = {p.name for p in (SRC / "kernels").iterdir() if (p / "__init__.py").is_file()}
-    for card, _ in registry.cards(task).values():
+    cards = {card.family: card for card, _ in registry.cards(task).values()}
+    for card in cards.values():
         # Shared modules count for families with a kernels backend (a portable-only family's `uses` is checked against
         # its imports in test_card_uses_matches_imports).
-        files = _family_files(task, card.family) + [
+        family = _family_files(task, card.family)
+        files = family + [
             p for u in card.uses if "kernels" in card.modes for p in sorted((SRC / "shared" / u).rglob("*.py"))
         ]
+        files += _task_helpers(task, files)  # D-FINE: `detection._convs.DepthwiseConvs` loads fvm_conv
         mods = {m for p in files for m in imported_modules(p)} | _optimize_imports(files)
         used = {m.split(".")[2] for m in mods if m.startswith("fastforks.kernels.") and m.split(".")[2] in libs}
+        direct = {
+            m.split(".")[2]
+            for p in family
+            for m in imported_modules(p)
+            if m.startswith("fastforks.kernels.") and m.split(".")[2] in libs
+        }
+        # A family that loads another task's models through its public API (INSID3: `fastforks.features` DINOv3)
+        # runs that task's kernels, which no static import shows: they bound what it may declare.
+        other = {m.split(".")[1] for m in mods if m.split(".")[:1] == ["fastforks"] and m.count(".") >= 1} - {task}
+        via = {
+            lib
+            for t in sorted(other & set(registry.TASKS))
+            for c, _ in registry.cards(t).values()
+            for lib in c.kernel_libs
+        }
         # The Metal libraries (`*_metal`) are the MPS runner's, the others the CUDA one's: check each list on its own.
         cuda, metal = {u for u in used if not u.endswith("_metal")}, {u for u in used if u.endswith("_metal")}
-        assert cuda == set(card.kernel_libs), f"{card.family}: [modes.kernels] kernels {card.kernel_libs}, code {cuda}"
-        assert metal == set(card.mps_kernel_libs), (
-            f"{card.family}: [modes.kernels] mps_kernels {card.mps_kernel_libs}, code {metal}"
-        )
+        _kernel_import_bounds(card.family, set(card.kernel_libs), direct & cuda, cuda | via)
+        _kernel_import_bounds(card.family, set(card.mps_kernel_libs), direct & metal, metal)
+
+
+def _kernel_import_bounds(family: str, declared: set[str], direct: set[str], possible: set[str]) -> None:
+    assert direct <= declared, f"{family}: direct kernel imports missing from card: {sorted(direct - declared)}"
+    assert declared <= possible, f"{family}: declared kernels absent from import closure: {sorted(declared - possible)}"
 
 
 def _calls(path: Path):
@@ -467,6 +565,48 @@ def test_mirror_paths_are_family_and_file():
         assert len({spec.sha256 for _, _, spec in uses}) == 1, path
 
 
+def test_card_mirror_names_a_weights_repo():
+    """`mirror = "<repo>"` is `fastforks/<repo>`, named after the weights; reserved repo names are refused."""
+    from fastforks._core import cards  # noqa: PLC0415
+    from fastforks._core.errors import CardError  # noqa: PLC0415
+    from fastforks._core.files import MIRROR_URL, WEIGHTS_REPO_URL  # noqa: PLC0415
+
+    t = {"name": "w.pth", "sha256": "0" * 64, "size": 1, "url": "https://example.org/v1/orig.pth"}
+    assert cards._file_spec({**t, "mirror": "w-n16"}, "x", "fam").mirror == WEIGHTS_REPO_URL.format(
+        repo="w-n16", name="orig.pth"
+    )  # the repo keeps the original file name
+    assert cards._file_spec({**t, "mirror": True}, "x", "fam").mirror == MIRROR_URL.format(group="fam", name="w.pth")
+    assert cards._file_spec(t, "x", "fam").mirror is None
+    for bad in ("mirrors", "kernels", "Bad_Name", "a/b", 1):
+        with pytest.raises(CardError):
+            cards._file_spec({**t, "mirror": bad}, "x", "fam")
+
+
+def test_weights_repos_are_named_after_the_weights_and_used_by_every_card_with_that_sha():
+    """User 2026-11-15: a repo only per changed (converted) weight file; every card pinning its SHA-256 points at it."""
+    import stage_hf  # noqa: PLC0415 - tool module, imported only here
+
+    repos, users = stage_hf.weights_repos(), stage_hf.weight_users()
+    families = {stage_hf.repo_name(f) for f in stage_hf._families()}
+    for repo, meta in repos.items():
+        assert re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", repo), repo
+        assert repo not in stage_hf.RESERVED_REPOS, repo
+        assert repo not in families, f"{repo}: a family card repo"
+        assert "converted" in meta, f"{repo}: weights repos only for weights we changed (user, 2026-11-15)"
+        assert meta.get("precision"), f"{repo}: README states precision"
+        assert meta.get("script"), f"{repo}: README states script"
+        assert stage_hf._HF_LICENCES.get(meta["licence"]), f"{repo}: no hub licence id"
+        assert licence_class(meta["licence"]) == "permissive", repo
+        for published in meta["licence_files"].values():
+            assert (Path(stage_hf.ROOT) / "src" / "fastforks" / published).is_file(), f"{repo}: {published}"
+        for name, sha in meta["files"].items():
+            assert sha in users, f"{repo}/{name}: no card pins it"
+            for _, v, spec in users[sha]:
+                assert stage_hf.weights_repo_of(spec) == (repo, name), (
+                    f"{v.ref}: {spec.name} is not fastforks/{repo}/{name}"
+                )
+
+
 @pytest.mark.parametrize("task", registry.TASKS)
 def test_commercial_status_follows_code_and_weights_licence_only(task):
     """User decision 2026-10-31: training data is a note, never a blocker."""
@@ -514,7 +654,7 @@ def test_task_load_is_generated_by_task_api(task):
         # mode / dtype / device / options / weights to `_load` unchanged
         forwarded = [c for c in calls if getattr(c.func, "id", "") == "_load"]
         assert len(forwarded) == 1, f"{task}: load() must forward to the task_api `_load`"
-        kw = {k.arg for k in forwarded[0].keywords}
+        kw = {k.arg or "options" for k in forwarded[0].keywords}  # `**options`
         assert kw == {"mode", "device", "dtype", "options", "weights"}, f"{task}: load() forwards {sorted(kw)}"
         return
     assert len(body) == 1, f"{task}: load() does more than forward"

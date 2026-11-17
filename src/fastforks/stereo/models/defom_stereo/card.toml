@@ -39,13 +39,20 @@ cuda_dtype = "bfloat16"
 mps_dtypes = ["float32"]
 
 [modes.kernels]
-kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb"]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb", "dpt_fused"]
 mps_kernels = ["stereo_metal"]
 
 # Upstream also publishes ViT-S / ViT-B SceneFlow checkpoints and Middlebury / ETH3D / KITTI fine-tunes; only the
 # ViT-L SceneFlow checkpoint is added so far (the only one we have locally).
 
+[[papers]]
+title = "DEFOM-Stereo: Depth Foundation Model Based Stereo Matching"
+url = "https://arxiv.org/abs/2501.09466"
+date = "2025-01-16"
+venue = "CVPR 2025"
+
 [[variants]]
 id = "defom-stereo-vitl-sceneflow"
+planned = { tensorrt = "the TensorRT 10 engine build fails (Myelin tactic check)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "defomstereo_vitl_sceneflow.pth", size = 1530900383, sha256 = "0be5c5ddd25e26d6077cdeed2ffcec1cd0d664aee2159c92d98c65832e1a8f3d", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1XuAM4vqzura_6NKN70hMW5lFD4TafnDL" }]

@@ -2,6 +2,7 @@ schema = 2
 name = "detectron2 Mask / Faster R-CNN (R50-FPN)"
 summary = "Mask R-CNN (He et al. 2017) and Faster R-CNN (Ren et al. 2015) from the detectron2 model zoo, COCO, ResNet-50 + FPN backbone, RPN proposals, ROIAlign box head (+ mask head); returns boxes, classes and instance masks at the input size. The portable `module()` is backbone + FPN."
 tier = "stable"
+uses = ["pil_resize"]  # fastforks.shared modules this family imports
 outputs = ["boxes", "scores", "labels", "masks"]
 licence_notes = [
   "The detectron2 model-zoo weights are CC-BY-SA-3.0 (share-alike), and the COCO images carry their own licences.",
@@ -10,6 +11,12 @@ licence_notes = [
 [upstream]
 repo = "https://github.com/facebookresearch/detectron2"
 commit = "1e3e13b"
+
+[[upstream.official]]
+repo = "https://github.com/ShaoqingRen/faster_rcnn"
+framework = "MATLAB / Caffe"
+reason = "The authors' Faster R-CNN code is MATLAB with Caffe; detectron2 is FAIR's PyTorch re-implementation and ships the FPN 3x COCO weights used here."
+variants = ["faster-rcnn-r50-fpn-3x-coco"]
 
 [licence]
 code = "Apache-2.0"
@@ -48,13 +55,27 @@ max_detections = { default = 100, min = 1 }  # TEST.DETECTIONS_PER_IMAGE
 
 [modes.portable]
 cuda_dtype = "float16"  # backbone, FPN, RPN / box / mask heads; ROIAlign, box decoding, NMS and mask pasting stay float32
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc"]  # fp16-accumulating convolutions (+ cuDNN fused conv-ReLU / conv-add-ReLU)
 
 [output]
 label_set = "coco-80"
+
+[[papers]]
+title = "Mask R-CNN"
+url = "https://arxiv.org/abs/1703.06870"
+date = "2017-03-20"
+venue = "ICCV 2017"
+variants = ["mask-rcnn-r50-fpn-3x-coco"]
+
+[[papers]]
+title = "Faster R-CNN: Towards Real-Time Object Detection with Region Proposal Networks"
+url = "https://arxiv.org/abs/1506.01497"
+date = "2015-06-04"
+venue = "NeurIPS 2015"
+variants = ["faster-rcnn-r50-fpn-3x-coco"]
 
 [[variants]]
 id = "mask-rcnn-r50-fpn-3x-coco"

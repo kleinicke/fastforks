@@ -25,7 +25,7 @@ from _common import image, reference_tree, write
 UPSTREAM = "https://github.com/microsoft/MoGe"
 REF_COMMIT = "74fbce054ebed49800de42d0ad0e83495065719a"
 PATCH = "moge-converged-focal-shift.patch"
-VARIANTS = {"moge-2-vits-normal": 2, "moge-2-vitl-normal": 2, "moge-3-vitl": 3}  # ref: version
+VARIANTS = {"moge-2-vits-normal": 2, "moge-2-vitb-normal": 2, "moge-2-vitl-normal": 2, "moge-3-vitl": 3}  # ref: version
 
 
 def main() -> None:

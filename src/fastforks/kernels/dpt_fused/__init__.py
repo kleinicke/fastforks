@@ -19,6 +19,10 @@ from fastforks._core.kernels import cuda_device, current_stream, half_rate_fp32_
 ACT_NONE, ACT_RELU, ACT_GELU, ACT_GELU_TANH = 0, 1, 5, 6
 """Epilogue activations; `ACT_GELU` is the exact (erf) GELU, `ACT_GELU_TANH` its tanh form (`tanh.approx.f32`). Models
 take `DptFused.gelu`, which picks one per card class (see there)."""
+DEEP_K = 4096
+"""ViT blocks run GEMMs with at least this many inputs (the FFN output of ViT-L and larger) in cuBLAS: the fused tile
+accumulates the whole K in fp16, which is ~3 % slower end to end at few tokens (224 px; ~1.5 % faster at 512 px) and
+less precise (DINOv3 ViT-H+: 1.6x the output error)."""
 _P = ctypes.c_void_p
 _I = ctypes.c_int
 

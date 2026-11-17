@@ -49,6 +49,7 @@ DTU = DATA / "multiview" / "dtu" / "cache" / "scan1" / "cache_640x512.npz"
 CPU_LIMIT_S = 60
 TASKS = (
     "stereo",
+    "flow",
     "depth",
     "multiview",
     "classification",
@@ -56,15 +57,32 @@ TASKS = (
     "features",
     "promptable_segmentation",
     "detection",
+    "pose",
+    "matching",
+    "matting",
+    "tracking",
+    "interpolation",
+    "retrieval",
+    "calibration",
+    "restoration",
 )
 STANDARD = {  # the task's output order: the first one present is the primary map (tolerances apply to it)
     "stereo": ("disparity", "confidence"),
+    "flow": ("flow",),
+    "matching": ("warp", "certainty"),
+    "matting": ("alpha",),
+    "interpolation": ("frame",),
+    "retrieval": ("descriptor",),
+    "calibration": ("intrinsics", "gravity", "roll", "pitch", "vfov"),
+    "restoration": ("image",),
     "depth": ("depth", "inverse_depth", "points", "intrinsics", "confidence", "mask", "normals"),
     "multiview": ("depth", "world_points", "confidence", "mask", "intrinsics", "cam_to_world"),
     "classification": ("logits",),
     "segmentation": ("logits",),
     "features": ("last_hidden_state", "pooler_output", "hidden_states"),
     "promptable_segmentation": ("pred_masks", "iou_scores", "boxes", "scores", "masks"),
+    "pose": ("keypoints", "keypoint_scores", "boxes", "scores"),
+    "tracking": ("tracks", "visibility"),
 }
 MASK_CLASSIFICATION = {"eomt", "mask2former", "oneformer"}
 INSTANCE_TASKS = {"detection"}
@@ -145,11 +163,18 @@ def pick_sizes(task: str, m: Any) -> list[Case]:
     return [(n, hw) for n, hw in cases if min(hw) >= lo]
 
 
-def make_call(task: str, m: Any, case: Case) -> Callable[[], Any]:  # noqa: PLR0911 - one branch per task
+def make_call(task: str, m: Any, case: Case) -> Callable[[], Any]:  # noqa: C901, PLR0911 - one branch per task
     _, arg = case
-    if task == "stereo":
+    if task in {"stereo", "flow", "matching", "interpolation"}:  # flow: the shifted pair as two frames
         left, right = stereo_pair(*arg)
         return lambda: m(left, right)
+    if task == "tracking":  # 8 frames of the photo moving 3 px per frame, a 4 x 4 query grid on frame 0
+        from fastforks.tracking._api import grid_queries  # noqa: PLC0415 - tracking only
+
+        wide = photo(0, arg[0], arg[1] + 24)
+        frames = [wide[:, 3 * t : 3 * t + arg[1]] for t in range(8)]
+        queries = grid_queries(*arg, 4, torch.device("cpu"))
+        return lambda: m(frames, queries)
     if task == "multiview":
         imgs, kw = views(*arg)
         calibrated = m.card.family in {"mvsanywhere", "patchmatchnet"}
@@ -166,6 +191,10 @@ def make_call(task: str, m: Any, case: Case) -> Callable[[], Any]:  # noqa: PLR0
         return lambda: m(img, logits=True)
     if task in {"detection", "depth"}:
         return lambda: m(img)
+    if task == "pose":  # top-down: two person boxes inside the image
+        h, w = arg
+        boxes = [[w * 0.1, h * 0.1, w * 0.5, h * 0.9], [w * 0.5, h * 0.2, w * 0.9, h * 0.8]]
+        return lambda: m(img, boxes=boxes)
     h, w = arg  # promptable segmentation
     if "text" in m.prompts:
         return lambda: {"": m(img, text="person")}
@@ -350,7 +379,7 @@ def options_for(task: str, ref: str) -> dict[str, Any]:
 
 def load(task: str, ref: str, mode: str, device: str, *, fp32: bool = False) -> Any:
     kw: dict[str, Any] = {"dtype": "float32"} if fp32 else {}
-    return api(task).load(ref, mode=mode, device=device, options=options_for(task, ref) or None, **kw)
+    return api(task).load(ref, mode=mode, device=device, **(options_for(task, ref) or {}), **kw)
 
 
 def run_case(task: str, m: Any, case: Case, *, calls: int = 1) -> dict[str, torch.Tensor]:

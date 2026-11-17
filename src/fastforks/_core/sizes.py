@@ -8,6 +8,8 @@ from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from fastforks._core.tasks import spec
+
 if TYPE_CHECKING:
     from fastforks._core.cards import ModelCard, Variant
 
@@ -17,7 +19,17 @@ CAP = (3000, 4000)
 ENCODER_SIDE = {"sam3": 1008}
 """Encoder input side of the promptable-segmentation families that fix it in code, not in `[params] image_size`."""
 
-PATCH = {"depth_anything_v2": 14, "depth_anything_3": 14, "moge": 14, "unik3d": 14, "depth_pro": 16}
+PATCH = {
+    "depth_anything_v2": 14,
+    "prompt_depth_anything": 14,
+    "depth_anything_3": 14,
+    "moge": 14,
+    "lingbot_depth": 14,
+    "any2full": 14,
+    "omni_dc": 16,
+    "unik3d": 14,
+    "depth_pro": 16,
+}
 """ViT patch side of the families that resize / pad inside the model (shown in the size range)."""
 
 EXAMPLE_SIZE = "704x1280"
@@ -42,6 +54,9 @@ class SizeRange:
         tested_max: Largest `(H, W)` measured, or `None` (not measured yet).
         tested_alloc_mib: Peak allocated GPU memory at `tested_max`, MiB.
         tested_reserved_mib: Peak reserved GPU memory at `tested_max`, MiB.
+        export_size: Default `(H, W)` of `export_onnx` / `export_tensorrt`, or `None`: give a size (stereo, depth,
+            segmentation, detection). Classification: the card's crop; promptable segmentation: the encoder side;
+            else the task's (features 224).
     """
 
     min_size: int
@@ -54,6 +69,7 @@ class SizeRange:
     tested_alloc_mib: int = 0
     tested_reserved_mib: int = 0
     reject_below: int = 0
+    export_size: tuple[int, int] | None = None
 
     def example(self) -> tuple[int, int]:
         """`EXAMPLE_SIZE` rounded up to the pad multiple and not below the minimum: a size that exports."""
@@ -101,6 +117,12 @@ def _data() -> dict[str, dict[str, Any]]:
     return json.loads(Path(__file__).with_name("sizes.json").read_text())
 
 
+VOLUME_INPUT = "any D x H x W volume and its voxel spacing (resampled to the model spacing, sliding window)"
+VOLUME_ENCODER_INPUT = (
+    "any D x H x W volume, no resampling, one encoder pass (a fixed-grid ViT: each side up to its grid)"
+)
+
+
 def size_range(variant: Variant, card: ModelCard | None = None) -> SizeRange:
     """The `SizeRange` of `variant`.
 
@@ -121,6 +143,9 @@ def size_range(variant: Variant, card: ModelCard | None = None) -> SizeRange:
         encoder = int(card.params.get("image_size", ENCODER_SIDE.get(card.family, 0)))
     multiple = 1 if encoder or io.pad_mode == "none" else io.pad_multiple
     hard = max(io.min_size, 0 if encoder else probed)
+    export = spec(card.task).export_size if card else None
+    if encoder or (side and card and card.task == "classification"):
+        export = (encoder or side, encoder or side)
     return SizeRange(
         min_size=max(hard, multiple),
         reject_below=hard,
@@ -129,6 +154,7 @@ def size_range(variant: Variant, card: ModelCard | None = None) -> SizeRange:
         patch=0 if encoder or side else PATCH.get(card.family, 0) if card else 0,
         native=(side, side) if side else None,
         resize=io.resize,
+        export_size=export,
         **kw,
     )
 
@@ -145,7 +171,13 @@ def card_size_lines(card: ModelCard, variants: list[Variant] | None = None, *, h
     vs = variants or card.variants
     groups: dict[str, list[str]] = {}
     for v in vs:
-        groups.setdefault(size_range(v, card).describe(tested=False), []).append(f"`{v.id}`")
+        encoder = "features" in (v.outputs or card.outputs)
+        text = (
+            (VOLUME_ENCODER_INPUT if encoder else VOLUME_INPUT)
+            if card.task == "volume"
+            else size_range(v, card).describe(tested=False)
+        )
+        groups.setdefault(text, []).append(f"`{v.id}`")
     if len(groups) == 1:
         text = next(iter(groups))
         lines = [f"- Input size: {text}" if heading else text]
@@ -158,7 +190,10 @@ def card_size_lines(card: ModelCard, variants: list[Variant] | None = None, *, h
         r = size_range(v, card)
         if r.tested_max:
             mem = f"{r.tested_alloc_mib / 1024:.1f} GiB peak allocated, {r.tested_reserved_mib / 1024:.1f} reserved"
-            tested.append(f"`{v.id}` {r.tested_max[0]}x{r.tested_max[1]} ({mem})")
+            side = f"{r.tested_max[0]}x{r.tested_max[1]}" + (
+                f"x{r.tested_max[1]} voxels" if card.task == "volume" else ""
+            )
+            tested.append(f"`{v.id}` {side} ({mem})")
         else:
             tested.append(f"`{v.id}` not measured yet")
     bullet = (

@@ -1,0 +1,63 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.0043
+gpu_p99 = 0.017
+relative = true
+
+[refs."sam-hq-vit-b@1"]
+sha256 = "794fdff23d68f6434224aaf3254ad0dad2d631c3cc81de0ab6c3b21489bf8709"
+upstream = "https://github.com/SysCV/sam-hq@e696978d60352dc9a26b12631cd91781502c6546"
+settings = "CPU float32, SamPredictor set_image + predict (point; box + point; hq_token_only=False), torch 2.14.1+cu130"
+gpu_mean = 0.0019
+gpu_p99 = 0.0053
+gpu_extra = [["box_iou_scores", 0.0023, 0.0023], ["box_pred_masks", 0.0017, 0.0049], ["iou_scores", 0.0032, 0.0032]]
+cpu_extra = [["pred_masks", 0.012]]
+
+[refs."sam-hq-vit-h@1"]
+sha256 = "6e9f6ff725c25652b63568672438bbfaf77e0c09218b93054951a36eaeb34982"
+upstream = "https://github.com/SysCV/sam-hq@e696978d60352dc9a26b12631cd91781502c6546"
+settings = "CPU float32, SamPredictor set_image + predict (point; box + point; hq_token_only=False), torch 2.14.1+cu130"
+gpu_mean = 0.0022
+gpu_p99 = 0.0085
+gpu_extra = [["box_iou_scores", 0.00032, 0.00032], ["box_pred_masks", 0.00098, 0.004], ["iou_scores", 0.0031, 0.0031]]
+
+[refs."sam-hq-vit-l@1"]
+sha256 = "0a27124c6c758c2c82afcbe713517cb10a678a8d9e70f07252ebf833eb398506"
+upstream = "https://github.com/SysCV/sam-hq@e696978d60352dc9a26b12631cd91781502c6546"
+settings = "CPU float32, SamPredictor set_image + predict (point; box + point; hq_token_only=False), torch 2.14.1+cu130"
+gpu_mean = 0.0043
+gpu_p99 = 0.017
+gpu_extra = [["box_iou_scores", 9.1e-05, 9.1e-05], ["box_pred_masks", 0.0012, 0.0039], ["iou_scores", 0.0013, 0.0013]]
+
+[validated."sam-hq-vit-b@1"]
+kernels = ["dpt_fused@48e0065bb7cf:sm_120"]
+symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-10"
+mean_px = 0.00121
+p99_px = 0.00352
+
+[validated."sam-hq-vit-h@1"]
+kernels = ["dpt_fused@48e0065bb7cf:sm_120"]
+symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-10"
+mean_px = 0.00141
+p99_px = 0.00561
+
+[validated."sam-hq-vit-l@1"]
+kernels = ["dpt_fused@48e0065bb7cf:sm_120"]
+symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-10"
+mean_px = 0.00286
+p99_px = 0.0111

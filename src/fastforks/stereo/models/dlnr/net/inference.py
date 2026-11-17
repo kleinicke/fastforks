@@ -14,6 +14,7 @@ forward(model, left, right, iters): == upstream `DLNR.forward(test_mode=True)`: 
   the whole batch). Returns the disparity [B, H, W] (= -flow).
 """
 import torch
+from fastforks._core.tracing import in_onnx_export
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -22,7 +23,7 @@ from .update import interp, pool2x
 
 
 def _tracing():
-    return torch.compiler.is_exporting() or torch.compiler.is_compiling() or torch.onnx.is_in_onnx_export()
+    return torch.compiler.is_exporting() or torch.compiler.is_compiling() or in_onnx_export()
 
 
 @torch.no_grad()

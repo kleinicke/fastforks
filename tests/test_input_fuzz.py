@@ -22,6 +22,7 @@ from fastforks._core.errors import WeightsError
 from fastforks._core.model import Model
 from fastforks.depth._runner import Runner as DepthRunner
 from fastforks.stereo._runner import Runner
+from synth import prompt_kwargs
 from test_api import Params
 from test_golden import API, SMALLEST, TASK, sweep_model
 
@@ -137,7 +138,8 @@ def test_random_batches_unbatch(model):
         (L8 > 0, R8 > 0, "unsupported image dtype"),
         (L8.astype(np.float32), R8.astype(np.float32), r"in \[0, 1\].*divide 0..255"),
         ((L8 / 255) * (1 + 1e-6), R8 / 255, r"got \[0, 1\.0000\d+\]"),
-        ([L8], [R8], "unsupported image type list"),
+        ([L8], R8, "all as non-empty lists of the same length"),
+        ([L8], [R8, R8], "got 1 left, 2 right"),
         (None, R8, "unsupported image type NoneType"),
         (L8.transpose(2, 0, 1), R8.transpose(2, 0, 1), "CHW"),
         (torch.from_numpy(L8), torch.from_numpy(R8), "numpy is HWC, torch is CHW"),
@@ -182,6 +184,7 @@ def test_pil_sample_types(model, tmp_path):
 
 @pytest.mark.slow
 @pytest.mark.model
+@pytest.mark.filterwarnings("ignore:.*without intrinsics")  # metric3d / da3metric: the assumed camera is fine here
 @pytest.mark.parametrize("ref", SMALLEST)
 def test_tiny_and_odd_sizes(ref, monkeypatch):
     """Tiny and odd sizes give finite maps of the input size, or an `InputError` below `size_range().reject_below`.
@@ -190,8 +193,8 @@ def test_tiny_and_odd_sizes(ref, monkeypatch):
     `ValueError` at 16 x 16 px before their cards declared a `min_size`.
     """
     task = TASK[ref]
-    if task not in {"stereo", "depth"}:
-        pytest.skip("dense stereo / depth only")
+    if task not in {"stereo", "depth", "flow"}:
+        pytest.skip("dense stereo / depth / flow only")
     monkeypatch.setattr(Model, "_check_size", REAL_CHECK)  # the real size check, not `card_min_size`
     m = sweep_model(ref)
     lo = m.size_range().reject_below
@@ -199,17 +202,27 @@ def test_tiny_and_odd_sizes(ref, monkeypatch):
         x = RNG.integers(0, 256, (h, w, 3), dtype=np.uint8)
         if min(h, w) < lo:
             with pytest.raises(InputError, match="at least"):
-                m(x, x) if task == "stereo" else m(x)
+                m(x, x) if task in {"stereo", "flow"} else m(x, **prompt_kwargs(m))
             continue
-        r = m(x, np.roll(x, -1, 1)) if task == "stereo" else m(x)
-        main = r.disparity if task == "stereo" else r.depth if r.depth is not None else r.inverse_depth
-        assert main.shape == (h, w), (h, w)
+        r = m(x, np.roll(x, -1, 1)) if task in {"stereo", "flow"} else m(x, **prompt_kwargs(m))
+        if task == "flow":
+            main = r.flow
+            assert main.shape == (2, h, w), (h, w)
+        else:
+            main = (
+                r.disparity
+                if task == "stereo"
+                else next(x for x in (r.depth, r.inverse_depth, r.normals) if x is not None)
+            )  # normal-estimation models give normals only
+            assert main.shape[:2] == (h, w), (h, w)
         assert torch.isfinite(main).all(), (h, w)
 
 
 def test_depth_intrinsics_rejected_for_unused(monkeypatch):
+    from fastforks.depth.models.depth_anything_v2.model import Params as FamilyParams  # noqa: PLC0415
+
     class Inv(DepthRunner):
-        Params = DepthParams
+        Params = FamilyParams  # the card's params (layout, max_depth, ...)
 
         def __call__(self, image, intrinsics):  # noqa: ARG002
             return {"inverse_depth": image[:, 0]}
@@ -257,7 +270,7 @@ def real(request):
     except WeightsError as e:
         pytest.skip(f"weights of {ref} not available locally: {e}")
     options = {"iters": 2} if "iters" in card.options else {}
-    return task, API[task].load(ref, device="cpu", options=options)
+    return task, API[task].load(ref, device="cpu", **(options or {}))
 
 
 def _go(real, make: Any, base: np.ndarray) -> torch.Tensor:

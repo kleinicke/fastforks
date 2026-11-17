@@ -10,6 +10,8 @@ import json
 import tomllib
 from pathlib import Path
 
+import numpy as np
+
 SRC = Path(__file__).resolve().parents[1] / "src" / "fastforks"
 SECTIONS = ("tolerance", "refs", "validated")
 HEADER = """\
@@ -20,6 +22,14 @@ HEADER = """\
 # passed with (`pytest -m gpu --record`). Not shipped in wheels.
 """
 DEFAULT_TOLERANCE = {"cpu_atol": 2e-3, "gpu_mean": 0.02, "gpu_p99": 0.25}
+
+
+def text_codes(texts: list[str]) -> np.ndarray:
+    """OCR goldens store texts as `[N, L]` float32 Unicode code points, zero-padded (exact up to 2^24)."""
+    out = np.zeros((len(texts), max(map(len, texts), default=0)), np.float32)
+    for i, t in enumerate(texts):
+        out[i, : len(t)] = [ord(c) for c in t]
+    return out
 
 
 def path(family: str, task: str = "stereo") -> Path:
@@ -57,10 +67,40 @@ def _value(v: object) -> str:
     return json.dumps(v)
 
 
+def _kept(p: Path) -> dict[tuple[str, str], tuple[list[str], str]]:
+    """Lines of an existing file by (table header, key): the comment lines above the key and the key's own line."""
+    out: dict[tuple[str, str], tuple[list[str], str]] = {}
+    if not p.is_file():
+        return out
+    table, pending = "", []
+    for line in p.read_text().splitlines():
+        if line.startswith("#"):
+            pending.append(line)
+        elif line.startswith("["):
+            table, pending = line, []
+        elif "=" in line:
+            out[table, line.split("=", 1)[0].strip()] = (pending, line)
+            pending = []
+        else:
+            pending = []
+    return out
+
+
 def dump(family: str, data: dict, task: str = "stereo") -> None:
-    """Write a family's file (sorted, stable formatting)."""
-    lines = [HEADER, "[tolerance]", *(f"{k} = {_value(v)}" for k, v in data["tolerance"].items())]
+    """Write a family's file (sorted, stable formatting; comments and unchanged lines are kept)."""
+    p = path(family, task)
+    kept = _kept(p)
+
+    def line(header: str, key: str, value: object) -> list[str]:
+        above, old = kept.get((header, key), ([], ""))
+        same = old and tomllib.loads(old).get(key) == value  # unchanged: keep its formatting and trailing comment
+        return [*above, old if same else f"{key} = {_value(value)}"]
+
+    def table(header: str, values: dict) -> list[str]:
+        return [header, *(x for k, v in values.items() for x in line(header, k, v))]
+
+    lines = [HEADER, *table("[tolerance]", data["tolerance"])]
     for section in ("refs", "validated"):
         for ref in sorted(data[section]):
-            lines += ["", f'[{section}."{ref}"]', *(f"{k} = {_value(v)}" for k, v in data[section][ref].items())]
-    path(family, task).write_text("\n".join(lines) + "\n")
+            lines += ["", *table(f'[{section}."{ref}"]', data[section][ref])]
+    p.write_text("\n".join(lines) + "\n")

@@ -1,0 +1,46 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 1.8e-05
+# RTX 5060 Ti portable fp16: mean 0.00527, p99 0.0216; bounds 1.5x, rounded up to 2 significant digits.
+gpu_mean = 0.0080
+gpu_p99 = 0.033
+
+[refs."hgnetv2_b0.ssld_stage2_ft_in1k@1"]
+sha256 = "8c194e296fb60a0f169bd2afb9f7619f935f4ecd1870678de0c1ebe3e5c4782e"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"
+
+[refs."hgnetv2_b1.ssld_stage2_ft_in1k@1"]
+sha256 = "1ffd5efce478722214f3d4f27776cbd5bed9b157257ebe716b3172fc9240b4d0"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"
+
+[refs."hgnetv2_b2.ssld_stage2_ft_in1k@1"]
+sha256 = "000fa3b309b2966db47e5c3395f943a45f3a14126d43bc2dff248cbd9d7cce15"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"
+
+[refs."hgnetv2_b3.ssld_stage2_ft_in1k@1"]
+sha256 = "fb4f5945bebed29d67f5234f4f35df56a2a9e643228340a8c6b9147bada88708"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"
+
+[refs."hgnetv2_b4.ssld_stage2_ft_in1k@1"]
+sha256 = "eb0fab6b1329fee4894b4d29f459c2e5a2bea8a15161c56e49cf33312375d925"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"
+
+[refs."hgnetv2_b5.ssld_stage2_ft_in1k@1"]
+sha256 = "278f041645d88bb7882b439e05ea60cbd1b8948b359c4286d28c5873af634233"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"
+
+[refs."hgnetv2_b6.ssld_stage2_ft_in1k@1"]
+sha256 = "7d4f5973c2baa8b881f9cb9188b1fa3d2cbea79004a35ac8df3cb1a79b5ca923"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"

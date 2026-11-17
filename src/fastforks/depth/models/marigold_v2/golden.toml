@@ -1,0 +1,26 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.02
+gpu_mean = 0.01
+gpu_p99 = 0.05
+relative = true
+
+[refs."marigold-v2-depth@1"]
+sha256 = "9cf3341161da2f67923763e999ede95b04852ba35f1c0a6cc00169c25e0c4e3d"
+upstream = "https://github.com/huawei-bayerlab/marigold-v2@main"
+options = [["exact_mask", true]]  # the golden's mode: compared at the family tolerance
+settings = "the family's own net on NVIDIA GeForce RTX 5060 Ti (bf16 GEMMs, float32 glue) with exact_mask = True (bit-equal to the authors' code on an RTX 3090), lean checkpoint depth/Log-stage2, 1 step, CPU generator seed 2026, torch 2.14.1+cu130"
+
+[validated."marigold-v2-depth@1"]
+kernels = ["nf4@e236d80ba78b:sm_120"]
+symbols = {"nf4" = {"nf4_dequant" = "23393b55e79218e1", "nf4_lora_bf16" = "17e82888454fc734", "nf4_lora_f32" = "14a94cda6125102e", "nf4_lora_gate_res" = "31c8a40d1918bb0b", "nf4_lora_gelu_bf16" = "5b007f568cd7b5b1", "nf4_mod_bf16" = "60e54c9b32f92af9", "nf4_rms_rope_bf16" = "c995756eab4e2141"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.0
+p99_px = 0.0

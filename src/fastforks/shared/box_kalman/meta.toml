@@ -1,0 +1,4 @@
+summary = "Batched constant-velocity Kalman filter of boxes in (centre x, centre y, aspect, height) space with the noise model of ByteTrack (multi-object tracking, SAMURAI)."
+licence = "MIT"
+files = ["LICENSE"]
+derived_from = "https://github.com/FoundationVision/ByteTrack/tree/d1bf0191adff59bc8fcfeaa0b33d3d1642552a99 (`yolox/tracker/kalman_filter.py` noise model: the position / velocity weights and the initial covariance; written anew in batched numpy from the textbook Kalman equations, not from that file's text)"

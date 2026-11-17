@@ -1,0 +1,22 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.001
+gpu_mean = 0.5
+gpu_p99 = 1.5
+# boxes in px; texts as code points (gpu_extra: |diff| / median code point, so any changed character fails)
+gpu_extra = [["scores", 0.02, 0.05], ["texts", 1e-6, 1e-6]]
+
+[refs."ppocrv5-mobile@1"]
+sha256 = "50cb3ba3bee4725c663cf120e9e49e6138051a3b1bb442d4e35beef83ad43c49"
+upstream = "https://github.com/PaddlePaddle/PaddleOCR@dab3fe35379033fdcb2d0e9572fac0b36c9a9ebf"
+settings = "CPU float32 (no oneDNN), pipeline without orientation / unwarping, tests/test_files/table.jpg, paddlepaddle 3.3.1, paddleocr 3.3.3, paddlex 3.3.13"
+
+[refs."ppocrv5-server@1"]
+sha256 = "3bbcfbd9a94474567c6be396e936ae3cb51acacaef1bc6e69299ef65d25c2815"
+upstream = "https://github.com/PaddlePaddle/PaddleOCR@dab3fe35379033fdcb2d0e9572fac0b36c9a9ebf"
+settings = "CPU float32 (no oneDNN), pipeline without orientation / unwarping, tests/test_files/table.jpg, paddlepaddle 3.3.1, paddleocr 3.3.3, paddlex 3.3.13"

@@ -9,6 +9,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/pytorch/vision"
 commit = "1f1a920d685d46dfbe187934b785b7ecb7a182f2"  # torchvision v0.29.1: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/facebookresearch/pycls"
+framework = "PyTorch"
+reason = "torchvision re-implements RegNet and provides its own retrained tv2 weights."
+
 [licence]
 code = "BSD-3-Clause"  # torchvision
 weights = "assumed from code"  # torchvision states no separate weights licence
@@ -38,6 +43,12 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 
 [output]
 label_set = "imagenet-1k"
+
+[[papers]]
+title = "Designing Network Design Spaces"
+url = "https://arxiv.org/abs/2003.13678"
+date = "2020-03-30"
+venue = "CVPR 2020"
 
 [[variants]]
 id = "regnety_160.tv2_in1k"

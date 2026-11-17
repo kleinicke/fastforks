@@ -58,13 +58,21 @@ if UP:
     orig = _original.load("multiview", a.ref, a.mode)
 else:
     port32 = a.mode == "portable32"
-    m = multiview.load(a.ref, mode="portable" if port32 else a.mode, device="cuda", options=opts,
+    m = multiview.load(a.ref, mode="portable" if port32 else a.mode, device="cuda", **(opts or {}),
                        dtype="float32" if port32 else None)  # fmt: skip
 calibrated = multiview.model_card(a.ref).family in {
     "mvsanywhere",
     "patchmatchnet",
+    "depthsplat",
+    "mvsplat",
+    "resplat",
 }  # calibrated MVS: cameras are inputs
-RANGE = multiview.model_card(a.ref).family == "patchmatchnet"  # the only one that needs the depth range
+RANGE = multiview.model_card(a.ref).family in {
+    "patchmatchnet",
+    "depthsplat",
+    "mvsplat",
+    "resplat",
+}  # these need the depth range
 MM_NEAR, MM_FAR = 425.0, 935.0  # DTU depth range
 D125, MM2, MM4 = 1.25, 2.0, 4.0
 
@@ -128,7 +136,11 @@ def call(imgs: np.ndarray, kw: dict) -> object:
         t = lambda v: torch.as_tensor(np.asarray(v, np.float32)).cuda()  # noqa: E731
         args = (x, t(kw["intrinsics"]), t(kw["cam_to_world"]), t(kw["depth_range"]))
         try:
-            return orig(*orig.prep(args))[0]
+            try:
+                return orig(*orig.prep(args))[0]
+            except TypeError:  # a `tools/_original.py` LOCAL adapter: the uint8 views only (LingBot-Map)
+                u8 = torch.from_numpy(np.ascontiguousarray(imgs)).cuda().permute(0, 3, 1, 2)
+                return orig(*orig.prep((u8,)))[0]
         except Exception as e:  # noqa: BLE001 - e.g. PatchMatchNet fp16 on DTU: singular projection matrices
             _failed(e)
     return m(imgs, **kw)

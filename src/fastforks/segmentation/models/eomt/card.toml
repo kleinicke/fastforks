@@ -12,6 +12,11 @@ uses = ["seginfer"]  # fastforks.shared modules this family imports
 repo = "https://github.com/huggingface/transformers"
 commit = "c4c4605f961877852b89b97478536bb3a26b6fd1"  # transformers v5.19.0: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/tue-mps/eomt"
+framework = "PyTorch"
+reason = "Hugging Face transformers ships an EoMT port that loads the authors' checkpoints (incl. DINOv3) without the authors' Lightning/detectron2 stack."
+
 [licence]
 code = "Apache-2.0"  # transformers
 weights = "MIT"  # the Hugging Face model card (license: mit); tue-mps/eomt is MIT
@@ -37,6 +42,12 @@ kernels = ["fastbb", "seg_up"]
 
 [output]
 label_set = "ade20k-150"
+
+[[papers]]
+title = "Your ViT is Secretly an Image Segmentation Model"
+url = "https://arxiv.org/abs/2503.19108"
+date = "2025-03-24"
+venue = "CVPR 2025"
 
 [[variants]]
 id = "eomt-l-dinov2-ade20k"

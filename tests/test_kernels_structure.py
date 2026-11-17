@@ -17,7 +17,8 @@ import pytest
 import torch
 from torch import nn
 
-from synth import image, pair, size
+from fastforks._core.errors import KernelUnavailableError, WeightsDownloadError
+from synth import clip, image, pair, size, track_queries
 from test_golden import API, GOLDEN, SMALLEST, TASK
 
 # ref -> (modules, nn.Identity modules, overridden methods as "BaseClass.method": count); recorded on main f5927bc, the
@@ -99,6 +100,7 @@ EXPECTED: dict[str, tuple[int, int, dict[str, int]]] = {
     ),
     "depth-anything-v2-s@1": (209, 26, {}),
     "depth-pro@1": (1249, 150, {}),
+    "distill-any-depth-s@1": (209, 26, {}),  # the family smallest since 2026-11-10; same structure as DAv2-S
     "dinov2-vits14@1": (211, 26, {}),
     "dinov3-convnext-tiny@1": (
         0,
@@ -209,7 +211,9 @@ EXPECTED: dict[str, tuple[int, int, dict[str, int]]] = {
             "InstanceNorm2d.forward": 3,
         },
     ),
+    "lotus-normal-d-v1-1@1": (855, 48, {}),
     "marigold-depth-v1-1@1": (852, 48, {}),
+    "marigold-normals-lcm-v0-1@1": (852, 48, {}),
     "metric3d-vit-large@1": (
         581,
         52,
@@ -331,6 +335,7 @@ EXPECTED: dict[str, tuple[int, int, dict[str, int]]] = {
             "ResidualBlock.forward": 14,
         },
     ),
+    "stablenormal-turbo@1": (1146, 69, {}),
     "unidepth-v2-vitl14@1": (614, 80, {"UniDepthV2.stacking_fn": 1}),
     "unik3d-vitl@1": (482, 50, {}),
     "waft-stereo-s@1": (
@@ -397,7 +402,10 @@ def load_and_call(ref: str) -> Any:
     task = TASK[ref]
     m = API[task].load(ref, mode="kernels", device="cuda")
     hw = size(m.variant.io.min_size)
-    m(*pair(*hw)) if task == "stereo" else m(image(*hw))
+    if task == "tracking":
+        m(clip(4, *hw), track_queries())
+    else:
+        m(*pair(*hw)) if task in {"stereo", "flow", "matching", "interpolation"} else m(image(*hw))
     return m
 
 
@@ -421,4 +429,8 @@ def test_kernels_passes_convert_as_before(ref):
         pytest.skip("no CUDA")
     if ref not in EXPECTED:
         pytest.skip(f"{ref}: no recorded structure")
-    assert structure(load_and_call(ref)) == EXPECTED[ref]
+    try:
+        model = load_and_call(ref)
+    except (WeightsDownloadError, KernelUnavailableError) as e:  # weights or kernel binaries not local (offline)
+        pytest.skip(f"{ref}: not available locally: {e}")
+    assert structure(model) == EXPECTED[ref]

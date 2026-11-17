@@ -92,7 +92,7 @@ def test_cmyk_hint():
 
 def test_empty_label_name_rejected():
     with pytest.raises(OptionsError, match="non-empty"):
-        classification.load("resnet18.tv_in1k", labels=[""] * 1000)
+        classification.load("resnet18.tv_in1k", class_names=[""] * 1000)
 
 
 def test_export_output_directory(tmp_path, capsys):

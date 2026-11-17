@@ -1,0 +1,24 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 1e-06
+gpu_mean = 0.00093
+gpu_p99 = 0.004
+
+[refs."realesr-general-x4v3@1"]
+sha256 = "b3f01283cdd2dad7c6c037cb8afc70fca6048e610e96d71884486c57a9aff5b0"
+upstream = "https://github.com/xinntao/Real-ESRGAN@a4abfb2979a7bbff3f69f58f58ae324608821e27"
+settings = "CPU float32, upstream RealESRGANer pre_pad 0 no tile (SRVGGNetCompact) on float RGB, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[validated."realesr-general-x4v3@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-14"
+mean_px = 0.00062
+p99_px = 0.00262

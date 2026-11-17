@@ -44,12 +44,14 @@ class Runner(core.Runner):
         num_prefix_tokens: Tokens before the patch tokens in `last_hidden_state` (cls + registers; ConvNeXt: the
             pooled token).
         num_register_tokens: Register tokens among the prefix (after the cls token).
+        pooler_size: Channels of `pooler_output`, if not `hidden_size` (C-RADIO: several summary tokens concatenated).
     """
 
     hidden_size: int
     num_layers: int
     num_prefix_tokens: int = 1
     num_register_tokens: int = 0
+    pooler_size: int | None = None
 
     @abc.abstractmethod
     def __call__(self, image: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
@@ -62,5 +64,5 @@ class Runner(core.Runner):
 
         Returns:
             `"last_hidden_state"` `[B, N, C]` (prefix tokens, then the patch grid row-major, final norm applied),
-            `"pooler_output"` `[B, C]` and, if `layers`, `"hidden_states"` `[B, len(layers), N, C]`.
+            `"pooler_output"` `[B, pooler_size or C]` and, if `layers`, `"hidden_states"` `[B, len(layers), N, C]`.
         """

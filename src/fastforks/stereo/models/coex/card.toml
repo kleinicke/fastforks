@@ -43,7 +43,7 @@ kernels = ["igev", "cutlass_conv", "cudnn_hacc", "stereo_ops"]
 # CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x H x W <= 500k (up to KITTI 375x1242)
 # replays a CUDA graph, captured on a shape's 4th call (below), at most 2 shapes per model (640x480 4.4 ms, before
 # the `stereo_ops` kernels 6.3 ms; eager 10.3 ms). The graph pool stays reserved (up to ~2x eager reserved memory) until `model.release_graphs()`;
-# `options={"cuda_graphs": False}` turns it off. Larger inputs are GPU-bound and run eagerly
+# `cuda_graphs=False` turns it off. Larger inputs are GPU-bound and run eagerly
 # New sizes (`cudnn_hacc` per-shape dispatch): a new padded size builds its fp16-accumulate cuDNN plans on its first
 # call (all calls give the same output) and captures its CUDA graph on the 4th (time after 4 warm-up calls per size); a
 # stream of new sizes around 640x480 costs 17.7 ms per call (with the deferral below 12.1).
@@ -55,6 +55,12 @@ kernels = ["igev", "cutlass_conv", "cudnn_hacc", "stereo_ops"]
 
 # SceneFlow-only weights: zero-shot output on real images is poor, so this is mainly a latency reference.
 # Upstream also ships KITTI weights inside its git repository (logs/): not added.
+
+[[papers]]
+title = "Correlate-and-Excite: Real-Time Stereo Matching via Guided Cost Volume Excitation"
+url = "https://arxiv.org/abs/2108.05773"
+date = "2021-08-12"
+venue = "IROS 2021"
 
 [[variants]]
 id = "coex-sceneflow"

@@ -17,7 +17,7 @@ import pytest
 import torch
 from torch._subclasses.fake_tensor import FakeTensorMode
 
-from fastforks import stereo
+from fastforks import Backend
 from fastforks._core import model as core_model
 from fastforks._core import registry
 from fastforks._core.errors import BackendUnavailableError, InputError
@@ -26,7 +26,7 @@ from fastforks._core.preprocess import resize_crop, scale
 from fastforks._core.tasks import spec
 from fastforks.stereo import _module  # noqa: F401 - registers the kernels custom op
 from fastforks.stereo._export import _cuda_device, _fix_folded_weight_casts
-from synth import pair, size
+from synth import pair, prompt_kwargs, size
 from test_golden import FAMILIES, GOLDEN, SMALLEST, TASK, sweep_model
 
 LOAD_ONCE = True  # conftest runs the tests of one ref together: `sweep_model` loads it once
@@ -43,10 +43,39 @@ _ONNX_KNOWN_MISMATCH = {  # open: the export runs, ONNX Runtime disagrees (or re
     " 0.56 px, mean 0.006)",
 }
 
-_NOT_TRACEABLE: dict[str, str] = {}  # module() runs, but neither dynamo nor torch.export captures it: documented
+_NOT_TRACEABLE = {  # module() runs, but neither dynamo nor torch.export captures it: documented
+    "aliked-lightglue@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
+    "xfeat@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
+    "aliked-flexglue@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
+    "loma-b@1": "sparse matching: the match count is data-dependent (nonzero; card limitation)",
+    "alltracker-tiny@1": "point tracking: the track set is data-dependent (unique; card limitation)",
+    "track-on-r@1": "point tracking: a data-dependent scalar read per step (card limitation)",
+    "geocalib-pinhole@1": (
+        "the Levenberg-Marquardt loop branches and logs on its convergence: 35 graph breaks (card limitation)"
+    ),
+    "resplat-small-dl3dv@1": (
+        "the portable kNN pooling calls torch ops that return non-Tensors: 38 graph breaks (card limitation)"
+    ),
+    "cotracker3-online@1": (
+        "point tracking: the online window loop is data-dependent "
+        "(6 graph breaks; export guards on data; card limitation)"
+    ),
+    "omni-dc@1": "the conjugate-gradient solve runs until convergence: a data-dependent step count (card limitation)",
+}
 _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.export captures the graph
+    "rf-detr-keypoint-preview@1": "pinned upstream disables Dynamo for positional interpolation to preserve"
+    " antialiased bicubic gradients; non-strict torch.export still captures this fixed-shape inference",
+    "rf-detr-seg-n-coco@1": "pinned upstream disables Dynamo for positional interpolation (as RF-DETR keypoint);"
+    " non-strict torch.export still captures this fixed-shape inference",
+    "grounding-dino-tiny@1": (
+        "transformers' torch_compilable_check calls Tensor.item() (15 graph breaks); torch.export captures"
+    ),
     "zoedepth-nk@1": "the NK model routes each image to the NYU or KITTI head by the argmax of its domain logits"
     " (.item(); the export runs both heads and selects)",
+}
+
+_SHORTER_EAGER = {  # eager drops tokens module() keeps masked (static shapes): same math, another summation order
+    "lingbot-depth@1": "the model call drops the depth patches without depth; module() masks them",
 }
 
 
@@ -58,6 +87,14 @@ _CAMERAS = ("intrinsics", "cam_to_world", "depth_range")  # the multiview inputs
 _CPU_RAM_HEAVY = {  # compile + torch.export on the CPU need more RAM than the suite's 20 GB cgroup
     "marigold-depth-v1-1@1": "CPU torch.export of the Stable Diffusion UNet + VAE is OOM-killed at 20 GB RAM (also"
     " before export-all); run it alone in a larger cgroup with FASTFORKS_HEAVY_CPU_TESTS=1",
+    "marigold-normals-lcm-v0-1@1": "the same Stable Diffusion UNet + VAE as Marigold depth; run it alone in a larger"
+    " cgroup with FASTFORKS_HEAVY_CPU_TESTS=1",
+    "lotus-normal-d-v1-1@1": "the same Stable Diffusion UNet + VAE as Marigold depth; run it alone in a larger cgroup"
+    " with FASTFORKS_HEAVY_CPU_TESTS=1",
+    "stablenormal-turbo@1": "the Stable Diffusion UNet + VAE of Marigold depth plus a ControlNet encoder; run it alone"
+    " in a larger cgroup with FASTFORKS_HEAVY_CPU_TESTS=1",
+    "depthfm-v1@1": "the Stable Diffusion UNet + VAE of Marigold depth; run it alone in a larger cgroup with"
+    " FASTFORKS_HEAVY_CPU_TESTS=1",
     "depth-pro@1": "CPU dynamo explain + torch.export of the two DINOv2-L encoders at 1536 px is OOM-killed at 20 GB"
     " RAM (after a 7.5 GB load); run it alone in a larger cgroup with FASTFORKS_HEAVY_CPU_TESTS=1",
     "sam3@1": "CPU dynamo explain + torch.export peak at 13.2 GB RSS, above the suite's 13 GB cap; run it alone in a"
@@ -66,6 +103,10 @@ _CPU_RAM_HEAVY = {  # compile + torch.export on the CPU need more RAM than the s
 _ONNX_SKIP_MULTIVIEW: dict[str, str] = {}
 _ONNX_SKIP_DEPTH = {  # exports, but too big for the CPU suite
     "marigold-depth-v1-1@1": "Stable Diffusion UNet + VAE (> 2 GB graph, minutes on the CPU); checked on the GPU",
+    "marigold-normals-lcm-v0-1@1": "Stable Diffusion UNet + VAE (> 2 GB graph, minutes on the CPU); checked on the GPU",
+    "lotus-normal-d-v1-1@1": "Stable Diffusion UNet + VAE (> 2 GB graph, minutes on the CPU); checked on the GPU",
+    "stablenormal-turbo@1": "Stable Diffusion UNet + ControlNet + VAE (> 2 GB graph); checked on the GPU",
+    "depthfm-v1@1": "Stable Diffusion UNet + VAE (> 2 GB graph, minutes on the CPU); checked on the GPU",
 }
 _HAS_ONNX = bool(importlib.util.find_spec("onnxscript") and importlib.util.find_spec("onnxruntime"))
 ONNX_TESTS = "FASTFORKS_ONNX_TESTS"  # 1: the ONNX export + ONNX Runtime checks (release only: ~27 min of the CPU suite)
@@ -89,7 +130,20 @@ def _load(ref: str) -> Any:
     return sweep_model(ref)
 
 
+_NATIVE_SIZE = {  # nets that need one size (position embeddings, top-k over the tokens) the card does not give
+    "clipseg": (352, 352),
+    "grounding-dino-tiny": (320, 320),  # the 900-query top-k needs at least 900 encoder tokens
+    "owlv2-b16": (960, 960),
+    "parseq-tiny": (32, 128),
+    "vitpose-plus-small": (256, 192),
+}
+
+
 def _shape(model: Any) -> tuple[int, ...]:
+    # a net fixed to one size (position embeddings)
+    native = _NATIVE_SIZE.get(model.variant.id) or model.size_range().native
+    if native:
+        return (*SHAPE[:2], *native)
     return (*SHAPE[:2], *size(model.size_range().min_size, *SHAPE[2:]))
 
 
@@ -103,9 +157,16 @@ def _inputs(ref: str, model: Any) -> tuple[torch.Tensor, ...]:
     if TASK[ref] == "classification":  # the module takes transformed images (the model call's [io] transform)
         io = model.variant.io
         return (scale(resize_crop(pair[0], io), io),)
-    if TASK[ref] == "multiview":  # one scene: views + the cameras the runner requires
+    if TASK[ref] in {"multiview", "tracking"}:  # one scene / video: views or frames (+ cameras / queries)
         return model.example_inputs(*_shape(model)[2:], batch=2)
-    return pair if TASK[ref] == "stereo" else pair[:1]
+    if TASK[ref] in {"stereo", "flow", "matching", "interpolation"}:
+        return pair
+    if TASK[ref] == "restoration" and model._runner.mask == "required":  # inpainting: the image and its mask
+        return model.example_inputs(*pair[0].shape[2:])
+    if hasattr(model._runner, "condition"):  # CLIPSeg: the image, then the projected text embedding
+        return (pair[0], model._runner.condition("a cat"))
+    extra = prompt_kwargs(model)  # depth: the image, then the prompt [1, 1, h, w] of a model that requires one
+    return (pair[0], *(torch.as_tensor(v)[None, None] for v in extra.values()))
 
 
 def _multiview_call(model: Any, inputs: tuple[torch.Tensor, ...]) -> Any:
@@ -119,12 +180,24 @@ def _main_map(result: Any) -> torch.Tensor:
     return next(getattr(result, k) for k in spec(TASK[result.model]).standard if getattr(result, k) is not None)
 
 
+def _skip_without_module(ref: str) -> None:
+    if TASK[ref] == "volume":
+        pytest.skip(
+            "volume: the sliding-window pipeline is no single module (`model.networks()` are the U-Nets); encoders"
+            " take 3D volumes up to 192^3, too large for this sweep"
+        )
+
+
 @pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.parametrize("ref", SMALLEST)
 def test_module_in_eval_mode(ref):
     """`module()` is in eval mode, submodules included: export would trace training-mode branches."""
-    module = _load(ref).module()
+    _skip_without_module(ref)
+    try:
+        module = _load(ref).module()
+    except BackendUnavailableError as e:  # a family without an exportable module (MatAnyone's video memory)
+        pytest.skip(str(e))
     training = [name or type(module).__name__ for name, m in module.named_modules() if m.training]
     assert not training, f"{ref}: module() in training mode: {training[:5]}"
 
@@ -157,21 +230,43 @@ def _check_export_names(ref: str, model: Any, module: torch.nn.Module, out: Any)
 @pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.filterwarnings("ignore:The .grad attribute of a Tensor that is not a leaf")  # dynamo reads .grad
+@pytest.mark.filterwarnings("ignore:.*without intrinsics")  # metric3d / da3metric: the assumed camera is fine here
 @pytest.mark.parametrize("ref", SMALLEST)
-def test_module_compile_export(ref):
+def test_module_compile_export(ref):  # noqa: C901, PLR0912, PLR0915 - one branch per task
+    _skip_without_module(ref)
     if ref in _NOT_TRACEABLE:
         pytest.xfail(_NOT_TRACEABLE[ref])
     if ref in _CPU_RAM_HEAVY and not os.environ.get("FASTFORKS_HEAVY_CPU_TESTS"):
         pytest.skip(_CPU_RAM_HEAVY[ref])
     model = _load(ref)
-    module = model.module()
+    try:
+        module = model.module()
+    except BackendUnavailableError as e:  # a family without an exportable module (MatAnyone's video memory)
+        pytest.skip(str(e))
     inputs = _inputs(ref, model)
     with torch.inference_mode():
         want = module(*inputs)
     _check_export_names(ref, model, module, want)
     if TASK[ref] in {"stereo", "depth"}:  # [B, 3, H, W] in [0, 1] -> the main map, as the model call
-        assert want.shape == (1, *inputs[0].shape[2:])
+        channels = (3,) if _main_map_name(ref) == "normals" else ()  # normals-only models: [B, H, W, 3]
+        assert want.shape == (1, *inputs[0].shape[2:], *channels)
+        kw = {k: v[0, 0] for k, v in zip(prompt_kwargs(model), inputs[1:], strict=False)}
+        n = 2 if TASK[ref] == "stereo" else 1
+        got = _main_map(model(*(x[0] for x in inputs[:n]), **kw))
+        if ref in _SHORTER_EAGER:
+            torch.testing.assert_close(want[0], got, rtol=1e-4, atol=1e-4)
+        else:
+            assert torch.equal(want[0], got)
+    elif TASK[ref] == "flow":  # two [B, 3, H, W] in [0, 1] -> [B, 2, H, W], as the model call
+        assert want.shape == (1, 2, *inputs[0].shape[2:])
         assert torch.equal(want[0], _main_map(model(*(x[0] for x in inputs))))
+    elif TASK[ref] == "interpolation":  # two [B, 3, H, W] in [0, 1] -> the middle frame [B, 3, H, W]
+        assert want.shape == (1, 3, *inputs[0].shape[2:])
+        assert torch.equal(want[0], model(*(x[0] for x in inputs)).frame)
+    elif TASK[ref] == "restoration":  # [B, 3, H, W] in [0, 1] -> [B, 3, sH, sW], as the model call
+        assert want.shape == (1, 3, *(model.scale * n for n in inputs[0].shape[2:]))
+        kw = {"mask": inputs[1][0, 0]} if len(inputs) > 1 else {}  # inpainting: the mask of the image
+        assert torch.equal(want[0], model(inputs[0][0], **kw).image)
     elif TASK[ref] == "features":  # -> last_hidden_state [B, N, C], as the model call with the default size
         assert torch.equal(want[0], model(inputs[0][0]).last_hidden_state)
     elif TASK[ref] == "classification":  # transformed images -> logits, as the model call on the raw image
@@ -179,6 +274,8 @@ def test_module_compile_export(ref):
         assert torch.equal(want[0].float(), model(_pair(_shape(model))[0][0]).logits)
     elif TASK[ref] == "multiview":  # one scene -> a dict of maps, as the model call
         assert torch.equal(want["depth"].float(), _multiview_call(model, inputs).depth)
+    elif TASK[ref] == "tracking":  # one video + queries -> {"tracks", "visibility"}, as the model call
+        assert torch.equal(want["tracks"], model(inputs[0], inputs[1]).tracks)
 
     if ref not in _GRAPH_BREAKS:
         explain = torch._dynamo.explain(module)(*inputs)
@@ -237,14 +334,15 @@ def test_onnx_depth(ref, tmp_path):
     if ref in _ONNX_SKIP_DEPTH:
         pytest.skip(_ONNX_SKIP_DEPTH[ref])
     model = _load(ref)
-    (image,) = model.example_inputs(*SHAPE[2:])
+    inputs = model.example_inputs(*SHAPE[2:])  # the image, then the depth prompt where the model requires one
+    names = ["image", *prompt_kwargs(model)]
     path = model.export_onnx(tmp_path / "m.onnx", *SHAPE[2:])
     with torch.inference_mode():
-        want = model.module()(image)
+        want = model.module()(*inputs)
     session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
-    assert [i.name for i in session.get_inputs()] == ["image"]
+    assert [i.name for i in session.get_inputs()] == names
     assert [o.name for o in session.get_outputs()] == [_main_map_name(ref)]
-    (got,) = session.run(None, {"image": image.numpy()})
+    (got,) = session.run(None, {n: x.numpy() for n, x in zip(names, inputs, strict=True)})
     torch.testing.assert_close(torch.from_numpy(got), want, rtol=1e-3, atol=1e-3 * want.abs().max().item())
 
 
@@ -255,7 +353,7 @@ def test_onnx_features(ref, tmp_path):
     import onnxruntime as ort  # noqa: PLC0415 - optional
 
     model = _load(ref)
-    size = model.export_size()
+    size = model.size_range().export_size
     assert all(s % model.stride == 0 for s in size)  # the exported graph runs at export_size, not a snapped size
     (image,) = model.example_inputs(*size)
     path = model.export_onnx(tmp_path / "m.onnx")
@@ -302,7 +400,8 @@ def test_onnx_multiview(ref, tmp_path):
 
 def _main_map_name(ref: str) -> str:
     card, variant = registry.resolve(TASK[ref], ref)
-    return next(k for k in spec(card.task).standard if k in variant.outputs)
+    name = next(k for k in spec(card.task).standard if k in variant.outputs)
+    return f"{name}_out" if name in spec(card.task).inputs else name  # an output named like an input gets `_out`
 
 
 @pytest.mark.model
@@ -325,15 +424,17 @@ def test_classification_export_overrides():
     from fastforks.classification._api import ClassificationModel  # noqa: PLC0415
 
     model: Any = object.__new__(ClassificationModel)  # a stub: only what the overrides read
-    model.card = SimpleNamespace(task="classification")
+    model.card = SimpleNamespace(task="classification", family="x", params={})
     model.device = "cpu"
-    io = SimpleNamespace(crop=0, resize=0, input="imagenet", mean=(), std=())
-    model.variant = SimpleNamespace(io=io)
-    assert model.export_size() == spec("classification").export_size == (224, 224)  # no crop / resize: the task default
+    io = SimpleNamespace(crop=0, resize=0, input="imagenet", mean=(), std=(), min_size=1, pad_mode="none")
+    model.variant = SimpleNamespace(io=io, ref="x@1")
+    assert (
+        model.size_range().export_size == spec("classification").export_size == (224, 224)
+    )  # no crop / resize: the task default
     io.resize = 256
-    assert model.export_size() == (256, 256)
+    assert model.size_range().export_size == (256, 256)
     io.crop = 224
-    assert model.export_size() == (224, 224)
+    assert model.size_range().export_size == (224, 224)
     (x,) = model.example_inputs(32, 48, batch=2)
     assert x.shape == (2, 3, 32, 48)
     assert x.min() < 0  # ImageNet-normalised, not [0, 1]
@@ -361,7 +462,8 @@ def test_trt_dtype_unknown_is_a_clear_error():
 
 def test_export_defaults_per_task():
     assert spec("stereo").inputs == ("left", "right")
-    assert all(spec(t).inputs == ("image",) for t in ("depth", "classification", "segmentation"))
+    assert spec("depth").inputs == ("image", "prompt_depth")  # the prompt only where the model requires it
+    assert all(spec(t).inputs == ("image",) for t in ("classification", "segmentation"))
     assert [spec(t).export_size for t in ("stereo", "depth", "segmentation")] == [None] * 3  # no legacy default size
     assert spec("features").export_size == (224, 224)
 
@@ -370,7 +472,7 @@ def test_export_defaults_per_task():
 @pytest.mark.model
 def test_depth_export_rejects_kernels(tmp_path, monkeypatch):
     model = _load(DEPTH[0])
-    monkeypatch.setattr(model, "backend", stereo.Backend("kernels", "cuda:0", "float16"))
+    monkeypatch.setattr(model, "backend", Backend("kernels", "cuda:0", "float16"))
     with pytest.raises(BackendUnavailableError, match="cannot run"):
         model.export_onnx(tmp_path / "m.onnx", 64, 64)
     with pytest.raises(InputError, match="both height and width"):
@@ -404,6 +506,44 @@ def test_fix_folded_weight_casts(half):
     assert _fix_folded_weight_casts(model) == 0
 
 
+@pytest.mark.parametrize("stride", [2, 4])
+@pytest.mark.parametrize("half", ["FLOAT16", "BFLOAT16"])
+def test_bf16_deconvolutions_as_convs(half, stride):
+    """bf16 upsampling ConvTranspose -> 1x1 Conv + DepthToSpace (TensorRT builds no bf16 deconvolution), same sum."""
+    ir = pytest.importorskip("onnx_ir")
+    from fastforks._core.export import _bf16_deconvolutions_as_convs  # noqa: PLC0415
+
+    dt = getattr(ir.DataType, half)
+    g = torch.Generator().manual_seed(0)
+    weight, bias = torch.randn(3, 5, stride, stride, generator=g), torch.randn(5, generator=g)
+    x = ir.Value(name="x", shape=ir.Shape([1, 3, 4, 4]), type=ir.TensorType(dt))
+    w = ir.Value(name="w", shape=ir.Shape(list(weight.shape)), type=ir.TensorType(ir.DataType.FLOAT))
+    w.const_value = ir.tensor(weight.numpy())
+    b = ir.Value(
+        name="b", shape=ir.Shape([5]), type=ir.TensorType(dt), const_value=ir.tensor(bias.numpy().astype(dt.numpy()))
+    )
+    cast = ir.Node("", "Cast", [w], attributes=[ir.AttrInt64("to", dt.value)])
+    cast.outputs[0].dtype = dt
+    deconv = ir.Node("", "ConvTranspose", [x, cast.outputs[0], b], attributes=[ir.AttrInt64s("strides", [stride] * 2)])
+    deconv.outputs[0].dtype = dt
+    graph = ir.Graph([x], deconv.outputs, nodes=[cast, deconv], initializers=[w, b], opset_imports={"": 18})
+    model = ir.Model(graph, ir_version=10)
+    if half == "FLOAT16":
+        assert _bf16_deconvolutions_as_convs(model) == 0
+        return
+    assert _bf16_deconvolutions_as_convs(model) == 1
+    assert [n.op_type for n in graph] == ["Conv", "DepthToSpace"]
+    conv, shuffle = graph.node(0), graph.node(1)
+    assert shuffle.attributes["mode"].value == "CRD"
+    assert graph.outputs[0].producer() is shuffle
+    assert set(graph.initializers) == {v.name for v in conv.inputs[1:]}
+    cw, cb = (torch.from_numpy(v.const_value.numpy().astype("float32")) for v in conv.inputs[1:])
+    xs = torch.randn(1, 3, 4, 4, generator=g)
+    want = torch.nn.functional.conv_transpose2d(xs, weight.bfloat16().float(), bias.bfloat16().float(), stride=stride)
+    got = torch.nn.functional.pixel_shuffle(torch.nn.functional.conv2d(xs, cw, cb), stride)
+    torch.testing.assert_close(got, want, rtol=1e-5, atol=1e-5)
+
+
 def test_kernels_op_fake_shape():
     with FakeTensorMode():
         x = torch.empty(2, 3, 50, 70)
@@ -426,7 +566,7 @@ def test_export_rejects_kernels_and_small_sizes(tmp_path, monkeypatch):
         InputError, match=rf"export size {low - 1}x64 .*outside the supported range: any H x W >= {low}"
     ):
         model.export_onnx(tmp_path / "m.onnx", low - 1, 64)
-    monkeypatch.setattr(model, "backend", stereo.Backend("kernels", "cuda:0", "float16"))
+    monkeypatch.setattr(model, "backend", Backend("kernels", "cuda:0", "float16"))
     with pytest.raises(BackendUnavailableError, match="cannot run"):
         model.export_onnx(tmp_path / "m.onnx", 64, 64)
 
@@ -475,6 +615,7 @@ def test_model_compile_equals_eager(ref):
     """`model.compile()` keeps the model call: same results as eager within tolerance, the runner runs compiled."""
     from fastforks._core.bench import BenchSize, bench_inputs  # noqa: PLC0415
 
+    _skip_without_module(ref)
     model = _load(ref)
     args, kwargs = bench_inputs(model, BenchSize(*_shape(model)[2:], 2))
     want = model(*args, **kwargs)
@@ -484,7 +625,9 @@ def test_model_compile_equals_eager(ref):
         assert type(model._runner) is not runner_type
         got = model(*args, **kwargs)
         for name, w in _tensors(want).items():
-            torch.testing.assert_close(_tensors(got)[name].float(), w.float(), rtol=1e-3, atol=2e-3)
+            # a few track points sit on near-ties of the cost-volume argmax: locotrack-s needs 9.3e-3 on top of rtol
+            atol = 1.2e-2 if TASK[ref] == "tracking" else 2e-3
+            torch.testing.assert_close(_tensors(got)[name].float(), w.float(), rtol=1e-3, atol=atol)
         assert model.compile(backend="eager") is model  # a repeat compile replaces the first
         assert type(model._runner).__bases__ == (runner_type,)
     finally:
@@ -494,7 +637,7 @@ def test_model_compile_equals_eager(ref):
 @pytest.mark.slow
 def test_compile_rejects_kernels(monkeypatch):
     model = _load("hitnet-eth3d@1")
-    monkeypatch.setattr(model, "backend", stereo.Backend("kernels", "cuda:0", "float16"))
+    monkeypatch.setattr(model, "backend", Backend("kernels", "cuda:0", "float16"))
     with pytest.raises(BackendUnavailableError, match="only the portable backend"):
         model.compile()
 

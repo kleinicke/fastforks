@@ -1,7 +1,7 @@
 schema = 2
 name = "MVSAnywhere"
 summary = "MVSAnywhere (Izquierdo et al. 2025): zero-shot multi-view stereo, the depth of a reference view from posed, calibrated source views. A view-agnostic MLP cost volume (warped matching features + camera metadata, softmax over the views) is encoded by a DINOv2 ViT-B fused with a second DINOv2's image features and decoded by a DPT head; the depth range comes from the camera baselines and is refined once."
-tier = "experimental"
+tier = "stable"
 outputs = ["depth", "mask", "sky", "depth_range"]  # mask: not sky; extras: sky probability [1, H, W], depth range used [1, 2]
 uses = ["depth_anything_v2", "cnn_kernels", "quantile"]  # fastforks.shared modules this family imports (DINOv2, DPT fusion blocks)
 
@@ -34,12 +34,19 @@ refinement_steps = { default = 1, min = 0 }  # depth-range refinement passes (or
 
 [modes.portable]
 cuda_dtype = "float16"
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["fastbb", "igev", "cutlass_conv", "cudnn_hacc", "mvsanywhere"]
+kernels = ["fastbb", "igev", "cutlass_conv", "cudnn_hacc", "mvsanywhere", "dpt_fused"]
+
+[[papers]]
+title = "MVSAnywhere: Zero-Shot Multi-View Stereo"
+url = "https://arxiv.org/abs/2503.22430"
+date = "2025-03-28"
+venue = "CVPR 2025"
 
 [[variants]]
 id = "mvsanywhere"
+planned = { tensorrt = "the fp16 engine outputs all NaN (fp16 overflow, needs an fp32 island)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "mvsanywhere_hero.ckpt", size = 2420601860, sha256 = "00878bab903b1d384cd6bb9ea092e247a9036d429cb8bcc3d6dcbb81f67e556d", url = "https://storage.googleapis.com/niantic-lon-static/research/mvsanywhere/mvsanywhere_hero.ckpt" }]

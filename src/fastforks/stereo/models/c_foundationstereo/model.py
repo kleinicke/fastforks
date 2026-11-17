@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
-import numpy as np
 import torch
 
-from fastforks._core.checkpoint import Inert, latin1_encode, numeric_scalar
+from fastforks._core.checkpoint import config_globals
 from fastforks.stereo._runner import Forward, Runner
 
 from .net.fast_foundation_stereo.ckpt_utils import remap_state_dict, tao_edgenext_keys
@@ -138,16 +136,8 @@ _FFS_MODULES = {
 
 def _ffs_extra() -> dict[tuple[str, str], object]:
     """Globals of the C-FFS pickle: every module class -> `_Tree`, its OmegaConf `args` -> `Inert`, plus scalars."""
-    scalar = numeric_scalar
-    extra: dict[tuple[str, str], object] = {
-        (mod, name): _Tree for mod, names in _FFS_MODULES.items() for name in names.split()
-    }
-    extra.update({("omegaconf.base", "ContainerMetadata"): Inert, ("omegaconf.base", "Metadata"): Inert})
-    extra.update({("omegaconf.dictconfig", "DictConfig"): Inert, ("omegaconf.listconfig", "ListConfig"): Inert})
-    extra.update({("omegaconf.nodes", "AnyNode"): Inert, ("typing", "Any"): Any})
-    extra.update({("collections", "defaultdict"): defaultdict, ("_codecs", "encode"): latin1_encode})
-    extra.update({("numpy", "dtype"): np.dtype, ("numpy._core.multiarray", "scalar"): scalar})
-    extra[("numpy.core.multiarray", "scalar")] = scalar  # numpy 1 spelling, in the research checkpoint
+    extra = config_globals()
+    extra.update({(mod, name): _Tree for mod, names in _FFS_MODULES.items() for name in names.split()})
     extra.update({("torch", "float32"): torch.float32, ("torch._utils", "_rebuild_parameter"): _parameter})
     extra.update({("torch", "CharStorage"): torch.CharStorage, ("torch", "HalfStorage"): torch.HalfStorage})
     return extra

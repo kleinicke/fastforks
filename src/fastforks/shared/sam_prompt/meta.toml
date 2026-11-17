@@ -1,0 +1,4 @@
+summary = "Segment Anything's prompt side for families that keep it under another image encoder: prompt encoder, two-way transformer and mask decoder (checkpoints load unchanged), SAM's input handling (longest side resized as PIL does, normalised, zero-padded) and the prompt decode in a form a CUDA graph can capture."
+licence = "Apache-2.0"
+files = ["LICENSE"]
+derived_from = "https://github.com/facebookresearch/segment-anything (dca509f, Apache-2.0: segment_anything/modeling/{common,transformer,mask_decoder,prompt_encoder}.py vendored; input handling after segment_anything/utils/transforms.py and predictor.py). Weights are NOT part of this module."

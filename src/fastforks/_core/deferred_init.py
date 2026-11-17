@@ -5,9 +5,10 @@ A network built from upstream code initialises every parameter (`torch.nn.init`,
 50M-parameter stereo net and seconds for a ViT-L or a 1B-parameter network, per load. Inside `deferred_init()`,
 `torch.nn.init`'s random in-place initialisers only zero the tensor (a memset, far cheaper than a random fill) and
 record their call on the calling thread; the deterministic ones (`ones_`, `constant_`, ...) run as usual. When the block
-ends, each recorded tensor that nothing has written to since (same version counter and same storage, e.g. a tensor the
-checkpoint lacks) is initialised then. Tensors written in place (`load_state_dict`), given new data (`weight.data =
-fused`, a reparameterisation; also a `.to()` move or cast, which leaves an unloaded randomly initialised tensor at
+ends, each recorded tensor that nothing has written to since (same version counter, same storage and still all zero,
+e.g. a tensor the checkpoint lacks) is initialised then. Tensors written in place (`load_state_dict`;
+`weight.data.copy_(fused)`, timm's `fuse()`), given new data (`weight.data = fused`, a reparameterisation; also a
+`.to()` move or cast, which leaves an unloaded randomly initialised tensor at
 zero), replaced (`load_state_dict(assign=True)`) or freed are skipped. Loaded tensors therefore hold exactly the
 checkpoint's values, as before; only the random draws of tensors the checkpoint does not cover come from a later point
 of the global RNG stream (they were never seeded).
@@ -119,7 +120,9 @@ def deferred_init() -> Generator[None]:
             tensor = ref()
             if tensor is None or tensor._version != version:  # noqa: SLF001 - torch's counter
                 continue
-            if tensor.untyped_storage() is storage():
+            # still zero: not written through `.data` either (`w.data.copy_(fused)` bumps no version counter; an
+            # all-zero write that way cannot be told apart and is initialised)
+            if tensor.untyped_storage() is storage() and not tensor.any():
                 fn(tensor, *args, **kwargs)
 
 

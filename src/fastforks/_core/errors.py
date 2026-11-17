@@ -33,6 +33,10 @@ class OptionsError(FastforksError, ValueError):
     """A load option is unknown or has the wrong type."""
 
 
+class UnknownOptionError(OptionsError, ArgumentError):
+    """A `load` keyword is neither a load argument nor an option of the model (a typo): one class for every task."""
+
+
 class BackendUnavailableError(FastforksError, RuntimeError):
     """The requested backend (e.g. `mode="kernels"`) cannot run here. There is no silent fallback."""
 

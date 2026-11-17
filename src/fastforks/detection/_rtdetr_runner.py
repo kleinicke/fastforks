@@ -14,9 +14,9 @@ import torch
 from fastforks._core.errors import InputError
 from fastforks._core.half import fp16_accumulate
 from fastforks.detection._convs import FusedConvs
-from fastforks.detection._resize import pil_bilinear
 from fastforks.detection._rtdetr import ConvBn, RepVgg
 from fastforks.detection._runner import Forward, Runner
+from fastforks.shared.pil_resize import pil_bilinear
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -107,13 +107,14 @@ class Kernels(Portable):
     """cuDNN fused conv + ReLU (+ residual), fp16-accumulate convs (`cudnn_hacc`) and GEMMs, CUDA graph replay."""
 
     conv_modules: tuple[type, ...] = (ConvBn, RepVgg)  # modules whose `cv` runs their convolutions
+    convs: type[FusedConvs] = FusedConvs  # how they run
     cudnn_hacc: ModuleType  # the family's kernel library and graph cache (the family's file imports them: card checks)
     GraphCache: type[GraphCache]
 
     def __init__(self, ctx: Context) -> None:
         """Build the network, route its convs through `cudnn_hacc` / cuDNN fused calls."""
         super().__init__(ctx)
-        cv = FusedConvs(self.cudnn_hacc.load(ctx.device))
+        cv = self.convs(self.cudnn_hacc.load(ctx.device))
         for m in self.net.modules():
             if isinstance(m, self.conv_modules):
                 m.cv = cv  # ty: ignore[invalid-assignment]

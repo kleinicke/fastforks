@@ -18,7 +18,12 @@ exist. Tiers: fastforks
 `portable32`, `portable`, `kernels`; the authors' code (`upstream` fp32, `upstream16` autocast float16, `upstreamhalf`
 `.half()` + float16 input; none has an own option): DINOv2 = facebookresearch/dinov2 `forward_features` CLS
 (`x_norm_clstoken`, bench adapter, 006 venv), DINOv3 ViT / ConvNeXt = transformers `DINOv3ViTModel` /
-`DINOv3ConvNextModel` `pooler_output`; input normalised with the ImageNet mean / std.
+`DINOv3ConvNextModel` `pooler_output`, ConvNeXt = timm `num_classes=0` (pooled, head norm); input normalised
+with the ImageNet mean / std. TIPSv2 = google-deepmind/tips `image_encoder` first cls token, input in [0, 1].
+CLIP / SigLIP 2 / Perception Encoder = timm by the card's `arch` (`dynamic_img_size=True`, the card's weight file),
+`forward_head(pre_logits=True)`, the card's mean / std; C-RADIO = NVIDIA's `AutoModel` (`trust_remote_code`, the
+card's revision) `summary`, input in [0, 1]. Every tier runs at the 224 crop (position embeddings resampled where the
+native size differs), so a row is a like-for-like original vs fastforks check, not the model's best kNN score.
 """
 
 from __future__ import annotations
@@ -100,12 +105,12 @@ MEAN, STD = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
 GATED = Path(os.environ.get("FASTFORKS_DATA", "data")) / "gated_models/dinov3"  # the licence-gated checkpoints
 
 
-def _original(ref: str, tier: str) -> tuple[Any, dict[str, Any]]:
+def _original(ref: str, tier: str) -> tuple[Any, dict[str, Any]]:  # noqa: C901, PLR0915 - one branch per family
     """The authors' feature extractor: fn(uint8 [B, 3, 224, 224] CUDA) -> CLS / pooled features [B, C]."""
     import _original as orig  # noqa: PLC0415
 
     bu = orig.bench()
-    full, card, _ = orig.full_ref("features", ref)
+    full, card, variant = orig.full_ref("features", ref)
     if card.family == "dinov2":
         a = bu.FAM["dinov2"]
         a.setup()
@@ -114,6 +119,54 @@ def _original(ref: str, tier: str) -> tuple[Any, dict[str, Any]]:
 
         def feat(x: torch.Tensor) -> torch.Tensor:
             return net.forward_features(x)["x_norm_clstoken"]
+
+    elif (
+        card.family == "tipsv2"
+    ):  # TIPS_REPO = a google-deepmind/tips checkout, TIPS_WEIGHTS = the golden's WEIGHTS_DIR
+        g = orig._golden("tipsv2")  # noqa: SLF001 - the golden's builder
+        net = g.build(Path(os.environ["TIPS_REPO"]), Path(os.environ["TIPS_WEIGHTS"]), ref.removeprefix("tipsv2-"))
+        net = net.cuda()
+
+        def feat(x: torch.Tensor) -> torch.Tensor:
+            return net(x)[0][:, 0]
+
+    elif card.family == "convnext_features":
+        import timm  # noqa: PLC0415
+
+        pooled: Any = timm.create_model(full.split("@")[0], pretrained=True, num_classes=0).cuda().eval()
+        net = feat = pooled  # head norm of the mean stage-4 map (`forward_head(pre_logits=True)`)
+
+    elif "arch" in {**card.params, **variant.params}:  # CLIP / SigLIP 2 / Perception Encoder: timm by name
+        import timm  # noqa: PLC0415
+
+        from fastforks._core import registry  # noqa: PLC0415
+
+        arch = {**card.params, **variant.params}["arch"]
+        file = str(registry.weights(card, variant)[0])  # the timm hub file the card pins
+        vit: Any = (
+            timm.create_model(arch, pretrained=True, pretrained_cfg_overlay={"file": file}, dynamic_img_size=True)
+            .cuda()
+            .eval()
+        )
+        net = vit
+
+        def feat(x: torch.Tensor) -> torch.Tensor:
+            return vit.forward_head(vit.forward_features(x), pre_logits=True)
+
+    elif card.family == "c_radio":  # NVIDIA's code (trust_remote_code) at the card's revision, input in [0, 1]
+        import re  # noqa: PLC0415
+
+        import transformers  # noqa: PLC0415
+
+        hub = re.match(r"https://huggingface.co/([^/]+/[^/]+)/resolve/([0-9a-f]+)/", variant.weights[0].url)
+        if hub is None:
+            msg = f"{ref}: unexpected weight url {variant.weights[0].url}"
+            raise RuntimeError(msg)
+        radio: Any = transformers.AutoModel.from_pretrained(hub[1], revision=hub[2], trust_remote_code=True)
+        net = radio = radio.float().cuda().eval()
+
+        def feat(x: torch.Tensor) -> torch.Tensor:
+            return radio(x).summary
 
     else:
         import transformers  # noqa: PLC0415
@@ -130,6 +183,12 @@ def _original(ref: str, tier: str) -> tuple[Any, dict[str, Any]]:
         net.half()
     m = torch.tensor(MEAN, device="cuda").view(1, 3, 1, 1)
     sd = torch.tensor(STD, device="cuda").view(1, 3, 1, 1)
+
+    if card.family in {"tipsv2", "c_radio"}:  # the encoders take [0, 1] images
+        m, sd = torch.zeros_like(m), torch.ones_like(sd)
+    elif card.family in {"clip", "siglip2", "perception_encoder"}:  # the card's mean / std
+        m = torch.tensor(variant.io.mean, device="cuda").view(1, 3, 1, 1)
+        sd = torch.tensor(variant.io.std, device="cuda").view(1, 3, 1, 1)
 
     def fn(x: torch.Tensor) -> torch.Tensor:
         xx = (x.float() / 255 - m) / sd

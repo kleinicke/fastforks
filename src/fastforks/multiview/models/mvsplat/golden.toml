@@ -1,0 +1,24 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.02
+gpu_p99 = 0.25
+
+[refs."mvsplat-re10k@1"]
+sha256 = "5a85cde6884164d2a968abdfd7cfaa341889f11bbaeaba098b515a334b6b188c"
+upstream = "https://github.com/donydchen/mvsplat@01f9a28edb5eb68416e7e63b01f8d90c3bdfbf01"
+settings = "CPU float32, synth scene (4 views) at 120x160 -> network 192x256, torch 2.14.1+cu130"
+
+[validated."mvsplat-re10k@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00157
+p99_px = 0.00705

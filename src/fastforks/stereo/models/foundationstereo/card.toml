@@ -41,6 +41,12 @@ mps_dtypes = ["float32", "float16"]
 kernels = ["fs", "fs_cutlass", "cudnn_hacc", "fastbb"]
 mps_kernels = ["stereo_metal"]
 
+[[papers]]
+title = "FoundationStereo: Zero-Shot Stereo Matching"
+url = "https://arxiv.org/abs/2501.09898"
+date = "2025-01-17"
+venue = "CVPR 2025"
+
 [[variants]]
 id = "foundationstereo-vit-l"
 revision = 1

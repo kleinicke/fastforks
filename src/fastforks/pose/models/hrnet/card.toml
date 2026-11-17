@@ -1,0 +1,75 @@
+schema = 2
+name = "HRNet"
+summary = "HRNet (Sun et al. 2019): top-down 2D human pose with a high-resolution CNN that keeps a 1/4-scale branch through the whole network and repeatedly exchanges features with three coarser parallel branches; a 1 x 1 conv on the finest branch gives one heatmap per keypoint, decoded as its maximum moved a quarter heatmap pixel towards the larger neighbour. The mmpose COCO checkpoints (w32 / w48, 256 x 192 and 384 x 288) return the 17 COCO keypoints. Takes person boxes (e.g. from `fastforks.detection`) and crops each at the network size; vendored from mmpose (no mmpose / mmcv dependency). The portable `module()` maps crops to heatmaps."
+tier = "stable"
+uses = ["topdown"]  # shared modules imported directly by this family
+outputs = ["keypoints", "keypoint_scores", "boxes", "scores"]
+
+[upstream]
+repo = "https://github.com/open-mmlab/mmpose"
+commit = "5408bc76f5b848cf925a0d1857899011d8c5b497"  # v1.3.2; net.py condenses the HRNet backbone and HeatmapHead, model.py the MSRAHeatmap codec (Apache-2.0, OpenMMLab)
+
+[[upstream.official]]
+repo = "https://github.com/leoxiaobin/deep-high-resolution-net.pytorch"
+framework = "PyTorch"
+reason = "The mmpose port loads the model-zoo checkpoints retrained and evaluated in the OpenMMLab pipeline, with its own heatmap codec, instead of the authors' original scripts and weights."
+
+[licence]
+code = "Apache-2.0"  # open-mmlab/mmpose LICENSE
+weights = "Apache-2.0"  # the model zoo checkpoints are released with the repository (README: Apache 2.0)
+files = ["LICENSE"]
+training_data = ["coco", "imagenet-1k"]
+training_note = "COCO 2017 keypoints; the HRNet backbone was initialised from ImageNet-1k classification weights"
+evidence = "https://github.com/open-mmlab/mmpose/blob/5408bc76f5b848cf925a0d1857899011d8c5b497/README.md#license"
+
+[io]
+input = "imagenet"  # the runner crops each box at the network size and normalises the crops itself (0..255 mmpose means)
+
+[options]
+flip_test = { default = false }  # true: average with the mirrored crop's shifted heatmaps (mmpose's COCO AP protocol; two network passes)
+
+[params]
+channels = 32
+keypoints = 17
+height = 256
+width = 192
+
+[modes.portable]
+cuda_dtype = "float16"  # crops, decoding and keypoint mapping stay float32
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # the network through fastforks._optimize (BatchNorm folded, fused conv + ReLU / residual, fp16, channels-last)
+
+[output]
+label_set = "coco-keypoints-17"
+
+[[papers]]
+title = "Deep High-Resolution Representation Learning for Human Pose Estimation"
+url = "https://arxiv.org/abs/1902.09212"
+date = "2019-02-25"
+venue = "CVPR 2019"
+
+[[variants]]
+id = "hrnet-w32"  # HRNet-W32, 256 x 192; COCO val AP 74.6 (detector boxes, flip test)
+revision = 1
+params = {}
+weights = [{ name = "hrnet-w32-coco-256x192.pth", size = 121739901, sha256 = "81c58e403a1ba13a741eb02ba790b5b78bff2a45a9390feebf875f43b8502c8f", url = "https://download.openmmlab.com/mmpose/v1/body_2d_keypoint/topdown_heatmap/coco/td-hm_hrnet-w32_8xb64-210e_coco-256x192-81c58e40_20220909.pth" }]
+
+[[variants]]
+id = "hrnet-w32-384"  # HRNet-W32, 384 x 288; COCO val AP 76.0
+revision = 1
+params = { height = 384, width = 288 }
+weights = [{ name = "hrnet-w32-coco-384x288.pth", size = 122106045, sha256 = "ca5956af0765b1100e810c198e7db2683892d65e6f9cdf717d707d3e52cded11", url = "https://download.openmmlab.com/mmpose/v1/body_2d_keypoint/topdown_heatmap/coco/td-hm_hrnet-w32_8xb64-210e_coco-384x288-ca5956af_20220909.pth" }]
+
+[[variants]]
+id = "hrnet-w48"  # HRNet-W48, 256 x 192; COCO val AP 75.6
+revision = 1
+params = { channels = 48 }
+weights = [{ name = "hrnet-w48-coco-256x192.pth", size = 269176125, sha256 = "0e67c6167d6a10fe8f27e3da1e9a415b57289d5820dcca2b42bd8079df4b7a3a", url = "https://download.openmmlab.com/mmpose/v1/body_2d_keypoint/topdown_heatmap/coco/td-hm_hrnet-w48_8xb32-210e_coco-256x192-0e67c616_20220913.pth" }]
+
+[[variants]]
+id = "hrnet-w48-384"  # HRNet-W48, 384 x 288; COCO val AP 76.7
+revision = 1
+params = { channels = 48, height = 384, width = 288 }
+weights = [{ name = "hrnet-w48-coco-384x288.pth", size = 267852221, sha256 = "c161b7defc14f702e293693b5d383dec620a30fa934e50d7e0ec67fe86e257a7", url = "https://download.openmmlab.com/mmpose/v1/body_2d_keypoint/topdown_heatmap/coco/td-hm_hrnet-w48_8xb32-210e_coco-384x288-c161b7de_20220915.pth" }]

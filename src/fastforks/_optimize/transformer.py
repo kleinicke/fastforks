@@ -27,7 +27,9 @@ from .conv_ops import lin  # re-exported: `transformer.lin`
 from .fold import hooked
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
+
+    _PeRope = Callable[[torch.Tensor, torch.Tensor, int], tuple[torch.Tensor, torch.Tensor]]  # `_pe_rope`'s signature
 
 _Blk = Any  # a timm / torchvision / transformers block patched with our buffers: untyped to the checker
 
@@ -37,8 +39,10 @@ def _modules(model: nn.Module) -> Iterator[_Blk]:
     return (m for m in model.modules() if not any(hooked(d) for d in itertools.islice(m.modules(), 1, None)))
 
 
+_SILU = 3
 _GELU = 5
 _GELU_TANH = 6
+_QUICK_GELU = 1.702  # QuickGELU(x) = x * sigmoid(1.702 x) = SiLU(1.702 x) / 1.702 (CLIP)
 
 
 def _w4(w: torch.Tensor) -> torch.Tensor:
@@ -71,16 +75,50 @@ def _gelu(act: object) -> int:
     return _GELU_TANH if cls is not None and is_base(act, cls[1]) else 0
 
 
+def _quick_gelu(act: object) -> bool:
+    """Timm's QuickGELU (OpenAI / DFN / MetaCLIP CLIP towers)."""
+    cls = _timm("layers.activations", "QuickGELU")
+    return cls is not None and is_base(act, cls[0])
+
+
 def _id_or(m: object, *classes: type) -> bool:
     """Identity, or exactly one of `classes` (eval DropPath / LayerScale)."""
     return _is_id(m) or any(is_base(m, c) for c in classes)
 
 
-def _reg(mod: _Blk, bufs: dict[str, torch.Tensor]) -> None:
+def _reg(mod: _Blk, bufs: dict[str, torch.Tensor | None]) -> None:
     for k, v in bufs.items():
         # buffers follow the module across .to(); detached: an fp32 weight passes `.float()` / `.to()` unchanged and
-        # would stay a Parameter that requires grad (torch.export warns and treats it as a constant)
-        mod.register_buffer(k, v.detach(), persistent=False)
+        # would stay a Parameter that requires grad (torch.export warns and treats it as a constant). A buffer made
+        # from a parameter without a fold shares its storage (no copy of the weights: lean).
+        mod.register_buffer(k, None if v is None else v.detach(), persistent=False)
+
+
+def _adopt(bufs: dict[str, torch.Tensor | None], params: dict[str, torch.Tensor | None], gammas: tuple) -> None:
+    """Kernels path (no autograd, reads only the buffers): a folded buffer replaces its parameter's storage.
+
+    No second copy of proj / fc1 / fc2 next to the original (CLIP ViT-B kernels 228 -> 172 MB). A folded layer scale
+    becomes 1 so the module stays exact; a reload (load_state_dict) restores the originals and folds again.
+    """
+    for k, p in params.items():
+        if p is not None and bufs.get(k) is not None and bufs[k].data_ptr() != p.data_ptr():
+            p.data = bufs[k].reshape(p.shape)
+    for g in gammas:
+        if g is not None:
+            g.data = torch.ones_like(g)
+
+
+def _alias(params: list[nn.Parameter], packed: torch.Tensor, rows: list[int] | None = None) -> None:
+    """Point `params` at row slices of `packed` (which holds exactly their values) instead of their own storage.
+
+    One copy of the weights serves the packed buffer and the parameters (state_dict, the portable forward).
+    """
+    at = 0
+    for i, p in enumerate(params):
+        if rows is not None:
+            at = rows[i]
+        p.data = packed[at : at + p.shape[0]]
+        at += p.shape[0]
 
 
 # --- ConvNeXt (timm ConvNeXtBlock, Linear MLP) ---------------------------------------------------------------------
@@ -101,7 +139,7 @@ def _cnx_ok(blk: _Blk) -> bool:
         and is_base(m.fc2, nn.Linear)
         and _is_id(blk.shortcut)
         and _id_or(blk.drop_path, cls[3])
-        and _gelu(m.act) == _GELU
+        and _gelu(m.act) != 0  # exact or tanh (WD ConvNeXt tagger)
         and m.fc1.bias is not None
         and m.fc2.bias is not None
         and _is_id(getattr(m, "norm", None))
@@ -109,15 +147,7 @@ def _cnx_ok(blk: _Blk) -> bool:
 
 
 def _cnx_prep(blk: _Blk) -> None:
-    m = blk.mlp
-    with torch.no_grad():
-        w2, b2 = m.fc2.weight.float(), m.fc2.bias.float()
-        if blk.gamma is not None:
-            g = blk.gamma.float()
-            w2, b2 = w2 * g[:, None], b2 * g
-        dt = m.fc2.weight.dtype
-        _reg(blk, {"_w2": w2.to(dt).contiguous(), "_b2": b2.to(dt)})
-    grn = getattr(m, "grn", None)
+    grn = getattr(blk.mlp, "grn", None)
     if grn is not None:
         blk._grn_eps = grn.eps
 
@@ -139,13 +169,9 @@ def _cnx_portable(self: _Blk, x: torch.Tensor) -> torch.Tensor:
     h = m.act(m.fc1(h))
     if hasattr(self, "_grn_eps"):
         h = _grn(self, h)
-    g = self.gamma
-    if torch.is_grad_enabled() and any(p is not None and p.requires_grad for p in (m.fc2.weight, m.fc2.bias, g)):
-        h = m.fc2(h)  # autograd: from the parameters (`_w2` / `_b2` are detached folded copies)
-        h = h * g if g is not None else h
-    else:
-        h = F.linear(h, self._w2, self._b2)
-    return shortcut + h.permute(0, 3, 1, 2)
+    h = m.fc2(h).permute(0, 3, 1, 2)
+    g = self.gamma  # the layer scale rides on the residual add (one pass); the parameters stay as loaded (autograd)
+    return shortcut + h if g is None else torch.addcmul(shortcut, h, g.view(1, -1, 1, 1))
 
 
 def _cnx_kernels(self: _Blk, x: torch.Tensor) -> torch.Tensor:
@@ -153,10 +179,10 @@ def _cnx_kernels(self: _Blk, x: torch.Tensor) -> torch.Tensor:
     shortcut = x.contiguous(memory_format=torch.channels_last)
     h = ops.dwconv(shortcut, self._w_rsc, c.bias, list(c.stride), list(c.padding), 0).permute(0, 2, 3, 1)
     h = self.norm(h)
-    h = lin(h, self._w1, self.mlp.fc1.bias, act=_GELU)
+    h = lin(h, self._w1, self.mlp.fc1.bias, act=self._act)
     if hasattr(self, "_grn_eps"):
         h = _grn(self, h)
-    return lin(h, self._w2_4, self._b2, res=shortcut.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
+    return lin(h, self._w2_4, self._b2_g, res=shortcut.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
 
 
 def patch_convnext(model: nn.Module, mode: str) -> int:
@@ -184,14 +210,25 @@ def patch_convnext(model: nn.Module, mode: str) -> int:
 
 
 def _cnx_kprep(blk: _Blk) -> None:
+    fc2, g = blk.mlp.fc2, blk.gamma
+    if g is not None:
+        # the kernels' GEMM epilogue adds the residual, so the layer scale is folded into fc2 itself and set to 1 (the
+        # portable fallback stays exact; a separate folded copy of every fc2 weight cost ~40 % of the model). The
+        # kernels path has no autograd, so the parameters may change here (portable keeps them as loaded).
+        with torch.no_grad():
+            gf = g.float()
+            w2, b2 = (fc2.weight.float() * gf[:, None]).to(fc2.weight.dtype), (fc2.bias.float() * gf).to(fc2.bias.dtype)
+            fc2.weight.data, fc2.bias.data, g.data = w2.contiguous(), b2, torch.ones_like(g)
     _reg(
         blk,
         {
             "_w_rsc": blk.conv_dw.weight.data[:, 0].permute(1, 2, 0).contiguous(),
             "_w1": _w4(blk.mlp.fc1.weight),
-            "_w2_4": _w4(blk._w2),
+            "_w2_4": _w4(fc2.weight),
+            "_b2_g": fc2.bias,
         },
     )
+    blk._act = _gelu(blk.mlp.act)
 
 
 def _cnx_reload(blk: _Blk, _keys: object) -> None:
@@ -251,7 +288,9 @@ def _vit_kernels(
     o = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, is_causal=is_causal, scale=a.scale)
     o = o.transpose(1, 2).reshape(b, n, c)
     x = lin(o, self._w_proj, self._b_proj, res=x)
-    y = lin(self.norm2(x), self._w_fc1, self.mlp.fc1.bias, act=self._act)
+    n2 = self.norm2
+    h = n2(x) if self._ln2_w is None else F.layer_norm(x, n2.normalized_shape, self._ln2_w, self._ln2_b, n2.eps)
+    y = lin(h, self._w_fc1, self._b_fc1, act=self._act)
     return lin(y, self._w_fc2, self._b_fc2, res=x)
 
 
@@ -262,31 +301,71 @@ def _vit_act(mod: _Blk) -> int:
         return 0
     if a.qkv.bias is None or a.proj.bias is None or m.fc1.bias is None or m.fc2.bias is None:
         return 0
-    return _gelu(m.act)
+    return _SILU if _quick_gelu(m.act) else _gelu(m.act)
 
 
 def _vit_prep(mod: _Blk) -> None:
+    """Fused-path buffers; without a fold a buffer shares the parameter's storage.
+
+    Folds: LayerScale into proj / fc2; QuickGELU as SiLU on 1.702 x (the factor in norm2's affine and fc1's bias),
+    fc2 / 1.702.
+    """
     a, m = mod.attn, mod.mlp
     g1, g2 = _gamma(mod.ls1), _gamma(mod.ls2)
+    quick = _quick_gelu(m.act)
+    n2 = mod.norm2
+    tln = _timm("layers.norm", "LayerNorm")
+    ln2 = (
+        quick
+        and (is_base(n2, nn.LayerNorm) or (tln is not None and is_base(n2, tln[0])))
+        and n2.weight is not None
+        and n2.bias is not None
+    )
+    dt = a.qkv.weight.dtype
+    bufs: dict[str, torch.Tensor | None] = {
+        "_w_qkv": _w4(a.qkv.weight),
+        "_w_proj": _w4(a.proj.weight),
+        "_b_proj": a.proj.bias,
+        "_ln2_w": None,
+        "_ln2_b": None,
+        "_w_fc1": _w4(m.fc1.weight),
+        "_b_fc1": m.fc1.bias,
+        "_w_fc2": _w4(m.fc2.weight),
+        "_b_fc2": m.fc2.bias,
+    }
     with torch.no_grad():
-        wp, bp = a.proj.weight.float(), a.proj.bias.float()
-        w2, b2 = m.fc2.weight.float(), m.fc2.bias.float()
         if g1 is not None:
-            wp, bp = wp * g1.float()[:, None], bp * g1.float()
-        if g2 is not None:
-            w2, b2 = w2 * g2.float()[:, None], b2 * g2.float()
-        dt = a.qkv.weight.dtype
-        _reg(
-            mod,
+            bufs["_w_proj"] = _w4((a.proj.weight.float() * g1.float()[:, None]).to(dt))
+            bufs["_b_proj"] = (a.proj.bias.float() * g1.float()).to(dt)
+        if quick:
+            bufs["_b_fc1"] = (m.fc1.bias.float() * _QUICK_GELU).to(dt)
+            if ln2:
+                bufs["_ln2_w"] = (n2.weight.float() * _QUICK_GELU).to(n2.weight.dtype)
+                bufs["_ln2_b"] = (n2.bias.float() * _QUICK_GELU).to(n2.bias.dtype)
+            else:
+                bufs["_w_fc1"] = _w4((m.fc1.weight.float() * _QUICK_GELU).to(dt))
+        if quick or g2 is not None:
+            w2, b2 = m.fc2.weight.float(), m.fc2.bias.float()
+            if quick:
+                w2 = w2 / _QUICK_GELU
+            if g2 is not None:
+                w2, b2 = w2 * g2.float()[:, None], b2 * g2.float()
+            bufs["_w_fc2"], bufs["_b_fc2"] = _w4(w2.to(dt)), b2.to(dt)
+        _adopt(
+            bufs,
             {
-                "_w_qkv": _w4(a.qkv.weight),
-                "_w_proj": _w4(wp.to(dt)),
-                "_b_proj": bp.to(dt),
-                "_w_fc1": _w4(m.fc1.weight),
-                "_w_fc2": _w4(w2.to(dt)),
-                "_b_fc2": b2.to(dt),
+                "_w_proj": a.proj.weight,
+                "_b_proj": a.proj.bias,
+                "_w_fc1": m.fc1.weight,
+                "_b_fc1": m.fc1.bias,
+                "_w_fc2": m.fc2.weight,
+                "_b_fc2": m.fc2.bias,
+                "_ln2_w": getattr(n2, "weight", None),
+                "_ln2_b": getattr(n2, "bias", None),
             },
+            (g1, g2),
         )
+    _reg(mod, bufs)
 
 
 def _vit_reload(mod: _Blk, _keys: object) -> None:
@@ -399,7 +478,7 @@ def _swin_block(blk: _Blk, x: torch.Tensor, bias: torch.Tensor, nw: int) -> torc
     v = lin(h, blk._wv, blk._bv).view(b, n, nw * heads, d).transpose(1, 2)
     o = F.scaled_dot_product_attention(q, k, v, attn_mask=bias, scale=a.scale).transpose(1, 2).reshape(b, tokens, c)
     x = lin(o, blk._wp, a.proj.bias, res=x)
-    h = lin(blk.norm2(x), blk._w1, m.fc1.bias, act=_GELU)
+    h = lin(blk.norm2(x), blk._w1, m.fc1.bias, act=blk._act)
     return lin(h, blk._w2, m.fc2.bias, res=x)
 
 
@@ -449,6 +528,7 @@ def _swin_prep(st: _Blk) -> bool:
             },
         )
         b._ff_nw = nw
+        b._act = _gelu(m.act)
     st._ff_hw = (h, w)
     return True
 
@@ -472,7 +552,7 @@ def patch_swin_kernels(model: nn.Module) -> int:
             and is_base(b.attn, cls[2])
             and is_base(b.mlp, cls[3])
             and _own_forwards(b, b.attn, b.mlp)
-            and _gelu(b.mlp.act) == _GELU
+            and _gelu(b.mlp.act) != 0  # exact or tanh
             and b.attn.qkv.bias is not None
             and b.attn.proj.bias is not None
             for b in st.blocks
@@ -537,16 +617,21 @@ def _eva_prep(blk: _Blk) -> None:
         lw = torch.zeros(hp, dtype=dt, device=dev)
         lb = torch.zeros(hp, dtype=dt, device=dev)
         lw[:hid], lb[:hid] = m.norm.weight, m.norm.bias
+        w2 = w2.to(dt)
+        _alias([a.q_proj.weight, a.k_proj.weight, a.v_proj.weight], wqkv)
+        _alias([m.fc1_g.weight, m.fc1_x.weight], w1, [0, hp])
+        if blk.gamma_2 is None:
+            m.fc2.weight.data = w2[:, :hid]
     _reg(
         blk,
         {
             "_wqkv": _w4(wqkv),
             "_bqkv": bqkv,
-            "_wp": _w4(wp.to(dt)),
-            "_bp": bp.to(dt),
+            "_wp": _w4(a.proj.weight) if blk.gamma_1 is None else _w4(wp.to(dt)),
+            "_bp": a.proj.bias if blk.gamma_1 is None else bp.to(dt),
             "_w1": _w4(w1),
             "_b1": b1,
-            "_w2": _w4(w2.to(dt)),
+            "_w2": _w4(w2),
             "_b2": b2.to(dt),
             "_lw": lw,
             "_lb": lb,
@@ -593,6 +678,198 @@ def patch_eva(model: nn.Module) -> int:
             _eva_prep(blk)
             override(blk, _eva_kernels)
             on_load(blk, _eva_reload)
+            n += 1
+    return n
+
+
+# --- Perception Encoder (timm EvaBlock with AttentionRope and a GELU Mlp) -----------------------------------------
+
+
+def _pe_ok(blk: _Blk) -> bool:
+    """An unmodified timm EvaBlock: `AttentionRope` (fused qkv, interleaved RoPE, no q / k norm, no GQA) and `Mlp`."""
+    cls = _timm("models.eva", "EvaBlock")
+    lay = _timm("layers.attention", "AttentionRope")
+    mlp = _timm("layers.mlp", "Mlp")
+    dp = _timm("layers.drop", "DropPath")
+    if cls is None or lay is None or mlp is None or not is_base(blk, cls[0]):
+        return False
+    a, m = blk.attn, blk.mlp
+    if not (is_base(a, lay[0]) and is_base(m, mlp[0]) and _own_forwards(blk, a, m)):
+        return False
+    if a.qkv is None or not all(is_base(x, nn.Linear) for x in (a.qkv, a.proj, m.fc1, m.fc2)):
+        return False
+    c = a.qkv.in_features
+    return (
+        a.num_heads * a.head_dim == a.attn_dim == c
+        and getattr(a, "num_kv_heads", a.num_heads) == a.num_heads
+        and a.qkv.out_features == 3 * c
+        and a.proj.in_features == a.proj.out_features == c
+        and m.fc1.in_features == m.fc2.out_features == c
+        and _is_id(a.q_norm)
+        and _is_id(a.k_norm)
+        and _is_id(a.norm)
+        and _is_id(getattr(m, "norm", None))
+        and getattr(a, "gate", None) is None
+        and not getattr(a, "rotate_half", False)
+        and all(p.bias is not None for p in (a.qkv, a.proj, m.fc1, m.fc2))
+        and _gelu(m.act) != 0
+        and all(_id_or(x, *(dp or ())) for x in (blk.drop_path1, blk.drop_path2))
+    )
+
+
+def _pe_prep(blk: _Blk) -> None:
+    a, m = blk.attn, blk.mlp
+    with torch.no_grad():
+        wp, bp = a.proj.weight.float(), a.proj.bias.float()
+        w2, b2 = m.fc2.weight.float(), m.fc2.bias.float()
+        if blk.gamma_1 is not None:
+            wp, bp = wp * blk.gamma_1.float()[:, None], bp * blk.gamma_1.float()
+        if blk.gamma_2 is not None:
+            w2, b2 = w2 * blk.gamma_2.float()[:, None], b2 * blk.gamma_2.float()
+        dt = a.qkv.weight.dtype
+        _reg(
+            blk,
+            {
+                "_w_qkv": _w4(a.qkv.weight),
+                "_w_proj": _w4(a.proj.weight) if blk.gamma_1 is None else _w4(wp.to(dt)),
+                "_b_proj": a.proj.bias if blk.gamma_1 is None else bp.to(dt),
+                "_w_fc1": _w4(m.fc1.weight),
+                "_w_fc2": _w4(m.fc2.weight) if blk.gamma_2 is None else _w4(w2.to(dt)),
+                "_b_fc2": m.fc2.bias if blk.gamma_2 is None else b2.to(dt),
+            },
+        )
+        _adopt(
+            blk._buffers,
+            {"_w_proj": a.proj.weight, "_b_proj": a.proj.bias, "_w_fc2": m.fc2.weight, "_b_fc2": m.fc2.bias},
+            (blk.gamma_1, blk.gamma_2),
+        )
+
+
+def _pe_kernels(
+    self: _Blk,
+    x: torch.Tensor,
+    rope: torch.Tensor | None = None,
+    attn_mask: torch.Tensor | None = None,
+    is_causal: bool = False,  # noqa: FBT001, FBT002 - timm's signature
+) -> torch.Tensor:
+    a = self.attn
+    b, n, c = x.shape
+    h = a.num_heads
+    d = c // h
+    qkv = lin(self.norm1(x), self._w_qkv, a.qkv.bias)  # [B, N, 3C]
+    if rope is not None:
+        q, k = ops.rope_qk(qkv, rope, a.num_prefix_tokens, h)
+    else:
+        q, k = qkv[..., :c].reshape(b, n, h, d), qkv[..., c : 2 * c].reshape(b, n, h, d)
+    v = qkv.view(b, n, 3, h, d)[:, :, 2]
+    o = F.scaled_dot_product_attention(
+        q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), attn_mask=attn_mask, is_causal=is_causal, scale=a.scale
+    )
+    x = lin(o.transpose(1, 2).reshape(b, n, c), self._w_proj, self._b_proj, res=x)
+    y = lin(self.norm2(x), self._w_fc1, self.mlp.fc1.bias, act=self._act)
+    return lin(y, self._w_fc2, self._b_fc2, res=x)
+
+
+def _pe_rope(qkv: torch.Tensor, rope: torch.Tensor, npt: int) -> tuple[torch.Tensor, torch.Tensor]:
+    """q, k `[B, H, N, D]` of `qkv` `[B, N, 3, H, D]` with timm's interleaved RoPE after the `npt` prefix tokens.
+
+    timm's `apply_rot_embed_cat` on q and k together, in float32, then cast back (timm's `.type_as(v)`).
+    """
+    sin, cos = (t[:, None, None] for t in rope.chunk(2, -1))  # [N - npt, 1, 1, D]
+    qk = qkv[:, npt:, :2]
+    rot = torch.stack([-qk[..., 1::2], qk[..., ::2]], -1).reshape(qk.shape)  # timm's `rot`
+    qk = (qk * cos + rot * sin).to(qkv.dtype)
+    if npt:
+        qk = torch.cat([qkv[:, :npt, :2], qk], 1)
+    q, k = qk.permute(2, 0, 3, 1, 4).unbind(0)
+    return q, k
+
+
+def _pe_portable(
+    self: _Blk,
+    x: torch.Tensor,
+    rope: torch.Tensor | None = None,
+    attn_mask: torch.Tensor | None = None,
+    is_causal: bool = False,  # noqa: FBT001, FBT002 - timm's signature
+) -> torch.Tensor:
+    return _pe_forward(self, x, rope, attn_mask, is_causal=is_causal, qk_rope=_pe_rope)
+
+
+def _pe_own_rope(
+    self: _Blk,
+    x: torch.Tensor,
+    rope: torch.Tensor | None = None,
+    attn_mask: torch.Tensor | None = None,
+    is_causal: bool = False,  # noqa: FBT001, FBT002 - timm's signature
+) -> torch.Tensor:
+    return _pe_forward(self, x, rope, attn_mask, is_causal=is_causal, qk_rope=vars(self)["_qk_rope"])
+
+
+def _pe_forward(  # noqa: PLR0913 - timm's arguments + the RoPE function
+    self: _Blk,
+    x: torch.Tensor,
+    rope: torch.Tensor | None,
+    attn_mask: torch.Tensor | None,
+    *,
+    is_causal: bool,
+    qk_rope: _PeRope,
+) -> torch.Tensor:
+    a = self.attn
+    b, n, c = x.shape
+    h = a.num_heads
+    qkv = F.linear(self.norm1(x), a.qkv.weight, a.qkv.bias).view(b, n, 3, h, c // h)
+    if rope is not None:
+        q, k = qk_rope(qkv, rope, a.num_prefix_tokens)
+    else:
+        q, k = qkv[:, :, :2].permute(2, 0, 3, 1, 4).unbind(0)
+    v = qkv[:, :, 2].transpose(1, 2)
+    o = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, is_causal=is_causal, scale=a.scale)
+    o = F.linear(o.transpose(1, 2).reshape(b, n, c), a.proj.weight, a.proj.bias)
+    x = torch.addcmul(x, o, self.gamma_1) if self.gamma_1 is not None else x + o
+    m = self.mlp
+    o = F.linear(m.act(F.linear(self.norm2(x), m.fc1.weight, m.fc1.bias)), m.fc2.weight, m.fc2.bias)
+    g = self.gamma_2
+    if torch.is_grad_enabled():  # norm2 saved x for backward: in place only without autograd (TG-2)
+        return torch.addcmul(x, o, g) if g is not None else x + o
+    return x.addcmul_(o, g) if g is not None else x.add_(o)
+
+
+def _pe_reload(blk: _Blk, _keys: object) -> None:
+    _pe_prep(blk)
+
+
+def pe_rope(model: nn.Module, qk_rope: _PeRope) -> int:
+    """Give every portable-patched Perception Encoder block of `model` its own q / k RoPE (e.g. a Metal kernel).
+
+    Args:
+        model: A model `optimize` patched in portable mode.
+        qk_rope: `_pe_rope`'s replacement: `(qkv [B, N, 3, H, D], rope [N - npt, 2 D] float32, npt)` -> q, k
+            `[B, H, N, D]`.
+
+    Returns:
+        The number of blocks changed.
+    """
+    n = 0
+    for blk in _modules(model):
+        if dict(getattr(type(blk), "_fastforks_methods", ())).get("forward") is _pe_portable:
+            object.__setattr__(blk, "_qk_rope", qk_rope)  # a plain function: not a submodule, no binding
+            override(blk, _pe_own_rope)
+            n += 1
+    return n
+
+
+def patch_pe(model: nn.Module, mode: str) -> int:
+    """Patch every Perception Encoder EvaBlock (see `_pe_ok`): `_pe_kernels` in kernels mode, else `_pe_portable`."""
+    n = 0
+    for blk in _modules(model):
+        if _pe_ok(blk) and mode != "kernels":
+            override(blk, _pe_portable)
+            n += 1
+        elif _pe_ok(blk):
+            _pe_prep(blk)
+            blk._act = _gelu(blk.mlp.act)
+            override(blk, _pe_kernels)
+            on_load(blk, _pe_reload)
             n += 1
     return n
 
@@ -653,10 +930,12 @@ def patch_hf_siglip(model: nn.Module) -> int:
 def _siglip_prep(lay: _Blk) -> None:
     a, m = lay.self_attn, lay.mlp
     with torch.no_grad():
+        wqkv = torch.cat([a.q_proj.weight, a.k_proj.weight, a.v_proj.weight])
+        _alias([a.q_proj.weight, a.k_proj.weight, a.v_proj.weight], wqkv)
         _reg(
             lay,
             {
-                "_wqkv": _w4(torch.cat([a.q_proj.weight, a.k_proj.weight, a.v_proj.weight])),
+                "_wqkv": _w4(wqkv),
                 "_bqkv": torch.cat([a.q_proj.bias, a.k_proj.bias, a.v_proj.bias]).detach(),
                 "_wo": _w4(a.out_proj.weight),
                 "_w1": _w4(m.fc1.weight),

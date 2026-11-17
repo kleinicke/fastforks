@@ -6,6 +6,8 @@ import pytest
 
 import acc_collect
 
+FP16 = ("upstream16", "upstreamac")
+
 
 def _row(ref: str, tier: str) -> dict:
     return {"ref": ref, "tier": tier, "metrics": {"bad": 1.0}}
@@ -34,6 +36,19 @@ def test_port_fills_the_original_columns(tmp_path):
     ]
 
 
+@pytest.mark.parametrize("own_fails", ["middH", None])
+def test_fp16_original_is_chosen_per_dataset(own_fails):
+    """Autocast replaces the authors' fp16 option only on the datasets where that option fails."""
+    rows = [{"ref": "m", "tier": t, "dataset": d, "metrics": {"bad": 1.0}} for t in FP16 for d in ("eth3d", "middH")]
+    for r in rows:
+        if (r["tier"], r["dataset"]) == ("upstream16", own_fails):
+            r["error"] = "call: CUDA error: invalid argument"
+    picked = acc_collect.choose(rows)
+    fp16 = {r["dataset"]: r["tier"] for r in rows if r["mode"] == "upstream-fp16"}
+    assert fp16 == {"eth3d": "upstream16", "middH": "upstreamac" if own_fails else "upstream16"}
+    assert picked == {"m": "upstreamac" if own_fails else "upstream16"}
+
+
 def test_text_prompt_rows_are_their_own_dataset(tmp_path):
     """SAM 3 (class-name prompts, mAP) and SAM (point prompts, mIoU) share the images, not the benchmark."""
     rows = [
@@ -54,3 +69,20 @@ def test_overlapping_chunks_of_two_sizes_are_refused():
     assert acc_collect._chunks(ok, "classification")[0]["n"] == 10
     with pytest.raises(SystemExit, match="overlapping"):
         acc_collect._chunks([*ok, rec | {"start": 0, "stop": 10, "images": 10}], "classification")
+
+
+def test_write_keeps_rows_it_did_not_collect():
+    """--write replaces only the (ref, mode, dataset) rows it collected; other rows stay byte-identical, in order."""
+    old = [
+        '{"ref": "a", "mode": "portable", "dataset": "nyu", "n": 1}  \n',
+        '{"ref": "b", "mode": "portable32", "dataset": "nyu", "n": 2}\n',
+        '{"ref": "a", "mode": "kernels", "dataset": "nyu", "n": 3}\n',
+        '{"ref": "a", "mode": "kernels", "dataset": "kitti", "n": 4}\n',
+    ]
+    new = [{"ref": "a", "mode": "kernels", "dataset": "nyu", "n": 9}]
+    assert acc_collect.merge_lines(old, new) == [
+        old[0],
+        old[1],
+        old[3],
+        '{"ref": "a", "mode": "kernels", "dataset": "nyu", "n": 9}\n',
+    ]

@@ -1,0 +1,3 @@
+# Licence and provenance of this kernel library; copied into manifest.toml (not part of the build id).
+licence = "Apache-2.0"
+derived_from = "our RAFT optical-flow correlation lookup (`raft_flow` library: integer-window dot products with shared bilinear weights), adapted to RoMa v2's fp32 local correlation (grid_sample, align_corners=False, zeros outside); our code, no upstream RoMa v2 code"

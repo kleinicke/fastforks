@@ -1,0 +1,4 @@
+summary = "mmpose's top-down person crop (`GetBBoxCenterScale` + `TopdownAffine` as OpenCV `warpAffine` samples it), the input normalisation and the left / right keypoint partners of the label sets (RTMPose, HRNet)."
+licence = "Apache-2.0"
+files = ["LICENSE"]
+derived_from = "https://github.com/open-mmlab/mmpose/tree/5408bc76f5b848cf925a0d1857899011d8c5b497 (v1.3.2 `GetBBoxCenterScale`, `TopdownAffine`, data_preprocessor means / stds, dataset `flip_indices`; rewritten in PyTorch)"

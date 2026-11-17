@@ -1,0 +1,26 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 3.3e-06
+# RTX 5060 Ti portable fp16: mean 0.00169, p99 0.00672; bounds 1.5x, rounded up to 2 significant digits.
+gpu_mean = 0.0026
+gpu_p99 = 0.011
+
+[refs."davit_base.msft_in1k@1"]
+sha256 = "3c6106f81ef2f6ca690c88f385417a2b81427250b75b1773cf8424c08c40ecb6"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"
+
+[refs."davit_small.msft_in1k@1"]
+sha256 = "298d19b207715f1d978fbbe38042f5a341f45f909469dcf82e5c73e5acbfc1e3"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"
+
+[refs."davit_tiny.msft_in1k@1"]
+sha256 = "be6ba81c1443b5c71161ce6b8b6dc5ec3ed63a3e75302594327aeb8f8ffacf97"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"

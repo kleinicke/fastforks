@@ -59,19 +59,35 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 <!-- capabilities:begin (tools/gen_docs.py, from the model cards) -->
 | families | CUDA portable | CUDA kernels | MPS portable (validated) | MPS kernels (libraries, dtype) |
 |---|---|---|---|---|
-| c_foundationstereo, convnextv2, deit, densenet, depth_anything_v2, detr, dfine, dinov2_linear, dinov2_linear_cls, efficientnet, efficientnetv2, efficientvit, fast_acvnet, fastvit, gwcnet, inception_v3, metric3d, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, mvsanywhere, patchmatchnet, psmnet, rcnn, resnet, rt_monster_plusplus, rtdetrv2, sam, sam2, segformer, shufflenetv2, swin, unidepth_v2, unik3d, vit, waft_stereo | fp16 | fp16 | fp32 | - |
-| alexnet, cas_gwcnet, coex, depth_anything_3, depth_pro, dinov2, dinov3, dinov3_convnext, dlnr, eomt, eva02, mapanything, marigold, mask2former, midas, mmseg, oneformer, regnet, s2m2, sam3, sapiens, siglip, squeezenet, vgg, vggt_omega, zoedepth | fp16 | fp16 | fp32/fp16 | - |
-| cfnet, crestereo, foundationstereo, great_igev, hitnet, igev_plusplus, mocha_stereo, monster, monster_plusplus, raft_stereo, selective_igev | fp16 | fp16 | fp32/fp16 | stereo_metal fp16 |
-| aanet, bridgedepth, igev_stereo, las2, nmrf | fp16 | fp16 | fp32 | stereo_metal fp16 |
-| moge | fp16 | fp16 | fp32 | sparse_metal fp32 |
+| alexnet, alltracker, any2full, anysplat, birefnet, boq, c_foundationstereo, c_radio, cas_gwcnet, clip, clipseg, codeformer, coex, compact, convnext, convnext_features, convnextv2, dat, deit, densenet, depth_anything_3, depth_anything_v2, depth_pro, depthfm, depthsplat, detr, dfine, dinov2, dinov2_linear, dinov2_linear_cls, dinov3, dinov3_convnext, dlnr, drct, efficientnet, efficientnetv2, efficientvit, ema_vfi, eomt, eva02, fast_acvnet, fastvit, film, geocalib, gfpgan, gimm_vfi, gwcnet, hat, hrnet, inception_v3, insid3, isnet, lama, lingbot_depth, lingbot_map, locotrack, loftr, lotus, lwdetr, mapanything, marigold, marigold_normals, mask2former, megaflow, megaloc, metric3d, midas, mmseg, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, mvsanywhere, mvsplat, nafnet, neuflow_v2, nnfoundation, nsfw_vit, omni_dc, oneformer, patchmatchnet, pi3, pointdit, prompt_depth_anything, psmnet, rcnn, realesrgan, realplksr, recover, regnet, repvit, resnet, restormer, retinaface, rfdetr, rfdetr_keypoint, rife, rt_monster_plusplus, rtdetrv2, rtmdet, rtmo, s2m2, sam, sam2, sam3, sam_hq, sapiens, segformer, segnext, shufflenetv2, siglip, siglip2, span, squeezenet, stablenormal, starnet, swin, swin2sr, swinir, tapir, tapnext, tinyvit, tipsv2, totalsegmentator, u2net, unik3d, vgg, vggt_omega, video_depth_anything, vit, vitmatte, waft, waft_stereo, wd_tagger, yolox, yunet, zoedepth | fp16 | fp16 | fp32/fp16 | - |
+| anyline, bisenet, coatnet, davit, efficientformer, efficientformerv2, flexglue, flowseek, focalnet, gmflow, hed, hgnetv2, inspyrenet, lineart, lineart_anime, matanyone, mlsd, parseq, pidinet, ppocrv5, shvit, teed | fp16 | - | fp32/fp16 | - |
+| aanet, bridgedepth, cfnet, crestereo, foundationstereo, great_igev, hitnet, igev_plusplus, igev_stereo, las2, mocha_stereo, monster, monster_plusplus, nmrf, raft_stereo, selective_igev | fp16 | fp16 | fp32/fp16 | stereo_metal fp16 |
+| rtmpose | fp16 | fp16 | fp32/fp16 | pose_metal fp32 |
+| anycalib, ben2, cotracker, dedode, efficientvit_sam, memflow, memfof, nninteractive, owlv2, resplat, romav1, track_on, unidepth_v2 | fp16 | fp16 | fp32 | - |
+| raft, sea_raft | fp16 | fp16 | fp32/fp16 | flow_metal fp16 |
+| perception_encoder | fp16 | fp16 | fp32/fp16 | vit_metal fp16 |
+| vitpose | fp16 | fp16 | fp32/fp16 | pose_metal fp16 |
+| grounding_dino | fp16 | - | fp32 | - |
+| moge | fp16 | fp16 | fp32/fp16 | sparse_metal fp32 |
+| marigold_v2, seedvr2 | bf16 | bf16 | - | - |
+| flowformer | fp32 | - | fp32/fp16 | - |
+| xfeat | fp32 | - | fp32 | - |
+| lightglue | fp32 | fp16 | fp32 | - |
+| loma | bf16 | - | fp32 | - |
+| romav2 | bf16 | bf16 | fp32 | - |
 | defom_stereo | bf16 | fp16 | fp32 | stereo_metal fp16 |
-| vggt | fp16 | fp16 | fp32 | vggt_metal fp32 |
+| vggt | fp16 | fp16 | fp32/fp16 | vggt_metal fp32 |
 <!-- capabilities:end -->
 
 On MPS (Apple silicon), `portable` works for every validated family and `mode="auto"` picks the Metal `kernels` where the card lists
 `mps_kernels` (`card.kernel_libs_on(device)` returns the Metal libraries there, the CUDA ones elsewhere). The Metal kernels compile on
 the device at first use. They were written and tested on an M1 Pro only; the changes of 2026-11-04 (`mps.adapt` on
 all Metal runners, `win_rpe_attn` sentinel, kernel input guards, `rectify` in float64 on CPU) still need a check on a Mac.
+
+The pose and Perception Encoder Metal paths (2026-11-09, M1 Pro) cover the memory-bound parts only and leave the
+rest on PyTorch: `vit_metal` rotates PE's q / k in one pass; `pose_metal` runs ViTPose's patch embedding and
+deconvolutions as GEMMs plus a Metal overlap-add, DARK decoding in one pass, and RTMPose's OpenCV-exact crops.
+RTMPose's `kernels` stays fp32 on MPS (fp16 is not faster there and moves unsure keypoints more).
 
 ### Kernel libraries per family
 
@@ -82,34 +98,39 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 |---|---|
 | `cfs` | c_foundationstereo |
 | `crestereo` | crestereo |
-| `cudnn_hacc` | aanet, alexnet, c_foundationstereo, cas_gwcnet, cfnet, coex, convnextv2, crestereo, defom_stereo, deit, densenet, detr, dfine, dinov2_linear_cls, dlnr, efficientnet, efficientnetv2, efficientvit, eva02, fast_acvnet, fastvit, foundationstereo, great_igev, gwcnet, igev_plusplus, igev_stereo, inception_v3, las2, marigold, midas, mmseg, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, mocha_stereo, monster, monster_plusplus, mvsanywhere, psmnet, raft_stereo, rcnn, regnet, resnet, rt_monster_plusplus, rtdetrv2, s2m2, sam3, sapiens, segformer, selective_igev, shufflenetv2, siglip, squeezenet, swin, unidepth_v2, vgg, vggt, vit, waft_stereo, zoedepth |
-| `cutlass_conv` | aanet, c_foundationstereo, cas_gwcnet, cfnet, coex, crestereo, defom_stereo, dlnr, fast_acvnet, great_igev, gwcnet, igev_plusplus, igev_stereo, las2, mmseg, mocha_stereo, monster, monster_plusplus, mvsanywhere, psmnet, raft_stereo, rt_monster_plusplus, selective_igev, waft_stereo |
-| `deform_conv` | aanet |
-| `dpt_fused` | depth_anything_3, depth_anything_v2, depth_pro, moge, sam, sam2, unidepth_v2, unik3d |
-| `fastbb` | bridgedepth, c_foundationstereo, crestereo, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, dinov2, dinov2_linear, dinov3, dlnr, eomt, foundationstereo, mapanything, metric3d, moge, monster, monster_plusplus, mvsanywhere, nmrf, rt_monster_plusplus, sam3, sapiens, unidepth_v2, unik3d, vggt, vggt_omega, waft_stereo |
+| `cudnn_hacc` | aanet, alexnet, anycalib, anysplat, ben2, c_foundationstereo, c_radio, cas_gwcnet, cfnet, clip, codeformer, coex, compact, convnextv2, crestereo, dat, dedode, defom_stereo, deit, densenet, depthfm, depthsplat, detr, dfine, dinov2_linear_cls, dlnr, drct, efficientnet, efficientnetv2, efficientvit, ema_vfi, eva02, fast_acvnet, fastvit, film, foundationstereo, geocalib, gfpgan, gimm_vfi, great_igev, gwcnet, hat, hrnet, igev_plusplus, igev_stereo, inception_v3, isnet, lama, las2, lightglue, lingbot_map, loftr, lotus, lwdetr, marigold, marigold_normals, megaflow, midas, mmseg, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, mocha_stereo, monster, monster_plusplus, mvsanywhere, mvsplat, nafnet, nsfw_vit, perception_encoder, psmnet, raft, raft_stereo, rcnn, realesrgan, realplksr, recover, regnet, repvit, resnet, resplat, restormer, retinaface, rife, rt_monster_plusplus, rtdetrv2, rtmdet, rtmo, rtmpose, s2m2, sam3, sapiens, sea_raft, segformer, selective_igev, shufflenetv2, siglip, siglip2, span, squeezenet, stablenormal, starnet, swin, swin2sr, swinir, u2net, unidepth_v2, vgg, vggt, vit, vitmatte, waft, waft_stereo, wd_tagger, yolox, yunet, zoedepth |
+| `cutlass_conv` | aanet, ben2, c_foundationstereo, cas_gwcnet, cfnet, codeformer, coex, crestereo, dedode, defom_stereo, dlnr, fast_acvnet, great_igev, gwcnet, igev_plusplus, igev_stereo, isnet, las2, lightglue, loftr, mmseg, mocha_stereo, monster, monster_plusplus, mvsanywhere, psmnet, raft, raft_stereo, rt_monster_plusplus, sea_raft, selective_igev, u2net, vitmatte, waft, waft_stereo |
+| `deform_conv` | aanet, birefnet |
+| `dpt_fused` | any2full, anycalib, boq, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, dinov2, dinov2_linear, dinov3, insid3, lingbot_depth, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, omni_dc, pointdit, prompt_depth_anything, sam, sam2, sam_hq, tipsv2, track_on, unidepth_v2, unik3d, vitmatte, waft, waft_stereo |
+| `fastbb` | any2full, anycalib, anysplat, boq, bridgedepth, c_foundationstereo, crestereo, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, depthsplat, dinov2, dinov2_linear, dinov3, dlnr, eomt, foundationstereo, insid3, lingbot_depth, lingbot_map, mapanything, megaflow, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, nmrf, omni_dc, pi3, pointdit, prompt_depth_anything, resplat, rfdetr, rfdetr_keypoint, romav1, rt_monster_plusplus, sam3, sapiens, tipsv2, track_on, unidepth_v2, unik3d, vggt, vggt_omega, video_depth_anything, waft, waft_stereo |
 | `ffs_cutlass` | c_foundationstereo |
 | `fs` | c_foundationstereo, foundationstereo |
 | `fs_cutlass` | c_foundationstereo, foundationstereo |
-| `fvm_conv` | alexnet, convnextv2, deit, densenet, dinov2_linear_cls, dinov3_convnext, efficientnet, efficientnetv2, efficientvit, eva02, fastvit, inception_v3, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, regnet, resnet, segformer, shufflenetv2, siglip, squeezenet, swin, vgg, vit |
-| `fvm_extra` | alexnet, convnextv2, deit, densenet, dinov2_linear_cls, efficientnet, efficientnetv2, efficientvit, eva02, fastvit, inception_v3, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, regnet, resnet, segformer, shufflenetv2, siglip, squeezenet, swin, vgg, vit |
-| `fvm_mb` | alexnet, convnextv2, deit, densenet, dinov2_linear_cls, efficientnet, efficientnetv2, efficientvit, eva02, fastvit, inception_v3, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, regnet, resnet, segformer, shufflenetv2, siglip, squeezenet, swin, vgg, vit |
-| `fvm_r3` | alexnet, convnextv2, deit, densenet, dinov2_linear_cls, efficientnet, efficientnetv2, efficientvit, eva02, fastvit, inception_v3, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, regnet, resnet, segformer, shufflenetv2, siglip, squeezenet, swin, vgg, vit |
-| `fvm_seg` | dinov3_convnext, mask2former, oneformer |
+| `fvm_conv` | alexnet, alltracker, c_radio, clip, clipseg, convnext, convnext_features, convnextv2, cotracker, deit, densenet, dfine, dinov2_linear_cls, dinov3_convnext, efficientnet, efficientnetv2, efficientvit, efficientvit_sam, eva02, fastvit, hrnet, inception_v3, locotrack, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, nsfw_vit, owlv2, perception_encoder, regnet, repvit, resnet, retinaface, rfdetr, rtmdet, rtmo, rtmpose, segformer, segnext, shufflenetv2, siglip, siglip2, squeezenet, starnet, swin, tapir, tapnext, tinyvit, vgg, vit, vitpose, wd_tagger, yolox, yunet |
+| `fvm_extra` | alexnet, c_radio, clip, convnextv2, deit, densenet, dinov2_linear_cls, efficientnet, efficientnetv2, efficientvit, efficientvit_sam, eva02, fastvit, hrnet, inception_v3, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, nsfw_vit, perception_encoder, regnet, repvit, resnet, retinaface, rtmdet, rtmo, rtmpose, segformer, segnext, shufflenetv2, siglip, siglip2, squeezenet, starnet, swin, vgg, vit, wd_tagger, yolox, yunet |
+| `fvm_mb` | alexnet, c_radio, clip, convnextv2, deit, densenet, dinov2_linear_cls, efficientnet, efficientnetv2, efficientvit, efficientvit_sam, eva02, fastvit, hrnet, inception_v3, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, nsfw_vit, perception_encoder, regnet, repvit, resnet, retinaface, rtmdet, rtmo, rtmpose, segformer, segnext, shufflenetv2, siglip, siglip2, squeezenet, starnet, swin, vgg, vit, wd_tagger, yolox, yunet |
+| `fvm_r3` | alexnet, c_radio, clip, convnextv2, deit, densenet, dinov2_linear_cls, efficientnet, efficientnetv2, efficientvit, efficientvit_sam, eva02, fastvit, hrnet, inception_v3, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, nsfw_vit, perception_encoder, regnet, repvit, resnet, retinaface, rtmdet, rtmo, rtmpose, segformer, segnext, shufflenetv2, siglip, siglip2, squeezenet, starnet, swin, vgg, vit, wd_tagger, yolox, yunet |
+| `fvm_seg` | convnext, convnext_features, dinov3_convnext, mask2former, oneformer |
+| `gsraster` | resplat |
 | `hitnet` | hitnet |
 | `hitnet_conv` | hitnet |
-| `igev` | aanet, c_foundationstereo, cas_gwcnet, cfnet, coex, crestereo, defom_stereo, dlnr, fast_acvnet, great_igev, gwcnet, igev_plusplus, igev_stereo, las2, mmseg, mocha_stereo, monster, monster_plusplus, mvsanywhere, psmnet, rt_monster_plusplus, selective_igev, waft_stereo |
+| `igev` | aanet, ben2, c_foundationstereo, cas_gwcnet, cfnet, codeformer, coex, crestereo, dedode, defom_stereo, dlnr, fast_acvnet, great_igev, gwcnet, igev_plusplus, igev_stereo, isnet, las2, lightglue, loftr, mmseg, mocha_stereo, monster, monster_plusplus, mvsanywhere, psmnet, rt_monster_plusplus, selective_igev, u2net, vitmatte, waft, waft_stereo |
 | `igevpp` | great_igev, igev_plusplus, monster_plusplus |
 | `mocha` | mocha_stereo |
 | `mvsanywhere` | mvsanywhere |
+| `nf4` | marigold_v2, seedvr2 |
 | `patchmatchnet` | patchmatchnet |
 | `raft` | dlnr, raft_stereo |
+| `raft_flow` | gimm_vfi, megaflow, memflow, memfof, neuflow_v2, raft, sea_raft |
+| `romav2` | romav2 |
 | `s2m2` | s2m2 |
 | `s2m2_cutlass` | s2m2 |
-| `seg_conv` | mmseg |
-| `seg_up` | dinov2_linear, eomt, mask2former, mmseg, oneformer, sapiens, segformer |
+| `seg_conv` | mmseg, segnext |
+| `seg_up` | dinov2_linear, eomt, mask2former, mmseg, oneformer, sapiens, segformer, segnext |
 | `sparse_conv` | moge |
 | `stereo_ops` | coex, las2 |
 | `vggt_omega` | vggt_omega |
+| `vol_norm` | nnfoundation, nninteractive, totalsegmentator |
 <!-- libraries:end -->
 
 ## Check your setup

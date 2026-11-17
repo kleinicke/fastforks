@@ -13,6 +13,8 @@ SKIP_SUFFIXES = (
     ".cu",
     ".jsonl",
 )  # .cu comments are hashed into the kernel manifests; rows are cleaned by the release script
+# results/ (maintainers' measurement log, archived outside the repo; gitignored) never ships.
+SKIP_DIRS = ("results/",)
 
 
 def _tracked() -> list[str]:
@@ -24,7 +26,7 @@ def test_no_machine_specific_strings():
     hits = []
     for name in _tracked():
         path = ROOT / name
-        if name in SKIP or name.endswith(SKIP_SUFFIXES) or not path.is_file():
+        if name in SKIP or name.endswith(SKIP_SUFFIXES) or name.startswith(SKIP_DIRS) or not path.is_file():
             continue
         try:
             text = path.read_text()

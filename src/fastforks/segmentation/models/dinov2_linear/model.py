@@ -22,6 +22,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import mismatch_details
 from fastforks._core.errors import CheckpointMismatchError
+from fastforks.kernels import dpt_fused
 from fastforks.segmentation._runner import Forward, Runner, scale
 from fastforks.shared.depth_anything_v2 import DINOv2, use_fast_vit, use_sdpa_attention
 from fastforks.shared.seginfer import resize, slide, target_size, upsample, upsample_argmax
@@ -108,7 +109,7 @@ class _Net(torch.nn.Module):
         self.kernels = kernels
         self.to(ctx.device)
         if kernels:
-            use_fast_vit(vit, attn="fh")  # fp16 in place; tokens out in fp16
+            use_fast_vit(vit, attn="fh", fused=dpt_fused.load(ctx.device))  # fp16 in place; tokens out in fp16
         else:
             use_sdpa_attention(vit)
             vit.to(self.dtype)

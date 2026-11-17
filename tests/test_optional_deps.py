@@ -35,6 +35,7 @@ OPTIONAL = {
     "tensorrt",
     "laspy",
     "lazrs",
+    "pycolmap",
 }
 GUARDED = {  # (file under src/fastforks, function) -> the guarded helper that may import an optional library
     ("shared/libnet/__init__.py", "timm"),
@@ -43,9 +44,14 @@ GUARDED = {  # (file under src/fastforks, function) -> the guarded helper that m
     ("detection/_ops.py", "ops"),
     ("_core/export.py", "_tensorrt"),
     ("_core/export.py", "_fix_folded_weight_casts"),
+    ("_core/export.py", "_bf16_deconvolutions_as_convs"),
     ("_core/export.py", "_probe_dynamic_onnx"),  # after an export, which needs onnx
     ("stereo/geometry/ply.py", "write_las"),
+    ("matching/sfm.py", "reconstruct"),
 }
+
+
+VENDORED = ("shared/rfdetr/net/",)  # vendored upstream code with top-level imports; its families declare `requires`
 
 
 def _imported(node: ast.AST) -> list[str]:
@@ -85,7 +91,8 @@ def _scan(tree: ast.AST, path: str, found: list[str], func: str = "", *, typing_
                 _scan(ast.Module([child], []), path, found, func, typing_only=typing_only)
             continue
         names = [*_imported(node), *_string_import(node)]
-        if not typing_only and (bad := OPTIONAL.intersection(names)) and (path, func) not in GUARDED:
+        guarded = (path, func) in GUARDED or path.startswith(VENDORED)
+        if not typing_only and (bad := OPTIONAL.intersection(names)) and not guarded:
             found.append(f"{path}:{node.lineno} imports {', '.join(sorted(bad))} outside a guarded helper")
         _scan(node, path, found, func, typing_only=typing_only)
 
@@ -228,6 +235,8 @@ def _code_needs(source: str, package: list[str]) -> tuple[set[str], bool]:  # no
             needs.add("transformers")
         if mod == "fastforks.shared" and "seginfer" in names:
             needs.add("transformers")
+        if (mod + ".").startswith("fastforks.shared.rfdetr.") or (mod == "fastforks.shared" and "rfdetr" in names):
+            needs.update(("torchvision", "transformers"))  # the vendored RF-DETR net imports both
         if (mod == "fastforks.detection._ops" and "ops" in names) or (mod == "fastforks.detection" and "_ops" in names):
             needs.add("torchvision")
 
@@ -282,6 +291,7 @@ def test_requires_matches_family_code(task, family):
         ("import importlib\nimportlib.import_module('fastforks.shared.seginfer')", {"transformers"}, False),
         ("from fastforks.detection._ops import ops", {"torchvision"}, False),
         ("from fastforks.shared.seginfer import resize", set(), False),
+        ("from fastforks.shared.rfdetr.net import models", {"torchvision", "transformers"}, False),
         ("import numpy", set(), False),
     ],
 )

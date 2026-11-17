@@ -1,0 +1,4 @@
+summary = "RF-DETR DINOv2 windowed backbone, multi-scale projector, deformable decoder and keypoint/segmentation heads; Apache inference components shared across tasks."
+licence = "Apache-2.0"
+files = ["LICENSE"]
+derived_from = "https://github.com/roboflow/rf-detr at 5b22dfc0940697ce1abdfa681a5f7392b3eddbfb; imports adapted and training builders omitted; cycle-free positional override and fused-path module-override guards preserve fastforks lifetime/patch semantics. Uses the optional torchvision/transformers libraries."

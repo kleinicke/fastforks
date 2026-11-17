@@ -3,7 +3,7 @@ name = "DINOv3 ViT"
 summary = "DINOv3 ViT (Meta, 2025): self-supervised ViT backbones with 4 register tokens and RoPE; dense patch + cls features at any size (Hugging Face format checkpoints). Gated weights: accept the DINOv3 licence on each model's Hugging Face page, download model.safetensors yourself and put it under FASTFORKS_WEIGHTS_PATH (path and SHA-256 in the load error); fastforks does not send HF_TOKEN there."
 tier = "stable"
 outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
-uses = ["cuda_graphs", "depth_anything_v2"]  # fastforks.shared modules this family imports (fastbb flash attention / fp16-accumulate GEMMs)
+uses = ["arena", "cuda_graphs", "depth_anything_v2"]  # fastforks.shared modules this family imports (fastbb flash attention / fp16-accumulate GEMMs)
 limitations = [
   "kernels replays a CUDA graph per small input shape and layer set (up to 512 px, ViT-S 1024 px), captured on the shape's second call; at most 8 per model holding at most 256 MB of outputs (a full cache replaces only graphs unused for 64 calls, other new shapes run eagerly).",
   "The graphs' shared memory pool (intermediates) comes on top of that limit and stays reserved: up to about 470 MB more PyTorch cache than eager for ViT-H+ at 512 px with all layers, usually under 75 MB; `model.release_graphs()` frees it on the device.",
@@ -15,6 +15,11 @@ licence_notes = [
 [upstream]
 repo = "https://github.com/huggingface/transformers"  # `DINOv3ViTModel` (models/dinov3_vit), the reference of these checkpoints
 commit = "v5.19.0"  # release tag; net.py re-implements its eval maths with the checkpoint's parameter names
+
+[[upstream.official]]
+repo = "https://github.com/facebookresearch/dinov3"
+framework = "PyTorch"
+reason = "The checkpoints are used in Hugging Face transformers format, so the transformers implementation is vendored."
 
 [licence]
 code = "LicenseRef-DINOv3-License"
@@ -37,7 +42,13 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["fastbb"]
+kernels = ["fastbb", "dpt_fused"]
+
+[[papers]]
+title = "DINOv3"
+url = "https://arxiv.org/abs/2508.10104"
+date = "2025-08-13"
+venue = "arXiv"
 
 [[variants]]
 id = "dinov3-vits16"

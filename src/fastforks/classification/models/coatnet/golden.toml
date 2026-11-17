@@ -1,0 +1,61 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 8.6e-06
+# RTX 5060 Ti portable fp16: mean 0.00157, p99 0.0068; bounds 1.5x, rounded up to 2 significant digits.
+gpu_mean = 0.0024
+gpu_p99 = 0.011
+
+[refs."coatnet_0_rw_224.sw_in1k@1"]
+sha256 = "f9db37bb962e0115e5c29fd1792c3d9f92de4a7aff946b4cbd2487689b1487f9"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"
+
+[refs."coatnet_1_rw_224.sw_in1k@1"]
+sha256 = "c848a5ce634820d382124b2cbe60ffc3b3264c046efd9053ac720c8c5ee6c568"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"
+
+[refs."coatnet_2_rw_224.sw_in12k_ft_in1k@1"]
+sha256 = "ed29549ccfb187eb1f0aad9195a04c9526b680a26ec58f6b409fc0b569e8aab0"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"
+
+[refs."coatnet_nano_rw_224.sw_in1k@1"]
+sha256 = "d9ea50b2f975a0130e0402b4d5d9df7ce2078fe3526f340f0c36c04e3ab28381"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"
+
+[refs."coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k@1"]
+sha256 = "207a96c01c0fcf3dd1132229af9b8ae7e03fb6e849d6d6de0433c8c734a1a6e2"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"
+
+[refs."coatnet_rmlp_1_rw_224.sw_in1k@1"]
+sha256 = "28900e40ffed2e188eeacc588b0f899bc4bb3cf22383aa4cfb0d000a1dea38f7"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"
+
+[refs."coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k@1"]
+sha256 = "3084c0cadfa963db8976a3a445a5cd91643a7d9a97d556a1f43a142d78d76872"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"
+
+[refs."coatnet_rmlp_2_rw_224.sw_in1k@1"]
+sha256 = "a5bf5b8b8c0746670edc3ebe2fbd2a30ac75001330ca9b4ffe5c9eb9e1a3d878"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"
+
+[refs."coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k@1"]
+sha256 = "4609365c6a06f795eef4046a54a7e0af2c82b9d2d9a6d2c8defc6b3daad402df"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"
+
+[refs."coatnet_rmlp_nano_rw_224.sw_in1k@1"]
+sha256 = "f6e3b71f2d5e67b26ddffd2a3917759b82be168a5adf9002c16bf198ff20efbf"
+upstream = "https://github.com/huggingface/pytorch-image-models@0df212b369a5385b16dfe513d5143a7311ea1ddc"
+settings = "CPU float32, timm 1.0.30, torch 2.14.1+cu130"

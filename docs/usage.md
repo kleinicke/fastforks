@@ -33,15 +33,16 @@ directory.
 |---|---|
 | `FASTFORKS_CACHE` | cache directory (default: the platform user cache) |
 | `FASTFORKS_WEIGHTS_PATH` | extra directories searched for weight files before downloading (`os.pathsep`-separated) |
+| `FASTFORKS_READ_CACHES` | other fastforks cache directories whose files are used in place, never written (`os.pathsep`-separated; e.g. the user cache when an app moves `FASTFORKS_CACHE`) |
 | `FASTFORKS_KERNEL_PATH` | extra directories searched for kernel binaries (offline machines, own builds) |
 | `FASTFORKS_OFFLINE` | `1` = never touch the network (also `HF_HUB_OFFLINE=1`); missing files raise `WeightsDownloadError` |
 | `FASTFORKS_NONCOMMERCIAL` | `1` = also download weights with non-commercial licences (off in every install, also `fastforks`) |
 | `FASTFORKS_COMMERCIAL_ONLY` | `1` = refuse (and hide from `list`, `download`) every model not cleared for commercial use |
 | `FASTFORKS_HF_ENDPOINT` | redirects only our own Hugging Face repos (kernels, mirrored weights) to a mirror or `file://` stand-in, not the authors' hosts; for a full mirror use `FASTFORKS_WEIGHTS_PATH` |
+| `HF_TOKEN` | sent only to our own Hugging Face repos (private or rate-limited access); other repos: `huggingface_hub`'s own login |
 
 The three on/off variables take `1/true/yes/on` or `0/false/no/off/empty` (any case); any other value raises
 `OptionsError`. `mode` and `device` are load arguments; there are no `FASTFORKS_MODE` / `FASTFORKS_DEVICE` variables.
-| `HF_TOKEN` | sent only to our own Hugging Face repos (private or rate-limited access); other repos: `huggingface_hub`'s own login |
 
 ## Quickstart per task
 
@@ -76,6 +77,10 @@ models differ in the camera: `metric3d-vit-large` and `da3metric-large` need the
 too small for a real camera), `unidepth-v2-vitl14`, `unik3d-vitl`, `depth-pro` and MoGe estimate the camera (given
 `intrinsics=` replace `fx`) and return it as `result.intrinsics`, `zoedepth-nk` takes none. `fastforks info MODEL` shows `kind`.
 
+Video depth: `depth.load("video-depth-anything-s").video(frames)` takes the frames of one clip (a list of images or a `[T, H, W, 3]` array)
+and returns `[T, H, W]` maps that are consistent over time. Calling the model itself with a list or batch treats every
+frame as an independent image (flicker; the call warns for a video model).
+
 Other tasks work the same way (families built on timm, torchvision or transformers need that extra):
 
 ```python
@@ -90,7 +95,20 @@ features.load("dinov2-vitb14")("cat.jpg").pooler_output  # image embedding; .las
 ```python
 # needs: pip install "fastforks-core[torchvision]" "fastforks-core[nc]"
 # MVSAnywhere's code and weights are non-commercial: its weights download only with FASTFORKS_NONCOMMERCIAL=1
-from fastforks import detection, multiview, promptable_segmentation
+import torch
+
+from fastforks import (
+    calibration,
+    detection,
+    edges,
+    flow,
+    matting,
+    multiview,
+    ocr,
+    pose,
+    promptable_segmentation,
+    retrieval,
+)
 
 det = detection.load("faster-rcnn-r50-fpn-3x-coco")
 det("street.jpg", score_threshold=0.5).to_list()  # dicts: box, class_name, score
@@ -104,16 +122,147 @@ best = r.masks[r.iou_scores.argmax()]  # [H, W]; several prompts add a leading a
 multiview.load("mvsanywhere")(
     ["a.jpg", "b.jpg"], intrinsics=K, cam_to_world=poses
 ).depth  # [1, H, W]: the reference view (reference= picks it)
+people = pose.load("rtmpose-m")(  # top-down: one box (x0, y0, x1, y1 in pixels) per person
+    "street.jpg", boxes=[[40, 30, 220, 400]]
+)  # e.g. the person boxes of a detector
+people.keypoints, people.keypoint_scores  # [P, 17, 2] pixels of the input, [P, 17]; names: people.keypoint_names
+flow.load("raft-large")("frame1.png", "frame2.png").flow  # [2, H, W]: dx, dy in pixels, frame 1 -> frame 2
+matting.load("birefnet-lite")("photo.jpg").alpha  # [H, W] in [0, 1]: 1 = foreground (background removal)
+edges.load("lineart")("photo.jpg").edges  # [H, W] in [0, 1]: 1 = line (ControlNet preprocessor)
+lines = ocr.load("ppocrv5-server")("receipt.jpg")
+lines.texts, lines.boxes, lines.scores  # N strings in reading order, [N, 4, 2] quads in pixels, [N]
+vpr = retrieval.load("megaloc")
+d = [vpr(p).descriptor for p in paths]  # each [8448], unit norm; any image sizes
+retrieval.pairs(torch.stack(d), k=20)  # [P, 2] image pairs to match (each image with its 20 nearest), e.g. for SfM
+
+cam = calibration.load("geocalib-pinhole")(image)  # one photo: no checkerboard, no EXIF
+cam.intrinsics, cam.roll, cam.pitch, cam.vfov  # [3, 3] (pixels of the input), radians
 ```
+
+3D CT segmentation ([models](models/volume.md), [API](api/volume.md)); also any trained nnU-Net v2 model folder or
+checkpoint via `volume.load(path, folds=..., step=..., mirror=...)`:
+
+```python
+# read_nifti / write_nifti need: pip install "fastforks-core[nifti]" (read_dicom: [dicom])
+from fastforks import volume
+
+ct, meta = volume.read_nifti("ct.nii.gz")  # [D, H, W] float32 (RAS-canonical), meta.spacing in mm
+seg = volume.load("totalsegmentator-total-3mm")(ct, meta=meta)  # or spacing=(d, h, w); seg.save("seg.nii.gz")
+seg.labels  # [D, H, W] uint8 class index on the input grid; seg.class_names {1: "spleen", ...}
+volume.write_nifti("seg.nii.gz", seg.labels.cpu().numpy(), meta)  # on the grid of ct.nii.gz
+```
+
+The input must be a CT in Hounsfield units (air about -1000, soft tissue 0 to 100; not normalised, not uint8) with axes
+`[D, H, W]` (slice axis first) and `spacing` in mm in that order. Organ volumes in mL:
+
+```python
+import numpy as np
+
+ml = float(np.prod(meta.spacing)) / 1000  # mL per voxel
+labels = seg.labels.cpu().numpy()
+volumes = {name: round(float((labels == i).sum()) * ml) for i, name in seg.class_names.items() if (labels == i).any()}
+```
+
+DICOM series: `volume.read_dicom("series_folder")` (needs `pip install "fastforks-core[dicom]"`) returns the same
+`(ct, meta)` as `read_nifti`: slices sorted by position, Hounsfield units, RAS-canonical `[D, H, W]` (no flipping),
+spacing and affine from the tags; `model(ct, meta=meta)` and `write_nifti` work as above. Give a folder with one series.
+
+Detections to a picture and to COCO-style records (`det` as above; one image):
+
+```python
+from PIL import Image, ImageDraw
+
+image = Image.open("street.jpg")
+result = det(image, score_threshold=0.5)  # the default 0.05 keeps up to 100 mostly spurious boxes
+draw = ImageDraw.Draw(image)
+for d in result.to_list():  # box = (x0, y0, x1, y1) pixels; label = index into det.class_names (not a COCO category id)
+    draw.rectangle(d["box"], outline="red", width=2)
+    draw.text(d["box"][:2], f"{d['class_name']} {d['score']:.2f}", fill="red")
+image.save("detections.png")
+coco = [  # COCO results format: bbox = [x, y, width, height]; category_id: look the name up in your annotation file
+    {
+        "image_id": 1,
+        "category_name": d["class_name"],
+        "score": d["score"],
+        "bbox": [d["box"][0], d["box"][1], d["box"][2] - d["box"][0], d["box"][3] - d["box"][1]],
+    }
+    for d in result.to_list()
+]
+```
+
+Background removal to a transparent PNG (`alpha.save` writes float maps as .tif / .npy only, a .png holds integer maps):
+
+```python
+from PIL import Image
+from fastforks import matting
+
+image = Image.open("photo.jpg").convert("RGB")
+alpha = matting.load("birefnet-lite")(image).alpha  # [H, W] in [0, 1]
+cutout = image.copy()
+cutout.putalpha(Image.fromarray((alpha.cpu().numpy() * 255).round().astype("uint8")))
+cutout.save("cutout.png")
+```
+
+Keypoints to a picture (`people` from the pose example above; `people.skeleton` lists the limbs as index pairs):
+
+```python
+from PIL import Image, ImageDraw
+
+image = Image.open("street.jpg").convert("RGB")
+draw = ImageDraw.Draw(image)
+for kp, sc in zip(people.keypoints.cpu().tolist(), people.keypoint_scores.cpu().tolist()):
+    for a, b in people.skeleton:
+        if sc[a] > 0.3 and sc[b] > 0.3:
+            draw.line([*kp[a], *kp[b]], fill="lime", width=2)
+image.save("pose.png")
+```
+
+Surface normals as a normal-map picture (`lotus-normal-d-v1-1`; MoGe returns normals only with `depth.load("moge-2-vitb-normal", normals=True)`;
+`result.save` writes depth maps, not normals):
+
+```python
+from PIL import Image
+from fastforks import depth
+
+normals = depth.load("lotus-normal-d-v1-1")("photo.jpg").normals  # [H, W, 3] unit vectors, x right, y down, z forward
+Image.fromarray(((normals.cpu().numpy() + 1) * 127.5).round().astype("uint8")).save("normals.png")
+```
+
+Dense matching of two photos ([models](models/matching.md), [API](api/matching.md)): warp, matches, geometry and a plot (PIL only):
+
+```python
+from fastforks import matching
+from PIL import Image, ImageDraw
+
+result = matching.load("romav2")("a.jpg", "b.jpg")  # paths, PIL images, numpy arrays or tensors; sizes may differ
+result.warp, result.certainty  # [2, H1, W1] (x, y) in pixels of image 2, [H1, W1] in [0, 1]
+v = result.verify()  # 5000 sampled matches + fundamental-matrix RANSAC (no intrinsics needed): v.geometry.F
+points1, points2 = v.points1[v.inliers].cpu().numpy(), v.points2[v.inliers].cpu().numpy()  # [N, 2] pixels
+pose = matching.estimate_pose(points1, points2, K1, K2)  # numpy / list / tensor inputs; pose.R, pose.t (unit length)
+
+a, b = Image.open("a.jpg").convert("RGB"), Image.open("b.jpg").convert("RGB")
+canvas = Image.new("RGB", (a.width + b.width, max(a.height, b.height)))
+canvas.paste(a, (0, 0)), canvas.paste(b, (a.width, 0))
+draw = ImageDraw.Draw(canvas)
+for (x1, y1), (x2, y2) in zip(points1[::5], points2[::5]):
+    draw.line([x1, y1, x2 + a.width, y2], fill=(255, 0, 0))
+canvas.save("matches.png")
+```
+
+Two unrelated photos still give a fundamental matrix (`ok=True`: 7 matches always fit one); judge a pair by
+`v.inliers.sum()` and `result.certainty.mean()`, not by `ok`. A list of path pairs gives a list of results; a `[B, 3, H, W]` batch one result with a leading batch dimension.
 
 How a call runs: the model card (`card.toml`) is resolved to a variant (the id and revision); the variant and `mode` select a
 runner (portable or kernels backend) with its weights; the task API (`<task>.load`) wraps the runner and turns the input into
 tensors; calling it returns the typed result, whose `.backend` records what ran. The exceptions follow.
 
-Each task has its own module: `fastforks.stereo`, `fastforks.depth`, `fastforks.classification`, `fastforks.segmentation`,
-`fastforks.features`, `fastforks.detection`, `fastforks.promptable_segmentation` and `fastforks.multiview`.
+Each task has its own module: `fastforks.stereo`, `fastforks.flow`, `fastforks.depth`, `fastforks.classification`, `fastforks.segmentation`,
+`fastforks.features`, `fastforks.pose`, `fastforks.detection`, `fastforks.promptable_segmentation`,
+`fastforks.multiview`, `fastforks.matching`, `fastforks.matting`, `fastforks.tracking`, `fastforks.interpolation`,
+`fastforks.retrieval`, `fastforks.calibration`, `fastforks.restoration`, `fastforks.volume`, `fastforks.edges` and `fastforks.ocr`.
 `multiview` models differ in what they need: PatchmatchNet also takes `depth_range=(near, far)`; MVSAnywhere and
-PatchmatchNet return the reference view only. See the [API pages](api/index.md) for every result's fields.
+PatchmatchNet return the reference view only. AnySplat also returns 3D Gaussians: `result.gaussians.save("scene.ply")`
+writes a standard 3DGS PLY. See the [API pages](api/index.md) for every result's fields.
 
 Every result has `.to(device)` and `.cpu()` (same type, so `save`, `top`, ... keep working; tensors already there are not copied), and `.numpy()` for a dict of arrays.
 
@@ -230,7 +379,7 @@ iterations:
 ```python
 from fastforks import stereo
 
-model = stereo.load("raft-stereo-middlebury", options={"iters": 16})
+model = stereo.load("raft-stereo-middlebury", iters=16)
 result = model("left.png", "right.png")
 result.options  # {"iters": 16}: non-default options are recorded in every result
 ```
@@ -241,7 +390,7 @@ One name per concept across families; the old (upstream) names are accepted as a
 | Concept | Option | Old names |
 |---|---|---|
 | Longer side of the network input, px | `long_side` | `process_res` (Depth Anything 3), `processing_res` (Marigold), `resolution` (MapAnything) |
-| Shorter side (lower bound) of the network input, px | `short_side` | `input_size` (Depth Anything V2) |
+| Shorter side (lower bound) of the network input, px | `short_side` | `input_size` (Depth Anything V2), `resolution` and `detect_resolution` (edges) |
 | Side of a square with the network input's area, px | `area_side` | `resolution` (VGGT-Omega) |
 | Resolution level 0 to 9 (not pixels) | `resolution_level` | |
 | Recurrent refinement iterations | `iters` | |
@@ -249,8 +398,8 @@ One name per concept across families; the old (upstream) names are accepted as a
 
 Options are checked at load (`OptionsError`) against the bounds and choices on the card, the same ones
 `fastforks info MODEL` and the model pages list (e.g. MoGe `resolution_level` 0 to 9). Options marked "speed only"
-(`cuda_graphs`) give the same results up to floating-point rounding, "precision only" (`fp16_accumulate`) trades
-accuracy for speed; all others change the outputs.
+(`cuda_graphs`) give the same results up to floating-point rounding, "precision only" (`fp16_accumulate`,
+`fp32_accumulate`) trade accuracy against speed; all others change the outputs.
 
 What a model takes and returns, without loading weights: `depth.model_card("moge-2-vitl-normal").contract()` lists the
 inputs (required, optional or unused: e.g. `intrinsics`, `depth_range`, prompts), the outputs with units and pixel /
@@ -312,7 +461,7 @@ model = stereo.load("igev-stereo-sceneflow", weights="runs/igev_finetuned.pth") 
   them, and a missing or unreadable file (another format, empty, truncated) a `WeightsError` naming it. Floating-point
   tensors in another precision than the original (e.g. a float32 fine-tune of Depth Pro's float16 checkpoint) are
   cast to the model's.
-- `labels=` (classification): `classification.load("resnet50", weights="ft.pth", labels=my_1000_names)` names
+- `class_names=` (classification): `classification.load("resnet50", weights="ft.pth", class_names=my_1000_names)` names
   the classes of a fine-tuned head (a list of non-empty strings, in logit order, one per logit: 1000 for `resnet50`, else
   `OptionsError`, checked before loading; the head size is the family's, fixed).
   Only the names change (`result.class_names`, `top()`); the input handling and what the logits mean stay the
@@ -335,7 +484,12 @@ model = stereo.load("igev-stereo-sceneflow", weights="runs/igev_finetuned.pth") 
   containers see [Docker images](docker.md).
   `fastforks download --kernels-only --all-archs` fetches every kernel binary (~240 MiB; one GPU target ~34 MiB)
   without weights; the files land in `FASTFORKS_CACHE` (default: the platform user cache, `~/.cache/fastforks` on
-  Linux). The cache is content-addressed (`blobs/sha256/<ab>/<sha256>`), so a copy of it is not a
+  Linux). The cache is content-addressed (`blobs/sha256/<ab>/<sha256>`; lookups use that path). Next to it,
+  `<family>/<file name as on the card>` (kernels: `<lib>/<lib>-<hash>-<arch>.fatbin`) are relative symlinks to the blobs,
+  so the folder is browsable and has the `FASTFORKS_WEIGHTS_PATH` / `FASTFORKS_KERNEL_PATH` layout (the cache folder
+  itself works as either); they are made whenever a file is resolved or downloaded, `fastforks cache link` rebuilds them
+  for everything already cached, and they are skipped where symlinks are not allowed. Copy a cache with a tool that follows
+  or keeps links (`cp -a`, `rsync -a`), or only `blobs`; a copy of `blobs` alone is not a
   `FASTFORKS_KERNEL_PATH`: that wants the manifest's file names, `<dir>/<lib>/<lib>-<hash>-<arch>.fatbin` (or `.so`;
   `<dir>/<name>` also works), e.g. `kernels/fs/fs-f6f8de2cca1e-sm_80.fatbin` (names: `fastforks/kernels/<lib>/manifest.toml`).
   `fastforks download --kernels --arch sm_80` prints `<lib>-<hash>:<arch>: <cache path>` per file; copy each path to that
@@ -378,11 +532,16 @@ model = stereo.load("igev-stereo-sceneflow", weights="runs/igev_finetuned.pth") 
   q = F.normalize(model(query_images).pooler_output, dim=-1)  # same size as the gallery
   scores = q @ g.T  # cosine similarity [Q, N]; scores.topk(5, dim=-1) for the best matches
   ```
-- Lists are not batches: stack same-size images into one array or tensor (multi-view models take a list of views).
+- A list of images gives a list of results, one call per image (pair tasks: two lists of the same length).
+  Arguments that come one per image (depth `intrinsics` and `prompt_depth`, pose `boxes`, matting `trimap` / `mask`,
+  restoration `mask`, the prompts of promptable segmentation) are then `list`s of the same length (a tuple, array or tensor is
+  one value shared by every image, as are all other arguments). Stack same-size images into one array or tensor for one batched call. Multi-view models, point tracking
+  and volumes take one list (views, frames) as one input.
 - Any size above the model's minimum: resizing or padding to what the network needs and back happen inside the call, so
   dense maps (disparity, depth, labels) have the input's resolution. Classifiers resize and crop as the model expects.
 - Batches: pass `[B, 3, H, W]` tensors (or `BHWC` arrays) to get `[B, H, W]` maps (`[B, classes]` logits).
-- Exceptions to batching: detection returns a `list` of `DetectionResult` (one per image); promptable segmentation
+- Exceptions to batching: detection and pose return a `list` of results (one per image; pose takes a list of box
+  arrays, one per image); promptable segmentation
   calls take one image (batch the image encoder with `get_image_embeddings`, then prompt per image); multi-view models
   take the `N` views of one scene as the leading dimension (not independent images). Stereo, depth, classification,
   segmentation and features return tensors with a leading `B`.
@@ -403,9 +562,12 @@ nerfstudio): `cx_colmap = cx_opencv + 0.5` (same for `cy`); `read_calib(..., "co
 
 ### Saving maps
 
-`save` exists on results that hold dense maps: stereo, depth, multi-view, segmentation (`labels`) and promptable
-segmentation (`masks`); classification, features and detection results have none (use `result.numpy()` or the
-fields). `result.save(path)` writes the primary map (`disparity`, `depth` or `inverse_depth`, `labels`, `masks`;
+`save` exists on results that hold dense maps: stereo, depth, multi-view, segmentation (`labels`), promptable
+segmentation (`masks`), matting and edges; classification and features results have none (use `result.numpy()` or the
+fields). Restoration and interpolation results write their image (`.png` / `.jpg` 8-bit, `.npy` float32), flow results
+`.flo` (Middlebury) or `.npy`, volume results `.nii.gz` (on the input file's grid: call with `meta=`) or `.npy`; a
+batch of these takes `{i}` in the path (`"out_{i}.png"`). Instance results (detection, concept segmentation, pose:
+`PoseResult` is an `Instances` with keypoints) write `to_list()` as `.json` (masks left out). `result.save(path)` writes the primary map (`disparity`, `depth` or `inverse_depth`, `labels`, `masks`;
 `key="confidence"` or an `extras` name picks another) as one `[H, W]` file; the suffix selects the format, and an
 unknown suffix raises with the list this result accepts. Batches are not split (pass one image per call; leading
 dimensions of size 1 are dropped; for several masks write one, `fastforks.save("m.png", r.masks[i])`); a multi-view
@@ -533,8 +695,11 @@ DINOv3-ConvNeXt, SAM 3, VGGT-Omega). `device="mps"` also runs those, unvalidated
 MonSter, MonSter++), CFNet, LiteAnyStereo V2 (LaS2), HITNet, AANet, CREStereo, NMRF, BridgeDepth, DEFOM-Stereo and
 FoundationStereo: Metal kernels for each family's hot spot (ConvGRUs, correlation and
 geometry lookups, cost volumes, HITNet's warp costs, AANet's deformable sampling), float16, and for MoGe-3 (its
-sparse convolutions) and VGGT (the aggregator's q / k LayerNorm and RoPE) in float32. They compile on the device in
-under a second on first use; `mode="auto"` picks it. Every other family runs `portable`.
+sparse convolutions) and VGGT (the aggregator's q / k LayerNorm and RoPE) in float32. Flow, pose and features have
+them too: RAFT and SEA-RAFT (the correlation lookup without the all-pairs volume, float16), RTMPose (the person crops,
+float32), ViTPose / ViTPose++ (patch embedding, decoder and keypoint decoding, float16) and Perception Encoder (the
+blocks' RoPE, float16). They compile on the device in under a second on first use;
+`mode="auto"` picks it. Every other family runs `portable`.
 
 - dtype: float32 by default. `dtype="float16"` works where the card lists it (`fastforks info MODEL`, row
   `apple gpu`). It saves memory (up to half) and on an M1 Pro is also faster: median 1.15x over 60 models, up to
@@ -576,7 +741,9 @@ Or keep the high-level API and compile in place (`kernels` raises `BackendUnavai
 ```python
 model.compile()  # every task call now runs compiled; again with other arguments replaces it
 model.export_onnx("m.onnx", 384, 1248)
-model.export_tensorrt("m.engine", 384, 1248)  # on the target GPU; then stereo.TensorRTEngine("m.engine")(left, right)
+model.export_tensorrt(
+    "m.engine", 384, 1248
+)  # on the target GPU; then fastforks.TensorRTEngine("m.engine")(left, right)
 ```
 
 ```
@@ -588,9 +755,9 @@ fastforks export depth-anything-v2-s --format trt --fp16 --size 518x770
 ```
 
 From Python: `model.export_onnx(path[, height, width])` and `model.export_tensorrt(path[, height, width])`; run an
-engine with `stereo.TensorRTEngine(path)(left, right)` (`depth.TensorRTEngine(path)(image)`). Exports have one fixed
+engine with `fastforks.TensorRTEngine(path)(left, right)` (or `(image)`). Exports have one fixed
 size and batch by default (size ranges: see [export](export.md)); the size must lie in `model.size_range()` (stereo, depth, segmentation and detection have no default size;
-classification and features default to `model.export_size()`). **A TensorRT engine only runs on the GPU model and
+classification and features default to `model.size_range().export_size`). **A TensorRT engine only runs on the GPU model and
 TensorRT version it was built with: build it on the target machine.** Install the exporters with
 `pip install "fastforks-core[onnx]"` / `"fastforks-core[tensorrt]"`. See [export](export.md) for inputs and outputs per task,
 what works per model and how TensorRT compares with `kernels`.
@@ -633,6 +800,7 @@ BatchNorm: fine-tune the timm / torchvision model and pass its `state_dict` file
 - Map errors to HTTP: `InputError` / `ArgumentError` (bad image, bad keyword) to 4xx, other `FastforksError`
   subclasses (`WeightsError`, `BackendUnavailableError`, ...) to 5xx; one `except fastforks.FastforksError` covers all.
 - Images as uploaded bytes: pass `bytes`, `bytearray` or `io.BytesIO` of the encoded file; corrupt data raises `InputError`.
+- Image inputs also take an `http://` or `https://` URL (`model("https://example.com/cat.jpg")`; downloaded, 30 s timeout, 100 MB cap).
 
 ## Notes for deployments
 
@@ -648,14 +816,27 @@ for p in sorted(pathlib.Path("images").glob("*.jpg")):
     model(p).save(f"out/{p.stem}.tif")
 ```
 
+With a small model the JPEG decode (about 10 ms for 2 MP on one core) costs more than the network. `read_images`
+decodes the next files in background threads while the model runs; same pixels, same results:
+
+```python
+import fastforks
+
+paths = sorted(pathlib.Path("images").glob("*.jpg"))
+for p, image in zip(paths, fastforks.read_images(paths)):
+    model(image).save(f"out/{p.stem}.tif")
+```
+
+A pair or view list given as files in one call (matching, stereo, flow, multiview) is decoded in parallel.
+
 ```python
 import time
 from fastforks import detection
 
-det = detection.load("rtdetrv2-s-coco")  # defaults: score >= 0.05, at most 100 boxes
+det = detection.load("rtdetrv2-s-coco", max_detections=30)  # limit set when loading
 det(first_frame, score_threshold=0.5)  # warm-up at the real size; the first call also captures CUDA graphs (kernels)
 for frame in frames:  # numpy HWC uint8, torch or PIL; keep the size fixed, call from one thread
-    boxes = det(frame, score_threshold=0.5, max_detections=30)  # per-call overrides of the load options
+    boxes = det(frame, score_threshold=0.5)  # score threshold can be overridden per call
 ```
 
 Memory per input size: `kernels` keep a cuDNN plan and a CUDA graph per input size, so a stream of many different

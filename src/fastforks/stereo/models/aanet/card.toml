@@ -1,9 +1,9 @@
 schema = 2
 name = "AANet"
 summary = "AANet (Xu and Zhang 2020): sparse deformable-sampling cost aggregation within and across scales on a 2-D correlation pyramid, without 3-D convolutions."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "deform_conv"]  # fastforks.shared modules this family imports
 limitations = [
   "Only the SceneFlow checkpoints of AANet and AANet+ are included; the original code's KITTI fine-tunes are not.",
   "At 375x1242 AANet is launch-bound: portable is about as fast as the original code. At 994x1482 portable is faster but allocates more memory.",
@@ -29,7 +29,7 @@ max_disp = 192  # cost-volume depth at full resolution
 
 [modes.portable]
 cuda_dtype = "float16"
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["deform_conv", "igev", "cutlass_conv", "cudnn_hacc"]
@@ -45,17 +45,23 @@ mps_kernels = ["stereo_metal"]
 # Upstream also links KITTI 2012 / 2015 fine-tuned weights of both networks and the StereoNet / GC-Net / PSMNet / GA-Net
 # variants with adaptive aggregation (MODEL_ZOO.md): not added (not available locally). The network code supports them.
 
+[[papers]]
+title = "AANet: Adaptive Aggregation Network for Efficient Stereo Matching"
+url = "https://arxiv.org/abs/2004.09548"
+date = "2020-04-20"
+venue = "CVPR 2020"
+
 [[variants]]
 id = "aanet-sceneflow"
 revision = 1
 # AANet: AANet feature extractor + FPN, StereoDRNet refinement
-weights = [{ mirror = true, name = "aanet_sceneflow.pth", size = 16312526, sha256 = "5aa5a24e2ba8936ef527905f088c21d1dcd813fe43d320f977ced90b54b1eb62", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1_OuMEE5v5DcSUuKUZeCBZ17TZgxi4--h" }]
+weights = [{ name = "aanet_sceneflow.pth", size = 16312526, sha256 = "5aa5a24e2ba8936ef527905f088c21d1dcd813fe43d320f977ced90b54b1eb62", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1_OuMEE5v5DcSUuKUZeCBZ17TZgxi4--h" }]
 params = { plus = false }
 
 [[variants]]
 id = "aanet-plus-sceneflow"
 revision = 1
 # AANet+: GA-Net feature extractor + feature pyramid, hourglass refinement
-weights = [{ mirror = true, name = "aanet+_sceneflow.pth", size = 34339749, sha256 = "d3e13ef00d3d5384dd0e3db3851398ab66846d3e5f17344fd72b12896863b7bd", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1m3Wo2k7w3OlVaDYdIm-x9K8_frQ4Vq9u" }]
+weights = [{ name = "aanet+_sceneflow.pth", size = 34339749, sha256 = "d3e13ef00d3d5384dd0e3db3851398ab66846d3e5f17344fd72b12896863b7bd", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1m3Wo2k7w3OlVaDYdIm-x9K8_frQ4Vq9u" }]
 params = { plus = true }
 io = { pad = { multiple = 96 } }  # the original code's inference scripts use 96 for AANet+ (48 for AANet) at the size of the SceneFlow checkpoints

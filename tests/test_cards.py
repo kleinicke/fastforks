@@ -52,7 +52,7 @@ def test_parses(data):
         (lambda d: d.update(tier="beta"), "'beta' not in"),
         (lambda d: d.update(colour="red"), r"unknown key\(s\) \['colour'\]"),
         (lambda d: d["licence"].update(commercial="no"), r"unknown key\(s\) \['commercial'\]"),
-        (lambda d: d["licence"].update(code="WTFPL"), "unknown licence id"),
+        (lambda d: d["licence"].update(code="Unknown-License-1.0"), "unknown licence id"),
         (lambda d: d["licence"].update(weights="not stated"), "assumed from code"),
         (lambda d: d["licence"].update(training_data=["imagenet"]), "bad: \\['imagenet'\\]"),
         (lambda d: d["variants"][0].update(licence={"weights": "Foo-1.0"}), "unknown licence id"),
@@ -86,6 +86,7 @@ def test_parses(data):
         (lambda d: d.update(options={"m": {"default": 1, "choices": [1, 2], "max": 2}}), "list holding the default"),
         (lambda d: d.update(options={"m": {"default": 1, "choices": [1, "2"]}}), "the default's type int"),
         (lambda d: d.update(options={"m": {"default": True, "effect": "fast"}}), "`effect` must be output"),
+        (lambda d: d.update(options={"mode": {"default": 1}}), r"is a load\(\) argument"),
     ],
 )
 def test_rejects(data, edit, match):
@@ -245,22 +246,22 @@ def test_option_bounds_parse(data):
         "level": {"default": 9, "min": 0, "max": 9},
         "steps": {"default": 4, "min": 1},
         "cap": {"default": 0.5, "max": 1.0},
-        "mode": {"default": "a", "choices": ["a", "b"]},
+        "kind": {"default": "a", "choices": ["a", "b"]},
         "graphs": {"default": True, "effect": "speed"},
         "plain": 3,
     }
     card = parse(d)
-    assert dict(card.options) == {"level": 9, "steps": 4, "cap": 0.5, "mode": "a", "graphs": True, "plain": 3}
+    assert dict(card.options) == {"level": 9, "steps": 4, "cap": 0.5, "kind": "a", "graphs": True, "plain": 3}
     assert dict(card.option_min) == {"level": 0, "steps": 1}
     assert dict(card.option_max) == {"level": 9, "cap": 1.0}
-    assert dict(card.option_choices) == {"mode": ("a", "b")}
+    assert dict(card.option_choices) == {"kind": ("a", "b")}
     assert dict(card.option_effect) == {"graphs": "speed"}  # "output" (the default) is not stored
     words = {k: card.option_bounds(k) for k in card.options}
     assert words == {
         "level": "0 to 9",
         "steps": ">= 1",
         "cap": "<= 1.0",
-        "mode": "one of 'a', 'b'",
+        "kind": "one of 'a', 'b'",
         "graphs": "",
         "plain": "",
     }
@@ -275,3 +276,24 @@ def test_option_aliases_parse_and_must_be_unique(data):
         d["options"]["b"] = {"default": 2, "aliases": [clash]}
         with pytest.raises(CardError, match="alias"):
             parse(d)
+
+
+def test_papers_and_official(data):
+    card = parse(data)
+    assert card.papers
+    assert all(len(p.date) == 10 for p in card.papers)
+    d = copy.deepcopy(data)
+    d["upstream"]["official"] = [
+        {"repo": "https://x.org/r", "framework": "JAX", "reason": "why", "variants": ["s2m2-s"]}
+    ]
+    assert parse(d).official[0].variants == ("s2m2-s",)
+    for bad, match in [
+        ({"papers": []}, "papers"),
+        ({"papers": [{**data["papers"][0], "date": "2024"}]}, "date"),
+        ({"papers": [{**data["papers"][0], "variants": ["nope"]}]}, "nope"),
+    ]:
+        with pytest.raises(CardError, match=match):
+            parse({**data, **bad})
+    d["upstream"]["official"][0]["reason"] = ""
+    with pytest.raises(CardError, match="reason"):
+        parse(d)

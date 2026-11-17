@@ -1,0 +1,66 @@
+schema = 2
+name = "Swin2SR"
+summary = "Swin2SR (Conde et al., ECCVW 2022): SwinIR with Swin Transformer V2 layers (scaled cosine attention, continuous log-spaced position bias, residual post-norm) in residual groups between a conv stem and an upsampler. `swin2sr-x2` / `swin2sr-x4` are the classical (bicubic, PSNR-trained) DIV2K + Flickr2K models, `swin2sr-x4-real` the real-world x4 PSNR model (BSRGAN degradations)."
+tier = "experimental"
+uses = ["swin_sr"]  # fastforks.shared modules this family imports
+outputs = ["image"]
+
+limitations = [
+  "Kernels peak allocated is equal to portable, but the cuDNN workspace next to the large conv maps fragments the allocator: peak reserved is ~80 MiB above portable.",
+]
+
+[upstream]
+repo = "https://github.com/mv-lab/swin2sr"
+commit = "6f25d7689813f7dd12c5a212b638066fa71bc9e6"  # models/network_swin2sr.py; the call is main_test_swin2sr.py (mirror padding, model(lq), no tile)
+
+[licence]
+code = "Apache-2.0"  # LICENSE
+weights = "Apache-2.0"  # release v0.0.1 assets of the Apache-2.0 repository; no separate weights licence
+files = ["LICENSE"]
+training_data = ["div2k", "flickr2k"]
+training_note = "README, Results: trained mainly on DIV2K and Flickr2K, setup as SwinIR (classical SR: bicubic-downsampled HR images)."
+evidence = "https://github.com/mv-lab/swin2sr/blob/6f25d7689813f7dd12c5a212b638066fa71bc9e6/LICENSE ; https://github.com/mv-lab/swin2sr/releases/tag/v0.0.1"
+
+[io]
+input = "0-1"  # main_test_swin2sr.py divides by 255; the network subtracts the DIV2K mean itself (img_range 1)
+min_size = 4  # the mirror padding doubles at most once
+
+[params]
+scale = 4
+embed_dim = 180
+depths = [6, 6, 6, 6, 6, 6]
+heads = [6, 6, 6, 6, 6, 6]
+upsampler = "pixelshuffle"
+resi_connection = "1conv"
+img_size = 64
+window = 8
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc"]  # fp16-accumulate GEMMs and convolutions
+
+[[papers]]
+title = "Swin2SR: SwinV2 Transformer for Compressed Image Super-Resolution and Restoration"
+url = "https://arxiv.org/abs/2209.11345"
+date = "2022-09-22"
+venue = "ECCV 2022 Workshops (AIM)"
+
+[[variants]]
+id = "swin2sr-x4"
+revision = 1
+weights = [{ name = "Swin2SR_ClassicalSR_X4_64.pth", size = 69355825, sha256 = "9fef30c758897992581f6b3ae7802bea246bc56d88dd36403d377d8dcf47a173", url = "https://github.com/mv-lab/swin2sr/releases/download/v0.0.1/Swin2SR_ClassicalSR_X4_64.pth" }]
+
+[[variants]]
+id = "swin2sr-x2"
+revision = 1
+params = { scale = 2 }
+weights = [{ name = "Swin2SR_ClassicalSR_X2_64.pth", size = 68764341, sha256 = "04834dbf863f00168ece32f9fc34ad1e3ad48ff1bf8098812573ed5810b59fa0", url = "https://github.com/mv-lab/swin2sr/releases/download/v0.0.1/Swin2SR_ClassicalSR_X2_64.pth" }]
+
+[[variants]]
+id = "swin2sr-x4-real"
+revision = 1
+params = { upsampler = "nearest+conv" }
+weights = [{ name = "Swin2SR_RealworldSR_X4_64_BSRGAN_PSNR.pth", size = 68617773, sha256 = "2b7afb6ba8c076f7a4987001c142b7bc5f23bf229125775eee599faf5bf7c40e", url = "https://github.com/mv-lab/swin2sr/releases/download/v0.0.1/Swin2SR_RealworldSR_X4_64_BSRGAN_PSNR.pth" }]

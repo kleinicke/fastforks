@@ -19,8 +19,9 @@ import pytest
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.half import cublas_gemms
 from fastforks._optimize import conv_ops
-from fastforks.kernels import cudnn_hacc, fastbb, seg_up
+from fastforks.kernels import cudnn_hacc, fastbb, nf4, seg_up, vol_norm
 from fastforks.shared import cnn_kernels
 from fastforks.stereo.models.las2 import kernels as las2_kernels
 
@@ -222,6 +223,9 @@ def test_fvm_lin(dev, seed, record_property):
         got = conv_ops.lin(x, w4, bias, res, act)
         ref = F.linear(x.float(), w4.float().view(nout, k), bias.float()) + (0 if res is None else res.float())
         _cmp(record_property, "fvm lin", got, FVM_ACT[act](ref), 2e-2, pre=ref, mag=mag, shape=[b_, t, k, nout, act])
+        with cublas_gemms():  # every GEMM through cuBLAS (fp32 accumulation): only the fp16 output rounding
+            got = conv_ops.lin(x, w4, bias, res, act)
+        _cmp(record_property, "lin cublas", got, FVM_ACT[act](ref), 2e-3, pre=ref, mag=mag, shape=[b_, t, k, nout, act])
 
 
 # --- fastbb ---------------------------------------------------------------------------------------------------------
@@ -387,6 +391,74 @@ def test_cnn_epilogue_instance_norm(dev, seed, record_property):
             _cmp(record_property, "igev instance_norm", got, ref, 5e-3, mag=mag, shape=[n, c, h, w])
 
 
+@pytest.mark.parametrize("seed", SEEDS)
+def test_vol_norm(dev, seed, record_property):
+    """`vol_norm.norm_act_` (channels-last 3D, batch 1 and 2) = `leaky_relu(instance_norm(x, w, b))` in fp32."""
+    rng, g, mag = _rng(seed, "vol_norm"), _gen(seed), MAGS[seed % 3]
+    vol_norm.load(dev)
+    for _ in range(3):
+        n, c = rng.choice((1, 2)), 8 * rng.randint(1, 40)
+        d, h, w = rng.randint(1, 19), rng.randint(2, 23), rng.randint(1, 37)
+        x = _randn(g, n, c, d, h, w, mag=mag, offset=rng.choice((0.0, 2.0)))
+        x = x.to(dev).half().contiguous(memory_format=torch.channels_last_3d)
+        wt, b = (_randn(g, c) * 0.5 + 1).to(dev).half(), (_randn(g, c) * 0.3).to(dev).half()
+        ref = F.leaky_relu(F.instance_norm(x.float(), weight=wt.float(), bias=b.float(), eps=1e-5), 0.01)
+        assert vol_norm.supported(x)
+        got = vol_norm.norm_act_(x, wt, b, 1e-5, 0.01)
+        _cmp(record_property, "vol_norm", got, ref, 5e-3, shape=[n, c, d, h, w])
+
+
+# --- NF4 dequantization (nf4) ---------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_nf4_dequant(dev, seed):
+    """`nf4.dequant` on random bytes and scales = the portable decode `(code[nibble] * absmax).to(bf16)`, bit-exact."""
+    rng, g = _rng(seed, "nf4"), _gen(seed)
+    nf4.load(dev)
+    code = torch.tensor([-1.0, -0.6962, -0.5251, -0.3949, -0.2844, -0.1848, -0.0911, 0.0], device=dev)
+    code = torch.cat([code, torch.tensor([0.0796, 0.1609, 0.2461, 0.3379, 0.4407, 0.5626, 0.7230, 1.0], device=dev)])
+    for _ in range(3):
+        n = 32 * rng.randint(1, 4096)  # bytes: 64 weights = 32 bytes per absmax
+        q = torch.randint(0, 256, (n,), generator=g, dtype=torch.int32).to(torch.uint8).to(dev)
+        absmax = (torch.rand(n // 32, generator=g) * MAGS[seed % 3]).to(dev).bfloat16()
+        idx = torch.stack([q >> 4, q & 15], dim=1).reshape(-1).long()
+        ref = (code[idx].view(-1, 64) * absmax.float()[:, None]).to(torch.bfloat16).reshape(-1)
+        got = nf4.dequant(q, absmax, code, torch.empty(2 * n, dtype=torch.bfloat16, device=dev))
+        assert torch.equal(got, ref), n
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_nf4_epilogues(dev, seed):
+    """The fused LoRA / modulation / RMS-RoPE epilogues = their PyTorch chains (Marigold V2 `NF4Linear`), bit-exact."""
+    rng, g, mag = _rng(seed, "nf4epi"), _gen(seed), MAGS[seed % 3]
+    nf4.load(dev)
+    bf = torch.bfloat16
+    t, n = rng.randint(1, 300), 8 * rng.randint(1, 64)
+    y, lo = (_randn(g, 1, t, n, mag=mag).to(dev).to(bf) for _ in range(2))
+    gate, scale, shift = (_randn(g, n).to(dev).to(bf) for _ in range(3))
+    res, x = (_randn(g, 1, t, n, mag=mag).to(dev) for _ in range(2))
+    s = y.float() + lo
+    assert torch.equal(nf4.lora_f32(y, lo), s)
+    assert torch.equal(nf4.lora_bf16(y, lo), s.to(bf))
+    assert torch.equal(nf4.lora_gelu_bf16(y, lo), F.gelu(s, approximate="tanh").to(bf))
+    assert torch.equal(nf4.lora_gate_res(y, lo, gate, res.clone()), res + s * gate)
+    assert torch.equal(nf4.mod_bf16(x, scale, shift), (x * scale + shift).to(bf))
+    heads, d, t2 = rng.randint(1, 4), 2 * rng.randint(1, 64), rng.randint(1, 50)
+    xa, xb = _randn(g, 1, t2, heads, d, mag=mag).to(dev), _randn(g, 1, t, heads, d, mag=mag).to(dev)
+    wa, wb = torch.rand(d, generator=g).to(dev), torch.rand(d, generator=g).to(dev)
+    f = torch.polar(torch.ones(t2 + t, 1, d // 2), torch.rand(t2 + t, 1, d // 2, generator=g) * 100).to(dev)
+
+    def rms(v, w):
+        return v * torch.rsqrt(v.pow(2).mean(-1, keepdim=True) + 1e-6) * w
+
+    xc = torch.view_as_complex(torch.cat([rms(xa, wa), rms(xb, wb)], 1).reshape(1, t2 + t, heads, -1, 2))
+    ref = torch.view_as_real(xc * f).flatten(3).to(bf)
+    out = torch.empty(1, t2 + t, heads, d, dtype=bf, device=dev)
+    nf4.rms_rope_bf16(xa, wa, f, out, 0)
+    assert torch.equal(nf4.rms_rope_bf16(xb, wb, f, out, t2), ref)
+
+
 # --- cuDNN fp16-accumulate convs (cudnn_hacc) ------------------------------------------------------------------------
 
 
@@ -410,3 +482,70 @@ def test_cudnn_hacc_conv(dev, seed, record_property):
         fn = F.conv3d if three_d else F.conv2d
         ref = fn(x.float(), wt.float(), b.float(), st, pad)
         _cmp(record_property, "cudnn_hacc conv", got, ref, 2e-2, mag=mag, shape=[n, c, *sp, k, r, st])
+
+
+# --- RAFT (raft_flow): the lookup without a correlation volume, the coordinate grid, both upsamplings ----------------
+# The other raft_flow kernels (InstanceNorm, conv epilogues, the GRU gates, the flow convs, SEA-RAFT's depthwise conv)
+# take the engines' packed weights; tests/test_flow_raft.py and tests/test_flow_sea_raft.py check them through the
+# engines against the portable fp32 runners.
+
+
+@pytest.mark.parametrize("large", [True, False])
+@pytest.mark.parametrize("seed", SEEDS)
+def test_raft_flow(dev, seed, large, record_property):
+    """avgpool2 + corr_lookup against the all-pairs pyramid of `raft/net.py`, init_coords, convex and bilinear 8x."""
+    from fastforks._core.kernels import linear  # noqa: PLC0415
+    from fastforks.flow.models.raft import net  # noqa: PLC0415
+    from fastforks.kernels import raft_flow  # noqa: PLC0415
+
+    rng, g, mag = _rng(seed, f"raft_flow{large}"), _gen(seed), MAGS[seed % 3]
+    k = raft_flow.load(dev)
+    c, radius = (256, 4) if large else (128, 3)
+    h, w = rng.randint(16, 40), rng.randint(16, 40)  # 16: the engines' smallest grid (2 x 2 cells at level 3)
+    p = h * w
+    f1, f2 = (_randn(g, h, w, c, mag=math.sqrt(mag)).to(dev).half() for _ in range(2))
+    pyr = [f2]
+    for _ in range(3):
+        src = pyr[-1]
+        hd, wd = src.shape[0] // 2, src.shape[1] // 2
+        dst = torch.empty(hd, wd, c, device=dev, dtype=torch.half)
+        k.launch("avgpool2", *linear(hd * wd * c // 8), src, src.shape[0], src.shape[1], dst, hd, wd, c)
+        pyr.append(dst)
+
+    coords = torch.full((p, 2), float("nan"), device=dev)
+    k.launch("init_coords", *linear(p), coords, w, p)
+    grid = net._coords(1, h, w, dev)
+
+    def nchw(t: torch.Tensor) -> torch.Tensor:  # the kernels' [h * w, C] -> [1, C, h, w]
+        return t.view(h, w, -1).permute(2, 0, 1)[None]
+
+    assert torch.equal(nchw(coords), grid)
+    move = rng.choice((0.7, 5.0, 40.0))  # sub-cell, inside the window of the fine levels, over the border
+    coords += _randn(g, p, 2, mag=move).to(dev)
+
+    n = 4 * (2 * radius + 1) ** 2
+    stride = (n + 7) // 8 * 8 + 8 * rng.randint(0, 1)
+    look = torch.full((h, w, stride), float("nan"), device=dev, dtype=torch.half)
+    name = "corr_lookup_c256_r4" if large else "corr_lookup_c128_r3"
+    k.launch(name, ((p + 7) // 8, 1, 1), (256, 1, 1), f1, *pyr, h, w, coords, look, stride, 1.0 / math.sqrt(c))
+    f1n, f2n = (t.permute(2, 0, 1)[None].float() for t in (f1, f2))
+    ref = net._lookup(net._pyramid(f1n, f2n, 4), nchw(coords), radius)
+    info = {"mag": mag, "shape": [h, w, c], "move": move}
+    _cmp(record_property, f"raft_flow {name}", look[..., :n].permute(2, 0, 1)[None], ref, 6.4e-4, **info)
+    assert not look[..., n:].any()  # the channels up to the stride are zero padding
+
+    flow, hh, ww = nchw(coords) - grid, 8 * h, 8 * w
+    out = torch.full((2, hh, ww), float("nan"), device=dev)
+    k.launch("upsample_bilinear", *linear(hh * ww), coords, h, w, out)
+    _cmp(record_property, "raft_flow upsample_bilinear", out[None], net._upsample(flow, None), 1e-6, **info)
+    mask = _randn(g, p, 576, mag=min(mag, 30.0)).to(dev).half()  # the raw conv output, before the 0.25
+    out = torch.full((2, hh, ww), float("nan"), device=dev)
+    k.launch("upsample_convex", *linear(hh * ww), coords, mask, h, w, out)
+    _cmp(
+        record_property,
+        "raft_flow upsample_convex",
+        out[None],
+        net._upsample(flow, 0.25 * nchw(mask).float()),
+        4.7e-7,
+        **info,
+    )

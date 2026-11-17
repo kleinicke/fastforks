@@ -1,0 +1,66 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 1e-05
+gpu_mean = 0.00099
+gpu_p99 = 0.0068
+
+[refs."memfof-kitti@1"]
+sha256 = "a44cb73a47208bd63103de46aa98717958b2de45d7fd93794dad09dc8795eae0"
+upstream = "https://github.com/msu-video-group/memfof@a51de9fc59c6fe20ba08e079372c7b583d58a712"
+settings = "CPU float32, upstream MEMFOF iters=8, frames (image1, image1, image2), forward flow, scale_and_forward_flow scale=1, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."memfof-sintel@1"]
+sha256 = "70b66c3e6ff3901a7377832e298df61a47a83c0a85a222d3bc21a79fecccc7de"
+upstream = "https://github.com/msu-video-group/memfof@a51de9fc59c6fe20ba08e079372c7b583d58a712"
+settings = "CPU float32, upstream MEMFOF iters=8, frames (image1, image1, image2), forward flow, scale_and_forward_flow scale=1, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."memfof-spring@1"]
+sha256 = "0fe17ffaabe7cf4888a0c377a44074155db79d6ae49914a113fa26db6f94a98d"
+upstream = "https://github.com/msu-video-group/memfof@a51de9fc59c6fe20ba08e079372c7b583d58a712"
+settings = "CPU float32, upstream MEMFOF iters=8, frames (image1, image1, image2), forward flow, scale_and_forward_flow scale=0, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."memfof@1"]
+sha256 = "0fffd7bc712dc63d3b21525842e730f007646c8181eb25b689faf215ed4d174b"
+upstream = "https://github.com/msu-video-group/memfof@a51de9fc59c6fe20ba08e079372c7b583d58a712"
+settings = "CPU float32, upstream MEMFOF iters=8, frames (image1, image1, image2), forward flow, scale_and_forward_flow scale=0, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[validated."memfof-kitti@1"]
+kernels = ["raft_flow@a101a33607b6:sm_120"]
+symbols = {"raft_flow" = {"corr_lookup_c1024_r4" = "5e0c6fe3979ac1b3"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-12"
+mean_px = 0.00035
+p99_px = 0.00157
+
+[validated."memfof-sintel@1"]
+kernels = ["raft_flow@a101a33607b6:sm_120"]
+symbols = {"raft_flow" = {"corr_lookup_c1024_r4" = "5e0c6fe3979ac1b3"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-12"
+mean_px = 0.00041
+p99_px = 0.00206
+
+[validated."memfof-spring@1"]
+kernels = ["raft_flow@a101a33607b6:sm_120"]
+symbols = {"raft_flow" = {"corr_lookup_c1024_r4" = "5e0c6fe3979ac1b3"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-12"
+mean_px = 0.00066
+p99_px = 0.00442
+
+[validated."memfof@1"]
+kernels = ["raft_flow@a101a33607b6:sm_120"]
+symbols = {"raft_flow" = {"corr_lookup_c1024_r4" = "5e0c6fe3979ac1b3"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-12"
+mean_px = 0.00065
+p99_px = 0.00304

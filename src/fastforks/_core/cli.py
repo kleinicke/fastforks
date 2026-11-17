@@ -5,6 +5,7 @@
     fastforks info MODEL
     fastforks download [MODEL ...] [--kernels | --kernels-only] [--arch sm_XX[,sm_YY] | --all-archs] [--commercial-only]
                        [--dry-run | --check]
+    fastforks cache link
     fastforks bench MODEL [--mode auto|portable|kernels] [--dtype float32|float16|bfloat16] [--device DEV] [--size HxW]
                     [--views N] [--runs N]
     fastforks export MODEL --format onnx|trt [--size HxW [--size-range MINxMIN:MAXxMAX]] [--fp16] [--output PATH]
@@ -27,6 +28,10 @@ resolves from (a last `RUN` of a Dockerfile, where those other places are empty)
 the rest: every other model and binary is still fetched, the failures are printed as `MISSING` lines at the end, and
 the exit code is 1. With `FASTFORKS_OFFLINE=1` (or `HF_HUB_OFFLINE=1`) no model download is attempted at all: a file
 that is not local raises an error that names the file and the command.
+
+`cache link` (re)builds the browsable view `<cache>/<family>/<file name>` (kernels: `<cache>/<lib>/<name>`),
+as relative symlinks to the blobs, for every file of every card and kernel manifest that is in the cache; the view is
+also made whenever a file is resolved or downloaded. Nothing outside the cache is touched.
 
 `bench` times one model of any task on synthetic input (the task's `bench_inputs`: an image, a pair for stereo,
 `--views` views for multi-view; median wall time and peak CUDA memory; on Apple MPS the Metal driver's memory after the
@@ -65,7 +70,7 @@ from typing import TYPE_CHECKING, Any, get_args
 from fastforks._core import registry
 from fastforks._core.cards import LIBRARY_EXTRA, Commercial, Tier
 from fastforks._core.errors import BackendUnavailableError, FastforksError, LicenceError, OptionsError, install_hint
-from fastforks._core.files import OFFLINE_ENV, _human_size, cache_root, env_flag, locate, offline, present
+from fastforks._core.files import OFFLINE_ENV, _human_size, cache_root, env_flag, link_view, locate, offline, present
 from fastforks._core.kernels import KERNEL_PATH_ENV, for_driver, read_manifest, select_target
 from fastforks._core.sizes import EXAMPLE_SIZE, size_range
 
@@ -374,6 +379,22 @@ def _download(args: argparse.Namespace) -> int:
     return 1 if missing else 0
 
 
+def _cache_link(_args: argparse.Namespace) -> int:
+    """Link every weight file and kernel binary that is in the cache into the `<cache>/<group>/<name>` view."""
+    specs = [(card.family, w) for card, v in _all_cards().values() for w in v.weights]
+    for lib in sorted({lib for card, _ in _all_cards().values() for lib in card.kernel_libs}):
+        specs += [(lib, f) for _, f in _kernel_files(lib, archs=[], all_archs=True)]
+    shas: dict[tuple[str, str], set[str]] = {}
+    for g, w in specs:
+        if link_view(w, g):
+            shas.setdefault((g, w.name), set()).add(w.sha256)
+    print(f"{len(shas)} files linked under {cache_root()} ({len(specs)} listed by the cards, the rest not cached)")
+    for (g, name), found in sorted(shas.items()):
+        if len(found) > 1:
+            print(f"note: {g}/{name} is used by files with different contents; the view shows one", file=sys.stderr)
+    return 0
+
+
 def _size_text(n: int) -> str:
     return _human_size(n) if n else "size unknown"
 
@@ -657,7 +678,9 @@ def _export(args: argparse.Namespace) -> None:
         f"wrote {out}: TensorRT engine of {model.variant.ref} at {h}x{w}{_dyn(bounds)}, {model.backend.dtype}"
         f" ({ENGINE_NOTE})"
     )
-    what = "pair" if card.task == "stereo" else "image"
+    what = {"stereo": "pair", "flow": "pair", "matching": "pair", "interpolation": "pair", "tracking": "video"}.get(
+        card.task, "image"
+    )
     stats = _parity(want, got, stereo=card.task == "stereo", scores=getattr(module, "query_scores", None))
     print(f"check vs portable (synthetic {what}): {stats}; {t_trt:.1f} ms TensorRT vs {t_ref:.1f} ms portable")
 
@@ -866,6 +889,52 @@ def _add_stereo(sub: argparse._SubParsersAction) -> None:
     p.set_defaults(run=_stereo_run)
 
 
+def _sfm(args: argparse.Namespace) -> None:
+    from fastforks.matching import sfm  # noqa: PLC0415 - heavy, only for this command
+
+    options: dict[str, Any] = {
+        "matcher": args.matcher,
+        "retrieval": None if args.retrieval == "none" else args.retrieval,
+        "k": args.k,
+        "threshold": args.threshold,
+        "single_camera": args.single_camera,
+        "mode": args.mode,
+        "device": args.device,
+        "dtype": args.dtype,
+    }
+    rec = sfm.reconstruct(args.images, args.out, mapper=args.mapper, **options) if args.reconstruct else None
+    if rec is not None:
+        stats, target = rec.database, Path(args.out) / "database.db"
+    else:
+        stats, target = sfm.colmap_database(args.images, args.out, **options), Path(args.out)
+    times = ", ".join(f"{name} {s:.1f} s" for name, s in stats.seconds.items())
+    print(f"{stats.images} images, {stats.pairs} pairs, {stats.verified} verified ({times}) -> {target}")
+    if rec is not None:
+        built = f"{rec.registered}/{stats.images} images, {rec.points} points"
+        print(f"{rec.mapper} mapper {rec.seconds:.1f} s: {built} -> {rec.model}")
+
+
+def _add_sfm(sub: argparse._SubParsersAction) -> None:
+    p = sub.add_parser("sfm", help="an image folder -> a COLMAP database (pairs, matches, verified geometries)")
+    p.add_argument("images", help="image folder (pass the same folder as the mapper's --image_path)")
+    p.add_argument("out", help="COLMAP database file to write (must not exist); with --reconstruct: the output folder")
+    p.add_argument("--reconstruct", action="store_true", help="also run pycolmap's mapper: out/database.db, out/sparse")
+    p.add_argument("--mapper", choices=("incremental", "global"), default="incremental", help="with --reconstruct")
+    p.add_argument(
+        "--matcher",
+        default="loma-b",  # `sfm.DEFAULT_MATCHER` (the module is imported lazily)
+        help="matching model id (default loma-b, the most accurate; aliked-lightglue: the fast alternative)",
+    )
+    p.add_argument("--retrieval", default="megaloc", help="retrieval model id that picks the pairs, or none: all pairs")
+    p.add_argument("--k", type=int, default=20, help="pairs per image (default 20)")
+    p.add_argument("--threshold", type=float, default=4.0, help="RANSAC inlier threshold in pixels (default 4)")
+    p.add_argument("--single-camera", action="store_true", help="one camera for all images of the same size")
+    p.add_argument("--mode", choices=("auto", "portable", "kernels"), default="auto", help="backend (default auto)")
+    p.add_argument("--device", help="e.g. cpu, cuda, cuda:1 (default: as `load`)")
+    p.add_argument("--dtype", choices=("float32", "float16", "bfloat16"), help="matcher dtype (default: the card's)")
+    p.set_defaults(run=_sfm)
+
+
 _SHOWN = 6  # model ids `doctor` names before "... (N more)"
 
 
@@ -974,6 +1043,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="fetch nothing; exit 1 if a file cannot be resolved without network (prints where from)",
     )
     p.set_defaults(run=_download)
+    p = sub.add_parser("cache", help="the cache folder").add_subparsers(required=True)
+    p.add_parser("link", help="(re)build the browsable <family>/<file name> view of the cache").set_defaults(
+        run=_cache_link
+    )
     p = sub.add_parser("bench", help="time one model on synthetic input (an image; a pair for stereo)")
     p.add_argument("model", help="model id (see `fastforks list`)")
     p.add_argument(
@@ -1025,6 +1098,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     ).set_defaults(run=_doctor)
     sub.add_parser("env", help="versions, GPU and kernel binaries (for bug reports)").set_defaults(run=_env)
     _add_stereo(sub)
+    _add_sfm(sub)
     return _run(ap.parse_args(argv))
 
 

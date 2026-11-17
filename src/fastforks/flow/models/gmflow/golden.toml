@@ -1,0 +1,55 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.0001  # measured 0 on x86-64 for all nine variants (same operations in the same order as upstream); room for other CPUs
+gpu_mean = 0.0031  # RTX 5060 Ti: worst mean 0.0020221469 px, 1.5x rounded up to 2 significant digits
+gpu_p99 = 0.021  # worst p99 0.0134962378 px, same measured rule (2026-11-11)
+
+[refs."gmflow-scale1-mixdata@1"]
+sha256 = "e296ff6558964bb1b7e6a9973021e40299ff4f3620b98a6dd9d35922111ba9b1"
+upstream = "https://github.com/autonomousvision/unimatch@943a99006950ab6c84ea72a72beb147fdd03c19a"
+settings = "CPU float32, upstream UniMatch ({'num_scales': 1, 'upsample_factor': 8, 'reg_refine': False}, {'attn_type': 'swin', 'attn_splits_list': [2], 'corr_radius_list': [-1], 'prop_radius_list': [-1], 'num_reg_refine': 1, 'task': 'flow'}), skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."gmflow-scale1-things@1"]
+sha256 = "a79737b07f1365dd00892ad9d655fe1f2ef49036d5a4292db3030b0ed37736c2"
+upstream = "https://github.com/autonomousvision/unimatch@943a99006950ab6c84ea72a72beb147fdd03c19a"
+settings = "CPU float32, upstream UniMatch ({'num_scales': 1, 'upsample_factor': 8, 'reg_refine': False}, {'attn_type': 'swin', 'attn_splits_list': [2], 'corr_radius_list': [-1], 'prop_radius_list': [-1], 'num_reg_refine': 1, 'task': 'flow'}), skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."gmflow-scale2-mixdata@1"]
+sha256 = "74ac371801d82907d99eafed08a96f6ec837e269730e400b10f6f71a40e83f33"
+upstream = "https://github.com/autonomousvision/unimatch@943a99006950ab6c84ea72a72beb147fdd03c19a"
+settings = "CPU float32, upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': False}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 1, 'task': 'flow'}), skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."gmflow-scale2-regrefine6-kitti@1"]
+sha256 = "bc80d1b8d9f09d840f80f9dbe55fc2458708657ce980e9c0ea0773e4fe497225"
+upstream = "https://github.com/autonomousvision/unimatch@943a99006950ab6c84ea72a72beb147fdd03c19a"
+settings = "CPU float32, upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."gmflow-scale2-regrefine6-mixdata@1"]
+sha256 = "9bde1246700f1454415a66cf88b95290e6abe040de7fd4b87cc1675d22e3ce32"
+upstream = "https://github.com/autonomousvision/unimatch@943a99006950ab6c84ea72a72beb147fdd03c19a"
+settings = "CPU float32, upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."gmflow-scale2-regrefine6-sintelft@1"]
+sha256 = "4451c92af36fbe39eefeaaf9529f6b7d7a702139f10d4daccc7b33a590294bb8"
+upstream = "https://github.com/autonomousvision/unimatch@943a99006950ab6c84ea72a72beb147fdd03c19a"
+settings = "CPU float32, upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."gmflow-scale2-regrefine6-things@1"]
+sha256 = "01b2a7ce6007685d5bc0070d50d71946845e388fead5f860b5f2fdb4fbe852e0"
+upstream = "https://github.com/autonomousvision/unimatch@943a99006950ab6c84ea72a72beb147fdd03c19a"
+settings = "CPU float32, upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."gmflow-scale2-sintel@1"]
+sha256 = "eb1f118d7f8a6f421d845d11b68a56d7b96709e10e7d4670183e0f94eb10d1ff"
+upstream = "https://github.com/autonomousvision/unimatch@943a99006950ab6c84ea72a72beb147fdd03c19a"
+settings = "CPU float32, upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': False}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 1, 'task': 'flow'}), skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
+
+[refs."gmflow-scale2-things@1"]
+sha256 = "dc0ef9072906ea8691788091b61cf0ab8a6a7140f8ba0731f1d7416d2fe7c854"
+upstream = "https://github.com/autonomousvision/unimatch@943a99006950ab6c84ea72a72beb147fdd03c19a"
+settings = "CPU float32, upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': False}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 1, 'task': 'flow'}), skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"

@@ -22,7 +22,18 @@ Commercial = Literal["yes", "no", "unclear"]
 # SPDX ids (and our `LicenseRef-*` ids) by class. Unknown ids are a card error: add them here with a reason.
 CLASSES: dict[str, CodeClass] = {
     **dict.fromkeys(
-        ("MIT", "BSD-2-Clause", "BSD-3-Clause", "Apache-2.0", "ISC", "Zlib", "CC0-1.0", "CC-BY-4.0", "Unlicense"),
+        (
+            "MIT",
+            "BSD-2-Clause",
+            "BSD-3-Clause",
+            "Apache-2.0",
+            "ISC",
+            "Zlib",
+            "CC0-1.0",
+            "CC-BY-4.0",
+            "Unlicense",
+            "WTFPL",
+        ),
         "permissive",
     ),
     # NVIDIA model licences: commercial use allowed. Redistributing the weights needs a NOTICE text file with
@@ -36,6 +47,11 @@ CLASSES: dict[str, CodeClass] = {
     # the licence.
     # https://huggingface.co/stabilityai/stable-diffusion-2/blob/main/LICENSE-MODEL (read 2026-10-27).
     "LicenseRef-CreativeML-OpenRAIL-PlusPlus-M": "permissive",
+    # CreativeML Open RAIL-M (Stable Diffusion 1.x, e.g. its VAE in DepthFM): the same terms as RAIL++-M for this
+    # purpose (commercial use allowed, Attachment A use restrictions passed on, licence included on redistribution).
+    # https://github.com/CompVis/stable-diffusion/blob/21f890f9da3cfbeaba8e2ac3c425ee9e998d5229/LICENSE
+    # (read 2026-11-13).
+    "LicenseRef-CreativeML-OpenRAIL-M": "permissive",
     # DINOv3 License (Meta, 2025-08-19; DINOv3 code and weights): royalty-free grant to use, reproduce, distribute and
     # modify, commercial use not excluded; redistribution must include the licence, use must follow its acceptable-use
     # and trade-control terms. https://ai.meta.com/resources/models-and-libraries/dinov3-license/ (read 2026-10-27).
@@ -61,6 +77,8 @@ CLASSES: dict[str, CodeClass] = {
     # Share-alike: adapted weights must carry the same licence; commercial use allowed (detectron2 model zoo).
     # https://creativecommons.org/licenses/by-sa/3.0/
     "CC-BY-SA-3.0": "copyleft",
+    # Version 4.0 (nnFoundation weights): the same share-alike terms. https://creativecommons.org/licenses/by-sa/4.0/
+    "CC-BY-SA-4.0": "copyleft",
     **dict.fromkeys(
         (
             "CC-BY-NC-4.0",
@@ -72,6 +90,10 @@ CLASSES: dict[str, CodeClass] = {
             "LicenseRef-noncommercial",  # custom terms that forbid commercial use (e.g. InStereo2K)
             "LicenseRef-none",  # upstream publishes no licence at all: no grant, so no commercial use
             "LicenseRef-FAIR-Noncommercial-Research",  # Meta FAIR Noncommercial Research License v1 (VGGT-Omega)
+            # Apple Machine Learning Research Model licence (the DFN CLIP weights): research purposes only, no
+            # commercial or product use. https://huggingface.co/apple/DFN5B-CLIP-ViT-H-14/blob/main/LICENSE (read
+            # 2026-11-10).
+            "LicenseRef-Apple-AMLR",
         ),
         "noncommercial",
     ),

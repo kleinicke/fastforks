@@ -1,5 +1,574 @@
 # Changelog
 
+## 0.2.0
+
+### API changes
+
+- Features known not to work in this release are gated: a card's `planned = { onnx = "reason" }` (also `load`,
+  `kernels`, `compile`, `tensorrt`) makes that call raise `BackendUnavailableError: ... not available in 0.2.0,
+  planned for 0.2.1: <reason>` before any work; `mode="auto"` skips gated kernels. The model pages list them.
+Renames in the tasks and models added since 0.1.1 (0.1.1 names change only as listed under "Renamed 0.1.1 names",
+with a warning; `tests/api_snapshot.txt` freezes the public API from now on):
+
+- Edges option `resolution` -> `short_side` (`resolution` and `detect_resolution` stay accepted as aliases).
+- Matching: `SparseMatchingResult.matches(threshold=)` -> `matches(score_threshold=)` (keyword-only).
+- Lists in, lists out (all single-image and pair tasks, also the 0.1.1 ones, where lists were rejected): a list of
+  images gives a list of results; arguments that come one per image (`intrinsics`, `boxes`, prompts, masks) are then
+  lists of the same length.
+- Results: `save(path)` on restoration / interpolation (`.png` / `.jpg` / `.npy`), flow (`.flo` / `.npy`), volume
+  (`.nii.gz` / `.npy`) results and on `Instances` (detection, concept segmentation, pose: `to_list()` as `.json`); a
+  batch takes `{i}` in the path. `PoseResult` is an `Instances` (indexing selects people with their keypoints).
+  `fastforks.matting.VideoMattingResult` is exported.
+- Pose: `model(image, boxes)` -> `model(image, boxes=...)` (keyword-only).
+- Volume: `model(volume, spacing)` -> `model(volume, spacing=...)` or `model(volume, meta=...)` (keyword-only, one of
+  the two; with `meta` from `read_nifti`, `result.save("x.nii.gz")` writes the labels on the file's grid).
+- One video verb: SAM 2 / SAM 3 / MatAnyone `track(video, ...)` -> `video(frames, ...)`; Video Depth Anything
+  `model(frames)` (the batch was one video) -> `model.video(frames)`, and a batch is now independent images.
+- Object tracking moved to detection: `tracking.ByteTracker` / `tracking.ObjectTracks` /
+  `tracking.track_objects(labels=)` -> `detection.ByteTracker` / `detection.ObjectTracks` /
+  `detection.track_objects(classes=)` (class names or ids).
+- Loaders: one `load` per task. `restoration.load_file(path)` -> `restoration.load(path)` (`checkpoint_family` is
+  private); `volume.load_nnunet(path, ...)` -> `volume.load(path, folds=, step=, mirror=, checkpoint=)`. A model
+  argument is a path iff it is a `PathLike`, contains `/` or `\`, or ends in `.pth .pt .safetensors .ckpt .bin .onnx`.
+
+### Renamed 0.1.1 names (the old names keep working with a `FutureWarning` until 2026-12-15, then they are removed)
+
+- `load(model, options={"iters": 16})` -> `load(model, iters=16)` (every task and `fastforks.load`). `mode`, `device`,
+  `dtype`, `weights` (and the task's own arguments) stay explicit; no card option may use one of these names.
+- Stereo: one result type, `StereoResult`, for a plain call, a calibrated call (`rig=`, `views=`) and each pair of
+  `run_many`: `stereo.StereoPairResult` / `stereo.PairResult` -> `stereo.StereoResult` (`r.left` / `r.right` are the
+  `StereoView`s, `r.disparity`, `r.depth()`, ... the main view's). `disparity` / `confidence` / `extras` are
+  properties now, not constructor fields; the 0.1.1 constructor `StereoResult(disparity, confidence, extras, model,
+  backend, options)` still works with a `FutureWarning`. `stereo.pipeline.PairViews` is
+  `stereo.calibrated.PairViews`. The fields of the old types (`rectification`, `views`, `backend`,
+  `options`, `calibrated`, `index`, `left_path`, `right_path`, `path`, `error`, `existing`) are `StereoResult`
+  fields (the `run_many` ones None / False for a call).
+- `stereo.write_disparity` (`write_disparity(path, d)`) -> `result.save(path)` (`StereoResult` / `StereoView`; a `.png` is the
+  KITTI uint16 format, as before).
+- Classification: `labels` (`load(model, labels=[...])`) -> `load(model, class_names=[...])`
+  (`classification.load` and `fastforks.load`; the name of the model and result attribute).
+- Promptable segmentation (SAM 3 concept prompts): `threshold` (`model(image, text=..., threshold=0.3)`) ->
+  `score_threshold=` (as detection); `result.options["score_threshold"]` records the one used (was `"threshold"`).
+- The shared types are only top level: `fastforks.depth.ModelCard` (and `Backend`, `ImageLike`, `SizeRange`,
+  `TensorRTEngine` in every task package) -> `fastforks.ModelCard` etc.
+- Lists in, lists out: an argument that comes one per image (`boxes`, `intrinsics`, `mask`, prompts) is split only when it
+  is a `list`; a tuple, array or tensor is one value shared by every image (before, a tuple of the same length was split).
+- One error class for a typo among the `load` keywords: `UnknownOptionError` (an `OptionsError` and an `ArgumentError`).
+  A model argument that is a bare name of a local file or folder, or a missing path, says how a path is written.
+- `export_size` (`model.export_size()`) -> `model.size_range().export_size` (a `SizeRange` field).
+
+### Models and fixes
+
+- YuNet face detection (`yunet-n`, `yunet-s`, pose with RetinaFace; BSD-3-Clause code and weights): boxes, scores
+  and five landmarks for the whole image at its own size (padded to 32), decoding and NMS on the GPU (RetinaFace's
+  NMS), the kernels runner through `optimize` (fused conv kernels). 1080x1920 incl. upload and NMS: yunet-n 2.22 ms kernels, 2.95 ms
+  portable (0.79 ms TensorRT network) vs 7.9 ms original fp32 (6.04 ms autocast), peak allocated 84 MB vs 181 MB
+  (134 MB); yunet-s 2.00 / 2.67 ms vs 6.56 ms (5.55 ms), 84 MB vs 149 MB (118 MB). WIDER FACE val every 4th image
+  (807) AP easy / medium / hard as the original fp32: yunet-n 0.894 / 0.884 / 0.810, yunet-s 0.885 / 0.868 / 0.764
+  (`tools/eval_widerface.py`). RetinaFace's NMS builds the pair IoUs in 256-row blocks (low eval thresholds made
+  the n x n matrix hundreds of MB).
+
+- Restormer deblurring / deraining / denoising (`restormer-deblur`, `restormer-derain`, `restormer-sidd`, restoration;
+  MIT code and weights): the transposed (channel) attention of all heads as one block-masked float32 Gram matrix and
+  softmax (upstream normalises q and k in the input dtype, which overflows in float16), float32 LayerNorms. 512x512:
+  225 ms kernels, 228 ms portable (143 ms compile) vs 528 ms original fp32 (234 ms `.half()`; SIDD 495 / 218 ms),
+  peak allocated 850 MB vs 2400 MB (1221 MB `.half()`). PSNR / SSIM as the original fp32: GoPro test every 15th
+  32.85 / 0.9405 (RGB), SIDD validation every 2nd 39.98 / 0.9226 (RGB), Rain100L 39.08 / 0.9785 and Rain100H 31.48 /
+  0.9054 (Y). Rain13K training data: no stated terms (labelled).
+
+- NAFNet deblurring / denoising (`nafnet-gopro`, `nafnet-sidd`, restoration; MIT code and weights): any size (the
+  network pads to 16 itself), GoPro with the TLC local-mean pooling (`NAFNetLocal`, one float32 buffer instead of the
+  four upstream integral images). float16 overflows in the residual stream and the channel attention, so they carry
+  1 / 16 and 1 / 64 (exact: weights and norm epsilons scaled at load). 512x512: GoPro 55.3 ms kernels, 60.4 ms
+  portable (35.4 ms compile) vs 118.3 ms original fp32 (63.7 ms `.half()`), peak allocated 451 MB vs 834 MB (484 MB
+  `.half()`); SIDD 56.9 / 60.6 ms vs 145.7 ms (71.6 ms), 575 MB vs 1081 MB (608 MB). PSNR / SSIM (RGB) as the
+  original fp32: GoPro test every 4th 33.73 / 0.9468, SIDD validation 40.21 / 0.9243.
+
+- Swin2SR super-resolution (`swin2sr-x4`, `swin2sr-x2`, `swin2sr-x4-real`, restoration; Apache-2.0 code and weights):
+  the Swin V2 cosine window attention as one SDPA call, the shifted-window masks made on the GPU once per size, the
+  last group's output scaled by 1 / 32 before the final norm (float16 overflows there; exact in the weights). The
+  shared shifted-window mask (also SwinIR, HAT, DRCT) is now cached in the attention's dtype. 512x512 x4: 745 ms
+  kernels, 932 ms portable vs 3304 ms original fp32 (2922 ms `.half()`), peak allocated 1459 MB vs 2798 MB (1488 MB
+  `.half()`); x2: 720 / 909 ms (482 ms compile) vs 3407 ms (2565 ms); x4-real: 752 / 958 ms (508 ms compile) vs
+  3316 ms (2527 ms), 1459 MB vs 4596 MB (2321 MB). DIV2K validation PSNR / SSIM (Y) as the original fp32: x4 30.89 /
+  0.842 (every 2nd), x2 36.43 / 0.9423 (every 4th), x4-real 29.04 / 0.8021. torch.compile of x4 runs over 290 s.
+
+- PP-OCRv5 text detection + recognition (`ppocrv5-server`, `ppocrv5-mobile`, new `fastforks.ocr` task; Apache-2.0
+  code and weights): image -> text-line quads, texts and scores, as PaddleOCR 3's `PaddleOCR` pipeline without the
+  document and line orientation steps; the Paddle inference weights read without Paddle, DB boxes and CTC decoding
+  exact (OpenCV resizes, contours and pyclipper re-done in NumPy / torch), connected components on the GPU. 1080x1920
+  text page: server 277 ms portable fp16 vs 762 ms original fp32 (PaddlePaddle's float16 server detector overflows and
+  reads nothing), peak 1.4 / 1.5 GB vs 2.4 / 2.9 GB; mobile 153 ms (115 ms compile) vs 418 ms original fp16 (619 ms
+  fp32), 289 / 448 MB vs 393 / 1005 MB; TensorRT of the detector alone 25 / 2.7 ms. 13 PaddleOCR sample images:
+  CPU float32 texts and boxes identical to PaddleOCR (526 / 474 lines); GPU float16 character error 0.13 % / 0.43 %
+  (PaddleOCR's own GPU vs CPU difference: 0.65 % / 0.12 %). No kernels runner.
+
+- PARSeq scene-text recognition (`parseq`, `parseq-tiny`, ocr; Apache-2.0 code and weights): one word crop -> text and
+  confidence, as upstream `read` (32x128 PIL bicubic resize, autoregressive decoding with refinement). 32x128 crop:
+  12.6 ms portable fp16 vs 15.9 ms original fp32 / 19.6 ms fp16, peak 79 / 98 MB vs 125 / 144 MB; tiny 11.6 ms vs
+  14.6 / 18.0 ms, 44 / 54 MB vs 56 / 58 MB; compile 8.8 / 8.1 ms, TensorRT 1.67 / 1.68 ms. 204 crops (6 upstream demo
+  images + 198 PP-OCRv5 line crops): float32 texts identical to upstream on CPU and GPU; float16 199 / 204 and 195 / 204
+  identical (the misses are out-of-domain lines). No kernels runner.
+
+- MatAnyone video matting (`matanyone`, matting; NTU S-Lab License 1.0 code and weights: non-commercial): one object
+  from a mask on the first frame (`video`; an image is a one-frame video), the `process_video` loop with its memory,
+  options `warmup` / `dilate` / `erode`. 1080x1920 video: 161 ms per frame portable vs 198 ms original fp16 (261 ms
+  fp32), peak 2.8 GB vs 6.2 GB (readout chunked, top-k over the last dim); one image 1204 ms vs 1220 ms. YouTubeMatte 512x288 (every 2nd clip: 32 x 100 frames,
+  the authors' settings) MAD x 1000 2.64, MSE x 1000 1.00, dtSSD x 100 1.65, the same as the original in fp16 and
+  fp32; parity on CPU exact. No kernels runner.
+
+- DRCT super-resolution (`drct-x4`, `drct-l-x4`, restoration; MIT code and weights): window attention as one SDPA
+  call, the shifted-window masks made on the GPU once per size (original: on the CPU in every call), the
+  relative-position biases gathered at load. 512x512 DRCT x4: 730 ms kernels, 830 ms portable (618 ms compile) vs 8044
+  ms original fp32 (7492 ms `.half()`), peak 2.6 GB vs 6.1 GB; DRCT-L: 1422 / 1607 ms (1210 ms compile) vs 14847 ms,
+  2.7 GB vs 6.3 GB. DIV2K validation (every 2nd image: 50) PSNR 30.76 / SSIM 0.8388 (L: 31.00 / 0.8434) in every tier;
+  the original fp32 runs out of memory on these image sizes (16 GB), parity on CPU within 2e-6. TensorRT fails at
+  512x512 (engine build out of memory / over 290 s).
+
+- BiSeNet face parsing (`bisenet-face-parsing`, segmentation; MIT code and weights): face-parsing.PyTorch's
+  19-class model from facexlib, BatchNorms folded, auxiliary heads skipped. 512x512: 2.41 ms portable vs 5.21 ms
+  original fp32, peak 51 / 72 MB vs 128 / 152 MB; labels agree with the original on 99.97 % of the pixels (24 faces).
+
+- GFPGAN v1.4 face restoration (`gfpgan-v1.4`, restoration; Apache-2.0 code and weights): one aligned 512 x 512
+  face; the checkpoint's stored noise instead of new random noise per call, cheaper skip convolutions. 18.0 ms
+  kernels, 21.2 ms portable (12.5 ms compile) vs 41.1 ms original fp32 (21.9 ms `.half()`), peak 473 / 530 MB vs
+  1084 / 1208 MB. On 24 real faces 57.7 dB PSNR (portable float32) / 53.7 dB (fp16) to the original with the same
+  noise; the original's own random noise gives 47.4 dB.
+
+- RealPLKSR super-resolution (`realplksr-nomoswebphoto-x4`, restoration; Apache-2.0 code, CC-BY-4.0 weights):
+  neosr's large-kernel CNN; GroupNorm from per-channel statistics (PyTorch's channels-last GroupNorm is slow).
+  512x512: 130 ms kernels, 182 ms portable vs 444 ms original fp32 (267 ms `.half()`), peak 179 / 216 MB vs
+  480 / 630 MB. DIV2K validation (50 images) PSNR 26.99 / SSIM 0.7481 in every tier, as the original. `load_file`
+  reads other RealPLKSR checkpoints (pixel-shuffle upsampler).
+
+- Real-ESRGAN Compact super-resolution (`realesr-general-x4v3`, restoration; BSD-3-Clause code and weights):
+  SRVGGNetCompact, `load_file` reads other Compact checkpoints (any scale, width and depth). 512x512: 24.0 ms kernels,
+  30.1 ms portable vs 77.6 ms original fp32 (42.1 ms fp16), peak 125 / 164 MB vs 313 / 366 MB. DIV2K validation
+  (every 2nd image: 50) PSNR 26.70 / SSIM 0.7701 in every tier, as the original.
+
+- Restoration `load_file`: RRDBNet (ESRGAN) checkpoints of any width, growth channels and depth (e.g. 32-block
+  community models) and x1 models (pixel-unshuffled by 4) load; before, only 64 / 32 channels at x4 / x2.
+
+- RMBG-2.0 (`rmbg-2.0`, matting; BiRefNet Swin-L with BRIA's weights, MIT code, CC BY-NC 4.0 weights, gated): a
+  variant of `birefnet`. 1080x1920: 121 ms kernels, 132 ms portable (TensorRT 88 ms) vs 384 ms original fp32 (149 ms
+  fp16), peak 1.7 / 1.9 GB vs 3.3 / 3.8 GB (fp16 1.7 / 2.0). DIS-VD (235 images) MAE 0.0205 in every tier, as the
+  original.
+
+- Shared Swin v1 (BiRefNet, BEN2, InSPyReNet): the window-attention bias mask is contiguous, so SDPA uses its fused
+  kernels instead of the math path. 1080x1920 kernels: BiRefNet 214 -> 121 ms, BiRefNet-lite 59 -> 48 ms, BEN2
+  173 -> 104 ms; portable InSPyReNet 159 -> 109 ms; peak memory unchanged.
+
+- RetinaFace face detection (`retinaface-resnet50`, `retinaface-mobilenet0.25`, pose task; MIT code and weights):
+  `model(image)` finds faces with a box and five landmarks (eyes, nose, mouth corners), facexlib's `detect_faces`
+  at the image's own size. 1080x1920: ResNet-50 11.7 ms kernels, 24.3 ms portable vs 81.0 ms original fp32
+  (79.4 ms autocast), peak 379 / 464 MB vs 545 / 648 MB; MobileNet-0.25 2.7 ms kernels, 3.4 ms portable vs 75.9 ms.
+
+- CodeFormer: the load option `fidelity` (alias `fidelity_weight`, 0..1) replaces the fixed 0.5.
+
+- Restoration `load_file`: HAT and DAT checkpoints are recognised by their keys, as SwinIR's.
+
+- MVSplat feed-forward Gaussian splatting (`mvsplat-re10k`, multiview; MIT code and weights): posed, calibrated views
+  with a depth range to depth and `result.gaussians`, the scene scaled to near = 1 as DepthSplat. Window attention as
+  one SDPA call, the cost volume in fp16 chunks of depth candidates. 8 views 336x518: 178 ms kernels, 186 ms portable
+  vs 349 ms original fp32 (279 ms fp16), peak 1.9 GB vs 3.0 GB. DTU (5 scans, calibrated) AbsRel 0.0438 in every tier,
+  as the original.
+
+- π3 (`pi3`, multiview; BSD code, non-commercial weights): cameras, depth and points from unposed views with no
+  reference view. 8 views 336x518: 560 ms kernels, 821 ms portable vs 3610 ms original fp32 (1057 ms bf16), peak
+  2.5 GB vs 4.4 GB. DTU (5 scans, median-scaled) AbsRel 0.0070 kernels and portable vs 0.0070 original fp32.
+
+- Prompt Depth Anything (`prompt-depth-anything-s`, `-l`, depth; Apache-2.0 code, S weights Apache-2.0, L
+  non-commercial): metric depth from an image and a low-resolution depth prompt (`prompt=`). 756x1008: S 11.4 ms
+  kernels, 18.4 ms portable vs 77.3 ms original fp16; L 69.3 / 125 vs 438 ms; peak 0.35x of the original. Accuracy:
+  GPU goldens against upstream (no prompt-depth benchmark data here).
+
+- CodeFormer face restoration (`codeformer`, restoration; non-commercial, S-Lab License 1.0): an aligned 512x512
+  face crop in, `fidelity` w = 0.5. 48.6 ms portable fp16 (30.8 ms compile, 16.3 ms TensorRT) vs 85.7 ms original
+  fp32 (its `.half()` fails), peak 0.51 GB vs 0.96 GB. Output PSNR vs the original fp32: 50.5 dB (fp16 portable;
+  the original under fp16 autocast: 49.8 dB). Face detection / alignment is not included; no kernels runner.
+
+- SegFormer fine-tunes (`segformer-b2-clothes`, 18 clothes / body classes, licence not stated;
+  `segformer-b5-face-parsing`, 19 face classes, non-commercial; segmentation): the checkpoints' processor (fixed
+  512x512 resize, card `resize = ["fixed", 512, 512]`). 512x512: B2 3.6 ms kernels, 8.1 ms portable (2.7 ms
+  TensorRT) vs 18.9 ms original fp32, peak 0.13 GB vs 0.83 GB; B5 face 9.2 ms vs 38.8 ms. Label maps agree with the
+  original fp32 on 99.72 % (B2) / 99.97 % (B5) of the pixels (20 images).
+
+- Tests: no float16 model keeps a batch norm whose running statistics overflow float16 (up to 3e10 in some
+  checkpoints: inf, then zeros or NaN). Every golden ref with a float16 CUDA path is checked, portable and kernels
+  (`tests/test_fp16_batchnorm.py`).
+
+- Falconsai NSFW detector (`falconsai-nsfw-vit`, classification; Apache-2.0 weights): a Hugging Face ViT-B/16 on
+  timm's `vit_base_patch16_224`. 224x224: 1.6 ms kernels, 2.8 ms portable (1.1 ms TensorRT) vs 6.8 ms original fp32,
+  peak 0.20 GB vs 0.37 GB. Top-1 equal to the original fp32 on 200 of 200 images.
+
+- WD v3 anime taggers (`wd-vit-tagger-v3`, `wd-convnext-tagger-v3`, `wd-vit-large-tagger-v3`,
+  `wd-eva02-large-tagger-v3`, classification; Apache-2.0 weights): multi-label (`result.probs` is the sigmoid), white
+  square padding (card `[io] pad_square`), BGR swapped into the first convolution at load. 448x448: ViT 4.0 ms
+  portable vs 19.0 ms original fp32 (5.8 ms fp16); EVA-02 large 14.1 ms kernels vs 84.4 ms, peak 0.67 GB vs 1.3 GB.
+  Tags at the reference threshold (0.35) agree with the original fp32 at F1 0.998 to 0.999 (200 images).
+
+- DAT super-resolution (`dat-x4`, `dat-2-x4`, `dat-light-x4`, restoration; Apache-2.0 code and weights): attention
+  as one SDPA call (head size padded to 32). 512x512 DAT x4: 1421 ms kernels, 1565 ms portable (1063 ms compile) vs
+  5633 ms original fp32 (9564 ms `.half()`), peak 2.7 GB vs 4.3 GB; DAT-light: 268 ms vs 2246 ms, 1.5 GB vs 2.7 GB.
+  DIV2K validation (every 4th image: 25) PSNR 31.03 / 30.99 (DAT-2) / 30.48 (light) portable, as the original;
+  kernels 0.02 dB lower. The kernels runner routes only convolutions with >= 64 channels through `cudnn_hacc`
+  (narrower ones were slower).
+
+- HAT super-resolution (`hat-x4`, `hat-s-x4`, `real-hat-gan-x4`, restoration; Apache-2.0 code and weights): window
+  attention and overlapping cross-attention as one SDPA call each, biases gathered at load; in float16 the last
+  group's residual sum is scaled down (overflow). 512x512 HAT x4: 1445 ms kernels, 1596 ms portable (1185 ms compile)
+  vs 5152 ms original fp32 (3038 ms `.half()`), peak 2.6 GB vs 10.1 GB; HAT-S: 974 / 1072 ms vs 3872 ms, 2.0 GB vs
+  9.5 GB. DIV2K validation (every 4th image: 25) PSNR 31.01 / 30.90 (S, kernels; portable 30.91) / 27.13 (GAN) in
+  every tier, as the original. TensorRT fails at 512x512.
+
+- Swin super-resolution (SwinIR, HAT, DAT): `PatchEmbed` returns contiguous tokens (upstream: a transposed view
+  that made every residual add strided), and attention inputs with a strided head dimension are copied before SDPA
+  (else it fell back to the unfused math path).
+
+- InSPyReNet background removal (`inspyrenet`, `inspyrenet-fast`, matting; MIT code and weights): transparent-
+  background's `Remover` (static resize, no LR/HR blending). 1080x1920 image, size 1024: 159 ms portable (86 ms
+  compile, 51 ms TensorRT) vs 241 ms original fp32, peak 1.9 GB vs 3.3 GB; fast (384): 45 ms vs 71 ms. DIS5K
+  validation (235 images) max F-beta 0.970 / 0.895 (fast) in every tier, as the original. The attention context
+  sums and their key / value convolutions stay float32. No kernels runner: `cudnn_hacc` convolutions were slower.
+
+- IS-Net dichotomous segmentation (`isnet-general-use`, `isnet`, matting; Apache-2.0 code and weights): 1080x1920
+  image (1024x1024 net): 12.1 ms kernels, 21.0 ms portable (13.1 ms compile, 6.7 ms TensorRT) vs 38.5 ms original
+  fp32, peak 0.52 GB vs 1.04 GB. DIS5K validation (235 images) max F-beta 0.962 (general use) / 0.782 in every tier,
+  as the original.
+
+- U²-Net salient object segmentation (`u2net`, `u2netp`, `u2net-human-seg`, matting; Apache-2.0 code and weights):
+  batch norms folded into the convolutions (float16 range). 1080x1920 image (320x320 net): 8.8 ms kernels, 14.9 ms
+  portable (6.2 ms compile, 3.1 ms TensorRT) vs 16.0 ms original fp32, peak 0.26 GB vs 0.50 GB. DIS5K validation
+  (every 2nd image: 235) max F-beta 0.527 kernels / portable vs 0.528 original, MAE 0.149 vs 0.148.
+
+- SwinIR super-resolution (`swinir-m-x4`, `swinir-m-x2`, `swinir-m-x4-real`, `swinir-l-x4-real`, restoration;
+  Apache-2.0 code and weights): window attention as one SDPA call with the bias gathered at load; in float16 the last
+  group's residual sum is scaled down (overflow). 512x512 M x4: 580 ms kernels, 767 ms portable (795 ms compile, 727
+  ms TensorRT) vs 3086 ms original fp32 (3497 ms `.half()`), peak 1.4 GB vs 2.8 GB allocated. DIV2K validation (every
+  2nd image: 50) PSNR M x4 30.89 kernels / 30.90 portable vs 30.90, M x4 real 26.71 vs 26.71, L x4 real 27.05 / 27.04
+  vs 27.04. M x2 has no eval: a whole x2 DIV2K image needs more than 16 GB in every tier.
+
+- SPAN efficient super-resolution (`span-x4`, `span-x2`, restoration; Apache-2.0 code and weights): Conv3XC
+  re-parameterised at load. 512x512 x4: 14.6 ms kernels, 24.2 ms portable (13.2 ms compile, 8.3 ms TensorRT) vs
+  47.0 ms original fp32 (27.0 ms `.half()`), peak 0.5 GB vs 1.0 GB. DIV2K validation PSNR 30.47 (x4) / 36.20 (x2)
+  in every tier, as the original.
+
+- Real-ESRGAN super-resolution (`realesrgan-x4plus`, `realesrgan-x2plus`, `realesrgan-x4plus-anime-6b`; new task
+  `restoration`; BSD-3-Clause code and weights): RRDBNet as `RealESRGANer.enhance` (no tiles). 512x512 x4plus:
+  402 ms kernels, 632 ms portable (354 ms compile, 273 ms TensorRT) vs 1209 ms original fp32 (631 ms fp16), peak
+  1.4 GB vs 5.0 GB. DIV2K validation (100 images, bicubic LR) PSNR 26.64 in every tier, as the original.
+
+- Track-On2 online point tracking (`track-on2`, `track-on-r`, tracking; MIT code and weights, DINOv3 License for the
+  ViT-S+ backbone weights): one frame at a time, a transformer decoder over the frame features with a memory of the
+  past ones; `track-on-r` is fine-tuned on real videos. 24-frame 480x854 video, 256 queries: `track-on2` 1120 ms
+  kernels, 1238 ms portable (compile times out, the TensorRT export fails) vs 2861 ms original fp32 (1953 ms fp16),
+  peak 1.6 GB vs 1.3 GB (reserved). TAP-Vid DAVIS (first, 10 videos) AJ 69.65 kernels, 69.69 portable vs 69.60
+  original fp32 (69.64 fp16).
+
+- LocoTrack point tracking (`locotrack-b`, `locotrack-s`, tracking; Apache-2.0 code and weights): offline over the
+  whole clip, a per-frame match from a cost volume refined with local 4-D correlation and a transformer over the
+  frames. 24-frame 480x854 video, 256 queries: `locotrack-b` 178 ms kernels, 190 ms portable (83 ms compile, the
+  TensorRT export fails) vs 274 ms original fp32 (203 ms fp16), peak 840 MB vs 1018 MB (reserved). TAP-Vid DAVIS
+  (first, 10 videos) AJ 67.29 kernels, 67.31 portable vs 67.19 original fp32 (67.31 fp16).
+
+- YOLOX object detection (`yolox-tiny`, `yolox-s`, `yolox-m`, `yolox-l`, `yolox-x`, detection; Apache-2.0 code and
+  weights): anchor-free one-stage CNN with a decoupled head and NMS, 640 x 640 letterbox as upstream. 800x1344 image:
+  `yolox-x` 7.82 ms kernels, 11.8 ms portable (11.3 ms compile, 5.28 ms TensorRT) vs 29.8 ms original fp32 (17.2 ms
+  fp16), peak 358 MB vs 562 MB (reserved). COCO val2017 (200 images) box mAP 54.60 kernels, 54.62 portable vs 54.64
+  original fp32 (54.61 fp16); `yolox-tiny` to `yolox-l` within 0.1 of the original.
+
+- MemFlow optical flow (`memflow`, `memflow-sintel`, `memflow-kitti`, flow; Apache-2.0 code and weights): RAFT-style
+  all-pairs correlation with a motion-memory attention in each of its 15 updates; a pair is upstream's first step of a
+  video (empty memory). 1080x1920 pair: 865 ms kernels (no correlation volume, 1.0 GB), 964 ms portable (1.6 s
+  compile; TensorRT export fails) vs 3.1 s original fp16 (fp32 runs out of memory), peak 1.0 GB kernels and 8.4 GB
+  portable vs 15.6 GB (reserved); 375x1242: 141 ms kernels, 144 ms portable vs 314 ms fp32 (256 ms fp16). KITTI 2015
+  train (200 pairs) EPE / Fl-all `memflow-kitti` 0.600 / 1.21 % in every tier as the original; `memflow` 4.10 kernels,
+  4.11 portable vs 4.11 original.
+
+- RIFE frame interpolation (`rife-4.25`, `rife-4.26`, `rife-4.25-lite`; new task `interpolation`; MIT code and
+  weights): Practical-RIFE `IFNet_HDv3`, any timestep in [0, 1], frames zero-padded to a multiple of 128 as upstream.
+  1080x1920 pair: 31.4 ms kernels, 36.0 ms portable (44.5 ms compile, 17.6 ms TensorRT) vs 45.3 ms original fp32
+  (24.5 ms fp16), peak 1.0 GB vs 1.9 GB. DAVIS 2017 (180 triplets) PSNR 27.13 kernels / portable vs 27.13 original
+  fp32 (27.03 fp16); the warps sample in float32.
+
+- GIMM-VFI frame interpolation (`gimm-vfi-r`, `gimm-vfi-r-p`, interpolation; nc: S-Lab License 1.0 code and weights):
+  RAFT flow, a continuous motion field and the softsplat synthesis of upstream `GIMMVFI_R`, any timestep in [0, 1],
+  frames replicate-padded to a multiple of 32 as upstream. 1080x1920 pair: 1.63 s kernels (the correlation windows on
+  the fly, fp16-accumulate decoder convs), 2.62 s portable; the original runs out of memory in fp32 and fp16 (16 GB);
+  peak 5.4 GB kernels, 10.4 GB portable (reserved). 480x854: 289 ms kernels, 468 ms portable vs 657 ms original fp32
+  (498 ms fp16), peak 1.6 GB vs 4.8 GB. DAVIS 2017 (180 triplets) PSNR 28.94 (`-p` 28.81) in every tier as the
+  original.
+
+- EMA-VFI frame interpolation (`ema-vfi`, `ema-vfi-small`, `ema-vfi-t`, `ema-vfi-small-t`, interpolation; Apache-2.0):
+  upstream `MultiScaleFlow` with the inter-frame attention backbone, the `-t` checkpoints for any timestep, frames
+  replicate-padded to a multiple of 32 as upstream; `tta` option as upstream `fast_TTA`. 1080x1920 pair (`ema-vfi`):
+  207 ms kernels, 234 ms portable vs 502 ms original fp32 (296 ms fp16); peak 3.2 GB portable vs 6.4 GB (reserved).
+  DAVIS 2017 (180 triplets) PSNR 27.67 / 27.44 / 29.07 / 28.65 in every tier as the original.
+
+- FILM frame interpolation (`film`, interpolation; Apache-2.0): the Style `film_net` as dajes/frame-interpolation-pytorch
+  ports it (the release TorchScript weights load into plain modules), frames zero-padded to a multiple of 64 as
+  upstream; both directions run in one batch, the flows and warps in float32 (warps as row gathers). 1080x1920 pair:
+  444 ms kernels (fp16-accumulate convs, CUDA graph), 528 ms portable vs 872 ms original fp32 (464 ms fp16, whose
+  float16 warp grid costs 0.17 dB); peak 5.1 GB portable vs 7.2 GB fp32 (reserved). DAVIS 2017 (180 triplets) PSNR
+  27.63 portable / kernels vs 27.63 original fp32 (27.46 fp16).
+
+- New task `fastforks.retrieval` (image retrieval / visual place recognition): one unit-length global descriptor per
+  image, `top_k` (exact cosine top-k on the GPU, chunked) and `pairs` (image pairs for 3-D reconstruction).
+
+- MegaLoc place recognition (`megaloc`, retrieval; MIT code and weights): DINOv2 ViT-B with optimal-transport
+  (Sinkhorn) pooling, an 8448-d descriptor. 480x640 image: 4.26 ms kernels, 5.29 ms portable (4.27 ms compile, 3.21 ms
+  TensorRT) vs 14.6 ms original fp32 (9.68 ms autocast; `half()` fails in the authors' code), peak 508 MB vs 944 MB.
+  St Lucia recall@1 100.0 for all modes and the original.
+
+- BoQ, Bag-of-Queries place recognition (`boq-dinov2`, retrieval; MIT code and weights): DINOv2 ViT-B with learned
+  queries, a 12288-d descriptor. 480x640 image: 2.84 ms kernels, 5.73 ms portable (3.89 ms compile, 2.73 ms TensorRT)
+  vs 13.5 ms original fp32 (7.44 ms `half()`), peak 256 MB vs 430 MB. St Lucia recall@1 99.86 for all modes and the
+  original. The ResNet-50 variant is not ported.
+
+- SAMURAI motion-aware tracking (`samurai` option of the `sam2.1-hiera-*` cards, `video`; Apache-2.0 code, the SAM 2.1
+  weights): a Kalman filter on each object's mask box picks among the multimask outputs once stable (weighted with the
+  predicted IoU, `kf_score_weight` 0.25, 0.15 for large) and the memory bank keeps the confident frames; several
+  objects at once. LaSOT subset (6 videos, 10.5k frames, base-plus fp16): AUC 73.58 kernels / 76.93 portable vs 73.73
+  original SAMURAI (portable recovers the target on mouse-8; without it 81.20 / 81.19 vs 81.37), 52.5 ms per frame
+  kernels, 59.2 ms portable vs 90.9 ms original.
+
+- Multi-object tracking (`detection.ByteTracker`, `detection.track_objects(classes=)`; MIT, after ByteTrack): ByteTrack's two-stage
+  association of per-frame detections (D-FINE / RT-DETR / RF-DETR results or `[N, 5]` arrays), batched Kalman filter
+  (`shared/box_kalman`, also for SAMURAI) and an exact linear assignment without scipy. MOT17 train with D-FINE-X
+  person detections: identical tracks to the official ByteTrack (0 id differences in 5316 frames, boxes within
+  1.2e-4 px; HOTA 39.40 / MOTA 33.05 / IDF1 46.23 both), 1.10 ms per frame on the CPU (official 1.27 ms); with the
+  detector 11.5 ms per 1080p frame kernels (20.0 ms portable).
+- New task `fastforks.calibration` (single-image camera calibration): the pinhole intrinsics `[3, 3]` and the
+  vertical field of view, plus gravity, roll and pitch where the model estimates them.
+
+- GeoCalib (`geocalib-pinhole`, calibration; Apache-2.0 code, CC-BY-4.0 weights): MSCAN-L encoder with up / latitude field
+  heads and a Levenberg-Marquardt fit of the camera and gravity. 1080x1920 image: 82.5 ms kernels, 82.3 ms portable
+  (73.1 ms compile; TensorRT export fails on the LM fit) vs 124.9 ms original fp32 (106.2 ms autocast), peak 342 MB vs
+  658 MB. LaMAR2k AUC@5 roll / pitch / vFoV 92.6 / 76.8 / 41.6 for all modes and the original. The Hamburger heads'
+  NMF starts from fixed bases (upstream: new random ones per call); no uncertainty estimate.
+
+- AnyCalib (`anycalib-pinhole`, calibration; Apache-2.0 code and weights): DINOv2 ViT-L/14 with a light DPT decoder
+  predicting one ray per pixel, then a linear pinhole fit and 10 Gauss-Newton steps. 1080x1920 image: 21.3 ms kernels,
+  29.4 ms portable (25.5 ms compile; TensorRT export fails on the fit) vs 58.5 ms original fp32 (38.4 ms autocast), peak
+  816 MB vs 1372 MB. LaMAR2k vFoV AUC@5 51.5 for all modes and the original. The fit runs batched in float32; a failed
+  fit gives NaN (no RANSAC); pinhole only, intrinsics and vertical FoV (no gravity).
+
+- LW-DETR real-time detection (`lw-detr-tiny-coco` ... `lw-detr-xlarge-coco`, detection; Apache-2.0 code and
+  weights): ViT encoder with a multi-level projector and a deformable DETR decoder, the authors' PostProcess.
+  800x1344 image, tiny: 2.2 ms kernels, 7.4 ms portable (3.0 ms compile, 1.0 ms TensorRT) vs 20.4 ms original fp32
+  (16.4 ms fp16); xlarge 9.4 ms kernels vs 45.7 ms. COCO val2017 (every 20th) box mAP tiny 49.0 kernels / 48.8
+  portable vs 49.1 original, large 60.7 / 61.0 vs 60.7. BatchNorms are folded before float16 (some overflow it).
+
+- MM-Grounding-DINO open-vocabulary detection (`mm-grounding-dino-tiny`, `mm-grounding-dino-base`, detection;
+  Apache-2.0 code and weights): the Grounding DINO family with a scaled, biased class head and unshared decoder heads.
+  800x1344 image: base 160 ms portable (132 ms compile) vs 345 ms original fp32 (233 ms fp16), peak 1.6 GB vs 2.7 GB;
+  COCO val2017 (every 20th, zero-shot) box mAP tiny 54.9 vs 55.2, base 56.9 vs 57.1 original. TensorRT export fails.
+
+- Checkpoint loads keep the checkpoint's value of every weight a model class ties (`untie_to_checkpoint` in
+  `shared/seginfer`): transformers 5.19 ties MM-Grounding-DINO's per-layer decoder heads to layer 0 and silently
+  dropped the trained heads of layers 1-5. A load now raises if any loaded value still differs from the checkpoint.
+
+- RoMa dense matching (`romav1`, matching task; MIT code and weights, Apache-2.0 DINOv2 weights): RoMa outdoor,
+  one direction per call, DINOv2 ViT-L/14 coarse features + VGG19 fine features, 560 / 864 squares as upstream's
+  defaults. 768x1024 pair: 356 ms kernels, 376 ms portable (float16) vs 583 ms original fp32 (386 ms fp16), peak 1.7
+  GB vs 4.5 GB; compile times out, the TensorRT export fails. MegaDepth-1500 (672 / 1344, upstream's benchmark)
+  AUC@5/10/20 62.36/76.42/86.21 kernels, 62.61/76.63/86.37 portable vs 62.59/76.61/86.28 original fp16.
+
+- StableNormal turbo surface normals (`stablenormal-turbo`, depth task, normals only; Apache-2.0 code and weights):
+  one-step YOSO v0.3 on a Stable Diffusion 2 UNet with a ControlNet image encoder, seeded noise. 994x1482 image:
+  180 ms kernels, 289 ms portable (238 ms compile) vs 613 ms original fp32 (299 ms fp16), peak 3.0 GB vs 7.9 GB;
+  iBims-1 normals mean angle 17.46 deg for all modes and the original. TensorRT build times out.
+
+- LoFTR semi-dense matching (`loftr-outdoor`, `loftr-indoor`, matching; Apache-2.0 code, the authors' weights
+  inherit it): grayscale coarse-to-fine transformer matching, matches as keypoints plus index pairs. 768x1024 pair:
+  242 ms portable (176 ms compile) vs 242 ms original fp32 (no fp16 in upstream), peak 1.7 GB vs 1.9 GB;
+  MegaDepth-1500 (every 10th) AUC@5/10/20 52.1/71.0/83.3 vs 53.8/71.8/83.7 original. TensorRT export fails.
+
+- DeDoDe v2 sparse matching (`dedode-v2-b`, `dedode-v2-g`, matching; MIT code and weights, DINOv2 of -G
+  Apache-2.0): detector v2 + descriptor B or G, 10000 keypoints on a 784 x 784 square, dual-softmax matches as
+  keypoints plus index pairs. 768x1024 pair: `dedode-v2-b` 247 ms portable (164 ms compile) vs 561 ms original fp32
+  (318 ms fp16), peak 1.8 GB vs 3.3 GB; MegaDepth-1500 (every 10th) AUC@5/10/20 54.6/71.8/83.1 vs 57.3/71.6/82.5
+  original fp16. TensorRT export fails (data-dependent match counts).
+
+- AllTracker dense point tracking (`alltracker`, `alltracker-tiny`, tracking task; MIT code and weights): every pixel
+  of a query frame tracked offline through the video as long-range flow (384 x 512 internally, as upstream's
+  evaluation). 24-frame 480x854 video, 256 queries: `alltracker` 221 ms kernels, 391 ms portable (284 ms
+  compile; the TensorRT export fails) vs 788 ms original fp32 (485 ms fp16), peak 1.1 GB vs 2.5 GB; TAP-Vid DAVIS
+  (first) AJ 64.15 kernels, 64.14 portable vs 64.17 original.
+
+- AnySplat feed-forward Gaussian splatting (`anysplat`, multiview; MIT code and weights, VGGT License for the VGGT
+  copy): unposed, uncalibrated views to cameras, depth and `result.gaussians` (`.save("scene.ply")`), voxel-fused as
+  upstream. 8 views 336x518: 364 ms kernels, 504 ms portable (427 ms compile, 314 ms TensorRT) vs 1769 ms original
+  fp32 (741 ms bf16), peak 5.2 GB vs 7.6 GB. DTU (5 scans, median-scaled) AbsRel 0.0108 for kernels, portable and the original.
+
+- DepthSplat feed-forward Gaussian splatting (`depthsplat-small-re10k`, multiview; MIT code and weights): posed,
+  calibrated views with a depth range to depth and `result.gaussians`. The network is not scale invariant; the scene
+  is scaled to near = 1 (upstream's RealEstate10K bounds) and back. 8 views 336x518: 120 ms kernels, 119 ms portable,
+  82 ms compile, 86 ms TensorRT vs 177 ms original fp32 (127 ms fp16), peak 5.7 GB vs 5.8 GB. DTU (5 scans,
+  calibrated) AbsRel 0.0974 kernels vs 0.0992 original fp32 (0.0974 fp16).
+
+- TAPIR and BootsTAPIR point tracking (`bootstapir`, `tapir`, tracking task; Apache-2.0 code and weights): offline,
+  the whole video per call (256 x 256 internally, as upstream). 24-frame 480x854 video, 256 queries: `bootstapir`
+  191 ms kernels, 240 ms portable (float16) vs 396 ms original fp32 (243 ms fp16), peak 0.77 GB vs 0.83 GB;
+  TAP-Vid DAVIS (first) AJ 62.27 kernels, 62.29 portable vs 62.27 original. Shared fused-conv ops now reject
+  non-float16 operands instead of reading them as float16.
+
+- TAPNext point tracking (`tapnext`, `tapnext-pp`, new `tracking` task; Apache-2.0 code and weights): `model(video,
+  queries)` returns `tracks` `[T, Q, 2]` and `visible` `[T, Q]` for `(t, x, y)` queries, online one frame at a time
+  as upstream. 24-frame 480x854 video, 256 queries: 382 ms kernels, 529 ms portable vs 1541 ms original fp32;
+  TAP-Vid DAVIS (first) AJ 66.56 kernels vs 66.55 original.
+
+- SAM 2.1 video (`video` of `sam2.1-hiera-*`; Apache-2.0 code and weights): objects prompted on the first frame
+  (points, boxes or masks) are followed through a video with the original memory attention / memory encoder.
+  Tiny on DAVIS 2017 val (480p): 59 ms/frame portable, 63 ms kernels vs 282 ms original fp32 (90 ms fp16), peak
+  1.3 GB vs 2.1 GB; J&F 87.53 portable, 87.54 kernels and original.
+
+- ViTMatte trimap matting (`vitmatte-s`, `vitmatte-b`; Apache-2.0 code and weights): `model(image, trimap=...)`
+  returns the alpha; ViTDet backbone on image + trimap, conv detail-capture decoder. 1080x1920: `vitmatte-s` 84 ms
+  kernels, 102 ms portable (55 ms TensorRT) vs 274 ms original fp32 (140 ms fp16), peak 1.4 GB vs 5.0 GB; `vitmatte-b`
+  147 ms kernels (108 ms TensorRT) vs 552 ms (257 ms). AIM-500 SAD 13.72 / MSE 12.18 (`vitmatte-b` kernels, 500
+  images), every 5th image equal to the original for all tiers.
+- BEN2 matting / background removal (`ben2`; MIT code and weights): Swin v1 Base on the whole image plus four
+  full-resolution patches, merged by multi-view cross-attention. 1080x1920: 173 ms kernels, 184 ms portable (58 ms
+  TensorRT, 103 ms compile) vs 318 ms original fp32 (201 ms fp16). DIS-VD MAE 0.0403 / max F-beta 0.900 (kernels,
+  470 images), every 2nd image equal to the original for all tiers.
+- BiRefNet matting / background removal (`birefnet`, `birefnet-lite`, new `fastforks.matting` task; MIT code and
+  weights): alpha `[H, W]` in [0, 1] at the input size; shared Swin v1 encoder (`fastforks.shared.swin_v1`). 1080x1920:
+  `birefnet` 214 ms kernels (88 ms TensorRT) vs 382 ms original fp32 (234 ms fp16); `birefnet-lite` 59 ms vs 123 ms
+  (75 ms). DIS-VD MAE 0.0325 / max F-beta 0.9074 (`birefnet` kernels, 470 images), every 2nd image equal to the
+  original for all tiers.
+- Video Depth Anything (`video-depth-anything-s`, `video-depth-anything-metric-s`, depth task; Apache-2.0 code and
+  weights, Small only): a whole video per call (`[L, 3, H, W]`), windows of 32 frames with the upstream keyframe
+  alignment. 88-frame 480x640 video: 9.9 ms per frame kernels vs 57.5 ms original fp32 (43.0 ms fp16); TUM RGB-D
+  (3 sequences, first 110 frames) AbsRel 0.0549 kernels and original.
+
+- Grounding DINO open-vocabulary detection (`grounding-dino-tiny`, `grounding-dino-base`; Apache-2.0 code and
+  weights): class names as `text`, shared BERT tokenizer. Portable only. Tiny at 800x1344: 138 ms vs 274 ms original
+  fp32 (199 ms fp16); COCO val2017 (every 10th) box mAP 51.14 vs 51.08 original.
+
+- OWLv2 open-vocabulary detection (`owlv2-b16`, `owlv2-l14`; Apache-2.0 code and weights): `model(image,
+  text=[...])` detects the given class names (default: the 80 COCO names; `model.open_vocabulary`); shared CLIP
+  tokenizer. B/16 at 800x1344: 23.8 ms kernels vs 190 ms original fp32 (92 ms fp16); COCO val2017 (every 10th) box
+  mAP 46.14 kernels and original.
+
+- DEIM detection (`deim-{n,s,m,l,x}-coco`, in the `dfine` family; Apache-2.0 code and weights): the D-FINE
+  network with SiLU decoder MLPs and the authors' checkpoints, on `portable` and `kernels`. L at 800x1344: 8.7 ms
+  kernels vs 30.5 ms original fp32; COCO val2017 (every 10th) box mAP 54.67 kernels and original.
+
+- Lotus normals (`lotus-normal-g-v1-1`, `lotus-normal-d-v1-1`, depth task, `normals` output; Apache-2.0): one step
+  on the shared Stable Diffusion 2 UNet / VAE. 994x1482: 164 ms kernels vs 552 ms original fp32 (344 ms fp16);
+  NYUv2 normals mean angular error 16.61 deg (Lotus-G kernels), first 100 images 16.815 kernels vs 16.815 original.
+- Marigold normals LCM (`marigold-normals-lcm-v0-1`, depth task, `normals` output; Apache-2.0): one LCM step on the
+  shared Stable Diffusion 2 UNet / VAE (`fastforks.shared.sd2`, also used by Marigold depth). 994x1482: 167 ms kernels vs
+  557 ms original fp32 (280 ms fp16); NYUv2 normals mean angular error 18.46 deg kernels vs 18.45 original fp32.
+- LightGlue sparse matching (`aliked-lightglue`, `disk-lightglue`; Apache-2.0, ALIKED BSD-3-Clause):
+  `model(image1, image2)` returns `keypoints1`, `keypoints2`, index `pairs` and `scores` (the form
+  `pycolmap.match_from_pairs` takes). Portable only (data-dependent keypoint counts). 768x1024: ALIKED 48.4 ms
+  (29.5 ms with torch.compile) vs 41.2 ms original; DISK 116 vs 117 ms. MegaDepth-1500 AUC@5 50.7 (ALIKED).
+- XFeat sparse matching (`xfeat`, `xfeat-lighterglue`; Apache-2.0): mutual nearest neighbours or LighterGlue
+  (shared LightGlue). Portable only. 768x1024: 8.4 ms (5.7 ms compiled) vs 8.2 ms original; LighterGlue 22.5 vs
+  22.4 ms. MegaDepth-1500 AUC@5 26.2 (`xfeat`), 39.7 (`xfeat-lighterglue`).
+
+- MEMFOF optical flow (`memfof`, `memfof-kitti`, `memfof-sintel`, `memfof-spring`; BSD-3-Clause): portable and kernels (a 1024-channel
+  `raft_flow` correlation lookup). 1080p: 427 ms kernels vs 1035 ms original fp32 (531 ms fp16); KITTI 2015 train
+  EPE 10.89 / Fl 27.07 %. Two-frame API: the first frame is repeated as MEMFOF's previous frame.
+
+- RF-DETR detection (N, S, M, L) and RF-DETR Seg (N, S, M, L, XL, 2XL; Apache-2.0 code and weights): boxes,
+  labels, scores and instance masks without NMS, on `portable` and `kernels` (fastbb backbone). M at 800x1344:
+  4.4 ms kernels vs 13.5 ms original fp32; COCO val2017 box mAP 54.51 kernels vs 54.53 original.
+
+- New task `fastforks.matching`: dense matching. `model(image1, image2)` returns `warp` `[B, 2, H1, W1]` (each
+  pixel of image1 in pixels of image2) and `certainty` `[B, H1, W1]`. RoMa v2 (`romav2`) on `portable` (bf16 on
+  CUDA, as upstream) and `kernels` (one-pass local correlation): 412 ms kernels, 552 ms portable vs 741 ms original
+  bf16 at 768x1024, with 2.9 instead of 10.1 GiB reserved.
+
+- TensorRT export: bf16 transposed convolutions with stride == kernel (TensorRT has no bf16 deconvolution tactic)
+  are rewritten as a 1x1 convolution plus DepthToSpace.
+
+- Add FlowFormer Small optical flow: Chairs, Things and Sintel checkpoints with permissive code notices.
+
+- Add FlowSeek-T optical flow: mixed-data, FlyingThings and FlyingThings without TartanAir checkpoints.
+
+- Add GMFlow optical flow: nine scale-one, scale-two and recurrent-refinement checkpoints.
+
+- Add NeuFlow v2 optical flow: mixed-data, Sintel and FlyingThings checkpoints with portable inference.
+
+- RTMO bottom-up pose (t, s, m, l; Apache-2.0): `model(image)` finds people and their 17 COCO keypoints
+  without person boxes, on `portable` and `kernels`. Includes measured original fp32/fp16, compile and TensorRT
+  timings, GPU goldens, and full COCO val2017 accuracy with a matched original-code subset comparison.
+
+- New task `fastforks.flow`: optical flow. `model(image1, image2)` returns `flow` `[2, H, W]` float32 (dx, dy in
+  pixels of the input, from image1 to image2). RAFT (torchvision's weights: `raft-large`, `raft-large-things`,
+  `raft-large-kitti`, `raft-small`) on `portable` and `kernels`, with the load option `iters` (refinement steps,
+  default 12). RAFT on `kernels` builds no correlation volume (the lookup computes it on the fly from a pooled
+  feature pyramid, O(HW) memory): about 2x portable fp16 at KITTI size, 3.6x at 1080p with 370 instead of 8400 MiB.
+- New task `fastforks.pose`: top-down 2D human pose. `model(image, boxes=person_boxes)` returns the keypoints with
+  scores per person (boxes from `fastforks.detection` or ground truth): 17 COCO body keypoints, or 133 whole-body
+  ones (body, feet, face, hands) for DWPose.
+- ViTPose and ViTPose++ (6 variants: base-simple, base, plus-small, plus-base, plus-large, plus-huge) and RTMPose
+  (t, s, m, l at 256x192; m and l at 384x288), plus the DWPose whole-body weights for RTMPose (t, s, m, l at
+  256x192; l at 384x288).
+- Pose on `kernels` runs under CUDA graphs. RTMPose has the load option `flip_test` (average with the mirrored crop,
+  two network passes).
+- New detector RTMDet (OpenMMLab, Apache-2.0): `rtmdet-tiny-coco`, `-s-`, `-m-`, `-l-`, `-x-coco` (80 COCO classes,
+  640 x 640) and the person detectors of the RTMPose project, `rtmdet-nano-person` (320 x 320) and `rtmdet-m-person`,
+  on `portable` and `kernels`. Their boxes feed `fastforks.pose` directly.
+- New classifier ConvNeXt (Meta's V1 weights from timm, Apache-2.0): tiny, small, base and large, each trained on
+  ImageNet-1k (`convnext_base.fb_in1k`) and on ImageNet-22k fine-tuned on ImageNet-1k at 224
+  (`convnext_base.fb_in22k_ft_in1k`) and 384 (`..._384`), on `portable` and `kernels`.
+- New classifier RepViT (the authors' distilled ImageNet-1k weights from timm, Apache-2.0): `repvit_m0_9`, `m1_0`,
+  `m1_1`, `m1_5` and `m2_3`, each with the 300- and the 450-epoch weights (`repvit_m1_1.dist_450e_in1k`), on
+  `portable` and `kernels`. The re-parameterisable branches are fused at load.
+- New classifier TinyViT (Microsoft's weights from timm, Apache-2.0): `tiny_vit_5m_224`, `tiny_vit_11m_224` and
+  `tiny_vit_21m_224` (`.dist_in22k_ft_in1k`), the 21M one also at 384 and 512, on `portable` and `kernels`.
+- New classifier SHViT (the authors' weights from timm, MIT): `shvit_s1.in1k` to `shvit_s4.in1k` (S4 at 256), on
+  `portable`.
+- New classifier HGNetV2 (PaddleClas' SSLD weights from timm, Apache-2.0): `hgnetv2_b0.ssld_stage2_ft_in1k` to
+  `hgnetv2_b6.ssld_stage2_ft_in1k`, on `portable`.
+- New classifier StarNet (the authors' weights from timm, Apache-2.0): `starnet_s1.in1k` to `starnet_s4.in1k`, on
+  `portable` and `kernels`; explicit CNN dispatch folds BatchNorm despite timm naming its blocks `Block`.
+- New classifier EfficientFormerV2 (Snap Research's weights from timm, Apache-2.0): `efficientformerv2_s0`, `_s1`,
+  `_s2` and `_l` (`.snap_dist_in1k`), on `portable`.
+- New classifier EfficientFormer (Snap Research's weights from timm, Apache-2.0): `efficientformer_l1`, `_l3` and
+  `_l7` (`.snap_dist_in1k`), on `portable`.
+- New classifier CoAtNet (timm's own `rw` weights, Apache-2.0): `coatnet_nano_rw_224.sw_in1k` to
+  `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` (10 checkpoints), on `portable`.
+- New classifier FocalNet (the authors' weights from timm, MIT): `focalnet_tiny_srf.ms_in1k` to
+  `focalnet_base_lrf.ms_in1k` (6 checkpoints), on `portable`.
+- New classifier DaViT (the authors' weights from timm, Apache-2.0): `davit_tiny.msft_in1k`, `davit_small.msft_in1k` and
+  `davit_base.msft_in1k`, on `portable`.
+- New segmentation family SegNeXt (the MMSegmentation ADE20K checkpoints, Apache-2.0): `segnext-mscan-t-ade20k`, `-s`,
+  `-b`, `-l`, on `portable`. The head's matrix factorisation starts from fixed bases, so results repeat (upstream
+  draws random ones per call).
+- New feature backbones: SigLIP 2, CLIP / OpenCLIP, Perception Encoder and C-RADIOv3.
+- New feature backbone: TIPSv2 (B/14, L/14 image encoders; the DINOv2 kernel path).
+- New feature backbone ConvNeXt (Meta's V1 ImageNet-22k weights from timm, Apache-2.0): `convnext_tiny.fb_in22k`,
+  `convnext_small.fb_in22k`, `convnext_base.fb_in22k`, `convnext_large.fb_in22k`, on `portable` and `kernels`.
+  `last_hidden_state` is the stride-32 map of the last stage as tokens (no prefix token), `pooler_output` the
+  normalised mean. The maps of the earlier stages are not returned.
+- New depth models: Depth Anything V2 Metric (Hypersim indoor, max 20 m; Virtual KITTI outdoor, max 80 m; each S, B,
+  L), which return metric `depth` in metres, and Distill-Any-Depth (S, B, L; relative `inverse_depth`, Apache-2.0
+  weights), on `portable` and `kernels`.
+- New promptable-segmentation family EfficientViT-SAM (MIT Han lab, Apache-2.0 code and weights):
+  `efficientvit-sam-l0`, `-l1`, `-l2` (512 input) and `-xl0`, `-xl1` (1024 input), on `portable` and `kernels`.
+  Same call and prompts as SAM (points, boxes, masks). On the RTX 5060 Ti the full call with one point takes
+  4.4 ms (L0) to 15.3 ms (XL1) on `kernels`, against 26.9 and 72.6 ms for the original in float32.
+- Fix: the `kernels` conv optimizer no longer hands a depthwise convolution followed by GELU to the `fvm_r3`
+  kernel, which has no GELU (EfficientViT-SAM is the first model with the pattern in its fused graph).
+- New promptable-segmentation family HQ-SAM (ETH Zurich, Apache-2.0 code and weights): `sam-hq-vit-b`, `-l`, `-h`,
+  on `portable` and `kernels`. SAM's ViT encoder and decoder plus a small HQ head; one call returns one mask per
+  prompt (SAM's best mask plus the HQ mask, as upstream's default). Same call and prompts as SAM. On the RTX 5060 Ti
+  the full call with one point takes 36.8 ms (B) to 143.5 ms (H) on `kernels`, against 172 and 738 ms for the
+  original in float32.
+- New promptable-segmentation family MobileSAM (Kyung Hee University, Apache-2.0 code and weights): `mobile-sam`, on
+  `portable` and `kernels`. SAM's prompt encoder and mask decoder with a small TinyViT image encoder (1024 input).
+  Same call and prompts as SAM. On the RTX 5060 Ti the full call with one point takes 6.9 ms on `kernels`, against
+  30.3 ms for the original in float32; COCO mIoU is the original's (51.53 best of 3).
+- Fix: the ONNX export of EfficientViT-SAM no longer produces NaN. The exporter dropped the `+ 1e-15` of the linear
+  attention's division as a no-op, so zero sums gave 0 / 0 in ONNX Runtime and TensorRT; the epsilon is now a tensor
+  the exporter keeps. Torch results are unchanged. The fp16 TensorRT engine is finite but misses the golden
+  tolerance (fp16 sums in the wide 1x1 convolutions); an engine of the model loaded with `dtype="float32"` matches.
+
 ## 0.1.1
 
 Fixes and faster kernels. No new models.

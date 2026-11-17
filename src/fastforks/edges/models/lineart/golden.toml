@@ -1,0 +1,20 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.02
+gpu_p99 = 0.25
+
+[refs."lineart-coarse@1"]
+sha256 = "b5c8cf0d25c1a76a62deac9324c5de3087bb4cd470a23a4a206e1c1474cb0f3f"
+upstream = "https://github.com/huggingface/controlnet_aux@b1aac318b15c4e65a21bc516dc236ad4bf593d46"
+settings = "CPU float32, controlnet_aux lineart in float (cv2 resize_image, no 8-bit rounding), resolution 512, coffee.png, torch 2.14.1+cu130"
+
+[refs."lineart@1"]
+sha256 = "d8111a72f83fe53f964fd001bd2e3aaf0486c84131276e39605b234545e43a02"
+upstream = "https://github.com/huggingface/controlnet_aux@b1aac318b15c4e65a21bc516dc236ad4bf593d46"
+settings = "CPU float32, controlnet_aux lineart in float (cv2 resize_image, no 8-bit rounding), resolution 512, coffee.png, torch 2.14.1+cu130"

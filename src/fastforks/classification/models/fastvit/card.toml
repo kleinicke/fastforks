@@ -12,6 +12,11 @@ uses = ["libnet"]  # fastforks.shared modules this family imports
 repo = "https://github.com/huggingface/pytorch-image-models"
 commit = "0df212b369a5385b16dfe513d5143a7311ea1ddc"  # timm v1.0.30: the network is built by the installed library
 
+[[upstream.official]]
+repo = "https://github.com/apple/ml-fastvit"
+framework = "PyTorch"
+reason = "timm carries the architecture and the apple_dist_in1k weights in its own, simpler API."
+
 [licence]
 code = "Apache-2.0"  # timm
 weights = "LicenseRef-Apple-Sample-Code"  # the timm Hugging Face model card
@@ -31,7 +36,7 @@ library = "timm"
 
 [modes.portable]
 cuda_dtype = "float16"
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
@@ -42,9 +47,29 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 [output]
 label_set = "imagenet-1k"
 
+[[papers]]
+title = "FastViT: A Fast Hybrid Vision Transformer using Structural Reparameterization"
+url = "https://arxiv.org/abs/2303.14189"
+date = "2023-03-24"
+venue = "ICCV 2023"
+
 [[variants]]
 id = "fastvit_sa24.apple_dist_in1k"
 default_tag = true
 revision = 1
 weights = [{ name = "fastvit_sa24.apple_dist_in1k.safetensors", size = 86553584, sha256 = "c38594c380a5542da9e6ac3c36af95ab180d54e8982c822c677e452e03217a10", url = "https://huggingface.co/timm/fastvit_sa24.apple_dist_in1k/resolve/0b86f2b98f83274e9f03b6ddbcb3942b84efb839/model.safetensors" }]
 params = { arch = "fastvit_sa24.apple_dist_in1k" }
+
+[[variants]]
+id = "fastvit_t8.apple_dist_in1k"
+revision = 1
+# Source license/preprocessing: https://huggingface.co/timm/fastvit_t8.apple_dist_in1k/blob/09215e34b4f178654bf6efc44131c50aa865779a/README.md
+weights = [{ name = "fastvit_t8.apple_dist_in1k.safetensors", size = 16266976, sha256 = "9e31da81a225d20bc9e326baf1cc88ccc0e68fe2c43ea0154a870c409747f6aa", url = "https://huggingface.co/timm/fastvit_t8.apple_dist_in1k/resolve/09215e34b4f178654bf6efc44131c50aa865779a/model.safetensors" }]
+params = { arch = "fastvit_t8.apple_dist_in1k" }
+
+[[variants]]
+id = "fastvit_t12.apple_dist_in1k"
+revision = 1
+# Source license/preprocessing: https://huggingface.co/timm/fastvit_t12.apple_dist_in1k/blob/f86f95563a64ff98ba143e10164d7b05b9cb4084/README.md
+weights = [{ name = "fastvit_t12.apple_dist_in1k.safetensors", size = 30442024, sha256 = "eadebc66215173c3892da3bcb09b504c488aa242208cec16083d8d2b2c344fb0", url = "https://huggingface.co/timm/fastvit_t12.apple_dist_in1k/resolve/f86f95563a64ff98ba143e10164d7b05b9cb4084/model.safetensors" }]
+params = { arch = "fastvit_t12.apple_dist_in1k" }

@@ -6,7 +6,7 @@ the input handling of its task (see the `_runner.py` of each task); families sub
 ```python
 # <task>/models/<family>/model.py
 @dataclass(frozen=True)
-class Params:  # card [params] + variant params + [options] (+ load(options=)), checked at load
+class Params:  # card [params] + variant params + [options] (+ load(**options)), checked at load
     iters: int
 
 
@@ -60,6 +60,8 @@ class Context:
         params: The runner's `Params`, filled from the card and the load options.
         kernels: Kernel library tags of `kernels` (`name@build:target`), empty for portable.
         user_weights: The files of `load(weights=...)`, used instead of the variant's (not hash-checked).
+        user_state: The state dict of `user_weights`, already read and mapped by the task (`load_variant`); then
+            `state_dict()` returns it whatever its arguments (during the build only: `drop_state`).
     """
 
     card: ModelCard
@@ -70,6 +72,11 @@ class Context:
     params: Any
     kernels: tuple[str, ...] = ()
     user_weights: tuple[Path, ...] | None = None
+    user_state: Mapping[str, torch.Tensor] | None = None
+
+    def drop_state(self) -> None:
+        """Forget `user_state` once the runner is built: the model must not keep the read checkpoint alive."""
+        object.__setattr__(self, "user_state", None)  # frozen for the runners; the build's input only
 
     @property
     def io(self) -> Io:
@@ -112,6 +119,8 @@ class Context:
             WeightsError: Missing, unverifiable or unsafe weights, or a user's file that cannot be read (empty,
                 truncated, another format): the message names it and the variant.
         """
+        if self.user_state is not None:
+            return dict(self.user_state)
         path = self.weights()[index]
         if self.user_weights is None:
             return load_state_dict(path, key=key, strip=strip, extra=extra)
@@ -125,6 +134,17 @@ class Context:
             raise WeightsError(msg) from e
 
 
+def host(fn: Any) -> Any:  # noqa: ANN401 - any function
+    """Mark an entry-point override as host code that `Model.compile()` leaves eager.
+
+    For overrides that are not one graph: loops over the networks (video windows, tracking), tokenizers and text
+    caches, data-dependent solvers (RANSAC, intrinsics fitting). The family lists the methods they call in
+    `compiled_methods`; the policy test checks that every other override of a task entry point is compiled.
+    """
+    fn.ff_host = True
+    return fn
+
+
 class Runner(abc.ABC):  # noqa: B024 - abstract `__call__` is declared by each task's Runner
     """One backend of a model family (task-agnostic part).
 
@@ -135,15 +155,20 @@ class Runner(abc.ABC):  # noqa: B024 - abstract `__call__` is declared by each t
         deterministic_cudnn: Run each CUDA call with `torch.backends.cudnn.deterministic = True` (restored after).
             Set on the portable runners where cuDNN's default algorithms (atomics in transposed convs) made repeated
             calls differ and the deterministic ones cost nothing (measured on IGEV++, LAS2 and the other GRU families).
+        uint8_input: The task API passes uint8 images on as uint8 `[B, 3, H, W]` (levels 0..255) instead of float32 in
+            `[0, 1]` (other inputs stay float32): for families that resize the 8-bit levels themselves, so no full-size
+            float32 copy is made (detection).
         compiled_methods: The methods the task API calls, which `Model.compile()` wraps in `torch.compile` (one
             calling another runs inside the caller's graph). A family whose API path calls other methods (a
-            multi-view `scene` override) lists those.
+            multi-view `scene` override) lists those; an override that is host code (`@host`) lists the methods it
+            calls instead.
     """
 
     dtypes: ClassVar[tuple[Dtype, ...]] = ("float32",)
     batch: ClassVar[int | None] = 1
     Params: ClassVar[type[Any]] = NoParams
     deterministic_cudnn: ClassVar[bool] = False
+    uint8_input: ClassVar[bool] = False
     compiled_methods: ClassVar[tuple[str, ...]] = ("__call__",)
 
     def __init__(self, ctx: Context) -> None:

@@ -41,7 +41,13 @@ class _Features:
 
         self.fn, meta = eval_features._original(ref, tier)  # noqa: SLF001
         self.dtype, self.how = meta["dtype"], meta["how"]
-        self.note = "transformers pooler_output" if ref.startswith("dinov3") else "dinov2 forward_features CLS"
+        notes = {
+            "dinov3": "transformers pooler_output",
+            "convnext": "timm num_classes=0 (pooled, head norm)",
+            "tipsv2": "tips image_encoder first cls token",
+            "c": "NVIDIA RADIOModel (trust_remote_code) summary",  # c-radio-*
+        }
+        self.note = notes.get(ref.replace("_", "-").split("-", maxsplit=1)[0], "dinov2 forward_features CLS")
 
     def prep(self, args: tuple[Any, ...]) -> tuple[Any, ...]:
         return args
@@ -72,6 +78,7 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one resumable loop
     ap.add_argument("--runs", type=int, default=5)
     ap.add_argument("--max-seconds", type=float, default=200.0)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--part", default="call", choices=("call", "network"), help="network: pose network alone")
     a = ap.parse_args()
     t0 = time.perf_counter()
     bu = _original.bench()
@@ -84,11 +91,12 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one resumable loop
     out.parent.mkdir(parents=True, exist_ok=True)
     have = set()
     if out.exists():
-        have = {(r["ref"], r["tier"], r.get("input")) for r in map(json.loads, out.read_text().splitlines())}
+        rows = [r for r in map(json.loads, out.read_text().splitlines()) if r.get("part", "call") == a.part]
+        have = {(r["ref"], r["tier"], r.get("input")) for r in rows}
     torch.zeros(1, device="cuda").sum().item()
     for ref in a.refs.split(","):
         full, card, _ = _original.full_ref(a.task, ref)
-        adapter = bu.FAM.get(card.family)
+        adapter = _original.LOCAL.get(card.family) or bu.FAM.get(card.family)
         for tier in a.tiers.split(","):
             own = a.task != "features" and _original.own_option(a.task, ref)
             if (tier == "upstreamhalf" and own) or (tier == "upstreamac" and not own):
@@ -98,6 +106,8 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one resumable loop
             if time.perf_counter() - t0 > a.max_seconds:
                 return 3
             base: dict[str, Any] = {"ref": ref, "task": a.task, "mode": "upstream", "tier": tier}
+            if a.part != "call":
+                base["part"] = a.part
             torch.cuda.empty_cache()
             try:
                 torch.cuda.synchronize()
@@ -106,7 +116,7 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one resumable loop
                     o = _Features(ref, tier)
                     ins = [("224x224", "synthetic (fastforks bench)", (bu.synth_u8(224, 224)[None],))]
                 else:
-                    o = _original.load(a.task, ref, tier)
+                    o = _original.load(a.task, ref, tier, a.part)
                     ins = adapter.inputs(full) if hasattr(adapter, "inputs") else bu.inputs_for(a.task)
                 torch.cuda.synchronize()
                 load_s = time.perf_counter() - tb

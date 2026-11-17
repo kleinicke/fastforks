@@ -3,10 +3,11 @@
 The exported graph is `model.module()` at one fixed size. Its inputs are named by the task spec (`TaskSpec.inputs`:
 `left`, `right` for stereo, `image` otherwise) and its outputs as `output_names` says: the variant's main output
 (`disparity`, `inverse_depth`, `depth`, `logits`, ...), the names a module declares (SAM: `image_embeddings`), or a
-dict's keys (multi-view). Example inputs come from the task model (`Model.example_inputs`): synthetic
-RGB images in `[0, 1]` (a shifted pair for stereo), the normalised crop for classification. The graph keeps the
-model's compute dtype: fp32 with `dtype="float32"`, else the card's reduced precision on CUDA (the casts are in
-the graph, so TensorRT builds it strongly typed). `kernels` is not exportable: ONNX and TensorRT cannot run our kernels.
+dict's keys (multi-view); an output named like an input gets `_out` (restoration: `image_out`). Example inputs come
+from the task model (`Model.example_inputs`): synthetic RGB images in `[0, 1]` (a shifted pair for stereo), the
+normalised crop for classification. The graph keeps the model's compute dtype: fp32 with `dtype="float32"`, else the
+card's reduced precision on CUDA (the casts are in the graph, so TensorRT builds it strongly typed). `kernels` is not
+exportable: ONNX and TensorRT cannot run our kernels.
 
 `onnx` and `onnxscript` (`pip install "fastforks-core[onnx]"`) and `tensorrt` (`"fastforks-core[tensorrt]"`) are
 optional and imported only here. A TensorRT engine is tied to the GPU and TensorRT version it was built with: build it
@@ -23,10 +24,11 @@ import tempfile
 import threading
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import torch
 
+from fastforks._core.cards import require_available
 from fastforks._core.errors import BackendUnavailableError, InputError, install_hint
 from fastforks._core.export_resize import matmul_antialias
 from fastforks._core.tasks import spec
@@ -84,13 +86,16 @@ def output_name(model: Model) -> str:
     return next(k for k in spec(model.card.task).standard if k in model.variant.outputs)
 
 
-def check_exportable(model: Model, height: int, width: int, batch: int) -> None:
-    """Raise unless `model` runs portable and the size is supported.
+def check_exportable(
+    model: Model, height: int, width: int, batch: int, feature: Literal["onnx", "tensorrt"] = "onnx"
+) -> None:
+    """Raise unless `model` runs portable, its card does not mark `feature` as `[planned]` and the size is supported.
 
     Raises:
-        BackendUnavailableError: The model runs `kernels`.
+        BackendUnavailableError: The model runs `kernels`, or `feature` is known not to work yet (planned for 0.2.1).
         InputError: The size is below the model's minimum, or `batch < 1`.
     """
+    require_available(model.variant, feature)
     if model.backend.mode != "portable":
         msg = (
             f"{model.variant.ref}: the kernels backend runs custom CUDA kernels, which ONNX and TensorRT cannot run;"
@@ -118,6 +123,10 @@ DYNAMIC_VERIFIED = frozenset(
 off-trace and max sizes). Every other family exports at a fixed size only."""
 
 DYNAMIC_UNSUPPORTED = {
+    "prompt_depth_anything": "the dynamic-shape spec would also resize the depth prompt, which has a size of its own",
+    "lingbot_depth": "the dynamic-shape spec would also resize the depth map, which has a size of its own",
+    "any2full": "the dynamic-shape spec would also resize the depth map, which has a size of its own",
+    "omni_dc": "the conjugate-gradient solve has a data-dependent step count (no export at all)",
     "depth_anything_v2": "the model rounds a symbolic size (Python `round()`), which torch.export cannot trace",
     "hitnet": "the traced graph fixes the height (the engine would only look dynamic)",
     "moge": "the traced graph fixes the input size (the file would only look dynamic)",
@@ -227,13 +236,16 @@ def output_names(model: Model, module: torch.nn.Module, out: Any) -> list[str]: 
     A dict's keys; else `module.output_names` where the module declares them (DETR: `logits`, `boxes`; SAM:
     `image_embeddings`); else the variant's main output (`output_name`) for one tensor, `<main>_<i>` for a tuple.
     """
-    if isinstance(out, dict):
-        return list(out)
     n = len(flat_outputs(out))
-    names = tuple(getattr(module, "output_names", ()))
-    if len(names) == n:
-        return list(names)
-    return [output_name(model)] if n == 1 else [f"{output_name(model)}_{i}" for i in range(n)]
+    declared = list(getattr(module, "output_names", ()))
+    if isinstance(out, dict):
+        names = list(out)
+    elif len(declared) == n:
+        names = declared
+    else:
+        names = [output_name(model)] if n == 1 else [f"{output_name(model)}_{i}" for i in range(n)]
+    inputs = set(spec(model.card.task).inputs)  # an output named like an input is a cycle for TensorRT's parser
+    return [f"{name}_out" if name in inputs else name for name in names]
 
 
 def export_onnx(  # noqa: PLR0913 - the size, the batch and the optional dynamic range
@@ -247,13 +259,15 @@ def export_onnx(  # noqa: PLR0913 - the size, the batch and the optional dynamic
 ) -> Path:
     """Write `model.module()` at `[batch, 3, height, width]` to an ONNX file.
 
-    The size defaults to `model.export_size()` where the task has one (classification, features); else it is required.
+    The size defaults to `model.size_range().export_size` where the task has one (classification, features); else it
+    is required.
     `size_range=((min_h, min_w), (max_h, max_w))` makes height and width dynamic axes of the graph within these bounds
     (the graph is traced at `(height, width)`); the default is a fixed size. A dynamic file is checked: its image
     inputs must have symbolic H / W, and with `onnxruntime` installed it runs at the corners of the range
     (`probe_sizes`) and must match eager `module()` there (`DYNAMIC_TOLERANCE`); a file that fails is removed
     (`InputError`). A size range is refused up front for families outside `DYNAMIC_VERIFIED` (`fixed_size_reason`).
     """
+    require_available(model.variant, "onnx")  # before the size: a gated export says so first
     return _export_onnx(model, path, height, width, batch=batch, size_range=size_range, run=True)
 
 
@@ -320,6 +334,7 @@ def _export_onnx(  # noqa: PLR0913 - export_onnx's arguments plus the check swit
         msg = "torch.onnx.export returned no program"
         raise RuntimeError(msg)
     _fix_folded_weight_casts(program.model)
+    _bf16_deconvolutions_as_convs(program.model)
     program.model.metadata_props["fastforks.model"] = model.variant.ref
     program.model.metadata_props["fastforks.weights"] = (
         "official" if model.weights is None else ", ".join(map(str, model.weights))
@@ -439,9 +454,9 @@ def resolve_size(model: Model, height: int | None, width: int | None) -> tuple[i
         raise InputError(msg)
     if height is not None and width is not None:
         return height, width
-    default = model.export_size()
+    rng = model.size_range()
+    default = rng.export_size
     if default is None:
-        rng = model.size_range()
         eh, ew = rng.example()
         msg = (
             f"{model.variant.ref}: give an export size (this task has no default); valid sizes: "
@@ -451,13 +466,16 @@ def resolve_size(model: Model, height: int | None, width: int | None) -> tuple[i
     return default
 
 
-def _fix_folded_weight_casts(model: Any) -> int:  # noqa: ANN401 - an onnx_ir.Model
-    """Cast float32 weight constants of fp16 / bf16 convolutions to the input's dtype; returns how many it replaced.
+_WEIGHT_CAST_OPS = {"Conv", "ConvTranspose", "InstanceNormalization"}  # weight / scale + bias take the input's dtype
 
-    Under autocast a convolution casts its float32 weights to fp16 / bf16. The exporter's constant folding (torch 2.14,
-    onnxscript 0.7) stores some of these casts as float32 initializers again (seen in LAS2 fp16, on the weights the
-    two feature passes share; DEFOM bf16), which onnxruntime and TensorRT reject. The replacement is the value the cast
-    computes.
+
+def _fix_folded_weight_casts(model: Any) -> int:  # noqa: ANN401 - an onnx_ir.Model
+    """Cast float32 weight constants of fp16 / bf16 convolutions (and instance norms: scale, bias) to the input's dtype.
+
+    Returns how many it replaced. Under autocast a convolution casts its float32 weights to fp16 / bf16. The
+    exporter's constant folding (torch 2.14, onnxscript 0.7) stores some of these casts as float32 initializers again
+    (seen in LAS2 fp16, on the weights the two feature passes share; DEFOM bf16; TAPIR's instance norms), which
+    onnxruntime and TensorRT reject. The replacement is the value the cast computes.
     """
     try:
         import onnx_ir as ir  # noqa: PLC0415 - comes with onnxscript (optional)
@@ -467,7 +485,7 @@ def _fix_folded_weight_casts(model: Any) -> int:  # noqa: ANN401 - an onnx_ir.Mo
 
     fixed = 0
     for node in model.graph.all_nodes():
-        x = node.inputs[0] if node.op_type in {"Conv", "ConvTranspose"} and node.inputs else None
+        x = node.inputs[0] if node.op_type in _WEIGHT_CAST_OPS and node.inputs else None
         if x is None or x.dtype not in {ir.DataType.FLOAT16, ir.DataType.BFLOAT16}:
             continue
         for i, v in enumerate(node.inputs[1:], 1):
@@ -486,6 +504,88 @@ def _fix_folded_weight_casts(model: Any) -> int:  # noqa: ANN401 - an onnx_ir.Mo
                 del model.graph.initializers[v.name]
             fixed += 1
     return fixed
+
+
+def _const_float(v: Any) -> Any:  # noqa: ANN401 - onnx_ir.Value; returns a numpy array or None
+    """The float32 array of a constant or of a Cast of one, else None."""
+    cast = v.producer() if v is not None else None
+    src = cast.inputs[0] if cast is not None and cast.op_type == "Cast" else v
+    return None if src is None or src.const_value is None else src.const_value.numpy().astype("float32")
+
+
+def _upsampling_deconv(node: Any) -> tuple[Any, Any, int] | None:  # noqa: ANN401 - an onnx_ir.Node
+    """(weight, bias or None, stride) of an upsampling ConvTranspose, else None.
+
+    Upsampling: constant weights, a square kernel equal to the stride, no padding, dilation or groups.
+    """
+    w = _const_float(node.inputs[1])
+    has_bias = len(node.inputs) > 2 and node.inputs[2] is not None  # noqa: PLR2004 - X, W, B
+    bias = _const_float(node.inputs[2]) if has_bias else None
+    if w is None or w.ndim != 4 or (has_bias and bias is None) or w.shape[2] != w.shape[3]:  # noqa: PLR2004
+        return None
+    att = {k: a.value for k, a in node.attributes.items()}
+    plain = (
+        tuple(att.get("strides", (1, 1))) == tuple(w.shape[2:])
+        and set(att.get("pads", (0,))) | set(att.get("output_padding", (0,))) == {0}
+        and set(att.get("dilations", (1,))) == {1}
+        and att.get("group", 1) == 1
+        and "output_shape" not in att
+        and att.get("auto_pad", "NOTSET") == "NOTSET"
+    )
+    return (w, bias, w.shape[2]) if plain else None
+
+
+def _bf16_deconvolutions_as_convs(model: Any) -> int:  # noqa: ANN401 - an onnx_ir.Model
+    """Rewrite bfloat16 ConvTranspose nodes with kernel == stride as a 1x1 Conv + DepthToSpace; returns how many.
+
+    TensorRT 11.4 builds no bfloat16 deconvolution (strongly typed: "Could not infer output types"; in float32
+    between casts: "no tactics"; RoMa v2's DPT head). With kernel == stride, no padding and one group the two are
+    the same sum: out[co, i*s+a, j*s+b] = sum_ci x[ci, i, j] W[ci, co, a, b] + bias[co].
+    """
+    import onnx_ir as ir  # noqa: PLC0415 - _fix_folded_weight_casts checked it
+
+    bf16 = ir.DataType.BFLOAT16
+    changed = 0
+    for node in list(model.graph.all_nodes()):
+        if node.op_type != "ConvTranspose" or not node.inputs or node.inputs[0].dtype != bf16:
+            continue
+        found = _upsampling_deconv(node)
+        if found is None:
+            continue
+        w, bias, s = found
+        graph = node.graph
+        arrays = [w.transpose(1, 2, 3, 0).reshape(-1, w.shape[0], 1, 1)]  # channel co*s*s + a*s + b (CRD)
+        if bias is not None:
+            arrays.append(bias.repeat(s * s))
+        inits = [
+            ir.Value(
+                name=f"deconv_as_conv_{changed}_{i}",
+                shape=ir.Shape(x.shape),
+                type=ir.TensorType(bf16),
+                const_value=ir.tensor(x.astype(bf16.numpy())),  # the bf16 values the graph used
+            )
+            for i, x in enumerate(arrays)
+        ]
+        for v in inits:
+            graph.register_initializer(v)
+        conv = ir.Node("", "Conv", [node.inputs[0], *inits], attributes=[ir.AttrInt64s("kernel_shape", [1, 1])])
+        conv.outputs[0].dtype = bf16
+        attrs = [ir.AttrInt64("blocksize", s), ir.AttrString("mode", "CRD")]
+        shuffle = ir.Node("", "DepthToSpace", conv.outputs, attributes=attrs)
+        shuffle.outputs[0].dtype, shuffle.outputs[0].shape = bf16, node.outputs[0].shape
+        graph.insert_before(node, [conv, shuffle])
+        old = list(node.inputs[1:])
+        node.outputs[0].replace_all_uses_with(shuffle.outputs[0], replace_graph_outputs=True)
+        graph.remove(node, safe=True)
+        for v in old:
+            cast = v.producer() if v is not None else None
+            if cast is not None and cast.op_type == "Cast" and not v.uses():
+                v = cast.inputs[0]  # noqa: PLW2901 - read before remove() detaches the inputs
+                graph.remove(cast, safe=True)
+            if v is not None and v.is_initializer() and not v.uses() and v.name in graph.initializers:
+                del graph.initializers[v.name]
+        changed += 1
+    return changed
 
 
 def build_tensorrt(
@@ -579,8 +679,9 @@ def export_tensorrt(  # noqa: PLR0913 - export_onnx's arguments plus the build w
     bound, opt = `(height, width)`, max = upper bound); dynamic engines are not faster than fixed ones, see export.md.
     The engine is run once on `example_inputs`: an all-NaN output removes it and raises `BackendUnavailableError`.
     """
+    require_available(model.variant, "tensorrt")  # before the size: a gated export says so first
     height, width = resolve_size(model, height, width)
-    check_exportable(model, height, width, batch)
+    check_exportable(model, height, width, batch, "tensorrt")
     _bounds(model, height, width, size_range, batch)
     _tensorrt()
     if not torch.cuda.is_available():  # before the ONNX export: the builder fails late and cryptically without one

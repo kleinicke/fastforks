@@ -1,7 +1,7 @@
 schema = 2
 name = "Depth Pro"
 summary = "Depth Pro (Bochkovskii et al. 2024, Apple): sharp monocular metric depth from three DINOv2 ViT-L/16 encoders (35 overlapping windows of a 3-level image pyramid, the whole image, the field of view) and a multi-resolution conv decoder at 1536x1536; also estimates the focal length."
-tier = "experimental"
+tier = "stable"
 outputs = ["depth", "intrinsics"]  # intrinsics: only when none are given (then fx replaces the field-of-view estimate)
 uses = ["cuda_graphs", "depth_anything_v2"]  # fastforks.shared modules this family imports
 
@@ -36,6 +36,12 @@ mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "dpt_fused"]
+
+[[papers]]
+title = "Depth Pro: Sharp Monocular Metric Depth in Less Than a Second"
+url = "https://arxiv.org/abs/2410.02073"
+date = "2024-10-02"
+venue = "ICLR 2025"
 
 [[variants]]
 id = "depth-pro"

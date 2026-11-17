@@ -8,7 +8,7 @@ commercial = "no"
 url = "https://lmb.informatik.uni-freiburg.de/resources/datasets/SceneFlowDatasets.en.html"
 
 [kitti]
-name = "KITTI stereo 2012 / 2015"
+name = "KITTI stereo / optical flow 2012 / 2015"
 licence = "CC-BY-NC-SA-3.0"
 commercial = "no"
 url = "https://www.cvlibs.net/datasets/kitti/"
@@ -18,6 +18,12 @@ name = "ETH3D two-view stereo"
 licence = "CC-BY-NC-SA-4.0"
 commercial = "no"
 url = "https://www.eth3d.net/"
+
+[nyu]
+name = "NYU Depth V2"
+licence = "not stated"  # the official page (read 2026-11-13) states no licence or terms of use
+commercial = "unclear"
+url = "https://cs.nyu.edu/~fergus/datasets/nyu_depth_v2.html"
 
 [middlebury]
 name = "Middlebury stereo (2014)"
@@ -85,6 +91,12 @@ licence = "CC-BY-4.0"  # "The annotations in this dataset belong to the COCO Con
 commercial = "unclear"
 url = "https://cocodataset.org/#termsofuse"
 
+[objects365]
+name = "Objects365 (train, box annotations)"
+licence = "CC-BY-4.0"  # "available for the academic purpose only"; annotations "licensed under a Creative Commons Attribution 4.0 License", the images follow the Flickr terms of use (read 2026-11-10)
+commercial = "no"
+url = "https://www.objects365.org/download.html"
+
 [imagenet-1k]
 name = "ImageNet-1k (ILSVRC 2012 classification)"
 licence = "LicenseRef-noncommercial"  # terms of access: "non-commercial research and educational purposes" only
@@ -125,3 +137,374 @@ name = "DTU Robot Image Data Sets (MVS 2014)"
 licence = "not stated"  # not re-read 2026-10-27 (offline): terms to be checked on the official page
 commercial = "unclear"
 url = "https://roboimagedata.compute.dtu.dk/"
+
+[laion-2b]
+name = "LAION-2B-en (web image-text pairs filtered by CLIP similarity)"
+licence = "CC-BY-4.0"  # the metadata (URLs, captions); the images keep their own copyrights
+commercial = "unclear"
+url = "https://laion.ai/blog/laion-5b/"
+
+[datacomp-1b]
+name = "DataComp-1B (filtered from the CommonPool-12.8B web image-text pool)"
+licence = "CC-BY-4.0"  # the metadata (URLs, captions); the images keep their own copyrights
+commercial = "unclear"
+url = "https://arxiv.org/abs/2304.14108"
+
+[nv-cc-img-text]
+name = "NV-CC-Img-Text-Dataset (NVIDIA web image-text data, 700 M images, not released)"
+licence = "not stated"  # named on the C-RADIOv3 model cards only ("Automated" collection); not distributed
+commercial = "unclear"
+url = "https://huggingface.co/nvidia/C-RADIOv3-B/blob/44653a0482cf460bb4f12595fc3cc3dfecc403d1/README.md"
+
+[aic]
+name = "AI Challenger human keypoints (2017)"
+licence = "not stated"  # no terms found in the paper (arXiv 1711.06475) or on reachable mirrors (read 2026-11-09)
+commercial = "unclear"
+url = "https://arxiv.org/abs/1711.06475"
+
+[mpii]
+name = "MPII Human Pose"
+licence = "BSD-2-Clause"  # annotations and code; "Commercial use is not allowed" (the authors do not own the images)
+commercial = "no"
+url = "https://www.mpi-inf.mpg.de/departments/computer-vision-and-machine-learning/software-and-datasets/mpii-human-pose-dataset/download"
+
+[ap-10k]
+name = "AP-10K (animal pose)"
+licence = "CC-BY-4.0"  # "The dataset follows CC-BY-4.0 license."; no statement on the images' sources
+commercial = "unclear"
+url = "https://github.com/AlexTheBad/AP-10K/blob/181b1a04755e4dc6fe5616ef7a88496f47bfe228/README.md"
+
+[apt-36k]
+name = "APT-36K (animal pose tracking)"
+licence = "MIT"  # README: "This project is under MIT licence."; no statement on the images
+commercial = "unclear"
+url = "https://github.com/pandorgan/APT-36K/blob/366ba0109bb9586cac793d1b150d5f4261b77cfa/README.md"
+
+[coco-wholebody]
+name = "COCO-WholeBody"
+licence = "CC-BY-NC-4.0"  # "ONLY for research and non-commercial use" (the linked licence is BY-NC 4.0)
+commercial = "no"
+url = "https://github.com/jin-s13/COCO-WholeBody/blob/76f3b6331b6e15553fbee05951dbf49f1fad029c/README.md"
+
+[ubody]
+name = "UBody (upper-body whole-body keypoints, from OSX)"
+licence = "not stated"  # no licence or terms in the repository README (read 2026-11-09); the data sits behind a Google form
+commercial = "unclear"
+url = "https://github.com/IDEA-Research/OSX/blob/14b1cb41a3d2b14c9303290f45fa8189f6f685b3/README.md"
+
+[crowdpose]
+name = "CrowdPose"
+licence = "not stated"  # no licence file or terms in the repository (read 2026-11-09); images from COCO, MPII and AIC
+commercial = "unclear"
+url = "https://github.com/Jeff-sjtu/CrowdPose/blob/86fe5e11e570cad02d553db52ec72545578cd1c8/README.md"
+
+[halpe]
+name = "Halpe-FullBody"
+licence = "not stated"  # the README asks for a citation only (read 2026-11-09); images from HICO-DET (train) and COCO (val)
+commercial = "unclear"
+url = "https://github.com/Fang-Haoshu/Halpe-FullBody/blob/70d6014c007c765adc65f5f0145d3f0999ab1135/README.md"
+
+[posetrack18]
+name = "PoseTrack 2018"
+licence = "not stated"  # no terms on the public pages (read 2026-11-09); any terms sit behind the download login
+commercial = "unclear"
+url = "https://posetrack.net/"
+
+[jhmdb]
+name = "sub-JHMDB (J-HMDB)"
+licence = "not stated"  # no terms on the public pages (read 2026-11-09); any terms sit behind the download login
+commercial = "unclear"
+url = "https://ps.is.mpg.de/publications/jhuang-iccv-2013"  # the dataset site jhmdb.is.tue.mpg.de serves no https
+
+[flyingchairs]
+name = "FlyingChairs (Freiburg)"
+licence = "LicenseRef-research-only"  # "provided for research purposes only ... Any commercial use is prohibited." (read 2026-11-09)
+commercial = "no"
+url = "https://lmb.informatik.uni-freiburg.de/resources/datasets/FlyingChairs.en.html"
+
+[sintel-flow]
+name = "MPI Sintel optical flow"
+licence = "LicenseRef-noncommercial"  # licence page: non-commercial research, education or artistic use only (read 2026-11-09)
+commercial = "no"
+url = "https://sintel.is.tue.mpg.de/license"
+
+[hd1k]
+name = "HCI HD1K optical flow benchmark"
+licence = "not stated"  # the site did not answer when checked (2026-11-09); no terms verified
+commercial = "unclear"
+url = "https://hci-benchmark.iwr.uni-heidelberg.de/"
+
+[spring]
+name = "Spring (scene flow / optical flow / stereo, University of Stuttgart)"
+licence = "CC-BY-4.0"  # DaRUS record doi:10.18419/darus-3376 (version 2): licence "CC BY 4.0" (read 2026-11-09)
+commercial = "yes"
+url = "https://spring-benchmark.org/"
+
+[megadepth]
+name = "MegaDepth (Internet photo collections with SfM / MVS depth)"
+licence = "CC-BY-4.0"  # "is licensed under a Creative Commons Attribution 4.0 International License"; "The original images come with their own licenses" (read 2026-11-12)
+commercial = "unclear"
+url = "https://www.cs.cornell.edu/projects/megadepth/"
+
+[dis5k]
+name = "DIS5K (dichotomous image segmentation)"
+licence = "LicenseRef-noncommercial"  # terms of use PDF (read 2026-11-15): "available for non-commercial use in research or educational purpose"; "commercial use of this dataset is prohibited"; redistribution prohibited
+commercial = "no"
+url = "https://github.com/xuebinqin/DIS/blob/b6764e20381f6f42a70f83fa3324181529ed1403/DIS5K-Dataset-Terms-of-Use.pdf"
+
+[duts]
+name = "DUTS (salient object detection)"
+licence = "not stated"  # the official page (read 2026-11-15) only says "All rights reserved by the original authors of DUTS Image Dataset"; no licence or terms of use
+commercial = "unclear"
+url = "https://saliencydetection.net/duts/"
+
+[hrsod]
+name = "HRSOD (high-resolution salient object detection)"
+licence = "not stated"  # the README (read 2026-11-15) states no licence or terms for the dataset
+commercial = "unclear"
+url = "https://github.com/yi94code/HRSOD/blob/166e6d7f433277c1f55c08d145732b7219f675e5/README.md"
+
+[uhrsd]
+name = "UHRSD (ultra-high-resolution salient object detection)"
+licence = "not stated"  # the README (read 2026-11-15) states no dataset terms (the repository LICENSE is MIT, for the code)
+commercial = "unclear"
+url = "https://github.com/iCVTEAM/PGNet/blob/fe79ada06f2f957b17dd3eaac176b6aed8de7be3/README.md"
+
+[hrs10k]
+name = "HRS10K (high-resolution salient object detection)"
+licence = "not stated"  # terms could not be read: the dataset repository github.com/DrowsyMon/HRS10K returns 404 (2026-11-15); url is the paper
+commercial = "unclear"
+url = "https://openaccess.thecvf.com/content/ICCV2021/html/Tang_Disentangled_High_Quality_Salient_Object_Detection_ICCV_2021_paper.html"
+
+[p3m-10k]
+name = "P3M-10k (privacy-preserving portrait matting)"
+licence = "MIT"  # dataset release agreement (read 2026-11-15): "The Dataset is under MIT license"; images collected from sites with free-use licences, copyright with the original owners
+commercial = "yes"
+url = "https://jizhizili.github.io/files/p3m_dataset_agreement/P3M-10k_Dataset_Release_Agreement.pdf"
+
+[prama-internal]
+name = "Prama LLC proprietary segmentation data"
+licence = "not stated"  # BEN2 card: "our 22K proprietary segmentation dataset"
+commercial = "unclear"
+url = "https://huggingface.co/PramaLLC/BEN2/blob/e48a20765fb421d19dcdb0bf3cc61e802ca5ec8f/README.md"
+
+[bria-internal]
+name = "BRIA proprietary background-removal data"
+licence = "not stated"  # RMBG-2.0 card: "over 15,000 high-quality, high-resolution, manually labeled (pixel-wise accuracy), fully licensed images"
+commercial = "unclear"
+url = "https://huggingface.co/briaai/RMBG-2.0/blob/2fd7b4b0f2393ddb39a267fb62df6c010928a6c6/README.md"
+
+[composition-1k]
+name = "Composition-1k (Adobe Deep Image Matting)"
+licence = "LicenseRef-research-only"  # Adobe research licence on request: the DIM dataset is shared by Adobe on request for non-commercial research (page renders by script, not re-read 2026-11-15)
+commercial = "no"
+url = "https://sites.google.com/view/deepimagematting"
+
+[realestate10k]
+name = "RealEstate10K (camera trajectories of YouTube real-estate videos)"
+licence = "CC-BY-4.0"  # the released camera files; the frames are downloaded from YouTube under the videos' own terms
+commercial = "unclear"
+url = "https://google.github.io/realestate10k/"
+
+[dl3dv]
+name = "DL3DV-10K (multi-view real-world scenes for 3D vision)"
+licence = "CC-BY-NC-4.0"  # the dataset's terms of use: non-commercial research and education
+commercial = "no"
+url = "https://dl3dv-10k.github.io/DL3DV-10K/"
+
+[vimeo90k]
+name = "Vimeo-90K (septuplets / triplets for frame interpolation)"
+licence = "not stated"  # clips from vimeo.com under their uploaders' terms; the page asks only for a citation
+commercial = "unclear"
+url = "https://toflow.csail.mit.edu/"
+
+[gsv-cities]
+name = "GSV-Cities (Google Street View images of 62k places in 40 cities)"
+licence = "not stated"  # the README (read 2026-11-15) states no licence or terms
+commercial = "unclear"
+url = "https://github.com/amaralibey/gsv-cities/blob/77ffffc23115e5ba966e108895343693ec49cbb2/README.md"
+
+[msls]
+name = "Mapillary Street-Level Sequences"
+licence = "CC-BY-NC-SA-4.0"  # Mapillary's MSLS terms (research use), not re-read for the retrieval ports (2026-11-13)
+commercial = "no"
+url = "https://www.mapillary.com/dataset/places"
+
+[megascenes]
+name = "MegaScenes (Internet photo collections of scenes from Wikimedia Commons)"
+licence = "not stated"  # the project page (read 2026-11-15) states no licence or terms
+commercial = "unclear"
+url = "https://megascenes.github.io/"
+
+[scannet]
+name = "ScanNet (RGB-D scans of indoor scenes)"
+licence = "LicenseRef-noncommercial"  # ScanNet Terms of Use: non-commercial research terms, not re-read for the retrieval ports (2026-11-13)
+commercial = "no"
+url = "https://web.archive.org/web/20261110140340/http://www.scan-net.org/"
+
+[sf-xl]
+name = "San Francisco eXtra Large (street-view images of San Francisco)"
+licence = "not stated"  # terms could not be read: the dataset is behind a Google Form (2026-11-15); the CosPlace README states none (code MIT)
+commercial = "unclear"
+url = "https://github.com/gmberton/CosPlace/blob/52b56e95ea62245281281f3bafd7b9390d19a0fd/README.md"
+
+[openpano]
+name = "OpenPano (perspective crops of public 360-degree panoramas: PolyHaven, HDRMaps, AmbientCG, BlenderKit)"
+licence = "not stated"  # mixed: per-source terms (PolyHaven / AmbientCG CC0, HDRMaps and BlenderKit their own), not re-read for the calibration ports (2026-11-13)
+commercial = "unclear"
+url = "https://github.com/cvg/GeoCalib/blob/1dedb29f94fc11b896c5f572005978aeebccd67f/siclib/datasets/README.md"
+[div2k]
+name = "DIV2K (NTIRE 2017 super-resolution, 1000 2K images)"
+licence = "LicenseRef-research-only"  # academic research only; images collected from the Internet, copyright with their owners
+commercial = "no"
+url = "https://data.vision.ee.ethz.ch/cvl/DIV2K/"
+
+[gopro]
+name = "GoPro deblurring (GOPRO_Large, Nah et al. 2017: 3214 blurred / sharp frame pairs)"
+licence = "CC-BY-4.0"  # "GOPRO dataset is released under CC BY 4.0 license" (official page, read 2026-11-14)
+commercial = "yes"
+url = "https://seungjunnah.github.io/Datasets/gopro"
+
+[sidd]
+name = "Smartphone Image Denoising Dataset (SIDD, noisy / ground-truth smartphone photos)"
+licence = "MIT"  # "The dataset and the associated code repositories are under the MIT License." (official page, read 2026-11-14)
+commercial = "yes"
+url = "https://abdokamel.github.io/sidd/"
+
+[rain13k]
+name = "Rain13K (13712 synthetic rainy / clean pairs merged from Rain14000, Rain1800, Rain800, Rain12; MPRNet's training set)"
+licence = "not stated"  # the source sets state no terms; collected images of mixed origin
+commercial = "unclear"
+url = "https://github.com/swz30/Restormer/blob/68dc6ac472db26f16361150cb7a96a1bc87da93f/Deraining/README.md"
+
+[flickr2k]
+name = "Flickr2K (2650 2K Flickr images, EDSR)"
+licence = "not stated"  # Flickr photos under their uploaders' terms
+commercial = "unclear"
+url = "https://github.com/limbee/NTIRE2017/blob/db34606c2844e89317aac8728a2de562ef1f8aba/README.md"
+
+[ost]
+name = "OutdoorSceneTraining (OST, SFTGAN)"
+licence = "not stated"  # images collected from the Internet
+commercial = "unclear"
+url = "https://github.com/xinntao/SFTGAN/blob/d98889e9f94e44a788cc0ffeaaca77ca76556638/README.md"
+
+[ffhq]
+name = "Flickr-Faces-HQ (FFHQ, 70k face images)"
+licence = "CC-BY-NC-SA-4.0"  # the dataset (NVIDIA); the images: their Flickr authors' CC BY / BY-NC / public-domain terms
+commercial = "no"
+url = "https://github.com/NVlabs/ffhq-dataset/blob/4826aa6ea77aa7f1a7802b938ed7c40afb985cda/README.md"
+
+[wider-face]
+name = "WIDER FACE (32k images, 394k labelled faces)"
+licence = "LicenseRef-research-only"  # "The WIDER FACE dataset is available for non-commercial research purposes only."
+commercial = "no"
+url = "https://web.archive.org/web/20261014221817/http://shuoyang1213.me/WIDERFACE/"
+
+[manga109]
+name = "Manga109 (109 Japanese manga volumes)"
+licence = "LicenseRef-research-only"  # academic research only; Manga109-s is the subset for commercial use
+commercial = "no"
+url = "https://web.archive.org/web/20261022181634/https://manga109.github.io/manga109-project-website/en/index.html"
+
+[wed]
+name = "Waterloo Exploration Database (4744 natural images)"
+licence = "not stated"  # images collected from the Internet
+commercial = "unclear"
+url = "https://ece.uwaterloo.ca/~k29ma/exploration/"
+
+[scut-ctw1500]
+name = "SCUT-CTW1500 (curved scene text)"
+licence = "not stated"  # the page asks for a citation only
+commercial = "unclear"
+url = "https://github.com/Yuliang-Liu/Curve-Text-Detector/blob/2126a660d3baf3e84a76e77352597576519c35a2/README.md"
+
+[supervisely-person]
+name = "Supervisely Person Dataset (human segmentation)"
+licence = "LicenseRef-noncommercial"  # dataset page (read 2026-11-15): "made freely available to academic and non-academic entities for non-commercial purposes"; images from pexels.com under its terms
+commercial = "no"
+url = "https://ecosystem.supervisely.com/projects/persons"
+
+[danbooru]
+name = "Danbooru (anime illustrations with community tags; WD taggers: image ids up to 7 220 105)"
+licence = "not stated"  # images are uploaded artworks under their artists' copyright; the site states no dataset terms
+commercial = "unclear"
+url = "https://danbooru.donmai.us/"
+
+[falconsai-nsfw]
+name = "Falconsai proprietary NSFW data (about 80 000 images, normal / nsfw)"
+licence = "not stated"  # Falconsai/nsfw_image_detection card: "a proprietary dataset"
+commercial = "unclear"
+url = "https://huggingface.co/Falconsai/nsfw_image_detection/blob/96cb0d0342c7afb80cab76ecc58b265fa44da256/README.md"
+
+[atr]
+name = "ATR human parsing dataset (18 clothes / body-part classes; SegFormer-B2 clothes: Hugging Face mirror mattmdjaga/human_parsing_dataset)"
+licence = "not stated"  # the README only asks for a citation "for acadamic and commercial research"; no licence
+commercial = "unclear"
+url = "https://github.com/lemondan/HumanParsing-Dataset/blob/837a281e75fae55ad42afed432533cf3cb2ce347/README.md"
+
+[celebamask-hq]
+name = "CelebAMask-HQ (30 000 CelebA-HQ faces, 19 face-part masks)"
+licence = "LicenseRef-noncommercial"  # "available for non-commercial research purposes only"
+commercial = "no"
+url = "https://github.com/switchablenorms/CelebAMask-HQ/blob/3f6c45df5e67130568f9459f24f8d6a5ff836d30/README.md"
+
+[totalsegmentator-ct]
+name = "TotalSegmentator dataset v2 (1228 CT scans, 117 structures)"
+licence = "CC-BY-4.0"
+commercial = "yes"
+url = "https://zenodo.org/records/10047292"
+
+[nomos-v2]
+name = "Nomos-v2 (neosr's 6000-image multipurpose super-resolution set)"
+licence = "not stated"  # neosr's readme lists it with a Google Drive link and no terms; sources of the images not named
+commercial = "unclear"
+url = "https://github.com/neosr-project/neosr/blob/31c7022620c682cf0961c8634d60787179145c5b/readme.md#-datasets"
+
+[phrasecut]
+name = "PhraseCut (referring-phrase masks on Visual Genome images)"
+licence = "not stated"  # the dataset repository has no licence file and its README states no terms (read 2026-11-14); the images are Visual Genome's
+commercial = "unclear"
+url = "https://github.com/ChenyunWu/PhraseCutDataset/blob/276470b7773d8a230aee5b5536876fbc485fb04b/README.md"
+
+[places365]
+name = "Places365-Challenge (8 M scene images, 365 categories)"
+licence = "LicenseRef-noncommercial"  # non-commercial research and educational use; terms of use on the download page; the images are Flickr / web photos
+commercial = "no"
+url = "https://web.archive.org/web/20261105071009/http://places2.csail.mit.edu/download.html"
+
+[biped]
+name = "BIPED (Barcelona Images for Perceptual Edge Detection)"
+licence = "LicenseRef-research-only"  # "freely available ... for non-commercial purposes such as academic research"
+commercial = "no"
+url = "https://github.com/xavysp/MBIPED/blob/91473d4ac10b36ae784e194d3e73b1497b7a0457/README.md"
+
+[vm800]
+name = "VM800 (MatAnyone video matting foregrounds)"
+licence = "not stated"  # not released; MatAnyone doc/TRAIN.md: "Due to licensing restrictions, the VM800 dataset cannot be publicly released"
+commercial = "no"
+url = "https://github.com/pq-yang/MatAnyone/blob/e5ddc534c1fff9bb9e54cf476095d29071b7cb4f/doc/TRAIN.md"
+
+[distinctions-646]
+name = "Distinctions-646 (image matting)"
+licence = "not stated"  # terms could not be read: the project page returns 404 (2026-11-15); shared on request
+commercial = "unclear"
+url = "https://wukaoliu.github.io/HAttMatting/"
+
+[bg20k]
+name = "BG-20k (background images)"
+licence = "MIT"  # dataset release agreement (read 2026-11-15): "The Dataset is under MIT license"; images collected from sites with free-use licences, copyright with the original owners
+commercial = "yes"
+url = "https://jizhizili.github.io/files/gfm_datasets_agreements/BG-20k_Dataset_Release_Agreement.pdf"
+
+[dvm-background]
+name = "DVM background set (video backgrounds)"
+licence = "not stated"  # the README (read 2026-11-15) states no licence or terms
+commercial = "unclear"
+url = "https://github.com/nowsyn/DVM/blob/c045693867c9397ed3eb635cea7c6f2cba6c02c3/README.md"
+
+[youtube-vis-2021]
+name = "YouTube-VIS 2021 (video instance segmentation)"
+licence = "not stated"  # the official page (read 2026-11-15) states no licence or terms
+commercial = "unclear"
+url = "https://youtube-vos.org/dataset/vis/"

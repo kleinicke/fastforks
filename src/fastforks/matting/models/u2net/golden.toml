@@ -1,0 +1,52 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.02
+gpu_p99 = 0.25
+
+[refs."u2net-human-seg@1"]
+sha256 = "271f478c64bd40906ee9da01d62a96a3b51e0dc90c86b402943546c00bc05080"
+upstream = "https://github.com/xuebinqin/U-2-Net@ac7e1c817ecab7c7dff5ce6b1abba61cd213ff29"
+settings = "CPU float32, model/u2net.py, 320x320 bilinear antialiased, divide by the max, ImageNet normalisation, d0, min-max, bilinear back, coffee.png, torch 2.14.1+cu130"
+
+[refs."u2net@1"]
+sha256 = "639bf936ec67085d11e8bda8360152ad3b43340d696074b96bdb8de9d5a0a28a"
+upstream = "https://github.com/xuebinqin/U-2-Net@ac7e1c817ecab7c7dff5ce6b1abba61cd213ff29"
+settings = "CPU float32, model/u2net.py, 320x320 bilinear antialiased, divide by the max, ImageNet normalisation, d0, min-max, bilinear back, coffee.png, torch 2.14.1+cu130"
+
+[refs."u2netp@1"]
+sha256 = "ca4e6af64a41a1f22e11ce0a7ef39a225239f1a3226f56d1da0e1384e3ac3f45"
+upstream = "https://github.com/xuebinqin/U-2-Net@ac7e1c817ecab7c7dff5ce6b1abba61cd213ff29"
+settings = "CPU float32, model/u2net.py, 320x320 bilinear antialiased, divide by the max, ImageNet normalisation, d0, min-max, bilinear back, coffee.png, torch 2.14.1+cu130"
+
+[validated."u2net-human-seg@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00033
+p99_px = 0.00492
+
+[validated."u2net@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00022
+p99_px = 0.00703
+
+[validated."u2netp@1"]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00073
+p99_px = 0.02029

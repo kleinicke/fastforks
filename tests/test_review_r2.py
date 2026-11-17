@@ -15,26 +15,49 @@ from fastforks import InputError
 from fastforks._core import model as core_model
 from fastforks._core import registry
 from fastforks._core.tasks import spec
+from fastforks.calibration import CalibrationResult
 from fastforks.classification import ClassificationResult
 from fastforks.depth import DepthResult
 from fastforks.detection import DetectionResult
+from fastforks.edges import EdgesResult
 from fastforks.features import FeaturesResult
+from fastforks.flow import FlowResult
+from fastforks.interpolation import InterpolationResult
+from fastforks.matching import MatchingResult, SparseMatchingResult
+from fastforks.matting import MattingResult
 from fastforks.multiview import MultiViewResult
+from fastforks.ocr import OCRResult
+from fastforks.pose import PoseResult
 from fastforks.promptable_segmentation._api import ConceptSegmentationResult, PromptableSegmentationResult
+from fastforks.restoration import RestorationResult
+from fastforks.retrieval import RetrievalResult
 from fastforks.segmentation import SegmentationResult
 from fastforks.stereo import StereoResult
-from fastforks.stereo.calibrated import PairViews, StereoPairResult, StereoView
-from fastforks.stereo.pipeline import PairResult
+from fastforks.stereo.calibrated import PairViews, StereoView
+from fastforks.tracking import TrackingResult
+from fastforks.volume import VolumeFeatures, VolumeMask, VolumeResult
 
 RESULTS = {
-    "stereo": (StereoResult, StereoView, PairViews, StereoPairResult, PairResult),
+    "stereo": (StereoResult, StereoView, PairViews),
     "depth": (DepthResult,),
     "multiview": (MultiViewResult,),
     "detection": (DetectionResult,),
+    "pose": (PoseResult,),
+    "flow": (FlowResult,),
+    "matching": (MatchingResult, SparseMatchingResult),
+    "matting": (MattingResult,),
+    "edges": (EdgesResult,),
+    "ocr": (OCRResult,),
+    "interpolation": (InterpolationResult,),
+    "retrieval": (RetrievalResult,),
+    "calibration": (CalibrationResult,),
+    "restoration": (RestorationResult,),
     "features": (FeaturesResult,),
     "classification": (ClassificationResult,),
     "promptable_segmentation": (PromptableSegmentationResult, ConceptSegmentationResult),
     "segmentation": (SegmentationResult,),
+    "tracking": (TrackingResult,),
+    "volume": (VolumeResult, VolumeFeatures, VolumeMask),
 }
 
 

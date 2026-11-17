@@ -19,7 +19,7 @@ Covered architectures (kernels; validated on the fast-vision-models zoo checkpoi
     torchvision: AlexNet, VGG, Inception3, ResNet, DenseNet, SqueezeNet, MobileNetV2 / V3, ShuffleNetV2, EfficientNet
         (V1 / V2), RegNet.
     timm: ResNet, EfficientNet / MobileNetV3-class nets (MobileNet V1 / V4, EfficientNet), FastVit, EfficientVit (MIT),
-        ConvNeXt (V1 / V2), Swin, VisionTransformer-style `Block`s (ViT, DeiT, DINOv2, SigLIP), Eva (EVA-02).
+        RepVit, ConvNeXt (V1 / V2), Swin, VisionTransformer-style `Block`s (ViT, DeiT, DINOv2, SigLIP), Eva (EVA-02).
     transformers: SigLIP / SigLIP 2 vision towers (`SiglipEncoderLayer`).
 """
 
@@ -28,13 +28,14 @@ from __future__ import annotations
 import copy
 import itertools
 import logging
+import platform
 from typing import TYPE_CHECKING, Any
 
 import torch
 from torch import fx, nn
 
 from fastforks._core.deferred_init import float32_default
-from fastforks._core.errors import BackendUnavailableError, OptionsError
+from fastforks._core.errors import BackendUnavailableError, KernelUnavailableError, OptionsError
 from fastforks._core.half import fp16_accumulate  # re-exported: `fastforks._optimize.fp16_accumulate`
 from fastforks._core.kernels import cuda_device
 from fastforks._core.model import Backend, dtype_name, resolve_device
@@ -56,7 +57,7 @@ _CNN = frozenset({
     "AlexNet", "VGG", "Inception3", "ResNet", "DenseNet", "SqueezeNet", "MobileNetV2", "MobileNetV3", "ShuffleNetV2",
     "EfficientNet", "RegNet",
     # timm (ResNet / EfficientNet / MobileNetV3 shared above)
-    "FastVit", "EfficientVit", "MobileNetV4",
+    "FastVit", "EfficientVit", "MobileNetV4", "RepVit",
 })  # fmt: skip
 COVERED: dict[str, tuple[str, ...]] = {
     "cnn": tuple(sorted(_CNN)),
@@ -329,7 +330,9 @@ def patch(
     try:  # the kernels checks run before the model is touched; a covered model without a kernels pass returns portable
         fast = optimize(model, mode="kernels", device=device, auto=True)
     except BackendUnavailableError as e:
-        log.info("%s: %s; using portable", name, e)
+        # as `load`: a kernel library failing on the GPU is a WARNING; by design (architecture, CPU, hooks) INFO
+        level = logging.WARNING if isinstance(e, KernelUnavailableError) else logging.INFO
+        log.log(level, "%s: %s; using portable", name, e)
         return _replaced(optimize(model, mode="portable", device=device), name)
     log.info("%s: using %s", name, fast.mode)
     return _replaced(fast, name)
@@ -346,19 +349,21 @@ def _replaced(fast: FastModel, name: str) -> FastModel:
     return fast
 
 
-def optimize(
+def optimize(  # noqa: C901, PLR0913 - the one entry point: argument checks, then the pass pipeline
     model: nn.Module,
     *,
     mode: str = "portable",
     device: torch.device | str | None = None,
     fp16: bool = True,
     auto: bool = False,
+    family: str | None = None,
 ) -> FastModel:
     """Optimize a timm / torchvision / HF transformers classifier in place (the engine behind `patch`).
 
     `fp16=False` keeps portable CUDA / MPS weights float32 (no fp16 GEMMs; the registry runners' `dtype="float32"`);
     `kernels` is always fp16. `auto`: a covered model on which no kernels pass applies comes back portable instead of
-    raising (`patch(mode="auto")`).
+    raising (`patch(mode="auto")`). `family` (a `COVERED` key): the architecture family of a registry network that its
+    class names do not reveal (e.g. `"cnn"`: a plain conv / SiLU / concat / pool net of our own).
     """
     if mode not in MODES:
         msg = f"optimize: mode must be one of {MODES}, got {mode!r}"
@@ -368,7 +373,10 @@ def optimize(
         raise OptionsError(msg)
     dev = _device(model, device)
     names = {type(m).__name__ for m in model.modules()}
-    family = _family(names)
+    if family is not None and family not in COVERED:
+        msg = f"optimize: family must be one of {sorted(COVERED)}, got {family!r}"
+        raise OptionsError(msg)
+    family = family or _family(names)
     if mode == "kernels":
         if dev.type != "cuda":
             msg = f"optimize(mode='kernels') needs a CUDA device, got {dev}"
@@ -432,10 +440,17 @@ def _optimize(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917 - one pass pipe
     net: nn.Module = model
     if conv_like:
         net, rep = fold.fold_bn(model)
+        net.to(dev)  # timm's re-parameterization (TinyViT `ConvNorm.fuse`) builds its fused convs on the CPU
         report.update(rep)
+        if isinstance(net, fx.GraphModule):  # before `.half()`: the LayerScale gammas fold into float32 weights
+            from . import cnn  # noqa: PLC0415
+
+            report["nls"] = cnn.fold_layer_scale(net)  # portable too: one broadcast multiply fewer per block
     if half:
         net = net.half()
-    cpu_cl = dev.type == "cpu" and conv_like  # oneDNN: channels_last convolutions run 12-30 % faster (cpu_speed.md)
+    # oneDNN (x86): channels_last convs run 12-30 % faster (cpu_speed.md); on Apple / ARM CPUs far slower
+    # (depthwise convs fall to `_slow_conv2d`: YuNet 9x, NAFNet 5x)
+    cpu_cl = dev.type == "cpu" and conv_like and platform.machine().lower() in {"x86_64", "amd64"}
     if cuda or cpu_cl:
         net = net.to(memory_format=torch.channels_last)
     report["fp16"] = half
@@ -460,6 +475,11 @@ def _optimize(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917 - one pass pipe
         n = transformer.patch_eva(net)
         report["eva_blocks"] = n
         nmax += n
+        n = transformer.patch_pe(net, mode)
+        report["pe_blocks"] = n
+        nmax += n
+    elif "EvaBlock" in names:
+        report["pe_blocks"] = transformer.patch_pe(net, mode)
     if "Block" in names:
         n = transformer.patch_vit_blocks(net, mode)
         report["vit_blocks"] = n
@@ -506,7 +526,7 @@ def _fuse_cnn(gm: fx.GraphModule, names: set[str], report: dict[str, Any]) -> in
     from . import blocks, cnn  # noqa: PLC0415
 
     n = cnn.fuse_all(gm)
-    for k in ("nls", "npad", "raw_input", "pad8", "nbnact", "ninto", "nmergecat", "ncatinto", "npool", "nstempool"):
+    for k in ("npad", "raw_input", "pad8", "nbnact", "ninto", "nmergecat", "ncatinto", "npool", "nstempool"):
         report[k] = int(getattr(gm, k, 0))
     report["xdw"] = cnn.fuse_xdw(gm)
     if "LiteMLA" in names:

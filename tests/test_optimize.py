@@ -9,6 +9,7 @@ import torch
 import torch.nn.functional as F
 from torch import fx, nn
 
+from fastforks._core.deferred_init import deferred_init
 from fastforks._core.errors import BackendUnavailableError, OptionsError
 from fastforks._optimize import COVERED, FastModel, _family, cnn, fold, optimize, patch
 
@@ -157,6 +158,31 @@ def test_timm_vit_portable_cpu():
         torch.testing.assert_close(fast(x), ref(x), rtol=1e-3, atol=1e-4)
 
 
+@pytest.mark.slow  # ~1.5 s (timm build + fx trace)
+def test_timm_repvit_fused_inside_deferred_init():
+    timm = pytest.importorskip("timm")
+
+    def build() -> torch.nn.Module:
+        return timm.models.repvit.RepVit(embed_dim=(8, 16), depth=(1, 1), num_classes=10).eval()
+
+    ref = build()
+    for m in ref.modules():
+        if isinstance(m, torch.nn.modules.batchnorm._BatchNorm):
+            m.weight.data.uniform_(0.5, 2)  # timm starts some at 0; trained ones are not
+            m.running_mean.normal_()
+            m.running_var.uniform_(0.5, 2)
+    with deferred_init():  # as `load` builds a network; timm's `fuse()` writes the fused weights through `.data`
+        net = build()
+        net.load_state_dict(ref.state_dict())
+        fast = optimize(net, mode="portable")
+    assert fast.report["family"] == "cnn"
+    assert fast.report["reparam"] == 1
+    assert not any(isinstance(m, torch.nn.modules.batchnorm._BatchNorm) for m in fast.modules())
+    x = torch.randn(2, 3, 32, 32)
+    with torch.no_grad():
+        torch.testing.assert_close(fast(x), ref(x), rtol=1e-3, atol=1e-4)
+
+
 def test_patch_public_and_auto_falls_back_to_portable(caplog: pytest.LogCaptureFixture):
     import fastforks  # noqa: PLC0415
 
@@ -205,6 +231,33 @@ def test_patch_auto_cuda():
     x = torch.randn(2, 3, 64, 64, device="cuda")
     with torch.no_grad():
         torch.testing.assert_close(fast(x).float(), ref(x), rtol=2e-2, atol=2e-2)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("act", ["gelu", "gelu_tanh"])
+@pytest.mark.parametrize("arch", ["convnext", "swin"])
+def test_kernels_cover_timm_blocks_with_either_gelu(arch, act):
+    """ConvNeXt / Swin blocks with exact or tanh GELU (WD ConvNeXt tagger) take the kernel path and match fp32."""
+    if not torch.cuda.is_available():
+        pytest.skip("needs CUDA")
+    timm = pytest.importorskip("timm")
+    torch.manual_seed(0)
+    if arch == "convnext":
+        m = timm.models.convnext.ConvNeXt(depths=(1, 1, 1, 1), dims=(32, 64, 96, 128), num_classes=10, act_layer=act)
+    else:
+        m = timm.models.swin_transformer.SwinTransformer(
+            img_size=64, patch_size=4, window_size=4, embed_dim=32, depths=(2, 2), num_heads=(2, 4), num_classes=10
+        )
+        for blk in m.modules():  # timm's Swin builds its MLP with exact GELU only
+            if isinstance(blk, timm.layers.Mlp) and act == "gelu_tanh":
+                blk.act = timm.layers.activations.GELUTanh()
+    m = m.eval()
+    ref = copy.deepcopy(m).cuda()
+    fast = optimize(m, mode="kernels", device="cuda")
+    assert fast.backend.mode == "kernels"
+    x = torch.randn(2, 3, 64, 64, device="cuda")
+    with torch.no_grad():
+        torch.testing.assert_close(fast(x).float(), ref(x), rtol=3e-2, atol=3e-2)
 
 
 def test_cpu_conv_net_runs_channels_last_with_identical_output():
@@ -364,3 +417,54 @@ def test_kernel_passes_leave_a_conv_with_a_second_use_alone(second_use):
     gm = fx.symbolic_trace(_Stem(second_use=second_use))
     assert cnn.pad_stem(gm) is not second_use
     assert gm.stem.weight.shape[1] == (3 if second_use else 8)
+
+
+class _DeviceCache(nn.Module):
+    """Conv + BN whose forward caches a derived tensor per device, as timm's attention bias tables do."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.conv, self.bn = nn.Conv2d(3, 4, 1), nn.BatchNorm2d(4)
+        self.bias = nn.Parameter(torch.randn(4, 1, 1))
+        self.cache: dict[str, torch.Tensor] = {}
+
+    def forward(self, x):
+        key = str(x.device)
+        if key not in self.cache:
+            self.cache[key] = self.bias * 2
+        return self.bn(self.conv(x)) + self.cache[key]
+
+
+def test_fold_leaves_no_proxy_in_a_forward_cache():
+    """Each fold pass traces the model; a Proxy cached by one trace must not reach the next one (EfficientFormer)."""
+    torch.manual_seed(0)
+    m = _DeviceCache().eval()
+    x = torch.randn(1, 3, 4, 4)
+    with torch.inference_mode():
+        want = copy.deepcopy(m)(x)
+        net, _ = fold.fold_bn(m)
+        assert (net(x) - want).abs().max() < 1e-5
+    assert not any(isinstance(v, fx.Proxy) for mod in m.modules() for v in getattr(mod, "cache", {}).values())
+
+
+def test_convnext_layer_scale_fold_adds_no_weight_copy():
+    """The layer scale is folded into fc2 itself: the folded `_w2` shares the parameter's storage, outputs unchanged."""
+    timm = pytest.importorskip("timm")
+    torch.manual_seed(0)
+    m = timm.models.convnext.ConvNeXt(depths=(1, 1, 1, 1), dims=(32, 64, 96, 128), num_classes=10, ls_init_value=0.5)
+    m = m.eval()
+    x = torch.randn(1, 3, 64, 64)
+    with torch.no_grad():
+        want = copy.deepcopy(m)(x)
+        fast = optimize(m, mode="portable", device="cpu")
+        got = fast(x)
+    assert fast.report["convnext_blocks"] == 4
+    seen: dict[int, int] = {}
+    for t in [*fast.net.parameters(), *fast.net.buffers()]:
+        seen[t.untyped_storage().data_ptr()] = t.untyped_storage().nbytes()
+    own = sum(
+        p.untyped_storage().nbytes()
+        for p in {p.untyped_storage().data_ptr(): p for p in fast.net.parameters()}.values()
+    )
+    assert sum(seen.values()) == own  # no buffer owns storage a parameter does not
+    torch.testing.assert_close(got, want, rtol=1e-4, atol=1e-5)

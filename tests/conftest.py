@@ -1,13 +1,23 @@
 from __future__ import annotations
 
 import gc
+import os
 import shutil
 import sys
 
 import pytest
 
-from fastforks._core import registry
+from fastforks._core import files, registry
 from fastforks._core.errors import BackendUnavailableError
+
+DEFAULT_CACHES_ENV = "FF_TEST_DEFAULT_CACHES"
+# `FF_TEST_DEFAULT_CACHES=1`: the machine's real (fastforks cache, HF hub cache, TORCH_HOME), read once at import,
+# before any test changes the environment; tests read them (never write) next to their isolated caches.
+_REAL = (
+    (files.cache_root(), files.hf_hub_cache(), files.torch_hub_checkpoints().parent.parent)
+    if os.environ.get(DEFAULT_CACHES_ENV)
+    else None
+)
 
 
 @pytest.fixture(autouse=True)
@@ -18,10 +28,16 @@ def _isolated_cache(request, tmp_path, monkeypatch, _weight_stamps):
     `model` tests share the SHA-256 stamps of the real weights they verified (only `stamps/`, nothing else of the
     cache): each test otherwise hashed every weight file again (125 GB for the CPU goldens alone). The caches
     are removed after the test."""
+    default_caches = _REAL
     cache = tmp_path / "cache"
     monkeypatch.setenv("FASTFORKS_CACHE", str(cache))
     monkeypatch.setenv("HF_HUB_CACHE", str(tmp_path / "hf_hub"))
     monkeypatch.setenv("TORCH_HOME", str(tmp_path / "torch_home"))
+    monkeypatch.delenv("FASTFORKS_READ_CACHES", raising=False)
+    if default_caches:  # offline weight runs: find weights in the machine's default locations, read-only
+        monkeypatch.setenv("FASTFORKS_READ_CACHES", str(default_caches[0]))
+        monkeypatch.setenv("HF_HUB_CACHE", str(default_caches[1]))
+        monkeypatch.setenv("TORCH_HOME", str(default_caches[2]))
     registry.cards.cache_clear()
     shared = request.node.get_closest_marker("model") is not None
     if shared and _weight_stamps.is_dir():
@@ -122,14 +138,21 @@ def _sweep_ref(item: pytest.Item) -> str | None:
 
 
 def pytest_collection_modifyitems(config, items):
-    """Tests marked `slow` are skipped without `--slow`. The ref-parametrized tests of `LOAD_ONCE` modules run as one
-    block, grouped by ref (in collection order within a ref), at the place of the first of them: `sweep_model` then
-    loads each model once. Tests do not depend on order."""
+    """Tests marked `slow` are skipped without `--slow`, tests marked `gpu` without a usable CUDA device. The
+    ref-parametrized tests of `LOAD_ONCE` modules run as one block, grouped by ref (in collection order within a ref),
+    at the place of the first of them: `sweep_model` then loads each model once. Tests do not depend on order."""
     if not config.getoption("--slow"):
         skip = pytest.mark.skip(reason="slow (> 1 s): --slow runs it")
         for item in items:
             if "slow" in item.keywords:
                 item.add_marker(skip)
+    gpu = [i for i in items if i.get_closest_marker("gpu")]
+    if gpu:
+        import torch  # noqa: PLC0415 - only when GPU tests were collected
+
+        if not torch.cuda.is_available():
+            for item in gpu:
+                item.add_marker(pytest.mark.skip(reason="gpu: no usable CUDA device"))
     block = [i for i in items if _sweep_ref(i) is not None]
     if block:
         first = items.index(block[0])

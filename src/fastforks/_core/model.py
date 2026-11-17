@@ -12,6 +12,9 @@ import dataclasses
 import difflib
 import functools
 import importlib
+import importlib.abc
+import importlib.machinery
+import inspect
 import json
 import logging
 import math
@@ -22,13 +25,13 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Literal, TypeVar, cast, get_args
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar, cast, get_args
 
 import torch
 
 from fastforks._core import mps, registry, warmup
-from fastforks._core.arguments import bind_error
-from fastforks._core.cards import Dtype  # noqa: TC001 - re-exported to the task APIs, which annotate with it
+from fastforks._core.arguments import bind_error, warn_renamed
+from fastforks._core.cards import Dtype, planned_reason, require_available
 from fastforks._core.checkpoint import mismatch_details, torch_mismatch
 from fastforks._core.deferred_init import deferred_init, float32_default
 from fastforks._core.errors import (
@@ -39,12 +42,15 @@ from fastforks._core.errors import (
     InputError,
     KernelUnavailableError,
     OptionsError,
+    UnknownOptionError,
     WeightsError,
 )
+from fastforks._core.files import stamped
 from fastforks._core.kernels import begin_call, checked, cuda_device
 from fastforks._core.runner import Context, Runner
 from fastforks._core.sizes import SizeRange, size_range
 from fastforks._core.tasks import spec
+from fastforks.shared.arena import compact_runner
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterator, Sequence
@@ -224,21 +230,58 @@ def _import_dynamo() -> None:
         t = threading.Thread(target=importlib.import_module, args=("torch._dynamo",))
         t.start()
         t.join()  # an import error is raised again by the caller's own import
+    _arm()
+
+
+def _arm() -> None:
     while _AFTER_DYNAMO:
         with contextlib.suppress(IndexError):  # another thread took the last one
             _AFTER_DYNAMO.pop()()
 
 
-_AFTER_DYNAMO: list[Callable[[], None]] = []  # `eager_in_compile` wrappers still to make, once dynamo is imported
+class _DynamoImported(importlib.abc.MetaPathFinder):
+    """Runs the waiting `_AFTER_DYNAMO` steps right after `torch._dynamo` is imported, by whoever imports it.
+
+    `torch.compile` imports it before it traces anything, so a caller's own `torch.compile` finds the eager wrappers
+    made; a process that never compiles never pays dynamo's ~1 s import.
+    """
+
+    def find_spec(self, name: str, path: Any, target: Any = None) -> Any:  # noqa: ANN401 - the finder protocol
+        if name != "torch._dynamo":
+            return None
+        with contextlib.suppress(ValueError):  # once
+            sys.meta_path.remove(self)
+        spec = importlib.machinery.PathFinder.find_spec(name, path, target)
+        if spec is not None and isinstance(spec.loader, importlib.machinery.SourceFileLoader):
+            run = spec.loader.exec_module
+
+            def exec_module(module: Any) -> None:  # noqa: ANN401 - the loader protocol
+                run(module)
+                _arm()
+
+            spec.loader.exec_module = exec_module  # ty: ignore[invalid-assignment] - this spec's own loader instance
+        return spec
+
+
+_AFTER_DYNAMO: list[Callable[[], None]] = []  # `torch.compiler.disable` wrappers still to make, once dynamo is imported
+if "torch._dynamo" not in sys.modules:
+    sys.meta_path.insert(0, _DynamoImported())
 _Fn = TypeVar("_Fn", bound="Callable[..., Any]")
 
 
-def eager_in_compile(fn: _Fn) -> _Fn:
-    """`fn`, run eagerly (untraced) when it is called inside a `Model.compile()` trace.
+def _after_dynamo(arm: Callable[[], None]) -> None:
+    """Run `arm` now if `torch._dynamo` is imported, else right after its import (~1 s: eager processes skip it)."""
+    if "torch._dynamo" in sys.modules:
+        arm()
+    else:
+        _AFTER_DYNAMO.append(arm)
 
-    `torch.compiler.disable` imports `torch._dynamo`, so the disabled function is not made here (at the import of
-    the caller's module) but by `_import_dynamo`, which `compile()` and every kernels load call first. A trace that
-    starts without it (a caller's own `torch.compile`) traces `fn`.
+
+def eager_in_compile(fn: _Fn) -> _Fn:
+    """`fn`, run eagerly (untraced) when it is called inside a `torch.compile` trace.
+
+    `torch.compiler.disable` imports `torch._dynamo`, so the disabled function is made only once dynamo is imported
+    (`_DynamoImported`), not at the import of the caller's module.
     """
     disabled: Callable[..., Any] | None = None
 
@@ -246,10 +289,7 @@ def eager_in_compile(fn: _Fn) -> _Fn:
         nonlocal disabled
         disabled = torch.compiler.disable(fn)
 
-    if "torch._dynamo" in sys.modules:
-        arm()
-    else:
-        _AFTER_DYNAMO.append(arm)
+    _after_dynamo(arm)
 
     @functools.wraps(fn)
     def call(*a: Any, **k: Any) -> Any:  # noqa: ANN401 - the wrapped function's own signature
@@ -265,7 +305,6 @@ def _kernels_entry_points(runner: Runner) -> None:
     launcher probes, else none). Dynamo would otherwise trace into the kernel launchers (RecursionError, then a silent
     eager run); outside a trace the check costs one `is_compiling()` call.
     """
-    _import_dynamo()  # `torch.compiler.disable` imports it
     base = type(runner)
 
     def opaque(name: str) -> Callable[..., Any]:
@@ -275,7 +314,13 @@ def _kernels_entry_points(runner: Runner) -> None:
         def run(self: Any, *a: Any, **k: Any) -> Any:  # noqa: ANN401 - the runner's bound method
             return checked(eager, self, *a, **k)
 
-        disabled = torch.compiler.disable(run)
+        disabled: Callable[..., Any] = run
+
+        def arm() -> None:
+            nonlocal disabled
+            disabled = torch.compiler.disable(run)
+
+        _after_dynamo(arm)  # not imported at load: dynamo's first import costs ~1 s
 
         @functools.wraps(eager)
         def call(self: Any, *a: Any, **k: Any) -> Any:  # noqa: ANN401 - the runner's bound method
@@ -285,6 +330,46 @@ def _kernels_entry_points(runner: Runner) -> None:
 
     names = {"__module__": base.__module__, "__qualname__": base.__qualname__}
     runner.__class__ = type(base.__name__, (base,), names | {name: opaque(name) for name in base.compiled_methods})
+
+
+def _listwise(fn: Callable[..., Any], images: int, per_input: tuple[str, ...]) -> Callable[..., Any]:
+    """`fn` (a model's `__call__`) with list in, list out.
+
+    A list of images (pair tasks: two equal-length lists) runs one call per image and returns the list of results.
+    A `per_input` argument given as a `list` is one item per image (the same length; item `i` goes with image `i`);
+    given as anything else (a tuple, an array, a tensor) it is one value shared by every call, as are all other
+    arguments. So `boxes=[b0, b1]` is per image, `boxes=(b0, b1)` is shared.
+    """
+    sig = inspect.signature(fn)
+    names = list(sig.parameters)[1 : 1 + images]
+    _seq = (list, tuple)
+
+    @functools.wraps(fn)
+    def call(self: object, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401 - the signature of `fn`
+        if not any(isinstance(a, _seq) for a in (*args[:images], *(kwargs.get(n) for n in names))):
+            return fn(self, *args, **kwargs)
+        bound = sig.bind(self, *args, **kwargs).arguments
+        lists = [bound.get(n) for n in names]
+        n = len(lists[0]) if isinstance(lists[0], _seq) else -1
+        if not all(isinstance(x, _seq) and len(x) == n for x in lists) or n == 0:
+            got = ", ".join(
+                f"{len(x)} {k}" if isinstance(x, _seq) else f"one {k}" for k, x in zip(names, lists, strict=True)
+            )
+            msg = f"give each image input as one image or all as non-empty lists of the same length (got {got})"
+            raise InputError(msg)
+        split = {}
+        for k in per_input:
+            v = bound.get(k)
+            if isinstance(v, list):
+                if len(v) != n:
+                    msg = f"{k}= as a list needs {n} items, one per image (a tuple is shared), got {len(v)}"
+                    raise InputError(msg)
+                split[k] = v
+        rest = {k: v for k, v in bound.items() if k != "self" and k not in names and k not in split}
+        seqs = cast("list[Sequence[Any]]", lists)
+        return [fn(self, *(x[i] for x in seqs), **rest, **{k: v[i] for k, v in split.items()}) for i in range(n)]
+
+    return call
 
 
 class Model:
@@ -307,10 +392,17 @@ class Model:
             `None` for the variant's recorded weights.
     """
 
+    _list_images: ClassVar[int] = 0
+    """Image arguments a list of images may replace (1 single-image, 2 pair tasks; 0: none, see `_listwise`)."""
+    _per_input: ClassVar[tuple[str, ...]] = ()
+    """Call arguments that come one per image (`_listwise`)."""
+
     def __init_subclass__(cls, **kwargs: Any) -> None:  # noqa: ANN401
-        """Wrap a `__call__` defined by a subclass (see `_typo_checked`)."""
+        """Wrap a `__call__` defined by a subclass (see `_listwise`, `_typo_checked`)."""
         super().__init_subclass__(**kwargs)
         if (fn := cls.__dict__.get("__call__")) is not None:
+            if cls._list_images:
+                fn = _listwise(fn, cls._list_images, cls._per_input)
             cls.__call__ = _typo_checked(fn)  # ty: ignore[invalid-assignment]
 
     def __init__(self, runner: Runner, backend: Backend, options: Mapping[str, Any]) -> None:
@@ -353,7 +445,7 @@ class Model:
             BackendUnavailableError: The backend has no exportable module (e.g. `kernels`).
         """
         try:
-            return self._runner.module()
+            return self._runner.module().eval()  # export traces no training-mode branches, whatever the runner built
         except NotImplementedError as e:
             msg = f"{self.variant.ref} ({self.backend.mode}) has no exportable module: {e}"
             raise BackendUnavailableError(msg) from e
@@ -380,6 +472,7 @@ class Model:
         Raises:
             BackendUnavailableError: The backend has no exportable module (`kernels`).
         """
+        require_available(self.variant, "compile")
         if self.backend.mode != "portable":
             msg = f"{self.variant.ref} ({self.backend.mode}): only the portable backend compiles (kernels are opaque)"
             raise BackendUnavailableError(msg)
@@ -422,13 +515,9 @@ class Model:
         return self
 
     def export_size(self) -> tuple[int, int] | None:
-        """Default `(height, width)` of `export_onnx` / `export_tensorrt`, or `None` if the task has none.
-
-        Classification (the card's crop), features (224) and promptable segmentation (the encoder side: 1024, SAM 3
-        1008) have one; stereo, depth, segmentation and detection do not: give a size inside `size_range()`.
-        """
-        side = size_range(self.variant, self.card).encoder if self.card.task == "promptable_segmentation" else 0
-        return (side, side) if side else spec(self.card.task).export_size
+        """The old name of `size_range().export_size` (warns; removed after 2026-12-15)."""
+        warn_renamed("model.export_size()", "model.size_range().export_size")
+        return self.size_range().export_size
 
     def size_range(self) -> SizeRange:
         """Input sizes this model accepts: min size, pad multiple, fixed size, and the largest size measured."""
@@ -450,7 +539,7 @@ class Model:
         override this.
 
         Args:
-            height: Image height in pixels; default (with `width`): `export_size()` where the task has one.
+            height: Image height in pixels; default (with `width`): `size_range().export_size` where the task has one.
             width: Image width in pixels.
             batch: Batch size.
 
@@ -466,7 +555,7 @@ class Model:
         height, width = resolve_size(self, height, width)
 
         names = spec(self.card.task).inputs
-        if names == ("left", "right"):
+        if names in {("left", "right"), ("image1", "image2")}:  # image pairs: a textured, shifted pair
             views = synthetic_pair(height, width, self.device)
         else:
             views = (synthetic_image(height, width, self.device),) * len(names)
@@ -492,8 +581,9 @@ class Model:
 
         Args:
             path: ONNX file to write.
-            height: Input height of the exported graph (fixed); default: `export_size()`; required if the task has none.
-            width: Input width (fixed); default: `export_size()`; required if the task has none.
+            height: Input height of the exported graph (fixed); default: `size_range().export_size`; required if the
+                task has none.
+            width: Input width (fixed); default: `size_range().export_size`; required if the task has none.
             batch: Batch size (fixed).
             size_range: `((min_h, min_w), (max_h, max_w))`: make height and width dynamic axes within these bounds
                 (traced at `(height, width)`); default: the fixed size.
@@ -525,8 +615,9 @@ class Model:
 
         Args:
             path: Engine file to write.
-            height: Input height of the engine (fixed); default: `export_size()`; required if the task has none.
-            width: Input width (fixed); default: `export_size()`; required if the task has none.
+            height: Input height of the engine (fixed); default: `size_range().export_size`; required if the task
+                has none.
+            width: Input width (fixed); default: `size_range().export_size`; required if the task has none.
             batch: Batch size (fixed).
             size_range: `((min_h, min_w), (max_h, max_w))`: a dynamic-shape engine with an optimization profile (min,
                 opt = `(height, width)`, max); not faster than a fixed engine, see export.md.
@@ -723,13 +814,15 @@ def _check_args(mode: str, dtype: str | torch.dtype | None) -> tuple[bool, Dtype
     return fp32, None if fp32 else cast("Dtype", name)
 
 
-def _no_auto_kernels(
+def _no_auto_kernels(  # noqa: PLR0911 - one return per reason
     card: ModelCard, variant: Variant, dev: torch.device, *, fp32: bool, want: Dtype | None
 ) -> str | None:
     """Why `mode='auto'` skips kernels for `variant` on `dev`, or None to try it."""
     kernels_dtype = card.kernels_dtype_on(dev)
     if "kernels" not in card.modes:
         return "no kernels backend"
+    if reason := planned_reason(variant, "kernels"):
+        return f"kernels planned for 0.2.1 ({reason})"
     if fp32 and kernels_dtype != "float32":
         return "dtype='float32'"
     if dev.type == "mps" and not card.mps_kernel_libs:
@@ -753,22 +846,52 @@ def load_model(  # noqa: PLR0913 - the arguments of every task's `load`
     weights: str | os.PathLike[str] | None = None,
 ) -> M:
     """Load `model` of `task` as a `cls`; see the task's `load` for the arguments and errors."""
-    log = logging.getLogger(f"fastforks.{task}")
     card, variant = registry.resolve(task, model)
+    return load_variant(
+        task, card, variant, cls, mode=mode, device=device, dtype=dtype, options=options, weights=weights
+    )
+
+
+def load_variant(  # noqa: C901, PLR0913 - the arguments of `load_model`
+    task: str,
+    card: ModelCard,
+    variant: Variant,
+    cls: type[M],
+    *,
+    mode: ModeArg = "auto",
+    device: str | torch.device | None = None,
+    dtype: Dtype | torch.dtype | None = None,
+    options: Mapping[str, Any] | None = None,
+    weights: str | os.PathLike[str] | None = None,
+    state: Mapping[str, torch.Tensor] | None = None,
+) -> M:
+    """`load_model` of a resolved (possibly derived) `variant`; `state`: the state dict of `weights`, already read.
+
+    A task that reads a user's checkpoint itself (e.g. to detect its architecture and map its keys) passes the
+    derived variant (its `params`) and the mapped state dict; the runners get it from `Context.state_dict`.
+    """
+    log = logging.getLogger(f"fastforks.{task}")
     registry.require_commercial(card, variant)
     registry.require(card, variant.ref)
+    require_available(variant, "load")
     fp32, want = _check_args(mode, dtype)  # every argument is checked before `weights` logs its warning
     dev = resolve_device(device, card)
     opts = check_options(card, {} if options is None else options, variant.ref)
     files = None if weights is None else user_weights(variant, weights, log)
+    if state is not None and files is None:
+        msg = "state needs the weights file it was read from"
+        raise ValueError(msg)
     if fp32 and mode == "kernels" and card.kernels_dtype_on(dev) != "float32":
         msg = "kernels runs reduced-precision kernels here; use mode='portable' with dtype='float32'"
         raise OptionsError(msg)
-    if mode == "auto":
+    auto = mode == "auto"
+    if auto:
         reason = _no_auto_kernels(card, variant, dev, fp32=fp32, want=want)
         if reason is None:
             try:
-                m = _build(cls, card, variant, mode="kernels", device=dev, options=opts, want=want, weights=files)
+                m = _build(
+                    cls, card, variant, mode="kernels", device=dev, options=opts, want=want, weights=files, state=state
+                )
             except BackendUnavailableError as e:
                 reason = f"kernels unavailable ({e})"
             else:
@@ -779,12 +902,23 @@ def load_model(  # noqa: PLR0913 - the arguments of every task's `load`
         level = logging.WARNING if failed else logging.INFO
         log.log(level, "%s: %s; using portable", variant.ref, reason)
         mode = "portable"
+    if mode == "kernels" and "kernels" in card.modes:
+        require_available(variant, "kernels")
     if mode not in card.modes:
         msg = f"{variant.ref} has no {mode!r} backend (has: {', '.join(card.modes)})"
         if mode == "kernels" and card.no_kernels_reason:
             msg += f": {card.no_kernels_reason}"
         raise BackendUnavailableError(msg)
-    return _build(cls, card, variant, mode=mode, device=dev, options=opts, fp32=fp32, want=want, weights=files)
+    try:
+        return _build(
+            cls, card, variant, mode=mode, device=dev, options=opts, fp32=fp32, want=want, weights=files, state=state
+        )
+    except OptionsError as e:
+        if not (auto and want is not None and "cannot compute in" in str(e)):
+            raise
+        have = card.kernels_dtype_on(dev) if "kernels" in card.modes else "none"
+        msg = f"{e} (mode='auto' found no backend for {want} on {dev.type}: the kernels backend computes in {have})"
+        raise OptionsError(msg) from e
 
 
 def user_weights(variant: Variant, path: str | os.PathLike[str], log: logging.Logger | None = None) -> tuple[Path, ...]:
@@ -797,7 +931,7 @@ def user_weights(variant: Variant, path: str | os.PathLike[str], log: logging.Lo
     Args:
         variant: The variant to load.
         path: The user's file or directory.
-        log: Gets one WARNING that the files are unverified.
+        log: Gets one WARNING that the files are unverified (none for the pinned files, verified unchanged).
 
     Raises:
         WeightsError: `path` does not exist, or does not hold the files the variant needs.
@@ -824,15 +958,16 @@ def user_weights(variant: Variant, path: str | os.PathLike[str], log: logging.Lo
     return _unverified(files, variant, log)
 
 
-def _unverified(files: tuple[Path, ...], variant: Variant, log: logging.Logger | None) -> tuple[Path, ...]:
-    if log is not None:
+def _unverified(paths: tuple[Path, ...], variant: Variant, log: logging.Logger | None) -> tuple[Path, ...]:
+    # the pinned files themselves (verified unchanged, e.g. a composite passing its encoder's checked file) are quiet
+    if log is not None and not all(stamped(p, s) for p, s in zip(paths, variant.weights, strict=True)):
         log.warning(
             "%s: unverified weights from %s (not hash-checked; the golden parity of %s does not apply)",
             variant.ref,
-            ", ".join(map(str, files)),
+            ", ".join(map(str, paths)),
             variant.ref,
         )
-    return files
+    return paths
 
 
 def resolve_device(device: str | torch.device | None, card: ModelCard | None = None) -> torch.device:
@@ -895,7 +1030,7 @@ def check_options(card: ModelCard, options: Mapping[str, Any], model: str | None
             f"unknown option(s) {', '.join(hints)} for {model or card.family}; "
             f"valid options: {', '.join(card.options) or 'none'} (defaults {dict(card.options)})"
         )
-        raise OptionsError(msg)
+        raise UnknownOptionError(msg)
     renamed = {card.option_aliases.get(k, k): v for k, v in options.items()}
     if len(renamed) < len(options):
         both = sorted(k for k in options if k in card.option_aliases and card.option_aliases[k] in options)
@@ -1052,6 +1187,7 @@ def _build(  # noqa: PLR0913 - the resolved arguments of `load_model`
     fp32: bool = False,
     want: Dtype | None = None,
     weights: tuple[Path, ...] | None = None,
+    state: Mapping[str, torch.Tensor] | None = None,
 ) -> M:
     if device.type == "cuda":
         warmup.start(device)  # CUDA library start-up overlaps with the build below
@@ -1059,7 +1195,8 @@ def _build(  # noqa: PLR0913 - the resolved arguments of `load_model`
     tags = _kernel_tags(card, variant, device) if mode == "kernels" else ()
     rcls = runner_class(card, mode, device)
     dtype = compute_dtype(card, rcls, mode, device, fp32=fp32, want=want)
-    ctx = Context(card, variant, mode, device, dtype, make_params(rcls.Params, card, variant, options), tags, weights)
+    params = make_params(rcls.Params, card, variant, options)
+    ctx = Context(card, variant, mode, device, dtype, params, tags, weights, state)
     try:
         # the checkpoint overwrites the initial values: skip the random fill; the build runs at the requested dtype
         # whatever the caller's `torch.set_default_dtype`
@@ -1070,9 +1207,16 @@ def _build(  # noqa: PLR0913 - the resolved arguments of `load_model`
         if error is None:
             raise
         raise error from e
+    finally:
+        ctx.drop_state()  # runners keep `ctx`
     if mode == "kernels" and device.type == "cuda":
         claim_kernels_device(device)
     adapt_to_device(runner, mode, device)
+    if device.type == "cuda":
+        if os.environ.get("FASTFORKS_ARENA") == "1":  # experimental, off by default (not verified on every family)
+            compact_runner(runner)  # the build's freed copies / casts leave holes in the reserved memory: one arena
+        warmup.wait(device)  # the loaded model starts on a clean device: no warm-up step (cuBLAS workspace) still live
+        torch.cuda.empty_cache()  # nor the build's freed buffers (device checkpoint copies, casts) as reserved memory
     backend = Backend(
         mode,
         str(device),
@@ -1083,7 +1227,7 @@ def _build(  # noqa: PLR0913 - the resolved arguments of `load_model`
         weights=() if weights else tuple(f.sha256 for f in variant.weights),
     )
     model = cls(runner, backend, options)
-    _settle(model, card, mode, device)
+    _settle(device)
     return model
 
 
@@ -1102,12 +1246,8 @@ def _checkpoint_id(files: tuple[Path, ...] | None) -> tuple[str, ...]:
     return tuple(out)
 
 
-def _settle(model: Model, card: ModelCard, mode: Mode, device: torch.device) -> None:
-    """The device-side end of a build: the cuDNN plan workspace's owner, and the build's cached blocks freed."""
-    if mode == "kernels" and "cudnn_hacc" in card.kernel_libs:
-        from fastforks.kernels import cudnn_hacc  # noqa: PLC0415 - only kernels models
-
-        cudnn_hacc.attach(model)  # frees the plan workspace with the last such model
+def _settle(device: torch.device) -> None:
+    """The device-side end of a build: the build's cached blocks freed."""
     if device.type == "cuda":
         # The build's transient blocks (fp32 BN-fold probes that pick large cuDNN workspaces, checkpoint copies before
         # the cast) would stay cached and count in the reserved memory for good (regnety_160 3990 -> 250 MiB).

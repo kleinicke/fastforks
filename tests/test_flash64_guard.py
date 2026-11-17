@@ -21,7 +21,7 @@ from fastforks._core.model import _kernels_entry_points
 from fastforks._core.runner import Runner
 from fastforks.kernels import fastbb
 from fastforks.kernels.fastbb import FLASH_VARIANTS, Flash64
-from test_golden import API, INPUTS, SMALLEST, TASK, _check, forward, golden, options
+from test_golden import API, SMALLEST, TASK, _check, forward, golden, options, outputs
 
 SRC = Path(__file__).parents[1] / "src" / "fastforks"
 
@@ -229,13 +229,13 @@ def test_forced_overflow_reruns_the_model_call(ref, monkeypatch):
         registry.weights(card, variant, allow_download=False)
     except WeightsError as e:
         pytest.skip(f"weights of {ref} not available locally: {e}")
-    model = API[TASK[ref]].load(ref, mode="kernels", device="cuda", options=options(ref, want))
+    model = API[TASK[ref]].load(ref, mode="kernels", device="cuda", **(options(ref, want) or {}))
     monkeypatch.setattr(Flash64, "_run", staticmethod(run))
     monkeypatch.setattr(Flash64, "__call__", spy)
-    outputs = {k: v for k, v in want.items() if k not in INPUTS}
+    outs = outputs(ref, want)
     for i in (1, 2):
         got, _ = forward(model, ref, want)
         if not attns:
             pytest.skip(f"{ref}: no flash64 attention on this input")
         assert {a.variant for a in attns} == {"ff"}
-        _check(ref, "kernels", outputs, got, f"call {i}: ")
+        _check(ref, "kernels", outs, got, f"call {i}: ")

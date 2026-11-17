@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 import _devices
 import goldens
 from fastforks._core import licences, registry
+from fastforks._core.cards import PLANNED_RELEASE, planned_reason
 from fastforks._core.sizes import card_size_lines
 from fastforks._core.tasks import spec
 
@@ -42,25 +43,103 @@ _DATASETS = {
     },
     "depth": {
         "nyu": "NYUv2 test, AbsRel / delta1",
+        "nyu-prompt-every4": "NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric)",
+        "ibims-prompt": "iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric)",
         "ibims": "iBims-1, AbsRel / delta1",
+        "nyu-first100": "NYUv2 test (first 100 images), AbsRel / delta1",
         "eth3d": "ETH3D two-view train left, AbsRel / delta1",
         "middH": "Middlebury 2014 trainingH left, AbsRel / delta1",
+        "nyu-normals": "NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg",
+        "ibims-normals": "iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg",
+        "tum-video-110": "TUM RGB-D video (3 sequences, first 110 frames each), AbsRel / delta1",
+        "tum-video-1000": "TUM RGB-D video (3 sequences, first 1000 frames each), AbsRel / delta1",
     },
     "segmentation": {
         "ade20k-val": "ADE20K val, every 4th image, mIoU / aAcc %",
         "coco-val2017-persons-every10": "COCO val2017 persons, every 10th image, person IoU %",
     },
-    "detection": {"coco-val2017-every10": "COCO val2017, every 10th image, box mAP"},
+    "detection": {
+        "coco-val2017-every10": "COCO val2017, every 10th image, box mAP",
+        "coco-val2017-every20": "COCO val2017, every 20th image, box mAP",
+        "coco-val2017-every25": "COCO val2017, every 25th image (200), box mAP",
+        "coco-val2017-every10-person": "COCO val2017, every 10th image, box AP of the person class",
+        "coco-val2017-every1": "COCO val2017, all 5000 images, box mAP",
+    },
     "promptable_segmentation": {
         "coco-val2017-every10": "COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask %",
         "coco-val2017-every10-text": "COCO val2017, every 10th image, class-name prompts, box / mask mAP",
+        "coco-val2017-oneshot-k3": "COCO val2017, one-shot episodes (3 per class), class mIoU %",
+        "davis2017-val-every3": "DAVIS 2017 val, every 3rd sequence, video tracking, J&F / J / F %",
+        "davis2017-val-every1": "DAVIS 2017 val, video tracking, J&F / J / F %",
     },
     "features": {
         "imagenet-val-knn-train10000-test5000-seed0-k20": "ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / "
         "5000 test images)"
     },
     "multiview": {"dtu-scans1-9-24-33-75-view24": "DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 %"},
-    "classification": {"imagenet-val-subset5000-seed0": "ImageNet-1k val, 5000 random images, top-1 / top-5 %"},
+    "classification": {
+        "imagenet-val-subset5000-seed0": "ImageNet-1k val, 5000 random images, top-1 / top-5 %",
+        "coco-val2017-first500-tags": "COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement %",  # noqa: E501
+    },
+    "pose": {
+        "coco-val2017-every10-keypoints-gtbox": "COCO val2017, every 10th image, GT person boxes, keypoint AP",
+        "coco-val2017-every1-keypoints-gtbox": "COCO val2017, ground-truth person boxes, keypoint AP",
+        "coco-val2017-every1-keypoints": "COCO val2017, predicted people, keypoint AP",
+        "coco-val2017-every10-keypoints": "COCO val2017, every 10th image, predicted people, keypoint AP",
+        "widerface-val-every4": "WIDER FACE val, every 4th image (807), face box AP easy / medium / hard",
+    },
+    "flow": {"kitti2015-train": "KITTI 2015 train, EPE / Fl-all %"},
+    "volume": {
+        "totalseg-subset-3mm": "TotalSegmentator test subset (8 CT cases), 3 mm, mean Dice",
+        "totalseg-subset-1.5mm": "TotalSegmentator test subset (7 CT cases), 1.5 mm, mean Dice",
+        "totalseg-nninteractive-prompts-96": "TotalSegmentator test subset (8 CT cases x 12 prompts), mean Dice vs the "
+        "ground-truth mask",
+        "totalseg-featparity-8": "TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: "
+        "cosine (worst case) / relative L2",
+    },
+    "interpolation": {"davis2017-triplets180": "DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM"},
+    "restoration": {
+        "div2k-val-x4": "DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
+        "div2k-val-x2": "DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
+        "div2k-val-x4-every2": "DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
+        "div2k-val-x4-every4": "DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
+        "div2k-val-x2-crop512-n4": "DIV2K validation, 4 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original",  # noqa: E501
+        "div2k-val-x2-crop512-n2": "DIV2K validation, 2 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original",  # noqa: E501
+        "seedvr2-clips-n4": "4 video clips (first frame), PSNR to the original's output",
+        "seedvr2-clips-n2": "2 video clips (first frame), PSNR to the original's output",
+        "div2k-val-x2-every4": "DIV2K validation (every 4th: 25 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
+        "gopro-test-every4": "GoPro test (every 4th: 278 frames), deblurring, PSNR / SSIM (RGB)",
+        "gopro-test-every15": "GoPro test (every 15th: 75 frames), deblurring, PSNR / SSIM (RGB)",
+        "sidd-val": "SIDD validation (1280 crops), denoising, PSNR / SSIM (RGB)",
+        "sidd-val-every2": "SIDD validation (every 2nd: 640 crops), denoising, PSNR / SSIM (RGB)",
+        "rain100l": "Rain100L test (100 images), deraining, PSNR / SSIM (Y)",
+        "rain100h": "Rain100H test (100 images), deraining, PSNR / SSIM (Y)",
+    },
+    "matching": {
+        "megadepth1500": "MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees",
+        "megadepth1500-every5": "MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees",
+        "megadepth1500-every10": "MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees",
+    },
+    "matting": {
+        "dis-vd": "DIS5K validation (DIS-VD), all 470 images, MAE / max F-beta",
+        "dis-vd-every2": "DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta",
+        "aim500": "AIM-500, all 500 images, generated trimaps, SAD / MSE x 1000 (unknown region)",
+        "aim500-every5": "AIM-500, every 5th image (100), generated trimaps, SAD / MSE x 1000 (unknown region)",
+        "youtubematte-512x288-every2": "YouTubeMatte 512 x 288, every 2nd clip (32 x 100 frames), first-frame mask, "
+        "MAD x 1000 / MSE x 1000 / dtSSD x 100",
+    },
+    "retrieval": {
+        "st-lucia": "St Lucia, all 1464 queries against the 1549 database images, recall@1 / @5 % (25 m)",
+        "st-lucia-every5": "St Lucia, every 5th query (293) against the 1549 database images, recall@1 / @5 % (25 m)",
+    },
+    "calibration": {
+        "lamar2k": "LaMAR2k, all 2000 images, roll / pitch / vertical FoV error AUC@5 degrees %",
+        "lamar2k-every10": "LaMAR2k, every 10th image (200), roll / pitch / vertical FoV error AUC@5 degrees %",
+    },
+    "tracking": {
+        "tapvid-davis-first-every3": "TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA %",
+        "tapvid-davis-first": "TAP-Vid DAVIS (query first), AJ / delta_avg / OA %",
+    },
 }
 _BAD_THR = {"eth3d": 1.0, "middH": 2.0}  # stereo
 # task or (task, dataset) -> ((metric, format, title suffix), ...), count key, noun; a metric with a suffix is optional:
@@ -69,37 +148,232 @@ _Metric = tuple[str, str, str]
 _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "stereo": ((("bad", "{:.2f}", ""), ("epe", "{:.3f}", "")), "n_pairs", "pairs"),
     "depth": ((("rel_absrel", "{:.4f}", ""), ("rel_d1", "{:.4f}", "")), "n_images", "images"),
+    **{
+        ("depth", d): ((("met_absrel", "{:.4f}", ""), ("met_d1", "{:.4f}", "")), "n_images", "images")
+        for d in ("nyu-prompt-every4", "ibims-prompt")
+    },
+    **{
+        ("depth", d): (
+            (("ang_mean", "{:.2f}", ""), ("ang_median", "{:.2f}", ""), ("a11.25", "{:.2f}", ""), ("a30", "{:.2f}", "")),
+            "n_images",
+            "images",
+        )
+        for d in ("nyu-normals", "ibims-normals")
+    },
     "segmentation": ((("miou", "{:.2f}", ""), ("aacc", "{:.2f}", "")), "n", "images"),
     ("segmentation", "coco-val2017-persons-every10"): ((("person_iou", "{:.2f}", ""),), "n", "images"),
     "detection": ((("box_map", "{:.2f}", ""), ("mask_map", "{:.2f}", " / mask mAP")), "n", "images"),
+    ("detection", "coco-val2017-every10-person"): ((("person_ap", "{:.2f}", ""),), "n", "images"),
     "promptable_segmentation": ((("miou_best", "{:.2f}", ""), ("miou_single", "{:.2f}", "")), "n", "images"),
     ("promptable_segmentation", "coco-val2017-every10-text"): (
         (("box_map", "{:.2f}", ""), ("mask_map", "{:.2f}", "")),
         "n",
         "images",
     ),
+    ("promptable_segmentation", "coco-val2017-oneshot-k3"): ((("miou", "{:.2f}", ""),), "n", "episodes"),
+    **{
+        ("promptable_segmentation", d): (
+            (("jf", "{:.2f}", ""), ("j", "{:.2f}", ""), ("f", "{:.2f}", "")),
+            "n",
+            "objects",
+        )
+        for d in ("davis2017-val-every3", "davis2017-val-every1")
+    },
     "features": ((("top1", "{:.2f}", ""),), "n", "images"),
     "multiview": ((("absrel", "{:.4f}", ""), ("d125", "{:.2f}", ""), ("mae_mm", "{:.2f}", " / MAE mm")), "n", "scans"),
     "classification": ((("top1", "{:.2f}", ""), ("top5", "{:.2f}", "")), "n", "images"),
+    ("classification", "coco-val2017-first500-tags"): (
+        (("tag_f1", "{:.2f}", ""), ("top1_agree", "{:.2f}", "")),
+        "n",
+        "images",
+    ),
+    "pose": ((("keypoint_ap", "{:.1f}", ""),), "n", "images"),
+    ("pose", "widerface-val-every4"): (
+        (("ap_easy", "{:.3f}", ""), ("ap_medium", "{:.3f}", ""), ("ap_hard", "{:.3f}", "")),
+        "n",
+        "images",
+    ),
+    "flow": ((("epe", "{:.3f}", ""), ("fl_all", "{:.2f}", "")), "n", "pairs"),
+    "interpolation": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "triplets"),
+    "volume": ((("dice", "{:.4f}", ""),), "n", "cases"),
+    ("volume", "totalseg-nninteractive-prompts-96"): (
+        (("dice", "{:.4f}", ""), ("agree", "{:.4f}", " / agreement with the original")),
+        "n",
+        "prompted runs",
+    ),
+    ("volume", "totalseg-featparity-8"): ((("cos_min", "{:.5f}", ""), ("rel_l2", "{:.4f}", "")), "n", "cases"),
+    "restoration": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "images"),
+    **{
+        ("restoration", d): (
+            (("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", ""), ("psnr_orig", "{:.2f}", "")),
+            "n",
+            "images",
+        )
+        for d in ("div2k-val-x2-crop512-n4", "div2k-val-x2-crop512-n2")
+    },
+    **{
+        ("restoration", d): ((("psnr_orig", "{:.2f}", ""),), "n", "clips")
+        for d in ("seedvr2-clips-n4", "seedvr2-clips-n2")
+    },
+    "matching": ((("auc5", "{:.1f}", ""), ("auc10", "{:.1f}", ""), ("auc20", "{:.1f}", "")), "n", "pairs"),
+    "tracking": ((("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")), "n", "videos"),
+    "matting": ((("mae", "{:.4f}", ""), ("max_fbeta", "{:.4f}", "")), "n", "images"),
+    "retrieval": ((("r1", "{:.2f}", ""), ("r5", "{:.2f}", "")), "n", "queries"),
+    "calibration": (
+        (("roll_auc5", "{:.1f}", "dash"), ("pitch_auc5", "{:.1f}", "dash"), ("vfov_auc5", "{:.1f}", "")),
+        "n",
+        "images",
+    ),
+    **{
+        ("matting", d): ((("sad", "{:.2f}", ""), ("mse", "{:.3f}", "")), "n", "images")
+        for d in ("aim500", "aim500-every5")
+    },
+    ("matting", "youtubematte-512x288-every2"): (
+        (("mad", "{:.2f}", ""), ("mse", "{:.2f}", ""), ("dtssd", "{:.2f}", "")),
+        "n",
+        "clips",
+    ),
 }
 # task or (task, dataset) -> protocol sentence of the measured tables (task first, then each shown dataset)
 _PROTOCOL = {
     "depth": "AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), "
     "mean over images. ",
+    ("depth", "tum-video-110"): "Video: one call per sequence, one scale + shift per sequence, AbsRel / delta1 over "
+    "all its pixels with Kinect depth, mean over sequences. ",
+    ("depth", "nyu-normals"): "Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's "
+    "evaluation sets), mean over images. ",
+    ("depth", "nyu-prompt-every4"): "Prompt depth models: the prompt is a 192x256 low-resolution depth built from the "
+    "ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth "
+    "compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt "
+    "comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with "
+    "a LiDAR prompt, L1 in mm): they compare our modes with the original. ",
+    ("depth", "ibims-prompt"): "Prompt depth models: the prompt is a 192x256 low-resolution depth built from the "
+    "ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth "
+    "compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt "
+    "comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with "
+    "a LiDAR prompt, L1 in mm): they compare our modes with the original. ",
+    ("classification", "coco-val2017-first500-tags"): "Taggers have no public benchmark with their tag set, so the "
+    "original fp32 is the reference: tag F1 = F1 of the tags at probability 0.35 of our output against the tags of "
+    "the original fp32, micro-averaged over the images; top-1 agreement = share of images with the same most likely "
+    "tag. The original fp16 row shows the difference of the original itself in half precision. ",
     ("segmentation", "ade20k-val"): "Each image at its own size, argmax of the logits. ",
     ("segmentation", "coco-val2017-persons-every10"): "Any body part counts as person; ground truth = the COCO person "
     "masks. ",
     "detection": "pycocotools COCOeval of the top 100 detections per image. ",
+    (
+        "pose",
+        "coco-val2017-every1-keypoints-gtbox",
+    ): "Top-down on the ground-truth person boxes (non-crowd, at least one labelled keypoint), no flip test; "
+    "people ranked by the mean of their 17 keypoint scores (not mmpose's rescoring and OKS-NMS), so not the papers' "
+    "AP; pycocotools OKS AP; whole-body models scored on their 17 body keypoints. ",
+    ("pose", "widerface-val-every4"): "Each image at its own size, score threshold 0.02 and NMS IoU 0.45 (the "
+    "authors' evaluation settings), the official toolkit's AP at IoU 0.5 over the subset's faces. ",
+    ("pose", "coco-val2017-every10-keypoints-gtbox"): "Top-down on the same every-tenth-image subset for all modes, "
+    "ground-truth person boxes, no flip test; people ranked by the mean of their first 17 keypoint scores; "
+    "pycocotools OKS AP on COCO body joints. ",
+    ("pose", "coco-val2017-every1-keypoints"): "Bottom-up on all 5,000 validation images, no ground-truth boxes; "
+    "people ranked by their predicted person score, after model-specific decoding; pycocotools OKS AP. ",
+    ("pose", "coco-val2017-every10-keypoints"): "Bottom-up on the same every-tenth-image subset for all modes, "
+    "ranked by predicted person score after model-specific decoding; pycocotools OKS AP. ",
     ("promptable_segmentation", "coco-val2017-every10"): "One point per ground-truth instance (the interior point "
     "farthest from the border); IoU of the best-scored of 3 masks / of the single mask. ",
     ("promptable_segmentation", "coco-val2017-every10-text"): "One text prompt (the COCO class name) per class in the "
     "image; the top 100 instances go to pycocotools COCOeval. ",
+    ("promptable_segmentation", "coco-val2017-oneshot-k3"): "In-context: per COCO class 3 (reference, target) pairs "
+    "drawn with seed 0 from the images whose class covers >= 2 %, the class's non-crowd instances as one mask; "
+    "foreground IoU summed per class, mean over the 80 classes. ",
+    **{
+        ("promptable_segmentation", d): "Semi-supervised: every object's first-frame mask as `input_masks`, `video` "
+        "forward at 480p; the lower object id wins where masks overlap; J (IoU) and F (boundary) as "
+        "davis2017-evaluation, mean over objects. "
+        for d in ("davis2017-val-every3", "davis2017-val-every1")
+    },
     "features": "Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop "
     "224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. ",
     "multiview": "640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light "
     "points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras "
     "(calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range "
     "from the camera baselines). ",
+    "flow": "Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean "
+    "end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. ",
+    **{
+        ("restoration", d): "DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's "
+        "scale), one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the "
+        "output rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for "
+        "real-world degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, "
+        "not with PSNR-oriented upscalers. "
+        for d in _DATASETS["restoration"]
+        if d.startswith("div2k") and "crop" not in d
+    },
+    **{
+        ("restoration", d): "SeedVR2 is a generative one-step restorer, so PSNR is only a fidelity check. Each of the "
+        "centre 512 px crops of DIV2K validation HR images (a tiny subset: generation is slow) is downscaled with "
+        "bicubic x2 (PIL) and restored x2 by the model, one pass; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y "
+        "channel of the uint8 output with a 2 px border cropped, averaged over the crops; PSNR to the original = "
+        "RGB uint8 PSNR of our output against the authors' output of the same input and settings. The original is "
+        "the authors' inference code, bf16. No perceptual metric (LPIPS) is given: the lpips package and its network "
+        "weights are not part of the test environment. "
+        for d in ("div2k-val-x2-crop512-n4", "div2k-val-x2-crop512-n2")
+    },
+    **{
+        ("restoration", d): "First frame of each clip (clips of 2 to 10 frames, x2); PSNR of our output (RGB, uint8) "
+        "against the authors' output of the same clip; there is no ground truth for these clips. "
+        for d in ("seedvr2-clips-n4", "seedvr2-clips-n2")
+    },
+    **{
+        ("restoration", d): "Each degraded image at its own size, one pass without tiles (the model pads internally); "
+        "PSNR and SSIM of the output rounded to uint8 on RGB, no border crop, averaged over the images (the authors' "
+        "test scripts). "
+        for d in _DATASETS["restoration"]
+        if d.startswith(("gopro", "sidd"))
+    },
+    **{
+        ("restoration", d): "Each rainy image at its own size, one pass without tiles; PSNR and SSIM of the output "
+        "rounded to uint8 on the Y channel (BT.601), no border crop, averaged over the images (Restormer's MATLAB "
+        "evaluation). "
+        for d in _DATASETS["restoration"]
+        if d.startswith("rain")
+    },
+    "volume": "A small subset of real CT cases of the TotalSegmentator dataset (not the full test split), each run at "
+    "its card's spacing (1.5 or 3 mm) in the same pipeline; mean over the cases of the Dice (0 to 1) averaged over "
+    "the classes present, against the ground-truth segmentations (vertebrae_L6 of the subset has no counterpart and "
+    "is skipped). Original = TotalSegmentator 2.18.0, default fp16 autocast. ",
+    ("volume", "totalseg-nninteractive-prompts-96"): "nnInteractive: per case 12 simulated prompts (point, box, "
+    "scribble, point + box on 3 organs), one interaction each; Dice of the predicted mask against the ground-truth "
+    "organ mask, mean over the runs; agreement = Dice of the mask against the original's mask. Original = the "
+    "authors' code, fp16 autocast. ",
+    ("volume", "totalseg-featparity-8"): "Encoder models have no task head, so they are judged by their output: the "
+    "encoder feature maps against the original fp32 maps (cosine similarity, worst case over the cases and the mean "
+    "over the maps; relative L2 error, mean). Original (fp32) is the reference; the original fp16 row shows the error "
+    "the original itself has in half precision. ",
+    "interpolation": "DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the "
+    "frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the "
+    "output rounded to uint8, on RGB in [0, 1], averaged over the triplets. ",
+    "matching": "Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE "
+    "sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; "
+    "LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean "
+    "focal length); AUC of the larger of the rotation and translation-direction errors. ",
+    ("matching", "megadepth1500-every5"): "The same 300 pairs for all modes, so float32 and bfloat16 compare pair for "
+    "pair. ",
+    "tracking": "TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model (AllTracker: the "
+    "original frames, resized by the model), one query per track at its first visible point, tracked online "
+    "(TAPNext, Track-On) or over the whole clip (TAPIR, AllTracker, LocoTrack); AJ, delta_avg (< 1, 2, 4, 8, 16 px at "
+    "256 x 256) and occlusion accuracy averaged over the videos. ",
+    ("matting", "dis-vd-every2"): "Each image at its own size against its binary mask: MAE of the alpha, max F-beta "
+    "(beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). ",
+    ("matting", "aim500-every5"): "Trimap-guided models, AIM-500: each image at its own size with a trimap made from "
+    "its alpha (alpha 255 / 0 eroded by a 21 px ellipse = foreground / background, the rest unknown); SAD / 1000 and "
+    "MSE of the 8-bit alpha in the unknown region (ViTMatte's evaluation). ",
+    ("matting", "youtubematte-512x288-every2"): "Video matting, YouTubeMatte (MatAnyone's benchmark): each clip at "
+    "512 x 288 with the authors' first-frame mask, the authors' evaluation settings (1 warm-up step, mask closing "
+    "4 px); 8-bit alpha against the ground truth: mean absolute and squared difference and the temporal coherence "
+    "error dtSSD (lower is better), averaged over frames, then clips. ",
+    "retrieval": "Every query's descriptor against every database descriptor (cosine similarity, exact top-k on the "
+    "GPU); a query counts as found at k when one of its k nearest database images is within 25 m (UTM positions of "
+    "the file names), the standard visual place recognition protocol. ",
+    "calibration": "Each image at its own size (1440 x 1920 portrait); roll, pitch and vertical field of view of the "
+    "fitted camera against the ground truth; AUC of the error up to 5 degrees (errors below 1 degree count as 1, "
+    "siclib's `compute_auc(min_error=1)`), the GeoCalib paper's protocol. ",
     "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
     "and its PIL eval transform. ",
 }
@@ -120,7 +394,7 @@ def _label(mode: str) -> str:
 
 
 # eval dataset id -> training-data id (_core/datasets.toml) of the same public images (NYU / iBims: no id, none known)
-_EVAL_TRAIN_ID = {"eth3d": "eth3d", "middH": "middlebury"}
+_EVAL_TRAIN_ID = {"eth3d": "eth3d", "middH": "middlebury", "kitti2015-train": "kitti"}
 _DAGGER = "\u2020"
 _NOTE = {
     _DAGGER: "trained on this dataset's public images; not a zero-shot result",
@@ -148,7 +422,9 @@ def _speed_rows() -> dict[str, list[dict]]:
     rows: dict[str, list[dict]] = {}
     for line in path.read_text().splitlines() if path.is_file() else []:
         row = json.loads(line)
-        if row.get("status") == "oom":  # no time: read by _oom
+        if row.get("status") == "oom" or (
+            "error" in row and "ms" not in row
+        ):  # no time: _oom reads OOM; errors stay in the maintainers' archive
             continue
         if not row.get("cold") or "ms" in row:  # speed_check rows: a fresh process, warm timings included
             rows.setdefault(row["ref"], []).append(row)
@@ -160,11 +436,22 @@ def _oom() -> frozenset[tuple[str, str, str]]:
     """(ref, mode, input) of the speed.jsonl rows that ran out of GPU memory (`status: "oom"`, no time)."""
     path = ROOT / "docs" / "data" / "speed.jsonl"
     lines = path.read_text().splitlines() if path.is_file() else []
-    rows = [json.loads(line) for line in lines if '"oom"' in line]
-    return frozenset((r["ref"], r["mode"], r["input"]) for r in rows if r.get("status") == "oom")
+    rows = [json.loads(line) for line in lines if line.strip()]
+    timed: dict[tuple[str, str, str], str] = {}  # newest date of a measured (ms) row per key
+    for r in rows:
+        if r.get("status") != "oom" and "ms" in r and r.get("ms") is not None:
+            key = (r["ref"], r["mode"], r["input"])
+            timed[key] = max(timed.get(key, ""), r.get("date", ""))
+    return frozenset(  # an OOM row not newer than a measured row of its key is stale (e.g. before streaming)
+        (r["ref"], r["mode"], r["input"])
+        for r in rows
+        if r.get("status") == "oom" and timed.get((r["ref"], r["mode"], r["input"]), "") < r.get("date", "")
+    )
 
 
 NM = "not measured"
+_NO_ORIG = "n/a"  # original cell of a card whose original cannot be run; the reason is a note under the table
+_NOK = "no kernels"  # kernels cell of a card without a kernels mode; the card's reason is a note under the table
 DASH = "\u2013"
 _SPEED_MODES = ("upstream-default", "upstream", "portable", "kernels")  # fixed line order inside a table cell
 
@@ -185,11 +472,34 @@ def _peak(row: dict | None) -> str:
     return f"{row['peak_alloc_mb']} / " + (DASH if res is None else str(res))
 
 
+def _trt_peaks(row: dict | None) -> tuple[int, int] | None:
+    """A TensorRT row's peak (allocated, reserved) MiB = engine device memory + torch-side peak; None if unknown.
+
+    Rows from `tools/speed_check.py` since 2026-11-12 carry the sum in `peak_*_mb` (torch side in `torch_peak_*_mb`);
+    older rows have the torch-side peak there and the engine's memory in `device_mb` (no `device_mb`: unknown).
+    """
+    if row is None or "peak_alloc_mb" not in row:
+        return None
+    if "torch_peak_alloc_mb" in row:
+        return row["peak_alloc_mb"], row["peak_reserved_mb"]
+    if "device_mb" not in row:
+        return None
+    return row["device_mb"] + row["peak_alloc_mb"], row["device_mb"] + row["peak_reserved_mb"]
+
+
+def _trt_peak(row: dict | None) -> str:
+    """`alloc / reserved` of `_trt_peaks`; `unknown` where the engine memory was not recorded; a dash without a row."""
+    if row is None or "fails" in row:
+        return DASH
+    peaks = _trt_peaks(row)
+    return "unknown" if peaks is None else f"{peaks[0]} / {peaks[1]}"
+
+
 def _ms_str(ms: object) -> str:
     """A time in ms to 3 significant digits (all digits from 1000 ms): `3.48`, `20.1`, `214`."""
     if not isinstance(ms, int | float) or isinstance(ms, bool) or not math.isfinite(ms) or ms == 0:
         return str(ms)
-    return f"{ms:.{max(0, 2 - math.floor(math.log10(abs(ms))))}f}"
+    return f"{ms:.{max(0, 2 - math.floor(math.log10(abs(float(f'{ms:.3g}')))))}f}"  # 99.96 -> 100, not 100.0
 
 
 def _ms_cell(row: dict | None, *, oom: bool = False) -> str:
@@ -211,7 +521,13 @@ def _orig(fp16: dict | None, fp32: dict | None) -> dict | None:
 
 
 _COMPILE_LABEL = {"compile": "portable + torch.compile", "tensorrt": "TensorRT fp16"}  # speed_compile.jsonl modes
-_ENGINE_PART = {"promptable_segmentation": "image encoder", "rcnn": "backbone + FPN"}  # task / family: `module()`
+_ENGINE_PART = {
+    "promptable_segmentation": "image encoder",
+    "rcnn": "backbone + FPN",
+    "pose": "network on person crops",
+    "retinaface": "network",  # face detectors: the whole image, decoding and NMS outside
+    "yunet": "network",
+}  # task / family: `module()`
 
 
 @functools.cache
@@ -226,9 +542,15 @@ def _engine_part(model_id: str) -> str:
 
 @functools.cache
 def _compile_rows() -> dict[tuple[str, str], dict]:
-    """docs/data/speed_compile.jsonl: the latest row per (model id, mode)."""
+    """docs/data/speed_compile.jsonl: the latest row per (model id, mode); a card-`[planned]` mode reads `planned`."""
     path = ROOT / "docs" / "data" / "speed_compile.jsonl"
-    return {(r["ref"], r["mode"]): r for r in map(json.loads, path.read_text().splitlines() if path.is_file() else [])}
+    rows = {(r["ref"], r["mode"]): r for r in map(json.loads, path.read_text().splitlines() if path.is_file() else [])}
+    variants = {v.id: v for t in registry.TASKS for _, v in registry.cards(t).values()}
+    for (ref, mode), r in rows.items():
+        if (v := variants.get(ref)) and mode in {"compile", "tensorrt"} and planned_reason(v, mode):
+            rows[ref, mode] = {**r, "fails": PLANNED}  # gated in this release: no time from an older build
+            rows[ref, mode].pop("ms", None)
+    return rows
 
 
 def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]], list[str]]:
@@ -239,13 +561,13 @@ def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]]
         if r is None or r["input"] != size:
             continue
         if "fails" in r:
-            lines.append((label, f"fails: {_fail_reason(r['fails'])}", DASH))
+            lines.append((label, _fail_cell(r["fails"]), DASH))
             continue
-        engine = mode == "tensorrt" and "device_mb" in r
+        name = "TensorRT fp32" if r.get("engine_dtype") == "float32" else label
         ms = _ms_str(r["ms"]) + (_engine_part(model_id) if mode == "tensorrt" else "")
-        lines.append((label, ms, f"{r['device_mb']} (engine)" if engine else _peak(r)))
+        lines.append((name, ms, _trt_peak(r) if mode == "tensorrt" else _peak(r)))
         first = r["compile_s"] if mode == "compile" else r["onnx_export_s"] + r["engine_build_s"]
-        setup.append(f"{label} {first:.0f} s" + (" (cold Inductor cache)" if mode == "compile" else " (ONNX + engine)"))
+        setup.append(f"{name} {first:.0f} s" + (" (cold Inductor cache)" if mode == "compile" else " (ONNX + engine)"))
     return lines, setup
 
 
@@ -423,7 +745,8 @@ def _env_note(rows: dict[str, list[dict]]) -> str:
 
 def _speed(card: ModelCard, rows: dict[str, list[dict]]) -> tuple[list[str], list[str]]:
     """Speed and peak memory: (the table, the notes); one table row per variant and input, backends as cell lines."""
-    measured = [v for v in card.variants if v.id in rows]
+    oom_at = {v.id: {size for ref, _, size in _oom() if ref == v.id} for v in card.variants}
+    measured = [v for v in card.variants if v.id in rows or oom_at[v.id]]  # out of memory in every mode is a result
     if not measured:
         return [f"Speed and memory {NM} for: {_ids_of([v.id for v in card.variants])}."], []
     lines = [
@@ -432,31 +755,50 @@ def _speed(card: ModelCard, rows: dict[str, list[dict]]) -> tuple[list[str], lis
     ]
     measured_all = list(card.variants)
     notes = []
+    nok = "kernels" not in card.modes
+    notes += [
+        f"- {label}: {reason.rstrip('.')}."
+        for label, reason in ((_NOK, nok and card.no_kernels_reason), ("original not timed", card.no_original_reason))
+        if reason
+    ]
     given: dict[tuple[str, str], list[str]] = {}
     dups = same_as(
-        [v.id for v in measured],
-        {v.id: sorted((r["mode"], r["input"], r["ms"]) for r in rows[v.id]) for v in measured},
+        [v.id for v in measured if v.id in rows],
+        {v.id: sorted((r["mode"], r["input"], r["ms"]) for r in rows[v.id]) for v in measured if v.id in rows},
     )
     notes += _same_note(dups)
     for v in measured:
         if v.id in dups:
             continue
-        sizes = sorted({r["input"] for r in rows[v.id]}, key=_pixels)
+        sizes = sorted({r["input"] for r in rows[v.id]} if v.id in rows else oom_at[v.id], key=_pixels)
         std = _std_input(card.task, {})
         for size in [std] if std in sizes else sizes[-1:] if std != _OWN else sizes:
-            by = {r["mode"]: r for r in rows[v.id] if r["input"] == size}
+            by = {r["mode"]: r for r in rows.get(v.id, []) if r["input"] == size}
             oom = {m for m in _SPEED_MODES if (v.id, m, size) in _oom()}
             modes = [m for m in _SPEED_MODES if m in by or m in oom or m in ("upstream", "portable", "kernels")]
             cells = [by.get(m) for m in modes]
-            scene = _scene(next(iter(by.values())).get("scene", ""))
+            scene = _scene(next(iter(by.values())).get("scene", "")) if by else ""
             inp = f"{scene} ({size})" if scene else size
             extra, setup = _compile_lines(v.id, size)
             names = "<br>".join([*(_label(m) for m in modes), *(e[0] for e in extra)])
             ms = "<br>".join(
-                [*(_ms_str(r["ms"]) if r else "OOM" if m in oom else DASH for m, r in zip(modes, cells, strict=True))]
+                [
+                    *(
+                        _ms_str(r["ms"]) if r else "OOM" if m in oom else _NOK if m == "kernels" and nok else DASH
+                        for m, r in zip(modes, cells, strict=True)
+                    )
+                ]
                 + [e[1] for e in extra]
             )
-            mem = "<br>".join([*(_peak(r) for r in cells), *(e[2] for e in extra)])
+            mem = "<br>".join(
+                [
+                    *(
+                        _NOK if m == "kernels" and nok and r is None else _peak(r)
+                        for m, r in zip(modes, cells, strict=True)
+                    ),
+                    *(e[2] for e in extra),
+                ]
+            )
             lines.append(f"| {labelled(measured_all, v)} | {inp} | {names} | {ms} | {mem} |")
             if setup:
                 notes.append(f"- `{v.id}` {size}, first call: {', '.join(setup)}.")
@@ -464,8 +806,8 @@ def _speed(card: ModelCard, rows: dict[str, list[dict]]) -> tuple[list[str], lis
                 if (r := by.get(m)) and _note(r):
                     given.setdefault((v.id, _note(r)), []).append(f"{_label(m)} {size}")
     notes += [f"- `{vid}` {', '.join(where)}: {text}" for (vid, text), where in given.items()]
-    notes += _startup_notes(card.task, measured, rows)
-    missing = [v.id for v in card.variants if v.id not in rows]
+    notes += _startup_notes(card.task, [v for v in measured if v.id in rows], rows)
+    missing = [v.id for v in card.variants if v not in measured]
     if missing:
         notes.append(f"- Speed and memory {NM} for: {_ids_of(missing)}.")
     return lines, notes
@@ -578,7 +920,9 @@ def _accuracy(task: str, by: dict[tuple[str, str], dict], mode: str, dataset: st
         raise ValueError(msg)
     m = r.get("metrics") or r
     n, full = r.get(count), by.get(("portable", dataset), r).get(count)
-    cell = " / ".join(fmt.format(m[k]) for k, fmt, opt in metrics if not opt or k in m)
+    cell = " / ".join(  # opt "dash": a dash where the model has no such output (e.g. calibration without gravity)
+        fmt.format(m[k]) if k in m else _DASH for k, fmt, opt in metrics if opt in ("", "dash") or k in m
+    )
     cell += f" ({n} {noun})" if n and full and n < full else ""
     return cell + (" (NaN / inf output)" if err else "")
 
@@ -605,7 +949,7 @@ def _span(days: set[str]) -> str:
 def _suffixes(task: str, dataset: str, rows: list[dict]) -> list[str]:
     """Title suffixes of the optional metrics of `dataset` that one of `rows` has."""
     metrics = (_METRICS.get((task, dataset)) or _METRICS[task])[0]
-    return [opt for k, _, opt in metrics if opt and any(k in (r.get("metrics") or r) for r in rows)]
+    return [opt for k, _, opt in metrics if opt not in ("", "dash") and any(k in (r.get("metrics") or r) for r in rows)]
 
 
 def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[str]:
@@ -641,7 +985,7 @@ def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[s
         "",
         "### Measured",
         "",
-        _PROTOCOL.get(task, "") + "".join(_PROTOCOL.get((task, d), "") for d in sets) + _PROTO,
+        _PROTOCOL.get(task, "") + "".join(dict.fromkeys(_PROTOCOL.get((task, d), "") for d in sets)) + _PROTO,
         "",
         f"| variant | dataset | {' | '.join(_EVAL_LABEL.get(m, m) for m in shown)} | note |",
         f"|---|---|{'---|' * len(shown)}---|",
@@ -763,7 +1107,7 @@ def _summary_table(task: str, speed: dict[str, list[dict]], rows: dict[str, list
         elif isinstance(cell, tuple):
             ms, mem = cell[0], cell[2]
         else:
-            ms, mem = _DASH, _DASH
+            ms, mem = (_NOK, _NOK) if "kernels" not in card.modes else (_DASH, _DASH)
         speedup = f", {orig['ms'] / mx['ms']:.1f}x" if mx and orig else ""
         mem = f"{mem}{_mem_ratio(mem, by.get('upstream'), by.get('upstream-default'))}"
         cells = [
@@ -775,7 +1119,7 @@ def _summary_table(task: str, speed: dict[str, list[dict]], rows: dict[str, list
             err = _DASH if r["error"] is None else r["fmt"].format(r["error"]) + (f" {r['mark']}" if r["mark"] else "")
             marks.add(r["mark"])
             cells.append(err)
-        body.append([*cells, str(ms) + speedup + (f" ({at})" if size not in {at, _OWN} else ""), mem])
+        body.append([*cells, _ms_str(ms) + speedup + (f" ({at})" if size not in {at, _OWN} else ""), mem])
     lines = _md_table(head, body)
     for m in (_DAGGER, "?"):
         lines += ["", _LEGEND[m]] if m in marks else []
@@ -784,18 +1128,57 @@ def _summary_table(task: str, speed: dict[str, list[dict]], rows: dict[str, list
 
 TASK_IO = {
     "stereo": "Input: a rectified left / right image pair. Output: a disparity map (pixels, left view).",
+    "flow": (
+        "Input: two RGB images (consecutive frames). Output: per-pixel motion from the first to the second "
+        "(dx, dy in pixels)."
+    ),
+    "restoration": (
+        "Input: one RGB image. Output: the restored (upscaled) image, `model.scale` x the input size, RGB in "
+        "[0, 1]. `tile=` runs large images in overlapping tiles (as ComfyUI)."
+    ),
+    "interpolation": (
+        "Input: two RGB images (consecutive frames). Output: the frame between them at `timestep` (0.5 by default; 0 "
+        "= the first, 1 = the second), RGB in [0, 1]."
+    ),
     "depth": (
         "Input: one RGB image. Output: a depth or inverse-depth map. `kind` (a card field, `result.kind`) says what "
-        "the numbers mean: `metric` = metres; `scale_invariant`, `affine_invariant` and `affine_invariant_inverse` "
-        "are relative (unknown scale or shift, not metres). Metric models that use the focal length take "
+        "the numbers mean: `metric` = metres; `scale_invariant`, `affine_invariant`, `affine_invariant_log` (log "
+        "depth) and `affine_invariant_inverse` are relative (unknown scale or shift, not metres). Metric models that "
+        "use the focal length take "
         "`model(image, intrinsics=K)` (K `[3, 3]`, pixels of the input): `metric3d-vit-large` and `da3metric-large` "
         "need it for correct metres (`da3metric-large`: metres = output x focal / 300; without `intrinsics=` a 300 px "
         "focal length is assumed, wrong for a real camera). `unidepth-v2-vitl14`, `unik3d-vitl`, `depth-pro` and "
         "MoGe estimate the camera themselves (given `intrinsics=` replace `fx`); `zoedepth-nk` and the relative "
-        "models (`da3mono-large` too) take none."
+        "models (`da3mono-large` too) take none. Normals-only models (`kind` `none`) return `result.normals` "
+        "`[B, H, W, 3]` (unit vectors, camera frame: x right, y down, z forward)."
     ),
     "classification": "Input: one RGB image. Output: ImageNet-1k class logits.",
     "detection": "Input: one RGB image. Output: boxes, class labels, scores and instance masks.",
+    "matching": (
+        "Input: two RGB images of one scene. Output: for every pixel of the first image its position in the second "
+        "(x, y in pixels) and a certainty that the pixel is visible in both. Sparse matchers (LightGlue) return "
+        "the keypoints of both images and the index pairs of the matched ones instead. To reconstruct camera poses "
+        "from an image folder with these matchers, see [structure from motion](../sfm.md)."
+    ),
+    "matting": (
+        "Input: one RGB image (trimap-guided models also a trimap: background / unknown / foreground). Output: an "
+        "alpha matte `[H, W]` in [0, 1] at the input size: 1 = foreground (background removal, dichotomous / salient "
+        "object segmentation)."
+    ),
+    "edges": (
+        "Input: one RGB image. Output: a line / edge map `[H, W]` in [0, 1] at the input size (1 = line), the "
+        "ControlNet preprocessors (line art, HED, PiDiNet, TEED / Anyline); M-LSD also returns straight line segments."
+    ),
+    "ocr": (
+        "Input: one RGB image. Output: the text lines in reading order: a quad `[N, 4, 2]` per line, its text and a "
+        "confidence `[N]` (text detector + recogniser; recognisers alone read the whole image as one line)."
+    ),
+    "pose": "Input: one RGB image and a box per person. Output: keypoints with confidence scores for every person.",
+    "volume": (
+        "Input: a CT volume `[D, H, W]` in Hounsfield units and its voxel spacing in mm (`volume.read_nifti` reads "
+        "both from a NIfTI file). Output: a class index per voxel `[D, H, W]` on the input grid (0 = background). "
+        "Encoder models (nnFoundation) take a CT or MRI volume and give its encoder feature maps."
+    ),
     "features": "Input: one RGB image. Output: dense patch features and a pooled image feature.",
     "multiview": (
         "Input: several images of one scene (posed and calibrated for multi-view stereo, unposed otherwise). "
@@ -803,6 +1186,18 @@ TASK_IO = {
     ),
     "segmentation": "Input: one RGB image. Output: per-pixel class labels (logits with `logits=True`).",
     "promptable_segmentation": "Input: one image plus a point, box or text prompt. Output: masks with quality scores.",
+    "retrieval": (
+        "Input: one RGB image. Output: a global descriptor `[D]` (unit L2 norm) for image retrieval / visual place "
+        "recognition; `fastforks.retrieval.top_k` and `pairs` find the nearest images (cosine similarity) on the GPU."
+    ),
+    "calibration": (
+        "Input: one RGB image. Output: the camera intrinsics `[3, 3]` and, where the model estimates them, the gravity "
+        "direction in the camera frame, roll, pitch and vertical field of view."
+    ),
+    "tracking": (
+        "Input: a video (its frames in order) and query points `(t, x, y)`. Output: the position of every query in "
+        "every frame and the probability that it is visible there."
+    ),
 }
 
 
@@ -837,8 +1232,11 @@ def render(task: str) -> str:
             f"The summary uses {basis}: kernels time with its speed-up over the faster original run, and kernels "
             "peak reserved memory with its ratio to the smaller original one. "
             "Where measured (one variant per family), a variant's table also lists portable under `torch.compile` "
-            "and the fp16 TensorRT engine of portable ([export](../export.md); memory: the engine's device memory). "
-            f"{_DASH} = not measured."
+            "and the fp16 TensorRT engine of portable ([export](../export.md); "
+            "memory: the engine's device memory + torch's peak). "
+            f"{_DASH} = not measured; no kernels = the family has no kernels backend (reason under its table). "
+            "Reserved memory is the allocator's cache: kernels (CUDA graphs, cuDNN workspaces) can reserve a few "
+            "percent to some tens of percent more than portable at the same allocated peak."
             + (f" The accuracy column is lower-is-better ({_OVERVIEW_ACC[task][2]})." if task in _OVERVIEW_ACC else "")
         ),
         "",
@@ -897,6 +1295,7 @@ def render(task: str) -> str:
                 else ""
             ),
             f"- Variants: {', '.join(_variant(v) for v in card.variants)}",
+            *_planned_line(card),
             f"- Outputs: {', '.join(_output(card, o) for o in card.outputs)}"
             + "".join(f"; {k}: `{val}`" for k, val in card.output_info.items()),
             *card_size_lines(card),
@@ -971,6 +1370,15 @@ _STD_SIZE = {
     "features": "224x224",
     "promptable_segmentation": "1024x1024",
     "detection": "800x1344",
+    "flow": "1080x1920",
+    "matching": "768x1024",
+    "interpolation": "1080x1920",
+    "restoration": "512x512",
+    "matting": "1080x1920",
+    "tracking": "480x854",
+    "retrieval": "480x640",
+    "calibration": "1080x1920",
+    "volume": "200x200",
 }
 _STD_DEFAULT = "1080x1920"
 _OWN = "own input"  # multiview: every model runs its own number of views and size, no common input
@@ -978,6 +1386,8 @@ _OWN = "own input"  # multiview: every model runs its own number of views and si
 _OVERVIEW_ACC = {
     "stereo": ("eth3d", "bad", "ETH3D bad > 1 px (%)", "{:.2f}"),
     "depth": ("nyu", "rel_absrel", "NYUv2 AbsRel (scale+shift aligned)", "{:.4f}"),
+    "flow": ("kitti2015-train", "epe", "KITTI 2015 train EPE (px)", "{:.3f}"),
+    "matting": ("dis-vd", "mae", "DIS-VD MAE", "{:.4f}"),
 }
 _PICK_NOTES = {
     "depth": (
@@ -1048,7 +1458,7 @@ def _overview_rows(task: str, fixed: dict, speed: dict[str, list[dict]], acc: di
             mine = {(r["mode"], r["input"]): r for r in speed.get(v.id, [])}
             at = _at(speed.get(v.id, []), size)  # a speed row of the same input beats the older cell
             if size == _OWN:
-                at = next((i for m, i in mine if m == "kernels"), size)
+                at = next((i for want in ("kernels", "portable") for m, i in mine if m == want), size)
             mx, pt = (
                 _fixed_cell(mine.get((m, at)), fixed.get((v.id, m), {}).get(size)) for m in ("kernels", "portable")
             )
@@ -1075,7 +1485,9 @@ def _overview_rows(task: str, fixed: dict, speed: dict[str, list[dict]], acc: di
                     "kernels": mx,
                     "portable": pt,
                     "original": orig["ms"] if orig else None,
+                    "no_orig": card.no_original_reason if orig is None else "",
                     "orig_oom": orig is None and (v.id, "upstream", osz) in _oom(),
+                    "port_oom": pt is None and (v.id, "portable", size) in _oom(),
                     "orig_size": osz,
                     "speedup": speedup,
                     "error": a_row[key] if a_row else None,
@@ -1155,10 +1567,10 @@ def _overview_task(task: str, fixed: dict, speed: dict, acc: dict) -> list[str]:
         cells += [
             f"OOM ({r['orig_size']})"
             if r["orig_oom"]
-            else _DASH
+            else (_NO_ORIG if r["no_orig"] else _DASH)
             if r["original"] is None
             else f"{r['original']:.1f} ({r['orig_size']})",
-            _ms(r["portable"]),
+            f"OOM ({r['orig_size']})" if r["port_oom"] else _ms(r["portable"]),
             _ms(r["kernels"]) + (f" ({r['at']})" if r["at"] != std and std != _OWN and r["kernels"] else ""),
             _DASH if sp is None else f"{sp[0]:.1f}x vs {sp[1]}",
             str(r["kernels"][1]) if isinstance(r["kernels"], tuple) else _DASH,
@@ -1167,6 +1579,11 @@ def _overview_task(task: str, fixed: dict, speed: dict, acc: dict) -> list[str]:
     lines += _md_table(head, body)
     for m in (_DAGGER, "?"):
         lines += ["", _LEGEND[m]] if m in marks else []
+    why: dict[str, list[str]] = {}
+    for r in rows:
+        if r["no_orig"] and r["original"] is None:
+            why.setdefault(r["no_orig"], []).append(f"`{r['id']}`")
+    lines += [f"- Original not timed ({', '.join(ids)}): {reason.rstrip('.')}." for reason, ids in why.items()]
     return lines
 
 
@@ -1305,7 +1722,9 @@ def _bench_block() -> str:
 _COMPILE_BEGIN, _COMPILE_END = "<!-- compile:begin", "<!-- compile:end -->"
 
 
+DEFERRED = "deferred: measure later (build >5 min)"  # `fails` of a row whose build / export ran over the 5 min lock
 _FAIL_REASONS = (  # (pattern in the recorded error, short reason for the table); first match wins
+    (r"^deferred", DEFERRED),
     (r"cannot parse .*_aa and operator: Resize", "TensorRT: antialiased resize not supported"),
     (r"cannot parse .*operator: (\w+)", r"TensorRT parser: \1 node"),
     (r"engine build failed.*\[myelin", "TensorRT bug: Myelin internal error"),
@@ -1332,13 +1751,36 @@ def _fail_reason(msg: str) -> str:
     return re.sub(r"\x1b\[\d+m|/tmp/\S+/", "", msg.removeprefix("run: "))[:60]
 
 
+PLANNED = f"planned for {PLANNED_RELEASE}"  # a card-`[planned]` feature: not available in this release
+
+
+def _planned_line(card: ModelCard) -> list[str]:
+    """`- Not in this release` for the card's `[planned]` features (they raise "planned for 0.2.1")."""
+    what = {"load": "loading", "compile": "compile()", "onnx": "ONNX / TensorRT export", "tensorrt": "TensorRT export"}
+    parts = [
+        f"`{v.id}` {what.get(f, f)}: {reason.rstrip('.')}"
+        for v in card.variants
+        for f, reason in v.planned.items()
+        if not (f == "tensorrt" and "onnx" in v.planned)
+    ]
+    return [f"- Not in this release (planned for {PLANNED_RELEASE}): {'; '.join(parts)}"] if parts else []
+
+
+def _fail_cell(msg: str) -> str:
+    """`deferred (build >5 min)` (over the lock limit), `planned for 0.2.1` (card `[planned]`) or `fails: reason`."""
+    if msg == PLANNED:
+        return PLANNED
+    return "deferred (build >5 min)" if msg.startswith("deferred") else f"fails: {_fail_reason(msg)}"
+
+
 def _compile_ms(r: dict | None) -> str:
     """The time cell of a compile / tensorrt row: `N ms`, `fails: reason`, or a dash."""
     if r is None:
         return DASH
     if "fails" in r:
-        return f"fails: {_fail_reason(r['fails'])}"
-    return f"{_ms_str(r['ms'])} ms" + (_engine_part(r["ref"]) if r["mode"] == "tensorrt" else "")
+        return _fail_cell(r["fails"])
+    fp32 = ", fp32 engine" if r.get("engine_dtype") == "float32" else ""  # the fp16 engine misses the golden tolerance
+    return f"{_ms_str(r['ms'])} ms{fp32}" + (_engine_part(r["ref"]) if r["mode"] == "tensorrt" else "")
 
 
 def _compile_block() -> str:
@@ -1350,7 +1792,7 @@ def _compile_block() -> str:
     head = (
         "| model | input | time: portable | compile | TensorRT fp16 | kernels"
         " | preparation: compile (cold first call) | ONNX + engine build"
-        " | peak MiB (alloc / reserved): portable | compile | kernels | TensorRT (device) |"
+        " | peak MiB (alloc / reserved): portable | compile | kernels | TensorRT (engine + torch) |"
     )
     out = [f"{_COMPILE_BEGIN} (tools/gen_docs.py, from docs/data/speed_compile.jsonl) -->"]
     if not latest:
@@ -1374,7 +1816,7 @@ def _compile_block() -> str:
             _peak(at.get("portable")),
             _peak(comp) if comp and "fails" not in comp else DASH,
             _peak(at.get("kernels")),
-            str(trt["device_mb"]) if built and "device_mb" in trt else DASH,
+            _trt_peak(trt),
         ]
         out.append("| " + " | ".join(cells) + " |")
     return "\n".join([*out, _COMPILE_END])

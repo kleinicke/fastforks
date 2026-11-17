@@ -62,6 +62,14 @@ def cards(task: str) -> Mapping[str, tuple[ModelCard, Variant]]:
     return MappingProxyType(dict(sorted(found.items())))  # cached: read-only for callers
 
 
+@functools.cache
+def option_names() -> frozenset[str]:
+    """Every option name (and alias) of every installed card: `load` keywords that are not typos."""
+    return frozenset(
+        name for task in TASKS for card, _ in cards(task).values() for name in (*card.options, *card.option_aliases)
+    )
+
+
 def list_models(  # noqa: PLR0913 - the filters of every `list_models`
     tasks: Sequence[str],
     filter: str | Sequence[str] = "*",  # noqa: A002 - mirrors timm.list_models
@@ -319,6 +327,16 @@ def default_tags(task: str) -> Mapping[str, tuple[ModelCard, Variant]]:
 
 def _not_found(model_id: str, task: str | None) -> ModelNotFoundError:
     """The error for an id that `task` (`None`: every task) does not have, with the most useful hint."""
+    from fastforks._core.api import is_path  # noqa: PLC0415 - only on an error
+
+    if is_path(model_id) or Path(model_id).exists():
+        msg = (
+            f"no such file or directory: {model_id!r} (a model argument with a '/' or a checkpoint suffix is a path)"
+            if is_path(model_id)
+            else f"{model_id!r} is no model id, and a local path needs a '/' or a checkpoint suffix: "
+            f"pass './{model_id}'"
+        )
+        return ModelNotFoundError(msg)
     other = task_of(model_id) if task is not None else None
     if other is not None:
         msg = f"{model_id!r} is a {other} model, not a {task} model: fastforks.{other}.load({model_id!r})"

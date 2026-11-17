@@ -1,7 +1,7 @@
 schema = 2
 name = "MoCha-Stereo"
 summary = "MoCha-Stereo (Chen et al. 2024): EfficientNetV2-L features, a motif channel correlation volume next to an IGEV-style geometry volume, 3-level Mogrifier LSTM updates and a refinement step, 32 iterations. mocha-v2-sceneflow is an unofficial reconstruction (the authors released no V2 code)."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
 
@@ -33,6 +33,13 @@ mps_dtypes = ["float32", "float16"]
 [modes.kernels]
 kernels = ["igev", "mocha", "cutlass_conv", "cudnn_hacc"]
 mps_kernels = ["stereo_metal"]
+
+[[papers]]
+title = "MoCha-Stereo: Motif Channel Attention Network for Stereo Matching"
+url = "https://arxiv.org/abs/2404.06842"
+date = "2024-04-10"
+venue = "CVPR 2024"
+variants = ["mocha-v1-sceneflow"]
 
 [[variants]]
 id = "mocha-v1-sceneflow"

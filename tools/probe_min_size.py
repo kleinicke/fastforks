@@ -72,7 +72,7 @@ def main() -> None:
                 import fastforks  # noqa: PLC0415
 
                 api = getattr(fastforks, task)
-                model = api.load(best.ref, device="cpu", options={"iters": 2} if "iters" in card.options else {})
+                model = api.load(best.ref, device="cpu", iters=2 if "iters" in card.options else {})
                 row["min"], row["tried"] = probe(model)
                 del model
             except Exception as e:  # noqa: BLE001

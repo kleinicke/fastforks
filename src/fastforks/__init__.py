@@ -1,9 +1,10 @@
 """fastforks: fast, typed inference for published vision models, one subpackage per task.
 
-Tasks: `fastforks.stereo`, `depth`, `multiview`, `classification`, `segmentation`, `detection`,
-`promptable_segmentation`, `features`; `fastforks.list_models()` lists the installed models of every task
-and `fastforks.load(id)` loads any of them.
-The shared types (`Model`, `Backend`, `ModelCard`, `SizeRange`, `TensorRTEngine`, `ImageLike`) are exported here too.
+Tasks: `fastforks.stereo`, `flow`, `matching`, `depth`, `multiview`, `classification`, `segmentation`, `detection`,
+`promptable_segmentation`, `features`, `pose`, `matting`, `tracking`, `interpolation`, `retrieval`, `calibration`,
+`restoration`, `edges`, `ocr`;
+`fastforks.list_models()` lists the installed models of every task and `fastforks.load(id)` loads any of them.
+The shared types (`Model`, `Backend`, `ModelCard`, `SizeRange`, `TensorRTEngine`, `ImageLike`) are exported here.
 `fastforks.patch(model)` speeds up your own timm / torchvision / HF transformers classifier in place (imported on
 first use: `import fastforks` stays torch-free).
 """
@@ -15,7 +16,7 @@ import importlib.metadata
 from typing import TYPE_CHECKING, Any
 
 from fastforks._core import registry
-from fastforks._core.arguments import typo_checked_load
+from fastforks._core.arguments import legacy_labels, typo_checked_load
 from fastforks._core.errors import (
     ArgumentError,
     BackendUnavailableError,
@@ -37,13 +38,13 @@ from fastforks._core.save import save
 
 if TYPE_CHECKING:
     import os
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Sequence
 
     import torch
 
     from fastforks._core.cards import Commercial, Dtype, ModelCard, Tier
     from fastforks._core.export import TensorRTEngine
-    from fastforks._core.image import ImageLike
+    from fastforks._core.image import ImageLike, read_images
     from fastforks._core.model import Backend, ModeArg, Model
     from fastforks._core.sizes import SizeRange
     from fastforks._optimize import FastModel, patch
@@ -78,6 +79,7 @@ __all__ = [
     "load",
     "model_card",
     "patch",
+    "read_images",
     "save",
 ]
 
@@ -144,15 +146,15 @@ def model_card(model: str) -> ModelCard:
 
 
 @typo_checked_load
-def load(  # noqa: PLR0913 - the arguments of every task's `load`, plus classification's `labels`
+def load(  # noqa: PLR0913 - the arguments of every task's `load`, plus classification's `class_names`
     model: str,
     *,
     mode: ModeArg = "auto",
     device: str | torch.device | None = None,
     dtype: Dtype | torch.dtype | None = None,
-    options: Mapping[str, Any] | None = None,
     weights: str | os.PathLike[str] | None = None,
-    labels: Sequence[str] | None = None,
+    class_names: Sequence[str] | None = None,
+    **options: object,
 ) -> Model:
     """Load any model by id: the same as `fastforks.<task>.load(model, ...)` for the task that has the model.
 
@@ -165,9 +167,9 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load`, plus classifi
         mode: `"auto"` (default), `"portable"` or `"kernels"`, as in the task loaders.
         device: Default: `"cuda"` if available, else `"mps"` for a family validated on it, else `"cpu"`.
         dtype: Compute dtype (`None`: the validated one; a string or the torch dtype).
-        options: Model options (see `fastforks info MODEL`).
         weights: Your own weights file or directory instead of the downloaded ones.
-        labels: Classification only: class names for your own weights (see `fastforks.classification.load`).
+        class_names: Classification only: class names for your own weights (see `fastforks.classification.load`).
+        **options: Model options (see `fastforks info MODEL`), e.g. `iters=16`.
 
     Returns:
         The model of the task that has `model` (`StereoModel`, `DepthModel`, ...).
@@ -175,8 +177,8 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load`, plus classifi
     Raises:
         ModelNotFoundError: No task has `model`; the message suggests similar ids.
         ArgumentError: An unknown keyword (the message suggests the closest one, e.g. `mdoe=` -> `mode`).
-        OptionsError: Several tasks have this id (the message names the task loaders), or `labels` for a model that
-            is not a classifier.
+        OptionsError: Several tasks have this id (the message names the task loaders), or `class_names` for a model
+            that is not a classifier.
         FastforksError: Anything the task's `load` raises.
     """
     tasks = [t for t in registry.TASKS if _has(t, model)]
@@ -187,12 +189,13 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load`, plus classifi
     card, _ = registry.resolve_any(model)
     task = importlib.import_module(f"fastforks.{card.task}")
     extra: dict[str, Any] = {}
-    if labels is not None:
+    given = legacy_labels(class_names, options)
+    if given is not None:
         if card.task != "classification":
-            msg = f"labels= is for classifiers; {model!r} is a {card.task} model"
+            msg = f"class_names= is for classifiers; {model!r} is a {card.task} model"
             raise OptionsError(msg)
-        extra["labels"] = labels
-    return task.load(model, mode=mode, device=device, dtype=dtype, options=options, weights=weights, **extra)
+        extra["class_names"] = given
+    return task.load(model, mode=mode, device=device, dtype=dtype, weights=weights, **extra, **options)
 
 
 def _has(task: str, model: str) -> bool:
@@ -251,6 +254,7 @@ _LAZY = {  # public name -> module that defines it; these import torch
     "SizeRange": "fastforks._core.sizes",
     "TensorRTEngine": "fastforks._core.export",
     "patch": "fastforks._optimize",
+    "read_images": "fastforks._core.image",
 }
 
 

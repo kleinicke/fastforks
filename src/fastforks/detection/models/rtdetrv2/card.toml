@@ -5,6 +5,10 @@ tier = "stable"
 outputs = ["boxes", "scores", "labels"]
 uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
 
+limitations = [
+  "Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~110 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
+]
+
 [upstream]
 repo = "https://github.com/lyuwenyu/RT-DETR"
 commit = "df2a96c8c3a098567a1149bf0248da6efe6d495d"
@@ -38,13 +42,19 @@ cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the networ
 
 [modes.portable]
 cuda_dtype = "float16"  # backbone, encoder and decoder layers; query selection, box refinement and heads stay float32
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc"]  # fp16-accumulating convolutions (+ cuDNN fused conv-ReLU / conv-add-ReLU), fp16-accumulate GEMMs, CUDA graph
 
 [output]
 label_set = "coco-80"
+
+[[papers]]
+title = "RT-DETRv2: Improved Baseline with Bag-of-Freebies for Real-Time Detection Transformer"
+url = "https://arxiv.org/abs/2407.17140"
+date = "2024-07-24"
+venue = "arXiv"
 
 [[variants]]
 id = "rtdetrv2-s-coco"

@@ -15,6 +15,9 @@ upstream test-time protocol written out here independently of `fastforks.shared`
   logits first.
   OneFormer's `task_inputs` come from the checkpoint repo's own CLIP tokenizer ("the task is semantic", padded to
   `task_seq_len`) and must equal the card's `task_tokens`.
+- `["fixed", h, w]` (fine-tuned Hugging Face SegFormer checkpoints): the checkpoint repo's own
+  `SegformerImageProcessor` on the PIL image (its size must be the card's), logits resized bilinearly to the image size
+  (the model cards' code).
 - `window` set (EoMT, `window_imgs_semantic` / `revert_window_logits_semantic` of tue-mps/eomt): shorter side to
   `window` (PIL bilinear, `round`), ImageNet normalisation, `ceil(long / window)` square windows along the longer side
   (overlap spread evenly, `int` starts), one batch; per window `semantic_inference` at the window size; window logits
@@ -40,6 +43,7 @@ import torch
 import torch.nn.functional as F
 import transformers
 from _common import image, write
+from PIL import Image
 
 from fastforks._core import registry
 from fastforks._core.labels import label_set
@@ -148,6 +152,14 @@ def _whole(net: torch.nn.Module, x: torch.Tensor, params: dict, task: torch.Tens
     return torch.einsum("bqc,bqhw->bchw", probs, m.sigmoid())
 
 
+def _processor(repo: str, revision: str, x: torch.Tensor, rule: list) -> torch.Tensor:
+    """The repo's `SegformerImageProcessor` applied to the uint8 image, logits as its model card resizes them."""
+    proc = transformers.SegformerImageProcessor.from_pretrained(repo, revision=revision)
+    assert [proc.size["height"], proc.size["width"]] == rule[1:], f"processor size {proc.size} != card {rule}"  # noqa: S101
+    pil = Image.fromarray((x[0] * 255).round().byte().permute(1, 2, 0).numpy())
+    return proc(images=pil, return_tensors="pt").pixel_values
+
+
 def _task(repo: str, revision: str, net: Any, params: dict) -> torch.Tensor:  # noqa: ANN401 - a transformers model
     n = net.config.task_seq_len
     tok = transformers.CLIPTokenizer.from_pretrained(repo, revision=revision)
@@ -175,7 +187,11 @@ def main() -> None:
         task = _task(m[1], m[2], net, params) if "task_tokens" in params else None
         x = torch.from_numpy(image()).permute(2, 0, 1)[None].float() / 255
         with torch.inference_mode():
-            logits = _whole(net, x, params, task)[0].numpy()
+            if params.get("resize", [""])[0] == "fixed":
+                y = net(pixel_values=_processor(m[1], m[2], x, list(params["resize"]))).logits
+                logits = F.interpolate(y, x.shape[-2:], mode="bilinear", align_corners=False)[0].numpy()
+            else:
+                logits = _whole(net, x, params, task)[0].numpy()
         write(
             variant.ref,
             {"logits": logits},

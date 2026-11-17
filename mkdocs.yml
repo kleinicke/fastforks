@@ -19,6 +19,7 @@ nav:
   - Docker and offline: docker.md
   - Export: export.md
   - Stereo geometry: stereo_geometry.md
+  - Structure from motion: sfm.md
   - Which model: overview.md
   - Benchmarks:
       - Methods and RTX 5060 Ti (reference): benchmarks.md
@@ -33,23 +34,47 @@ nav:
       - fastforks: api/index.md
       - Stereo: api/stereo.md
       - Stereo geometry: api/geometry.md
+      - Optical flow: api/flow.md
+      - Dense matching: api/matching.md
       - Depth: api/depth.md
       - Classification: api/classification.md
       - Segmentation: api/segmentation.md
       - Features: api/features.md
+      - Pose: api/pose.md
       - Promptable segmentation: api/promptable_segmentation.md
       - Detection: api/detection.md
       - Multi-view: api/multiview.md
+      - Matting: api/matting.md
+      - Point tracking: api/tracking.md
+      - Frame interpolation: api/interpolation.md
+      - Retrieval: api/retrieval.md
+      - Calibration: api/calibration.md
+      - Image restoration: api/restoration.md
+      - Volume segmentation: api/volume.md
+      - Edges / line art: api/edges.md
+      - Text recognition (OCR): api/ocr.md
       - Errors: api/errors.md
   - Models:
       - Stereo: models/stereo.md
+      - Optical flow: models/flow.md
+      - Dense matching: models/matching.md
       - Depth: models/depth.md
       - Classification: models/classification.md
       - Segmentation: models/segmentation.md
       - Features: models/features.md
+      - Pose: models/pose.md
       - Promptable segmentation: models/promptable_segmentation.md
       - Detection: models/detection.md
       - Multi-view: models/multiview.md
+      - Matting: models/matting.md
+      - Point tracking: models/tracking.md
+      - Frame interpolation: models/interpolation.md
+      - Retrieval: models/retrieval.md
+      - Calibration: models/calibration.md
+      - Image restoration: models/restoration.md
+      - Volume segmentation: models/volume.md
+      - Edges / line art: models/edges.md
+      - Text recognition (OCR): models/ocr.md
   - Contributing: contributing.md
 markdown_extensions:
   - admonition

@@ -1,0 +1,76 @@
+schema = 2
+name = "PP-OCRv5 (server / mobile)"
+summary = "PP-OCRv5 (PaddleOCR 3, Baidu 2025): a DB text detector (PP-HGNetV2 + LKPAN for server, PP-LCNetV3 + RSE-FPN for mobile) finds text lines of any orientation as quads; each line is cut out with a perspective warp and read by a CTC recogniser (PP-HGNetV2 / PP-LCNetV3 with an SVTR neck) over 18 383 characters (simplified and traditional Chinese, English, Japanese, pinyin). Inference as PaddleX's OCR pipeline without the document unwarping and the text-line orientation classifier. The portable `module()` is the detector with its normalisation."
+tier = "experimental"
+outputs = ["boxes", "texts", "scores"]
+uses = []
+limitations = [
+  "No document orientation / unwarping and no text-line orientation classifier (upside-down lines are read as they are).",
+  "The DB post-processing runs on the CPU (OpenCV-exact geometry); hole contours of the binary map are not boxed (upstream boxes them too; they rarely pass `box_threshold`).",
+]
+
+[upstream]
+repo = "https://github.com/PaddlePaddle/PaddleOCR"
+commit = "dab3fe35379033fdcb2d0e9572fac0b36c9a9ebf"  # inference as PaddleX 3.3.13 `OCR` pipeline (paddlex/inference/pipelines/ocr, models/text_detection, models/text_recognition)
+
+[licence]
+code = "Apache-2.0"
+weights = "Apache-2.0"  # Hugging Face model cards PaddlePaddle/PP-OCRv5_*: "license: apache-2.0"
+files = ["LICENSE"]
+training_data = ["unstated"]
+training_note = "The PP-OCRv5 technical report describes public and synthetic text data plus Baidu's own data; the exact sets are not listed."
+evidence = "https://github.com/PaddlePaddle/PaddleOCR/blob/dab3fe35379033fdcb2d0e9572fac0b36c9a9ebf/LICENSE ; https://huggingface.co/PaddlePaddle/PP-OCRv5_server_det"
+
+[io]
+input = "0-255"  # the runner flips RGB to BGR (upstream reads with OpenCV), resizes (OpenCV linear) and normalises itself
+
+[options]
+box_threshold = { default = 0.6, min = 0.0, max = 1.0, aliases = ["text_det_box_thresh"] }  # minimum mean detector score inside a box
+unclip_ratio = { default = 1.5, min = 0.1, aliases = ["text_det_unclip_ratio"] }  # box growth: offset = area * ratio / perimeter
+
+[params]
+server = true
+
+[modes.portable]
+cuda_dtype = "float16"
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+status = "none"
+reason = "cuDNN convolutions are the networks; the time outside them is the per-line crop / resize and the CPU box geometry"
+
+[[papers]]
+title = "PaddleOCR 3.0 Technical Report"
+url = "https://arxiv.org/abs/2507.05595"
+date = "2025-07-08"
+venue = "arXiv"
+
+[[papers]]
+title = "Real-time Scene Text Detection with Differentiable Binarization"
+url = "https://arxiv.org/abs/1911.08947"
+date = "2019-11-20"
+venue = "AAAI 2020"
+
+[[variants]]
+id = "ppocrv5-server"
+revision = 1
+params = { server = true }
+weights = [
+  { name = "PP-OCRv5_server_det/inference.json", size = 402480, sha256 = "af5876933d8806a1b50d895867e0781e135cd92ff37381992828fc8d1b842d28", url = "https://huggingface.co/PaddlePaddle/PP-OCRv5_server_det/resolve/ca867c897ecbca8873081573a802ad70d499cb94/inference.json" },
+  { name = "PP-OCRv5_server_det/inference.pdiparams", size = 87932887, sha256 = "183146fe9d9910352f68482f623bcbbb9fa7b9e8fa1463b9ad288cef00524d2d", url = "https://huggingface.co/PaddlePaddle/PP-OCRv5_server_det/resolve/ca867c897ecbca8873081573a802ad70d499cb94/inference.pdiparams" },
+  { name = "PP-OCRv5_server_rec/inference.json", size = 325204, sha256 = "8e6e12e5d42531840310977fffb58165bf889fc5061408c5a8afdb6985f47fcb", url = "https://huggingface.co/PaddlePaddle/PP-OCRv5_server_rec/resolve/b26c3587fda8da3c8ec0ce357214b4d661ff1558/inference.json" },
+  { name = "PP-OCRv5_server_rec/inference.pdiparams", size = 84390117, sha256 = "63853f062a5f4089befc16f565a68277618e0da5cb45468b49d11079de0ada77", url = "https://huggingface.co/PaddlePaddle/PP-OCRv5_server_rec/resolve/b26c3587fda8da3c8ec0ce357214b4d661ff1558/inference.pdiparams" },
+  { name = "PP-OCRv5_server_rec/config.json", size = 352253, sha256 = "6a780e213d7a830058ae1b6899c62cc13ca9c1f0f04ae39a27ebb2610fae7c51", url = "https://huggingface.co/PaddlePaddle/PP-OCRv5_server_rec/resolve/b26c3587fda8da3c8ec0ce357214b4d661ff1558/config.json" },
+]
+
+[[variants]]
+id = "ppocrv5-mobile"
+revision = 1
+params = { server = false }
+weights = [
+  { name = "PP-OCRv5_mobile_det/inference.json", size = 229777, sha256 = "05feef1acb00aa4cd7362b15f7f501fc4f99d7b1fa73c1c871e0c7b1504b0f5c", url = "https://huggingface.co/PaddlePaddle/PP-OCRv5_mobile_det/resolve/0d63e78e2b680928f6b1747d76a08db6e645efb7/inference.json" },
+  { name = "PP-OCRv5_mobile_det/inference.pdiparams", size = 4692937, sha256 = "afa1820cb16c1fd0dad589d0f8b389139061c1ef6d68019685fd07be997dda5b", url = "https://huggingface.co/PaddlePaddle/PP-OCRv5_mobile_det/resolve/0d63e78e2b680928f6b1747d76a08db6e645efb7/inference.pdiparams" },
+  { name = "PP-OCRv5_mobile_rec/inference.json", size = 217724, sha256 = "24587345250c7332d0fc6f9a44e794d078cdaeb64c302fef906f325619de2569", url = "https://huggingface.co/PaddlePaddle/PP-OCRv5_mobile_rec/resolve/682f20538d8c086cb2128e5cfac775e6c4904e85/inference.json" },
+  { name = "PP-OCRv5_mobile_rec/inference.pdiparams", size = 16458665, sha256 = "2460da90875937c94db97eba74ae3d9e5d4c4c57c42f1f41531c09a26bcc771a", url = "https://huggingface.co/PaddlePaddle/PP-OCRv5_mobile_rec/resolve/682f20538d8c086cb2128e5cfac775e6c4904e85/inference.pdiparams" },
+  { name = "PP-OCRv5_mobile_rec/config.json", size = 352253, sha256 = "6df1587ae056f0b987125fc894b17f62ae3a12644fa2488d108f19377da9c1a8", url = "https://huggingface.co/PaddlePaddle/PP-OCRv5_mobile_rec/resolve/682f20538d8c086cb2128e5cfac775e6c4904e85/config.json" },
+]

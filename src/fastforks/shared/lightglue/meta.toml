@@ -1,0 +1,4 @@
+summary = "LightGlue (Lindenberger et al. 2023): the sparse feature matcher (transformer with adaptive depth and width), with weight loading."
+licence = "Apache-2.0"
+files = ["LICENSE"]
+derived_from = "https://github.com/cvg/LightGlue (5a650c444718caffc2669dc0094cde908f42dd73), lightglue/lightglue.py; resize.py: lightglue/utils.py ImagePreprocessor = kornia 0.8.3 geometry.transform.resize (Apache-2.0)"

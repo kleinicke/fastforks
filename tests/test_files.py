@@ -13,6 +13,7 @@ import threading
 import urllib.error
 import warnings
 import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -134,7 +135,11 @@ def test_zip_member_download(tmp_path):
     spec = FileSpec("b.pth", hashlib.sha256(b"bbbb").hexdigest(), 4, url, member="dir/b.pth")
     p = locate(spec, group="fam", env_var=ENV)
     assert p.read_bytes() == b"bbbb"
-    assert cache_files() == [p, *stamps()]  # archive and partial files removed
+    assert cache_files() == [
+        p,
+        files.cache_root() / "fam" / "b.pth",
+        *stamps(),
+    ]  # + view link
 
 
 def test_tar_gz_member_download(tmp_path):
@@ -147,7 +152,7 @@ def test_tar_gz_member_download(tmp_path):
     spec = FileSpec("b.pb", hashlib.sha256(b"bbbb").hexdigest(), 4, path.as_uri(), member="dir/b.pb")
     p = locate(spec, group="fam", env_var=ENV)
     assert p.read_bytes() == b"bbbb"
-    assert cache_files() == [p, *stamps()]
+    assert cache_files() == [p, files.cache_root() / "fam" / "b.pb", *stamps()]
     gone = FileSpec("c.pb", "0" * 64, None, path.as_uri(), member="c.pb")
     with pytest.raises(WeightsDownloadError, match=r"no member 'c\.pb'"):
         locate(gone, group="fam", env_var=ENV)
@@ -622,6 +627,21 @@ def test_torch_hub_cache_by_file_name(tmp_path, monkeypatch):
         locate(other, group="fam", env_var=ENV, allow_download=False)
 
 
+def test_read_caches_are_used_in_place(tmp_path, monkeypatch):
+    """A blob of a `FASTFORKS_READ_CACHES` cache is used where it is (also as an archive member); others download."""
+    other = tmp_path / "other"
+    monkeypatch.setenv("FASTFORKS_READ_CACHES", f"{tmp_path / 'missing'}{os.pathsep}{other}")
+    spec = dataclasses.replace(spec_for(b"payload", "https://example.com/a.zip"), member="w.bin")
+    blob = files.blob_path(spec.sha256, other)
+    blob.parent.mkdir(parents=True)
+    blob.write_bytes(b"payload")
+    assert files.present(spec, "fam", ENV)
+    assert locate(spec, group="fam", env_var=ENV, allow_download=False) == blob
+    assert not files.blob_path(spec.sha256).exists()  # not copied into FASTFORKS_CACHE
+    with pytest.raises(WeightsDownloadError, match="not found"):
+        locate(spec_for(b"other"), group="fam", env_var=ENV, allow_download=False)
+
+
 def test_legacy_huggingface_hub_cache_variable(tmp_path, monkeypatch):
     monkeypatch.delenv("HF_HUB_CACHE", raising=False)
     monkeypatch.setenv("HUGGINGFACE_HUB_CACHE", str(tmp_path / "legacy"))
@@ -664,3 +684,52 @@ def test_http_status_decides_whether_to_retry(monkeypatch, code, text):
     with pytest.raises(WeightsDownloadError, match=rf"fam: cannot download.*{text}.*<dir>/fam/w.bin") as e:
         locate(spec, group="fam", env_var=ENV)
     assert ("Retry later" in str(e.value)) == (code == 503)
+
+
+def _view_cache(tmp_path, monkeypatch):
+    monkeypatch.setenv("FASTFORKS_CACHE", str(tmp_path / "cache"))
+    monkeypatch.delenv("FASTFORKS_OFFLINE", raising=False)
+    data = b"view-bytes"
+    spec = FileSpec("sub/model.bin", hashlib.sha256(data).hexdigest(), len(data))
+    blob = files.blob_path(spec.sha256)
+    blob.parent.mkdir(parents=True)
+    blob.write_bytes(data)
+    return spec, blob, tmp_path / "cache"
+
+
+def test_view_link_on_locate_idempotent_and_shared(tmp_path, monkeypatch):
+    spec, blob, root = _view_cache(tmp_path, monkeypatch)
+    assert locate(spec, group="fam", env_var="FF_NONE") == blob
+    link = root / "fam" / "sub" / "model.bin"
+    assert link.is_symlink()
+    assert not link.readlink().is_absolute()
+    assert link.read_bytes() == b"view-bytes"
+    locate(spec, group="fam", env_var="FF_NONE")  # idempotent
+    locate(spec, group="other", env_var="FF_NONE")  # one blob, two families
+    assert (root / "other" / "sub" / "model.bin").resolve() == blob.resolve() == link.resolve()
+
+
+def test_view_never_overwrites_real_file_and_lookup_ignores_view(tmp_path, monkeypatch):
+    spec, blob, root = _view_cache(tmp_path, monkeypatch)
+    real = root / "fam" / "sub" / "model.bin"
+    real.parent.mkdir(parents=True)
+    real.write_bytes(b"mine")
+    assert not files.link_view(spec, "fam")
+    assert real.read_bytes() == b"mine"
+    assert not real.is_symlink()
+    real.unlink()
+    assert files.link_view(spec, "fam")
+    (root / "fam").rename(tmp_path / "gone")  # the view is optional: the blob still serves
+    assert locate(spec, group="fam", env_var="FF_NONE") == blob
+
+
+def test_view_replaces_stale_link_and_skips_unwritable(tmp_path, monkeypatch):
+    spec, blob, root = _view_cache(tmp_path, monkeypatch)
+    link = root / "fam" / "sub" / "model.bin"
+    link.parent.mkdir(parents=True)
+    link.symlink_to("nowhere")
+    assert files.link_view(spec, "fam")
+    assert link.resolve() == blob.resolve()
+    monkeypatch.setattr(Path, "symlink_to", lambda *_, **__: (_ for _ in ()).throw(OSError("denied")))
+    assert not files.link_view(spec, "fresh")  # no symlink permission: skipped silently
+    assert not files.link_view(FileSpec("../x", spec.sha256), "fam")

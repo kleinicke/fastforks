@@ -5,9 +5,10 @@ cuDNN handles and the lazy loading of each kernel module (e.g. ~120 ms for the f
 first fp16 convolution, ~85 ms for the first `masked_fill`: 300-500 ms per model in total). Torch ops release the
 GIL, so tiny calls of these ops in a thread overlap with the load's checkpoint reading and network building on the
 main thread; handles return to torch's per-device pools when the thread ends and the main thread reuses them.
-`start` runs once per device and process; the first model call on that device ends it (`wait`: the running step
-finishes, the rest is skipped), so it never runs next to a model call (nor a CUDA graph capture), and a short load
-does not wait for steps its model may not need. An exit hook ends a warm-up still running at interpreter exit (e.g.
+`start` runs once per device and process; the end of the load (and any model call) on that device ends it (`wait`:
+the running step finishes, the rest is skipped), so it never runs next to a model call (nor a CUDA graph capture), the
+loaded model's memory starts without a step's buffers, and a short load does not wait for steps its model may not
+need. An exit hook ends a warm-up still running at interpreter exit (e.g.
 after a failing load): a daemon thread inside a torch op at finalization ends in `std::terminate` (exit code 134).
 """
 
@@ -57,19 +58,24 @@ def _steps(device: torch.device) -> list[Callable[[], object]]:
     ]
 
 
+def _release(device: torch.device) -> None:
+    """Free what a step left: the cuBLAS workspace of this thread's handle and the cached segments."""
+    torch.cuda.synchronize(device)
+    # The workspace (32 MiB on recent GPUs; torch frees it the same way before a graph capture): a model that never
+    # calls cuBLAS must not keep it, and one that does allocates its own on its first call.
+    clear = getattr(torch._C, "_cuda_clearCublasWorkspaces", None)  # noqa: SLF001 - no public equivalent
+    if clear is not None:
+        clear()
+    torch.cuda.empty_cache()  # the model lays out its memory as without the warm-up
+
+
 def _ops(device: torch.device, stop: threading.Event) -> None:
     with torch.cuda.device(device), torch.inference_mode():
         for step in _steps(device):
             if stop.is_set():
                 break
             step()
-        torch.cuda.synchronize(device)
-        # Free the cuBLAS workspace this thread's handle got (torch does the same before a graph capture): a model
-        # that never calls cuBLAS must not keep 32 MiB more, and one that does allocates its own on its first call.
-        clear = getattr(torch._C, "_cuda_clearCublasWorkspaces", None)  # noqa: SLF001 - no public equivalent
-        if clear is not None:
-            clear()
-        torch.cuda.empty_cache()  # and the segments the steps cached: the model lays out its memory as without
+            _release(device)  # after each step: the model's first call (and its peak) never starts on top of it
 
 
 def _run(device: torch.device, stop: threading.Event) -> None:

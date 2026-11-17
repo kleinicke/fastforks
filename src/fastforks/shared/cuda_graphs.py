@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Hashable
 
 _FAILED = 256  # fixed: shapes remembered as not capturable
+_LARGER = 2  # fixed: a new shape this many times larger than every held graph's input frees the graphs
 
 # serialises the warm-ups + captures on the shared capture stream (reentrant: a captured forward may hold it again)
 CAPTURE_LOCK = threading.RLock()
@@ -115,7 +116,7 @@ class GraphCache:
 
         `post(static output)` replaces the copy when it returns new tensors anyway (e.g. a dtype conversion).
         """
-        failed = captured = False
+        failed = captured = released = False
         result = None
         with self._lock:
             cur = torch.cuda.current_stream(inputs[0].device)
@@ -124,6 +125,8 @@ class GraphCache:
             self._stream = cur
             self._calls += 1
             entry = self.graphs.get(key)
+            if entry is None and self.graphs and self._much_larger(inputs[0]):
+                released = self._free_graphs()  # a GPU-bound shape: the small shapes' pools only cost memory next to it
             if entry is None and key not in self._failed:
                 entry, failed = self._add(key, inputs)
                 captured = entry is not None
@@ -134,7 +137,7 @@ class GraphCache:
                     s.copy_(x)
                 graph.replay()
                 result = _copy(out) if post is None else post(out)
-        if failed or captured:
+        if failed or captured or released:
             # outside the lock: the partial pool of a failed capture, or the blocks the eager calls and the capture
             # warm-up cached (the warm-up's on the capture stream, which the caller's stream never reuses): replays
             # allocate nothing, so these blocks only doubled the reserved memory (igev++ 1454 -> 720 MiB)
@@ -172,6 +175,10 @@ class GraphCache:
             side.wait_stream(cur)
             checked(self._forward, *static)  # warm-up outside the capture (lazy inits, workspaces, overflow fallbacks)
             side.synchronize()
+            # the warm-up's cuBLAS workspace is a block of the default pool, and PyTorch frees every workspace when any
+            # CUDA graph is destroyed: a graph captured with it would replay into freed memory after an eviction.
+            # Dropped here, the capture allocates its own in the graph pool, which outlives the graph
+            torch._C._cuda_clearCublasWorkspaces()  # noqa: SLF001 - no public API
             graph.capture_begin(self._pool, capture_error_mode="thread_local")
             try:
                 out = self._forward(*static)
@@ -180,6 +187,20 @@ class GraphCache:
         cur.wait_stream(side)
         self._pool = graph.pool()
         return graph, static, out
+
+    def _much_larger(self, x: torch.Tensor) -> bool:
+        """`x` has at least `_LARGER` x the elements of the first input of every held graph."""
+        return all(x.numel() >= _LARGER * static[0].numel() for _, static, _ in self.graphs.values())
+
+    def _free_graphs(self) -> bool:
+        """Drop every graph (the caller's `empty_cache` frees their pool, outside the lock); they capture again."""
+        if self._stream is not None:
+            self._stream.synchronize()  # the last replay + copy-out are done: the buffers may go
+        self.graphs.clear()
+        self._used.clear()
+        self._seen.clear()
+        self._pool = None
+        return True
 
     def _evict(self) -> bool:
         """Drop the least recently used graph if it is stale; False: the cache is busy, run eagerly."""
@@ -209,7 +230,8 @@ class SmallShapeGraphs:
     """A kernels forward that replays a `GraphCache` graph for small inputs and runs eagerly otherwise.
 
     Small means `batch x H x W` of the first input <= `pixels` (launch-bound: the host issues the kernels slower than
-    the GPU runs them); larger inputs are GPU-bound, where a graph's pool would only cost memory. `enabled=False`
+    the GPU runs them); larger inputs are GPU-bound, where a graph's pool would only cost memory: such an input first
+    frees the graphs of earlier small shapes (they capture again when a shape repeats). `enabled=False`
     (option `cuda_graphs = false`) keeps every call eager; `release()` frees the graphs and their pool.
     """
 
@@ -235,6 +257,10 @@ class SmallShapeGraphs:
             out = self.cache.run(key, *inputs)
             if out is not None:
                 return out
+        elif self.cache is not None and self.cache.graphs and x.is_cuda:
+            # a GPU-bound input: the small shapes' graph pool would stay reserved next to its activations (fast-acvnet
+            # 994x1482 after 375x1242: 962 vs 736 MiB); a small shape that returns captures again on its 2nd call
+            self.cache.release()
         return self.forward(*inputs)
 
     def release(self) -> None:

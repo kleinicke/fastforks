@@ -1,0 +1,20 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 0.002
+gpu_mean = 0.02
+gpu_p99 = 0.25
+
+[refs."inspyrenet-fast@1"]
+sha256 = "8054b5ce5ce5265b45249357bc59358d7636eabfb47e0f84ee2627e0d30820e5"
+upstream = "https://github.com/plemeri/transparent-background@f0fa91701a98cfc8e955c554e84522f365ec6da3"
+settings = "CPU float32, InSPyReNet_SwinB threshold None, 384x384 antialiased bilinear, ImageNet, sigmoid min-max, bilinear back (align_corners), coffee.png, torch 2.14.1+cu130"
+
+[refs."inspyrenet@1"]
+sha256 = "0550185bd6457612358e8eb05dfc12f56c63bc199b813cd91207dab67f1c28df"
+upstream = "https://github.com/plemeri/transparent-background@f0fa91701a98cfc8e955c554e84522f365ec6da3"
+settings = "CPU float32, InSPyReNet_SwinB threshold None, 1024x1024 antialiased bilinear, ImageNet, sigmoid min-max, bilinear back (align_corners), coffee.png, torch 2.14.1+cu130"

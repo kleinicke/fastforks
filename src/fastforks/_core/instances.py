@@ -8,12 +8,16 @@
 from __future__ import annotations
 
 import dataclasses
+import json
 import numbers
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Self
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 import torch
 
+from fastforks._core.errors import InputError
+from fastforks._core.io import atomic_write
 from fastforks._core.outputs import NumpyOutputs
 
 if TYPE_CHECKING:
@@ -46,6 +50,8 @@ class Instances(NumpyOutputs):
     backend: Backend
     options: Mapping[str, Any] = field(default_factory=dict)
 
+    _per_instance: ClassVar[tuple[str, ...]] = ("boxes", "scores", "labels", "masks")  # what `[...]` selects
+
     def __len__(self) -> int:
         """Number of instances."""
         return int(self.scores.shape[0])
@@ -72,9 +78,7 @@ class Instances(NumpyOutputs):
         def pick(t: torch.Tensor | None) -> torch.Tensor | None:
             return None if t is None else t[index]
 
-        return dataclasses.replace(
-            self, boxes=self.boxes[index], scores=self.scores[index], labels=pick(self.labels), masks=pick(self.masks)
-        )
+        return dataclasses.replace(self, **{k: pick(getattr(self, k)) for k in self._per_instance})
 
     def __iter__(self) -> Iterator[Self]:
         """One result of length 1 per instance, in score order (`for det in result: ...`)."""
@@ -108,3 +112,25 @@ class Instances(NumpyOutputs):
                 d["mask"] = self.masks[i]
             out.append(d)
         return out
+
+    def save(self, path: str | Path) -> None:
+        """Write `to_list()` as a `.json` file (a list with one object per instance; masks are left out).
+
+        Write a mask as a 1-bit PNG with `fastforks.save(path, result.masks[i])`.
+
+        Raises:
+            InputError: The suffix is not `.json`.
+        """
+        if Path(path).suffix.lower() != ".json":
+            msg = (
+                f"{type(self).__name__}.save writes .json (to_list()); write the arrays with np.save, e.g."
+                " np.save(path, result.numpy()['boxes'])"
+            )
+            raise InputError(msg)
+        rows = [{k: v for k, v in d.items() if k != "mask"} for d in self.to_list()]
+        text = json.dumps(rows) + "\n"
+
+        def write(tmp: Path) -> None:
+            tmp.write_text(text)
+
+        atomic_write(path, write)

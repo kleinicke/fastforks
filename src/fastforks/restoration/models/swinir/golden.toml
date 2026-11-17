@@ -1,0 +1,66 @@
+# Golden outputs of this family (tests/synth.py pair, files in $FASTFORKS_GOLDEN_PATH), written by
+# tools/golden/<family>.py from `upstream` (+ `patch` from tools/golden/patches/). [tolerance]: max |diff| on CPU
+# float32 (`cpu_atol`), and on GPU the main output's mean |diff| and 99th percentile (disparity: px; divided by the
+# reference's median |value| if `relative = true`). [validated]: kernel builds (`lib@build:target`) a GPU golden run
+# passed with (`pytest -m gpu --record`). Not shipped in wheels.
+
+[tolerance]
+cpu_atol = 1.4e-05
+gpu_mean = 0.02
+gpu_p99 = 0.25
+
+[refs."swinir-l-x4-real@1"]
+sha256 = "b71dd819dc84d4e071b8f054a98b5aff57270a40b431f0fb6bca21be39d3870a"
+upstream = "https://github.com/JingyunLiang/SwinIR@6545850fbf8df298df73d81f3e8cba638787c8bd"
+settings = "CPU float32, main_test_swinir.py: mirror padding to (size // 8 + 1) * 8, model(lq), crop, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[refs."swinir-m-x2@1"]
+sha256 = "f8c530988b87f9caaa517bb7152f1b4564e6029a5f2428febc7dc06d5006dd66"
+upstream = "https://github.com/JingyunLiang/SwinIR@6545850fbf8df298df73d81f3e8cba638787c8bd"
+settings = "CPU float32, main_test_swinir.py: mirror padding to (size // 8 + 1) * 8, model(lq), crop, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[refs."swinir-m-x4-real@1"]
+sha256 = "6dc209b3dbb6b84d613a7f887512477ba0377dff894de62167b61ceab5941210"
+upstream = "https://github.com/JingyunLiang/SwinIR@6545850fbf8df298df73d81f3e8cba638787c8bd"
+settings = "CPU float32, main_test_swinir.py: mirror padding to (size // 8 + 1) * 8, model(lq), crop, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[refs."swinir-m-x4@1"]
+sha256 = "c48fac0e89b67823cf3249cc95da4bad3155a777ca99c9b2550f960e8803b0f3"
+upstream = "https://github.com/JingyunLiang/SwinIR@6545850fbf8df298df73d81f3e8cba638787c8bd"
+settings = "CPU float32, main_test_swinir.py: mirror padding to (size // 8 + 1) * 8, model(lq), crop, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
+
+[validated."swinir-l-x4-real@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00082
+p99_px = 0.0039
+
+[validated."swinir-m-x2@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00039
+p99_px = 0.00139
+
+[validated."swinir-m-x4-real@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00126
+p99_px = 0.00498
+
+[validated."swinir-m-x4@1"]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-13"
+mean_px = 0.00052
+p99_px = 0.00192

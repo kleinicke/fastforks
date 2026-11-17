@@ -200,9 +200,12 @@ class OutlookAttentionLayer(nn.Module):
             lg = torch.matmul(wt[c0:c1], xf) + a.bias[c0:c1, None]  # [B, c1-c0, N]
             lg = lg.reshape(b, -1)[:, f0 - c0 * n : f1 - c0 * n].reshape(b, m1 - m0, kk, kk).float()
             if torch.compiler.is_compiling() and not torch.compiler.is_exporting():
-                # fastforks: Inductor lowers softmax / amax of x * scale with a per-row any(non-finite) check, which
-                # on these 49-wide rows crashes Triton's LLVM ("Cannot BITCAST between types of different sizes");
-                # exp(scale * (x - max x)) is the same softmax (scale > 0) without that pattern
+                # fastforks: Inductor rewrites softmax(x * scale) to scale * (x - max x) guarded by a per-row
+                # any(non-finite) check (_partial_softmax_pattern); that kernel (masked bool reduce + two max
+                # reductions + exp) aborts Triton 3.8's LLVM on these 49-wide rows at XBLOCK=8 / 2 warps ("Cannot
+                # BITCAST between types of different sizes"; review/issues_2026-11-14/triton_bitcast.md, sentinel
+                # test_compile.test_triton_scaled_softmax_rows_bitcast_bug_still_present). exp(scale * (x - max x))
+                # is the same softmax (scale > 0) without that pattern
                 p = ((lg - lg.amax(-1, keepdim=True)) * self.scale).exp_()
                 p = p.div_(p.sum(-1, keepdim=True)).add_(self.eps)
             else:

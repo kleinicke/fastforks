@@ -2,105 +2,38 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, NoReturn, overload
+from typing import TYPE_CHECKING
 
 from fastforks._core import model as core
 from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_pair
-from fastforks._core.errors import InputError, OptionsError
+from fastforks._core.errors import InputError
 from fastforks._core.image import ImageLike, _as_tensor, is_batch, to_rgb_pair, unbatch
-from fastforks._core.io import check_suffix
 from fastforks._core.model import Backend
-from fastforks._core.outputs import MapOutputs
 from fastforks.stereo._runner import crop, scale
 from fastforks.stereo.calibrated import (
-    StereoPairResult,
+    StereoResult,
     build_result,
+    plain_result,
     resolve_geometry,
     run_views,
     view_names,
 )
-from fastforks.stereo.io import write_disparity
 from fastforks.stereo.pipeline import run_many
 
 if TYPE_CHECKING:
     import os
-    from collections.abc import Mapping
-    from pathlib import Path
 
     import torch
 
     from fastforks._core.pipeline import OnError, Pipeline
     from fastforks.stereo._runner import Runner
     from fastforks.stereo.calibrated import Rig, Views
-    from fastforks.stereo.pipeline import Images, PairResult
+    from fastforks.stereo.pipeline import Images
 
 __all__ = ["Backend", "StereoModel", "StereoResult", "list_models", "load", "model_card"]
 
 TASK = "stereo"
-
-
-@dataclass(frozen=True)
-class StereoResult(MapOutputs):
-    """Output of a stereo model; all maps are float32 on the model's device, aligned with the left image.
-
-    Attributes:
-        disparity: Left-view disparity in pixels of the input images (`x_left - x_right >= 0`) at their resolution
-            (any internal resizing is undone, so `depth = focal_px * baseline / disparity` with the input's focal
-            length), `[H, W]`, or `[B, H, W]` for batches. Every stereo model returns this one kind.
-        confidence: Per-pixel confidence in `[0, 1]` (same shape), or `None` if the model has none.
-        extras: Further model outputs by name (e.g. `"occlusion"`), same shape.
-        model: Versioned model id, e.g. `"s2m2-s@1"`.
-        backend: The backend that produced the result.
-        options: Load options that differ from the validated defaults (they change the numerics).
-    """
-
-    disparity: torch.Tensor
-    confidence: torch.Tensor | None
-    extras: Mapping[str, torch.Tensor]
-    model: str
-    backend: Backend
-    options: Mapping[str, Any] = field(default_factory=dict)
-
-    _save_fields = ("disparity",)
-
-    def depth(self, *, euclidean: bool = False) -> NoReturn:  # noqa: ARG002 - the signature of `StereoView.depth`
-        """Not available without a calibration: raises `InputError` (call the model with `rig=` for depth).
-
-        Args:
-            euclidean: As in `StereoView.depth`; unused here.
-
-        Raises:
-            InputError: Always; the pair was taken as rectified, so there is only `disparity`.
-        """
-        msg = "depth needs a calibration: call the model with rig= (the result of a plain call has only `disparity`)"
-        raise InputError(msg)
-
-    def save(self, path: str | Path, key: str | None = None, bits: int | None = None) -> None:
-        """Write one `[H, W]` map (default `disparity`); the suffix selects the format.
-
-        As `MapOutputs.save` (`.tif`, `.npy`, `.pfm`) plus `.png`: KITTI uint16, disparity x 256, 0 = invalid.
-
-        Args:
-            path: Output file.
-            key: Output to write: `"disparity"` (default), `"confidence"` or an `extras` name.
-            bits: Mantissa bits kept in a TIFF, 1..23 (relative error at most `2**-(bits+1)`), or `None` (lossless).
-
-        Raises:
-            OptionsError: A `.png` with a `key` other than `"disparity"`.
-            InputError: The output is missing or not a single `[H, W]` map, the suffix is unknown or `bits` is invalid.
-        """
-        if check_suffix(path, self._save_suffixes, type(self).__name__) == ".png":
-            if key not in (None, "disparity"):
-                msg = (
-                    f"a .png is a KITTI disparity image and only holds key='disparity', not {key!r}; use .tif/.npy/.pfm"
-                )
-                raise OptionsError(msg)
-            write_disparity(path, self._map(key))
-        else:
-            super().save(path, key, bits)
 
 
 class StereoModel(core.Model):
@@ -115,6 +48,8 @@ class StereoModel(core.Model):
 
     Has the attributes of `fastforks.Model`.
     """
+
+    _list_images = 2
 
     _runner: Runner
 
@@ -131,42 +66,6 @@ class StereoModel(core.Model):
 
         return KernelsModule(self) if self.backend.mode == "kernels" else PortableModule(self._runner)
 
-    @overload
-    def __call__(
-        self,
-        left: ImageLike,
-        right: ImageLike,
-        *,
-        rig: None = None,
-        views: Literal["left"] = "left",
-        size: None = None,
-        focal: None = None,
-    ) -> StereoResult: ...
-
-    @overload
-    def __call__(
-        self,
-        left: ImageLike,
-        right: ImageLike,
-        *,
-        rig: Rig,
-        views: Views = "left",
-        size: tuple[int, int] | None = None,
-        focal: float | None = None,
-    ) -> StereoPairResult: ...
-
-    @overload
-    def __call__(
-        self,
-        left: ImageLike,
-        right: ImageLike,
-        *,
-        rig: Rig | None = None,
-        views: Literal["right", "both"],
-        size: tuple[int, int] | None = None,
-        focal: float | None = None,
-    ) -> StereoPairResult: ...
-
     def __call__(  # noqa: PLR0913
         self,
         left: ImageLike,
@@ -176,7 +75,7 @@ class StereoModel(core.Model):
         views: Views = "left",
         size: tuple[int, int] | None = None,
         focal: float | None = None,
-    ) -> StereoResult | StereoPairResult:
+    ) -> StereoResult:
         """Estimate the disparity of a stereo pair, or depth and point clouds of a calibrated one.
 
         ```python
@@ -206,7 +105,7 @@ class StereoModel(core.Model):
                 `stereo.geometry.rectify`).
 
         Returns:
-            A `StereoResult` for a plain call (no `rig`, `views="left"`), else a `StereoPairResult`.
+            A `StereoResult`: `disparity` (and with `rig` `depth()`, `points()`) of the main view, `left` / `right`.
 
         Raises:
             InputError: Unsupported, mismatched or too small inputs, or arguments that need a `rig`.
@@ -218,9 +117,10 @@ class StereoModel(core.Model):
             lt, rt = to_rgb_pair(left, right, self.device)
             self._check_size(lt)
             maps = unbatch(self._batched(self._run, lt, rt), left)
-            disparity = maps.pop("disparity")
-            confidence = maps.pop("confidence", None)
-            return StereoResult(disparity, confidence, maps, self.variant.ref, self.backend, self.options)
+            disparity, confidence = maps.pop("disparity"), maps.pop("confidence", None)
+            return plain_result(
+                disparity, confidence, maps, self.variant.ref, self.backend, self.options, device=self.device
+            )
         view_names(views)
         lt, rt = _as_tensor(left).to(self.device), _as_tensor(right).to(self.device)
         if lt.shape != rt.shape:
@@ -257,7 +157,7 @@ class StereoModel(core.Model):
         readers: int | None = None,
         writers: int | None = None,
         warmup: bool = False,
-    ) -> Pipeline[PairResult]:
+    ) -> Pipeline[StereoResult]:
         """Run many pairs: decoding, the GPU and saving overlap; results come in input order.
 
         ```python
@@ -286,9 +186,9 @@ class StereoModel(core.Model):
             rights: Right images, the same way and the same number.
             rig: The calibration of all pairs: a calibration file (`stereo.geometry.read_calib`), a `StereoRig`, its
                 `Rectification` (reuses its maps), or a `RectifiedRig` for rectified images. Each pair is then
-                rectified as `model(left, right, rig=rig)` does, and `PairResult.depth()` is the depth at the
+                rectified as `model(left, right, rig=rig)` does, and `StereoResult.depth()` is the depth at the
                 original pixels; with `save_to` the depth is written, else the disparity.
-            views: `"left"` (default), `"right"` or `"both"`: which camera's maps to produce (`PairResult.left` /
+            views: `"left"` (default), `"right"` or `"both"`: which camera's maps to produce (`StereoResult.left` /
                 `.right`, as for a single call). The right view runs the mirrored pair; `"both"` runs the two views
                 one after the other on the same decoded, uploaded and rectified pair. With `save_to` the right map
                 is written as `<name>_right<save_format>`.
@@ -303,7 +203,7 @@ class StereoModel(core.Model):
             max_depth: With `rig=` and `save_to=`: depth beyond this many metres is written as NaN (default: kept).
             skip_existing: Skip pairs whose output files (every view) all exist as files (resume an interrupted run).
             on_error: `"raise"` stops at the first failing pair (the error names it); `"skip"` yields a
-                `PairResult` with `error` for unreadable or invalid inputs and failed writes, and goes on. CUDA errors
+                `StereoResult` with `error` for unreadable or invalid inputs and failed writes, and goes on. CUDA errors
                 always raise.
             prefetch: Pairs in flight (decoded, on the GPU, being written); default: what fits in 1 GiB, 2-8.
             readers: Decoding threads (default: half the cores, at most 4; 0 decodes inline in the feeding thread).
@@ -312,7 +212,7 @@ class StereoModel(core.Model):
                 first call's setup work in the kernels builds; the model's internal call counters then count one more).
 
         Returns:
-            An iterator of `PairResult` in input order, also a context manager (`close()` stops it); its `stats`
+            An iterator of `StereoResult` in input order, also a context manager (`close()` stops it); its `stats`
             attribute holds timings (setup, first result, time the GPU waited for decoding).
 
         Raises:

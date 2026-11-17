@@ -4,16 +4,22 @@ Both follow upstream `infer_image`: resize so that both sides are at least `shor
 the aspect ratio, bicubic), normalise with the ImageNet mean / std, run, ReLU, and upsample the relative inverse depth
 back to the input size (bilinear, `align_corners=True`). Upstream resizes with OpenCV's `INTER_CUBIC` on the CPU;
 PyTorch's bicubic uses the same kernel (a = -0.75, replicated borders) on the device.
+
+Metric checkpoints (`max_depth > 0`, upstream `metric_depth/`) end the head in a sigmoid instead of the ReLU and scale
+it by `max_depth`: metric depth in metres. Distill-Any-Depth checkpoints are the same network; its Large ships the
+authors' `DepthAnything` layout (`layout = "dam"`: `backbone.*` keys with chunked blocks), renamed on load.
 """
 
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import torch
 import torch.nn.functional as F
+from torch import nn
 
 from fastforks._core.half import pure_half
 from fastforks.depth._runner import Forward, Runner, scale
@@ -41,6 +47,8 @@ class Params:
 
     arch: str  # "vits", "vitb" or "vitl"
     short_side: int  # lower bound of both resized sides
+    max_depth: float  # metric head: sigmoid * max_depth (metres); 0: relative inverse depth (ReLU head)
+    layout: str  # checkpoint keys: "dav2" (upstream DepthAnythingV2) or "dam" (Distill-Any-Depth's DepthAnything)
 
 
 def network_size(h: int, w: int, short_side: int) -> tuple[int, int]:
@@ -54,10 +62,41 @@ def network_size(h: int, w: int, short_side: int) -> tuple[int, int]:
     return multiple(s * h), multiple(s * w)
 
 
-def _net(ctx: Context) -> DepthAnythingV2:
+def _state_dict(ctx: Context) -> dict[str, torch.Tensor]:
+    """The checkpoint with upstream DepthAnythingV2 keys.
+
+    `dam` (one chunk of DINOv2 blocks): `backbone.blocks.0.<i>.` -> `pretrained.blocks.<i>.`, `backbone.` ->
+    `pretrained.`.
+    """
+    sd = ctx.state_dict()
+    if ctx.params.layout == "dav2":
+        return sd
+    if ctx.params.layout != "dam":
+        msg = f"depth_anything_v2: unknown checkpoint layout {ctx.params.layout!r}"
+        raise ValueError(msg)
+    return {re.sub(r"^backbone\.(blocks\.)(?:0\.)?|^backbone\.", r"pretrained.\1", k): v for k, v in sd.items()}
+
+
+def _cpu_net(ctx: Context) -> DepthAnythingV2:
+    """The network on the CPU in float32; a metric head ends in a sigmoid (upstream `metric_depth` DPTHead)."""
     net = DepthAnythingV2(encoder=ctx.params.arch, **_CONFIGS[ctx.params.arch])
-    net.load_state_dict(ctx.state_dict())
-    return net.eval().to(ctx.device)
+    if ctx.params.max_depth > 0:
+        net.depth_head.scratch.output_conv2[3] = nn.Sigmoid()  # the shared net's final ReLU is then a no-op
+    net.load_state_dict(_state_dict(ctx))
+    return net.eval()
+
+
+def _net(ctx: Context) -> DepthAnythingV2:
+    return _cpu_net(ctx).to(ctx.device)
+
+
+def _key(ctx: Context) -> str:
+    return "depth" if ctx.params.max_depth > 0 else "inverse_depth"
+
+
+def _scaled(ctx: Context, d: torch.Tensor) -> torch.Tensor:
+    """Restored network output -> metric depth (`sigmoid * max_depth`), or the relative inverse depth as it is."""
+    return d * ctx.params.max_depth if ctx.params.max_depth > 0 else d
 
 
 def _prepare(ctx: Context, image: torch.Tensor) -> torch.Tensor:
@@ -92,14 +131,14 @@ class Portable(Runner):
             pure_half(self.net, fp32=[self.net.depth_head.scratch.output_conv2[2]])
 
     def _run(self, image: torch.Tensor) -> torch.Tensor:
-        return _restore(self.net(_prepare(self.ctx, image)), image.shape[-2:])
+        return _scaled(self.ctx, _restore(self.net(_prepare(self.ctx, image)), image.shape[-2:]))
 
     def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
-        """Relative inverse depth of a batch."""
-        return {"inverse_depth": self._run(image)}
+        """Relative inverse depth (metric depth for metric checkpoints) of a batch."""
+        return {_key(self.ctx): self._run(image)}
 
     def module(self) -> torch.nn.Module:
-        """The network with its input handling: `[B, 3, H, W]` in `[0, 1]` -> inverse depth `[B, H, W]`."""
+        """The network with its input handling: `[B, 3, H, W]` in `[0, 1]` -> inverse (metric) depth `[B, H, W]`."""
         return Forward(self.net, lambda _net, image: self._run(image))
 
 
@@ -121,21 +160,19 @@ class Kernels(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the network on the CPU, convert it, move it to the device."""
         super().__init__(ctx)
-        net = DepthAnythingV2(encoder=ctx.params.arch, **_CONFIGS[ctx.params.arch])
-        net.load_state_dict(ctx.state_dict())
-        net.eval()
+        net = _cpu_net(ctx)
         k = load_dpt_fused(ctx.device)
         self.vit = FusedViT(net.pretrained, ctx.device, k, _KERNELS_ATTN.get(ctx.params.arch, "hh"))
         self.head = FusedHead(net.depth_head, ctx.device, k)
         self.layers = net.intermediate_layer_idx[net.encoder]
 
     def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
-        """Relative inverse depth of a batch."""
+        """Relative inverse depth (metric depth for metric checkpoints) of a batch."""
         h, w = network_size(*image.shape[-2:], self.ctx.params.short_side)
         with torch.autocast("cuda", enabled=False):
             feats = self.vit.features(image, (h, w), self.layers)
             d = self.head(feats, h // PATCH, w // PATCH)
-        return {"inverse_depth": _restore(d, image.shape[-2:])}
+        return {_key(self.ctx): _scaled(self.ctx, _restore(d, image.shape[-2:]))}
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}

@@ -1,9 +1,13 @@
 schema = 2
 name = "RT-MonSter++"
 summary = "RT-MonSter++ (Cheng et al. 2025), the real-time MonSter++: Depth Anything V2 (ViT-S) monocular branch + coarse-to-fine (1/16, 1/8, 1/4) local geometry volumes, stereo and mono ConvGRUs, 4 updates."
-tier = "experimental"
+tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels", "cuda_graphs", "depth_anything_v2", "monster_fit"]  # fastforks.shared modules this family imports
+
+limitations = [
+  "Kernels at 994 x 1482 peak 2631 MB (reserved 3436) vs 2581 MB (2658) portable and 2922 MB original, 21 % faster than portable; the difference is cached CUDA-graph / cuDNN workspace blocks.",
+]
 
 [upstream]
 repo = "https://github.com/Junda24/MonSter-plusplus"
@@ -30,7 +34,7 @@ cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA gra
 
 [modes.portable]
 cuda_dtype = "float16"
-mps_dtypes = ["float32"]
+mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb"]
@@ -41,7 +45,7 @@ kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb"]
 # on small inputs (~1100 launches): batch x H x W <= 700k (KITTI, 375x1242 -> 31.3 vs 41.4 ms eager) replays a CUDA
 # graph, captured on a shape's 4th call (below), at most 2 shapes per model (a third shape runs eagerly until a graph is
 # unused for 64 calls). The graph pool stays reserved (~1.1 GB at KITTI size, 2.5 GB peak while capturing) until
-# `model.release_graphs()`; `options={"cuda_graphs": False}` turns it off. Larger inputs (Middlebury-H) are
+# `model.release_graphs()`; `cuda_graphs=False` turns it off. Larger inputs (Middlebury-H) are
 # GPU-bound and run eagerly.
 # New sizes (`cudnn_hacc` per-shape dispatch): a new padded size builds its fp16-accumulate cuDNN plans on its first
 # call (all calls give the same output) and captures its CUDA graph on the 4th (time after 4 warm-up calls per size); a
@@ -55,6 +59,12 @@ kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb"]
 # Upstream's test-mode schedule is fixed (1 / 1 / 2 updates at 1/16 /
 # 1/8 / 1/4), so there is no iteration option. Upstream also publishes KITTI 2012 / 2015 fine-tunes (same Hugging Face
 # repo); not added yet.
+
+[[papers]]
+title = "MonSter++: Unified Stereo Matching, Multi-view Stereo, and Real-time Stereo with Monodepth Priors"
+url = "https://arxiv.org/abs/2501.08643"
+date = "2025-01-15"
+venue = "arXiv"
 
 [[variants]]
 id = "rt-monster-plusplus-mix-all"

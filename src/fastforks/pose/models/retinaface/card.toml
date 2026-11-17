@@ -1,0 +1,61 @@
+schema = 2
+name = "RetinaFace"
+summary = "RetinaFace (Deng et al., CVPR 2020) in the facexlib / Pytorch_Retinaface version: single-stage face detection with five facial landmarks (eyes, nose, mouth corners), the detector of the CodeFormer / GFPGAN face restoration pipelines. A ResNet-50 or MobileNet-0.25 backbone, an FPN, SSH context modules and per-anchor face, box and landmark heads on the stride 8 / 16 / 32 maps. Takes the whole image at its own size (no resize, as facexlib's default `use_origin_size=True`); vendored from facexlib 0.3.0 (no facexlib / torchvision dependency). The portable `module()` maps the image to the raw head maps (anchor decoding and NMS stay outside)."
+tier = "stable"
+limitations = ["module() exports the raw per-level head maps; anchor decoding and NMS remain outside the exported graph.", "No per-landmark confidence: keypoint_scores repeats the face score.", "The image is not resized: large photos cost time and memory in proportion to their pixels; downscale them first for big faces."]
+outputs = ["keypoints", "keypoint_scores", "boxes", "scores"]
+
+[upstream]
+repo = "https://github.com/xinntao/facexlib"
+commit = "260620ae93990a300f4b16448df9bb459f1caba9"  # v0.3.0; detection/retinaface*.py, from biubug6/Pytorch_Retinaface@b984b4b7 (MIT)
+
+[[upstream.official]]
+repo = "https://github.com/deepinsight/insightface/tree/master/detection/retinaface"
+framework = "MXNet"
+reason = "The authors' MXNet release has no PyTorch weights; facexlib's PyTorch port (from biubug6/Pytorch_Retinaface) is the detector the face restorers use."
+
+[licence]
+code = "MIT"  # facexlib LICENSE (Xintao Wang) and Pytorch_Retinaface LICENSE.MIT, both in LICENSE
+weights = "MIT"  # Pytorch_Retinaface's trained models, re-hosted on the facexlib v0.1.0 release under the repository licence
+files = ["LICENSE"]
+training_data = ["wider-face"]
+training_note = "WIDER FACE train with the RetinaFace five-landmark annotations; the ResNet-50 backbone starts from ImageNet classification weights"
+evidence = "https://github.com/xinntao/facexlib/blob/260620ae93990a300f4b16448df9bb459f1caba9/README.md"
+
+[io]
+input = "0-1"  # the runner turns the RGB image into BGR 0..255 minus the mean (104, 117, 123) itself, at its own size
+
+[options]
+score_threshold = { default = 0.8, min = 0.0, max = 1.0 }  # minimum face probability (detect_faces' conf_threshold; FaceRestoreHelper uses 0.97)
+
+[params]
+out_channels = 256
+nms_iou = 0.4  # reference detect_faces nms_threshold
+
+[modes.portable]
+cuda_dtype = "float16"  # anchor decoding and NMS stay float32
+mps_dtypes = ["float32", "float16"]
+
+[modes.kernels]
+kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # the whole network through fastforks._optimize (fused conv + BN + activation, residual)
+
+[output]
+label_set = "face-5"
+
+[[papers]]
+title = "RetinaFace: Single-stage Dense Face Localisation in the Wild"
+url = "https://arxiv.org/abs/1905.00641"
+date = "2019-05-02"
+venue = "CVPR 2020"
+
+[[variants]]
+id = "retinaface-resnet50"  # WIDER FACE val AP 94.8 / 93.6 / 86.3 (easy / medium / hard; Pytorch_Retinaface README, original scale)
+revision = 1
+params = { backbone = "resnet50" }
+weights = [{ name = "detection_Resnet50_Final.pth", size = 109497761, sha256 = "6d1de9c2944f2ccddca5f5e010ea5ae64a39845a86311af6fdf30841b0a5a16d", url = "https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_Resnet50_Final.pth" }]
+
+[[variants]]
+id = "retinaface-mobilenet0.25"  # WIDER FACE val AP 90.7 / 88.2 / 73.8 (easy / medium / hard; Pytorch_Retinaface README, original scale)
+revision = 1
+params = { backbone = "mobilenet0.25", out_channels = 64 }
+weights = [{ name = "detection_mobilenet0.25_Final.pth", size = 1789735, sha256 = "2979b33ffafda5d74b6948cd7a5b9a7a62f62b949cef24e95fd15d2883a65220", url = "https://github.com/xinntao/facexlib/releases/download/v0.1.0/detection_mobilenet0.25_Final.pth" }]
