@@ -146,3 +146,32 @@ def test_odd_size_is_padded_and_exports(weights: Path) -> None:
     with torch.inference_mode():
         exported = model.module()(a, b)  # export does what the call does
     torch.testing.assert_close(exported, model(a, b).flow, rtol=0, atol=1e-5)
+
+
+@pytest.mark.gpu
+def test_cuda_single_head_attention_onnx(tmp_path: Path) -> None:
+    """CUDA ONNX export accepts a rank-three head and retains its masking and output."""
+    if not torch.cuda.is_available():
+        pytest.skip("needs CUDA")
+    ort = pytest.importorskip("onnxruntime")
+    pytest.importorskip("onnxscript")
+
+    class Attention(torch.nn.Module):
+        def forward(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+            return sdpa(q, k, v, mask)
+
+    torch.manual_seed(14)
+    q = torch.randn(2, 8, 16, device="cuda", dtype=torch.float16)
+    k = torch.randn(2, 8, 16, device="cuda", dtype=torch.float16)
+    v = torch.randn(2, 8, 2, device="cuda", dtype=torch.float16)
+    mask = torch.zeros(2, 8, 8, device="cuda", dtype=torch.float16)
+    mask[:, :, -1] = -100
+    model = Attention().eval()
+    with torch.inference_mode():
+        want = model(q, k, v, mask)
+        torch.onnx.export(model, (q, k, v, mask), tmp_path / "attention.onnx", dynamo=True)
+    session = ort.InferenceSession(str(tmp_path / "attention.onnx"), providers=["CPUExecutionProvider"])
+    got = session.run(
+        None, {i.name: x.cpu().numpy() for i, x in zip(session.get_inputs(), (q, k, v, mask), strict=True)}
+    )
+    torch.testing.assert_close(torch.from_numpy(got[0]), want.cpu(), rtol=3e-3, atol=3e-3)

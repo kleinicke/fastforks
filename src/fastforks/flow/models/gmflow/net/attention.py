@@ -31,8 +31,16 @@ def sdpa(q, k, v, attn_mask=None):
         v = F.pad(v, (0, pad))
     if attn_mask is not None:
         attn_mask = attn_mask.to(q.dtype)
+    # ONNX requires an explicit attention head dimension for rank-three inputs.
+    export = torch.compiler.is_exporting() and q.dim() == 3
+    if export:
+        q, k, v = (t.unsqueeze(1) for t in (q, k, v))
+        if attn_mask is not None:
+            attn_mask = attn_mask.unsqueeze(1)
     # contiguous: a transposed token layout (last stride != 1) drops the fused kernel to the math path
     out = F.scaled_dot_product_attention(q.contiguous(), k.contiguous(), v.contiguous(), attn_mask=attn_mask)
+    if export:
+        out = out.squeeze(1)
     return out[..., :-pad] if pad else out
 
 
