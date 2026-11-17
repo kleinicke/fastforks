@@ -711,7 +711,7 @@ fastforks: the model's own resize / crop on the GPU; original: the library's pre
 |---|---|---|---|---|---|---|
 | `efficientformer_l1.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.14 / 95.22 | 81.16 / 95.24 | 81.14 / 95.12 | 81.14 / 95.14 |  |
 | `efficientformer_l3.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.12 / 96.32 | 83.14 / 96.32 | 83.16 / 96.32 | 83.16 / 96.32 |  |
-| `efficientformer_l7.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.44 / 96.68 | 84.44 / 96.66 | 84.38 / 96.68 |  |  |
+| `efficientformer_l7.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.44 / 96.68 | 84.44 / 96.66 | 84.38 / 96.68 | 84.38 / 96.66 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1 / 7ba7307f, 2026-11-11 to 2026-11-17.
 

@@ -182,12 +182,12 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
-| `da3mono-large` | NYUv2 test, AbsRel / delta1 | 0.0402 / 0.9821 | 0.0402 / 0.9820 | 0.0402 / 0.9821 |  | 0.0402 / 0.9821 |  |
-| `da3mono-large` | iBims-1, AbsRel / delta1 | 0.0311 / 0.9872 | 0.0311 / 0.9872 | 0.0311 / 0.9872 |  | 0.0311 / 0.9873 |  |
+| `da3mono-large` | NYUv2 test, AbsRel / delta1 | 0.0402 / 0.9821 | 0.0402 / 0.9820 | 0.0402 / 0.9821 | 0.0402 / 0.9821 | 0.0402 / 0.9821 |  |
+| `da3mono-large` | iBims-1, AbsRel / delta1 | 0.0311 / 0.9872 | 0.0311 / 0.9872 | 0.0311 / 0.9872 | 0.0311 / 0.9872 | 0.0311 / 0.9873 |  |
 | `da3mono-large` | ETH3D two-view train left, AbsRel / delta1 | 0.0631 / 0.9567 | 0.0629 / 0.9583 | 0.0630 / 0.9568 |  | 0.0631 / 0.9567 | possibly in the training data |
 | `da3mono-large` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0254 / 0.9954 | 0.0253 / 0.9954 | 0.0254 / 0.9954 |  | 0.0254 / 0.9954 | possibly in the training data |
-| `da3metric-large` | NYUv2 test, AbsRel / delta1 | 0.0398 / 0.9820 | 0.0398 / 0.9820 | 0.0398 / 0.9820 |  | 0.0398 / 0.9820 |  |
-| `da3metric-large` | iBims-1, AbsRel / delta1 | 0.0328 / 0.9864 | 0.0328 / 0.9863 | 0.0328 / 0.9864 |  | 0.0328 / 0.9864 |  |
+| `da3metric-large` | NYUv2 test, AbsRel / delta1 | 0.0398 / 0.9820 | 0.0398 / 0.9820 | 0.0398 / 0.9820 | 0.0398 / 0.9820 | 0.0398 / 0.9820 |  |
+| `da3metric-large` | iBims-1, AbsRel / delta1 | 0.0328 / 0.9864 | 0.0328 / 0.9863 | 0.0328 / 0.9864 | 0.0328 / 0.9864 | 0.0328 / 0.9864 |  |
 | `da3metric-large` | ETH3D two-view train left, AbsRel / delta1 | 0.0716 / 0.9343 | 0.0716 / 0.9343 | 0.0716 / 0.9342 |  | 0.0717 / 0.9342 | possibly in the training data |
 | `da3metric-large` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0274 / 0.9949 | 0.0275 / 0.9949 | 0.0274 / 0.9949 |  | 0.0274 / 0.9949 | possibly in the training data |
 | `da3-large-1.1` | NYUv2 test, AbsRel / delta1 | 0.0468 / 0.9752 | 0.0468 / 0.9752 | 0.0468 / 0.9752 | 0.0468 / 0.9752 | 0.0468 / 0.9752 |  |
@@ -199,11 +199,11 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `da3-giant-1.1` | ETH3D two-view train left, AbsRel / delta1 | 0.0705 / 0.9416 | 0.0704 / 0.9415 | 0.0704 / 0.9415 | 0.0705 / 0.9416 | 0.0704 / 0.9420 | possibly in the training data |
 | `da3-giant-1.1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | 0.0284 / 0.9930 | possibly in the training data |
 | `da3nested-giant-large-1.1` | NYUv2 test, AbsRel / delta1 | 0.0387 / 0.9809 | 0.0387 / 0.9810 | 0.0387 / 0.9809 |  | 0.0387 / 0.9809 |  |
-| `da3nested-giant-large-1.1` | iBims-1, AbsRel / delta1 | 0.0320 / 0.9825 | 0.0320 / 0.9826 | 0.0320 / 0.9824 |  | 0.0320 / 0.9825 |  |
+| `da3nested-giant-large-1.1` | iBims-1, AbsRel / delta1 | 0.0320 / 0.9825 | 0.0320 / 0.9826 | 0.0320 / 0.9824 | 0.0320 / 0.9825 | 0.0320 / 0.9825 |  |
 | `da3nested-giant-large-1.1` | ETH3D two-view train left, AbsRel / delta1 | 0.0761 / 0.9361 | 0.0762 / 0.9346 | 0.0761 / 0.9362 |  | 0.0760 / 0.9362 | possibly in the training data |
 | `da3nested-giant-large-1.1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0298 / 0.9925 | 0.0299 / 0.9925 | 0.0298 / 0.9925 |  | 0.0298 / 0.9925 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05 to 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10 / 6d3bab64, 2026-11-05 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05 to 2026-11-06.
 
 ### Parity
 
@@ -341,15 +341,15 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `depth-anything-v2-metric-hypersim-l` | iBims-1, AbsRel / delta1 | 0.0382 / 0.9838 | 0.0382 / 0.9838 | 0.0382 / 0.9838 | 0.0382 / 0.9838 | 0.0382 / 0.9838 |  |
 | `depth-anything-v2-metric-hypersim-l` | ETH3D two-view train left, AbsRel / delta1 | 0.0704 / 0.9586 | 0.0705 / 0.9586 | 0.0704 / 0.9585 |  | 0.0705 / 0.9586 | possibly in the training data |
 | `depth-anything-v2-metric-hypersim-l` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0325 / 0.9954 | 0.0325 / 0.9954 | 0.0324 / 0.9954 |  | 0.0325 / 0.9954 | possibly in the training data |
-| `depth-anything-v2-metric-vkitti-s` | NYUv2 test, AbsRel / delta1 | 0.1225 / 0.8529 | 0.1225 / 0.8530 | 0.1225 / 0.8529 |  | 0.1225 / 0.8530 |  |
-| `depth-anything-v2-metric-vkitti-s` | iBims-1, AbsRel / delta1 | 0.1145 / 0.8774 | 0.1145 / 0.8775 | 0.1145 / 0.8774 |  | 0.1145 / 0.8773 |  |
+| `depth-anything-v2-metric-vkitti-s` | NYUv2 test, AbsRel / delta1 | 0.1225 / 0.8529 | 0.1225 / 0.8530 | 0.1225 / 0.8529 | 0.1225 / 0.8529 | 0.1225 / 0.8530 |  |
+| `depth-anything-v2-metric-vkitti-s` | iBims-1, AbsRel / delta1 | 0.1145 / 0.8774 | 0.1145 / 0.8775 | 0.1145 / 0.8774 | 0.1145 / 0.8774 | 0.1145 / 0.8773 |  |
 | `depth-anything-v2-metric-vkitti-s` | ETH3D two-view train left, AbsRel / delta1 | 0.1370 / 0.8210 | 0.1369 / 0.8214 | 0.1370 / 0.8210 |  | 0.1369 / 0.8210 | possibly in the training data |
 | `depth-anything-v2-metric-vkitti-s` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0730 / 0.9566 | 0.0729 / 0.9566 | 0.0730 / 0.9566 |  | 0.0730 / 0.9565 | possibly in the training data |
 | `depth-anything-v2-metric-vkitti-b` | NYUv2 test, AbsRel / delta1 | 0.1089 / 0.8847 | 0.1089 / 0.8847 | 0.1089 / 0.8847 | 0.1089 / 0.8847 | 0.1089 / 0.8847 |  |
 | `depth-anything-v2-metric-vkitti-b` | iBims-1, AbsRel / delta1 | 0.0998 / 0.9086 | 0.0998 / 0.9085 | 0.0998 / 0.9085 | 0.0998 / 0.9086 | 0.0998 / 0.9085 |  |
 | `depth-anything-v2-metric-vkitti-b` | ETH3D two-view train left, AbsRel / delta1 | 0.1352 / 0.8311 | 0.1353 / 0.8310 | 0.1353 / 0.8311 |  | 0.1353 / 0.8311 | possibly in the training data |
 | `depth-anything-v2-metric-vkitti-b` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0651 / 0.9781 | 0.0651 / 0.9780 | 0.0651 / 0.9780 |  | 0.0651 / 0.9780 | possibly in the training data |
-| `depth-anything-v2-metric-vkitti-l` | NYUv2 test, AbsRel / delta1 | 0.0968 / 0.9133 | 0.0968 / 0.9133 | 0.0968 / 0.9133 |  | 0.0968 / 0.9133 |  |
+| `depth-anything-v2-metric-vkitti-l` | NYUv2 test, AbsRel / delta1 | 0.0968 / 0.9133 | 0.0968 / 0.9133 | 0.0968 / 0.9133 | 0.0968 / 0.9133 | 0.0968 / 0.9133 |  |
 | `depth-anything-v2-metric-vkitti-l` | iBims-1, AbsRel / delta1 | 0.0783 / 0.9399 | 0.0783 / 0.9399 | 0.0784 / 0.9399 | 0.0783 / 0.9399 | 0.0783 / 0.9399 |  |
 | `depth-anything-v2-metric-vkitti-l` | ETH3D two-view train left, AbsRel / delta1 | 0.1081 / 0.8993 | 0.1081 / 0.8992 | 0.1081 / 0.8992 |  | 0.1082 / 0.8991 | possibly in the training data |
 | `depth-anything-v2-metric-vkitti-l` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0551 / 0.9836 | 0.0551 / 0.9836 | 0.0551 / 0.9837 |  | 0.0551 / 0.9837 | possibly in the training data |
@@ -982,7 +982,7 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `moge-2-vitl-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0235 / 0.9972 | 0.0235 / 0.9972 | 0.0235 / 0.9972 |  | 0.0235 / 0.9972 | possibly in the training data |
 | `moge-2-vitl-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.81 / 8.07 / 61.96 / 85.54 | 14.81 / 8.07 / 61.96 / 85.54 | 14.81 / 8.07 / 61.96 / 85.55 |  |
 | `moge-2-vitl-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.70 / 6.49 / 70.49 / 85.80 | 14.70 / 6.49 / 70.49 / 85.80 | 14.69 / 6.49 / 70.49 / 85.80 |  |
-| `moge-3-vitl` | NYUv2 test, AbsRel / delta1 |  | 0.0356 / 0.9836 | 0.0356 / 0.9836 |  | 0.0356 / 0.9836 |  |
+| `moge-3-vitl` | NYUv2 test, AbsRel / delta1 | 0.0356 / 0.9836 | 0.0356 / 0.9836 | 0.0356 / 0.9836 |  | 0.0356 / 0.9836 |  |
 | `moge-3-vitl` | iBims-1, AbsRel / delta1 | 0.0261 / 0.9884 | 0.0261 / 0.9884 | 0.0261 / 0.9884 |  | 0.0261 / 0.9883 |  |
 | `moge-3-vitl` | ETH3D two-view train left, AbsRel / delta1 | 0.0496 / 0.9847 | 0.0496 / 0.9847 | 0.0496 / 0.9847 |  | 0.0496 / 0.9847 | possibly in the training data |
 | `moge-3-vitl` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0235 / 0.9970 | 0.0235 / 0.9970 | 0.0235 / 0.9970 |  | 0.0235 / 0.9970 | possibly in the training data |
