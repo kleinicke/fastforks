@@ -50,6 +50,5 @@ venue = "ECCV 2022"
 
 [[variants]]
 id = "film"  # the Style model (README: the default `--model_path .../film_net/Style/saved_model`)
-planned = { tensorrt = "the TensorRT ONNX parser has no SequenceEmpty" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "film-net-style-fp32.pt", size = 137922129, sha256 = "f810cada26d0c288e50a27eac43af74446eb84b857ccbc77a22bb006f4d27240", url = "https://github.com/dajes/frame-interpolation-pytorch/releases/download/v1.0.2/film_net_fp32.pt" }]
