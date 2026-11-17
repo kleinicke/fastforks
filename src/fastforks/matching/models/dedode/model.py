@@ -25,6 +25,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
+from fastforks.matching._dedode_kernels import prepare
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared import cnn_kernels
 from fastforks.shared.dedode import (
@@ -37,7 +38,6 @@ from fastforks.shared.dedode import (
     dual_softmax_match,
     sample_keypoints,
 )
-from fastforks.shared.dedode.kernels import prepare
 from fastforks.shared.depth_anything_v2 import DINOv2, fold_layer_scale, sdpa_attention
 
 if TYPE_CHECKING:

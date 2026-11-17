@@ -28,6 +28,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
+from fastforks.matching._dedode_kernels import prepare
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared.dedode import (
     DESCRIPTOR_B,
@@ -42,7 +43,6 @@ from fastforks.shared.dedode import (
     VGGDINOv2,
     describe_keypoints,
 )
-from fastforks.shared.dedode.kernels import prepare
 from fastforks.shared.depth_anything_v2 import DINOv2, fold_layer_scale, sdpa_attention
 
 from .net.dad import sample_keypoints
