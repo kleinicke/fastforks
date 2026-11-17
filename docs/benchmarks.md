@@ -1439,6 +1439,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | loftr-indoor | – | 242 | 111 | 96.2 | 2.5x | 1.1x | 1751 / 1910 | 796 / 904 | 760 / 886 |
 | loftr-outdoor | – | 241 | 110 | 95.9 | 2.5x | 1.1x | 1739 / 1870 | 796 / 904 | 760 / 886 |
 | loma-b | – | 1036 | 308 | – | – | – | 4176 / 4390 | 1767 / 1878 | – |
+| loma-b64 | – | – | 129 | – | – | – | – | 854 / 962 | – |
 | romav1 | – | 386 | 377 | 356 | 1.1x | 1.1x | 3887 / 4094 | 1720 / 1840 | 1720 / 1860 |
 | romav2 | 1412 | 741 | 546 | 354 | 2.1x | 1.5x | 9881 / 10124 | 1989 / 2596 | 1909 / 2300 |
 | xfeat | – | 8.89 | 7.17 | – | – | – | 128 / 174 | 122 / 154 | – |
@@ -2039,6 +2040,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | loftr-indoor | 1.49 | 0.32 | 0.54 | 0.69 | 0.53 | 0.43 |
 | loftr-outdoor | 0.35 | 0.24 | 0.67 | 0.24 | 0.58 | 0.37 |
 | loma-b | 8.52 | 2.53 | – | 1.37 | 1.27 | – |
+| loma-b64 | – | 0.28 | – | – | 0.76 | – |
 | romav1 | 6.28 | 2.34 | 3.17 | 2.57 | 0.92 | 1.03 |
 | romav2 | 5.45 | 0.85 | 0.96 | 2.09 | 0.91 | 0.62 |
 | xfeat | 1.51 | 0.16 | – | 0.63 | 0.74 | – |
@@ -2648,7 +2650,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | ema-vfi-small | 1080x1920 | 89.4 ms | 59.6 ms | 43.7 ms | 84.4 ms | 78.5 s | 67.6 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
 | ema-vfi-small-t | 1080x1920 | 89.4 ms | 59.8 ms | 43.4 ms | 84.3 ms | 77.9 s | 68.8 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
 | ema-vfi-t | 1080x1920 | 233 ms | 165 ms | 125 ms | 207 ms | 84.6 s | 91.5 s | 2827 / 3184 | 3325 / 3702 | 368 / 3566 | 1719 / 1766 |
-| film | 1080x1920 | 417 ms | 332 ms | planned for 0.2.1 | 332 ms | 41.1 s | – | 2856 / 3080 | 2666 / 3192 | 2856 / 3080 | – |
+| film | 1080x1920 | 417 ms | 332 ms | 189 ms | 332 ms | 41.1 s | 203 s | 2856 / 3080 | 2666 / 3192 | 2856 / 3080 | 2658 / 2658 |
 | gimm-vfi-r | 1080x1920 | 2622 ms | 1498 ms | fails: TensorRT parser: Sc node | 1629 ms | 307 s | – | 9899 / 10400 | 12051 / 12880 | 4587 / 5362 | – |
 | gimm-vfi-r-p | 1080x1920 | 2622 ms | 1498 ms | fails: TensorRT parser: Sc node | 1628 ms | 307 s | – | 9899 / 10400 | 12051 / 12880 | 4587 / 5282 | – |
 | rife-4.25 | 1080x1920 | 25.0 ms | 44.9 ms | 17.6 ms | 21.4 ms | 36.1 s | 56.3 s | 755 / 894 | 1094 / 1234 | 848 / 916 | 696 / 714 |
@@ -2675,7 +2677,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | restormer-deblur | 512x512 | 228 ms | 143 ms | 162 ms | 180 ms | 44.1 s | 58.3 s | 850 / 1000 | 660 / 778 | 850 / 918 | 757 / 774 |
 | restormer-derain | 512x512 | 228 ms | 144 ms | 162 ms | 180 ms | 41.5 s | 55.3 s | 850 / 1000 | 660 / 778 | 850 / 920 | 757 / 774 |
 | restormer-sidd | 512x512 | 181 ms | 142 ms | 162 ms | 179 ms | 35.5 s | 59.7 s | 850 / 920 | 660 / 778 | 850 / 940 | 757 / 774 |
-| seedvr2-3b | 512x512 | 2295 ms | 1941 ms | fails: not run: onnx is not installed in the test venv | 2296 ms | 238 s | – | 6140 / 6772 | 5237 / 8144 | 6140 / 6772 | – |
+| seedvr2-3b | 512x512 | 2295 ms | 1941 ms | fails: RuntimeError: Inplace update to inference tensor outside Inf | 2296 ms | 238 s | – | 6140 / 6772 | 5237 / 8144 | 6140 / 6772 | – |
 | seedvr2-7b | 512x512 | 2712 ms | fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat | fails: RuntimeError: Inplace update to inference tensor outside Inf | 2713 ms | – | – | 6402 / 7034 | – | 6402 / 7034 | – |
 | span-x2 | 512x512 | 23.5 ms | 13.2 ms | 7.98 ms | 14.9 ms | 7.26 s | 9.60 s | 607 / 662 | 204 / 222 | 487 / 522 | 243 / 266 |
 | span-x4 | 512x512 | 24.2 ms | 13.2 ms | 8.28 ms | 14.6 ms | 4.57 s | 9.80 s | 607 / 662 | 204 / 222 | 487 / 522 | 319 / 346 |

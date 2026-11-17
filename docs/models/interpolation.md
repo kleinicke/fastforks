@@ -105,7 +105,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `film` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 464<br>417<br>332<br>332<br>planned for 0.2.1 | 2953 / 3556<br>2856 / 3080<br>2856 / 3080<br>2666 / 3192<br>– |
+| `film` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 464<br>417<br>332<br>332<br>189 | 2953 / 3556<br>2856 / 3080<br>2856 / 3080<br>2666 / 3192<br>2658 / 2658 |
 
 <details><summary>Details</summary>
 
@@ -117,11 +117,10 @@ Commercial use: yes.
 - Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `cudnn_hacc`
 - Variants: `film`
-- Not in this release (planned for 0.2.1): `film` TensorRT export: the TensorRT ONNX parser has no SequenceEmpty
 - Outputs: frame
 - Input size: any H x W >= 64, padded to a multiple of 64
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `film` 1988x2880 (13.0 GiB peak allocated, 15.3 reserved)
-- `film` 1080x1920, first call: portable + torch.compile 41 s (cold Inductor cache).
+- `film` 1080x1920, first call: portable + torch.compile 41 s (cold Inductor cache), TensorRT fp16 203 s (ONNX + engine).
 - `film` original 1080x1920: the authors' mixed-precision option (float16); the TorchScript release as inference.py, dt 0.5, zero pad to 64 (centred), --fp16: model.half()
 - `film` load / first call: original 0.29 s / 0.946 s, portable 0.43 s / 0.418 s, kernels 0.65 s / 0.334 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

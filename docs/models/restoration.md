@@ -506,13 +506,13 @@ Commercial use: yes.
 
 DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's scale), one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the output rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for real-world degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, not with PSNR-oriented upscalers. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `realesrgan-x4plus` | DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 26.64 / 0.7580 | 26.64 / 0.7580 | 26.64 / 0.7580 | 26.64 / 0.7580 |  |
-| `realesrgan-x2plus` | DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y) | 30.03 / 0.8592 | 30.03 / 0.8592 | 30.03 / 0.8592 | 30.03 / 0.8591 |  |
-| `realesrgan-x4plus-anime-6b` | DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 25.66 / 0.7357 | 25.66 / 0.7357 | 25.66 / 0.7357 | 25.66 / 0.7356 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `realesrgan-x4plus` | DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 26.64 / 0.7580 | 26.64 / 0.7580 | 26.64 / 0.7580 | 26.64 / 0.7580 | 26.64 / 0.7580 |  |
+| `realesrgan-x2plus` | DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y) | 30.03 / 0.8592 | 30.03 / 0.8592 | 30.03 / 0.8592 | 30.03 / 0.8592 | 30.03 / 0.8591 |  |
+| `realesrgan-x4plus-anime-6b` | DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 25.66 / 0.7357 | 25.66 / 0.7357 | 25.66 / 0.7357 |  | 25.66 / 0.7356 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks dc38c37c, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13.
 
 ### Parity
 
@@ -649,7 +649,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13150<br>2295<br>2296<br>1941<br>fails: not run: onnx is not installed in the test venv | 7598 / 15268<br>6140 / 6772<br>6140 / 6772<br>5237 / 8144<br>– |
+| `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13150<br>2295<br>2296<br>1941<br>fails: RuntimeError: Inplace update to inference tensor outside Inf | 7598 / 15268<br>6140 / 6772<br>6140 / 6772<br>5237 / 8144<br>– |
 | `seedvr2-7b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2712<br>2713<br>fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat<br>fails: RuntimeError: Inplace update to inference tensor outside Inf | –<br>6402 / 7034<br>6402 / 7034<br>–<br>– |
 
 <details><summary>Details</summary>

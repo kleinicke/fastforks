@@ -195,7 +195,7 @@ TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model (Al
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
 | `cotracker3-offline` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 65.02 / 78.75 / 88.24 | 65.08 / 78.78 / 88.27 | 65.07 / 78.75 / 88.26 | 65.04 / 78.75 / 88.26 | 65.06 / 78.72 / 88.27 |  |
-| `cotracker3-online` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 70.34 / 80.63 / 94.28 | 70.28 / 80.62 / 94.26 | 70.32 / 80.62 / 94.26 |  | 70.25 / 80.63 / 94.22 |  |
+| `cotracker3-online` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 70.34 / 80.63 / 94.28 | 70.28 / 80.62 / 94.26 | 70.32 / 80.62 / 94.26 | 70.34 / 80.64 / 94.30 | 70.25 / 80.63 / 94.22 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f104019b, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bb4e8b64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f104019b, 2026-11-14.
 
@@ -256,11 +256,11 @@ Commercial use: yes.
 
 TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model (AllTracker: the original frames, resized by the model), one query per track at its first visible point, tracked online (TAPNext, Track-On) or over the whole clip (TAPIR, AllTracker, LocoTrack); AJ, delta_avg (< 1, 2, 4, 8, 16 px at 256 x 256) and occlusion accuracy averaged over the videos. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `locotrack-b` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 67.19 / 78.05 / 89.58 | 67.31 / 78.11 / 89.85 | 67.31 / 78.07 / 89.89 | 67.29 / 78.10 / 89.83 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `locotrack-b` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 67.19 / 78.05 / 89.58 | 67.31 / 78.11 / 89.85 | 67.31 / 78.07 / 89.89 | 67.23 / 78.11 / 89.76 | 67.29 / 78.10 / 89.83 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bb4e8b64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5, 2026-11-13.
 
 ### Parity
 
