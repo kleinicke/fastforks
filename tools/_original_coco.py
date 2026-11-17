@@ -613,7 +613,7 @@ class _Concept:
             vis = self.model.get_vision_features(pixel_values=inp["pixel_values"])
         return vis, img.shape[:2]
 
-    def __call__(self, emb: Any, *, text: str, threshold: float) -> Result:  # noqa: ANN401
+    def __call__(self, emb: Any, *, text: str, score_threshold: float) -> Result:  # noqa: ANN401
         vis, size = emb
         tx = self.a.proc(text=text, return_tensors="pt").to("cuda")
         with self.t.ctx():
@@ -623,7 +623,7 @@ class _Concept:
                 v = getattr(o, k, None)
                 if v is not None:
                     setattr(o, k, v.float())
-            r = self.a.proc.post_process_instance_segmentation(o, threshold=threshold, mask_threshold=0.5,
+            r = self.a.proc.post_process_instance_segmentation(o, threshold=score_threshold, mask_threshold=0.5,
                                                                target_sizes=[tuple(size)])[0]  # fmt: skip
         order = self.torch.argsort(r["scores"], descending=True, stable=True)
         return Result(
