@@ -93,7 +93,7 @@ Commercial use: yes.
 - Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `cudnn_hacc`
 - Variants: `geocalib-pinhole`
-- Not in this release (planned for 0.2.1): `geocalib-pinhole` ONNX / TensorRT export: torch.export stops at a data-dependent branch ((norm_x == 0).any())
+- Not in this release (planned for 0.2.1): `geocalib-pinhole` ONNX / TensorRT export: dynamic optimizer convergence and unsupported ONNX Cholesky decomposition
 - Outputs: intrinsics, gravity, roll, pitch, vfov
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `geocalib-pinhole` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved)
