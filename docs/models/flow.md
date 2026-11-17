@@ -650,8 +650,8 @@ Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of 
 |---|---|---|---|---|---|---|---|
 | `raft-large` | KITTI 2015 train, EPE / Fl-all % | 1.528 / 5.60 | 1.528 / 5.60 | 1.529 / 5.61 | 1.528 / 5.60 | 1.526 / 5.60 | trained on this dataset's public images; not a zero-shot result |
 | `raft-large-things` | KITTI 2015 train, EPE / Fl-all % | 4.838 / 16.55 | 4.831 / 16.54 | 4.828 / 16.51 | 4.838 / 16.55 | 4.834 / 16.53 |  |
-| `raft-large-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.614 / 1.44 | 0.614 / 1.44 | 0.614 / 1.44 |  | 0.614 / 1.44 | trained on this dataset's public images; not a zero-shot result |
-| `raft-small` | KITTI 2015 train, EPE / Fl-all % | 7.854 / 25.91 | 7.838 / 25.92 | 7.846 / 25.92 |  | 7.834 / 25.92 |  |
+| `raft-large-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.614 / 1.44 | 0.614 / 1.44 | 0.614 / 1.44 | 0.614 / 1.44 | 0.614 / 1.44 | trained on this dataset's public images; not a zero-shot result |
+| `raft-small` | KITTI 2015 train, EPE / Fl-all % | 7.854 / 25.91 | 7.838 / 25.92 | 7.846 / 25.92 | 7.854 / 25.91 | 7.834 / 25.92 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f2992269+uncommitted, 2026-11-09; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f2992269+uncommitted, 2026-11-09.
 
@@ -710,13 +710,13 @@ Commercial use: yes.
 
 Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `recover-cx` | KITTI 2015 train, EPE / Fl-all % | 1.044 / 2.86 | 1.045 / 2.86 | 1.044 / 2.86 | 1.043 / 2.85 | trained on this dataset's public images; not a zero-shot result |
-| `recover-rn` | KITTI 2015 train, EPE / Fl-all % | 1.292 / 4.50 | 1.292 / 4.50 | 1.292 / 4.50 | 1.292 / 4.50 | trained on this dataset's public images; not a zero-shot result |
-| `recover-mn` | KITTI 2015 train, EPE / Fl-all % | 1.676 / 7.15 | 1.675 / 7.13 | 1.680 / 7.16 | 1.681 / 7.16 | trained on this dataset's public images; not a zero-shot result |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `recover-cx` | KITTI 2015 train, EPE / Fl-all % | 1.044 / 2.86 | 1.045 / 2.86 | 1.044 / 2.86 | 1.044 / 2.86 | 1.043 / 2.85 | trained on this dataset's public images; not a zero-shot result |
+| `recover-rn` | KITTI 2015 train, EPE / Fl-all % | 1.292 / 4.50 | 1.292 / 4.50 | 1.292 / 4.50 | 1.293 / 4.50 | 1.292 / 4.50 | trained on this dataset's public images; not a zero-shot result |
+| `recover-mn` | KITTI 2015 train, EPE / Fl-all % | 1.676 / 7.15 | 1.675 / 7.13 | 1.680 / 7.16 | 1.679 / 7.17 | 1.681 / 7.16 | trained on this dataset's public images; not a zero-shot result |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e1e54078, 2026-11-14.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e1e54078, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e1e54078, 2026-11-14.
 
 ### Parity
 
