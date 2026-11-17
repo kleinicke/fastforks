@@ -27,6 +27,7 @@ from __future__ import annotations
 import contextlib
 import math
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import torch
 import torch.nn.functional as F
@@ -34,6 +35,9 @@ from torch import nn
 
 from fastforks._core.sampling import grid_sample
 from fastforks.shared.depth_anything_v2 import DepthAnythingV2
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 FACTOR = 8  # fixed: the encoders downsample by 8 (three stride-2 stages)
 DA_SIZE = 518  # fixed: upstream resizes every image to 518 x 518 for Depth Anything
@@ -331,7 +335,13 @@ class FlowSeek(nn.Module):
         out = F.interpolate(s.output_conv1(path), (ph * 14, pw * 14), mode="bilinear", align_corners=True)
         return path, F.relu(s.output_conv2(out))
 
-    def forward(self, image1: torch.Tensor, image2: torch.Tensor, iters: int) -> torch.Tensor:
+    def forward(
+        self,
+        image1: torch.Tensor,
+        image2: torch.Tensor,
+        iters: int,
+        corr_fn: Callable[[torch.Tensor, torch.Tensor], Callable[[torch.Tensor], torch.Tensor]] | None = None,
+    ) -> torch.Tensor:
         """Flow after `iters` updates, float32 `[B, 2, H, W]`."""
         cfg = self.cfg
         b, _, h, w = image1.shape
@@ -359,10 +369,11 @@ class FlowSeek(nn.Module):
             flow = self.flow_head(net)[:, :2].float()
             fmaps = torch.cat([self.fnet(both), mono], dim=1)  # batch norm in eval mode: per-image as upstream
         fmap1, fmap2 = fmaps.float().chunk(2, dim=0)
-        pyramid = _pyramid(fmap1, fmap2, cfg.levels)
+        pyramid = _pyramid(fmap1, fmap2, cfg.levels) if corr_fn is None else []
+        lookup = corr_fn(fmap1, fmap2) if corr_fn is not None else None
         grid = _coords(b, fmap1.shape[-2], fmap1.shape[-1], device)
         for _ in range(iters):
-            corr = _lookup(pyramid, grid + flow, cfg.radius)
+            corr = lookup(grid + flow) if lookup is not None else _lookup(pyramid, grid + flow, cfg.radius)
             with self._amp(device):
                 net = self.update_block(net, context, corr, flow)
                 delta = self.flow_head(net)[:, :2]

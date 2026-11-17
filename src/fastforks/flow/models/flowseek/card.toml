@@ -30,8 +30,7 @@ cuda_dtype = "float16"  # autocast for Depth Anything, the encoders and the upda
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-status = "none"
-reason = "no kernels mode was built for it; SEA-RAFT's engine and the Depth Anything kernels would fit and could be combined"
+kernels = ["raft_flow"]
 
 [[papers]]
 title = "FlowSeek: Optical Flow Made Easier with Depth Foundation Models and Motion Bases"
