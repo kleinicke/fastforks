@@ -490,12 +490,12 @@ Commercial use: yes.
 
 Bottom-up on all 5,000 validation images, no ground-truth boxes; people ranked by their predicted person score, after model-specific decoding; pycocotools OKS AP. Bottom-up on the same every-tenth-image subset for all modes, ranked by predicted person score after model-specific decoding; pycocotools OKS AP. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `rf-detr-keypoint-preview` | COCO val2017, predicted people, keypoint AP | 71.8 | 71.8 | 71.8 | 71.8 |  |
-| `rf-detr-keypoint-preview` | COCO val2017, every 10th image, predicted people, keypoint AP | 72.7 | 72.9 | 72.9 | 72.8 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `rf-detr-keypoint-preview` | COCO val2017, predicted people, keypoint AP | 71.8 | 71.8 | 71.8 |  | 71.8 |  |
+| `rf-detr-keypoint-preview` | COCO val2017, every 10th image, predicted people, keypoint AP | 72.7 | 72.9 | 72.9 | 72.7 | 72.8 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 0050000f, 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 0050000f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 0050000f, 2026-11-11.
 
 ### Parity
 

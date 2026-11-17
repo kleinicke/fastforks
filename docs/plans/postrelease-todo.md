@@ -37,6 +37,12 @@ inventory is `2026-11-17_missing_site_examples.tsv` in the experiment workspace.
 The generator's `_done()` currently skips successful metadata rows even if the corresponding local file is missing;
 restore those assets from their original location or explicitly regenerate them rather than relying on the default skip.
 
+A public HTTP check on 2026-11-17 found 174 output WebPs and 17 input WebPs returning 404 among the generated site's
+asset references. A retry confirmed the sole inconclusive request, for `crestereo-eth3d.webp`, returns a WebP. Of the
+191 confirmed missing assets, 190 decoded successfully from the local asset directory and are packaged in
+`results/2026-11-17_fastforks_missing_live_assets.zip` in the experiment workspace. `marigold-v2-depth.webp`
+still needed regeneration when the archive was made. The archive is ready for the site owner.
+
 On 2026-11-17 the missing `span-x2` and `span-x4` examples were generated and visually checked; their metadata is in
 `docs/data/examples.jsonl`. The two rendered images and distinct 2x/4x input images are in the local asset directory
 above and still need to be supplied to the website. Generation now gives those two degraded inputs different names.

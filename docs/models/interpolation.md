@@ -241,13 +241,13 @@ Commercial use: yes.
 
 DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the output rounded to uint8, on RGB in [0, 1], averaged over the triplets. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `rife-4.25` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 27.13 / 0.8082 | 27.03 / 0.8074 | 27.13 / 0.8081 | 27.13 / 0.8081 |  |
-| `rife-4.26` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 27.24 / 0.8131 | 27.14 / 0.8123 | 27.24 / 0.8131 | 27.24 / 0.8131 |  |
-| `rife-4.25-lite` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 26.82 / 0.8011 | 26.70 / 0.8001 | 26.81 / 0.8010 | 26.81 / 0.8010 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `rife-4.25` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 27.13 / 0.8082 | 27.03 / 0.8074 | 27.13 / 0.8081 | 27.13 / 0.8082 | 27.13 / 0.8081 |  |
+| `rife-4.26` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 27.24 / 0.8131 | 27.14 / 0.8123 | 27.24 / 0.8131 |  | 27.24 / 0.8131 |  |
+| `rife-4.25-lite` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 26.82 / 0.8011 | 26.70 / 0.8001 | 26.81 / 0.8010 |  | 26.81 / 0.8010 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5b3a5646, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5b3a5646, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks dc38c37c, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5b3a5646, 2026-11-13.
 
 ### Parity
 

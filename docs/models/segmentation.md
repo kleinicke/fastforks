@@ -129,15 +129,15 @@ Commercial use: yes.
 
 Each image at its own size, argmax of the logits. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `fcn-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 39.40 / 79.09 | 39.40 / 79.10 | 39.39 / 79.10 | 39.39 / 79.09 |  |
-| `pspnet-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 44.44 / 80.97 | 44.44 / 80.97 | 44.43 / 80.97 | 44.44 / 80.97 |  |
-| `deeplabv3-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 43.62 / 80.80 | 43.62 / 80.80 | 43.61 / 80.80 | 43.62 / 80.80 |  |
-| `deeplabv3plus-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 44.36 / 81.01 | 44.36 / 81.01 | 44.35 / 81.01 | 44.36 / 81.01 |  |
-| `hrnet-w48-fcn-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 40.11 / 79.34 | 40.11 / 79.35 | 40.10 / 79.35 | 40.11 / 79.34 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `fcn-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 39.40 / 79.09 | 39.40 / 79.10 | 39.39 / 79.10 |  | 39.39 / 79.09 |  |
+| `pspnet-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 44.44 / 80.97 | 44.44 / 80.97 | 44.43 / 80.97 |  | 44.44 / 80.97 |  |
+| `deeplabv3-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 43.62 / 80.80 | 43.62 / 80.80 | 43.61 / 80.80 | 43.62 / 80.80 | 43.62 / 80.80 |  |
+| `deeplabv3plus-r101-d8-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 44.36 / 81.01 | 44.36 / 81.01 | 44.35 / 81.01 | 44.36 / 81.01 | 44.36 / 81.01 |  |
+| `hrnet-w48-fcn-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 40.11 / 79.34 | 40.11 / 79.35 | 40.10 / 79.35 |  | 40.11 / 79.34 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -194,13 +194,13 @@ Commercial use: yes.
 
 Each image at its own size, argmax of the logits. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `dinov2-s-linear-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 42.39 / 79.40 | 42.38 / 79.40 | 42.38 / 79.39 | 42.37 / 79.39 |  |
-| `dinov2-b-linear-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 45.12 / 80.29 | 45.12 / 80.29 | 45.12 / 80.28 | 45.12 / 80.28 |  |
-| `dinov2-l-linear-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 45.08 / 80.13 | 45.09 / 80.13 | 45.08 / 80.13 | 45.08 / 80.13 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `dinov2-s-linear-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 42.39 / 79.40 | 42.38 / 79.40 | 42.38 / 79.39 |  | 42.37 / 79.39 |  |
+| `dinov2-b-linear-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 45.12 / 80.29 | 45.12 / 80.29 | 45.12 / 80.28 | 45.12 / 80.29 | 45.12 / 80.28 |  |
+| `dinov2-l-linear-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 45.08 / 80.13 | 45.09 / 80.13 | 45.08 / 80.13 |  | 45.08 / 80.13 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 

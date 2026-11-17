@@ -283,12 +283,12 @@ Commercial use: yes.
 
 pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `mask-rcnn-r50-fpn-3x-coco` | COCO val2017, every 10th image, box mAP / mask mAP | 42.13 / 38.67 | 42.13 / 38.66 | 42.12 / 38.65 | 42.10 / 38.64 |  |
-| `faster-rcnn-r50-fpn-3x-coco` | COCO val2017, every 10th image, box mAP | 41.54 | 41.44 | 41.58 | 41.58 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `mask-rcnn-r50-fpn-3x-coco` | COCO val2017, every 10th image, box mAP / mask mAP | 42.13 / 38.67 | 42.13 / 38.66 | 42.12 / 38.65 | 42.13 / 38.66 | 42.10 / 38.64 |  |
+| `faster-rcnn-r50-fpn-3x-coco` | COCO val2017, every 10th image, box mAP | 41.54 | 41.44 | 41.58 | 41.57 | 41.58 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -499,12 +499,12 @@ Commercial use: yes.
 
 pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `owlv2-b16` | COCO val2017, every 10th image, box mAP | 46.14 | 46.04 | 46.11 | 46.14 |  |
-| `owlv2-l14` | COCO val2017, every 10th image, box mAP | 47.75 | 47.80 | 47.81 | 47.88 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `owlv2-b16` | COCO val2017, every 10th image, box mAP | 46.14 | 46.04 | 46.11 | 46.14 | 46.14 |  |
+| `owlv2-l14` | COCO val2017, every 10th image, box mAP | 47.75 | 47.80 | 47.81 | 47.75 | 47.88 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a981ff86, 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a981ff86, 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a981ff86, 2026-11-12.
 
 ### Parity
 
@@ -596,13 +596,13 @@ Commercial use: yes.
 
 pycocotools COCOeval of the top 100 detections per image. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `rf-detr-m-coco` | COCO val2017, every 10th image, box mAP | 54.48 | 54.42 | 54.42 | 54.40 |  |
-| `rf-detr-m-coco` | COCO val2017, all 5000 images, box mAP | 54.53 |  | 54.51 | 54.51 |  |
-| `rf-detr-seg-m-coco` | COCO val2017, every 10th image, box mAP / mask mAP | 53.21 / 44.24 | 53.30 / 44.30 | 53.30 / 44.30 | 53.49 / 44.38 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `rf-detr-m-coco` | COCO val2017, every 10th image, box mAP | 54.48 | 54.42 | 54.42 | 54.42 | 54.40 |  |
+| `rf-detr-m-coco` | COCO val2017, all 5000 images, box mAP | 54.53 |  | 54.51 |  | 54.51 |  |
+| `rf-detr-seg-m-coco` | COCO val2017, every 10th image, box mAP / mask mAP | 53.21 / 44.24 | 53.30 / 44.30 | 53.30 / 44.30 | 53.35 / 44.32 | 53.49 / 44.38 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7cecd6cb, 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7cecd6cb, 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7cecd6cb, 2026-11-12.
 
 ### Parity
 
