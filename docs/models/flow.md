@@ -294,7 +294,7 @@ Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of 
 | `gmflow-scale1-mixdata` | KITTI 2015 train, EPE / Fl-all % | 3.698 / 17.60 | 3.698 / 17.61 | 3.697 / 17.61 | 3.698 / 17.60 | possibly in the training data |
 | `gmflow-scale2-things` | KITTI 2015 train, EPE / Fl-all % | 6.747 / 22.09 | 6.747 / 22.09 | 6.747 / 22.09 | 6.747 / 22.09 |  |
 | `gmflow-scale2-sintel` | KITTI 2015 train, EPE / Fl-all % | 1.975 / 7.88 | 1.976 / 7.88 | 1.975 / 7.88 | 1.975 / 7.88 | trained on this dataset's public images; not a zero-shot result |
-| `gmflow-scale2-mixdata` | KITTI 2015 train, EPE / Fl-all % | 2.390 / 10.10 | 2.390 / 10.10 | 2.389 / 10.10 |  | possibly in the training data |
+| `gmflow-scale2-mixdata` | KITTI 2015 train, EPE / Fl-all % | 2.390 / 10.10 | 2.390 / 10.10 | 2.389 / 10.10 | 2.390 / 10.10 | possibly in the training data |
 | `gmflow-scale2-regrefine6-things` | KITTI 2015 train, EPE / Fl-all % | 4.918 / 16.33 | 4.918 / 16.32 | 4.917 / 16.32 |  |  |
 | `gmflow-scale2-regrefine6-sintelft` | KITTI 2015 train, EPE / Fl-all % | 1.153 / 3.92 | 1.154 / 3.92 | 1.154 / 3.92 |  | trained on this dataset's public images; not a zero-shot result |
 | `gmflow-scale2-regrefine6-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.570 / 1.15 | 0.570 / 1.15 | 0.570 / 1.15 |  | trained on this dataset's public images; not a zero-shot result |

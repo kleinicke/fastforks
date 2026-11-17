@@ -501,8 +501,8 @@ fastforks: the model's own resize / crop on the GPU; original: the library's pre
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | note |
 |---|---|---|---|---|---|---|
 | `davit_tiny.msft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.94 / 96.50 | 83.92 / 96.50 | 83.94 / 96.56 | 83.92 / 96.60 |  |
-| `davit_small.msft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.18 / 97.20 | 85.16 / 97.20 | 85.24 / 97.18 |  |  |
-| `davit_base.msft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.58 / 97.10 | 85.58 / 97.10 | 85.66 / 97.12 |  |  |
+| `davit_small.msft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.18 / 97.20 | 85.16 / 97.20 | 85.24 / 97.18 | 85.22 / 97.20 |  |
+| `davit_base.msft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.58 / 97.10 | 85.58 / 97.10 | 85.66 / 97.12 | 85.70 / 97.12 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1 / 7ba7307f, 2026-11-11 to 2026-11-17.
 
@@ -707,13 +707,13 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | note |
-|---|---|---|---|---|---|
-| `efficientformer_l1.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.14 / 95.22 | 81.16 / 95.24 | 81.14 / 95.12 |  |
-| `efficientformer_l3.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.12 / 96.32 | 83.14 / 96.32 | 83.16 / 96.32 |  |
-| `efficientformer_l7.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.44 / 96.68 | 84.44 / 96.66 | 84.38 / 96.68 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | note |
+|---|---|---|---|---|---|---|
+| `efficientformer_l1.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.14 / 95.22 | 81.16 / 95.24 | 81.14 / 95.12 | 81.14 / 95.14 |  |
+| `efficientformer_l3.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.12 / 96.32 | 83.14 / 96.32 | 83.16 / 96.32 |  |  |
+| `efficientformer_l7.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.44 / 96.68 | 84.44 / 96.66 | 84.38 / 96.68 |  |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11.
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1 / 7ba7307f, 2026-11-11 to 2026-11-17.
 
 ### Parity
 
