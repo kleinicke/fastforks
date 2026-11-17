@@ -10,7 +10,7 @@ import torch
 from fastforks import interpolation
 from fastforks._core import registry
 from fastforks._core.bench import synthetic_pair
-from fastforks.interpolation.models.film.model import _interpolate
+from fastforks.interpolation.models.film.model import _interpolate, _taps, _warp
 from fastforks.interpolation.models.film.net import Interpolator
 
 if TYPE_CHECKING:
@@ -18,6 +18,19 @@ if TYPE_CHECKING:
 
 # the card's level structure, narrow layers (fast on the CPU)
 SMALL = {"filters": 4, "flow_convs": (3, 3, 3, 3), "flow_filters": (4, 4, 8, 8)}
+
+
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float16])
+def test_export_warp_matches_eager(monkeypatch: pytest.MonkeyPatch, dtype: torch.dtype) -> None:
+    """Export's gather implementation agrees with the eager four-tap warp, including borders."""
+    torch.manual_seed(3)
+    image = torch.randn(2, 7, 5, 9, dtype=dtype)
+    flow = 4 * torch.randn(2, 2, 5, 9)
+    taps = _taps(flow, dtype, other=True)
+    want = _warp(image, taps)
+    monkeypatch.setattr(torch.compiler, "is_exporting", lambda: True)
+    got = _warp(image, taps)
+    torch.testing.assert_close(got, want, rtol=0, atol=0.002 if dtype == torch.float16 else 1e-6)
 
 
 def test_card_variants() -> None:

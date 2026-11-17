@@ -81,7 +81,9 @@ def _warp(x: torch.Tensor, taps: tuple[torch.Tensor, torch.Tensor]) -> torch.Ten
     _, c, h, w = x.shape
     rows = x.permute(0, 2, 3, 1).reshape(-1, c)  # a view of a channels-last tensor
     index, weights = taps
-    if x.device.type in ("cuda", "cpu"):
+    if torch.compiler.is_exporting():
+        out = (rows[index].float() * weights[..., None].float()).sum(1).to(x.dtype)
+    elif x.device.type in ("cuda", "cpu"):
         out = F.embedding_bag(index, rows, per_sample_weights=weights, mode="sum")
     else:
         out = (rows[index] * weights[..., None]).sum(1)
