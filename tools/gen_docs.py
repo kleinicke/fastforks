@@ -97,7 +97,10 @@ _DATASETS = {
         "totalseg-featparity-8": "TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: "
         "cosine (worst case) / relative L2",
     },
-    "interpolation": {"davis2017-triplets180": "DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM"},
+    "interpolation": {
+        "davis2017-triplets180": "DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM",
+        "davis2017-first-triplet-1080p": "DAVIS 2017, the first triplet per video resized to 1080p (90), PSNR",
+    },
     "restoration": {
         "div2k-val-inpainting-mask50": "DIV2K validation, 25 centre crops with two masks each, masked RGB PSNR (dB)",
         "div2k-val-x4": "DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
@@ -140,6 +143,7 @@ _DATASETS = {
     "tracking": {
         "tapvid-davis-first-every3": "TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA %",
         "tapvid-davis-first": "TAP-Vid DAVIS (query first), AJ / delta_avg / OA %",
+        "tapvid-davis-fixed-8x16": "TAP-Vid DAVIS, 8 frames and 16 queries per clip, AJ / delta_avg / OA %",
     },
 }
 _BAD_THR = {"eth3d": 1.0, "middH": 2.0}  # stereo
@@ -219,6 +223,11 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     },
     "matching": ((("auc5", "{:.1f}", ""), ("auc10", "{:.1f}", ""), ("auc20", "{:.1f}", "")), "n", "pairs"),
     "tracking": ((("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")), "n", "videos"),
+    ("tracking", "tapvid-davis-fixed-8x16"): (
+        (("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")),
+        "n",
+        "clips",
+    ),
     "matting": ((("mae", "{:.4f}", ""), ("max_fbeta", "{:.4f}", "")), "n", "images"),
     "retrieval": ((("r1", "{:.2f}", ""), ("r5", "{:.2f}", "")), "n", "queries"),
     "calibration": (
@@ -350,17 +359,22 @@ _PROTOCOL = {
     "the original itself has in half precision. ",
     "interpolation": "DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the "
     "frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the "
-    "output rounded to uint8, on RGB in [0, 1], averaged over the triplets. ",
+    "output rounded to uint8, on RGB in [0, 1], averaged over the triplets for the 180-triplet benchmark. ",
+    ("interpolation", "davis2017-first-triplet-1080p"): "The fixed 1080p validation resizes the first three frames of "
+    "each DAVIS video with bilinear interpolation and measures RGB PSNR before rounding the predicted middle frame. ",
     "matching": "Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE "
     "sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; "
     "LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean "
     "focal length); AUC of the larger of the rotation and translation-direction errors. ",
     ("matching", "megadepth1500-every5"): "The same 300 pairs for all modes, so float32 and bfloat16 compare pair for "
     "pair. ",
-    "tracking": "TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model (AllTracker: the "
-    "original frames, resized by the model), one query per track at its first visible point, tracked online "
-    "(TAPNext, Track-On) or over the whole clip (TAPIR, AllTracker, LocoTrack); AJ, delta_avg (< 1, 2, 4, 8, 16 px at "
-    "256 x 256) and occlusion accuracy averaged over the videos. ",
+    "tracking": "Query-first TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model "
+    "(AllTracker: the original frames, resized by the model), one query per track at its first visible point, "
+    "tracked online (TAPNext, Track-On) or over the whole clip (TAPIR, AllTracker, LocoTrack); AJ, delta_avg "
+    "(< 1, 2, 4, 8, 16 px at 256 x 256) and occlusion accuracy averaged over the videos. ",
+    ("tracking", "tapvid-davis-fixed-8x16"): "The fixed export check uses 28 annotated eight-frame clips resized to "
+    "480 x 854, with 16 queries sampled from frames 0, 2, and 4. Scores are averaged over clips after scoring the "
+    "frames following each query in TAP-Vid's 256 x 256 coordinate system. ",
     ("matting", "dis-vd-every2"): "Each image at its own size against its binary mask: MAE of the alpha, max F-beta "
     "(beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). ",
     ("matting", "aim500-every5"): "Trimap-guided models, AIM-500: each image at its own size with a trimap made from "

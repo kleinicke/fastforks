@@ -2632,6 +2632,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | loftr-indoor | 768x1024 | 111 ms | 71.0 ms | planned for 0.2.1 | 96.2 ms | 30.2 s | – | 796 / 904 | 634 / 684 | 760 / 886 | – |
 | loftr-outdoor | 768x1024 | 110 ms | 176 ms | planned for 0.2.1 | 95.9 ms | 33.3 s | – | 796 / 904 | 1149 / 1232 | 760 / 886 | – |
 | loma-b | 768x1024 | 308 ms | 285 ms | planned for 0.2.1 | – | 104 s | – | 1767 / 1878 | 2870 / 3216 | – | – |
+| loma-b128 | 768x1024 | 150 ms | 122 ms | fails: RuntimeError: Trying to create tensor with negative dimensio | – | 66.5 s | – | 878 / 984 | 1398 / 1760 | – | – |
 | loma-b64 | 768x1024 | 129 ms | 101 ms | fails: RuntimeError: Trying to create tensor with negative dimensio | – | 65.6 s | – | 854 / 962 | 1230 / 1356 | – | – |
 | romav1 | 768x1024 | 377 ms | 247 ms | planned for 0.2.1 | 356 ms | 698 s | – | 1720 / 1840 | 1348 / 1476 | 1720 / 1860 | – |
 | romav2 | 768x1024 | 546 ms | 576 ms | 353 ms | 354 ms | 254 s | 185 s | 1989 / 2596 | 3150 / 3386 | 1909 / 2300 | 6694 / 6740 |

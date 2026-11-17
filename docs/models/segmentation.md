@@ -356,11 +356,11 @@ Commercial use: yes.
 
 Each image at its own size, argmax of the logits. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `oneformer-swinl-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 54.49 / 85.06 | 54.26 / 85.05 | 54.37 / 85.05 | 54.38 / 85.14 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `oneformer-swinl-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 54.49 / 85.06 | 54.26 / 85.05 | 54.37 / 85.05 | 54.46 / 85.05 | 54.38 / 85.14 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
