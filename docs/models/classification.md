@@ -1258,10 +1258,10 @@ fastforks: the model's own resize / crop on the GPU; original: the library's pre
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | note |
 |---|---|---|---|---|---|---|
 | `hgnetv2_b0.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.50 / 93.98 | 78.40 / 93.96 | 78.50 / 94.04 | 78.50 / 94.04 |  |
-| `hgnetv2_b1.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.08 / 94.40 | 80.00 / 94.46 | 80.12 / 94.38 |  |  |
-| `hgnetv2_b2.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.50 / 95.92 | 82.48 / 95.92 | 82.50 / 95.92 |  |  |
-| `hgnetv2_b3.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.68 / 96.08 | 83.68 / 96.08 | 83.66 / 96.02 |  |  |
-| `hgnetv2_b4.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.96 / 96.66 | 83.98 / 96.66 | 84.00 / 96.64 |  |  |
+| `hgnetv2_b1.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.08 / 94.40 | 80.00 / 94.46 | 80.12 / 94.38 | 80.16 / 94.42 |  |
+| `hgnetv2_b2.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.50 / 95.92 | 82.48 / 95.92 | 82.50 / 95.92 | 82.50 / 95.92 |  |
+| `hgnetv2_b3.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.68 / 96.08 | 83.68 / 96.08 | 83.66 / 96.02 | 83.64 / 96.06 |  |
+| `hgnetv2_b4.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.96 / 96.66 | 83.98 / 96.66 | 84.00 / 96.64 | 84.02 / 96.64 |  |
 | `hgnetv2_b5.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.50 / 97.14 | 85.52 / 97.14 | 85.52 / 97.18 |  |  |
 | `hgnetv2_b6.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 86.60 / 97.94 | 86.60 / 97.94 | 86.74 / 98.00 |  |  |
 
