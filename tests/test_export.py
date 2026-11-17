@@ -118,6 +118,33 @@ _needs_onnx = pytest.mark.skipif(
 )
 
 
+@pytest.mark.slow
+@_needs_onnx
+def test_dfine_onnx_bilinear_sampling(tmp_path):
+    """Export the gather-based sampler and compare padding and interpolation across two distinct maps."""
+    import onnx  # noqa: PLC0415 - optional
+    import onnxruntime as ort  # noqa: PLC0415 - optional
+
+    from fastforks.detection._attention import _export_bilinear  # noqa: PLC0415
+
+    class Sampler(torch.nn.Module):
+        def forward(self, feature, grid):
+            return _export_bilinear(feature, grid)
+
+    generator = torch.Generator().manual_seed(110)
+    feature = torch.randn(2, 4, 5, 8, generator=generator)
+    grid = torch.rand(2, 9, 7, 2, generator=generator) * 3.0 - 1.5
+    grid[:, 0, 0] = torch.tensor([-1.0, 1.0])
+    path = tmp_path / "bilinear.onnx"
+    torch.onnx.export(Sampler().eval(), (feature, grid), path, input_names=["feature", "grid"], dynamo=True)
+    onnx.checker.check_model(path)
+    assert all(node.op_type != "GridSample" for node in onnx.load(path).graph.node)
+    session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+    (actual,) = session.run(None, {"feature": feature.numpy(), "grid": grid.numpy()})
+    expected = torch.nn.functional.grid_sample(feature, grid, align_corners=False)
+    torch.testing.assert_close(torch.from_numpy(actual), expected, atol=2e-6, rtol=1e-5)
+
+
 def _onnx_checks_the_export(ref: str) -> bool:
     """The ONNX test of `ref` passes: it captures `module()` with the same `torch.export(strict=False)` (torch.onnx's
     first strategy) and compares ONNX Runtime with `module()`, so test_module_compile_export can skip the export."""
