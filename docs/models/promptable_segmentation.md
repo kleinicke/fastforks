@@ -42,7 +42,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `clipseg` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>4.46<br>2.76<br>3.19<br>planned for 0.2.1 | 346 / 404<br>328 / 356<br>335 / 362<br>348 / 374<br>– |
+| `clipseg` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile | 15.3<br>4.46<br>2.76<br>3.19 | 346 / 404<br>328 / 356<br>335 / 362<br>348 / 374 |
 
 <details><summary>Details</summary>
 
@@ -54,9 +54,8 @@ Commercial use: yes.
 - Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `fvm_conv`
 - Variants: `clipseg`
-- Not in this release (planned for 0.2.1): `clipseg` ONNX / TensorRT export: the export wrapper does not pass the text condition (TypeError: missing cond)
 - Outputs: boxes, scores, masks
-- Input size: any H x W >= 32, padded to a multiple of 32
+- Input size: any H x W >= 1, resized inside to the fixed encoder input 352x352 (the default export size)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `clipseg` 3000x4000 (0.7 GiB peak allocated, 0.9 reserved)
 - `clipseg` 1024x1024, first call: portable + torch.compile 10 s (cold Inductor cache).
 - `clipseg` original 1024x1024: .half() on 1 modules, fp16 inputs; transformers CLIPSegProcessor (CPU) + CLIPSegForImageSegmentation, text tower per call, masks at logits > 0

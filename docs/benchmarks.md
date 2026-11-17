@@ -2365,7 +2365,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | mlsd | 1024x1024 | 7.65 ms | 4.61 ms | planned for 0.2.1 | – | 11.4 s | – | 72 / 90 | 101 / 130 | – | – |
 | pidinet | 1024x1024 | 6.59 ms | 5.66 ms | 4.50 ms | – | 12.4 s | 20.4 s | 186 / 228 | 166 / 190 | – | 187 / 200 |
 | teed | 1024x1024 | 2.54 ms | 1.10 ms | 0.799 ms | – | 9.06 s | 12.5 s | 68 / 88 | 71 / 104 | – | 106 / 120 |
-| clipseg | 1024x1024 | 4.46 ms | 3.19 ms | planned for 0.2.1 | 2.76 ms | 9.92 s | – | 328 / 356 | 348 / 374 | 335 / 362 | – |
+| clipseg | 1024x1024 | 4.46 ms | 3.19 ms | – | 2.76 ms | 9.92 s | – | 328 / 356 | 348 / 374 | 335 / 362 | – |
 | efficientvit-sam-l0 | 1024x1024 | 11.1 ms | 6.44 ms | 5.56 ms, fp32 engine (image encoder only) | 4.55 ms | 25.2 s | 19.9 s | 158 / 190 | 188 / 228 | 164 / 236 | 404 / 428 |
 | efficientvit-sam-l1 | 1024x1024 | 14.4 ms | 11.3 ms | 7.30 ms, fp32 engine (image encoder only) | 5.47 ms | 24.8 s | 22.0 s | 183 / 234 | 212 / 252 | 191 / 264 | 517 / 578 |
 | efficientvit-sam-l2 | 1024x1024 | 17.8 ms | 10.8 ms | 9.65 ms, fp32 engine (image encoder only) | 6.54 ms | 26.1 s | 24.1 s | 209 / 240 | 238 / 278 | 219 / 292 | 633 / 690 |

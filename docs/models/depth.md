@@ -982,7 +982,7 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `moge-2-vitl-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0235 / 0.9972 | 0.0235 / 0.9972 | 0.0235 / 0.9972 |  | 0.0235 / 0.9972 | possibly in the training data |
 | `moge-2-vitl-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.81 / 8.07 / 61.96 / 85.54 | 14.81 / 8.07 / 61.96 / 85.54 | 14.81 / 8.07 / 61.96 / 85.55 |  |
 | `moge-2-vitl-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.70 / 6.49 / 70.49 / 85.80 | 14.70 / 6.49 / 70.49 / 85.80 | 14.69 / 6.49 / 70.49 / 85.80 |  |
-| `moge-3-vitl` | NYUv2 test, AbsRel / delta1 | 0.0356 / 0.9836 | 0.0356 / 0.9836 | 0.0356 / 0.9836 |  | 0.0356 / 0.9836 |  |
+| `moge-3-vitl` | NYUv2 test, AbsRel / delta1 | 0.0356 / 0.9836 | 0.0356 / 0.9836 | 0.0356 / 0.9836 | 0.0356 / 0.9836 | 0.0356 / 0.9836 |  |
 | `moge-3-vitl` | iBims-1, AbsRel / delta1 | 0.0261 / 0.9884 | 0.0261 / 0.9884 | 0.0261 / 0.9884 | 0.0261 / 0.9884 | 0.0261 / 0.9883 |  |
 | `moge-3-vitl` | ETH3D two-view train left, AbsRel / delta1 | 0.0496 / 0.9847 | 0.0496 / 0.9847 | 0.0496 / 0.9847 |  | 0.0496 / 0.9847 | possibly in the training data |
 | `moge-3-vitl` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0235 / 0.9970 | 0.0235 / 0.9970 | 0.0235 / 0.9970 |  | 0.0235 / 0.9970 | possibly in the training data |
@@ -1281,14 +1281,14 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `unidepth-v2-vitl14` | NYUv2 test, AbsRel / delta1 | 0.0355 / 0.9843 | 0.0355 / 0.9843 | 0.0355 / 0.9843 | 0.0355 / 0.9843 |  |
-| `unidepth-v2-vitl14` | iBims-1, AbsRel / delta1 | 0.0298 / 0.9850 | 0.0298 / 0.9850 | 0.0298 / 0.9851 | 0.0298 / 0.9850 |  |
-| `unidepth-v2-vitl14` | ETH3D two-view train left, AbsRel / delta1 | 0.0586 / 0.9802 | 0.0586 / 0.9802 | 0.0586 / 0.9802 | 0.0586 / 0.9802 | possibly in the training data |
-| `unidepth-v2-vitl14` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0221 / 0.9970 | 0.0221 / 0.9970 | 0.0221 / 0.9970 | 0.0221 / 0.9970 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `unidepth-v2-vitl14` | NYUv2 test, AbsRel / delta1 | 0.0355 / 0.9843 | 0.0355 / 0.9843 | 0.0355 / 0.9843 | 0.0355 / 0.9843 | 0.0355 / 0.9843 |  |
+| `unidepth-v2-vitl14` | iBims-1, AbsRel / delta1 | 0.0298 / 0.9850 | 0.0298 / 0.9850 | 0.0298 / 0.9851 | 0.0298 / 0.9850 | 0.0298 / 0.9850 |  |
+| `unidepth-v2-vitl14` | ETH3D two-view train left, AbsRel / delta1 | 0.0586 / 0.9802 | 0.0586 / 0.9802 | 0.0586 / 0.9802 |  | 0.0586 / 0.9802 | possibly in the training data |
+| `unidepth-v2-vitl14` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0221 / 0.9970 | 0.0221 / 0.9970 | 0.0221 / 0.9970 |  | 0.0221 / 0.9970 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64 / 939adfe8, 2026-11-06 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -1338,14 +1338,14 @@ Commercial use: **no** (code: CC-BY-NC-SA-4.0 (noncommercial); weights: CC-BY-NC
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `unik3d-vitl` | NYUv2 test, AbsRel / delta1 | 0.0346 / 0.9843 | 0.0346 / 0.9843 | 0.0346 / 0.9843 | 0.0346 / 0.9843 |  |
-| `unik3d-vitl` | iBims-1, AbsRel / delta1 | 0.0277 / 0.9866 | 0.0277 / 0.9866 | 0.0277 / 0.9866 | 0.0277 / 0.9866 |  |
-| `unik3d-vitl` | ETH3D two-view train left, AbsRel / delta1 | 0.0630 / 0.9624 | 0.0630 / 0.9624 | 0.0630 / 0.9626 | 0.0630 / 0.9628 | possibly in the training data |
-| `unik3d-vitl` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0210 / 0.9966 | 0.0210 / 0.9966 | 0.0210 / 0.9966 | 0.0210 / 0.9966 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `unik3d-vitl` | NYUv2 test, AbsRel / delta1 | 0.0346 / 0.9843 | 0.0346 / 0.9843 | 0.0346 / 0.9843 | 0.0346 / 0.9843 | 0.0346 / 0.9843 |  |
+| `unik3d-vitl` | iBims-1, AbsRel / delta1 | 0.0277 / 0.9866 | 0.0277 / 0.9866 | 0.0277 / 0.9866 | 0.0277 / 0.9866 | 0.0277 / 0.9866 |  |
+| `unik3d-vitl` | ETH3D two-view train left, AbsRel / delta1 | 0.0630 / 0.9624 | 0.0630 / 0.9624 | 0.0630 / 0.9626 |  | 0.0630 / 0.9628 | possibly in the training data |
+| `unik3d-vitl` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0210 / 0.9966 | 0.0210 / 0.9966 | 0.0210 / 0.9966 |  | 0.0210 / 0.9966 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64 / 939adfe8, 2026-11-06 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -1457,14 +1457,14 @@ Commercial use: yes.
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `zoedepth-nk` | NYUv2 test, AbsRel / delta1 | 0.0532 / 0.9737 | 0.0528 / 0.9743 (NaN / inf output) | 0.0532 / 0.9737 | 0.0532 / 0.9737 |  |
-| `zoedepth-nk` | iBims-1, AbsRel / delta1 | 0.0669 / 0.9545 | 0.0668 / 0.9546 (NaN / inf output) | 0.0669 / 0.9545 | 0.0669 / 0.9545 |  |
-| `zoedepth-nk` | ETH3D two-view train left, AbsRel / delta1 | 0.1139 / 0.8648 | 0.1130 / 0.8653 (NaN / inf output) | 0.1139 / 0.8647 | 0.1139 / 0.8648 | possibly in the training data |
-| `zoedepth-nk` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0449 / 0.9860 | 0.0449 / 0.9860 | 0.0449 / 0.9860 | 0.0449 / 0.9860 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `zoedepth-nk` | NYUv2 test, AbsRel / delta1 | 0.0532 / 0.9737 | 0.0528 / 0.9743 (NaN / inf output) | 0.0532 / 0.9737 | 0.0532 / 0.9737 | 0.0532 / 0.9737 |  |
+| `zoedepth-nk` | iBims-1, AbsRel / delta1 | 0.0669 / 0.9545 | 0.0668 / 0.9546 (NaN / inf output) | 0.0669 / 0.9545 | 0.0669 / 0.9545 | 0.0669 / 0.9545 |  |
+| `zoedepth-nk` | ETH3D two-view train left, AbsRel / delta1 | 0.1139 / 0.8648 | 0.1130 / 0.8653 (NaN / inf output) | 0.1139 / 0.8647 |  | 0.1139 / 0.8648 | possibly in the training data |
+| `zoedepth-nk` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0449 / 0.9860 | 0.0449 / 0.9860 | 0.0449 / 0.9860 |  | 0.0449 / 0.9860 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64 / 939adfe8, 2026-11-06 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
