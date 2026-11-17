@@ -73,3 +73,16 @@ authors' stack (bit-equal to the lab file except two cuBLAS-bf16 folded constant
 - Lean weights: `marigold-v2/mv2_depth_lean.safetensors` in the cold-storage data folder there
   (sha256 `4b4aee27acdba6ba91582b76ed374fe91bf1bb02bea3be491e04e71a54fe9f5d`).
 - Earlier study on the 16 GB card: the 2026-11-14 Marigold V2 measurement in the same folder.
+
+## Streaming on RTX 5060 Ti 16 GB, November 18
+
+FastForks kernels at `36a20781`, PyTorch 2.10.0+cu130, one seeded RGB image on CUDA, two warmups and the median of seven synchronized calls. Memory is peak allocated by PyTorch.
+
+| Input | Resident | Streamed | Resident memory | Streamed memory |
+|---|---:|---:|---:|---:|
+| 384 × 512 | 586 ms | 710 ms | 9016 MiB | 731 MiB |
+| 768 × 1024 | 1913 ms | 1937 ms | 9347 MiB | 1062 MiB |
+
+Streaming frees about 8.1 GiB on this card. The additional transfer time is easier to hide at the larger input size. Select the policy when loading the model, for example `fastforks.load("marigold-v2-depth", device="cuda", mode="kernels", stream=False)` for resident weights. Marigold v2 and SeedVR2 both support the `stream` option and default to streaming on CUDA.
+
+Caching the streamed modules and views between images added 4.3 MiB to peak GPU allocation. On PyTorch 2.14.1 the 768 × 1024 run took 1940 ms before and 1941 ms with caching. The existing implementation remains in use. Baseline and candidate both passed the depth golden on its recorded PyTorch 2.14.1. Both exceeded the same relative mean error threshold on PyTorch 2.10.0 (0.0288 versus 0.01). The candidate produced exactly the baseline depth on two other test images and a repeat of the first on 2.10.0.
