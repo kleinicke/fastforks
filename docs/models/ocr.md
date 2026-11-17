@@ -51,6 +51,16 @@ Commercial use: yes.
 - `parseq-tiny` load / first call: original 0.34 s / 0.946 s (32x128), portable 0.74 s / 0.198 s (32x128)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+The 3,000 official cropped test words, with no lexicon. Exact accuracy and normalized edit similarity compare lowercase ASCII letters and digits. Similarity is one minus edit distance divided by the longer word's length, averaged over the crops. For a model that also detects text, this benchmark runs only its recognition network on the supplied word crop. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | portable fp32 | note |
+|---|---|---|---|
+| `parseq` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 98.37 / 99.62 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.001 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.01 and p99 <= 0.01 (absolute error of the output `boxes`).

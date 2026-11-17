@@ -437,7 +437,7 @@ pycocotools COCOeval of the top 100 detections per image. Original = the origina
 | variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|
 | `lw-detr-tiny-coco` | COCO val2017, every 20th image, box mAP | 49.05 | 48.81 |  | 48.99 |  |
-| `lw-detr-small-coco` | COCO val2017, every 20th image, box mAP |  |  | 52.93 |  |  |
+| `lw-detr-small-coco` | COCO val2017, every 20th image, box mAP | 52.85 |  | 52.93 |  |  |
 | `lw-detr-medium-coco` | COCO val2017, every 20th image, box mAP |  |  | 57.60 |  |  |
 | `lw-detr-large-coco` | COCO val2017, every 20th image, box mAP | 60.67 | 61.01 |  | 60.74 |  |
 

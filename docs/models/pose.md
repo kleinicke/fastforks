@@ -573,11 +573,11 @@ Bottom-up on all 5,000 validation images, no ground-truth boxes; people ranked b
 | `rtmo-s` | COCO val2017, predicted people, keypoint AP | 68.6 | 68.6 | 68.5 |  | 68.5 |  |
 | `rtmo-s` | COCO val2017, every 10th image, predicted people, keypoint AP | 71.1 | 71.2 | 71.2 | 71.2 | 71.2 |  |
 | `rtmo-m` | COCO val2017, predicted people, keypoint AP | 72.6 | 72.6 | 72.6 |  | 72.6 |  |
-| `rtmo-m` | COCO val2017, every 10th image, predicted people, keypoint AP | 74.2 | 74.2 | 74.2 |  | 74.2 |  |
+| `rtmo-m` | COCO val2017, every 10th image, predicted people, keypoint AP | 74.2 | 74.2 | 74.2 | 74.2 | 74.2 |  |
 | `rtmo-l` | COCO val2017, predicted people, keypoint AP | 74.8 | 74.8 | 74.8 |  | 74.8 |  |
 | `rtmo-l` | COCO val2017, every 10th image, predicted people, keypoint AP | 76.1 | 76.0 | 76.0 |  | 76.0 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks be54b8b0, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks be54b8b0, 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks be54b8b0, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks be54b8b0, 2026-11-11.
 
 ### Parity
 

@@ -107,8 +107,8 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `any2full-s` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0081 / 0.9958 |  |  | 0.0079 / 0.9960 |  |  |
 | `any2full-b` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0037 / 1.0000 | 0.0044 / 1.0000 | 0.0034 / 1.0000 | 0.0034 / 1.0000 | 0.0034 / 1.0000 |  |
 | `any2full-b` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0074 / 0.9962 | 0.0077 / 0.9962 | 0.0071 / 0.9964 | 0.0071 / 0.9964 | 0.0071 / 0.9964 |  |
-| `any2full-l` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) |  |  |  | 0.0034 / 1.0000 |  |  |
-| `any2full-l` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) |  |  |  | 0.0069 / 0.9966 |  |  |
+| `any2full-l` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0037 / 1.0000 |  |  | 0.0034 / 1.0000 |  |  |
+| `any2full-l` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0072 / 0.9963 |  |  | 0.0069 / 0.9966 |  |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
 
