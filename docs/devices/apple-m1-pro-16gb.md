@@ -39,8 +39,8 @@ there on MPS). The spring variants are faster by design: they halve the input fi
 | hardware | 16-core GPU |
 | software | macOS 27, torch 2.14 |
 | torch (rows) | 2.14.1 |
-| measured | 2026-11-06 to 2026-11-15 |
-| rows | 2178 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
+| measured | 2026-11-06 to 2026-11-17 |
+| rows | 2240 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -134,10 +134,11 @@ Note: the original's adaptive pooling needs input sizes divisible by the output 
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
 |---|---|---|---|---|---|
+| [`video-depth-anything-metric-s`](../models/depth.md#video_depth_anything) | – | 769 | 933 | unsupported | 7546 |
 | [`video-depth-anything-s`](../models/depth.md#video_depth_anything) | unsupported | 823 | 926 | unsupported | 7546 |
 
-Note: not measured: the original has no speed adapter (tools/_original.py LOCAL / bench_upstream), only the accuracy-eval tier of tools/eval_video_depth.py; its CUDA-only paths were not ported for this device.
 Note: no Metal kernels for this family (card mps_kernels).
+Note: not measured: the original has no speed adapter (tools/_original.py LOCAL / bench_upstream), only the accuracy-eval tier of tools/eval_video_depth.py; its CUDA-only paths were not ported for this device.
 
 ### Depth, synthetic, 756x1008
 
@@ -150,44 +151,53 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 ### Depth, synthetic, 994x1482
 
-| model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs original | vs portable | peak memory (MiB, process footprint, fastest dtype): original | portable | kernels |
-|---|---|---|---|---|---|---|---|---|---|---|
-| [`da3-giant-1.1`](../models/depth.md#depth_anything_3) | 898 | 833 | 759 | – | unsupported | – | – | 8269 | 7243 | – |
-| [`da3-large-1.1`](../models/depth.md#depth_anything_3) | 412 | 336 | 318 | – | unsupported | – | – | 4019 | 2520 | – |
-| [`da3metric-large`](../models/depth.md#depth_anything_3) | 271 | 291 | 280 | – | unsupported | – | – | 3393 | 2499 | – |
-| [`da3mono-large`](../models/depth.md#depth_anything_3) | 271 | 293 | 280 | – | unsupported | – | – | 3393 | 2499 | – |
-| [`da3nested-giant-large-1.1`](../models/depth.md#depth_anything_3) | 1174 | 1248 | 1184 | – | unsupported | – | – | 9549 | 8136 | – |
-| [`depth-anything-v2-b`](../models/depth.md#depth_anything_v2) | 239 | 212 | 199 | – | unsupported | – | – | 2342 | 2061 | – |
-| [`depth-anything-v2-l`](../models/depth.md#depth_anything_v2) | 697 | 622 | 579 | – | unsupported | – | – | 4218 | 3282 | – |
-| [`depth-anything-v2-metric-hypersim-b`](../models/depth.md#depth_anything_v2) | 239 | 211 | 199 | – | unsupported | – | – | 2351 | 2062 | – |
-| [`depth-anything-v2-metric-hypersim-l`](../models/depth.md#depth_anything_v2) | 700 | 628 | 579 | – | unsupported | – | – | 4227 | 3283 | – |
-| [`depth-anything-v2-metric-hypersim-s`](../models/depth.md#depth_anything_v2) | 110 | 87.8 | 79.5 | – | unsupported | – | – | 1862 | 1572 | – |
-| [`depth-anything-v2-metric-vkitti-b`](../models/depth.md#depth_anything_v2) | 239 | 211 | 199 | – | unsupported | – | – | 2349 | 2061 | – |
-| [`depth-anything-v2-metric-vkitti-l`](../models/depth.md#depth_anything_v2) | 698 | 623 | 580 | – | unsupported | – | – | 4226 | 3283 | – |
-| [`depth-anything-v2-metric-vkitti-s`](../models/depth.md#depth_anything_v2) | 110 | 90.0 | 79.5 | – | unsupported | – | – | 1856 | 1572 | – |
-| [`depth-anything-v2-s`](../models/depth.md#depth_anything_v2) | 113 | 87.3 | 80.7 | – | unsupported | – | – | 1860 | 1575 | – |
-| [`depth-pro`](../models/depth.md#depth_pro) | 5853 | 6115 | 5011 | – | unsupported | – | – | 13125 | 7169 | – |
-| [`distill-any-depth-b`](../models/depth.md#depth_anything_v2) | 238 | 212 | 199 | – | unsupported | – | – | 2389 | 2061 | – |
-| [`distill-any-depth-l`](../models/depth.md#depth_anything_v2) | 697 | 622 | 580 | – | unsupported | – | – | 4288 | 3281 | – |
-| [`distill-any-depth-s`](../models/depth.md#depth_anything_v2) | 109 | 87.3 | 79.3 | – | unsupported | – | – | 1868 | 1570 | – |
-| [`lotus-normal-d-v1-1`](../models/depth.md#lotus) | 42030 | 1788 | 1459 | – | unsupported | – | – | 12351 | 6628 | – |
-| [`lotus-normal-g-v1-1`](../models/depth.md#lotus) | 39522 | 2886 | 1553 | – | unsupported | – | – | 12354 | 6632 | – |
-| [`marigold-depth-v1-1`](../models/depth.md#marigold) | 3237 | 2970 | 2498 | – | unsupported | – | – | 10462 | 6640 | – |
-| [`marigold-normals-lcm-v0-1`](../models/depth.md#marigold_normals) | 2639 | 2075 | 1655 | – | unsupported | – | – | 10318 | 6671 | – |
-| [`metric3d-vit-large`](../models/depth.md#metric3d) | 1946 | 1822 | 1861 | – | unsupported | – | – | 4973 | 4523 | – |
-| [`midas-dpt-beit-large-512`](../models/depth.md#midas) | 1107 | 679 | 635 | – | unsupported | – | – | 4976 | 2407 | – |
-| [`moge-2-vitb-normal`](../models/depth.md#moge) | 915 | 585 | 1012 | 586 | – | 1.6x | 1.0x | 3223 | 3089 | 3160 |
-| [`moge-2-vitl-normal`](../models/depth.md#moge) | 1553 | 1343 | 1732 | 1344 | – | 1.2x | 1.0x | 4036 | 3914 | 3994 |
-| [`moge-2-vits-normal`](../models/depth.md#moge) | 516 | 361 | 857 | 362 | – | 1.4x | 1.0x | 2849 | 2634 | 2704 |
-| [`moge-3-vitl`](../models/depth.md#moge) | unsupported | 3469 | 3913 | 2415 | – | – | 1.4x | – | 6239 | 6121 |
-| [`pointdit-b-512`](../models/depth.md#pointdit) | 468 | 367 | 337 | – | unsupported | – | – | 3167 | 1912 | – |
-| [`pointdit-l-512`](../models/depth.md#pointdit) | 1356 | 1086 | 1013 | – | unsupported | – | – | 6994 | 4548 | – |
-| [`stablenormal-turbo`](../models/depth.md#stablenormal) | 51987 | 2718 | 1690 | – | unsupported | – | – | 11428 | 8985 | – |
-| [`unidepth-v2-vitl14`](../models/depth.md#unidepth_v2) | 1356 | 1252 | – | – | unsupported | – | – | 5260 | 6077 | – |
-| [`unik3d-vitl`](../models/depth.md#unik3d) | 1333 | 1217 | 1294 | – | unsupported | – | – | 5316 | 4001 | – |
-| [`zoedepth-nk`](../models/depth.md#zoedepth) | 1268 | 778 | 785 | – | unsupported | – | – | 4223 | 3558 | – |
+| model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels bf16 | kernels speed-up: vs original | vs portable | peak memory (MiB, process footprint, fastest dtype): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| [`any2full-b`](../models/depth.md#any2full) | – | 292 | 268 | – | unsupported | – | – | – | – | 2198 | – |
+| [`any2full-l`](../models/depth.md#any2full) | – | 742 | 684 | – | unsupported | – | – | – | – | 3956 | – |
+| [`any2full-s`](../models/depth.md#any2full) | – | 130 | 118 | – | unsupported | – | – | – | – | 1641 | – |
+| [`da3-giant-1.1`](../models/depth.md#depth_anything_3) | 898 | 833 | 759 | – | unsupported | – | – | – | 8269 | 7243 | – |
+| [`da3-large-1.1`](../models/depth.md#depth_anything_3) | 412 | 336 | 318 | – | unsupported | – | – | – | 4019 | 2520 | – |
+| [`da3metric-large`](../models/depth.md#depth_anything_3) | 271 | 291 | 280 | – | unsupported | – | – | – | 3393 | 2499 | – |
+| [`da3mono-large`](../models/depth.md#depth_anything_3) | 271 | 293 | 280 | – | unsupported | – | – | – | 3393 | 2499 | – |
+| [`da3nested-giant-large-1.1`](../models/depth.md#depth_anything_3) | 1174 | 1248 | 1184 | – | unsupported | – | – | – | 9549 | 8136 | – |
+| [`depth-anything-v2-b`](../models/depth.md#depth_anything_v2) | 239 | 212 | 199 | – | unsupported | – | – | – | 2342 | 2061 | – |
+| [`depth-anything-v2-l`](../models/depth.md#depth_anything_v2) | 697 | 622 | 579 | – | unsupported | – | – | – | 4218 | 3282 | – |
+| [`depth-anything-v2-metric-hypersim-b`](../models/depth.md#depth_anything_v2) | 239 | 211 | 199 | – | unsupported | – | – | – | 2351 | 2062 | – |
+| [`depth-anything-v2-metric-hypersim-l`](../models/depth.md#depth_anything_v2) | 700 | 628 | 579 | – | unsupported | – | – | – | 4227 | 3283 | – |
+| [`depth-anything-v2-metric-hypersim-s`](../models/depth.md#depth_anything_v2) | 110 | 87.8 | 79.5 | – | unsupported | – | – | – | 1862 | 1572 | – |
+| [`depth-anything-v2-metric-vkitti-b`](../models/depth.md#depth_anything_v2) | 239 | 211 | 199 | – | unsupported | – | – | – | 2349 | 2061 | – |
+| [`depth-anything-v2-metric-vkitti-l`](../models/depth.md#depth_anything_v2) | 698 | 623 | 580 | – | unsupported | – | – | – | 4226 | 3283 | – |
+| [`depth-anything-v2-metric-vkitti-s`](../models/depth.md#depth_anything_v2) | 110 | 90.0 | 79.5 | – | unsupported | – | – | – | 1856 | 1572 | – |
+| [`depth-anything-v2-s`](../models/depth.md#depth_anything_v2) | 113 | 87.3 | 80.7 | – | unsupported | – | – | – | 1860 | 1575 | – |
+| [`depth-pro`](../models/depth.md#depth_pro) | 5853 | 6115 | 5011 | – | unsupported | – | – | – | 13125 | 7169 | – |
+| [`depthfm-v1`](../models/depth.md#depthfm) | – | OOM | OOM | – | unsupported | – | – | – | – | – | – |
+| [`distill-any-depth-b`](../models/depth.md#depth_anything_v2) | 238 | 212 | 199 | – | unsupported | – | – | – | 2389 | 2061 | – |
+| [`distill-any-depth-l`](../models/depth.md#depth_anything_v2) | 697 | 622 | 580 | – | unsupported | – | – | – | 4288 | 3281 | – |
+| [`distill-any-depth-s`](../models/depth.md#depth_anything_v2) | 109 | 87.3 | 79.3 | – | unsupported | – | – | – | 1868 | 1570 | – |
+| [`lingbot-depth`](../models/depth.md#lingbot_depth) | – | 3363 | 3376 | – | unsupported | – | – | – | – | 4011 | – |
+| [`lingbot-depth-dc`](../models/depth.md#lingbot_depth) | – | 3363 | 3374 | – | unsupported | – | – | – | – | 4012 | – |
+| [`lotus-normal-d-v1-1`](../models/depth.md#lotus) | 42030 | 1788 | 1459 | – | unsupported | – | – | – | 12351 | 6628 | – |
+| [`lotus-normal-g-v1-1`](../models/depth.md#lotus) | 39522 | 2886 | 1553 | – | unsupported | – | – | – | 12354 | 6632 | – |
+| [`marigold-depth-v1-1`](../models/depth.md#marigold) | 3237 | 2970 | 2498 | – | unsupported | – | – | – | 10462 | 6640 | – |
+| [`marigold-normals-lcm-v0-1`](../models/depth.md#marigold_normals) | 2639 | 2075 | 1655 | – | unsupported | – | – | – | 10318 | 6671 | – |
+| [`marigold-v2-depth`](../models/depth.md#marigold_v2) | – | unsupported | – | – | – | unsupported | – | – | – | – | – |
+| [`metric3d-vit-large`](../models/depth.md#metric3d) | 1946 | 1822 | 1861 | – | unsupported | – | – | – | 4973 | 4523 | – |
+| [`midas-dpt-beit-large-512`](../models/depth.md#midas) | 1107 | 679 | 635 | – | unsupported | – | – | – | 4976 | 2407 | – |
+| [`moge-2-vitb-normal`](../models/depth.md#moge) | 915 | 585 | 1012 | 586 | – | – | 1.6x | 1.0x | 3223 | 3089 | 3160 |
+| [`moge-2-vitl-normal`](../models/depth.md#moge) | 1553 | 1343 | 1732 | 1344 | – | – | 1.2x | 1.0x | 4036 | 3914 | 3994 |
+| [`moge-2-vits-normal`](../models/depth.md#moge) | 516 | 361 | 857 | 362 | – | – | 1.4x | 1.0x | 2849 | 2634 | 2704 |
+| [`moge-3-vitl`](../models/depth.md#moge) | unsupported | 3469 | 3913 | 2415 | – | – | – | 1.4x | – | 6239 | 6121 |
+| [`omni-dc`](../models/depth.md#omni_dc) | – | 2349 | 2408 | – | unsupported | – | – | – | – | 12317 | – |
+| [`pointdit-b-512`](../models/depth.md#pointdit) | 468 | 367 | 337 | – | unsupported | – | – | – | 3167 | 1912 | – |
+| [`pointdit-l-512`](../models/depth.md#pointdit) | 1356 | 1086 | 1013 | – | unsupported | – | – | – | 6994 | 4548 | – |
+| [`stablenormal-turbo`](../models/depth.md#stablenormal) | 51987 | 2718 | 1690 | – | unsupported | – | – | – | 11428 | 8985 | – |
+| [`unidepth-v2-vitl14`](../models/depth.md#unidepth_v2) | 1356 | 1252 | – | – | unsupported | – | – | – | 5260 | 6077 | – |
+| [`unik3d-vitl`](../models/depth.md#unik3d) | 1333 | 1217 | 1294 | – | unsupported | – | – | – | 5316 | 4001 | – |
+| [`zoedepth-nk`](../models/depth.md#zoedepth) | 1268 | 778 | 785 | – | unsupported | – | – | – | 4223 | 3558 | – |
 
 Note: no Metal kernels for this family (card mps_kernels).
+Note: the family is not validated on MPS (card mps_dtypes).
 Note: the original needs flex_gemm, a CUDA-only extension.
 
 ## Classification
@@ -387,6 +397,7 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`isnet`](../models/matting.md#isnet) | 156 | 157 | 129 | – | unsupported | 2032 | 1745 |
 | [`isnet-general-use`](../models/matting.md#isnet) | 156 | 157 | 130 | – | unsupported | 2030 | 1746 |
 | [`matanyone`](../models/matting.md#matanyone) | 6473 | 6198 | 5907 | unsupported | – | 6365 | 3851 |
+| [`rmbg-2.0`](../models/matting.md#birefnet) | – | 1096 | 1008 | – | unsupported | – | 5434 |
 | [`u2net`](../models/matting.md#u2net) | 80.7 | 81.6 | 79.4 | – | unsupported | 1910 | 1885 |
 | [`u2net-human-seg`](../models/matting.md#u2net) | 81.7 | 81.7 | 75.1 | – | unsupported | 1911 | 1884 |
 | [`u2netp`](../models/matting.md#u2net) | 53.1 | 55.1 | 50.2 | – | unsupported | 1404 | 1402 |
@@ -698,6 +709,16 @@ Note: upstream's Gaussian rotation (e3nn Wigner D) builds complex tensors, which
 Note: the original's compiled (TorchScript) functions fail with variable arguments under torch 2.14.
 Note: no Metal kernels for this family (card mps_kernels).
 
+### Multiview, synthetic, 480x640
+
+| model | time (ms): portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
+|---|---|---|---|---|
+| [`lingbot-map`](../models/multiview.md#lingbot_map) | 8840 | 7125 | unsupported | 8834 |
+| [`resplat-base-re10k`](../models/multiview.md#resplat) | OOM | – | unsupported | – |
+| [`resplat-small-dl3dv`](../models/multiview.md#resplat) | 14422 | – | unsupported | 12080 |
+
+Note: no Metal kernels for this family (card mps_kernels).
+
 ### Multiview, synthetic, 1536x1024
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
@@ -740,6 +761,8 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`memflow-kitti`](../models/flow.md#memflow) | OOM | 9826 | – | – | unsupported | – | – | – | 12656 | – |
 | [`memflow-sintel`](../models/flow.md#memflow) | OOM | 10075 | – | – | unsupported | – | – | – | 12787 | – |
 | [`memfof`](../models/flow.md#memfof) | 3625 | 3054 | – | – | unsupported | – | – | 5212 | 5038 | – |
+| [`memfof-sintel`](../models/flow.md#memfof) | – | OOM | – | – | unsupported | – | – | – | – | – |
+| [`memfof-spring`](../models/flow.md#memfof) | – | 3060 | – | – | unsupported | – | – | – | 5037 | – |
 | [`neuflow-v2`](../models/flow.md#neuflow_v2) | OOM | 1039 | 4552 | – | unsupported | – | – | – | 13354 | – |
 | [`neuflow-v2-sintel`](../models/flow.md#neuflow_v2) | OOM | 1076 | 2757 | – | unsupported | – | – | – | 13226 | – |
 | [`neuflow-v2-things`](../models/flow.md#neuflow_v2) | OOM | 945 | 4313 | – | unsupported | – | – | – | 13049 | – |
@@ -757,9 +780,9 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`sea-raft-s`](../models/flow.md#sea_raft) | 1531 | 2115 | 1098 | – | 833 | 1.8x | 1.3x | 13174 | 9668 | 4667 |
 | [`sea-raft-s-kitti`](../models/flow.md#sea_raft) | 1503 | 2000 | 1098 | – | 831 | 1.8x | 1.3x | 13130 | 9671 | 4664 |
 | [`sea-raft-s-spring`](../models/flow.md#sea_raft) | 255 | 268 | 244 | – | 233 | 1.1x | 1.0x | 2757 | 2547 | 1527 |
-| [`waft-a1`](../models/flow.md#waft) | 22117 | 8225 | 7168 | unsupported | – | – | – | 12159 | 7185 | – |
-| [`waft-a1-kitti`](../models/flow.md#waft) | OOM | 8502 | 7384 | unsupported | – | – | – | – | 7187 | – |
-| [`waft-a1-sintel`](../models/flow.md#waft) | OOM | 8835 | 7430 | unsupported | – | – | – | – | 7187 | – |
+| [`waft-a1`](../models/flow.md#waft) | 22117 | 8225 | 7168 | unsupported | unsupported | – | – | 12159 | 7185 | – |
+| [`waft-a1-kitti`](../models/flow.md#waft) | OOM | 8502 | 7384 | unsupported | unsupported | – | – | – | 7187 | – |
+| [`waft-a1-sintel`](../models/flow.md#waft) | OOM | 8835 | 7430 | unsupported | unsupported | – | – | – | 7187 | – |
 
 Note: the card has no kernels mode.
 Note: no Metal kernels for this family (card mps_kernels).
@@ -770,12 +793,14 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels bf16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
 |---|---|---|---|---|---|---|---|---|
-| [`aliked-lightglue`](../models/matching.md#lightglue) | 214 | 206 | – | unsupported | – | – | 2720 | 2586 |
-| [`dedode-v2-b`](../models/matching.md#dedode) | 1711 | 1464 | – | unsupported | – | – | 8024 | 8011 |
-| [`dedode-v2-g`](../models/matching.md#dedode) | 4459 | 3767 | – | unsupported | – | – | 9577 | 10008 |
-| [`disk-lightglue`](../models/matching.md#lightglue) | 1780 | 1994 | – | unsupported | – | – | 3679 | 3531 |
-| [`loftr-indoor`](../models/matching.md#loftr) | 994 | 877 | 701 | unsupported | – | – | 5973 | 3613 |
-| [`loftr-outdoor`](../models/matching.md#loftr) | 997 | 875 | 723 | unsupported | – | – | 6998 | 3614 |
+| [`aliked-flexglue`](../models/matching.md#flexglue) | – | 1124 | 1069 | unsupported | – | – | – | 3088 |
+| [`aliked-lightglue`](../models/matching.md#lightglue) | 214 | 206 | – | unsupported | unsupported | – | 2720 | 2586 |
+| [`dedode-v2-b`](../models/matching.md#dedode) | 1711 | 1464 | – | unsupported | unsupported | – | 8024 | 8011 |
+| [`dedode-v2-g`](../models/matching.md#dedode) | 4459 | 3767 | – | unsupported | unsupported | – | 9577 | 10008 |
+| [`disk-lightglue`](../models/matching.md#lightglue) | 1780 | 1994 | – | unsupported | unsupported | – | 3679 | 3531 |
+| [`loftr-indoor`](../models/matching.md#loftr) | 994 | 877 | 701 | unsupported | unsupported | – | 5973 | 3613 |
+| [`loftr-outdoor`](../models/matching.md#loftr) | 997 | 875 | 723 | unsupported | unsupported | – | 6998 | 3614 |
+| [`loma-b`](../models/matching.md#loma) | – | 3037 | – | unsupported | – | – | – | 8147 |
 | [`romav1`](../models/matching.md#romav1) | 12208 | 3050 | – | – | unsupported | – | 12492 | 7979 |
 | [`romav2`](../models/matching.md#romav2) | OOM | 5901 | – | – | – | unsupported | – | 7697 |
 | [`xfeat`](../models/matching.md#xfeat) | 45.2 | 41.7 | – | unsupported | – | – | 1549 | 1471 |
@@ -793,10 +818,13 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`alltracker`](../models/tracking.md#alltracker) | 3628 | 3508 | 3200 | unsupported | 6081 | 3806 |
 | [`alltracker-tiny`](../models/tracking.md#alltracker) | 3057 | 3144 | 2743 | unsupported | 5785 | 3640 |
 | [`bootstapir`](../models/tracking.md#tapir) | 1930 | 1721 | 2059 | unsupported | 2931 | 2769 |
+| [`cotracker3-offline`](../models/tracking.md#cotracker) | – | 1430 | – | unsupported | – | 4725 |
+| [`cotracker3-online`](../models/tracking.md#cotracker) | – | 1707 | – | unsupported | – | 4689 |
 | [`locotrack-b`](../models/tracking.md#locotrack) | 1973 | 2104 | 2231 | unsupported | 2491 | 2474 |
 | [`locotrack-s`](../models/tracking.md#locotrack) | 1821 | 1781 | 1951 | unsupported | 2433 | 2427 |
 | [`tapir`](../models/tracking.md#tapir) | 1548 | 1382 | 1809 | unsupported | 2759 | 2630 |
 | [`tapnext`](../models/tracking.md#tapnext) | 6104 | 5855 | 5998 | unsupported | 3210 | 3754 |
+| [`tapnext-pp`](../models/tracking.md#tapnext) | – | 5680 | 5785 | unsupported | – | 3308 |
 | [`track-on-r`](../models/tracking.md#track_on) | 11219 | 8274 | – | unsupported | 3052 | 6102 |
 | [`track-on2`](../models/tracking.md#track_on) | 11323 | 8354 | – | unsupported | 3052 | 6102 |
 
@@ -829,7 +857,7 @@ Note: original needs cupy (CUDA softsplat kernels), no CUDA on the Mac.
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels bf16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
 |---|---|---|---|---|---|---|---|---|
 | [`big-lama`](../models/restoration.md#lama) | 334 | 241 | 214 | – | unsupported | – | 2096 | 1679 |
-| [`codeformer`](../models/restoration.md#codeformer) | 274 | 260 | 196 | unsupported | – | – | 3182 | 1866 |
+| [`codeformer`](../models/restoration.md#codeformer) | 274 | 260 | 196 | unsupported | unsupported | – | 3182 | 1866 |
 | [`dat-2-x4`](../models/restoration.md#dat) | 89592 | 11525 | 9404 | – | unsupported | – | 13698 | 10600 |
 | [`dat-light-x4`](../models/restoration.md#dat) | 3668 | 2992 | 2562 | – | unsupported | – | 6317 | 6851 |
 | [`dat-x4`](../models/restoration.md#dat) | 18351 | 21047 | 10512 | – | unsupported | – | 13512 | 10620 |

@@ -44,7 +44,7 @@ These terms apply to every device:
 
 ## Other devices
 
-- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 553 models, 2178 rows, measured 2026-11-06 to 2026-11-15.
+- [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 573 models, 2240 rows, measured 2026-11-06 to 2026-11-17.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -135,6 +135,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 | NVIDIA A100-SXM4-40GB | NVIDIA RTX PRO 6000 |
 |---|---|---|---|---|---|---|---|
+| [`any2full-b`](models/depth.md#any2full) | – | 268 ms · portable fp16 | – | – | – | – | – |
+| [`any2full-l`](models/depth.md#any2full) | – | 684 ms · portable fp16 | – | – | – | – | – |
+| [`any2full-s`](models/depth.md#any2full) | – | 118 ms · portable fp16 | – | – | – | – | – |
 | [`da3-giant-1.1`](models/depth.md#depth_anything_3) | 44.2 ms · kernels fp16 | 759 ms · portable fp16 | 63.2 ms · kernels fp16 | 22.5 ms · kernels fp16 | 60.1 ms · kernels fp16 | 25.0 ms · kernels fp16 | 14.2 ms · kernels fp16 |
 | [`da3-large-1.1`](models/depth.md#depth_anything_3) | 17.1 ms · kernels fp16 | 318 ms · portable fp16 | 22.4 ms · kernels fp16 | 8.49 ms · kernels fp16 | 21.1 ms · kernels fp16 | – | 6.59 ms · kernels fp16 |
 | [`da3metric-large`](models/depth.md#depth_anything_3) | 14.7 ms · kernels fp16 | 280 ms · portable fp16 | 19.5 ms · kernels fp16 | 7.78 ms · kernels fp16 | 18.6 ms · kernels fp16 | – | 6.04 ms · kernels fp16 |
@@ -150,19 +153,24 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`depth-anything-v2-metric-vkitti-s`](models/depth.md#depth_anything_v2) | – | 79.5 ms · portable fp16 | – | – | – | – | – |
 | [`depth-anything-v2-s`](models/depth.md#depth_anything_v2) | 4.51 ms · kernels fp16 | 80.7 ms · portable fp16 | 5.92 ms · kernels fp16 | 2.24 ms · kernels fp16 | 5.43 ms · kernels fp16 | 4.63 ms · kernels fp16 | 2.02 ms · kernels fp16 |
 | [`depth-pro`](models/depth.md#depth_pro) | – | 5011 ms · portable fp16 | 472 ms · kernels fp16 | 133 ms · kernels fp16 | 359 ms · kernels fp16 | 119 ms · kernels fp16 | 68.9 ms · kernels fp16 |
+| [`depthfm-v1`](models/depth.md#depthfm) | – | OOM | – | – | – | – | – |
 | [`distill-any-depth-b`](models/depth.md#depth_anything_v2) | – | 199 ms · portable fp16 | – | – | – | – | – |
 | [`distill-any-depth-l`](models/depth.md#depth_anything_v2) | – | 580 ms · portable fp16 | – | – | – | – | – |
 | [`distill-any-depth-s`](models/depth.md#depth_anything_v2) | – | 79.3 ms · portable fp16 | – | – | – | – | – |
+| [`lingbot-depth`](models/depth.md#lingbot_depth) | – | 3363 ms · portable fp32 | – | – | – | – | – |
+| [`lingbot-depth-dc`](models/depth.md#lingbot_depth) | – | 3363 ms · portable fp32 | – | – | – | – | – |
 | [`lotus-normal-d-v1-1`](models/depth.md#lotus) | – | 1459 ms · portable fp16 | – | – | – | – | – |
 | [`lotus-normal-g-v1-1`](models/depth.md#lotus) | – | 1553 ms · portable fp16 | – | – | – | – | – |
 | [`marigold-depth-v1-1`](models/depth.md#marigold) | – | 2498 ms · portable fp16 | 346 ms · kernels fp16 | 128 ms · kernels fp16 | 260 ms · kernels fp16 | 177 ms · portable fp16 | 74.8 ms · kernels fp16 |
 | [`marigold-normals-lcm-v0-1`](models/depth.md#marigold_normals) | – | 1655 ms · portable fp16 | – | – | – | – | – |
+| [`marigold-v2-depth`](models/depth.md#marigold_v2) | – | unsupported | – | – | – | – | – |
 | [`metric3d-vit-large`](models/depth.md#metric3d) | – | 1822 ms · portable fp32 | 193 ms · kernels fp16 | 56.9 ms · kernels fp16 | 166 ms · kernels fp16 | 61.5 ms · kernels fp16 | 38.9 ms · kernels fp16 |
 | [`midas-dpt-beit-large-512`](models/depth.md#midas) | 63.9 ms · kernels fp16 | 635 ms · portable fp16 | 91.5 ms · kernels fp16 | 26.8 ms · kernels fp16 | 73.1 ms · portable fp16 | 28.5 ms · kernels fp16 | 17.8 ms · portable fp16 |
 | [`moge-2-vitb-normal`](models/depth.md#moge) | – | 585 ms · portable fp32 | – | – | – | – | – |
 | [`moge-2-vitl-normal`](models/depth.md#moge) | 73.4 ms · kernels fp16 | 1343 ms · portable fp32 | 103 ms · kernels fp16 | 35.2 ms · kernels fp16 | 95.2 ms · kernels fp16 | – | 24.1 ms · kernels fp16 |
 | [`moge-2-vits-normal`](models/depth.md#moge) | – | 361 ms · portable fp32 | 44.0 ms · kernels fp16 | 18.0 ms · kernels fp16 | 35.6 ms · kernels fp16 | 22.1 ms · kernels fp16 | 11.0 ms · kernels fp16 |
 | [`moge-3-vitl`](models/depth.md#moge) | – | 2415 ms · kernels fp32 | 284 ms · kernels fp16 | 93.5 ms · kernels fp16 | 276 ms · kernels fp16 | 114 ms · kernels fp16 | 61.5 ms · kernels fp16 |
+| [`omni-dc`](models/depth.md#omni_dc) | – | 2349 ms · portable fp32 | – | – | – | – | – |
 | [`pointdit-b-512`](models/depth.md#pointdit) | – | 337 ms · portable fp16 | – | – | – | – | – |
 | [`pointdit-l-512`](models/depth.md#pointdit) | – | 1013 ms · portable fp16 | – | – | – | – | – |
 | [`stablenormal-turbo`](models/depth.md#stablenormal) | – | 1690 ms · portable fp16 | – | – | – | – | – |
@@ -303,6 +311,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`isnet`](models/matting.md#isnet) | 129 ms · portable fp16 |
 | [`isnet-general-use`](models/matting.md#isnet) | 130 ms · portable fp16 |
 | [`matanyone`](models/matting.md#matanyone) | 5907 ms · portable fp16 |
+| [`rmbg-2.0`](models/matting.md#birefnet) | 1008 ms · portable fp16 |
 | [`u2net`](models/matting.md#u2net) | 79.4 ms · portable fp16 |
 | [`u2net-human-seg`](models/matting.md#u2net) | 75.1 ms · portable fp16 |
 | [`u2netp`](models/matting.md#u2net) | 50.2 ms · portable fp16 |
@@ -550,6 +559,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`memflow-kitti`](models/flow.md#memflow) | 9826 ms · portable fp32 |
 | [`memflow-sintel`](models/flow.md#memflow) | 10075 ms · portable fp32 |
 | [`memfof`](models/flow.md#memfof) | 3054 ms · portable fp32 |
+| [`memfof-sintel`](models/flow.md#memfof) | OOM |
+| [`memfof-spring`](models/flow.md#memfof) | 3060 ms · portable fp32 |
 | [`neuflow-v2`](models/flow.md#neuflow_v2) | 1039 ms · portable fp32 |
 | [`neuflow-v2-sintel`](models/flow.md#neuflow_v2) | 1076 ms · portable fp32 |
 | [`neuflow-v2-things`](models/flow.md#neuflow_v2) | 945 ms · portable fp32 |
@@ -575,12 +586,14 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | Apple M1 Pro 16 GB |
 |---|---|
+| [`aliked-flexglue`](models/matching.md#flexglue) | 1069 ms · portable fp16 |
 | [`aliked-lightglue`](models/matching.md#lightglue) | 206 ms · portable fp32 |
 | [`dedode-v2-b`](models/matching.md#dedode) | 1464 ms · portable fp32 |
 | [`dedode-v2-g`](models/matching.md#dedode) | 3767 ms · portable fp32 |
 | [`disk-lightglue`](models/matching.md#lightglue) | 1994 ms · portable fp32 |
 | [`loftr-indoor`](models/matching.md#loftr) | 701 ms · portable fp16 |
 | [`loftr-outdoor`](models/matching.md#loftr) | 723 ms · portable fp16 |
+| [`loma-b`](models/matching.md#loma) | 3037 ms · portable fp32 |
 | [`romav1`](models/matching.md#romav1) | 3050 ms · portable fp32 |
 | [`romav2`](models/matching.md#romav2) | 5901 ms · portable fp32 |
 | [`xfeat`](models/matching.md#xfeat) | 41.7 ms · portable fp32 |
@@ -593,10 +606,13 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`alltracker`](models/tracking.md#alltracker) | 3200 ms · portable fp16 |
 | [`alltracker-tiny`](models/tracking.md#alltracker) | 2743 ms · portable fp16 |
 | [`bootstapir`](models/tracking.md#tapir) | 1721 ms · portable fp32 |
+| [`cotracker3-offline`](models/tracking.md#cotracker) | 1430 ms · portable fp32 |
+| [`cotracker3-online`](models/tracking.md#cotracker) | 1707 ms · portable fp32 |
 | [`locotrack-b`](models/tracking.md#locotrack) | 2104 ms · portable fp32 |
 | [`locotrack-s`](models/tracking.md#locotrack) | 1781 ms · portable fp32 |
 | [`tapir`](models/tracking.md#tapir) | 1382 ms · portable fp32 |
 | [`tapnext`](models/tracking.md#tapnext) | 5855 ms · portable fp32 |
+| [`tapnext-pp`](models/tracking.md#tapnext) | 5680 ms · portable fp32 |
 | [`track-on-r`](models/tracking.md#track_on) | 8274 ms · portable fp32 |
 | [`track-on2`](models/tracking.md#track_on) | 8354 ms · portable fp32 |
 

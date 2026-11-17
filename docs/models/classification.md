@@ -1968,9 +1968,9 @@ fastforks: the model's own resize / crop on the GPU; original: the library's pre
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
 | `starnet_s1.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 74.50 / 91.94 | 74.50 / 91.96 | 74.48 / 91.92 | 74.48 / 91.92 | 74.52 / 91.92 |  |
-| `starnet_s2.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 75.82 / 92.14 | 75.84 / 92.12 | 75.84 / 92.10 |  | 75.88 / 92.12 |  |
-| `starnet_s3.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.08 / 93.72 | 78.14 / 93.74 | 78.10 / 93.80 |  | 78.06 / 93.80 |  |
-| `starnet_s4.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.08 / 94.56 | 80.06 / 94.56 | 79.98 / 94.58 |  | 79.92 / 94.58 |  |
+| `starnet_s2.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 75.82 / 92.14 | 75.84 / 92.12 | 75.84 / 92.10 | 75.82 / 92.10 | 75.88 / 92.12 |  |
+| `starnet_s3.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.08 / 93.72 | 78.14 / 93.74 | 78.10 / 93.80 | 78.06 / 93.82 | 78.06 / 93.80 |  |
+| `starnet_s4.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.08 / 94.56 | 80.06 / 94.56 | 79.98 / 94.58 | 79.98 / 94.58 | 79.92 / 94.58 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 9e68b313, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 9e68b313, 2026-11-11.
 
