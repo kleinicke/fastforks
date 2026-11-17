@@ -149,14 +149,14 @@ pycocotools COCOeval of the top 100 detections per image. Original = the origina
 |---|---|---|---|---|---|---|---|
 | `dfine-n-coco` | COCO val2017, every 10th image, box mAP | 42.94 | 42.91 | 42.91 | 42.98 | 42.97 |  |
 | `dfine-s-coco` | COCO val2017, every 10th image, box mAP | 49.84 | 49.83 | 49.88 | 49.84 | 49.89 |  |
-| `dfine-m-coco` | COCO val2017, every 10th image, box mAP | 51.92 | 51.95 | 52.03 |  | 52.00 |  |
-| `dfine-l-coco` | COCO val2017, every 10th image, box mAP | 54.17 | 54.18 | 54.14 |  | 54.17 |  |
-| `dfine-x-coco` | COCO val2017, every 10th image, box mAP | 56.40 | 56.38 | 56.30 |  | 56.32 |  |
-| `deim-n-coco` | COCO val2017, every 10th image, box mAP | 44.38 | 44.37 | 44.40 |  | 44.38 |  |
-| `deim-s-coco` | COCO val2017, every 10th image, box mAP | 49.46 | 49.45 | 49.50 |  | 49.52 |  |
-| `deim-m-coco` | COCO val2017, every 10th image, box mAP | 52.38 | 52.43 | 52.43 |  | 52.43 |  |
-| `deim-l-coco` | COCO val2017, every 10th image, box mAP | 54.67 | 54.65 | 54.67 |  | 54.67 |  |
-| `deim-x-coco` | COCO val2017, every 10th image, box mAP | 56.87 | 56.91 | 56.86 |  | 56.90 |  |
+| `dfine-m-coco` | COCO val2017, every 10th image, box mAP | 51.92 | 51.95 | 52.03 | 51.92 | 52.00 |  |
+| `dfine-l-coco` | COCO val2017, every 10th image, box mAP | 54.17 | 54.18 | 54.14 | 54.15 | 54.17 |  |
+| `dfine-x-coco` | COCO val2017, every 10th image, box mAP | 56.40 | 56.38 | 56.30 | 56.35 | 56.32 |  |
+| `deim-n-coco` | COCO val2017, every 10th image, box mAP | 44.38 | 44.37 | 44.40 | 44.36 | 44.38 |  |
+| `deim-s-coco` | COCO val2017, every 10th image, box mAP | 49.46 | 49.45 | 49.50 | 49.36 | 49.52 |  |
+| `deim-m-coco` | COCO val2017, every 10th image, box mAP | 52.38 | 52.43 | 52.43 | 52.38 | 52.43 |  |
+| `deim-l-coco` | COCO val2017, every 10th image, box mAP | 54.67 | 54.65 | 54.67 | 54.67 | 54.67 |  |
+| `deim-x-coco` | COCO val2017, every 10th image, box mAP | 56.87 | 56.91 | 56.86 | 56.88 | 56.90 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 675d6e93 / a981ff86, 2026-11-11 to 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 675d6e93 / a981ff86, 2026-11-11 to 2026-11-12.
 
