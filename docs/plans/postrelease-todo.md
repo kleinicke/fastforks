@@ -2,15 +2,15 @@
 
 ## Measurement and implementation coverage
 
-Local generated site data on 2026-11-17 at 22:52 CET covers 578 variants.
+Local generated site data on 2026-11-17 at 23:38 CET covers 578 variants.
 
-- [ ] Portable FP32 quality is absent for 190 variants and original FP32 quality for 65. These counts include
-  58 variants with no available quality score. COCO, DAVIS, DTU, MegaDepth, prompted-depth, and volumetric
-  evaluations are in progress.
-- [ ] Compile has a measured row for 561 variants and a recorded failure or planned entry for 13. Four recently
-  added LoMa variants are queued.
-- [ ] TensorRT has a measured row for 506 variants and a recorded failure or planned entry for 68. Four recently
-  added LoMa variants are queued. Task accuracy has its own validation records.
+- [ ] Portable FP32 quality is absent for 175 variants and original FP32 quality for 64. Fifty-four variants have
+  no available quality score. COCO, DAVIS, DTU, MegaDepth, prompted-depth, volumetric, OCR, edge and pose evaluations
+  are in progress.
+- [ ] Compile has a measured row for 562 variants and a recorded failure or planned entry for 13. Three LoMa
+  variants are queued.
+- [ ] TensorRT has a measured row for 506 variants and a recorded failure or planned entry for 69. Three LoMa
+  variants are queued. The two new LoMa engines built, and their data-dependent output allocation is under review.
 - [ ] Kernel work is tracked separately in [the family and variant list](missing-kernel-modes-0.2.1.md).
 
 Counts use the generated site's per-variant quality and speed entries. A variant can have additional gaps at other
