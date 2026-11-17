@@ -38,7 +38,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks._core.sampling import grid_sample
 from fastforks.kernels.cudnn_hacc import conv_half_acc
-from fastforks.multiview._runner import Forward, Runner, f64, invert
+from fastforks.multiview._runner import Forward, Runner, f64, invert, project_harmonics
 from fastforks.shared.group_norm import fast_group_norms
 
 from .net.backbone.multiview_transformer import MultiViewFeatureTransformer
@@ -140,7 +140,7 @@ def _poses(c2w: torch.Tensor) -> list[torch.Tensor]:
 
     Covers upstream's two-view branch too (`inv(E1) E0` and its inverse).
     """
-    inv = torch.linalg.inv(c2w)
+    inv = invert(c2w)  # affine camera matrices; shared closed form also exports to ONNX
     return [inv.roll(-i, 0) @ c2w for i in range(1, c2w.shape[0])]
 
 
@@ -309,7 +309,7 @@ def sh_rotation(r: torch.Tensor) -> torch.Tensor:
     d = r.new_zeros(r.shape[0], SH, SH)
     d[:, 0, 0] = 1
     for deg, (y, p) in enumerate(zip(_y((r @ _S.to(r)).transpose(1, 2)), _P, strict=True), 1):
-        d[:, deg**2 : (deg + 1) ** 2, deg**2 : (deg + 1) ** 2] = y.transpose(1, 2) @ p.to(r)
+        d[:, deg**2 : (deg + 1) ** 2, deg**2 : (deg + 1) ** 2] = project_harmonics(y, p.to(r))
     return d
 
 

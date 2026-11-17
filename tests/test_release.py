@@ -53,6 +53,7 @@ REFS = [
 
 @pytest.mark.model
 @pytest.mark.gpu
+@pytest.mark.filterwarnings("ignore:.*was called without intrinsics:UserWarning")
 @pytest.mark.parametrize("mode", ["portable", "kernels"])
 @pytest.mark.parametrize("ref", REFS)
 def test_del_frees_cuda_memory_without_gc(ref, mode):

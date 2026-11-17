@@ -29,6 +29,7 @@ def _maps(result: object) -> dict[str, torch.Tensor]:
 @pytest.mark.slow
 @pytest.mark.model
 @pytest.mark.filterwarnings("ignore:.*without intrinsics")  # metric3d / da3metric: the assumed camera is fine here
+@pytest.mark.filterwarnings("ignore:.*is a video model but a batch of")  # compare independent images, not clips
 @pytest.mark.parametrize("ref", SMALLEST)
 def test_batch_equals_singles(ref):  # noqa: C901 - one branch per task family
     task = TASK[ref]
@@ -66,9 +67,20 @@ def test_batch_equals_singles(ref):  # noqa: C901 - one branch per task family
             for k, v in single.items():
                 torch.testing.assert_close(_maps(got)[k], v, rtol=1e-4, atol=1e-3)
         return
+    ragged = {
+        f.name: getattr(batch, f.name)
+        for f in dataclasses.fields(batch)
+        if isinstance(getattr(batch, f.name), list)
+        and getattr(batch, f.name)
+        and all(isinstance(v, torch.Tensor) for v in getattr(batch, f.name))
+    }
     batch = _maps(batch)
     for i, single in enumerate(_maps(model(*x, **kw)) for x, kw in zip(inputs, kws, strict=True)):
-        assert set(single) == set(batch)
+        assert set(single) == set(batch) | set(ragged)
         for k, v in single.items():
+            if k in ragged:
+                assert len(ragged[k]) == len(inputs)
+                torch.testing.assert_close(ragged[k][i], v, rtol=1e-4, atol=1e-3)
+                continue
             assert batch[k].shape == (2, *v.shape)
             torch.testing.assert_close(batch[k][i], v, rtol=1e-4, atol=1e-3)

@@ -1,9 +1,9 @@
 """OMNI-DC runners: weights -> network and the portable / kernels forward passes.
 
 Both follow upstream `OGNIDC.forward` with the released demo configuration: the ImageNet-normalised image and the
-sparse depth are zero-padded below and on the right to a multiple of 16 (the image in normalised space, i.e. with the
-ImageNet mean in [0, 1]) and the output is cropped back. Missing depth (0, negative, NaN, inf) enters as 0. The
-conjugate-gradient solve runs in float32 in chunks of steps with one host sync each (upstream syncs every step); it
+sparse depth are zero-padded below and on the right to at least 32 and a multiple of 16 (the image in normalised space,
+i.e. with the ImageNet mean) and the output is cropped back. Missing depth (0, negative, NaN, inf) enters as 0.
+The conjugate-gradient solve runs in float32 in chunks of steps with one host sync each (upstream syncs every step); it
 returns the same iterate as upstream's loop.
 """
 
@@ -53,13 +53,20 @@ def _net(ctx: Context) -> OmniDCNet:
 
 
 def prepare(image: torch.Tensor, prompt: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-    """Image `[B, 3, H, W]` in [0, 1] and depth `[B, 1, h, w]` -> both padded to a multiple of 16 (image: the mean)."""
+    """Image `[B, 3, H, W]` and depth `[B, 1, h, w]` -> both padded to at least 32 and a multiple of 16."""
     h, w = image.shape[-2:]
     d = prompt.float()
     if tuple(d.shape[-2:]) != (h, w):
         d = F.interpolate(d, (h, w), mode="nearest")
     d = torch.where(torch.isfinite(d) & (d > 0), d, 0)
-    pads = (0, -w % MULTIPLE, 0, -h % MULTIPLE)
+    # The first PVT attention stage applies an 8x8 reduction after a 4x downsample.
+    # Pad small inputs to 32 as well as to the network's normal alignment.
+    pads = (
+        0,
+        max(32, (w + MULTIPLE - 1) // MULTIPLE * MULTIPLE) - w,
+        0,
+        max(32, (h + MULTIPLE - 1) // MULTIPLE * MULTIPLE) - h,
+    )
     if any(pads):
         mean = torch.tensor(IMAGENET_MEAN, device=image.device, dtype=image.dtype).view(1, 3, 1, 1)
         image = F.pad(image - mean, pads) + mean

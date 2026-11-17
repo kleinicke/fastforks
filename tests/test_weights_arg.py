@@ -264,6 +264,7 @@ def _perturbed(change: str, used: str | tuple[str, ...] = ""):
         if done:
             return sd
         done.append(1)
+        outer = sd
         if isinstance(sd.get("state_dict"), dict):  # the checkpoint's wrapper (the family unwraps it)
             sd = sd["state_dict"]
         floats = [k for k, v in sd.items() if isinstance(v, torch.Tensor) and v.is_floating_point() and v.ndim >= 1]
@@ -277,7 +278,7 @@ def _perturbed(change: str, used: str | tuple[str, ...] = ""):
             del sd[big]
         else:
             sd[big] = torch.cat([sd[big], sd[big][:1]])
-        return sd
+        return outer
 
     return load
 

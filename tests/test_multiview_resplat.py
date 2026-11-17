@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 import torch
 
 from fastforks._core import registry
@@ -46,6 +47,21 @@ def test_knn_matches_exact_distances() -> None:
     want = d.topk(8, dim=1, largest=False)[0]  # the fp32 grid at 50 makes ties: compare distances, not indices
     for pool, margin in ((64, 16), (4096, 2), (4096, 16)):  # 64 / margin 2: many queries redone over all points
         assert torch.equal(d.gather(1, knn_query(8, p, rows=32, pool=pool, margin=margin)).sort(1)[0], want)
+
+
+@pytest.mark.slow
+def test_exported_knn_matches_exact_distances() -> None:
+    class KNN(torch.nn.Module):
+        def forward(self, points: torch.Tensor) -> torch.Tensor:
+            return knn_query(4, points, rows=8, pool=16, budget=1024)
+
+    points = torch.randn(64, 3, generator=torch.Generator().manual_seed(0))
+    module = KNN().eval()
+    exported = torch.export.export(module, (points,), strict=False).module()
+    distances = (points[:, None] - points[None]).square().sum(-1)
+    expected = distances.topk(4, dim=1, largest=False)[0]
+    for idx in (module(points), exported(points)):
+        torch.testing.assert_close(distances.gather(1, idx).sort(1)[0], expected)
 
 
 def test_sh_rotation_keeps_colours() -> None:

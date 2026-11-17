@@ -28,6 +28,7 @@ import torch.nn.functional as F
 
 from fastforks._core.errors import InputError
 from fastforks._core.labels import label_set
+from fastforks._core.patch import base_type, override
 from fastforks._core.runner import host
 from fastforks.detection._attention import deformable_sample
 from fastforks.detection._runner import Forward, Runner
@@ -97,6 +98,67 @@ def _msda(value, shapes, shapes_list, start, loc, weights, step):  # noqa: ANN00
     return deformable_sample(value, loc.flatten(3, 4), weights.flatten(3), shapes_list, points)
 
 
+def _attention_forward(  # noqa: PLR0913, PLR0917 - transformers' signature
+    self: Any,  # noqa: ANN401 - upstream attention module
+    hidden_states: torch.Tensor,
+    attention_mask: torch.Tensor | None = None,
+    encoder_hidden_states: torch.Tensor | None = None,
+    encoder_attention_mask: torch.Tensor | None = None,
+    position_embeddings: torch.Tensor | None = None,
+    reference_points: torch.Tensor | None = None,
+    spatial_shapes: torch.Tensor | None = None,
+    spatial_shapes_list: list[tuple[int, int]] | None = None,
+    level_start_index: torch.Tensor | None = None,
+    output_attentions: bool = False,  # noqa: FBT001, FBT002 - upstream signature
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Export the upstream attention without its redundant internal spatial-length assertion.
+
+    The runner constructs both the flattened features and spatial shapes from the same maps. Ordinary eager and
+    compiled calls retain upstream's check; this path only changes fixed/dynamic ONNX tracing.
+    """
+    if not torch.compiler.is_exporting():
+        return base_type(self).forward(
+            self,
+            hidden_states,
+            attention_mask,
+            encoder_hidden_states,
+            encoder_attention_mask,
+            position_embeddings,
+            reference_points,
+            spatial_shapes,
+            spatial_shapes_list,
+            level_start_index,
+            output_attentions,
+        )
+    if position_embeddings is not None:
+        hidden_states = hidden_states + position_embeddings
+    assert encoder_hidden_states is not None  # noqa: S101
+    assert reference_points is not None  # noqa: S101
+    assert spatial_shapes is not None  # noqa: S101
+    batch, queries, _ = hidden_states.shape
+    length = encoder_hidden_states.shape[1]
+    value = self.value_proj(encoder_hidden_states)
+    if attention_mask is not None:
+        value = value.masked_fill(~attention_mask[..., None], 0.0)
+    value = value.view(batch, length, self.n_heads, self.d_model // self.n_heads)
+    offsets = self.sampling_offsets(hidden_states).view(batch, queries, self.n_heads, self.n_levels, self.n_points, 2)
+    weights = self.attention_weights(hidden_states).view(batch, queries, self.n_heads, self.n_levels * self.n_points)
+    weights = F.softmax(weights, -1).view(batch, queries, self.n_heads, self.n_levels, self.n_points)
+    if reference_points.shape[-1] == 2:  # noqa: PLR2004 - point coordinates
+        normalizer = torch.stack([spatial_shapes[..., 1], spatial_shapes[..., 0]], -1)
+        locations = reference_points[:, :, None, :, None, :] + offsets / normalizer[None, None, None, :, None, :]
+    elif reference_points.shape[-1] == 4:  # noqa: PLR2004 - box coordinates
+        locations = (reference_points[:, :, None, :, None, :2] + offsets / self.n_points
+                     * reference_points[:, :, None, :, None, 2:] * 0.5)  # fmt: skip
+    else:
+        msg = f"Last dim of reference_points must be 2 or 4, got {reference_points.shape[-1]}"
+        raise ValueError(msg)
+    result = self.attn(
+        value, spatial_shapes, spatial_shapes_list, level_start_index, locations, weights, self.im2col_step
+    )
+    return self.output_proj(result), weights
+
+
 class Portable(Runner):
     """transformers' network in the compute dtype (text tower float32, once per query list), heads float32."""
 
@@ -122,6 +184,11 @@ class Portable(Runner):
         for mod in net.modules():  # fastforks: the shared per-level deformable sampling (no stack of the samples)
             if type(mod).__name__ == "MultiScaleDeformableAttention":
                 mod.forward = _msda
+            elif type(mod).__name__ in {
+                "GroundingDinoMultiscaleDeformableAttention",
+                "MMGroundingDinoMultiscaleDeformableAttention",
+            }:
+                override(mod, _attention_forward)
         self.head = net.bbox_embed[-1]
         # shared with the decoder (the same module, or tied weights since transformers 5.2x): a float copy
         if any(p.dtype != torch.float32 for p in self.head.parameters()):

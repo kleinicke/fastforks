@@ -103,7 +103,7 @@ class Portable(Runner):
         def fn(_net: Any, crops: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:  # noqa: ANN401 - the network
             return self.logits(crops * 255)
 
-        return Forward(self.net, fn)
+        return Forward(self.net, fn, output_names=("simcc_x", "simcc_y"))
 
 
 class Kernels(Portable):

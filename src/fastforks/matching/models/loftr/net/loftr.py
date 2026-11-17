@@ -187,15 +187,13 @@ class FinePreprocess(nn.Module):
         stride: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         w = self.W
-        if i_ids.shape[0] == 0:
-            empty = feat_f0.new_empty(0, w * w, self.d_model_f)
-            return empty, empty
         # fastforks: the window of each selected cell only (upstream unfolds every cell, then selects)
         f0 = self._windows(feat_f0, i_ids, stride)
         f1 = self._windows(feat_f1, j_ids, stride)
         c = self.down_proj(torch.cat([feat_c0[0, i_ids], feat_c1[0, j_ids]], 0))  # [2n, cf]
         merged = self.merge_feat(torch.cat([torch.cat([f0, f1], 0), c[:, None].expand(-1, w * w, -1)], -1))
-        return merged.chunk(2, dim=0)
+        # fastforks: explicit split also handles zero matches and dynamic export shapes.
+        return merged[: i_ids.shape[0]], merged[i_ids.shape[0] :]
 
     def _windows(self, feat: torch.Tensor, ids: torch.Tensor, stride: int) -> torch.Tensor:
         """`F.unfold(feat, W, stride, padding=W // 2)[:, :, ids]` as `[n, W * W, C]` (batch 1)."""
@@ -209,7 +207,7 @@ class FinePreprocess(nn.Module):
         rows = (oy[:, None] + d)[:, :, None].expand(-1, w, w)  # [n, W, W]
         cols = (ox[:, None] + d)[:, None, :].expand(-1, w, w)
         flat = (rows * x.shape[-1] + cols).reshape(-1)
-        return x.reshape(c, -1)[:, flat].reshape(c, -1, w * w).permute(1, 2, 0)
+        return x.reshape(c, -1)[:, flat].reshape(c, ids.shape[0], w * w).permute(1, 2, 0)
 
 
 class LoFTR(nn.Module):
@@ -294,8 +292,7 @@ class LoFTR(nn.Module):
         mk1 = torch.stack([j_ids % hw1[1], j_ids // hw1[1]], 1) * scale
         stride = feat_f0.shape[2] // hw0[0]
         f0, f1 = self.fine_preprocess(feat_f0, feat_f1, feat_c0, feat_c1, i_ids, j_ids, stride)
-        if f0.shape[0] > 0:
-            f0, f1 = self.loftr_fine(f0, f1)
-            w = self.fine_preprocess.W
-            mk1 = mk1 + self.fine(f0, f1).float() * (w // 2) * (image0.shape[2] / feat_f0.shape[2])
+        f0, f1 = self.loftr_fine(f0, f1)
+        w = self.fine_preprocess.W
+        mk1 = mk1 + self.fine(f0, f1).float() * (w // 2) * (image0.shape[2] / feat_f0.shape[2])
         return {"keypoints0": mk0.float(), "keypoints1": mk1.float(), "confidence": mconf}

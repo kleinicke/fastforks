@@ -8,6 +8,24 @@ from .utils import split_feature, merge_splits, split_feature_1d, merge_splits_1
 def sdpa(q, k, v, attn_mask=None):
     """softmax(q k^T / sqrt(C) + mask) v as one fused kernel (fastforks: replaces upstream's matmul / softmax / matmul,
     which wrote the [L, L] scores; same maths). Value channels are padded to a multiple of 8 (2-channel flow values)."""
+    # fastforks: preserve upstream's float32 operation order on CPU. Chunk
+    # queries in eager mode so large images do not materialize an N x N matrix;
+    # capture uses one dynamic matmul instead of unrolling a shape-dependent loop.
+    if q.device.type == "cpu":
+        if torch.compiler.is_compiling():
+            scores = torch.matmul(q, k.transpose(-2, -1)) / (q.size(-1) ** 0.5)
+            if attn_mask is not None:
+                scores = scores + attn_mask
+            return torch.matmul(torch.softmax(scores, dim=-1), v)
+        step = 256
+        out = []
+        for start in range(0, q.size(-2), step):
+            scores = torch.matmul(q[..., start:start + step, :], k.transpose(-2, -1)) / (q.size(-1) ** 0.5)
+            if attn_mask is not None:
+                mask = attn_mask if attn_mask.size(-2) == 1 else attn_mask[..., start:start + step, :]
+                scores = scores + mask
+            out.append(torch.matmul(torch.softmax(scores, dim=-1), v))
+        return torch.cat(out, dim=-2)
     pad = -v.size(-1) % 8
     if pad:
         v = F.pad(v, (0, pad))

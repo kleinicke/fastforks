@@ -132,11 +132,13 @@ class _Geometry:
 
     def __call__(self, h: int, w: int) -> tuple[torch.Tensor, list[Rel]]:
         if (h, w) not in self.cache:
-            with torch.no_grad():
+            # Cache regular tensors even when the first call runs in inference mode;
+            # later traced or autograd-enabled calls may need to save them.
+            with torch.inference_mode(mode=False), torch.no_grad():
                 emb = self.net.backbone.embeddings
                 pos = emb.get_absolute_positions(emb.position_embeddings.float(), True, h, w)  # noqa: FBT003
                 rel = [self._rel(layer, h, w) for layer in self.net.backbone.encoder.layer]
-            self.cache[h, w] = pos.to(self.device, self.dtype).contiguous(), rel
+                self.cache[h, w] = pos.to(self.device, self.dtype).contiguous(), rel
         return self.cache[h, w]
 
     def _rel(self, layer: Any, h: int, w: int) -> Rel:  # noqa: ANN401 - upstream VitDetLayer

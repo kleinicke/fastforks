@@ -17,7 +17,16 @@ from PIL import Image
 
 from fastforks import InputError, WeightsError, promptable_segmentation
 from fastforks._core import registry
-from fastforks.promptable_segmentation.models.sam2.video import STABLE_FRAMES, Motion, fill_holes, resize_frame
+from fastforks.promptable_segmentation.models.sam2 import video
+from fastforks.promptable_segmentation.models.sam2.video import (
+    MAX_PTRS,
+    NUM_MASKMEM,
+    STABLE_FRAMES,
+    Motion,
+    Tracker,
+    fill_holes,
+    resize_frame,
+)
 from synth import clip, clip_prompts
 
 
@@ -46,6 +55,38 @@ def test_resize_frame_matches_pil_bicubic() -> None:  # CPU: exact (the GPU path
     want = np.asarray(Image.fromarray(f).resize((128, 128)), np.float32) / 255
     got = resize_frame(torch.from_numpy(f).permute(2, 0, 1)[None].float() / 255, 128)[0].permute(1, 2, 0).numpy()
     np.testing.assert_array_equal(got, want)
+
+
+def test_tracking_keeps_pointer_history_without_old_encoded_maps(monkeypatch) -> None:
+    """Across 36 frames, retain every pointer and encoded frame that the next ordinary SAM 2 step reads."""
+    tracker = object.__new__(Tracker)
+    tracker.no_mem = torch.zeros(1, 1, 1, 1)
+    tracker.size = 2
+    low = torch.ones(1, 1, 2, 2)
+
+    def heads(pix, *_args):
+        return low, low, pix.mean().reshape(1), torch.ones(1, 1)
+
+    def encode(raw, *_args, **_kwargs):
+        return raw.mean().reshape(1)
+
+    def condition(raw, t, n_frames, bank):
+        memory = [0, *range(max(1, t - NUM_MASKMEM + 1), t)]
+        pointers = [0, *(t - d for d in range(1, min(n_frames, MAX_PTRS)) if t - d >= 1)]
+        assert all(bank[k][0] is not None and bank[k][0].item() == k for k in memory)
+        assert all(bank[k][1].item() == k for k in pointers)
+        assert sum(encoded is not None for encoded, _ in bank.values()) <= NUM_MASKMEM
+        return raw
+
+    monkeypatch.setattr(tracker, "heads", heads)
+    monkeypatch.setattr(tracker, "encode", encode)
+    monkeypatch.setattr(tracker, "condition", condition)
+    monkeypatch.setattr(video, "fill_holes", lambda x: x)
+    frames = [{k: torch.full((1, 1, 2, 2), float(t)) for k in ("image_embed", "feat_s0", "feat_s1")} for t in range(36)]
+    seen = []
+    tracker.run(frames, len(frames), coords=torch.zeros(1, 1, 2), labels=torch.ones(1, 1), mask=None,
+                emit=lambda t, _mask, _obj: seen.append(t))  # fmt: skip
+    assert seen == list(range(36))
 
 
 def _masks(*boxes: tuple[int, int, int, int]) -> torch.Tensor:

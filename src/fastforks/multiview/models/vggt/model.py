@@ -181,7 +181,8 @@ def _swap(t: torch.Tensor) -> torch.Tensor:
 
     An `index_select`, not `flip`: MPS's flip of the `[..., 2, 2, 16]` view is ~70x slower (torch 2.14).
     """
-    return t.index_select(-1, _swap_index(t.device))
+    index = _swap_index.__wrapped__(t.device) if torch.compiler.is_compiling() else _swap_index(t.device)
+    return t.index_select(-1, index)
 
 
 def _fp16_accumulate(*, on: bool) -> contextlib.AbstractContextManager[None]:

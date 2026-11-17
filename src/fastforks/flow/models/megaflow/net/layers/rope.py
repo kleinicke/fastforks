@@ -173,6 +173,19 @@ class RotaryPositionEmbedding2D(nn.Module):
         # Compute feature dimension for each spatial direction
         feature_dim = tokens.size(-1) // 2
 
+        # fastforks: compute the requested positions directly when tracing;
+        # extracting a tensor maximum as a Python scalar breaks full-graph capture.
+        if torch.compiler.is_compiling():
+            exponents = torch.arange(0, feature_dim, 2, device=tokens.device).float() / feature_dim
+            inv_freq = 1.0 / (self.base_frequency**exponents)
+            vertical, horizontal = tokens.chunk(2, dim=-1)
+            outputs = []
+            for values, index in ((vertical, 0), (horizontal, 1)):
+                angles = (positions[..., index, None].float() * inv_freq).to(tokens.dtype)
+                angles = torch.cat((angles, angles), dim=-1)
+                outputs.append(values * angles.cos()[:, None] + self._rotate_features(values) * angles.sin()[:, None])
+            return torch.cat(outputs, dim=-1)
+
         # Get frequency components
         max_position = int(positions.max()) + 1
         cos_comp, sin_comp = self._compute_frequency_components(feature_dim, max_position, tokens.device, tokens.dtype)

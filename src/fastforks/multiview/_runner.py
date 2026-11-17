@@ -144,6 +144,14 @@ def f64(t: torch.Tensor) -> torch.Tensor:
     return t if t.device.type == "mps" else t.double()
 
 
+def project_harmonics(harmonics: torch.Tensor, inverse: torch.Tensor) -> torch.Tensor:
+    """Project `[V, N, C]` harmonics through `[N, C]` coefficients, preserving their dtype.
+
+    The small reduction avoids ONNX Runtime's transpose-matmul fusion, which has no float64 CPU kernel.
+    """
+    return (harmonics[..., None] * inverse[None, :, None, :]).sum(1)
+
+
 def invert(m: torch.Tensor) -> torch.Tensor:
     """Inverse of `[..., 3, 3]` matrices, or of `[..., 4, 4]` affine ones (last row `0 0 0 1`), in float32 (or float64).
 

@@ -84,11 +84,16 @@ def remove_small(fg: torch.Tensor, min_pixels: int = MIN_PIXELS) -> torch.Tensor
     differs = torch.zeros_like(fg)
     for nb in _shifted(label, n):
         differs |= (nb != label) & (nb < n)
-    li = label.clamp(max=n - 1)
-    count = torch.bincount(li[fg], minlength=n)
-    opened = torch.zeros(n, dtype=torch.bool, device=fg.device)
-    opened[li[differs & fg]] = True
-    return fg & ((count[li] >= min_pixels) | opened[li])
+    # Give background pixels distinct indices so their zero updates do not
+    # contend on one location when the scatter runs on a GPU.
+    li = torch.where(fg, label, torch.arange(n, device=fg.device).view(fg.shape))
+    # Fixed-size scatter avoids the data-dependent shapes from boolean indexing
+    # and bincount, so the complete portable module can be exported.
+    # One marked pixel is enough to keep a label group; weight it by the
+    # threshold so one reduction encodes both the size and the open flag.
+    weight = fg.long() + (differs & fg).long() * min_pixels
+    count = torch.zeros(n, dtype=torch.int64, device=fg.device).scatter_add(0, li.flatten(), weight.flatten())
+    return fg & (count[li] >= min_pixels)
 
 
 def line_art(x: torch.Tensor) -> torch.Tensor:

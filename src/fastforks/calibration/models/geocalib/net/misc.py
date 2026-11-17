@@ -199,9 +199,10 @@ class SphericalManifold:
         sigma = torch.sum(x[..., :-1] ** 2, -1)
         xpiv = x[..., -1]
         norm = torch.norm(x, dim=-1)
-        if torch.any(sigma < 1e-7):
-            sigma = torch.where(sigma < 1e-7, sigma + 1e-7, sigma)
+        small = sigma < 1e-7
+        if not torch.compiler.is_compiling() and torch.any(small):
             logger.warning("sigma < 1e-7")
+        sigma = torch.where(small, sigma + 1e-7, sigma)
 
         vpiv = torch.where(xpiv < 0, xpiv - norm, -sigma / (xpiv + norm))
         beta = 2 * vpiv**2 / (sigma + vpiv**2)
@@ -272,8 +273,7 @@ def J_vecnorm(vec: torch.Tensor) -> torch.Tensor:
     D = vec.shape[-1]
     norm_x = torch.norm(vec, dim=-1, keepdim=True).unsqueeze(-1)  # (..., 1, 1)
 
-    if (norm_x == 0).any():
-        norm_x = norm_x + 1e-6
+    norm_x = torch.where((norm_x == 0).any(), norm_x + 1e-6, norm_x)
 
     xxT = torch.einsum("...i,...j->...ij", vec, vec)  # (..., D, D)
     identity = torch.eye(D, device=vec.device, dtype=vec.dtype)  # (D, D)

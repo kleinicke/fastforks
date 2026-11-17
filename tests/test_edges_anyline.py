@@ -41,7 +41,7 @@ def _components(fg: np.ndarray) -> np.ndarray:
 
 def test_remove_small_is_exact() -> None:
     g = torch.Generator().manual_seed(0)
-    for p in (0.3, 0.45, 0.55, 0.7):  # around the percolation threshold: components of every size and shape
+    for p in (0.0, 0.3, 0.45, 0.55, 0.7, 1.0):  # empty / full and components of varied sizes near percolation
         fg = torch.rand(3, 40, 56, generator=g) < p
         want = np.stack([_components(m) >= 12 for m in fg.numpy()]) & fg.numpy()
         assert (remove_small(fg).numpy() == want).all()

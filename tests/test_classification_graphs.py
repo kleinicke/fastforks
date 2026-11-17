@@ -53,15 +53,16 @@ def test_replay_matches_eager(ref: str) -> None:
     torch.testing.assert_close(first, eager, rtol=0, atol=0)
     torch.testing.assert_close(second, _eager(r, y), rtol=0, atol=0)
     assert first.data_ptr() != second.data_ptr()
-    for _ in range(2):  # another batch size: its own graph
+    for _ in range(2):  # doubled batch: release the smaller graph before capturing this shape
         two = r(z)["logits"]
-    assert len(g.cache.graphs) == 2
+    assert len(g.cache.graphs) == 1
+    assert next(iter(g.cache.graphs.values()))[1][0].shape == z.shape
     torch.testing.assert_close(two, _eager(r, z), rtol=0, atol=0)
     # past the runner's pixel limit (the big-input path, cudnn_hacc in `libnet.Kernels`) the call stays eager
     big = torch.randn(max(8, g.pixels // 224**2 + 1), 3, 224, 224, device="cuda", generator=gen)
     for _ in range(3):
         r(big)
-    assert len(g.cache.graphs) == 2
+    assert not g.cache.graphs
     model.release_graphs()
     assert not g.cache.graphs
     torch.testing.assert_close(r(x)["logits"], eager, rtol=0, atol=0)

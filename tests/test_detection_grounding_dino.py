@@ -1,22 +1,63 @@
 """Grounding DINO: caption building, phrase masks, the processor's input path and the BERT tokenizer vs transformers."""
 
+import importlib
+
 import numpy as np
 import pytest
 import torch
 
 from fastforks._core import registry
 from fastforks._core.errors import InputError
+from fastforks._core.patch import override
 from fastforks.detection.models.grounding_dino.model import (
     MEAN,
     SEPARATORS,
     STD,
     Portable,
+    _attention_forward,
+    _msda,
     phrase_masks,
     target_size,
 )
 from fastforks.shared.bert_tokenizer import BertTokenizer, basic
 
 VOCAB = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", ".", "?", "cat", "dog", "hot", "##dog", "remote", "control"]
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("coordinates", [2, 4])
+@pytest.mark.parametrize("family", ["GroundingDino", "MMGroundingDino"])
+def test_export_attention_matches_upstream(coordinates: int, family: str) -> None:
+    """The ONNX tracing path preserves attention for point and box reference coordinates."""
+    tf = pytest.importorskip("transformers")
+    torch.manual_seed(11)
+    module_name = "grounding_dino" if family == "GroundingDino" else "mm_grounding_dino"
+    module = importlib.import_module(f"transformers.models.{module_name}.modeling_{module_name}")
+    config = getattr(tf, f"{family}Config")(d_model=32, num_feature_levels=2)
+    att = getattr(module, f"{family}MultiscaleDeformableAttention")(config, num_heads=4, n_points=2).eval()
+    att.attn.forward = _msda
+    shapes = torch.tensor([[2, 2], [1, 1]])
+    inputs = (
+        torch.randn(1, 3, 32),
+        torch.ones(1, 5, dtype=torch.bool),
+        torch.randn(1, 5, 32),
+        None,
+        None,
+        torch.rand(1, 3, 2, coordinates),
+        shapes,
+        [(2, 2), (1, 1)],
+        torch.tensor([0, 4]),
+        False,
+    )
+    with torch.inference_mode():
+        expected = att(*inputs)
+        override(att, _attention_forward)
+        eager = att(*inputs)
+        compiled = torch.compile(att, backend="eager")(*inputs)
+        exported = torch.export.export(att, inputs, strict=False).module()(*inputs)
+    for got in (eager, compiled, exported):
+        for a, b in zip(got, expected, strict=True):
+            torch.testing.assert_close(a, b, rtol=0, atol=0)
 
 
 def _runner(tmp_path, max_len: int = 256) -> Portable:

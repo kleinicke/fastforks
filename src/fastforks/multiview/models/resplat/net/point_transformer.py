@@ -59,6 +59,18 @@ def knn_query(k, p, rows=128, pool=4096, margin=16, budget=1 << 25):  # fastfork
     matter (the attention sums over them).
     """
     n = p.shape[0]
+    if torch.compiler.is_exporting():
+        # fastforks: fixed-size export uses exact, bounded query chunks. The
+        # eager pooled search has a data-dependent retry set that cannot be traced.
+        p = p.float()
+        step = max(1, budget // (3 * n))
+        return torch.cat(
+            [
+                (p[None] - p[t : t + step, None]).square().sum(-1).topk(k, dim=1, largest=False, sorted=False)[1]
+                for t in range(0, n, step)
+            ],
+            dim=0,
+        )
     g = 1e-6 if torch.get_float32_matmul_precision() == "highest" else 1e-2  # relative matmul error (TF32 / bf16)
     with torch.autocast(p.device.type, enabled=False):
         p = p.float()

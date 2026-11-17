@@ -12,6 +12,7 @@ from fastforks import flow
 from fastforks._core import registry
 from fastforks._core.bench import synthetic_pair
 from fastforks.flow.models.gmflow import model as family
+from fastforks.flow.models.gmflow.net.attention import sdpa
 from fastforks.flow.models.gmflow.net.unimatch import UniMatch
 from fastforks.flow.models.gmflow.net.utils import normalize_img
 
@@ -94,6 +95,37 @@ def test_fused_attention_is_softmax_matmul() -> None:
     query, key, value = torch.randn(2, 96, 16), torch.randn(2, 96, 16), torch.randn(2, 96, 2)
     plain = torch.softmax(query @ key.transpose(1, 2) / 16**0.5, dim=-1) @ value
     torch.testing.assert_close(family.attend(query, key, value), plain, rtol=0, atol=1e-5)
+
+
+@pytest.mark.parametrize("mask_kind", ["full", "broadcast"])
+def test_cpu_attention_chunks_match_upstream(mask_kind: str) -> None:
+    """Multiple query chunks preserve upstream attention, including broadcast masks."""
+    gen = torch.Generator().manual_seed(3)
+    query = torch.randn(2, 530, 16, generator=gen)
+    key = torch.randn(2, 80, 16, generator=gen)
+    value = torch.randn(2, 80, 2, generator=gen)
+    mask = torch.randn(2, 1 if mask_kind == "broadcast" else 530, 80, generator=gen)
+    expected = torch.softmax(query @ key.transpose(-2, -1) / 16**0.5 + mask, dim=-1) @ value
+    torch.testing.assert_close(sdpa(query, key, value, mask), expected, rtol=0, atol=1e-6)
+
+
+@pytest.mark.slow
+def test_cpu_attention_exports_dynamic_query_length() -> None:
+    """The bounded eager path must not specialize the exported query length."""
+
+    class Attention(torch.nn.Module):
+        def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
+            return sdpa(query, key, value)
+
+    model = Attention()
+    query, key, value = torch.randn(2, 300, 16), torch.randn(2, 80, 16), torch.randn(2, 80, 2)
+    length = torch.export.Dim("query_length", min=1, max=600)
+    exported = torch.export.export(
+        model, (query, key, value), dynamic_shapes={"query": {1: length}, "key": {}, "value": {}}, strict=False
+    ).module()
+    for size in (120, 530):
+        query = torch.randn(2, size, 16)
+        torch.testing.assert_close(exported(query, key, value), model(query, key, value), rtol=1e-5, atol=1e-5)
 
 
 @pytest.fixture(scope="module")

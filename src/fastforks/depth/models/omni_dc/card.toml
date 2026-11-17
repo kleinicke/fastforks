@@ -26,7 +26,7 @@ training_note = "Synthetic RGB-D datasets with virtual sparse patterns per the p
 evidence = "https://github.com/princeton-vl/OMNI-DC/blob/main/LICENSE (BSD-3-Clause, also on the Hugging Face card zuoym15/OMNI-DC); the checkpoint's depth_module is the frozen Depth Anything V2 Large (upstream loads depth_anything_v2_vitl.pth, CC-BY-NC-4.0)"
 
 [io]
-input = "imagenet"  # the runner pads below and on the right to a multiple of 16 and normalises
+input = "imagenet"  # the runner pads below and on the right to at least 32 and a multiple of 16, then normalises
 pad = "none"
 
 [modes.portable]

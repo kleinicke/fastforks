@@ -36,7 +36,7 @@ from torch import nn
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.kernels.cudnn_hacc import conv_half_acc
-from fastforks.multiview._runner import Forward, Runner, f64, invert
+from fastforks.multiview._runner import Forward, Runner, f64, invert, project_harmonics
 from fastforks.shared.depth_anything_v2 import use_fast_vit
 
 from .net.dpt_head import DPTHead
@@ -171,7 +171,8 @@ def sh_rotation(r: torch.Tensor) -> torch.Tensor:
     d = r.new_zeros(r.shape[0], SH, SH)
     d[:, 0, 0] = 1
     d[:, 1:4, 1:4] = r
-    d[:, 4:9, 4:9] = _y2((r @ s).transpose(1, 2)).transpose(1, 2) @ p
+    harmonics = _y2((r @ s).transpose(1, 2))  # [V, N, 5]
+    d[:, 4:9, 4:9] = project_harmonics(harmonics, p)
     return d
 
 

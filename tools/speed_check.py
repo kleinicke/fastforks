@@ -514,6 +514,53 @@ def _net_input(model: Any, task: str, full: Callable[[], Any]) -> tuple[int, int
     return n, h, w
 
 
+def trt_output_diagnostics(model: Any, inputs: tuple[Any, ...], actual: dict[str, Any]) -> dict[str, Any]:  # noqa: ANN401
+    """Record per-output error against eager; task-level accuracy still determines whether it is acceptable."""
+    import torch  # noqa: PLC0415
+
+    from fastforks._core.export import flat_outputs, output_names  # noqa: PLC0415
+
+    module = model.module()
+    with torch.inference_mode():
+        expected = module(*inputs)
+    names = output_names(model, module, expected)
+    if set(names) != set(actual):
+        msg = f"TensorRT output names {sorted(actual)} differ from eager {sorted(names)}"
+        raise ValueError(msg)
+    result = {}
+    for name, want in zip(names, flat_outputs(expected), strict=True):
+        got = actual[name]
+        if want.shape != got.shape:
+            msg = f"TensorRT output {name} shape {tuple(got.shape)} differs from eager {tuple(want.shape)}"
+            raise ValueError(msg)
+        if not want.numel():
+            result[name] = {"elements": 0}
+            continue
+        if not want.is_floating_point():
+            unequal = (got != want).sum().item()
+            result[name] = {"unequal": unequal, "elements": want.numel()}
+            continue
+        w, g = want.float(), got.float()
+        bad = (~torch.isfinite(g) & torch.isfinite(w)).sum().item()
+        if bad:
+            msg = f"TensorRT output {name} has {bad} nonfinite values where eager is finite"
+            raise ValueError(msg)
+        if ((~torch.isfinite(w)) & ~((w == g) | (torch.isnan(w) & torch.isnan(g)))).any():
+            msg = f"TensorRT output {name} does not match eager's nonfinite values"
+            raise ValueError(msg)
+        finite = torch.isfinite(w) & torch.isfinite(g)
+        if not finite.any():
+            msg = f"TensorRT output {name} has no finite values to compare"
+            raise ValueError(msg)
+        diff = (g[finite] - w[finite]).abs()
+        result[name] = {
+            "max_abs": diff.max().item(),
+            "mean_abs": diff.mean().item(),
+            "ref_max_abs": w[finite].abs().max().item(),
+        }
+    return {"status": "recorded; task accuracy not yet validated", "outputs": result}
+
+
 def trt_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: list[Any], out: Path) -> None:  # noqa: ANN401
     """`tensorrt` mode: ONNX export and fp16 engine build of the portable model at the input, then the engine's timing.
 
@@ -555,8 +602,11 @@ def trt_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: li
             for k in ("alloc", "reserved"):
                 row[f"torch_peak_{k}_mb"] = row[f"peak_{k}_mb"]
                 row[f"peak_{k}_mb"] += row["device_mb"]
-            if all_nan(engine.run(*inputs)) is not None:
+            outputs = engine.run(*inputs)
+            if all_nan(outputs) is not None:
                 _fail(row, spec, "wrong output: an engine output is all NaN")
+            else:
+                row["numeric_check"] = trt_output_diagnostics(model, inputs, outputs)
             # start with an already built engine: load the engine file + the first call (cold = onnx export + build)
             del engine
             gc.collect()

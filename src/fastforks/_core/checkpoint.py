@@ -432,6 +432,24 @@ def mismatch_details(
     return "; ".join(p for p in parts if p)
 
 
+def check_foldable_batchnorm(weight: torch.Tensor, state: Mapping[str, torch.Tensor], prefix: str) -> None:
+    """Reject incompatible BatchNorm channels before folding them into a convolution or linear weight."""
+    expected = (weight.shape[0],)
+    bad = [
+        (f"{prefix}.{part}", state[f"{prefix}.{part}"].shape)
+        for part in ("weight", "bias", "running_mean", "running_var")
+    ]
+    bad = [(name, shape) for name, shape in bad if tuple(shape) != expected]
+    if bad:
+        name, shape = bad[0]
+        detail = (
+            f"{len(bad)} shape mismatches ({name}: checkpoint {list(shape)}, "
+            f"expected {list(expected)} to match the folded weight)"
+        )
+        what = "checkpoint"
+        raise CheckpointMismatchError(what, detail)
+
+
 def torch_mismatch(error: BaseException) -> tuple[list[str], list[str], list[tuple[str, str, str]]] | None:
     """The missing, unexpected and reshaped keys of a strict `Module.load_state_dict` error, else `None`."""
     text = str(error)

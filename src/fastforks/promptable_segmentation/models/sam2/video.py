@@ -336,7 +336,7 @@ class Tracker:
         raw: torch.Tensor,
         t: int,
         n_frames: int,
-        bank: dict[int, tuple[torch.Tensor, torch.Tensor]],
+        bank: dict[int, tuple[torch.Tensor | None, torch.Tensor]],
         memory: list[int] | None = None,
         objects: torch.Tensor | None = None,
     ) -> torch.Tensor:
@@ -356,7 +356,11 @@ class Tracker:
             ages = list(range(len(memory), 0, -1))
         mems, poss = [], []
         for k, age in [(0, NUM_MASKMEM), *zip(memory, ages, strict=True)]:  # frame 0, then the others, oldest first
-            feats = bank[k][0][rows].to(dt).flatten(2).permute(2, 0, 1)
+            encoded = bank[k][0]
+            if encoded is None:
+                msg = f"SAM 2 memory for frame {k} was released before it was read"
+                raise RuntimeError(msg)
+            feats = encoded[rows].to(dt).flatten(2).permute(2, 0, 1)
             mems.append(feats)
             poss.append(self.mem_pos.expand(-1, p, -1) + tpos[age - 1])
         max_ptrs = min(n_frames, MAX_PTRS)
@@ -394,7 +398,7 @@ class Tracker:
         Prompts (frame 0, `P` objects): `coords` `[P, N, 2]` in encoder-input pixels + `labels` `[P, N]`, or `mask`
         `[P, 1, S, S]` binary. `kf_weight`: SAMURAI with this motion weight (None: SAM 2).
         """
-        bank: dict[int, tuple[torch.Tensor, torch.Tensor]] = {}
+        bank: dict[int, tuple[torch.Tensor | None, torch.Tensor]] = {}
         p = next(x for x in (coords, mask) if x is not None).shape[0]
         motion = None if kf_weight is None else Motion(p, kf_weight, self.no_mem.device)
         for t, f in enumerate(frames):
@@ -427,6 +431,11 @@ class Tracker:
                 keep = set() if motion is None else motion.kept(t, obj)
                 for k in [k for k in bank if 0 < k <= t - MAX_PTRS + 1 and k not in keep]:  # no later frame reads it
                     del bank[k]
+                # The pointer window is longer than the six-frame encoded-memory window. Keep the pointer but
+                # release an encoded map as soon as the next ordinary SAM 2 step can no longer read it.
+                old = t - NUM_MASKMEM + 1
+                if motion is None and old > 0 and old in bank:
+                    bank[old] = (None, bank[old][1])
                 low = fill_holes(low)
             emit(t, low, obj)
 

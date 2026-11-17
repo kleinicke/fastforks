@@ -249,7 +249,7 @@ def _quality(card: ModelCard, v: Variant, rows: dict[str, list[dict]]) -> list[d
     task = card.task
     mine = rows.get(v.id, [])
     out = []
-    for d, title in g._DATASETS[task].items():  # noqa: SLF001
+    for d, title in g._DATASETS.get(task, {}).items():  # noqa: SLF001 - some tasks have no accuracy protocol yet
         ds = [r for r in mine if r["dataset"] == d]
         if not ds:
             continue
@@ -257,6 +257,15 @@ def _quality(card: ModelCard, v: Variant, rows: dict[str, list[dict]]) -> list[d
         modes = {}
         for r in ds:
             key = _EVAL_KEY.get(r["mode"])
+            # Some evaluation collectors store the precision-specific tier
+            # separately from the generic mode. Keep both measurements visible.
+            if r["mode"] == "portable" and r.get("tier") == "portable32":
+                key = "portable32"
+            elif r["mode"] == "upstream":
+                if r.get("tier") == "upstreamhalf":
+                    key = "originalhalf"
+                elif r.get("tier") == "upstream16" or r.get("dtype") in ("float16", "bfloat16"):
+                    key = "original16"
             if key is None:
                 continue
             m = r.get("metrics") or r
@@ -277,6 +286,11 @@ def _quality(card: ModelCard, v: Variant, rows: dict[str, list[dict]]) -> list[d
                 "note": r.get("note"),
                 "version": eval_version(task, r),
             }
+        portable = modes.get("portable")
+        if portable and portable["dtype"] == "float32" and portable["metrics"] and not portable["error"]:
+            # A default portable FP32 run is already an FP32 measurement; do not claim a second run.
+            note = "; ".join(x for x in (portable["note"], "same measurement as portable (float32)") if x)
+            modes.setdefault("portable32", {**portable, "note": note})
         mark = g._overlap(card, v, d)  # noqa: SLF001
         out.append(
             {

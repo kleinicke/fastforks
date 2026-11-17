@@ -21,7 +21,6 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core import registry
-from fastforks._core.checkpoint import load_state_dict
 from fastforks._core.image import checked_ranges
 from fastforks._core.model import load_variant
 from fastforks._core.runner import host
@@ -127,7 +126,7 @@ class Portable(Runner):
         self.size = (p.image_size, p.image_size)
         card, variant = registry.resolve(TASK, p.encoder)
         path = ctx.weights()[0]
-        state = {k: v.to(ctx.device) for k, v in load_state_dict(path).items()}
+        state = {k: v.to(ctx.device) for k, v in ctx.state_dict(strip="").items()}
         encoder = functools.partial(
             load_variant,
             TASK,

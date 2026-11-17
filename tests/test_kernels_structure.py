@@ -423,6 +423,7 @@ MAX_REFS = sorted(r for r in {*SMALLEST, *_VARIANTS} if r in GOLDEN and "kernels
 
 @pytest.mark.model
 @pytest.mark.gpu
+@pytest.mark.filterwarnings("ignore:.*was called without intrinsics:UserWarning")
 @pytest.mark.parametrize("ref", MAX_REFS)
 def test_kernels_passes_convert_as_before(ref):
     if not torch.cuda.is_available():

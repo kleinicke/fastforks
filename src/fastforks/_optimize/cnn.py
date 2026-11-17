@@ -164,8 +164,9 @@ def fold_layer_scale(gm: fx.GraphModule) -> int:
         g.erase_node(u)
         n += 1
     dce(g)
-    if n:
-        gm.recompile()  # the portable pipeline runs this as its last graph pass
+    # Dropout removal and dead-code elimination can change the graph even when
+    # no LayerScale was folded; Dynamo needs code and line metadata in sync.
+    gm.recompile()
     return n
 
 

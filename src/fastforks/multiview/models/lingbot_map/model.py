@@ -19,6 +19,7 @@ GEMMs, cuDNN fp16-accumulate DPT convs, fast DINOv2 patch embed).
 from __future__ import annotations
 
 import contextlib
+import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -44,6 +45,54 @@ LAYERS = (4, 11, 17, 23)  # aggregator layers the heads read
 CHUNK = 8  # fixed: frames per depth-head call (upstream `frames_chunk_size`)
 FHW = (20, 22, 22)  # 3D RoPE: head-dim channels for frame index, row, column (upstream `WanRotaryPosEmbed`)
 THETA = 10000.0  # fixed: upstream RoPE base
+
+
+def _rope3d_tables(
+    frames: range, rows: int, cols: int, device: torch.device, dtype: torch.dtype
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Build 3D rotary tables in float64, then cast to the network dtype."""
+    om = [1.0 / THETA ** (torch.arange(0, d, 2, dtype=torch.float64, device=device) / d) for d in FHW]
+    i = torch.arange(SPECIAL, dtype=torch.float64, device=device)
+    r = torch.arange(rows, dtype=torch.float64, device=device) + SPECIAL
+    c = torch.arange(cols, dtype=torch.float64, device=device) + SPECIAL
+    hh = torch.cat([i, r[:, None].expand(rows, cols).flatten()])
+    ww = torch.cat([i, c[None].expand(rows, cols).flatten()])
+    f = torch.arange(frames.start, frames.stop, dtype=torch.float64, device=device)
+    p = hh.numel()
+    ang = torch.cat(
+        [
+            (f[:, None, None] * om[0]).expand(-1, p, -1),
+            (hh[:, None] * om[1]).expand(len(frames), -1, -1),
+            (ww[:, None] * om[2]).expand(len(frames), -1, -1),
+        ],
+        -1,
+    ).flatten(0, 1)
+    cos, sin = ang.cos().to(dtype), ang.sin().to(dtype)
+    return torch.cat([cos, cos], -1)[:, None, None], torch.cat([-sin, sin], -1)[:, None, None]
+
+
+@torch.compiler.assume_constant_result
+def _export_rope3d(
+    start: int, stop: int, rows: int, cols: int, dtype: torch.dtype
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Precompute fixed-shape export tables: ONNX Runtime has no float64 Sin/Cos CPU kernels."""
+    # Python float math creates constants even under non-strict export. Compute
+    # each distinct frame/row/column once, then broadcast the compact tables.
+    ys = [*range(SPECIAL), *(y + SPECIAL for y in range(rows) for _ in range(cols))]
+    xs = [*range(SPECIAL), *(x + SPECIAL for _ in range(rows) for x in range(cols))]
+
+    def table(positions: list[int], dim: int, fn: Any) -> torch.Tensor:  # noqa: ANN401 - sin or cos
+        freq = [1.0 / THETA ** (i / dim) for i in range(0, dim, 2)]
+        return torch.tensor([[fn(position * f) for f in freq] for position in positions], dtype=dtype)
+
+    def combine(fn: Any) -> torch.Tensor:  # noqa: ANN401 - sin or cos
+        f = table(list(range(start, stop)), FHW[0], fn)[:, None].expand(-1, len(ys), -1)
+        y = table(ys, FHW[1], fn)[None].expand(stop - start, -1, -1)
+        x = table(xs, FHW[2], fn)[None].expand(stop - start, -1, -1)
+        return torch.cat((f, y, x), -1).flatten(0, 1)
+
+    cos, sin = combine(math.cos), combine(math.sin)
+    return torch.cat([cos, cos], -1)[:, None, None], torch.cat([-sin, sin], -1)[:, None, None]
 
 
 @dataclass(frozen=True)
@@ -165,27 +214,14 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
 
     def rope3d(self, frames: range, rows: int, cols: int) -> tuple[torch.Tensor, torch.Tensor]:
         """3D RoPE tables `[len(frames) * P, 1, 1, 64]` for the permuted channels: cos and sign-folded sin."""
+        if torch.compiler.is_exporting():
+            cos, sin = _export_rope3d(frames.start, frames.stop, rows, cols, self.dt)
+            return cos.to(self.ctx.device), sin.to(self.ctx.device)
         dev = self.ctx.device
         if dev.type == "mps":  # MPS has no float64: the tables are built on the CPU
             dev = torch.device("cpu")
-        om = [1.0 / THETA ** (torch.arange(0, d, 2, dtype=torch.float64, device=dev) / d) for d in FHW]
-        i = torch.arange(SPECIAL, dtype=torch.float64, device=dev)  # special token t sits at (f, t, t)
-        r = torch.arange(rows, dtype=torch.float64, device=dev) + SPECIAL
-        c = torch.arange(cols, dtype=torch.float64, device=dev) + SPECIAL
-        hh = torch.cat([i, r[:, None].expand(rows, cols).flatten()])
-        ww = torch.cat([i, c[None].expand(rows, cols).flatten()])
-        f = torch.arange(frames.start, frames.stop, dtype=torch.float64, device=dev)
-        p = hh.numel()
-        ang = torch.cat(
-            [
-                (f[:, None, None] * om[0]).expand(-1, p, -1),
-                (hh[:, None] * om[1]).expand(len(frames), -1, -1),
-                (ww[:, None] * om[2]).expand(len(frames), -1, -1),
-            ],
-            -1,
-        ).flatten(0, 1)  # [F*P, 32]
-        cos, sin = ang.cos().to(self.ctx.device, self.dt), ang.sin().to(self.ctx.device, self.dt)
-        return torch.cat([cos, cos], -1)[:, None, None], torch.cat([-sin, sin], -1)[:, None, None]
+        cos, sin = _rope3d_tables(frames, rows, cols, dev, self.dt)
+        return cos.to(self.ctx.device), sin.to(self.ctx.device)
 
     def gblock(
         self,

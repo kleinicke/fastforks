@@ -22,6 +22,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.checkpoint import check_foldable_batchnorm
+
 STAGES = ((64, 128, 3), (128, 256, 9), (256, 512, 9), (512, 1024, 3))  # fixed: CSPDarknet P5 (in, out, blocks)
 SPP_KERNELS = (5, 9, 13)  # fixed: reference SPP max-pool sizes
 HIDDEN = 256  # fixed: reference neck width (all variants)
@@ -339,6 +341,7 @@ def _fold(
     w: torch.Tensor, sd: dict[str, torch.Tensor], bn: str, eps: float, own: torch.Tensor | None = None
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """(weight, bias) of a conv / linear `w` (its bias `own`) followed by the BatchNorm at `bn`, in double precision."""
+    check_foldable_batchnorm(w, sd, bn)
     scale = sd[bn + ".weight"].double() / (sd[bn + ".running_var"].double() + eps).sqrt()
     bias = sd[bn + ".bias"].double() - sd[bn + ".running_mean"].double() * scale
     if own is not None:

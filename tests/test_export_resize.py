@@ -1,4 +1,4 @@
-"""`export_resize`: antialiased resizes as matmuls in exported graphs (TensorRT has no antialiased Resize)."""
+"""`export_resize`: accurate fixed-size antialiased and nearest resizes in exported graphs."""
 
 from __future__ import annotations
 
@@ -73,6 +73,52 @@ def test_dynamic_sizes_keep_the_original_op():
     with matmul_antialias():
         ep = torch.export.export(_Resize().eval(), (x,), dynamic_shapes=({2: dim},), strict=False)
     assert any("_aa" in str(n.target) for n in ep.graph.nodes if n.op == "call_function")
+
+
+@pytest.mark.parametrize(("src", "dst"), [((448, 592), (96, 128)), ((17, 13), (9, 7)), ((9, 7), (17, 13))])
+def test_nearest_gathers_match_pytorch(src, dst):
+    x = torch.randn(1, 2, *src, generator=torch.Generator().manual_seed(0))
+    want = F.interpolate(x, size=dst, mode="nearest")
+    with matmul_antialias():
+        got = F.interpolate(x, size=dst, mode="nearest")
+    assert torch.equal(got, want)
+
+
+@pytest.mark.slow
+def test_dynamic_nearest_keeps_the_original_op():
+    class Nearest(torch.nn.Module):
+        def forward(self, x):
+            return F.interpolate(x, size=(8, 8), mode="nearest")
+
+    x = torch.rand(1, 1, 16, 16)
+    height = torch.export.Dim("height", min=8, max=32)
+    with matmul_antialias():
+        ep = torch.export.export(Nearest().eval(), (x,), dynamic_shapes=({2: height},), strict=False)
+    assert any("upsample_nearest" in str(n.target) for n in ep.graph.nodes if n.op == "call_function")
+    x2 = torch.rand(1, 1, 24, 16)
+    torch.testing.assert_close(ep.module()(x2), Nearest()(x2), rtol=0, atol=0)
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(
+    not (importlib.util.find_spec("onnxscript") and importlib.util.find_spec("onnxruntime")),
+    reason="needs onnxscript + onnxruntime (dependency group export)",
+)
+def test_onnx_nearest_matches_pytorch_at_pixel_boundaries(tmp_path):
+    import onnx  # noqa: PLC0415
+    import onnxruntime as ort  # noqa: PLC0415
+
+    class Nearest(torch.nn.Module):
+        def forward(self, x):
+            return F.interpolate(x, size=(96, 128), mode="nearest")
+
+    x = torch.randn(1, 1, 448, 592, generator=torch.Generator().manual_seed(0))
+    path = tmp_path / "nearest.onnx"
+    with matmul_antialias():
+        torch.onnx.export(Nearest().eval(), (x,), str(path), dynamo=True, input_names=["image"])
+    assert not [node for node in onnx.load(str(path)).graph.node if node.op_type == "Resize"]
+    actual = ort.InferenceSession(str(path)).run(None, {"image": x.numpy()})[0]
+    torch.testing.assert_close(torch.from_numpy(actual), Nearest()(x), rtol=0, atol=0)
 
 
 @pytest.mark.skipif(

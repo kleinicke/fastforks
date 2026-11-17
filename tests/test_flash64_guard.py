@@ -131,6 +131,22 @@ def test_model_call_with_nan_inputs_keeps_the_variants(fake):
     assert run.a.probe == run.b.probe == fastbb.FLASH_PROBE - 1  # one run's launch counts, no new window
 
 
+def test_overflow_cannot_break_downstream_indexing_before_retry(fake, monkeypatch):
+    """A provisional NaN must not become an invalid index before the deferred check runs."""
+    fake.bad = {"hh", "fh"}
+    attn = Flash64("hh")
+
+    def model():
+        values = _call(attn)
+        indices = values.to(torch.long)
+        return torch.arange(3)[indices]
+
+    result = kernels.checked(model)
+    assert result.eq(2).all()
+    assert fake.runs == ["hh", "fh", "ff"]
+    assert attn.variant == "ff"
+
+
 class _Launchers(Runner):
     """A model call with `n` `Flash64` launchers, each launched `repeat` times."""
 

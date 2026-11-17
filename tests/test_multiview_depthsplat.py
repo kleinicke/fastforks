@@ -40,6 +40,8 @@ def test_sh_rotation_is_a_representation() -> None:
     torch.testing.assert_close(d[:, 1:4, 1:4], r)
     s = torch.nn.functional.normalize(torch.randn(6, 3, dtype=torch.float64), dim=1)
     torch.testing.assert_close(d[:, 4:, 4:] @ model._y2(s)[..., None], model._y2((r @ s[..., None])[..., 0])[..., None])
+    expected = model._y2((r @ model._S).transpose(1, 2)).transpose(1, 2) @ model._P
+    torch.testing.assert_close(d[:, 4:, 4:], expected, rtol=1e-12, atol=1e-12)
 
 
 def _matrix(q: torch.Tensor) -> torch.Tensor:

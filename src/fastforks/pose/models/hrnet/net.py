@@ -15,6 +15,9 @@ from typing import cast
 import torch
 from torch import nn
 
+from fastforks._core.checkpoint import check_foldable_batchnorm, mismatch_details
+from fastforks._core.errors import CheckpointMismatchError
+
 BLOCKS = 4  # fixed: residual blocks per branch and module (reference config)
 MODULES = (1, 4, 3)  # fixed: modules of the stages with 2, 3 and 4 branches (reference config)
 STEM = 64  # fixed: stem and first-stage width (reference)
@@ -152,6 +155,7 @@ def convert(sd: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         name = key.removeprefix("backbone.").removesuffix(".weight")
         stem, _, leaf = key.removesuffix(".weight").rpartition(".")
         bn = f"{stem}.{leaf.replace('conv', 'bn') if leaf.startswith('conv') else int(leaf) + 1}"
+        check_foldable_batchnorm(sd[key], sd, bn)
         w = sd.pop(key).double()
         gamma, beta, mean, var = (
             sd.pop(f"{bn}.{p}").double() for p in ("weight", "bias", "running_mean", "running_var")
@@ -160,6 +164,14 @@ def convert(sd: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         out[f"{name}.weight"] = (w * scale[:, None, None, None]).float()
         out[f"{name}.bias"] = (beta - mean * scale).float()
     if sd:
-        msg = f"unexpected checkpoint entries: {sorted(sd)[:5]}"
-        raise KeyError(msg)
+        missing = []
+        for key in sd:
+            if not key.endswith(".running_mean"):
+                continue
+            stem, _, bn = key.removesuffix(".running_mean").rpartition(".")
+            conv = f"conv{bn[2:]}" if bn.startswith("bn") else str(int(bn) - 1) if bn.isdecimal() else ""
+            if conv:
+                missing.append(f"{stem}.{conv}.weight")
+        what = "checkpoint"
+        raise CheckpointMismatchError(what, mismatch_details(sorted(missing), sorted(sd), []))
     return out

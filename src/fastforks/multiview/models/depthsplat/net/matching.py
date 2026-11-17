@@ -1,3 +1,5 @@
+import contextlib
+
 import torch
 import torch.nn.functional as F
 
@@ -79,7 +81,9 @@ def warp_with_pose_depth_candidates(
     # hardcoded workaround
     if feature1.numel() > 1000000:
         grid_sample_disable_cudnn = True
-    with torch.backends.cudnn.flags(enabled=not grid_sample_disable_cudnn):
+    # fastforks: the cuDNN flag has no effect on CPU and breaks Dynamo capture there.
+    cudnn = torch.backends.cudnn.flags(enabled=not grid_sample_disable_cudnn) if feature1.is_cuda else contextlib.nullcontext()
+    with cudnn:
         warped_feature = grid_sample(
             feature1,
             grid.view(b, d * h, w, 2),

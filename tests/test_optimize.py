@@ -419,6 +419,17 @@ def test_kernel_passes_leave_a_conv_with_a_second_use_alone(second_use):
     assert gm.stem.weight.shape[1] == (3 if second_use else 8)
 
 
+@pytest.mark.slow
+def test_dropout_removal_recompiles_without_layer_scale() -> None:
+    """A changed FX graph must remain traceable even when no LayerScale was folded."""
+    model = nn.Sequential(nn.Conv2d(3, 4, 1), nn.Dropout(), nn.ReLU()).eval()
+    graph = fx.symbolic_trace(model)
+    x = torch.randn(1, 3, 8, 8)
+    assert cnn.fold_layer_scale(graph) == 0
+    torch.testing.assert_close(graph(x), model(x))
+    assert torch._dynamo.explain(graph)(x).graph_break_count == 0
+
+
 class _DeviceCache(nn.Module):
     """Conv + BN whose forward caches a derived tensor per device, as timm's attention bias tables do."""
 

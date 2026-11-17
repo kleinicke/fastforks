@@ -157,7 +157,7 @@ class Portable(Runner):
         def fn(_net: Any, x: torch.Tensor) -> tuple[torch.Tensor, ...]:  # noqa: ANN401 - the network
             return self.dense(x * 255)
 
-        return Forward(self.net, fn)
+        return Forward(self.net, fn, output_names=("class_logits", "box_offsets", "visibility_logits", "pose_vectors"))
 
 
 class Kernels(Portable):

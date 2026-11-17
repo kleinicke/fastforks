@@ -1,11 +1,11 @@
-"""Antialiased resizes as two matrix products in exported graphs (TensorRT has no antialiased `Resize`).
+"""Accurate fixed-size resizes in exported graphs.
 
 An antialiased bilinear / bicubic `F.interpolate` is linear and separable: at a fixed input and output size it is
 `Wh @ x @ Ww.T` with two resampling matrices. `matmul_antialias()` makes `F.interpolate` emit that while a fixed-size
 graph is traced; the matrices are built by torch's own antialiased kernel on identity bases (float64 on the CPU), so
 the exported graph computes the same weights as the eager op. Only the exporting thread is affected, and only inside
-the context: eager calls and the kernels backend keep `F.interpolate` as it is. Symbolic sizes (a dynamic export),
-non-float inputs and other modes call the original function.
+the context: eager calls and the kernels backend keep `F.interpolate` as it is. Fixed-size nearest resizes use exact
+PyTorch-selected indices, avoiding ONNX Resize scale rounding at pixel boundaries. Symbolic sizes keep the original op.
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ _LOCK = threading.Lock()
 _STATE = threading.local()
 _USERS = 0
 _CACHE: dict[tuple[Any, ...], tuple[torch.Tensor, torch.Tensor]] = {}
+_NEAREST_CACHE: dict[tuple[Any, ...], tuple[torch.Tensor, torch.Tensor]] = {}
 _CACHE_SIZE = 16
 
 
@@ -77,6 +78,26 @@ def _matrices(key: tuple[Any, ...]) -> tuple[torch.Tensor, torch.Tensor]:
     return got
 
 
+def _nearest_indices(key: tuple[Any, ...]) -> tuple[torch.Tensor, torch.Tensor]:
+    """The actual PyTorch nearest input indices for each axis, built outside fake tracing."""
+    got = _NEAREST_CACHE.get(key)
+    if got is None:
+        from torch.utils._python_dispatch import _disable_current_modes  # noqa: PLC0415 - export only
+
+        (h, w), (ho, wo), device = key
+
+        def axis(n: int, out: int) -> torch.Tensor:
+            x = torch.arange(n, dtype=torch.float64).view(1, 1, 1, n)
+            return _ORIGINAL(x, size=(1, out), mode="nearest").reshape(-1).long().to(device)
+
+        with _disable_current_modes(), torch.inference_mode(mode=False), torch.no_grad():
+            got = axis(h, ho), axis(w, wo)
+        if len(_NEAREST_CACHE) >= _CACHE_SIZE:
+            del _NEAREST_CACHE[next(iter(_NEAREST_CACHE))]
+        _NEAREST_CACHE[key] = got
+    return got
+
+
 def _out_size(x: torch.Tensor, size: Any, scale_factor: Any, *, recompute: bool | None) -> tuple[Any, ...] | None:  # noqa: ANN401
     """`((Ho, Wo), (scale_h, scale_w))` as `F.interpolate` computes them for a 4-D input, or None if not static ints."""
     h, w = x.shape[-2:]
@@ -105,6 +126,21 @@ def _interpolate(  # noqa: PLR0913, PLR0917 - F.interpolate's signature
     antialias: bool = False,  # noqa: FBT001, FBT002 - F.interpolate's signature
 ) -> torch.Tensor:
     args = (input, size, scale_factor, mode, align_corners, recompute_scale_factor, antialias)
+    if (
+        getattr(_STATE, "on", False)
+        and mode == "nearest"
+        and input.dim() == 4  # noqa: PLR2004 - NCHW
+        and size is not None
+        and scale_factor is None
+        and align_corners is None
+        and recompute_scale_factor is None
+        and not antialias
+    ):
+        sizes = _out_size(input, size, None, recompute=None)
+        if sizes is not None:
+            (ho, wo), _ = sizes
+            ih, iw = _nearest_indices((tuple(input.shape[-2:]), (ho, wo), input.device))
+            return input.index_select(2, ih).index_select(3, iw)
     if not (antialias and getattr(_STATE, "on", False) and mode in _OPS and input.dim() == 4):  # noqa: PLR2004 - NCHW
         return _ORIGINAL(*args)
     if not input.is_floating_point():
@@ -124,7 +160,7 @@ def _interpolate(  # noqa: PLR0913, PLR0917 - F.interpolate's signature
 
 @contextlib.contextmanager
 def matmul_antialias() -> Generator[None]:
-    """Inside the context, antialiased bilinear / bicubic `F.interpolate` calls of this thread trace as matmuls."""
+    """Trace fixed-size antialiased resizes as matmuls and nearest resizes as exact gathers in this thread."""
     global _USERS  # noqa: PLW0603 - the patch is shared by concurrent exports
     with _LOCK:
         if _USERS == 0:

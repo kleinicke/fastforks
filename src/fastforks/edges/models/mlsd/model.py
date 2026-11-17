@@ -74,17 +74,26 @@ def _clip(seg: torch.Tensor, h: int, w: int) -> tuple[torch.Tensor, ...]:
         """OpenCV's `b0 + (int64)((double)(a - a0) * db / da)`."""
         return b0 + torch.trunc((a - a0).double() * db.double() / da.double()).long()
 
+    def shared_outside() -> torch.Tensor:
+        """Both endpoints lie beyond the same border (the outcodes have a common bit)."""
+        return (
+            ((x1 < 0) & (x2 < 0))
+            | ((x1 > right) & (x2 > right))
+            | ((y1 < 0) & (y2 < 0))
+            | ((y1 > bottom) & (y2 > bottom))
+        )
+
     c1, c2 = code(x1, y1), code(x2, y2)
-    todo = ((c1 & c2) == 0) & ((c1 | c2) != 0)
-    m = todo & ((c1 & 12) != 0)  # y clipping of point 1, then point 2
+    todo = ~shared_outside() & ((c1 != 0) | (c2 != 0))
+    m = todo & ((y1 < 0) | (y1 > bottom))  # y clipping of point 1, then point 2
     a = torch.where(c1 < 8, 0, bottom)  # noqa: PLR2004 - OpenCV's outcode bits
     x1, y1 = torch.where(m, move(a, y1, x1, x2 - x1, torch.where(m, y2 - y1, 1)), x1), torch.where(m, a, y1)
     c1 = torch.where(m, (x1 < 0).long() + (x1 > right).long() * 2, c1)
-    m = todo & ((c2 & 12) != 0)
+    m = todo & ((y2 < 0) | (y2 > bottom))
     a = torch.where(c2 < 8, 0, bottom)  # noqa: PLR2004 - OpenCV's outcode bits
     x2, y2 = torch.where(m, move(a, y2, x2, x2 - x1, torch.where(m, y2 - y1, 1)), x2), torch.where(m, a, y2)
     c2 = torch.where(m, (x2 < 0).long() + (x2 > right).long() * 2, c2)
-    todo = todo & ((c1 & c2) == 0) & ((c1 | c2) != 0)
+    todo = todo & ~shared_outside() & ((c1 != 0) | (c2 != 0))
     m = todo & (c1 != 0)  # x clipping
     a = torch.where(c1 == 1, 0, right)
     x1, y1, c1 = (
@@ -99,7 +108,7 @@ def _clip(seg: torch.Tensor, h: int, w: int) -> tuple[torch.Tensor, ...]:
         torch.where(m, move(a, x2, y2, y2 - y1, torch.where(m, x2 - x1, 1)), y2),
         torch.where(m, 0, c2),
     )
-    return x1, y1, x2, y2, (c1 | c2) == 0
+    return x1, y1, x2, y2, (c1 == 0) & (c2 == 0)
 
 
 def draw(seg: torch.Tensor, keep: torch.Tensor, h: int, w: int) -> torch.Tensor:
@@ -155,9 +164,8 @@ class Portable(Runner):
     def _net(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
 
-    @host
-    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor | list[torch.Tensor]]:
-        """Line map `[B, H, W]` and segments (`B` x `[N, 4]`, input pixels) of `[B, 3, H, W]` RGB in `[0, 1]`."""
+    def _edges_and_segments(self, image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, int, int]:
+        """Compute the line map and fixed-size segment candidates before filtering."""
         p = self.ctx.params
         x = to_detect(image, p.short_side)
         hd, wd = x.shape[-2:]
@@ -169,13 +177,19 @@ class Portable(Runner):
             maps = maps.cpu()
         seg, keep = decode(maps, p.thr_v, p.thr_d)
         edges = draw(seg.trunc().long(), keep, hd, wd)
+        return to_input(edges.to(image.device), image), seg, keep, hd, wd
+
+    @host
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor | list[torch.Tensor]]:
+        """Line map `[B, H, W]` and segments (`B` x `[N, 4]`, input pixels) of `[B, 3, H, W]` RGB in `[0, 1]`."""
+        edges, seg, keep, hd, wd = self._edges_and_segments(image)
         scale = seg.new_tensor([image.shape[-1] / wd, image.shape[-2] / hd]).repeat(2)
         lines = [(s[k] * scale).float().to(image.device) for s, k in zip(seg, keep, strict=True)]
-        return {"edges": to_input(edges.to(image.device), image), "lines": lines}
+        return {"edges": edges, "lines": lines}
 
     def module(self) -> torch.nn.Module:
         """The network with its pre- and post-processing: `[B, 3, H, W]` in `[0, 1]` -> edges `[B, H, W]`."""
-        return Forward(self.net, lambda _net, image: self(image)["edges"])
+        return Forward(self.net, lambda _net, image: self._edges_and_segments(image)[0])
 
 
 RUNNERS = {"portable": Portable}

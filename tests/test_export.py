@@ -63,6 +63,8 @@ _NOT_TRACEABLE = {  # module() runs, but neither dynamo nor torch.export capture
     "omni-dc@1": "the conjugate-gradient solve runs until convergence: a data-dependent step count (card limitation)",
 }
 _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.export captures the graph
+    "dedode-v2-b@1": "sparse match counts use nonzero; non-strict torch.export captures the dynamic output",
+    "loftr-outdoor@1": "sparse match counts use nonzero; non-strict torch.export captures the dynamic output",
     "rf-detr-keypoint-preview@1": "pinned upstream disables Dynamo for positional interpolation to preserve"
     " antialiased bicubic gradients; non-strict torch.export still captures this fixed-shape inference",
     "rf-detr-seg-n-coco@1": "pinned upstream disables Dynamo for positional interpolation (as RF-DETR keypoint);"
@@ -133,6 +135,7 @@ def _load(ref: str) -> Any:
 _NATIVE_SIZE = {  # nets that need one size (position embeddings, top-k over the tokens) the card does not give
     "clipseg": (352, 352),
     "grounding-dino-tiny": (320, 320),  # the 900-query top-k needs at least 900 encoder tokens
+    "lw-detr-tiny-coco": (640, 640),  # module() expects the runner's 640x640 network input
     "owlv2-b16": (960, 960),
     "parseq-tiny": (32, 128),
     "vitpose-plus-small": (256, 192),
@@ -153,7 +156,12 @@ def _pair(shape: tuple[int, ...]) -> tuple[torch.Tensor, torch.Tensor]:
 
 
 def _inputs(ref: str, model: Any) -> tuple[torch.Tensor, ...]:
-    pair = _pair(_shape(model))
+    shape = _shape(model)
+    if TASK[ref] == "pose" and model._runner.needs_boxes:  # module() receives network-sized crops
+        params = model._runner.ctx.params
+        if hasattr(params, "height") and hasattr(params, "width"):
+            shape = (*SHAPE[:2], params.height, params.width)
+    pair = _pair(shape)
     if TASK[ref] == "classification":  # the module takes transformed images (the model call's [io] transform)
         io = model.variant.io
         return (scale(resize_crop(pair[0], io), io),)
@@ -161,7 +169,9 @@ def _inputs(ref: str, model: Any) -> tuple[torch.Tensor, ...]:
         return model.example_inputs(*_shape(model)[2:], batch=2)
     if TASK[ref] in {"stereo", "flow", "matching", "interpolation"}:
         return pair
-    if TASK[ref] == "restoration" and model._runner.mask == "required":  # inpainting: the image and its mask
+    needs_mask = TASK[ref] == "restoration" and model._runner.mask == "required"
+    needs_guide = TASK[ref] == "matting" and any(getattr(model._runner, n) == "required" for n in ("trimap", "mask"))
+    if needs_mask or needs_guide:  # image plus the required inpainting mask or matting guide
         return model.example_inputs(*pair[0].shape[2:])
     if hasattr(model._runner, "condition"):  # CLIPSeg: the image, then the projected text embedding
         return (pair[0], model._runner.condition("a cat"))
@@ -383,11 +393,12 @@ def test_onnx_multiview(ref, tmp_path):
     with pytest.raises(InputError, match="fixed size"):
         model.export_onnx(tmp_path / "m.onnx", h, w, batch=v, size_range=((h, w), (2 * h, 2 * w)))
     path = model.export_onnx(tmp_path / "m.onnx", h, w, batch=v)
+    module = model.module()
     with torch.inference_mode():
-        want = model.module()(*inputs)
+        want = module(*inputs)
     session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
     assert [i.name for i in session.get_inputs()] == list(spec("multiview").inputs[: len(inputs)])
-    assert [o.name for o in session.get_outputs()] == list(want)
+    assert [o.name for o in session.get_outputs()] == output_names(model, module, want)
     got = session.run(None, {i.name: x.numpy() for i, x in zip(session.get_inputs(), inputs, strict=True)})
     for name, out in zip(want, got, strict=True):
         w, g = want[name], torch.from_numpy(out)
@@ -604,7 +615,49 @@ def _first_per_task() -> list[str]:
 
 
 def _tensors(result: Any) -> dict[str, torch.Tensor]:
+    if isinstance(result, list):
+        return {f"{i}.{key}": value for i, item in enumerate(result) for key, value in _tensors(item).items()}
+    from fastforks.matching import SparseMatchingResult  # noqa: PLC0415
+
+    if isinstance(result, SparseMatchingResult):
+        # Sparse matchers may reorder equal-scoring keypoints without changing
+        # the detected points or matched coordinates. Compare those, not indices.
+        def order(rows: torch.Tensor) -> torch.Tensor:
+            idx = torch.arange(len(rows), device=rows.device)
+            for col in range(rows.shape[1] - 1, -1, -1):
+                idx = idx[torch.argsort(rows[idx, col], stable=True)]
+            return idx
+
+        a, b, pairs = result.keypoints1, result.keypoints2, result.pairs.long()
+        matches = torch.cat((a[pairs[:, 0]], b[pairs[:, 1]]), dim=1)
+        match_order = order(matches)
+        out = {
+            "keypoints1": a[order(a)],
+            "matches": matches[match_order],
+            "scores": result.scores[match_order],
+        }
+        # If every second-image point is matched, the ordered matches already
+        # compare all of them; sorting subpixel coordinates independently can
+        # reorder near-ties after harmless floating-point rounding.
+        if torch.unique(pairs[:, 1]).numel() != len(b):
+            out["keypoints2"] = b[order(b)]
+        return out
     return {k: v for k, v in vars(result).items() if isinstance(v, torch.Tensor)}
+
+
+def test_sparse_compile_comparison_is_order_independent() -> None:
+    from fastforks.matching import SparseMatchingResult  # noqa: PLC0415
+
+    a = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
+    b = torch.tensor([[5.0, 6.0], [7.0, 8.0]])
+    first = SparseMatchingResult(a, b, torch.tensor([[0, 1], [1, 0]]), torch.tensor([0.8, 0.9]), "m", "cpu")
+    second = SparseMatchingResult(
+        a.flip(0), b.flip(0), torch.tensor([[0, 1], [1, 0]]), torch.tensor([0.9, 0.8]), "m", "cpu"
+    )
+    for key, value in _tensors(first).items():
+        torch.testing.assert_close(value, _tensors(second)[key])
+    changed = SparseMatchingResult(a, b, torch.tensor([[0, 0], [1, 1]]), torch.tensor([0.8, 0.9]), "m", "cpu")
+    assert not torch.equal(_tensors(first)["matches"], _tensors(changed)["matches"])
 
 
 @pytest.mark.slow
@@ -624,14 +677,30 @@ def test_model_compile_equals_eager(ref):
         assert model.compile(backend="aot_eager") is model
         assert type(model._runner) is not runner_type
         got = model(*args, **kwargs)
-        for name, w in _tensors(want).items():
+        expected, actual = _tensors(want), _tensors(got)
+        assert set(actual) == set(expected)
+        for name, w in expected.items():
             # a few track points sit on near-ties of the cost-volume argmax: locotrack-s needs 9.3e-3 on top of rtol
             atol = 1.2e-2 if TASK[ref] == "tracking" else 2e-3
-            torch.testing.assert_close(_tensors(got)[name].float(), w.float(), rtol=1e-3, atol=atol)
+            torch.testing.assert_close(actual[name].float(), w.float(), rtol=1e-3, atol=atol)
         assert model.compile(backend="eager") is model  # a repeat compile replaces the first
         assert type(model._runner).__bases__ == (runner_type,)
     finally:
         model._runner.__class__ = runner_type  # the sweep model is shared with later tests
+
+
+@pytest.mark.slow
+@pytest.mark.model
+def test_dedode_compiled_matches_eager_semantics() -> None:
+    """Graph breaks are allowed, but the compiled sparse matches must remain correct."""
+    test_model_compile_equals_eager("dedode-v2-b@1")
+
+
+@pytest.mark.slow
+@pytest.mark.model
+def test_loftr_compiled_matches_eager_semantics() -> None:
+    """LoFTR's sparse selection may graph-break but must preserve matches."""
+    test_model_compile_equals_eager("loftr-outdoor@1")
 
 
 @pytest.mark.slow
