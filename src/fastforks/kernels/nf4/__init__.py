@@ -57,7 +57,7 @@ def _vec(v: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
     return v
 
 
-def _run(name: str, n8: int, x: torch.Tensor, *args: object) -> None:
+def _run(name: str, n8: int, x: torch.Tensor, *args: torch.Tensor | float | None) -> None:
     load(x.device).launch(name, *kernels.linear(n8), x, *args)
 
 

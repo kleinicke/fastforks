@@ -39,7 +39,7 @@ class VolumeMeta:
 
 def _nib() -> Any:  # noqa: ANN401 - the nibabel module
     try:
-        import nibabel  # noqa: PLC0415 - optional  # ty: ignore[unresolved-import]
+        import nibabel  # noqa: PLC0415 - optional
     except ImportError as e:
         msg = "reading and writing NIfTI files needs nibabel: pip install 'fastforks-core[nifti]'"
         raise MissingDependencyError(msg) from e
@@ -91,7 +91,7 @@ def read_dicom(path: str | os.PathLike[str]) -> tuple[np.ndarray, VolumeMeta]:
     """
     nib = _nib()
     try:
-        import pydicom  # noqa: PLC0415 - optional  # ty: ignore[unresolved-import]
+        import pydicom  # noqa: PLC0415 - optional
     except ImportError as e:
         msg = "reading DICOM needs pydicom: pip install 'fastforks-core[dicom]'"
         raise MissingDependencyError(msg) from e

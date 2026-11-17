@@ -29,7 +29,7 @@ def _short(v: object) -> str:  # noqa: PLR0911 - one return per kind of value
     if isinstance(v, torch.Tensor):
         return f"Tensor[{', '.join(map(str, v.shape))}; {str(v.dtype).removeprefix('torch.')}; {v.device}]"
     if type(v).__module__ == "numpy" and hasattr(v, "shape") and getattr(v, "ndim", 0) > 0:
-        return f"ndarray[{', '.join(map(str, v.shape))}; {v.dtype}]"  # e.g. `VolumeMeta.affine`
+        return f"ndarray[{', '.join(map(str, v.shape))}; {v.dtype}]"  # e.g. `VolumeMeta.affine`  # ty: ignore[invalid-argument-type, unresolved-attribute]
     if hasattr(v, "keys") and type(v).__module__.startswith("nibabel"):
         return f"<{type(v).__name__}>"  # a NIfTI header
     if isinstance(v, tuple | list) and any(isinstance(x, torch.Tensor) for x in v):

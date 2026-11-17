@@ -66,4 +66,4 @@ def sample_maps(
         s = F.grid_sample(v, g, mode="bilinear", padding_mode="zeros", align_corners=False).to(dtype)
         s = (s * w).sum(-1)
         out = s if out is None else out + s
-    return out.reshape(b, heads * dh, q).transpose(1, 2)
+    return out.reshape(b, heads * dh, q).transpose(1, 2)  # ty: ignore[unresolved-attribute]

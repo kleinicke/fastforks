@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import torch
 import torch.nn.functional as F
@@ -157,12 +157,13 @@ _POOL: dict[tuple[int, torch.device], torch.Tensor] = {}  # one bf16 buffer per 
 
 
 def _dequant(lin: NF4Linear) -> torch.Tensor:
-    key = (lin.q.numel(), lin.q.device)
+    q, absmax, bias = (cast("torch.Tensor", t) for t in (lin.q, lin.absmax, lin.bias))  # registered buffers
+    key = (q.numel(), q.device)
     out = _POOL.get(key)
     if out is None:
-        out = _POOL[key] = torch.empty(lin.q.numel() * 2, dtype=torch.bfloat16, device=lin.q.device)
-    nf4.dequant(lin.q, lin.absmax, NF4Linear.code, out)
-    return out.view(lin.bias.numel(), -1)
+        out = _POOL[key] = torch.empty(q.numel() * 2, dtype=torch.bfloat16, device=q.device)
+    nf4.dequant(q, absmax, cast("torch.Tensor", NF4Linear.code), out)
+    return out.view(bias.numel(), -1)
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}

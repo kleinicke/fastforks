@@ -507,7 +507,7 @@ class Kernels(_Base):
         self.net.render = functools.partial(gsraster.render, mod)
         for m in self.net.modules():
             if isinstance(m, PlainPointTransformer):
-                m.knn = functools.partial(gsraster.knn, mod)
+                m.knn = functools.partial(gsraster.knn, mod)  # ty: ignore[invalid-assignment]
         use_fast_vit(self.net.depth_predictor.pretrained)
         if _hacc_convs(self.net) == 0:
             msg = "ReSplat kernels: no conv routed through cudnn_hacc"

@@ -83,7 +83,7 @@ def _masks(
 def _mask(m: Adaptive_Spatial_Attention, h: int, w: int) -> tuple[torch.Tensor, torch.Tensor]:
     if torch.compiler.is_compiling():  # dynamo cannot trace through lru_cache; the graph holds the masks anyway
         masks = Adaptive_Spatial_Attention.calculate_mask(m, h, w)  # the class function: the instance's is this one
-        return tuple(t.to(m.qkv.weight.device) for t in masks)  # ty: ignore[invalid-return-type]
+        return tuple(t.to(m.qkv.weight.device) for t in masks)
     return _masks(tuple(m.split_size), tuple(m.shift_size), h, w, m.qkv.weight.device)
 
 

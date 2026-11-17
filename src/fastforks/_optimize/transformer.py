@@ -101,8 +101,8 @@ def _adopt(bufs: dict[str, torch.Tensor | None], params: dict[str, torch.Tensor 
     becomes 1 so the module stays exact; a reload (load_state_dict) restores the originals and folds again.
     """
     for k, p in params.items():
-        if p is not None and bufs.get(k) is not None and bufs[k].data_ptr() != p.data_ptr():
-            p.data = bufs[k].reshape(p.shape)
+        if p is not None and bufs.get(k) is not None and bufs[k].data_ptr() != p.data_ptr():  # ty: ignore[unresolved-attribute]
+            p.data = bufs[k].reshape(p.shape)  # ty: ignore[unresolved-attribute]
     for g in gammas:
         if g is not None:
             g.data = torch.ones_like(g)

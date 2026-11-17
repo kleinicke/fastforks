@@ -68,7 +68,7 @@ def compact(module: nn.Module, min_bytes: int | None = None) -> nn.Module:  # no
                 nbytes = items[0][2].untyped_storage().nbytes()
                 flat = arena[at : at + nbytes]
                 flat.copy_(
-                    torch.empty(0, dtype=torch.uint8, device=device).set_(items[0][2].untyped_storage(), 0, (nbytes,))
+                    torch.empty(0, dtype=torch.uint8, device=device).set_(items[0][2].untyped_storage(), 0, (nbytes,))  # ty: ignore[no-matching-overload]
                 )
                 at += size
                 for mod, name, t, is_param in items:
@@ -78,7 +78,7 @@ def compact(module: nn.Module, min_bytes: int | None = None) -> nn.Module:  # no
                         new = torch.as_strided(typed, t.size(), t.stride(), typed.storage_offset() + t.storage_offset())
                         done[id(t)] = new
                     if is_param:
-                        mod._parameters[name].data = new  # noqa: SLF001
+                        mod._parameters[name].data = new  # noqa: SLF001  # ty: ignore[invalid-assignment]
                     else:
                         mod._buffers[name] = new  # noqa: SLF001
     return module
@@ -91,7 +91,7 @@ def compact_runner(runner: object) -> None:
     directly or in a list / tuple / dict.
     """
     try:
-        nets = list(runner.networks())  # type: ignore[attr-defined]
+        nets = list(runner.networks())  # type: ignore[attr-defined]  # ty: ignore[unresolved-attribute]
     except NotImplementedError:
         nets = []
         for v in vars(runner).values():

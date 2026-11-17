@@ -365,7 +365,7 @@ class _KernelsNet:
         t = k.conv(r.pop(), w1, b1, padding=1, act=ACT_RELU)
         y2 = torch.empty_like(t) if relu_out else None
         y = k.conv(t, w2, b2, padding=1, res=x, res2=res2, y2=y2, out=x if inplace else None)
-        return y, [y2] if relu_out else []
+        return y, [y2] if relu_out else []  # ty: ignore[invalid-return-type]
 
     def _encode(self, x: torch.Tensor, *, with_fov: bool) -> tuple[list[torch.Tensor], torch.Tensor | None]:
         """Pyramid, the three ViTs and the encoder projections -> (encodings, FOV tokens or None).

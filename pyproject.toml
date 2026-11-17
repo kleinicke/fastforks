@@ -292,7 +292,7 @@ include = ["src", "tests", "tools"]
 # Optional extras the CI lint job does not install, and upstream reference trees put on sys.path at run time.
 allowed-unresolved-imports = [
   "timm", "timm.**", "transformers", "transformers.**", "scipy", "scipy.**", "onnx", "onnx_ir", "onnxruntime",
-  "tensorrt", "laspy", "lazrs", "pycocotools", "pycocotools.**", "depth_anything_v2.**", "s2m2.**",
+  "tensorrt", "pydicom", "pydicom.**", "nibabel", "nibabel.**", "promptda", "promptda.**", "laspy", "lazrs", "pycocotools", "pycocotools.**", "depth_anything_v2.**", "s2m2.**",
   "fvcore.**",  # SPAN's `__main__` FLOP count
   "matplotlib", "matplotlib.**",  # one-off chart tools (`uv run --with matplotlib`)
   "ffweights",  # the original-speed bench module, on sys.path at run time
@@ -399,6 +399,8 @@ invalid-method-override = "ignore"
 no-matching-overload = "ignore"
 deprecated = "ignore"
 unsupported-operator = "ignore"
+call-non-callable = "ignore"  # `net.alias.data_ptr()` on a Module attribute typed Tensor | Module
+unused-ignore-comment = "ignore"  # ignores for optional extras (transformers, gsplat) the CI lint job lacks
 
 # Golden-reference scripts import the upstream repos, which exist only in the reference environments.
 [[tool.ty.overrides]]
