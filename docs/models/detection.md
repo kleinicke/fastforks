@@ -438,6 +438,7 @@ pycocotools COCOeval of the top 100 detections per image. Original = the origina
 |---|---|---|---|---|---|---|
 | `lw-detr-tiny-coco` | COCO val2017, every 20th image, box mAP | 49.05 | 48.81 |  | 48.99 |  |
 | `lw-detr-small-coco` | COCO val2017, every 20th image, box mAP |  |  | 52.93 |  |  |
+| `lw-detr-medium-coco` | COCO val2017, every 20th image, box mAP |  |  | 57.60 |  |  |
 | `lw-detr-large-coco` | COCO val2017, every 20th image, box mAP | 60.67 | 61.01 |  | 60.74 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565, 2026-11-13.

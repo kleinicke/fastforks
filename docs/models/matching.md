@@ -294,7 +294,7 @@ Commercial use: yes.
 | `loma-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1036<br>308<br>–<br>285<br>planned for 0.2.1 | 4176 / 4390<br>1767 / 1878<br>–<br>2870 / 3216<br>– |
 | `loma-b64` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>129<br>–<br>101<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>854 / 962<br>–<br>1230 / 1356<br>– |
 | `loma-b128` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>150<br>–<br>122<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>878 / 984<br>–<br>1398 / 1760<br>– |
-| `loma-l` | synthetic (768x1024) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>319<br>–<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>1903 / 2012<br>–<br>– |
+| `loma-l` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>319<br>–<br>295<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>1903 / 2012<br>–<br>3006 / 3194<br>– |
 
 <details><summary>Details</summary>
 
@@ -313,6 +313,7 @@ Commercial use: yes.
 - `loma-b` 768x1024, first call: portable + torch.compile 104 s (cold Inductor cache).
 - `loma-b64` 768x1024, first call: portable + torch.compile 66 s (cold Inductor cache).
 - `loma-b128` 768x1024, first call: portable + torch.compile 67 s (cold Inductor cache).
+- `loma-l` 768x1024, first call: portable + torch.compile 101 s (cold Inductor cache).
 - `loma-b` original 768x1024: upstream LoMa(LoMaB(mp=False)), float32, 2048 keypoints
 - `loma-b` load / first call: original 8.52 s / 1.373 s, portable 2.53 s / 1.269 s
 - `loma-b64` load / first call: portable 0.28 s / 0.759 s

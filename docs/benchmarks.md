@@ -2636,7 +2636,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | loma-b | 768x1024 | 308 ms | 285 ms | planned for 0.2.1 | – | 104 s | – | 1767 / 1878 | 2870 / 3216 | – | – |
 | loma-b128 | 768x1024 | 150 ms | 122 ms | fails: RuntimeError: Trying to create tensor with negative dimensio | – | 66.5 s | – | 878 / 984 | 1398 / 1760 | – | – |
 | loma-b64 | 768x1024 | 129 ms | 101 ms | fails: RuntimeError: Trying to create tensor with negative dimensio | – | 65.6 s | – | 854 / 962 | 1230 / 1356 | – | – |
-| loma-l | 768x1024 | 319 ms | – | fails: RuntimeError: Trying to create tensor with negative dimensio | – | – | – | 1903 / 2012 | – | – | – |
+| loma-l | 768x1024 | 319 ms | 295 ms | fails: RuntimeError: Trying to create tensor with negative dimensio | – | 101 s | – | 1903 / 2012 | 3006 / 3194 | – | – |
 | romav1 | 768x1024 | 377 ms | 247 ms | planned for 0.2.1 | 356 ms | 698 s | – | 1720 / 1840 | 1348 / 1476 | 1720 / 1860 | – |
 | romav2 | 768x1024 | 546 ms | 576 ms | 353 ms | 354 ms | 254 s | 185 s | 1989 / 2596 | 3150 / 3386 | 1909 / 2300 | 6694 / 6740 |
 | xfeat | 768x1024 | 7.17 ms | 5.65 ms | planned for 0.2.1 | – | 30.8 s | – | 122 / 154 | 186 / 212 | – | – |
