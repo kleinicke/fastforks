@@ -75,12 +75,12 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dfine-n-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.3<br>29.1<br>10.4<br>2.48<br>5.43<br>0.942 | 91 / 122<br>92 / 126<br>92 / 114<br>94 / 118<br>101 / 118<br>113 / 128 |
+| `dfine-n-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.3<br>29.1<br>10.4<br>2.48<br>5.43<br>1.08 | 91 / 122<br>92 / 126<br>92 / 114<br>94 / 118<br>101 / 118<br>104 / 128 |
 | `dfine-s-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 25.7<br>31.9<br>11.4<br>3.75<br>5.63<br>1.65 | 180 / 204<br>152 / 184<br>108 / 128<br>108 / 170<br>131 / 152<br>147 / 160 |
 | `dfine-m-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 30.8<br>38.2<br>13.7<br>5.07<br>6.79<br>2.49 | 231 / 264<br>209 / 256<br>129 / 142<br>129 / 184<br>149 / 166<br>204 / 232 |
 | `dfine-l-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 37.1<br>44.9<br>16.6<br>6.53<br>7.91<br>3.19 | 281 / 328<br>278 / 350<br>155 / 172<br>151 / 216<br>175 / 198<br>219 / 256 |
-| `dfine-x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 44.9<br>54.6<br>18.6<br>9.59<br>11.0<br>5.03 | 452 / 488<br>476 / 536<br>230 / 258<br>231 / 298<br>245 / 284<br>342 / 374 |
-| `deim-n-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.6<br>10.4<br>2.46<br>5.44<br>1.01 | 93 / 124<br>92 / 114<br>94 / 118<br>101 / 118<br>113 / 128 |
+| `dfine-x-coco` | synthetic (800x1344) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 44.9<br>54.6<br>18.6<br>9.59<br>11.0<br>5.64 | 452 / 488<br>476 / 536<br>230 / 258<br>231 / 298<br>245 / 284<br>342 / 374 |
+| `deim-n-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.6<br>10.4<br>2.46<br>5.44<br>1.10 | 93 / 124<br>92 / 114<br>94 / 118<br>101 / 118<br>104 / 128 |
 | `deim-s-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 26.4<br>11.3<br>3.73<br>5.63<br>1.68 | 154 / 180<br>108 / 128<br>108 / 170<br>131 / 152<br>163 / 176 |
 | `deim-m-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 31.4<br>13.8<br>5.08<br>6.73<br>2.54 | 210 / 250<br>129 / 142<br>129 / 184<br>149 / 166<br>204 / 232 |
 | `deim-l-coco` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 36.1<br>16.3<br>6.50<br>7.99<br>3.39 | 264 / 322<br>155 / 172<br>151 / 216<br>175 / 198<br>229 / 266 |
@@ -104,12 +104,12 @@ Commercial use: yes.
 - Outputs: boxes, scores, labels; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dfine-n-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `dfine-s-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `dfine-m-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `dfine-l-coco` 3000x4000 (0.5 GiB peak allocated, 0.7 reserved); `dfine-x-coco` 3000x4000 (0.6 GiB peak allocated, 0.7 reserved); `deim-n-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `deim-s-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `deim-m-coco` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `deim-l-coco` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `deim-x-coco` 3000x4000 (0.6 GiB peak allocated, 0.6 reserved)
-- `dfine-n-coco` 800x1344, first call: portable + torch.compile 27 s (cold Inductor cache), TensorRT fp16 52 s (ONNX + engine).
+- `dfine-n-coco` 800x1344, first call: portable + torch.compile 27 s (cold Inductor cache), TensorRT fp16 64 s (ONNX + engine).
 - `dfine-s-coco` 800x1344, first call: portable + torch.compile 31 s (cold Inductor cache), TensorRT fp16 51 s (ONNX + engine).
 - `dfine-m-coco` 800x1344, first call: portable + torch.compile 36 s (cold Inductor cache), TensorRT fp16 55 s (ONNX + engine).
 - `dfine-l-coco` 800x1344, first call: portable + torch.compile 46 s (cold Inductor cache), TensorRT fp16 59 s (ONNX + engine).
-- `dfine-x-coco` 800x1344, first call: portable + torch.compile 48 s (cold Inductor cache), TensorRT fp16 66 s (ONNX + engine).
-- `deim-n-coco` 800x1344, first call: portable + torch.compile 28 s (cold Inductor cache), TensorRT fp16 51 s (ONNX + engine).
+- `dfine-x-coco` 800x1344, first call: portable + torch.compile 48 s (cold Inductor cache), TensorRT fp16 107 s (ONNX + engine).
+- `deim-n-coco` 800x1344, first call: portable + torch.compile 28 s (cold Inductor cache), TensorRT fp16 66 s (ONNX + engine).
 - `deim-s-coco` 800x1344, first call: portable + torch.compile 31 s (cold Inductor cache), TensorRT fp16 58 s (ONNX + engine).
 - `deim-m-coco` 800x1344, first call: portable + torch.compile 39 s (cold Inductor cache), TensorRT fp16 58 s (ONNX + engine).
 - `deim-l-coco` 800x1344, first call: portable + torch.compile 50 s (cold Inductor cache), TensorRT fp16 58 s (ONNX + engine).
