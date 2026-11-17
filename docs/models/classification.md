@@ -2308,6 +2308,7 @@ fastforks: the model's own resize / crop on the GPU; original: the library's pre
 |---|---|---|---|---|---|---|---|
 | `wd-vit-tagger-v3` | ImageNet-1k val, 5000 random images, top-1 / top-5 % |  |  |  | 0.08 / 0.36 |  |  |
 | `wd-vit-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.95 / 99.80 | 99.91 / 99.80 |  | 99.90 / 99.20 |  |
+| `wd-convnext-tagger-v3` | ImageNet-1k val, 5000 random images, top-1 / top-5 % |  |  |  | 0.10 / 0.40 |  |  |
 | `wd-convnext-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.92 / 99.80 | 99.90 / 99.60 |  | 99.88 / 99.80 |  |
 | `wd-vit-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.87 / 99.40 |  | 99.88 / 99.80 |  |
 | `wd-eva02-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.84 / 99.80 |  | 99.84 / 99.40 |  |
