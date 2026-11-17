@@ -1174,8 +1174,8 @@ fastforks: the model's own resize / crop on the GPU; original: the library's pre
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | note |
 |---|---|---|---|---|---|---|
 | `focalnet_tiny_srf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.86 / 96.28 | 82.88 / 96.30 | 82.90 / 96.28 | 82.88 / 96.28 |  |
-| `focalnet_small_srf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.34 / 96.84 | 84.30 / 96.84 | 84.44 / 96.76 |  |  |
-| `focalnet_base_srf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.20 / 96.86 | 84.18 / 96.86 | 84.16 / 96.84 |  |  |
+| `focalnet_small_srf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.34 / 96.84 | 84.30 / 96.84 | 84.44 / 96.76 | 84.40 / 96.74 |  |
+| `focalnet_base_srf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.20 / 96.86 | 84.18 / 96.86 | 84.16 / 96.84 | 84.16 / 96.84 |  |
 | `focalnet_tiny_lrf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.88 / 96.12 | 82.86 / 96.10 | 82.86 / 96.20 |  |  |
 | `focalnet_small_lrf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.36 / 96.80 | 84.34 / 96.80 | 84.32 / 96.80 |  |  |
 | `focalnet_base_lrf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.64 / 96.64 | 84.64 / 96.64 | 84.56 / 96.56 |  |  |

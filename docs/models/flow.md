@@ -361,11 +361,11 @@ Commercial use: yes.
 
 Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `megaflow` | KITTI 2015 train, EPE / Fl-all % | 1.714 / 6.68 | 1.727 / 6.75 | 1.715 / 6.69 | 1.714 / 6.69 | trained on this dataset's public images; not a zero-shot result |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `megaflow` | KITTI 2015 train, EPE / Fl-all % | 1.714 / 6.68 | 1.727 / 6.75 | 1.715 / 6.69 | 1.714 / 6.68 | 1.714 / 6.69 | trained on this dataset's public images; not a zero-shot result |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 790d5f2f, 2026-11-14.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1 / 790d5f2f, 2026-11-14 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 790d5f2f, 2026-11-14.
 
 ### Parity
 
@@ -425,12 +425,12 @@ Commercial use: yes.
 
 Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `memflow` | KITTI 2015 train, EPE / Fl-all % | 4.108 / 14.43 | 4.107 / 14.43 | 4.109 / 14.44 | 4.103 / 14.42 |  |
-| `memflow-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.600 / 1.21 | 0.600 / 1.21 | 0.600 / 1.21 | 0.600 / 1.21 | trained on this dataset's public images; not a zero-shot result |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `memflow` | KITTI 2015 train, EPE / Fl-all % | 4.108 / 14.43 | 4.107 / 14.43 | 4.109 / 14.44 | 4.093 / 14.43 | 4.103 / 14.42 |  |
+| `memflow-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.600 / 1.21 | 0.600 / 1.21 | 0.600 / 1.21 |  | 0.600 / 1.21 | trained on this dataset's public images; not a zero-shot result |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5+uncommitted, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1 / db9e79d5+uncommitted, 2026-11-13 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5+uncommitted, 2026-11-13.
 
 ### Parity
 
