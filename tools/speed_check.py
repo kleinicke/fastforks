@@ -175,7 +175,8 @@ def _floor_refs(names: Iterable[str]) -> set[str]:
             from fastforks._core.registry import resolve_any  # noqa: PLC0415 - only for a name that is no floor ref
 
             try:
-                name = resolve_any(name)[1].ref  # noqa: PLW2901
+                variant = resolve_any(name)[1]
+                name = variant.ref if variant.ref in refs else variant.id  # noqa: PLW2901 - floor rows may omit revision
             except Exception as e:  # noqa: BLE001 - any lookup failure is the same user error
                 msg = f"--only {name}: no floor rows and no model of that id ({e})"
                 raise SystemExit(msg) from None

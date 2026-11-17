@@ -43,5 +43,6 @@ def test_only_takes_model_ids_and_rejects_unknown_names():
     """`--only` with a name that is no floor ref used to select nothing, so `run` ended without a row or an error."""
     ref = speed_check.floor_rows()[0]["ref"]
     assert speed_check._floor_refs([ref]) == {ref}
+    assert speed_check._floor_refs(["mvsplat-re10k@1"]) == {"mvsplat-re10k"}
     with pytest.raises(SystemExit, match="no-such-model"):
         speed_check._floor_refs(["no-such-model"])
