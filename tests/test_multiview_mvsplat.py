@@ -3,8 +3,18 @@
 import pytest
 import torch
 
+from fastforks._core import registry
+from fastforks._core.cards import require_available
+from fastforks._core.errors import BackendUnavailableError
 from fastforks.multiview._runner import project_harmonics
 from fastforks.multiview.models.mvsplat.model import _poses
+
+
+def test_onnx_is_available_while_tensorrt_is_unvalidated() -> None:
+    _, variant = registry.resolve("multiview", "mvsplat-re10k@1")
+    require_available(variant, "onnx")
+    with pytest.raises(BackendUnavailableError, match="TensorRT engine has not yet been validated"):
+        require_available(variant, "tensorrt")
 
 
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
