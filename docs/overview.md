@@ -542,13 +542,13 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`convnext_small.fb_in22k`](models/features.md#convnext) | yes | 7.5 (224x224) | 5.9 | 1.8 | 4.2x vs original (224x224) | 130 |
 | [`convnext_base.fb_in22k`](models/features.md#convnext) | yes | 7.7 (224x224) | 5.8 | 2.0 | 3.9x vs original (224x224) | 204 |
 | [`dinov3-convnext-small`](models/features.md#dinov3-convnext) | yes | 6.0 (224x224) | 5.4 | 2.0 | 3.0x vs original (224x224) | 100 |
-| [`dinov3-convnext-base`](models/features.md#dinov3-convnext) | yes | 7.4 (224x224) | 5.7 | 2.2 | 3.4x vs original (224x224) | 174 |
+| [`dinov3-convnext-base`](models/features.md#dinov3-convnext) | yes | 6.6 (224x224) | 5.7 | 2.2 | 3.0x vs original (224x224) | 174 |
 | [`dinov3-vitl16`](models/features.md#dinov3-vit) | yes | 11.2 (224x224) | 6.5 | 3.0 | 3.7x vs original (224x224) | 616 |
 | [`convnext_large.fb_in22k`](models/features.md#convnext) | yes | 10.5 (224x224) | 5.8 | 3.2 | 3.3x vs original (224x224) | 413 |
 | [`c-radio-v3-l`](models/features.md#c-radiov3--v4) | yes | 10.7 (224x224) | 5.5 | 3.3 | 3.3x vs original (224x224) | 645 |
 | [`siglip2-l16-512`](models/features.md#siglip-2) | yes | 11.1 (224x224) | 5.7 | 3.4 | 3.3x vs original (224x224) | 644 |
 | [`siglip2-l16-256`](models/features.md#siglip-2) | yes | 11.1 (224x224) | 5.7 | 3.4 | 3.3x vs original (224x224) | 643 |
-| [`dinov3-convnext-large`](models/features.md#dinov3-convnext) | yes | 9.6 (224x224) | 5.4 | 3.6 | 2.7x vs original (224x224) | 409 |
+| [`dinov3-convnext-large`](models/features.md#dinov3-convnext) | yes | 6.7 (224x224) | 5.4 | 3.6 | 1.9x vs original (224x224) | 409 |
 | [`c-radio-v4-so400m`](models/features.md#c-radiov3--v4) | yes | 11.5 (224x224) | 6.2 | 4.1 | 2.8x vs original (224x224) | 861 |
 | [`siglip2-so400m16-256`](models/features.md#siglip-2) | yes | 12.6 (224x224) | 6.4 | 4.2 | 3.0x vs original (224x224) | 857 |
 | [`siglip2-so400m16-512`](models/features.md#siglip-2) | yes | 12.4 (224x224) | 6.4 | 4.2 | 2.9x vs original (224x224) | 858 |

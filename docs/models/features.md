@@ -40,10 +40,10 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`dinov2-vitl14-reg`](#dinov2) | yes | 4.60, 2.3x | 648, 0.53x |
 | [`dinov2-vits14`](#dinov2) | yes | 0.827, 4.0x | 122, 0.92x |
 | [`dinov2-vits14-reg`](#dinov2) | yes | 0.832, 4.9x | 102, 0.77x |
-| [`dinov3-convnext-base`](#dinov3_convnext) | yes | 2.19, 3.4x | 214, 0.54x |
-| [`dinov3-convnext-large`](#dinov3_convnext) | yes | 3.61, 2.7x | 452, 0.5x |
-| [`dinov3-convnext-small`](#dinov3_convnext) | yes | 1.98, 3.0x | 132, 0.48x |
-| [`dinov3-convnext-tiny`](#dinov3_convnext) | yes | 1.22, 2.4x | 110, 0.68x |
+| [`dinov3-convnext-base`](#dinov3_convnext) | yes | 2.19, 3.0x | 214, 0.92x |
+| [`dinov3-convnext-large`](#dinov3_convnext) | yes | 3.61, 1.9x | 452, 1.1x |
+| [`dinov3-convnext-small`](#dinov3_convnext) | yes | 1.98, 3.0x | 132, 0.79x |
+| [`dinov3-convnext-tiny`](#dinov3_convnext) | yes | 1.22, 2.4x | 110, 0.86x |
 | [`dinov3-vitb16`](#dinov3) | yes | 1.26, 5.3x | 210, 1.0x |
 | [`dinov3-vith16plus`](#dinov3) | yes | 8.45, 1.9x | 1672, 0.92x |
 | [`dinov3-vitl16`](#dinov3) | yes | 3.04, 3.7x | 650, 1.0x |
@@ -478,10 +478,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dinov3-convnext-tiny` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2.96<br>4.47<br>3.04<br>1.22<br>1.96<br>0.681 | 151 / 162<br>198 / 206<br>93 / 108<br>59 / 110<br>123 / 148<br>126 / 158 |
-| `dinov3-convnext-small` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.97<br>8.09<br>5.42<br>1.98<br>3.41<br>1.17 | 233 / 274<br>328 / 348<br>134 / 150<br>100 / 132<br>165 / 188<br>232 / 252 |
-| `dinov3-convnext-base` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.38<br>8.24<br>5.71<br>2.19<br>3.41<br>1.45 | 384 / 394<br>535 / 552<br>208 / 232<br>174 / 214<br>241 / 252<br>400 / 430 |
-| `dinov3-convnext-large` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.5<br>9.59<br>5.45<br>3.61<br>4.30<br>2.50 | 819 / 898<br>1163 / 1252<br>419 / 430<br>409 / 452<br>459 / 470<br>804 / 824 |
+| `dinov3-convnext-tiny` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2.96<br>3.60<br>3.04<br>1.22<br>1.96<br>0.681 | 151 / 162<br>91 / 128<br>93 / 108<br>59 / 110<br>123 / 148<br>126 / 158 |
+| `dinov3-convnext-small` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.97<br>6.62<br>5.42<br>1.98<br>3.41<br>1.17 | 233 / 274<br>133 / 168<br>134 / 150<br>100 / 132<br>165 / 188<br>232 / 252 |
+| `dinov3-convnext-base` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.38<br>6.62<br>5.71<br>2.19<br>3.41<br>1.45 | 384 / 394<br>207 / 232<br>208 / 232<br>174 / 214<br>241 / 252<br>400 / 430 |
+| `dinov3-convnext-large` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.5<br>6.72<br>5.45<br>3.61<br>4.30<br>2.50 | 819 / 898<br>418 / 430<br>419 / 430<br>409 / 452<br>459 / 470<br>804 / 824 |
 
 <details><summary>Details</summary>
 
@@ -500,6 +500,10 @@ Commercial use: yes.
 - `dinov3-convnext-small` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 26 s (ONNX + engine).
 - `dinov3-convnext-base` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 30 s (ONNX + engine).
 - `dinov3-convnext-large` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 30 s (ONNX + engine).
+- `dinov3-convnext-tiny` original 224x224: Transformers FP16 weights and inputs, pooler output; full kNN accuracy checked
+- `dinov3-convnext-small` original 224x224: Transformers FP16 weights and inputs, pooler output; full kNN accuracy checked
+- `dinov3-convnext-base` original 224x224: Transformers FP16 weights and inputs, pooler output; full kNN accuracy checked
+- `dinov3-convnext-large` original 224x224: Transformers FP16 weights and inputs, pooler output; full kNN accuracy checked
 - `dinov3-convnext-tiny` load / first call: original 0.43 s / 1.034 s, portable 0.48 s / 0.417 s, kernels 0.08 s / 0.124 s
 - `dinov3-convnext-small` load / first call: original 0.27 s / 0.01 s, portable 0.25 s / 0.334 s, kernels 0.11 s / 0.074 s
 - `dinov3-convnext-base` load / first call: original 0.42 s / 0.015 s, portable 0.43 s / 0.27 s, kernels 0.19 s / 0.104 s
@@ -510,12 +514,12 @@ Commercial use: yes.
 
 Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `dinov3-convnext-tiny` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 62.50 | 62.50 | 62.50 | 62.52 | 62.44 |  |
-| `dinov3-convnext-small` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.14 | 67.16 | 67.14 | 67.16 | 67.16 |  |
-| `dinov3-convnext-base` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.84 | 69.88 | 69.84 | 69.84 | 69.88 |  |
-| `dinov3-convnext-large` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 73.30 | 73.32 | 73.30 | 73.30 | 73.28 |  |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|---|
+| `dinov3-convnext-tiny` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 62.50 | 62.50 | 62.48 | 62.50 | 62.52 | 62.44 |  |
+| `dinov3-convnext-small` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.14 | 67.16 | 67.18 | 67.14 | 67.16 | 67.16 |  |
+| `dinov3-convnext-base` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.84 | 69.88 | 69.84 | 69.84 | 69.84 | 69.88 |  |
+| `dinov3-convnext-large` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 73.30 | 73.32 | 73.32 | 73.30 | 73.30 | 73.28 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993 / 939adfe8, 2026-10-31 to 2026-11-06; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
