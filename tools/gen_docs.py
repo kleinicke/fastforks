@@ -528,6 +528,7 @@ def _orig(fp16: dict | None, fp32: dict | None) -> dict | None:
 _COMPILE_LABEL = {"compile": "portable + torch.compile", "tensorrt": "TensorRT fp16"}  # speed_compile.jsonl modes
 _ENGINE_PART = {
     "promptable_segmentation": "image encoder",
+    "clipseg": "segmentation network on a normalized 352x352 image and precomputed text embedding",
     "rcnn": "backbone + FPN",
     "pose": "network on person crops",
     "retinaface": "network",  # face detectors: the whole image, decoding and NMS outside

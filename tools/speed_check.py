@@ -493,6 +493,11 @@ def _net_input(model: Any, task: str, full: Callable[[], Any]) -> tuple[int, int
     """
     import torch  # noqa: PLC0415
 
+    if model.card.family == "clipseg":
+        # The engine starts after image resize and takes a separately prepared text embedding.
+        height, width = model.export_size()
+        return 1, height, width
+
     seen: list[torch.Size] = []
 
     def hook(_mod: Any, args: tuple[Any, ...]) -> None:  # noqa: ANN401
