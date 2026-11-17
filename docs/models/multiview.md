@@ -474,7 +474,7 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 - Options: `long_side` = 0 (>= 0), `refine` = 2 (>= 0)
 - Kernel libraries: `fastbb`, `cudnn_hacc`, `gsraster`
 - Variants: `resplat-small-dl3dv`, `resplat-base-re10k`
-- Not in this release (planned for 0.2.1): `resplat-small-dl3dv` ONNX / TensorRT export: the export wrapper does not pass depth_range (TypeError)
+- Not in this release (planned for 0.2.1): `resplat-small-dl3dv` ONNX / TensorRT export: torch.export cannot capture data-dependent Gaussian renderer shapes
 - Outputs: depth, confidence, gaussians; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `resplat-small-dl3dv` 3000x4000 (5.9 GiB peak allocated, 7.0 reserved); `resplat-base-re10k` 3000x4000 (7.8 GiB peak allocated, 11.2 reserved)
