@@ -290,7 +290,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `tapnext` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 909<br>528<br>381<br>398<br>69.4 | 1721 / 1902<br>1220 / 1294<br>1205 / 1254<br>1164 / 1272<br>1498 / 1660 |
-| `tapnext-pp` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1493<br>529<br>381<br>planned for 0.2.1<br>69.5 | 1527 / 1718<br>1220 / 1294<br>1205 / 1254<br>–<br>1498 / 1660 |
+| `tapnext-pp` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1493<br>529<br>381<br>395<br>69.5 | 1527 / 1718<br>1220 / 1294<br>1205 / 1254<br>1164 / 1272<br>1498 / 1660 |
 
 <details><summary>Details</summary>
 
@@ -301,12 +301,11 @@ Commercial use: yes.
 - Training data: Upstream: TAPNext is trained on synthetic Kubric MOVi-F sequences and fine-tuned with BootsTAP self-training on unlabelled real videos (not released); TAPNext++ is further fine-tuned on PointOdyssey and Kubric-1024 (1024-frame synthetic sequences). None has a dataset entry here yet.
 - Kernel libraries: `fvm_conv`
 - Variants: `tapnext`, `tapnext-pp`
-- Not in this release (planned for 0.2.1): `tapnext-pp` compile(): Inductor fails to compile a fused Triton kernel
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `tapnext` 3000x4000 (4.3 GiB peak allocated, 4.5 reserved); `tapnext-pp` 3000x4000 (4.3 GiB peak allocated, 4.5 reserved)
 - `tapnext` 480x854, first call: portable + torch.compile 41 s (cold Inductor cache), TensorRT fp16 366 s (ONNX + engine).
-- `tapnext-pp` 480x854, first call: TensorRT fp16 362 s (ONNX + engine).
+- `tapnext-pp` 480x854, first call: portable + torch.compile 34 s (cold Inductor cache), TensorRT fp16 362 s (ONNX + engine).
 - `tapnext` original 480x854: the authors' mixed-precision option (float16); upstream TAPNext, online one frame per call; frames resized to 256 x 256 (antialiased bilinear)
 - `tapnext-pp` original 480x854: upstream TAPNext, online one frame per call; frames resized to 256 x 256 (antialiased bilinear)
 - `tapnext` load / first call: original 16.92 s / 2.165 s, portable 2.37 s / 0.666 s, kernels 3.01 s / 0.542 s

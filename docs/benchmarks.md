@@ -2625,7 +2625,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | locotrack-s | 480x854 | 180 ms | 74.1 ms | planned for 0.2.1 | 151 ms | 140 s | – | 759 / 842 | 1000 / 1034 | 596 / 642 | – |
 | tapir | 480x854 | 182 ms | 131 ms | 6.47 ms | 141 ms | 169 s | 55.2 s | 463 / 548 | 630 / 752 | 463 / 548 | 361 / 406 |
 | tapnext | 480x854 | 528 ms | 398 ms | 69.4 ms | 381 ms | 40.5 s | 366 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |
-| tapnext-pp | 480x854 | 529 ms | planned for 0.2.1 | 69.5 ms | 381 ms | – | 362 s | 1220 / 1294 | – | 1205 / 1254 | 1498 / 1660 |
+| tapnext-pp | 480x854 | 529 ms | 395 ms | 69.5 ms | 381 ms | 34.1 s | 362 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |
 | track-on-r | 480x854 | 1188 ms | fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile  | planned for 0.2.1 | 1102 ms | – | – | 1423 / 1632 | – | 1368 / 1620 | – |
 | track-on2 | 480x854 | 1193 ms | fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile  | planned for 0.2.1 | 1108 ms | – | – | 1423 / 1712 | – | 1368 / 1620 | – |
 | ema-vfi | 1080x1920 | 233 ms | 165 ms | 124 ms | 207 ms | 90.6 s | 90.9 s | 2827 / 3184 | 3325 / 3542 | 368 / 3566 | 1719 / 1786 |
