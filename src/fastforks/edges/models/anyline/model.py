@@ -22,6 +22,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks.edges._runner import Forward, Runner, safe_step, to_detect, to_input
+from fastforks.shared.quantile import kth_smallest
 from fastforks.shared.teed import TED, edge_map
 
 if TYPE_CHECKING:
@@ -58,9 +59,14 @@ def median_above(v: torch.Tensor, threshold: float) -> torch.Tensor:
     """Numpy `median(v[v > threshold])` per row of `[B, N]` (the mean of the two middle values); NaN if none."""
     valid = v > threshold
     n = valid.sum(-1, keepdim=True)
-    s = torch.where(valid, v, math.inf).sort(-1).values
     lo, hi = ((n - 1).clamp(min=0) // 2), (n // 2).clamp(max=v.shape[-1] - 1)
-    med = (s.gather(-1, lo) + s.gather(-1, hi))[:, 0] / 2
+    if torch.compiler.is_exporting():
+        a = kth_smallest(v, lo[:, 0], valid)
+        b = kth_smallest(v, hi[:, 0], valid)
+        med = (a + b) / 2
+    else:
+        s = torch.where(valid, v, math.inf).sort(-1).values
+        med = (s.gather(-1, lo) + s.gather(-1, hi))[:, 0] / 2
     return torch.where(n[:, 0] > 0, med, math.nan)
 
 

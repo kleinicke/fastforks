@@ -57,3 +57,24 @@ def test_gaussian_blur_and_median() -> None:
     assert got[0] == np.median([5, 4, 9, 7])
     assert math.isnan(got[1])
     assert got[2] == 5
+
+
+def test_exported_median_matches_sorted_values() -> None:
+    """The export-only sort-free median handles even, odd, repeated, and empty selections."""
+
+    class Median(torch.nn.Module):
+        def forward(self, values: torch.Tensor) -> torch.Tensor:
+            return median_above(values, 3)
+
+    values = torch.tensor(
+        [
+            [1.0, 5, 4, 9, 2, 7],
+            [0, 1, 2, 3, 3, 3],
+            [4, 6, 0, 0, 0, 0],
+            [7, 7, 7, 7, 4, 1],
+            [3.1, 3.2, 4.2, 4.3, 5.1, 5.2],
+        ]
+    )
+    model = Median().eval()
+    exported = torch.export.export(model, (values,)).module()
+    torch.testing.assert_close(exported(values), model(values), rtol=0, atol=1e-6, equal_nan=True)

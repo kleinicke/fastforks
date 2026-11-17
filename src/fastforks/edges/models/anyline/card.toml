@@ -45,6 +45,5 @@ venue = "ICCV 2023 workshops"
 
 [[variants]]
 id = "anyline"
-planned = { tensorrt = "the TensorRT ONNX parser rejects an Expand node" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "MTEED.pth", size = 248298, sha256 = "a3c2d8a8ce9422555c787160bd46362d761325a565333c0e3f6a53e0bae2abdb", url = "https://huggingface.co/TheMistoAI/MistoLine/resolve/1d9d0b3d48b295cf70d80a0f839a3055672f8393/Anyline/MTEED.pth" }]
