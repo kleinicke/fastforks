@@ -12,7 +12,6 @@ from typing import Any
 
 import numpy as np
 import pytest
-import scipy.ndimage
 import torch
 from PIL import Image
 
@@ -26,7 +25,7 @@ def _fill_holes_scipy(low: np.ndarray, max_area: int = 8) -> np.ndarray:
     """Upstream `fill_holes_in_mask_scores` with 8-connected components (its CUDA extension's labelling)."""
     out = low.copy()
     for i in range(low.shape[0]):
-        lab, _ = scipy.ndimage.label(low[i, 0] <= 0, structure=np.ones((3, 3)))
+        lab, _ = pytest.importorskip("scipy.ndimage").label(low[i, 0] <= 0, structure=np.ones((3, 3)))
         area = np.bincount(lab.ravel())
         hole = (lab > 0) & (area[lab] <= max_area)
         out[i, 0][hole] = 0.1
