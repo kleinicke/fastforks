@@ -449,7 +449,7 @@ Two disjoint seeded subsets of the val folders; each image shorter side 256 (bic
 | `dinov2-vitg14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 70.64 | 70.66 | 70.64 | 70.64 | 70.68 |  |
 | `dinov2-vitg14-reg` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 72.60 | 72.58 | 72.60 | 72.60 | 72.64 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993 / 939adfe8, 2026-10-31 to 2026-11-06; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -521,7 +521,7 @@ Two disjoint seeded subsets of the val folders; each image shorter side 256 (bic
 | `dinov3-convnext-base` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.84 | 69.88 | 69.84 | 69.84 | 69.84 | 69.88 |  |
 | `dinov3-convnext-large` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 73.30 | 73.32 | 73.32 | 73.30 | 73.30 | 73.28 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993 / 939adfe8, 2026-10-31 to 2026-11-06; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -590,7 +590,7 @@ Two disjoint seeded subsets of the val folders; each image shorter side 256 (bic
 | `dinov3-vitl16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 75.94 | 75.92 | 75.78 | 75.80 | 75.94 | 75.88 |  |
 | `dinov3-vith16plus` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 79.50 | 79.50 | 79.54 | 79.52 | 79.50 | 79.52 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993 / 939adfe8, 2026-10-31 to 2026-11-06; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 

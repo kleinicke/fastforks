@@ -362,7 +362,7 @@ pycocotools COCOeval of the top 100 detections per image. Original = the origina
 | `mm-grounding-dino-base` | COCO val2017, every 10th image, box mAP |  |  |  | 53.01 |  |
 | `mm-grounding-dino-base` | COCO val2017, every 20th image, box mAP | 57.11 |  | 56.94 |  |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84ba91d4 / 9e3ff83d+dirty / a981ff86 / aee4b565, 2026-11-12 to 2026-11-17.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84ba91d4 / a981ff86 / aee4b565, 2026-11-12 to 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 9e3ff83d+dirty, 2026-11-17.
 
 ### Parity
 

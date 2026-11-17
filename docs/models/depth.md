@@ -203,7 +203,7 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `da3nested-giant-large-1.1` | ETH3D two-view train left, AbsRel / delta1 | 0.0761 / 0.9361 | 0.0762 / 0.9346 | 0.0761 / 0.9362 |  | 0.0760 / 0.9362 | possibly in the training data |
 | `da3nested-giant-large-1.1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0298 / 0.9925 | 0.0299 / 0.9925 | 0.0298 / 0.9925 |  | 0.0298 / 0.9925 | possibly in the training data |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10 / 6d3bab64, 2026-11-05 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05 to 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05 to 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10 / 6d3bab64, 2026-11-05 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05 to 2026-11-06.
 
 ### Parity
 
@@ -366,7 +366,7 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `distill-any-depth-l` | ETH3D two-view train left, AbsRel / delta1 | 0.0640 / 0.9537 | 0.0640 / 0.9537 | 0.0640 / 0.9537 |  | 0.0639 / 0.9537 | possibly in the training data |
 | `distill-any-depth-l` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0303 / 0.9962 | 0.0303 / 0.9962 | 0.0303 / 0.9962 |  | 0.0303 / 0.9962 | possibly in the training data |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10 / 6d3bab64 / 939adfe8 / f2992269+dirty, 2026-11-06 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10 / 939adfe8 / f2992269+dirty, 2026-11-06 to 2026-11-10.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10 / 939adfe8 / f2992269+dirty, 2026-11-06 to 2026-11-10; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10 / 939adfe8 / f2992269+dirty, 2026-11-06 to 2026-11-10.
 
 ### Parity
 
@@ -435,7 +435,7 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `depth-pro` | ETH3D two-view train left, AbsRel / delta1 | 0.0651 / 0.9642 | 0.0652 / 0.9642 | 0.0652 / 0.9642 |  | 0.0656 / 0.9638 | possibly in the training data |
 | `depth-pro` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0295 / 0.9966 | 0.0295 / 0.9966 | 0.0295 / 0.9966 |  | 0.0295 / 0.9966 | possibly in the training data |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64 / 939adfe8, 2026-11-06 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -486,7 +486,7 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `depthfm-v1` | iBims-1, AbsRel / delta1 | 0.0652 / 0.9540 | 0.0652 / 0.9540 | 0.0650 / 0.9543 | 0.0650 / 0.9543 | 0.0650 / 0.9543 |  |
 | `depthfm-v1` | NYUv2 test (first 100 images), AbsRel / delta1 | 0.0735 / 0.9489 | 0.0731 / 0.9492 | 0.0732 / 0.9493 |  | 0.0732 / 0.9493 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345 / 6d3bab64, 2026-11-16 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
 
 ### Parity
 
@@ -669,7 +669,7 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `marigold-depth-v1-1` | ETH3D two-view train left, AbsRel / delta1 | 0.1141 / 0.8715 | 0.1141 / 0.8715 | 0.1141 / 0.8715 |  | 0.1141 / 0.8716 | possibly in the training data |
 | `marigold-depth-v1-1` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0413 / 0.9899 | 0.0413 / 0.9899 | 0.0413 / 0.9899 |  | 0.0413 / 0.9899 | possibly in the training data |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 491e248a / 6d3bab64 / 939adfe8, 2026-11-06 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 491e248a / 939adfe8, 2026-11-06 to 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 491e248a / 939adfe8, 2026-11-06 to 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 491e248a / 939adfe8, 2026-11-06 to 2026-11-11.
 
 ### Parity
 
@@ -783,7 +783,7 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `marigold-v2-depth` | NYUv2 test, AbsRel / delta1 | out of memory | 0.0386 / 0.9840 | 0.0386 / 0.9840 | 0.0386 / 0.9840 |  |
 | `marigold-v2-depth` | iBims-1, AbsRel / delta1 |  | 0.0291 / 0.9877 | 0.0291 / 0.9877 | 0.0291 / 0.9877 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519 / 6d3bab64, 2026-11-14 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519, 2026-11-14.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519, 2026-11-14.
 
 ### Parity
 
@@ -846,7 +846,7 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `metric3d-vit-large` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 13.72 / 7.27 / 65.43 / 87.44 | 13.72 / 7.27 / 65.43 / 87.44 | 13.71 / 7.27 / 65.44 / 87.45 |  |
 | `metric3d-vit-large` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.47 / 5.84 / 71.33 / 85.85 | 14.47 / 5.84 / 71.33 / 85.85 | 14.47 / 5.84 / 71.33 / 85.85 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4e890760 / 6d3bab64 / 939adfe8, 2026-11-06 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4e890760 / 939adfe8, 2026-11-06 to 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4e890760 / 939adfe8, 2026-11-06 to 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4e890760 / 6d3bab64, 2026-11-12 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4e890760 / 939adfe8, 2026-11-06 to 2026-11-12.
 
 ### Parity
 
@@ -904,7 +904,7 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `midas-dpt-beit-large-512` | ETH3D two-view train left, AbsRel / delta1 | 0.0904 / 0.8978 | 0.0906 / 0.8977 | 0.0903 / 0.8979 |  | 0.0906 / 0.8974 | possibly in the training data |
 | `midas-dpt-beit-large-512` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0425 / 0.9906 | 0.0424 / 0.9906 | 0.0425 / 0.9906 |  | 0.0426 / 0.9907 | possibly in the training data |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64 / 939adfe8, 2026-11-06 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -987,7 +987,7 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `moge-3-vitl` | ETH3D two-view train left, AbsRel / delta1 | 0.0496 / 0.9847 | 0.0496 / 0.9847 | 0.0496 / 0.9847 |  | 0.0496 / 0.9847 | possibly in the training data |
 | `moge-3-vitl` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0235 / 0.9970 | 0.0235 / 0.9970 | 0.0235 / 0.9970 |  | 0.0235 / 0.9970 | possibly in the training data |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 24f9c9c8 / 3d00db1d / 4e890760 / 6d3bab64 / 939adfe8, 2026-11-06 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3d00db1d / 4e890760 / 939adfe8 / f3195fb2, 2026-11-06 to 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 24f9c9c8 / 3d00db1d / 4e890760 / 939adfe8, 2026-11-06 to 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 24f9c9c8 / 4e890760 / 6d3bab64, 2026-11-12 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3d00db1d / 4e890760 / 939adfe8 / f3195fb2, 2026-11-06 to 2026-11-12.
 
 ### Parity
 
@@ -1111,7 +1111,7 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `pointdit-l-512` | ETH3D two-view train left, AbsRel / delta1 | 0.0748 / 0.9264 | 0.0748 / 0.9278 | 0.0748 / 0.9265 |  | 0.0748 / 0.9261 | possibly in the training data |
 | `pointdit-l-512` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0230 / 0.9952 | 0.0230 / 0.9951 | 0.0230 / 0.9952 |  | 0.0230 / 0.9952 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2fb984b3, 2026-11-15.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2fb984b3, 2026-11-15; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6a5100ec, 2026-11-15; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2fb984b3, 2026-11-15.
 
 ### Parity
 
@@ -1288,7 +1288,7 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `unidepth-v2-vitl14` | ETH3D two-view train left, AbsRel / delta1 | 0.0586 / 0.9802 | 0.0586 / 0.9802 | 0.0586 / 0.9802 |  | 0.0586 / 0.9802 | possibly in the training data |
 | `unidepth-v2-vitl14` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0221 / 0.9970 | 0.0221 / 0.9970 | 0.0221 / 0.9970 |  | 0.0221 / 0.9970 | possibly in the training data |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64 / 939adfe8, 2026-11-06 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -1345,7 +1345,7 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `unik3d-vitl` | ETH3D two-view train left, AbsRel / delta1 | 0.0630 / 0.9624 | 0.0630 / 0.9624 | 0.0630 / 0.9626 |  | 0.0630 / 0.9628 | possibly in the training data |
 | `unik3d-vitl` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0210 / 0.9966 | 0.0210 / 0.9966 | 0.0210 / 0.9966 |  | 0.0210 / 0.9966 | possibly in the training data |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64 / 939adfe8, 2026-11-06 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -1464,7 +1464,7 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 | `zoedepth-nk` | ETH3D two-view train left, AbsRel / delta1 | 0.1139 / 0.8648 | 0.1130 / 0.8653 (NaN / inf output) | 0.1139 / 0.8647 |  | 0.1139 / 0.8648 | possibly in the training data |
 | `zoedepth-nk` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0449 / 0.9860 | 0.0449 / 0.9860 | 0.0449 / 0.9860 |  | 0.0449 / 0.9860 | possibly in the training data |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64 / 939adfe8, 2026-11-06 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 

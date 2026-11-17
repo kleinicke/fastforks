@@ -192,7 +192,7 @@ Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of 
 | `flowseek-t-things` | KITTI 2015 train, EPE / Fl-all % | 4.121 / 12.35 | 4.153 / 12.25 | 4.143 / 12.27 | 4.098 / 12.34 |  |
 | `flowseek-t-things-notartan` | KITTI 2015 train, EPE / Fl-all % | 3.923 / 12.83 | 3.904 / 12.97 | 3.933 / 12.97 | 3.925 / 12.81 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1 / c4a67979, 2026-11-11 to 2026-11-17.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c4a67979, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17.
 
 ### Parity
 
@@ -302,7 +302,7 @@ Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of 
 | `gmflow-scale2-regrefine6-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.570 / 1.15 | 0.570 / 1.15 | 0.570 / 1.15 | 0.570 / 1.15 | trained on this dataset's public images; not a zero-shot result |
 | `gmflow-scale2-regrefine6-mixdata` | KITTI 2015 train, EPE / Fl-all % | 1.315 / 4.64 | 1.315 / 4.63 | 1.315 / 4.64 | 1.314 / 4.64 | possibly in the training data |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1 / c4a67979, 2026-11-11 to 2026-11-17.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c4a67979, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17.
 
 ### Parity
 
@@ -365,7 +365,7 @@ Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of 
 |---|---|---|---|---|---|---|---|
 | `megaflow` | KITTI 2015 train, EPE / Fl-all % | 1.714 / 6.68 | 1.727 / 6.75 | 1.715 / 6.69 | 1.714 / 6.68 | 1.714 / 6.69 | trained on this dataset's public images; not a zero-shot result |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1 / 790d5f2f, 2026-11-14 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 790d5f2f, 2026-11-14.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 790d5f2f, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 790d5f2f, 2026-11-14.
 
 ### Parity
 
@@ -430,7 +430,7 @@ Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of 
 | `memflow` | KITTI 2015 train, EPE / Fl-all % | 4.108 / 14.43 | 4.107 / 14.43 | 4.109 / 14.44 | 4.093 / 14.43 | 4.103 / 14.42 |  |
 | `memflow-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.600 / 1.21 | 0.600 / 1.21 | 0.600 / 1.21 | 0.600 / 1.21 | 0.600 / 1.21 | trained on this dataset's public images; not a zero-shot result |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1 / db9e79d5+uncommitted, 2026-11-13 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5+uncommitted, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5+uncommitted, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5+uncommitted, 2026-11-13.
 
 ### Parity
 

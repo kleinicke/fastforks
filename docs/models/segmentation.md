@@ -556,7 +556,7 @@ Each image at its own size, argmax of the logits. Original = the original code n
 | `segnext-mscan-b-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 46.96 / 82.22 | 46.95 / 82.21 | 46.98 / 82.22 | 46.96 / 82.21 | 46.98 / 82.22 |  |
 | `segnext-mscan-l-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 48.88 / 83.23 | 48.87 / 83.23 | 48.89 / 83.23 | 48.88 / 83.23 | 48.88 / 83.23 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 95e72cc0, 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 95e72cc0, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 95e72cc0, 2026-11-11.
 
 ### Parity
 

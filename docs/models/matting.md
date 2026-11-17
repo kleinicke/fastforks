@@ -127,7 +127,7 @@ Each image at its own size against its binary mask: MAE of the alpha, max F-beta
 | `birefnet-lite` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0446 / 0.8620 | 0.0446 / 0.8619 | 0.0446 / 0.8620 | 0.0446 / 0.8620 | 0.0446 / 0.8620 |  |
 | `rmbg-2.0` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0205 / 0.9324 | 0.0206 / 0.9324 | 0.0205 / 0.9326 |  | 0.0205 / 0.9326 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45b1fe90 / a49aaba7, 2026-11-12 to 2026-11-14.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45b1fe90 / a49aaba7, 2026-11-12 to 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a49aaba7, 2026-11-12; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45b1fe90 / a49aaba7, 2026-11-12 to 2026-11-14.
 
 ### Parity
 

@@ -257,7 +257,7 @@ Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstre
 | `loftr-outdoor` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees | 50.1 / 67.5 / 80.3 | 50.6 / 67.6 / 80.3 | 50.8 / 67.8 / 80.2 |  |  |
 | `loftr-outdoor` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 53.8 / 71.8 / 83.7 | 52.1 / 71.0 / 83.3 |  | 57.1 / 74.2 / 85.0 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / aee4b565, 2026-11-13 to 2026-11-15; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / aee4b565, 2026-11-13 to 2026-11-15; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880, 2026-11-15; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
 
 ### Parity
 
@@ -436,7 +436,7 @@ Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstre
 | `romav2` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  | 63.2 / 77.1 / 86.7 | 63.0 / 76.9 / 86.5 |  | 62.9 / 76.9 / 86.4 |  |
 | `romav2` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 64.6 / 78.0 / 87.1 | 64.7 / 78.2 / 87.3 | 64.7 / 78.3 / 87.3 | 64.3 / 78.0 / 87.0 | 64.4 / 77.9 / 86.9 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 011e320c, 2026-11-11 to 2026-11-12; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 011e320c, 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 011e320c, 2026-11-11 to 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 011e320c, 2026-11-12; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 011e320c, 2026-11-12.
 
 ### Parity
 

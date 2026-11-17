@@ -986,9 +986,10 @@ def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[s
     days: dict[str, set[str]] = {}  # mode -> dates (a run may cross midnight)
     for r in mine:
         if not r["mode"].startswith("upstream"):
-            meta.setdefault(r["mode"], set()).add((r["gpu"], r["torch"]))
-            commits.setdefault(r["mode"], set()).add(r["commit"])
-            days.setdefault(r["mode"], set()).add(r["date"][:10])
+            mode = _eval_mode(r)
+            meta.setdefault(mode, set()).add((r["gpu"], r["torch"]))
+            commits.setdefault(mode, set()).add(r["commit"])
+            days.setdefault(mode, set()).add(r["date"][:10])
     thr = {r["bad_thr"] for r in mine if "bad_thr" in r and r["bad_thr"] != _BAD_THR.get(r["dataset"])}
     if any(len(m) > 1 for m in meta.values()) or thr or len(sets) != len({r["dataset"] for r in mine}):
         msg = f"{card.family}: rows of a mode need one gpu / torch, known datasets and thresholds: {meta} {thr}"
@@ -996,11 +997,11 @@ def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[s
     per_mode = {
         mode: (*next(iter(m)), " / ".join(sorted(commits[mode])), _span(days[mode])) for mode, m in meta.items()
     }
-    per_mode = {mode: w for mode, w in per_mode.items() if mode in _MODES}  # the modes the table shows
+    per_mode = {mode: w for mode, w in per_mode.items() if mode in _EVAL_MODES}  # the modes the table shows
     if len(set(per_mode.values())) <= 1:
         where = _where(*next(iter(per_mode.values()))) + ". " if per_mode else ""
     else:  # e.g. a kernels backend re-measured after a kernel change
-        where = "; ".join(f"{mode}: {_where(*per_mode[mode])}" for mode in _MODES if mode in per_mode) + ". "
+        where = "; ".join(f"{mode}: {_where(*per_mode[mode])}" for mode in _EVAL_MODES if mode in per_mode) + ". "
     shown = [m for m in _EVAL_MODES if any(_eval_mode(r) == m for r in mine)]
     lines = [
         "",

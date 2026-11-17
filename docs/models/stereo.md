@@ -735,7 +735,7 @@ Original = the original code named under Details, same checkpoint and protocol.
 | `fast-acvnet-plus-kitti15` | ETH3D two-view train, bad > 1 px % / EPE | 21.62 / 0.822 | 21.63 / 0.822 | fails (RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but type torch.cuda.HalfTensor does not equal torch.cuda.FloatTensor (while checking arguments for cudnn_grid_sampler_forward)) | 21.61 / 0.822 | 21.63 / 0.822 | 21.63 / 0.822 |  |
 | `fast-acvnet-plus-kitti15` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 28.09 / 6.656 | 28.10 / 6.664 | fails (RuntimeError: Expected tensor for argument #1 'input' to have the same type as tensor for argument #2 'grid'; but type torch.cuda.HalfTensor does not equal torch.cuda.FloatTensor (while checking arguments for cudnn_grid_sampler_forward)) | 28.09 / 6.663 | 28.10 / 6.657 | 28.09 / 6.662 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -1092,7 +1092,7 @@ Original = the original code named under Details, same checkpoint and protocol.
 | `igev-plusplus-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 0.50 / 0.093 | 0.50 / 0.094 | 0.50 / 0.093 | 0.50 / 0.094 | 0.50 / 0.094 | trained on this dataset's public images; not a zero-shot result |
 | `igev-plusplus-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 10.61 / 2.709 | 10.62 / 2.649 | 10.58 / 2.713 | 10.60 / 2.657 | 10.60 / 2.734 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -1657,7 +1657,7 @@ Original = the original code named under Details, same checkpoint and protocol.
 | `rt-monster-plusplus-mix-all` | ETH3D two-view train, bad > 1 px % / EPE | 2.05 / 0.226 | 2.05 / 0.226 | 2.05 / 0.226 | 2.05 / 0.226 | 2.05 / 0.226 | possibly in the training data |
 | `rt-monster-plusplus-mix-all` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.01 / 1.988 | 11.01 / 1.988 | 11.00 / 1.989 | 11.01 / 1.989 | 11.02 / 1.998 | possibly in the training data |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 

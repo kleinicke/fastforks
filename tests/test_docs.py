@@ -42,11 +42,19 @@ def test_measured_table_keeps_portable_precisions_separate():
     }
     rows = [
         {**common, "tier": "portable", "dtype": "float16", "metrics": {"box_map": 51.02}},
-        {**common, "tier": "portable32", "dtype": "float32", "metrics": {"box_map": 51.12}},
+        {
+            **common,
+            "tier": "portable32",
+            "dtype": "float32",
+            "metrics": {"box_map": 51.12},
+            "date": "2026-11-18",
+            "commit": "fp32",
+        },
     ]
     table = "\n".join(gen_docs._measured("detection", card, {variant.id: rows}))
     assert "| portable | portable fp32 |" in table
     assert "| 51.02 | 51.12 |" in table
+    assert "portable32: test GPU, torch test torch, fastforks fp32, 2026-11-18" in table
     assert gen_docs._eval_mode({"mode": "upstream", "tier": "upstreamhalf"}) == "upstreamhalf"
     assert gen_docs._eval_mode({"mode": "upstream", "dtype": "float16"}) == "upstream-fp16"
 
