@@ -40,6 +40,6 @@ venue = "AAAI 2022"
 
 [[variants]]
 id = "mlsd"
-planned = { tensorrt = "the TensorRT ONNX parser rejects BitwiseAnd" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { tensorrt = "TensorRT builds the engine but its CNN outputs diverge from portable FP32 on real images" }
 revision = 1
 weights = [{ name = "mlsd_large_512_fp32.pth", size = 6341481, sha256 = "5696f168eb2c30d4374bbfd45436f7415bb4d88da29bea97eea0101520fba082", url = "https://raw.githubusercontent.com/lhwcv/mlsd_pytorch/2312205254e66911703decf775f626995d260f17/models/mlsd_large_512_fp32.pth" }]

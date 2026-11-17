@@ -51,7 +51,7 @@ weights = [{ name = "nnFoundationCNN/checkpoint_final.pth", size = 409579442, sh
 
 [[variants]]
 id = "nnfoundation-vit"
-planned = { onnx = "the export example is smaller than the 3-D patch kernel (8x8x8)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { onnx = "the fixed-volume graph exports but TensorRT encoder features diverge from portable on real CT crops" }
 revision = 1
 params = { arch = "vit" }
 weights = [{ name = "nnFoundationViT/checkpoint_final.pth", size = 2697595195, sha256 = "022ad18fc38885f6591f1e10c44e98d154019db92ca90f78f796f882013600ac", url = "https://huggingface.co/MIC-DKFZ/nnFoundationViT/resolve/c691f2115140458ec64017712eb8ebbc8dde6ae4/checkpoint_final.pth" }]

@@ -1,5 +1,9 @@
 # Families without a kernels mode
 
+As of 2026-11-18, the development branch advertises CUDA kernels for 577 of 578 variants. Grounding DINO Base is
+the only variant with a release gate on this mode. The pinned upstream replacement fixture passed the portable CPU
+and GPU checks, and the published fixture still needs to be refreshed.
+
 Snapshot of generated local website data on 2026-11-17: 25 families, 73 variants. These are family-level reasons from the model cards, not new independent validation of the claims. The list describes absent modes, not missing individual kernels inside existing modes.
 
 ## RTX 5060 Ti follow-up

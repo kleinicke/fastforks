@@ -40,7 +40,7 @@ Commercial use: yes.
 - Training data: 2.1 million CT, MRI and PET volumes from 125 institutional and public datasets (Human Radiome Project); the dataset list is not published with the weights. Share-alike: models fine-tuned from these weights are adapted material under CC-BY-SA-4.0.
 - Kernel libraries: `vol_norm`
 - Variants: `nnfoundation-cnn`, `nnfoundation-vit`
-- Not in this release (planned for 0.2.1): `nnfoundation-vit` ONNX / TensorRT export: the export example is smaller than the 3-D patch kernel (8x8x8)
+- Not in this release (planned for 0.2.1): `nnfoundation-vit` ONNX / TensorRT export: the fixed-volume graph exports but TensorRT encoder features diverge from portable on real CT crops
 - Outputs: features
 - Input size: any D x H x W volume, no resampling, one encoder pass (a fixed-grid ViT: each side up to its grid)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `nnfoundation-cnn` 384x384x384 voxels (14.2 GiB peak allocated, 14.8 reserved); `nnfoundation-vit` 192x192x192 voxels (1.6 GiB peak allocated, 1.8 reserved)
@@ -89,7 +89,7 @@ Commercial use: **no** (weights: CC-BY-NC-SA-4.0).
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `nninteractive` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile | 705<br>460<br>215<br>201<br>162 | 7156 / 8408<br>4076 / 4636<br>3075 / 3492<br>2643 / 3072<br>3643 / 3832 |
-| `nninteractive` | 192x192 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>262 (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | –<br>–<br>–<br>unknown |
+| `nninteractive` | 192x192 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>262 (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | –<br>–<br>–<br>2738 / 2740 |
 
 <details><summary>Details</summary>
 
