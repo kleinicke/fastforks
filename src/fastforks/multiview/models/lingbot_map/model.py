@@ -29,6 +29,7 @@ from torch import nn
 
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
+from fastforks._core.tracing import in_onnx_export
 from fastforks.multiview._runner import Forward, Runner
 from fastforks.multiview.models.vggt import model as vggt
 from fastforks.multiview.models.vggt.net.heads.camera_head import modulate
@@ -214,7 +215,7 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
 
     def rope3d(self, frames: range, rows: int, cols: int) -> tuple[torch.Tensor, torch.Tensor]:
         """3D RoPE tables `[len(frames) * P, 1, 1, 64]` for the permuted channels: cos and sign-folded sin."""
-        if torch.compiler.is_exporting():
+        if in_onnx_export():
             cos, sin = _export_rope3d(frames.start, frames.stop, rows, cols, self.dt)
             return cos.to(self.ctx.device), sin.to(self.ctx.device)
         dev = self.ctx.device
