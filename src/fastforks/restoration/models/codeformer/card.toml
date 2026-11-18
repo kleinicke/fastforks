@@ -35,7 +35,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
+kernels = ["igev", "cutlass_conv", "cudnn_hacc", "group_silu"]
 
 [[papers]]
 title = "Towards Robust Blind Face Restoration with Codebook Lookup Transformer"

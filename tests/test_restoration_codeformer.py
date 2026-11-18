@@ -43,3 +43,28 @@ def test_matches_vendored_upstream(tmp_path: Path) -> None:
     torch.testing.assert_close(exported, got, rtol=0, atol=1e-6)
     with pytest.raises(InputError, match="512 x 512"):
         m(torch.rand(1, 3, 512, 640))
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("channels", [64, 128, 256, 512])
+@pytest.mark.parametrize("inplace", [False, True])
+def test_group_silu_strided_tiles(channels: int, inplace: bool) -> None:  # noqa: FBT001
+    from fastforks.kernels.group_silu import group_silu  # noqa: PLC0415
+
+    g = torch.Generator(device="cuda").manual_seed(140)
+    x = torch.randn(2, channels, 45, 69, device="cuda", dtype=torch.float16, generator=g)
+    x[0, : channels // 32].fill_(20)
+    x = x.contiguous(memory_format=torch.channels_last)
+    saved = x.clone()
+    gn = torch.nn.GroupNorm(32, channels, eps=1e-6, device="cuda", dtype=torch.float16)
+    with torch.no_grad():
+        gn.weight.uniform_(-1, 1, generator=g)
+        gn.bias.uniform_(-1, 1, generator=g)
+        expected = torch.nn.functional.silu(
+            torch.nn.functional.group_norm(x.float(), 32, gn.weight.float(), gn.bias.float(), gn.eps)
+        ).half()
+        got = group_silu(gn, x, inplace=inplace)
+    assert (got.data_ptr() == x.data_ptr()) == inplace
+    if not inplace:
+        assert torch.equal(x, saved)
+    torch.testing.assert_close(got, expected, rtol=0.001, atol=3e-4)
