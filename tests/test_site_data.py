@@ -10,7 +10,7 @@ def test_compile_and_tensorrt_keep_their_input_sizes(monkeypatch):
     ref = "nninteractive"
     portable = {"mode": "portable", "input": "200x200", "ms": 215, "dtype": "float16"}
     compiled = {"mode": "compile", "input": "200x200", "ms": 162}
-    engine = {"ref": ref, "mode": "tensorrt", "input": "192x192", "ms": 262}
+    engine = {"ref": ref, "mode": "tensorrt", "input": "192x192", "ms": 262, "export_and_build_s": 32}
     failed = {"ref": ref, "mode": "tensorrt", "input": "200x200", "fails": "OutOfMemoryError"}
     monkeypatch.setattr(
         site_data.g,
@@ -26,6 +26,7 @@ def test_compile_and_tensorrt_keep_their_input_sizes(monkeypatch):
     data = site_data._speed(SimpleNamespace(id=ref), "volume", {ref: [portable]})
     sizes = {r["input"]: r for r in data["inputs"]}
     assert sizes["192x192"]["tensorrt"]["ms"] == 262
+    assert sizes["192x192"]["tensorrt"]["setup_s"] == 32
     assert "compile" not in sizes["192x192"]
     assert sizes["200x200"]["compile"]["ms"] == 162
     assert "fails" in sizes["200x200"]["tensorrt"]

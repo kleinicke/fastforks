@@ -25,7 +25,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `anycalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 38.4<br>29.4<br>21.5<br>25.5<br>planned for 0.2.1 | 1343 / 1352<br>705 / 742<br>739 / 812<br>719 / 756<br>– |
+| `anycalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 38.4<br>29.4<br>21.5<br>25.5<br>fails: ONNX export: conversion failed | 1343 / 1352<br>705 / 742<br>739 / 812<br>719 / 756<br>– |
+| `anycalib-pinhole` | synthetic (480x640) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>29.9<br>–<br>12.4 | –<br>693 / 704<br>–<br>750 / 768 |
 
 <details><summary>Details</summary>
 
@@ -37,11 +38,11 @@ Commercial use: yes.
 - Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `fastbb`, `dpt_fused`, `cudnn_hacc`
 - Variants: `anycalib-pinhole`
-- Not in this release (planned for 0.2.1): `anycalib-pinhole` TensorRT export: the engine builds but a dataset-level camera accuracy acceptance threshold is not yet established
 - Outputs: intrinsics, vfov
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `anycalib-pinhole` 3000x4000 (1.0 GiB peak allocated, 1.1 reserved)
 - `anycalib-pinhole` 1080x1920, first call: portable + torch.compile 17 s (cold Inductor cache).
+- `anycalib-pinhole` 480x640, first call: TensorRT fp16 118 s (ONNX + engine).
 - `anycalib-pinhole` original 1080x1920: torch.autocast(float16) around the call; javrtg/AnyCalib@027a8497d893 AnyCalib.predict (pinhole), its resize / crop / linear + GN fit
 - `anycalib-pinhole` load / first call: original 4.09 s / 0.578 s, portable 1.73 s / 0.685 s, kernels 1.53 s / 0.371 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -69,6 +70,7 @@ CPU, float32: max |diff| <= 0.00019 vs the original. GPU, float16 (the default),
 ### Limitations
 
 - Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~80 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
+- The fixed 480 x 640 FP16 TensorRT plan matched portable vertical field of view within 0.553 degrees across 2,000 resized LaMAR images. AUC@5 was 13.05% with TensorRT and 13.02% portable under that fixed-size protocol.
 
 </details>
 

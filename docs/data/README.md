@@ -142,6 +142,7 @@ size counts. `engine_dtype` =
 `float32` marks an fp32 engine (the portable model loaded with `dtype="float32"`), recorded where the fp16 engine
 misses the golden tolerance (`golden_fp16` / `golden_fp32`: mask-logit error against the golden, relative mean / p99).
 `backend_part` describes a timed call that accelerates selected stages or uses an isolated benchmark setup.
+`export_and_build_s` records the combined setup time when it was measured through the public TensorRT exporter.
 
 Rows with `side` = `upstream` and `mode` = `upstream-tensorrt` are a like-for-like extra that the docs tables do not
 show: a TensorRT fp16 engine built from the original network (`da3mono-large`). `timed` says what one call covers,

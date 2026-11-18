@@ -728,6 +728,8 @@ def _setup_seconds(row: dict | None) -> float | None:
         return None
     if row["mode"] == "compile":
         return row.get("compile_s")
+    if total := row.get("export_and_build_s"):
+        return total
     export = row.get("onnx_export_s")
     build = row.get("engine_build_s")
     return export + build if export is not None and build is not None else None
