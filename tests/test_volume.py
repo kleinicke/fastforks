@@ -109,6 +109,20 @@ def folder(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return d
 
 
+def test_local_folder_compile_uses_patch_network(folder: Path) -> None:
+    """The normal volume API dispatches each fold through a compiled network with unchanged labels."""
+    from torch._dynamo.testing import CompileCounter  # noqa: PLC0415 - only compile tests need Dynamo
+
+    model = volume.load(folder, mode="portable", device="cpu", mirror=False)
+    ct = torch.arange(20 * 16 * 16, dtype=torch.float32).view(20, 16, 16)
+    spacing = (2.0, 1.5, 1.5)
+    expected = model(ct, spacing=spacing).labels
+    counter = CompileCounter()
+    model.compile(backend=counter, fullgraph=True)
+    assert torch.equal(model(ct, spacing=spacing).labels, expected)
+    assert counter.frame_count >= 1
+
+
 def test_sliding_steps() -> None:
     """nnU-Net's `compute_steps_for_sliding_window`: evenly spread starts, the last window flush with the end."""
     assert _nnunet.sliding_steps((200, 128, 129), (128, 128, 128), 0.5) == [[0, 36, 72], [0], [0, 1]]
