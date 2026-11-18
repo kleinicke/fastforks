@@ -9,15 +9,17 @@ from __future__ import annotations
 
 import contextlib
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.flow._runner import Forward, Runner
+from fastforks.kernels import flow_upsample, recover_motion
 
 from .net import BasicBlock, ReCoVEr, ResNetFPN
 
@@ -115,7 +117,8 @@ class Portable(Runner):
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a padded batch."""
-        image1, image2 = (x.contiguous(memory_format=self.layout) for x in (image1, image2))
+        if not self.gacc:
+            image1, image2 = (x.contiguous(memory_format=self.layout) for x in (image1, image2))
         with torch.autocast(image1.device.type, enabled=False), self.accumulate():
             return {"flow": self.net(image1, image2, self.ctx.params.iters)}
 
@@ -123,6 +126,22 @@ class Portable(Runner):
         """The network; returns the flow."""
         iters = self.ctx.params.iters
         return Forward(self.net, lambda net, image1, image2: net(image1, image2, iters))
+
+
+def _kernel_pair(_net: nn.Module, image1: torch.Tensor, image2: torch.Tensor, dtype: torch.dtype) -> torch.Tensor:
+    b, c, h, w = image1.shape
+    out = torch.empty((b, 2 * c, h, w), dtype=dtype, device=image1.device, memory_format=torch.channels_last)
+    return torch.cat((image1, image2), 1, out=out)
+
+
+def _tile(self: nn.Module, _h: int, _w: int) -> torch.Tensor:
+    return cast("torch.Tensor", self.correlation_tile)
+
+
+def _motion(self: Any, flow: torch.Tensor, tile: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - prepared motion encoder
+    flo = F.relu(self.convf2(F.relu(self.convf1(flow))))
+    motion = F.conv2d(flo, self.flow_weight, padding=1)
+    return recover_motion.pack(motion, tile, flow)
 
 
 class Kernels(Portable):
@@ -136,6 +155,18 @@ class Kernels(Portable):
         if _hacc_convs(self.net) == 0:
             msg = "ReCoVEr kernels: no conv routed through cudnn_hacc"
             raise RuntimeError(msg)
+
+        encoder = self.net.update_block.encoder
+        with torch.inference_mode(), self.accumulate():
+            tile = encoder.corr_term(5, 5).contiguous(memory_format=torch.channels_last)
+            encoder.register_buffer("correlation_tile", tile, persistent=False)
+            channels = encoder.convf2.out_channels
+            weight = encoder.conv.weight[:, -channels:].contiguous(memory_format=torch.channels_last)
+            encoder.register_buffer("flow_weight", weight, persistent=False)
+        override(encoder, _tile, "corr_term")
+        override(encoder, _motion)
+        override(self.net, _kernel_pair, "pair")
+        self.net.upsample = flow_upsample.convex
 
     def module(self) -> torch.nn.Module:
         """No exportable module: kernel launches."""

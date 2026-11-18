@@ -35,7 +35,7 @@ cuda_dtype = "float16"  # the whole network in fp16 channels-last; flow state an
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc"]  # fp16-accumulate convolutions (+ fp16-accumulate cuBLAS GEMMs)
+kernels = ["recover_motion", "flow_upsample", "cudnn_hacc"]  # fp16-accumulate convolutions (+ fp16-accumulate cuBLAS GEMMs)
 
 [[papers]]
 title = "Removing Cost Volumes from Optical Flow Estimators"

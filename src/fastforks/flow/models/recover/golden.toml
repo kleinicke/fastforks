@@ -27,28 +27,28 @@ upstream = "https://github.com/visinf/ReCoVEr@503a27e38bad1080bd29da91df74c5523e
 settings = "CPU float32, upstream ReCoVEr_RN iters=4 test_mode, skimage astronaut.png 384x512 crop + affine warp as raft_flow.py, torch 2.14.1+cu130"
 
 [validated."recover-cx@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "flow_upsample@5eca8c1a6d3b:sm_120", "recover_motion@22e3acc5bbcd:sm_120"]
+symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}, "recover_motion" = {"pack" = "dbb1ff63c51acd05"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-13"
+date = "2026-11-18"
 mean_px = 0.00353
 p99_px = 0.01055
 
 [validated."recover-mn@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "flow_upsample@5eca8c1a6d3b:sm_120", "recover_motion@22e3acc5bbcd:sm_120"]
+symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}, "recover_motion" = {"pack" = "dbb1ff63c51acd05"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-13"
+date = "2026-11-18"
 mean_px = 0.00762
 p99_px = 0.04174
 
 [validated."recover-rn@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "flow_upsample@5eca8c1a6d3b:sm_120", "recover_motion@22e3acc5bbcd:sm_120"]
+symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}, "recover_motion" = {"pack" = "dbb1ff63c51acd05"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-13"
+date = "2026-11-18"
 mean_px = 0.00259
 p99_px = 0.01058

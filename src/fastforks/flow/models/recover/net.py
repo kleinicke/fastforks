@@ -357,10 +357,17 @@ class ReCoVEr(nn.Module):
         head, out = self.flow_head[0], cast("nn.Conv2d", self.flow_head[2])
         return F.conv2d(F.relu(head(net)), out.weight[:2], cast("torch.Tensor", out.bias)[:2], padding=1)
 
+    @staticmethod
+    def pair(image1: torch.Tensor, image2: torch.Tensor, dtype: torch.dtype) -> torch.Tensor:
+        """The six-channel input of the context encoder."""
+        return torch.cat([image1, image2], dim=1).to(dtype)
+
+    upsample = staticmethod(_upsample)
+
     def forward(self, image1: torch.Tensor, image2: torch.Tensor, iters: int) -> torch.Tensor:
         """Flow after `iters` updates, float32 `[B, 2, H, W]`; runs in the dtype of the weights."""
         dt = self.init_conv.weight.dtype
-        x = torch.cat([image1, image2], dim=1).to(dt)
+        x = self.pair(image1, image2, dt)
         net, context = self.init_conv(self.cnet(x)).split(DIM, dim=1)
         flow = self.delta(net).float()
         corr_term = self.update_block.encoder.corr_term(*net.shape[-2:])
@@ -368,4 +375,4 @@ class ReCoVEr(nn.Module):
             net = self.update_block(net, context, corr_term, flow.to(dt))
             flow = flow + self.delta(net).float()
         mask = 0.25 * self.upsample_weight(net)
-        return _upsample(flow, mask.float())
+        return self.upsample(flow, mask.float())
