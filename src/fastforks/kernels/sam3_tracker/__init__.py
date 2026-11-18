@@ -6,7 +6,8 @@ import torch
 
 from fastforks._core.kernels import cubin_library, linear
 
-load = cubin_library(Path(__file__).with_name("manifest.toml"), {"rotate_pairs": "pppiiiil"})
+SIGNATURES = {"rotate_pairs": "pppiiiil"}
+load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
 
 
 def rotate_(x: torch.Tensor, rope: tuple[torch.Tensor, torch.Tensor], spatial: int) -> torch.Tensor:
@@ -26,7 +27,13 @@ def rotate_(x: torch.Tensor, rope: tuple[torch.Tensor, torch.Tensor], spatial: i
     ):
         msg = "Expected two aligned dense float32 rotation tables on the projection device"
         raise ValueError(msg)
-    if cos.shape != (1, cos.size(1), d) or not 0 < spatial <= tokens or not cos.size(1) or spatial % cos.size(1):
+    if (
+        cos.ndim != 3  # noqa: PLR2004 - [1, spatial tokens, channels]
+        or cos.shape != (1, cos.shape[1], d)
+        or not 0 < spatial <= tokens
+        or not cos.shape[1]
+        or spatial % cos.shape[1]
+    ):
         msg = "Expected one full rotation table per spatial frame and optional trailing object pointers"
         raise ValueError(msg)
     pairs = d // 2
