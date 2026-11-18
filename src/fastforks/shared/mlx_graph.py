@@ -15,6 +15,7 @@ What the translation does beyond a 1:1 op mapping:
 
 An op without a mapping raises `UnsupportedOp` naming it (never a silent fallback).
 """
+# ruff: noqa: SLF001, ARG005, PLR0913, RUF015  # a table of aten overloads: private aten names, uniform lambda signatures
 
 from __future__ import annotations
 
@@ -119,7 +120,9 @@ OPS[aten.hardsigmoid.default] = lambda x: mx.clip(x / 6 + 0.5, 0, 1)
 OPS[aten.hardswish.default] = lambda x: x * mx.clip(x / 6 + 0.5, 0, 1)
 OPS[aten.leaky_relu.default] = lambda x, s=0.01: mx.where(x >= 0, x, x * s)
 OPS[aten.elu.default] = lambda x, a=1.0, *_: mx.where(x > 0, x, a * (mx.exp(x) - 1))
-OPS[aten.softplus.default] = lambda x, beta=1.0, thr=20.0: mx.where(x * beta > thr, x, mx.log1p(mx.exp(x * beta)) / beta)
+OPS[aten.softplus.default] = lambda x, beta=1.0, thr=20.0: mx.where(
+    x * beta > thr, x, mx.log1p(mx.exp(x * beta)) / beta
+)
 OPS[aten.pow.Tensor_Scalar] = lambda x, e: mx.power(x, e)
 OPS[aten.pow.Tensor_Tensor] = mx.power
 OPS[aten.pow.Scalar] = lambda b, e: mx.power(b, e)
@@ -143,6 +146,8 @@ OPS[aten.where.self] = lambda c, a, b: mx.where(c, a, b)
 OPS[aten.where.ScalarOther] = OPS[aten.where.ScalarSelf] = OPS[aten.where.self]
 OPS[aten.masked_fill.Scalar] = lambda x, m, v: mx.where(m, mx.array(v, x.dtype), x)
 OPS[aten.remainder.Scalar] = lambda a, b: mx.remainder(a, b)
+
+
 def _fmod(a: Any, b: Any) -> Any:  # noqa: ANN401
     r = mx.remainder(a, b)
     return mx.where((r != 0) & ((a < 0) != (b < 0)), r - b, r)
@@ -161,7 +166,9 @@ def _gelu(x: mx.array, approximate: str = "none") -> mx.array:
 
 
 # ---- shape ------------------------------------------------------------------------------------------------------
-OPS[aten.view.default] = OPS[aten._unsafe_view.default] = OPS[aten.reshape.default] = lambda x, s: mx.reshape(x, list(s))
+OPS[aten.view.default] = OPS[aten._unsafe_view.default] = OPS[aten.reshape.default] = lambda x, s: mx.reshape(
+    x, list(s)
+)
 OPS[aten.permute.default] = lambda x, d: mx.transpose(x, list(d))
 OPS[aten.transpose.int] = lambda x, a, b: mx.swapaxes(x, a, b)
 OPS[aten.t.default] = lambda x: x.T
@@ -348,9 +355,9 @@ def _softmax(x: mx.array, dim: int, half_to_float: bool = False) -> mx.array:  #
     return mx.softmax(x, axis=dim, precise=True)
 
 
-OPS[aten._log_softmax.default] = lambda x, d, h=False: x - mx.logsumexp(x.astype(mx.float32), axis=d, keepdims=True).astype(
-    x.dtype
-)
+OPS[aten._log_softmax.default] = lambda x, d, h=False: x - mx.logsumexp(
+    x.astype(mx.float32), axis=d, keepdims=True
+).astype(x.dtype)
 
 
 # ---- normalisation ----------------------------------------------------------------------------------------------
@@ -392,7 +399,12 @@ def _group_norm(
 
 @_reg(aten._native_batch_norm_legit_no_training.default, aten.native_batch_norm.default)
 def _batch_norm(
-    x: mx.array, w: mx.array | None, b: mx.array | None, mean: mx.array, var: mx.array, *rest: Any  # noqa: ANN401
+    x: mx.array,
+    w: mx.array | None,
+    b: mx.array | None,
+    mean: mx.array,
+    var: mx.array,
+    *rest: Any,  # noqa: ANN401
 ) -> tuple[mx.array, None, None]:
     eps = rest[-1]
     shape = [1, -1] + [1] * (x.ndim - 2)
@@ -428,8 +440,15 @@ def _conv(
         xl = mx.transpose(x, (0, 2, 1))
         wl = mx.transpose(w, (0, 2, 1))
         if transposed:
-            y = mx.conv_transpose1d(xl, mx.transpose(w, (1, 2, 0)), stride=stride[0], padding=padding[0],
-                                    dilation=dilation[0], output_padding=output_padding[0], groups=groups)
+            y = mx.conv_transpose1d(
+                xl,
+                mx.transpose(w, (1, 2, 0)),
+                stride=stride[0],
+                padding=padding[0],
+                dilation=dilation[0],
+                output_padding=output_padding[0],
+                groups=groups,
+            )
         else:
             y = mx.conv1d(xl, wl, stride=stride[0], padding=padding[0], dilation=dilation[0], groups=groups)
         if b is not None:
@@ -438,8 +457,15 @@ def _conv(
     xl = _nhwc(x)
     if transposed:
         wt = mx.transpose(w, (1, 2, 3, 0))  # [Cin, Cout/g, kh, kw] -> [Cout/g, kh, kw, Cin]
-        y = mx.conv_transpose2d(xl, wt, stride=tuple(stride), padding=tuple(padding), dilation=tuple(dilation),
-                                output_padding=tuple(output_padding), groups=groups)
+        y = mx.conv_transpose2d(
+            xl,
+            wt,
+            stride=tuple(stride),
+            padding=tuple(padding),
+            dilation=tuple(dilation),
+            output_padding=tuple(output_padding),
+            groups=groups,
+        )
     else:
         wl = mx.transpose(w, (0, 2, 3, 1))
         y = mx.conv2d(xl, wl, stride=tuple(stride), padding=tuple(padding), dilation=tuple(dilation), groups=groups)
@@ -470,7 +496,11 @@ def _pool_windows(
 
 @_reg(aten.max_pool2d_with_indices.default, aten.max_pool2d.default)
 def _max_pool(
-    x: mx.array, k: Sequence[int], s: Sequence[int] = (), pad: Sequence[int] = (0, 0), d: Sequence[int] = (1, 1),
+    x: mx.array,
+    k: Sequence[int],
+    s: Sequence[int] = (),
+    pad: Sequence[int] = (0, 0),
+    d: Sequence[int] = (1, 1),
     ceil: bool = False,  # noqa: FBT001, FBT002
 ) -> tuple[mx.array, None]:
     if tuple(d) != (1, 1):
@@ -482,7 +512,11 @@ def _max_pool(
 
 @_reg(aten.avg_pool2d.default)
 def _avg_pool(
-    x: mx.array, k: Sequence[int], s: Sequence[int] = (), pad: Sequence[int] = (0, 0), ceil: bool = False,  # noqa: FBT001, FBT002
+    x: mx.array,
+    k: Sequence[int],
+    s: Sequence[int] = (),
+    pad: Sequence[int] = (0, 0),
+    ceil: bool = False,  # noqa: FBT001, FBT002
     count_include_pad: bool = True,  # noqa: FBT001, FBT002
     divisor: int | None = None,
 ) -> mx.array:
@@ -597,7 +631,12 @@ class GraphNet:
     """
 
     def __init__(
-        self, module: torch.nn.Module, dtype: str = "float32", *, compile: bool = True, kernels: bool = False  # noqa: A002
+        self,
+        module: torch.nn.Module,
+        dtype: str = "float32",
+        *,
+        compile: bool = True,
+        kernels: bool = False,  # noqa: A002
     ) -> None:
         """Keep the module until its first export; parameters convert then."""
         self.module = module.eval()
@@ -618,6 +657,7 @@ class GraphNet:
 
     def _build(self, args: tuple[torch.Tensor, ...]) -> Callable[..., Any]:
         with torch.no_grad():
+            self.module(*args)  # fills lazily built buffers (attention bias caches) that export must not assign
             ep = torch.export.export(self.module, args, strict=False)
             decomp = torch.export.default_decompositions()
             for keep in (aten.scaled_dot_product_attention.default, aten.upsample_bilinear2d.vec):

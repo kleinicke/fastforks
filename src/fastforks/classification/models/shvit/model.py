@@ -4,4 +4,9 @@ from __future__ import annotations
 
 from fastforks.shared import libnet
 
-RUNNERS = {"portable": libnet.Portable, "kernels": libnet.PoolKernels, "portable_mlx": libnet.Mlx, "kernels_mlx": libnet.Mlx}
+RUNNERS = {
+    "portable": libnet.Portable,
+    "kernels": libnet.PoolKernels,
+    "portable_mlx": libnet.Mlx,
+    "kernels_mlx": libnet.Mlx,
+}

@@ -54,6 +54,7 @@ class Kernels(libnet.Kernels):
 class Mlx(libnet.Mlx):
     """Apple MLX: the same adapted network through the generic MLX translation."""
 
+    Params = Params
     network = staticmethod(network)
 
 
