@@ -139,7 +139,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `totalsegmentator-total` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 47779<br>45630<br>1927<br>1740<br>fails: no exportable module (multi-network sliding-window pipeline)<br>fails: no exportable module (multi-network sliding-window pipeline; | 8150 / 8604<br>2640 / 2874<br>2605 / 2944<br>2349 / 2704<br>–<br>– |
-| `totalsegmentator-total-3mm` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7304<br>7270<br>67.1<br>63.5<br>fails: no exportable module (multi-network sliding-window pipeline)<br>fails: no exportable module (multi-network sliding-window pipeline; | 5358 / 5698<br>2010 / 2684<br>1092 / 1508<br>1037 / 1410<br>–<br>– |
+| `totalsegmentator-total-3mm` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7304<br>7270<br>67.8<br>63.5<br>60.3 (patch network, development build)<br>74.4 (patch network, standalone build) | 5358 / 5698<br>2010 / 2684<br>1096 / 1670<br>1037 / 1410<br>910 / 1278<br>2909 / 2970 |
 
 <details><summary>Details</summary>
 
@@ -153,6 +153,7 @@ Commercial use: yes.
 - Outputs: labels
 - Input size: any D x H x W volume and its voxel spacing (resampled to the model spacing, sliding window)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `totalsegmentator-total` 512x512x512 voxels (5.5 GiB peak allocated, 5.8 reserved); `totalsegmentator-total-3mm` 512x512x512 voxels (4.3 GiB peak allocated, 5.1 reserved)
+- `totalsegmentator-total-3mm` 200x200, first call: portable + torch.compile 8 s (cold Inductor cache), TensorRT fp16 31 s (ONNX + engine).
 - `totalsegmentator-total` original (fp32) 200x200, original 200x200: totalsegmentator(nifti, ml=True, fast=False, device='gpu') on the in-memory NIfTI (CPU numpy in, labels out; weights load per call as upstream)
 - `totalsegmentator-total-3mm` original (fp32) 200x200, original 200x200: totalsegmentator(nifti, ml=True, fast=True, device='gpu') on the in-memory NIfTI (CPU numpy in, labels out; weights load per call as upstream)
 - `totalsegmentator-total` load / first call: original 0.07 s / 54.51 s, portable 0.77 s / 2.103 s, kernels 0.77 s / 1.879 s
@@ -161,14 +162,15 @@ Commercial use: yes.
 
 ### Measured
 
-A small subset of real CT cases of the TotalSegmentator dataset (not the full test split), each run at its card's spacing (1.5 or 3 mm) in the same pipeline; mean over the cases of the Dice (0 to 1) averaged over the classes present, against the ground-truth segmentations (vertebrae_L6 of the subset has no counterpart and is skipped). Original = TotalSegmentator 2.18.0, default fp16 autocast. Original = the original code named under Details, same checkpoint and protocol.
+A small subset of real CT cases of the TotalSegmentator dataset (not the full test split), each run at its card's spacing (1.5 or 3 mm) in the same pipeline; mean over the cases of the Dice (0 to 1) averaged over the classes present, against the ground-truth segmentations (vertebrae_L6 of the subset has no counterpart and is skipped). Original = TotalSegmentator 2.18.0, default fp16 autocast. A paired check on one labeled CT at the variant's spacing. The compiled or TensorRT patch network runs inside the same PyTorch sliding-window pipeline. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `totalsegmentator-total` | TotalSegmentator test subset (7 CT cases), 1.5 mm, mean Dice | 0.9365 | 0.9365 | 0.9365 |  |
-| `totalsegmentator-total-3mm` | TotalSegmentator test subset (8 CT cases), 3 mm, mean Dice | 0.8285 | 0.8285 | 0.8285 |  |
+| variant | dataset | original fp16 | portable | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|
+| `totalsegmentator-total` | TotalSegmentator test subset (7 CT cases), 1.5 mm, mean Dice | 0.9365 | 0.9365 | 0.9365 |  |  |  |
+| `totalsegmentator-total-3mm` | TotalSegmentator test subset (8 CT cases), 3 mm, mean Dice | 0.8285 | 0.8285 | 0.8285 |  |  |  |
+| `totalsegmentator-total-3mm` | TotalSegmentator CT s0013, mean Dice over present classes |  | 0.7980 |  | 0.7980 | 0.7980 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2d71f180, 2026-11-14.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2d71f180 / 550adc40, 2026-11-14 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2d71f180, 2026-11-14; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 550adc40, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
 
 ### Parity
 

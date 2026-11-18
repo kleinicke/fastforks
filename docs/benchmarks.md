@@ -1526,7 +1526,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | nnfoundation-vit | 192x192 | OOM | 1930 | 1848 | 1732 | 1.1x | 1.1x | 3930 / 4298 | 1669 / 1884 | 1669 / 1884 |
 | nninteractive | 200x200 | 705 | 460 | 215 | 201 | 2.3x | 1.1x | 4076 / 4636 | 3075 / 3492 | 2643 / 3072 |
 | totalsegmentator-total | 200x200 | 47779 | 45630 | 1927 | 1740 | 26.2x | 1.1x | 2640 / 2874 | 2605 / 2944 | 2349 / 2704 |
-| totalsegmentator-total-3mm | 200x200 | 7304 | 7270 | 67.1 | 63.5 | 114.4x | 1.1x | 2010 / 2684 | 1092 / 1508 | 1037 / 1410 |
+| totalsegmentator-total-3mm | 200x200 | 7304 | 7270 | 67.8 | 63.5 | 114.4x | 1.1x | 2010 / 2684 | 1096 / 1670 | 1037 / 1410 |
 
 ### Startup and first call
 
@@ -2721,7 +2721,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | nninteractive | 200x200 | 215 ms | 162 ms | fails: The TensorRT export accepts prepared 192³ network patches. | 201 ms | 18.0 s | – | 3075 / 3492 | 3643 / 3832 | 2643 / 3072 | – |
 | nninteractive | 192x192 | – | – | 262 ms (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | – | – | 58.0 s | – | – | – | 2738 / 2740 |
 | totalsegmentator-total | 200x200 | 1927 ms | fails: no exportable module (multi-network sliding-window pipeline) | fails: no exportable module (multi-network sliding-window pipeline; | 1740 ms | – | – | 2605 / 2944 | – | 2349 / 2704 | – |
-| totalsegmentator-total-3mm | 200x200 | 67.1 ms | fails: no exportable module (multi-network sliding-window pipeline) | fails: no exportable module (multi-network sliding-window pipeline; | 63.5 ms | – | – | 1092 / 1508 | – | 1037 / 1410 | – |
+| totalsegmentator-total-3mm | 200x200 | 67.8 ms | 60.3 ms (patch network, development build) | 74.4 ms (patch network, standalone build) | 63.5 ms | 8.46 s | 31.3 s | 1096 / 1670 | 910 / 1278 | 1037 / 1410 | 2909 / 2970 |
 <!-- compile:end -->
 
 ## Original code

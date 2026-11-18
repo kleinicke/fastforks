@@ -489,13 +489,14 @@ Commercial use: `segformer-b0-ade20k`, `segformer-b5-ade20k`, `segformer-b2-clot
 
 ### Measured
 
-Each image at its own size, argmax of the logits. The 200-image ckotait/ATRDataset test split. Scores use one pixel confusion matrix across the split with 18 classes and ignore label 255. Original = the original code named under Details, same checkpoint and protocol.
+Each image at its own size, argmax of the logits. The 200-image ckotait/ATRDataset test split. Scores use one pixel confusion matrix across the split with 18 classes and ignore label 255. Scores use one pixel confusion matrix across the split. Left and right eyes share one class, and left and right brows share one class. Labels outside the eight shared foreground classes count as background. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
 | `segformer-b0-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 34.68 / 76.41 | 34.68 / 76.41 | 34.67 / 76.41 | 34.68 / 76.41 | 34.67 / 76.41 |  |
 | `segformer-b5-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 48.28 / 82.75 | 48.28 / 82.75 | 48.28 / 82.75 | 48.28 / 82.75 | 48.28 / 82.75 |  |
 | `segformer-b2-clothes` | ATR mirror test split (200 images), mIoU / aAcc % |  |  |  | 74.96 / 97.85 |  |  |
+| `segformer-b5-face-parsing` | LaPa test (2,000 images), common face parts, mIoU / aAcc % |  |  |  | 72.55 / 94.08 |  |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 

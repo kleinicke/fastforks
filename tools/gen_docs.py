@@ -112,6 +112,7 @@ _DATASETS = {
     "volume": {
         "totalseg-subset-3mm": "TotalSegmentator test subset (8 CT cases), 3 mm, mean Dice",
         "totalseg-subset-1.5mm": "TotalSegmentator test subset (7 CT cases), 1.5 mm, mean Dice",
+        "totalseg-ct-s0013": "TotalSegmentator CT s0013, mean Dice over present classes",
         "totalseg-nninteractive-prompts-96": "TotalSegmentator test subset (8 CT cases x 12 prompts), mean Dice vs the "
         "ground-truth mask",
         "totalseg-featparity-8": "TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: "
@@ -458,6 +459,8 @@ _PROTOCOL = {
     ("volume", "totalseg-nninteractive-prompts-96"): "nnInteractive: per case 12 simulated prompts (point, box, "
     "scribble, point + box on 3 organs), one interaction each; Dice of the predicted mask against the ground-truth "
     "organ mask, mean over the runs. Agreement is Dice against the original FP16 or portable FP16 mask as labelled. ",
+    ("volume", "totalseg-ct-s0013"): "A paired check on one labeled CT at the variant's spacing. The compiled or "
+    "TensorRT patch network runs inside the same PyTorch sliding-window pipeline. ",
     ("volume", "totalseg-featparity-8"): "Encoder models have no task head, so they are judged by their output: the "
     "encoder feature maps against the original fp32 maps (cosine similarity, worst case over the cases and the mean "
     "over the maps; relative L2 error, mean). Original (fp32) is the reference; the original fp16 row shows the error "
