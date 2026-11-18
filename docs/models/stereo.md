@@ -377,7 +377,7 @@ Commercial use: yes.
 - Weights licence: MIT (assumed from code)
 - Licence evidence: <https://github.com/gallenszl/CFNet/blob/982230dd360583fc35743d0b7ed528982fe5fd38/README.md#L72>
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
-- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
+- Kernel libraries: `cfnet_volume`, `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `cfnet-sceneflow`
 - Outputs: disparity
 - Input size: any H x W >= 64, padded to a multiple of 64
@@ -404,7 +404,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `cfnet-sceneflow` | 0.00193 / 0.0126 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `cfnet-sceneflow` | 0.00191 / 0.01436 | RTX 5060 Ti, torch 2.10.0+cu130 | `cfnet_volume@b9c5fed4f6e6:sm_120`, `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
 
 </details>
 

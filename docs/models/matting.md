@@ -327,7 +327,7 @@ Commercial use: yes.
 - Licence evidence: https://github.com/xuebinqin/U-2-Net/blob/ac7e1c817ecab7c7dff5ce6b1abba61cd213ff29/LICENSE ; https://github.com/xuebinqin/U-2-Net/blob/ac7e1c817ecab7c7dff5ce6b1abba61cd213ff29/README.md
 - Training data: DUTS (salient object detection) (README / paper: trained on DUTS-TR (10553 images).)
   - `u2net-human-seg`: Supervisely Person Dataset (human segmentation) (README (2021-Feb-06): the human segmentation model, trained on the Supervisely Person Dataset.)
-- Kernel libraries: `cudnn_hacc`, `igev`, `cutlass_conv`
+- Kernel libraries: `resize_cat`, `cudnn_hacc`, `igev`, `cutlass_conv`
 - Variants: `u2net`, `u2netp`, `u2net-human-seg`
 - Outputs: alpha
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -361,9 +361,9 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `u2net` | 0.00022 / 0.00703 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-| `u2netp` | 0.00073 / 0.02029 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-| `u2net-human-seg` | 0.00033 / 0.00492 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `u2net` | 0.00023 / 0.00721 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `resize_cat@60f9273249a3:sm_120` |
+| `u2netp` | 0.00061 / 0.01642 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `resize_cat@60f9273249a3:sm_120` |
+| `u2net-human-seg` | 0.00013 / 0.00207 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `resize_cat@60f9273249a3:sm_120` |
 
 </details>
 
