@@ -16,12 +16,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import torch
+import torch.nn.functional as F
 
 from fastforks._core.checkpoint import NUMPY_ARRAYS, Inert, latin1_encode, load_strict, restricted_load
 from fastforks._core.errors import OptionsError, WeightsError
 from fastforks._core.patch import base_type, override
 from fastforks._core.runner import host
-from fastforks.volume._nnunet import Plan, Predictor, UNet, read_plan
+from fastforks.volume._nnunet import Plan, Predictor, UNet, _ConvNormAct, read_plan
 from fastforks.volume._runner import Runner
 
 if TYPE_CHECKING:
@@ -230,6 +231,17 @@ def fused_norm_act(self: Any, y: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 
     return base_type(self).norm_act(self, y)
 
 
+def _biased_conv_norm(self: Any, x: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - nnU-Net conv block
+    from fastforks.kernels import vol_norm  # noqa: PLC0415 - kernels only
+
+    # cuDNN otherwise adds the channel bias in a separate pass over the complete feature map.
+    conv = self.conv
+    y = F.conv3d(x, conv.weight, None, conv.stride, conv.padding, conv.dilation, conv.groups)
+    if vol_norm.supported(y):
+        return vol_norm.norm_act_(y, self.norm.weight, self.norm.bias, self.norm.eps, self.slope, conv_bias=conv.bias)
+    return self.norm_act(y.add_(conv.bias.view(1, -1, 1, 1, 1)))
+
+
 class Kernels(Portable):
     """Portable + InstanceNorm + (Leaky)ReLU as one in-place two-pass kernel (`vol_norm`) on the fp16 feature maps."""
 
@@ -243,6 +255,8 @@ class Kernels(Portable):
     def _net(self, index: int, plan: Plan, channels: int) -> torch.nn.Module:
         net = super()._net(index, plan, channels)
         for m in net.modules():
-            if hasattr(m, "norm_act"):
+            if isinstance(m, _ConvNormAct):
                 override(m, fused_norm_act, "norm_act")
+                if m.conv.bias is not None:
+                    override(m, _biased_conv_norm)
         return net

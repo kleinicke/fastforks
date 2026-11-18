@@ -27,8 +27,8 @@ upstream = "https://github.com/MIC-DKFZ/nnssl@3d774e942256bd70e5e264c6b94fa38e25
 settings = "CPU float32, nnssl's network (nnFoundationViT) encoder on s0013 ct.nii.gz, centre crop (40, 56, 72) (z, y, x) RAS, nnU-Net ZScoreNormalization, zero pad at the far end, torch 2.10.0+cu130"
 
 [validated."nnfoundation-cnn@1"]
-kernels = ["vol_norm@aaf727a9a679:sm_120"]
-symbols = {"vol_norm" = {"in_apply_h" = "a84d40b2b95544ae", "in_final_h" = "144f91a7be7a46b5", "in_stats_h" = "2278a5cf31fe7e1f"}}
+kernels = ["vol_norm@c55f9fff92d3:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "f40ffff97c133f01", "in_final_h" = "5eefed9a4dd8f36f", "in_stats_h" = "e1716ce54b75e405"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-18"
@@ -36,8 +36,8 @@ mean_px = 0.00063
 p99_px = 0.00378
 
 [validated."nnfoundation-vit@1"]
-kernels = ["vol_norm@aaf727a9a679:sm_120"]
-symbols = {"vol_norm" = {"in_apply_h" = "a84d40b2b95544ae", "in_final_h" = "144f91a7be7a46b5", "in_stats_h" = "2278a5cf31fe7e1f"}}
+kernels = ["vol_norm@c55f9fff92d3:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "f40ffff97c133f01", "in_final_h" = "5eefed9a4dd8f36f", "in_stats_h" = "e1716ce54b75e405"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-18"
