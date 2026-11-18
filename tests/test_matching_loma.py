@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 import torch
 
 from fastforks import matching
@@ -114,3 +115,17 @@ def test_sparse_descriptor_matches_dense_at_edges() -> None:
         expected = describe_keypoints(descriptor(image), points)
         actual = _sparse.sample(descriptor, image, points)
         torch.testing.assert_close(actual, expected, atol=5e-4, rtol=1e-3)
+
+
+@pytest.mark.gpu
+def test_cuda_descriptor_blend_strided() -> None:
+    from fastforks.kernels.loma_descriptor import blend  # noqa: PLC0415
+
+    prior = torch.randn(1, 9, 7, 12, dtype=torch.float16, device="cuda").contiguous(memory_format=torch.channels_last)
+    delta = torch.randn(4, 31, 9, dtype=torch.float16, device="cuda").permute(2, 0, 1)
+    ix = torch.randint(23, (31, 4), device="cuda").T
+    iy = torch.randint(13, (31, 4), device="cuda").T
+    weights = torch.rand(31, 4, device="cuda").T
+    result = blend(prior, delta, ix, iy, weights, (13, 23))
+    expected = _sparse._blend(prior, delta, ix, iy, weights, (13, 23))
+    torch.testing.assert_close(result, expected, rtol=1e-6, atol=1e-6)

@@ -1,5 +1,7 @@
 """Sample the last DeDoDe descriptor stage at the LoMa keypoints."""
 
+from collections.abc import Callable
+
 import torch
 import torch.nn.functional as F
 
@@ -16,7 +18,31 @@ def _project(
     return layer.out_conv(points)[0]
 
 
-def sample(network: Descriptor, image: torch.Tensor, keypoints: torch.Tensor) -> torch.Tensor:
+def _blend(  # noqa: PLR0913, PLR0917 - the last two scales and the interpolation stencil
+    prior: torch.Tensor,
+    delta: torch.Tensor,
+    ix: torch.Tensor,
+    iy: torch.Tensor,
+    weights: torch.Tensor,
+    size: tuple[int, int],
+) -> torch.Tensor:
+    h, w = size
+    # Bilinear resize of the penultimate descriptor at those same pixel centres, with border replication.
+    ch, cw = prior.shape[-2:]
+    cx, cy = ((ix + 0.5) * (cw / w) - 0.5).clamp_min(0), ((iy + 0.5) * (ch / h) - 0.5).clamp_min(0)
+    left, top = cx.long(), cy.long()
+    right, bottom = (left + 1).clamp_max(cw - 1), (top + 1).clamp_max(ch - 1)
+    fx, fy = cx - left, cy - top
+    upper = (1 - fx) * prior[0, :, top, left] + fx * prior[0, :, top, right]
+    lower = (1 - fx) * prior[0, :, bottom, left] + fx * prior[0, :, bottom, right]
+    resized = ((1 - fy) * upper + fy * lower).to(prior.dtype)
+    values = delta + resized
+    return (values.float() * weights).sum(dim=1).mT
+
+
+def sample(
+    network: Descriptor, image: torch.Tensor, keypoints: torch.Tensor, *, blend: Callable = _blend
+) -> torch.Tensor:
     """Evaluate the dense convolutions up to the final pointwise projection and sample its four neighbours."""
     features, sizes = network.encoder(image)
     features = list(features)
@@ -43,14 +69,4 @@ def sample(network: Descriptor, image: torch.Tensor, keypoints: torch.Tensor) ->
     weights = weights.masked_fill((ix < 0) | (ix >= w) | (iy < 0) | (iy >= h), 0)
     ix, iy = ix.clamp(0, w - 1), iy.clamp(0, h - 1)
     delta = _project(layer, features[0], context, iy, ix)
-    # Bilinear resize of the penultimate descriptor at those same pixel centres, with border replication.
-    ch, cw = prior.shape[-2:]
-    cx, cy = ((ix + 0.5) * (cw / w) - 0.5).clamp_min(0), ((iy + 0.5) * (ch / h) - 0.5).clamp_min(0)
-    left, top = cx.long(), cy.long()
-    right, bottom = (left + 1).clamp_max(cw - 1), (top + 1).clamp_max(ch - 1)
-    fx, fy = cx - left, cy - top
-    upper = (1 - fx) * prior[0, :, top, left] + fx * prior[0, :, top, right]
-    lower = (1 - fx) * prior[0, :, bottom, left] + fx * prior[0, :, bottom, right]
-    resized = ((1 - fy) * upper + fy * lower).to(prior.dtype)
-    values = delta[: network.decoder.num_prototypes] + resized
-    return (values.float() * weights).sum(dim=1).mT
+    return blend(prior, delta[: network.decoder.num_prototypes], ix, iy, weights, (h, w))

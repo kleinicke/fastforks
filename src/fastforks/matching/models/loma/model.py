@@ -29,6 +29,7 @@ from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks._core.patch import override
+from fastforks.kernels import loma_descriptor
 from fastforks.matching._dedode_kernels import prepare
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared.dedode import (
@@ -264,7 +265,7 @@ class Kernels(Portable):
 
 
 def _sample_descriptor(net: Matcher, image: torch.Tensor, keypoints: torch.Tensor) -> torch.Tensor:
-    return _sparse.sample(net.descriptor, image, keypoints)
+    return _sparse.sample(net.descriptor, image, keypoints, blend=loma_descriptor.blend)
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}
