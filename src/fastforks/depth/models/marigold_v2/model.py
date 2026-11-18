@@ -165,15 +165,11 @@ class Kernels(Runner):
         return {"depth": infer(self.net, image, self.ctx.params, self.noise)}
 
 
-_POOL: dict[tuple[int, torch.device], torch.Tensor] = {}  # one bf16 buffer per weight size: no allocator churn
-
-
 def _dequant(lin: NF4Linear) -> torch.Tensor:
     q, absmax, bias = (cast("torch.Tensor", t) for t in (lin.q, lin.absmax, lin.bias))  # registered buffers
-    key = (q.numel(), q.device)
-    out = _POOL.get(key)
-    if out is None:
-        out = _POOL[key] = torch.empty(q.numel() * 2, dtype=torch.bfloat16, device=q.device)
+    # A linear consumes the expansion on the current stream. PyTorch's allocator
+    # reuses the storage after the GEMM and isolates concurrent inference streams.
+    out = torch.empty(q.numel() * 2, dtype=torch.bfloat16, device=q.device)
     nf4.dequant(q, absmax, cast("torch.Tensor", NF4Linear.code), out)
     return out.view(bias.numel(), -1)
 
