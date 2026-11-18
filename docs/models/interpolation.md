@@ -46,7 +46,7 @@ Commercial use: yes.
 - Licence evidence: https://github.com/MCG-NJU/EMA-VFI/blob/75b6f6a889e695df875e103374040d47a4cfac7c/LICENSE ; https://github.com/MCG-NJU/EMA-VFI/blob/75b6f6a889e695df875e103374040d47a4cfac7c/README.md (checkpoints: https://drive.google.com/drive/folders/16jUa3HkQ85Z5lb5gce1yoaWkP-rdCd0o)
 - Training data: Vimeo-90K (septuplets / triplets for frame interpolation) (README: the fixed-time models train on Vimeo-90K triplets (train.py); the arbitrary-time `_t` models are evaluated on 4x / 8x benchmarks, their training data is not stated (the paper: Vimeo-90K septuplets).)
 - Options: `cuda_graphs` = True (speed only), `tta` = False
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `ema_warp`
 - Variants: `ema-vfi`, `ema-vfi-small`, `ema-vfi-t`, `ema-vfi-small-t`
 - Outputs: frame
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -84,14 +84,14 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `ema-vfi` | 0.00018 / 0.00062 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `ema-vfi-small` | 0.00018 / 0.00058 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `ema-vfi-t` | 0.0002 / 0.00082 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `ema-vfi-small-t` | 0.00019 / 0.00065 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `ema-vfi` | 0.00018 / 0.00062 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `ema_warp@21d377c732d5:sm_120` |
+| `ema-vfi-small` | 0.00018 / 0.00058 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `ema_warp@21d377c732d5:sm_120` |
+| `ema-vfi-t` | 0.0002 / 0.00082 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `ema_warp@21d377c732d5:sm_120` |
+| `ema-vfi-small-t` | 0.00019 / 0.00065 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `ema_warp@21d377c732d5:sm_120` |
 
 ### Limitations
 
-- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~670 (480x854) / 3200 (1080x1920) MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
+- CUDA graph replay keeps a private pool and static outputs for the current shape. Use `cuda_graphs=false` to disable capture or `release_graphs()` to free the graph.
 
 </details>
 

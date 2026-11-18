@@ -102,7 +102,7 @@ Commercial use: yes.
 - Training data: RealEstate10K (camera trajectories of YouTube real-estate videos) (RealEstate10K (YouTube videos, camera poses from ORB-SLAM; research use per its release), from a UniMatch depth / Depth Anything V2 Small initialisation.)
 - Licence note: Only the Small RealEstate10K checkpoint is shipped: MIT code and weights, its monocular branch initialised from Depth Anything V2 Small (Apache-2.0). The Base / Large checkpoints build on Depth Anything V2 Base / Large (CC-BY-NC-4.0) and are not offered.
 - Options: `long_side` = 256 (>= 16)
-- Kernel libraries: `fastbb`, `cudnn_hacc`
+- Kernel libraries: `fastbb`, `cudnn_hacc`, `depthsplat_corr`
 - Variants: `depthsplat-small-re10k`
 - Outputs: depth, confidence, gaussians; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -128,7 +128,7 @@ CPU, float32: max |diff| <= 1.6e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `depthsplat-small-re10k` | 0.00197 / 0.00899 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120` |
+| `depthsplat-small-re10k` | 0.00197 / 0.00898 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `depthsplat_corr@041692f383aa:sm_120`, `fastbb@7d058322634d:sm_120` |
 
 </details>
 
@@ -208,8 +208,8 @@ Commercial use: yes.
 - Training data: The apache variant is trained on the subset of the paper's 13 datasets whose licences allow commercial use (README 'Models'; the exact list is in the paper). The CC-BY-NC facebook/map-anything checkpoint is not packaged.
 - Licence note: The map-anything-apache weights are Apache-2.0, but the repository does not list the datasets they were trained on (the paper names the commercially usable subset), so their training-data terms are unclear here.
 - Licence note: The CC-BY-NC facebook/map-anything checkpoint is not packaged.
-- Options: `long_side` = 518 (>= 14; also `resolution`)
-- Kernel libraries: `fastbb`
+- Options: `stream` = False (speed only), `long_side` = 518 (>= 14; also `resolution`)
+- Kernel libraries: `fastbb`, `swiglu`
 - Variants: `mapanything-apache`
 - Outputs: depth, confidence, mask, world_points, intrinsics, cam_to_world, metric_scale (in `extras`); kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -237,7 +237,11 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `mapanything-apache` | 0.00022 / 0.00072 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
+| `mapanything-apache` | 0.00022 / 0.00072 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `swiglu@25fe34a2d389:sm_120` |
+
+### Limitations
+
+- CUDA stream=True keeps the encoder and info-sharing transformer weights in pinned host RAM. The dense, pose and scale heads and activations remain on the GPU. Export requires resident weights.
 
 </details>
 
@@ -485,7 +489,7 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
   - `resplat-base-re10k`: RealEstate10K (camera trajectories of YouTube real-estate videos) (RealEstate10K (YouTube videos, camera poses from ORB-SLAM; research use per its release), from a DepthSplat / Depth Anything V2 Base (CC-BY-NC-4.0) depth initialisation.)
 - Licence note: Code and checkpoints are MIT. The Base RealEstate10K checkpoint's monocular branch is initialised from Depth Anything V2 Base (CC-BY-NC-4.0) and is labelled non-commercial; the Small DL3DV checkpoint builds on Depth Anything V2 Small (Apache-2.0).
 - Options: `long_side` = 0 (>= 0), `refine` = 2 (>= 0)
-- Kernel libraries: `fastbb`, `cudnn_hacc`, `gsraster`
+- Kernel libraries: `fastbb`, `cudnn_hacc`, `gsraster`, `depthsplat_corr`
 - Variants: `resplat-small-dl3dv`, `resplat-base-re10k`
 - Not in this release (planned for 0.2.1): `resplat-small-dl3dv` ONNX / TensorRT export: torch.export cannot capture data-dependent Gaussian renderer shapes
 - Outputs: depth, confidence, gaussians; kind: `metric`
@@ -517,8 +521,8 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `resplat-small-dl3dv` | 0.00302 / 0.00738 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120`, `gsraster@be9d99ba7071:sm_120` |
-| `resplat-base-re10k` | 0.00424 / 0.01598 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120`, `gsraster@be9d99ba7071:sm_120` |
+| `resplat-small-dl3dv` | 0.00303 / 0.00749 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `depthsplat_corr@041692f383aa:sm_120`, `fastbb@7d058322634d:sm_120`, `gsraster@be9d99ba7071:sm_120` |
+| `resplat-base-re10k` | 0.00422 / 0.01598 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `depthsplat_corr@041692f383aa:sm_120`, `fastbb@7d058322634d:sm_120`, `gsraster@be9d99ba7071:sm_120` |
 
 ### Limitations
 

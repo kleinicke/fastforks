@@ -910,6 +910,7 @@ option features.clip.fp16_accumulate
 option features.clip.fp32_accumulate
 option features.clip.stream
 option features.dinov2.fp16_accumulate
+option features.dinov2.stream
 option features.dinov3.fp16_accumulate
 option features.dinov3.stream
 option features.perception_encoder.fp16_accumulate
@@ -961,6 +962,7 @@ option multiview.lingbot_map.long_side
 option multiview.lingbot_map.scale_frames
 option multiview.lingbot_map.window
 option multiview.mapanything.long_side aliases resolution
+option multiview.mapanything.stream
 option multiview.mvsanywhere.long_side
 option multiview.mvsanywhere.refinement_steps
 option multiview.mvsplat.long_side
@@ -982,11 +984,13 @@ option pose.vitpose.fp32_accumulate
 option pose.yunet.score_threshold
 option promptable_segmentation.clipseg.cuda_graphs
 option promptable_segmentation.sam2.samurai
+option promptable_segmentation.sam3.cuda_graphs
 option restoration.codeformer.fidelity aliases fidelity_weight
 option restoration.lama.cuda_graphs
 option restoration.seedvr2.quant
 option restoration.seedvr2.seed
 option restoration.seedvr2.stream
+option segmentation.sapiens.stream
 option stereo.c_foundationstereo.iters
 option stereo.coex.cuda_graphs
 option stereo.crestereo.iters

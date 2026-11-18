@@ -404,7 +404,8 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - Weights licence: CC-BY-NC-4.0
 - Licence evidence: <https://huggingface.co/facebook/sapiens-seg-1b-torchscript/blob/584504252a6d2a27ea6560927811db734ee42332/README.md>
 - Training data: MAE pretraining on Humans-300M (Meta-internal, not released); segmentation fine-tuning on Goliath body-part annotations (Meta, not released)
-- Kernel libraries: `fastbb`, `cudnn_hacc`, `seg_up`
+- Options: `stream` = False (speed only)
+- Kernel libraries: `dpt_fused`, `fastbb`, `cudnn_hacc`, `seg_up`
 - Variants: `sapiens-seg-0.3b-goliath`, `sapiens-seg-1b-goliath`
 - Outputs: logits; label_set: `goliath-28`
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -435,8 +436,12 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `sapiens-seg-0.3b-goliath` | 0.00478 / 0.01673 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120`, `seg_up@3e44e71200cd:sm_120` |
-| `sapiens-seg-1b-goliath` | 0.00819 / 0.03064 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120`, `seg_up@3e44e71200cd:sm_120` |
+| `sapiens-seg-0.3b-goliath` | 0.00475 / 0.01661 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `seg_up@3e44e71200cd:sm_120` |
+| `sapiens-seg-1b-goliath` | 0.00817 / 0.03058 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `seg_up@3e44e71200cd:sm_120` |
+
+### Limitations
+
+- CUDA stream=True stages the ViT blocks from pinned host RAM. The decoder and its feature maps stay resident on the GPU. Export requires stream=False.
 
 </details>
 

@@ -174,7 +174,7 @@ Commercial use: yes.
 - Licence evidence: https://github.com/Parskatt/DeDoDe/blob/6d156183f4dc84cd704ae779eebc8350995c5b06/README.md#license ; https://github.com/Parskatt/DeDoDe/blob/6d156183f4dc84cd704ae779eebc8350995c5b06/LICENSE
 - Training data: MegaDepth (Internet photo collections with SfM / MVS depth) (Detector v2 and descriptors: MegaDepth (README training section, papers); DINOv2 (-G, frozen): LVD-142M (Meta).)
 - Options: `size` = 784 (>= 56), `max_keypoints` = 10000 (>= 1)
-- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
+- Kernel libraries: `dual_softmax`, `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `dedode-v2-b`, `dedode-v2-g`
 - Not in this release (planned for 0.2.1): `dedode-v2-b` TensorRT export: TensorRT TopK supports K <= 3840; the keypoint top-k is larger; `dedode-v2-g` TensorRT export: TensorRT TopK supports K <= 3840; the keypoint top-k is larger
 - Outputs: keypoints1, keypoints2, pairs, scores
@@ -207,8 +207,8 @@ CPU, float32: max |diff| <= 0.011 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `dedode-v2-b` | 0.002 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-| `dedode-v2-g` | 0.002 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `dedode-v2-b` | 0.002 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dual_softmax@8f8c56467b1f:sm_120`, `igev@f075827d68c6:sm_120` |
+| `dedode-v2-g` | 0.002 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dual_softmax@8f8c56467b1f:sm_120`, `igev@f075827d68c6:sm_120` |
 
 ### Limitations
 
@@ -241,7 +241,7 @@ Commercial use: yes.
 - Licence evidence: https://github.com/zju3dv/LoFTR/blob/df7ca80f917334b94cfbe32cc2901e09a80e70a8/LICENSE ; https://huggingface.co/kornia/loftr/tree/0fb3b456cf176746709c38fa9cf80695a1c82dac
 - Training data: MegaDepth (Internet photo collections with SfM / MVS depth) (loftr-outdoor: MegaDepth. loftr-indoor: ScanNet (ScanNet terms of use: non-commercial research), README training section.)
 - Options: `long_side` = 840 (>= 0)
-- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
+- Kernel libraries: `dual_softmax`, `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `loftr-outdoor`, `loftr-indoor`
 - Not in this release (planned for 0.2.1): `loftr-outdoor` ONNX / TensorRT export: torch.export stops at a data-dependent branch (loftr.py:190); `loftr-indoor` TensorRT export: fixed 768 x 1024 TensorRT loses 5.27 AUC@20 points in FP16 and 2.58 AUC@10 points in FP32 on ScanNet
 - Outputs: keypoints1, keypoints2, pairs, scores
@@ -273,8 +273,8 @@ CPU, float32: max |diff| <= 3e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `loftr-outdoor` | 0.00211 / 0.01445 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-| `loftr-indoor` | 0.00174 / 0.01007 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `loftr-outdoor` | 0.00211 / 0.01445 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dual_softmax@8f8c56467b1f:sm_120`, `igev@f075827d68c6:sm_120` |
+| `loftr-indoor` | 0.00174 / 0.01007 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dual_softmax@8f8c56467b1f:sm_120`, `igev@f075827d68c6:sm_120` |
 
 ### Limitations
 

@@ -158,7 +158,7 @@ Commercial use: yes.
   - `flowseek-t-things`: TartanAir, FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa) (TartanAir, FlyingChairs, then FlyingThings3D (part of SceneFlow))
   - `flowseek-t-things-notartan`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa) (FlyingChairs, then FlyingThings3D (part of SceneFlow))
 - Options: `iters` = 4 (>= 1)
-- Kernel libraries: `raft_flow`
+- Kernel libraries: `flowseek_corr`, `flow_upsample`
 - Variants: `flowseek-t`, `flowseek-t-things`, `flowseek-t-things-notartan`
 - Outputs: flow
 - Input size: any H x W >= 128, resized or padded inside the model
@@ -198,9 +198,9 @@ CPU, float32: max |diff| <= 0.001 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `flowseek-t` | 0.00508 / 0.0272 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@a101a33607b6:sm_120` |
-| `flowseek-t-things` | 0.00427 / 0.0176 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@a101a33607b6:sm_120` |
-| `flowseek-t-things-notartan` | 0.00227 / 0.01045 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@a101a33607b6:sm_120` |
+| `flowseek-t` | 0.00508 / 0.02695 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `flowseek_corr@a93d9888c1a2:sm_120` |
+| `flowseek-t-things` | 0.00427 / 0.01735 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `flowseek_corr@a93d9888c1a2:sm_120` |
+| `flowseek-t-things-notartan` | 0.00226 / 0.01045 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `flowseek_corr@a93d9888c1a2:sm_120` |
 
 </details>
 

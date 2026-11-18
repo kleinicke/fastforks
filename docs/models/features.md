@@ -403,7 +403,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/facebookresearch/dinov2/blob/7764ea0/README.md (License section: code and model weights under Apache 2.0)
 - Training data: LVD-142M: 142M images retrieved from web crawls by similarity to curated datasets (ImageNet-22k/1k train, Google Landmarks, fine-grained sets), self-supervised (no labels), per the paper; not released
-- Options: `fp16_accumulate` = False (precision only)
+- Options: `stream` = False (speed only), `fp16_accumulate` = False (precision only)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `dinov2-vits14`, `dinov2-vits14-reg`, `dinov2-vitb14`, `dinov2-vitb14-reg`, `dinov2-vitl14`, `dinov2-vitl14-reg`, `dinov2-vitg14`, `dinov2-vitg14-reg`
 - Outputs: last_hidden_state, pooler_output, hidden_states
@@ -467,6 +467,10 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 | `dinov2-vitl14-reg` | 0.01356 / 0.05036 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 | `dinov2-vitg14` | 0.00785 / 0.0449 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 | `dinov2-vitg14-reg` | 0.00779 / 0.04094 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+
+### Limitations
+
+- On CUDA, stream=True stages the transformer blocks from pinned host RAM. Streamed inference uses eager execution and requires enough host RAM for the blocks.
 
 </details>
 

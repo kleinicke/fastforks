@@ -502,7 +502,8 @@ Commercial use: yes.
 - Licence evidence: https://huggingface.co/facebook/sam3/blob/main/LICENSE (SAM License, Nov 19 2025); the weights are gated: download them from Meta's Hugging Face repo after accepting the licence and point FASTFORKS_WEIGHTS_PATH at the local copy; fastforks never mirrors them
 - Training data: the SA-Co data engine's image and video annotations plus public and internal datasets per the paper; not released as one dataset
 - Licence note: The weights use Meta's SAM License, not Apache-2.0; its terms were not re-checked here.
-- Kernel libraries: `fastbb`, `cudnn_hacc`, `dpt_fused`, `sam3_fpn`, `sam3_tracker`
+- Options: `cuda_graphs` = True (speed only)
+- Kernel libraries: `fastbb`, `cudnn_hacc`, `dpt_fused`, `sam3_fpn`, `sam3_tracker`, `sam3_resize`
 - Variants: `sam3`
 - Outputs: boxes, scores, masks
 - Input size: any H x W >= 1, resized inside to the fixed encoder input 1008x1008 (the default export size)
@@ -528,7 +529,7 @@ CPU, float32: max |diff| <= 0.0005 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `sam3` | 0.13385 / 0.76664 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `sam3_fpn@41c390d9b837:sm_120`, `sam3_tracker@e8c0241b36fa:sm_120` |
+| `sam3` | 0.13385 / 0.76664 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `sam3_fpn@41c390d9b837:sm_120`, `sam3_resize@9fc75790cedf:sm_120`, `sam3_tracker@e8c0241b36fa:sm_120` |
 
 ### Limitations
 
