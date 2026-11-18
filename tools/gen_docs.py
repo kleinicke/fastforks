@@ -110,6 +110,7 @@ _DATASETS = {
         "kitti2015-train": "KITTI 2015 train, EPE / Fl-all %",
         "kitti2015-train-flow-fixed-384x1248": "KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all %",
         "kitti2015-train-flow-first50-fixed-384x1248": "KITTI 2015 first 50 train pairs, 384 x 1248, EPE / Fl-all %",
+        "kitti2015-train-flow-first10-fixed-384x1248": "KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all %",
     },
     "edges": {
         "yorkurban-102-structural": "YorkUrban test (102 images), line segment sAP@5 / @10 / @15 %",
@@ -425,7 +426,11 @@ _PROTOCOL = {
     **{
         ("flow", dataset): "The fixed-shape comparison pads the bottom and right with edge pixels to 384 x 1248. "
         "Metrics use predictions cropped to each original ground-truth grid. "
-        for dataset in ("kitti2015-train-flow-fixed-384x1248", "kitti2015-train-flow-first50-fixed-384x1248")
+        for dataset in (
+            "kitti2015-train-flow-fixed-384x1248",
+            "kitti2015-train-flow-first50-fixed-384x1248",
+            "kitti2015-train-flow-first10-fixed-384x1248",
+        )
     },
     ("restoration", "div2k-val-x2-crop64-every4-rgb"): "Every fourth DIV2K validation image. A 64 x 64 center crop "
     "of the official bicubic x2 input is restored at 128 x 128 and compared with the corresponding original pixels. "
@@ -568,6 +573,7 @@ _EVAL_TRAIN_ID = {
     "kitti2015-train": "kitti",
     "kitti2015-train-flow-fixed-384x1248": "kitti",
     "kitti2015-train-flow-first50-fixed-384x1248": "kitti",
+    "kitti2015-train-flow-first10-fixed-384x1248": "kitti",
 }
 _DAGGER = "\u2020"
 _NOTE = {

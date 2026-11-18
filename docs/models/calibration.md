@@ -114,11 +114,11 @@ Each image at its own size (1440 x 1920 portrait); roll, pitch and vertical fiel
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
 |---|---|---|---|---|---|---|---|---|
-| `geocalib-pinhole` | LaMAR2k, all 2000 images, roll / pitch / vertical FoV error AUC@5 degrees % | 92.6 / 76.8 / 41.6 |  | 92.6 / 76.8 / 41.6 | 92.6 / 76.8 / 41.6 | 92.6 / 76.8 / 41.6 |  |  |
+| `geocalib-pinhole` | LaMAR2k, all 2000 images, roll / pitch / vertical FoV error AUC@5 degrees % | 92.6 / 76.8 / 41.6 |  | 92.6 / 76.8 / 41.6 | 92.6 / 76.8 / 41.6 | 92.6 / 76.8 / 41.6 | 92.6 / 76.8 / 41.6 |  |
 | `geocalib-pinhole` | LaMAR2k, every 10th image (200), roll / pitch / vertical FoV error AUC@5 degrees % | 90.2 / 76.7 / 44.0 | 90.2 / 76.5 / 44.0 | 90.2 / 76.6 / 44.0 | 90.2 / 76.7 / 44.0 | 90.2 / 76.6 / 44.0 |  |  |
 | `geocalib-pinhole` | LaMAR2k, 97 portrait images from every 20th entry, angle AUC@5 degrees % |  |  |  | 89.6 / 74.5 / 42.6 |  | 89.6 / 74.5 / 42.6 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6637f957, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 52fcef6d / 6637f957 / ce213f43, 2026-11-13 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6637f957, 2026-11-13; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 52fcef6d, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6637f957, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 52fcef6d / 6637f957 / ce213f43 / ffa9c54d, 2026-11-13 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6637f957, 2026-11-13; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 52fcef6d / ffa9c54d, 2026-11-18.
 
 ### Parity
 
