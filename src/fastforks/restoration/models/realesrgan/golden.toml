@@ -25,28 +25,28 @@ upstream = "https://github.com/xinntao/Real-ESRGAN@a4abfb2979a7bbff3f69f58f58ae3
 settings = "CPU float32, upstream RealESRGANer pre_pad 0 no tile (BasicSR RRDBNet @8d56e3a0) on float RGB, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
 
 [validated."realesrgan-x2plus@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "sr_ops@b9c2dca763d0:sm_120"]
+symbols = {"sr_ops" = {"bias_activation" = "ead2feb980a2eee5", "scaled_residual" = "fbdf4ec6fef7c446", "shuffle_residual" = "e2be8530b7961a7a", "span_gate" = "73ca848c90eb00bc"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-13"
+date = "2026-11-18"
 mean_px = 0.00359
 p99_px = 0.01713
 
 [validated."realesrgan-x4plus-anime-6b@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "sr_ops@b9c2dca763d0:sm_120"]
+symbols = {"sr_ops" = {"bias_activation" = "ead2feb980a2eee5", "scaled_residual" = "fbdf4ec6fef7c446", "shuffle_residual" = "e2be8530b7961a7a", "span_gate" = "73ca848c90eb00bc"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-13"
+date = "2026-11-18"
 mean_px = 0.001
 p99_px = 0.0078
 
 [validated."realesrgan-x4plus@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "sr_ops@b9c2dca763d0:sm_120"]
+symbols = {"sr_ops" = {"bias_activation" = "ead2feb980a2eee5", "scaled_residual" = "fbdf4ec6fef7c446", "shuffle_residual" = "e2be8530b7961a7a", "span_gate" = "73ca848c90eb00bc"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-13"
+date = "2026-11-18"
 mean_px = 0.00112
 p99_px = 0.00681

@@ -30,7 +30,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc"]  # fp16-accumulate convolutions, channels-last
+kernels = ["cudnn_hacc", "sr_ops"]  # fp16-accumulate convolutions, channels-last
 
 [[papers]]
 title = "Swift Parameter-free Attention Network for Efficient Super-Resolution"

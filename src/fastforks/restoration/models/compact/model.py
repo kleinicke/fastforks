@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import torch
 
@@ -17,7 +17,7 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import cudnn_hacc, sr_ops
 from fastforks.restoration._runner import Forward, Runner
 
 from .net import SRVGGNetCompact
@@ -66,6 +66,17 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
 
 
+def _compact(m: SRVGGNetCompact, x: torch.Tensor) -> torch.Tensor:
+    """Convolve without bias, then apply bias and PReLU in one write. Fuse the concluding shuffle and skip."""
+    y = x
+    for i in range(0, len(m.body) - 1, 2):
+        conv = cast("torch.nn.Conv2d", m.body[i])
+        prelu = cast("torch.nn.PReLU", m.body[i + 1])
+        y = cudnn_hacc.conv_half_acc(y, conv.weight, None, (1, 1), (1, 1))
+        y = sr_ops.bias_activation(y, conv.get_parameter("bias"), prelu.weight)
+    return sr_ops.shuffle_residual(m.body[-1](y), x, m.upscale)
+
+
 class Kernels(Portable):
     """float16, channels-last, fp16-accumulate convolutions (`cudnn_hacc`)."""
 
@@ -75,6 +86,8 @@ class Kernels(Portable):
         """Build the network and route its convolutions through `cudnn_hacc`."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
+        sr_ops.load(ctx.device)
+        override(self.net, _compact)
         for m in self.net.modules():
             if is_base(m, torch.nn.Conv2d):
                 override(m, _hacc_conv)

@@ -20,19 +20,19 @@ upstream = "https://github.com/hongyuanyu/SPAN@c77a5917759f09e66fbc7124220c5afc5
 settings = "CPU float32, upstream SPAN eval mode, net(lq) on float RGB, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
 
 [validated."span-x2@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "sr_ops@b9c2dca763d0:sm_120"]
+symbols = {"sr_ops" = {"bias_activation" = "ead2feb980a2eee5", "scaled_residual" = "fbdf4ec6fef7c446", "shuffle_residual" = "e2be8530b7961a7a", "span_gate" = "73ca848c90eb00bc"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-13"
+date = "2026-11-18"
 mean_px = 0.00207
 p99_px = 0.0225
 
 [validated."span-x4@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "sr_ops@b9c2dca763d0:sm_120"]
+symbols = {"sr_ops" = {"bias_activation" = "ead2feb980a2eee5", "scaled_residual" = "fbdf4ec6fef7c446", "shuffle_residual" = "e2be8530b7961a7a", "span_gate" = "73ca848c90eb00bc"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-13"
+date = "2026-11-18"
 mean_px = 0.00074
 p99_px = 0.00305

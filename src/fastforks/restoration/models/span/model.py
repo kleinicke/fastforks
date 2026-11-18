@@ -18,11 +18,11 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import cudnn_hacc, sr_ops
 from fastforks.restoration._runner import Forward, Runner
 
 from .net import SPAN
-from .net.span_arch import Conv3XC
+from .net.span_arch import SPAB, Conv3XC
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -80,6 +80,23 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
 
 
+def _span_block(m: SPAB, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    first = m.act1(m.c1_r(x))
+    second = m.act1(m.c2_r(first))
+    return sr_ops.residual(m.c3_r(second), x, attention=True), first
+
+
+def _span(m: SPAN, x: torch.Tensor) -> torch.Tensor:
+    """Consume the six block outputs as they run; only the first output and the final block's tap feed conv_cat."""
+    base = m.conv_1((x - m.mean) * m.img_range)
+    first, _ = _span_block(m.block_1, base)
+    y = first
+    for block in (m.block_2, m.block_3, m.block_4, m.block_5):
+        y, _ = _span_block(block, y)
+    y, tap = _span_block(m.block_6, y)
+    return m.upsampler(m.conv_cat(torch.cat((base, m.conv_2(y), first, tap), 1)))
+
+
 class Kernels(Portable):
     """float16, channels-last, fp16-accumulate convolutions (`cudnn_hacc`)."""
 
@@ -89,6 +106,8 @@ class Kernels(Portable):
         """Build the network and route its convolutions through `cudnn_hacc`."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
+        sr_ops.load(ctx.device)
+        override(self.net, _span)
         for m in self.net.modules():
             if is_base(m, torch.nn.Conv2d):
                 m.weight.data = m.weight.data.contiguous(memory_format=torch.channels_last)

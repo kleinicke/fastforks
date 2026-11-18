@@ -18,10 +18,11 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import cudnn_hacc, sr_ops
 from fastforks.restoration._runner import Crop, Forward, Runner
 
 from .net import RRDBNet
+from .net.rrdbnet_arch import RRDB, ResidualDenseBlock
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -80,6 +81,26 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
 
 
+def _dense(m: ResidualDenseBlock, x: torch.Tensor) -> torch.Tensor:
+    """Write each growth convolution directly into its final channel slice instead of rebuilding dense prefixes."""
+    b, c, h, w = x.shape
+    packed = torch.empty(
+        (b, m.conv5.in_channels, h, w), device=x.device, dtype=x.dtype, memory_format=torch.channels_last
+    )
+    packed[:, :c].copy_(x)
+    backend = cudnn_hacc.load(x.device)
+    for conv in (m.conv1, m.conv2, m.conv3, m.conv4):
+        tail = packed[:, c : c + conv.out_channels]
+        backend.conv_into(packed[:, :c], conv.weight, tail, padding=1, stride=1)
+        sr_ops.bias_activation(tail, conv.get_parameter("bias"))
+        c += conv.out_channels
+    return sr_ops.residual(m.conv5(packed), x)
+
+
+def _rrdb(m: RRDB, x: torch.Tensor) -> torch.Tensor:
+    return sr_ops.residual(m.rdb3(m.rdb2(m.rdb1(x))), x)
+
+
 class Kernels(Portable):
     """float16, channels-last, fp16-accumulate convolutions (`cudnn_hacc`)."""
 
@@ -89,7 +110,12 @@ class Kernels(Portable):
         """Build the network and route its convolutions through `cudnn_hacc`."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
+        sr_ops.load(ctx.device)
         for m in self.net.modules():
+            if isinstance(m, ResidualDenseBlock):
+                override(m, _dense)
+            elif isinstance(m, RRDB):
+                override(m, _rrdb)
             if is_base(m, torch.nn.Conv2d):
                 override(m, _hacc_conv)
 
