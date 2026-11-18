@@ -31,6 +31,7 @@ from fastforks._core.runner import host
 from fastforks.kernels import image_normalize
 from fastforks.matting._runner import Runner
 
+from .net.inference.image_feature_store import ImageFeatureStore
 from .net.inference.inference_core import InferenceCore
 from .net.inference.memory_manager import MemoryManager
 from .net.model.matanyone import MatAnyone
@@ -216,6 +217,20 @@ class _Memory(MemoryManager):
     read = _read  # ty: ignore[invalid-method-override] - keyword-only where upstream is untyped
 
 
+_FrameFeatures = tuple[list[torch.Tensor], torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
+
+
+class _FeatureStore(ImageFeatureStore):
+    """Keep the original frame cache while running its tensor stage through the runner."""
+
+    def __init__(self, network: MatAnyone, features: Callable[..., _FrameFeatures]) -> None:
+        super().__init__(network)
+        self._features = features
+
+    def _encode_feature(self, index: int, image: torch.Tensor, last_feats: Any = None) -> None:  # noqa: ANN401 - upstream
+        self._store[index] = self._features(image, last_feats)
+
+
 class Portable(Runner):
     """Upstream's network and memory in plain PyTorch; float16 = CUDA fp16 autocast with fp32 weights (as upstream)."""
 
@@ -223,6 +238,7 @@ class Portable(Runner):
     Params = Params
     mask = "required"
     video = True
+    compiled_methods = ("_frame_features", "_encode_mask", "_segment")
 
     def __init__(self, ctx: Context) -> None:
         """Build the network (one object) from the checkpoint."""
@@ -244,11 +260,30 @@ class Portable(Runner):
             return contextlib.nullcontext()
         return torch.autocast(self.ctx.device.type, getattr(torch, self.ctx.dtype))
 
+    def _frame_features(self, image: torch.Tensor, last_feats: Any) -> _FrameFeatures:  # noqa: ANN401 - upstream
+        features, pixels = self.net.encode_image(image, last_feats=last_feats)
+        key, shrinkage, selection = self.net.transform_key(features[0])
+        return features, pixels, key, shrinkage, selection
+
+    def _encode_mask(self, *args: Any, **kwargs: Any) -> tuple[torch.Tensor, ...]:  # noqa: ANN401 - upstream
+        return self.net.encode_mask(*args, **kwargs)
+
+    def _segment(self, *args: Any, **kwargs: Any) -> tuple[torch.Tensor, ...]:  # noqa: ANN401 - upstream
+        return self.net.segment(*args, **kwargs)
+
     def _alphas(self, frames: Callable[[int], torch.Tensor], n: int, mask: torch.Tensor) -> Iterator[torch.Tensor]:
         """`process_video`'s loop: the alpha `[H, W]` float32 of each frame, in order."""
         p = self.ctx.params
         closed = close_mask(mask, p.dilate, p.erode)
-        core = InferenceCore(self.net, cfg=self.cfg, device=self.ctx.device)
+        store = _FeatureStore(self.net, self._frame_features)
+        core = InferenceCore(
+            self.net,
+            cfg=self.cfg,
+            device=self.ctx.device,
+            image_feature_store=store,
+            encode_mask=self._encode_mask,
+            segment=self._segment,
+        )
         core.memory.__class__ = _Memory  # the chunked readout (a bound method stored on it would be a reference cycle)
         first = frames(0)[0]
         with self._autocast():
@@ -264,6 +299,7 @@ class Portable(Runner):
                 if ti >= p.warmup:
                     yield core.output_prob_to_mask(prob).float()
 
+    @host
     def __call__(self, image: torch.Tensor, trimap: torch.Tensor | None) -> dict[str, torch.Tensor]:
         """Alpha `[B, H, W]` of each image as a one-frame video, `trimap` = the mask `[B, 1, H, W]`."""
         assert trimap is not None  # noqa: S101 - mask = "required": the core passes it
@@ -299,6 +335,7 @@ class Kernels(Portable):
     """Reuse the first frame's image features throughout recurrent warm-up."""
 
     reuse_first = True
+    compiled_methods = ("__call__",)  # keep the kernel checks around the full call
     module = Runner.module
 
     def __init__(self, ctx: Context) -> None:

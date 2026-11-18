@@ -4,6 +4,9 @@ summary = "MatAnyone (Yang et al., NTU S-Lab, CVPR 2025): video matting of one o
 tier = "experimental"
 outputs = ["alpha"]
 uses = []  # fastforks.shared modules this family imports
+limitations = [
+  "`torch.compile` compiles the image encoder, mask encoder and tensor decoder. It runs the recurrent memory and video loop eagerly. Each new input shape has a compilation cost.",
+]
 
 [upstream]
 repo = "https://github.com/pq-yang/MatAnyone"

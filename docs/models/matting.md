@@ -261,7 +261,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `matanyone` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1220<br>1205<br>–<br>fails: load: BackendUnavailableError: matanyone@1 (portable) has no<br>fails: BackendUnavailableError: matanyone@1 (portable) has no expor | 2978 / 3208<br>2719 / 2908<br>–<br>–<br>– |
+| `matanyone` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1220<br>1214<br>–<br>635<br>fails: BackendUnavailableError: matanyone@1 (portable) has no expor | 2978 / 3208<br>2734 / 3448<br>–<br>1363 / 3452<br>– |
 
 <details><summary>Details</summary>
 
@@ -276,6 +276,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Outputs: alpha
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `matanyone` 3000x4000 (14.5 GiB peak allocated, 15.1 reserved)
+- `matanyone` 1080x1920, first call: portable + torch.compile 36 s (cold Inductor cache).
 - `matanyone` original 1080x1920: the authors' mixed-precision option (float16); pq-yang/MatAnyone@e5ddc534c1ff process_video loop on frames in memory, cv2 mask closing
 - `matanyone` load / first call: original 3.39 s / 2.37 s, portable 0.4 s / 1.867 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -297,6 +298,10 @@ CPU, float32: max |diff| <= 1e-06 vs the original. GPU, float16 (the default), p
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `matanyone` | 5e-05 / 0.0 | RTX 5060 Ti, torch 2.10.0+cu130 | `image_normalize@592f5511307a:sm_120` |
+
+### Limitations
+
+- `torch.compile` compiles the image encoder, mask encoder and tensor decoder. It runs the recurrent memory and video loop eagerly. Each new input shape has a compilation cost.
 
 </details>
 

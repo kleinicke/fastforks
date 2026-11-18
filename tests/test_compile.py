@@ -21,6 +21,7 @@ from fastforks import multiview, promptable_segmentation, segmentation, stereo
 from fastforks._core import model as core_model
 from fastforks._core import registry
 from fastforks._core.errors import BackendUnavailableError
+from fastforks._core.runner import host
 from fastforks.multiview._runner import Runner as MultiViewRunner
 from fastforks.promptable_segmentation._runner import Runner as PromptRunner
 from fastforks.segmentation._runner import Runner as SegRunner
@@ -76,6 +77,36 @@ def test_segmentation_default_call_is_compiled(monkeypatch):
     assert graphs.n == 1  # one graph: the nested `__call__` traced inline, not compiled on its own
     m(x[0], logits=True)
     assert graphs.n == 2  # `__call__` compiles on its first direct call
+
+
+def test_pipeline_can_compile_without_an_exportable_module(monkeypatch):
+    class Pipeline(SegRunner):
+        compiled_methods = ("_scores",)
+
+        def __init__(self, ctx):
+            super().__init__(ctx)
+            self.net = torch.nn.Conv2d(3, 150, 1)
+
+        def networks(self):
+            return (self.net,)
+
+        def _scores(self, image):
+            return self.net(image)
+
+        @host
+        def __call__(self, image):
+            return {"logits": self._scores(image)}
+
+    model = _load(monkeypatch, segmentation, "fcn-r101-d8-ade20k", Pipeline)
+    image = torch.rand(3, 32, 32)
+    expected = model(image).labels
+    graphs = Graphs()
+    model.compile(backend=graphs)
+    torch.testing.assert_close(model(image).labels, expected)
+    assert graphs.n == 1
+    assert not any(p.requires_grad for p in model._runner.net.parameters())
+    with pytest.raises(BackendUnavailableError, match="no exportable module"):
+        model.module()
 
 
 class Prompt(_Net, PromptRunner):

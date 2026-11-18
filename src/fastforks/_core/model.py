@@ -450,6 +450,17 @@ class Model:
             msg = f"{self.variant.ref} ({self.backend.mode}) has no exportable module: {e}"
             raise BackendUnavailableError(msg) from e
 
+    def _prepare_compile_networks(self) -> None:
+        """Disable gradients for the exported module or the networks of a pipeline's compiled stages."""
+        runner = self._runner
+        try:
+            self.module().requires_grad_(requires_grad=False)
+        except BackendUnavailableError:
+            if runner.compiled_methods == Runner.compiled_methods:
+                raise
+            for network in runner.networks():
+                network.eval().requires_grad_(requires_grad=False)
+
     def compile(self, **kwargs: Any) -> Self:  # noqa: ANN401 - `torch.compile`'s keyword arguments
         """Compile the portable network in place with `torch.compile`; later calls keep the normal high-level API.
 
@@ -470,7 +481,7 @@ class Model:
             `self`.
 
         Raises:
-            BackendUnavailableError: The backend has no exportable module (`kernels`).
+            BackendUnavailableError: The backend has no compilable entry points or networks.
         """
         require_available(self.variant, "compile")
         if self.backend.mode != "portable":
@@ -483,7 +494,7 @@ class Model:
             runner = self._runner
             base: type[Runner] = getattr(runner, "_ff_eager", type(runner))  # a repeat compile() replaces the first
             runner.__class__ = base
-            self.module().requires_grad_(requires_grad=False)  # inference only; raises if there is no module
+            self._prepare_compile_networks()
             ref = self.variant.ref
             compiled = {name: torch.compile(getattr(runner, name), **kwargs) for name in base.compiled_methods}
             untried = set(compiled)  # entry points whose first compiled call has not succeeded yet

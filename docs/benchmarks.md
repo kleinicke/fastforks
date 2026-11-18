@@ -1113,7 +1113,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | inspyrenet-fast | 71.1 | 41.7 | – | – | – | 810 / 836 | 432 / 488 | – |
 | isnet | 38.5 | 21.0 | 12.1 | 3.2x | 1.7x | 993 / 1042 | 512 / 562 | 487 / 522 |
 | isnet-general-use | 38.5 | 21.0 | 12.1 | 3.2x | 1.7x | 993 / 1042 | 512 / 562 | 487 / 522 |
-| matanyone | 1220 | 1205 | – | – | – | 2978 / 3208 | 2719 / 2908 | – |
+| matanyone | 1220 | 1214 | – | – | – | 2978 / 3208 | 2734 / 3448 | – |
 | rmbg-2.0 | 149 | 132 | 121 | 1.2x | 1.1x | 1672 / 1990 | 1660 / 1908 | 1674 / 1936 |
 | u2net | 15.9 | 14.9 | 8.83 | 1.8x | 1.7x | 476 / 502 | 248 / 278 | 237 / 260 |
 | u2net-human-seg | 16.0 | 14.6 | 9.05 | 1.8x | 1.6x | 476 / 502 | 248 / 278 | 237 / 260 |
@@ -2377,7 +2377,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | inspyrenet-fast | 1080x1920 | 41.7 ms | 17.7 ms | 6.99 ms | – | 76.6 s | 138 s | 432 / 488 | 345 / 376 | – | 561 / 600 |
 | isnet | 1080x1920 | 21.0 ms | 13.1 ms | 6.70 ms | 12.1 ms | 33.8 s | 34.4 s | 512 / 562 | 350 / 400 | 487 / 522 | 404 / 436 |
 | isnet-general-use | 1080x1920 | 21.0 ms | 13.1 ms | 6.66 ms | 12.1 ms | 33.9 s | 32.3 s | 512 / 562 | 350 / 400 | 487 / 522 | 404 / 436 |
-| matanyone | 1080x1920 | 1205 ms | fails: load: BackendUnavailableError: matanyone@1 (portable) has no | fails: BackendUnavailableError: matanyone@1 (portable) has no expor | – | – | – | 2719 / 2908 | – | – | – |
+| matanyone | 1080x1920 | 1214 ms | 635 ms | fails: BackendUnavailableError: matanyone@1 (portable) has no expor | – | 35.9 s | – | 2734 / 3448 | 1363 / 3452 | – | – |
 | rmbg-2.0 | 1080x1920 | 132 ms | 110 ms | 88.1 ms | 121 ms | 82.9 s | 219 s | 1660 / 1908 | 1874 / 1932 | 1674 / 1936 | 1723 / 1784 |
 | u2net | 1080x1920 | 14.9 ms | 6.24 ms | 3.07 ms | 8.83 ms | 35.7 s | 36.0 s | 248 / 278 | 235 / 278 | 237 / 260 | 335 / 390 |
 | u2net-human-seg | 1080x1920 | 14.6 ms | 6.25 ms | 3.08 ms | 9.05 ms | 36.0 s | 34.7 s | 248 / 278 | 235 / 278 | 237 / 260 | 335 / 390 |
