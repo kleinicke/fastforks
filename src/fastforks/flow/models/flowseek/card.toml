@@ -30,7 +30,7 @@ cuda_dtype = "float16"  # autocast for Depth Anything, the encoders and the upda
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["raft_flow"]
+kernels = ["flowseek_corr", "flow_upsample"]
 
 [[papers]]
 title = "FlowSeek: Optical Flow Made Easier with Depth Foundation Models and Motion Bases"

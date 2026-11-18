@@ -341,6 +341,7 @@ class FlowSeek(nn.Module):
         image2: torch.Tensor,
         iters: int,
         corr_fn: Callable[[torch.Tensor, torch.Tensor], Callable[[torch.Tensor], torch.Tensor]] | None = None,
+        upsample: Callable[[torch.Tensor, torch.Tensor], torch.Tensor] = _upsample,
     ) -> torch.Tensor:
         """Flow after `iters` updates, float32 `[B, 2, H, W]`."""
         cfg = self.cfg
@@ -368,10 +369,11 @@ class FlowSeek(nn.Module):
             context = torch.cat([context, context_b], dim=1)
             flow = self.flow_head(net)[:, :2].float()
             fmaps = torch.cat([self.fnet(both), mono], dim=1)  # batch norm in eval mode: per-image as upstream
-        fmap1, fmap2 = fmaps.float().chunk(2, dim=0)
+        fmap1, fmap2 = (fmaps.float() if corr_fn is None else fmaps).chunk(2, dim=0)
         pyramid = _pyramid(fmap1, fmap2, cfg.levels) if corr_fn is None else []
         lookup = corr_fn(fmap1, fmap2) if corr_fn is not None else None
         grid = _coords(b, fmap1.shape[-2], fmap1.shape[-1], device)
+        del fmaps, fmap1, fmap2, mono, path, depth, small
         for _ in range(iters):
             corr = lookup(grid + flow) if lookup is not None else _lookup(pyramid, grid + flow, cfg.radius)
             with self._amp(device):
@@ -380,5 +382,5 @@ class FlowSeek(nn.Module):
             flow = flow + delta.float()
         with self._amp(device):
             mask = 0.25 * self.upsample_weight(net)
-        up = _upsample(flow, mask.float())
+        up = upsample(flow, mask.float())
         return up[..., pads[2] : pads[2] + h, pads[0] : pads[0] + w]

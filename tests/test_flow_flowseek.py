@@ -88,3 +88,17 @@ def test_odd_size_and_export(weights: Path) -> None:
     with torch.inference_mode():
         exported = model.module()(a, b)  # export does what the call does
     torch.testing.assert_close(exported, out, rtol=0, atol=1e-5)
+
+
+@pytest.mark.gpu
+def test_native_correlation_batch_and_pyramid() -> None:
+    from fastforks.flow.models.flowseek import model, net  # noqa: PLC0415
+    from fastforks.kernels import flowseek_corr  # noqa: PLC0415
+
+    device = torch.device("cuda")
+    rng = torch.Generator(device=device).manual_seed(72)
+    a, b = torch.randn(2, 2, 384, 19, 21, device=device, dtype=torch.float16, generator=rng)
+    coords = net._coords(2, 19, 21, device) + torch.randn(2, 2, 19, 21, device=device, generator=rng)
+    got = model._lookup(flowseek_corr.load(device), a, b)(coords).float()
+    want = net._lookup(net._pyramid(a.float(), b.float(), 4), coords, 4)
+    torch.testing.assert_close(got, want, atol=0.002, rtol=0.001)
