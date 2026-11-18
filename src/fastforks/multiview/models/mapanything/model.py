@@ -28,6 +28,7 @@ GEMMs in the encoder except the SwiGLU down projection (`kernels`: info sharing 
 from __future__ import annotations
 
 import contextlib
+import itertools
 import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -36,10 +37,16 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core import kernels
+from fastforks._core.errors import OptionsError
 from fastforks._core.half import fp16_accumulate
+from fastforks.kernels import swiglu
 from fastforks.multiview._runner import Forward, Runner
+from fastforks.shared.host_blocks import HostBlocks
 
 if TYPE_CHECKING:
+    from collections.abc import Generator, Iterable
+
     from fastforks.multiview._runner import Context
 
 PATCH = 14  # fixed: the DINOv2 ViT-g patch size
@@ -62,6 +69,7 @@ class Params:
     """Load options."""
 
     long_side: int  # network long side (rounded to a multiple of 14)
+    stream: bool = False
 
 
 def network_size(h: int, w: int, long_side: int) -> tuple[int, int]:
@@ -381,17 +389,42 @@ def _fp16_accumulate(*, on: bool) -> contextlib.AbstractContextManager[None]:
 class _Blk:
     """Prepared parameters of one `_Block`: GEMM weights and norms in `dt`, LayerScales in `gdt`, on `device`."""
 
-    def __init__(self, b: _Block, dt: torch.dtype, gdt: torch.dtype, device: torch.device) -> None:
-        def cv(t: torch.Tensor, d: torch.dtype = dt) -> torch.Tensor:
-            return t.detach().to(device=device, dtype=d).contiguous()
+    def __init__(self, state: dict[str, torch.Tensor]) -> None:
+        self.n1 = (state["norm1.weight"], state["norm1.bias"])
+        self.n2 = (state["norm2.weight"], state["norm2.bias"])
+        self.wqkv, self.bqkv = state["attn.qkv.weight"], state["attn.qkv.bias"]
+        self.wp, self.bp = state["attn.proj.weight"], state["attn.proj.bias"]
+        self.w12, self.b12 = state["mlp.w12.weight"], state["mlp.w12.bias"]
+        self.w3, self.b3 = state["mlp.w3.weight"], state["mlp.w3.bias"]
+        self.g1, self.g2 = state["ls1.gamma"], state["ls2.gamma"]
 
-        self.n1 = (cv(b.norm1.weight), cv(b.norm1.bias))
-        self.n2 = (cv(b.norm2.weight), cv(b.norm2.bias))
-        self.wqkv, self.bqkv = cv(b.attn.qkv.weight), cv(b.attn.qkv.bias)
-        self.wp, self.bp = cv(b.attn.proj.weight), cv(b.attn.proj.bias)
-        self.w12, self.b12 = cv(b.mlp.w12.weight), cv(b.mlp.w12.bias)
-        self.w3, self.b3 = cv(b.mlp.w3.weight), cv(b.mlp.w3.bias)
-        self.g1, self.g2 = cv(b.ls1.gamma, gdt), cv(b.ls2.gamma, gdt)
+
+def _block_dtype(name: str, dtype: torch.dtype, *, info: bool) -> torch.dtype:
+    return torch.float32 if info and name.endswith(".gamma") else dtype
+
+
+def _resident(blocks: nn.ModuleList, dt: torch.dtype, dev: torch.device, *, info: bool) -> list[_Blk]:
+    return [
+        _Blk({k: v.to(dev, _block_dtype(k, dt, info=info)).contiguous() for k, v in block.state_dict().items()})
+        for block in blocks
+    ]
+
+
+def _host_blocks(encoder: nn.ModuleList, info: nn.ModuleList, dtype: torch.dtype) -> HostBlocks:
+    sources = {}
+    layout = []
+    for i, block in enumerate(itertools.chain(encoder, info)):
+        spec = {}
+        for name, value in block.state_dict().items():
+            key = f"{i}.{name}"
+            sources[key] = value
+            spec[key] = (_block_dtype(name, dtype, info=i >= len(encoder)), value.shape)
+        layout.append(spec)
+
+    def fill(key: str, dst: torch.Tensor) -> None:
+        dst.copy_(sources.pop(key))
+
+    return HostBlocks(layout, fill)
 
 
 class _Base(Runner):
@@ -407,13 +440,19 @@ class _Base(Runner):
 
     def __init__(self, ctx: Context) -> None:
         super().__init__(ctx)
-        net: Any = _net(ctx)
         dev = ctx.device
+        if ctx.params.stream and dev.type != "cuda":
+            msg = "stream=True requires CUDA for MapAnything block transfers"
+            raise OptionsError(msg)
+        net: Any = _net(ctx)
         half = ctx.dtype != "float32"
         self.dt = torch.float16 if half else torch.float32
         vit: Any = net.encoder.model
-        self.enc = [_Blk(b, self.dt, self.dt, dev) for b in vit.blocks]  # encoder fully fp16 (stream, gammas)
-        self.info = [_Blk(b, self.dt, torch.float32, dev) for b in net.info_sharing.self_attention_blocks]
+        info = net.info_sharing.self_attention_blocks
+        self.enc_count, self.info_count = len(vit.blocks), len(info)
+        self.host = _host_blocks(vit.blocks, info, self.dt) if ctx.params.stream else None
+        self.enc = [] if self.host is not None else _resident(vit.blocks, self.dt, dev, info=False)
+        self.info = [] if self.host is not None else _resident(info, self.dt, dev, info=True)
         for mod in (vit.blocks, net.info_sharing.self_attention_blocks):  # the prepared copies replace them
             for p in mod.parameters():
                 p.data = torch.empty(0, dtype=p.dtype)
@@ -437,14 +476,19 @@ class _Base(Runner):
         o = F.scaled_dot_product_attention(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2))
         return o.transpose(1, 2).reshape(b, n, h * d)
 
+    def gate(self, packed: torch.Tensor) -> torch.Tensor:
+        """SwiGLU with the SiLU rounded in the projection dtype before multiplication."""
+        x1, x2 = packed.chunk(2, -1)
+        return F.silu(x1).mul_(x2)
+
     def block(self, p: _Blk, x: torch.Tensor, *, w3_fp32acc: bool = False) -> torch.Tensor:
         """One block on `x` `[B, N, C]` (stream dtype: `dt` in the encoder, fp32 in info sharing) -> a new tensor."""
         b, n, c = x.shape
         y = F.layer_norm(x.to(self.dt), (c,), *p.n1, 1e-6)
         q, k, v = F.linear(y, p.wqkv, p.bqkv).view(b, n, 3, HEADS, c // HEADS).unbind(2)
         x = torch.addcmul(x, F.linear(self.attention(q, k, v), p.wp, p.bp), p.g1)
-        x1, x2 = F.linear(F.layer_norm(x.to(self.dt), (c,), *p.n2, 1e-6), p.w12, p.b12).chunk(2, -1)
-        h = F.silu(x1).mul_(x2)
+        del q, k, v, y
+        h = self.gate(F.linear(F.layer_norm(x.to(self.dt), (c,), *p.n2, 1e-6), p.w12, p.b12))
         if w3_fp32acc:  # "now3": the K = 4096 down projection accumulates in fp32
             torch.backends.cuda.matmul.allow_fp16_accumulation = False
             o = F.linear(h, p.w3, p.b3)
@@ -469,17 +513,19 @@ class _Base(Runner):
             self._pos[gh, gw] = out.to(self.dt)
         return self._pos[gh, gw]
 
-    def encode(self, x: torch.Tensor) -> torch.Tensor:
+    def encode(self, x: torch.Tensor, blocks: Iterable[_Blk]) -> torch.Tensor:
         """Normalised images `[V, 3, H, W]` -> DINOv2 tokens `[V, 1 + P, C]` (cls first; no final norm) in `dt`."""
         t = F.conv2d(x.to(self.dt), *self.pe, stride=PATCH)
         v, _, gh, gw = t.shape
         t = torch.cat([self.cls.expand(v, -1, -1), t.flatten(2).transpose(1, 2)], 1) + self.pos_embed(gh, gw)
         with _fp16_accumulate(on=self.gacc):
-            for p in self.enc:
+            for p in blocks:
                 t = self.block(p, t, w3_fp32acc=self.gacc)
         return t
 
-    def share(self, feats: torch.Tensor, cls: torch.Tensor) -> tuple[list[torch.Tensor], torch.Tensor]:
+    def share(
+        self, feats: torch.Tensor, cls: torch.Tensor, blocks: Iterable[_Blk]
+    ) -> tuple[list[torch.Tensor], torch.Tensor]:
         """Info sharing on fused features `[V, P, C]` + cls `[V, C]` (fp32).
 
         Returns the normed outputs of blocks 7, 11, 15 as `[V, P + 1, C]` and the final scale token `[C]`.
@@ -490,13 +536,13 @@ class _Base(Runner):
         t[0] += info.view_pos_table[0]
         x = torch.cat([t.view(1, v * (n + 1), c), self.net.scale_token.view(1, 1, c)], 1)
         outs = []
-        for i, p in enumerate(self.info):
+        for i, p in enumerate(blocks):
             if i % 2 == 0:  # global: all views + the scale token
                 x = self.block(p, x)
             else:  # per view: the scale token sits out
                 y = self.block(p, x[:, :-1].reshape(v, n + 1, c))
                 x = torch.cat([y.view(1, -1, c), x[:, -1:]], 1)
-            if i in INTERMEDIATE or i == len(self.info) - 1:
+            if i in INTERMEDIATE or i == self.info_count - 1:
                 outs.append(info.norm(x))
         return [o[0, :-1].view(v, n + 1, c) for o in outs], outs[-1][0, -1]
 
@@ -514,14 +560,30 @@ class _Base(Runner):
             outs.append(F.linear(y.permute(0, 2, 3, 1).float(), self.head_w, self.head_b))
         return torch.cat(outs) if len(outs) > 1 else outs[0]
 
+    def _staged_blocks(self) -> Generator[_Blk]:
+        assert self.host is not None  # noqa: S101 - selected by predict
+        for state in self.host.run(self.ctx.device):
+            yield _Blk({k.partition(".")[2]: v for k, v in state.items()})
+
+    def _transform(
+        self, x: torch.Tensor, encoder: Iterable[_Blk], info: Iterable[_Blk]
+    ) -> tuple[torch.Tensor, list[torch.Tensor], torch.Tensor]:
+        tok = self.encode((x - self.mean) / self.std, encoder)
+        norm = self.net.fusion_norm_layer
+        feats = F.layer_norm(tok[:, 1:].float(), (DIM,), norm.weight, norm.bias, 1e-6)
+        layers, scale_tok = self.share(feats, tok[:, 0].float(), info)
+        return feats, layers, scale_tok
+
     def predict(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
         """Images `[V, 3, h, w]` in [0, 1] (network size) -> the maps at the network size."""
         v, _, h, w = x.shape
         gh, gw = h // PATCH, w // PATCH
-        tok = self.encode((x - self.mean) / self.std)
         net = self.net
-        feats = F.layer_norm(tok[:, 1:].float(), (DIM,), net.fusion_norm_layer.weight, net.fusion_norm_layer.bias, 1e-6)
-        layers, scale_tok = self.share(feats, tok[:, 0].float())
+        if self.host is None:
+            feats, layers, scale_tok = self._transform(x, self.enc, self.info)
+        else:
+            with contextlib.closing(self._staged_blocks()) as blocks:
+                feats, layers, scale_tok = self._transform(x, itertools.islice(blocks, self.enc_count), blocks)
 
         def nchw(t: torch.Tensor) -> torch.Tensor:  # [V, P(+1), C] -> [V, C, gh, gw]
             return t[:, : gh * gw].reshape(v, gh, gw, DIM).permute(0, 3, 1, 2)
@@ -602,6 +664,9 @@ class Portable(_Base):
 
     def module(self) -> torch.nn.Module:
         """The network with its input handling: the runner's inputs -> the maps of `__call__`."""
+        if self.host is not None:
+            msg = "Export requires resident MapAnything weights; reload with stream=False"
+            raise NotImplementedError(msg)
         return Forward(self.net, lambda _net, *inputs: self.forward(*inputs))
 
 
@@ -615,7 +680,16 @@ class Kernels(_Base):
         from fastforks.kernels import fastbb  # noqa: PLC0415 - kernels only
 
         fastbb.load(ctx.device)
+        self.activation = swiglu.load(ctx.device)
         self.flash, self.check_flash64 = fastbb.Flash64("hh"), fastbb.check_flash64
+
+    def gate(self, packed: torch.Tensor) -> torch.Tensor:
+        """Apply both half-precision gate operations in one kernel and discard the packed projection."""
+        width = packed.shape[-1] // 2
+        out = packed.new_empty((*packed.shape[:-1], width))
+        pairs = out.numel() // 2
+        self.activation.launch("swiglu", *kernels.linear(pairs), packed, out, width // 2, pairs)
+        return out
 
     def attention(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
         """`fastbb` flash64 (fp16, fp16 P.V accumulation) on strided `[B, N, heads, 64]` views; SDPA if small."""
