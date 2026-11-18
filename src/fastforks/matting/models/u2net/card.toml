@@ -29,7 +29,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc", "igev", "cutlass_conv"]  # conv + BatchNorm + ReLU blocks as one conv with an fp32 epilogue
+kernels = ["resize_cat", "cudnn_hacc", "igev", "cutlass_conv"]  # conv + BatchNorm + ReLU blocks as one conv with an fp32 epilogue
 
 [[papers]]
 title = "U²-Net: Going Deeper with Nested U-Structure for Salient Object Detection"

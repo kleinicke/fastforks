@@ -13,6 +13,7 @@ into it, with the bias and the ReLU in an fp32 epilogue (`shared.cnn_kernels`).
 
 from __future__ import annotations
 
+import operator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -20,6 +21,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.patch import override
+from fastforks.kernels.resize_cat import resize_cat
 from fastforks.matting._runner import Forward, Runner, scale
 from fastforks.shared.cnn_kernels import ACT, CL, conv_ep, fold_bn, prepare_generic
 
@@ -98,6 +100,51 @@ def _rebnconv(m: REBNCONV, x: torch.Tensor) -> torch.Tensor:
     return conv_ep(m.conv_s1, x, act=ACT["relu"])
 
 
+class _DecoderTracer(torch.fx.Tracer):
+    """Keep each fused convolution as a leaf and expose the decoder's skip connections."""
+
+    def is_leaf_module(self, m: torch.nn.Module, module_qualified_name: str) -> bool:
+        """Preserve REBNCONV instances for the kernel epilogue."""
+        return isinstance(m, REBNCONV) or super().is_leaf_module(m, module_qualified_name)
+
+
+def _resized_for(up: object, skip: object) -> bool:
+    if not isinstance(up, torch.fx.Node) or up.target is not F.interpolate:
+        return False
+    size = up.kwargs.get("size")
+    if not isinstance(size, torch.fx.Node) or size.target is not operator.getitem or size.args[1] != slice(2, None):
+        return False
+    shape = size.args[0]
+    return bool(
+        isinstance(shape, torch.fx.Node)
+        and shape.target is getattr
+        and shape.args == (skip, "shape")
+        and up.kwargs["mode"] == "bilinear"
+        and not up.kwargs["align_corners"]
+        and not up.kwargs["antialias"]
+    )
+
+
+def _alpha_only(net: torch.nn.Module) -> torch.fx.GraphModule:
+    """Fuse resize followed by concatenation and discard the six auxiliary side-map sigmoids."""
+    graph = _DecoderTracer().trace(net)
+    for node in graph.nodes:
+        if node.op == "output":
+            node.args = (node.args[0][0],)  # U2NET and U2NETP return seven maps
+        elif node.target == torch.cat:
+            operands = node.args[0]
+            if isinstance(operands, (tuple, list)) and len(operands) == 2:  # noqa: PLR2004 - resized map, skip
+                up, skip = operands
+                if isinstance(up, torch.fx.Node) and _resized_for(up, skip):
+                    node.target = resize_cat
+                    node.args = (up.args[0], skip)
+    traced = torch.fx.GraphModule(net, graph)
+    graph.eliminate_dead_code()
+    graph.lint()
+    traced.recompile()
+    return traced
+
+
 class Kernels(_Matting):
     """fp16 channels-last network, cuDNN fp16-accumulate convs with BatchNorm + ReLU epilogues."""
 
@@ -106,7 +153,7 @@ class Kernels(_Matting):
     def __init__(self, ctx: Context) -> None:
         """Build the network, fold each BatchNorm into its conv and the ReLU into the conv's epilogue."""
         super().__init__(ctx)
-        net = _cpu_net(ctx, fold=True).to(ctx.device)
+        net = _alpha_only(_cpu_net(ctx, fold=True)).to(ctx.device)
         for m in net.modules():
             if isinstance(m, REBNCONV):
                 override(m, _rebnconv)
@@ -115,7 +162,7 @@ class Kernels(_Matting):
         self.net = net
 
     def _net(self, x: torch.Tensor) -> torch.Tensor:
-        return self.net(x.contiguous(memory_format=CL))[0]
+        return self.net(x.contiguous(memory_format=CL))
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}

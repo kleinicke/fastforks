@@ -44,3 +44,26 @@ def test_matches_u2net_test(tmp_path: Path, ref: str, cls: type) -> None:
         exported = m.module()(img)[0]
     torch.testing.assert_close(got, want, rtol=0, atol=1e-5)
     torch.testing.assert_close(exported, got, rtol=0, atol=1e-6)
+
+
+def test_alpha_graph_fuses_decoder_skips() -> None:
+    from fastforks.matting.models.u2net.model import _alpha_only, resize_cat  # noqa: PLC0415
+
+    graph = _alpha_only(U2NETP(3, 1)).graph
+    assert sum(n.target is resize_cat for n in graph.nodes) == 33
+    assert sum(n.target is torch.sigmoid or n.target == "sigmoid" for n in graph.nodes) == 1
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("sizes", [(3, 4, 5, 7), (1, 1, 2, 2), (16, 16, 32, 32)])
+def test_fused_resize_cat(sizes: tuple[int, int, int, int]) -> None:
+    from fastforks.kernels.resize_cat import resize_cat  # noqa: PLC0415
+
+    h, w, oh, ow = sizes
+    x = torch.randn(2, 16, h, w, device="cuda", dtype=torch.float16)
+    skip = torch.randn(2, 32, oh, ow, device=x.device, dtype=x.dtype)
+    got = resize_cat(x, skip)
+    want = F.interpolate(x, (oh, ow), mode="bilinear", align_corners=False)
+    torch.testing.assert_close(got[:, :16], want, atol=0.001, rtol=0.001)
+    assert torch.equal(got[:, 16:], skip)
+    assert got.is_contiguous(memory_format=torch.channels_last)
