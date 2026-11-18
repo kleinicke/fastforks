@@ -375,14 +375,16 @@ class Kernels(_Sam3):
     def __init__(self, ctx: Context) -> None:
         """Check the kernel libraries, build on the CPU, convert the trunk and neck, move the rest to the device."""
         super().__init__(ctx)
+        from fastforks._core.patch import override  # noqa: PLC0415
         from fastforks.kernels import cudnn_hacc, fastbb  # noqa: PLC0415 - optional kernel libraries
 
-        from .fast import FastEncoder, fp16_accumulate  # noqa: PLC0415 - needs the kernel libraries
+        from .fast import FastEncoder, fp16_accumulate, pixel_decode  # noqa: PLC0415 - needs the kernel libraries
 
         fastbb.load(ctx.device)  # BackendUnavailableError before the 3.4 GB checkpoint is read
         cudnn_hacc.load(ctx.device)
         net = load_net(ctx)
         self.encoder = FastEncoder(net.vision_encoder, ctx.device)
+        override(net.mask_decoder.pixel_decoder, pixel_decode)
         self.fp16_accumulate = fp16_accumulate
         # one graph per token bucket, with / without boxes
         self.cache = GraphCache(self._graph_forward, graphs=2 * len(BUCKETS))

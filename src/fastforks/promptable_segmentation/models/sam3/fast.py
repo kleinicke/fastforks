@@ -18,13 +18,13 @@ import torch.nn.functional as F
 
 from fastforks._core.errors import BackendUnavailableError
 from fastforks._core.half import fp16_accumulate
-from fastforks.kernels import cudnn_hacc, fastbb
+from fastforks.kernels import cudnn_hacc, fastbb, sam3_fpn
 from fastforks.kernels.dpt_fused import DptFused
 
 from .net.sam3 import GRID, HEAD, rope_tables
 
 if TYPE_CHECKING:
-    from .net.sam3 import FpnLayer, VisionEncoder, ViTLayer
+    from .net.sam3 import FpnLayer, PixelDecoder, VisionEncoder, ViTLayer
 
 
 class _Rope:
@@ -121,9 +121,12 @@ class FastEncoder:
         b, n, c = x.shape
         y = F.layer_norm(x, (c,), *p["ln1"])
         qkv = self.fused.gemm(y, p["qkv_w"], p["qkv_b"]).view(b, n, 3, self.heads, HEAD)
+        del y
         self.ropes[p["window"]](qkv)
         o = self.flash(*qkv.unbind(2), HEAD**-0.5).view(b, n, c)
+        del qkv
         x = self.fused.gemm(o, p["o_w"], p["o_b"], res=x, out=x)
+        del o
         y = F.layer_norm(x, (c,), *p["ln2"]).view(b * n, c)
         hid = self.fused.gemm(y, p["fc1_w"], p["fc1_b"], act=self.fused.gelu)
         return self.fused.gemm(hid.view(b, n, -1), p["fc2_w"], p["fc2_b"], res=x, out=x)
@@ -172,3 +175,23 @@ class FastEncoder:
         with fp16_accumulate():
             t = self.trunk(image).permute(0, 3, 1, 2)  # NHWC storage = channels-last NCHW
             return [self._level(ops, t) for ops in self.neck]
+
+
+def pixel_decode(decoder: PixelDecoder, feats: list[torch.Tensor]) -> torch.Tensor:
+    """Run the two fine mask stages while keeping each convolution result in its original storage."""
+    x = feats[-1]
+    for conv, norm, skip in zip(decoder.conv_layers, decoder.norms, reversed(feats[:-1]), strict=True):
+        x = conv(sam3_fpn.nearest_add(x, skip))
+        # Retain the reduction layout and fp16 rounding points of group_norm_relu.
+        b, c, h, w = x.shape
+        norm = cast("torch.nn.GroupNorm", norm)
+        g = norm.num_groups
+        if x.is_contiguous():
+            v, m = torch.var_mean(x.view(b, g, -1), dim=2, correction=0)
+        else:
+            v, m = torch.var_mean(x.permute(0, 2, 3, 1).reshape(b, h * w, g, c // g), dim=(1, 3), correction=0)
+        r = torch.rsqrt(v.float() + norm.eps)
+        scale = (norm.weight.float().view(1, g, -1) * r[..., None]).view(b, c)
+        shift = norm.bias.float() - (m.float()[..., None] * scale.view(b, g, -1)).view(b, c)
+        sam3_fpn.affine_relu_(x, scale.half(), shift.half())
+    return x
