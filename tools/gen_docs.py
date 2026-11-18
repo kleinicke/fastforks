@@ -245,7 +245,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
         "n",
         "prompted runs",
     ),
-    ("volume", "totalseg-featparity-8"): ((("cos_min", "{:.5f}", ""), ("rel_l2", "{:.4f}", "")), "n", "cases"),
+    ("volume", "totalseg-featparity-8"): ((("cos_min", "{:.5f}", ""), ("rel_l2", "{:.4g}", "")), "n", "cases"),
     "restoration": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "images"),
     ("restoration", "div2k-val-inpainting-mask50"): ((("psnr", "{:.4f}", ""),), "n", "masks"),
     ("restoration", "div2k-val-x2-crop64-every4-rgb"): ((("psnr", "{:.4f}", ""),), "n", "images"),

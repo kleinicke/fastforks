@@ -56,12 +56,12 @@ Commercial use: yes.
 
 A small subset of real CT cases of the TotalSegmentator dataset (not the full test split), each run at its card's spacing (1.5 or 3 mm) in the same pipeline; mean over the cases of the Dice (0 to 1) averaged over the classes present, against the ground-truth segmentations (vertebrae_L6 of the subset has no counterpart and is skipped). Original = TotalSegmentator 2.18.0, default fp16 autocast. Encoder models have no task head, so they are judged by their output: the encoder feature maps against the original fp32 maps (cosine similarity, worst case over the cases and the mean over the maps; relative L2 error, mean). Original (fp32) is the reference; the original fp16 row shows the error the original itself has in half precision. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `nnfoundation-cnn` | TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: cosine (worst case) / relative L2 | 1.00000 / 0.0000 | 0.99999 / 0.0014 | 0.99999 / 0.0017 | 0.99999 / 0.0015 |  |
-| `nnfoundation-vit` | TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: cosine (worst case) / relative L2 | 1.00000 / 0.0000 | 0.99947 / 0.0167 | 0.99950 / 0.0165 | 0.99940 / 0.0213 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `nnfoundation-cnn` | TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: cosine (worst case) / relative L2 | 1.00000 / 0 | 0.99999 / 0.001359 | 0.99999 / 0.001742 | 1.00000 / 7.915e-07 | 0.99999 / 0.001466 |  |
+| `nnfoundation-vit` | TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: cosine (worst case) / relative L2 | 1.00000 / 0 | 0.99947 / 0.01672 | 0.99950 / 0.0165 |  | 0.99940 / 0.02129 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 715d7cb5, 2026-11-14 to 2026-11-15.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 715d7cb5, 2026-11-14 to 2026-11-15; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 36a20781, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 715d7cb5, 2026-11-14 to 2026-11-15.
 
 ### Parity
 
@@ -112,11 +112,11 @@ Commercial use: **no** (weights: CC-BY-NC-SA-4.0).
 
 A small subset of real CT cases of the TotalSegmentator dataset (not the full test split), each run at its card's spacing (1.5 or 3 mm) in the same pipeline; mean over the cases of the Dice (0 to 1) averaged over the classes present, against the ground-truth segmentations (vertebrae_L6 of the subset has no counterpart and is skipped). Original = TotalSegmentator 2.18.0, default fp16 autocast. nnInteractive: per case 12 simulated prompts (point, box, scribble, point + box on 3 organs), one interaction each; Dice of the predicted mask against the ground-truth organ mask, mean over the runs. Agreement is Dice against the original FP16 or portable FP16 mask as labelled. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp16 | portable | kernels | TensorRT | note |
-|---|---|---|---|---|---|---|
-| `nninteractive` | TotalSegmentator test subset (8 CT cases x 12 prompts), mean Dice vs the ground-truth mask / agreement with the original / agreement with portable FP16 | 0.9688 | 0.9688 / 0.9999 | 0.9688 / 0.9999 | 0.9688 / 0.9997 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `nninteractive` | TotalSegmentator test subset (8 CT cases x 12 prompts), mean Dice vs the ground-truth mask / agreement with the original / agreement with portable FP16 | 0.9688 / 0.9999 | 0.9688 | 0.9688 / 0.9999 | 0.9688 / 0.9999 | 0.9688 / 0.9999 | 0.9688 / 0.9997 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 715d7cb5, 2026-11-15; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 715d7cb5, 2026-11-15; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks dc38c37c, 2026-11-17.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 715d7cb5, 2026-11-15; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks dc38c37c, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 715d7cb5, 2026-11-15; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks dc38c37c, 2026-11-17.
 
 ### Parity
 
