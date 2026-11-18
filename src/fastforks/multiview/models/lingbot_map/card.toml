@@ -5,6 +5,7 @@ tier = "experimental"
 uses = ["rope2d"]  # shared modules imported directly by this family (through the VGGT family)
 outputs = ["depth", "confidence", "intrinsics", "cam_to_world"]
 limitations = [
+  "On the RTX 5060 Ti reference input, stream=True reduced peak allocated memory across loading and inference from 3,591 to 2,532 MiB portable and 3,798 to 2,643 MiB kernels. Depth, confidence and camera outputs matched exactly.",
   "On CUDA, stream=True keeps the 24 pairs of aggregator blocks in host RAM. Each new view after the initial scale frames transfers those weights again. The camera, depth head and attention cache stay on the GPU.",
   "Views are a sequence (a video): each view only sees the first `scale_frames` views and the views before it (older than `window` frames: their 6 special tokens only). At most 1024 views.",
 ]
