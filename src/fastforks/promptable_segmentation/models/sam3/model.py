@@ -36,6 +36,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import InputError
+from fastforks._core.patch import override
 from fastforks._core.runner import host
 from fastforks.promptable_segmentation._runner import Context, Forward, NoParams, Runner, scale
 from fastforks.shared.cuda_graphs import GraphCache
@@ -376,7 +377,6 @@ class Kernels(_Sam3):
     def __init__(self, ctx: Context) -> None:
         """Check the kernel libraries, build on the CPU, convert the trunk and neck, move the rest to the device."""
         super().__init__(ctx)
-        from fastforks._core.patch import override  # noqa: PLC0415
         from fastforks.kernels import cudnn_hacc, fastbb  # noqa: PLC0415 - optional kernel libraries
 
         from .fast import FastEncoder, fp16_accumulate, pixel_decode  # noqa: PLC0415 - needs the kernel libraries
@@ -399,6 +399,18 @@ class Kernels(_Sam3):
         """As `Portable.embed` (float16, channels-last)."""
         fpn = self.encoder(prepare(image, self.ctx, exact=False))
         return {f"fpn{i}": f for i, f in enumerate(fpn)}
+
+    def _tracker(self) -> tuple[Tracker, object]:
+        first_call = self._video is None
+        tracker, neck = super()._tracker()
+        if first_call:
+            from .fast import tracker_attention  # noqa: PLC0415 - kernels backend only
+            from .net.tracker import RoPEAttention  # noqa: PLC0415
+
+            for mod in tracker.m.memory_attention.modules():
+                if isinstance(mod, RoPEAttention):
+                    override(mod, tracker_attention)
+        return tracker, neck
 
     def _track_neck(self, neck: Neck) -> object:
         layers = cast("list[FpnLayer]", list(neck.fpn_layers))

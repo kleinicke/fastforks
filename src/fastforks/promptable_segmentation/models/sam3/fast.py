@@ -18,13 +18,14 @@ import torch.nn.functional as F
 
 from fastforks._core.errors import BackendUnavailableError
 from fastforks._core.half import fp16_accumulate
-from fastforks.kernels import cudnn_hacc, fastbb, sam3_fpn
+from fastforks.kernels import cudnn_hacc, fastbb, sam3_fpn, sam3_tracker
 from fastforks.kernels.dpt_fused import DptFused
 
 from .net.sam3 import GRID, HEAD, rope_tables
 
 if TYPE_CHECKING:
     from .net.sam3 import FpnLayer, PixelDecoder, VisionEncoder, ViTLayer
+    from .net.tracker import RoPEAttention
 
 
 class _Rope:
@@ -195,3 +196,18 @@ def pixel_decode(decoder: PixelDecoder, feats: list[torch.Tensor]) -> torch.Tens
         shift = norm.bias.float() - (m.float()[..., None] * scale.view(b, g, -1)).view(b, c)
         sam3_fpn.affine_relu_(x, scale.half(), shift.half())
     return x
+
+
+def tracker_attention(  # noqa: PLR0913, PLR0917 - the upstream attention signature
+    self: RoPEAttention,
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    rope: tuple[torch.Tensor, torch.Tensor],
+    num_k_exclude_rope: int = 0,
+) -> torch.Tensor:
+    """Rotate the fresh fp16 projections in place, omitting each object's trailing pointer keys."""
+    q = sam3_tracker.rotate_(self.q_proj(q), rope, q.shape[1])
+    k = sam3_tracker.rotate_(self.k_proj(k), rope, k.shape[1] - num_k_exclude_rope)
+    v = self.v_proj(v)
+    return self.o_proj(F.scaled_dot_product_attention(q[:, None], k[:, None], v[:, None])[:, 0])
