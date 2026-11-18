@@ -404,7 +404,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `memflow` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3116<br>964<br>865<br>1642<br>fails: TensorRT engine build failed | 15061 / 15594<br>8265 / 8382<br>968 / 1022<br>6813 / 6946<br>– |
 | `memflow-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3214<br>964<br>865<br>1640<br>fails: TensorRT engine build failed | 15061 / 15634<br>8265 / 8382<br>968 / 1022<br>6813 / 6946<br>– |
-| `memflow-sintel` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>137 (full fixed-shape flow network, standalone trace export and build) | –<br>–<br>–<br>887 / 892 |
+| `memflow-sintel` | synthetic (384x1248) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>143<br>–<br>137 (full fixed-shape flow network, standalone trace export and build) | –<br>528 / 738<br>–<br>887 / 892 |
 | `memflow-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3247<br>965<br>865<br>1644<br>fails: TensorRT engine build failed | 15061 / 15594<br>8265 / 8382<br>968 / 1022<br>6813 / 6946<br>– |
 | `memflow-kitti` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>135 (full fixed-shape flow network, standalone engine build) | –<br>–<br>–<br>859 / 864 |
 
@@ -430,6 +430,7 @@ Commercial use: yes.
 - `memflow-kitti` 384x1248, first call: TensorRT fp16 330 s (ONNX + engine).
 - `memflow` original 1080x1920: torch.autocast(float16) around the call; upstream MemFlowNet configs/things_memflownet.py, InferenceCore.step(end=True) per pair
 - `memflow-sintel` original 1080x1920: torch.autocast(float16) around the call; upstream MemFlowNet configs/sintel_memflownet.py, InferenceCore.step(end=True) per pair
+- `memflow-sintel` portable 384x1248: Portable baseline on the saved TensorRT benchmark input.
 - `memflow-kitti` original 1080x1920: torch.autocast(float16) around the call; upstream MemFlowNet configs/kitti_memflownet.py, InferenceCore.step(end=True) per pair
 - `memflow` load / first call: original 0.16 s / 3.824 s, portable 0.06 s / 0.975 s, kernels 1.18 s / 0.878 s
 - `memflow-sintel` load / first call: original 0.14 s / 3.061 s, portable 0.1 s / 0.979 s, kernels 0.95 s / 0.876 s

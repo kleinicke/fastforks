@@ -5,6 +5,7 @@ tier = "experimental"
 outputs = ["warp", "certainty"]
 uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (the DINOv2 ViT and its fast path)
 limitations = [
+  "The fixed FP32 DINOv2 TensorRT stage raised AUC@5 from 61.60 to 64.93 on 300 MegaDepth pairs. The largest regression was from 13.67 to the 90-degree pose-estimation failure value.",
   "One direction (the first image's half of upstream's symmetric call); upstream's sampling / keypoint helpers are not included; tools/eval_matching.py has the MegaDepth-1500 sampling.",
   "Both images are resized to squares (upstream's behaviour), whatever their aspect ratio; upstream resizes PIL images, this runner float tensors (bicubic, antialiased).",
 ]

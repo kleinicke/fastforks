@@ -250,7 +250,7 @@ Commercial use: yes.
 
 ### Measured
 
-Top-down on the same every-tenth-image subset for all modes, ground-truth person boxes, no flip test; people ranked by the mean of their first 17 keypoint scores; pycocotools OKS AP on COCO body joints. Top-down on the ground-truth person boxes (non-crowd, at least one labelled keypoint), no flip test; people ranked by the mean of their 17 keypoint scores (not mmpose's rescoring and OKS-NMS), so not the papers' AP; pycocotools OKS AP; whole-body models scored on their 17 body keypoints. One prediction per annotated hand box. PCK is the mean across landmarks of the fraction within 20% of the longer box side. EPE is the mean pixel distance across annotated landmarks. Flip testing is disabled. One prediction per annotated face box with flip testing disabled. Mean visible-landmark error is divided by the distance between annotated eye landmarks 66 and 79. Original = the original code named under Details, same checkpoint and protocol.
+Top-down on the same every-tenth-image subset for all modes, ground-truth person boxes, no flip test; people ranked by the mean of their first 17 keypoint scores; pycocotools OKS AP on COCO body joints. Top-down on the ground-truth person boxes (non-crowd, at least one labelled keypoint), no flip test; people ranked by the mean of their 17 keypoint scores (not mmpose's rescoring and OKS-NMS), so not the papers' AP; pycocotools OKS AP; whole-body models scored on their 17 body keypoints. One prediction per annotated hand box. PCK is the mean across landmarks of the fraction within 20% of the longer box side. EPE is the mean pixel distance across annotated landmarks. Flip testing is disabled. One prediction per annotated face box with flip testing disabled. Mean visible-landmark error is divided by the distance between annotated eye landmarks 66 and 79. One prediction per annotated animal box with flip testing disabled. Average the keypoint similarities of the matched predictions with the AP-10K keypoint scales. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
@@ -284,6 +284,7 @@ Top-down on the same every-tenth-image subset for all modes, ground-truth person
 | `rtmpose-t-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) |  |  |  | 1.7742 |  |  |
 | `rtmpose-s-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) |  |  |  | 1.6854 |  |  |
 | `rtmpose-m-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) | 1.5244 |  |  | 1.5225 |  |  |
+| `rtmpose-m-ap10k` | AP-10K validation split 1, annotated animal boxes, paired OKS (%) |  |  |  | 83.825 |  |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / be54b8b0, 2026-11-09 to 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / be54b8b0, 2026-11-09 to 2026-11-11.
 
