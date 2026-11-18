@@ -129,8 +129,8 @@ class Tracker:
         labels: torch.Tensor | None,
         mask_in: torch.Tensor | None,
         multimask: bool,  # noqa: FBT001
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Upstream `_single_frame_forward` (float32): low `[P, 1, 288, 288]`, high `[P, 1, 1008, 1008]`, ptr, score."""
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Run the float32 heads and return low-resolution logits, the object pointer and object score."""
         p = pix.shape[0]
         if coords is None or labels is None:
             coords = torch.zeros(p, 1, 2, device=pix.device)
@@ -144,10 +144,9 @@ class Tracker:
             best = iou.argmax(-1)
             rows = torch.arange(p, device=pix.device)
             low, token = low[rows, best][:, None], tokens[rows, best]
-        high = F.interpolate(low, (SIZE, SIZE), mode="bilinear", align_corners=False)
         lam = present.float()
         ptr = lam * self.m.object_pointer_proj(token) + (1 - lam) * self.m.no_object_pointer
-        return low, high, ptr, obj
+        return low, ptr, obj
 
     def mask_as_output(
         self, raw: torch.Tensor, hr: list[torch.Tensor], mask: torch.Tensor
@@ -156,7 +155,7 @@ class Tracker:
         high = mask * MEM_SCALE + MEM_BIAS
         low = F.interpolate(high, (LOW, LOW), mode="bilinear", align_corners=False, antialias=True)
         m_in = F.interpolate(self.m.mask_downsample(mask), (LOW, LOW), mode="bilinear", antialias=True)
-        _, _, ptr, _ = self.heads(raw, hr, None, None, m_in, multimask=True)
+        _, ptr, _ = self.heads(raw, hr, None, None, m_in, multimask=True)
         lam = mask.flatten(1).gt(0).any(1, keepdim=True).float()
         obj = MEM_SCALE * lam + MEM_BIAS
         return low, high, lam * ptr + (1 - lam) * self.m.no_object_pointer, obj
@@ -172,7 +171,12 @@ class Tracker:
         return (feats + absent * occ).to(torch.bfloat16)
 
     def condition(
-        self, raw: torch.Tensor, t: int, n_frames: int, bank: dict[int, tuple[torch.Tensor, torch.Tensor]]
+        self,
+        raw: torch.Tensor,
+        t: int,
+        n_frames: int,
+        memories: dict[int, torch.Tensor],
+        pointers: dict[int, torch.Tensor],
     ) -> torch.Tensor:
         """Upstream `_prepare_memory_conditioned_features` for frame `t >= 1` (frame 0: the only conditioning frame)."""
         p, c, h, w = raw.shape
@@ -180,13 +184,13 @@ class Tracker:
         tpos = self.m.memory_temporal_positional_encoding.to(dt)[:, 0]  # [7, 1, 64]
         mems, poss = [], []
         for k, age in [(0, NUM_MASKMEM), *((k, t - k) for k in range(max(1, t - NUM_MASKMEM + 1), t))]:
-            mems.append(bank[k][0].to(dt).flatten(2).transpose(1, 2))  # [P, HW, 64]
+            mems.append(memories[k].to(dt).flatten(2).transpose(1, 2))  # [P, HW, 64]
             poss.append((self.mem_pos + tpos[age - 1]).expand(p, -1, -1))
         max_ptrs = min(n_frames, MAX_PTRS)
         ptr_frames = [0, *(t - d for d in range(1, max_ptrs) if t - d >= 1)]  # frame 0, then the most recent first
         rel = to_device([t - k for k in ptr_frames], raw.device)
         n, split = len(ptr_frames), c // MEM_DIM
-        ptrs = torch.stack([bank[k][1] for k in ptr_frames])  # [n, P, 256]
+        ptrs = torch.stack([pointers[k] for k in ptr_frames])  # [n, P, 256]
         ptrs = ptrs.reshape(n, p, split, MEM_DIM).permute(1, 0, 2, 3).reshape(p, n * split, MEM_DIM)
         pos = self.m.temporal_positional_encoding_projection_layer(get_1d_sine_pe(rel / (max_ptrs - 1), DIM))
         mems.append(ptrs.to(dt))
@@ -216,22 +220,29 @@ class Tracker:
         Prompts (frame 0, `P` objects): `coords` `[P, N, 2]` in 1008-px input coordinates + `labels` `[P, N]`, or
         `mask` `[P, 1, 1008, 1008]` binary.
         """
-        bank: dict[int, tuple[torch.Tensor, torch.Tensor]] = {}
+        memories: dict[int, torch.Tensor] = {}
+        pointers: dict[int, torch.Tensor] = {}
         p = next(x for x in (coords, mask) if x is not None).shape[0]
         for t, f in enumerate(frames):
             raw = f["raw"].expand(p, -1, -1, -1)
             hr = [f["feat_s0"].expand(p, -1, -1, -1), f["feat_s1"].expand(p, -1, -1, -1)]
-            if t == 0:
-                if mask is not None:
-                    low, high, ptr, obj = self.mask_as_output(raw, hr, mask)
-                else:
-                    multimask = labels is not None and labels.shape[1] <= 1
-                    low, high, ptr, obj = self.heads(raw + self.no_mem, hr, coords, labels, None, multimask)
-                bank[0] = (self.encode(raw, high, obj, binarize=True), ptr)
+            high = None
+            if t == 0 and mask is not None:
+                low, high, ptr, obj = self.mask_as_output(raw, hr, mask)
+            elif t == 0:
+                multimask = labels is not None and labels.shape[1] <= 1
+                low, ptr, obj = self.heads(raw + self.no_mem, hr, coords, labels, None, multimask)
             else:
-                cond = self.condition(raw, t, n_frames, bank)
-                low, high, ptr, obj = self.heads(cond, hr, None, None, None, True)  # noqa: FBT003
-                bank[t] = (self.encode(raw, high, obj, binarize=False), ptr)
-                for k in [k for k in bank if 0 < k <= t - MAX_PTRS + 1]:  # no later frame reads it
-                    del bank[k]
+                cond = self.condition(raw, t, n_frames, memories, pointers)
+                low, ptr, obj = self.heads(cond, hr, None, None, None, True)  # noqa: FBT003
+            if t + 1 < n_frames:
+                # Keep frame zero and each history window needed by the *next* frame.
+                if t >= NUM_MASKMEM:
+                    del memories[t - NUM_MASKMEM + 1]
+                if t >= MAX_PTRS:
+                    del pointers[t - MAX_PTRS + 1]
+                if high is None:
+                    high = F.interpolate(low, (SIZE, SIZE), mode="bilinear", align_corners=False)
+                memories[t] = self.encode(raw, high, obj, binarize=t == 0)
+                pointers[t] = ptr
             emit(t, low, obj)

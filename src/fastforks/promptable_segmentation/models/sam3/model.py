@@ -304,8 +304,9 @@ class _Sam3(Runner):
             host.put(t, masks=self.upsample(low, size)[:, 0] > 0, pred_masks=low[:, 0], object_score_logits=obj[:, 0])
 
         def feats(x: torch.Tensor) -> dict[str, torch.Tensor]:
-            l0, l1, l2 = (f.float() for f in self._track_embed(x, neck))
-            return {"raw": l2, "feat_s0": md.conv_s0(l0), "feat_s1": md.conv_s1(l1)}
+            l0, l1, l2 = self._track_embed(x, neck)
+            # Cast each feature just before projection so the two full-resolution fp32 maps never overlap.
+            return {"feat_s0": md.conv_s0(l0.float()), "feat_s1": md.conv_s1(l1.float()), "raw": l2.float()}
 
         tracker.run(
             (feats(x) for x in prefetch(frames, n_frames)), n_frames, coords=coords, labels=labs, mask=mask, emit=emit
