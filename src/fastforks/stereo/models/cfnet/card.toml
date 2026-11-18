@@ -28,7 +28,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
+kernels = ["cfnet_volume", "igev", "cutlass_conv", "cudnn_hacc"]
 mps_kernels = ["stereo_metal"]
 # Kernels is 1.2x faster at a repeated input size (490x940: 90 vs 112 ms; Midd-H 397 vs 481 ms), but every new padded
 # size first builds fp16-accumulate cuDNN graphs (~0.2 s once vs ~0.04 s for portable). On ETH3D, which has many

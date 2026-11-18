@@ -16,6 +16,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
+from fastforks.kernels import cfnet_volume
 from fastforks.stereo._runner import Forward, Runner
 
 from .net.cfnet import cfnet
@@ -28,6 +29,8 @@ from .net.submodule import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from fastforks.stereo._runner import Context
 
     Features = dict[str, torch.Tensor]
@@ -161,7 +164,13 @@ def _stage(  # noqa: PLR0913 - one refinement stage of upstream's forward
     return out, std
 
 
-def forward(net: cfnet, left: torch.Tensor, right: torch.Tensor, volume: StageVolume = stage_volume) -> torch.Tensor:
+def forward(
+    net: cfnet,
+    left: torch.Tensor,
+    right: torch.Tensor,
+    volume: StageVolume = stage_volume,
+    coarse: Callable[[Features, Features, int, int, int], torch.Tensor] = _volume,
+) -> torch.Tensor:
     """Upstream's test forward (`[pred1_s2]`), fused volumes in float32; disparity `[B, H, W]` float32.
 
     Inputs are cast to the feature network's dtype (channels-last on CUDA); `volume` builds the refinement stages'
@@ -173,11 +182,11 @@ def forward(net: cfnet, left: torch.Tensor, right: torch.Tensor, volume: StageVo
     left, right = (x.to(dt).contiguous(memory_format=fmt) for x in (left, right))
     fl, fr = net.feature_extraction(left), net.feature_extraction(right)
     md, g = net.maxdisp, net.num_groups
-    c4 = net.dres0(_volume(fl, fr, 4, md // 8, g).to(dt))
+    c4 = net.dres0(coarse(fl, fr, 4, md // 8, g).to(dt))
     c4 = net.dres1(c4) + c4
-    c5 = net.dres0_5(_volume(fl, fr, 5, md // 16, g))
+    c5 = net.dres0_5(coarse(fl, fr, 5, md // 16, g))
     c5 = net.dres1_5(c5) + c5
-    c6 = net.dres0_6(_volume(fl, fr, 6, md // 32, g))
+    c6 = net.dres0_6(coarse(fl, fr, 6, md // 32, g))
     c6 = net.dres1_6(c6) + c6
     cost = net.classif2(net.dres3(net.combine1(c4, c5.to(dt), c6.to(dt))))
     del c4, c5, c6
@@ -221,6 +230,24 @@ class Portable(Runner):
         return Forward(self.net, forward)
 
 
+def _cuda_coarse(fl: Features, fr: Features, level: int, disps: int, groups: int) -> torch.Tensor:
+    feats = (fl[f"gw{level}"], fr[f"gw{level}"], fl[f"concat_feature{level}"], fr[f"concat_feature{level}"])
+    # The two coarsest volume filters stay FP32 to preserve their dynamic range.
+    dtype = torch.float16 if level == 4 else torch.float32  # noqa: PLR2004 - 1/8 resolution
+    return cfnet_volume.volume(feats, groups, disps, dtype)
+
+
+def _cuda_stage(  # noqa: PLR0913 - matches StageVolume
+    net: cfnet, feats: tuple[Features, Features], ds: torch.Tensor, *, level: int, a: int, groups: int
+) -> torch.Tensor:
+    del net
+    rows = slice(a, a + ds.shape[2])
+    left, right = feats
+    gw, concat = f"gw{level}", f"concat_feature{level}"
+    planes = (left[gw][:, :, rows], right[gw][:, :, rows], left[concat][:, :, rows], right[concat][:, :, rows])
+    return cfnet_volume.volume(planes, groups, ds.shape[1], torch.float16, ds)
+
+
 class Kernels(Runner):
     """Our kernels: fp16-accumulate convs, conv + BatchNorm fused into one epilogue, fp16 (`FP32_MODULES`: fp32)."""
 
@@ -244,7 +271,7 @@ class Kernels(Runner):
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity of a padded pair."""
-        return {"disparity": forward(self.net, left, right)}
+        return {"disparity": forward(self.net, left, right, _cuda_stage, _cuda_coarse)}
 
 
 class MetalKernels(Portable):
