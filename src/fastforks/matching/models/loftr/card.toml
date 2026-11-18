@@ -5,6 +5,7 @@ tier = "experimental"
 outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
 uses = ["cnn_kernels"]  # fastforks.shared modules this family imports (fp16-accumulate conv kernels)
 limitations = [
+  "The standalone FP16 LoFTR Indoor TensorRT plan at 768 x 1024 failed the first 50 calibrated ScanNet pairs. AUC@20 was 54.62% with TensorRT and 59.89% with portable FP16. FP32 export is under evaluation.",
   "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; every match is its own keypoint pair (`pairs` is `[[0, 0], [1, 1], ...]`).",
   "One image pair per call internally (batches run pair by pair); the match counts differ per pair.",
   "No exportable module: the match counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).",

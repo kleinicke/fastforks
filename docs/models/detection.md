@@ -358,6 +358,7 @@ pycocotools COCOeval of the top 100 detections per image. Fixed FP32 graph, one 
 | `grounding-dino-tiny` | COCO val2017, all 5000 images, box mAP | 48.25 |  | 48.25 |  |  |  |
 | `grounding-dino-base` | COCO val2017, every 10th image, box mAP | 55.67 | 55.73 | 55.72 | 57.13 |  |  |
 | `mm-grounding-dino-tiny` | COCO val2017, every 10th image, box mAP |  |  |  | 51.49 |  |  |
+| `mm-grounding-dino-tiny` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 35.77 | 35.79 |  |
 | `mm-grounding-dino-tiny` | COCO val2017, every 20th image, box mAP | 55.18 |  | 54.92 |  |  |  |
 | `mm-grounding-dino-base` | COCO val2017, every 10th image, box mAP |  |  |  | 53.01 |  |  |
 | `mm-grounding-dino-base` | COCO val2017, every 20th image, box mAP | 57.11 |  | 56.94 |  |  |  |

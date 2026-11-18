@@ -163,7 +163,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 318<br>246<br>189<br>164<br>planned for 0.2.1 | 1734 / 1992<br>1535 / 1654<br>1197 / 1246<br>1893 / 2434<br>– |
+| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 318<br>246<br>189<br>164<br>495 (standalone build) | 1734 / 1992<br>1535 / 1654<br>1197 / 1246<br>1893 / 2434<br>3354 / 3378 |
 | `dedode-v2-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 666<br>592<br>332<br>330<br>planned for 0.2.1 | 2335 / 2472<br>2142 / 2334<br>1787 / 1984<br>2881 / 3316<br>– |
 
 <details><summary>Details</summary>
@@ -180,7 +180,7 @@ Commercial use: yes.
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dedode-v2-b` 3000x4000 (1.9 GiB peak allocated, 3.8 reserved); `dedode-v2-g` 3000x4000 (2.5 GiB peak allocated, 4.5 reserved)
-- `dedode-v2-b` 768x1024, first call: portable + torch.compile 50 s (cold Inductor cache).
+- `dedode-v2-b` 768x1024, first call: portable + torch.compile 50 s (cold Inductor cache), TensorRT fp32 76 s (ONNX + engine).
 - `dedode-v2-g` 768x1024, first call: portable + torch.compile 86 s (cold Inductor cache).
 - `dedode-v2-b` original 768x1024: the authors' mixed-precision option (float16); upstream DeDoDe-L v2 + descriptor B, 10000 keypoints
 - `dedode-v2-g` original 768x1024: the authors' mixed-precision option (float16); upstream DeDoDe-L v2 + descriptor G, 10000 keypoints
@@ -278,6 +278,7 @@ CPU, float32: max |diff| <= 3e-05 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
+- The standalone FP16 LoFTR Indoor TensorRT plan at 768 x 1024 failed the first 50 calibrated ScanNet pairs. AUC@20 was 54.62% with TensorRT and 59.89% with portable FP16. FP32 export is under evaluation.
 - Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; every match is its own keypoint pair (`pairs` is `[[0, 0], [1, 1], ...]`).
 - One image pair per call internally (batches run pair by pair); the match counts differ per pair.
 - No exportable module: the match counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).
