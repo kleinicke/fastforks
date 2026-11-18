@@ -611,6 +611,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
+- With resident weights, loading ViT-H+ on an RTX 5060 Ti peaked at 1,604 MiB allocated in CUDA portable mode after host-side packing. The prior loader peaked at 6,542 MiB. Both produced bit-identical reference outputs.
 - CUDA portable and kernels accept stream=True to stage packed transformer blocks from pinned host RAM. This setting uses eager inference. Export and CUDA graph replay require resident weights.
 - kernels replays a CUDA graph per small input shape and layer set (up to 512 px, ViT-S 1024 px), captured on the shape's second call; at most 8 per model holding at most 256 MB of outputs (a full cache replaces only graphs unused for 64 calls, other new shapes run eagerly).
 - The graphs' shared memory pool (intermediates) comes on top of that limit and stays reserved: up to about 470 MB more PyTorch cache than eager for ViT-H+ at 512 px with all layers, usually under 75 MB; `model.release_graphs()` frees it on the device.
