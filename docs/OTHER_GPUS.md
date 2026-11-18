@@ -138,6 +138,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `nafnet_gate` | nafnet |
 | `nf4` | marigold_v2, seedvr2 |
 | `ocr_levels` | ppocrv5 |
+| `omni_cg` | omni_dc |
 | `patchmatchnet` | patchmatchnet |
 | `pil_resample` | parseq |
 | `pointdit_norm` | pointdit |

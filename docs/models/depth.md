@@ -1050,7 +1050,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Weights licence: CC-BY-NC-4.0
 - Licence evidence: https://github.com/princeton-vl/OMNI-DC/blob/main/LICENSE (BSD-3-Clause, also on the Hugging Face card zuoym15/OMNI-DC); the checkpoint's depth_module is the frozen Depth Anything V2 Large (upstream loads depth_anything_v2_vitl.pth, CC-BY-NC-4.0)
 - Training data: Synthetic RGB-D datasets with virtual sparse patterns per the paper (arXiv 2411.19278)
-- Kernel libraries: `fastbb`, `dpt_fused`
+- Kernel libraries: `fastbb`, `dpt_fused`, `omni_cg`
 - Variants: `omni-dc`
 - Not in this release (planned for 0.2.1): `omni-dc` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export)
 - Outputs: depth; kind: `metric`
@@ -1078,7 +1078,7 @@ CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `omni-dc` | 0.00021 / 0.00144 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `omni-dc` | 0.00021 / 0.00144 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `omni_cg@e6b9e4aa818d:sm_120` |
 
 ### Limitations
 

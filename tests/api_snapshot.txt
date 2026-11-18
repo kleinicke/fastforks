@@ -1017,6 +1017,8 @@ option stereo.selective_igev.iters
 option tracking.alltracker.iters
 option tracking.track_on.memory
 option tracking.track_on.support_grid
+option volume.nnfoundation.stream
+option volume.totalsegmentator.stream
 property fastforks._core.cards.ModelCard.extras -> tuple[str, ...]
 property fastforks._core.cards.ModelCard.module -> str
 property fastforks._core.cards.ModelCard.requires -> tuple[str, ...]

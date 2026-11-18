@@ -38,6 +38,7 @@ Commercial use: yes.
 - Weights licence: CC-BY-SA-4.0
 - Licence evidence: https://huggingface.co/MIC-DKFZ/nnFoundationCNN/blob/f443c09319988e833b3d9589bf95909e4443d7b2/README.md ; https://huggingface.co/MIC-DKFZ/nnFoundationViT/blob/c691f2115140458ec64017712eb8ebbc8dde6ae4/README.md ; https://github.com/MIC-DKFZ/dynamic-network-architectures/blob/main/LICENSE
 - Training data: 2.1 million CT, MRI and PET volumes from 125 institutional and public datasets (Human Radiome Project); the dataset list is not published with the weights. Share-alike: models fine-tuned from these weights are adapted material under CC-BY-SA-4.0.
+- Options: `stream` = False (speed only)
 - Kernel libraries: `vol_norm`
 - Variants: `nnfoundation-cnn`, `nnfoundation-vit`
 - Not in this release (planned for 0.2.1): `nnfoundation-vit` ONNX / TensorRT export: the fixed-volume graph exports but TensorRT encoder features diverge from portable on real CT crops
@@ -69,11 +70,12 @@ CPU, float32: max |diff| <= 1.8e-06 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `nnfoundation-cnn` | 0.00067 / 0.00463 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@44036d4da567:sm_120` |
-| `nnfoundation-vit` | 0.0067 / 0.03039 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@44036d4da567:sm_120` |
+| `nnfoundation-cnn` | 0.00063 / 0.00378 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@aaf727a9a679:sm_120` |
+| `nnfoundation-vit` | 0.0067 / 0.03039 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@aaf727a9a679:sm_120` |
 
 ### Limitations
 
+- CUDA portable and kernels accept stream=True to stage CNN levels or ViT blocks from pinned host memory. On the 192³ nnFoundation ViT reference, peak allocated memory during load and inference on an RTX 5060 Ti fell from 1,665 to 673 MiB in both modes.
 - Kernels peak allocated is equal to portable, but the cuDNN workspace next to the large conv maps (1.4 GiB and 0.3 GiB workspaces) fragments the allocator: peak reserved is ~580 MiB above portable.
 
 </details>
@@ -124,7 +126,7 @@ CPU, float32: max |diff| <= 0.0 vs the original. GPU, float16 (the default), por
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `nninteractive` | 6e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@44036d4da567:sm_120` |
+| `nninteractive` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@aaf727a9a679:sm_120` |
 
 </details>
 
@@ -148,6 +150,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/wasserth/TotalSegmentator/blob/184fa4765456492b2ab81a981cc387465906b003/LICENSE ; https://github.com/wasserth/TotalSegmentator/blob/184fa4765456492b2ab81a981cc387465906b003/README.md
 - Training data: TotalSegmentator dataset v2 (1228 CT scans, 117 structures) (1559 CT scans of the TotalSegmentator dataset v2 (CC BY 4.0). Only the weights licence counts for the commercial flag.)
+- Options: `stream` = False (speed only)
 - Kernel libraries: `vol_norm`
 - Variants: `totalsegmentator-total`, `totalsegmentator-total-3mm`
 - Outputs: labels
@@ -178,8 +181,13 @@ CPU, float32: max |diff| <= 0.0 vs the original. GPU, float16 (the default), por
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `totalsegmentator-total` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@44036d4da567:sm_120` |
-| `totalsegmentator-total-3mm` | 0.0006 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@44036d4da567:sm_120` |
+| `totalsegmentator-total` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@aaf727a9a679:sm_120` |
+| `totalsegmentator-total-3mm` | 0.00056 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@aaf727a9a679:sm_120` |
+
+### Limitations
+
+- On CUDA, stream=True keeps weights in CPU RAM and transfers each part once per volume. The five-part total model holds one part on the GPU at a time. All folds within the active part share the GPU.
+- On an RTX 5060 Ti with a 96 × 128 × 128 CT, total peak allocated memory was 1,140 / 876 MiB for resident / streamed portable and 1,013 / 748 MiB for kernels. Streaming preserved every predicted label in both modes.
 
 </details>
 
