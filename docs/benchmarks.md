@@ -2238,6 +2238,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | moge-2-vits-normal | 994x1482 | 61.6 ms | 43.9 ms | 24.5 ms | 33.3 ms | 124 s | 131 s | 1007 / 1172 | 836 / 992 | 932 / 1048 | 768 / 852 |
 | moge-3-vitl | 994x1482 | 334 ms | 311 ms | planned for 0.2.1 | 149 ms | 136 s | – | 1678 / 1826 | 1500 / 1724 | 1626 / 1762 | – |
 | omni-dc | 994x1482 | 554 ms | 411 ms | planned for 0.2.1 | 510 ms | 137 s | – | 4958 / 6304 | 4201 / 5932 | 4981 / 6030 | – |
+| omni-dc | 480x640 | – | – | 253 ms, fp32 engine (Depth Anything V2 with eager prompt fusion and solver) | – | – | 52.0 s | – | – | – | 2930 / 3298 |
 | pointdit-b-512 | 994x1482 | 31.1 ms | 23.7 ms | 15.5 ms | 20.5 ms | 33.6 s | 86.5 s | 446 / 504 | 465 / 524 | 462 / 630 | 795 / 898 |
 | pointdit-l-512 | 994x1482 | 94.6 ms | 76.0 ms | 49.1 ms | 61.3 ms | 57.3 s | 150 s | 1297 / 1430 | 1316 / 1430 | 1310 / 1676 | 2474 / 2626 |
 | prompt-depth-anything-l | 756x1008 | 125 ms | 117 ms | 75.3 ms | 69.3 ms | 21.2 s | 52.5 s | 1318 / 1488 | 968 / 1148 | 1179 / 1348 | 1649 / 1714 |
@@ -2638,6 +2639,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | raft-large-kitti | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 84.2 ms | 39.3 s | – | 5930 / 6058 | 5886 / 5924 | 332 / 352 | – |
 | raft-large-kitti | 384x1248 | – | – | 59.2 ms, fp32 engine | – | – | 134 s | – | – | – | 873 / 918 |
 | raft-large-things | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.5 ms | 39.4 s | – | 5930 / 6058 | 5886 / 5924 | 332 / 352 | – |
+| raft-large-things | 384x1248 | – | – | 59.0 ms, fp32 engine | – | – | 161 s | – | – | – | 873 / 918 |
 | raft-small | 1080x1920 | 144 ms | 110 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 36.5 ms | 37.0 s | – | 5669 / 5706 | 5704 / 5728 | 196 / 204 | – |
 | raft-small | 384x1248 | – | – | 20.7 ms, fp32 engine | – | – | 178 s | – | – | – | 803 / 820 |
 | recover-cx | 1080x1920 | 107 ms | 89.9 ms | 47.5 ms | 89.8 ms | 13.9 s | 41.6 s | 733 / 892 | 504 / 572 | 733 / 892 | 603 / 632 |

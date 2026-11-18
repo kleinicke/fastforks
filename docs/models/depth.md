@@ -99,7 +99,7 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
@@ -182,7 +182,7 @@ Commercial use: `da3mono-large`, `da3metric-large`: yes; `da3-large-1.1`, `da3-g
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
@@ -321,7 +321,7 @@ Commercial use: `depth-anything-v2-s`, `depth-anything-v2-metric-hypersim-s`, `d
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
@@ -434,7 +434,7 @@ Commercial use: **no** (weights: LicenseRef-research-only).
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
@@ -488,7 +488,7 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
 |---|---|---|---|---|---|---|---|---|
@@ -549,7 +549,7 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
@@ -610,7 +610,7 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
@@ -670,7 +670,7 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
@@ -729,7 +729,7 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
@@ -799,7 +799,7 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original half | portable | kernels | portable + torch.compile | note |
 |---|---|---|---|---|---|---|
@@ -860,7 +860,7 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
@@ -920,7 +920,7 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
@@ -986,7 +986,7 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | note |
 |---|---|---|---|---|---|---|---|---|
@@ -1044,6 +1044,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `omni-dc` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 875<br>554<br>510<br>411<br>planned for 0.2.1 | 5966 / 6732<br>4958 / 6304<br>4981 / 6030<br>4201 / 5932<br>– |
+| `omni-dc` | 480x640 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>253 (Depth Anything V2 with eager prompt fusion and solver) | –<br>–<br>–<br>2930 / 3298 |
 
 <details><summary>Details</summary>
 
@@ -1059,20 +1060,22 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Input size: any H x W >= 1, resized or padded inside the model (ViT patch 16)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `omni-dc` 1024x2048 (6.4 GiB peak allocated, 9.2 reserved)
 - `omni-dc` 994x1482, first call: portable + torch.compile 137 s (cold Inductor cache).
+- `omni-dc` 480x640, first call: TensorRT fp32 52 s (ONNX + engine).
 - `omni-dc` original 994x1482: upstream OGNIDC.forward (demo.sh arguments), float32, 16-padded
 - `omni-dc` load / first call: original 9.52 s / 2.035 s, portable 2.47 s / 1.062 s, kernels 2.44 s / 0.936 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Every fourth NYUv2 test image. Resize RGB to 480 x 640 and pass the same 192 x 256 depth prompt pooled from ground truth to both backends. Resize the output to the label grid for metric AbsRel and delta1 without a scale fit. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|
-| `omni-dc` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0231 / 0.9966 | 0.0231 / 0.9966 | 0.0231 / 0.9966 | 0.0232 / 0.9966 |  |
-| `omni-dc` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0253 / 0.9910 | 0.0254 / 0.9910 | 0.0254 / 0.9910 | 0.0254 / 0.9910 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|
+| `omni-dc` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0231 / 0.9966 | 0.0231 / 0.9966 | 0.0231 / 0.9966 | 0.0232 / 0.9966 |  |  |
+| `omni-dc` | NYUv2 test (164 images at 480 x 640), metric AbsRel / delta1 |  |  | 0.0236 / 0.9964 |  | 0.0236 / 0.9964 |  |
+| `omni-dc` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0253 / 0.9910 | 0.0254 / 0.9910 | 0.0254 / 0.9910 | 0.0254 / 0.9910 |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks cb0976da7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7efc02b9 / cb0976da7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7efc02b9, 2026-11-18.
 
 ### Parity
 
@@ -1129,7 +1132,7 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
@@ -1198,7 +1201,7 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Prompt depth models: the prompt is a 192x256 low-resolution depth built from the ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with a LiDAR prompt, L1 in mm): they compare our modes with the original. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
@@ -1256,7 +1259,7 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
@@ -1313,7 +1316,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
@@ -1370,7 +1373,7 @@ Commercial use: **no** (code: CC-BY-NC-SA-4.0 (noncommercial); weights: CC-BY-NC
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
@@ -1433,7 +1436,7 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Video: one call per sequence, one scale + shift per sequence, AbsRel / delta1 over all its pixels with Kinect depth, mean over sequences. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Video: one call per sequence, one scale + shift per sequence, AbsRel / delta1 over all its pixels with Kinect depth, mean over sequences. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
@@ -1494,7 +1497,7 @@ Commercial use: yes.
 
 ### Measured
 
-AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
+Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. Metric depth scores follow each dataset's protocol. Both average over images. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|

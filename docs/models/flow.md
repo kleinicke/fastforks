@@ -630,6 +630,7 @@ Commercial use: yes.
 | `raft-large` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>291<br>83.4<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>5930 / 6058<br>332 / 352<br>5886 / 5924<br>– |
 | `raft-large` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>58.9 | –<br>–<br>–<br>873 / 918 |
 | `raft-large-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 481<br>566<br>291<br>83.5<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>5930 / 6058<br>332 / 352<br>5886 / 5924<br>– |
+| `raft-large-things` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>59.0 | –<br>–<br>–<br>873 / 918 |
 | `raft-large-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>291<br>84.2<br>195<br>fails: TensorRT engine build failed | 13489 / 13818<br>7164 / 10928<br>5930 / 6058<br>332 / 352<br>5886 / 5924<br>– |
 | `raft-large-kitti` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>59.2 | –<br>–<br>–<br>873 / 918 |
 | `raft-small` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 196<br>395<br>144<br>36.5<br>110<br>fails: unsupported: engine build needs more than the 16 GB of this  | 13441 / 13686<br>7032 / 10888<br>5669 / 5706<br>196 / 204<br>5704 / 5728<br>– |
@@ -653,6 +654,7 @@ Commercial use: yes.
 - `raft-large` 1080x1920, first call: portable + torch.compile 41 s (cold Inductor cache).
 - `raft-large` 384x1248, first call: TensorRT fp32 147 s (ONNX + engine).
 - `raft-large-things` 1080x1920, first call: portable + torch.compile 39 s (cold Inductor cache).
+- `raft-large-things` 384x1248, first call: TensorRT fp32 161 s (ONNX + engine).
 - `raft-large-kitti` 1080x1920, first call: portable + torch.compile 39 s (cold Inductor cache).
 - `raft-large-kitti` 384x1248, first call: TensorRT fp32 134 s (ONNX + engine).
 - `raft-small` 1080x1920, first call: portable + torch.compile 37 s (cold Inductor cache).
@@ -681,6 +683,7 @@ Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of 
 | `raft-large` | KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all % |  |  |  | 1.535 / 5.71 |  | 1.535 / 5.71 | trained on this dataset's public images; not a zero-shot result |
 | `raft-large` | KITTI 2015 first 50 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 1.322 / 4.75 |  | 1.322 / 4.75 | trained on this dataset's public images; not a zero-shot result |
 | `raft-large-things` | KITTI 2015 train, EPE / Fl-all % | 4.838 / 16.55 | 4.831 / 16.54 | 4.828 / 16.51 | 4.838 / 16.55 | 4.834 / 16.53 |  |  |
+| `raft-large-things` | KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all % |  |  |  | 5.952 / 17.59 |  | 5.949 / 17.59 |  |
 | `raft-large-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.614 / 1.44 | 0.614 / 1.44 | 0.614 / 1.44 | 0.614 / 1.44 | 0.614 / 1.44 |  | trained on this dataset's public images; not a zero-shot result |
 | `raft-large-kitti` | KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all % |  |  |  | 0.629 / 1.50 |  | 0.629 / 1.50 | trained on this dataset's public images; not a zero-shot result |
 | `raft-small` | KITTI 2015 train, EPE / Fl-all % | 7.854 / 25.91 | 7.838 / 25.92 | 7.846 / 25.92 | 7.854 / 25.91 | 7.834 / 25.92 |  |  |

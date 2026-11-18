@@ -45,6 +45,7 @@ _DATASETS = {
     "depth": {
         "nyu": "NYUv2 test, AbsRel / delta1",
         "nyu-prompt-every4": "NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric)",
+        "nyu-prompt-every4-fixed-480x640": "NYUv2 test (164 images at 480 x 640), metric AbsRel / delta1",
         "ibims-prompt": "iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric)",
         "ibims": "iBims-1, AbsRel / delta1",
         "ibims-first10": "iBims-1, first 10 images, AbsRel / delta1",
@@ -196,7 +197,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "depth": ((("rel_absrel", "{:.4f}", ""), ("rel_d1", "{:.4f}", "")), "n_images", "images"),
     **{
         ("depth", d): ((("met_absrel", "{:.4f}", ""), ("met_d1", "{:.4f}", "")), "n_images", "images")
-        for d in ("nyu-prompt-every4", "ibims-prompt")
+        for d in ("nyu-prompt-every4", "nyu-prompt-every4-fixed-480x640", "ibims-prompt")
     },
     **{
         ("depth", d): (
@@ -316,8 +317,8 @@ _PROTOCOL = {
     ("stereo", "kitti2015-train-stereo-fixed-384x1248"): "All 200 KITTI 2015 training pairs, padded on the right "
     "and bottom. D1 is the share of valid pixels with error above both 3 px and 5% of ground truth. EPE is averaged "
     "over the per-pair mean absolute errors. ",
-    "depth": "AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), "
-    "mean over images. ",
+    "depth": "Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. "
+    "Metric depth scores follow each dataset's protocol. Both average over images. ",
     ("depth", "tum-video-110"): "Video: one call per sequence, one scale + shift per sequence, AbsRel / delta1 over "
     "all its pixels with Kinect depth, mean over sequences. ",
     ("depth", "nyu-normals"): "Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's "
@@ -327,6 +328,9 @@ _PROTOCOL = {
     "compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt "
     "comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with "
     "a LiDAR prompt, L1 in mm): they compare our modes with the original. ",
+    ("depth", "nyu-prompt-every4-fixed-480x640"): "Every fourth NYUv2 test image. Resize RGB to 480 x 640 and pass the "
+    "same 192 x 256 depth prompt pooled from ground truth to both backends. Resize the output to the label grid for "
+    "metric AbsRel and delta1 without a scale fit. ",
     ("depth", "ibims-prompt"): "Prompt depth models: the prompt is a 192x256 low-resolution depth built from the "
     "ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth "
     "compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt "
