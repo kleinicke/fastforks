@@ -22,11 +22,13 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core import mps
-from fastforks._core.errors import BackendUnavailableError
+from fastforks._core.errors import BackendUnavailableError, OptionsError
 from fastforks._core.half import fp16_accumulate
-from fastforks.kernels import cudnn_hacc, fastbb
+from fastforks._core.patch import override
+from fastforks.kernels import cudnn_hacc, dpt_fused, fastbb
 from fastforks.segmentation._runner import Forward, Runner, scale
 from fastforks.segmentation.models.sapiens.net import IN_EPS, LN_EPS, PATCH, Arch, Layer, Sapiens
+from fastforks.shared.host_blocks import StreamedModuleList
 from fastforks.shared.seginfer import upsample, upsample_argmax
 
 if TYPE_CHECKING:
@@ -41,6 +43,8 @@ _NOT_THE_NETWORK = frozenset({"data_preprocessor.mean", "data_preprocessor.std"}
 class Params(Arch):
     """Card `[params]` (the network shape; the input size is the position table's grid x 16)."""
 
+    stream: bool = False
+
 
 def _prepare(image: torch.Tensor, ctx: Context) -> torch.Tensor:
     """`[B, 3, H, W]` in `[0, 1]` -> the normalised network input at the table's size (float32)."""
@@ -51,9 +55,10 @@ def _prepare(image: torch.Tensor, ctx: Context) -> torch.Tensor:
 
 def _load(ctx: Context) -> Sapiens:
     p: Params = ctx.params
-    net = Sapiens(p)
+    with torch.device("meta"):
+        net = Sapiens(p)
     sd = ctx.state_dict(strip="")
-    net.load_state_dict({k: v for k, v in sd.items() if k not in _NOT_THE_NETWORK})
+    net.load_state_dict({k: v for k, v in sd.items() if k not in _NOT_THE_NETWORK}, strict=True, assign=True)
     return net.eval().requires_grad_(requires_grad=False)
 
 
@@ -75,8 +80,20 @@ class _Functional(Runner):
     def __init__(self, ctx: Context, dtype: torch.dtype) -> None:
         """Weights on the device in `dtype` (convolutions channels-last)."""
         super().__init__(ctx)
-        net = _load(ctx).to(ctx.device, dtype)
+        if ctx.params.stream and ctx.device.type != "cuda":
+            msg = "Sapiens block streaming requires CUDA"
+            raise OptionsError(msg)
+        net = _load(ctx)
+        self.staged = None
+        if ctx.params.stream:
+            net.backbone.layers.to(dtype=dtype)
+            for blk in net.backbone.blocks:
+                override(blk, _staged_layer)
+            self.staged = StreamedModuleList(net.backbone.blocks, ctx.device)
+            net.backbone.layers = torch.nn.ModuleList()
+            net.backbone.blocks = []
         cl = torch.channels_last
+        net.to(device=ctx.device, dtype=dtype, memory_format=cl)
         head = net.decode_head
         self.patch_w = net.backbone.patch_embed.projection.weight.contiguous(memory_format=cl)
         self.deconv = [m.weight.contiguous(memory_format=cl) for m in head.deconvs]
@@ -119,8 +136,12 @@ class _Functional(Runner):
         t = self._conv(x, self.patch_w, bb.patch_embed.projection.bias, PATCH)
         b, c, gh, gw = t.shape
         t = t.flatten(2).transpose(1, 2) + bb.pos_embed
-        for layer in bb.blocks:
-            t = self._layer(layer, t)
+        if self.staged is None:
+            for layer in bb.blocks:
+                t = self._layer(layer, t)
+        else:
+            for apply in self.staged:
+                t = apply(t, self)
         f = F.layer_norm(t, (c,), bb.ln1.weight, bb.ln1.bias, LN_EPS).view(b, gh, gw, c).permute(0, 3, 1, 2)
         for w in self.deconv:
             f = _inorm_silu_(self._deconv(f, w))
@@ -149,6 +170,11 @@ class _Functional(Runner):
         return upsample_argmax(self._scores(image), (tuple(image.shape[-2:]),), fused=self.fused)
 
 
+def _staged_layer(layer: Layer, x: torch.Tensor, runner: _Functional) -> torch.Tensor:
+    """Run this layer with the current upload buffer's weights."""
+    return runner._layer(layer, x)  # noqa: SLF001 - the runner selects its backend
+
+
 class Portable(_Functional):
     """Plain PyTorch (friendly): SDPA attention, float32, or fp16 on CUDA."""
 
@@ -160,6 +186,9 @@ class Portable(_Functional):
 
     def module(self) -> torch.nn.Module:
         """The network with its input handling: `[B, 3, H, W]` in `[0, 1]` -> logits `[B, 28, H, W]`."""
+        if self.staged is not None:
+            msg = "Export requires resident Sapiens weights; reload with stream=False"
+            raise NotImplementedError(msg)
         return Forward(self.net, lambda _net, image: self._run(image))
 
 
@@ -181,6 +210,7 @@ class Kernels(_Functional):
         fastbb.load(ctx.device)
         self.flash = fastbb.Flash64("fh")
         self.cv = cudnn_hacc.load(ctx.device)
+        self.gemm = dpt_fused.load(ctx.device)
 
     def _conv(self, x: torch.Tensor, w: torch.Tensor, b: torch.Tensor | None, stride: int) -> torch.Tensor:
         return self.cv.conv(x, w, b, (0, 0), (stride, stride))
@@ -195,6 +225,14 @@ class Kernels(_Functional):
         qkv = F.linear(x, layer.attn.qkv.weight, layer.attn.qkv.bias).view(b, n, 3, h, FLASH_HEAD_DIM)
         out = self.flash(*qkv.unbind(2), FLASH_HEAD_DIM**-0.5)
         return F.linear(out.view(b, n, c), layer.attn.proj.weight, layer.attn.proj.bias)
+
+    def _layer(self, layer: Layer, x: torch.Tensor) -> torch.Tensor:
+        c = x.shape[-1]
+        x = x + self._attn(layer, F.layer_norm(x, (c,), layer.ln1.weight, layer.ln1.bias, LN_EPS))
+        fc1, fc2 = layer.ffn.fc
+        y = F.layer_norm(x, (c,), layer.ln2.weight, layer.ln2.bias, LN_EPS)
+        hidden = self.gemm.gemm(y, fc1.weight, fc1.bias, act=self.gemm.gelu)
+        return self.gemm.gemm(hidden, fc2.weight, fc2.bias, res=x, out=x)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Logits `[B, 28, H, W]` of a batch."""

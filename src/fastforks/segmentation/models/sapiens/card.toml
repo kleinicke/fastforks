@@ -3,7 +3,9 @@ name = "Sapiens segmentation"
 summary = "Sapiens (Khirodkar et al. 2024) human body-part segmentation: a ViT pretrained on 300 M human images, fine-tuned with a deconvolution head on Goliath's 28 classes (face, hair, left / right limbs, clothing, lips, teeth, ...); 1024 x 768 input, the Sapiens-Lite TorchScript checkpoints."
 tier = "stable"
 outputs = ["logits"]
-uses = ["seginfer"]  # fastforks.shared modules this family imports
+uses = ["host_blocks", "seginfer"]  # fastforks.shared modules this family imports
+
+limitations = ["CUDA stream=True stages the ViT blocks from pinned host RAM. The decoder and its feature maps stay resident on the GPU. Export requires stream=False."]
 
 [upstream]
 repo = "https://github.com/facebookresearch/sapiens"
@@ -27,12 +29,16 @@ grid = [64, 48]  # position table of the checkpoints: every image is resized to 
 channels = 768  # decode head width
 num_classes = 28
 
+[options]
+stream = { default = false, effect = "speed" }
+
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = [
+  "dpt_fused",  # feed-forward projections with GELU and residual epilogues
   "fastbb",  # flash attention (head_dim 64)
   "cudnn_hacc",  # fp16-accumulating convolutions and deconvolutions
   "seg_up",  # logits resize / labels in one pass
