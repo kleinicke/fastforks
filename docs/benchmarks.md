@@ -2427,6 +2427,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | faster-rcnn-r50-fpn-3x-coco | 800x1344 | 22.8 ms | 18.9 ms | 5.35 ms (backbone + FPN only) | 19.5 ms | 26.0 s | 15.6 s | 390 / 490 | 413 / 438 | 391 / 450 | 439 / 494 |
 | grounding-dino-base | 800x1344 | 160 ms | 131 ms | planned for 0.2.1 | – | 98.4 s | – | 1525 / 1624 | 2669 / 2800 | – | – |
 | grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | planned for 0.2.1 | – | 72.5 s | – | 1404 / 1468 | 2550 / 2664 | – | – |
+| grounding-dino-tiny | 320x320 | 40.9 ms | – | 13.6 ms, fp32 engine (network with fixed COCO prompts, standalone build) | – | – | – | 781 / 898 | – | – | 387 / 406 |
 | lw-detr-large-coco | 800x1344 | 10.2 ms | 5.62 ms | 3.45 ms | 5.64 ms | 29.6 s | 56.0 s | 204 / 230 | 195 / 208 | 192 / 254 | 270 / 296 |
 | lw-detr-medium-coco | 800x1344 | 8.75 ms | 3.74 ms | 2.30 ms | 3.78 ms | 22.4 s | 63.3 s | 131 / 156 | 147 / 174 | 131 / 178 | 185 / 212 |
 | lw-detr-small-coco | 800x1344 | 8.82 ms | 3.63 ms | 1.36 ms | 2.80 ms | 23.0 s | 63.1 s | 97 / 116 | 116 / 134 | 99 / 140 | 121 / 130 |
@@ -2435,6 +2436,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | mask-rcnn-r50-fpn-3x-coco | 800x1344 | 24.6 ms | 21.5 ms | 5.34 ms (backbone + FPN only) | 21.0 ms | 29.3 s | 18.3 s | 352 / 440 | 333 / 358 | 353 / 400 | 444 / 496 |
 | mm-grounding-dino-base | 800x1344 | 160 ms | 132 ms | planned for 0.2.1 | – | 105 s | – | 1525 / 1624 | 2669 / 2800 | – | – |
 | mm-grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | planned for 0.2.1 | – | 71.2 s | – | 1405 / 1470 | 2555 / 2666 | – | – |
+| mm-grounding-dino-tiny | 320x320 | 40.8 ms | – | 13.8 ms, fp32 engine (network with fixed COCO prompts, standalone build) | – | – | – | 784 / 900 | – | – | 387 / 408 |
 | owlv2-b16 | 800x1344 | 31.8 ms | 28.5 ms | 18.4 ms | 23.7 ms | 10.6 s | 25.9 s | 460 / 510 | 487 / 530 | 461 / 612 | 655 / 726 |
 | owlv2-l14 | 800x1344 | 154 ms | 141 ms | 95.9 ms | 110 ms | 12.4 s | 33.8 s | 1097 / 1144 | 1190 / 1242 | 1027 / 1184 | 1786 / 1820 |
 | rf-detr-l-coco | 800x1344 | 10.6 ms | 5.32 ms | 2.87 ms | 5.30 ms | 28.7 s | 65.7 s | 149 / 184 | 164 / 182 | 149 / 206 | 203 / 222 |

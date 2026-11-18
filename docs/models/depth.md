@@ -795,13 +795,13 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original half | portable | portable fp32 | kernels | portable + torch.compile | note |
-|---|---|---|---|---|---|---|---|
-| `marigold-v2-depth` | NYUv2 test, AbsRel / delta1 | out of memory | 0.0386 / 0.9840 | 0.0386 / 0.9840 | 0.0386 / 0.9840 |  |  |
-| `marigold-v2-depth` | iBims-1, AbsRel / delta1 |  | 0.0291 / 0.9877 | 0.0291 / 0.9877 | 0.0291 / 0.9877 |  |  |
-| `marigold-v2-depth` | iBims-1, first 10 images, AbsRel / delta1 |  | 0.0403 / 0.9701 |  |  | 0.0403 / 0.9703 |  |
+| variant | dataset | original half | portable | kernels | portable + torch.compile | note |
+|---|---|---|---|---|---|---|
+| `marigold-v2-depth` | NYUv2 test, AbsRel / delta1 | out of memory | 0.0386 / 0.9840 | 0.0386 / 0.9840 |  |  |
+| `marigold-v2-depth` | iBims-1, AbsRel / delta1 |  | 0.0291 / 0.9877 | 0.0291 / 0.9877 | 0.0291 / 0.9878 |  |
+| `marigold-v2-depth` | iBims-1, first 10 images, AbsRel / delta1 |  | 0.0403 / 0.9701 |  | 0.0403 / 0.9703 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519 / 46f88d78, 2026-11-14 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519, 2026-11-14; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 46f88d78, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519 / 46f88d78 / 6d3bab64, 2026-11-14 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519, 2026-11-14; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 46f88d78, 2026-11-18.
 
 ### Parity
 

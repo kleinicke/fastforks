@@ -312,8 +312,10 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 199<br>138<br>–<br>111<br>planned for 0.2.1 | 2541 / 2716<br>1404 / 1468<br>–<br>2550 / 2664<br>– |
+| `grounding-dino-tiny` | synthetic (320x320) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>40.9<br>–<br>13.6 (network with fixed COCO prompts, standalone build) | –<br>781 / 898<br>–<br>387 / 406 |
 | `grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 230<br>160<br>–<br>131<br>planned for 0.2.1 | 2895 / 3094<br>1525 / 1624<br>–<br>2669 / 2800<br>– |
 | `mm-grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 202<br>138<br>–<br>111<br>planned for 0.2.1 | 2541 / 2716<br>1405 / 1470<br>–<br>2555 / 2666<br>– |
+| `mm-grounding-dino-tiny` | synthetic (320x320) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>40.8<br>–<br>13.8 (network with fixed COCO prompts, standalone build) | –<br>784 / 900<br>–<br>387 / 408 |
 | `mm-grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 232<br>160<br>–<br>132<br>planned for 0.2.1 | 2895 / 3094<br>1525 / 1624<br>–<br>2669 / 2800<br>– |
 
 <details><summary>Details</summary>
@@ -338,8 +340,10 @@ Commercial use: yes.
 - `mm-grounding-dino-tiny` 800x1344, first call: portable + torch.compile 71 s (cold Inductor cache).
 - `mm-grounding-dino-base` 800x1344, first call: portable + torch.compile 105 s (cold Inductor cache).
 - `grounding-dino-tiny` original 800x1344: torch.autocast(float16) around the call; transformers GroundingDinoForObjectDetection + processor (CPU), coco-80 caption, text tower per call
+- `grounding-dino-tiny` portable 320x320: CNN and detection transformer using 80 fixed COCO prompts
 - `grounding-dino-base` original 800x1344: torch.autocast(float16) around the call; transformers GroundingDinoForObjectDetection + processor (CPU), coco-80 caption, text tower per call
 - `mm-grounding-dino-tiny` original 800x1344: torch.autocast(float16) around the call; transformers MMGroundingDinoForObjectDetection + processor (CPU), coco-80 caption, text tower per call
+- `mm-grounding-dino-tiny` portable 320x320: CNN and detection transformer using 80 fixed COCO prompts
 - `mm-grounding-dino-base` original 800x1344: torch.autocast(float16) around the call; transformers MMGroundingDinoForObjectDetection + processor (CPU), coco-80 caption, text tower per call
 - `grounding-dino-tiny` load / first call: original 4.06 s / 1.176 s, portable 3.01 s / 0.508 s
 - `grounding-dino-base` load / first call: original 4.16 s / 0.989 s, portable 3.29 s / 0.527 s
