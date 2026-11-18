@@ -930,6 +930,8 @@ COMPILE_MAX_ACT = 80 << 20
 """Compile the replay only when no activation exceeds this many bytes: `mx.compile` of a graph with huge maps (dense
 prediction at megapixel size) peaks at about twice the memory of the lazy replay and runs slower."""
 
+BIG_WEIGHTS = 1 << 30  # weights (run dtype) from which the checkpoint interval grows to the weights' size
+BIG_CHUNK_MB = 2048
 CHUNK_MB = 256  # lazy replay: evaluate the live values after this much new activation (see `GraphNet._runner`)
 
 _CONSUMED = "\0consumed"  # key of the set of twin tensor names whose values live on MLX (in the shared constants)
@@ -971,6 +973,7 @@ class GraphNet:
         self._itemsize = self.dtype.size
         self._sizes: dict[str, int] = {}
         self.max_act = 0
+        self.weight_bytes = 0
         self.kernels = kernels
         self._runs: dict[tuple[Any, ...], Callable[..., Any]] = {}
         self.on_built: Callable[[], None] | None = None  # called after each export, before its first run
@@ -1036,6 +1039,7 @@ class GraphNet:
             if node.op == "call_function" and isinstance(v := node.meta.get("val"), torch.Tensor)
         }
         self.max_act = max(self._sizes.values(), default=0)
+        self.weight_bytes = sum(t.numel() for t in lifted.values() if isinstance(t, torch.Tensor)) * self._itemsize
         values.update(folds.values)
         used = {n for p in plan if p[0] == "call" for a in (*p[3], *p[4].values()) for n in _refs(a)}
         used.update(n for p in plan if p[0] == "output" for n in _refs(p[1]))
@@ -1120,7 +1124,9 @@ class GraphNet:
             uses[i] = refs
             last.update(dict.fromkeys(refs, i))
         out_refs = set(_refs(out_names))
-        chunk = int(os.environ.get("FF_MLX_CHUNK_MB", CHUNK_MB)) << 20
+        # a net with big weights peaks while loading (the float32 twin), not while running: checkpoint rarely there
+        big = min(self.weight_bytes, BIG_CHUNK_MB << 20) if self.weight_bytes >= BIG_WEIGHTS else 0
+        chunk = max(int(os.environ.get("FF_MLX_CHUNK_MB", CHUNK_MB)) << 20, big)
         cuts, pending = [0], 0
         for k, (_, p) in enumerate(steps):
             pending += self._sizes.get(p[1], 0)

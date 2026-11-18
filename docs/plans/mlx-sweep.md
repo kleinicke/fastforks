@@ -140,8 +140,8 @@ Survey, fp16 portable, `ms / peak footprint MB` (before = earlier rows in the da
 | segformer-b5-ade20k | 505 / 3097 | 341 / 1518 | 375 / 1974 |
 | deeplabv3-r101-d8-ade20k | 469 / 2804 | 493 / 2029 | 528 / 2010 |
 | segnext-mscan-b-ade20k | 284 / 2150 | 264 / 1229 | 184 / 1659 |
-| lotus-normal-g-v1-1 | 2089 / 9398 | 2757 / 6413 | 6633 MB |
-| marigold-depth-v1-1 | 4145 / 9333 | 6347 / 6415 | 6640 MB |
-| lingbot-depth | 4588 / 8528 | 4502 / 4096 | 3228 MB |
+| lotus-normal-g-v1-1 | 2089 / 9398 | 2757 / 6413 (survey before the large-weights checkpoint rule) | 1553 / 6632 |
+| marigold-depth-v1-1 | 4145 / 9333 | 6347 / 6415 (probe after the rule: about 4800 / 6411) | 2498 / 6640 |
+| lingbot-depth | 4588 / 8528 | 4502 / 4096 | 3376 / 3228 |
 
-Still above MPS: moge (export-phase CPU transient and the ~500 MB Metal cache, conv-heavy head), midas memory (+300 MB), lingbot memory, segnext speed (depthwise-strip convs; MPS 184 ms). Lotus and marigold trade speed for memory: more segment evals; their fp16 times regressed and are worth a look (compile cap or chunk size per model). Goldens (including nafnet-gopro, wd-vit-tagger-v3, swin, segformer, depth-anything-v2, mask2former) pass.
+Still above MPS: moge (export-phase CPU transient and the ~500 MB Metal cache, conv-heavy head), midas memory (+300 MB), lingbot memory, segnext speed (depthwise-strip convs; MPS 184 ms). Lotus and marigold now sit below MPS memory (their peak is the float32 twin's load, about 6.4 GB) but are 1.8x slower than MPS. Segment evals cost them speed, so nets with weights of 1 GB or more checkpoint every min(weights, 2 GB) instead of 256 MB (marigold probe 5840 to 4800 ms, same peak). Goldens (including nafnet-gopro, wd-vit-tagger-v3, swin, segformer, depth-anything-v2, mask2former) pass.
