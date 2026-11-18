@@ -79,7 +79,12 @@ _DATASETS = {
         "imagenet-val-knn-train10000-test5000-seed0-k20": "ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / "
         "5000 test images)"
     },
-    "multiview": {"dtu-scans1-9-24-33-75-view24": "DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 %"},
+    "multiview": {
+        "dtu-scans1-9-24-33-75-view24": "DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 %",
+        "dtu-heldout-render-view13": "DTU scans 1, 9, 24, 33, 75, held-out view 13, RGB PSNR",
+        "realestate10k-examples-2v": "RealEstate10K example scenes, 2 context views, RGB PSNR / SSIM",
+        "realestate10k-examples-8v": "RealEstate10K example scenes, 8 context views, RGB PSNR / SSIM",
+    },
     "classification": {
         "imagenet-val-subset5000-seed0": "ImageNet-1k val, 5000 random images, top-1 / top-5 %",
         "coco-val2017-first500-tags": "COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement %",  # noqa: E501
@@ -198,6 +203,11 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     },
     "features": ((("top1", "{:.2f}", ""),), "n", "images"),
     "multiview": ((("absrel", "{:.4f}", ""), ("d125", "{:.2f}", ""), ("mae_mm", "{:.2f}", " / MAE mm")), "n", "scans"),
+    **{
+        ("multiview", dataset): ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "views")
+        for dataset in ("realestate10k-examples-2v", "realestate10k-examples-8v")
+    },
+    ("multiview", "dtu-heldout-render-view13"): ((("psnr", "{:.3f}", ""),), "n", "views"),
     "classification": ((("top1", "{:.2f}", ""), ("top5", "{:.2f}", "")), "n", "images"),
     ("classification", "coco-val2017-first500-tags"): (
         (("tag_f1", "{:.2f}", ""), ("top1_agree", "{:.2f}", "")),
@@ -340,10 +350,19 @@ _PROTOCOL = {
     },
     "features": "Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop "
     "224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. ",
-    "multiview": "640x512 crops, the 7 most co-visible views as sources; GT = depth rendered from the structured-light "
+    ("multiview", "dtu-scans1-9-24-33-75-view24"): "640x512 crops, the 7 most co-visible views as sources. "
+    "Ground truth is depth rendered from the structured-light "
     "points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras "
     "(calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range "
     "from the camera baselines). ",
+    ("multiview", "dtu-heldout-render-view13"): "Eight calibrated input views at 336 x 518 per scan. Portable "
+    "and TensorRT Gaussians are rendered with gsplat at the same held-out camera. RGB PSNR against that camera's "
+    "DTU image is averaged over the five scans. ",
+    **{
+        ("multiview", dataset): "The two scenes from the ReSplat example archive, with fixed context and "
+        "held-out target views from the authors' evaluation index. Mean RGB PSNR and SSIM over the target views. "
+        for dataset in ("realestate10k-examples-2v", "realestate10k-examples-8v")
+    },
     "flow": "Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean "
     "end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. ",
     ("restoration", "div2k-val-x2-crop64-every4-rgb"): "Every fourth DIV2K validation image. A 64 x 64 center crop "
