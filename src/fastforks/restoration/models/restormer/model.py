@@ -21,7 +21,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.patch import is_base, override
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import cudnn_hacc, fastbb
 from fastforks.restoration._runner import Crop, Forward, Runner
 
 from .net import Restormer
@@ -104,6 +104,37 @@ def _fold_attention(m: Attention, device: torch.device | str) -> None:
     m.block = torch.zeros(c, c).masked_fill_(ids[:, None] != ids[None, :], float("-inf")).to(device)
     m.proj = m.project_out.weight.detach()[:, :, 0, 0].float().to(device)
     del m.temperature, m.project_out
+    override(m, _attention)
+
+
+def _head_attention(m: Attention, x: torch.Tensor) -> torch.Tensor:
+    """Form only the per-head channel products, then fold the head projections into one value GEMM.
+
+    Iterate over images so the token views of interleaved Q/K/V remain strided views even for B > 1.
+    """
+    b, c, h, w = x.shape
+    heads, width = m.num_heads, c // m.num_heads
+    tokens = m.qkv_dwconv(m.qkv(x)).permute(0, 2, 3, 1).reshape(b, h * w, 3 * c)
+    norms = torch.linalg.vector_norm(tokens[..., : 2 * c], dim=1, dtype=torch.float32).clamp_min_(1e-12)
+    temperature: torch.Tensor = m.scale  # ty: ignore[invalid-assignment]
+    proj: torch.Tensor = m.proj  # ty: ignore[invalid-assignment]
+    matrices = []
+    for values, norm in zip(tokens.unbind(), norms.unbind(), strict=True):
+        q, k, _ = values.view(h * w, 3, heads, width).permute(1, 2, 0, 3).unbind()
+        nq, nk = norm.view(2, heads, width).unbind()
+        gram = _gram(q, k) * (temperature / nq).unsqueeze(-1) / nk.unsqueeze(-2)
+        matrices.append(torch.bmm(gram.softmax(-1).mT, proj).reshape(c, c))
+    mat = (matrices[0].unsqueeze(0) if b == 1 else torch.stack(matrices)).to(tokens.dtype)
+    return torch.bmm(tokens[..., 2 * c :], mat).view(b, h, w, c).permute(0, 3, 1, 2)
+
+
+def _fold_head_attention(m: Attention, device: torch.device | str) -> None:
+    heads = m.num_heads
+    c = m.project_out.in_channels
+    m.scale = m.temperature.detach().view(heads, 1).float().to(device)
+    m.proj = m.project_out.weight.detach()[:, :, 0, 0].T.reshape(heads, c // heads, c).float().contiguous().to(device)
+    del m.temperature, m.project_out
+    override(m, _head_attention)
 
 
 def _block(m: TransformerBlock, x: torch.Tensor) -> torch.Tensor:
@@ -152,7 +183,7 @@ def _pad_ffn(m: FeedForward) -> None:
             m.project_out.bias.copy_(pout.bias)
 
 
-def _split_ffn(m: FeedForward) -> None:
+def _split_ffn(m: FeedForward, _device: torch.device | str) -> None:
     """Split `project_in` and the depthwise conv into their x1 / x2 halves (`_ffn`)."""
     pin, dw = m.project_in, m.dwconv
     half = dw.out_channels // 2
@@ -170,6 +201,7 @@ def _split_ffn(m: FeedForward) -> None:
         setattr(m, f"in{i}", part(pin, pin.in_channels, sl))
         setattr(m, f"dw{i}", part(dw, half, sl, groups=half))
     del m.project_in, m.dwconv
+    override(m, _ffn)
 
 
 def _ffn(m: FeedForward, x: torch.Tensor) -> torch.Tensor:
@@ -179,6 +211,21 @@ def _ffn(m: FeedForward, x: torch.Tensor) -> torch.Tensor:
     """
     g = F.gelu(m.dw1(m.in1(x)))  # ty: ignore[call-non-callable]
     return m.project_out(g.mul_(m.dw2(m.in2(x))))  # ty: ignore[call-non-callable]
+
+
+def _gate_ffn(m: FeedForward, _device: torch.device | str) -> None:
+    """Pack the depthwise filters before casting the network. dwgate reads fp32 weights in kernel-position order."""
+    dw = m.dwconv
+    m.gate_weight = dw.weight.detach().reshape(dw.out_channels, 9).T.contiguous().to(_device)
+    m.gate_bias = None if dw.bias is None else dw.bias.detach().to(_device)  # ty: ignore[invalid-assignment]
+    del m.dwconv
+    override(m, _fused_ffn)
+
+
+def _fused_ffn(m: FeedForward, x: torch.Tensor) -> torch.Tensor:
+    projected = m.project_in(x).permute(0, 2, 3, 1)
+    gated = fastbb.dwgate(projected, m.gate_weight, m.gate_bias)  # ty: ignore[invalid-argument-type]
+    return m.project_out(gated.permute(0, 3, 1, 2))
 
 
 def _fold_norm(norm: torch.nn.Module, conv: torch.nn.Conv2d) -> torch.nn.Module:
@@ -206,6 +253,8 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16", "bfloat16")
     Params = Params
+    _prepare_attention = staticmethod(_fold_attention)
+    _prepare_ffn = staticmethod(_split_ffn)
 
     def __init__(self, ctx: Context) -> None:
         """Build the network, fold the norms."""
@@ -221,11 +270,9 @@ class Portable(Runner):
                 m.norm1 = _fold_norm(m.norm1, m.attn.qkv)  # ty: ignore[invalid-assignment]
                 m.norm2 = _fold_norm(m.norm2, m.ffn.project_in)  # ty: ignore[invalid-assignment]
                 override(m, _block)
-                override(m.attn, _attention)
-                _fold_attention(m.attn, ctx.device)
+                self._prepare_attention(m.attn, ctx.device)
                 _pad_ffn(m.ffn)
-                _split_ffn(m.ffn)
-                override(m.ffn, _ffn)
+                self._prepare_ffn(m.ffn, ctx.device)
         self.fmt = torch.channels_last if torch.device(ctx.device).type == "cuda" else torch.contiguous_format
         self.net.eval().to(ctx.device, getattr(torch, ctx.dtype)).to(memory_format=self.fmt)
 
@@ -256,12 +303,15 @@ class Kernels(Portable):
     The attention GEMMs keep float32 accumulation (the `q^T k` sums run over all pixels).
     """
 
+    _prepare_attention = staticmethod(_fold_head_attention)
+    _prepare_ffn = staticmethod(_gate_ffn)
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and route its dense convolutions through `cudnn_hacc`."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
+        fastbb.load(ctx.device)
         for m in self.net.modules():
             if is_base(m, torch.nn.Conv2d) and m.groups == 1:
                 override(m, _hacc_conv)

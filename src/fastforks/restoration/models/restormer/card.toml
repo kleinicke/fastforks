@@ -36,7 +36,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc"]  # fp16-accumulate dense convolutions
+kernels = ["cudnn_hacc", "fastbb"]  # dense convolutions and fused depthwise GELU gate
 
 [[papers]]
 title = "Restormer: Efficient Transformer for High-Resolution Image Restoration"

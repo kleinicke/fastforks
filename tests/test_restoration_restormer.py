@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import pytest
@@ -12,7 +13,9 @@ from fastforks._core import registry
 from fastforks._core.bench import synthetic_image
 from fastforks._core.errors import WeightsError
 from fastforks.restoration._api import _checkpoint_family
+from fastforks.restoration.models.restormer.model import _fold_head_attention, _gate_ffn, _pad_ffn
 from fastforks.restoration.models.restormer.net import Restormer
+from fastforks.restoration.models.restormer.net.restormer_arch import Attention, FeedForward
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -58,3 +61,32 @@ def test_rejects_dual_pixel(tmp_path: Path) -> None:
     torch.save(Restormer(**KW, inp_channels=6, dual_pixel_task=True).state_dict(), tmp_path / "w.pth")
     with pytest.raises(WeightsError, match="dual-pixel"):
         restoration.load(tmp_path / "w.pth", mode="portable", device="cpu", dtype="float32")
+
+
+@pytest.mark.parametrize("heads", [1, 2, 4])
+def test_headwise_attention(heads: int) -> None:
+    """The per-head products match upstream, including interleaved batch strides and unequal head temperatures."""
+
+    torch.manual_seed(8)
+    module = _trained_like(Attention(24, heads, bias=False))
+    original = deepcopy(module)
+    _fold_head_attention(module, "cpu")
+    x = torch.randn(3, 24, 11, 7).contiguous(memory_format=torch.channels_last)
+    with torch.inference_mode():
+        torch.testing.assert_close(module(x), original(x), atol=1e-6, rtol=1e-5)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("bias", [False, True])
+def test_fused_depthwise_gate(*, bias: bool) -> None:
+    """Uneven widths exercise zero padding, the right/bottom image border and the batched CUDA path."""
+
+    torch.manual_seed(1)
+    layer = FeedForward(24, 2.66, bias=bias)
+    original = deepcopy(layer).cuda().half().to(memory_format=torch.channels_last)
+    _pad_ffn(layer)
+    _gate_ffn(layer, "cuda")
+    layer.cuda().half().to(memory_format=torch.channels_last)
+    x = torch.randn(2, 24, 9, 13, device="cuda", dtype=torch.float16).contiguous(memory_format=torch.channels_last)
+    with torch.inference_mode():
+        torch.testing.assert_close(layer(x), original(x), rtol=0.002, atol=0.0003)
