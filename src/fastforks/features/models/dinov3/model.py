@@ -16,7 +16,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core import kernels
-from fastforks._core.errors import BackendUnavailableError, InputError
+from fastforks._core.errors import BackendUnavailableError, InputError, OptionsError
 from fastforks.features._runner import Forward, Runner
 from fastforks.kernels import swiglu
 from fastforks.kernels.dpt_fused import DEEP_K, DptFused
@@ -25,11 +25,14 @@ from fastforks.kernels.fastbb import load as load_kernels
 from fastforks.shared.arena import compact
 from fastforks.shared.cuda_graphs import CAPTURE_LOCK, GraphCache, capture_stream
 from fastforks.shared.depth_anything_v2.fast_vit import HEAD_DIM, _flash, _fp16_accumulate
+from fastforks.shared.host_blocks import StreamedModuleList
 
 from .net import CONFIGS, PATCH, REGISTERS, DINOv3ViT, rope_table
 
 if TYPE_CHECKING:
     from fastforks.features._runner import Context
+
+    from .net import _Layer
 
 
 @dataclass(frozen=True)
@@ -38,6 +41,7 @@ class Params:
 
     arch: str  # "vits16", "vitb16", "vitl16" or "vith16plus"
     fp16_accumulate: bool  # portable: cuBLAS fp16 accumulation in the GEMMs (option)
+    stream: bool = False
 
 
 _WIDE = 768  # ViT-B and wider: fp16 residual stream past 65504 without the scale
@@ -48,8 +52,12 @@ def _stream_scale(arch: str) -> float:
 
 
 def _state(ctx: Context) -> dict[str, torch.Tensor]:
-    """The checkpoint on the device: the fold, the casts and `pack` then run there (no CPU passes over 1+ GB)."""
-    return {k: v.to(ctx.device) for k, v in ctx.state_dict().items()}
+    """Fold and pack weights on their resident device, or on the host when streaming."""
+    if ctx.params.stream and ctx.device.type != "cuda":
+        msg = "stream=True requires CUDA for DINOv3 block transfers"
+        raise OptionsError(msg)
+    device = torch.device("cpu") if ctx.params.stream else ctx.device
+    return {k: v.to(device) for k, v in ctx.state_dict().items()}
 
 
 def _network(
@@ -63,6 +71,9 @@ def _network(
         net = DINOv3ViT(CONFIGS[ctx.params.arch])
     sd = _state(ctx) if sd is None else sd
     net = net.load(sd, stream_scale, f"{ctx.variant.ref} checkpoint", dtype).eval().pack()
+    if ctx.params.stream:
+        net.layer = StreamedModuleList(net.layer, ctx.device)  # ty: ignore[invalid-assignment] - also an iterable of callable blocks
+        return net.to(ctx.device)
     return cast(
         "DINOv3ViT", compact(net, min_bytes=0)
     )  # one allocation: the build's freed fp32 copies leave no holes in the reserved memory
@@ -110,6 +121,9 @@ class Portable(Runner):
 
     def module(self) -> torch.nn.Module:
         """The network: normalised `[B, 3, h, w]` (sides multiples of 16) -> `last_hidden_state` `[B, N, C]`."""
+        if self.ctx.params.stream:
+            msg = "Export requires resident weights; reload with stream=False"
+            raise NotImplementedError(msg)
         return Forward(self.net, lambda _net, x: self._run(x, ())["last_hidden_state"])
 
 
@@ -167,11 +181,13 @@ class Kernels(Runner):
         s = _stream_scale(arch)
         sd = _state(ctx)
         self.scales = [  # LayerScale in fp32 (the GEMM epilogue's scale), folded as `DINOv3ViT.load` folds it
-            (sd[f"layer.{i}.layer_scale1.lambda1"].float() / s, sd[f"layer.{i}.layer_scale2.lambda1"].float() / s)
+            (
+                sd[f"layer.{i}.layer_scale1.lambda1"].to(ctx.device).float() / s,
+                sd[f"layer.{i}.layer_scale2.lambda1"].to(ctx.device).float() / s,
+            )
             for i in range(cfg.num_layers)
         ]
         self.net = _network(ctx, s, torch.float16, sd)  # built in fp16: no float32 copy of the network
-        self.blocks = self.net.blocks()
         self.swiglu = swiglu.load(ctx.device) if cfg.gated else None
         self.cfg, self.attn = cfg, Flash64(_KERNELS_ATTN[arch])
         self.kernels = load_kernels(ctx.device)
@@ -191,9 +207,8 @@ class Kernels(Runner):
             self._rope[h, w] = torch.stack((cos[:, : HEAD_DIM // 2], sin[:, : HEAD_DIM // 2]), 1).contiguous()
         return self._rope[h, w]
 
-    def _block(self, i: int, x: torch.Tensor, cs: torch.Tensor, rope: tuple) -> torch.Tensor:
+    def _block(self, blk: _Layer, x: torch.Tensor, i: int, cs: torch.Tensor, rope: tuple) -> torch.Tensor:
         """`x` is read, not written (a kept hidden state); the MLP residual is added in place on the new stream."""
-        blk = self.blocks[i]
         b, n, _ = x.shape
         h = self.cfg.num_heads
         k, a, m = self.k, blk.attention, blk.mlp
@@ -246,8 +261,8 @@ class Kernels(Runner):
             msg = f"batch too large for the fastbb RoPE kernel ({t.shape[0]} x {t.shape[1]} tokens): split it"
             raise InputError(msg)
         hs = [t] if 0 in layers else []
-        for i in range(len(self.blocks)):
-            t = self._block(i, t, cs, (grid, total))
+        for i, blk in enumerate(net.layer):
+            t = blk(t, self._block, i, cs, (grid, total))
             if i + 1 in layers:
                 hs.append(t)
         return [net.norm(t), *hs]
@@ -280,7 +295,11 @@ class Kernels(Runner):
         b, _, h, w = image.shape
         work = b * (1 + REGISTERS + (h // PATCH) * (w // PATCH)) * self.cfg.hidden_size
         with torch.autocast("cuda", enabled=False), _fp16_accumulate():
-            if work <= _GRAPH_WORK and (1 + len(layers)) * work * 2 * _GRAPHS <= _GRAPH_BYTES:
+            if (
+                not self.ctx.params.stream
+                and work <= _GRAPH_WORK
+                and (1 + len(layers)) * work * 2 * _GRAPHS <= _GRAPH_BYTES
+            ):
                 with self._lock:  # `_layers` is the argument of the graph forward
                     self._layers = layers
                     outs = self._cache.run((tuple(image.shape), layers), image, post=self._float)

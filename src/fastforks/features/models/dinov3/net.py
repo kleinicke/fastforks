@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import cast
+from typing import TYPE_CHECKING, Any, cast
 
 import torch
 import torch.nn.functional as F
@@ -21,6 +21,9 @@ from torch import nn
 
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.tracing import in_onnx_export
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 PATCH = 16
 REGISTERS = 4
@@ -94,6 +97,10 @@ class _Layer(nn.Module):
         self.attention = _Attention(c)
         self.layer_scale1, self.layer_scale2 = _Scale(c), _Scale(c)
         self.mlp = _Mlp(c, cfg.intermediate_size, gated=cfg.gated)
+
+    def forward(self, x: torch.Tensor, operation: Callable, *args: Any) -> torch.Tensor:  # noqa: ANN401 - portable and fused block signatures
+        """Call the selected transformer operation with this block's currently bound weights."""
+        return operation(self, x, *args)
 
 
 def rope_table(h: int, w: int, head_dim: int, theta: float, device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
@@ -237,8 +244,8 @@ class DINOv3ViT(nn.Module):
         t = self.tokens(x)
         rope = self.rope(x.shape[-2] // PATCH, x.shape[-1] // PATCH, t.dtype, x.device)
         hs = [t.float() * self.stream_scale] if 0 in layers else []  # fp32: ViT-L / H+ unscaled exceed fp16
-        for i, blk in enumerate(self.blocks(), 1):
-            t = self.block(blk, t, rope)
+        for i, blk in enumerate(self.layer, 1):
+            t = blk(t, self.block, rope)
             if i in layers:
                 hs.append(t.float() * self.stream_scale)
         return self.norm(t), hs
