@@ -1109,8 +1109,8 @@ Commercial use: yes.
 - Licence evidence: https://github.com/google-research/pointdit/blob/11f53a30aeb4d34d49d2beda655ee6f19b2ad7f8/LICENSE (Apache-2.0); https://huggingface.co/haofeixu/pointdit (license: apache-2.0); encoder: https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m (DINOv3 License, gated)
 - Training data: Mixture of synthetic and real point-map datasets ("mixdata") per the PointDiT paper; the DINOv3 encoder: LVD-1689M (not released)
 - Licence note: The PointDiT code and weights are Apache-2.0; the frozen DINOv3 ViT-B/16 and ViT-L/16 encoders are under the DINOv3 License (Meta: attribution and conditions apply; gated on Hugging Face); read it before commercial use.
-- Options: `tokens` = 1024 (>= 1), `steps` = 3 (>= 1)
-- Kernel libraries: `fastbb`, `dpt_fused`
+- Options: `stream` = False (speed only), `tokens` = 1024 (>= 1), `steps` = 3 (>= 1)
+- Kernel libraries: `fastbb`, `dpt_fused`, `pointdit_norm`
 - Variants: `pointdit-b-512`, `pointdit-l-512`
 - Outputs: points, depth; kind: `affine_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -1148,14 +1148,15 @@ CPU, float32: max |diff| <= 1.5e-06 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `pointdit-b-512` | 0.00015 / 0.00056 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
-| `pointdit-l-512` | 0.00012 / 0.00045 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+| `pointdit-b-512` | 0.00015 / 0.00056 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `pointdit_norm@d81de774aed8:sm_120` |
+| `pointdit-l-512` | 0.00012 / 0.00045 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `pointdit_norm@d81de774aed8:sm_120` |
 
 ### Limitations
 
 - Affine-invariant output: points up to an unknown scale and 3-D shift, depth (their z) up to scale and shift; align before use.
 - Trained at 512 x 512: inputs are resized to about `tokens` 16-pixel patches at their aspect ratio (bilinear) and the point map is resized back with nearest, as the original's wild-image path.
-- Kernels mode captures CUDA graphs: the graph's private memory pool and static outputs stay reserved after the call, so peak reserved is above portable by ~85 MiB (b), more for l (peak allocated is equal or lower); `cuda_graphs=false` or `release_graphs()` frees it at the cost of launch overhead.
+- With `stream=true`, CUDA stages weights from pinned host RAM. On the RTX 5060 Ti, PointDiT-L portable at 1024 tokens and three steps used 224 MiB peak allocated (1285 MiB resident) and transferred 2.26 GiB per image. Each extra Euler step repeats the denoiser transfer.
+- Kernels mode keeps CUDA graph pools for the encoder and sampler. Call `release_graphs()` to free them. With `stream=true`, both stages run eagerly.
 
 </details>
 

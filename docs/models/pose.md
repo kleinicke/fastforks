@@ -416,7 +416,7 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/xinntao/facexlib/blob/260620ae93990a300f4b16448df9bb459f1caba9/README.md>
 - Training data: WIDER FACE (32k images, 394k labelled faces) (WIDER FACE train with the RetinaFace five-landmark annotations; the ResNet-50 backbone starts from ImageNet classification weights)
 - Options: `score_threshold` = 0.8 (0.0 to 1.0)
-- Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
+- Kernel libraries: `box_nms`, `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `retinaface-resnet50`, `retinaface-mobilenet0.25`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `face-5`
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -448,8 +448,8 @@ CPU, float32: max |diff| <= 0.001 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `retinaface-resnet50` | 0.00589 / 0.01506 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `retinaface-mobilenet0.25` | 0.01056 / 0.02666 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `retinaface-resnet50` | 0.00589 / 0.01506 | RTX 5060 Ti, torch 2.14.1+cu130 | `box_nms@daa010d75e1a:sm_120`, `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `retinaface-mobilenet0.25` | 0.01056 / 0.02666 | RTX 5060 Ti, torch 2.14.1+cu130 | `box_nms@daa010d75e1a:sm_120`, `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
 ### Limitations
 
@@ -542,7 +542,7 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/open-mmlab/mmpose/blob/5408bc76f5b848cf925a0d1857899011d8c5b497/README.md#license>
 - Training data: COCO 2017 (train, instance annotations), AI Challenger human keypoints (2017), CrowdPose, MPII Human Pose, sub-JHMDB (J-HMDB), Halpe-FullBody, PoseTrack 2018 (body7: COCO, AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe and PoseTrack18 keypoints; the CSPDarknet backbone starts from a YOLOX COCO detection checkpoint)
 - Options: `score_threshold` = 0.1 (0.0 to 1.0)
-- Kernel libraries: `pose_warp`, `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
+- Kernel libraries: `box_nms`, `pose_warp`, `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `rtmo-t`, `rtmo-s`, `rtmo-m`, `rtmo-l`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -588,10 +588,10 @@ CPU, float32: max |diff| <= 0.014 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `rtmo-t` | 0.02725 / 0.14195 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
-| `rtmo-s` | 0.02234 / 0.14143 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
-| `rtmo-m` | 0.11064 / 1.21749 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
-| `rtmo-l` | 0.30973 / 6.5301 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmo-t` | 0.02725 / 0.14195 | RTX 5060 Ti, torch 2.14.1+cu130 | `box_nms@daa010d75e1a:sm_120`, `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmo-s` | 0.02234 / 0.14143 | RTX 5060 Ti, torch 2.14.1+cu130 | `box_nms@daa010d75e1a:sm_120`, `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmo-m` | 0.11064 / 1.21749 | RTX 5060 Ti, torch 2.14.1+cu130 | `box_nms@daa010d75e1a:sm_120`, `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmo-l` | 0.30973 / 6.5301 | RTX 5060 Ti, torch 2.14.1+cu130 | `box_nms@daa010d75e1a:sm_120`, `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
 
 ### Limitations
 
@@ -711,7 +711,7 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/ShiqiYu/libfacedetection.train/blob/dca340aa082c71081a68d17db8e58b33a58a914b/LICENSE>
 - Training data: WIDER FACE (32k images, 394k labelled faces) (WIDER FACE train with the SCRFD five-landmark annotations (labelv2), from scratch)
 - Options: `score_threshold` = 0.6 (0.0 to 1.0)
-- Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
+- Kernel libraries: `box_nms`, `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `yunet-n`, `yunet-s`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `face-5`
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -741,8 +741,8 @@ CPU, float32: max |diff| <= 0.001 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `yunet-n` | 0.0218 / 0.03939 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `yunet-s` | 0.01636 / 0.03906 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `yunet-n` | 0.0218 / 0.03939 | RTX 5060 Ti, torch 2.14.1+cu130 | `box_nms@daa010d75e1a:sm_120`, `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `yunet-s` | 0.01636 / 0.03906 | RTX 5060 Ti, torch 2.14.1+cu130 | `box_nms@daa010d75e1a:sm_120`, `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
 
 ### Limitations
 

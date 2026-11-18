@@ -209,7 +209,7 @@ Commercial use: yes.
 - Licence note: The map-anything-apache weights are Apache-2.0, but the repository does not list the datasets they were trained on (the paper names the commercially usable subset), so their training-data terms are unclear here.
 - Licence note: The CC-BY-NC facebook/map-anything checkpoint is not packaged.
 - Options: `stream` = False (speed only), `long_side` = 518 (>= 14; also `resolution`)
-- Kernel libraries: `fastbb`, `swiglu`
+- Kernel libraries: `fastbb`, `swiglu`, `map_geometry`
 - Variants: `mapanything-apache`
 - Outputs: depth, confidence, mask, world_points, intrinsics, cam_to_world, metric_scale (in `extras`); kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -237,7 +237,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `mapanything-apache` | 0.00022 / 0.00072 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `swiglu@25fe34a2d389:sm_120` |
+| `mapanything-apache` | 0.00022 / 0.00072 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `map_geometry@7ae987ff90e0:sm_120`, `swiglu@25fe34a2d389:sm_120` |
 
 ### Limitations
 
@@ -489,7 +489,7 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
   - `resplat-base-re10k`: RealEstate10K (camera trajectories of YouTube real-estate videos) (RealEstate10K (YouTube videos, camera poses from ORB-SLAM; research use per its release), from a DepthSplat / Depth Anything V2 Base (CC-BY-NC-4.0) depth initialisation.)
 - Licence note: Code and checkpoints are MIT. The Base RealEstate10K checkpoint's monocular branch is initialised from Depth Anything V2 Base (CC-BY-NC-4.0) and is labelled non-commercial; the Small DL3DV checkpoint builds on Depth Anything V2 Small (Apache-2.0).
 - Options: `long_side` = 0 (>= 0), `refine` = 2 (>= 0)
-- Kernel libraries: `fastbb`, `cudnn_hacc`, `gsraster`, `depthsplat_corr`
+- Kernel libraries: `fastbb`, `cudnn_hacc`, `gsraster`, `depthsplat_corr`, `knn_attention`
 - Variants: `resplat-small-dl3dv`, `resplat-base-re10k`
 - Not in this release (planned for 0.2.1): `resplat-small-dl3dv` ONNX / TensorRT export: torch.export cannot capture data-dependent Gaussian renderer shapes
 - Outputs: depth, confidence, gaussians; kind: `metric`
@@ -521,8 +521,8 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `resplat-small-dl3dv` | 0.00303 / 0.00749 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `depthsplat_corr@041692f383aa:sm_120`, `fastbb@7d058322634d:sm_120`, `gsraster@be9d99ba7071:sm_120` |
-| `resplat-base-re10k` | 0.00422 / 0.01598 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `depthsplat_corr@041692f383aa:sm_120`, `fastbb@7d058322634d:sm_120`, `gsraster@be9d99ba7071:sm_120` |
+| `resplat-small-dl3dv` | 0.00303 / 0.00749 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `depthsplat_corr@041692f383aa:sm_120`, `fastbb@7d058322634d:sm_120`, `gsraster@be9d99ba7071:sm_120`, `knn_attention@4791e40186cb:sm_120` |
+| `resplat-base-re10k` | 0.00422 / 0.01598 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `depthsplat_corr@041692f383aa:sm_120`, `fastbb@7d058322634d:sm_120`, `gsraster@be9d99ba7071:sm_120`, `knn_attention@4791e40186cb:sm_120` |
 
 ### Limitations
 
@@ -609,7 +609,7 @@ Commercial use: **no** (code: LicenseRef-FAIR-Noncommercial-Research (noncommerc
 - Licence evidence: https://github.com/facebookresearch/vggt-omega/blob/48b23c8/LICENSE and https://huggingface.co/facebook/VGGT-Omega/blob/1041e80fc0e911235d3426b0a3d9a81075111a53/LICENSE.txt
 - Training data: Per the repository README: a mixture of public multi-view datasets (uCO3D annotations released); DINOv3 initialisation. The 512 checkpoint is recommended for in-the-wild use, not benchmarking (vggt_omega_1b_416_reproduce.pt is the benchmark reference).
 - Licence note: Code and weights are under the FAIR Noncommercial Research License; the checkpoint is gated on Hugging Face (accept the licence there) and not mirrored.
-- Options: `area_side` = 512 (>= 16; also `resolution`)
+- Options: `stream` = False (speed only), `area_side` = 512 (>= 16; also `resolution`)
 - Kernel libraries: `fastbb`, `vggt_omega`
 - Variants: `vggt-omega-1b-512`
 - Outputs: depth, confidence, intrinsics, cam_to_world; kind: `scale_invariant`
@@ -638,6 +638,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `vggt-omega-1b-512` | 0.0002 / 0.00065 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `vggt_omega@b8fa01afd00c:sm_120` |
+
+### Limitations
+
+- CUDA stream=True keeps the patch encoder and alternating attention blocks in pinned host RAM. Output heads and activations remain resident. Export requires stream=False.
 
 </details>
 

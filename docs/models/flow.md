@@ -695,7 +695,7 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/visinf/ReCoVEr/blob/503a27e38bad1080bd29da91df74c5523e11f8d8/LICENSE>
 - Training data: TartanAir, FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (TartanAir, FlyingChairs, FlyingThings3D (part of SceneFlow), then a mix of FlyingThings3D, Sintel, KITTI 2015 and HD1K (TSKH), as upstream's config/recover_*/Tartan*.json stages)
 - Options: `iters` = 4 (>= 1)
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `recover_motion`, `flow_upsample`, `cudnn_hacc`
 - Variants: `recover-cx`, `recover-rn`, `recover-mn`
 - Outputs: flow
 - Input size: any H x W >= 64, padded to a multiple of 8
@@ -729,9 +729,9 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `recover-cx` | 0.00353 / 0.01055 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `recover-rn` | 0.00259 / 0.01058 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `recover-mn` | 0.00762 / 0.04174 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `recover-cx` | 0.00353 / 0.01055 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `flow_upsample@5eca8c1a6d3b:sm_120`, `recover_motion@22e3acc5bbcd:sm_120` |
+| `recover-rn` | 0.00259 / 0.01058 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `flow_upsample@5eca8c1a6d3b:sm_120`, `recover_motion@22e3acc5bbcd:sm_120` |
+| `recover-mn` | 0.00762 / 0.04174 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `flow_upsample@5eca8c1a6d3b:sm_120`, `recover_motion@22e3acc5bbcd:sm_120` |
 
 </details>
 

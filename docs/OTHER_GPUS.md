@@ -94,6 +94,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 <!-- libraries:begin (tools/gen_docs.py, from the model cards) -->
 | library | families |
 |---|---|
+| `box_nms` | retinaface, rtmo, yunet |
 | `cfnet_volume` | cfnet |
 | `cfs` | c_foundationstereo |
 | `crestereo` | crestereo |
@@ -109,7 +110,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `ema_warp` | ema_vfi |
 | `fastbb` | any2full, anycalib, anysplat, boq, bridgedepth, c_foundationstereo, crestereo, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, depthsplat, dinov2, dinov2_linear, dinov3, dlnr, eomt, foundationstereo, insid3, lingbot_depth, lingbot_map, mapanything, megaflow, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, nmrf, omni_dc, pi3, pointdit, prompt_depth_anything, resplat, restormer, rfdetr, rfdetr_keypoint, romav1, rt_monster_plusplus, sam3, sapiens, tipsv2, track_on, unidepth_v2, unik3d, vggt, vggt_omega, video_depth_anything, waft, waft_stereo |
 | `ffs_cutlass` | c_foundationstereo |
-| `flow_upsample` | flowformer, flowseek, gmflow, memfof |
+| `flow_upsample` | flowformer, flowseek, gmflow, memfof, recover |
 | `flowseek_corr` | flowseek |
 | `fs` | c_foundationstereo, foundationstereo |
 | `fs_cutlass` | c_foundationstereo, foundationstereo |
@@ -126,8 +127,10 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `igevpp` | great_igev, igev_plusplus, monster_plusplus |
 | `image_normalize` | flexglue, inspyrenet, matanyone |
 | `keypoint_nms` | xfeat |
+| `knn_attention` | resplat |
 | `locotrack_sample` | locotrack |
 | `loma_descriptor` | loma |
+| `map_geometry` | mapanything |
 | `mocha` | mocha_stereo |
 | `msda` | grounding_dino |
 | `mvsanywhere` | mvsanywhere |
@@ -137,9 +140,11 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `ocr_levels` | ppocrv5 |
 | `patchmatchnet` | patchmatchnet |
 | `pil_resample` | parseq |
+| `pointdit_norm` | pointdit |
 | `pose_warp` | hrnet, rtmo, rtmpose |
 | `raft` | dlnr, raft_stereo |
 | `raft_flow` | gimm_vfi, megaflow, memflow, memfof, neuflow_v2, raft, sea_raft |
+| `recover_motion` | recover |
 | `resize_cat` | u2net |
 | `romav2` | romav1, romav2 |
 | `s2m2` | s2m2 |
@@ -149,9 +154,10 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `sam3_tracker` | sam3 |
 | `seg_conv` | mmseg, segnext |
 | `seg_up` | dinov2_linear, eomt, mask2former, mmseg, oneformer, sapiens, segformer, segnext |
-| `shift_windows` | hat, swin2sr, swinir |
+| `shift_windows` | drct, hat, swin2sr, swinir |
 | `smish` | teed |
 | `sparse_conv` | moge |
+| `sr_ops` | compact, realesrgan, span |
 | `stereo_ops` | coex, las2 |
 | `style_weights` | gfpgan |
 | `swiglu` | dinov3, mapanything |

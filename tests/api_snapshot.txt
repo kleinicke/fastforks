@@ -854,6 +854,7 @@ option depth.midas.input_size
 option depth.moge.normals
 option depth.moge.resolution_level
 option depth.pointdit.steps
+option depth.pointdit.stream
 option depth.pointdit.tokens
 option depth.prompt_depth_anything.max_size
 option depth.stablenormal.long_side aliases processing_res
@@ -972,6 +973,7 @@ option multiview.resplat.refine
 option multiview.vggt.long_side
 option multiview.vggt.stream
 option multiview.vggt_omega.area_side aliases resolution
+option multiview.vggt_omega.stream
 option ocr.parseq.cuda_graphs
 option ocr.ppocrv5.box_threshold aliases text_det_box_thresh
 option ocr.ppocrv5.unclip_ratio aliases text_det_unclip_ratio

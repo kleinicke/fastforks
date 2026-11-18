@@ -229,7 +229,7 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: https://github.com/ming053l/DRCT/blob/c0a8b51e69241cf7f8ae598053235ff498517935/LICENSE ; https://github.com/ming053l/DRCT/blob/c0a8b51e69241cf7f8ae598053235ff498517935/README.md (model zoo: https://drive.google.com/drive/folders/1QJHdSfo-0eFNb96i8qzMJAPw31u9qZ7U)
 - Training data: ImageNet-1k (ILSVRC 2012 classification), DIV2K (NTIRE 2017 super-resolution, 1000 2K images), Flickr2K (2650 2K Flickr images, EDSR) (Paper / options/train/train_DRCT_SRx4_finetune_from_ImageNet_pretrain.yml: pretrained on ImageNet, fine-tuned on DF2K (DIV2K + Flickr2K), bicubic-downsampled. The README does not say which training option produced the released files.)
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `shift_windows`
 - Variants: `drct-x4`, `drct-l-x4`
 - Outputs: image
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -261,8 +261,8 @@ CPU, float32: max |diff| <= 2e-06 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `drct-x4` | 0.00043 / 0.00158 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `drct-l-x4` | 0.00047 / 0.00175 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `drct-x4` | 0.00044 / 0.0016 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@93b499de1dba:sm_120` |
+| `drct-l-x4` | 0.00047 / 0.00174 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@93b499de1dba:sm_120` |
 
 </details>
 
@@ -456,7 +456,7 @@ Commercial use: yes.
 - Weights licence: BSD-3-Clause
 - Licence evidence: https://github.com/xinntao/Real-ESRGAN/blob/a4abfb2979a7bbff3f69f58f58ae324608821e27/LICENSE ; https://github.com/xinntao/Real-ESRGAN/releases/tag/v0.2.5.0
 - Training data: DIV2K (NTIRE 2017 super-resolution, 1000 2K images), Flickr2K (2650 2K Flickr images, EDSR), OutdoorSceneTraining (OST, SFTGAN) (docs/Training.md: DF2K (DIV2K + Flickr2K) + OST HR images with Real-ESRGAN's synthetic degradations; the general v3 model's data is not named further.)
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `sr_ops`
 - Variants: `realesr-general-x4v3`
 - Outputs: image
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -482,7 +482,7 @@ CPU, float32: max |diff| <= 1e-06 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `realesr-general-x4v3` | 0.00062 / 0.00262 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `realesr-general-x4v3` | 0.00062 / 0.00262 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `sr_ops@b9c2dca763d0:sm_120` |
 
 </details>
 
@@ -507,7 +507,7 @@ Commercial use: yes.
 - Weights licence: BSD-3-Clause
 - Licence evidence: https://github.com/xinntao/Real-ESRGAN/blob/a4abfb2979a7bbff3f69f58f58ae324608821e27/LICENSE ; https://github.com/xinntao/Real-ESRGAN/releases ; https://github.com/XPixelGroup/BasicSR/blob/8d56e3a045f9fb3e1d8872f92ee4a4f07f886b0a/LICENSE.txt
 - Training data: DIV2K (NTIRE 2017 super-resolution, 1000 2K images), Flickr2K (2650 2K Flickr images, EDSR), OutdoorSceneTraining (OST, SFTGAN) (docs/Training.md: DF2K (DIV2K + Flickr2K) + OST, HR images only; the anime model: anime images (not named).)
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `sr_ops`
 - Variants: `realesrgan-x4plus`, `realesrgan-x2plus`, `realesrgan-x4plus-anime-6b`
 - Outputs: image
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -541,9 +541,9 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `realesrgan-x4plus` | 0.00112 / 0.00681 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `realesrgan-x2plus` | 0.00359 / 0.01713 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `realesrgan-x4plus-anime-6b` | 0.001 / 0.0078 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `realesrgan-x4plus` | 0.00112 / 0.00681 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `sr_ops@b9c2dca763d0:sm_120` |
+| `realesrgan-x2plus` | 0.00359 / 0.01713 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `sr_ops@b9c2dca763d0:sm_120` |
+| `realesrgan-x4plus-anime-6b` | 0.001 / 0.0078 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `sr_ops@b9c2dca763d0:sm_120` |
 
 </details>
 
@@ -763,7 +763,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/hongyuanyu/SPAN/blob/c77a5917759f09e66fbc7124220c5afc5ee221e5/LICENSE.txt ; https://github.com/hongyuanyu/SPAN/blob/c77a5917759f09e66fbc7124220c5afc5ee221e5/README.md
 - Training data: DIV2K (NTIRE 2017 super-resolution, 1000 2K images), Flickr2K (2650 2K Flickr images, EDSR) (Paper Sec. 4.1: DF2K (DIV2K + Flickr2K) HR images, bicubic-downsampled.)
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `sr_ops`
 - Variants: `span-x4`, `span-x2`
 - Outputs: image
 - Input size: any H x W >= 4, resized or padded inside the model
@@ -793,8 +793,8 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `span-x4` | 0.00074 / 0.00305 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `span-x2` | 0.00207 / 0.0225 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `span-x4` | 0.00074 / 0.00305 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `sr_ops@b9c2dca763d0:sm_120` |
+| `span-x2` | 0.00207 / 0.0225 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `sr_ops@b9c2dca763d0:sm_120` |
 
 </details>
 
