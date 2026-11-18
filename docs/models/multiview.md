@@ -303,7 +303,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mvsplat-re10k` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 279<br>181<br>172<br>115<br>planned for 0.2.1 | 2889 / 4160<br>1239 / 1532<br>1239 / 1532<br>2762 / 2810<br>– |
+| `mvsplat-re10k` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 279<br>181<br>172<br>115<br>106 | 2889 / 4160<br>1239 / 1532<br>1239 / 1532<br>2762 / 2810<br>4953 / 4972 |
 
 <details><summary>Details</summary>
 
@@ -316,11 +316,10 @@ Commercial use: yes.
 - Options: `long_side` = 256 (>= 16)
 - Kernel libraries: `cudnn_hacc`
 - Variants: `mvsplat-re10k`
-- Not in this release (planned for 0.2.1): `mvsplat-re10k` TensorRT export: the TensorRT engine has not yet been validated against the portable model
 - Outputs: depth, confidence, gaussians; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mvsplat-re10k` 3000x4000 (3.2 GiB peak allocated, 4.4 reserved)
-- `mvsplat-re10k` 336x518, first call: portable + torch.compile 102 s (cold Inductor cache).
+- `mvsplat-re10k` 336x518, first call: portable + torch.compile 102 s (cold Inductor cache), TensorRT fp16 241 s (ONNX + engine).
 - `mvsplat-re10k` original 336x518: the authors' mixed-precision option (float16); donydchen/mvsplat@01f9a28edb5e EncoderCostVolume, long side 256
 - `mvsplat-re10k` portable 336x518, kernels 336x518: measured on 45b0e4f0 with the cudnn_hacc per-call workspace change of 600d8c2c
 - `mvsplat-re10k` load / first call: original 1.37 s / 2.817 s (336x518), portable 0.15 s / 1.019 s (336x518), kernels 1.27 s / 0.693 s (336x518)
@@ -344,6 +343,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `mvsplat-re10k` | 0.00157 / 0.00705 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+
+### Limitations
+
+- TensorRT was evaluated at 336 x 518 with eight calibrated views. The benchmark exports ONNX and builds the engine in separate processes. On five DTU scenes, the largest change in held-out view PSNR was 0.080 dB. The lowest PSNR between portable and TensorRT renders was 25.94 dB.
 
 </details>
 

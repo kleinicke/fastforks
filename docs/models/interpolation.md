@@ -184,7 +184,7 @@ DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 vide
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
 | `gimm-vfi-r` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 |  |
-| `gimm-vfi-r-p` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 |  | 28.81 / 0.8481 |  |
+| `gimm-vfi-r-p` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks dc38c37c, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14.
 

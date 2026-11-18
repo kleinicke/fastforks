@@ -9,6 +9,10 @@ licence_notes = [
   "Only the RealEstate10K checkpoint is shipped (MIT code and weights); the ACID checkpoint has the same architecture.",
 ]
 
+limitations = [
+  "TensorRT was evaluated at 336 x 518 with eight calibrated views. The benchmark exports ONNX and builds the engine in separate processes. On five DTU scenes, the largest change in held-out view PSNR was 0.080 dB. The lowest PSNR between portable and TensorRT renders was 25.94 dB.",
+]
+
 [output]
 kind = "metric"  # in the units of the given cam_to_world and depth_range (scaled internally to near = 1, the training bounds; the network is not scale invariant)
 
@@ -46,6 +50,5 @@ venue = "ECCV 2024"
 
 [[variants]]
 id = "mvsplat-re10k"
-planned = { tensorrt = "the TensorRT engine has not yet been validated against the portable model" }
 revision = 1
 weights = [{ name = "re10k.ckpt", size = 48019233, sha256 = "83d0d9eaa753fa4a1f925288dc1f90b8c3297fad0ab0f6ed1f11a1c5946da25a", url = "https://drive.usercontent.google.com/download?id=1Y5OAJN9AX5yMjkbyxag5OnwacdjPnl-N&export=download&confirm=t" }]

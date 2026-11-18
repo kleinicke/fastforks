@@ -2579,7 +2579,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | lingbot-map | 480x640 | 730 ms | planned for 0.2.1 | 489 ms | 515 ms | – | 181 s | 4512 / 4770 | – | 4519 / 4810 | 6280 / 6338 |
 | mapanything-apache | 336x518 | 636 ms | 596 ms | 367 ms | 544 ms | 46.2 s | 137 s | 3697 / 4092 | 3347 / 3792 | 3697 / 4072 | 6220 / 6248 |
 | mvsanywhere | 448x672 | 93.2 ms | 70.8 ms | planned for 0.2.1 | 35.2 ms | 153 s | – | 931 / 1226 | 818 / 860 | 702 / 760 | – |
-| mvsplat-re10k | 336x518 | 181 ms | 115 ms | planned for 0.2.1 | 172 ms | 102 s | – | 1239 / 1532 | 2762 / 2810 | 1239 / 1532 | – |
+| mvsplat-re10k | 336x518 | 181 ms | 115 ms | 106 ms | 172 ms | 102 s | 241 s | 1239 / 1532 | 2762 / 2810 | 1239 / 1532 | 4953 / 4972 |
 | patchmatchnet | 1536x1024 | 201 ms | 175 ms | 51.0 ms | 29.5 ms | 29.4 s | 82.1 s | 1039 / 1212 | 1798 / 1888 | 648 / 772 | 1073 / 1106 |
 | pi3 | 336x518 | 821 ms | 752 ms | planned for 0.2.1 | 559 ms | 55.6 s | – | 2360 / 2416 | 2205 / 2334 | 2367 / 2456 | – |
 | resplat-base-re10k | 480x640 | 7086 ms | fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile  | fails: TypeError: _Base.forward() missing 1 required positional arg | 1280 ms | – | – | 6951 / 8736 | – | 6944 / 8706 | – |
@@ -2643,7 +2643,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | loma-b | 768x1024 | 308 ms | 285 ms | planned for 0.2.1 | – | 104 s | – | 1767 / 1878 | 2870 / 3216 | – | – |
 | loma-b128 | 768x1024 | 150 ms | 122 ms | 144 ms, bf16 engine | – | 66.5 s | 103 s | 878 / 984 | 1398 / 1760 | – | 1062 / 1066 |
 | loma-b64 | 768x1024 | 129 ms | 101 ms | 109 ms, bf16 engine | – | 65.6 s | 102 s | 854 / 962 | 1230 / 1356 | – | 1010 / 1034 |
-| loma-g | 768x1024 | 358 ms | 330 ms | – | – | 103 s | – | 2444 / 2548 | 3547 / 3890 | – | – |
+| loma-g | 768x1024 | 358 ms | 330 ms | 366 ms, bf16 engine | – | 103 s | 171 s | 2444 / 2548 | 3547 / 3890 | – | 2298 / 2322 |
 | loma-l | 768x1024 | 319 ms | 295 ms | fails: RuntimeError: Trying to create tensor with negative dimensio | – | 101 s | – | 1903 / 2012 | 3006 / 3194 | – | – |
 | romav1 | 768x1024 | 377 ms | 247 ms | planned for 0.2.1 | 356 ms | 698 s | – | 1720 / 1840 | 1348 / 1476 | 1720 / 1860 | – |
 | romav2 | 768x1024 | 546 ms | 576 ms | 353 ms | 354 ms | 254 s | 185 s | 1989 / 2596 | 3150 / 3386 | 1909 / 2300 | 6694 / 6740 |
