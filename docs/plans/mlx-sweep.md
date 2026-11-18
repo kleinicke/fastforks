@@ -120,3 +120,28 @@ Microbenchmarks against `mx.conv2d` (5.5 ms, about 3.5 TFLOPS; MPS 4.1 ms). None
 | Winograd F(2,3) lower bound | >5.5 | the 16 batched matmuls alone take 2.4 ms; a transform pass over V takes 1.7 ms each, two needed unfused |
 
 Conclusion: the direct kernels sit at the same ALU/bandwidth ceiling as MLX's conv, so they cannot reach MPS (likely Winograd-based). Only a fused Winograd kernel (input transform, 16 tile GEMMs and output transform kept in threadgroup memory) could win; it was not built. The conv-bound families (compact, span, realplksr, realesrgan, codeformer, gfpgan) stay slower than MPS on MLX and keep `device="mps"` routing to MPS.
+
+## Memory pass (commits 4dfb4ac5 .. c50d549e)
+
+Causes found: the exported graph's weights were held twice (PyTorch twin plus MLX copy) and the twin's freed pages stayed resident; lazy replay without checkpoints kept far more than the live set; whole-graph `mx.compile` doubled the peak of megapixel dense-prediction graphs; the segmentation logits were resized in several full-size passes.
+
+Changes (all in `shared/mlx_graph.py`, `shared/mlx_seg.py`, `shared/mlx_wrap.py`, `kernels/graph_mlx/ops.py`):
+- twin parameters are replaced by zero stand-ins after the MLX copy exists, and storages no other tensor shares are handed back to the OS (`madvise(MADV_FREE_REUSABLE)`);
+- constants and the BN fold are built lazily;
+- segmented replay: compile per segment, `mx.eval` every 256 MB of new activations, dead values dropped by liveness; whole-graph compile only when no activation exceeds 80 MB;
+- fused Metal bilinear resize, and a fused two-step resize plus argmax for segmentation (84 to 36 ms, 1678 to 37 MB peak on the largest case; 1 pixel in 2M differs on the 19-class case from FMA rounding).
+
+Survey, fp16 portable, `ms / peak footprint MB` (before = earlier rows in the data file):
+
+| model | before | after | MPS |
+|---|---|---|---|
+| midas-dpt-beit-large-512 | 668 / 4117 | 574 / 2699 | 635 / 2407 |
+| moge-2-vits-normal | 1148 / 6234 | 949 / 2500 | 857 / 1679 |
+| segformer-b5-ade20k | 505 / 3097 | 341 / 1518 | 375 / 1974 |
+| deeplabv3-r101-d8-ade20k | 469 / 2804 | 493 / 2029 | 528 / 2010 |
+| segnext-mscan-b-ade20k | 284 / 2150 | 264 / 1229 | 184 / 1659 |
+| lotus-normal-g-v1-1 | 2089 / 9398 | 2757 / 6413 | 6633 MB |
+| marigold-depth-v1-1 | 4145 / 9333 | 6347 / 6415 | 6640 MB |
+| lingbot-depth | 4588 / 8528 | 4502 / 4096 | 3228 MB |
+
+Still above MPS: moge (export-phase CPU transient and the ~500 MB Metal cache, conv-heavy head), midas memory (+300 MB), lingbot memory, segnext speed (depthwise-strip convs; MPS 184 ms). Lotus and marigold trade speed for memory: more segment evals; their fp16 times regressed and are worth a look (compile cap or chunk size per model). Goldens (including nafnet-gopro, wd-vit-tagger-v3, swin, segformer, depth-anything-v2, mask2former) pass.
