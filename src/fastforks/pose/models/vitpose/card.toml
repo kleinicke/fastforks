@@ -5,6 +5,11 @@ tier = "stable"
 uses = ["cuda_graphs"]  # shared modules imported directly by this family
 outputs = ["keypoints", "keypoint_scores", "boxes", "scores"]
 
+limitations = [
+  "CUDA stream=True transfers transformer blocks from host RAM for each batch of people. CUDA graph replay and portable export require resident weights.",
+  "For ViTPose++ Huge on the RTX 5060 Ti reference input, peak allocated memory fell from 1,267 to 141 MiB portable and 1,264 to 138 MiB kernels with streaming. Scores and keypoints matched exactly.",
+]
+
 [upstream]
 repo = "https://github.com/huggingface/transformers"  # VitPoseForPoseEstimation + VitPoseImageProcessor (port of ViTAE-Transformer/ViTPose)
 commit = "v4.57.1"
@@ -26,6 +31,7 @@ evidence = "https://huggingface.co/usyd-community/vitpose-base-simple (model car
 input = "imagenet"  # the runner crops each box at 256 x 192 and normalises the crops itself
 
 [options]
+stream = { default = false, effect = "speed" }  # stage transformer blocks from host RAM on CUDA
 fp32_accumulate = { default = false, effect = "precision" }  # true: kernels run every GEMM through cuBLAS with fp32 accumulation (the portable precision, with the CUDA graphs); slower on GeForce (half-rate fp32 accumulation)
 
 [params]

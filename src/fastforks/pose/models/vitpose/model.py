@@ -23,11 +23,14 @@ from typing import TYPE_CHECKING, Any, cast
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.errors import OptionsError
 from fastforks._core.half import cublas_gemms, fp16_accumulate
+from fastforks._core.patch import override
 from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
 from fastforks._core.sampling import grid_sample
 from fastforks.pose._runner import BUCKETS, Forward, Runner, in_buckets
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
+from fastforks.shared.host_blocks import StreamedModuleList
 
 from .net import EPS, PATCH, PATCH_PAD, Arch, Block, ViTPose, convert
 
@@ -49,6 +52,7 @@ class Params(Arch):
     """Card `[params]` + variant `params` + `[options]`."""
 
     fp32_accumulate: bool  # kernels: every GEMM through cuBLAS with fp32 accumulation (option)
+    stream: bool = False
 
 
 def crop_boxes(boxes: torch.Tensor, height: int, width: int) -> tuple[torch.Tensor, torch.Tensor]:
@@ -131,8 +135,17 @@ class Portable(Runner):
         """Build the network with the checkpoint (HF keys converted, BatchNorm folded) on the device."""
         super().__init__(ctx)
         a: Params = ctx.params
+        if a.stream and ctx.device.type != "cuda":
+            msg = "ViTPose stream=True requires CUDA for weight transfers"
+            raise OptionsError(msg)
         net = ViTPose(a)
         net.load_state_dict(convert(ctx.state_dict(strip=""), a))
+        if a.stream:
+            net.eval().to(ctx.torch_dtype)
+            if ctx.mode == "kernels":
+                for block in net.blocks:
+                    override(block, _staged_kernel_block)
+            net.blocks = StreamedModuleList(net.blocks, ctx.device)  # ty: ignore[invalid-assignment]
         self.net = net.eval().to(ctx.device, ctx.torch_dtype)
         self.mean = torch.tensor(IMAGENET_MEAN, device=ctx.device).view(1, 3, 1, 1)
         self.std = torch.tensor(IMAGENET_STD, device=ctx.device).view(1, 3, 1, 1)
@@ -156,6 +169,9 @@ class Portable(Runner):
 
     def module(self) -> torch.nn.Module:
         """The network: crops `[B, 3, h, w]` RGB in [0, 1] at the network size -> heatmaps `[B, K, h / 4, w / 4]`."""
+        if self.ctx.params.stream:
+            msg = "Export requires resident weights; reload with stream=False"
+            raise NotImplementedError(msg)
 
         def fn(_net: Any, crops: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - the wrapped network
             return self.heatmaps(crops)
@@ -186,6 +202,12 @@ def _block(b: Block, w: tuple[torch.Tensor, ...], x: torch.Tensor) -> torch.Tens
     return lin(y, w_fc2, b.fc2.bias, res=x)
 
 
+def _staged_kernel_block(block: Block, x: torch.Tensor) -> torch.Tensor:
+    # Each packed weight is contiguous FP16. These 1x1 filters share its storage.
+    filters = tuple(_w4(layer.weight) for layer in (block.qkv, block.proj, block.fc1, block.fc2))
+    return _block(block, filters, x)
+
+
 class Kernels(Portable):
     """Our kernels: fused fp16 GEMMs, flash attention, a CUDA graph per person bucket.
 
@@ -197,19 +219,25 @@ class Kernels(Portable):
     def __init__(self, ctx: Context) -> None:
         """The portable network in fp16 with the fused-GEMM filters attached; the graph cache."""
         super().__init__(ctx)
-        self.blocks = [b for b in self.net.blocks if isinstance(b, Block)]  # all of them (built above)
+        self.blocks = [] if ctx.params.stream else [b for b in self.net.blocks if isinstance(b, Block)]
         self.w4 = [tuple(_w4(getattr(b, n).weight) for n in ("qkv", "proj", "fc1", "fc2")) for b in self.blocks]
         self.net.head.to(memory_format=torch.channels_last)
         self.gemm = cublas_gemms if ctx.params.fp32_accumulate else fp16_accumulate
-        self.graphs = SmallShapeGraphs(self._decoded, pixels=BUCKETS[-1] * ctx.params.height * ctx.params.width)
+        self.graphs = SmallShapeGraphs(
+            self._decoded, pixels=BUCKETS[-1] * ctx.params.height * ctx.params.width, enabled=not ctx.params.stream
+        )
 
     def _decoded(self, crops: torch.Tensor) -> torch.Tensor:
         """`[P, K, 3]` float32 (x, y in heatmap pixels after DARK, score) of crops in [0, 1] at the network size."""
         with self.gemm():
             x = ((crops - self.mean) / self.std).half()
             t = self.net.tokens(x)
-            for b, w in zip(self.blocks, self.w4, strict=True):
-                t = _block(b, w, t)
+            if self.ctx.params.stream:
+                for block in self.net.blocks:
+                    t = block(t)
+            else:
+                for b, w in zip(self.blocks, self.w4, strict=True):
+                    t = _block(b, w, t)
             hm = self.net.head(self.net.feature_map(t).contiguous(memory_format=torch.channels_last)).float()
         coords, score = decode(hm)
         return torch.cat([coords, score[..., None]], -1)
