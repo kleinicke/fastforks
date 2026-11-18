@@ -25,6 +25,7 @@ from fastforks.features._api import TASK, FeaturesModel
 from fastforks.kernels.dpt_fused import DEEP_K, DptFused
 from fastforks.kernels.fastbb import Flash64
 from fastforks.kernels.pointdit_norm import normalize_rope
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.depth_anything_v2.fast_vit import _flash, _fp16_accumulate
 from fastforks.shared.host_blocks import StreamedModuleList
@@ -248,4 +249,9 @@ class Kernels(Portable):
         return ()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+    "kernels_mlx": mlx_wrap.port(Portable),
+}

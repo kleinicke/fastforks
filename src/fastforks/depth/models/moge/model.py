@@ -33,6 +33,7 @@ from fastforks._core.model import eager_in_compile
 from fastforks._core.patch import base_type, override
 from fastforks.depth._runner import Forward, Runner
 from fastforks.kernels import sparse_conv
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import fold_layer_scale, sdpa_attention
 
 from .net import PATCH, ConvStack, MoGeNet
@@ -292,6 +293,17 @@ class Portable(Runner):
 
     def _forward(self, image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor]:
         """Network outputs at its size (see `finish`) and the metric scale `[B]`."""
+        coords, mask, normal, scale, enc = self._trunk(image)
+        net = self.net
+        if net.refiner is not None:  # data-dependent sparse voxels: never part of an exported graph
+            rdt = next(net.refiner.parameters()).dtype
+            coords = _refine_eager(net.refiner, coords, enc.float(), rdt)
+        return coords, mask, normal, scale
+
+    def _trunk(
+        self, image: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor, torch.Tensor]:
+        """Encoder, neck and heads: coords, mask, normal, scale and the encoder features the refiner reads."""
         net, p = self.net, self.ctx.params
         b, _, h, w = image.shape
         rows, cols = grid(h, w, p.resolution_level)
@@ -309,10 +321,7 @@ class Portable(Runner):
             normal = net.normal_head(levels, fp32_out=True)[-1].float() if p.normals else None
         with torch.autocast(image.device.type, enabled=False):
             scale = net.scale_head(cls.float())[:, 0].exp()
-            if net.refiner is not None:
-                rdt = next(net.refiner.parameters()).dtype
-                coords = _refine_eager(net.refiner, coords, enc.float(), rdt)
-        return coords, mask, normal, scale
+        return coords, mask, normal, scale, enc
 
     def _run(self, image: torch.Tensor, k: torch.Tensor | None) -> dict[str, torch.Tensor]:
         return finish(*self._forward(image), image.shape[-2:], k)
@@ -330,7 +339,11 @@ class Portable(Runner):
 # ------------------------------------------------------------------------------------------------ kernels
 # kernels-only dependencies (after the portable part)
 from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD  # noqa: E402
-from fastforks.depth.models.depth_anything_v2.fused import FusedViT, _linear_1x1, _resize  # noqa: E402 - shared DPT conversions
+from fastforks.depth.models.depth_anything_v2.fused import (  # noqa: E402 - shared DPT conversions
+    FusedViT,
+    _linear_1x1,
+    _resize,
+)
 from fastforks.kernels.dpt_fused import DptFused  # noqa: E402
 from fastforks.kernels.dpt_fused import load as load_dpt_fused  # noqa: E402
 from fastforks.shared.depth_anything_v2.fast_vit import _flash  # noqa: E402
@@ -632,6 +645,12 @@ class MetalKernels(Portable):
             override(m, _metal_subm_conv)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_trunk",)),
+    "kernels_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_trunk",)),
+    "kernels_mps": MetalKernels,
+}
 
 __all__ = ["RUNNERS", "finish", "focal_shift", "grid", "view_plane_uv"]

@@ -39,6 +39,8 @@ mps_dtypes = ["float32", "float16"]
 # Kernels keeps the class token (the only source of the metric scale) in a float32 residual. Its golden error (synthetic
 # test image, vs CPU float32: ~1e-3..4e-3 relative depth) is fp16-stream noise, not the model's error: on 16 real images
 # (8 iBims-1 + 8 NYUv2) the kernels metric scale is within 4.5e-4 mean (1.7e-3 max) of the float32 scale.
+mlx_dtypes = ["float32", "float16"]
+
 [modes.kernels]
 kernels = ["fastbb", "dpt_fused", "sparse_conv"]  # sparse_conv: the MoGe-3 refiner
 mps_kernels = ["sparse_metal"]  # the MoGe-3 refiner's sparse convs (MoGe-2: the portable network as is)

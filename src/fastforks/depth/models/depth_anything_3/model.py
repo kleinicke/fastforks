@@ -34,8 +34,10 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import OptionsError
 from fastforks._core.patch import override
 from fastforks.depth._runner import Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cv2_resize import cv2_resize
 from fastforks.shared.host_blocks import StreamedModuleList
+from fastforks.shared.mlx_graph import MlxModule
 from fastforks.shared.quantile import kth_smallest
 from fastforks.shared.rope2d import rope_forward
 
@@ -677,10 +679,52 @@ class Kernels(Runner):
 
 
 # after the portable part: kernels-only dependencies
-from fastforks.depth.models.depth_anything_v2.fused import _conv, _linear_1x1, _resize  # noqa: E402 - shared DPT conversions
+from fastforks.depth.models.depth_anything_v2.fused import (  # noqa: E402 - shared DPT conversions
+    _conv,
+    _linear_1x1,
+    _resize,
+)
 from fastforks.kernels.dpt_fused import ACT_RELU, DptFused  # noqa: E402
 from fastforks.kernels.dpt_fused import load as load_dpt_fused  # noqa: E402
 from fastforks.kernels.fastbb import Flash64  # noqa: E402
 from fastforks.shared.depth_anything_v2 import flash_attention, fp16_accumulate  # noqa: E402
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+
+class _BranchModule(nn.Module):
+    """One branch's forward (backbone, head, activation) as a module: what the MLX graph exports."""
+
+    def __init__(self, host: Portable, br: _Branch) -> None:
+        super().__init__()
+        self.host, self.br = host, br
+
+    def forward(self, x: torch.Tensor) -> dict:
+        return Portable._branch(self.host, self.br, x)  # ty: ignore[invalid-argument-type]
+
+
+def _mlx(portable: type[Portable]) -> type[Portable]:
+    base = mlx_wrap.port(portable, attrs=())
+
+    class Mlx(base):  # ty: ignore[unsupported-base]
+        """Apple MLX: each branch runs through the exported-graph translation."""
+
+        def __init__(self, ctx: Context) -> None:
+            """Wrap the branches."""
+            super().__init__(ctx)
+            kernels = ctx.mode == "kernels"
+            self._fns = {
+                id(br): MlxModule(_BranchModule(self, br), ctx.dtype, kernels=kernels) for br in self._branches()
+            }
+
+        def _branch(self, br: _Branch, x: torch.Tensor) -> dict:
+            return self._fns[id(br)](x)
+
+    Mlx.__name__ = Mlx.__qualname__ = f"Mlx{portable.__name__}"
+    return Mlx
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": _mlx(Portable),
+    "kernels_mlx": _mlx(Portable),
+}

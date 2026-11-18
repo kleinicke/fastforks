@@ -37,6 +37,7 @@ long_side = { default = 504, min = 14, aliases = ["process_res"] }  # longer sid
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "dpt_fused"]

@@ -17,6 +17,7 @@ import torch.nn.functional as F
 from fastforks._core.half import pure_half
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cv2_resize import cv2_resize
 from fastforks.shared.depth_anything_v2 import fold_layer_scale, use_sdpa_attention
 
@@ -160,4 +161,9 @@ class Kernels(Runner):
         return {"depth": _restore(d * span[:, 0] + lo[:, 0], image.shape[-2:])}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+    "kernels_mlx": mlx_wrap.port(Portable),
+}

@@ -23,8 +23,10 @@ import torch.nn.functional as F
 from fastforks._core.half import fp16_accumulate, half_weights
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.kernels import cudnn_hacc, dpt_fused
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import use_sdpa_attention
 from fastforks.shared.depth_anything_v2.fast_vit import FastViT
+from fastforks.shared.mlx_graph import MlxModule
 
 from .net.unidepthv2 import UniDepthV2, _postprocess, get_paddings, get_resize_factor
 from .net.utils import PinholeCamera
@@ -403,4 +405,42 @@ class Kernels(Runner):
         return self.fast(image, intrinsics)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _Encoded(torch.nn.Module):
+    """`encode_decode` without a given camera as a module: what the MLX graph exports."""
+
+    def __init__(self, net: UniDepthV2) -> None:
+        super().__init__()
+        self.net = net
+
+    def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
+        _, o = self.net.encode_decode({"image": x, "camera": None})
+        return {k: o[k] for k in ("points", "confidence", "intrinsics")}
+
+
+def _mlx(portable: type[Portable]) -> type[Portable]:
+    base = mlx_wrap.port(portable, attrs=())
+
+    class Mlx(base):  # ty: ignore[unsupported-base]
+        """Apple MLX: the network runs through the exported-graph translation (given intrinsics: PyTorch on the CPU)."""
+
+        def __init__(self, ctx: Context) -> None:
+            """Wrap the network."""
+            super().__init__(ctx)
+            self._enc = MlxModule(_Encoded(self.net), ctx.dtype, kernels=ctx.mode == "kernels")
+
+        def _run(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:
+            g, x, cam = _prepare(self.ctx, image, intrinsics)
+            o = self._enc(x) if cam is None else self.net.encode_decode({"image": x, "camera": cam})[1]
+            conf = o["confidence"] if self.ctx.params.confidence else None
+            return _restore(g, o["points"], conf, o["intrinsics"], intrinsics)
+
+    Mlx.__name__ = Mlx.__qualname__ = f"Mlx{portable.__name__}"
+    return Mlx
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": _mlx(Portable),
+    "kernels_mlx": _mlx(Portable),
+}

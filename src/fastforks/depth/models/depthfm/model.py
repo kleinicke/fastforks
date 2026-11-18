@@ -26,6 +26,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import NUMPY_ARRAYS, config_globals
 from fastforks.depth._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.pil_resize import pil_bilinear
 from fastforks.shared.sd2 import LATENT_SCALE, Noise, SD2Net, old_attention_names
 from fastforks.shared.sd2.net.fast import Fast
@@ -216,4 +217,9 @@ class Kernels(Runner):
         return {"depth": finish(f.decode(self.net.vae, (y / LATENT_SCALE).half()), image.shape[-2:])}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.unet",), methods=("net.vae.encode_mean", "net.vae.decode")),
+    "kernels_mlx": mlx_wrap.port(Portable, attrs=("net.unet",), methods=("net.vae.encode_mean", "net.vae.decode")),
+}

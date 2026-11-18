@@ -23,6 +23,7 @@ from fastforks._core.half import pure_half
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.depth.models.depth_anything_v2.fused import FusedHead, FusedViT
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import fold_layer_scale, sdpa_attention
 
 from .net import PATCH, Any2FullNet, PromptBranch
@@ -229,4 +230,9 @@ class Kernels(Runner):
         return {"depth": finish(pred, disp, image.shape[-2:])}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+    "kernels_mlx": mlx_wrap.port(Portable),
+}

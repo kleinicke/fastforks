@@ -23,6 +23,7 @@ from fastforks._core.patch import override
 from fastforks.depth._runner import Forward, NoParams, Runner, scale
 from fastforks.kernels import dpt_fused
 from fastforks.kernels.fastbb import Flash64
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2.fast_vit import FastViT
 
 from .net.raft_depth_normal_dpt5 import RAFTDepthNormalDPT5, norm_normalize
@@ -250,4 +251,9 @@ class Kernels(Runner):
         return _restore(image, intrinsics, s, pad, maps)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+    "kernels_mlx": mlx_wrap.port(Portable),
+}

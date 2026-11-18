@@ -28,6 +28,7 @@ from fastforks.depth.models.depth_anything_v2.fused import FusedViT
 from fastforks.depth.models.moge.model import _FusedStack, _rep_conv, grid, neck_inputs, uv_tables, view_plane_uv
 from fastforks.depth.models.moge.net import PATCH
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import fold_layer_scale
 
 from .net import LingBotDepthNet
@@ -169,6 +170,10 @@ class Portable(Runner):
             mask = net.mask_head(levels)[-1].float()
         return finish(depth, mask, (h, w), exp=p.exp_output)
 
+    def _graph(self, image: torch.Tensor, prompt: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The static-shape forward (every depth token kept, the empty ones masked): what MLX runs."""
+        return Portable._run(self, image, prompt, gather=False)
+
     def __call__(  # ty: ignore[invalid-method-override]
         self,
         image: torch.Tensor,
@@ -275,4 +280,16 @@ class Kernels(Runner):
             return finish(depth, mask, (h, w), exp=p.exp_output)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _Mlx(mlx_wrap.port(Portable, attrs=(), methods=("_graph",))):  # ty: ignore[unsupported-base]
+    """Apple MLX: the whole forward runs through the exported-graph translation."""
+
+    def _run(self, image: torch.Tensor, prompt: torch.Tensor, *, gather: bool = True) -> dict[str, torch.Tensor]:
+        return self._graph(image, prompt)
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": _Mlx,
+    "kernels_mlx": _Mlx,
+}

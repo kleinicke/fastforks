@@ -21,6 +21,7 @@ from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.depth.models.depth_anything_v2.fused import FusedHead, FusedViT
 from fastforks.kernels import omni_cg
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import CAPTURE_LOCK, capture_stream
 from fastforks.shared.depth_anything_v2 import fold_layer_scale, sdpa_attention
 
@@ -123,8 +124,27 @@ class Portable(Runner):
         h, w = image.shape[-2:]
         x, dep = prepare(image, prompt)
         x = scale(x, self.ctx.io)
-        out = _forward(self.net, x, dep, self.net.mono(x))
-        return out[:, 0, :h, :w]
+        return self._graph(x, dep)[:, 0, :h, :w]
+
+    def _graph(self, x: torch.Tensor, dep: torch.Tensor) -> torch.Tensor:
+        """The network on the prepared image and sparse depth."""
+        return _forward(self.net, x, dep, self.net.mono(x))
+
+    def _pre(self, x: torch.Tensor, dep: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """The network before the linear solve: the normal equations `(d, b)` and what the final steps need."""
+        net = self.net
+        net_in, small, mask = sparse_inputs(dep)
+        guide, conf_spn, context, conf_in = net.backbone(x, torch.cat([net_in, net.mono(x)], 1))
+        grad, up = net.update_block(context)
+        d, b = system(grad.float(), small, mask, conf_in.float())
+        return d.float(), b.float(), up, guide, conf_spn
+
+    def _post(
+        self, log_depth: torch.Tensor, up: torch.Tensor, guide: torch.Tensor, dep: torch.Tensor, conf_spn: torch.Tensor
+    ) -> torch.Tensor:
+        """Convex upsampling and the propagation after the linear solve."""
+        depth = torch.exp(self.net.upsample(log_depth, up))
+        return self.net.spn(depth, guide, dep, conf_spn)
 
     def __call__(  # ty: ignore[invalid-method-override]
         self,
@@ -259,4 +279,17 @@ class Kernels(Runner):
         return {"depth": out[:, 0, :h, :w]}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _Mlx(mlx_wrap.port(Portable, attrs=(), methods=("_pre", "_post"))):  # ty: ignore[unsupported-base]
+    """Apple MLX: the network before and after the linear solve; the conjugate-gradient solve stays PyTorch (CPU)."""
+
+    def _graph(self, x: torch.Tensor, dep: torch.Tensor) -> torch.Tensor:
+        d, b, up, guide, conf_spn = self._pre(x, dep)
+        return self._post(solve(d, b), up, guide, dep, conf_spn)
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": _Mlx,
+    "kernels_mlx": _Mlx,
+}

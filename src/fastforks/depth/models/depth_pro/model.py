@@ -25,6 +25,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks.depth._runner import Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import side_stream
 
 from .net import DEC, HOOKS, SIZE, DepthProNet, tables
@@ -252,8 +253,12 @@ class Portable(Runner):
         h, w = image.shape[-2:]
         x = _prepare(self.ctx, image, torch.float16 if self.half else torch.float32)
         with torch.autocast(x.device.type, dtype=torch.float16, enabled=self.half):
-            cid, fov = forward(self.fast, x, with_fov=k is None)
+            cid, fov = self._graph(x, with_fov=k is None)
         return _finish(cid, fov, k, h, w)
+
+    def _graph(self, x: torch.Tensor, *, with_fov: bool) -> tuple[torch.Tensor, torch.Tensor | None]:
+        """The network on the prepared image (what MLX runs)."""
+        return forward(self.fast, x, with_fov=with_fov)
 
     def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:
         """Depth (and intrinsics when none are given) of one image."""
@@ -497,8 +502,17 @@ class Kernels(Runner):
 _MEAN = (0.5, 0.5, 0.5)  # fixed: upstream Normalize([0.5] * 3, [0.5] * 3) (mean = std)
 
 # after the portable part: kernels-only dependencies
-from fastforks.depth.models.depth_anything_v2.fused import FusedViT, _conv, _linear_1x1  # noqa: E402 - shared conversions
+from fastforks.depth.models.depth_anything_v2.fused import (  # noqa: E402 - shared conversions
+    FusedViT,
+    _conv,
+    _linear_1x1,
+)
 from fastforks.kernels.dpt_fused import ACT_GELU, ACT_RELU, DptFused  # noqa: E402
 from fastforks.kernels.dpt_fused import load as load_dpt_fused  # noqa: E402
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_graph",), net_attr="fast"),
+    "kernels_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_graph",), net_attr="fast"),
+}

@@ -32,6 +32,7 @@ input_size = { default = 512, min = 32 }  # target side of the original code's "
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc"]

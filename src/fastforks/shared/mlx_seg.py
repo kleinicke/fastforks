@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 
-from fastforks._core.mlx import metal_kernel, mx, to_mx, to_torch
+from fastforks._core.mlx import metal_kernel, mx, to_mx
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

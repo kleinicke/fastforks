@@ -24,6 +24,7 @@ import math
 import operator
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import torch
 import torch.utils._pytree as pytree
 
@@ -109,6 +110,11 @@ OPS[aten.rsqrt.default] = mx.rsqrt
 OPS[aten.sin.default] = mx.sin
 OPS[aten.cos.default] = mx.cos
 OPS[aten.tanh.default] = mx.tanh
+OPS[aten.acos.default] = mx.arccos
+OPS[aten.asin.default] = mx.arcsin
+OPS[aten.atan.default] = mx.arctan
+OPS[aten.atan2.default] = mx.arctan2
+OPS[aten.tan.default] = mx.tan
 OPS[aten.sigmoid.default] = mx.sigmoid
 OPS[aten.erf.default] = mx.erf
 OPS[aten.floor.default] = mx.floor
@@ -469,6 +475,20 @@ OPS[aten.max.default] = lambda x: mx.max(x)
 OPS[aten.min.default] = lambda x: mx.min(x)
 
 
+@_reg(aten.sort.default, aten.sort.stable)
+def _sort(x: mx.array, *args: Any, **kw: Any) -> tuple[mx.array, mx.array]:  # noqa: ANN401
+    dim = kw.get("dim", -1)
+    descending = kw.get("descending", False)
+    pos = [a for a in args if not isinstance(a, bool)]
+    if pos:
+        dim = pos[0]
+    bools = [a for a in args if isinstance(a, bool)]
+    if bools:
+        descending = bools[-1]
+    order = mx.argsort(-x if descending else x, axis=dim)
+    return mx.take_along_axis(x, order, axis=dim), order
+
+
 @_reg(aten.topk.default)
 def _topk(x: mx.array, k: int, dim: int = -1, largest: bool = True, sorted_: bool = True) -> tuple[mx.array, mx.array]:  # noqa: FBT001, FBT002
     del sorted_
@@ -511,9 +531,9 @@ def _softmax(x: mx.array, dim: int, half_to_float: bool = False) -> mx.array:  #
     return mx.softmax(x, axis=dim, precise=True)
 
 
-OPS[aten._log_softmax.default] = lambda x, d, h=False: x - mx.logsumexp(
-    x.astype(mx.float32), axis=d, keepdims=True
-).astype(x.dtype)
+OPS[aten._log_softmax.default] = lambda x, d, h=False: (
+    x - mx.logsumexp(x.astype(mx.float32), axis=d, keepdims=True).astype(x.dtype)
+)
 
 
 # ---- normalisation ----------------------------------------------------------------------------------------------
@@ -578,7 +598,7 @@ def _batch_norm_batch_stats(
     b: mx.array | None,
     training: bool,
     momentum: float,
-    eps: float,  # noqa: FBT001
+    eps: float,
 ) -> tuple[mx.array, None, None]:
     """Normalisation by the batch's own per-channel statistics (what `InstanceNorm2d` decomposes to)."""
     del momentum
@@ -797,6 +817,38 @@ def _bilinear(x: mx.array, size: Sequence[int] | None, align: bool, *scales: Any
     return top * (1 - wy) + bot * wy
 
 
+def _aa_matrix(inp: int, out: int, align: bool, scale: float | None) -> np.ndarray:  # noqa: FBT001
+    """`[out, inp]` weights of PyTorch's antialiased bilinear resize along one axis (triangle filter, normalised)."""
+    s = (inp - 1) / (out - 1) if align and out > 1 else (1.0 / scale if scale else inp / out)
+    support = max(s, 1.0)
+    inv = 1.0 / s if s >= 1.0 else 1.0
+    m = np.zeros((out, inp), dtype=np.float32)
+    for i in range(out):
+        c = s * i if align else s * (i + 0.5)
+        lo = max(int(c - support + 0.5), 0)
+        hi = min(int(c + support + 0.5), inp)
+        w = np.maximum(0.0, 1.0 - np.abs((np.arange(lo, hi) - c + (0.0 if align else 0.5)) * inv))
+        m[i, lo:hi] = w / w.sum() if w.sum() > 0 else 0.0
+    return m
+
+
+@_reg(aten._upsample_bilinear2d_aa.default, aten._upsample_bilinear2d_aa.vec)
+def _bilinear_aa(x: mx.array, size: Sequence[int] | None, align: bool, *scales: Any) -> mx.array:  # noqa: ANN401, FBT001
+    h, w = x.shape[2:]
+    sh = sw = None
+    if size is None:
+        fac = scales[0]
+        sh, sw = (fac[0], fac[1]) if isinstance(fac, (list, tuple)) else (scales[0], scales[1])
+        oh, ow = int(h * sh), int(w * sw)
+    else:
+        oh, ow = size
+        if len(scales) >= 2 and not isinstance(scales[0], (list, tuple)):
+            sh, sw = scales[0], scales[1]
+    wy = mx.array(_aa_matrix(h, oh, align, sh)).astype(x.dtype)
+    wx = mx.array(_aa_matrix(w, ow, align, sw)).astype(x.dtype)
+    return mx.matmul(mx.matmul(wy, x), wx.T)
+
+
 @_reg(aten.upsample_nearest2d.default, aten.upsample_nearest2d.vec)
 def _nearest(x: mx.array, size: Sequence[int] | None, *scales: Any) -> mx.array:  # noqa: ANN401
     h, w = x.shape[2:]
@@ -964,7 +1016,7 @@ class GraphNet:
             it = iter(inputs)
 
             def get(a: Any) -> Any:  # noqa: ANN401
-                if isinstance(a, (_Name,)) or hasattr(a, "name") and hasattr(a, "op"):
+                if isinstance(a, (_Name,)) or (hasattr(a, "name") and hasattr(a, "op")):
                     return env[a.name]
                 if isinstance(a, (list, tuple)):
                     return type(a)(get(x) for x in a)

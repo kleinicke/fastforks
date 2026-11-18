@@ -24,6 +24,7 @@ from fastforks._core.errors import OptionsError
 from fastforks._core.half import half_weights, pure_half
 from fastforks._core.patch import override
 from fastforks.depth._runner import Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import flash_attention, sdpa_attention
 
 from .net import LAYERS, PATCH, UniK3DNet, camera_rays, embed_rays, get_paddings, get_resize_factor, pinhole_rays
@@ -422,4 +423,9 @@ class Kernels(Runner):
         return _restore(g, logr, logc, rays)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+    "kernels_mlx": mlx_wrap.port(Portable),
+}

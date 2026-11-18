@@ -30,6 +30,7 @@ from torch import nn
 from fastforks._core.half import pure_half
 from fastforks._core.runner import host
 from fastforks.depth._runner import Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import DINOv2, fold_layer_scale, use_fast_vit, use_sdpa_attention
 
 from .net.dpt_temporal import DPTHeadTemporal
@@ -249,4 +250,9 @@ class Kernels(_Video):
         pure_half(self.net.head, fp32=[self.net.head.scratch.output_conv2])
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_encode", "_window")),
+    "kernels_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_encode", "_window")),
+}

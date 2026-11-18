@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, cast
 
 import torch
 import torch.nn.functional as F
+from torch._subclasses.fake_tensor import unset_fake_temporarily
 
 from fastforks._core.patch import override
 
@@ -75,7 +76,7 @@ def _rel_pos_bias(attn: Attention, window: tuple[int, int]) -> torch.Tensor:
     if index is None:
         if len(_INDEX) >= _INDEX_SIZES:  # int64, 18 MB at 994x1482: drop the oldest size instead of growing forever
             del _INDEX[next(iter(_INDEX))]
-        with torch.inference_mode(False):  # noqa: FBT003 - positional: dynamo rejects the keyword
+        with torch.inference_mode(False), unset_fake_temporarily():  # noqa: FBT003 - positional: dynamo rejects the keyword
             index = _INDEX[key] = gen_relative_position_index(window, device=tab.device).view(-1)
     n = window[0] * window[1] + 1
     return table[:, index].view(1, -1, n, n)
