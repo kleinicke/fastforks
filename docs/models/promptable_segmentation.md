@@ -525,11 +525,11 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 
 One text prompt (the COCO class name) per class in the image; the top 100 instances go to pycocotools COCOeval. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | original half | portable | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `sam3` | COCO val2017, every 10th image, class-name prompts, box / mask mAP | 52.54 / 44.56 | 52.54 / 44.54 | 52.38 / 44.54 | 52.79 / 45.13 | 52.83 / 45.14 | original = transformers `Sam3Model`, the port this code follows |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|---|
+| `sam3` | COCO val2017, every 10th image, class-name prompts, box / mask mAP | 52.54 / 44.56 | 52.54 / 44.54 | 52.38 / 44.54 | 52.79 / 45.13 | 52.82 / 45.16 | 52.83 / 45.14 | original = transformers `Sam3Model`, the port this code follows |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 446408848, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 

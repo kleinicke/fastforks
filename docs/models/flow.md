@@ -34,7 +34,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`memfof`](#memfof) | yes | 10.891 † | 349, 1.5x | 1016, 0.47x |
 | [`memfof-kitti`](#memfof) | yes | 15.584 † | 309, 3.0x (375x1242) | 916, 0.4x |
 | [`memfof-sintel`](#memfof) | yes | 2.976 † | 1993 | 8820 |
-| [`memfof-spring`](#memfof) | yes | – | 349, 3.0x | 1016, 0.38x |
+| [`memfof-spring`](#memfof) | yes | 10.780 † | 349, 3.0x | 1016, 0.38x |
 | [`neuflow-v2`](#neuflow_v2) | yes | 1.577 † | 59.1, 1.3x | 896, 0.2x |
 | [`neuflow-v2-sintel`](#neuflow_v2) | yes | 1.566 † | 58.9, 1.3x | 896, 0.2x |
 | [`neuflow-v2-things`](#neuflow_v2) | yes | 4.095 | 58.9, 1.3x | 896, 0.19x |
@@ -523,7 +523,7 @@ Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of 
 | `memfof` | KITTI 2015 train, EPE / Fl-all % | 10.892 / 27.07 | 10.891 / 27.07 | 10.891 / 27.07 | 10.892 / 27.07 | 10.891 / 27.07 | trained on this dataset's public images; not a zero-shot result |
 | `memfof-kitti` | KITTI 2015 train, EPE / Fl-all % | 15.584 / 26.39 |  |  | 15.584 / 26.39 |  | trained on this dataset's public images; not a zero-shot result |
 | `memfof-sintel` | KITTI 2015 train, EPE / Fl-all % | 2.976 / 7.48 |  |  | 2.976 / 7.48 |  | trained on this dataset's public images; not a zero-shot result |
-| `memfof-spring` | KITTI 2015 train, EPE / Fl-all % | 10.780 / 29.07 |  |  |  |  | trained on this dataset's public images; not a zero-shot result |
+| `memfof-spring` | KITTI 2015 train, EPE / Fl-all % | 10.780 / 29.07 |  |  | 10.780 / 29.07 |  | trained on this dataset's public images; not a zero-shot result |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 087f1817+uncommitted, 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 6f0a70e1, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 087f1817+uncommitted, 2026-11-12.
 
