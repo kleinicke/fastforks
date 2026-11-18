@@ -1504,9 +1504,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | realesrgan-x4plus | 631 | 471 | 403 | 1.6x | 1.2x | 2266 / 2496 | 1220 / 1454 | 1220 / 1434 |
 | realesrgan-x4plus-anime-6b | 205 | 155 | 132 | 1.6x | 1.2x | 2243 / 2472 | 1197 / 1430 | 1197 / 1410 |
 | realplksr-nomoswebphoto-x4 | 267 | 182 | 130 | 2.1x | 1.4x | 244 / 320 | 179 / 216 | 179 / 216 |
-| restormer-deblur | 234 | 228 | 180 | 1.3x | 1.3x | 1221 / 1418 | 850 / 1000 | 850 / 918 |
-| restormer-derain | 234 | 228 | 180 | 1.3x | 1.3x | 1221 / 1418 | 850 / 1000 | 850 / 920 |
-| restormer-sidd | 218 | 181 | 179 | 1.2x | 1.0x | 1221 / 1416 | 850 / 920 | 850 / 940 |
+| restormer-deblur | 234 | 228 | 133 | 1.8x | 1.7x | 1221 / 1418 | 850 / 1000 | 892 / 980 |
+| restormer-derain | 234 | 228 | 133 | 1.8x | 1.7x | 1221 / 1418 | 850 / 1000 | 892 / 980 |
+| restormer-sidd | 218 | 181 | 133 | 1.6x | 1.4x | 1221 / 1416 | 850 / 920 | 892 / 980 |
 | seedvr2-3b | 13150 | 2295 | 2296 | 5.7x | 1.0x | 7598 / 15268 | 6140 / 6772 | 6140 / 6772 |
 | seedvr2-7b | OOM | 2712 | 2713 | – | 1.0x | – | 6419 / 8880 | 6402 / 7034 |
 | span-x2 | 24.6 | 23.5 | 14.9 | 1.6x | 1.6x | 611 / 648 | 607 / 662 | 487 / 522 |
@@ -2704,9 +2704,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | realesrgan-x4plus | 512x512 | 471 ms | 354 ms | 273 ms | 403 ms | 29.9 s | 55.2 s | 1220 / 1454 | 1091 / 1394 | 1220 / 1434 | 1546 / 1594 |
 | realesrgan-x4plus-anime-6b | 512x512 | 155 ms | 114 ms | 83.1 ms | 132 ms | 10.0 s | 36.7 s | 1197 / 1430 | 1068 / 1370 | 1197 / 1410 | 1505 / 1552 |
 | realplksr-nomoswebphoto-x4 | 512x512 | 182 ms | 154 ms | 247 ms | 130 ms | 15.2 s | 26.2 s | 179 / 216 | 179 / 196 | 179 / 216 | 358 / 366 |
-| restormer-deblur | 512x512 | 228 ms | 143 ms | 162 ms | 180 ms | 44.1 s | 58.3 s | 850 / 1000 | 660 / 778 | 850 / 918 | 757 / 774 |
-| restormer-derain | 512x512 | 228 ms | 144 ms | 162 ms | 180 ms | 41.5 s | 55.3 s | 850 / 1000 | 660 / 778 | 850 / 920 | 757 / 774 |
-| restormer-sidd | 512x512 | 181 ms | 142 ms | 162 ms | 179 ms | 35.5 s | 59.7 s | 850 / 920 | 660 / 778 | 850 / 940 | 757 / 774 |
+| restormer-deblur | 512x512 | 228 ms | 143 ms | 162 ms | 133 ms | 44.1 s | 58.3 s | 850 / 1000 | 660 / 778 | 892 / 980 | 757 / 774 |
+| restormer-derain | 512x512 | 228 ms | 144 ms | 162 ms | 133 ms | 41.5 s | 55.3 s | 850 / 1000 | 660 / 778 | 892 / 980 | 757 / 774 |
+| restormer-sidd | 512x512 | 181 ms | 142 ms | 162 ms | 133 ms | 35.5 s | 59.7 s | 850 / 920 | 660 / 778 | 892 / 980 | 757 / 774 |
 | seedvr2-3b | 512x512 | 2295 ms | 1941 ms | fails: RuntimeError: Inplace update to inference tensor outside Inf | 2296 ms | 238 s | – | 6140 / 6772 | 5237 / 8144 | 6140 / 6772 | – |
 | seedvr2-3b | 64x64 | – | – | 46.8 ms, bf16 engine | – | – | 324 s | – | – | – | 7662 / 7664 |
 | seedvr2-7b | 512x512 | 2712 ms | 2471 ms (VAE only, standalone compile) | fails: RuntimeError: Inplace update to inference tensor outside Inf | 2713 ms | 52.2 s | – | 6419 / 8880 | 5522 / 9042 | 6402 / 7034 | – |

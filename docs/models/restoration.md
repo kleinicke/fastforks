@@ -30,9 +30,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`realesrgan-x4plus`](#realesrgan) | yes | 403, 1.6x | 1434, 0.57x |
 | [`realesrgan-x4plus-anime-6b`](#realesrgan) | yes | 132, 1.6x | 1410, 0.57x |
 | [`realplksr-nomoswebphoto-x4`](#realplksr) | yes | 130, 2.1x | 216, 0.68x |
-| [`restormer-deblur`](#restormer) | yes | 180, 1.3x | 918, 0.65x |
-| [`restormer-derain`](#restormer) | yes | 180, 1.3x | 920, 0.65x |
-| [`restormer-sidd`](#restormer) | yes | 179, 1.2x | 940, 0.66x |
+| [`restormer-deblur`](#restormer) | yes | 133, 1.8x | 980, 0.69x |
+| [`restormer-derain`](#restormer) | yes | 133, 1.8x | 980, 0.69x |
+| [`restormer-sidd`](#restormer) | yes | 133, 1.6x | 980, 0.69x |
 | [`seedvr2-3b`](#seedvr2) | yes | 2296, 5.7x | 6772, 0.44x |
 | [`seedvr2-7b`](#seedvr2) | yes | 2713 | 7034 |
 | [`span-x2`](#span) | yes | 14.9, 1.6x | 522, 0.81x |
@@ -606,9 +606,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `restormer-deblur` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>228<br>180<br>143<br>162 | 1221 / 1418<br>850 / 1000<br>850 / 918<br>660 / 778<br>757 / 774 |
-| `restormer-derain` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>228<br>180<br>144<br>162 | 1221 / 1418<br>850 / 1000<br>850 / 920<br>660 / 778<br>757 / 774 |
-| `restormer-sidd` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 218<br>181<br>179<br>142<br>162 | 1221 / 1416<br>850 / 920<br>850 / 940<br>660 / 778<br>757 / 774 |
+| `restormer-deblur` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>228<br>133<br>143<br>162 | 1221 / 1418<br>850 / 1000<br>892 / 980<br>660 / 778<br>757 / 774 |
+| `restormer-derain` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>228<br>133<br>144<br>162 | 1221 / 1418<br>850 / 1000<br>892 / 980<br>660 / 778<br>757 / 774 |
+| `restormer-sidd` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 218<br>181<br>133<br>142<br>162 | 1221 / 1416<br>850 / 920<br>892 / 980<br>660 / 778<br>757 / 774 |
 
 <details><summary>Details</summary>
 

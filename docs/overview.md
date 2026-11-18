@@ -772,9 +772,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`realesrgan-x2plus`](models/restoration.md#real-esrgan) | yes | 128.2 (512x512) | 97.0 | 80.2 | 1.6x vs original (512x512) | 333 |
 | [`realplksr-nomoswebphoto-x4`](models/restoration.md#realplksr) | yes | 267.3 (512x512) | 181.8 | 129.8 | 2.1x vs original (512x512) | 179 |
 | [`realesrgan-x4plus-anime-6b`](models/restoration.md#real-esrgan) | yes | 205.1 (512x512) | 154.9 | 131.8 | 1.6x vs original (512x512) | 1197 |
-| [`restormer-sidd`](models/restoration.md#restormer) | yes | 217.9 (512x512) | 181.4 | 178.7 | 1.2x vs original (512x512) | 850 |
-| [`restormer-derain`](models/restoration.md#restormer) | yes | 233.8 (512x512) | 228.4 | 179.6 | 1.3x vs original (512x512) | 850 |
-| [`restormer-deblur`](models/restoration.md#restormer) | yes | 233.9 (512x512) | 228.1 | 179.8 | 1.3x vs original (512x512) | 850 |
+| [`restormer-derain`](models/restoration.md#restormer) | yes | 233.8 (512x512) | 228.4 | 132.6 | 1.8x vs original (512x512) | 892 |
+| [`restormer-sidd`](models/restoration.md#restormer) | yes | 217.9 (512x512) | 181.4 | 132.6 | 1.6x vs original (512x512) | 892 |
+| [`restormer-deblur`](models/restoration.md#restormer) | yes | 233.9 (512x512) | 228.1 | 132.7 | 1.8x vs original (512x512) | 892 |
 | [`dat-light-x4`](models/restoration.md#dat) | yes | 2203.5 (512x512) | 267.8 | 231.5 | 9.5x vs original (512x512) | 566 |
 | [`realesrgan-x4plus`](models/restoration.md#real-esrgan) | yes | 631.1 (512x512) | 471.3 | 402.7 | 1.6x vs original (512x512) | 1220 |
 | [`swinir-m-x2`](models/restoration.md#swinir) | yes | 3252.1 (512x512) | 738.8 | 553.0 | 5.9x vs original (512x512) | 1353 |
