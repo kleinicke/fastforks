@@ -251,7 +251,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (nonc
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mvsanywhere` | synthetic (448x672) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 273<br>219<br>93.2<br>35.2<br>70.8<br>planned for 0.2.1 | 1441 / 1500<br>1504 / 1576<br>931 / 1226<br>702 / 760<br>818 / 860<br>– |
+| `mvsanywhere` | synthetic (448x672) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 273<br>219<br>93.2<br>35.2<br>70.8<br>149 (standalone build) | 1441 / 1500<br>1504 / 1576<br>931 / 1226<br>702 / 760<br>818 / 860<br>2929 / 3074 |
 
 <details><summary>Details</summary>
 
@@ -268,7 +268,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (nonc
 - Outputs: depth, mask, sky (in `extras`), depth_range (in `extras`); kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mvsanywhere` 3000x4000 (3.0 GiB peak allocated, 4.2 reserved)
-- `mvsanywhere` 448x672, first call: portable + torch.compile 153 s (cold Inductor cache).
+- `mvsanywhere` 448x672, first call: portable + torch.compile 153 s (cold Inductor cache), TensorRT fp32 134 s (ONNX + engine).
 - `mvsanywhere` original 448x672: torch.autocast(float16) around the call
 - `mvsanywhere` load / first call: original 3.21 s / 1.037 s (448x672), portable 1.88 s / 0.221 s (448x672), kernels 1.76 s / 0.48 s (448x672)
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls

@@ -141,6 +141,7 @@ _DATASETS = {
         "megadepth1500-every5-fixed-768x1024": "MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20",
         "megadepth1500-every5": "MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees",
         "megadepth1500-every10": "MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees",
+        "scannet-1500-indoor": "ScanNet-1500 indoor pairs at 480 x 640, relative pose AUC@5 / @10 / @20 degrees",
     },
     "matting": {
         "dis-vd": "DIS5K validation (DIS-VD), all 470 images, MAE / max F-beta",
@@ -446,6 +447,8 @@ _PROTOCOL = {
     "sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; "
     "LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean "
     "focal length); AUC of the larger of the rotation and translation-direction errors. ",
+    ("matching", "scannet-1500-indoor"): "The LoFTR ScanNet split with 1,500 grayscale pairs at 480 x 640. "
+    "The calibrated relative pose is scored by the larger rotation and translation-direction errors. ",
     ("matching", "megadepth1500-every5-fixed-768x1024"): "Both modes receive pairs resized to 768 x 1024. Map "
     "matched pixels to the calibrated evaluation coordinates and use the same RANSAC seed per pair. ",
     ("matching", "megadepth1500-every5"): "The same 300 pairs for all modes, so float32 and bfloat16 compare pair for "
@@ -645,14 +648,15 @@ _ENGINE_PART = {
 
 
 @functools.cache
-def _engine_part(model_id: str) -> str:
-    """` (image encoder only)` where the TensorRT engine (`module()`) runs only part of the timed call, else ''."""
+def _engine_part(model_id: str, *, standalone: bool = False) -> str:
+    """Scope of the TensorRT measurement, including a build outside the public exporter."""
+    build = ", standalone build" if standalone else ""
     for task in registry.TASKS:
         for card, v in registry.cards(task).values():
             if v.id == model_id and (part := _ENGINE_PART.get(card.family) or _ENGINE_PART.get(task)):
                 subject, separator, qualifier = part.partition("; ")
-                return f" ({subject} only{separator}{qualifier})"
-    return ""
+                return f" ({subject} only{separator}{qualifier}{build})"
+    return " (standalone build)" if standalone else ""
 
 
 @functools.cache
@@ -665,7 +669,8 @@ def _compile_rows() -> dict[tuple[str, str, str], dict]:
     }
     variants = {v.id: v for t in registry.TASKS for _, v in registry.cards(t).values()}
     for (ref, mode, size), r in rows.items():
-        if (v := variants.get(ref)) and mode in {"compile", "tensorrt"} and planned_reason(v, mode):
+        standalone = mode == "tensorrt" and r.get("standalone_build") and r.get("ms") and not r.get("fails")
+        if (v := variants.get(ref)) and mode in {"compile", "tensorrt"} and planned_reason(v, mode) and not standalone:
             rows[ref, mode, size] = {**r, "fails": PLANNED}
             rows[ref, mode, size].pop("ms", None)
     return rows
@@ -703,7 +708,8 @@ def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]]
             continue
         precision = _ENGINE_PRECISION.get(r.get("engine_dtype", ""))
         name = f"TensorRT {precision}" if mode == "tensorrt" and precision else label
-        ms = _ms_str(r["ms"]) + (_engine_part(model_id) if mode == "tensorrt" else "")
+        part = _engine_part(model_id, standalone=bool(r.get("standalone_build"))) if mode == "tensorrt" else ""
+        ms = _ms_str(r["ms"]) + part
         lines.append((name, ms, _trt_peak(r) if mode == "tensorrt" else _peak(r)))
         first = _setup_seconds(r)
         if first is not None:
@@ -1979,7 +1985,8 @@ def _compile_ms(r: dict | None) -> str:
         return _fail_cell(r["fails"])
     precision = _ENGINE_PRECISION.get(r.get("engine_dtype", ""))
     suffix = f", {precision} engine" if precision else ""
-    return f"{_ms_str(r['ms'])} ms{suffix}" + (_engine_part(r["ref"]) if r["mode"] == "tensorrt" else "")
+    part = _engine_part(r["ref"], standalone=bool(r.get("standalone_build"))) if r["mode"] == "tensorrt" else ""
+    return f"{_ms_str(r['ms'])} ms{suffix}{part}"
 
 
 def _compile_block() -> str:

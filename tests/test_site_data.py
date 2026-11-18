@@ -1,5 +1,6 @@
 """Site measurements keep their evaluated precision and input size."""
 
+import json
 from types import SimpleNamespace
 
 import site_data
@@ -35,6 +36,32 @@ def test_compile_and_tensorrt_keep_their_input_sizes(monkeypatch):
     for row in rows:
         assert any(cell.startswith("262 ms") for cell in row) == (row[1] == "192x192")
         assert ("162 ms" in row) == (row[1] == "200x200")
+
+
+def test_standalone_engine_measurement_remains_visible_when_export_is_planned(tmp_path, monkeypatch):
+    g = site_data.g
+    variant = SimpleNamespace(id="model", planned={"tensorrt": "export needs validation"})
+    monkeypatch.setattr(g, "ROOT", tmp_path)
+    monkeypatch.setattr(g.registry, "TASKS", ("depth",))
+    monkeypatch.setattr(g.registry, "cards", lambda _: {"model": (SimpleNamespace(family="model"), variant)})
+    data = tmp_path / "docs" / "data"
+    data.mkdir(parents=True)
+    rows = [
+        {"ref": "model", "mode": "tensorrt", "input": "32x32", "ms": 5},
+        {"ref": "model", "mode": "tensorrt", "input": "64x64", "ms": 10, "standalone_build": True},
+    ]
+    (data / "speed_compile.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows))
+    compiled = g._compile_rows.__wrapped__()
+    assert compiled["model", "tensorrt", "32x32"]["fails"] == g.PLANNED
+    assert compiled["model", "tensorrt", "64x64"]["ms"] == 10
+    monkeypatch.setattr(g, "_compile_rows", lambda: compiled)
+    monkeypatch.setattr(g, "_engine_part", g._engine_part.__wrapped__)
+    monkeypatch.setattr(g, "_oom", set)
+
+    sizes = {row["input"]: row for row in site_data._speed(variant, "depth", {})["inputs"]}
+    assert sizes["64x64"]["tensorrt"]["part"] == "standalone build"
+    assert "32x32" not in sizes
+    assert g._compile_ms(compiled["model", "tensorrt", "64x64"]) == "10 ms (standalone build)"
 
 
 def test_quality_keeps_precision_specific_rows(monkeypatch):

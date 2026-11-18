@@ -58,7 +58,7 @@ The 3,000 official cropped test words, with no lexicon. Exact accuracy and norma
 | variant | dataset | original fp32 | portable fp32 | note |
 |---|---|---|---|---|
 | `parseq` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 98.37 / 99.62 | 98.37 / 99.62 |  |
-| `parseq-tiny` | IIIT5K test word crops, word accuracy / normalized edit similarity % |  | 97.67 / 99.45 |  |
+| `parseq-tiny` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 97.67 / 99.45 | 97.67 / 99.45 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
 

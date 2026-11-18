@@ -156,13 +156,16 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]]) -> dict[str, Any
             if "fails" in c:
                 extra[mode] = {"fails": g._fail_reason(c["fails"])}  # noqa: SLF001
                 continue
+            part = ""
+            if mode == "tensorrt":
+                part = g._engine_part(v.id, standalone=bool(c.get("standalone_build"))).strip(" ()")  # noqa: SLF001
             extra[mode] = {
                 "ms": c["ms"],
                 "peak_alloc_mb": c.get("peak_alloc_mb"),
                 "peak_reserved_mb": c.get("peak_reserved_mb"),
                 "device_mb": c.get("device_mb"),
                 "engine_dtype": c.get("engine_dtype", "float16") if mode == "tensorrt" else None,
-                "part": g._engine_part(v.id).strip(" ()") if mode == "tensorrt" else "",  # noqa: SLF001
+                "part": part,
                 "setup_s": g._setup_seconds(c),  # noqa: SLF001 - shared docs helper
                 "date": c.get("date"),
             }

@@ -255,14 +255,15 @@ Commercial use: yes.
 
 ### Measured
 
-Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Original = the original code named under Details, same checkpoint and protocol.
+Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. The LoFTR ScanNet split with 1,500 grayscale pairs at 480 x 640. The calibrated relative pose is scored by the larger rotation and translation-direction errors. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|
 | `loftr-outdoor` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees | 50.1 / 67.5 / 80.3 | 50.6 / 67.6 / 80.3 | 50.8 / 67.8 / 80.2 |  |  |
 | `loftr-outdoor` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 53.8 / 71.8 / 83.7 | 52.1 / 71.0 / 83.3 |  | 57.1 / 74.2 / 85.0 |  |
+| `loftr-indoor` | ScanNet-1500 indoor pairs at 480 x 640, relative pose AUC@5 / @10 / @20 degrees |  |  | 22.2 / 41.2 / 58.1 |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / aee4b565, 2026-11-13 to 2026-11-15; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880, 2026-11-15; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / aee4b565, 2026-11-13 to 2026-11-15; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / d073b335, 2026-11-15 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
 
 ### Parity
 
