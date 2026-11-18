@@ -311,7 +311,7 @@ Commercial use: yes.
 - Licence evidence: https://github.com/davnords/loma/blob/ecc947d44ddc9d50387e887bbedc743d65ffac00/README.md#license ; https://github.com/Parskatt/dad/blob/41b9e86a1a3ae52128485cc1094aa4952ef489ba/LICENSE ; https://github.com/Parskatt/DeDoDe/blob/6d156183f4dc84cd704ae779eebc8350995c5b06/README.md#license
 - Training data: MegaDepth (Internet photo collections with SfM / MVS depth) (Matcher: MegaDepth (paper); DaD: MegaDepth-based distillation (DaD paper); DeDoDe-G descriptor: MegaDepth; B, L, G and R include frozen DINOv2 (LVD-142M). B64 and B128 use VGG descriptors.)
 - Options: `max_keypoints` = 2048 (>= 1), `long_side` = 1024 (>= 16), `size` = 784 (>= 56)
-- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
+- Kernel libraries: `loma_descriptor`, `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `loma-b`, `loma-b64`, `loma-b128`, `loma-l`, `loma-g`, `loma-r`
 - Not in this release (planned for 0.2.1): `loma-b` TensorRT export: the bundled BF16 build reduces relative pose AUC@5 by 9.87 points on 50 MegaDepth pairs; use ONNX export and a separate engine build
 - Outputs: keypoints1, keypoints2, pairs, scores
@@ -356,12 +356,12 @@ CPU, float32: max |diff| <= 0.011 vs the original. GPU, portable bfloat16 and ke
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `loma-b` | 0.00775 / 0.40228 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-| `loma-b64` | 0.00718 / 0.39541 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-| `loma-b128` | 0.00775 / 0.40228 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-| `loma-l` | 0.00775 / 0.40228 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-| `loma-g` | 0.00775 / 0.40228 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-| `loma-r` | 0.00775 / 0.40228 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `loma-b` | 0.00655 / 0.3415 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `loma_descriptor@a249ce2993af:sm_120` |
+| `loma-b64` | 0.00728 / 0.37323 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `loma_descriptor@a249ce2993af:sm_120` |
+| `loma-b128` | 0.00655 / 0.3415 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `loma_descriptor@a249ce2993af:sm_120` |
+| `loma-l` | 0.00655 / 0.3415 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `loma_descriptor@a249ce2993af:sm_120` |
+| `loma-g` | 0.00655 / 0.3415 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `loma_descriptor@a249ce2993af:sm_120` |
+| `loma-r` | 0.00655 / 0.3415 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `loma_descriptor@a249ce2993af:sm_120` |
 
 ### Limitations
 
@@ -396,7 +396,7 @@ Commercial use: yes.
 - Training data: MegaDepth (Internet photo collections with SfM / MVS depth) (roma_outdoor: MegaDepth (upstream README / paper). The frozen DINOv2 was pretrained on LVD-142M (not released).)
 - Licence note: The DINOv2 ViT-L/14 weights are the second weight file (Meta's release, Apache-2.0).
 - Options: `coarse_size` = 560 (>= 14), `fine_size` = 864 (>= 0)
-- Kernel libraries: `fastbb`
+- Kernel libraries: `fastbb`, `romav2`
 - Variants: `romav1`
 - Not in this release (planned for 0.2.1): `romav1` ONNX / TensorRT export: the ONNX converter fails on the exported program (ConversionError, step 3/3)
 - Outputs: warp, certainty
@@ -424,7 +424,7 @@ CPU, float32: max |diff| <= 4.3e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `romav1` | 0.00052 / 0.00269 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
+| `romav1` | 0.00052 / 0.00269 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `romav2@8e53c9cfd7d0:sm_120` |
 
 ### Limitations
 
@@ -482,7 +482,7 @@ CPU, float32: max |diff| <= 1.6e-05 vs the original. GPU, bfloat16 (the default)
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `romav2` | 0.00573 / 0.02077 | RTX 5060 Ti, torch 2.14.1+cu130 | `romav2@bb29839cee98:sm_120` |
+| `romav2` | 0.00573 / 0.02077 | RTX 5060 Ti, torch 2.14.1+cu130 | `romav2@8e53c9cfd7d0:sm_120` |
 
 ### Limitations
 

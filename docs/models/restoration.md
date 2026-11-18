@@ -168,7 +168,7 @@ Commercial use: yes.
 - Training data: DIV2K (NTIRE 2017 super-resolution, 1000 2K images), Flickr2K (2650 2K Flickr images, EDSR) (options/Train/train_DAT_x4.yml: DF2K (DIV2K + Flickr2K), bicubic-downsampled, fine-tuned from the x2 model.)
   - `dat-2-x4`: DIV2K (NTIRE 2017 super-resolution, 1000 2K images), Flickr2K (2650 2K Flickr images, EDSR) (options/Train/train_DAT_2_x4.yml: DF2K (DIV2K + Flickr2K), bicubic-downsampled, fine-tuned from the x2 model.)
   - `dat-light-x4`: DIV2K (NTIRE 2017 super-resolution, 1000 2K images), Flickr2K (2650 2K Flickr images, EDSR) (options/Train/train_DAT_light_x4.yml: DF2K (DIV2K + Flickr2K), bicubic-downsampled, fine-tuned from the x2 model.)
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `dat_interaction`
 - Variants: `dat-x4`, `dat-2-x4`, `dat-light-x4`
 - Outputs: image
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -202,9 +202,9 @@ CPU, float32: max |diff| <= 3.6e-06 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `dat-x4` | 0.00051 / 0.00191 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `dat-2-x4` | 0.00065 / 0.00241 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `dat-light-x4` | 0.00079 / 0.00288 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `dat-x4` | 0.00049 / 0.00183 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dat_interaction@66d2d34fee2e:sm_120` |
+| `dat-2-x4` | 0.00063 / 0.00234 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dat_interaction@66d2d34fee2e:sm_120` |
+| `dat-light-x4` | 0.00051 / 0.00195 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dat_interaction@66d2d34fee2e:sm_120` |
 
 </details>
 

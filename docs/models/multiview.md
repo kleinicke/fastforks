@@ -319,7 +319,7 @@ Commercial use: yes.
 - Training data: RealEstate10K (camera trajectories of YouTube real-estate videos) (RealEstate10K (YouTube videos, camera poses from ORB-SLAM; research use per its release), the backbone initialised from UniMatch (GMDepth, ScanNet).)
 - Licence note: Only the RealEstate10K checkpoint is shipped (MIT code and weights); the ACID checkpoint has the same architecture.
 - Options: `long_side` = 256 (>= 16)
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `mvsplat_corr`
 - Variants: `mvsplat-re10k`
 - Outputs: depth, confidence, gaussians; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -347,7 +347,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `mvsplat-re10k` | 0.00157 / 0.00705 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `mvsplat-re10k` | 0.00157 / 0.00718 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `mvsplat_corr@1dc822ce4354:sm_120` |
 
 ### Limitations
 

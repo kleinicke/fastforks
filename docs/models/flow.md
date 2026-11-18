@@ -474,7 +474,7 @@ Commercial use: yes.
   - `memfof-sintel`: TartanAir, Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (TartanAir, FlyingThings3D, the TSKH mix, then fine-tuned on Sintel)
   - `memfof-spring`: TartanAir, Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark, Spring (scene flow / optical flow / stereo, University of Stuttgart) (TartanAir, FlyingThings3D, the TSKH mix, then fine-tuned on Spring)
 - Options: `iters` = 8 (>= 1)
-- Kernel libraries: `raft_flow`
+- Kernel libraries: `raft_flow`, `flow_upsample`
 - Variants: `memfof`, `memfof-kitti`, `memfof-sintel`, `memfof-spring`
 - Outputs: flow
 - Input size:
@@ -515,10 +515,10 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `memfof` | 0.00065 / 0.00304 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@a101a33607b6:sm_120` |
-| `memfof-kitti` | 0.00035 / 0.00157 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@a101a33607b6:sm_120` |
-| `memfof-sintel` | 0.00041 / 0.00206 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@a101a33607b6:sm_120` |
-| `memfof-spring` | 0.00066 / 0.00442 | RTX 5060 Ti, torch 2.14.1+cu130 | `raft_flow@a101a33607b6:sm_120` |
+| `memfof` | 0.00065 / 0.00304 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@a101a33607b6:sm_120` |
+| `memfof-kitti` | 0.00035 / 0.00157 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@a101a33607b6:sm_120` |
+| `memfof-sintel` | 0.00041 / 0.00206 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@a101a33607b6:sm_120` |
+| `memfof-spring` | 0.00066 / 0.00442 | RTX 5060 Ti, torch 2.14.1+cu130 | `flow_upsample@5eca8c1a6d3b:sm_120`, `raft_flow@a101a33607b6:sm_120` |
 
 ### Limitations
 
