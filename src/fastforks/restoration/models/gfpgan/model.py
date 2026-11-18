@@ -133,11 +133,6 @@ def _forward(
         skips.append(feat)
     feat = F.leaky_relu_(m.final_conv(feat), 0.2)
     latent = m.final_linear(feat.flatten(1)).view(feat.shape[0], -1, m.num_style_feat)
-    conditions = []
-    for i, block in enumerate(m.conv_body_up):
-        feat = _resblock(block, feat + skips.pop(), mc)  # ty: ignore[invalid-argument-type]
-        conditions += [m.condition_scale[i](feat), m.condition_shift[i](feat)]
-
     d = m.stylegan_decoder
     sqrt2 = 2**0.5
 
@@ -155,12 +150,14 @@ def _forward(
     out = style_conv(d.style_conv1, out, latent[:, 0], noise[0])
     skip = to_rgb(d.to_rgb1, out, latent[:, 1], None)
     convs = d.style_convs
-    for j, rgb in enumerate(d.to_rgbs):
+    for j, (rgb, block) in enumerate(zip(d.to_rgbs, m.conv_body_up, strict=True)):
         i = 2 * j + 1
         out = style_conv(convs[2 * j], out, latent[:, i], noise[i])
-        if i < len(conditions):  # sft_half: scale and shift the second half of the channels
-            half = out.shape[1] // 2
-            out[:, half:].mul_(conditions[i - 1]).add_(conditions[i])
+        # Each resolution's SFT depends only on its current U-Net feature. Consume each map as it is produced.
+        feat = _resblock(block, feat + skips.pop(), mc)  # ty: ignore[invalid-argument-type]
+        second = out[:, out.shape[1] // 2 :]
+        second.mul_(m.condition_scale[j](feat)).add_(m.condition_shift[j](feat))
+        del second
         out = style_conv(convs[2 * j + 1], out, latent[:, i + 1], noise[i + 1])
         skip = to_rgb(rgb, out, latent[:, i + 2], skip)
     return skip
@@ -246,7 +243,8 @@ class Kernels(Portable):
         x = (image.to(torch.float16) * 2 - 1).contiguous(memory_format=self.fmt)
         with fp16_accumulate():
             out = [_forward(self.net, x[i : i + 1], self.noise, _hacc, _cuda_weights) for i in range(x.shape[0])]
-        return {"image": (torch.cat(out).float() + 1) / 2}
+        faces = out[0] if len(out) == 1 else torch.cat(out)
+        return {"image": (faces.float() + 1) / 2}
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}
