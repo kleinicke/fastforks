@@ -422,10 +422,11 @@ class _Decoder(nn.Module):
         )
         self.seg_layers = nn.ModuleList(nn.Conv3d(f[-(s + 2)], plan.n_outputs, 1) for s in range(n - 1))
 
-    def forward(self, skips: Sequence[torch.Tensor]) -> torch.Tensor:
-        x = skips[-1]
-        for s, (up, stage) in enumerate(zip(self.transpconvs, self.stages, strict=True)):
-            x = stage(torch.cat((up(x), skips[-(s + 2)]), 1))
+    def forward(self, skips: Sequence[torch.Tensor], *, consume: bool = False) -> torch.Tensor:
+        pending = skips if consume and isinstance(skips, list) else list(skips)
+        x = pending.pop()
+        for up, stage in zip(self.transpconvs, self.stages, strict=True):
+            x = stage(torch.cat((up(x), pending.pop()), 1))
         return self.seg_layers[-1](x)
 
 
@@ -444,7 +445,7 @@ class UNet(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Logits `[B, heads, *patch]` of `[B, C, *patch]`."""
-        return self.decoder(self.encoder(x))
+        return self.decoder(self.encoder(x), consume=True)
 
     @staticmethod
     def state_dict_of(weights: Mapping[str, torch.Tensor], dims: int = 3) -> dict[str, torch.Tensor]:
@@ -540,6 +541,16 @@ def _labels_dtype(n: int) -> torch.dtype:
     return torch.uint8 if n <= 256 else torch.int16  # noqa: PLR2004
 
 
+def _depth_slices(start: int, length: int, capacity: int) -> tuple[tuple[slice, slice], ...]:
+    """Pair each physical ring-buffer span with its corresponding span in the incoming window."""
+    at = start % capacity
+    lead = min(length, capacity - at)
+    first = (slice(at, at + lead), slice(0, lead))
+    if lead == length:
+        return (first,)
+    return first, (slice(0, length - lead), slice(lead, length))
+
+
 @dataclass
 class Predictor:
     """nnU-Net v2's `predict_single_npy_array` for one configuration and a list of fold networks.
@@ -572,10 +583,10 @@ class Predictor:
 
     def _logits(self, x: torch.Tensor, nets: Sequence[nn.Module]) -> torch.Tensor:
         """Window logits `[folds, B, heads, *patch]` of `nets`, each averaged over the mirrorings."""
-        if self.dtype is not None:
-            x = x.to(self.dtype)
-        if self.channels_last:
-            x = x.contiguous(memory_format=torch.channels_last_3d)
+        x = x.to(
+            dtype=self.dtype or x.dtype,
+            memory_format=torch.channels_last_3d if self.channels_last else torch.preserve_format,
+        )
         amp = self.amp is not None and x.device.type == "cuda"
         combos = [c for i in range(len(self.mirror_axes)) for c in itertools.combinations(self.mirror_axes, i + 1)]
         with torch.autocast("cuda", self.amp or torch.float16, enabled=amp):
@@ -714,7 +725,7 @@ class Predictor:
             out = None
             for f, net in enumerate(self.nets):
                 acc = torch.zeros((1, p.n_outputs, d, h, w), dtype=dt, device=x.device)
-                self._sweep(x, acc, n if f == 0 else None, starts, 0, [net])
+                self._sweep(x, acc, n if f == 0 else None, starts, [net])
                 y = acc[0].div_(n)
                 out = y if out is None else out.add_(y)
                 del acc, y
@@ -727,37 +738,38 @@ class Predictor:
         n = torch.zeros((k0, h, w), dtype=dt, device=x.device) if ensemble else None
         labels = torch.empty((d, h, w), dtype=_labels_dtype(p.n_labels), device=x.device)
         for i, a in enumerate(steps[0]):
-            self._sweep(x, acc, n, [(a, b, c) for b in steps[1] for c in steps[2]], a, self.nets)
+            self._sweep(x, acc, n, [(a, b, c) for b in steps[1] for c in steps[2]], self.nets)
             end = steps[0][i + 1] if i + 1 < len(steps[0]) else d
-            r = end - a
-            done = self._average(acc[:, :, :r].clone(), n[:r]) if n is not None else acc[0, :, :r]
-            labels[a:end] = self.decide(done)  # final: later rows start at >= end
-            if i + 1 < len(steps[0]):
-                acc[:, :, : k0 - r] = acc[:, :, r:].clone()
-                acc[:, :, k0 - r :] = 0
-                if n is not None:
-                    n[: k0 - r] = n[r:].clone()
-                    n[k0 - r :] = 0
+            for physical, local in _depth_slices(a, end - a, k0):
+                done = acc[:, :, physical]
+                values = self._average(done, n[physical]) if n is not None else done[0]
+                labels[a + local.start : a + local.stop] = self.decide(values)
+                if i + 1 < len(steps[0]):
+                    done.zero_()
+                    if n is not None:
+                        n[physical].zero_()
         return labels
 
-    def _sweep(  # noqa: PLR0913, PLR0917
+    def _sweep(
         self,
         x: torch.Tensor,
         acc: torch.Tensor,
         n: torch.Tensor | None,
         starts: Sequence[tuple[int, int, int]],
-        base: int,
         nets: Sequence[nn.Module],
     ) -> None:
         """Add the weighted logits of `nets` at `starts` to `acc` `[folds, heads, ...]` and the weights to `n`.
 
-        Depth 0 of `acc` and `n` is `base`.
+        Depth indices wrap at the capacity of `acc` and `n` for slab prediction.
         """
         k0, k1, k2 = self.plan.patch_size
         for j in range(0, len(starts), self.batch):
             chunk = starts[j : j + self.batch]
             y = self._windows(x, chunk, nets)
             for i, (a, b, c) in enumerate(chunk):
-                acc[:, :, a - base : a - base + k0, b : b + k1, c : c + k2] += y[:, i]
-                if n is not None:
-                    n[a - base : a - base + k0, b : b + k1, c : c + k2] += self._gauss
+                ys, xs = slice(b, b + k1), slice(c, c + k2)
+                for physical, local in _depth_slices(a, k0, acc.shape[2]):
+                    acc[:, :, physical, ys, xs] += y[:, i, :, local]
+                    if n is not None:
+                        n[physical, ys, xs] += self._gauss[local]
+            del y  # free this batch of window logits before running the next network forward
