@@ -15,13 +15,15 @@ What the translation does beyond a 1:1 op mapping:
 
 An op without a mapping raises `UnsupportedOp` naming it (never a silent fallback).
 """
-# ruff: noqa: SLF001, ARG005, PLR0913, RUF015  # a table of aten overloads: private aten names, uniform lambda signatures
+# a table of aten overloads: private aten names, uniform lambda signatures
 
 from __future__ import annotations
 
+import ctypes
 import gc
 import math
 import operator
+import os
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -31,14 +33,14 @@ import torch.utils._pytree as pytree
 from fastforks._core.mlx import mx, to_mx, to_torch
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Iterator, Sequence
 
 __all__ = ["GraphNet", "UnsupportedOp"]
 
 aten = torch.ops.aten
 
 
-class UnsupportedOp(NotImplementedError):  # noqa: N818 - reads better as a noun at the raise site
+class UnsupportedOp(NotImplementedError):
     """The exported graph contains an ATen op the MLX translation has no mapping for."""
 
 
@@ -63,7 +65,7 @@ def _dt(d: torch.dtype | None) -> mx.Dtype | None:
 OPS: dict[Any, Callable[..., Any]] = {}
 
 
-def _reg(*targets: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:  # noqa: ANN401
+def _reg(*targets: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     def deco(fn: Callable[..., Any]) -> Callable[..., Any]:
         for t in targets:
             OPS[t] = fn
@@ -85,7 +87,7 @@ def _a(*names: str) -> list[Any]:
 
 
 # ---- elementwise ------------------------------------------------------------------------------------------------
-def _alpha(b: Any, alpha: Any) -> Any:  # noqa: ANN401
+def _alpha(b: Any, alpha: Any) -> Any:
     return b if alpha == 1 else b * alpha
 
 
@@ -161,7 +163,7 @@ OPS[aten.masked_fill.Scalar] = lambda x, m, v: mx.where(m, mx.array(v, x.dtype),
 OPS[aten.remainder.Scalar] = lambda a, b: mx.remainder(a, b)
 
 
-def _fmod(a: Any, b: Any) -> Any:  # noqa: ANN401
+def _fmod(a: Any, b: Any) -> Any:
     r = mx.remainder(a, b)
     return mx.where((r != 0) & ((a < 0) != (b < 0)), r - b, r)
 
@@ -218,14 +220,14 @@ def _flip(x: mx.array, dims: Sequence[int]) -> mx.array:
     return x
 
 
-def _roll(x: mx.array, shifts: Any, dims: Any) -> mx.array:  # noqa: ANN401
+def _roll(x: mx.array, shifts: Any, dims: Any) -> mx.array:
     if not dims:
         return mx.roll(x, list(shifts)[0])
     return mx.roll(x, list(shifts), axis=list(dims))
 
 
 @_reg(aten.expand.default)
-def _expand(x: mx.array, size: Sequence[int], implicit: bool = False) -> mx.array:  # noqa: FBT001, FBT002
+def _expand(x: mx.array, size: Sequence[int], implicit: bool = False) -> mx.array:
     del implicit
     lead = len(size) - x.ndim
     shape = [(x.shape[i - lead] if s == -1 else s) for i, s in enumerate(size)]
@@ -273,7 +275,7 @@ def _grid_sample(
     grid: mx.array,
     mode: int = 0,
     padding_mode: int = 0,
-    align_corners: bool = False,  # noqa: FBT001, FBT002
+    align_corners: bool = False,
 ) -> mx.array:
     """Bilinear `grid_sample` (zeros or border padding): four gathers weighted in float32."""
     if mode != 0 or padding_mode not in (0, 1):
@@ -335,7 +337,7 @@ def _unbind(x: mx.array, dim: int = 0) -> list[mx.array]:
 
 
 @_reg(aten._to_copy.default, aten.to.dtype, aten.to.dtype_layout)
-def _to(x: mx.array, dtype: torch.dtype | None = None, **_: Any) -> mx.array:  # noqa: ANN401
+def _to(x: mx.array, dtype: torch.dtype | None = None, **_: Any) -> mx.array:
     return x if dtype is None else x.astype(_dt(dtype))
 
 
@@ -343,23 +345,23 @@ OPS[aten.type_as.default] = lambda x, o: x.astype(o.dtype)
 
 
 @_reg(aten.arange.default, aten.arange.start, aten.arange.start_step)
-def _arange(*args: Any, dtype: torch.dtype | None = None, **_: Any) -> mx.array:  # noqa: ANN401
+def _arange(*args: Any, dtype: torch.dtype | None = None, **_: Any) -> mx.array:
     out = mx.arange(*args)
     return out.astype(_dt(dtype)) if dtype is not None else out
 
 
 @_reg(aten.full.default)
-def _full(size: Sequence[int], value: Any, dtype: torch.dtype | None = None, **_: Any) -> mx.array:  # noqa: ANN401
+def _full(size: Sequence[int], value: Any, dtype: torch.dtype | None = None, **_: Any) -> mx.array:
     return mx.full(list(size), value, dtype=_dt(dtype))
 
 
 @_reg(aten.zeros.default)
-def _zeros(size: Sequence[int], dtype: torch.dtype | None = None, **_: Any) -> mx.array:  # noqa: ANN401
+def _zeros(size: Sequence[int], dtype: torch.dtype | None = None, **_: Any) -> mx.array:
     return mx.zeros(list(size), dtype=_dt(dtype) or mx.float32)
 
 
 @_reg(aten.ones.default)
-def _ones(size: Sequence[int], dtype: torch.dtype | None = None, **_: Any) -> mx.array:  # noqa: ANN401
+def _ones(size: Sequence[int], dtype: torch.dtype | None = None, **_: Any) -> mx.array:
     return mx.ones(list(size), dtype=_dt(dtype) or mx.float32)
 
 
@@ -386,9 +388,9 @@ _KERNELS = (
 )
 
 
-def _mean(x: mx.array, d: Sequence[int] | None = None, keep: bool = False, **_: object) -> mx.array:  # noqa: FBT001, FBT002
+def _mean(x: mx.array, d: Sequence[int] | None = None, keep: bool = False, **_: object) -> mx.array:
     if _KERNELS and not keep and x.ndim == 4 and d is not None and sorted(d) == [2, 3]:
-        from fastforks.kernels.graph_mlx import ops  # noqa: PLC0415 - optional MLX dependency
+        from fastforks.kernels.graph_mlx import ops
 
         return ops.global_avg(_nhwc(x))
     return _wide(x, lambda y: mx.mean(y, axis=tuple(d) if d else None, keepdims=keep))
@@ -413,7 +415,7 @@ def _fft_scale(normalization: int, n: int) -> float:
 
 
 @_reg(aten._fft_r2c.default)
-def _fft_r2c(x: mx.array, dim: Sequence[int], normalization: int, onesided: bool) -> mx.array:  # noqa: FBT001
+def _fft_r2c(x: mx.array, dim: Sequence[int], normalization: int, onesided: bool) -> mx.array:
     axes = tuple(dim)
     n = math.prod(x.shape[a] for a in axes)
     y = mx.fft.rfftn(x.astype(mx.float32), axes=axes)
@@ -441,18 +443,18 @@ OPS[aten.view_as_complex.default] = lambda x: x[..., 0] + 1j * x[..., 1]
 @_reg(aten.linalg_vector_norm.default)
 def _vector_norm(
     x: mx.array,
-    ord: float = 2,  # noqa: A002 - the aten argument name
+    ord: float = 2,
     d: Sequence[int] | None = None,
-    keep: bool = False,  # noqa: FBT001, FBT002
+    keep: bool = False,
     *,
-    dtype: object = None,  # noqa: ARG001 - the aten argument
+    dtype: object = None,
 ) -> mx.array:
     """The p-norm with float32 accumulation (a float16 sum of squares overflows; PyTorch accumulates in float32)."""
     y = mx.abs(x.astype(mx.float32))
     ax = tuple(d) if d else None
     if ord == float("inf"):
         r = mx.max(y, axis=ax, keepdims=keep)
-    elif ord == 2:  # noqa: PLR2004
+    elif ord == 2:
         r = mx.sqrt(mx.sum(y * y, axis=ax, keepdims=keep))
     elif ord == 1:
         r = mx.sum(y, axis=ax, keepdims=keep)
@@ -476,7 +478,7 @@ OPS[aten.min.default] = lambda x: mx.min(x)
 
 
 @_reg(aten.sort.default, aten.sort.stable)
-def _sort(x: mx.array, *args: Any, **kw: Any) -> tuple[mx.array, mx.array]:  # noqa: ANN401
+def _sort(x: mx.array, *args: Any, **kw: Any) -> tuple[mx.array, mx.array]:
     dim = kw.get("dim", -1)
     descending = kw.get("descending", False)
     pos = [a for a in args if not isinstance(a, bool)]
@@ -490,7 +492,7 @@ def _sort(x: mx.array, *args: Any, **kw: Any) -> tuple[mx.array, mx.array]:  # n
 
 
 @_reg(aten.topk.default)
-def _topk(x: mx.array, k: int, dim: int = -1, largest: bool = True, sorted_: bool = True) -> tuple[mx.array, mx.array]:  # noqa: FBT001, FBT002
+def _topk(x: mx.array, k: int, dim: int = -1, largest: bool = True, sorted_: bool = True) -> tuple[mx.array, mx.array]:
     del sorted_
     order = mx.argsort(-x if largest else x, axis=dim)
     idx = mx.take(order, mx.arange(k), axis=dim)
@@ -512,9 +514,9 @@ def _sdpa(
     v: mx.array,
     mask: mx.array | None = None,
     dropout: float = 0.0,
-    causal: bool = False,  # noqa: FBT001, FBT002
+    causal: bool = False,
     scale: float | None = None,
-    enable_gqa: bool = False,  # noqa: FBT001, FBT002
+    enable_gqa: bool = False,
 ) -> mx.array:
     del dropout, enable_gqa
     scale = scale if scale is not None else q.shape[-1] ** -0.5
@@ -526,7 +528,7 @@ def _sdpa(
 
 
 @_reg(aten._softmax.default, aten.softmax.int)
-def _softmax(x: mx.array, dim: int, half_to_float: bool = False) -> mx.array:  # noqa: FBT001, FBT002
+def _softmax(x: mx.array, dim: int, half_to_float: bool = False) -> mx.array:
     del half_to_float
     return mx.softmax(x, axis=dim, precise=True)
 
@@ -580,7 +582,7 @@ def _batch_norm(
     b: mx.array | None,
     mean: mx.array,
     var: mx.array,
-    *rest: Any,  # noqa: ANN401
+    *rest: Any,
 ) -> tuple[mx.array, None, None]:
     eps = rest[-1]
     shape = [1, -1] + [1] * (x.ndim - 2)
@@ -635,7 +637,7 @@ def _conv(
     stride: Sequence[int],
     padding: Sequence[int],
     dilation: Sequence[int],
-    transposed: bool,  # noqa: FBT001
+    transposed: bool,
     output_padding: Sequence[int],
     groups: int,
 ) -> mx.array:
@@ -678,7 +680,7 @@ def _conv(
             and groups % 4 == 0
             and w.shape[2] * w.shape[3] > 1
         ):
-            from fastforks.kernels.graph_mlx import ops  # noqa: PLC0415 - optional MLX dependency
+            from fastforks.kernels.graph_mlx import ops
 
             bias = b if b is not None else mx.zeros((groups,), dtype=xl.dtype)
             return _nchw(
@@ -719,7 +721,7 @@ def _max_pool(
     s: Sequence[int] = (),
     pad: Sequence[int] = (0, 0),
     d: Sequence[int] = (1, 1),
-    ceil: bool = False,  # noqa: FBT001, FBT002
+    ceil: bool = False,
 ) -> tuple[mx.array, None]:
     if tuple(d) != (1, 1):
         msg = "max_pool2d with dilation"
@@ -734,8 +736,8 @@ def _avg_pool(
     k: Sequence[int],
     s: Sequence[int] = (),
     pad: Sequence[int] = (0, 0),
-    ceil: bool = False,  # noqa: FBT001, FBT002
-    count_include_pad: bool = True,  # noqa: FBT001, FBT002
+    ceil: bool = False,
+    count_include_pad: bool = True,
     divisor: int | None = None,
 ) -> mx.array:
     if ceil or divisor is not None:
@@ -785,7 +787,7 @@ def _pad_edge(x: mx.array, pad: Sequence[int]) -> mx.array:
     raise UnsupportedOp(msg)
 
 
-def _src_index(out: int, inp: int, align: bool, scale: float | None) -> mx.array:  # noqa: FBT001
+def _src_index(out: int, inp: int, align: bool, scale: float | None) -> mx.array:
     i = mx.arange(out, dtype=mx.float32)
     if align:
         return i * ((inp - 1) / (out - 1)) if out > 1 else mx.zeros_like(i)
@@ -795,7 +797,7 @@ def _src_index(out: int, inp: int, align: bool, scale: float | None) -> mx.array
 
 @_reg(aten.upsample_bilinear2d.default, aten.upsample_bilinear2d.vec)
 def _bilinear(x: mx.array, size: Sequence[int] | None, align: bool, *scales: Any) -> mx.array:  # noqa: ANN401, FBT001
-    n, c, h, w = x.shape
+    h, w = x.shape[2:]
     sh = sw = None
     if size is None:
         fac = scales[0]
@@ -805,6 +807,19 @@ def _bilinear(x: mx.array, size: Sequence[int] | None, align: bool, *scales: Any
         oh, ow = size
         if len(scales) >= 2 and not isinstance(scales[0], (list, tuple)):
             sh, sw = scales[0], scales[1]
+    if (
+        x.ndim == 4
+        and x.dtype in (mx.float16, mx.bfloat16, mx.float32)
+        and not os.environ.get("FF_MLX_NO_FUSED_RESIZE")
+    ):
+        from fastforks.kernels.graph_mlx.ops import bilinear
+
+        def ratio(out: int, inp: int, scale: float | None) -> float:
+            if align:
+                return (inp - 1) / (out - 1) if out > 1 else 0.0
+            return (1.0 / scale) if scale else inp / out
+
+        return bilinear(x, (oh, ow), (ratio(oh, h, sh), ratio(ow, w, sw)), align=align)
     ys, xs = _src_index(oh, h, align, sh), _src_index(ow, w, align, sw)
     y0 = mx.minimum(mx.floor(ys).astype(mx.int32), h - 1)
     x0 = mx.minimum(mx.floor(xs).astype(mx.int32), w - 1)
@@ -817,7 +832,7 @@ def _bilinear(x: mx.array, size: Sequence[int] | None, align: bool, *scales: Any
     return top * (1 - wy) + bot * wy
 
 
-def _aa_matrix(inp: int, out: int, align: bool, scale: float | None) -> np.ndarray:  # noqa: FBT001
+def _aa_matrix(inp: int, out: int, align: bool, scale: float | None) -> np.ndarray:
     """`[out, inp]` weights of PyTorch's antialiased bilinear resize along one axis (triangle filter, normalised)."""
     s = (inp - 1) / (out - 1) if align and out > 1 else (1.0 / scale if scale else inp / out)
     support = max(s, 1.0)
@@ -833,7 +848,7 @@ def _aa_matrix(inp: int, out: int, align: bool, scale: float | None) -> np.ndarr
 
 
 @_reg(aten._upsample_bilinear2d_aa.default, aten._upsample_bilinear2d_aa.vec)
-def _bilinear_aa(x: mx.array, size: Sequence[int] | None, align: bool, *scales: Any) -> mx.array:  # noqa: ANN401, FBT001
+def _bilinear_aa(x: mx.array, size: Sequence[int] | None, align: bool, *scales: Any) -> mx.array:
     h, w = x.shape[2:]
     sh = sw = None
     if size is None:
@@ -850,7 +865,7 @@ def _bilinear_aa(x: mx.array, size: Sequence[int] | None, align: bool, *scales: 
 
 
 @_reg(aten.upsample_nearest2d.default, aten.upsample_nearest2d.vec)
-def _nearest(x: mx.array, size: Sequence[int] | None, *scales: Any) -> mx.array:  # noqa: ANN401
+def _nearest(x: mx.array, size: Sequence[int] | None, *scales: Any) -> mx.array:
     h, w = x.shape[2:]
     if size is None:
         fac = scales[0]
@@ -864,6 +879,37 @@ def _nearest(x: mx.array, size: Sequence[int] | None, *scales: Any) -> mx.array:
 
 
 # ---- interpreter ------------------------------------------------------------------------------------------------
+def trim_heap() -> None:
+    """Hand the allocator's freed (but still resident) pages back to the OS: a freed CPU twin stays in the footprint."""
+    try:
+        ctypes.CDLL("/usr/lib/libSystem.B.dylib").malloc_zone_pressure_relief(None, 0)
+    except (OSError, AttributeError):
+        pass
+
+
+def _plain(a: Any) -> Any:
+    """`a` with its fx nodes replaced by their names (a plan must not keep the exported graph and its fake tensors)."""
+    if hasattr(a, "name") and hasattr(a, "op"):
+        return _Name(a.name)
+    if isinstance(a, (list, tuple)):
+        return type(a)(_plain(x) for x in a)
+    if isinstance(a, dict):
+        return {k: _plain(v) for k, v in a.items()}
+    return a
+
+
+def _refs(a: Any) -> Iterator[str]:
+    """Names of the graph values (fx nodes, folded constants) inside an argument."""
+    if isinstance(a, _Name) or (hasattr(a, "name") and hasattr(a, "op")):
+        yield a.name
+    elif isinstance(a, (list, tuple)):
+        for x in a:
+            yield from _refs(x)
+
+
+_CONSUMED = "\0consumed"  # key of the set of twin tensor names whose values live on MLX (in the shared constants)
+
+
 def _tensor_dtype(dtype: mx.Dtype, t: torch.Tensor) -> mx.Dtype | None:
     return dtype if t.is_floating_point() else None
 
@@ -899,7 +945,9 @@ class GraphNet:
         self._compile = compile
         self.kernels = kernels
         self._runs: dict[tuple[Any, ...], Callable[..., Any]] = {}
-        self._consts: dict[str, mx.array] = {} if shared is None else shared
+        self.on_built: Callable[[], None] | None = None  # called after each export, before its first run
+        self._consts: dict[str, Any] = {} if shared is None else shared
+        self._consumed: set[str] = self._consts.setdefault(_CONSUMED, set())  # twin tensors the MLX side has taken over
 
     def _const(self, name: str, t: torch.Tensor) -> mx.array:
         if name not in self._consts:
@@ -908,6 +956,7 @@ class GraphNet:
                 a = a.astype(self.dtype)
             mx.eval(a)
             self._consts[name] = a
+        self._consumed.add(name)
         return self._consts[name]
 
     def _build(self, args: tuple[torch.Tensor, ...]) -> Callable[..., Any]:
@@ -934,12 +983,13 @@ class GraphNet:
         nodes = list(graph.nodes)
         plan: list[tuple[Any, ...]] = []
         values: dict[str, Any] = {}  # constants (parameters, buffers) by node name
+        params: dict[str, str] = {}  # parameter / buffer placeholders: node name -> target
         folds = self._fold_batch_norms(nodes, names, lifted)
         for node in nodes:
             if node.op == "placeholder":
                 tgt = names.get(node.name)
                 if tgt is not None:
-                    values[node.name] = self._const(str(tgt), lifted[tgt])
+                    params[node.name] = str(tgt)
                 else:
                     plan.append(("input", node.name))
             elif node.op == "call_function":
@@ -947,16 +997,21 @@ class GraphNet:
                     plan.append(("alias", node.name, folds.skip[node.name]))
                     continue
                 args = folds.args.get(node.name, node.args)
-                plan.append(("call", node.name, self._op(node.target), args, node.kwargs))
+                plan.append(("call", node.name, self._op(node.target), _plain(args), _plain(dict(node.kwargs))))
             elif node.op == "output":
-                plan.append(("output", node.args[0]))
+                plan.append(("output", _plain(node.args[0])))
         values.update(folds.values)
+        used = {n for p in plan if p[0] == "call" for a in (*p[3], *p[4].values()) for n in _refs(a)}
+        used.update(n for p in plan if p[0] == "output" for n in _refs(p[1]))
+        for node_name, tgt in params.items():  # only what a node reads: a folded convolution's own weight is not
+            if node_name in used:
+                values[node_name] = self._const(tgt, lifted[tgt])
         del ep, graph, sig, lifted, nodes
         gc.collect()
         return self._runner(plan, values)
 
     @staticmethod
-    def _op(target: Any) -> Callable[..., Any]:  # noqa: ANN401
+    def _op(target: Any) -> Callable[..., Any]:
         if target is operator.getitem:
             return operator.getitem
         try:
@@ -965,7 +1020,7 @@ class GraphNet:
             msg = f"no MLX mapping for {target}"
             raise UnsupportedOp(msg) from None
 
-    def _fold_batch_norms(self, nodes: list[Any], names: dict[str, Any], lifted: dict[str, torch.Tensor]) -> Any:  # noqa: ANN401
+    def _fold_batch_norms(self, nodes: list[Any], names: dict[str, Any], lifted: dict[str, torch.Tensor]) -> Any:
         """Fold eval BatchNorm nodes that follow a convolution with constant weights into that convolution."""
         res = type("Folds", (), {"skip": {}, "values": {}, "args": {}})()
         bn_targets = (aten._native_batch_norm_legit_no_training.default,)
@@ -987,18 +1042,23 @@ class GraphNet:
             params = [names.get(a.name) if a is not None else None for a in bn.args[1:5]]
             if wname is None or params[2] is None or params[3] is None:
                 continue
-            eps = bn.args[-1]
-            w = lifted[wname].double()
-            gamma = lifted[params[0]].double() if params[0] else torch.ones(w.shape[0], dtype=torch.double)
-            beta = lifted[params[1]].double() if params[1] else torch.zeros(w.shape[0], dtype=torch.double)
-            scale = gamma / torch.sqrt(lifted[params[3]].double() + eps)
-            bias0 = lifted[names[conv.args[2].name]].double() if conv.args[2] is not None else 0
-            w2 = (w * scale.view(-1, *[1] * (w.ndim - 1))).float()
-            b2 = ((bias0 - lifted[params[2]].double()) * scale + beta).float()
             wk, bk = f"{conv.name}__w", f"{conv.name}__b"
-            res.values[wk] = to_mx(w2).astype(self.dtype)
-            res.values[bk] = to_mx(b2).astype(self.dtype)
-            mx.eval(res.values[wk], res.values[bk])
+            key = (
+                f"{wname}\0{params[2]}\0fold"  # by parameter names: another input shape reuses it, the twin may be gone
+            )
+            if key not in self._consts:
+                eps = bn.args[-1]
+                w = lifted[wname].double()
+                gamma = lifted[params[0]].double() if params[0] else torch.ones(w.shape[0], dtype=torch.double)
+                beta = lifted[params[1]].double() if params[1] else torch.zeros(w.shape[0], dtype=torch.double)
+                scale = gamma / torch.sqrt(lifted[params[3]].double() + eps)
+                bias0 = lifted[names[conv.args[2].name]].double() if conv.args[2] is not None else 0
+                w2 = (w * scale.view(-1, *[1] * (w.ndim - 1))).float()
+                b2 = ((bias0 - lifted[params[2]].double()) * scale + beta).float()
+                self._consts[key] = (to_mx(w2).astype(self.dtype), to_mx(b2).astype(self.dtype))
+                mx.eval(*self._consts[key])
+            res.values[wk], res.values[bk] = self._consts[key]
+            self._consumed.update(t for t in (wname, *params, names[conv.args[2].name] if conv.args[2] else None) if t)
             # the convolution reads the folded constants; the bn node and its getitem alias the convolution's output
             res.args[conv.name] = (conv.args[0], _Name(wk), _Name(bk), *conv.args[3:])
             res.skip[bn.name] = conv.name
@@ -1011,20 +1071,34 @@ class GraphNet:
             if p[0] == "output":
                 out_names = p[1]
 
+        # liveness: the plan step after which a value is dead (parameters stay in `values`; the output's are kept)
+        last: dict[str, int] = {}
+        for i, p in enumerate(plan):
+            if p[0] == "call":
+                for a in (*p[3], *p[4].values()):
+                    for n in _refs(a):
+                        last[n] = i
+            elif p[0] == "alias":
+                last[p[2]] = i
+        for n in _refs(out_names):
+            last.pop(n, None)
+        dead: dict[int, list[str]] = {}
+        for n, i in last.items():
+            if n not in values:
+                dead.setdefault(i, []).append(n)
+
         def run(*inputs: mx.array) -> tuple[mx.array, ...]:
             env: dict[str, Any] = dict(values)
             it = iter(inputs)
 
-            def get(a: Any) -> Any:  # noqa: ANN401
+            def get(a: Any) -> Any:
                 if isinstance(a, (_Name,)) or (hasattr(a, "name") and hasattr(a, "op")):
                     return env[a.name]
                 if isinstance(a, (list, tuple)):
                     return type(a)(get(x) for x in a)
-                if isinstance(a, torch.dtype):
-                    return a
                 return a
 
-            for p in plan:
+            for i, p in enumerate(plan):
                 kind = p[0]
                 if kind == "input":
                     x = next(it)
@@ -1037,6 +1111,8 @@ class GraphNet:
                         env[name] = env[args[0].name][args[1]]
                     else:
                         env[name] = fn(*[get(a) for a in args], **{k: get(v) for k, v in kwargs.items()})
+                for n in dead.get(i, ()):
+                    env.pop(n, None)
             out = get(out_names)
             return tuple(o.astype(mx.float32) for o in out)
 
@@ -1044,11 +1120,13 @@ class GraphNet:
 
     def __call__(self, *tensors: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """Run on CPU tensors; returns float32 CPU tensors."""
-        global _KERNELS  # noqa: PLW0603 - read by the op table while tracing
+        global _KERNELS
         _KERNELS = self.kernels
         key = tuple((tuple(t.shape), str(t.dtype)) for t in tensors)
         if key not in self._runs:
             self._runs[key] = self._build(tuple(tensors))
+            if self.on_built is not None:
+                self.on_built()
         outs = self._runs[key](*[to_mx(t) for t in tensors])
         return tuple(to_torch(o) for o in outs)
 
@@ -1066,7 +1144,7 @@ class _Box:
 class _Flat(torch.nn.Module):
     """`module(*args, **kwargs)` as a function of its tensor arguments (the rest is baked in), with flat tensor outputs."""
 
-    def __init__(self, module: torch.nn.Module, spec: Any, leaves: list[Any]) -> None:  # noqa: ANN401
+    def __init__(self, module: torch.nn.Module, spec: Any, leaves: list[Any]) -> None:
         super().__init__()
         self.module = module
         self.spec = spec
@@ -1094,14 +1172,27 @@ class MlxModule:
     module returns them). Python values in the arguments are baked into the export (part of the cache key).
     """
 
-    def __init__(self, module: torch.nn.Module, dtype: str = "float32", *, kernels: bool = False) -> None:
-        """Wrap `module` (eval mode, CPU)."""
+    def __init__(
+        self, module: torch.nn.Module, dtype: str = "float32", *, kernels: bool = False, release: bool = False
+    ) -> None:
+        """Wrap `module` (eval mode, CPU).
+
+        `release=True`: once the first export has moved a parameter or buffer to MLX, the module's own tensor is
+        replaced by a one-element stand-in of the same shape (a float32 twin of a 340M-parameter network is 1.4 GB).
+        Another input shape exports the same module again and reads its values from MLX, but only the tensors the
+        first export used are replaced, and only if no other `MlxModule` shares them. Use it when nothing else runs
+        the module's own (CPU) weights.
+        """
         self.module = module.eval()
         self.dtype = dtype
         self.kernels = kernels
+        self.release = release
         self._nets: dict[Any, tuple[GraphNet, _Flat]] = {}
+        if release:
+            for _, t in _tensors(self.module):
+                t.__dict__.setdefault("_mlx_owners", set()).add(id(self))
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Run the module on MLX."""
         leaves, spec = pytree.tree_flatten((args, kwargs))
         key = (spec, tuple((tuple(x.shape), x.dtype) if isinstance(x, torch.Tensor) else repr(x) for x in leaves))
@@ -1109,18 +1200,48 @@ class MlxModule:
             flat = _Flat(self.module, spec, leaves)
             self._nets[key] = (GraphNet(flat, self.dtype, kernels=self.kernels, shared=self._consts()), flat)
         net, flat = self._nets[key]
+        net.on_built = (lambda: self._release(flat)) if self.release else None
         outs = iter(net(*[x for x in leaves if isinstance(x, torch.Tensor)]))
-        assert flat.out.value is not None  # set while exporting  # noqa: S101
+        assert flat.out.value is not None  # set while exporting
         out_spec, others, dtypes = flat.out.value
         merged = [next(outs).to(d) if d is not None else o for o, d in zip(others, dtypes, strict=True)]
         return pytree.tree_unflatten(merged, out_spec)
 
-    def parameters(self) -> Any:  # noqa: ANN401
+    def _release(self, flat: torch.nn.Module) -> None:
+        """Replace the twin's tensors that MLX holds (and that no other `MlxModule` still needs) by stand-ins."""
+        consumed = self._consts().get(_CONSUMED, set())
+        for name, host, leaf, t in _tensors(flat, names=True):
+            if name not in consumed:
+                continue
+            done = t.__dict__.setdefault("_mlx_done", set())
+            done.add(id(self))
+            if not t.__dict__.get("_mlx_owners", set()) <= done or t.numel() <= 1:
+                continue
+            stand_in = torch.zeros((), dtype=t.dtype).expand(t.shape)
+            if leaf in host._parameters:
+                t.data = stand_in
+            else:
+                host._buffers[leaf] = stand_in
+        gc.collect()
+        trim_heap()
+
+    def parameters(self) -> Any:
         """The wrapped module's (CPU float32) parameters, for runners that read the dtype from them."""
         return self.module.parameters()
 
     def _consts(self) -> dict[str, Any]:
         return self.__dict__.setdefault("_shared_consts", {})
+
+
+def _tensors(module: torch.nn.Module, *, names: bool = False) -> Iterator[Any]:
+    """The module's parameters and buffers: `(name, host module, leaf name, tensor)` if `names`, else `(None, tensor)`."""
+    seen: set[int] = set()
+    for prefix, host in module.named_modules(remove_duplicate=False):
+        for leaf, t in (*host._parameters.items(), *host._buffers.items()):
+            if t is None or (id(t) in seen and not names):
+                continue
+            seen.add(id(t))
+            yield (f"{prefix}.{leaf}" if prefix else leaf, host, leaf, t) if names else (None, t)
 
 
 class _Name:

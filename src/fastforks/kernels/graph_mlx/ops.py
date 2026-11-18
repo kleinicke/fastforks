@@ -104,3 +104,41 @@ def global_avg(x: mx.array) -> mx.array:
         inputs=[x], template=[("T", x.dtype)], grid=(c, n, 1), threadgroup=(min(256, c), 1, 1),
         output_shapes=[(n, c)], output_dtypes=[x.dtype],
     )[0]  # fmt: skip
+
+
+_BILINEAR = metal_kernel(
+    name="graph_bilinear",
+    input_names=["x", "r"],
+    output_names=["out"],
+    source="""
+        // one thread per output pixel of one plane: the four taps, fp32 weights, one rounding (no intermediates)
+        uint ox = thread_position_in_grid.x, oy = thread_position_in_grid.y, plane = thread_position_in_grid.z;
+        if (ox >= OW || oy >= OH) return;
+        float ys = ALIGN ? float(oy) * r[0] : max((float(oy) + 0.5f) * r[0] - 0.5f, 0.0f);
+        float xs = ALIGN ? float(ox) * r[1] : max((float(ox) + 0.5f) * r[1] - 0.5f, 0.0f);
+        int y0 = min(int(ys), H - 1), x0 = min(int(xs), W - 1);
+        int y1 = min(y0 + 1, H - 1), x1 = min(x0 + 1, W - 1);
+        float wy = ys - float(y0), wx = xs - float(x0);
+        const device T* p = x + size_t(plane) * H * W;
+        float top = float(p[y0 * W + x0]) * (1.0f - wx) + float(p[y0 * W + x1]) * wx;
+        float bot = float(p[y1 * W + x0]) * (1.0f - wx) + float(p[y1 * W + x1]) * wx;
+        out[(size_t(plane) * OH + oy) * OW + ox] = T(top * (1.0f - wy) + bot * wy);
+    """,
+)
+
+
+def bilinear(x: mx.array, size: tuple[int, int], ratios: tuple[float, float], *, align: bool) -> mx.array:
+    """Bilinear resize of an NCHW map to `size` (torch's `upsample_bilinear2d`): `ratios` = input / output per axis.
+
+    With `align` the source coordinate is `i * ratio` (`ratio` = (in - 1) / (out - 1)), else the half-pixel centre
+    `(i + 0.5) * ratio - 0.5`. Accumulation is float32, rounded once; the four taps are read straight from `x`.
+    """
+    n, c, h, w = x.shape
+    return _BILINEAR(
+        inputs=[x, mx.array(ratios, dtype=mx.float32)],
+        template=[("T", x.dtype), ("H", h), ("W", w), ("OH", size[0]), ("OW", size[1]), ("ALIGN", align)],
+        grid=(size[1], size[0], n * c),
+        threadgroup=(32, 8, 1),
+        output_shapes=[(n, c, size[0], size[1])],
+        output_dtypes=[x.dtype],
+    )[0]  # fmt: skip

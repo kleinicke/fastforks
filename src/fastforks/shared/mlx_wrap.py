@@ -96,12 +96,12 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                     net = getattr(self, net_attr)
                     setattr(host, leaf, MlxModule(_Method(getattr(host, leaf), net), ctx.dtype, kernels=kernels))
             if whole:
-                self._whole = MlxModule(self.module(), ctx.dtype, kernels=kernels)
+                self._whole = MlxModule(self.module(), ctx.dtype, kernels=kernels, release=True)
                 return
             for name in attrs:
                 owner, _, leaf = name.rpartition(".")
                 host = _resolve(self, owner) if owner else self
-                mod = MlxModule(getattr(host, leaf), ctx.dtype, kernels=kernels)
+                mod = MlxModule(getattr(host, leaf), ctx.dtype, kernels=kernels, release=True)
                 if isinstance(host, torch.nn.Module):  # the MLX callable is no child module
                     host._modules.pop(leaf, None)  # noqa: SLF001 - the module registry
                     object.__setattr__(host, leaf, mod)
