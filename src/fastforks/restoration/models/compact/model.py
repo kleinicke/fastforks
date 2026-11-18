@@ -74,7 +74,8 @@ def _compact(m: SRVGGNetCompact, x: torch.Tensor) -> torch.Tensor:
         prelu = cast("torch.nn.PReLU", m.body[i + 1])
         y = cudnn_hacc.conv_half_acc(y, conv.weight, None, (1, 1), (1, 1))
         y = sr_ops.bias_activation(y, conv.get_parameter("bias"), prelu.weight)
-    return sr_ops.shuffle_residual(m.body[-1](y), x, m.upscale)
+    y = m.body[-1](y)
+    return sr_ops.shuffle_residual(y, x, m.upscale)
 
 
 class Kernels(Portable):
