@@ -436,6 +436,30 @@ def test_onnx_multiview(ref, tmp_path):
             torch.testing.assert_close(g, w, rtol=1e-3, atol=tol, msg=f"{ref}: {name}")
 
 
+@pytest.mark.slow
+@_needs_onnx
+def test_depthfm_output_scaling_onnx(tmp_path):
+    """The full-tensor DepthFM reductions lower with explicit axes."""
+    import onnxruntime as ort  # noqa: PLC0415 - optional
+
+    from fastforks._core.export_resize import matmul_antialias  # noqa: PLC0415 - only this export
+    from fastforks.depth.models.depthfm.model import finish  # noqa: PLC0415 - only this export
+
+    class Finish(torch.nn.Module):
+        def forward(self, values):
+            return finish(values, (13, 17))
+
+    decoded = torch.linspace(-1, 1, 2 * 3 * 11 * 15).reshape(2, 3, 11, 15)
+    path = tmp_path / "depthfm_finish.onnx"
+    with matmul_antialias():
+        torch.onnx.export(Finish().eval(), (decoded,), path, input_names=["decoded"], dynamo=True)
+    options = ort.SessionOptions()
+    options.intra_op_num_threads = 2
+    session = ort.InferenceSession(str(path), options, providers=["CPUExecutionProvider"])
+    (out,) = session.run(None, {"decoded": decoded.numpy()})
+    torch.testing.assert_close(torch.from_numpy(out), finish(decoded, (13, 17)), atol=1e-6, rtol=1e-5)
+
+
 def test_mvsanywhere_export_rotation_distance_near_identity():
     """Preserve the small positive distance and clamp trace roundoff in the exported graph."""
     from fastforks.multiview.models.mvsanywhere.model import _pose_distance  # noqa: PLC0415 - only this export

@@ -138,7 +138,9 @@ def times(steps: int) -> list[float]:
 def finish(d: torch.Tensor, size: tuple[int, ...]) -> torch.Tensor:
     """Decoded `[E, 3, h, w]` -> depth `[1, H, W]` in `[0, 1]` (float32)."""
     d = d.float().mean(dim=1, keepdim=True).mean(dim=0, keepdim=True).exp()
-    lo, hi = d.amin(), d.amax()
+    # ONNX's amin/amax lowering needs explicit axes, including for a global reduction.
+    axes = (0, 1, 2, 3)
+    lo, hi = d.amin(dim=axes), d.amax(dim=axes)
     d = (d - lo) / (hi - lo)
     return F.interpolate(d, size, mode="bilinear", align_corners=False, antialias=True)[:, 0].clip(0, 1)
 
