@@ -5,7 +5,14 @@ from types import SimpleNamespace
 import pytest
 import torch
 
-from fastforks.multiview.models.lingbot_map.model import _export_rope3d, _Fast, _rope3d_tables
+from fastforks._core.errors import OptionsError
+from fastforks.multiview.models.lingbot_map.model import Portable, _export_rope3d, _Fast, _rope3d_tables
+
+
+def test_host_stream_requires_cuda_before_loading() -> None:
+    ctx = SimpleNamespace(device=torch.device("cpu"), params=SimpleNamespace(stream=True))
+    with pytest.raises(OptionsError, match="stream=True requires CUDA"):
+        Portable(ctx)  # ty: ignore[invalid-argument-type] - reject before reading the checkpoint
 
 
 class _RopeModule(torch.nn.Module):

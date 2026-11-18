@@ -27,6 +27,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.errors import OptionsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks._core.tracing import in_onnx_export
@@ -35,6 +36,7 @@ from fastforks.multiview.models.vggt import model as vggt
 from fastforks.multiview.models.vggt.net.heads.camera_head import modulate
 from fastforks.multiview.models.vggt.net.heads.head_act import activate_pose
 from fastforks.multiview.models.vggt.net.utils.pose_enc import pose_encoding_to_extri_intri
+from fastforks.shared.host_blocks import StreamedModuleList
 from fastforks.shared.rope2d import rope_forward
 
 from .net import PATCH, SPECIAL, Net
@@ -103,12 +105,13 @@ class Params:
     long_side: int  # network long side (both sides rounded to multiples of 14)
     scale_frames: int  # first views processed together; every later view attends to them
     window: int  # KV-cache window in frames (older frames keep only their 6 special tokens)
+    stream: bool = False  # transfer aggregator weights for each causal view group
 
 
 def _net(ctx: Context) -> Net:
     net = Net()
     net.load_state_dict(ctx.state_dict(), strict=True)
-    return net.eval().requires_grad_(requires_grad=False).to(ctx.device)
+    return net.eval().requires_grad_(requires_grad=False)
 
 
 def outputs(
@@ -167,6 +170,21 @@ class _Cache:
         return put, slice(spec - SPECIAL * self.evicted, end)
 
 
+class _StagedPair(nn.Module):
+    """A frame block and its following global block, transferred together for one causal step."""
+
+    def __init__(self, frame: nn.Module, global_block: nn.Module) -> None:
+        super().__init__()
+        self.frame, self.global_block = frame, global_block
+
+    def forward(  # noqa: PLR0913, PLR0917 - the two rotary tables and the causal KV cache
+        self, x: torch.Tensor, runner: _Fast, i: int, frame_table: tuple, global_table: tuple, kv: tuple, slots: tuple
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        frame = runner.block(self.frame, x, frame_table)
+        global_out = runner.gblock(self.global_block, i, frame.flatten(0, 1)[None], global_table, kv, slots)
+        return frame, global_out.view_as(frame)
+
+
 class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's base
     """The streaming pass (see the module docstring); frame blocks, patch embed and DPT setup from VGGT."""
 
@@ -175,6 +193,9 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
 
     def __init__(self, ctx: Context) -> None:
         Runner.__init__(self, ctx)
+        if ctx.params.stream and ctx.device.type != "cuda":
+            msg = "LingBot-Map stream=True requires CUDA for aggregator transfers"
+            raise OptionsError(msg)
         self.net: Any = _net(ctx)
         self._aff = {}
         self.dt = torch.float32 if ctx.dtype == "float32" else torch.float16
@@ -183,29 +204,36 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
         if b.head_dim != 64 or b.num_heads != 16:  # noqa: PLR2004 - fused 3D RoPE layout
             msg = "LingBot-Map: unexpected aggregator structure"
             raise ValueError(msg)
-        p = _perm(ctx.device)
+        self.n_blocks = len(agg.global_blocks)
+        self.width = agg.global_blocks[0].attn.qkv.in_features
+        packing_device = b.qkv.weight.device
+        p = _perm(packing_device)
         for blk in agg.global_blocks:  # permute q / k channels inside each head (q.k is unchanged)
             a = blk.attn
-            rows = (torch.arange(2 * a.num_heads, device=ctx.device)[:, None] * 64 + p).flatten()
+            rows = (torch.arange(2 * a.num_heads, device=packing_device)[:, None] * 64 + p).flatten()
             a.qkv.weight.data[: rows.numel()] = a.qkv.weight.data[rows]
             a.qkv.bias.data[: rows.numel()] = a.qkv.bias.data[rows]
             for n in (a.q_norm, a.k_norm):
                 n.weight.data, n.bias.data = n.weight.data[p], n.bias.data[p]
         self._gaff = [
             (
-                torch.stack([blk.attn.q_norm.weight, blk.attn.k_norm.weight])[:, None].to(self.dt),
-                torch.stack([blk.attn.q_norm.bias, blk.attn.k_norm.bias])[:, None].to(self.dt),
+                torch.stack([blk.attn.q_norm.weight, blk.attn.k_norm.weight])[:, None].to(ctx.device, self.dt),
+                torch.stack([blk.attn.q_norm.bias, blk.attn.k_norm.bias])[:, None].to(ctx.device, self.dt),
             )
             for blk in agg.global_blocks
         ]  # [2, 1, 64] (q, k)
-        if ctx.dtype == "float32":
-            return
-        agg.half()
-        h = self.net.depth_head
-        h.half().to(memory_format=torch.channels_last)
-        oc = h.scratch.output_conv2  # [3x3 conv, ReLU, 1x1 conv]: only the last 1x1 conv in fp32
-        h.scratch.output_conv2 = nn.Sequential(oc[0], oc[1], vggt._FP32Out(oc[2])).eval()  # noqa: SLF001
-        self._gaff = [(w.half(), b.half()) for w, b in self._gaff]
+        if ctx.dtype != "float32":
+            agg.half()
+            h = self.net.depth_head
+            h.half().to(memory_format=torch.channels_last)
+            oc = h.scratch.output_conv2  # only the last 1x1 convolution stays in fp32
+            h.scratch.output_conv2 = nn.Sequential(oc[0], oc[1], vggt._FP32Out(oc[2])).eval()  # noqa: SLF001
+        self.staged = None
+        if ctx.params.stream:
+            pairs = [_StagedPair(f, g) for f, g in zip(agg.frame_blocks, agg.global_blocks, strict=True)]
+            self.staged = StreamedModuleList(pairs, ctx.device)
+            agg.frame_blocks, agg.global_blocks = nn.ModuleList(), nn.ModuleList()
+        self.net.to(ctx.device)
 
     def gattention(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, scale: float) -> torch.Tensor:
         """Global attention: `[1, N, heads, 64]` q, `[1, L, heads, 64]` k / v -> `[1, N, heads * 64]`."""
@@ -224,8 +252,9 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
         cos, sin = _rope3d_tables(frames, rows, cols, dev, self.dt)
         return cos.to(self.ctx.device), sin.to(self.ctx.device)
 
-    def gblock(
+    def gblock(  # noqa: PLR0913, PLR0917 - explicit block permits both resident and streamed weights
         self,
+        blk: Any,  # noqa: ANN401 - vendored aggregator block
         i: int,
         x: torch.Tensor,
         tab: tuple[torch.Tensor, torch.Tensor],
@@ -234,7 +263,6 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
     ) -> torch.Tensor:
         """Global block `i` on `[1, N, C]`: its k / v go to `kv[.][put]`, it attends to `kv[.][keys]`."""
         put, keys = slots
-        blk = self.net.aggregator.global_blocks[i]
         a = blk.attn
         bsz, n, c = x.shape
         nh, d = a.num_heads, c // a.num_heads
@@ -272,9 +300,9 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
         s = min(prm.scale_frames, n_img)
         rows, cols = h // PATCH, w // PATCH
         p = SPECIAL + rows * cols
-        c = agg.global_blocks[0].attn.qkv.in_features
+        c = self.width
         dev = images.device
-        cache = _Cache(len(agg.global_blocks), n_img, s, prm.window, p, images.new_empty(0, dtype=self.dt))
+        cache = _Cache(self.n_blocks, n_img, s, prm.window, p, images.new_empty(0, dtype=self.dt))
         pos = agg.position_getter(1, rows, cols, device=dev) + 1
         pos = torch.cat([torch.zeros(1, SPECIAL, 2, device=dev, dtype=pos.dtype), pos], 1)
         tf = self.rope_tables(pos, 1, 1, p)  # frame blocks: [1, P, 1, 1, 64]
@@ -286,7 +314,7 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
         def heads(force: bool) -> None:  # noqa: FBT001
             if not pend_img or (not force and sum(t.shape[0] for t in pend_img) < CHUNK):
                 return
-            toks: list[torch.Tensor | None] = [None] * len(agg.global_blocks)
+            toks: list[torch.Tensor | None] = [None] * self.n_blocks
             for j, li in enumerate(LAYERS):
                 toks[li] = torch.cat(pend[j])[None]
                 pend[j].clear()
@@ -301,12 +329,16 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
             t = self.tokens(x[fr.start : fr.stop], fr, s)
             tg = self.rope3d(fr, rows, cols)
             slots = cache.step(fr)
-            for i in range(len(agg.frame_blocks)):
-                t = self.block(agg.frame_blocks[i], t, tf)
-                fo = t if i in LAYERS else None  # the global block does not write into its input
-                t = self.gblock(i, t.view(1, nf * p, c), tg, cache.kv[i], slots).view(nf, p, c)
-                if fo is not None:
-                    pend[LAYERS.index(i)].append(torch.cat([fo, t], -1))
+            blocks = self.staged if self.staged is not None else agg.frame_blocks
+            for i, block in enumerate(blocks):
+                if self.staged is None:
+                    frame = self.block(block, t, tf)
+                    global_out = self.gblock(agg.global_blocks[i], i, frame.view(1, nf * p, c), tg, cache.kv[i], slots)
+                    t = global_out.view(nf, p, c)
+                else:
+                    frame, t = block(t, self, i, tf, tg, cache.kv[i], slots)
+                if i in LAYERS:
+                    pend[LAYERS.index(i)].append(torch.cat([frame, t], -1))
             cam.append(pend[-1][-1][:, 0].float())
             pend_img.append(images[fr.start : fr.stop].to(self.dt))
             heads(force=False)
@@ -370,6 +402,9 @@ class Portable(_Fast):
 
     def module(self) -> torch.nn.Module:
         """The network with its input handling: the runner's inputs -> the maps of `__call__`."""
+        if self.staged is not None:
+            msg = "Export requires resident weights; reload with stream=False"
+            raise NotImplementedError(msg)
         return Forward(self.net, lambda _net, *inputs: self.forward(*inputs))
 
 
