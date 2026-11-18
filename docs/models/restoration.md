@@ -135,9 +135,9 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 The 3,000 paired degraded inputs and clean targets from DAEFR's CelebA-Test archives. Score aligned 512 x 512 RGB outputs rounded to eight bits, with no border crop. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | portable fp32 | note |
-|---|---|---|---|
-| `codeformer` | DAEFR CelebA-Test (3,000 aligned faces, 512 x 512), RGB PSNR / SSIM | 21.45 / 0.5754 |  |
+| variant | dataset | original fp32 | portable fp32 | note |
+|---|---|---|---|---|
+| `codeformer` | DAEFR CelebA-Test (3,000 aligned faces, 512 x 512), RGB PSNR / SSIM | 21.45 / 0.5754 | 21.45 / 0.5754 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
 
