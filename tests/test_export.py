@@ -1109,3 +1109,31 @@ def test_failed_tensorrt_build_is_one_clear_error(monkeypatch, tmp_path):
         BackendUnavailableError, match=r"build failed: Inconsistent strides In compileGraph\. Try float32"
     ):
         export.build_tensorrt(tmp_path / "m.onnx", tmp_path / "m.engine")
+
+
+def test_failed_tensorrt_context_reports_allocator_error(monkeypatch, tmp_path):
+    """A valid plan can fail to allocate a context; report the new TensorRT error at load."""
+    from contextlib import nullcontext  # noqa: PLC0415
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    from fastforks._core import export  # noqa: PLC0415
+
+    logger = SimpleNamespace(errors=["older build error"])
+
+    def create_context() -> None:
+        logger.errors.append("CUDA allocation failed")
+
+    engine = SimpleNamespace(create_execution_context=create_context)
+    trt = SimpleNamespace(
+        init_libnvinfer_plugins=lambda *_: True,
+        Runtime=lambda _: SimpleNamespace(deserialize_cuda_engine=lambda _: engine),
+    )
+    monkeypatch.setattr(export, "_tensorrt", lambda: trt)
+    monkeypatch.setattr(export, "_trt_logger", lambda: logger)
+    monkeypatch.setattr(export, "_cuda_device", torch.device)
+    monkeypatch.setattr(torch.cuda, "device", lambda _: nullcontext())
+    plan = tmp_path / "m.engine"
+    plan.write_bytes(b"engine")
+
+    with pytest.raises(RuntimeError, match=r"cannot create a TensorRT execution context.*CUDA allocation failed"):
+        export.TensorRTEngine(plan)

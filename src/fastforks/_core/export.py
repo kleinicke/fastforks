@@ -829,18 +829,25 @@ class TensorRTEngine:
 
         Raises:
             BackendUnavailableError: `tensorrt` is not installed.
-            RuntimeError: The engine does not deserialize here (built for another GPU or TensorRT version).
+            RuntimeError: The engine cannot be deserialized or its execution context cannot be created.
         """
         trt = _tensorrt()
         self.device = _cuda_device(device)
         with torch.cuda.device(self.device):
-            trt.init_libnvinfer_plugins(_trt_logger(), "")
-            self._runtime = trt.Runtime(_trt_logger())
+            logger = _trt_logger()
+            trt.init_libnvinfer_plugins(logger, "")
+            self._runtime = trt.Runtime(logger)
             self._engine = self._runtime.deserialize_cuda_engine(Path(path).read_bytes())
             if self._engine is None:
                 msg = f"cannot deserialize {path}: {ENGINE_NOTE} (rebuild it with `fastforks export`)"
                 raise RuntimeError(msg)
+            error_count = len(logger.errors)
             self._context = self._engine.create_execution_context()
+            if self._context is None:
+                errors = logger.errors[error_count:]
+                detail = errors[0].splitlines()[0][:200] if errors else "see the TensorRT log"
+                msg = f"cannot create a TensorRT execution context for {path} on {self.device}: {detail}"
+                raise RuntimeError(msg)
         # one execution context: calls from several threads take turns, and a call on another stream waits for the
         # previous call's work (the context's activation memory is shared)
         self._lock = threading.Lock()
