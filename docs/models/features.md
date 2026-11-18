@@ -265,16 +265,16 @@ Two disjoint seeded subsets of the val folders; each image shorter side 256 (bic
 |---|---|---|---|---|---|---|---|
 | `clip-b16-openai` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 51.98 | 52.00 | 52.00 | 52.04 | 52.00 |  |
 | `clip-l14-openai` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 58.70 | 58.64 | 58.56 | 58.62 | 58.58 |  |
-| `clip-l14-336-openai` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 58.82 | 58.72 | 58.80 |  | 58.86 |  |
+| `clip-l14-336-openai` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 58.82 | 58.72 | 58.80 | 58.60 | 58.86 |  |
 | `clip-b16-laion2b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 54.14 | 54.24 | 54.22 | 54.14 | 54.16 |  |
 | `clip-l14-laion2b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.30 | 59.30 | 59.36 | 59.24 | 59.32 |  |
-| `clip-h14-laion2b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 62.56 | 62.46 | 62.46 |  | 62.56 |  |
+| `clip-h14-laion2b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 62.56 | 62.46 | 62.46 | 62.48 | 62.56 |  |
 | `clip-l14-datacompxl` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 62.50 | 62.44 | 62.44 | 62.42 | 62.38 |  |
 | `clip-l14-dfn2b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.86 | 66.74 | 66.76 | 66.82 | 66.78 |  |
 | `clip-h14-dfn5b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 68.72 | 68.70 | 68.80 |  | 68.86 |  |
 | `clip-h14-378-dfn5b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 64.84 | 65.10 | 65.10 |  | 65.00 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8bce3316 / b2ffd65d, 2026-11-11 to 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884 / 446408848, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8bce3316 / b2ffd65d, 2026-11-11 to 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8bce3316 / b2ffd65d, 2026-11-11 to 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884 / 446408848, 2026-11-18 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8bce3316 / b2ffd65d, 2026-11-11 to 2026-11-12.
 
 ### Parity
 
