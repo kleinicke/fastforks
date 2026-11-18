@@ -22,7 +22,7 @@ from fastforks.kernels import swiglu
 from fastforks.kernels.dpt_fused import DEEP_K, DptFused
 from fastforks.kernels.fastbb import Flash64
 from fastforks.kernels.fastbb import load as load_kernels
-from fastforks.shared.arena import compact
+from fastforks.shared.arena import upload
 from fastforks.shared.cuda_graphs import CAPTURE_LOCK, GraphCache, capture_stream
 from fastforks.shared.depth_anything_v2.fast_vit import HEAD_DIM, _flash, _fp16_accumulate
 from fastforks.shared.host_blocks import StreamedModuleList
@@ -52,18 +52,17 @@ def _stream_scale(arch: str) -> float:
 
 
 def _state(ctx: Context) -> dict[str, torch.Tensor]:
-    """Fold and pack weights on their resident device, or on the host when streaming."""
+    """Read CPU weights for folding and packing before one final device transfer."""
     if ctx.params.stream and ctx.device.type != "cuda":
         msg = "stream=True requires CUDA for DINOv3 block transfers"
         raise OptionsError(msg)
-    device = torch.device("cpu") if ctx.params.stream else ctx.device
-    return {k: v.to(device) for k, v in ctx.state_dict().items()}
+    return {key: value.cpu() for key, value in ctx.state_dict().items()}
 
 
 def _network(
     ctx: Context, stream_scale: float, dtype: torch.dtype | None = None, sd: dict[str, torch.Tensor] | None = None
 ) -> DINOv3ViT:
-    """The packed network on the device with the checkpoint (`sd`, default `_state`) in `dtype` (default float32).
+    """The packed network on the inference device from the host checkpoint in `dtype` (default float32).
 
     Built on the meta device (no allocation, no init).
     """
@@ -74,9 +73,10 @@ def _network(
     if ctx.params.stream:
         net.layer = StreamedModuleList(net.layer, ctx.device)  # ty: ignore[invalid-assignment] - also an iterable of callable blocks
         return net.to(ctx.device)
-    return cast(
-        "DINOv3ViT", compact(net, min_bytes=0)
-    )  # one allocation: the build's freed fp32 copies leave no holes in the reserved memory
+    if ctx.device.type == "cuda":
+        upload(net, ctx.device)
+        return net
+    return net.to(ctx.device)
 
 
 def _init(runner: Runner, arch: str) -> None:

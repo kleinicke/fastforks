@@ -95,12 +95,11 @@ class Portable(Runner):
         if p.stream and ctx.device.type != "cuda":
             msg = "PointDiT stream=True requires CUDA for block transfers"
             raise OptionsError(msg)
-        storage = torch.device("cpu") if p.stream else ctx.device
         self.cfg = CONFIGS[p.arch]
         self.layers = encoder_layers(self.cfg)
         card, variant = registry.resolve(TASK, p.encoder)
         path = ctx.weights()[0]
-        state = {k: v.to(storage) for k, v in load_state_dict(path).items()}
+        state = load_state_dict(path)  # DINOv3 transfers its folded encoder directly from the host
         ln = (state["norm.weight"].to(ctx.device, copy=True), state["norm.bias"].to(ctx.device, copy=True))
         dtype = None if self.encoder_mode == "kernels" else ctx.dtype
         self.encoder = load_variant(

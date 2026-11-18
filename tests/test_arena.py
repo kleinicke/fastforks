@@ -116,3 +116,24 @@ def test_compact_runner_handles_attribute_modules() -> None:
     want = {k: v.clone() for k, v in r.net.state_dict().items()}  # type: ignore[attr-defined]
     compact_runner(r)
     assert all(torch.equal(want[k], v) for k, v in r.net.state_dict().items())  # type: ignore[attr-defined]
+
+
+@pytest.mark.gpu
+def test_upload_preserves_cpu_storage_aliases_and_offsets() -> None:
+    from fastforks.shared.arena import upload  # noqa: PLC0415
+
+    module = nn.Module()
+    original = torch.arange(40, dtype=torch.float32).view(5, 8)
+    module.register_parameter("weight", nn.Parameter(original))
+    module.register_parameter("tied", module.get_parameter("weight"))
+    module.register_buffer("stride_view", original[1::2, 2::2])
+    module.register_buffer("integer", torch.arange(7, dtype=torch.int16))
+    upload(module, torch.device("cuda"))
+    weight = module.get_parameter("weight")
+    stride_view = module.get_buffer("stride_view")
+    integer = module.get_buffer("integer")
+    assert module.get_parameter("tied") is weight
+    assert stride_view.stride() == original[1::2, 2::2].stride()
+    assert len({t.untyped_storage().data_ptr() for t in (weight, stride_view, integer)}) == 1
+    torch.testing.assert_close(stride_view.cpu(), original[1::2, 2::2])
+    torch.testing.assert_close(integer.cpu(), torch.arange(7, dtype=torch.int16))
