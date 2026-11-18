@@ -166,16 +166,26 @@ class _Video(Runner):
                 x = F.interpolate(image[new], (h, w), mode="bicubic", align_corners=False)
                 fresh = self._encode(scale(x, self.ctx.io))
                 pool = [torch.cat((c, f)) for c, f in zip(cache, fresh, strict=True)] if cache else fresh
+                del x, fresh
             pos = {f: k for k, f in enumerate(pool_ids)}
-            sel = torch.tensor([pos[i] for i in ids], device=image.device)
-            d = self._window([t[sel] for t in pool], h, w)
-            keep = torch.tensor([pos[i] for i in uniq], device=image.device)
-            cache_ids, cache = uniq, [t[keep] for t in pool]
+            if ids == pool_ids:
+                window = pool
+            else:
+                sel = torch.tensor([pos[i] for i in ids], device=image.device)
+                window = [t[sel] for t in pool]
+            # Only these keyframes can reappear in the next window. The head consumes
+            # the assembled window; release the full encoder pool before it runs.
+            cache_ids = sorted({ids[k] for k in KEYFRAMES}) if start + STEP < n else []
+            keep = torch.tensor([pos[i] for i in cache_ids], device=image.device, dtype=torch.long)
+            cache = [t[keep] for t in pool] if cache_ids else []
+            del pool
+            d = self._window(window, h, w)
+            del window
             d = F.interpolate(d[:, None], (hh, ww), mode="bilinear", align_corners=True)[:, 0]
             if not ref:
                 m = min(INFER_LEN, n)
                 out[:m] = d[:m]
-                ref = [d[0], d[KEYFRAMES[1]]]
+                ref = [d[0].clone(), d[KEYFRAMES[1]].clone()]
                 continue
             if self.ctx.params.metric:
                 s, b = torch.ones((), device=d.device), torch.zeros((), device=d.device)
