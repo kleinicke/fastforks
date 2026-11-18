@@ -112,6 +112,7 @@ _DATASETS = {
         "div2k-val-x4-every4": "DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x2-crop512-n4": "DIV2K validation, 4 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original",  # noqa: E501
         "div2k-val-x2-crop512-n2": "DIV2K validation, 2 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original",  # noqa: E501
+        "div2k-val-x2-crop64-every4-rgb": "DIV2K validation, 25 bicubic x2 center crops of 64 x 64 LR pixels, RGB PSNR",
         "seedvr2-clips-n4": "4 video clips (first frame), PSNR to the original's output",
         "seedvr2-clips-n2": "2 video clips (first frame), PSNR to the original's output",
         "div2k-val-x2-every4": "DIV2K validation (every 4th: 25 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
@@ -223,6 +224,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     ("volume", "totalseg-featparity-8"): ((("cos_min", "{:.5f}", ""), ("rel_l2", "{:.4f}", "")), "n", "cases"),
     "restoration": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "images"),
     ("restoration", "div2k-val-inpainting-mask50"): ((("psnr", "{:.4f}", ""),), "n", "masks"),
+    ("restoration", "div2k-val-x2-crop64-every4-rgb"): ((("psnr", "{:.4f}", ""),), "n", "images"),
     **{
         ("restoration", d): (
             (("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", ""), ("psnr_orig", "{:.2f}", "")),
@@ -332,6 +334,9 @@ _PROTOCOL = {
     "from the camera baselines). ",
     "flow": "Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean "
     "end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. ",
+    ("restoration", "div2k-val-x2-crop64-every4-rgb"): "Every fourth DIV2K validation image. A 64 x 64 center crop "
+    "of the official bicubic x2 input is restored at 128 x 128 and compared with the corresponding original pixels. "
+    "PSNR uses RGB in [0, 1] and is averaged over the 25 crops. Both modes use resident BF16 weights and seed 666. ",
     **{
         ("restoration", d): "DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's "
         "scale), one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the "

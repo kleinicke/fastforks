@@ -1865,7 +1865,7 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 - Licence note: Both checkpoints were trained on data that includes NVIDIA's FSD dataset, whose terms for commercial use of trained models are unclear; the status does not depend on the training data.
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`
 - Variants: `waft-stereo-s`, `waft-stereo-b`
-- Not in this release (planned for 0.2.1): `waft-stereo-b` TensorRT export: the fp16 engine outputs all NaN (fp16 overflow, needs an fp32 island)
+- Not in this release (planned for 0.2.1): `waft-stereo-b` TensorRT export: the fp16 engine outputs all NaN. At 994x1482, the fp32 builder also fails when a tactic requests 6.6 GiB of workspace with a 6 GiB cap
 - Outputs: disparity
 - Input size: any H x W >= 17, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `waft-stereo-s` 1024x2048 (5.3 GiB peak allocated, 8.3 reserved); `waft-stereo-b` 1024x1024 (3.2 GiB peak allocated, 4.7 reserved)

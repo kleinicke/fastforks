@@ -438,10 +438,11 @@ pycocotools COCOeval of the top 100 detections per image. Original = the origina
 |---|---|---|---|---|---|---|
 | `lw-detr-tiny-coco` | COCO val2017, every 20th image, box mAP | 49.05 | 48.81 |  | 48.99 |  |
 | `lw-detr-small-coco` | COCO val2017, every 20th image, box mAP | 52.85 |  | 52.93 |  |  |
-| `lw-detr-medium-coco` | COCO val2017, every 20th image, box mAP |  |  | 57.60 |  |  |
+| `lw-detr-medium-coco` | COCO val2017, every 20th image, box mAP | 57.65 |  | 57.60 |  |  |
 | `lw-detr-large-coco` | COCO val2017, every 20th image, box mAP | 60.67 | 61.01 |  | 60.74 |  |
+| `lw-detr-xlarge-coco` | COCO val2017, every 20th image, box mAP | 61.57 |  | 61.58 |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565, 2026-11-13.
 
 ### Parity
 
@@ -599,11 +600,12 @@ pycocotools COCOeval of the top 100 detections per image. Original = the origina
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
+| `rf-detr-n-coco` | COCO val2017, every 10th image, box mAP | 48.18 |  |  | 48.19 |  |  |
 | `rf-detr-m-coco` | COCO val2017, every 10th image, box mAP | 54.48 | 54.42 | 54.42 | 54.42 | 54.40 |  |
 | `rf-detr-m-coco` | COCO val2017, all 5000 images, box mAP | 54.53 |  | 54.51 |  | 54.51 |  |
 | `rf-detr-seg-m-coco` | COCO val2017, every 10th image, box mAP / mask mAP | 53.21 / 44.24 | 53.30 / 44.30 | 53.30 / 44.30 | 53.35 / 44.32 | 53.49 / 44.38 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7cecd6cb, 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7cecd6cb, 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7cecd6cb, 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9 / 44640884, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7cecd6cb, 2026-11-12.
 
 ### Parity
 

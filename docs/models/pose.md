@@ -252,36 +252,36 @@ Commercial use: yes.
 
 Top-down on the same every-tenth-image subset for all modes, ground-truth person boxes, no flip test; people ranked by the mean of their first 17 keypoint scores; pycocotools OKS AP on COCO body joints. Top-down on the ground-truth person boxes (non-crowd, at least one labelled keypoint), no flip test; people ranked by the mean of their 17 keypoint scores (not mmpose's rescoring and OKS-NMS), so not the papers' AP; pycocotools OKS AP; whole-body models scored on their 17 body keypoints. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `rtmpose-t` | COCO val2017, ground-truth person boxes, keypoint AP | 65.2 | 65.1 | 65.2 | 65.2 |  |
-| `rtmpose-s` | COCO val2017, ground-truth person boxes, keypoint AP | 69.8 | 69.8 | 69.8 | 69.8 |  |
-| `rtmpose-m` | COCO val2017, ground-truth person boxes, keypoint AP | 75.6 | 75.6 | 75.6 | 75.6 |  |
-| `rtmpose-l` | COCO val2017, ground-truth person boxes, keypoint AP | 77.9 | 77.9 | 77.9 | 78.0 |  |
-| `rtmpose-m-384` | COCO val2017, ground-truth person boxes, keypoint AP | 78.0 | 77.9 | 77.9 | 78.0 |  |
-| `rtmpose-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 80.0 | 80.0 | 80.0 | 79.9 |  |
-| `dwpose-t` | COCO val2017, ground-truth person boxes, keypoint AP | 60.2 | 60.2 | 60.1 | 60.1 |  |
-| `dwpose-s` | COCO val2017, ground-truth person boxes, keypoint AP | 65.6 | 65.6 | 65.6 | 65.5 |  |
-| `dwpose-m` | COCO val2017, ground-truth person boxes, keypoint AP | 71.7 | 71.8 | 71.8 | 71.8 |  |
-| `dwpose-l` | COCO val2017, ground-truth person boxes, keypoint AP | 73.9 | 73.9 | 74.0 | 74.0 |  |
-| `dwpose-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 75.6 | 75.6 | 75.7 | 75.6 |  |
-| `rtmw-m` | COCO val2017, ground-truth person boxes, keypoint AP | 74.5 | 74.5 | 74.5 | 74.6 |  |
-| `rtmw-l` | COCO val2017, ground-truth person boxes, keypoint AP | 76.9 | 76.9 | 77.0 | 76.9 |  |
-| `rtmw-x` | COCO val2017, ground-truth person boxes, keypoint AP | 77.3 | 77.4 | 77.3 | 77.4 |  |
-| `rtmw-l-384` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 80.2 | 80.3 | 80.2 | 80.1 |  |
-| `rtmw-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.4 | 79.4 | 79.5 | 79.5 |  |
-| `rtmw-x-384` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 80.3 | 80.2 | 80.1 | 80.4 |  |
-| `rtmw-x-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.6 | 79.6 | 79.6 | 79.6 |  |
-| `rtmpose-t-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 65.3 | 65.5 | 65.3 | 65.3 |  |
-| `rtmpose-s-halpe26` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 71.4 | 71.3 | 71.4 | 71.2 |  |
-| `rtmpose-s-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 70.0 | 70.0 | 69.9 | 70.0 |  |
-| `rtmpose-m-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 76.3 | 76.2 | 76.2 | 76.2 |  |
-| `rtmpose-l-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 78.5 | 78.5 | 78.5 | 78.5 |  |
-| `rtmpose-m-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 78.3 | 78.4 | 78.3 | 78.3 |  |
-| `rtmpose-l-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.8 | 79.8 | 79.8 | 80.0 |  |
-| `rtmpose-x-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 80.5 | 80.6 | 80.5 | 80.4 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `rtmpose-t` | COCO val2017, ground-truth person boxes, keypoint AP | 65.2 | 65.1 | 65.2 |  | 65.2 |  |
+| `rtmpose-s` | COCO val2017, ground-truth person boxes, keypoint AP | 69.8 | 69.8 | 69.8 |  | 69.8 |  |
+| `rtmpose-m` | COCO val2017, ground-truth person boxes, keypoint AP | 75.6 | 75.6 | 75.6 |  | 75.6 |  |
+| `rtmpose-l` | COCO val2017, ground-truth person boxes, keypoint AP | 77.9 | 77.9 | 77.9 |  | 78.0 |  |
+| `rtmpose-m-384` | COCO val2017, ground-truth person boxes, keypoint AP | 78.0 | 77.9 | 77.9 |  | 78.0 |  |
+| `rtmpose-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 80.0 | 80.0 | 80.0 |  | 79.9 |  |
+| `dwpose-t` | COCO val2017, ground-truth person boxes, keypoint AP | 60.2 | 60.2 | 60.1 |  | 60.1 |  |
+| `dwpose-s` | COCO val2017, ground-truth person boxes, keypoint AP | 65.6 | 65.6 | 65.6 |  | 65.5 |  |
+| `dwpose-m` | COCO val2017, ground-truth person boxes, keypoint AP | 71.7 | 71.8 | 71.8 |  | 71.8 |  |
+| `dwpose-l` | COCO val2017, ground-truth person boxes, keypoint AP | 73.9 | 73.9 | 74.0 |  | 74.0 |  |
+| `dwpose-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 75.6 | 75.6 | 75.7 |  | 75.6 |  |
+| `rtmw-m` | COCO val2017, ground-truth person boxes, keypoint AP | 74.5 | 74.5 | 74.5 |  | 74.6 |  |
+| `rtmw-l` | COCO val2017, ground-truth person boxes, keypoint AP | 76.9 | 76.9 | 77.0 |  | 76.9 |  |
+| `rtmw-x` | COCO val2017, ground-truth person boxes, keypoint AP | 77.3 | 77.4 | 77.3 |  | 77.4 |  |
+| `rtmw-l-384` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 80.2 | 80.3 | 80.2 | 80.1 | 80.1 |  |
+| `rtmw-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.4 | 79.4 | 79.5 |  | 79.5 |  |
+| `rtmw-x-384` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 80.3 | 80.2 | 80.1 | 80.3 | 80.4 |  |
+| `rtmw-x-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.6 | 79.6 | 79.6 |  | 79.6 |  |
+| `rtmpose-t-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 65.3 | 65.5 | 65.3 |  | 65.3 |  |
+| `rtmpose-s-halpe26` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 71.4 | 71.3 | 71.4 |  | 71.2 |  |
+| `rtmpose-s-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 70.0 | 70.0 | 69.9 |  | 70.0 |  |
+| `rtmpose-m-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 76.3 | 76.2 | 76.2 |  | 76.2 |  |
+| `rtmpose-l-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 78.5 | 78.5 | 78.5 |  | 78.5 |  |
+| `rtmpose-m-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 78.3 | 78.4 | 78.3 |  | 78.3 |  |
+| `rtmpose-l-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.8 | 79.8 | 79.8 |  | 80.0 |  |
+| `rtmpose-x-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 80.5 | 80.6 | 80.5 |  | 80.4 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / be54b8b0, 2026-11-09 to 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / be54b8b0, 2026-11-09 to 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / be54b8b0, 2026-11-09 to 2026-11-11.
 
 ### Parity
 
@@ -575,7 +575,7 @@ Bottom-up on all 5,000 validation images, no ground-truth boxes; people ranked b
 | `rtmo-m` | COCO val2017, predicted people, keypoint AP | 72.6 | 72.6 | 72.6 |  | 72.6 |  |
 | `rtmo-m` | COCO val2017, every 10th image, predicted people, keypoint AP | 74.2 | 74.2 | 74.2 | 74.2 | 74.2 |  |
 | `rtmo-l` | COCO val2017, predicted people, keypoint AP | 74.8 | 74.8 | 74.8 |  | 74.8 |  |
-| `rtmo-l` | COCO val2017, every 10th image, predicted people, keypoint AP | 76.1 | 76.0 | 76.0 |  | 76.0 |  |
+| `rtmo-l` | COCO val2017, every 10th image, predicted people, keypoint AP | 76.1 | 76.0 | 76.0 | 76.1 | 76.0 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks be54b8b0, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks be54b8b0, 2026-11-11.
 
