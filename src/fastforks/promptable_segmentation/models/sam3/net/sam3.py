@@ -271,9 +271,8 @@ class ViT(nn.Module):
         self.patch = patch
         self.embeddings = Embeddings(dim, patch, window)
         self.layer_norm = nn.LayerNorm(dim, eps=1e-6)
-        self.layers = nn.ModuleList(
-            ViTLayer(dim, heads, mlp, 0 if i in globals_ else window) for i in range(depth)
-        )
+        self.windows = tuple(0 if i in globals_ else window for i in range(depth))
+        self.layers = nn.ModuleList(ViTLayer(dim, heads, mlp, size) for size in self.windows)
 
     def pack(self) -> None:
         """`RopeAttention.pack` in every layer."""
@@ -287,7 +286,7 @@ class ViT(nn.Module):
         x = proj(pixels.to(proj.weight.dtype)).permute(0, 2, 3, 1)
         x = self.layer_norm(x + self.embeddings.tiled(x.shape[1], x.shape[2]))
         b, h, w, c = x.shape
-        s = next(layer.window for layer in self.layers if layer.window)
+        s = next(size for size in self.windows if size)
         k, j = h // s, w // s
 
         def part(z: torch.Tensor) -> torch.Tensor:  # [B, H * W, C] -> [B k j, s s, C]
@@ -297,10 +296,10 @@ class ViT(nn.Module):
             return z.view(b, k, j, s, s, c).permute(0, 1, 3, 2, 4, 5).reshape(b, h * w, c)
 
         x, windowed = x.reshape(b, h * w, c), False  # the residual stays in window order between global layers
-        for layer in self.layers:
-            if bool(layer.window) != windowed:
-                x, windowed = (part(x) if layer.window else unpart(x)), bool(layer.window)
-            x = layer(x, *ropes[layer.window])
+        for layer, size in zip(self.layers, self.windows, strict=True):
+            if bool(size) != windowed:
+                x, windowed = (part(x) if size else unpart(x)), bool(size)
+            x = layer(x, *ropes[size])
         return (unpart(x) if windowed else x).view(b, h, w, c)
 
 

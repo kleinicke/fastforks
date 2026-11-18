@@ -9,6 +9,8 @@ licence_notes = [
 ]
 
 limitations = [
+  "On the RTX 5060 Ti, streaming the same 18-frame, 800 × 600 clip with two objects reduced peak allocated memory from 2,304 to 1,482 MiB portable and 2,047 to 1,224 MiB kernels. The masks and scores matched the corresponding resident run exactly.",
+  "stream=True stages the image encoder from pinned host memory once per embedded frame. Text and prompt heads remain resident, and further prompts on an existing embedding reuse that frame. Image encoder export requires stream=False.",
   "Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~300 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
 ]
 
@@ -35,6 +37,7 @@ mean = [0.5, 0.5, 0.5]
 std = [0.5, 0.5, 0.5]
 
 [options]
+stream = { default = false, effect = "speed" }  # stage the 32 image encoder blocks on CUDA
 cuda_graphs = { default = true, effect = "speed" }  # kernels detector heads: capture repeated prompt shapes
 
 [modes.portable]
