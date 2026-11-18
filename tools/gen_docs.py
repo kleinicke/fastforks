@@ -87,6 +87,7 @@ _DATASETS = {
         "coco-val2017-every1-keypoints-gtbox": "COCO val2017, ground-truth person boxes, keypoint AP",
         "coco-val2017-every1-keypoints": "COCO val2017, predicted people, keypoint AP",
         "coco-val2017-every10-keypoints": "COCO val2017, every 10th image, predicted people, keypoint AP",
+        "coco-wholebody-val-hands-gtbox": "COCO-WholeBody validation (1,568 images), hand PCK@0.2 % / EPE in px",
         "widerface-val-every4": "WIDER FACE val, every 4th image (807), face box AP easy / medium / hard",
     },
     "flow": {"kitti2015-train": "KITTI 2015 train, EPE / Fl-all %"},
@@ -210,6 +211,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "flow": ((("epe", "{:.3f}", ""), ("fl_all", "{:.2f}", "")), "n", "pairs"),
     "edges": ((("sap5", "{:.2f}", ""), ("sap10", "{:.2f}", ""), ("sap15", "{:.2f}", "")), "n", "images"),
     "ocr": ((("word_accuracy", "{:.2f}", ""), ("ned", "{:.2f}", "")), "n", "words"),
+    ("pose", "coco-wholebody-val-hands-gtbox"): ((("pck20", "{:.2f}", ""), ("epe", "{:.2f}", "")), "n", "hands"),
     "interpolation": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "triplets"),
     "volume": ((("dice", "{:.4f}", ""),), "n", "cases"),
     ("volume", "totalseg-nninteractive-prompts-96"): (
@@ -294,6 +296,9 @@ _PROTOCOL = {
     "this benchmark runs only its recognition network on the supplied word crop. ",
     ("segmentation", "coco-val2017-persons-every10"): "Any body part counts as person; ground truth = the COCO person "
     "masks. ",
+    ("pose", "coco-wholebody-val-hands-gtbox"): "One prediction per annotated hand box. PCK is the mean across "
+    "landmarks of the fraction within 20% of the longer box side. EPE is the mean pixel distance across annotated "
+    "landmarks. Flip testing is disabled. ",
     "detection": "pycocotools COCOeval of the top 100 detections per image. ",
     (
         "pose",
