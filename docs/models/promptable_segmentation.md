@@ -324,7 +324,7 @@ One point per ground-truth instance (the interior point farthest from the border
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
 | `sam-hq-vit-b` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 52.19 / 51.05 | 52.28 / 51.11 | 52.19 / 51.04 | 52.18 / 51.04 | 52.19 / 51.04 |  |
-| `sam-hq-vit-l` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 56.04 / 52.52 | 56.00 / 52.53 | 56.09 / 52.52 |  | 56.08 / 52.52 |  |
+| `sam-hq-vit-l` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 56.04 / 52.52 | 56.00 / 52.53 | 56.09 / 52.52 | 56.09 / 52.52 | 56.08 / 52.52 |  |
 | `sam-hq-vit-h` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 56.15 / 53.43 | 56.09 / 53.45 | 56.16 / 53.43 | 56.15 / 53.43 | 56.14 / 53.43 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f2992269, 2026-11-10; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f2992269, 2026-11-10.
