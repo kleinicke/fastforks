@@ -456,6 +456,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 |---|---|---|---|
 | `pi3` | 0.00107 / 0.00237 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
 
+### Limitations
+
+- An experimental replacement for the camera rotation SVD exported at two 224 x 336 views. TensorRT 11.4 failed to finish building within 220–228 seconds with both default and level-0 optimization.
+
 </details>
 
 <a id="resplat"></a>
@@ -499,12 +503,12 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 
 640x512 crops, the 7 most co-visible views as sources. Ground truth is depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). The two scenes from the ReSplat example archive, with fixed context and held-out target views from the authors' evaluation index. Mean RGB PSNR and SSIM over the target views. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | portable | portable fp32 | note |
-|---|---|---|---|---|
-| `resplat-small-dl3dv` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm |  | 0.4233 / 10.62 / 270.85 |  |
-| `resplat-small-dl3dv` | RealEstate10K example scenes, 8 context views, RGB PSNR / SSIM | 25.97 / 0.8687 | 26.11 / 0.8697 |  |
-| `resplat-base-re10k` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm |  | 0.1396 / 98.14 / 92.13 |  |
-| `resplat-base-re10k` | RealEstate10K example scenes, 2 context views, RGB PSNR / SSIM | 23.37 / 0.8645 | 23.42 / 0.8652 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | note |
+|---|---|---|---|---|---|
+| `resplat-small-dl3dv` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm |  |  | 0.4233 / 10.62 / 270.85 |  |
+| `resplat-small-dl3dv` | RealEstate10K example scenes, 8 context views, RGB PSNR / SSIM |  | 25.97 / 0.8687 | 26.11 / 0.8697 |  |
+| `resplat-base-re10k` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm |  |  | 0.1396 / 98.14 / 92.13 |  |
+| `resplat-base-re10k` | RealEstate10K example scenes, 2 context views, RGB PSNR / SSIM | 23.42 / 0.8652 | 23.37 / 0.8645 | 23.42 / 0.8652 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ba3a401ed257abd8034e2963090c05de3ba0ee80, 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9 / ba3a401ed257abd8034e2963090c05de3ba0ee80, 2026-11-18.
 
