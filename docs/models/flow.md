@@ -892,6 +892,7 @@ Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of 
 |---|---|---|---|---|---|---|---|
 | `waft-a1` | KITTI 2015 train, EPE / Fl-all % | 2.395 / 8.52 | 2.375 / 8.52 | 2.315 / 8.51 | 2.621 / 9.12 | 2.367 / 8.53 |  |
 | `waft-a1-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.695 / 1.64 |  |  |  |  | trained on this dataset's public images; not a zero-shot result |
+| `waft-a1-sintel` | KITTI 2015 train, EPE / Fl-all % | 0.992 / 2.81 |  |  |  |  | trained on this dataset's public images; not a zero-shot result |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ec1d48ea, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
 
