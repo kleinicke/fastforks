@@ -37,6 +37,8 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
+mlx_kernels = ["graph_mlx"]
+mlx_dtypes = ["float32", "float16"]
 kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]
 # Per-shape dispatch (kernels, `_optimize.HACC_PIX`; CNNs on `cudnn_hacc`): inputs of at least 8 x 224 x 224 pixels (batch
 # * H * W) run the fp16-accumulate cuDNN convs (`cudnn_hacc`, plans built on the first call of a size); smaller, launch-bound inputs run the

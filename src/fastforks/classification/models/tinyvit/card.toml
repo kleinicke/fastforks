@@ -40,6 +40,8 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
+mlx_kernels = ["graph_mlx"]
+mlx_dtypes = ["float32", "float16"]
 # Own runner (model.py) from existing kernels only: fused convolutions and GEMMs (bias, GELU, residual in the
 # epilogue), fvm depthwise convolutions, one CUDA graph per batch size.
 # Not built: the window partition + LayerNorm + qkv GEMM of the windowed stage as one gather kernel (two layout copies

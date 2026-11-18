@@ -24,6 +24,7 @@ import operator
 from typing import TYPE_CHECKING, Any
 
 import torch
+import torch.utils._pytree as pytree
 
 from fastforks._core.mlx import mx, to_mx, to_torch
 
@@ -297,7 +298,20 @@ OPS[aten.index_select.default] = lambda x, d, i: mx.take(x, i, axis=d)
 
 
 # ---- reductions -------------------------------------------------------------------------------------------------
-OPS[aten.mean.dim] = lambda x, d=None, keep=False, **_: mx.mean(x, axis=tuple(d) if d else None, keepdims=keep)
+_KERNELS = (
+    False  # kernels mode: our Metal kernels (`fastforks.kernels.graph_mlx`) for depthwise convolution and pooling
+)
+
+
+def _mean(x: mx.array, d: Sequence[int] | None = None, keep: bool = False, **_: object) -> mx.array:  # noqa: FBT001, FBT002
+    if _KERNELS and not keep and x.ndim == 4 and d is not None and sorted(d) == [2, 3]:
+        from fastforks.kernels.graph_mlx import ops  # noqa: PLC0415 - optional MLX dependency
+
+        return ops.global_avg(_nhwc(x))
+    return mx.mean(x, axis=tuple(d) if d else None, keepdims=keep)
+
+
+OPS[aten.mean.dim] = _mean
 OPS[aten.sum.dim_IntList] = lambda x, d=None, keep=False, **_: mx.sum(x, axis=tuple(d) if d else None, keepdims=keep)
 OPS[aten.amax.default] = lambda x, d=(), keep=False: mx.max(x, axis=tuple(d) or None, keepdims=keep)
 OPS[aten.amin.default] = lambda x, d=(), keep=False: mx.min(x, axis=tuple(d) or None, keepdims=keep)
@@ -468,6 +482,15 @@ def _conv(
         )
     else:
         wl = mx.transpose(w, (0, 2, 3, 1))
+        if _KERNELS and groups > 1 and groups == xl.shape[3] == w.shape[0] and groups % 4 == 0 and w.shape[2] * w.shape[3] > 1:
+            from fastforks.kernels.graph_mlx import ops  # noqa: PLC0415 - optional MLX dependency
+
+            bias = b if b is not None else mx.zeros((groups,), dtype=xl.dtype)
+            return _nchw(
+                ops.depthwise(
+                    xl, mx.transpose(w[:, 0], (1, 2, 0)), bias, tuple(stride), tuple(padding), tuple(dilation)
+                )
+            )
         y = mx.conv2d(xl, wl, stride=tuple(stride), padding=tuple(padding), dilation=tuple(dilation), groups=groups)
     if b is not None:
         y = y + b
@@ -636,7 +659,8 @@ class GraphNet:
         dtype: str = "float32",
         *,
         compile: bool = True,
-        kernels: bool = False,  # noqa: A002
+        kernels: bool = False,
+        shared: dict[str, Any] | None = None,
     ) -> None:
         """Keep the module until its first export; parameters convert then."""
         self.module = module.eval()
@@ -644,7 +668,7 @@ class GraphNet:
         self._compile = compile
         self.kernels = kernels
         self._runs: dict[tuple[Any, ...], Callable[..., Any]] = {}
-        self._consts: dict[str, mx.array] = {}
+        self._consts: dict[str, mx.array] = {} if shared is None else shared
 
     def _const(self, name: str, t: torch.Tensor) -> mx.array:
         if name not in self._consts:
@@ -778,11 +802,71 @@ class GraphNet:
 
     def __call__(self, *tensors: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """Run on CPU tensors; returns float32 CPU tensors."""
+        global _KERNELS  # noqa: PLW0603 - read by the op table while tracing
+        _KERNELS = self.kernels
         key = tuple((tuple(t.shape), str(t.dtype)) for t in tensors)
         if key not in self._runs:
             self._runs[key] = self._build(tuple(tensors))
         outs = self._runs[key](*[to_mx(t) for t in tensors])
         return tuple(to_torch(o) for o in outs)
+
+
+class _Flat(torch.nn.Module):
+    """`module(*args, **kwargs)` as a function of its tensor arguments (the rest is baked in), with flat tensor outputs."""
+
+    def __init__(self, module: torch.nn.Module, spec: Any, leaves: list[Any]) -> None:  # noqa: ANN401
+        super().__init__()
+        self.module = module
+        self.spec = spec
+        self.template = [None if isinstance(x, torch.Tensor) else x for x in leaves]
+        self.is_tensor = [isinstance(x, torch.Tensor) for x in leaves]
+        self.out: tuple[Any, list[Any], list[Any]] | None = None  # out spec, non-tensor leaves, tensor dtypes
+
+    def forward(self, *tensors: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        it = iter(tensors)
+        leaves = [next(it) if t else v for t, v in zip(self.is_tensor, self.template, strict=True)]
+        args, kwargs = pytree.tree_unflatten(leaves, self.spec)
+        out_leaves, out_spec = pytree.tree_flatten(self.module(*args, **kwargs))
+        self.out = (
+            out_spec,
+            [None if isinstance(o, torch.Tensor) else o for o in out_leaves],
+            [o.dtype if isinstance(o, torch.Tensor) else None for o in out_leaves],
+        )
+        return tuple(o for o in out_leaves if isinstance(o, torch.Tensor))
+
+
+class MlxModule:
+    """A module with any tensor / python-value arguments and nested outputs, run on MLX (`GraphNet` underneath).
+
+    `net(*args, **kwargs)` takes CPU tensors and returns the module's output structure with CPU tensors (dtype as the
+    module returns them). Python values in the arguments are baked into the export (part of the cache key).
+    """
+
+    def __init__(self, module: torch.nn.Module, dtype: str = "float32", *, kernels: bool = False) -> None:
+        """Wrap `module` (eval mode, CPU)."""
+        self.module = module.eval()
+        self.dtype = dtype
+        self.kernels = kernels
+        self._nets: dict[Any, tuple[GraphNet, _Flat]] = {}
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+        """Run the module on MLX."""
+        leaves, spec = pytree.tree_flatten((args, kwargs))
+        key = (spec, tuple((tuple(x.shape), x.dtype) if isinstance(x, torch.Tensor) else repr(x) for x in leaves))
+        if key not in self._nets:
+            flat = _Flat(self.module, spec, leaves)
+            self._nets[key] = (GraphNet(flat, self.dtype, kernels=self.kernels, shared=self._consts()), flat)
+        net, flat = self._nets[key]
+        outs = iter(net(*[x for x in leaves if isinstance(x, torch.Tensor)]))
+        assert flat.out is not None  # set while exporting  # noqa: S101
+        out_spec, others, dtypes = flat.out
+        merged = [
+            next(outs).to(d) if d is not None else o for o, d in zip(others, dtypes, strict=True)
+        ]
+        return pytree.tree_unflatten(merged, out_spec)
+
+    def _consts(self) -> dict[str, Any]:
+        return self.__dict__.setdefault("_shared_consts", {})
 
 
 class _Name:
