@@ -26,10 +26,12 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.errors import OptionsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks.multiview._runner import Forward, Runner, invert
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
+from fastforks.shared.host_blocks import StreamedModuleList
 
 from .net.layers.pos_embed import RoPE2D
 from .net.pi3 import Pi3
@@ -46,6 +48,7 @@ class Params:
     """Load options."""
 
     pixel_limit: int  # network pixel budget (upstream PIXEL_LIMIT)
+    stream: bool = False  # stage the alternating frame/global decoder blocks from the host
 
 
 def network_size(h: int, w: int, pixel_limit: int) -> tuple[int, int]:
@@ -62,9 +65,12 @@ def network_size(h: int, w: int, pixel_limit: int) -> tuple[int, int]:
 
 
 def _net(ctx: Context) -> Pi3:
+    if ctx.params.stream and (ctx.device.type != "cuda" or ctx.dtype != "float16"):
+        msg = "Pi3 decoder streaming requires CUDA and float16"
+        raise OptionsError(msg)
     net = Pi3()
     net.load_state_dict(ctx.state_dict(), strict=True)
-    return net.eval().requires_grad_(requires_grad=False).to(ctx.device)
+    return net.eval().requires_grad_(requires_grad=False)
 
 
 def outputs(pred: dict[str, torch.Tensor], hn: int, wn: int, h0: int, w0: int) -> dict[str, torch.Tensor]:
@@ -170,6 +176,13 @@ def _sdpa_forward(self: Any, x: torch.Tensor, attn_bias: torch.Tensor | None = N
     return self.proj(o.transpose(1, 2).reshape(b, n, c))
 
 
+def _staged_block(
+    block: nn.Module, x: torch.Tensor, tab: tuple[torch.Tensor, torch.Tensor], runner: _Fast
+) -> torch.Tensor:
+    """Apply the selected attention backend to the decoder weights staged for this block."""
+    return runner.block(block, x, tab)
+
+
 class _Fast(_Base):
     """fp16 encoder + decoder with fused q/k-norm + RoPE, fp32 patch and camera heads (see the module docstring)."""
 
@@ -187,10 +200,16 @@ class _Fast(_Base):
         for b in net.encoder.blocks:
             override(b.attn, _sdpa_forward)
         if ctx.dtype == "float32":
+            net.to(ctx.device)
             return
         for m in (net.encoder, net.decoder, net.point_decoder, net.conf_decoder, net.camera_decoder):
             m.half()
         net.register_token.data = net.register_token.data.half()
+        if ctx.params.stream:
+            for block in net.decoder:
+                override(block, _staged_block)
+            net.decoder = StreamedModuleList(net.decoder, ctx.device)
+        net.to(ctx.device)
 
     def patch_tokens(self, x: torch.Tensor) -> torch.Tensor:
         """DINOv2 patch tokens `[B*S, P, C]` of normalised images."""
@@ -274,10 +293,8 @@ class _Fast(_Base):
             last: list[torch.Tensor] = []
             nd = len(net.decoder)
             for i, blk in enumerate(net.decoder):
-                if i % 2 == 0:
-                    hidden = self.block(blk, hidden.view(b * s, p, c), tf)
-                else:
-                    hidden = self.block(blk, hidden.view(b, s * p, c), tg)
+                features, tab = (hidden.view(b * s, p, c), tf) if i % 2 == 0 else (hidden.view(b, s * p, c), tg)
+                hidden = blk(features, tab, self) if self.ctx.params.stream else self.block(blk, features, tab)
                 if i + 1 in (nd - 1, nd):
                     last.append(hidden.view(b * s, p, c))  # blocks never write their input in place
             hidden = torch.cat(last, -1)
@@ -313,6 +330,9 @@ class Portable(_Fast):
 
     def module(self) -> torch.nn.Module:
         """The network with its input handling: the runner's inputs -> the maps of `__call__`."""
+        if self.ctx.params.stream:
+            msg = "Export requires resident Pi3 weights; reload with stream=False"
+            raise NotImplementedError(msg)
         return Forward(self.net, lambda _net, *inputs: self.forward(*inputs))
 
 
@@ -355,8 +375,7 @@ class Kernels(_Fast):
             block_chunks=0,
             init_values=1.0,
         )
-        sd = {k: v.float() for k, v in enc.state_dict().items()}
-        vit.load_state_dict(sd, strict=False)  # Pi3 deleted the mask token
+        vit.half().load_state_dict(enc.state_dict(), strict=False)  # Pi3 deleted the mask token
         self.encoder = _Encoder(vit.to(ctx.device).eval(), "hh", None)
         self.net.encoder = nn.Identity().eval()  # the fast copy owns the weights now
 

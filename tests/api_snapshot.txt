@@ -956,6 +956,7 @@ option matching.xfeat.max_keypoints
 option matting.matanyone.dilate aliases r_dilate
 option matting.matanyone.erode aliases r_erode
 option matting.matanyone.warmup aliases n_warmup
+option matting.u2net.cuda_graphs
 option multiview.anysplat.long_side
 option multiview.anysplat.voxel_size
 option multiview.depthsplat.long_side
@@ -969,6 +970,7 @@ option multiview.mvsanywhere.long_side
 option multiview.mvsanywhere.refinement_steps
 option multiview.mvsplat.long_side
 option multiview.pi3.pixel_limit
+option multiview.pi3.stream
 option multiview.resplat.long_side
 option multiview.resplat.refine
 option multiview.vggt.long_side
@@ -996,6 +998,8 @@ option restoration.lama.cuda_graphs
 option restoration.seedvr2.quant
 option restoration.seedvr2.seed
 option restoration.seedvr2.stream
+option retrieval.boq.stream
+option retrieval.megaloc.stream
 option segmentation.sapiens.stream
 option stereo.c_foundationstereo.iters
 option stereo.coex.cuda_graphs

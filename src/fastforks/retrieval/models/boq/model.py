@@ -21,11 +21,13 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.errors import OptionsError
 from fastforks.kernels import dpt_fused
 from fastforks.retrieval._runner import Forward, Runner, scale
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.depth_anything_v2 import FastViT, fp16_accumulate, sdpa_attention, vit_base
 from fastforks.shared.depth_anything_v2.net.dinov2 import DinoVisionTransformer
+from fastforks.shared.host_blocks import StreamedModuleList
 
 from .net.boq import BoQ
 
@@ -40,10 +42,12 @@ class Params:
     Attributes:
         size: Network input side (square).
         dim: Descriptor size.
+        stream: Keep the backbone blocks in host memory and stage them on CUDA during inference.
     """
 
     size: int
     dim: int
+    stream: bool = False
 
 
 _PATCH = 14  # fixed: the ViT-B/14 patch size of the hub backbone (also its constructor argument)
@@ -51,6 +55,9 @@ _PATCH = 14  # fixed: the ViT-B/14 patch size of the hub backbone (also its cons
 
 def _networks(ctx: Context) -> tuple[Any, BoQ]:
     """`(vit, aggregator)` on the CPU in float32: upstream's `DinoV2()` = the hub ViT-B/14 (img 518, offset 0.1)."""
+    if ctx.params.stream and ctx.device.type != "cuda":
+        msg = "Block streaming requires CUDA"
+        raise OptionsError(msg)
     with mock.patch.object(DinoVisionTransformer, "init_weights", return_value=None):  # every tensor is assigned
         vit = vit_base(
             img_size=518, patch_size=_PATCH, init_values=1.0, ffn_layer="mlp", block_chunks=0, num_register_tokens=0,
@@ -116,6 +123,9 @@ class _BoQ(Runner):
 
     def module(self) -> torch.nn.Module:
         """The network with its pre-processing: `[B, 3, H, W]` in `[0, 1]` -> descriptors `[B, dim]`."""
+        if self.ctx.params.stream:
+            msg = "Export requires resident weights; reload with stream=False"
+            raise NotImplementedError(msg)
         return Forward(self.agg, lambda _net, image: self(image)["descriptor"])
 
 
@@ -134,6 +144,8 @@ class Portable(_BoQ):
         if self.dtype != torch.float32:  # the position table stays fp32, as upstream interpolates it
             pos = vit.pos_embed.detach().clone()
             vit.to(self.dtype).pos_embed = torch.nn.Parameter(pos, requires_grad=False)
+        if ctx.params.stream:
+            vit.blocks = StreamedModuleList(vit.blocks, ctx.device)
         self.vit = vit.to(ctx.device)
         self.agg = agg.to(ctx.device, self.dtype)
         self.queries = [q.to(ctx.device, self.dtype) for q in queries]
@@ -164,19 +176,20 @@ class Kernels(_BoQ):
         vit, agg = _networks(ctx)
         queries = _queries(agg)
         self.fast = FastViT(vit, "fh", None, fused=dpt_fused.load(ctx.device))  # ViT-B: fp32 q k^T
+        self.staged = self.fast.stage_blocks(ctx.device) if ctx.params.stream else None
         self.fast.vit, self.fast.pos_fp32 = vit.to(ctx.device), self.fast.pos_fp32.to(ctx.device)
         self.agg = agg.half().to(ctx.device)
         self.queries = [q.to(ctx.device, torch.float16) for q in queries]
         s = ctx.params.size
-        self.graphs = SmallShapeGraphs(self._run, pixels=_GRAPH_BATCH * s * s, graphs=_GRAPHS)
+        self.graphs = SmallShapeGraphs(
+            self._run, pixels=_GRAPH_BATCH * s * s, graphs=_GRAPHS, enabled=self.staged is None
+        )
 
     def _run(self, x: torch.Tensor) -> torch.Tensor:
         fast = self.fast
         with torch.autocast("cuda", enabled=False):
             with fp16_accumulate():
-                t = fast.tokens(x)
-                for blk in fast.blocks:
-                    t = fast.block(blk, t)
+                t = fast.run_blocks(fast.tokens(x), self.staged)
             return _aggregate(self.agg, self.queries, _grid(t, x))
 
     def _descriptor(self, x: torch.Tensor) -> torch.Tensor:

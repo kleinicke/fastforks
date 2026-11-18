@@ -327,6 +327,7 @@ Commercial use: yes.
 - Licence evidence: https://github.com/xuebinqin/U-2-Net/blob/ac7e1c817ecab7c7dff5ce6b1abba61cd213ff29/LICENSE ; https://github.com/xuebinqin/U-2-Net/blob/ac7e1c817ecab7c7dff5ce6b1abba61cd213ff29/README.md
 - Training data: DUTS (salient object detection) (README / paper: trained on DUTS-TR (10553 images).)
   - `u2net-human-seg`: Supervisely Person Dataset (human segmentation) (README (2021-Feb-06): the human segmentation model, trained on the Supervisely Person Dataset.)
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `resize_cat`, `cudnn_hacc`, `igev`, `cutlass_conv`
 - Variants: `u2net`, `u2netp`, `u2net-human-seg`
 - Outputs: alpha

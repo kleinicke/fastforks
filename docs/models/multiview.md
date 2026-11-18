@@ -431,7 +431,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Licence evidence: https://github.com/yyfz/Pi3/blob/9fa3ddb/LICENSE and https://github.com/yyfz/Pi3/blob/9fa3ddb/README.md#-license
 - Training data: Per the paper (arXiv 2507.13347): a mixture of public synthetic and real multi-view datasets; DINOv2 initialisation. The README restricts the weights to non-commercial use because of the training datasets.
 - Licence note: The Pi3 code is BSD-3-Clause, but the README licenses the Pi3 weights CC-BY-NC-4.0 (non-commercial); the Hugging Face card's bsd-2-clause tag is overridden by that statement.
-- Options: `pixel_limit` = 255000 (>= 196)
+- Options: `stream` = False (speed only), `pixel_limit` = 255000 (>= 196)
 - Kernel libraries: `fastbb`
 - Variants: `pi3`
 - Not in this release (planned for 0.2.1): `pi3` ONNX / TensorRT export: the ONNX converter fails on the exported program (ConversionError, step 3/3)
@@ -463,6 +463,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
+- With CUDA float16, stream=True keeps the 36 frame and global attention blocks in pinned host RAM. The image encoder, prediction heads and activations stay on the GPU. Export requires stream=False.
 - An experimental replacement for the camera rotation SVD exported at two 224 x 336 views. TensorRT 11.4 failed to finish building within 220–228 seconds with both default and level-0 optimization.
 
 </details>
