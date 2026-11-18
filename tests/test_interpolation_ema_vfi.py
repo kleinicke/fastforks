@@ -86,7 +86,11 @@ def test_paired_warps_match_grid_sample(dtype: torch.dtype, channels: int, width
     # A noncontiguous slice matches the flow head's view of a tensor with a fifth (mask) channel.
     flow = torch.randn(2, 5, 9, width * 2, device=device, generator=rng).mul_(20)[:, :4, :, ::2]
     actual = ema_warp.pair(frames[:2], frames[2:], flow)
+    prefix = (frames[:2, :2].float() + 0.125, flow[:, :1])
+    stacked = ema_warp.stack(prefix, frames, flow)
     reference = _warp_pair(frames[:2], frames[2:], flow)
+    assert stacked.is_contiguous(memory_format=torch.channels_last)
+    torch.testing.assert_close(stacked, torch.cat((*prefix, *reference), 1).to(dtype), atol=0, rtol=0)
     for a, r in zip(actual, reference, strict=True):
         assert a.is_contiguous(memory_format=torch.channels_last)
         torch.testing.assert_close(a, r.to(dtype), atol=0, rtol=0)

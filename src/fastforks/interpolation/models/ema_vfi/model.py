@@ -14,7 +14,6 @@ features and convolutions run in the runner's dtype.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
 from typing import TYPE_CHECKING, Any, cast
@@ -220,9 +219,6 @@ def _warp(x: torch.Tensor, flow: torch.Tensor) -> torch.Tensor:
     return F.grid_sample(x.float(), g, mode="bilinear", padding_mode="border", align_corners=True)
 
 
-WarpPair = Callable[[torch.Tensor, torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]]
-
-
 def _warp_pair(x0: torch.Tensor, x1: torch.Tensor, flow: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     return _warp(x0, flow[:, :2]), _warp(x1, flow[:, 2:4])
 
@@ -246,25 +242,18 @@ def _head(
     return y[:, :4], y[:, 4:5]
 
 
-def _refine_warped(
-    net: MultiScaleFlow, parts: tuple[torch.Tensor, ...], features: list[torch.Tensor], warp: WarpPair
-) -> torch.Tensor:
+def _refine_warped(net: MultiScaleFlow, parts: tuple[torch.Tensor, ...], features: list[torch.Tensor]) -> torch.Tensor:
     """Run each U-Net block as soon as its pair of warped features is available, releasing that scale's inputs."""
     unet = net.unet
     flow = parts[-1]
-    batch = flow.shape[0]
-    dtype = unet.conv.weight.dtype
-    inputs = tuple(p.to(dtype, memory_format=torch.channels_last) for p in parts)
+    inputs = parts
     skips = []
     decoder = (unet.up1, unet.up2, unet.up3)
     features.reverse()  # pop in fine-to-coarse order so already consumed backbone activations can be freed
     for index, block in enumerate((unet.down0, unet.down1, unet.down2, unet.down3, unet.up0)):
         if index:
             flow = F.interpolate(flow, scale_factor=0.5, mode="bilinear", align_corners=False) * 0.5
-        x = features.pop()
-        pair = warp(x[:batch], x[batch:], flow)
-        stacked = torch.cat((*inputs, *pair), 1)
-        del pair, x
+        stacked = ema_warp.stack(inputs, features.pop(), flow)
         y = block(stacked)
         del stacked
         if index < len(decoder):  # down0, down1 and down2 feed the matching decoder skip
@@ -283,7 +272,7 @@ def _interpolate(  # noqa: PLR0913
     t: torch.Tensor,
     cache: Cache | None,
     *,
-    warp: WarpPair | None = None,
+    fused: bool = False,
 ) -> torch.Tensor:
     """`MultiScaleFlow.forward(cat(img0, img1), t)[3]` for float32 `[B, 3, H, W]` frames, `t` `[B, 1, 1, 1]`."""
     b = img0.shape[0]
@@ -306,12 +295,12 @@ def _interpolate(  # noqa: PLR0913
         else:
             flow_, mask_ = _head(hd, feat, torch.cat((img0, img1, warped0, warped1, mask), 1), flow, fmt)
             flow, mask = flow + flow_, mask + mask_
-        warped0, warped1 = (warp or _warp_pair)(img0, img1, flow)
+        warped0, warped1 = (ema_warp.pair if fused else _warp_pair)(img0, img1, flow)
     if flow is None or mask is None or warped0 is None or warped1 is None:
         msg = "EMA-VFI needs at least one head"
         raise ValueError(msg)
     parts = (img0, img1, warped0, warped1, mask, flow)
-    if warp is None:
+    if not fused:
         c0, c1, fl = [], [], flow
         for i, x in enumerate(af):  # MultiScaleFlow.warp_features
             if i:
@@ -321,7 +310,7 @@ def _interpolate(  # noqa: PLR0913
         tmp = net.unet(*(p.to(dtype, memory_format=fmt) for p in parts), c0, c1)
     else:
         del mf
-        tmp = _refine_warped(net, parts, af, warp)
+        tmp = _refine_warped(net, parts, af)
     res = tmp[:, :3].float() * 2 - 1
     merged = torch.lerp(warped1, warped0, torch.sigmoid(mask))  # warped0 * mask + warped1 * (1 - mask)
     return torch.clamp(merged + res, 0, 1)
@@ -334,15 +323,15 @@ def _frame(  # noqa: PLR0913
     cache: Cache | None,
     *,
     tta: bool,
-    warp: WarpPair | None = None,
+    fused: bool = False,
 ) -> torch.Tensor:
     """`Model.inference` on RGB frames: BGR in and out; `tta` = `fast_TTA` (the pair turned by 180 degrees, mean)."""
     i0, i1 = pair[0].flip(1), pair[1].flip(1)
     if not tta:
-        return _interpolate(net, i0, i1, t, cache, warp=warp).flip(1)
+        return _interpolate(net, i0, i1, t, cache, fused=fused).flip(1)
     b = i0.shape[0]
     both0, both1 = torch.cat((i0, i0.flip(2, 3))), torch.cat((i1, i1.flip(2, 3)))
-    pred = _interpolate(net, both0, both1, t.repeat(2, 1, 1, 1), cache, warp=warp)
+    pred = _interpolate(net, both0, both1, t.repeat(2, 1, 1, 1), cache, fused=fused)
     return ((pred[:b] + pred[b:].flip(2, 3)) / 2).flip(1)
 
 
@@ -415,7 +404,7 @@ class Kernels(Portable):
 
     def _eager(self, image1: torch.Tensor, image2: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         with fp16_accumulate():
-            return _frame(self.net, (image1, image2), t, self.cache, tta=self.ctx.params.tta, warp=ema_warp.pair)
+            return _frame(self.net, (image1, image2), t, self.cache, tta=self.ctx.params.tta, fused=True)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> dict[str, torch.Tensor]:
         """The frame at `timestep` of a padded batch (the time is a graph input: one graph for every time)."""
