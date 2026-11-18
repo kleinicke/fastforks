@@ -181,12 +181,12 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the output rounded to uint8, on RGB in [0, 1], averaged over the triplets for the 180-triplet benchmark. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `gimm-vfi-r` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 |  |
-| `gimm-vfi-r-p` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `gimm-vfi-r` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 |  |
+| `gimm-vfi-r-p` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 |  | 28.81 / 0.8481 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks dc38c37c, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14.
 
 ### Parity
 

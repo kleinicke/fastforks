@@ -493,7 +493,7 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 | variant | dataset | portable | portable fp32 | note |
 |---|---|---|---|---|
 | `resplat-small-dl3dv` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm |  | 0.4233 / 10.62 / 270.85 |  |
-| `resplat-small-dl3dv` | RealEstate10K example scenes, 8 context views, RGB PSNR / SSIM |  | 26.11 / 0.8697 |  |
+| `resplat-small-dl3dv` | RealEstate10K example scenes, 8 context views, RGB PSNR / SSIM | 25.97 / 0.8687 | 26.11 / 0.8697 |  |
 | `resplat-base-re10k` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm |  | 0.1396 / 98.14 / 92.13 |  |
 | `resplat-base-re10k` | RealEstate10K example scenes, 2 context views, RGB PSNR / SSIM | 23.37 / 0.8645 | 23.42 / 0.8652 |  |
 
