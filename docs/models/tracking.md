@@ -270,8 +270,8 @@ CPU, float32: max |diff| <= 2.3e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `locotrack-b` | 0.00216 / 0.01019 | RTX 5060 Ti, torch 2.10.0+cu130 | `fvm_conv@f1d064e539e1:sm_120`, `locotrack_sample@7d661b4e8c90:sm_120` |
-| `locotrack-s` | 0.00199 / 0.01091 | RTX 5060 Ti, torch 2.10.0+cu130 | `fvm_conv@f1d064e539e1:sm_120`, `locotrack_sample@7d661b4e8c90:sm_120` |
+| `locotrack-b` | 0.00144 / 0.00531 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120`, `locotrack_sample@0280eee25b14:sm_120` |
+| `locotrack-s` | 0.00225 / 0.01571 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120`, `locotrack_sample@0280eee25b14:sm_120` |
 
 ### Limitations
 
