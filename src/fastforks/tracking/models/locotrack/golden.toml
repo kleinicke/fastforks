@@ -20,19 +20,19 @@ upstream = "https://github.com/KU-CVLAB/LocoTrack@3385a233a270160b253a69050c6a39
 settings = "CPU float32, upstream LocoTrack offline (whole clip, query_chunk_size 64), tests/synth.py clip() 6 x 100 x 150 bilinear-antialiased to 256 x 256, torch 2.14.1+cu130"
 
 [validated."locotrack-b@1"]
-kernels = ["fvm_conv@f1d064e539e1:sm_120", "locotrack_sample@7d661b4e8c90:sm_120"]
-symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "locotrack_sample" = {"name" = "1194d0972ba44fb1", "sample_float" = "1194d0972ba44fb1", "sample_half" = "1194d0972ba44fb1"}}
+kernels = ["fvm_conv@f1d064e539e1:sm_120", "locotrack_sample@0280eee25b14:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "locotrack_sample" = {"name" = "a8bc19a2b011cd34", "sample_float" = "a8bc19a2b011cd34", "sample_half" = "a8bc19a2b011cd34"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
-torch = "2.10.0+cu130"
+torch = "2.14.1+cu130"
 date = "2026-11-18"
-mean_px = 0.00216
-p99_px = 0.01019
+mean_px = 0.00144
+p99_px = 0.00531
 
 [validated."locotrack-s@1"]
-kernels = ["fvm_conv@f1d064e539e1:sm_120", "locotrack_sample@7d661b4e8c90:sm_120"]
-symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "locotrack_sample" = {"name" = "1194d0972ba44fb1", "sample_float" = "1194d0972ba44fb1", "sample_half" = "1194d0972ba44fb1"}}
+kernels = ["fvm_conv@f1d064e539e1:sm_120", "locotrack_sample@0280eee25b14:sm_120"]
+symbols = {"fvm_conv" = {"fvm_affine_act" = "236ce4186c55539f", "fvm_avgpool" = "9e12e49937a8576d", "fvm_conv_fused" = "4b723b862e405971", "fvm_dwconv" = "d8fefac172be0b0f", "fvm_input_nhwc8" = "3c1f5ff787e711ed", "fvm_maxpool" = "dc3633065799b8a5", "fvm_stem_c8" = "3cab62da8398977e"}, "locotrack_sample" = {"name" = "a8bc19a2b011cd34", "sample_float" = "a8bc19a2b011cd34", "sample_half" = "a8bc19a2b011cd34"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
-torch = "2.10.0+cu130"
+torch = "2.14.1+cu130"
 date = "2026-11-18"
-mean_px = 0.00199
-p99_px = 0.01091
+mean_px = 0.00225
+p99_px = 0.01571
