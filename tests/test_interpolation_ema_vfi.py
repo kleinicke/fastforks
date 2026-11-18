@@ -10,8 +10,10 @@ import torch
 from fastforks import interpolation
 from fastforks._core import registry
 from fastforks._core.bench import synthetic_pair
-from fastforks.interpolation.models.ema_vfi.model import Params, _config, _frame, _interpolate
+from fastforks._core.half import fp16_accumulate
+from fastforks.interpolation.models.ema_vfi.model import Kernels, Params, _config, _frame, _interpolate, _warp_pair
 from fastforks.interpolation.models.ema_vfi.net import MotionFormer, MultiScaleFlow
+from fastforks.kernels import ema_warp
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -70,3 +72,40 @@ def test_odd_size_is_padded_and_exports(weights: Path) -> None:
     with torch.inference_mode():
         exported = model.module()(a, b)
     torch.testing.assert_close(exported, out, rtol=0, atol=1e-5)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(("dtype", "channels", "width"), [(torch.float32, 3, 31), (torch.float16, 16, 4099)])
+def test_paired_warps_match_grid_sample(dtype: torch.dtype, channels: int, width: int) -> None:
+    """Fractional motion, border clamping, batch offsets and odd widths match the staged float32 warp."""
+    device = torch.device("cuda")
+    rng = torch.Generator(device=device).manual_seed(341)
+    frames = torch.randn(4, channels, 9, width, device=device, dtype=dtype, generator=rng)
+    if dtype == torch.float32:
+        frames = frames.contiguous(memory_format=torch.channels_last)
+    # A noncontiguous slice matches the flow head's view of a tensor with a fifth (mask) channel.
+    flow = torch.randn(2, 5, 9, width * 2, device=device, generator=rng).mul_(20)[:, :4, :, ::2]
+    actual = ema_warp.pair(frames[:2], frames[2:], flow)
+    reference = _warp_pair(frames[:2], frames[2:], flow)
+    for a, r in zip(actual, reference, strict=True):
+        assert a.is_contiguous(memory_format=torch.channels_last)
+        torch.testing.assert_close(a, r.to(dtype), atol=0, rtol=0)
+
+
+@pytest.mark.gpu
+def test_refine_warped_tta_replay_matches_staged(weights: Path) -> None:
+    """A replay with a new time and reversed frames matches the original U-Net with precomputed warped features."""
+    model = interpolation.load("ema-vfi-small", weights=weights, device="cuda", mode="kernels", tta=True)
+    runner = model._runner
+    assert isinstance(runner, Kernels)
+    assert runner.graphs is not None
+    a, b = synthetic_pair(64, 96, torch.device("cuda"), shift=3)
+    with torch.inference_mode():
+        for _ in range(4):  # capture the graph on the initial pair
+            model(a, b, timestep=0.5)
+        assert runner.graphs.graphs
+        actual = model(b, a, timestep=0.25).frame
+        t = torch.full((1, 1, 1, 1), 0.25, device=a.device)
+        with fp16_accumulate():
+            reference = _frame(runner.net, (b, a), t, runner.cache, tta=True)
+    torch.testing.assert_close(actual, reference, atol=0, rtol=0)
