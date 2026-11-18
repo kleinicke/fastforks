@@ -293,7 +293,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `loma-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1036<br>308<br>–<br>285<br>planned for 0.2.1 | 4176 / 4390<br>1767 / 1878<br>–<br>2870 / 3216<br>– |
 | `loma-b64` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>129<br>–<br>101<br>109 | –<br>854 / 962<br>–<br>1230 / 1356<br>1010 / 1034 |
-| `loma-b128` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>150<br>–<br>122<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>878 / 984<br>–<br>1398 / 1760<br>– |
+| `loma-b128` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>150<br>–<br>122<br>144 | –<br>878 / 984<br>–<br>1398 / 1760<br>1062 / 1066 |
 | `loma-l` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>319<br>–<br>295<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>1903 / 2012<br>–<br>3006 / 3194<br>– |
 | `loma-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile | –<br>358<br>–<br>330 | –<br>2444 / 2548<br>–<br>3547 / 3890 |
 
@@ -313,7 +313,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `loma-b` 3000x4000 (2.4 GiB peak allocated, 3.6 reserved); `loma-b64` 3000x4000 (1.1 GiB peak allocated, 1.4 reserved); `loma-b128` 3000x4000 (1.1 GiB peak allocated, 1.4 reserved); `loma-l` 3000x4000 (2.1 GiB peak allocated, 2.8 reserved); `loma-g` 3000x4000 (2.6 GiB peak allocated, 3.3 reserved); `loma-r` 3000x4000 (2.0 GiB peak allocated, 2.7 reserved)
 - `loma-b` 768x1024, first call: portable + torch.compile 104 s (cold Inductor cache).
 - `loma-b64` 768x1024, first call: portable + torch.compile 66 s (cold Inductor cache), TensorRT bf16 102 s (ONNX + engine).
-- `loma-b128` 768x1024, first call: portable + torch.compile 67 s (cold Inductor cache).
+- `loma-b128` 768x1024, first call: portable + torch.compile 67 s (cold Inductor cache), TensorRT bf16 103 s (ONNX + engine).
 - `loma-l` 768x1024, first call: portable + torch.compile 101 s (cold Inductor cache).
 - `loma-g` 768x1024, first call: portable + torch.compile 103 s (cold Inductor cache).
 - `loma-b` original 768x1024: upstream LoMa(LoMaB(mp=False)), float32, 2048 keypoints

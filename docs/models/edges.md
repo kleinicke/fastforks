@@ -232,9 +232,9 @@ Commercial use: yes.
 
 All 102 YorkUrban images in the DT-LSD release. Each M-LSD mode uses 512-pixel short-side detection, cubic resizing, a score and length threshold of 0.1, and up to 200 segments. Structural AP matches endpoints on a 256 x 256 coordinate grid, testing both endpoint orders and matching each annotation at most once. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable fp32 | note |
-|---|---|---|---|---|
-| `mlsd` | YorkUrban test (102 images), line segment sAP@5 / @10 / @15 % | 6.69 / 13.44 / 17.01 | 6.69 / 13.44 / 17.02 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | note |
+|---|---|---|---|---|---|
+| `mlsd` | YorkUrban test (102 images), line segment sAP@5 / @10 / @15 % | 6.69 / 13.44 / 17.01 | 6.65 / 13.37 / 16.92 | 6.69 / 13.44 / 17.02 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
 

@@ -2636,7 +2636,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | loftr-indoor | 768x1024 | 111 ms | 71.0 ms | planned for 0.2.1 | 96.2 ms | 30.2 s | – | 796 / 904 | 634 / 684 | 760 / 886 | – |
 | loftr-outdoor | 768x1024 | 110 ms | 176 ms | planned for 0.2.1 | 95.9 ms | 33.3 s | – | 796 / 904 | 1149 / 1232 | 760 / 886 | – |
 | loma-b | 768x1024 | 308 ms | 285 ms | planned for 0.2.1 | – | 104 s | – | 1767 / 1878 | 2870 / 3216 | – | – |
-| loma-b128 | 768x1024 | 150 ms | 122 ms | fails: RuntimeError: Trying to create tensor with negative dimensio | – | 66.5 s | – | 878 / 984 | 1398 / 1760 | – | – |
+| loma-b128 | 768x1024 | 150 ms | 122 ms | 144 ms, bf16 engine | – | 66.5 s | 103 s | 878 / 984 | 1398 / 1760 | – | 1062 / 1066 |
 | loma-b64 | 768x1024 | 129 ms | 101 ms | 109 ms, bf16 engine | – | 65.6 s | 102 s | 854 / 962 | 1230 / 1356 | – | 1010 / 1034 |
 | loma-g | 768x1024 | 358 ms | 330 ms | – | – | 103 s | – | 2444 / 2548 | 3547 / 3890 | – | – |
 | loma-l | 768x1024 | 319 ms | 295 ms | fails: RuntimeError: Trying to create tensor with negative dimensio | – | 101 s | – | 1903 / 2012 | 3006 / 3194 | – | – |
