@@ -4,6 +4,9 @@ summary = "MVSAnywhere (Izquierdo et al. 2025): zero-shot multi-view stereo, the
 tier = "stable"
 outputs = ["depth", "mask", "sky", "depth_range"]  # mask: not sky; extras: sky probability [1, H, W], depth range used [1, 2]
 uses = ["depth_anything_v2", "cnn_kernels", "quantile"]  # fastforks.shared modules this family imports (DINOv2, DPT fusion blocks)
+limitations = [
+  "The eight-view FP32 TensorRT engine at 448 x 672 took 149.25 ms on a calibrated DTU input versus 194.19 ms portable FP32. The engine is built from export_onnx in a fresh process. The public TensorRT exporter remains gated while FP16 is validated.",
+]
 
 licence_notes = [
   "Niantic's non-commercial licence covers the code and the checkpoint; the BlurPool stem comes from Adobe's antialiased-cnns (CC-BY-NC-SA-4.0).",
@@ -47,6 +50,6 @@ venue = "CVPR 2025"
 
 [[variants]]
 id = "mvsanywhere"
-planned = { tensorrt = "TensorRT produces all-NaN depth and sky maps in both FP16 and FP32" }  # docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { tensorrt = "the previous default FP16 engine produced NaN depth and sky maps; the corrected export is validated in FP32" }  # docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "mvsanywhere_hero.ckpt", size = 2420601860, sha256 = "00878bab903b1d384cd6bb9ea092e247a9036d429cb8bcc3d6dcbb81f67e556d", url = "https://storage.googleapis.com/niantic-lon-static/research/mvsanywhere/mvsanywhere_hero.ckpt" }]

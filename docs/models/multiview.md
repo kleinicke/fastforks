@@ -264,7 +264,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (nonc
 - Options: `long_side` = 640 (>= 64), `refinement_steps` = 1 (>= 0)
 - Kernel libraries: `fastbb`, `igev`, `cutlass_conv`, `cudnn_hacc`, `mvsanywhere`, `dpt_fused`
 - Variants: `mvsanywhere`
-- Not in this release (planned for 0.2.1): `mvsanywhere` TensorRT export: TensorRT produces all-NaN depth and sky maps in both FP16 and FP32
+- Not in this release (planned for 0.2.1): `mvsanywhere` TensorRT export: the previous default FP16 engine produced NaN depth and sky maps; the corrected export is validated in FP32
 - Outputs: depth, mask, sky (in `extras`), depth_range (in `extras`); kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mvsanywhere` 3000x4000 (3.0 GiB peak allocated, 4.2 reserved)
@@ -275,13 +275,14 @@ Commercial use: **no** (code: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (nonc
 
 ### Measured
 
-640x512 crops, the 7 most co-visible views as sources. Ground truth is depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Original = the original code named under Details, same checkpoint and protocol.
+640x512 crops, the 7 most co-visible views as sources. Ground truth is depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Scans 1, 9, 24, 33 and 75. Resize view 24 and its seven paired views to 448 x 672 with scaled camera intrinsics. Both modes use the camera-baseline depth range. Depth is resized back to the target before scoring valid pixels. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `mvsanywhere` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm | 0.0077 / 99.82 / 5.57 | 0.0110 / 99.84 / 7.85 | 0.0078 / 99.82 / 5.60 | 0.0077 / 99.82 / 5.57 | 0.0077 / 99.82 / 5.59 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `mvsanywhere` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm | 0.0077 / 99.82 / 5.57 | 0.0110 / 99.84 / 7.85 | 0.0078 / 99.82 / 5.60 | 0.0077 / 99.82 / 5.57 | 0.0077 / 99.82 / 5.59 |  |  |
+| `mvsanywhere` | DTU, view 24 + 7 sources at 448 x 672, AbsRel / delta1 % / MAE mm / MAE mm |  |  |  | 0.0109 / 99.54 / 7.66 |  | 0.0109 / 99.53 / 7.68 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 555d7b79, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 555d7b79, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 555d7b79 / a771576b, 2026-11-06 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 555d7b79, 2026-11-06; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a771576b, 2026-11-18.
 
 ### Parity
 
@@ -290,6 +291,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `mvsanywhere` | 5e-05 / 0.00023 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120`, `mvsanywhere@7fdcb3aafdd8:sm_120` |
+
+### Limitations
+
+- The eight-view FP32 TensorRT engine at 448 x 672 took 149.25 ms on a calibrated DTU input versus 194.19 ms portable FP32. The engine is built from export_onnx in a fresh process. The public TensorRT exporter remains gated while FP16 is validated.
 
 </details>
 

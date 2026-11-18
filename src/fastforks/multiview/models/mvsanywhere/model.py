@@ -124,7 +124,12 @@ def _net(ctx: Context) -> Net:
 
 def _pose_distance(pose: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Upstream `pose_distance`: combined, rotation and translation distance of `[K, 4, 4]` relative poses."""
-    r = torch.sqrt(2 * (1 - torch.clamp(pose[:, :3, :3].diagonal(dim1=-1, dim2=-2).sum(-1), max=3.0) / 3))
+    trace = pose[:, :3, :3].diagonal(dim1=-1, dim2=-2).sum(-1)
+    if torch.compiler.is_exporting():
+        # TensorRT can round its reciprocal multiplication above one for an identity rotation.
+        r = torch.sqrt((3.0 - trace).clamp_min(0) * (2.0 / 3.0))
+    else:
+        r = torch.sqrt(2 * (1 - trace.clamp_max(3.0) / 3))
     tm = torch.norm(pose[:, :3, 3], dim=1)
     return torch.sqrt(tm**2 + r**2), r, tm
 

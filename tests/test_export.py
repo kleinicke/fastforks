@@ -436,6 +436,27 @@ def test_onnx_multiview(ref, tmp_path):
             torch.testing.assert_close(g, w, rtol=1e-3, atol=tol, msg=f"{ref}: {name}")
 
 
+def test_mvsanywhere_export_rotation_distance_near_identity():
+    """Preserve the small positive distance and clamp trace roundoff in the exported graph."""
+    from fastforks.multiview.models.mvsanywhere.model import _pose_distance  # noqa: PLC0415 - only this export
+
+    class Distance(torch.nn.Module):
+        def forward(self, poses):
+            return _pose_distance(poses)
+
+    epsilon = torch.finfo(torch.float32).eps * 2
+    poses = torch.eye(4).expand(3, 4, 4).clone()
+    poses[1, 0, 0] -= epsilon
+    poses[2, 0, 0] += epsilon
+    poses[:, 1, 3] = 2
+    exported = torch.export.export(Distance(), (poses,), strict=False).module()
+    distance, rotation, translation = exported(poses)
+    expected = torch.tensor([0.0, (2 * epsilon / 3) ** 0.5, 0.0])
+    torch.testing.assert_close(rotation, expected, rtol=1e-6, atol=0.0)
+    torch.testing.assert_close(translation, torch.full((3,), 2.0))
+    torch.testing.assert_close(distance, (expected.square() + 4).sqrt())
+
+
 def _main_map_name(ref: str) -> str:
     card, variant = registry.resolve(TASK[ref], ref)
     name = next(k for k in spec(card.task).standard if k in variant.outputs)
