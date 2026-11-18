@@ -550,7 +550,7 @@ AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for 
 |---|---|---|---|---|---|---|---|
 | `lingbot-depth` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0053 / 1.0000 | 0.0056 / 1.0000 | 0.0053 / 1.0000 | 0.0053 / 1.0000 | 0.0053 / 1.0000 |  |
 | `lingbot-depth` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0089 / 0.9951 | 0.0092 / 0.9950 | 0.0089 / 0.9951 |  | 0.0089 / 0.9951 |  |
-| `lingbot-depth-dc` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) |  |  |  | 0.0084 / 0.9998 |  |  |
+| `lingbot-depth-dc` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0084 / 0.9998 |  |  | 0.0084 / 0.9998 |  |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
 

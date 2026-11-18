@@ -273,7 +273,7 @@ Top-down on the same every-tenth-image subset for all modes, ground-truth person
 | `rtmw-x-384` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 80.3 | 80.2 | 80.1 | 80.3 | 80.4 |  |
 | `rtmw-x-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.6 | 79.6 | 79.6 |  | 79.6 |  |
 | `rtmpose-t-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 65.3 | 65.5 | 65.3 |  | 65.3 |  |
-| `rtmpose-s-halpe26` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 71.4 | 71.3 | 71.4 |  | 71.2 |  |
+| `rtmpose-s-halpe26` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 71.4 | 71.3 | 71.4 | 71.5 | 71.2 |  |
 | `rtmpose-s-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 70.0 | 70.0 | 69.9 |  | 70.0 |  |
 | `rtmpose-m-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 76.3 | 76.2 | 76.2 |  | 76.2 |  |
 | `rtmpose-l-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 78.5 | 78.5 | 78.5 |  | 78.5 |  |

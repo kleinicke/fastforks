@@ -57,6 +57,8 @@ _DATASETS = {
     "segmentation": {
         "ade20k-val": "ADE20K val, every 4th image, mIoU / aAcc %",
         "coco-val2017-persons-every10": "COCO val2017 persons, every 10th image, person IoU %",
+        "atr-test-shard-200": "ATR mirror test split (200 images), mIoU / aAcc %",
+        "lapa-test-common-face-parts": "LaPa test (2,000 images), common face parts, mIoU / aAcc %",
     },
     "detection": {
         "coco-val2017-every10": "COCO val2017, every 10th image, box mAP",
@@ -286,6 +288,11 @@ _PROTOCOL = {
     "the original fp32, micro-averaged over the images; top-1 agreement = share of images with the same most likely "
     "tag. The original fp16 row shows the difference of the original itself in half precision. ",
     ("segmentation", "ade20k-val"): "Each image at its own size, argmax of the logits. ",
+    ("segmentation", "atr-test-shard-200"): "The 200-image ckotait/ATRDataset test split. Scores use one pixel "
+    "confusion matrix across the split with 18 classes and ignore label 255. ",
+    ("segmentation", "lapa-test-common-face-parts"): "Scores use one pixel confusion matrix across the split. "
+    "Left and right eyes share one class, and left and right brows share one class. Labels outside the eight "
+    "shared foreground classes count as background. ",
     ("edges", "yorkurban-102-structural"): "All 102 YorkUrban images in the DT-LSD release. Each M-LSD mode uses "
     "512-pixel short-side detection, cubic resizing, a score and length threshold of 0.1, and up to 200 segments. "
     "Structural AP matches endpoints on a 256 x 256 coordinate grid, testing both endpoint orders and matching "
