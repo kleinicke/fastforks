@@ -3,11 +3,12 @@ name = "PointDiT"
 summary = "PointDiT (Xu et al., Google 2026): monocular geometry as generation; a pixel-space diffusion transformer denoises a point map in 3 Euler steps, conditioned on frozen DINOv3 features of the image. Outputs an affine-invariant point map and its depth."
 tier = "experimental"
 outputs = ["points", "depth"]
-uses = ["cuda_graphs", "depth_anything_v2"]  # fastforks.shared modules this family imports (CUDA graphs, the DINOv2 ViT fast path)
+uses = ["cuda_graphs", "depth_anything_v2", "host_blocks"]  # fastforks.shared modules this family imports (CUDA graphs, the DINOv2 ViT fast path)
 limitations = [
   "Affine-invariant output: points up to an unknown scale and 3-D shift, depth (their z) up to scale and shift; align before use.",
   "Trained at 512 x 512: inputs are resized to about `tokens` 16-pixel patches at their aspect ratio (bilinear) and the point map is resized back with nearest, as the original's wild-image path.",
-  "Kernels mode captures CUDA graphs: the graph's private memory pool and static outputs stay reserved after the call, so peak reserved is above portable by ~85 MiB (b), more for l (peak allocated is equal or lower); `cuda_graphs=false` or `release_graphs()` frees it at the cost of launch overhead.",
+  "With `stream=true`, CUDA stages weights from pinned host RAM. On the RTX 5060 Ti, PointDiT-L portable at 1024 tokens and three steps used 224 MiB peak allocated (1285 MiB resident) and transferred 2.26 GiB per image. Each extra Euler step repeats the denoiser transfer.",
+  "Kernels mode keeps CUDA graph pools for the encoder and sampler. Call `release_graphs()` to free them. With `stream=true`, both stages run eagerly.",
 ]
 licence_notes = [
   "The PointDiT code and weights are Apache-2.0; the frozen DINOv3 ViT-B/16 and ViT-L/16 encoders are under the DINOv3 License (Meta: attribution and conditions apply; gated on Hugging Face); read it before commercial use.",
@@ -33,6 +34,7 @@ input = "imagenet"  # the runner resizes to ~`tokens` patches (bilinear, no anti
 pad = "none"
 
 [options]
+stream = { default = false, effect = "speed" }  # CUDA: keep transformer blocks in pinned host RAM; upload DINO once per image, DiT once per Euler step
 tokens = { default = 1024, min = 1 }  # target 16-px patch count of the resize (the original: (512 / 16)^2)
 steps = { default = 3, min = 1 }  # Euler steps (the original's evaluation: 3)
 

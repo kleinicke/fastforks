@@ -19,10 +19,14 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.nn.functional as F
 from torch import nn
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 PATCH = 16  # fixed: patch size of every released model
 GRID = 32  # fixed: the position-embedding grid (512 px training)
@@ -156,6 +160,10 @@ class Block(nn.Module):
         self.register_buffer("b12", b12 + sh2 @ w12.T)
         self.register_buffer("g2", g2.contiguous())
 
+    def forward(self, x: torch.Tensor, operation: Callable, *args: Any) -> torch.Tensor:  # noqa: ANN401 - eager or fused block
+        """Apply a sampler step with this block's current device buffers."""
+        return operation(self, x, *args)
+
 
 class PointDiT(nn.Module):
     """The folded network (float32 buffers; `half()` for fp16). See the module docstring."""
@@ -170,11 +178,20 @@ class PointDiT(nn.Module):
     ln_b: torch.Tensor
 
     def __init__(
-        self, sd: dict[str, torch.Tensor], ln: tuple[torch.Tensor, torch.Tensor], cfg: Config, steps: int
+        self,
+        sd: dict[str, torch.Tensor],
+        ln: tuple[torch.Tensor, torch.Tensor],
+        cfg: Config,
+        steps: int,
+        *,
+        fold_device: torch.device | None = None,
     ) -> None:
         """`sd`: upstream `model_ema1` without `net.` (float32, on the target device); `ln`: DINOv3 final LayerNorm."""
         super().__init__()
         self.cfg, self.schedule = cfg, timesteps(steps)
+        if fold_device is not None:
+            # Keep source weights in host memory and fold one block at a time with the resident path's device math.
+            sd = {k: v if k.startswith("blocks.") else v.to(fold_device) for k, v in sd.items()}
         dev = sd["concat_proj.weight"].device
         c, cy = cfg.hidden, 4 * cfg.enc_hidden
         t = torch.linspace(0.0, 1.0, steps + 1, device=dev)[:-1]
@@ -182,17 +199,16 @@ class PointDiT(nn.Module):
         temb = F.linear(_timestep_embedding(t), emb, sd["t_embedder.mlp.0.bias"].float())
         temb = F.linear(F.silu(temb), sd["t_embedder.mlp.2.weight"].float(), sd["t_embedder.mlp.2.bias"].float())
         cond = F.silu(temb)  # [steps, C]: SiLU of the adaLN input
-        layers = [
-            Block(
-                sd,
-                i,
-                cfg,
-                F.linear(
-                    cond, sd[f"blocks.{i}.adaLN_modulation.1.weight"].float(), sd[f"blocks.{i}.adaLN_modulation.1.bias"]
-                ),
+        layers = []
+        for i in range(cfg.depth):
+            prefix = f"blocks.{i}."
+            state = sd if fold_device is None else {k: v.to(dev) for k, v in sd.items() if k.startswith(prefix)}
+            mod = F.linear(
+                cond, state[prefix + "adaLN_modulation.1.weight"].float(), state[prefix + "adaLN_modulation.1.bias"]
             )
-            for i in range(cfg.depth)
-        ]
+            layer = Block(state, i, cfg, mod)
+            layers.append(layer if fold_device is None else layer.cpu())
+            del state
         self.blocks = nn.ModuleList(layers)  # registered (state_dict, .to)
         self.layers = layers  # the same modules, typed
         f = "final_layer."
@@ -287,10 +303,9 @@ def rotate_half(x: torch.Tensor) -> torch.Tensor:
     return torch.cat([-x2, x1], -1)
 
 
-def block(net: PointDiT, blk: Block, s: int, x: torch.Tensor, rope: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
+def block(blk: Block, x: torch.Tensor, s: int, heads: int, rope: tuple[torch.Tensor, torch.Tensor]) -> torch.Tensor:
     """One block of step `s` in plain PyTorch (SDPA)."""
     b, n, c = x.shape
-    heads = net.cfg.heads
     qkv = F.linear(rms(x, blk.a1[s]), blk.qkv_w, blk.qkv_b[s]).view(b, n, 3, heads, HEAD)
     qk = qkv[:, :, :2].float()
     qk = qk * torch.rsqrt(qk.pow(2).mean(-1, keepdim=True) + EPS) * blk.qk_norm
@@ -310,8 +325,8 @@ def sample(net: PointDiT, cond: torch.Tensor, h: int, w: int) -> torch.Tensor:
     for s, (step, one_minus_t) in enumerate(net.schedule):
         x = cond if z is None else cond + F.linear(z.to(dt), net.wp).float()
         x = x.to(dt)
-        for blk in net.layers:
-            x = block(net, blk, s, x, rope)
+        for blk in net.blocks:
+            x = blk(x, block, s, net.cfg.heads, rope)
         out = F.linear(rms(x, 1.0), net.final_w[s], net.final_b[s]).float()
         z = step * (out / one_minus_t) if z is None else z + step * ((out - z) / one_minus_t)
     if z is None:  # steps >= 1 (the card's sampler)

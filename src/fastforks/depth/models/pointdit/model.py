@@ -18,7 +18,7 @@ import torch.nn.functional as F
 
 from fastforks._core import kernels, registry
 from fastforks._core.checkpoint import check_fits, load_state_dict
-from fastforks._core.errors import InputError
+from fastforks._core.errors import InputError, OptionsError
 from fastforks._core.model import load_variant
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.features._api import TASK, FeaturesModel
@@ -27,6 +27,7 @@ from fastforks.kernels.fastbb import Flash64
 from fastforks.kernels.fastbb import load as load_kernels
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.depth_anything_v2.fast_vit import _flash, _fp16_accumulate
+from fastforks.shared.host_blocks import StreamedModuleList
 
 from .net import (
     CONFIGS,
@@ -54,6 +55,7 @@ class Params:
     encoder: str  # fastforks.features DINOv3 id
     tokens: int  # target token count of the resize (upstream: (img_size / 16)^2)
     steps: int  # Euler steps (upstream eval: 3)
+    stream: bool  # stage backbone blocks once per image and denoiser blocks once per Euler step
 
 
 def network_size(h: int, w: int, tokens: int) -> tuple[int, int]:
@@ -91,27 +93,37 @@ class Portable(Runner):
         """Build the DINOv3 backbone from its checkpoint (read once, on the device) and the folded DiT."""
         super().__init__(ctx)
         p = ctx.params
+        if p.stream and ctx.device.type != "cuda":
+            msg = "PointDiT stream=True requires CUDA for block transfers"
+            raise OptionsError(msg)
+        storage = torch.device("cpu") if p.stream else ctx.device
         self.cfg = CONFIGS[p.arch]
         self.layers = encoder_layers(self.cfg)
         card, variant = registry.resolve(TASK, p.encoder)
         path = ctx.weights()[0]
-        state = {k: v.to(ctx.device) for k, v in load_state_dict(path).items()}
-        ln = (state["norm.weight"].clone(), state["norm.bias"].clone())
+        state = {k: v.to(storage) for k, v in load_state_dict(path).items()}
+        ln = (state["norm.weight"].to(ctx.device, copy=True), state["norm.bias"].to(ctx.device, copy=True))
         dtype = None if self.encoder_mode == "kernels" else ctx.dtype
         self.encoder = load_variant(
             TASK, card, variant, FeaturesModel, mode=self.encoder_mode, device=ctx.device, dtype=dtype,
-            weights=path, state=state,
+            weights=path, state=state, options={"stream": p.stream},
         )  # fmt: skip
         del state
         sd = ctx.state_dict(1, key="model_ema1", strip="net.")
         with torch.device("meta"):
             own = {k: torch.empty(s) for k, s in checkpoint_shapes(self.cfg).items()}
         check_fits(own, sd, f"{ctx.variant.ref} checkpoint")
-        sd = {k: v.to(ctx.device) for k, v in sd.items()}
+        sd = {k: v.to(storage) for k, v in sd.items()}
         half = self.encoder_mode == "kernels" or ctx.dtype == "float16"
         with torch.no_grad():  # constants only
-            self.net = PointDiT(sd, ln, self.cfg, p.steps).cast(torch.float16 if half else torch.float32)
+            self.net = PointDiT(sd, ln, self.cfg, p.steps, fold_device=ctx.device if p.stream else None)
+            self.net.cast(torch.float16 if half else torch.float32)
         del sd
+        if self.encoder_mode == "kernels":
+            for blk in self.net.layers:
+                _pad_ffn(blk)
+        if p.stream:
+            self.net.blocks = StreamedModuleList(self.net.layers, ctx.device)  # ty: ignore[invalid-assignment] - callable blocks
 
     def _sample(self, cond: torch.Tensor, h: int, w: int) -> torch.Tensor:
         return sample(self.net, cond, h, w)
@@ -157,8 +169,6 @@ class Kernels(Portable):
     def __init__(self, ctx: Context) -> None:
         """The portable setup in fp16 + the kernels."""
         super().__init__(ctx)
-        for blk in self.net.layers:
-            _pad_ffn(blk)
         self.kernels = load_kernels(ctx.device)
         self.k = DptFused(ctx.device)
         self.attn = Flash64("fh")
@@ -176,7 +186,7 @@ class Kernels(Portable):
             self._cs[h, w] = torch.stack((a.cos(), a.sin()), 1).contiguous()
         return self._cs[h, w]
 
-    def _block(self, blk: Block, s: int, x: torch.Tensor, cs: torch.Tensor, rope: tuple) -> torch.Tensor:
+    def _block(self, blk: Block, x: torch.Tensor, s: int, cs: torch.Tensor, rope: tuple) -> torch.Tensor:
         b, n, _ = x.shape
         heads, k = self.cfg.heads, self.k
         qkv = k.gemm(rms(x, blk.a1[s]), blk.qkv_w, blk.qkv_b[s]).view(b, n, 3, heads, HEAD)
@@ -205,8 +215,8 @@ class Kernels(Portable):
         z = None
         for s, (step, one_minus_t) in enumerate(net.schedule):
             x = c16 if z is None else k.gemm(z.half(), net.wp, res=c16, acc32=True)
-            for blk in net.layers:
-                x = self._block(blk, s, x, cs, rope)
+            for blk in net.blocks:
+                x = blk(x, self._block, s, cs, rope)
             out = k.gemm(rms(x, 1.0), net.final_w[s], net.final_b[s], acc32=True).float()
             z = out.mul_(step / one_minus_t) if z is None else z.add_(out.sub_(z), alpha=step / one_minus_t)
         if z is None:  # steps >= 1 (the card's sampler)
@@ -220,12 +230,15 @@ class Kernels(Portable):
     def release_graphs(self) -> None:
         """Drop every CUDA graph and free its memory pool on the device (`torch.cuda.empty_cache`)."""
         self._cache.release()
+        self.encoder.release_graphs()
 
     def _sample(self, cond: torch.Tensor, h: int, w: int) -> torch.Tensor:
         self._table(h, w, cond.device)  # outside the capture
         with torch.autocast("cuda", enabled=False), _fp16_accumulate():
             z = None
-            if cond.numel() <= _GRAPH_WORK:  # larger calls: launches are cheap next to the GEMMs, no graph memory
+            if (
+                not self.ctx.params.stream and cond.numel() <= _GRAPH_WORK
+            ):  # larger calls: launches are cheap next to the GEMMs, no graph memory
                 with self._lock:  # `_hw` is the argument of the graph forward
                     self._hw = (h, w)
                     z = self._cache.run((tuple(cond.shape), h, w), cond)
