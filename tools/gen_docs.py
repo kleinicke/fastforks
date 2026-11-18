@@ -184,6 +184,7 @@ _DATASETS = {
         "tapvid-davis-first16-every3-up-to20": "TAP-Vid DAVIS (10 clips), first 16 frames and up to 20 queries, "
         "AJ / delta_avg / OA %",
         "tapvid-davis-fixed-8x16": "TAP-Vid DAVIS, 8 frames and 16 queries per clip, AJ / delta_avg / OA %",
+        "tapvid-davis-fixed-8x16-256": "TAP-Vid DAVIS, 8 frames at 256 x 256 and 16 queries, AJ / delta_avg / OA %",
     },
 }
 _BAD_THR = {"eth3d": 1.0, "middH": 2.0}  # stereo
@@ -289,11 +290,10 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     },
     "matching": ((("auc5", "{:.1f}", ""), ("auc10", "{:.1f}", ""), ("auc20", "{:.1f}", "")), "n", "pairs"),
     "tracking": ((("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")), "n", "videos"),
-    ("tracking", "tapvid-davis-fixed-8x16"): (
-        (("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")),
-        "n",
-        "clips",
-    ),
+    **{
+        ("tracking", d): ((("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")), "n", "clips")
+        for d in ("tapvid-davis-fixed-8x16", "tapvid-davis-fixed-8x16-256")
+    },
     "matting": ((("mae", "{:.4f}", ""), ("max_fbeta", "{:.4f}", "")), "n", "images"),
     "retrieval": ((("r1", "{:.2f}", ""), ("r5", "{:.2f}", "")), "n", "queries"),
     "calibration": (
@@ -519,6 +519,8 @@ _PROTOCOL = {
     ("tracking", "tapvid-davis-fixed-8x16"): "The fixed export check uses 28 annotated eight-frame clips resized to "
     "480 x 854, with 16 queries sampled from frames 0, 2, and 4. Scores are averaged over clips after scoring the "
     "frames following each query in TAP-Vid's 256 x 256 coordinate system. ",
+    ("tracking", "tapvid-davis-fixed-8x16-256"): "The fixed export check uses 28 annotated eight-frame clips at "
+    "256 x 256. Sample 16 visible queries from frames 0, 2, and 4 and score frames after each query. ",
     ("matting", "dis-vd-every2"): "Each image at its own size against its binary mask: MAE of the alpha, max F-beta "
     "(beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). ",
     ("matting", "aim500-every5"): "Trimap-guided models, AIM-500: each image at its own size with a trimap made from "

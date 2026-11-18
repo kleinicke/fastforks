@@ -216,6 +216,7 @@ Commercial use: yes.
 | `gmflow-scale2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2537<br>1599<br>1139<br>–<br>765<br>planned for 0.2.1 | 8512 / 8742<br>8425 / 8552<br>6017 / 6224<br>–<br>10865 / 10904<br>– |
 | `gmflow-scale2-things` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>212 (standalone feature CNN, eager transformer and flow update) | –<br>–<br>–<br>1616 / 2560 |
 | `gmflow-scale2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2541<br>1607<br>1139<br>–<br>765<br>planned for 0.2.1 | 8512 / 8742<br>8425 / 8552<br>6017 / 6224<br>–<br>10865 / 10904<br>– |
+| `gmflow-scale2-sintel` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>212 (standalone feature CNN, eager transformer and flow update) | –<br>–<br>–<br>1616 / 2560 |
 | `gmflow-scale2-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2544<br>1608<br>1139<br>–<br>765<br>planned for 0.2.1 | 8512 / 8722<br>8425 / 8572<br>6017 / 6224<br>–<br>10865 / 10904<br>– |
 | `gmflow-scale2-mixdata` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>212 (standalone feature CNN, eager transformer and flow update) | –<br>–<br>–<br>1616 / 2560 |
 | `gmflow-scale2-regrefine6-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3230<br>2175<br>1665<br>–<br>1116<br>planned for 0.2.1 | 8522 / 8730<br>8537 / 8822<br>6080 / 6230<br>–<br>10875 / 10972<br>– |
@@ -252,6 +253,7 @@ Commercial use: yes.
 - `gmflow-scale2-things` 1080x1920, first call: portable + torch.compile 47 s (cold Inductor cache).
 - `gmflow-scale2-things` 384x1248, first call: TensorRT fp32 14 s (ONNX + engine).
 - `gmflow-scale2-sintel` 1080x1920, first call: portable + torch.compile 47 s (cold Inductor cache).
+- `gmflow-scale2-sintel` 384x1248, first call: TensorRT fp32 13 s (ONNX + engine).
 - `gmflow-scale2-mixdata` 1080x1920, first call: portable + torch.compile 47 s (cold Inductor cache).
 - `gmflow-scale2-mixdata` 384x1248, first call: TensorRT fp32 14 s (ONNX + engine).
 - `gmflow-scale2-regrefine6-things` 1080x1920, first call: portable + torch.compile 58 s (cold Inductor cache).
@@ -301,6 +303,7 @@ Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of 
 | `gmflow-scale2-things` | KITTI 2015 train, EPE / Fl-all % | 6.747 / 22.09 | 6.747 / 22.09 | 6.747 / 22.09 | 6.747 / 22.09 |  |  |
 | `gmflow-scale2-things` | KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 4.377 / 19.25 | 4.376 / 19.25 |  |
 | `gmflow-scale2-sintel` | KITTI 2015 train, EPE / Fl-all % | 1.975 / 7.88 | 1.976 / 7.88 | 1.975 / 7.88 | 1.975 / 7.88 |  | trained on this dataset's public images; not a zero-shot result |
+| `gmflow-scale2-sintel` | KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 1.240 / 6.11 | 1.240 / 6.11 | trained on this dataset's public images; not a zero-shot result |
 | `gmflow-scale2-mixdata` | KITTI 2015 train, EPE / Fl-all % | 2.390 / 10.10 | 2.390 / 10.10 | 2.389 / 10.10 | 2.390 / 10.10 |  | possibly in the training data |
 | `gmflow-scale2-mixdata` | KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 1.462 / 6.59 | 1.462 / 6.59 | possibly in the training data |
 | `gmflow-scale2-regrefine6-things` | KITTI 2015 train, EPE / Fl-all % | 4.918 / 16.33 | 4.918 / 16.32 | 4.917 / 16.32 | 4.918 / 16.33 |  |  |
