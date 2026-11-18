@@ -2,8 +2,12 @@ schema = 2
 name = "VGGT"
 summary = "VGGT, Visual Geometry Grounded Transformer (Wang et al. 2025): cameras, depth maps and point maps of every view from unposed images in one forward pass. A DINOv2 ViT-L patch embedding feeds 24 alternating frame / global attention blocks; a camera head and two DPT heads decode the tokens."
 tier = "stable"
-uses = ["depth_anything_v2", "rope2d"]  # shared modules imported directly by this family
+uses = ["depth_anything_v2", "host_blocks", "rope2d"]  # shared modules imported directly by this family
 outputs = ["depth", "confidence", "world_points", "intrinsics", "cam_to_world", "points_confidence"]  # extra: confidence of world_points [V, H, W]
+
+limitations = [
+  "CUDA stream=True keeps the alternating transformer blocks in pinned host RAM. The patch encoder, output heads and activations stay on the GPU. Export requires resident weights.",
+]
 
 licence_notes = [
   "The VGGT code licence allows commercial use, but the VGGT-1B weights are CC-BY-NC-4.0; Meta's separately licensed commercial checkpoint is not packaged.",
@@ -29,6 +33,7 @@ input = "0-1"  # the runner resizes (long side long_side, multiples of 14, bicub
 pad = "none"
 
 [options]
+stream = { default = false, effect = "speed" }  # stage alternating frame/global blocks from host RAM
 long_side = { default = 518, min = 14 }  # network long side (original preprocessing: width 518)
 
 [modes.portable]
@@ -36,7 +41,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["fastbb", "cudnn_hacc"]
+kernels = ["vggt_rotary", "fastbb", "cudnn_hacc"]
 mps_kernels = ["vggt_metal"]  # the aggregator's q / k LayerNorm + RoPE
 mps_dtype = "float32"  # MPS runs VGGT in float32 only (mps_dtypes)
 
