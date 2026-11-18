@@ -46,6 +46,7 @@ _DATASETS = {
         "nyu-prompt-every4": "NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric)",
         "ibims-prompt": "iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric)",
         "ibims": "iBims-1, AbsRel / delta1",
+        "ibims-first10": "iBims-1, first 10 images, AbsRel / delta1",
         "nyu-first100": "NYUv2 test (first 100 images), AbsRel / delta1",
         "eth3d": "ETH3D two-view train left, AbsRel / delta1",
         "middH": "Middlebury 2014 trainingH left, AbsRel / delta1",

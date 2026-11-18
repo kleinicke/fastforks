@@ -2227,7 +2227,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | lotus-normal-g-v1-1 | 994x1482 | 267 ms | 222 ms | 107 ms | 164 ms | 63.4 s | 183 s | 2777 / 2940 | 2344 / 2416 | 2351 / 2500 | 4213 / 4240 |
 | marigold-depth-v1-1 | 994x1482 | 410 ms | 342 ms | 172 ms | 261 ms | 127 s | 285 s | 2776 / 2938 | 2341 / 2418 | 2343 / 2500 | 4263 / 4318 |
 | marigold-normals-lcm-v0-1 | 994x1482 | 272 ms | 223 ms | 109 ms | 167 ms | 64.5 s | 182 s | 2792 / 2960 | 2348 / 2436 | 2361 / 2500 | 4220 / 4250 |
-| marigold-v2-depth | 994x1482 | 5093 ms | fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile  | planned for 0.2.1 | 3886 ms | – | – | 1408 / 1698 | – | 1498 / 1780 | – |
+| marigold-v2-depth | 994x1482 | 5093 ms | 4801 ms | planned for 0.2.1 | 3886 ms | 119 s | – | 1408 / 1698 | 1935 / 2040 | 1498 / 1780 | – |
 | metric3d-vit-large | 994x1482 | 201 ms | 149 ms | 91.4 ms | 155 ms | 54.7 s | 96.6 s | 1443 / 1576 | 1126 / 1148 | 1475 / 1588 | 1867 / 1952 |
 | midas-dpt-beit-large-512 | 994x1482 | 78.8 ms | 58.8 ms | 52.2 ms | 63.9 ms | 32.6 s | 53.5 s | 992 / 1418 | 1088 / 1116 | 1003 / 1436 | 1514 / 1592 |
 | moge-2-vitb-normal | 994x1482 | 83.9 ms | 60.9 ms | 35.5 ms | 40.7 ms | 133 s | 127 s | 1163 / 1312 | 972 / 1172 | 1093 / 1208 | 1044 / 1092 |

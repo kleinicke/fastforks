@@ -759,7 +759,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `marigold-v2-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>5093<br>3886<br>fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile <br>planned for 0.2.1 | –<br>1408 / 1698<br>1498 / 1780<br>–<br>– |
+| `marigold-v2-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>5093<br>3886<br>4801<br>planned for 0.2.1 | –<br>1408 / 1698<br>1498 / 1780<br>1935 / 2040<br>– |
 
 ### Weight streaming
 
@@ -787,6 +787,7 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - Outputs: depth; kind: `affine_invariant_log`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `marigold-v2-depth` 1988x2880 (12.8 GiB peak allocated, 13.5 reserved)
+- `marigold-v2-depth` 994x1482, first call: portable + torch.compile 119 s (cold Inductor cache).
 - `marigold-v2-depth` load / first call: portable 7.8 s / 5.094 s, kernels 6.2 s / 3.887 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -794,12 +795,13 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original half | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|
-| `marigold-v2-depth` | NYUv2 test, AbsRel / delta1 | out of memory | 0.0386 / 0.9840 | 0.0386 / 0.9840 | 0.0386 / 0.9840 |  |
-| `marigold-v2-depth` | iBims-1, AbsRel / delta1 |  | 0.0291 / 0.9877 | 0.0291 / 0.9877 | 0.0291 / 0.9877 |  |
+| variant | dataset | original half | portable | portable fp32 | kernels | portable + torch.compile | note |
+|---|---|---|---|---|---|---|---|
+| `marigold-v2-depth` | NYUv2 test, AbsRel / delta1 | out of memory | 0.0386 / 0.9840 | 0.0386 / 0.9840 | 0.0386 / 0.9840 |  |  |
+| `marigold-v2-depth` | iBims-1, AbsRel / delta1 |  | 0.0291 / 0.9877 | 0.0291 / 0.9877 | 0.0291 / 0.9877 |  |  |
+| `marigold-v2-depth` | iBims-1, first 10 images, AbsRel / delta1 |  | 0.0403 / 0.9701 |  |  | 0.0403 / 0.9703 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519, 2026-11-14.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519 / 46f88d78, 2026-11-14 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6d3bab64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519, 2026-11-14; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 46f88d78, 2026-11-18.
 
 ### Parity
 
@@ -816,6 +818,7 @@ CPU, float32: max |diff| <= 0.02 vs the original. GPU, bfloat16 (the default), p
 - The enlargement to a multiple of 16 is bicubic (the original: OpenCV Lanczos); inputs with sides that are multiples of 16 are not resized.
 - The output is log depth up to scale and shift (`kind = "affine_invariant_log"`): align in log space, not with the other families' depth outputs.
 - A traced or exported module reuses the noise of its traced shape; CPU inference is possible but slow (bf16 GEMMs of a 20 B model).
+- Model.compile() compiles the VAE encoder and decoder around the streamed transformer. At 994 x 1482, the compiled path took 4.80 s versus 5.09 s portable. The first compiled call took 119.2 s.
 
 </details>
 

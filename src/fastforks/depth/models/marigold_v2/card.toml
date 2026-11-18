@@ -10,6 +10,7 @@ limitations = [
   "The enlargement to a multiple of 16 is bicubic (the original: OpenCV Lanczos); inputs with sides that are multiples of 16 are not resized.",
   "The output is log depth up to scale and shift (`kind = \"affine_invariant_log\"`): align in log space, not with the other families' depth outputs.",
   "A traced or exported module reuses the noise of its traced shape; CPU inference is possible but slow (bf16 GEMMs of a 20 B model).",
+  "Model.compile() compiles the VAE encoder and decoder around the streamed transformer. At 994 x 1482, the compiled path took 4.80 s versus 5.09 s portable. The first compiled call took 119.2 s.",
 ]
 
 licence_notes = [
