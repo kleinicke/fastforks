@@ -5,6 +5,7 @@ tier = "experimental"
 outputs = ["features"]
 
 limitations = [
+  "CUDA portable and kernels accept stream=True to stage CNN levels or ViT blocks from pinned host memory. On the 192³ nnFoundation ViT reference, peak allocated memory during load and inference on an RTX 5060 Ti fell from 1,665 to 673 MiB in both modes.",
   "Kernels peak allocated is equal to portable, but the cuDNN workspace next to the large conv maps (1.4 GiB and 0.3 GiB workspaces) fragments the allocator: peak reserved is ~580 MiB above portable.",
 ]
 
@@ -22,6 +23,9 @@ evidence = "https://huggingface.co/MIC-DKFZ/nnFoundationCNN/blob/f443c09319988e8
 
 [params]
 arch = "cnn"
+
+[options]
+stream = { default = false, effect = "speed" }  # stage encoder levels or transformer blocks on CUDA
 
 [modes.portable]
 cuda_dtype = "float16"  # float16 networks (nnU-Net: float16 autocast), channels-last 3D for the CNN; statistics in float64

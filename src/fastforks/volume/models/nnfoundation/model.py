@@ -22,10 +22,11 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.checkpoint import load_strict
-from fastforks._core.errors import WeightsError
+from fastforks._core.errors import OptionsError, WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks._core.runner import Forward
+from fastforks.shared.host_blocks import StreamedModuleList
 from fastforks.volume._nnunet import Encoder, Norm, Plan, UNet
 from fastforks.volume._nnunet_runner import fused_norm_act
 from fastforks.volume._runner import EncoderRunner
@@ -44,9 +45,11 @@ class Params:
 
     Attributes:
         arch: `"cnn"` (ResEnc-L) or `"vit"` (Primus).
+        stream: Stage CNN levels or ViT blocks from host memory on CUDA.
     """
 
     arch: str = "cnn"
+    stream: bool = False
 
 
 def normalise(x: torch.Tensor) -> torch.Tensor:
@@ -225,6 +228,9 @@ class Portable(EncoderRunner):
         """Build the encoder and load the encoder weights of the checkpoint."""
         super().__init__(ctx)
         arch = ctx.params.arch
+        if ctx.params.stream and ctx.device.type != "cuda":
+            msg = "stream=True requires CUDA for nnFoundation layer transfers"
+            raise OptionsError(msg)
         weights = ctx.state_dict(0, key="network_weights", strip="")
         self.half = ctx.dtype == "float16"
         if arch == "cnn":
@@ -248,7 +254,21 @@ class Portable(EncoderRunner):
                 net.rope_sin, net.rope_cos = _rope(cast("int", net.grid), cast("int", net.rope_dim))
         if arch == "cnn" and ctx.device.type == "cuda":
             net = net.to(memory_format=torch.channels_last_3d)
-        self.net = net.to(ctx.device)
+        self.net = self._prepare(net)
+
+    def _prepare(self, net: nn.Module) -> nn.Module:
+        """Install inference methods before the host packer moves stage shells to meta."""
+        if self.fused and isinstance(net, Encoder):
+            for module in net.modules():
+                if hasattr(module, "norm_act"):
+                    override(module, fused_norm_act, "norm_act")
+        if self.ctx.params.stream:
+            if isinstance(net, Encoder):
+                net.stages = StreamedModuleList(net.stages, self.ctx.device)  # ty: ignore[invalid-assignment]
+            else:
+                eva = cast("Primus", net).eva
+                eva.blocks = StreamedModuleList(eva.blocks, self.ctx.device)  # ty: ignore[invalid-assignment]
+        return net.to(self.ctx.device)
 
     def _pad(self, x: torch.Tensor) -> torch.Tensor:
         """`[1, C, *padded]` of a normalised `[C, D, H, W]`: zeros at the far end (ViT: to the fixed input size)."""
@@ -279,11 +299,16 @@ class Portable(EncoderRunner):
 
     def module(self) -> nn.Module:
         """The encoder: a normalised, padded `[1, C, D, H, W]` volume -> the feature maps (CNN: a tuple of six)."""
+        if self.ctx.params.stream:
+            msg = "Export requires resident weights; reload with stream=False"
+            raise NotImplementedError(msg)
         return Forward(self.net, lambda _net, x: tuple(self._encode(x)))
 
 
 class Kernels(Portable):
     """Portable + CNN: InstanceNorm + LeakyReLU as one in-place kernel (`vol_norm`); ViT: fp16-accumulate GEMMs."""
+
+    fused = True
 
     def __init__(self, ctx: Context) -> None:
         """Load the kernels first, then the encoder."""
@@ -292,10 +317,6 @@ class Kernels(Portable):
 
             vol_norm.load(ctx.device)
         super().__init__(ctx)
-        if self.arch == "cnn":
-            for m in self.net.modules():
-                if hasattr(m, "norm_act"):
-                    override(m, fused_norm_act, "norm_act")
 
     def _encode(self, x: torch.Tensor) -> list[torch.Tensor]:
         if self.arch == "vit":
