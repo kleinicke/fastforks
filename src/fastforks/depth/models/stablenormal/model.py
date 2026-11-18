@@ -83,8 +83,9 @@ def finish(n: torch.Tensor, pad: tuple[int, int], size: tuple[int, ...]) -> torc
 def _nets(ctx: Context) -> tuple[SD2Net, ControlNetEncoder]:
     """UNet + VAE + the 77-token empty prompt (files 0-2) and the ControlNet encoder (file 3)."""
     net = load_net(ctx, prompt=EMPTY_PROMPT_77, cin=4)
-    with torch.device(ctx.device):
-        control = ControlNetEncoder(cin=4)
+    with torch.device("meta"):
+        control = ControlNetEncoder(cin=4).to(dtype=net.empty_text.dtype)
+    control.to_empty(device=ctx.device)
     control.load_state_dict({k: v for k, v in ctx.state_dict(3, strip="").items() if not k.startswith(_UNUSED)})
     return net, control.eval()
 
