@@ -61,7 +61,7 @@ def test_standalone_engine_measurement_remains_visible_when_export_is_planned(tm
     sizes = {row["input"]: row for row in site_data._speed(variant, "depth", {})["inputs"]}
     assert sizes["64x64"]["tensorrt"]["part"] == "standalone build"
     assert "32x32" not in sizes
-    assert g._compile_ms(compiled["model", "tensorrt", "64x64"]) == "10 ms (standalone build)"
+    assert g._compile_ms(compiled["model", "tensorrt", "64x64"]) == "10.0 ms (standalone build)"
 
 
 def test_quality_keeps_precision_specific_rows(monkeypatch):
