@@ -25,7 +25,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`dfine-s-coco`](#dfine) | yes | 3.75, 6.8x | 170, 0.92x |
 | [`dfine-x-coco`](#dfine) | yes | 9.59, 4.7x | 298, 0.61x |
 | [`faster-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 19.5, 2.1x | 450, 0.64x |
-| [`grounding-dino-base`](#grounding_dino) | yes | no kernels | no kernels |
+| [`grounding-dino-base`](#grounding_dino) | yes | – | – |
 | [`grounding-dino-tiny`](#grounding_dino) | yes | – | – |
 | [`lw-detr-large-coco`](#lwdetr) | yes | 5.64, 4.0x | 254, 0.66x |
 | [`lw-detr-medium-coco`](#lwdetr) | yes | 3.78, 6.2x | 178, 0.65x |
@@ -331,7 +331,7 @@ Commercial use: yes.
 - Options: `score_threshold` = 0.25 (0.0 to 1.0), `max_detections` = 100 (>= 1)
 - Kernel libraries: `msda`
 - Variants: `grounding-dino-tiny`, `grounding-dino-base`, `mm-grounding-dino-tiny`, `mm-grounding-dino-base`
-- Not in this release (planned for 0.2.1): `grounding-dino-tiny` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `grounding-dino-base` kernels: the pinned upstream CPU model and portable runner both exceed the existing Base box tolerance; `grounding-dino-base` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `mm-grounding-dino-tiny` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `mm-grounding-dino-base` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true
+- Not in this release (planned for 0.2.1): `grounding-dino-tiny` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `grounding-dino-base` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `mm-grounding-dino-tiny` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `mm-grounding-dino-base` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true
 - Outputs: boxes, scores, labels; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `grounding-dino-tiny` 3000x4000 (1.3 GiB peak allocated, 1.5 reserved); `grounding-dino-base` 3000x4000 (1.5 GiB peak allocated, 1.7 reserved); `mm-grounding-dino-tiny` 3000x4000 (1.3 GiB peak allocated, 1.5 reserved); `mm-grounding-dino-base` 3000x4000 (1.5 GiB peak allocated, 1.7 reserved)
@@ -376,7 +376,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `grounding-dino-tiny` | 0.12884 / 0.53156 | RTX 5060 Ti, torch 2.10.0+cu130 | `msda@7db8a6f4e515:sm_120` |
-| `grounding-dino-base` | no kernels backend | - | - |
+| `grounding-dino-base` | 0.16413 / 0.50577 | RTX 5060 Ti, torch 2.14.1+cu130 | `msda@7db8a6f4e515:sm_120` |
 | `mm-grounding-dino-tiny` | 0.08186 / 0.19259 | RTX 5060 Ti, torch 2.10.0+cu130 | `msda@7db8a6f4e515:sm_120` |
 | `mm-grounding-dino-base` | 0.08714 / 0.23686 | RTX 5060 Ti, torch 2.10.0+cu130 | `msda@7db8a6f4e515:sm_120` |
 
