@@ -2628,6 +2628,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | neuflow-v2-things | 1080x1920 | 71.4 ms | 91.5 ms | 65.0 ms | 58.9 ms | 28.8 s | 104 s | 2366 / 2398 | 4529 / 4558 | 779 / 896 | 8710 / 8748 |
 | raft-large | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.4 ms | 41.3 s | – | 5930 / 6058 | 5886 / 5924 | 332 / 352 | – |
 | raft-large-kitti | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 84.2 ms | 39.3 s | – | 5930 / 6058 | 5886 / 5924 | 332 / 352 | – |
+| raft-large-kitti | 384x1248 | – | – | 59.2 ms, fp32 engine | – | – | 134 s | – | – | – | 873 / 918 |
 | raft-large-things | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.5 ms | 39.4 s | – | 5930 / 6058 | 5886 / 5924 | 332 / 352 | – |
 | raft-small | 1080x1920 | 144 ms | 110 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 36.5 ms | 37.0 s | – | 5669 / 5706 | 5704 / 5728 | 196 / 204 | – |
 | recover-cx | 1080x1920 | 107 ms | 89.9 ms | 47.5 ms | 89.8 ms | 13.9 s | 41.6 s | 733 / 892 | 504 / 572 | 733 / 892 | 603 / 632 |
