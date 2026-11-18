@@ -911,6 +911,8 @@ COMPILE_MAX_ACT = 80 << 20
 """Compile the replay only when no activation exceeds this many bytes: `mx.compile` of a graph with huge maps (dense
 prediction at megapixel size) peaks at about twice the memory of the lazy replay and runs slower."""
 
+CHUNK_MB = 256  # lazy replay: evaluate the live values after this much new activation (see `GraphNet._runner`)
+
 _CONSUMED = "\0consumed"  # key of the set of twin tensor names whose values live on MLX (in the shared constants)
 
 
@@ -948,6 +950,7 @@ class GraphNet:
         self.dtype = getattr(mx, dtype)
         self._compile = compile
         self._itemsize = self.dtype.size
+        self._sizes: dict[str, int] = {}
         self.max_act = 0
         self.kernels = kernels
         self._runs: dict[tuple[Any, ...], Callable[..., Any]] = {}
@@ -1006,14 +1009,14 @@ class GraphNet:
                 plan.append(("call", node.name, self._op(node.target), _plain(args), _plain(dict(node.kwargs))))
             elif node.op == "output":
                 plan.append(("output", _plain(node.args[0])))
-        self.max_act = max(  # the largest activation in the run dtype (bytes): what decides whether compiling pays
-            (
-                math.prod(int(d) for d in v.shape) * self._itemsize
-                for node in nodes
-                if node.op == "call_function" and isinstance(v := node.meta.get("val"), torch.Tensor)
-            ),
-            default=0,
-        )
+        # activation sizes in the run dtype (bytes): the largest decides whether compiling pays, the rest pace the
+        # lazy replay's checkpoints
+        self._sizes = {
+            node.name: math.prod(int(d) for d in v.shape) * self._itemsize
+            for node in nodes
+            if node.op == "call_function" and isinstance(v := node.meta.get("val"), torch.Tensor)
+        }
+        self.max_act = max(self._sizes.values(), default=0)
         values.update(folds.values)
         used = {n for p in plan if p[0] == "call" for a in (*p[3], *p[4].values()) for n in _refs(a)}
         used.update(n for p in plan if p[0] == "output" for n in _refs(p[1]))
@@ -1101,8 +1104,13 @@ class GraphNet:
             if n not in values:
                 dead.setdefault(i, []).append(n)
 
+        sizes = self._sizes
+        lazy = not (self._compile and self.max_act <= COMPILE_MAX_ACT) or os.environ.get("FF_MLX_COMPILE") == "0"
+        chunk = int(os.environ.get("FF_MLX_CHUNK_MB", CHUNK_MB)) << 20
+
         def run(*inputs: mx.array) -> tuple[mx.array, ...]:
             env: dict[str, Any] = dict(values)
+            pending = 0
             it = iter(inputs)
 
             def get(a: Any) -> Any:
@@ -1125,6 +1133,11 @@ class GraphNet:
                         env[name] = env[args[0].name][args[1]]
                     else:
                         env[name] = fn(*[get(a) for a in args], **{k: get(v) for k, v in kwargs.items()})
+                if lazy and kind == "call":
+                    pending += sizes.get(name, 0)
+                    if pending > chunk:  # bound the live set: MLX would otherwise schedule the whole graph at the end
+                        mx.eval([v for v in env.values() if isinstance(v, mx.array)])
+                        pending = 0
                 for n in dead.get(i, ()):
                     env.pop(n, None)
             out = get(out_names)
