@@ -10,7 +10,16 @@ def test_compile_and_tensorrt_keep_their_input_sizes(monkeypatch):
     portable = {"mode": "portable", "input": "200x200", "ms": 215, "dtype": "float16"}
     compiled = {"mode": "compile", "input": "200x200", "ms": 162}
     engine = {"ref": ref, "mode": "tensorrt", "input": "192x192", "ms": 262}
-    monkeypatch.setattr(site_data.g, "_compile_rows", lambda: {(ref, "compile"): compiled, (ref, "tensorrt"): engine})
+    failed = {"ref": ref, "mode": "tensorrt", "input": "200x200", "fails": "OutOfMemoryError"}
+    monkeypatch.setattr(
+        site_data.g,
+        "_compile_rows",
+        lambda: {
+            (ref, "compile", "200x200"): compiled,
+            (ref, "tensorrt", "192x192"): engine,
+            (ref, "tensorrt", "200x200"): failed,
+        },
+    )
     monkeypatch.setattr(site_data.g, "_speed_rows", lambda: {ref: [portable]})
 
     data = site_data._speed(SimpleNamespace(id=ref), "volume", {ref: [portable]})
@@ -18,7 +27,7 @@ def test_compile_and_tensorrt_keep_their_input_sizes(monkeypatch):
     assert sizes["192x192"]["tensorrt"]["ms"] == 262
     assert "compile" not in sizes["192x192"]
     assert sizes["200x200"]["compile"]["ms"] == 162
-    assert "tensorrt" not in sizes["200x200"]
+    assert "fails" in sizes["200x200"]["tensorrt"]
 
     lines = site_data.g._compile_block().splitlines()
     rows = [line.strip("|").split(" | ") for line in lines if line.startswith(f"| {ref} |")]

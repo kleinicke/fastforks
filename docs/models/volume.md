@@ -88,7 +88,7 @@ Commercial use: **no** (weights: CC-BY-NC-SA-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `nninteractive` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile | 705<br>460<br>215<br>201<br>162 | 7156 / 8408<br>4076 / 4636<br>3075 / 3492<br>2643 / 3072<br>3643 / 3832 |
+| `nninteractive` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 705<br>460<br>215<br>201<br>162<br>fails: The TensorRT export accepts prepared 192³ network patches. | 7156 / 8408<br>4076 / 4636<br>3075 / 3492<br>2643 / 3072<br>3643 / 3832<br>– |
 | `nninteractive` | 192x192 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>262 (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | –<br>–<br>–<br>2738 / 2740 |
 
 <details><summary>Details</summary>

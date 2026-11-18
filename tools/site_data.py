@@ -150,8 +150,8 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]]) -> dict[str, Any
         oom = [_SPEED_KEY[m] for m in _SPEED_KEY if (v.id, m, size) in g._oom()]  # noqa: SLF001
         extra = {}
         for mode in ("compile", "tensorrt"):
-            c = g._compile_rows().get((v.id, mode))  # noqa: SLF001
-            if c is None or c["input"] != size:
+            c = g._compile_rows().get((v.id, mode, size))  # noqa: SLF001
+            if c is None:
                 continue
             if "fails" in c:
                 extra[mode] = {"fails": g._fail_reason(c["fails"])}  # noqa: SLF001
@@ -178,15 +178,15 @@ def _pose_parts(v: Variant, size: str) -> dict[str, Any]:
     out: dict[str, Any] = {}
     net = {}  # the original's network alone (crops made untimed), side "upstream"
     for mode, key in (("upstream-network-default", "original32"), ("upstream-network", "original16")):
-        c = rows.get((v.id, mode))
-        if c is not None and c["input"] == size and "ms" in c:
+        c = rows.get((v.id, mode, size))
+        if c is not None and "ms" in c:
             net[key] = _speed_row(c) | {"timed": c.get("timed", "")}
     if net:
         out["original_network"] = net
     parts = {}  # where our call spends its time (crop / network / rest), modes "<mode>-sections"
     for mode in ("portable", "kernels"):
-        c = rows.get((v.id, f"{mode}-sections"))
-        if c is not None and c["input"] == size:
+        c = rows.get((v.id, f"{mode}-sections", size))
+        if c is not None:
             parts[mode] = {k: c[k] for k in ("ms", "crop_ms", "network_ms", "rest_ms", "network_has_decode")}
     if parts:
         out["sections"] = parts

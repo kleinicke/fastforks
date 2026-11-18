@@ -631,24 +631,27 @@ def _engine_part(model_id: str) -> str:
 
 
 @functools.cache
-def _compile_rows() -> dict[tuple[str, str], dict]:
-    """docs/data/speed_compile.jsonl: the latest row per (model id, mode); a card-`[planned]` mode reads `planned`."""
+def _compile_rows() -> dict[tuple[str, str, str], dict]:
+    """Latest compile and TensorRT rows by model, mode and input size, respecting card gates."""
     path = ROOT / "docs" / "data" / "speed_compile.jsonl"
-    rows = {(r["ref"], r["mode"]): r for r in map(json.loads, path.read_text().splitlines() if path.is_file() else [])}
+    rows = {
+        (r["ref"], r["mode"], r["input"]): r
+        for r in map(json.loads, path.read_text().splitlines() if path.is_file() else [])
+    }
     variants = {v.id: v for t in registry.TASKS for _, v in registry.cards(t).values()}
-    for (ref, mode), r in rows.items():
+    for (ref, mode, size), r in rows.items():
         if (v := variants.get(ref)) and mode in {"compile", "tensorrt"} and planned_reason(v, mode):
-            rows[ref, mode] = {**r, "fails": PLANNED}  # gated in this release: no time from an older build
-            rows[ref, mode].pop("ms", None)
+            rows[ref, mode, size] = {**r, "fails": PLANNED}
+            rows[ref, mode, size].pop("ms", None)
     return rows
 
 
 def _compiled_inputs(model_id: str) -> set[str]:
     """Inputs with a successful compile or TensorRT measurement, including backend-specific sizes."""
     return {
-        row["input"]
-        for mode in _COMPILE_LABEL
-        if (row := _compile_rows().get((model_id, mode))) and not row.get("fails") and row.get("ms") is not None
+        size
+        for (ref, mode, size), row in _compile_rows().items()
+        if ref == model_id and mode in _COMPILE_LABEL and not row.get("fails") and row.get("ms") is not None
     }
 
 
@@ -667,8 +670,8 @@ def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]]
     """The compile / TensorRT cell lines (label, time, memory) of one variant and input, and their one-time setup."""
     lines, setup = [], []
     for mode, label in _COMPILE_LABEL.items():
-        r = _compile_rows().get((model_id, mode))
-        if r is None or r["input"] != size:
+        r = _compile_rows().get((model_id, mode, size))
+        if r is None:
             continue
         if "fails" in r:
             lines.append((label, _fail_cell(r["fails"]), DASH))
@@ -1970,9 +1973,11 @@ def _compile_block() -> str:
         return "\n".join([*out, "not measured yet", _COMPILE_END])
     out += [head, "|" + "---|" * (head.count("|") - 1)]
     for ref in sorted({k[0] for k in latest}, key=lambda i: (order.get(tasks.get(i, ""), 99), i)):
-        entries = latest.get((ref, "compile")), latest.get((ref, "tensorrt"))
-        for size in dict.fromkeys(r["input"] for r in entries if r):
-            comp, trt = (r if r and r["input"] == size else None for r in entries)
+        sizes = dict.fromkeys(
+            size for mode in _COMPILE_LABEL for model_id, method, size in latest if model_id == ref and method == mode
+        )
+        for size in sizes:
+            comp, trt = latest.get((ref, "compile", size)), latest.get((ref, "tensorrt", size))
             at = {r["mode"]: r for r in speed.get(ref, []) if r["input"] == size}
             compile_s, engine_setup_s = _setup_seconds(comp), _setup_seconds(trt)
             ms = {m: f"{_ms_str(at[m]['ms'])} ms" if m in at else DASH for m in ("portable", "kernels")}
