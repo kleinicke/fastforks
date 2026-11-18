@@ -11,7 +11,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks import volume
-from fastforks._core.errors import InputError, WeightsError
+from fastforks._core.errors import InputError, OptionsError, WeightsError
 from fastforks.volume import _nnunet, _resample
 from fastforks.volume._api import _volume
 from fastforks.volume.models.nninteractive import model as nni
@@ -157,6 +157,23 @@ def test_zoom_matches_scipy() -> None:
         assert (got != want).mean() < 0.01
         lab = rng.integers(0, 5, img.shape).astype(np.uint8)
         assert np.array_equal(ts.zoom_nearest(torch.from_numpy(lab), shape).numpy(), ndimage.zoom(lab, zoom, order=0))
+
+
+def test_nnunet_stream_requires_cuda(folder: Path) -> None:
+    with pytest.raises(OptionsError, match="stream=True requires CUDA"):
+        volume.load(folder, mode="portable", device="cpu", stream=True)
+
+
+@pytest.mark.gpu
+def test_nnunet_streamed_folder_keeps_folds_on_host(folder: Path) -> None:
+    resident = volume.load(folder, mode="portable", device="cuda", mirror=False)
+    streamed = volume.load(folder, mode="portable", device="cuda", mirror=False, stream=True)
+    assert all(next(net.parameters()).device.type == "cpu" for net in streamed.networks())
+    ct = np.random.default_rng(2).normal(0, 400, (18, 18, 18)).astype(np.float32)
+    expected = resident(ct, spacing=(2.0, 1.5, 1.5)).labels
+    for _ in range(2):
+        assert torch.equal(streamed(ct, spacing=(2.0, 1.5, 1.5)).labels, expected)
+    assert all(next(net.parameters()).device.type == "cpu" for net in streamed.networks())
 
 
 def test_load_nnunet_folder_labels(folder: Path) -> None:
