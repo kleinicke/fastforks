@@ -105,6 +105,7 @@ RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "portable_mlx": mlx_wrap.port(Portable),
+    "kernels_mlx": mlx_wrap.port(Portable),
 }
 
 _BODY = re.compile(r"body\.(\d+)\.(weight|bias)")

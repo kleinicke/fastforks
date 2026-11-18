@@ -121,6 +121,50 @@ Microbenchmarks against `mx.conv2d` (5.5 ms, about 3.5 TFLOPS; MPS 4.1 ms). None
 
 Conclusion: the direct kernels sit at the same ALU/bandwidth ceiling as MLX's conv, so they cannot reach MPS (likely Winograd-based). Only a fused Winograd kernel (input transform, 16 tile GEMMs and output transform kept in threadgroup memory) could win; it was not built. The conv-bound families (compact, span, realplksr, realesrgan, codeformer, gfpgan) stay slower than MPS on MLX and keep `device="mps"` routing to MPS.
 
+### Winograd conv (`kernels/conv_mlx`, kernels mode)
+
+Three dispatches per 3x3 stride-1 convolution: fused input transform (`B^T d B`, fp32 registers, NHWC), 16 (F(2,3)) or
+36 (F(4,3)) batched `mx.matmul`s against weights transformed once at load, fused output transform with bias, ReLU /
+PReLU and optional residual. The transforms need `UR` (full loop unrolling) to be fast and 2 channels per thread for
+F(4,3) (4 spills). `FF_WINO_M=2|4` picks the tile (default 4). `_conv_core` takes it for groups 1, 3x3, stride 1,
+dilation 1, even channels >= 16, h*w >= 48^2; everything else stays `mx.conv2d`. In kernels mode, a conv whose only
+consumer is ReLU / decomposed PReLU applies the activation in the output transform.
+
+Microbench (M1 Pro, 1 image, NHWC; `mx.conv2d` includes the unfused bias + activation), ms:
+
+| shape | dtype | mx.conv2d | F(2,3) | F(4,3) |
+|---|---|---|---|---|
+| 512^2 64->64 | fp16 | 6.1-7.4 | 4.5 | 2.9-3.0 |
+| 256^2 128->128 | fp16 | 3.8-4.2 | 3.2 | 2.1 |
+| 128^2 256->256 | fp16 | 2.9-3.2 | 2.7 | 2.0 |
+| 1024^2 16->16 | fp16 | 6.2 | 6.2 | 3.9 |
+| 512^2 64->64 | fp32 | 7.8-9.5 | 7.2 | 4.6 |
+| 256^2 128->128 | fp32 | 4.8-5.8 | 5.0 | 3.1 |
+| 128^2 256->256 | fp32 | 3.5-4.0 | 3.3 | 2.1 |
+
+MPS for 64->64 at 512^2 is 4.1 ms, so F(4,3) wins there too (torch MPS microbench for the other shapes not run).
+3->64 and 64->3 have too few channels and stay `mx.conv2d`. Accuracy (relative RMS vs fp32): F(4,3) fp16 3.8e-3
+(direct fp16 3.6e-4, F(2,3) 6.9e-4), fp32 1.7e-6. Stage split at 512^2/64 fp16 F(4,3): input transform 0.9 ms,
+matmuls 1.4 ms, output transform 0.85 ms (V and M are 75 MB each: bandwidth bound).
+
+End to end (512x512 unless noted, ms, fp32 / fp16; MPS from `apple-m1-pro-16gb.jsonl`):
+
+| family | Winograd kernels | portable MLX | MPS | verdict |
+|---|---|---|---|---|
+| realesr-general-x4v3 (compact) | 176 / 103 | 340 / 229 | 178 / 132 | wins (fp16 1.28x faster than MPS, fp32 tie); declared |
+| span-x4 | 184 / 103 | 172 / 131 | 103 / 89 | fp16 better than portable, fp32 worse; the card needs fp32 first, so not declared |
+| realplksr | 2974 / 1724 | 2374 / 1879 | 1527 / 1092 | fp32 slower, fp16 fails the golden with F(4,3); not declared |
+| realesrgan-x4plus | 11460 / 5557 | 8130 / 5914 | 3022 / 2066 | V/M of 1024^2-2048^2 activations blow memory; not declared |
+| big-lama | 337 / 322 | 277 / 286 | 241 / 214 | slower; not declared |
+| deeplabv3-r101-d8 (1024x2048) | 654 / 456 | fp16 469 | fp16 528 | tie; not declared |
+
+Findings: Winograd wins where the per-layer activations are small enough for V and M to stay cache-friendly and where
+convolutions dominate (compact, 64 channels at 512^2). Big activations are bound by the V/M round trip (about
+0.75 ms per 512^2/64 layer). Remaining: a fused GEMM + output transform (simdgroup_matrix, accumulate the 36 frequencies
+in registers) to drop M, band-splitting for huge activations, F(2,3) for the fp16 realplksr golden, leaky_relu and
+residual fusion.
+
+
 ## Memory pass (commits 4dfb4ac5 .. c50d549e)
 
 Causes found: the exported graph's weights were held twice (PyTorch twin plus MLX copy) and the twin's freed pages stayed resident; lazy replay without checkpoints kept far more than the live set; whole-graph `mx.compile` doubled the peak of megapixel dense-prediction graphs; the segmentation logits were resized in several full-size passes.

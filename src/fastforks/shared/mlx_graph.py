@@ -630,6 +630,33 @@ def _nchw(x: mx.array) -> mx.array:
     return mx.transpose(x, (0, 3, 1, 2))
 
 
+WINO_TILE = int(os.environ.get("FF_WINO_M", "4"))  # Winograd output tile (2 or 4) of the kernels-mode 3x3 convolution
+_WINO: dict[int, tuple[mx.array, mx.array]] = {}  # id(weight) -> (weight, its Winograd-domain form), per GraphNet
+
+
+def _wino_ok(
+    xl: mx.array, w: mx.array, stride: Sequence[int], padding: Sequence[int], dilation: Sequence[int], groups: int
+) -> bool:
+    """Whether the kernels-mode Winograd path takes this (NHWC input) convolution: dense 3x3, stride 1, pad 1."""
+    if groups != 1 or tuple(w.shape[2:]) != (3, 3) or tuple(stride) != (1, 1) or tuple(padding) != (1, 1):
+        return False
+    if tuple(dilation) != (1, 1) or xl.shape[3] != w.shape[1] or w.shape[0] > 1024 or w.shape[1] > 1024:
+        return False
+    from fastforks.kernels.conv_mlx import ops as conv_ops
+
+    return conv_ops.supported(tuple(xl.shape), w.shape[0])
+
+
+def _wino_weights(w: mx.array, wl: mx.array, dtype: mx.Dtype) -> mx.array:
+    """The Winograd-domain weights of constant `w`, made on first use (also while a segment is being traced)."""
+    hit = _WINO.get(id(w))
+    if hit is None:
+        from fastforks.kernels.conv_mlx import ops as conv_ops
+
+        hit = _WINO[id(w)] = (w, conv_ops.weights(wl, WINO_TILE, dtype))  # `w` stays referenced so its id is not reused
+    return hit[1]
+
+
 @_reg(aten.convolution.default)
 def _conv(
     x: mx.array,
@@ -642,6 +669,50 @@ def _conv(
     output_padding: Sequence[int],
     groups: int,
 ) -> mx.array:
+    return _conv_act(x, w, b, stride, padding, dilation, transposed, output_padding, groups)
+
+
+def _conv_act(  # noqa: PLR0913
+    x: mx.array,
+    w: mx.array,
+    b: mx.array | None,
+    stride: Sequence[int],
+    padding: Sequence[int],
+    dilation: Sequence[int],
+    transposed: bool,
+    output_padding: Sequence[int],
+    groups: int,
+    act: int = 0,
+    slope: mx.array | None = None,
+) -> mx.array:
+    """`_conv` followed by `act` (0 none, 1 ReLU, 2 PReLU with the per-channel `slope`; kernels mode folds it in)."""
+    if act:
+        y = _conv_core(x, w, b, stride, padding, dilation, transposed, output_padding, groups, act, slope)
+        if y is not None:
+            return y
+        y = _conv(x, w, b, stride, padding, dilation, transposed, output_padding, groups)
+        if act == 1:
+            return mx.maximum(y, 0)
+        return mx.where(y > 0, y, y * slope.reshape(1, -1, 1, 1))  # ty: ignore[unresolved-attribute]
+    return _conv_core(x, w, b, stride, padding, dilation, transposed, output_padding, groups)  # ty: ignore[invalid-return-type]
+
+
+def _conv_core(  # noqa: PLR0913
+    x: mx.array,
+    w: mx.array,
+    b: mx.array | None,
+    stride: Sequence[int],
+    padding: Sequence[int],
+    dilation: Sequence[int],
+    transposed: bool,
+    output_padding: Sequence[int],
+    groups: int,
+    act: int = 0,
+    slope: mx.array | None = None,
+) -> mx.array | None:
+    """The convolution; with `act`, `None` unless the Winograd kernel ran (and applied the activation itself)."""
+    if act and (x.ndim == 3 or transposed):
+        return None
     if x.ndim == 3:  # 1-D: [N, C, L] -> NLC
         xl = mx.transpose(x, (0, 2, 1))
         wl = mx.transpose(w, (0, 2, 1))
@@ -676,6 +747,7 @@ def _conv(
         wl = mx.transpose(w, (0, 2, 3, 1))
         if (
             _KERNELS
+            and not act
             and groups > 1
             and groups == xl.shape[3] == w.shape[0]
             and groups % 4 == 0
@@ -689,6 +761,12 @@ def _conv(
                     xl, mx.transpose(w[:, 0], (1, 2, 0)), bias, tuple(stride), tuple(padding), tuple(dilation)
                 )
             )
+        if _KERNELS and _wino_ok(xl, w, stride, padding, dilation, groups):
+            from fastforks.kernels.conv_mlx import ops as conv_ops
+
+            return _nchw(conv_ops.conv3x3(xl, _wino_weights(w, wl, xl.dtype), b, m=WINO_TILE, act=act, slope=slope))
+        if act:
+            return None
         y = mx.conv2d(xl, wl, stride=tuple(stride), padding=tuple(padding), dilation=tuple(dilation), groups=groups)
     if b is not None:
         y = y + b
@@ -977,6 +1055,9 @@ class GraphNet:
         self.kernels = kernels
         self._runs: dict[tuple[Any, ...], Callable[..., Any]] = {}
         self.on_built: Callable[[], None] | None = None  # called after each export, before its first run
+        self._wino: dict[
+            int, tuple[mx.array, mx.array]
+        ] = {}  # kernels mode: Winograd-domain weights of 3x3 convolutions
         self._consts: dict[str, Any] = {} if shared is None else shared
         self._consumed: set[str] = self._consts.setdefault(_CONSUMED, set())  # twin tensors the MLX side has taken over
 
@@ -1016,6 +1097,11 @@ class GraphNet:
         values: dict[str, Any] = {}  # constants (parameters, buffers) by node name
         params: dict[str, str] = {}  # parameter / buffer placeholders: node name -> target
         folds = self._fold_batch_norms(nodes, names, lifted)
+        fused = (
+            self._fuse_activations(nodes, names, lifted, values)
+            if self.kernels
+            else type("Fused", (), {"skip": {}, "conv": {}})()
+        )
         for node in nodes:
             if node.op == "placeholder":
                 tgt = names.get(node.name)
@@ -1026,6 +1112,14 @@ class GraphNet:
             elif node.op == "call_function":
                 if node.name in folds.skip:
                     plan.append(("alias", node.name, folds.skip[node.name]))
+                    continue
+                if node.name in fused.skip:
+                    plan.append(("alias", node.name, fused.skip[node.name]))
+                    continue
+                if node.name in fused.conv:
+                    act, slope = fused.conv[node.name]
+                    kw = {"act": act, "slope": _Name(slope) if slope else None}
+                    plan.append(("call", node.name, _conv_act, _plain(folds.args.get(node.name, node.args)), kw))
                     continue
                 args = folds.args.get(node.name, node.args)
                 plan.append(("call", node.name, self._op(node.target), _plain(args), _plain(dict(node.kwargs))))
@@ -1059,6 +1153,54 @@ class GraphNet:
         except KeyError:
             msg = f"no MLX mapping for {target}"
             raise UnsupportedOp(msg) from None
+
+    def _fuse_activations(
+        self, nodes: list[Any], names: dict[str, Any], lifted: dict[str, torch.Tensor], values: dict[str, Any]
+    ) -> Any:
+        """Kernels mode: a 3x3 convolution whose only consumer is ReLU / PReLU (decomposed to gt, mul, where) applies it."""
+        res = type("Fused", (), {"skip": {}, "conv": {}})()
+        for conv in nodes:
+            if conv.op != "call_function" or conv.target is not aten.convolution.default:
+                continue
+            wv = conv.args[1].meta.get("val")
+            if (
+                conv.args[6]  # transposed
+                or conv.args[8] != 1
+                or wv is None
+                or tuple(wv.shape[2:]) != (3, 3)
+                or list(conv.args[3]) != [1, 1]
+                or list(conv.args[4]) != [1, 1]
+                or list(conv.args[5]) != [1, 1]
+            ):
+                continue
+            users = list(conv.users)
+            if len(users) == 1 and users[0].target is aten.relu.default:
+                res.conv[conv.name] = (1, None)
+                res.skip[users[0].name] = conv.name
+            elif len(users) == 3 and {u.target for u in users} == {  # noqa: PLR2004
+                aten.gt.Scalar,
+                aten.mul.Tensor,
+                aten.where.self,
+            }:
+                gt, mul, where = (
+                    next(u for u in users if u.target is t) for t in (aten.gt.Scalar, aten.mul.Tensor, aten.where.self)
+                )
+                view = mul.args[0]
+                pname = names.get(view.args[0].name) if getattr(view, "target", None) is aten.view.default else None
+                if (
+                    pname is None
+                    or gt.args[1] != 0
+                    or mul.args[1] is not conv
+                    or tuple(where.args) != (gt, conv, mul)
+                    or len(view.users) != 1
+                    or lifted[pname].numel() not in (1, wv.shape[0])
+                ):
+                    continue
+                key = f"{conv.name}__slope"
+                values[key] = mx.broadcast_to(self._const(pname, lifted[pname]).reshape(-1), (wv.shape[0],))
+                res.conv[conv.name] = (2, key)
+                res.skip.update({gt.name: conv.name, mul.name: conv.name, where.name: conv.name})
+        return res
 
     def _fold_batch_norms(self, nodes: list[Any], names: dict[str, Any], lifted: dict[str, torch.Tensor]) -> Any:
         """Fold eval BatchNorm nodes that follow a convolution with constant weights into that convolution."""
@@ -1191,8 +1333,9 @@ class GraphNet:
 
     def __call__(self, *tensors: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """Run on CPU tensors; returns float32 CPU tensors."""
-        global _KERNELS
+        global _KERNELS, _WINO
         _KERNELS = self.kernels
+        _WINO = self._wino
         key = tuple((tuple(t.shape), str(t.dtype)) for t in tensors)
         if key not in self._runs:
             self._runs[key] = self._build(tuple(tensors))
