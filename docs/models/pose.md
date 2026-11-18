@@ -479,7 +479,7 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/roboflow/rf-detr/blob/5b22dfc0940697ce1abdfa681a5f7392b3eddbfb/README.md#keypoints>
 - Training data: COCO 2017 (train, instance annotations), LVD-142M (DINOv2's curated web-image set, not released) (Author README: pretrained on COCO person keypoints; DINOv2-small backbone originates from LVD-142M pretraining. Full intermediate training provenance is not stated.)
 - Options: `score_threshold` = 0.5 (0.0 to 1.0)
-- Kernel libraries: `fastbb`
+- Kernel libraries: `rfdetr_input`, `fastbb`
 - Variants: `rf-detr-keypoint-preview`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -507,7 +507,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `rf-detr-keypoint-preview` | 0.07925 / 0.21301 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120` |
+| `rf-detr-keypoint-preview` | 0.07925 / 0.21301 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
 
 ### Limitations
 

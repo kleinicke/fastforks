@@ -174,7 +174,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - Weights licence: CC-BY-NC-4.0
 - Licence evidence: https://github.com/facebookresearch/co-tracker/blob/82e02e8029753ad4ef13cf06be7f4fc5facdda4d/LICENSE.md (CC BY-NC 4.0); https://github.com/facebookresearch/co-tracker/blob/82e02e8029753ad4ef13cf06be7f4fc5facdda4d/README.md#license; https://huggingface.co/facebook/cotracker3/blob/bf55ea50d4390e1820a267f131cd6587240fb2c5/README.md (license: cc-by-nc-4.0)
 - Training data: Upstream paper: trained on synthetic Kubric MOVi-F sequences, then fine-tuned by pseudo-labelling about 15k real internet videos with other trackers (not released). No dataset entry here yet.
-- Kernel libraries: `fvm_conv`
+- Kernel libraries: `fvm_conv`, `cotracker_corr`
 - Variants: `cotracker3-offline`, `cotracker3-online`
 - Not in this release (planned for 0.2.1): `cotracker3-online` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export)
 - Outputs: tracks, visibility
@@ -205,8 +205,8 @@ CPU, float32: max |diff| <= 6e-05 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `cotracker3-offline` | 0.00177 / 0.00952 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120` |
-| `cotracker3-online` | 0.00149 / 0.00738 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120` |
+| `cotracker3-offline` | 0.00177 / 0.00952 | RTX 5060 Ti, torch 2.14.1+cu130 | `cotracker_corr@c06c3b3f1cd6:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
+| `cotracker3-online` | 0.00149 / 0.00738 | RTX 5060 Ti, torch 2.14.1+cu130 | `cotracker_corr@c06c3b3f1cd6:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
 
 ### Limitations
 

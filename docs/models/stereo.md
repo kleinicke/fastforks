@@ -1643,7 +1643,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Licence evidence: <https://github.com/Junda24/MonSter-plusplus/blob/9167101af8fbe93c706707daa7a8181089c8b1b4/LICENSE#L34>
 - Training data: mix_all (Zero_shot.pth): 'all the datasets we collect over 2M image pairs' (README), not listed
 - Options: `cuda_graphs` = True (speed only)
-- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`
+- Kernel libraries: `monster_gwc`, `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`
 - Variants: `rt-monster-plusplus-mix-all`
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -1669,7 +1669,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `rt-monster-plusplus-mix-all` | 0.0032 / 0.01047 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120` |
+| `rt-monster-plusplus-mix-all` | 0.00062 / 0.00232 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `fastbb@7d058322634d:sm_120`, `igev@f075827d68c6:sm_120`, `monster_gwc@2548761802a0:sm_120` |
 
 ### Limitations
 
