@@ -122,7 +122,8 @@ class Backend:
         kernels: Kernel libraries used by `kernels`, as `name@build:target`. A library may hand single geometries it
             does not support to PyTorch; those are counted in `fastforks._core.kernels.fallbacks()`.
         checkpoint: The user's weight files of `load(weights=...)` as `path:size:mtime_ns`, in the variant's order;
-            empty for the variant's recorded weights. Results and embeddings of two checkpoints compare unequal.
+            empty for the variant's recorded weights. Omitted from repr to keep result displays compact. Results and
+            embeddings of two checkpoints compare unequal.
         library: The fastforks version that produced the result (provenance: not part of `==` or `repr`).
         weights: SHA-256 of the variant's recorded weight files, in load order; empty with `load(weights=...)`, whose
             files `checkpoint` names (provenance: not part of `==` or `repr`). Kernel versions are in `kernels`.
@@ -132,7 +133,7 @@ class Backend:
     device: str
     dtype: Dtype
     kernels: tuple[str, ...] = ()
-    checkpoint: tuple[str, ...] = ()
+    checkpoint: tuple[str, ...] = field(default=(), repr=False)
     library: str = field(default="", compare=False, repr=False)
     weights: tuple[str, ...] = field(default=(), compare=False, repr=False)
 
