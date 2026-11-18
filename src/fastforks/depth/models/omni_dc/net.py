@@ -545,6 +545,8 @@ class CGState:
     tolerance stop needs every image. `x` holds the iterate upstream returns once `done` is set (it stops changing).
     """
 
+    normal = staticmethod(normal_op)
+
     def __init__(self, d: torch.Tensor, b: torch.Tensor) -> None:
         """Build the layers."""
         self.d, self.b = d, b
@@ -578,7 +580,7 @@ class CGState:
         self.k += 1
         beta = self.rr / torch.where(self.rr_old == 0, 1e-8, self.rr_old)
         self.p.copy_(torch.where(self.k == 1, self.r, self.r + beta.view(s) * self.p))
-        ap = normal_op(self.p, self.d)
+        ap = self.normal(self.p, self.d)
         den = (self.p * ap).flatten(1).sum(1)
         alpha = (self.rr / torch.where(den == 0, 1e-8, den)).view(s)
         self.x.copy_(torch.where(self.done, self.x, self.x + alpha * self.p))
