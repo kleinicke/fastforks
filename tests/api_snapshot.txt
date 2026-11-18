@@ -968,6 +968,7 @@ option multiview.pi3.pixel_limit
 option multiview.resplat.long_side
 option multiview.resplat.refine
 option multiview.vggt.long_side
+option multiview.vggt.stream
 option multiview.vggt_omega.area_side aliases resolution
 option ocr.parseq.cuda_graphs
 option ocr.ppocrv5.box_threshold aliases text_det_box_thresh

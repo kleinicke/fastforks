@@ -549,8 +549,8 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Licence evidence: https://github.com/facebookresearch/vggt/blob/a288dd0/LICENSE.txt and https://huggingface.co/facebook/VGGT-1B (license: cc-by-nc-4.0)
 - Training data: Per the paper (arXiv 2503.11651): Co3Dv2, BlendMVS, DL3DV, MegaDepth, Kubric, WildRGB, ScanNet, HyperSim, Mapillary, Habitat, Replica, MVS-Synth, PointOdyssey, Virtual KITTI, Aria Synthetic Environments, Aria Digital Twin; DINOv2 initialisation
 - Licence note: The VGGT code licence allows commercial use, but the VGGT-1B weights are CC-BY-NC-4.0; Meta's separately licensed commercial checkpoint is not packaged.
-- Options: `long_side` = 518 (>= 14)
-- Kernel libraries: `fastbb`, `cudnn_hacc`
+- Options: `stream` = False (speed only), `long_side` = 518 (>= 14)
+- Kernel libraries: `vggt_rotary`, `fastbb`, `cudnn_hacc`
 - Variants: `vggt-1b`
 - Outputs: depth, confidence, world_points, intrinsics, cam_to_world, points_confidence (in `extras`); kind: `scale_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -577,7 +577,11 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `vggt-1b` | 0.00044 / 0.00183 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120` |
+| `vggt-1b` | 0.00044 / 0.00183 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120`, `vggt_rotary@41a0f01c71c3:sm_120` |
+
+### Limitations
+
+- CUDA stream=True keeps the alternating transformer blocks in pinned host RAM. The patch encoder, output heads and activations stay on the GPU. Export requires resident weights.
 
 </details>
 

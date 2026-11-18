@@ -151,6 +151,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `style_weights` | gfpgan |
 | `swiglu` | dinov3 |
 | `vggt_omega` | vggt_omega |
+| `vggt_rotary` | vggt |
 | `vol_norm` | lineart, nnfoundation, nninteractive, totalsegmentator |
 <!-- libraries:end -->
 

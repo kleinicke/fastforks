@@ -528,7 +528,7 @@ CPU, float32: max |diff| <= 0.0005 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `sam3` | 0.13385 / 0.76664 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `sam3_fpn@079e10910153:sm_120`, `sam3_tracker@e8c0241b36fa:sm_120` |
+| `sam3` | 0.13385 / 0.76664 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `sam3_fpn@41c390d9b837:sm_120`, `sam3_tracker@e8c0241b36fa:sm_120` |
 
 ### Limitations
 
