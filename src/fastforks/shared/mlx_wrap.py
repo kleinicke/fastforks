@@ -16,6 +16,8 @@ from typing import TYPE_CHECKING
 from fastforks.shared.mlx_graph import MlxModule
 
 if TYPE_CHECKING:
+    import torch
+
     from fastforks._core.runner import Context, Runner
 
 __all__ = ["port", "run_dtype"]
@@ -31,8 +33,12 @@ def run_dtype(ctx: Context) -> str:
     return _RUN_DTYPE.get() or ctx.dtype
 
 
-def port(portable: type[Runner], *, attrs: tuple[str, ...] = ("net",)) -> type[Runner]:
-    """The MLX runner of `portable`: same call, the module(s) named by `attrs` run on MLX in `ctx.dtype`."""
+def port(portable: type[Runner], *, attrs: tuple[str, ...] = ("net",), whole: bool = False) -> type[Runner]:
+    """The MLX runner of `portable`: same call, the module(s) named by `attrs` run on MLX in `ctx.dtype`.
+
+    `whole=True`: the runner's `module()` (the network with its pre- and post-processing, image in, image out) runs on
+    MLX as one graph and `__call__` returns `{"image": ...}` from it; for a runner whose forward is not `net(x)`.
+    """
 
     class Mlx(portable):  # ty: ignore[unsupported-base]
         __doc__ = f"Apple MLX: `{portable.__name__}` with its network run by the exported-graph translation."
@@ -44,8 +50,18 @@ def port(portable: type[Runner], *, attrs: tuple[str, ...] = ("net",)) -> type[R
                 super().__init__(dataclasses.replace(ctx, dtype="float32"))
             finally:
                 _RUN_DTYPE.reset(token)
+            kernels = ctx.mode == "kernels"
+            if whole:
+                self._whole = MlxModule(self.module(), ctx.dtype, kernels=kernels)
+                return
             for name in attrs:
-                setattr(self, name, MlxModule(getattr(self, name), ctx.dtype, kernels=ctx.mode == "kernels"))
+                setattr(self, name, MlxModule(getattr(self, name), ctx.dtype, kernels=kernels))
+
+        if whole:
+
+            def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+                """The module's output on MLX."""
+                return {"image": self._whole(image)}
 
     Mlx.__name__ = Mlx.__qualname__ = f"Mlx{portable.__name__}"
     return Mlx

@@ -27,6 +27,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, style_weights
 from fastforks.restoration._runner import Crop, Forward, Runner
+from fastforks.shared import mlx_wrap
 
 from .net import GFPGANv1Clean
 from .net.stylegan2_clean_arch import ModulatedConv2d
@@ -247,7 +248,7 @@ class Kernels(Portable):
         return {"image": (faces.float() + 1) / 2}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(Portable, whole=True)}
 
 
 def _build(size: int) -> GFPGANv1Clean:

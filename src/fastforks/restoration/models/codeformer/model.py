@@ -23,6 +23,7 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import InputError
 from fastforks._core.patch import override
 from fastforks.restoration._runner import Crop, Forward, Runner
+from fastforks.shared import mlx_wrap
 
 from .net import CodeFormer
 from .net.codeformer_arch import adaptive_instance_normalization
@@ -154,4 +155,4 @@ class Kernels(Runner):
         return {"image": (out.float() + 1) / 2}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(Portable, whole=True)}

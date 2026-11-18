@@ -23,6 +23,7 @@ from fastforks._core.patch import is_base, override
 from fastforks._core.preprocess import Crop, pad_widths
 from fastforks.kernels import cudnn_hacc
 from fastforks.restoration._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 
 from .net import FFCResNetGenerator
@@ -129,4 +130,4 @@ class Kernels(Portable):
             self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(Portable, whole=True)}

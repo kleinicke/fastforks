@@ -240,15 +240,11 @@ def _slice_scatter(
     n = x.shape[dim]
     start = 0 if start is None else max(0, start + n if start < 0 else start)
     end = n if end is None else min(n, end + n if end < 0 else end)
-    if step != 1:
-        msg = "slice_scatter with a step"
-        raise UnsupportedOp(msg)
     idx = [slice(None)] * x.ndim
-    idx[dim] = slice(None, start)
-    head = x[tuple(idx)]
-    idx[dim] = slice(end, None)
-    tail = x[tuple(idx)]
-    return mx.concatenate([head, src.astype(x.dtype), tail], axis=dim)
+    idx[dim] = slice(start, max(start, end), step)
+    y = mx.array(x)  # a new array: the assignment must not write through the input's graph node
+    y[tuple(idx)] = src.astype(x.dtype)
+    return y
 
 
 @_reg(aten.split.Tensor)
@@ -344,6 +340,37 @@ OPS[aten.mean.dim] = _mean
 OPS[aten.sum.dim_IntList] = lambda x, d=None, keep=False, **_: _wide(
     x, lambda y: mx.sum(y, axis=tuple(d) if d else None, keepdims=keep)
 )
+
+
+# FFTs (LaMa's Fourier units). aten's `normalization`: 0 none, 1 by_root_n (norm="ortho"), 2 by_n (inverse default).
+def _fft_scale(normalization: int, n: int) -> float:
+    return (1.0, n**-0.5, 1.0 / n)[normalization]
+
+
+@_reg(aten._fft_r2c.default)
+def _fft_r2c(x: mx.array, dim: Sequence[int], normalization: int, onesided: bool) -> mx.array:  # noqa: FBT001
+    axes = tuple(dim)
+    n = math.prod(x.shape[a] for a in axes)
+    y = mx.fft.rfftn(x.astype(mx.float32), axes=axes)
+    if not onesided:
+        msg = "aten._fft_r2c with onesided=False"
+        raise UnsupportedOp(msg)
+    return y * _fft_scale(normalization, n)
+
+
+@_reg(aten._fft_c2r.default)
+def _fft_c2r(x: mx.array, dim: Sequence[int], normalization: int, last_dim_size: int) -> mx.array:
+    axes = tuple(dim)
+    sizes = [x.shape[a] for a in axes]
+    sizes[-1] = last_dim_size
+    n = math.prod(sizes)
+    y = mx.fft.irfftn(x, s=sizes, axes=axes)  # normalised by 1/n
+    return y * (n * _fft_scale(normalization, n))
+
+
+OPS[aten.empty.memory_format] = lambda size, dtype=None, **_: mx.zeros(tuple(size), dtype=_dt(dtype) or mx.float32)
+OPS[aten.view_as_real.default] = lambda x: mx.stack([mx.real(x), mx.imag(x)], axis=-1)
+OPS[aten.view_as_complex.default] = lambda x: x[..., 0] + 1j * x[..., 1]
 
 
 @_reg(aten.linalg_vector_norm.default)
