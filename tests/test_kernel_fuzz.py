@@ -404,6 +404,12 @@ def test_vol_norm(dev, seed, record_property):
         wt, b = (_randn(g, c) * 0.5 + 1).to(dev).half(), (_randn(g, c) * 0.3).to(dev).half()
         ref = F.leaky_relu(F.instance_norm(x.float(), weight=wt.float(), bias=b.float(), eps=1e-5), 0.01)
         assert vol_norm.supported(x)
+        # Offset a contiguous bias to exercise unaligned vector reads as well as odd spatial sizes.
+        conv_bias = _randn(g, c + 1).to(dev).half()[1:]
+        slope = rng.choice((0.0, 0.01, 1.0))
+        explicit = vol_norm.norm_act_(x + conv_bias.view(1, -1, 1, 1, 1), wt, b, 1e-5, slope)
+        fused = vol_norm.norm_act_(x.clone(), wt, b, 1e-5, slope, conv_bias=conv_bias)
+        assert torch.equal(fused, explicit)
         got = vol_norm.norm_act_(x, wt, b, 1e-5, 0.01)
         _cmp(record_property, "vol_norm", got, ref, 5e-3, shape=[n, c, d, h, w])
 

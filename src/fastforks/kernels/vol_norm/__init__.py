@@ -15,8 +15,9 @@ from fastforks._core import kernels
 from fastforks._core.kernels import cubin_library
 
 # p: pointer, i: int32, l: int64, f: float32 (must match the extern "C" kernels in vol_norm.cu)
-SIGNATURES = {"in_stats_h": "ppii", "in_final_h": "pppppiiif", "in_apply_h": "ppliif"}
+SIGNATURES = {"in_stats_h": "ppiip", "in_final_h": "pppppiiifp", "in_apply_h": "ppliifp"}
 _ROWS = 256  # threads per stats block
+_VECTOR_BYTES = 16
 _V8 = 8
 load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
 
@@ -33,8 +34,23 @@ def supported(x: torch.Tensor) -> bool:
     )
 
 
-def norm_act_(x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor, eps: float, slope: float) -> torch.Tensor:
-    """`leaky_relu(instance_norm(x, weight, bias, eps), slope)` in place; `x` as `supported`, fp16 weight / bias."""
+def norm_act_(  # noqa: PLR0913 - two distinct bias vectors in the convolution and normalization
+    x: torch.Tensor,
+    weight: torch.Tensor,
+    bias: torch.Tensor,
+    eps: float,
+    slope: float,
+    *,
+    conv_bias: torch.Tensor | None = None,
+) -> torch.Tensor:
+    """Normalize and activate in place, optionally adding the convolution bias with fp16 rounding first."""
+    if conv_bias is not None:
+        if conv_bias.dtype != x.dtype or conv_bias.device != x.device or conv_bias.shape != (x.shape[1],):
+            msg = "Expected one convolution bias per channel on the activation device and dtype"
+            raise ValueError(msg)
+        conv_bias = conv_bias.contiguous()
+        if conv_bias.data_ptr() % _VECTOR_BYTES:
+            conv_bias = conv_bias.clone()
     n, c = x.shape[:2]
     s = x[0, 0].numel()
     lib = load(x.device)
@@ -43,12 +59,24 @@ def norm_act_(x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor, eps: fl
     rows = max(_ROWS // c8, 1)
     blocks = min(max(s // (rows * 64), 1), 1024)
     partial = torch.empty((n, blocks, c, 2), dtype=torch.float32, device=x.device)
-    lib.launch("in_stats_h", (blocks, n, 1), (c8, rows, 1), x, partial, s, c, smem=rows * c8 * 16 * 4)
+    lib.launch("in_stats_h", (blocks, n, 1), (c8, rows, 1), x, partial, s, c, conv_bias, smem=rows * c8 * 16 * 4)
     lib.launch(
-        "in_final_h", ((c + 31) // 32, n, 1), (32, 8, 1), x, partial, stats, weight, bias, blocks, s, c, float(eps)
+        "in_final_h",
+        ((c + 31) // 32, n, 1),
+        (32, 8, 1),
+        x,
+        partial,
+        stats,
+        weight,
+        bias,
+        blocks,
+        s,
+        c,
+        float(eps),
+        conv_bias,
     )
     total = n * s * c8
-    lib.launch("in_apply_h", *kernels.linear(total), x, stats, total, s, c, float(slope))
+    lib.launch("in_apply_h", *kernels.linear(total), x, stats, total, s, c, float(slope), conv_bias)
     return x
 
 

@@ -261,7 +261,30 @@ class Kernels(Portable):
         """Prepare the loaded descriptor for CUDA."""
         super().__init__(ctx)
         prepare(self.net.descriptor, ctx.device)
+        # These weights are consumed under autocast. Store them once in the inference dtype.
+        for network in (self.net.detector, self.net.matcher):
+            for layer in network.modules():
+                if isinstance(layer, (nn.Conv2d, nn.Linear)):
+                    layer.to(self.net.amp)
+        override(self.net.detector, _detector_logits)
         override(self.net, _sample_descriptor, "_descriptions")
+
+
+def _detector_logits(detector: Detector, image: torch.Tensor) -> torch.Tensor:
+    """Keep the multi-scale logits in float32 and resize the context in its next convolution's dtype."""
+    maps, sizes = detector.encoder(image)
+    features = list(maps)
+    del maps
+    logits = context = None
+    for i, scale in enumerate(detector.decoder.layers):
+        delta, context = detector.decoder(features.pop(), context=context, scale=scale)
+        logits = delta.float() if logits is None else logits.add_(delta)
+        if features:
+            size = sizes[-2 - i]
+            logits = F.interpolate(logits, size, mode="bicubic", align_corners=False)
+            context = F.interpolate(context, size, mode="bilinear", align_corners=False)
+    assert logits is not None  # noqa: S101 - each supported detector has a nonempty decoder
+    return logits
 
 
 def _sample_descriptor(net: Matcher, image: torch.Tensor, keypoints: torch.Tensor) -> torch.Tensor:

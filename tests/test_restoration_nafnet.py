@@ -91,7 +91,7 @@ def test_float16_finite_on_stress_inputs(model: str, mode: str) -> None:
 
 
 @pytest.mark.gpu
-@pytest.mark.parametrize(("n", "c", "h", "w"), [(2, 7, 3, 5), (1, 64, 1, 1), (1, 64, 13, 11)])
+@pytest.mark.parametrize(("n", "c", "h", "w"), [(2, 7, 3, 5), (1, 64, 1, 1), (1, 64, 13, 11), (2, 128, 7, 35)])
 def test_fused_depthwise_gate(n: int, c: int, h: int, w: int) -> None:
     from fastforks.kernels.nafnet_gate import depthwise_gate  # noqa: PLC0415
 
@@ -109,3 +109,18 @@ def test_fused_depthwise_gate(n: int, c: int, h: int, w: int) -> None:
     actual = depthwise_gate(x, weight.flatten(1).T.contiguous(), bias)
     torch.testing.assert_close(actual, a * b, atol=0.015625, rtol=0.001)
     assert actual.is_contiguous(memory_format=torch.channels_last)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("channels", [64, 128, 256, 512, 1024])
+def test_channel_norm(channels: int) -> None:
+    from fastforks.kernels.nafnet_gate import channel_norm  # noqa: PLC0415
+
+    # Non-square, more than one batch, including an odd offset into packed storage.
+    shape = (2, 9, 13, channels)
+    storage = torch.randn(2 * 9 * 13 * channels + 1, device="cuda", dtype=torch.float16)
+    x = storage[1:].view(shape).permute(0, 3, 1, 2)
+    for inp in (x, x * 0.002 + 0.03, torch.full_like(x, 0.03)):
+        expected = torch.nn.functional.layer_norm(inp.permute(0, 2, 3, 1), (channels,), eps=1e-12)
+        actual = channel_norm(inp, 1e-12)
+        torch.testing.assert_close(actual.permute(0, 2, 3, 1), expected, atol=0.002, rtol=0.002)
