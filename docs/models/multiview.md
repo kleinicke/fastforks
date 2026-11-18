@@ -264,7 +264,6 @@ Commercial use: **no** (code: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (nonc
 - Options: `long_side` = 640 (>= 64), `refinement_steps` = 1 (>= 0)
 - Kernel libraries: `fastbb`, `igev`, `cutlass_conv`, `cudnn_hacc`, `mvsanywhere`, `dpt_fused`
 - Variants: `mvsanywhere`
-- Not in this release (planned for 0.2.1): `mvsanywhere` TensorRT export: the previous default FP16 engine produced NaN depth and sky maps; the corrected export is validated in FP32
 - Outputs: depth, mask, sky (in `extras`), depth_range (in `extras`); kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mvsanywhere` 3000x4000 (3.0 GiB peak allocated, 4.2 reserved)
@@ -295,7 +294,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
-- The eight-view FP32 TensorRT engine at 448 x 672 took 149.25 ms on a calibrated DTU input versus 194.19 ms portable FP32. The engine is built from export_onnx in a fresh process. The public TensorRT exporter remains gated while FP16 is validated.
+- At eight views and 448 x 672, FP16 TensorRT took 75.91 ms on a calibrated DTU input versus 94.10 ms portable. Across five scans, mean depth MAE was 7.68 mm TensorRT and 7.69 mm portable. The FP32 engine remains available through a separate ONNX export and build.
 
 </details>
 

@@ -58,7 +58,7 @@ They are not advertised in the docs. The model pages carry a "Not in this releas
 | `gmflow-scale2-things` export_tensorrt | raises 'planned for 0.2.1' (was: fails) | the TensorRT 10 engine build fails (Myelin error on the attention graph) | retry on a newer TensorRT 10 release; else split the attention block out of Myelin (fp32 island or plugin) | `flow/models/gmflow/card.toml` planned.tensorrt |
 | `mlsd` export_tensorrt | raises 'planned for 0.2.1' | TensorRT 11 builds the graph; the isolated CNN yields line-map IoU of 0.45–0.66 against portable FP32 on five COCO images | locate the first differing CNN layer; isolated decoding and rasterization agree for the same inputs | `edges/models/mlsd/card.toml` planned.tensorrt |
 | `waft-stereo-b` export_tensorrt | raises 'planned for 0.2.1' | the fp16 engine outputs all NaN. At 994x1482 the fp32 builder skips a tactic requesting 6.6 GiB under a 6 GiB cap | validate a smaller strongly typed fp32 engine | `stereo/models/waft_stereo/card.toml` planned.tensorrt |
-| `mvsanywhere` export_tensorrt | raises 'planned for 0.2.1' | The previous FP16 engine produces NaN depth and sky maps. The corrected FP32 export passed five DTU scans | validate the corrected default FP16 engine | `multiview/models/mvsanywhere/card.toml` planned.tensorrt |
+
 ## Not gated: fails with a clear error, or works with limits
 
 | item | symptom | cause | fix idea | where |
