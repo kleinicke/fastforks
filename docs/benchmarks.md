@@ -2381,6 +2381,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | isnet | 1080x1920 | 21.0 ms | 13.1 ms | 6.70 ms | 12.1 ms | 33.8 s | 34.4 s | 512 / 562 | 350 / 400 | 487 / 522 | 404 / 436 |
 | isnet-general-use | 1080x1920 | 21.0 ms | 13.1 ms | 6.66 ms | 12.1 ms | 33.9 s | 32.3 s | 512 / 562 | 350 / 400 | 487 / 522 | 404 / 436 |
 | matanyone | 1080x1920 | 1214 ms | 635 ms | fails: BackendUnavailableError: matanyone@1 (portable) has no expor | – | 35.9 s | – | 2734 / 3448 | 1363 / 3452 | – | – |
+| matanyone | 288x512 | – | – | 1476 ms, fp32 engine (frame and key encoder with eager video memory and alpha decoder, 100 frames) | – | – | 15.8 s | – | – | – | 474 / 542 |
 | rmbg-2.0 | 1080x1920 | 132 ms | 110 ms | 88.1 ms | 121 ms | 82.9 s | 219 s | 1660 / 1908 | 1874 / 1932 | 1674 / 1936 | 1723 / 1784 |
 | u2net | 1080x1920 | 9.77 ms | 9.09 ms | 3.07 ms | 5.18 ms | – | 36.0 s | 240 / 278 | 221 / 258 | 161 / 236 | 335 / 390 |
 | u2net-human-seg | 1080x1920 | 10.0 ms | 6.18 ms | 3.08 ms | 5.14 ms | – | 34.7 s | 240 / 278 | 193 / 234 | 161 / 236 | 335 / 390 |
@@ -2613,6 +2614,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | gmflow-scale2-regrefine6-mixdata | 1080x1920 | 1675 ms | 1116 ms | planned for 0.2.1 | – | 58.9 s | – | 6080 / 6250 | 10875 / 10972 | – | – |
 | gmflow-scale2-regrefine6-mixdata | 384x1248 | – | – | 349 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | – | – | – | 1660 / 2526 |
 | gmflow-scale2-regrefine6-sintelft | 1080x1920 | 1674 ms | 1116 ms | planned for 0.2.1 | – | 58.5 s | – | 6080 / 6250 | 10875 / 10972 | – | – |
+| gmflow-scale2-regrefine6-sintelft | 384x1248 | – | – | 350 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 14.5 s | – | – | – | 1660 / 2526 |
 | gmflow-scale2-regrefine6-things | 1080x1920 | 1665 ms | 1116 ms | planned for 0.2.1 | – | 58.2 s | – | 6080 / 6230 | 10875 / 10972 | – | – |
 | gmflow-scale2-sintel | 1080x1920 | 1139 ms | 765 ms | planned for 0.2.1 | – | 46.6 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
 | gmflow-scale2-things | 1080x1920 | 1139 ms | 765 ms | planned for 0.2.1 | – | 46.7 s | – | 6017 / 6224 | 10865 / 10904 | – | – |

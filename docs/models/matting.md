@@ -262,6 +262,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `matanyone` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1220<br>1214<br>–<br>635<br>fails: BackendUnavailableError: matanyone@1 (portable) has no expor | 2978 / 3208<br>2734 / 3448<br>–<br>1363 / 3452<br>– |
+| `matanyone` | 288x512 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>1476 (frame and key encoder with eager video memory and alpha decoder, 100 frames) | –<br>–<br>–<br>474 / 542 |
 
 <details><summary>Details</summary>
 
@@ -277,6 +278,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `matanyone` 3000x4000 (14.5 GiB peak allocated, 15.1 reserved)
 - `matanyone` 1080x1920, first call: portable + torch.compile 36 s (cold Inductor cache).
+- `matanyone` 288x512, first call: TensorRT fp32 16 s (ONNX + engine).
 - `matanyone` original 1080x1920: the authors' mixed-precision option (float16); pq-yang/MatAnyone@e5ddc534c1ff process_video loop on frames in memory, cv2 mask closing
 - `matanyone` load / first call: original 3.39 s / 2.37 s, portable 0.4 s / 1.867 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -285,11 +287,11 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 Video matting, YouTubeMatte (MatAnyone's benchmark): each clip at 512 x 288 with the authors' first-frame mask, the authors' evaluation settings (1 warm-up step, mask closing 4 px); 8-bit alpha against the ground truth: mean absolute and squared difference and the temporal coherence error dtSSD (lower is better), averaged over frames, then clips. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | portable + torch.compile | note |
-|---|---|---|---|---|---|---|---|
-| `matanyone` | YouTubeMatte 512 x 288, every 2nd clip (32 x 100 frames), first-frame mask, MAD x 1000 / MSE x 1000 / dtSSD x 100 | 2.62 / 0.99 / 1.65 | 2.64 / 1.00 / 1.65 | 2.64 / 1.00 / 1.65 | 2.62 / 0.99 / 1.65 | 2.64 / 1.00 / 1.65 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `matanyone` | YouTubeMatte 512 x 288, every 2nd clip (32 x 100 frames), first-frame mask, MAD x 1000 / MSE x 1000 / dtSSD x 100 | 2.62 / 0.99 / 1.65 | 2.64 / 1.00 / 1.65 | 2.64 / 1.00 / 1.65 | 2.62 / 0.99 / 1.65 | 2.64 / 1.00 / 1.65 | 2.62 / 0.99 / 1.64 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d61a877f, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d61a877f, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d9caeca2, 2026-11-18.
 
 ### Parity
 
