@@ -35,3 +35,22 @@ def test_harmonic_projection_matches_matrix_product(channels: int, dtype: torch.
     inverse = torch.randn(64, channels, generator=gen, dtype=dtype)
     expected = harmonics.transpose(1, 2) @ inverse
     torch.testing.assert_close(project_harmonics(harmonics, inverse), expected)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("views", [2, 3])
+def test_fused_plane_sweep(views: int) -> None:
+    from fastforks.multiview.models.mvsplat.model import correlation  # noqa: PLC0415
+
+    torch.manual_seed(25)
+    feat = torch.randn(views, 37, 9, 13, device="cuda", dtype=torch.float16)
+    intrinsics = torch.eye(3, device="cuda").repeat(views, 1, 1)
+    intrinsics[:, 0, 0] = 10.5
+    intrinsics[:, 1, 1] = 8.75
+    camera = torch.eye(4, device="cuda").repeat(views, 1, 1)
+    camera[:, 0, 3] = torch.arange(views, device="cuda") * 0.17
+    disp = torch.linspace(0.05, 2.3, 15, device="cuda").expand(views, -1)
+    with torch.autocast("cuda", dtype=torch.float16):
+        expected = correlation(feat, intrinsics, camera, disp, dtype=torch.float16)
+        actual = correlation(feat, intrinsics, camera, disp, dtype=torch.float16, fused=True)
+    torch.testing.assert_close(actual, expected, rtol=2e-5, atol=5e-6)

@@ -37,6 +37,7 @@ from torch import nn
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks._core.sampling import grid_sample
+from fastforks.kernels import mvsplat_corr
 from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, f64, invert, project_harmonics
 from fastforks.shared.group_norm import fast_group_norms
@@ -144,13 +145,14 @@ def _poses(c2w: torch.Tensor) -> list[torch.Tensor]:
     return [inv.roll(-i, 0) @ c2w for i in range(1, c2w.shape[0])]
 
 
-def correlation(
+def correlation(  # noqa: PLR0913 - camera geometry and execution precision
     feat: torch.Tensor,
     k: torch.Tensor,
     c2w: torch.Tensor,
     disp: torch.Tensor,
     *,
     dtype: torch.dtype,
+    fused: bool = False,
 ) -> torch.Tensor:
     """Upstream's plane-sweep cost volume, averaged over all other views.
 
@@ -159,7 +161,8 @@ def correlation(
         k: `[V, 3, 3]` intrinsics in feature pixels (upstream: normalised intrinsics times `w`, `h`).
         c2w: `[V, 4, 4]` camera-to-world.
         disp: `[V, D]` inverse-depth candidates.
-        dtype: dtype of the warped features and products (the sums accumulate in float32).
+        dtype: dtype of the projected grid and input features.
+        fused: sample and accumulate in one CUDA kernel, using the CUDA autocast precision of grid_sample.
 
     Returns:
         `[V, D, h, w]` mean correlation (dot product / sqrt(C)) of every view's features with each other view's
@@ -173,15 +176,22 @@ def correlation(
     grid = torch.stack((xs, ys, torch.ones_like(xs)), 0).float().view(1, 3, h * w)
     rays = invert(k.float()) @ grid  # [V, 3, hw]
     depth = (1.0 / disp.float()).view(v, 1, d, 1)
-    out = feat.new_zeros(v, d, h, w, dtype=torch.float32)
+    if fused:
+        feat = feat.contiguous(memory_format=torch.channels_last)
+        out = feat.new_empty(v, d, h, w, dtype=torch.float32)
+    else:
+        out = feat.new_zeros(v, d, h, w, dtype=torch.float32)
     poses = _poses(c2w.float())
     for i, pose in enumerate(poses, 1):
-        other = feat.roll(-i, 0)  # view j against view (j + i) % V
         pts = (pose[:, :3, :3] @ rays).unsqueeze(2) * depth + pose[:, :3, 3:, None]  # [V, 3, D, hw]
         pix = k.float() @ pts.view(v, 3, -1)
         pix = pix.view(v, 3, d, h * w)
         uv = pix[:, :2] / pix[:, 2:].clamp(min=1e-3)
         g = torch.stack((2 * uv[:, 0] / (w - 1) - 1, 2 * uv[:, 1] / (h - 1) - 1), -1)  # [V, D, hw, 2]
+        if fused:
+            mvsplat_corr.accumulate(feat, g.to(dtype), out, i)
+            continue
+        other = feat.roll(-i, 0)  # view j against view (j + i) % V
         for j in range(0, d, DEPTH_CHUNK):
             gj = g[:, j : j + DEPTH_CHUNK].reshape(v, -1, w, 2).to(feat.dtype)
             warped = grid_sample(other, gj, mode="bilinear", padding_mode="zeros", align_corners=True)
@@ -197,6 +207,7 @@ class Net(nn.Module):
         super().__init__()
         self.backbone = Backbone()
         self.depth_predictor = DepthPredictor()
+        self.fused_correlation = False
 
     def forward(
         self, images: torch.Tensor, k_norm: torch.Tensor, c2w: torch.Tensor, near: torch.Tensor, far: torch.Tensor
@@ -227,7 +238,9 @@ class Net(nn.Module):
         lo, hi = 1.0 / far.float(), 1.0 / near.float()
         disp = lo[:, None] + torch.linspace(0.0, 1.0, CANDIDATES, device=feat.device)[None] * (hi - lo)[:, None]
         head: Any = p.depth_head_lowres[0]
-        corr = torch.cat((correlation(feat, k, c2w, disp, dtype=head.weight.dtype).to(feat.dtype), feat), 1)
+        costs = correlation(feat, k, c2w, disp, dtype=head.weight.dtype, fused=self.fused_correlation)
+        corr = torch.cat((costs.to(feat.dtype), feat), 1)
+        del costs
         corr = p.corr_refine_net(corr) + p.regressor_residual(corr)
         pdf = F.softmax(p.depth_head_lowres(corr).float(), dim=1)
         coarse = (disp[..., None, None] * pdf).sum(1, keepdim=True)
@@ -488,6 +501,7 @@ class Kernels(_Base):
         from fastforks.kernels import cudnn_hacc  # noqa: PLC0415 - kernels only
 
         cudnn_hacc.load(ctx.device)
+        self.net.fused_correlation = True
         if _hacc_convs(self.net) == 0:
             msg = "MVSplat kernels: no conv routed through cudnn_hacc"
             raise RuntimeError(msg)
