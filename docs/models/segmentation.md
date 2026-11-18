@@ -282,7 +282,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mask2former-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 244<br>145<br>103<br>60.4<br>fails: Inductor: Triton kernel does not compile (torch bug)<br>55.6 | 2966 / 3660<br>3572 / 3878<br>1164 / 1400<br>1164 / 1400<br>–<br>3051 / 3090 |
+| `mask2former-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 244<br>145<br>103<br>60.4<br>94.2<br>55.6 | 2966 / 3660<br>3572 / 3878<br>1164 / 1400<br>1164 / 1400<br>1485 / 1514<br>3051 / 3090 |
 
 <details><summary>Details</summary>
 
@@ -296,7 +296,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Outputs: logits; label_set: `ade20k-150`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mask2former-swinl-ade20k` 3000x4000 (14.1 GiB peak allocated, 15.1 reserved)
-- `mask2former-swinl-ade20k` 1024x2048, first call: TensorRT fp16 129 s (ONNX + engine).
+- `mask2former-swinl-ade20k` 1024x2048, first call: portable + torch.compile 101 s (cold Inductor cache), TensorRT fp16 129 s (ONNX + engine).
 - `mask2former-swinl-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `mask2former-swinl-ade20k` load / first call: original 4.86 s / 0.763 s (512x512), portable 3.03 s / 0.127 s, kernels 3.17† s / 0.069† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -304,13 +304,14 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 ### Measured
 
-Each image at its own size, argmax of the logits. Original = the original code named under Details, same checkpoint and protocol.
+Each image at its own size, argmax of the logits. Every 40th ADE20K validation image. Resize image inputs and nearest-neighbor resample annotations at 1024 x 2048. Score both modes with the same labels and ignore mask. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `mask2former-swinl-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 53.55 / 85.10 | 53.63 / 85.10 | 53.68 / 85.12 | 53.59 / 85.13 | 53.68 / 85.10 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | note |
+|---|---|---|---|---|---|---|---|---|
+| `mask2former-swinl-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 53.55 / 85.10 | 53.63 / 85.10 | 53.68 / 85.12 | 53.59 / 85.13 | 53.68 / 85.10 |  |  |
+| `mask2former-swinl-ade20k` | ADE20K val (50 images), fixed 1024 x 2048, mIoU / aAcc % |  |  | 47.66 / 87.27 |  |  | 47.67 / 87.29 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8 / ffe77d85, 2026-11-06 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ffe77d85, 2026-11-18.
 
 ### Parity
 
@@ -332,7 +333,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `oneformer-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 307<br>205<br>139<br>100<br>fails: Inductor: Triton kernel does not compile (torch bug)<br>83.3 | 6853 / 7808<br>7395 / 7792<br>2054 / 2476<br>2054 / 2476<br>–<br>4524 / 4576 |
+| `oneformer-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 307<br>205<br>139<br>100<br>182<br>83.3 | 6853 / 7808<br>7395 / 7792<br>2054 / 2476<br>2054 / 2476<br>2372 / 2426<br>4524 / 4576 |
 
 <details><summary>Details</summary>
 
@@ -346,7 +347,7 @@ Commercial use: yes.
 - Outputs: logits; label_set: `ade20k-150`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `oneformer-swinl-ade20k` 1988x2880 (8.4 GiB peak allocated, 14.9 reserved)
-- `oneformer-swinl-ade20k` 1024x2048, first call: TensorRT fp16 140 s (ONNX + engine).
+- `oneformer-swinl-ade20k` 1024x2048, first call: portable + torch.compile 86 s (cold Inductor cache), TensorRT fp16 140 s (ONNX + engine).
 - `oneformer-swinl-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
 - `oneformer-swinl-ade20k` load / first call: original 5.08 s / 0.805 s (512x512), portable 4.1 s / 0.147† s, kernels 3.27† s / 0.109† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -354,13 +355,14 @@ Commercial use: yes.
 
 ### Measured
 
-Each image at its own size, argmax of the logits. Original = the original code named under Details, same checkpoint and protocol.
+Each image at its own size, argmax of the logits. Every 40th ADE20K validation image. Resize image inputs and nearest-neighbor resample annotations at 1024 x 2048. Score both modes with the same labels and ignore mask. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `oneformer-swinl-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 54.49 / 85.06 | 54.26 / 85.05 | 54.37 / 85.05 | 54.46 / 85.05 | 54.38 / 85.14 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | note |
+|---|---|---|---|---|---|---|---|---|
+| `oneformer-swinl-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 54.49 / 85.06 | 54.26 / 85.05 | 54.37 / 85.05 | 54.46 / 85.05 | 54.38 / 85.14 |  |  |
+| `oneformer-swinl-ade20k` | ADE20K val (50 images), fixed 1024 x 2048, mIoU / aAcc % |  |  | 50.54 / 88.27 |  |  | 50.11 / 88.25 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8 / ffe77d85, 2026-11-06 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ffe77d85, 2026-11-18.
 
 ### Parity
 

@@ -129,12 +129,12 @@ Commercial use: yes.
 
 DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the output rounded to uint8, on RGB in [0, 1], averaged over the triplets for the 180-triplet benchmark. The fixed 1080p validation resizes the first three frames of each DAVIS video with bilinear interpolation and measures RGB PSNR before rounding the predicted middle frame. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | TensorRT | note |
-|---|---|---|---|---|---|---|---|
-| `film` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 27.63 / 0.8105 | 27.46 / 0.8092 | 27.63 / 0.8105 | 27.63 / 0.8104 |  |  |
-| `film` | DAVIS 2017, the first triplet per video resized to 1080p (90), PSNR |  |  | 28.71 / – |  | 28.71 / – |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `film` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 27.63 / 0.8105 | 27.46 / 0.8092 | 27.63 / 0.8105 | 27.63 / 0.8105 | 27.63 / 0.8104 |  |  |
+| `film` | DAVIS 2017, the first triplet per video resized to 1080p (90), PSNR |  |  | 28.71 / – |  |  | 28.71 / – |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d199e94c / e3abc519, 2026-11-14 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d199e94c, 2026-11-14; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e3abc519, 2026-11-17.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d199e94c / e3abc519, 2026-11-14 to 2026-11-17; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks dc38c37c, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d199e94c, 2026-11-14; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e3abc519, 2026-11-17.
 
 ### Parity
 

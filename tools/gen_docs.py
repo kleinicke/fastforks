@@ -56,6 +56,7 @@ _DATASETS = {
     },
     "segmentation": {
         "ade20k-val": "ADE20K val, every 4th image, mIoU / aAcc %",
+        "ade20k-val-every40-fixed-1024x2048": "ADE20K val (50 images), fixed 1024 x 2048, mIoU / aAcc %",
         "coco-val2017-persons-every10": "COCO val2017 persons, every 10th image, person IoU %",
         "atr-test-shard-200": "ATR mirror test split (200 images), mIoU / aAcc %",
         "lapa-test-common-face-parts": "LaPa test (2,000 images), common face parts, mIoU / aAcc %",
@@ -303,6 +304,8 @@ _PROTOCOL = {
     ("segmentation", "ade20k-val"): "Each image at its own size, argmax of the logits. ",
     ("segmentation", "atr-test-shard-200"): "The 200-image ckotait/ATRDataset test split. Scores use one pixel "
     "confusion matrix across the split with 18 classes and ignore label 255. ",
+    ("segmentation", "ade20k-val-every40-fixed-1024x2048"): "Every 40th ADE20K validation image. Resize image inputs "
+    "and nearest-neighbor resample annotations at 1024 x 2048. Score both modes with the same labels and ignore mask. ",
     ("segmentation", "lapa-test-common-face-parts"): "Scores use one pixel confusion matrix across the split. "
     "Left and right eyes share one class, and left and right brows share one class. Labels outside the eight "
     "shared foreground classes count as background. ",

@@ -34,6 +34,7 @@ import torch.nn.functional as F
 from fastforks._core.errors import BackendUnavailableError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.kernels import note_fallback
+from fastforks._core.model import eager_in_compile
 from fastforks._core.patch import base_type, override
 from fastforks.kernels import fvm_seg
 
@@ -335,6 +336,24 @@ def _even(m: _Hf, what: str, n: int) -> None:
         raise BackendUnavailableError(msg)
 
 
+def _upstream_sine_position_embedding(
+    self: _Hf, shape: torch.Size, device: torch.device | str, dtype: torch.dtype, mask: torch.Tensor | None = None
+) -> torch.Tensor:
+    return base_type(self).forward(self, shape, device, dtype, mask)
+
+
+_eager_sine_position_embedding = eager_in_compile(_upstream_sine_position_embedding)
+
+
+def _sine_position_embedding(
+    self: _Hf, shape: torch.Size, device: torch.device | str, dtype: torch.dtype, mask: torch.Tensor | None = None
+) -> torch.Tensor:
+    """Keep the upstream half-precision floor division out of Inductor's Triton lowering."""
+    if dtype == torch.float16 and not torch.compiler.is_exporting():
+        return _eager_sine_position_embedding(self, shape, device, dtype, mask)
+    return _upstream_sine_position_embedding(self, shape, device, dtype, mask)
+
+
 def _patch_backbone_and_decoder(model: _Hf, *, kernels: bool) -> None:
     for m in model.modules():
         if type(m).__name__ == "SwinLayer":
@@ -355,6 +374,8 @@ def _patch_backbone_and_decoder(model: _Hf, *, kernels: bool) -> None:
                 _even(m, "head dim", int(m.d_model) // int(m.n_heads))
             torch_fn = getattr(sys.modules[base_type(m).__module__], "multi_scale_deformable_attention", None)
             _patch(m, _msda, ff_kernels=kernels, ff_msda_torch=torch_fn)  # the library's own pure-torch kernel
+        elif not kernels and type(m).__name__ in {"Mask2FormerSinePositionEmbedding", "OneFormerSinePositionEmbedding"}:
+            _patch(m, _sine_position_embedding)
 
 
 def _patch_oneformer(model: _Hf, dtype: torch.dtype) -> None:
