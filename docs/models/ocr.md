@@ -111,9 +111,9 @@ Commercial use: yes.
 
 The 3,000 official cropped test words, with no lexicon. Exact accuracy and normalized edit similarity compare lowercase ASCII letters and digits. Similarity is one minus edit distance divided by the longer word's length, averaged over the crops. For a model that also detects text, this benchmark runs only its recognition network on the supplied word crop. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | portable fp32 | note |
-|---|---|---|---|
-| `ppocrv5-server` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 94.80 / 98.26 |  |
+| variant | dataset | original fp32 | portable fp32 | note |
+|---|---|---|---|---|
+| `ppocrv5-server` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 94.80 / 98.26 | 94.80 / 98.26 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
 

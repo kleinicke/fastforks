@@ -692,7 +692,7 @@ Two disjoint seeded subsets of the val folders; each image shorter side 256 (bic
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
-| `pe-core-t16-384` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) |  |  |  | 33.34 |  |  |
+| `pe-core-t16-384` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 33.34 |  |  | 33.34 |  |  |
 | `pe-core-s16-384` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 45.56 | 45.54 | 45.48 |  | 45.38 |  |
 | `pe-core-b16-224` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 58.54 | 58.56 | 58.54 |  | 58.50 |  |
 | `pe-core-l14-336` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 65.98 | 66.06 | 65.96 |  | 66.28 |  |
