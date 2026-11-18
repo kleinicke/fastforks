@@ -112,7 +112,7 @@ Commercial use: yes.
 - Options: `max_keypoints` = 2048 (>= 1), `long_side` = 1024 (>= 0)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `aliked-lightglue`, `disk-lightglue`
-- Not in this release (planned for 0.2.1): `aliked-lightglue` ONNX / TensorRT export: torch.export stops at a data-dependent branch (masks.sum() == 0); `disk-lightglue` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export)
+- Not in this release (planned for 0.2.1): `aliked-lightglue` ONNX / TensorRT export: torch.export stops at a data-dependent branch (masks.sum() == 0); `disk-lightglue` ONNX / TensorRT export: torch.export fails on the variable keypoint counts
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `aliked-lightglue` 3000x4000 (1.5 GiB peak allocated, 2.0 reserved); `disk-lightglue` 3000x4000 (2.2 GiB peak allocated, 2.9 reserved)
