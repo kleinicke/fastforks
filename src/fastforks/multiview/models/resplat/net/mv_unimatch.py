@@ -11,7 +11,7 @@ from fastforks.multiview.models.depthsplat.net.mv_transformer import (
     MultiViewFeatureTransformer,
     batch_features_camera_parameters,
 )
-from fastforks.multiview.models.depthsplat.net.matching import warp_with_pose_depth_candidates
+from fastforks.multiview.models.depthsplat.net.matching import reference_cost_volume
 from fastforks.multiview.models.depthsplat.net.utils import mv_feature_add_position
 from fastforks.multiview.models.depthsplat.net.dpt_head import DPTHead  # fastforks: upstream's copy adds latent options, unused here (defaults)
 from fastforks.multiview.models.depthsplat.net.ldm_unet.unet import UNetModel, AttentionBlock
@@ -249,6 +249,8 @@ class MultiViewUniMatch(nn.Module):
 
         return features
 
+    cost_volume = staticmethod(reference_cost_volume)
+
     def forward(
         self,
         images,
@@ -457,7 +459,7 @@ class MultiViewUniMatch(nn.Module):
                 nn_matrix=nn_matrix,
             )
 
-            b_new, _, c, h, w = tgt_features.size()
+            h, w = tgt_features.shape[-2:]
 
             # relative pose
             # extrinsics: c2w
@@ -519,48 +521,13 @@ class MultiViewUniMatch(nn.Module):
                     depth_range_max - depth_range_min
                 )  # [BV, D, H, W]
 
-            if scale_idx == 0:
-                # [BV*(V-1), D, H, W]
-                depth_candidates_curr = (
-                    depth_candidates.unsqueeze(1)
-                    .repeat(1, tgt_features.size(1), 1, h, w)
-                    .view(-1, num_depth_candidates, h, w)
-                )
-            else:
-                depth_candidates_curr = (
-                    depth_candidates.unsqueeze(1)
-                    .repeat(1, tgt_features.size(1), 1, 1, 1)
-                    .view(-1, num_depth_candidates, h, w)
-                )
-
-            intrinsics_input = torch.stack(intrinsics_curr, dim=1).view(
-                -1, 3, 3
-            )  # [BV, 3, 3]
-            intrinsics_input = intrinsics_input.unsqueeze(1).repeat(
-                1, tgt_features.size(1), 1, 1
-            )  # [BV, V-1, 3, 3]
-
-            ref_features = ref_features.float()
-            tgt_features = tgt_features.float()
-            depth_candidates_curr = depth_candidates_curr.float()
-
-            warped_tgt_features = warp_with_pose_depth_candidates(
-                tgt_features.flatten(0, 1),  # fastforks: einops.rearrange "b v ... -> (b v) ..."
-                intrinsics_input.flatten(0, 1),
-                pose_curr.flatten(0, 1),
-                torch.exp(depth_candidates_curr) if self.sample_log_depth else 1.0 / depth_candidates_curr,  # convert inverse/log depth to depth
-                grid_sample_disable_cudnn=self.grid_sample_disable_cudnn,
-            )  # [BV*(V-1), C, D, H, W]
-
-            # ref: [BV, C, H, W]
-            # warped: [BV*(V-1), C, D, H, W] -> [BV, V-1, C, D, H, W]
-            warped_tgt_features = warped_tgt_features.unflatten(0, (b_new, tgt_features.size(1)))  # fastforks: einops.rearrange "(b v) ... -> b v ..."
-            # [BV, V-1, D, H, W] -> [BV, D, H, W]
-            # average cross other views
-            cost_volume = (
-                (ref_features.unsqueeze(-3).unsqueeze(1) * warped_tgt_features).sum(2)
-                / (c**0.5)
-            ).mean(1)
+            # fastforks: the shared plane sweep consumes physical depths and the original per-reference neighbour order.
+            intrinsics_input = torch.stack(intrinsics_curr, dim=1).view(-1, 3, 3)
+            candidates = depth_candidates.float()
+            physical_depth = torch.exp(candidates) if self.sample_log_depth else 1.0 / candidates
+            cost_volume = self.cost_volume(
+                ref_features.float(), tgt_features.float(), intrinsics_input, pose_curr, physical_depth, self.grid_sample_disable_cudnn
+            )
 
             # regressor
             features_cnn = features_list_cnn[scale_idx]  # [BV, C, H, W]
@@ -586,7 +553,7 @@ class MultiViewUniMatch(nn.Module):
 
             if scale_idx == 0:
                 # [BV, D, H, W]
-                depth_candidates = depth_candidates.repeat(1, 1, h, w)
+                depth_candidates = depth_candidates.expand(-1, -1, h, w)  # fastforks: spatially constant at this scale
             depth = (match_prob * depth_candidates).sum(
                 dim=1, keepdim=True
             )  # [BV, 1, H, W]

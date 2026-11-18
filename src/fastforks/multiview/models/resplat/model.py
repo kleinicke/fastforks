@@ -34,8 +34,12 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.patch import override
+from fastforks.kernels import depthsplat_corr
 from fastforks.multiview._runner import Forward, Runner, f64, invert
 from fastforks.multiview.models.depthsplat.model import (
+    _chunked_cost_volume,
+    _fused_cost_volume,
     _hacc_convs,
     matrix_quaternion,
     normalized_intrinsics,
@@ -489,6 +493,10 @@ class _Base(Runner):
 class Portable(_Base):
     """Plain PyTorch: float32 = upstream modules; float16 (CUDA) = fp16 weights under autocast."""
 
+    def __init__(self, ctx: Context) -> None:  # noqa: D107
+        super().__init__(ctx)
+        override(self.net.depth_predictor, _chunked_cost_volume, "cost_volume")
+
     def module(self) -> torch.nn.Module:
         """The network with its input handling: the runner's inputs -> the maps and Gaussians of `__call__`."""
         return Forward(self.net, lambda _net, *inputs: self.forward(*inputs))
@@ -508,6 +516,8 @@ class Kernels(_Base):
         for m in self.net.modules():
             if isinstance(m, PlainPointTransformer):
                 m.knn = functools.partial(gsraster.knn, mod)  # ty: ignore[invalid-assignment]
+        depthsplat_corr.load(ctx.device)
+        override(self.net.depth_predictor, _fused_cost_volume, "cost_volume")
         use_fast_vit(self.net.depth_predictor.pretrained)
         if _hacc_convs(self.net) == 0:
             msg = "ReSplat kernels: no conv routed through cudnn_hacc"
