@@ -126,7 +126,7 @@ def test_dfine_onnx_bilinear_sampling(tmp_path, align_corners):
     import onnx  # noqa: PLC0415 - optional
     import onnxruntime as ort  # noqa: PLC0415 - optional
 
-    from fastforks._core.sampling import export_bilinear  # noqa: PLC0415
+    from fastforks._core.export_sampling import export_bilinear  # noqa: PLC0415
 
     class Sampler(torch.nn.Module):
         def forward(self, feature, grid):

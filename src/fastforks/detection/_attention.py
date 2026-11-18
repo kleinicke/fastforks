@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from fastforks._core.sampling import export_bilinear
+from fastforks._core.export_sampling import export_bilinear
 from fastforks._core.tracing import in_onnx_export
 
 

@@ -27,7 +27,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from fastforks._core.sampling import export_bilinear, grid_sample
+from fastforks._core.export_sampling import export_bilinear
+from fastforks._core.sampling import grid_sample
 from fastforks._core.tracing import in_onnx_export
 
 FACTOR = 8  # fixed: the encoders downsample by 8 (three stride-2 stages)
