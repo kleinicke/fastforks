@@ -6,8 +6,9 @@ import pytest
 import torch
 
 from fastforks._core import registry
+from fastforks.kernels import knn_attention
 from fastforks.multiview.models.resplat import model, render
-from fastforks.multiview.models.resplat.net.point_transformer import knn_query
+from fastforks.multiview.models.resplat.net.point_transformer import KNNAttention, knn_query
 
 
 def _rotations(n: int, seed: int = 0) -> torch.Tensor:
@@ -92,3 +93,20 @@ def test_render_single_gaussian() -> None:
         32, 32, 0.01, 100.0,
     )  # fmt: skip
     torch.testing.assert_close(img[0, :, 16, 16], torch.tensor([0.7, 0.4, 0.8]) * 0.99, atol=5e-3, rtol=0)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("k", [8, 16])
+def test_indexed_attention_matches_gather(k: int) -> None:
+    """Batched gather/matmul is the reference, including repeated neighbours, equal logits and extreme scores."""
+    gen = torch.Generator(device="cuda").manual_seed(13)
+    qkv = torch.randn(163, 192, generator=gen, device="cuda", dtype=torch.float16)
+    qkv[0, :64] = 0
+    qkv[1, :64] *= 10
+    indices = torch.randint(0, qkv.shape[0], (qkv.shape[0], k), generator=gen, device="cuda")
+    indices[2] = 37
+    q, keys, values = qkv.chunk(3, -1)
+    with torch.autocast("cuda", dtype=torch.float16):
+        want = KNNAttention._attend(q, keys, values, indices, 0.125)
+        got = knn_attention.attention(qkv, indices)
+    torch.testing.assert_close(got, want, rtol=0.001, atol=0.0002)

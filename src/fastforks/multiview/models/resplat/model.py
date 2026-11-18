@@ -35,7 +35,7 @@ from torch import nn
 
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
-from fastforks.kernels import depthsplat_corr
+from fastforks.kernels import depthsplat_corr, knn_attention
 from fastforks.multiview._runner import Forward, Runner, f64, invert
 from fastforks.multiview.models.depthsplat.model import (
     _chunked_cost_volume,
@@ -48,7 +48,7 @@ from fastforks.multiview.models.depthsplat.model import (
 from fastforks.shared.depth_anything_v2 import use_fast_vit
 
 from .net.mv_unimatch import MultiViewUniMatch
-from .net.point_transformer import MultViewLowresAttn, PlainPointTransformer, PointLinearWrapper
+from .net.point_transformer import KNNAttention, MultViewLowresAttn, PlainPointTransformer, PointLinearWrapper
 from .net.resnet import ResNetFeatureWarpper
 from .render import render, sh_basis
 
@@ -502,6 +502,12 @@ class Portable(_Base):
         return Forward(self.net, lambda _net, *inputs: self.forward(*inputs))
 
 
+def _indexed_attention(m: KNNAttention, pxo: tuple, knn_idx: torch.Tensor) -> torch.Tensor:
+    """Attend at the exact indices chosen by the point block's shared kNN query."""
+    _, x, _ = pxo
+    return m.proj(knn_attention.attention(m.qkv(x), knn_idx))
+
+
 class Kernels(_Base):
     """fp16: `fastbb` DINOv2, cuDNN fp16-accumulate convs, `gsraster`'s CUDA rasteriser (refinement renders) and kNN."""
 
@@ -514,8 +520,11 @@ class Kernels(_Base):
         mod = gsraster.load(ctx.device)
         self.net.render = functools.partial(gsraster.render, mod)
         for m in self.net.modules():
+            if isinstance(m, KNNAttention):
+                override(m, _indexed_attention)
             if isinstance(m, PlainPointTransformer):
                 m.knn = functools.partial(gsraster.knn, mod)  # ty: ignore[invalid-assignment]
+        knn_attention.load(ctx.device)
         depthsplat_corr.load(ctx.device)
         override(self.net.depth_predictor, _fused_cost_volume, "cost_volume")
         use_fast_vit(self.net.depth_predictor.pretrained)
