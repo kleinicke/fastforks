@@ -72,7 +72,7 @@ DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 vide
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
 | `ema-vfi` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 27.67 / 0.8119 | 27.67 / 0.8119 | 27.67 / 0.8119 | 27.67 / 0.8119 | 27.67 / 0.8119 |  |
-| `ema-vfi-small` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 27.44 / 0.8043 | 27.44 / 0.8043 | 27.44 / 0.8043 |  | 27.44 / 0.8043 |  |
+| `ema-vfi-small` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 27.44 / 0.8043 | 27.44 / 0.8043 | 27.44 / 0.8043 | 27.44 / 0.8043 | 27.44 / 0.8043 |  |
 | `ema-vfi-t` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 29.07 / 0.8568 | 29.07 / 0.8567 | 29.07 / 0.8567 |  | 29.07 / 0.8567 |  |
 | `ema-vfi-small-t` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 28.65 / 0.8461 | 28.65 / 0.8461 | 28.65 / 0.8461 |  | 28.65 / 0.8461 |  |
 

@@ -317,6 +317,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `hat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3038<br>1596<br>1427<br>1185<br>fails: TensorRT engine build failed | 5318 / 6106<br>2426 / 2590<br>2298 / 2470<br>1811 / 2750<br>– |
+| `hat-x4` | synthetic (256x256) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>346<br>–<br>217 | –<br>658 / 1002<br>–<br>681 / 682 |
 | `hat-s-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2402<br>1072<br>956<br>750<br>fails: TensorRT engine build failed | 5018 / 5644<br>1984 / 2148<br>1856 / 1888<br>2352 / 3068<br>– |
 | `real-hat-gan-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3038<br>1597<br>1427<br>1185<br>fails: TensorRT engine build failed | 5318 / 6106<br>2426 / 2610<br>2298 / 2470<br>1811 / 2750<br>– |
 
@@ -335,6 +336,7 @@ Commercial use: yes.
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `hat-x4` 1024x1024 (9.4 GiB peak allocated, 14.7 reserved); `hat-s-x4` 1024x1024 (7.5 GiB peak allocated, 11.1 reserved); `real-hat-gan-x4` 1024x1024 (9.4 GiB peak allocated, 14.7 reserved)
 - `hat-x4` 512x512, first call: portable + torch.compile 53 s (cold Inductor cache).
+- `hat-x4` 256x256, first call: TensorRT fp16 92 s (ONNX + engine).
 - `hat-s-x4` 512x512, first call: portable + torch.compile 42 s (cold Inductor cache).
 - `real-hat-gan-x4` 512x512, first call: portable + torch.compile 54 s (cold Inductor cache).
 - `hat-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream hat_model.py test, float32, no tile
@@ -347,15 +349,16 @@ Commercial use: yes.
 
 ### Measured
 
-DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's scale), one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the output rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for real-world degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, not with PSNR-oriented upscalers. Original = the original code named under Details, same checkpoint and protocol.
+DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's scale), one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the output rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for real-world degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, not with PSNR-oriented upscalers. Every fourth DIV2K validation image, using aligned 256 x 256 LR center crops and their original HR targets. PSNR and SSIM use the Y channel after rounding the output to uint8 and cropping a four-pixel border. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|
-| `hat-x4` | DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 31.01 / 0.8498 | 31.01 / 0.8498 | 31.01 / 0.8498 | 31.01 / 0.8498 |  |
-| `hat-s-x4` | DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.91 / 0.8476 | 30.91 / 0.8476 | 30.91 / 0.8476 | 30.90 / 0.8476 |  |
-| `real-hat-gan-x4` | DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 27.13 / 0.7633 | 27.13 / 0.7633 | 27.13 / 0.7633 | 27.13 / 0.7632 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|
+| `hat-x4` | DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 31.01 / 0.8498 | 31.01 / 0.8498 | 31.01 / 0.8498 | 31.01 / 0.8498 |  |  |
+| `hat-x4` | DIV2K validation, every fourth image, 256 x 256 LR crops, PSNR / SSIM (Y) |  | 30.02 / 0.8275 |  |  | 30.02 / 0.8275 |  |
+| `hat-s-x4` | DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.91 / 0.8476 | 30.91 / 0.8476 | 30.91 / 0.8476 | 30.90 / 0.8476 |  |  |
+| `real-hat-gan-x4` | DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 27.13 / 0.7633 | 27.13 / 0.7633 | 27.13 / 0.7633 | 27.13 / 0.7632 |  |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f33b2772, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ba3a401e / f33b2772, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f33b2772, 2026-11-13; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f33b2772, 2026-11-13; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ba3a401e, 2026-11-18.
 
 ### Parity
 

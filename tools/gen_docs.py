@@ -121,6 +121,7 @@ _DATASETS = {
         "div2k-val-x2": "DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x4-every2": "DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x4-every4": "DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
+        "div2k-val-x4-crop256-every4": "DIV2K validation, every fourth image, 256 x 256 LR crops, PSNR / SSIM (Y)",
         "div2k-val-x2-crop512-n4": "DIV2K validation, 4 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original",  # noqa: E501
         "div2k-val-x2-crop512-n2": "DIV2K validation, 2 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original",  # noqa: E501
         "div2k-val-x2-crop64-every4-rgb": "DIV2K validation, 25 bicubic x2 center crops of 64 x 64 LR pixels, RGB PSNR",
@@ -380,6 +381,9 @@ _PROTOCOL = {
     ("restoration", "div2k-val-x2-crop64-every4-rgb"): "Every fourth DIV2K validation image. A 64 x 64 center crop "
     "of the official bicubic x2 input is restored at 128 x 128 and compared with the corresponding original pixels. "
     "PSNR uses RGB in [0, 1] and is averaged over the 25 crops. Both modes use resident BF16 weights and seed 666. ",
+    ("restoration", "div2k-val-x4-crop256-every4"): "Every fourth DIV2K validation image, using aligned 256 x 256 LR "
+    "center crops and their original HR targets. PSNR and SSIM use the Y channel after rounding the output to uint8 "
+    "and cropping a four-pixel border. ",
     **{
         ("restoration", d): "DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's "
         "scale), one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the "
