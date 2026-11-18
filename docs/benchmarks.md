@@ -2617,7 +2617,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | megaflow | 1080x1920 | 1109 ms | 917 ms | 677 ms | 734 ms | 102 s | 214 s | 3035 / 3246 | 2611 / 2886 | 2866 / 3066 | 9265 / 9300 |
 | memflow | 1080x1920 | 964 ms | 1642 ms | fails: TensorRT engine build failed | 865 ms | 78.9 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
 | memflow-kitti | 1080x1920 | 965 ms | 1644 ms | fails: TensorRT engine build failed | 865 ms | 72.6 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
-| memflow-kitti | 384x1248 | – | – | fails: Accuracy check failed on 10 KITTI pairs: EPE 4.672 vs 0.413  | – | – | – | – | – | – | – |
+| memflow-kitti | 384x1248 | – | – | 135 ms (full fixed-shape flow network, standalone engine build) | – | – | 330 s | – | – | – | 859 / 864 |
 | memflow-sintel | 1080x1920 | 964 ms | 1640 ms | fails: TensorRT engine build failed | 865 ms | 76.0 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
 | memfof | 1080x1920 | 433 ms | 291 ms | 160 ms | 349 ms | 50.5 s | 110 s | 1911 / 2196 | 2452 / 2666 | 917 / 1016 | 2070 / 2132 |
 | memfof-kitti | 375x1242 | 386 ms | 258 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 309 ms | 48.7 s | – | 1619 / 1856 | 2041 / 2226 | 786 / 916 | – |
@@ -2632,6 +2632,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | raft-large-kitti | 384x1248 | – | – | 59.2 ms, fp32 engine | – | – | 134 s | – | – | – | 873 / 918 |
 | raft-large-things | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.5 ms | 39.4 s | – | 5930 / 6058 | 5886 / 5924 | 332 / 352 | – |
 | raft-small | 1080x1920 | 144 ms | 110 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 36.5 ms | 37.0 s | – | 5669 / 5706 | 5704 / 5728 | 196 / 204 | – |
+| raft-small | 384x1248 | – | – | 20.7 ms, fp32 engine | – | – | 178 s | – | – | – | 803 / 820 |
 | recover-cx | 1080x1920 | 107 ms | 89.9 ms | 47.5 ms | 89.8 ms | 13.9 s | 41.6 s | 733 / 892 | 504 / 572 | 733 / 892 | 603 / 632 |
 | recover-mn | 1080x1920 | 45.5 ms | 32.2 ms | 21.2 ms | 41.8 ms | 14.4 s | 56.9 s | 580 / 676 | 365 / 416 | 580 / 676 | 425 / 466 |
 | recover-rn | 1080x1920 | 64.1 ms | 48.8 ms | 28.9 ms | 51.3 ms | 9.34 s | 34.1 s | 590 / 672 | 375 / 432 | 590 / 672 | 419 / 466 |
