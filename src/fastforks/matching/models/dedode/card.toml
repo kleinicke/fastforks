@@ -51,7 +51,7 @@ venue = "CVPR Workshops 2024"
 
 [[variants]]
 id = "dedode-v2-b"  # DeDoDe-L v2 detector + DeDoDe-B descriptor (upstream README default)
-planned = { tensorrt = "TensorRT TopK supports K <= 3840; the keypoint top-k is larger" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { tensorrt = "FP16 loses 2.54 pose AUC@5 points on MegaDepth; the fixed FP32 build is measured separately" }
 revision = 1
 params = { descriptor = "B" }
 weights = [
@@ -61,7 +61,7 @@ weights = [
 
 [[variants]]
 id = "dedode-v2-g"  # DeDoDe-L v2 detector + DeDoDe-G descriptor (VGG19 + frozen DINOv2 ViT-L/14)
-planned = { tensorrt = "TensorRT TopK supports K <= 3840; the keypoint top-k is larger" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { tensorrt = "FP16 loses 4.08 pose AUC@5 points on MegaDepth; the FP32 plan still needs validation" }
 revision = 1
 params = { descriptor = "G" }
 weights = [

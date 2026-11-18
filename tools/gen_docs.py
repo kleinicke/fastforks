@@ -106,7 +106,11 @@ _DATASETS = {
         "ap10k-val1-paired-oks-gtbox": "AP-10K validation split 1, annotated animal boxes, paired OKS (%)",
         "widerface-val-every4": "WIDER FACE val, every 4th image (807), face box AP easy / medium / hard",
     },
-    "flow": {"kitti2015-train": "KITTI 2015 train, EPE / Fl-all %"},
+    "flow": {
+        "kitti2015-train": "KITTI 2015 train, EPE / Fl-all %",
+        "kitti2015-train-flow-fixed-384x1248": "KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all %",
+        "kitti2015-train-flow-first50-fixed-384x1248": "KITTI 2015 first 50 train pairs, 384 x 1248, EPE / Fl-all %",
+    },
     "edges": {
         "yorkurban-102-structural": "YorkUrban test (102 images), line segment sAP@5 / @10 / @15 %",
         "bsds500-test-no-thinning": "BSDS500 test (200 images), boundary ODS / OIS / AP %",
@@ -126,6 +130,7 @@ _DATASETS = {
         "davis2017-first-triplet-1080p": "DAVIS 2017, the first triplet per video resized to 1080p (90), PSNR",
     },
     "restoration": {
+        "celeba-test-daefr-512": "DAEFR CelebA-Test (3,000 aligned faces, 512 x 512), RGB PSNR / SSIM",
         "div2k-val-inpainting-mask50": "DIV2K validation, 25 centre crops with two masks each, masked RGB PSNR (dB)",
         "div2k-val-x4": "DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x2": "DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
@@ -417,9 +422,16 @@ _PROTOCOL = {
     },
     "flow": "Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean "
     "end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. ",
+    **{
+        ("flow", dataset): "The fixed-shape comparison pads the bottom and right with edge pixels to 384 x 1248. "
+        "Metrics use predictions cropped to each original ground-truth grid. "
+        for dataset in ("kitti2015-train-flow-fixed-384x1248", "kitti2015-train-flow-first50-fixed-384x1248")
+    },
     ("restoration", "div2k-val-x2-crop64-every4-rgb"): "Every fourth DIV2K validation image. A 64 x 64 center crop "
     "of the official bicubic x2 input is restored at 128 x 128 and compared with the corresponding original pixels. "
     "PSNR uses RGB in [0, 1] and is averaged over the 25 crops. Both modes use resident BF16 weights and seed 666. ",
+    ("restoration", "celeba-test-daefr-512"): "The 3,000 paired degraded inputs and clean targets from DAEFR's "
+    "CelebA-Test archives. Score aligned 512 x 512 RGB outputs rounded to eight bits, with no border crop. ",
     ("restoration", "div2k-val-x2-crop512-every4-rgb"): "Every fourth DIV2K validation image. Restore a 512 x 512 "
     "center crop of the bicubic x2 input at 1024 x 1024. Average RGB PSNR over 25 aligned targets using streamed BF16 "
     "weights and seed 666. Compilation covers the VAE encoder and decoder. ",
@@ -550,7 +562,13 @@ def _label(mode: str) -> str:
 
 
 # eval dataset id -> training-data id (_core/datasets.toml) of the same public images (NYU / iBims: no id, none known)
-_EVAL_TRAIN_ID = {"eth3d": "eth3d", "middH": "middlebury", "kitti2015-train": "kitti"}
+_EVAL_TRAIN_ID = {
+    "eth3d": "eth3d",
+    "middH": "middlebury",
+    "kitti2015-train": "kitti",
+    "kitti2015-train-flow-fixed-384x1248": "kitti",
+    "kitti2015-train-flow-first50-fixed-384x1248": "kitti",
+}
 _DAGGER = "\u2020"
 _NOTE = {
     _DAGGER: "trained on this dataset's public images; not a zero-shot result",

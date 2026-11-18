@@ -131,6 +131,16 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - `codeformer` load / first call: original 1.24 s / 0.406 s, portable 0.69 s / 0.228 s, kernels 0.65 s / 0.23 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+The 3,000 paired degraded inputs and clean targets from DAEFR's CelebA-Test archives. Score aligned 512 x 512 RGB outputs rounded to eight bits, with no border crop. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | portable fp32 | note |
+|---|---|---|---|
+| `codeformer` | DAEFR CelebA-Test (3,000 aligned faces, 512 x 512), RGB PSNR / SSIM | 21.45 / 0.5754 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.02 and p99 <= 0.25 (absolute error of the output `image`).
@@ -294,6 +304,16 @@ Commercial use: yes.
 - `gfpgan-v1.4` original 512x512: .half() on 1 modules, fp16 inputs; upstream GFPGANer.enhance on the aligned face, float32, random noise per call
 - `gfpgan-v1.4` load / first call: original 0.86 s / 0.333 s, portable 1.04 s / 0.254 s, kernels 0.78 s / 0.073 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+The 3,000 paired degraded inputs and clean targets from DAEFR's CelebA-Test archives. Score aligned 512 x 512 RGB outputs rounded to eight bits, with no border crop. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | portable fp32 | note |
+|---|---|---|---|
+| `gfpgan-v1.4` | DAEFR CelebA-Test (3,000 aligned faces, 512 x 512), RGB PSNR / SSIM | 20.91 / 0.5855 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
 
 ### Parity
 

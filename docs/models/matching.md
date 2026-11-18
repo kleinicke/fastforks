@@ -163,7 +163,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 318<br>246<br>189<br>164<br>495 (standalone build) | 1734 / 1992<br>1535 / 1654<br>1197 / 1246<br>1893 / 2434<br>3354 / 3378 |
+| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 318<br>246<br>189<br>164<br>494 (FP32 public builder probe) | 1734 / 1992<br>1535 / 1654<br>1197 / 1246<br>1893 / 2434<br>3354 / 3378 |
 | `dedode-v2-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 666<br>592<br>332<br>330<br>planned for 0.2.1 | 2335 / 2472<br>2142 / 2334<br>1787 / 1984<br>2881 / 3316<br>– |
 
 <details><summary>Details</summary>
@@ -176,11 +176,11 @@ Commercial use: yes.
 - Options: `size` = 784 (>= 56), `max_keypoints` = 10000 (>= 1)
 - Kernel libraries: `dual_softmax`, `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `dedode-v2-b`, `dedode-v2-g`
-- Not in this release (planned for 0.2.1): `dedode-v2-b` TensorRT export: TensorRT TopK supports K <= 3840; the keypoint top-k is larger; `dedode-v2-g` TensorRT export: TensorRT TopK supports K <= 3840; the keypoint top-k is larger
+- Not in this release (planned for 0.2.1): `dedode-v2-b` TensorRT export: FP16 loses 2.54 pose AUC@5 points on MegaDepth; the fixed FP32 build is measured separately; `dedode-v2-g` TensorRT export: FP16 loses 4.08 pose AUC@5 points on MegaDepth; the FP32 plan still needs validation
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dedode-v2-b` 3000x4000 (1.9 GiB peak allocated, 3.8 reserved); `dedode-v2-g` 3000x4000 (2.5 GiB peak allocated, 4.5 reserved)
-- `dedode-v2-b` 768x1024, first call: portable + torch.compile 50 s (cold Inductor cache), TensorRT fp32 76 s (ONNX + engine).
+- `dedode-v2-b` 768x1024, first call: portable + torch.compile 50 s (cold Inductor cache), TensorRT fp32 68 s (ONNX + engine).
 - `dedode-v2-g` 768x1024, first call: portable + torch.compile 86 s (cold Inductor cache).
 - `dedode-v2-b` original 768x1024: the authors' mixed-precision option (float16); upstream DeDoDe-L v2 + descriptor B, 10000 keypoints
 - `dedode-v2-g` original 768x1024: the authors' mixed-precision option (float16); upstream DeDoDe-L v2 + descriptor G, 10000 keypoints
@@ -194,12 +194,12 @@ Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstre
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
 |---|---|---|---|---|---|---|---|---|
-| `dedode-v2-b` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 53.2 / 68.2 / 79.8 | 52.4 / 67.6 / 77.8 |  | 52.2 / 67.3 / 77.8 |  |
+| `dedode-v2-b` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 53.2 / 68.2 / 79.8 | 52.4 / 67.6 / 77.8 |  | 52.7 / 68.8 / 80.2 |  |
 | `dedode-v2-b` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 56.3 / 72.5 / 83.7 | 57.3 / 71.5 / 82.5 | 54.6 / 71.8 / 83.1 | 56.0 / 72.0 / 82.7 | 57.8 / 74.3 / 84.2 |  |  |
 | `dedode-v2-g` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 56.7 / 72.5 / 83.7 |  |  | 52.6 / 69.2 / 81.3 |  |
 | `dedode-v2-g` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 57.2 / 72.7 / 83.6 |  |  | 57.1 / 74.7 / 85.5 |  |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565 / ce6d1409, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ccc23e40 / d073b335, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ccc23e40 / ce6d1409, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565 / ce6d1409, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 471d1a12 / ccc23e40 / d073b335, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 471d1a12 / ccc23e40 / ce6d1409, 2026-11-18.
 
 ### Parity
 
