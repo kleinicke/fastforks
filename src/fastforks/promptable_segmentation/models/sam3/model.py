@@ -143,16 +143,20 @@ def exemplars(boxes: torch.Tensor, labels: torch.Tensor | None, device: torch.de
 
 
 def prepare(image: torch.Tensor, ctx: Context, *, exact: bool) -> torch.Tensor:
-    """`[1, 3, H, W]` RGB in `[0, 1]` -> the normalised float32 `[1, 3, 1008, 1008]` input.
+    """`[1, 3, H, W]` uint8 RGB or floats in `[0, 1]` -> the normalised float32 `[1, 3, 1008, 1008]` input.
 
     `exact`: the uint8 resize of upstream (CPU only); else a float resize rounded to integers (within 1 / 255).
     """
-    u = (image * 255).round()
+    u = image if image.dtype == torch.uint8 else (image * 255).round_()
     if exact:
         x = F.interpolate(u.to(torch.uint8), (SIZE, SIZE), mode="bilinear", antialias=True, align_corners=False)
     else:
-        x = F.interpolate(u, (SIZE, SIZE), mode="bilinear", antialias=True, align_corners=False).round().clamp(0, 255)
-    return scale(x.float() / 255, ctx.io)
+        x = (
+            F.interpolate(u.float(), (SIZE, SIZE), mode="bilinear", antialias=True, align_corners=False)
+            .round_()
+            .clamp_(0, 255)
+        )
+    return scale(x.float().div_(255), ctx.io)
 
 
 @dataclass(frozen=True)
@@ -166,6 +170,7 @@ class _Sam3(Runner):
     """Text and / or exemplar-box prompt -> all instances; the detector heads in float32 (shared by both backends)."""
 
     Params = Params
+    uint8_input = True
     prompts = frozenset({"text", "boxes"})
     mask_size = (MASK, MASK)
     compiled_methods = ("embed", "concept")  # `segment_concept` tokenizes on the host, then calls `concept`

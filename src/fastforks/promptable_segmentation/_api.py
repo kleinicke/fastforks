@@ -267,7 +267,7 @@ class PromptableSegmentationModel(core.Model):
 
     def _to_batch(self, image: ImageLike) -> torch.Tensor:
         """`image` as a checked `[B, 3, H, W]` batch on the device."""
-        x = to_rgb_batch(image, self.device)
+        x = to_rgb_batch(image, self.device, keep_uint8=self._runner.uint8_input)
         self._check_size(x)
         return x
 
