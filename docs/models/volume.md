@@ -176,13 +176,13 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 
 A small subset of real CT cases of the TotalSegmentator dataset (not the full test split), each run at its card's spacing (1.5 or 3 mm) in the same pipeline; mean over the cases of the Dice (0 to 1) averaged over the classes present, against the ground-truth segmentations (vertebrae_L6 of the subset has no counterpart and is skipped). Original = TotalSegmentator 2.18.0, default fp16 autocast. A paired check on one labeled CT at the variant's spacing. The compiled or TensorRT patch network runs inside the same PyTorch sliding-window pipeline. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | portable + torch.compile | TensorRT | note |
-|---|---|---|---|---|---|---|---|---|
-| `totalsegmentator-total` | TotalSegmentator test subset (7 CT cases), 1.5 mm, mean Dice |  | 0.9365 | 0.9365 | 0.9365 |  |  |  |
-| `totalsegmentator-total-3mm` | TotalSegmentator test subset (8 CT cases), 3 mm, mean Dice | 0.8285 | 0.8285 | 0.8285 | 0.8285 |  |  |  |
-| `totalsegmentator-total-3mm` | TotalSegmentator CT s0013, mean Dice over present classes |  |  | 0.7980 |  | 0.7980 | 0.7980 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `totalsegmentator-total` | TotalSegmentator test subset (7 CT cases), 1.5 mm, mean Dice |  | 0.9365 | 0.9365 |  | 0.9365 |  |  |  |
+| `totalsegmentator-total-3mm` | TotalSegmentator test subset (8 CT cases), 3 mm, mean Dice | 0.8285 | 0.8285 | 0.8285 | 0.8285 | 0.8285 |  |  |  |
+| `totalsegmentator-total-3mm` | TotalSegmentator CT s0013, mean Dice over present classes |  |  | 0.7980 |  |  | 0.7980 | 0.7980 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2d71f180 / 550adc40, 2026-11-14 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2d71f180, 2026-11-14; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 550adc40, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2d71f180 / 550adc40, 2026-11-14 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2d71f180, 2026-11-14; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 550adc40, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
 
 ### Parity
 
