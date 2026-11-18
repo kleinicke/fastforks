@@ -33,7 +33,7 @@ cuda_dtype = "float16"  # feature CNN, correlation and update transformer in flo
 mps_dtypes = ["float32"]
 
 [modes.kernels]
-kernels = ["fvm_conv"]  # correlation MLP and update-transformer GEMMs with fused bias / GELU / residual epilogues, fp16 accumulation
+kernels = ["fvm_conv", "cotracker_corr"]  # correlation MLP and update-transformer GEMMs with fused bias / GELU / residual epilogues, fp16 accumulation
 
 [[papers]]
 title = "CoTracker3: Simpler and Better Point Tracking by Pseudo-Labelling Real Videos"

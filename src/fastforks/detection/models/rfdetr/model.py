@@ -14,6 +14,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import Inert
 from fastforks.detection._runner import Forward, Runner
+from fastforks.kernels import rfdetr_input
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.rfdetr.build import Arch, export_path, network
 
@@ -134,7 +135,7 @@ class Kernels(Portable):
         self.graphs = GraphCache(self.net, graphs=1)
 
     def _raw(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
-        x = self._prepare(image)
+        x = rfdetr_input.prepare(image.float(), self.mean, self.std, self.ctx.params.resolution)
         raw = self.graphs.run((x.device, x.dtype, tuple(x.shape)), x)
         if raw is None:
             raw = self.net(x)

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import torch
 
-from fastforks._core.kernels import cubin_library, linear
+from fastforks._core.kernels import cubin_library
 
 SIGNATURES = {"sample_float": "pppiiiiillllll", "sample_half": "pppiiiiillllll"}
 load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
@@ -19,7 +19,20 @@ def neighborhood(grid: torch.Tensor, points: torch.Tensor) -> torch.Tensor:
         raise ValueError(msg)
     name = {torch.float32: "sample_float", torch.float16: "sample_half"}[grid.dtype]
     out = grid.new_empty((b, n, t, 49, c), dtype=torch.float16)
-    load(grid.device).launch(
-        name, *linear(out.numel()), grid, points.contiguous(), out, t, h, w, c, n, *grid.stride(), out.numel()
-    )
+    if out.numel():
+        load(grid.device).launch(
+            name,
+            (7, min(b * n * t, 65535), 1),
+            (32, 8, 1),
+            grid,
+            points.contiguous(),
+            out,
+            t,
+            h,
+            w,
+            c,
+            n,
+            *grid.stride(),
+            b * n * t,
+        )
     return out

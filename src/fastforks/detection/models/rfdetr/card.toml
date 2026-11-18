@@ -70,7 +70,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["fastbb", "fvm_conv"]  # packed-QKV flash attention in the backbone, depthwise convs of the Seg head, fp16-accumulate GEMMs, CUDA graph replay of the network
+kernels = ["rfdetr_input", "fastbb", "fvm_conv"]  # packed-QKV flash attention in the backbone, depthwise convs of the Seg head, fp16-accumulate GEMMs, CUDA graph replay of the network
 
 [output]
 label_set = "coco-80"

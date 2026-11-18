@@ -2,8 +2,7 @@
 //
 // x: [N, S, C] fp16 (channels_last_3d, S = D * H * W), C % 8 == 0, 16-byte aligned. Three launches:
 //   in_stats_h: per (n, c) shifted sums  sum(x - k), sum((x - k)^2)  in fp32 (k = x[n, 0, c], against cancellation),
-//               per-thread partials over a strided set of rows, a block reduction, one atomicAdd per block and channel;
-//               stats [N, C, 2] fp32 must be zero.
+//               each block writes its own shifted moments into [N, blocks, C, 2].
 //   in_final_h: scale = w * rsqrt(var + eps), shift = b - mean * scale  (biased variance, as InstanceNorm3d) into
 //               stats, in place.
 //   in_apply_h: y = x * scale + shift (fp32), y = y >= 0 ? y : slope * y, stored fp16; 8 channels per thread.
@@ -58,24 +57,39 @@ extern "C" __global__ void in_stats_h(const __half* __restrict__ x, float* __res
         int cc8 = c >> 3, j = c & 7;
         float acc = 0.f;
         for (int y = 0; y < blockDim.y; ++y) acc += sh[(y * C8 + cc8) * 16 + m * 8 + j];
-        atomicAdd(stats + ((int64_t)n * C + c) * 2 + m, acc);
+        stats[(((int64_t)n * gridDim.x + blockIdx.x) * C + c) * 2 + m] = acc;
     }
 }
 
-// N * C threads
-extern "C" __global__ void in_final_h(const __half* __restrict__ x, float* __restrict__ stats,
-                                      const __half* __restrict__ w, const __half* __restrict__ b, int N, int S, int C,
-                                      float eps) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= N * C) return;
-    int n = i / C, c = i - n * C;
+// Reduce the block moments in a fixed order. Adjacent lanes read adjacent
+// channels and eight cooperating warps cover the spatial block axis.
+extern "C" __global__ void in_final_h(const __half* __restrict__ x, const float2* __restrict__ partial,
+                                      float2* __restrict__ stats, const __half* __restrict__ w,
+                                      const __half* __restrict__ b, int blocks, int S, int C, float eps) {
+    __shared__ float2 sums[8][32];
+    int n = blockIdx.y, c = blockIdx.x * 32 + threadIdx.x;
+    float2 sum = make_float2(0.f, 0.f);
+    if (c < C) {
+        for (int i = threadIdx.y; i < blocks; i += 8) {
+            float2 v = partial[((int64_t)n * blocks + i) * C + c];
+            sum.x += v.x;
+            sum.y += v.y;
+        }
+    }
+    sums[threadIdx.y][threadIdx.x] = sum;
+    __syncthreads();
+    if (threadIdx.y || c >= C) return;
+    #pragma unroll
+    for (int i = 1; i < 8; ++i) {
+        sum.x += sums[i][threadIdx.x].x;
+        sum.y += sums[i][threadIdx.x].y;
+    }
     float k = __half2float(x[(int64_t)n * S * C + c]);
     float inv = 1.f / (float)S;
-    float d = stats[2 * i] * inv;  // mean - k
-    float var = fmaxf(fmaf(-d, d, stats[2 * i + 1] * inv), 0.f);
+    float d = sum.x * inv;
+    float var = fmaxf(fmaf(-d, d, sum.y * inv), 0.f);
     float scale = __half2float(w[c]) * rsqrtf(var + eps);
-    stats[2 * i] = scale;
-    stats[2 * i + 1] = fmaf(-(k + d), scale, __half2float(b[c]));
+    stats[(int64_t)n*C+c] = make_float2(scale, fmaf(-(k + d), scale, __half2float(b[c])));
 }
 
 // N * S * C / 8 grid-stride items

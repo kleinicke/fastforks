@@ -82,3 +82,13 @@ def test_local_sampler_matches_grid_sample(dtype: torch.dtype, *, strided: bool)
         expected = map_coordinates_2d(grid, yx.unsqueeze(3) + _offsets(device)).half()
         actual = neighborhood(grid, points)
     torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+
+
+@pytest.mark.parametrize(("hw", "kernel", "stride"), [((8, 7), 3, 2), ((7, 7), 5, 4), ((2, 2), 2, 2), ((24, 16), 3, 1)])
+def test_implicit_padding_matches_same(hw: tuple[int, int], kernel: int, stride: int) -> None:
+    from fastforks.tracking.models.locotrack.model import _same_conv  # noqa: PLC0415
+    from fastforks.tracking.models.locotrack.net.locotrack import same_conv  # noqa: PLC0415
+
+    conv = same_conv(3, 8, kernel, stride)
+    x = torch.randn(2, 3, *hw)
+    torch.testing.assert_close(_same_conv(conv, x), conv(x))

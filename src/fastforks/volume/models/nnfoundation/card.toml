@@ -2,9 +2,11 @@ schema = 2
 name = "nnFoundation"
 summary = "nnFoundation (Harsy et al. 2026): DKFZ's self-supervised 3D radiology foundation encoders, pre-trained with nnssl on 2.1 M CT, MRI and PET volumes. `nnfoundation-cnn` is the ResEnc-L U-Net encoder (6 stages, 32-320 channels, strides 1-32), `nnfoundation-vit` the Primus ViT (40 layers, width 1056, 8³ patch tokens, fixed 192³ input). Gives the encoder feature maps of a z-score normalised volume for fine-tuning or frozen-feature use; the MAE decoder is not included."
 tier = "experimental"
+uses = ["host_blocks"]
 outputs = ["features"]
 
 limitations = [
+  "CUDA portable and kernels accept stream=True to stage CNN levels or ViT blocks from pinned host memory. On the 192³ nnFoundation ViT reference, peak allocated memory during load and inference on an RTX 5060 Ti fell from 1,665 to 673 MiB in both modes.",
   "Kernels peak allocated is equal to portable, but the cuDNN workspace next to the large conv maps (1.4 GiB and 0.3 GiB workspaces) fragments the allocator: peak reserved is ~580 MiB above portable.",
 ]
 
@@ -22,6 +24,9 @@ evidence = "https://huggingface.co/MIC-DKFZ/nnFoundationCNN/blob/f443c09319988e8
 
 [params]
 arch = "cnn"
+
+[options]
+stream = { default = false, effect = "speed" }  # stage encoder levels or transformer blocks on CUDA
 
 [modes.portable]
 cuda_dtype = "float16"  # float16 networks (nnU-Net: float16 autocast), channels-last 3D for the CNN; statistics in float64

@@ -9,6 +9,7 @@ returns the same iterate as upstream's loop.
 
 from __future__ import annotations
 
+import threading
 from typing import TYPE_CHECKING
 
 import torch
@@ -18,7 +19,9 @@ from fastforks._core.half import pure_half
 from fastforks._core.preprocess import IMAGENET_MEAN
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.depth.models.depth_anything_v2.fused import FusedHead, FusedViT
+from fastforks.kernels import omni_cg
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
+from fastforks.shared.cuda_graphs import CAPTURE_LOCK, capture_stream
 from fastforks.shared.depth_anything_v2 import fold_layer_scale, sdpa_attention
 
 from .net import (
@@ -140,21 +143,28 @@ class Portable(Runner):
 class GraphCG(CGState):
     """`CGState` whose chunk of steps is a CUDA graph (captured per shape on first use)."""
 
+    @staticmethod
+    def normal(p: torch.Tensor, d: torch.Tensor) -> torch.Tensor:
+        """Apply the same three-scale FP32 operator within graph capture."""
+        return omni_cg.apply(p, d)
+
     CHUNK = 32  # fixed: steps per graph replay (one host sync each)
 
     def __init__(self, d: torch.Tensor, b: torch.Tensor) -> None:
         """Allocate the state for `b`'s shape and capture the graph."""
         super().__init__(d.clone(), b.clone())
-        side = torch.cuda.Stream()
-        side.wait_stream(torch.cuda.current_stream())
-        with torch.cuda.stream(side):
-            for _ in range(3):
-                self.step()
-        torch.cuda.current_stream().wait_stream(side)
-        self.graph = torch.cuda.CUDAGraph()
-        with torch.cuda.graph(self.graph):
-            for _ in range(self.CHUNK):
-                self.step()
+        with torch.cuda.device(d.device), CAPTURE_LOCK:
+            main = torch.cuda.current_stream()
+            side = capture_stream(d.device)
+            side.wait_stream(main)
+            with torch.cuda.stream(side):
+                for _ in range(3):
+                    self.step()
+                self.graph = torch.cuda.CUDAGraph()
+                with torch.cuda.graph(self.graph, stream=side):
+                    for _ in range(self.CHUNK):
+                        self.step()
+            main.wait_stream(side)
 
     def run(self) -> torch.Tensor:
         """Solve for the current `d` / `b`."""
@@ -181,6 +191,7 @@ class Kernels(Runner):
         """Build the network on the CPU, convert it, move it to the device."""
         super().__init__(ctx)
         dev = ctx.device
+        omni_cg.load(dev)
         k = load_dpt_fused(dev)  # before the weights: a kernel build / load failure costs no weight load
         net = _net(ctx)
         self.vit = FusedViT(net.depth_module.pretrained, dev, k, "hh")
@@ -189,7 +200,32 @@ class Kernels(Runner):
         net.to(dev)
         pure_half(net.update_block)  # the RGB-D backbone stays fp32: its PVT features reach ~1e6
         self.net = net
-        self.cg: dict[tuple[int, ...], GraphCG] = {}
+        self.cg: GraphCG | None = None
+        self._cg_lock = threading.Lock()
+        self._cg_done = torch.cuda.Event()
+
+    def _solve(self, d: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        """Keep one shape's graph and order its static buffers across CUDA streams."""
+        with self._cg_lock:
+            if self.cg is not None:
+                if self.cg.b.shape == b.shape:
+                    torch.cuda.current_stream(b.device).wait_event(self._cg_done)
+                else:
+                    self._cg_done.synchronize()
+                    self.cg = None
+            if self.cg is None:
+                self.cg = GraphCG(d, b)
+            try:
+                return _graph_solve(self.cg, d, b)
+            finally:
+                self._cg_done.record(torch.cuda.current_stream(b.device))
+
+    def release_graphs(self) -> None:
+        """Release the captured solver and its static tensors."""
+        with self._cg_lock:
+            if self.cg is not None:
+                self._cg_done.synchronize()
+                self.cg = None
 
     def _mono(self, image01: torch.Tensor) -> torch.Tensor:
         h, w = image01.shape[-2:]
@@ -217,10 +253,7 @@ class Kernels(Runner):
             guide, conf_spn, context, conf_in = net.backbone(x, torch.cat([net_in, dav2], 1))
             grad, up = net.update_block(context)
             d, b = system(grad.float(), small, mask, conf_in.float())
-            key = tuple(b.shape)
-            if key not in self.cg:
-                self.cg[key] = GraphCG(d, b)
-            log_depth = _graph_solve(self.cg[key], d, b)
+            log_depth = self._solve(d, b)
             depth = torch.exp(net.upsample(log_depth, up))
             out = net.spn(depth, guide, dep, conf_spn)
         return {"depth": out[:, 0, :h, :w]}

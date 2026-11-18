@@ -965,6 +965,7 @@ option multiview.anysplat.voxel_size
 option multiview.depthsplat.long_side
 option multiview.lingbot_map.long_side
 option multiview.lingbot_map.scale_frames
+option multiview.lingbot_map.stream
 option multiview.lingbot_map.window
 option multiview.mapanything.long_side aliases resolution
 option multiview.mapanything.stream
@@ -984,13 +985,16 @@ option ocr.ppocrv5.unclip_ratio aliases text_det_unclip_ratio
 option pose.hrnet.flip_test
 option pose.retinaface.score_threshold
 option pose.rfdetr_keypoint.score_threshold
+option pose.rtmo.cuda_graphs
 option pose.rtmo.score_threshold
 option pose.rtmpose.flip_test
 option pose.vitpose.fp32_accumulate
+option pose.vitpose.stream
 option pose.yunet.score_threshold
 option promptable_segmentation.clipseg.cuda_graphs
 option promptable_segmentation.sam2.samurai
 option promptable_segmentation.sam3.cuda_graphs
+option promptable_segmentation.sam3.stream
 option restoration.codeformer.fidelity aliases fidelity_weight
 option restoration.lama.cuda_graphs
 option restoration.seedvr2.quant
@@ -1021,6 +1025,8 @@ option stereo.selective_igev.iters
 option tracking.alltracker.iters
 option tracking.track_on.memory
 option tracking.track_on.support_grid
+option volume.nnfoundation.stream
+option volume.totalsegmentator.stream
 property fastforks._core.cards.ModelCard.extras -> tuple[str, ...]
 property fastforks._core.cards.ModelCard.module -> str
 property fastforks._core.cards.ModelCard.requires -> tuple[str, ...]

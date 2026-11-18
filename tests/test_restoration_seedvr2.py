@@ -94,3 +94,14 @@ def test_stream_false_is_bit_identical() -> None:
         del model
         torch.cuda.empty_cache()
     assert torch.equal(*out)
+
+
+@pytest.mark.gpu
+def test_nf4_portable_tiles_preserve_scale_boundaries(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(nf4, "_PACKED_TILE", 256)
+    q = torch.arange(13 * 64, device="cuda").to(torch.uint8).view(13, 64).t()
+    scales = torch.linspace(0, 9, q.numel() // nf4.BLOCK * 2, device="cuda")
+    lut = nf4.pair_lut(nf4.code(q.device))
+    decoded = torch.nn.functional.embedding(q.int(), lut).reshape(-1, nf4.BLOCK)
+    expected = (decoded * scales[:, None]).bfloat16().view(13, -1)
+    torch.testing.assert_close(nf4.dequant_lut(q, scales, lut, 13), expected, atol=0, rtol=0)

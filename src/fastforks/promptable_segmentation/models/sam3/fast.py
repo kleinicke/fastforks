@@ -20,10 +20,13 @@ from fastforks._core.errors import BackendUnavailableError
 from fastforks._core.half import fp16_accumulate
 from fastforks.kernels import cudnn_hacc, fastbb, sam3_fpn, sam3_tracker
 from fastforks.kernels.dpt_fused import DptFused
+from fastforks.shared.host_blocks import HostBlocks
 
 from .net.sam3 import GRID, HEAD, rope_tables
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from .net.sam3 import FpnLayer, PixelDecoder, VisionEncoder, ViTLayer
     from .net.tracker import RoPEAttention
 
@@ -54,7 +57,7 @@ def _bias(conv: torch.nn.Conv2d | torch.nn.ConvTranspose2d) -> torch.Tensor:
 class FastEncoder:
     """`VisionEncoder` (trunk + neck) in fp16 with fp16 accumulation, for the 1008 x 1008 input only."""
 
-    def __init__(self, enc: VisionEncoder, device: torch.device) -> None:
+    def __init__(self, enc: VisionEncoder, device: torch.device, *, stream: bool = False) -> None:
         """Convert the CPU float32 encoder to fp16 (packed q / k / v, channels-last convs) on `device`.
 
         Raises:
@@ -72,7 +75,20 @@ class FastEncoder:
         self.device, self.dim, self.heads, self.window = device, dim, heads, window
         self.fused = DptFused(device)
         self.flash = fastbb.Flash64("hh")
-        self.layers = [self._layer(layer, device) for layer in layers]
+        self.layout = [(layer.window, layer.layer_norm1.eps, layer.layer_norm2.eps) for layer in layers]
+        storage = torch.device("cpu") if stream else device
+        self.layers = [self._layer(layer, storage) for layer in layers]
+        self.host: HostBlocks | None = None
+        if stream:
+            # The packed projections feed the native GEMMs directly in both modes.
+            tensors = {f"{i}.{k}": v for i, layer in enumerate(self.layers) for k, v in layer.items()}
+            specs = [{f"{i}.{k}": (v.dtype, v.shape) for k, v in layer.items()} for i, layer in enumerate(self.layers)]
+
+            def fill(name: str, dst: torch.Tensor) -> None:
+                dst.copy_(tensors[name])
+
+            self.host = HostBlocks(specs, fill)
+            self.layers.clear()
         self.patch = vit.embeddings.patch_embeddings.projection.weight.detach().half().to(device)
         self.stride = int(vit.patch)
         self.pos = vit.embeddings.tiled(GRID, GRID).detach().half().to(device)  # [1, 72, 72, C]
@@ -82,16 +98,17 @@ class FastEncoder:
         self.neck = [self._fpn(f, device) for f in cast("list[FpnLayer]", list(enc.neck.fpn_layers))]
 
     @staticmethod
-    def _layer(layer: ViTLayer, device: torch.device) -> dict[str, object]:
+    def _layer(layer: ViTLayer, device: torch.device) -> dict[str, torch.Tensor]:
         a, m = layer.attention, layer.mlp
 
         def h(t: torch.Tensor) -> torch.Tensor:
             return t.detach().half().to(device)
 
         return {
-            "window": layer.window,
-            "ln1": (h(layer.layer_norm1.weight), h(layer.layer_norm1.bias), layer.layer_norm1.eps),
-            "ln2": (h(layer.layer_norm2.weight), h(layer.layer_norm2.bias), layer.layer_norm2.eps),
+            "ln1_w": h(layer.layer_norm1.weight),
+            "ln1_b": h(layer.layer_norm1.bias),
+            "ln2_w": h(layer.layer_norm2.weight),
+            "ln2_b": h(layer.layer_norm2.bias),
             "qkv_w": h(torch.cat([a.q_proj.weight, a.k_proj.weight, a.v_proj.weight])),
             "qkv_b": h(torch.cat([a.q_proj.bias, a.k_proj.bias, a.v_proj.bias])),
             "o_w": h(a.o_proj.weight),
@@ -117,18 +134,26 @@ class FastEncoder:
             ops.append(("conv", w, _bias(conv).half().to(device)))
         return ops
 
-    def _block(self, p: dict, x: torch.Tensor) -> torch.Tensor:
+    def _weights(self) -> Iterator[dict[str, torch.Tensor]]:
+        if self.host is None:
+            yield from self.layers
+        else:
+            for block in self.host.run(self.device):
+                yield {key.split(".", 1)[1]: value for key, value in block.items()}
+
+    def _block(self, p: dict[str, torch.Tensor], x: torch.Tensor, layout: tuple[int, float, float]) -> torch.Tensor:
         """One layer on `[B, N, C]` fp16 (windows: `B` = 9, `N` = 576; global: `B` = 1, `N` = 5184)."""
         b, n, c = x.shape
-        y = F.layer_norm(x, (c,), *p["ln1"])
+        window, eps1, eps2 = layout
+        y = F.layer_norm(x, (c,), p["ln1_w"], p["ln1_b"], eps1)
         qkv = self.fused.gemm(y, p["qkv_w"], p["qkv_b"]).view(b, n, 3, self.heads, HEAD)
         del y
-        self.ropes[p["window"]](qkv)
+        self.ropes[window](qkv)
         o = self.flash(*qkv.unbind(2), HEAD**-0.5).view(b, n, c)
         del qkv
         x = self.fused.gemm(o, p["o_w"], p["o_b"], res=x, out=x)
         del o
-        y = F.layer_norm(x, (c,), *p["ln2"]).view(b * n, c)
+        y = F.layer_norm(x, (c,), p["ln2_w"], p["ln2_b"], eps2).view(b * n, c)
         hid = self.fused.gemm(y, p["fc1_w"], p["fc1_b"], act=self.fused.gelu)
         return self.fused.gemm(hid.view(b, n, -1), p["fc2_w"], p["fc2_b"], res=x, out=x)
 
@@ -150,11 +175,11 @@ class FastEncoder:
 
         windowed = False
         x = x.reshape(1, h * w, c)
-        for p in self.layers:
-            if bool(p["window"]) != windowed:
-                x = part(x.view(1, h, w, c)) if p["window"] else unpart(x)
+        for p, layout in zip(self._weights(), self.layout, strict=True):
+            if bool(layout[0]) != windowed:
+                x = part(x.view(1, h, w, c)) if layout[0] else unpart(x)
                 windowed = not windowed
-            x = self._block(p, x)
+            x = self._block(p, x, layout)
         if windowed:
             x = unpart(x)
         return x.view(1, h, w, c)

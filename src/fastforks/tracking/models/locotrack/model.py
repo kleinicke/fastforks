@@ -21,7 +21,18 @@ from fastforks._core.patch import override
 from fastforks.kernels.locotrack_sample import neighborhood
 from fastforks.tracking._runner import Forward, NoParams, Runner
 
-from .net.locotrack import SIZE, SUPPORT, Features, LocoTrack, MultiHeadAttention, PIPSTransformer, alibi_bias, posenc
+from .net.locotrack import (
+    SIZE,
+    SUPPORT,
+    CMDTop,
+    Conv2dSamePadding,
+    Features,
+    LocoTrack,
+    MultiHeadAttention,
+    PIPSTransformer,
+    alibi_bias,
+    posenc,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -179,12 +190,37 @@ def _refine(  # noqa: PLR0913, PLR0917 - same signature as LocoTrack.refine
     return points + update[..., :2], occ + update[..., 2], expd + update[..., 3]
 
 
+def _same_conv(conv: Conv2dSamePadding, x: torch.Tensor) -> torch.Tensor:
+    """Use the convolution's implicit symmetric halo and explicitly pad only a trailing odd pixel."""
+    h, w = x.shape[-2:]
+    sh, sw = conv.stride
+    kh, kw = conv.kernel_size
+    ph, pw = max(kh - (h - 1) % sh - 1, 0), max(kw - (w - 1) % sw - 1, 0)
+    if ph % 2 or pw % 2:
+        x = F.pad(x, (0, pw % 2, 0, ph % 2))
+    return F.conv2d(x, conv.weight, conv.bias, conv.stride, (ph // 2, pw // 2))
+
+
+def _last_corr_conv(conv: Conv2dSamePadding, x: torch.Tensor) -> torch.Tensor:
+    """The last 2x2 CMDTop filter covers the entire 2x2 input and produces one feature vector."""
+    if x.shape[-2:] != conv.kernel_size:
+        msg = "LocoTrack CMDTop final convolution must span the entire correlation feature map"
+        raise ValueError(msg)
+    return F.linear(x.flatten(1), conv.weight.flatten(1), conv.bias)[:, :, None, None]
+
+
 class Kernels(Portable):
     """The fp16 portable pass with the refinement transformer on fused-GEMM kernels and fp16 accumulation."""
 
     def __init__(self, ctx: Context) -> None:
         """The portable network with the kernel forward of the mixer (fp16 weights captured in a closure)."""
         super().__init__(ctx)
+        for layer in self.net.modules():
+            if isinstance(layer, Conv2dSamePadding):
+                override(layer, _same_conv)
+        for cmd in self.net.cmdtop:
+            final = cast("torch.nn.Sequential", cast("CMDTop", cmd).conv[-1])
+            override(final[0], _last_corr_conv)
         override(self.net, _refine, "refine")
         mixer = self.net.torch_pips_mixer
         mixer.forward = _mixer(mixer)  # ty: ignore[invalid-assignment]  # per-instance override

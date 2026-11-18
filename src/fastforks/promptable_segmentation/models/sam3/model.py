@@ -37,11 +37,12 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
-from fastforks._core.errors import InputError
+from fastforks._core.errors import InputError, OptionsError
 from fastforks._core.patch import override
 from fastforks._core.runner import host
 from fastforks.promptable_segmentation._runner import Context, Forward, Runner, scale
 from fastforks.shared.cuda_graphs import GraphCache
+from fastforks.shared.host_blocks import StreamedModuleList
 
 from .net.sam3 import (
     GRID,
@@ -165,6 +166,7 @@ class Params:
     """Options shared by the image and video runner."""
 
     cuda_graphs: bool  # replay the kernels detector heads after a prompt bucket repeats
+    stream: bool = False
 
 
 class _Sam3(Runner):
@@ -183,6 +185,9 @@ class _Sam3(Runner):
     def __init__(self, ctx: Context) -> None:
         """Tokenizer (weight files 1, 2), the 72 x 72 position encoding."""
         super().__init__(ctx)
+        if ctx.params.stream and ctx.device.type != "cuda":
+            msg = "SAM 3 stream=True requires CUDA for image encoder transfers"
+            raise OptionsError(msg)
         files = ctx.weights()
         self.tokenizer = ClipTokenizer(files[1], files[2], CONTEXT)
         self.pos = grid_position_encoding(GRID, GRID, ctx.device)
@@ -342,6 +347,9 @@ class Portable(_Sam3):
         net.vision_encoder.backbone.pack()
         for mod in (net.vision_encoder, net.text_encoder, *half_parts(net)):
             mod.to(ctx.torch_dtype)
+        if ctx.params.stream:
+            trunk = net.vision_encoder.backbone
+            trunk.layers = StreamedModuleList(trunk.layers, ctx.device)  # ty: ignore[invalid-assignment]
         self.net = net.to(ctx.device)
         dt = ctx.torch_dtype
         win = rope_pairs(*rope_tables(WINDOW, 1.0, ctx.device), dt)
@@ -360,6 +368,9 @@ class Portable(_Sam3):
 
     def module(self) -> torch.nn.Module:
         """The image encoder: `[1, 3, H, W]` in `[0, 1]` -> the neck levels `fpn0`, `fpn1`, `fpn2` (as `embed`)."""
+        if self.ctx.params.stream:
+            msg = "Image encoder export requires resident weights; reload with stream=False"
+            raise NotImplementedError(msg)
         return Forward(
             self.net.vision_encoder,
             lambda _net, image: tuple(f.float() for f in self._encode(image, exact=False)),
@@ -399,7 +410,7 @@ class Kernels(_Sam3):
         fastbb.load(ctx.device)  # BackendUnavailableError before the 3.4 GB checkpoint is read
         cudnn_hacc.load(ctx.device)
         net = load_net(ctx)
-        self.encoder = FastEncoder(net.vision_encoder, ctx.device)
+        self.encoder = FastEncoder(net.vision_encoder, ctx.device, stream=ctx.params.stream)
         override(net.mask_decoder.pixel_decoder, pixel_decode)
         self.prepare = normalized_rgb
         self.fp16_accumulate = fp16_accumulate

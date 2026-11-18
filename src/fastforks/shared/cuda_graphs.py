@@ -21,7 +21,7 @@ import inspect
 import threading
 import weakref
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 import torch
 
@@ -248,7 +248,10 @@ class GraphCache:
         torch.cuda.empty_cache()  # a dropped graph pool is only freed by the next empty_cache
 
 
-class SmallShapeGraphs:
+_Output = TypeVar("_Output")
+
+
+class SmallShapeGraphs(Generic[_Output]):
     """A kernels forward that replays a `GraphCache` graph for small inputs and runs eagerly otherwise.
 
     Small means `batch x H x W` of the first input <= `pixels` (launch-bound: the host issues the kernels slower than
@@ -259,7 +262,7 @@ class SmallShapeGraphs:
 
     def __init__(
         self,
-        forward: Callable[..., torch.Tensor],
+        forward: Callable[..., _Output],
         *,
         pixels: int,
         graphs: int = 2,
@@ -271,7 +274,7 @@ class SmallShapeGraphs:
         self.pixels = pixels
         self.cache = GraphCache(forward, graphs=graphs, capture_after=capture_after) if enabled else None
 
-    def __call__(self, *inputs: torch.Tensor) -> torch.Tensor:
+    def __call__(self, *inputs: torch.Tensor) -> _Output:
         """`forward(*inputs)`, from a graph when the input is small, CUDA and its shape repeats."""
         x = inputs[0]
         if self.cache is not None and x.is_cuda and x.shape[0] * x.shape[-2] * x.shape[-1] <= self.pixels:

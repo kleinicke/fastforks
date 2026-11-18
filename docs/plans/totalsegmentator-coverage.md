@@ -109,3 +109,23 @@ On the same instance the authors' unmodified report regression at `f3f68e2e` pas
 ### Newer upstream control
 
 With the same PyTorch environment, example CT and v2 weights, upstream `f3f68e2e` using `task="total_v2", resampling_order=1` took 3.293 s at 3 mm and 14.467 s at 1.5 mm (three-call medians). Against that baseline, loaded FastForks portable was 40.8× and 5.0× faster. These measurements isolate the change in upstream software from the change in weights and default interpolation. They do not measure the new v3 checkpoints or the report pipeline.
+
+## Resident and streamed weights
+
+On CUDA, `volume.load("totalsegmentator-total", stream=True)` keeps the five part networks
+in host memory. Each part transfers once per volume and stays on the GPU for all its windows.
+The default is `stream=False`. Custom nnU-Net folders accept the same option. All selected folds
+of the active part run together.
+
+The table uses the five-part 1.5 mm model, the stored 96 × 128 × 128 CT, FP16, and an RTX 5060 Ti.
+Each setting ran in a fresh process. Values are peak GPU memory allocated by PyTorch during the
+public prediction call, including resident weights, inputs and results. CUDA context memory and
+allocator reservations are outside this measure.
+
+| Execution mode | Resident | Streamed | Voxels changed by streaming |
+|---|---:|---:|---:|
+| Portable | 1,140 MiB | 876 MiB | 0 / 1,572,864 |
+| Kernels | 1,013 MiB | 748 MiB | 0 / 1,572,864 |
+
+Streamed and resident latency need a matched measurement on the timing machine. The upstream
+patch and prediction comparisons above use a different protocol.

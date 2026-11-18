@@ -189,7 +189,7 @@ class VolumeModel(core.Model):
         return super().module()
 
     def networks(self) -> tuple[torch.nn.Module, ...]:
-        """The networks (every fold of every part), e.g. to inspect or export one patch-sized U-Net."""
+        """The fold networks of every part. With stream=True their weights reside on the CPU."""
         return self._runner.networks()
 
     def __call__(
@@ -524,7 +524,7 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load` + the nnU-Net 
         mode: `"auto"`, `"portable"` or `"kernels"`, as every task's `load`.
         device: As every task's `load`.
         dtype: As every task's `load`.
-        **options: Load options of a model id (card `[options]`); not for a path.
+        **options: Load options of a model id. nnU-Net paths accept `stream=True` for CUDA part transfers.
         weights: Your own copy of a model id's weights; not for a path.
         folds: nnU-Net folder: folds to ensemble; `None`: every `fold_<k>` with the checkpoint.
         step: nnU-Net path: sliding-window step (fraction of the patch; `None`: nnU-Net's default 0.5).
@@ -547,8 +547,10 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load` + the nnU-Net 
             msg = f"{', '.join(f'{k}=' for k in given)}: for nnU-Net folders and checkpoints, not model ids"
             raise OptionsError(msg)
         return cast("VolumeModel", _load(str(model), mode=mode, device=device, dtype=dtype, weights=weights, **options))
-    if options or weights is not None:
-        msg = f"{str(model)!r} is an nnU-Net path: options and weights= are for model ids"
+    if options.keys() - {"stream"} or weights is not None:
+        msg = (
+            f"{str(model)!r} is an nnU-Net path: pass folds, step, mirror, checkpoint or stream to configure this model"
+        )
         raise OptionsError(msg)
     return _load_nnunet(
         model,
@@ -559,6 +561,7 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load` + the nnU-Net 
         step=0.5 if step is None else step,
         mirror=True if mirror is None else mirror,
         checkpoint=checkpoint,
+        options=options,
     )
 
 
@@ -577,6 +580,7 @@ def _load_nnunet(  # noqa: PLR0913 - the arguments of `load` + the nnU-Net optio
     step: float,
     mirror: bool,
     checkpoint: str | None,
+    options: Mapping[str, Any],
 ) -> VolumeModel:
     """`load` of an nnU-Net v2 model folder or checkpoint file."""
     from fastforks.volume._nnunet_runner import weight_names  # noqa: PLC0415 - the runner's layout
@@ -610,7 +614,9 @@ def _load_nnunet(  # noqa: PLR0913 - the arguments of `load` + the nnU-Net optio
     names = weight_names(parts, tuple(folds), checkpoint, embedded=embedded)
     weights = tuple(FileSpec(n, "0" * 64) for n in names)
     variant = dataclasses.replace(variant, weights=weights, params=params)
-    return core.load_variant(TASK, card, variant, VolumeModel, mode=mode, device=device, dtype=dtype, weights=root)
+    return core.load_variant(
+        TASK, card, variant, VolumeModel, mode=mode, device=device, dtype=dtype, weights=root, options=options
+    )
 
 
 def _model_class(model: str) -> type[VolumeModel | VolumeEncoder | VolumeInteractive]:

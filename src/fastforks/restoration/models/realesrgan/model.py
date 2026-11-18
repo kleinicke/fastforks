@@ -40,6 +40,42 @@ class Params:
     num_grow: int  # dense-block growth channels (32 in the release models)
 
 
+_TAIL_TILE_BYTES = 64 * 1024**2  # upper target per high-resolution 64-channel feature map
+
+
+def _upsample(m: RRDBNet, feature: torch.Tensor) -> torch.Tensor:
+    y = m.lrelu(m.conv_up1(F.interpolate(feature, scale_factor=2, mode="nearest")))
+    y = m.lrelu(m.conv_up2(F.interpolate(y, scale_factor=2, mode="nearest")))
+    return m.conv_last(m.lrelu(m.conv_hr(y)))
+
+
+def _upsample_stripes(m: RRDBNet, feature: torch.Tensor) -> torch.Tensor:
+    """The two 2x upconvolutions and two output convolutions need just two input halo rows on either side."""
+    b, c, h, w = feature.shape
+    rows = max(1, _TAIL_TILE_BYTES // (b * c * 16 * w * feature.element_size()))
+    if rows >= h:
+        return _upsample(m, feature)
+    out = torch.empty(
+        (b, m.conv_last.out_channels, 4 * h, 4 * w),
+        device=feature.device,
+        dtype=feature.dtype,
+        memory_format=torch.channels_last,
+    )
+    for start in range(0, h, rows):
+        end = min(start + rows, h)
+        lo, hi = max(0, start - 2), min(h, end + 2)
+        tile = _upsample(m, feature[:, :, lo:hi])
+        out[:, :, 4 * start : 4 * end].copy_(tile[:, :, 4 * (start - lo) : 4 * (end - lo)])
+    return out
+
+
+def _stripe_forward(m: RRDBNet, x: torch.Tensor) -> torch.Tensor:
+    feature = F.pixel_unshuffle(x, 4 // m.scale) if m.scale in (1, 2) else x
+    feature = m.conv_first(feature)
+    feature = feature + m.conv_body(m.body(feature))
+    return _upsample_stripes(m, feature)
+
+
 class Portable(Runner):
     """Plain PyTorch in the card's dtype, channels-last on CUDA.
 
@@ -69,7 +105,8 @@ class Portable(Runner):
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The upscaled batch."""
-        return {"image": self.net(image.to(getattr(torch, self.ctx.dtype)).contiguous(memory_format=self.fmt))}
+        x = image.to(getattr(torch, self.ctx.dtype)).contiguous(memory_format=self.fmt)
+        return {"image": _stripe_forward(self.net, x) if x.is_cuda else self.net(x)}
 
     def module(self) -> torch.nn.Module:
         """The network in the card's dtype."""
@@ -123,7 +160,7 @@ class Kernels(Portable):
         """The upscaled batch."""
         x = image.to(torch.float16).contiguous(memory_format=self.fmt)
         with fp16_accumulate():
-            return {"image": self.net(x)}
+            return {"image": _stripe_forward(self.net, x)}
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}

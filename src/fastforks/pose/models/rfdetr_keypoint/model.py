@@ -13,6 +13,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import Inert
+from fastforks.kernels import rfdetr_input
 from fastforks.pose._runner import Forward, Runner
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.rfdetr.build import Arch, network
@@ -113,12 +114,35 @@ class Kernels(Portable):
         self.graphs = GraphCache(self.net, graphs=1)
 
     def _raw(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
-        x = self._prepare(image)
+        x = rfdetr_input.prepare(image.float(), self.mean, self.std, self.ctx.params.resolution)
         raw = self.graphs.run((x.device, x.dtype, tuple(x.shape)), x)
         if raw is None:
             raw = self.net(x)
         boxes, logits, points = cast("tuple[torch.Tensor, torch.Tensor, torch.Tensor]", raw)
         return {"pred_boxes": boxes, "pred_logits": logits, "pred_keypoints": points}
+
+    def __call__(self, image: torch.Tensor, boxes: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002
+        """Decode the preview checkpoint's person slot with a single output compaction."""
+        raw = self._raw(image)
+        post = self.postprocess
+        obj, labels, query = post._select_topk(raw["pred_logits"].float())  # noqa: SLF001
+        height, width = image.shape[-2:]
+        size = torch.tensor([[height, width]], device=image.device)
+        xyxy = post._gather_and_scale_boxes(raw["pred_boxes"].float(), query, size)[0]  # noqa: SLF001
+        joints = post.num_keypoints_per_class[PERSON]
+        points = raw["pred_keypoints"][0, :, joints:].index_select(0, query[0]).float()
+        scores = obj[0]
+        if post.trace_alpha > 0 and points.shape[-1] >= 7:  # noqa: PLR2004 - upstream Cholesky layout
+            trace = post._keypoint_log_mean_trace(points)  # noqa: SLF001 - preserve upstream uncertainty
+            scores = (scores.log() - post.trace_alpha * trace).sigmoid().clamp_max_(1 - 2**-24)
+        keep = ((labels[0] == PERSON) & (scores > self.ctx.params.score_threshold)).nonzero().flatten()
+        kept = points.index_select(0, keep)
+        return {
+            "keypoints": kept[..., :2] * size[0].flip(0),
+            "keypoint_scores": kept[..., 2].sigmoid(),
+            "boxes": xyxy.index_select(0, keep),
+            "scores": scores.index_select(0, keep),
+        }
 
     def release_graphs(self) -> None:
         """Release the fixed network-input graph and its private memory pool."""

@@ -96,15 +96,19 @@ def _up2(self, disp, mask_feat, stem, i):
         return context_upsample_2x(disp.float() * 2., spx).unsqueeze(1)
 
 
+def _selective(left, right, samples, depth, groups):
+    return build_gwc_volume_selective(_nchw32(left), _nchw32(right), samples, depth, groups)
+
+
 @torch.no_grad()
-def forward_fast(self, image1, image2):
+def forward_fast(self, image1, image2, selective=_selective):
     """Test-mode forward after `prepare` (see the module docstring); returns the disparity [B, 1, H, W] (fp32)."""
     mf = torch.channels_last if self.inf_cl else torch.contiguous_format
     with torch.autocast(image1.device.type, dtype=torch.float16, enabled=self.inf_half):
-        return _forward(self, image1.contiguous(memory_format=mf), image2.contiguous(memory_format=mf))
+        return _forward(self, image1.contiguous(memory_format=mf), image2.contiguous(memory_format=mf), selective)
 
 
-def _forward(self, image1, image2):
+def _forward(self, image1, image2, selective):
     dev = image1.device.type
     depth_mono, features_mono_left, features_mono_right = self.infer_mono(image1, image2)
     depth_mono = depth_mono.float()
@@ -153,8 +157,7 @@ def _forward(self, image1, image2):
                 drs = get_cur_disp_range_samples(cur_disp=disp_next.squeeze(1), ndisp=self.ndisps[i - 1],
                                                  disp_interval_pixel=self.disp_interval_pixel[i - 1],
                                                  shape=[match_left.shape[0], match_left.shape[2], match_left.shape[3]])
-                gwc_volume = build_gwc_volume_selective(_nchw32(match_left), _nchw32(match_right), drs,
-                                                        self.ndisps[i - 1], 8)
+                gwc_volume = selective(match_left, match_right, drs, self.ndisps[i - 1], 8)
             gwc_volume = self.corr_stem(gwc_volume.to(match_left.dtype))
             gwc_volume = self.corr_feature_att_list[i](gwc_volume, feat_left)
             geo_encoding_volume = self.cost_agg[i](gwc_volume)
@@ -164,7 +167,7 @@ def _forward(self, image1, image2):
             geo_fn = Combined_Geo_Encoding_Volume(match_left.float(), match_right.float(), geo_encoding_volume.float(),
                                                   radius=self.args.corr_radius[i])
         b, c, h, w = match_left.shape
-        coords = torch.arange(w, device=match_left.device, dtype=torch.float32).reshape(1, 1, w, 1).repeat(b, h, 1, 1)
+        coords = torch.arange(w, device=match_left.device, dtype=torch.float32).reshape(1, 1, w, 1).expand(b, h, w, 1)
         nd = self.ndisps[i - 1] if i > 0 else None
         disp = cur_disp.float()
         for itr in range(iters_list[i]):

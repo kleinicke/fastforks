@@ -151,7 +151,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/Robbyant/lingbot-map/blob/b9dd1b1/LICENSE.txt and https://huggingface.co/robbyant/lingbot-map (no licence field)
 - Training data: Per the README: a stage-1 bidirectional (VGGT-style) checkpoint, then streaming training; datasets are not listed
-- Options: `long_side` = 518 (>= 14), `scale_frames` = 8 (>= 1), `window` = 64 (>= 1)
+- Options: `stream` = False (speed only), `long_side` = 518 (>= 14), `scale_frames` = 8 (>= 1), `window` = 64 (>= 1)
 - Kernel libraries: `fastbb`, `cudnn_hacc`
 - Variants: `lingbot-map`
 - Outputs: depth, confidence, intrinsics, cam_to_world; kind: `scale_invariant`
@@ -183,6 +183,8 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
+- On the RTX 5060 Ti reference input, stream=True reduced peak allocated memory across loading and inference from 3,591 to 2,532 MiB portable and 3,798 to 2,643 MiB kernels. Depth, confidence and camera outputs matched exactly.
+- On CUDA, stream=True keeps the 24 pairs of aggregator blocks in host RAM. Each new view after the initial scale frames transfers those weights again. The camera, depth head and attention cache stay on the GPU.
 - Views are a sequence (a video): each view only sees the first `scale_frames` views and the views before it (older than `window` frames: their 6 special tokens only). At most 1024 views.
 
 </details>

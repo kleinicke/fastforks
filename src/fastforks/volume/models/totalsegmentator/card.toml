@@ -1,6 +1,10 @@
 schema = 2
 name = "TotalSegmentator"
 summary = "TotalSegmentator (Wasserthal et al., Radiology: AI 2023): 117 anatomical structures (organs, bones, muscles, vessels) in CT, from nnU-Net v2 3D U-Nets. `total` merges five 1.5 mm part networks, `total-3mm` is the single fast 3 mm network. Gives one integer label volume on the input grid plus the label names."
+limitations = [
+  "On CUDA, stream=True keeps weights in CPU RAM and transfers each part once per volume. The five-part total model holds one part on the GPU at a time. All folds within the active part share the GPU.",
+  "On an RTX 5060 Ti with a 96 × 128 × 128 CT, total peak allocated memory was 1,140 / 876 MiB for resident / streamed portable and 1,013 / 748 MiB for kernels. Streaming preserved every predicted label in both modes.",
+]
 tier = "experimental"
 outputs = ["labels"]
 
@@ -24,6 +28,9 @@ configuration = ""  # the part name's last `__` field
 checkpoint = "checkpoint_final.pth"
 embedded = false
 classes = "classes_total.txt"
+
+[options]
+stream = { default = false, effect = "speed" }
 
 [modes.portable]
 cuda_dtype = "float16"  # float16 networks (nnU-Net: float16 autocast), channels-last 3D; resampling in float32 / float64

@@ -26,8 +26,9 @@ import torch
 
 from fastforks._core.checkpoint import NUMPY_ARRAYS, latin1_encode
 from fastforks._optimize import optimize
-from fastforks.kernels import box_nms, pose_warp
+from fastforks.kernels import box_nms, cudnn_hacc, pose_warp
 from fastforks.pose._runner import Forward, Runner
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import DCC, RTMO, STRIDES, Arch, convert
 
@@ -47,6 +48,7 @@ class Params(Arch):
 
     nms_iou: float  # NMS IoU threshold
     score_threshold: float  # option: minimum person score
+    cuda_graphs: bool = True
 
 
 def _to_warp(q: torch.Tensor) -> torch.Tensor:
@@ -201,8 +203,23 @@ class Kernels(Portable):
         self.backbone = optimize(copy.deepcopy(net.backbone).float(), mode="kernels", device=ctx.device, family="cnn")
         self.neck, self.head = net.neck.half(), net.head.half()
         del net.backbone  # the optimized copy replaces it
+        self.graphs = SmallShapeGraphs(
+            self._dense,
+            pixels=ctx.params.size**2,
+            graphs=1,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+        )
+
+    def release_graphs(self) -> None:
+        """Release the one fixed-size network graph and its workspaces."""
+        self.graphs.release()
 
     def dense(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """Replay the fixed-size network while keeping the variable-length person decoding eager."""
+        return self.graphs(x)
+
+    def _dense(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """float32 per-cell outputs of the letterboxed image `[B, 3, S, S]` in 0..255."""
         c3, c4, c5 = self.backbone.forward_native(x)
         return tuple(t.float() for t in self.head(self.neck((c3, c4, c5))))

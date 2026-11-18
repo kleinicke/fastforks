@@ -98,9 +98,11 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 <!-- libraries:begin (tools/gen_docs.py, from the model cards) -->
 | library | families |
 |---|---|
+| `acv_volume` | fast_acvnet |
 | `box_nms` | retinaface, rtmo, yunet |
 | `cfnet_volume` | cfnet |
 | `cfs` | c_foundationstereo |
+| `cotracker_corr` | cotracker |
 | `crestereo` | crestereo |
 | `cudnn_hacc` | aanet, alexnet, anycalib, anysplat, ben2, bisenet, c_foundationstereo, c_radio, cas_gwcnet, cfnet, clip, coatnet, codeformer, coex, compact, convnextv2, crestereo, dat, davit, dedode, defom_stereo, deit, densenet, depthfm, depthsplat, detr, dfine, dinov2_linear_cls, dlnr, drct, efficientformer, efficientformerv2, efficientnet, efficientnetv2, efficientvit, ema_vfi, eva02, fast_acvnet, fastvit, film, focalnet, foundationstereo, geocalib, gfpgan, gimm_vfi, great_igev, gwcnet, hat, hed, hgnetv2, hrnet, igev_plusplus, igev_stereo, inception_v3, isnet, lama, las2, lightglue, lineart, lingbot_map, loftr, loma, lotus, lwdetr, marigold, marigold_normals, megaflow, midas, mlsd, mmseg, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, mocha_stereo, monster, monster_plusplus, mvsanywhere, mvsplat, nafnet, nsfw_vit, perception_encoder, ppocrv5, psmnet, raft, raft_stereo, rcnn, realesrgan, realplksr, recover, regnet, repvit, resnet, resplat, restormer, retinaface, rife, rt_monster_plusplus, rtdetrv2, rtmdet, rtmo, rtmpose, s2m2, sam3, sapiens, sea_raft, segformer, selective_igev, shufflenetv2, shvit, siglip, siglip2, span, squeezenet, stablenormal, starnet, swin, swin2sr, swinir, u2net, unidepth_v2, vgg, vggt, vit, vitmatte, waft, waft_stereo, wd_tagger, yolox, yunet, zoedepth |
 | `cutlass_conv` | aanet, ben2, bisenet, c_foundationstereo, cas_gwcnet, cfnet, codeformer, coex, crestereo, dedode, defom_stereo, dlnr, fast_acvnet, great_igev, gwcnet, hed, igev_plusplus, igev_stereo, isnet, las2, lightglue, lineart, loftr, loma, mlsd, mmseg, mocha_stereo, monster, monster_plusplus, mvsanywhere, ppocrv5, psmnet, raft, raft_stereo, rt_monster_plusplus, sea_raft, selective_igev, u2net, vitmatte, waft, waft_stereo |
@@ -136,12 +138,14 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `loma_descriptor` | loma |
 | `map_geometry` | mapanything |
 | `mocha` | mocha_stereo |
+| `monster_gwc` | rt_monster_plusplus |
 | `msda` | grounding_dino |
 | `mvsanywhere` | mvsanywhere |
 | `mvsplat_corr` | mvsplat |
 | `nafnet_gate` | nafnet |
 | `nf4` | marigold_v2, seedvr2 |
 | `ocr_levels` | ppocrv5 |
+| `omni_cg` | omni_dc |
 | `patchmatchnet` | patchmatchnet |
 | `pil_resample` | parseq |
 | `pointdit_norm` | pointdit |
@@ -150,6 +154,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `raft_flow` | gimm_vfi, megaflow, memflow, memfof, neuflow_v2, raft, sea_raft |
 | `recover_motion` | recover |
 | `resize_cat` | u2net |
+| `rfdetr_input` | rfdetr, rfdetr_keypoint |
 | `romav2` | romav1, romav2 |
 | `s2m2` | s2m2 |
 | `s2m2_cutlass` | s2m2 |

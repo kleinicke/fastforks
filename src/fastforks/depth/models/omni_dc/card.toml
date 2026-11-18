@@ -34,7 +34,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["fastbb", "dpt_fused"]
+kernels = ["fastbb", "dpt_fused", "omni_cg"]
 
 [[papers]]
 title = "OMNI-DC: Highly Robust Depth Completion with Multiresolution Depth Integration"

@@ -21,19 +21,19 @@ upstream = "https://github.com/wasserth/TotalSegmentator@184fa4765456492b2ab81a9
 settings = "CPU float32, totalsegmentator(ml=True, fast=False, device='cpu') on s0013 ct.nii.gz, centre crop (96, 128, 128) (z, y, x) RAS, torch 2.10.0+cu130"
 
 [validated."totalsegmentator-total-3mm@1"]
-kernels = ["vol_norm@44036d4da567:sm_120"]
-symbols = {"vol_norm" = {"in_apply_h" = "25ce125fd5d7b2ac", "in_final_h" = "7e4e2736f3fa180b", "in_stats_h" = "0a69cc1aa662739a"}}
+kernels = ["vol_norm@aaf727a9a679:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "a84d40b2b95544ae", "in_final_h" = "144f91a7be7a46b5", "in_stats_h" = "2278a5cf31fe7e1f"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-14"
-mean_px = 0.0006
+date = "2026-11-18"
+mean_px = 0.00056
 p99_px = 0.0
 
 [validated."totalsegmentator-total@1"]
-kernels = ["vol_norm@44036d4da567:sm_120"]
-symbols = {"vol_norm" = {"in_apply_h" = "25ce125fd5d7b2ac", "in_final_h" = "7e4e2736f3fa180b", "in_stats_h" = "0a69cc1aa662739a"}}
+kernels = ["vol_norm@aaf727a9a679:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "a84d40b2b95544ae", "in_final_h" = "144f91a7be7a46b5", "in_stats_h" = "2278a5cf31fe7e1f"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-14"
+date = "2026-11-18"
 mean_px = 7e-05
 p99_px = 0.0

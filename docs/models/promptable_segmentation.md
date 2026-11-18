@@ -502,7 +502,7 @@ Commercial use: yes.
 - Licence evidence: https://huggingface.co/facebook/sam3/blob/main/LICENSE (SAM License, Nov 19 2025); the weights are gated: download them from Meta's Hugging Face repo after accepting the licence and point FASTFORKS_WEIGHTS_PATH at the local copy; fastforks never mirrors them
 - Training data: the SA-Co data engine's image and video annotations plus public and internal datasets per the paper; not released as one dataset
 - Licence note: The weights use Meta's SAM License, not Apache-2.0; its terms were not re-checked here.
-- Options: `cuda_graphs` = True (speed only)
+- Options: `stream` = False (speed only), `cuda_graphs` = True (speed only)
 - Kernel libraries: `fastbb`, `cudnn_hacc`, `dpt_fused`, `sam3_fpn`, `sam3_tracker`, `sam3_resize`
 - Variants: `sam3`
 - Outputs: boxes, scores, masks
@@ -533,6 +533,8 @@ CPU, float32: max |diff| <= 0.0005 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
+- On the RTX 5060 Ti, streaming the same 18-frame, 800 × 600 clip with two objects reduced peak allocated memory from 2,304 to 1,482 MiB portable and 2,047 to 1,224 MiB kernels. The masks and scores matched the corresponding resident run exactly.
+- stream=True stages the image encoder from pinned host memory once per embedded frame. Text and prompt heads remain resident, and further prompts on an existing embedding reuse that frame. Image encoder export requires stream=False.
 - Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~300 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>

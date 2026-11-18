@@ -80,10 +80,12 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
 
 
-def _span_block(m: SPAB, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+def _span_block(m: SPAB, x: torch.Tensor, *, keep_tap: bool = False) -> tuple[torch.Tensor, torch.Tensor | None]:
     first = m.act1(m.c1_r(x))
     second = m.act1(m.c2_r(first))
-    return sr_ops.residual(m.c3_r(second), x, attention=True), first
+    tap = first if keep_tap else None
+    del first
+    return sr_ops.residual(m.c3_r(second), x, attention=True), tap
 
 
 def _span(m: SPAN, x: torch.Tensor) -> torch.Tensor:
@@ -93,7 +95,8 @@ def _span(m: SPAN, x: torch.Tensor) -> torch.Tensor:
     y = first
     for block in (m.block_2, m.block_3, m.block_4, m.block_5):
         y, _ = _span_block(block, y)
-    y, tap = _span_block(m.block_6, y)
+    y, tap = _span_block(m.block_6, y, keep_tap=True)
+    assert tap is not None  # noqa: S101 - keep_tap=True returns the intermediate activation
     return m.upsampler(m.conv_cat(torch.cat((base, m.conv_2(y), first, tap), 1)))
 
 

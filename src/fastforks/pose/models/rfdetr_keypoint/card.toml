@@ -64,7 +64,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["fastbb"]
+kernels = ["rfdetr_input", "fastbb"]
 
 [output]
 label_set = "coco-keypoints-17"

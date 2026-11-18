@@ -20,14 +20,16 @@ IMAGE = image(240, 320, seed=3)  # fixed: any texture; the tests compare two pat
 TEXT = "coin"
 
 
-def _load(mode: Mode, device: str, *, cuda_graphs: bool = True) -> promptable_segmentation.ConceptSegmentationModel:
+def _load(
+    mode: Mode, device: str, *, cuda_graphs: bool = True, stream: bool = False
+) -> promptable_segmentation.ConceptSegmentationModel:
     card, variant = registry.resolve("promptable_segmentation", "sam3")
     try:
         registry.weights(card, variant, allow_download=False)
     except WeightsError as e:
         pytest.skip(f"sam3: gated weights not available locally: {e}")
     try:
-        return promptable_segmentation.load("sam3", mode=mode, device=device, cuda_graphs=cuda_graphs)
+        return promptable_segmentation.load("sam3", mode=mode, device=device, cuda_graphs=cuda_graphs, stream=stream)
     except BackendUnavailableError as e:
         pytest.skip(f"sam3 {mode}: {e}")
 
@@ -182,3 +184,25 @@ def test_kernels_graphs_from_two_streams():
         for out in got[i]:
             for k in ("scores", "boxes", "pred_masks"):
                 torch.testing.assert_close(out[k], want[i][k], rtol=0, atol=0, msg=f"call {i}: {k}")
+
+
+@pytest.mark.gpu
+@pytest.mark.model
+@pytest.mark.parametrize("mode", ["portable", "kernels"])
+def test_streamed_sam3_reuses_frame_for_subsequent_prompts(mode: Mode, monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastforks.shared.host_blocks import HostBlocks  # noqa: PLC0415
+
+    m = _load(mode, "cuda", cuda_graphs=False, stream=True)
+    uploaded: list[int] = []
+    original = HostBlocks._upload
+
+    def count(bank: HostBlocks, i: int) -> None:
+        uploaded.append(bank.sizes[i])
+        original(bank, i)
+
+    monkeypatch.setattr(HostBlocks, "_upload", count)
+    emb = m.get_image_embeddings(IMAGE)
+    assert len(uploaded) == 32
+    m(emb, text=TEXT)
+    m(emb, input_boxes=[[4, 5, 30, 40]])
+    assert len(uploaded) == 32

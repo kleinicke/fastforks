@@ -129,3 +129,40 @@ def test_export_adapter_does_not_keep_network_alive():
     ref = weakref.ref(net)
     del net
     assert ref() is None  # no cyclic garbage collection needed to free the network
+
+
+@pytest.mark.parametrize("threshold", [0.0, 0.5, 1.0])
+def test_person_slot_decoder_matches_upstream(monkeypatch, threshold) -> None:
+    from fastforks.pose.models.rfdetr_keypoint.model import Kernels  # noqa: PLC0415
+
+    portable = _runner(monkeypatch, threshold)
+    fused = object.__new__(Kernels)
+    fused.ctx, fused.postprocess = portable.ctx, portable.postprocess
+    generator = torch.Generator().manual_seed(27)
+    points = torch.randn(1, 13, 34, 7, generator=generator).half()
+    logits = torch.randn(1, 13, 2, generator=generator).half()
+    logits[:, :4] = 0  # tie at the raw top-k boundary
+    raw = {
+        "pred_boxes": torch.rand(1, 13, 4, generator=generator).half(),
+        "pred_logits": logits,
+        "pred_keypoints": points,
+    }
+    monkeypatch.setattr(portable, "_raw", lambda _image: raw)
+    monkeypatch.setattr(fused, "_raw", lambda _image: raw)
+    image = torch.zeros(1, 3, 91, 123)
+    for key, expected in portable(image, None).items():
+        torch.testing.assert_close(fused(image, None)[key], expected, rtol=0, atol=0)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(("height", "width", "side"), [(1, 1, 5), (91, 123, 47), (27, 36, 80), (81, 81, 81)])
+def test_square_input_matches_torch_bilinear(height: int, width: int, side: int) -> None:
+    from fastforks.kernels import rfdetr_input  # noqa: PLC0415
+    from fastforks.pose.models.rfdetr_keypoint.model import MEAN, STD  # noqa: PLC0415
+
+    x = torch.rand(2, 3, height, 2 * width, device="cuda")[..., ::2]
+    mean = x.new_tensor(MEAN).view(1, 3, 1, 1)
+    std = x.new_tensor(STD).view(1, 3, 1, 1)
+    y = torch.nn.functional.interpolate(x, size=(side, side), mode="bilinear", align_corners=False)
+    expected = ((y - mean) / std).half()
+    torch.testing.assert_close(rfdetr_input.prepare(x, mean, std, side), expected, atol=0, rtol=0)

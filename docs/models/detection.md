@@ -563,7 +563,7 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/roboflow/rf-detr/blob/5b22dfc0940697ce1abdfa681a5f7392b3eddbfb/README.md#license>
 - Training data: COCO 2017 (train, instance annotations), Objects365 (train, box annotations), LVD-142M (DINOv2's curated web-image set, not released) (COCO 2017 train (README); the RF-DETR paper (arXiv:2511.09554) pretrains detection on Objects365; the DINOv2-small backbone originates from LVD-142M pretraining. Full intermediate training provenance is not stated.)
 - Options: `score_threshold` = 0.5 (0.0 to 1.0), `max_detections` = 100 (>= 1)
-- Kernel libraries: `fastbb`, `fvm_conv`
+- Kernel libraries: `rfdetr_input`, `fastbb`, `fvm_conv`
 - Variants: `rf-detr-n-coco`, `rf-detr-s-coco`, `rf-detr-m-coco`, `rf-detr-l-coco`, `rf-detr-seg-n-coco`, `rf-detr-seg-s-coco`, `rf-detr-seg-m-coco`, `rf-detr-seg-l-coco`, `rf-detr-seg-xl-coco`, `rf-detr-seg-2xl-coco`
 - Outputs: boxes, scores, labels, masks; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -626,16 +626,16 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `rf-detr-n-coco` | 0.04829 / 0.1498 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
-| `rf-detr-s-coco` | 0.06718 / 0.1126 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
-| `rf-detr-m-coco` | 0.09944 / 0.22606 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
-| `rf-detr-l-coco` | 0.15787 / 0.32693 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
-| `rf-detr-seg-n-coco` | 0.25982 / 1.06715 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
-| `rf-detr-seg-s-coco` | 0.12115 / 0.31712 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
-| `rf-detr-seg-m-coco` | 0.13842 / 0.39567 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
-| `rf-detr-seg-l-coco` | 0.26359 / 0.91166 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
-| `rf-detr-seg-xl-coco` | 0.73043 / 2.97183 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
-| `rf-detr-seg-2xl-coco` | 0.37543 / 1.74394 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120` |
+| `rf-detr-n-coco` | 0.04829 / 0.1498 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
+| `rf-detr-s-coco` | 0.06718 / 0.1126 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
+| `rf-detr-m-coco` | 0.09944 / 0.22606 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
+| `rf-detr-l-coco` | 0.15787 / 0.32693 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
+| `rf-detr-seg-n-coco` | 0.21732 / 0.87894 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
+| `rf-detr-seg-s-coco` | 0.12115 / 0.31712 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
+| `rf-detr-seg-m-coco` | 0.13842 / 0.39567 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
+| `rf-detr-seg-l-coco` | 0.34109 / 0.86718 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
+| `rf-detr-seg-xl-coco` | 0.67382 / 2.7521 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
+| `rf-detr-seg-2xl-coco` | 0.29464 / 1.03198 | RTX 5060 Ti, torch 2.14.1+cu130 | `fastbb@7d058322634d:sm_120`, `fvm_conv@f1d064e539e1:sm_120`, `rfdetr_input@fc544cee4666:sm_120` |
 
 ### Limitations
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 import torch
 import torch.nn.functional as F
 
+_PACKED_TILE = 2 * 1024 * 1024  # packed bytes per CUDA lookup tile
 BF = torch.bfloat16
 BLOCK = 64  # weights per absmax
 NF4_CODE = (  # bitsandbytes `functional.get_4bit_type("nf4")`, as float32
@@ -39,6 +40,18 @@ def dequant_lut(q: torch.Tensor, absmax: torch.Tensor, lut: torch.Tensor, n_out:
     to bf16 (computed in float32, as `(code * absmax).to(bfloat16)`). Index tensors must be int32 or int64; the
     embedding is ~2x faster than advanced indexing, per-block product tables were slower still.
     """
+    if q.is_cuda and q.numel() >= 2 * _PACKED_TILE and absmax.numel() * (BLOCK // 2) == q.numel():
+        # Keep expanded float32 lookup values short-lived. The final bf16 matrix feeds one GEMM.
+        packed = q.reshape(-1)
+        scales = absmax.reshape(-1, 1)
+        out = torch.empty((scales.shape[0], BLOCK), device=q.device, dtype=BF)
+        for start in range(0, packed.numel(), _PACKED_TILE):
+            end = min(start + _PACKED_TILE, packed.numel())
+            rows = slice(start // (BLOCK // 2), end // (BLOCK // 2))
+            values = F.embedding(packed[start:end].int(), lut).view(-1, BLOCK)
+            torch.mul(values, scales[rows], out=out[rows])
+            del values
+        return out.view(n_out, -1)
     g = F.embedding(q.int(), lut).view(-1, BLOCK)
     w = torch.empty(g.shape, dtype=BF, device=g.device)
     return torch.mul(g, absmax.reshape(-1)[:, None], out=w).view(n_out, -1)
