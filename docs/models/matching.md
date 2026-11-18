@@ -190,13 +190,14 @@ Commercial use: yes.
 
 ### Measured
 
-Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Original = the original code named under Details, same checkpoint and protocol.
+Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Both modes receive pairs resized to 768 x 1024. Map matched pixels to the calibrated evaluation coordinates and use the same RANSAC seed per pair. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|
-| `dedode-v2-b` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 57.3 / 71.5 / 82.5 | 54.6 / 71.8 / 83.1 | 56.0 / 72.0 / 82.7 | 57.8 / 74.3 / 84.2 |  |
+| variant | dataset | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|
+| `dedode-v2-b` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 53.2 / 68.2 / 79.8 |  |  | 50.7 / 67.4 / 78.4 |  |
+| `dedode-v2-b` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 57.3 / 71.5 / 82.5 | 54.6 / 71.8 / 83.1 | 56.0 / 72.0 / 82.7 | 57.8 / 74.3 / 84.2 |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d073b335, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565 / ce6d1409, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d073b335, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ce6d1409, 2026-11-18.
 
 ### Parity
 
@@ -296,7 +297,7 @@ Commercial use: yes.
 | `loma-b128` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>150<br>–<br>122<br>144 | –<br>878 / 984<br>–<br>1398 / 1760<br>1062 / 1066 |
 | `loma-l` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>319<br>–<br>295<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>1903 / 2012<br>–<br>3006 / 3194<br>– |
 | `loma-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>358<br>–<br>330<br>366 | –<br>2444 / 2548<br>–<br>3547 / 3890<br>2298 / 2322 |
-| `loma-r` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile | –<br>309<br>–<br>286 | –<br>1767 / 1878<br>–<br>2870 / 3256 |
+| `loma-r` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>309<br>–<br>286<br>326 | –<br>1767 / 1878<br>–<br>2870 / 3256<br>1986 / 2010 |
 
 <details><summary>Details</summary>
 
@@ -317,7 +318,7 @@ Commercial use: yes.
 - `loma-b128` 768x1024, first call: portable + torch.compile 67 s (cold Inductor cache), TensorRT bf16 103 s (ONNX + engine).
 - `loma-l` 768x1024, first call: portable + torch.compile 101 s (cold Inductor cache).
 - `loma-g` 768x1024, first call: portable + torch.compile 103 s (cold Inductor cache), TensorRT bf16 171 s (ONNX + engine).
-- `loma-r` 768x1024, first call: portable + torch.compile 108 s (cold Inductor cache).
+- `loma-r` 768x1024, first call: portable + torch.compile 108 s (cold Inductor cache), TensorRT bf16 175 s (ONNX + engine).
 - `loma-b` original 768x1024: upstream LoMa(LoMaB(mp=False)), float32, 2048 keypoints
 - `loma-b` load / first call: original 8.52 s / 1.373 s, portable 2.53 s / 1.269 s
 - `loma-b64` load / first call: portable 0.28 s / 0.759 s
