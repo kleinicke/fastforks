@@ -40,6 +40,15 @@ upstream = "https://github.com/huggingface/transformers@c4c4605f961877852b89b974
 settings = "CPU float32, transformers GroundingDinoImageProcessor + MMGroundingDinoForObjectDetection with its per-layer heads untied (transformers ties them to layer 0), skimage coffee.png, the coco-80 names as one caption, mean token scores, score threshold 0.392, torch 2.14.1+cu130"
 options = [["score_threshold", 0.392]]
 
+[validated."grounding-dino-base@1"]
+kernels = ["msda@7db8a6f4e515:sm_120"]
+symbols = {"msda" = {"deform_sample" = "ac85d283f7876301"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-18"
+mean_px = 0.16413
+p99_px = 0.50577
+
 [validated."grounding-dino-tiny@1"]
 kernels = ["msda@7db8a6f4e515:sm_120"]
 symbols = {"msda" = {"deform_sample" = "ac85d283f7876301"}}

@@ -80,7 +80,7 @@ weights = [
 
 [[variants]]
 id = "grounding-dino-base"
-planned = { kernels = "the pinned upstream CPU model and portable runner both exceed the existing Base box tolerance", onnx = "the ONNX converter has no decomposition for aten._is_all_true" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { onnx = "the ONNX converter has no decomposition for aten._is_all_true" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 licence = { evidence = "https://huggingface.co/IDEA-Research/grounding-dino-base/blob/12bdfa3120f3e7ec7b434d90674b3396eccf88eb/README.md", training_data = ["coco", "objects365"], training_note = "Grounding DINO-B: COCO, Objects365, GoldG (Flickr30k Entities + GQA / Visual Genome images), Cap4M (web image-caption pairs with pseudo-boxes), OpenImages, ODinW-35 and RefCOCO; only COCO and Objects365 have dataset ids here (the authors' model table, github.com/IDEA-Research/GroundingDINO README)." }
 weights = [
