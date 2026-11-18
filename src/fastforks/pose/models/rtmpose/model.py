@@ -28,6 +28,7 @@ from fastforks._core.checkpoint import NUMPY_ARRAYS, empty_bytes, latin1_encode
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks._optimize import conv_ops, ops, optimize
+from fastforks.kernels import pose_warp
 from fastforks.pose._runner import BUCKETS, Forward, Runner, in_buckets
 from fastforks.shared.cspnext import Attention, fold_bn
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
@@ -135,7 +136,7 @@ class Kernels(Portable):
         if self.ctx.params.flip_test:
             x = torch.cat([x, x.flip(-1)])
         with fp16_accumulate():
-            sx, sy = (t.float() for t in self.head(_half(self.backbone(x))))
+            sx, sy = (t.float() for t in self.head(self.backbone.forward_native(x)))
         if self.ctx.params.flip_test:
             p = crops.shape[0]
             sx = (sx[:p] + sx[p:].index_select(1, self.flip).flip(-1)) * 0.5
@@ -152,7 +153,7 @@ class Kernels(Portable):
         assert boxes is not None  # noqa: S101 - the task API checks top-down calls
         a: Params = self.ctx.params
         centre, size = crop_boxes(boxes.float(), a.height, a.width)
-        crops = crop(image, centre, size, a.height, a.width)
+        crops = pose_warp.crop(image, centre, size, a.height, a.width)
         out = in_buckets(self.graphs, crops)
         kp = out[..., :2] * (size / self.net_size)[:, None] + (centre - size * 0.5)[:, None]
         score = out[..., 2]
@@ -164,7 +165,7 @@ class Kernels(Portable):
         def fn(_net: Any, crops: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:  # noqa: ANN401 - the network
             x = (crops * 255 - self.mean) / self.std
             with fp16_accumulate():
-                sx, sy = self.head(_half(self.backbone(x)))
+                sx, sy = self.head(self.backbone.forward_native(x))
             return sx.float(), sy.float()
 
         return Forward(self.net, fn)
@@ -237,11 +238,6 @@ def _precise_backbone(backbone: torch.nn.Module, channels: int) -> None:
                 if node.op == "call_function" and node.target is ops.dwconv2:
                     node.target = ops.dwconv
             module.recompile()
-
-
-def _half(y: torch.Tensor | tuple[torch.Tensor, ...]) -> Any:  # noqa: ANN401 - what the head takes
-    """The optimized backbone's map (RTMW: the neck's two maps) as float16."""
-    return y.half() if isinstance(y, torch.Tensor) else tuple(t.half() for t in y)
 
 
 def _attention_mps(self: Attention, x: torch.Tensor) -> torch.Tensor:

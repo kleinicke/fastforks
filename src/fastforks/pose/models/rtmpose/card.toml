@@ -37,7 +37,7 @@ cuda_dtype = "float16"  # crops, decoding and keypoint mapping stay float32
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # the CSPNeXt backbone through fastforks._optimize (fused conv + SiLU, residual, concat); fp16 SimCC head
+kernels = ["pose_warp", "cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # the CSPNeXt backbone through fastforks._optimize (fused conv + SiLU, residual, concat); fp16 SimCC head
 mps_kernels = ["pose_metal"]  # the OpenCV-style crops in one pass (the network: portable; fp16 is not faster on MPS)
 mps_dtype = "float32"  # fp16 is not faster on MPS and moves unsure keypoints more (dwpose-l: up to 81 px)
 

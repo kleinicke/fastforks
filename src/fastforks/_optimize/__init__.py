@@ -218,6 +218,10 @@ class FastModel(nn.Module):
             *args: Passed on to the model's forward.
             **kwargs: Passed on to the model's forward (`pixel_values=` instead of `x`).
         """
+        return _to_float(self.forward_native(x, *args, **kwargs))
+
+    def forward_native(self, x: torch.Tensor | None = None, *args: object, **kwargs: object) -> Any:  # noqa: ANN401 - network-dependent tensor tree
+        """Run in the built precision and retain its output dtype for an attached inference head."""
         key = None
         if x is None:
             key = "pixel_values"
@@ -239,10 +243,9 @@ class FastModel(nn.Module):
             net = big
         xi = self._input(net, x)
         if not self._acc:  # see `traceable()`
-            return _to_float(net(*args, **{key: xi}, **kwargs) if key else net(xi, *args, **kwargs))
+            return net(*args, **{key: xi}, **kwargs) if key else net(xi, *args, **kwargs)
         with fp16_accumulate():
-            y = net(*args, **{key: xi}, **kwargs) if key else net(xi, *args, **kwargs)
-        return _to_float(y)
+            return net(*args, **{key: xi}, **kwargs) if key else net(xi, *args, **kwargs)
 
 
 def _family(names: set[str]) -> str | None:

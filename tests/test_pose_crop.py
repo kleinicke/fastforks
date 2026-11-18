@@ -133,3 +133,16 @@ def test_in_buckets_runs_bucket_sized_batches_in_order(people):
     assert torch.equal(in_buckets(forward, crops), crops * 2)
     assert set(seen) <= set(BUCKETS)
     assert sum(seen) - people < BUCKETS[-1]
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(("height", "width"), [(13, 17), (256, 192)])
+def test_cuda_topdown_crop_matches_portable(height: int, width: int) -> None:
+    from fastforks.kernels import pose_warp  # noqa: PLC0415
+
+    torch.manual_seed(3)
+    image = torch.rand(1, 3, 69, 271, device="cuda")[:, :, :, ::2]
+    boxes = torch.tensor([[-12.75, 0.5, 92.75, 79], [23.25, 7, 58, 41], [-100, 84, -25, 151]], device="cuda")
+    centre, size = rtmpose.crop_boxes(boxes, height, width)
+    got = pose_warp.crop(image, centre, size, height, width)
+    assert torch.equal(got, rtmpose.crop(image, centre, size, height, width))

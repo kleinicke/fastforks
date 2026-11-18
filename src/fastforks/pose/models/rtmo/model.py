@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import copy
+import functools
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -25,6 +26,7 @@ import torch
 
 from fastforks._core.checkpoint import NUMPY_ARRAYS, latin1_encode
 from fastforks._optimize import optimize
+from fastforks.kernels import pose_warp
 from fastforks.pose._runner import Forward, Runner
 
 from .net import DCC, RTMO, STRIDES, Arch, convert
@@ -53,14 +55,31 @@ def _to_warp(q: torch.Tensor) -> torch.Tensor:
     return torch.floor((q + shift // 2) / shift) / (1 << WARP_BITS)
 
 
-def letterbox(image: torch.Tensor, size: int) -> tuple[torch.Tensor, float]:
-    """(`[1, 3, size, size]` in 0..255 (integers), scale `r`) of `image` `[1, 3, H, W]` in [0, 1] (module docstring)."""
-    ih, iw = image.shape[-2:]
-    r = min(size / iw, size / ih)
+def _coordinates(ih: int, iw: int, size: int, r: float) -> tuple[torch.Tensor, torch.Tensor]:
+    """Rounded source columns and rows of the square OpenCV warp."""
     one = float(1 << AB_BITS)
     i = torch.arange(size, dtype=torch.float64)  # float64 on the CPU: the reference's double arithmetic
     x = _to_warp(round((iw / 2 - size / (2 * r)) * one) + (i / r * one).round())
     y = _to_warp(((ih / 2 - size / (2 * r) + i / r) * one).round())
+    return x, y
+
+
+@functools.lru_cache(maxsize=16)
+def _cuda_coordinates(ih: int, iw: int, size: int, device: torch.device) -> torch.Tensor:
+    r = min(size / iw, size / ih)
+    return torch.stack(_coordinates(ih, iw, size, r)).to(device=device, dtype=torch.float32)
+
+
+def _cuda_letterbox(image: torch.Tensor, size: int) -> tuple[torch.Tensor, float]:
+    ih, iw = image.shape[-2:]
+    return pose_warp.letterbox(image, _cuda_coordinates(ih, iw, size, image.device)), min(size / iw, size / ih)
+
+
+def letterbox(image: torch.Tensor, size: int) -> tuple[torch.Tensor, float]:
+    """(`[1, 3, size, size]` in 0..255 (integers), scale `r`) of `image` `[1, 3, H, W]` in [0, 1] (module docstring)."""
+    ih, iw = image.shape[-2:]
+    r = min(size / iw, size / ih)
+    x, y = _coordinates(ih, iw, size, r)
     x0, y0 = x.floor(), y.floor()
     fx, fy = (x - x0).float().to(image.device), (y - y0).float().to(image.device)
     # One border pixel of the fill value around the image: every tap outside reads it
@@ -104,6 +123,7 @@ class Portable(Runner):
     dtypes = ("float32", "float16")
     Params = Params
     needs_boxes: ClassVar[bool] = False
+    resize = staticmethod(letterbox)
 
     def __init__(self, ctx: Context) -> None:
         """Build the network with the checkpoint (BatchNorm folded) on the device."""
@@ -148,7 +168,7 @@ class Portable(Runner):
     def __call__(self, image: torch.Tensor, boxes: torch.Tensor | None) -> dict[str, torch.Tensor]:
         """The people in the image with their keypoints."""
         assert boxes is None  # noqa: S101 - the task API rejects boxes for one-stage families
-        x, r = letterbox(image, self.ctx.params.size)
+        x, r = self.resize(image, self.ctx.params.size)
         return self.people(self.dense(x), r, *image.shape[-2:])
 
     def module(self) -> torch.nn.Module:
@@ -166,6 +186,8 @@ class Kernels(Portable):
     The neck and the head stay the portable float16 modules; decoding as in `Portable`.
     """
 
+    resize = staticmethod(_cuda_letterbox)
+
     def __init__(self, ctx: Context) -> None:
         """The portable network, then the optimized backbone."""
         super().__init__(ctx)
@@ -176,7 +198,7 @@ class Kernels(Portable):
 
     def dense(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """float32 per-cell outputs of the letterboxed image `[B, 3, S, S]` in 0..255."""
-        c3, c4, c5 = (t.half() for t in self.backbone(x))
+        c3, c4, c5 = self.backbone.forward_native(x)
         return tuple(t.float() for t in self.head(self.neck((c3, c4, c5))))
 
 

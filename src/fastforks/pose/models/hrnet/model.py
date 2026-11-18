@@ -26,6 +26,7 @@ import torch
 
 from fastforks._core.checkpoint import NUMPY_ARRAYS, Inert, latin1_encode, numeric_scalar
 from fastforks._optimize import optimize
+from fastforks.kernels import pose_warp
 from fastforks.pose._runner import Forward, Runner
 from fastforks.shared.topdown import FLIP, MEAN, STD, crop, crop_boxes
 
@@ -68,6 +69,8 @@ class Portable(Runner):
     dtypes = ("float32", "float16")
     Params = Params
 
+    crop = staticmethod(crop)
+
     def __init__(self, ctx: Context) -> None:
         """Build the network with the checkpoint (BatchNorm folded) on the device."""
         super().__init__(ctx)
@@ -100,7 +103,7 @@ class Portable(Runner):
         assert boxes is not None  # noqa: S101 - the task API checks top-down calls
         a: Params = self.ctx.params
         centre, size = crop_boxes(boxes.float(), a.height, a.width)
-        coords, score = decode(self.heatmaps(crop(image, centre, size, a.height, a.width)))
+        coords, score = decode(self.heatmaps(self.crop(image, centre, size, a.height, a.width)))
         kp = coords * (size / self.net_size)[:, None] + (centre - size * 0.5)[:, None]
         return {"keypoints": kp, "keypoint_scores": score, "scores": score.mean(1)}
 
@@ -118,6 +121,8 @@ class Kernels(Portable):
 
     Cropping, decoding and the mapping back as in `Portable`.
     """
+
+    crop = staticmethod(pose_warp.crop)
 
     def __init__(self, ctx: Context) -> None:
         """The portable network, then its optimized version (replaces it: a second set of weights was 121 MiB)."""

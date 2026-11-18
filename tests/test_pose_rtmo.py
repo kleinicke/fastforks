@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 import torch
 import torch.nn.functional as F
 
@@ -60,3 +61,13 @@ def test_nms_drops_boxes_a_kept_one_overlaps():
     )
     assert rtmo.nms(boxes, 0.65).tolist() == [0, 2]
     assert rtmo.nms(boxes[:0], 0.65).tolist() == []
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(("h", "w", "size"), [(63, 199, 64), (199, 63, 128), (64, 64, 64), (1, 13, 8)])
+def test_cuda_letterbox_matches_portable(h: int, w: int, size: int) -> None:
+    image = _image(w, h).cuda().transpose(2, 3)
+    expected, scale = rtmo.letterbox(image, size)
+    got, actual_scale = rtmo.Kernels.resize(image, size)
+    assert actual_scale == scale
+    assert torch.equal(got, expected)
