@@ -176,7 +176,7 @@ Commercial use: yes.
 - Options: `size` = 784 (>= 56), `max_keypoints` = 10000 (>= 1)
 - Kernel libraries: `dual_softmax`, `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `dedode-v2-b`, `dedode-v2-g`
-- Not in this release (planned for 0.2.1): `dedode-v2-b` TensorRT export: FP16 loses 2.54 pose AUC@5 points on MegaDepth; the fixed FP32 build is measured separately; `dedode-v2-g` TensorRT export: FP16 loses 4.08 pose AUC@5 points on MegaDepth; the FP32 plan still needs validation
+- Not in this release (planned for 0.2.1): `dedode-v2-b` TensorRT export: FP16 loses 2.54 pose AUC@5 points on MegaDepth; the fixed FP32 build is measured separately; `dedode-v2-g` TensorRT export: fixed 768 x 1024 engines lose 4.08 pose AUC@5 points in FP16 and 1.61 in FP32 on 300 MegaDepth pairs
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dedode-v2-b` 3000x4000 (1.9 GiB peak allocated, 3.8 reserved); `dedode-v2-g` 3000x4000 (2.5 GiB peak allocated, 4.5 reserved)

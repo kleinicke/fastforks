@@ -61,7 +61,7 @@ weights = [
 
 [[variants]]
 id = "dedode-v2-g"  # DeDoDe-L v2 detector + DeDoDe-G descriptor (VGG19 + frozen DINOv2 ViT-L/14)
-planned = { tensorrt = "FP16 loses 4.08 pose AUC@5 points on MegaDepth; the FP32 plan still needs validation" }
+planned = { tensorrt = "fixed 768 x 1024 engines lose 4.08 pose AUC@5 points in FP16 and 1.61 in FP32 on 300 MegaDepth pairs" }
 revision = 1
 params = { descriptor = "G" }
 weights = [
