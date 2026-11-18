@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import bisect
 import threading
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
 import torch
@@ -38,7 +39,7 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import InputError
 from fastforks._core.patch import override
 from fastforks._core.runner import host
-from fastforks.promptable_segmentation._runner import Context, Forward, NoParams, Runner, scale
+from fastforks.promptable_segmentation._runner import Context, Forward, Runner, scale
 from fastforks.shared.cuda_graphs import GraphCache
 
 from .net.sam3 import (
@@ -154,10 +155,17 @@ def prepare(image: torch.Tensor, ctx: Context, *, exact: bool) -> torch.Tensor:
     return scale(x.float() / 255, ctx.io)
 
 
+@dataclass(frozen=True)
+class Params:
+    """Options shared by the image and video runner."""
+
+    cuda_graphs: bool  # replay the kernels detector heads after a prompt bucket repeats
+
+
 class _Sam3(Runner):
     """Text and / or exemplar-box prompt -> all instances; the detector heads in float32 (shared by both backends)."""
 
-    Params = NoParams
+    Params = Params
     prompts = frozenset({"text", "boxes"})
     mask_size = (MASK, MASK)
     compiled_methods = ("embed", "concept")  # `segment_concept` tokenizes on the host, then calls `concept`
@@ -442,7 +450,7 @@ class Kernels(_Sam3):
         """
         fpn = [features["fpn0"], features["fpn1"], features["fpn2"]]
         n = 0 if boxes is None else len(boxes)
-        if n > BOX_BUCKET:  # rare: eager, no graph (locked: the fp16-accumulate switch is process-wide)
+        if not self.ctx.params.cuda_graphs or n > BOX_BUCKET:  # eager (locked: fp16 accumulation is process-wide)
             with self.lock, self.fp16_accumulate():
                 return super().segment_concept(features, text, boxes, labels)
         ids = self.tokenizer(VISUAL if text is None else text)
@@ -463,6 +471,10 @@ class Kernels(_Sam3):
                 with self.fp16_accumulate():
                     return super().segment_concept(features, text, boxes, labels)
             return out
+
+    def release_graphs(self) -> None:
+        """Release the detector's prompt-bucket graphs and their device memory."""
+        self.cache.release()
 
     def _graph_forward(self, ids: torch.Tensor, valid: torch.Tensor, *rest: torch.Tensor) -> dict[str, torch.Tensor]:
         """`concept` on the cache's static inputs: token ids, padding mask, the three neck levels, exemplar fields."""

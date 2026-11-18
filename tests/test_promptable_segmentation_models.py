@@ -20,14 +20,14 @@ IMAGE = image(240, 320, seed=3)  # fixed: any texture; the tests compare two pat
 TEXT = "coin"
 
 
-def _load(mode: Mode, device: str) -> promptable_segmentation.ConceptSegmentationModel:
+def _load(mode: Mode, device: str, *, cuda_graphs: bool = True) -> promptable_segmentation.ConceptSegmentationModel:
     card, variant = registry.resolve("promptable_segmentation", "sam3")
     try:
         registry.weights(card, variant, allow_download=False)
     except WeightsError as e:
         pytest.skip(f"sam3: gated weights not available locally: {e}")
     try:
-        return promptable_segmentation.load("sam3", mode=mode, device=device)
+        return promptable_segmentation.load("sam3", mode=mode, device=device, cuda_graphs=cuda_graphs)
     except BackendUnavailableError as e:
         pytest.skip(f"sam3 {mode}: {e}")
 
@@ -102,6 +102,28 @@ def test_kernels_graph_cache_per_bucket():
     assert graphs[8, BOX_BUCKET] is boxed
     twice(text="a yellow school bus with a long black roof rack", input_boxes=one * scale)
     assert set(graphs) == {(16, BOX_BUCKET)}  # a shape >= 2x larger than every held graph frees them
+    m.release_graphs()
+    assert not graphs
+    twice(text=TEXT)
+    assert set(graphs) == {(8, 0)}
+
+
+@pytest.mark.model
+@pytest.mark.gpu
+def test_sam3_can_disable_graph_capture(monkeypatch):
+    """Repeated prompts stay eager when the caller disables the graph pool."""
+    m = _load("kernels", "cuda", cuda_graphs=False)
+    r = cast("Kernels", m._runner)
+    emb = m.get_image_embeddings(IMAGE)
+
+    def unexpected_capture(*_args, **_kwargs):
+        pytest.fail("disabled graph cache received a request")
+
+    monkeypatch.setattr(r.cache, "run", unexpected_capture)
+    results = [m(emb, text=TEXT) for _ in range(2)]
+    assert not r.cache.graphs
+    torch.testing.assert_close(results[0].masks, results[1].masks, rtol=0, atol=0)
+    m.release_graphs()
 
 
 @pytest.mark.model
