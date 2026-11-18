@@ -307,17 +307,17 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 14 models; size 1080x1920.
 
-- Fastest: [`u2net`](models/matting.md#u²-net) (8.8 ms).
+- Fastest: [`u2netp`](models/matting.md#u²-net) (2.9 ms).
 - Most accurate: [`birefnet`](models/matting.md#birefnet) (121.1 ms, error 0.0325).
 - Best trade-off: [`ben2`](models/matting.md#ben2) (103.8 ms, error 0.0403).
-- Fastest commercially usable: [`u2net`](models/matting.md#u²-net) (8.8 ms).
+- Fastest commercially usable: [`u2netp`](models/matting.md#u²-net) (2.9 ms).
 - Most accurate commercially usable: [`birefnet`](models/matting.md#birefnet) (121.1 ms, error 0.0325).
 
 | model | commercial use | DIS-VD MAE | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|---|
-| [`u2net`](models/matting.md#u²-net) | yes | – | 15.9 (1080x1920) | 14.9 | 8.8 | 1.8x vs original (1080x1920) | 237 |
-| [`u2net-human-seg`](models/matting.md#u²-net) | yes | – | 16.0 (1080x1920) | 14.6 | 9.1 | 1.8x vs original (1080x1920) | 237 |
-| [`u2netp`](models/matting.md#u²-net) | yes | – | 14.8 (1080x1920) | 14.6 | 9.8 | 1.5x vs original (1080x1920) | 138 |
+| [`u2netp`](models/matting.md#u²-net) | yes | – | 14.8 (1080x1920) | 21.4 | 2.9 | 5.1x vs original (1080x1920) | 72 |
+| [`u2net-human-seg`](models/matting.md#u²-net) | yes | – | 16.0 (1080x1920) | 21.5 | 5.1 | 3.1x vs original (1080x1920) | 161 |
+| [`u2net`](models/matting.md#u²-net) | yes | – | 15.9 (1080x1920) | 22.4 | 5.2 | 3.1x vs original (1080x1920) | 161 |
 | [`isnet-general-use`](models/matting.md#is-net) | yes | – | 38.5 (1080x1920) | 21.0 | 12.1 | 3.2x vs original (1080x1920) | 487 |
 | [`isnet`](models/matting.md#is-net) | yes | – | 38.5 (1080x1920) | 21.0 | 12.1 | 3.2x vs original (1080x1920) | 487 |
 | [`inspyrenet-fast`](models/matting.md#inspyrenet) | yes | – | 71.1 (1080x1920) | 41.7 | – | – | – |
@@ -698,17 +698,17 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`disk-lightglue`](models/matching.md#lightglue) | yes | 116.7 (768x1024) | 116.4 | 52.1 | 2.2x vs original (768x1024) | 736 |
 | [`loftr-outdoor`](models/matching.md#loftr) | yes | 241.5 (768x1024) | 109.9 | 95.9 | 2.5x vs original (768x1024) | 760 |
 | [`loftr-indoor`](models/matching.md#loftr) | yes | 241.6 (768x1024) | 110.6 | 96.2 | 2.5x vs original (768x1024) | 760 |
+| [`loma-b64`](models/matching.md#loma) | yes | – | 130.8 | 119.0 | 1.1x vs portable | 840 |
+| [`loma-b128`](models/matching.md#loma) | yes | – | 150.5 | 128.1 | 1.2x vs portable | 852 |
 | [`aliked-flexglue`](models/matching.md#flexglue) | yes | 347.6 (768x1024) | 128.7 | – | – | – |
-| [`loma-b64`](models/matching.md#loma) | yes | – | 129.1 | – | – | – |
-| [`loma-b128`](models/matching.md#loma) | yes | – | 149.6 | – | – | – |
 | [`dedode-v2-b`](models/matching.md#dedode-v2) | yes | 318.5 (768x1024) | 246.5 | 189.4 | 1.7x vs original (768x1024) | 1197 |
-| [`loma-b`](models/matching.md#loma) | yes | 1036.3 (768x1024) | 308.1 | – | – | – |
+| [`loma-b`](models/matching.md#loma) | yes | 1036.3 (768x1024) | 309.3 | 270.0 | 3.8x vs original (768x1024) | 1444 |
+| [`loma-l`](models/matching.md#loma) | yes | – | 319.8 | 282.2 | 1.1x vs portable | 1579 |
 | [`loma-r`](models/matching.md#loma) | yes | – | 308.6 | – | – | – |
-| [`loma-l`](models/matching.md#loma) | yes | – | 318.6 | – | – | – |
+| [`loma-g`](models/matching.md#loma) | yes | – | 358.7 | 321.4 | 1.1x vs portable | 2120 |
 | [`dedode-v2-g`](models/matching.md#dedode-v2) | yes | 665.5 (768x1024) | 592.5 | 331.9 | 2.0x vs original (768x1024) | 1787 |
 | [`romav2`](models/matching.md#roma-v2) | yes | 740.9 (768x1024) | 545.7 | 353.6 | 2.1x vs original (768x1024) | 1909 |
 | [`romav1`](models/matching.md#roma) | yes | 385.8 (768x1024) | 376.9 | 356.1 | 1.1x vs original (768x1024) | 1720 |
-| [`loma-g`](models/matching.md#loma) | yes | – | 357.8 | – | – | – |
 
 ## Tracking
 
@@ -807,4 +807,4 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`nninteractive`](models/volume.md#nninteractive) | no | 459.7 (200x200) | 215.2 | 201.0 | 2.3x vs original (200x200) | 2643 |
 | [`nnfoundation-cnn`](models/volume.md#nnfoundation) | yes | 273.6 (200x200) | 226.5 | 211.1 | 1.3x vs original (200x200) | 2985 |
 | [`nnfoundation-vit`](models/volume.md#nnfoundation) | yes | – | 1848.1 | 1732.1 (192x192) | 1.1x vs portable | 1669 |
-| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | yes | 45629.8 (200x200) | 1927.1 | 1739.5 | 26.2x vs original (200x200) | 2349 |
+| [`totalsegmentator-total`](models/volume.md#totalsegmentator) | yes | 45629.8 (200x200) | 1976.9 | 1830.2 | 24.9x vs original (200x200) | 1762 |

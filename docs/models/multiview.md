@@ -423,6 +423,15 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 |---|---|---|---|---|
 | `pi3` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1057<br>821<br>559<br>752<br>planned for 0.2.1 | 5926 / 6016<br>2360 / 2416<br>2367 / 2456<br>2205 / 2334<br>– |
 
+### Weight streaming
+
+Warm inference time and peak reserved GPU memory for the same input with both settings. Streamed weights use pinned host memory.
+
+| Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
+|---|---|---|---|---|---|---|
+| pi3 | kernels | 480x640 | RTX 5060 Ti | 2.14.1+cu130 | 556 ms / 2,690 MiB | 555 ms / 1,788 MiB |
+| pi3 | portable | 480x640 | RTX 5060 Ti | 2.14.1+cu130 | 805 ms / 2,550 MiB | 807 ms / 1,648 MiB |
+
 <details><summary>Details</summary>
 
 - Original code: <https://github.com/yyfz/Pi3> at `9fa3ddb`
@@ -431,7 +440,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Licence evidence: https://github.com/yyfz/Pi3/blob/9fa3ddb/LICENSE and https://github.com/yyfz/Pi3/blob/9fa3ddb/README.md#-license
 - Training data: Per the paper (arXiv 2507.13347): a mixture of public synthetic and real multi-view datasets; DINOv2 initialisation. The README restricts the weights to non-commercial use because of the training datasets.
 - Licence note: The Pi3 code is BSD-3-Clause, but the README licenses the Pi3 weights CC-BY-NC-4.0 (non-commercial); the Hugging Face card's bsd-2-clause tag is overridden by that statement.
-- Options: `pixel_limit` = 255000 (>= 196)
+- Options: `stream` = False (speed only), `pixel_limit` = 255000 (>= 196)
 - Kernel libraries: `fastbb`
 - Variants: `pi3`
 - Not in this release (planned for 0.2.1): `pi3` ONNX / TensorRT export: the ONNX converter fails on the exported program (ConversionError, step 3/3)
@@ -463,6 +472,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
+- With CUDA float16, stream=True keeps the 36 frame and global attention blocks in pinned host RAM. The image encoder, prediction heads and activations stay on the GPU. Export requires stream=False.
 - An experimental replacement for the camera rotation SVD exported at two 224 x 336 views. TensorRT 11.4 failed to finish building within 220–228 seconds with both default and level-0 optimization.
 
 </details>

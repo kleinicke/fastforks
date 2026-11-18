@@ -7,7 +7,7 @@ import torch
 
 from fastforks import retrieval
 from fastforks._core import registry
-from fastforks._core.errors import InputError
+from fastforks._core.errors import InputError, OptionsError
 from fastforks.retrieval.models.megaloc.net.megaloc import get_matching_probs
 
 
@@ -17,6 +17,13 @@ def test_card() -> None:
     assert card.params["dim"] == 8448
     assert card.licence.code == card.licence.weights == "MIT"
     assert "megaloc" in retrieval.list_models()
+
+
+@pytest.mark.parametrize("ref", ["boq-dinov2", "megaloc"])
+def test_block_streaming_requires_cuda(ref: str) -> None:
+    """Reject host-only streaming before resolving the checkpoint."""
+    with pytest.raises(OptionsError, match="requires CUDA"):
+        retrieval.load(ref, device="cpu", mode="portable", stream=True)
 
 
 def test_top_k() -> None:

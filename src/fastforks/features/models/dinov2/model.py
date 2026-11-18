@@ -191,11 +191,6 @@ class Portable(Runner):
         return Forward(self.net, lambda _net, x: self._run(x, ())["last_hidden_state"])
 
 
-def _streamed_fast_block(block: torch.nn.Module, x: torch.Tensor, fast: FastViT) -> torch.Tensor:
-    """Use the selected CUDA attention and GEMMs with the currently staged block."""
-    return fast.block(block, x)
-
-
 class _FastDinov2(FastViT):
     """`FastViT` with upstream 7764ea0's position interpolation (offset 0: by grid size)."""
 
@@ -237,13 +232,7 @@ class Kernels(Runner):
         self.fast = _FastDinov2(
             vit, _KERNELS_ATTN[ctx.params.arch], None, swiglu=True, fused=dpt_fused.load(ctx.device)
         )
-        self.staged = None
-        if ctx.params.stream:
-            for block in self.fast.blocks:
-                override(block, _streamed_fast_block)
-            self.staged = StreamedModuleList(self.fast.blocks, ctx.device)
-            self.fast.blocks = []
-            vit.blocks = torch.nn.ModuleList()
+        self.staged = self.fast.stage_blocks(ctx.device) if ctx.params.stream else None
         self.fast.vit, self.fast.pos_fp32 = vit.to(ctx.device), self.fast.pos_fp32.to(ctx.device)
         pixels = _GRAPH_WORK * vit.patch_size**2 // vit.embed_dim
         self.graphs = SmallShapeGraphs(self._last, pixels=pixels, graphs=_GRAPHS, enabled=self.staged is None)

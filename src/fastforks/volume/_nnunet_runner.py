@@ -20,6 +20,7 @@ import torch
 from fastforks._core.checkpoint import NUMPY_ARRAYS, Inert, latin1_encode, load_strict, restricted_load
 from fastforks._core.errors import OptionsError, WeightsError
 from fastforks._core.patch import base_type, override
+from fastforks._core.runner import host
 from fastforks.volume._nnunet import Plan, Predictor, UNet, read_plan
 from fastforks.volume._runner import Runner
 
@@ -105,6 +106,7 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16")
     Params = Params
+    compiled_methods = ("_forward_patch",)
     windows: ClassVar[int] = 2
 
     def __init__(self, ctx: Context) -> None:
@@ -186,6 +188,10 @@ class Portable(Runner):
             dtype=self._dtype_of(),
         )
 
+    def _forward_patch(self, net: torch.nn.Module, patch: torch.Tensor) -> torch.Tensor:
+        """Compile the fold network on fixed-size patches. Resampling and merging stay eager."""
+        return net(patch)
+
     def networks(self) -> tuple[torch.nn.Module, ...]:
         """Every fold network of every part."""
         return tuple(n for part in self.parts for n in part.nets)
@@ -194,12 +200,13 @@ class Portable(Runner):
         """The merged labels of every part on the grid of `volume`."""
 
         def predict(part: Predictor, lut: torch.Tensor | None) -> torch.Tensor:
+            nets = part.nets
             if self.ctx.params.stream:
                 # Keep each fold on device for every window of this part. The host masters stay
                 # immutable, including when two callers run inference on different CUDA streams.
                 nets = [copy.deepcopy(net).to(volume.device) for net in part.nets]
-                part = replace(part, nets=nets)
-            labels = part(volume, spacing)
+            predictor = replace(part, nets=nets, forward=self._forward_patch)
+            labels = predictor(volume, spacing)
             return (labels if lut is None else lut[labels.long()]).to(self._dtype)
 
         out = predict(self.parts[0], self._luts[0])
@@ -208,6 +215,7 @@ class Portable(Runner):
             torch.where(labels != 0, labels, out, out=out)
         return out
 
+    @host
     def __call__(self, volume: torch.Tensor, spacing: Sequence[float]) -> dict[str, torch.Tensor]:
         """Labels of one volume on its grid."""
         return {"labels": self.segment(volume, spacing)}

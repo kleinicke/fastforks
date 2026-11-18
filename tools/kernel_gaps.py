@@ -30,7 +30,13 @@ def timings(file: str, mode: str) -> tuple[dict, set[str]]:
         ms = row.get("ms")
         if row.get("mode") != mode or row.get("side", "lib") != "lib" or not isinstance(ms, (int, float)):
             continue
-        if row.get("error") or row.get("status") not in (None, "ok") or not math.isfinite(ms) or ms <= 0:
+        if (
+            row.get("fails")
+            or row.get("error")
+            or row.get("status") not in (None, "ok")
+            or not math.isfinite(ms)
+            or ms <= 0
+        ):
             continue
         ref = row["ref"]
         measured.add(ref)
@@ -62,7 +68,7 @@ def main() -> None:
             common = [task, card.family, ref, ",".join(card.kernel_libs) if enabled else ""]
             if not enabled or not pairs[ref]:
                 status = "unavailable" if not enabled else "unmatched" if ref in measured else "unmeasured"
-                rows.append((0, [*common, status, *([""] * 14)]))
+                rows.append((0, [*common, status, *([""] * 21)]))
                 continue
             ratio, key, k, c = max(pairs[ref], key=lambda p: (p[0], p[1]))
             _, setup, workload = key
@@ -88,6 +94,15 @@ def main() -> None:
                         workload,
                         port["ms"] if port else "",
                         f"{k['ms'] / port['ms']:.3f}" if port else "",
+                        k.get("peak_alloc_mb", ""),
+                        c.get("peak_alloc_mb", ""),
+                        (port or {}).get("peak_alloc_mb", ""),
+                        k.get("peak_reserved_mb", ""),
+                        c.get("peak_reserved_mb", ""),
+                        (port or {}).get("peak_reserved_mb", ""),
+                        str(k["commit"] == c.get("commit") == (port or {}).get("commit"))
+                        if k.get("commit") and c.get("commit") and (port or {}).get("commit")
+                        else "",
                     ],
                 )
             )
@@ -113,6 +128,13 @@ def main() -> None:
             "workload",
             "portable_ms",
             "kernels_over_portable",
+            "kernels_peak_alloc_mib",
+            "compile_peak_alloc_mib",
+            "portable_peak_alloc_mib",
+            "kernels_peak_reserved_mib",
+            "compile_peak_reserved_mib",
+            "portable_peak_reserved_mib",
+            "same_commit",
         ]
     )
     for _, row in sorted(rows, key=lambda item: (-item[0], item[1][:3])):

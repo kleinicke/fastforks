@@ -21,9 +21,11 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.patch import override
+from fastforks.kernels import cudnn_hacc
 from fastforks.kernels.resize_cat import resize_cat
 from fastforks.matting._runner import Forward, Runner, scale
 from fastforks.shared.cnn_kernels import ACT, CL, conv_ep, fold_bn, prepare_generic
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import U2NET, U2NETP
 from .net.u2net import REBNCONV
@@ -43,6 +45,7 @@ class Params:
 
     size: int
     arch: str
+    cuda_graphs: bool = True
 
 
 def _cpu_net(ctx: Context, *, fold: bool) -> torch.nn.Module:
@@ -160,9 +163,20 @@ class Kernels(_Matting):
         prepare_generic(net, ctx.device)
         self.dtype = torch.float16
         self.net = net
+        self.graphs = SmallShapeGraphs(
+            self.net,
+            pixels=ctx.params.size**2,
+            graphs=1,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+        )
+
+    def release_graphs(self) -> None:
+        """Release the fixed-resolution network graph and its workspace."""
+        self.graphs.release()
 
     def _net(self, x: torch.Tensor) -> torch.Tensor:
-        return self.net(x.contiguous(memory_format=CL))
+        return self.graphs(x.contiguous(memory_format=CL))
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}

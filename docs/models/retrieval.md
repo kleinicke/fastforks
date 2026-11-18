@@ -27,6 +27,15 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `boq-dinov2` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.44<br>5.73<br>2.84<br>3.89<br>2.73 | 231 / 256<br>231 / 254<br>227 / 256<br>269 / 274<br>426 / 434 |
 
+### Weight streaming
+
+Warm inference time and peak reserved GPU memory for the same input with both settings. Streamed weights use pinned host memory.
+
+| Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
+|---|---|---|---|---|---|---|
+| boq-dinov2 | kernels | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 4 ms / 318 MiB | 14 ms / 136 MiB |
+| boq-dinov2 | portable | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 5 ms / 318 MiB | 14 ms / 138 MiB |
+
 <details><summary>Details</summary>
 
 - Original code: <https://github.com/amaralibey/Bag-of-Queries> at `1a4965ea7dfd`
@@ -34,6 +43,7 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: https://github.com/amaralibey/Bag-of-Queries/blob/1a4965ea7dfd9bd0dd846adf7a0e430f68101d12/LICENSE ; https://github.com/amaralibey/Bag-of-Queries/releases/tag/v1.0
 - Training data: LVD-142M (DINOv2's curated web-image set, not released), GSV-Cities (Google Street View images of 62k places in 40 cities) (DINOv2 ViT-B/14 (LVD-142M) with its last two blocks and the aggregator trained on GSV-Cities at 320 x 320 (README, Training).)
+- Options: `stream` = False (speed only)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `boq-dinov2`
 - Outputs: descriptor
@@ -63,6 +73,10 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 |---|---|---|---|
 | `boq-dinov2` | 0.01726 / 0.05735 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 
+### Limitations
+
+- With CUDA, stream=True stages the DINOv2 backbone blocks from pinned host RAM during descriptor extraction. The aggregator stays on the GPU. Export requires stream=False.
+
 </details>
 
 <a id="megaloc"></a>
@@ -77,6 +91,15 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `megaloc` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9.68<br>5.29<br>4.26<br>4.27<br>3.21 | 1347 / 1368<br>483 / 508<br>485 / 508<br>518 / 530<br>937 / 964 |
 
+### Weight streaming
+
+Warm inference time and peak reserved GPU memory for the same input with both settings. Streamed weights use pinned host memory.
+
+| Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
+|---|---|---|---|---|---|---|
+| megaloc | kernels | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 7 ms / 564 MiB | 16 ms / 402 MiB |
+| megaloc | portable | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 8 ms / 562 MiB | 15 ms / 402 MiB |
+
 <details><summary>Details</summary>
 
 - Original code: <https://github.com/gmberton/MegaLoc> at `5fe0dd697c4a`
@@ -84,6 +107,7 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: https://github.com/gmberton/MegaLoc/blob/5fe0dd697c4a70ba3e23607f6716ab3c606b16db/LICENSE ; https://huggingface.co/gberton/MegaLoc/blob/a0f34722c4297ff787e022433799250180860af7/README.md
 - Training data: LVD-142M (DINOv2's curated web-image set, not released), GSV-Cities (Google Street View images of 62k places in 40 cities), Mapillary Street-Level Sequences, MegaScenes (Internet photo collections of scenes from Wikimedia Commons), ScanNet (RGB-D scans of indoor scenes), San Francisco eXtra Large (street-view images of San Francisco) (Fine-tuned from DINOv2 ViT-B/14 (LVD-142M) on GSV-Cities, MSLS, MegaScenes, ScanNet and SF-XL (paper, arXiv 2502.17237, Sec. 2); MSLS and ScanNet carry non-commercial terms. Only the weights licence (MIT) counts for the commercial flag.)
+- Options: `stream` = False (speed only)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `megaloc`
 - Outputs: descriptor
@@ -112,6 +136,10 @@ CPU, float32: max |diff| <= 8.8e-08 vs the original. GPU, float16 (the default),
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `megaloc` | 0.01356 / 0.04384 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+
+### Limitations
+
+- With CUDA, stream=True stages the DINOv2 backbone blocks from pinned host RAM during descriptor extraction. The aggregator stays on the GPU. Export requires stream=False.
 
 </details>
 

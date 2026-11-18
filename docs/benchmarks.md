@@ -1116,9 +1116,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | isnet-general-use | 38.5 | 21.0 | 12.1 | 3.2x | 1.7x | 993 / 1042 | 512 / 562 | 487 / 522 |
 | matanyone | 1220 | 1214 | – | – | – | 2978 / 3208 | 2734 / 3448 | – |
 | rmbg-2.0 | 149 | 132 | 121 | 1.2x | 1.1x | 1672 / 1990 | 1660 / 1908 | 1674 / 1936 |
-| u2net | 15.9 | 14.9 | 8.83 | 1.8x | 1.7x | 476 / 502 | 248 / 278 | 237 / 260 |
-| u2net-human-seg | 16.0 | 14.6 | 9.05 | 1.8x | 1.6x | 476 / 502 | 248 / 278 | 237 / 260 |
-| u2netp | 14.8 | 14.6 | 9.80 | 1.5x | 1.5x | 280 / 314 | 150 / 172 | 138 / 172 |
+| u2net | 15.9 | 22.4 | 5.18 | 3.1x | 4.3x | 476 / 502 | 254 / 288 | 161 / 236 |
+| u2net-human-seg | 16.0 | 21.5 | 5.14 | 3.1x | 4.2x | 476 / 502 | 254 / 288 | 161 / 236 |
+| u2netp | 14.8 | 21.4 | 2.92 | 5.1x | 7.3x | 280 / 314 | 151 / 182 | 72 / 124 |
 | vitmatte-b | 257 | 182 | 148 | 1.7x | 1.2x | 5070 / 5128 | 1548 / 1692 | 1452 / 1552 |
 | vitmatte-s | 140 | 102 | 84.1 | 1.7x | 1.2x | 2536 / 2582 | 1401 / 1524 | 1305 / 1404 |
 
@@ -1439,11 +1439,11 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | disk-lightglue | – | 117 | 116 | 52.1 | 2.2x | 2.2x | 1955 / 2412 | 1950 / 2398 | 736 / 778 |
 | loftr-indoor | – | 242 | 111 | 96.2 | 2.5x | 1.1x | 1751 / 1910 | 796 / 904 | 760 / 886 |
 | loftr-outdoor | – | 241 | 110 | 95.9 | 2.5x | 1.1x | 1739 / 1870 | 796 / 904 | 760 / 886 |
-| loma-b | – | 1036 | 308 | – | – | – | 4176 / 4390 | 1767 / 1878 | – |
-| loma-b128 | – | – | 150 | – | – | – | – | 878 / 984 | – |
-| loma-b64 | – | – | 129 | – | – | – | – | 854 / 962 | – |
-| loma-g | – | – | 358 | – | – | – | – | 2444 / 2548 | – |
-| loma-l | – | – | 319 | – | – | – | – | 1903 / 2012 | – |
+| loma-b | – | 1036 | 309 | 270 | 3.8x | 1.1x | 4176 / 4390 | 1767 / 1878 | 1444 / 1594 |
+| loma-b128 | – | – | 150 | 128 | – | 1.2x | – | 878 / 984 | 852 / 960 |
+| loma-b64 | – | – | 131 | 119 | – | 1.1x | – | 854 / 962 | 840 / 938 |
+| loma-g | – | – | 359 | 321 | – | 1.1x | – | 2444 / 2548 | 2120 / 2288 |
+| loma-l | – | – | 320 | 282 | – | 1.1x | – | 1903 / 2012 | 1579 / 1732 |
 | loma-r | – | – | 309 | – | – | – | – | 1767 / 1878 | – |
 | romav1 | – | 386 | 377 | 356 | 1.1x | 1.1x | 3887 / 4094 | 1720 / 1840 | 1720 / 1860 |
 | romav2 | 1412 | 741 | 546 | 354 | 2.1x | 1.5x | 9881 / 10124 | 1989 / 2596 | 1909 / 2300 |
@@ -1526,7 +1526,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | nnfoundation-cnn | 200x200 | 501 | 274 | 226 | 211 | 1.3x | 1.1x | 3818 / 4628 | 3011 / 3130 | 2985 / 3710 |
 | nnfoundation-vit | 192x192 | OOM | 1930 | 1848 | 1732 | 1.1x | 1.1x | 3930 / 4298 | 1669 / 1884 | 1669 / 1884 |
 | nninteractive | 200x200 | 705 | 460 | 215 | 201 | 2.3x | 1.1x | 4076 / 4636 | 3075 / 3492 | 2643 / 3072 |
-| totalsegmentator-total | 200x200 | 47779 | 45630 | 1927 | 1740 | 26.2x | 1.1x | 2640 / 2874 | 2605 / 2944 | 2349 / 2704 |
+| totalsegmentator-total | 200x200 | 47779 | 45630 | 1977 | 1830 | 24.9x | 1.1x | 2640 / 2874 | 2017 / 2244 | 1762 / 1984 |
 | totalsegmentator-total-3mm | 200x200 | 7304 | 7270 | 67.8 | 63.5 | 114.4x | 1.1x | 2010 / 2684 | 1096 / 1670 | 1037 / 1410 |
 
 ### Startup and first call
@@ -2044,11 +2044,11 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | disk-lightglue | 1.43 | 0.20 | 0.57 | 0.64 | 0.63 | 0.30 |
 | loftr-indoor | 1.49 | 0.32 | 0.54 | 0.69 | 0.53 | 0.43 |
 | loftr-outdoor | 0.35 | 0.24 | 0.67 | 0.24 | 0.58 | 0.37 |
-| loma-b | 8.52 | 2.53 | – | 1.37 | 1.27 | – |
-| loma-b128 | – | 0.52 | – | – | 0.64 | – |
-| loma-b64 | – | 0.28 | – | – | 0.76 | – |
-| loma-g | – | 2.36 | – | – | 0.80 | – |
-| loma-l | – | 1.49 | – | – | 0.69 | – |
+| loma-b | 8.52 | 2.53 | 1.61 | 1.37 | 1.27 | 0.76 |
+| loma-b128 | – | 0.52 | 0.85 | – | 0.64 | 0.66 |
+| loma-b64 | – | 0.28 | 0.91 | – | 0.76 | 0.65 |
+| loma-g | – | 2.36 | 2.19 | – | 0.80 | 0.68 |
+| loma-l | – | 1.49 | 3.06 | – | 0.69 | 0.76 |
 | loma-r | – | 2.80 | – | – | 0.73 | – |
 | romav1 | 6.28 | 2.34 | 3.17 | 2.57 | 0.92 | 1.03 |
 | romav2 | 5.45 | 0.85 | 0.96 | 2.09 | 0.91 | 0.62 |
@@ -2381,9 +2381,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | isnet-general-use | 1080x1920 | 21.0 ms | 13.1 ms | 6.66 ms | 12.1 ms | 33.9 s | 32.3 s | 512 / 562 | 350 / 400 | 487 / 522 | 404 / 436 |
 | matanyone | 1080x1920 | 1214 ms | 635 ms | fails: BackendUnavailableError: matanyone@1 (portable) has no expor | – | 35.9 s | – | 2734 / 3448 | 1363 / 3452 | – | – |
 | rmbg-2.0 | 1080x1920 | 132 ms | 110 ms | 88.1 ms | 121 ms | 82.9 s | 219 s | 1660 / 1908 | 1874 / 1932 | 1674 / 1936 | 1723 / 1784 |
-| u2net | 1080x1920 | 14.9 ms | 6.24 ms | 3.07 ms | 8.83 ms | 35.7 s | 36.0 s | 248 / 278 | 235 / 278 | 237 / 260 | 335 / 390 |
-| u2net-human-seg | 1080x1920 | 14.6 ms | 6.25 ms | 3.08 ms | 9.05 ms | 36.0 s | 34.7 s | 248 / 278 | 235 / 278 | 237 / 260 | 335 / 390 |
-| u2netp | 1080x1920 | 14.6 ms | 5.44 ms | 1.87 ms | 9.80 ms | 29.9 s | 26.1 s | 150 / 172 | 152 / 188 | 138 / 172 | 206 / 236 |
+| u2net | 1080x1920 | 22.4 ms | 7.55 ms | 3.07 ms | 5.18 ms | – | 36.0 s | 254 / 288 | 239 / 332 | 161 / 236 | 335 / 390 |
+| u2net-human-seg | 1080x1920 | 21.5 ms | 11.0 ms | 3.08 ms | 5.14 ms | – | 34.7 s | 254 / 288 | 208 / 296 | 161 / 236 | 335 / 390 |
+| u2netp | 1080x1920 | 21.4 ms | 8.99 ms | 1.87 ms | 2.92 ms | – | 26.1 s | 151 / 182 | 152 / 228 | 72 / 124 | 206 / 236 |
 | vitmatte-b | 1080x1920 | 182 ms | 157 ms | 108 ms | 148 ms | 32.6 s | 48.8 s | 1548 / 1692 | 1166 / 1472 | 1452 / 1552 | 1233 / 1262 |
 | vitmatte-s | 1080x1920 | 102 ms | 81.9 ms | 54.6 ms | 84.1 ms | 31.5 s | 51.3 s | 1401 / 1524 | 1025 / 1284 | 1305 / 1404 | 876 / 920 |
 | anyline | 1024x1024 | 24.0 ms | 11.6 ms | 12.9 ms (full line map only; memory estimated) | – | 40.0 s | 29.6 s | 362 / 384 | 306 / 346 | – | 528 / 542 |
@@ -2649,11 +2649,11 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | disk-lightglue | 768x1024 | 116 ms | 113 ms | planned for 0.2.1 | 52.1 ms | 21.4 s | – | 1950 / 2398 | 1375 / 1502 | 736 / 778 | – |
 | loftr-indoor | 768x1024 | 111 ms | 71.0 ms | planned for 0.2.1 | 96.2 ms | 30.2 s | – | 796 / 904 | 634 / 684 | 760 / 886 | – |
 | loftr-outdoor | 768x1024 | 110 ms | 176 ms | planned for 0.2.1 | 95.9 ms | 33.3 s | – | 796 / 904 | 1149 / 1232 | 760 / 886 | – |
-| loma-b | 768x1024 | 308 ms | 285 ms | 326 ms, bf16 engine (standalone build) | – | 104 s | 176 s | 1767 / 1878 | 2870 / 3216 | – | 1986 / 2010 |
-| loma-b128 | 768x1024 | 150 ms | 122 ms | 144 ms, bf16 engine | – | 66.5 s | 103 s | 878 / 984 | 1398 / 1760 | – | 1062 / 1066 |
-| loma-b64 | 768x1024 | 129 ms | 101 ms | 109 ms, bf16 engine | – | 65.6 s | 102 s | 854 / 962 | 1230 / 1356 | – | 1010 / 1034 |
-| loma-g | 768x1024 | 358 ms | 330 ms | 366 ms, bf16 engine | – | 103 s | 171 s | 2444 / 2548 | 3547 / 3890 | – | 2298 / 2322 |
-| loma-l | 768x1024 | 319 ms | 295 ms | 336 ms, bf16 engine (standalone build) | – | 101 s | 157 s | 1903 / 2012 | 3006 / 3194 | – | 2042 / 2066 |
+| loma-b | 768x1024 | 309 ms | 287 ms | 326 ms, bf16 engine (standalone build) | 270 ms | 143 s | 176 s | 1767 / 1878 | 2870 / 3258 | 1444 / 1594 | 1986 / 2010 |
+| loma-b128 | 768x1024 | 150 ms | 124 ms | 144 ms, bf16 engine | 128 ms | 86.5 s | 103 s | 878 / 984 | 1398 / 1800 | 852 / 960 | 1062 / 1066 |
+| loma-b64 | 768x1024 | 131 ms | 102 ms | 109 ms, bf16 engine | 119 ms | 86.6 s | 102 s | 854 / 962 | 1230 / 1356 | 840 / 938 | 1010 / 1034 |
+| loma-g | 768x1024 | 359 ms | 331 ms | 366 ms, bf16 engine | 321 ms | 131 s | 171 s | 2444 / 2548 | 3547 / 3890 | 2120 / 2288 | 2298 / 2322 |
+| loma-l | 768x1024 | 320 ms | 298 ms | 336 ms, bf16 engine (standalone build) | 282 ms | 134 s | 157 s | 1903 / 2012 | 3006 / 3194 | 1579 / 1732 | 2042 / 2066 |
 | loma-r | 768x1024 | 309 ms | 286 ms | 326 ms, bf16 engine | – | 108 s | 175 s | 1767 / 1878 | 2870 / 3256 | – | 1986 / 2010 |
 | romav1 | 768x1024 | 377 ms | 247 ms | planned for 0.2.1 | 356 ms | 698 s | – | 1720 / 1840 | 1348 / 1476 | 1720 / 1860 | – |
 | romav2 | 768x1024 | 546 ms | 576 ms | 353 ms | 354 ms | 254 s | 185 s | 1989 / 2596 | 3150 / 3386 | 1909 / 2300 | 6694 / 6740 |
@@ -2723,7 +2723,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | nnfoundation-vit | 192x192 | 1848 ms | 1440 ms | planned for 0.2.1 | 1732 ms | 69.5 s | – | 1669 / 1884 | 1406 / 1484 | 1669 / 1884 | – |
 | nninteractive | 200x200 | 215 ms | 162 ms | fails: The TensorRT export accepts prepared 192³ network patches. | 201 ms | 18.0 s | – | 3075 / 3492 | 3643 / 3832 | 2643 / 3072 | – |
 | nninteractive | 192x192 | – | – | 262 ms (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | – | – | 58.0 s | – | – | – | 2738 / 2740 |
-| totalsegmentator-total | 200x200 | 1927 ms | fails: no exportable module (multi-network sliding-window pipeline) | fails: no exportable module (multi-network sliding-window pipeline; | 1740 ms | – | – | 2605 / 2944 | – | 2349 / 2704 | – |
+| totalsegmentator-total | 200x200 | 1977 ms | 1595 ms | fails: no exportable module (multi-network sliding-window pipeline; | 1830 ms | 37.0 s | – | 2017 / 2244 | 1697 / 1984 | 1762 / 1984 | – |
 | totalsegmentator-total-3mm | 200x200 | 67.8 ms | 60.3 ms (patch network, development build) | 74.4 ms (patch network, standalone build) | 63.5 ms | 8.46 s | 31.3 s | 1096 / 1670 | 910 / 1278 | 1037 / 1410 | 2909 / 2970 |
 <!-- compile:end -->
 

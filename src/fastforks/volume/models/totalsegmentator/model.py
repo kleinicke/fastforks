@@ -19,6 +19,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.runner import host
 from fastforks.volume import _nnunet_runner as nn_runner
 from fastforks.volume._nnunet_runner import weight_names
 
@@ -72,6 +73,7 @@ class Portable(nn_runner.Portable):
         lines = (Path(__file__).parent / p.classes).read_text().splitlines()
         return {k: n for k, n in enumerate(lines, start=1) if n}
 
+    @host
     def __call__(self, volume: torch.Tensor, spacing: Sequence[float]) -> dict[str, torch.Tensor]:
         """Labels of one volume on its grid."""
         p: Params = self.ctx.params
