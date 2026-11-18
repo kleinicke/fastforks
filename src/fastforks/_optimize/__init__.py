@@ -221,7 +221,13 @@ class FastModel(nn.Module):
         return _to_float(self.forward_native(x, *args, **kwargs))
 
     def forward_native(self, x: torch.Tensor | None = None, *args: object, **kwargs: object) -> Any:  # noqa: ANN401 - network-dependent tensor tree
-        """Run in the built precision and retain its output dtype for an attached inference head."""
+        """Run in the built precision and retain its output dtype for an attached inference head.
+
+        Args:
+            x: Input image tensor, or the first argument required by the optimized module.
+            *args: Additional positional arguments for the module.
+            **kwargs: Additional named arguments, including the alternative image input `pixel_values`.
+        """
         key = None
         if x is None:
             key = "pixel_values"
