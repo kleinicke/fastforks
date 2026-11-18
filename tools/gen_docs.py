@@ -163,6 +163,8 @@ _DATASETS = {
     "calibration": {
         "lamar2k": "LaMAR2k, all 2000 images, roll / pitch / vertical FoV error AUC@5 degrees %",
         "lamar2k-every10": "LaMAR2k, every 10th image (200), roll / pitch / vertical FoV error AUC@5 degrees %",
+        "lamar2k-fixed-480x640": "LaMAR2k, all 2000 images resized to 480 x 640, vertical FoV AUC@5 degrees %",
+        "lamar2k-every20-portrait": "LaMAR2k, 97 portrait images from every 20th entry, angle AUC@5 degrees %",
     },
     "tracking": {
         "tapvid-davis-first-every3": "TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA %",
@@ -495,6 +497,10 @@ _PROTOCOL = {
     "calibration": "Each image at its own size (1440 x 1920 portrait); roll, pitch and vertical field of view of the "
     "fitted camera against the ground truth; AUC of the error up to 5 degrees (errors below 1 degree count as 1, "
     "siclib's `compute_auc(min_error=1)`), the GeoCalib paper's protocol. ",
+    ("calibration", "lamar2k-fixed-480x640"): "Resize all 2,000 images to 480 x 640 before inference. Compare "
+    "vertical field of view against the dataset labels with the standard LaMAR AUC scoring. ",
+    ("calibration", "lamar2k-every20-portrait"): "Take every 20th LaMAR image and score the 97 portrait images "
+    "at their original size. In TensorRT mode only the 416 x 320 field predictor is accelerated. ",
     "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
     "and its PIL eval transform. ",
 }

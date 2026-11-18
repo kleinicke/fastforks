@@ -5,6 +5,10 @@ tier = "stable"
 outputs = ["disparity"]
 uses = ["cnn_kernels", "cuda_graphs", "igev_blocks", "mobilenetv2"]  # fastforks.shared modules this family imports
 
+limitations = [
+  "For the Middlebury weights, the nominal TensorRT plan failed to allocate an execution context. A smaller 384 x 640 ONNX export with 32 iterations exceeded the 228-second limit both with and without ONNX optimization.",
+]
+
 [upstream]
 repo = "https://github.com/JarvisLee0423/GREAT-Stereo"
 commit = "2a6b1efede8c3a9eec9540790c2700ea2f3dee7d"

@@ -179,7 +179,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Licence note: The weights embed Depth Anything V2 weights released under CC-BY-NC-4.0, so they are non-commercial even though the code is MIT.
 - Kernel libraries: `fastbb`
 - Variants: `bridgedepth-sf`, `bridgedepth-rvc-pretrain`
-- Not in this release (planned for 0.2.1): `bridgedepth-sf` TensorRT export: the TensorRT 10 engine build fails (Myelin tactic check); `bridgedepth-rvc-pretrain` TensorRT export: the TensorRT 10 engine build fails (Myelin tactic check)
+- Not in this release (planned for 0.2.1): `bridgedepth-sf` TensorRT export: TensorRT 11.4 still fails the Myelin tactic check at 994 x 1482; `bridgedepth-rvc-pretrain` TensorRT export: TensorRT 11.4 still fails the Myelin tactic check at 994 x 1482 and 375 x 1242
 - Outputs: disparity
 - Input size: any H x W >= 16, padded to a multiple of 16
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `bridgedepth-sf` 3000x4000 (13.3 GiB peak allocated, 14.2 reserved); `bridgedepth-rvc-pretrain` 3000x4000 (13.3 GiB peak allocated, 14.2 reserved)
@@ -891,6 +891,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | `great-igev-kitti` | 0.00284 / 0.03707 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `igevpp@df1bb4dbe09a:sm_120` |
 | `great-igev-eth3d` | 0.00214 / 0.03202 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `igevpp@df1bb4dbe09a:sm_120` |
 | `great-igev-middlebury` | 0.00162 / 0.00911 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120`, `igevpp@df1bb4dbe09a:sm_120` |
+
+### Limitations
+
+- For the Middlebury weights, the nominal TensorRT plan failed to allocate an execution context. A smaller 384 x 640 ONNX export with 32 iterations exceeded the 228-second limit both with and without ONNX optimization.
 
 </details>
 
