@@ -60,10 +60,17 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 
 | family | task | status | notes |
 |---|---|---|---|
-| compact (realesr-general-x4v3) | restoration | portable_mlx only, fp32+fp16 pass | fp16 225 ms / 1587 MB vs MPS 132 / 1289; fp32 341 / 2120 vs 178 / 1288. Conv-bound (MLX 64ch 3x3 conv ~5.8 ms vs ~4.1 ms MPS). No kernels: graph_mlx has no depthwise or pool ops here, so no gain. |
-| span | restoration | portable_mlx wired, goldens pass (x4 fp32/fp16) | Slower and heavier than MPS in the first survey (x4 fp16 134 ms / 2867 MB vs 89 / 1296, before the buffer fix). No kernels. |
-| realplksr | restoration | portable_mlx, fp32+fp16 pass | fp16 1873 ms / 7093 MB vs MPS 1092 / 1368; fp32 2365 vs 1527. Slower and heavier. No kernels. |
-| realesrgan, swinir (m-x4), drct-x4 | restoration | portable_mlx wired; goldens pass in the variants tested | Not surveyed against MPS. drct/hat are OOM on MPS, so any result there is a win. Other variants not re-tested. |
-| hat, restormer | restoration | portable_mlx fp32 only | hat-s-x4 and restormer-deblur fp32 pass; fp16 gives NaN (hat after the rescale fix, restormer probably the fp32-needing gram bmm). Not surveyed. |
-| dat, swin2sr | restoration | wired, not verified | Past the sdpa mask error; goldens and surveys not run. |
-| codeformer, gfpgan, lama, seedvr2 | restoration | not started | Need sub-module wrapping (custom forward); seedvr2 size not assessed. |
+| compact (realesr-general-x4v3) | restoration | portable_mlx, fp32+fp16 pass | 512x512, ms / MB. fp16 232 / 953 vs MPS 132 / 1289; fp32 375 / 1534 vs 178 / 1288. Memory wins in fp16; speed loses (MLX 64ch 3x3 conv ~5.8 ms vs ~4.1 ms MPS). graph_mlx kernels (depthwise, pool) give no gain here, so no kernels mode. |
+| span | restoration | portable_mlx, fp32+fp16 pass | x4 fp16 131 / 945 vs MPS 89 / 1296; fp32 172 / 1378 vs 103 / 2321. x2 fp16 126 / 844 vs 74 / 1296. Lower memory, slower. |
+| realplksr | restoration | portable_mlx, fp32+fp16 pass | fp16 1879 / 1277 vs MPS 1092 / 1368; fp32 2374 / 1537 vs 1527 / 1384. Slower. |
+| realesrgan | restoration | portable_mlx, fp32+fp16 pass | x4plus fp16 5914 / 3485 vs MPS 2066 / 2466; fp32 8130 / 5341 vs 3022 / 4546. Slower and heavier (conv-bound). |
+| swinir | restoration | portable_mlx, fp32+fp16 pass | m-x2 fp16 4874 / 2696 vs MPS 5797 / 3500; l-x4-real fp16 7700 / 4181 vs 9874 / 4561, fp32 10332 / 6250 vs 12063 / 9130. Faster and lighter than MPS. |
+| swin2sr | restoration | portable_mlx, fp32+fp16 pass | x4 fp16 4701 / 4823 vs MPS 9410 / 4580; x2 fp16 4474 / 2870 vs 9258 / 3501; x4-real fp16 4774 / 3750 vs 9531 / 4579. About 2x faster than MPS, memory equal or lower. |
+| dat | restoration | portable_mlx, fp32+fp16 pass | dat-x4 fp16 9857 / 5105 vs MPS 10512 / 10620; fp32 12783 / 7905 vs 21047 / 13161. dat-light-x4 fp16 2922 / 2809 vs 2562 / 6851. dat-2-x4 fp16 11318 / 5116 vs 9404 / 10600 (MPS faster). Memory about half of MPS. |
+| hat | restoration | portable_mlx, fp32+fp16 pass | MPS runs out of memory. MLX hat-s-x4 fp16 7004 / 7298, fp32 11073 / 10176; hat-x4 fp16 12245 / 8358, fp32 14403 / 10274; real-hat-gan-x4 fp16 10273 / 8358. All golden pass: MLX win by being the only backend that runs. fp16 needed fp32 accumulation in sum, mean and vector norm. |
+| drct | restoration | portable_mlx, fp32+fp16 pass | MPS runs out of memory. drct-x4 fp16 4771 / 4826, fp32 6705 / 7790; drct-l-x4 fp16 9227 / 5024, fp32 12855 / 8118. MLX-only win. |
+| restormer | restoration | portable_mlx, fp32+fp16 pass | deblur fp16 1839 / 3274 vs MPS 1476 / 3657; derain fp16 1838 / 3277 vs 1814 / 3655; sidd fp16 1683 / 3467 vs 2330 / 3683. Roughly at parity, lower memory. fp16 needed the gram bmm in float64 (fp32 accumulation). |
+| lama | restoration | portable_mlx whole-module, fp32+fp16 pass | big-lama fp16 286 / 1656 vs MPS 214 / 1679; fp32 277 / 1758 vs 241 / 1797. Slightly slower, same memory. Needed FFT, empty and strided slice_scatter ops. |
+| codeformer | restoration | portable_mlx whole-module, fp32+fp16 pass | fp16 368 / 2512 vs MPS 196 / 1866; fp32 467 / 3128 vs 260 / 3064. Slower. |
+| gfpgan | restoration | portable_mlx whole-module, fp32 only | fp32 364 / 3161 vs MPS 153 / 1954. fp16 golden mean diff 0.157, so not declared. Slower and heavier. |
+| seedvr2 | restoration | not ported, infeasible on this Mac | 7B bf16 weights are 16.5 GB, over the 16 GB RAM. The 3B is 6.8 GB bf16 but the port builds a CPU fp32 twin (~13.6 GB) plus the MLX copy. MPS already reports it unsupported. Needs a streaming loader (convert layer by layer to MLX) first. |
