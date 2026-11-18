@@ -7,7 +7,8 @@ uses = []  # fastforks.shared modules this family imports
 limitations = [
   "Pairs only: the video memory (the keys and values of earlier frames that upstream's inference keeps) is not exposed; each pair runs as the first frame of a video.",
   "The MemFlow-T checkpoints (Twins-SVT encoders) and MemFlow-P (flow prediction) are not ported.",
-  "The 384 x 1248 standalone MemFlow-KITTI FP16 TensorRT engine failed the accuracy check on 10 labeled KITTI pairs. Mean endpoint error was 4.672 px versus 0.413 px for portable FP16.",
+  "At 384 x 1248, the first MemFlow-KITTI FP16 TensorRT plan gave 4.672 px EPE versus 0.413 px portable on ten pairs. A separate plan with export-only gather sampling matched portable across all 200 KITTI pairs.",
+  "The standard checkpoint's standalone 384 x 1248 FP16 TensorRT plan showed a maximum mean absolute flow difference of 2.58 px on an individual KITTI pair and a maximum per-pair EPE change of 3.45 px across 200 pairs.",
 ]
 
 [upstream]

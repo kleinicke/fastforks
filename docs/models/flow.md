@@ -404,6 +404,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `memflow` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3116<br>964<br>865<br>1642<br>fails: TensorRT engine build failed | 15061 / 15594<br>8265 / 8382<br>968 / 1022<br>6813 / 6946<br>– |
 | `memflow-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3214<br>964<br>865<br>1640<br>fails: TensorRT engine build failed | 15061 / 15634<br>8265 / 8382<br>968 / 1022<br>6813 / 6946<br>– |
+| `memflow-sintel` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>137 (full fixed-shape flow network, standalone trace export and build) | –<br>–<br>–<br>887 / 892 |
 | `memflow-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3247<br>965<br>865<br>1644<br>fails: TensorRT engine build failed | 15061 / 15594<br>8265 / 8382<br>968 / 1022<br>6813 / 6946<br>– |
 | `memflow-kitti` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>135 (full fixed-shape flow network, standalone engine build) | –<br>–<br>–<br>859 / 864 |
 
@@ -424,6 +425,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `memflow` 1024x2048 (8.2 GiB peak allocated, 9.2 reserved); `memflow-sintel` 1024x2048 (8.2 GiB peak allocated, 9.2 reserved); `memflow-kitti` 1024x2048 (8.2 GiB peak allocated, 9.2 reserved)
 - `memflow` 1080x1920, first call: portable + torch.compile 79 s (cold Inductor cache).
 - `memflow-sintel` 1080x1920, first call: portable + torch.compile 76 s (cold Inductor cache).
+- `memflow-sintel` 384x1248, first call: TensorRT fp16 140 s (ONNX + engine).
 - `memflow-kitti` 1080x1920, first call: portable + torch.compile 73 s (cold Inductor cache).
 - `memflow-kitti` 384x1248, first call: TensorRT fp16 330 s (ONNX + engine).
 - `memflow` original 1080x1920: torch.autocast(float16) around the call; upstream MemFlowNet configs/things_memflownet.py, InferenceCore.step(end=True) per pair
@@ -442,6 +444,7 @@ Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of 
 |---|---|---|---|---|---|---|---|---|
 | `memflow` | KITTI 2015 train, EPE / Fl-all % | 4.108 / 14.43 | 4.107 / 14.43 | 4.109 / 14.44 | 4.093 / 14.43 | 4.103 / 14.42 |  |  |
 | `memflow-sintel` | KITTI 2015 train, EPE / Fl-all % | 1.218 / 4.09 |  |  | 1.218 / 4.09 |  |  | trained on this dataset's public images; not a zero-shot result |
+| `memflow-sintel` | KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all % |  |  | 1.263 / 4.34 |  |  | 1.262 / 4.34 | trained on this dataset's public images; not a zero-shot result |
 | `memflow-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.600 / 1.21 | 0.600 / 1.21 | 0.600 / 1.21 | 0.600 / 1.21 | 0.600 / 1.21 |  | trained on this dataset's public images; not a zero-shot result |
 | `memflow-kitti` | KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all % |  |  | 0.616 / 1.29 |  |  | 0.616 / 1.29 | trained on this dataset's public images; not a zero-shot result |
 
@@ -461,7 +464,8 @@ CPU, float32: max |diff| <= 4.2e-05 vs the original. GPU, float16 (the default),
 
 - Pairs only: the video memory (the keys and values of earlier frames that upstream's inference keeps) is not exposed; each pair runs as the first frame of a video.
 - The MemFlow-T checkpoints (Twins-SVT encoders) and MemFlow-P (flow prediction) are not ported.
-- The 384 x 1248 standalone MemFlow-KITTI FP16 TensorRT engine failed the accuracy check on 10 labeled KITTI pairs. Mean endpoint error was 4.672 px versus 0.413 px for portable FP16.
+- At 384 x 1248, the first MemFlow-KITTI FP16 TensorRT plan gave 4.672 px EPE versus 0.413 px portable on ten pairs. A separate plan with export-only gather sampling matched portable across all 200 KITTI pairs.
+- The standard checkpoint's standalone 384 x 1248 FP16 TensorRT plan showed a maximum mean absolute flow difference of 2.58 px on an individual KITTI pair and a maximum per-pair EPE change of 3.45 px across 200 pairs.
 
 </details>
 
