@@ -16,15 +16,15 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 import torch
 import torch.nn.functional as F
 
-from fastforks._core import kernels, registry
+from fastforks._core import registry
 from fastforks._core.checkpoint import check_fits, load_state_dict
-from fastforks._core.errors import InputError, OptionsError
+from fastforks._core.errors import OptionsError
 from fastforks._core.model import load_variant
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.features._api import TASK, FeaturesModel
 from fastforks.kernels.dpt_fused import DEEP_K, DptFused
 from fastforks.kernels.fastbb import Flash64
-from fastforks.kernels.fastbb import load as load_kernels
+from fastforks.kernels.pointdit_norm import normalize_rope
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.depth_anything_v2.fast_vit import _flash, _fp16_accumulate
 from fastforks.shared.host_blocks import StreamedModuleList
@@ -66,7 +66,6 @@ def network_size(h: int, w: int, tokens: int) -> tuple[int, int]:
 
 _GRAPHS = 8  # fixed: graph cache policy (sampler graphs and RoPE tables kept per model)
 _GRAPH_WORK = 2**22  # fixed: largest token stream (B x N x C) sampled through a CUDA graph
-_INT32 = 2**31 - 1  # fixed: `rope_qk_h` indexes in int32
 _ALIGN = 64  # fixed: the FFN width is zero-padded to this multiple for the `dpt_fused` tiles (PointDiT-L: 2730)
 
 
@@ -162,11 +161,11 @@ class Portable(Runner):
 
 
 class Kernels(Portable):
-    """`fastforks.features` DINOv3 kernels; the DiT on `dpt_fused` GEMMs, fastbb RoPE + flash attention, CUDA graphs.
+    """DINOv3 kernels and the DiT on `dpt_fused` GEMMs, fused RMSNorm/RoPE + flash attention, CUDA graphs.
 
     fp16 weights and stream. The GEMM epilogues take the folded biases, the per-step gates (`scale`) and the
-    residual; RoPE runs in place on the packed q / k (q also takes the softmax scale 2^-3) after their RMSNorm (PyTorch,
-    float32 statistics); SwiGLU's gate in place. The whole sampler (`steps` x blocks) replays one CUDA graph per input
+    residual; RoPE runs in place on the packed q / k (q also takes the softmax scale 2^-3) alongside their RMSNorm
+    (float32 statistics); SwiGLU's gate in place. The whole sampler (`steps` x blocks) replays one CUDA graph per input
     shape, captured on the shape's second call.
     """
 
@@ -175,7 +174,6 @@ class Kernels(Portable):
     def __init__(self, ctx: Context) -> None:
         """The portable setup in fp16 + the kernels."""
         super().__init__(ctx)
-        self.kernels = load_kernels(ctx.device)
         self.k = DptFused(ctx.device)
         self.attn = Flash64("fh")
         self._cs: dict[tuple[int, int], torch.Tensor] = {}
@@ -192,14 +190,13 @@ class Kernels(Portable):
             self._cs[h, w] = torch.stack((a.cos(), a.sin()), 1).contiguous()
         return self._cs[h, w]
 
-    def _block(self, blk: Block, x: torch.Tensor, s: int, cs: torch.Tensor, rope: tuple) -> torch.Tensor:
+    def _block(self, blk: Block, x: torch.Tensor, s: int, cs: torch.Tensor) -> torch.Tensor:
         b, n, _ = x.shape
         heads, k = self.cfg.heads, self.k
         qkv = k.gemm(rms(x, blk.a1[s]), blk.qkv_w, blk.qkv_b[s]).view(b, n, 3, heads, HEAD)
-        qk = qkv[:, :, :2]
-        qk.copy_(rms(qk, blk.qk_norm))
-        self.kernels.launch("rope_qk_h", *rope[0], qkv, cs, n, 0, heads, rope[1], HEAD**-0.5)
+        normalize_rope(qkv, blk.qk_norm, cs)
         x = k.gemm(_flash(qkv, 1.0, self.attn), blk.proj_w, blk.proj_b, scale=blk.g1[s], res=x)
+        del qkv
         g, u = k.gemm(rms(x, blk.a2[s]), blk.w12, blk.b12[s]).chunk(2, -1)
         hid = F.silu(g, inplace=True).mul_(u)
         if blk.w3.shape[1] >= DEEP_K:  # deep down GEMMs: cuBLAS (fp32 accumulate)
@@ -210,19 +207,12 @@ class Kernels(Portable):
         """`sample` on the kernels: `cond` `[B, N, C]` float32 -> point tokens float32."""
         net, k = self.net, self.k
         cs = self._table(h, w, cond.device)
-        b, n, _ = cond.shape
-        total = b * n * 2 * self.cfg.heads * (HEAD // 4)  # q / k half2 pairs per half head
-        grid = kernels.linear(total)
-        if total + grid[0][0] * grid[1][0] > _INT32:  # the grid-stride index must not overflow
-            msg = f"batch too large for the fastbb RoPE kernel ({b} x {n} tokens): split it"
-            raise InputError(msg)
-        rope = (grid, total)
         c16 = cond.half()
         z = None
         for s, (step, one_minus_t) in enumerate(net.schedule):
             x = c16 if z is None else k.gemm(z.half(), net.wp, res=c16, acc32=True)
             for blk in net.blocks:
-                x = blk(x, self._block, s, cs, rope)
+                x = blk(x, self._block, s, cs)
             out = k.gemm(rms(x, 1.0), net.final_w[s], net.final_b[s], acc32=True).float()
             z = out.mul_(step / one_minus_t) if z is None else z.add_(out.sub_(z), alpha=step / one_minus_t)
         if z is None:  # steps >= 1 (the card's sampler)
