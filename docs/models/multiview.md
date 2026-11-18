@@ -251,7 +251,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (nonc
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mvsanywhere` | synthetic (448x672) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 273<br>219<br>93.2<br>35.2<br>70.8<br>149 (standalone build) | 1441 / 1500<br>1504 / 1576<br>931 / 1226<br>702 / 760<br>818 / 860<br>2929 / 3074 |
+| `mvsanywhere` | synthetic (448x672) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 273<br>219<br>93.2<br>35.2<br>70.8<br>75.4 (standalone build) | 1441 / 1500<br>1504 / 1576<br>931 / 1226<br>702 / 760<br>818 / 860<br>1581 / 1658 |
 
 <details><summary>Details</summary>
 
@@ -268,21 +268,22 @@ Commercial use: **no** (code: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (nonc
 - Outputs: depth, mask, sky (in `extras`), depth_range (in `extras`); kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mvsanywhere` 3000x4000 (3.0 GiB peak allocated, 4.2 reserved)
-- `mvsanywhere` 448x672, first call: portable + torch.compile 153 s (cold Inductor cache), TensorRT fp32 134 s (ONNX + engine).
+- `mvsanywhere` 448x672, first call: portable + torch.compile 153 s (cold Inductor cache), TensorRT fp16 217 s (ONNX + engine).
 - `mvsanywhere` original 448x672: torch.autocast(float16) around the call
 - `mvsanywhere` load / first call: original 3.21 s / 1.037 s (448x672), portable 1.88 s / 0.221 s (448x672), kernels 1.76 s / 0.48 s (448x672)
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
 
-640x512 crops, the 7 most co-visible views as sources. Ground truth is depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Scans 1, 9, 24, 33 and 75. Resize view 24 and its seven paired views to 448 x 672 with scaled camera intrinsics. Both modes use the camera-baseline depth range. Depth is resized back to the target before scoring valid pixels. Original = the original code named under Details, same checkpoint and protocol.
+640x512 crops, the 7 most co-visible views as sources. Ground truth is depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Scans 1, 9, 24, 33 and 75. Resize view 24 and its seven paired views to 448 x 672 with scaled camera intrinsics. Both modes use the camera-baseline depth range. Depth is resized back to the target before scoring valid pixels. Scans 1, 9, 24, 33 and 75. Resize view 24 and its seven paired views to 448 x 672 with scaled intrinsics. Both FP16 modes use the camera-baseline depth range. Depth is resized back to the target before scoring valid pixels. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
 |---|---|---|---|---|---|---|---|---|
 | `mvsanywhere` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm | 0.0077 / 99.82 / 5.57 | 0.0110 / 99.84 / 7.85 | 0.0078 / 99.82 / 5.60 | 0.0077 / 99.82 / 5.57 | 0.0077 / 99.82 / 5.59 |  |  |
 | `mvsanywhere` | DTU, view 24 + 7 sources at 448 x 672, AbsRel / delta1 % / MAE mm / MAE mm |  |  |  | 0.0109 / 99.54 / 7.66 |  | 0.0109 / 99.53 / 7.68 |  |
+| `mvsanywhere` | DTU FP16, view 24 + 7 sources at 448 x 672, AbsRel / delta1 % / MAE mm / MAE mm |  |  | 0.0110 / 99.53 / 7.69 |  |  | 0.0110 / 99.53 / 7.68 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 555d7b79, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 555d7b79 / a771576b, 2026-11-06 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 555d7b79, 2026-11-06; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a771576b, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 555d7b79 / a771576b, 2026-11-06 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 555d7b79 / a771576b, 2026-11-06 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 555d7b79, 2026-11-06; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a771576b, 2026-11-18.
 
 ### Parity
 

@@ -655,7 +655,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`flowseek-t`](models/flow.md#flowseek) | yes | 1.348 † | 457.0 (1080x1920) | 395.3 | 327.1 | 1.4x vs original (1080x1920) | 2027 |
 | [`flowseek-t-things`](models/flow.md#flowseek) | yes | 4.143 | 457.7 (1080x1920) | 395.3 | 327.2 | 1.4x vs original (1080x1920) | 2027 |
 | [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.933 | 457.6 (1080x1920) | 395.6 | 327.6 | 1.4x vs original (1080x1920) | 2027 |
-| [`memfof-kitti`](models/flow.md#memfof) | yes | – | – | 385.6 | 380.0 (375x1242) | 1.0x vs portable | 1137 |
+| [`memfof-kitti`](models/flow.md#memfof) | yes | 15.584 † | – | 385.6 | 380.0 (375x1242) | 1.0x vs portable | 1137 |
 | [`memfof-spring`](models/flow.md#memfof) | yes | – | 1034.8 (1080x1920) | 432.6 | 427.0 | 2.4x vs original (1080x1920) | 1290 |
 | [`memfof`](models/flow.md#memfof) | yes | 10.891 † | 530.7 (1080x1920) | 432.6 | 427.4 | 1.2x vs original (1080x1920) | 1301 |
 | [`waft-a1-sintel`](models/flow.md#waft) | yes | – | 1532.7 (1080x1920) | 790.5 | 518.5 | 3.0x vs original (1080x1920) | 1851 |

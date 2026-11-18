@@ -32,7 +32,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`memflow-kitti`](#memflow) | yes | 0.600 † | 865, 3.8x | 1022, 0.066x |
 | [`memflow-sintel`](#memflow) | yes | 1.218 † | 865, 3.7x | 1022, 0.065x |
 | [`memfof`](#memfof) | yes | 10.891 † | 427, 1.2x | 1418, 0.66x |
-| [`memfof-kitti`](#memfof) | yes | – | 380, 2.4x (375x1242) | 1218, 0.54x |
+| [`memfof-kitti`](#memfof) | yes | 15.584 † | 380, 2.4x (375x1242) | 1218, 0.54x |
 | [`memfof-sintel`](#memfof) | yes | – | 1993 | 8820 |
 | [`memfof-spring`](#memfof) | yes | – | 427, 2.4x | 1398, 0.52x |
 | [`neuflow-v2`](#neuflow_v2) | yes | 1.577 † | 59.1, 1.3x | 896, 0.2x |
@@ -502,10 +502,10 @@ Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
 | `memfof` | KITTI 2015 train, EPE / Fl-all % | 10.892 / 27.07 | 10.891 / 27.07 | 10.891 / 27.07 | 10.892 / 27.07 | 10.891 / 27.07 | trained on this dataset's public images; not a zero-shot result |
-| `memfof-kitti` | KITTI 2015 train, EPE / Fl-all % | 15.584 / 26.39 |  |  |  |  | trained on this dataset's public images; not a zero-shot result |
+| `memfof-kitti` | KITTI 2015 train, EPE / Fl-all % | 15.584 / 26.39 |  |  | 15.584 / 26.39 |  | trained on this dataset's public images; not a zero-shot result |
 | `memfof-sintel` | KITTI 2015 train, EPE / Fl-all % | 2.976 / 7.48 |  |  |  |  | trained on this dataset's public images; not a zero-shot result |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 087f1817+uncommitted, 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 087f1817+uncommitted, 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 087f1817+uncommitted, 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 6f0a70e1, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 087f1817+uncommitted, 2026-11-12.
 
 ### Parity
 
