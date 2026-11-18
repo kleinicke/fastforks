@@ -19,6 +19,7 @@ An op without a mapping raises `UnsupportedOp` naming it (never a silent fallbac
 
 from __future__ import annotations
 
+import gc
 import math
 import operator
 from typing import TYPE_CHECKING, Any
@@ -329,11 +330,45 @@ def _mean(x: mx.array, d: Sequence[int] | None = None, keep: bool = False, **_: 
         from fastforks.kernels.graph_mlx import ops  # noqa: PLC0415 - optional MLX dependency
 
         return ops.global_avg(_nhwc(x))
-    return mx.mean(x, axis=tuple(d) if d else None, keepdims=keep)
+    return _wide(x, lambda y: mx.mean(y, axis=tuple(d) if d else None, keepdims=keep))
+
+
+def _wide(x: mx.array, f: Callable[[mx.array], mx.array]) -> mx.array:
+    """`f(x)` accumulated in float32 for a half-precision `x` (PyTorch's reductions do; a float16 sum overflows)."""
+    if x.dtype in (mx.float16, mx.bfloat16):
+        return f(x.astype(mx.float32)).astype(x.dtype)
+    return f(x)
 
 
 OPS[aten.mean.dim] = _mean
-OPS[aten.sum.dim_IntList] = lambda x, d=None, keep=False, **_: mx.sum(x, axis=tuple(d) if d else None, keepdims=keep)
+OPS[aten.sum.dim_IntList] = lambda x, d=None, keep=False, **_: _wide(
+    x, lambda y: mx.sum(y, axis=tuple(d) if d else None, keepdims=keep)
+)
+
+
+@_reg(aten.linalg_vector_norm.default)
+def _vector_norm(
+    x: mx.array,
+    ord: float = 2,  # noqa: A002 - the aten argument name
+    d: Sequence[int] | None = None,
+    keep: bool = False,  # noqa: FBT001, FBT002
+    *,
+    dtype: object = None,  # noqa: ARG001 - the aten argument
+) -> mx.array:
+    """The p-norm with float32 accumulation (a float16 sum of squares overflows; PyTorch accumulates in float32)."""
+    y = mx.abs(x.astype(mx.float32))
+    ax = tuple(d) if d else None
+    if ord == float("inf"):
+        r = mx.max(y, axis=ax, keepdims=keep)
+    elif ord == 2:  # noqa: PLR2004
+        r = mx.sqrt(mx.sum(y * y, axis=ax, keepdims=keep))
+    elif ord == 1:
+        r = mx.sum(y, axis=ax, keepdims=keep)
+    else:
+        r = mx.power(mx.sum(mx.power(y, ord), axis=ax, keepdims=keep), 1.0 / ord)
+    return r.astype(x.dtype)
+
+
 OPS[aten.amax.default] = lambda x, d=(), keep=False: mx.max(x, axis=tuple(d) or None, keepdims=keep)
 OPS[aten.amin.default] = lambda x, d=(), keep=False: mx.min(x, axis=tuple(d) or None, keepdims=keep)
 OPS[aten.any.dim] = lambda x, d, keep=False: mx.any(x, axis=d, keepdims=keep)
@@ -379,7 +414,7 @@ def _sdpa(
     scale = scale if scale is not None else q.shape[-1] ** -0.5
     if causal:
         mask = "causal"
-    elif mask is not None and mask.dtype != mx.bool_ and mask.dtype != q.dtype:
+    elif mask is not None and mask.dtype not in {mx.bool_, q.dtype}:
         mask = mask.astype(q.dtype)
     return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask)
 
@@ -712,10 +747,19 @@ class GraphNet:
 
     def _build(self, args: tuple[torch.Tensor, ...]) -> Callable[..., Any]:
         with torch.no_grad():
-            self.module(*args)  # fills lazily built buffers (attention bias caches) that export must not assign
-            ep = torch.export.export(self.module, args, strict=False)
+            try:
+                ep = torch.export.export(self.module, args, strict=False)
+            except (RuntimeError, ValueError, AssertionError, UserWarning):
+                # lazily built buffers (attention bias caches) that export must not assign: fill them with one real
+                # forward (its CPU activations are the peak of the build, so only a module that needs it pays)
+                self.module(*args)
+                ep = torch.export.export(self.module, args, strict=False)
             decomp = torch.export.default_decompositions()
-            for keep in (aten.scaled_dot_product_attention.default, aten.upsample_bilinear2d.vec):
+            for keep in (
+                aten.scaled_dot_product_attention.default,
+                aten.upsample_bilinear2d.vec,
+                aten.linalg_vector_norm.default,
+            ):
                 decomp.pop(keep, None)
             ep = ep.run_decompositions(decomp)
         graph = ep.graph_module.graph
@@ -742,6 +786,8 @@ class GraphNet:
             elif node.op == "output":
                 plan.append(("output", node.args[0]))
         values.update(folds.values)
+        del ep, graph, sig, lifted, nodes
+        gc.collect()
         return self._runner(plan, values)
 
     @staticmethod
@@ -842,6 +888,16 @@ class GraphNet:
         return tuple(to_torch(o) for o in outs)
 
 
+class _Box:
+    """A value cell that `copy.deepcopy` (which `torch.export` applies to a module) shares instead of copying."""
+
+    def __init__(self) -> None:
+        self.value: tuple[Any, list[Any], list[Any]] | None = None
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> _Box:
+        return self
+
+
 class _Flat(torch.nn.Module):
     """`module(*args, **kwargs)` as a function of its tensor arguments (the rest is baked in), with flat tensor outputs."""
 
@@ -851,14 +907,14 @@ class _Flat(torch.nn.Module):
         self.spec = spec
         self.template = [None if isinstance(x, torch.Tensor) else x for x in leaves]
         self.is_tensor = [isinstance(x, torch.Tensor) for x in leaves]
-        self.out: tuple[Any, list[Any], list[Any]] | None = None  # out spec, non-tensor leaves, tensor dtypes
+        self.out = _Box()  # out spec, non-tensor leaves, tensor dtypes; set by forward, also on an exported copy
 
     def forward(self, *tensors: torch.Tensor) -> tuple[torch.Tensor, ...]:
         it = iter(tensors)
         leaves = [next(it) if t else v for t, v in zip(self.is_tensor, self.template, strict=True)]
         args, kwargs = pytree.tree_unflatten(leaves, self.spec)
         out_leaves, out_spec = pytree.tree_flatten(self.module(*args, **kwargs))
-        self.out = (
+        self.out.value = (
             out_spec,
             [None if isinstance(o, torch.Tensor) else o for o in out_leaves],
             [o.dtype if isinstance(o, torch.Tensor) else None for o in out_leaves],
@@ -889,8 +945,8 @@ class MlxModule:
             self._nets[key] = (GraphNet(flat, self.dtype, kernels=self.kernels, shared=self._consts()), flat)
         net, flat = self._nets[key]
         outs = iter(net(*[x for x in leaves if isinstance(x, torch.Tensor)]))
-        assert flat.out is not None  # set while exporting  # noqa: S101
-        out_spec, others, dtypes = flat.out
+        assert flat.out.value is not None  # set while exporting  # noqa: S101
+        out_spec, others, dtypes = flat.out.value
         merged = [next(outs).to(d) if d is not None else o for o, d in zip(others, dtypes, strict=True)]
         return pytree.tree_unflatten(merged, out_spec)
 
