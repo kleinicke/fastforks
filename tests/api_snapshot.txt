@@ -987,6 +987,7 @@ option pose.yunet.score_threshold
 option promptable_segmentation.clipseg.cuda_graphs
 option promptable_segmentation.sam2.samurai
 option promptable_segmentation.sam3.cuda_graphs
+option promptable_segmentation.sam3.stream
 option restoration.codeformer.fidelity aliases fidelity_weight
 option restoration.lama.cuda_graphs
 option restoration.seedvr2.quant
