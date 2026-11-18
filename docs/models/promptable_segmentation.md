@@ -464,7 +464,7 @@ One point per ground-truth instance (the interior point farthest from the border
 | `sam2.1-hiera-small` | DAVIS 2017 val, every 3rd sequence, video tracking, J&F / J / F % | 84.08 / 80.26 / 87.90 | 84.11 / 80.28 / 87.93 | 84.13 / 80.31 / 87.94 |  | 84.13 / 80.31 / 87.95 |  |
 | `sam2.1-hiera-base-plus` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 58.79 / 58.67 | 58.73 / 58.57 | 58.81 / 58.71 | 58.79 / 58.67 | 58.82 / 58.73 |  |
 | `sam2.1-hiera-base-plus` | DAVIS 2017 val, every 3rd sequence, video tracking, J&F / J / F % | 83.88 / 80.62 / 87.14 | 83.88 / 80.61 / 87.16 | 83.87 / 80.61 / 87.13 |  | 83.86 / 80.60 / 87.12 |  |
-| `sam2.1-hiera-large` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 64.88 / 64.71 | 64.77 / 64.73 | 64.86 / 64.68 |  | 64.87 / 64.70 |  |
+| `sam2.1-hiera-large` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 64.88 / 64.71 | 64.77 / 64.73 | 64.86 / 64.68 | 64.88 / 64.70 | 64.87 / 64.70 |  |
 | `sam2.1-hiera-large` | DAVIS 2017 val, every 3rd sequence, video tracking, J&F / J / F % | 85.91 / 82.21 / 89.62 | 85.98 / 82.25 / 89.71 | 85.92 / 82.22 / 89.63 |  | 85.92 / 82.22 / 89.63 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84ba91d4 / 939adfe8, 2026-11-06 to 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84ba91d4 / 939adfe8, 2026-11-06 to 2026-11-12.

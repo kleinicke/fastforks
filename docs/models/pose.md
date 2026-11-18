@@ -373,14 +373,14 @@ Commercial use: yes.
 
 Top-down on the ground-truth person boxes (non-crowd, at least one labelled keypoint), no flip test; people ranked by the mean of their 17 keypoint scores (not mmpose's rescoring and OKS-NMS), so not the papers' AP; pycocotools OKS AP; whole-body models scored on their 17 body keypoints. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `hrnet-w32` | COCO val2017, ground-truth person boxes, keypoint AP | 75.5 | 75.5 | 76.5 | 76.5 |  |
-| `hrnet-w32-384` | COCO val2017, ground-truth person boxes, keypoint AP | 76.7 | 76.7 | 77.6 | 77.7 |  |
-| `hrnet-w48` | COCO val2017, ground-truth person boxes, keypoint AP | 76.5 | 76.6 | 76.7 | 76.7 |  |
-| `hrnet-w48-384` | COCO val2017, ground-truth person boxes, keypoint AP | 77.0 | 77.0 | 77.7 | 77.6 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `hrnet-w32` | COCO val2017, ground-truth person boxes, keypoint AP | 75.5 | 75.5 | 76.5 | 75.5 | 76.5 |  |
+| `hrnet-w32-384` | COCO val2017, ground-truth person boxes, keypoint AP | 76.7 | 76.7 | 77.6 | 76.6 | 77.7 |  |
+| `hrnet-w48` | COCO val2017, ground-truth person boxes, keypoint AP | 76.5 | 76.6 | 76.7 |  | 76.7 |  |
+| `hrnet-w48-384` | COCO val2017, ground-truth person boxes, keypoint AP | 77.0 | 77.0 | 77.7 | 77.0 | 77.6 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 87e1be16, 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 87e1be16, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 87e1be16, 2026-11-11.
 
 ### Parity
 
@@ -671,7 +671,7 @@ Top-down on the ground-truth person boxes (non-crowd, at least one labelled keyp
 | `vitpose-plus-small` | COCO val2017, ground-truth person boxes, keypoint AP | 76.8 | 76.8 | 76.8 | 76.8 | 76.8 |  |
 | `vitpose-plus-base` | COCO val2017, ground-truth person boxes, keypoint AP | 78.6 | 78.6 | 78.6 | 78.6 | 78.6 |  |
 | `vitpose-plus-large` | COCO val2017, ground-truth person boxes, keypoint AP | 80.6 | 80.6 | 80.5 | 80.6 | 80.5 |  |
-| `vitpose-plus-huge` | COCO val2017, ground-truth person boxes, keypoint AP | 81.0 | 81.0 | 80.9 |  | 80.9 |  |
+| `vitpose-plus-huge` | COCO val2017, ground-truth person boxes, keypoint AP | 81.0 | 81.0 | 80.9 | 80.9 | 80.9 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted, 2026-11-09; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted, 2026-11-09.
 
