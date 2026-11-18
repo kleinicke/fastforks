@@ -131,6 +131,7 @@ _DATASETS = {
         "div2k-val-x2-crop512-n4": "DIV2K validation, 4 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original",  # noqa: E501
         "div2k-val-x2-crop512-n2": "DIV2K validation, 2 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original",  # noqa: E501
         "div2k-val-x2-crop64-every4-rgb": "DIV2K validation, 25 bicubic x2 center crops of 64 x 64 LR pixels, RGB PSNR",
+        "div2k-val-x2-crop512-every4-rgb": "DIV2K, 25 bicubic x2 center crops of 512 x 512 LR pixels, RGB PSNR",
         "seedvr2-clips-n4": "4 video clips (first frame), PSNR to the original's output",
         "seedvr2-clips-n2": "2 video clips (first frame), PSNR to the original's output",
         "div2k-val-x2-every4": "DIV2K validation (every 4th: 25 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
@@ -257,6 +258,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "restoration": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "images"),
     ("restoration", "div2k-val-inpainting-mask50"): ((("psnr", "{:.4f}", ""),), "n", "masks"),
     ("restoration", "div2k-val-x2-crop64-every4-rgb"): ((("psnr", "{:.4f}", ""),), "n", "images"),
+    ("restoration", "div2k-val-x2-crop512-every4-rgb"): ((("psnr", "{:.4f}", ""),), "n", "images"),
     **{
         ("restoration", d): (
             (("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", ""), ("psnr_orig", "{:.2f}", "")),
@@ -405,6 +407,9 @@ _PROTOCOL = {
     ("restoration", "div2k-val-x2-crop64-every4-rgb"): "Every fourth DIV2K validation image. A 64 x 64 center crop "
     "of the official bicubic x2 input is restored at 128 x 128 and compared with the corresponding original pixels. "
     "PSNR uses RGB in [0, 1] and is averaged over the 25 crops. Both modes use resident BF16 weights and seed 666. ",
+    ("restoration", "div2k-val-x2-crop512-every4-rgb"): "Every fourth DIV2K validation image. Restore a 512 x 512 "
+    "center crop of the bicubic x2 input at 1024 x 1024. Average RGB PSNR over 25 aligned targets using streamed BF16 "
+    "weights and seed 666. Compilation covers the VAE encoder and decoder. ",
     ("restoration", "div2k-val-x4-crop256-every4"): "Every fourth DIV2K validation image, using aligned 256 x 256 LR "
     "center crops and their original HR targets. PSNR and SSIM use the Y channel after rounding the output to uint8 "
     "and cropping a four-pixel border. ",
@@ -682,6 +687,15 @@ def _engine_part(model_id: str, *, standalone: bool = False) -> str:
     return " (standalone build)" if standalone else ""
 
 
+def _backend_part(row: dict) -> str:
+    """Scope of the measured backend call, with a TensorRT default for older rows."""
+    if part := row.get("backend_part"):
+        return f" ({part})"
+    if row["mode"] == "tensorrt":
+        return _engine_part(row["ref"], standalone=bool(row.get("standalone_build")))
+    return ""
+
+
 @functools.cache
 def _compile_rows() -> dict[tuple[str, str, str], dict]:
     """Latest compile and TensorRT rows by model, mode and input size, respecting card gates."""
@@ -731,8 +745,7 @@ def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]]
             continue
         precision = _ENGINE_PRECISION.get(r.get("engine_dtype", ""))
         name = f"TensorRT {precision}" if mode == "tensorrt" and precision else label
-        part = _engine_part(model_id, standalone=bool(r.get("standalone_build"))) if mode == "tensorrt" else ""
-        ms = _ms_str(r["ms"]) + part
+        ms = _ms_str(r["ms"]) + _backend_part(r)
         lines.append((name, ms, _trt_peak(r) if mode == "tensorrt" else _peak(r)))
         first = _setup_seconds(r)
         if first is not None:
@@ -2008,8 +2021,7 @@ def _compile_ms(r: dict | None) -> str:
         return _fail_cell(r["fails"])
     precision = _ENGINE_PRECISION.get(r.get("engine_dtype", ""))
     suffix = f", {precision} engine" if precision else ""
-    part = _engine_part(r["ref"], standalone=bool(r.get("standalone_build"))) if r["mode"] == "tensorrt" else ""
-    return f"{_ms_str(r['ms'])} ms{suffix}{part}"
+    return f"{_ms_str(r['ms'])} ms{suffix}{_backend_part(r)}"
 
 
 def _compile_block() -> str:

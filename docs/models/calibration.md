@@ -83,6 +83,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `geocalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 106<br>81.2<br>81.8<br>73.1<br>planned for 0.2.1 | 502 / 558<br>320 / 378<br>277 / 338<br>246 / 300<br>– |
+| `geocalib-pinhole` | synthetic (1920x1440) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>123<br>–<br>109 (field predictor only, standalone build) | –<br>433 / 560<br>–<br>540 / 558 |
 
 <details><summary>Details</summary>
 
@@ -99,6 +100,7 @@ Commercial use: yes.
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `geocalib-pinhole` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved)
 - `geocalib-pinhole` 1080x1920, first call: portable + torch.compile 28 s (cold Inductor cache).
+- `geocalib-pinhole` 1920x1440, first call: TensorRT fp32 43 s (ONNX + engine).
 - `geocalib-pinhole` original 1080x1920: torch.autocast(float16) around the call; cvg/GeoCalibdedb29f94fc GeoCalib.calibrate (pinhole), its kornia resize / crop / LM fit
 - `geocalib-pinhole` load / first call: original 1.8 s / 0.841 s, portable 0.27 s / 1.837 s, kernels 0.44 s / 0.745 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -126,6 +128,7 @@ CPU, float32: max |diff| <= 0.0032 vs the original. GPU, float16 (the default), 
 ### Limitations
 
 - The Levenberg-Marquardt loop branches and logs on its convergence (35 graph breaks: `torch.compile` runs with breaks, no `torch.export`); its damping, singularity check and early stop are batch-wide, as upstream, so a batch is one problem and an image's result can depend on its batch mates.
+- The standalone FP32 TensorRT benchmark accelerates the 416 x 320 field predictor and uses the usual PyTorch camera optimizer. On 97 portrait LaMAR images the largest angle difference was 0.000048 degrees.
 
 </details>
 

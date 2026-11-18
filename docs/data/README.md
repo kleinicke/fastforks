@@ -141,6 +141,7 @@ Rows of `tools/speed_check.py run --modes compile tensorrt` (`side` = `lib`): `m
 size counts. `engine_dtype` =
 `float32` marks an fp32 engine (the portable model loaded with `dtype="float32"`), recorded where the fp16 engine
 misses the golden tolerance (`golden_fp16` / `golden_fp32`: mask-logit error against the golden, relative mean / p99).
+`backend_part` describes a timed call that accelerates selected stages or uses an isolated benchmark setup.
 
 Rows with `side` = `upstream` and `mode` = `upstream-tensorrt` are a like-for-like extra that the docs tables do not
 show: a TensorRT fp16 engine built from the original network (`da3mono-large`). `timed` says what one call covers,

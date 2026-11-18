@@ -1507,7 +1507,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | restormer-derain | 234 | 228 | 180 | 1.3x | 1.3x | 1221 / 1418 | 850 / 1000 | 850 / 920 |
 | restormer-sidd | 218 | 181 | 179 | 1.2x | 1.0x | 1221 / 1416 | 850 / 920 | 850 / 940 |
 | seedvr2-3b | 13150 | 2295 | 2296 | 5.7x | 1.0x | 7598 / 15268 | 6140 / 6772 | 6140 / 6772 |
-| seedvr2-7b | OOM | 2712 | 2713 | – | 1.0x | – | 6402 / 7034 | 6402 / 7034 |
+| seedvr2-7b | OOM | 2712 | 2713 | – | 1.0x | – | 6419 / 8880 | 6402 / 7034 |
 | span-x2 | 24.6 | 23.5 | 14.9 | 1.6x | 1.6x | 611 / 648 | 607 / 662 | 487 / 522 |
 | span-x4 | 26.9 | 24.2 | 14.6 | 1.8x | 1.7x | 611 / 648 | 607 / 662 | 487 / 522 |
 | swin2sr-x2 | 2565 | 909 | 721 | 3.6x | 1.3x | 1488 / 1578 | 1459 / 1554 | 1459 / 1636 |
@@ -2577,6 +2577,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | megaloc | 480x640 | 5.29 ms | 4.27 ms | 3.21 ms | 4.26 ms | 13.2 s | 51.1 s | 483 / 508 | 518 / 530 | 485 / 508 | 937 / 964 |
 | anycalib-pinhole | 1080x1920 | 29.4 ms | 25.5 ms | planned for 0.2.1 | 21.5 ms | 16.5 s | – | 705 / 742 | 719 / 756 | 739 / 812 | – |
 | geocalib-pinhole | 1080x1920 | 81.2 ms | 73.1 ms | planned for 0.2.1 | 81.8 ms | 28.4 s | – | 320 / 378 | 246 / 300 | 277 / 338 | – |
+| geocalib-pinhole | 1920x1440 | 123 ms | – | 109 ms, fp32 engine (field predictor only, standalone build) | – | – | 42.9 s | 433 / 560 | – | – | 540 / 558 |
 | anysplat | 336x518 | 503 ms | 427 ms | 314 ms | 364 ms | 80.3 s | 215 s | 4842 / 4932 | 4137 / 4694 | 4849 / 5192 | 7629 / 7674 |
 | depthsplat-small-re10k | 336x518 | 119 ms | 82.2 ms | 86.4 ms | 112 ms | 80.0 s | 224 s | 5432 / 5606 | 5432 / 5526 | 5434 / 5606 | 3148 / 3194 |
 | lingbot-map | 480x640 | 730 ms | 657 ms | 489 ms | 515 ms | 71.0 s | 181 s | 4512 / 4770 | 3339 / 3468 | 4519 / 4810 | 6280 / 6338 |
@@ -2701,7 +2702,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | restormer-sidd | 512x512 | 181 ms | 142 ms | 162 ms | 179 ms | 35.5 s | 59.7 s | 850 / 920 | 660 / 778 | 850 / 940 | 757 / 774 |
 | seedvr2-3b | 512x512 | 2295 ms | 1941 ms | fails: RuntimeError: Inplace update to inference tensor outside Inf | 2296 ms | 238 s | – | 6140 / 6772 | 5237 / 8144 | 6140 / 6772 | – |
 | seedvr2-3b | 64x64 | – | – | 46.8 ms, bf16 engine | – | – | 324 s | – | – | – | 7662 / 7664 |
-| seedvr2-7b | 512x512 | 2712 ms | fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat | fails: RuntimeError: Inplace update to inference tensor outside Inf | 2713 ms | – | – | 6402 / 7034 | – | 6402 / 7034 | – |
+| seedvr2-7b | 512x512 | 2712 ms | 2471 ms (VAE only, standalone compile) | fails: RuntimeError: Inplace update to inference tensor outside Inf | 2713 ms | 52.2 s | – | 6419 / 8880 | 5522 / 9042 | 6402 / 7034 | – |
 | span-x2 | 512x512 | 23.5 ms | 13.2 ms | 7.98 ms | 14.9 ms | 7.26 s | 9.60 s | 607 / 662 | 204 / 222 | 487 / 522 | 243 / 266 |
 | span-x4 | 512x512 | 24.2 ms | 13.2 ms | 8.28 ms | 14.6 ms | 4.57 s | 9.80 s | 607 / 662 | 204 / 222 | 487 / 522 | 319 / 346 |
 | swin2sr-x2 | 512x512 | 909 ms | 482 ms | 547 ms | 721 ms | 43.7 s | 112 s | 1459 / 1554 | 1308 / 1516 | 1459 / 1636 | 4941 / 4997 |

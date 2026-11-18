@@ -265,7 +265,7 @@ Top-down on the same every-tenth-image subset for all modes, ground-truth person
 | `dwpose-m` | COCO val2017, ground-truth person boxes, keypoint AP | 71.7 | 71.8 | 71.8 | 71.8 | 71.8 |  |
 | `dwpose-l` | COCO val2017, ground-truth person boxes, keypoint AP | 73.9 | 73.9 | 74.0 | 74.0 | 74.0 |  |
 | `dwpose-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 75.6 | 75.6 | 75.7 | 75.7 | 75.6 |  |
-| `rtmw-m` | COCO val2017, ground-truth person boxes, keypoint AP | 74.5 | 74.5 | 74.5 |  | 74.6 |  |
+| `rtmw-m` | COCO val2017, ground-truth person boxes, keypoint AP | 74.5 | 74.5 | 74.5 | 74.5 | 74.6 |  |
 | `rtmw-l` | COCO val2017, ground-truth person boxes, keypoint AP | 76.9 | 76.9 | 77.0 |  | 76.9 |  |
 | `rtmw-x` | COCO val2017, ground-truth person boxes, keypoint AP | 77.3 | 77.4 | 77.3 |  | 77.4 |  |
 | `rtmw-l-384` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 80.2 | 80.3 | 80.2 | 80.1 | 80.1 |  |
@@ -669,7 +669,7 @@ Top-down on the ground-truth person boxes (non-crowd, at least one labelled keyp
 | `vitpose-base` | COCO val2017, ground-truth person boxes, keypoint AP | 76.4 | 76.4 | 76.4 | 76.4 | 76.4 |  |
 | `vitpose-plus-small` | COCO val2017, ground-truth person boxes, keypoint AP | 76.8 | 76.8 | 76.8 | 76.8 | 76.8 |  |
 | `vitpose-plus-base` | COCO val2017, ground-truth person boxes, keypoint AP | 78.6 | 78.6 | 78.6 | 78.6 | 78.6 |  |
-| `vitpose-plus-large` | COCO val2017, ground-truth person boxes, keypoint AP | 80.6 | 80.6 | 80.5 |  | 80.5 |  |
+| `vitpose-plus-large` | COCO val2017, ground-truth person boxes, keypoint AP | 80.6 | 80.6 | 80.5 | 80.6 | 80.5 |  |
 | `vitpose-plus-huge` | COCO val2017, ground-truth person boxes, keypoint AP | 81.0 | 81.0 | 80.9 |  | 80.9 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted, 2026-11-09; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted, 2026-11-09.

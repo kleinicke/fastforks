@@ -49,6 +49,7 @@ def test_standalone_engine_measurement_remains_visible_when_export_is_planned(tm
     rows = [
         {"ref": "model", "mode": "tensorrt", "input": "32x32", "ms": 5},
         {"ref": "model", "mode": "tensorrt", "input": "64x64", "ms": 10, "standalone_build": True},
+        {"ref": "model", "mode": "compile", "input": "64x64", "ms": 12, "backend_part": "VAE only"},
     ]
     (data / "speed_compile.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows))
     compiled = g._compile_rows.__wrapped__()
@@ -60,8 +61,10 @@ def test_standalone_engine_measurement_remains_visible_when_export_is_planned(tm
 
     sizes = {row["input"]: row for row in site_data._speed(variant, "depth", {})["inputs"]}
     assert sizes["64x64"]["tensorrt"]["part"] == "standalone build"
+    assert sizes["64x64"]["compile"]["part"] == "VAE only"
     assert "32x32" not in sizes
     assert g._compile_ms(compiled["model", "tensorrt", "64x64"]) == "10.0 ms (standalone build)"
+    assert g._compile_ms(compiled["model", "compile", "64x64"]) == "12.0 ms (VAE only)"
 
 
 def test_quality_keeps_precision_specific_rows(monkeypatch):

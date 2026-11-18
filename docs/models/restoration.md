@@ -669,7 +669,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13150<br>2295<br>2296<br>1941<br>fails: RuntimeError: Inplace update to inference tensor outside Inf | 7598 / 15268<br>6140 / 6772<br>6140 / 6772<br>5237 / 8144<br>– |
 | `seedvr2-3b` | 64x64 | original<br>portable<br>kernels<br>TensorRT bf16 | –<br>–<br>–<br>46.8 | –<br>–<br>–<br>7662 / 7664 |
-| `seedvr2-7b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2712<br>2713<br>fails: load: OutOfMemoryError: CUDA out of memory. Tried to allocat<br>fails: RuntimeError: Inplace update to inference tensor outside Inf | –<br>6402 / 7034<br>6402 / 7034<br>–<br>– |
+| `seedvr2-7b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2712<br>2713<br>2471 (VAE only, standalone compile)<br>fails: RuntimeError: Inplace update to inference tensor outside Inf | –<br>6419 / 8880<br>6402 / 7034<br>5522 / 9042<br>– |
 
 ### Weight streaming
 
@@ -696,6 +696,7 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `seedvr2-3b` 512x512 (11.7 GiB peak allocated, 15.0 reserved); `seedvr2-7b` 512x512 (6.3 GiB peak allocated, 8.7 reserved)
 - `seedvr2-3b` 512x512, first call: portable + torch.compile 238 s (cold Inductor cache).
 - `seedvr2-3b` 64x64, first call: TensorRT bf16 324 s (ONNX + engine).
+- `seedvr2-7b` 512x512, first call: portable + torch.compile 52 s (cold Inductor cache).
 - `seedvr2-3b` original 512x512: load: the authors' fp32 .pth files from the page cache (read once before)
 - `seedvr2-3b` load / first call: original 96.2 s / 13.89 s, portable 2.65 s / 2.454 s, kernels 3.27 s / 2.462 s
 - `seedvr2-7b` load / first call: portable 222.77 s / 3.174 s, kernels 118.43 s / 3.176 s
@@ -703,17 +704,18 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 
 ### Measured
 
-SeedVR2 is a generative one-step restorer, so PSNR is only a fidelity check. Each of the centre 512 px crops of DIV2K validation HR images (a tiny subset: generation is slow) is downscaled with bicubic x2 (PIL) and restored x2 by the model, one pass; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel of the uint8 output with a 2 px border cropped, averaged over the crops; PSNR to the original = RGB uint8 PSNR of our output against the authors' output of the same input and settings. The original is the authors' inference code, bf16. No perceptual metric (LPIPS) is given: the lpips package and its network weights are not part of the test environment. Every fourth DIV2K validation image. A 64 x 64 center crop of the official bicubic x2 input is restored at 128 x 128 and compared with the corresponding original pixels. PSNR uses RGB in [0, 1] and is averaged over the 25 crops. Both modes use resident BF16 weights and seed 666. First frame of each clip (clips of 2 to 10 frames, x2); PSNR of our output (RGB, uint8) against the authors' output of the same clip; there is no ground truth for these clips. Original = the original code named under Details, same checkpoint and protocol.
+SeedVR2 is a generative one-step restorer, so PSNR is only a fidelity check. Each of the centre 512 px crops of DIV2K validation HR images (a tiny subset: generation is slow) is downscaled with bicubic x2 (PIL) and restored x2 by the model, one pass; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel of the uint8 output with a 2 px border cropped, averaged over the crops; PSNR to the original = RGB uint8 PSNR of our output against the authors' output of the same input and settings. The original is the authors' inference code, bf16. No perceptual metric (LPIPS) is given: the lpips package and its network weights are not part of the test environment. Every fourth DIV2K validation image. A 64 x 64 center crop of the official bicubic x2 input is restored at 128 x 128 and compared with the corresponding original pixels. PSNR uses RGB in [0, 1] and is averaged over the 25 crops. Both modes use resident BF16 weights and seed 666. Every fourth DIV2K validation image. Restore a 512 x 512 center crop of the bicubic x2 input at 1024 x 1024. Average RGB PSNR over 25 aligned targets using streamed BF16 weights and seed 666. Compilation covers the VAE encoder and decoder. First frame of each clip (clips of 2 to 10 frames, x2); PSNR of our output (RGB, uint8) against the authors' output of the same clip; there is no ground truth for these clips. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp16 | portable | kernels | TensorRT | note |
-|---|---|---|---|---|---|---|
-| `seedvr2-3b` | DIV2K validation, 4 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original | 22.02 / 0.5865 / – | 22.00 / 0.5863 / 43.13 | 22.00 / 0.5863 / 43.13 |  |  |
-| `seedvr2-3b` | DIV2K validation, 25 bicubic x2 center crops of 64 x 64 LR pixels, RGB PSNR |  | 20.2542 |  | 20.2671 |  |
-| `seedvr2-3b` | 4 video clips (first frame), PSNR to the original's output |  | 44.56 | 44.56 |  |  |
-| `seedvr2-7b` | DIV2K validation, 2 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original | 23.16 / 0.6228 / – | 23.13 / 0.6227 / 44.85 | 23.13 / 0.6227 / 44.85 |  |  |
-| `seedvr2-7b` | 2 video clips (first frame), PSNR to the original's output |  | 46.14 | 46.14 |  |  |
+| variant | dataset | original fp16 | portable | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|
+| `seedvr2-3b` | DIV2K validation, 4 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original | 22.02 / 0.5865 / – | 22.00 / 0.5863 / 43.13 | 22.00 / 0.5863 / 43.13 |  |  |  |
+| `seedvr2-3b` | DIV2K validation, 25 bicubic x2 center crops of 64 x 64 LR pixels, RGB PSNR |  | 20.2542 |  |  | 20.2671 |  |
+| `seedvr2-3b` | 4 video clips (first frame), PSNR to the original's output |  | 44.56 | 44.56 |  |  |  |
+| `seedvr2-7b` | DIV2K validation, 2 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original | 23.16 / 0.6228 / – | 23.13 / 0.6227 / 44.85 | 23.13 / 0.6227 / 44.85 |  |  |  |
+| `seedvr2-7b` | DIV2K, 25 bicubic x2 center crops of 512 x 512 LR pixels, RGB PSNR |  | 22.7378 |  | 22.7425 |  |  |
+| `seedvr2-7b` | 2 video clips (first frame), PSNR to the original's output |  | 46.14 | 46.14 |  |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / 33b2432c, 2026-11-16 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / 33b2432c / f7dc867f, 2026-11-16 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f7dc867f, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad, 2026-11-18.
 
 ### Parity
 
@@ -733,6 +735,7 @@ CPU, float32: max |diff| <= 0.02 vs the original. GPU, bfloat16 (the default), p
 - The 3 B model needs ~7 GB for its weights plus the VAE's activations (~14 GB peak at 960 x 1696 output); `stream=False` keeps them resident; by default (`stream=True`, CUDA) they stay in ~6.6 GB of page-locked host RAM (~9 GB peak at that size).
 - The 3 B TensorRT measurement uses `stream=False` and fixed 64 x 64 input. Export with `export_onnx`, then build the engine in a fresh process. On 25 DIV2K crops the largest per-crop PSNR change was 0.109 dB. The largest single-pixel RGB channel difference was 0.627 on the [0, 1] scale.
 - The 7 B model's weights are 16.5 GB in bf16: it runs with the default `stream=True` (blocks in ~16.5 GB of page-locked host RAM; load fails with an error when less is free) or `quant="nf4"` (~4.6 GB resident); with `stream=false` and no quant it runs out of GPU memory.
+- The standalone 7 B compile benchmark compiles the VAE encoder and decoder, with the streamed transformer eager. On 25 DIV2K crops at 512 x 512 the largest RGB PSNR change was 0.0575 dB and the largest single-pixel channel change was 0.359.
 - `quant="nf4"` changes the generated detail: 23-27 dB PSNR against the bf16 output (3 B, 4 clips; 7 B: 26-31 dB, 2 clips), about as far as another `seed` (18-24 dB), with ~3.5x smaller transformer blocks.
 
 </details>
