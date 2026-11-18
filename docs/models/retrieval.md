@@ -27,6 +27,15 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `boq-dinov2` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.44<br>5.73<br>2.84<br>3.89<br>2.73 | 231 / 256<br>231 / 254<br>227 / 256<br>269 / 274<br>426 / 434 |
 
+### Weight streaming
+
+Warm inference time and peak reserved GPU memory for the same input with both settings. Streamed weights use pinned host memory.
+
+| Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
+|---|---|---|---|---|---|---|
+| boq-dinov2 | kernels | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 4 ms / 318 MiB | 14 ms / 136 MiB |
+| boq-dinov2 | portable | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 5 ms / 318 MiB | 14 ms / 138 MiB |
+
 <details><summary>Details</summary>
 
 - Original code: <https://github.com/amaralibey/Bag-of-Queries> at `1a4965ea7dfd`
@@ -81,6 +90,15 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `megaloc` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9.68<br>5.29<br>4.26<br>4.27<br>3.21 | 1347 / 1368<br>483 / 508<br>485 / 508<br>518 / 530<br>937 / 964 |
+
+### Weight streaming
+
+Warm inference time and peak reserved GPU memory for the same input with both settings. Streamed weights use pinned host memory.
+
+| Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
+|---|---|---|---|---|---|---|
+| megaloc | kernels | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 7 ms / 564 MiB | 16 ms / 402 MiB |
+| megaloc | portable | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 8 ms / 562 MiB | 15 ms / 402 MiB |
 
 <details><summary>Details</summary>
 

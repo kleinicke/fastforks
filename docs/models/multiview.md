@@ -423,6 +423,15 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 |---|---|---|---|---|
 | `pi3` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1057<br>821<br>559<br>752<br>planned for 0.2.1 | 5926 / 6016<br>2360 / 2416<br>2367 / 2456<br>2205 / 2334<br>– |
 
+### Weight streaming
+
+Warm inference time and peak reserved GPU memory for the same input with both settings. Streamed weights use pinned host memory.
+
+| Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
+|---|---|---|---|---|---|---|
+| pi3 | kernels | 480x640 | RTX 5060 Ti | 2.14.1+cu130 | 556 ms / 2,690 MiB | 555 ms / 1,788 MiB |
+| pi3 | portable | 480x640 | RTX 5060 Ti | 2.14.1+cu130 | 805 ms / 2,550 MiB | 807 ms / 1,648 MiB |
+
 <details><summary>Details</summary>
 
 - Original code: <https://github.com/yyfz/Pi3> at `9fa3ddb`

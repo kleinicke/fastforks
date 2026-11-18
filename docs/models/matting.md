@@ -21,9 +21,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`isnet-general-use`](#isnet) | yes | – | 12.1, 3.2x | 522, 0.5x |
 | [`matanyone`](#matanyone) | no | – | – | – |
 | [`rmbg-2.0`](#birefnet) | no | – | 121, 1.2x | 1936, 0.97x |
-| [`u2net`](#u2net) | yes | – | 8.83, 1.8x | 260, 0.52x |
-| [`u2net-human-seg`](#u2net) | yes | – | 9.05, 1.8x | 260, 0.52x |
-| [`u2netp`](#u2net) | yes | – | 9.80, 1.5x | 172, 0.55x |
+| [`u2net`](#u2net) | yes | – | 5.18, 3.1x | 236, 0.47x |
+| [`u2net-human-seg`](#u2net) | yes | – | 5.14, 3.1x | 236, 0.47x |
+| [`u2netp`](#u2net) | yes | – | 2.92, 5.1x | 124, 0.39x |
 | [`vitmatte-b`](#vitmatte) | yes | – | 148, 1.7x | 1552, 0.3x |
 | [`vitmatte-s`](#vitmatte) | yes | – | 84.1, 1.7x | 1404, 0.54x |
 
@@ -315,9 +315,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `u2net` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>14.9<br>8.83<br>6.24<br>3.07 | 476 / 502<br>248 / 278<br>237 / 260<br>235 / 278<br>335 / 390 |
-| `u2netp` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.8<br>14.6<br>9.80<br>5.44<br>1.87 | 280 / 314<br>150 / 172<br>138 / 172<br>152 / 188<br>206 / 236 |
-| `u2net-human-seg` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.0<br>14.6<br>9.05<br>6.25<br>3.08 | 476 / 502<br>248 / 278<br>237 / 260<br>235 / 278<br>335 / 390 |
+| `u2net` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>22.4<br>5.18<br>7.55<br>3.07 | 476 / 502<br>254 / 288<br>161 / 236<br>239 / 332<br>335 / 390 |
+| `u2netp` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.8<br>21.4<br>2.92<br>8.99<br>1.87 | 280 / 314<br>151 / 182<br>72 / 124<br>152 / 228<br>206 / 236 |
+| `u2net-human-seg` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.0<br>21.5<br>5.14<br>11.0<br>3.08 | 476 / 502<br>254 / 288<br>161 / 236<br>208 / 296<br>335 / 390 |
 
 <details><summary>Details</summary>
 
@@ -333,9 +333,9 @@ Commercial use: yes.
 - Outputs: alpha
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `u2net` 3000x4000 (0.8 GiB peak allocated, 1.0 reserved); `u2netp` 3000x4000 (0.7 GiB peak allocated, 1.0 reserved); `u2net-human-seg` 3000x4000 (0.8 GiB peak allocated, 1.0 reserved)
-- `u2net` 1080x1920, first call: portable + torch.compile 36 s (cold Inductor cache), TensorRT fp16 36 s (ONNX + engine).
-- `u2netp` 1080x1920, first call: portable + torch.compile 30 s (cold Inductor cache), TensorRT fp16 26 s (ONNX + engine).
-- `u2net-human-seg` 1080x1920, first call: portable + torch.compile 36 s (cold Inductor cache), TensorRT fp16 35 s (ONNX + engine).
+- `u2net` 1080x1920, first call: TensorRT fp16 36 s (ONNX + engine).
+- `u2netp` 1080x1920, first call: TensorRT fp16 26 s (ONNX + engine).
+- `u2net-human-seg` 1080x1920, first call: TensorRT fp16 35 s (ONNX + engine).
 - `u2net` original 1080x1920: xuebinqin/U-2-Net@ac7e1c817eca, float pre- and post-processing
 - `u2netp` original 1080x1920: xuebinqin/U-2-Net@ac7e1c817eca, float pre- and post-processing
 - `u2net-human-seg` original 1080x1920: xuebinqin/U-2-Net@ac7e1c817eca, float pre- and post-processing
