@@ -192,11 +192,11 @@ Commercial use: yes.
 
 Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|
-| `dedode-v2-b` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 57.3 / 71.5 / 82.5 | 54.6 / 71.8 / 83.1 | 57.8 / 74.3 / 84.2 |  |
+| variant | dataset | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `dedode-v2-b` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 57.3 / 71.5 / 82.5 | 54.6 / 71.8 / 83.1 | 56.0 / 72.0 / 82.7 | 57.8 / 74.3 / 84.2 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565, 2026-11-13; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d073b335, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
 
 ### Parity
 
@@ -292,7 +292,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `loma-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1036<br>308<br>–<br>285<br>planned for 0.2.1 | 4176 / 4390<br>1767 / 1878<br>–<br>2870 / 3216<br>– |
-| `loma-b64` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>129<br>–<br>101<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>854 / 962<br>–<br>1230 / 1356<br>– |
+| `loma-b64` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>129<br>–<br>101<br>109 | –<br>854 / 962<br>–<br>1230 / 1356<br>1010 / 1034 |
 | `loma-b128` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>150<br>–<br>122<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>878 / 984<br>–<br>1398 / 1760<br>– |
 | `loma-l` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>319<br>–<br>295<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>1903 / 2012<br>–<br>3006 / 3194<br>– |
 
@@ -311,7 +311,7 @@ Commercial use: yes.
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `loma-b` 3000x4000 (2.4 GiB peak allocated, 3.6 reserved); `loma-b64` 3000x4000 (1.1 GiB peak allocated, 1.4 reserved); `loma-b128` 3000x4000 (1.1 GiB peak allocated, 1.4 reserved); `loma-l` 3000x4000 (2.1 GiB peak allocated, 2.8 reserved); `loma-g` 3000x4000 (2.6 GiB peak allocated, 3.3 reserved); `loma-r` 3000x4000 (2.0 GiB peak allocated, 2.7 reserved)
 - `loma-b` 768x1024, first call: portable + torch.compile 104 s (cold Inductor cache).
-- `loma-b64` 768x1024, first call: portable + torch.compile 66 s (cold Inductor cache).
+- `loma-b64` 768x1024, first call: portable + torch.compile 66 s (cold Inductor cache), TensorRT bf16 102 s (ONNX + engine).
 - `loma-b128` 768x1024, first call: portable + torch.compile 67 s (cold Inductor cache).
 - `loma-l` 768x1024, first call: portable + torch.compile 101 s (cold Inductor cache).
 - `loma-b` original 768x1024: upstream LoMa(LoMaB(mp=False)), float32, 2048 keypoints
@@ -350,7 +350,7 @@ CPU, float32: max |diff| <= 0.011 vs the original. GPU, portable bfloat16 and ke
 
 - Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.
 - One image pair per call internally (batches run pair by pair); the match counts differ per pair.
-- No exportable module: the match counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).
+- The match count depends on the image pair. The fixed 768 x 1024 LoMa-B64 TensorRT export returns variable-length matches. On ten photos paired with shifted copies, at least 96.7% of TensorRT correspondences agreed with portable within 2 pixels in both images.
 - Two resizes per image as upstream: the detector sees a long side of `long_side` (aspect kept), the descriptor a `size` x `size` square whatever the aspect ratio.
 - LoMa-R uses rotation augmentation. The other variants are trained for upright images.
 

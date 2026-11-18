@@ -7,7 +7,7 @@ uses = ["dedode", "depth_anything_v2", "lightglue", "cnn_kernels"]  # fastforks.
 limitations = [
   "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.",
   "One image pair per call internally (batches run pair by pair); the match counts differ per pair.",
-  "No exportable module: the match counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).",
+  "The match count depends on the image pair. The fixed 768 x 1024 LoMa-B64 TensorRT export returns variable-length matches. On ten photos paired with shifted copies, at least 96.7% of TensorRT correspondences agreed with portable within 2 pixels in both images.",
   "Two resizes per image as upstream: the detector sees a long side of `long_side` (aspect kept), the descriptor a `size` x `size` square whatever the aspect ratio.",
   "LoMa-R uses rotation augmentation. The other variants are trained for upright images.",
 ]

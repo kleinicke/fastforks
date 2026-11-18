@@ -567,6 +567,7 @@ def _orig(fp16: dict | None, fp32: dict | None) -> dict | None:
 
 
 _COMPILE_LABEL = {"compile": "portable + torch.compile", "tensorrt": "TensorRT fp16"}  # speed_compile.jsonl modes
+_ENGINE_PRECISION = {"float32": "fp32", "bfloat16": "bf16"}
 _ENGINE_PART = {
     "promptable_segmentation": "image encoder",
     "clipseg": "segmentation network on a normalized 352x352 image and precomputed text embedding",
@@ -635,7 +636,8 @@ def _compile_lines(model_id: str, size: str) -> tuple[list[tuple[str, str, str]]
         if "fails" in r:
             lines.append((label, _fail_cell(r["fails"]), DASH))
             continue
-        name = "TensorRT fp32" if r.get("engine_dtype") == "float32" else label
+        precision = _ENGINE_PRECISION.get(r.get("engine_dtype", ""))
+        name = f"TensorRT {precision}" if mode == "tensorrt" and precision else label
         ms = _ms_str(r["ms"]) + (_engine_part(model_id) if mode == "tensorrt" else "")
         lines.append((name, ms, _trt_peak(r) if mode == "tensorrt" else _peak(r)))
         first = _setup_seconds(r)
@@ -1910,8 +1912,9 @@ def _compile_ms(r: dict | None) -> str:
         return DASH
     if "fails" in r:
         return _fail_cell(r["fails"])
-    fp32 = ", fp32 engine" if r.get("engine_dtype") == "float32" else ""  # the fp16 engine misses the golden tolerance
-    return f"{_ms_str(r['ms'])} ms{fp32}" + (_engine_part(r["ref"]) if r["mode"] == "tensorrt" else "")
+    precision = _ENGINE_PRECISION.get(r.get("engine_dtype", ""))
+    suffix = f", {precision} engine" if precision else ""
+    return f"{_ms_str(r['ms'])} ms{suffix}" + (_engine_part(r["ref"]) if r["mode"] == "tensorrt" else "")
 
 
 def _compile_block() -> str:
@@ -1921,7 +1924,7 @@ def _compile_block() -> str:
     tasks = {v.id: t for t in registry.TASKS for _, v in registry.cards(t).values()}
     order = {t: i for i, t in enumerate(registry.TASKS)}
     head = (
-        "| model | input | time: portable | compile | TensorRT fp16 | kernels"
+        "| model | input | time: portable | compile | TensorRT (fp16 unless shown) | kernels"
         " | preparation: compile (cold first call) | ONNX + engine build"
         " | peak MiB (alloc / reserved): portable | compile | kernels | TensorRT (engine + torch) |"
     )
