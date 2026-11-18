@@ -981,6 +981,7 @@ option ocr.ppocrv5.unclip_ratio aliases text_det_unclip_ratio
 option pose.hrnet.flip_test
 option pose.retinaface.score_threshold
 option pose.rfdetr_keypoint.score_threshold
+option pose.rtmo.cuda_graphs
 option pose.rtmo.score_threshold
 option pose.rtmpose.flip_test
 option pose.vitpose.fp32_accumulate

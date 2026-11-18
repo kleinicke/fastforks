@@ -541,7 +541,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: <https://github.com/open-mmlab/mmpose/blob/5408bc76f5b848cf925a0d1857899011d8c5b497/README.md#license>
 - Training data: COCO 2017 (train, instance annotations), AI Challenger human keypoints (2017), CrowdPose, MPII Human Pose, sub-JHMDB (J-HMDB), Halpe-FullBody, PoseTrack 2018 (body7: COCO, AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe and PoseTrack18 keypoints; the CSPDarknet backbone starts from a YOLOX COCO detection checkpoint)
-- Options: `score_threshold` = 0.1 (0.0 to 1.0)
+- Options: `cuda_graphs` = True (speed only), `score_threshold` = 0.1 (0.0 to 1.0)
 - Kernel libraries: `box_nms`, `pose_warp`, `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `rtmo-t`, `rtmo-s`, `rtmo-m`, `rtmo-l`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
