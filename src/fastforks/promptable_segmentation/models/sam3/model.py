@@ -30,6 +30,7 @@ from __future__ import annotations
 import bisect
 import threading
 from dataclasses import dataclass
+from functools import partial
 from typing import TYPE_CHECKING, cast
 
 import torch
@@ -444,12 +445,26 @@ class Kernels(_Sam3):
             t = self.encoder.trunk(self.prepare(image, SIZE)).permute(0, 3, 1, 2)
             return [self.encoder._level(o, t) for o in ops]  # noqa: SLF001 - the encoder's neck kernels
 
+    def selected_concepts(
+        self,
+        features: dict[str, torch.Tensor],
+        text: str | None,
+        boxes: torch.Tensor | None,
+        labels: torch.Tensor | None,
+        *,
+        threshold: float,
+    ) -> dict[str, torch.Tensor]:
+        """Gather only surviving masks before the graph buffers are reused."""
+        return self.segment_concept(features, text, boxes, labels, threshold=threshold)
+
     def segment_concept(
         self,
         features: dict[str, torch.Tensor],
         text: str | None,
         boxes: torch.Tensor | None = None,
         labels: torch.Tensor | None = None,
+        *,
+        threshold: float | None = None,
     ) -> dict[str, torch.Tensor]:
         """As `_Sam3.segment_concept`, as one CUDA graph per token and box bucket, GEMMs with fp16 accumulation.
 
@@ -457,9 +472,16 @@ class Kernels(_Sam3):
         """
         fpn = [features["fpn0"], features["fpn1"], features["fpn2"]]
         n = 0 if boxes is None else len(boxes)
+        post = None if threshold is None else partial(self.select_concepts, threshold=threshold)
+
+        def eager() -> dict[str, torch.Tensor]:
+            with self.fp16_accumulate():
+                raw = super(Kernels, self).segment_concept(features, text, boxes, labels)
+            return raw if post is None else post(raw)
+
         if not self.ctx.params.cuda_graphs or n > BOX_BUCKET:  # eager (locked: fp16 accumulation is process-wide)
-            with self.lock, self.fp16_accumulate():
-                return super().segment_concept(features, text, boxes, labels)
+            with self.lock:
+                return eager()
         ids = self.tokenizer(VISUAL if text is None else text)
         bucket = BUCKETS[bisect.bisect_left(BUCKETS, len(ids))]
         padded = torch.tensor([[*ids, *[self.tokenizer.eot] * (bucket - len(ids))]])
@@ -473,11 +495,9 @@ class Kernels(_Sam3):
                 valid.to(self.ctx.device),
                 *fpn,
                 *(f for f in ex or () if f is not None),
+                post=post,
             )
-            if out is None:  # first call of the key / capture failed: eager
-                with self.fp16_accumulate():
-                    return super().segment_concept(features, text, boxes, labels)
-            return out
+            return eager() if out is None else out
 
     def release_graphs(self) -> None:
         """Release the detector's prompt-bucket graphs and their device memory."""

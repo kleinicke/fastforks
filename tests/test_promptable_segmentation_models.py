@@ -85,6 +85,15 @@ def test_kernels_graph_cache_per_bucket():
     twice(text=TEXT)
     assert set(graphs) == {(8, 0)}
     text_only = graphs[8, 0]
+    with m._session():
+        features = dict(emb.features)
+        raw = r.segment_concept(features, TEXT)
+        for threshold in (0.0, 0.5, 1.0):
+            expected = r.select_concepts(raw, threshold)
+            got = r.selected_concepts(features, TEXT, None, None, threshold=threshold)
+            for key in expected:
+                torch.testing.assert_close(got[key], expected[key], rtol=0, atol=0)
+    del raw, expected, got
     one, _ = _boxes(1)
     twice(input_boxes=one * scale)
     assert set(graphs) == {(8, 0), (8, BOX_BUCKET)}

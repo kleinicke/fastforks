@@ -529,24 +529,15 @@ class PromptableSegmentationModel(core.Model):
             size = (int(x.shape[-2]), int(x.shape[-1]))
         ex_boxes = _normalised(ex_boxes, size)
         emb = self._embedding(image if x is None else self._embed_tensor(x))
-        (h, w), size = emb.image_size, self._runner.mask_size
+        h, w = emb.image_size
         with self._session():
-            out = self._runner.segment_concept(dict(emb.features), text, ex_boxes, ex_labels)
-            q = out["scores"].shape[0]  # the runner's raw maps (not the card outputs, which are the result fields)
-            shapes = {"scores": (q,), "boxes": (q, 4), "pred_masks": (q, *size)}
-            if (got := {k: tuple(v.shape) for k, v in out.items()}) != shapes:
-                msg = f"{self.variant.ref}: runner returned {got}, expected {shapes}"
-                raise RuntimeError(msg)
-            out = {k: v.float() for k, v in out.items()}
-            scores = out["scores"]
-            idx = torch.nonzero(scores > threshold)[:, 0]
-            idx = idx[torch.argsort(scores[idx], descending=True)]
-            boxes = out["boxes"][idx] * torch.tensor([w, h, w, h], device=self.device, dtype=torch.float32)
-            if len(idx):
-                masks = self._runner.binary_masks(out["pred_masks"][idx, None], (h, w))[:, 0]
+            out = self._runner.selected_concepts(dict(emb.features), text, ex_boxes, ex_labels, threshold=threshold)
+            boxes = out["boxes"] * torch.tensor([w, h, w, h], device=self.device, dtype=torch.float32)
+            if len(boxes):
+                masks = self._runner.binary_masks(out["pred_masks"][:, None], (h, w))[:, 0]
             else:  # nothing found: no zero-batch interpolation
                 masks = torch.zeros((0, h, w), dtype=torch.bool, device=self.device)
-        return ConceptSegmentationResult(boxes, scores[idx], None, masks, (), self.variant.ref, self.backend, options)
+        return ConceptSegmentationResult(boxes, out["scores"], None, masks, (), self.variant.ref, self.backend, options)
 
     def _check_exemplars(
         self, boxes: PromptLike | None, labels: PromptLike | None, text: str | None
