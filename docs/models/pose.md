@@ -628,7 +628,7 @@ Commercial use: yes.
   - `vitpose-plus-base`: COCO 2017 (train, instance annotations), AI Challenger human keypoints (2017), MPII Human Pose, AP-10K (animal pose), APT-36K (animal pose tracking), COCO-WholeBody, ImageNet-1k (ILSVRC 2012 classification) (ViTPose++: one backbone trained jointly on COCO, AI Challenger, MPII, AP-10K, APT-36K and COCO-WholeBody (one MLP expert per dataset), from MAE ImageNet-1k pre-training; only the COCO expert and head are used)
   - `vitpose-plus-large`: COCO 2017 (train, instance annotations), AI Challenger human keypoints (2017), MPII Human Pose, AP-10K (animal pose), APT-36K (animal pose tracking), COCO-WholeBody, ImageNet-1k (ILSVRC 2012 classification) (ViTPose++: one backbone trained jointly on COCO, AI Challenger, MPII, AP-10K, APT-36K and COCO-WholeBody (one MLP expert per dataset), from MAE ImageNet-1k pre-training; only the COCO expert and head are used)
   - `vitpose-plus-huge`: COCO 2017 (train, instance annotations), AI Challenger human keypoints (2017), MPII Human Pose, AP-10K (animal pose), APT-36K (animal pose tracking), COCO-WholeBody, ImageNet-1k (ILSVRC 2012 classification) (ViTPose++: one backbone trained jointly on COCO, AI Challenger, MPII, AP-10K, APT-36K and COCO-WholeBody (one MLP expert per dataset), from MAE ImageNet-1k pre-training; only the COCO expert and head are used)
-- Options: `fp32_accumulate` = False (precision only)
+- Options: `stream` = False (speed only), `fp32_accumulate` = False (precision only)
 - Kernel libraries: `fvm_conv`
 - Variants: `vitpose-base-simple`, `vitpose-base`, `vitpose-plus-small`, `vitpose-plus-base`, `vitpose-plus-large`, `vitpose-plus-huge`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
@@ -687,6 +687,11 @@ CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), p
 | `vitpose-plus-base` | 0.08143 / 0.49756 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120` |
 | `vitpose-plus-large` | 0.02603 / 0.09324 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120` |
 | `vitpose-plus-huge` | 0.01678 / 0.09697 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120` |
+
+### Limitations
+
+- CUDA stream=True transfers transformer blocks from host RAM for each batch of people. CUDA graph replay and portable export require resident weights.
+- For ViTPose++ Huge on the RTX 5060 Ti reference input, peak allocated memory fell from 1,267 to 141 MiB portable and 1,264 to 138 MiB kernels with streaming. Scores and keypoints matched exactly.
 
 </details>
 
