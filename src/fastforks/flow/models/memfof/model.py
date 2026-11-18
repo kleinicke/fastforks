@@ -11,6 +11,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
+from fastforks._core.half import half_weights
 from fastforks.flow._runner import Forward, Runner
 from fastforks.kernels.flow_upsample import convex
 
@@ -128,6 +129,7 @@ class Kernels(Portable):
     def __init__(self, ctx: Context) -> None:
         """Build the network and bind the lookup kernel."""
         super().__init__(ctx)
+        half_weights(self.net)  # the encoders and each recurrent update reuse the autocast weights
         from fastforks.kernels import raft_flow  # noqa: PLC0415 - needs the kernel library
 
         self.lookup = functools.partial(_kernel_lookup, raft_flow.load(ctx.device))

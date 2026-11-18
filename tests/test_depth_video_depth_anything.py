@@ -78,12 +78,12 @@ class _Fake(model._Video):  # the runner's windowing with a fake network
         self.encoded += x.shape[0]
         return [x]
 
-    def _window(self, feats: list[torch.Tensor], h: int, w: int) -> torch.Tensor:  # noqa: ARG002 - fake
-        return _net(feats[0])
+    def _window(self, feats: list[torch.Tensor], h: int, w: int, valid: int) -> torch.Tensor:  # noqa: ARG002 - fake
+        return _net(feats[0])[:valid]
 
 
 @pytest.mark.parametrize("metric", [False, True])
-@pytest.mark.parametrize("n", [1, 5, 32, 33, 50, 70])
+@pytest.mark.parametrize("n", [1, 5, 22, 23, 24, 25, 32, 33, 50, 70])
 def test_windows_match_upstream(n: int, metric: bool, monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: FBT001
     """Windows, keyframes, padding, scale + shift alignment and blending as upstream; each frame encoded once."""
     monkeypatch.setattr(model, "scale", lambda x, _io: x)

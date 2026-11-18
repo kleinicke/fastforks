@@ -33,8 +33,8 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 
 | Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
 |---|---|---|---|---|---|---|
-| boq-dinov2 | kernels | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 4 ms / 318 MiB | 14 ms / 136 MiB |
-| boq-dinov2 | portable | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 5 ms / 318 MiB | 14 ms / 138 MiB |
+| boq-dinov2 | kernels | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 3.61 ms / 318 MiB | 13.53 ms / 136 MiB |
+| boq-dinov2 | portable | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 4.85 ms / 318 MiB | 13.69 ms / 138 MiB |
 
 <details><summary>Details</summary>
 
@@ -97,8 +97,8 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 
 | Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
 |---|---|---|---|---|---|---|
-| megaloc | kernels | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 7 ms / 564 MiB | 16 ms / 402 MiB |
-| megaloc | portable | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 8 ms / 562 MiB | 15 ms / 402 MiB |
+| megaloc | kernels | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 6.71 ms / 564 MiB | 16.10 ms / 402 MiB |
+| megaloc | portable | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 8.10 ms / 562 MiB | 15.05 ms / 402 MiB |
 
 <details><summary>Details</summary>
 

@@ -15,8 +15,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`nnfoundation-cnn`](#nnfoundation) | yes | 211, 1.3x | 3710, 0.8x |
 | [`nnfoundation-vit`](#nnfoundation) | yes | 1732, 1.1x (192x192) | 1884, 0.44x |
 | [`nninteractive`](#nninteractive) | no | 201, 2.3x | 3072, 0.66x |
-| [`totalsegmentator-total`](#totalsegmentator) | yes | 1830, 24.9x | 1984, 0.69x |
-| [`totalsegmentator-total-3mm`](#totalsegmentator) | yes | 63.5, 114.4x | 1410, 0.53x |
+| [`totalsegmentator-total`](#totalsegmentator) | yes | 1647, 27.7x | 1638, 0.57x |
+| [`totalsegmentator-total-3mm`](#totalsegmentator) | yes | 71.8, 101.2x | 1376, 0.51x |
 
 <a id="nnfoundation"></a>
 
@@ -70,8 +70,8 @@ CPU, float32: max |diff| <= 1.8e-06 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `nnfoundation-cnn` | 0.00063 / 0.00378 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@aaf727a9a679:sm_120` |
-| `nnfoundation-vit` | 0.0067 / 0.03039 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@aaf727a9a679:sm_120` |
+| `nnfoundation-cnn` | 0.00063 / 0.00378 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@c55f9fff92d3:sm_120` |
+| `nnfoundation-vit` | 0.0067 / 0.03039 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@c55f9fff92d3:sm_120` |
 
 ### Limitations
 
@@ -126,7 +126,7 @@ CPU, float32: max |diff| <= 0.0 vs the original. GPU, float16 (the default), por
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `nninteractive` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@aaf727a9a679:sm_120` |
+| `nninteractive` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@c55f9fff92d3:sm_120` |
 
 </details>
 
@@ -140,8 +140,16 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `totalsegmentator-total` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 47779<br>45630<br>1977<br>1830<br>1595<br>fails: no exportable module (multi-network sliding-window pipeline; | 8150 / 8604<br>2640 / 2874<br>2017 / 2244<br>1762 / 1984<br>1697 / 1984<br>– |
-| `totalsegmentator-total-3mm` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7304<br>7270<br>67.8<br>63.5<br>60.3 (patch network, development build)<br>74.4 (patch network, standalone build) | 5358 / 5698<br>2010 / 2684<br>1096 / 1670<br>1037 / 1410<br>910 / 1278<br>2909 / 2970 |
+| `totalsegmentator-total` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 47779<br>45630<br>1977<br>1647<br>1595<br>fails: no exportable module (multi-network sliding-window pipeline; | 8150 / 8604<br>2640 / 2874<br>2017 / 2244<br>1219 / 1638<br>1697 / 1984<br>– |
+| `totalsegmentator-total-3mm` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7304<br>7270<br>70.3<br>71.8<br>63.1<br>74.4 (patch network, standalone build) | 5358 / 5698<br>2010 / 2684<br>962 / 1050<br>913 / 1376<br>907 / 1030<br>2909 / 2970 |
+
+### Weight streaming
+
+Warm inference time and peak reserved GPU memory for the same input with both settings. Streamed weights use pinned host memory.
+
+| Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
+|---|---|---|---|---|---|---|
+| totalsegmentator-total | portable | 128x128 | RTX 5060 Ti | 2.14.1+cu130 | 275.85 ms / 1,408 MiB | 343.60 ms / 1,014 MiB |
 
 <details><summary>Details</summary>
 
@@ -157,7 +165,7 @@ Commercial use: yes.
 - Input size: any D x H x W volume and its voxel spacing (resampled to the model spacing, sliding window)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `totalsegmentator-total` 512x512x512 voxels (5.5 GiB peak allocated, 5.8 reserved); `totalsegmentator-total-3mm` 512x512x512 voxels (4.3 GiB peak allocated, 5.1 reserved)
 - `totalsegmentator-total` 200x200, first call: portable + torch.compile 37 s (cold Inductor cache).
-- `totalsegmentator-total-3mm` 200x200, first call: portable + torch.compile 8 s (cold Inductor cache), TensorRT fp16 31 s (ONNX + engine).
+- `totalsegmentator-total-3mm` 200x200, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 31 s (ONNX + engine).
 - `totalsegmentator-total` original (fp32) 200x200, original 200x200: totalsegmentator(nifti, ml=True, fast=False, device='gpu') on the in-memory NIfTI (CPU numpy in, labels out; weights load per call as upstream)
 - `totalsegmentator-total-3mm` original (fp32) 200x200, original 200x200: totalsegmentator(nifti, ml=True, fast=True, device='gpu') on the in-memory NIfTI (CPU numpy in, labels out; weights load per call as upstream)
 - `totalsegmentator-total` load / first call: original 0.07 s / 54.51 s, portable 0.77 s / 2.103 s, kernels 0.77 s / 1.879 s
@@ -182,8 +190,8 @@ CPU, float32: max |diff| <= 0.0 vs the original. GPU, float16 (the default), por
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `totalsegmentator-total` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@aaf727a9a679:sm_120` |
-| `totalsegmentator-total-3mm` | 0.00056 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@aaf727a9a679:sm_120` |
+| `totalsegmentator-total` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@c55f9fff92d3:sm_120` |
+| `totalsegmentator-total-3mm` | 0.00056 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@c55f9fff92d3:sm_120` |
 
 ### Limitations
 

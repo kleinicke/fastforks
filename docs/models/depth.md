@@ -40,7 +40,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`lotus-normal-g-v1-1`](#lotus) | yes | – | 164, 2.1x | 2500, 0.64x |
 | [`marigold-depth-v1-1`](#marigold) | yes | 0.0561 | 261, 1.7x | 2500, 0.7x |
 | [`marigold-normals-lcm-v0-1`](#marigold_normals) | yes | – | 167, 1.7x | 2500, 0.69x |
-| [`marigold-v2-depth`](#marigold_v2) | yes | 0.0386 | 3886 | 1780 |
+| [`marigold-v2-depth`](#marigold_v2) | yes | 0.0386 | 3887 | 1818 |
 | [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 155, 2.8x | 1588, 0.51x |
 | [`midas-dpt-beit-large-512`](#midas) | yes | 0.0487 | 63.9, 5.2x | 1436, 0.5x |
 | [`moge-2-vitb-normal`](#moge) | yes | 0.0404 | 40.7, 2.5x | 1208, 0.76x |
@@ -763,7 +763,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `marigold-v2-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>5093<br>3886<br>4801<br>planned for 0.2.1 | –<br>1408 / 1698<br>1498 / 1780<br>1935 / 2040<br>– |
+| `marigold-v2-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>4892<br>3887<br>4599<br>planned for 0.2.1 | –<br>1408 / 1818<br>1408 / 1818<br>1959 / 2120<br>– |
 
 ### Weight streaming
 
@@ -771,10 +771,11 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 
 | Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
 |---|---|---|---|---|---|---|
-| marigold-v2-depth | kernels | 518x770 | RTX 5060 Ti | 2.14.1+cu130 | 1,071 ms / 9,482 MiB | 1,087 ms / 1,238 MiB |
-| marigold-v2-depth | kernels | 994x1482 | RTX 5060 Ti | 2.14.1+cu130 | 3,868 ms / 10,548 MiB | 3,887 ms / 2,106 MiB |
-| marigold-v2-depth | portable | 518x770 | RTX 5060 Ti | 2.14.1+cu130 | 1,666 ms / 9,582 MiB | 1,683 ms / 1,190 MiB |
-| marigold-v2-depth | portable | 994x1482 | RTX 5060 Ti | 2.14.1+cu130 | 5,071 ms / 10,250 MiB | 5,092 ms / 2,106 MiB |
+| marigold-v2-depth | kernels | 518x770 | RTX 5060 Ti | 2.14.1+cu130 | 1,070.59 ms / 9,482 MiB | 1,086.59 ms / 1,238 MiB |
+| marigold-v2-depth | kernels | 994x1482 | RTX 5060 Ti | 2.14.1+cu130 | 3,868.11 ms / 10,548 MiB | 3,886.82 ms / 2,106 MiB |
+| marigold-v2-depth | portable | 512x512 | RTX 5060 Ti | 2.14.1+cu130 | 1,038.32 ms / 9,416 MiB | 1,061.16 ms / 982 MiB |
+| marigold-v2-depth | portable | 518x770 | RTX 5060 Ti | 2.14.1+cu130 | 1,665.65 ms / 9,582 MiB | 1,683.41 ms / 1,190 MiB |
+| marigold-v2-depth | portable | 994x1482 | RTX 5060 Ti | 2.14.1+cu130 | 5,070.85 ms / 10,250 MiB | 5,091.82 ms / 2,106 MiB |
 
 <details><summary>Details</summary>
 
@@ -791,7 +792,7 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - Outputs: depth; kind: `affine_invariant_log`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `marigold-v2-depth` 1988x2880 (12.8 GiB peak allocated, 13.5 reserved)
-- `marigold-v2-depth` 994x1482, first call: portable + torch.compile 119 s (cold Inductor cache).
+- `marigold-v2-depth` 994x1482, first call: portable + torch.compile 141 s (cold Inductor cache).
 - `marigold-v2-depth` load / first call: portable 7.8 s / 5.094 s, kernels 6.2 s / 3.887 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -1400,9 +1401,9 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `video-depth-anything-s` | TUM RGB-D fr1_room (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile | 11626<br>202<br>200<br>1314 | 8263 / 11890<br>1962 / 2204<br>1967 / 2226<br>7762 / 8530 |
-| `video-depth-anything-s` | TUM RGB-D fr1_room (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3786<br>148<br>146<br>100<br>60.3 | 4780 / 6794<br>1461 / 1646<br>1465 / 1666<br>1143 / 1344<br>886 / 914 |
+| `video-depth-anything-s` | TUM RGB-D fr1_room (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3786<br>148<br>59.2<br>100<br>60.3 | 4780 / 6794<br>1461 / 1646<br>1270 / 1408<br>1143 / 1344<br>886 / 914 |
 | `video-depth-anything-metric-s` | TUM RGB-D fr1_room (1080x1920) | original<br>portable<br>kernels | 10776<br>202<br>200 | 8264 / 11916<br>1962 / 2224<br>1967 / 2226 |
-| `video-depth-anything-metric-s` | TUM RGB-D fr1_room (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4012<br>148<br>147<br>101<br>60.2 | 4780 / 6806<br>1461 / 1666<br>1465 / 1646<br>1143 / 1464<br>886 / 914 |
+| `video-depth-anything-metric-s` | TUM RGB-D fr1_room (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4012<br>148<br>59.1<br>101<br>60.2 | 4780 / 6806<br>1461 / 1666<br>1270 / 1408<br>1143 / 1464<br>886 / 914 |
 
 <details><summary>Details</summary>
 
@@ -1423,7 +1424,7 @@ Commercial use: yes.
 - `video-depth-anything-s` 480x640, first call: portable + torch.compile 35 s (cold Inductor cache), TensorRT fp16 103 s (ONNX + engine).
 - `video-depth-anything-metric-s` 480x640, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 82 s (ONNX + engine).
 - `video-depth-anything-s` original 1080x1920, original 480x640: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
-- `video-depth-anything-s` portable 1080x1920, kernels 1080x1920, portable 480x640, kernels 480x640: float CUDA frames in [0, 1] in, depth [L, H, W] on the device out
+- `video-depth-anything-s` portable 1080x1920, kernels 1080x1920, portable 480x640: float CUDA frames in [0, 1] in, depth [L, H, W] on the device out
 - `video-depth-anything-metric-s` original 1080x1920, original 480x640: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
 - `video-depth-anything-s` load / first call: original 0.26 s / 14.043 s (1080x1920), portable 0.98 s / 0.539 s (480x640), kernels 0.38 s / 0.37 s (480x640)
 - `video-depth-anything-metric-s` load / first call: original 3.85 s / 17.094 s (1080x1920), portable 0.19 s / 0.436 s (480x640), kernels 0.19 s / 0.5 s (480x640)

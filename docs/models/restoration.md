@@ -14,16 +14,16 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 |---|---|---|---|
 | [`big-lama`](#lama) | yes | 21.2, 1.8x | 284, 0.99x |
 | [`codeformer`](#codeformer) | no | 40.4, 2.1x | 496, 0.46x |
-| [`dat-2-x4`](#dat) | yes | 1221, 4.0x | 2378, 0.94x |
-| [`dat-light-x4`](#dat) | yes | 264, 8.3x | 1472, 0.89x |
-| [`dat-x4`](#dat) | yes | 1391, 6.9x | 2384, 0.94x |
+| [`dat-2-x4`](#dat) | yes | 1037, 4.7x | 2220, 0.88x |
+| [`dat-light-x4`](#dat) | yes | 232, 9.5x | 592, 0.36x |
+| [`dat-x4`](#dat) | yes | 1209, 7.9x | 2226, 0.88x |
 | [`drct-l-x4`](#drct) | yes | 1399, 10.5x | 2850, 0.41x |
 | [`drct-x4`](#drct) | yes | 718, 10.4x | 2766, 0.7x |
 | [`gfpgan-v1.4`](#gfpgan) | yes | 18.0, 1.2x | 530, 0.79x |
 | [`hat-s-x4`](#hat) | yes | 956, 2.5x | 1888, 0.33x |
 | [`hat-x4`](#hat) | yes | 1427, 2.1x | 2470, 0.4x |
-| [`nafnet-gopro`](#nafnet) | yes | 55.3, 1.2x | 550, 0.9x |
-| [`nafnet-sidd`](#nafnet) | yes | 56.9, 1.3x | 650, 0.89x |
+| [`nafnet-gopro`](#nafnet) | yes | 31.3, 2.0x | 408, 0.67x |
+| [`nafnet-sidd`](#nafnet) | yes | 22.5, 3.2x | 536, 0.73x |
 | [`real-hat-gan-x4`](#hat) | yes | 1427, 2.1x | 2470, 0.4x |
 | [`realesr-general-x4v3`](#compact) | yes | 24.0, 1.8x | 164, 0.8x |
 | [`realesrgan-x2plus`](#realesrgan) | yes | 80.2, 1.6x | 394, 0.6x |
@@ -155,9 +155,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9564<br>1565<br>1391<br>1063<br>1001 | 2443 / 2528<br>2552 / 2624<br>2282 / 2384<br>2552 / 2606<br>9010 / 9056 |
-| `dat-2-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4880<br>1312<br>1221<br>964<br>921 | 2436 / 2518<br>2276 / 2378<br>2276 / 2378<br>2546 / 2598<br>9001 / 9048 |
-| `dat-light-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2204<br>268<br>264<br>158<br>136 | 1606 / 1656<br>1535 / 1552<br>1445 / 1472<br>1385 / 1412<br>4144 / 4192 |
+| `dat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9564<br>1565<br>1209<br>1063<br>1001 | 2443 / 2528<br>2552 / 2624<br>1541 / 2226<br>2552 / 2606<br>9010 / 9056 |
+| `dat-2-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4880<br>1312<br>1037<br>964<br>921 | 2436 / 2518<br>2276 / 2378<br>1534 / 2220<br>2546 / 2598<br>9001 / 9048 |
+| `dat-light-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2204<br>268<br>232<br>158<br>136 | 1606 / 1656<br>1535 / 1552<br>566 / 592<br>1385 / 1412<br>4144 / 4192 |
 
 <details><summary>Details</summary>
 
@@ -391,8 +391,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `nafnet-gopro` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 63.7<br>60.4<br>55.3<br>35.4<br>52.6 | 484 / 612<br>451 / 532<br>451 / 550<br>422 / 470<br>722 / 734 |
-| `nafnet-sidd` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 71.6<br>60.6<br>56.9<br>30.9<br>24.5 | 608 / 730<br>575 / 670<br>575 / 650<br>450 / 508<br>650 / 668 |
+| `nafnet-gopro` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 63.7<br>61.1<br>31.3<br>37.3<br>52.6 | 484 / 612<br>483 / 532<br>376 / 408<br>422 / 470<br>722 / 734 |
+| `nafnet-sidd` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 71.6<br>61.1<br>22.5<br>32.3<br>24.5 | 608 / 730<br>607 / 650<br>502 / 536<br>450 / 488<br>650 / 668 |
 
 <details><summary>Details</summary>
 
@@ -407,8 +407,8 @@ Commercial use: yes.
 - Outputs: image
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `nafnet-gopro` 1988x2880 (7.0 GiB peak allocated, 9.6 reserved); `nafnet-sidd` 1988x2880 (7.8 GiB peak allocated, 10.1 reserved)
-- `nafnet-gopro` 512x512, first call: portable + torch.compile 38 s (cold Inductor cache), TensorRT fp16 66 s (ONNX + engine).
-- `nafnet-sidd` 512x512, first call: portable + torch.compile 30 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
+- `nafnet-gopro` 512x512, first call: portable + torch.compile 46 s (cold Inductor cache), TensorRT fp16 66 s (ONNX + engine).
+- `nafnet-sidd` 512x512, first call: portable + torch.compile 37 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
 - `nafnet-gopro` original 512x512: .half() on 1 modules, fp16 inputs; upstream ImageRestorationModel.test, float32, NAFNetLocal (TLC)
 - `nafnet-sidd` original 512x512: .half() on 1 modules, fp16 inputs; upstream ImageRestorationModel.test, float32
 - `nafnet-gopro` load / first call: original 1.5 s / 0.386 s, portable 0.35 s / 0.278 s, kernels 0.64 s / 0.232 s
@@ -680,8 +680,8 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 
 | Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
 |---|---|---|---|---|---|---|
-| seedvr2-3b | portable | 512x512 | RTX 5060 Ti | 2.14.1+cu130 | 2,281 ms / 15,348 MiB | 2,294 ms / 8,876 MiB |
-| seedvr2-7b | portable | 512x512 | RTX 5060 Ti | 2.14.1+cu130 | Out of memory | 2,715 ms / 8,880 MiB |
+| seedvr2-3b | portable | 512x512 | RTX 5060 Ti | 2.14.1+cu130 | 2,281.50 ms / 15,348 MiB | 2,294.17 ms / 8,876 MiB |
+| seedvr2-7b | portable | 512x512 | RTX 5060 Ti | 2.14.1+cu130 | Out of memory | 2,714.76 ms / 8,880 MiB |
 
 <details><summary>Details</summary>
 

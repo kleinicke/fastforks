@@ -429,8 +429,8 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 
 | Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
 |---|---|---|---|---|---|---|
-| pi3 | kernels | 480x640 | RTX 5060 Ti | 2.14.1+cu130 | 556 ms / 2,690 MiB | 555 ms / 1,788 MiB |
-| pi3 | portable | 480x640 | RTX 5060 Ti | 2.14.1+cu130 | 805 ms / 2,550 MiB | 807 ms / 1,648 MiB |
+| pi3 | kernels | 480x640 | RTX 5060 Ti | 2.14.1+cu130 | 556.21 ms / 2,690 MiB | 555.39 ms / 1,788 MiB |
+| pi3 | portable | 480x640 | RTX 5060 Ti | 2.14.1+cu130 | 805.20 ms / 2,550 MiB | 807.36 ms / 1,648 MiB |
 
 <details><summary>Details</summary>
 

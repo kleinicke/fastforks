@@ -15,9 +15,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`flowformer-small-chairs`](#flowformer) | yes | 10.952 | – | – |
 | [`flowformer-small-sintel`](#flowformer) | yes | 4.657 † | – | – |
 | [`flowformer-small-things`](#flowformer) | yes | 6.884 | – | – |
-| [`flowseek-t`](#flowseek) | yes | 1.348 † | 327, 1.4x | 2192, 0.22x |
-| [`flowseek-t-things`](#flowseek) | yes | 4.143 | 327, 1.4x | 2192, 0.22x |
-| [`flowseek-t-things-notartan`](#flowseek) | yes | 3.933 | 328, 1.4x | 2192, 0.22x |
+| [`flowseek-t`](#flowseek) | yes | 1.348 † | 254, 1.8x | 2114, 0.21x |
+| [`flowseek-t-things`](#flowseek) | yes | 4.143 | 254, 1.8x | 2114, 0.22x |
+| [`flowseek-t-things-notartan`](#flowseek) | yes | 3.933 | 254, 1.8x | 2114, 0.22x |
 | [`gmflow-scale1-mixdata`](#gmflow) | yes | 3.697 ? | – | – |
 | [`gmflow-scale1-things`](#gmflow) | yes | 10.346 | – | – |
 | [`gmflow-scale2-mixdata`](#gmflow) | yes | 2.389 ? | – | – |
@@ -31,10 +31,10 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`memflow`](#memflow) | yes | 4.103 | 865, 3.6x | 1022, 0.066x |
 | [`memflow-kitti`](#memflow) | yes | 0.600 † | 865, 3.8x | 1022, 0.066x |
 | [`memflow-sintel`](#memflow) | yes | 1.218 † | 865, 3.7x | 1022, 0.065x |
-| [`memfof`](#memfof) | yes | 10.891 † | 427, 1.2x | 1418, 0.66x |
-| [`memfof-kitti`](#memfof) | yes | 15.584 † | 380, 2.4x (375x1242) | 1218, 0.54x |
+| [`memfof`](#memfof) | yes | 10.891 † | 349, 1.5x | 1016, 0.47x |
+| [`memfof-kitti`](#memfof) | yes | 15.584 † | 309, 3.0x (375x1242) | 916, 0.4x |
 | [`memfof-sintel`](#memfof) | yes | – | 1993 | 8820 |
-| [`memfof-spring`](#memfof) | yes | – | 427, 2.4x | 1398, 0.52x |
+| [`memfof-spring`](#memfof) | yes | – | 349, 3.0x | 1016, 0.38x |
 | [`neuflow-v2`](#neuflow_v2) | yes | 1.577 † | 59.1, 1.3x | 896, 0.2x |
 | [`neuflow-v2-sintel`](#neuflow_v2) | yes | 1.566 † | 58.9, 1.3x | 896, 0.2x |
 | [`neuflow-v2-things`](#neuflow_v2) | yes | 4.095 | 58.9, 1.3x | 896, 0.19x |
@@ -144,9 +144,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `flowseek-t` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>457<br>395<br>327<br>258<br>168 | 9902 / 10052<br>8693 / 9880<br>8671 / 8712<br>2027 / 2192<br>6126 / 6212<br>11328 / 11350 |
-| `flowseek-t-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>458<br>395<br>327<br>258<br>168 | 9902 / 10012<br>8693 / 9820<br>8671 / 8712<br>2027 / 2192<br>6126 / 6212<br>11330 / 11352 |
-| `flowseek-t-things-notartan` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 651<br>458<br>396<br>328<br>258<br>168 | 9902 / 10052<br>8693 / 9820<br>8671 / 8712<br>2027 / 2192<br>6126 / 6212<br>11328 / 11350 |
+| `flowseek-t` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>457<br>395<br>254<br>258<br>168 | 9902 / 10052<br>8693 / 9880<br>8671 / 8712<br>1947 / 2114<br>6126 / 6212<br>11328 / 11350 |
+| `flowseek-t-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>458<br>395<br>254<br>258<br>168 | 9902 / 10012<br>8693 / 9820<br>8671 / 8712<br>1947 / 2114<br>6126 / 6212<br>11330 / 11352 |
+| `flowseek-t-things-notartan` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 651<br>458<br>396<br>254<br>258<br>168 | 9902 / 10052<br>8693 / 9820<br>8671 / 8712<br>1947 / 2114<br>6126 / 6212<br>11328 / 11350 |
 
 <details><summary>Details</summary>
 
@@ -168,13 +168,10 @@ Commercial use: yes.
 - `flowseek-t-things-notartan` 1080x1920, first call: portable + torch.compile 54 s (cold Inductor cache), TensorRT fp16 98 s (ONNX + engine).
 - `flowseek-t` original (fp32) 1080x1920: upstream FlowSeek (flowseek-T.json), iters=4
 - `flowseek-t` original 1080x1920: torch.autocast(float16) around the call; upstream FlowSeek (flowseek-T.json), iters=4
-- `flowseek-t` kernels 1080x1920: on-demand correlation; code snapshot was measured before a style-only constant rename; 1080p improves speed and memory, KITTI-sized runtime is similar to portable
 - `flowseek-t-things` original (fp32) 1080x1920: upstream FlowSeek (flowseek-T.json), iters=4
 - `flowseek-t-things` original 1080x1920: torch.autocast(float16) around the call; upstream FlowSeek (flowseek-T.json), iters=4
-- `flowseek-t-things` kernels 1080x1920: on-demand correlation; code snapshot was measured before a style-only constant rename; 1080p improves speed and memory, KITTI-sized runtime is similar to portable
 - `flowseek-t-things-notartan` original (fp32) 1080x1920: upstream FlowSeek (flowseek-T.json), iters=4
 - `flowseek-t-things-notartan` original 1080x1920: torch.autocast(float16) around the call; upstream FlowSeek (flowseek-T.json), iters=4
-- `flowseek-t-things-notartan` kernels 1080x1920: on-demand correlation; code snapshot was measured before a style-only constant rename; 1080p improves speed and memory, KITTI-sized runtime is similar to portable
 - `flowseek-t` load / first call: original 0.87 s / 0.629 s, portable 0.18 s / 0.458 s (375x1242), kernels 0.28 s / 0.382 s (375x1242)
 - `flowseek-t-things` load / first call: original 0.78 s / 0.459 s, portable 0.18 s / 0.469 s (375x1242), kernels 0.67 s / 0.404 s (375x1242)
 - `flowseek-t-things-notartan` load / first call: original 0.81 s / 0.459 s, portable 0.18 s / 0.46 s (375x1242), kernels 0.37 s / 0.383 s (375x1242)
@@ -457,11 +454,11 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `memfof` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 531<br>433<br>427<br>291<br>160 | 2003 / 2144<br>1911 / 2196<br>1301 / 1418<br>2452 / 2666<br>2070 / 2132 |
-| `memfof-kitti` | synthetic (375x1242) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 927<br>386<br>380<br>258<br>fails: unsupported: engine build needs more than the 16 GB of this  | 1968 / 2276<br>1619 / 1856<br>1137 / 1218<br>2041 / 2226<br>– |
+| `memfof` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 531<br>433<br>349<br>291<br>160 | 2003 / 2144<br>1911 / 2196<br>917 / 1016<br>2452 / 2666<br>2070 / 2132 |
+| `memfof-kitti` | synthetic (375x1242) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 927<br>386<br>309<br>258<br>fails: unsupported: engine build needs more than the 16 GB of this  | 1968 / 2276<br>1619 / 1856<br>786 / 916<br>2041 / 2226<br>– |
 | `memfof-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>1993<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 1.96<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 | –<br>–<br>7249 / 8820<br>–<br>– |
-| `memfof-sintel` | synthetic (375x1242) | original<br>portable<br>kernels<br>portable + torch.compile | 894<br>385<br>379<br>258 | 1968 / 2176<br>1619 / 1836<br>1137 / 1218<br>2041 / 2226 |
-| `memfof-spring` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1035<br>433<br>427<br>291<br>160 | 2340 / 2676<br>1900 / 2196<br>1290 / 1398<br>2452 / 2666<br>2070 / 2112 |
+| `memfof-sintel` | synthetic (375x1242) | original<br>portable<br>kernels<br>portable + torch.compile | 894<br>385<br>309<br>258 | 1968 / 2176<br>1619 / 1836<br>786 / 876<br>2041 / 2226 |
+| `memfof-spring` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1035<br>433<br>349<br>291<br>160 | 2340 / 2676<br>1900 / 2196<br>917 / 1016<br>2452 / 2666<br>2070 / 2112 |
 
 <details><summary>Details</summary>
 

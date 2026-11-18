@@ -19,14 +19,14 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`disk-lightglue`](#lightglue) | yes | 52.1, 2.2x | 778, 0.32x |
 | [`loftr-indoor`](#loftr) | yes | 96.2, 2.5x | 886, 0.46x |
 | [`loftr-outdoor`](#loftr) | yes | 95.9, 2.5x | 886, 0.47x |
-| [`loma-b`](#loma) | yes | 270, 3.8x | 1594, 0.36x |
-| [`loma-b128`](#loma) | yes | 128 | 960 |
-| [`loma-b64`](#loma) | yes | 119 | 938 |
-| [`loma-g`](#loma) | yes | 321 | 2288 |
-| [`loma-l`](#loma) | yes | 282 | 1732 |
-| [`loma-r`](#loma) | yes | – | – |
+| [`loma-b`](#loma) | yes | 263, 3.9x | 1328, 0.3x |
+| [`loma-b128`](#loma) | yes | 116 | 684 |
+| [`loma-b64`](#loma) | yes | 107 | 720 |
+| [`loma-g`](#loma) | yes | 310 | 1668 |
+| [`loma-l`](#loma) | yes | 273 | 1406 |
+| [`loma-r`](#loma) | yes | 262 | 1328 |
 | [`romav1`](#romav1) | yes | 356, 1.1x | 1860, 0.45x |
-| [`romav2`](#romav2) | yes | 354, 2.1x | 2300, 0.23x |
+| [`romav2`](#romav2) | yes | 350, 2.1x | 2460, 0.24x |
 | [`xfeat`](#xfeat) | yes | – | – |
 | [`xfeat-lighterglue`](#xfeat) | yes | – | – |
 
@@ -296,12 +296,12 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `loma-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 1036<br>309<br>270<br>287<br>326 (standalone build) | 4176 / 4390<br>1767 / 1878<br>1444 / 1594<br>2870 / 3258<br>1986 / 2010 |
-| `loma-b64` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>131<br>119<br>102<br>109 | –<br>854 / 962<br>840 / 938<br>1230 / 1356<br>1010 / 1034 |
-| `loma-b128` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>150<br>128<br>124<br>144 | –<br>878 / 984<br>852 / 960<br>1398 / 1800<br>1062 / 1066 |
-| `loma-l` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>320<br>282<br>298<br>336 (standalone build) | –<br>1903 / 2012<br>1579 / 1732<br>3006 / 3194<br>2042 / 2066 |
-| `loma-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>359<br>321<br>331<br>366 | –<br>2444 / 2548<br>2120 / 2288<br>3547 / 3890<br>2298 / 2322 |
-| `loma-r` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>309<br>–<br>286<br>326 | –<br>1767 / 1878<br>–<br>2870 / 3256<br>1986 / 2010 |
+| `loma-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 1036<br>309<br>263<br>287<br>326 (standalone build) | 4176 / 4390<br>1767 / 1878<br>1217 / 1328<br>2870 / 3258<br>1986 / 2010 |
+| `loma-b64` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>131<br>107<br>102<br>109 | –<br>854 / 962<br>613 / 720<br>1230 / 1356<br>1010 / 1034 |
+| `loma-b128` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>150<br>116<br>124<br>144 | –<br>878 / 984<br>625 / 684<br>1398 / 1800<br>1062 / 1066 |
+| `loma-l` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>320<br>273<br>298<br>336 (standalone build) | –<br>1903 / 2012<br>1285 / 1406<br>3006 / 3194<br>2042 / 2066 |
+| `loma-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>359<br>310<br>331<br>366 | –<br>2444 / 2548<br>1555 / 1668<br>3547 / 3890<br>2298 / 2322 |
+| `loma-r` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>309<br>262<br>287<br>326 | –<br>1767 / 1878<br>1217 / 1328<br>2870 / 3256<br>1986 / 2010 |
 
 <details><summary>Details</summary>
 
@@ -322,14 +322,14 @@ Commercial use: yes.
 - `loma-b128` 768x1024, first call: portable + torch.compile 86 s (cold Inductor cache), TensorRT bf16 103 s (ONNX + engine).
 - `loma-l` 768x1024, first call: portable + torch.compile 134 s (cold Inductor cache), TensorRT bf16 157 s (ONNX + engine).
 - `loma-g` 768x1024, first call: portable + torch.compile 131 s (cold Inductor cache), TensorRT bf16 171 s (ONNX + engine).
-- `loma-r` 768x1024, first call: portable + torch.compile 108 s (cold Inductor cache), TensorRT bf16 175 s (ONNX + engine).
+- `loma-r` 768x1024, first call: portable + torch.compile 142 s (cold Inductor cache), TensorRT bf16 175 s (ONNX + engine).
 - `loma-b` original 768x1024: upstream LoMa(LoMaB(mp=False)), float32, 2048 keypoints
 - `loma-b` load / first call: original 8.52 s / 1.373 s, portable 2.53 s / 1.269 s, kernels 1.61 s / 0.757 s
 - `loma-b64` load / first call: portable 0.28 s / 0.759 s, kernels 0.91 s / 0.651 s
 - `loma-b128` load / first call: portable 0.52 s / 0.636 s, kernels 0.85 s / 0.662 s
 - `loma-l` load / first call: portable 1.49 s / 0.69 s, kernels 3.06 s / 0.758 s
 - `loma-g` load / first call: portable 2.36 s / 0.8 s, kernels 2.19 s / 0.677 s
-- `loma-r` load / first call: portable 2.8 s / 0.733 s
+- `loma-r` load / first call: portable 2.8 s / 0.733 s, kernels 1.93 s / 0.809 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -443,7 +443,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `romav2` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1412<br>741<br>546<br>354<br>576<br>353 | 11159 / 11606<br>9881 / 10124<br>1989 / 2596<br>1909 / 2300<br>3150 / 3386<br>6694 / 6740 |
+| `romav2` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1412<br>741<br>550<br>350<br>723<br>353 | 11159 / 11606<br>9881 / 10124<br>1989 / 2476<br>1890 / 2460<br>3030 / 3144<br>6694 / 6740 |
 
 <details><summary>Details</summary>
 
@@ -459,7 +459,7 @@ Commercial use: yes.
 - Outputs: warp, certainty
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `romav2` 3000x4000 (2.9 GiB peak allocated, 4.7 reserved)
-- `romav2` 768x1024, first call: portable + torch.compile 254 s (cold Inductor cache), TensorRT fp16 185 s (ONNX + engine).
+- `romav2` 768x1024, first call: portable + torch.compile 360 s (cold Inductor cache), TensorRT fp16 185 s (ONNX + engine).
 - `romav2` original (fp32) 768x1024: upstream RoMaV2.match; local correlation: upstream's plain-torch path (no fused-local-corr)
 - `romav2` original 768x1024: the authors' mixed-precision option (bfloat16); upstream RoMaV2.match; local correlation: upstream's plain-torch path (no fused-local-corr)
 - `romav2` load / first call: original 5.45 s / 2.091 s, portable 0.85 s / 0.913 s, kernels 0.96 s / 0.62 s

@@ -315,9 +315,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `u2net` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>22.4<br>5.18<br>7.55<br>3.07 | 476 / 502<br>254 / 288<br>161 / 236<br>239 / 332<br>335 / 390 |
-| `u2netp` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.8<br>21.4<br>2.92<br>8.99<br>1.87 | 280 / 314<br>151 / 182<br>72 / 124<br>152 / 228<br>206 / 236 |
-| `u2net-human-seg` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.0<br>21.5<br>5.14<br>11.0<br>3.08 | 476 / 502<br>254 / 288<br>161 / 236<br>208 / 296<br>335 / 390 |
+| `u2net` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>9.77<br>5.18<br>9.09<br>3.07 | 476 / 502<br>240 / 278<br>161 / 236<br>221 / 258<br>335 / 390 |
+| `u2netp` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.8<br>15.1<br>2.92<br>5.73<br>1.87 | 280 / 314<br>139 / 180<br>72 / 124<br>129 / 144<br>206 / 236 |
+| `u2net-human-seg` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.0<br>10.0<br>5.14<br>6.18<br>3.08 | 476 / 502<br>240 / 278<br>161 / 236<br>193 / 234<br>335 / 390 |
 
 <details><summary>Details</summary>
 
