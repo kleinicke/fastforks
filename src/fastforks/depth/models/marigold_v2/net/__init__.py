@@ -60,14 +60,25 @@ class Net(nn.Module):
 
     def forward(self, x: torch.Tensor, noise: torch.Tensor) -> torch.Tensor:
         """Log depth (affine-invariant) in `[-1, 1]`, bf16, at the network size."""
+        return self.forward_with_vae(x, noise, encode=self.vae.encode, decode=self.vae.decode)
+
+    def forward_with_vae(
+        self,
+        x: torch.Tensor,
+        noise: torch.Tensor,
+        *,
+        encode: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        decode: Callable[[torch.Tensor], torch.Tensor],
+    ) -> torch.Tensor:
+        """Run the streamed transformer between the supplied VAE encoder and decoder."""
         self.lut()
-        lat = self.vae.encode(x, noise)
+        lat = encode(x, noise)
         b, c, h, w = lat.shape
         hp, wp = h // PATCH, w // PATCH
         packed = lat.view(b, c, hp, PATCH, wp, PATCH).permute(0, 2, 4, 1, 3, 5).reshape(b, hp * wp, c * PATCH * PATCH)
         pred = self.dit(packed, hp, wp)
         pred = pred.view(b, hp, wp, c, PATCH, PATCH).permute(0, 3, 1, 4, 2, 5).reshape(b, c, h, w)
-        return self.vae.decode(lat - pred).mean(dim=1, keepdim=True)
+        return decode(lat - pred).mean(dim=1, keepdim=True)
 
 
 def _block_index(k: str) -> int | None:
