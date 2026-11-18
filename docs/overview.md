@@ -674,7 +674,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`gmflow-scale2-regrefine6-sintelft`](models/flow.md#gmflow) | yes | 1.154 † | 2184.0 (1080x1920) | 1674.0 | – | – | – |
 | [`gmflow-scale2-regrefine6-mixdata`](models/flow.md#gmflow) | yes | 1.315 ? | 2187.5 (1080x1920) | 1674.7 | – | – | – |
 | [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | yes | 0.570 † | 2187.8 (1080x1920) | 1677.7 | – | – | – |
-| [`memfof-sintel`](models/flow.md#memfof) | yes | – | OOM (1080x1920) | OOM (1080x1920) | 1992.8 | – | 7249 |
+| [`memfof-sintel`](models/flow.md#memfof) | yes | 2.976 † | OOM (1080x1920) | OOM (1080x1920) | 1992.8 | – | 7249 |
 | [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 10.952 | OOM (1080x1920) | OOM (1080x1920) | – | – | – |
 | [`flowformer-small-sintel`](models/flow.md#flowformer-small) | yes | 4.657 † | OOM (1080x1920) | OOM (1080x1920) | – | – | – |
 | [`flowformer-small-things`](models/flow.md#flowformer-small) | yes | 6.884 | OOM (1080x1920) | OOM (1080x1920) | – | – | – |
