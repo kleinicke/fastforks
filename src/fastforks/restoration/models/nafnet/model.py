@@ -249,6 +249,40 @@ def _fused_block(m: NAFBlock, inp: torch.Tensor) -> torch.Tensor:
     return _pointwise(m.conv5, a * b, fused, y)
 
 
+class _Shuffle(torch.nn.Module):
+    """Write a 1x1 expansion directly into the 2x pixel-shuffled NHWC output."""
+
+    weight: torch.Tensor
+
+    def __init__(self, conv: torch.nn.Conv2d) -> None:
+        super().__init__()
+        matrix = conv.weight.detach().flatten(1)
+        # PixelShuffle stores (channel, dy, dx). The GEMM writes (dy, dx, channel).
+        packed = matrix.reshape(-1, 4, matrix.shape[1]).transpose(0, 1).reshape_as(matrix).contiguous()
+        self.register_buffer("weight", packed, persistent=False)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        rows = x.permute(0, 2, 3, 1).contiguous()
+        y = dpt_fused.load(x.device).gemm(rows, self.weight, shuffle=(rows.shape[1], rows.shape[2], 2, 2))
+        return y.permute(0, 3, 1, 2)
+
+
+def _restore(net: NAFNet, image: torch.Tensor) -> torch.Tensor:
+    """Consume each skip after its last use, adding it into the upsampler's new output."""
+    h, w = image.shape[-2:]
+    padded = net.check_image_size(image)
+    x = net.intro(padded)
+    skips = []
+    for encoder, down in zip(net.encoders, net.downs, strict=True):
+        x = encoder(x)
+        skips.append(x)
+        x = down(x)
+    x = net.middle_blks(x)
+    for decoder, up in zip(net.decoders, net.ups, strict=True):
+        x = decoder(up(x).add_(skips.pop()))
+    return net.ending(x).add_(padded)[:, :, :h, :w]
+
+
 class Kernels(Portable):
     """Channels-last fp16 convolutions with a fused depthwise convolution and SimpleGate."""
 
@@ -270,6 +304,11 @@ class Kernels(Portable):
                     override(m, _fused_block)
             elif is_base(m, torch.nn.Conv2d) and m.groups == 1:
                 override(m, _hacc_conv)
+
+        if fused is not None:
+            for i, stage in enumerate(self.net.ups):
+                self.net.ups[i] = _Shuffle(stage[0])  # ty: ignore[not-subscriptable] - NAFNet builds Sequential upsamplers
+            override(self.net, _restore)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The restored batch."""
