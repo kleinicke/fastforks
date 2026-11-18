@@ -29,6 +29,7 @@ from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc
+from fastforks.kernels.shift_windows import rearrange
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared.swin_sr import (
     attention,
@@ -40,7 +41,7 @@ from fastforks.shared.swin_sr import (
 )
 
 from .net import HAT
-from .net.hat_arch import OCAB, RHAG, PatchEmbed, WindowAttention, window_partition, window_reverse
+from .net.hat_arch import HAB, OCAB, RHAG, PatchEmbed, WindowAttention, window_partition, window_reverse
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -174,6 +175,20 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
 
 
+def _shifted_block(
+    m: HAB, x: torch.Tensor, x_size: tuple[int, int], rpi_sa: torch.Tensor, attn_mask: torch.Tensor
+) -> torch.Tensor:
+    """Hybrid attention with shifted windows produced and consumed in one pass per direction."""
+    h, w = x_size
+    normalized = m.norm1(x)
+    windows = rearrange(normalized, x_size, m.window_size, m.shift_size)
+    att = m.attn(windows, rpi=rpi_sa, mask=attn_mask)
+    att = rearrange(att, x_size, m.window_size, m.shift_size, reverse=True)
+    conv = m.conv_block(normalized.unflatten(1, (h, w)).permute(0, 3, 1, 2)).flatten(2).transpose(1, 2)
+    x = x + m.drop_path(att) + conv * m.conv_scale
+    return x + m.drop_path(m.mlp(m.norm2(x)))
+
+
 class Kernels(Portable):
     """float16, fp16-accumulate GEMMs and convolutions (`cudnn_hacc`)."""
 
@@ -184,6 +199,8 @@ class Kernels(Portable):
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
         for m in self.net.modules():
+            if isinstance(m, HAB) and m.shift_size:
+                override(m, _shifted_block)
             if is_base(m, torch.nn.Conv2d):
                 override(m, _hacc_conv)
 

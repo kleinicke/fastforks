@@ -29,6 +29,7 @@ from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc
+from fastforks.kernels.shift_windows import rearrange
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared.swin_sr import (
     checkpoint_upsampler,
@@ -158,6 +159,16 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
 
 
+def _shifted_block(m: SwinTransformerBlock, x: torch.Tensor, x_size: tuple[int, int]) -> torch.Tensor:
+    """Keep the shifted window layout only while attention consumes it."""
+    mask = m.attn_mask if m.input_resolution == x_size else m.calculate_mask(x_size)
+    windows = rearrange(m.norm1(x), x_size, m.window_size, m.shift_size)
+    attended = m.attn(windows, mask=mask)
+    attended = rearrange(attended, x_size, m.window_size, m.shift_size, reverse=True)
+    x = x + m.drop_path(attended)
+    return x + m.drop_path(m.mlp(m.norm2(x)))
+
+
 class Kernels(Portable):
     """float16, fp16-accumulate GEMMs and convolutions (`cudnn_hacc`)."""
 
@@ -168,6 +179,8 @@ class Kernels(Portable):
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
         for m in self.net.modules():
+            if isinstance(m, SwinTransformerBlock) and m.shift_size:
+                override(m, _shifted_block)
             if is_base(m, torch.nn.Conv2d):
                 override(m, _hacc_conv)
 
