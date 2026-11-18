@@ -41,3 +41,23 @@ def test_sam3_prepare_retains_input_pixels(device, dtype, monkeypatch) -> None:
     got = model.prepare(kept, ctx, exact=exact)
     torch.testing.assert_close(got, expected, rtol=0, atol=0)
     torch.testing.assert_close(kept, before, rtol=0, atol=0)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(("h", "w", "side"), [(72, 118, 1008), (2160, 3840, 1008), (17, 17, 17), (1, 23, 19)])
+@pytest.mark.parametrize("dtype", [torch.uint8, torch.float32])
+def test_cuda_antialias_writes_the_same_encoder_input(h, w, side, dtype) -> None:
+    from fastforks.kernels.sam3_resize import normalized_rgb  # noqa: PLC0415
+
+    torch.manual_seed(19)
+    # Non-contiguous CHW views of RGB frames, including unquantized float inputs.
+    if dtype == torch.uint8:
+        image = torch.randint(0, 256, (1, h, w, 3), device="cuda", dtype=dtype).permute(0, 3, 1, 2)
+        levels = image.float()
+    else:
+        image = torch.rand(1, h, w, 3, device="cuda").permute(0, 3, 1, 2)
+        levels = (image * 255).round()
+    resized = F.interpolate(levels, (side, side), mode="bilinear", antialias=True, align_corners=False)
+    expected = ((resized.round().clamp(0, 255) / 255 - 0.5) / 0.5).half()
+    got = normalized_rgb(image, side)
+    torch.testing.assert_close(got, expected, rtol=0, atol=0)

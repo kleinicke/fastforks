@@ -391,6 +391,7 @@ class Kernels(_Sam3):
         """Check the kernel libraries, build on the CPU, convert the trunk and neck, move the rest to the device."""
         super().__init__(ctx)
         from fastforks.kernels import cudnn_hacc, fastbb  # noqa: PLC0415 - optional kernel libraries
+        from fastforks.kernels.sam3_resize import normalized_rgb  # noqa: PLC0415
 
         from .fast import FastEncoder, fp16_accumulate, pixel_decode  # noqa: PLC0415 - needs the kernel libraries
 
@@ -399,6 +400,7 @@ class Kernels(_Sam3):
         net = load_net(ctx)
         self.encoder = FastEncoder(net.vision_encoder, ctx.device)
         override(net.mask_decoder.pixel_decoder, pixel_decode)
+        self.prepare = normalized_rgb
         self.fp16_accumulate = fp16_accumulate
         # one graph per token bucket, with / without boxes
         self.cache = GraphCache(self._graph_forward, graphs=2 * len(BUCKETS))
@@ -410,7 +412,7 @@ class Kernels(_Sam3):
 
     def embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """As `Portable.embed` (float16, channels-last)."""
-        fpn = self.encoder(prepare(image, self.ctx, exact=False))
+        fpn = self.encoder(self.prepare(image, SIZE))
         return {f"fpn{i}": f for i, f in enumerate(fpn)}
 
     def binary_masks(self, pred_masks: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
@@ -439,7 +441,7 @@ class Kernels(_Sam3):
         """The fp16-accumulate trunk (shared with `embed`) and the tracker neck as the encoder's neck kernels."""
         ops = cast("list[list[tuple[str, torch.Tensor, torch.Tensor]]]", neck)
         with self.fp16_accumulate():
-            t = self.encoder.trunk(prepare(image, self.ctx, exact=False)).permute(0, 3, 1, 2)
+            t = self.encoder.trunk(self.prepare(image, SIZE)).permute(0, 3, 1, 2)
             return [self.encoder._level(o, t) for o in ops]  # noqa: SLF001 - the encoder's neck kernels
 
     def segment_concept(

@@ -42,7 +42,7 @@ cuda_dtype = "float16"  # trunk, neck and text encoder; the geometry encoder, DE
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["fastbb", "cudnn_hacc", "dpt_fused", "sam3_fpn", "sam3_tracker"]
+kernels = ["fastbb", "cudnn_hacc", "dpt_fused", "sam3_fpn", "sam3_tracker", "sam3_resize"]
 
 [[papers]]
 title = "SAM 3: Segment Anything with Concepts"
