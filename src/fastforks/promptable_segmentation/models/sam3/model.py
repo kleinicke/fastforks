@@ -403,7 +403,7 @@ class Kernels(_Sam3):
         self.prepare = normalized_rgb
         self.fp16_accumulate = fp16_accumulate
         # one graph per token bucket, with / without boxes
-        self.cache = GraphCache(self._graph_forward, graphs=2 * len(BUCKETS))
+        self.cache = GraphCache(self._graph_forward, graphs=2 * len(BUCKETS), share_inputs=(2, 3, 4))
         self.lock = threading.Lock()
         del net.vision_encoder
         for mod in (net.text_encoder, *half_parts(net)):

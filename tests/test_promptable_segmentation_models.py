@@ -89,6 +89,9 @@ def test_kernels_graph_cache_per_bucket():
     twice(input_boxes=one * scale)
     assert set(graphs) == {(8, 0), (8, BOX_BUCKET)}
     boxed = graphs[8, BOX_BUCKET]
+    # ids and padding are per-key; the three large image feature buffers are shared.
+    for i in (2, 3, 4):
+        assert boxed[1][i].data_ptr() == text_only[1][i].data_ptr()
     five, five_labels = _boxes(5)
     twice(text=TEXT, input_boxes=five * scale, input_boxes_labels=five_labels)  # same bucket: no new capture
     many, many_labels = _boxes(BOX_BUCKET + 1)
@@ -139,10 +142,15 @@ def test_kernels_graphs_from_two_streams():
     embs = [m.get_image_embeddings(image(240, 320, seed=s)) for s in (3, 4)]
     feats = [dict(e.features) for e in embs]
     texts = (TEXT, "a red car")
+    boxes = (None, _boxes(2)[0])  # distinct graphs writing the same image-feature buffers
+
+    def segment(i: int) -> dict[str, torch.Tensor]:
+        return r.segment_concept(feats[i], texts[i], boxes[i])
+
     with m._session():
-        for f, t in zip(feats, texts, strict=True):  # the key's first call is eager, the second captures the graph
-            r.segment_concept(f, t)
-        want = [r.segment_concept(f, t) for f, t in zip(feats, texts, strict=True)]
+        for i in range(2):
+            segment(i)
+        want = [segment(i) for i in range(2)]
     torch.cuda.synchronize()
     got: list[list[dict[str, torch.Tensor]]] = [[], []]
     start = threading.Barrier(2)
@@ -152,7 +160,7 @@ def test_kernels_graphs_from_two_streams():
         stream.wait_stream(torch.cuda.default_stream())
         start.wait()
         with torch.inference_mode(), torch.cuda.stream(stream):
-            got[i] += [r.segment_concept(feats[i], texts[i]) for _ in range(12)]
+            got[i] += [segment(i) for _ in range(12)]
         stream.synchronize()
 
     threads = [threading.Thread(target=work, args=(i,)) for i in range(2)]

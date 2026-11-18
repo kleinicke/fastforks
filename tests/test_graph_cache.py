@@ -104,3 +104,22 @@ def test_a_much_larger_shape_frees_the_small_graphs():
     assert not cache.graphs
     cache.run("s", small)  # a returning shape captures again on its repeat
     assert cache.run("s", small) is not None
+
+
+def test_shared_input_requires_matching_layout_and_survives_eviction():
+    cache = GraphCache(lambda x, image: x + image, graphs=2, stale=1, share_inputs=(1,))
+
+    def capture(key, x, image):
+        assert cache.run(key, x, image) is None
+        assert torch.equal(cache.run(key, x, image), x + image)
+        return cache.graphs[key][1][1].data_ptr()
+
+    x = torch.arange(9.0, device="cuda").reshape(3, 3)
+    a = torch.full_like(x, 4)
+    first = capture("a", x, a)
+    assert capture("b", x, a + 2) == first
+    # "a" is evicted, while "b" still owns the shared buffer.
+    assert capture("c", x, (a + 3).T) != first
+    assert torch.equal(cache.run("b", x, a + 9), x + a + 9)
+    cache.release()
+    assert not cache.graphs

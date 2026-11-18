@@ -88,7 +88,7 @@ class GraphCache:
     `forward` returns a tensor or a list / tuple / dict of tensors; `run` returns the same structure of fresh copies.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 - cache sizing, reuse and capture policy
         self,
         forward: Callable[..., Any],
         *,
@@ -96,8 +96,14 @@ class GraphCache:
         stale: int = 64,
         seen: int = 64,
         capture_after: int = 1,
+        share_inputs: tuple[int, ...] = (),
     ) -> None:
-        """`forward` runs the model on tensors; at most `graphs` graphs are kept; `capture_after` eager calls first."""
+        """Capture after `capture_after` eager calls and retain at most `graphs` graphs.
+
+        Input positions in `share_inputs` reuse matching static buffers across keys. All warm-ups, replays and
+        output copies on this cache are ordered, including when successive calls use different CUDA streams.
+        """
+        self._share_inputs = share_inputs
         self._forward = _weak(forward)
         self._capture_after = max(1, capture_after)  # one-off shapes never capture
         self._max, self._stale, self._seen_max = graphs, stale, seen
@@ -165,19 +171,35 @@ class GraphCache:
         self.graphs[key] = entry
         return entry, False
 
+    def _static_input(self, i: int, x: torch.Tensor) -> torch.Tensor:
+        if i in self._share_inputs:
+            for _, static, _ in self.graphs.values():
+                if i < len(static):
+                    other = static[i]
+                    if (other.device, other.dtype, other.shape, other.stride()) == (
+                        x.device,
+                        x.dtype,
+                        x.shape,
+                        x.stride(),
+                    ):
+                        return other.copy_(x)
+        return x.clone()
+
     def _capture(self, inputs: tuple[torch.Tensor, ...]) -> tuple[torch.cuda.CUDAGraph, tuple[torch.Tensor, ...], Any]:
         device = inputs[0].device
-        static = tuple(x.clone() for x in inputs)
+        static = tuple(self._static_input(i, x) for i, x in enumerate(inputs))
         cur = torch.cuda.current_stream(device)
         side = capture_stream(device)
         graph = torch.cuda.CUDAGraph()
         with CAPTURE_LOCK, torch.cuda.stream(side):
             side.wait_stream(cur)
-            checked(self._forward, *static)  # warm-up outside the capture (lazy inits, workspaces, overflow fallbacks)
-            side.synchronize()
-            # the warm-up's cuBLAS workspace is a block of the default pool, and PyTorch frees every workspace when any
-            # CUDA graph is destroyed: a graph captured with it would replay into freed memory after an eviction.
-            # Dropped here, the capture allocates its own in the graph pool, which outlives the graph
+            try:
+                checked(self._forward, *static)  # warm-up: lazy inits, workspaces, overflow checks
+            finally:
+                # A failing warm-up can still have enqueued reads of inputs shared with another graph.
+                side.synchronize()
+            # PyTorch frees every cuBLAS workspace when any CUDA graph is destroyed. Release the warm-up workspace
+            # so capture allocates one in the graph pool, which outlives the graph.
             torch._C._cuda_clearCublasWorkspaces()  # noqa: SLF001 - no public API
             graph.capture_begin(self._pool, capture_error_mode="thread_local")
             try:
