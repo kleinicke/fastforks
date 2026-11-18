@@ -2684,6 +2684,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | drct-x4 | 512x512 | 830 ms | 618 ms | 731 ms | 718 ms | 40.5 s | 187 s | 2626 / 3048 | 1938 / 2348 | 2498 / 2766 | 9684 / 9728 |
 | gfpgan-v1.4 | 512x512 | 21.2 ms | 12.5 ms | 15.8 ms | 18.0 ms | 27.3 s | 115 s | 505 / 528 | 360 / 428 | 473 / 530 | 609 / 644 |
 | hat-s-x4 | 512x512 | 1072 ms | 750 ms | fails: TensorRT engine build failed | 956 ms | 41.9 s | – | 1984 / 2148 | 2352 / 3068 | 1856 / 1888 | – |
+| hat-s-x4 | 256x256 | 233 ms | – | 141 ms | – | – | 89.1 s | 531 / 782 | – | – | 533 / 534 |
 | hat-x4 | 512x512 | 1596 ms | 1185 ms | fails: TensorRT engine build failed | 1427 ms | 53.4 s | – | 2426 / 2590 | 1811 / 2750 | 2298 / 2470 | – |
 | hat-x4 | 256x256 | 346 ms | – | 217 ms | – | – | 92.0 s | 658 / 1002 | – | – | 681 / 682 |
 | nafnet-gopro | 512x512 | 60.4 ms | 35.4 ms | 52.6 ms | 55.3 ms | 38.1 s | 66.5 s | 451 / 532 | 422 / 470 | 451 / 550 | 722 / 734 |
