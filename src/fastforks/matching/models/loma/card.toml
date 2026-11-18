@@ -5,7 +5,8 @@ tier = "experimental"
 outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
 uses = ["dedode", "depth_anything_v2", "lightglue", "cnn_kernels"]  # fastforks.shared modules this family imports (the DaD / DeDoDe nets; the DINOv2 ViT-L/14; the transformer blocks)
 limitations = [
-  "The standalone B and L BF16 TensorRT engines at 768 x 1024 were compared on ten shifted photos. Minimum match precision within 2 px was 96.62% for B and 95.46% for L. The public exporter for B remains gated.",
+  "The standalone B and L BF16 TensorRT engines at 768 x 1024 were compared on ten shifted photos. Minimum match precision within 2 px was 96.62% for B and 95.46% for L.",
+  "For LoMa-B at 768 x 1024 BF16, export ONNX and build TensorRT in a fresh process. On the first 50 calibrated MegaDepth pairs, AUC@5 was 64.16 portable, 62.97 with the separately built plan, and 54.30 with the bundled TensorRT export.",
   "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.",
   "One image pair per call internally (batches run pair by pair); the match counts differ per pair.",
   "The match count depends on the image pair. The fixed 768 x 1024 LoMa-B64 TensorRT export returns variable-length matches. On ten photos paired with shifted copies, at least 96.7% of TensorRT correspondences agreed with portable within 2 pixels in both images.",
@@ -55,7 +56,7 @@ venue = "ECCV 2026"
 
 [[variants]]
 id = "loma-b"  # DaD detector + DeDoDe-G descriptor + the 256-d, 4-head, 9-layer matcher (upstream README default `loma_B`)
-planned = { onnx = "the export fails in the network call (negative tensor dimension -1)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { tensorrt = "the bundled BF16 build reduces relative pose AUC@5 by 9.87 points on 50 MegaDepth pairs; use ONNX export and a separate engine build" }
 revision = 1
 params = { dim = 256, heads = 4, layers = 9 }
 weights = [

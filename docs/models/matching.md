@@ -311,7 +311,7 @@ Commercial use: yes.
 - Options: `max_keypoints` = 2048 (>= 1), `long_side` = 1024 (>= 16), `size` = 784 (>= 56)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `loma-b`, `loma-b64`, `loma-b128`, `loma-l`, `loma-g`, `loma-r`
-- Not in this release (planned for 0.2.1): `loma-b` ONNX / TensorRT export: the export fails in the network call (negative tensor dimension -1)
+- Not in this release (planned for 0.2.1): `loma-b` TensorRT export: the bundled BF16 build reduces relative pose AUC@5 by 9.87 points on 50 MegaDepth pairs; use ONNX export and a separate engine build
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `loma-b` 3000x4000 (2.4 GiB peak allocated, 3.6 reserved); `loma-b64` 3000x4000 (1.1 GiB peak allocated, 1.4 reserved); `loma-b128` 3000x4000 (1.1 GiB peak allocated, 1.4 reserved); `loma-l` 3000x4000 (2.1 GiB peak allocated, 2.8 reserved); `loma-g` 3000x4000 (2.6 GiB peak allocated, 3.3 reserved); `loma-r` 3000x4000 (2.0 GiB peak allocated, 2.7 reserved)
@@ -361,7 +361,8 @@ CPU, float32: max |diff| <= 0.011 vs the original. GPU, portable bfloat16 and ke
 
 ### Limitations
 
-- The standalone B and L BF16 TensorRT engines at 768 x 1024 were compared on ten shifted photos. Minimum match precision within 2 px was 96.62% for B and 95.46% for L. The public exporter for B remains gated.
+- The standalone B and L BF16 TensorRT engines at 768 x 1024 were compared on ten shifted photos. Minimum match precision within 2 px was 96.62% for B and 95.46% for L.
+- For LoMa-B at 768 x 1024 BF16, export ONNX and build TensorRT in a fresh process. On the first 50 calibrated MegaDepth pairs, AUC@5 was 64.16 portable, 62.97 with the separately built plan, and 54.30 with the bundled TensorRT export.
 - Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.
 - One image pair per call internally (batches run pair by pair); the match counts differ per pair.
 - The match count depends on the image pair. The fixed 768 x 1024 LoMa-B64 TensorRT export returns variable-length matches. On ten photos paired with shifted copies, at least 96.7% of TensorRT correspondences agreed with portable within 2 pixels in both images.
