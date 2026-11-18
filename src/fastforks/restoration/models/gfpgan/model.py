@@ -25,10 +25,11 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import InputError, WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import cudnn_hacc, style_weights
 from fastforks.restoration._runner import Crop, Forward, Runner
 
 from .net import GFPGANv1Clean
+from .net.stylegan2_clean_arch import ModulatedConv2d
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -36,7 +37,6 @@ if TYPE_CHECKING:
     from fastforks.restoration._runner import Context
 
     from .net.gfpganv1_clean_arch import ResBlock
-    from .net.stylegan2_clean_arch import ModulatedConv2d
 
     Conv = Callable[..., torch.Tensor]
 
@@ -62,20 +62,35 @@ def _hacc(x: torch.Tensor, w: torch.Tensor, b: torch.Tensor | None, padding: int
     return cudnn_hacc.conv_half_acc(x, w, b, (padding, padding), (1, 1))
 
 
-def _modconv(  # noqa: PLR0913, PLR0917 - the StyleConv / ToRGB call sites pass all six
-    m: ModulatedConv2d, x: torch.Tensor, style: torch.Tensor, gain: float, bias: torch.Tensor | None, conv: Conv
-) -> torch.Tensor:
-    """`ModulatedConv2d.forward(x, style) * gain + bias` (bias `[C]`): the batch as groups, as upstream."""
-    b, c = x.shape[:2]
-    s = m.modulation(style).float().view(b, 1, c, 1, 1)
+def _weights(m: ModulatedConv2d, style: torch.Tensor, gain: float) -> torch.Tensor:
+    b, c = style.shape
+    s = style.float().view(b, 1, c, 1, 1)
     w = m.weight.float() * s
     if m.demodulate:
         w = w * torch.rsqrt(w.pow(2).sum([2, 3, 4]) + m.eps).view(b, -1, 1, 1, 1)
-    w = (w * gain).to(x.dtype).view(b * m.out_channels, c, m.kernel_size, m.kernel_size)
+    return (w * gain).to(style.dtype).view(b * m.out_channels, c, m.kernel_size, m.kernel_size)
+
+
+def _cuda_weights(m: ModulatedConv2d, style: torch.Tensor, gain: float) -> torch.Tensor:
+    return style_weights.pack(m.weight[0], style, gain, m.eps, demodulate=m.demodulate)
+
+
+def _modconv(  # noqa: PLR0913, PLR0917 - style, convolution and the selected weight preparation
+    m: ModulatedConv2d,
+    x: torch.Tensor,
+    style: torch.Tensor,
+    gain: float,
+    bias: torch.Tensor | None,
+    conv: Conv,
+    pack: Callable[[ModulatedConv2d, torch.Tensor, float], torch.Tensor],
+) -> torch.Tensor:
+    """Modulated convolution for a group per face (the CUDA weight kernel takes one face)."""
+    b, c = x.shape[:2]
+    w = pack(m, m.modulation(style), gain)
     if m.sample_mode == "upsample":
         x = F.interpolate(x, scale_factor=2, mode="bilinear", align_corners=False)
     h, wd = x.shape[-2:]
-    bias = None if bias is None else bias.to(x.dtype).repeat(b)
+    bias = None if bias is None else (bias.to(x.dtype) if b == 1 else bias.to(x.dtype).repeat(b))
     out = conv(x.reshape(1, b * c, h, wd), w, bias, m.padding, b)
     return out.reshape(b, m.out_channels, *out.shape[-2:])
 
@@ -98,7 +113,13 @@ def _module_conv(m: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return m(x)
 
 
-def _forward(m: GFPGANv1Clean, x: torch.Tensor, noise: list[torch.Tensor], conv: Conv) -> torch.Tensor:
+def _forward(
+    m: GFPGANv1Clean,
+    x: torch.Tensor,
+    noise: list[torch.Tensor],
+    conv: Conv,
+    pack: Callable[[ModulatedConv2d, torch.Tensor, float], torch.Tensor] = _weights,
+) -> torch.Tensor:
     """`GFPGANv1Clean.forward(x, return_rgb=False, randomize_noise=False)[0]` (v1.3 / v1.4 configs).
 
     v1.3 / v1.4: input_is_latent, different_w, sft_half; `noise` = the decoder's noise buffers times each StyleConv's
@@ -109,23 +130,23 @@ def _forward(m: GFPGANv1Clean, x: torch.Tensor, noise: list[torch.Tensor], conv:
     skips = []
     for block in m.conv_body_down:
         feat = _resblock(block, feat, mc)  # ty: ignore[invalid-argument-type]
-        skips.insert(0, feat)
+        skips.append(feat)
     feat = F.leaky_relu_(m.final_conv(feat), 0.2)
     latent = m.final_linear(feat.flatten(1)).view(feat.shape[0], -1, m.num_style_feat)
     conditions = []
     for i, block in enumerate(m.conv_body_up):
-        feat = _resblock(block, feat + skips[i], mc)  # ty: ignore[invalid-argument-type]
+        feat = _resblock(block, feat + skips.pop(), mc)  # ty: ignore[invalid-argument-type]
         conditions += [m.condition_scale[i](feat), m.condition_shift[i](feat)]
 
     d = m.stylegan_decoder
     sqrt2 = 2**0.5
 
     def style_conv(sc: Any, out: torch.Tensor, style: torch.Tensor, n: torch.Tensor) -> torch.Tensor:  # noqa: ANN401
-        out = _modconv(sc.modulated_conv, out, style, sqrt2, sc.bias.view(-1), conv)
+        out = _modconv(sc.modulated_conv, out, style, sqrt2, sc.bias.view(-1), conv, pack)
         return F.leaky_relu_(out.add_(n), 0.2)
 
     def to_rgb(tr: Any, out: torch.Tensor, style: torch.Tensor, skip: torch.Tensor | None) -> torch.Tensor:  # noqa: ANN401
-        out = _modconv(tr.modulated_conv, out, style, 1.0, tr.bias.view(-1), conv)
+        out = _modconv(tr.modulated_conv, out, style, 1.0, tr.bias.view(-1), conv, pack)
         if skip is None:
             return out
         return out.add_(F.interpolate(skip, scale_factor=2, mode="bilinear", align_corners=False))
@@ -214,6 +235,9 @@ class Kernels(Portable):
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
         for m in self.net.modules():
+            if isinstance(m, ModulatedConv2d):
+                weight = m.weight[0].detach().contiguous(memory_format=torch.channels_last)
+                m.weight = torch.nn.Parameter(weight.unsqueeze(0), requires_grad=False)
             if is_base(m, torch.nn.Conv2d):
                 override(m, _hacc_module)
 
@@ -221,7 +245,7 @@ class Kernels(Portable):
         """The restored faces in [0, 1]."""
         x = (image.to(torch.float16) * 2 - 1).contiguous(memory_format=self.fmt)
         with fp16_accumulate():
-            out = [_forward(self.net, x[i : i + 1], self.noise, _hacc) for i in range(x.shape[0])]
+            out = [_forward(self.net, x[i : i + 1], self.noise, _hacc, _cuda_weights) for i in range(x.shape[0])]
         return {"image": (torch.cat(out).float() + 1) / 2}
 
 
