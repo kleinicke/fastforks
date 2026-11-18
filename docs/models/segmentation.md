@@ -65,6 +65,16 @@ Commercial use: yes.
 - `bisenet-face-parsing` load / first call: original 0.31 s / 0.405 s (512x512), portable 0.2 s / 0.275 s (512x512)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+Scores use one pixel confusion matrix across the split. Left and right eyes share one class, and left and right brows share one class. Labels outside the eight shared foreground classes count as background. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | portable fp32 | note |
+|---|---|---|---|
+| `bisenet-face-parsing` | LaPa test (2,000 images), common face parts, mIoU / aAcc % | 69.12 / 93.52 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
+
 ### Parity
 
 CPU, float32: max |diff| <= 2.6e-05 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.0042 and p99 <= 0.02 (absolute error of the output `logits`).
