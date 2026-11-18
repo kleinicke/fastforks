@@ -87,7 +87,7 @@ def main() -> None:
                         protocol,
                         workload,
                         port["ms"] if port else "",
-                        f'{k["ms"] / port["ms"]:.3f}' if port else "",
+                        f"{k['ms'] / port['ms']:.3f}" if port else "",
                     ],
                 )
             )
