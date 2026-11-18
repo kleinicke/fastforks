@@ -295,6 +295,7 @@ Commercial use: yes.
 | `loma-b64` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>129<br>–<br>101<br>109 | –<br>854 / 962<br>–<br>1230 / 1356<br>1010 / 1034 |
 | `loma-b128` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>150<br>–<br>122<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>878 / 984<br>–<br>1398 / 1760<br>– |
 | `loma-l` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>319<br>–<br>295<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>1903 / 2012<br>–<br>3006 / 3194<br>– |
+| `loma-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile | –<br>358<br>–<br>330 | –<br>2444 / 2548<br>–<br>3547 / 3890 |
 
 <details><summary>Details</summary>
 
@@ -314,13 +315,15 @@ Commercial use: yes.
 - `loma-b64` 768x1024, first call: portable + torch.compile 66 s (cold Inductor cache), TensorRT bf16 102 s (ONNX + engine).
 - `loma-b128` 768x1024, first call: portable + torch.compile 67 s (cold Inductor cache).
 - `loma-l` 768x1024, first call: portable + torch.compile 101 s (cold Inductor cache).
+- `loma-g` 768x1024, first call: portable + torch.compile 103 s (cold Inductor cache).
 - `loma-b` original 768x1024: upstream LoMa(LoMaB(mp=False)), float32, 2048 keypoints
 - `loma-b` load / first call: original 8.52 s / 1.373 s, portable 2.53 s / 1.269 s
 - `loma-b64` load / first call: portable 0.28 s / 0.759 s
 - `loma-b128` load / first call: portable 0.52 s / 0.636 s
 - `loma-l` load / first call: portable 1.49 s / 0.69 s
+- `loma-g` load / first call: portable 2.36 s / 0.8 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
-- Speed and memory not measured for: `loma-g`, `loma-r`.
+- Speed and memory not measured for: `loma-r`.
 
 ### Measured
 

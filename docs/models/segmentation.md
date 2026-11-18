@@ -413,9 +413,9 @@ Any body part counts as person; ground truth = the COCO person masks. Original =
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
 | `sapiens-seg-0.3b-goliath` | COCO val2017 persons, every 10th image, person IoU % | 32.60 | 32.61 | 32.61 | 32.60 | 32.62 |  |
-| `sapiens-seg-1b-goliath` | COCO val2017 persons, every 10th image, person IoU % | 54.22 | 54.22 | 54.22 |  | 54.19 |  |
+| `sapiens-seg-1b-goliath` | COCO val2017 persons, every 10th image, person IoU % | 54.22 | 54.22 | 54.22 | 54.22 | 54.19 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 
@@ -481,11 +481,11 @@ Each image at its own size, argmax of the logits. The 200-image ckotait/ATRDatas
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
-| `segformer-b0-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 34.68 / 76.41 | 34.68 / 76.41 | 34.67 / 76.41 |  | 34.67 / 76.41 |  |
-| `segformer-b5-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 48.28 / 82.75 | 48.28 / 82.75 | 48.28 / 82.75 |  | 48.28 / 82.75 |  |
+| `segformer-b0-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 34.68 / 76.41 | 34.68 / 76.41 | 34.67 / 76.41 | 34.68 / 76.41 | 34.67 / 76.41 |  |
+| `segformer-b5-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 48.28 / 82.75 | 48.28 / 82.75 | 48.28 / 82.75 | 48.28 / 82.75 | 48.28 / 82.75 |  |
 | `segformer-b2-clothes` | ATR mirror test split (200 images), mIoU / aAcc % |  |  |  | 74.96 / 97.85 |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 

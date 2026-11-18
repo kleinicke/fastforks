@@ -1441,6 +1441,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | loma-b | – | 1036 | 308 | – | – | – | 4176 / 4390 | 1767 / 1878 | – |
 | loma-b128 | – | – | 150 | – | – | – | – | 878 / 984 | – |
 | loma-b64 | – | – | 129 | – | – | – | – | 854 / 962 | – |
+| loma-g | – | – | 358 | – | – | – | – | 2444 / 2548 | – |
 | loma-l | – | – | 319 | – | – | – | – | 1903 / 2012 | – |
 | romav1 | – | 386 | 377 | 356 | 1.1x | 1.1x | 3887 / 4094 | 1720 / 1840 | 1720 / 1860 |
 | romav2 | 1412 | 741 | 546 | 354 | 2.1x | 1.5x | 9881 / 10124 | 1989 / 2596 | 1909 / 2300 |
@@ -2044,6 +2045,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | loma-b | 8.52 | 2.53 | – | 1.37 | 1.27 | – |
 | loma-b128 | – | 0.52 | – | – | 0.64 | – |
 | loma-b64 | – | 0.28 | – | – | 0.76 | – |
+| loma-g | – | 2.36 | – | – | 0.80 | – |
 | loma-l | – | 1.49 | – | – | 0.69 | – |
 | romav1 | 6.28 | 2.34 | 3.17 | 2.57 | 0.92 | 1.03 |
 | romav2 | 5.45 | 0.85 | 0.96 | 2.09 | 0.91 | 0.62 |
@@ -2636,6 +2638,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | loma-b | 768x1024 | 308 ms | 285 ms | planned for 0.2.1 | – | 104 s | – | 1767 / 1878 | 2870 / 3216 | – | – |
 | loma-b128 | 768x1024 | 150 ms | 122 ms | fails: RuntimeError: Trying to create tensor with negative dimensio | – | 66.5 s | – | 878 / 984 | 1398 / 1760 | – | – |
 | loma-b64 | 768x1024 | 129 ms | 101 ms | 109 ms, bf16 engine | – | 65.6 s | 102 s | 854 / 962 | 1230 / 1356 | – | 1010 / 1034 |
+| loma-g | 768x1024 | 358 ms | 330 ms | – | – | 103 s | – | 2444 / 2548 | 3547 / 3890 | – | – |
 | loma-l | 768x1024 | 319 ms | 295 ms | fails: RuntimeError: Trying to create tensor with negative dimensio | – | 101 s | – | 1903 / 2012 | 3006 / 3194 | – | – |
 | romav1 | 768x1024 | 377 ms | 247 ms | planned for 0.2.1 | 356 ms | 698 s | – | 1720 / 1840 | 1348 / 1476 | 1720 / 1860 | – |
 | romav2 | 768x1024 | 546 ms | 576 ms | 353 ms | 354 ms | 254 s | 185 s | 1989 / 2596 | 3150 / 3386 | 1909 / 2300 | 6694 / 6740 |
