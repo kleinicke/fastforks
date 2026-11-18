@@ -100,6 +100,8 @@ _DATASETS = {
         "coco-val2017-every1-keypoints": "COCO val2017, predicted people, keypoint AP",
         "coco-val2017-every10-keypoints": "COCO val2017, every 10th image, predicted people, keypoint AP",
         "coco-wholebody-val-hands-gtbox": "COCO-WholeBody validation (1,568 images), hand PCK@0.2 % / EPE in px",
+        "lapa-test-landmarks-gtbox": "LaPa test (2,000 images), annotated face boxes, normalized mean error (%)",
+        "ap10k-val1-paired-oks-gtbox": "AP-10K validation split 1, annotated animal boxes, paired OKS (%)",
         "widerface-val-every4": "WIDER FACE val, every 4th image (807), face box AP easy / medium / hard",
     },
     "flow": {"kitti2015-train": "KITTI 2015 train, EPE / Fl-all %"},
@@ -234,6 +236,8 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "edges": ((("sap5", "{:.2f}", ""), ("sap10", "{:.2f}", ""), ("sap15", "{:.2f}", "")), "n", "images"),
     "ocr": ((("word_accuracy", "{:.2f}", ""), ("ned", "{:.2f}", "")), "n", "words"),
     ("pose", "coco-wholebody-val-hands-gtbox"): ((("pck20", "{:.2f}", ""), ("epe", "{:.2f}", "")), "n", "hands"),
+    ("pose", "lapa-test-landmarks-gtbox"): ((("nme_pct", "{:.4f}", ""),), "n", "faces"),
+    ("pose", "ap10k-val1-paired-oks-gtbox"): ((("paired_oks", "{:.3f}", ""),), "n", "animals"),
     "interpolation": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "triplets"),
     "volume": ((("dice", "{:.4f}", ""),), "n", "cases"),
     ("volume", "totalseg-nninteractive-prompts-96"): (
@@ -337,6 +341,10 @@ _PROTOCOL = {
     ): "Top-down on the ground-truth person boxes (non-crowd, at least one labelled keypoint), no flip test; "
     "people ranked by the mean of their 17 keypoint scores (not mmpose's rescoring and OKS-NMS), so not the papers' "
     "AP; pycocotools OKS AP; whole-body models scored on their 17 body keypoints. ",
+    ("pose", "lapa-test-landmarks-gtbox"): "One prediction per annotated face box with flip testing disabled. "
+    "Mean visible-landmark error is divided by the distance between annotated eye landmarks 66 and 79. ",
+    ("pose", "ap10k-val1-paired-oks-gtbox"): "One prediction per annotated animal box with flip testing disabled. "
+    "Average the keypoint similarities of the matched predictions with the AP-10K keypoint scales. ",
     ("pose", "widerface-val-every4"): "Each image at its own size, score threshold 0.02 and NMS IoU 0.45 (the "
     "authors' evaluation settings), the official toolkit's AP at IoU 0.5 over the subset's faces. ",
     ("pose", "coco-val2017-every10-keypoints-gtbox"): "Top-down on the same every-tenth-image subset for all modes, "
