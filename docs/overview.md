@@ -703,12 +703,12 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`loma-b128`](models/matching.md#loma) | yes | – | 149.6 | – | – | – |
 | [`dedode-v2-b`](models/matching.md#dedode-v2) | yes | 318.5 (768x1024) | 246.5 | 189.4 | 1.7x vs original (768x1024) | 1197 |
 | [`loma-b`](models/matching.md#loma) | yes | 1036.3 (768x1024) | 308.1 | – | – | – |
+| [`loma-r`](models/matching.md#loma) | yes | – | 308.6 | – | – | – |
 | [`loma-l`](models/matching.md#loma) | yes | – | 318.6 | – | – | – |
 | [`dedode-v2-g`](models/matching.md#dedode-v2) | yes | 665.5 (768x1024) | 592.5 | 331.9 | 2.0x vs original (768x1024) | 1787 |
 | [`romav2`](models/matching.md#roma-v2) | yes | 740.9 (768x1024) | 545.7 | 353.6 | 2.1x vs original (768x1024) | 1909 |
 | [`romav1`](models/matching.md#roma) | yes | 385.8 (768x1024) | 376.9 | 356.1 | 1.1x vs original (768x1024) | 1720 |
 | [`loma-g`](models/matching.md#loma) | yes | – | 357.8 | – | – | – |
-| [`loma-r`](models/matching.md#loma) | yes | – | – | – | – | – |
 
 ## Tracking
 

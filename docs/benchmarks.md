@@ -1443,6 +1443,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | loma-b64 | – | – | 129 | – | – | – | – | 854 / 962 | – |
 | loma-g | – | – | 358 | – | – | – | – | 2444 / 2548 | – |
 | loma-l | – | – | 319 | – | – | – | – | 1903 / 2012 | – |
+| loma-r | – | – | 309 | – | – | – | – | 1767 / 1878 | – |
 | romav1 | – | 386 | 377 | 356 | 1.1x | 1.1x | 3887 / 4094 | 1720 / 1840 | 1720 / 1860 |
 | romav2 | 1412 | 741 | 546 | 354 | 2.1x | 1.5x | 9881 / 10124 | 1989 / 2596 | 1909 / 2300 |
 | xfeat | – | 8.89 | 7.17 | – | – | – | 128 / 174 | 122 / 154 | – |
@@ -2047,6 +2048,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | loma-b64 | – | 0.28 | – | – | 0.76 | – |
 | loma-g | – | 2.36 | – | – | 0.80 | – |
 | loma-l | – | 1.49 | – | – | 0.69 | – |
+| loma-r | – | 2.80 | – | – | 0.73 | – |
 | romav1 | 6.28 | 2.34 | 3.17 | 2.57 | 0.92 | 1.03 |
 | romav2 | 5.45 | 0.85 | 0.96 | 2.09 | 0.91 | 0.62 |
 | xfeat | 1.51 | 0.16 | – | 0.63 | 0.74 | – |
@@ -2645,6 +2647,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | loma-b64 | 768x1024 | 129 ms | 101 ms | 109 ms, bf16 engine | – | 65.6 s | 102 s | 854 / 962 | 1230 / 1356 | – | 1010 / 1034 |
 | loma-g | 768x1024 | 358 ms | 330 ms | 366 ms, bf16 engine | – | 103 s | 171 s | 2444 / 2548 | 3547 / 3890 | – | 2298 / 2322 |
 | loma-l | 768x1024 | 319 ms | 295 ms | fails: RuntimeError: Trying to create tensor with negative dimensio | – | 101 s | – | 1903 / 2012 | 3006 / 3194 | – | – |
+| loma-r | 768x1024 | 309 ms | 286 ms | – | – | 108 s | – | 1767 / 1878 | 2870 / 3256 | – | – |
 | romav1 | 768x1024 | 377 ms | 247 ms | planned for 0.2.1 | 356 ms | 698 s | – | 1720 / 1840 | 1348 / 1476 | 1720 / 1860 | – |
 | romav2 | 768x1024 | 546 ms | 576 ms | 353 ms | 354 ms | 254 s | 185 s | 1989 / 2596 | 3150 / 3386 | 1909 / 2300 | 6694 / 6740 |
 | xfeat | 768x1024 | 7.17 ms | 5.65 ms | planned for 0.2.1 | – | 30.8 s | – | 122 / 154 | 186 / 212 | – | – |
