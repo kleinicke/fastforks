@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import subprocess
 from pathlib import Path
+from urllib.parse import quote
 
 import goldens as store
 from fastforks._core import registry
@@ -96,7 +97,8 @@ def main() -> None:
         dest = a.dir / file
         if dest.is_file() and sha256_of(dest) == entry["sha256"]:
             continue
-        download(GOLDEN_URL.format(file=file.replace("@", "%40")), dest, FileSpec(file, entry["sha256"]))
+        remote = quote(entry.get("file", file), safe="")
+        download(GOLDEN_URL.format(file=remote), dest, FileSpec(file, entry["sha256"]))
         print(f"{ref}: {dest}")
 
 

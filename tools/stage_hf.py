@@ -10,9 +10,9 @@
     uv run python tools/stage_hf.py create CARDS_DIR [--dry-run] [--batch 20] [--pause 60]
 
 `kernels` copies the files the committed `manifest.toml`s list (hash- and size-checked) to `OUT/<lib>/<file>`, the
-layout of the manifests' `url`, and writes the repo card. `goldens` copies every `<ref>.npz` of the `golden.toml`
-files (hash-checked) to `OUT/<ref>.npz`, the layout `tools/fetch_goldens.py` reads, with a card listing the model
-each output comes from. `mirrors` copies the weights whose card entry has `mirror = true` from the local weight
+layout of the manifests' `url`, and writes the repo card. `goldens` copies each hash-checked local `<ref>.npz` to
+`OUT`, using the reference's `file` entry if present, with a card listing the model each output comes from.
+`mirrors` copies the weights whose card entry has `mirror = true` from the local weight
 store (hash-checked) to `OUT/<family>/<file>`, with a card naming each file's licence and original URL (the first
 mirrors, `mirror = true`; no card uses it since 2026-11-15, the repo is private). `weights` stages one repo per
 distinct weight file, named after the weights
@@ -141,7 +141,7 @@ def stage_goldens(srcs: list[Path], out: Path, *, skip_missing: bool = False) ->
                     print(f"skipped (no local file with the recorded SHA-256): {ref}", file=sys.stderr)
                     continue
                 sys.exit(f"{ref}: no file with the recorded SHA-256 in {', '.join(map(str, srcs))}")
-            shutil.copyfile(src, out / f"{ref}.npz")
+            shutil.copyfile(src, out / entry.get("file", f"{ref}.npz"))
             card, v = cards[ref]
             st = card.status(v)
             rows.append(f"| `{ref}` | {card.family} | {card.licence.code} | {st.weights} | {entry['upstream']} |")

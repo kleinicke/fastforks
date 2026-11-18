@@ -1,7 +1,8 @@
 """Read and write the per-family `golden.toml` files (`src/fastforks/<task>/models/<family>/golden.toml`).
 
 Each holds `[tolerance]` (parity bounds), `[refs."<id>@<rev>"]` (SHA-256 + provenance of each golden output) and
-`[validated."<id>@<rev>"]` (kernel builds a GPU run checked). The files stay out of the wheels.
+`[validated."<id>@<rev>"]` (kernel builds a GPU run checked). A reference's optional `file` names its published
+file when multiple versions of a fixture are available. The files stay out of the wheels.
 """
 
 from __future__ import annotations
