@@ -26,6 +26,8 @@ from fastforks.volume._nnunet_runner import weight_names
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
+    from fastforks.volume._runner import Context
+
 __all__ = ["RUNNERS", "Params", "weight_names", "zoom_linear", "zoom_nearest"]
 
 
@@ -94,6 +96,13 @@ class Portable(nn_runner.Portable):
 
 class Kernels(Portable, nn_runner.Kernels):
     """`fastforks.volume._nnunet_runner.Kernels` with TotalSegmentator's spacing change and class list."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Limit the workspace alongside the resident networks of the multi-part CT model."""
+        super().__init__(ctx)
+        if len(self.parts) > 1:
+            for part in self.parts:
+                part.batch = 1
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}

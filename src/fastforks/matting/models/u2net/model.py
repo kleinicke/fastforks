@@ -95,7 +95,14 @@ class Portable(_Matting):
         """Build the network."""
         super().__init__(ctx)
         self.dtype = getattr(torch, ctx.dtype)
-        self.net = _cpu_net(ctx, fold=self.dtype == torch.float16).to(ctx.device, self.dtype)
+        self.net = _cpu_net(ctx, fold=self.dtype == torch.float16)
+        if ctx.device.type == "cuda" and self.dtype == torch.float16:
+            # The affine and running statistics are already folded into conv_s1.
+            for block in self.net.modules():
+                if isinstance(block, REBNCONV):
+                    block.set_submodule("bn_s1", torch.nn.Identity())
+            self.net.to(memory_format=CL)
+        self.net.to(ctx.device, self.dtype)
 
 
 def _rebnconv(m: REBNCONV, x: torch.Tensor) -> torch.Tensor:
