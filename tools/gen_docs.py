@@ -90,6 +90,7 @@ _DATASETS = {
         "widerface-val-every4": "WIDER FACE val, every 4th image (807), face box AP easy / medium / hard",
     },
     "flow": {"kitti2015-train": "KITTI 2015 train, EPE / Fl-all %"},
+    "edges": {"yorkurban-102-structural": "YorkUrban test (102 images), line segment sAP@5 / @10 / @15 %"},
     "ocr": {"iiit5k-test-lexicon-free": "IIIT5K test word crops, word accuracy / normalized edit similarity %"},
     "volume": {
         "totalseg-subset-3mm": "TotalSegmentator test subset (8 CT cases), 3 mm, mean Dice",
@@ -206,6 +207,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
         "images",
     ),
     "flow": ((("epe", "{:.3f}", ""), ("fl_all", "{:.2f}", "")), "n", "pairs"),
+    "edges": ((("sap5", "{:.2f}", ""), ("sap10", "{:.2f}", ""), ("sap15", "{:.2f}", "")), "n", "images"),
     "ocr": ((("word_accuracy", "{:.2f}", ""), ("ned", "{:.2f}", "")), "n", "words"),
     "interpolation": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "triplets"),
     "volume": ((("dice", "{:.4f}", ""),), "n", "cases"),
@@ -280,6 +282,10 @@ _PROTOCOL = {
     "the original fp32, micro-averaged over the images; top-1 agreement = share of images with the same most likely "
     "tag. The original fp16 row shows the difference of the original itself in half precision. ",
     ("segmentation", "ade20k-val"): "Each image at its own size, argmax of the logits. ",
+    ("edges", "yorkurban-102-structural"): "All 102 YorkUrban images in the DT-LSD release. Each M-LSD mode uses "
+    "512-pixel short-side detection, cubic resizing, a score and length threshold of 0.1, and up to 200 segments. "
+    "Structural AP matches endpoints on a 256 x 256 coordinate grid, testing both endpoint orders and matching "
+    "each annotation at most once. ",
     ("ocr", "iiit5k-test-lexicon-free"): "The 3,000 official cropped test words, with no lexicon. Exact accuracy "
     "and normalized edit similarity compare lowercase ASCII letters and digits. Similarity is one minus edit "
     "distance divided by the longer word's length, averaged over the crops. For a model that also detects text, "
