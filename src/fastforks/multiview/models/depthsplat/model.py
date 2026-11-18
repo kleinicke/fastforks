@@ -35,11 +35,13 @@ from torch import nn
 
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
+from fastforks.kernels import depthsplat_corr
 from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, f64, invert, project_harmonics
 from fastforks.shared.depth_anything_v2 import use_fast_vit
 
 from .net.dpt_head import DPTHead
+from .net.matching import projected_grid, reference_cost_volume
 from .net.mv_unimatch import MultiViewUniMatch
 
 if TYPE_CHECKING:
@@ -50,6 +52,7 @@ if TYPE_CHECKING:
 MULTIPLE = 16  # fixed: 1/4 features, two UNet downsamplings and the 2 x 2 attention splits
 SH_DEGREE = 2  # fixed: the released config (gaussian_adapter.sh_degree)
 SH = (SH_DEGREE + 1) ** 2  # fixed: SH coefficients per channel
+_PORTABLE_WARP_BYTES = 128 * 1024**2  # upper target for one warped-feature tensor across a depth slice
 RAW_DIM = 1 + 2 + 3 + 4 + 3 * SH  # fixed: opacity, pixel offset, scales, rotation (x y z w), SH
 NEIGHBOURS = 2  # fixed: upstream local_mv_match (cost volume against the nearest cameras when more than 3 views)
 C0 = 0.28209479177387814  # fixed: degree-0 SH constant (upstream RGB2SH)
@@ -311,8 +314,36 @@ class _Base(Runner):
         return self.forward(images, intrinsics, cam_to_world, depth_range)
 
 
+def _chunked_cost_volume(  # noqa: PLR0913, PLR0917 - MultiViewUniMatch hook
+    _net: MultiViewUniMatch,
+    ref: torch.Tensor,
+    targets: torch.Tensor,
+    k: torch.Tensor,
+    poses: torch.Tensor,
+    candidates: torch.Tensor,
+    grid_sample_disable_cudnn: bool,  # noqa: FBT001
+) -> torch.Tensor:
+    """Bound portable sampling workspace by slicing the depth axis before warping the target features."""
+    # grid_sample and the subsequent multiply each produce this many bytes per depth plane.
+    bytes_per_plane = targets.numel() * targets.element_size()
+    chunk = max(1, _PORTABLE_WARP_BYTES // bytes_per_plane)
+    if chunk >= candidates.shape[1]:
+        return reference_cost_volume(ref, targets, k, poses, candidates, grid_sample_disable_cudnn)
+    return torch.cat(
+        [
+            reference_cost_volume(ref, targets, k, poses, part, grid_sample_disable_cudnn)
+            for part in candidates.split(chunk, dim=1)
+        ],
+        dim=1,
+    )
+
+
 class Portable(_Base):
     """Plain PyTorch: float32 = upstream modules; float16 (CUDA) = fp16 weights under autocast."""
+
+    def __init__(self, ctx: Context) -> None:  # noqa: D107
+        super().__init__(ctx)
+        override(self.net.depth_predictor, _chunked_cost_volume, "cost_volume")
 
     def module(self) -> torch.nn.Module:
         """The network with its input handling: the runner's inputs -> the maps and Gaussians of `__call__`."""
@@ -341,6 +372,26 @@ def _hacc_convs(module: nn.Module) -> int:
     return n
 
 
+def _fused_cost_volume(
+    _net: MultiViewUniMatch,
+    ref: torch.Tensor,
+    targets: torch.Tensor,
+    k: torch.Tensor,
+    poses: torch.Tensor,
+    candidates: torch.Tensor,
+    _grid_sample_disable_cudnn: bool,  # noqa: FBT001
+) -> torch.Tensor:
+    """Sample each selected neighbour at its physical depth candidates without a warped [B, V, C, D, H, W] tensor."""
+    b, neighbors, _, h, w = targets.shape
+    ref = ref.contiguous(memory_format=torch.channels_last)
+    out = ref.new_empty((b, candidates.shape[1], h, w), dtype=torch.float32)
+    for i in range(neighbors):
+        grid = projected_grid(k, poses[:, i], candidates, h, w)
+        target = targets[:, i].contiguous(memory_format=torch.channels_last)
+        depthsplat_corr.accumulate(ref, target, grid, out, i, neighbors)
+    return out
+
+
 class Kernels(_Base):
     """fp16: the `fastbb` DINOv2 (flash attention, fp16-accumulate GEMMs), cuDNN fp16-accumulate convs."""
 
@@ -348,6 +399,8 @@ class Kernels(_Base):
         super().__init__(ctx)
         from fastforks.kernels import cudnn_hacc, fastbb  # noqa: PLC0415 - kernels only
 
+        depthsplat_corr.load(ctx.device)
+        override(self.net.depth_predictor, _fused_cost_volume, "cost_volume")
         fastbb.load(ctx.device)
         cudnn_hacc.load(ctx.device)
         use_fast_vit(self.net.depth_predictor.pretrained)

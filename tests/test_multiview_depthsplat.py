@@ -11,6 +11,7 @@ import torch
 from fastforks._core import registry
 from fastforks.multiview._gaussians import pop_gaussians
 from fastforks.multiview.models.depthsplat import model
+from fastforks.multiview.models.depthsplat.net.matching import reference_cost_volume
 
 
 def _rotations(n: int, seed: int = 0) -> torch.Tensor:
@@ -132,3 +133,42 @@ def test_scene_scale_normalised() -> None:
     b = runner(imgs, k, c2w, torch.tensor([1000.0, 10000.0]))
     for key in ("depth", "gaussians/means", "gaussians/scales"):
         torch.testing.assert_close(b[key], a[key] * 500, rtol=1e-5, atol=0)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(
+    ("dtype", "neighbors", "per_pixel"),
+    [(torch.float32, 1, False), (torch.float32, 2, True), (torch.float16, 2, False)],
+)
+def test_plane_sweep_matches_grid_sample(dtype: torch.dtype, neighbors: int, *, per_pixel: bool) -> None:
+    """Compare the full reprojection, zero-padded bilinear sampling and cost over independently chosen neighbours."""
+    torch.manual_seed(34)
+    b, c, h, w, d = 3, 67, 11, 13, 9
+    ref = torch.randn(b, c, h, w, device="cuda", dtype=dtype)
+    targets = torch.randn(b, neighbors, c, h, w, device="cuda", dtype=dtype)
+    poses = torch.eye(4, device="cuda").repeat(b, neighbors, 1, 1)
+    poses[:, :, :3, 3] = torch.randn(b, neighbors, 3, device="cuda") * 0.5
+    k = torch.tensor([[8.0, 0, 5.25], [0, 7.0, 4.75], [0, 0, 1]], device="cuda").expand(b, 3, 3)
+    depth = torch.linspace(1, 8, d, device="cuda").view(1, d, 1, 1).expand(b, -1, -1, -1)
+    if per_pixel:
+        depth = depth + torch.rand(b, d, h, w, device="cuda") * 0.01
+    with torch.autocast("cuda", dtype=torch.float16):
+        want = reference_cost_volume(ref, targets, k, poses, depth, grid_sample_disable_cudnn=True)
+        got = model._fused_cost_volume(None, ref, targets, k, poses, depth, _grid_sample_disable_cudnn=True)  # ty: ignore[invalid-argument-type]
+    torch.testing.assert_close(got, want, atol=3e-5, rtol=3e-5)
+
+
+def test_chunked_plane_sweep(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A partial final depth slice and spatially varying candidates produce the same portable cost volume."""
+    torch.manual_seed(8)
+    b, neighbors, c, h, w, d = 2, 2, 7, 5, 8, 7
+    targets = torch.randn(b, neighbors, c, h, w)
+    ref = torch.randn(b, c, h, w)
+    k = torch.eye(3).expand(b, -1, -1)
+    poses = torch.eye(4).repeat(b, neighbors, 1, 1)
+    poses[..., 0, 3] = torch.randn(b, neighbors)
+    depth = torch.rand(b, d, h, w) + 1
+    monkeypatch.setattr(model, "_PORTABLE_WARP_BYTES", 3 * targets.numel() * targets.element_size())
+    want = reference_cost_volume(ref, targets, k, poses, depth, grid_sample_disable_cudnn=False)
+    got = model._chunked_cost_volume(None, ref, targets, k, poses, depth, grid_sample_disable_cudnn=False)  # ty: ignore[invalid-argument-type]
+    torch.testing.assert_close(got, want, rtol=0, atol=1e-6)

@@ -48,32 +48,7 @@ def warp_with_pose_depth_candidates(
     b, d, h, w = depth.size()
     c = feature1.size(1)
 
-    with torch.no_grad():
-        # pixel coordinates
-        grid = coords_grid(
-            b, h, w, homogeneous=True, device=depth.device
-        )  # [B, 3, H, W]
-        # back project to 3D and transform viewpoint
-        points = invert(intrinsics).bmm(grid.view(b, 3, -1))  # [B, 3, H*W]  # fastforks: closed form (ONNX), was torch.inverse
-        points = torch.bmm(pose[:, :3, :3], points).unsqueeze(2).repeat(
-            1, 1, d, 1
-        ) * depth.view(
-            b, 1, d, h * w
-        )  # [B, 3, D, H*W]
-        points = points + pose[:, :3, -1:].unsqueeze(-1)  # [B, 3, D, H*W]
-        # reproject to 2D image plane
-        points = torch.bmm(intrinsics, points.view(b, 3, -1)).view(
-            b, 3, d, h * w
-        )  # [B, 3, D, H*W]
-        pixel_coords = points[:, :2] / points[:, -1:].clamp(
-            min=clamp_min_depth
-        )  # [B, 2, D, H*W]
-
-        # normalize to [-1, 1]
-        x_grid = 2 * pixel_coords[:, 0] / (w - 1) - 1
-        y_grid = 2 * pixel_coords[:, 1] / (h - 1) - 1
-
-        grid = torch.stack([x_grid, y_grid], dim=-1)  # [B, D, H*W, 2]
+    grid = projected_grid(intrinsics, pose, depth, h, w, clamp_min_depth)
 
     # sample features
     # ref: https://github.com/pytorch/pytorch/issues/88380
@@ -95,3 +70,43 @@ def warp_with_pose_depth_candidates(
         )  # [B, C, D, H, W]
 
     return warped_feature
+
+
+def projected_grid(intrinsics, pose, depth, h, w, clamp_min_depth=1e-3):
+    # fastforks: share upstream's projection and autocast rounding with the fused cost-volume kernel.
+    b, d = depth.shape[:2]
+    with torch.no_grad():
+        # pixel coordinates
+        grid = coords_grid(
+            b, h, w, homogeneous=True, device=depth.device
+        )  # [B, 3, H, W]
+        # back project to 3D and transform viewpoint
+        points = invert(intrinsics).bmm(grid.view(b, 3, -1))  # [B, 3, H*W]  # fastforks: closed form (ONNX), was torch.inverse
+        points = torch.bmm(pose[:, :3, :3], points).unsqueeze(2) * depth.reshape(b, 1, d, -1)  # [B, 3, D, H*W]
+        points = points + pose[:, :3, -1:].unsqueeze(-1)  # [B, 3, D, H*W]
+        # reproject to 2D image plane
+        points = torch.bmm(intrinsics, points.view(b, 3, -1)).view(
+            b, 3, d, h * w
+        )  # [B, 3, D, H*W]
+        pixel_coords = points[:, :2] / points[:, -1:].clamp(
+            min=clamp_min_depth
+        )  # [B, 2, D, H*W]
+
+        # normalize to [-1, 1]
+        x_grid = 2 * pixel_coords[:, 0] / (w - 1) - 1
+        y_grid = 2 * pixel_coords[:, 1] / (h - 1) - 1
+
+        grid = torch.stack([x_grid, y_grid], dim=-1)  # [B, D, H*W, 2]
+
+    return grid
+
+
+def reference_cost_volume(ref, targets, intrinsics, pose, depth_candidates, grid_sample_disable_cudnn):
+    # fastforks: extracted from MultiViewUniMatch.forward so a runner can replace only this operation.
+    b, neighbors, c, h, w = targets.shape
+    depth = depth_candidates.unsqueeze(1).expand(-1, neighbors, -1, h, w).reshape(-1, depth_candidates.shape[1], h, w)
+    k = intrinsics.unsqueeze(1).expand(-1, neighbors, -1, -1).reshape(-1, 3, 3)
+    warped = warp_with_pose_depth_candidates(
+        targets.flatten(0, 1), k, pose.flatten(0, 1), depth, grid_sample_disable_cudnn=grid_sample_disable_cudnn
+    ).unflatten(0, (b, neighbors))
+    return ((ref.unsqueeze(-3).unsqueeze(1) * warped).sum(2) / (c ** 0.5)).mean(1)
