@@ -66,11 +66,11 @@ Commercial use: yes.
 
 One text prompt per present COCO class. The label is the union of the class's non-crowd masks. Scores average pixel IoU aggregated per class, and IoU per image and prompt. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | portable | note |
-|---|---|---|---|
-| `clipseg` | COCO val2017, every 10th image, class masks, class / prompt mIoU % | 55.00 / 38.37 |  |
+| variant | dataset | portable | portable fp32 | note |
+|---|---|---|---|---|
+| `clipseg` | COCO val2017, every 10th image, class masks, class / prompt mIoU % | 55.00 / 38.37 | 55.02 / 38.38 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bc6ebb31, 2026-11-17.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bc6ebb31, 2026-11-17; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bc6ebb31, 2026-11-18.
 
 ### Parity
 

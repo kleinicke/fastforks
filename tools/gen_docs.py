@@ -63,6 +63,7 @@ _DATASETS = {
     },
     "detection": {
         "coco-val2017-every10": "COCO val2017, every 10th image, box mAP",
+        "coco-val2017-every10-fixed-320x320": "COCO val2017, every 10th image at fixed 320 x 320, box mAP",
         "coco-val2017-every20": "COCO val2017, every 20th image, box mAP",
         "coco-val2017-every25": "COCO val2017, every 25th image (200), box mAP",
         "coco-val2017-every10-person": "COCO val2017, every 10th image, box AP of the person class",
@@ -135,6 +136,7 @@ _DATASETS = {
     },
     "matching": {
         "megadepth1500": "MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees",
+        "megadepth1500-every5-fixed-768x1024": "MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20",
         "megadepth1500-every5": "MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees",
         "megadepth1500-every10": "MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees",
     },
@@ -301,6 +303,8 @@ _PROTOCOL = {
     "original fp32 is the reference: tag F1 = F1 of the tags at probability 0.35 of our output against the tags of "
     "the original fp32, micro-averaged over the images; top-1 agreement = share of images with the same most likely "
     "tag. The original fp16 row shows the difference of the original itself in half precision. ",
+    ("detection", "coco-val2017-every10-fixed-320x320"): "Fixed FP32 graph, one prepared prompt for all 80 COCO "
+    "class names. Score the top 100 query/class pairs per image. The public TensorRT exporter remains gated. ",
     ("segmentation", "ade20k-val"): "Each image at its own size, argmax of the logits. ",
     ("segmentation", "atr-test-shard-200"): "The 200-image ckotait/ATRDataset test split. Scores use one pixel "
     "confusion matrix across the split with 18 classes and ignore label 255. ",
@@ -434,6 +438,8 @@ _PROTOCOL = {
     "sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; "
     "LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean "
     "focal length); AUC of the larger of the rotation and translation-direction errors. ",
+    ("matching", "megadepth1500-every5-fixed-768x1024"): "Both modes receive pairs resized to 768 x 1024. Map "
+    "matched pixels to the calibrated evaluation coordinates and use the same RANSAC seed per pair. ",
     ("matching", "megadepth1500-every5"): "The same 300 pairs for all modes, so float32 and bfloat16 compare pair for "
     "pair. ",
     "tracking": "Query-first TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model "
