@@ -38,6 +38,7 @@ std = [0.26862954, 0.26130258, 0.27577711]
 library = "timm"
 
 [modes.portable]
+mlx_dtypes = ["float32", "float16"]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 

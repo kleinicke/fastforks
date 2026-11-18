@@ -35,6 +35,7 @@ library = "timm"
 arch = "vit_base_patch16_224"
 
 [modes.portable]
+mlx_dtypes = ["float32", "float16"]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 

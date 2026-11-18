@@ -9,6 +9,7 @@ contract of the classification task. A family subclasses them only to change how
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -219,8 +220,18 @@ class Mlx(Runner):
         super().__init__(ctx)
         from . import mlx_cnn  # noqa: PLC0415 - optional MLX dependency
 
-        self.net = mlx_cnn.Network(ctx)
+        if ctx.card.family in mlx_cnn.FAMILIES and not os.environ.get("FASTFORKS_MLX_GRAPH"):
+            self.net = mlx_cnn.Network(ctx)
+        else:  # every other timm / torchvision network: the generic exported-graph translation
+            from fastforks.shared.mlx_graph import GraphNet  # noqa: PLC0415 - optional MLX dependency
+
+            self.net = GraphNet(self.network(ctx), ctx.dtype, kernels=ctx.mode == "kernels")
+
+    def network(self, ctx: Context) -> torch.nn.Module:
+        """The upstream network with its weights (CPU, eval); families override this to wrap or adapt it."""
+        return build(ctx)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Class logits for a transformed image batch."""
-        return {"logits": self.net(image)}
+        out = self.net(image)
+        return {"logits": out[0] if isinstance(out, tuple) else out}

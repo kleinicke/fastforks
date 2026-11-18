@@ -32,6 +32,7 @@ std = [0.5, 0.5, 0.5]
 library = "timm"
 
 [modes.portable]
+mlx_dtypes = ["float32", "float16"]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 

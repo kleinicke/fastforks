@@ -455,6 +455,15 @@ def _rep_vit(net: Any, dtype: mx.Dtype) -> tuple[Callable, Callable]:
     return _chain(*ops), _linear(net.head, dtype)
 
 
+# Families with a hand-written port here; every other network takes the generic translation (`mlx_graph`)
+FAMILIES = frozenset(
+    {
+        "alexnet", "vgg", "densenet", "squeezenet", "shufflenetv2", "convnext", "convnextv2", "resnet", "mobilenetv2",
+        "efficientnet", "efficientnetv2", "mobilenetv3", "regnet", "mobilenetv1", "starnet", "repvit",
+    }
+)  # fmt: skip
+
+
 class Network:
     """Fold and upload the weights once, then run the full classifier in MLX."""
 

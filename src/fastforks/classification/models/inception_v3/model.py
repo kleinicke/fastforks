@@ -35,4 +35,10 @@ class Kernels(libnet.Kernels):
     network = _network
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class Mlx(libnet.Mlx):
+    """Apple MLX: the same adapted network through the generic MLX translation."""
+
+    network = _network
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": Mlx, "kernels_mlx": Mlx}
