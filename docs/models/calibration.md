@@ -25,7 +25,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `anycalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 38.4<br>29.4<br>21.5<br>25.5<br>fails: ONNX export: conversion failed | 1343 / 1352<br>705 / 742<br>739 / 812<br>719 / 756<br>– |
+| `anycalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 38.4<br>29.4<br>21.5<br>25.5<br>12.0 | 1343 / 1352<br>705 / 742<br>739 / 812<br>719 / 756<br>778 / 780 |
 | `anycalib-pinhole` | synthetic (480x640) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>29.9<br>–<br>12.4 | –<br>693 / 704<br>–<br>750 / 768 |
 
 <details><summary>Details</summary>
@@ -41,7 +41,7 @@ Commercial use: yes.
 - Outputs: intrinsics, vfov
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `anycalib-pinhole` 3000x4000 (1.0 GiB peak allocated, 1.1 reserved)
-- `anycalib-pinhole` 1080x1920, first call: portable + torch.compile 17 s (cold Inductor cache).
+- `anycalib-pinhole` 1080x1920, first call: portable + torch.compile 17 s (cold Inductor cache), TensorRT fp16 116 s (ONNX + engine).
 - `anycalib-pinhole` 480x640, first call: TensorRT fp16 118 s (ONNX + engine).
 - `anycalib-pinhole` original 1080x1920: torch.autocast(float16) around the call; javrtg/AnyCalib@027a8497d893 AnyCalib.predict (pinhole), its resize / crop / linear + GN fit
 - `anycalib-pinhole` load / first call: original 4.09 s / 0.578 s, portable 1.73 s / 0.685 s, kernels 1.53 s / 0.371 s
@@ -49,15 +49,16 @@ Commercial use: yes.
 
 ### Measured
 
-Each image at its own size (1440 x 1920 portrait); roll, pitch and vertical field of view of the fitted camera against the ground truth; AUC of the error up to 5 degrees (errors below 1 degree count as 1, siclib's `compute_auc(min_error=1)`), the GeoCalib paper's protocol. Resize all 2,000 images to 480 x 640 before inference. Compare vertical field of view against the dataset labels with the standard LaMAR AUC scoring. Original = the original code named under Details, same checkpoint and protocol.
+Each image at its own size (1440 x 1920 portrait); roll, pitch and vertical field of view of the fitted camera against the ground truth; AUC of the error up to 5 degrees (errors below 1 degree count as 1, siclib's `compute_auc(min_error=1)`), the GeoCalib paper's protocol. Resize all 2,000 images to 480 x 640 before inference. Compare vertical field of view against the dataset labels with the standard LaMAR AUC scoring. Resize every 40th LaMAR image to 1080 x 1920. Compare vertical field of view against the dataset labels. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
 |---|---|---|---|---|---|---|---|---|
 | `anycalib-pinhole` | LaMAR2k, all 2000 images, roll / pitch / vertical FoV error AUC@5 degrees % | – / – / 51.6 |  | – / – / 51.6 | – / – / 51.6 | – / – / 51.5 |  |  |
 | `anycalib-pinhole` | LaMAR2k, every 10th image (200), roll / pitch / vertical FoV error AUC@5 degrees % | – / – / 48.5 | – / – / 48.5 | – / – / 48.4 | – / – / 48.5 | – / – / 48.4 |  |  |
 | `anycalib-pinhole` | LaMAR2k, all 2000 images resized to 480 x 640, vertical FoV AUC@5 degrees % |  |  | – / – / 13.0 |  |  | – / – / 13.1 |  |
+| `anycalib-pinhole` | LaMAR2k every 40th image at 1080 x 1920, vertical FoV AUC@5 degrees % |  |  | – / – / 7.4 |  |  | – / – / 7.4 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 6637f957, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 343b2f69 / ce213f43, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6637f957, 2026-11-13; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 6637f957 / d24f589f, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 343b2f69 / ce213f43, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6637f957, 2026-11-13; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / d24f589f, 2026-11-18.
 
 ### Parity
 

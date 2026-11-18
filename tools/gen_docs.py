@@ -107,7 +107,10 @@ _DATASETS = {
         "widerface-val-every4": "WIDER FACE val, every 4th image (807), face box AP easy / medium / hard",
     },
     "flow": {"kitti2015-train": "KITTI 2015 train, EPE / Fl-all %"},
-    "edges": {"yorkurban-102-structural": "YorkUrban test (102 images), line segment sAP@5 / @10 / @15 %"},
+    "edges": {
+        "yorkurban-102-structural": "YorkUrban test (102 images), line segment sAP@5 / @10 / @15 %",
+        "bsds500-test-no-thinning": "BSDS500 test (200 images), boundary ODS / OIS / AP %",
+    },
     "ocr": {"iiit5k-test-lexicon-free": "IIIT5K test word crops, word accuracy / normalized edit similarity %"},
     "volume": {
         "totalseg-subset-3mm": "TotalSegmentator test subset (8 CT cases), 3 mm, mean Dice",
@@ -166,6 +169,7 @@ _DATASETS = {
         "lamar2k": "LaMAR2k, all 2000 images, roll / pitch / vertical FoV error AUC@5 degrees %",
         "lamar2k-every10": "LaMAR2k, every 10th image (200), roll / pitch / vertical FoV error AUC@5 degrees %",
         "lamar2k-fixed-480x640": "LaMAR2k, all 2000 images resized to 480 x 640, vertical FoV AUC@5 degrees %",
+        "lamar2k-every40-fixed-1080x1920": "LaMAR2k every 40th image at 1080 x 1920, vertical FoV AUC@5 degrees %",
         "lamar2k-every20-portrait": "LaMAR2k, 97 portrait images from every 20th entry, angle AUC@5 degrees %",
     },
     "tracking": {
@@ -240,6 +244,11 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     ),
     "flow": ((("epe", "{:.3f}", ""), ("fl_all", "{:.2f}", "")), "n", "pairs"),
     "edges": ((("sap5", "{:.2f}", ""), ("sap10", "{:.2f}", ""), ("sap15", "{:.2f}", "")), "n", "images"),
+    ("edges", "bsds500-test-no-thinning"): (
+        (("ods", "{:.2f}", ""), ("ois", "{:.2f}", ""), ("ap", "{:.2f}", "")),
+        "n",
+        "images",
+    ),
     "ocr": ((("word_accuracy", "{:.2f}", ""), ("ned", "{:.2f}", "")), "n", "words"),
     ("pose", "coco-wholebody-val-hands-gtbox"): ((("pck20", "{:.2f}", ""), ("epe", "{:.2f}", "")), "n", "hands"),
     ("pose", "lapa-test-landmarks-gtbox"): ((("nme_pct", "{:.4f}", ""),), "n", "faces"),
@@ -335,6 +344,9 @@ _PROTOCOL = {
     "512-pixel short-side detection, cubic resizing, a score and length threshold of 0.1, and up to 200 segments. "
     "Structural AP matches endpoints on a 256 x 256 coordinate grid, testing both endpoint orders and matching "
     "each annotation at most once. ",
+    ("edges", "bsds500-test-no-thinning"): "All 200 BSDS500 test images. The benchmark uses the official "
+    "boundary correspondence with a tolerance of 0.0075 of the image diagonal. ODS, OIS and AP use 99 thresholds "
+    "on 8-bit predictions without thinning. ",
     ("ocr", "iiit5k-test-lexicon-free"): "The 3,000 official cropped test words, with no lexicon. Exact accuracy "
     "and normalized edit similarity compare lowercase ASCII letters and digits. Similarity is one minus edit "
     "distance divided by the longer word's length, averaged over the crops. For a model that also detects text, "
@@ -507,6 +519,8 @@ _PROTOCOL = {
     "siclib's `compute_auc(min_error=1)`), the GeoCalib paper's protocol. ",
     ("calibration", "lamar2k-fixed-480x640"): "Resize all 2,000 images to 480 x 640 before inference. Compare "
     "vertical field of view against the dataset labels with the standard LaMAR AUC scoring. ",
+    ("calibration", "lamar2k-every40-fixed-1080x1920"): "Resize every 40th LaMAR image to 1080 x 1920. "
+    "Compare vertical field of view against the dataset labels. ",
     ("calibration", "lamar2k-every20-portrait"): "Take every 20th LaMAR image and score the 97 portrait images "
     "at their original size. In TensorRT mode only the 416 x 320 field predictor is accelerated. ",
     "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "

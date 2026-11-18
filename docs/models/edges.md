@@ -53,6 +53,16 @@ Commercial use: yes.
 - `anyline` load / first call: original 0.11 s / 0.622 s, portable 0.17 s / 0.053 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+All 200 BSDS500 test images. The benchmark uses the official boundary correspondence with a tolerance of 0.0075 of the image diagonal. ODS, OIS and AP use 99 thresholds on 8-bit predictions without thinning. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable fp32 | note |
+|---|---|---|---|---|
+| `anyline` | BSDS500 test (200 images), boundary ODS / OIS / AP % | 50.33 / 53.34 / 22.54 | 49.14 / 52.52 / 36.51 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.02 and p99 <= 0.25 (absolute error of the output `edges`).
@@ -185,6 +195,16 @@ Commercial use: yes.
 - `lineart-anime` original 1080x1920, original 1024x1024: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c lineart_anime, host OpenCV resize, float post-processing
 - `lineart-anime` load / first call: original 0.74 s / 0.037 s, portable 0.82 s / 0.009 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+All 200 BSDS500 test images. The benchmark uses the official boundary correspondence with a tolerance of 0.0075 of the image diagonal. ODS, OIS and AP use 99 thresholds on 8-bit predictions without thinning. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable fp32 | note |
+|---|---|---|---|---|
+| `lineart-anime` | BSDS500 test (200 images), boundary ODS / OIS / AP % | 38.40 / 41.95 / 23.84 | 38.40 / 41.94 / 23.84 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
 
 ### Parity
 
