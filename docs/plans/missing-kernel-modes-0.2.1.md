@@ -1,14 +1,19 @@
 # Families without a kernels mode
 
-As of 2026-11-18, the development branch advertises CUDA kernels for 577 of 578 variants. Grounding DINO Base is
-the only variant with a release gate on this mode. The pinned upstream replacement fixture passed the portable CPU
-and GPU checks, and the published fixture still needs to be refreshed.
+As of 2026-11-18, all 578 registered variants across 205 model families advertise CUDA kernels.
+Grounding DINO Base passed with the corrected upstream checkpoint heads and the pinned reference fixture.
 
-Snapshot of generated local website data on 2026-11-17: 25 families, 73 variants. These are family-level reasons from the model cards, not new independent validation of the claims. The list describes absent modes, not missing individual kernels inside existing modes.
+The primary RTX 5060 Ti timing tables contain 427 variants with matched kernels and `torch.compile` measurements.
+Another 73 have kernel timings without a matching compile workload, and 78 still need a kernel timing row.
+Run `python tools/kernel_gaps.py` to see each variant's declared libraries, measurement status, GPU, dtype,
+workload and recorded dates. The measurements below describe the code and workloads tested at the time.
+
+The 2026-11-17 website snapshot listed 25 families and 73 variants. The historical sections record why those
+modes were absent and the measurements used when adding them.
 
 ## RTX 5060 Ti follow-up
 
-Kernel modes passed the upstream reference checks for 72 of the original 73 variants and all five additional LoMa variants. Standard Grounding DINO Base remains pending.
+All 73 variants from the original list and all five additional LoMa variants passed their upstream reference checks.
 
 The first three edge variants were measured separately. The table shows warm end-to-end latency on a 1920 × 1080 CUDA uint8 input (batch one, five warm-ups, median of 15 synchronized calls). Memory is peak allocated CUDA tensor memory during the timed calls. The portable and kernels modes passed the repository's upstream golden checks.
 
@@ -102,7 +107,7 @@ At 768 × 1024, all nine GMFlow configurations gained from supplying the head di
 | mm-grounding-dino-tiny | 100.38 | 80.01 | 1.25× |
 | mm-grounding-dino-base | 115.19 | 96.90 | 1.19× |
 
-Grounding DINO uses one CUDA launch to sample the feature levels and accumulate their attention weights. Both MM checkpoints and standard Tiny passed. Standard Base remains portable-only. On the coffee fixture, the CUDA candidate exceeded the 0.25 px mean box tolerance, and the pinned upstream CPU network also failed to reproduce the stored boxes with PyTorch 2.14.1 and transformers 5.19.0. The fixture and its tolerance are unchanged.
+Grounding DINO uses one CUDA launch to sample feature levels and accumulate their attention weights. Both MM checkpoints and both standard checkpoints passed. The initial Base comparison on the coffee fixture exceeded the 0.25 px mean box tolerance. Restoring the upstream checkpoint heads and pinning the verified reference resolved the discrepancy with the existing tolerance.
 
 ## Original snapshot
 
