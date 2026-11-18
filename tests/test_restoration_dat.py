@@ -85,3 +85,18 @@ def test_last_group_scale(resi: str) -> None:
         model._scale_last_group(net)
         got = net.forward_features(net.conv_first(x))
     torch.testing.assert_close(got, want, rtol=1e-4, atol=1e-4)
+
+
+@pytest.mark.gpu
+def test_interaction_strided_tokens() -> None:
+    from fastforks.kernels.dat_interaction import interaction  # noqa: PLC0415
+
+    def rand(*shape: int) -> torch.Tensor:
+        return torch.randn(shape, dtype=torch.float16, device="cuda")
+
+    channel = rand(2, 11, 33).transpose(1, 2)
+    spatial = rand(2, 33, 22)[:, :, ::2]
+    channel_logits, spatial_logits = rand(2, 1, 11), rand(2, 33, 1)
+    result = interaction(channel, spatial, channel_logits, spatial_logits)
+    assert result.is_contiguous()
+    assert torch.equal(result, channel * channel_logits.sigmoid() + spatial * spatial_logits.sigmoid())

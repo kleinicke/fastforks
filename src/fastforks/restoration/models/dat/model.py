@@ -34,7 +34,7 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import cudnn_hacc, dat_interaction
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared.swin_sr import attention, checkpoint_upsampler
 
@@ -50,7 +50,7 @@ from .net.dat_arch import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
 
     from fastforks.restoration._runner import Context
 
@@ -128,7 +128,15 @@ def _gate(m: SpatialGate, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
     return x1 * _tokens(m.conv(_image(m.norm(x2), h, w)))
 
 
-def _spatial_block(m: Adaptive_Spatial_Attention, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
+def _interact(
+    channel: torch.Tensor, spatial: torch.Tensor, channel_map: torch.Tensor, spatial_map: torch.Tensor
+) -> torch.Tensor:
+    return channel * channel_map.sigmoid() + spatial * spatial_map.sigmoid()
+
+
+def _spatial_block(
+    m: Adaptive_Spatial_Attention, x: torch.Tensor, h: int, w: int, *, mix: Callable = _interact
+) -> torch.Tensor:
     """`Adaptive_Spatial_Attention.forward` with its convolutions on channels-last views (no transposed copies)."""
     b, n, c = x.shape
     qkv = m.qkv(x).reshape(b, -1, 3, c).permute(2, 0, 1, 3)  # 3, b, hw, c
@@ -153,10 +161,12 @@ def _spatial_block(m: Adaptive_Spatial_Attention, x: torch.Tensor, h: int, w: in
     conv = m.dwconv(v)
     channel_map = m.channel_interaction(conv).view(b, 1, c)
     spatial_map = m.spatial_interaction(_image(att, h, w))
-    return m.proj(att * torch.sigmoid(channel_map) + _tokens(torch.sigmoid(spatial_map) * conv))
+    return m.proj(mix(att, conv.flatten(2).transpose(1, 2), channel_map, spatial_map.flatten(2).transpose(1, 2)))
 
 
-def _channel_block(m: Adaptive_Channel_Attention, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
+def _channel_block(
+    m: Adaptive_Channel_Attention, x: torch.Tensor, h: int, w: int, *, mix: Callable = _interact
+) -> torch.Tensor:
     """`Adaptive_Channel_Attention.forward` with its convolutions on channels-last views (no transposed copies)."""
     b, n, c = x.shape
     qkv = m.qkv(x).reshape(b, n, 3, m.num_heads, c // m.num_heads).permute(2, 0, 3, 4, 1)  # 3, b, heads, d, n
@@ -166,7 +176,7 @@ def _channel_block(m: Adaptive_Channel_Attention, x: torch.Tensor, h: int, w: in
     conv = m.dwconv(_image(qkv[2].permute(0, 3, 1, 2).reshape(b, n, c), h, w))
     channel_map = m.channel_interaction(_image(att, h, w))
     spatial_map = _tokens(m.spatial_interaction(conv))
-    return m.proj(att * torch.sigmoid(spatial_map) + _tokens(conv * torch.sigmoid(channel_map)))
+    return m.proj(mix(conv.flatten(2).transpose(1, 2), att, channel_map.flatten(1)[:, None], spatial_map))
 
 
 def _group(m: ResidualGroup, x: torch.Tensor, x_size: tuple[int, int], skip: float = 1.0) -> torch.Tensor:
@@ -269,6 +279,14 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
 _HACC_MIN_CHANNELS = 64  # fixed: measured, narrower convolutions run slower through cudnn_hacc
 
 
+def _cuda_spatial(m: Adaptive_Spatial_Attention, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
+    return _spatial_block(m, x, h, w, mix=dat_interaction.interaction)
+
+
+def _cuda_channel(m: Adaptive_Channel_Attention, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
+    return _channel_block(m, x, h, w, mix=dat_interaction.interaction)
+
+
 class Kernels(Portable):
     """float16, fp16-accumulate GEMMs and dense convolutions of at least 64 channels in and out (`cudnn_hacc`).
 
@@ -283,7 +301,11 @@ class Kernels(Portable):
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
         for m in self.net.modules():
-            if (
+            if isinstance(m, Adaptive_Spatial_Attention):
+                override(m, _cuda_spatial)
+            elif isinstance(m, Adaptive_Channel_Attention):
+                override(m, _cuda_channel)
+            elif (
                 is_base(m, torch.nn.Conv2d)
                 and m.groups == 1
                 and min(m.in_channels, m.out_channels) >= _HACC_MIN_CHANNELS

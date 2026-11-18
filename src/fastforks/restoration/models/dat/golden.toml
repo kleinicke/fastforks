@@ -25,28 +25,28 @@ upstream = "https://github.com/zhengchen1999/DAT@1645c64fad7c94d94abd090bd1319ee
 settings = "CPU float32, dat_model.py test: net_g(img) (no chop), clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
 
 [validated."dat-2-x4@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "dat_interaction@66d2d34fee2e:sm_120"]
+symbols = {"dat_interaction" = {"interaction" = "e34536f7528119ae"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-13"
-mean_px = 0.00065
-p99_px = 0.00241
+date = "2026-11-18"
+mean_px = 0.00063
+p99_px = 0.00234
 
 [validated."dat-light-x4@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "dat_interaction@66d2d34fee2e:sm_120"]
+symbols = {"dat_interaction" = {"interaction" = "e34536f7528119ae"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-13"
-mean_px = 0.00079
-p99_px = 0.00288
+date = "2026-11-18"
+mean_px = 0.00051
+p99_px = 0.00195
 
 [validated."dat-x4@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "dat_interaction@66d2d34fee2e:sm_120"]
+symbols = {"dat_interaction" = {"interaction" = "e34536f7528119ae"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-13"
-mean_px = 0.00051
-p99_px = 0.00191
+date = "2026-11-18"
+mean_px = 0.00049
+p99_px = 0.00183

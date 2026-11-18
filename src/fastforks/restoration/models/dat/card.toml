@@ -37,7 +37,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc"]  # fp16-accumulate GEMMs and dense convolutions
+kernels = ["cudnn_hacc", "dat_interaction"]  # fp16-accumulate GEMMs and dense convolutions
 
 [[papers]]
 title = "Dual Aggregation Transformer for Image Super-Resolution"
