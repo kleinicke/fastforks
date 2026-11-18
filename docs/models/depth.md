@@ -156,7 +156,7 @@ Commercial use: `da3mono-large`, `da3metric-large`: yes; `da3-large-1.1`, `da3-g
 - Licence evidence: https://github.com/ByteDance-Seed/Depth-Anything-3/blob/main/README.md (Model Cards table) and the Hugging Face model cards (DA3-LARGE-1.1's card says Apache 2.0, the repository table CC BY-NC 4.0; the table is recorded)
 - Training data: Public academic datasets only (model cards); teacher-student training on synthetic and real multi-view data per the paper
 - Licence note: The Mono and Metric weights are Apache-2.0 but their training data terms are unchecked (a note only); the other variants' weights are CC-BY-NC-4.0 (`no`).
-- Options: `long_side` = 504 (>= 14; also `process_res`)
+- Options: `stream` = False (speed only), `long_side` = 504 (>= 14; also `process_res`)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `da3mono-large`, `da3metric-large`, `da3-large-1.1`, `da3-giant-1.1`, `da3nested-giant-large-1.1`
 - Outputs: depth, confidence, intrinsics, mask, sky (in `extras`); kind: `metric`
@@ -220,6 +220,10 @@ CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), p
 | `da3-large-1.1` | 0.00011 / 0.00031 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 | `da3-giant-1.1` | 0.00014 / 0.00037 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
 | `da3nested-giant-large-1.1` | 0.00151 / 0.00184 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120` |
+
+### Limitations
+
+- On CUDA, stream=True keeps transformer weights in pinned host RAM. Two GPU buffers per backbone hold successive blocks. The heads and activations stay resident. Export requires stream=False.
 
 </details>
 

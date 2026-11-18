@@ -638,7 +638,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/vit_pe_core_small_patch16_384.fb/blob/255fa76e26fdf8daa47e0d607da46b7051879045/README.md>
 - Training data: PE core: billions of web image-text pairs curated with the MetaCLIP pipeline, then video-text fine-tuning; PE spatial: PE core-G distilled with SAM 2 mask-feature alignment (Perception Encoder paper); not released
-- Options: `fp16_accumulate` = False (precision only), `fp32_accumulate` = False (precision only)
+- Options: `stream` = False (speed only), `fp16_accumulate` = False (precision only), `fp32_accumulate` = False (precision only)
 - Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `pe-core-t16-384`, `pe-core-s16-384`, `pe-core-b16-224`, `pe-core-l14-336`, `pe-core-g14-448`, `pe-spatial-t16-512`, `pe-spatial-s16-512`, `pe-spatial-b16-512`, `pe-spatial-l14-448`, `pe-spatial-g14-448`
 - Outputs: last_hidden_state, pooler_output, hidden_states
@@ -724,6 +724,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
+- CUDA portable and kernels accept stream=True. The encoder blocks occupy page-locked host memory and use two reusable GPU buffers. Embeddings, pooling, activations and requested hidden states remain on the GPU. Streaming disables graph replay and export.
 - kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.
 - Small kernels calls (graph-sized, with or without `layers`) run GEMMs of at most 600 tokens on cuBLAS: faster in a graph replay (ViT-B/16 224 px: 1.26 against 1.52 ms), about 10 % slower eagerly on ViT-T / B; a replay equals the eager call bit for bit.
 - `fp32_accumulate = true` puts every GEMM on cuBLAS with fp32 accumulation (the portable precision; slower on GeForce).

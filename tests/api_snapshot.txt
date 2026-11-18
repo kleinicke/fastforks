@@ -830,6 +830,7 @@ option calibration.anycalib.cuda_graphs
 option calibration.geocalib.cuda_graphs
 option depth.any2full.short_side
 option depth.depth_anything_3.long_side aliases process_res
+option depth.depth_anything_3.stream
 option depth.depth_anything_v2.short_side aliases input_size
 option depth.depthfm.ensemble aliases ensemble_size
 option depth.depthfm.long_side aliases processing_res
@@ -909,6 +910,7 @@ option features.dinov2.fp16_accumulate
 option features.dinov3.fp16_accumulate
 option features.perception_encoder.fp16_accumulate
 option features.perception_encoder.fp32_accumulate
+option features.perception_encoder.stream
 option features.siglip2.fp16_accumulate
 option features.siglip2.fp32_accumulate
 option features.tipsv2.fp16_accumulate
