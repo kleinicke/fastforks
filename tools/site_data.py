@@ -460,6 +460,7 @@ def _variant(
             else None
         ),
         "speed": _speed(v, card.task, speed),
+        "streaming": g.stream_rows().get(v.id, []),
         "devices": _devices_of(v),
         "quality": _quality(card, v, rows),
         "example": _example(v, _examples()),

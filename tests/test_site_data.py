@@ -150,3 +150,17 @@ def test_default_float32_portable_is_also_labelled_as_fp32(monkeypatch):
     modes = site_data._quality(SimpleNamespace(task="depth"), SimpleNamespace(id="model"), {"model": [row]})[0]["modes"]
     assert modes["portable32"]["metrics"] == modes["portable"]["metrics"]
     assert "same measurement" in modes["portable32"]["note"]
+
+
+def test_stream_rows_preserve_explicit_settings_and_oom(tmp_path, monkeypatch):
+    data = tmp_path / "docs" / "data"
+    data.mkdir(parents=True)
+    rows = [
+        {"ref": "large", "options": {"stream": False}, "status": "oom"},
+        {"ref": "large", "options": {"stream": True}, "ms": 18.7, "peak_alloc_mb": 400},
+        {"ref": "large", "options": {"quant": "nf4", "stream": True}, "ms": 11.2},
+        {"ref": "other", "ms": 5.6},
+    ]
+    (data / "speed_options.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows))
+    monkeypatch.setattr(site_data.g, "ROOT", tmp_path)
+    assert site_data.g.stream_rows.__wrapped__() == {"large": rows[:2]}

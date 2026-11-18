@@ -823,21 +823,33 @@ def _md_table(head: list[str], rows: list[list[str]], keep: int = 2) -> list[str
     return lines + ["| " + " | ".join(r[i] for i in use) + " |" for r in rows]
 
 
+@functools.cache
+def stream_rows() -> dict[str, list[dict]]:
+    """Explicit resident and streamed measurements per variant, including out-of-memory runs."""
+    rows: dict[str, list[dict]] = {}
+    for line in (ROOT / "docs/data/speed_options.jsonl").read_text().splitlines():
+        row = json.loads(line)
+        options = row.get("options", {})
+        if set(options) == {"stream"} and isinstance(options["stream"], bool):
+            rows.setdefault(row["ref"], []).append(row)
+    return rows
+
+
 def _stream_table(card: ModelCard) -> list[str]:
     """Compare explicit stream settings from the same model build, workload and environment."""
     if "stream" not in card.options:
         return []
-    refs = {v.id for v in card.variants}
     pairs: dict[tuple[str, ...], dict[bool, str]] = {}
-    for row in map(json.loads, (ROOT / "docs/data/speed_options.jsonl").read_text().splitlines()):
-        options = row.get("options", {})
-        if row["ref"] not in refs or set(options) != {"stream"}:
-            continue
+    measurements = stream_rows()
+    for row in (entry for v in card.variants for entry in measurements.get(v.id, ())):
+        options = row["options"]
         key = tuple(row[k] for k in ("ref", "mode", "input", "gpu", "torch", "scene", "commit", "protocol"))
         if row.get("status") == "oom":
             cell = "Out of memory"
+        elif row.get("ms") is not None and row.get("peak_reserved_mb") is not None:
+            cell = f"{row['ms']:,.2f} ms / {row['peak_reserved_mb']:,} MiB"
         else:
-            cell = f"{row['ms']:,.0f} ms / {row['peak_reserved_mb']:,} MiB"
+            continue
         pairs.setdefault(key, {})[options["stream"]] = cell
     rows = [
         [name, mode, size, gpu.removeprefix("NVIDIA GeForce "), torch, pair[False], pair[True]]
