@@ -3,7 +3,9 @@ name = "DINOv2"
 summary = "DINOv2 (Oquab et al. 2023, Meta): self-supervised ViT backbones; patch + cls token features at any size; -reg = with 4 register tokens."
 tier = "stable"
 outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
-uses = ["cuda_graphs", "depth_anything_v2"]  # fastforks.shared modules this family imports (CUDA graphs, the vendored DINOv2 ViT, FastViT)
+uses = ["cuda_graphs", "depth_anything_v2", "host_blocks"]  # fastforks.shared modules this family imports (CUDA graphs, the vendored DINOv2 ViT, FastViT)
+
+limitations = ["On CUDA, stream=True stages the transformer blocks from pinned host RAM. Streamed inference uses eager execution and requires enough host RAM for the blocks."]
 
 [upstream]
 repo = "https://github.com/facebookresearch/dinov2"
@@ -23,6 +25,7 @@ interpolation = "bicubic"  # the core resizes (never pads / crops) to multiples 
 pad = { multiple = 14, mode = "none" }
 
 [options]
+stream = { default = false, effect = "speed" }
 fp16_accumulate = { default = false, effect = "precision" }  # true: cuBLAS fp16 accumulation in the GEMMs (portable, fp16; faster on Ampere and newer, patch-token error vs fp32 about 2.5x higher)
 
 [modes.portable]

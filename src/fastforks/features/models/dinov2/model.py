@@ -22,6 +22,8 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.errors import OptionsError
+from fastforks._core.patch import override
 from fastforks.features._runner import Forward, Runner
 from fastforks.kernels import dpt_fused
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
@@ -29,6 +31,7 @@ from fastforks.shared.depth_anything_v2 import FastViT, vit_base, vit_giant2, vi
 from fastforks.shared.depth_anything_v2.fast_vit import _fp16_accumulate
 from fastforks.shared.depth_anything_v2.net.dinov2 import DinoVisionTransformer
 from fastforks.shared.depth_anything_v2.net.dinov2_layers import SwiGLUFFN
+from fastforks.shared.host_blocks import StreamedModuleList
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -45,6 +48,7 @@ class Params:
     arch: str  # "vits", "vitb", "vitl" or "vitg"
     registers: int  # 0 or 4
     fp16_accumulate: bool  # portable: cuBLAS fp16 accumulation in the GEMMs (option)
+    stream: bool = False
 
 
 def _vit(p: Params) -> Any:  # noqa: ANN401 - vendored DinoVisionTransformer
@@ -90,6 +94,9 @@ class _Vit(DinoVisionTransformer):
 
 
 def _network(ctx: Context) -> Any:  # noqa: ANN401 - vendored DinoVisionTransformer
+    if ctx.params.stream and ctx.device.type != "cuda":
+        msg = "DINOv2 block streaming requires CUDA"
+        raise OptionsError(msg)
     # every tensor is assigned: built on the meta device (no allocation), without upstream's initialisation
     with torch.device("meta"), mock.patch.object(DinoVisionTransformer, "init_weights", return_value=None):
         vit = _vit(ctx.params)
@@ -148,8 +155,12 @@ class Portable(Runner):
         if self.half:  # fp16 weights (no per-call autocast casts); the position table stays fp32, as upstream uses it
             pos = net.pos_embed.detach().clone()
             net.half().pos_embed = torch.nn.Parameter(pos, requires_grad=False)
+        _init(self, net)
+        if ctx.params.stream:
+            for block in net.blocks:
+                override(block, _block)
+            net.blocks = StreamedModuleList(net.blocks, ctx.device)
         self.net = net.to(ctx.device)
-        _init(self, self.net)
 
     def _run(self, x: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
         net = self.net
@@ -159,7 +170,7 @@ class Portable(Runner):
             if 0 in layers:
                 hs.append(t.float())
             for i, blk in enumerate(net.blocks, 1):
-                t = _block(blk, t)
+                t = blk(t) if self.ctx.params.stream else _block(blk, t)
                 if i in layers:
                     hs.append(t.float())
             last = net.norm(t).float()
@@ -174,7 +185,15 @@ class Portable(Runner):
 
     def module(self) -> torch.nn.Module:
         """The network: normalised `[B, 3, h, w]` (sides multiples of 14) -> `last_hidden_state` `[B, N, C]`."""
+        if self.ctx.params.stream:
+            msg = "Export requires resident DINOv2 weights; reload with stream=False"
+            raise NotImplementedError(msg)
         return Forward(self.net, lambda _net, x: self._run(x, ())["last_hidden_state"])
+
+
+def _streamed_fast_block(block: torch.nn.Module, x: torch.Tensor, fast: FastViT) -> torch.Tensor:
+    """Use the selected CUDA attention and GEMMs with the currently staged block."""
+    return fast.block(block, x)
 
 
 class _FastDinov2(FastViT):
@@ -218,9 +237,16 @@ class Kernels(Runner):
         self.fast = _FastDinov2(
             vit, _KERNELS_ATTN[ctx.params.arch], None, swiglu=True, fused=dpt_fused.load(ctx.device)
         )
+        self.staged = None
+        if ctx.params.stream:
+            for block in self.fast.blocks:
+                override(block, _streamed_fast_block)
+            self.staged = StreamedModuleList(self.fast.blocks, ctx.device)
+            self.fast.blocks = []
+            vit.blocks = torch.nn.ModuleList()
         self.fast.vit, self.fast.pos_fp32 = vit.to(ctx.device), self.fast.pos_fp32.to(ctx.device)
         pixels = _GRAPH_WORK * vit.patch_size**2 // vit.embed_dim
-        self.graphs = SmallShapeGraphs(self._last, pixels=pixels, graphs=_GRAPHS)
+        self.graphs = SmallShapeGraphs(self._last, pixels=pixels, graphs=_GRAPHS, enabled=self.staged is None)
 
     def _run(self, image: torch.Tensor, layers: tuple[int, ...]) -> list[torch.Tensor]:
         """`[last_hidden_state (fp16), *hidden states at layers (float32)]`."""
@@ -230,8 +256,8 @@ class Kernels(Runner):
             t = fast.tokens(image)
             if 0 in layers:
                 hs.append(t.float())
-            for i, blk in enumerate(fast.blocks, 1):
-                t = fast.block(blk, t)
+            for i, blk in enumerate(self.staged if self.staged is not None else fast.blocks, 1):
+                t = blk(t, fast) if self.staged is not None else fast.block(blk, t)
                 if i in layers:
                     hs.append(t.float())
             return [fast.vit.norm(t), *hs]
