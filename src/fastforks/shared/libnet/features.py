@@ -56,6 +56,7 @@ class Params:
     arch: str  # `timm.create_model` name with the pretrained tag
     fp16_accumulate: bool  # portable: cuBLAS fp16 accumulation in the GEMMs (option)
     fp32_accumulate: bool  # kernels: every GEMM through cuBLAS with fp32 accumulation (option)
+    stream: bool = False
 
 
 class _Walk:
@@ -166,9 +167,9 @@ class _TimmFeatures(Runner):
         self.walk = self.walker(net)
         self.fast: FastModel
         if self.stream:
-            from .streamed_pe import streamed_pe  # noqa: PLC0415
+            from .streamed_vit import streamed_vit  # noqa: PLC0415
 
-            self.fast = streamed_pe(net, ctx)
+            self.fast = streamed_vit(net, ctx)
         else:
             self.fast = optimize(net, mode=mode, device=ctx.device, fp16=ctx.dtype == "float16")
         self.net: Any = self.fast.net

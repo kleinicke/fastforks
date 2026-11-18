@@ -55,6 +55,7 @@ class Params:
     pos_align_corners: bool  # the position-table resampling's `align_corners` (B / H: true, L / g: false; upstream)
     fp16_accumulate: bool  # portable: cuBLAS fp16 accumulation in the GEMMs (option)
     fp32_accumulate: bool  # kernels: every GEMM through cuBLAS with fp32 accumulation (option)
+    stream: bool = False
 
 
 class _RadioWalk(features._Walk):  # noqa: SLF001 - the shared walk, with upstream's position rule

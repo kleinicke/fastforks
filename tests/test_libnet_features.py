@@ -171,8 +171,8 @@ def test_pe_rope_routes_every_portable_block() -> None:
 
 @pytest.mark.gpu
 @pytest.mark.parametrize("mode", ["portable", "kernels"])
-@pytest.mark.parametrize("arch", ARCHS[-2:])
-def test_streamed_pe_reuses_two_buffers_and_matches_resident(
+@pytest.mark.parametrize("arch", ARCHS)
+def test_streamed_vit_reuses_two_buffers_and_matches_resident(
     mode: str, arch: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from types import SimpleNamespace  # noqa: PLC0415

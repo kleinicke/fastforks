@@ -5,6 +5,7 @@ tier = "experimental"
 outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
 uses = ["libnet"]  # shared modules imported directly by this family
 limitations = [
+  "Set stream=True on CUDA to keep transformer blocks in pinned host RAM. The embeddings, pooling layer and output features stay on the GPU. Export and CUDA graph replay require resident weights.",
   "last_hidden_state holds the prefix tokens (v3: 4 summary + 4 registers; v4: 3 summary + 7 registers), then the patches (upstream's `features`).",
   "pooler_output is upstream's `summary`: the summary tokens concatenated (v3: clip, siglip2, dino_v2 = 3 x hidden size; v4: siglip2, dino_v3 = 2 x hidden size).",
   "The teacher adaptors (the heads mapping the summary to CLIP / SigLIP 2 text space) are not included.",
@@ -40,6 +41,7 @@ std = [0.26862954, 0.26130258, 0.27577711]
 pad = { multiple = 16, mode = "none" }
 
 [options]
+stream = { default = false, effect = "speed" }  # stage transformer weights from pinned host RAM on CUDA
 fp16_accumulate = { default = false, effect = "precision" }  # true: cuBLAS fp16 accumulation in the GEMMs (portable, fp16; faster on Ampere and newer, larger error vs fp32)
 fp32_accumulate = { default = false, effect = "precision" }  # true: kernels run every GEMM through cuBLAS with fp32 accumulation (the portable precision, with the CUDA graphs); slower on GeForce (half-rate fp32 accumulation), to be measured on data-centre GPUs
 
