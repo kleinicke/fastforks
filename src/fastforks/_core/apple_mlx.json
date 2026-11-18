@@ -1,0 +1,522 @@
+{
+ "min_gain": 1.05,
+ "measured_on": [
+  "apple-m1-pro-16gb",
+  "apple-m1-pro-mlx-16gb"
+ ],
+ "models": {
+  "convnext_base.fb_in1k": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "convnext_base.fb_in22k": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "kernels"
+   }
+  },
+  "convnext_base.fb_in22k_ft_in1k": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "kernels"
+   }
+  },
+  "convnext_base.fb_in22k_ft_in1k_384": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "kernels"
+   }
+  },
+  "convnext_large.fb_in1k": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "kernels"
+   }
+  },
+  "convnext_large.fb_in22k": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "convnext_large.fb_in22k_ft_in1k": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "portable"
+   }
+  },
+  "convnext_large.fb_in22k_ft_in1k_384": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "convnext_small.fb_in1k": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "convnext_small.fb_in22k": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "kernels"
+   }
+  },
+  "convnext_small.fb_in22k_ft_in1k": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "convnext_small.fb_in22k_ft_in1k_384": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "convnext_tiny.fb_in1k": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "convnext_tiny.fb_in22k": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "kernels"
+   }
+  },
+  "convnext_tiny.fb_in22k_ft_in1k": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "convnext_tiny.fb_in22k_ft_in1k_384": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "convnextv2_base.fcmae_ft_in22k_in1k": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "portable"
+   }
+  },
+  "crestereo-eth3d": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   },
+   "kernels": [
+    "float16"
+   ]
+  },
+  "depth-anything-v2-l": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels"
+   }
+  },
+  "depth-anything-v2-metric-hypersim-b": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels"
+   }
+  },
+  "depth-anything-v2-metric-hypersim-l": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels"
+   }
+  },
+  "depth-anything-v2-metric-hypersim-s": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels"
+   }
+  },
+  "depth-anything-v2-metric-vkitti-b": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels"
+   }
+  },
+  "depth-anything-v2-metric-vkitti-l": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels"
+   }
+  },
+  "depth-anything-v2-metric-vkitti-s": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "dinov2-vitb14": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "dinov2-vitb14-reg": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "dinov2-vitg14": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   }
+  },
+  "dinov2-vitg14-reg": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "dinov2-vitl14": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   }
+  },
+  "dinov2-vitl14-reg": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "dinov2-vits14": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "dinov2-vits14-reg": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "dinov3-convnext-base": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "dinov3-convnext-large": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "dinov3-convnext-small": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "dinov3-convnext-tiny": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "dinov3-vitb16": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "dinov3-vith16plus": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   }
+  },
+  "dinov3-vitl16": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "dinov3-vits16": {
+   "auto": [
+    "portable",
+    "float32"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "efficientnet_b0.tv_in1k": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "portable"
+   }
+  },
+  "efficientnet_b4.tv_in1k": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "efficientnet_v2_s.tv_in1k": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "mobilenet_v2.tv2_in1k": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "mobilenet_v3_large.tv2_in1k": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "regnety_160.tv2_in1k": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "resnet152.tv2_in1k": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "portable"
+   }
+  },
+  "resnet18.tv_in1k": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "kernels"
+   }
+  },
+  "resnet50.tv2_in1k": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "tipsv2-b14": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "tipsv2-l14": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   }
+  }
+ }
+}

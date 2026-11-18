@@ -4,11 +4,14 @@
 # docs/data/speed/<slug>.jsonl, no regression floor.
 #
 # Slug: vendor + model + memory size (`rtx-5060-ti-16gb`, `rx-7900-xtx-24gb`, `apple-m1-pro-16gb`); core counts and
-# the backend go in the fields, not the slug. Order = the column order of the cross-device table.
+# the backend go in the fields, not the slug. The exception is a Mac's MLX survey (`load(..., device="mlx")`): the
+# same machine measured through a second backend is a second entry, `-mlx` in its slug (`apple-m1-pro-mlx-16gb`),
+# next to its MPS one. Order = the column order of the cross-device table.
 #
 #   name      the device as the docs name it
-#   backend   cuda (NVIDIA), rocm (AMD, torch.cuda over HIP), mps (Apple silicon GPU) or cpu (its CPU cores)
-#   match     the `gpu` value the measuring tools record for it (torch.cuda.get_device_name(); MPS, CPU: the chip name)
+#   backend   cuda (NVIDIA), rocm (AMD, torch.cuda over HIP), mps (Apple silicon GPU), mlx (Apple silicon GPU, MLX ports) or cpu
+#             (its CPU cores)
+#   match     the `gpu` value the measuring tools record for it (torch.cuda.get_device_name(); MPS, MLX, CPU: the chip name)
 #   memory    memory as sold (unified on Apple silicon)
 #   details   further hardware facts (cores, power limit, host)
 #   software  OS / driver / torch / toolkit of the shown measurements
@@ -39,6 +42,13 @@ memory = "16 GB unified"
 details = "10-core CPU (8 performance, 2 efficiency), PyTorch's default threads"
 software = "macOS 27, torch 2.14"
 hidden = true
+[apple-m1-pro-mlx-16gb]
+name = "Apple M1 Pro 16 GB (MLX)"
+backend = "mlx"
+match = "Apple M1 Pro"
+memory = "16 GB unified"
+details = "16-core GPU; the families with an MLX port (device=\"mlx\")"
+software = "macOS 27, mlx 0.32.4, torch 2.14"
 
 [l4-22gb]
 name = "NVIDIA L4"

@@ -310,4 +310,23 @@ class Kernels(Runner):
             return _outputs(outs[0], outs[1:])
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class MlxPortable(Runner):
+    """Apple MLX (`device="mlx"`): the network in MLX array operations (`mlx_net`), float32 or fp16."""
+
+    batch = None
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Convert or read the cached weights and build the MLX network."""
+        super().__init__(ctx)
+        from . import mlx_net  # noqa: PLC0415 - needs the mlx extra
+
+        self.engine = mlx_net.Engine(ctx)
+        _init(self, ctx.params.arch)
+
+    def __call__(self, image: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
+        """Features of a resized, normalised batch."""
+        return _outputs(*self.engine(image, layers))
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxPortable}

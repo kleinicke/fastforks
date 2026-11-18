@@ -2111,6 +2111,10 @@ def _caps_block() -> str:
                 (", ".join(card.mps_kernel_libs) + " " + short[(card.mps_kernels_dtype or card.kernels_dtype)])
                 if mps_k
                 else "-",
+                "/".join(short[d] for d in card.portable_mlx_dtypes) or "-",
+                (", ".join(card.mlx_kernel_libs) + " " + "/".join(short[d] for d in card.kernels_mlx_dtypes))
+                if card.mlx_kernel_libs
+                else "-",
             )
             groups.setdefault(sig, []).append(card.family)
     rows = [
@@ -2120,8 +2124,11 @@ def _caps_block() -> str:
     return "\n".join(
         [
             f"{_CAPS_BEGIN} (tools/gen_docs.py, from the model cards) -->",
-            "| families | CUDA portable | CUDA kernels | MPS portable (validated) | MPS kernels (libraries, dtype) |",
-            "|---|---|---|---|---|",
+            (
+                "| families | CUDA portable | CUDA kernels | MPS portable (validated) |"
+                " MPS kernels (libraries, dtype) | MLX portable | MLX kernels (libraries, dtypes) |"
+            ),
+            "|---|---|---|---|---|---|---|",
             *rows,
             _CAPS_END,
         ]

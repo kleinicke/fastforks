@@ -45,6 +45,7 @@ OPTIONAL = {
     "pycolmap": {"matching/sfm.py"},  # `sfm.reconstruct` (the `sfm` extra)
     "nibabel": {"volume/_nifti.py"},  # `read_nifti` / `write_nifti` (the `nifti` extra)
     "pydicom": {"volume/_nifti.py"},  # `read_dicom` (the `dicom` extra)
+    "mlx": {"_core/mlx.py"},  # the mlx extra (device="mlx"): family and kernel code takes `mx` from this module
 }
 # Files allowed to import computed module names: the registry imports `fastforks.<task>.models.<family>.model`, the
 # task package its own `<task>` spec modules, the top level the module of each lazily re-exported name.
@@ -153,7 +154,7 @@ def test_model_directories(task):
             assert (d / f).is_file(), f"{fam}: licence file {f} missing"
         assert (d / "__init__.py").is_file()
         assert "RUNNERS = " in (d / "model.py").read_text()
-        for lib in card.kernel_libs + card.mps_kernel_libs:
+        for lib in card.kernel_libs + card.mps_kernel_libs + card.mlx_kernel_libs:
             assert (SRC / "kernels" / lib / "__init__.py").is_file(), f"{fam}: unknown kernel library {lib}"
 
 
@@ -416,10 +417,13 @@ def test_card_kernels_match_imports(task):
             for c, _ in registry.cards(t).values()
             for lib in c.kernel_libs
         }
-        # The Metal libraries (`*_metal`) are the MPS runner's, the others the CUDA one's: check each list on its own.
-        cuda, metal = {u for u in used if not u.endswith("_metal")}, {u for u in used if u.endswith("_metal")}
+        # The Metal libraries (`*_metal`) are the MPS runner's, the MLX ones (`*_mlx`) the MLX runner's, the others
+        # the CUDA one's: check each list on its own.
+        metal, mlx = {u for u in used if u.endswith("_metal")}, {u for u in used if u.endswith("_mlx")}
+        cuda = used - metal - mlx
         _kernel_import_bounds(card.family, set(card.kernel_libs), direct & cuda, cuda | via)
         _kernel_import_bounds(card.family, set(card.mps_kernel_libs), direct & metal, metal)
+        _kernel_import_bounds(card.family, set(card.mlx_kernel_libs), direct & mlx, mlx)
 
 
 def _kernel_import_bounds(family: str, declared: set[str], direct: set[str], possible: set[str]) -> None:

@@ -15,6 +15,8 @@ from __future__ import annotations
 import contextlib
 import math
 from dataclasses import dataclass
+from functools import partial
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 
@@ -247,4 +249,32 @@ class Kernels(Runner):
         return out
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class MlxPortable(Runner):
+    """Apple MLX (`device="mlx"`): the DINOv2 transformer with the TIPSv2 register token and bilinear position table."""
+
+    batch = None
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Convert or read the cached weights and build the MLX network."""
+        super().__init__(ctx)
+        from fastforks._core.mlx import converted  # noqa: PLC0415 - optional MLX
+        from fastforks.shared.mlx_vit import DinoFeatureEngine, dinov2_params  # noqa: PLC0415
+
+        params = converted(ctx, "v1", lambda: dinov2_params(_network(ctx).state_dict(), 14))
+        interp = partial(_pos_embed, SimpleNamespace(interpolate_antialias=True))
+        self.engine = DinoFeatureEngine(params, ctx.dtype, {"vitb": 12, "vitl": 16}[ctx.params.arch], interp)
+        self.hidden_size, self.num_layers = self.engine.hidden_size, self.engine.depth
+        self.num_register_tokens = self.engine.registers
+        self.num_prefix_tokens = 1 + self.engine.registers
+
+    def __call__(self, image: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
+        """Features of a resized, normalised batch."""
+        last, hs = self.engine(image, layers)
+        out = {"last_hidden_state": last, "pooler_output": last[:, 0]}
+        if layers:
+            out["hidden_states"] = torch.stack(hs, 1)
+        return out
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxPortable}

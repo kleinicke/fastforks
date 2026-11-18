@@ -115,4 +115,27 @@ class Kernels(Runner):
         return {"last_hidden_state": out[:, 1:], "pooler_output": out[:, 0]}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class Mlx(Runner):
+    """ConvNeXt feature extraction with the channels-last MLX backbone."""
+
+    batch = None
+    Params = libnet.Params
+    num_prefix_tokens = 0
+
+    def __init__(self, ctx: Context) -> None:
+        """Load the verified timm network and convert its backbone."""
+        super().__init__(ctx)
+        from fastforks.shared.libnet.mlx_cnn import ConvNextFeatures  # noqa: PLC0415 - optional MLX dependency
+
+        net = _network(ctx)
+        self.hidden_size, self.num_layers = net.num_features, len(net.stages)
+        self.net = ConvNextFeatures(net, ctx)
+
+    def __call__(self, image: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
+        """Return the last-stage tokens and pooled embedding of a normalised batch."""
+        del layers
+        last, pooled = self.net(image)
+        return {"last_hidden_state": last, "pooler_output": pooled}
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": Mlx, "kernels_mlx": Mlx}

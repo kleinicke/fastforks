@@ -95,6 +95,7 @@ pip install "fastforks-core[tensorrt]"           # TensorRT export
 pip install "fastforks-core[sfm]"                # pycolmap: `fastforks sfm --reconstruct` (the COLMAP mapper)
 pip install "fastforks-core[nifti]"              # nibabel: `fastforks.volume.read_nifti` / `write_nifti`
 pip install "fastforks-core[dicom]"              # + pydicom: `fastforks.volume.read_dicom`
+pip install "fastforks-core[mlx]"                # Apple MLX backend (device="mlx", Apple silicon)
 pip install "fastforks-core[libs]"               # timm, torchvision, transformers and ONNX at once
 ```
 

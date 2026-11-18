@@ -119,3 +119,31 @@ def test_kernel_depthwise_matches_cudnn(c: int, height: int, width: int, batch: 
         got = family._kernel_depthwise(lib.load(torch.device("cuda")), wt, bias, x.contiguous(memory_format=layout))
         assert got.is_contiguous(memory_format=torch.channels_last)
         torch.testing.assert_close(got, want, rtol=0, atol=0)
+
+
+@pytest.mark.parametrize(
+    "backend", [pytest.param("mlx", marks=pytest.mark.mlx), pytest.param("mps", marks=pytest.mark.mps)]
+)
+@pytest.mark.parametrize("radius", [1, 3])
+def test_metal_correlation_at_image_boundaries(backend: str, radius: int) -> None:
+    """Fractional and off-image windows on two independent rectangular images match the reference."""
+    gen = torch.Generator().manual_seed(7)
+    a, b = (torch.randn(2, 5, 7, 37, generator=gen) for _ in range(2))
+    warp = torch.rand(2, 5, 7, 2, generator=gen) * 3 - 1.5
+    warp[0, 0, 0] = torch.tensor([1.0e9, -1.0e9])
+    want = local_correlation(a.permute(0, 3, 1, 2), b.permute(0, 3, 1, 2), radius, warp)
+    if backend == "mlx":
+        if not pytest.importorskip("mlx.core").metal.is_available():
+            pytest.skip("needs Apple Metal")
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional MLX
+        from fastforks.kernels.roma_mlx.ops import correlation  # noqa: PLC0415
+
+        got = to_torch(correlation(to_mx(a), to_mx(b), to_mx(warp), radius))
+    else:
+        if not torch.backends.mps.is_available():
+            pytest.skip("needs PyTorch MPS")
+        from fastforks.kernels import roma_metal  # noqa: PLC0415 - device-specific library
+
+        lib = roma_metal.load(torch.device("mps"))
+        got = roma_metal.correlate(lib, a.to("mps"), b.to("mps"), warp.to("mps"), radius).permute(0, 2, 3, 1).cpu()
+    torch.testing.assert_close(got.permute(0, 3, 1, 2), want, atol=1e-5, rtol=1e-5)

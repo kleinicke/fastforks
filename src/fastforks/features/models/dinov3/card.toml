@@ -3,7 +3,7 @@ name = "DINOv3 ViT"
 summary = "DINOv3 ViT (Meta, 2025): self-supervised ViT backbones with 4 register tokens and RoPE; dense patch + cls features at any size (Hugging Face format checkpoints). Gated weights: accept the DINOv3 licence on each model's Hugging Face page, download model.safetensors yourself and put it under FASTFORKS_WEIGHTS_PATH (path and SHA-256 in the load error); fastforks does not send HF_TOKEN there."
 tier = "stable"
 outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
-uses = ["arena", "cuda_graphs", "depth_anything_v2", "host_blocks"]  # fastforks.shared modules this family imports (fastbb flash attention / fp16-accumulate GEMMs)
+uses = ["arena", "cuda_graphs", "depth_anything_v2", "host_blocks", "mlx_vit"]  # fastforks.shared modules this family imports (fastbb flash attention / fp16-accumulate GEMMs)
 limitations = [
   "CUDA portable and kernels accept stream=True to stage packed transformer blocks from pinned host RAM. This setting uses eager inference. Export and CUDA graph replay require resident weights.",
   "kernels replays a CUDA graph per small input shape and layer set (up to 512 px, ViT-S 1024 px), captured on the shape's second call; at most 8 per model holding at most 256 MB of outputs (a full cache replaces only graphs unused for 64 calls, other new shapes run eagerly).",
@@ -42,6 +42,7 @@ fp16_accumulate = { default = false, effect = "precision" }  # true: cuBLAS fp16
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "dpt_fused", "swiglu"]

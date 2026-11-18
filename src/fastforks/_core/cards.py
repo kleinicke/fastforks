@@ -286,6 +286,12 @@ class ModelCard:
             mps_kernels`); empty if kernels does not run there.
         mps_kernels_dtype: The kernels backend's dtype on Apple MPS if it differs from `kernels_dtype` (card
             `[modes.kernels] mps_dtype`).
+        portable_mlx_dtypes: Dtypes of the family's Apple MLX port in portable mode, `load(..., device="mlx")` (card
+            `[modes.portable] mlx_dtypes`, float32 first: the default); empty if the family has no MLX port.
+        mlx_kernel_libs: MLX kernel libraries (Metal kernels run through MLX) of the kernels backend on `"mlx"` (card
+            `[modes.kernels] mlx_kernels`); empty if kernels does not run there.
+        kernels_mlx_dtypes: Dtypes of the kernels backend on `"mlx"` (card `[modes.kernels] mlx_dtypes`, float32
+            first: the default).
         no_kernels_reason: Why the family has no kernels backend (card `[modes.kernels] status = "none"`, `reason`);
             empty if it has one.
         outputs: Output maps of the family, e.g. `("disparity", "confidence", "occlusion")` (variants may override
@@ -334,6 +340,9 @@ class ModelCard:
     portable_mps_dtypes: tuple[Dtype, ...] = ()
     mps_kernel_libs: tuple[str, ...] = ()
     mps_kernels_dtype: Dtype | None = None
+    portable_mlx_dtypes: tuple[Dtype, ...] = ()
+    mlx_kernel_libs: tuple[str, ...] = ()
+    kernels_mlx_dtypes: tuple[Dtype, ...] = ()
     option_max: Mapping[str, float] = field(default_factory=lambda: MappingProxyType({}))
     option_choices: Mapping[str, tuple[Any, ...]] = field(default_factory=lambda: MappingProxyType({}))
     option_effect: Mapping[str, OptionEffect] = field(default_factory=lambda: MappingProxyType({}))
@@ -396,6 +405,24 @@ class ModelCard:
         """
         return (self.mps_kernels_dtype if device.type == "mps" else None) or self.kernels_dtype
 
+    def mlx_dtypes(self, mode: Mode) -> tuple[Dtype, ...]:
+        """The dtypes `mode` runs in on Apple MLX (`device="mlx"`), the default first.
+
+        Args:
+            mode: The backend.
+
+        Returns:
+            The card's `mlx_dtypes` of that mode; empty if the family has no MLX port of it.
+        """
+        return self.kernels_mlx_dtypes if mode == "kernels" else self.portable_mlx_dtypes
+
+    def _mlx_summary(self) -> str:
+        """The Apple MLX port in one line: modes with their dtypes and kernel libraries."""
+        parts = [f"portable ({', '.join(self.portable_mlx_dtypes)})"]
+        if self.mlx_kernel_libs:
+            parts.append(f"kernels ({', '.join(self.kernels_mlx_dtypes)}; {', '.join(self.mlx_kernel_libs)})")
+        return ", ".join(parts)
+
     @property
     def requires(self) -> tuple[str, ...]:
         """Optional libraries (import names, sorted) the family needs beyond a bare install, e.g. `("timm",)`.
@@ -426,6 +453,7 @@ class ModelCard:
             f"  modes     {', '.join(self.modes)}"
             + (f" (kernel libs: {', '.join(self.kernel_libs)})" if self.kernel_libs else "")
             + (f" (on Apple MPS: {', '.join(self.mps_kernel_libs)})" if self.mps_kernel_libs else ""),
+            *([f"  mlx       {self._mlx_summary()}"] if self.portable_mlx_dtypes else []),
             f"  outputs   {', '.join(self.outputs)}",
             *([f"  requires  {', '.join(self.requires)} ({install_hint(*self.extras)})"] if self.requires else []),
             "  options   "
@@ -677,7 +705,7 @@ def _floats3(value: object, where: str) -> tuple[float, float, float]:
     return (float(value[0]), float(value[1]), float(value[2]))
 
 
-def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> ModelCard:
+def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> ModelCard:  # noqa: PLR0915 - card schema fields
     """Validate a parsed `card.toml` and build the card.
 
     Raises:
@@ -710,13 +738,16 @@ def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> M
         msg = f"{where}: every model needs a portable backend"
         raise CardError(msg)
     portable = _get(modes_t, "portable", dict, f"{where} [modes.portable]")
-    _unknown_keys(portable, {"cuda_dtype", "mps_dtypes"}, f"{where} [modes.portable]")
-    mps_dtypes = tuple(
-        _literal(d, Dtype, f"{where} [modes.portable] mps_dtypes")
-        for d in _str_tuple(portable.get("mps_dtypes", []), f"{where} [modes.portable] mps_dtypes")
-    )
-    if mps_dtypes and mps_dtypes[0] != "float32":
-        msg = f"{where} [modes.portable]: mps_dtypes must start with float32 (the default on MPS)"
+    _unknown_keys(portable, {"cuda_dtype", "mps_dtypes", "mlx_dtypes"}, f"{where} [modes.portable]")
+    mps_dtypes = _dtype_list(portable, "mps_dtypes", f"{where} [modes.portable]", "on MPS")
+    mlx_dtypes = _dtype_list(portable, "mlx_dtypes", f"{where} [modes.portable]", "on MLX")
+    mlx_kernel_libs = _str_tuple(max_t.get("mlx_kernels", []), f"{where} [modes.kernels] mlx_kernels")
+    kernels_mlx_dtypes = _dtype_list(max_t, "mlx_dtypes", f"{where} [modes.kernels]", "on MLX")
+    if bool(mlx_kernel_libs) != bool(kernels_mlx_dtypes) or (mlx_kernel_libs and not mlx_dtypes):
+        msg = (
+            f"{where} [modes.kernels]: mlx_kernels and mlx_dtypes come together, and only with"
+            " [modes.portable] mlx_dtypes (an MLX port has a portable mode)"
+        )
         raise CardError(msg)
     io = _io(_get(data, "io", dict, where) if "io" in data else {}, f"{where} [io]", task)
     variants = []
@@ -804,6 +835,9 @@ def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> M
         papers=papers,
         official=official,
         no_original_reason=no_original_reason.strip(),
+        portable_mlx_dtypes=mlx_dtypes,
+        mlx_kernel_libs=mlx_kernel_libs,
+        kernels_mlx_dtypes=kernels_mlx_dtypes,
     )
 
 
@@ -877,10 +911,19 @@ def require_available(variant: Variant, feature: Feature) -> None:
         raise BackendUnavailableError(msg)
 
 
+def _dtype_list(table: dict[str, Any], key: str, where: str, place: str) -> tuple[Dtype, ...]:
+    """`mps_dtypes` / `mlx_dtypes` of a mode table: dtype names, float32 first (the default); `()` if absent."""
+    dtypes = tuple(_literal(d, Dtype, f"{where} {key}") for d in _str_tuple(table.get(key, []), f"{where} {key}"))
+    if dtypes and dtypes[0] != "float32":
+        msg = f"{where}: {key} must start with float32 (the default {place})"
+        raise CardError(msg)
+    return dtypes
+
+
 def _no_kernels_reason(max_t: dict[str, Any], where: str) -> str:
     """`[modes.kernels]`: either a backend (`kernels`, `dtype`) or `status = "none"` with the measured `reason`."""
     if "status" not in max_t:
-        _unknown_keys(max_t, {"kernels", "dtype", "mps_kernels", "mps_dtype"}, where)
+        _unknown_keys(max_t, {"kernels", "dtype", "mps_kernels", "mps_dtype", "mlx_kernels", "mlx_dtypes"}, where)
         return ""
     _unknown_keys(max_t, {"status", "reason"}, where)
     if max_t["status"] != "none" or not isinstance(max_t.get("reason"), str) or not max_t["reason"].strip():

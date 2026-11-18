@@ -148,6 +148,7 @@ cli fastforks stereo run: right
 def fastforks._core.cards.ModelCard.contract(self) -> 'Contract'
 def fastforks._core.cards.ModelCard.kernel_libs_on(self, device: 'torch.device') -> 'tuple[str, ...]'
 def fastforks._core.cards.ModelCard.kernels_dtype_on(self, device: 'torch.device') -> 'Dtype'
+def fastforks._core.cards.ModelCard.mlx_dtypes(self, mode: 'Mode') -> 'tuple[Dtype, ...]'
 def fastforks._core.cards.ModelCard.option_bounds(self, name: 'str') -> 'str'
 def fastforks._core.cards.ModelCard.status(self, variant: 'Variant') -> 'Status'
 def fastforks._core.cards.ModelCard.variant_licence(self, variant: 'Variant') -> 'Licence'
@@ -374,9 +375,11 @@ field fastforks._core.cards.ModelCard.family: str
 field fastforks._core.cards.ModelCard.io: Io
 field fastforks._core.cards.ModelCard.kernel_libs: tuple[str, ...]
 field fastforks._core.cards.ModelCard.kernels_dtype: Dtype
+field fastforks._core.cards.ModelCard.kernels_mlx_dtypes: tuple[Dtype, ...]
 field fastforks._core.cards.ModelCard.licence: Licence
 field fastforks._core.cards.ModelCard.licence_notes: tuple[str, ...]
 field fastforks._core.cards.ModelCard.limitations: tuple[str, ...]
+field fastforks._core.cards.ModelCard.mlx_kernel_libs: tuple[str, ...]
 field fastforks._core.cards.ModelCard.modes: tuple[Mode, ...]
 field fastforks._core.cards.ModelCard.mps_kernel_libs: tuple[str, ...]
 field fastforks._core.cards.ModelCard.mps_kernels_dtype: Dtype | None
@@ -395,6 +398,7 @@ field fastforks._core.cards.ModelCard.outputs: tuple[str, ...]
 field fastforks._core.cards.ModelCard.papers: tuple[Paper, ...]
 field fastforks._core.cards.ModelCard.params: Mapping[str, Any]
 field fastforks._core.cards.ModelCard.portable_cuda_dtype: Dtype
+field fastforks._core.cards.ModelCard.portable_mlx_dtypes: tuple[Dtype, ...]
 field fastforks._core.cards.ModelCard.portable_mps_dtypes: tuple[Dtype, ...]
 field fastforks._core.cards.ModelCard.summary: str
 field fastforks._core.cards.ModelCard.task: str

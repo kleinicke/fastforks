@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from fastforks._core.runner import Context
     from fastforks._optimize import FastModel
 
-__all__ = ["Kernels", "Params", "Portable", "build", "timm", "torchvision"]
+__all__ = ["Kernels", "Mlx", "Params", "Portable", "build", "timm", "torchvision"]
 
 # torchvision's DenseNet checkpoints predate its module names (`norm.1` -> `norm1`); torchvision renames on load too.
 _DENSENET_KEY = re.compile(
@@ -206,3 +206,21 @@ class PoolKernels(CNNKernels):
     """Fuse pooling while preserving native convolutions for sensitive classifiers."""
 
     fuse_convs = False
+
+
+class Mlx(Runner):
+    """Apple MLX runner for the supported timm and torchvision classifiers."""
+
+    Params = Params
+    batch = None
+
+    def __init__(self, ctx: Context) -> None:
+        """Translate the verified network to a channels-last MLX forward."""
+        super().__init__(ctx)
+        from . import mlx_cnn  # noqa: PLC0415 - optional MLX dependency
+
+        self.net = mlx_cnn.Network(ctx)
+
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Class logits for a transformed image batch."""
+        return {"logits": self.net(image)}

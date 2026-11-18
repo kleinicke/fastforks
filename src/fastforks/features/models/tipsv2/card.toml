@@ -3,7 +3,7 @@ name = "TIPSv2"
 summary = "TIPSv2 (Google DeepMind, CVPR 2026) image encoders: ViT-B / L at patch 14 from text-image pretraining with patch-text alignment; dense patch tokens and two global tokens at any size (native 448 px)."
 tier = "experimental"
 outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
-uses = ["cuda_graphs", "depth_anything_v2"]  # fastforks.shared modules this family imports (CUDA graphs, the vendored DINOv2 ViT, FastViT)
+uses = ["cuda_graphs", "depth_anything_v2", "mlx_vit"]  # fastforks.shared modules this family imports (CUDA graphs, the vendored DINOv2 ViT, FastViT)
 limitations = [
   "Image encoder only: the text encoder in the checkpoint is not loaded (the features task has no text input), although the file is downloaded whole.",
   "last_hidden_state holds 2 prefix tokens, then the patches: upstream's first cls token (pooler_output, the global image embedding aligned with text) and its second cls token (index 1, the spatially aware global embedding).",
@@ -33,6 +33,7 @@ pad = { multiple = 14, mode = "none" }
 fp16_accumulate = { default = false, effect = "precision" }  # true: cuBLAS fp16 accumulation in the GEMMs (portable, fp16; faster on Ampere and newer, larger error vs fp32)
 
 [modes.portable]
+mlx_dtypes = ["float32", "float16"]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 

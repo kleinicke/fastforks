@@ -61,7 +61,10 @@ nifti = ["nibabel>=5"]  # fastforks.volume.read_nifti / write_nifti
 transformers = ["transformers>=5.19,<6", "scipy>=1.10"]  # scipy: transformers builds Mask2Former / OneFormer with it
 # `matching.sfm.reconstruct` / `fastforks sfm --reconstruct`: COLMAP's mapper (3.12: also GLOMAP's global mapper).
 sfm = ["pycolmap>=3.11"]
-# Every optional library at once (not TensorRT: CUDA-version specific); the `fastforks` metapackage is this plus `nc`.
+# `device="mlx"`: Apple's MLX runs the families that have a port (card `mlx_dtypes`) on Apple-silicon GPUs.
+mlx = ["mlx>=0.30; sys_platform == 'darwin' and platform_machine == 'arm64'"]
+# Every optional library at once (not TensorRT: CUDA-version specific; not MLX: Apple-silicon only); the `fastforks`
+# metapackage is this plus `nc`.
 libs = ["fastforks-core[timm,torchvision,transformers,onnx]"]
 
 [project.scripts]
@@ -296,6 +299,7 @@ allowed-unresolved-imports = [
   "fvcore.**",  # SPAN's `__main__` FLOP count
   "matplotlib", "matplotlib.**",  # one-off chart tools (`uv run --with matplotlib`)
   "ffweights",  # the original-speed bench module, on sys.path at run time
+  "mlx", "mlx.**",
 ]
 
 [tool.ty.rules]
@@ -340,6 +344,7 @@ markers = [
   "model: needs model weights (per-model parity tests)",
   "gpu: needs a CUDA GPU",
   "mps: needs an Apple GPU (MPS)",
+  "mlx: needs an Apple GPU and the mlx extra (device='mlx')",
   "slow: takes > 1 s; skipped without --slow (release suite, the tests of changed code)",
 ]
 

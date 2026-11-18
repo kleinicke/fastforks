@@ -36,6 +36,7 @@ interpolation = "bilinear"
 library = "torchvision"
 
 [modes.portable]
+mlx_dtypes = ["float32", "float16"]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
