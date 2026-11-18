@@ -34,6 +34,11 @@ import torch
 from fastforks._core.errors import MissingDependencyError, OptionsError, install_hint
 from fastforks._core.files import cache_root
 
+# MLX frees a command buffer's intermediates only when the buffer completes: with its default size (40-50 MB of
+# inputs per buffer on an M1) a deep convolutional trunk holds every activation at once. Smaller buffers cost no speed
+# (a 32-layer 64-channel trunk at 512^2: 1.06 GB -> 0.26 GB peak). MLX reads this when it is imported.
+os.environ.setdefault("MLX_MAX_MB_PER_BUFFER", "8")
+
 try:
     import mlx.core as mx
 except ImportError as e:  # not installed, or not Apple silicon (the wheel exists only there)

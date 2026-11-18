@@ -60,3 +60,10 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 
 | family | task | status | notes |
 |---|---|---|---|
+| compact (realesr-general-x4v3) | restoration | portable_mlx only, fp32+fp16 pass | fp16 225 ms / 1587 MB vs MPS 132 / 1289; fp32 341 / 2120 vs 178 / 1288. Conv-bound (MLX 64ch 3x3 conv ~5.8 ms vs ~4.1 ms MPS). No kernels: graph_mlx has no depthwise or pool ops here, so no gain. |
+| span | restoration | portable_mlx wired, goldens pass (x4 fp32/fp16) | Slower and heavier than MPS in the first survey (x4 fp16 134 ms / 2867 MB vs 89 / 1296, before the buffer fix). No kernels. |
+| realplksr | restoration | portable_mlx, fp32+fp16 pass | fp16 1873 ms / 7093 MB vs MPS 1092 / 1368; fp32 2365 vs 1527. Slower and heavier. No kernels. |
+| realesrgan, swinir (m-x4), drct-x4 | restoration | portable_mlx wired; goldens pass in the variants tested | Not surveyed against MPS. drct/hat are OOM on MPS, so any result there is a win. Other variants not re-tested. |
+| hat, restormer | restoration | portable_mlx fp32 only | hat-s-x4 and restormer-deblur fp32 pass; fp16 gives NaN (hat after the rescale fix, restormer probably the fp32-needing gram bmm). Not surveyed. |
+| dat, swin2sr | restoration | wired, not verified | Past the sdpa mask error; goldens and surveys not run. |
+| codeformer, gfpgan, lama, seedvr2 | restoration | not started | Need sub-module wrapping (custom forward); seedvr2 size not assessed. |

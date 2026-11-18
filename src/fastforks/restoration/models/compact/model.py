@@ -19,6 +19,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, sr_ops
 from fastforks.restoration._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 
 from .net import SRVGGNetCompact
 
@@ -100,7 +101,11 @@ class Kernels(Portable):
             return {"image": self.net(x)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}
 
 _BODY = re.compile(r"body\.(\d+)\.(weight|bias)")
 

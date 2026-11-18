@@ -20,6 +20,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, sr_ops
 from fastforks.restoration._runner import Crop, Forward, Runner
+from fastforks.shared import mlx_wrap
 
 from .net import RRDBNet
 from .net.rrdbnet_arch import RRDB, ResidualDenseBlock
@@ -163,7 +164,11 @@ class Kernels(Portable):
             return {"image": _stripe_forward(self.net, x)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}
 
 # ESRGAN's original `model.N` layout (old-arch ESRGAN files, e.g. 4x-UltraSharp) -> BasicSR's RRDBNet names
 _OLD = {"model.0.": "conv_first.", "model.3.": "conv_up1.", "model.6.": "conv_up2.", "model.8.": "conv_hr."}

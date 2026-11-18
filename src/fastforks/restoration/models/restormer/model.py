@@ -23,6 +23,7 @@ from fastforks._core.errors import WeightsError
 from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, fastbb
 from fastforks.restoration._runner import Crop, Forward, Runner
+from fastforks.shared import mlx_wrap
 
 from .net import Restormer
 from .net.restormer_arch import Attention, FeedForward, TransformerBlock, WithBias_LayerNorm
@@ -321,7 +322,11 @@ class Kernels(Portable):
         return {"image": self.net(image.to(torch.float16).contiguous(memory_format=self.fmt))}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}
 
 
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:

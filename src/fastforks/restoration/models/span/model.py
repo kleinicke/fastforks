@@ -20,6 +20,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, sr_ops
 from fastforks.restoration._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 
 from .net import SPAN
 from .net.span_arch import SPAB, Conv3XC
@@ -123,7 +124,11 @@ class Kernels(Portable):
             return {"image": self.net(x)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}
 
 
 def from_checkpoint(sd: Mapping[str, torch.Tensor]) -> tuple[str, dict[str, Any], dict[str, Any]] | None:

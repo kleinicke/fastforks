@@ -31,6 +31,7 @@ from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc
 from fastforks.kernels.shift_windows import rearrange
 from fastforks.restoration._runner import Crop, Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.swin_sr import (
     attention,
     checkpoint_upsampler,
@@ -145,7 +146,7 @@ class Portable(Runner):
         mean = self.net.mean
         del self.net.mean
         self.net.register_buffer("mean", mean, persistent=False)
-        if ctx.dtype == "float16":
+        if mlx_wrap.run_dtype(ctx) == "float16":
             last = self.net.layers[-1]
             with torch.no_grad():
                 for t in last.get_submodule("conv").parameters():  # weight, bias
@@ -210,7 +211,11 @@ class Kernels(Portable):
             return {"image": self.net(image.to(torch.float16))}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}
 
 _BLOCK = re.compile(r"layers\.(\d+)\.residual_group\.blocks\.(\d+)\.")
 

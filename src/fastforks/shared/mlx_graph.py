@@ -101,6 +101,8 @@ OPS[aten.neg.default] = operator.neg
 OPS[aten.abs.default] = mx.abs
 OPS[aten.exp.default] = mx.exp
 OPS[aten.log.default] = mx.log
+OPS[aten.log1p.default] = mx.log1p
+OPS[aten.expm1.default] = mx.expm1
 OPS[aten.sqrt.default] = mx.sqrt
 OPS[aten.rsqrt.default] = mx.rsqrt
 OPS[aten.sin.default] = mx.sin
@@ -182,6 +184,7 @@ OPS[aten.clone.default] = OPS[aten.contiguous.default] = OPS[aten.detach.default
     lambda x, **_: x
 )
 OPS[aten.lift_fresh_copy.default] = lambda x: x
+OPS[aten.copy.default] = lambda dst, src, non_blocking=False: mx.broadcast_to(src.astype(dst.dtype), dst.shape)
 OPS[aten.cat.default] = lambda xs, d=0: mx.concatenate(list(xs), axis=d)
 OPS[aten.stack.default] = lambda xs, d=0: mx.stack(list(xs), axis=d)
 OPS[aten.select.int] = lambda x, d, i: mx.take(x, i, axis=d)
@@ -227,6 +230,24 @@ def _slice(x: mx.array, dim: int = 0, start: int | None = None, end: int | None 
     idx = [slice(None)] * x.ndim
     idx[dim] = slice(start, max(start, end), step)
     return x[tuple(idx)]
+
+
+@_reg(aten.slice_scatter.default)
+def _slice_scatter(
+    x: mx.array, src: mx.array, dim: int = 0, start: int | None = None, end: int | None = None, step: int = 1
+) -> mx.array:
+    n = x.shape[dim]
+    start = 0 if start is None else max(0, start + n if start < 0 else start)
+    end = n if end is None else min(n, end + n if end < 0 else end)
+    if step != 1:
+        msg = "slice_scatter with a step"
+        raise UnsupportedOp(msg)
+    idx = [slice(None)] * x.ndim
+    idx[dim] = slice(None, start)
+    head = x[tuple(idx)]
+    idx[dim] = slice(end, None)
+    tail = x[tuple(idx)]
+    return mx.concatenate([head, src.astype(x.dtype), tail], axis=dim)
 
 
 @_reg(aten.split.Tensor)
@@ -358,8 +379,8 @@ def _sdpa(
     scale = scale if scale is not None else q.shape[-1] ** -0.5
     if causal:
         mask = "causal"
-    elif mask is not None and mask.dtype == mx.bool_:
-        pass
+    elif mask is not None and mask.dtype != mx.bool_ and mask.dtype != q.dtype:
+        mask = mask.astype(q.dtype)
     return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask)
 
 
@@ -482,7 +503,13 @@ def _conv(
         )
     else:
         wl = mx.transpose(w, (0, 2, 3, 1))
-        if _KERNELS and groups > 1 and groups == xl.shape[3] == w.shape[0] and groups % 4 == 0 and w.shape[2] * w.shape[3] > 1:
+        if (
+            _KERNELS
+            and groups > 1
+            and groups == xl.shape[3] == w.shape[0]
+            and groups % 4 == 0
+            and w.shape[2] * w.shape[3] > 1
+        ):
             from fastforks.kernels.graph_mlx import ops  # noqa: PLC0415 - optional MLX dependency
 
             bias = b if b is not None else mx.zeros((groups,), dtype=xl.dtype)
@@ -664,6 +691,10 @@ class GraphNet:
     ) -> None:
         """Keep the module until its first export; parameters convert then."""
         self.module = module.eval()
+        for m in self.module.modules():  # a buffer computed from parameters (position biases) is a non-leaf tensor
+            for name, b in m._buffers.items():
+                if b is not None and b.requires_grad:
+                    m._buffers[name] = b.detach()
         self.dtype = getattr(mx, dtype)
         self._compile = compile
         self.kernels = kernels
@@ -860,9 +891,7 @@ class MlxModule:
         outs = iter(net(*[x for x in leaves if isinstance(x, torch.Tensor)]))
         assert flat.out is not None  # set while exporting  # noqa: S101
         out_spec, others, dtypes = flat.out
-        merged = [
-            next(outs).to(d) if d is not None else o for o, d in zip(others, dtypes, strict=True)
-        ]
+        merged = [next(outs).to(d) if d is not None else o for o, d in zip(others, dtypes, strict=True)]
         return pytree.tree_unflatten(merged, out_spec)
 
     def _consts(self) -> dict[str, Any]:

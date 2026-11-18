@@ -29,6 +29,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, shift_windows
 from fastforks.restoration._runner import Crop, Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.swin_sr import (
     checkpoint_upsampler,
     pad_heads,
@@ -218,7 +219,11 @@ class Kernels(Portable):
             return {"image": self.net(image.to(torch.float16))}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}
 
 _GROUP = re.compile(r"layers\.(\d+)\.swin1\.attn\.relative_position_bias_table")
 

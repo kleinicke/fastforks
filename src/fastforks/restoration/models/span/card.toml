@@ -28,6 +28,7 @@ channels = 48
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc", "sr_ops"]  # fp16-accumulate convolutions, channels-last

@@ -30,6 +30,7 @@ from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc
 from fastforks.kernels.shift_windows import rearrange
 from fastforks.restoration._runner import Crop, Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.swin_sr import checkpoint_upsampler, pad_heads, shift_mask, window_attention
 
 from .net import Swin2SR
@@ -231,7 +232,11 @@ class Kernels(Portable):
             return {"image": self.net(image.to(torch.float16))}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}
 
 _BLOCK = re.compile(r"layers\.(\d+)\.residual_group\.blocks\.(\d+)\.")
 

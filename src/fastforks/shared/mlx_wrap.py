@@ -9,6 +9,7 @@ replays the graph with `mx.compile` on the GPU. Kernels mode (`ctx.mode == "kern
 
 from __future__ import annotations
 
+import contextvars
 import dataclasses
 from typing import TYPE_CHECKING
 
@@ -17,7 +18,17 @@ from fastforks.shared.mlx_graph import MlxModule
 if TYPE_CHECKING:
     from fastforks._core.runner import Context, Runner
 
-__all__ = ["port"]
+__all__ = ["port", "run_dtype"]
+
+_RUN_DTYPE: contextvars.ContextVar[str | None] = contextvars.ContextVar("mlx_run_dtype", default=None)
+
+
+def run_dtype(ctx: Context) -> str:
+    """The dtype the network runs in: while an MLX runner builds its float32 PyTorch twin, the MLX run dtype.
+
+    A runner that rescales weights for float16 (to keep activations finite) asks this instead of `ctx.dtype`.
+    """
+    return _RUN_DTYPE.get() or ctx.dtype
 
 
 def port(portable: type[Runner], *, attrs: tuple[str, ...] = ("net",)) -> type[Runner]:
@@ -28,7 +39,11 @@ def port(portable: type[Runner], *, attrs: tuple[str, ...] = ("net",)) -> type[R
 
         def __init__(self, ctx: Context) -> None:
             """Build the PyTorch runner in float32 on the CPU, then hand its network(s) to MLX."""
-            super().__init__(dataclasses.replace(ctx, dtype="float32"))
+            token = _RUN_DTYPE.set(ctx.dtype)
+            try:
+                super().__init__(dataclasses.replace(ctx, dtype="float32"))
+            finally:
+                _RUN_DTYPE.reset(token)
             for name in attrs:
                 setattr(self, name, MlxModule(getattr(self, name), ctx.dtype, kernels=ctx.mode == "kernels"))
 

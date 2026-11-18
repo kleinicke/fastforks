@@ -36,6 +36,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, dat_interaction
 from fastforks.restoration._runner import Crop, Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.swin_sr import attention, checkpoint_upsampler
 
 from .net import DAT
@@ -254,7 +255,7 @@ class Portable(Runner):
         mean = self.net.mean
         del self.net.mean
         self.net.register_buffer("mean", mean, persistent=False)
-        if ctx.dtype == "float16":
+        if mlx_wrap.run_dtype(ctx) == "float16":
             _scale_last_group(self.net)
         self.net.to(ctx.device, getattr(torch, ctx.dtype))
 
@@ -318,7 +319,11 @@ class Kernels(Portable):
             return {"image": self.net(image.to(torch.float16))}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}
 
 _BLOCK = re.compile(r"layers\.(\d+)\.blocks\.(\d+)\.")
 
