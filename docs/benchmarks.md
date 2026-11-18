@@ -2220,6 +2220,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | depth-anything-v2-s | 994x1482 | 7.82 ms | 6.65 ms | 4.46 ms | 4.51 ms | 15.7 s | 29.9 s | 249 / 326 | 201 / 224 | 190 / 248 | 273 / 308 |
 | depth-pro | 994x1482 | 522 ms | 488 ms | 299 ms | 277 ms | 39.2 s | 163 s | 3297 / 3478 | 3053 / 3198 | 3050 / 3198 | 4816 / 4882 |
 | depthfm-v1 | 994x1482 | 5662 ms | 3947 ms | fails: ONNX export: conversion failed | 3570 ms | 102 s | – | 13651 / 15150 | 9240 / 10292 | 9237 / 9314 | – |
+| depthfm-v1 | 480x640 | – | – | 353 ms (fixed-shape exported depth network) | – | – | – | – | – | – | 3479 / 3494 |
 | distill-any-depth-b | 994x1482 | 18.6 ms | 17.0 ms | 10.8 ms | 10.8 ms | 16.2 s | 33.0 s | 445 / 514 | 340 / 394 | 349 / 396 | 539 / 614 |
 | distill-any-depth-l | 994x1482 | 54.4 ms | 51.6 ms | 32.4 ms | 31.8 ms | 20.1 s | 42.5 s | 1022 / 1092 | 850 / 910 | 917 / 1034 | 1579 / 1634 |
 | distill-any-depth-s | 994x1482 | 7.65 ms | 6.67 ms | 4.46 ms | 4.63 ms | 15.9 s | 29.9 s | 244 / 288 | 201 / 224 | 152 / 208 | 305 / 348 |
@@ -2670,6 +2671,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | tapnext | 480x854 | 528 ms | 398 ms | 69.4 ms | 381 ms | 40.5 s | 366 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |
 | tapnext-pp | 480x854 | 529 ms | 395 ms | 69.5 ms | 381 ms | 34.1 s | 362 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |
 | track-on-r | 480x854 | 1188 ms | 1066 ms | planned for 0.2.1 | 1102 ms | 66.0 s | – | 1423 / 1632 | 1340 / 1454 | 1368 / 1620 | – |
+| track-on-r | 256x256 | – | – | 958 ms, fp32 engine (standalone eight-frame encoder, eager recurrent decoder) | – | – | 42.1 s | – | – | – | 1979 / 2286 |
 | track-on2 | 480x854 | 1193 ms | 1075 ms | planned for 0.2.1 | 1108 ms | 60.0 s | – | 1423 / 1712 | 1340 / 1454 | 1368 / 1620 | – |
 | ema-vfi | 1080x1920 | 233 ms | 165 ms | 124 ms | 207 ms | 90.6 s | 90.9 s | 2827 / 3184 | 3325 / 3542 | 368 / 3566 | 1719 / 1786 |
 | ema-vfi-small | 1080x1920 | 89.4 ms | 59.6 ms | 43.7 ms | 84.4 ms | 78.5 s | 67.6 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
