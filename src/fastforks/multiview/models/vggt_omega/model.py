@@ -20,6 +20,8 @@ the softmax scale folded into q: the flash kernel accumulates q k^T in fp16, uns
 from __future__ import annotations
 
 import contextlib
+import contextvars
+import itertools
 import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -28,8 +30,10 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.errors import OptionsError
 from fastforks._core.half import fp16_accumulate
 from fastforks.multiview._runner import Forward, Runner, invert
+from fastforks.shared.host_blocks import StreamedModuleList
 
 from .net.models.aggregator import slice_expand_and_flatten
 from .net.models.heads.utils import create_uv_grid, position_grid_to_embed
@@ -37,6 +41,8 @@ from .net.models.vggt_omega import VGGTOmega
 from .net.utils.pose_enc import encoding_to_camera
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Generator, Iterable, Iterator
+
     from fastforks.multiview._runner import Context
 
 PATCH = 16  # fixed: the ViT patch size
@@ -49,6 +55,7 @@ class Params:
     """Load options."""
 
     area_side: int  # upstream "balanced" resolution: about (area_side / 16)^2 patches per view
+    stream: bool = False
 
 
 def network_size(h: int, w: int, area_side: int) -> tuple[int, int]:
@@ -60,9 +67,14 @@ def network_size(h: int, w: int, area_side: int) -> tuple[int, int]:
 
 
 def _net(ctx: Context) -> VGGTOmega:
-    net = VGGTOmega(patch_size=PATCH, autocast=False)  # camera + depth heads, no text alignment (as the checkpoint)
-    net.load_state_dict(ctx.state_dict(), strict=True)
-    return net.eval().requires_grad_(requires_grad=False).to(ctx.device)
+    with torch.device("meta"):
+        net = VGGTOmega(patch_size=PATCH, autocast=False)
+    state = ctx.state_dict()
+    for key, target in net.state_dict().items():
+        if key in state and state[key].dtype != target.dtype:
+            state[key] = state[key].to(target.dtype)  # preserve ordinary load_state_dict's dtype for user checkpoints
+    net.load_state_dict(state, strict=True, assign=True)
+    return net.eval().requires_grad_(requires_grad=False)
 
 
 def outputs(pred: dict[str, torch.Tensor], hn: int, wn: int, h0: int, w0: int) -> dict[str, torch.Tensor]:
@@ -98,6 +110,9 @@ class _Base(Runner):
 
     def __init__(self, ctx: Context) -> None:
         super().__init__(ctx)
+        if ctx.params.stream and ctx.device.type != "cuda":
+            msg = "stream=True requires CUDA for VGGT-Omega block transfers"
+            raise OptionsError(msg)
         self.net = _net(ctx)
 
     def resize(self, images: torch.Tensor) -> tuple[torch.Tensor, int, int]:
@@ -134,31 +149,72 @@ class _Base(Runner):
         return self.forward(images, intrinsics, cam_to_world, depth_range)
 
 
-class _Blk:
+class _StagedCalls:
+    """Stage blocks in their inference order, retaining upstream's indexed block calls for the FP32 path."""
+
+    def __init__(self, blocks: Iterable[nn.Module], device: torch.device) -> None:
+        self.source = StreamedModuleList(blocks, device)
+        self.active: contextvars.ContextVar[Iterator[tuple[int, Callable[..., torch.Tensor]]]] = contextvars.ContextVar(
+            "omega_blocks"
+        )
+
+    def _ordered(self) -> Generator[tuple[int, Callable[..., torch.Tensor]]]:
+        yield from enumerate(self.source)
+
+    @contextlib.contextmanager
+    def session(self) -> Generator[None]:
+        with contextlib.closing(self._ordered()) as blocks:
+            token = self.active.set(blocks)
+            try:
+                yield
+            finally:
+                self.active.reset(token)
+
+
+class _Stage(nn.Module):
+    """One upstream block's position in the shared sequence of uploads."""
+
+    def __init__(self, sequence: _StagedCalls, index: int) -> None:
+        super().__init__()
+        self.sequence, self.index = sequence, index
+
+    def forward(self, *args: Any, **kwargs: Any) -> torch.Tensor:  # noqa: ANN401 - upstream or prepared block
+        index, block = next(self.sequence.active.get())
+        if index != self.index:
+            msg = f"VGGT-Omega requested block {self.index} while staging block {index}"
+            raise RuntimeError(msg)
+        return block(*args, **kwargs)
+
+
+class _Blk(nn.Module):
     """Prepared parameters of one upstream `SelfAttentionBlock` (fp16 GEMM weights, fp32 norms and LayerScales)."""
 
-    def __init__(self, b: Any) -> None:  # noqa: ANN401 - vendored block
+    def __init__(self, b: Any, device: torch.device, *, kernels: bool) -> None:  # noqa: ANN401 - vendored block
+        super().__init__()
         a = b.attn
 
         def h(t: torch.Tensor) -> torch.Tensor:
-            return t.detach().half().contiguous()
+            return nn.Buffer(t.detach().to(device=device, dtype=torch.float16).contiguous())
 
         def f(t: torch.Tensor) -> torch.Tensor:
-            return t.detach().float().contiguous()
+            return nn.Buffer(t.detach().to(device=device, dtype=torch.float32).contiguous())
 
         self.heads = a.num_heads
         self.eps1, self.eps2 = b.norm1.eps, b.norm2.eps
-        self.n1 = (f(b.norm1.weight), f(b.norm1.bias))
-        self.n2 = (f(b.norm2.weight), f(b.norm2.bias))
+        self.n1w, self.n1b = f(b.norm1.weight), f(b.norm1.bias)
+        self.n2w, self.n2b = f(b.norm2.weight), f(b.norm2.bias)
         bias = a.qkv.bias * a.qkv.bias_mask if hasattr(a.qkv, "bias_mask") else a.qkv.bias
         self.wqkv, self.bqkv = h(a.qkv.weight), h(bias)
         self.wp, self.bp = h(a.proj.weight), h(a.proj.bias)
-        self.qn: tuple[torch.Tensor, ...] | None = None
-        self.qnf: tuple[torch.Tensor, ...] | None = None  # fp32 copies (kernels)
+        self.qn: torch.Tensor | None
+        self.qnf: torch.Tensor | None
         self.qk_eps = 1e-5
         if a.use_qk_norm:
-            self.qn = (h(a.q_norm.weight), h(a.q_norm.bias), h(a.k_norm.weight), h(a.k_norm.bias))
+            self.qn = h(torch.stack((a.q_norm.weight, a.q_norm.bias, a.k_norm.weight, a.k_norm.bias)))
+            self.qnf = f(self.qn) if kernels else None  # preserve the half rounding before FP32 Q/K normalization
             self.qk_eps = a.q_norm.eps
+        else:
+            self.qn = self.qnf = None
         self.scale = a.scale
         self.g1, self.g2 = f(b.ls1.gamma), f(b.ls2.gamma)
         m = b.mlp
@@ -166,6 +222,17 @@ class _Blk:
             msg = "VGGT-Omega fast path: unexpected MLP activation"
             raise ValueError(msg)
         self.w1, self.b1, self.w2, self.b2 = h(m.fc1.weight), h(m.fc1.bias), h(m.fc2.weight), h(m.fc2.bias)
+
+    @property
+    def n1(self) -> tuple[torch.Tensor, torch.Tensor]:
+        return self.n1w, self.n1b
+
+    @property
+    def n2(self) -> tuple[torch.Tensor, torch.Tensor]:
+        return self.n2w, self.n2b
+
+    def forward(self, run: Callable[..., torch.Tensor], *args: Any) -> torch.Tensor:  # noqa: ANN401
+        return run(self, *args)
 
 
 def _rot(x: torch.Tensor, p: int, sin: torch.Tensor, cos: torch.Tensor) -> torch.Tensor:
@@ -190,30 +257,45 @@ class _Fast(_Base):
     def __init__(self, ctx: Context) -> None:
         super().__init__(ctx)
         self._pos: dict[tuple[Any, ...], torch.Tensor] = {}
-        if ctx.dtype == "float32":
-            return
+        self.staged = None
         net: Any = self.net
         agg = net.aggregator
         pe = agg.patch_embed
+        if ctx.dtype == "float32":
+            if ctx.params.stream:
+                calls = self._stage(pe.blocks, agg.frame_blocks, agg.inter_frame_blocks)
+                pe.blocks, agg.frame_blocks, agg.inter_frame_blocks = (nn.ModuleList(group) for group in calls)
+            net.to(ctx.device)
+            return
         if not isinstance(pe.patch_embed.norm, nn.Identity) or pe.untie_cls_and_patch_norms:
             msg = "VGGT-Omega fast path: unexpected patch embed structure"
             raise ValueError(msg)
-        self.pe_blocks = [_Blk(b) for b in pe.blocks]
-        self.frame = [_Blk(b) for b in agg.frame_blocks]
-        self.inter = [_Blk(b) for b in agg.inter_frame_blocks]
-        self.pe_conv = (pe.patch_embed.proj.weight.detach().half(), pe.patch_embed.proj.bias.detach().half())
-        self.pe_norm = (pe.norm.weight.detach().float(), pe.norm.bias.detach().float(), pe.norm.eps)
-        for mod in (pe.blocks, agg.frame_blocks, agg.inter_frame_blocks):  # free the converted fp32 copies
-            for p in mod.parameters():
-                p.data = torch.empty(0, device=p.device, dtype=p.dtype)
+        target = torch.device("cpu") if ctx.params.stream else ctx.device
+        groups = [
+            [_Blk(b, target, kernels=self.gacc) for b in modules]
+            for modules in (pe.blocks, agg.frame_blocks, agg.inter_frame_blocks)
+        ]
+        self.pe_blocks, self.frame, self.inter = self._stage(*groups) if ctx.params.stream else groups
+        # The prepared weights replace the FP32 transformer. Only the heads and token/position parameters move next.
+        pe.blocks, agg.frame_blocks, agg.inter_frame_blocks = nn.ModuleList(), nn.ModuleList(), nn.ModuleList()
         dh = net.dense_head
         last = (dh.proj, dh.proj_conf)
         dh.proj = dh.proj_conf = None
         dh.half().to(memory_format=torch.channels_last)
         dh.proj, dh.proj_conf = last
+        net.to(ctx.device)
+        self.pe_conv = (pe.patch_embed.proj.weight.detach().half(), pe.patch_embed.proj.bias.detach().half())
+        self.pe_norm = (pe.norm.weight.detach().float(), pe.norm.bias.detach().float(), pe.norm.eps)
         self.head_w = torch.cat([last[0].weight.flatten(1), last[1].weight.flatten(1)]).float()  # [2 r^2, 256]
         self.head_b = torch.cat([last[0].bias, last[1].bias]).float()
         self.head_norm = (dh.norm.weight.detach().float(), dh.norm.bias.detach().float(), dh.norm.eps)
+
+    def _stage(self, patch: Any, frame: Any, inter: Any) -> tuple[list[_Stage], list[_Stage], list[_Stage]]:  # noqa: ANN401
+        ordered = itertools.chain(patch, itertools.chain.from_iterable(zip(frame, inter, strict=True)))
+        self.staged = _StagedCalls(ordered, self.ctx.device)
+        calls = [_Stage(self.staged, i) for i in range(len(self.staged.source))]
+        boundary = len(patch)
+        return calls[:boundary], calls[boundary::2], calls[boundary + 1 :: 2]
 
     def ln(self, x: torch.Tensor, wb: tuple[torch.Tensor, torch.Tensor], eps: float) -> torch.Tensor:
         """LayerNorm fp32 `[.., C]` -> fp16 `[rows, C]` (contiguous, NHWC-ready)."""
@@ -248,7 +330,9 @@ class _Fast(_Base):
         b, n, c = x.shape
         qkv = F.linear(self.ln(x, p.n1, p.eps1), p.wqkv, p.bqkv).view(b, n, 3, p.heads, c // p.heads)
         o = F.linear(self._qk_attn(p, qkv, rope, pre), p.wp, p.bp)
+        del qkv
         x = torch.addcmul(x, o.view(b, n, c), p.g1)
+        del o
         y = F.gelu(F.linear(self.ln(x, p.n2, p.eps2), p.w1, p.b1))
         if self.gacc:  # fc2 accumulates in fp32 (`nofc2`)
             torch.backends.cuda.matmul.allow_fp16_accumulation = False
@@ -271,7 +355,7 @@ class _Fast(_Base):
         rope = self.rope_tables(sin, cos)
         pre = 1 + pe.n_storage_tokens
         for p in self.pe_blocks:
-            tok = self.block(p, tok, rope, pre)
+            tok = p(self.block, tok, rope, pre)
         w_, b_, eps = self.pe_norm
         return F.layer_norm(tok[:, pre:], (c,), w_, b_, eps)
 
@@ -290,12 +374,12 @@ class _Fast(_Base):
         pre = agg.patch_token_start
         out: list[torch.Tensor | None] = []
         for i in range(agg.depth):
-            tokens = self.block(self.frame[i], tokens.view(b * s, n, c), rope, pre)
+            tokens = self.frame[i](self.block, tokens.view(b * s, n, c), rope, pre)
             fr = tokens.view(b, s, n, c)
             if agg.inter_frame_attention_types[i] == "global":
-                t4 = self.block(self.inter[i], fr.reshape(b, s * n, c)).view(b, s, n, c)
+                t4 = self.inter[i](self.block, fr.reshape(b, s * n, c)).view(b, s, n, c)
             else:  # "register": only the camera + register tokens attend across views
-                cr = self.block(self.inter[i], fr[:, :, :pre].reshape(b, s * pre, c)).view(b, s, pre, c)
+                cr = self.inter[i](self.block, fr[:, :, :pre].reshape(b, s * pre, c)).view(b, s, pre, c)
                 t4 = torch.cat([cr, fr[:, :, pre:]], 2)
             tokens = t4
             out.append(torch.cat([fr, t4], -1) if i in agg.cached_layer_indices else None)
@@ -338,7 +422,8 @@ class _Fast(_Base):
     def predict(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
         """`FastVGGTOmega.__call__`."""
         b, s, _, h, w = x.shape
-        with torch.autocast("cuda", enabled=False), _fp16_accumulate(on=self.gacc):
+        stage = self.staged.session() if self.staged is not None else contextlib.nullcontext()
+        with torch.autocast("cuda", enabled=False), _fp16_accumulate(on=self.gacc), stage:
             toks, pre = self.aggregate(x)
         pose = self.net.camera_head(toks, patch_token_start=pre)  # ty: ignore[call-non-callable] - built with the camera head
         c = self.dense_chunk
@@ -353,10 +438,16 @@ class Portable(_Fast):
 
     def predict(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
         """Upstream modules in fp32, or the fp16 path."""
-        return self.net(x) if self.ctx.dtype == "float32" else super().predict(x)
+        if self.ctx.dtype != "float32":
+            return super().predict(x)
+        with self.staged.session() if self.staged is not None else contextlib.nullcontext():
+            return self.net(x)
 
     def module(self) -> torch.nn.Module:
         """The network with its input handling: the runner's inputs -> the maps of `__call__`."""
+        if self.staged is not None:
+            msg = "Export requires resident VGGT-Omega weights; reload with stream=False"
+            raise NotImplementedError(msg)
         return Forward(self.net, lambda _net, *inputs: self.forward(*inputs))
 
 
@@ -376,8 +467,6 @@ class Kernels(_Fast):
         self.kv = vggt_omega.load(ctx.device)
         self.max_c = vggt_omega.LN_MAX_C
         self.qk_rows = vggt_omega.QK_ROWS
-        for p in (*self.pe_blocks, *self.frame, *self.inter):  # fp32 q / k norm parameters for the kernel
-            p.qnf = None if p.qn is None else tuple(t.float().contiguous() for t in p.qn)
 
     def rope_tables(self, sin: torch.Tensor, cos: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """fp32 tables (the kernel rotates in fp32, as the Triton kernel)."""
@@ -436,9 +525,11 @@ class Kernels(_Fast):
             raise ValueError(msg)
         qkv = F.linear(self.ln(x, p.n1, p.eps1), p.wqkv, p.bqkv).view(b, n, 3, p.heads, c // p.heads)
         o = F.linear(self._qk_attn(p, qkv, rope, pre), p.wp, p.bp)
+        del qkv
         x1 = torch.empty_like(x)
         y = torch.empty(b * n, c, device=x.device, dtype=torch.float16)
         self._ln_launch("omega_add_ln", b * n, x, o, p.g1, x1, y, p.n2[0], p.n2[1], c, p.eps2)
+        del o
         hdn = F.gelu(F.linear(y, p.w1, p.b1))
         torch.backends.cuda.matmul.allow_fp16_accumulation = False  # fc2 accumulates in fp32 (`nofc2`)
         o = F.linear(hdn, p.w2, p.b2)
