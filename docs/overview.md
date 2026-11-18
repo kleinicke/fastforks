@@ -698,11 +698,11 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`disk-lightglue`](models/matching.md#lightglue) | yes | 116.7 (768x1024) | 116.4 | 52.1 | 2.2x vs original (768x1024) | 736 |
 | [`loftr-outdoor`](models/matching.md#loftr) | yes | 241.5 (768x1024) | 109.9 | 95.9 | 2.5x vs original (768x1024) | 760 |
 | [`loftr-indoor`](models/matching.md#loftr) | yes | 241.6 (768x1024) | 110.6 | 96.2 | 2.5x vs original (768x1024) | 760 |
+| [`loma-b64`](models/matching.md#loma) | yes | – | 130.8 | 119.0 | 1.1x vs portable | 840 |
+| [`loma-b128`](models/matching.md#loma) | yes | – | 150.5 | 128.1 | 1.2x vs portable | 852 |
 | [`aliked-flexglue`](models/matching.md#flexglue) | yes | 347.6 (768x1024) | 128.7 | – | – | – |
-| [`loma-b64`](models/matching.md#loma) | yes | – | 129.1 | – | – | – |
-| [`loma-b128`](models/matching.md#loma) | yes | – | 149.6 | – | – | – |
 | [`dedode-v2-b`](models/matching.md#dedode-v2) | yes | 318.5 (768x1024) | 246.5 | 189.4 | 1.7x vs original (768x1024) | 1197 |
-| [`loma-b`](models/matching.md#loma) | yes | 1036.3 (768x1024) | 308.1 | – | – | – |
+| [`loma-b`](models/matching.md#loma) | yes | 1036.3 (768x1024) | 309.3 | 270.0 | 3.8x vs original (768x1024) | 1444 |
 | [`loma-r`](models/matching.md#loma) | yes | – | 308.6 | – | – | – |
 | [`loma-l`](models/matching.md#loma) | yes | – | 318.6 | – | – | – |
 | [`dedode-v2-g`](models/matching.md#dedode-v2) | yes | 665.5 (768x1024) | 592.5 | 331.9 | 2.0x vs original (768x1024) | 1787 |
