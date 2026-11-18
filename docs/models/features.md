@@ -351,7 +351,7 @@ Two disjoint seeded subsets of the val folders; each image shorter side 256 (bic
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
 | `convnext_tiny.fb_in22k` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.80 | 66.88 | 66.82 | 66.80 | 66.84 |  |
-| `convnext_small.fb_in22k` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 71.68 | 71.68 | 71.72 |  | 71.72 |  |
+| `convnext_small.fb_in22k` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 71.68 | 71.68 | 71.72 | 71.68 | 71.72 |  |
 | `convnext_base.fb_in22k` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 73.04 | 73.04 | 73.08 | 73.04 | 73.04 |  |
 | `convnext_large.fb_in22k` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 75.26 | 75.22 | 75.28 | 75.26 | 75.24 |  |
 
@@ -814,8 +814,8 @@ Two disjoint seeded subsets of the val folders; each image shorter side 256 (bic
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
 | `siglip2-b16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 53.84 | 53.78 | 53.80 | 53.88 | 53.86 |  |
-| `siglip2-b16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 26.24 | 26.06 | 26.28 |  | 26.52 |  |
-| `siglip2-l16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 64.74 | 64.84 | 64.68 |  | 64.62 |  |
+| `siglip2-b16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 26.24 | 26.06 | 26.28 | 26.20 | 26.52 |  |
+| `siglip2-l16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 64.74 | 64.84 | 64.68 | 64.68 | 64.62 |  |
 | `siglip2-l16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 65.18 | 65.12 | 65.14 |  | 65.10 |  |
 | `siglip2-so400m14-224` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.18 | 66.12 | 66.10 |  | 66.10 |  |
 | `siglip2-so400m14-378` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.90 | 59.94 | 60.00 |  | 59.92 |  |
