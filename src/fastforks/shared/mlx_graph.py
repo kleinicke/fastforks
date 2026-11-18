@@ -22,6 +22,7 @@ from __future__ import annotations
 import ctypes
 import gc
 import math
+import mmap
 import operator
 import os
 from typing import TYPE_CHECKING, Any
@@ -879,10 +880,28 @@ def _nearest(x: mx.array, size: Sequence[int] | None, *scales: Any) -> mx.array:
 
 
 # ---- interpreter ------------------------------------------------------------------------------------------------
-def trim_heap() -> None:
-    """Hand the allocator's freed (but still resident) pages back to the OS: a freed CPU twin stays in the footprint."""
+_HAND_BACK_MIN = 1 << 20
+_MADV_FREE_REUSABLE = 7  # macOS: the pages leave the footprint at once (the allocator would keep them resident)
+
+
+def _exclusive(storage: torch.UntypedStorage) -> bool:
+    """No tensor but one shares this storage (its use count: that tensor and this wrapper)."""
+    return torch._C._storage_Use_Count(storage._cdata) == 2  # noqa: SLF001, PLR2004
+
+
+def _hand_back(storage: torch.UntypedStorage) -> None:
+    """Return the whole pages of a storage to the OS (a freed CPU twin stays in the footprint otherwise).
+
+    Only for a storage that was `_exclusive` and is about to go: its contents are gone afterwards.
+    """
     try:
-        ctypes.CDLL("/usr/lib/libSystem.B.dylib").malloc_zone_pressure_relief(None, 0)
+        libc = ctypes.CDLL("/usr/lib/libSystem.B.dylib")
+        libc.madvise.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int]
+        page = mmap.PAGESIZE
+        start = (storage.data_ptr() + page - 1) // page * page
+        end = (storage.data_ptr() + storage.nbytes()) // page * page
+        if end > start:
+            libc.madvise(start, end - start, _MADV_FREE_REUSABLE)
     except (OSError, AttributeError):
         pass
 
@@ -1264,12 +1283,15 @@ class MlxModule:
             if not t.__dict__.get("_mlx_owners", set()) <= done or t.numel() <= 1:
                 continue
             stand_in = torch.zeros((), dtype=t.dtype).expand(t.shape)
+            old = t.untyped_storage()
+            hand_back = old.nbytes() >= _HAND_BACK_MIN and _exclusive(old)
             if leaf in host._parameters:
                 t.data = stand_in
             else:
                 host._buffers[leaf] = stand_in
+            if hand_back:
+                _hand_back(old)
         gc.collect()
-        trim_heap()
 
     def parameters(self) -> Any:
         """The wrapped module's (CPU float32) parameters, for runners that read the dtype from them."""
