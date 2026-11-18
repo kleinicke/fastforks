@@ -352,8 +352,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `track-on2` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1953<br>1193<br>1108<br>fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile <br>planned for 0.2.1 | 1403 / 1558<br>1423 / 1712<br>1368 / 1620<br>–<br>– |
-| `track-on-r` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2022<br>1188<br>1102<br>fails: timeout after 900 s (audit 2026-11-16, RTX 5060 Ti: compile <br>planned for 0.2.1 | 1801 / 1928<br>1423 / 1632<br>1368 / 1620<br>–<br>– |
+| `track-on2` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1953<br>1193<br>1108<br>1075<br>planned for 0.2.1 | 1403 / 1558<br>1423 / 1712<br>1368 / 1620<br>1340 / 1454<br>– |
+| `track-on-r` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2022<br>1188<br>1102<br>1066<br>planned for 0.2.1 | 1801 / 1928<br>1423 / 1632<br>1368 / 1620<br>1340 / 1454<br>– |
 
 <details><summary>Details</summary>
 
@@ -370,6 +370,8 @@ Commercial use: yes.
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `track-on2` 3000x4000 (5.0 GiB peak allocated, 6.0 reserved); `track-on-r` 3000x4000 (5.0 GiB peak allocated, 6.0 reserved)
+- `track-on2` 480x854, first call: portable + torch.compile 60 s (cold Inductor cache).
+- `track-on-r` 480x854, first call: portable + torch.compile 66 s (cold Inductor cache).
 - `track-on2` original 480x854: the authors' mixed-precision option (float16); gorkaydemir/track_on@04efe8a137bd Predictor loop, 384 x 512, memory 72
 - `track-on-r` original 480x854: the authors' mixed-precision option (float16); gorkaydemir/track_on@04efe8a137bd Predictor loop, 384 x 512, memory 72
 - `track-on2` load / first call: original 3.77 s / 3.626 s, portable 1.16 s / 1.956 s, kernels 0.63 s / 1.762 s
@@ -378,13 +380,15 @@ Commercial use: yes.
 
 ### Measured
 
-Query-first TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model (AllTracker: the original frames, resized by the model), one query per track at its first visible point, tracked online (TAPNext, Track-On) or over the whole clip (TAPIR, AllTracker, LocoTrack); AJ, delta_avg (< 1, 2, 4, 8, 16 px at 256 x 256) and occlusion accuracy averaged over the videos. Original = the original code named under Details, same checkpoint and protocol.
+Query-first TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model (AllTracker: the original frames, resized by the model), one query per track at its first visible point, tracked online (TAPNext, Track-On) or over the whole clip (TAPIR, AllTracker, LocoTrack); AJ, delta_avg (< 1, 2, 4, 8, 16 px at 256 x 256) and occlusion accuracy averaged over the videos. Ten DAVIS clips, every third clip, resized to 256 x 256. Use the first 16 frames with up to 20 annotated query-first tracks starting before frame 12. Both modes use the same frames and queries. Scores are averaged across clips. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `track-on2` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 69.60 / 81.26 / 92.96 | 69.64 / 81.30 / 92.94 | 69.69 / 81.33 / 92.94 | 69.59 / 81.26 / 92.95 | 69.65 / 81.32 / 92.93 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | note |
+|---|---|---|---|---|---|---|---|---|
+| `track-on2` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 69.60 / 81.26 / 92.96 | 69.64 / 81.30 / 92.94 | 69.69 / 81.33 / 92.94 | 69.59 / 81.26 / 92.95 | 69.65 / 81.32 / 92.93 |  |  |
+| `track-on2` | TAP-Vid DAVIS (10 clips), first 16 frames and up to 20 queries, AJ / delta_avg / OA % |  |  | 80.74 / 90.52 / 95.19 |  |  | 80.79 / 90.55 / 95.19 |  |
+| `track-on-r` | TAP-Vid DAVIS (10 clips), first 16 frames and up to 20 queries, AJ / delta_avg / OA % |  |  | 82.08 / 91.10 / 95.90 |  |  | 82.06 / 91.08 / 95.90 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bb4e8b64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6327e81d / db9e79d5, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bb4e8b64, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5, 2026-11-13; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6327e81d, 2026-11-18.
 
 ### Parity
 
@@ -403,7 +407,8 @@ CPU, float32: max |diff| <= 1.8e-05 vs the original. GPU, float16 (the default),
 - Online: a query only sees the frames from its own frame on; frames before it return the query position with visibility 0.
 - One video per call; all queries of a call share the video.
 - Track-On2 peaks 1423 MB, 20 MB (1.4 %) above the fp16 original (1403 MB), and runs 15 % faster. The 1236 MB original variant is the fp32 one, which is 2.4x slower.
-- No exportable module: every step reads a data-dependent scalar (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).
+- `torch.compile` compiles the frame features. The online loop reads data-dependent scalars and stays eager. ONNX and TensorRT exports are gated.
+- On ten shortened TAP-Vid DAVIS clips, compiling changed predicted positions by up to 0.583 px at per-clip p99. The largest individual deviation was 44.13 px.
 
 </details>
 

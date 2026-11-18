@@ -22,6 +22,7 @@ import torch
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.runner import host
 from fastforks.tracking._runner import Forward, Runner
 
 from .net.track_on import D, TrackOn2
@@ -30,6 +31,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from fastforks.tracking._runner import Context
+
+    from .net.track_on import Frame
 
 FRAME_CHUNK = 8  # fixed: memory chunking of the feature pass, not an architecture value
 VIS_SHIFT = math.log(0.8 / 0.2)  # fixed: maps upstream's 0.8 visibility threshold to 0.5
@@ -80,6 +83,8 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
     queries: torch.Tensor,
     params: Params,
     amp: torch.dtype | None,
+    *,
+    features: Callable[[torch.Tensor], list[Frame]],
 ) -> dict[str, torch.Tensor]:
     """`{"tracks": [T, Q, 2], "visibility": [T, Q]}` of frames `frames(t)` `[1, 3, H, W]` in `[0, 1]`."""
     h, w = size
@@ -105,7 +110,7 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
     active = 0
     with region:
         for s in range(qt_sorted[0] if total else n, n, FRAME_CHUNK):
-            feats = net.features(torch.cat([frames(t) for t in range(s, min(n, s + FRAME_CHUNK))]))
+            feats = features(torch.cat([frames(t) for t in range(s, min(n, s + FRAME_CHUNK))]))
             for t, frame in enumerate(feats, s):
                 new = active
                 while new < total and qt_sorted[new] <= t:
@@ -131,6 +136,7 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16")
     Params = Params
+    compiled_methods = ("_features",)
 
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
@@ -138,11 +144,15 @@ class Portable(Runner):
         self.net = build(ctx).eval().requires_grad_(requires_grad=False).to(ctx.device)
         self.amp = torch.float16 if ctx.dtype == "float16" else None
 
+    def _features(self, video: torch.Tensor) -> list[Frame]:
+        return self.net.features(video)
+
+    @host
     def __call__(
         self, frames: Callable[[int], torch.Tensor], n: int, size: tuple[int, int], queries: torch.Tensor
     ) -> dict[str, torch.Tensor]:
         """Tracks and visibility of the queries."""
-        return track(self.net, frames, n, size, queries, self.ctx.params, self.amp)
+        return track(self.net, frames, n, size, queries, self.ctx.params, self.amp, features=self._features)
 
     def module(self) -> torch.nn.Module:
         """The network with the online loop; `forward(video [T, 3, H, W], queries [Q, 3])`."""
@@ -150,13 +160,17 @@ class Portable(Runner):
 
         def fn(net: TrackOn2, video: torch.Tensor, queries: torch.Tensor) -> dict[str, torch.Tensor]:
             size = (video.shape[-2], video.shape[-1])
-            return track(net, lambda t: video[t : t + 1], video.shape[0], size, queries, params, amp)
+            return track(
+                net, lambda t: video[t : t + 1], video.shape[0], size, queries, params, amp, features=net.features
+            )
 
         return Forward(self.net, fn)
 
 
 class Kernels(Portable):
     """The fp16 pass with fp16 accumulation; the ViT blocks on the fastbb / dpt_fused kernels."""
+
+    compiled_methods = ("__call__",)  # keep the kernel checks around the full tracking call
 
     def __init__(self, ctx: Context) -> None:
         """The portable network in fp16 autocast with kernel ViT blocks (weights repacked once)."""

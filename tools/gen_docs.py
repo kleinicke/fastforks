@@ -155,6 +155,8 @@ _DATASETS = {
     "tracking": {
         "tapvid-davis-first-every3": "TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA %",
         "tapvid-davis-first": "TAP-Vid DAVIS (query first), AJ / delta_avg / OA %",
+        "tapvid-davis-first16-every3-up-to20": "TAP-Vid DAVIS (10 clips), first 16 frames and up to 20 queries, "
+        "AJ / delta_avg / OA %",
         "tapvid-davis-fixed-8x16": "TAP-Vid DAVIS, 8 frames and 16 queries per clip, AJ / delta_avg / OA %",
     },
 }
@@ -432,6 +434,9 @@ _PROTOCOL = {
     "(AllTracker: the original frames, resized by the model), one query per track at its first visible point, "
     "tracked online (TAPNext, Track-On) or over the whole clip (TAPIR, AllTracker, LocoTrack); AJ, delta_avg "
     "(< 1, 2, 4, 8, 16 px at 256 x 256) and occlusion accuracy averaged over the videos. ",
+    ("tracking", "tapvid-davis-first16-every3-up-to20"): "Ten DAVIS clips, every third clip, resized to 256 x 256. "
+    "Use the first 16 frames with up to 20 annotated query-first tracks starting before frame 12. Both modes use the "
+    "same frames and queries. Scores are averaged across clips. ",
     ("tracking", "tapvid-davis-fixed-8x16"): "The fixed export check uses 28 annotated eight-frame clips resized to "
     "480 x 854, with 16 queries sampled from frames 0, 2, and 4. Scores are averaged over clips after scoring the "
     "frames following each query in TAP-Vid's 256 x 256 coordinate system. ",

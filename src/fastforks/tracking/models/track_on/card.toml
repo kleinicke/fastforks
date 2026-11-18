@@ -11,7 +11,8 @@ limitations = [
   "Online: a query only sees the frames from its own frame on; frames before it return the query position with visibility 0.",
   "One video per call; all queries of a call share the video.",
   "Track-On2 peaks 1423 MB, 20 MB (1.4 %) above the fp16 original (1403 MB), and runs 15 % faster. The 1236 MB original variant is the fp32 one, which is 2.4x slower.",
-  "No exportable module: every step reads a data-dependent scalar (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).",
+  "`torch.compile` compiles the frame features. The online loop reads data-dependent scalars and stays eager. ONNX and TensorRT exports are gated.",
+  "On ten shortened TAP-Vid DAVIS clips, compiling changed predicted positions by up to 0.583 px at per-clip p99. The largest individual deviation was 44.13 px.",
 ]
 licence_notes = [
   "The DINOv3 ViT-S+/16 weights and net/dinov3.py are under the DINOv3 License (Meta: attribution and conditions apply); read it before commercial use. The Track-On code and checkpoints are MIT.",
