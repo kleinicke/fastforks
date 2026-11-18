@@ -549,3 +549,17 @@ def test_raft_flow(dev, seed, large, record_property):
         4.7e-7,
         **info,
     )
+
+
+@pytest.mark.gpu
+def test_vol_norm_repeatable() -> None:
+    """A repeated reduction must not move voxel logits across a decision boundary."""
+    device = torch.device("cuda")
+    rng = torch.Generator(device=device).manual_seed(710)
+    x = torch.randn(2, 32, 32, 64, 64, device=device, dtype=torch.float16, generator=rng)
+    x = x.contiguous(memory_format=torch.channels_last_3d)
+    scale = torch.randn(32, device=device, dtype=x.dtype, generator=rng)
+    bias = torch.randn_like(scale)
+    expected = vol_norm.norm_act_(x.clone(), scale, bias, 1e-5, 0.01)
+    for _ in range(3):
+        assert torch.equal(vol_norm.norm_act_(x.clone(), scale, bias, 1e-5, 0.01), expected)

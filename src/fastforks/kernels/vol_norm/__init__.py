@@ -15,7 +15,7 @@ from fastforks._core import kernels
 from fastforks._core.kernels import cubin_library
 
 # p: pointer, i: int32, l: int64, f: float32 (must match the extern "C" kernels in vol_norm.cu)
-SIGNATURES = {"in_stats_h": "ppii", "in_final_h": "ppppiiif", "in_apply_h": "ppliif"}
+SIGNATURES = {"in_stats_h": "ppii", "in_final_h": "pppppiiif", "in_apply_h": "ppliif"}
 _ROWS = 256  # threads per stats block
 _V8 = 8
 load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
@@ -38,12 +38,15 @@ def norm_act_(x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor, eps: fl
     n, c = x.shape[:2]
     s = x[0, 0].numel()
     lib = load(x.device)
-    stats = torch.zeros((n, c, 2), dtype=torch.float32, device=x.device)
+    stats = torch.empty((n, c, 2), dtype=torch.float32, device=x.device)
     c8 = c // _V8
     rows = max(_ROWS // c8, 1)
     blocks = min(max(s // (rows * 64), 1), 1024)
-    lib.launch("in_stats_h", (blocks, n, 1), (c8, rows, 1), x, stats, s, c, smem=rows * c8 * 16 * 4)
-    lib.launch("in_final_h", *kernels.linear(n * c), x, stats, weight, bias, n, s, c, float(eps))
+    partial = torch.empty((n, blocks, c, 2), dtype=torch.float32, device=x.device)
+    lib.launch("in_stats_h", (blocks, n, 1), (c8, rows, 1), x, partial, s, c, smem=rows * c8 * 16 * 4)
+    lib.launch(
+        "in_final_h", ((c + 31) // 32, n, 1), (32, 8, 1), x, partial, stats, weight, bias, blocks, s, c, float(eps)
+    )
     total = n * s * c8
     lib.launch("in_apply_h", *kernels.linear(total), x, stats, total, s, c, float(slope))
     return x
