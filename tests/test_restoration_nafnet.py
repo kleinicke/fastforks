@@ -88,3 +88,24 @@ def test_float16_finite_on_stress_inputs(model: str, mode: str) -> None:
     for name, x in inputs.items():
         out = m._runner(x.cuda())["image"]
         assert torch.isfinite(out).all(), f"{model} [{mode}] {name}: NaN / inf in float16"
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(("n", "c", "h", "w"), [(2, 7, 3, 5), (1, 64, 1, 1), (1, 64, 13, 11)])
+def test_fused_depthwise_gate(n: int, c: int, h: int, w: int) -> None:
+    from fastforks.kernels.nafnet_gate import depthwise_gate  # noqa: PLC0415
+
+    torch.manual_seed(5)
+    x = torch.randn(n, 2 * c, h, w, device="cuda", dtype=torch.float16)
+    weight = torch.randn(2 * c, 1, 3, 3, device="cuda", dtype=x.dtype)
+    bias = torch.randn(2 * c, device="cuda", dtype=x.dtype)
+    # Float reference with the model's fp16 rounding between convolution and gate.
+    with torch.backends.cudnn.flags(allow_tf32=False):
+        a, b = (
+            torch.nn.functional.conv2d(x.float(), weight.float(), bias.float(), padding=1, groups=2 * c)
+            .half()
+            .chunk(2, 1)
+        )
+    actual = depthwise_gate(x, weight.flatten(1).T.contiguous(), bias)
+    torch.testing.assert_close(actual, a * b, atol=0.015625, rtol=0.001)
+    assert actual.is_contiguous(memory_format=torch.channels_last)

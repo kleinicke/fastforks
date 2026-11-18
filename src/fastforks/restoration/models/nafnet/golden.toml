@@ -27,19 +27,19 @@ upstream = "https://github.com/megvii-research/NAFNet@2b4af71ebe098a92a75910c233
 settings = "CPU float32, NAFNet, net_g(lq), clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
 
 [validated."nafnet-gopro@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn91501", "nafnet_gate@aee03d5582f6:sm_120"]
+symbols = {"nafnet_gate" = {"depthwise_gate" = "69fe868f38afe6d8"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
-torch = "2.14.1+cu130"
-date = "2026-11-14"
-mean_px = 0.01098
-p99_px = 0.54652
+torch = "2.10.0+cu130"
+date = "2026-11-18"
+mean_px = 0.01365
+p99_px = 0.74862
 
 [validated."nafnet-sidd@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn91501", "nafnet_gate@aee03d5582f6:sm_120"]
+symbols = {"nafnet_gate" = {"depthwise_gate" = "69fe868f38afe6d8"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
-torch = "2.14.1+cu130"
-date = "2026-11-14"
-mean_px = 0.00027
-p99_px = 0.00099
+torch = "2.10.0+cu130"
+date = "2026-11-18"
+mean_px = 0.00031
+p99_px = 0.00116

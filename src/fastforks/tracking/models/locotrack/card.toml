@@ -31,7 +31,7 @@ cuda_dtype = "float16"  # autocast
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["fvm_conv"]  # the refinement transformer: fused GEMMs (one q/k/v GEMM, exact-GELU epilogue), fp16 accumulation
+kernels = ["fvm_conv", "locotrack_sample"]  # the refinement transformer: fused GEMMs (one q/k/v GEMM, exact-GELU epilogue), fp16 accumulation
 
 [[papers]]
 title = "Local All-Pair Correspondence for Point Tracking"

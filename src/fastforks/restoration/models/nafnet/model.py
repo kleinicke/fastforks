@@ -24,7 +24,7 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import cudnn_hacc, nafnet_gate
 from fastforks.restoration._runner import Forward, Runner
 
 from .net import NAFNet
@@ -87,6 +87,10 @@ def _block(m: NAFBlock, inp: torch.Tensor) -> torch.Tensor:
     x = m.conv2(m.conv1(_norm(inp, m.norm1.eps)))
     a, b = x.chunk(2, 1)
     x = a * b
+    return _finish_block(m, inp, x)
+
+
+def _finish_block(m: NAFBlock, inp: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
     y = inp + m.conv3(x * m.sca(x))
     a, b = m.conv4(_norm(y, m.norm2.eps)).chunk(2, 1)
     return y + m.conv5(a * b)
@@ -193,8 +197,14 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
 
 
+def _gated_block(m: NAFBlock, inp: torch.Tensor) -> torch.Tensor:
+    x = m.conv1(_norm(inp, m.norm1.eps))
+    x = nafnet_gate.depthwise_gate(x, m.gate_weight, m.conv2.bias)  # ty: ignore[invalid-argument-type]
+    return _finish_block(m, inp, x)
+
+
 class Kernels(Portable):
-    """float16, channels-last, fp16-accumulate convolutions (`cudnn_hacc`; the depthwise convs stay PyTorch's)."""
+    """Channels-last fp16 convolutions with a fused depthwise convolution and SimpleGate."""
 
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
 
@@ -203,7 +213,12 @@ class Kernels(Portable):
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
         for m in self.net.modules():
-            if is_base(m, torch.nn.Conv2d) and m.groups == 1:
+            if isinstance(m, NAFBlock):
+                # Pack the 3 x 3 filters once in the order neighboring CUDA lanes read.
+                weight = m.conv2.weight.detach().flatten(1).T.contiguous()
+                m.register_buffer("gate_weight", weight, persistent=False)
+                override(m, _gated_block)
+            elif is_base(m, torch.nn.Conv2d) and m.groups == 1:
                 override(m, _hacc_conv)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:

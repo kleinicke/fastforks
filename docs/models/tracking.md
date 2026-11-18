@@ -238,7 +238,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://huggingface.co/datasets/hamacojr/LocoTrack-pytorch-weights/blob/a8754d0edfd9e53713dcb31ee21734aac8b727cf/README.md (license: apache-2.0); https://github.com/KU-CVLAB/LocoTrack/blob/3385a233a270160b253a69050c6a3934527f7775/LICENSE (Apache-2.0)
 - Training data: Upstream README: trained on the panning Kubric MOVi-E sequences (synthetic, released as hamacojr/LocoTrack-panning-MOVi-E). No dataset entry here yet.
-- Kernel libraries: `fvm_conv`
+- Kernel libraries: `fvm_conv`, `locotrack_sample`
 - Variants: `locotrack-b`, `locotrack-s`
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -269,8 +269,8 @@ CPU, float32: max |diff| <= 2.3e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `locotrack-b` | 0.00172 / 0.00969 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120` |
-| `locotrack-s` | 0.00243 / 0.01314 | RTX 5060 Ti, torch 2.14.1+cu130 | `fvm_conv@f1d064e539e1:sm_120` |
+| `locotrack-b` | 0.00216 / 0.01019 | RTX 5060 Ti, torch 2.10.0+cu130 | `fvm_conv@f1d064e539e1:sm_120`, `locotrack_sample@7d661b4e8c90:sm_120` |
+| `locotrack-s` | 0.00199 / 0.01091 | RTX 5060 Ti, torch 2.10.0+cu130 | `fvm_conv@f1d064e539e1:sm_120`, `locotrack_sample@7d661b4e8c90:sm_120` |
 
 ### Limitations
 

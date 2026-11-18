@@ -119,9 +119,11 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `igevpp` | great_igev, igev_plusplus, monster_plusplus |
 | `image_normalize` | flexglue, inspyrenet, matanyone |
 | `keypoint_nms` | xfeat |
+| `locotrack_sample` | locotrack |
 | `mocha` | mocha_stereo |
 | `msda` | grounding_dino |
 | `mvsanywhere` | mvsanywhere |
+| `nafnet_gate` | nafnet |
 | `nf4` | marigold_v2, seedvr2 |
 | `ocr_levels` | ppocrv5 |
 | `patchmatchnet` | patchmatchnet |

@@ -17,9 +17,11 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.patch import override
+from fastforks.kernels.locotrack_sample import neighborhood
 from fastforks.tracking._runner import Forward, NoParams, Runner
 
-from .net.locotrack import SIZE, LocoTrack, MultiHeadAttention, PIPSTransformer, alibi_bias
+from .net.locotrack import SIZE, SUPPORT, Features, LocoTrack, MultiHeadAttention, PIPSTransformer, alibi_bias, posenc
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -154,12 +156,36 @@ def _mixer(m: PIPSTransformer) -> Callable[[torch.Tensor], torch.Tensor]:
     return forward
 
 
+def _refine(  # noqa: PLR0913, PLR0917 - same signature as LocoTrack.refine
+    net: LocoTrack,
+    supports: list[torch.Tensor],
+    points: torch.Tensor,
+    occ: torch.Tensor,
+    expd: torch.Tensor,
+    f: Features,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Sample the local grids directly into the fp16 layouts consumed by the three batched GEMMs."""
+    b, n, t, _ = points.shape
+    corrs = []
+    for support, grid, cmdtop in zip(supports, f.grids, net.cmdtop, strict=True):
+        samples = neighborhood(grid, points).view(b * n, t * SUPPORT**2, -1)
+        query = support.reshape(b * n, SUPPORT**2, -1).transpose(1, 2)
+        corr = torch.bmm(samples, query)
+        corrs.append(cmdtop(corr.reshape(b * n * t, SUPPORT, SUPPORT, SUPPORT, SUPPORT)).view(b, n, t, -1))
+    delta = points[..., :-1, :] - points[..., 1:, :]
+    rel = torch.cat([F.pad(delta, (0, 0, 0, 1)), F.pad(-delta, (0, 0, 1, 0))], -1) / SIZE
+    x = torch.cat([occ[..., None], expd[..., None], *corrs, posenc(rel)], -1)
+    update = net.torch_pips_mixer(x.reshape(b * n, t, -1)).reshape(b, n, t, -1).float()
+    return points + update[..., :2], occ + update[..., 2], expd + update[..., 3]
+
+
 class Kernels(Portable):
     """The fp16 portable pass with the refinement transformer on fused-GEMM kernels and fp16 accumulation."""
 
     def __init__(self, ctx: Context) -> None:
         """The portable network with the kernel forward of the mixer (fp16 weights captured in a closure)."""
         super().__init__(ctx)
+        override(self.net, _refine, "refine")
         mixer = self.net.torch_pips_mixer
         mixer.forward = _mixer(mixer)  # ty: ignore[invalid-assignment]  # per-instance override
 
