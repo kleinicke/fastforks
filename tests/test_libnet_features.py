@@ -167,3 +167,45 @@ def test_pe_rope_routes_every_portable_block() -> None:
         got, _ = walk.run(fast.net, x, ())
     assert calls == [1, 1]  # the cls token passes unrotated
     torch.testing.assert_close(got, want, rtol=0, atol=0)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("mode", ["portable", "kernels"])
+@pytest.mark.parametrize("arch", ARCHS[-2:])
+def test_streamed_pe_reuses_two_buffers_and_matches_resident(
+    mode: str, arch: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    from fastforks.features.models.perception_encoder import model as pe  # noqa: PLC0415
+
+    torch.manual_seed(17)
+    net = timm.create_model(
+        arch, img_size=64, depth=5, embed_dim=128, num_heads=2, num_classes=0, dynamic_img_size=True
+    ).eval()
+    for p in net.parameters():
+        p.data.add_(0.02 * torch.randn_like(p))
+    runner = pe.RUNNERS[mode]
+    monkeypatch.setattr(runner, "network", lambda _self, _ctx: copy.deepcopy(net))
+
+    def make(*, stream: bool) -> Any:
+        params = pe.Params("timm", arch, fp16_accumulate=False, fp32_accumulate=False, stream=stream)
+        return runner(
+            SimpleNamespace(
+                dtype="float16", device=torch.device("cuda"), torch_dtype=torch.float16, params=params, mode=mode
+            )
+        )  # ty: ignore[invalid-argument-type]
+
+    with torch.inference_mode():
+        resident, streamed = make(stream=False), make(stream=True)
+        assert all(p.is_meta for blk in streamed.net.blocks.shells for p in blk.parameters())
+        addresses = []
+        for h, layers in ((64, ()), (48, (0, 2, 5)), (80, ())):
+            x = torch.randn(2, 3, h, 64, device="cuda")
+            expected = resident(x, layers)
+            outputs = streamed(x, layers)
+            for k, v in expected.items():
+                torch.testing.assert_close(outputs[k], v, atol=0, rtol=0)
+            addresses.append([b.data_ptr() for b in streamed.net.blocks.host.dev])
+        assert len(addresses[0]) == 2
+        assert addresses[0] == addresses[1] == addresses[2]

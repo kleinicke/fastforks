@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 import torch
 
+from fastforks._core.errors import OptionsError
 from fastforks._core.half import cublas_gemms, fp16_accumulate, graph_sized
 from fastforks._optimize import optimize, transformer
 from fastforks.features._runner import Forward, Runner
@@ -153,13 +154,23 @@ class _TimmFeatures(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the network (CPU, float32), keep its float32 tables, optimise it for `ctx.mode` on `ctx.device`."""
         super().__init__(ctx)
+        self.stream = getattr(ctx.params, "stream", False)
+        if self.stream and ctx.device.type != "cuda":
+            msg = "stream=True requires a CUDA device for host-to-device block transfers"
+            raise OptionsError(msg)
         net = self.network(ctx)
-        self.walk = self.walker(net)
         self.hidden_size, self.num_layers = net.embed_dim, len(net.blocks)
         self.num_prefix_tokens = net.num_prefix_tokens
         self.num_register_tokens = getattr(net, "num_reg_tokens", 0)
         mode = self.optimize_mode or ctx.mode
-        self.fast: FastModel = optimize(net, mode=mode, device=ctx.device, fp16=ctx.dtype == "float16")
+        self.walk = self.walker(net)
+        self.fast: FastModel
+        if self.stream:
+            from .streamed_pe import streamed_pe  # noqa: PLC0415
+
+            self.fast = streamed_pe(net, ctx)
+        else:
+            self.fast = optimize(net, mode=mode, device=ctx.device, fp16=ctx.dtype == "float16")
         self.net: Any = self.fast.net
         self.gemm: Callable[[], contextlib.AbstractContextManager] = contextlib.nullcontext  # GEMM precision
         if ctx.device.type == "cuda":  # the fp32 weights stay cached otherwise
@@ -199,6 +210,9 @@ class _TimmFeatures(Runner):
 
         Without the fp16-accumulate switch (a process-global cuBLAS flag that tracing cannot capture).
         """
+        if self.stream:
+            msg = "Export requires resident weights; reload with stream=False"
+            raise NotImplementedError(msg)
 
         def fn(_net: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
             net = self.net
@@ -239,7 +253,9 @@ class Kernels(_TimmFeatures):
         # every GEMM through cuBLAS with fp32 accumulation (the portable precision inside the CUDA graphs)
         self.gemm = cublas_gemms if ctx.params.fp32_accumulate else fp16_accumulate
         self.patch: int = self.net.patch_embed.patch_size[0]
-        self.graphs: GraphCache | None = GraphCache(self._captured, graphs=_GRAPHS)  # None: no graphs (tests)
+        self.graphs: GraphCache | None = (
+            None if self.stream else GraphCache(self._captured, graphs=_GRAPHS)
+        )  # None: no graphs (tests)
 
     def _small(self, image: torch.Tensor) -> bool:
         """Whether the call is small enough for a graph: `_GRAPH_WORK` activations over the patch tokens."""

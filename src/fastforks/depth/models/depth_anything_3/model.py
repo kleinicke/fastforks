@@ -31,9 +31,11 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.errors import OptionsError
 from fastforks._core.patch import override
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.shared.cv2_resize import cv2_resize
+from fastforks.shared.host_blocks import StreamedModuleList
 from fastforks.shared.quantile import kth_smallest
 from fastforks.shared.rope2d import rope_forward
 
@@ -89,6 +91,7 @@ class Params:
 
     arch: Arch
     long_side: int  # longer side of the network input before rounding to multiples of 14
+    stream: bool = False
 
 
 class _Branch(nn.Module):
@@ -328,7 +331,10 @@ class Portable(Runner):
         self.arch: Arch = ctx.params.arch
         self.intrinsics = self.input_use(ctx.params)["intrinsics"]  # ty: ignore[invalid-attribute-access] - per variant
         self.assumed_camera = "a 300 px focal length" if self.intrinsics == "optional" else ""  # ty: ignore[invalid-attribute-access]
-        self.net = _net(ctx)
+        if ctx.params.stream and ctx.device.type != "cuda":
+            msg = "stream=True requires CUDA for host-to-device block transfers"
+            raise OptionsError(msg)
+        self.net = _net(ctx, "cpu" if ctx.params.stream else ctx.device)
         for br in self._branches():
             rope: Any = br.backbone.pretrained.rope
             if rope is not None:
@@ -342,6 +348,12 @@ class Portable(Runner):
                 for name in ("output_conv2", "sky_output_conv2"):
                     if hasattr(s, name):
                         getattr(s, name)[-1].float()
+
+        if ctx.params.stream:
+            for br in self._branches():
+                vit: Any = br.backbone.pretrained
+                vit.blocks = StreamedModuleList(vit.blocks, ctx.device)
+            self.net.to(ctx.device)
 
     def _branches(self) -> list[_Branch]:
         return [self.net.main] + ([self.net.metric] if self.net.metric is not None else [])
@@ -373,6 +385,9 @@ class Portable(Runner):
 
     def module(self) -> torch.nn.Module:
         """The network with its input handling: `[B, 3, H, W]` in `[0, 1]` -> depth `[B, H, W]`."""
+        if self.ctx.params.stream:
+            msg = "Export requires resident weights; reload with stream=False"
+            raise NotImplementedError(msg)
         return Forward(self.net, lambda _net, image: self._run(image, None)["depth"])
 
 
@@ -389,7 +404,7 @@ class _FastBackbone:
     PyTorch.
     """
 
-    def __init__(self, br: _Branch, k: DptFused, device: torch.device) -> None:
+    def __init__(self, br: _Branch, k: DptFused, device: torch.device, *, stream: bool = False) -> None:
         vit: Any = br.backbone.pretrained
         if vit.embed_dim // vit.num_heads != HEAD_DIM:
             msg = f"fast DA3 ViT needs head_dim {HEAD_DIM}"
@@ -397,7 +412,12 @@ class _FastBackbone:
         self.k, self.flash = k, Flash64("hh")
         self.pos32 = vit.pos_embed.detach().float().to(device)  # upstream interpolates the table in fp32
         self.gammas = [tuple(g.detach().float().to(device) for g in (b.ls1.gamma, b.ls2.gamma)) for b in vit.blocks]
-        self.vit = vit.half().to(device)
+        vit.half()
+        for blk in vit.blocks:
+            override(blk, _kernel_block)
+        if stream:
+            vit.blocks = StreamedModuleList(vit.blocks, device)
+        self.vit = vit.to(device)
         self.layers, self.alt = br.cfg.layers, br.cfg.alt
         self.cat = br.cfg.dual
         self._pos: dict[tuple[int, int], torch.Tensor] = {}
@@ -459,9 +479,8 @@ class _FastBackbone:
         sw = t.unflatten(-1, (2, 2, 16)).flip(-2).flatten(-3)
         return torch.addcmul(t * cos, sw, sin)
 
-    def block(self, i: int, x: torch.Tensor, rope: tuple[torch.Tensor, torch.Tensor] | None) -> torch.Tensor:
+    def block(self, blk: Any, i: int, x: torch.Tensor, rope: tuple[torch.Tensor, torch.Tensor] | None) -> torch.Tensor:  # noqa: ANN401 - upstream transformer block
         """Upstream `Block` `i` (eval); returns a new tensor (`x` is kept: the dual head reads earlier tokens)."""
-        blk: Any = self.vit.blocks[i]
         g1, g2 = self.gammas[i]
         a, m, k = blk.attn, blk.mlp, self.k
         b, n, c = x.shape
@@ -490,12 +509,12 @@ class _FastBackbone:
             t = vit.patch_embed(x.half())
             t = torch.cat([vit.cls_token.expand(t.shape[0], -1, -1), t], 1) + self.pos_embed(h0, w0)
             local = t
-            for i in range(self.layers[-1] + 1):
+            for i, blk in enumerate(vit.blocks):
                 if i == self.alt:
                     t[:, 0] = vit.camera_token[0, 0]
                 glob = self.alt >= 0 and i >= self.alt and i % 2 == 1
                 rope = None if self.alt < 0 or i < self.alt else ((rg_cos, rg_sin) if glob else (rl_cos, rl_sin))
-                t = self.block(i, t, rope)  # ty: ignore[invalid-argument-type]
+                t = blk(t, self, i, rope)
                 if not glob:
                     local = t
                 if i in self.layers:
@@ -505,6 +524,11 @@ class _FastBackbone:
                     else:
                         outs.append(vit.norm(t[:, 1:]))
         return outs, cam
+
+
+def _kernel_block(blk: nn.Module, x: torch.Tensor, backbone: _FastBackbone, i: int, rope: tuple | None) -> torch.Tensor:
+    """Invoke the fused forward with the block weights currently bound to this module."""
+    return backbone.block(blk, i, x, rope)
 
 
 class _FusedHead:
@@ -634,7 +658,7 @@ class Kernels(Runner):
         for br in [net.main] + ([net.metric] if net.metric is not None else []):
             head = _FusedHead(br, k, ctx.device)
             cam = br.cam_dec.float().to(ctx.device) if br.cam_dec is not None else None
-            self.parts.append((cam, _FastBackbone(br, k, ctx.device), head))
+            self.parts.append((cam, _FastBackbone(br, k, ctx.device, stream=ctx.params.stream), head))
 
     @torch.inference_mode()
     def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:

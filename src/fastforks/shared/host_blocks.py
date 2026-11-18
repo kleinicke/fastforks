@@ -11,13 +11,16 @@ memory stays at the first call's.
 
 from __future__ import annotations
 
+import functools
+import itertools
+import threading
 import weakref
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import torch
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
+    from collections.abc import Callable, Iterable, Iterator
 
 ALIGN = 256  # bytes: start of every tensor in the packed buffers
 
@@ -65,6 +68,7 @@ class HostBlocks:
         self, blocks: list[dict[str, tuple[torch.dtype, torch.Size]]], fill: Callable[[str, torch.Tensor], None]
     ) -> None:
         """`blocks`: per block the checkpoint key -> (dtype, shape); `fill(key, dst)` copies that tensor into `dst`."""
+        self._lock = threading.Lock()
         self.layout: list[list[tuple[str, torch.dtype, torch.Size, int, int]]] = []
         self.starts: list[int] = []
         pos = 0
@@ -113,15 +117,85 @@ class HostBlocks:
 
     def run(self, device: torch.device) -> Iterable[dict[str, torch.Tensor]]:
         """Yield each block's tensors on `device`; the next block uploads while the caller computes this one."""
+        # Two callers share the upload buffers and (for functional_call) block shells.
+        # Serialize enqueueing; CUDA events still overlap transfers with computation.
+        with self._lock:
+            yield from self._run(device)
+
+    def _run(self, device: torch.device) -> Iterable[dict[str, torch.Tensor]]:
+        main = torch.cuda.current_stream(device)
         if not self.dev or self.dev[0].device != device:
             self.dev = [torch.empty(max(self.sizes), dtype=torch.uint8, device=device) for _ in range(2)]
             self.side = torch.cuda.Stream(device)
-        main = torch.cuda.current_stream(device)
+            self.side.wait_stream(main)
+            for buf in self.dev:
+                buf.record_stream(self.side)
+        for buf in self.dev:
+            buf.record_stream(main)
         self._upload(0)
         for i in range(len(self)):
             j = i % 2
             main.wait_event(self.uploaded[j])
             if i + 1 < len(self):
                 self._upload(i + 1)
-            yield self._views(i, self.dev[j])
-            self.free[j].record(main)
+            try:
+                yield self._views(i, self.dev[j])
+            finally:
+                self.free[j].record(main)
+
+
+def _call_block(block: torch.nn.Module, state: dict[str, torch.Tensor], *args: Any, **kwargs: Any) -> torch.Tensor:  # noqa: ANN401 - the block's own signature
+    return torch.func.functional_call(block, state, args, kwargs, strict=True)
+
+
+class StreamedModuleList(torch.nn.Module):
+    """An inference-only block sequence. Each yielded callable is valid for its iteration."""
+
+    target: torch.Tensor
+
+    def __init__(self, blocks: Iterable[torch.nn.Module], device: torch.device) -> None:
+        """Pack CPU weights and buffers once, preserving aliases introduced by fp16 kernel rewrites."""
+        super().__init__()
+        self.shells = list(blocks)  # kept on meta outside the registered tree when the parent moves
+        self.register_buffer("target", torch.empty(0, device=device), persistent=False)
+        tensors: dict[str, torch.Tensor] = {}
+        layout = []
+        self.aliases: list[dict[str, tuple[str, torch.Size]]] = []
+        for i, block in enumerate(self.shells):
+            unique = {}
+            spec = {}
+            aliases = {}
+            for name, tensor in itertools.chain(block.named_parameters(), block.named_buffers()):
+                value = tensor.detach()
+                # A linear matrix and its contiguous 1x1-convolution view share the same bytes.
+                # For other strides preserve each view's logical element order during packing.
+                identity = (
+                    value.data_ptr(),
+                    value.numel(),
+                    value.dtype,
+                    () if value.is_contiguous() else (value.shape, value.stride()),
+                )
+                key = unique.get(identity)
+                if key is None:
+                    key = unique[identity] = f"{i}.{name}"
+                    tensors[key] = value
+                    spec[key] = (value.dtype, value.shape)
+                aliases[name] = (key, value.shape)
+            layout.append(spec)
+            self.aliases.append(aliases)
+            block.to("meta")
+
+        def fill(key: str, dst: torch.Tensor) -> None:
+            dst.copy_(tensors.pop(key))
+
+        self.host = HostBlocks(layout, fill)
+
+    def __len__(self) -> int:
+        """Number of transformer blocks."""
+        return len(self.shells)
+
+    def __iter__(self) -> Iterator[Callable[..., torch.Tensor]]:
+        """Stage one block ahead while the caller computes the current block."""
+        for block, aliases, buffers in zip(self.shells, self.aliases, self.host.run(self.target.device), strict=True):
+            state = {name: buffers[key].view(shape) for name, (key, shape) in aliases.items()}
+            yield functools.partial(_call_block, block, state)
