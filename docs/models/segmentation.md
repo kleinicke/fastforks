@@ -69,9 +69,9 @@ Commercial use: yes.
 
 Scores use one pixel confusion matrix across the split. Left and right eyes share one class, and left and right brows share one class. Labels outside the eight shared foreground classes count as background. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | portable fp32 | note |
-|---|---|---|---|
-| `bisenet-face-parsing` | LaPa test (2,000 images), common face parts, mIoU / aAcc % | 69.12 / 93.52 |  |
+| variant | dataset | original fp32 | portable fp32 | note |
+|---|---|---|---|---|
+| `bisenet-face-parsing` | LaPa test (2,000 images), common face parts, mIoU / aAcc % | 69.11 / 93.52 | 69.12 / 93.52 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
 
