@@ -5,9 +5,10 @@ FastForks commit `80345e4c` implements two configurations of the v2 CT `total` t
 | Capability | Coverage |
 | --- | --- |
 | Standard v2 CT segmentation | All five 1.5 mm networks, fold zero, all 117 foreground classes, later parts taking precedence on overlap |
-| Fast v2 CT segmentation | One 3 mm network, all 117 foreground classes, labels returned on the original grid |
+| Fast v2 CT segmentation | One network per resolution (3 or 6 mm), all 117 foreground classes, labels returned on the original grid |
+| Whole-body v3 CT segmentation | Full networks at 1.5, 3 and 6 mm and small networks at 1.5 and 3 mm. Label 26 is L6 and the sacrum includes S1. |
 | Volume I/O | Arrays and voxel spacing, NIfTI and DICOM series reading, multilabel NIfTI writing |
-| Other configurations | The v2 6 mm fastest checkpoint, v3 checkpoints, MR tasks and organ-specific tasks have no model cards |
+| Other configurations | MR and organ-specific TotalSegmentator tasks have no model cards |
 | Upstream workflow options | The runner omits ROI-specific cropping and network selection, large-volume three-way splitting, statistics, radiomics, previews and DICOM SEG/RTSTRUCT export. Users can extract individual classes from the returned labels |
 | Generic nnU-Net loader | Supports user-supplied compatible model folders. A folder alone does not specify the TotalSegmentator task's cropping, inter-model dependencies, label remapping or reporting behavior |
 

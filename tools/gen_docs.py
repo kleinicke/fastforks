@@ -1747,7 +1747,7 @@ def render(task: str, *, cold_rows: dict[str, list[dict]] | None = None) -> str:
     for card, v in registry.cards(task).values():
         st = card.status(v)
         lines.append(
-            f"| [`{_name(v)}`](#{card.family}) | {', '.join(card.modes)} "
+            f"| [`{_name(v)}`](#{card.family}) | {', '.join(registry.variant_card(card, v).modes)} "
             f"| {card.licence.code} | {st.weights} | {', '.join(st.training_data)} | {_COMMERCIAL[st.commercial]}"
             f"{' (' + '; '.join(st.reasons) + ')' if st.reasons else ''} "
             f"| {', '.join(card.outputs)} |"
