@@ -152,11 +152,24 @@ End to end (512x512 unless noted, ms, fp32 / fp16; MPS from `apple-m1-pro-16gb.j
 | family | Winograd kernels | portable MLX | MPS | verdict |
 |---|---|---|---|---|
 | realesr-general-x4v3 (compact) | 176 / 103 | 340 / 229 | 178 / 132 | wins (fp16 1.28x faster than MPS, fp32 tie); declared |
-| span-x4 | 184 / 103 | 172 / 131 | 103 / 89 | fp16 better than portable, fp32 worse; the card needs fp32 first, so not declared |
-| realplksr | 2974 / 1724 | 2374 / 1879 | 1527 / 1092 | fp32 slower, fp16 fails the golden with F(4,3); not declared |
+| span-x4 | 184 / 103 (fp32 declared as portable: 216) | 172-216 / 131-158 | 103 / 89 | fp16 declared (`kernels_fp16_only` in `mlx_wrap.port`: fp32 runs the portable path, since a card's `mlx_dtypes` must start with float32); still slower than MPS |
+| realplksr | 2974 / 1724 (F(2,3): 3697 / 2239, golden passes) | 2374 / 1879 | 1527 / 1092 | slower than portable with either tile; not declared |
 | realesrgan-x4plus | 11460 / 5557 | 8130 / 5914 | 3022 / 2066 | V/M of 1024^2-2048^2 activations blow memory; not declared |
 | big-lama | 337 / 322 | 277 / 286 | 241 / 214 | slower; not declared |
 | deeplabv3-r101-d8 (1024x2048) | 654 / 456 | fp16 469 | fp16 528 | tie; not declared |
+
+Small shapes (fp16 ms, mx.conv2d + ReLU vs Winograd): 64^2x256 1.70 vs 0.75, 32^2x512 1.93 vs 0.92, 64^2x128 0.76 vs 0.63,
+128^2x64 0.76 vs 0.73, 96^2x128 0.79 vs 0.96, 256^2x32 0.72 vs 1.09, 512^2x32 2.21 vs 2.04: it needs >= 64 channels and
+a large image to win clearly; 32-channel layers tie or lose.
+
+Banding (`bands=`, tile rows processed in bands, concatenated): 2.8 -> 3.3-3.5 ms at 512^2/64 and slower for every
+other shape, so it gives no cache benefit (the concat copy and extra dispatches cost more). It is only used when one
+layer's transformed tensor would exceed 192 MB (bounds the peak of 2048^2-class images; not measured on realesrgan
+because the shared Mac was at 18 GB swap).
+
+Not attempted: the fused simdgroup GEMM + output transform. Each 8x8 tile of 36 accumulators reuses every loaded fragment
+once, so the GEMM would run well below the 3.3 TFLOPS the batched `mx.matmul` reaches (1.44 ms for 4.8 GFLOP); the
+0.75 ms it could save is likely lost.
 
 Findings: Winograd wins where the per-layer activations are small enough for V and M to stay cache-friendly and where
 convolutions dominate (compact, 64 channels at 512^2). Big activations are bound by the V/M round trip (about
