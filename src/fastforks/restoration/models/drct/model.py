@@ -27,7 +27,7 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import cudnn_hacc, shift_windows
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared.swin_sr import (
     checkpoint_upsampler,
@@ -153,6 +153,48 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
 
 
+def _boundary_attention(
+    attn: WindowAttention, windows: torch.Tensor, size: tuple[int, int], win: int, shift: int
+) -> torch.Tensor:
+    """Share one additive bias per boundary type, avoiding a [num_windows, heads, win², win²] shifted mask."""
+    rows, cols = size[0] // win, size[1] // win
+    grid = windows.reshape(-1, rows, cols, *windows.shape[1:])
+    out = torch.empty_like(grid)
+    # A 2-by-2 window grid contains all four mask patterns (interior, right, bottom, corner).
+    masks = shift_mask(2 * win, 2 * win, win, shift, windows.device, dtype=windows.dtype)
+    for row, r in enumerate((slice(0, -1), slice(-1, None))):
+        for col, c in enumerate((slice(0, -1), slice(-1, None))):
+            region = grid[:, r, c]
+            if region.numel() == 0:
+                continue
+            kind = 2 * row + col
+            bias: torch.Tensor = attn.bias  # ty: ignore[invalid-assignment]
+            if kind:
+                bias = bias + masks[kind]
+            result = window_attention(
+                region.reshape(-1, *windows.shape[1:]),
+                attn.qkv,
+                attn.proj,
+                heads=attn.num_heads,
+                scale=attn.scale,
+                bias=bias,
+                mask=None,
+            )
+            out[:, r, c] = result.reshape_as(region)
+    return out.reshape_as(windows)
+
+
+def _window_block(m: SwinTransformerBlock, x: torch.Tensor, xsize: tuple[int, int]) -> torch.Tensor:
+    """Pack shifted windows and reverse them directly; keep the checkpoint's exact shifted-window mask."""
+    windows = shift_windows.rearrange(m.norm1(x), xsize, m.window_size, m.shift_size)
+    attended = (
+        _boundary_attention(m.attn, windows, xsize, m.window_size, m.shift_size) if m.shift_size else m.attn(windows)
+    )
+    tokens = shift_windows.rearrange(attended, xsize, m.window_size, m.shift_size, reverse=True)
+    x = x + m.drop_path(tokens)
+    return x + m.drop_path(m.mlp(m.norm2(x)))
+
+
 class Kernels(Portable):
     """float16, fp16-accumulate GEMMs and convolutions (`cudnn_hacc`)."""
 
@@ -162,7 +204,11 @@ class Kernels(Portable):
         """Build the network and route its convolutions through `cudnn_hacc`."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
+        shift_windows.load(ctx.device)
         for m in self.net.modules():
+            if isinstance(m, SwinTransformerBlock):
+                del m.attn_mask
+                override(m, _window_block)
             if is_base(m, torch.nn.Conv2d):
                 override(m, _hacc_conv)
 

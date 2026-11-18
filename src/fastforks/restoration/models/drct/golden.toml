@@ -20,19 +20,19 @@ upstream = "https://github.com/ming053l/DRCT@c0a8b51e69241cf7f8ae598053235ff4985
 settings = "CPU float32, drct_model.py test: reflect padding to a multiple of 16, net_g_ema(img), crop, clamped, no uint8 rounding; tests/synth.py image(101, 151); torch 2.14.1+cu130"
 
 [validated."drct-l-x4@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "shift_windows@93b499de1dba:sm_120"]
+symbols = {"shift_windows" = {"name" = "96d158b9d0af3a08", "window1" = "96d158b9d0af3a08", "window2" = "96d158b9d0af3a08", "window8" = "96d158b9d0af3a08"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-14"
+date = "2026-11-18"
 mean_px = 0.00047
-p99_px = 0.00175
+p99_px = 0.00174
 
 [validated."drct-x4@1"]
-kernels = ["cudnn_hacc@cudnn92400"]
-symbols = {}
+kernels = ["cudnn_hacc@cudnn92400", "shift_windows@93b499de1dba:sm_120"]
+symbols = {"shift_windows" = {"name" = "96d158b9d0af3a08", "window1" = "96d158b9d0af3a08", "window2" = "96d158b9d0af3a08", "window8" = "96d158b9d0af3a08"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-14"
-mean_px = 0.00043
-p99_px = 0.00158
+date = "2026-11-18"
+mean_px = 0.00044
+p99_px = 0.0016

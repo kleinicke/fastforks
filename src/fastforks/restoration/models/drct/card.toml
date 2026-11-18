@@ -34,7 +34,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc"]  # fp16-accumulate GEMMs and convolutions
+kernels = ["cudnn_hacc", "shift_windows"]  # fp16-accumulate GEMMs and convolutions
 
 [[papers]]
 title = "DRCT: Saving Image Super-resolution away from Information Bottleneck"
