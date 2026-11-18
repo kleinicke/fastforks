@@ -25,6 +25,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
+from fastforks.kernels import dual_softmax
 from fastforks.matching._dedode_kernels import prepare
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared import cnn_kernels
@@ -80,6 +81,7 @@ class Matcher(nn.Module):
         """Build the networks (no weights)."""
         super().__init__()
         self.params = params
+        self.match_descriptors = dual_softmax_match
         self.detector = Detector()
         self.dinov2 = DINOv2("vitl") if params.descriptor == "G" else None
         self.descriptor = Descriptor(self.dinov2)
@@ -118,7 +120,7 @@ class Matcher(nn.Module):
         self, image1: torch.Tensor, image2: torch.Tensor, d1: Described, d2: Described
     ) -> dict[str, torch.Tensor]:
         """The pair's matches from both images' `describe` results."""
-        pairs, scores = dual_softmax_match(d1[1], d2[1], INV_TEMP, self.params.threshold)
+        pairs, scores = self.match_descriptors(d1[1], d2[1], INV_TEMP, self.params.threshold)
         return {
             "keypoints1": self.to_input(d1[0], image1),
             "keypoints2": self.to_input(d2[0], image2),
@@ -146,6 +148,7 @@ def load_matcher(ctx: Context, *, kernels: bool = False) -> Matcher:
         if net.dinov2 is not None:
             fold_layer_scale(net.dinov2)
         if kernels:  # fastforks: conv + BN + ReLU fused in the epilogue of fp16 cuDNN / CUTLASS convs, no BN fold
+            net.match_descriptors = dual_softmax.matches
             cnn_kernels.load(ctx.device)
             prepare(net.detector, ctx.device)
             prepare(net.descriptor, ctx.device)

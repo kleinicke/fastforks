@@ -58,3 +58,26 @@ def test_describe_keypoints_is_grid_sample(dtype: torch.dtype) -> None:
     want = torch.nn.functional.grid_sample(grid.float(), kp[None, None], mode="bilinear", align_corners=False)
     # the four taps are summed in the same order; the difference is the kernel's fused multiply-adds
     torch.testing.assert_close(describe_keypoints(grid, kp), want[0, :, 0].mT, rtol=0, atol=1e-3)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize(("rows", "cols"), [(1, 1), (3, 71), (263, 39), (37, 0), (0, 7)])
+def test_cuda_dual_softmax(rows: int, cols: int) -> None:
+    from fastforks.kernels import dual_softmax  # noqa: PLC0415
+
+    rng = torch.Generator(device="cuda").manual_seed(901)
+    logits = 20 * torch.randn(rows, cols, device="cuda", generator=rng)
+    expected = logits.softmax(0) * logits.softmax(1)
+    torch.testing.assert_close(dual_softmax.normalize_(logits), expected, atol=3e-7, rtol=2e-6)
+    a = torch.randn(rows, 32, device="cuda", generator=rng)
+    b = torch.randn(cols, 32, device="cuda", generator=rng)
+    if rows and cols:
+        # Duplicate descriptors exercise mutual ties spanning multiple warps and tiles.
+        a[::2] = a[0].clone()
+        b[::2] = a[0].clone()
+        pairs, scores = dual_softmax_match(a, b, 20.0, 0.0)
+    else:
+        pairs, scores = a.new_empty((0, 2), dtype=torch.long), a.new_empty(0)
+    actual_pairs, actual_scores = dual_softmax.matches(a, b, 20.0, 0.0)
+    torch.testing.assert_close(actual_pairs, pairs)
+    torch.testing.assert_close(actual_scores, scores, atol=5e-7, rtol=2e-5)

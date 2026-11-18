@@ -19,6 +19,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.patch import override
+from fastforks.kernels import dual_softmax
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared import cnn_kernels
 from fastforks.shared.cnn_kernels import conv_ep
@@ -160,6 +161,21 @@ def _fpn_forward(self: ResNetFPN_8_2, x: torch.Tensor) -> tuple[torch.Tensor, to
     return x3_out, x1_out
 
 
+def _coarse_matches(
+    self: LoFTR, feat0: torch.Tensor, feat1: torch.Tensor, hw0: tuple[int, int], hw1: tuple[int, int]
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Use the upstream first maximum per row, testing borders only after mutual selection."""
+    scale = feat0.shape[-1] ** 0.5
+    logits = ((feat0[0].float() / scale) @ (feat1[0].float() / scale).mT).div_(self.temperature)
+    p = dual_softmax.normalize_(logits)
+    scores, cols = p.max(1)
+    keep = (scores > self.thr) & (scores == p.amax(0)[cols])
+    if self.border_rm:
+        keep &= self._inside(hw0, p.device) & self._inside(hw1, p.device)[cols]
+    rows = torch.where(keep)[0]
+    return rows, cols[rows], scores[rows]
+
+
 class Kernels(Portable):
     """Portable with the backbone's convs as fp16 channels-last kernels, BatchNorm and ReLU (and the residual) fused."""
 
@@ -174,6 +190,7 @@ class Kernels(Portable):
             if isinstance(m, BasicBlock):
                 override(m, _block_forward)
         override(bb, _fpn_forward)
+        override(self.net.loftr, _coarse_matches, "coarse_matches")
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}
