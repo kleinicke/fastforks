@@ -30,7 +30,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [NVIDIA L4
 | [`megaflow`](#megaflow) | yes | 1.714 † | 734, 2.2x | 3066, 0.35x |
 | [`memflow`](#memflow) | yes | 4.103 | 865, 3.6x | 1022, 0.066x |
 | [`memflow-kitti`](#memflow) | yes | 0.600 † | 865, 3.8x | 1022, 0.066x |
-| [`memflow-sintel`](#memflow) | yes | – | 865, 3.7x | 1022, 0.065x |
+| [`memflow-sintel`](#memflow) | yes | 1.218 † | 865, 3.7x | 1022, 0.065x |
 | [`memfof`](#memfof) | yes | 10.891 † | 427, 1.2x | 1418, 0.66x |
 | [`memfof-kitti`](#memfof) | yes | – | 380, 2.4x (375x1242) | 1218, 0.54x |
 | [`memfof-sintel`](#memfof) | yes | – | 1993 | 8820 |
@@ -424,9 +424,10 @@ Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
 | `memflow` | KITTI 2015 train, EPE / Fl-all % | 4.108 / 14.43 | 4.107 / 14.43 | 4.109 / 14.44 | 4.093 / 14.43 | 4.103 / 14.42 |  |
+| `memflow-sintel` | KITTI 2015 train, EPE / Fl-all % |  |  |  | 1.218 / 4.09 |  | trained on this dataset's public images; not a zero-shot result |
 | `memflow-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.600 / 1.21 | 0.600 / 1.21 | 0.600 / 1.21 | 0.600 / 1.21 | 0.600 / 1.21 | trained on this dataset's public images; not a zero-shot result |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5+uncommitted, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5+uncommitted, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5+uncommitted, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 6f0a70e1, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5+uncommitted, 2026-11-13.
 
 ### Parity
 
