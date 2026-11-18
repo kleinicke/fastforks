@@ -6,6 +6,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.sampling import export_bilinear
 from fastforks._core.tracing import in_onnx_export
 
 
@@ -49,34 +50,6 @@ def deformable_sample(
     return sample_maps(maps, loc, weights, points)
 
 
-def _export_bilinear(value: torch.Tensor, grid: torch.Tensor) -> torch.Tensor:
-    """Zero-padded, align_corners=False sampling expressed as four gathers."""
-    batch, channels, height, width = value.shape
-    gh, gw = grid.shape[1:3]
-    x = (grid[..., 0] + 1) * (width / 2) - 0.5
-    y = (grid[..., 1] + 1) * (height / 2) - 0.5
-    x0, y0 = x.floor(), y.floor()
-    dx, dy = x - x0, y - y0
-    flat = value.flatten(2)
-
-    def corner(xi: torch.Tensor, yi: torch.Tensor) -> torch.Tensor:
-        mask = (xi >= 0) & (xi < width) & (yi >= 0) & (yi < height)
-        xi = torch.where(xi < 0, torch.zeros_like(xi), xi)
-        yi = torch.where(yi < 0, torch.zeros_like(yi), yi)
-        xi = torch.where(xi >= width, torch.full_like(xi, width - 1), xi)
-        yi = torch.where(yi >= height, torch.full_like(yi, height - 1), yi)
-        idx = yi.long() * width + xi.long()
-        idx = idx.reshape(batch, 1, gh * gw).expand(batch, channels, gh * gw)
-        return flat.gather(2, idx).reshape(batch, channels, gh, gw) * mask.unsqueeze(1)
-
-    return (
-        corner(x0, y0) * ((1 - dx) * (1 - dy)).unsqueeze(1)
-        + corner(x0 + 1, y0) * (dx * (1 - dy)).unsqueeze(1)
-        + corner(x0, y0 + 1) * ((1 - dx) * dy).unsqueeze(1)
-        + corner(x0 + 1, y0 + 1) * (dx * dy).unsqueeze(1)
-    )
-
-
 def sample_maps(
     maps: list[torch.Tensor],
     loc: torch.Tensor,
@@ -98,7 +71,7 @@ def sample_maps(
     out = None
     for v, g, w in zip(maps, grids, weights, strict=True):  # fastforks: per level, no cat of the samples (a copy)
         s = (
-            _export_bilinear(v, g)
+            export_bilinear(v, g)
             if exporting and export_with_gather
             else F.grid_sample(v, g, mode="bilinear", padding_mode="zeros", align_corners=False)
         ).to(dtype)

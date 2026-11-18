@@ -120,16 +120,17 @@ _needs_onnx = pytest.mark.skipif(
 
 @pytest.mark.slow
 @_needs_onnx
-def test_dfine_onnx_bilinear_sampling(tmp_path):
+@pytest.mark.parametrize("align_corners", [False, True])
+def test_dfine_onnx_bilinear_sampling(tmp_path, align_corners):
     """Export the gather-based sampler and compare padding and interpolation across two distinct maps."""
     import onnx  # noqa: PLC0415 - optional
     import onnxruntime as ort  # noqa: PLC0415 - optional
 
-    from fastforks.detection._attention import _export_bilinear  # noqa: PLC0415
+    from fastforks._core.sampling import export_bilinear  # noqa: PLC0415
 
     class Sampler(torch.nn.Module):
         def forward(self, feature, grid):
-            return _export_bilinear(feature, grid)
+            return export_bilinear(feature, grid, align_corners=align_corners)
 
     generator = torch.Generator().manual_seed(110)
     feature = torch.randn(2, 4, 5, 8, generator=generator)
@@ -141,7 +142,7 @@ def test_dfine_onnx_bilinear_sampling(tmp_path):
     assert all(node.op_type != "GridSample" for node in onnx.load(path).graph.node)
     session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
     (actual,) = session.run(None, {"feature": feature.numpy(), "grid": grid.numpy()})
-    expected = torch.nn.functional.grid_sample(feature, grid, align_corners=False)
+    expected = torch.nn.functional.grid_sample(feature, grid, align_corners=align_corners)
     torch.testing.assert_close(torch.from_numpy(actual), expected, atol=2e-6, rtol=1e-5)
 
 
