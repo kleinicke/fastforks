@@ -907,6 +907,10 @@ def _refs(a: Any) -> Iterator[str]:
             yield from _refs(x)
 
 
+COMPILE_MAX_ACT = 80 << 20
+"""Compile the replay only when no activation exceeds this many bytes: `mx.compile` of a graph with huge maps (dense
+prediction at megapixel size) peaks at about twice the memory of the lazy replay and runs slower."""
+
 _CONSUMED = "\0consumed"  # key of the set of twin tensor names whose values live on MLX (in the shared constants)
 
 
@@ -943,6 +947,8 @@ class GraphNet:
                     m._buffers[name] = b.detach()
         self.dtype = getattr(mx, dtype)
         self._compile = compile
+        self._itemsize = self.dtype.size
+        self.max_act = 0
         self.kernels = kernels
         self._runs: dict[tuple[Any, ...], Callable[..., Any]] = {}
         self.on_built: Callable[[], None] | None = None  # called after each export, before its first run
@@ -1000,6 +1006,14 @@ class GraphNet:
                 plan.append(("call", node.name, self._op(node.target), _plain(args), _plain(dict(node.kwargs))))
             elif node.op == "output":
                 plan.append(("output", _plain(node.args[0])))
+        self.max_act = max(  # the largest activation in the run dtype (bytes): what decides whether compiling pays
+            (
+                math.prod(int(d) for d in v.shape) * self._itemsize
+                for node in nodes
+                if node.op == "call_function" and isinstance(v := node.meta.get("val"), torch.Tensor)
+            ),
+            default=0,
+        )
         values.update(folds.values)
         used = {n for p in plan if p[0] == "call" for a in (*p[3], *p[4].values()) for n in _refs(a)}
         used.update(n for p in plan if p[0] == "output" for n in _refs(p[1]))
@@ -1116,7 +1130,10 @@ class GraphNet:
             out = get(out_names)
             return tuple(o.astype(mx.float32) for o in out)
 
-        return mx.compile(run) if self._compile else run
+        compile_ = self._compile and self.max_act <= COMPILE_MAX_ACT
+        if os.environ.get("FF_MLX_COMPILE"):
+            compile_ = os.environ["FF_MLX_COMPILE"] == "1"
+        return mx.compile(run) if compile_ else run
 
     def __call__(self, *tensors: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """Run on CPU tensors; returns float32 CPU tensors."""
