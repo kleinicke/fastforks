@@ -1083,70 +1083,86 @@ class GraphNet:
         return res
 
     def _runner(self, plan: list[tuple[Any, ...]], values: dict[str, Any]) -> Callable[..., Any]:
+        """The replay as segments of about `CHUNK_MB` of new activations each, evaluated one after the other.
+
+        MLX would otherwise schedule the whole lazy graph at the end and hold far more than the live set. A segment is
+        a function of the values still needed from before it; with compiling on, each is `mx.compile`d (fusion stays,
+        the live set is bounded).
+        """
         out_names: Any = None
         for p in plan:
             if p[0] == "output":
                 out_names = p[1]
-
-        # liveness: the plan step after which a value is dead (parameters stay in `values`; the output's are kept)
-        last: dict[str, int] = {}
-        for i, p in enumerate(plan):
-            if p[0] == "call":
-                for a in (*p[3], *p[4].values()):
-                    for n in _refs(a):
-                        last[n] = i
-            elif p[0] == "alias":
-                last[p[2]] = i
-        for n in _refs(out_names):
-            last.pop(n, None)
-        dead: dict[int, list[str]] = {}
-        for n, i in last.items():
-            if n not in values:
-                dead.setdefault(i, []).append(n)
-
-        sizes = self._sizes
-        lazy = not (self._compile and self.max_act <= COMPILE_MAX_ACT) or os.environ.get("FF_MLX_COMPILE") == "0"
+        steps = [(i, p) for i, p in enumerate(plan) if p[0] in ("call", "alias")]
+        uses: dict[int, set[str]] = {}
+        last: dict[str, int] = {}  # plan step of a value's last use
+        for i, p in steps:
+            refs = {n for a in (*p[3], *p[4].values()) for n in _refs(a)} if p[0] == "call" else {p[2]}
+            uses[i] = refs
+            last.update(dict.fromkeys(refs, i))
+        out_refs = set(_refs(out_names))
         chunk = int(os.environ.get("FF_MLX_CHUNK_MB", CHUNK_MB)) << 20
+        cuts, pending = [0], 0
+        for k, (_, p) in enumerate(steps):
+            pending += self._sizes.get(p[1], 0)
+            if pending > chunk and k + 1 < len(steps):
+                cuts.append(k + 1)
+                pending = 0
+        cuts.append(len(steps))
+        compiled = self._compile and self.max_act <= COMPILE_MAX_ACT
+        if os.environ.get("FF_MLX_COMPILE"):
+            compiled = os.environ["FF_MLX_COMPILE"] == "1"
 
-        def run(*inputs: mx.array) -> tuple[mx.array, ...]:
-            env: dict[str, Any] = dict(values)
-            pending = 0
-            it = iter(inputs)
+        def get(env: dict[str, Any], a: Any) -> Any:  # noqa: ANN401
+            if isinstance(a, _Name) or (hasattr(a, "name") and hasattr(a, "op")):
+                return env[a.name]
+            if isinstance(a, (list, tuple)):
+                return type(a)(get(env, x) for x in a)
+            return a
 
-            def get(a: Any) -> Any:
-                if isinstance(a, (_Name,)) or (hasattr(a, "name") and hasattr(a, "op")):
-                    return env[a.name]
-                if isinstance(a, (list, tuple)):
-                    return type(a)(get(x) for x in a)
-                return a
+        def make(seg: list[tuple[int, tuple[Any, ...]]]) -> tuple[list[str], list[str], Callable[..., Any]]:
+            final = seg[-1][0]
+            seg_defs = {p[1] for _, p in seg}
+            ins = sorted({n for i, _ in seg for n in uses[i]} - seg_defs - values.keys())
+            outs = [p[1] for _, p in seg if p[1] in out_refs or last.get(p[1], -1) > final]
 
-            for i, p in enumerate(plan):
-                kind = p[0]
-                if kind == "input":
-                    x = next(it)
-                    env[p[1]] = x.astype(self.dtype) if mx.issubdtype(x.dtype, mx.floating) else x
-                elif kind == "alias":
-                    env[p[1]] = env[p[2]]
-                elif kind == "call":
-                    _, name, fn, args, kwargs = p
-                    if fn is operator.getitem:
+            def fn(*xs: mx.array) -> tuple[mx.array, ...]:
+                env: dict[str, Any] = dict(values)
+                env.update(zip(ins, xs, strict=True))
+                for _, p in seg:
+                    if p[0] == "alias":
+                        env[p[1]] = env[p[2]]
+                        continue
+                    _, name, f, args, kwargs = p
+                    if f is operator.getitem:
                         env[name] = env[args[0].name][args[1]]
                     else:
-                        env[name] = fn(*[get(a) for a in args], **{k: get(v) for k, v in kwargs.items()})
-                if lazy and kind == "call":
-                    pending += sizes.get(name, 0)
-                    if pending > chunk:  # bound the live set: MLX would otherwise schedule the whole graph at the end
-                        mx.eval([v for v in env.values() if isinstance(v, mx.array)])
-                        pending = 0
-                for n in dead.get(i, ()):
-                    env.pop(n, None)
-            out = get(out_names)
-            return tuple(o.astype(mx.float32) for o in out)
+                        env[name] = f(*[get(env, a) for a in args], **{k: get(env, v) for k, v in kwargs.items()})
+                return tuple(env[n] for n in outs)
 
-        compile_ = self._compile and self.max_act <= COMPILE_MAX_ACT
-        if os.environ.get("FF_MLX_COMPILE"):
-            compile_ = os.environ["FF_MLX_COMPILE"] == "1"
-        return mx.compile(run) if compile_ else run
+            return ins, outs, mx.compile(fn) if compiled else fn
+
+        bounds = [(a, b) for a, b in zip(cuts, cuts[1:], strict=False) if b > a]
+        segments = [make(steps[a:b]) for a, b in bounds]
+        seg_last = [steps[b - 1][0] for _, b in bounds]
+        input_names = [p[1] for p in plan if p[0] == "input"]
+
+        def run(*inputs: mx.array) -> tuple[mx.array, ...]:
+            env: dict[str, Any] = {
+                n: x.astype(self.dtype) if mx.issubdtype(x.dtype, mx.floating) else x
+                for n, x in zip(input_names, inputs, strict=True)
+            }
+            for k, ((ins, outs, f), end) in enumerate(zip(segments, seg_last, strict=True)):
+                res = f(*[env[n] for n in ins])
+                env.update(zip(outs, res, strict=True))
+                if k + 1 < len(segments):
+                    mx.eval(res)
+                for n in [n for n, i in last.items() if i <= end and n in env and n not in out_refs]:
+                    del env[n]
+            env.update(values)
+            return tuple(o.astype(mx.float32) for o in get(env, out_names))
+
+        return run
 
     def __call__(self, *tensors: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """Run on CPU tensors; returns float32 CPU tensors."""
