@@ -24,7 +24,7 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
-from fastforks.kernels import cudnn_hacc, nafnet_gate
+from fastforks.kernels import cudnn_hacc, dpt_fused, nafnet_gate
 from fastforks.restoration._runner import Forward, Runner
 
 from .net import NAFNet
@@ -61,15 +61,23 @@ class _LocalMean(torch.nn.Module):
         if self.window >= h and self.window >= w:
             return x.mean((2, 3), keepdim=True)
         k1, k2 = min(h, self.window), min(w, self.window)
-        s = x.new_zeros((*x.shape[:2], h + 1, w + 1), dtype=torch.float32)  # one float32 buffer, sums in place
-        s[:, :, 1:, 1:] = x
-        s = s.cumsum_(-1).cumsum_(-2)
-        out = s[:, :, k1:, k2:] + s[:, :, :-k1, :-k2]
-        out = out.sub_(s[:, :, :-k1, k2:]).sub_(s[:, :, k1:, :-k2]).div_(k1 * k2)
-        del s
-        _h, _w = out.shape[2:]
-        pad = ((w - _w) // 2, (w - _w + 1) // 2, (h - _h) // 2, (h - _h + 1) // 2)
-        return F.pad(out.to(x.dtype), pad, mode="replicate")
+        out = _box_mean(x, k1, k2).to(x.dtype)
+        return F.pad(out, _replicate_pad(k1, k2), mode="replicate")
+
+
+def _replicate_pad(kh: int, kw: int) -> tuple[int, int, int, int]:
+    return ((kw - 1) // 2, kw // 2, (kh - 1) // 2, kh // 2)
+
+
+def _box_mean(x: torch.Tensor, k1: int, k2: int) -> torch.Tensor:
+    h, w = x.shape[-2:]
+    s = x.new_zeros((*x.shape[:2], h + 1, w + 1), dtype=torch.float32)  # one float32 buffer, sums in place
+    s[:, :, 1:, 1:] = x
+    s = s.cumsum_(-1).cumsum_(-2)
+    out = s[:, :, k1:, k2:] + s[:, :, :-k1, :-k2]
+    out = out.sub_(s[:, :, :-k1, k2:]).sub_(s[:, :, k1:, :-k2]).div_(k1 * k2)
+    del s
+    return out
 
 
 def _norm(x: torch.Tensor, eps: float) -> torch.Tensor:
@@ -203,6 +211,44 @@ def _gated_block(m: NAFBlock, inp: torch.Tensor) -> torch.Tensor:
     return _finish_block(m, inp, x)
 
 
+def _pointwise(
+    conv: torch.nn.Conv2d, x: torch.Tensor, fused: dpt_fused.DptFused, residual: torch.Tensor | None = None
+) -> torch.Tensor:
+    """Pointwise NHWC convolution with its bias and optional residual in the GEMM epilogue."""
+    x = x.permute(0, 2, 3, 1).contiguous()
+    res = None if residual is None else residual.permute(0, 2, 3, 1).contiguous()
+    y = fused.gemm(x, conv.weight.flatten(1), conv.bias, res=res)
+    return y.permute(0, 3, 1, 2)
+
+
+def _scale_features(m: NAFBlock, x: torch.Tensor) -> torch.Tensor:
+    pool = m.sca[0]
+    h, w = x.shape[-2:]
+    if isinstance(pool, _LocalMean) and pool.window < max(h, w):
+        # The same 1x1 projection is applied at every pixel. Project each valid
+        # window once before replicating its boundary scores.
+        kh, kw = min(h, pool.window), min(w, pool.window)
+        means = _box_mean(x, kh, kw).to(dtype=x.dtype, memory_format=torch.channels_last)
+        scores = m.sca[1](means)
+        return x.mul_(F.pad(scores, _replicate_pad(kh, kw), mode="replicate"))
+    return x.mul_(m.sca(x))
+
+
+def _kernel_norm(x: torch.Tensor, eps: float) -> torch.Tensor:
+    if x.shape[1] in nafnet_gate.NORM_CHANNELS:
+        return nafnet_gate.channel_norm(x, eps)
+    return _norm(x, eps)
+
+
+def _fused_block(m: NAFBlock, inp: torch.Tensor) -> torch.Tensor:
+    fused = dpt_fused.load(inp.device)
+    x = _pointwise(m.conv1, _kernel_norm(inp, m.norm1.eps), fused)
+    x = nafnet_gate.depthwise_gate(x, m.gate_weight, m.conv2.bias)  # ty: ignore[invalid-argument-type]
+    y = _pointwise(m.conv3, _scale_features(m, x), fused, inp)
+    a, b = _pointwise(m.conv4, _kernel_norm(y, m.norm2.eps), fused).chunk(2, 1)
+    return _pointwise(m.conv5, a * b, fused, y)
+
+
 class Kernels(Portable):
     """Channels-last fp16 convolutions with a fused depthwise convolution and SimpleGate."""
 
@@ -212,12 +258,16 @@ class Kernels(Portable):
         """Build the network and route its dense convolutions through `cudnn_hacc`."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
+        fused = dpt_fused.load(ctx.device) if ctx.params.width % 8 == 0 else None
         for m in self.net.modules():
             if isinstance(m, NAFBlock):
                 # Pack the 3 x 3 filters once in the order neighboring CUDA lanes read.
                 weight = m.conv2.weight.detach().flatten(1).T.contiguous()
                 m.register_buffer("gate_weight", weight, persistent=False)
-                override(m, _gated_block)
+                if fused is None:  # custom checkpoints can have channels outside tensor-core alignment
+                    override(m, _gated_block)
+                else:
+                    override(m, _fused_block)
             elif is_base(m, torch.nn.Conv2d) and m.groups == 1:
                 override(m, _hacc_conv)
 

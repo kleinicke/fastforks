@@ -402,7 +402,7 @@ Commercial use: yes.
 - Licence evidence: https://github.com/megvii-research/NAFNet/blob/2b4af71ebe098a92a75910c233a3965a3e93ede4/LICENSE ; https://github.com/megvii-research/NAFNet/blob/2b4af71ebe098a92a75910c233a3965a3e93ede4/docs/GoPro.md ; https://github.com/megvii-research/NAFNet/blob/2b4af71ebe098a92a75910c233a3965a3e93ede4/docs/SIDD.md
 - Training data: GoPro deblurring (GOPRO_Large, Nah et al. 2017: 3214 blurred / sharp frame pairs) (options/train/GoPro/NAFNet-width64.yml: GoPro train (2103 blurred / sharp pairs), 256 x 256 crops.)
   - `nafnet-sidd`: Smartphone Image Denoising Dataset (SIDD, noisy / ground-truth smartphone photos) (options/train/SIDD/NAFNet-width64.yml: SIDD-Medium sRGB (320 noisy / clean pairs), 256 x 256 crops.)
-- Kernel libraries: `cudnn_hacc`, `nafnet_gate`
+- Kernel libraries: `cudnn_hacc`, `nafnet_gate`, `dpt_fused`
 - Variants: `nafnet-gopro`, `nafnet-sidd`
 - Outputs: image
 - Input size: any H x W >= 1, resized or padded inside the model
@@ -432,8 +432,8 @@ CPU, float32: max |diff| <= 0.003 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `nafnet-gopro` | 0.01365 / 0.74862 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `nafnet_gate@aee03d5582f6:sm_120` |
-| `nafnet-sidd` | 0.00031 / 0.00116 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `nafnet_gate@aee03d5582f6:sm_120` |
+| `nafnet-gopro` | 0.01006 / 0.4662 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dpt_fused@48e0065bb7cf:sm_120`, `nafnet_gate@c8ad465563cc:sm_120` |
+| `nafnet-sidd` | 0.00028 / 0.00103 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `dpt_fused@48e0065bb7cf:sm_120`, `nafnet_gate@c8ad465563cc:sm_120` |
 
 </details>
 

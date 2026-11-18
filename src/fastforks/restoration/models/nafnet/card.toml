@@ -35,7 +35,7 @@ cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc", "nafnet_gate"]  # fp16-accumulate dense convolutions
+kernels = ["cudnn_hacc", "nafnet_gate", "dpt_fused"]  # fp16-accumulate dense convolutions
 
 [[papers]]
 title = "Simple Baselines for Image Restoration"
