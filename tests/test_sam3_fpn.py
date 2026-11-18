@@ -55,3 +55,22 @@ def test_two_stage_decoder_matches_upstream() -> None:
         expected = model(feats)
         got = pixel_decode(model, feats)
     torch.testing.assert_close(got, expected, rtol=0, atol=0)
+
+
+@pytest.mark.parametrize(
+    ("h", "w", "oh", "ow"),
+    [(288, 288, 720, 1280), (19, 37, 8, 13), (1, 31, 13, 1), (2, 2, 3, 5), (9, 11, 9, 11), (13, 11, 17, 23)],
+)
+@pytest.mark.parametrize("pattern", ["strided", "zero_boundary"])
+def test_bilinear_mask_matches_float_threshold(h, w, oh, ow, pattern) -> None:
+    torch.manual_seed(28)
+    if pattern == "strided":
+        src = torch.randn((3, w, 2, h), device="cuda").permute(0, 2, 3, 1)
+    else:
+        # Interpolation can land on or very near a zero crossing, including at the edges.
+        y = torch.arange(h, device="cuda")[:, None]
+        x = torch.arange(w, device="cuda")[None, :]
+        src = ((1 - 2 * ((x + y) % 2)).float())[None, None]
+    want = F.interpolate(src, (oh, ow), mode="bilinear", align_corners=False) > 0
+    got = sam3_fpn.bilinear_mask(src, (oh, ow))
+    assert torch.equal(got, want)

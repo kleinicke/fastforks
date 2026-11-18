@@ -393,7 +393,7 @@ class PromptableSegmentationModel(core.Model):
             m = out["iou_scores"].shape[-1] if "iou_scores" in out and multimask_output else 1
             self._check_outputs(out, {"pred_masks": (p, m, *self._runner.mask_size), "iou_scores": (p, m)})
             low = out["pred_masks"].float()
-            masks = self._runner.upsample(low, emb.image_size) > 0
+            masks = self._runner.binary_masks(low, emb.image_size)
             if (c := self._runner.low_res_clamp) is not None:
                 low = low.clamp(-c, c)
         maps = {"masks": masks, "iou_scores": out["iou_scores"].float(), "pred_masks": low}
@@ -543,7 +543,7 @@ class PromptableSegmentationModel(core.Model):
             idx = idx[torch.argsort(scores[idx], descending=True)]
             boxes = out["boxes"][idx] * torch.tensor([w, h, w, h], device=self.device, dtype=torch.float32)
             if len(idx):
-                masks = self._runner.upsample(out["pred_masks"][idx, None], (h, w))[:, 0] > 0
+                masks = self._runner.binary_masks(out["pred_masks"][idx, None], (h, w))[:, 0]
             else:  # nothing found: no zero-batch interpolation
                 masks = torch.zeros((0, h, w), dtype=torch.bool, device=self.device)
         return ConceptSegmentationResult(boxes, scores[idx], None, masks, (), self.variant.ref, self.backend, options)

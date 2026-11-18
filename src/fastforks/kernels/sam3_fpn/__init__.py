@@ -6,7 +6,12 @@ import torch
 
 from fastforks._core.kernels import cubin_library, linear
 
-SIGNATURES = {"nearest_add": "pppiiiilllllllll", "nearest_add8": "pppiiil", "affine_relu": "pppiiil"}
+SIGNATURES = {
+    "nearest_add": "pppiiiilllllllll",
+    "nearest_add8": "pppiiil",
+    "affine_relu": "pppiiil",
+    "bilinear_mask": "ppiiiiifflllll",
+}
 load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
 _PACK = 8  # eight fp16 channels in a 128-bit vector
 
@@ -51,3 +56,20 @@ def affine_relu_(x: torch.Tensor, scale: torch.Tensor, shift: torch.Tensor) -> t
     n = x.numel()
     load(x.device).launch("affine_relu", *linear(n), x, scale.contiguous(), shift.contiguous(), c, h * w, int(nhwc), n)
     return x
+
+
+def bilinear_mask(logits: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
+    """Resize float32 logits at pixel centers and write the boolean foreground mask directly."""
+    n, c, h, w = logits.shape
+    oh, ow = size
+    if logits.dtype != torch.float32 or min(h, w, oh, ow) < 1:
+        msg = "Expected float32 NCHW mask logits and positive spatial dimensions"
+        raise ValueError(msg)
+    if (h, w) == size:
+        return logits > 0
+    out = torch.empty((n, c, oh, ow), dtype=torch.bool, device=logits.device)
+    if count := out.numel():
+        load(logits.device).launch(
+            "bilinear_mask", *linear(count), logits, out, c, h, w, oh, ow, h / oh, w / ow, *logits.stride(), count
+        )
+    return out

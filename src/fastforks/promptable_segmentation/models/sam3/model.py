@@ -302,7 +302,7 @@ class _Sam3(Runner):
         md = tracker.m.mask_decoder
 
         def emit(t: int, low: torch.Tensor, obj: torch.Tensor) -> None:
-            host.put(t, masks=self.upsample(low, size)[:, 0] > 0, pred_masks=low[:, 0], object_score_logits=obj[:, 0])
+            host.put(t, masks=self.binary_masks(low, size)[:, 0], pred_masks=low[:, 0], object_score_logits=obj[:, 0])
 
         def feats(x: torch.Tensor) -> dict[str, torch.Tensor]:
             l0, l1, l2 = self._track_embed(x, neck)
@@ -399,6 +399,12 @@ class Kernels(_Sam3):
         """As `Portable.embed` (float16, channels-last)."""
         fpn = self.encoder(prepare(image, self.ctx, exact=False))
         return {f"fpn{i}": f for i, f in enumerate(fpn)}
+
+    def binary_masks(self, pred_masks: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
+        """Threshold bilinearly resized logits directly in the output mask without a full-size float image."""
+        from fastforks.kernels.sam3_fpn import bilinear_mask  # noqa: PLC0415 - kernels backend only
+
+        return bilinear_mask(pred_masks, size)
 
     def _tracker(self) -> tuple[Tracker, object]:
         first_call = self._video is None

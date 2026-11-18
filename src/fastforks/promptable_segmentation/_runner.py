@@ -194,3 +194,7 @@ class Runner(core.Runner):
     @abc.abstractmethod
     def upsample(self, pred_masks: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
         """Low-resolution mask logits `[P, M, h, w]` -> logits `[P, M, H, W]` at the input size `size`."""
+
+    def binary_masks(self, pred_masks: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
+        """Upsample in the family's coordinate system and apply its zero foreground threshold."""
+        return self.upsample(pred_masks, size) > 0
