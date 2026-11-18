@@ -40,7 +40,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `aliked-flexglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 348<br>129<br>–<br>96.1<br>fails: ONNX export: torch.export failed | 1801 / 1892<br>1775 / 1886<br>–<br>1762 / 1826<br>– |
+| `aliked-flexglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 348<br>129<br>–<br>96.1<br>328 (dense descriptor with eager ALIKED and matching) | 1801 / 1892<br>1775 / 1886<br>–<br>1762 / 1826<br>2225 / 2410 |
 
 <details><summary>Details</summary>
 
@@ -56,20 +56,21 @@ Commercial use: yes.
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `aliked-flexglue` 3000x4000 (2.0 GiB peak allocated, 2.5 reserved)
-- `aliked-flexglue` 768x1024, first call: portable + torch.compile 79 s (cold Inductor cache).
+- `aliked-flexglue` 768x1024, first call: portable + torch.compile 79 s (cold Inductor cache), TensorRT fp32 22 s (ONNX + engine).
 - `aliked-flexglue` original 768x1024: upstream FlexGlue(mp=None).match_pair(sparse=True) + ALIKED(origin=corner), 2048 keypoints
 - `aliked-flexglue` load / first call: original 4.5 s / 1.661 s, portable 0.92 s / 1.199 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
-Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. The same 300 pairs for all modes, so float32 and bfloat16 compare pair for pair. Original = the original code named under Details, same checkpoint and protocol.
+Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Both modes receive pairs resized to 768 x 1024. Map matched pixels to the calibrated evaluation coordinates and use the same RANSAC seed per pair. The same 300 pairs for all modes, so float32 and bfloat16 compare pair for pair. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | portable fp32 | note |
-|---|---|---|---|---|---|
-| `aliked-flexglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 50.8 / 68.2 / 80.4 | 53.3 / 70.1 / 82.0 | 52.8 / 69.6 / 81.7 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | TensorRT | note |
+|---|---|---|---|---|---|---|
+| `aliked-flexglue` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 48.9 / 67.6 / 80.5 | 50.4 / 68.6 / 81.1 |  |
+| `aliked-flexglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 50.8 / 68.2 / 80.4 | 53.3 / 70.1 / 82.0 | 52.8 / 69.6 / 81.7 |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d073b335, 2026-11-17.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7eb2e0f4 / d073b335, 2026-11-17 to 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7eb2e0f4, 2026-11-18.
 
 ### Parity
 
@@ -345,7 +346,7 @@ Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstre
 | `loma-b128` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 53.0 / 70.2 / 82.1 |  | 55.6 / 71.5 / 82.7 |  |
 | `loma-b128` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 55.4 / 71.7 / 82.7 |  | 57.4 / 74.3 / 85.4 |  |  |
 | `loma-l` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 57.1 / 72.9 / 83.8 |  | 55.3 / 72.6 / 83.9 |  |
-| `loma-l` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees |  |  | 58.5 / 74.4 / 85.0 |  |  |
+| `loma-l` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.3 / 70.9 / 83.3 |  | 58.5 / 74.4 / 85.0 |  |  |
 | `loma-g` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 56.8 / 72.6 / 84.0 |  | 56.7 / 72.4 / 83.3 |  |
 | `loma-r` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 55.7 / 72.5 / 84.4 |  | 55.3 / 71.0 / 82.6 |  |
 
