@@ -39,6 +39,7 @@ from torch import nn
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
+from fastforks.kernels import cotracker_corr
 from fastforks.tracking._runner import Forward, Runner
 
 from .net.blocks import Attention
@@ -204,6 +205,7 @@ class Core:
                 self._lerp(cw, fr, out=buf[:, : rr * rr].view(b - a, s, 7, 7, rr))
                 e = self.mlp(buf)
                 embs[a:b, :, i * e.shape[-1] : (i + 1) * e.shape[-1]] = e.view(b - a, s, -1)
+                del g, cw, e  # release this level before allocating the next window
         return embs
 
     def refine(  # noqa: PLR0913 - the window state (levels, support, coords, vis, conf)
@@ -334,17 +336,32 @@ def track(
     return fn(core, frames, n, size, queries)
 
 
+class _KernelCore(Core):
+    """Gather only source windows and write interpolation results in the consuming layout."""
+
+    def _window(self, feat: torch.Tensor, frame: torch.Tensor, c: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        return cotracker_corr.window(feat, frame, c)
+
+    def _lerp(self, g: torch.Tensor, fr: torch.Tensor, out: torch.Tensor | None = None) -> torch.Tensor:
+        return cotracker_corr.interpolate(g, fr, out)
+
+    def support(self, levels: list[torch.Tensor], qf: torch.Tensor, qxy: torch.Tensor) -> list[torch.Tensor]:
+        return [cotracker_corr.support(f, qf, qxy / 2**i) for i, f in enumerate(levels)]
+
+
 class Portable(Runner):
     """Plain PyTorch."""
 
     dtypes = ("float32", "float16")
     Params = Params
 
+    core_type = Core
+
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
         super().__init__(ctx)
         net = build(ctx).eval().requires_grad_(requires_grad=False).to(ctx.device)
-        self.core = Core(net, half=ctx.dtype == "float16")
+        self.core = self.core_type(net, half=ctx.dtype == "float16")
 
     def __call__(
         self, frames: Callable[[int], torch.Tensor], n: int, size: tuple[int, int], queries: torch.Tensor
@@ -451,6 +468,8 @@ def _updateformer(uf: EfficientUpdateFormer, in_pad: int) -> Callable[[torch.Ten
 
 class Kernels(Portable):
     """The fp16 portable pass with the correlation MLP and the update transformer on fused-GEMM kernels."""
+
+    core_type = _KernelCore
 
     def __init__(self, ctx: Context) -> None:
         """The portable network with kernel forwards (fp16 weights captured in closures)."""
