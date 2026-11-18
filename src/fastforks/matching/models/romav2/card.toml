@@ -42,7 +42,7 @@ mps_dtypes = ["float32"]
 [modes.kernels]
 mps_kernels = ["roma_metal"]
 mps_dtype = "float32"
-mlx_kernels = ["roma_mlx", "dpt_mlx"]
+mlx_kernels = ["roma_mlx", "dpt_mlx"]  # fused correlation and warp sampling, DPT resize, and selective FP16 projections/convolutions
 mlx_dtypes = ["float32"]
 dtype = "bfloat16"  # as portable (fp16 would overflow upstream's bf16 regions)
 kernels = ["romav2"]  # the refiners' local correlation in one pass (integer-window dot products, shared bilinear weights) instead of 49 / 9 grid_sample passes; the rest is the portable bf16 path

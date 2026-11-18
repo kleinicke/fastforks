@@ -836,8 +836,8 @@ def _apple_mlx() -> Mapping[str, Mapping[str, Any]]:
 def _mlx_for_mps(card: ModelCard, variant: Variant, mode: ModeArg, dtype: Dtype | None) -> tuple[Mode, Dtype] | None:
     """The MLX port's `(mode, dtype)` that stands in for a load on Apple MPS, or None to stay on PyTorch MPS.
 
-    Portable uses PyTorch. An explicit kernels request selects the enabled family's MLX implementation.
-    Auto uses the per-model MPS/MLX timings when MLX is installed. FASTFORKS_MLX=0 disables MLX routing.
+    Portable uses PyTorch. Auto and kernels use measured routes. Explicit kernels prefers native Metal when both
+    implementations are available and measurements leave no clear MLX advantage. FASTFORKS_MLX=0 disables MLX routing.
     """
     if (
         mode == "portable"
@@ -846,20 +846,44 @@ def _mlx_for_mps(card: ModelCard, variant: Variant, mode: ModeArg, dtype: Dtype 
         or (mode == "auto" and importlib.util.find_spec("mlx") is None)
     ):
         return None
-    entry = _apple_mlx().get(variant.id, {})
+    entry = _apple_mlx().get(variant.ref, {})
     if mode == "auto":
         if dtype is None:
             best = entry.get("auto")
             return (best[0], best[1]) if best else None
         mlx_mode = entry.get("dtypes", {}).get(dtype)
+        metal_dtype = card.kernels_dtype_on(torch.device("mps")) if card.mps_kernel_libs else None
+        if mlx_mode is None and dtype not in card.portable_mps_dtypes and dtype != metal_dtype:
+            # When MPS has no implementation at the requested precision, a passing MLX run stands on its own.
+            mlx_mode = entry.get("mlx", {}).get(dtype)
         return (mlx_mode, dtype) if mlx_mode else None
+    return _explicit_mlx_kernels(card, variant, dtype, entry)
+
+
+def _explicit_mlx_kernels(
+    card: ModelCard, variant: Variant, dtype: Dtype | None, entry: Mapping[str, Any]
+) -> tuple[Mode, Dtype] | None:
+    native_dtype = card.kernels_dtype_on(torch.device("mps"))
+    metal = bool(card.mps_kernel_libs) and not planned_reason(variant, "kernels") and dtype in {None, native_dtype}
+    if metal and importlib.util.find_spec("mlx") is None:
+        return None
+    table = "kernels" if metal else "mlx"
+    if dtype is None and (best := entry.get(f"{table}_default")) and best[1] in card.mlx_dtypes(best[0]):
+        return best[0], best[1]
+    if (
+        dtype is not None
+        and (mode_at_dtype := entry.get(table, {}).get(dtype))
+        and dtype in card.mlx_dtypes(mode_at_dtype)
+    ):
+        return mode_at_dtype, dtype
+    if metal:
+        return None
     have = card.portable_mlx_dtypes
     dtype = dtype or ("float16" if "float16" in have else have[0])
     if dtype not in have:
         msg = f"{variant.ref}: Apple MLX cannot compute in {dtype}; available dtypes: {have}"
         raise OptionsError(msg)
-    best = entry.get("dtypes", {}).get(dtype)
-    return best or ("kernels" if dtype in card.kernels_mlx_dtypes else "portable"), dtype
+    return ("kernels" if dtype in card.kernels_mlx_dtypes else "portable"), dtype
 
 
 def dtype_name(dtype: str | torch.dtype | None) -> str | None:
@@ -893,6 +917,11 @@ def _no_auto_kernels(  # noqa: PLR0911 - one return per reason
         return "dtype='float32'"
     if dev.type == "mps" and not card.mps_kernel_libs:
         return "no Metal kernels for Apple MPS"
+    if dev.type == "mps":
+        requested = "float32" if fp32 else want or ""
+        portable = not requested or requested in card.portable_mps_dtypes
+        if portable and requested not in _apple_mlx().get(variant.ref, {}).get("mps_auto", ()):
+            return "no measured Metal speedup over portable on Apple MPS"
     if want not in {None, kernels_dtype}:
         return f"kernels computes in {kernels_dtype}, not {want}"
     if dev.type != "mps" and variant.id in _auto_portable():  # measured on CUDA

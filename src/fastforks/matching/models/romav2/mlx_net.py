@@ -3,6 +3,9 @@
 The two-view transformer rounds its rotary products to bfloat16 just as its upstream position encoder does,
 including in float32 inference. Only overlap (the first confidence channel) feeds the public result. The
 three precision-matrix channels do not enter any subsequent warp or overlap computation.
+
+Kernels mode uses FP16 for transformer projections, VGG convolutions and the refiner's inner blocks.
+The transformer residual stream, norms, attention, DPT head, warp and confidence updates stay in FP32.
 """
 # ruff: noqa: ANN001, ANN202 - array functions mirror the upstream stages; module arguments are their torch layers
 
@@ -30,20 +33,26 @@ def _array(t):
     return to_mx(t.detach().float())
 
 
-def _linear(layer):
+def _linear(layer, *, half=False):
     w, b = _array(layer.weight.flatten(1).T), _array(layer.bias)
     if hasattr(layer, "bias_mask"):
         b = b * _array(layer.bias_mask)
+    if half:
+        w, b = w.astype(mx.float16), b.astype(mx.float16)
+        return lambda x: mx.addmm(b, x.astype(mx.float16), w).astype(mx.float32)
     return lambda x: mx.addmm(b, x, w)
 
 
-def _conv(layer):
+def _conv(layer, *, half=False):
     w = _array(layer.weight.permute(0, 2, 3, 1))
     b = _array(layer.bias) if layer.bias is not None else None
     stride, pad, groups = layer.stride, layer.padding, layer.groups
+    if half:
+        w = w.astype(mx.float16)
+        b = b.astype(mx.float16) if b is not None else None
 
     def run(x):
-        y = mx.conv2d(x, w, stride=stride, padding=pad, groups=groups)
+        y = mx.conv2d(x.astype(w.dtype), w, stride=stride, padding=pad, groups=groups)
         return y + b if b is not None else y
 
     return run
@@ -64,9 +73,9 @@ def _rotate_bf(x, cos, sin):
     return _bf(_bf(x * cos) + _bf(mx.concatenate([-b, a], axis=-1) * sin))
 
 
-def _block(layer, *, bf_rope: bool):
-    qkv, proj = _linear(layer.attn.qkv), _linear(layer.attn.proj)
-    fc1, fc2 = _linear(layer.mlp.fc1), _linear(layer.mlp.fc2)
+def _block(layer, *, bf_rope: bool, half: bool):
+    qkv, proj = _linear(layer.attn.qkv, half=half), _linear(layer.attn.proj, half=half)
+    fc1, fc2 = _linear(layer.mlp.fc1, half=half), _linear(layer.mlp.fc2, half=half)
     n1, n2 = _norm(layer.norm1), _norm(layer.norm2)
     g1 = _array(layer.ls1.gamma) if hasattr(layer.ls1, "gamma") else 1
     g2 = _array(layer.ls2.gamma) if hasattr(layer.ls2, "gamma") else 1
@@ -90,11 +99,11 @@ def _rope(vit, side, prefix):
     return rope_tables(_array(cos), _array(sin), prefix)
 
 
-def _descriptor(vit, side):
+def _descriptor(vit, side, *, half: bool):
     embed = _conv(vit.patch_embed.proj)
     prefix = mx.concatenate([_array(vit.cls_token), _array(vit.storage_tokens)], axis=1)
     rope = _rope(vit, side, prefix.shape[1])
-    blocks = [_block(layer, bf_rope=False) for layer in vit.blocks]
+    blocks = [_block(layer, bf_rope=False, half=half) for layer in vit.blocks]
     norm, taps = _norm(vit.norm), vit.layers
 
     def run(image):
@@ -112,11 +121,11 @@ def _descriptor(vit, side):
     return run
 
 
-def _matcher(matcher, side):
+def _matcher(matcher, side, *, half: bool):
     vit = matcher.mv_vit
     proj, head, norm = _linear(vit.projector), _linear(vit.output_projector), _norm(vit.norm)
     rope = _rope(vit, side, 0)
-    blocks = [_block(layer, bf_rope=True) for layer in vit.blocks]
+    blocks = [_block(layer, bf_rope=True, half=half) for layer in vit.blocks]
     grid = get_normalized_grid(1, side, side)
     phases = torch.nn.functional.linear(grid, matcher.scale * matcher.omega)
     pos = _array(torch.cat([phases.sin(), phases.cos()], -1).flatten(1, 2))
@@ -261,10 +270,13 @@ def _correlation(a, b, warp, radius):
     return mx.stack(dots, axis=-1)
 
 
-def _refine(layer, correlate):
+def _refine(layer, correlate, sample, *, half: bool):
     proj = _linear(layer.proj)
     disp = _linear(layer.disp_emb)
-    blocks = [(_conv(m.conv_depthwise), _linear(m.conv_pointwise)) for m in [layer.block1, *layer.hidden_blocks]]
+    blocks = [
+        (_conv(m.conv_depthwise, half=half), _linear(m.conv_pointwise, half=half))
+        for m in [layer.block1, *layer.hidden_blocks]
+    ]
     delta, score = _linear(layer.warp_head), _linear(layer.confidence_head)
     radius, init = layer.cfg.local_corr_radius, layer.cfg.refine_init
 
@@ -273,7 +285,7 @@ def _refine(layer, correlate):
         warp, conf = _resize_half(warp, h, w), _resize_half(conf, h, w)
         a, b = proj(a), proj(b)
         grid = _array(get_normalized_grid(1, h, w))
-        parts = [a, _sample(b, warp), disp((warp - grid) * scale)]
+        parts = [a, sample(b, warp), disp((warp - grid) * scale)]
         if radius is not None:
             parts.append(correlate(a, b, warp, radius))
         x = mx.concatenate(parts, axis=-1)
@@ -285,12 +297,12 @@ def _refine(layer, correlate):
     return run
 
 
-def _vgg(net):
+def _vgg(net, *, half: bool):
     stages = []
     stage = []
     for layer in net.layers:
         if isinstance(layer, nn.Conv2d):
-            stage.append(_conv(layer))
+            stage.append(_conv(layer, half=half))
         if isinstance(layer, nn.MaxPool2d):
             stages.append(stage)
             stage = []
@@ -304,7 +316,7 @@ def _vgg(net):
             for conv in convs:
                 x = mx.maximum(conv(x), 0)
                 mx.eval(x)
-            maps[2**i] = x
+            maps[2**i] = x.astype(mx.float32)
         return maps
 
     return run
@@ -316,15 +328,19 @@ class Engine:
     def __init__(self, net: RoMaV2, params: Params, *, kernels: bool) -> None:
         """Convert the network and build RoPE tables at the selected coarse size."""
         self.params = params
-        self.describe = _descriptor(net.f, params.coarse_size // net.f.patch_size)
-        self.match = _matcher(net.matcher, params.coarse_size // net.f.patch_size)
-        up, correlate = resize_aligned, _correlation
+        self.describe = _descriptor(net.f, params.coarse_size // net.f.patch_size, half=kernels)
+        self.match = _matcher(net.matcher, params.coarse_size // net.f.patch_size, half=kernels)
+        up, correlate, sample = resize_aligned, _correlation, _sample
         if kernels:
             from fastforks.kernels.dpt_mlx.ops import resize as up  # noqa: PLC0415 - runtime Metal kernels
             from fastforks.kernels.roma_mlx.ops import correlation as correlate  # noqa: PLC0415
+            from fastforks.kernels.roma_mlx.ops import sample  # noqa: PLC0415
         self.dpt = _dpt(net.matcher.head, up)
-        self.features = _vgg(net.refiner_features)
-        self.refiners = [(int(k), _refine(v, correlate)) for k, v in cast("nn.ModuleDict", net.refiners).items()]
+        self.features = _vgg(net.refiner_features, half=kernels)
+        self.refiners = [
+            (int(k), _refine(v, correlate, sample, half=kernels))
+            for k, v in cast("nn.ModuleDict", net.refiners).items()
+        ]
         self.anchor = net.anchor_width
         self.kept: list[tuple[torch.Tensor, list[mx.array]]] = []
 

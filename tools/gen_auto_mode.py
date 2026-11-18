@@ -5,16 +5,12 @@ measured speeds (the fixed-size table of docs/benchmarks.md and docs/data/speed.
 over its measured inputs of `portable ms / kernels ms` is below `MIN_GAIN`. Load time stays free: `auto` reads one small
 file. An explicit `mode="kernels"` is never affected.
 
-It also writes `src/fastforks/_core/apple_mlx.json`: where a load on Apple MPS takes the family's MLX port instead
-(`load(device="mps")` with `mode="auto"` or `"kernels"`), from the MPS and MLX survey rows of `APPLE_DEVICE`. Per
-model id:
+The Apple table selects among passing, comparable MPS and MLX survey runs. Per model revision:
 
-- `auto`: `[mode, dtype]` of the fastest MLX option, if it beats the fastest MPS option (any mode and dtype) by
-  `MIN_GAIN`; `mode="auto"` without a dtype takes it.
-- `dtypes`: `{dtype: mode}`, the fastest MLX option at a dtype that beats MPS at that dtype by `MIN_GAIN`, or that
-  MPS does not run; `mode="auto"` with that dtype takes it.
-- `kernels`: dtypes at which the MLX kernels beat the PyTorch Metal kernels by `MIN_GAIN` (only for families with
-  both); `mode="kernels"` takes MLX at those. Without Metal kernels at the dtype, `kernels` always takes MLX's.
+- `auto` and `dtypes` select MLX if it beats the fastest MPS path by `MIN_GAIN`.
+- `kernels` and `kernels_default` select MLX if it beats the native MPS kernel by `MIN_GAIN`.
+- `mlx` and `mlx_default` select the fastest passing MLX path where it is the only optimized backend.
+- `mps_auto` records which native MPS kernel requests beat portable MPS by `MIN_GAIN`.
 
     uv run python tools/gen_auto_mode.py          # write
     uv run python tools/gen_auto_mode.py --check  # exit 1 if a file is out of date
@@ -70,50 +66,80 @@ def render() -> str:
 
 
 Option = tuple[str, str]  # (mode, dtype)
+Workload = tuple[str, str, str]  # (input, scene, protocol)
 
 
-def _apple_options(device: str) -> dict[str, dict[Option, float]]:
-    """`{model id: {(mode, dtype): median ms}}` of a device's passing survey rows (dtype: what actually ran)."""
-    by: dict[str, dict[Option, list[float]]] = {}
+def _apple_options(device: str) -> dict[str, dict[Option, dict[Workload, float]]]:
+    """Passing survey rows keyed by revision, implementation and workload."""
+    models: dict[str, dict[Option, dict[Workload, float]]] = {}
     for line in (ROOT / "docs" / "data" / "speed" / f"{device}.jsonl").read_text().splitlines():
-        r = json.loads(line)
-        if r.get("status") != "ok" or r.get("golden") == "fail" or r["mode"] not in ("portable", "kernels"):
+        row = json.loads(line)
+        if row.get("status") != "ok" or row.get("golden") != "pass" or row["mode"] not in ("portable", "kernels"):
             continue
-        dtype = (r.get("backend") or {}).get("dtype") or r["dtype"]
-        by.setdefault(r["ref"].split("@")[0], {}).setdefault((r["mode"], dtype), []).append(r["ms"])
-    return {ref: {o: statistics.median(v) for o, v in opts.items()} for ref, opts in by.items()}
+        dtype = (row.get("backend") or {}).get("dtype") or row["dtype"]
+        ref = row["ref"]
+        if "@" not in ref:
+            ref += "@1"  # historical unversioned rows predate checkpoint revisions
+        workload = (row["input"], row.get("scene", ""), row.get("protocol_id", ""))
+        models.setdefault(ref, {}).setdefault((row["mode"], dtype), {})[workload] = row["ms"]
+    return models
 
 
-def _fastest(opts: dict[Option, float], *, mode: str | None = None, dtype: str | None = None) -> tuple[Option, float]:
-    """The fastest option, optionally of one mode / dtype; `(("", ""), inf)` if there is none."""
-    found = [(ms, o) for o, ms in opts.items() if (mode is None or o[0] == mode) and (dtype is None or o[1] == dtype)]
-    return (min(found)[1], min(found)[0]) if found else (("", ""), float("inf"))
+def _winners(
+    candidates: dict[Option, dict[Workload, float]], alternatives: dict[Option, dict[Workload, float]]
+) -> dict[str, Option]:
+    """Winning implementation for each requested dtype, plus the unconstrained request under the empty key."""
+    selected = {}
+    for dtype in ("", *sorted({d for _, d in candidates})):
+        timings = []
+        for option, rows in candidates.items():
+            if dtype and option[1] != dtype:
+                continue
+            if not alternatives:
+                score = statistics.median(rows.values())
+            else:
+                ratios = []
+                for key, ms in rows.items():
+                    baseline = [
+                        other[key]
+                        for (_, d), other in alternatives.items()
+                        if (not dtype or d == dtype) and key in other
+                    ]
+                    if baseline:
+                        ratios.append(ms / min(baseline))
+                if not ratios or statistics.median(ratios) * MIN_GAIN > 1:
+                    continue
+                score = statistics.median(ratios)
+            timings.append((score, option))
+        if timings:
+            selected[dtype] = min(timings)[1]
+    return selected
 
 
 def render_apple() -> str:
     mps, mlx = _apple_options(APPLE_DEVICE), _apple_options(APPLE_MLX_DEVICE)
-    models: dict[str, dict[str, object]] = {}
-    for ref in sorted(mlx):
-        mine, theirs = mlx[ref], mps.get(ref, {})
+    models: dict[str, object] = {}
+    for ref in sorted(mps.keys() | mlx.keys()):
+        native, accelerated = mps.get(ref, {}), mlx.get(ref, {})
+        kernels = {option: rows for option, rows in native.items() if option[0] == "kernels"}
+        baseline = {option: rows for option, rows in native.items() if option[0] == "portable"}
+        # Require a comparable MPS run when automatically promoting an MLX route.
+        auto = _winners(accelerated, native) if native else {}
+        optimized = _winners(accelerated, kernels) if kernels else {}
+        only_mlx = _winners(accelerated, {})
+        metal = _winners(kernels, baseline) if baseline else {}
         entry: dict[str, object] = {}
-        best, ms = _fastest(mine)
-        if ms * MIN_GAIN <= _fastest(theirs)[1]:
-            entry["auto"] = list(best)
-        dtypes = {}
-        for dtype in sorted({d for _, d in mine}):
-            (mode, _), ms = _fastest(mine, dtype=dtype)
-            if ms * MIN_GAIN <= _fastest(theirs, dtype=dtype)[1]:
-                dtypes[dtype] = mode
-        if dtypes:
-            entry["dtypes"] = dtypes
-        kernels = [
-            d
-            for d in sorted({d for m, d in mine if m == "kernels"})
-            if (k := _fastest(theirs, mode="kernels", dtype=d)[1]) < float("inf")
-            and _fastest(mine, mode="kernels", dtype=d)[1] * MIN_GAIN <= k
-        ]
-        if kernels:
-            entry["kernels"] = kernels
+        if "" in auto:
+            entry["auto"] = list(auto.pop(""))
+        if auto:
+            entry["dtypes"] = {dtype: option[0] for dtype, option in auto.items()}
+        for key, winners in (("kernels", optimized), ("mlx", only_mlx)):
+            if "" in winners:
+                entry[f"{key}_default"] = list(winners.pop(""))
+            if winners:
+                entry[key] = {dtype: option[0] for dtype, option in winners.items()}
+        if metal:
+            entry["mps_auto"] = list(metal)
         if entry:
             models[ref] = entry
     data = {"min_gain": MIN_GAIN, "measured_on": [APPLE_DEVICE, APPLE_MLX_DEVICE], "models": models}

@@ -147,3 +147,20 @@ def test_metal_correlation_at_image_boundaries(backend: str, radius: int) -> Non
         lib = roma_metal.load(torch.device("mps"))
         got = roma_metal.correlate(lib, a.to("mps"), b.to("mps"), warp.to("mps"), radius).permute(0, 2, 3, 1).cpu()
     torch.testing.assert_close(got.permute(0, 3, 1, 2), want, atol=1e-5, rtol=1e-5)
+
+
+@pytest.mark.mlx
+def test_mlx_sample_matches_grid_sample() -> None:
+    """Sample different input and output grids, including fractional and off-image coordinates."""
+    if not pytest.importorskip("mlx.core").metal.is_available():
+        pytest.skip("needs Apple Metal")
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - optional MLX
+    from fastforks.kernels.roma_mlx.ops import sample  # noqa: PLC0415
+
+    gen = torch.Generator().manual_seed(7)
+    features = torch.randn(2, 5, 7, 13, generator=gen)
+    warp = torch.rand(2, 4, 9, 2, generator=gen) * 3 - 1.5
+    warp[0, 0, 0] = torch.tensor([1.0e9, -1.0e9])
+    got = to_torch(sample(to_mx(features), to_mx(warp))).permute(0, 3, 1, 2)
+    want = torch.nn.functional.grid_sample(features.permute(0, 3, 1, 2), warp, align_corners=False)
+    torch.testing.assert_close(got, want, atol=1e-5, rtol=1e-5)

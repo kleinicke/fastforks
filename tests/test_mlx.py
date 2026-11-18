@@ -201,10 +201,16 @@ class TestMpsRouting:
         assert self.route("crestereo-eth3d", mode="kernels", dtype="float32") == ("kernels", "float32")  # no fp32 Metal
         assert self.route("depth-anything-v2-b", mode="kernels", task="depth") == ("kernels", "float16")
 
-    def test_explicit_kernels_selects_mlx_without_timing_data(self, monkeypatch):
+    def test_explicit_kernels_prefers_native_metal_without_timing_data(self, monkeypatch):
         monkeypatch.setattr(core_model, "_apple_mlx", dict)
-        assert self.route("crestereo-eth3d", mode="kernels") == ("kernels", "float16")
+        assert self.route("crestereo-eth3d", mode="kernels") is None
         assert self.route("crestereo-eth3d", mode="kernels", dtype="float32") == ("kernels", "float32")
+
+    def test_measured_kernel_and_explicit_dtype(self, monkeypatch):
+        monkeypatch.setattr(core_model, "_apple_mlx", lambda: {"romav2@1": {"kernels": {"float32": "portable"}}})
+        assert self.route("romav2", mode="kernels", dtype="float32", task="matching") == ("portable", "float32")
+        monkeypatch.setattr(core_model.importlib.util, "find_spec", lambda _name: None)
+        assert self.route("romav2", mode="kernels", dtype="float32", task="matching") is None
 
     def test_port_without_kernels_and_family_without_port(self):
         assert self.route("dinov2-vits14", mode="kernels", task="features") == ("portable", "float16")
@@ -220,6 +226,9 @@ class TestMpsRouting:
     def test_table_lists_ports_only(self):
         for model_id, entry in core_model._apple_mlx().items():
             card, _ = registry.resolve_any(model_id)
+            if set(entry) == {"mps_auto"}:
+                assert card.mps_kernel_libs, model_id
+                continue
             assert card.portable_mlx_dtypes, model_id
             modes = {m for m, _ in [entry.get("auto", ("portable", "float32"))]} | set(entry.get("dtypes", {}).values())
             assert modes <= ({"portable", "kernels"} if card.mlx_kernel_libs else {"portable"}), model_id

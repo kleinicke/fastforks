@@ -50,3 +50,47 @@ def correlation(a: mx.array, b: mx.array, warp: mx.array, radius: int) -> mx.arr
         output_shapes=[(n, h, w, offsets)],
         output_dtypes=[mx.float32],
     )[0]
+
+
+_SAMPLE = metal_kernel(
+    name="roma_bilinear_sample",
+    input_names=["features", "warp"],
+    output_names=["out"],
+    source="""
+        uint H = features_shape[1], W = features_shape[2], C = features_shape[3];
+        uint lane = thread_position_in_grid.x, c = lane % C, pixel = lane / C;
+        uint batch = pixel / (warp_shape[1] * warp_shape[2]);
+        float x = ((warp[2*pixel]+1)*W-1)*0.5f, y = ((warp[2*pixel+1]+1)*H-1)*0.5f;
+        if (x <= -1 || x >= float(W) || y <= -1 || y >= float(H)) {
+            out[lane] = 0;
+            return;
+        }
+        int ix = int(floor(x)), iy = int(floor(y));
+        float dx = x-ix, dy = y-iy, value = 0;
+        for (int j = 0; j < 2; ++j) {
+            int yy = iy+j;
+            if (yy < 0 || yy >= int(H)) continue;
+            float row = 0;
+            for (int i = 0; i < 2; ++i) {
+                int xx = ix+i;
+                if (xx >= 0 && xx < int(W))
+                    row += features[((size_t(batch)*H+yy)*W+xx)*C+c] * (i ? dx : 1-dx);
+            }
+            value += row * (j ? dy : 1-dy);
+        }
+        out[lane] = value;
+    """,
+)
+
+
+def sample(features: mx.array, warp: mx.array) -> mx.array:
+    """Zero-padded bilinear sampling in one pass, with pixel centres matching align_corners=False."""
+    n, h, w, _ = warp.shape
+    c = features.shape[-1]
+    return _SAMPLE(
+        inputs=[features, warp],
+        grid=(n * h * w * c, 1, 1),
+        threadgroup=(256, 1, 1),
+        output_shapes=[(n, h, w, c)],
+        output_dtypes=[mx.float32],
+    )[0]

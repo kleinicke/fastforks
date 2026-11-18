@@ -39,4 +39,4 @@ class Kernels(libnet.Kernels):
         self._graphs = SmallShapeGraphs(self.net, pixels=HACC_PIX - 1, graphs=2)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": libnet.Mlx}

@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-12 to 2026-11-18 |
-| rows | 234 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 264 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -69,10 +69,25 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`efficientnet_v2_s.tv_in1k`](../models/classification.md#efficientnetv2) | 19.1 | 17.2 | 18.5 | 16.4 | 1.1x | 541 | 541 |
 | [`mobilenet_v2.tv2_in1k`](../models/classification.md#mobilenetv2) | 3.73 | 3.14 | 3.24 | 2.72 | 1.2x | 306 | 307 |
 | [`mobilenet_v3_large.tv2_in1k`](../models/classification.md#mobilenetv3) | 3.56 | 3.74 | 3.47 | 3.16 | 1.1x | 334 | 325 |
+| [`mobilenetv1_100.ra4_e3600_r224_in1k`](../models/classification.md#mobilenetv1) | 2.50 | 2.38 | – | – | – | 353 | – |
 | [`regnety_160.tv2_in1k`](../models/classification.md#regnet) | 22.6 | 22.5 | 19.9 | 18.3 | 1.2x | 1038 | 1038 |
+| [`repvit_m0_9.dist_300e_in1k`](../models/classification.md#repvit) | 6.43 | 5.62 | – | – | – | 370 | – |
+| [`repvit_m0_9.dist_450e_in1k`](../models/classification.md#repvit) | 4.92 | 4.45 | – | – | – | 368 | – |
+| [`repvit_m1_0.dist_300e_in1k`](../models/classification.md#repvit) | 5.72 | 5.41 | – | – | – | 397 | – |
+| [`repvit_m1_0.dist_450e_in1k`](../models/classification.md#repvit) | 6.06 | 5.47 | – | – | – | 400 | – |
+| [`repvit_m1_1.dist_300e_in1k`](../models/classification.md#repvit) | 5.25 | 4.57 | – | – | – | 411 | – |
+| [`repvit_m1_1.dist_450e_in1k`](../models/classification.md#repvit) | 5.07 | 4.75 | – | – | – | 416 | – |
+| [`repvit_m1_5.dist_300e_in1k`](../models/classification.md#repvit) | 8.03 | 7.08 | – | – | – | 488 | – |
+| [`repvit_m1_5.dist_450e_in1k`](../models/classification.md#repvit) | 7.92 | 8.31 | – | – | – | 536 | – |
+| [`repvit_m2_3.dist_300e_in1k`](../models/classification.md#repvit) | 12.2 | 10.7 | – | – | – | 609 | – |
+| [`repvit_m2_3.dist_450e_in1k`](../models/classification.md#repvit) | 12.1 | 11.0 | – | – | – | 622 | – |
 | [`resnet152.tv2_in1k`](../models/classification.md#resnet) | 19.9 | 17.0 | 20.2 | 16.8 | 1.0x | 724 | 722 |
 | [`resnet18.tv_in1k`](../models/classification.md#resnet) | 4.31 | 3.74 | 4.25 | 4.74 | 0.9x | 373 | 388 |
 | [`resnet50.tv2_in1k`](../models/classification.md#resnet) | 7.84 | 6.68 | 7.86 | 7.12 | 0.9x | 495 | 492 |
+| [`starnet_s1.in1k`](../models/classification.md#starnet) | 4.40 | 3.28 | – | – | – | 328 | – |
+| [`starnet_s2.in1k`](../models/classification.md#starnet) | 6.37 | 5.64 | – | – | – | 337 | – |
+| [`starnet_s3.in1k`](../models/classification.md#starnet) | 5.01 | 5.38 | – | – | – | 381 | – |
+| [`starnet_s4.in1k`](../models/classification.md#starnet) | 6.46 | 5.88 | – | – | – | 385 | – |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 
@@ -129,5 +144,5 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 | model | time (ms): portable fp32 | kernels fp32 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
 |---|---|---|---|---|---|
-| [`romav2`](../models/matching.md#romav2) | 6235 | 4460 | 1.4x | 4896 | 5163 |
+| [`romav2`](../models/matching.md#romav2) | 6235 | 3931 | 1.6x | 4896 | 4178 |
 <!-- device:end -->

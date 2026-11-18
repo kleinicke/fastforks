@@ -57,3 +57,38 @@ def test_auto_dtype_error_names_the_modes():
 
     with pytest.raises(OptionsError, match="mode='auto' found no backend for float16"):
         matching.load("romav2", device="cuda", dtype="float16")
+
+
+def test_apple_routing_uses_passing_comparable_rows(tmp_path, monkeypatch):
+    import gen_auto_mode  # noqa: PLC0415 - sibling tool under test
+
+    monkeypatch.setattr(gen_auto_mode, "ROOT", tmp_path)
+    speed = tmp_path / "docs" / "data" / "speed"
+    speed.mkdir(parents=True)
+    row = {
+        "ref": "example@2",
+        "input": "224x224",
+        "scene": "synthetic",
+        "protocol_id": "warm-median",
+        "mode": "portable",
+        "dtype": "float32",
+        "status": "ok",
+        "golden": "pass",
+        "ms": 10,
+    }
+    cases = {
+        gen_auto_mode.APPLE_DEVICE: [row, row | {"mode": "kernels", "ms": 7}],
+        gen_auto_mode.APPLE_MLX_DEVICE: [
+            row | {"ms": 1, "golden": "skip"},
+            row | {"ms": 2, "input": "96x96"},
+            row | {"ms": 5, "ref": "example@1"},
+            row | {"ms": 8},
+        ],
+    }
+    for device, rows in cases.items():
+        (speed / f"{device}.jsonl").write_text("\n".join(map(json.dumps, rows)))
+    measured = json.loads(gen_auto_mode.render_apple())["models"]
+    assert "auto" not in measured["example@2"]
+    assert measured["example@2"]["mps_auto"] == ["", "float32"]
+    assert "kernels_default" not in measured["example@2"]
+    assert "auto" not in measured["example@1"]

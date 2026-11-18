@@ -725,11 +725,12 @@ Time and memory per model on an M1 Pro: [Apple M1 Pro](devices/apple-m1-pro-16gb
 On Apple silicon, use `device="mps"` for both public modes.
 
 - `portable` runs the PyTorch MPS model.
-- `kernels` runs the family's MLX port when enabled. This includes ports built from MLX's native GPU operations.
-  Where timed implementations exist, the router uses the preferred MLX implementation for the requested dtype.
-  A family with only a PyTorch Metal kernel uses that kernel. An unavailable explicit mode raises.
-- `auto` uses the per-model benchmark table to select MLX when it clears the 5% speed threshold. It can also
-  select the family's PyTorch Metal kernel. Pass `dtype` to constrain the choice.
+- `kernels` uses the family's native MPS Metal runner or MLX port. A measured MLX path must beat the native
+  Metal path by at least 5% to take precedence when both support the request. Explicitly requesting an unavailable
+  implementation raises an error.
+- `auto` uses the benchmark table to compare optimized paths against portable MPS. The table uses comparable runs
+  whose golden reference check passed. A promotion requires at least a 5% speed advantage. Pass `dtype` to
+  constrain the choice.
 
 Results are MPS tensors. An MLX implementation reports `backend.mode == "kernels"` and `backend.device == "mlx"`.
 Set `FASTFORKS_MLX=0` to run only PyTorch MPS implementations. On RoMa v2 this gives access to the float32
@@ -789,7 +790,7 @@ same inputs and protocol, each against the fastest MPS mode at the same dtype):
 |---|---|---|---|
 | CREStereo, `kernels`, 994x1482 | 1.24x faster (4.44 s against 5.50 s) | 1.35x faster (3.06 s against 4.13 s) | equal to 14 % lower |
 | CREStereo, `portable` | slower | slower | 6 to 10 % lower |
-| RoMa v2, `kernels`, 768×1024, default 800/1280 matching sizes | MLX 4.46 s, MPS Metal 3.98 s, portable MPS 5.13 s | — | See device tables |
+| RoMa v2, `kernels`, 768×1024, default 800/1280 matching sizes | MLX 3.93 s, MPS Metal 3.98 s, portable MPS 5.13 s | — | 4.08 GiB MLX, 6.57 GiB MPS Metal |
 | DINOv2 ViT-S/14, ViT-B/14, 224x224 | 1.1x to 1.3x faster | 1.3x to 1.5x faster | about equal |
 | DINOv2 with registers, all sizes | 1.1x to 2.4x faster | 1.3x to 2.9x faster | float32: 20 to 40 % lower; float16: equal, ViT-g 29 % lower |
 | DINOv2 ViT-L/14, ViT-g/14 | equal | 1.1x faster | float32: 42 % (L), 5 % (g) lower; float16: equal (L), 28 % lower (g) |

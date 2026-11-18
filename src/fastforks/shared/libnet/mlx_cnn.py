@@ -160,6 +160,8 @@ def _convnext_trunk(net: Any, dtype: mx.Dtype) -> Callable:
 
 
 def _activation(layer: nn.Module) -> Callable:
+    if isinstance(layer, nn.ReLU6):
+        return lambda x: mx.clip(x, 0, 6)
     if isinstance(layer, nn.ReLU):
         return lambda x: mx.maximum(x, 0)
     if isinstance(layer, nn.SiLU):
@@ -383,6 +385,76 @@ def _classic(net: Any, family: str, dtype: mx.Dtype) -> Callable:
     return _chain(trunk, lambda x: x.transpose(0, 3, 1, 2).reshape(x.shape[0], -1), _classic_op(net.classifier, dtype))
 
 
+def _mobile_v1(net: Any, dtype: mx.Dtype) -> tuple[Callable, Callable]:
+    blocks = [_conv_norm_act(net.conv_stem, net.bn1, dtype)]
+    for stage in net.blocks:
+        for block in stage:
+            blocks.extend(
+                (_conv_norm_act(block.conv_dw, block.bn1, dtype), _conv_norm_act(block.conv_pw, block.bn2, dtype))
+            )
+    return _chain(*blocks), _linear(net.classifier, dtype)
+
+
+def _conv_norm_act(conv: nn.Conv2d, bn: nn.BatchNorm2d, dtype: mx.Dtype) -> Callable:
+    return _chain(_conv(conv, bn, dtype), _activation(cast("nn.Module", bn.act)))
+
+
+def _star_conv(layer: Any, dtype: mx.Dtype) -> Callable:
+    return _conv(layer.conv, getattr(layer, "bn", None), dtype)
+
+
+def _star_block(block: Any, dtype: mx.Dtype) -> Callable:
+    depth, left, right, project, finish = (
+        _star_conv(layer, dtype) for layer in (block.dwconv, block.f1, block.f2, block.g, block.dwconv2)
+    )
+
+    def run(x: mx.array) -> mx.array:
+        y = depth(x)
+        return x + finish(project(mx.clip(left(y), 0, 6) * right(y)))
+
+    return run
+
+
+def _star_net(net: Any, dtype: mx.Dtype) -> tuple[Callable, Callable]:
+    ops = [_star_conv(net.stem[0], dtype), _activation(net.stem[1])]
+    for stage in net.stages:
+        ops.append(_star_conv(stage[0], dtype))
+        ops.extend(_star_block(block, dtype) for block in list(stage)[1:])
+    ops.append(_classic_op(net.norm, dtype))
+    return _chain(*ops), _linear(net.head, dtype)
+
+
+def _rep_mlp(layer: Any, dtype: mx.Dtype) -> Callable:
+    return _residual_path(_chain(_conv(layer.conv1, None, dtype), _gelu, _conv(layer.conv2, None, dtype)))
+
+
+def _rep_block(block: Any, dtype: mx.Dtype) -> Callable:
+    ops = [_conv(block.token_mixer, None, dtype)]
+    if not isinstance(block.se, nn.Identity):
+        gate = _chain(_linear(block.se.fc1, dtype), _activation(block.se.act), _linear(block.se.fc2, dtype), mx.sigmoid)
+        ops.append(lambda x: x * gate(_mean_spatial(x))[:, None, None, :])
+    return _chain(*ops, _rep_mlp(block.channel_mixer, dtype))
+
+
+def _rep_vit(net: Any, dtype: mx.Dtype) -> tuple[Callable, Callable]:
+    # Timm folds the parallel depthwise branches, BatchNorms and the two distillation heads.
+    net.fuse()
+    ops = [_conv(net.stem.conv1, None, dtype), _gelu, _conv(net.stem.conv2, None, dtype)]
+    for stage in net.stages:
+        down = stage.downsample
+        if not isinstance(down, nn.Identity):
+            ops.extend(
+                (
+                    _rep_block(down.pre_block, dtype),
+                    _conv(down.spatial_downsample, None, dtype),
+                    _conv(down.channel_downsample, None, dtype),
+                    _rep_mlp(down.ffn, dtype),
+                )
+            )
+        ops.extend(_rep_block(block, dtype) for block in stage.blocks)
+    return _chain(*ops), _linear(net.head, dtype)
+
+
 class Network:
     """Fold and upload the weights once, then run the full classifier in MLX."""
 
@@ -403,6 +475,12 @@ class Network:
             features, head = _mobilenet(net, self.dtype), _linear(net.classifier[-1], self.dtype)
         elif ctx.card.family in {"efficientnet", "efficientnetv2", "mobilenetv3", "regnet"}:
             features, head = _gated_cnn(net, self.dtype, regnet=ctx.card.family == "regnet")
+        elif ctx.card.family == "mobilenetv1":
+            features, head = _mobile_v1(net, self.dtype)
+        elif ctx.card.family == "starnet":
+            features, head = _star_net(net, self.dtype)
+        elif ctx.card.family == "repvit":
+            features, head = _rep_vit(net, self.dtype)
         else:
             msg = f"No MLX classifier implementation for {ctx.card.family}"
             raise ValueError(msg)
