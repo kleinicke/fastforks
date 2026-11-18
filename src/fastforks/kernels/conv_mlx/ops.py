@@ -66,7 +66,7 @@ _IN_SRC = """
     uint cv = thread_position_in_grid.x, tx = thread_position_in_grid.y, tyn = thread_position_in_grid.z;
     if (cv >= C / CV) return;
     uint ty = tyn % TH, n = tyn / TH;
-    int ih0 = int(ty) * MO - 1, iw0 = int(tx) * MO - 1;
+    int ih0 = int(ty + r0[0]) * MO - 1, iw0 = int(tx) * MO - 1;
     typedef vec<float, CV> F;
     F d[A][A];
     const device vec<T, CV>* xv = (const device vec<T, CV>*)x;
@@ -107,11 +107,12 @@ _OUT_SRC = """
         t[i][j] = s;
     }
     F bias = F(((const device vec<T, CV>*)b)[cv]);
+    const int row0 = int(r0[0]) * MO;
     F slope = F(((const device vec<T, CV>*)a)[cv]);
     device vec<T, CV>* ov = (device vec<T, CV>*)out;
     const device vec<T, CV>* rv = (const device vec<T, CV>*)r;
     UR for (int i = 0; i < MO; ++i) {
-        int oh = int(ty) * MO + i;
+        int ol = int(ty) * MO + i, oh = row0 + ol;
         if (oh >= H) continue;
         UR for (int j = 0; j < MO; ++j) {
             int ow = int(tx) * MO + j;
@@ -122,7 +123,7 @@ _OUT_SRC = """
             if (ACT == 1) s = max(s, F(0));
             else if (ACT == 2) s = select(s * slope, s, s > F(0));
             if (RES) s += F(rv[at]);
-            ov[at] = vec<T, CV>(s);
+            ov[((size_t(n) * BH + ol) * W + ow) * (CO / CV) + cv] = vec<T, CV>(s);
         }
     }
 """
@@ -134,11 +135,11 @@ def _kernels(m: int) -> tuple[object, object]:
     if m not in _K:
         _K[m] = (
             metal_kernel(
-                name=f"conv_wino{m}_in", input_names=["x"], output_names=["v"], source=_IN_SRC, header=_header(m)
+                name=f"conv_wino{m}_in", input_names=["x", "r0"], output_names=["v"], source=_IN_SRC, header=_header(m)
             ),
             metal_kernel(
                 name=f"conv_wino{m}_out",
-                input_names=["m", "b", "a", "r"],
+                input_names=["m", "b", "a", "r", "r0"],
                 output_names=["out"],
                 source=_OUT_SRC,
                 header=_header(m),
@@ -164,41 +165,33 @@ def supported(x_shape: tuple[int, ...], cout: int) -> bool:
     return cin % CV == 0 and cout % CV == 0 and cin >= _MIN_C and cout >= _MIN_C and h * w >= 48 * 48
 
 
-def conv3x3(  # noqa: PLR0913
-    x: mx.array,
-    u: mx.array,
-    bias: mx.array | None = None,
-    *,
-    m: int = 4,
-    act: int = 0,
-    slope: mx.array | None = None,
-    residual: mx.array | None = None,
-) -> mx.array:
-    """NHWC 3x3 convolution, stride 1, zero padding 1, with `u = weights(...)`; bias, activation and residual fused.
+_BAND_BYTES = 192 << 20  # target size of one band's transformed activations: bounds the peak of huge images
 
-    `act`: 0 none, 1 ReLU, 2 PReLU with the per-channel `slope` `[Cout]` (a LeakyReLU is a PReLU with a constant slope).
-    """
+
+def _band(x: mx.array, u: mx.array, bias, m, act, slope, residual, r0: int, bth: int):  # noqa: ANN001, ANN202, PLR0913, PLR0917
     n, h, wd, c = x.shape
     a = m + 2
     co = u.shape[2]
-    th, tw = -(-h // m), -(-wd // m)
-    nt = n * th * tw
+    tw = -(-wd // m)
+    nt = n * bth * tw
+    bh = min(bth * m, h - r0 * m)
     k_in, k_out = _kernels(m)
+    off = mx.array([r0], dtype=mx.uint32)
     tx = min(_TG // (c // CV), tw) if c // CV < _TG else 1
     v = k_in(  # ty: ignore[call-non-callable]
-        inputs=[x],
+        inputs=[x, off],
         template=[
             ("T", x.dtype),
             ("C", c),
             ("H", h),
             ("W", wd),
-            ("TH", th),
+            ("TH", bth),
             ("TW", tw),
             ("NT", nt),
             ("MO", m),
             ("CV", CV),
         ],
-        grid=(c // CV, tw, n * th),
+        grid=(c // CV, tw, n * bth),
         threadgroup=(min(c // CV, 256), max(1, tx), 1),
         output_shapes=[(a * a, nt, c)],
         output_dtypes=[x.dtype],
@@ -212,13 +205,42 @@ def conv3x3(  # noqa: PLR0913
             bias if bias is not None else zero,
             slope.astype(x.dtype) if slope is not None else zero,
             residual if residual is not None else zero,
+            off,
         ],
         template=[
-            ("T", x.dtype), ("CO", co), ("H", h), ("W", wd), ("TH", th), ("TW", tw), ("NT", nt),
-            ("MO", m), ("CV", CV), ("ACT", act), ("RES", residual is not None),
+            ("T", x.dtype), ("CO", co), ("H", h), ("W", wd), ("TH", bth), ("TW", tw), ("NT", nt),
+            ("MO", m), ("CV", CV), ("ACT", act), ("RES", residual is not None), ("BH", bh),
         ],
-        grid=(co // CV, tw, n * th),
+        grid=(co // CV, tw, n * bth),
         threadgroup=(min(co // CV, 256), max(1, txo), 1),
-        output_shapes=[(n, h, wd, co)],
+        output_shapes=[(n, bh, wd, co)],
         output_dtypes=[x.dtype],
     )[0]  # fmt: skip
+
+
+def conv3x3(  # noqa: PLR0913
+    x: mx.array,
+    u: mx.array,
+    bias: mx.array | None = None,
+    *,
+    m: int = 4,
+    act: int = 0,
+    slope: mx.array | None = None,
+    residual: mx.array | None = None,
+    bands: int | None = None,
+) -> mx.array:
+    """NHWC 3x3 convolution, stride 1, zero padding 1, with `u = weights(...)`; bias, activation and residual fused.
+
+    `act`: 0 none, 1 ReLU, 2 PReLU with the per-channel `slope` `[Cout]` (a LeakyReLU is a PReLU with a constant slope).
+    `bands`: the image is processed in this many bands of tile rows (default: as many as keep one band's transformed
+    activations under `_BAND_BYTES`): the transformed tensors of a huge image never exist whole.
+    """
+    n, h, wd, c = x.shape
+    th = -(-h // m)
+    if bands is None:
+        v_bytes = (m + 2) ** 2 * n * th * -(-wd // m) * max(c, u.shape[2]) * x.dtype.size
+        bands = max(1, v_bytes // _BAND_BYTES)
+    bands = min(bands, th)
+    bth = -(-th // bands)
+    outs = [_band(x, u, bias, m, act, slope, residual, r0, min(bth, th - r0)) for r0 in range(0, th, bth)]
+    return outs[0] if len(outs) == 1 else mx.concatenate(outs, axis=1)
