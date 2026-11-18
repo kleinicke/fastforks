@@ -40,7 +40,7 @@ from torch import nn
 from fastforks._core import kernels
 from fastforks._core.errors import OptionsError
 from fastforks._core.half import fp16_accumulate
-from fastforks.kernels import swiglu
+from fastforks.kernels import map_geometry, swiglu
 from fastforks.multiview._runner import Forward, Runner
 from fastforks.shared.host_blocks import HostBlocks
 
@@ -547,6 +547,12 @@ class _Base(Runner):
         return [o[0, :-1].view(v, n + 1, c) for o in outs], outs[-1][0, -1]
 
     # ------------------------------------------------------------------ heads
+    mask_edges = staticmethod(edge_mask)
+
+    def project_head(self, y: torch.Tensor) -> torch.Tensor:
+        """Apply the final FP32 six-channel DPT projection in per-pixel layout."""
+        return F.linear(y.permute(0, 2, 3, 1).float(), self.head_w, self.head_b)
+
     def dense(self, feats: list[torch.Tensor], h: int, w: int) -> torch.Tensor:
         """DPT on 4 `[V, C, gh, gw]` features -> raw head output `[V, h, w, 6]` (fp32)."""
         dh: Any = self.net.dense_head
@@ -557,7 +563,7 @@ class _Base(Runner):
             y = dh[0]([f[s : s + self.dense_chunk] for f in feats])
             y = F.interpolate(dh[1].conv1(y), (h, w), mode="bilinear", align_corners=True)
             y = dh[1].conv2(y)  # 3x3 conv + ReLU (the last 1x1 conv is head_w / head_b)
-            outs.append(F.linear(y.permute(0, 2, 3, 1).float(), self.head_w, self.head_b))
+            outs.append(self.project_head(y))
         return torch.cat(outs) if len(outs) > 1 else outs[0]
 
     def _staged_blocks(self) -> Generator[_Blk]:
@@ -599,7 +605,7 @@ class _Base(Runner):
         pts, pts_cam = pts * scale, pts_cam * scale
         depth = pts_cam[..., 2]
         mask = torch.sigmoid(o[..., 5]) > 0.5  # noqa: PLR2004 - upstream's threshold on the non-ambiguity probability
-        mask &= edge_mask(pts, depth, mask)
+        mask &= self.mask_edges(pts, depth, mask)
         c2w = torch.eye(4, device=x.device).repeat(v, 1, 1)
         c2w[:, :3, :3], c2w[:, :3, 3] = rot, trans * scale
         return {
@@ -681,7 +687,17 @@ class Kernels(_Base):
 
         fastbb.load(ctx.device)
         self.activation = swiglu.load(ctx.device)
+        map_geometry.load(ctx.device)
         self.flash, self.check_flash64 = fastbb.Flash64("hh"), fastbb.check_flash64
+
+    @staticmethod
+    def mask_edges(pts: torch.Tensor, depth: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        """Three stencil passes for normals, angular discontinuities and the final depth edge test."""
+        return map_geometry.edge_mask(pts, depth, mask, math.radians(EDGE_NORMAL_DEG), EDGE_DEPTH_RTOL)
+
+    def project_head(self, y: torch.Tensor) -> torch.Tensor:
+        """Accumulate the six prediction channels in FP32 directly from channels-last FP16 DPT features."""
+        return map_geometry.project(y, self.head_w, self.head_b)
 
     def gate(self, packed: torch.Tensor) -> torch.Tensor:
         """Apply both half-precision gate operations in one kernel and discard the packed projection."""
