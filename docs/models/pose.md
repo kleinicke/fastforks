@@ -283,7 +283,7 @@ Top-down on the same every-tenth-image subset for all modes, ground-truth person
 | `rtmpose-m-hand5` | COCO-WholeBody validation (1,568 images), hand PCK@0.2 % / EPE in px |  |  |  | 80.98 / 4.56 |  |  |
 | `rtmpose-t-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) |  |  |  | 1.7742 |  |  |
 | `rtmpose-s-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) |  |  |  | 1.6854 |  |  |
-| `rtmpose-m-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) |  |  |  | 1.5225 |  |  |
+| `rtmpose-m-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) | 1.5244 |  |  | 1.5225 |  |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / be54b8b0, 2026-11-09 to 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / be54b8b0, 2026-11-09 to 2026-11-11.
 
