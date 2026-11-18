@@ -129,7 +129,7 @@ Commercial use: yes.
   - `rtmpose-m-face6`: COCO-WholeBody, Halpe-FullBody, ImageNet-1k (ILSVRC 2012 classification) (face6: COCO-WholeBody-Face, WFLW, 300W, COFW, Halpe faces and LaPa, converted to the 106 LaPa landmarks (WFLW, 300W, COFW and LaPa are not in the dataset list; research-only terms); the CSPNeXt backbone was pre-trained on ImageNet-1k)
   - `rtmpose-m-ap10k`: AP-10K (animal pose), COCO 2017 (train, instance annotations), AI Challenger human keypoints (2017), ImageNet-1k (ILSVRC 2012 classification) (AP-10K (animal keypoints, 54 species); the CSPNeXt backbone was pre-trained on ImageNet-1k and on AI Challenger + COCO body keypoints)
 - Options: `flip_test` = False
-- Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
+- Kernel libraries: `pose_warp`, `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `rtmpose-t`, `rtmpose-s`, `rtmpose-m`, `rtmpose-l`, `rtmpose-m-384`, `rtmpose-l-384`, `dwpose-t`, `dwpose-s`, `dwpose-m`, `dwpose-l`, `dwpose-l-384`, `rtmw-m`, `rtmw-l`, `rtmw-x`, `rtmw-l-384`, `rtmw-x-384`, `rtmpose-t-halpe26`, `rtmpose-s-halpe26`, `rtmpose-m-halpe26`, `rtmpose-l-halpe26`, `rtmpose-m-halpe26-384`, `rtmpose-l-halpe26-384`, `rtmpose-x-halpe26-384`, `rtmpose-m-hand5`, `rtmpose-t-face6`, `rtmpose-s-face6`, `rtmpose-m-face6`, `rtmpose-m-ap10k`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -292,34 +292,34 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `rtmpose-t` | 0.40835 / 2.02585 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmpose-s` | 0.35962 / 2.04983 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmpose-m` | 0.14799 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmpose-l` | 0.19814 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmpose-m-384` | 0.32639 / 2.09004 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmpose-l-384` | 0.2774 / 0.79916 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `dwpose-t` | 0.18757 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `dwpose-s` | 0.21925 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `dwpose-m` | 0.09716 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `dwpose-l` | 0.16913 / 1.64226 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `dwpose-l-384` | 0.16432 / 2.22965 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmw-m` | 0.10568 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmw-l` | 0.07894 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmw-x` | 0.12505 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmw-l-384` | 0.94198 / 1.29593 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmw-x-384` | 0.68362 / 2.91205 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmpose-t-halpe26` | 0.51209 / 4.77095 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmpose-s-halpe26` | 1.41323 / 27.36431 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmpose-m-halpe26` | 0.24452 / 1.78611 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmpose-l-halpe26` | 0.20565 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmpose-m-halpe26-384` | 0.16174 / 1.48645 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmpose-l-halpe26-384` | 0.14576 / 0.79916 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmpose-x-halpe26-384` | 0.15131 / 0.79918 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmpose-m-hand5` | 0.39958 / 2.61323 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmpose-t-face6` | 0.12106 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmpose-s-face6` | 0.10929 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmpose-m-face6` | 0.07662 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmpose-m-ap10k` | 0.52728 / 4.73499 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `rtmpose-t` | 0.40835 / 2.02585 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmpose-s` | 0.35962 / 2.04983 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmpose-m` | 0.14799 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmpose-l` | 0.19814 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmpose-m-384` | 0.32639 / 2.09004 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmpose-l-384` | 0.2774 / 0.79916 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `dwpose-t` | 0.18757 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `dwpose-s` | 0.21925 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `dwpose-m` | 0.09716 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `dwpose-l` | 0.16913 / 1.64226 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `dwpose-l-384` | 0.16432 / 2.22965 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmw-m` | 0.10568 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmw-l` | 0.07894 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmw-x` | 0.12505 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmw-l-384` | 0.94198 / 1.29593 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmw-x-384` | 0.68362 / 2.91205 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmpose-t-halpe26` | 0.51209 / 4.77095 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmpose-s-halpe26` | 1.41323 / 27.36431 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmpose-m-halpe26` | 0.24452 / 1.78611 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmpose-l-halpe26` | 0.20565 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmpose-m-halpe26-384` | 0.16174 / 1.48645 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmpose-l-halpe26-384` | 0.14576 / 0.79916 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmpose-x-halpe26-384` | 0.15131 / 0.79918 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmpose-m-hand5` | 0.39958 / 2.61323 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmpose-t-face6` | 0.12106 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmpose-s-face6` | 0.10929 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmpose-m-face6` | 0.07662 / 1.19873 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmpose-m-ap10k` | 0.52728 / 4.73499 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
 
 </details>
 
@@ -346,7 +346,7 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/open-mmlab/mmpose/blob/5408bc76f5b848cf925a0d1857899011d8c5b497/README.md#license>
 - Training data: COCO 2017 (train, instance annotations), ImageNet-1k (ILSVRC 2012 classification) (COCO 2017 keypoints; the HRNet backbone was initialised from ImageNet-1k classification weights)
 - Options: `flip_test` = False
-- Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
+- Kernel libraries: `pose_warp`, `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `hrnet-w32`, `hrnet-w32-384`, `hrnet-w48`, `hrnet-w48-384`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -388,10 +388,10 @@ CPU, float32: max |diff| <= 4.6e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `hrnet-w32` | 0.0 / 3e-05 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `hrnet-w32-384` | 0.10128 / 2.15711 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `hrnet-w48` | 0.0 / 3e-05 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `hrnet-w48-384` | 0.20784 / 3.15067 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `hrnet-w32` | 0.0 / 3e-05 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `hrnet-w32-384` | 0.10128 / 2.15711 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `hrnet-w48` | 0.0 / 3e-05 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `hrnet-w48-384` | 0.20784 / 3.15067 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
 
 </details>
 
@@ -542,7 +542,7 @@ Commercial use: yes.
 - Licence evidence: <https://github.com/open-mmlab/mmpose/blob/5408bc76f5b848cf925a0d1857899011d8c5b497/README.md#license>
 - Training data: COCO 2017 (train, instance annotations), AI Challenger human keypoints (2017), CrowdPose, MPII Human Pose, sub-JHMDB (J-HMDB), Halpe-FullBody, PoseTrack 2018 (body7: COCO, AI Challenger, CrowdPose, MPII, sub-JHMDB, Halpe and PoseTrack18 keypoints; the CSPDarknet backbone starts from a YOLOX COCO detection checkpoint)
 - Options: `score_threshold` = 0.1 (0.0 to 1.0)
-- Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
+- Kernel libraries: `pose_warp`, `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `rtmo-t`, `rtmo-s`, `rtmo-m`, `rtmo-l`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -588,10 +588,10 @@ CPU, float32: max |diff| <= 0.014 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `rtmo-t` | 0.02725 / 0.14195 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmo-s` | 0.02234 / 0.14143 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmo-m` | 0.11064 / 1.21749 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
-| `rtmo-l` | 0.30973 / 6.5301 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120` |
+| `rtmo-t` | 0.02725 / 0.14195 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmo-s` | 0.02234 / 0.14143 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmo-m` | 0.11064 / 1.21749 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
+| `rtmo-l` | 0.30973 / 6.5301 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fvm_conv@f1d064e539e1:sm_120`, `fvm_extra@3208ce525a91:sm_120`, `fvm_mb@720dd3f29bf7:sm_120`, `fvm_r3@f54eb890e23c:sm_120`, `pose_warp@1589e39c4cb2:sm_120` |
 
 ### Limitations
 

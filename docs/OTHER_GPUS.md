@@ -104,7 +104,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `deform_conv` | aanet, birefnet |
 | `dpt_fused` | any2full, anycalib, boq, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, dinov2, dinov2_linear, dinov3, insid3, lingbot_depth, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, omni_dc, pointdit, prompt_depth_anything, sam, sam2, sam3, sam_hq, tipsv2, track_on, unidepth_v2, unik3d, vitmatte, waft, waft_stereo |
 | `edge_components` | anyline |
-| `fastbb` | any2full, anycalib, anysplat, boq, bridgedepth, c_foundationstereo, crestereo, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, depthsplat, dinov2, dinov2_linear, dinov3, dlnr, eomt, foundationstereo, insid3, lingbot_depth, lingbot_map, mapanything, megaflow, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, nmrf, omni_dc, pi3, pointdit, prompt_depth_anything, resplat, rfdetr, rfdetr_keypoint, romav1, rt_monster_plusplus, sam3, sapiens, tipsv2, track_on, unidepth_v2, unik3d, vggt, vggt_omega, video_depth_anything, waft, waft_stereo |
+| `fastbb` | any2full, anycalib, anysplat, boq, bridgedepth, c_foundationstereo, crestereo, defom_stereo, depth_anything_3, depth_anything_v2, depth_pro, depthsplat, dinov2, dinov2_linear, dinov3, dlnr, eomt, foundationstereo, insid3, lingbot_depth, lingbot_map, mapanything, megaflow, megaloc, metric3d, moge, monster, monster_plusplus, mvsanywhere, nmrf, omni_dc, pi3, pointdit, prompt_depth_anything, resplat, restormer, rfdetr, rfdetr_keypoint, romav1, rt_monster_plusplus, sam3, sapiens, tipsv2, track_on, unidepth_v2, unik3d, vggt, vggt_omega, video_depth_anything, waft, waft_stereo |
 | `ffs_cutlass` | c_foundationstereo |
 | `flow_upsample` | flowformer, gmflow, memfof |
 | `fs` | c_foundationstereo, foundationstereo |
@@ -114,6 +114,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `fvm_mb` | alexnet, c_radio, clip, coatnet, convnextv2, davit, deit, densenet, dinov2_linear_cls, efficientformer, efficientformerv2, efficientnet, efficientnetv2, efficientvit, efficientvit_sam, eva02, fastvit, focalnet, hgnetv2, hrnet, inception_v3, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, nsfw_vit, perception_encoder, regnet, repvit, resnet, retinaface, rtmdet, rtmo, rtmpose, segformer, segnext, shufflenetv2, shvit, siglip, siglip2, squeezenet, starnet, swin, vgg, vit, wd_tagger, yolox, yunet |
 | `fvm_r3` | alexnet, c_radio, clip, coatnet, convnextv2, davit, deit, densenet, dinov2_linear_cls, efficientformer, efficientformerv2, efficientnet, efficientnetv2, efficientvit, efficientvit_sam, eva02, fastvit, focalnet, hgnetv2, hrnet, inception_v3, mobile_sam, mobilenetv1, mobilenetv2, mobilenetv3, mobilenetv4, nsfw_vit, perception_encoder, regnet, repvit, resnet, retinaface, rtmdet, rtmo, rtmpose, segformer, segnext, shufflenetv2, shvit, siglip, siglip2, squeezenet, starnet, swin, vgg, vit, wd_tagger, yolox, yunet |
 | `fvm_seg` | convnext, convnext_features, dinov3_convnext, mask2former, oneformer |
+| `group_silu` | codeformer |
 | `gsraster` | resplat |
 | `hitnet` | hitnet |
 | `hitnet_conv` | hitnet |
@@ -132,17 +133,22 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 | `ocr_levels` | ppocrv5 |
 | `patchmatchnet` | patchmatchnet |
 | `pil_resample` | parseq |
+| `pose_warp` | hrnet, rtmo, rtmpose |
 | `raft` | dlnr, raft_stereo |
 | `raft_flow` | flowseek, gimm_vfi, megaflow, memflow, memfof, neuflow_v2, raft, sea_raft |
 | `resize_cat` | u2net |
 | `romav2` | romav1, romav2 |
 | `s2m2` | s2m2 |
 | `s2m2_cutlass` | s2m2 |
+| `sam3_fpn` | sam3 |
+| `sam3_tracker` | sam3 |
 | `seg_conv` | mmseg, segnext |
 | `seg_up` | dinov2_linear, eomt, mask2former, mmseg, oneformer, sapiens, segformer, segnext |
+| `shift_windows` | hat, swin2sr, swinir |
 | `smish` | teed |
 | `sparse_conv` | moge |
 | `stereo_ops` | coex, las2 |
+| `style_weights` | gfpgan |
 | `swiglu` | dinov3 |
 | `vggt_omega` | vggt_omega |
 | `vol_norm` | lineart, nnfoundation, nninteractive, totalsegmentator |

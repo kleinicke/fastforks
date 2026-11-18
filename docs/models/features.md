@@ -96,7 +96,7 @@ Commercial use: yes.
 - Licence evidence: https://huggingface.co/nvidia/C-RADIOv3-B/blob/44653a0482cf460bb4f12595fc3cc3dfecc403d1/README.md and https://huggingface.co/nvidia/C-RADIOv4-SO400M/blob/c0457f5dc26ca145f954cd4fc5bb6114e5705ad8/README.md
 - Training data: NV-CC-Img-Text-Dataset (NVIDIA web image-text data, 700 M images, not released) (700 M web images (NV-CC-Img-Text-Dataset), distilled from teachers whose own training data does not carry over as terms: v3 the DFN CLIP ViT-H/14, SigLIP 2 (So400m; g for C-RADIOv3-H), DINOv2-g and SAM ViT-H; v4 SigLIP 2-g, DINOv3-7B and SAM 3)
 - Licence note: The weights are governed by the NVIDIA Open Model License Agreement, which allows commercial use (the model card: 'ready for commercial/non-commercial use'). Our code is timm's VisionTransformer plus our own walk; no NVIDIA code is vendored.
-- Options: `fp16_accumulate` = False (precision only), `fp32_accumulate` = False (precision only)
+- Options: `stream` = False (speed only), `fp16_accumulate` = False (precision only), `fp32_accumulate` = False (precision only)
 - Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `c-radio-v3-b`, `c-radio-v3-l`, `c-radio-v3-h`, `c-radio-v3-g`, `c-radio-v4-so400m`, `c-radio-v4-h`
 - Outputs: last_hidden_state, pooler_output, hidden_states
@@ -156,6 +156,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
+- Set stream=True on CUDA to keep transformer blocks in pinned host RAM. The embeddings, pooling layer and output features stay on the GPU. Export and CUDA graph replay require resident weights.
 - last_hidden_state holds the prefix tokens (v3: 4 summary + 4 registers; v4: 3 summary + 7 registers), then the patches (upstream's `features`).
 - pooler_output is upstream's `summary`: the summary tokens concatenated (v3: clip, siglip2, dino_v2 = 3 x hidden size; v4: siglip2, dino_v3 = 2 x hidden size).
 - The teacher adaptors (the heads mapping the summary to CLIP / SigLIP 2 text space) are not included.
@@ -208,7 +209,7 @@ Commercial use: `clip-b16-openai`, `clip-l14-openai`, `clip-l14-336-openai`, `cl
   - `clip-l14-dfn2b`: DFN-2B / DFN-5B: CommonPool-12.8B (and further web pairs for 5B) filtered by Apple's data-filtering network; not released
   - `clip-h14-dfn5b`: DFN-2B / DFN-5B: CommonPool-12.8B (and further web pairs for 5B) filtered by Apple's data-filtering network; not released
   - `clip-h14-378-dfn5b`: DFN-2B / DFN-5B: CommonPool-12.8B (and further web pairs for 5B) filtered by Apple's data-filtering network; not released
-- Options: `fp16_accumulate` = False (precision only), `fp32_accumulate` = False (precision only)
+- Options: `stream` = False (speed only), `fp16_accumulate` = False (precision only), `fp32_accumulate` = False (precision only)
 - Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `clip-b16-openai`, `clip-l14-openai`, `clip-l14-336-openai`, `clip-b16-laion2b`, `clip-l14-laion2b`, `clip-h14-laion2b`, `clip-l14-datacompxl`, `clip-l14-dfn2b`, `clip-h14-dfn5b`, `clip-h14-378-dfn5b`
 - Outputs: last_hidden_state, pooler_output, hidden_states
@@ -294,6 +295,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
+- Set stream=True on CUDA to keep transformer blocks in pinned host RAM. The embeddings, pooling layer and output features stay on the GPU. Export and CUDA graph replay require resident weights.
 - kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.
 - Small kernels calls (graph-sized, with or without `layers`) run GEMMs of at most 600 tokens on cuBLAS: faster in a graph replay (ViT-B/16 224 px: 1.26 against 1.52 ms), about 10 % slower eagerly on ViT-T / B; a replay equals the eager call bit for bit.
 - `fp32_accumulate = true` puts every GEMM on cuBLAS with fp32 accumulation (the portable precision; slower on GeForce).
@@ -559,7 +561,7 @@ Commercial use: yes.
 - Licence evidence: https://huggingface.co/facebook/dinov3-vits16-pretrain-lvd1689m/blob/114c1379950215c8b35dfcd4e90a5c251dde0d32/LICENSE.md (DINOv3 License, the same file in every model repo; gated: accept on Hugging Face to download)
 - Training data: LVD-1689M: 1.689B images curated from 17B public Instagram images by retrieval / clustering, self-supervised (no labels), per the paper; not released
 - Licence note: Code and weights use the DINOv3 License (Meta: attribution and conditions apply); read it before commercial use.
-- Options: `fp16_accumulate` = False (precision only)
+- Options: `stream` = False (speed only), `fp16_accumulate` = False (precision only)
 - Kernel libraries: `fastbb`, `dpt_fused`, `swiglu`
 - Variants: `dinov3-vits16`, `dinov3-vitb16`, `dinov3-vitl16`, `dinov3-vith16plus`
 - Outputs: last_hidden_state, pooler_output, hidden_states
@@ -605,6 +607,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
+- CUDA portable and kernels accept stream=True to stage packed transformer blocks from pinned host RAM. This setting uses eager inference. Export and CUDA graph replay require resident weights.
 - kernels replays a CUDA graph per small input shape and layer set (up to 512 px, ViT-S 1024 px), captured on the shape's second call; at most 8 per model holding at most 256 MB of outputs (a full cache replaces only graphs unused for 64 calls, other new shapes run eagerly).
 - The graphs' shared memory pool (intermediates) comes on top of that limit and stays reserved: up to about 470 MB more PyTorch cache than eager for ViT-H+ at 512 px with all layers, usually under 75 MB; `model.release_graphs()` frees it on the device.
 
@@ -760,7 +763,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: <https://huggingface.co/timm/vit_base_patch16_siglip_256.v2_webli/blob/ac4cc431026674dcac29e34a00d3bd2048390eb3/README.md>
 - Training data: WebLI (Google web image-text data, not released) (WebLI image-text pairs (multilingual), sigmoid contrastive loss plus captioning / self-distillation / masked prediction (SigLIP 2 paper); not released)
-- Options: `fp16_accumulate` = False (precision only), `fp32_accumulate` = False (precision only)
+- Options: `stream` = False (speed only), `fp16_accumulate` = False (precision only), `fp32_accumulate` = False (precision only)
 - Kernel libraries: `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `siglip2-b16-256`, `siglip2-b16-512`, `siglip2-l16-256`, `siglip2-l16-512`, `siglip2-so400m14-224`, `siglip2-so400m14-378`, `siglip2-so400m16-256`, `siglip2-so400m16-512`, `siglip2-g16-256`, `siglip2-g16-384`
 - Outputs: last_hidden_state, pooler_output, hidden_states
@@ -846,6 +849,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
+- Set stream=True on CUDA to keep transformer blocks in pinned host RAM. The embeddings, pooling layer and output features stay on the GPU. Export and CUDA graph replay require resident weights.
 - kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.
 - Small kernels calls (graph-sized, with or without `layers`) run GEMMs of at most 600 tokens on cuBLAS: faster in a graph replay (ViT-B/16 224 px: 1.26 against 1.52 ms), about 10 % slower eagerly on ViT-T / B; a replay equals the eager call bit for bit.
 - `fp32_accumulate = true` puts every GEMM on cuBLAS with fp32 accumulation (the portable precision; slower on GeForce).

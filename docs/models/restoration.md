@@ -121,7 +121,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Licence evidence: https://github.com/sczhou/CodeFormer/blob/b33cc7d639d6545bfcccc7e0bc6ae51f24e79c2b/LICENSE ; https://github.com/sczhou/CodeFormer/blob/b33cc7d639d6545bfcccc7e0bc6ae51f24e79c2b/README.md (weights: https://github.com/sczhou/CodeFormer/releases/tag/v0.1.0)
 - Training data: Flickr-Faces-HQ (FFHQ, 70k face images) (Paper Sec. 4.1: FFHQ (70 000 faces, resized to 512 x 512) with synthetic degradations (blur, downsampling, noise, JPEG).)
 - Options: `fidelity` = 0.5 (0.0 to 1.0; also `fidelity_weight`)
-- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `group_silu`
 - Variants: `codeformer`
 - Outputs: image
 - Input size: any H x W >= 512, padded to a multiple of 32
@@ -137,7 +137,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `codeformer` | 0.0017 / 0.01817 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `codeformer` | 0.00161 / 0.01737 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `group_silu@fbe0379e0a19:sm_120`, `igev@f075827d68c6:sm_120` |
 
 ### Limitations
 
@@ -285,7 +285,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/TencentARC/GFPGAN/blob/7552a7791caad982045a7bbe5634bbf1cd5c8679/LICENSE ; https://github.com/TencentARC/GFPGAN/blob/7552a7791caad982045a7bbe5634bbf1cd5c8679/README.md (weights: https://github.com/TencentARC/GFPGAN/releases/tag/v1.3.0)
 - Training data: Flickr-Faces-HQ (FFHQ, 70k face images) (Paper Sec. 4.1: FFHQ (70 000 faces, resized to 512 x 512) with synthetic degradations (blur, downsampling, noise, JPEG); the StyleGAN2 prior is also trained on FFHQ.)
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `style_weights`
 - Variants: `gfpgan-v1.4`
 - Outputs: image
 - Input size: any H x W >= 512, padded to a multiple of 32
@@ -301,7 +301,7 @@ CPU, float32: max |diff| <= 6.3e-06 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `gfpgan-v1.4` | 0.00034 / 0.00144 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `gfpgan-v1.4` | 0.00034 / 0.00144 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `style_weights@bfae2c2ef906:sm_120` |
 
 ### Limitations
 
@@ -335,7 +335,7 @@ Commercial use: yes.
 - Training data: ImageNet-1k (ILSVRC 2012 classification), DIV2K (NTIRE 2017 super-resolution, 1000 2K images), Flickr2K (2650 2K Flickr images, EDSR) (options/train/train_HAT_SRx4_ImageNet_from_scratch.yml then train_HAT_SRx4_finetune_from_ImageNet_pretrain.yml: pretrained on ImageNet, fine-tuned on DF2K (DIV2K + Flickr2K), bicubic-downsampled.)
   - `hat-s-x4`: DIV2K (NTIRE 2017 super-resolution, 1000 2K images), Flickr2K (2650 2K Flickr images, EDSR) (options/train/train_HAT-S_SRx4_finetune_from_SRx2.yml: DF2K (DIV2K + Flickr2K), bicubic-downsampled, fine-tuned from the x2 model.)
   - `real-hat-gan-x4`: DIV2K (NTIRE 2017 super-resolution, 1000 2K images), Flickr2K (2650 2K Flickr images, EDSR), OutdoorSceneTraining (OST, SFTGAN) (options/train/train_Real_HAT_SRx4_mse_model.yml then train_Real_HAT_GAN_SRx4_finetune_from_mse_model.yml: DF2K + OST with Real-ESRGAN degradations (README: the released model without USM-sharpened ground truth).)
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `shift_windows`
 - Variants: `hat-x4`, `hat-s-x4`, `real-hat-gan-x4`
 - Outputs: image
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -375,9 +375,9 @@ CPU, float32: max |diff| <= 3e-06 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `hat-x4` | 0.00055 / 0.00204 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `hat-s-x4` | 0.0005 / 0.00182 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `real-hat-gan-x4` | 0.00045 / 0.00158 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `hat-x4` | 0.00055 / 0.00203 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@93b499de1dba:sm_120` |
+| `hat-s-x4` | 0.0005 / 0.00182 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@93b499de1dba:sm_120` |
+| `real-hat-gan-x4` | 0.00045 / 0.00159 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@93b499de1dba:sm_120` |
 
 </details>
 
@@ -619,7 +619,7 @@ Commercial use: yes.
 - Training data: GoPro deblurring (GOPRO_Large, Nah et al. 2017: 3214 blurred / sharp frame pairs) (Motion_Deblurring/Options/Deblurring_Restormer.yml: GoPro train (2103 blurred / sharp pairs), progressive patch sizes 128 to 384.)
   - `restormer-derain`: Rain13K (13712 synthetic rainy / clean pairs merged from Rain14000, Rain1800, Rain800, Rain12; MPRNet's training set) (Deraining/Options/Deraining_Restormer.yml: Rain13K (13712 synthetic rainy / clean pairs), progressive patch sizes 128 to 384.)
   - `restormer-sidd`: Smartphone Image Denoising Dataset (SIDD, noisy / ground-truth smartphone photos) (Denoising/Options/RealDenoising_Restormer.yml: SIDD-Medium sRGB (320 noisy / clean pairs), progressive patch sizes 128 to 384.)
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `fastbb`
 - Variants: `restormer-deblur`, `restormer-derain`, `restormer-sidd`
 - Outputs: image
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -654,9 +654,9 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `restormer-deblur` | 0.00016 / 0.00054 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `restormer-derain` | 0.00022 / 0.00087 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `restormer-sidd` | 0.00019 / 0.00071 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `restormer-deblur` | 0.00015 / 0.00054 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120` |
+| `restormer-derain` | 0.00021 / 0.00081 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120` |
+| `restormer-sidd` | 0.00019 / 0.00071 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `fastbb@7d058322634d:sm_120` |
 
 </details>
 
@@ -819,7 +819,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/mv-lab/swin2sr/blob/6f25d7689813f7dd12c5a212b638066fa71bc9e6/LICENSE ; https://github.com/mv-lab/swin2sr/releases/tag/v0.0.1
 - Training data: DIV2K (NTIRE 2017 super-resolution, 1000 2K images), Flickr2K (2650 2K Flickr images, EDSR) (README, Results: trained mainly on DIV2K and Flickr2K, setup as SwinIR (classical SR: bicubic-downsampled HR images).)
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `shift_windows`
 - Variants: `swin2sr-x4`, `swin2sr-x2`, `swin2sr-x4-real`
 - Outputs: image
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -853,9 +853,9 @@ CPU, float32: max |diff| <= 1.4e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `swin2sr-x4` | 0.00055 / 0.00205 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `swin2sr-x2` | 0.00063 / 0.00232 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `swin2sr-x4-real` | 0.00037 / 0.00138 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `swin2sr-x4` | 0.00055 / 0.00205 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@93b499de1dba:sm_120` |
+| `swin2sr-x2` | 0.00063 / 0.00232 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@93b499de1dba:sm_120` |
+| `swin2sr-x4-real` | 0.00037 / 0.00138 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@93b499de1dba:sm_120` |
 
 ### Limitations
 
@@ -887,7 +887,7 @@ Commercial use: yes.
 - Training data: DIV2K (NTIRE 2017 super-resolution, 1000 2K images), Flickr2K (2650 2K Flickr images, EDSR) (README, Training and testing: classical SR on DF2K (DIV2K + Flickr2K) HR images, bicubic-downsampled.)
   - `swinir-m-x4-real`: DIV2K (NTIRE 2017 super-resolution, 1000 2K images), Flickr2K (2650 2K Flickr images, EDSR), OutdoorSceneTraining (OST, SFTGAN) (README, Training and testing: real-world SR, SwinIR-M on DIV2K + Flickr2K + OST HR images with BSRGAN degradations.)
   - `swinir-l-x4-real`: DIV2K (NTIRE 2017 super-resolution, 1000 2K images), Flickr2K (2650 2K Flickr images, EDSR), OutdoorSceneTraining (OST, SFTGAN), Waterloo Exploration Database (4744 natural images), Flickr-Faces-HQ (FFHQ, 70k face images), Manga109 (109 Japanese manga volumes), SCUT-CTW1500 (curved scene text) (README, Training and testing: real-world SR, SwinIR-L on DIV2K + Flickr2K + OST + WED + FFHQ (first 2000) + Manga109 + SCUT-CTW1500 (first 100) with BSRGAN degradations.)
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `shift_windows`
 - Variants: `swinir-m-x4`, `swinir-m-x2`, `swinir-m-x4-real`, `swinir-l-x4-real`
 - Outputs: image
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -925,10 +925,10 @@ CPU, float32: max |diff| <= 1.4e-05 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `swinir-m-x4` | 0.00052 / 0.00192 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `swinir-m-x2` | 0.00039 / 0.00139 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `swinir-m-x4-real` | 0.00126 / 0.00498 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
-| `swinir-l-x4-real` | 0.00082 / 0.0039 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400` |
+| `swinir-m-x4` | 0.00052 / 0.00191 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@93b499de1dba:sm_120` |
+| `swinir-m-x2` | 0.00039 / 0.00138 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@93b499de1dba:sm_120` |
+| `swinir-m-x4-real` | 0.00128 / 0.00507 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@93b499de1dba:sm_120` |
+| `swinir-l-x4-real` | 0.00082 / 0.00405 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `shift_windows@93b499de1dba:sm_120` |
 
 </details>
 

@@ -171,6 +171,7 @@ def fastforks._core.outputs.NumpyOutputs.to(self, device: 'str | torch.device') 
 def fastforks._core.sizes.SizeRange.describe(self, *, tested: 'bool' = True) -> 'str'
 def fastforks._core.sizes.SizeRange.example(self) -> 'tuple[int, int]'
 def fastforks._optimize.FastModel.forward(self, x: 'torch.Tensor | None' = None, *args: 'object', **kwargs: 'object') -> 'object'
+def fastforks._optimize.FastModel.forward_native(self, x: 'torch.Tensor | None' = None, *args: 'object', **kwargs: 'object') -> 'Any'
 def fastforks._optimize.FastModel.load_state_dict(self, state_dict: 'Mapping[str, Any]', strict: 'bool' = True, assign: 'bool' = False) -> 'Any'
 def fastforks._optimize.FastModel.traceable(self) -> 'FastModel'
 def fastforks._optimize.FastModel.train(self, mode: 'bool' = True) -> 'FastModel'
@@ -904,15 +905,19 @@ option edges.teed.safe_steps
 option edges.teed.short_side aliases detect_resolution,resolution
 option features.c_radio.fp16_accumulate
 option features.c_radio.fp32_accumulate
+option features.c_radio.stream
 option features.clip.fp16_accumulate
 option features.clip.fp32_accumulate
+option features.clip.stream
 option features.dinov2.fp16_accumulate
 option features.dinov3.fp16_accumulate
+option features.dinov3.stream
 option features.perception_encoder.fp16_accumulate
 option features.perception_encoder.fp32_accumulate
 option features.perception_encoder.stream
 option features.siglip2.fp16_accumulate
 option features.siglip2.fp32_accumulate
+option features.siglip2.stream
 option features.tipsv2.fp16_accumulate
 option flow.flowformer.iters
 option flow.flowseek.iters
