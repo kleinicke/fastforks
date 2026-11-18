@@ -48,7 +48,7 @@ from fastforks.multiview.models.depthsplat.model import (
 from fastforks.shared.depth_anything_v2 import use_fast_vit
 
 from .net.mv_unimatch import MultiViewUniMatch
-from .net.point_transformer import KNNAttention, MultViewLowresAttn, PlainPointTransformer, PointLinearWrapper
+from .net.point_transformer import MLP, KNNAttention, MultViewLowresAttn, PlainPointTransformer, PointLinearWrapper
 from .net.resnet import ResNetFeatureWarpper
 from .render import render, sh_basis
 
@@ -336,8 +336,9 @@ class Net(nn.Module):
         for i in range(steps):
             f = self._features(rendered if target is not None else torch.cat((rendered, images.float())), (fh, fw))
             if target is None:
-                f, target = f[:v], f[v:]
+                f, target = f[:v], f[v:].clone()  # release the rendered-image features after computing the error
             err = (f - target).permute(0, 2, 3, 1).reshape(1, -1, RESNET_CHANNELS)
+            del f
             rgb = rendered - images.float()
             if m != 4:
                 rgb = F.pixel_unshuffle(rgb, p.latent)
@@ -353,7 +354,9 @@ class Net(nn.Module):
             for blk in self.update_error_attn:
                 err = blk(err, v=v, h=fh, w=fw)
             x = torch.cat((prev.to(dt), state, err[0].to(dt)), -1)
+            del prev, err
             pxo = self.update_module[0]([cloud, x, None])
+            del x
             state = self.update_module[1](pxo) + state
             delta = self.update_head(state).float()
             if m > 1 and not p.same_points:
@@ -415,6 +418,17 @@ def sh_rotation(r: torch.Tensor) -> torch.Tensor:
     return d
 
 
+_MLP_TILE_BYTES = 32 * 1024**2  # maximum size of one expanded point-feature tile
+
+
+def _point_mlp(m: MLP, x: torch.Tensor) -> torch.Tensor:
+    """The MLP acts independently on rows. Bound the expanded fc1 and GELU tensors of the refinement step."""
+    rows = max(1, _MLP_TILE_BYTES // (m.fc1.out_features * m.fc1.weight.element_size()))
+    if x.shape[0] <= rows:
+        return m.fc2(m.act(m.fc1(x)))
+    return torch.cat([m.fc2(m.act(m.fc1(part))) for part in x.split(rows)], dim=0)
+
+
 class _Base(Runner):
     intrinsics = "required"
     cam_to_world = "required"
@@ -428,6 +442,9 @@ class _Base(Runner):
     def __init__(self, ctx: Context) -> None:
         super().__init__(ctx)
         self.net = _net(ctx)
+        for m in self.net.modules():
+            if isinstance(m, MLP):
+                override(m, _point_mlp)
         self.half = ctx.dtype == "float16"
         if self.half:
             self.net.half().to(memory_format=torch.channels_last)

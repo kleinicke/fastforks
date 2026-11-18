@@ -110,3 +110,13 @@ def test_indexed_attention_matches_gather(k: int) -> None:
         want = KNNAttention._attend(q, keys, values, indices, 0.125)
         got = knn_attention.attention(qkv, indices)
     torch.testing.assert_close(got, want, rtol=0.001, atol=0.0002)
+
+
+def test_chunked_point_mlp(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastforks.multiview.models.resplat.net.point_transformer import MLP  # noqa: PLC0415
+
+    torch.manual_seed(123)
+    layer = MLP(16)
+    x = torch.randn(19, 16)
+    monkeypatch.setattr(model, "_MLP_TILE_BYTES", 7 * layer.fc1.out_features * x.element_size())
+    torch.testing.assert_close(model._point_mlp(layer, x), layer(x))
