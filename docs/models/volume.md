@@ -60,7 +60,7 @@ A small subset of real CT cases of the TotalSegmentator dataset (not the full te
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
 | `nnfoundation-cnn` | TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: cosine (worst case) / relative L2 | 1.00000 / 0 | 0.99999 / 0.001359 | 0.99999 / 0.001742 | 1.00000 / 7.915e-07 | 0.99999 / 0.001466 |  |
-| `nnfoundation-vit` | TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: cosine (worst case) / relative L2 | 1.00000 / 0 | 0.99947 / 0.01672 | 0.99950 / 0.0165 |  | 0.99940 / 0.02129 |  |
+| `nnfoundation-vit` | TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: cosine (worst case) / relative L2 | 1.00000 / 0 | 0.99947 / 0.01672 | 0.99950 / 0.0165 | 1.00000 / 2.349e-05 | 0.99940 / 0.02129 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 715d7cb5, 2026-11-14 to 2026-11-15; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 36a20781, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 715d7cb5, 2026-11-14 to 2026-11-15.
 
