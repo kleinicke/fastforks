@@ -9,7 +9,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.sampling import grid_sample
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import acv_volume, cudnn_hacc
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Forward, Runner
 
@@ -168,12 +168,13 @@ def forward(net: Net, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
     samples = ind.squeeze(1).float()
     concat = net.concat_feature(feats[0])
     del feats
-    c = concat.shape[1]
-    volume = torch.empty(
-        (b, 2 * c, TOP_K, *concat.shape[2:]), dtype=p.dtype, device=p.device, memory_format=fmt3
-    )  # upstream: att_topk * cat(left repeated over the samples, warped right)
-    volume[:, :c] = att_topk * concat[:b].float().unsqueeze(2)
-    volume[:, c:] = att_topk * warp(concat[b:], samples)
+    if fmt3 == torch.channels_last_3d:
+        volume = acv_volume.weighted(concat, ind, att_topk)
+    else:
+        c = concat.shape[1]
+        volume = torch.empty((b, 2 * c, TOP_K, *concat.shape[2:]), dtype=p.dtype, device=p.device)
+        volume[:, :c] = att_topk * concat[:b].float().unsqueeze(2)
+        volume[:, c:] = att_topk * warp(concat[b:], samples)
     del concat, att_topk
     volume = net.concat_feature_att_4(net.concat_stem(volume), fl[0])
     cost = net.hourglass(volume, fl)
@@ -227,6 +228,7 @@ class Kernels(_FastACVRunner):
         from fastforks.shared import cnn_kernels  # noqa: PLC0415 - needs the kernel libraries
 
         self.net = _net(ctx)
+        acv_volume.load(ctx.device)
         cnn_kernels.load(ctx.device)
         for m in self.net.modules():  # BasicConv is conv -> BN -> LeakyReLU(0.01): one fused kernel
             if isinstance(m, BasicConv) and m.use_bn:
