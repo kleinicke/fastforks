@@ -488,7 +488,9 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `resplat-small-dl3dv` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 493<br>1723<br>362<br>1538<br>planned for 0.2.1 | 5148 / 5376<br>4995 / 5180<br>4981 / 5148<br>4995 / 5138<br>– |
+| `resplat-small-dl3dv` | 256x448 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>1362 (Gaussian initialization and refinement heads with eager depth and rendering) | –<br>–<br>–<br>1367 / 1800 |
 | `resplat-base-re10k` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2521<br>7086<br>1280<br>7098 (standalone Gaussian initialization and recurrent refinement heads, eager rendering and geometry)<br>fails: TypeError: _Base.forward() missing 1 required positional arg | 10139 / 12684<br>6951 / 8736<br>6944 / 8706<br>4656 / 7630<br>– |
+| `resplat-base-re10k` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>1028 (Gaussian initialization and refinement heads with eager depth and rendering) | –<br>–<br>–<br>2173 / 2988 |
 
 <details><summary>Details</summary>
 
@@ -519,14 +521,14 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 
 640x512 crops, the 7 most co-visible views as sources. Ground truth is depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). The two scenes from the ReSplat example archive, with fixed context and held-out target views from the authors' evaluation index. Mean RGB PSNR and SSIM over the target views. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | portable fp32 | portable + torch.compile | note |
-|---|---|---|---|---|---|---|
-| `resplat-small-dl3dv` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm |  |  | 0.4233 / 10.62 / 270.85 |  |  |
-| `resplat-small-dl3dv` | RealEstate10K example scenes, 8 context views, RGB PSNR / SSIM | 26.11 / 0.8697 | 25.97 / 0.8687 | 26.11 / 0.8697 |  |  |
-| `resplat-base-re10k` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm |  |  | 0.1396 / 98.14 / 92.13 |  |  |
-| `resplat-base-re10k` | RealEstate10K example scenes, 2 context views, RGB PSNR / SSIM | 23.42 / 0.8652 | 23.37 / 0.8645 | 23.42 / 0.8652 | 23.37 / 0.8645 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|
+| `resplat-small-dl3dv` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm |  |  | 0.4233 / 10.62 / 270.85 |  |  |  |
+| `resplat-small-dl3dv` | RealEstate10K example scenes, 8 context views, RGB PSNR / SSIM | 26.11 / 0.8697 | 25.97 / 0.8687 | 26.11 / 0.8697 |  | 25.97 / 0.8687 |  |
+| `resplat-base-re10k` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % / MAE mm |  |  | 0.1396 / 98.14 / 92.13 |  |  |  |
+| `resplat-base-re10k` | RealEstate10K example scenes, 2 context views, RGB PSNR / SSIM | 23.42 / 0.8652 | 23.37 / 0.8645 | 23.42 / 0.8652 | 23.37 / 0.8645 | 23.37 / 0.8645 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ba3a401ed257abd8034e2963090c05de3ba0ee80 / d9dd51e1, 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9 / ba3a401ed257abd8034e2963090c05de3ba0ee80, 2026-11-18; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d9dd51e1, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7243b9b8 / ba3a401ed257abd8034e2963090c05de3ba0ee80 / d9dd51e1, 2026-11-18 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9 / ba3a401ed257abd8034e2963090c05de3ba0ee80, 2026-11-18; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d9dd51e1, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7243b9b8, 2026-11-19.
 
 ### Parity
 
