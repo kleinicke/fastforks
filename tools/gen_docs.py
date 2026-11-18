@@ -40,6 +40,7 @@ _DATASETS = {
     "stereo": {
         "eth3d": "ETH3D two-view train, bad > 1 px % / EPE",
         "middH": "Middlebury 2014 trainingH, bad > 2 px % / EPE",
+        "middH-fixed-375x1242": "Middlebury 2014 trainingH, fixed 375 x 1242, bad > 2 px % / EPE",
         "kitti2015-train-stereo-fixed-384x1248": "KITTI 2015 stereo training, fixed 384 x 1248, D1 % / EPE",
     },
     "depth": {
@@ -187,9 +188,10 @@ _DATASETS = {
         "AJ / delta_avg / OA %",
         "tapvid-davis-fixed-8x16": "TAP-Vid DAVIS, 8 frames and 16 queries per clip, AJ / delta_avg / OA %",
         "tapvid-davis-fixed-8x16-256": "TAP-Vid DAVIS, 8 frames at 256 x 256 and 16 queries, AJ / delta_avg / OA %",
+        "tapvid-davis-fixed-24x16-256": "TAP-Vid DAVIS, 24 frames at 256 x 256 and 16 queries, AJ / delta_avg / OA %",
     },
 }
-_BAD_THR = {"eth3d": 1.0, "middH": 2.0}  # stereo
+_BAD_THR = {"eth3d": 1.0, "middH": 2.0, "middH-fixed-375x1242": 2.0}  # stereo
 # task or (task, dataset) -> ((metric, format, title suffix), ...), count key, noun; a metric with a suffix is optional:
 # shown where the row has it, its suffix appended to the dataset title where a row of the table has it
 _Metric = tuple[str, str, str]
@@ -294,7 +296,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "tracking": ((("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")), "n", "videos"),
     **{
         ("tracking", d): ((("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")), "n", "clips")
-        for d in ("tapvid-davis-fixed-8x16", "tapvid-davis-fixed-8x16-256")
+        for d in ("tapvid-davis-fixed-8x16", "tapvid-davis-fixed-8x16-256", "tapvid-davis-fixed-24x16-256")
     },
     "matting": ((("mae", "{:.4f}", ""), ("max_fbeta", "{:.4f}", "")), "n", "images"),
     "retrieval": ((("r1", "{:.2f}", ""), ("r5", "{:.2f}", "")), "n", "queries"),
@@ -315,6 +317,9 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
 }
 # task or (task, dataset) -> protocol sentence of the measured tables (task first, then each shown dataset)
 _PROTOCOL = {
+    ("stereo", "middH-fixed-375x1242"): "Use all 15 trainingH pairs with a shared centre crop and edge padding. "
+    "Score valid non-occluded pixels and exclude right-image correspondences outside the crop. "
+    "Average the per-pair endpoint error and share of pixels with error above 2 pixels. ",
     ("stereo", "kitti2015-train-stereo-fixed-384x1248"): "All 200 KITTI 2015 training pairs, padded on the right "
     "and bottom. D1 is the share of valid pixels with error above both 3 px and 5% of ground truth. EPE is averaged "
     "over the per-pair mean absolute errors. ",
@@ -525,6 +530,8 @@ _PROTOCOL = {
     ("tracking", "tapvid-davis-fixed-8x16"): "The fixed export check uses 28 annotated eight-frame clips resized to "
     "480 x 854, with 16 queries sampled from frames 0, 2, and 4. Scores are averaged over clips after scoring the "
     "frames following each query in TAP-Vid's 256 x 256 coordinate system. ",
+    ("tracking", "tapvid-davis-fixed-24x16-256"): "Use 28 annotated 24-frame clips at 256 x 256. Sample 16 "
+    "visible queries across the three online windows and score the frames following each query. ",
     ("tracking", "tapvid-davis-fixed-8x16-256"): "The fixed export check uses 28 annotated eight-frame clips at "
     "256 x 256. Sample 16 visible queries from frames 0, 2, and 4 and score frames after each query. ",
     ("matting", "dis-vd-every2"): "Each image at its own size against its binary mask: MAE of the alpha, max F-beta "
@@ -932,8 +939,8 @@ def _scene(scene: str) -> str:
 
 
 def _pixels(size: str) -> int:
-    h, w = size.split("x")
-    return int(h) * int(w)
+    """Pixel count for an image or a fixed-length clip."""
+    return math.prod(map(int, size.split("x")))
 
 
 def _ids_of(ids: list[str]) -> str:

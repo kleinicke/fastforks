@@ -533,6 +533,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `defom-stereo-vitl-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4175<br>2816<br>1531<br>642<br>1002<br>planned for 0.2.1 | 10896 / 11072<br>8639 / 8766<br>4362 / 4838<br>3154 / 3522<br>3021 / 3292<br>– |
+| `defom-stereo-vitl-sceneflow` | KITTI 2015 (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT bf16 | 947<br>509<br>404<br>180<br>1151 (whole graph at fixed 375 x 1242) | 3172 / 3360<br>2458 / 2610<br>2394 / 2538<br>1627 / 1786<br>1782 / 1790 |
 
 <details><summary>Details</summary>
 
@@ -550,21 +551,23 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `defom-stereo-vitl-sceneflow` 1988x2880 (12.0 GiB peak allocated, 14.5 reserved)
 - `defom-stereo-vitl-sceneflow` 994x1482, first call: portable + torch.compile 122 s (cold Inductor cache).
-- `defom-stereo-vitl-sceneflow` original 994x1482: the authors' mixed-precision option (float16)
+- `defom-stereo-vitl-sceneflow` 375x1242, first call: TensorRT bf16 168 s (ONNX + engine).
+- `defom-stereo-vitl-sceneflow` original 994x1482, original 375x1242: the authors' mixed-precision option (float16)
 - `defom-stereo-vitl-sceneflow` load / first call: original 4.24 s / 2.83 s, portable 2.31 s / 1.534† s, kernels 2.74 s / 0.305 s (375x1242)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
 
-Original = the original code named under Details, same checkpoint and protocol.
+Use all 15 trainingH pairs with a shared centre crop and edge padding. Score valid non-occluded pixels and exclude right-image correspondences outside the crop. Average the per-pair endpoint error and share of pixels with error above 2 pixels. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `defom-stereo-vitl-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 2.40 / 0.337 | 99.92 / 13.132 (NaN / inf output) | 2.37 / 0.356 | 2.34 / 0.328 | 2.44 / 0.341 |  |
-| `defom-stereo-vitl-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 6.03 / 0.837 | 100.00 / 71.272 (NaN / inf output) | 6.15 / 0.845 | 6.02 / 0.837 | 6.02 / 0.834 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `defom-stereo-vitl-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 2.40 / 0.337 | 99.92 / 13.132 (NaN / inf output) | 2.37 / 0.356 | 2.34 / 0.328 | 2.44 / 0.341 |  |  |
+| `defom-stereo-vitl-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 6.03 / 0.837 | 100.00 / 71.272 (NaN / inf output) | 6.15 / 0.845 | 6.02 / 0.837 | 6.02 / 0.834 |  |  |
+| `defom-stereo-vitl-sceneflow` | Middlebury 2014 trainingH, fixed 375 x 1242, bad > 2 px % / EPE |  |  | 4.67 / 0.746 |  |  | 4.66 / 0.770 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 11abf708 / 468fba10, 2026-11-05 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 11abf708, 2026-11-19.
 
 ### Parity
 

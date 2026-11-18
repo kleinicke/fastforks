@@ -173,6 +173,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 | `cotracker3-offline` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 244<br>162<br>154<br>135<br>25.9 | 2221 / 2480<br>755 / 882<br>757 / 882<br>755 / 902<br>519 / 586 |
 | `cotracker3-online` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 328<br>184<br>176<br>159<br>planned for 0.2.1 | 1659 / 1886<br>755 / 906<br>757 / 888<br>701 / 846<br>– |
 | `cotracker3-online` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>50.3 (fixed eight-frame graph with 16 queries) | –<br>–<br>–<br>456 / 472 |
+| `cotracker3-online` | synthetic (24x256x256) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>280<br>–<br>141 (fixed 24-frame clip with 16 queries) | –<br>2381 / 2694<br>–<br>850 / 856 |
 
 <details><summary>Details</summary>
 
@@ -192,21 +193,23 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - `cotracker3-online` 256x256, first call: TensorRT fp32 117 s (ONNX + engine).
 - `cotracker3-offline` original 480x854: the authors' mixed-precision option (float16); facebookresearch/co-tracker@82e02e802975 as its predictor, offline (whole video, 6 x 6 support grid), frames resized to 384 x 512
 - `cotracker3-online` original 480x854: the authors' mixed-precision option (float16); facebookresearch/co-tracker@82e02e802975 as its predictor, online (16-frame windows, step 8), frames resized to 384 x 512
+- `cotracker3-online` portable 24x256x256: The same 24-frame, 16-query input timed for TensorRT.
 - `cotracker3-offline` load / first call: original 0.65 s / 0.866 s, portable 0.28 s / 0.416 s, kernels 0.19 s / 0.52 s
 - `cotracker3-online` load / first call: original 0.54 s / 0.536 s, portable 0.27 s / 0.472 s, kernels 0.18 s / 0.515 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
-Query-first TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model (AllTracker: the original frames, resized by the model), one query per track at its first visible point, tracked online (TAPNext, Track-On) or over the whole clip (TAPIR, AllTracker, LocoTrack); AJ, delta_avg (< 1, 2, 4, 8, 16 px at 256 x 256) and occlusion accuracy averaged over the videos. The fixed export check uses 28 annotated eight-frame clips at 256 x 256. Sample 16 visible queries from frames 0, 2, and 4 and score frames after each query. Original = the original code named under Details, same checkpoint and protocol.
+Query-first TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model (AllTracker: the original frames, resized by the model), one query per track at its first visible point, tracked online (TAPNext, Track-On) or over the whole clip (TAPIR, AllTracker, LocoTrack); AJ, delta_avg (< 1, 2, 4, 8, 16 px at 256 x 256) and occlusion accuracy averaged over the videos. The fixed export check uses 28 annotated eight-frame clips at 256 x 256. Sample 16 visible queries from frames 0, 2, and 4 and score frames after each query. Use 28 annotated 24-frame clips at 256 x 256. Sample 16 visible queries across the three online windows and score the frames following each query. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
 |---|---|---|---|---|---|---|---|---|
 | `cotracker3-offline` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 65.02 / 78.75 / 88.24 | 65.08 / 78.78 / 88.27 | 65.07 / 78.75 / 88.26 | 65.04 / 78.75 / 88.26 | 65.06 / 78.72 / 88.27 |  |  |
 | `cotracker3-online` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 70.34 / 80.63 / 94.28 | 70.28 / 80.62 / 94.26 | 70.32 / 80.62 / 94.26 | 70.34 / 80.64 / 94.30 | 70.25 / 80.63 / 94.22 |  |  |
 | `cotracker3-online` | TAP-Vid DAVIS, 8 frames at 256 x 256 and 16 queries, AJ / delta_avg / OA % |  |  |  | 90.61 / 95.75 / 97.67 |  | 90.61 / 95.75 / 97.67 |  |
+| `cotracker3-online` | TAP-Vid DAVIS, 24 frames at 256 x 256 and 16 queries, AJ / delta_avg / OA % |  |  |  | 79.68 / 90.27 / 92.76 |  | 79.68 / 90.27 / 92.76 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f104019b, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bb4e8b64 / d0b6aec5, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f104019b, 2026-11-14; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d0b6aec5, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f104019b, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bb4e8b64 / d0b6aec5, 2026-11-17 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f104019b, 2026-11-14; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d0b6aec5, 2026-11-18 to 2026-11-19.
 
 ### Parity
 
