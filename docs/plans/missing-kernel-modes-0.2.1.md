@@ -1,6 +1,6 @@
 # Families without a kernels mode
 
-As of 2026-11-18, all 578 registered variants across 205 model families advertise CUDA kernels.
+On 2026-11-18, all 578 registered variants across 205 model families passed their kernel-mode reference test on an RTX 5060 Ti (16 GB), with required golden files and the tolerances in the development branch.
 Grounding DINO Base passed with the corrected upstream checkpoint heads and the pinned reference fixture.
 
 The primary RTX 5060 Ti timing tables contain 427 variants with matched kernels and `torch.compile` measurements.
