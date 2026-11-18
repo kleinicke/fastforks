@@ -353,7 +353,7 @@ Two disjoint seeded subsets of the val folders; each image shorter side 256 (bic
 | `convnext_tiny.fb_in22k` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.80 | 66.88 | 66.82 | 66.80 | 66.84 |  |
 | `convnext_small.fb_in22k` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 71.68 | 71.68 | 71.72 |  | 71.72 |  |
 | `convnext_base.fb_in22k` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 73.04 | 73.04 | 73.08 | 73.04 | 73.04 |  |
-| `convnext_large.fb_in22k` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 75.26 | 75.22 | 75.28 |  | 75.24 |  |
+| `convnext_large.fb_in22k` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 75.26 | 75.22 | 75.28 | 75.26 | 75.24 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8b2f2df5, 2026-11-10; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8b2f2df5, 2026-11-10.
 

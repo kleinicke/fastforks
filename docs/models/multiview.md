@@ -518,9 +518,10 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
-- No accuracy measurement: a metric model at RealEstate10K / DL3DV scale; the only multi-view eval set here (DTU, millimetre scale) is out of its range, and the original could not run here (its gsplat rasteriser module is not installable), so no tier has a published-protocol score.
+- The held-out RGB scores use the authors’ two released RealEstate10K example scenes. They measure novel-view rendering on those scenes. DTU uses a different scene scale, and its depth scores are specific to the DTU setup.
 - Portable runs upstream's two CUDA extensions (kNN, gsplat rasteriser) as PyTorch ops: 2.8x (base) / 3.5x (small) slower than the bf16 original at 480x640. Slow: kNN topk ~28 %, compositing cumprod/pow ~30 % of GPU time. Kernels: 2.0x / 1.4x faster.
 - The portable kNN pooling calls torch ops that return non-Tensors: 38 graph breaks (`torch.compile` runs with breaks, no `torch.export`).
+- Compiling only the Base model's depth predictor changed synthetic 8-view 480×640 latency from 7,090 to 7,071 ms and produced a maximum depth change of 1.187 on that input. The complete graph exceeded the compile benchmark’s time limit.
 
 </details>
 
