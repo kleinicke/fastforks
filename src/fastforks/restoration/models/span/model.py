@@ -96,7 +96,7 @@ def _span(m: SPAN, x: torch.Tensor) -> torch.Tensor:
     for block in (m.block_2, m.block_3, m.block_4, m.block_5):
         y, _ = _span_block(block, y)
     y, tap = _span_block(m.block_6, y, keep_tap=True)
-    assert tap is not None
+    assert tap is not None  # noqa: S101 - keep_tap=True returns the intermediate activation
     return m.upsampler(m.conv_cat(torch.cat((base, m.conv_2(y), first, tap), 1)))
 
 
