@@ -889,12 +889,12 @@ Commercial use: yes.
 
 Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `tipsv2-b14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.34 | 59.30 | 59.36 | 59.16 |  |
-| `tipsv2-l14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 63.48 | 63.44 | 63.42 | 63.42 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `tipsv2-b14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.34 | 59.30 | 59.36 | 59.40 | 59.16 |  |
+| `tipsv2-l14` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 63.48 | 63.44 | 63.42 |  | 63.42 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8b2f2df5, 2026-11-10.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8b2f2df5, 2026-11-10; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8b2f2df5, 2026-11-10.
 
 ### Parity
 
