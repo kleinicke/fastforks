@@ -12,6 +12,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
 from fastforks.flow._runner import Forward, Runner
+from fastforks.kernels.flow_upsample import convex
 
 from .net.model import MEMFOF
 
@@ -92,10 +93,11 @@ def _kernel_lookup(k: CubinModule, f1: torch.Tensor, f2: torch.Tensor) -> Callab
     """
     b, c, h, w = f1.shape
     a = f1.to(torch.float16).permute(0, 2, 3, 1).contiguous()
-    pyr, x = [], f2.to(torch.float16)
-    for _ in range(4):
-        pyr.append(x.permute(0, 2, 3, 1).contiguous())
+    x = f2.to(torch.float16).contiguous(memory_format=torch.channels_last)
+    pyr = [x.permute(0, 2, 3, 1)]
+    for _ in range(3):
         x = F.avg_pool2d(x, 2)
+        pyr.append(x.permute(0, 2, 3, 1))
     side = 4 * 81
 
     def lookup(coords: torch.Tensor) -> torch.Tensor:
@@ -129,11 +131,22 @@ class Kernels(Portable):
         from fastforks.kernels import raft_flow  # noqa: PLC0415 - needs the kernel library
 
         self.lookup = functools.partial(_kernel_lookup, raft_flow.load(ctx.device))
+        head = self.net.upsample_weight[-1]
+        # Only the second 9 x 16² logits produce the forward flow returned by this task.
+        forward_channels = 9 * 16**2
+        if not isinstance(head, torch.nn.Conv2d) or head.bias is None or head.out_channels != 2 * forward_channels:
+            msg = "Unexpected MEMFOF upsampling head"
+            raise ValueError(msg)
+        head.out_channels = forward_channels
+        head.weight = torch.nn.Parameter(head.weight[forward_channels:].detach().clone(), requires_grad=False)
+        head.bias = torch.nn.Parameter(head.bias[forward_channels:].detach().clone(), requires_grad=False)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a padded batch."""
         iters = self.ctx.params.iters
-        return {"flow": self.net.forward_pair(image1, image2, iters, corr_fn=self.lookup, fp16=True)}
+        return {
+            "flow": self.net.forward_pair(image1, image2, iters, corr_fn=self.lookup, fp16=True, upsample_flow=convex)
+        }
 
     def module(self) -> torch.nn.Module:
         """No exportable module: the lookup is a kernel launch."""

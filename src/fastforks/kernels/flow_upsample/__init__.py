@@ -14,8 +14,8 @@ def convex(flow: torch.Tensor, mask: torch.Tensor, upsample_factor: int = 8) -> 
     """Softmax the nine neighbours and interpolate a batch of FP32 flow fields."""
     b, c, h, w = flow.shape
     k = upsample_factor
-    if c != 2 or k not in (4, 8) or mask.shape != (b, 9 * k * k, h, w) or flow.dtype != torch.float32:  # noqa: PLR2004 - two flow components
-        msg = "Expected a two-channel FP32 flow field and its 4x or 8x convex mask"
+    if c != 2 or k not in (4, 8, 16) or mask.shape != (b, 9 * k * k, h, w) or flow.dtype != torch.float32:  # noqa: PLR2004 - two flow components
+        msg = "Expected a two-channel FP32 flow field and its 4x, 8x or 16x convex mask"
         raise ValueError(msg)
     out = flow.new_empty((b, c, h * k, w * k))
     count = b * h * w * k * k

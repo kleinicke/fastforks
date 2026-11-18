@@ -84,3 +84,14 @@ def test_kernel_lookup_matches_portable(height: int, width: int, batch: int) -> 
     got = _kernel_lookup(raft_flow.load(torch.device("cuda")), f1, f2)(coords)
     assert got.shape == want.shape
     torch.testing.assert_close(got.float(), want, rtol=0, atol=4e-3)  # fp16 pooling and output of |corr| < 8
+
+
+@pytest.mark.gpu
+def test_cuda_upsample_forward_flow() -> None:
+    from fastforks.kernels.flow_upsample import convex  # noqa: PLC0415
+
+    flow_field = torch.randn(2, 2, 5, 7, device="cuda")
+    info = torch.randn(2, 4, 5, 7, device="cuda")
+    mask = torch.randn(2, 9 * 16**2, 5, 7, device="cuda", dtype=torch.float16)
+    expected, _ = MEMFOF._upsample_data(None, flow_field, info, mask.float())
+    torch.testing.assert_close(convex(flow_field, mask, 16), expected, rtol=1e-5, atol=4e-6)

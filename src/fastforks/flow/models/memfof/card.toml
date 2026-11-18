@@ -36,7 +36,7 @@ cuda_dtype = "float16"  # autocast for the encoders and the update block; correl
 mps_dtypes = ["float32"]
 
 [modes.kernels]
-kernels = ["raft_flow"]  # the correlation windows on the fly (four levels, 1024 channels, radius 4) instead of the all-pairs volumes; the network stays the portable fp16 one
+kernels = ["raft_flow", "flow_upsample"]  # the correlation windows on the fly (four levels, 1024 channels, radius 4) instead of the all-pairs volumes; the network stays the portable fp16 one
 
 [[papers]]
 title = "MEMFOF: High-Resolution Training for Memory-Efficient Multi-Frame Optical Flow Estimation"
