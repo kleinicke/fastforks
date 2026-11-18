@@ -14,6 +14,7 @@ import functools
 import importlib
 import importlib.abc
 import importlib.machinery
+import importlib.util
 import inspect
 import json
 import logging
@@ -41,12 +42,14 @@ from fastforks._core.errors import (
     CheckpointMismatchError,
     InputError,
     KernelUnavailableError,
+    MissingDependencyError,
     OptionsError,
     UnknownOptionError,
     WeightsError,
 )
 from fastforks._core.files import stamped
 from fastforks._core.kernels import begin_call, checked, cuda_device
+from fastforks._core.outputs import NumpyOutputs
 from fastforks._core.runner import Context, Runner
 from fastforks._core.sizes import SizeRange, size_range
 from fastforks._core.tasks import spec
@@ -117,7 +120,7 @@ class Backend:
 
     Attributes:
         mode: `"portable"` (plain PyTorch) or `"kernels"` (custom kernels).
-        device: Device string, e.g. `"cuda:0"`.
+        device: Device string, e.g. `"cuda:0"`; `"mlx"` for the Apple MLX backend (`load(..., device="mlx")`).
         dtype: Main compute dtype.
         kernels: Kernel libraries used by `kernels`, as `name@build:target`. A library may hand single geometries it
             does not support to PyTorch; those are counted in `fastforks._core.kernels.fallbacks()`.
@@ -139,6 +142,8 @@ class Backend:
 
 
 torch.serialization.add_safe_globals([ReadOnlyDict, Backend])  # results `torch.save`d by users load with weights_only
+
+MLX = "mlx"  # `load(..., device="mlx")`: the Apple MLX backend (`fastforks._core.mlx`), not a `torch.device`
 
 # Calls on CUDA (and MPS) devices run one at a time per process: kernels runners (and some portable ones) set
 # process-global torch state around their GEMMs and attention (`torch.backends.cuda.matmul.allow_fp16_accumulation`, the
@@ -209,7 +214,7 @@ def _typo_checked(fn: Callable[..., Any]) -> Callable[..., Any]:
     @functools.wraps(fn)
     def call(self: object, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401 - the signature of `fn`
         try:
-            return fn(self, *args, **kwargs)
+            out = fn(self, *args, **kwargs)
         except TypeError as e:
             if isinstance(e, ArgumentError):
                 raise
@@ -217,8 +222,19 @@ def _typo_checked(fn: Callable[..., Any]) -> Callable[..., Any]:
             if err is None:
                 raise
             raise err from e
+        device = getattr(self, "_result_device", None)  # an MLX port loaded for Apple MPS: results on MPS
+        return out if device is None else _results_to(out, device)
 
     return call
+
+
+def _results_to(out: object, device: torch.device) -> object:
+    """A result (or a list / tuple of results) moved to `device`; anything else unchanged."""
+    if isinstance(out, NumpyOutputs):
+        return out.to(device)
+    if isinstance(out, list | tuple) and out and all(isinstance(o, NumpyOutputs) for o in out):
+        return type(out)(o.to(device) for o in out)
+    return out
 
 
 def _import_dynamo() -> None:
@@ -419,7 +435,8 @@ class Model:
         self._pid = os.getpid()  # loaded in this process; see `_warn_if_forked`
         self._fork_warned = False
         self._min_size = 0  # the documented minimum (`size_range().reject_below`), read on the first call
-        if backend.mode == "kernels":
+        self._result_device: torch.device | None = None  # set when an MLX port stands in for Apple MPS
+        if backend.mode == "kernels" and backend.device != MLX:  # MLX runners hold no PyTorch graph to break
             _kernels_entry_points(runner)
 
     def __repr__(self) -> str:
@@ -661,8 +678,9 @@ class Model:
         if cuda:
             warmup.wait(self.device)
         det = _deterministic_cudnn() if cuda and self._runner.deterministic_cudnn else contextlib.nullcontext()
+        gpu = cuda or self.device.type == "mps" or self.backend.device == MLX  # MLX: one Metal stream per process
         with (
-            _GPU_CALLS if cuda or self.device.type == "mps" else contextlib.nullcontext(),
+            _GPU_CALLS if gpu else contextlib.nullcontext(),
             self._lock,
             on_device,
             det,
@@ -809,6 +827,65 @@ def _auto_portable() -> frozenset[str]:
     return frozenset(data["portable"])
 
 
+@functools.cache
+def _apple_mlx() -> Mapping[str, Mapping[str, Any]]:
+    """Per model id, where a load on Apple MPS takes the MLX port (`tools/gen_auto_mode.py` documents the keys)."""
+    return json.loads(Path(__file__).with_name("apple_mlx.json").read_text())["models"]
+
+
+def _mlx_for_mps(card: ModelCard, variant: Variant, mode: ModeArg, dtype: Dtype | None) -> tuple[Mode, Dtype] | None:
+    """The MLX port's `(mode, dtype)` that stands in for a load on Apple MPS, or None to stay on PyTorch MPS.
+
+    Portable uses PyTorch. Auto and kernels use measured routes. Explicit kernels prefers native Metal when both
+    implementations are available and measurements leave no clear MLX advantage. FASTFORKS_MLX=0 disables MLX routing.
+    """
+    if (
+        mode == "portable"
+        or not card.portable_mlx_dtypes
+        or os.environ.get("FASTFORKS_MLX", "1") == "0"
+        or (mode == "auto" and importlib.util.find_spec("mlx") is None)
+    ):
+        return None
+    entry = _apple_mlx().get(variant.ref, {})
+    if mode == "auto":
+        if dtype is None:
+            best = entry.get("auto")
+            return (best[0], best[1]) if best else None
+        mlx_mode = entry.get("dtypes", {}).get(dtype)
+        metal_dtype = card.kernels_dtype_on(torch.device("mps")) if card.mps_kernel_libs else None
+        if mlx_mode is None and dtype not in card.portable_mps_dtypes and dtype != metal_dtype:
+            # When MPS has no implementation at the requested precision, a passing MLX run stands on its own.
+            mlx_mode = entry.get("mlx", {}).get(dtype)
+        return (mlx_mode, dtype) if mlx_mode else None
+    return _explicit_mlx_kernels(card, variant, dtype, entry)
+
+
+def _explicit_mlx_kernels(
+    card: ModelCard, variant: Variant, dtype: Dtype | None, entry: Mapping[str, Any]
+) -> tuple[Mode, Dtype] | None:
+    native_dtype = card.kernels_dtype_on(torch.device("mps"))
+    metal = bool(card.mps_kernel_libs) and not planned_reason(variant, "kernels") and dtype in {None, native_dtype}
+    if metal and importlib.util.find_spec("mlx") is None:
+        return None
+    table = "kernels" if metal else "mlx"
+    if dtype is None and (best := entry.get(f"{table}_default")) and best[1] in card.mlx_dtypes(best[0]):
+        return best[0], best[1]
+    if (
+        dtype is not None
+        and (mode_at_dtype := entry.get(table, {}).get(dtype))
+        and dtype in card.mlx_dtypes(mode_at_dtype)
+    ):
+        return mode_at_dtype, dtype
+    if metal:
+        return None
+    have = card.portable_mlx_dtypes
+    dtype = dtype or ("float16" if "float16" in have else have[0])
+    if dtype not in have:
+        msg = f"{variant.ref}: Apple MLX cannot compute in {dtype}; available dtypes: {have}"
+        raise OptionsError(msg)
+    return ("kernels" if dtype in card.kernels_mlx_dtypes else "portable"), dtype
+
+
 def dtype_name(dtype: str | torch.dtype | None) -> str | None:
     """`"float16"` for `torch.float16` (any `torch.dtype` -> its name); anything else unchanged (validated later)."""
     return str(dtype).removeprefix("torch.") if isinstance(dtype, torch.dtype) else dtype
@@ -840,6 +917,11 @@ def _no_auto_kernels(  # noqa: PLR0911 - one return per reason
         return "dtype='float32'"
     if dev.type == "mps" and not card.mps_kernel_libs:
         return "no Metal kernels for Apple MPS"
+    if dev.type == "mps":
+        requested = "float32" if fp32 else want or ""
+        portable = not requested or requested in card.portable_mps_dtypes
+        if portable and requested not in _apple_mlx().get(variant.ref, {}).get("mps_auto", ()):
+            return "no measured Metal speedup over portable on Apple MPS"
     if want not in {None, kernels_dtype}:
         return f"kernels computes in {kernels_dtype}, not {want}"
     if dev.type != "mps" and variant.id in _auto_portable():  # measured on CUDA
@@ -865,7 +947,7 @@ def load_model(  # noqa: PLR0913 - the arguments of every task's `load`
     )
 
 
-def load_variant(  # noqa: C901, PLR0913 - the arguments of `load_model`
+def load_variant(  # noqa: C901, PLR0912, PLR0913 - the arguments of `load_model`
     task: str,
     card: ModelCard,
     variant: Variant,
@@ -888,12 +970,26 @@ def load_variant(  # noqa: C901, PLR0913 - the arguments of `load_model`
     registry.require(card, variant.ref)
     require_available(variant, "load")
     fp32, want = _check_args(mode, dtype)  # every argument is checked before `weights` logs its warning
-    dev = resolve_device(device, card)
+    on_mlx = isinstance(device, str) and device == MLX
+    dev = torch.device("cpu") if on_mlx else resolve_device(device, card)
     opts = check_options(card, {} if options is None else options, variant.ref)
     files = None if weights is None else user_weights(variant, weights, log)
     if state is not None and files is None:
         msg = "state needs the weights file it was read from"
         raise ValueError(msg)
+    asked = "float32" if fp32 else want
+    if on_mlx:
+        return _load_mlx(cls, card, variant, mode=mode, dtype=asked, options=opts, weights=files, state=state, log=log)
+    if (
+        dev.type == "mps"
+        and (
+            m := _mps_via_mlx(
+                cls, card, variant, mode=mode, dtype=asked, dev=dev, opts=opts, files=files, state=state, log=log
+            )
+        )
+        is not None
+    ):
+        return m
     if fp32 and mode == "kernels" and card.kernels_dtype_on(dev) != "float32":
         msg = "kernels runs reduced-precision kernels here; use mode='portable' with dtype='float32'"
         raise OptionsError(msg)
@@ -932,6 +1028,123 @@ def load_variant(  # noqa: C901, PLR0913 - the arguments of `load_model`
         have = card.kernels_dtype_on(dev) if "kernels" in card.modes else "none"
         msg = f"{e} (mode='auto' found no backend for {want} on {dev.type}: the kernels backend computes in {have})"
         raise OptionsError(msg) from e
+
+
+def _mps_via_mlx(  # noqa: PLR0913 - the resolved arguments of `load_model`
+    cls: type[M],
+    card: ModelCard,
+    variant: Variant,
+    *,
+    mode: ModeArg,
+    dtype: Dtype | None,
+    dev: torch.device,
+    opts: Mapping[str, Any],
+    files: tuple[Path, ...] | None,
+    state: Mapping[str, torch.Tensor] | None,
+    log: logging.Logger,
+) -> M | None:
+    """The MLX port for `device="mps"` where it measured faster (`_mlx_for_mps`), results on `dev`; None: PyTorch."""
+    if (route := _mlx_for_mps(card, variant, mode, dtype)) is None:
+        return None
+    try:
+        m = _load_mlx(
+            cls, card, variant, mode=route[0], dtype=route[1], options=opts, weights=files, state=state, log=log
+        )
+    except (MissingDependencyError, KernelUnavailableError) as e:
+        if mode != "auto":
+            raise
+        log.warning("%s: the MLX port is unavailable (%s); using PyTorch MPS", variant.ref, e)
+        return None
+    log.info("%s: using the MLX port (%s, %s) for Apple MPS", variant.ref, *route)
+    m.backend = dataclasses.replace(m.backend, mode="kernels")
+    m._result_device = dev  # noqa: SLF001 - set by the loader, like the backend
+    return m
+
+
+def _load_mlx(  # noqa: PLR0913 - the resolved arguments of `load_model`
+    cls: type[M],
+    card: ModelCard,
+    variant: Variant,
+    *,
+    mode: ModeArg,
+    dtype: Dtype | None,
+    options: Mapping[str, Any],
+    weights: tuple[Path, ...] | None,
+    state: Mapping[str, torch.Tensor] | None,
+    log: logging.Logger,
+) -> M:
+    """`load_model` on the Apple MLX backend (`device="mlx"`): the family's MLX port, as its card declares it.
+
+    `mode` and `dtype` mean what they mean elsewhere; the dtypes are the card's `mlx_dtypes` of the mode (float32
+    first: the default). `auto` uses kernels if the port has them at the dtype, and says so in the log.
+
+    Raises:
+        BackendUnavailableError: The family has no MLX port, or none of `mode`.
+        MissingDependencyError: The `mlx` package is not installed (it exists for Apple silicon only).
+        OptionsError: The port does not run in `dtype`.
+    """
+    if not card.portable_mlx_dtypes:
+        msg = f"{variant.ref} has no Apple MLX port (device='mlx'); use device='mps' or 'cpu'"
+        raise BackendUnavailableError(msg)
+
+    def build(mode: Mode) -> M:
+        have = card.mlx_dtypes(mode)
+        if dtype is not None and dtype not in have:
+            msg = f"{card.family} {mode} on mlx cannot compute in {dtype}; dtype must be one of {list(have)}"
+            raise OptionsError(msg)
+        return _build_mlx(
+            cls, card, variant, mode=mode, dtype=dtype or have[0], options=options, weights=weights, state=state
+        )
+
+    if mode == "auto":  # MLX kernels are Metal sources MLX compiles itself: declared means available
+        if card.mlx_kernel_libs and (dtype is None or dtype in card.kernels_mlx_dtypes):
+            mode = "kernels"
+            log.info("%s: using kernels on mlx", variant.ref)
+        else:
+            reason = f"MLX kernels do not compute in {dtype}" if card.mlx_kernel_libs else "no MLX kernels"
+            log.info("%s: %s; using portable on mlx", variant.ref, reason)
+            mode = "portable"
+    if mode == "kernels" and not card.mlx_kernel_libs:
+        msg = f"{variant.ref} (mode='kernels'): the MLX port has no kernels; use mode='portable'"
+        raise BackendUnavailableError(msg)
+    return build(mode)
+
+
+def _build_mlx(  # noqa: PLR0913 - the resolved arguments of `_load_mlx`
+    cls: type[M],
+    card: ModelCard,
+    variant: Variant,
+    *,
+    mode: Mode,
+    dtype: Dtype,
+    options: Mapping[str, Any],
+    weights: tuple[Path, ...] | None,
+    state: Mapping[str, torch.Tensor] | None,
+) -> M:
+    """Build the family's `RUNNERS["<mode>_mlx"]`; its host device (image preparation, results) is the CPU."""
+    runtime = importlib.import_module("fastforks._core.mlx")  # MissingDependencyError without the mlx extra
+    runtime.setup()
+    try:
+        tags = tuple(importlib.import_module(f"fastforks.kernels.{n}").load().tag for n in card.mlx_kernel_libs)
+    except KernelUnavailableError as e:
+        raise KernelUnavailableError(e.library, e.reason, model=variant.ref) from e
+    tags = tags if mode == "kernels" else ()
+    rcls = registry.import_model(card).RUNNERS[f"{mode}_mlx"]
+    device = torch.device("cpu")
+    ctx = Context(
+        card, variant, mode, device, dtype, make_params(rcls.Params, card, variant, options), tags, weights, state
+    )
+    runner = _construct(rcls, ctx)
+    backend = Backend(
+        mode,
+        MLX,
+        dtype,
+        tags,
+        _checkpoint_id(weights),
+        library=_library_version(),
+        weights=() if weights else tuple(f.sha256 for f in variant.weights),
+    )
+    return cls(runner, backend, options)
 
 
 def user_weights(variant: Variant, path: str | os.PathLike[str], log: logging.Logger | None = None) -> tuple[Path, ...]:
@@ -1210,18 +1423,7 @@ def _build(  # noqa: PLR0913 - the resolved arguments of `load_model`
     dtype = compute_dtype(card, rcls, mode, device, fp32=fp32, want=want)
     params = make_params(rcls.Params, card, variant, options)
     ctx = Context(card, variant, mode, device, dtype, params, tags, weights, state)
-    try:
-        # the checkpoint overwrites the initial values: skip the random fill; the build runs at the requested dtype
-        # whatever the caller's `torch.set_default_dtype`
-        with deferred_init(), float32_default():
-            runner = rcls(ctx)  # a failing build (e.g. missing weights) must not pin the process to this device
-    except (RuntimeError, KeyError) as e:  # CheckpointMismatchError is a WeightsError, a RuntimeError
-        error = None if weights is None else _mismatch(e, weights, variant.ref)
-        if error is None:
-            raise
-        raise error from e
-    finally:
-        ctx.drop_state()  # runners keep `ctx`
+    runner = _construct(rcls, ctx)
     if mode == "kernels" and device.type == "cuda":
         claim_kernels_device(device)
     adapt_to_device(runner, mode, device)
@@ -1242,6 +1444,22 @@ def _build(  # noqa: PLR0913 - the resolved arguments of `load_model`
     model = cls(runner, backend, options)
     _settle(device)
     return model
+
+
+def _construct(rcls: type[Runner], ctx: Context) -> Runner:
+    """`rcls(ctx)`; an error that says the user's `weights=` files do not fit becomes a `CheckpointMismatchError`."""
+    try:
+        # the checkpoint overwrites the initial values: skip the random fill; the build runs at the requested dtype
+        # whatever the caller's `torch.set_default_dtype`
+        with deferred_init(), float32_default():
+            return rcls(ctx)
+    except (RuntimeError, KeyError) as e:  # CheckpointMismatchError is a WeightsError, a RuntimeError
+        error = None if ctx.user_weights is None else _mismatch(e, ctx.user_weights, ctx.variant.ref)
+        if error is None:
+            raise
+        raise error from e
+    finally:
+        ctx.drop_state()
 
 
 def _library_version() -> str:

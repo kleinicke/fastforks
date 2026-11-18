@@ -195,6 +195,9 @@ def _mode(card: ModelCard, mode: str, inputs: Mapping[str, Any] | None) -> dict[
             md = card.mps_kernels_dtype or kd
             out["mps"] = {"implemented": (md,), "validated": (md,)}
             out["mps_kernel_libs"] = card.mps_kernel_libs
+        if card.mlx_kernel_libs:
+            out["mlx"] = {"implemented": card.kernels_mlx_dtypes, "validated": card.kernels_mlx_dtypes}
+            out["mlx_kernel_libs"] = card.mlx_kernel_libs
         return out | extra
     cuda = tuple(sorted({"float32", *runner_class(card, "portable").dtypes}))
     out = {
@@ -203,6 +206,8 @@ def _mode(card: ModelCard, mode: str, inputs: Mapping[str, Any] | None) -> dict[
     }
     mps_dtypes = tuple(dict.fromkeys(("float32", *card.portable_mps_dtypes)))
     out["mps"] = {"implemented": mps_dtypes, "validated": card.portable_mps_dtypes}
+    if card.portable_mlx_dtypes:
+        out["mlx"] = {"implemented": card.portable_mlx_dtypes, "validated": card.portable_mlx_dtypes}
     return out | extra
 
 

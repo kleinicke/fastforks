@@ -29,7 +29,8 @@ from fastforks.shared.depth_anything_v2 import DepthAnythingV2, fold_layer_scale
 from .fused import FusedHead, FusedViT
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
+    from typing import Any
 
     from fastforks.depth._runner import Context
 
@@ -175,4 +176,46 @@ class Kernels(Runner):
         return {_key(self.ctx): _scaled(self.ctx, _restore(d, image.shape[-2:]))}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class MlxPortable(Runner):
+    """Apple MLX (`device="mlx"`): encoder and head in MLX array operations, float32 or fp16 (fp32 output conv)."""
+
+    batch = None
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Convert or read the cached weights and build the MLX network."""
+        super().__init__(ctx)
+        from fastforks._core.mlx import converted  # noqa: PLC0415 - needs the mlx extra
+        from fastforks.shared.depth_anything_v2 import mlx_net  # noqa: PLC0415
+
+        p32 = converted(ctx, mlx_net.LAYOUT, lambda: mlx_net.prepare(_state_dict(ctx)))
+        self.engine = mlx_net.Engine(
+            p32, ctx.params.arch, ctx.dtype, sigmoid=ctx.params.max_depth > 0, up=self._resize() or mlx_net.resize
+        )
+
+    def _resize(self) -> Callable[..., Any] | None:
+        """The head's bilinear resize, if not MLX's own operations."""
+        return None
+
+    def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
+        """Relative inverse depth (metric depth for metric checkpoints) of a batch."""
+        d = self.engine(_prepare(self.ctx, image))
+        return {_key(self.ctx): _scaled(self.ctx, _restore(d, image.shape[-2:]))}
+
+
+class MlxKernels(MlxPortable):
+    """Apple MLX: as `MlxPortable`, with the head's bilinear resizes as one Metal kernel run by MLX (`dpt_mlx`)."""
+
+    def _resize(self) -> Callable[..., Any] | None:
+        """The `dpt_mlx` resize kernel."""
+        from fastforks.kernels.dpt_mlx import ops  # noqa: PLC0415 - needs the mlx extra
+
+        return ops.resize
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": MlxPortable,
+    "kernels_mlx": MlxKernels,
+}

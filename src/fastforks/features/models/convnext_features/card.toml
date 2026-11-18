@@ -37,10 +37,13 @@ pad = { multiple = 32, mode = "none" }
 library = "timm"
 
 [modes.portable]
+mlx_dtypes = ["float32", "float16"]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
+mlx_kernels = ["cnn_mlx"]
+mlx_dtypes = ["float32", "float16"]
 kernels = ["fvm_conv", "fvm_seg"]  # shared.convnext_trunk: _optimize.conv_ops (fvm_conv) + fvm_seg
 
 [[papers]]

@@ -13,7 +13,8 @@ libraries; its extras add the rest. `fastforks-core[nc]` adds the models with no
 FoundationStereo, MonSter, CoEx, ...; see [licences](#licences-and-commercial-use)), `fastforks-core[timm]` /
 `[torchvision]` / `[transformers]` the libraries some families are built on, `fastforks-core[onnx]` ONNX export and
 `fastforks-core[libs]` all of those libraries; `fastforks` is `fastforks-core[nc,libs]`. TensorRT is a separate extra
-(`fastforks-core[tensorrt]`, or `fastforks[tensorrt]`). A model whose library is missing fails in
+(`fastforks-core[tensorrt]`, or `fastforks[tensorrt]`), and so is Apple's MLX (`fastforks-core[mlx]`, Apple silicon
+only; see [MLX](#apple-silicon-mlx)). A model whose library is missing fails in
 `load` with the pip command to run, before any weight is read.
 `fastforks.model_card(id).requires` (or the task's `model_card`) shows what a model needs and
 `list_models(runnable=True)` lists the models whose dependencies are installed and whose non-commercial opt-in is set; it does not check weight access (gated repos), downloads or the offline cache.
@@ -38,6 +39,8 @@ directory.
 | `FASTFORKS_OFFLINE` | `1` = never touch the network (also `HF_HUB_OFFLINE=1`); missing files raise `WeightsDownloadError` |
 | `FASTFORKS_NONCOMMERCIAL` | `1` = also download weights with non-commercial licences (off in every install, also `fastforks`) |
 | `FASTFORKS_COMMERCIAL_ONLY` | `1` = refuse (and hide from `list`, `download`) every model not cleared for commercial use |
+| `FASTFORKS_MLX` | `0` = `device="mps"` always runs PyTorch MPS, never an [MLX port](#mps-takes-the-faster-port) |
+| `FASTFORKS_MLX_TUNING` | overrides single tunables of the [MLX](#apple-silicon-mlx) backend, e.g. `winograd=0,threadgroup=128` (for measuring; `tools/mlx_tune.py`) |
 | `FASTFORKS_HF_ENDPOINT` | redirects only our own Hugging Face repos (kernels, mirrored weights) to a mirror or `file://` stand-in, not the authors' hosts; for a full mirror use `FASTFORKS_WEIGHTS_PATH` |
 | `HF_TOKEN` | sent only to our own Hugging Face repos (private or rate-limited access); other repos: `huggingface_hub`'s own login |
 
@@ -337,6 +340,7 @@ reference code is recorded (the "Parity" rows of the model pages).
 | `"portable"` | CPU, CUDA, Apple silicon ([MPS](#apple-silicon-mps)), other PyTorch devices where the network's ops exist | the original network in plain PyTorch, checked against the reference |
 | `"kernels"` (CUDA) | NVIDIA GPU, compute capability >= 8.0, driver >= 570 | our CUDA kernels, faster than portable ([benchmarks](benchmarks.md) per model); memory is similar, sometimes higher. Raises `BackendUnavailableError` (its subclass `KernelUnavailableError` for a missing GPU or binary) with the reason if it cannot run here; never falls back silently |
 | `"kernels"` (Metal) | Apple silicon, macOS, the families listed under [Apple silicon](#apple-silicon-mps) | Metal kernels, compiled on the device on first use; same error behaviour |
+| either, with `device="mlx"` | Apple silicon, the `mlx` extra, the families with an [MLX port](#apple-silicon-mlx) | the same network through Apple's MLX instead of PyTorch MPS; `kernels` adds Metal kernels run by MLX. A family without a port raises `BackendUnavailableError` |
 | `"auto"` (default) | anywhere | `kernels` if it can run and the recorded measurements prefer it for this model, else `portable` (a few plain ViT classifiers gain nothing from kernels); the choice is logged once per load (WARNING if kernels fails on a CUDA device, else INFO) and recorded in `result.backend` |
 
 `mode` selects the backend; the result's `result.backend` (and `.mode`) reports which one ran.
@@ -676,6 +680,7 @@ start calling models.
 | one model, several threads | calls run one at a time (a model is not reentrant) |
 | CUDA calls of different models | one at a time per process (one process-wide lock), so a pipeline of models in threads does not overlap on the GPU: use one process per model |
 | MPS calls of different models | one at a time per process (the same lock: PyTorch's MPS backend is not thread-safe) |
+| MLX calls (`device="mlx"`) | one at a time per process (the same lock); a model may be loaded in one thread and called from others |
 | CPU calls of different models | run in parallel |
 | a model called inside another model's call | allowed (the lock is reentrant) |
 | CUDA streams | calls run on the caller's current stream (`with torch.cuda.stream(s):`), also `TensorRTEngine`; synchronise that stream before reading outputs on another one |
@@ -700,7 +705,7 @@ geometry lookups, cost volumes, HITNet's warp costs, AANet's deformable sampling
 sparse convolutions) and VGGT (the aggregator's q / k LayerNorm and RoPE) in float32. Flow, pose and features have
 them too: RAFT and SEA-RAFT (the correlation lookup without the all-pairs volume, float16), RTMPose (the person crops,
 float32), ViTPose / ViTPose++ (patch embedding, decoder and keypoint decoding, float16) and Perception Encoder (the
-blocks' RoPE, float16). They compile on the device in under a second on first use;
+blocks' RoPE, float16). RoMa v2 uses fused local correlation in float32. These kernels compile on the device in under a second on first use;
 `mode="auto"` picks it. Every other family runs `portable`.
 
 - dtype: float32 by default. `dtype="float16"` works where the card lists it (`fastforks info MODEL`, row
@@ -714,6 +719,101 @@ blocks' RoPE, float16). They compile on the device in under a second on first us
   the system disk, since with a full disk swapping can freeze the machine.
 
 Time and memory per model on an M1 Pro: [Apple M1 Pro](devices/apple-m1-pro-16gb.md).
+
+### MPS takes the faster port
+
+On Apple silicon, use `device="mps"` for both public modes.
+
+- `portable` runs the PyTorch MPS model.
+- `kernels` uses the family's native MPS Metal runner or MLX port. A measured MLX path must beat the native
+  Metal path by at least 5% to take precedence when both support the request. Explicitly requesting an unavailable
+  implementation raises an error.
+- `auto` uses the benchmark table to compare optimized paths against portable MPS. The table uses comparable runs
+  whose golden reference check passed. A promotion requires at least a 5% speed advantage. Pass `dtype` to
+  constrain the choice.
+
+Results are MPS tensors. An MLX implementation reports `backend.mode == "kernels"` and `backend.device == "mlx"`.
+Set `FASTFORKS_MLX=0` to run only PyTorch MPS implementations. On RoMa v2 this gives access to the float32
+Metal correlation kernel with `mode="kernels"`.
+
+## Apple silicon (MLX)
+
+`device="mlx"` runs a model through Apple's [MLX](https://github.com/ml-explore/mlx) instead of PyTorch's MPS
+backend. It is a device, not a mode: `mode` and `dtype` keep their meaning, and the result is the same object with
+the same outputs.
+
+```python
+# pip install "fastforks-core[mlx]"      (Apple silicon, macOS 14+)
+from fastforks import stereo
+
+model = stereo.load("crestereo-eth3d", device="mlx", dtype="float16")  # mode="auto": kernels where the port has them
+disparity = model(left, right).disparity  # CPU tensor, as from any other device
+print(model.backend.mode, model.backend.device, model.backend.kernels)  # kernels mlx ('crestereo_mlx@...:mlx',)
+```
+
+- Families: those with a port (the MLX columns of [Other GPUs](OTHER_GPUS.md); `fastforks info MODEL`, row
+  `apple mlx`): CREStereo, Depth Anything V2 with its fine-tunes, ResNet-18/50/152, MobileNetV2/V3, RegNet,
+  EfficientNet/V2, ConvNeXt/V2 classifiers, ConvNeXt ImageNet-22K and DINOv3 ConvNeXt feature backbones (portable and kernels).
+  The DINOv2 and DINOv3 ViTs, DINOv2 ImageNet classification and ADE20K segmentation heads, TIPSv2 and C-RADIOv3
+  support portable MLX. RoMa v2 dense matching supports portable and kernels modes in float32. Any other family raises
+  `BackendUnavailableError`; nothing falls back to MPS. Without the `mlx` package `load` raises
+  `MissingDependencyError` with the pip command. With `device="mps"`, `load` also takes a port on its own where it
+  was measured faster (see [MPS takes the faster port](#mps-takes-the-faster-port)).
+- `mode`: `portable` is the network in plain MLX operations, `kernels` adds Metal kernels that MLX runs
+  (`mx.fast.metal_kernel`; compiled on the device on first use, nothing to download). `auto` takes `kernels` where
+  the port has them at the dtype (logged at INFO).
+- `dtype`: float32 (default) or float16, as the card lists them; other dtypes raise `OptionsError`. Both are checked
+  against the same goldens and tolerances as the PyTorch GPU backends. In float16 the steps that need it stay in
+  float32 (the flow and the correlation sums, CREStereo's attention, normalisation statistics, position tables, the Winograd
+  transforms).
+- Inputs and outputs: as on every other device. Images are converted, scaled, padded and cropped by the same PyTorch
+  code, on the CPU (`model.device` is `cpu`); the network input goes to MLX in one copy and the outputs come back
+  as float32 CPU tensors in one copy (the memory is unified, so neither crosses a bus). A call has finished when it
+  returns: there is nothing to synchronise before timing or reading. Besides the usual image types an `mx.array` is
+  accepted, laid out like a NumPy image (`HWC` / `BHWC`). `result.backend.device` is `"mlx"`.
+- Weights: the same original checkpoints as everywhere else (same download, `FASTFORKS_WEIGHTS_PATH`,
+  `weights=PATH`). For CREStereo, Depth Anything, the DINO ViT feature backbones and TIPSv2, the first load converts them to the port's layout (convolutions channel-last, batch norms folded,
+  padded channels and Winograd-transformed filters where the port uses them) and stores the result as safetensors in
+  `<cache>/mlx/<task>/<family>/`; later loads read that file and need neither the checkpoint nor its unpickling.
+  The classification and segmentation heads, ConvNeXt backbones, C-RADIOv3 and RoMa v2 convert their verified weights at each load.
+  For ports with a disk cache, a new checkpoint, card revision or layout is a new file; `weights=PATH` files are converted on every load.
+- Memory: MLX keeps freed buffers in a cache that is unbounded by default; fastforks caps it per process
+  (512 MB on a 16 GB Mac, 1/32 of the memory up to 2 GB on larger ones). `fastforks bench MODEL --device mlx` reports
+  MLX's peak of live arrays and that plus the cache.
+- Not there: `model.module()`, `model.compile()` and ONNX / TensorRT export are PyTorch features and raise
+  `BackendUnavailableError` on `"mlx"`; the outputs carry no gradients.
+
+When it pays (M1 Pro, 16 GB; [MLX](devices/apple-m1-pro-mlx-16gb.md) against [MPS](devices/apple-m1-pro-16gb.md),
+same inputs and protocol, each against the fastest MPS mode at the same dtype):
+
+| model | float32 | float16 | peak memory |
+|---|---|---|---|
+| CREStereo, `kernels`, 994x1482 | 1.24x faster (4.44 s against 5.50 s) | 1.35x faster (3.06 s against 4.13 s) | equal to 14 % lower |
+| CREStereo, `portable` | slower | slower | 6 to 10 % lower |
+| RoMa v2, `kernels`, 768×1024, default 800/1280 matching sizes | MLX 3.93 s, MPS Metal 3.98 s, portable MPS 5.13 s | — | 4.08 GiB MLX, 6.57 GiB MPS Metal |
+| DINOv2 ViT-S/14, ViT-B/14, 224x224 | 1.1x to 1.3x faster | 1.3x to 1.5x faster | about equal |
+| DINOv2 with registers, all sizes | 1.1x to 2.4x faster | 1.3x to 2.9x faster | float32: 20 to 40 % lower; float16: equal, ViT-g 29 % lower |
+| DINOv2 ViT-L/14, ViT-g/14 | equal | 1.1x faster | float32: 42 % (L), 5 % (g) lower; float16: equal (L), 28 % lower (g) |
+| DINOv3 ViT-S/16, ViT-B/16, 224x224 | 1.3x to 1.6x faster | 1.4x to 1.6x faster | about equal |
+| DINOv3 ViT-L/16, ViT-H+/16 | 1.03x to 1.06x faster | 1.07x to 1.12x faster | float32: 26 to 28 % lower; H+ float16: 25 % lower |
+| Depth Anything V2 and fine-tunes, `kernels`, 994x1482 | 0.89x to 1.08x (S faster, B equal, L slower) | not validated on MPS; 1.2x to 1.35x faster than MPS float32 | float32: S 21 % lower, B / L 15 to 30 % higher; float16: 6 to 40 % lower than MPS float32 |
+
+So MLX is worth choosing for CREStereo in `kernels` mode, for the small and base DINOv2 / DINOv3 backbones, for every
+DINOv2 register variant (PyTorch MPS is slow on those) and for Depth Anything V2 in float16 (which MPS does not
+offer); for the large backbones without registers it is a way to use less memory, not time, Depth Anything V2 in
+float32 is at best equal, and CREStereo's `portable` mode on MLX is there for completeness.
+
+Every per-chip choice of the ports (threadgroup and lane sizes of the Metal kernels, channel padding, Winograd
+convolutions, the cache limit, batching both images, `mx.compile`) is one field of one table,
+`fastforks._core.mlx.TUNING`, keyed by the GPU architecture MLX reports (`applegpu_g13s` = M1 Pro, `g14` = M2,
+`g15` = M3, `g16` = M4, `g17` = M5) with the M1 values as the default, so a port runs on every generation before it
+is tuned there. `fastforks env` prints the row in use. On a new Mac, from a checkout:
+
+```bash
+python tools/mlx_tune.py           # the MLX golden gates, one micro-benchmark per tunable, the MLX speed survey
+python tools/mlx_tune.py bench     # only the micro-benchmarks: prints the TUNING row to add if a value should change
+python tools/mlx_tune.py survey --mps && python tools/mlx_tune.py ratios   # MLX against PyTorch MPS on this Mac
+```
 
 ## torch.compile, torch.export, ONNX and TensorRT
 
@@ -903,7 +1003,7 @@ allocation (GPU buffers only); on the CPU no memory.
 | RTX 20 / GTX 16 (sm_75) | works | no binary: `auto` uses portable, `mode="kernels"` raises |
 | Python / PyTorch | 3.11-3.14, torch >= 2.8 | same |
 
-The `kernels` column is the CUDA kernels; on Apple silicon the Metal kernels run for some families ([Apple silicon](#apple-silicon-mps)). Kernels were tuned and measured on an RTX 5060 Ti only; see [Other GPUs](OTHER_GPUS.md). Before Ampere, bfloat16 is
+The `kernels` column is the CUDA kernels; on Apple silicon the Metal kernels run for some families ([Apple silicon](#apple-silicon-mps)), and a few families also run through Apple's MLX ([MLX](#apple-silicon-mlx): Apple silicon, the `mlx` extra). Kernels were tuned and measured on an RTX 5060 Ti only; see [Other GPUs](OTHER_GPUS.md). Before Ampere, bfloat16 is
 emulated, so models that use it compute in float32 there.
 
 ## Troubleshooting

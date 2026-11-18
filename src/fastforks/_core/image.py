@@ -1,8 +1,9 @@
 """Input images -> float32 RGB tensors `[B, 3, H, W]` in `[0, 1]`.
 
 Accepted: file paths, encoded image bytes (`bytes`, `bytearray`, `io.BytesIO`: a PNG / JPEG / ... file's content, e.g.
-an upload; decoded like a path), PIL images, numpy arrays (channel-last: `HW`, `HWC`, `BHWC`) and torch tensors
-(channel-first: `HW`, `CHW`, `BCHW`). Integer images are scaled by their dtype's maximum (uint8: 255, uint16: 65535);
+an upload; decoded like a path), PIL images, numpy arrays (channel-last: `HW`, `HWC`, `BHWC`), MLX arrays (`mx.array`,
+channel-last like numpy; copied to the host once) and torch tensors (channel-first: `HW`, `CHW`, `BCHW`). Integer
+images are scaled by their dtype's maximum (uint8: 255, uint16: 65535);
 floating-point images must already be in `[0, 1]`. One channel is replicated to RGB, a fourth (alpha) channel is
 dropped. numpy arrays and PIL images are RGB (convert OpenCV's BGR first). Files are read as stored: the EXIF
 orientation tag of a JPEG is not applied (apply `PIL.ImageOps.exif_transpose` and pass the image if the photo should
@@ -79,6 +80,8 @@ def _as_tensor(img: ImageLike) -> torch.Tensor:
     shape = tuple(getattr(img, "shape", ()))  # as the caller passed it, for the error messages
     if isinstance(img, Image.Image):
         img = _pil_image(img)
+    if type(img).__module__.partition(".")[0] == "mlx":  # an `mx.array`, without importing mlx: laid out as numpy
+        img = np.array(img)
     if isinstance(img, np.ndarray):
         t = _from_numpy(img)
     elif isinstance(img, torch.Tensor):

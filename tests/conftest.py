@@ -38,6 +38,7 @@ def _isolated_cache(request, tmp_path, monkeypatch, _weight_stamps):
         monkeypatch.setenv("FASTFORKS_READ_CACHES", str(default_caches[0]))
         monkeypatch.setenv("HF_HUB_CACHE", str(default_caches[1]))
         monkeypatch.setenv("TORCH_HOME", str(default_caches[2]))
+    monkeypatch.setenv("FASTFORKS_MLX", "0")  # device="mps" tests run PyTorch MPS; test_mlx.py turns routing on
     registry.cards.cache_clear()
     shared = request.node.get_closest_marker("model") is not None
     if shared and _weight_stamps.is_dir():

@@ -279,4 +279,29 @@ class Kernels(Runner):
         return {"last_hidden_state": last, "pooler_output": last[:, 0]}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class Mlx(Runner):
+    """DINOv3 ConvNeXt in MLX with the HF pooled prefix and per-token final norm."""
+
+    batch = None
+    Params = Params
+    num_prefix_tokens = 1
+
+    def __init__(self, ctx: Context) -> None:
+        """Load the verified checkpoint and convert its convolutional trunk."""
+        super().__init__(ctx)
+        from fastforks.shared.libnet.mlx_cnn import DinoConvNext  # noqa: PLC0415 - optional MLX dependency
+
+        with torch.device("meta"):
+            net = ConvNext(ctx.params.arch)
+        load_strict(net, ctx.state_dict(), f"{ctx.variant.ref} checkpoint", assign=True)
+        self.hidden_size, self.num_layers = SIZES[ctx.params.arch][1][-1], len(net.stages)
+        self.net = DinoConvNext(net, ctx)
+
+    def __call__(self, image: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
+        """Normalised pooled and stride-32 grid tokens."""
+        del layers
+        last = self.net(image)
+        return {"last_hidden_state": last, "pooler_output": last[:, 0]}
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": Mlx, "kernels_mlx": Mlx}

@@ -19,6 +19,7 @@ import contextlib
 import datetime as dt
 import gc
 import hashlib
+import importlib.util
 import os
 import re
 import warnings
@@ -759,6 +760,25 @@ def test_mps(ref):
         assert (backend.mode, str(backend.dtype)) == (mode, dtype)
         assert len(backend.kernels) == len(card.mps_kernel_libs) if mode == "kernels" else not backend.kernels
         _check(ref, mode, outputs(ref, want), got, f"{mode} {dtype}: ")
+
+
+@pytest.mark.model
+@pytest.mark.mlx
+@pytest.mark.parametrize("ref", sorted(GOLDEN))
+def test_mlx(ref):
+    """Apple MLX (`device="mlx"`): every mode and dtype the card declares, within the GPU tolerances of the golden."""
+    card = API[TASK[ref]].model_card(ref)
+    runs = [(mode, d) for mode in ("portable", "kernels") for d in card.mlx_dtypes(mode)]
+    if not runs:
+        pytest.skip(f"{ref} has no MLX port")
+    if importlib.util.find_spec("mlx") is None:
+        pytest.skip("no mlx")
+    want = golden(ref)
+    for mode, dtype in runs:
+        (got,), backend = run_or_skip(ref, device="mlx", mode=mode, dtype=dtype, opts=options(ref, want), want=want)
+        assert (backend.mode, backend.device, str(backend.dtype)) == (mode, "mlx", dtype)
+        assert len(backend.kernels) == len(card.mlx_kernel_libs) if mode == "kernels" else not backend.kernels
+        _check(ref, mode, {k: v for k, v in want.items() if k not in INPUTS}, got, f"{mode} {dtype}: ")
 
 
 def _manifest(lib: str) -> kernels.KernelManifest | None:

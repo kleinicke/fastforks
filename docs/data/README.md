@@ -233,7 +233,7 @@ A survey row has the keys of `speed.jsonl` plus:
 | `dtype` | `float32`, `bfloat16` or `float16`: every row names its compute dtype |
 | `status` | `ok`, `unsupported` (the card does not offer this mode / dtype on the backend), `failed` (it ran and raised; `error`), `oom` |
 | `protocol_id` | the timing protocol class; cross-device tables compare only equal ids. `warm-median`: median of warm, synchronised calls after warm-up |
-| `memory_kind` | `torch-peak` (`peak_alloc_mb`, `peak_reserved_mb`; CUDA, ROCm) or `process-footprint` (`peak_footprint_mb`, the process's peak physical footprint; MPS, unified memory). Kinds are never compared |
+| `memory_kind` | `torch-peak` (`peak_alloc_mb`, `peak_reserved_mb`; CUDA, ROCm) or `process-footprint` (`peak_footprint_mb`, the process's peak physical footprint; MPS and MLX, unified memory). Kinds are never compared |
 | `golden` | optional: `pass`, `fail` or `skip`, the golden check (`tests/test_golden.py::test_gpu`) of the same loaded model on this device; `golden_mean` / `golden_p99` (error), `golden_msg` (why skipped), `golden_error`. A `fail` row keeps its time but is never a table's fastest |
 
 An `ok` row has `ms` and its memory fields; any other status has no `ms` and a `note` or `error`. `ref`, `mode`,
@@ -242,7 +242,10 @@ An `ok` row has `ms` and its memory fields; any other status has no `ms` and a `
 Adding a device:
 
 1. On the device: `uv run python tools/speed_survey.py detect` prints a `devices.toml` entry for its GPU; paste it
-   (`backend` = `cuda`, `rocm` or `mps`; `match` = the GPU name the tools record; edit the slug if you like).
+   (`backend` = `cuda`, `rocm`, `mps` or `mlx`; `match` = the GPU name the tools record; edit the slug if you
+   like). A Mac gets two entries, one per backend: `detect` prints the PyTorch MPS one, `detect --mlx` the Apple MLX
+   one (`load(..., device="mlx")`; slug `...-mlx-...`). They are separate devices because the same ref, mode and dtype
+   exists on both, and the two pages side by side are the comparison.
 2. Add `docs/devices/<slug>.md` to the Benchmarks section of `mkdocs.yml` (`gen_docs.py` refuses a page missing there).
 3. `... speed_survey.py list --device <slug>` shows the jobs (`*` = cross-device subset); `... prepare --device
    <slug>` downloads their weights (and on CUDA the kernel binaries for this GPU) and checks them; `... run --device
@@ -255,9 +258,15 @@ Adding a device:
 
 On CUDA / ROCm the worker is `tools/merge_check.py`'s, i.e. the floor's own (`tools/speed_check.py`: first call, 3
 warm-up, peak reset, median of 3 rounds x 5), so a survey time and the reference time of the same input are measured
-the same way. MPS has its own worker (4 warm-up, median of 5; process footprint). Rows record the environment
-(`gpu`, `torch`; on NVIDIA `arch`, `cuda`, `driver`, `power_limit`, `clocks`, `throttle_reasons`; on a Mac `gpu_cores`
-and `os`, as the chip name does not say how many GPU cores it has).
+the same way. MPS has its own worker (4 warm-up, median of 5; process footprint), which also measures MLX. Rows
+record the environment (`gpu`, `torch`; on NVIDIA `arch`, `cuda`, `driver`, `power_limit`, `clocks`,
+`throttle_reasons`; on a Mac `gpu_cores` and `os`, as the chip name does not say how many GPU cores it has; on an MLX
+device also `mlx`).
+
+An MLX device lists only the families with an MLX port (card `[modes.portable] mlx_dtypes`), in each mode and dtype
+the card declares there; a port without MLX kernels gets one `unsupported` kernels row. `python tools/mlx_tune.py`
+runs the MLX golden gates, the micro-benchmarks of the MLX tunables and this survey on the Mac it is started on
+(`survey --mps` also re-measures the same refs through PyTorch MPS; `ratios` prints MLX against MPS per ref).
 
 On a Mac (Apple silicon only; an Intel Mac is refused): the MPS allocator is capped at the recommended working set
 (about 75 % of RAM), so a model that needs more is an `oom` row instead of swapping, and before each job the run waits

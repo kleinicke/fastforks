@@ -12,6 +12,8 @@ from .net import Model
 from .portable import Ops, forward_fast, prepare
 
 if TYPE_CHECKING:
+    from types import ModuleType
+
     import torch
 
     from fastforks.stereo._runner import Context
@@ -96,4 +98,41 @@ class Kernels(Runner):
         return {"disparity": self.engine(left, right, self.ctx.params.iters)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+class MlxPortable(Runner):
+    """Apple MLX (`device="mlx"`): the network in MLX array operations (`mlx_net`, `mlx_ops`)."""
+
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Convert or read the cached weights and build the MLX network."""
+        super().__init__(ctx)
+        from . import mlx_net  # noqa: PLC0415 - needs the mlx extra
+
+        self.engine = mlx_net.Engine(ctx, self._ops())
+
+    def _ops(self) -> ModuleType:
+        from . import mlx_ops  # noqa: PLC0415 - needs the mlx extra
+
+        return mlx_ops
+
+    def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Disparity of a padded pair."""
+        return {"disparity": self.engine(left, right, self.ctx.params.iters)}
+
+
+class MlxKernels(MlxPortable):
+    """Apple MLX: correlation, GRU (Winograd 1x5 / 5x1), instance norm and upsampling as Metal kernels run by MLX."""
+
+    def _ops(self) -> ModuleType:
+        from fastforks.kernels.crestereo_mlx import ops  # noqa: PLC0415 - needs the mlx extra
+
+        return ops
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": MlxPortable,
+    "kernels_mlx": MlxKernels,
+}

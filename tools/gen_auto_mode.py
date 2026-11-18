@@ -5,8 +5,15 @@ measured speeds (the fixed-size table of docs/benchmarks.md and docs/data/speed.
 over its measured inputs of `portable ms / kernels ms` is below `MIN_GAIN`. Load time stays free: `auto` reads one small
 file. An explicit `mode="kernels"` is never affected.
 
+The Apple table selects among passing, comparable MPS and MLX survey runs. Per model revision:
+
+- `auto` and `dtypes` select MLX if it beats the fastest MPS path by `MIN_GAIN`.
+- `kernels` and `kernels_default` select MLX if it beats the native MPS kernel by `MIN_GAIN`.
+- `mlx` and `mlx_default` select the fastest passing MLX path where it is the only optimized backend.
+- `mps_auto` records which native MPS kernel requests beat portable MPS by `MIN_GAIN`.
+
     uv run python tools/gen_auto_mode.py          # write
-    uv run python tools/gen_auto_mode.py --check  # exit 1 if the file is out of date
+    uv run python tools/gen_auto_mode.py --check  # exit 1 if a file is out of date
 
 tests/test_auto_mode.py runs the check.
 """
@@ -23,6 +30,9 @@ import gen_docs
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "src" / "fastforks" / "_core" / "auto_portable.json"
+APPLE_OUT = OUT.with_name("apple_mlx.json")
+APPLE_DEVICE = "apple-m1-pro-16gb"  # the Mac whose MPS and MLX survey rows decide apple_mlx.json
+APPLE_MLX_DEVICE = "apple-m1-pro-mlx-16gb"
 MIN_GAIN = 1.05  # kernels must be at least 5 % faster, else the lighter portable backend is chosen
 KERNEL_MODES = ("kernels",)  # the mode column of the data files
 
@@ -55,15 +65,98 @@ def render() -> str:
     return json.dumps({"min_gain": MIN_GAIN, "portable": slow}, indent=1) + "\n"
 
 
+Option = tuple[str, str]  # (mode, dtype)
+Workload = tuple[str, str, str]  # (input, scene, protocol)
+
+
+def _apple_options(device: str) -> dict[str, dict[Option, dict[Workload, float]]]:
+    """Passing survey rows keyed by revision, implementation and workload."""
+    models: dict[str, dict[Option, dict[Workload, float]]] = {}
+    for line in (ROOT / "docs" / "data" / "speed" / f"{device}.jsonl").read_text().splitlines():
+        row = json.loads(line)
+        if row.get("status") != "ok" or row.get("golden") != "pass" or row["mode"] not in ("portable", "kernels"):
+            continue
+        dtype = (row.get("backend") or {}).get("dtype") or row["dtype"]
+        ref = row["ref"]
+        if "@" not in ref:
+            ref += "@1"  # historical unversioned rows predate checkpoint revisions
+        workload = (row["input"], row.get("scene", ""), row.get("protocol_id", ""))
+        models.setdefault(ref, {}).setdefault((row["mode"], dtype), {})[workload] = row["ms"]
+    return models
+
+
+def _winners(
+    candidates: dict[Option, dict[Workload, float]], alternatives: dict[Option, dict[Workload, float]]
+) -> dict[str, Option]:
+    """Winning implementation for each requested dtype, plus the unconstrained request under the empty key."""
+    selected = {}
+    for dtype in ("", *sorted({d for _, d in candidates})):
+        timings = []
+        for option, rows in candidates.items():
+            if dtype and option[1] != dtype:
+                continue
+            if not alternatives:
+                score = statistics.median(rows.values())
+            else:
+                ratios = []
+                for key, ms in rows.items():
+                    baseline = [
+                        other[key]
+                        for (_, d), other in alternatives.items()
+                        if (not dtype or d == dtype) and key in other
+                    ]
+                    if baseline:
+                        ratios.append(ms / min(baseline))
+                if not ratios or statistics.median(ratios) * MIN_GAIN > 1:
+                    continue
+                score = statistics.median(ratios)
+            timings.append((score, option))
+        if timings:
+            selected[dtype] = min(timings)[1]
+    return selected
+
+
+def render_apple() -> str:
+    mps, mlx = _apple_options(APPLE_DEVICE), _apple_options(APPLE_MLX_DEVICE)
+    models: dict[str, object] = {}
+    for ref in sorted(mps.keys() | mlx.keys()):
+        native, accelerated = mps.get(ref, {}), mlx.get(ref, {})
+        kernels = {option: rows for option, rows in native.items() if option[0] == "kernels"}
+        baseline = {option: rows for option, rows in native.items() if option[0] == "portable"}
+        # Require a comparable MPS run when automatically promoting an MLX route.
+        auto = _winners(accelerated, native) if native else {}
+        optimized = _winners(accelerated, kernels) if kernels else {}
+        only_mlx = _winners(accelerated, {})
+        metal = _winners(kernels, baseline) if baseline else {}
+        entry: dict[str, object] = {}
+        if "" in auto:
+            entry["auto"] = list(auto.pop(""))
+        if auto:
+            entry["dtypes"] = {dtype: option[0] for dtype, option in auto.items()}
+        for key, winners in (("kernels", optimized), ("mlx", only_mlx)):
+            if "" in winners:
+                entry[f"{key}_default"] = list(winners.pop(""))
+            if winners:
+                entry[key] = {dtype: option[0] for dtype, option in winners.items()}
+        if metal:
+            entry["mps_auto"] = list(metal)
+        if entry:
+            models[ref] = entry
+    data = {"min_gain": MIN_GAIN, "measured_on": [APPLE_DEVICE, APPLE_MLX_DEVICE], "models": models}
+    return json.dumps(data, indent=1) + "\n"
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n", maxsplit=1)[0])
     ap.add_argument("--check", action="store_true", help="exit 1 if the file is out of date")
-    text = render()
+    files = {OUT: render(), APPLE_OUT: render_apple()}
     if ap.parse_args().check:
-        if not OUT.is_file() or OUT.read_text() != text:
-            sys.exit("out of date (run tools/gen_auto_mode.py)")
+        stale = [p.name for p, text in files.items() if not p.is_file() or p.read_text() != text]
+        if stale:
+            sys.exit(f"out of date: {', '.join(stale)} (run tools/gen_auto_mode.py)")
     else:
-        OUT.write_text(text)
+        for p, text in files.items():
+            p.write_text(text)
 
 
 if __name__ == "__main__":

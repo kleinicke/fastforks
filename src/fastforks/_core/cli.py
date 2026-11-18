@@ -69,7 +69,14 @@ from typing import TYPE_CHECKING, Any, get_args
 
 from fastforks._core import registry
 from fastforks._core.cards import LIBRARY_EXTRA, Commercial, Tier
-from fastforks._core.errors import BackendUnavailableError, FastforksError, LicenceError, OptionsError, install_hint
+from fastforks._core.errors import (
+    BackendUnavailableError,
+    FastforksError,
+    LicenceError,
+    MissingDependencyError,
+    OptionsError,
+    install_hint,
+)
 from fastforks._core.files import OFFLINE_ENV, _human_size, cache_root, env_flag, link_view, locate, offline, present
 from fastforks._core.kernels import KERNEL_PATH_ENV, for_driver, read_manifest, select_target
 from fastforks._core.sizes import EXAMPLE_SIZE, size_range
@@ -169,6 +176,7 @@ def _list_machine(entries: Sequence[tuple[ModelCard, Variant]], fmt: str) -> Non
 def _kernel_libs_text(card: ModelCard) -> str:
     parts = [f"CUDA: {', '.join(card.kernel_libs)}"] if card.kernel_libs else []
     parts += [f"Apple MPS: {', '.join(card.mps_kernel_libs)}"] if card.mps_kernel_libs else []
+    parts += [f"Apple MLX: {', '.join(card.mlx_kernel_libs)}"] if card.mlx_kernel_libs else []
     return f" (kernel libs: {'; '.join(parts)})" if parts else ""
 
 
@@ -190,6 +198,19 @@ def _auto_text(v: Variant) -> str:
     return "; auto: portable on CUDA (kernels measured no faster)" if v.id in _auto_portable() else ""
 
 
+def _mlx_env_text() -> str:
+    """The `apple mlx` row of `env`: the MLX version, the GPU and the tunables row it runs with."""
+    try:
+        from fastforks._core import mlx as runtime  # noqa: PLC0415 - optional (the mlx extra)
+    except MissingDependencyError:
+        return f"not installed ({install_hint('mlx')})"
+    g = runtime.gpu()
+    return (
+        f"mlx {runtime.version()}, {g.architecture}, {g.memory / 2**30:.0f} GB"
+        f" (tunables: {runtime.tuning_row()}; device='mlx')"
+    )
+
+
 def _apple_text(card: ModelCard) -> str:
     """The `apple gpu` row of `info`: what `mode="auto"` picks there, and the dtypes."""
     if not card.portable_mps_dtypes:
@@ -199,6 +220,16 @@ def _apple_text(card: ModelCard) -> str:
         kd = card.mps_kernels_dtype or card.kernels_dtype
         return f"auto: kernels (Metal, {kd}); portable: {dt} (float32 is the default)"
     return f"auto: portable; dtypes {dt} (float32 is the default)"
+
+
+def _mlx_text(card: ModelCard) -> str:
+    """The `apple mlx` row of `info`: the modes and dtypes of the family's MLX port (`device="mlx"`)."""
+    if not card.portable_mlx_dtypes:
+        return "no port (device='mlx' raises)"
+    text = f"portable: {', '.join(card.portable_mlx_dtypes)}"
+    if card.mlx_kernel_libs:
+        text = f"auto: kernels ({', '.join(card.kernels_mlx_dtypes)}); " + text
+    return text + " (float32 is the default; needs the mlx extra)"
 
 
 def _info(args: argparse.Namespace) -> None:
@@ -221,6 +252,7 @@ def _info(args: argparse.Namespace) -> None:
         "options": ", ".join(_option_text(card, k, val) for k, val in card.options.items()) or "none",
         "modes": ", ".join(card.modes) + _kernel_libs_text(card) + _auto_text(v),
         "apple gpu": _apple_text(card),
+        "apple mlx": _mlx_text(card),
         "outputs": ", ".join(v.outputs) + "".join(f", {k} = {val}" for k, val in v.output_info.items()),
         "input size": size_range(v, card).describe(),
         "revision": f"{v.revision} (pin with `{v.ref}`)",
@@ -489,7 +521,8 @@ def _bench_mode(
     """Load `card`'s model in `mode`, time it; returns ref, backend, median ms and peak `(allocated, reserved)` MiB.
 
     On MPS (no peak counters) reserved is the Metal driver's memory after the timed runs: its allocator keeps freed
-    buffers, so that covers the peak; allocated is `None` there. No memory on the CPU.
+    buffers, so that covers the peak; allocated is `None` there. On MLX allocated is MLX's peak of live arrays and
+    reserved that plus its buffer cache after the timed runs. No memory on the CPU.
     """
     import torch  # noqa: PLC0415 - heavy, only for these commands
 
@@ -500,8 +533,12 @@ def _bench_mode(
     )
     inputs, kwargs = bench_inputs(model, BenchSize(*args.size, views=args.views))
     cuda = model.device.type == "cuda"
+    # the model is on MLX: the package is there
+    mlx = importlib.import_module("fastforks._core.mlx").mx if model.backend.device == "mlx" else None
     if cuda:
         torch.cuda.reset_peak_memory_stats(model.device)
+    if mlx is not None:
+        mlx.reset_peak_memory()
     ms = median_ms(lambda: model(*inputs, **kwargs), device=model.device.type, runs=args.runs)
     mem = None
     if cuda:
@@ -511,6 +548,11 @@ def _bench_mode(
         )
     elif model.device.type == "mps":
         mem = (None, round(torch.mps.driver_allocated_memory() / 2**20))
+    elif mlx is not None:
+        mem = (
+            round(mlx.get_peak_memory() / 2**20),
+            round((mlx.get_active_memory() + mlx.get_cache_memory()) / 2**20),
+        )
     return model.variant.ref, model.backend, ms, mem
 
 
@@ -531,10 +573,13 @@ def _bench(args: argparse.Namespace) -> None:
 
     from fastforks._core.model import resolve_device  # noqa: PLC0415
 
-    dev = resolve_device(args.device, card)
     modes = ["portable"]
-    if "kernels" in card.modes and dev.type in ("cuda", "mps") and card.kernel_libs_on(dev):
-        modes.append("kernels")
+    if args.device == "mlx":
+        modes += ["kernels"] if card.mlx_kernel_libs else []
+    else:
+        dev = resolve_device(args.device, card)
+        if "kernels" in card.modes and dev.type in ("cuda", "mps") and card.kernel_libs_on(dev):
+            modes.append("kernels")
     if len(modes) == 1:  # nothing to compare: the one-line form, with a hint
         args.mode = "portable"
         _bench(args)
@@ -821,6 +866,7 @@ def _env(_args: argparse.Namespace) -> None:
         rows["apple gpu"] = f"MPS available (macOS {mac or '?'})" if mps else "MPS not available"
         metal = sorted({lib for card in cards for lib in card.mps_kernel_libs})
         rows |= {f"metal {lib}": "Metal source, compiled on first use" for lib in metal} if mps else {}
+        rows["apple mlx"] = _mlx_env_text()
     if not cuda and driver is None:  # no NVIDIA driver at all (e.g. a Mac): per-library CUDA rows say nothing
         rows["cuda"] = "not available (no NVIDIA driver); CUDA kernels unused"
     else:
@@ -870,7 +916,8 @@ def _add_stereo(sub: argparse._SubParsersAction) -> None:
         help="backend (default auto: kernels if it can run and is faster here)",
     )
     p.add_argument(
-        "--device", help="e.g. cpu, cuda, cuda:1, mps (default: cuda if available, else mps if validated, else cpu)"
+        "--device",
+        help="e.g. cpu, cuda, cuda:1, mps, mlx (default: cuda if available, else mps if validated, else cpu)",
     )
     p.add_argument(
         "--format",
@@ -1058,7 +1105,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--dtype", choices=("float32", "float16", "bfloat16"), help="compute dtype (default: the validated one)"
     )
     p.add_argument(
-        "--device", help="e.g. cpu, cuda, cuda:1, mps (default: cuda if available, else mps if validated, else cpu)"
+        "--device",
+        help="e.g. cpu, cuda, cuda:1, mps, mlx (default: cuda if available, else mps if validated, else cpu)",
     )
     p.add_argument(
         "--size",

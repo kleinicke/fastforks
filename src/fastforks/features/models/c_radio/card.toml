@@ -3,7 +3,7 @@ name = "C-RADIOv3 / v4"
 summary = "C-RADIOv3 and C-RADIOv4 (NVIDIA 2025 / 2026), the commercially licensed agglomerative ViTs: v3 distilled from CLIP, SigLIP 2, DINOv2 and SAM (ViT-B / L / H / g), v4 from SigLIP 2-g, DINOv3-7B and SAM 3 (ViT-SO400M / H); patch 16, dense patch tokens and a summary embedding (v3: 3 teachers, v4: 2) at any size up to 2048 px."
 tier = "experimental"
 outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
-uses = ["libnet"]  # shared modules imported directly by this family
+uses = ["libnet", "mlx_vit"]  # shared modules imported directly by this family
 limitations = [
   "Set stream=True on CUDA to keep transformer blocks in pinned host RAM. The embeddings, pooling layer and output features stay on the GPU. Export and CUDA graph replay require resident weights.",
   "last_hidden_state holds the prefix tokens (v3: 4 summary + 4 registers; v4: 3 summary + 7 registers), then the patches (upstream's `features`).",
@@ -51,6 +51,7 @@ mlp_ratio = 4.0  # MLP width / embed_dim
 summary_tokens = 4  # v3: one per teacher (clip, siglip2, dino_v2, sam)
 
 [modes.portable]
+mlx_dtypes = ["float32", "float16"]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
 
