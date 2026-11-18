@@ -22,12 +22,15 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._optimize import optimize
+from fastforks.kernels import box_nms
 from fastforks.pose._runner import Forward, Runner
 from fastforks.pose.models.retinaface.model import nms
 
 from .net import HEAD, Arch, YuNet, convert
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from fastforks.pose._runner import Context
 
 STRIDES = (8, 16, 32)  # fixed: reference feature strides
@@ -55,7 +58,12 @@ def points(maps: tuple[torch.Tensor, ...]) -> torch.Tensor:
     return torch.cat(out)
 
 
-def faces(maps: tuple[torch.Tensor, ...], threshold: float, iou: float) -> dict[str, torch.Tensor]:
+def faces(
+    maps: tuple[torch.Tensor, ...],
+    threshold: float,
+    iou: float,
+    suppress: Callable[[torch.Tensor, float], torch.Tensor] = nms,
+) -> dict[str, torch.Tensor]:
     """The faces of one image from its float32 head maps (module docstring)."""
     rows = torch.cat([m[0].permute(1, 2, 0).reshape(-1, HEAD) for m in maps])
     score = rows[:, 0].sigmoid() * rows[:, 1].sigmoid()
@@ -66,7 +74,7 @@ def faces(maps: tuple[torch.Tensor, ...], threshold: float, iou: float) -> dict[
     r = rows[idx]
     centre, wh = r[:, 2:4] * s + xy, r[:, 4:6].exp() * s
     boxes = torch.cat([centre - wh / 2, centre + wh / 2], 1)
-    keep = nms(boxes, iou)
+    keep = suppress(boxes, iou)
     xy, s = xy[keep], s[keep]
     kp = r[keep, 6:].view(-1, LANDMARKS, 2) * s[:, None] + xy[:, None]
     sc = score[idx[keep]]
@@ -83,6 +91,7 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16")
     Params = Params
+    suppress = staticmethod(nms)
     needs_boxes: ClassVar[bool] = False
 
     def __init__(self, ctx: Context) -> None:
@@ -105,7 +114,7 @@ class Portable(Runner):
         """The faces in the image with their landmarks."""
         assert boxes is None  # noqa: S101 - the task API rejects boxes for one-stage families
         a: Params = self.ctx.params
-        return faces(self.dense(image), a.score_threshold, a.nms_iou)
+        return faces(self.dense(image), a.score_threshold, a.nms_iou, self.suppress)
 
     def module(self) -> torch.nn.Module:
         """The network: images `[B, 3, H, W]` RGB in [0, 1] -> the stride 8 / 16 / 32 head maps."""
@@ -116,4 +125,10 @@ class Portable(Runner):
         return Forward(self.net, fn, output_names=("head_s8", "head_s16", "head_s32"))
 
 
-RUNNERS = {"portable": Portable, "kernels": Portable}
+class Kernels(Portable):
+    """Run greedy suppression on the device with a bounded overlap buffer."""
+
+    suppress = staticmethod(box_nms.indices)
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}

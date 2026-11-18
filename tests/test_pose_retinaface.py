@@ -73,3 +73,19 @@ def test_nms_drops_boxes_a_kept_one_overlaps():
     boxes = torch.tensor([[0.0, 0.0, 10.0, 10.0], [1.0, 0.0, 11.0, 10.0], [8.0, 0.0, 18.0, 10.0]])
     assert rf.nms(boxes, 0.4).tolist() == [0, 2]
     assert rf.nms(boxes[:0], 0.4).tolist() == []
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("count", [0, 1, 33, 256, 257, 1037])
+def test_bounded_nms_preserves_order(count: int) -> None:
+    from fastforks.kernels import box_nms  # noqa: PLC0415
+    from fastforks.pose.models.retinaface.model import nms  # noqa: PLC0415
+
+    rng = torch.Generator(device="cuda").manual_seed(51)
+    start, size = torch.rand(2, count, 2, generator=rng, device="cuda").unbind()
+    xyxy = torch.cat((start, start + size * 0.4), dim=1)
+    if count:
+        xyxy[2::3] = xyxy[0].clone()
+        xyxy[::17, 2:] = xyxy[::17, :2]  # zero-area candidates
+    expected = nms(xyxy.cpu(), 0.42).cuda()
+    torch.testing.assert_close(box_nms.indices(xyxy, 0.42), expected)

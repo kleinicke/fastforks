@@ -35,7 +35,7 @@ cuda_dtype = "float16"  # letterbox, the coordinate classifier, decoding and NMS
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["pose_warp", "cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # the CSPDarknet backbone through fastforks._optimize (fused conv + SiLU, residual, concat); fp16 neck and head
+kernels = ["box_nms", "pose_warp", "cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # the CSPDarknet backbone through fastforks._optimize (fused conv + SiLU, residual, concat); fp16 neck and head
 
 [output]
 label_set = "coco-keypoints-17"

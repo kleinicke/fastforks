@@ -26,7 +26,7 @@ import torch
 
 from fastforks._core.checkpoint import NUMPY_ARRAYS, latin1_encode
 from fastforks._optimize import optimize
-from fastforks.kernels import pose_warp
+from fastforks.kernels import box_nms, pose_warp
 from fastforks.pose._runner import Forward, Runner
 
 from .net import DCC, RTMO, STRIDES, Arch, convert
@@ -124,6 +124,7 @@ class Portable(Runner):
     Params = Params
     needs_boxes: ClassVar[bool] = False
     resize = staticmethod(letterbox)
+    suppress = staticmethod(nms)
 
     def __init__(self, ctx: Context) -> None:
         """Build the network with the checkpoint (BatchNorm folded) on the device."""
@@ -153,7 +154,7 @@ class Portable(Runner):
         xy = box[idx, :2] * stride + self.prior[idx]
         wh = box[idx, 2:].exp() * stride
         boxes = torch.cat([xy - wh / 2, xy + wh / 2], 1)
-        keep = nms(boxes, a.nms_iou)
+        keep = self.suppress(boxes, a.nms_iou)
         idx, boxes = idx[keep], boxes[keep]
         centre = (boxes[:, :2] + boxes[:, 2:]) / 2
         kp = self.dcc(vec[idx], centre, (boxes[:, 2:] - boxes[:, :2]) * PADDING, self.prior[idx])
@@ -187,6 +188,11 @@ class Kernels(Portable):
     """
 
     resize = staticmethod(_cuda_letterbox)
+
+    @staticmethod
+    def suppress(boxes: torch.Tensor, iou: float) -> torch.Tensor:
+        """Use the training implementation's lower bound on the union area."""
+        return box_nms.indices(boxes, iou, IOU_EPS)
 
     def __init__(self, ctx: Context) -> None:
         """The portable network, then the optimized backbone."""

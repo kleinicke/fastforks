@@ -21,11 +21,14 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import torch
 
 from fastforks._optimize import optimize
+from fastforks.kernels import box_nms
 from fastforks.pose._runner import Forward, Runner
 
 from .net import ANCHORS, HEAD, Arch, RetinaFace, convert
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from fastforks.pose._runner import Context
 
 MEAN_BGR = (104.0, 117.0, 123.0)  # fixed: reference input mean (BGR)
@@ -82,7 +85,15 @@ def split(maps: tuple[torch.Tensor, ...]) -> tuple[torch.Tensor, torch.Tensor, t
     return rows[:, :c].reshape(n, 2), rows[:, c:b].reshape(n, 4), rows[:, b:].reshape(n, 2 * LANDMARKS)
 
 
-def faces(maps: tuple[torch.Tensor, ...], h: int, w: int, threshold: float, iou: float) -> dict[str, torch.Tensor]:
+def faces(  # noqa: PLR0913 - image dimensions, thresholds and suppression rule
+    maps: tuple[torch.Tensor, ...],
+    h: int,
+    w: int,
+    threshold: float,
+    iou: float,
+    *,
+    suppress: Callable[[torch.Tensor, float], torch.Tensor] = nms,
+) -> dict[str, torch.Tensor]:
     """The faces of one image from its float32 head maps (module docstring)."""
     logits, box, lms = split(maps)
     score = (logits[:, 1] - logits[:, 0]).sigmoid()  # = softmax(logits)[:, 1]
@@ -93,7 +104,7 @@ def faces(maps: tuple[torch.Tensor, ...], h: int, w: int, threshold: float, iou:
     xy = centre + box[idx, :2] * VARIANCE[0] * side
     wh = side * torch.exp(box[idx, 2:] * VARIANCE[1])
     boxes = torch.cat([xy - wh / 2, xy + wh / 2], 1)
-    keep = nms(boxes, iou)
+    keep = suppress(boxes, iou)
     idx, boxes, centre, side = idx[keep], boxes[keep], centre[keep], side[keep]
     kp = centre[:, None] + lms[idx].view(-1, LANDMARKS, 2) * VARIANCE[0] * side[:, None]
     return {
@@ -109,6 +120,7 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16")
     Params = Params
+    suppress = staticmethod(nms)
     needs_boxes: ClassVar[bool] = False
 
     def __init__(self, ctx: Context) -> None:
@@ -129,7 +141,7 @@ class Portable(Runner):
         """The faces in the image with their landmarks."""
         assert boxes is None  # noqa: S101 - the task API rejects boxes for one-stage families
         a: Params = self.ctx.params
-        return faces(self.dense(image), *image.shape[-2:], a.score_threshold, a.nms_iou)
+        return faces(self.dense(image), *image.shape[-2:], a.score_threshold, a.nms_iou, suppress=self.suppress)
 
     def module(self) -> torch.nn.Module:
         """The network: images `[B, 3, H, W]` RGB in [0, 1] -> the stride 8 / 16 / 32 head maps."""
@@ -140,4 +152,10 @@ class Portable(Runner):
         return Forward(self.net, fn, output_names=("head_s8", "head_s16", "head_s32"))
 
 
-RUNNERS = {"portable": Portable, "kernels": Portable}
+class Kernels(Portable):
+    """Run greedy suppression on the device with a bounded overlap buffer."""
+
+    suppress = staticmethod(box_nms.indices)
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels}
