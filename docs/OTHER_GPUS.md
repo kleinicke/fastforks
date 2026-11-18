@@ -94,6 +94,7 @@ Each family's kernels backend needs these libraries; `fastforks env` shows wheth
 <!-- libraries:begin (tools/gen_docs.py, from the model cards) -->
 | library | families |
 |---|---|
+| `acv_volume` | fast_acvnet |
 | `box_nms` | retinaface, rtmo, yunet |
 | `cfnet_volume` | cfnet |
 | `cfs` | c_foundationstereo |

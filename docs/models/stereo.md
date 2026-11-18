@@ -669,7 +669,7 @@ Commercial use: yes.
   - `fast-acvnet-plus-kitti12`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015 (SceneFlow, then fine-tuned on KITTI 2012)
   - `fast-acvnet-plus-kitti15`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015 (SceneFlow, then fine-tuned on KITTI 2015)
 - Options: `cuda_graphs` = True (speed only)
-- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
+- Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `acv_volume`
 - Variants: `fast-acvnet-generalization`, `fast-acvnet-sceneflow`, `fast-acvnet-kitti12`, `fast-acvnet-kitti15`, `fast-acvnet-plus-generalization`, `fast-acvnet-plus-sceneflow`, `fast-acvnet-plus-kitti12`, `fast-acvnet-plus-kitti15`
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
@@ -743,14 +743,14 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `fast-acvnet-generalization` | 0.00092 / 0.00938 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-| `fast-acvnet-sceneflow` | 0.00216 / 0.03439 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-| `fast-acvnet-kitti12` | 0.00112 / 0.00401 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-| `fast-acvnet-kitti15` | 0.00147 / 0.00436 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-| `fast-acvnet-plus-generalization` | 0.00114 / 0.01085 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-| `fast-acvnet-plus-sceneflow` | 0.01838 / 0.06381 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-| `fast-acvnet-plus-kitti12` | 0.00068 / 0.00258 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
-| `fast-acvnet-plus-kitti15` | 0.00125 / 0.01454 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `fast-acvnet-generalization` | 0.00093 / 0.00901 | RTX 5060 Ti, torch 2.14.1+cu130 | `acv_volume@78103398474f:sm_120`, `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `fast-acvnet-sceneflow` | 0.00217 / 0.03457 | RTX 5060 Ti, torch 2.14.1+cu130 | `acv_volume@78103398474f:sm_120`, `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `fast-acvnet-kitti12` | 0.00113 / 0.004 | RTX 5060 Ti, torch 2.14.1+cu130 | `acv_volume@78103398474f:sm_120`, `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `fast-acvnet-kitti15` | 0.00147 / 0.00436 | RTX 5060 Ti, torch 2.14.1+cu130 | `acv_volume@78103398474f:sm_120`, `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `fast-acvnet-plus-generalization` | 0.00115 / 0.01079 | RTX 5060 Ti, torch 2.14.1+cu130 | `acv_volume@78103398474f:sm_120`, `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `fast-acvnet-plus-sceneflow` | 0.01834 / 0.0601 | RTX 5060 Ti, torch 2.14.1+cu130 | `acv_volume@78103398474f:sm_120`, `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `fast-acvnet-plus-kitti12` | 0.00068 / 0.00258 | RTX 5060 Ti, torch 2.14.1+cu130 | `acv_volume@78103398474f:sm_120`, `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+| `fast-acvnet-plus-kitti15` | 0.00125 / 0.01454 | RTX 5060 Ti, torch 2.14.1+cu130 | `acv_volume@78103398474f:sm_120`, `cudnn_hacc@cudnn92400`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
 
 ### Limitations
 
