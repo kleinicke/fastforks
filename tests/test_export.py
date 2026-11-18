@@ -498,6 +498,42 @@ def test_trt_dtype_unknown_is_a_clear_error():
         _torch_dtype(trt, 99)
 
 
+@pytest.mark.gpu
+@pytest.mark.slow
+def test_tensorrt_data_dependent_output_sizes(tmp_path):
+    """NonZero can change the output size on every call, even on fixed-size inputs."""
+    if not torch.cuda.is_available() or importlib.util.find_spec("tensorrt") is None:
+        pytest.skip("needs CUDA and tensorrt")
+    onnx = pytest.importorskip("onnx")
+    from fastforks._core.export import TensorRTEngine, build_tensorrt  # noqa: PLC0415
+
+    h, t = onnx.helper, onnx.TensorProto
+    graph = h.make_graph(
+        [h.make_node("NonZero", ["mask"], ["indices"]), h.make_node("Identity", ["mask"], ["identity"])],
+        "variable output length",
+        [h.make_tensor_value_info("mask", t.BOOL, [2, 6])],
+        [
+            h.make_tensor_value_info("indices", t.INT64, [2, "count"]),
+            h.make_tensor_value_info("identity", t.BOOL, [2, 6]),
+        ],
+    )
+    path = tmp_path / "nonzero.onnx"
+    onnx.save(h.make_model(graph, opset_imports=[h.make_opsetid("", 18)]), path)
+    engine = TensorRTEngine(build_tensorrt(path, tmp_path / "nonzero.engine"))
+    x = torch.arange(12, device=engine.device).reshape(2, 6)
+    stream = torch.cuda.Stream(device=engine.device)
+    stream.wait_stream(torch.cuda.current_stream())
+    cases = []
+    for i, count in enumerate((3, 0, 12, 1, 8, 0)):
+        with torch.cuda.stream(stream if i % 2 else torch.cuda.current_stream()):
+            mask = x < count
+            cases.append((engine.run(mask), mask))
+    torch.cuda.synchronize()
+    for outputs, mask in cases:
+        torch.testing.assert_close(outputs["indices"], torch.nonzero(mask).T)
+        torch.testing.assert_close(outputs["identity"], mask)
+
+
 def test_export_defaults_per_task():
     assert spec("stereo").inputs == ("left", "right")
     assert spec("depth").inputs == ("image", "prompt_depth")  # the prompt only where the model requires it

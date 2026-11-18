@@ -19,6 +19,7 @@ from __future__ import annotations
 import functools
 import importlib.util
 import inspect
+import math
 import sys
 import tempfile
 import threading
@@ -761,6 +762,54 @@ def _torch_dtype(trt: Any, dtype: Any) -> torch.dtype:  # noqa: ANN401 - tensorr
     return table[dtype]
 
 
+def _output_allocator(device: torch.device, dtype: torch.dtype) -> Any:  # noqa: ANN401 - optional TensorRT type
+    """Own the PyTorch buffer TensorRT requests when an output depends on input values."""
+    trt = _tensorrt()
+
+    class Allocator(trt.IOutputAllocator):
+        def __init__(self) -> None:
+            super().__init__()
+            self.buffer: torch.Tensor | None = None
+            self.shape: tuple[int, ...] | None = None
+            self.error: Exception | None = None
+
+        def reallocate_output_async(
+            self,
+            _name: str,
+            _memory: int,
+            size: int,
+            alignment: int,
+            stream: int,
+        ) -> int | None:
+            try:
+                current = torch.cuda.current_stream(device)
+                target = current if current.cuda_stream == stream else torch.cuda.ExternalStream(stream, device=device)
+                with torch.cuda.stream(target):
+                    alignment = max(alignment, dtype.itemsize)
+                    storage = torch.empty(max(size, dtype.itemsize) + alignment - 1, device=device, dtype=torch.uint8)
+                    offset = -storage.data_ptr() % alignment
+                    self.buffer = storage[offset:]
+                if target != current:
+                    self.buffer.record_stream(current)
+                return self.buffer.data_ptr()
+            except (RuntimeError, ValueError) as e:
+                self.error = e
+                return None
+
+        def notify_shape(self, name: str, shape: Sequence[int]) -> None:  # noqa: ARG002 - TensorRT callback
+            self.shape = tuple(shape)
+
+        def result(self, name: str) -> torch.Tensor:
+            shape, buffer = self.shape, self.buffer
+            self.shape = self.buffer = None
+            if shape is None or buffer is None:
+                msg = f"TensorRT did not allocate or specify the shape of {name!r}"
+                raise RuntimeError(msg) from self.error
+            return buffer[: math.prod(shape) * dtype.itemsize].view(dtype).reshape(shape)
+
+    return Allocator()
+
+
 class TensorRTEngine:
     """A TensorRT engine from `export_tensorrt`: `engine(*inputs)` -> the model's main output.
 
@@ -771,7 +820,7 @@ class TensorRTEngine:
     Attributes:
         inputs: Input names, in call order.
         outputs: Output names.
-        shapes: Shape of every input and output; -1 marks a dynamic axis (engine built with `size_range`).
+        shapes: Shape of every input and output; -1 marks an axis determined from the input shape or values.
         shape: Shape of the first input.
     """
 
@@ -796,6 +845,7 @@ class TensorRTEngine:
         # previous call's work (the context's activation memory is shared)
         self._lock = threading.Lock()
         self._stream: torch.cuda.Stream | None = None
+        self._allocators: dict[str, Any] = {}
         e = self._engine
         names = [e.get_tensor_name(i) for i in range(e.num_io_tensors)]
         self.inputs = tuple(n for n in names if e.get_tensor_mode(n) == trt.TensorIOMode.INPUT)
@@ -882,17 +932,42 @@ class TensorRTEngine:
                 cause: Exception | None = e
             else:
                 cause = None
-            if dynamic and any(d < 0 for shape in shapes.values() for d in shape):
+            unresolved = [n for n, shape in shapes.items() if any(d < 0 for d in shape)]
+            if dynamic and unresolved:
                 size = "x".join(map(str, next(iter(tensors.values())).shape[-2:]))
                 msg = (
                     f"the dynamic engine cannot run at {size}: height and width must be multiples of the model's "
                     "padding multiple (`model.size_range().multiple`, as in the export's --size-range)"
                 )
                 raise InputError(msg) from cause
-            tensors |= {n: torch.empty(shapes[n], device=self.device, dtype=self._dtypes[n]) for n in self.outputs}
+            tensors |= {
+                n: torch.empty(shape, device=self.device, dtype=self._dtypes[n])
+                for n, shape in shapes.items()
+                if n not in unresolved
+            }
             for name, t in tensors.items():
                 self._context.set_tensor_address(name, t.data_ptr())
-            if not self._context.execute_async_v3(stream.cuda_stream):
-                msg = "TensorRT execution failed"
-                raise RuntimeError(msg)
+            self._enqueue(unresolved, tensors, stream)
         return {n: tensors[n] for n in self.outputs}
+
+    def _enqueue(self, unresolved: list[str], tensors: dict[str, torch.Tensor], stream: torch.cuda.Stream) -> None:
+        """Bind allocation callbacks only for outputs whose shape is still unresolved after binding the inputs."""
+        try:
+            for name in unresolved:
+                if name not in self._allocators:
+                    allocator = _output_allocator(self.device, self._dtypes[name])
+                    if not self._context.set_output_allocator(name, allocator):
+                        msg = f"TensorRT could not register the allocator for {name!r}"
+                        raise RuntimeError(msg)
+                    self._allocators[name] = allocator
+                self._context.set_tensor_address(name, 0)
+            if not self._context.execute_async_v3(stream.cuda_stream):
+                cause = next((a.error for a in self._allocators.values() if a.error is not None), None)
+                msg = "TensorRT execution failed"
+                raise RuntimeError(msg) from cause
+            for name in unresolved:
+                tensors[name] = self._allocators[name].result(name)
+        finally:
+            for name in unresolved:
+                if (allocator := self._allocators.get(name)) is not None:
+                    allocator.buffer = allocator.shape = allocator.error = None

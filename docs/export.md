@@ -141,7 +141,8 @@ Checked engines at 384x1248 (2026-10-27), TensorRT 11.4, one RTX 5060 Ti (ms vs 
 | igev-stereo-sceneflow | 94.2 | 214.8 | 0.01 | 281.9 | 424.9 | 0.005 |
 | raft-stereo-middlebury | 101.8 | 214.5 | 0.15 | 590.7 | 457.3 | 0.13 |
 
-Engines have a fixed input shape (the size they were built for).
+For engines with fixed input shapes, `TensorRTEngine.run()` supports output dimensions that depend on input values.
+It returns CUDA tensors with the actual dimensions for that call, including empty outputs.
 
 Dynamic shapes are optional and not recommended: `export_onnx(..., size_range=((min_h, min_w), (max_h, max_w)))` /
 `fastforks export --size-range MINxMIN:MAXxMAX` mark height and width as dynamic axes (sizes must be multiples of the
