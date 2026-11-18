@@ -93,7 +93,8 @@ class _Functional(Runner):
             net.backbone.layers = torch.nn.ModuleList()
             net.backbone.blocks = []
         cl = torch.channels_last
-        net.to(device=ctx.device, dtype=dtype, memory_format=cl)
+        # Convert directly into the requested layout so no duplicate device allocation is needed.
+        net.to(device=ctx.device, dtype=dtype, memory_format=cl)  # ty: ignore[no-matching-overload]
         head = net.decode_head
         self.patch_w = net.backbone.patch_embed.projection.weight.contiguous(memory_format=cl)
         self.deconv = [m.weight.contiguous(memory_format=cl) for m in head.deconvs]
