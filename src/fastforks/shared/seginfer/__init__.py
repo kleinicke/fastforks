@@ -21,6 +21,7 @@ from __future__ import annotations
 import contextlib
 import copy
 import re
+import sys
 from typing import TYPE_CHECKING, Any
 
 import torch
@@ -304,6 +305,12 @@ def _launch(scores: torch.Tensor, sizes: Sequence[Sequence[int]], *, argmax: boo
     return out
 
 
+def _on_mlx() -> bool:
+    """An `mlx_wrap.port` runner is computing: the resize and argmax of the logits run on MLX (`mlx_seg`)."""
+    wrap = sys.modules.get("fastforks.shared.mlx_wrap")
+    return wrap is not None and wrap.POST_ON_MLX.get()
+
+
 def upsample(scores: torch.Tensor, sizes: Sequence[Sequence[int]], *, fused: bool = False) -> torch.Tensor:
     """`scores` resized through `sizes` (the first step `F.interpolate`, the later ones `resize`).
 
@@ -350,6 +357,10 @@ def upsample_argmax(scores: torch.Tensor, sizes: Sequence[Sequence[int]], *, fus
 # under `Model.compile()` eager: Inductor fuses each resize into the class max, 3x slower (segformer, 2026-11-06)
 @eager_in_compile
 def _argmax(scores: torch.Tensor, sizes: Sequence[Sequence[int]], *, fused: bool) -> torch.Tensor:
+    if _on_mlx():
+        from fastforks.shared import mlx_seg  # noqa: PLC0415 - MLX runners only
+
+        return mlx_seg.upsample_argmax(scores, sizes)
     if fused and _fused(scores, sizes):
         return _launch(scores, sizes, argmax=True)
     b, c = scores.shape[:2]

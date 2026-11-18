@@ -39,6 +39,8 @@ kernels = ["cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3", "seg_up"] 
 # Per-layer dispatch (kernels): the encoder linears run cuBLAS (torch ops), not the fused CUTLASS GEMM, which measured slower
 # at every B0 / B5 linear shape (K, N <= 512 and 25600 rows at most); the Mix-FFN depthwise conv + GELU is the fused
 # kernel. B0 max 5.49 vs 5.85 ms portable at 512 x 512 (interleaved runs).
+mlx_kernels = ["graph_mlx"]
+mlx_dtypes = ["float32", "float16"]
 
 [output]
 label_set = "ade20k-150"

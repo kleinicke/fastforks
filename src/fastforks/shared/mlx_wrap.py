@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import contextvars
 import dataclasses
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastforks.shared.mlx_graph import MlxModule
 
@@ -21,6 +21,9 @@ if TYPE_CHECKING:
     from fastforks._core.runner import Context, Runner
 
 __all__ = ["port", "run_dtype"]
+
+POST_ON_MLX: contextvars.ContextVar[bool] = contextvars.ContextVar("mlx_post", default=False)
+"""Set while an MLX runner computes: segmentation's logits resize and argmax run on MLX (`fastforks.shared.mlx_seg`)."""
 
 _RUN_DTYPE: contextvars.ContextVar[str | None] = contextvars.ContextVar("mlx_run_dtype", default=None)
 
@@ -56,6 +59,24 @@ def port(portable: type[Runner], *, attrs: tuple[str, ...] = ("net",), whole: bo
                 return
             for name in attrs:
                 setattr(self, name, MlxModule(getattr(self, name), ctx.dtype, kernels=kernels))
+
+        if hasattr(portable, "labels"):  # segmentation: the logits' resize and argmax run on MLX too
+
+            def __call__(self, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+                """The runner's call with the post-processing on MLX."""
+                token = POST_ON_MLX.set(True)
+                try:
+                    return super().__call__(*args, **kwargs)
+                finally:
+                    POST_ON_MLX.reset(token)
+
+            def labels(self, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+                """The labels-only call with the post-processing on MLX."""
+                token = POST_ON_MLX.set(True)
+                try:
+                    return super().labels(*args, **kwargs)
+                finally:
+                    POST_ON_MLX.reset(token)
 
         if whole:
 
