@@ -26,7 +26,7 @@ def test_folded_streamed_sampler_matches_across_steps() -> None:
     ln = (torch.ones(cfg.enc_hidden, device=dev), torch.zeros(cfg.enc_hidden, device=dev))
     with torch.inference_mode():
         resident = PointDiT({k: v.to(dev) for k, v in sd.items()}, ln, cfg, 3).cast(torch.float16)
-        streamed = PointDiT(sd, ln, cfg, 3, fold_device=dev).cast(torch.float16)
+        streamed = PointDiT(sd, ln, cfg, 3, device=dev, dtype=torch.float16, stream=True)
         streamed.blocks = StreamedModuleList(streamed.layers, dev)  # ty: ignore[invalid-assignment] - callable blocks
         for h, w in [(3, 5), (5, 4), (3, 5)]:
             hidden = torch.randn(2, 4, h * w + 5, cfg.enc_hidden, device=dev)

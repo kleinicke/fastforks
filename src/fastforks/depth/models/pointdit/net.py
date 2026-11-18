@@ -160,6 +160,13 @@ class Block(nn.Module):
         self.register_buffer("b12", b12 + sh2 @ w12.T)
         self.register_buffer("g2", g2.contiguous())
 
+    def cast(self, dtype: torch.dtype) -> None:
+        """Keep the norm scales and kernel gates in fp32, and cast the GEMM operands."""
+        for name in ("qkv_w", "qkv_b", "proj_w", "proj_b", "w12", "b12", "w3", "b3"):
+            setattr(self, name, getattr(self, name).to(dtype))
+        self.register_buffer("g1h", self.g1.to(dtype))
+        self.register_buffer("g2h", self.g2.to(dtype))
+
     def forward(self, x: torch.Tensor, operation: Callable, *args: Any) -> torch.Tensor:  # noqa: ANN401 - eager or fused block
         """Apply a sampler step with this block's current device buffers."""
         return operation(self, x, *args)
@@ -177,21 +184,23 @@ class PointDiT(nn.Module):
     ln_w: torch.Tensor
     ln_b: torch.Tensor
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 - checkpoint inputs and independent storage options
         self,
         sd: dict[str, torch.Tensor],
         ln: tuple[torch.Tensor, torch.Tensor],
         cfg: Config,
         steps: int,
         *,
-        fold_device: torch.device | None = None,
+        device: torch.device | None = None,
+        dtype: torch.dtype = torch.float32,
+        stream: bool = False,
     ) -> None:
-        """`sd`: upstream `model_ema1` without `net.` (float32, on the target device); `ln`: DINOv3 final LayerNorm."""
+        """Fold a source checkpoint on `device` (default: the source device); optionally park each block on the host."""
         super().__init__()
         self.cfg, self.schedule = cfg, timesteps(steps)
-        if fold_device is not None:
+        if device is not None:
             # Keep source weights in host memory and fold one block at a time with the resident path's device math.
-            sd = {k: v if k.startswith("blocks.") else v.to(fold_device) for k, v in sd.items()}
+            sd = {k: v if k.startswith("blocks.") else v.to(device) for k, v in sd.items()}
         dev = sd["concat_proj.weight"].device
         c, cy = cfg.hidden, 4 * cfg.enc_hidden
         t = torch.linspace(0.0, 1.0, steps + 1, device=dev)[:-1]
@@ -202,12 +211,13 @@ class PointDiT(nn.Module):
         layers = []
         for i in range(cfg.depth):
             prefix = f"blocks.{i}."
-            state = sd if fold_device is None else {k: v.to(dev) for k, v in sd.items() if k.startswith(prefix)}
+            state = sd if device is None else {k: v.to(dev) for k, v in sd.items() if k.startswith(prefix)}
             mod = F.linear(
                 cond, state[prefix + "adaLN_modulation.1.weight"].float(), state[prefix + "adaLN_modulation.1.bias"]
             )
             layer = Block(state, i, cfg, mod)
-            layers.append(layer if fold_device is None else layer.cpu())
+            layer.cast(dtype)
+            layers.append(layer.cpu() if stream else layer)
             del state
         self.blocks = nn.ModuleList(layers)  # registered (state_dict, .to)
         self.layers = layers  # the same modules, typed
@@ -238,15 +248,17 @@ class PointDiT(nn.Module):
         self._pos: dict[tuple[int, int], torch.Tensor] = {}
         self._rope: dict[tuple[int, int], tuple[torch.Tensor, torch.Tensor]] = {}
 
-    def cast(self, dtype: torch.dtype) -> PointDiT:
-        """Weights, biases and gates (`g1h`, `g2h`) in `dtype`; norm scales, positions, kernels gates stay float32."""
+        self._cast_projections(dtype)
+
+    def _cast_projections(self, dtype: torch.dtype) -> None:
         for name in ("wy", "wp", "final_w", "final_b"):
             setattr(self, name, getattr(self, name).to(dtype))
+
+    def cast(self, dtype: torch.dtype) -> PointDiT:
+        """Convert the stored projection and block GEMM operands; other constants stay float32."""
+        self._cast_projections(dtype)
         for blk in self.layers:
-            for name in ("qkv_w", "qkv_b", "proj_w", "proj_b", "w12", "b12", "w3", "b3"):
-                setattr(blk, name, getattr(blk, name).to(dtype))
-            blk.register_buffer("g1h", blk.g1.to(dtype))
-            blk.register_buffer("g2h", blk.g2.to(dtype))
+            blk.cast(dtype)
         return self
 
     def _position(self, h: int, w: int) -> torch.Tensor:

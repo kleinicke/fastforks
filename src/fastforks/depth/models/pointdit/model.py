@@ -113,11 +113,17 @@ class Portable(Runner):
         with torch.device("meta"):
             own = {k: torch.empty(s) for k, s in checkpoint_shapes(self.cfg).items()}
         check_fits(own, sd, f"{ctx.variant.ref} checkpoint")
-        sd = {k: v.to(storage) for k, v in sd.items()}
         half = self.encoder_mode == "kernels" or ctx.dtype == "float16"
         with torch.no_grad():  # constants only
-            self.net = PointDiT(sd, ln, self.cfg, p.steps, fold_device=ctx.device if p.stream else None)
-            self.net.cast(torch.float16 if half else torch.float32)
+            self.net = PointDiT(
+                sd,
+                ln,
+                self.cfg,
+                p.steps,
+                device=ctx.device,
+                dtype=torch.float16 if half else torch.float32,
+                stream=p.stream,
+            )
         del sd
         if self.encoder_mode == "kernels":
             for blk in self.net.layers:
