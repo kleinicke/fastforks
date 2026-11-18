@@ -5,6 +5,7 @@ tier = "experimental"
 outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
 uses = ["dedode", "depth_anything_v2", "lightglue", "cnn_kernels"]  # fastforks.shared modules this family imports (the DaD / DeDoDe nets; the DINOv2 ViT-L/14; the transformer blocks)
 limitations = [
+  "The standalone B and L BF16 TensorRT engines at 768 x 1024 were compared on ten shifted photos. Minimum match precision within 2 px was 96.62% for B and 95.46% for L. The public exporter for B remains gated.",
   "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.",
   "One image pair per call internally (batches run pair by pair); the match counts differ per pair.",
   "The match count depends on the image pair. The fixed 768 x 1024 LoMa-B64 TensorRT export returns variable-length matches. On ten photos paired with shifted copies, at least 96.7% of TensorRT correspondences agreed with portable within 2 pixels in both images.",

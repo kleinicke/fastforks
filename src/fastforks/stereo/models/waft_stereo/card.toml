@@ -8,6 +8,7 @@ limitations = [
   "Only the two SynLarge checkpoints (S, B) are included; DAv2L-5 and the Real / KITTI / Middlebury fine-tunes are not.",
   "Portable WAFT-B is slightly slower than the original code and allocates slightly more memory; kernels is about 3x faster with a third of the memory.",
   "WAFT-Stereo-B kernels runs its ViT attention with fp16 accumulation: single attention outputs differ from fp32 by up to 34 % (relative), but end-to-end ETH3D / Middlebury-H accuracy matches the fp32 original (EPE 0.163 / 0.728).",
+  "The standalone FP32 TensorRT engine at 384 x 1248 matched portable FP32 at 2.904% D1 over 200 KITTI pairs. Median time was 1,208 ms with TensorRT and 381 ms portable. The default FP16 TensorRT exporter remains gated.",
 ]
 licence_notes = [
   "WAFT-Stereo-B is labelled CC-BY-NC-4.0 conservatively although the Hugging Face card says BSD-3-Clause: the checkpoint embeds a fine-tuned Depth Anything V2 ViT-B whose original weights are CC-BY-NC-4.0.",

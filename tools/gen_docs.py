@@ -40,6 +40,7 @@ _DATASETS = {
     "stereo": {
         "eth3d": "ETH3D two-view train, bad > 1 px % / EPE",
         "middH": "Middlebury 2014 trainingH, bad > 2 px % / EPE",
+        "kitti2015-train-stereo-fixed-384x1248": "KITTI 2015 stereo training, fixed 384 x 1248, D1 % / EPE",
     },
     "depth": {
         "nyu": "NYUv2 test, AbsRel / delta1",
@@ -291,6 +292,9 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
 }
 # task or (task, dataset) -> protocol sentence of the measured tables (task first, then each shown dataset)
 _PROTOCOL = {
+    ("stereo", "kitti2015-train-stereo-fixed-384x1248"): "All 200 KITTI 2015 training pairs, padded on the right "
+    "and bottom. D1 is the share of valid pixels with error above both 3 px and 5% of ground truth. EPE is averaged "
+    "over the per-pair mean absolute errors. ",
     "depth": "AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), "
     "mean over images. ",
     ("depth", "tum-video-110"): "Video: one call per sequence, one scale + shift per sequence, AbsRel / delta1 over "

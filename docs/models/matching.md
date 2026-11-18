@@ -294,10 +294,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `loma-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1036<br>308<br>–<br>285<br>planned for 0.2.1 | 4176 / 4390<br>1767 / 1878<br>–<br>2870 / 3216<br>– |
+| `loma-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 1036<br>308<br>–<br>285<br>326 (standalone build) | 4176 / 4390<br>1767 / 1878<br>–<br>2870 / 3216<br>1986 / 2010 |
 | `loma-b64` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>129<br>–<br>101<br>109 | –<br>854 / 962<br>–<br>1230 / 1356<br>1010 / 1034 |
 | `loma-b128` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>150<br>–<br>122<br>144 | –<br>878 / 984<br>–<br>1398 / 1760<br>1062 / 1066 |
-| `loma-l` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>319<br>–<br>295<br>fails: RuntimeError: Trying to create tensor with negative dimensio | –<br>1903 / 2012<br>–<br>3006 / 3194<br>– |
+| `loma-l` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>319<br>–<br>295<br>336 (standalone build) | –<br>1903 / 2012<br>–<br>3006 / 3194<br>2042 / 2066 |
 | `loma-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>358<br>–<br>330<br>366 | –<br>2444 / 2548<br>–<br>3547 / 3890<br>2298 / 2322 |
 | `loma-r` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>309<br>–<br>286<br>326 | –<br>1767 / 1878<br>–<br>2870 / 3256<br>1986 / 2010 |
 
@@ -315,10 +315,10 @@ Commercial use: yes.
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `loma-b` 3000x4000 (2.4 GiB peak allocated, 3.6 reserved); `loma-b64` 3000x4000 (1.1 GiB peak allocated, 1.4 reserved); `loma-b128` 3000x4000 (1.1 GiB peak allocated, 1.4 reserved); `loma-l` 3000x4000 (2.1 GiB peak allocated, 2.8 reserved); `loma-g` 3000x4000 (2.6 GiB peak allocated, 3.3 reserved); `loma-r` 3000x4000 (2.0 GiB peak allocated, 2.7 reserved)
-- `loma-b` 768x1024, first call: portable + torch.compile 104 s (cold Inductor cache).
+- `loma-b` 768x1024, first call: portable + torch.compile 104 s (cold Inductor cache), TensorRT bf16 176 s (ONNX + engine).
 - `loma-b64` 768x1024, first call: portable + torch.compile 66 s (cold Inductor cache), TensorRT bf16 102 s (ONNX + engine).
 - `loma-b128` 768x1024, first call: portable + torch.compile 67 s (cold Inductor cache), TensorRT bf16 103 s (ONNX + engine).
-- `loma-l` 768x1024, first call: portable + torch.compile 101 s (cold Inductor cache).
+- `loma-l` 768x1024, first call: portable + torch.compile 101 s (cold Inductor cache), TensorRT bf16 157 s (ONNX + engine).
 - `loma-g` 768x1024, first call: portable + torch.compile 103 s (cold Inductor cache), TensorRT bf16 171 s (ONNX + engine).
 - `loma-r` 768x1024, first call: portable + torch.compile 108 s (cold Inductor cache), TensorRT bf16 175 s (ONNX + engine).
 - `loma-b` original 768x1024: upstream LoMa(LoMaB(mp=False)), float32, 2048 keypoints
@@ -359,6 +359,7 @@ CPU, float32: max |diff| <= 0.011 vs the original. GPU, portable bfloat16 and ke
 
 ### Limitations
 
+- The standalone B and L BF16 TensorRT engines at 768 x 1024 were compared on ten shifted photos. Minimum match precision within 2 px was 96.62% for B and 95.46% for L. The public exporter for B remains gated.
 - Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.
 - One image pair per call internally (batches run pair by pair); the match counts differ per pair.
 - The match count depends on the image pair. The fixed 768 x 1024 LoMa-B64 TensorRT export returns variable-length matches. On ten photos paired with shifted copies, at least 96.7% of TensorRT correspondences agreed with portable within 2 pixels in both images.
