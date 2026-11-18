@@ -110,6 +110,7 @@ _DATASETS = {
     "flow": {
         "kitti2015-train": "KITTI 2015 train, EPE / Fl-all %",
         "kitti2015-train-flow-fixed-384x1248": "KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all %",
+        "kitti2015-train-flow-fixed-384x1248-fp16": "KITTI 2015 train (200 pairs) at 384 x 1248 FP16, EPE / Fl-all %",
         "kitti2015-train-flow-first50-fixed-384x1248": "KITTI 2015 first 50 train pairs, 384 x 1248, EPE / Fl-all %",
         "kitti2015-train-flow-first10-fixed-384x1248": "KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all %",
     },
@@ -432,6 +433,7 @@ _PROTOCOL = {
         "Metrics use predictions cropped to each original ground-truth grid. "
         for dataset in (
             "kitti2015-train-flow-fixed-384x1248",
+            "kitti2015-train-flow-fixed-384x1248-fp16",
             "kitti2015-train-flow-first50-fixed-384x1248",
             "kitti2015-train-flow-first10-fixed-384x1248",
         )
@@ -578,6 +580,7 @@ _EVAL_TRAIN_ID = {
     "middH": "middlebury",
     "kitti2015-train": "kitti",
     "kitti2015-train-flow-fixed-384x1248": "kitti",
+    "kitti2015-train-flow-fixed-384x1248-fp16": "kitti",
     "kitti2015-train-flow-first50-fixed-384x1248": "kitti",
     "kitti2015-train-flow-first10-fixed-384x1248": "kitti",
 }
