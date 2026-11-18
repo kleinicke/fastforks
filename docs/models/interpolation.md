@@ -197,6 +197,10 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 | `gimm-vfi-r` | 6e-05 / 0.00045 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `raft_flow@a101a33607b6:sm_120` |
 | `gimm-vfi-r-p` | 5e-05 / 0.00029 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `raft_flow@a101a33607b6:sm_120` |
 
+### Limitations
+
+- At 480 x 854 the standalone GIMM-VFI-R FP32 TensorRT engine returned different frames from portable FP32. Mean normalized absolute pixel error was 0.07687. The same ONNX file run in ONNX Runtime measured 0.000029.
+
 </details>
 
 <a id="rife"></a>

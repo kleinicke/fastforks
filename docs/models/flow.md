@@ -443,6 +443,7 @@ CPU, float32: max |diff| <= 4.2e-05 vs the original. GPU, float16 (the default),
 
 - Pairs only: the video memory (the keys and values of earlier frames that upstream's inference keeps) is not exposed; each pair runs as the first frame of a video.
 - The MemFlow-T checkpoints (Twins-SVT encoders) and MemFlow-P (flow prediction) are not ported.
+- The 384 x 1248 standalone MemFlow-KITTI FP16 TensorRT engine failed the accuracy check on 10 labeled KITTI pairs. Mean endpoint error was 4.672 px versus 0.413 px for portable FP16.
 
 </details>
 

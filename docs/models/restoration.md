@@ -220,6 +220,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `drct-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7492<br>830<br>718<br>618<br>731 | 3359 / 3944<br>2626 / 3048<br>2498 / 2766<br>1938 / 2348<br>9684 / 9728 |
 | `drct-l-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14651<br>1607<br>1399<br>1210<br>fails: TensorRT engine build failed | 5574 / 6926<br>2692 / 3110<br>2564 / 2850<br>2005 / 2410<br>– |
+| `drct-l-x4` | synthetic (256x256) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>384<br>–<br>289 | –<br>766 / 1204<br>–<br>559 / 560 |
 
 <details><summary>Details</summary>
 
@@ -235,6 +236,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `drct-x4` 1024x1024 (10.0 GiB peak allocated, 13.9 reserved); `drct-l-x4` 1024x1024 (10.0 GiB peak allocated, 13.9 reserved)
 - `drct-x4` 512x512, first call: portable + torch.compile 40 s (cold Inductor cache), TensorRT fp16 187 s (ONNX + engine).
 - `drct-l-x4` 512x512, first call: portable + torch.compile 67 s (cold Inductor cache).
+- `drct-l-x4` 256x256, first call: TensorRT fp16 222 s (ONNX + engine).
 - `drct-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream drct_model.py test, float32, no tile
 - `drct-l-x4` original 512x512: torch.autocast(float16) around the call; upstream drct_model.py test, float32, no tile
 - `drct-x4` load / first call: original 1.88 s / 8.657 s, portable 0.39 s / 1.018 s, kernels 1.32 s / 0.773 s
@@ -243,14 +245,15 @@ Commercial use: yes.
 
 ### Measured
 
-DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's scale), one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the output rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for real-world degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, not with PSNR-oriented upscalers. Original = the original code named under Details, same checkpoint and protocol.
+DIV2K validation HR images and the official bicubic LR images (x4 or x2, the model's scale), one pass without tiles; PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) on the Y channel (BT.601) of the output rounded to uint8, `scale` px border cropped, averaged over the images. Real-ESRGAN is trained for real-world degradations, not bicubic, so its PSNR is low: the numbers compare our modes with the original, not with PSNR-oriented upscalers. Every fourth DIV2K validation image, using aligned 256 x 256 LR center crops and their original HR targets. PSNR and SSIM use the Y channel after rounding the output to uint8 and cropping a four-pixel border. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|
-| `drct-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.76 / 0.8388 | 30.76 / 0.8388 | 30.76 / 0.8388 | 30.76 / 0.8388 |  |
-| `drct-l-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 31.00 / 0.8434 | 31.00 / 0.8434 | 31.00 / 0.8434 | 31.00 / 0.8434 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|
+| `drct-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.76 / 0.8388 | 30.76 / 0.8388 | 30.76 / 0.8388 | 30.76 / 0.8388 |  |  |
+| `drct-l-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 31.00 / 0.8434 | 31.00 / 0.8434 | 31.00 / 0.8434 | 31.00 / 0.8434 |  |  |
+| `drct-l-x4` | DIV2K validation, every fourth image, 256 x 256 LR crops, PSNR / SSIM (Y) |  | 29.91 / 0.8242 |  |  | 29.91 / 0.8242 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 706c6828, 2026-11-14.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 706c6828 / ba3a401e, 2026-11-14 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 706c6828, 2026-11-14; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 706c6828, 2026-11-14; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ba3a401e, 2026-11-18.
 
 ### Parity
 

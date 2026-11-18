@@ -4,6 +4,9 @@ summary = "GIMM-VFI (Guo et al., NeurIPS 2024), the RAFT-based GIMM-VFI-R: arbit
 tier = "experimental"
 outputs = ["frame"]
 uses = []  # fastforks.shared modules this family imports
+limitations = [
+  "At 480 x 854 the standalone GIMM-VFI-R FP32 TensorRT engine returned different frames from portable FP32. Mean normalized absolute pixel error was 0.07687. The same ONNX file run in ONNX Runtime measured 0.000029.",
+]
 
 [upstream]
 repo = "https://github.com/GSeanCDAT/GIMM-VFI"
