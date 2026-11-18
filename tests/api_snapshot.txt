@@ -961,6 +961,7 @@ option multiview.anysplat.voxel_size
 option multiview.depthsplat.long_side
 option multiview.lingbot_map.long_side
 option multiview.lingbot_map.scale_frames
+option multiview.lingbot_map.stream
 option multiview.lingbot_map.window
 option multiview.mapanything.long_side aliases resolution
 option multiview.mapanything.stream
