@@ -243,7 +243,7 @@ Commercial use: yes.
 - Options: `long_side` = 840 (>= 0)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `loftr-outdoor`, `loftr-indoor`
-- Not in this release (planned for 0.2.1): `loftr-outdoor` ONNX / TensorRT export: torch.export stops at a data-dependent branch (loftr.py:190); `loftr-indoor` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export)
+- Not in this release (planned for 0.2.1): `loftr-outdoor` ONNX / TensorRT export: torch.export stops at a data-dependent branch (loftr.py:190); `loftr-indoor` TensorRT export: fixed 768 x 1024 TensorRT loses 5.27 AUC@20 points in FP16 and 2.58 AUC@10 points in FP32 on ScanNet
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `loftr-outdoor` 3000x4000 (1.9 GiB peak allocated, 2.8 reserved); `loftr-indoor` 3000x4000 (2.0 GiB peak allocated, 2.8 reserved)
@@ -278,10 +278,10 @@ CPU, float32: max |diff| <= 3e-05 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
-- The standalone FP16 LoFTR Indoor TensorRT plan at 768 x 1024 failed the first 50 calibrated ScanNet pairs. AUC@20 was 54.62% with TensorRT and 59.89% with portable FP16. FP32 export is under evaluation.
+- LoFTR Indoor FP32 ONNX Runtime matched all features within 0.00014 px on seven ScanNet pairs at 768 x 1024. TensorRT lost 5.27 AUC@20 points in FP16 and 2.58 AUC@10 points in FP32 on a separate 50-pair check.
 - Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; every match is its own keypoint pair (`pairs` is `[[0, 0], [1, 1], ...]`).
 - One image pair per call internally (batches run pair by pair); the match counts differ per pair.
-- No exportable module: the match counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).
+- Match counts depend on image content. The verified ONNX export takes a fixed input size and returns variable-length matches.
 - Images are converted to grayscale and matched at `long_side` (default 840, upstream's MegaDepth test size); the coarse matching holds an (H W / 64)^2 score matrix, so memory grows with the 4th power of the side. The indoor weights were evaluated by upstream at 640 x 480 (ScanNet).
 
 </details>
