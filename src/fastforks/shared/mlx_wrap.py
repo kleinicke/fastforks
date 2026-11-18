@@ -64,6 +64,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
     whole: bool = False,
     methods: tuple[str, ...] = (),
     net_attr: str = "net",
+    kernels_fp16_only: bool = False,
 ) -> type[Runner]:
     """The MLX runner of `portable`: same call, the module(s) named by `attrs` run on MLX in `ctx.dtype`.
 
@@ -73,6 +74,8 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
 
     `whole=True`: the runner's `module()` (the network with its pre- and post-processing, image in, image out) runs on
     MLX as one graph and `__call__` returns `{"image": ...}` from it; for a runner whose forward is not `net(x)`.
+
+    `kernels_fp16_only=True`: the kernels mode uses its Metal kernels in float16 only (float32 runs as portable).
     """
 
     class Mlx(portable):  # ty: ignore[unsupported-base]
@@ -85,7 +88,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                 super().__init__(dataclasses.replace(ctx, dtype="float32"))
             finally:
                 _RUN_DTYPE.reset(token)
-            kernels = ctx.mode == "kernels"
+            kernels = ctx.mode == "kernels" and (ctx.dtype == "float16" or not kernels_fp16_only)
             for name in methods:
                 owner, _, leaf = name.rpartition(".")
                 host = _resolve(self, owner) if owner else self
