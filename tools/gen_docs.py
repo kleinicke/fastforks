@@ -81,6 +81,7 @@ _DATASETS = {
     },
     "multiview": {
         "dtu-scans1-9-24-33-75-view24": "DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 %",
+        "dtu-five-scan-view24-480x640": "DTU (five scans), view 24 + 7 sources at 480 x 640, AbsRel / delta1 %",
         "dtu-heldout-render-view13": "DTU scans 1, 9, 24, 33, 75, held-out view 13, RGB PSNR",
         "realestate10k-examples-2v": "RealEstate10K example scenes, 2 context views, RGB PSNR / SSIM",
         "realestate10k-examples-8v": "RealEstate10K example scenes, 8 context views, RGB PSNR / SSIM",
@@ -352,6 +353,8 @@ _PROTOCOL = {
     },
     "features": "Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop "
     "224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. ",
+    ("multiview", "dtu-five-scan-view24-480x640"): "Scans 1, 9, 24, 33 and 75. Use view 24 and its seven best "
+    "paired views, resize to 480 x 640, and align the reference depth by median scale before averaging the scans. ",
     ("multiview", "dtu-scans1-9-24-33-75-view24"): "640x512 crops, the 7 most co-visible views as sources. "
     "Ground truth is depth rendered from the structured-light "
     "points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras "

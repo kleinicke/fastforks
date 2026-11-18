@@ -2578,7 +2578,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | geocalib-pinhole | 1080x1920 | 81.2 ms | 73.1 ms | planned for 0.2.1 | 81.8 ms | 28.4 s | – | 320 / 378 | 246 / 300 | 277 / 338 | – |
 | anysplat | 336x518 | 503 ms | 427 ms | 314 ms | 364 ms | 80.3 s | 215 s | 4842 / 4932 | 4137 / 4694 | 4849 / 5192 | 7629 / 7674 |
 | depthsplat-small-re10k | 336x518 | 119 ms | 82.2 ms | 86.4 ms | 112 ms | 80.0 s | 224 s | 5432 / 5606 | 5432 / 5526 | 5434 / 5606 | 3148 / 3194 |
-| lingbot-map | 480x640 | 730 ms | planned for 0.2.1 | 489 ms | 515 ms | – | 181 s | 4512 / 4770 | – | 4519 / 4810 | 6280 / 6338 |
+| lingbot-map | 480x640 | 730 ms | 657 ms | 489 ms | 515 ms | 71.0 s | 181 s | 4512 / 4770 | 3339 / 3468 | 4519 / 4810 | 6280 / 6338 |
 | mapanything-apache | 336x518 | 636 ms | 596 ms | 367 ms | 544 ms | 46.2 s | 137 s | 3697 / 4092 | 3347 / 3792 | 3697 / 4072 | 6220 / 6248 |
 | mvsanywhere | 448x672 | 93.2 ms | 70.8 ms | planned for 0.2.1 | 35.2 ms | 153 s | – | 931 / 1226 | 818 / 860 | 702 / 760 | – |
 | mvsplat-re10k | 336x518 | 181 ms | 115 ms | 106 ms | 172 ms | 102 s | 241 s | 1239 / 1532 | 2762 / 2810 | 1239 / 1532 | 4953 / 4972 |

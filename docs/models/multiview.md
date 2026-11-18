@@ -142,7 +142,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `lingbot-map` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 993<br>730<br>515<br>planned for 0.2.1<br>489 | 7141 / 7672<br>4512 / 4770<br>4519 / 4810<br>–<br>6280 / 6338 |
+| `lingbot-map` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 993<br>730<br>515<br>657<br>489 | 7141 / 7672<br>4512 / 4770<br>4519 / 4810<br>3339 / 3468<br>6280 / 6338 |
 
 <details><summary>Details</summary>
 
@@ -154,24 +154,24 @@ Commercial use: yes.
 - Options: `long_side` = 518 (>= 14), `scale_frames` = 8 (>= 1), `window` = 64 (>= 1)
 - Kernel libraries: `fastbb`, `cudnn_hacc`
 - Variants: `lingbot-map`
-- Not in this release (planned for 0.2.1): `lingbot-map` compile(): Inductor fails to compile a fused Triton kernel (cat / cos / sin)
 - Outputs: depth, confidence, intrinsics, cam_to_world; kind: `scale_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lingbot-map` 3000x4000 (5.5 GiB peak allocated, 6.8 reserved)
-- `lingbot-map` 480x640, first call: TensorRT fp16 181 s (ONNX + engine).
+- `lingbot-map` 480x640, first call: portable + torch.compile 71 s (cold Inductor cache), TensorRT fp16 181 s (ONNX + engine).
 - `lingbot-map` original 480x640: the authors' mixed-precision option (bfloat16); upstream GCTStream.inference_streaming (demo defaults, SDPA), bfloat16 aggregator
 - `lingbot-map` load / first call: original 131.28 s / 4.645 s (480x640), portable 6.58 s / 1.077 s (480x640), kernels 5.69 s / 0.843 s (480x640)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
-640x512 crops, the 7 most co-visible views as sources. Ground truth is depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Original = the original code named under Details, same checkpoint and protocol.
+640x512 crops, the 7 most co-visible views as sources. Ground truth is depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Scans 1, 9, 24, 33 and 75. Use view 24 and its seven best paired views, resize to 480 x 640, and align the reference depth by median scale before averaging the scans. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|
-| `lingbot-map` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % | 0.0304 / 97.30 | 0.0305 / 97.28 | 0.0304 / 97.30 | 0.0304 / 97.33 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | portable + torch.compile | note |
+|---|---|---|---|---|---|---|---|
+| `lingbot-map` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % | 0.0304 / 97.30 | 0.0305 / 97.28 | 0.0304 / 97.30 | 0.0304 / 97.33 |  |  |
+| `lingbot-map` | DTU (five scans), view 24 + 7 sources at 480 x 640, AbsRel / delta1 % |  | 0.0292 / 97.80 |  |  | 0.0293 / 97.81 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345 / f984d9b6, 2026-11-16 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f984d9b6, 2026-11-18.
 
 ### Parity
 

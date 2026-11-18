@@ -604,6 +604,7 @@ pycocotools COCOeval of the top 100 detections per image. Original = the origina
 | `rf-detr-s-coco` | COCO val2017, every 10th image, box mAP | 52.54 |  |  | 52.46 |  |  |
 | `rf-detr-m-coco` | COCO val2017, every 10th image, box mAP | 54.48 | 54.42 | 54.42 | 54.42 | 54.40 |  |
 | `rf-detr-m-coco` | COCO val2017, all 5000 images, box mAP | 54.53 |  | 54.51 |  | 54.51 |  |
+| `rf-detr-l-coco` | COCO val2017, every 10th image, box mAP |  |  |  | 56.44 |  |  |
 | `rf-detr-seg-m-coco` | COCO val2017, every 10th image, box mAP / mask mAP | 53.21 / 44.24 | 53.30 / 44.30 | 53.30 / 44.30 | 53.35 / 44.32 | 53.49 / 44.38 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7cecd6cb, 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9 / 44640884, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7cecd6cb, 2026-11-12.
