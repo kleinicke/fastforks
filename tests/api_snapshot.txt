@@ -925,6 +925,7 @@ option features.siglip2.fp16_accumulate
 option features.siglip2.fp32_accumulate
 option features.siglip2.stream
 option features.tipsv2.fp16_accumulate
+option features.tipsv2.stream
 option flow.flowformer.iters
 option flow.flowseek.iters
 option flow.megaflow.iters
