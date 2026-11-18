@@ -145,6 +145,9 @@ OPS[aten.logical_not.default] = mx.logical_not
 OPS[aten.logical_and.default] = mx.logical_and
 OPS[aten.logical_or.default] = mx.logical_or
 OPS[aten.bitwise_not.default] = mx.logical_not
+OPS[aten.bitwise_and.Tensor] = mx.bitwise_and
+OPS[aten.bitwise_or.Tensor] = mx.bitwise_or
+OPS[aten.bitwise_xor.Tensor] = mx.bitwise_xor
 OPS[aten.isnan.default] = mx.isnan
 OPS[aten.where.self] = lambda c, a, b: mx.where(c, a, b)
 OPS[aten.where.ScalarOther] = OPS[aten.where.ScalarSelf] = OPS[aten.where.self]
@@ -245,6 +248,62 @@ def _slice_scatter(
     y = mx.array(x)  # a new array: the assignment must not write through the input's graph node
     y[tuple(idx)] = src.astype(x.dtype)
     return y
+
+
+@_reg(aten.div.Tensor_mode, aten.div.Scalar_mode)
+def _div_mode(a: mx.array, b: mx.array | float, *, rounding_mode: str | None = None) -> mx.array:
+    if rounding_mode is None:
+        return a / b
+    ints = not mx.issubdtype(mx.array(a).dtype, mx.floating) and not isinstance(b, float)
+    if rounding_mode == "floor":
+        return mx.floor_divide(a, b)
+    q = mx.floor_divide(mx.abs(a), mx.abs(b)) if ints else mx.trunc(a / b)  # trunc: round toward zero
+    return q * mx.sign(a) * mx.sign(b) if ints else q
+
+
+@_reg(aten.grid_sampler_2d.default)
+def _grid_sample(
+    x: mx.array,
+    grid: mx.array,
+    mode: int = 0,
+    padding_mode: int = 0,
+    align_corners: bool = False,  # noqa: FBT001, FBT002
+) -> mx.array:
+    """Bilinear `grid_sample` (zeros or border padding): four gathers weighted in float32."""
+    if mode != 0 or padding_mode not in (0, 1):
+        msg = f"grid_sampler_2d mode={mode} padding_mode={padding_mode}"
+        raise UnsupportedOp(msg)
+    n, c, h, w = x.shape
+    ho, wo = grid.shape[1:3]
+    g = grid.astype(mx.float32)
+
+    def unnormalize(v: mx.array, size: int) -> mx.array:
+        v = (v + 1) * (size - 1) / 2 if align_corners else ((v + 1) * size - 1) / 2
+        return mx.clip(v, 0, size - 1) if padding_mode == 1 else v
+
+    ix, iy = unnormalize(g[..., 0], w).reshape(n, -1), unnormalize(g[..., 1], h).reshape(n, -1)
+    x0, y0 = mx.floor(ix), mx.floor(iy)
+    flat = x.reshape(n, c, h * w)
+    out = None
+    for dy, wy in ((0, 1 - (iy - y0)), (1, iy - y0)):
+        for dx, wx in ((0, 1 - (ix - x0)), (1, ix - x0)):
+            xx, yy = x0 + dx, y0 + dy
+            ok = (xx >= 0) & (xx <= w - 1) & (yy >= 0) & (yy <= h - 1)
+            idx = (mx.clip(yy, 0, h - 1) * w + mx.clip(xx, 0, w - 1)).astype(mx.int32)
+            v = mx.take_along_axis(flat, idx[:, None, :], axis=2).astype(mx.float32)
+            term = v * (wx * wy * ok.astype(mx.float32))[:, None, :]
+            out = term if out is None else out + term
+    return out.reshape(n, c, ho, wo).astype(x.dtype)
+
+
+@_reg(aten.scatter.src)
+def _scatter_src(x: mx.array, dim: int, index: mx.array, src: mx.array) -> mx.array:
+    src = src[tuple(slice(0, n) for n in index.shape)]  # torch reads the leading block of src
+    wide = x.dtype in (mx.int64, mx.uint64)  # the GPU scatter has no 64-bit integers
+    y = mx.put_along_axis(
+        x.astype(mx.int32) if wide else x, index.astype(mx.int32), src.astype(mx.int32 if wide else x.dtype), axis=dim
+    )
+    return y.astype(x.dtype)
 
 
 @_reg(aten.split.Tensor)
@@ -510,6 +569,33 @@ def _batch_norm(
         scale = scale * w.astype(mx.float32)
     shift = -mean.astype(mx.float32) * scale + (b.astype(mx.float32) if b is not None else 0)
     return x * scale.astype(x.dtype).reshape(shape) + shift.astype(x.dtype).reshape(shape), None, None
+
+
+@_reg(aten._native_batch_norm_legit.no_stats)
+def _batch_norm_batch_stats(
+    x: mx.array,
+    w: mx.array | None,
+    b: mx.array | None,
+    training: bool,
+    momentum: float,
+    eps: float,  # noqa: FBT001
+) -> tuple[mx.array, None, None]:
+    """Normalisation by the batch's own per-channel statistics (what `InstanceNorm2d` decomposes to)."""
+    del momentum
+    if not training:
+        msg = "batch norm without statistics outside training"
+        raise UnsupportedOp(msg)
+    axes = tuple(i for i in range(x.ndim) if i != 1)
+    xf = x.astype(mx.float32)
+    mean = mx.mean(xf, axis=axes, keepdims=True)
+    var = mx.var(xf, axis=axes, keepdims=True)
+    y = ((xf - mean) * mx.rsqrt(var + eps)).astype(x.dtype)
+    shape = [1, -1] + [1] * (x.ndim - 2)
+    if w is not None:
+        y = y * w.reshape(shape)
+    if b is not None:
+        y = y + b.reshape(shape)
+    return y, None, None
 
 
 # ---- spatial ----------------------------------------------------------------------------------------------------
@@ -976,6 +1062,10 @@ class MlxModule:
         out_spec, others, dtypes = flat.out.value
         merged = [next(outs).to(d) if d is not None else o for o, d in zip(others, dtypes, strict=True)]
         return pytree.tree_unflatten(merged, out_spec)
+
+    def parameters(self) -> Any:  # noqa: ANN401
+        """The wrapped module's (CPU float32) parameters, for runners that read the dtype from them."""
+        return self.module.parameters()
 
     def _consts(self) -> dict[str, Any]:
         return self.__dict__.setdefault("_shared_consts", {})

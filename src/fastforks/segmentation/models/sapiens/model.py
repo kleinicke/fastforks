@@ -15,6 +15,7 @@ kernel (head_dim 64, fp32 `q k^T`) and fp16-accumulate cuDNN convolutions / tran
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -29,6 +30,7 @@ from fastforks.kernels import cudnn_hacc, dpt_fused, fastbb
 from fastforks.segmentation._runner import Forward, Runner, scale
 from fastforks.segmentation.models.sapiens.net import IN_EPS, LN_EPS, PATCH, Arch, Layer, Sapiens
 from fastforks.shared.host_blocks import StreamedModuleList
+from fastforks.shared.mlx_graph import MlxModule
 from fastforks.shared.seginfer import upsample, upsample_argmax
 
 if TYPE_CHECKING:
@@ -246,4 +248,22 @@ class Kernels(_Functional):
             return super().labels(image)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class MlxPortable(Portable):
+    """Apple MLX: the network (patch embedding, transformer, decoder) runs through the exported-graph translation."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the PyTorch network in float32 on the CPU, then export it to MLX."""
+        super().__init__(dataclasses.replace(ctx, dtype="float32"))
+        self.ctx = ctx
+        self._mlx = MlxModule(self.net, ctx.dtype, kernels=ctx.mode == "kernels")
+
+    def _logits(self, x: torch.Tensor) -> torch.Tensor:
+        return self._mlx(x)
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": MlxPortable,
+    "kernels_mlx": MlxPortable,
+}

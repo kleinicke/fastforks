@@ -29,6 +29,7 @@ from fastforks._optimize import ops as fvm
 from fastforks.kernels import seg_conv
 from fastforks.segmentation._runner import Forward, Runner, scale
 from fastforks.segmentation.models.segnext import net as sn
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.seginfer import resize, target_size, upsample, upsample_argmax
 
@@ -210,4 +211,9 @@ class Kernels(Portable):
     module = Runner.module
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+    "kernels_mlx": mlx_wrap.port(Portable),
+}

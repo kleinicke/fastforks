@@ -36,6 +36,7 @@ window = 512  # square windows along the longer side (the training crop; the DIN
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "seg_up"]

@@ -21,6 +21,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks.segmentation._runner import Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.maskformer import MaskFormer
 from fastforks.shared.seginfer import pad_bottom_right, pretrained, resize, target_size
 
@@ -120,4 +121,9 @@ class Kernels(Portable):
     module = Runner.module
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+    "kernels_mlx": mlx_wrap.port(Portable),
+}

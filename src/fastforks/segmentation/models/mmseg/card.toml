@@ -52,6 +52,7 @@ hacc = true  # kernels: fp16-accumulate cuDNN convs (HRNet overrides)
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["igev", "cutlass_conv", "cudnn_hacc", "seg_conv", "seg_up"]  # fastforks.shared.cnn_kernels: epilogue, CUTLASS and fp16-acc convs

@@ -36,6 +36,7 @@ from fastforks._core.errors import BackendUnavailableError
 from fastforks._core.half import fp16_accumulate
 from fastforks.kernels import fastbb
 from fastforks.segmentation._runner import Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.seginfer import (
     eomt_windows,
     mask_semantic,
@@ -259,4 +260,9 @@ class Kernels(Portable):
     module = Runner.module
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+    "kernels_mlx": mlx_wrap.port(Portable),
+}

@@ -35,6 +35,7 @@ task_tokens = [49406, 518, 10549, 533, 29119, 1550, 49407]  # "the task is seman
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fvm_seg", "seg_up"]
