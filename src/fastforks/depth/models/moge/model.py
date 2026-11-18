@@ -29,6 +29,7 @@ from torch import nn
 
 from fastforks._core.errors import InputError
 from fastforks._core.half import half_weights
+from fastforks._core.model import eager_in_compile
 from fastforks._core.patch import base_type, override
 from fastforks.depth._runner import Forward, Runner
 from fastforks.kernels import sparse_conv
@@ -240,6 +241,10 @@ def refine(
     return c.permute(0, 3, 1, 2)
 
 
+# The sparse refiner derives occupied voxels and neighbor lists from the predicted depth.
+_refine_eager = eager_in_compile(refine)
+
+
 # ------------------------------------------------------------------------------------------------ portable
 def _rep_pad1(x: torch.Tensor) -> torch.Tensor:
     """Replicate-pad the last two dims by 1 (as `F.pad(mode="replicate")`, which is slower than slices + cat)."""
@@ -306,7 +311,7 @@ class Portable(Runner):
             scale = net.scale_head(cls.float())[:, 0].exp()
             if net.refiner is not None:
                 rdt = next(net.refiner.parameters()).dtype
-                coords = refine(net.refiner, coords, enc.float(), rdt)
+                coords = _refine_eager(net.refiner, coords, enc.float(), rdt)
         return coords, mask, normal, scale
 
     def _run(self, image: torch.Tensor, k: torch.Tensor | None) -> dict[str, torch.Tensor]:

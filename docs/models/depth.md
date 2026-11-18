@@ -944,7 +944,7 @@ Commercial use: yes.
 | `moge-2-vits-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>82.6<br>61.6<br>33.3<br>43.9<br>24.5 | 1491 / 1628<br>1193 / 1268<br>1007 / 1172<br>932 / 1048<br>836 / 992<br>768 / 852 |
 | `moge-2-vitb-normal` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 237<br>102<br>83.9<br>40.7<br>60.9<br>35.5 | 1773 / 1876<br>1469 / 1596<br>1163 / 1312<br>1093 / 1208<br>972 / 1172<br>1044 / 1092 |
 | `moge-2-vitl-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>171<br>144<br>73.4<br>124<br>75.6 | 2646 / 2818<br>2339 / 2438<br>1661 / 1836<br>1498 / 1610<br>1411 / 1634<br>1882 / 1936 |
-| `moge-3-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 843<br>486<br>332<br>149<br>planned for 0.2.1<br>planned for 0.2.1 | 2812 / 2990<br>2505 / 2630<br>1678 / 1926<br>1626 / 1762<br>–<br>– |
+| `moge-3-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 843<br>486<br>334<br>149<br>311<br>planned for 0.2.1 | 2812 / 2990<br>2505 / 2630<br>1678 / 1826<br>1626 / 1762<br>1500 / 1724<br>– |
 
 <details><summary>Details</summary>
 
@@ -956,7 +956,7 @@ Commercial use: yes.
 - Options: `resolution_level` = 9 (0 to 9), `normals` = False
 - Kernel libraries: `fastbb`, `dpt_fused`, `sparse_conv`
 - Variants: `moge-2-vits-normal`, `moge-2-vitb-normal`, `moge-2-vitl-normal`, `moge-3-vitl`
-- Not in this release (planned for 0.2.1): `moge-3-vitl` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export); `moge-3-vitl` compile(): Inductor fails a value-range assertion (0 not in [2, inf])
+- Not in this release (planned for 0.2.1): `moge-3-vitl` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export)
 - Outputs: depth, points, intrinsics, mask, normals; kind: `metric`
 - Input size:
   - `moge-2-vits-normal`, `moge-2-vitl-normal`, `moge-3-vitl`: any H x W >= 8, resized or padded inside the model (ViT patch 14)
@@ -965,6 +965,7 @@ Commercial use: yes.
 - `moge-2-vits-normal` 994x1482, first call: portable + torch.compile 124 s (cold Inductor cache), TensorRT fp16 131 s (ONNX + engine).
 - `moge-2-vitb-normal` 994x1482, first call: portable + torch.compile 133 s (cold Inductor cache), TensorRT fp16 127 s (ONNX + engine).
 - `moge-2-vitl-normal` 994x1482, first call: portable + torch.compile 152 s (cold Inductor cache), TensorRT fp16 173 s (ONNX + engine).
+- `moge-3-vitl` 994x1482, first call: portable + torch.compile 136 s (cold Inductor cache).
 - `moge-2-vits-normal` load / first call: original 0.88 s / 1.501 s, portable 1.18 s / 0.298 s (518x770), kernels 0.21 s / 0.438 s (518x770)
 - `moge-2-vitb-normal` load / first call: original 1.26 s / 0.239 s, portable 0.49 s / 0.397 s (518x770), kernels 1.24 s / 0.285 s (518x770)
 - `moge-2-vitl-normal` load / first call: original 7.24 s / 0.171 s, portable 1.37 s / 0.144 s, kernels 0.63† s / 0.131 s
@@ -977,32 +978,32 @@ Commercial use: yes.
 
 AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), mean over images. Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's evaluation sets), mean over images. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `moge-2-vits-normal` | NYUv2 test, AbsRel / delta1 | 0.0484 / 0.9757 | 0.0484 / 0.9757 | 0.0484 / 0.9757 | 0.0484 / 0.9757 | 0.0484 / 0.9757 |  |
-| `moge-2-vits-normal` | iBims-1, AbsRel / delta1 | 0.0430 / 0.9793 | 0.0430 / 0.9793 | 0.0430 / 0.9793 | 0.0430 / 0.9793 | 0.0430 / 0.9793 |  |
-| `moge-2-vits-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0700 / 0.9412 | 0.0700 / 0.9411 | 0.0700 / 0.9411 |  | 0.0701 / 0.9412 | possibly in the training data |
-| `moge-2-vits-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0356 / 0.9947 | 0.0356 / 0.9947 | 0.0356 / 0.9947 |  | 0.0356 / 0.9947 | possibly in the training data |
-| `moge-2-vits-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.87 / 9.25 / 58.32 / 83.97 | 15.87 / 9.25 / 58.32 / 83.97 | 15.87 / 9.25 / 58.32 / 83.97 |  |
-| `moge-2-vits-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.95 / 7.19 / 66.56 / 83.74 | 15.95 / 7.19 / 66.56 / 83.74 | 15.95 / 7.19 / 66.56 / 83.74 |  |
-| `moge-2-vitb-normal` | NYUv2 test, AbsRel / delta1 | 0.0404 / 0.9812 | 0.0404 / 0.9812 | 0.0404 / 0.9812 | 0.0404 / 0.9812 | 0.0404 / 0.9812 |  |
-| `moge-2-vitb-normal` | iBims-1, AbsRel / delta1 | 0.0337 / 0.9855 | 0.0337 / 0.9854 | 0.0337 / 0.9854 | 0.0337 / 0.9855 | 0.0337 / 0.9854 |  |
-| `moge-2-vitb-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0667 / 0.9492 | 0.0667 / 0.9492 | 0.0667 / 0.9492 |  | 0.0663 / 0.9496 | possibly in the training data |
-| `moge-2-vitb-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0260 / 0.9962 | 0.0260 / 0.9962 | 0.0260 / 0.9962 |  | 0.0261 / 0.9962 | possibly in the training data |
-| `moge-2-vitb-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.25 / 8.61 / 60.32 / 84.90 | 15.25 / 8.61 / 60.32 / 84.90 | 15.25 / 8.61 / 60.33 / 84.90 |  |
-| `moge-2-vitb-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.28 / 6.98 / 68.57 / 85.01 | 15.28 / 6.97 / 68.57 / 85.01 | 15.28 / 6.98 / 68.56 / 85.01 |  |
-| `moge-2-vitl-normal` | NYUv2 test, AbsRel / delta1 | 0.0357 / 0.9836 | 0.0357 / 0.9836 | 0.0357 / 0.9836 | 0.0357 / 0.9836 | 0.0357 / 0.9836 |  |
-| `moge-2-vitl-normal` | iBims-1, AbsRel / delta1 | 0.0261 / 0.9892 | 0.0261 / 0.9892 | 0.0261 / 0.9892 | 0.0261 / 0.9892 | 0.0261 / 0.9892 |  |
-| `moge-2-vitl-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0518 / 0.9789 | 0.0518 / 0.9789 | 0.0519 / 0.9789 |  | 0.0518 / 0.9790 | possibly in the training data |
-| `moge-2-vitl-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0235 / 0.9972 | 0.0235 / 0.9972 | 0.0235 / 0.9972 |  | 0.0235 / 0.9972 | possibly in the training data |
-| `moge-2-vitl-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.81 / 8.07 / 61.96 / 85.54 | 14.81 / 8.07 / 61.96 / 85.54 | 14.81 / 8.07 / 61.96 / 85.55 |  |
-| `moge-2-vitl-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.70 / 6.49 / 70.49 / 85.80 | 14.70 / 6.49 / 70.49 / 85.80 | 14.69 / 6.49 / 70.49 / 85.80 |  |
-| `moge-3-vitl` | NYUv2 test, AbsRel / delta1 | 0.0356 / 0.9836 | 0.0356 / 0.9836 | 0.0356 / 0.9836 | 0.0356 / 0.9836 | 0.0356 / 0.9836 |  |
-| `moge-3-vitl` | iBims-1, AbsRel / delta1 | 0.0261 / 0.9884 | 0.0261 / 0.9884 | 0.0261 / 0.9884 | 0.0261 / 0.9884 | 0.0261 / 0.9883 |  |
-| `moge-3-vitl` | ETH3D two-view train left, AbsRel / delta1 | 0.0496 / 0.9847 | 0.0496 / 0.9847 | 0.0496 / 0.9847 |  | 0.0496 / 0.9847 | possibly in the training data |
-| `moge-3-vitl` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0235 / 0.9970 | 0.0235 / 0.9970 | 0.0235 / 0.9970 |  | 0.0235 / 0.9970 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | note |
+|---|---|---|---|---|---|---|---|---|
+| `moge-2-vits-normal` | NYUv2 test, AbsRel / delta1 | 0.0484 / 0.9757 | 0.0484 / 0.9757 | 0.0484 / 0.9757 | 0.0484 / 0.9757 | 0.0484 / 0.9757 |  |  |
+| `moge-2-vits-normal` | iBims-1, AbsRel / delta1 | 0.0430 / 0.9793 | 0.0430 / 0.9793 | 0.0430 / 0.9793 | 0.0430 / 0.9793 | 0.0430 / 0.9793 |  |  |
+| `moge-2-vits-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0700 / 0.9412 | 0.0700 / 0.9411 | 0.0700 / 0.9411 |  | 0.0701 / 0.9412 |  | possibly in the training data |
+| `moge-2-vits-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0356 / 0.9947 | 0.0356 / 0.9947 | 0.0356 / 0.9947 |  | 0.0356 / 0.9947 |  | possibly in the training data |
+| `moge-2-vits-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.87 / 9.25 / 58.32 / 83.97 | 15.87 / 9.25 / 58.32 / 83.97 | 15.87 / 9.25 / 58.32 / 83.97 |  |  |
+| `moge-2-vits-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.95 / 7.19 / 66.56 / 83.74 | 15.95 / 7.19 / 66.56 / 83.74 | 15.95 / 7.19 / 66.56 / 83.74 |  |  |
+| `moge-2-vitb-normal` | NYUv2 test, AbsRel / delta1 | 0.0404 / 0.9812 | 0.0404 / 0.9812 | 0.0404 / 0.9812 | 0.0404 / 0.9812 | 0.0404 / 0.9812 |  |  |
+| `moge-2-vitb-normal` | iBims-1, AbsRel / delta1 | 0.0337 / 0.9855 | 0.0337 / 0.9854 | 0.0337 / 0.9854 | 0.0337 / 0.9855 | 0.0337 / 0.9854 |  |  |
+| `moge-2-vitb-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0667 / 0.9492 | 0.0667 / 0.9492 | 0.0667 / 0.9492 |  | 0.0663 / 0.9496 |  | possibly in the training data |
+| `moge-2-vitb-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0260 / 0.9962 | 0.0260 / 0.9962 | 0.0260 / 0.9962 |  | 0.0261 / 0.9962 |  | possibly in the training data |
+| `moge-2-vitb-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.25 / 8.61 / 60.32 / 84.90 | 15.25 / 8.61 / 60.32 / 84.90 | 15.25 / 8.61 / 60.33 / 84.90 |  |  |
+| `moge-2-vitb-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 15.28 / 6.98 / 68.57 / 85.01 | 15.28 / 6.97 / 68.57 / 85.01 | 15.28 / 6.98 / 68.56 / 85.01 |  |  |
+| `moge-2-vitl-normal` | NYUv2 test, AbsRel / delta1 | 0.0357 / 0.9836 | 0.0357 / 0.9836 | 0.0357 / 0.9836 | 0.0357 / 0.9836 | 0.0357 / 0.9836 |  |  |
+| `moge-2-vitl-normal` | iBims-1, AbsRel / delta1 | 0.0261 / 0.9892 | 0.0261 / 0.9892 | 0.0261 / 0.9892 | 0.0261 / 0.9892 | 0.0261 / 0.9892 |  |  |
+| `moge-2-vitl-normal` | ETH3D two-view train left, AbsRel / delta1 | 0.0518 / 0.9789 | 0.0518 / 0.9789 | 0.0519 / 0.9789 |  | 0.0518 / 0.9790 |  | possibly in the training data |
+| `moge-2-vitl-normal` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0235 / 0.9972 | 0.0235 / 0.9972 | 0.0235 / 0.9972 |  | 0.0235 / 0.9972 |  | possibly in the training data |
+| `moge-2-vitl-normal` | NYUv2 test normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.81 / 8.07 / 61.96 / 85.54 | 14.81 / 8.07 / 61.96 / 85.54 | 14.81 / 8.07 / 61.96 / 85.55 |  |  |
+| `moge-2-vitl-normal` | iBims-1 normals, mean / median angle deg, % < 11.25 / < 30 deg |  |  | 14.70 / 6.49 / 70.49 / 85.80 | 14.70 / 6.49 / 70.49 / 85.80 | 14.69 / 6.49 / 70.49 / 85.80 |  |  |
+| `moge-3-vitl` | NYUv2 test, AbsRel / delta1 | 0.0356 / 0.9836 | 0.0356 / 0.9836 | 0.0356 / 0.9836 | 0.0356 / 0.9836 | 0.0356 / 0.9836 |  |  |
+| `moge-3-vitl` | iBims-1, AbsRel / delta1 | 0.0261 / 0.9884 | 0.0261 / 0.9884 | 0.0261 / 0.9884 | 0.0261 / 0.9884 | 0.0261 / 0.9883 | 0.0261 / 0.9884 |  |
+| `moge-3-vitl` | ETH3D two-view train left, AbsRel / delta1 | 0.0496 / 0.9847 | 0.0496 / 0.9847 | 0.0496 / 0.9847 |  | 0.0496 / 0.9847 |  | possibly in the training data |
+| `moge-3-vitl` | Middlebury 2014 trainingH left, AbsRel / delta1 | 0.0235 / 0.9970 | 0.0235 / 0.9970 | 0.0235 / 0.9970 |  | 0.0235 / 0.9970 |  | possibly in the training data |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 24f9c9c8 / 3d00db1d / 4e890760 / 939adfe8, 2026-11-06 to 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 24f9c9c8 / 4e890760 / 6d3bab64, 2026-11-12 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3d00db1d / 4e890760 / 939adfe8 / f3195fb2, 2026-11-06 to 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 24f9c9c8 / 3d00db1d / 4e890760 / 939adfe8, 2026-11-06 to 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 24f9c9c8 / 4e890760 / 6d3bab64, 2026-11-12 to 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3d00db1d / 4e890760 / 939adfe8 / f3195fb2, 2026-11-06 to 2026-11-12; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ed52b189, 2026-11-18.
 
 ### Parity
 
@@ -1014,6 +1015,11 @@ CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), p
 | `moge-2-vitb-normal` | 0.02172 / 0.02188 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `sparse_conv@2feb2d5e0877:sm_120` |
 | `moge-2-vitl-normal` | 0.00382 / 0.00394 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `sparse_conv@2feb2d5e0877:sm_120` |
 | `moge-3-vitl` | 0.00421 / 0.0049 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120`, `fastbb@7d058322634d:sm_120`, `sparse_conv@2feb2d5e0877:sm_120` |
+
+### Limitations
+
+- MoGe-3 compiles the dense network and leaves sparse voxel refinement eager. Its 100-image iBims-1 comparison used the default CUDA float16 mode.
+- At 994 x 1482, the portable and compiled MoGe-3 timings use the same synthetic image. The original timings use the Middlebury Motorcycle image.
 
 </details>
 

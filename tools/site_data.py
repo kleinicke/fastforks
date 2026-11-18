@@ -43,6 +43,7 @@ _EVAL_KEY = {
     "portable32": "portable32",
     "portable": "portable",
     "kernels": "kernels",
+    "compile": "compile",
     "tensorrt": "tensorrt",
     "upstreamhalf": "originalhalf",
     "upstream-cpu": "originalcpu",

@@ -143,7 +143,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`prompt-depth-anything-l`](models/depth.md#prompt-depth-anything) | yes | – | – | 124.8 | 69.3 (756x1008) | 1.8x vs portable | 1179 |
 | [`moge-2-vitl-normal`](models/depth.md#moge) | yes | 0.0357 | 170.7 (994x1482) | 144.5 | 73.4 | 2.3x vs original (994x1482) | 1498 |
 | [`zoedepth-nk`](models/depth.md#zoedepth) | yes | 0.0532 | 271.2 (994x1482) | 124.0 | 88.9 | 3.1x vs original (994x1482) | 1771 |
-| [`moge-3-vitl`](models/depth.md#moge) | yes | 0.0356 | 485.6 (994x1482) | 332.0 | 149.1 | 3.3x vs original (994x1482) | 1626 |
+| [`moge-3-vitl`](models/depth.md#moge) | yes | 0.0356 | 485.6 (994x1482) | 334.3 | 149.1 | 3.3x vs original (994x1482) | 1626 |
 | [`metric3d-vit-large`](models/depth.md#metric3d-v2) | yes | 0.0546 | 438.5 (994x1482) | 200.8 | 155.4 | 2.8x vs original (994x1482) | 1475 |
 | [`lingbot-depth-dc`](models/depth.md#lingbot-depth) | yes | – | 297.2 (994x1482) | 280.7 | 161.0 | 1.8x vs original (994x1482) | 1453 |
 | [`lingbot-depth`](models/depth.md#lingbot-depth) | yes | – | 297.1 (994x1482) | 280.3 | 161.1 | 1.8x vs original (994x1482) | 1453 |

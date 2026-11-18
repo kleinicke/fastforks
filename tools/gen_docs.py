@@ -423,12 +423,13 @@ _ORIGINAL_IS = {
     "sam3": "original = transformers `Sam3Model`, the port this code follows",
 }
 _MODES = ("upstream", "upstream-default", "portable", "kernels")
-_EVAL_MODES = ("upstream", "upstream-fp16", "upstreamhalf", "portable", "portable32", "kernels", "tensorrt")
+_EVAL_MODES = ("upstream", "upstream-fp16", "upstreamhalf", "portable", "portable32", "kernels", "compile", "tensorrt")
 _EVAL_LABEL = {
     "upstream": "original fp32",
     "upstream-fp16": "original fp16",
     "upstreamhalf": "original half",
     "portable32": "portable fp32",
+    "compile": "portable + torch.compile",
     "tensorrt": "TensorRT",
 }
 _PROTO = "Original = the original code named under Details, same checkpoint and protocol."
