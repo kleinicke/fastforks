@@ -38,7 +38,7 @@ mps_dtypes = ["float32"]
 
 [modes.kernels]
 dtype = "float16"  # as portable
-kernels = ["fastbb"]  # DINOv2 on the fused fp16 ViT path (flash attention); the rest is the portable fp16 path
+kernels = ["fastbb", "romav2"]  # fused DINOv2 and local correlation at three refinement scales
 
 [[papers]]
 title = "RoMa: Robust Dense Feature Matching"

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import functools
 import itertools
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, cast
 
 import torch
@@ -222,7 +222,7 @@ def _kernel_depthwise(k: CubinModule, weight: torch.Tensor, bias: torch.Tensor, 
     from fastforks.kernels import romav2 as lib  # noqa: PLC0415 - needs the kernel library
 
     b, c, h, w = x.shape
-    x = x.contiguous(memory_format=torch.channels_last)  # the first block's input is NCHW
+    x = x.contiguous(memory_format=torch.channels_last)
     out = torch.empty_like(x)
     n = b * h * -(-w // lib.DEPTHWISE_TX) * (c // 8)
     k.launch(lib.DEPTHWISE, (-(-n // 256), 1, 1), (256, 1, 1), x, weight, bias, out, b, h, w, c)
@@ -247,6 +247,8 @@ class Kernels(Portable):
                 m.correlate = functools.partial(_kernel_correlate, k)
         if ctx.device.type == "cuda" and ctx.dtype == "bfloat16":
             for m in self.net.modules():
+                if isinstance(m, ConvRefiner):
+                    m.cfg = replace(m.cfg, channels_last=True)
                 if isinstance(m, Block):  # BatchNorm folded (CUDA), bf16 weights, C a multiple of 8
                     conv = m.conv_depthwise
                     c = conv.weight.shape[0]
