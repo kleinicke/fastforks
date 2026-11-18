@@ -2629,6 +2629,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | neuflow-v2-sintel | 1080x1920 | 71.3 ms | 91.4 ms | 64.9 ms | 58.9 ms | 28.5 s | 102 s | 2366 / 2398 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
 | neuflow-v2-things | 1080x1920 | 71.4 ms | 91.5 ms | 65.0 ms | 58.9 ms | 28.8 s | 104 s | 2366 / 2398 | 4529 / 4558 | 779 / 896 | 8710 / 8748 |
 | raft-large | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.4 ms | 41.3 s | – | 5930 / 6058 | 5886 / 5924 | 332 / 352 | – |
+| raft-large | 384x1248 | – | – | 58.9 ms, fp32 engine | – | – | 147 s | – | – | – | 873 / 918 |
 | raft-large-kitti | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 84.2 ms | 39.3 s | – | 5930 / 6058 | 5886 / 5924 | 332 / 352 | – |
 | raft-large-kitti | 384x1248 | – | – | 59.2 ms, fp32 engine | – | – | 134 s | – | – | – | 873 / 918 |
 | raft-large-things | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.5 ms | 39.4 s | – | 5930 / 6058 | 5886 / 5924 | 332 / 352 | – |
@@ -2666,6 +2667,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | xfeat-lighterglue | 768x1024 | 21.6 ms | 16.2 ms | planned for 0.2.1 | – | 39.7 s | – | 445 / 476 | 262 / 278 | – | – |
 | alltracker | 480x854 | 391 ms | 284 ms | planned for 0.2.1 | 221 ms | 105 s | – | 993 / 1238 | 1273 / 1358 | 1076 / 1288 | – |
 | alltracker-tiny | 480x854 | 330 ms | 229 ms | planned for 0.2.1 | 217 ms | 103 s | – | 919 / 1178 | 1198 / 1338 | 978 / 1166 | – |
+| alltracker-tiny | 256x256 | – | – | 270 ms, fp32 engine (frame CNN with eager tracking) | – | – | 19.3 s | – | – | – | 2010 / 3220 |
 | bootstapir | 480x854 | 234 ms | 183 ms | 13.2 ms | 192 ms | 207 s | 65.0 s | 508 / 628 | 758 / 832 | 508 / 628 | 492 / 532 |
 | cotracker3-offline | 480x854 | 162 ms | 135 ms | 25.9 ms | 154 ms | 36.5 s | 157 s | 755 / 882 | 755 / 902 | 757 / 882 | 519 / 586 |
 | cotracker3-online | 480x854 | 184 ms | 159 ms | planned for 0.2.1 | 176 ms | 37.7 s | – | 755 / 906 | 701 / 846 | 757 / 888 | – |

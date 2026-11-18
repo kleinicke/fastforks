@@ -53,6 +53,6 @@ venue = "CVPR 2025"
 
 [[variants]]
 id = "defom-stereo-vitl-sceneflow"
-planned = { tensorrt = "the TensorRT 10 engine build fails (Myelin tactic check)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { tensorrt = "TensorRT 11.4 still fails the Myelin tactic check at 994 x 1482" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "defomstereo_vitl_sceneflow.pth", size = 1530900383, sha256 = "0be5c5ddd25e26d6077cdeed2ffcec1cd0d664aee2159c92d98c65832e1a8f3d", url = "https://drive.usercontent.google.com/download?export=download&confirm=t&id=1XuAM4vqzura_6NKN70hMW5lFD4TafnDL" }]

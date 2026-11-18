@@ -545,7 +545,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Options: `iters` = 32 (>= 1), `scale_iters` = 8 (>= 0)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`
 - Variants: `defom-stereo-vitl-sceneflow`
-- Not in this release (planned for 0.2.1): `defom-stereo-vitl-sceneflow` TensorRT export: the TensorRT 10 engine build fails (Myelin tactic check)
+- Not in this release (planned for 0.2.1): `defom-stereo-vitl-sceneflow` TensorRT export: TensorRT 11.4 still fails the Myelin tactic check at 994 x 1482
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `defom-stereo-vitl-sceneflow` 1988x2880 (12.0 GiB peak allocated, 14.5 reserved)

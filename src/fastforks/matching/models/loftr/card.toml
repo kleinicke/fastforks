@@ -50,7 +50,7 @@ venue = "CVPR 2021"
 
 [[variants]]
 id = "loftr-outdoor"  # upstream outdoor_ds: trained with the original (buggy) position encoding, eval border_rm 2
-planned = { onnx = "torch.export stops at a data-dependent branch (loftr.py:190)", tensorrt = "fixed 768 x 1024 FP16 engine loses 4.29 pose AUC@5 points on 50 MegaDepth pairs" }
+planned = { onnx = "torch.export stops at a data-dependent branch (loftr.py:190)", tensorrt = "fixed 768 x 1024 engines lose 4.29 pose AUC@5 points in FP16 and 2.49 in FP32 on 50 MegaDepth pairs" }
 revision = 1
 params = { temp_bug_fix = false, border_rm = 2 }
 weights = [{ name = "loftr_outdoor.ckpt", size = 46341978, sha256 = "21f5bec5968178e8bc8b7633441836fe5de4f47d861dd2cd7dc38e271b0479ec", url = "https://huggingface.co/kornia/loftr/resolve/0fb3b456cf176746709c38fa9cf80695a1c82dac/loftr_outdoor.ckpt" }]
