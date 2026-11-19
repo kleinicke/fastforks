@@ -40,6 +40,20 @@ class TransformerLayer(nn.Module):
 
             self.norm2 = nn.LayerNorm(d_model)
 
+    def _add_feed_forward(self, source, message):
+        # Bound the token-independent MLP activations used at full flow resolution.
+        step = max(128, (2**25 // (source.shape[0] * self.mlp[0].out_features)) // 128 * 128)
+        if source.shape[1] <= step:
+            return source + self.norm2(self.mlp(torch.cat((source, message), dim=-1)))
+        result = torch.empty_like(source)
+        for start in range(0, source.shape[1], step):
+            stop = min(start + step, source.shape[1])
+            residual = source[:, start:stop]
+            update = self.mlp(torch.cat((residual, message[:, start:stop]), dim=-1))
+            result[:, start:stop].copy_(residual + self.norm2(update))
+            del update
+        return result
+
     def forward(self, source, target,
                 height=None,
                 width=None,
@@ -136,10 +150,17 @@ class TransformerLayer(nn.Module):
         else:
             message = single_head_full_attention(query, key, value)  # [B, L, C]
 
+        del query, key, value
         message = self.merge(message)  # [B, L, C]
         message = self.norm1(message)
 
         if not self.no_ffn:
+            if (
+                source.is_cuda
+                and source.dtype == torch.float32
+                and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
+            ):
+                return self._add_feed_forward(source, message)
             message = self.mlp(torch.cat([source, message], dim=-1))
             message = self.norm2(message)
 
