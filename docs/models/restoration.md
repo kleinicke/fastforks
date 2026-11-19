@@ -165,7 +165,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9564<br>1565<br>1209<br>1063<br>1001 | 2443 / 2528<br>2552 / 2624<br>1541 / 2226<br>2552 / 2606<br>9010 / 9056 |
+| `dat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9564<br>1386<br>1209<br>1063<br>1001 | 2443 / 2528<br>1555 / 2246<br>1541 / 2226<br>2552 / 2606<br>9010 / 9056 |
 | `dat-2-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4880<br>1312<br>1037<br>964<br>921 | 2436 / 2518<br>2276 / 2378<br>1534 / 2220<br>2546 / 2598<br>9001 / 9048 |
 | `dat-light-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2204<br>268<br>232<br>158<br>136 | 1606 / 1656<br>1535 / 1552<br>566 / 592<br>1385 / 1412<br>4144 / 4192 |
 
@@ -187,6 +187,7 @@ Commercial use: yes.
 - `dat-2-x4` 512x512, first call: portable + torch.compile 44 s (cold Inductor cache), TensorRT fp16 206 s (ONNX + engine).
 - `dat-light-x4` 512x512, first call: portable + torch.compile 37 s (cold Inductor cache), TensorRT fp16 75 s (ONNX + engine).
 - `dat-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream dat_model.py test, float32, no chop
+- `dat-x4` portable 512x512: Eager CUDA reuses the four shifted-window biases. Bitwise parity on three DIV2K crops.
 - `dat-2-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream dat_model.py test, float32, no chop
 - `dat-light-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream dat_model.py test, float32, no chop
 - `dat-x4` load / first call: original 2.2 s / 6.13 s, portable 2.99 s / 2.307 s, kernels 0.71 s / 2.149 s

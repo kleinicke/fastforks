@@ -135,7 +135,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`moge-2-vitb-normal`](models/depth.md#moge) | yes | 0.0404 | 102.2 (994x1482) | 83.9 | 40.7 | 2.5x vs original (994x1482) | 1093 |
 | [`any2full-l`](models/depth.md#any2full) | yes | – | 268.8 (994x1482) | 67.7 | 42.3 | 6.4x vs original (994x1482) | 1115 |
 | [`da3-giant-1.1`](models/depth.md#depth-anything-3) | no | 0.0397 | 227.1 (994x1482) | 71.5 | 45.2 | 5.0x vs original (994x1482) | 2535 |
-| [`da3nested-giant-large-1.1`](models/depth.md#depth-anything-3) | no | 0.0387 | 308.2 (994x1482) | 94.9 | 59.7 | 5.2x vs original (994x1482) | 3179 |
+| [`da3nested-giant-large-1.1`](models/depth.md#depth-anything-3) | no | 0.0387 | 308.2 (994x1482) | 92.4 | 59.5 | 5.2x vs original (994x1482) | 3179 |
 | [`pointdit-l-512`](models/depth.md#pointdit) | yes | 0.0410 | 112.0 (994x1482) | 94.6 | 61.3 | 1.8x vs original (994x1482) | 1310 |
 | [`unik3d-vitl`](models/depth.md#unik3d) | no | 0.0346 | 133.7 (994x1482) | 107.8 | 62.9 | 2.1x vs original (994x1482) | 1166 |
 | [`unidepth-v2-vitl14`](models/depth.md#unidepth-v2) | no | 0.0355 | 132.0 (994x1482) | 99.8 | 63.0 | 2.1x vs original (994x1482) | 1153 |
@@ -787,7 +787,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`hat-s-x4`](models/restoration.md#hat) | yes | 2401.8 (512x512) | 1072.2 | 956.5 | 2.5x vs original (512x512) | 1856 |
 | [`swinir-l-x4-real`](models/restoration.md#swinir) | yes | 3709.3 (512x512) | 2098.7 | 1036.5 | 3.6x vs original (512x512) | 1806 |
 | [`dat-2-x4`](models/restoration.md#dat) | yes | 4880.3 (512x512) | 1312.2 | 1037.4 | 4.7x vs original (512x512) | 1534 |
-| [`dat-x4`](models/restoration.md#dat) | yes | 9563.6 (512x512) | 1564.8 | 1208.7 | 7.9x vs original (512x512) | 1541 |
+| [`dat-x4`](models/restoration.md#dat) | yes | 9563.6 (512x512) | 1385.7 | 1208.7 | 7.9x vs original (512x512) | 1541 |
 | [`drct-l-x4`](models/restoration.md#drct) | yes | 14651.1 (512x512) | 1606.9 | 1398.5 | 10.5x vs original (512x512) | 2564 |
 | [`hat-x4`](models/restoration.md#hat) | yes | 3038.2 (512x512) | 1595.9 | 1426.7 | 2.1x vs original (512x512) | 2298 |
 | [`real-hat-gan-x4`](models/restoration.md#hat) | yes | 3038.1 (512x512) | 1596.7 | 1426.9 | 2.1x vs original (512x512) | 2298 |
