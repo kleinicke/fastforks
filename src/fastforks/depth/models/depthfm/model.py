@@ -31,11 +31,12 @@ from fastforks.shared.sd2 import LATENT_SCALE, Noise, SD2Net, old_attention_name
 from fastforks.shared.sd2.net.fast import Fast
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
 
     from fastforks.depth._runner import Context
 
 _MULTIPLE = 64  # fixed: upstream `resize_max_res` rounds both sides to multiples of 64
+_DECODE_PIXELS = 2 * 1024 * 1024
 _DIFFUSION_STEPS = 1000  # fixed: upstream `q_sample(n_diffusion_timesteps=1000)`
 _HEADS = (8, 8, 8, 8)  # fixed: the checkpoint's `ldm_hparams` (num_heads 8 at every level)
 _RESNET = {  # fixed: LDM `ResBlock` -> diffusers `ResnetBlock2D` names
@@ -145,6 +146,17 @@ def finish(d: torch.Tensor, size: tuple[int, ...]) -> torch.Tensor:
     return F.interpolate(d, size, mode="bilinear", align_corners=False, antialias=True)[:, 0].clip(0, 1)
 
 
+def _decode_ensemble(decode: Callable[[torch.Tensor], torch.Tensor], latent: torch.Tensor) -> torch.Tensor:
+    # The VAE decodes ensemble members independently. Bound the full-resolution activation size in eager CUDA.
+    capture = torch.compiler.is_compiling() or torch.jit.is_tracing()
+    if latent.is_cuda and not capture and not torch.is_grad_enabled():
+        pixels = 64 * latent.shape[-2] * latent.shape[-1]  # VAE upscales each spatial axis by eight
+        batch = max(1, _DECODE_PIXELS // pixels)
+        if latent.shape[0] > batch:
+            return torch.cat([decode(part) for part in latent.split(batch, dim=0)])
+    return decode(latent)
+
+
 class Portable(Runner):
     """Plain PyTorch (SDPA attention): float32, or float16 weights and activations (upstream's fp16 autocast)."""
 
@@ -172,7 +184,8 @@ class Portable(Runner):
         for t, t1 in itertools.pairwise(grid):
             v = net.unet(torch.cat([y.to(dt), cond], dim=1), torch.tensor(t, device=z.device), text)
             y = y + (t1 - t) * v.float()
-        return finish(net.vae.decode((y / LATENT_SCALE).to(dt)), image.shape[-2:])
+        decoded = _decode_ensemble(net.vae.decode, (y / LATENT_SCALE).to(dt))
+        return finish(decoded, image.shape[-2:])
 
     def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
         """Affine-invariant depth of one image."""
@@ -213,7 +226,8 @@ class Kernels(Runner):
         cond = z.half().expand(p.ensemble, -1, -1, -1)
         for t, t1 in itertools.pairwise(grid):
             y = y + (t1 - t) * f.unet_forward(torch.cat([y.half(), cond], dim=1), t).float()
-        return {"depth": finish(f.decode(self.net.vae, (y / LATENT_SCALE).half()), image.shape[-2:])}
+        decoded = _decode_ensemble(lambda latent: f.decode(self.net.vae, latent), (y / LATENT_SCALE).half())
+        return {"depth": finish(decoded, image.shape[-2:])}
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}
