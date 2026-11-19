@@ -202,3 +202,41 @@ Survey, fp16 portable, `ms / peak footprint MB` (before = earlier rows in the da
 | lingbot-depth | 4588 / 8528 | 4502 / 4096 | 3376 / 3228 |
 
 Still above MPS: moge (export-phase CPU transient and the ~500 MB Metal cache, conv-heavy head), midas memory (+300 MB), lingbot memory, segnext portable speed (depthwise-strip convs, 259 ms vs MPS 184; the kernels mode runs 128 ms / 1278 MB and beats MPS). Lotus and marigold now sit below MPS memory (their peak is the float32 twin's load, about 6.4 GB) but are 1.8x slower than MPS. Segment evals cost them speed, so nets with weights of 1 GB or more checkpoint every min(weights, 2 GB) instead of 256 MB (marigold probe 5840 to 4800 ms, same peak). Goldens (including nafnet-gopro, wd-vit-tagger-v3, swin, segformer, depth-anything-v2, mask2former) pass.
+
+## Memory pass (part 2): lazy twin, small buffer cache, lean group norm
+
+Changes (all goldens of the spread below pass; no `LazyTwinError` fallback seen):
+
+- **Lazy fp32 twin** (`mlx_wrap._lazy_twin`): the twin's `load_state_dict` assigns the mmapped checkpoint tensors (clean file
+  pages are not counted in the process footprint) and `torch.nn.init` is skipped. A tensor still skipped and unwritten at
+  the end raises `LazyTwinError` and the runner is rebuilt the eager way. Lotus load peak 4002 -> 1544 MB.
+- **MLX buffer cache limit** 512 -> 128 MB on 16 GB (`Tuning`: fraction 1/128, min 128): -250..-450 MB peak, speed within
+  1% (swinir +8%, CREStereo kernels +12% for -870 MB; the stereo case can be re-raised with `FASTFORKS_MLX_TUNING`).
+- **Group norm** through `mx.fast.layer_norm` (no float32 copy of the activation): lotus 2.7 -> 2.2 s per call.
+- `MlxModule._release` does not `madvise` file-mapped storages.
+
+Survey, portable, MLX before -> after vs MPS (ms / peak MB):
+
+| ref | dtype | MLX before | MLX after | MPS |
+|---|---|---|---|---|
+| lotus-normal-g | fp16 | 2757 / 6413 | 2152 / 4734 | 1553 / 6632 |
+| lotus-normal-g | fp32 | 5081 / 8890 | 3376 / 8003 | 2886 / 9700 |
+| lotus-normal-d | fp16 | 2166 / 9159 | 2197 / 4729 | 1459 / 6628 |
+| marigold-depth | fp16 | 6347 / 6415 | 4231 / 4254 | 2498 / 6640 |
+| marigold-depth | fp32 | 7195 / 8258 | 5404 / 7509 | 2970 / 9709 |
+| marigold-normals-lcm | fp16 | 2104 / 9797 | 2235 / 4255 | 1655 / 6671 |
+| stablenormal-turbo | fp16 | 2661 / 11417 | 2527 / 7816 | 1690 / 8985 |
+| lingbot-depth | fp16 | 4502 / 4096 | 4567 / 2968 | 3376 / 3228 |
+| lingbot-depth | fp32 | 4704 / 4615 | 4375 / 4209 | 3363 / 4011 |
+| midas-dpt-beit-large-512 | fp16 | 574 / 2699 | 562 / 1886 | 635 / 2407 |
+| moge-2-vits-normal | fp16 | 949 / 2500 | 877 / 2046 | 857 / 1679 |
+| moge-2-vits-normal | fp32 | 985 / 2509 | 944 / 1822 | 361 / 2634 |
+| deeplabv3-r101-d8 | fp16 | 493 / 2029 | 467 / 1604 | 528 / 2010 |
+| segformer-b5-ade20k | fp16 | 341 / 1518 | 343 / 1373 | 375 / 1974 |
+| pointdit-b-512 | fp16 | 373 / 1702 | 355 / 1519 | 337 / 1912 |
+| pointdit-l-512 | fp16 | 1212 / 3759 | 1084 / 3352 | 1013 / 4548 |
+
+Still above MPS in memory: moge-2-vits fp16 (+370 MB: call-phase activations, mx peak 1.3 GB at 994x1482) and
+lingbot-depth fp32 (+200 MB). The SD-family (lotus, marigold, stablenormal) is 1.3-1.7x slower than MPS (time, not memory):
+their resident heap beyond MLX buffers is about 650 MB and the first call pays the mmap page-in. Not done: duplicate
+Winograd / folded-BN weights, fp32 upcasts in `_layer_norm` / `_vector_norm`, segment-size policy.
