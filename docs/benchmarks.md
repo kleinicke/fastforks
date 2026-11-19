@@ -855,7 +855,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | fast-foundationstereo | – | – | – | 135 | – | – | 1120 / 1236 |
 | great-igev-eth3d | – | – | – | 397 | – | – | 1134 / 1302 |
 | great-igev-kitti | – | – | – | 396 | – | – | 1134 / 1302 |
-| great-igev-middlebury | OOM | OOM | – | 580 | – | – | 1472 / 1642 |
+| great-igev-middlebury | OOM | OOM | 1789 | 580 | 3.1x | 1602 / 1878 | 1472 / 1642 |
 | great-igev-sceneflow | – | – | – | 397 | – | – | 1134 / 1302 |
 | hitnet-eth3d | – | – | 67.6 | 23.2 | 2.9x | 848 / 1068 | 623 / 770 |
 | hitnet-middlebury-d400 | – | – | 176 | 53.1 | 3.3x | 1701 / 2154 | 1207 / 1514 |
@@ -1562,7 +1562,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | foundationstereo-vit-s | 1.44 (375x1242) | 1.03 | 0.33† | 1.06 (375x1242) | 2.51† | 1.12† |
 | great-igev-eth3d | 0.44 (375x1242) | 0.32 | 0.70 (375x1242) | 4.60 (375x1242) | 1.10† | 1.14 (375x1242) |
 | great-igev-kitti | 0.44 (375x1242) | 0.32 | 0.65 (375x1242) | 4.60 (375x1242) | 1.10† | 0.70 (375x1242) |
-| great-igev-middlebury | 0.39 (375x1242) | 3.91 | 1.02 (375x1242) | 4.59 (375x1242) | 1.81† | 0.73 (375x1242) |
+| great-igev-middlebury | 0.39 (375x1242) | – | 1.02 (375x1242) | 4.59 (375x1242) | 1.79 | 0.73 (375x1242) |
 | great-igev-sceneflow | 0.44 (375x1242) | 0.32 | 0.64 (375x1242) | 4.60 (375x1242) | 1.10† | 0.70 (375x1242) |
 | gwcnet-g-sceneflow | 0.26 (375x1242) | 0.40 | 0.14† | 0.46 (375x1242) | 0.34† | 0.24† |
 | gwcnet-gc-sceneflow | 0.29 (375x1242) | 0.39 | 0.44† | 0.12 (375x1242) | 0.35† | 0.26† |
@@ -2159,7 +2159,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | foundationstereo-vit-s | 994x1482 | 2514 ms | 2044 ms | 1196 ms | 1120 ms | 212 s | 545 s | 2493 / 2606 | 2822 / 3646 | 2169 / 2470 | 2794 / 2872 |
 | great-igev-eth3d | 994x1482 | 1085 ms | 829 ms | 940 ms | 397 ms | 224 s | 685 s | 1402 / 1678 | 2831 / 3362 | 1134 / 1302 | 6151 / 6172 |
 | great-igev-kitti | 994x1482 | 1085 ms | 830 ms | 942 ms | 396 ms | 225 s | 687 s | 1402 / 1678 | 2831 / 3362 | 1134 / 1302 | 6155 / 6234 |
-| great-igev-middlebury | 994x1482 | 1785 ms | 1676 ms | fails: AttributeError: 'NoneType' object has no attribute 'get_tens | 580 ms | 326 s | – | 1875 / 2078 | 5228 / 5720 | 1472 / 1642 | – |
+| great-igev-middlebury | 994x1482 | 1789 ms | 1676 ms | fails: AttributeError: 'NoneType' object has no attribute 'get_tens | 580 ms | 326 s | – | 1602 / 1878 | 5228 / 5720 | 1472 / 1642 | – |
 | great-igev-middlebury | 375x1242 | 492 ms | – | 3697 ms, fp32 engine (MobileNetV2 feature pyramid with eager stereo inference) | 176 ms | – | 13.1 s | 1165 / 1298 | – | 1060 / 1144 | 2388 / 4022 |
 | great-igev-sceneflow | 994x1482 | 1085 ms | 830 ms | 944 ms | 397 ms | 224 s | 675 s | 1402 / 1678 | 2831 / 3362 | 1134 / 1302 | 6155 / 6234 |
 | gwcnet-g-sceneflow | 994x1482 | 344 ms | 417 ms | 275 ms | 238 ms | 52.6 s | 66.0 s | 2081 / 2402 | 1527 / 1864 | 1799 / 2102 | 3634 / 3648 |

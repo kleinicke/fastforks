@@ -848,7 +848,7 @@ Commercial use: yes.
 | `great-igev-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2252<br>1458<br>1085<br>397<br>830<br>944 | 8964 / 9268<br>8861 / 9206<br>1402 / 1678<br>1134 / 1302<br>2831 / 3362<br>6155 / 6234 |
 | `great-igev-kitti` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2252<br>1458<br>1085<br>396<br>830<br>942 | 8964 / 9268<br>8861 / 9206<br>1402 / 1678<br>1134 / 1302<br>2831 / 3362<br>6155 / 6234 |
 | `great-igev-eth3d` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2252<br>1458<br>1085<br>397<br>829<br>940 | 8964 / 9268<br>8861 / 9206<br>1402 / 1678<br>1134 / 1302<br>2831 / 3362<br>6151 / 6172 |
-| `great-igev-middlebury` (max_disp 768) | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>1785<br>580<br>1676<br>fails: AttributeError: 'NoneType' object has no attribute 'get_tens | –<br>–<br>1875 / 2078<br>1472 / 1642<br>5228 / 5720<br>– |
+| `great-igev-middlebury` (max_disp 768) | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>1789<br>580<br>1676<br>fails: AttributeError: 'NoneType' object has no attribute 'get_tens | –<br>–<br>1602 / 1878<br>1472 / 1642<br>5228 / 5720<br>– |
 | `great-igev-middlebury` (max_disp 768) | KITTI 2015 (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT fp32 | 1055<br>705<br>492<br>176<br>3697 (MobileNetV2 feature pyramid with eager stereo inference) | 10755 / 10968<br>10728 / 10974<br>1165 / 1298<br>1060 / 1144<br>2388 / 4022 |
 
 <details><summary>Details</summary>
@@ -874,10 +874,11 @@ Commercial use: yes.
 - `great-igev-middlebury` 375x1242, first call: TensorRT fp32 13 s (ONNX + engine).
 - `great-igev-sceneflow` original (fp32) 994x1482, original 994x1482, portable 994x1482: measured on great-igev-eth3d (same architecture, other checkpoint)
 - `great-igev-kitti` original (fp32) 994x1482, original 994x1482, portable 994x1482: measured on great-igev-eth3d (same architecture, other checkpoint)
+- `great-igev-middlebury` portable 994x1482: Portable CUDA builds the geometry pyramid after context encoding. Peak reservation uses expandable segments.
 - `great-igev-sceneflow` load / first call: original 0.44 s / 4.596 s (375x1242), portable 0.32 s / 1.102† s, kernels 0.64 s / 0.702 s (375x1242)
 - `great-igev-kitti` load / first call: original 0.44 s / 4.596 s (375x1242), portable 0.32 s / 1.102† s, kernels 0.65 s / 0.699 s (375x1242)
 - `great-igev-eth3d` load / first call: original 0.44 s / 4.596 s (375x1242), portable 0.32 s / 1.102† s, kernels 0.7 s / 1.138 s (375x1242)
-- `great-igev-middlebury` load / first call: original 0.39 s / 4.586 s (375x1242), portable 3.91 s / 1.808† s, kernels 1.02 s / 0.732 s (375x1242)
+- `great-igev-middlebury` load / first call: original 0.39 s / 4.586 s (375x1242), portable – s / 1.789 s, kernels 1.02 s / 0.732 s (375x1242)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
