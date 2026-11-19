@@ -82,7 +82,9 @@ def _net(ctx: Context) -> WAFT:
 
 
 def _disparity(net: WAFT, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
-    return net({"img1": left, "img2": right})["disp_pred"]
+    capture = torch.compiler.is_compiling() or torch.jit.is_tracing()
+    final_only = not capture and not torch.is_grad_enabled()
+    return net({"img1": left, "img2": right}, final_disparity_only=final_only)["disp_pred"]
 
 
 class Portable(Runner):
