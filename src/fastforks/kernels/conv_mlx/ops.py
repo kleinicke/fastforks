@@ -14,6 +14,8 @@ float16 result is a little less exact than the direct convolution's (F(4,3) abou
 
 from __future__ import annotations
 
+import os
+
 import numpy as np
 
 from fastforks._core.mlx import metal_kernel, mx
@@ -165,7 +167,9 @@ def supported(x_shape: tuple[int, ...], cout: int) -> bool:
     return cin % CV == 0 and cout % CV == 0 and cin >= _MIN_C and cout >= _MIN_C and h * w >= 48 * 48
 
 
-_BAND_BYTES = 192 << 20  # target size of one band's transformed activations: bounds the peak of huge images
+_BAND_BYTES = (
+    int(os.environ.get("FF_BAND_MB", "192")) << 20
+)  # target size of one band's transformed activations: bounds the peak of huge images
 
 
 def _band(x: mx.array, u: mx.array, bias, m, act, slope, residual, r0: int, bth: int):  # noqa: ANN001, ANN202, PLR0913, PLR0917

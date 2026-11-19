@@ -124,5 +124,5 @@ class Kernels(Portable):
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_flow",), cache_mb=2048),
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_flow",), cache_mb=1024),
 }

@@ -13,6 +13,7 @@ import contextlib
 import contextvars
 import dataclasses
 import gc
+import os
 import weakref
 from typing import TYPE_CHECKING, Any
 
@@ -174,10 +175,13 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                     super().__init__(dataclasses.replace(ctx, dtype="float32"))
             finally:
                 _RUN_DTYPE.reset(token)
-            if cache_mb:
+            if cache_mb or os.environ.get("FASTFORKS_MLX_CACHE_MB"):
                 from fastforks._core.mlx import mx  # noqa: PLC0415 - MLX only
 
-                mx.set_cache_limit(max(cache_mb << 20, mx.set_cache_limit(0)))  # returns the previous limit
+                if forced := os.environ.get("FASTFORKS_MLX_CACHE_MB"):  # sweeps: this exact limit, declared or not
+                    mx.set_cache_limit(int(forced) << 20)
+                else:
+                    mx.set_cache_limit(max(cache_mb << 20, mx.set_cache_limit(0)))  # returns the previous limit
             kernels = ctx.mode == "kernels" and (ctx.dtype == "float16" or not kernels_fp16_only)
             for name in methods:
                 owner, _, leaf = name.rpartition(".")

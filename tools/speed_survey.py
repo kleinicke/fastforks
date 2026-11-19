@@ -135,6 +135,7 @@ def plan(
 ) -> list[dict[str, Any]]:
     """The survey's jobs, cross-device subset first: one per (ref, mode, dtype), `skip` = why it is `unsupported`."""
     only, want = set(only), [m for m in MODES if m in set(modes)]
+    only_dtype = os.environ.get("FF_SURVEY_DTYPE", "")  # sweeps: one dtype of every mode
     cards, inputs = _cards(), _std_inputs()
     first: dict[str, str] = {}  # family -> its cross-device ref: the card's first variant the floor has
     for ref in sorted(inputs, key=lambda r: (cards[r.split("@")[0]][1], r)):
@@ -150,7 +151,11 @@ def plan(
             continue  # no MLX port: no row (a port is the exception; the mps entry of the Mac has the family)
         base = {"ref": ref, "task": inp["task"], "input": inp["label"], "scene": inp["scene"], "cross": ref in picked}
         for mode in want:
-            out += [{**base, "mode": mode, "dtype": d, "skip": why} for d, why in _dtypes(card, mode, dev.backend)]
+            out += [
+                {**base, "mode": mode, "dtype": d, "skip": why}
+                for d, why in _dtypes(card, mode, dev.backend)
+                if not only_dtype or d == only_dtype
+            ]
     return out
 
 

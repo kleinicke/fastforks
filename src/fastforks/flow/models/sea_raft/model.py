@@ -141,5 +141,5 @@ RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": mlx_wrap.port(Portable, cache_mb=2048),
+    "portable_mlx": mlx_wrap.port(Portable, cache_mb=1024),
 }
