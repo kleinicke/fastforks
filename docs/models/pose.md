@@ -280,7 +280,7 @@ Top-down on the same every-tenth-image subset for all modes, ground-truth person
 | `rtmpose-m-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 78.3 | 78.4 | 78.3 | 78.3 | 78.3 |  |
 | `rtmpose-l-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.8 | 79.8 | 79.8 | 79.8 | 80.0 |  |
 | `rtmpose-x-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 80.5 | 80.6 | 80.5 | 80.5 | 80.4 |  |
-| `rtmpose-m-hand5` | COCO-WholeBody validation (1,568 images), hand PCK@0.2 % / EPE in px |  |  |  | 80.98 / 4.56 |  |  |
+| `rtmpose-m-hand5` | COCO-WholeBody validation (1,568 images), hand PCK@0.2 % / EPE in px | 80.99 / 4.56 |  |  | 80.98 / 4.56 |  |  |
 | `rtmpose-t-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) |  |  |  | 1.7742 |  |  |
 | `rtmpose-s-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) |  |  |  | 1.6854 |  |  |
 | `rtmpose-m-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) | 1.5244 |  |  | 1.5225 |  |  |

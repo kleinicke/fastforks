@@ -132,6 +132,7 @@ _DATASETS = {
     },
     "interpolation": {
         "davis2017-triplets180": "DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM",
+        "davis2017-triplets-fixed-480x854": "DAVIS 2017 (172 native 480 x 854 triplets), PSNR / SSIM",
         "davis2017-first-triplet-1080p": "DAVIS 2017, the first triplet per video resized to 1080p (90), PSNR",
     },
     "restoration": {
@@ -511,6 +512,8 @@ _PROTOCOL = {
     "interpolation": "DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the "
     "frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the "
     "output rounded to uint8, on RGB in [0, 1], averaged over the triplets for the 180-triplet benchmark. ",
+    ("interpolation", "davis2017-triplets-fixed-480x854"): "The fixed-shape comparison uses all 172 triplets at the "
+    "native 480 x 854 size and follows the same scoring protocol. ",
     ("interpolation", "davis2017-first-triplet-1080p"): "The fixed 1080p validation resizes the first three frames of "
     "each DAVIS video with bilinear interpolation and measures RGB PSNR before rounding the predicted middle frame. ",
     "matching": "Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE "

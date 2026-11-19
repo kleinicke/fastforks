@@ -431,7 +431,7 @@ CPU, float32: max |diff| <= 4.3e-05 vs the original. GPU, float16 (the default),
 
 ### Limitations
 
-- The fixed FP32 DINOv2 TensorRT stage raised AUC@5 from 61.60 to 64.93 on 300 MegaDepth pairs. The largest regression was from 13.67 to the 90-degree pose-estimation failure value.
+- The fixed FP32 DINOv2 TensorRT stage raised AUC@5 from 61.60 to 64.93 on 300 MegaDepth pairs. On one pair the pose error went from 13.67 degrees to the 90-degree failure value, even with TF32 disabled.
 - One direction (the first image's half of upstream's symmetric call); upstream's sampling / keypoint helpers are not included; tools/eval_matching.py has the MegaDepth-1500 sampling.
 - Both images are resized to squares (upstream's behaviour), whatever their aspect ratio; upstream resizes PIL images, this runner float tensors (bicubic, antialiased).
 

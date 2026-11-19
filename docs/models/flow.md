@@ -406,6 +406,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `memflow` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3116<br>964<br>865<br>1642<br>fails: TensorRT engine build failed | 15061 / 15594<br>8265 / 8382<br>968 / 1022<br>6813 / 6946<br>– |
+| `memflow` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>178 (full fixed-shape flow network, standalone trace export and build) | –<br>–<br>–<br>1171 / 1176 |
 | `memflow-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3214<br>964<br>865<br>1640<br>fails: TensorRT engine build failed | 15061 / 15634<br>8265 / 8382<br>968 / 1022<br>6813 / 6946<br>– |
 | `memflow-sintel` | synthetic (384x1248) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>143<br>–<br>137 (full fixed-shape flow network, standalone trace export and build) | –<br>528 / 738<br>–<br>887 / 892 |
 | `memflow-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3247<br>965<br>865<br>1644<br>fails: TensorRT engine build failed | 15061 / 15594<br>8265 / 8382<br>968 / 1022<br>6813 / 6946<br>– |
@@ -427,6 +428,7 @@ Commercial use: yes.
 - Input size: any H x W >= 128, padded to a multiple of 8
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `memflow` 1024x2048 (8.2 GiB peak allocated, 9.2 reserved); `memflow-sintel` 1024x2048 (8.2 GiB peak allocated, 9.2 reserved); `memflow-kitti` 1024x2048 (8.2 GiB peak allocated, 9.2 reserved)
 - `memflow` 1080x1920, first call: portable + torch.compile 79 s (cold Inductor cache).
+- `memflow` 384x1248, first call: TensorRT fp32 99 s (ONNX + engine).
 - `memflow-sintel` 1080x1920, first call: portable + torch.compile 76 s (cold Inductor cache).
 - `memflow-sintel` 384x1248, first call: TensorRT fp16 140 s (ONNX + engine).
 - `memflow-kitti` 1080x1920, first call: portable + torch.compile 73 s (cold Inductor cache).
@@ -447,12 +449,13 @@ Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
 |---|---|---|---|---|---|---|---|---|
 | `memflow` | KITTI 2015 train, EPE / Fl-all % | 4.108 / 14.43 | 4.107 / 14.43 | 4.109 / 14.44 | 4.093 / 14.43 | 4.103 / 14.42 |  |  |
+| `memflow` | KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all % |  |  |  | 5.444 / 17.04 |  | 5.445 / 17.05 |  |
 | `memflow-sintel` | KITTI 2015 train, EPE / Fl-all % | 1.218 / 4.09 |  |  | 1.218 / 4.09 |  |  | trained on this dataset's public images; not a zero-shot result |
 | `memflow-sintel` | KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all % |  |  | 1.263 / 4.34 |  |  | 1.262 / 4.34 | trained on this dataset's public images; not a zero-shot result |
 | `memflow-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.600 / 1.21 | 0.600 / 1.21 | 0.600 / 1.21 | 0.600 / 1.21 | 0.600 / 1.21 |  | trained on this dataset's public images; not a zero-shot result |
 | `memflow-kitti` | KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all % |  |  | 0.616 / 1.29 |  |  | 0.616 / 1.29 | trained on this dataset's public images; not a zero-shot result |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4a202932 / db9e79d5+uncommitted, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 6f0a70e1, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5+uncommitted, 2026-11-13; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4a202932, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4a202932 / db9e79d5+uncommitted, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 4a202932 / 6f0a70e1, 2026-11-17 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5+uncommitted, 2026-11-13; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4a202932, 2026-11-18 to 2026-11-19.
 
 ### Parity
 

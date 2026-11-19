@@ -6,6 +6,7 @@ outputs = ["frame"]
 uses = []  # fastforks.shared modules this family imports
 limitations = [
   "At 480 x 854 the standalone GIMM-VFI-R FP32 TensorRT engine returned different frames from portable FP32. Mean normalized absolute pixel error was 0.07687. The same ONNX file run in ONNX Runtime measured 0.000029.",
+  "At 480 x 854 the FP32 GIMM-VFI-R-P TensorRT encoders took 1190 ms versus 1231 ms for paired portable FP32. Estimated peak allocated memory was 3592 MiB versus 3282 MiB. The speed table also includes the faster FP16 modes.",
 ]
 
 [upstream]
@@ -44,6 +45,7 @@ venue = "NeurIPS 2024"
 
 [[variants]]
 id = "gimm-vfi-r"
+planned = { tensorrt = "the full FP32 engine diverges on pixels; the fixed RAFT encoder stage also loses 0.094 dB PSNR on one of 172 DAVIS triplets" }
 revision = 1
 weights = [{ name = "gimmvfi_r_arb.pt", size = 79305223, sha256 = "1dff0ac3ca91483950eff814818115ff90cc3d16070089cc8cc3090eb3ee76f2", url = "https://huggingface.co/GSean/GIMM-VFI/resolve/ab7735cdcfbd2e03c1bf2819380a25e8a4f321d1/gimmvfi_r_arb.pt" }]
 

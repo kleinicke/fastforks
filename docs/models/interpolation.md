@@ -156,8 +156,9 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2622<br>1629<br>1498<br>fails: TensorRT parser: Sc node | –<br>9899 / 10400<br>4587 / 5362<br>12051 / 12880<br>– |
+| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2622<br>1629<br>1498<br>planned for 0.2.1 | –<br>9899 / 10400<br>4587 / 5362<br>12051 / 12880<br>– |
 | `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2622<br>1628<br>1498<br>fails: TensorRT parser: Sc node | –<br>9899 / 10400<br>4587 / 5282<br>12051 / 12880<br>– |
+| `gimm-vfi-r-p` | synthetic (480x854) | original<br>portable<br>kernels<br>TensorRT fp32 | 498<br>467<br>289<br>1190 (RAFT feature and context encoders with eager flow update and synthesis) | 2820 / 3246<br>1574 / 1674<br>1388 / 1598<br>3592 / 6000 |
 
 <details><summary>Details</summary>
 
@@ -168,25 +169,29 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Training data: Vimeo-90K (septuplets / triplets for frame interpolation) (configs/gimmvfi/gimmvfi_r_arb.yaml: Vimeo-90K septuplets with arbitrary-time targets; the RAFT flow estimator starts from the raft-things checkpoint (FlyingChairs + FlyingThings3D).)
 - Kernel libraries: `raft_flow`, `cudnn_hacc`
 - Variants: `gimm-vfi-r`, `gimm-vfi-r-p`
+- Not in this release (planned for 0.2.1): `gimm-vfi-r` TensorRT export: the full FP32 engine diverges on pixels; the fixed RAFT encoder stage also loses 0.094 dB PSNR on one of 172 DAVIS triplets
 - Outputs: frame
 - Input size: any H x W >= 128, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `gimm-vfi-r` 1024x2048 (13.4 GiB peak allocated, 14.5 reserved); `gimm-vfi-r-p` 1024x2048 (13.0 GiB peak allocated, 14.2 reserved)
 - `gimm-vfi-r` 1080x1920, first call: portable + torch.compile 307 s (cold Inductor cache).
 - `gimm-vfi-r-p` 1080x1920, first call: portable + torch.compile 307 s (cold Inductor cache).
+- `gimm-vfi-r-p` 480x854, first call: TensorRT fp32 17 s (ONNX + engine).
+- `gimm-vfi-r-p` original 480x854: torch.autocast(float16) around the call; upstream GIMMVFI_R forward as video_Nx.py, time 0.5, ds_factor 1.0, replicate pad to 32, cupy softsplat
 - `gimm-vfi-r` load / first call: original 2.05 s / 1.336 s (480x854), portable 0.27 s / 2.622 s, kernels 0.59 s / 1.631 s
 - `gimm-vfi-r-p` load / first call: original 2.96 s / 1.438 s (480x854), portable 0.27 s / 0.997 s (480x854), kernels 0.58 s / 0.684 s (480x854)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
-DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the output rounded to uint8, on RGB in [0, 1], averaged over the triplets for the 180-triplet benchmark. Original = the original code named under Details, same checkpoint and protocol.
+DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the output rounded to uint8, on RGB in [0, 1], averaged over the triplets for the 180-triplet benchmark. The fixed-shape comparison uses all 172 triplets at the native 480 x 854 size and follows the same scoring protocol. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `gimm-vfi-r` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 |  |
-| `gimm-vfi-r-p` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `gimm-vfi-r` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 |  |  |
+| `gimm-vfi-r-p` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 |  |  |
+| `gimm-vfi-r-p` | DAVIS 2017 (172 native 480 x 854 triplets), PSNR / SSIM |  |  |  | 28.93 / 0.8505 |  | 28.93 / 0.8505 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks dc38c37c, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a39491d3 / dc38c37c, 2026-11-18 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a39491d3, 2026-11-19.
 
 ### Parity
 
@@ -200,6 +205,7 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 ### Limitations
 
 - At 480 x 854 the standalone GIMM-VFI-R FP32 TensorRT engine returned different frames from portable FP32. Mean normalized absolute pixel error was 0.07687. The same ONNX file run in ONNX Runtime measured 0.000029.
+- At 480 x 854 the FP32 GIMM-VFI-R-P TensorRT encoders took 1190 ms versus 1231 ms for paired portable FP32. Estimated peak allocated memory was 3592 MiB versus 3282 MiB. The speed table also includes the faster FP16 modes.
 
 </details>
 
