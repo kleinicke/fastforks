@@ -843,7 +843,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | c-foundationstereo-s | OOM | – | 3643 | 1366 | 2.7x | 4903 / 7258 | 3058 / 4408 |
 | cfnet-sceneflow | – | – | 409 | 225 | 1.8x | 1822 / 2578 | 1073 / 1604 |
 | coex-sceneflow | – | – | 49.9 | 23.5 | 2.1x | 1093 / 1174 | 368 / 514 |
-| defom-stereo-vitl-sceneflow | – | – | – | 642 | – | – | 3154 / 3522 |
+| defom-stereo-vitl-sceneflow | – | – | – | 645 | – | – | 2781 / 4234 |
 | fast-acvnet-generalization | – | – | 54.7 | 38.1 | 1.4x | 653 / 756 | 654 / 716 |
 | fast-acvnet-kitti12 | – | – | 54.7 | 38.1 | 1.4x | 653 / 756 | 654 / 716 |
 | fast-acvnet-kitti15 | – | – | 54.7 | 38.1 | 1.4x | 653 / 756 | 654 / 716 |
@@ -1366,7 +1366,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | mvsplat-re10k | 336x518 | – | 279 | 181 | 172 | 1.6x | 1.0x | 2889 / 4160 | 1239 / 1532 | 1239 / 1532 |
 | patchmatchnet | 1536x1024 | 248 | 220 | 201 | 29.5 | 7.4x | 6.8x | 1228 / 1272 | 1039 / 1212 | 648 / 772 |
 | pi3 | 336x518 | – | 1057 | 821 | 559 | 1.9x | 1.5x | 5926 / 6016 | 2360 / 2416 | 2367 / 2456 |
-| resplat-base-re10k | 480x640 | – | 2521 | 7086 | 1280 | 2.0x | 5.5x | 10139 / 12684 | 6951 / 8736 | 6944 / 8706 |
+| resplat-base-re10k | 480x640 | – | 2521 | 7228 | 1178 | 2.1x | 6.1x | 10139 / 12684 | 4364 / 6884 | 4370 / 6936 |
 | resplat-small-dl3dv | 480x640 | – | 493 | 1723 | 362 | 1.4x | 4.8x | 5148 / 5376 | 4995 / 5180 | 4981 / 5148 |
 | vggt-1b | 336x518 | 2502 | 965 | 651 | 460 | 2.1x | 1.4x | 8688 / 9158 | 3643 / 3874 | 3650 / 4194 |
 | vggt-omega-1b-512 | 336x518 | 2650 | 906 | 726 | 467 | 1.9x | 1.6x | 7495 / 7654 | 3421 / 3518 | 3404 / 3494 |
@@ -1401,14 +1401,14 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | neuflow-v2 | 1080x1920 | 171 | 75.6 | 71.2 | 59.1 | 1.3x | 1.2x | 4367 / 4556 | 2366 / 2398 | 790 / 896 |
 | neuflow-v2-sintel | 1080x1920 | 171 | 75.7 | 71.3 | 58.9 | 1.3x | 1.2x | 4367 / 4576 | 2366 / 2398 | 790 / 896 |
 | neuflow-v2-things | 1080x1920 | 172 | 75.8 | 71.4 | 58.9 | 1.3x | 1.2x | 4374 / 4720 | 2366 / 2398 | 779 / 896 |
-| raft-large | 1080x1920 | 480 | 567 | 291 | 83.4 | 5.7x | 3.5x | 7164 / 10928 | 5930 / 6058 | 332 / 352 |
+| raft-large | 1080x1920 | 480 | 567 | 292 | 83.4 | 5.7x | 3.5x | 7164 / 10928 | 5735 / 6042 | 332 / 352 |
 | raft-large-kitti | 1080x1920 | 480 | 567 | 291 | 84.2 | 5.7x | 3.5x | 7164 / 10928 | 5930 / 6058 | 332 / 352 |
 | raft-large-things | 1080x1920 | 481 | 566 | 291 | 83.5 | 5.8x | 3.5x | 7164 / 10928 | 5930 / 6058 | 332 / 352 |
 | raft-small | 1080x1920 | 196 | 395 | 144 | 36.5 | 5.4x | 4.0x | 7032 / 10888 | 5669 / 5706 | 196 / 204 |
 | recover-cx | 1080x1920 | – | 179 | 107 | 89.8 | 2.0x | 1.2x | 1066 / 1168 | 733 / 892 | 733 / 892 |
 | recover-mn | 1080x1920 | – | 103 | 45.5 | 41.8 | 2.5x | 1.1x | 921 / 1036 | 580 / 676 | 580 / 676 |
 | recover-rn | 1080x1920 | – | 130 | 64.1 | 51.3 | 2.5x | 1.2x | 950 / 1046 | 590 / 672 | 590 / 672 |
-| sea-raft-m | 1080x1920 | 504 | 367 | 270 | 73.4 | 5.0x | 3.7x | 7385 / 8570 | 6060 / 6180 | 425 / 454 |
+| sea-raft-m | 1080x1920 | 504 | 367 | 269 | 73.4 | 5.0x | 3.7x | 7385 / 8570 | 5847 / 6570 | 425 / 454 |
 | sea-raft-m-kitti | 1080x1920 | 504 | 367 | 270 | 73.3 | 5.0x | 3.7x | 7385 / 8570 | 6060 / 6180 | 425 / 454 |
 | sea-raft-m-spring | 1080x1920 | 96.1 | 56.7 | 46.8 | 23.5 | 2.4x | 2.0x | 761 / 812 | 652 / 700 | 170 / 194 |
 | sea-raft-m-things | 1080x1920 | 504 | 367 | 270 | 73.0 | 5.0x | 3.7x | 7385 / 8570 | 6060 / 6180 | 425 / 454 |
@@ -2142,7 +2142,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | cfnet-sceneflow | 994x1482 | 409 ms | 249 ms | 171 ms | 225 ms | 53.0 s | 139 s | 1822 / 2578 | 1026 / 1398 | 1073 / 1604 | 1357 / 1410 |
 | coex-sceneflow | 994x1482 | 49.9 ms | 29.4 ms | 20.6 ms | 23.5 ms | 22.4 s | 56.6 s | 1093 / 1174 | 351 / 452 | 368 / 514 | 438 / 452 |
 | crestereo-eth3d | 994x1482 | 732 ms | 398 ms | 298 ms | 229 ms | 120 s | 224 s | 884 / 1030 | 695 / 748 | 644 / 732 | 703 / 740 |
-| defom-stereo-vitl-sceneflow | 994x1482 | 1531 ms | 1002 ms | planned for 0.2.1 | 642 ms | 122 s | – | 4362 / 4838 | 3021 / 3292 | 3154 / 3522 | – |
+| defom-stereo-vitl-sceneflow | 994x1482 | 1531 ms | 1002 ms | planned for 0.2.1 | 645 ms | 122 s | – | 4362 / 4838 | 3021 / 3292 | 2781 / 4234 | – |
 | defom-stereo-vitl-sceneflow | 375x1242 | 404 ms | – | 1151 ms, bf16 engine (whole graph at fixed 375 x 1242) | 180 ms | – | 168 s | 2394 / 2538 | – | 1627 / 1786 | 1782 / 1790 |
 | dlnr-middlebury | 994x1482 | 398 ms | 303 ms | 241 ms | 214 ms | 67.9 s | 156 s | 2635 / 3142 | 1343 / 1692 | 1236 / 1606 | 1455 / 1546 |
 | dlnr-sceneflow | 994x1482 | 398 ms | 301 ms | 241 ms | 214 ms | 69.0 s | 161 s | 2635 / 3142 | 1343 / 1672 | 1236 / 1606 | 1711 / 1784 |
@@ -2603,7 +2603,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | patchmatchnet | 1536x1024 | 201 ms | 175 ms | 51.0 ms | 29.5 ms | 29.4 s | 82.1 s | 1039 / 1212 | 1798 / 1888 | 648 / 772 | 1073 / 1106 |
 | pi3 | 336x518 | 821 ms | 752 ms | planned for 0.2.1 | 559 ms | 55.6 s | – | 2360 / 2416 | 2205 / 2334 | 2367 / 2456 | – |
 | pi3 | 8x512x640 | – | – | 735 ms (DINOv2 encoder with eager scene decoding, 8 views) | – | – | 53.8 s | – | – | – | 2586 / 2976 |
-| resplat-base-re10k | 480x640 | 7086 ms | 7098 ms (standalone Gaussian initialization and recurrent refinement heads, eager rendering and geometry) | fails: TypeError: _Base.forward() missing 1 required positional arg | 1280 ms | 12.6 s | – | 6951 / 8736 | 4656 / 7630 | 6944 / 8706 | – |
+| resplat-base-re10k | 480x640 | 7228 ms | 7098 ms (standalone Gaussian initialization and recurrent refinement heads, eager rendering and geometry) | fails: TypeError: _Base.forward() missing 1 required positional arg | 1178 ms | 12.6 s | – | 4364 / 6884 | 4656 / 7630 | 4370 / 6936 | – |
 | resplat-base-re10k | 256x256 | – | – | 1028 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 2173 / 2988 |
 | resplat-small-dl3dv | 480x640 | 1723 ms | 1538 ms | planned for 0.2.1 | 362 ms | 243 s | – | 4995 / 5180 | 4995 / 5138 | 4981 / 5148 | – |
 | resplat-small-dl3dv | 256x448 | – | – | 1362 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 1367 / 1800 |
@@ -2651,7 +2651,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | neuflow-v2 | 1080x1920 | 71.2 ms | 91.4 ms | 65.0 ms | 59.1 ms | 28.5 s | 104 s | 2366 / 2398 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
 | neuflow-v2-sintel | 1080x1920 | 71.3 ms | 91.4 ms | 64.9 ms | 58.9 ms | 28.5 s | 102 s | 2366 / 2398 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
 | neuflow-v2-things | 1080x1920 | 71.4 ms | 91.5 ms | 65.0 ms | 58.9 ms | 28.8 s | 104 s | 2366 / 2398 | 4529 / 4558 | 779 / 896 | 8710 / 8748 |
-| raft-large | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.4 ms | 41.3 s | – | 5930 / 6058 | 5886 / 5924 | 332 / 352 | – |
+| raft-large | 1080x1920 | 292 ms | 195 ms | fails: TensorRT engine build failed | 83.4 ms | 41.3 s | – | 5735 / 6042 | 5886 / 5924 | 332 / 352 | – |
 | raft-large | 384x1248 | – | – | 58.9 ms, fp32 engine | – | – | 147 s | – | – | – | 873 / 918 |
 | raft-large-kitti | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 84.2 ms | 39.3 s | – | 5930 / 6058 | 5886 / 5924 | 332 / 352 | – |
 | raft-large-kitti | 384x1248 | – | – | 19.8 ms | – | – | 173 s | – | – | – | 845 / 856 |
@@ -2662,7 +2662,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | recover-cx | 1080x1920 | 107 ms | 89.9 ms | 47.5 ms | 89.8 ms | 13.9 s | 41.6 s | 733 / 892 | 504 / 572 | 733 / 892 | 603 / 632 |
 | recover-mn | 1080x1920 | 45.5 ms | 32.2 ms | 21.2 ms | 41.8 ms | 14.4 s | 56.9 s | 580 / 676 | 365 / 416 | 580 / 676 | 425 / 466 |
 | recover-rn | 1080x1920 | 64.1 ms | 48.8 ms | 28.9 ms | 51.3 ms | 9.34 s | 34.1 s | 590 / 672 | 375 / 432 | 590 / 672 | 419 / 466 |
-| sea-raft-m | 1080x1920 | 270 ms | 191 ms | 132 ms | 73.4 ms | 34.3 s | 70.0 s | 6060 / 6180 | 5869 / 5920 | 425 / 454 | 11110 / 11130 |
+| sea-raft-m | 1080x1920 | 269 ms | 191 ms | 132 ms | 73.4 ms | 34.3 s | 70.0 s | 5847 / 6570 | 5869 / 5920 | 425 / 454 | 11110 / 11130 |
 | sea-raft-m-kitti | 1080x1920 | 270 ms | 191 ms | 132 ms | 73.3 ms | 34.9 s | 69.7 s | 6060 / 6180 | 5869 / 5920 | 425 / 454 | 11110 / 11130 |
 | sea-raft-m-spring | 1080x1920 | 46.8 ms | 34.6 ms | 4.43 ms | 23.5 ms | 23.2 s | 47.1 s | 652 / 700 | 624 / 640 | 170 / 194 | 291 / 318 |
 | sea-raft-m-things | 1080x1920 | 270 ms | 192 ms | 132 ms | 73.0 ms | 34.9 s | 73.6 s | 6060 / 6180 | 5869 / 5920 | 425 / 454 | 11110 / 11130 |

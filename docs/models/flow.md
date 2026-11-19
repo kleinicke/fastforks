@@ -649,7 +649,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `raft-large` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>291<br>83.4<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>5930 / 6058<br>332 / 352<br>5886 / 5924<br>– |
+| `raft-large` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>292<br>83.4<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>5735 / 6042<br>332 / 352<br>5886 / 5924<br>– |
 | `raft-large` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>58.9 | –<br>–<br>–<br>873 / 918 |
 | `raft-large-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 481<br>566<br>291<br>83.5<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>5930 / 6058<br>332 / 352<br>5886 / 5924<br>– |
 | `raft-large-things` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>59.0 | –<br>–<br>–<br>873 / 918 |
@@ -683,6 +683,7 @@ Commercial use: yes.
 - `raft-small` 384x1248, first call: TensorRT fp32 178 s (ONNX + engine).
 - `raft-large` original (fp32) 1080x1920: torchvision 0.29.1+cu130 raft_large, num_flow_updates=12, [-1, 1] conversion in the call
 - `raft-large` original 1080x1920: torch.autocast(fp16) around the call; torchvision 0.29.1+cu130 raft_large, num_flow_updates=12, [-1, 1] conversion in the call
+- `raft-large` portable 1080x1920: Released the correlation pyramid before final upsampling and scoped encoder and lookup tensors to their use. The matched baseline was 291.134 ms and 5921 MiB peak allocated. The synthetic result and three labeled pairs matched bitwise.
 - `raft-large-things` original (fp32) 1080x1920: torchvision 0.29.1+cu130 raft_large, num_flow_updates=12, [-1, 1] conversion in the call
 - `raft-large-things` original 1080x1920: torch.autocast(fp16) around the call; torchvision 0.29.1+cu130 raft_large, num_flow_updates=12, [-1, 1] conversion in the call
 - `raft-large-kitti` original (fp32) 1080x1920: torchvision 0.29.1+cu130 raft_large, num_flow_updates=12, [-1, 1] conversion in the call
@@ -800,7 +801,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sea-raft-m` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>270<br>73.4<br>191<br>132 | 8503 / 8580<br>7385 / 8570<br>6060 / 6180<br>425 / 454<br>5869 / 5920<br>11110 / 11130 |
+| `sea-raft-m` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>269<br>73.4<br>191<br>132 | 8503 / 8580<br>7385 / 8570<br>5847 / 6570<br>425 / 454<br>5869 / 5920<br>11110 / 11130 |
 | `sea-raft-m-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>270<br>73.3<br>191<br>132 | 8503 / 8580<br>7385 / 8570<br>6060 / 6180<br>425 / 454<br>5869 / 5920<br>11110 / 11130 |
 | `sea-raft-m-spring` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 96.1<br>56.7<br>46.8<br>23.5<br>34.6<br>4.43 | 759 / 858<br>761 / 812<br>652 / 700<br>170 / 194<br>624 / 640<br>291 / 318 |
 | `sea-raft-m-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 504<br>367<br>270<br>73.0<br>192<br>132 | 8503 / 8580<br>7385 / 8570<br>6060 / 6180<br>425 / 454<br>5869 / 5920<br>11110 / 11130 |
@@ -837,6 +838,7 @@ Commercial use: yes.
 - `sea-raft-s-spring` 1080x1920, first call: portable + torch.compile 22 s (cold Inductor cache), TensorRT fp16 39 s (ONNX + engine).
 - `sea-raft-m` original (fp32) 1080x1920: upstream RAFT (spring-M.json architecture) + evaluate.py calc_flow, iters=4, scale=0
 - `sea-raft-m` original 1080x1920: torch.autocast(fp16) around the call; upstream RAFT (spring-M.json architecture) + evaluate.py calc_flow, iters=4, scale=0
+- `sea-raft-m` portable 1080x1920: Released the correlation pyramid before final upsampling and scoped encoder and lookup tensors to their use. The matched baseline was 268.534 ms and 6056 MiB peak allocated. The synthetic result and three labeled pairs matched bitwise.
 - `sea-raft-m-kitti` original (fp32) 1080x1920: upstream RAFT (spring-M.json architecture) + evaluate.py calc_flow, iters=4, scale=0
 - `sea-raft-m-kitti` original 1080x1920: torch.autocast(fp16) around the call; upstream RAFT (spring-M.json architecture) + evaluate.py calc_flow, iters=4, scale=0
 - `sea-raft-m-spring` original (fp32) 1080x1920: upstream RAFT (spring-M.json architecture) + evaluate.py calc_flow, iters=4, scale=-1

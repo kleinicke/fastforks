@@ -23,7 +23,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`cfnet-sceneflow`](#cfnet) | yes | 5.60 | 225, 2.4x | 1604, 0.2x |
 | [`coex-sceneflow`](#coex) | yes | 33.46 | 23.5, 2.6x | 514, 0.24x |
 | [`crestereo-eth3d`](#crestereo) | yes | 1.39 † | 229, 7.0x | 732, 0.42x |
-| [`defom-stereo-vitl-sceneflow`](#defom_stereo) | no | 2.44 | 642, 4.4x | 3522, 0.4x |
+| [`defom-stereo-vitl-sceneflow`](#defom_stereo) | no | 2.44 | 645, 4.4x | 4234, 0.48x |
 | [`dlnr-middlebury`](#dlnr) | yes | 34.38 | 214, 2.8x | 1606, 0.45x |
 | [`dlnr-sceneflow`](#dlnr) | yes | 30.27 | 214, 2.8x | 1606, 0.45x |
 | [`fast-acvnet-generalization`](#fast_acvnet) | yes | 6.51 | 38.1, 1.6x | 716, 0.48x |
@@ -542,7 +542,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `defom-stereo-vitl-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4175<br>2816<br>1531<br>642<br>1002<br>planned for 0.2.1 | 10896 / 11072<br>8639 / 8766<br>4362 / 4838<br>3154 / 3522<br>3021 / 3292<br>– |
+| `defom-stereo-vitl-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4175<br>2816<br>1531<br>645<br>1002<br>planned for 0.2.1 | 10896 / 11072<br>8639 / 8766<br>4362 / 4838<br>2781 / 4234<br>3021 / 3292<br>– |
 | `defom-stereo-vitl-sceneflow` | KITTI 2015 (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT bf16 | 947<br>509<br>404<br>180<br>1151 (whole graph at fixed 375 x 1242) | 3172 / 3360<br>2458 / 2610<br>2394 / 2538<br>1627 / 1786<br>1782 / 1790 |
 
 <details><summary>Details</summary>
@@ -563,6 +563,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - `defom-stereo-vitl-sceneflow` 994x1482, first call: portable + torch.compile 122 s (cold Inductor cache).
 - `defom-stereo-vitl-sceneflow` 375x1242, first call: TensorRT bf16 168 s (ONNX + engine).
 - `defom-stereo-vitl-sceneflow` original 994x1482, original 375x1242: the authors' mixed-precision option (float16)
+- `defom-stereo-vitl-sceneflow` kernels 994x1482: Freed the first normalized activation before the final residual normalization. The matched baseline was 643.826 ms and 3148 MiB peak allocated. The synthetic result and three labeled pairs matched bitwise.
 - `defom-stereo-vitl-sceneflow` load / first call: original 4.24 s / 2.83 s, portable 2.31 s / 1.534† s, kernels 2.74 s / 0.305 s (375x1242)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls

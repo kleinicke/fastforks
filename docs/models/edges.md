@@ -172,6 +172,7 @@ All 200 BSDS500 test images. The benchmark uses the official boundary correspond
 |---|---|---|---|---|
 | `lineart` | BSDS500 test (200 images), boundary ODS / OIS / AP % | 50.19 / 52.90 / 38.26 | 50.19 / 52.85 / 38.26 |  |
 | `lineart` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 49.18 / 52.31 / 36.92 | 49.18 / 52.27 / 36.92 |  |
+| `lineart-coarse` | BSDS500 test (200 images), boundary ODS / OIS / AP % |  | 44.39 / 48.14 / 38.90 |  |
 | `lineart-coarse` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 42.88 / 46.46 / 36.60 | 42.89 / 46.46 / 36.60 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
