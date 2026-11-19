@@ -44,6 +44,8 @@ if TYPE_CHECKING:
     from .net.raft.raft import RAFT
 
 LEVELS, RADIUS = 4, 4  # the correlation pyramids of RAFT and of the bidirectional lookup
+_REVERSE_MIN_TOKENS = 16_384
+_REVERSE_TILE_BYTES = 128 * 1024 * 1024
 HALO = 17  # fixed: rows `convblock` reads beyond a band (17 3 x 3 convs in a chain: 1 + 3 x 5 + 1)
 BAND_PIXELS = 1 << 20  # larger full-size inputs run `convblock` in row bands of about this many pixels
 HYPO_PIXELS = 1 << 19  # the hyponet MLP runs over pixel chunks of this size (its activations never exist at once)
@@ -110,6 +112,25 @@ class _VolumeCorr:
         for _ in range(LEVELS - 1):
             self.pyramid.append(F.avg_pool2d(self.pyramid[-1], 2, stride=2))
 
+    def reverse(self) -> _VolumeCorr:
+        """Reuse the transposed finest level for a single batch item."""
+        _, h, w = self.shape
+        tokens = h * w
+        transposed = self.pyramid[0].view(tokens, tokens).T
+        base = transposed.view(tokens, 1, h, w)
+        # Pack a tile of queries at a time so pooling never copies the whole transposed volume.
+        tile = max(1, _REVERSE_TILE_BYTES // (tokens * base.element_size()))
+        coarse = base.new_empty((tokens, 1, h // 2, w // 2))
+        for start in range(0, tokens, tile):
+            block = transposed[start : start + tile].contiguous().view(-1, 1, h, w)
+            coarse[start : start + tile].copy_(F.avg_pool2d(block, 2, stride=2))
+        reverse = self.__class__.__new__(self.__class__)
+        reverse.shape = self.shape
+        reverse.pyramid = [base, coarse]
+        for _ in range(LEVELS - 2):
+            reverse.pyramid.append(F.avg_pool2d(reverse.pyramid[-1], 2, stride=2))
+        return reverse
+
     def __call__(self, coords: torch.Tensor) -> torch.Tensor:
         b, h, w = self.shape
         r = torch.arange(-RADIUS, RADIUS + 1, device=coords.device, dtype=torch.float32)
@@ -123,7 +144,19 @@ def _bidir(make: Callable[[torch.Tensor, torch.Tensor], Callable[[torch.Tensor],
     """Upstream `BidirCorrBlock(f0, f1)`: its transposed pyramid is the correlation of `f1` against pooled `f0`."""
 
     def corr(f0: torch.Tensor, f1: torch.Tensor) -> Callable[[torch.Tensor, torch.Tensor], tuple[torch.Tensor, ...]]:
-        fwd, bwd = make(f0, f1), make(f1, f0)
+        fwd = make(f0, f1)
+        capture = torch.compiler.is_compiling() or torch.jit.is_tracing()
+        if (
+            isinstance(fwd, _VolumeCorr)
+            and f0.is_cuda
+            and not capture
+            and not torch.is_grad_enabled()
+            and f0.shape[0] == 1
+            and f0.shape[-2] * f0.shape[-1] >= _REVERSE_MIN_TOKENS
+        ):
+            bwd = fwd.reverse()
+        else:
+            bwd = make(f1, f0)
         return lambda c0, c1: (fwd(c0), bwd(c1))
 
     return corr

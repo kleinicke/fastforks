@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from fastforks import interpolation
 from fastforks._core import registry
 from fastforks._core.bench import synthetic_pair
+from fastforks.interpolation.models.gimm_vfi import model as family
 from fastforks.interpolation.models.gimm_vfi.model import (
     Params,
     _banded,
@@ -81,6 +82,24 @@ def test_half_volume_sampling_is_grid_sample() -> None:
     want = F.grid_sample(vol.float(), g[:, None], align_corners=True)[:, 0, 0]
     torch.testing.assert_close(_sample(vol, xy), want, rtol=0, atol=1e-5)
     torch.testing.assert_close(_sample(vol.float(), xy), want, rtol=0, atol=1e-6)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("dtype", [torch.float16, torch.float32])
+def test_reverse_volume_matches_independent_lookup(monkeypatch: pytest.MonkeyPatch, dtype: torch.dtype) -> None:
+    if not torch.cuda.is_available():
+        pytest.skip("needs CUDA")
+    h, w = 16, 17
+    gen = torch.Generator(device="cuda").manual_seed(5)
+    f0, f1 = (torch.randn(1, 16, h, w, device="cuda", dtype=dtype, generator=gen) for _ in range(2))
+    coords = torch.rand(1, 2, h, w, device="cuda", generator=gen) * 16
+    monkeypatch.setattr(family, "_REVERSE_TILE_BYTES", 29 * h * w * f0.element_size())
+    with torch.inference_mode():
+        forward = _VolumeCorr(f0, f1)
+        shared = forward.reverse()
+        independent = _VolumeCorr(f1, f0)
+        assert shared.pyramid[0].data_ptr() == forward.pyramid[0].data_ptr()
+        torch.testing.assert_close(shared(coords), independent(coords), atol=2e-5, rtol=0)
 
 
 def test_decoder_bands_are_one_pass() -> None:
