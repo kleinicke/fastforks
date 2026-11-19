@@ -406,7 +406,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `memflow` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3116<br>964<br>865<br>1642<br>fails: TensorRT engine build failed | 15061 / 15594<br>8265 / 8382<br>968 / 1022<br>6813 / 6946<br>– |
+| `memflow` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3116<br>965<br>865<br>1642<br>fails: TensorRT engine build failed | 15061 / 15594<br>6001 / 6294<br>968 / 1022<br>6813 / 6946<br>– |
 | `memflow` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>178 (full fixed-shape flow network, standalone trace export and build) | –<br>–<br>–<br>1171 / 1176 |
 | `memflow-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3214<br>964<br>865<br>1640<br>fails: TensorRT engine build failed | 15061 / 15634<br>8265 / 8382<br>968 / 1022<br>6813 / 6946<br>– |
 | `memflow-sintel` | synthetic (384x1248) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>143<br>–<br>137 (full fixed-shape flow network, standalone trace export and build) | –<br>528 / 738<br>–<br>887 / 892 |
@@ -435,6 +435,7 @@ Commercial use: yes.
 - `memflow-kitti` 1080x1920, first call: portable + torch.compile 73 s (cold Inductor cache).
 - `memflow-kitti` 384x1248, first call: TensorRT fp16 330 s (ONNX + engine).
 - `memflow` original 1080x1920: torch.autocast(float16) around the call; upstream MemFlowNet configs/things_memflownet.py, InferenceCore.step(end=True) per pair
+- `memflow` portable 1080x1920: Median of five timed calls after one warm-up on a synthetic pair. Flow matched the previous path on one synthetic pair and three labeled KITTI pairs.
 - `memflow-sintel` original 1080x1920: torch.autocast(float16) around the call; upstream MemFlowNet configs/sintel_memflownet.py, InferenceCore.step(end=True) per pair
 - `memflow-sintel` portable 384x1248: Portable baseline on the saved TensorRT benchmark input.
 - `memflow-kitti` original 1080x1920: torch.autocast(float16) around the call; upstream MemFlowNet configs/kitti_memflownet.py, InferenceCore.step(end=True) per pair

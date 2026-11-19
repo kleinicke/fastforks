@@ -1391,7 +1391,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | gmflow-scale2-sintel | 1080x1920 | 2541 | 1607 | 1139 | – | – | – | 8425 / 8552 | 6017 / 6224 | – |
 | gmflow-scale2-things | 1080x1920 | 2537 | 1599 | 1139 | – | – | – | 8425 / 8552 | 6017 / 6224 | – |
 | megaflow | 1080x1920 | – | 1588 | 1109 | 734 | 2.2x | 1.5x | 8230 / 8786 | 3035 / 3246 | 2866 / 3066 |
-| memflow | 1080x1920 | – | 3116 | 964 | 865 | 3.6x | 1.1x | 15061 / 15594 | 8265 / 8382 | 968 / 1022 |
+| memflow | 1080x1920 | – | 3116 | 965 | 865 | 3.6x | 1.1x | 15061 / 15594 | 6001 / 6294 | 968 / 1022 |
 | memflow-kitti | 1080x1920 | – | 3247 | 965 | 865 | 3.8x | 1.1x | 15061 / 15594 | 8265 / 8382 | 968 / 1022 |
 | memflow-sintel | 1080x1920 | – | 3214 | 964 | 865 | 3.7x | 1.1x | 15061 / 15634 | 8265 / 8382 | 968 / 1022 |
 | memfof | 1080x1920 | – | 531 | 433 | 349 | 1.5x | 1.2x | 2003 / 2144 | 1911 / 2196 | 917 / 1016 |
@@ -2635,7 +2635,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | gmflow-scale2-things | 1080x1920 | 1139 ms | 765 ms | planned for 0.2.1 | – | 46.7 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
 | gmflow-scale2-things | 384x1248 | – | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | – | – | – | 1616 / 2560 |
 | megaflow | 1080x1920 | 1109 ms | 917 ms | 677 ms | 734 ms | 102 s | 214 s | 3035 / 3246 | 2611 / 2886 | 2866 / 3066 | 9265 / 9300 |
-| memflow | 1080x1920 | 964 ms | 1642 ms | fails: TensorRT engine build failed | 865 ms | 78.9 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
+| memflow | 1080x1920 | 965 ms | 1642 ms | fails: TensorRT engine build failed | 865 ms | 78.9 s | – | 6001 / 6294 | 6813 / 6946 | 968 / 1022 | – |
 | memflow | 384x1248 | – | – | 178 ms, fp32 engine (full fixed-shape flow network, standalone trace export and build) | – | – | 99.3 s | – | – | – | 1171 / 1176 |
 | memflow-kitti | 1080x1920 | 965 ms | 1644 ms | fails: TensorRT engine build failed | 865 ms | 72.6 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
 | memflow-kitti | 384x1248 | – | – | 135 ms (full fixed-shape flow network, standalone engine build) | – | – | 330 s | – | – | – | 859 / 864 |
