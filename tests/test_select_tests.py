@@ -209,6 +209,29 @@ def test_golden_source_survives_generated_docs_but_changes_with_fixtures(
     assert merge_check._golden_sources("docs")[0] != first
 
 
+def test_golden_source_tracks_untracked_source(
+    tmp_path: Path, git_repo: Callable[..., None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "pyproject.toml").write_text("")
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Baseline")
+    monkeypatch.setattr(merge_check, "ROOT", tmp_path)
+    initial = merge_check._golden_sources("baseline")
+    (tmp_path / "selection.json").write_text("{}\n")
+    assert merge_check._golden_sources("baseline") == initial
+
+    helper = tmp_path / "src" / "helper.py"
+    helper.parent.mkdir()
+    helper.write_text("VALUE = 1\n")
+    first = merge_check._golden_sources("baseline")
+    assert len(first) == 1
+    assert first[0] not in initial
+    helper.write_text("VALUE = 2\n")
+    assert merge_check._golden_sources("baseline") != first
+    helper.unlink()
+    assert merge_check._golden_sources("baseline") == initial
+
+
 def test_golden_only_includes_each_selected_revision_without_a_floor(monkeypatch: pytest.MonkeyPatch) -> None:
     def require_no_floor() -> None:
         pytest.fail("golden-only job selection must not load the speed floor")

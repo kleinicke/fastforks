@@ -173,15 +173,29 @@ def _current(sc: ModuleType, r: dict[str, Any]) -> bool:
     return r.get("code_hash", "")[:16] == sc.files_hash(r.get("files", []))
 
 
-def _golden_sources(commit: str) -> tuple[str, str]:
+def _golden_sources(commit: str) -> tuple[str, ...]:
     """Fingerprint the tested tree and accept the previous format for existing results."""
     git = ["git", "-C", str(ROOT)]
     paths = [".", *(f":(exclude){path}" for path in GENERATED_DOCS)]
     index = subprocess.check_output([*git, "ls-files", "--stage", "-z", "--", *paths])
     changes = subprocess.check_output([*git, "diff", "--binary", "HEAD", "--", *paths])
+    tree = hashlib.sha256(index + b"\0" + changes)
+    untracked = subprocess.check_output(
+        [*git, "ls-files", "--others", "--exclude-standard", "-z", "--", "src", "tests", "tools"]
+    )
+    if untracked:
+        tree.update(b"\0untracked\0" + untracked)
+        for name in filter(None, untracked.split(b"\0")):
+            path = ROOT / os.fsdecode(name)
+            if path.is_symlink():
+                tree.update(b"link" + hashlib.sha256(os.fsencode(path.readlink())).digest())
+            else:
+                with path.open("rb") as stream:
+                    tree.update(b"file" + hashlib.file_digest(stream, "sha256").digest())
+        return ("tree:" + tree.hexdigest(),)
     full_diff = subprocess.check_output([*git, "diff", "--binary", "HEAD"])
     return (
-        "tree:" + hashlib.sha256(index + b"\0" + changes).hexdigest(),
+        "tree:" + tree.hexdigest(),
         f"{commit}:{hashlib.sha256(full_diff).hexdigest()}",
     )
 
