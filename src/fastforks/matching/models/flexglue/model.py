@@ -29,6 +29,7 @@ from torch import nn
 from fastforks._core.patch import override
 from fastforks.kernels import image_normalize
 from fastforks.matching._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.aliked import ALIKED
 from fastforks.shared.cuda_graphs import CapturedModule
 from fastforks.shared.deform_conv import modulated_deform_conv
@@ -219,4 +220,12 @@ class Kernels(Portable):
         self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(
+        Portable,
+        attrs=("net.descriptor",),
+        methods=("net.matcher.decode",),
+    ),
+}

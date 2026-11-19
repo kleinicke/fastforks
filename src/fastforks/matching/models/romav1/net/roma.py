@@ -153,7 +153,7 @@ class GP(nn.Module):
         k_yy = self.kernel(y, y)
         k_xy = self.kernel(x, y)
         sigma_noise = self.sigma_noise * torch.eye(h2 * w2, device=x.device)[None, :, :]
-        lower = torch.linalg.cholesky(k_yy + sigma_noise)
+        lower = torch.linalg.cholesky_ex(k_yy + sigma_noise, check_errors=False).L  # the kernel plus noise is positive definite
         mu_x = k_xy @ torch.cholesky_solve(f.reshape(b, h2 * w2, d), lower, upper=False)
         return mu_x.transpose(1, 2).reshape(b, d, h1, w1)
 

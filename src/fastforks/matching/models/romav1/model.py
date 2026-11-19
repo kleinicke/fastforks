@@ -32,6 +32,7 @@ from torch.nn.utils.fusion import fuse_conv_bn_eval
 from fastforks._core.checkpoint import check_fits
 from fastforks.kernels.romav2 import correlate_roma1
 from fastforks.matching._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import sdpa_attention, use_fast_vit, vit_large
 from fastforks.shared.depth_anything_v2.net.dinov2 import DinoVisionTransformer
 
@@ -180,4 +181,8 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=("net",)),
+}

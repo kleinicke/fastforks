@@ -181,6 +181,13 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | sam3 | promptable_segmentation | `port(Portable, methods=("embed",))`; also fixes `aten.upsample_bilinear2d` antialias on integer images (uint8 resize matmul) | 1024x1024 fp32 2774 ms / 5023 MB vs MPS 3620 / 5807; fp16 2423 / 4198 vs 3688 / 3523. Goldens pass. 25-35 percent faster than MPS; fp16 uses more memory than MPS (peak at load). |
 | clipseg | promptable_segmentation | `methods=("embed","decode")` | 1024x1024 fp32 33 ms / 932 MB vs MPS 45 / 1532; fp16 39 / 984 vs 38 / 1561. Goldens pass. Faster and lighter. |
 | insid3 | promptable_segmentation | `methods=("embed",)` (DINOv3 ViT-L backbone); the reference matching stays eager | vitl16 fp32 3244 ms / 2981 MB vs MPS 2953 / 2963 (parity). fp16 declared off: similarity map NaN. |
+| dedode | matching | `net.detector` + `net.descriptor` on MLX, fp32 only (fp16 keypoints mean diff 0.0022 > 0.002) | v2-b 2915 ms / 4374 MB vs MPS 1464 / 8011; v2-g 4967 / 5662 vs 3767 / 10008. Memory lower, speed slower than MPS. |
+| loftr | matching | backbone + coarse transformer on MLX, fine stage and matching eager; fp32 only (indoor fp16 recall 0.9976 < 0.998) | outdoor 1979 ms / 3802 MB vs MPS 875 / 5767. Memory lower, speed slower. |
+| loma | matching | detector, descriptor, matcher on MLX, fp32 (golden only for loma-b) | loma-b 4152 ms / 6133 MB vs MPS 3037 / 8147. Memory lower, speed slower. |
+| romav1 | matching | whole net on MLX, fp32; `cholesky` became `cholesky_ex(check_errors=False)` to avoid the with_effects op; new CPU-stream cholesky ops in mlx_graph | 4500 ms / 5242 MB vs MPS 3050 / 7979. Memory lower, speed slower. |
+| xfeat | matching | `net.xfeat.net` on MLX, fp32 (LighterGlue stays eager); new `aten.unfold` mapping | 158 ms / 543 MB vs MPS 42 / 1471. Memory lower, speed slower (small net, eager post-processing dominates). |
+| flexglue (aliked) | matching | descriptor net + matcher decode on MLX, fp32 + fp16; wrapping ALIKED dense map rejected (keypoint recall 0.963 < 0.99) | fp32 2249 ms / 3048 MB vs MPS 1124 / 3932; fp16 2255 / 2970 vs 1069 / 3088. Memory lower, speed about 2x slower. |
+| lightglue | matching | not ported: data-dependent keypoint counts in the matcher, and the ALIKED dense map misses recall (as in flexglue) | n/a |
 
 ## Conv3x3 kernel experiments (M1 Pro, fp16, 1x512x512x64 -> 64, 3x3, pad 1)
 

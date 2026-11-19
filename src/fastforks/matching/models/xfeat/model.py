@@ -22,6 +22,7 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.patch import override
 from fastforks.kernels import keypoint_nms
 from fastforks.matching._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import CapturedModule
 from fastforks.shared.lightglue import LightGlue, resize_long
 
@@ -195,4 +196,8 @@ class Kernels(Portable):
         self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.xfeat.net",)),
+}

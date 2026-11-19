@@ -28,7 +28,7 @@ from torch.nn.utils.fusion import fuse_conv_bn_eval
 from fastforks.kernels import dual_softmax
 from fastforks.matching._dedode_kernels import prepare
 from fastforks.matching._runner import Forward, Runner
-from fastforks.shared import cnn_kernels
+from fastforks.shared import cnn_kernels, mlx_wrap
 from fastforks.shared.dedode import (
     VGG,
     ConvRefiner,
@@ -204,4 +204,8 @@ class Kernels(Portable):
         self.net = load_matcher(ctx, kernels=True)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.detector", "net.descriptor")),
+}

@@ -32,6 +32,7 @@ from fastforks._core.patch import override
 from fastforks.kernels import loma_descriptor
 from fastforks.matching._dedode_kernels import prepare
 from fastforks.matching._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.dedode import (
     DESCRIPTOR_B,
     DETECTOR_S,
@@ -291,4 +292,8 @@ def _sample_descriptor(net: Matcher, image: torch.Tensor, keypoints: torch.Tenso
     return _sparse.sample(net.descriptor, image, keypoints, blend=loma_descriptor.blend)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.detector", "net.descriptor", "net.matcher")),
+}

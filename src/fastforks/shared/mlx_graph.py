@@ -54,6 +54,8 @@ _DTYPES = {
     torch.int16: mx.int16,
     torch.int8: mx.int8,
     torch.uint8: mx.uint8,
+    torch.uint16: mx.uint16,
+    torch.uint32: mx.uint32,
     torch.bool: mx.bool_,
     torch.float64: mx.float32,
 }
@@ -578,6 +580,41 @@ def _linalg_svd(
         return mx.zeros((0,)), s.astype(a.dtype), mx.zeros((0,))
     del full_matrices
     return u.astype(a.dtype), s.astype(a.dtype), vh.astype(a.dtype)
+
+
+@_reg(aten.unfold.default)
+def _unfold(x: mx.array, dimension: int, size: int, step: int) -> mx.array:
+    """`Tensor.unfold`: sliding windows of `size` along `dimension`, appended as the last axis."""
+    dim = dimension % x.ndim if x.ndim else 0
+    n = (x.shape[dim] - size) // step + 1
+    idx = (mx.arange(n)[:, None] * step + mx.arange(size)[None]).reshape(-1)
+    out = mx.take(x, idx, axis=dim)
+    out = out.reshape(*x.shape[:dim], n, size, *x.shape[dim + 1 :])
+    return mx.moveaxis(out, dim + 1, -1)
+
+
+@_reg(aten.linalg_cholesky_ex.default)
+def _cholesky_ex(a: mx.array, *, upper: bool = False, check_errors: bool = False) -> tuple[mx.array, mx.array]:
+    """Cholesky factor (CPU stream, float32) and a zero `info`."""
+    del check_errors
+    lower = mx.linalg.cholesky(a.astype(mx.float32), upper=upper, stream=mx.cpu)
+    return lower.astype(a.dtype), mx.zeros(a.shape[:-2], dtype=mx.int32)
+
+
+@_reg(aten.linalg_cholesky.default)
+def _cholesky(a: mx.array, *, upper: bool = False) -> mx.array:
+    """Cholesky factor (CPU stream, float32)."""
+    return mx.linalg.cholesky(a.astype(mx.float32), upper=upper, stream=mx.cpu).astype(a.dtype)
+
+
+@_reg(aten.cholesky_solve.default)
+def _cholesky_solve(b: mx.array, factor: mx.array, upper: bool = False) -> mx.array:
+    """`A^-1 b` from the Cholesky factor of `A` by two triangular solves (CPU stream, float32)."""
+    f, rhs = factor.astype(mx.float32), b.astype(mx.float32)
+    lower = f.swapaxes(-1, -2) if upper else f
+    y = mx.linalg.solve_triangular(lower, rhs, upper=False, stream=mx.cpu)
+    x = mx.linalg.solve_triangular(lower.swapaxes(-1, -2), y, upper=True, stream=mx.cpu)
+    return x.astype(b.dtype)
 
 
 @_reg(aten._linalg_det.default)

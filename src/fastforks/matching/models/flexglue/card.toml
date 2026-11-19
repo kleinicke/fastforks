@@ -43,6 +43,7 @@ max_distance_px = 3.0  # mean distance of the two predictions to their keypoints
 [modes.portable]
 cuda_dtype = "float16"  # upstream `mp="float16"` (transformer layers) plus the descriptor under float16 autocast; ALIKED, the head and the match filter float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["image_normalize"]

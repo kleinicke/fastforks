@@ -21,7 +21,7 @@ from torch import nn
 from fastforks._core.patch import override
 from fastforks.kernels import dual_softmax
 from fastforks.matching._runner import Forward, Runner
-from fastforks.shared import cnn_kernels
+from fastforks.shared import cnn_kernels, mlx_wrap
 from fastforks.shared.cnn_kernels import conv_ep
 
 from .net.loftr import BasicBlock, LoFTR, ResNetFPN_8_2
@@ -73,7 +73,7 @@ class Matcher(nn.Module):
         g = (image * self.gray).sum(1, keepdim=True)
         if (rh, rw) != (h, w):
             g = F.interpolate(g, size=(rh, rw), mode="bilinear", align_corners=False)
-        return g.to(self.loftr.backbone.conv1.weight.dtype), torch.tensor([w / rw, h / rh], device=image.device)
+        return g.to(self.gray.dtype), torch.tensor([w / rw, h / rh], device=image.device)
 
     def forward(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """The pair's matches (batch 1)."""
@@ -193,4 +193,8 @@ class Kernels(Portable):
         override(self.net.loftr, _coarse_matches, "coarse_matches")
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.loftr.backbone", "net.loftr.loftr_coarse")),
+}
