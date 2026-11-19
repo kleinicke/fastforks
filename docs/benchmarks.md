@@ -2676,7 +2676,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | loma-r | 768x1024 | 309 ms | 287 ms | 326 ms, bf16 engine | 262 ms | 142 s | 175 s | 1767 / 1878 | 2870 / 3256 | 1217 / 1328 | 1986 / 2010 |
 | romav1 | 768x1024 | 377 ms | 247 ms | planned for 0.2.1 | 356 ms | 698 s | – | 1720 / 1840 | 1348 / 1476 | 1720 / 1860 | – |
 | romav2 | 768x1024 | 550 ms | 723 ms | 353 ms | 350 ms | 360 s | 185 s | 1989 / 2476 | 3030 / 3144 | 1890 / 2460 | 6694 / 6740 |
-| xfeat | 768x1024 | 7.17 ms | 5.65 ms | planned for 0.2.1 | – | 30.8 s | – | 122 / 154 | 186 / 212 | – | – |
+| xfeat | 768x1024 | 7.17 ms | 5.65 ms | 5.50 ms, fp32 engine (standalone image CNN, eager keypoint selection and matching) | – | 30.8 s | 11.8 s | 122 / 154 | 186 / 212 | – | 268 / 416 |
 | xfeat-lighterglue | 768x1024 | 21.6 ms | 16.2 ms | planned for 0.2.1 | – | 39.7 s | – | 445 / 476 | 262 / 278 | – | – |
 | alltracker | 480x854 | 391 ms | 284 ms | planned for 0.2.1 | 221 ms | 105 s | – | 993 / 1238 | 1273 / 1358 | 1076 / 1288 | – |
 | alltracker | 256x256 | – | – | 330 ms, fp32 engine (frame CNN with eager tracking) | – | – | 20.3 s | – | – | – | 2262 / 3372 |

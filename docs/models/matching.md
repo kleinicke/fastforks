@@ -506,7 +506,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.89<br>7.17<br>–<br>5.65<br>planned for 0.2.1 | 128 / 174<br>122 / 154<br>–<br>186 / 212<br>– |
+| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 8.89<br>7.17<br>–<br>5.65<br>5.50 (standalone image CNN, eager keypoint selection and matching) | 128 / 174<br>122 / 154<br>–<br>186 / 212<br>268 / 416 |
 | `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>21.6<br>–<br>16.2<br>planned for 0.2.1 | 448 / 478<br>445 / 476<br>–<br>262 / 278<br>– |
 
 <details><summary>Details</summary>
@@ -523,7 +523,7 @@ Commercial use: yes.
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `xfeat` 3000x4000 (1.0 GiB peak allocated, 1.2 reserved); `xfeat-lighterglue` 3000x4000 (1.0 GiB peak allocated, 1.2 reserved)
-- `xfeat` 768x1024, first call: portable + torch.compile 31 s (cold Inductor cache).
+- `xfeat` 768x1024, first call: portable + torch.compile 31 s (cold Inductor cache), TensorRT fp32 12 s (ONNX + engine).
 - `xfeat-lighterglue` 768x1024, first call: portable + torch.compile 40 s (cold Inductor cache).
 - `xfeat` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + mnn, top_k 4096
 - `xfeat-lighterglue` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + lighterglue, top_k 4096
@@ -533,16 +533,17 @@ Commercial use: yes.
 
 ### Measured
 
-Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. The same 300 pairs for all modes, so float32 and bfloat16 compare pair for pair. Original = the original code named under Details, same checkpoint and protocol.
+Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Both modes receive pairs resized to 768 x 1024. Map matched pixels to the calibrated evaluation coordinates and use the same RANSAC seed per pair. The same 300 pairs for all modes, so float32 and bfloat16 compare pair for pair. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | note |
-|---|---|---|---|---|---|
-| `xfeat` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  | 26.2 / 42.2 / 57.5 |  |
-| `xfeat` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 29.1 / 46.1 / 60.8 | 28.4 / 44.6 / 60.1 | 29.1 / 46.1 / 60.8 |  |
-| `xfeat-lighterglue` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  | 39.7 / 57.5 / 72.8 |  |
-| `xfeat-lighterglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 42.0 / 59.4 / 74.3 | 42.7 / 60.1 / 74.1 | 42.0 / 59.4 / 74.3 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | TensorRT | note |
+|---|---|---|---|---|---|---|---|
+| `xfeat` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  | 26.2 / 42.2 / 57.5 |  |  |  |
+| `xfeat` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  |  | 27.4 / 43.7 / 59.5 | 27.9 / 44.3 / 60.0 |  |
+| `xfeat` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 29.1 / 46.1 / 60.8 | 28.4 / 44.6 / 60.1 | 29.1 / 46.1 / 60.8 |  |  |  |
+| `xfeat-lighterglue` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  | 39.7 / 57.5 / 72.8 |  |  |  |
+| `xfeat-lighterglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 42.0 / 59.4 / 74.3 | 42.7 / 60.1 / 74.1 | 42.0 / 59.4 / 74.3 |  |  |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ec7b1307+port/p1-match, 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ec7b1307+port/p1-match, 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7243b9b8, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7243b9b8, 2026-11-19.
 
 ### Parity
 
