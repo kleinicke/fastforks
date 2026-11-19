@@ -652,3 +652,42 @@ fp16 kernels: 5578 -> 2290 ms (MPS 2066, 1.11x), footprint near MPS (the 1 GB al
 peak is 1284 MB). fp32 stays 2.5x behind MPS but needs 38 % less memory. Not done: removing the dense-block `cat`
 (multi-source input transform), reusing the input transform across concats (the transform is about 45 % of conv time),
 reducing the cache.
+
+## Rollout of the Winograd kernels to the other restoration and segmentation nets
+
+Regression first. `test_mlx[raft-stereo-eth3d@1]` kernels fp16 drifted to mean|diff| 0.0229 (limit 0.02). Bisect
+(`git archive` trees): `933b4913` (work-based gate admitting small images) made the 32x40, 384->128 GRU convs take the
+Winograd path. Those run in float32 activations (fp32 islands) with float16 weights and bias; the kernels read bias,
+slope and residual as the activation dtype `T`, so the fp16 bias was reinterpreted, not converted. Fix (`9ea0aae9`):
+`conv_mlx.ops._as` casts them to `x.dtype`. Result 0.0229 -> 0.00178 (portable 0.00206), no speed change. raft-large,
+raft-small, raft-stereo-middlebury, igev (4 variants), memflow, neuflow-v2, sea-raft-m, rt-monster goldens pass.
+
+Second finding: the 128 MB buffer-cache default (`cc3fce13`) halved the Winograd nets that declared no `cache_mb`:
+realesr-general-x4v3 kernels fp16 103 -> 203 ms, span 85 -> 102. They now declare `cache_mb=512`.
+
+Survey, 512x512 input, M1 Pro 16 GB, ms / process footprint MB, fp16 (MPS fp16 row for reference). Goldens pass.
+
+| Net | MLX portable | MLX kernels | MPS | Declared |
+|---|---|---|---|---|
+| realesrgan-x2plus | 1207 / 971 | 538 / 2076 | 549 / 1440 | conv_mlx, cache 1024 (shared card) |
+| realesrgan-x4plus-anime-6b | 1615 / 1319 | 826 / 2361 | 664 / 2351 | same, 1.24x behind MPS, memory equal |
+| realesr-general-x4v3 (compact) | 246 / 737 | 104 / 1061 | 132 / 1289 | cache 512 (was 203 ms at 128) |
+| span-x4 | 149 / 827 | 86 / 1210 | 89 / 1296 | cache 512 |
+| span-x2 | 134 / 753 | 77 / 1073 | 74 / 1296 | cache 512 |
+| codeformer | 285 / 1624 | 180 / 2901 | 196 / 1866 | conv_mlx, fp16 only, cache 1024 (512: 216 / 2543) |
+| deeplabv3plus-r101 (1024x2048) | 444 / 1618 | 365 / 1638 | 430 / 1891 | conv_mlx |
+| fcn / deeplabv3 / pspnet r101 | 358 / 452 / 388 | 349 / 452 / 376 | 405 / 528 / 411 | conv_mlx (within 3 %, shared card) |
+
+fp32 kernels runs of the large nets stay 2-3x behind MPS fp32 (x2plus 1677 vs 709 ms, anime-6b 2207 vs 973).
+
+Not declared, with the reason:
+
+- big-lama: reflect padding keeps every 3x3 conv off the Winograd gate; kernels run the portable path (325 ms vs MPS 214).
+- gfpgan: style-modulated conv weights are tracers inside the compiled graph; `_wino_weights` cannot eval them
+  ("Attempting to eval an array during function transformations"). Would need a modulated-weight Winograd path.
+- realplksr: 1x1 and large depthwise kernels, no 3x3 dense convs; kernels run 1910 ms vs portable 1991, golden fails.
+- nafnet-gopro: fp32 only on MLX (1x1, depthwise, channel attention); kernels = portable (694 vs 649 ms; MPS fp32 409
+  ms / 2894 MB, fp16 368 / 1715), memory 1745 MB is below MPS fp32. Golden passes.
+- restormer, swinir, swin2sr: attention- and depthwise/1x1-dominated (swinir-m-x4 is seconds, not tens of ms); the
+  dense 3x3 convs are a small share, and their tails are not row-local, so `band_tail` does not trigger. Not extended
+  to pixel_shuffle tails here: no measured memory problem on these nets.
