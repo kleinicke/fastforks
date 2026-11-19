@@ -3,10 +3,11 @@
 On 2026-11-18, all 578 registered variants across 205 model families passed their kernel-mode reference test on an RTX 5060 Ti (16 GB), with required golden files and the tolerances in the development branch.
 Grounding DINO Base passed with the corrected upstream checkpoint heads and the pinned reference fixture.
 
-The primary RTX 5060 Ti timing tables contain 427 variants with matched kernels and `torch.compile` measurements.
-Another 73 have kernel timings without a matching compile workload, and 78 still need a kernel timing row.
-Run `python tools/kernel_gaps.py` to see each variant's declared libraries, measurement status, GPU, dtype,
-workload and recorded dates. The measurements below describe the code and workloads tested at the time.
+The November 19 audit found 431 variants with matched kernels and `torch.compile` measurements in the primary RTX 5060 Ti timing tables.
+Another 75 have kernel timings without a matching compile workload. The remaining 72 have historical timings in
+the follow-up below or the benchmark archive. The classifier follow-up reports speedup ranges by family.
+Run `python tools/kernel_gaps.py` for the primary table inventory, including each variant's declared libraries,
+GPU, dtype, workload and dates. The historical measurements describe the revisions and workloads tested at the time.
 
 The 2026-11-17 website snapshot listed 25 families and 73 variants. The historical sections record why those
 modes were absent and the measurements used when adding them.
