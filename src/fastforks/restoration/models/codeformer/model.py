@@ -155,4 +155,9 @@ class Kernels(Runner):
         return {"image": (out.float() + 1) / 2}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(Portable, whole=True)}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, whole=True),
+    "kernels_mlx": mlx_wrap.port(Portable, whole=True, kernels_fp16_only=True, cache_mb=1024),
+}
