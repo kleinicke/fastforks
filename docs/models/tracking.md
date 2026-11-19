@@ -12,7 +12,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`alltracker`](#alltracker) | yes | 221, 2.2x | 1288, 0.56x |
+| [`alltracker`](#alltracker) | yes | 213, 2.3x | 1068, 0.46x |
 | [`alltracker-tiny`](#alltracker) | yes | 217, 2.0x | 1166, 0.53x |
 | [`bootstapir`](#tapir) | yes | 192, 1.3x | 628, 0.81x |
 | [`cotracker3-offline`](#cotracker) | no | 154, 1.6x | 882, 0.36x |
@@ -35,7 +35,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `alltracker` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 485<br>391<br>221<br>284<br>public API unavailable | 2100 / 2318<br>993 / 1238<br>1076 / 1288<br>1273 / 1358<br>– |
+| `alltracker` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 485<br>385<br>213<br>284<br>public API unavailable | 2100 / 2318<br>885 / 998<br>967 / 1068<br>1273 / 1358<br>– |
 | `alltracker` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>330 (frame CNN with eager tracking) | –<br>–<br>–<br>2262 / 3372 |
 | `alltracker-tiny` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 424<br>330<br>217<br>229<br>public API unavailable | 1995 / 2200<br>919 / 1178<br>978 / 1166<br>1198 / 1338<br>– |
 | `alltracker-tiny` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>270 (frame CNN with eager tracking) | –<br>–<br>–<br>2010 / 3220 |
@@ -59,6 +59,7 @@ Commercial use: yes.
 - `alltracker-tiny` 480x854, first call: portable + torch.compile 103 s (cold Inductor cache).
 - `alltracker-tiny` 256x256, first call: TensorRT fp32 19 s (ONNX + engine).
 - `alltracker` original 480x854: the authors' mixed-precision option (float16); aharley/alltracker@e7553135e7b3 Net.forward, 384 x 512, 4 iters
+- `alltracker` portable 480x854, kernels 480x854: 24 frames with 256 queries. Samples the convex flow and visibility upsampling at the query pixels. Synthetic and three labeled TAP-Vid DAVIS outputs matched bitwise.
 - `alltracker-tiny` original 480x854: the authors' mixed-precision option (float16); aharley/alltracker@e7553135e7b3 Net.forward, 384 x 512, 4 iters
 - `alltracker` load / first call: original 1.68 s / 1.309 s, portable 0.89 s / 2.078 s, kernels 0.26 s / 0.493 s
 - `alltracker-tiny` load / first call: original 1.22 s / 1.398 s, portable 0.06 s / 0.731 s, kernels 0.96 s / 0.54 s
