@@ -1379,7 +1379,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
-| flowformer-small-chairs | 375x1242 | 352 | 303 | 335 | 320 | 0.9x | 1.0x | 2382 / 2970 | 1297 / 1438 | 1293 / 1438 |
+| flowformer-small-chairs | 1080x1920 | OOM | OOM | 4082 | 4031 | – | 1.0x | – | 8863 / 9080 | 8779 / 8982 |
 | flowformer-small-sintel | 375x1242 | 352 | 303 | 336 | 322 | 0.9x | 1.0x | 2382 / 2990 | 1404 / 1698 | 1401 / 1698 |
 | flowformer-small-things | 375x1242 | 352 | 303 | 337 | 322 | 0.9x | 1.0x | 2382 / 3010 | 1404 / 1698 | 1401 / 1698 |
 | flowseek-t | 1080x1920 | 650 | 457 | 396 | 255 | 1.8x | 1.6x | 8693 / 9880 | 6123 / 6252 | 1100 / 1154 |
@@ -2614,8 +2614,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | resplat-small-dl3dv | 256x448 | – | – | 1362 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 1367 / 1800 |
 | vggt-1b | 336x518 | 653 ms | 557 ms | 424 ms | 446 ms | 74.3 s | 199 s | 3573 / 3794 | 3611 / 3856 | 3580 / 3854 | 6421 / 6472 |
 | vggt-omega-1b-512 | 336x518 | 727 ms | 589 ms | 377 ms | 469 ms | 65.7 s | 187 s | 3269 / 3352 | 3082 / 3154 | 3270 / 3330 | 5657 / 5766 |
-| flowformer-small-chairs | 1080x1920 | – | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | – | – | – | – | – | – | – |
-| flowformer-small-chairs | 375x1242 | 335 ms | 250 ms | 202 ms | 320 ms | 98.7 s | 118 s | 1297 / 1438 | 2438 / 3196 | 1293 / 1438 | 2087 / 2138 |
+| flowformer-small-chairs | 1080x1920 | 4082 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | 4031 ms | – | – | 8863 / 9080 | – | 8779 / 8982 | – |
+| flowformer-small-chairs | 375x1242 | 370 ms | 250 ms | 202 ms | 354 ms | 98.7 s | 118 s | 744 / 838 | 2438 / 3196 | 740 / 838 | 2087 / 2138 |
 | flowformer-small-sintel | 1080x1920 | – | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | – | – | – | – | – | – | – |
 | flowformer-small-sintel | 375x1242 | 336 ms | 250 ms | 202 ms | 322 ms | 98.9 s | 117 s | 1404 / 1698 | 2438 / 3196 | 1401 / 1698 | 2087 / 2138 |
 | flowformer-small-things | 1080x1920 | – | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | – | – | – | – | – | – | – |

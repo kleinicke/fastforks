@@ -56,13 +56,14 @@ Commercial use: yes.
 
 ### Measured
 
-All 200 BSDS500 test images. The benchmark uses the official boundary correspondence with a tolerance of 0.0075 of the image diagonal. ODS, OIS and AP use 99 thresholds on 8-bit predictions without thinning. Original = the original code named under Details, same checkpoint and protocol.
+All 200 BSDS500 test images. The benchmark uses the official boundary correspondence with a tolerance of 0.0075 of the image diagonal. ODS, OIS and AP use 99 thresholds on 8-bit predictions without thinning. The first 75 BSDS500 test images by filename. Scores use the official boundary correspondence at 0.0075 of the image diagonal and 99 thresholds on 8-bit predictions without thinning. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable fp32 | note |
-|---|---|---|---|---|
-| `anyline` | BSDS500 test (200 images), boundary ODS / OIS / AP % | 50.33 / 53.34 / 22.54 | 49.14 / 52.52 / 36.51 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | note |
+|---|---|---|---|---|---|
+| `anyline` | BSDS500 test (200 images), boundary ODS / OIS / AP % | 50.33 / 53.34 / 22.54 |  | 49.14 / 52.52 / 36.51 |  |
+| `anyline` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 47.91 / 52.07 / 21.22 | 46.56 / 49.99 / 34.80 | 46.57 / 49.97 / 34.80 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
 
 ### Parity
 

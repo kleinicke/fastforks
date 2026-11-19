@@ -663,7 +663,6 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.933 | 457.6 (1080x1920) | 395.6 | 254.1 | 1.8x vs original (1080x1920) | 1947 |
 | [`flowseek-t`](models/flow.md#flowseek) | yes | 1.348 † | 457.0 (1080x1920) | 396.2 | 254.5 | 1.8x vs original (1080x1920) | 1100 |
 | [`memfof-kitti`](models/flow.md#memfof) | yes | 15.577 † | – | 385.6 | 308.8 (375x1242) | 1.2x vs portable | 786 |
-| [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 10.952 | OOM (1080x1920) | 334.6 | 319.9 (375x1242) | 1.0x vs portable | 1293 |
 | [`flowformer-small-sintel`](models/flow.md#flowformer-small) | yes | 4.657 † | OOM (1080x1920) | 336.3 | 321.9 (375x1242) | 1.0x vs portable | 1401 |
 | [`flowformer-small-things`](models/flow.md#flowformer-small) | yes | 6.884 | OOM (1080x1920) | 337.2 | 322.1 (375x1242) | 1.0x vs portable | 1401 |
 | [`memfof-spring`](models/flow.md#memfof) | yes | 10.778 † | 1034.8 (1080x1920) | 432.6 | 349.3 | 3.0x vs original (1080x1920) | 917 |
@@ -678,6 +677,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`memflow`](models/flow.md#memflow) | yes | 4.103 | 3115.6 (1080x1920) | 964.5 | 864.8 | 3.6x vs original (1080x1920) | 968 |
 | [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | yes | 4.917 | 2175.1 (1080x1920) | 1477.8 | 1480.6 | 1.5x vs original (1080x1920) | 4036 |
 | [`memfof-sintel`](models/flow.md#memfof) | yes | 2.977 † | OOM (1080x1920) | 2196.7 | 1554.9 | 1.4x vs portable | 3982 |
+| [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 10.952 | OOM (1080x1920) | 4082.2 | 4031.1 | 1.0x vs portable | 8779 |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 
