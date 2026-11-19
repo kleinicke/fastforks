@@ -32,6 +32,7 @@ short_side = { default = 1280, min = 64, aliases = ["resolution", "detect_resolu
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["edge_components"]

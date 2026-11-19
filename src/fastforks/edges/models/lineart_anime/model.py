@@ -20,6 +20,7 @@ from torch import nn
 
 from fastforks.edges._runner import Forward, Runner, to_detect, to_detect_cuda, to_input
 from fastforks.kernels import cv_resample
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cv2_resize import cv2_resize
 
 from .net import UnetGenerator
@@ -85,4 +86,8 @@ class Kernels(Portable):
     _detect = staticmethod(to_detect_cuda)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

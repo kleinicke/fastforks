@@ -21,6 +21,7 @@ import torch.nn.functional as F
 
 from fastforks._core.runner import host
 from fastforks.edges._runner import Forward, Runner, to_detect, to_input
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cnn_kernels import prepare_generic
 
 from .net import MobileV2_MLSD_Large
@@ -204,4 +205,8 @@ class Kernels(Portable):
         prepare_generic(self.net, ctx.device)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

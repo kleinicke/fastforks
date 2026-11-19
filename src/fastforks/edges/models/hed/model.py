@@ -17,6 +17,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks.edges._runner import Forward, Runner, safe_step, to_detect, to_input
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cnn_kernels import prepare_generic
 
 from .net import ControlNetHED_Apache2
@@ -85,4 +86,8 @@ class Kernels(Portable):
         prepare_generic(self.net, ctx.device)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

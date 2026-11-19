@@ -16,7 +16,7 @@ import torch
 
 from fastforks.edges._runner import Forward, Runner, to_detect, to_input
 from fastforks.kernels.vol_norm import prepare_image_norms
-from fastforks.shared import cnn_kernels
+from fastforks.shared import cnn_kernels, mlx_wrap
 
 from .net import Generator
 
@@ -73,4 +73,8 @@ class Kernels(Portable):
         cnn_kernels.prepare_convs(self.net)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

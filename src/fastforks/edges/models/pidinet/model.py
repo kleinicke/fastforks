@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from fastforks.edges._runner import Forward, Runner, safe_step, to_detect, to_detect_cuda, to_input
+from fastforks.shared import mlx_wrap
 
 from .net import PiDiNet, nets
 
@@ -112,4 +113,9 @@ class Kernels(Portable):
     _detect = staticmethod(to_detect_cuda)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+    "kernels_mlx": mlx_wrap.port(Portable),
+}

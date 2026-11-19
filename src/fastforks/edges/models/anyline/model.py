@@ -23,6 +23,7 @@ import torch.nn.functional as F
 
 from fastforks.edges._runner import Forward, Runner, safe_step, to_detect, to_input
 from fastforks.kernels import edge_components
+from fastforks.shared import mlx_wrap
 from fastforks.shared.quantile import kth_smallest
 from fastforks.shared.teed import TED, edge_map
 
@@ -153,4 +154,8 @@ class Kernels(Portable):
     module = Runner.module
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}
