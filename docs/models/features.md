@@ -711,7 +711,7 @@ Two disjoint seeded subsets of the val folders; each image shorter side 256 (bic
 | `pe-core-t16-384` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 33.34 |  |  | 33.34 |  |  |
 | `pe-core-s16-384` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 45.56 | 45.54 | 45.48 | 45.52 | 45.38 |  |
 | `pe-core-b16-224` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 58.54 | 58.56 | 58.54 | 58.54 | 58.50 |  |
-| `pe-core-l14-336` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 65.98 | 66.06 | 65.96 |  | 66.28 |  |
+| `pe-core-l14-336` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 65.98 | 66.06 | 65.96 | 66.06 | 66.28 |  |
 | `pe-core-g14-448` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 60.42 | 60.48 | 60.40 |  | 60.48 |  |
 | `pe-spatial-t16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 5.52 | 5.54 | 5.50 | 5.54 | 5.46 |  |
 | `pe-spatial-s16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 8.02 | 8.06 | 8.02 | 8.00 | 7.98 |  |
@@ -719,7 +719,7 @@ Two disjoint seeded subsets of the val folders; each image shorter side 256 (bic
 | `pe-spatial-l14-448` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 17.10 | 17.14 | 17.14 |  | 17.12 |  |
 | `pe-spatial-g14-448` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 16.36 | 16.30 | 16.32 |  | 16.30 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 8bce3316 / b2ffd65d / c16d5d41, 2026-11-11 to 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884 / 446408848, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 8bce3316 / b2ffd65d / c16d5d41, 2026-11-11 to 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 8bce3316 / b2ffd65d / c16d5d41, 2026-11-11 to 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884 / 446408848, 2026-11-18 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 8bce3316 / b2ffd65d / c16d5d41, 2026-11-11 to 2026-11-16.
 
 ### Parity
 

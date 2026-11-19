@@ -2441,7 +2441,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | lw-detr-tiny-coco | 800x1344 | 7.45 ms | 2.98 ms | 0.999 ms | 2.20 ms | 21.6 s | 60.3 s | 92 / 112 | 112 / 130 | 94 / 134 | 116 / 128 |
 | lw-detr-xlarge-coco | 800x1344 | 12.1 ms | 10.7 ms | 6.58 ms | 9.39 ms | 30.5 s | 57.5 s | 348 / 360 | 339 / 358 | 336 / 382 | 544 / 566 |
 | mask-rcnn-r50-fpn-3x-coco | 800x1344 | 24.6 ms | 21.5 ms | 5.34 ms (backbone + FPN only) | 21.0 ms | 29.3 s | 18.3 s | 352 / 440 | 333 / 358 | 353 / 400 | 444 / 496 |
-| mm-grounding-dino-base | 800x1344 | 160 ms | 132 ms | planned for 0.2.1 | – | 105 s | – | 1525 / 1624 | 2669 / 2800 | – | – |
+| mm-grounding-dino-base | 800x1344 | 160 ms | 132 ms | 158 ms, fp32 engine (fixed 80-class text prompt) | – | 105 s | 125 s | 1525 / 1624 | 2669 / 2800 | – | 1153 / 1160 |
 | mm-grounding-dino-base | 320x320 | – | – | 17.7 ms, fp32 engine (fixed 80-class text prompt) | – | – | 134 s | – | – | – | 641 / 662 |
 | mm-grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | planned for 0.2.1 | – | 71.2 s | – | 1405 / 1470 | 2555 / 2666 | – | – |
 | mm-grounding-dino-tiny | 320x320 | 40.8 ms | – | 13.8 ms, fp32 engine (network with fixed COCO prompts, standalone build) | – | – | – | 784 / 900 | – | – | 387 / 408 |
