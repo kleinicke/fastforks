@@ -239,7 +239,7 @@ Commercial use: `c-foundationstereo-s`, `c-fast-foundationstereo`: yes; `fast-fo
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `c-foundationstereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>3874<br>3633<br>1366<br>2773<br>2229 | –<br>8338 / 12870<br>6301 / 6430<br>3058 / 4408<br>7298 / 7624<br>10027 / 10108 |
+| `c-foundationstereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>3874<br>3643<br>1366<br>2773<br>2229 | –<br>8338 / 12870<br>4903 / 7258<br>3058 / 4408<br>7298 / 7624<br>10027 / 10108 |
 | `c-fast-foundationstereo` (max_disp 192, valid_iters 8) | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 741<br>527<br>330<br>135<br>339<br>451 | 4569 / 5358<br>2892 / 2996<br>2109 / 2336<br>1120 / 1236<br>1649 / 1792<br>1425 / 1462 |
 | `fast-foundationstereo` (max_disp 192, valid_iters 8) | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 741<br>527<br>330<br>135<br>339<br>156 | 4616 / 5408<br>2939 / 3306<br>2109 / 2256<br>1120 / 1236<br>1613 / 1752<br>1342 / 1398 |
 
@@ -267,6 +267,7 @@ Commercial use: `c-foundationstereo-s`, `c-fast-foundationstereo`: yes; `fast-fo
 - `c-fast-foundationstereo` 994x1482, first call: portable + torch.compile 75 s (cold Inductor cache), TensorRT fp16 240 s (ONNX + engine).
 - `fast-foundationstereo` 994x1482, first call: portable + torch.compile 78 s (cold Inductor cache), TensorRT fp16 157 s (ONNX + engine).
 - `c-foundationstereo-s` original 994x1482: reference implementation (FoundationStereo repo code) with the C-FS-S checkpoint, AMP; NVIDIA's TAO code OOMs (fp32) or errors (AMP) in the same harness
+- `c-foundationstereo-s` portable 994x1482: Released hourglass intermediates after their final use. The matched synthetic baseline was 3641.130 ms and 6304 MiB peak allocated. One synthetic and three labeled Middlebury disparities were bitwise identical.
 - `c-foundationstereo-s` load / first call: original 1.67 s / 2.731 s (375x1242), portable 0.96 s / 2.087 s (375x1242), kernels 0.81 s / 1.376 s (375x1242)
 - `c-fast-foundationstereo` load / first call: original 0.17 s / 0.172 s (375x1242), portable 0.24 s / 0.332† s, kernels 0.72 s / 0.552 s (375x1242)
 - `fast-foundationstereo` load / first call: original 0.16 s / 0.144 s (375x1242), portable 0.25 s / 0.33† s, kernels 0.6 s / 0.493 s (375x1242)

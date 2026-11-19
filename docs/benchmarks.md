@@ -840,7 +840,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs portable | peak memory (MiB, allocated / reserved): portable | kernels |
 |---|---|---|---|---|---|---|---|
 | c-fast-foundationstereo | – | – | – | 135 | – | – | 1120 / 1236 |
-| c-foundationstereo-s | OOM | – | 3633 | 1366 | 2.7x | 6301 / 6430 | 3058 / 4408 |
+| c-foundationstereo-s | OOM | – | 3643 | 1366 | 2.7x | 4903 / 7258 | 3058 / 4408 |
 | cfnet-sceneflow | – | – | 409 | 225 | 1.8x | 1822 / 2578 | 1073 / 1604 |
 | coex-sceneflow | – | – | 49.9 | 23.5 | 2.1x | 1093 / 1174 | 368 / 514 |
 | defom-stereo-vitl-sceneflow | – | – | – | 642 | – | – | 3154 / 3522 |
@@ -2136,7 +2136,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | bridgedepth-sf | 994x1482 | 437 ms | 325 ms | planned for 0.2.1 | 348 ms | 111 s | – | 2916 / 3214 | 2280 / 2308 | 2310 / 2634 | – |
 | bridgedepth-sf | 375x1242 | 111 ms | – | 284 ms, fp32 engine (DINOv2 and DPT monocular branch with eager stereo inference) | 92.1 ms | – | 54.1 s | 1859 / 1954 | – | 1272 / 1394 | 2358 / 2508 |
 | c-fast-foundationstereo | 994x1482 | 330 ms | 339 ms | 451 ms | 135 ms | 75.4 s | 240 s | 2109 / 2336 | 1649 / 1792 | 1120 / 1236 | 1425 / 1462 |
-| c-foundationstereo-s | 994x1482 | 3633 ms | 2773 ms | 2229 ms | 1366 ms | 626 s | 444 s | 6301 / 6430 | 7298 / 7624 | 3058 / 4408 | 10027 / 10108 |
+| c-foundationstereo-s | 994x1482 | 3643 ms | 2773 ms | 2229 ms | 1366 ms | 626 s | 444 s | 4903 / 7258 | 7298 / 7624 | 3058 / 4408 | 10027 / 10108 |
 | cas-gwcnet-c-sceneflow | 994x1482 | 327 ms | 295 ms | 220 ms | 225 ms | 61.7 s | 131 s | 2006 / 2474 | 2098 / 2448 | 1725 / 1930 | 1533 / 1548 |
 | cas-gwcnet-gc-sceneflow | 994x1482 | 472 ms | 383 ms | 307 ms | 358 ms | 63.7 s | 98.6 s | 2338 / 2794 | 6592 / 6670 | 2272 / 2514 | 4142 / 4194 |
 | cfnet-sceneflow | 994x1482 | 409 ms | 249 ms | 171 ms | 225 ms | 53.0 s | 139 s | 1822 / 2578 | 1026 / 1398 | 1073 / 1604 | 1357 / 1410 |
