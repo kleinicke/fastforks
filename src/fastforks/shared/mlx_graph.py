@@ -1433,7 +1433,7 @@ class MlxModule:
                 continue
             stand_in = torch.zeros((), dtype=t.dtype).expand(t.shape)
             old = t.untyped_storage()
-            hand_back = old.nbytes() >= _HAND_BACK_MIN and _exclusive(old)
+            hand_back = old.nbytes() >= _HAND_BACK_MIN and _exclusive(old) and not getattr(old, "filename", None)
             if leaf in host._parameters:
                 t.data = stand_in
             else:

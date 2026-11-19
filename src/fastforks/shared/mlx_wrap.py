@@ -9,8 +9,11 @@ replays the graph with `mx.compile` on the GPU. Kernels mode (`ctx.mode == "kern
 
 from __future__ import annotations
 
+import contextlib
 import contextvars
 import dataclasses
+import gc
+import weakref
 from typing import TYPE_CHECKING, Any
 
 import torch
@@ -18,7 +21,7 @@ import torch
 from fastforks.shared.mlx_graph import MlxModule
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
 
     from fastforks._core.runner import Context, Runner
 
@@ -36,6 +39,70 @@ def run_dtype(ctx: Context) -> str:
     A runner that rescales weights for float16 (to keep activations finite) asks this instead of `ctx.dtype`.
     """
     return _RUN_DTYPE.get() or ctx.dtype
+
+
+class LazyTwinError(RuntimeError):
+    """A parameter of the lazily built PyTorch twin was never given a value (the twin is rebuilt the eager way)."""
+
+
+_INITS = (
+    "uniform_",
+    "normal_",
+    "trunc_normal_",
+    "xavier_uniform_",
+    "xavier_normal_",
+    "kaiming_uniform_",
+    "kaiming_normal_",
+    "orthogonal_",
+)
+
+
+@contextlib.contextmanager
+def _lazy_twin() -> Iterator[None]:
+    """While the PyTorch twin is built: its weights are never copied or randomly initialised, they are the checkpoint's.
+
+    `load_state_dict` assigns the checkpoint's tensors to the parameters when their dtype fits (safetensors and zip
+    checkpoints are memory-mapped, so those pages are clean file cache, not the process's footprint; a converted copy
+    stays an ordinary copy), and the random initialisers of `torch.nn.init` do nothing (the parameter keeps untouched
+    pages). The values are exactly those of the eager build. A parameter that keeps its skipped initialisation (never
+    loaded, never written) would be garbage: that raises `LazyTwinError` and the caller builds the eager way.
+    """
+    skipped: dict[int, tuple[weakref.ref[torch.Tensor], int]] = {}
+    orig_load = torch.nn.Module.load_state_dict
+    orig_inits = {name: getattr(torch.nn.init, name) for name in _INITS}
+
+    def load(self: torch.nn.Module, state_dict: Any, strict: bool = True, assign: bool = False) -> Any:  # noqa: ANN401, FBT001, FBT002
+        if assign:
+            return orig_load(self, state_dict, strict, assign)
+        own = self.state_dict()
+        fixed = {}
+        for k, v in state_dict.items():
+            t = own.get(k)
+            fixed[k] = v.to(t.dtype) if isinstance(v, torch.Tensor) and t is not None and v.dtype != t.dtype else v
+        return orig_load(self, fixed, strict, True)
+
+    def skip(name: str) -> Callable[..., Any]:
+        def init(tensor: torch.Tensor, *args: Any, **kwargs: Any) -> torch.Tensor:  # noqa: ANN401, ARG001
+            skipped[id(tensor)] = (weakref.ref(tensor), tensor._version)  # noqa: SLF001
+            return tensor
+
+        init.__name__ = name
+        return init
+
+    torch.nn.Module.load_state_dict = load  # ty: ignore[invalid-assignment]
+    for name in _INITS:
+        setattr(torch.nn.init, name, skip(name))
+    try:
+        yield
+        for ref, version in skipped.values():
+            t = ref()
+            if t is not None and t._version == version:  # noqa: SLF001
+                msg = "a parameter keeps its skipped initialisation"
+                raise LazyTwinError(msg)
+    finally:
+        torch.nn.Module.load_state_dict = orig_load  # ty: ignore[invalid-assignment]
+        for name, fn in orig_inits.items():
+            setattr(torch.nn.init, name, fn)
 
 
 class _Method(torch.nn.Module):
@@ -88,7 +155,12 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
             """Build the PyTorch runner in float32 on the CPU, then hand its network(s) to MLX."""
             token = _RUN_DTYPE.set(ctx.dtype)
             try:
-                super().__init__(dataclasses.replace(ctx, dtype="float32"))
+                try:
+                    with _lazy_twin():
+                        super().__init__(dataclasses.replace(ctx, dtype="float32"))
+                except LazyTwinError:
+                    gc.collect()
+                    super().__init__(dataclasses.replace(ctx, dtype="float32"))
             finally:
                 _RUN_DTYPE.reset(token)
             kernels = ctx.mode == "kernels" and (ctx.dtype == "float16" or not kernels_fp16_only)
