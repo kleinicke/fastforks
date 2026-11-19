@@ -276,9 +276,8 @@ class Portable(InteractiveRunner):
 
     def __call__(self, x: torch.Tensor) -> torch.Tensor:
         """The mask (argmax, uint8) of one network input `[8, *patch]`."""
-        x = x[None].to(self._dtype)
-        if self._channels_last:
-            x = x.contiguous(memory_format=torch.channels_last_3d)
+        layout = torch.channels_last_3d if self._channels_last else torch.preserve_format
+        x = x[None].to(dtype=self._dtype, memory_format=layout)
         return self.net(x)[0].argmax(0).to(torch.uint8)
 
     # the session (host code: prompt maps, zoom, refinement boxes; the network runs in `__call__`)
@@ -351,6 +350,11 @@ class Portable(InteractiveRunner):
         torch.maximum(ch, crop.to(ch.dtype), out=ch)
         self._predict(s, centre, zoom)
 
+    def _cuda_patch(self, device: torch.device) -> torch.Tensor:
+        return torch.empty((1, 8, *self.patch), dtype=self._dtype, device=device, memory_format=torch.channels_last_3d)[
+            0
+        ]
+
     def _input(self, s: Session, centre: Sequence[int], zoom: float) -> tuple[torch.Tensor, list[int], Box]:
         """`_build_network_input`: the 8-channel input around `centre`, the zoomed patch size and its box."""
         size = [round(p * zoom) for p in self.patch]
@@ -363,7 +367,13 @@ class Portable(InteractiveRunner):
                 inter[3:7] = F.max_pool3d(inter[None, 3:7], k, 1, k // 2)[0]
             inter = F.interpolate(inter[None], self.patch, mode="area")[0]
             img = F.interpolate(img[None], self.patch, mode="trilinear")[0]
-        return torch.cat((img, inter.float())), size, box
+        if self._channels_last:
+            x = self._cuda_patch(img.device)
+            x[:1].copy_(img)
+            x[1:].copy_(inter)
+        else:
+            x = torch.cat((img, inter.float()))
+        return x, size, box
 
     def _border_change(self, pred: torch.Tensor, prev: torch.Tensor) -> bool:
         """`_detect_change_at_border`: the mask changed on a face of the patch by enough voxels."""
@@ -389,12 +399,14 @@ class Portable(InteractiveRunner):
         while True:
             x, size, box = self._input(s, centre, zoom)
             pred = self(x)
+            del x
             prev = _crop_pad(s.inter[0], box)
             if prev.shape != pred.shape:
                 prev = F.interpolate(prev[None, None].float(), pred.shape, mode="nearest")[0, 0]
             if not (self.ctx.params.autozoom and self._border_change(pred, prev)) or zoom >= _MAX_ZOOM:
                 break
             zoom = min(_MAX_ZOOM, zoom * _ZOOM_GROWTH)
+        del prev
         if zoom == 1:
             _paste(s.inter[0], pred, box)
             _paste(s.target, pred, [[a + o, b + o] for (a, b), o in zip(box, s.start, strict=True)])
@@ -423,11 +435,14 @@ class Portable(InteractiveRunner):
             s.positive_box = False
         boxes = cover_boxes(diff, self.patch, s.rng) or [_box_at(centre, self.patch)]
         del diff
-        x = torch.zeros((8, *self.patch), dtype=torch.float32, device=s.image.device)
+        if self._channels_last:
+            x = self._cuda_patch(s.image.device).zero_()
+        else:
+            x = torch.zeros((8, *self.patch), dtype=torch.float32, device=s.image.device)
         for box in boxes:
             vol, own = _clip(box, s.image.shape)
             x[(0, *own)] = s.image[vol]
-            x[(slice(1, None), *own)] = s.inter[(slice(None), *vol)].float()
+            x[(slice(1, None), *own)].copy_(s.inter[(slice(None), *vol)])
             pred = self(x)
             _paste(s.inter[0], pred, box)
             _paste(s.target, pred, [[a + o, b + o] for (a, b), o in zip(box, s.start, strict=True)])
