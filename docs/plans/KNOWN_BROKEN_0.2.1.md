@@ -1,4 +1,21 @@
-# Known broken in 0.2.0, planned for 0.2.1
+# 0.2.0 limitations and 0.2.1 measurement follow-up
+
+## Current measurement status
+
+The November 19 review found valid TensorRT timings for 37 of the 40 variants in the original export follow-up.
+Thirty-six of the selected timings use standalone builds. The [benchmark tables](../benchmarks.md) give the input
+shape and stage for each measurement. The model cards give the current availability of the public export methods.
+The [post-release checklist](postrelease-todo.md) records coverage for the full catalog.
+
+| Variant | Remaining TensorRT accuracy limit |
+|---|---|
+| `disk-lightglue` | The staged CNN lost 1.92 pose AUC@5 points in default FP32 and 4.13 with TF32 disabled on 50 MegaDepth pairs. |
+| `xfeat-lighterglue` | The staged CNN caused a new pose solver failure on one of 300 MegaDepth pairs. Disabling TF32 and running just the first LighterGlue block in TensorRT both reproduced the failure. |
+| `romav1` | The staged DINOv2 and fine VGG trials caused new pose solver failures or large individual pose errors on MegaDepth, including with TF32 disabled. |
+
+## Original 0.2.0 tracking notes
+
+The sections below record the symptoms and proposed work at the time of the 0.2.0 release.
 
 Everything here is either gated or fails with a clear error. Gated features raise
 `BackendUnavailableError: <ref>: <feature> is not available in 0.2.0, planned for 0.2.1: <reason>`.

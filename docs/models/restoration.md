@@ -17,8 +17,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`dat-2-x4`](#dat) | yes | 1037, 4.7x | 2220, 0.88x |
 | [`dat-light-x4`](#dat) | yes | 232, 9.5x | 592, 0.36x |
 | [`dat-x4`](#dat) | yes | 1209, 7.9x | 2226, 0.88x |
-| [`drct-l-x4`](#drct) | yes | 1399, 10.5x | 2850, 0.41x |
-| [`drct-x4`](#drct) | yes | 718, 10.4x | 2766, 0.7x |
+| [`drct-l-x4`](#drct) | yes | 1314, 11.2x | 1790, 0.26x |
+| [`drct-x4`](#drct) | yes | 674, 11.1x | 1748, 0.44x |
 | [`gfpgan-v1.4`](#gfpgan) | yes | 18.0, 1.2x | 530, 0.79x |
 | [`hat-s-x4`](#hat) | yes | 956, 2.5x | 1888, 0.33x |
 | [`hat-x4`](#hat) | yes | 1427, 2.1x | 2470, 0.4x |
@@ -229,8 +229,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `drct-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7492<br>830<br>718<br>618<br>731 | 3359 / 3944<br>2626 / 3048<br>2498 / 2766<br>1938 / 2348<br>9684 / 9728 |
-| `drct-l-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14651<br>1607<br>1399<br>1210<br>fails: TensorRT engine build failed | 5574 / 6926<br>2692 / 3110<br>2564 / 2850<br>2005 / 2410<br>– |
+| `drct-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7492<br>810<br>674<br>618<br>731 | 3359 / 3944<br>1608 / 1888<br>1560 / 1748<br>1938 / 2348<br>9684 / 9728 |
+| `drct-l-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14651<br>1567<br>1314<br>1210<br>fails: TensorRT engine build failed | 5574 / 6926<br>1675 / 1950<br>1603 / 1790<br>2005 / 2410<br>– |
 | `drct-l-x4` | synthetic (256x256) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>384<br>–<br>289 | –<br>766 / 1204<br>–<br>559 / 560 |
 
 <details><summary>Details</summary>
@@ -249,7 +249,9 @@ Commercial use: yes.
 - `drct-l-x4` 512x512, first call: portable + torch.compile 67 s (cold Inductor cache).
 - `drct-l-x4` 256x256, first call: TensorRT fp16 222 s (ONNX + engine).
 - `drct-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream drct_model.py test, float32, no tile
+- `drct-x4` portable 512x512, kernels 512x512: FP16 native model with bounded reconstruction strips. The portable path also groups the large shifted-window biases. Outputs matched on synthetic, three aligned DIV2K crops and an odd two-image batch.
 - `drct-l-x4` original 512x512: torch.autocast(float16) around the call; upstream drct_model.py test, float32, no tile
+- `drct-l-x4` portable 512x512, kernels 512x512: FP16 native model with bounded reconstruction strips. The portable path also groups the large shifted-window biases. Outputs matched on synthetic, three aligned DIV2K crops and an odd two-image batch.
 - `drct-x4` load / first call: original 1.88 s / 8.657 s, portable 0.39 s / 1.018 s, kernels 1.32 s / 0.773 s
 - `drct-l-x4` load / first call: original 2.09 s / 15.382 s, portable 0.79 s / 1.698 s, kernels 1.84 s / 1.454 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

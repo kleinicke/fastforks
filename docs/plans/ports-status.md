@@ -291,7 +291,7 @@ exist) and the MPS goldens, all passing. Still open:
 
 ## Known gaps that wait for a release
 
-- Known broken in 0.2.0 and gated until 0.2.1 (card `planned`): [KNOWN_BROKEN_0.2.1.md](KNOWN_BROKEN_0.2.1.md).
+- Original 0.2.0 limitations and measured 0.2.1 follow-up: [KNOWN_BROKEN_0.2.1.md](KNOWN_BROKEN_0.2.1.md).
 - The `dpt_fused` build `48e0065bb7cf` for `sm_120` is not on Hugging Face yet; kernel builds are uploaded at
   release time.
 - The `romav2` build `bb29839cee98` (fused depthwise conv) is not on Hugging Face yet; local copy in

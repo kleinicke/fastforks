@@ -780,7 +780,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`swinir-m-x2`](models/restoration.md#swinir) | yes | 3252.1 (512x512) | 738.8 | 553.0 | 5.9x vs original (512x512) | 1353 |
 | [`swinir-m-x4`](models/restoration.md#swinir) | yes | 3497.4 (512x512) | 767.5 | 575.6 | 6.1x vs original (512x512) | 1354 |
 | [`swinir-m-x4-real`](models/restoration.md#swinir) | yes | 2461.6 (512x512) | 1241.7 | 583.8 | 4.2x vs original (512x512) | 1353 |
-| [`drct-x4`](models/restoration.md#drct) | yes | 7491.7 (512x512) | 829.8 | 718.2 | 10.4x vs original (512x512) | 2498 |
+| [`drct-x4`](models/restoration.md#drct) | yes | 7491.7 (512x512) | 809.9 | 673.5 | 11.1x vs original (512x512) | 1560 |
 | [`swin2sr-x2`](models/restoration.md#swin2sr) | yes | 2565.1 (512x512) | 908.6 | 720.5 | 3.6x vs original (512x512) | 1459 |
 | [`swin2sr-x4`](models/restoration.md#swin2sr) | yes | 2921.9 (512x512) | 931.7 | 744.9 | 3.9x vs original (512x512) | 1459 |
 | [`swin2sr-x4-real`](models/restoration.md#swin2sr) | yes | 2527.2 (512x512) | 960.0 | 751.2 | 3.4x vs original (512x512) | 1459 |
@@ -789,7 +789,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`dat-2-x4`](models/restoration.md#dat) | yes | 4880.3 (512x512) | 1312.2 | 1037.4 | 4.7x vs original (512x512) | 1534 |
 | [`dat-x4`](models/restoration.md#dat) | yes | 9563.6 (512x512) | 1385.7 | 1208.7 | 7.9x vs original (512x512) | 1541 |
 | [`real-hat-gan-x4`](models/restoration.md#hat) | yes | 3038.1 (512x512) | 1428.5 | 1234.2 | 2.5x vs original (512x512) | 1312 |
-| [`drct-l-x4`](models/restoration.md#drct) | yes | 14651.1 (512x512) | 1606.9 | 1398.5 | 10.5x vs original (512x512) | 2564 |
+| [`drct-l-x4`](models/restoration.md#drct) | yes | 14651.1 (512x512) | 1566.8 | 1313.7 | 11.2x vs original (512x512) | 1603 |
 | [`hat-x4`](models/restoration.md#hat) | yes | 3038.2 (512x512) | 1595.9 | 1426.7 | 2.1x vs original (512x512) | 2298 |
 | [`seedvr2-3b`](models/restoration.md#seedvr2) | yes | 13150.0 (512x512) | 2332.3 | 2355.8 | 5.6x vs original (512x512) | 3857 |
 | [`seedvr2-7b`](models/restoration.md#seedvr2) | yes | OOM (512x512) | 2747.7 | 2748.1 | 1.0x vs portable | 4495 |
