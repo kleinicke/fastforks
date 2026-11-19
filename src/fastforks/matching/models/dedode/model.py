@@ -207,5 +207,5 @@ class Kernels(Portable):
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.detector", "net.descriptor")),
+    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.detector", "net.descriptor"), cache_mb=1024),
 }

@@ -173,9 +173,15 @@ RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "portable_mlx": mlx_wrap.port(
-        Portable, attrs=("both.net.unet", "both.control"), methods=("both.net.vae.encode_mean", "both.net.vae.decode")
+        Portable,
+        attrs=("both.net.unet", "both.control"),
+        methods=("both.net.vae.encode_mean", "both.net.vae.decode"),
+        cache_mb=1024,
     ),
     "kernels_mlx": mlx_wrap.port(
-        Portable, attrs=("both.net.unet", "both.control"), methods=("both.net.vae.encode_mean", "both.net.vae.decode")
+        Portable,
+        attrs=("both.net.unet", "both.control"),
+        methods=("both.net.vae.encode_mean", "both.net.vae.decode"),
+        cache_mb=1024,
     ),
 }

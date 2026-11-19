@@ -154,6 +154,10 @@ class Kernels(Runner):
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.unet",), methods=("net.vae.encode_moments", "net.vae.decode")),
-    "kernels_mlx": mlx_wrap.port(Portable, attrs=("net.unet",), methods=("net.vae.encode_moments", "net.vae.decode")),
+    "portable_mlx": mlx_wrap.port(
+        Portable, attrs=("net.unet",), methods=("net.vae.encode_moments", "net.vae.decode"), cache_mb=1024
+    ),
+    "kernels_mlx": mlx_wrap.port(
+        Portable, attrs=("net.unet",), methods=("net.vae.encode_moments", "net.vae.decode"), cache_mb=1024
+    ),
 }

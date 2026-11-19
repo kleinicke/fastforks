@@ -79,5 +79,5 @@ class Kernels(Runner):
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+    "portable_mlx": mlx_wrap.port(Portable, whole="disparity", cache_mb=1024),
 }

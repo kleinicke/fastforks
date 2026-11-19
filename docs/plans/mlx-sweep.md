@@ -488,3 +488,73 @@ portable, igev fp16 (also +1.1 GB memory), neuflow, memflow, sea-raft fp32 (1.2-
 the cache is now resident. Remaining: the GRU convs are FLOP-bound at about 3 TFLOPS effective (MPS is faster per
 conv), so only a faster conv (fused Winograd GEMM) or fewer allocations (smaller V/M via banding) would close the gap;
 a per-family cache size below 2048 (igev, 768) was not tuned. For torch MPS: nothing trivial (its allocator caches).
+
+## Buffer-cache sizing and allocator-bound check (v0.21 follow-up 2)
+
+`FASTFORKS_MLX_CACHE_MB` sets the exact cache limit of a run (also below a declared `cache_mb`; sweeps only);
+`FF_SURVEY_DTYPE=float16` limits `tools/speed_survey.py` to one dtype; `FASTFORKS_MLX_TUNING=cache_min_mb=1024` raises the
+default limit for any family without a declaration.
+
+Cache sweep of the nets declared at 2048 MB (fp16 except neuflow / memflow fp32; ms / peak MB; MPS in the last column):
+
+| ref | 128 | 256 | 512 | 768 | 1024 | 1536 | 2048 | MPS | declared |
+|---|---|---|---|---|---|---|---|---|---|
+| raft-stereo-sceneflow kernels | 7745 / 2772 | 6751 / 3153 | 6722 / 3403 | 6371 / 3529 | 5235 / 3603 (4901 / 3870 rerun) | 4800 | 4067 / 4764 | 3637 / 4720 | 2048 (curve is a cliff: 1024 is 20-28 % slower) |
+| igev-stereo-sceneflow | 9039 / 3041 | - | 8264 / 3517 | 7556 / 3810 | 7315 / 3990 | 6659 / 4474 | 6026 / 4931 | 5772 / 3819 | 2048 (1536 is 10 % slower) |
+| raft-large | 3271 / 8609 | - | 2268 / 8986 | - | 2176 / 8988 | - | 2147 / 11100 | 2710 / 11644 | 1024 |
+| sea-raft-m | 1785 / 5111 | - | 1450 / 5131 | - | 1433 / 5716 | - | 1395 / 6741 | 1635 / 9732 | 1024 (512 is 4 % slower) |
+| neuflow-v2 (fp32) | 1552 / 8929 | 1176 / 9031 | 1101 / 9203 | - | 1095 / 9806 | - | 1104 / 10753 | 1039 / 13354 | 512 |
+| memflow (fp32) | 16607 / 9749 | - | 13584 / 10104 | - | 13287 / 10616 | - | 12980 / 11371 | 10016 / 12659 | 1024 |
+
+The curve is a cliff for the nets whose per-step working set is above the limit: the cache evicts least-recently-used
+buffers, and a loop that cycles through more bytes than the limit misses on every allocation. Where the working set is
+small (raft-large, sea-raft, neuflow, memflow) 512-1024 MB already gets within 3 % of the best speed.
+
+Winograd bands (raft-stereo kernels fp16, cache 1024): `_BAND_BYTES` 192 MB (default, one band at 994x1482) 4900 ms,
+48 MB 7010 ms, 16 MB 10830 ms, peak memory unchanged (3.8-3.9 GB). More bands are slower (one dispatch round per band)
+and do not lower the peak: the peak is the encoder and the cached buffers, not the V/M tensors. Dead end; not kept.
+
+Other families, `cache_min_mb=1024` against the committed rows (fp16 unless noted; ms / peak MB):
+
+| ref | before | cache 1024 | MPS | declared |
+|---|---|---|---|---|
+| flowseek-t | 2667 / 5208 | 2256 / 5770 | no row | yes |
+| lotus-normal-d | 2197 / 4729 | 1981 / 5671 | 1459 / 6628 | yes |
+| stablenormal-turbo | 2527 / 7816 | 2281 / 8687 | 1690 / 8985 | yes |
+| detr-r50-coco | 116 / 1120 | 105 / 1903 | 105 / 1954 | yes (speed = MPS, memory just below) |
+| nmrf-sceneflow | 2939 / 1851 | 2297 / 2939 | 1469 / 4747 | yes |
+| dlnr-sceneflow | 4474 / 3085 | 3791 / 3877 | 2143 / 4094 | yes |
+| dedode-v2-b (fp32) | 2915 / 4374 | 2568 / 5319 | 1464 / 8011 | yes |
+| selective-igev-sceneflow | 13071 / 3586 | 10846 / 4733 | 6968 / 3859 | no (-17 % time, but +1.1 GB, above MPS) |
+| igev-plusplus-sceneflow | 15900 / 3507 | 14541 / 4427 | 8602 / 6037 | no (9 %) |
+| gmflow-scale1-things | 6371 / 10879 | 6198 / 11187 | - | no (3 %) |
+| marigold-depth-v1-1 | 4231 / 4254 | 4006 / 5142 | 2498 / 6640 | no (5 %) |
+| loftr-outdoor (fp32) | 1979 / 3802 | 1858 / 4486 | - | no (6 %) |
+| mask-rcnn-r50-fpn-3x-coco | 412 / 1473 | 416 / 2220 | - | no (0 %) |
+| romav1 | - | failed in this run | - | not measured |
+
+Final survey rows (portable, ms / peak MB, before -> after, MPS):
+
+| ref | dtype | before | after | MPS |
+|---|---|---|---|---|
+| raft-large | fp16 | 2147 / 11100 | 2134 / 8987 | 2710 / 11644 (MLX wins both) |
+| raft-large | fp32 | 2735 / 11424 | 2724 / 10567 | 2522 / 12889 |
+| sea-raft-m | fp16 | 1395 / 6741 | 1427 / 5714 | 1635 / 9732 (MLX wins both) |
+| sea-raft-m | fp32 | 2209 / 10723 | 2187 / 9721 | 1820 / 12542 |
+| neuflow-v2 | fp32 | 1104 / 10753 | 1087 / 9252 | 1039 / 13354 |
+| memflow | fp32 | 12980 / 11371 | 13101 / 10550 | 10016 / 12659 |
+| lotus-normal-d | fp16 | 2197 / 4729 | 1973 / 5670 | 1459 / 6628 |
+| stablenormal-turbo | fp16 | 2527 / 7816 | 2299 / 8683 | 1690 / 8985 |
+| detr-r50-coco | fp16 | 116 / 1120 | 106 / 1924 | 105 / 1954 |
+| nmrf-sceneflow | fp16 | 2939 / 1851 | 2246 / 3106 | 1469 / 4747 |
+| dlnr-sceneflow | fp16 | 4474 / 3085 | 3762 / 3937 | 2143 / 4094 |
+| dedode-v2-b | fp32 | 2915 / 4374 | 2534 / 5327 | 1464 / 8011 |
+| flowseek-t | fp16 | 2667 / 5208 | 2160 / 5781 | no row |
+
+All survey goldens pass; nafnet-gopro and wd-vit-tagger-v3 `test_mlx` pass. `apple_mlx.json` is unchanged: regenerating it
+rewrites the whole file from newer rows (an unrelated 3000-line diff), and the only rows that now win in speed and memory
+(raft-large and sea-raft-m fp16) are covered by the `mlx` / `mlx_default` entries the generator would add, which is a
+separate regeneration pass. Remaining: every net above except raft-large / sea-raft-m fp16 stays slower than MPS (the
+GRU / attention convs are FLOP-bound at about 3 TFLOPS effective), the cache cliff of raft-stereo / igev cannot be
+shrunk without fewer distinct large buffers per step (not found cheaply), and the memory gap to MPS closes only where
+the cache fits.
