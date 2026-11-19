@@ -157,6 +157,10 @@ def _bidir(make: Callable[[torch.Tensor, torch.Tensor], Callable[[torch.Tensor],
             bwd = fwd.reverse()
         else:
             bwd = make(f1, f0)
+        if isinstance(fwd, _VolumeCorr) and not capture and not torch.is_grad_enabled():
+            # Frame synthesis samples this pair once, before the full-resolution decoder.
+            volumes = [bwd, fwd]
+            return lambda c0, c1: (volumes.pop()(c0), volumes.pop()(c1))
         return lambda c0, c1: (fwd(c0), bwd(c1))
 
     return corr
