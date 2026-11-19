@@ -14,7 +14,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 |---|---|---|---|
 | [`alltracker`](#alltracker) | yes | 213, 2.3x | 1068, 0.46x |
 | [`alltracker-tiny`](#alltracker) | yes | 217, 2.0x | 1166, 0.53x |
-| [`bootstapir`](#tapir) | yes | 192, 1.3x | 628, 0.81x |
+| [`bootstapir`](#tapir) | yes | 191, 1.3x | 568, 0.73x |
 | [`cotracker3-offline`](#cotracker) | no | 154, 1.6x | 882, 0.36x |
 | [`cotracker3-online`](#cotracker) | no | 176, 1.9x | 888, 0.47x |
 | [`locotrack-b`](#locotrack) | yes | 108, 1.9x | 620, 0.79x |
@@ -109,7 +109,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `bootstapir` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 243<br>234<br>192<br>183<br>13.2 | 639 / 774<br>508 / 628<br>508 / 628<br>758 / 832<br>492 / 532 |
+| `bootstapir` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 243<br>233<br>191<br>183<br>13.2 | 639 / 774<br>499 / 568<br>499 / 568<br>758 / 832<br>492 / 532 |
 | `tapir` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 187<br>182<br>141<br>131<br>6.47 | 498 / 574<br>463 / 548<br>463 / 548<br>630 / 752<br>361 / 406 |
 
 <details><summary>Details</summary>
@@ -127,6 +127,7 @@ Commercial use: yes.
 - `bootstapir` 480x854, first call: portable + torch.compile 207 s (cold Inductor cache), TensorRT fp16 65 s (ONNX + engine).
 - `tapir` 480x854, first call: portable + torch.compile 169 s (cold Inductor cache), TensorRT fp16 55 s (ONNX + engine).
 - `bootstapir` original 480x854: the authors' mixed-precision option (float16); upstream BootsTAPIR, offline (whole video); frames resized to 256 x 256
+- `bootstapir` portable 480x854, kernels 480x854: 24 frames with 256 queries. Both modes exactly match the baseline on this synthetic clip, three labeled TAP-Vid DAVIS clips and a 96-frame synthetic clip. The longer clip reserves 292 to 294 MiB less CUDA memory.
 - `tapir` original 480x854: the authors' mixed-precision option (float16); upstream TAPIR, offline (whole video); frames resized to 256 x 256
 - `bootstapir` load / first call: original 0.6 s / 0.901 s, portable 0.32 s / 0.8 s, kernels 1.14 s / 0.659 s
 - `tapir` load / first call: original 0.35 s / 0.827 s, portable 0.19 s / 0.836 s, kernels 1.13 s / 0.688 s

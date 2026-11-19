@@ -724,7 +724,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`locotrack-s`](models/tracking.md#locotrack) | yes | 192.8 (480x854) | 179.5 | 150.6 | 1.3x vs original (480x854) | 596 |
 | [`cotracker3-offline`](models/tracking.md#cotracker3) | no | 243.5 (480x854) | 162.0 | 154.4 | 1.6x vs original (480x854) | 757 |
 | [`cotracker3-online`](models/tracking.md#cotracker3) | no | 327.7 (480x854) | 183.7 | 175.9 | 1.9x vs original (480x854) | 757 |
-| [`bootstapir`](models/tracking.md#tapir) | yes | 242.5 (480x854) | 233.7 | 192.5 | 1.3x vs original (480x854) | 508 |
+| [`bootstapir`](models/tracking.md#tapir) | yes | 242.5 (480x854) | 232.9 | 190.7 | 1.3x vs original (480x854) | 499 |
 | [`alltracker`](models/tracking.md#alltracker) | yes | 485.3 (480x854) | 384.9 | 213.4 | 2.3x vs original (480x854) | 967 |
 | [`alltracker-tiny`](models/tracking.md#alltracker) | yes | 424.2 (480x854) | 329.9 | 217.2 | 2.0x vs original (480x854) | 978 |
 | [`tapnext`](models/tracking.md#tapnext) | yes | 908.8 (480x854) | 528.4 | 380.7 | 2.4x vs original (480x854) | 1205 |

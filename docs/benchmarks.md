@@ -1456,7 +1456,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 |---|---|---|---|---|---|---|---|---|
 | alltracker | 485 | 385 | 213 | 2.3x | 1.8x | 2100 / 2318 | 885 / 998 | 967 / 1068 |
 | alltracker-tiny | 424 | 330 | 217 | 2.0x | 1.5x | 1995 / 2200 | 919 / 1178 | 978 / 1166 |
-| bootstapir | 243 | 234 | 192 | 1.3x | 1.2x | 639 / 774 | 508 / 628 | 508 / 628 |
+| bootstapir | 243 | 233 | 191 | 1.3x | 1.2x | 639 / 774 | 499 / 568 | 499 / 568 |
 | cotracker3-offline | 244 | 162 | 154 | 1.6x | 1.0x | 2221 / 2480 | 755 / 882 | 757 / 882 |
 | cotracker3-online | 328 | 184 | 176 | 1.9x | 1.0x | 1659 / 1886 | 755 / 906 | 757 / 888 |
 | locotrack-b | 203 | 188 | 108 | 1.9x | 1.7x | 719 / 784 | 544 / 596 | 555 / 620 |
@@ -2693,7 +2693,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | alltracker | 256x256 | – | – | 330 ms, fp32 engine (frame CNN with eager tracking) | – | – | 20.3 s | – | – | – | 2262 / 3372 |
 | alltracker-tiny | 480x854 | 330 ms | 229 ms | public API unavailable | 217 ms | 103 s | – | 919 / 1178 | 1198 / 1338 | 978 / 1166 | – |
 | alltracker-tiny | 256x256 | – | – | 270 ms, fp32 engine (frame CNN with eager tracking) | – | – | 19.3 s | – | – | – | 2010 / 3220 |
-| bootstapir | 480x854 | 234 ms | 183 ms | 13.2 ms | 192 ms | 207 s | 65.0 s | 508 / 628 | 758 / 832 | 508 / 628 | 492 / 532 |
+| bootstapir | 480x854 | 233 ms | 183 ms | 13.2 ms | 191 ms | 207 s | 65.0 s | 499 / 568 | 758 / 832 | 499 / 568 | 492 / 532 |
 | cotracker3-offline | 480x854 | 162 ms | 135 ms | 25.9 ms | 154 ms | 36.5 s | 157 s | 755 / 882 | 755 / 902 | 757 / 882 | 519 / 586 |
 | cotracker3-online | 480x854 | 184 ms | 159 ms | public API unavailable | 176 ms | 37.7 s | – | 755 / 906 | 701 / 846 | 757 / 888 | – |
 | cotracker3-online | 256x256 | – | – | 50.3 ms, fp32 engine (fixed eight-frame graph with 16 queries) | – | – | 117 s | – | – | – | 456 / 472 |
