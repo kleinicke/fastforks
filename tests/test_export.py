@@ -24,6 +24,7 @@ from fastforks._core.errors import BackendUnavailableError, InputError
 from fastforks._core.export import flat_outputs, output_names
 from fastforks._core.preprocess import resize_crop, scale
 from fastforks._core.tasks import spec
+from fastforks.pose.models.rtmpose.net import ScaleNorm
 from fastforks.stereo import _module  # noqa: F401 - registers the kernels custom op
 from fastforks.stereo._export import _cuda_device, _fix_folded_weight_casts
 from synth import pair, prompt_kwargs, size
@@ -32,6 +33,15 @@ from test_golden import FAMILIES, GOLDEN, SMALLEST, TASK, sweep_model
 LOAD_ONCE = True  # conftest runs the tests of one ref together: `sweep_model` loads it once
 
 SHAPE = (1, 3, 96, 128)  # not a multiple of every pad multiple: padding and cropping are in the traced graph
+
+
+def test_rtmpose_half_export_accumulates_scale_norm_in_fp32():
+    layer = ScaleNorm(64).half().eval()
+    inputs = torch.linspace(-400, 400, 64, dtype=torch.float16).repeat(2, 1)
+    exported = torch.export.export(layer, (inputs,))
+    (norm,) = [node for node in exported.graph.nodes if node.target == torch.ops.aten.linalg_vector_norm.default]
+    assert norm.meta["val"].dtype == torch.float32
+    torch.testing.assert_close(exported.module()(inputs), layer(inputs), rtol=0, atol=0)
 
 
 _ONNX_NEEDS_NEWER_TORCH = {"c-fast-foundationstereo@1", "foundationstereo-vit-s@1", "selective-igev-eth3d-finetune@1"}
