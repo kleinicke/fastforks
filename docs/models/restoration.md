@@ -33,7 +33,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`restormer-deblur`](#restormer) | yes | 133, 1.8x | 980, 0.69x |
 | [`restormer-derain`](#restormer) | yes | 133, 1.8x | 980, 0.69x |
 | [`restormer-sidd`](#restormer) | yes | 133, 1.6x | 980, 0.69x |
-| [`seedvr2-3b`](#seedvr2) | yes | 2296, 5.7x | 6772, 0.44x |
+| [`seedvr2-3b`](#seedvr2) | yes | 2356, 5.6x | 7778, 0.51x |
 | [`seedvr2-7b`](#seedvr2) | yes | 2713 | 7034 |
 | [`span-x2`](#span) | yes | 14.9, 1.6x | 522, 0.81x |
 | [`span-x4`](#span) | yes | 14.6, 1.8x | 522, 0.81x |
@@ -690,7 +690,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13150<br>2295<br>2296<br>1941<br>fails: RuntimeError: Inplace update to inference tensor outside Inf | 7598 / 15268<br>6140 / 6772<br>6140 / 6772<br>5237 / 8144<br>– |
+| `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13150<br>2332<br>2356<br>1941<br>fails: RuntimeError: Inplace update to inference tensor outside Inf | 7598 / 15268<br>4233 / 7262<br>3857 / 7778<br>5237 / 8144<br>– |
 | `seedvr2-3b` | 64x64 | original<br>portable<br>kernels<br>TensorRT bf16 | –<br>–<br>–<br>46.8 | –<br>–<br>–<br>7662 / 7664 |
 | `seedvr2-7b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | OOM<br>2712<br>2713<br>2471 (VAE only, standalone compile)<br>2696 (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | –<br>6419 / 8880<br>6402 / 7034<br>5522 / 9042<br>9369 / 9860 |
 
@@ -721,6 +721,8 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - `seedvr2-3b` 64x64, first call: TensorRT bf16 324 s (ONNX + engine).
 - `seedvr2-7b` 512x512, first call: portable + torch.compile 52 s (cold Inductor cache), TensorRT bf16 271 s (ONNX + engine).
 - `seedvr2-3b` original 512x512: load: the authors' fp32 .pth files from the page cache (read once before)
+- `seedvr2-3b` portable 512x512: Eager BF16, host-streamed transformer. Bounded single-frame VAE workspace on the 1024 x 1024 output. The largest paired PSNR difference across 13 DIV2K crops was 0.00047 dB.
+- `seedvr2-3b` kernels 512x512: The bounded single-frame VAE with the NF4 transformer. Three labeled DIV2K crops changed by less than 0.0001 dB PSNR.
 - `seedvr2-3b` load / first call: original 96.2 s / 13.89 s, portable 2.65 s / 2.454 s, kernels 3.27 s / 2.462 s
 - `seedvr2-7b` load / first call: portable 222.77 s / 3.174 s, kernels 118.43 s / 3.176 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

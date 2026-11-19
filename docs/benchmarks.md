@@ -1507,7 +1507,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | restormer-deblur | 234 | 228 | 133 | 1.8x | 1.7x | 1221 / 1418 | 850 / 1000 | 892 / 980 |
 | restormer-derain | 234 | 228 | 133 | 1.8x | 1.7x | 1221 / 1418 | 850 / 1000 | 892 / 980 |
 | restormer-sidd | 218 | 181 | 133 | 1.6x | 1.4x | 1221 / 1416 | 850 / 920 | 892 / 980 |
-| seedvr2-3b | 13150 | 2295 | 2296 | 5.7x | 1.0x | 7598 / 15268 | 6140 / 6772 | 6140 / 6772 |
+| seedvr2-3b | 13150 | 2332 | 2356 | 5.6x | 1.0x | 7598 / 15268 | 4233 / 7262 | 3857 / 7778 |
 | seedvr2-7b | OOM | 2712 | 2713 | – | 1.0x | – | 6419 / 8880 | 6402 / 7034 |
 | span-x2 | 24.6 | 23.5 | 14.9 | 1.6x | 1.6x | 611 / 648 | 607 / 662 | 487 / 522 |
 | span-x4 | 26.9 | 24.2 | 14.6 | 1.8x | 1.7x | 611 / 648 | 607 / 662 | 487 / 522 |
@@ -2744,7 +2744,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | restormer-deblur | 512x512 | 228 ms | 143 ms | 162 ms | 133 ms | 44.1 s | 58.3 s | 850 / 1000 | 660 / 778 | 892 / 980 | 757 / 774 |
 | restormer-derain | 512x512 | 228 ms | 144 ms | 162 ms | 133 ms | 41.5 s | 55.3 s | 850 / 1000 | 660 / 778 | 892 / 980 | 757 / 774 |
 | restormer-sidd | 512x512 | 181 ms | 142 ms | 162 ms | 133 ms | 35.5 s | 59.7 s | 850 / 920 | 660 / 778 | 892 / 980 | 757 / 774 |
-| seedvr2-3b | 512x512 | 2295 ms | 1941 ms | fails: RuntimeError: Inplace update to inference tensor outside Inf | 2296 ms | 238 s | – | 6140 / 6772 | 5237 / 8144 | 6140 / 6772 | – |
+| seedvr2-3b | 512x512 | 2332 ms | 1941 ms | fails: RuntimeError: Inplace update to inference tensor outside Inf | 2356 ms | 238 s | – | 4233 / 7262 | 5237 / 8144 | 3857 / 7778 | – |
 | seedvr2-3b | 64x64 | – | – | 46.8 ms, bf16 engine | – | – | 324 s | – | – | – | 7662 / 7664 |
 | seedvr2-7b | 512x512 | 2712 ms | 2471 ms (VAE only, standalone compile) | 2696 ms, bf16 engine (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | 2713 ms | 52.2 s | 271 s | 6419 / 8880 | 5522 / 9042 | 6402 / 7034 | 9369 / 9860 |
 | span-x2 | 512x512 | 23.5 ms | 13.2 ms | 7.98 ms | 14.9 ms | 7.26 s | 9.60 s | 607 / 662 | 204 / 222 | 487 / 522 | 243 / 266 |
