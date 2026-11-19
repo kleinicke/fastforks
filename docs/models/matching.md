@@ -348,7 +348,7 @@ Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstre
 | `loma-l` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 57.1 / 72.9 / 83.8 |  | 55.3 / 72.6 / 83.9 |  |
 | `loma-l` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.3 / 70.9 / 83.3 |  | 58.5 / 74.4 / 85.0 |  |  |
 | `loma-g` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 56.8 / 72.6 / 84.0 |  | 56.7 / 72.4 / 83.3 |  |
-| `loma-g` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees |  |  | 57.1 / 72.7 / 84.1 |  |  |
+| `loma-g` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 59.1 / 74.1 / 84.5 |  | 57.1 / 72.7 / 84.1 |  |  |
 | `loma-r` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 55.7 / 72.5 / 84.4 |  | 55.3 / 71.0 / 82.6 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4475282a / 68b2f345 / ba3a401e / c4a792fe, 2026-11-16 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c34edca4 / c34edca40 / d073b335, 2026-11-17 to 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4475282a / ba3a401e / c4a792fe, 2026-11-18.
