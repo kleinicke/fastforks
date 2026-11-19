@@ -71,9 +71,18 @@ class Attention(nn.Module):
         sim = einsum('b h x y d, b h u v d -> b h x y u v', q, k)
 
         sim = rearrange(sim, 'b h x y u v -> b h (x y) (u v)')
-        attn = sim.softmax(dim=-1)
-
-        return attn
+        if (
+            sim.is_cuda
+            and sim.is_contiguous()
+            and sim.numel() * sim.element_size() >= 512 * 1024**2
+            and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
+        ):
+            # The decoder reuses these weights. Normalize rows in groups without retaining a second full matrix.
+            rows = max(1, 32 * 1024**2 // (sim.shape[-1] * sim.element_size()))
+            for group in sim.flatten(0, -2).split(rows):
+                group.copy_(group.softmax(dim=-1))
+            return sim
+        return sim.softmax(dim=-1)
 
 
 class Aggregate(nn.Module):
