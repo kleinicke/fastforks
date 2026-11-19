@@ -290,6 +290,16 @@ class _FP32Out(nn.Module):
         self.m = m.float()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if (
+            x.is_cuda
+            and torch.is_inference_mode_enabled()
+            and not (torch.compiler.is_compiling() or torch.jit.is_tracing())
+        ):
+            # The pointwise head processes each frame independently. Limit the live fp32 activation.
+            bytes_per_frame = 4 * math.prod(x.shape[1:])
+            frames = max(1, 128 * 1024**2 // max(1, bytes_per_frame))
+            if frames < x.shape[0]:
+                return torch.cat([self.m(group.float()) for group in x.split(frames)], dim=0)
         return self.m(x.float())
 
 
