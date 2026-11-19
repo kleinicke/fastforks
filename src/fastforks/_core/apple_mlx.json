@@ -819,38 +819,38 @@
   },
   "depth-anything-v2-b@1": {
    "auto": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "dtypes": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    }
   },
   "depth-anything-v2-l@1": {
    "auto": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "dtypes": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    }
   },
   "depth-anything-v2-metric-hypersim-b@1": {
@@ -963,20 +963,20 @@
   },
   "depth-anything-v2-s@1": {
    "auto": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "dtypes": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    }
   },
   "depth-pro@1": {
@@ -1059,9 +1059,10 @@
   "dinov2-vitb14-reg@1": {
    "auto": [
     "portable",
-    "float32"
+    "float16"
    ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -1074,7 +1075,12 @@
    }
   },
   "dinov2-vitb14@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -1145,7 +1151,8 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "portable"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
     "portable",
@@ -1267,9 +1274,10 @@
   "dinov3-vitb16@1": {
    "auto": [
     "portable",
-    "float32"
+    "float16"
    ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -1299,7 +1307,12 @@
    }
   },
   "dinov3-vitl16@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -1321,7 +1334,7 @@
    },
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
@@ -3327,14 +3340,14 @@
   "sam3@1": {
    "auto": [
     "portable",
-    "float16"
+    "float32"
    ],
    "dtypes": {
     "float32": "portable"
    },
    "mlx_default": [
     "portable",
-    "float16"
+    "float32"
    ],
    "mlx": {
     "float16": "portable",
@@ -3400,23 +3413,38 @@
    ]
   },
   "segformer-b0-ade20k@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    }
   },
   "segformer-b2-clothes@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels"
+   },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    }
   },
   "segformer-b5-ade20k@1": {
@@ -3467,23 +3495,39 @@
    }
   },
   "segnext-mscan-s-ade20k@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    }
   },
   "segnext-mscan-t-ade20k@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    }
   },
   "selective-igev-eth3d-finetune@1": {
@@ -3787,6 +3831,14 @@
    }
   },
   "tipsv2-b14@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"

@@ -208,7 +208,8 @@ class TestMpsRouting:
     def test_kernels_takes_mlx_kernels(self):
         assert self.route("crestereo-eth3d", mode="kernels") == ("kernels", "float16")
         assert self.route("crestereo-eth3d", mode="kernels", dtype="float32") == ("kernels", "float32")  # no fp32 Metal
-        assert self.route("depth-anything-v2-b", mode="kernels", task="depth") == (
+        assert self.route("depth-anything-v2-b", mode="kernels", task="depth") == ("kernels", "float16")  # dpt_mlx
+        assert self.route("dinov2-vits14", mode="kernels", task="features") == (
             "portable",
             "float16",
         )  # kernels: more memory

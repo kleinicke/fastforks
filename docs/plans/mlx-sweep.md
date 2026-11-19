@@ -729,7 +729,7 @@ same cache and chunk; x4plus fp32 kernels is 7380 ms vs MPS 3022.
 
 Not fixed: raft-stereo fp32 kernels (5590 vs MPS 4713 MB; the MLX peak is 4224 MB of transients, a smaller cache only
 slows it: cache 1024 7011 ms / 4607 MB vs 2048 5435 / 5416), crestereo fp16 (+2 %), realesr-general fp32 (+3 %, equal
-speed), the dpt_mlx (depth-anything) kernels (+500-900 MB over portable, not Winograd), segformer / segnext graph_mlx.
+speed), segformer / segnext graph_mlx (the dpt_mlx note was a stale-row artefact, see Memory pass 4).
 
 ### Routing (`apple_mlx.json`)
 
@@ -748,3 +748,37 @@ memory; routing dropped), dinov2-vitb14-reg and dinov3-vitb16 now route at fp32 
 Goldens of the newly routed refs pass; tests/test_auto_mode.py covers the memory rule. Pre-existing failures in
 tests/test_mlx.py (`test_card_declares_the_port_per_mode`, `test_family_without_a_port_raises`,
 `TestTuning::test_cache_limit_scales_with_memory_between_its_bounds`) are unrelated and unchanged.
+
+## Memory pass 4: transformer / attention nets against MPS
+
+Finding: most of the "MLX uses more memory than MPS" gaps of the ViT / DPT families were stale survey rows (taken before
+the 128 MB cache default), not kernel cost. After a forced re-survey the dpt_mlx kernels are leaner than portable and MPS.
+The auto routing was regenerated from the fresh rows (`apple_mlx.json`): depth-anything-v2 s/b/l and the other
+re-measured ViT refs route to MLX again where they are faster and within `MEM_SLACK` of MPS.
+
+Real fix: `compile=False` for the moge-2 (`_trunk`) and lingbot-depth (`_graph`) MLX ports. The compiled fp16 segments of the
+full-resolution decoder peaked high; the lazy replay is as fast (moge) or 7 % slower (lingbot) with far less memory.
+moge-2-vits 994x1482 fp16 footprint 3.9 GB -> 2.0 GB, lingbot-depth 4.8 GB -> 3.0 GB, moge-2-vitb 4.2 -> 2.2 GB.
+
+fp16 ms / footprint MB (portable; kernels where it exists), re-surveyed, goldens pass:
+
+| Net | MLX before | MLX now | MPS |
+|---|---|---|---|
+| depth-anything-v2-s kernels | 79 / 911 | 66 / 698 | 81 / 1575 |
+| depth-anything-v2-b kernels | 192 / 1931 | 168 / 1029 | 199 / 2061 |
+| depth-anything-v2-l kernels | 548 / 2788 | 501 / 1768 | 579 / 3282 |
+| dinov2-vitb14 | 19 / 807 | 19 / 607 | 25 / 778 |
+| dinov3-vitl16 | 55 / 1597 | 46 / 1017 | 61 / 1473 |
+| tipsv2-b14 | 19 / 797 | 18 / 598 | 24 / 777 |
+| moge-2-vits-normal | 3.9 GB (probe) | 886 / 2024 | 857 / 1679 |
+| moge-2-vitb-normal | 4.2 GB (probe) | 1144 / 2183 | 1012 / 2265 |
+| lingbot-depth | 4.8 GB (probe) | 4577 / 2989 | 3376 / 3228 |
+
+Still behind MPS: dinov2-vits14 (398 vs 346 MB; process baseline, route stays off), moge-2-vits (+345 MB, 3 % slower),
+moge-2-vitb (13 % slower), lingbot-depth (36 % slower; memory is below MPS), sam3 fp16 (+678 MB: only the image encoder runs on
+MLX, the concept/text/decoder stay CPU torch plus the twin; the MLX peak itself is 2.4 GB). Not re-surveyed: prompt-depth-anything,
+moge-3, metric3d, zoedepth, video-depth-anything, unik3d, any2full, mask2former / oneformer, da3 (large-gap old rows,
+may be stale or may need the same `compile=False`).
+
+The three pre-existing tests/test_mlx.py failures were stale tests, now fixed (aliked-lightglue as the portless family,
+cache limit 1/128 with 128 MB floor); `test_kernels_takes_mlx_kernels` follows the new depth-anything routing.
