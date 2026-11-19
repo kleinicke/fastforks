@@ -80,7 +80,9 @@ class _Walk:
         Cached for the `_TABLES` most recently used grids. The cache alone owns a table: whoever keeps its address
         beyond the call (a captured CUDA graph) must keep the returned tuple.
         """
-        cache = not torch.compiler.is_compiling() and torch.is_inference_mode_enabled()  # not in traces / autograd
+        cache = (
+            not (torch.compiler.is_compiling() or torch.compiler.is_exporting()) and torch.is_inference_mode_enabled()
+        )  # not in traces / exports / autograd
         key = (h, w, dtype, device)
         if cache:
             with self._lock:
@@ -96,7 +98,8 @@ class _Walk:
             pos = p.to(dtype)
         rope = None
         if self.rope32 is not None:
-            self.rope32.to(device)
+            if not torch.compiler.is_exporting():  # under export `.to` would store fake tensors in the module
+                self.rope32.to(device)
             rope = self.rope32.get_embed(shape=(h, w))
         out = (pos, rope)
         if cache:

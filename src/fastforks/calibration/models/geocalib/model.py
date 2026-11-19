@@ -29,6 +29,7 @@ from fastforks._core.patch import is_base, override
 from fastforks._core.runner import host
 from fastforks.calibration._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 
 from .net.geocalib import GeoCalib
@@ -233,4 +234,8 @@ class Kernels(Portable):
             self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_fields",)),
+}

@@ -34,6 +34,7 @@ from fastforks._core.patch import is_base, override
 from fastforks._core.runner import host
 from fastforks.calibration._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc, dpt_fused
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.depth_anything_v2 import FastViT, fp16_accumulate, sdpa_attention, vit_large
 from fastforks.shared.depth_anything_v2.net.dinov2 import DinoVisionTransformer
@@ -295,4 +296,8 @@ class Kernels(_AnyCalib):
             self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_rays",)),
+}

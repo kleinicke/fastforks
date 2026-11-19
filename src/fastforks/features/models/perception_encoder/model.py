@@ -5,6 +5,7 @@ On Apple MPS, kernels is the portable network with the interleaved RoPE as a Met
 
 from dataclasses import dataclass
 
+from fastforks.shared import mlx_wrap
 from fastforks.shared.libnet import features
 
 
@@ -33,4 +34,9 @@ class MetalKernels(features.MetalKernels):
     Params = Params
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_forward",)),
+}
