@@ -23,6 +23,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.detection._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.seginfer import pretrained
 
@@ -229,4 +230,8 @@ class Kernels(Portable):
             self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

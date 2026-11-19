@@ -49,6 +49,7 @@ cuda_graphs = { default = true, effect = "speed" }  # kernels: replay normalisat
 # unchanged (docs/data/detection_eval.jsonl).
 cuda_dtype = "float16"  # the network; scores, boxes and NMS stay float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 # Not built, for datacenter GPUs (A100 / L40S / H100 class): the net is convolutions only, so batching is where the

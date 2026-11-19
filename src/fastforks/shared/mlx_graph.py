@@ -200,7 +200,9 @@ OPS[aten.lift_fresh_copy.default] = lambda x: x
 OPS[aten.copy.default] = lambda dst, src, non_blocking=False: mx.broadcast_to(src.astype(dst.dtype), dst.shape)
 OPS[aten.cat.default] = lambda xs, d=0: mx.concatenate(list(xs), axis=d)
 OPS[aten.stack.default] = lambda xs, d=0: mx.stack(list(xs), axis=d)
-OPS[aten.select.int] = lambda x, d, i: mx.take(x, i, axis=d)
+OPS[aten.select.int] = lambda x, d, i: mx.take(
+    x, i + x.shape[d] if i < 0 else i, axis=d
+)  # (mx.take: no negative scalar)
 OPS[aten.flip.default] = lambda x, dims: _flip(x, dims)
 OPS[aten.roll.default] = lambda x, shifts, dims=(): _roll(x, shifts, dims)
 OPS[aten.repeat.default] = lambda x, r: mx.tile(x, list(r))
@@ -376,6 +378,29 @@ OPS[aten.scalar_tensor.default] = lambda v, **_: mx.array(v)
 def _index(x: mx.array, indices: Sequence[mx.array | None]) -> mx.array:
     idx = tuple(slice(None) if i is None else i for i in indices)
     return x[idx]
+
+
+@_reg(aten.index_put.default)
+def _index_put(x: mx.array, indices: Sequence[mx.array | None], values: mx.array, accumulate: bool = False) -> mx.array:  # noqa: FBT001, FBT002
+    """`x[indices] = values`; a boolean mask with one value (or one per element) is a `where`."""
+    if len(indices) == 1 and indices[0] is not None and indices[0].dtype == mx.bool_:
+        mask = indices[0]
+        mask = mask.reshape((*mask.shape, *([1] * (x.ndim - mask.ndim))))
+        v = values.astype(x.dtype)
+        if accumulate:
+            v = x + v
+        if values.size == 1:
+            return mx.where(mask, v.reshape(()), x)
+        return mx.where(mask, mx.broadcast_to(v, x.shape), x)
+    idx = tuple(slice(None) if i is None else i for i in indices)
+    values = values.astype(x.dtype)
+    return x.at[idx].add(values) if accumulate else _set_at(x, idx, values)
+
+
+def _set_at(x: mx.array, idx: tuple[object, ...], values: mx.array) -> mx.array:
+    y = mx.array(x)
+    y[idx] = values
+    return y
 
 
 OPS[aten.embedding.default] = lambda w, i, *_: mx.take(w, i, axis=0)
@@ -772,9 +797,16 @@ def _conv_core(  # noqa: PLR0913
 
 
 def _pool_windows(
-    x: mx.array, k: Sequence[int], s: Sequence[int], pad: Sequence[int], fill: float, *, ceil: bool = False
+    x: mx.array,
+    k: Sequence[int],
+    s: Sequence[int],
+    pad: Sequence[int],
+    fill: float,
+    *,
+    ceil: bool = False,
+    extra_fill: float | None = None,
 ) -> mx.array:
-    """NCHW -> strided windows `[N, C, OH, OW, kh, kw]` of the padded input."""
+    """NCHW -> strided windows `[N, C, OH, OW, kh, kw]` of the padded input (`extra_fill`: the ceil-mode overhang)."""
     extra = [0, 0]
     if ceil:
         for i in range(2):
@@ -783,7 +815,10 @@ def _pool_windows(
             if (out - 1) * s[i] >= x.shape[2 + i] + pad[i]:  # the last window must start inside the input
                 out -= 1
             extra[i] = max(0, (out - 1) * s[i] + k[i] - (x.shape[2 + i] + 2 * pad[i]))
-    if any(pad) or any(extra):
+    if extra_fill is not None and any(extra):
+        x = mx.pad(x, [(0, 0), (0, 0), (pad[0], pad[0]), (pad[1], pad[1])], constant_values=fill) if any(pad) else x
+        x = mx.pad(x, [(0, 0), (0, 0), (0, extra[0]), (0, extra[1])], constant_values=extra_fill)
+    elif any(pad) or any(extra):
         x = mx.pad(x, [(0, 0), (0, 0), (pad[0], pad[0] + extra[0]), (pad[1], pad[1] + extra[1])], constant_values=fill)
     n, c, h, w = x.shape
     oh, ow = (h - k[0]) // s[0] + 1, (w - k[1]) // s[1] + 1
@@ -817,14 +852,14 @@ def _avg_pool(
     count_include_pad: bool = True,
     divisor: int | None = None,
 ) -> mx.array:
-    if ceil or divisor is not None:
-        msg = "avg_pool2d with ceil_mode or divisor_override"
-        raise UnsupportedOp(msg)
     s = s or k
-    win = _pool_windows(x, k, s, pad, 0.0).astype(mx.float32).sum(axis=(-2, -1))
-    if any(pad) and not count_include_pad:
+    win = _pool_windows(x, k, s, pad, 0.0, ceil=ceil).astype(mx.float32).sum(axis=(-2, -1))
+    if divisor is not None:
+        win = win / divisor
+    elif (any(pad) and not count_include_pad) or ceil:  # windows clipped to the input (and to the padding, if counted)
         ones = mx.ones((1, 1, *x.shape[2:]), mx.float32)
-        win = win / _pool_windows(ones, k, s, pad, 0.0).sum(axis=(-2, -1))
+        fill = 1.0 if count_include_pad else 0.0
+        win = win / _pool_windows(ones, k, s, pad, fill, ceil=ceil, extra_fill=0.0).sum(axis=(-2, -1))
     else:
         win = win / (k[0] * k[1])
     return win.astype(x.dtype)
@@ -909,23 +944,43 @@ def _bilinear(x: mx.array, size: Sequence[int] | None, align: bool, *scales: Any
     return top * (1 - wy) + bot * wy
 
 
-def _aa_matrix(inp: int, out: int, align: bool, scale: float | None) -> np.ndarray:
-    """`[out, inp]` weights of PyTorch's antialiased bilinear resize along one axis (triangle filter, normalised)."""
+def _cubic(t: np.ndarray) -> np.ndarray:
+    """PyTorch's bicubic filter (a = -0.5)."""
+    t = np.abs(t)
+    near = ((1.5 * t - 2.5) * t) * t + 1.0
+    far = (((-0.5 * t + 2.5) * t) - 4.0) * t + 2.0
+    return np.where(t < 1.0, near, np.where(t < 2.0, far, 0.0))
+
+
+def _aa_matrix(inp: int, out: int, align: bool, scale: float | None, *, cubic: bool = False) -> np.ndarray:
+    """`[out, inp]` weights of PyTorch's antialiased bilinear / bicubic resize along one axis (normalised)."""
     s = (inp - 1) / (out - 1) if align and out > 1 else (1.0 / scale if scale else inp / out)
-    support = max(s, 1.0)
+    support = max(s, 1.0) * (2.0 if cubic else 1.0)
     inv = 1.0 / s if s >= 1.0 else 1.0
     m = np.zeros((out, inp), dtype=np.float32)
     for i in range(out):
         c = s * i if align else s * (i + 0.5)
         lo = max(int(c - support + 0.5), 0)
         hi = min(int(c + support + 0.5), inp)
-        w = np.maximum(0.0, 1.0 - np.abs((np.arange(lo, hi) - c + (0.0 if align else 0.5)) * inv))
+        t = (np.arange(lo, hi) - c + (0.0 if align else 0.5)) * inv
+        w = _cubic(t) if cubic else np.maximum(0.0, 1.0 - np.abs(t))
         m[i, lo:hi] = w / w.sum() if w.sum() > 0 else 0.0
     return m
 
 
 @_reg(aten._upsample_bilinear2d_aa.default, aten._upsample_bilinear2d_aa.vec)
 def _bilinear_aa(x: mx.array, size: Sequence[int] | None, align: bool, *scales: Any) -> mx.array:
+    return _resize_aa(x, size, align, scales, cubic=False)
+
+
+@_reg(aten._upsample_bicubic2d_aa.default, aten._upsample_bicubic2d_aa.vec)
+def _bicubic_aa(x: mx.array, size: Sequence[int] | None, align: bool, *scales: Any) -> mx.array:
+    return _resize_aa(x, size, align, scales, cubic=True)
+
+
+def _resize_aa(
+    x: mx.array, size: Sequence[int] | None, align: bool, scales: tuple[Any, ...], *, cubic: bool
+) -> mx.array:  # noqa: FBT001
     h, w = x.shape[2:]
     sh = sw = None
     if size is None:
@@ -936,8 +991,8 @@ def _bilinear_aa(x: mx.array, size: Sequence[int] | None, align: bool, *scales: 
         oh, ow = size
         if len(scales) >= 2 and not isinstance(scales[0], (list, tuple)):
             sh, sw = scales[0], scales[1]
-    wy = mx.array(_aa_matrix(h, oh, align, sh)).astype(x.dtype)
-    wx = mx.array(_aa_matrix(w, ow, align, sw)).astype(x.dtype)
+    wy = mx.array(_aa_matrix(h, oh, align, sh, cubic=cubic)).astype(x.dtype)
+    wx = mx.array(_aa_matrix(w, ow, align, sw, cubic=cubic)).astype(x.dtype)
     return mx.matmul(mx.matmul(wy, x), wx.T)
 
 

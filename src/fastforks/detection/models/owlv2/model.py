@@ -29,6 +29,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.labels import label_set
 from fastforks._core.runner import host
 from fastforks.detection._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.clip_tokenizer import ClipTokenizer
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.seginfer import pretrained
@@ -283,4 +284,8 @@ class Kernels(Portable):
             self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("image",)),
+}

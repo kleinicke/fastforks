@@ -33,6 +33,7 @@ from fastforks._core.runner import host
 from fastforks.detection._attention import deformable_sample
 from fastforks.detection._runner import Forward, Runner
 from fastforks.kernels import msda
+from fastforks.shared import mlx_wrap
 from fastforks.shared.bert_tokenizer import BertTokenizer
 from fastforks.shared.seginfer import pretrained
 
@@ -398,4 +399,8 @@ class Kernels(Portable):
                 mod.forward = msda.sample
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("image",)),
+}

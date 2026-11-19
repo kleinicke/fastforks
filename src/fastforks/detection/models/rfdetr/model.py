@@ -15,6 +15,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import Inert
 from fastforks.detection._runner import Forward, Runner
 from fastforks.kernels import rfdetr_input
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.rfdetr.build import Arch, export_path, network
 
@@ -68,7 +69,9 @@ class Portable(Runner):
         self.net.load_state_dict(state)
         self.net = self.net.eval().to(ctx.device, ctx.torch_dtype)
         export_path(self.net)  # the authors' inference path (their float16 benchmark row uses it)
-        from fastforks.shared.rfdetr.net.models.postprocess import PostProcess  # noqa: PLC0415 - after optional dependencies
+        from fastforks.shared.rfdetr.net.models.postprocess import (
+            PostProcess,  # noqa: PLC0415 - after optional dependencies
+        )
 
         self.postprocess = PostProcess(num_select=ctx.params.num_select)
         self.ids = class_map(ctx.params.num_classes + 1).to(ctx.device)
@@ -146,4 +149,8 @@ class Kernels(Portable):
         self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

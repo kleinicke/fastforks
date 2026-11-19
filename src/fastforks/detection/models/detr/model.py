@@ -27,6 +27,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks.detection._convs import Convs, FusedConvs
 from fastforks.detection._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.pil_resize import pil_bilinear
 
 from .net import Arch, Detr, fold_frozen_bn
@@ -159,4 +160,8 @@ class Kernels(Portable):
             return self.net.head(features(self.net, x.to(self.dt).contiguous(memory_format=self.mf), self.cv))
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 from fastforks.detection import _rtdetr_runner as base
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 
 from .net import Arch, RtDetr, fold_bn
@@ -75,4 +76,8 @@ class Kernels(base.Kernels, Portable):
     GraphCache = GraphCache
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

@@ -39,6 +39,7 @@ from fastforks._optimize import optimize
 from fastforks.detection._cv2_resize import cv2_linear
 from fastforks.detection._ops import ops
 from fastforks.detection._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cspnext import Attention
 from fastforks.shared.cuda_graphs import GraphCache
 
@@ -236,4 +237,8 @@ def extra() -> dict[tuple[str, str], object]:
     return {**NUMPY_ARRAYS, ("_codecs", "encode"): latin1_encode, **logs, **scalars}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

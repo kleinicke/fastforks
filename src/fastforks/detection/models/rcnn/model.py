@@ -34,6 +34,7 @@ from fastforks.detection._convs import Convs, FusedConvs
 from fastforks.detection._ops import ops
 from fastforks.detection._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.pil_resize import pil_bilinear
 
 from .net import Arch, Rcnn, fold_frozen_bn
@@ -240,14 +241,35 @@ class _Rcnn(Runner):
     def _input(self, x: torch.Tensor) -> torch.Tensor:
         return x.to(self.dt).contiguous(memory_format=self.mf)
 
-    def _proposals(self, feats: list[torch.Tensor], size: tuple[int, int]) -> torch.Tensor:
-        """detectron2 `RPN.forward` + `find_top_rpn_proposals` (inference, one image): `[R, 4]` boxes."""
-        p, head = self.ctx.params, self.net.proposal_generator.rpn_head
-        boxes, scores, lvls = [], [], []
-        for i, f in enumerate(feats):
+    def _rpn_maps(self, feats: list[torch.Tensor]) -> list[tuple[torch.Tensor, torch.Tensor]]:
+        """The RPN head's objectness logits and anchor deltas (float32) of each level."""
+        head = self.net.proposal_generator.rpn_head
+        maps = []
+        for f in feats:
             t = self.cv.conv_relu(head.conv, f)
-            obj = Convs.conv(self.cv, head.objectness_logits, t).float()
-            dl = Convs.conv(self.cv, head.anchor_deltas, t).float()
+            maps.append(
+                (
+                    Convs.conv(self.cv, head.objectness_logits, t).float(),
+                    Convs.conv(self.cv, head.anchor_deltas, t).float(),
+                )
+            )
+        return maps
+
+    def _dense(self, x: torch.Tensor) -> tuple[list[torch.Tensor], list[tuple[torch.Tensor, torch.Tensor]]]:
+        """ResNet + FPN levels and the RPN head's maps of the network input (the part with a fixed shape)."""
+        feats = features(self.net, x, self.cv)
+        return feats, self._rpn_maps(feats)
+
+    def _proposals(
+        self,
+        feats: list[torch.Tensor],
+        size: tuple[int, int],
+        maps: list[tuple[torch.Tensor, torch.Tensor]] | None = None,
+    ) -> torch.Tensor:
+        """detectron2 `RPN.forward` + `find_top_rpn_proposals` (inference, one image): `[R, 4]` boxes."""
+        p = self.ctx.params
+        boxes, scores, lvls = [], [], []
+        for i, (obj, dl) in enumerate(self._rpn_maps(feats) if maps is None else maps):
             h, w = obj.shape[-2:]
             obj = obj.permute(0, 2, 3, 1).flatten(1)[0]
             dl = dl.view(1, -1, 4, h, w).permute(0, 3, 4, 1, 2).flatten(1, -2)[0]
@@ -312,10 +334,10 @@ class _Rcnn(Runner):
         """detectron2 `DefaultPredictor` on one image."""
         h, w = image.shape[-2:]
         x, size = prepare(image, self.ctx.params)
-        feats = features(self.net, self._input(x), self.cv)
+        feats, maps = self._dense(self._input(x))
         # float32 NCHW once for both poolers (torchvision ROIAlign would copy channels-last levels per call)
         levels = [f.to(torch.float32, memory_format=torch.contiguous_format) for f in feats[:4]]
-        boxes, scores, classes = self._detections(levels, self._proposals(feats, size), size, score_threshold)
+        boxes, scores, classes = self._detections(levels, self._proposals(feats, size, maps), size, score_threshold)
         probs = self._masks(levels, boxes, classes) if self.ctx.params.mask else None
         # detector_postprocess: to the input size, clip, drop empty boxes, paste the masks
         boxes = boxes.clone()
@@ -364,4 +386,8 @@ class Kernels(_Rcnn):
             return super().__call__(image, score_threshold)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_dense",)),
+}

@@ -33,6 +33,7 @@ from fastforks._optimize import optimize
 from fastforks.detection._cv2_resize import cv2_linear
 from fastforks.detection._ops import ops
 from fastforks.detection._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 
 from .net import STRIDES, YOLOX, Arch, cells, convert, decode
@@ -166,4 +167,9 @@ class Kernels(Portable):
             self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+    "kernels_mlx": mlx_wrap.port(Portable),
+}
