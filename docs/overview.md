@@ -748,7 +748,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`ema-vfi-small`](models/interpolation.md#ema-vfi) | yes | 121.4 (1080x1920) | 89.4 | 84.4 | 1.4x vs original (1080x1920) | 271 |
 | [`ema-vfi`](models/interpolation.md#ema-vfi) | yes | 296.2 (1080x1920) | 232.6 | 184.9 | 1.6x vs original (1080x1920) | 1659 |
 | [`ema-vfi-t`](models/interpolation.md#ema-vfi) | yes | 286.9 (1080x1920) | 233.5 | 206.9 | 1.4x vs original (1080x1920) | 368 |
-| [`film`](models/interpolation.md#film) | yes | 463.8 (1080x1920) | 417.1 | 332.4 | 1.4x vs original (1080x1920) | 2461 |
+| [`film`](models/interpolation.md#film) | yes | 463.8 (1080x1920) | 411.6 | 327.7 | 1.4x vs original (1080x1920) | 2397 |
 | [`gimm-vfi-r`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2527.6 | 1520.8 | 1.7x vs portable | 4511 |
 | [`gimm-vfi-r-p`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2638.7 | 1627.6 | 1.6x vs portable | 4587 |
 
