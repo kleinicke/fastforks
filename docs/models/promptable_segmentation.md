@@ -255,13 +255,14 @@ Commercial use: yes.
 
 ### Measured
 
-One point per ground-truth instance (the interior point farthest from the border); IoU of the best-scored of 3 masks / of the single mask. Original = the original code named under Details, same checkpoint and protocol.
+One point per ground-truth instance (the interior point farthest from the border); IoU of the best-scored of 3 masks / of the single mask. Every 100th validation image in filename order. Give one interior point for the first non-crowd instance with a nonempty mask and score IoU for the highest-scored of three masks and the single-mask output. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `mobile-sam` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 51.53 / 49.90 | 51.48 / 49.91 | 51.53 / 49.91 | 51.51 / 49.90 | 51.53 / 49.91 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | note |
+|---|---|---|---|---|---|---|---|---|
+| `mobile-sam` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 51.53 / 49.90 | 51.48 / 49.91 | 51.53 / 49.91 | 51.51 / 49.90 | 51.53 / 49.91 |  |  |
+| `mobile-sam` | COCO val2017, single point, best-of-3 / single-mask mIoU % |  |  |  | 59.13 / 51.47 |  | 59.13 / 51.47 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5eafe838+dirty, 2026-11-10; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5eafe838+dirty, 2026-11-10.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5eafe838+dirty, 2026-11-10; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5eafe838+dirty, 2026-11-10; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 23765f70, 2026-11-19.
 
 ### Parity
 

@@ -357,27 +357,28 @@ Commercial use: yes.
 
 ### Measured
 
-pycocotools COCOeval of the top 100 detections per image. Fixed FP32 graph, one prepared prompt for all 80 COCO class names. Score the top 100 query/class pairs per image. The public TensorRT exporter remains gated. Resize the same 500 RGB inputs to 800 x 1344. Use one prepared prompt for all 80 COCO classes and score the top 100 query/class pairs per image. Original = the original code named under Details, same checkpoint and protocol.
+pycocotools COCOeval of the top 100 detections per image. Fixed FP32 graph, one prepared prompt for all 80 COCO class names. Score the top 100 query/class pairs per image. The public TensorRT exporter remains gated. The same FP32 320 x 320 preparation and top 100 predictions for all 80 classes, restricted to every 100th validation image in filename order. Resize the same 500 RGB inputs to 800 x 1344. Use one prepared prompt for all 80 COCO classes and score the top 100 query/class pairs per image. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | TensorRT | note |
-|---|---|---|---|---|---|---|---|
-| `grounding-dino-tiny` | COCO val2017, every 10th image, box mAP | 51.08 | 51.16 | 51.14 | 51.12 |  |  |
-| `grounding-dino-tiny` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 35.30 | 35.47 |  |
-| `grounding-dino-tiny` | COCO val2017, every 10th image at fixed 800 x 1344, box mAP |  |  |  | 49.85 | 49.80 |  |
-| `grounding-dino-tiny` | COCO val2017, all 5000 images, box mAP | 48.25 |  | 48.25 |  |  |  |
-| `grounding-dino-base` | COCO val2017, every 10th image, box mAP | 55.67 | 55.73 | 55.72 | 57.13 |  |  |
-| `grounding-dino-base` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 39.83 | 39.76 |  |
-| `grounding-dino-base` | COCO val2017, every 10th image at fixed 800 x 1344, box mAP |  |  |  | 56.21 | 56.15 |  |
-| `mm-grounding-dino-tiny` | COCO val2017, every 10th image, box mAP |  |  |  | 51.49 |  |  |
-| `mm-grounding-dino-tiny` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 35.77 | 35.79 |  |
-| `mm-grounding-dino-tiny` | COCO val2017, every 10th image at fixed 800 x 1344, box mAP |  |  |  | 50.14 | 50.05 |  |
-| `mm-grounding-dino-tiny` | COCO val2017, every 20th image, box mAP | 55.18 |  | 54.92 |  |  |  |
-| `mm-grounding-dino-base` | COCO val2017, every 10th image, box mAP |  |  |  | 53.01 |  |  |
-| `mm-grounding-dino-base` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 35.64 | 35.60 |  |
-| `mm-grounding-dino-base` | COCO val2017, every 10th image at fixed 800 x 1344, box mAP |  |  |  | 52.09 | 52.23 |  |
-| `mm-grounding-dino-base` | COCO val2017, every 20th image, box mAP | 57.11 |  | 56.94 |  |  |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `grounding-dino-tiny` | COCO val2017, every 10th image, box mAP | 51.08 | 51.16 | 51.14 | 51.12 |  |  |  |
+| `grounding-dino-tiny` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 35.30 |  | 35.47 |  |
+| `grounding-dino-tiny` | COCO val2017, 50 images at fixed 320 x 320, box mAP |  |  |  | 34.92 | 34.92 |  |  |
+| `grounding-dino-tiny` | COCO val2017, every 10th image at fixed 800 x 1344, box mAP |  |  |  | 49.85 |  | 49.80 |  |
+| `grounding-dino-tiny` | COCO val2017, all 5000 images, box mAP | 48.25 |  | 48.25 |  |  |  |  |
+| `grounding-dino-base` | COCO val2017, every 10th image, box mAP | 55.67 | 55.73 | 55.72 | 57.13 |  |  |  |
+| `grounding-dino-base` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 39.83 |  | 39.76 |  |
+| `grounding-dino-base` | COCO val2017, every 10th image at fixed 800 x 1344, box mAP |  |  |  | 56.21 |  | 56.15 |  |
+| `mm-grounding-dino-tiny` | COCO val2017, every 10th image, box mAP |  |  |  | 51.49 |  |  |  |
+| `mm-grounding-dino-tiny` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 35.77 |  | 35.79 |  |
+| `mm-grounding-dino-tiny` | COCO val2017, every 10th image at fixed 800 x 1344, box mAP |  |  |  | 50.14 |  | 50.05 |  |
+| `mm-grounding-dino-tiny` | COCO val2017, every 20th image, box mAP | 55.18 |  | 54.92 |  |  |  |  |
+| `mm-grounding-dino-base` | COCO val2017, every 10th image, box mAP |  |  |  | 53.01 |  |  |  |
+| `mm-grounding-dino-base` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 35.64 |  | 35.60 |  |
+| `mm-grounding-dino-base` | COCO val2017, every 10th image at fixed 800 x 1344, box mAP |  |  |  | 52.09 |  | 52.23 |  |
+| `mm-grounding-dino-base` | COCO val2017, every 20th image, box mAP | 57.11 |  | 56.94 |  |  |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84ba91d4 / a981ff86 / aee4b565, 2026-11-12 to 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / 9e3ff83d+dirty / d9caeca2, 2026-11-17 to 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / d9caeca2, 2026-11-18 to 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84ba91d4 / a981ff86 / aee4b565, 2026-11-12 to 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / 9e3ff83d+dirty / d9caeca2, 2026-11-17 to 2026-11-19; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 23765f70, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / d9caeca2, 2026-11-18 to 2026-11-19.
 
 ### Parity
 

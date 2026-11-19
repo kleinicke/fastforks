@@ -193,16 +193,17 @@ Commercial use: yes.
 
 ### Measured
 
-Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Both modes receive pairs resized to 768 x 1024. Map matched pixels to the calibrated evaluation coordinates and use the same RANSAC seed per pair. Original = the original code named under Details, same checkpoint and protocol.
+Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Both modes receive pairs resized to 768 x 1024. Map matched pixels to the calibrated evaluation coordinates and use the same RANSAC seed per pair. Every 50th pair in MegaDepth-1500, resized to 768 x 1024. Both modes use strict FP32 and the same calibrated coordinates and RANSAC seeds. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
-|---|---|---|---|---|---|---|---|---|
-| `dedode-v2-b` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 53.2 / 68.2 / 79.8 | 52.4 / 67.6 / 77.8 |  | 52.7 / 68.8 / 80.2 |  |
-| `dedode-v2-b` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 56.3 / 72.5 / 83.7 | 57.3 / 71.5 / 82.5 | 54.6 / 71.8 / 83.1 | 56.0 / 72.0 / 82.7 | 57.8 / 74.3 / 84.2 |  |  |
-| `dedode-v2-g` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 56.7 / 72.5 / 83.7 | 55.6 / 70.4 / 81.3 |  | 55.4 / 70.1 / 81.1 |  |
-| `dedode-v2-g` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 57.2 / 72.7 / 83.6 |  |  | 57.1 / 74.7 / 85.5 |  |  |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `dedode-v2-b` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 53.2 / 68.2 / 79.8 | 52.4 / 67.6 / 77.8 |  |  | 52.7 / 68.8 / 80.2 |  |
+| `dedode-v2-b` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 56.3 / 72.5 / 83.7 | 57.3 / 71.5 / 82.5 | 54.6 / 71.8 / 83.1 | 56.0 / 72.0 / 82.7 | 57.8 / 74.3 / 84.2 |  |  |  |
+| `dedode-v2-g` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 56.7 / 72.5 / 83.7 | 55.6 / 70.4 / 81.3 |  |  | 55.4 / 70.1 / 81.1 |  |
+| `dedode-v2-g` | MegaDepth-1500, 30 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  |  | 65.0 / 78.3 / 87.7 |  | 65.0 / 78.3 / 87.9 |  |  |
+| `dedode-v2-g` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 57.2 / 72.7 / 83.6 |  |  | 57.1 / 74.7 / 85.5 |  |  |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565 / ce6d1409, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 471d1a12 / c45a2130 / ccc23e40 / d073b335, 2026-11-18 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 471d1a12 / c45a2130 / ccc23e40 / ce6d1409, 2026-11-18 to 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565 / ce6d1409, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 471d1a12 / c45a2130 / ccc23e40 / d073b335, 2026-11-18 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 23765f70, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 471d1a12 / c45a2130 / ccc23e40 / ce6d1409, 2026-11-18 to 2026-11-19.
 
 ### Parity
 
@@ -438,6 +439,7 @@ CPU, float32: max |diff| <= 4.3e-05 vs the original. GPU, float16 (the default),
 ### Limitations
 
 - The fixed FP32 DINOv2 TensorRT stage raised AUC@5 from 61.60 to 64.93 on 300 MegaDepth pairs. On one pair the pose error went from 13.67 degrees to the 90-degree failure value, even with TF32 disabled.
+- A separate FP32 TensorRT stage for the fine VGG encoder also introduced a pose failure on a MegaDepth pair solved by portable, with TF32 disabled.
 - One direction (the first image's half of upstream's symmetric call); upstream's sampling / keypoint helpers are not included; tools/eval_matching.py has the MegaDepth-1500 sampling.
 - Both images are resized to squares (upstream's behaviour), whatever their aspect ratio; upstream resizes PIL images, this runner float tensors (bicubic, antialiased).
 

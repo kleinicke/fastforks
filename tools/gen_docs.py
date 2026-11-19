@@ -39,6 +39,7 @@ _COMMERCIAL = {"yes": "yes", "no": "**no**", "unclear": "unclear (treat as no)"}
 _DATASETS = {
     "stereo": {
         "eth3d": "ETH3D two-view train, bad > 1 px % / EPE",
+        "eth3d-fixed-416x704": "ETH3D two-view train, fixed 416 x 704, bad > 1 px % / EPE",
         "middH": "Middlebury 2014 trainingH, bad > 2 px % / EPE",
         "middH-fixed-375x1242": "Middlebury 2014 trainingH, fixed 375 x 1242, bad > 2 px % / EPE",
         "kitti2015-train-stereo-fixed-384x1248": "KITTI 2015 stereo training, fixed 384 x 1248, D1 % / EPE",
@@ -68,6 +69,7 @@ _DATASETS = {
     "detection": {
         "coco-val2017-every10": "COCO val2017, every 10th image, box mAP",
         "coco-val2017-every10-fixed-320x320": "COCO val2017, every 10th image at fixed 320 x 320, box mAP",
+        "coco-val2017-every100-fixed-320x320": "COCO val2017, 50 images at fixed 320 x 320, box mAP",
         "coco-val2017-every10-fixed-800x1344": "COCO val2017, every 10th image at fixed 800 x 1344, box mAP",
         "coco-val2017-every20": "COCO val2017, every 20th image, box mAP",
         "coco-val2017-every25": "COCO val2017, every 25th image (200), box mAP",
@@ -76,6 +78,7 @@ _DATASETS = {
     },
     "promptable_segmentation": {
         "coco-val2017-every10": "COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask %",
+        "coco-val2017-every100-first-instance-point": "COCO val2017, single point, best-of-3 / single-mask mIoU %",
         "coco-val2017-every10-text": "COCO val2017, every 10th image, class-name prompts, box / mask mAP",
         "coco-val2017-every10-class-mask": "COCO val2017, every 10th image, class masks, class / prompt mIoU %",
         "coco-val2017-oneshot-k3": "COCO val2017, one-shot episodes (3 per class), class mIoU %",
@@ -124,7 +127,7 @@ _DATASETS = {
     },
     "ocr": {
         "iiit5k-test-lexicon-free": "IIIT5K test word crops, word accuracy / normalized edit similarity %",
-        "iiit5k-test-every10-lexicon-free": "IIIT5K test (300 word crops), word accuracy / normalized edit similarity %",
+        "iiit5k-test-every10-lexicon-free": "IIIT5K test (300 crops), word accuracy / normalized edit similarity %",
     },
     "volume": {
         "totalseg-subset-3mm": "TotalSegmentator test subset (8 CT cases), 3 mm, mean Dice",
@@ -169,6 +172,7 @@ _DATASETS = {
     "matching": {
         "megadepth1500": "MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees",
         "megadepth1500-every5-fixed-768x1024": "MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20",
+        "megadepth1500-every50-fixed-768x1024": "MegaDepth-1500, 30 pairs at 768 x 1024, pose AUC@5 / @10 / @20",
         "megadepth1500-fixed-768x1024-sampled12": "MegaDepth-1500, 12 selected 768 x 1024 pairs, AUC@5 / @10 / @20",
         "megadepth1500-every5": "MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees",
         "megadepth1500-every10": "MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees",
@@ -190,6 +194,7 @@ _DATASETS = {
     "calibration": {
         "lamar2k": "LaMAR2k, all 2000 images, roll / pitch / vertical FoV error AUC@5 degrees %",
         "lamar2k-every10": "LaMAR2k, every 10th image (200), roll / pitch / vertical FoV error AUC@5 degrees %",
+        "lamar2k-every20": "LaMAR2k, every 20th image (100), roll / pitch / vertical FoV error AUC@5 degrees %",
         "lamar2k-fixed-480x640": "LaMAR2k, all 2000 images resized to 480 x 640, vertical FoV AUC@5 degrees %",
         "lamar2k-every40-fixed-1080x1920": "LaMAR2k every 40th image at 1080 x 1920, vertical FoV AUC@5 degrees %",
         "lamar2k-every20-portrait": "LaMAR2k, 97 portrait images from every 20th entry, angle AUC@5 degrees %",
@@ -204,7 +209,7 @@ _DATASETS = {
         "tapvid-davis-fixed-24x16-256": "TAP-Vid DAVIS, 24 frames at 256 x 256 and 16 queries, AJ / delta_avg / OA %",
     },
 }
-_BAD_THR = {"eth3d": 1.0, "middH": 2.0, "middH-fixed-375x1242": 2.0}  # stereo
+_BAD_THR = {"eth3d": 1.0, "eth3d-fixed-416x704": 1.0, "middH": 2.0, "middH-fixed-375x1242": 2.0}  # stereo
 # task or (task, dataset) -> ((metric, format, title suffix), ...), count key, noun; a metric with a suffix is optional:
 # shown where the row has it, its suffix appended to the dataset title where a row of the table has it
 _Metric = tuple[str, str, str]
@@ -334,6 +339,8 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
 }
 # task or (task, dataset) -> protocol sentence of the measured tables (task first, then each shown dataset)
 _PROTOCOL = {
+    ("stereo", "eth3d-fixed-416x704"): "Use the same 416 x 704 centre crop in both views of all 27 training pairs. "
+    "Exclude ground-truth correspondences outside the crop and score the non-occluded pixels. ",
     ("stereo", "middH-fixed-375x1242"): "Use all 15 trainingH pairs with a shared centre crop and edge padding. "
     "Score valid non-occluded pixels and exclude right-image correspondences outside the crop. "
     "Average the per-pair endpoint error and share of pixels with error above 2 pixels. ",
@@ -367,6 +374,8 @@ _PROTOCOL = {
     "prepared prompt for all 80 COCO classes and score the top 100 query/class pairs per image. ",
     ("detection", "coco-val2017-every10-fixed-320x320"): "Fixed FP32 graph, one prepared prompt for all 80 COCO "
     "class names. Score the top 100 query/class pairs per image. The public TensorRT exporter remains gated. ",
+    ("detection", "coco-val2017-every100-fixed-320x320"): "The same FP32 320 x 320 preparation and top 100 "
+    "predictions for all 80 classes, restricted to every 100th validation image in filename order. ",
     ("segmentation", "ade20k-val"): "Each image at its own size, argmax of the logits. ",
     ("segmentation", "atr-test-shard-200"): "The 200-image ckotait/ATRDataset test split. Scores use one pixel "
     "confusion matrix across the split with 18 classes and ignore label 255. ",
@@ -417,6 +426,9 @@ _PROTOCOL = {
     "ranked by predicted person score after model-specific decoding; pycocotools OKS AP. ",
     ("promptable_segmentation", "coco-val2017-every10"): "One point per ground-truth instance (the interior point "
     "farthest from the border); IoU of the best-scored of 3 masks / of the single mask. ",
+    ("promptable_segmentation", "coco-val2017-every100-first-instance-point"): "Every 100th validation image in "
+    "filename order. Give one interior point for the first non-crowd instance with a nonempty mask and score IoU "
+    "for the highest-scored of three masks and the single-mask output. ",
     ("promptable_segmentation", "coco-val2017-every10-text"): "One text prompt (the COCO class name) per class in the "
     "image; the top 100 instances go to pycocotools COCOeval. ",
     ("promptable_segmentation", "coco-val2017-every10-class-mask"): "One text prompt per present COCO class. The "
@@ -547,6 +559,8 @@ _PROTOCOL = {
     "The calibrated relative pose is scored by the larger rotation and translation-direction errors. ",
     ("matching", "megadepth1500-every5-fixed-768x1024"): "Both modes receive pairs resized to 768 x 1024. Map "
     "matched pixels to the calibrated evaluation coordinates and use the same RANSAC seed per pair. ",
+    ("matching", "megadepth1500-every50-fixed-768x1024"): "Every 50th pair in MegaDepth-1500, resized to "
+    "768 x 1024. Both modes use strict FP32 and the same calibrated coordinates and RANSAC seeds. ",
     **{
         ("matching", dataset): "The 12-pair LoFTR comparisons include the six worst pose changes from the original "
         "whole-graph TensorRT trials and the first six other pairs from those trials. Both modes use the same "
@@ -590,6 +604,8 @@ _PROTOCOL = {
     "Compare vertical field of view against the dataset labels. ",
     ("calibration", "lamar2k-every20-portrait"): "Take every 20th LaMAR image and score the 97 portrait images "
     "at their original size. In TensorRT mode only the 416 x 320 field predictor is accelerated. ",
+    ("calibration", "lamar2k-every20"): "Every 20th LaMAR image in its original orientation and size. "
+    "The compiled mode accelerates field prediction and keeps the camera fit eager. ",
     "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
     "and its PIL eval transform. ",
 }

@@ -700,21 +700,21 @@ Commercial use: yes.
 
 Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. The fixed-shape comparison pads the bottom and right with edge pixels to 384 x 1248. Metrics use predictions cropped to each original ground-truth grid. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
-|---|---|---|---|---|---|---|---|---|
-| `raft-large` | KITTI 2015 train, EPE / Fl-all % | 1.528 / 5.60 | 1.528 / 5.60 | 1.529 / 5.61 | 1.528 / 5.60 | 1.526 / 5.60 |  | trained on this dataset's public images; not a zero-shot result |
-| `raft-large` | KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all % |  |  |  | 1.535 / 5.71 |  | 1.535 / 5.71 | trained on this dataset's public images; not a zero-shot result |
-| `raft-large` | KITTI 2015 first 50 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 1.322 / 4.75 |  | 1.322 / 4.75 | trained on this dataset's public images; not a zero-shot result |
-| `raft-large-things` | KITTI 2015 train, EPE / Fl-all % | 4.838 / 16.55 | 4.831 / 16.54 | 4.828 / 16.51 | 4.838 / 16.55 | 4.834 / 16.53 |  |  |
-| `raft-large-things` | KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all % |  |  |  | 5.952 / 17.59 |  | 5.949 / 17.59 |  |
-| `raft-large-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.614 / 1.44 | 0.614 / 1.44 | 0.614 / 1.44 | 0.614 / 1.44 | 0.614 / 1.44 |  | trained on this dataset's public images; not a zero-shot result |
-| `raft-large-kitti` | KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all % |  |  |  | 0.629 / 1.50 |  | 0.629 / 1.50 | trained on this dataset's public images; not a zero-shot result |
-| `raft-large-kitti` | KITTI 2015 train (200 pairs) at 384 x 1248 FP16, EPE / Fl-all % |  |  | 0.629 / 1.50 |  |  | 0.629 / 1.50 | trained on this dataset's public images; not a zero-shot result |
-| `raft-small` | KITTI 2015 train, EPE / Fl-all % | 7.854 / 25.91 | 7.838 / 25.92 | 7.846 / 25.92 | 7.854 / 25.91 | 7.834 / 25.92 |  |  |
-| `raft-small` | KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all % |  |  |  | 10.318 / 28.25 |  | 10.325 / 28.26 |  |
-| `raft-small` | KITTI 2015 first 50 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 6.001 / 22.39 |  | 5.985 / 22.37 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `raft-large` | KITTI 2015 train, EPE / Fl-all % | 1.528 / 5.60 | 1.528 / 5.60 | 1.529 / 5.61 | 1.528 / 5.60 | 1.526 / 5.60 |  |  | trained on this dataset's public images; not a zero-shot result |
+| `raft-large` | KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all % |  |  |  | 1.535 / 5.71 |  |  | 1.535 / 5.71 | trained on this dataset's public images; not a zero-shot result |
+| `raft-large` | KITTI 2015 first 50 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 1.322 / 4.75 |  |  | 1.322 / 4.75 | trained on this dataset's public images; not a zero-shot result |
+| `raft-large-things` | KITTI 2015 train, EPE / Fl-all % | 4.838 / 16.55 | 4.831 / 16.54 | 4.828 / 16.51 | 4.838 / 16.55 | 4.834 / 16.53 |  |  |  |
+| `raft-large-things` | KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all % |  |  |  | 5.952 / 17.59 |  |  | 5.949 / 17.59 |  |
+| `raft-large-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.614 / 1.44 | 0.614 / 1.44 | 0.614 / 1.44 | 0.614 / 1.44 | 0.614 / 1.44 |  |  | trained on this dataset's public images; not a zero-shot result |
+| `raft-large-kitti` | KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all % |  |  |  | 0.629 / 1.50 |  |  | 0.629 / 1.50 | trained on this dataset's public images; not a zero-shot result |
+| `raft-large-kitti` | KITTI 2015 train (200 pairs) at 384 x 1248 FP16, EPE / Fl-all % |  |  | 0.629 / 1.50 |  |  | 0.629 / 1.50 | 0.629 / 1.50 | trained on this dataset's public images; not a zero-shot result |
+| `raft-small` | KITTI 2015 train, EPE / Fl-all % | 7.854 / 25.91 | 7.838 / 25.92 | 7.846 / 25.92 | 7.854 / 25.91 | 7.834 / 25.92 |  |  |  |
+| `raft-small` | KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all % |  |  |  | 10.318 / 28.25 |  |  | 10.325 / 28.26 |  |
+| `raft-small` | KITTI 2015 first 50 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 6.001 / 22.39 |  |  | 5.985 / 22.37 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ac98cac8 / f2992269+uncommitted, 2026-11-09 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1 / ac98cac8, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f2992269+uncommitted, 2026-11-09; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ac98cac8, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ac98cac8 / f2992269+uncommitted, 2026-11-09 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1 / ac98cac8, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f2992269+uncommitted, 2026-11-09; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 23765f70, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ac98cac8, 2026-11-18.
 
 ### Parity
 

@@ -1020,16 +1020,17 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the original code named under Details, same checkpoint and protocol.
+Use the same 416 x 704 centre crop in both views of all 27 training pairs. Exclude ground-truth correspondences outside the crop and score the non-occluded pixels. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `hitnet-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 0.94 / 0.164 | 0.93 / 0.165 | 0.93 / 0.164 | 0.93 / 0.164 | 0.93 / 0.164 | trained on this dataset's public images; not a zero-shot result |
-| `hitnet-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 17.26 / 8.332 | 17.30 / 8.356 | 17.25 / 8.340 | 17.28 / 8.348 | 17.27 / 8.297 |  |
-| `hitnet-middlebury-d400` | ETH3D two-view train, bad > 1 px % / EPE | 7.02 / 0.885 | 7.00 / 0.880 | 7.01 / 0.899 | 7.03 / 0.882 | 7.07 / 0.875 |  |
-| `hitnet-middlebury-d400` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.50 / 1.180 | 7.51 / 1.185 | 7.54 / 1.187 | 7.50 / 1.186 | 7.51 / 1.168 | trained on this dataset's public images; not a zero-shot result |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | note |
+|---|---|---|---|---|---|---|---|---|
+| `hitnet-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 0.94 / 0.164 | 0.93 / 0.165 | 0.93 / 0.164 | 0.93 / 0.164 | 0.93 / 0.164 |  | trained on this dataset's public images; not a zero-shot result |
+| `hitnet-eth3d` | ETH3D two-view train, fixed 416 x 704, bad > 1 px % / EPE |  |  |  | 2.00 / 0.241 |  | 2.00 / 0.241 |  |
+| `hitnet-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 17.26 / 8.332 | 17.30 / 8.356 | 17.25 / 8.340 | 17.28 / 8.348 | 17.27 / 8.297 |  |  |
+| `hitnet-middlebury-d400` | ETH3D two-view train, bad > 1 px % / EPE | 7.02 / 0.885 | 7.00 / 0.880 | 7.01 / 0.899 | 7.03 / 0.882 | 7.07 / 0.875 |  |  |
+| `hitnet-middlebury-d400` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.50 / 1.180 | 7.51 / 1.185 | 7.54 / 1.187 | 7.50 / 1.186 | 7.51 / 1.168 |  | trained on this dataset's public images; not a zero-shot result |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 23765f70 / 468fba10, 2026-11-05 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 23765f70, 2026-11-19.
 
 ### Parity
 
