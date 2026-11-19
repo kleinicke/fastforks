@@ -24,7 +24,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`hat-x4`](#hat) | yes | 1427, 2.1x | 2470, 0.4x |
 | [`nafnet-gopro`](#nafnet) | yes | 31.3, 2.0x | 408, 0.67x |
 | [`nafnet-sidd`](#nafnet) | yes | 22.5, 3.2x | 536, 0.73x |
-| [`real-hat-gan-x4`](#hat) | yes | 1427, 2.1x | 2470, 0.4x |
+| [`real-hat-gan-x4`](#hat) | yes | 1346, 2.3x | 2130, 0.35x |
 | [`realesr-general-x4v3`](#compact) | yes | 24.0, 1.8x | 164, 0.8x |
 | [`realesrgan-x2plus`](#realesrgan) | yes | 80.2, 1.6x | 394, 0.6x |
 | [`realesrgan-x4plus`](#realesrgan) | yes | 403, 1.6x | 1434, 0.57x |
@@ -344,7 +344,7 @@ Commercial use: yes.
 | `hat-x4` | synthetic (256x256) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>346<br>–<br>217 | –<br>658 / 1002<br>–<br>681 / 682 |
 | `hat-s-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2402<br>1072<br>956<br>750<br>fails: TensorRT engine build failed | 5018 / 5644<br>1984 / 2148<br>1856 / 1888<br>2352 / 3068<br>– |
 | `hat-s-x4` | synthetic (256x256) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>233<br>–<br>141 | –<br>531 / 782<br>–<br>533 / 534 |
-| `real-hat-gan-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3038<br>1597<br>1427<br>1185<br>fails: TensorRT engine build failed | 5318 / 6106<br>2426 / 2610<br>2298 / 2470<br>1811 / 2750<br>– |
+| `real-hat-gan-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3038<br>1540<br>1346<br>1185<br>fails: TensorRT engine build failed | 5318 / 6106<br>1789 / 2050<br>1789 / 2130<br>1811 / 2750<br>– |
 | `real-hat-gan-x4` | synthetic (256x256) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>346<br>–<br>217 | –<br>658 / 1002<br>–<br>681 / 682 |
 
 <details><summary>Details</summary>
@@ -370,6 +370,7 @@ Commercial use: yes.
 - `hat-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream hat_model.py test, float32, no tile
 - `hat-s-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream hat_model.py test, float32, no tile
 - `real-hat-gan-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream hat_model.py test, float32, no tile
+- `real-hat-gan-x4` portable 512x512, kernels 512x512: Compact shifted-window labels for native CUDA FP16. All pixels agree in three paired DIV2K checks.
 - `hat-x4` load / first call: original 1.75 s / 5.422 s, portable 0.47 s / 1.809 s, kernels 1.36 s / 1.569 s
 - `hat-s-x4` load / first call: original 3.14 s / 4.407 s, portable 0.35 s / 1.268 s, kernels 1.58 s / 1.068 s
 - `real-hat-gan-x4` load / first call: original 1.96 s / 5.412 s, portable 1.24 s / 1.769 s, kernels 1.49 s / 1.562 s
