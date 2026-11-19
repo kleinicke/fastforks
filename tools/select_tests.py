@@ -16,9 +16,9 @@ that loads its submodules with `pkgutil.iter_modules` (the task specs) imports a
 existing package, except the ref tables of _core (`REF_TABLES`: auto_portable.json, sizes.json): with a git range they
 select the families whose refs occur in their changed lines. tests/test_golden.py itself selects every family;
 `GATE_TOOLS` (this file and the gate's timing tools) only the fast tier. pyproject.toml / uv.lock select every family
-and flag `release` (dependencies changed: use the broad gate). For a git range, a lockfile change limited to the local
-editable package's version does not count as a dependency change. Without both snapshots the selector stays
-conservative. Everything else (docs, tools, other tests) selects no family.
+and flag `release` (dependencies changed: use the broad gate). When both git snapshots are available, an edit limited
+to the local package version in either file leaves the dependency selection unchanged. Everything else (docs, tools,
+other tests) selects no family.
 
 Fast tier (`-m "not gpu and not model"`): every test file whose closure reaches no family module, the family-specific
 files of the selected families and every test file whose closure holds a changed file; all of tests/ when conftest.py,
@@ -245,15 +245,17 @@ def _table_refs(fams: dict[str, dict], text: str) -> dict[str, bool]:
 
 
 def select(
-    changed: list[str], root: Path = ROOT, diff: Callable[[str], str] | None = None, *, metadata_only: bool = False
+    changed: list[str],
+    root: Path = ROOT,
+    diff: Callable[[str], str] | None = None,
+    *,
+    metadata_only: frozenset[str] = frozenset(),
 ) -> Selection:
-    """Select changed files; `metadata_only` says the lockfile changed only its local package version."""
+    """Select changed files, excluding verified version-only edits from the dependency changes."""
     graph = Graph(root)
     fams = families(root)
     closures = family_closures(graph, fams)
-    dependencies = DEPENDENCIES & set(changed)
-    if metadata_only:
-        dependencies -= {"uv.lock"}
+    dependencies = DEPENDENCIES.intersection(changed) - metadata_only
     sel = Selection(changed=sorted(changed), release=bool(dependencies))
     tables = {c: _table_refs(fams, diff(c)) for c in changed if diff and REF_TABLES.fullmatch(c)}
     owners = {c: graph.owner(c) for c in changed if c not in GATE_TOOLS and c not in tables}
@@ -317,13 +319,35 @@ def same_lock_dependencies(old: str, new: str) -> bool:
         return False
 
 
-def git_lock_metadata_only(base: str, head: str, root: Path = ROOT) -> bool:
-    """Compare both tracked lockfile snapshots; missing or invalid snapshots require the broad gate."""
-    snapshots = [
-        subprocess.run(["git", "-C", str(root), "show", f"{rev}:uv.lock"], capture_output=True, text=True, check=False)
-        for rev in (base, head)
-    ]
-    return all(s.returncode == 0 for s in snapshots) and same_lock_dependencies(*(s.stdout for s in snapshots))
+def same_project_configuration(old: str, new: str) -> bool:
+    """Compare two project configurations after removing the local package version."""
+    try:
+        docs = [tomllib.loads(text) for text in (old, new)]
+        for doc in docs:
+            project = doc["project"]
+            if project.get("name") != "fastforks-core" or not isinstance(project.get("version"), str):
+                return False
+            del project["version"]
+        return docs[0] == docs[1]
+    except (AttributeError, KeyError, TypeError, tomllib.TOMLDecodeError):
+        return False
+
+
+def git_metadata_only(base: str, head: str, paths: list[str], root: Path = ROOT) -> frozenset[str]:
+    """Identify version-only edits using both tracked snapshots."""
+    unchanged = set()
+    for path, compare in (("pyproject.toml", same_project_configuration), ("uv.lock", same_lock_dependencies)):
+        if path not in paths:
+            continue
+        snapshots = [
+            subprocess.run(
+                ["git", "-C", str(root), "show", f"{rev}:{path}"], capture_output=True, text=True, check=False
+            )
+            for rev in (base, head)
+        ]
+        if all(s.returncode == 0 for s in snapshots) and compare(*(s.stdout for s in snapshots)):
+            unchanged.add(path)
+    return frozenset(unchanged)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -338,7 +362,7 @@ def main(argv: list[str] | None = None) -> int:
     if a.files is None and not a.base:
         ap.error("give BASE [HEAD] or --files")
     files, diff = (a.files, None) if a.files is not None else (git_changed(a.base, a.head), git_diff(a.base, a.head))
-    metadata_only = a.files is None and "uv.lock" in files and git_lock_metadata_only(a.base, a.head)
+    metadata_only = git_metadata_only(a.base, a.head, files) if a.files is None else frozenset()
     sel = select(files, diff=diff, metadata_only=metadata_only)
     if a.golden_nodeids:
         for item in sel.golden_nodeids(a.golden_nodeids):

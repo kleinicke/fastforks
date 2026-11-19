@@ -18,7 +18,8 @@ uv run pytest -m gpu           # GPU parity of portable and kernels (needs a CUD
 uv run pytest -m "not gpu" --slow -o junit_family=legacy --junitxml=j.xml && uv run python tools/coverage_report.py j.xml   # full-suite family coverage
 ```
 
-For a normal release, compare the candidate with the last verified release instead of rerunning unchanged families:
+For a normal release, compare the candidate with the last verified release.
+Version-only edits to the local package in `pyproject.toml` and `uv.lock` keep the selection scoped to the affected models.
 
 ```
 uv run python tools/select_tests.py LAST_VERIFIED_COMMIT HEAD --json > selection.json

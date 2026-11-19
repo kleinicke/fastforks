@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 from typing import TYPE_CHECKING
 
@@ -116,7 +117,7 @@ def test_lockfile_local_version_only_does_not_select_all_families(mini: Path) ->
     assert st.same_lock_dependencies(old, new)
     assert not st.same_lock_dependencies(old, new.replace('version="2.8"', 'version="2.9"'))
     assert not st.same_lock_dependencies(old, "not valid toml")
-    sel = st.select(["uv.lock"], mini, metadata_only=st.same_lock_dependencies(old, new))
+    sel = st.select(["uv.lock"], mini, metadata_only=frozenset({"uv.lock"}))
     assert not sel.release
     assert not sel.families
     assert sel.fast != ["tests"]
@@ -181,6 +182,38 @@ def git_repo(tmp_path: Path) -> Callable[..., None]:
 
     git("init")
     return git
+
+
+def test_git_version_bump_keeps_model_scope(mini: Path, tmp_path: Path, git_repo: Callable[..., None]) -> None:
+    shutil.copytree(mini, tmp_path, dirs_exist_ok=True)
+    project = tmp_path / "pyproject.toml"
+    lock = tmp_path / "uv.lock"
+    old_project = '[project]\nname="fastforks-core"\nversion="0.2.0"\ndependencies=["torch>=2.8"]\n'
+    old_lock = '[[package]]\nname="fastforks-core"\nversion="0.2.0"\nsource={editable="."}\n'
+    project.write_text(old_project)
+    lock.write_text(old_lock)
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Release baseline")
+    project.write_text(old_project.replace("0.2.0", "0.2.1"))
+    lock.write_text(old_lock.replace("0.2.0", "0.2.1"))
+    model = "src/fastforks/stereo/models/fa/model.py"
+    (tmp_path / model).write_text("VALUE = 1\n")
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Bump version and update one model")
+
+    paths = st.git_changed("HEAD~1", "HEAD", tmp_path)
+    metadata = st.git_metadata_only("HEAD~1", "HEAD", paths, tmp_path)
+    assert metadata == {"pyproject.toml", "uv.lock"}
+    selected = st.select(paths, tmp_path, metadata_only=metadata)
+    assert not selected.release
+    assert set(selected.families) == {"fa"}
+
+    project.write_text(project.read_text().replace("torch>=2.8", "torch>=2.9"))
+    git_repo("add", "pyproject.toml")
+    git_repo("commit", "-m", "Change the Torch requirement")
+    paths = st.git_changed("HEAD~1", "HEAD", tmp_path)
+    assert not st.git_metadata_only("HEAD~1", "HEAD", paths, tmp_path)
+    assert st.select(paths, tmp_path).release
 
 
 def test_git_changed_reports_both_sides_of_a_moved_module(
