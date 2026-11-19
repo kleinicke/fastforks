@@ -294,7 +294,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`deeplabv3-r101-d8-ade20k`](models/segmentation.md#mmseg-cnn-classics) | yes | 54.8 (1024x2048) | 48.0 | 20.5 | 2.7x vs original (1024x2048) | 356 |
 | [`segnext-mscan-l-ade20k`](models/segmentation.md#segnext) | yes | 52.2 (1024x2048) | 43.1 | 20.7 | 2.5x vs original (1024x2048) | 277 |
 | [`pspnet-r101-d8-ade20k`](models/segmentation.md#mmseg-cnn-classics) | yes | 47.2 (1024x2048) | 48.7 | 24.9 | 1.9x vs original (1024x2048) | 335 |
-| [`segformer-b5-ade20k`](models/segmentation.md#segformer) | no | 72.0 (1024x2048) | 38.7 | 25.4 | 2.8x vs original (1024x2048) | 294 |
+| [`segformer-b5-ade20k`](models/segmentation.md#segformer) | no | 72.0 (1024x2048) | 38.9 | 25.4 | 2.8x vs original (1024x2048) | 294 |
 | [`eomt-l-dinov2-ade20k`](models/segmentation.md#eomt) | yes | 63.7 (1024x2048) | 50.8 | 35.0 | 1.8x vs original (1024x2048) | 1515 |
 | [`eomt-l-dinov3-ade20k`](models/segmentation.md#eomt) | yes | 72.1 (1024x2048) | 54.6 | 38.8 | 1.9x vs original (1024x2048) | 1514 |
 | [`dinov2-l-linear-ade20k`](models/segmentation.md#dinov2-linear) | yes | 95.7 (1024x2048) | 83.9 | 52.8 | 1.8x vs original (1024x2048) | 1189 |
