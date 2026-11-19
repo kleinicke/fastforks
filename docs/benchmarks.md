@@ -2238,6 +2238,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | moge-2-vitl-normal | 994x1482 | 144 ms | 124 ms | 75.6 ms | 73.4 ms | 152 s | 173 s | 1661 / 1836 | 1411 / 1634 | 1498 / 1610 | 1882 / 1936 |
 | moge-2-vits-normal | 994x1482 | 61.6 ms | 43.9 ms | 24.5 ms | 33.3 ms | 124 s | 131 s | 1007 / 1172 | 836 / 992 | 932 / 1048 | 768 / 852 |
 | moge-3-vitl | 994x1482 | 334 ms | 311 ms | planned for 0.2.1 | 149 ms | 136 s | – | 1678 / 1826 | 1500 / 1724 | 1626 / 1762 | – |
+| moge-3-vitl | 480x640 | – | – | 1069 ms, fp32 engine (DINOv2 encoder and projections with eager decoder and sparse refinement) | – | – | – | – | – | – | 4568 / 5382 |
 | omni-dc | 994x1482 | 554 ms | 411 ms | planned for 0.2.1 | 510 ms | 137 s | – | 4958 / 6304 | 4201 / 5932 | 4981 / 6030 | – |
 | omni-dc | 480x640 | – | – | 253 ms, fp32 engine (Depth Anything V2 with eager prompt fusion and solver) | – | – | 52.0 s | – | – | – | 2930 / 3298 |
 | pointdit-b-512 | 994x1482 | 31.1 ms | 23.7 ms | 15.5 ms | 20.5 ms | 33.6 s | 86.5 s | 446 / 504 | 465 / 524 | 462 / 630 | 795 / 898 |
