@@ -286,12 +286,18 @@ class Backbone(nn.Module):
         fe1 = self.conv1(torch.cat([self.conv1_rgb(rgb), self.conv1_dep(depth)], 1))
         fe2, fe3, fe4, fe5, fe6, fe7 = self.former(fe1)
         fd5 = self.dec5(_cat(self.dec6(fe7), fe6))
+        del fe7, fe6
         fd4 = self.dec4(_cat(fd5, fe5))
+        del fd5, fe5
         fd2 = self.dec2(_cat(self.dec3(_cat(fd4, fe4)), fe3))
+        del fe3
         f2 = _cat(fd2, fe2)
+        del fd2, fe2
         guide = self.gd_dec0(_cat(self.gd_dec1(f2), fe1))
         conf_spn = self.cf_dec0(_cat(self.cf_dec1(f2), fe1))
+        del f2, fe1
         f4 = _cat(fd4, fe4)
+        del fd4, fe4
         return guide, conf_spn, self.ctx_dec0(self.ctx_dec1(f4)), self.cfi_dec0(self.cfi_dec1(f4))
 
 
