@@ -152,6 +152,7 @@ _DATASETS = {
         "div2k-val-inpainting-mask50": "DIV2K validation, 25 centre crops with two masks each, masked RGB PSNR (dB)",
         "div2k-val-x4": "DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x2": "DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
+        "div2k-val-x2-every2": "DIV2K validation (every second image, 50 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x4-every2": "DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x4-every4": "DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x4-crop256-every4": "DIV2K validation, every fourth image, 256 x 256 LR crops, PSNR / SSIM (Y)",

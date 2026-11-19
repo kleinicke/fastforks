@@ -59,11 +59,11 @@ The 3,000 official cropped test words, with no lexicon. Exact accuracy and norma
 
 | variant | dataset | original fp32 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
 |---|---|---|---|---|---|---|---|---|
-| `parseq` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 98.37 / 99.62 |  | 98.37 / 99.62 |  |  |  |  |
+| `parseq` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 98.37 / 99.62 | 98.37 / 99.62 | 98.37 / 99.62 |  |  |  |  |
 | `parseq-tiny` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 97.67 / 99.45 |  | 97.67 / 99.45 |  |  |  |  |
 | `parseq-tiny` | IIIT5K test (300 crops), word accuracy / normalized edit similarity % |  | 97.00 / 99.32 |  | 97.00 / 99.32 | 97.00 / 99.32 | 97.00 / 99.32 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a54f74f7, 2026-11-19; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb / 5f4a908a0, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a54f74f7, 2026-11-19; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19.
 
 ### Parity
 
@@ -117,12 +117,12 @@ Commercial use: yes.
 
 The 3,000 official cropped test words, with no lexicon. Exact accuracy and normalized edit similarity compare lowercase ASCII letters and digits. Similarity is one minus edit distance divided by the longer word's length, averaged over the crops. For a model that also detects text, this benchmark runs only its recognition network on the supplied word crop. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable fp32 | note |
-|---|---|---|---|---|
-| `ppocrv5-server` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 94.80 / 98.26 | 94.80 / 98.26 |  |
-| `ppocrv5-mobile` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 89.43 / 96.19 | 89.40 / 96.19 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | note |
+|---|---|---|---|---|---|
+| `ppocrv5-server` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 94.80 / 98.26 | 94.80 / 98.27 | 94.80 / 98.26 |  |
+| `ppocrv5-mobile` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 89.43 / 96.19 | 89.40 / 96.18 | 89.40 / 96.19 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
 
 ### Parity
 

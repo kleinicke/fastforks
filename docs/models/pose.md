@@ -280,13 +280,13 @@ Top-down on the same every-tenth-image subset for all modes, ground-truth person
 | `rtmpose-m-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 78.3 | 78.4 | 78.3 | 78.3 | 78.3 |  |  |  |
 | `rtmpose-l-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.8 | 79.8 | 79.8 | 79.8 | 80.0 |  |  |  |
 | `rtmpose-x-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 80.5 | 80.6 | 80.5 | 80.5 | 80.4 |  |  |  |
-| `rtmpose-m-hand5` | COCO-WholeBody validation (1,568 images), hand PCK@0.2 % / EPE in px | 80.99 / 4.56 |  |  | 80.98 / 4.56 |  |  |  |  |
+| `rtmpose-m-hand5` | COCO-WholeBody validation (1,568 images), hand PCK@0.2 % / EPE in px | 80.99 / 4.56 |  | 80.96 / 4.57 | 80.98 / 4.56 |  |  |  |  |
 | `rtmpose-t-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) | 1.7748 |  | 1.7817 | 1.7742 |  | 1.7815 | 1.7827 |  |
-| `rtmpose-s-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) | 1.6865 |  |  | 1.6854 |  |  |  |  |
-| `rtmpose-m-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) | 1.5244 |  |  | 1.5225 |  |  |  |  |
-| `rtmpose-m-ap10k` | AP-10K validation split 1, annotated animal boxes, paired OKS (%) | 83.835 |  |  | 83.825 |  |  |  |  |
+| `rtmpose-s-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) | 1.6865 |  | 1.6929 | 1.6854 |  |  |  |  |
+| `rtmpose-m-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) | 1.5244 |  | 1.5299 | 1.5225 |  |  |  |  |
+| `rtmpose-m-ap10k` | AP-10K validation split 1, annotated animal boxes, paired OKS (%) | 83.835 |  | 83.829 | 83.825 |  |  |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / 535aedbb / be54b8b0, 2026-11-09 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / be54b8b0, 2026-11-09 to 2026-11-11; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 01174ad3, 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / 535aedbb / 5f4a908a0 / be54b8b0, 2026-11-09 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / be54b8b0, 2026-11-09 to 2026-11-11; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 01174ad3, 2026-11-19.
 
 ### Parity
 
@@ -440,9 +440,9 @@ Each image at its own size, score threshold 0.02 and NMS IoU 0.45 (the authors' 
 | variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|
 | `retinaface-resnet50` | WIDER FACE val, every 4th image (807), face box AP easy / medium / hard | 0.954 / 0.939 / 0.841 | 0.954 / 0.939 / 0.840 | 0.954 / 0.940 / 0.841 | 0.954 / 0.939 / 0.840 |  |
-| `retinaface-mobilenet0.25` | WIDER FACE val, every 4th image (807), face box AP easy / medium / hard | 0.905 / 0.882 / 0.741 |  | 0.905 / 0.882 / 0.741 |  |  |
+| `retinaface-mobilenet0.25` | WIDER FACE val, every 4th image (807), face box AP easy / medium / hard | 0.905 / 0.882 / 0.741 | 0.905 / 0.882 / 0.740 | 0.905 / 0.882 / 0.741 |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0 / 68b2f345, 2026-11-16 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
 
 ### Parity
 

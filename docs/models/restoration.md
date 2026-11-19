@@ -943,10 +943,11 @@ DIV2K validation HR images and the official bicubic LR images (x4 or x2, the mod
 |---|---|---|---|---|---|---|
 | `swinir-m-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.90 / 0.8423 | 30.90 / 0.8423 | 30.90 / 0.8423 | 30.89 / 0.8422 |  |
 | `swinir-m-x2` | DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y) | 36.86 / 0.9507 |  | 36.86 / 0.9507 |  |  |
+| `swinir-m-x2` | DIV2K validation (every second image, 50 images), bicubic x2 LR -> HR, PSNR / SSIM (Y) |  | 36.61 / 0.9457 |  |  |  |
 | `swinir-m-x4-real` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 26.71 / 0.7516 | 26.71 / 0.7516 | 26.71 / 0.7516 | 26.71 / 0.7515 |  |
 | `swinir-l-x4-real` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 27.04 / 0.7628 | 27.04 / 0.7628 | 27.04 / 0.7628 | 27.05 / 0.7628 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 45a5c91f, 2026-11-13 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f / a63c0a86, 2026-11-13 to 2026-11-15; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 45a5c91f, 2026-11-13 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13.
 
 ### Parity
 
