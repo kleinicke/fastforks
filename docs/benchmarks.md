@@ -1501,7 +1501,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | gfpgan-v1.4 | 21.9 | 21.2 | 18.0 | 1.2x | 1.2x | 563 / 670 | 505 / 528 | 473 / 530 |
 | hat-s-x4 | 2402 | 1072 | 956 | 2.5x | 1.1x | 5018 / 5644 | 1984 / 2148 | 1856 / 1888 |
 | hat-x4 | 3038 | 1596 | 1427 | 2.1x | 1.1x | 5318 / 6106 | 2426 / 2590 | 2298 / 2470 |
-| nafnet-gopro | 63.7 | 61.1 | 31.3 | 2.0x | 1.9x | 484 / 612 | 483 / 532 | 376 / 408 |
+| nafnet-gopro | 63.7 | 60.4 | 31.3 | 2.0x | 1.9x | 484 / 612 | 439 / 472 | 376 / 408 |
 | nafnet-sidd | 71.6 | 61.1 | 22.5 | 3.2x | 2.7x | 608 / 730 | 607 / 650 | 502 / 536 |
 | real-hat-gan-x4 | 3038 | 1428 | 1234 | 2.5x | 1.2x | 5318 / 6106 | 1430 / 2070 | 1312 / 1510 |
 | realesr-general-x4v3 | 42.1 | 30.1 | 24.0 | 1.8x | 1.3x | 157 / 206 | 125 / 164 | 125 / 164 |
@@ -1509,7 +1509,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | realesrgan-x4plus | 631 | 473 | 403 | 1.6x | 1.2x | 2266 / 2496 | 292 / 354 | 1220 / 1434 |
 | realesrgan-x4plus-anime-6b | 205 | 155 | 132 | 1.6x | 1.2x | 2243 / 2472 | 1197 / 1430 | 1197 / 1410 |
 | realplksr-nomoswebphoto-x4 | 267 | 182 | 130 | 2.1x | 1.4x | 244 / 320 | 179 / 216 | 179 / 216 |
-| restormer-deblur | 234 | 228 | 133 | 1.8x | 1.7x | 1221 / 1418 | 850 / 1000 | 892 / 980 |
+| restormer-deblur | 234 | 183 | 133 | 1.8x | 1.4x | 1221 / 1418 | 724 / 740 | 766 / 800 |
 | restormer-derain | 234 | 228 | 133 | 1.8x | 1.7x | 1221 / 1418 | 850 / 1000 | 892 / 980 |
 | restormer-sidd | 218 | 181 | 133 | 1.6x | 1.4x | 1221 / 1416 | 850 / 920 | 892 / 980 |
 | seedvr2-3b | 13150 | 2332 | 2356 | 5.6x | 1.0x | 7598 / 15268 | 4233 / 7262 | 3857 / 7778 |
@@ -2738,7 +2738,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | hat-s-x4 | 256x256 | 233 ms | – | 141 ms | – | – | 89.1 s | 531 / 782 | – | – | 533 / 534 |
 | hat-x4 | 512x512 | 1596 ms | 1185 ms | fails: TensorRT engine build failed | 1427 ms | 53.4 s | – | 2426 / 2590 | 1811 / 2750 | 2298 / 2470 | – |
 | hat-x4 | 256x256 | 346 ms | – | 217 ms | – | – | 92.0 s | 658 / 1002 | – | – | 681 / 682 |
-| nafnet-gopro | 512x512 | 61.1 ms | 37.3 ms | 52.6 ms | 31.3 ms | 46.2 s | 66.5 s | 483 / 532 | 422 / 470 | 376 / 408 | 722 / 734 |
+| nafnet-gopro | 512x512 | 60.4 ms | 37.3 ms | 52.6 ms | 31.3 ms | 46.2 s | 66.5 s | 439 / 472 | 422 / 470 | 376 / 408 | 722 / 734 |
 | nafnet-sidd | 512x512 | 61.1 ms | 32.3 ms | 24.5 ms | 22.5 ms | 36.9 s | 33.8 s | 607 / 650 | 450 / 488 | 502 / 536 | 650 / 668 |
 | real-hat-gan-x4 | 512x512 | 1428 ms | 1185 ms | fails: TensorRT engine build failed | 1234 ms | 54.3 s | – | 1430 / 2070 | 1811 / 2750 | 1312 / 1510 | – |
 | real-hat-gan-x4 | 256x256 | 346 ms | – | 217 ms | – | – | 98.7 s | 658 / 1002 | – | – | 681 / 682 |
@@ -2747,7 +2747,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | realesrgan-x4plus | 512x512 | 473 ms | 354 ms | 273 ms | 403 ms | 29.9 s | 55.2 s | 292 / 354 | 1091 / 1394 | 1220 / 1434 | 1546 / 1594 |
 | realesrgan-x4plus-anime-6b | 512x512 | 155 ms | 114 ms | 83.1 ms | 132 ms | 10.0 s | 36.7 s | 1197 / 1430 | 1068 / 1370 | 1197 / 1410 | 1505 / 1552 |
 | realplksr-nomoswebphoto-x4 | 512x512 | 182 ms | 154 ms | 247 ms | 130 ms | 15.2 s | 26.2 s | 179 / 216 | 179 / 196 | 179 / 216 | 358 / 366 |
-| restormer-deblur | 512x512 | 228 ms | 143 ms | 162 ms | 133 ms | 44.1 s | 58.3 s | 850 / 1000 | 660 / 778 | 892 / 980 | 757 / 774 |
+| restormer-deblur | 512x512 | 183 ms | 143 ms | 162 ms | 133 ms | 44.1 s | 58.3 s | 724 / 740 | 660 / 778 | 766 / 800 | 757 / 774 |
 | restormer-derain | 512x512 | 228 ms | 144 ms | 162 ms | 133 ms | 41.5 s | 55.3 s | 850 / 1000 | 660 / 778 | 892 / 980 | 757 / 774 |
 | restormer-sidd | 512x512 | 181 ms | 142 ms | 162 ms | 133 ms | 35.5 s | 59.7 s | 850 / 920 | 660 / 778 | 892 / 980 | 757 / 774 |
 | seedvr2-3b | 512x512 | 2332 ms | 1941 ms | 2280 ms, bf16 engine (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | 2356 ms | 238 s | – | 4233 / 7262 | 5237 / 8144 | 3857 / 7778 | 9068 / 9284 |

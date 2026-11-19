@@ -30,7 +30,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`realesrgan-x4plus`](#realesrgan) | yes | 403, 1.6x | 1434, 0.57x |
 | [`realesrgan-x4plus-anime-6b`](#realesrgan) | yes | 132, 1.6x | 1410, 0.57x |
 | [`realplksr-nomoswebphoto-x4`](#realplksr) | yes | 130, 2.1x | 216, 0.68x |
-| [`restormer-deblur`](#restormer) | yes | 133, 1.8x | 980, 0.69x |
+| [`restormer-deblur`](#restormer) | yes | 133, 1.8x | 800, 0.56x |
 | [`restormer-derain`](#restormer) | yes | 133, 1.8x | 980, 0.69x |
 | [`restormer-sidd`](#restormer) | yes | 133, 1.6x | 980, 0.69x |
 | [`seedvr2-3b`](#seedvr2) | yes | 2356, 5.6x | 7778, 0.51x |
@@ -413,7 +413,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `nafnet-gopro` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 63.7<br>61.1<br>31.3<br>37.3<br>52.6 | 484 / 612<br>483 / 532<br>376 / 408<br>422 / 470<br>722 / 734 |
+| `nafnet-gopro` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 63.7<br>60.4<br>31.3<br>37.3<br>52.6 | 484 / 612<br>439 / 472<br>376 / 408<br>422 / 470<br>722 / 734 |
 | `nafnet-sidd` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 71.6<br>61.1<br>22.5<br>32.3<br>24.5 | 608 / 730<br>607 / 650<br>502 / 536<br>450 / 488<br>650 / 668 |
 
 <details><summary>Details</summary>
@@ -432,6 +432,7 @@ Commercial use: yes.
 - `nafnet-gopro` 512x512, first call: portable + torch.compile 46 s (cold Inductor cache), TensorRT fp16 66 s (ONNX + engine).
 - `nafnet-sidd` 512x512, first call: portable + torch.compile 37 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
 - `nafnet-gopro` original 512x512: .half() on 1 modules, fp16 inputs; upstream ImageRestorationModel.test, float32, NAFNetLocal (TLC)
+- `nafnet-gopro` portable 512x512: Channel-group local means and consumed decoder skips preserve the native GoPro predictions.
 - `nafnet-sidd` original 512x512: .half() on 1 modules, fp16 inputs; upstream ImageRestorationModel.test, float32
 - `nafnet-gopro` load / first call: original 1.5 s / 0.386 s, portable 0.35 s / 0.278 s, kernels 0.64 s / 0.232 s
 - `nafnet-sidd` load / first call: original 1.16 s / 0.291 s, portable 0.79 s / 0.369 s, kernels 0.7 s / 0.243 s
@@ -629,7 +630,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `restormer-deblur` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>228<br>133<br>143<br>162 | 1221 / 1418<br>850 / 1000<br>892 / 980<br>660 / 778<br>757 / 774 |
+| `restormer-deblur` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>183<br>133<br>143<br>162 | 1221 / 1418<br>724 / 740<br>766 / 800<br>660 / 778<br>757 / 774 |
 | `restormer-derain` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>228<br>133<br>144<br>162 | 1221 / 1418<br>850 / 1000<br>892 / 980<br>660 / 778<br>757 / 774 |
 | `restormer-sidd` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 218<br>181<br>133<br>142<br>162 | 1221 / 1416<br>850 / 920<br>892 / 980<br>660 / 778<br>757 / 774 |
 
@@ -651,6 +652,7 @@ Commercial use: yes.
 - `restormer-derain` 512x512, first call: portable + torch.compile 41 s (cold Inductor cache), TensorRT fp16 55 s (ONNX + engine).
 - `restormer-sidd` 512x512, first call: portable + torch.compile 36 s (cold Inductor cache), TensorRT fp16 60 s (ONNX + engine).
 - `restormer-deblur` original 512x512: .half() on 1 modules, fp16 inputs; upstream test.py, float32, no tile
+- `restormer-deblur` portable 512x512, kernels 512x512: Decoder feature lifetimes preserve the synthetic and labeled GoPro predictions.
 - `restormer-derain` original 512x512: .half() on 1 modules, fp16 inputs; upstream test.py, float32, no tile
 - `restormer-sidd` original 512x512: .half() on 1 modules, fp16 inputs; upstream test.py, float32, no tile
 - `restormer-deblur` load / first call: original 0.36 s / 0.897 s, portable 0.28 s / 0.712 s, kernels 0.6 s / 0.528 s
