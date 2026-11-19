@@ -60,7 +60,6 @@ ITERS = 6  # fixed: upstream predictors' iterations
 SUPPORT_GRID = 6  # fixed: the offline predictor's support grid (6 x 6 frame-0 queries)
 THRESHOLD = {False: 0.9, True: 0.6}  # fixed: upstream predictors' visibility thresholds (offline, online)
 FRAME_CHUNK = 16  # fixed: memory chunking of the feature CNN, not an architecture value
-CORR_ROWS = 16384  # fixed: (query, frame) rows per correlation chunk (memory)
 GELU, GELU_TANH = 5, 6  # fixed: fused-epilogue activation codes (fastforks._optimize.conv_ops)
 
 
@@ -111,6 +110,8 @@ def _calibrate(p: torch.Tensor, thr: float) -> torch.Tensor:
 
 class Core:
     """The network's tracking maths on one video (batch 1) in the compute dtype; see the module docstring."""
+
+    correlation_rows = 16384  # (query, frame) pairs per correlation chunk
 
     def __init__(self, net: CoTrackerThreeBase, *, half: bool) -> None:
         """Cast / patch the network for `half` (float16) or float32."""
@@ -195,7 +196,7 @@ class Core:
         rr = (2 * self.r + 1) ** 2
         frame = torch.arange(s, device=cn.device).expand(n, s)
         embs = torch.empty(n, s, len(levels) * self.c2w.shape[0], device=cn.device, dtype=self.dt)
-        step = max(1, CORR_ROWS // s)
+        step = max(1, self.correlation_rows // s)
         for a in range(0, n, step):
             b = min(n, a + step)
             buf = torch.zeros((b - a) * s, rr * rr + self.k_pad, device=cn.device, dtype=self.dt)
@@ -338,6 +339,8 @@ def track(
 
 class _KernelCore(Core):
     """Gather only source windows and write interpolation results in the consuming layout."""
+
+    correlation_rows = 8192  # bound the gathered windows and correlation MLP buffers on long clips
 
     def _window(self, feat: torch.Tensor, frame: torch.Tensor, c: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         return cotracker_corr.window(feat, frame, c)
