@@ -36,11 +36,9 @@ def _bn_act_forward(self, x):  # timm BatchNormAct2d (mobilenet): bn -> drop (id
 def _in_forward(self, x):
     # InstanceNorm2d / 3d (affine=False): fp32 statistics; fp32 applied in place (keeps NHWC / NDHWC), fp16 computed
     # per element in fp32 (as F.instance_norm does) and stored fp16
-    var, mean = torch.var_mean(x.float(), dim=tuple(range(2, x.dim())), keepdim=True, unbiased=False)
-    rstd = torch.rsqrt(var + self.eps)
-    if x.dtype == torch.float32:
-        return x.sub_(mean).mul_(rstd)
-    return ((x.float() - mean) * rstd).to(x.dtype)
+    normalized = x.float()
+    var, mean = torch.var_mean(normalized, dim=tuple(range(2, x.dim())), keepdim=True, unbiased=False)
+    return normalized.sub_(mean).mul_(torch.rsqrt(var + self.eps)).to(x.dtype)
 
 
 def _basic_conv_forward(self, x):  # BasicConv (BN / IN): conv -> norm -> LeakyReLU(0.01), in place
@@ -56,7 +54,8 @@ def _basic_conv_forward(self, x):  # BasicConv (BN / IN): conv -> norm -> LeakyR
 
 def _resblock_forward(self, x):
     y = self.relu(self.norm1(self.conv1(x)))
-    y = self.relu(self.norm2(self.conv2(y)))
+    y = self.conv2(y)
+    y = self.relu(self.norm2(y))
     if self.downsample is not None:
         x = self.downsample(x)
     return y.add_(x).relu_()

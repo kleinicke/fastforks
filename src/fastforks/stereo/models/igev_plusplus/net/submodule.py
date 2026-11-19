@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from fastforks._core.tracing import in_onnx_export
 # fastforks: unused numpy import removed
 
 
@@ -102,11 +104,21 @@ def build_gwc_volume(refimg_fea, targetimg_fea, maxdisp, num_groups):
 # fastforks: from fastforks.shared.igev_blocks (export-friendly build_gwc_volume)
 def build_gwc_volume_fast(refimg_fea, targetimg_fea, maxdisp, num_groups, channels_last=True):
     """Same values as build_gwc_volume: disparity i correlates ref with the target shifted right by i and zero-filled
-    on the left (columns < i give 0, as upstream's zero init). Shifted views + one stack instead of slice assignment
-    into a preallocated volume (exports without ScatterND); NDHWC (channels_last_3d) output if requested."""
+    on the left (columns < i give 0, as upstream's zero init). Eager CUDA fills the final layout directly.
+    Export and compilation stack the shifted planes to avoid slice assignment."""
     B, C, H, W = refimg_fea.shape
     cpg = C // num_groups
     tp = F.pad(targetimg_fea, (maxdisp - 1, 0))
+    if (refimg_fea.is_cuda and not torch.is_grad_enabled() and not torch.compiler.is_compiling()
+            and not torch.jit.is_tracing() and not in_onnx_export()):
+        layout = torch.channels_last_3d if channels_last else torch.contiguous_format
+        volume = torch.empty((B, num_groups, maxdisp, H, W), device=refimg_fea.device,
+                             dtype=refimg_fea.dtype, memory_format=layout)
+        for i in range(maxdisp):
+            offset = maxdisp - 1 - i
+            shifted = tp[..., offset:offset + W]
+            volume[:, :, i].copy_((refimg_fea * shifted).view(B, num_groups, cpg, H, W).mean(dim=2))
+        return volume
     vols = [(refimg_fea * tp[:, :, :, maxdisp - 1 - i:maxdisp - 1 - i + W]).view(B, num_groups, cpg, H, W).mean(dim=2)
             for i in range(maxdisp)]
     volume = torch.stack(vols, 2)
