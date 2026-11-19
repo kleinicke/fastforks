@@ -92,6 +92,20 @@ def test_half_lookup_matches_grid_sample(height: int, width: int, batch: int) ->
 
 
 @pytest.mark.gpu
+@pytest.mark.parametrize(("height", "width", "batch"), [(68, 120, 1), (45, 97, 2)])
+def test_large_match_keeps_sdpa_coordinates(height: int, width: int, batch: int) -> None:
+    """Tiled softmax must retain the FP32 match coordinates consumed by iterative refinement."""
+    torch.manual_seed(0)
+    left = torch.randn(batch, nf.FEATURE, height, width, device="cuda")
+    right = torch.randn_like(left)
+    with torch.inference_mode(mode=False), torch.no_grad():
+        expected = nf._match(left, right)
+    with torch.inference_mode():
+        actual = nf._match(left, right)
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+
+
+@pytest.mark.gpu
 @pytest.mark.parametrize(("height", "width", "batch"), [(17, 21, 2), (136, 240, 1)])  # odd cells; the 1080p cells
 def test_kernel_lookup_matches_portable(height: int, width: int, batch: int) -> None:
     """The on-the-fly window equals the volume lookup (fp16 operands, fp32 sums) up to the fp16 output rounding."""
