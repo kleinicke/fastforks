@@ -22,7 +22,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`pi3`](#pi3) | no | 559, 1.9x | 2456, 0.41x |
 | [`resplat-base-re10k`](#resplat) | no | 1178, 2.1x | 6936, 0.55x |
 | [`resplat-small-dl3dv`](#resplat) | yes | 362, 1.4x | 5148, 0.96x |
-| [`vggt-1b`](#vggt) | no | 460, 2.1x | 4194, 0.57x |
+| [`vggt-1b`](#vggt) | no | 446, 2.2x | 3854, 0.52x |
 | [`vggt-omega-1b-512`](#vggt_omega) | no | 467, 1.9x | 3494, 0.59x |
 
 <a id="anysplat"></a>
@@ -566,7 +566,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vggt-1b` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2502<br>965<br>651<br>460<br>557<br>424 | 6958 / 7358<br>8688 / 9158<br>3643 / 3874<br>3650 / 4194<br>3611 / 3856<br>6421 / 6472 |
+| `vggt-1b` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2502<br>965<br>653<br>446<br>557<br>424 | 6958 / 7358<br>8688 / 9158<br>3573 / 3794<br>3580 / 3854<br>3611 / 3856<br>6421 / 6472 |
 
 <details><summary>Details</summary>
 
@@ -585,6 +585,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - `vggt-1b` 336x518, first call: portable + torch.compile 74 s (cold Inductor cache), TensorRT fp16 199 s (ONNX + engine).
 - `vggt-1b` original (fp32) 336x518: float32 (the authors' autocast off)
 - `vggt-1b` original 336x518: original default (README / demo): torch.autocast(bfloat16)
+- `vggt-1b` portable 336x518, kernels 336x518: CUDA DPT position addition reuses its owned buffers. Eight views, three matched DTU scans and synthetic maps bitwise identical.
 - `vggt-1b` load / first call: original 19.37 s / 1.289 s (336x518), portable 6.78 s / 1.025 s (336x518), kernels 7.03 s / 0.751 s (336x518)
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 

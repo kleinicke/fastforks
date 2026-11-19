@@ -89,7 +89,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`monster-sceneflow`](models/stereo.md#monster) | no | 1.34 | 4275.0 (994x1482) | 1584.9 | 654.5 | 6.5x vs original (994x1482) | 2216 |
 | [`monster-mix-all`](models/stereo.md#monster) | no | 1.25 † | 4275.0 (994x1482) | 1583.2 | 656.0 | 6.5x vs original (994x1482) | 2216 |
 | [`monster-plusplus-mix-all`](models/stereo.md#monster) | no | 1.08 ? | 4334.5 (994x1482) | 1632.6 | 657.2 | 6.6x vs original (994x1482) | 2438 |
-| [`s2m2-xl`](models/stereo.md#s2m2) | no | 0.52 ? | 1796.1 (994x1482) | 1818.3 | 681.9 | 2.6x vs original (994x1482) | 2092 |
+| [`s2m2-xl`](models/stereo.md#s2m2) | no | 0.52 ? | 1796.1 (994x1482) | 1824.1 | 681.9 | 2.6x vs original (994x1482) | 2092 |
 | [`foundationstereo-vit-s`](models/stereo.md#foundationstereo) | no | 1.10 ? | 3608.6 (994x1482) | 2513.8 | 1120.2 | 3.2x vs original (994x1482) | 2169 |
 | [`c-foundationstereo-s`](models/stereo.md#c-foundationstereo) | yes | 1.24 | 3873.9 (994x1482) | 3643.0 | 1365.9 | 2.8x vs original (994x1482) | 3058 |
 | [`foundationstereo-vit-l`](models/stereo.md#foundationstereo) | no | 0.65 ? | 4237.0 (994x1482) | 2989.8 | 1513.1 | 2.8x vs original (994x1482) | 2818 |
@@ -617,7 +617,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`mvsplat-re10k`](models/multiview.md#mvsplat) | yes | 279.3 (336x518) | 180.9 | 172.5 | 1.6x vs original (336x518) | 1239 |
 | [`resplat-small-dl3dv`](models/multiview.md#resplat) | yes | 493.4 (480x640) | 1723.4 | 362.1 | 1.4x vs original (480x640) | 4981 |
 | [`anysplat`](models/multiview.md#anysplat) | yes | 741.2 (336x518) | 508.0 | 369.1 | 2.0x vs original (336x518) | 4173 |
-| [`vggt-1b`](models/multiview.md#vggt) | no | 965.0 (336x518) | 651.5 | 459.8 | 2.1x vs original (336x518) | 3650 |
+| [`vggt-1b`](models/multiview.md#vggt) | no | 965.0 (336x518) | 652.8 | 445.9 | 2.2x vs original (336x518) | 3580 |
 | [`vggt-omega-1b-512`](models/multiview.md#vggt-omega) | no | 906.4 (336x518) | 725.7 | 466.9 | 1.9x vs original (336x518) | 3404 |
 | [`lingbot-map`](models/multiview.md#lingbot-map) | yes | 992.8 (480x640) | 733.4 | 520.2 | 1.9x vs original (480x640) | 3919 |
 | [`mapanything-apache`](models/multiview.md#mapanything) | yes | 1966.8 (336x518) | 635.9 | 544.0 | 3.6x vs original (336x518) | 3697 |

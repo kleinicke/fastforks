@@ -878,7 +878,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | rt-monster-plusplus-mix-all | – | – | 113 | 89.5 | 1.3x | 2581 / 2618 | 2586 / 2640 |
 | s2m2-l | – | – | 1017 | – | – | 3234 / 3816 | – |
 | s2m2-m | – | – | 670 | – | – | 2289 / 2766 | – |
-| s2m2-xl | – | – | 1818 | – | – | 5217 / 6014 | – |
+| s2m2-xl | – | – | 1824 | – | – | 5217 / 5614 | – |
 | selective-igev-eth3d-finetune | – | – | 996 | 351 | 2.8x | 1227 / 1448 | 1051 / 1190 |
 | waft-stereo-b | – | – | 1144 | 388 | 2.9x | 3727 / 5814 | 1664 / 1932 |
 | waft-stereo-s | – | – | – | 284 | – | – | 954 / 1102 |
@@ -1368,7 +1368,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | pi3 | 336x518 | – | 1057 | 821 | 559 | 1.9x | 1.5x | 5926 / 6016 | 2360 / 2416 | 2367 / 2456 |
 | resplat-base-re10k | 480x640 | – | 2521 | 7228 | 1178 | 2.1x | 6.1x | 10139 / 12684 | 4364 / 6884 | 4370 / 6936 |
 | resplat-small-dl3dv | 480x640 | – | 493 | 1723 | 362 | 1.4x | 4.8x | 5148 / 5376 | 4995 / 5180 | 4981 / 5148 |
-| vggt-1b | 336x518 | 2502 | 965 | 651 | 460 | 2.1x | 1.4x | 8688 / 9158 | 3643 / 3874 | 3650 / 4194 |
+| vggt-1b | 336x518 | 2502 | 965 | 653 | 446 | 2.2x | 1.5x | 8688 / 9158 | 3573 / 3794 | 3580 / 3854 |
 | vggt-omega-1b-512 | 336x518 | 2650 | 906 | 726 | 467 | 1.9x | 1.6x | 7495 / 7654 | 3421 / 3518 | 3404 / 3494 |
 
 ### Flow, synthetic
@@ -2195,7 +2195,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | s2m2-l | 994x1482 | 1017 ms | 650 ms | 497 ms | 376 ms | 144 s | 374 s | 3234 / 3816 | 3169 / 3514 | 1249 / 1568 | 2910 / 2982 |
 | s2m2-m | 994x1482 | 670 ms | 420 ms | 285 ms | 248 ms | 126 s | 305 s | 2289 / 2766 | 2197 / 2572 | 876 / 1162 | 1958 / 2002 |
 | s2m2-s | 994x1482 | 348 ms | 186 ms | 137 ms | 113 ms | 95.9 s | 363 s | 1733 / 1930 | 1579 / 1710 | 686 / 820 | 1186 / 1240 |
-| s2m2-xl | 994x1482 | 1818 ms | 1298 ms | 753 ms | 682 ms | 153 s | 408 s | 5217 / 6014 | 5594 / 6014 | 2092 / 2274 | 5283 / 5338 |
+| s2m2-xl | 994x1482 | 1824 ms | 1298 ms | 753 ms | 682 ms | 153 s | 408 s | 5217 / 5614 | 5594 / 6014 | 2092 / 2274 | 5283 / 5338 |
 | selective-igev-eth3d-finetune | 994x1482 | 996 ms | 691 ms | 461 ms | 351 ms | 126 s | 256 s | 1227 / 1448 | 919 / 1088 | 1051 / 1190 | 1279 / 1316 |
 | selective-igev-eth3d-train | 994x1482 | 998 ms | 691 ms | 462 ms | 349 ms | 127 s | 260 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
 | selective-igev-kitti12 | 994x1482 | 998 ms | 691 ms | 462 ms | 349 ms | 125 s | 255 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
@@ -2607,7 +2607,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | resplat-base-re10k | 256x256 | – | – | 1028 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 2173 / 2988 |
 | resplat-small-dl3dv | 480x640 | 1723 ms | 1538 ms | public API unavailable | 362 ms | 243 s | – | 4995 / 5180 | 4995 / 5138 | 4981 / 5148 | – |
 | resplat-small-dl3dv | 256x448 | – | – | 1362 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 1367 / 1800 |
-| vggt-1b | 336x518 | 651 ms | 557 ms | 424 ms | 460 ms | 74.3 s | 199 s | 3643 / 3874 | 3611 / 3856 | 3650 / 4194 | 6421 / 6472 |
+| vggt-1b | 336x518 | 653 ms | 557 ms | 424 ms | 446 ms | 74.3 s | 199 s | 3573 / 3794 | 3611 / 3856 | 3580 / 3854 | 6421 / 6472 |
 | vggt-omega-1b-512 | 336x518 | 726 ms | 589 ms | 377 ms | 467 ms | 65.7 s | 187 s | 3421 / 3518 | 3082 / 3154 | 3404 / 3494 | 5657 / 5766 |
 | flowformer-small-chairs | 1080x1920 | – | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | – | – | – | – | – | – | – |
 | flowformer-small-chairs | 375x1242 | 335 ms | 250 ms | 202 ms | 320 ms | 98.7 s | 118 s | 1297 / 1438 | 2438 / 3196 | 1293 / 1438 | 2087 / 2138 |

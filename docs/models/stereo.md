@@ -1714,7 +1714,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 | `s2m2-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 582<br>350<br>348<br>113<br>186<br>137 | 2775 / 3008<br>1759 / 1986<br>1733 / 1930<br>686 / 820<br>1579 / 1710<br>1186 / 1240 |
 | `s2m2-m` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1242<br>666<br>670<br>248<br>420<br>285 | 3399 / 3704<br>2371 / 2920<br>2289 / 2766<br>876 / 1162<br>2197 / 2572<br>1958 / 2002 |
 | `s2m2-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1934<br>1005<br>1017<br>376<br>650<br>497 | 4333 / 5252<br>3248 / 4090<br>3234 / 3816<br>1249 / 1568<br>3169 / 3514<br>2910 / 2982 |
-| `s2m2-xl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3510<br>1796<br>1818<br>682<br>1298<br>753 | 6940 / 8254<br>5606 / 6080<br>5217 / 6014<br>2092 / 2274<br>5594 / 6014<br>5283 / 5338 |
+| `s2m2-xl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3510<br>1796<br>1824<br>682<br>1298<br>753 | 6940 / 8254<br>5606 / 6080<br>5217 / 5614<br>2092 / 2274<br>5594 / 6014<br>5283 / 5338 |
 
 <details><summary>Details</summary>
 
@@ -1736,6 +1736,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - `s2m2-m` original 994x1482: torch.autocast(fp16) around the forward
 - `s2m2-l` original 994x1482: torch.autocast(float16) around the call
 - `s2m2-xl` original 994x1482: torch.autocast(fp16) around the forward
+- `s2m2-xl` portable 994x1482: CUDA encoder evaluates large residuals in four strips. Three matched Middlebury pairs and synthetic disparity, confidence and occlusion bitwise identical.
 - `s2m2-s` load / first call: original 0.22 s / 0.143 s (375x1242), portable 0.22 s / 0.352† s, kernels 0.2† s / 0.114† s
 - `s2m2-m` load / first call: original 3.95 s / 0.268 s (375x1242), portable 1.21 s / 0.699 s (375x1242), kernels 0.31† s / 0.249† s
 - `s2m2-l` load / first call: original 1.38 s / 1.007 s, portable 2.61 s / 0.755 s (375x1242), kernels 0.58† s / 0.374† s
