@@ -303,15 +303,22 @@ class _Fast(_Base):
             del last
             psi = net.patch_start_idx
             point_h = self.head(net.point_decoder, hidden, tf)
+            conf_h = cam_h = None
+            if torch.compiler.is_compiling():
+                # Keep the original operator order when capturing the graph.
+                conf_h = self.head(net.conf_decoder, hidden, tf)
+                cam_h = self.head(net.camera_decoder, hidden, tf)
             lp = net.point_head([point_h[:, psi:].float()], (hn, wn)).reshape(b, s, hn, wn, -1)
             del point_h
             xy, z = lp.split([2, 1], dim=-1)
             z = torch.exp(z)
             local = torch.cat([xy * z, z], dim=-1)
-            conf_h = self.head(net.conf_decoder, hidden, tf)
+            if conf_h is None:
+                conf_h = self.head(net.conf_decoder, hidden, tf)
             conf = net.conf_head([conf_h[:, psi:].float()], (hn, wn)).reshape(b, s, hn, wn, -1)
             del conf_h
-            cam_h = self.head(net.camera_decoder, hidden, tf)
+            if cam_h is None:
+                cam_h = self.head(net.camera_decoder, hidden, tf)
             poses = net.camera_head(cam_h[:, psi:].float(), hp, wp).reshape(b, s, 4, 4)
             pts = torch.einsum("bnij,bnhwj->bnhwi", poses[..., :3, :3], local) + poses[..., None, None, :3, 3]
         return {"points": pts, "local_points": local, "conf": conf, "camera_poses": poses}
