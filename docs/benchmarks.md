@@ -1387,7 +1387,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | gmflow-scale2-regrefine6-kitti | 1080x1920 | 3255 | 2188 | 1678 | – | – | – | 8537 / 8822 | 6080 / 6230 | – |
 | gmflow-scale2-regrefine6-mixdata | 1080x1920 | 3254 | 2188 | 1675 | – | – | – | 8537 / 8822 | 6080 / 6250 | – |
 | gmflow-scale2-regrefine6-sintelft | 1080x1920 | 3255 | 2184 | 1674 | – | – | – | 8537 / 8822 | 6080 / 6250 | – |
-| gmflow-scale2-regrefine6-things | 1080x1920 | 3230 | 2175 | 1631 | 1634 | 1.3x | 1.0x | 8537 / 8822 | 5432 / 8188 | 5496 / 8188 |
+| gmflow-scale2-regrefine6-things | 1080x1920 | 3230 | 2175 | 1478 | 1481 | 1.5x | 1.0x | 8537 / 8822 | 4036 / 4696 | 4036 / 4696 |
 | gmflow-scale2-sintel | 1080x1920 | 2541 | 1607 | 1139 | – | – | – | 8425 / 8552 | 6017 / 6224 | – |
 | gmflow-scale2-things | 1080x1920 | 2537 | 1599 | 1139 | – | – | – | 8425 / 8552 | 6017 / 6224 | – |
 | megaflow | 1080x1920 | – | 1588 | 1109 | 734 | 2.2x | 1.5x | 8230 / 8786 | 3035 / 3246 | 2866 / 3066 |
@@ -2628,7 +2628,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | gmflow-scale2-regrefine6-mixdata | 384x1248 | – | – | 349 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | – | – | – | 1660 / 2526 |
 | gmflow-scale2-regrefine6-sintelft | 1080x1920 | 1674 ms | 1116 ms | planned for 0.2.1 | – | 58.5 s | – | 6080 / 6250 | 10875 / 10972 | – | – |
 | gmflow-scale2-regrefine6-sintelft | 384x1248 | – | – | 350 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 14.5 s | – | – | – | 1660 / 2526 |
-| gmflow-scale2-regrefine6-things | 1080x1920 | 1631 ms | 1116 ms | planned for 0.2.1 | 1634 ms | 58.2 s | – | 5432 / 8188 | 10875 / 10972 | 5496 / 8188 | – |
+| gmflow-scale2-regrefine6-things | 1080x1920 | 1478 ms | 1116 ms | planned for 0.2.1 | 1481 ms | 58.2 s | – | 4036 / 4696 | 10875 / 10972 | 4036 / 4696 | – |
 | gmflow-scale2-regrefine6-things | 384x1248 | – | – | 350 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.7 s | – | – | – | 1660 / 2526 |
 | gmflow-scale2-sintel | 1080x1920 | 1139 ms | 765 ms | planned for 0.2.1 | – | 46.6 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
 | gmflow-scale2-sintel | 384x1248 | – | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 12.7 s | – | – | – | 1616 / 2560 |

@@ -670,7 +670,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`gmflow-scale2-things`](models/flow.md#gmflow) | yes | 6.747 | 1598.6 (1080x1920) | 1138.7 | – | – | – |
 | [`gmflow-scale2-mixdata`](models/flow.md#gmflow) | yes | 2.389 ? | 1607.7 (1080x1920) | 1139.3 | – | – | – |
 | [`gmflow-scale2-sintel`](models/flow.md#gmflow) | yes | 1.975 † | 1606.7 (1080x1920) | 1139.5 | – | – | – |
-| [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | yes | 4.917 | 2175.1 (1080x1920) | 1630.5 | 1634.5 | 1.3x vs original (1080x1920) | 5496 |
+| [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | yes | 4.917 | 2175.1 (1080x1920) | 1477.8 | 1480.6 | 1.5x vs original (1080x1920) | 4036 |
 | [`gmflow-scale2-regrefine6-sintelft`](models/flow.md#gmflow) | yes | 1.154 † | 2184.0 (1080x1920) | 1674.0 | – | – | – |
 | [`gmflow-scale2-regrefine6-mixdata`](models/flow.md#gmflow) | yes | 1.315 ? | 2187.5 (1080x1920) | 1674.7 | – | – | – |
 | [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | yes | 0.570 † | 2187.8 (1080x1920) | 1677.7 | – | – | – |
