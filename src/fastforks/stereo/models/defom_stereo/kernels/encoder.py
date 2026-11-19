@@ -119,9 +119,9 @@ def _instance_norm(self: nn.Module, x: torch.Tensor, mode: int = 0, res: torch.T
 
 def _resblock_forward(self: nn.Module, x: torch.Tensor) -> torch.Tensor:
     """ResidualBlock with instance norms: the ReLUs and the residual add run inside the norm passes."""
-    y = _instance_norm(self.norm1, self.conv1(x), _RELU)
+    y = self.conv2(_instance_norm(self.norm1, self.conv1(x), _RELU))
     r = x if self.downsample is None else _instance_norm(self.norm3, self.downsample[0](x), 0)
-    return _instance_norm(self.norm2, self.conv2(y), _RELU_RES, r.contiguous(memory_format=CL))
+    return _instance_norm(self.norm2, y, _RELU_RES, r.contiguous(memory_format=CL))
 
 
 def _is_in_resblock(m: nn.Module) -> bool:
