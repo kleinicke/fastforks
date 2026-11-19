@@ -261,6 +261,33 @@ class _CudaNorm(_Norm):
         return fastbb.ln_lastdim(tokens, weight, None, _EPS, bias_free=not self.with_bias).permute(0, 3, 1, 2)
 
 
+def _restore(net: Restormer, image: torch.Tensor) -> torch.Tensor:
+    """Release each eager CUDA encoder feature after its last decoder use."""
+    if not image.is_cuda or torch.is_grad_enabled() or torch.compiler.is_compiling() or torch.jit.is_tracing():
+        return net(image)
+
+    first = net.patch_embed(image)
+    level1 = net.encoder_level1(first)
+    if not net.dual_pixel_task:
+        first = None
+    level2 = net.encoder_level2(net.down1_2(level1))
+    level3 = net.encoder_level3(net.down2_3(level2))
+    x = net.latent(net.down3_4(level3))
+
+    x = torch.cat((net.up4_3(x), level3), dim=1)
+    del level3
+    x = net.decoder_level3(net.reduce_chan_level3(x))
+    x = torch.cat((net.up3_2(x), level2), dim=1)
+    del level2
+    x = net.decoder_level2(net.reduce_chan_level2(x))
+    x = torch.cat((net.up2_1(x), level1), dim=1)
+    del level1
+    x = net.refinement(net.decoder_level1(x))
+    if first is not None:
+        return net.output(x + net.skip_conv(first))
+    return net.output(x).add_(image)
+
+
 class Portable(Runner):
     """Plain PyTorch in the card's dtype, channels-last on CUDA."""
 
@@ -298,7 +325,8 @@ class Portable(Runner):
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The restored batch."""
-        return {"image": self.net(image.to(getattr(torch, self.ctx.dtype)).contiguous(memory_format=self.fmt))}
+        x = image.to(getattr(torch, self.ctx.dtype)).contiguous(memory_format=self.fmt)
+        return {"image": _restore(self.net, x)}
 
     def module(self) -> torch.nn.Module:
         """The network in the card's dtype."""
@@ -340,7 +368,8 @@ class Kernels(Portable):
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The restored batch."""
-        return {"image": self.net(image.to(torch.float16).contiguous(memory_format=self.fmt))}
+        x = image.to(torch.float16).contiguous(memory_format=self.fmt)
+        return {"image": _restore(self.net, x)}
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}
