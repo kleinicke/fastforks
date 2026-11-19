@@ -30,6 +30,7 @@ from typing import Any
 import torch
 import torch.nn.functional as F
 
+from fastforks.shared import mlx_wrap
 from fastforks._core.errors import InputError
 from fastforks._core.half import fp16_accumulate
 from fastforks.promptable_segmentation._runner import Context, Forward, Runner, scale
@@ -324,4 +325,8 @@ class Kernels(Portable):
             self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("embed", "decode"), net_attr="net"),
+}

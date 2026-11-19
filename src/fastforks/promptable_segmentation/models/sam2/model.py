@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from fastforks.shared import mlx_wrap
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.runner import host
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
@@ -290,4 +291,8 @@ class Kernels(_Sam2):
         return self.encoder(prepare(image, self.ctx.io, self.ctx.params.image_size))
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("embed",), net_attr="trunk"),
+}

@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from fastforks.shared import mlx_wrap
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.promptable_segmentation._runner import Forward, Runner
 
@@ -149,9 +150,13 @@ class Portable(_Sam):
         x = prepare(image, self.ctx.io, self.ctx.params.image_size, exact=exact)
         return encode(self.sam.image_encoder, x, self.rel)
 
+    def _enc(self, x: torch.Tensor) -> torch.Tensor:
+        return encode(self.sam.image_encoder, x, self.rel)
+
     def embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Image embedding `[1, 256, 64, 64]` float32."""
-        return {"image_embeddings": self._encode(image, exact=image.device.type == "cpu")}
+        x = prepare(image, self.ctx.io, self.ctx.params.image_size, exact=image.device.type == "cpu")
+        return {"image_embeddings": self._enc(x)}
 
     def module(self) -> torch.nn.Module:
         """The image encoder only (no prompt side): `[1, 3, H, W]` in `[0, 1]` -> `image_embeddings` `[1, 256, 64, 64]`.
@@ -186,4 +191,8 @@ class Kernels(_Sam):
         return {"image_embeddings": self.encoder(x)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_enc",), net_attr="sam"),
+}

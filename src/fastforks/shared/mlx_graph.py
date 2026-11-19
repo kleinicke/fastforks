@@ -1170,9 +1170,17 @@ def _resize_aa(
         oh, ow = size
         if len(scales) >= 2 and not isinstance(scales[0], (list, tuple)):
             sh, sw = scales[0], scales[1]
-    wy = mx.array(_aa_matrix(h, oh, align, sh, cubic=cubic)).astype(x.dtype)
-    wx = mx.array(_aa_matrix(w, ow, align, sw, cubic=cubic)).astype(x.dtype)
-    return mx.matmul(mx.matmul(wy, x), wx.T)
+    integer = x.dtype in (mx.uint8, mx.int8, mx.int16, mx.int32)
+    xd = x.astype(mx.float32) if integer else x
+    wy = mx.array(_aa_matrix(h, oh, align, sh, cubic=cubic)).astype(xd.dtype)
+    wx = mx.array(_aa_matrix(w, ow, align, sw, cubic=cubic)).astype(xd.dtype)
+    out = mx.matmul(mx.matmul(wy, xd), wx.T)
+    if integer:  # torch rounds an integer resize and saturates it
+        info = {mx.uint8: (0, 255), mx.int8: (-128, 127), mx.int16: (-32768, 32767), mx.int32: (-(2**31), 2**31 - 1)}[
+            x.dtype
+        ]
+        out = mx.clip(mx.round(out), *info).astype(x.dtype)
+    return out
 
 
 @_reg(aten.upsample_nearest2d.default, aten.upsample_nearest2d.vec)
@@ -1640,7 +1648,13 @@ class MlxModule:
     """
 
     def __init__(
-        self, module: torch.nn.Module, dtype: str = "float32", *, kernels: bool = False, release: bool = False
+        self,
+        module: torch.nn.Module,
+        dtype: str = "float32",
+        *,
+        kernels: bool = False,
+        release: bool = False,
+        compile: bool = True,  # noqa: A002 - mirrors `GraphNet`
     ) -> None:
         """Wrap `module` (eval mode, CPU).
 
@@ -1654,6 +1668,7 @@ class MlxModule:
         self.dtype = dtype
         self.kernels = kernels
         self.release = release
+        self.compile = compile
         self._nets: dict[Any, tuple[GraphNet, _Flat]] = {}
         if release:
             for _, t in _tensors(self.module):
@@ -1665,7 +1680,10 @@ class MlxModule:
         key = (spec, tuple((tuple(x.shape), x.dtype) if isinstance(x, torch.Tensor) else repr(x) for x in leaves))
         if key not in self._nets:
             flat = _Flat(self.module, spec, leaves)
-            self._nets[key] = (GraphNet(flat, self.dtype, kernels=self.kernels, shared=self._consts()), flat)
+            self._nets[key] = (
+                GraphNet(flat, self.dtype, compile=self.compile, kernels=self.kernels, shared=self._consts()),
+                flat,
+            )
         net, flat = self._nets[key]
         net.on_built = (lambda: self._release(flat)) if self.release else None
         outs = iter(net(*[x for x in leaves if isinstance(x, torch.Tensor)]))

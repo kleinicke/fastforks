@@ -43,6 +43,7 @@ arch = "CLIPSegForImageSegmentation"
 [modes.portable]
 cuda_dtype = "float16"  # all of the network; scores, boxes and the mask upsampling in float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fvm_conv"]  # vision-tower GEMMs with fused bias / SiLU (folded QuickGELU) / residual epilogues, fp16 accumulation, CUDA graphs

@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING, cast
 import torch
 import torch.nn.functional as F
 
+from fastforks.shared import mlx_wrap
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import InputError, OptionsError
 from fastforks._core.patch import override
@@ -520,4 +521,8 @@ class Kernels(_Sam3):
             return self.concept(ids, list(rest[:3]), valid, Exemplars(*rest[3:]) if rest[3:] else None)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("embed",), net_attr="net"),
+}

@@ -18,6 +18,7 @@ import torch
 import torch.nn.functional as F
 from torch import fx
 
+from fastforks.shared import mlx_wrap
 from fastforks._core.checkpoint import load_strict
 from fastforks._optimize import optimize
 from fastforks.promptable_segmentation._runner import Forward, Runner
@@ -143,9 +144,13 @@ class _Sam(Runner):
         x = prepare(image, self.ctx.io, self.ctx.params.input_size, exact=exact)
         return self.norm(trunk(x))
 
+    def _enc(self, x: torch.Tensor) -> torch.Tensor:
+        return self.norm(self.trunk(x))
+
     def embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Image embedding `[1, 256, 64, 64]` float32."""
-        return {"image_embeddings": self._encode(self.trunk, image, exact=image.device.type == "cpu")}
+        x = prepare(image, self.ctx.io, self.ctx.params.input_size, exact=image.device.type == "cpu")
+        return {"image_embeddings": self._enc(x)}
 
     def predict(  # noqa: PLR0913 - one argument per prompt kind
         self,
@@ -261,4 +266,8 @@ class Kernels(_Sam):
         self.cache.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_enc",), net_attr="trunk", compile=False),
+}

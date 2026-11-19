@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 import torch
 import torch.nn.functional as F
 
+from fastforks.shared import mlx_wrap
 from fastforks._core import registry
 from fastforks._core.image import checked_ranges
 from fastforks._core.model import load_variant
@@ -249,4 +250,8 @@ class Kernels(Portable):
         raise NotImplementedError
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("embed",), net_attr="encoder"),
+}

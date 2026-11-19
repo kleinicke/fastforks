@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from fastforks.shared import mlx_wrap
 from fastforks._core.checkpoint import load_strict
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.promptable_segmentation._runner import Forward, Runner
@@ -162,9 +163,14 @@ class Portable(_Sam):
         embedding, early = encode(self.sam.image_encoder, x, self.rel)
         return embedding, hq_features(self.sam.mask_decoder, embedding, early)
 
+    def _enc(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        embedding, early = encode(self.sam.image_encoder, x, self.rel)
+        return embedding, hq_features(self.sam.mask_decoder, embedding, early)
+
     def embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Image embedding `[1, 256, 64, 64]` and HQ feature `[1, 32, 256, 256]`, float32."""
-        embedding, hq = self._encode(image, exact=image.device.type == "cpu")
+        x = prepare(image, self.ctx.io, self.ctx.params.image_size, exact=image.device.type == "cpu")
+        embedding, hq = self._enc(x)
         return {"image_embeddings": embedding, "hq_features": hq}
 
     def module(self) -> torch.nn.Module:
@@ -239,4 +245,8 @@ class Kernels(_Sam):
         return (self.sam,)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_enc",), net_attr="sam"),
+}
