@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 FACTOR = 8  # fixed: the encoders downsample by 8 (three stride-2 stages)
+_MONO_SPLIT_MIN_PIXELS = 512 * 512
 DA_SIZE = 518  # fixed: upstream resizes every image to 518 x 518 for Depth Anything
 MEAN = (0.485, 0.456, 0.406)
 STD = (0.229, 0.224, 0.225)
@@ -356,7 +357,22 @@ class FlowSeek(nn.Module):
         with self._amp(device):
             # upstream's normalisation (x / mean - std, not (x - mean) / std): the checkpoints were trained with it
             path, depth = self._mono(small / mean - std)
-            mono = self.merge_head(F.interpolate(path.float(), (h, w), mode="bilinear", align_corners=False))
+            if (
+                self.fp16
+                and path.is_cuda
+                and h * w >= _MONO_SPLIT_MIN_PIXELS
+                and not torch.is_grad_enabled()
+                and not (torch.compiler.is_compiling() or torch.jit.is_tracing())
+            ):
+                # The full-resolution FP32 resize and autocast input are both live in the merge head.
+                mono = torch.cat(
+                    [
+                        self.merge_head(F.interpolate(feature.float(), (h, w), mode="bilinear", align_corners=False))
+                        for feature in path.split(1)
+                    ]
+                )
+            else:
+                mono = self.merge_head(F.interpolate(path.float(), (h, w), mode="bilinear", align_corners=False))
         bases = motion_bases(F.interpolate(depth[:b].float(), (h, w), mode="bilinear", align_corners=False))
 
         del path, depth, small
