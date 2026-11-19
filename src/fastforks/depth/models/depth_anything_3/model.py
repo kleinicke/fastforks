@@ -44,7 +44,7 @@ from .net.dinov2.dinov2 import DinoV2
 from .net.dinov2.layers import Mlp
 from .net.dpt import DPT
 from .net.dualdpt import DualDPT
-from .net.utils.head_utils import create_uv_grid, make_sincos_pos_embed, position_grid_to_embed
+from .net.utils.head_utils import create_uv_grid, make_sincos_pos_embed
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -281,6 +281,17 @@ def _activate(arch_dual: bool, logits: torch.Tensor, sky_logits: torch.Tensor | 
 
 
 # ------------------------------------------------------------------------------------------------ portable
+def _position_axes(
+    channels: int, hw: tuple[int, int], aspect_ratio: float, *, dtype: torch.dtype, device: torch.device,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """The independent horizontal and vertical sine/cosine features, in FP32."""
+    h, w = hw
+    uv = create_uv_grid(w, h, aspect_ratio=aspect_ratio, dtype=dtype, device=device)
+    horizontal = make_sincos_pos_embed(channels // 2, uv[0, :, 0]) * _POS_RATIO
+    vertical = make_sincos_pos_embed(channels // 2, uv[:, 0, 1]) * _POS_RATIO
+    return horizontal, vertical
+
+
 def _add_position(
     head: DPT | DualDPT, x: torch.Tensor, w: int, h: int,
 ) -> torch.Tensor:
@@ -288,13 +299,11 @@ def _add_position(
     if not x.is_cuda or torch.is_grad_enabled() or torch.compiler.is_compiling() or torch.jit.is_tracing():
         return head._add_pos_embed(x, w, h).to(x.dtype)  # noqa: SLF001 - upstream helper
     ph, pw = x.shape[-2:]
-    uv = create_uv_grid(pw, ph, aspect_ratio=w / h, dtype=x.dtype, device=x.device)
     channels = x.shape[1] // 2
-    horizontal = make_sincos_pos_embed(channels, uv[0, :, 0]).t() * _POS_RATIO
-    vertical = make_sincos_pos_embed(channels, uv[:, 0, 1]).t() * _POS_RATIO
+    horizontal, vertical = _position_axes(x.shape[1], (ph, pw), w / h, dtype=x.dtype, device=x.device)
     # Both callers supply a fresh convolution or resize output. The add promotes to float32 and stores in x.dtype.
-    x[:, :channels].add_(horizontal[None, :, None, :])
-    x[:, channels:].add_(vertical[None, :, :, None])
+    x[:, :channels].add_(horizontal.t()[None, :, None, :])
+    x[:, channels:].add_(vertical.t()[None, :, :, None])
     return x
 
 
@@ -586,9 +595,11 @@ class _FusedHead:
         if key not in self._pe:
             if len(self._pe) >= _PE_SIZES:
                 del self._pe[next(iter(self._pe))]
-            uv = create_uv_grid(w, h, aspect_ratio=hw[1] / hw[0], dtype=torch.float32, device=self.device)
-            pe = position_grid_to_embed(uv, c) * _POS_RATIO
-            self._pe[key] = pe[None].half().expand(b, -1, -1, -1).contiguous()
+            horizontal, vertical = _position_axes(c, (h, w), hw[1] / hw[0], dtype=torch.float32, device=self.device)
+            pe = torch.empty((b, h, w, c), dtype=torch.float16, device=self.device)
+            pe[..., : c // 2].copy_(horizontal.half()[None, None])
+            pe[..., c // 2 :].copy_(vertical.half()[None, :, None])
+            self._pe[key] = pe
         return self._pe[key]
 
     def _conv(self, x: torch.Tensor, c: tuple, **kw: Any) -> torch.Tensor:  # noqa: ANN401 - epilogue options
