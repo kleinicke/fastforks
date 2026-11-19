@@ -512,11 +512,30 @@ class GlobalSubSampleAttnRPE(nn.Module):
         k = self.k(x + coords_enc).reshape(B, (padded_size[0] // self.sr_ratio)*(padded_size[1] // self.sr_ratio), self.num_heads, C // self.num_heads).permute(0, 2, 1, 3)
         v = self.v(x).reshape(B, (padded_size[0] // self.sr_ratio)*(padded_size[1] // self.sr_ratio), self.num_heads, C // self.num_heads).permute(0, 2, 1, 3)
 
-        attn = (q @ k.transpose(-2, -1)) * self.scale
-        attn = attn.softmax(dim=-1)
-        attn = self.attn_drop(attn)
-
-        x = (attn @ v).transpose(1, 2).reshape(B, Hp, Wp, C)
+        matrix_bytes = padded_N * k.shape[-2] * q.element_size()
+        if (
+            q.is_cuda
+            and B * self.num_heads * matrix_bytes >= 128 * 1024**2
+            and not self.training
+            and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
+        ):
+            # Keep each head's full queries and keys, with a bounded number of score matrices live at once.
+            group_size = max(1, 128 * 1024**2 // matrix_bytes)
+            q_flat, k_flat, v_flat = (t.flatten(0, 1) for t in (q, k, v))
+            result = torch.empty_like(q_flat, memory_format=torch.contiguous_format)
+            for start in range(0, q_flat.shape[0], group_size):
+                stop = start + group_size
+                scores = torch.bmm(q_flat[start:stop], k_flat[start:stop].transpose(-2, -1)).mul_(self.scale)
+                weights = scores.softmax(dim=-1)
+                del scores
+                result[start:stop].copy_(torch.bmm(weights, v_flat[start:stop]))
+                del weights
+            attended = result.view_as(q)
+        else:
+            attn = (q @ k.transpose(-2, -1)) * self.scale
+            attn = self.attn_drop(attn.softmax(dim=-1))
+            attended = attn @ v
+        x = attended.transpose(1, 2).reshape(B, Hp, Wp, C)
         if pad_r > 0 or pad_b > 0:
             x = x[:, :H, :W, :].contiguous()
 
