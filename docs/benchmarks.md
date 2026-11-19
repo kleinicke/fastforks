@@ -921,7 +921,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | moge-2-vitb-normal | 994x1482 | – | – | 83.9 | 40.7 | – | 2.1x | – | 1163 / 1312 | 1093 / 1208 |
 | moge-2-vitl-normal | 518x770 | 500 | 169 | 145 | 73.9 | 2.3x | 2.0x | 2326 / 2418 | 1645 / 1836 | 1481 / 1610 |
 | moge-2-vits-normal | 994x1482 | – | – | 61.6 | 33.3 | – | 1.9x | – | 1007 / 1172 | 932 / 1048 |
-| moge-3-vitl | 994x1482 | – | – | 334 | 149 | – | 2.2x | – | 1678 / 1826 | 1626 / 1762 |
+| moge-3-vitl | 994x1482 | – | – | 328 | 149 | – | 2.2x | – | 1622 / 1706 | 1626 / 1762 |
 | omni-dc | 994x1482 | – | 875 | 571 | 510 | 1.7x | 1.1x | 5966 / 6732 | 4130 / 6144 | 4154 / 6528 |
 | pointdit-b-512 | 994x1482 | – | – | 31.1 | 20.5 | – | 1.5x | – | 446 / 504 | 462 / 630 |
 | pointdit-l-512 | 994x1482 | – | – | 94.6 | 61.3 | – | 1.5x | – | 1297 / 1430 | 1310 / 1676 |
@@ -1359,9 +1359,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
 | anysplat | 336x518 | – | 741 | 508 | 369 | 2.0x | 1.4x | 8931 / 9394 | 4164 / 5384 | 4173 / 5548 |
-| depthsplat-small-re10k | 336x518 | – | 126 | 138 | 95.1 | 1.3x | 1.4x | 5694 / 5892 | 963 / 1222 | 965 / 1314 |
+| depthsplat-small-re10k | 336x518 | – | 126 | 122 | 95.1 | 1.3x | 1.3x | 5694 / 5892 | 956 / 1134 | 965 / 1314 |
 | lingbot-map | 480x640 | – | 993 | 733 | 520 | 1.9x | 1.4x | 7141 / 7672 | 3910 / 5734 | 3919 / 5932 |
-| mapanything-apache | 336x518 | 2875 | 1967 | 636 | 544 | 3.6x | 1.2x | 10227 / 10952 | 3697 / 4092 | 3697 / 4072 |
+| mapanything-apache | 336x518 | 2875 | 1967 | 637 | 525 | 3.7x | 1.2x | 10227 / 10952 | 3252 / 3652 | 3252 / 3652 |
 | mvsanywhere | 448x672 | 273 | 219 | 93.2 | 35.2 | 6.2x | 2.7x | 1504 / 1576 | 931 / 1226 | 702 / 760 |
 | mvsplat-re10k | 336x518 | – | 279 | 181 | 172 | 1.6x | 1.0x | 2889 / 4160 | 1239 / 1532 | 1239 / 1532 |
 | patchmatchnet | 1536x1024 | 248 | 220 | 201 | 29.5 | 7.4x | 6.8x | 1228 / 1272 | 1039 / 1212 | 648 / 772 |
@@ -1985,7 +1985,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | anysplat | 8.32 (336x518) | 4.71 (336x518) | 4.04 (336x518) | 3.07 (336x518) | 0.89 (336x518) | 0.71 (336x518) |
 | depthsplat-small-re10k | 1.83 (336x518) | 0.22 (336x518) | 1.47 (336x518) | 2.97 (336x518) | 0.97 (336x518) | 0.71 (336x518) |
 | lingbot-map | 131.28 (480x640) | 6.58 (480x640) | 5.69 (480x640) | 4.64 (480x640) | 1.08 (480x640) | 0.84 (480x640) |
-| mapanything-apache | 6.12 (336x518) | 2.89 (336x518) | 0.57† (336x518) | 2.62 (336x518) | 0.66 (336x518) | 0.54 (336x518) |
+| mapanything-apache | 6.12 (336x518) | 1.53 (336x518) | 0.92 (336x518) | 2.62 (336x518) | 1.03 (336x518) | 0.88 (336x518) |
 | mvsanywhere | 3.21 (448x672) | 1.88 (448x672) | 1.76 (448x672) | 1.04 (448x672) | 0.22 (448x672) | 0.48 (448x672) |
 | mvsplat-re10k | 1.37 (336x518) | 0.15 (336x518) | 1.27 (336x518) | 2.82 (336x518) | 1.02 (336x518) | 0.69 (336x518) |
 | patchmatchnet | 0.04 (1536x1024) | 0.16 (1536x1024) | 0.17 (1536x1024) | 0.92 (1536x1024) | 0.86 (1536x1024) | 0.56 (1536x1024) |
@@ -2242,7 +2242,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | moge-2-vitb-normal | 994x1482 | 83.9 ms | 60.9 ms | 35.5 ms | 40.7 ms | 133 s | 127 s | 1163 / 1312 | 972 / 1172 | 1093 / 1208 | 1044 / 1092 |
 | moge-2-vitl-normal | 994x1482 | 144 ms | 124 ms | 75.6 ms | 73.4 ms | 152 s | 173 s | 1661 / 1836 | 1411 / 1634 | 1498 / 1610 | 1882 / 1936 |
 | moge-2-vits-normal | 994x1482 | 61.6 ms | 43.9 ms | 24.5 ms | 33.3 ms | 124 s | 131 s | 1007 / 1172 | 836 / 992 | 932 / 1048 | 768 / 852 |
-| moge-3-vitl | 994x1482 | 334 ms | 311 ms | public API unavailable | 149 ms | 136 s | – | 1678 / 1826 | 1500 / 1724 | 1626 / 1762 | – |
+| moge-3-vitl | 994x1482 | 328 ms | 311 ms | public API unavailable | 149 ms | 136 s | – | 1622 / 1706 | 1500 / 1724 | 1626 / 1762 | – |
 | moge-3-vitl | 480x640 | – | – | 1069 ms, fp32 engine (DINOv2 encoder and projections with eager decoder and sparse refinement) | – | – | – | – | – | – | 4568 / 5382 |
 | omni-dc | 994x1482 | 571 ms | 411 ms | public API unavailable | 510 ms | 137 s | – | 4130 / 6144 | 4201 / 5932 | 4154 / 6528 | – |
 | omni-dc | 480x640 | – | – | 253 ms, fp32 engine (Depth Anything V2 with eager prompt fusion and solver) | – | – | 52.0 s | – | – | – | 2930 / 3298 |
@@ -2595,9 +2595,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | geocalib-pinhole | 1080x1920 | 81.2 ms | 73.1 ms | public API unavailable | 81.8 ms | 28.4 s | – | 320 / 378 | 246 / 300 | 277 / 338 | – |
 | geocalib-pinhole | 1920x1440 | 123 ms | – | 109 ms, fp32 engine (field predictor only, standalone build) | – | – | 42.9 s | 433 / 560 | – | – | 540 / 558 |
 | anysplat | 336x518 | 508 ms | 427 ms | 314 ms | 369 ms | 80.3 s | 215 s | 4164 / 5384 | 4137 / 4694 | 4173 / 5548 | 7629 / 7674 |
-| depthsplat-small-re10k | 336x518 | 138 ms | 82.2 ms | 86.4 ms | 95.1 ms | 80.0 s | 224 s | 963 / 1222 | 5432 / 5526 | 965 / 1314 | 3148 / 3194 |
+| depthsplat-small-re10k | 336x518 | 122 ms | 82.2 ms | 86.4 ms | 95.1 ms | 80.0 s | 224 s | 956 / 1134 | 5432 / 5526 | 965 / 1314 | 3148 / 3194 |
 | lingbot-map | 480x640 | 733 ms | 657 ms | 489 ms | 520 ms | 71.0 s | 181 s | 3910 / 5734 | 3339 / 3468 | 3919 / 5932 | 6280 / 6338 |
-| mapanything-apache | 336x518 | 636 ms | 596 ms | 367 ms | 544 ms | 46.2 s | 137 s | 3697 / 4092 | 3347 / 3792 | 3697 / 4072 | 6220 / 6248 |
+| mapanything-apache | 336x518 | 637 ms | 596 ms | 367 ms | 525 ms | 46.2 s | 137 s | 3252 / 3652 | 3347 / 3792 | 3252 / 3652 | 6220 / 6248 |
 | mvsanywhere | 448x672 | 93.2 ms | 70.8 ms | 75.4 ms (standalone build) | 35.2 ms | 153 s | 217 s | 931 / 1226 | 818 / 860 | 702 / 760 | 1581 / 1658 |
 | mvsplat-re10k | 336x518 | 181 ms | 115 ms | 106 ms | 172 ms | 102 s | 241 s | 1239 / 1532 | 2762 / 2810 | 1239 / 1532 | 4953 / 4972 |
 | patchmatchnet | 1536x1024 | 201 ms | 175 ms | 51.0 ms | 29.5 ms | 29.4 s | 82.1 s | 1039 / 1212 | 1798 / 1888 | 648 / 772 | 1073 / 1106 |

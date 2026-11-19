@@ -15,7 +15,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`anysplat`](#anysplat) | yes | 369, 2.0x | 5548, 0.59x |
 | [`depthsplat-small-re10k`](#depthsplat) | yes | 95.1, 1.3x | 1314, 0.22x |
 | [`lingbot-map`](#lingbot_map) | yes | 520, 1.9x | 5932, 0.77x |
-| [`mapanything-apache`](#mapanything) | yes | 544, 3.6x | 4072, 0.47x |
+| [`mapanything-apache`](#mapanything) | yes | 525, 3.7x | 3652, 0.42x |
 | [`mvsanywhere`](#mvsanywhere) | no | 35.2, 6.2x | 760, 0.51x |
 | [`mvsplat-re10k`](#mvsplat) | yes | 172, 1.6x | 1532, 0.37x |
 | [`patchmatchnet`](#patchmatchnet) | yes | 29.5, 7.4x | 772, 0.61x |
@@ -92,7 +92,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `depthsplat-small-re10k` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 126<br>138<br>95.1<br>82.2<br>86.4 | 5694 / 5892<br>963 / 1222<br>965 / 1314<br>5432 / 5526<br>3148 / 3194 |
+| `depthsplat-small-re10k` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 126<br>122<br>95.1<br>82.2<br>86.4 | 5694 / 5892<br>956 / 1134<br>965 / 1314<br>5432 / 5526<br>3148 / 3194 |
 
 <details><summary>Details</summary>
 
@@ -110,7 +110,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `depthsplat-small-re10k` 3000x4000 (7.4 GiB peak allocated, 8.6 reserved)
 - `depthsplat-small-re10k` 336x518, first call: portable + torch.compile 80 s (cold Inductor cache), TensorRT fp16 224 s (ONNX + engine).
 - `depthsplat-small-re10k` original 336x518: the authors' mixed-precision option (float16); cvg/depthsplat@2dad25a7b9ba EncoderDepthSplat, long side 256
-- `depthsplat-small-re10k` portable 336x518, kernels 336x518: Current eight-view measurement after the bounded plane-sweep change 608071236.
+- `depthsplat-small-re10k` portable 336x518: Eight views. CUDA reuses warped buffers and camera rays. Synthetic and three calibrated DTU scenes retained bitwise depth and Gaussians.
+- `depthsplat-small-re10k` kernels 336x518: Current eight-view measurement after the bounded plane-sweep change 608071236.
 - `depthsplat-small-re10k` load / first call: original 1.83 s / 2.968 s (336x518), portable 0.22 s / 0.968 s (336x518), kernels 1.47 s / 0.71 s (336x518)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -202,7 +203,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mapanything-apache` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2875<br>1967<br>636<br>544<br>596<br>367 | 8064 / 8672<br>10227 / 10952<br>3697 / 4092<br>3697 / 4072<br>3347 / 3792<br>6220 / 6248 |
+| `mapanything-apache` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2875<br>1967<br>637<br>525<br>596<br>367 | 8064 / 8672<br>10227 / 10952<br>3252 / 3652<br>3252 / 3652<br>3347 / 3792<br>6220 / 6248 |
 
 <details><summary>Details</summary>
 
@@ -222,8 +223,8 @@ Commercial use: yes.
 - `mapanything-apache` 336x518, first call: portable + torch.compile 46 s (cold Inductor cache), TensorRT fp16 137 s (ONNX + engine).
 - `mapanything-apache` original (fp32) 336x518: float32 (the authors' autocast off)
 - `mapanything-apache` original 336x518: original default MapAnything.infer(use_amp=True, amp_dtype='bf16')
-- `mapanything-apache` load / first call: original 6.12 s / 2.619 s (336x518), portable 2.89 s / 0.657 s (336x518), kernels 0.57† s / 0.541 s (336x518)
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `mapanything-apache` portable 336x518, kernels 336x518: Nine-view standard benchmark. Eight-view paired synthetic and three DTU outputs remained bitwise identical.
+- `mapanything-apache` load / first call: original 6.12 s / 2.619 s (336x518), portable 1.53 s / 1.033 s (336x518), kernels 0.92 s / 0.875 s (336x518)
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
