@@ -22,6 +22,7 @@ from fastforks._core.errors import BackendUnavailableError
 from fastforks._core.patch import override
 from fastforks.kernels import deform_conv as deform_kernels
 from fastforks.matting._runner import Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cnn_kernels import CL, Patched, bn_affine
 
 from .net.birefnet import BiRefNet
@@ -132,4 +133,8 @@ class Kernels(_Matting):
                 m._w, m._s, m._t = (v.to(ctx.device) for v in (m._w, m._s, m._t))  # noqa: SLF001
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

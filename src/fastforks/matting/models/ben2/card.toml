@@ -26,6 +26,7 @@ size = 1024  # network input side (upstream inference); the mask is resized back
 [modes.portable]
 cuda_dtype = "float16"  # the authors' forward runs fp16 autocast on CUDA
 mps_dtypes = ["float32"]
+mlx_dtypes = ["float32"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc", "igev", "cutlass_conv"]

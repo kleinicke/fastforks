@@ -23,6 +23,7 @@ from fastforks._core.patch import override
 from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
 from fastforks.kernels import image_normalize
 from fastforks.matting._runner import Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import InSPyReNet_SwinB
@@ -137,4 +138,8 @@ class Kernels(Portable):
         self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_net",)),
+}

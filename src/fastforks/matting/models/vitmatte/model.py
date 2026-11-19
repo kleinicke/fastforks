@@ -27,6 +27,7 @@ import torch.nn.functional as F
 from fastforks.kernels.dpt_fused import ACT_GELU
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.matting._runner import Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cnn_kernels import ACT, CL, bn_affine, conv_ep, prepare_convs
 from fastforks.shared.cnn_kernels import load as load_cnn
 
@@ -331,4 +332,8 @@ class Kernels(_Matting):
         return self._decoder(h.permute(0, 3, 1, 2), x.contiguous(memory_format=CL))
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_net",)),
+}

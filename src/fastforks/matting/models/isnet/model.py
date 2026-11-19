@@ -20,6 +20,7 @@ import torch.nn.functional as F
 
 from fastforks._core.patch import override
 from fastforks.matting._runner import Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cnn_kernels import ACT, CL, conv_ep, fold_bn, prepare_generic
 
 from .net import ISNetDIS
@@ -114,4 +115,9 @@ class Kernels(_Matting):
         return self.net(x.contiguous(memory_format=CL))[0][0]
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+    "kernels_mlx": mlx_wrap.port(Portable, kernels_fp16_only=True),
+}

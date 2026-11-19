@@ -24,6 +24,7 @@ from fastforks._core.patch import override
 from fastforks.kernels import cudnn_hacc
 from fastforks.kernels.resize_cat import resize_cat
 from fastforks.matting._runner import Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cnn_kernels import ACT, CL, conv_ep, fold_bn, prepare_generic
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
@@ -186,4 +187,8 @@ class Kernels(_Matting):
         return self.graphs(x.contiguous(memory_format=CL))
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}
