@@ -837,7 +837,7 @@ Two disjoint seeded subsets of the val folders; each image shorter side 256 (bic
 | `siglip2-so400m14-224` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.18 | 66.12 | 66.10 | 66.14 | 66.10 |  |
 | `siglip2-so400m14-378` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.90 | 59.94 | 60.00 | 60.08 | 59.92 |  |
 | `siglip2-so400m16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.52 | 59.46 | 59.34 | 59.54 | 59.50 |  |
-| `siglip2-so400m16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.14 | 67.16 | 67.04 |  | 67.20 |  |
+| `siglip2-so400m16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.14 | 67.16 | 67.04 | 67.12 | 67.20 |  |
 | `siglip2-g16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.92 | 67.84 | 67.80 | 67.80 | 68.00 |  |
 | `siglip2-g16-384` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.02 | 69.06 | 69.12 |  | 69.10 |  |
 

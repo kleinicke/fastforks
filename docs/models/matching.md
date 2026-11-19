@@ -231,8 +231,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `loftr-outdoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>110<br>95.9<br>176<br>planned for 0.2.1 | 1739 / 1870<br>796 / 904<br>760 / 886<br>1149 / 1232<br>– |
-| `loftr-indoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 242<br>111<br>96.2<br>71.0<br>planned for 0.2.1 | 1751 / 1910<br>796 / 904<br>760 / 886<br>634 / 684<br>– |
+| `loftr-outdoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 241<br>110<br>95.9<br>176<br>199 (ResNetFPN with eager coarse and fine matching) | 1739 / 1870<br>796 / 904<br>760 / 886<br>1149 / 1232<br>2206 / 2958 |
+| `loftr-indoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 242<br>111<br>96.2<br>71.0<br>199 (ResNetFPN with eager coarse and fine matching) | 1751 / 1910<br>796 / 904<br>760 / 886<br>634 / 684<br>2218 / 2962 |
 
 <details><summary>Details</summary>
 
@@ -248,8 +248,8 @@ Commercial use: yes.
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `loftr-outdoor` 3000x4000 (1.9 GiB peak allocated, 2.8 reserved); `loftr-indoor` 3000x4000 (2.0 GiB peak allocated, 2.8 reserved)
-- `loftr-outdoor` 768x1024, first call: portable + torch.compile 33 s (cold Inductor cache).
-- `loftr-indoor` 768x1024, first call: portable + torch.compile 30 s (cold Inductor cache).
+- `loftr-outdoor` 768x1024, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp32 26 s (ONNX + engine).
+- `loftr-indoor` 768x1024, first call: portable + torch.compile 30 s (cold Inductor cache), TensorRT fp32 26 s (ONNX + engine).
 - `loftr-outdoor` original 768x1024: upstream LoFTR default_cfg, temp_bug_fix False, long side 840
 - `loftr-indoor` original 768x1024: upstream LoFTR default_cfg, temp_bug_fix True, long side 840
 - `loftr-outdoor` load / first call: original 0.35 s / 0.242 s, portable 0.24 s / 0.578 s, kernels 0.67 s / 0.369 s
@@ -258,15 +258,17 @@ Commercial use: yes.
 
 ### Measured
 
-Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. The LoFTR ScanNet split with 1,500 grayscale pairs at 480 x 640. The calibrated relative pose is scored by the larger rotation and translation-direction errors. Original = the original code named under Details, same checkpoint and protocol.
+Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. The 12-pair LoFTR comparisons include the six worst pose changes from the original whole-graph TensorRT trials and the first six other pairs from those trials. Both modes use the same calibrated evaluation coordinates and RANSAC seeds. The LoFTR ScanNet split with 1,500 grayscale pairs at 480 x 640. The calibrated relative pose is scored by the larger rotation and translation-direction errors. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|
-| `loftr-outdoor` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees | 50.1 / 67.5 / 80.3 | 50.6 / 67.6 / 80.3 | 50.8 / 67.8 / 80.2 |  |  |
-| `loftr-outdoor` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 53.8 / 71.8 / 83.7 | 52.1 / 71.0 / 83.3 |  | 57.1 / 74.2 / 85.0 |  |
-| `loftr-indoor` | ScanNet-1500 indoor pairs at 480 x 640, relative pose AUC@5 / @10 / @20 degrees | 22.5 / 41.2 / 58.1 |  | 22.2 / 41.2 / 58.1 |  |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|
+| `loftr-outdoor` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees | 50.1 / 67.5 / 80.3 | 50.6 / 67.6 / 80.3 | 50.8 / 67.8 / 80.2 |  |  |  |
+| `loftr-outdoor` | MegaDepth-1500, 12 selected 768 x 1024 pairs, AUC@5 / @10 / @20 |  |  | 51.2 / 74.5 / 87.2 |  | 51.2 / 74.5 / 87.2 |  |
+| `loftr-outdoor` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 53.8 / 71.8 / 83.7 | 52.1 / 71.0 / 83.3 |  | 57.1 / 74.2 / 85.0 |  |  |
+| `loftr-indoor` | ScanNet-1500 indoor pairs at 480 x 640, relative pose AUC@5 / @10 / @20 degrees | 22.5 / 41.2 / 58.1 |  | 22.2 / 41.2 / 58.1 |  |  |  |
+| `loftr-indoor` | ScanNet-1500, 12 selected 768 x 1024 pairs, pose AUC@5 / @10 / @20 |  |  | 19.7 / 33.5 / 49.4 |  | 19.7 / 35.2 / 54.5 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / aee4b565, 2026-11-13 to 2026-11-15; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / d073b335, 2026-11-15 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / aee4b565, 2026-11-13 to 2026-11-15; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / 938a6cc7 / d073b335, 2026-11-15 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 938a6cc7, 2026-11-19.
 
 ### Parity
 
@@ -279,7 +281,8 @@ CPU, float32: max |diff| <= 3e-05 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
-- LoFTR Indoor FP32 ONNX Runtime matched all features within 0.00014 px on seven ScanNet pairs at 768 x 1024. TensorRT lost 5.27 AUC@20 points in FP16 and 2.58 AUC@10 points in FP32 on a separate 50-pair check.
+- LoFTR Indoor FP32 ONNX Runtime matched all features within 0.00014 px on seven ScanNet pairs at 768 x 1024. Whole-graph TensorRT trials lost 5.27 AUC@20 points in FP16 and 2.58 AUC@10 points in FP32 on a separate 50-pair check.
+- The standalone ResNetFPN TensorRT plans took about 199 ms versus 273 ms for paired portable FP32 at 768 x 1024. The matching stages stayed in PyTorch. Each variant passed a 12-pair check that included its six worst whole-graph cases.
 - Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; every match is its own keypoint pair (`pairs` is `[[0, 0], [1, 1], ...]`).
 - One image pair per call internally (batches run pair by pair); the match counts differ per pair.
 - Match counts depend on image content. The verified ONNX export takes a fixed input size and returns variable-length matches.

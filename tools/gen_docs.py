@@ -161,9 +161,11 @@ _DATASETS = {
     "matching": {
         "megadepth1500": "MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees",
         "megadepth1500-every5-fixed-768x1024": "MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20",
+        "megadepth1500-fixed-768x1024-sampled12": "MegaDepth-1500, 12 selected 768 x 1024 pairs, AUC@5 / @10 / @20",
         "megadepth1500-every5": "MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees",
         "megadepth1500-every10": "MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees",
         "scannet-1500-indoor": "ScanNet-1500 indoor pairs at 480 x 640, relative pose AUC@5 / @10 / @20 degrees",
+        "scannet-1500-fixed-768x1024-sampled12": "ScanNet-1500, 12 selected 768 x 1024 pairs, pose AUC@5 / @10 / @20",
     },
     "matting": {
         "dis-vd": "DIS5K validation (DIS-VD), all 470 images, MAE / max F-beta",
@@ -527,6 +529,12 @@ _PROTOCOL = {
     "The calibrated relative pose is scored by the larger rotation and translation-direction errors. ",
     ("matching", "megadepth1500-every5-fixed-768x1024"): "Both modes receive pairs resized to 768 x 1024. Map "
     "matched pixels to the calibrated evaluation coordinates and use the same RANSAC seed per pair. ",
+    **{
+        ("matching", dataset): "The 12-pair LoFTR comparisons include the six worst pose changes from the original "
+        "whole-graph TensorRT trials and the first six other pairs from those trials. Both modes use the same "
+        "calibrated evaluation coordinates and RANSAC seeds. "
+        for dataset in ("megadepth1500-fixed-768x1024-sampled12", "scannet-1500-fixed-768x1024-sampled12")
+    },
     ("matching", "megadepth1500-every5"): "The same 300 pairs for all modes, so float32 and bfloat16 compare pair for "
     "pair. ",
     "tracking": "Query-first TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model "

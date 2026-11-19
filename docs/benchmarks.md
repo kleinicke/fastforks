@@ -2673,8 +2673,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | dedode-v2-b | 768x1024 | 246 ms | 164 ms | 494 ms, fp32 engine (FP32 public builder probe) | 189 ms | 50.5 s | 67.8 s | 1535 / 1654 | 1893 / 2434 | 1197 / 1246 | 3354 / 3378 |
 | dedode-v2-g | 768x1024 | 592 ms | 330 ms | planned for 0.2.1 | 332 ms | 86.4 s | – | 2142 / 2334 | 2881 / 3316 | 1787 / 1984 | – |
 | disk-lightglue | 768x1024 | 116 ms | 113 ms | planned for 0.2.1 | 52.1 ms | 21.4 s | – | 1950 / 2398 | 1375 / 1502 | 736 / 778 | – |
-| loftr-indoor | 768x1024 | 111 ms | 71.0 ms | planned for 0.2.1 | 96.2 ms | 30.2 s | – | 796 / 904 | 634 / 684 | 760 / 886 | – |
-| loftr-outdoor | 768x1024 | 110 ms | 176 ms | planned for 0.2.1 | 95.9 ms | 33.3 s | – | 796 / 904 | 1149 / 1232 | 760 / 886 | – |
+| loftr-indoor | 768x1024 | 111 ms | 71.0 ms | 199 ms, fp32 engine (ResNetFPN with eager coarse and fine matching) | 96.2 ms | 30.2 s | 26.4 s | 796 / 904 | 634 / 684 | 760 / 886 | 2218 / 2962 |
+| loftr-outdoor | 768x1024 | 110 ms | 176 ms | 199 ms, fp32 engine (ResNetFPN with eager coarse and fine matching) | 95.9 ms | 33.3 s | 26.2 s | 796 / 904 | 1149 / 1232 | 760 / 886 | 2206 / 2958 |
 | loma-b | 768x1024 | 309 ms | 287 ms | 326 ms, bf16 engine (standalone build) | 263 ms | 143 s | 176 s | 1767 / 1878 | 2870 / 3258 | 1217 / 1328 | 1986 / 2010 |
 | loma-b128 | 768x1024 | 150 ms | 124 ms | 144 ms, bf16 engine | 116 ms | 86.5 s | 103 s | 878 / 984 | 1398 / 1800 | 625 / 684 | 1062 / 1066 |
 | loma-b64 | 768x1024 | 131 ms | 102 ms | 109 ms, bf16 engine | 107 ms | 86.6 s | 102 s | 854 / 962 | 1230 / 1356 | 613 / 720 | 1010 / 1034 |

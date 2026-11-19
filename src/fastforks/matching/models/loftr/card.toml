@@ -5,7 +5,8 @@ tier = "experimental"
 outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
 uses = ["cnn_kernels"]  # fastforks.shared modules this family imports (fp16-accumulate conv kernels)
 limitations = [
-  "LoFTR Indoor FP32 ONNX Runtime matched all features within 0.00014 px on seven ScanNet pairs at 768 x 1024. TensorRT lost 5.27 AUC@20 points in FP16 and 2.58 AUC@10 points in FP32 on a separate 50-pair check.",
+  "LoFTR Indoor FP32 ONNX Runtime matched all features within 0.00014 px on seven ScanNet pairs at 768 x 1024. Whole-graph TensorRT trials lost 5.27 AUC@20 points in FP16 and 2.58 AUC@10 points in FP32 on a separate 50-pair check.",
+  "The standalone ResNetFPN TensorRT plans took about 199 ms versus 273 ms for paired portable FP32 at 768 x 1024. The matching stages stayed in PyTorch. Each variant passed a 12-pair check that included its six worst whole-graph cases.",
   "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; every match is its own keypoint pair (`pairs` is `[[0, 0], [1, 1], ...]`).",
   "One image pair per call internally (batches run pair by pair); the match counts differ per pair.",
   "Match counts depend on image content. The verified ONNX export takes a fixed input size and returns variable-length matches.",
