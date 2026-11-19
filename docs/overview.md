@@ -659,9 +659,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | yes | 0.570 † | 2187.8 (1080x1920) | 223.9 | 214.0 (375x1242) | 1.0x vs portable | 673 |
 | [`gmflow-scale2-regrefine6-sintelft`](models/flow.md#gmflow) | yes | 1.154 † | 2184.0 (1080x1920) | 224.3 | 214.0 (375x1242) | 1.0x vs portable | 673 |
 | [`gmflow-scale2-regrefine6-mixdata`](models/flow.md#gmflow) | yes | 1.315 ? | 2187.5 (1080x1920) | 224.1 | 214.3 (375x1242) | 1.0x vs portable | 673 |
-| [`flowseek-t`](models/flow.md#flowseek) | yes | 1.348 † | 457.0 (1080x1920) | 396.8 | 253.9 | 1.8x vs original (1080x1920) | 1947 |
 | [`flowseek-t-things`](models/flow.md#flowseek) | yes | 4.143 | 457.7 (1080x1920) | 395.3 | 253.9 | 1.8x vs original (1080x1920) | 1947 |
 | [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.933 | 457.6 (1080x1920) | 395.6 | 254.1 | 1.8x vs original (1080x1920) | 1947 |
+| [`flowseek-t`](models/flow.md#flowseek) | yes | 1.348 † | 457.0 (1080x1920) | 396.2 | 254.5 | 1.8x vs original (1080x1920) | 1100 |
 | [`memfof-kitti`](models/flow.md#memfof) | yes | 15.577 † | – | 385.6 | 308.8 (375x1242) | 1.2x vs portable | 786 |
 | [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 10.952 | OOM (1080x1920) | 334.6 | 319.9 (375x1242) | 1.0x vs portable | 1293 |
 | [`flowformer-small-sintel`](models/flow.md#flowformer-small) | yes | 4.657 † | OOM (1080x1920) | 336.3 | 321.9 (375x1242) | 1.0x vs portable | 1401 |

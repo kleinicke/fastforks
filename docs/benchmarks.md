@@ -1380,7 +1380,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | flowformer-small-chairs | 375x1242 | 352 | 303 | 335 | 320 | 0.9x | 1.0x | 2382 / 2970 | 1297 / 1438 | 1293 / 1438 |
 | flowformer-small-sintel | 375x1242 | 352 | 303 | 336 | 322 | 0.9x | 1.0x | 2382 / 2990 | 1404 / 1698 | 1401 / 1698 |
 | flowformer-small-things | 375x1242 | 352 | 303 | 337 | 322 | 0.9x | 1.0x | 2382 / 3010 | 1404 / 1698 | 1401 / 1698 |
-| flowseek-t | 1080x1920 | 650 | 457 | 397 | 254 | 1.8x | 1.6x | 8693 / 9880 | 6328 / 6822 | 1947 / 2114 |
+| flowseek-t | 1080x1920 | 650 | 457 | 396 | 255 | 1.8x | 1.6x | 8693 / 9880 | 6123 / 6252 | 1100 / 1154 |
 | flowseek-t-things | 1080x1920 | 650 | 458 | 395 | 254 | 1.8x | 1.6x | 8693 / 9820 | 8671 / 8712 | 1947 / 2114 |
 | flowseek-t-things-notartan | 1080x1920 | 651 | 458 | 396 | 254 | 1.8x | 1.6x | 8693 / 9820 | 8671 / 8712 | 1947 / 2114 |
 | gmflow-scale1-mixdata | 1080x1920 | 1246 | 750 | 556 | – | – | – | 8360 / 8448 | 4496 / 4642 | – |
@@ -2618,7 +2618,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | flowformer-small-sintel | 375x1242 | 336 ms | 250 ms | 202 ms | 322 ms | 98.9 s | 117 s | 1404 / 1698 | 2438 / 3196 | 1401 / 1698 | 2087 / 2138 |
 | flowformer-small-things | 1080x1920 | – | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | – | – | – | – | – | – | – |
 | flowformer-small-things | 375x1242 | 337 ms | 250 ms | 202 ms | 322 ms | 99.3 s | 118 s | 1404 / 1698 | 2438 / 3196 | 1401 / 1698 | 2087 / 2138 |
-| flowseek-t | 1080x1920 | 397 ms | 258 ms | 168 ms | 254 ms | 54.2 s | 107 s | 6328 / 6822 | 6126 / 6212 | 1947 / 2114 | 11328 / 11350 |
+| flowseek-t | 1080x1920 | 396 ms | 258 ms | 168 ms | 255 ms | 54.2 s | 107 s | 6123 / 6252 | 6126 / 6212 | 1100 / 1154 | 11328 / 11350 |
 | flowseek-t-things | 1080x1920 | 395 ms | 258 ms | 168 ms | 254 ms | 54.6 s | 102 s | 8671 / 8712 | 6126 / 6212 | 1947 / 2114 | 11330 / 11352 |
 | flowseek-t-things-notartan | 1080x1920 | 396 ms | 258 ms | 168 ms | 254 ms | 54.3 s | 97.5 s | 8671 / 8712 | 6126 / 6212 | 1947 / 2114 | 11328 / 11350 |
 | gmflow-scale1-mixdata | 1080x1920 | 556 ms | 382 ms | 187 ms | – | 29.1 s | 67.3 s | 4496 / 4642 | 4293 / 4558 | – | 4333 / 4390 |
