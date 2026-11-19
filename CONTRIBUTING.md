@@ -33,6 +33,16 @@ selected family, the model families it imports, and the common test and source f
 uv run python tools/merge_check.py run selection.json --golden-only --out goldens.jsonl
 ```
 
+To run just the selected CPU goldens and kernel-manifest checks, give pytest the exact item IDs in an argument file:
+
+```
+uv run python tools/select_tests.py LAST_VERIFIED_COMMIT HEAD --golden-nodeids cpu > cpu-goldens.args
+if test -s cpu-goldens.args; then uv run pytest --slow @cpu-goldens.args; fi
+```
+
+Use `--golden-nodeids gpu` to collect the corresponding CUDA items, including the classification module checks.
+Recheck previously failed item IDs explicitly.
+
 Run the fast test files listed in `selection.json` with `-m "not gpu and not model"`, then the slow CPU and GPU tests
 for the listed families and any previously failing cases. `tools/merge_check.py run selection.json --out rows.jsonl`
 combines GPU golden checks and speed measurements for selected models; pass a suitable GPU-lock prefix on shared

@@ -2,6 +2,7 @@
 
     python tools/select_tests.py BASE [HEAD] [--json]      # the files of `git diff --name-only BASE..HEAD`
     python tools/select_tests.py --files PATH ... [--json]
+    python tools/select_tests.py BASE [HEAD] --golden-nodeids {cpu,gpu}
 
 A changed file selects every family whose static import closure holds it. The closure of a family starts from its own
 modules (`src/fastforks/<task>/models/<family>/**/*.py`), its card's kernel libraries (`[modes.kernels] kernels`) and
@@ -22,7 +23,8 @@ conservative. Everything else (docs, tools, other tests) selects no family.
 Fast tier (`-m "not gpu and not model"`): every test file whose closure reaches no family module, the family-specific
 files of the selected families and every test file whose closure holds a changed file; all of tests/ when conftest.py,
 non-Python test data or the dependencies changed. GPU: per family its golden refs, as a `-k` expression for
-tests/test_golden.py (`[<ref without @rev>` matches the parameter ids of test_gpu and test_gpu_module).
+tests/test_golden.py. Use `--golden-nodeids` for exact pytest item IDs that preserve revisions and distinguish
+similarly named families. These IDs can be passed to pytest using an argument file.
 """
 
 from __future__ import annotations
@@ -40,6 +42,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from typing import Literal
 
 ROOT = Path(__file__).resolve().parents[1]
 HARNESS = ("tests/test_golden.py", "tools/speed_check.py")  # their direct imports seed every family's closure
@@ -64,6 +67,20 @@ class Selection:
         """The family's `-k` expression for tests/test_golden.py."""
         refs = sorted({r.split("@")[0] for r in self.families[family]["refs"]})
         return "test_gpu and (" + " or ".join(f"[{r}" for r in refs) + ")"
+
+    def golden_nodeids(self, device: Literal["cpu", "gpu"]) -> list[str]:
+        """Exact test_golden.py item IDs for the selected families and revisions."""
+        items = set()
+        for family in self.families.values():
+            for ref in family["refs"]:
+                if device == "cpu":
+                    cases = [f"test_cpu_portable[{ref}]", f"test_kernels_validated[{ref}]"]
+                else:
+                    cases = [f"test_gpu[{ref}-{mode}]" for mode in ("portable", "kernels")]
+                    if family["task"] == "classification":
+                        cases.append(f"test_gpu_module[{ref}]")
+                items.update(f"tests/test_golden.py::{case}" for case in cases)
+        return sorted(items)
 
     def as_dict(self) -> dict:
         """JSON form (tools/merge_check.py reads it)."""
@@ -314,13 +331,19 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("base", nargs="?")
     ap.add_argument("head", nargs="?", default="HEAD")
     ap.add_argument("--files", nargs="*", help="changed paths instead of a git range")
-    ap.add_argument("--json", action="store_true")
+    output = ap.add_mutually_exclusive_group()
+    output.add_argument("--json", action="store_true")
+    output.add_argument("--golden-nodeids", choices=("cpu", "gpu"), help="print exact pytest item IDs for the device")
     a = ap.parse_args(argv)
     if a.files is None and not a.base:
         ap.error("give BASE [HEAD] or --files")
     files, diff = (a.files, None) if a.files is not None else (git_changed(a.base, a.head), git_diff(a.base, a.head))
     metadata_only = a.files is None and "uv.lock" in files and git_lock_metadata_only(a.base, a.head)
     sel = select(files, diff=diff, metadata_only=metadata_only)
+    if a.golden_nodeids:
+        for item in sel.golden_nodeids(a.golden_nodeids):
+            print(item)
+        return 0
     if a.json:
         print(json.dumps(sel.as_dict(), indent=1))
         return 0

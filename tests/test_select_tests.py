@@ -139,6 +139,25 @@ def test_mini_k_expression(mini: Path) -> None:
     assert sel.as_dict()["families"]["fa"]["k"] == sel.k("fa")
 
 
+def test_golden_nodeids_keep_revisions_and_similar_names_separate() -> None:
+    selection = st.Selection(
+        [],
+        families={
+            "lineart": {"task": "edges", "refs": ["lineart@1"]},
+            "classification": {"task": "classification", "refs": ["example@1", "example@2"]},
+        },
+    )
+    cpu = {nodeid.split("::")[1] for nodeid in selection.golden_nodeids("cpu")}
+    gpu = {nodeid.split("::")[1] for nodeid in selection.golden_nodeids("gpu")}
+    refs = ("lineart@1", "example@1", "example@2")
+    assert cpu == {f"{test}[{ref}]" for test in ("test_cpu_portable", "test_kernels_validated") for ref in refs}
+    assert gpu == {f"test_gpu[{ref}-{mode}]" for ref in refs for mode in ("portable", "kernels")} | {
+        "test_gpu_module[example@1]",
+        "test_gpu_module[example@2]",
+    }
+    assert st.Selection([]).golden_nodeids("cpu") == []
+
+
 @pytest.fixture
 def git_repo(tmp_path: Path) -> Callable[..., None]:
     def git(*args: str) -> None:
