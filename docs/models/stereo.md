@@ -211,7 +211,7 @@ Use all 15 trainingH pairs with a shared centre crop and edge padding. Score val
 | `bridgedepth-sf` | Middlebury 2014 trainingH, fixed 375 x 1242, bad > 2 px % / EPE |  |  |  |  | 6.46 / 1.774 |  | 6.46 / 1.774 |  |
 | `bridgedepth-rvc-pretrain` | ETH3D two-view train, bad > 1 px % / EPE | 1.22 / 0.191 | 1.22 / 0.192 | fails (RuntimeError: invalid dtype for bias - should match query's dtype) | 1.22 / 0.191 | 1.22 / 0.191 | 1.22 / 0.191 |  | possibly in the training data |
 | `bridgedepth-rvc-pretrain` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 6.35 / 0.950 | 6.35 / 0.948 | fails (RuntimeError: invalid dtype for bias - should match query's dtype) | 6.38 / 0.953 | 6.35 / 0.950 | 6.37 / 0.952 |  | possibly in the training data |
-| `bridgedepth-rvc-pretrain` | Middlebury 2014 trainingH, fixed 375 x 1242, bad > 2 px % / EPE |  |  |  |  | 3.40 / 0.889 |  | 3.40 / 0.889 |  |
+| `bridgedepth-rvc-pretrain` | Middlebury 2014 trainingH, fixed 375 x 1242, bad > 2 px % / EPE |  |  |  |  | 3.40 / 0.889 |  | 3.40 / 0.889 | possibly in the training data |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10 / 938a6cc7, 2026-11-05 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 938a6cc7, 2026-11-19.
 
@@ -902,7 +902,7 @@ Use all 15 trainingH pairs with a shared centre crop and edge padding. Score val
 | `great-igev-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.20 / 2.894 | 11.21 / 2.903 | 11.19 / 2.946 | 11.19 / 2.923 | 11.21 / 2.883 |  | possibly in the training data |
 | `great-igev-middlebury` | ETH3D two-view train, bad > 1 px % / EPE | 27.42 / 1.133 | 27.43 / 1.134 | 27.44 / 1.131 | 27.40 / 1.132 | 27.53 / 1.135 |  | possibly in the training data |
 | `great-igev-middlebury` | Middlebury 2014 trainingH, bad > 2 px % / EPE | out of memory | out of memory | 4.14 / 0.707 | 4.11 / 0.707 | 4.14 / 0.708 |  | trained on this dataset's public images; not a zero-shot result |
-| `great-igev-middlebury` | Middlebury 2014 trainingH, fixed 375 x 1242, bad > 2 px % / EPE |  |  |  | 2.47 / 0.521 |  | 2.46 / 0.522 |  |
+| `great-igev-middlebury` | Middlebury 2014 trainingH, fixed 375 x 1242, bad > 2 px % / EPE |  |  |  | 2.47 / 0.521 |  | 2.46 / 0.522 | trained on this dataset's public images; not a zero-shot result |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10 / 938a6cc7, 2026-11-05 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 938a6cc7, 2026-11-19.
 
@@ -1034,7 +1034,7 @@ Use the same 416 x 704 centre crop in both views of all 27 training pairs. Exclu
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | note |
 |---|---|---|---|---|---|---|---|---|
 | `hitnet-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 0.94 / 0.164 | 0.93 / 0.165 | 0.93 / 0.164 | 0.93 / 0.164 | 0.93 / 0.164 |  | trained on this dataset's public images; not a zero-shot result |
-| `hitnet-eth3d` | ETH3D two-view train, fixed 416 x 704, bad > 1 px % / EPE |  |  |  | 2.00 / 0.241 |  | 2.00 / 0.241 |  |
+| `hitnet-eth3d` | ETH3D two-view train, fixed 416 x 704, bad > 1 px % / EPE |  |  |  | 2.00 / 0.241 |  | 2.00 / 0.241 | trained on this dataset's public images; not a zero-shot result |
 | `hitnet-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 17.26 / 8.332 | 17.30 / 8.356 | 17.25 / 8.340 | 17.28 / 8.348 | 17.27 / 8.297 |  |  |
 | `hitnet-middlebury-d400` | ETH3D two-view train, bad > 1 px % / EPE | 7.02 / 0.885 | 7.00 / 0.880 | 7.01 / 0.899 | 7.03 / 0.882 | 7.07 / 0.875 |  |  |
 | `hitnet-middlebury-d400` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 7.50 / 1.180 | 7.51 / 1.185 | 7.54 / 1.187 | 7.50 / 1.186 | 7.51 / 1.168 |  | trained on this dataset's public images; not a zero-shot result |
@@ -1283,7 +1283,7 @@ Use all 15 trainingH pairs with a shared centre crop and edge padding. Score val
 | `las2-l` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.87 / 2.615 | 11.85 / 2.614 | 17.75 / 3.202 | 11.85 / 2.614 | 11.87 / 2.615 | 11.85 / 2.614 |  | possibly in the training data |
 | `las2-h` | ETH3D two-view train, bad > 1 px % / EPE | 2.14 / 0.258 | 2.14 / 0.258 | 5.54 / 0.338 | 2.13 / 0.258 | 2.14 / 0.258 | 2.14 / 0.258 |  | possibly in the training data |
 | `las2-h` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 9.27 / 2.141 | 9.28 / 2.141 | 12.62 / 2.546 | 9.27 / 2.141 | 9.27 / 2.141 | 9.27 / 2.141 |  | possibly in the training data |
-| `las2-h` | Middlebury 2014 trainingH, fixed 375 x 1242, bad > 2 px % / EPE |  |  |  | 6.26 / 1.748 |  |  | 6.22 / 1.747 |  |
+| `las2-h` | Middlebury 2014 trainingH, fixed 375 x 1242, bad > 2 px % / EPE |  |  |  | 6.26 / 1.748 |  |  | 6.22 / 1.747 | possibly in the training data |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 11abf708 / 468fba10, 2026-11-05 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 11abf708, 2026-11-19.
 
@@ -1930,7 +1930,7 @@ All 200 KITTI 2015 training pairs, padded on the right and bottom. D1 is the sha
 | `waft-stereo-s` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 4.75 / 0.895 | 4.74 / 0.895 | 4.73 / 0.896 | 4.75 / 0.895 | 4.75 / 0.895 | 4.77 / 0.897 |  | possibly in the training data |
 | `waft-stereo-b` | ETH3D two-view train, bad > 1 px % / EPE | 0.74 / 0.163 | 0.74 / 0.163 | 0.76 / 0.165 | 0.74 / 0.163 | 0.74 / 0.163 | 0.74 / 0.163 |  | possibly in the training data |
 | `waft-stereo-b` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 3.38 / 0.728 | 3.39 / 0.728 | 3.37 / 0.732 | 3.38 / 0.729 | 3.39 / 0.728 | 3.38 / 0.728 |  | possibly in the training data |
-| `waft-stereo-b` | KITTI 2015 stereo training, fixed 384 x 1248, D1 % / EPE |  |  |  |  | 2.90 / 0.880 |  | 2.90 / 0.880 |  |
+| `waft-stereo-b` | KITTI 2015 stereo training, fixed 384 x 1248, D1 % / EPE |  |  |  |  | 2.90 / 0.880 |  | 2.90 / 0.880 | possibly in the training data |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10 / ba3a401e, 2026-11-05 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ba3a401e, 2026-11-18.
 

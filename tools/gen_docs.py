@@ -662,9 +662,12 @@ def _label(mode: str) -> str:
 # eval dataset id -> training-data id (_core/datasets.toml) of the same public images (NYU / iBims: no id, none known)
 _EVAL_TRAIN_ID = {
     "eth3d": "eth3d",
+    "eth3d-fixed-416x704": "eth3d",
     "middH": "middlebury",
+    "middH-fixed-375x1242": "middlebury",
     "kitti2015-train": "kitti",
     "kitti2015-train-first100": "kitti",
+    "kitti2015-train-stereo-fixed-384x1248": "kitti",
     "kitti2015-train-flow-fixed-384x1248": "kitti",
     "kitti2015-train-flow-fixed-384x1248-fp16": "kitti",
     "kitti2015-train-flow-first50-fixed-384x1248": "kitti",
