@@ -177,8 +177,10 @@ class NormalizationRefinement(nn.Module):
         error = warped_right - left_img  # [B, C, H, W]
         concat1 = torch.cat((error, left_img), dim=1)  # [B, 6, H, W]
         conv1 = self.conv1(concat1)  # [B, 16, H, W]
+        del warped_right, error, concat1
         conv2 = self.conv2(disp)  # [B, 16, H, W]
         x = torch.cat((conv1, conv2), dim=1)  # [B, 32, H, W]
+        del conv1, conv2
 
         x = self.conv_start(x)
         rem0 = x
@@ -207,11 +209,16 @@ class NormalizationRefinement(nn.Module):
         x = self.conv3b(x, rem3)
         rem3 = x
         x = self.conv4b(x, rem4)
+        del rem4
 
         x = self.deconv4b(x, rem3)
+        del rem3
         x = self.deconv3b(x, rem2)
+        del rem2
         x = self.deconv2b(x, rem1)
+        del rem1
         x = self.deconv1b(x, rem0)  # [B, 32, H, W]
+        del rem0
 
         residual_disp = self.final_conv(x)  # [B, 1, H, W]
 
