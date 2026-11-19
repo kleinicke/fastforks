@@ -517,7 +517,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `realesrgan-x4plus` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 631<br>471<br>403<br>354<br>273 | 2266 / 2496<br>1220 / 1454<br>1220 / 1434<br>1091 / 1394<br>1546 / 1594 |
+| `realesrgan-x4plus` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 631<br>473<br>403<br>354<br>273 | 2266 / 2496<br>292 / 354<br>1220 / 1434<br>1091 / 1394<br>1546 / 1594 |
 | `realesrgan-x2plus` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 128<br>97.0<br>80.2<br>85.2<br>59.7 | 592 / 656<br>333 / 394<br>333 / 394<br>323 / 394<br>476 / 500 |
 | `realesrgan-x4plus-anime-6b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 205<br>155<br>132<br>114<br>83.1 | 2243 / 2472<br>1197 / 1430<br>1197 / 1410<br>1068 / 1370<br>1505 / 1552 |
 
@@ -537,6 +537,7 @@ Commercial use: yes.
 - `realesrgan-x2plus` 512x512, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 40 s (ONNX + engine).
 - `realesrgan-x4plus-anime-6b` 512x512, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
 - `realesrgan-x4plus` original 512x512: the authors' mixed-precision option (float16); upstream RealESRGANer pre_pad 0, no tile, on the float image, half (the default)
+- `realesrgan-x4plus` portable 512x512: Portable releases dense-block growth activations before the final convolution. Three DIV2K crops and the synthetic image matched bitwise.
 - `realesrgan-x2plus` original 512x512: the authors' mixed-precision option (float16); upstream RealESRGANer pre_pad 0, no tile, on the float image, half (the default)
 - `realesrgan-x4plus-anime-6b` original 512x512: the authors' mixed-precision option (float16); upstream RealESRGANer pre_pad 0, no tile, on the float image, half (the default)
 - `realesrgan-x4plus` load / first call: original 1.62 s / 1.641 s, portable 0.2 s / 0.624 s, kernels 2.43 s / 0.435 s
