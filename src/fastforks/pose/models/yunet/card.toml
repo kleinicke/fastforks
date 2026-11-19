@@ -36,6 +36,7 @@ nms_iou = 0.3  # OpenCV Zoo demo nms_threshold
 [modes.portable]
 cuda_dtype = "float16"  # decoding and NMS stay float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["box_nms", "cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # the whole network through fastforks._optimize (fused conv + BN + activation)

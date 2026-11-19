@@ -29,6 +29,7 @@ from fastforks._core.patch import override
 from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
 from fastforks._core.sampling import grid_sample
 from fastforks.pose._runner import BUCKETS, Forward, Runner, in_buckets
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.host_blocks import StreamedModuleList
 
@@ -329,4 +330,9 @@ class MetalKernels(Portable):
         return {"keypoints": kp, "keypoint_scores": score, "scores": score.mean(1)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

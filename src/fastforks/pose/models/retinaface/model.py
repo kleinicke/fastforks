@@ -23,6 +23,7 @@ import torch
 from fastforks._optimize import optimize
 from fastforks.kernels import box_nms
 from fastforks.pose._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 
 from .net import ANCHORS, HEAD, Arch, RetinaFace, convert
 
@@ -158,4 +159,8 @@ class Kernels(Portable):
     suppress = staticmethod(box_nms.indices)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

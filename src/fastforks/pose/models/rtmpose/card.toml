@@ -35,6 +35,7 @@ neck = false  # true: RTMW (PAFPN neck + two-scale head)
 [modes.portable]
 cuda_dtype = "float16"  # crops, decoding and keypoint mapping stay float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["pose_warp", "cudnn_hacc", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # the CSPNeXt backbone through fastforks._optimize (fused conv + SiLU, residual, concat); fp16 SimCC head

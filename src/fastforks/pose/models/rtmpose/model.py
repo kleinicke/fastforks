@@ -30,6 +30,7 @@ from fastforks._core.patch import override
 from fastforks._optimize import conv_ops, ops, optimize
 from fastforks.kernels import pose_warp
 from fastforks.pose._runner import BUCKETS, Forward, Runner, in_buckets
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cspnext import Attention, fold_bn
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.topdown import FLIP, MEAN, STD, crop, crop_boxes, fixed
@@ -250,4 +251,9 @@ def extra() -> dict[tuple[str, str], object]:
     return {**NUMPY_ARRAYS, ("_codecs", "encode"): latin1_encode, ("__builtin__", "bytes"): empty_bytes}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

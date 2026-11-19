@@ -28,6 +28,7 @@ from fastforks._core.checkpoint import NUMPY_ARRAYS, Inert, latin1_encode, numer
 from fastforks._optimize import optimize
 from fastforks.kernels import pose_warp
 from fastforks.pose._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.topdown import FLIP, MEAN, STD, crop, crop_boxes
 
 from .net import STRIDE, Arch, HRNet, convert
@@ -144,4 +145,8 @@ def extra() -> dict[tuple[str, str], object]:
     return {**NUMPY_ARRAYS, ("_codecs", "encode"): latin1_encode, **logs, **scalars}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

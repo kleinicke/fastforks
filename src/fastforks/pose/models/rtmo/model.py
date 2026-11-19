@@ -28,6 +28,7 @@ from fastforks._core.checkpoint import NUMPY_ARRAYS, latin1_encode
 from fastforks._optimize import optimize
 from fastforks.kernels import box_nms, cudnn_hacc, pose_warp
 from fastforks.pose._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import DCC, RTMO, STRIDES, Arch, convert
@@ -230,4 +231,8 @@ def extra() -> dict[tuple[str, str], object]:
     return {**NUMPY_ARRAYS, ("_codecs", "encode"): latin1_encode}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

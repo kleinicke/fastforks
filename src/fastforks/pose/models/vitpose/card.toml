@@ -48,6 +48,7 @@ width = 192
 [modes.portable]
 cuda_dtype = "float16"  # crops, decoding and keypoint mapping stay float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fvm_conv"]  # token GEMMs with fused bias / GELU / residual epilogues; attention (flash SDPA) and the decoder (cuDNN) stay torch

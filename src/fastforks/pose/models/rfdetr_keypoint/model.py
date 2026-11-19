@@ -15,6 +15,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import Inert
 from fastforks.kernels import rfdetr_input
 from fastforks.pose._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.rfdetr.build import Arch, network
 
@@ -53,7 +54,9 @@ class Portable(Runner):
                 state.pop(f"keypoint_head.keypoint_proj.{layer}.{suffix}", None)
         self.net.load_state_dict(state)
         self.net = self.net.eval().to(ctx.device, ctx.torch_dtype)
-        from fastforks.shared.rfdetr.net.models.postprocess import PostProcess  # noqa: PLC0415 - after optional dependencies
+        from fastforks.shared.rfdetr.net.models.postprocess import (
+            PostProcess,  # noqa: PLC0415 - after optional dependencies
+        )
 
         self.postprocess = PostProcess(
             num_select=ctx.params.num_select,
@@ -106,7 +109,10 @@ class Kernels(Portable):
     def __init__(self, ctx: Context) -> None:
         """Load the same weights, then replace the DINOv2 attention with the declared kernel backend."""
         super().__init__(ctx)
-        from fastforks.shared.rfdetr.kernels import prepare_graph, use_fast_attention  # noqa: PLC0415 - CUDA backend only
+        from fastforks.shared.rfdetr.kernels import (  # noqa: PLC0415 - CUDA backend only
+            prepare_graph,
+            use_fast_attention,
+        )
 
         use_fast_attention(self.net)
         # The authors offer this fixed-shape inference path and spatial-tensor cache for graph capture.
@@ -149,4 +155,8 @@ class Kernels(Portable):
         self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}
