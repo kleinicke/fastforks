@@ -422,6 +422,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `pi3` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1057<br>821<br>559<br>752<br>planned for 0.2.1 | 5926 / 6016<br>2360 / 2416<br>2367 / 2456<br>2205 / 2334<br>– |
+| `pi3` | 8x512x640 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>735 (DINOv2 encoder with eager scene decoding, 8 views) | –<br>–<br>–<br>2586 / 2976 |
 
 ### Weight streaming
 
@@ -448,6 +449,7 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `pi3` 3000x4000 (4.8 GiB peak allocated, 6.5 reserved)
 - `pi3` 336x518, first call: portable + torch.compile 56 s (cold Inductor cache).
+- `pi3` 8x512x640, first call: TensorRT fp16 54 s (ONNX + engine).
 - `pi3` original 336x518: the authors' mixed-precision option (bfloat16); yyfz/Pi3@9fa3ddb3f8d5 Pi3.forward, PIXEL_LIMIT 255000
 - `pi3` load / first call: original 10.64 s / 4.059 s (336x518), portable 3.46 s / 1.284 s (336x518), kernels 3.78 s / 0.7 s (336x518)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -456,11 +458,11 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 
 640x512 crops, the 7 most co-visible views as sources. Ground truth is depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `pi3` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % | 0.0070 / 99.94 | 0.0071 / 99.94 | 0.0070 / 99.94 | 0.0070 / 99.94 | 0.0070 / 99.94 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `pi3` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % | 0.0070 / 99.94 | 0.0071 / 99.94 | 0.0070 / 99.94 | 0.0070 / 99.94 | 0.0070 / 99.94 | 0.0070 / 99.94 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 28db82cb, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 28db82cb, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 28db82cb, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 28db82cb, 2026-11-13; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 938a6cc7, 2026-11-19.
 
 ### Parity
 
@@ -474,6 +476,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 - With CUDA float16, stream=True keeps the 36 frame and global attention blocks in pinned host RAM. The image encoder, prediction heads and activations stay on the GPU. Export requires stream=False.
 - An experimental replacement for the camera rotation SVD exported at two 224 x 336 views. TensorRT 11.4 failed to finish building within 220–228 seconds with both default and level-0 optimization.
+- The standalone FP16 TensorRT encoder for eight 512 x 640 views took 735 ms end to end with eager decoding. On five DTU scans, relative L2 change was at most 0.49% for world points and 0.038% for the camera matrices.
 
 </details>
 

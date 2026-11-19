@@ -2601,6 +2601,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | mvsplat-re10k | 336x518 | 181 ms | 115 ms | 106 ms | 172 ms | 102 s | 241 s | 1239 / 1532 | 2762 / 2810 | 1239 / 1532 | 4953 / 4972 |
 | patchmatchnet | 1536x1024 | 201 ms | 175 ms | 51.0 ms | 29.5 ms | 29.4 s | 82.1 s | 1039 / 1212 | 1798 / 1888 | 648 / 772 | 1073 / 1106 |
 | pi3 | 336x518 | 821 ms | 752 ms | planned for 0.2.1 | 559 ms | 55.6 s | – | 2360 / 2416 | 2205 / 2334 | 2367 / 2456 | – |
+| pi3 | 8x512x640 | – | – | 735 ms (DINOv2 encoder with eager scene decoding, 8 views) | – | – | 53.8 s | – | – | – | 2586 / 2976 |
 | resplat-base-re10k | 480x640 | 7086 ms | 7098 ms (standalone Gaussian initialization and recurrent refinement heads, eager rendering and geometry) | fails: TypeError: _Base.forward() missing 1 required positional arg | 1280 ms | 12.6 s | – | 6951 / 8736 | 4656 / 7630 | 6944 / 8706 | – |
 | resplat-base-re10k | 256x256 | – | – | 1028 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 2173 / 2988 |
 | resplat-small-dl3dv | 480x640 | 1723 ms | 1538 ms | planned for 0.2.1 | 362 ms | 243 s | – | 4995 / 5180 | 4995 / 5138 | 4981 / 5148 | – |

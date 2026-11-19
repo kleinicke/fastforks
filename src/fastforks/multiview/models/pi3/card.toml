@@ -8,6 +8,7 @@ outputs = ["depth", "confidence", "world_points", "cam_to_world"]  # confidence:
 limitations = [
   "With CUDA float16, stream=True keeps the 36 frame and global attention blocks in pinned host RAM. The image encoder, prediction heads and activations stay on the GPU. Export requires stream=False.",
   "An experimental replacement for the camera rotation SVD exported at two 224 x 336 views. TensorRT 11.4 failed to finish building within 220–228 seconds with both default and level-0 optimization.",
+  "The standalone FP16 TensorRT encoder for eight 512 x 640 views took 735 ms end to end with eager decoding. On five DTU scans, relative L2 change was at most 0.49% for world points and 0.038% for the camera matrices.",
 ]
 
 licence_notes = [
