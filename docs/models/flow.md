@@ -903,7 +903,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `waft-a1` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>519<br>610<br>343 | 5537 / 5916<br>3553 / 4076<br>1851 / 2264<br>3479 / 3638<br>1625 / 1672 |
+| `waft-a1` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>741<br>519<br>610<br>343 | 5537 / 5916<br>1832 / 2196<br>1851 / 2264<br>3479 / 3638<br>1625 / 1672 |
 | `waft-a1-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>519<br>610<br>343 | 5537 / 5936<br>3553 / 4196<br>1851 / 2264<br>3479 / 3758<br>1625 / 1672 |
 | `waft-a1-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>519<br>610<br>343 | 5537 / 5916<br>3553 / 4076<br>1851 / 2264<br>3479 / 3578<br>1625 / 1672 |
 
@@ -926,6 +926,7 @@ Commercial use: yes.
 - `waft-a1-kitti` 1080x1920, first call: portable + torch.compile 84 s (cold Inductor cache), TensorRT fp16 168 s (ONNX + engine).
 - `waft-a1-sintel` 1080x1920, first call: portable + torch.compile 85 s (cold Inductor cache), TensorRT fp16 166 s (ONNX + engine).
 - `waft-a1` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t.json), iters=5
+- `waft-a1` portable 1080x1920: Eager CUDA keeps half-resolution image features and upsamples only the last flow. Paired KITTI flows were bitwise equal.
 - `waft-a1-kitti` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t-kitti.json), iters=5
 - `waft-a1-sintel` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t-sintel.json), iters=5
 - `waft-a1` load / first call: original 5.87 s / 3.409 s, portable 0.51 s / 0.79 s, kernels 0.57 s / 0.21 s (375x1242)

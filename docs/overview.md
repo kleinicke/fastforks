@@ -661,7 +661,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`gmflow-scale1-things`](models/flow.md#gmflow) | yes | 10.346 | 750.3 (1080x1920) | 447.5 | 445.9 | 1.7x vs original (1080x1920) | 1988 |
 | [`waft-a1-sintel`](models/flow.md#waft) | yes | 0.992 † | 1532.7 (1080x1920) | 790.5 | 518.5 | 3.0x vs original (1080x1920) | 1851 |
 | [`waft-a1-kitti`](models/flow.md#waft) | yes | 0.695 † | 1533.3 (1080x1920) | 790.8 | 518.6 | 3.0x vs original (1080x1920) | 1851 |
-| [`waft-a1`](models/flow.md#waft) | yes | 2.367 | 1533.1 (1080x1920) | 790.8 | 518.7 | 3.0x vs original (1080x1920) | 1851 |
+| [`waft-a1`](models/flow.md#waft) | yes | 2.367 | 1533.1 (1080x1920) | 741.0 | 518.7 | 3.0x vs original (1080x1920) | 1851 |
 | [`gmflow-scale1-mixdata`](models/flow.md#gmflow) | yes | 3.697 ? | 750.1 (1080x1920) | 555.9 | – | – | – |
 | [`megaflow`](models/flow.md#megaflow) | yes | 1.714 † | 1588.5 (1080x1920) | 1109.0 | 733.5 | 2.2x vs original (1080x1920) | 2866 |
 | [`memflow-sintel`](models/flow.md#memflow) | yes | 1.218 † | 3214.2 (1080x1920) | 964.5 | 864.5 | 3.7x vs original (1080x1920) | 968 |
@@ -746,9 +746,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`rife-4.25`](models/interpolation.md#rife) | yes | 24.5 (1080x1920) | 25.0 | 21.4 | 1.1x vs original (1080x1920) | 848 |
 | [`ema-vfi-small-t`](models/interpolation.md#ema-vfi) | yes | 113.9 (1080x1920) | 89.4 | 84.3 | 1.4x vs original (1080x1920) | 271 |
 | [`ema-vfi-small`](models/interpolation.md#ema-vfi) | yes | 121.4 (1080x1920) | 89.4 | 84.4 | 1.4x vs original (1080x1920) | 271 |
-| [`ema-vfi`](models/interpolation.md#ema-vfi) | yes | 296.2 (1080x1920) | 233.1 | 206.7 | 1.4x vs original (1080x1920) | 368 |
+| [`ema-vfi`](models/interpolation.md#ema-vfi) | yes | 296.2 (1080x1920) | 233.4 | 206.7 | 1.4x vs original (1080x1920) | 368 |
 | [`ema-vfi-t`](models/interpolation.md#ema-vfi) | yes | 286.9 (1080x1920) | 233.5 | 206.9 | 1.4x vs original (1080x1920) | 368 |
-| [`film`](models/interpolation.md#film) | yes | 463.8 (1080x1920) | 416.9 | 332.5 | 1.4x vs original (1080x1920) | 2856 |
+| [`film`](models/interpolation.md#film) | yes | 463.8 (1080x1920) | 417.1 | 332.4 | 1.4x vs original (1080x1920) | 2461 |
 | [`gimm-vfi-r-p`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2638.7 | 1627.6 | 1.6x vs portable | 4587 |
 | [`gimm-vfi-r`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2634.9 | 1629.3 | 1.6x vs portable | 4587 |
 
@@ -792,7 +792,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`hat-x4`](models/restoration.md#hat) | yes | 3038.2 (512x512) | 1595.9 | 1426.7 | 2.1x vs original (512x512) | 2298 |
 | [`real-hat-gan-x4`](models/restoration.md#hat) | yes | 3038.1 (512x512) | 1596.7 | 1426.9 | 2.1x vs original (512x512) | 2298 |
 | [`seedvr2-3b`](models/restoration.md#seedvr2) | yes | 13150.0 (512x512) | 2332.3 | 2355.8 | 5.6x vs original (512x512) | 3857 |
-| [`seedvr2-7b`](models/restoration.md#seedvr2) | yes | OOM (512x512) | 2747.7 | 2713.0 | 1.0x vs portable | 6402 |
+| [`seedvr2-7b`](models/restoration.md#seedvr2) | yes | OOM (512x512) | 2747.7 | 2748.1 | 1.0x vs portable | 4495 |
 
 ## Volume
 

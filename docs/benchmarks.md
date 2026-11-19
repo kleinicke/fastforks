@@ -1415,7 +1415,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | sea-raft-s | 1080x1920 | 365 | 300 | 211 | 50.6 | 5.9x | 4.2x | 7323 / 8502 | 6019 / 6136 | 404 / 452 |
 | sea-raft-s-kitti | 1080x1920 | 365 | 299 | 210 | 50.7 | 5.9x | 4.2x | 7323 / 8502 | 6019 / 6136 | 404 / 432 |
 | sea-raft-s-spring | 1080x1920 | 67.1 | 42.4 | 32.8 | 16.2 | 2.6x | 2.0x | 699 / 764 | 611 / 656 | 150 / 172 |
-| waft-a1 | 1080x1920 | – | 1533 | 791 | 519 | 3.0x | 1.5x | 5537 / 5916 | 3553 / 4076 | 1851 / 2264 |
+| waft-a1 | 1080x1920 | – | 1533 | 741 | 519 | 3.0x | 1.4x | 5537 / 5916 | 1832 / 2196 | 1851 / 2264 |
 | waft-a1-kitti | 1080x1920 | – | 1533 | 791 | 519 | 3.0x | 1.5x | 5537 / 5936 | 3553 / 4196 | 1851 / 2264 |
 | waft-a1-sintel | 1080x1920 | – | 1533 | 791 | 519 | 3.0x | 1.5x | 5537 / 5916 | 3553 / 4076 | 1851 / 2264 |
 
@@ -1471,11 +1471,11 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|
-| ema-vfi | 296 | 233 | 207 | 1.4x | 1.1x | 3940 / 4290 | 2827 / 3184 | 368 / 3566 |
+| ema-vfi | 296 | 233 | 207 | 1.4x | 1.1x | 3940 / 4290 | 1672 / 2242 | 368 / 3566 |
 | ema-vfi-small | 121 | 89.4 | 84.4 | 1.4x | 1.1x | 2272 / 2384 | 1614 / 1792 | 271 / 1914 |
 | ema-vfi-small-t | 114 | 89.4 | 84.3 | 1.4x | 1.1x | 2272 / 2384 | 1614 / 1792 | 271 / 1914 |
 | ema-vfi-t | 287 | 233 | 207 | 1.4x | 1.1x | 3940 / 4290 | 2827 / 3184 | 368 / 3566 |
-| film | 464 | 417 | 332 | 1.4x | 1.3x | 2953 / 3556 | 2856 / 3080 | 2856 / 3080 |
+| film | 464 | 417 | 332 | 1.4x | 1.3x | 2953 / 3556 | 2461 / 3780 | 2461 / 3780 |
 | gimm-vfi-r | OOM | 2635 | 1629 | – | 1.6x | – | 7855 / 9078 | 4587 / 5362 |
 | gimm-vfi-r-p | OOM | 2639 | 1628 | – | 1.6x | – | 5936 / 6618 | 4587 / 5282 |
 | rife-4.25 | 24.5 | 25.0 | 21.4 | 1.1x | 1.2x | 987 / 1154 | 755 / 894 | 848 / 916 |
@@ -1508,7 +1508,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | restormer-derain | 234 | 228 | 133 | 1.8x | 1.7x | 1221 / 1418 | 850 / 1000 | 892 / 980 |
 | restormer-sidd | 218 | 181 | 133 | 1.6x | 1.4x | 1221 / 1416 | 850 / 920 | 892 / 980 |
 | seedvr2-3b | 13150 | 2332 | 2356 | 5.6x | 1.0x | 7598 / 15268 | 4233 / 7262 | 3857 / 7778 |
-| seedvr2-7b | OOM | 2748 | 2713 | – | 1.0x | – | 4495 / 8260 | 6402 / 7034 |
+| seedvr2-7b | OOM | 2748 | 2748 | – | 1.0x | – | 4495 / 8260 | 4495 / 8260 |
 | span-x2 | 24.6 | 23.5 | 14.9 | 1.6x | 1.6x | 611 / 648 | 607 / 662 | 487 / 522 |
 | span-x4 | 26.9 | 24.2 | 14.6 | 1.8x | 1.7x | 611 / 648 | 607 / 662 | 487 / 522 |
 | swin2sr-x2 | 2565 | 909 | 721 | 3.6x | 1.3x | 1488 / 1578 | 1459 / 1554 | 1459 / 1636 |
@@ -2669,7 +2669,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | sea-raft-s | 1080x1920 | 211 ms | 150 ms | 108 ms | 50.6 ms | 35.4 s | 68.0 s | 6019 / 6136 | 5828 / 5876 | 404 / 452 | 11043 / 11078 |
 | sea-raft-s-kitti | 1080x1920 | 210 ms | 150 ms | 108 ms | 50.7 ms | 31.8 s | 67.3 s | 6019 / 6136 | 5828 / 5876 | 404 / 432 | 11043 / 11078 |
 | sea-raft-s-spring | 1080x1920 | 32.8 ms | 23.8 ms | 3.01 ms | 16.2 ms | 21.9 s | 38.8 s | 611 / 656 | 582 / 596 | 150 / 172 | 215 / 278 |
-| waft-a1 | 1080x1920 | 791 ms | 610 ms | 343 ms | 519 ms | 84.7 s | 166 s | 3553 / 4076 | 3479 / 3638 | 1851 / 2264 | 1625 / 1672 |
+| waft-a1 | 1080x1920 | 741 ms | 610 ms | 343 ms | 519 ms | 84.7 s | 166 s | 1832 / 2196 | 3479 / 3638 | 1851 / 2264 | 1625 / 1672 |
 | waft-a1-kitti | 1080x1920 | 791 ms | 610 ms | 343 ms | 519 ms | 84.1 s | 168 s | 3553 / 4196 | 3479 / 3758 | 1851 / 2264 | 1625 / 1672 |
 | waft-a1-sintel | 1080x1920 | 791 ms | 610 ms | 343 ms | 519 ms | 84.7 s | 166 s | 3553 / 4076 | 3479 / 3578 | 1851 / 2264 | 1625 / 1672 |
 | aliked-flexglue | 768x1024 | 129 ms | 96.1 ms | 328 ms, fp32 engine (dense descriptor with eager ALIKED and matching) | – | 78.8 s | 22.3 s | 1775 / 1886 | 1762 / 1826 | – | 2225 / 2410 |
@@ -2707,11 +2707,11 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | track-on-r | 256x256 | – | – | 958 ms, fp32 engine (standalone eight-frame encoder, eager recurrent decoder) | – | – | 42.1 s | – | – | – | 1979 / 2286 |
 | track-on2 | 480x854 | 1193 ms | 1075 ms | planned for 0.2.1 | 1108 ms | 60.0 s | – | 1423 / 1712 | 1340 / 1454 | 1368 / 1620 | – |
 | track-on2 | 256x256 | – | – | 961 ms, fp32 engine (standalone eight-frame encoder, eager recurrent decoder) | – | – | 46.3 s | – | – | – | 1979 / 2288 |
-| ema-vfi | 1080x1920 | 233 ms | 165 ms | 124 ms | 207 ms | 90.6 s | 90.9 s | 2827 / 3184 | 3325 / 3542 | 368 / 3566 | 1719 / 1786 |
+| ema-vfi | 1080x1920 | 233 ms | 165 ms | 124 ms | 207 ms | 90.6 s | 90.9 s | 1672 / 2242 | 3325 / 3542 | 368 / 3566 | 1719 / 1786 |
 | ema-vfi-small | 1080x1920 | 89.4 ms | 59.6 ms | 43.7 ms | 84.4 ms | 78.5 s | 67.6 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
 | ema-vfi-small-t | 1080x1920 | 89.4 ms | 59.8 ms | 43.4 ms | 84.3 ms | 77.9 s | 68.8 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
 | ema-vfi-t | 1080x1920 | 233 ms | 165 ms | 125 ms | 207 ms | 84.6 s | 91.5 s | 2827 / 3184 | 3325 / 3702 | 368 / 3566 | 1719 / 1766 |
-| film | 1080x1920 | 417 ms | 332 ms | 189 ms | 332 ms | 41.1 s | 203 s | 2856 / 3080 | 2666 / 3192 | 2856 / 3080 | 2658 / 2658 |
+| film | 1080x1920 | 417 ms | 332 ms | 189 ms | 332 ms | 41.1 s | 203 s | 2461 / 3780 | 2666 / 3192 | 2461 / 3780 | 2658 / 2658 |
 | gimm-vfi-r | 1080x1920 | 2635 ms | 1498 ms | planned for 0.2.1 | 1629 ms | 307 s | – | 7855 / 9078 | 12051 / 12880 | 4587 / 5362 | – |
 | gimm-vfi-r | 480x854 | 468 ms | – | 1210 ms, fp32 engine (RAFT feature encoder with eager context, flow update and synthesis) | 289 ms | – | 12.9 s | 1574 / 1674 | – | 1388 / 1618 | 3522 / 6116 |
 | gimm-vfi-r-p | 1080x1920 | 2639 ms | 1498 ms | fails: TensorRT parser: Sc node | 1628 ms | 307 s | – | 5936 / 6618 | 12051 / 12880 | 4587 / 5282 | – |
@@ -2746,7 +2746,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | restormer-sidd | 512x512 | 181 ms | 142 ms | 162 ms | 133 ms | 35.5 s | 59.7 s | 850 / 920 | 660 / 778 | 892 / 980 | 757 / 774 |
 | seedvr2-3b | 512x512 | 2332 ms | 1941 ms | 2280 ms, bf16 engine (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | 2356 ms | 238 s | – | 4233 / 7262 | 5237 / 8144 | 3857 / 7778 | 9068 / 9284 |
 | seedvr2-3b | 64x64 | – | – | 46.8 ms, bf16 engine | – | – | 324 s | – | – | – | 7662 / 7664 |
-| seedvr2-7b | 512x512 | 2748 ms | 2471 ms (VAE only, standalone compile) | 2696 ms, bf16 engine (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | 2713 ms | 52.2 s | 271 s | 4495 / 8260 | 5522 / 9042 | 6402 / 7034 | 9369 / 9860 |
+| seedvr2-7b | 512x512 | 2748 ms | 2471 ms (VAE only, standalone compile) | 2696 ms, bf16 engine (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | 2748 ms | 52.2 s | 271 s | 4495 / 8260 | 5522 / 9042 | 4495 / 8260 | 9369 / 9860 |
 | span-x2 | 512x512 | 23.5 ms | 13.2 ms | 7.98 ms | 14.9 ms | 7.26 s | 9.60 s | 607 / 662 | 204 / 222 | 487 / 522 | 243 / 266 |
 | span-x4 | 512x512 | 24.2 ms | 13.2 ms | 8.28 ms | 14.6 ms | 4.57 s | 9.80 s | 607 / 662 | 204 / 222 | 487 / 522 | 319 / 346 |
 | swin2sr-x2 | 512x512 | 909 ms | 482 ms | 547 ms | 721 ms | 43.7 s | 112 s | 1459 / 1554 | 1308 / 1516 | 1459 / 1636 | 4941 / 4997 |
