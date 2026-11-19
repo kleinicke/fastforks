@@ -743,10 +743,14 @@ def hourglass_fast(
     conv3 = hg.conv3(conv2)
     conv3 = hg.feature_att_32(conv3, features[3])
     conv3_up = hg.conv3_up(conv3)
+    del conv3
     conv2 = hg.agg_0[2](hg.agg_0[1](_cat_1x1(hg.agg_0[0], conv3_up, conv2)))
+    del conv3_up
     conv2 = hg.feature_att_up_16(conv2, features[2])
     conv2_up = hg.conv2_up(conv2)
+    del conv2
     conv1 = hg.agg_1[2](hg.agg_1[1](_cat_1x1(hg.agg_1[0], conv2_up, conv1)))
+    del conv2_up
     conv1 = hg.feature_att_up_8(conv1, features[1])
     xp = transformer_fast(hg.atts["4"], xp, ctx)
     out = torch.empty(
