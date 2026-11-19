@@ -10,6 +10,8 @@ from fastforks._core import registry
 from fastforks.ocr import _crop, _runner
 from fastforks.ocr._api import text_page
 from fastforks.ocr.models.ppocrv5.net import Detector
+from fastforks.ocr.models.ppocrv5.net.heads import DBHead
+from fastforks.ocr.models.ppocrv5.net.layers import up
 
 
 def test_card() -> None:
@@ -111,3 +113,14 @@ def test_bench_page_has_text_lines() -> None:
     assert page.dtype == np.uint8
     assert (page < 128).any(axis=(1, 2)).sum() > 10  # dark rows: several lines of words
     np.testing.assert_array_equal(page, text_page(108, 192))  # fixed seed
+
+
+def test_local_detector_strips_preserve_halos() -> None:
+    head = DBHead(16, local=True).eval()
+    rng = torch.Generator().manual_seed(541)
+    half_res = torch.randn(2, 4, 131, 9, generator=rng)
+    shrink = torch.rand(2, 1, 262, 18, generator=rng)
+    with torch.inference_mode():
+        full = head.last_1(head.last_3(torch.cat((shrink, up(half_res, 2)), dim=1))).sigmoid()
+        strips = head._local_strips(shrink, half_res)
+    torch.testing.assert_close(strips, full, rtol=0.0, atol=1e-6)
