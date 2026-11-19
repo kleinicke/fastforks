@@ -9,6 +9,7 @@ import torch
 
 from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
+from fastforks.stereo._volume import concat_fn, stacked_volume
 
 from .net.stackhourglass import PSMNet
 from .regress import upsample_softmax_regress
@@ -32,6 +33,8 @@ def _net(ctx: Context) -> PSMNet:
 
 def cost_volume(net: PSMNet, ref: torch.Tensor, tgt: torch.Tensor) -> torch.Tensor:
     """Upstream's concatenation volume `[B, 2C, D, H, W]` in the features' dtype (upstream: float32)."""
+    if torch.compiler.is_exporting():
+        return stacked_volume(ref, tgt, net.maxdisp // 4, concat_fn)
     b, c, h, w = ref.shape
     volume = ref.new_zeros((b, 2 * c, net.maxdisp // 4, h, w))
     for i in range(min(net.maxdisp // 4, w)):  # disparities >= width: no overlap, stays zero

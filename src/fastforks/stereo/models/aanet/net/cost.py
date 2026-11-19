@@ -1,4 +1,5 @@
 import torch
+from fastforks.stereo._volume import concat_fn, stacked_volume
 import torch.nn as nn
 
 
@@ -18,6 +19,17 @@ class CostVolume(nn.Module):
 
     def forward(self, left_feature, right_feature):
         b, c, h, w = left_feature.size()
+
+        if torch.compiler.is_exporting():
+            fns = {
+                "difference": lambda a, r: a - r,
+                "concat": concat_fn,
+                "correlation": lambda a, r: (a * r).mean(dim=1, keepdim=True),
+            }
+            if self.feature_similarity not in fns:
+                raise NotImplementedError
+            v = stacked_volume(left_feature, right_feature, self.max_disp, fns[self.feature_similarity])
+            return v.squeeze(1) if self.feature_similarity == "correlation" else v
 
         if self.feature_similarity == 'difference':
             cost_volume = left_feature.new_zeros(b, c, self.max_disp, h, w)

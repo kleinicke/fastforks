@@ -9,6 +9,7 @@ import torch
 
 from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
+from fastforks.stereo._volume import concat_fn, stacked_volume
 
 from .net.gwcnet import GwcNet
 from .net.submodule import groupwise_correlation
@@ -43,6 +44,16 @@ def cost_volume(net: GwcNet, fl: dict[str, torch.Tensor], fr: dict[str, torch.Te
     cl, cr = (fl["concat_feature"], fr["concat_feature"]) if net.use_concat_volume else (gl[:, :0], gr[:, :0])
     b, _, h, w = gl.shape
     g, c = net.num_groups, cl.shape[1]
+    if torch.compiler.is_exporting():
+        nc = gl.shape[1]
+
+        def fn(a: torch.Tensor, bb: torch.Tensor) -> torch.Tensor:
+            parts = [groupwise_correlation(a[:, :nc], bb[:, :nc], g)]
+            if c:
+                parts += [a[:, nc:], bb[:, nc:]]
+            return torch.cat(parts, dim=1)
+
+        return stacked_volume(torch.cat((gl, cl), 1), torch.cat((gr, cr), 1), net.maxdisp // 4, fn)
     volume = gl.new_zeros([b, g + 2 * c, net.maxdisp // 4, h, w])
     for i in range(min(net.maxdisp // 4, w)):  # disparities >= width: no overlap, stays zero
         v = volume[:, :, i, :, i:]

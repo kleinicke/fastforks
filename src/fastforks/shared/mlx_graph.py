@@ -864,6 +864,59 @@ def _conv_act(  # noqa: PLR0913
     return _conv_core(x, w, b, stride, padding, dilation, transposed, output_padding, groups)  # ty: ignore[invalid-return-type]
 
 
+def _shift_pad(x: mx.array, axis: int, lo: int, hi: int) -> mx.array:
+    """Zero-pad `axis` by `lo` / `hi` (a negative amount crops instead)."""
+    if lo < 0 or hi < 0:
+        n = x.shape[axis]
+        idx = [slice(None)] * x.ndim
+        idx[axis] = slice(max(-lo, 0), n - max(-hi, 0))
+        x = x[tuple(idx)]
+    if lo > 0 or hi > 0:
+        widths = [(0, 0)] * x.ndim
+        widths[axis] = (max(lo, 0), max(hi, 0))
+        x = mx.pad(x, widths)
+    return x
+
+
+def _conv_transpose3d_phases(
+    x: mx.array, w: mx.array, stride: Sequence[int], padding: Sequence[int], output_padding: Sequence[int]
+) -> mx.array | None:
+    """NDHWC transposed conv as one small stride-1 conv per output phase (`mx.conv_transpose3d` is ~8x slower).
+
+    `w` is `[Cin, Cout, kd, kh, kw]`; returns None when the output is not `stride` x the input (no phase grid).
+    """
+    dims = x.shape[1:4]
+    k = w.shape[2:]
+    if any((n - 1) * s - 2 * p + kk + op != n * s for n, s, p, kk, op in zip(dims, stride, padding, k, output_padding)):
+        return None
+    wt = mx.transpose(w, (1, 2, 3, 4, 0))  # [Cout, kd, kh, kw, Cin]
+    taps = []  # per dim, per phase: (kernel indices ordered by input offset, lo pad, hi pad)
+    for ax in range(3):
+        s, p, kk = stride[ax], padding[ax], k[ax]
+        per = []
+        for r in range(s):
+            ks = sorted((j for j in range(kk) if (r + p - j) % s == 0), reverse=True)  # increasing input offset
+            per.append((ks, -((r + p - ks[0]) // s), (r + p - ks[-1]) // s) if ks else None)
+        taps.append(per)
+    out = []
+    for rd in range(stride[0]):
+        for rh in range(stride[1]):
+            for rw in range(stride[2]):
+                t = (taps[0][rd], taps[1][rh], taps[2][rw])
+                if any(e is None for e in t):
+                    out.append(mx.zeros((*x.shape[:4], wt.shape[0]), x.dtype))
+                    continue
+                sub = wt[:, t[0][0]][:, :, t[1][0]][:, :, :, t[2][0]]
+                xp = x
+                for ax in range(3):
+                    xp = _shift_pad(xp, 1 + ax, t[ax][1], t[ax][2])
+                out.append(mx.conv3d(xp, sub))
+    sd, sh, sw = stride
+    n, d, h, wd = x.shape[:4]
+    y = mx.stack(out).reshape(sd, sh, sw, n, d, h, wd, -1)
+    return mx.transpose(y, (3, 4, 0, 5, 1, 6, 2, 7)).reshape(n, d * sd, h * sh, wd * sw, -1)
+
+
 def _conv_core(  # noqa: PLR0913
     x: mx.array,
     w: mx.array,
@@ -914,6 +967,13 @@ def _conv_core(  # noqa: PLR0913
             wm = mx.transpose(w, (0, 2, 3, 4, 1)).reshape(cin, -1)  # columns (kd, kh, kw, cout)
             y = (xl @ wm).reshape(n, d, h, wd, kd, kh, kw, cout)
             y = mx.transpose(y, (0, 1, 4, 2, 5, 3, 6, 7)).reshape(n, d * kd, h * kh, wd * kw, cout)
+        elif transposed and (
+            groups == 1
+            and all(d == 1 for d in dilation)
+            and (y := _conv_transpose3d_phases(mx.transpose(x, (0, 2, 3, 4, 1)), w, stride, padding, output_padding))
+            is not None
+        ):
+            pass
         elif transposed:
             y = mx.conv_transpose3d(
                 mx.transpose(x, (0, 2, 3, 4, 1)),
