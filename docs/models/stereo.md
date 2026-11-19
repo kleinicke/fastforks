@@ -166,7 +166,9 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `bridgedepth-sf` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 616<br>460<br>437<br>348<br>325<br>planned for 0.2.1 | 2852 / 3128<br>2852 / 3144<br>2916 / 3214<br>2310 / 2634<br>2280 / 2308<br>– |
+| `bridgedepth-sf` | KITTI 2015 (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT fp32 | 164<br>118<br>111<br>92.1<br>284 (DINOv2 and DPT monocular branch with eager stereo inference) | 1840 / 1950<br>1840 / 1970<br>1859 / 1954<br>1272 / 1394<br>2358 / 2508 |
 | `bridgedepth-rvc-pretrain` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>470<br>442<br>354<br>337<br>planned for 0.2.1 | 2903 / 3178<br>2903 / 3200<br>2968 / 3246<br>2361 / 2686<br>2329 / 2360<br>– |
+| `bridgedepth-rvc-pretrain` | KITTI 2015 (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT fp32 | 169<br>121<br>114<br>94.7<br>284 (DINOv2 and DPT monocular branch with eager stereo inference) | 1891 / 1982<br>1891 / 2006<br>1910 / 2006<br>1323 / 1446<br>2410 / 2588 |
 
 <details><summary>Details</summary>
 
@@ -184,11 +186,13 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Input size: any H x W >= 16, padded to a multiple of 16
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `bridgedepth-sf` 3000x4000 (13.3 GiB peak allocated, 14.2 reserved); `bridgedepth-rvc-pretrain` 3000x4000 (13.3 GiB peak allocated, 14.2 reserved)
 - `bridgedepth-sf` 994x1482, first call: portable + torch.compile 111 s (cold Inductor cache).
+- `bridgedepth-sf` 375x1242, first call: TensorRT fp32 54 s (ONNX + engine).
 - `bridgedepth-rvc-pretrain` 994x1482, first call: portable + torch.compile 118 s (cold Inductor cache).
-- `bridgedepth-sf` original (fp32) 994x1482: original default: its monocular branch (DepthAnything.infer) runs in fp16 even without autocast
-- `bridgedepth-sf` original 994x1482: torch.autocast(fp16) around the forward; original default: its monocular branch (DepthAnything.infer) runs in fp16 even without autocast
-- `bridgedepth-rvc-pretrain` original (fp32) 994x1482: original default: its monocular branch (DepthAnything.infer) runs in fp16 even without autocast
-- `bridgedepth-rvc-pretrain` original 994x1482: torch.autocast(fp16) around the forward; original default: its monocular branch (DepthAnything.infer) runs in fp16 even without autocast
+- `bridgedepth-rvc-pretrain` 375x1242, first call: TensorRT fp32 50 s (ONNX + engine).
+- `bridgedepth-sf` original (fp32) 994x1482, original (fp32) 375x1242: original default: its monocular branch (DepthAnything.infer) runs in fp16 even without autocast
+- `bridgedepth-sf` original 994x1482, original 375x1242: torch.autocast(fp16) around the forward; original default: its monocular branch (DepthAnything.infer) runs in fp16 even without autocast
+- `bridgedepth-rvc-pretrain` original (fp32) 994x1482, original (fp32) 375x1242: original default: its monocular branch (DepthAnything.infer) runs in fp16 even without autocast
+- `bridgedepth-rvc-pretrain` original 994x1482, original 375x1242: torch.autocast(fp16) around the forward; original default: its monocular branch (DepthAnything.infer) runs in fp16 even without autocast
 - `bridgedepth-sf` load / first call: original 4.86 s / 0.119 s (375x1242), portable 1.53 s / 0.442† s, kernels 0.72† s / 0.351† s
 - `bridgedepth-rvc-pretrain` load / first call: original 5.87 s / 1.363 s (375x1242), portable 1.84 s / 0.453† s, kernels 0.76† s / 0.356† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -196,16 +200,18 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 ### Measured
 
-Original = the original code named under Details, same checkpoint and protocol.
+Use all 15 trainingH pairs with a shared centre crop and edge padding. Score valid non-occluded pixels and exclude right-image correspondences outside the crop. Average the per-pair endpoint error and share of pixels with error above 2 pixels. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|---|
-| `bridgedepth-sf` | ETH3D two-view train, bad > 1 px % / EPE | 1.25 / 0.230 | 1.25 / 0.229 | fails (RuntimeError: invalid dtype for bias - should match query's dtype) | 1.24 / 0.229 | 1.25 / 0.230 | 1.24 / 0.229 |  |
-| `bridgedepth-sf` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 9.97 / 2.111 | 9.99 / 2.109 | fails (RuntimeError: invalid dtype for bias - should match query's dtype) | 10.00 / 2.111 | 9.97 / 2.112 | 10.00 / 2.109 |  |
-| `bridgedepth-rvc-pretrain` | ETH3D two-view train, bad > 1 px % / EPE | 1.22 / 0.191 | 1.22 / 0.192 | fails (RuntimeError: invalid dtype for bias - should match query's dtype) | 1.22 / 0.191 | 1.22 / 0.191 | 1.22 / 0.191 | possibly in the training data |
-| `bridgedepth-rvc-pretrain` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 6.35 / 0.950 | 6.35 / 0.948 | fails (RuntimeError: invalid dtype for bias - should match query's dtype) | 6.38 / 0.953 | 6.35 / 0.950 | 6.37 / 0.952 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `bridgedepth-sf` | ETH3D two-view train, bad > 1 px % / EPE | 1.25 / 0.230 | 1.25 / 0.229 | fails (RuntimeError: invalid dtype for bias - should match query's dtype) | 1.24 / 0.229 | 1.25 / 0.230 | 1.24 / 0.229 |  |  |
+| `bridgedepth-sf` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 9.97 / 2.111 | 9.99 / 2.109 | fails (RuntimeError: invalid dtype for bias - should match query's dtype) | 10.00 / 2.111 | 9.97 / 2.112 | 10.00 / 2.109 |  |  |
+| `bridgedepth-sf` | Middlebury 2014 trainingH, fixed 375 x 1242, bad > 2 px % / EPE |  |  |  |  | 6.46 / 1.774 |  | 6.46 / 1.774 |  |
+| `bridgedepth-rvc-pretrain` | ETH3D two-view train, bad > 1 px % / EPE | 1.22 / 0.191 | 1.22 / 0.192 | fails (RuntimeError: invalid dtype for bias - should match query's dtype) | 1.22 / 0.191 | 1.22 / 0.191 | 1.22 / 0.191 |  | possibly in the training data |
+| `bridgedepth-rvc-pretrain` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 6.35 / 0.950 | 6.35 / 0.948 | fails (RuntimeError: invalid dtype for bias - should match query's dtype) | 6.38 / 0.953 | 6.35 / 0.950 | 6.37 / 0.952 |  | possibly in the training data |
+| `bridgedepth-rvc-pretrain` | Middlebury 2014 trainingH, fixed 375 x 1242, bad > 2 px % / EPE |  |  |  |  | 3.40 / 0.889 |  | 3.40 / 0.889 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10 / 938a6cc7, 2026-11-05 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 938a6cc7, 2026-11-19.
 
 ### Parity
 
@@ -219,6 +225,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 ### Limitations
 
 - ONNX Runtime resolves top-k ties differently from PyTorch on noise pairs: bridgedepth-sf differs by up to 0.010 px (mean 0.001) on a synthetic textured pair.
+- At fixed 375 x 1242, the FP32 standalone monocular TensorRT branch took 284 ms on both checkpoints versus 324 to 325 ms for paired portable FP32. The stereo branch stayed in PyTorch. The largest individual NOC endpoint-error change was 0.0023 px across the two 15-pair Middlebury checks.
 
 </details>
 
