@@ -256,6 +256,9 @@ class DPTHead(nn.Module):
         pos_embed = position_grid_to_embed(pos_embed, x.shape[1])
         pos_embed = (pos_embed * ratio).to(x.dtype)  # fastforks: keep fp16 heads fp16 (no-op in fp32)
         pos_embed = pos_embed.permute(2, 0, 1)[None].expand(x.shape[0], -1, -1, -1)
+        # Both calls own the projection or resize result, so CUDA inference can reuse the larger buffer.
+        if x.is_cuda and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled()):
+            return x.add_(pos_embed)
         return x + pos_embed
 
     def scratch_forward(self, features: List[torch.Tensor]) -> torch.Tensor:

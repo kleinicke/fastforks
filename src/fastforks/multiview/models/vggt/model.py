@@ -338,6 +338,7 @@ class _Fast(_Base):
             raise RuntimeError(msg)
         ct = [None] * (len(toks) - 1) + [last.float()]
         pose = net.camera_head(ct)[-1]
+        del ct
         xh = x.to(self.dt)
         depth, depth_conf = net.depth_head(toks, images=xh, patch_start_idx=psi)
         pts, pts_conf = net.point_head(toks, images=xh, patch_start_idx=psi)
