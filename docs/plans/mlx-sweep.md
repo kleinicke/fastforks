@@ -451,3 +451,40 @@ The compile policy alone gave about 10-20 % on aanet, s2m2, nmrf, hitnet and coe
 1.8 GB, hitnet 592 ms / 1.0 GB). Winograd in kernels mode mostly doubles peak memory (transformed V/M tensors), so only
 the rows above that win are declared. `apple_mlx.json` is unchanged. Not done: fused GRU gates and correlation lookup,
 deformable-conv sample*mask kernel, hitnet 1-D grid_sample, sibling-conv merge.
+
+## Iterative-refinement nets (RAFT-style): buffer cache, not kernels
+
+Profile (`FF_MLX_PROFILE=1`, raft-stereo fp16 kernels, 994x1482): the per-iteration cost was 175 ms against about 40 ms
+for the same convolutions micro-benchmarked alone (Winograd 384->128 at 256x376: 6.9 ms; the profile showed 30 ms). Top
+ops: GRU 3x3 convs (384->128) 2.8 s, flow-head conv 0.6 s, elementwise 0.5 s, cat 0.5 s, encoder convs and batch-norm
+stats 1.2 s. The cause was the MLX buffer cache (128 MB limit since the memory pass): the loop allocates the same
+50-170 MB temporaries (Winograd V/M, cats) every step, and each one became a fresh Metal allocation with zero-filled
+pages. Raising the limit was worth more than any fusion (raft-stereo kernels, ms by cache MB: 128 7300, 512 6700,
+1024 5300, 1536 4800, 2048 4000). Layout (NCHW views of NHWC data) was checked and costs under 1.2 ms per op, and cat is
+1.3 ms, so fused GRU gates / merged convz+convr were not written: `mx.compile` already fuses the elementwise part
+and the convs sit at the conv ceiling (FLOP-bound, see the conv3x3 experiments).
+
+Change: `mlx_wrap.port(..., cache_mb=2048)` raises the cache limit when the runner is built; declared for raft-stereo,
+igev-stereo, raft, sea-raft, memflow, neuflow-v2. Goldens pass (also nafnet-gopro, wd-vit-tagger-v3). Survey, ms / peak MB, before -> after (MPS in brackets):
+
+| ref | mode | dtype | before | after | MPS |
+|---|---|---|---|---|---|
+| raft-stereo-sceneflow | kernels | fp16 | 7745 / 2772 | 4181 / 4678 | 3637 / 4720 (kernels) |
+| raft-stereo-sceneflow | kernels | fp32 | 10247 / 3947 | 5818 / 5590 | - |
+| raft-stereo-sceneflow | portable | fp16 | 9586 / 2885 | 5772 / 4708 | 3938 / 4695 |
+| raft-stereo-sceneflow | portable | fp32 | 11477 / 2989 | 8090 / 4729 | 4396 / 4713 |
+| igev-stereo-sceneflow | portable | fp16 | 9039 / 3041 | 6026 / 4931 | 5772 / 3819 |
+| igev-stereo-sceneflow | portable | fp32 | 10763 / 3195 | 6812 / 4599 | 6423 / 5872 |
+| raft-large | portable | fp16 | 3271 / 8609 | 2147 / 11100 | 2710 / 11644 |
+| raft-large | portable | fp32 | 3592 / 9668 | 2735 / 11424 | 2522 / 12889 |
+| sea-raft-m | portable | fp16 | 1785 / 5111 | 1395 / 6741 | 1635 / 9732 |
+| sea-raft-m | portable | fp32 | 2973 / 8955 | 2209 / 10723 | 1820 / 12542 |
+| neuflow-v2 | portable | fp32 | 1552 / 8929 | 1104 / 10753 | 1039 / 13354 |
+| memflow | portable | fp32 | 16607 / 9749 | 12980 / 11371 | 10016 / 12659 |
+
+Result: raft-large fp16 and sea-raft-m fp16 now beat MPS in speed and memory; igev-stereo fp32 beats MPS in both;
+raft-stereo kernels fp16 is within 15 % of MPS speed at equal memory. Still slower than MPS: raft-stereo fp32 and
+portable, igev fp16 (also +1.1 GB memory), neuflow, memflow, sea-raft fp32 (1.2-1.5x). Memory rose 1.6-2 GB because
+the cache is now resident. Remaining: the GRU convs are FLOP-bound at about 3 TFLOPS effective (MPS is faster per
+conv), so only a faster conv (fused Winograd GEMM) or fewer allocations (smaller V/M via banding) would close the gap;
+a per-family cache size below 2048 (igev, 768) was not tuned. For torch MPS: nothing trivial (its allocator caches).
