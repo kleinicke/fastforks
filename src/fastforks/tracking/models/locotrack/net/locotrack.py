@@ -248,7 +248,13 @@ def soft_argmax(heat: torch.Tensor, threshold: float = 5) -> torch.Tensor:
     yy, xx = torch.meshgrid(torch.arange(h, device=heat.device), torch.arange(w, device=heat.device), indexing="ij")
     coords = torch.stack([xx + 0.5, yy + 0.5], -1)  # [h, w, 2]
     pos = coords.reshape(-1, 2)[heat.reshape(b, n, t, -1).argmax(-1)]  # [b, n, t, 2]
-    valid = (coords - pos[:, :, :, None, None]).square().sum(-1, keepdim=True) < threshold**2
+    delta = coords - pos[:, :, :, None, None]
+    if heat.is_cuda and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled()):
+        delta.square_()
+    else:
+        delta = delta.square()
+    valid = delta.sum(-1, keepdim=True) < threshold**2
+    del delta
     weight = valid * heat[..., None]
     total = (coords * weight).sum((3, 4))
     return total / torch.clamp(weight.sum((3, 4)), min=1e-12)
@@ -308,9 +314,11 @@ class LocoTrack(nn.Module):
         t, b, n, h, w = cost_hires.shape
         interp = F.interpolate(cost.reshape(t * b * n, 1, *cost.shape[3:]), (h, w), mode="bilinear", align_corners=False)
         stack = torch.cat([interp, cost_hires.reshape(t * b * n, 1, h, w)], 1)  # [tbn, 2, h, w]
+        del cost, cost_hires, interp
         pos = self.cost_conv(stack).reshape(t, b, n, h, w).permute(1, 2, 0, 3, 4)
         heat = F.softmax(pos.reshape(b, n, t, -1) * SOFTMAX_TEMPERATURE, -1).view_as(pos)
         points = soft_argmax(heat) * torch.tensor([SIZE / w, SIZE / h], device=heat.device)
+        del pos, heat
         is_query = torch.round(queries[..., :1]) == torch.arange(t, device=queries.device)  # [B, N, T]
         points = torch.where(is_query[..., None], queries[:, :, None, 1:].flip(-1), points)
         occ = self.occ_linear(torch.cat([stack.mean((2, 3)), stack.amax((2, 3)), stack.amin((2, 3))], -1))
