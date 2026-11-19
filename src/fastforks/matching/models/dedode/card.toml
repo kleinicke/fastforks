@@ -61,7 +61,7 @@ weights = [
 
 [[variants]]
 id = "dedode-v2-g"  # DeDoDe-L v2 detector + DeDoDe-G descriptor (VGG19 + frozen DINOv2 ViT-L/14)
-planned = { tensorrt = "fixed 768 x 1024 engines lose 4.08 pose AUC@5 points in FP16 and 1.61 in FP32 on 300 MegaDepth pairs" }
+planned = { tensorrt = "the fixed 768 x 1024 FP32 engine with TF32 disabled gains 1.41 pose AUC@5 points on 300 MegaDepth pairs, but pose estimation fails on a pair that portable solves at 12.88 degrees" }
 revision = 1
 params = { descriptor = "G" }
 weights = [
