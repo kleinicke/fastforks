@@ -1119,7 +1119,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | inspyrenet-fast | 71.1 | 41.7 | 15.5 | 4.6x | 2.7x | 810 / 836 | 432 / 488 | 432 / 514 |
 | isnet | 38.5 | 21.0 | 12.1 | 3.2x | 1.7x | 993 / 1042 | 512 / 562 | 487 / 522 |
 | isnet-general-use | 38.5 | 21.0 | 12.1 | 3.2x | 1.7x | 993 / 1042 | 512 / 562 | 487 / 522 |
-| matanyone | 1220 | 1203 | 911 | 1.3x | 1.3x | 2978 / 3208 | 2273 / 2728 | 2268 / 2706 |
+| matanyone | 1220 | 966 | 911 | 1.3x | 1.1x | 2978 / 3208 | 2268 / 2726 | 2268 / 2706 |
 | rmbg-2.0 | 149 | 133 | 121 | 1.2x | 1.1x | 1672 / 1990 | 1165 / 1288 | 1145 / 1296 |
 | u2net | 15.9 | 9.77 | 5.18 | 3.1x | 1.9x | 476 / 502 | 240 / 278 | 161 / 236 |
 | u2net-human-seg | 16.0 | 10.0 | 5.14 | 3.1x | 2.0x | 476 / 502 | 240 / 278 | 161 / 236 |
@@ -2393,7 +2393,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | inspyrenet-fast | 1080x1920 | 41.7 ms | 17.7 ms | 6.99 ms | 15.5 ms | 76.6 s | 138 s | 432 / 488 | 345 / 376 | 432 / 514 | 561 / 600 |
 | isnet | 1080x1920 | 21.0 ms | 13.1 ms | 6.70 ms | 12.1 ms | 33.8 s | 34.4 s | 512 / 562 | 350 / 400 | 487 / 522 | 404 / 436 |
 | isnet-general-use | 1080x1920 | 21.0 ms | 13.1 ms | 6.66 ms | 12.1 ms | 33.9 s | 32.3 s | 512 / 562 | 350 / 400 | 487 / 522 | 404 / 436 |
-| matanyone | 1080x1920 | 1203 ms | 635 ms | fails: BackendUnavailableError: matanyone@1 (portable) has no expor | 911 ms | 35.9 s | – | 2273 / 2728 | 1363 / 3452 | 2268 / 2706 | – |
+| matanyone | 1080x1920 | 966 ms | 635 ms | fails: BackendUnavailableError: matanyone@1 (portable) has no expor | 911 ms | 35.9 s | – | 2268 / 2726 | 1363 / 3452 | 2268 / 2706 | – |
 | matanyone | 288x512 | – | – | 1476 ms, fp32 engine (frame and key encoder with eager video memory and alpha decoder, 100 frames) | – | – | 15.8 s | – | – | – | 474 / 542 |
 | rmbg-2.0 | 1080x1920 | 133 ms | 110 ms | 88.1 ms | 121 ms | 82.9 s | 219 s | 1165 / 1288 | 1874 / 1932 | 1145 / 1296 | 1723 / 1784 |
 | u2net | 1080x1920 | 9.77 ms | 9.09 ms | 3.07 ms | 5.18 ms | – | 36.0 s | 240 / 278 | 221 / 258 | 161 / 236 | 335 / 390 |

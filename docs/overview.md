@@ -328,7 +328,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`rmbg-2.0`](models/matting.md#birefnet) | no | – | 149.0 (1080x1920) | 132.9 | 120.8 | 1.2x vs original (1080x1920) | 1145 |
 | [`birefnet`](models/matting.md#birefnet) | yes | 0.0325 | 234.4 (1080x1920) | 132.9 | 120.9 | 1.9x vs original (1080x1920) | 1145 |
 | [`vitmatte-b`](models/matting.md#vitmatte) | yes | – | 257.3 (1080x1920) | 180.5 | 145.5 | 1.8x vs original (1080x1920) | 747 |
-| [`matanyone`](models/matting.md#matanyone) | no | – | 1219.9 (1080x1920) | 1202.5 | 910.7 | 1.3x vs original (1080x1920) | 2268 |
+| [`matanyone`](models/matting.md#matanyone) | no | – | 1219.9 (1080x1920) | 966.4 | 910.7 | 1.3x vs original (1080x1920) | 2268 |
 
 ## Edges
 
