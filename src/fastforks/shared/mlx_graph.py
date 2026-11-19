@@ -25,6 +25,7 @@ import math
 import mmap
 import operator
 import os
+import time
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -292,6 +293,10 @@ def _grid_sample(
         raise UnsupportedOp(msg)
     n, c, h, w = x.shape
     ho, wo = grid.shape[1:3]
+    if _KERNELS:
+        from fastforks.kernels.graph_mlx import ops
+
+        return _nchw(ops.grid_sample(_nhwc(x), grid, align_corners=align_corners, border=padding_mode == 1))
     g = grid.astype(mx.float32)
 
     def unnormalize(v: mx.array, size: int) -> mx.array:
@@ -775,12 +780,20 @@ def _batch_norm_batch_stats(
     if not training:
         msg = "batch norm without statistics outside training"
         raise UnsupportedOp(msg)
-    axes = tuple(i for i in range(x.ndim) if i != 1)
-    xf = x.astype(mx.float32)
-    mean = mx.mean(xf, axis=axes, keepdims=True)
-    var = mx.var(xf, axis=axes, keepdims=True)
-    y = ((xf - mean) * mx.rsqrt(var + eps)).astype(x.dtype)
     shape = [1, -1] + [1] * (x.ndim - 2)
+    c = x.shape[1]
+    xl = mx.moveaxis(x, 1, -1)  # the statistics over the channels-last view: the layout convolutions leave behind
+    flat = xl.reshape(-1, c)
+    if _KERNELS and flat.shape[0] >= 4096:  # noqa: PLR2004
+        from fastforks.kernels.graph_mlx import ops
+
+        mean, var = ops.channel_stats(flat)
+    else:
+        ff = flat.astype(mx.float32)
+        mean = mx.mean(ff, axis=0)
+        var = mx.maximum(mx.mean(mx.square(ff - mean), axis=0), 0)
+    y = ((xl.astype(mx.float32) - mean) * mx.rsqrt(var + eps)).astype(x.dtype)
+    y = mx.moveaxis(y, -1, 1)
     if w is not None:
         y = y * w.reshape(shape)
     if b is not None:
@@ -1248,6 +1261,22 @@ def _bilinear(x: mx.array, size: Sequence[int] | None, align: bool, *scales: Any
     return top * (1 - wy) + bot * wy
 
 
+@_reg(aten.upsample_trilinear3d.vec)
+def _trilinear(x: mx.array, size: Sequence[int] | None, align: bool, scales: Sequence[float] | None = None) -> mx.array:  # noqa: FBT001
+    from fastforks.kernels.graph_mlx.ops import trilinear
+
+    shape = x.shape[2:]
+    out = tuple(size) if size is not None else tuple(int(s * f) for s, f in zip(shape, scales, strict=True))
+
+    def ratio(o: int, i: int, f: float | None) -> float:
+        if align:
+            return (i - 1) / (o - 1) if o > 1 else 0.0
+        return (1.0 / f) if (f and size is None) else i / o
+
+    fs = scales if scales is not None else (None,) * 3
+    return trilinear(x, out, tuple(ratio(o, i, f) for o, i, f in zip(out, shape, fs, strict=True)), align=align)  # type: ignore[arg-type]
+
+
 def _cubic(t: np.ndarray) -> np.ndarray:
     """PyTorch's bicubic filter (a = -0.5)."""
     t = np.abs(t)
@@ -1384,6 +1413,29 @@ def _tensor_dtype(dtype: mx.Dtype, t: torch.Tensor) -> mx.Dtype | None:
     return dtype if t.is_floating_point() else None
 
 
+PROFILE: dict[tuple[str, str], list[float]] | None = {} if os.environ.get("FF_MLX_PROFILE") else None
+
+
+def _profiled(
+    env: dict[str, Any], name: str, f: Callable[..., Any], args: Any, kwargs: Any, get: Callable[..., Any]
+) -> None:  # noqa: ANN401
+    """Profiling (`FF_MLX_PROFILE=1`): one op evaluated on its own; time and call count per op and output shape."""
+    a = [get(env, x) for x in args]
+    kw = {k: get(env, v) for k, v in kwargs.items()}
+    mx.eval([x for x in a if isinstance(x, mx.array)])
+    t0 = time.perf_counter()
+    out = f(*a, **kw)
+    mx.eval(out)
+    dt = time.perf_counter() - t0
+    env[name] = out
+    first = out[0] if isinstance(out, (tuple, list)) and out else out
+    shape = tuple(first.shape) if isinstance(first, mx.array) else ()
+    ins = ",".join(str(tuple(x.shape)) for x in a[:2] if isinstance(x, mx.array))
+    rec = PROFILE.setdefault((getattr(f, "__name__", str(f)), f"{ins}->{shape}"), [0.0, 0])  # type: ignore[union-attr]
+    rec[0] += dt
+    rec[1] += 1
+
+
 class GraphNet:
     """An eval-mode `torch.nn.Module` run on MLX: `net(*tensors) -> tuple of float32 CPU tensors`.
 
@@ -1462,6 +1514,7 @@ class GraphNet:
             for keep in (
                 aten.scaled_dot_product_attention.default,
                 aten.upsample_bilinear2d.vec,
+                aten.upsample_trilinear3d.vec,
                 aten.linalg_vector_norm.default,
             ):
                 decomp.pop(keep, None)
@@ -1658,6 +1711,8 @@ class GraphNet:
         compiled = self._compile and self.max_act <= COMPILE_MAX_ACT
         if os.environ.get("FF_MLX_COMPILE"):
             compiled = os.environ["FF_MLX_COMPILE"] == "1"
+        if PROFILE is not None:
+            compiled = False
 
         def get(env: dict[str, Any], a: Any) -> Any:  # noqa: ANN401
             if isinstance(a, _Name) or (hasattr(a, "name") and hasattr(a, "op")):
@@ -1682,6 +1737,8 @@ class GraphNet:
                     _, name, f, args, kwargs = p
                     if f is operator.getitem:
                         env[name] = env[args[0].name][args[1]]
+                    elif PROFILE is not None:
+                        _profiled(env, name, f, args, kwargs, get)
                     else:
                         env[name] = f(*[get(env, a) for a in args], **{k: get(env, v) for k, v in kwargs.items()})
                 return tuple(env[n] for n in outs)

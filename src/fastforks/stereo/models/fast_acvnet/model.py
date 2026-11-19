@@ -13,6 +13,7 @@ from fastforks.kernels import acv_volume, cudnn_hacc
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Forward, Runner
+from fastforks.stereo._volume import stacked_volume
 
 from .net.fast_acv import Fast_ACVNet
 from .net.fast_acv_plus import Fast_ACVNet_plus
@@ -60,6 +61,8 @@ def norm_correlation_volume(fl: torch.Tensor, fr: torch.Tensor, d: int, groups: 
     """
     xl, xr = _normalized(fl, groups), _normalized(fr, groups)
     b, g, _, h, w = xl.shape
+    if torch.compiler.is_exporting():
+        return stacked_volume(xl, xr, d, lambda a, c: (a * c).mean(dim=2))
     volume = xl.new_zeros((b, g, d, h, w))
     for i in range(min(d, w)):  # disparities >= width: no overlap, stays zero
         volume[:, :, i, :, i:] = (xl[..., i:] * xr[..., : w - i]).mean(dim=2)

@@ -271,6 +271,10 @@ class GetCostVolume(nn.Module):
                                padding_mode='zeros', align_corners=True).view(bs, channels, ndisp, height, width)  #(B, C, D, H, W)
 
 
+        if torch.compiler.is_exporting():  # functional: one multiply, no in-place write into a transposed copy
+            keep = (mw >= disp_range_samples)[:, None]  # (B, 1, D, H, W)
+            return x.unsqueeze(2) * keep.to(x.dtype), y_warped
+
         # a littel difference, no zeros filling
         x_warped = x.unsqueeze(2).repeat(1, 1, ndisp, 1, 1) #(B, C, D, H, W)
         x_warped = x_warped.transpose(0, 1) #(C, B, D, H, W)
@@ -284,9 +288,10 @@ class GetCostVolume(nn.Module):
         assert (x.is_contiguous() == True)
         bs, channels, height, width = x.size()
 
-        concat_cost = x.new().resize_(bs, channels * 2, ndisp, height, width).zero_()  # (B, 2C, D, H, W)
-
         x_warped, y_warped = self.get_warped_feats(x, y, disp_range_samples, ndisp)
+        if torch.compiler.is_exporting():
+            return torch.cat((x_warped, y_warped), 1)
+        concat_cost = x.new().resize_(bs, channels * 2, ndisp, height, width).zero_()  # (B, 2C, D, H, W)
         concat_cost[:, x.size()[1]:, :, :, :] = y_warped
         concat_cost[:, :x.size()[1], :, :, :] = x_warped
 

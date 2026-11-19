@@ -1,5 +1,6 @@
 from __future__ import print_function
 import torch
+from fastforks.stereo._volume import concat_fn, stacked_volume
 import torch.nn as nn
 import torch.utils.data
 from torch.autograd import Variable
@@ -139,6 +140,8 @@ def disparity_variance_confidence(x, disparity_samples, disparity):
     return torch.sum(x * disp_values, 1, keepdim=True)
 
 def build_concat_volume(refimg_fea, targetimg_fea, maxdisp):
+    if torch.compiler.is_exporting():
+        return stacked_volume(refimg_fea, targetimg_fea, maxdisp, concat_fn)
     B, C, H, W = refimg_fea.shape
     volume = refimg_fea.new_zeros([B, 2 * C, maxdisp, H, W])
     for i in range(maxdisp):
@@ -169,6 +172,8 @@ def groupwise_correlation_4D(fea1, fea2, num_groups):
 
 
 def build_gwc_volume(refimg_fea, targetimg_fea, maxdisp, num_groups):
+    if torch.compiler.is_exporting():
+        return stacked_volume(refimg_fea, targetimg_fea, maxdisp, lambda a, b: groupwise_correlation(a, b, num_groups))
     B, C, H, W = refimg_fea.shape
     volume = refimg_fea.new_zeros([B, num_groups, maxdisp, H, W])
     for i in range(maxdisp):
