@@ -448,14 +448,17 @@ class HourGlass(nn.Module):
         x = self.conv_patch(x)
         if atts_before_upsample:
             x = self.atts["cost_vol_disp"](x)
-            x = F.interpolate(x, scale_factor=4, mode="trilinear", align_corners=False)
+            conv = conv + F.interpolate(x, scale_factor=4, mode="trilinear", align_corners=False)
         else:
-            x = F.interpolate(x, scale_factor=4, mode="trilinear", align_corners=False)
-            x = self.atts["cost_vol_disp"](x)
-        conv = conv + x
+            conv = self.merge_attention(conv, x)
         del x  # FastForks: the attention volume is no longer needed by the final 3D convolutions.
         conv = self.conv_out(conv)
         return conv
+
+    def merge_attention(self, conv: torch.Tensor, patches: torch.Tensor) -> torch.Tensor:
+        """Upsample patches and add their disparity attention to the decoder output."""
+        x = F.interpolate(patches, scale_factor=4, mode="trilinear", align_corners=False)
+        return conv + self.atts["cost_vol_disp"](x)
 
 
 class PositionalEmbedding(nn.Module):
