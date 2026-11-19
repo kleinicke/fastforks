@@ -2160,6 +2160,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | great-igev-eth3d | 994x1482 | 1085 ms | 829 ms | 940 ms | 397 ms | 224 s | 685 s | 1402 / 1678 | 2831 / 3362 | 1134 / 1302 | 6151 / 6172 |
 | great-igev-kitti | 994x1482 | 1085 ms | 830 ms | 942 ms | 396 ms | 225 s | 687 s | 1402 / 1678 | 2831 / 3362 | 1134 / 1302 | 6155 / 6234 |
 | great-igev-middlebury | 994x1482 | 1785 ms | 1676 ms | fails: AttributeError: 'NoneType' object has no attribute 'get_tens | 580 ms | 326 s | – | 1875 / 2078 | 5228 / 5720 | 1472 / 1642 | – |
+| great-igev-middlebury | 375x1242 | 492 ms | – | 3697 ms, fp32 engine (MobileNetV2 feature pyramid with eager stereo inference) | 176 ms | – | 13.1 s | 1165 / 1298 | – | 1060 / 1144 | 2388 / 4022 |
 | great-igev-sceneflow | 994x1482 | 1085 ms | 830 ms | 944 ms | 397 ms | 224 s | 675 s | 1402 / 1678 | 2831 / 3362 | 1134 / 1302 | 6155 / 6234 |
 | gwcnet-g-sceneflow | 994x1482 | 344 ms | 417 ms | 275 ms | 238 ms | 52.6 s | 66.0 s | 2081 / 2402 | 1527 / 1864 | 1799 / 2102 | 3634 / 3648 |
 | gwcnet-gc-sceneflow | 994x1482 | 353 ms | 420 ms | 669 ms | 257 ms | 83.8 s | 117 s | 2082 / 2402 | 1774 / 2246 | 1768 / 1962 | 2732 / 2786 |

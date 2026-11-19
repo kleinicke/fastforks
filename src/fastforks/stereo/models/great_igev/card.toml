@@ -7,6 +7,7 @@ uses = ["cnn_kernels", "cuda_graphs", "igev_blocks", "mobilenetv2"]  # fastforks
 
 limitations = [
   "For the Middlebury weights, the nominal TensorRT plan failed to allocate an execution context. A smaller 384 x 640 ONNX export with 32 iterations exceeded the 228-second limit both with and without ONNX optimization.",
+  "The fixed 375 x 1242 FP32 TensorRT measurement uses the MobileNetV2 feature pyramid with eager stereo inference. Across all 15 Middlebury trainingH center crops, the largest change in non-occluded disparity EPE was 0.00098 px. Latency was 3.697 s versus 3.704 s for portable.",
 ]
 
 [upstream]

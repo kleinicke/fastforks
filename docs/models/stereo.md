@@ -844,6 +844,7 @@ Commercial use: yes.
 | `great-igev-kitti` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2252<br>1458<br>1085<br>396<br>830<br>942 | 8964 / 9268<br>8861 / 9206<br>1402 / 1678<br>1134 / 1302<br>2831 / 3362<br>6155 / 6234 |
 | `great-igev-eth3d` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2252<br>1458<br>1085<br>397<br>829<br>940 | 8964 / 9268<br>8861 / 9206<br>1402 / 1678<br>1134 / 1302<br>2831 / 3362<br>6151 / 6172 |
 | `great-igev-middlebury` (max_disp 768) | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>1785<br>580<br>1676<br>fails: AttributeError: 'NoneType' object has no attribute 'get_tens | –<br>–<br>1875 / 2078<br>1472 / 1642<br>5228 / 5720<br>– |
+| `great-igev-middlebury` (max_disp 768) | KITTI 2015 (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT fp32 | 1055<br>705<br>492<br>176<br>3697 (MobileNetV2 feature pyramid with eager stereo inference) | 10755 / 10968<br>10728 / 10974<br>1165 / 1298<br>1060 / 1144<br>2388 / 4022 |
 
 <details><summary>Details</summary>
 
@@ -865,6 +866,7 @@ Commercial use: yes.
 - `great-igev-kitti` 994x1482, first call: portable + torch.compile 225 s (cold Inductor cache), TensorRT fp16 687 s (ONNX + engine).
 - `great-igev-eth3d` 994x1482, first call: portable + torch.compile 224 s (cold Inductor cache), TensorRT fp16 685 s (ONNX + engine).
 - `great-igev-middlebury` 994x1482, first call: portable + torch.compile 326 s (cold Inductor cache).
+- `great-igev-middlebury` 375x1242, first call: TensorRT fp32 13 s (ONNX + engine).
 - `great-igev-sceneflow` original (fp32) 994x1482, original 994x1482, portable 994x1482: measured on great-igev-eth3d (same architecture, other checkpoint)
 - `great-igev-kitti` original (fp32) 994x1482, original 994x1482, portable 994x1482: measured on great-igev-eth3d (same architecture, other checkpoint)
 - `great-igev-sceneflow` load / first call: original 0.44 s / 4.596 s (375x1242), portable 0.32 s / 1.102† s, kernels 0.64 s / 0.702 s (375x1242)
@@ -876,20 +878,21 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the original code named under Details, same checkpoint and protocol.
+Use all 15 trainingH pairs with a shared centre crop and edge padding. Score valid non-occluded pixels and exclude right-image correspondences outside the crop. Average the per-pair endpoint error and share of pixels with error above 2 pixels. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `great-igev-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 4.48 / 0.364 | 4.41 / 0.363 | 4.43 / 0.364 | 4.45 / 0.364 | 4.44 / 0.364 |  |
-| `great-igev-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.22 / 2.710 | 11.19 / 2.698 | 11.14 / 2.687 | 11.20 / 2.706 | 11.16 / 2.691 |  |
-| `great-igev-kitti` | ETH3D two-view train, bad > 1 px % / EPE | 23.35 / 3.115 | 23.36 / 3.116 | 23.37 / 3.113 | 23.37 / 3.120 | 23.36 / 3.121 |  |
-| `great-igev-kitti` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 17.99 / 4.677 | 18.00 / 4.679 | 17.98 / 4.670 | 17.99 / 4.679 | 18.00 / 4.676 |  |
-| `great-igev-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 0.49 / 0.116 | 0.49 / 0.117 | 0.49 / 0.118 | 0.50 / 0.116 | 0.49 / 0.118 | trained on this dataset's public images; not a zero-shot result |
-| `great-igev-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.20 / 2.894 | 11.21 / 2.903 | 11.19 / 2.946 | 11.19 / 2.923 | 11.21 / 2.883 | possibly in the training data |
-| `great-igev-middlebury` | ETH3D two-view train, bad > 1 px % / EPE | 27.42 / 1.133 | 27.43 / 1.134 | 27.44 / 1.131 | 27.40 / 1.132 | 27.53 / 1.135 | possibly in the training data |
-| `great-igev-middlebury` | Middlebury 2014 trainingH, bad > 2 px % / EPE | out of memory | out of memory | 4.14 / 0.707 | 4.11 / 0.707 | 4.14 / 0.708 | trained on this dataset's public images; not a zero-shot result |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `great-igev-sceneflow` | ETH3D two-view train, bad > 1 px % / EPE | 4.48 / 0.364 | 4.41 / 0.363 | 4.43 / 0.364 | 4.45 / 0.364 | 4.44 / 0.364 |  |  |
+| `great-igev-sceneflow` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.22 / 2.710 | 11.19 / 2.698 | 11.14 / 2.687 | 11.20 / 2.706 | 11.16 / 2.691 |  |  |
+| `great-igev-kitti` | ETH3D two-view train, bad > 1 px % / EPE | 23.35 / 3.115 | 23.36 / 3.116 | 23.37 / 3.113 | 23.37 / 3.120 | 23.36 / 3.121 |  |  |
+| `great-igev-kitti` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 17.99 / 4.677 | 18.00 / 4.679 | 17.98 / 4.670 | 17.99 / 4.679 | 18.00 / 4.676 |  |  |
+| `great-igev-eth3d` | ETH3D two-view train, bad > 1 px % / EPE | 0.49 / 0.116 | 0.49 / 0.117 | 0.49 / 0.118 | 0.50 / 0.116 | 0.49 / 0.118 |  | trained on this dataset's public images; not a zero-shot result |
+| `great-igev-eth3d` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.20 / 2.894 | 11.21 / 2.903 | 11.19 / 2.946 | 11.19 / 2.923 | 11.21 / 2.883 |  | possibly in the training data |
+| `great-igev-middlebury` | ETH3D two-view train, bad > 1 px % / EPE | 27.42 / 1.133 | 27.43 / 1.134 | 27.44 / 1.131 | 27.40 / 1.132 | 27.53 / 1.135 |  | possibly in the training data |
+| `great-igev-middlebury` | Middlebury 2014 trainingH, bad > 2 px % / EPE | out of memory | out of memory | 4.14 / 0.707 | 4.11 / 0.707 | 4.14 / 0.708 |  | trained on this dataset's public images; not a zero-shot result |
+| `great-igev-middlebury` | Middlebury 2014 trainingH, fixed 375 x 1242, bad > 2 px % / EPE |  |  |  | 2.47 / 0.521 |  | 2.46 / 0.522 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10 / 938a6cc7, 2026-11-05 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 938a6cc7, 2026-11-19.
 
 ### Parity
 
@@ -905,6 +908,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 ### Limitations
 
 - For the Middlebury weights, the nominal TensorRT plan failed to allocate an execution context. A smaller 384 x 640 ONNX export with 32 iterations exceeded the 228-second limit both with and without ONNX optimization.
+- The fixed 375 x 1242 FP32 TensorRT measurement uses the MobileNetV2 feature pyramid with eager stereo inference. Across all 15 Middlebury trainingH center crops, the largest change in non-occluded disparity EPE was 0.00098 px. Latency was 3.697 s versus 3.704 s for portable.
 
 </details>
 
