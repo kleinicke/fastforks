@@ -590,3 +590,34 @@ Survey and goldens: compact, realplksr, span, realesrgan, nafnet-gopro, wd-vit-t
 Declaring a kernels mode for hitnet-eth3d (994x1482): portable 800 / 592 ms (fp32 / fp16), kernels 1004 / 746 ms, so it
 is slower and was not declared. aanet, s2m2, dlnr and the SR nets were not declared either: earlier runs showed memory
 roughly doubling for the stereo group, and the portable path is already the faster one.
+
+## Net-level graph runner pass (commit 9373e1d2)
+
+Profiled realesrgan-x4plus (512x512), hitnet-eth3d (994x1482) and big-lama (512x512) with `FF_MLX_PROFILE=1`. Finding:
+convs return `_nchw(y)`, a transposed view of NHWC data, so every following elementwise op ran a strided (3-8x slower)
+kernel, wrote NCHW, and the next conv copied it back to NHWC; `cat` along dim 1 materialised NCHW. In realesrgan the
+elementwise and cat ops cost about 2 s of a 6.9 s unfused forward.
+
+Fix (`mlx_graph.py`): values that are conv outputs (or elementwise/cat/pad/view ops of such values) are tagged and those
+ops run on the channels-last view (`CL_OPS`, `_channels_last_values`). A blanket rule was worse (hitnet 612 -> 715 ms),
+since genuinely NCHW tensors got strided access, hence the tagging. `FF_MLX_NO_CL=1` disables it.
+
+M1 Pro 16 GB, portable, survey numbers (goldens pass):
+
+| Net | dtype | before ms | after ms | MPS ms |
+|---|---|---|---|---|
+| realesrgan-x4plus | fp16 | 6604 | 5578 | 2066 |
+| realesrgan-x4plus | fp32 | n/a | 9413 | n/a |
+| hitnet-eth3d | fp32 / fp16 | 800 / 612 (fp16 harness) | 723 / 572 | see survey |
+| big-lama | fp32 / fp16 | 370 (harness) | 343 / 321 | see survey |
+
+Allocator cache (`FASTFORKS_MLX_CACHE_MB`, default 128) on realesrgan portable fp16: 128 -> 5613 ms, 2048 -> 4591 ms
+(peak GPU 1576 MB). Not shipped as a default: the gain is net-specific and costs resident memory.
+
+Forced Winograd on realesrgan (fp16, post-CL): cache 1024 gives 2760 ms but footprint 4.5 GB (MPS 2.5 GB); cache <= 512
+falls to about 4650 ms (a cliff). With `FF_MLX_CHUNK_MB=1024` 2509 ms (133 -> 37 evals). A per-eval trace shows peak GPU
+5.9 GB comes from the final segment (the 2048x2048 upsampling convs), not the cache: Winograd transients at that size
+dominate. `MLX_MAX_MB_PER_BUFFER=16` has no effect. Kernels mode for realesrgan stays undeclared (memory above MPS).
+
+Not done: leaky-ReLU fusion into the conv act (`_fuse_activations` only matches ReLU/PReLU), incremental transform of
+dense-block concats, layout propagation through norm/pool ops, a torch/MPS channels_last equivalent.
