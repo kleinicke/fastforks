@@ -566,7 +566,7 @@ CPU, float32: max |diff| <= 3e-05 vs the original. GPU, float32 (the default), p
 
 - Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.
 - One image pair per call internally (batches run pair by pair); the keypoint counts differ per image.
-- No exportable module: the keypoint counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).
+- Whole-model ONNX and TensorRT export stops at the data-dependent keypoint counts. `torch.compile` runs with graph breaks.
 - `xfeat` (mutual nearest neighbours) has no learned confidence: its scores are the descriptors' cosine similarities.
 
 </details>

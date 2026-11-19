@@ -7,7 +7,7 @@ uses = ["cuda_graphs", "lightglue"]  # fastforks.shared modules this family impo
 limitations = [
   "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.",
   "One image pair per call internally (batches run pair by pair); the keypoint counts differ per image.",
-  "No exportable module: the keypoint counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).",
+  "Whole-model ONNX and TensorRT export stops at the data-dependent keypoint counts. `torch.compile` runs with graph breaks.",
   "`xfeat` (mutual nearest neighbours) has no learned confidence: its scores are the descriptors' cosine similarities.",
 ]
 
@@ -54,7 +54,7 @@ weights = [{ name = "xfeat.pt", size = 6247949, sha256 = "0f5187fd7bedd26c7fe6ac
 
 [[variants]]
 id = "xfeat-lighterglue"  # XFeat + LighterGlue (upstream match_lighterglue, min_conf 0.1)
-planned = { onnx = "torch.export stops at a data-dependent branch (NMS / keypoint selection)", tensorrt = "the staged CNN raises pose AUC@5 from 40.92 to 41.41 on 300 MegaDepth pairs. One pose error rises from 35.50 to the 90-degree failure value." }
+planned = { onnx = "torch.export stops at a data-dependent branch (NMS / keypoint selection)", tensorrt = "the staged CNN raises pose AUC@5 from 40.92 to 41.41 on 300 MegaDepth pairs. One pose error rises from 35.50 to the 90-degree failure value, including with TF32 disabled." }
 revision = 1
 params = { matcher = "lighterglue", detection_threshold = 0.05 }
 weights = [{ name = "xfeat.pt", size = 6247949, sha256 = "0f5187fd7bedd26c7fe6acc9685444493a165a35ecc087b33c2db3627f3ea10b", url = "https://github.com/verlab/accelerated_features/raw/e92685f57f8318b18725c5c8c0bd28c7fe188d9a/weights/xfeat.pt" }, { name = "xfeat-lighterglue.pt", size = 10820795, sha256 = "766102df37f11189efe5b0811d1f47c72b22629b79bfabfcfff9d2a2f84654b8", url = "https://github.com/verlab/accelerated_features/raw/e92685f57f8318b18725c5c8c0bd28c7fe188d9a/weights/xfeat-lighterglue.pt" }]
