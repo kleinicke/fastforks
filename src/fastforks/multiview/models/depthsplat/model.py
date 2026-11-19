@@ -41,7 +41,7 @@ from fastforks.multiview._runner import Forward, Runner, f64, invert, project_ha
 from fastforks.shared.depth_anything_v2 import use_fast_vit
 
 from .net.dpt_head import DPTHead
-from .net.matching import projected_grid, reference_cost_volume
+from .net.matching import projected_grid, projected_rays, reference_cost_volume
 from .net.mv_unimatch import MultiViewUniMatch
 
 if TYPE_CHECKING:
@@ -327,11 +327,23 @@ def _chunked_cost_volume(  # noqa: PLR0913, PLR0917 - MultiViewUniMatch hook
     # grid_sample and the subsequent multiply each produce this many bytes per depth plane.
     bytes_per_plane = targets.numel() * targets.element_size()
     chunk = max(1, _PORTABLE_WARP_BYTES // bytes_per_plane)
+    reuse_warp = ref.is_cuda and not (
+        torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled()
+    )
     if chunk >= candidates.shape[1]:
-        return reference_cost_volume(ref, targets, k, poses, candidates, grid_sample_disable_cudnn)
+        return reference_cost_volume(
+            ref, targets, k, poses, candidates, grid_sample_disable_cudnn, reuse_warp=reuse_warp
+        )
+    rays = None
+    if reuse_warp:
+        n = targets.shape[1]
+        camera = k.unsqueeze(1).expand(-1, n, -1, -1).reshape(-1, 3, 3)
+        rays = projected_rays(camera, poses.flatten(0, 1), *targets.shape[-2:])
     return torch.cat(
         [
-            reference_cost_volume(ref, targets, k, poses, part, grid_sample_disable_cudnn)
+            reference_cost_volume(
+                ref, targets, k, poses, part, grid_sample_disable_cudnn, rays=rays, reuse_warp=reuse_warp
+            )
             for part in candidates.split(chunk, dim=1)
         ],
         dim=1,
