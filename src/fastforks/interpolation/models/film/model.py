@@ -66,9 +66,17 @@ def _taps(flow: torch.Tensor, dtype: torch.dtype, *, other: bool) -> tuple[torch
     x0, y0 = px.floor().clamp(max=max(w - 2, 0)), py.floor().clamp(max=max(h - 2, 0))
     wx, wy = (px - x0).view(-1, 1, 1), (py - y0).view(-1, 1, 1)
     weights = (torch.cat((1 - wy, wy), 1) * torch.cat((1 - wx, wx), 2)).view(-1, 4).to(dtype)
-    sample = torch.arange(n, device=dev).view(n, 1, 1)
+    # CUDA embedding_bag accepts int32, including its flattened bag offsets.
+    use_int32 = (
+        flow.is_cuda
+        and not torch.compiler.is_compiling()
+        and torch.is_inference_mode_enabled()
+        and n * h * w * 4 <= 2**31 - 1
+    )
+    index_dtype = torch.int32 if use_int32 else torch.int64
+    sample = torch.arange(n, device=dev, dtype=index_dtype).view(n, 1, 1)
     base = ((sample + n // 2) % n if other else sample) * (h * w)
-    i00 = (base + y0.long() * w + x0.long()).view(-1)
+    i00 = (base + y0.to(index_dtype) * w + x0.to(index_dtype)).view(-1)
     dx, dy = int(w > 1), w * int(h > 1)
     return torch.stack((i00, i00 + dx, i00 + dy, i00 + dx + dy), 1), weights
 
@@ -155,6 +163,7 @@ class _Fusion(torch.nn.Module):
         for up, merge, refine, pieces in zip(self.up, self.merge, self.refine, pyramid[-2::-1], strict=True):
             upsampled = F.pixel_shuffle(up(F.pad(net, (0, 1, 0, 1))), 2).permute(0, 2, 3, 1)
             net = _nchw(torch.cat((*pieces, upsampled), -1))
+            del upsampled
             pieces.clear()  # the warped level is in the cat now
             net = F.leaky_relu(merge(net), 0.2, inplace=True)
             net = F.leaky_relu(refine(net), 0.2, inplace=True)
@@ -244,6 +253,7 @@ def _interpolate(net: Interpolator, image1: torch.Tensor, image2: torch.Tensor, 
         fl = f.to(dtype).permute(0, 2, 3, 1)
         zeros = fl.new_zeros(()).expand(b, *fl.shape[1:3], pad)
         pyramid.append([wi[:b], wf[:b], wi[b:], wf[b:], fl[:b], fl[b:], zeros])  # warped 1, warped 2, flows
+        del wi, wf, fl, zeros, taps, f
     del images, feats, flows
     return fuse(pyramid).float()
 
