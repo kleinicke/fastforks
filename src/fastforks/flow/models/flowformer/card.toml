@@ -4,7 +4,11 @@ summary = "FlowFormer Small (ECCV 2022): convolutional features, a latent cost-m
 tier = "experimental"
 outputs = ["flow"]
 uses = ["libnet"]
-limitations = ["Only the Small architecture is included.", "Portable runs float32 (the validated dtype): 338 ms and 1410 MB at 375x1242 against 303 ms and 2382 MB for the fp16-autocast original (EPE identical to the float32 original); switching the default to fp16 needs a full accuracy re-validation.", "Full-frame cost memory grows quadratically with input area; upstream tiled evaluation is not included. Full-frame 1080p exceeded the RTX 5060 Ti 16GB memory in portable and original fp32/fp16 runs."]
+limitations = [
+  "Only the Small architecture is included.",
+  "Default CUDA inference uses the validated float32 precision. The optional float16 portable path requires separate accuracy validation.",
+  "Full-frame cost memory grows quadratically with input area. The measured Small Chairs checkpoint uses less than 9 GiB of reserved CUDA memory at 1080p float32 in both native modes on the RTX 5060 Ti.",
+]
 
 [upstream]
 repo = "https://github.com/drinkingcoder/FlowFormer-Official"

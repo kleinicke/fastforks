@@ -674,10 +674,10 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`memflow-sintel`](models/flow.md#memflow) | yes | 1.218 † | 3214.2 (1080x1920) | 964.5 | 864.5 | 3.7x vs original (1080x1920) | 968 |
 | [`memflow-kitti`](models/flow.md#memflow) | yes | 0.600 † | 3247.3 (1080x1920) | 964.7 | 864.6 | 3.8x vs original (1080x1920) | 968 |
 | [`memflow`](models/flow.md#memflow) | yes | 4.103 | 3115.6 (1080x1920) | 964.5 | 864.8 | 3.6x vs original (1080x1920) | 968 |
-| [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | yes | 0.570 † | 2187.8 (1080x1920) | 1404.9 | 1408.1 | 1.6x vs original (1080x1920) | 3005 |
+| [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | yes | 0.570 † | 2187.8 (1080x1920) | 1383.3 | 1388.5 | 1.6x vs original (1080x1920) | 3005 |
 | [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | yes | 4.917 | 2175.1 (1080x1920) | 1477.8 | 1480.6 | 1.5x vs original (1080x1920) | 4036 |
 | [`memfof-sintel`](models/flow.md#memfof) | yes | 2.977 † | OOM (1080x1920) | 2196.7 | 1554.9 | 1.4x vs portable | 3982 |
-| [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 10.952 | OOM (1080x1920) | 4082.2 | 4031.1 | 1.0x vs portable | 8779 |
+| [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 10.952 | OOM (1080x1920) | 4006.5 | 3950.9 | 1.0x vs portable | 8696 |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 
@@ -749,8 +749,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`ema-vfi`](models/interpolation.md#ema-vfi) | yes | 296.2 (1080x1920) | 233.4 | 206.7 | 1.4x vs original (1080x1920) | 368 |
 | [`ema-vfi-t`](models/interpolation.md#ema-vfi) | yes | 286.9 (1080x1920) | 233.5 | 206.9 | 1.4x vs original (1080x1920) | 368 |
 | [`film`](models/interpolation.md#film) | yes | 463.8 (1080x1920) | 417.1 | 332.4 | 1.4x vs original (1080x1920) | 2461 |
+| [`gimm-vfi-r`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2584.3 | 1576.3 | 1.6x vs portable | 4574 |
 | [`gimm-vfi-r-p`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2638.7 | 1627.6 | 1.6x vs portable | 4587 |
-| [`gimm-vfi-r`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2634.9 | 1629.3 | 1.6x vs portable | 4587 |
 
 ## Restoration
 

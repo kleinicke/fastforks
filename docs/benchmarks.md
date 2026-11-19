@@ -1380,7 +1380,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
-| flowformer-small-chairs | 1080x1920 | OOM | OOM | 4082 | 4031 | – | 1.0x | – | 8863 / 9080 | 8779 / 8982 |
+| flowformer-small-chairs | 1080x1920 | OOM | OOM | 4006 | 3951 | – | 1.0x | – | 8780 / 8960 | 8696 / 8822 |
 | flowformer-small-sintel | 375x1242 | 352 | 303 | 336 | 322 | 0.9x | 1.0x | 2382 / 2990 | 1404 / 1698 | 1401 / 1698 |
 | flowformer-small-things | 375x1242 | 352 | 303 | 337 | 322 | 0.9x | 1.0x | 2382 / 3010 | 1404 / 1698 | 1401 / 1698 |
 | flowseek-t | 1080x1920 | 650 | 457 | 396 | 255 | 1.8x | 1.6x | 8693 / 9880 | 6123 / 6252 | 1100 / 1154 |
@@ -1389,7 +1389,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | gmflow-scale1-mixdata | 1080x1920 | 1246 | 750 | 556 | – | – | – | 8360 / 8448 | 4496 / 4642 | – |
 | gmflow-scale1-things | 1080x1920 | 1245 | 750 | 448 | 446 | 1.7x | 1.0x | 8360 / 8468 | 1988 / 2142 | 1988 / 2142 |
 | gmflow-scale2-mixdata | 1080x1920 | 2544 | 1608 | 1139 | – | – | – | 8425 / 8572 | 6017 / 6224 | – |
-| gmflow-scale2-regrefine6-kitti | 1080x1920 | 3255 | 2188 | 1405 | 1408 | 1.6x | 1.0x | 8537 / 8822 | 3005 / 3190 | 3005 / 3210 |
+| gmflow-scale2-regrefine6-kitti | 1080x1920 | 3255 | 2188 | 1383 | 1389 | 1.6x | 1.0x | 8537 / 8822 | 3005 / 3192 | 3005 / 3212 |
 | gmflow-scale2-regrefine6-mixdata | 1080x1920 | 3254 | 2188 | 1675 | – | – | – | 8537 / 8822 | 6080 / 6250 | – |
 | gmflow-scale2-regrefine6-sintelft | 1080x1920 | 3255 | 2184 | 1674 | – | – | – | 8537 / 8822 | 6080 / 6250 | – |
 | gmflow-scale2-regrefine6-things | 1080x1920 | 3230 | 2175 | 1478 | 1481 | 1.5x | 1.0x | 8537 / 8822 | 4036 / 4696 | 4036 / 4696 |
@@ -1481,7 +1481,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | ema-vfi-small-t | 114 | 89.4 | 84.3 | 1.4x | 1.1x | 2272 / 2384 | 1614 / 1792 | 271 / 1914 |
 | ema-vfi-t | 287 | 233 | 207 | 1.4x | 1.1x | 3940 / 4290 | 2827 / 3184 | 368 / 3566 |
 | film | 464 | 417 | 332 | 1.4x | 1.3x | 2953 / 3556 | 2461 / 3780 | 2461 / 3780 |
-| gimm-vfi-r | OOM | 2635 | 1629 | – | 1.6x | – | 7855 / 9078 | 4587 / 5362 |
+| gimm-vfi-r | OOM | 2584 | 1576 | – | 1.6x | – | 5936 / 6618 | 4574 / 5362 |
 | gimm-vfi-r-p | OOM | 2639 | 1628 | – | 1.6x | – | 5936 / 6618 | 4587 / 5282 |
 | rife-4.25 | 24.5 | 25.0 | 21.4 | 1.1x | 1.2x | 987 / 1154 | 755 / 894 | 848 / 916 |
 | rife-4.25-lite | 21.3 | 21.1 | 18.3 | 1.2x | 1.2x | 1012 / 1214 | 754 / 854 | 834 / 896 |
@@ -2615,8 +2615,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | resplat-small-dl3dv | 256x448 | – | – | 1362 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 1367 / 1800 |
 | vggt-1b | 336x518 | 653 ms | 557 ms | 424 ms | 446 ms | 74.3 s | 199 s | 3573 / 3794 | 3611 / 3856 | 3580 / 3854 | 6421 / 6472 |
 | vggt-omega-1b-512 | 336x518 | 727 ms | 589 ms | 377 ms | 469 ms | 65.7 s | 187 s | 3269 / 3352 | 3082 / 3154 | 3270 / 3330 | 5657 / 5766 |
-| flowformer-small-chairs | 1080x1920 | 4082 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | 4031 ms | – | – | 8863 / 9080 | – | 8779 / 8982 | – |
-| flowformer-small-chairs | 375x1242 | 370 ms | 250 ms | 202 ms | 354 ms | 98.7 s | 118 s | 744 / 838 | 2438 / 3196 | 740 / 838 | 2087 / 2138 |
+| flowformer-small-chairs | 1080x1920 | 4006 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | 3951 ms | – | – | 8780 / 8960 | – | 8696 / 8822 | – |
+| flowformer-small-chairs | 375x1242 | 338 ms | 250 ms | 202 ms | 326 ms | 98.7 s | 118 s | 744 / 838 | 2438 / 3196 | 740 / 838 | 2087 / 2138 |
 | flowformer-small-sintel | 1080x1920 | – | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | – | – | – | – | – | – | – |
 | flowformer-small-sintel | 375x1242 | 336 ms | 250 ms | 202 ms | 322 ms | 98.9 s | 117 s | 1404 / 1698 | 2438 / 3196 | 1401 / 1698 | 2087 / 2138 |
 | flowformer-small-things | 1080x1920 | – | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | – | – | – | – | – | – | – |
@@ -2628,7 +2628,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | gmflow-scale1-things | 1080x1920 | 448 ms | 382 ms | 187 ms | 446 ms | 35.3 s | 69.3 s | 1988 / 2142 | 4293 / 4558 | 1988 / 2142 | 4333 / 4390 |
 | gmflow-scale2-mixdata | 1080x1920 | 1139 ms | 765 ms | public API unavailable | – | 46.6 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
 | gmflow-scale2-mixdata | 384x1248 | – | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | – | – | – | 1616 / 2560 |
-| gmflow-scale2-regrefine6-kitti | 1080x1920 | 1405 ms | 1116 ms | public API unavailable | 1408 ms | 58.4 s | – | 3005 / 3190 | 10875 / 10972 | 3005 / 3210 | – |
+| gmflow-scale2-regrefine6-kitti | 1080x1920 | 1383 ms | 1116 ms | public API unavailable | 1389 ms | 58.4 s | – | 3005 / 3192 | 10875 / 10972 | 3005 / 3212 | – |
 | gmflow-scale2-regrefine6-kitti | 384x1248 | – | – | 351 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.1 s | – | – | – | 1660 / 2526 |
 | gmflow-scale2-regrefine6-mixdata | 1080x1920 | 1675 ms | 1116 ms | public API unavailable | – | 58.9 s | – | 6080 / 6250 | 10875 / 10972 | – | – |
 | gmflow-scale2-regrefine6-mixdata | 384x1248 | – | – | 349 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | – | – | – | 1660 / 2526 |
@@ -2718,7 +2718,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | ema-vfi-small-t | 1080x1920 | 89.4 ms | 59.8 ms | 43.4 ms | 84.3 ms | 77.9 s | 68.8 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
 | ema-vfi-t | 1080x1920 | 233 ms | 165 ms | 125 ms | 207 ms | 84.6 s | 91.5 s | 2827 / 3184 | 3325 / 3702 | 368 / 3566 | 1719 / 1766 |
 | film | 1080x1920 | 417 ms | 332 ms | 189 ms | 332 ms | 41.1 s | 203 s | 2461 / 3780 | 2666 / 3192 | 2461 / 3780 | 2658 / 2658 |
-| gimm-vfi-r | 1080x1920 | 2635 ms | 1498 ms | public API unavailable | 1629 ms | 307 s | – | 7855 / 9078 | 12051 / 12880 | 4587 / 5362 | – |
+| gimm-vfi-r | 1080x1920 | 2584 ms | 1498 ms | public API unavailable | 1576 ms | 307 s | – | 5936 / 6618 | 12051 / 12880 | 4574 / 5362 | – |
 | gimm-vfi-r | 480x854 | 468 ms | – | 1210 ms, fp32 engine (RAFT feature encoder with eager context, flow update and synthesis) | 289 ms | – | 12.9 s | 1574 / 1674 | – | 1388 / 1618 | 3522 / 6116 |
 | gimm-vfi-r-p | 1080x1920 | 2639 ms | 1498 ms | fails: TensorRT parser: Sc node | 1628 ms | 307 s | – | 5936 / 6618 | 12051 / 12880 | 4587 / 5282 | – |
 | gimm-vfi-r-p | 480x854 | 467 ms | – | 1190 ms, fp32 engine (RAFT feature and context encoders with eager flow update and synthesis) | 289 ms | – | 16.9 s | 1574 / 1674 | – | 1388 / 1598 | 3592 / 6000 |

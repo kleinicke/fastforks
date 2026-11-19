@@ -17,7 +17,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`ema-vfi-small-t`](#ema_vfi) | yes | 84.3, 1.4x | 1914, 0.8x |
 | [`ema-vfi-t`](#ema_vfi) | yes | 207, 1.4x | 3566, 0.83x |
 | [`film`](#film) | yes | 332, 1.4x | 3780, 1.1x |
-| [`gimm-vfi-r`](#gimm_vfi) | no | 1629 | 5362 |
+| [`gimm-vfi-r`](#gimm_vfi) | no | 1576 | 5362 |
 | [`gimm-vfi-r-p`](#gimm_vfi) | no | 1628 | 5282 |
 | [`rife-4.25`](#rife) | yes | 21.4, 1.1x | 916, 0.79x |
 | [`rife-4.25-lite`](#rife) | yes | 18.3, 1.2x | 896, 0.74x |
@@ -158,7 +158,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2635<br>1629<br>1498<br>public API unavailable | –<br>7855 / 9078<br>4587 / 5362<br>12051 / 12880<br>– |
+| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2584<br>1576<br>1498<br>public API unavailable | –<br>5936 / 6618<br>4574 / 5362<br>12051 / 12880<br>– |
 | `gimm-vfi-r` | synthetic (480x854) | original<br>portable<br>kernels<br>TensorRT fp32 | 498<br>468<br>289<br>1210 (RAFT feature encoder with eager context, flow update and synthesis) | 2820 / 3246<br>1574 / 1674<br>1388 / 1618<br>3522 / 6116 |
 | `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2639<br>1628<br>1498<br>fails: TensorRT parser: Sc node | –<br>5936 / 6618<br>4587 / 5282<br>12051 / 12880<br>– |
 | `gimm-vfi-r-p` | synthetic (480x854) | original<br>portable<br>kernels<br>TensorRT fp32 | 498<br>467<br>289<br>1190 (RAFT feature and context encoders with eager flow update and synthesis) | 2820 / 3246<br>1574 / 1674<br>1388 / 1598<br>3592 / 6000 |
@@ -180,7 +180,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - `gimm-vfi-r` 480x854, first call: TensorRT fp32 13 s (ONNX + engine).
 - `gimm-vfi-r-p` 1080x1920, first call: portable + torch.compile 307 s (cold Inductor cache).
 - `gimm-vfi-r-p` 480x854, first call: TensorRT fp32 17 s (ONNX + engine).
-- `gimm-vfi-r` portable 1080x1920: Shared forward and reverse CUDA correlation. Prior portable was 2618.579 ms and 9887 MiB peak allocated. The paired PSNR change was below 0.0002 dB on 27 DAVIS comparisons across both checkpoints.
+- `gimm-vfi-r` portable 1080x1920, kernels 1080x1920: The two RAFT passes compute only their last upsampling weights. Paired DAVIS RGB PSNR changes stay below 0.000062 dB.
 - `gimm-vfi-r` original 480x854: torch.autocast(float16) around the call; upstream GIMMVFI_R forward as video_Nx.py, time 0.5, ds_factor 1.0, replicate pad to 32, cupy softsplat
 - `gimm-vfi-r-p` portable 1080x1920: Eager CUDA releases the single-use correlation volumes before decoding.
 - `gimm-vfi-r-p` original 480x854: torch.autocast(float16) around the call; upstream GIMMVFI_R forward as video_Nx.py, time 0.5, ds_factor 1.0, replicate pad to 32, cupy softsplat

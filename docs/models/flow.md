@@ -12,7 +12,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 
 | model | commercial | KITTI 2015 train EPE (px) ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
-| [`flowformer-small-chairs`](#flowformer) | yes | 10.952 | 4031 | 8982 |
+| [`flowformer-small-chairs`](#flowformer) | yes | 10.952 | 3951 | 8822 |
 | [`flowformer-small-sintel`](#flowformer) | yes | 4.657 † | 322, 0.9x (375x1242) | 1698, 0.57x |
 | [`flowformer-small-things`](#flowformer) | yes | 6.884 | 322, 0.9x (375x1242) | 1698, 0.56x |
 | [`flowseek-t`](#flowseek) | yes | 1.348 † | 255, 1.8x | 1154, 0.12x |
@@ -21,7 +21,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`gmflow-scale1-mixdata`](#gmflow) | yes | 3.697 ? | 40.3, 1.3x (375x1242) | 300, 0.46x |
 | [`gmflow-scale1-things`](#gmflow) | yes | 10.346 | 446, 1.7x | 2142, 0.25x |
 | [`gmflow-scale2-mixdata`](#gmflow) | yes | 2.389 ? | 116, 1.3x (375x1242) | 760, 0.5x |
-| [`gmflow-scale2-regrefine6-kitti`](#gmflow) | yes | 0.570 † | 1408, 1.6x | 3210, 0.37x |
+| [`gmflow-scale2-regrefine6-kitti`](#gmflow) | yes | 0.570 † | 1389, 1.6x | 3212, 0.37x |
 | [`gmflow-scale2-regrefine6-mixdata`](#gmflow) | yes | 1.315 ? | 214, 1.2x (375x1242) | 766, 0.47x |
 | [`gmflow-scale2-regrefine6-sintelft`](#gmflow) | yes | 1.154 † | 214, 1.2x (375x1242) | 766, 0.47x |
 | [`gmflow-scale2-regrefine6-things`](#gmflow) | yes | 4.917 | 1481, 1.5x | 4696, 0.54x |
@@ -70,8 +70,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `flowformer-small-chairs` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>4082<br>4031<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | –<br>–<br>8863 / 9080<br>8779 / 8982<br>–<br>– |
-| `flowformer-small-chairs` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>370<br>354<br>250<br>202 | 3122 / 3718<br>2382 / 2970<br>744 / 838<br>740 / 838<br>2438 / 3196<br>2087 / 2138 |
+| `flowformer-small-chairs` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>4006<br>3951<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | –<br>–<br>8780 / 8960<br>8696 / 8822<br>–<br>– |
+| `flowformer-small-chairs` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>338<br>326<br>250<br>202 | 3122 / 3718<br>2382 / 2970<br>744 / 838<br>740 / 838<br>2438 / 3196<br>2087 / 2138 |
 | `flowformer-small-things` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>337<br>322<br>250<br>202 | 3122 / 3678<br>2382 / 3010<br>1404 / 1698<br>1401 / 1698<br>2438 / 3196<br>2087 / 2138 |
 | `flowformer-small-sintel` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>336<br>322<br>250<br>202 | 3122 / 3718<br>2382 / 2990<br>1404 / 1698<br>1401 / 1698<br>2438 / 3196<br>2087 / 2138 |
 
@@ -94,10 +94,9 @@ Commercial use: yes.
 - `flowformer-small-chairs` 375x1242, first call: portable + torch.compile 99 s (cold Inductor cache), TensorRT fp16 118 s (ONNX + engine).
 - `flowformer-small-things` 375x1242, first call: portable + torch.compile 99 s (cold Inductor cache), TensorRT fp16 118 s (ONNX + engine).
 - `flowformer-small-sintel` 375x1242, first call: portable + torch.compile 99 s (cold Inductor cache), TensorRT fp16 117 s (ONNX + engine).
-- `flowformer-small-chairs` portable 1080x1920, kernels 1080x1920: First successful 1080p native profile after bounding the encoder and decoder attention workspaces. Matched the earlier working 1080p implementation bitwise on synthetic and three padded KITTI pairs.
+- `flowformer-small-chairs` portable 1080x1920, kernels 1080x1920, portable 375x1242, kernels 375x1242: Only the final upsampling weights are needed in inference. Synthetic and three rescaled KITTI flows at 1080p match bitwise.
 - `flowformer-small-chairs` original (fp32) 375x1242: upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
 - `flowformer-small-chairs` original 375x1242: torch.autocast(float16) around the call; upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
-- `flowformer-small-chairs` portable 375x1242, kernels 375x1242: Projects cost maps to latent features in groups and bounds live global attention heads. Same-process 375 x 1242 paired checks save 550 MiB allocated in each mode and match all flow pixels.
 - `flowformer-small-things` original (fp32) 375x1242: upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
 - `flowformer-small-things` original 375x1242: torch.autocast(float16) around the call; upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
 - `flowformer-small-things` kernels 375x1242: Existing CUDA kernel mode on one fixed input with five warm calls.
@@ -134,8 +133,8 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float32 (the default), 
 ### Limitations
 
 - Only the Small architecture is included.
-- Portable runs float32 (the validated dtype): 338 ms and 1410 MB at 375x1242 against 303 ms and 2382 MB for the fp16-autocast original (EPE identical to the float32 original); switching the default to fp16 needs a full accuracy re-validation.
-- Full-frame cost memory grows quadratically with input area; upstream tiled evaluation is not included. Full-frame 1080p exceeded the RTX 5060 Ti 16GB memory in portable and original fp32/fp16 runs.
+- Default CUDA inference uses the validated float32 precision. The optional float16 portable path requires separate accuracy validation.
+- Full-frame cost memory grows quadratically with input area. The measured Small Chairs checkpoint uses less than 9 GiB of reserved CUDA memory at 1080p float32 in both native modes on the RTX 5060 Ti.
 
 </details>
 
@@ -229,7 +228,7 @@ Commercial use: yes.
 | `gmflow-scale2-regrefine6-things` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>350 (standalone feature CNN, eager transformer and flow update) | –<br>–<br>–<br>1660 / 2526 |
 | `gmflow-scale2-regrefine6-sintelft` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2184<br>1674<br>–<br>1116<br>public API unavailable | 8522 / 8730<br>8537 / 8822<br>6080 / 6250<br>–<br>10875 / 10972<br>– |
 | `gmflow-scale2-regrefine6-sintelft` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>350 (standalone feature CNN, eager transformer and flow update) | –<br>–<br>–<br>1660 / 2526 |
-| `gmflow-scale2-regrefine6-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2188<br>1405<br>1408<br>1116<br>public API unavailable | 8522 / 8710<br>8537 / 8822<br>3005 / 3190<br>3005 / 3210<br>10875 / 10972<br>– |
+| `gmflow-scale2-regrefine6-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2188<br>1383<br>1389<br>1116<br>public API unavailable | 8522 / 8710<br>8537 / 8822<br>3005 / 3192<br>3005 / 3212<br>10875 / 10972<br>– |
 | `gmflow-scale2-regrefine6-kitti` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>351 (standalone feature CNN, eager transformer and flow update) | –<br>–<br>–<br>1660 / 2526 |
 | `gmflow-scale2-regrefine6-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3254<br>2188<br>1675<br>–<br>1116<br>public API unavailable | 8522 / 8710<br>8537 / 8822<br>6080 / 6250<br>–<br>10875 / 10972<br>– |
 | `gmflow-scale2-regrefine6-mixdata` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>349 (standalone feature CNN, eager transformer and flow update) | –<br>–<br>–<br>1660 / 2526 |
@@ -290,7 +289,7 @@ Commercial use: yes.
 - `gmflow-scale2-regrefine6-sintelft` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale2-regrefine6-kitti` original (fp32) 1080x1920: upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale2-regrefine6-kitti` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
-- `gmflow-scale2-regrefine6-kitti` portable 1080x1920, kernels 1080x1920: CUDA feed-forward token strips. Synthetic and three rescaled KITTI flows agree bitwise.
+- `gmflow-scale2-regrefine6-kitti` portable 1080x1920, kernels 1080x1920: Bounded CUDA feed-forward workspaces and only the final upsampling mask. Synthetic and three rescaled KITTI flows match bitwise.
 - `gmflow-scale2-regrefine6-mixdata` original (fp32) 1080x1920: upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale2-regrefine6-mixdata` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale1-things` load / first call: original 0.14 s / 0.942 s, portable 0.16 s / 0.558 s, kernels 0.16 s / 0.875 s
