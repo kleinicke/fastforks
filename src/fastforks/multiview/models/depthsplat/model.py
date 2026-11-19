@@ -38,6 +38,7 @@ from fastforks._core.patch import is_base, override
 from fastforks.kernels import depthsplat_corr
 from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, f64, invert, project_harmonics
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import use_fast_vit
 
 from .net.dpt_head import DPTHead
@@ -416,4 +417,4 @@ class Kernels(_Base):
             return super().forward(images, intrinsics, cam_to_world, depth_range)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(Portable)}

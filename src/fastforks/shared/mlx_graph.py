@@ -142,6 +142,9 @@ OPS[aten.pow.Scalar] = lambda b, e: mx.power(b, e)
 OPS[aten.maximum.default] = mx.maximum
 OPS[aten.minimum.default] = mx.minimum
 OPS[aten.clamp.default] = lambda x, lo=None, hi=None: mx.clip(x, lo, hi)
+OPS[aten.clamp.Tensor] = lambda x, lo=None, hi=None: mx.clip(x, lo, hi)
+OPS[aten.clamp_min.Tensor] = lambda x, lo: mx.maximum(x, lo)
+OPS[aten.clamp_max.Tensor] = lambda x, hi: mx.minimum(x, hi)
 OPS[aten.clamp_min.default] = lambda x, lo: mx.maximum(x, lo)
 OPS[aten.clamp_max.default] = lambda x, hi: mx.minimum(x, hi)
 OPS[aten.eq.Scalar] = OPS[aten.eq.Tensor] = operator.eq
@@ -564,6 +567,37 @@ def _var_mean(
     )
 
 
+@_reg(aten._linalg_svd.default)
+def _linalg_svd(
+    a: mx.array, full_matrices: bool = False, compute_uv: bool = True, driver: str | None = None
+) -> tuple[mx.array, mx.array, mx.array]:
+    """Batched SVD (CPU stream: tiny matrices such as rotation orthogonalization), float32."""
+    del driver
+    u, s, vh = mx.linalg.svd(a.astype(mx.float32), compute_uv=True, stream=mx.cpu)
+    if not compute_uv:
+        return mx.zeros((0,)), s.astype(a.dtype), mx.zeros((0,))
+    del full_matrices
+    return u.astype(a.dtype), s.astype(a.dtype), vh.astype(a.dtype)
+
+
+@_reg(aten._linalg_det.default)
+def _linalg_det(a: mx.array) -> tuple[mx.array, mx.array, mx.array]:
+    """Determinant of batched 2x2 / 3x3 matrices by cofactor expansion (the LU outputs are unused placeholders)."""
+    n = a.shape[-1]
+    if n == 2:
+        det = a[..., 0, 0] * a[..., 1, 1] - a[..., 0, 1] * a[..., 1, 0]
+    elif n == 3:
+        det = (
+            a[..., 0, 0] * (a[..., 1, 1] * a[..., 2, 2] - a[..., 1, 2] * a[..., 2, 1])
+            - a[..., 0, 1] * (a[..., 1, 0] * a[..., 2, 2] - a[..., 1, 2] * a[..., 2, 0])
+            + a[..., 0, 2] * (a[..., 1, 0] * a[..., 2, 1] - a[..., 1, 1] * a[..., 2, 0])
+        )
+    else:
+        msg = f"determinant of {n}x{n} matrices"
+        raise UnsupportedOp(msg)
+    return det, mx.zeros((0,)), mx.zeros((0,))
+
+
 OPS[aten.max.dim] = lambda x, d, keep=False: (mx.max(x, axis=d, keepdims=keep), mx.argmax(x, axis=d, keepdims=keep))
 OPS[aten.max.default] = lambda x: mx.max(x)
 OPS[aten.min.default] = lambda x: mx.min(x)
@@ -979,10 +1013,29 @@ def _avg_pool3d(
     count_include_pad: bool = True,  # noqa: FBT001, FBT002
     divisor: int | None = None,
 ) -> mx.array:
-    """Non-overlapping, unpadded 3-D average pooling (window = stride), in float32."""
+    """Unpadded 3-D average pooling in float32: windows equal to the stride, or stride 1 (a sliding mean per axis)."""
     s = s or k
-    if tuple(s) != tuple(k) or any(pad) or ceil or divisor is not None:
-        msg = "avg_pool3d: only unpadded windows equal to the stride"
+    if any(pad) or ceil or divisor is not None:
+        msg = "avg_pool3d: only unpadded windows"
+        raise UnsupportedOp(msg)
+    if tuple(s) == (1, 1, 1):
+        y = x.astype(mx.float32)
+        for axis, kk in enumerate(k, start=2):
+            if kk > 1:
+                n_out = y.shape[axis] - kk + 1
+                acc = mx.cumsum(y, axis=axis)
+                head = mx.take(acc, mx.arange(kk - 1, kk - 1 + n_out), axis=axis)
+                tail = mx.concatenate(
+                    [
+                        mx.zeros_like(mx.take(acc, mx.arange(1), axis=axis)),
+                        mx.take(acc, mx.arange(n_out - 1), axis=axis),
+                    ],
+                    axis=axis,
+                )
+                y = (head - tail) / kk
+        return y.astype(x.dtype)
+    if tuple(s) != tuple(k):
+        msg = "avg_pool3d: only windows equal to the stride or stride 1"
         raise UnsupportedOp(msg)
     n, c, d, h, w = x.shape
     od, oh, ow = d // k[0], h // k[1], w // k[2]

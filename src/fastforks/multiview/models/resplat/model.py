@@ -45,6 +45,7 @@ from fastforks.multiview.models.depthsplat.model import (
     normalized_intrinsics,
     quaternion_product,
 )
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import use_fast_vit
 
 from .net.mv_unimatch import MultiViewUniMatch
@@ -561,4 +562,8 @@ class Kernels(_Base):
             return super().forward(images, intrinsics, cam_to_world, depth_range)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("net.encode",)),
+}

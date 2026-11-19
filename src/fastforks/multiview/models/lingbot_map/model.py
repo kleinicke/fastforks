@@ -36,6 +36,7 @@ from fastforks.multiview.models.vggt import model as vggt
 from fastforks.multiview.models.vggt.net.heads.camera_head import modulate
 from fastforks.multiview.models.vggt.net.heads.head_act import activate_pose
 from fastforks.multiview.models.vggt.net.utils.pose_enc import pose_encoding_to_extri_intri
+from fastforks.shared import mlx_wrap
 from fastforks.shared.host_blocks import StreamedModuleList
 from fastforks.shared.rope2d import rope_forward
 
@@ -434,4 +435,8 @@ class Kernels(_Fast):
         return self.attention(q, k, v, scale) if q.shape == k.shape else super().gattention(q, k, v, scale)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("run",)),
+}

@@ -42,6 +42,7 @@ from fastforks._core.errors import OptionsError
 from fastforks._core.half import fp16_accumulate
 from fastforks.kernels import map_geometry, swiglu
 from fastforks.multiview._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.host_blocks import HostBlocks
 
 if TYPE_CHECKING:
@@ -716,4 +717,8 @@ class Kernels(_Base):
         return self.flash(q, k, v, d**-0.5).view(b, n, h * d)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("predict",)),
+}

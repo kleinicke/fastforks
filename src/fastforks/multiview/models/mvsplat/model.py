@@ -40,6 +40,7 @@ from fastforks._core.sampling import grid_sample
 from fastforks.kernels import mvsplat_corr
 from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, f64, invert, project_harmonics
+from fastforks.shared import mlx_wrap
 from fastforks.shared.group_norm import fast_group_norms
 
 from .net.backbone.multiview_transformer import MultiViewFeatureTransformer
@@ -514,4 +515,4 @@ class Kernels(_Base):
             return super().forward(images, intrinsics, cam_to_world, depth_range)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(Portable)}

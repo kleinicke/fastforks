@@ -40,6 +40,7 @@ voxel_size = { default = 0.002, min = 0.0 }  # Gaussian fusion voxel in scene un
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "cudnn_hacc"]

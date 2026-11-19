@@ -27,6 +27,7 @@ from fastforks._core.checkpoint import Inert, load_strict
 from fastforks._core.half import fp16_accumulate
 from fastforks.kernels import dpt_fused
 from fastforks.multiview._runner import Forward, Runner, f64, invert, scale, take
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import DINOv2, FastViT, use_sdpa_attention
 from fastforks.shared.quantile import quantile
 
@@ -615,4 +616,8 @@ class Kernels(_Base):
             return super().cv_encoder(cv, feats)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("encode_image", "matching", "cv_encoder", "decode")),
+}

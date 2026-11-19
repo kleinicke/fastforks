@@ -31,6 +31,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, invert
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
 from fastforks.shared.rope2d import rope_forward
 
@@ -546,4 +547,12 @@ class Kernels(_Fast):
         return self.flash(q, k, v, scale).view(b, n, h * d)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _Upstream(Portable):
+    """The upstream network in any dtype (the MLX graph replaces `net` whole)."""
+
+    def predict(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Upstream forward."""
+        return self.net(x)
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(_Upstream)}

@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 import torch.nn.functional as F
 
+from fastforks.shared import mlx_wrap
 from fastforks._core.sampling import grid_sample
 from fastforks.multiview._runner import Forward, NoParams, Runner, f64, invert, take
 
@@ -689,4 +690,21 @@ class Kernels(_Base):
         return depth, vw, conf
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _Traceable(Portable):
+    """The seeded random hypotheses are drawn outside the export trace, so the graph holds them as constants."""
+
+    def random_init(self, dmin: torch.Tensor, dmax: torch.Tensor, h: int, w: int) -> torch.Tensor:
+        """`_Base.random_init` with its seeded draw on real tensors."""
+        if (h, w) not in self._init_cache:
+            from torch.utils._python_dispatch import _disable_current_modes  # noqa: PLC0415, PLC2701 - untraced draw
+
+            with _disable_current_modes():
+                super().random_init(torch.ones(1), torch.ones(1), h, w)
+        return super().random_init(dmin, dmax, h, w)
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_Traceable, attrs=(), methods=("prepare", "predict"), net_attr="ref"),
+}

@@ -33,6 +33,7 @@ from torch import nn
 from fastforks._core.errors import OptionsError
 from fastforks._core.half import fp16_accumulate
 from fastforks.multiview._runner import Forward, Runner, invert
+from fastforks.shared import mlx_wrap
 from fastforks.shared.host_blocks import StreamedModuleList
 
 from .net.models.aggregator import slice_expand_and_flatten
@@ -544,4 +545,12 @@ class Kernels(_Fast):
         return self.flash(q, k, v, scale).view(b, n, h * d)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _Upstream(Portable):
+    """The upstream network in any dtype (the MLX graph replaces `net` whole)."""
+
+    def predict(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Upstream forward."""
+        return self.net(x)
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(_Upstream)}
