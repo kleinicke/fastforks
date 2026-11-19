@@ -214,8 +214,7 @@ def _gate_ffn(m: FeedForward, _device: torch.device | str) -> None:
 
 
 def _fused_ffn(m: FeedForward, x: torch.Tensor) -> torch.Tensor:
-    projected = m.project_in(x).permute(0, 2, 3, 1)
-    gated = fastbb.dwgate(projected, m.gate_weight, m.gate_bias)  # ty: ignore[invalid-argument-type]
+    gated = fastbb.dwgate(m.project_in(x).permute(0, 2, 3, 1), m.gate_weight, m.gate_bias)  # ty: ignore[invalid-argument-type]
     return m.project_out(gated.permute(0, 3, 1, 2))
 
 
