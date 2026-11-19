@@ -102,10 +102,9 @@ def generate_shift_window_attn_mask(input_resolution, window_size_h, window_size
     mask_windows = split_feature(img_mask, num_splits=input_resolution[-1] // window_size_w, channel_last=True)
 
     mask_windows = mask_windows.view(-1, window_size_h * window_size_w)
-    attn_mask = mask_windows.unsqueeze(1) - mask_windows.unsqueeze(2)
-    attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(attn_mask == 0, float(0.0))
-
-    return attn_mask
+    # fastforks: construct the binary predicate directly, then fill one additive mask.
+    blocked = mask_windows.unsqueeze(1) != mask_windows.unsqueeze(2)
+    return mask_windows.new_zeros(blocked.shape).masked_fill_(blocked, -100.0)
 
 
 def feature_add_position(feature0, feature1, attn_splits, feature_channels):

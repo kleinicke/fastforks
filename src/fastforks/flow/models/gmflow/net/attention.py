@@ -117,7 +117,12 @@ def single_head_split_window_attention(q, k, v,
     k = split_feature(k, num_splits=num_splits, channel_last=True)
     v = split_feature(v, num_splits=num_splits, channel_last=True)
 
-    mask = attn_mask.repeat(b, 1, 1) if with_shift else None  # [B*K*K, H/K*W/K, H/K*W/K]
+    mask = None
+    if with_shift:
+        # fastforks: CUDA SDPA uses a mask in the query dtype. Cast before copying across the batch.
+        if q.is_cuda:
+            attn_mask = attn_mask.to(q.dtype)
+        mask = attn_mask.repeat(b, 1, 1)
     out = attention(q.view(b_new, -1, c), k.view(b_new, -1, c), v.view(b_new, -1, c), mask)  # [B*K*K, H/K*W/K, C]
 
     out = merge_splits(out.view(b_new, h // num_splits, w // num_splits, c),
