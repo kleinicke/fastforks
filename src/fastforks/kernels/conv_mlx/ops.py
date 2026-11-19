@@ -201,6 +201,15 @@ _BAND_BYTES = (
 )  # target size of one band's transformed activations: bounds the peak of huge images
 
 
+def _as(a: mx.array, dtype: mx.Dtype) -> mx.array:
+    """`a` in the activation dtype.
+
+    The kernels read bias, slope and residual as `T`: an fp16 bias under fp32 activations (the fp32 islands of an fp16
+    net) would be reinterpreted, not converted.
+    """
+    return a if a.dtype == dtype else a.astype(dtype)
+
+
 def _band(x: mx.array, u: mx.array, bias, m, act, slope, residual, r0: int, bth: int):  # noqa: ANN001, ANN202, PLR0913
     n, h, wd, c = x.shape
     a = m + 2
@@ -237,9 +246,9 @@ def _band(x: mx.array, u: mx.array, bias, m, act, slope, residual, r0: int, bth:
     return k_out(
         inputs=[
             p,
-            bias if bias is not None else zero,
-            slope.astype(x.dtype) if slope is not None else zero,
-            residual if residual is not None else zero,
+            _as(bias, x.dtype) if bias is not None else zero,
+            _as(slope, x.dtype) if slope is not None else zero,
+            _as(residual, x.dtype) if residual is not None else zero,
             off,
         ],
         template=[
@@ -298,8 +307,8 @@ def conv3d(
     y = k_out(
         inputs=[
             p,
-            bias if bias is not None else zero,
-            slope.astype(x.dtype) if slope is not None else zero,
+            _as(bias, x.dtype) if bias is not None else zero,
+            _as(slope, x.dtype) if slope is not None else zero,
             zero,
             off,
         ],
