@@ -19,7 +19,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`c-fast-foundationstereo`](#c_foundationstereo) (max_disp 192, valid_iters 8) | yes | 2.20 | 135, 3.9x | 1236, 0.41x |
 | [`c-foundationstereo-s`](#c_foundationstereo) | yes | 1.24 | 1366, 2.8x | 4408, 0.34x |
 | [`cas-gwcnet-c-sceneflow`](#cas_gwcnet) | yes | 7.85 | 225, 1.7x | 1930, 0.65x |
-| [`cas-gwcnet-gc-sceneflow`](#cas_gwcnet) | yes | 8.09 | 358, 1.6x | 2514, 0.29x |
+| [`cas-gwcnet-gc-sceneflow`](#cas_gwcnet) | yes | 8.09 | 359, 1.6x | 2230, 0.26x |
 | [`cfnet-sceneflow`](#cfnet) | yes | 5.60 | 225, 2.4x | 1604, 0.2x |
 | [`coex-sceneflow`](#coex) | yes | 33.46 | 23.5, 2.6x | 514, 0.24x |
 | [`crestereo-eth3d`](#crestereo) | yes | 1.39 † | 229, 7.0x | 732, 0.42x |
@@ -42,7 +42,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`great-igev-middlebury`](#great_igev) (max_disp 768) | yes | 27.53 ? | 580 | 1642 |
 | [`great-igev-sceneflow`](#great_igev) | yes | 4.44 | 397, 3.7x | 1302, 0.14x |
 | [`gwcnet-g-sceneflow`](#gwcnet) | yes | 9.59 | 238, 1.5x | 2102, 0.39x |
-| [`gwcnet-gc-sceneflow`](#gwcnet) | yes | 10.96 | 257, 1.4x | 1962, 0.32x |
+| [`gwcnet-gc-sceneflow`](#gwcnet) | yes | 10.96 | 259, 1.4x | 1782, 0.29x |
 | [`hitnet-eth3d`](#hitnet) | yes | 0.93 † | 23.2, 7.9x | 770 |
 | [`hitnet-middlebury-d400`](#hitnet) | yes | 7.07 | 53.1, 9.1x | 1514 |
 | [`igev-plusplus-eth3d`](#igev_plusplus) | yes | 0.50 † | 427, 3.0x | 1514, 0.49x |
@@ -317,7 +317,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `cas-gwcnet-gc-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 862<br>567<br>472<br>358<br>383<br>307 | 10079 / 10652<br>8317 / 8730<br>2338 / 2794<br>2272 / 2514<br>6592 / 6670<br>4142 / 4194 |
+| `cas-gwcnet-gc-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 862<br>567<br>473<br>359<br>383<br>307 | 10079 / 10652<br>8317 / 8730<br>2032 / 2228<br>2035 / 2230<br>6592 / 6670<br>4142 / 4194 |
 | `cas-gwcnet-c-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 656<br>389<br>327<br>225<br>295<br>220 | 4816 / 5534<br>2791 / 2970<br>2006 / 2474<br>1725 / 1930<br>2098 / 2448<br>1533 / 1548 |
 
 <details><summary>Details</summary>
@@ -337,8 +337,9 @@ Commercial use: yes.
 - `cas-gwcnet-gc-sceneflow` 994x1482, first call: portable + torch.compile 64 s (cold Inductor cache), TensorRT fp16 99 s (ONNX + engine).
 - `cas-gwcnet-c-sceneflow` 994x1482, first call: portable + torch.compile 62 s (cold Inductor cache), TensorRT fp16 131 s (ONNX + engine).
 - `cas-gwcnet-gc-sceneflow` original 994x1482: torch.autocast(float16) around the call
+- `cas-gwcnet-gc-sceneflow` portable 994x1482, kernels 994x1482: Releases each pyramid's consumed 3D buffers and feature maps. Exact disparities on synthetic and three Middlebury pairs.
 - `cas-gwcnet-c-sceneflow` original 994x1482: torch.autocast(fp16) around the forward
-- `cas-gwcnet-gc-sceneflow` load / first call: original 0.39 s / 0.636 s, portable 0.97 s / 0.472† s, kernels 0.17† s / 0.358† s
+- `cas-gwcnet-gc-sceneflow` load / first call: original 0.39 s / 0.636 s, portable 1.1 s / 0.639 s, kernels 0.81 s / 0.397 s
 - `cas-gwcnet-c-sceneflow` load / first call: original 0.48 s / 0.415 s (375x1242), portable 1.29 s / 0.327† s, kernels 0.18† s / 0.226† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
@@ -932,7 +933,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `gwcnet-gc-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 632<br>365<br>353<br>257<br>420<br>669 | 8252 / 8822<br>5887 / 6214<br>2082 / 2402<br>1768 / 1962<br>1774 / 2246<br>2732 / 2786 |
+| `gwcnet-gc-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 632<br>365<br>353<br>259<br>420<br>669 | 8252 / 8822<br>5887 / 6214<br>1792 / 2102<br>1510 / 1782<br>1774 / 2246<br>2732 / 2786 |
 | `gwcnet-g-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 604<br>352<br>344<br>238<br>417<br>275 | 6691 / 7280<br>5105 / 5414<br>2081 / 2402<br>1799 / 2102<br>1527 / 1864<br>3634 / 3648 |
 
 <details><summary>Details</summary>
@@ -950,8 +951,9 @@ Commercial use: yes.
 - `gwcnet-gc-sceneflow` 994x1482, first call: portable + torch.compile 84 s (cold Inductor cache), TensorRT fp16 117 s (ONNX + engine).
 - `gwcnet-g-sceneflow` 994x1482, first call: portable + torch.compile 53 s (cold Inductor cache), TensorRT fp16 66 s (ONNX + engine).
 - `gwcnet-gc-sceneflow` original 994x1482: torch.autocast(fp16) around the forward
+- `gwcnet-gc-sceneflow` portable 994x1482, kernels 994x1482: Releases consumed 3D hourglass and classification buffers. Exact disparities on synthetic and three Middlebury pairs.
 - `gwcnet-g-sceneflow` original 994x1482: torch.autocast(fp16) around the forward
-- `gwcnet-gc-sceneflow` load / first call: original 0.29 s / 0.119 s (375x1242), portable 0.39 s / 0.353† s, kernels 0.44† s / 0.258† s
+- `gwcnet-gc-sceneflow` load / first call: original 0.29 s / 0.119 s (375x1242), portable 0.53 s / 0.472 s, kernels 0.8 s / 0.288 s
 - `gwcnet-g-sceneflow` load / first call: original 0.26 s / 0.46 s (375x1242), portable 0.4 s / 0.344† s, kernels 0.14† s / 0.238† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls

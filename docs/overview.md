@@ -52,7 +52,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`psmnet-sceneflow`](models/stereo.md#psmnet) | yes | 15.13 | 607.8 (994x1482) | 339.8 | 231.5 | 2.6x vs original (994x1482) | 1469 |
 | [`gwcnet-g-sceneflow`](models/stereo.md#gwcnet) | yes | 9.59 | 352.4 (994x1482) | 344.2 | 238.1 | 1.5x vs original (994x1482) | 1799 |
 | [`s2m2-m`](models/stereo.md#s2m2) | no | 0.95 ? | 666.2 (994x1482) | 670.0 | 247.9 | 2.7x vs original (994x1482) | 876 |
-| [`gwcnet-gc-sceneflow`](models/stereo.md#gwcnet) | yes | 10.96 | 364.8 (994x1482) | 352.9 | 257.3 | 1.4x vs original (994x1482) | 1768 |
+| [`gwcnet-gc-sceneflow`](models/stereo.md#gwcnet) | yes | 10.96 | 364.8 (994x1482) | 353.1 | 258.5 | 1.4x vs original (994x1482) | 1510 |
 | [`raft-stereo-sceneflow`](models/stereo.md#raft-stereo) | yes | 2.60 | 1036.7 (994x1482) | 745.6 | 274.1 | 3.8x vs original (994x1482) | 722 |
 | [`raft-stereo-middlebury`](models/stereo.md#raft-stereo) | yes | 2.79 | 1036.7 (994x1482) | 745.6 | 274.2 | 3.8x vs original (994x1482) | 722 |
 | [`raft-stereo-eth3d`](models/stereo.md#raft-stereo) | yes | 2.61 † | 1036.7 (994x1482) | 745.6 | 274.6 | 3.8x vs original (994x1482) | 722 |
@@ -71,7 +71,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`selective-igev-sceneflow`](models/stereo.md#selective-igev) | yes | 6.06 | 1455.0 (994x1482) | 998.4 | 348.8 | 4.2x vs original (994x1482) | 1109 |
 | [`selective-igev-eth3d-finetune`](models/stereo.md#selective-igev) | yes | 0.32 † | 1455.0 (994x1482) | 995.9 | 351.2 | 4.1x vs original (994x1482) | 1051 |
 | [`bridgedepth-rvc-pretrain`](models/stereo.md#bridgedepth) | no | 1.22 ? | 470.1 (994x1482) | 441.6 | 353.6 | 1.3x vs original (994x1482) | 2361 |
-| [`cas-gwcnet-gc-sceneflow`](models/stereo.md#cas-gwcnet) | yes | 8.09 | 566.7 (994x1482) | 471.6 | 357.5 | 1.6x vs original (994x1482) | 2272 |
+| [`cas-gwcnet-gc-sceneflow`](models/stereo.md#cas-gwcnet) | yes | 8.09 | 566.7 (994x1482) | 472.6 | 359.2 | 1.6x vs original (994x1482) | 2035 |
 | [`s2m2-l`](models/stereo.md#s2m2) | no | 0.82 ? | 1004.7 (994x1482) | 1016.8 | 375.8 | 2.7x vs original (994x1482) | 1249 |
 | [`waft-stereo-b`](models/stereo.md#waft-stereo) | no | 0.74 ? | 1139.5 (994x1482) | 1093.7 | 387.9 | 2.9x vs original (994x1482) | 1664 |
 | [`igev-plusplus-middlebury`](models/stereo.md#igev) | yes | 18.46 ? | 1277.9 (994x1482) | 1080.0 | 393.4 | 3.2x vs original (994x1482) | 1272 |
@@ -804,7 +804,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
 | [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) | yes | 7269.8 (200x200) | 70.3 | 71.8 | 101.2x vs original (200x200) | 913 |
-| [`nninteractive`](models/volume.md#nninteractive) | no | 459.7 (200x200) | 215.2 | 201.0 | 2.3x vs original (200x200) | 2643 |
+| [`nninteractive`](models/volume.md#nninteractive) | no | 459.7 (200x200) | 208.7 | 193.5 | 2.4x vs original (200x200) | 2423 |
 | [`nnfoundation-cnn`](models/volume.md#nnfoundation) | yes | 273.6 (200x200) | 247.6 | 231.9 | 1.2x vs original (200x200) | 2325 |
 | [`totalsegmentator-total`](models/volume.md#totalsegmentator) | yes | 45629.8 (200x200) | 1976.9 | 1647.4 | 27.7x vs original (200x200) | 1219 |
 | [`nnfoundation-vit`](models/volume.md#nnfoundation) | yes | – | 1848.1 | 1732.1 (192x192) | 1.1x vs portable | 1669 |

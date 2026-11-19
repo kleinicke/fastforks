@@ -841,6 +841,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 |---|---|---|---|---|---|---|---|
 | c-fast-foundationstereo | – | – | – | 135 | – | – | 1120 / 1236 |
 | c-foundationstereo-s | OOM | – | 3631 | 1366 | 2.7x | 4357 / 4950 | 3058 / 4408 |
+| cas-gwcnet-gc-sceneflow | – | – | 473 | 359 | 1.3x | 2032 / 2228 | 2035 / 2230 |
 | cfnet-sceneflow | – | – | 409 | 225 | 1.8x | 1822 / 2578 | 1073 / 1604 |
 | coex-sceneflow | – | – | 49.9 | 23.5 | 2.1x | 1093 / 1174 | 368 / 514 |
 | defom-stereo-vitl-sceneflow | – | – | – | 645 | – | – | 2781 / 4234 |
@@ -859,6 +860,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | great-igev-kitti | – | – | – | 396 | – | – | 1134 / 1302 |
 | great-igev-middlebury | OOM | OOM | 1789 | 580 | 3.1x | 1602 / 1878 | 1472 / 1642 |
 | great-igev-sceneflow | – | – | – | 397 | – | – | 1134 / 1302 |
+| gwcnet-gc-sceneflow | – | – | 353 | 259 | 1.4x | 1792 / 2102 | 1510 / 1782 |
 | hitnet-eth3d | – | – | 67.6 | 23.2 | 2.9x | 848 / 1068 | 623 / 770 |
 | hitnet-middlebury-d400 | – | – | 176 | 53.1 | 3.3x | 1701 / 2154 | 1207 / 1514 |
 | igev-plusplus-eth3d | – | – | 1079 | 427 | 2.5x | 1583 / 1696 | 1272 / 1514 |
@@ -1527,7 +1529,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 |---|---|---|---|---|---|---|---|---|---|---|
 | nnfoundation-cnn | 200x200 | 501 | 274 | 248 | 232 | 1.2x | 1.1x | 3818 / 4628 | 2368 / 3330 | 2325 / 3330 |
 | nnfoundation-vit | 192x192 | OOM | 1930 | 1848 | 1732 | 1.1x | 1.1x | 3930 / 4298 | 1669 / 1884 | 1669 / 1884 |
-| nninteractive | 200x200 | 705 | 460 | 215 | 201 | 2.3x | 1.1x | 4076 / 4636 | 3075 / 3492 | 2643 / 3072 |
+| nninteractive | 200x200 | 705 | 460 | 209 | 193 | 2.4x | 1.1x | 4076 / 4636 | 2423 / 2772 | 2423 / 2772 |
 | totalsegmentator-total | 200x200 | 47779 | 45630 | 1977 | 1647 | 27.7x | 1.2x | 2640 / 2874 | 2017 / 2244 | 1219 / 1638 |
 | totalsegmentator-total-3mm | 200x200 | 7304 | 7270 | 70.3 | 71.8 | 101.2x | 1.0x | 2010 / 2684 | 962 / 1050 | 913 / 1376 |
 
@@ -1544,7 +1546,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | c-fast-foundationstereo | 0.17 (375x1242) | 0.24 | 0.72 (375x1242) | 0.17 (375x1242) | 0.33† | 0.55 (375x1242) |
 | c-foundationstereo-s | 1.67 (375x1242) | 0.96 (375x1242) | 0.81 (375x1242) | 2.73 (375x1242) | 2.09 (375x1242) | 1.38 (375x1242) |
 | cas-gwcnet-c-sceneflow | 0.48 (375x1242) | 1.29 | 0.18† | 0.41 (375x1242) | 0.33† | 0.23† |
-| cas-gwcnet-gc-sceneflow | 0.39 | 0.97 | 0.17† | 0.64 | 0.47† | 0.36† |
+| cas-gwcnet-gc-sceneflow | 0.39 | 1.10 | 0.81 | 0.64 | 0.64 | 0.40 |
 | cfnet-sceneflow | 0.55 | 0.96 (375x1242) | 1.14 (375x1242) | 0.56 | 0.36 (375x1242) | 0.27 (375x1242) |
 | coex-sceneflow | – | 0.27 (375x1242) | 0.57 (375x1242) | 0.63 (375x1242) | 0.70 (375x1242) | 0.48 (375x1242) |
 | crestereo-eth3d | 0.05 | 0.03 | 0.03† | 1.50 | 0.75† | 0.23† |
@@ -1567,7 +1569,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | great-igev-middlebury | 0.39 (375x1242) | – | 1.02 (375x1242) | 4.59 (375x1242) | 1.79 | 0.73 (375x1242) |
 | great-igev-sceneflow | 0.44 (375x1242) | 0.32 | 0.64 (375x1242) | 4.60 (375x1242) | 1.10† | 0.70 (375x1242) |
 | gwcnet-g-sceneflow | 0.26 (375x1242) | 0.40 | 0.14† | 0.46 (375x1242) | 0.34† | 0.24† |
-| gwcnet-gc-sceneflow | 0.29 (375x1242) | 0.39 | 0.44† | 0.12 (375x1242) | 0.35† | 0.26† |
+| gwcnet-gc-sceneflow | 0.29 (375x1242) | 0.53 | 0.80 | 0.12 (375x1242) | 0.47 | 0.29 |
 | hitnet-eth3d | 0.31 | 0.18 (375x1242) | 0.27 (375x1242) | 2.06 | 0.45 (375x1242) | 0.28 (375x1242) |
 | hitnet-middlebury-d400 | 0.57 | 0.18 (375x1242) | 0.36 (375x1242) | 3.51 | 0.48 (375x1242) | 0.23 (375x1242) |
 | igev-plusplus-eth3d | 0.42 (375x1242) | 0.69 (375x1242) | 0.68 (375x1242) | 2.33 (375x1242) | 0.84 (375x1242) | 0.57 (375x1242) |
@@ -2140,7 +2142,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | c-fast-foundationstereo | 994x1482 | 330 ms | 339 ms | 451 ms | 135 ms | 75.4 s | 240 s | 2109 / 2336 | 1649 / 1792 | 1120 / 1236 | 1425 / 1462 |
 | c-foundationstereo-s | 994x1482 | 3631 ms | 2773 ms | 2229 ms | 1366 ms | 626 s | 444 s | 4357 / 4950 | 7298 / 7624 | 3058 / 4408 | 10027 / 10108 |
 | cas-gwcnet-c-sceneflow | 994x1482 | 327 ms | 295 ms | 220 ms | 225 ms | 61.7 s | 131 s | 2006 / 2474 | 2098 / 2448 | 1725 / 1930 | 1533 / 1548 |
-| cas-gwcnet-gc-sceneflow | 994x1482 | 472 ms | 383 ms | 307 ms | 358 ms | 63.7 s | 98.6 s | 2338 / 2794 | 6592 / 6670 | 2272 / 2514 | 4142 / 4194 |
+| cas-gwcnet-gc-sceneflow | 994x1482 | 473 ms | 383 ms | 307 ms | 359 ms | 63.7 s | 98.6 s | 2032 / 2228 | 6592 / 6670 | 2035 / 2230 | 4142 / 4194 |
 | cfnet-sceneflow | 994x1482 | 409 ms | 249 ms | 171 ms | 225 ms | 53.0 s | 139 s | 1822 / 2578 | 1026 / 1398 | 1073 / 1604 | 1357 / 1410 |
 | coex-sceneflow | 994x1482 | 49.9 ms | 29.4 ms | 20.6 ms | 23.5 ms | 22.4 s | 56.6 s | 1093 / 1174 | 351 / 452 | 368 / 514 | 438 / 452 |
 | crestereo-eth3d | 994x1482 | 732 ms | 398 ms | 298 ms | 229 ms | 120 s | 224 s | 884 / 1030 | 695 / 748 | 644 / 732 | 703 / 740 |
@@ -2165,7 +2167,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | great-igev-middlebury | 375x1242 | 492 ms | – | 3697 ms, fp32 engine (MobileNetV2 feature pyramid with eager stereo inference) | 176 ms | – | 13.1 s | 1165 / 1298 | – | 1060 / 1144 | 2388 / 4022 |
 | great-igev-sceneflow | 994x1482 | 1085 ms | 830 ms | 944 ms | 397 ms | 224 s | 675 s | 1402 / 1678 | 2831 / 3362 | 1134 / 1302 | 6155 / 6234 |
 | gwcnet-g-sceneflow | 994x1482 | 344 ms | 417 ms | 275 ms | 238 ms | 52.6 s | 66.0 s | 2081 / 2402 | 1527 / 1864 | 1799 / 2102 | 3634 / 3648 |
-| gwcnet-gc-sceneflow | 994x1482 | 353 ms | 420 ms | 669 ms | 257 ms | 83.8 s | 117 s | 2082 / 2402 | 1774 / 2246 | 1768 / 1962 | 2732 / 2786 |
+| gwcnet-gc-sceneflow | 994x1482 | 353 ms | 420 ms | 669 ms | 259 ms | 83.8 s | 117 s | 1792 / 2102 | 1774 / 2246 | 1510 / 1782 | 2732 / 2786 |
 | hitnet-eth3d | 994x1482 | 67.6 ms | 27.7 ms | 31.1 ms | 23.2 ms | 39.1 s | 136 s | 848 / 1068 | 719 / 728 | 623 / 770 | 912 / 920 |
 | hitnet-middlebury-d400 | 994x1482 | 176 ms | 71.5 ms | 74.9 ms | 53.1 ms | 55.4 s | 166 s | 1701 / 2154 | 1296 / 1332 | 1207 / 1514 | 1985 / 2014 |
 | igev-plusplus-eth3d | 994x1482 | 1079 ms | 716 ms | 494 ms | 427 ms | 159 s | 425 s | 1583 / 1696 | 952 / 1074 | 1272 / 1514 | 3765 / 3786 |
@@ -2761,7 +2763,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | swinir-m-x4-real | 512x512 | 1242 ms | 807 ms | 733 ms | 584 ms | 59.6 s | 109 s | 2387 / 3034 | 1683 / 1796 | 1353 / 1814 | 5427 / 5506 |
 | nnfoundation-cnn | 200x200 | 248 ms | 170 ms | 255 ms (encoder on a normalized, padded volume only; memory estimated) | 232 ms | 19.8 s | 49.0 s | 2368 / 3330 | 5067 / 5110 | 2325 / 3330 | 3374 / 3398 |
 | nnfoundation-vit | 192x192 | 1848 ms | 1440 ms | 7024 ms, fp32 engine (standalone encoder, fixed 192³, TF32 disabled) | 1732 ms | 69.5 s | 127 s | 1669 / 1884 | 1406 / 1484 | 1669 / 1884 | 8452 / 8452 |
-| nninteractive | 200x200 | 215 ms | 162 ms | fails: The TensorRT export accepts prepared 192³ network patches. | 201 ms | 18.0 s | – | 3075 / 3492 | 3643 / 3832 | 2643 / 3072 | – |
+| nninteractive | 200x200 | 209 ms | 162 ms | fails: The TensorRT export accepts prepared 192³ network patches. | 193 ms | 18.0 s | – | 2423 / 2772 | 3643 / 3832 | 2423 / 2772 | – |
 | nninteractive | 192x192 | – | – | 262 ms (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | – | – | 58.0 s | – | – | – | 2738 / 2740 |
 | totalsegmentator-total | 200x200 | 1977 ms | 1595 ms | 1582 ms (five nnU-Net patch networks with eager volume processing) | 1647 ms | 37.0 s | 152 s | 2017 / 2244 | 1697 / 1984 | 1219 / 1638 | 6646 / 7136 |
 | totalsegmentator-total-3mm | 200x200 | 70.3 ms | 63.1 ms | 74.4 ms (patch network, standalone build) | 71.8 ms | 11.9 s | 31.3 s | 962 / 1050 | 907 / 1030 | 913 / 1376 | 2909 / 2970 |
