@@ -44,7 +44,7 @@ from .net.dinov2.dinov2 import DinoV2
 from .net.dinov2.layers import Mlp
 from .net.dpt import DPT
 from .net.dualdpt import DualDPT
-from .net.utils.head_utils import create_uv_grid, position_grid_to_embed
+from .net.utils.head_utils import create_uv_grid, make_sincos_pos_embed, position_grid_to_embed
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -281,6 +281,23 @@ def _activate(arch_dual: bool, logits: torch.Tensor, sky_logits: torch.Tensor | 
 
 
 # ------------------------------------------------------------------------------------------------ portable
+def _add_position(
+    head: DPT | DualDPT, x: torch.Tensor, w: int, h: int,
+) -> torch.Tensor:
+    """Add the same FP32 embeddings to each axis without allocating a spatial channel grid on CUDA."""
+    if not x.is_cuda or torch.is_grad_enabled() or torch.compiler.is_compiling() or torch.jit.is_tracing():
+        return head._add_pos_embed(x, w, h).to(x.dtype)  # noqa: SLF001 - upstream helper
+    ph, pw = x.shape[-2:]
+    uv = create_uv_grid(pw, ph, aspect_ratio=w / h, dtype=x.dtype, device=x.device)
+    channels = x.shape[1] // 2
+    horizontal = make_sincos_pos_embed(channels, uv[0, :, 0]).t() * _POS_RATIO
+    vertical = make_sincos_pos_embed(channels, uv[:, 0, 1]).t() * _POS_RATIO
+    # Both callers supply a fresh convolution or resize output. The add promotes to float32 and stores in x.dtype.
+    x[:, :channels].add_(horizontal[None, :, None, :])
+    x[:, channels:].add_(vertical[None, :, :, None])
+    return x
+
+
 def _decode(head: DPT | DualDPT, feats: list[torch.Tensor], ph: int, pw: int) -> torch.Tensor:
     """Upstream DPT / DualDPT main branch up to the output convs: tokens `[B, N, C]` -> `[B, 128, 14 ph, 14 pw]`."""
     b = feats[0].shape[0]
@@ -290,7 +307,7 @@ def _decode(head: DPT | DualDPT, feats: list[torch.Tensor], ph: int, pw: int) ->
         x = head.norm(f).transpose(1, 2).reshape(b, -1, ph, pw)
         x = head.projects[i](x)
         if head.pos_embed:
-            x = head._add_pos_embed(x, w, h).to(x.dtype)  # noqa: SLF001 - upstream helper (built in fp32)
+            x = _add_position(head, x, w, h)
         rs.append(head.resize_layers[i](x))
     s: Any = head.scratch
     l1, l2, l3, l4 = s.layer1_rn(rs[0]), s.layer2_rn(rs[1]), s.layer3_rn(rs[2]), s.layer4_rn(rs[3])
@@ -300,7 +317,7 @@ def _decode(head: DPT | DualDPT, feats: list[torch.Tensor], ph: int, pw: int) ->
     p = s.refinenet1(p, l1)
     p = F.interpolate(s.output_conv1(p), (h, w), mode="bilinear", align_corners=True)
     if head.pos_embed:
-        p = head._add_pos_embed(p, w, h).to(p.dtype)  # noqa: SLF001 - upstream helper (built in fp32)
+        p = _add_position(head, p, w, h)
     return p
 
 
