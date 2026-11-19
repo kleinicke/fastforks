@@ -163,6 +163,9 @@ def _interact(
     return channel * channel_map.sigmoid() + spatial * spatial_map.sigmoid()
 
 
+_COMPACT_MASK_PIXELS = 256**2
+
+
 def _spatial_block(  # noqa: PLR0913 - separate CUDA gate and attention mask specializations
     m: Adaptive_Spatial_Attention,
     x: torch.Tensor,
@@ -186,7 +189,11 @@ def _spatial_block(  # noqa: PLR0913 - separate CUDA gate and attention mask spe
         (s0, s1), grid = m.shift_size, qkv.view(3, b, hp, wp, c)
         q0 = torch.roll(grid[..., :half], shifts=(-s0, -s1), dims=(2, 3)).view(3, b, -1, half)
         q1 = torch.roll(grid[..., half:], shifts=(-s1, -s0), dims=(2, 3)).view(3, b, -1, half)
-        if compact_mask:
+        if compact_mask or (
+            x.is_cuda
+            and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
+            and hp * wp >= _COMPACT_MASK_PIXELS
+        ):
             a = _shifted_window(cast("Spatial_Attention", m.attns[0]), q0, hp, wp, (s0, s1))
             b_att = _shifted_window(cast("Spatial_Attention", m.attns[1]), q1, hp, wp, (s1, s0))
         else:
