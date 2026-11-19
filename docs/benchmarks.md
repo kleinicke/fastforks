@@ -1481,7 +1481,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | ema-vfi-small-t | 114 | 89.4 | 84.3 | 1.4x | 1.1x | 2272 / 2384 | 1614 / 1792 | 271 / 1914 |
 | ema-vfi-t | 287 | 233 | 207 | 1.4x | 1.1x | 3940 / 4290 | 2827 / 3184 | 368 / 3566 |
 | film | 464 | 417 | 332 | 1.4x | 1.3x | 2953 / 3556 | 2461 / 3780 | 2461 / 3780 |
-| gimm-vfi-r | OOM | 2584 | 1576 | – | 1.6x | – | 5936 / 6618 | 4574 / 5362 |
+| gimm-vfi-r | OOM | 2528 | 1521 | – | 1.7x | – | 5872 / 6518 | 4511 / 5282 |
 | gimm-vfi-r-p | OOM | 2639 | 1628 | – | 1.6x | – | 5936 / 6618 | 4587 / 5282 |
 | rife-4.25 | 24.5 | 25.0 | 21.4 | 1.1x | 1.2x | 987 / 1154 | 755 / 894 | 848 / 916 |
 | rife-4.25-lite | 21.3 | 21.1 | 18.3 | 1.2x | 1.2x | 1012 / 1214 | 754 / 854 | 834 / 896 |
@@ -2718,7 +2718,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | ema-vfi-small-t | 1080x1920 | 89.4 ms | 59.8 ms | 43.4 ms | 84.3 ms | 77.9 s | 68.8 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
 | ema-vfi-t | 1080x1920 | 233 ms | 165 ms | 125 ms | 207 ms | 84.6 s | 91.5 s | 2827 / 3184 | 3325 / 3702 | 368 / 3566 | 1719 / 1766 |
 | film | 1080x1920 | 417 ms | 332 ms | 189 ms | 332 ms | 41.1 s | 203 s | 2461 / 3780 | 2666 / 3192 | 2461 / 3780 | 2658 / 2658 |
-| gimm-vfi-r | 1080x1920 | 2584 ms | 1498 ms | public API unavailable | 1576 ms | 307 s | – | 5936 / 6618 | 12051 / 12880 | 4574 / 5362 | – |
+| gimm-vfi-r | 1080x1920 | 2528 ms | 1498 ms | public API unavailable | 1521 ms | 307 s | – | 5872 / 6518 | 12051 / 12880 | 4511 / 5282 | – |
 | gimm-vfi-r | 480x854 | 468 ms | – | 1210 ms, fp32 engine (RAFT feature encoder with eager context, flow update and synthesis) | 289 ms | – | 12.9 s | 1574 / 1674 | – | 1388 / 1618 | 3522 / 6116 |
 | gimm-vfi-r-p | 1080x1920 | 2639 ms | 1498 ms | fails: TensorRT parser: Sc node | 1628 ms | 307 s | – | 5936 / 6618 | 12051 / 12880 | 4587 / 5282 | – |
 | gimm-vfi-r-p | 480x854 | 467 ms | – | 1190 ms, fp32 engine (RAFT feature and context encoders with eager flow update and synthesis) | 289 ms | – | 16.9 s | 1574 / 1674 | – | 1388 / 1598 | 3592 / 6000 |
