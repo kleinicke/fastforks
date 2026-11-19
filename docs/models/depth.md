@@ -1489,7 +1489,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `zoedepth-nk` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 408<br>271<br>124<br>88.9<br>71.7<br>73.3 | 3897 / 3948<br>2040 / 2146<br>2037 / 2124<br>1771 / 1960<br>1813 / 1880<br>2246 / 2306 |
+| `zoedepth-nk` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 408<br>271<br>124<br>88.9<br>71.7<br>73.3 | 3897 / 3948<br>2040 / 2146<br>1843 / 1944<br>1771 / 1960<br>1813 / 1880<br>2246 / 2306 |
 
 <details><summary>Details</summary>
 
@@ -1506,7 +1506,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `zoedepth-nk` 3000x4000 (2.4 GiB peak allocated, 2.6 reserved)
 - `zoedepth-nk` 994x1482, first call: portable + torch.compile 94 s (cold Inductor cache), TensorRT fp16 138 s (ONNX + engine).
 - `zoedepth-nk` original 994x1482: torch.autocast(fp16) around the forward
-- `zoedepth-nk` load / first call: original 8.35 s / 1.528 s, portable 1.92 s / 0.275 s, kernels 0.33† s / 0.122 s
+- `zoedepth-nk` portable 994x1482: Batches the per-pixel distribution head in row groups, with bitwise identical synthetic and three iBims predictions.
+- `zoedepth-nk` load / first call: original 8.35 s / 1.528 s, portable 0.46 s / 0.493 s, kernels 0.33† s / 0.122 s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 

@@ -934,7 +934,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | unik3d-vitl | 518x770 | 123 | 123 | 99.2 | 58.5 | 2.1x | 1.7x | 3220 / 3530 | 1172 / 1492 | 1070 / 1106 |
 | video-depth-anything-metric-s | 1080x1920 | – | – | 202 | 200 | – | 1.0x | – | 1962 / 2224 | 1967 / 2226 |
 | video-depth-anything-s | 1080x1920 | – | – | 202 | 200 | – | 1.0x | – | 1962 / 2204 | 1967 / 2226 |
-| zoedepth-nk | 518x770 | 295 | 250 | 114 | 80.0 | 3.1x | 1.4x | 1965 / 2124 | 1950 / 2124 | 1658 / 1960 |
+| zoedepth-nk | 994x1482 | – | – | 124 | – | – | – | – | 1843 / 1944 | – |
 
 ### Depth, Middlebury 2014 half, 994x1482
 
@@ -1653,7 +1653,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | unik3d-vitl | 7.28 | 4.16 | 3.77 (518x770) | 0.57 | 0.14 | 0.30 (518x770) |
 | video-depth-anything-metric-s | 3.85 (1080x1920) | 0.19 (480x640) | 0.19 (480x640) | 17.09 (1080x1920) | 0.44 (480x640) | 0.50 (480x640) |
 | video-depth-anything-s | 0.26 (1080x1920) | 0.98 (480x640) | 0.38 (480x640) | 14.04 (1080x1920) | 0.54 (480x640) | 0.37 (480x640) |
-| zoedepth-nk | 8.35 | 1.92 | 0.33† | 1.53 | 0.28 | 0.12 |
+| zoedepth-nk | 8.35 | 0.46 | 0.33† | 1.53 | 0.49 | 0.12 |
 | alexnet.tv_in1k | 2.51 | 1.30 | 1.40 | 0.81 | 0.02 | 0.06 |
 | coatnet_0_rw_224.sw_in1k | 0.38 | 1.37 | 1.94 | 0.31 | 0.38 | 0.28 |
 | coatnet_1_rw_224.sw_in1k | 0.47 | 1.44 | 2.45 | 0.15 | 0.37 | 0.28 |
@@ -2258,7 +2258,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | video-depth-anything-metric-s | 480x640 | 148 ms | 101 ms | 60.2 ms | 59.1 ms | 32.5 s | 82.1 s | 1461 / 1666 | 1143 / 1464 | 1270 / 1408 | 886 / 914 |
 | video-depth-anything-s | 1080x1920 | 202 ms | 1314 ms | – | 200 ms | 82.7 s | – | 1962 / 2204 | 7762 / 8530 | 1967 / 2226 | – |
 | video-depth-anything-s | 480x640 | 147 ms | 100 ms | 60.3 ms | 58.5 ms | 34.8 s | 103 s | 1070 / 1266 | 1143 / 1344 | 1101 / 1288 | 886 / 914 |
-| zoedepth-nk | 994x1482 | 124 ms | 71.7 ms | 73.3 ms | 88.9 ms | 93.8 s | 138 s | 2037 / 2124 | 1813 / 1880 | 1771 / 1960 | 2246 / 2306 |
+| zoedepth-nk | 994x1482 | 124 ms | 71.7 ms | 73.3 ms | 88.9 ms | 93.8 s | 138 s | 1843 / 1944 | 1813 / 1880 | 1771 / 1960 | 2246 / 2306 |
 | alexnet.tv_in1k | 224x224 | 0.970 ms | 0.824 ms | 0.401 ms | 0.604 ms | 4.33 s | 13.4 s | 151 / 224 | 183 / 204 | 184 / 228 | 278 / 312 |
 | coatnet_0_rw_224.sw_in1k | 224x224 | 6.49 ms | 3.59 ms | 0.849 ms | 1.74 ms | 12.1 s | 38.2 s | 102 / 124 | 120 / 142 | 100 / 144 | 158 / 170 |
 | coatnet_1_rw_224.sw_in1k | 224x224 | 10.7 ms | 5.58 ms | 1.38 ms | 2.89 ms | 16.2 s | 42.0 s | 132 / 158 | 149 / 176 | 130 / 196 | 231 / 250 |
