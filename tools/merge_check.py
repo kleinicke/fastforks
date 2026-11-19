@@ -211,7 +211,7 @@ def _model_directory(name: str) -> str:
 
 def _golden_sources_by_ref(js: list[dict[str, Any]], commit: str) -> dict[str, tuple[str, ...]]:
     """Keep passing results reusable when changes are confined to other model families."""
-    from select_tests import Graph, families, family_closures  # noqa: PLC0415 - only for golden-only orchestration
+    from select_tests import DEPENDENCIES, Graph, configuration_without_local_version, families, family_closures  # noqa: PLC0415
 
     family_info = families(ROOT)
     roots = {f["dir"] for f in family_info.values()}
@@ -232,6 +232,14 @@ def _golden_sources_by_ref(js: list[dict[str, Any]], commit: str) -> dict[str, t
             scope.update(b"link\0" + os.fsencode(path.readlink()) + b"\0")
         if path.is_file():
             with path.open("rb") as stream:
+                if relative in DEPENDENCIES:
+                    config = configuration_without_local_version(
+                        relative, stream.read().decode("utf-8", "surrogateescape")
+                    )
+                    if config is not None:
+                        scope.update(b"configuration\0" + hashlib.sha256(repr(config).encode("utf-8")).digest())
+                        continue
+                    stream.seek(0)
                 scope.update(b"file\0" + hashlib.file_digest(stream, "sha256").digest())
         else:
             scope.update(b"missing\0")

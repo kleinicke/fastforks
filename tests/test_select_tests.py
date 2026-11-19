@@ -184,7 +184,9 @@ def git_repo(tmp_path: Path) -> Callable[..., None]:
     return git
 
 
-def test_git_version_bump_keeps_model_scope(mini: Path, tmp_path: Path, git_repo: Callable[..., None]) -> None:
+def test_git_version_bump_keeps_model_scope(
+    mini: Path, tmp_path: Path, git_repo: Callable[..., None], monkeypatch: pytest.MonkeyPatch
+) -> None:
     shutil.copytree(mini, tmp_path, dirs_exist_ok=True)
     project = tmp_path / "pyproject.toml"
     lock = tmp_path / "uv.lock"
@@ -194,8 +196,16 @@ def test_git_version_bump_keeps_model_scope(mini: Path, tmp_path: Path, git_repo
     lock.write_text(old_lock)
     git_repo("add", ".")
     git_repo("commit", "-m", "Release baseline")
+    monkeypatch.setattr(merge_check, "ROOT", tmp_path)
+    jobs = [{"family": "fa", "ref": "fa-x@1"}]
+
+    def receipt() -> str:
+        return merge_check._golden_sources_by_ref(jobs, "HEAD")["fa-x@1"][0]
+
+    original_receipt = receipt()
     project.write_text(old_project.replace("0.2.0", "0.2.1"))
     lock.write_text(old_lock.replace("0.2.0", "0.2.1"))
+    assert receipt() == original_receipt
     model = "src/fastforks/stereo/models/fa/model.py"
     (tmp_path / model).write_text("VALUE = 1\n")
     git_repo("add", ".")
@@ -208,12 +218,15 @@ def test_git_version_bump_keeps_model_scope(mini: Path, tmp_path: Path, git_repo
     assert not selected.release
     assert set(selected.families) == {"fa"}
 
+    model_receipt = receipt()
+    assert model_receipt != original_receipt
     project.write_text(project.read_text().replace("torch>=2.8", "torch>=2.9"))
     git_repo("add", "pyproject.toml")
     git_repo("commit", "-m", "Change the Torch requirement")
     paths = st.git_changed("HEAD~1", "HEAD", tmp_path)
     assert not st.git_metadata_only("HEAD~1", "HEAD", paths, tmp_path)
     assert st.select(paths, tmp_path).release
+    assert receipt() != model_receipt
 
 
 def test_git_changed_reports_both_sides_of_a_moved_module(

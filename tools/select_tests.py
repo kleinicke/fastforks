@@ -322,34 +322,39 @@ def git_diff(base: str, head: str, root: Path = ROOT) -> Callable[[str], str]:
     return diff
 
 
-def same_lock_dependencies(old: str, new: str) -> bool:
-    """Whether two lockfiles differ only in the editable local package's version; invalid input stays conservative."""
+def configuration_without_local_version(path: str, text: str) -> dict[str, object] | None:
+    """Parse package configuration and drop the version of the editable FastForks project."""
     try:
-        docs = [tomllib.loads(text) for text in (old, new)]
-        for doc in docs:
-            local = [
+        doc = tomllib.loads(text)
+        if path == "uv.lock":
+            packages = [
                 p for p in doc["package"] if p.get("name") == "fastforks-core" and p.get("source") == {"editable": "."}
             ]
-            if len(local) != 1 or "version" not in local[0]:
-                return False
-            del local[0]["version"]
-        return docs[0] == docs[1]
+            if len(packages) != 1:
+                return None
+            project = packages[0]
+        else:
+            project = doc["project"]
+            if project.get("name") != "fastforks-core":
+                return None
+        if not isinstance(project.get("version"), str):
+            return None
+        del project["version"]
     except (AttributeError, KeyError, TypeError, tomllib.TOMLDecodeError):
-        return False
+        return None
+    return doc
+
+
+def same_lock_dependencies(old: str, new: str) -> bool:
+    """Whether two lockfiles match without the editable project's version."""
+    reference = configuration_without_local_version("uv.lock", old)
+    return reference is not None and reference == configuration_without_local_version("uv.lock", new)
 
 
 def same_project_configuration(old: str, new: str) -> bool:
-    """Compare two project configurations after removing the local package version."""
-    try:
-        docs = [tomllib.loads(text) for text in (old, new)]
-        for doc in docs:
-            project = doc["project"]
-            if project.get("name") != "fastforks-core" or not isinstance(project.get("version"), str):
-                return False
-            del project["version"]
-        return docs[0] == docs[1]
-    except (AttributeError, KeyError, TypeError, tomllib.TOMLDecodeError):
-        return False
+    """Whether two project configurations match without the project's version."""
+    reference = configuration_without_local_version("pyproject.toml", old)
+    return reference is not None and reference == configuration_without_local_version("pyproject.toml", new)
 
 
 def _git_snapshots(base: str, head: str, path: str, root: Path) -> list[str] | None:
