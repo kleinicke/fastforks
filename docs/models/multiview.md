@@ -12,9 +12,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`anysplat`](#anysplat) | yes | 364, 2.0x | 5192, 0.55x |
+| [`anysplat`](#anysplat) | yes | 369, 2.0x | 5548, 0.59x |
 | [`depthsplat-small-re10k`](#depthsplat) | yes | 95.1, 1.3x | 1314, 0.22x |
-| [`lingbot-map`](#lingbot_map) | yes | 520, 1.9x | 6178, 0.81x |
+| [`lingbot-map`](#lingbot_map) | yes | 520, 1.9x | 5932, 0.77x |
 | [`mapanything-apache`](#mapanything) | yes | 544, 3.6x | 4072, 0.47x |
 | [`mvsanywhere`](#mvsanywhere) | no | 35.2, 6.2x | 760, 0.51x |
 | [`mvsplat-re10k`](#mvsplat) | yes | 172, 1.6x | 1532, 0.37x |
@@ -35,7 +35,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `anysplat` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 741<br>503<br>364<br>427<br>314 | 8931 / 9394<br>4842 / 4932<br>4849 / 5192<br>4137 / 4694<br>7629 / 7674 |
+| `anysplat` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 741<br>508<br>369<br>427<br>314 | 8931 / 9394<br>4164 / 5384<br>4173 / 5548<br>4137 / 4694<br>7629 / 7674 |
 
 <details><summary>Details</summary>
 
@@ -54,6 +54,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `anysplat` 3000x4000 (6.5 GiB peak allocated, 9.4 reserved)
 - `anysplat` 336x518, first call: portable + torch.compile 80 s (cold Inductor cache), TensorRT fp16 215 s (ONNX + engine).
 - `anysplat` original 336x518: the authors' mixed-precision option (bfloat16); InternRobotics/AnySplat@5f5e208a7dd5 EncoderAnySplat inference, long side 448, voxel_size 0.002
+- `anysplat` portable 336x518, kernels 336x518: Grouped the independent pointwise FP32 head projections. Two synthetic sequences and five DTU scenes preserved depth, confidence, camera and point outputs exactly. Gaussian values differed by at most 7.2e-7.
 - `anysplat` load / first call: original 8.32 s / 3.068 s (336x518), portable 4.71 s / 0.891 s (336x518), kernels 4.04 s / 0.708 s (336x518)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -143,7 +144,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `lingbot-map` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 993<br>733<br>520<br>657<br>489 | 7141 / 7672<br>4158 / 6016<br>4167 / 6178<br>3339 / 3468<br>6280 / 6338 |
+| `lingbot-map` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 993<br>733<br>520<br>657<br>489 | 7141 / 7672<br>3910 / 5734<br>3919 / 5932<br>3339 / 3468<br>6280 / 6338 |
 
 <details><summary>Details</summary>
 
@@ -160,8 +161,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lingbot-map` 3000x4000 (5.5 GiB peak allocated, 6.8 reserved)
 - `lingbot-map` 480x640, first call: portable + torch.compile 71 s (cold Inductor cache), TensorRT fp16 181 s (ONNX + engine).
 - `lingbot-map` original 480x640: the authors' mixed-precision option (bfloat16); upstream GCTStream.inference_streaming (demo defaults, SDPA), bfloat16 aggregator
-- `lingbot-map` portable 480x640: Release causal keys and values before the final depth head. The matched eight-view baseline allocated 4719 MiB. Five labeled DTU scenes and both synthetic sequences matched bitwise.
-- `lingbot-map` kernels 480x640: Release causal keys and values before the final depth head. The matched eight-view baseline allocated 4728 MiB. Five labeled DTU scenes and both synthetic sequences matched bitwise.
+- `lingbot-map` portable 480x640, kernels 480x640: Released the causal cache before the final depth head. Both synthetic sequences and five labeled scenes were bitwise identical.
 - `lingbot-map` load / first call: original 131.28 s / 4.645 s (480x640), portable 6.58 s / 1.077 s (480x640), kernels 5.69 s / 0.843 s (480x640)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
