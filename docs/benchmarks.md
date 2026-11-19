@@ -1463,7 +1463,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | locotrack-s | 193 | 180 | 151 | 1.3x | 1.2x | 706 / 812 | 759 / 842 | 596 / 642 |
 | tapir | 187 | 182 | 141 | 1.3x | 1.3x | 498 / 574 | 463 / 548 | 463 / 548 |
 | tapnext | 909 | 528 | 381 | 2.4x | 1.4x | 1721 / 1902 | 1220 / 1294 | 1205 / 1254 |
-| tapnext-pp | 1493 | 529 | 381 | 3.9x | 1.4x | 1527 / 1718 | 1220 / 1294 | 1205 / 1254 |
+| tapnext-pp | 1493 | 529 | 382 | 3.9x | 1.4x | 1527 / 1718 | 1028 / 1094 | 1013 / 1074 |
 | track-on-r | 2022 | 1188 | 1102 | 1.8x | 1.1x | 1801 / 1928 | 1423 / 1632 | 1368 / 1620 |
 | track-on2 | 1953 | 1193 | 1108 | 1.8x | 1.1x | 1403 / 1558 | 1423 / 1712 | 1368 / 1620 |
 
@@ -2603,6 +2603,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | patchmatchnet | 1536x1024 | 201 ms | 175 ms | 51.0 ms | 29.5 ms | 29.4 s | 82.1 s | 1039 / 1212 | 1798 / 1888 | 648 / 772 | 1073 / 1106 |
 | pi3 | 336x518 | 822 ms | 752 ms | public API unavailable | 560 ms | 55.6 s | – | 2209 / 2254 | 2205 / 2334 | 2217 / 2296 | – |
 | pi3 | 8x512x640 | – | – | 735 ms (DINOv2 encoder with eager scene decoding, 8 views) | – | – | 53.8 s | – | – | – | 2586 / 2976 |
+| pi3 | 8x336x518 | – | – | 691 ms (34 decoder blocks with eager encoder and output heads, 8 views) | – | – | 58.0 s | – | – | – | 2600 / 2952 |
 | resplat-base-re10k | 480x640 | 7228 ms | 7098 ms (standalone Gaussian initialization and recurrent refinement heads, eager rendering and geometry) | fails: TypeError: _Base.forward() missing 1 required positional arg | 1178 ms | 12.6 s | – | 4364 / 6884 | 4656 / 7630 | 4370 / 6936 | – |
 | resplat-base-re10k | 256x256 | – | – | 1028 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 2173 / 2988 |
 | resplat-small-dl3dv | 480x640 | 1723 ms | 1538 ms | public API unavailable | 362 ms | 243 s | – | 4995 / 5180 | 4995 / 5138 | 4981 / 5148 | – |
@@ -2702,7 +2703,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | locotrack-s | 480x854 | 180 ms | 74.1 ms | 5.66 ms (8 frames with 16 queries only) | 151 ms | 140 s | 51.4 s | 759 / 842 | 1000 / 1034 | 596 / 642 | 251 / 256 |
 | tapir | 480x854 | 182 ms | 131 ms | 6.47 ms | 141 ms | 169 s | 55.2 s | 463 / 548 | 630 / 752 | 463 / 548 | 361 / 406 |
 | tapnext | 480x854 | 528 ms | 398 ms | 69.4 ms | 381 ms | 40.5 s | 366 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |
-| tapnext-pp | 480x854 | 529 ms | 395 ms | 69.5 ms | 381 ms | 34.1 s | 362 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |
+| tapnext-pp | 480x854 | 529 ms | 395 ms | 69.5 ms | 382 ms | 34.1 s | 362 s | 1028 / 1094 | 1164 / 1272 | 1013 / 1074 | 1498 / 1660 |
 | track-on-r | 480x854 | 1188 ms | 1066 ms | public API unavailable | 1102 ms | 66.0 s | – | 1423 / 1632 | 1340 / 1454 | 1368 / 1620 | – |
 | track-on-r | 256x256 | – | – | 958 ms, fp32 engine (standalone eight-frame encoder, eager recurrent decoder) | – | – | 42.1 s | – | – | – | 1979 / 2286 |
 | track-on2 | 480x854 | 1193 ms | 1075 ms | public API unavailable | 1108 ms | 60.0 s | – | 1423 / 1712 | 1340 / 1454 | 1368 / 1620 | – |

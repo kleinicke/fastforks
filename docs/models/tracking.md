@@ -21,7 +21,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`locotrack-s`](#locotrack) | yes | 151, 1.3x | 642, 0.79x |
 | [`tapir`](#tapir) | yes | 141, 1.3x | 548, 0.95x |
 | [`tapnext`](#tapnext) | yes | 381, 2.4x | 1254, 0.66x |
-| [`tapnext-pp`](#tapnext) | yes | 381, 3.9x | 1254, 0.73x |
+| [`tapnext-pp`](#tapnext) | yes | 382, 3.9x | 1074, 0.63x |
 | [`track-on-r`](#track_on) | yes | 1102, 1.8x | 1620, 0.84x |
 | [`track-on2`](#track_on) | yes | 1108, 1.8x | 1620, 1.0x |
 
@@ -307,7 +307,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `tapnext` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 909<br>528<br>381<br>398<br>69.4 | 1721 / 1902<br>1220 / 1294<br>1205 / 1254<br>1164 / 1272<br>1498 / 1660 |
-| `tapnext-pp` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1493<br>529<br>381<br>395<br>69.5 | 1527 / 1718<br>1220 / 1294<br>1205 / 1254<br>1164 / 1272<br>1498 / 1660 |
+| `tapnext-pp` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1493<br>529<br>382<br>395<br>69.5 | 1527 / 1718<br>1028 / 1094<br>1013 / 1074<br>1164 / 1272<br>1498 / 1660 |
 
 <details><summary>Details</summary>
 
@@ -325,6 +325,7 @@ Commercial use: yes.
 - `tapnext-pp` 480x854, first call: portable + torch.compile 34 s (cold Inductor cache), TensorRT fp16 362 s (ONNX + engine).
 - `tapnext` original 480x854: the authors' mixed-precision option (float16); upstream TAPNext, online one frame per call; frames resized to 256 x 256 (antialiased bilinear)
 - `tapnext-pp` original 480x854: upstream TAPNext, online one frame per call; frames resized to 256 x 256 (antialiased bilinear)
+- `tapnext-pp` portable 480x854, kernels 480x854: 24 frames and 256 queries. The compact CUDA position lookup saves 191 MiB of peak allocation in the paired runs and reproduces all tracks and visibility on synthetic input and three labeled TAP-Vid DAVIS clips.
 - `tapnext` load / first call: original 16.92 s / 2.165 s, portable 2.37 s / 0.666 s, kernels 3.01 s / 0.542 s
 - `tapnext-pp` load / first call: original 4.83 s / 1.802 s, portable 1.34 s / 0.772 s, kernels 1.28 s / 0.665 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

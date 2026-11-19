@@ -426,6 +426,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `pi3` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1057<br>822<br>560<br>752<br>public API unavailable | 5926 / 6016<br>2209 / 2254<br>2217 / 2296<br>2205 / 2334<br>– |
+| `pi3` | 8x336x518 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>691 (34 decoder blocks with eager encoder and output heads, 8 views) | –<br>–<br>–<br>2600 / 2952 |
 | `pi3` | 8x512x640 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>735 (DINOv2 encoder with eager scene decoding, 8 views) | –<br>–<br>–<br>2586 / 2976 |
 
 ### Weight streaming
@@ -453,6 +454,7 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `pi3` 3000x4000 (4.8 GiB peak allocated, 6.5 reserved)
 - `pi3` 336x518, first call: portable + torch.compile 56 s (cold Inductor cache).
+- `pi3` 8x336x518, first call: TensorRT fp16 58 s (ONNX + engine).
 - `pi3` 8x512x640, first call: TensorRT fp16 54 s (ONNX + engine).
 - `pi3` original 336x518: the authors' mixed-precision option (bfloat16); yyfz/Pi3@9fa3ddb3f8d5 Pi3.forward, PIXEL_LIMIT 255000
 - `pi3` portable 336x518, kernels 336x518: Eight-view FP16 profile. The paired decoder lifetime change saves 150 MiB peak allocation and reproduces the synthetic outputs and the matching depth and camera tensors on three DTU scenes.
@@ -461,13 +463,14 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 
 ### Measured
 
-640x512 crops, the 7 most co-visible views as sources. Ground truth is depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Original = the original code named under Details, same checkpoint and protocol.
+640x512 crops, the 7 most co-visible views as sources. Ground truth is depth rendered from the structured-light points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras (calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range from the camera baselines). Resize the eight DTU images to 336 x 518 and the reference depth with nearest-neighbor sampling. Align the predicted depth by median scale on valid reference pixels before averaging AbsRel over the five scans. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
 |---|---|---|---|---|---|---|---|---|
 | `pi3` | DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 % | 0.0070 / 99.94 | 0.0071 / 99.94 | 0.0070 / 99.94 | 0.0070 / 99.94 | 0.0070 / 99.94 | 0.0070 / 99.94 |  |
+| `pi3` | DTU (five scans), view 24 + 7 sources at 336 x 518, AbsRel |  |  | 0.01356 |  |  | 0.01359 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 28db82cb, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 28db82cb, 2026-11-13; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 938a6cc7, 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 28db82cb / 6fbc44a2f, 2026-11-13 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 28db82cb, 2026-11-13; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6fbc44a2f / 938a6cc7, 2026-11-19.
 
 ### Parity
 

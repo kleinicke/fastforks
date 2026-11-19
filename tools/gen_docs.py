@@ -91,6 +91,7 @@ _DATASETS = {
     },
     "multiview": {
         "dtu-scans1-9-24-33-75-view24": "DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 %",
+        "dtu-scans1-9-24-33-75-view24-336x518": "DTU (five scans), view 24 + 7 sources at 336 x 518, AbsRel",
         "dtu-five-scan-view24-480x640": "DTU (five scans), view 24 + 7 sources at 480 x 640, AbsRel / delta1 %",
         "dtu-five-scan-view24-448x672": "DTU, view 24 + 7 sources at 448 x 672, AbsRel / delta1 % / MAE mm",
         "dtu-five-scan-view24-448x672-fp16": "DTU FP16, view 24 + 7 sources at 448 x 672, AbsRel / delta1 % / MAE mm",
@@ -254,6 +255,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     },
     "features": ((("top1", "{:.2f}", ""),), "n", "images"),
     "multiview": ((("absrel", "{:.4f}", ""), ("d125", "{:.2f}", ""), ("mae_mm", "{:.2f}", " / MAE mm")), "n", "scans"),
+    ("multiview", "dtu-scans1-9-24-33-75-view24-336x518"): ((("absrel", "{:.5f}", ""),), "n", "scans"),
     **{
         ("multiview", dataset): ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "views")
         for dataset in ("realestate10k-examples-2v", "realestate10k-examples-8v")
@@ -458,6 +460,9 @@ _PROTOCOL = {
     "points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras "
     "(calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range "
     "from the camera baselines). ",
+    ("multiview", "dtu-scans1-9-24-33-75-view24-336x518"): "Resize the eight DTU images to 336 x 518 "
+    "and the reference depth with nearest-neighbor sampling. Align the predicted depth by median scale on valid "
+    "reference pixels before averaging AbsRel over the five scans. ",
     ("multiview", "dtu-heldout-render-view13"): "Eight calibrated input views at 336 x 518 per scan. Portable "
     "and TensorRT Gaussians are rendered with gsplat at the same held-out camera. RGB PSNR against that camera's "
     "DTU image is averaged over the five scans. ",
