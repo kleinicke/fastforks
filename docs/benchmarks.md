@@ -1476,7 +1476,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|
-| ema-vfi | 296 | 233 | 207 | 1.4x | 1.1x | 3940 / 4290 | 1672 / 2242 | 368 / 3566 |
+| ema-vfi | 296 | 233 | 185 | 1.6x | 1.3x | 3940 / 4290 | 1659 / 2082 | 1659 / 2102 |
 | ema-vfi-small | 121 | 89.4 | 84.4 | 1.4x | 1.1x | 2272 / 2384 | 1614 / 1792 | 271 / 1914 |
 | ema-vfi-small-t | 114 | 89.4 | 84.3 | 1.4x | 1.1x | 2272 / 2384 | 1614 / 1792 | 271 / 1914 |
 | ema-vfi-t | 287 | 233 | 207 | 1.4x | 1.1x | 3940 / 4290 | 2827 / 3184 | 368 / 3566 |
@@ -2713,7 +2713,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | track-on-r | 256x256 | – | – | 958 ms, fp32 engine (standalone eight-frame encoder, eager recurrent decoder) | – | – | 42.1 s | – | – | – | 1979 / 2286 |
 | track-on2 | 480x854 | 1193 ms | 1075 ms | public API unavailable | 1108 ms | 60.0 s | – | 1423 / 1712 | 1340 / 1454 | 1368 / 1620 | – |
 | track-on2 | 256x256 | – | – | 961 ms, fp32 engine (standalone eight-frame encoder, eager recurrent decoder) | – | – | 46.3 s | – | – | – | 1979 / 2288 |
-| ema-vfi | 1080x1920 | 233 ms | 165 ms | 124 ms | 207 ms | 90.6 s | 90.9 s | 1672 / 2242 | 3325 / 3542 | 368 / 3566 | 1719 / 1786 |
+| ema-vfi | 1080x1920 | 233 ms | 165 ms | 124 ms | 185 ms | 90.6 s | 90.9 s | 1659 / 2082 | 3325 / 3542 | 1659 / 2102 | 1719 / 1786 |
 | ema-vfi-small | 1080x1920 | 89.4 ms | 59.6 ms | 43.7 ms | 84.4 ms | 78.5 s | 67.6 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
 | ema-vfi-small-t | 1080x1920 | 89.4 ms | 59.8 ms | 43.4 ms | 84.3 ms | 77.9 s | 68.8 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
 | ema-vfi-t | 1080x1920 | 233 ms | 165 ms | 125 ms | 207 ms | 84.6 s | 91.5 s | 2827 / 3184 | 3325 / 3702 | 368 / 3566 | 1719 / 1766 |

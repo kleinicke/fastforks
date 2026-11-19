@@ -12,7 +12,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`ema-vfi`](#ema_vfi) | yes | 207, 1.4x | 3566, 0.83x |
+| [`ema-vfi`](#ema_vfi) | yes | 185, 1.6x | 2102, 0.49x |
 | [`ema-vfi-small`](#ema_vfi) | yes | 84.4, 1.4x | 1914, 0.8x |
 | [`ema-vfi-small-t`](#ema_vfi) | yes | 84.3, 1.4x | 1914, 0.8x |
 | [`ema-vfi-t`](#ema_vfi) | yes | 207, 1.4x | 3566, 0.83x |
@@ -33,7 +33,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `ema-vfi` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 296<br>233<br>207<br>165<br>124 | 3940 / 4290<br>1672 / 2242<br>368 / 3566<br>3325 / 3542<br>1719 / 1786 |
+| `ema-vfi` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 296<br>233<br>185<br>165<br>124 | 3940 / 4290<br>1659 / 2082<br>1659 / 2102<br>3325 / 3542<br>1719 / 1786 |
 | `ema-vfi-small` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 121<br>89.4<br>84.4<br>59.6<br>43.7 | 2272 / 2384<br>1614 / 1792<br>271 / 1914<br>1809 / 1890<br>1018 / 1110 |
 | `ema-vfi-t` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 287<br>233<br>207<br>165<br>125 | 3940 / 4290<br>2827 / 3184<br>368 / 3566<br>3325 / 3702<br>1719 / 1766 |
 | `ema-vfi-small-t` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 114<br>89.4<br>84.3<br>59.8<br>43.4 | 2272 / 2384<br>1614 / 1792<br>271 / 1914<br>1809 / 1890<br>1018 / 1110 |
@@ -56,7 +56,7 @@ Commercial use: yes.
 - `ema-vfi-t` 1080x1920, first call: portable + torch.compile 85 s (cold Inductor cache), TensorRT fp16 92 s (ONNX + engine).
 - `ema-vfi-small-t` 1080x1920, first call: portable + torch.compile 78 s (cold Inductor cache), TensorRT fp16 69 s (ONNX + engine).
 - `ema-vfi` original 1080x1920: torch.autocast(float16) around the call; upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32
-- `ema-vfi` portable 1080x1920: Eager CUDA streams warped features through the refiner, with bitwise parity on three DAVIS triplets.
+- `ema-vfi` portable 1080x1920, kernels 1080x1920: FP16 native path with reused attention and flow buffers. Synthetic and three labeled DAVIS outputs match the previous path bitwise.
 - `ema-vfi-small` original 1080x1920: torch.autocast(float16) around the call; upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32
 - `ema-vfi-t` original 1080x1920: torch.autocast(float16) around the call; upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32
 - `ema-vfi-small-t` original 1080x1920: torch.autocast(float16) around the call; upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32
