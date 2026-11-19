@@ -309,11 +309,11 @@ Commercial use: yes.
 
 The 3,000 paired degraded inputs and clean targets from DAEFR's CelebA-Test archives. Score aligned 512 x 512 RGB outputs rounded to eight bits, with no border crop. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable fp32 | note |
-|---|---|---|---|---|
-| `gfpgan-v1.4` | DAEFR CelebA-Test (3,000 aligned faces, 512 x 512), RGB PSNR / SSIM | 20.91 / 0.5855 | 20.91 / 0.5855 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | note |
+|---|---|---|---|---|---|
+| `gfpgan-v1.4` | DAEFR CelebA-Test (3,000 aligned faces, 512 x 512), RGB PSNR / SSIM | 20.91 / 0.5855 | 20.90 / 0.5854 | 20.91 / 0.5855 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
 
 ### Parity
 
