@@ -13,8 +13,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | model | commercial | KITTI 2015 train EPE (px) ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
 | [`flowformer-small-chairs`](#flowformer) | yes | 10.952 | 3951 | 8822 |
-| [`flowformer-small-sintel`](#flowformer) | yes | 4.657 † | 322, 0.9x (375x1242) | 1698, 0.57x |
-| [`flowformer-small-things`](#flowformer) | yes | 6.884 | 322, 0.9x (375x1242) | 1698, 0.56x |
+| [`flowformer-small-sintel`](#flowformer) | yes | 4.657 † | 3958 | 8822 |
+| [`flowformer-small-things`](#flowformer) | yes | 6.884 | 3950 | 8822 |
 | [`flowseek-t`](#flowseek) | yes | 1.348 † | 255, 1.8x | 1154, 0.12x |
 | [`flowseek-t-things`](#flowseek) | yes | 4.143 | 254, 1.8x | 2114, 0.22x |
 | [`flowseek-t-things-notartan`](#flowseek) | yes | 3.933 | 254, 1.8x | 2114, 0.22x |
@@ -72,7 +72,9 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `flowformer-small-chairs` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>4006<br>3951<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | –<br>–<br>8780 / 8960<br>8696 / 8822<br>–<br>– |
 | `flowformer-small-chairs` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>338<br>326<br>250<br>202 | 3122 / 3718<br>2382 / 2970<br>744 / 838<br>740 / 838<br>2438 / 3196<br>2087 / 2138 |
+| `flowformer-small-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>4003<br>3950<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | –<br>–<br>8780 / 8960<br>8696 / 8822<br>–<br>– |
 | `flowformer-small-things` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>337<br>322<br>250<br>202 | 3122 / 3678<br>2382 / 3010<br>1404 / 1698<br>1401 / 1698<br>2438 / 3196<br>2087 / 2138 |
+| `flowformer-small-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>4003<br>3958<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | –<br>–<br>8780 / 8960<br>8696 / 8822<br>–<br>– |
 | `flowformer-small-sintel` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>336<br>322<br>250<br>202 | 3122 / 3718<br>2382 / 2990<br>1404 / 1698<br>1401 / 1698<br>2438 / 3196<br>2087 / 2138 |
 
 <details><summary>Details</summary>
@@ -97,9 +99,11 @@ Commercial use: yes.
 - `flowformer-small-chairs` portable 1080x1920, kernels 1080x1920, portable 375x1242, kernels 375x1242: Only the final upsampling weights are needed in inference. Synthetic and three rescaled KITTI flows at 1080p match bitwise.
 - `flowformer-small-chairs` original (fp32) 375x1242: upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
 - `flowformer-small-chairs` original 375x1242: torch.autocast(float16) around the call; upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
+- `flowformer-small-things` portable 1080x1920, kernels 1080x1920: The bounded FP32 native path completes at 1080p. This profile uses one warm-up and five timed calls.
 - `flowformer-small-things` original (fp32) 375x1242: upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
 - `flowformer-small-things` original 375x1242: torch.autocast(float16) around the call; upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
 - `flowformer-small-things` kernels 375x1242: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `flowformer-small-sintel` portable 1080x1920, kernels 1080x1920: The bounded FP32 native path completes at 1080p. This profile uses one warm-up and five timed calls.
 - `flowformer-small-sintel` original (fp32) 375x1242: upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
 - `flowformer-small-sintel` original 375x1242: torch.autocast(float16) around the call; upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
 - `flowformer-small-sintel` kernels 375x1242: Existing CUDA kernel mode on one fixed input with five warm calls.

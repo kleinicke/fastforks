@@ -9,8 +9,8 @@ The November 19 release review covers 578 variants.
 - [x] Original and portable FP32 accuracy are each measured for 575 variants. Marigold V2 and both SeedVR2 models
   use BF16 in their CUDA portable runners and have scores at that precision.
 - [x] Compile timings cover all 578 variants. The measured stage is recorded for partial compilation.
-- [ ] TensorRT timings cover 575 variants, including 54 whose selected measurement is for a standalone stage. Three
-  configurations remain gated on paired accuracy checks: DISK-LightGlue, XFeat-LighterGlue and RoMa v1.
+- [ ] TensorRT timings cover 575 variants, with 54 selected timings from standalone builds. Scope labels identify
+  staged runs and restricted inputs. DISK-LightGlue, XFeat-LighterGlue and RoMa v1 remain gated on paired accuracy checks.
 - [x] Kernels timings cover all 578 variants in the local setup. Public CUDA binary availability is tracked separately
   in [the kernel inventory](missing-kernel-modes-0.2.1.md).
 - [x] Each of the 20 task categories has a labeled comparison for kernels, compile and TensorRT.

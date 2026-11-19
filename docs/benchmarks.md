@@ -1228,7 +1228,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | parseq | 32x128 | 15.9 | 19.6 | 3.62 | 3.62 | 4.4x | 1.0x | 126 / 144 | 79 / 100 | 79 / 100 |
 | parseq-tiny | 32x128 | 14.6 | 18.0 | 2.10 | 2.10 | 6.9x | 1.0x | 56 / 58 | 44 / 54 | 44 / 54 |
 | ppocrv5-mobile | 1080x1920 | 619 | 418 | 153 | 154 | 2.7x | 1.0x | 393 / 1005 | 289 / 448 | 500 / 1016 |
-| ppocrv5-server | 1080x1920 | – | 762 (fp32) | 277 | 235 | 3.2x | 1.2x | 2355 / 2901 | 1357 / 1452 | 1328 / 2708 |
+| ppocrv5-server | 1080x1920 | – | 762 (fp32) | 279 | 228 | 3.3x | 1.2x | 2355 / 2901 | 615 / 752 | 730 / 1648 |
 
 ### Pose, synthetic, 1080x1920
 
@@ -1371,7 +1371,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | mvsplat-re10k | 336x518 | – | 279 | 181 | 172 | 1.6x | 1.0x | 2889 / 4160 | 1239 / 1532 | 1239 / 1532 |
 | patchmatchnet | 1536x1024 | 248 | 220 | 201 | 29.5 | 7.4x | 6.8x | 1228 / 1272 | 1039 / 1212 | 648 / 772 |
 | pi3 | 336x518 | – | 1057 | 822 | 560 | 1.9x | 1.5x | 5926 / 6016 | 2209 / 2254 | 2217 / 2296 |
-| resplat-base-re10k | 480x640 | – | 2521 | 7228 | 1178 | 2.1x | 6.1x | 10139 / 12684 | 4364 / 6884 | 4370 / 6936 |
+| resplat-base-re10k | 480x640 | – | 2521 | 7122 | 1169 | 2.2x | 6.1x | 10139 / 12684 | 4343 / 5556 | 4348 / 5546 |
 | resplat-small-dl3dv | 480x640 | – | 493 | 1723 | 362 | 1.4x | 4.8x | 5148 / 5376 | 4995 / 5180 | 4981 / 5148 |
 | vggt-1b | 336x518 | 2502 | 965 | 653 | 446 | 2.2x | 1.5x | 8688 / 9158 | 3573 / 3794 | 3580 / 3854 |
 | vggt-omega-1b-512 | 336x518 | 2650 | 906 | 727 | 469 | 1.9x | 1.5x | 7495 / 7654 | 3269 / 3352 | 3270 / 3330 |
@@ -1381,8 +1381,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
 | flowformer-small-chairs | 1080x1920 | OOM | OOM | 4006 | 3951 | – | 1.0x | – | 8780 / 8960 | 8696 / 8822 |
-| flowformer-small-sintel | 375x1242 | 352 | 303 | 336 | 322 | 0.9x | 1.0x | 2382 / 2990 | 1404 / 1698 | 1401 / 1698 |
-| flowformer-small-things | 375x1242 | 352 | 303 | 337 | 322 | 0.9x | 1.0x | 2382 / 3010 | 1404 / 1698 | 1401 / 1698 |
+| flowformer-small-sintel | 1080x1920 | OOM | OOM | 4003 | 3958 | – | 1.0x | – | 8780 / 8960 | 8696 / 8822 |
+| flowformer-small-things | 1080x1920 | OOM | OOM | 4003 | 3950 | – | 1.0x | – | 8780 / 8960 | 8696 / 8822 |
 | flowseek-t | 1080x1920 | 650 | 457 | 396 | 255 | 1.8x | 1.6x | 8693 / 9880 | 6123 / 6252 | 1100 / 1154 |
 | flowseek-t-things | 1080x1920 | 650 | 458 | 395 | 254 | 1.8x | 1.6x | 8693 / 9820 | 8671 / 8712 | 1947 / 2114 |
 | flowseek-t-things-notartan | 1080x1920 | 651 | 458 | 396 | 254 | 1.8x | 1.6x | 8693 / 9820 | 8671 / 8712 | 1947 / 2114 |
@@ -2487,7 +2487,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | parseq | 32x128 | 3.62 ms | 8.80 ms | 1.67 ms | 3.62 ms | 19.9 s | 114 s | 79 / 100 | 111 / 118 | 79 / 100 | 148 / 168 |
 | parseq-tiny | 32x128 | 2.10 ms | 1.54 ms | 1.67 ms | 2.10 ms | 18.0 s | 102 s | 44 / 54 | 76 / 94 | 44 / 54 | 82 / 90 |
 | ppocrv5-mobile | 1080x1920 | 153 ms | 115 ms | 2.68 ms | 154 ms | 75.0 s | 156 s | 289 / 448 | 292 / 448 | 500 / 1016 | 241 / 268 |
-| ppocrv5-server | 1080x1920 | 277 ms | 277 ms | 25.1 ms | 235 ms | 105 s | 40.6 s | 1357 / 1452 | 958 / 1132 | 1328 / 2708 | 1131 / 1146 |
+| ppocrv5-server | 1080x1920 | 279 ms | 277 ms | 25.1 ms | 228 ms | 105 s | 40.6 s | 615 / 752 | 958 / 1132 | 730 / 1648 | 1131 / 1146 |
 | dwpose-l | 1080x1920 | 10.3 ms | 5.75 ms | 3.33 ms (network on person crops only) | 6.20 ms | 14.8 s | 20.0 s | 211 / 260 | 197 / 216 | 163 / 266 | 277 / 294 |
 | dwpose-l-384 | 1080x1920 | 21.4 ms | 11.9 ms | 7.46 ms (network on person crops only) | 12.7 ms | 14.9 s | 20.6 s | 325 / 418 | 253 / 296 | 229 / 404 | 347 / 370 |
 | dwpose-m | 1080x1920 | 7.31 ms | 3.80 ms | 2.13 ms (network on person crops only) | 4.86 ms | 12.9 s | 18.9 s | 153 / 196 | 156 / 174 | 133 / 200 | 203 / 228 |
@@ -2609,7 +2609,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | pi3 | 336x518 | 822 ms | 752 ms | public API unavailable | 560 ms | 55.6 s | – | 2209 / 2254 | 2205 / 2334 | 2217 / 2296 | – |
 | pi3 | 8x512x640 | – | – | 735 ms (DINOv2 encoder with eager scene decoding, 8 views) | – | – | 53.8 s | – | – | – | 2586 / 2976 |
 | pi3 | 8x336x518 | – | – | 691 ms (34 decoder blocks with eager encoder and output heads, 8 views) | – | – | 58.0 s | – | – | – | 2600 / 2952 |
-| resplat-base-re10k | 480x640 | 7228 ms | 7098 ms (standalone Gaussian initialization and recurrent refinement heads, eager rendering and geometry) | fails: TypeError: _Base.forward() missing 1 required positional arg | 1178 ms | 12.6 s | – | 4364 / 6884 | 4656 / 7630 | 4370 / 6936 | – |
+| resplat-base-re10k | 480x640 | 7122 ms | 7098 ms (standalone Gaussian initialization and recurrent refinement heads, eager rendering and geometry) | fails: TypeError: _Base.forward() missing 1 required positional arg | 1169 ms | 12.6 s | – | 4343 / 5556 | 4656 / 7630 | 4348 / 5546 | – |
 | resplat-base-re10k | 256x256 | – | – | 1028 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 2173 / 2988 |
 | resplat-small-dl3dv | 480x640 | 1723 ms | 1538 ms | public API unavailable | 362 ms | 243 s | – | 4995 / 5180 | 4995 / 5138 | 4981 / 5148 | – |
 | resplat-small-dl3dv | 256x448 | – | – | 1362 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 1367 / 1800 |
@@ -2617,9 +2617,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | vggt-omega-1b-512 | 336x518 | 727 ms | 589 ms | 377 ms | 469 ms | 65.7 s | 187 s | 3269 / 3352 | 3082 / 3154 | 3270 / 3330 | 5657 / 5766 |
 | flowformer-small-chairs | 1080x1920 | 4006 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | 3951 ms | – | – | 8780 / 8960 | – | 8696 / 8822 | – |
 | flowformer-small-chairs | 375x1242 | 338 ms | 250 ms | 202 ms | 326 ms | 98.7 s | 118 s | 744 / 838 | 2438 / 3196 | 740 / 838 | 2087 / 2138 |
-| flowformer-small-sintel | 1080x1920 | – | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | – | – | – | – | – | – | – |
+| flowformer-small-sintel | 1080x1920 | 4003 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | 3958 ms | – | – | 8780 / 8960 | – | 8696 / 8822 | – |
 | flowformer-small-sintel | 375x1242 | 336 ms | 250 ms | 202 ms | 322 ms | 98.9 s | 117 s | 1404 / 1698 | 2438 / 3196 | 1401 / 1698 | 2087 / 2138 |
-| flowformer-small-things | 1080x1920 | – | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | – | – | – | – | – | – | – |
+| flowformer-small-things | 1080x1920 | 4003 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | 3950 ms | – | – | 8780 / 8960 | – | 8696 / 8822 | – |
 | flowformer-small-things | 375x1242 | 337 ms | 250 ms | 202 ms | 322 ms | 99.3 s | 118 s | 1404 / 1698 | 2438 / 3196 | 1401 / 1698 | 2087 / 2138 |
 | flowseek-t | 1080x1920 | 396 ms | 258 ms | 168 ms | 255 ms | 54.2 s | 107 s | 6123 / 6252 | 6126 / 6212 | 1100 / 1154 | 11328 / 11350 |
 | flowseek-t-things | 1080x1920 | 395 ms | 258 ms | 168 ms | 254 ms | 54.6 s | 102 s | 8671 / 8712 | 6126 / 6212 | 1947 / 2114 | 11330 / 11352 |

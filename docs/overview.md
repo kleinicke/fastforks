@@ -451,7 +451,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`parseq-tiny`](models/ocr.md#parseq-scene-text-recognition) | yes | – | 2.1 | 2.1 (32x128) | 1.0x vs portable | 44 |
 | [`parseq`](models/ocr.md#parseq-scene-text-recognition) | yes | – | 3.6 | 3.6 (32x128) | 1.0x vs portable | 79 |
 | [`ppocrv5-mobile`](models/ocr.md#pp-ocrv5-server--mobile) | yes | 418.3 (1080x1920) | 152.9 | 153.8 | 2.7x vs original (1080x1920) | 500 |
-| [`ppocrv5-server`](models/ocr.md#pp-ocrv5-server--mobile) | yes | 762.4 (1080x1920) | 276.5 | 235.2 | 3.2x vs original (1080x1920) | 1328 |
+| [`ppocrv5-server`](models/ocr.md#pp-ocrv5-server--mobile) | yes | 762.4 (1080x1920) | 279.1 | 228.0 | 3.3x vs original (1080x1920) | 730 |
 
 ## Pose
 
@@ -622,7 +622,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`lingbot-map`](models/multiview.md#lingbot-map) | yes | 992.8 (480x640) | 733.4 | 520.2 | 1.9x vs original (480x640) | 3919 |
 | [`mapanything-apache`](models/multiview.md#mapanything) | yes | 1966.8 (336x518) | 637.0 | 525.0 | 3.7x vs original (336x518) | 3252 |
 | [`pi3`](models/multiview.md#pi3) | no | 1056.6 (336x518) | 822.1 | 559.8 | 1.9x vs original (336x518) | 2217 |
-| [`resplat-base-re10k`](models/multiview.md#resplat) | no | 2520.8 (480x640) | 7228.5 | 1178.3 | 2.1x vs original (480x640) | 4370 |
+| [`resplat-base-re10k`](models/multiview.md#resplat) | no | 2520.8 (480x640) | 7122.3 | 1169.2 | 2.2x vs original (480x640) | 4348 |
 
 ## Flow
 
@@ -662,8 +662,6 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.933 | 457.6 (1080x1920) | 395.6 | 254.1 | 1.8x vs original (1080x1920) | 1947 |
 | [`flowseek-t`](models/flow.md#flowseek) | yes | 1.348 † | 457.0 (1080x1920) | 396.2 | 254.5 | 1.8x vs original (1080x1920) | 1100 |
 | [`memfof-kitti`](models/flow.md#memfof) | yes | 15.577 † | – | 385.6 | 308.8 (375x1242) | 1.2x vs portable | 786 |
-| [`flowformer-small-sintel`](models/flow.md#flowformer-small) | yes | 4.657 † | OOM (1080x1920) | 336.3 | 321.9 (375x1242) | 1.0x vs portable | 1401 |
-| [`flowformer-small-things`](models/flow.md#flowformer-small) | yes | 6.884 | OOM (1080x1920) | 337.2 | 322.1 (375x1242) | 1.0x vs portable | 1401 |
 | [`memfof-spring`](models/flow.md#memfof) | yes | 10.778 † | 1034.8 (1080x1920) | 432.6 | 349.3 | 3.0x vs original (1080x1920) | 917 |
 | [`memfof`](models/flow.md#memfof) | yes | 10.891 † | 530.7 (1080x1920) | 432.6 | 349.4 | 1.5x vs original (1080x1920) | 917 |
 | [`gmflow-scale1-things`](models/flow.md#gmflow) | yes | 10.346 | 750.3 (1080x1920) | 447.5 | 445.9 | 1.7x vs original (1080x1920) | 1988 |
@@ -677,7 +675,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | yes | 0.570 † | 2187.8 (1080x1920) | 1383.3 | 1388.5 | 1.6x vs original (1080x1920) | 3005 |
 | [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | yes | 4.917 | 2175.1 (1080x1920) | 1477.8 | 1480.6 | 1.5x vs original (1080x1920) | 4036 |
 | [`memfof-sintel`](models/flow.md#memfof) | yes | 2.977 † | OOM (1080x1920) | 2196.7 | 1554.9 | 1.4x vs portable | 3982 |
+| [`flowformer-small-things`](models/flow.md#flowformer-small) | yes | 6.884 | OOM (1080x1920) | 4002.9 | 3950.3 | 1.0x vs portable | 8696 |
 | [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 10.952 | OOM (1080x1920) | 4006.5 | 3950.9 | 1.0x vs portable | 8696 |
+| [`flowformer-small-sintel`](models/flow.md#flowformer-small) | yes | 4.657 † | OOM (1080x1920) | 4003.3 | 3957.9 | 1.0x vs portable | 8696 |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 
