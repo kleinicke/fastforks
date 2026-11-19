@@ -245,14 +245,15 @@ class MemoryDecoder(nn.Module):
 
             flow = coords1 - coords0
              
+            upsample = self.training or idx == self.depth - 1
             if self.cfg.gma:
-                net, up_mask, delta_flow = self.update_block(net, inp, corr, flow, attention)
+                net, up_mask, delta_flow = self.update_block(net, inp, corr, flow, attention, upsample=upsample)
             else:
-                net, up_mask, delta_flow = self.update_block(net, inp, corr, flow)
+                net, up_mask, delta_flow = self.update_block(net, inp, corr, flow, upsample=upsample)
 
             # flow = delta_flow
             coords1 = coords1 + delta_flow
-            if self.training or idx == self.depth - 1:  # modified: only the last iteration's upsampled flow is returned
+            if upsample:
                 flow_predictions.append(self.upsample_flow(coords1 - coords0, up_mask))
         
         if self.training:
