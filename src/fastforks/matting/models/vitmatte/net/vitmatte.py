@@ -461,7 +461,7 @@ class VitMatteDetailCaptureModule(nn.Module):
         detail_features = self.convstream(pixel_values)
         for i in range(len(self.fusion_blocks)):
             detailed_feature_map_name = "detailed_feature_map_" + str(len(self.fusion_blocks) - i - 1)
-            features = self.fusion_blocks[i](features, detail_features[detailed_feature_map_name])
+            features = self.fusion_blocks[i](features, detail_features.pop(detailed_feature_map_name))
 
         alphas = torch.sigmoid(self.matting_head(features))
 

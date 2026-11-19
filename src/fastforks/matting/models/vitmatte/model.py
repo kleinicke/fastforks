@@ -311,9 +311,12 @@ class Kernels(_Matting):
         for conv, (s, t) in zip(self.convs[:n], self.affine[:n], strict=True):
             details.append(conv_ep(conv.conv, details[-1], s, t, relu))
         y = feats
-        for i, (conv, (s, t)) in enumerate(zip(self.convs[n:], self.affine[n:], strict=True)):
+        for conv, (s, t) in zip(self.convs[n:], self.affine[n:], strict=True):
             up = F.interpolate(y, scale_factor=2, mode="bilinear", align_corners=False)
-            y = conv_ep(conv.conv, torch.cat([details[n - i], up], 1).contiguous(memory_format=CL), s, t, relu)
+            merged = torch.cat([details.pop(), up], 1).contiguous(memory_format=CL)
+            del y, up
+            y = conv_ep(conv.conv, merged, s, t, relu)
+            del merged
         head = self.net.decoder.matting_head.matting_convs
         y = conv_ep(head[0], y, *self.head_affine, relu)
         return conv_ep(head[3], y).float().sigmoid()
