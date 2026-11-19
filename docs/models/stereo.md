@@ -61,7 +61,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`las2-s`](#las2) | yes | 4.10 ? | 14.3, 3.0x | 320, 0.33x |
 | [`mocha-v1-sceneflow`](#mocha_stereo) | yes | 4.35 | 455, 3.2x | 1730, 0.43x |
 | [`mocha-v2-sceneflow`](#mocha_stereo) | yes | 3.82 | 448, 2.9x | 1790, 0.45x |
-| [`monster-mix-all`](#monster) | no | 1.25 † | 656, 6.5x | 2514, 0.39x |
+| [`monster-mix-all`](#monster) | no | 1.25 † | 656, 6.5x | 1954, 0.3x |
 | [`monster-plusplus-mix-all`](#monster_plusplus) | no | 1.08 ? | 657, 6.6x | 2754, 0.43x |
 | [`monster-sceneflow`](#monster) | no | 1.34 | 655, 6.5x | 2514, 0.39x |
 | [`nmrf-sceneflow`](#nmrf) | yes | 3.81 | 196, 1.6x | 1112, 0.54x |
@@ -1367,7 +1367,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `monster-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4275<br>4277<br>1585<br>655<br>1096<br>671 | 6382 / 6430<br>6382 / 6430<br>2325 / 2574<br>2216 / 2514<br>2081 / 2272<br>2865 / 2928 |
-| `monster-mix-all` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4275<br>4277<br>1583<br>656<br>1098<br>674 | 6382 / 6430<br>6382 / 6430<br>2325 / 2492<br>2216 / 2514<br>2081 / 2272<br>2898 / 2960 |
+| `monster-mix-all` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4275<br>4277<br>1585<br>656<br>1098<br>674 | 6382 / 6430<br>6382 / 6430<br>1926 / 2092<br>1829 / 1954<br>2081 / 2272<br>2898 / 2960 |
 
 <details><summary>Details</summary>
 
@@ -1386,6 +1386,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - `monster-sceneflow` 994x1482, first call: portable + torch.compile 103 s (cold Inductor cache), TensorRT fp16 384 s (ONNX + engine).
 - `monster-mix-all` 994x1482, first call: portable + torch.compile 105 s (cold Inductor cache), TensorRT fp16 391 s (ONNX + engine).
 - `monster-mix-all` original (fp32) 994x1482, original 994x1482: timed with monster-sceneflow (same network, other weights)
+- `monster-mix-all` portable 994x1482, kernels 994x1482: Releases geometry and recurrent state before full-resolution refinement. Paired synthetic and three labeled Middlebury disparities match bit for bit.
 - `monster-sceneflow` load / first call: original 5.85 s / 1.256 s (375x1242), portable 2.61 s / 0.742 s (375x1242), kernels 2.31 s / 0.465 s (375x1242)
 - `monster-mix-all` load / first call: original 5.85 s / 1.256 s (375x1242), portable 2.02 s / 0.705 s (375x1242), kernels 2.69 s / 0.547 s (375x1242)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
