@@ -122,6 +122,11 @@ def _rolled(x: torch.Tensor, shift: tuple[int, int], sign: int) -> torch.Tensor:
     return torch.roll(x, shifts=(sign * shift[0], sign * shift[1]), dims=(1, 2)) if shift[0] or shift[1] else x
 
 
+def _eager_cuda(x: torch.Tensor) -> bool:
+    """Whether inference can reuse owned CUDA activations."""
+    return x.is_cuda and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
+
+
 def _attention(
     m: InterFrameAttention, x1: torch.Tensor, x2: torch.Tensor, cor: torch.Tensor, mask: torch.Tensor | None
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -132,10 +137,16 @@ def _attention(
     k, v = m.kv(x2).reshape(b, n, 2, heads, c // heads).permute(2, 0, 3, 1, 4)
     cor_ = m.cor_embed(cor)
     ce = cor_.reshape(b, n, heads, md // heads).transpose(1, 2)
-    attn = (q @ k.transpose(-2, -1)) * m.scale
+    attn = q @ k.transpose(-2, -1)
+    del q, k
+    reuse = _eager_cuda(attn)
+    attn = attn.mul_(m.scale) if reuse else attn * m.scale
     if mask is not None:
         nw = mask.shape[0]
-        attn = (attn.view(b // nw, nw, heads, n, n) + mask[None, :, None].to(attn.dtype)).view(b, heads, n, n)
+        grouped = attn.view(b // nw, nw, heads, n, n)
+        bias = mask[None, :, None].to(attn.dtype)
+        attn = (grouped.add_(bias) if reuse else grouped + bias).view(b, heads, n, n)
+        del grouped, bias
     attn = attn.softmax(dim=-1)
     out = attn @ torch.cat((v, ce), -1)  # one product for both (upstream: two)
     x = m.proj(out[..., : c // heads].transpose(1, 2).reshape(b, n, c))
@@ -159,7 +170,8 @@ def _former_block(  # noqa: PLR0913, PLR0917 - upstream's arguments + the per-sh
     xn = blk.norm1(window_partition(xp, win))
     half = xn.shape[0] // 2
     app, motion = _attention(blk.attn, xn, torch.cat((xn[half:], xn[:half])), cor_win, mask)
-    xn = xn + app  # upstream: the residual on the normed tokens
+    xn = xn.add_(app) if _eager_cuda(xn) else xn + app  # upstream: the residual on the normed tokens
+    del app, xp
     back = _depadded(_rolled(window_reverse(xn, win, hp, wp), shift, 1), h, w, win).reshape(b2, h * w, c)
     motion = _depadded(_rolled(window_reverse(motion, win, hp, wp), shift, 1), h, w, win).reshape(b2, h * w, -1)
     return back + blk.mlp(blk.norm2(back), h, w), motion
@@ -303,6 +315,8 @@ def _interpolate(  # noqa: PLR0913
         else:
             flow_, mask_ = _head(hd, feat, torch.cat((img0, img1, warped0, warped1, mask), 1), flow, fmt)
             flow, mask = flow + flow_, mask + mask_
+            del flow_, mask_
+        del m, feat
         warped0, warped1 = (ema_warp.pair if fused else _warp_pair)(img0, img1, flow)
     if flow is None or mask is None or warped0 is None or warped1 is None:
         msg = "EMA-VFI needs at least one head"
@@ -312,7 +326,7 @@ def _interpolate(  # noqa: PLR0913
         del mf
         tmp = _refine_warped(net, parts, af, ema_warp.stack)
     elif stream_warps:
-        del mf, m, feat
+        del mf
 
         def stack(inputs: tuple[torch.Tensor, ...], features: torch.Tensor, coords: torch.Tensor) -> torch.Tensor:
             left = _warp(features[:b], coords[:, :2]).to(dtype, memory_format=fmt)
@@ -381,11 +395,8 @@ class Portable(Runner):
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> dict[str, torch.Tensor]:
         """The frame at `timestep` of a padded batch."""
         t = torch.full((image1.shape[0], 1, 1, 1), timestep, device=image1.device)
-        stream_warps = image1.is_cuda and not (
-            torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled()
-        )
         frame = _frame(
-            self.net, (image1, image2), t, self.cache, tta=self.ctx.params.tta, stream_warps=stream_warps
+            self.net, (image1, image2), t, self.cache, tta=self.ctx.params.tta, stream_warps=_eager_cuda(image1)
         )
         return {"frame": frame}
 
