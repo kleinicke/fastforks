@@ -180,8 +180,24 @@ def test_git_changed_reports_both_sides_of_a_moved_module(
 
     assert set(st.git_changed("HEAD~1", "HEAD", tmp_path)) == {old, new}
     monkeypatch.setattr(fetch_goldens, "ROOT", tmp_path)
-    monkeypatch.setattr(fetch_goldens, "_shared_users", dict)
     assert fetch_goldens.affected_families("HEAD~1") == {"fa", "fb"}
+
+
+def test_fetch_goldens_scopes_single_file_shared_changes(
+    tmp_path: Path, git_repo: Callable[..., None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name, contents in MINI.items():
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(contents)
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Shared helper baseline")
+    (tmp_path / "src/fastforks/shared/vit.py").write_text("FEATURE = 1\n")
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Update shared helper")
+
+    monkeypatch.setattr(fetch_goldens, "ROOT", tmp_path)
+    assert fetch_goldens.affected_families("HEAD~1") == {"fa", "fc"}
 
 
 def test_golden_source_survives_generated_docs_but_changes_with_fixtures(
