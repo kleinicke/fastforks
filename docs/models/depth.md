@@ -30,7 +30,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`depth-anything-v2-metric-vkitti-s`](#depth_anything_v2) | yes | 0.1225 | 4.67, 7.7x | 208, 0.5x |
 | [`depth-anything-v2-s`](#depth_anything_v2) | yes | 0.0509 | 4.51, 9.1x | 248, 0.59x |
 | [`depth-pro`](#depth_pro) | no | 0.0425 | 277, 2.1x | 3198, 0.74x |
-| [`depthfm-v1`](#depthfm) | yes | – | 3570 | 9314 |
+| [`depthfm-v1`](#depthfm) | yes | – | 3555 | 5942 |
 | [`distill-any-depth-b`](#depth_anything_v2) | yes | 0.0470 | 10.8, 5.5x | 396, 0.41x |
 | [`distill-any-depth-l`](#depth_anything_v2) | yes | 0.0444 | 31.8, 4.4x | 1034, 0.44x |
 | [`distill-any-depth-s`](#depth_anything_v2) | yes | 0.0529 | 4.63, 7.6x | 208, 0.5x |
@@ -465,7 +465,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `depthfm-v1` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>5662<br>3570<br>3947<br>fails: ONNX export: conversion failed | –<br>13651 / 15150<br>9237 / 9314<br>9240 / 10292<br>– |
+| `depthfm-v1` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>4854<br>3555<br>3947<br>fails: ONNX export: conversion failed | –<br>5422 / 7404<br>3768 / 5942<br>9240 / 10292<br>– |
 | `depthfm-v1` | 480x640 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>353 (fixed-shape exported depth network) | –<br>–<br>–<br>3479 / 3494 |
 
 <details><summary>Details</summary>
@@ -483,6 +483,8 @@ Commercial use: yes.
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `depthfm-v1` 1024x1024 (9.8 GiB peak allocated, 15.0 reserved)
 - `depthfm-v1` 994x1482, first call: portable + torch.compile 102 s (cold Inductor cache).
+- `depthfm-v1` portable 994x1482: Default four-member ensemble with bounded VAE decoding. Prior portable was 5814.353 ms and 13671 MiB peak allocated. Relative AbsRel changes were below 0.000002 on three matched Middlebury inputs.
+- `depthfm-v1` kernels 994x1482: Default four-member ensemble with bounded VAE decoding. Prior kernels was 3578.895 ms and 9258 MiB peak allocated. Relative AbsRel changes were below 0.000002 on three matched Middlebury inputs.
 - `depthfm-v1` load / first call: portable 3.58 s / 6.004 s, kernels 4.59 s / 3.734 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
