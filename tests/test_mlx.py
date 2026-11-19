@@ -187,7 +187,8 @@ class TestMpsRouting:
 
     def test_auto_takes_the_fastest_measured_option(self):
         assert self.route("crestereo-eth3d") == ("kernels", "float16")
-        assert self.route("dinov2-vits14", task="features") == ("portable", "float16")
+        assert self.route("realesr-general-x4v3", task="restoration") == ("kernels", "float16")  # faster and leaner
+        assert self.route("dinov2-vits14", task="features") is None  # faster at float16, but more memory than MPS
 
     def test_auto_with_a_dtype_takes_mlx_only_where_it_measured_faster(self):
         assert self.route("dinov2-vits14", dtype="float32", task="features") == ("portable", "float32")
@@ -199,7 +200,10 @@ class TestMpsRouting:
     def test_kernels_takes_mlx_kernels(self):
         assert self.route("crestereo-eth3d", mode="kernels") == ("kernels", "float16")
         assert self.route("crestereo-eth3d", mode="kernels", dtype="float32") == ("kernels", "float32")  # no fp32 Metal
-        assert self.route("depth-anything-v2-b", mode="kernels", task="depth") == ("kernels", "float16")
+        assert self.route("depth-anything-v2-b", mode="kernels", task="depth") == (
+            "portable",
+            "float16",
+        )  # kernels: more memory
 
     def test_explicit_kernels_prefers_native_metal_without_timing_data(self, monkeypatch):
         monkeypatch.setattr(core_model, "_apple_mlx", dict)

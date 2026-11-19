@@ -12,16 +12,178 @@
    ]
   },
   "aanet-sceneflow@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "",
     "float16"
    ]
+  },
+  "aliked-flexglue@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "alltracker@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "any2full-b@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "any2full-l@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "any2full-s@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "anycalib-pinhole@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "anyline@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "anysplat@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "ben2@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "big-lama@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "birefnet@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "bisenet-face-parsing@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "boq-dinov2@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
   },
   "bridgedepth-rvc-pretrain@1": {
    "mps_auto": [
     "",
     "float16"
    ]
+  },
+  "bridgedepth-sf@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "c-foundationstereo-s@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
   },
   "c-radio-v3-b@1": {
    "mlx_default": [
@@ -54,6 +216,92 @@
    }
   },
   "c-radio-v3-l@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "cas-gwcnet-gc-sceneflow@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "cfnet-sceneflow@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "clip-b16-openai@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "clip-l14-laion2b@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "clipseg@1": {
+   "auto": [
+    "portable",
+    "float32"
+   ],
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "codeformer@1": {
+   "mlx_default": [
+    "kernels",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "coex-sceneflow@1": {
    "mlx_default": [
     "portable",
     "float16"
@@ -369,6 +617,24 @@
     "float32": "portable"
    }
   },
+  "cotracker3-offline@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "cotracker3-online@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
   "crestereo-eth3d@1": {
    "auto": [
     "kernels",
@@ -398,149 +664,366 @@
     "float16"
    ]
   },
+  "da3-giant-1.1@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "da3-large-1.1@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "da3metric-large@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "da3mono-large@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "da3nested-giant-large-1.1@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "dat-2-x4@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "dat-light-x4@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "dat-x4@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "dedode-v2-b@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "dedode-v2-g@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "deeplabv3-r101-d8-ade20k@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   },
+   "mlx_default": [
+    "kernels",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "deeplabv3plus-r101-d8-ade20k@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels"
+   },
+   "mlx_default": [
+    "kernels",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
   "defom-stereo-vitl-sceneflow@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   },
    "mps_auto": [
     ""
    ]
   },
   "depth-anything-v2-b@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    }
   },
   "depth-anything-v2-l@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    }
   },
   "depth-anything-v2-metric-hypersim-b@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    }
   },
   "depth-anything-v2-metric-hypersim-l@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    }
   },
   "depth-anything-v2-metric-hypersim-s@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    }
   },
   "depth-anything-v2-metric-vkitti-b@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    }
   },
   "depth-anything-v2-metric-vkitti-l@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    }
   },
   "depth-anything-v2-metric-vkitti-s@1": {
    "auto": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    }
   },
   "depth-anything-v2-s@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "depth-pro@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "depthsplat-small-re10k@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "detr-r50-coco@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "dfine-n-coco@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
    }
   },
   "dinov2-b-linear-ade20k@1": {
@@ -576,10 +1059,9 @@
   "dinov2-vitb14-reg@1": {
    "auto": [
     "portable",
-    "float16"
+    "float32"
    ],
    "dtypes": {
-    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -592,12 +1074,7 @@
    }
   },
   "dinov2-vitb14@1": {
-   "auto": [
-    "portable",
-    "float16"
-   ],
    "dtypes": {
-    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -680,12 +1157,7 @@
    }
   },
   "dinov2-vits14-reg@1": {
-   "auto": [
-    "portable",
-    "float16"
-   ],
    "dtypes": {
-    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -698,12 +1170,7 @@
    }
   },
   "dinov2-vits14@1": {
-   "auto": [
-    "portable",
-    "float16"
-   ],
    "dtypes": {
-    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -800,10 +1267,9 @@
   "dinov3-vitb16@1": {
    "auto": [
     "portable",
-    "float16"
+    "float32"
    ],
    "dtypes": {
-    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -833,12 +1299,7 @@
    }
   },
   "dinov3-vitl16@1": {
-   "auto": [
-    "portable",
-    "float16"
-   ],
    "dtypes": {
-    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -856,7 +1317,6 @@
     "float32"
    ],
    "dtypes": {
-    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -869,33 +1329,87 @@
    }
   },
   "distill-any-depth-b@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    }
   },
   "distill-any-depth-l@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
    }
   },
   "distill-any-depth-s@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
-    "float32": "kernels"
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "dlnr-sceneflow@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "drct-l-x4@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "drct-x4@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
    }
   },
   "dwpose-l-384@1": {
@@ -979,11 +1493,158 @@
     "float32": "kernels"
    }
   },
+  "efficientvit-sam-l0@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "ema-vfi-small-t@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "eomt-l-dinov2-ade20k@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "eomt-l-dinov3-ade20k@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "fast-acvnet-generalization@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "fcn-r101-d8-ade20k@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels"
+   },
+   "mlx_default": [
+    "kernels",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "film@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "flowseek-t@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
   "foundationstereo-vit-s@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "",
     "float16"
    ]
+  },
+  "geocalib-pinhole@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "gfpgan-v1.4@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "gimm-vfi-r@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "gmflow-scale1-things@1": {
+   "dtypes": {
+    "float16": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
   },
   "great-igev-eth3d@1": {
    "mps_auto": [
@@ -1004,12 +1665,82 @@
    ]
   },
   "great-igev-sceneflow@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "",
     "float16"
    ]
   },
+  "grounding-dino-tiny@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "gwcnet-gc-sceneflow@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "hat-s-x4@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "hat-x4@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "hed@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
   "hitnet-eth3d@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "",
     "float16"
@@ -1020,6 +1751,26 @@
     "",
     "float16"
    ]
+  },
+  "hrnet-w32@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "hrnet-w48-fcn-ade20k@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
   },
   "igev-plusplus-eth3d@1": {
    "mps_auto": [
@@ -1046,6 +1797,14 @@
    ]
   },
   "igev-plusplus-sceneflow@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "",
     "float16"
@@ -1076,16 +1835,300 @@
    ]
   },
   "igev-stereo-sceneflow@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "",
     "float16"
    ]
+  },
+  "insid3-vitl16@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "inspyrenet@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "isnet-general-use@1": {
+   "mlx_default": [
+    "kernels",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "kernels",
+    "float32": "portable"
+   }
   },
   "las2-h@1": {
    "mps_auto": [
     "",
     "float16"
    ]
+  },
+  "las2-s@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "lineart-anime@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "lineart@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "lingbot-depth-dc@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "lingbot-depth@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "lingbot-map@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "locotrack-b@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "loftr-outdoor@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "loma-b@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "lotus-normal-d-v1-1@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "lotus-normal-g-v1-1@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "lw-detr-tiny-coco@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "mapanything-apache@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "marigold-depth-v1-1@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "marigold-normals-lcm-v0-1@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "mask-rcnn-r50-fpn-3x-coco@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "mask2former-swinl-ade20k@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "megaloc@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "memflow@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "memfof@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "metric3d-vit-large@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "mlsd@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "mobile-sam@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
   },
   "mobilenet_v2.tv2_in1k@1": {
    "auto": [
@@ -1142,6 +2185,14 @@
    }
   },
   "mocha-v1-sceneflow@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "",
     "float16"
@@ -1153,7 +2204,45 @@
     "float16"
    ]
   },
+  "moge-2-vitb-normal@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "moge-2-vitl-normal@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "moge-2-vits-normal@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
   "moge-3-vitl@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "",
     "float32"
@@ -1166,22 +2255,170 @@
    ]
   },
   "monster-plusplus-mix-all@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "",
     "float16"
    ]
   },
   "monster-sceneflow@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "",
     "float16"
    ]
   },
+  "mvsanywhere@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "mvsplat-re10k@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "nafnet-gopro@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "neuflow-v2@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
   "nmrf-sceneflow@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "",
     "float16"
    ]
+  },
+  "nnfoundation-cnn@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "nnfoundation-vit@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "nninteractive@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "omni-dc@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "owlv2-b16@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "parseq@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "patchmatchnet@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
   },
   "pe-core-b16-224@1": {
    "mps_auto": [
@@ -1196,6 +2433,14 @@
    ]
   },
   "pe-core-l14-336@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "",
     "float16"
@@ -1208,6 +2453,14 @@
    ]
   },
   "pe-core-t16-384@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "float16"
    ]
@@ -1242,6 +2495,122 @@
     "float16"
    ]
   },
+  "pi3@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "pidinet@1": {
+   "mlx_default": [
+    "kernels",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "pointdit-b-512@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "pointdit-l-512@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "ppocrv5-mobile@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "ppocrv5-server@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "prompt-depth-anything-l@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "prompt-depth-anything-s@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "psmnet-sceneflow@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "pspnet-r101-d8-ade20k@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels"
+   },
+   "mlx_default": [
+    "kernels",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "kernels",
+    "float32": "portable"
+   }
+  },
   "raft-large-kitti@1": {
    "mps_auto": [
     "",
@@ -1255,6 +2624,14 @@
    ]
   },
   "raft-large@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "",
     "float16"
@@ -1273,16 +2650,99 @@
    ]
   },
   "raft-stereo-middlebury@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "",
     "float16"
    ]
   },
   "raft-stereo-sceneflow@1": {
+   "mlx_default": [
+    "kernels",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "kernels",
+    "float32": "kernels"
+   },
    "mps_auto": [
     "",
     "float16"
    ]
+  },
+  "real-hat-gan-x4@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "realesr-general-x4v3@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels"
+   },
+   "mlx_default": [
+    "kernels",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "realesrgan-x2plus@1": {
+   "mlx_default": [
+    "kernels",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "kernels",
+    "float32": "portable"
+   }
+  },
+  "realesrgan-x4plus-anime-6b@1": {
+   "mlx_default": [
+    "kernels",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "realesrgan-x4plus@1": {
+   "mlx_default": [
+    "kernels",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "realplksr-nomoswebphoto-x4@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
   },
   "regnety_160.tv2_in1k@1": {
    "auto": [
@@ -1536,6 +2996,124 @@
     "float32": "portable"
    }
   },
+  "resplat-base-re10k@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "restormer-deblur@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "restormer-derain@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "restormer-sidd@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "retinaface-resnet50@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "rf-detr-keypoint-preview@1": {
+   "auto": [
+    "portable",
+    "float32"
+   ],
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "rf-detr-n-coco@1": {
+   "auto": [
+    "portable",
+    "float32"
+   ],
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "rife-4.25-lite@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "rife-4.25@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "romav1@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
   "romav2@1": {
    "mlx_default": [
     "kernels",
@@ -1548,6 +3126,56 @@
     "",
     "float32"
    ]
+  },
+  "rtdetrv2-s-coco@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "rtmdet-tiny-coco@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "rtmo-t@1": {
+   "auto": [
+    "portable",
+    "float32"
+   ],
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
   },
   "rtmpose-l-384@1": {
    "mps_auto": [
@@ -1633,6 +3261,17 @@
    ]
   },
   "rtmpose-t@1": {
+   "dtypes": {
+    "float16": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "",
     "float32"
@@ -1642,6 +3281,85 @@
    "mps_auto": [
     "float32"
    ]
+  },
+  "s2m2-s@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "sam-hq-vit-b@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "sam-vit-b@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "sam2.1-hiera-tiny@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "sam3@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "sapiens-seg-0.3b-goliath@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "sapiens-seg-1b-goliath@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
   },
   "sea-raft-m-kitti@1": {
    "mps_auto": [
@@ -1656,6 +3374,14 @@
    ]
   },
   "sea-raft-m@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "",
     "float16"
@@ -1672,6 +3398,93 @@
     "",
     "float16"
    ]
+  },
+  "segformer-b0-ade20k@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "segformer-b2-clothes@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "segformer-b5-ade20k@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "segformer-b5-face-parsing@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "segnext-mscan-b-ade20k@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "segnext-mscan-l-ade20k@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "segnext-mscan-s-ade20k@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "segnext-mscan-t-ade20k@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
   },
   "selective-igev-eth3d-finetune@1": {
    "mps_auto": [
@@ -1710,10 +3523,75 @@
    ]
   },
   "selective-igev-sceneflow@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "",
     "float16"
    ]
+  },
+  "siglip2-b16-256@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "siglip2-so400m14-378@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "span-x2@1": {
+   "mlx_default": [
+    "kernels",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "span-x4@1": {
+   "mlx_default": [
+    "kernels",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "stablenormal-turbo@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
   },
   "starnet_s1.in1k@1": {
    "auto": [
@@ -1787,7 +3665,7 @@
     "float32": "portable"
    }
   },
-  "tipsv2-b14@1": {
+  "swin2sr-x2@1": {
    "auto": [
     "portable",
     "float16"
@@ -1796,6 +3674,119 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "swin2sr-x4-real@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "swin2sr-x4@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "swinir-l-x4-real@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "swinir-m-x2@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "tapir@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "tapnext@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "teed@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "tipsv2-b14@1": {
    "mlx_default": [
     "portable",
     "float16"
@@ -1822,7 +3813,134 @@
     "float32": "portable"
    }
   },
+  "totalsegmentator-total-3mm@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "totalsegmentator-total@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "track-on2@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "u2net@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "unidepth-v2-vitl14@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "unik3d-vitl@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "vggt-1b@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "vggt-omega-1b-512@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "video-depth-anything-metric-s@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "video-depth-anything-s@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "vitmatte-s@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
   "vitpose-base-simple@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "",
     "float16"
@@ -1851,6 +3969,72 @@
     "",
     "float16"
    ]
+  },
+  "waft-a1@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "waft-stereo-s@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "xfeat@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
+  "yolox-tiny@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   },
+   "mlx_default": [
+    "kernels",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "kernels",
+    "float32": "kernels"
+   }
+  },
+  "yunet-n@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "zoedepth-nk@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
   }
  }
 }

@@ -551,10 +551,7 @@ Final survey rows (portable, ms / peak MB, before -> after, MPS):
 | dedode-v2-b | fp32 | 2915 / 4374 | 2534 / 5327 | 1464 / 8011 |
 | flowseek-t | fp16 | 2667 / 5208 | 2160 / 5781 | no row |
 
-All survey goldens pass; nafnet-gopro and wd-vit-tagger-v3 `test_mlx` pass. `apple_mlx.json` is unchanged: regenerating it
-rewrites the whole file from newer rows (an unrelated 3000-line diff), and the only rows that now win in speed and memory
-(raft-large and sea-raft-m fp16) are covered by the `mlx` / `mlx_default` entries the generator would add, which is a
-separate regeneration pass. Remaining: every net above except raft-large / sea-raft-m fp16 stays slower than MPS (the
+All survey goldens pass; nafnet-gopro and wd-vit-tagger-v3 `test_mlx` pass. `apple_mlx.json` was regenerated in the memory pass below (see "Routing" there). Remaining: every net above except raft-large / sea-raft-m fp16 stays slower than MPS (the
 GRU / attention convs are FLOP-bound at about 3 TFLOPS effective), the cache cliff of raft-stereo / igev cannot be
 shrunk without fewer distinct large buffers per step (not found cheaply), and the memory gap to MPS closes only where
 the cache fits.
@@ -691,3 +688,63 @@ Not declared, with the reason:
 - restormer, swinir, swin2sr: attention- and depthwise/1x1-dominated (swinir-m-x4 is seconds, not tens of ms); the
   dense 3x3 convs are a small share, and their tails are not row-local, so `band_tail` does not trigger. Not extended
   to pixel_shuffle tails here: no measured memory problem on these nets.
+
+## Memory pass 3: kernels mode at or below MPS memory, and memory-aware routing
+
+Where the footprint came from (fp16, 512x512; `footprint = ~775 MB base + MLX peak`, MLX peak = resident buffer cache +
+live weights + transients):
+
+- The buffer cache is resident: footprint tracks the declared `cache_mb` almost 1:1 (x2plus 2076 -> 1353 MB going 1024 -> 256).
+  Too small a cache is a speed cliff (allocator churn from the transients), so the cache has to be sized per net.
+- codeformer: 500 MB of F(4,3) Winograd weights (29 layers of 512 channels on 16x16 maps, 18 MB each, 4x the kernel) plus
+  125 MB of the source 3x3 weights; the transients (about 840 MB) equal portable's. So it was the weights, not the transients.
+- Dropping the source weights was not done: the compiled closures and the shared constants hold them.
+
+What changed:
+
+- `_wino_tile`: maps of at most 16x16 use F(2,3) (1.78x the kernel instead of 4x); on larger maps F(4,3) stays faster
+  (microbench fp16 ms/layer, direct / F4 / F2: 16^2x512 0.49 / 0.36 / 0.20; 32^2x512 1.64 / 0.39 / 0.59; 64^2x256 0.99 / 0.42 / 0.65).
+- Lazy weights: a layer whose transformed weights exceed `FF_WINO_LAZY_MB` (4 MB) is transformed per call inside the graph
+  (`conv_ops.weights_graph`, float32 `kron(G,G)` matmul, max diff to the cached transform 0 for F2, 3e-5 for F4) instead of
+  being cached. codeformer: 8 MB 223 ms / 1895 MB, 4 MB 246 / 1607 (cache 128), 2 MB 242 / 1551.
+- `mlx_wrap.port(cache_mb=..., chunk_mb=...)` accept a per-variant mapping (key `""`: default). `chunk_mb` is the graph's
+  checkpoint interval (default 256 MB of new activations); a larger one evaluates less often, which the big-activation
+  nets need at a small cache. realesrgan: x2plus cache 128 / chunk 1024, x4plus 768 / 1024, anime-6b 512 / 1024;
+  codeformer cache 256. compact and span keep 512 (already below MPS memory; compact fp16 256: 111 ms / 985 MB, 128: 195 ms).
+
+Survey, 512x512 fp16, ms / footprint MB (rows in `apple-m1-pro-mlx-16gb.jsonl`; goldens pass):
+
+| Net | kernels before | kernels now | MPS |
+|---|---|---|---|
+| realesrgan-x2plus | 538 / 2076 | 567 / 1222 | 549 / 1440 |
+| realesrgan-x4plus | 2290 / 2535 | 2184 / 2452 | 2066 / 2466 |
+| realesrgan-x4plus-anime-6b | 826 / 2361 | 849 / 2106 | 664 / 2351 |
+| codeformer | 180 / 2901 | 239 / 1637 | 196 / 1866 |
+
+Memory is now at or below MPS for all four; speed gave back 5 % (x2plus), -5 % (x4plus, noise), 3 % (anime-6b) and 33 %
+(codeformer: 180 -> 239 ms; it was 40 % above portable's footprint). x2plus is 3 % behind MPS, x4plus 6 %, anime-6b 28 %
+and codeformer 22 % behind, so none of them routes to MLX (they did not before either). Timing noise on codeformer is large
+(the same setting measured 232 and 375 ms in different runs). The fp32 rows of these nets run the portable graph with the
+same cache and chunk; x4plus fp32 kernels is 7380 ms vs MPS 3022.
+
+Not fixed: raft-stereo fp32 kernels (5590 vs MPS 4713 MB; the MLX peak is 4224 MB of transients, a smaller cache only
+slows it: cache 1024 7011 ms / 4607 MB vs 2048 5435 / 5416), crestereo fp16 (+2 %), realesr-general fp32 (+3 %, equal
+speed), the dpt_mlx (depth-anything) kernels (+500-900 MB over portable, not Winograd), segformer / segnext graph_mlx.
+
+### Routing (`apple_mlx.json`)
+
+`tools/gen_auto_mode.py` now also requires that an MLX route for `auto` / `dtypes` / `kernels` has a peak footprint within
+`MEM_SLACK` (1.02) of the fastest MPS path it replaces on every workload (it did not look at memory before). The mps_auto
+(Metal kernel vs portable MPS) selection is unchanged.
+
+The regenerated file has 317 models (166 before). The growth is not stale rows: it is the many families surveyed on MLX
+since the last regeneration (197 new `mlx` / `mlx_default` entries, which the loader uses only where MPS has no
+implementation at that dtype, and 37 new `auto` entries). New `auto` routes to MLX kernels with a speed and memory win:
+realesr-general-x4v3 fp16 (104 ms / 1061 vs MPS 132 / 1289), deeplabv3 / deeplabv3plus / fcn / pspnet r101 fp16
+(349-376 ms / 1.6 GB vs 405-528 ms / 1.9-2.0 GB), yolox-tiny (12 vs 20 ms, 453 vs 1492 MB). Removed or changed because MLX
+needs more memory than MPS: the seven depth-anything-v2 refs (`auto` kernels fp16 -> portable fp16: the dpt_mlx kernels
+use 1.9 GB vs 1.4 GB portable) and dinov2-vits14 / vitb14 / vits14-reg / dinov3-vitl16 / tipsv2-b14 (faster at fp16, more
+memory; routing dropped), dinov2-vitb14-reg and dinov3-vitb16 now route at fp32 instead of fp16.
+Goldens of the newly routed refs pass; tests/test_auto_mode.py covers the memory rule. Pre-existing failures in
+tests/test_mlx.py (`test_card_declares_the_port_per_mode`, `test_family_without_a_port_raises`,
+`TestTuning::test_cache_limit_scales_with_memory_between_its_bounds`) are unrelated and unchanged.

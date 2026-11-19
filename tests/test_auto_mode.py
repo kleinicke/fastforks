@@ -75,14 +75,17 @@ def test_apple_routing_uses_passing_comparable_rows(tmp_path, monkeypatch):
         "status": "ok",
         "golden": "pass",
         "ms": 10,
+        "peak_footprint_mb": 100,
     }
     cases = {
-        gen_auto_mode.APPLE_DEVICE: [row, row | {"mode": "kernels", "ms": 7}],
+        gen_auto_mode.APPLE_DEVICE: [row, row | {"mode": "kernels", "ms": 7}, row | {"ref": "example@3"}],
         gen_auto_mode.APPLE_MLX_DEVICE: [
             row | {"ms": 1, "golden": "skip"},
             row | {"ms": 2, "input": "96x96"},
             row | {"ms": 5, "ref": "example@1"},
             row | {"ms": 8},
+            row | {"ms": 5, "ref": "example@3", "peak_footprint_mb": 150},  # faster, but more memory than MPS
+            row | {"ms": 5, "ref": "example@4"},
         ],
     }
     for device, rows in cases.items():
@@ -92,3 +95,4 @@ def test_apple_routing_uses_passing_comparable_rows(tmp_path, monkeypatch):
     assert measured["example@2"]["mps_auto"] == ["", "float32"]
     assert "kernels_default" not in measured["example@2"]
     assert "auto" not in measured["example@1"]
+    assert "auto" not in measured["example@3"]  # faster than MPS but 50 % more memory

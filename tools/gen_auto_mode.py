@@ -7,8 +7,9 @@ file. An explicit `mode="kernels"` is never affected.
 
 The Apple table selects among passing, comparable MPS and MLX survey runs. Per model revision:
 
-- `auto` and `dtypes` select MLX if it beats the fastest MPS path by `MIN_GAIN`.
-- `kernels` and `kernels_default` select MLX if it beats the native MPS kernel by `MIN_GAIN`.
+- `auto` and `dtypes` select MLX if it beats the fastest MPS path by `MIN_GAIN` and does not use more memory
+  (peak footprint, within `MEM_SLACK`) than that path.
+- `kernels` and `kernels_default` select MLX if it beats the native MPS kernel by `MIN_GAIN`, likewise in memory.
 - `mlx` and `mlx_default` select the fastest passing MLX path where it is the only optimized backend.
 - `mps_auto` records which native MPS kernel requests beat portable MPS by `MIN_GAIN`.
 
@@ -34,6 +35,7 @@ APPLE_OUT = OUT.with_name("apple_mlx.json")
 APPLE_DEVICE = "apple-m1-pro-16gb"  # the Mac whose MPS and MLX survey rows decide apple_mlx.json
 APPLE_MLX_DEVICE = "apple-m1-pro-mlx-16gb"
 MIN_GAIN = 1.05  # kernels must be at least 5 % faster, else the lighter portable backend is chosen
+MEM_SLACK = 1.02  # an MLX route may use at most 2 % more peak memory than the MPS path it replaces (measurement noise)
 KERNEL_MODES = ("kernels",)  # the mode column of the data files
 
 
@@ -67,11 +69,12 @@ def render() -> str:
 
 Option = tuple[str, str]  # (mode, dtype)
 Workload = tuple[str, str, str]  # (input, scene, protocol)
+Run = tuple[float, float | None]  # (ms, peak footprint MB; None: not recorded)
 
 
-def _apple_options(device: str) -> dict[str, dict[Option, dict[Workload, float]]]:
+def _apple_options(device: str) -> dict[str, dict[Option, dict[Workload, Run]]]:
     """Passing survey rows keyed by revision, implementation and workload."""
-    models: dict[str, dict[Option, dict[Workload, float]]] = {}
+    models: dict[str, dict[Option, dict[Workload, Run]]] = {}
     for line in (ROOT / "docs" / "data" / "speed" / f"{device}.jsonl").read_text().splitlines():
         row = json.loads(line)
         if row.get("status") != "ok" or row.get("golden") != "pass" or row["mode"] not in ("portable", "kernels"):
@@ -81,14 +84,23 @@ def _apple_options(device: str) -> dict[str, dict[Option, dict[Workload, float]]
         if "@" not in ref:
             ref += "@1"  # historical unversioned rows predate checkpoint revisions
         workload = (row["input"], row.get("scene", ""), row.get("protocol_id", ""))
-        models.setdefault(ref, {}).setdefault((row["mode"], dtype), {})[workload] = row["ms"]
+        models.setdefault(ref, {}).setdefault((row["mode"], dtype), {})[workload] = (
+            row["ms"],
+            row.get("peak_footprint_mb"),
+        )
     return models
 
 
 def _winners(
-    candidates: dict[Option, dict[Workload, float]], alternatives: dict[Option, dict[Workload, float]]
+    candidates: dict[Option, dict[Workload, Run]],
+    alternatives: dict[Option, dict[Workload, Run]],
+    *,
+    memory: bool = False,
 ) -> dict[str, Option]:
-    """Winning implementation for each requested dtype, plus the unconstrained request under the empty key."""
+    """Winning implementation for each requested dtype, plus the unconstrained request under the empty key.
+
+    `memory`: a candidate must also stay within `MEM_SLACK` of the fastest alternative's peak footprint on every workload.
+    """
     selected = {}
     for dtype in ("", *sorted({d for _, d in candidates})):
         timings = []
@@ -96,17 +108,21 @@ def _winners(
             if dtype and option[1] != dtype:
                 continue
             if not alternatives:
-                score = statistics.median(rows.values())
+                score = statistics.median(ms for ms, _ in rows.values())
             else:
                 ratios = []
-                for key, ms in rows.items():
+                for key, (ms, mem) in rows.items():
                     baseline = [
                         other[key]
                         for (_, d), other in alternatives.items()
                         if (not dtype or d == dtype) and key in other
                     ]
                     if baseline:
-                        ratios.append(ms / min(baseline))
+                        fastest_ms, fastest_mem = min(baseline)  # the path the MLX route would replace
+                        if memory and (mem is None or fastest_mem is None or mem > fastest_mem * MEM_SLACK):
+                            ratios = []  # more memory (or unknown) on one workload: no route
+                            break
+                        ratios.append(ms / fastest_ms)
                 if not ratios or statistics.median(ratios) * MIN_GAIN > 1:
                     continue
                 score = statistics.median(ratios)
@@ -124,8 +140,8 @@ def render_apple() -> str:
         kernels = {option: rows for option, rows in native.items() if option[0] == "kernels"}
         baseline = {option: rows for option, rows in native.items() if option[0] == "portable"}
         # Require a comparable MPS run when automatically promoting an MLX route.
-        auto = _winners(accelerated, native) if native else {}
-        optimized = _winners(accelerated, kernels) if kernels else {}
+        auto = _winners(accelerated, native, memory=True) if native else {}
+        optimized = _winners(accelerated, kernels, memory=True) if kernels else {}
         only_mlx = _winners(accelerated, {})
         metal = _winners(kernels, baseline) if baseline else {}
         entry: dict[str, object] = {}
