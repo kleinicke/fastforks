@@ -375,7 +375,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `cfnet-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 659<br>545<br>489<br>406<br>249<br>171 | 8551 / 8896<br>6765 / 7880<br>3398 / 4336<br>3403 / 4338<br>1026 / 1398<br>1357 / 1410 |
+| `cfnet-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 659<br>545<br>445<br>406<br>249<br>171 | 8551 / 8896<br>6765 / 7880<br>1822 / 2578<br>3403 / 4338<br>1026 / 1398<br>1357 / 1410 |
 
 <details><summary>Details</summary>
 
@@ -391,6 +391,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `cfnet-sceneflow` 1988x2880 (8.2 GiB peak allocated, 11.5 reserved)
 - `cfnet-sceneflow` 994x1482, first call: portable + torch.compile 53 s (cold Inductor cache), TensorRT fp16 139 s (ONNX + engine).
 - `cfnet-sceneflow` original 994x1482: torch.autocast(float16) around the call
+- `cfnet-sceneflow` portable 994x1482: Median of five timed calls after one warm-up on a synthetic pair. Disparities matched the prior path on one synthetic pair and three labeled Middlebury pairs.
 - `cfnet-sceneflow` load / first call: original 0.55 s / 0.56 s, portable 0.96 s / 0.356 s (375x1242), kernels 1.14 s / 0.271 s (375x1242)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

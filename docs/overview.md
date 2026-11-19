@@ -80,7 +80,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`great-igev-kitti`](models/stereo.md#great-igev) | yes | 23.36 | 1458.3 (994x1482) | 1084.7 | 396.2 | 3.7x vs original (994x1482) | 1134 |
 | [`great-igev-sceneflow`](models/stereo.md#great-igev) | yes | 4.44 | 1458.3 (994x1482) | 1084.7 | 396.5 | 3.7x vs original (994x1482) | 1134 |
 | [`great-igev-eth3d`](models/stereo.md#great-igev) | yes | 0.49 † | 1458.3 (994x1482) | 1084.7 | 396.7 | 3.7x vs original (994x1482) | 1134 |
-| [`cfnet-sceneflow`](models/stereo.md#cfnet) | yes | 5.60 | 545.4 (994x1482) | 488.8 | 405.6 | 1.3x vs original (994x1482) | 3403 |
+| [`cfnet-sceneflow`](models/stereo.md#cfnet) | yes | 5.60 | 545.4 (994x1482) | 445.2 | 405.6 | 1.3x vs original (994x1482) | 3403 |
 | [`igev-plusplus-eth3d`](models/stereo.md#igev) | yes | 0.50 † | 1277.9 (994x1482) | 1079.4 | 427.0 | 3.0x vs original (994x1482) | 1272 |
 | [`mocha-v2-sceneflow`](models/stereo.md#mocha-stereo) | yes | 3.82 | 1295.1 (994x1482) | 1033.5 | 448.1 | 2.9x vs original (994x1482) | 1587 |
 | [`mocha-v1-sceneflow`](models/stereo.md#mocha-stereo) | yes | 4.35 | 1456.2 (994x1482) | 1057.2 | 455.5 | 3.2x vs original (994x1482) | 1588 |
