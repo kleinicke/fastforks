@@ -1287,7 +1287,11 @@ def test_seginfer_mask_semantic():
 
     masks, classes = torch.randn(2, 5, 7, 9), torch.randn(2, 5, 4)
     want = torch.einsum("bqc,bqhw->bchw", classes.softmax(-1)[..., :-1], masks.sigmoid())
+    original = masks.clone()
     torch.testing.assert_close(mask_semantic(masks, classes), want)
+    assert torch.equal(masks, original)
+    torch.testing.assert_close(mask_semantic(masks, classes, inplace=True), want)
+    assert torch.equal(masks, original.sigmoid())
 
 
 def test_concept_threshold_validated_and_recorded(fake):

@@ -71,8 +71,9 @@ class Portable(Runner):
         x = pad_bottom_right(scale(resize(image, (rh, rw), pil=True), self.ctx.io), self.ctx.params.pad)
         masks, classes = self.net(x)
         masks = F.interpolate(masks, x.shape[-2:], mode="bilinear", align_corners=False)
-        # fp16 on CUDA from the product on (its dtype) to the labels: no float32 image-size scores
-        return mask_semantic(masks, classes, None)[..., :rh, :rw]
+        # The resized masks are disposable, so CUDA inference can activate them in place.
+        inplace = masks.is_cuda and torch.is_inference_mode_enabled() and not torch.compiler.is_compiling()
+        return mask_semantic(masks, classes, None, inplace=inplace)[..., :rh, :rw]
 
     def _run(self, image: torch.Tensor) -> torch.Tensor:
         size = (tuple(image.shape[-2:]),)  # `resize` to the image size, fused by `seg_up` in kernels

@@ -436,12 +436,18 @@ def eomt_windows(length: int, crop: int) -> list[int]:
 
 
 def mask_semantic(
-    mask_logits: torch.Tensor, class_logits: torch.Tensor, dtype: torch.dtype | None = torch.float32
+    mask_logits: torch.Tensor,
+    class_logits: torch.Tensor,
+    dtype: torch.dtype | None = torch.float32,
+    *,
+    inplace: bool = False,
 ) -> torch.Tensor:
     """Semantic logits `[B, C, h, w]` from mask logits `[B, Q, h, w]` and class logits `[B, Q, C + 1]`.
 
     The product runs in the dtype of `mask_logits`; the result is in `dtype` (`None`: that dtype, no copy).
+    With `inplace=True`, the activation replaces the supplied mask logits.
     """
     probs = class_logits.float().softmax(-1)[..., :-1]
-    out = torch.einsum("bqc,bqhw->bchw", probs.to(mask_logits.dtype), mask_logits.sigmoid())
+    masks = mask_logits.sigmoid_() if inplace else mask_logits.sigmoid()
+    out = torch.einsum("bqc,bqhw->bchw", probs.to(mask_logits.dtype), masks)
     return out if dtype is None else out.to(dtype)
