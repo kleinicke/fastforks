@@ -564,10 +564,8 @@ def _group_norm(
 ) -> tuple[mx.array, None, None]:
     del n, hw
     shape = x.shape
-    xf = x.astype(mx.float32).reshape(shape[0], groups, -1)
-    mean = mx.mean(xf, axis=-1, keepdims=True)
-    var = mx.var(xf, axis=-1, keepdims=True)
-    y = ((xf - mean) * mx.rsqrt(var + eps)).reshape(shape).astype(x.dtype)
+    # fast layer norm over each group's row: float32 statistics inside the kernel, no float32 copy of the activation
+    y = mx.fast.layer_norm(x.reshape(shape[0] * groups, -1), None, None, eps).reshape(shape)
     bshape = [1, c] + [1] * (len(shape) - 2)
     if w is not None:
         y = y * w.reshape(bshape)
