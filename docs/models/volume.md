@@ -178,7 +178,7 @@ A small subset of real CT cases of the TotalSegmentator dataset (not the full te
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
 |---|---|---|---|---|---|---|---|---|---|
-| `totalsegmentator-total` | TotalSegmentator test subset (7 CT cases), 1.5 mm, mean Dice | 0.9365 | 0.9365 | 0.9365 |  | 0.9365 |  |  |  |
+| `totalsegmentator-total` | TotalSegmentator test subset (7 CT cases), 1.5 mm, mean Dice | 0.9365 | 0.9365 | 0.9365 | 0.9365 | 0.9365 |  |  |  |
 | `totalsegmentator-total` | TotalSegmentator CT s0013, mean Dice over present classes |  |  | 0.8943 |  |  |  | 0.8943 |  |
 | `totalsegmentator-total-3mm` | TotalSegmentator test subset (8 CT cases), 3 mm, mean Dice | 0.8285 | 0.8285 | 0.8285 | 0.8285 | 0.8285 |  |  |  |
 | `totalsegmentator-total-3mm` | TotalSegmentator CT s0013, mean Dice over present classes |  |  | 0.7980 |  |  | 0.7980 | 0.7980 |  |
