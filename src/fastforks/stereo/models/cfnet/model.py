@@ -16,6 +16,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
+from fastforks._core.tracing import in_onnx_export
 from fastforks.kernels import cfnet_volume
 from fastforks.stereo._runner import Forward, Runner
 
@@ -103,6 +104,41 @@ class StageVolume(Protocol):
         ...
 
 
+def _warp_features(right: torch.Tensor, index: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+    """Gather right-view features with one integer index per pixel and disparity."""
+    source = right.unsqueeze(2).expand(-1, -1, index.shape[2], -1, -1)
+    return (mask * source.gather(-1, index.expand_as(source))).add_(0)
+
+
+def _packed_stage_volume(  # noqa: PLR0913 - source features from two branches
+    flg: torch.Tensor,
+    frg: torch.Tensor,
+    flc: torch.Tensor,
+    frc: torch.Tensor,
+    ds: torch.Tensor,
+    *,
+    groups: int,
+) -> torch.Tensor:
+    """Share the warp coordinates and write each result directly into the stage dtype."""
+    batch, disparities, height, width = ds.shape
+    channels = flc.shape[1]
+    x = torch.arange(0.0, width, device=ds.device) - ds.float()
+    index = x.clamp(0, width - 1).long().unsqueeze(1)
+    mask = 1 - ((x < 0) | (x > width - 1)).float().unsqueeze(1)
+    del x
+
+    warped = _warp_features(frg, index, mask)
+    correlations = warped.mul_(flg.unsqueeze(2)).unflatten(1, (groups, -1)).mean(dim=2)
+    del warped
+    out = flg.new_empty((batch, groups + 2 * channels + 1, disparities, height, width))
+    out[:, :groups].copy_(correlations)
+    del correlations
+    out[:, groups : groups + channels].copy_(flc.unsqueeze(2))
+    out[:, groups + channels : -1].copy_(_warp_features(frc, index, mask))
+    out[:, -1:].copy_(ds.unsqueeze(1))
+    return out
+
+
 def stage_volume(  # noqa: PLR0913 - the stage's inputs
     net: cfnet, feats: tuple[Features, Features], ds: torch.Tensor, *, level: int, a: int, groups: int
 ) -> torch.Tensor:
@@ -115,6 +151,8 @@ def stage_volume(  # noqa: PLR0913 - the stage's inputs
     b = a + ds.shape[2]
     flc, frc = fl[f"concat_feature{level}"][:, :, a:b], fr[f"concat_feature{level}"][:, :, a:b]
     flg, frg = fl[f"gw{level}"][:, :, a:b], fr[f"gw{level}"][:, :, a:b]
+    if flg.is_cuda and not (torch.compiler.is_compiling() or torch.compiler.is_exporting() or in_onnx_export()):
+        return _packed_stage_volume(flg, frg, flc, frc, ds, groups=groups)
     vc, _ = net.cost_volume_generator(flc, frc, ds, "concat")
     vg, ds = net.cost_volume_generator(flg, frg, ds, "gwc", groups)
     # the warp's float32 mask promotes the volumes (as upstream: the correlation runs in float32)
