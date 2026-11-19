@@ -558,3 +558,35 @@ separate regeneration pass. Remaining: every net above except raft-large / sea-r
 GRU / attention convs are FLOP-bound at about 3 TFLOPS effective), the cache cliff of raft-stereo / igev cannot be
 shrunk without fewer distinct large buffers per step (not found cheaply), and the memory gap to MPS closes only where
 the cache fits.
+
+## Dense 3x3 conv kernel (conv_mlx) investigation
+
+Micro-benchmark (chained 8-16 layers per eval, fp16, channels-last, M1 Pro; probe scripts in `/Volumes/Daten/ff-mlx-probe`,
+outside the repo). Result: the existing three-stage Winograd F(4,3) (input transform, batched `mx.matmul`, output
+transform fused with bias/act/residual) already beats `mx.conv2d` and is at or above torch MPS `F.conv2d` in isolation for
+C >= 64. The net-level gap to MPS is therefore launch overhead, small layers and transient memory, not conv throughput.
+
+Ceiling: the batched GEMM reaches about 3 TFLOPS effective (direct-equivalent) of the M1 Pro fp16 peak (about 10 TFLOPS
+for the 16-core GPU); `mx.matmul` is the limiter, and the transforms are bandwidth-bound.
+
+Tried and not shipped:
+
+- Fused simdgroup_matrix Winograd (GEMM fused with the output transform, input transform in the operand load,
+  `fused.py`): not faster than the three-stage pipeline. Threadgroup staging of the 36 frequencies limits occupancy, and
+  MLX's own GEMM is better tuned than a hand-written 8x8-fragment kernel.
+- Banding the transients (concat or `slice_update`) does not lower peak memory: MLX keeps transients alive until the
+  command buffer commits. `MLX_MAX_MB_PER_BUFFER` is the only lever (not re-tested on a full net).
+- Direct implicit-GEMM with simdgroup_matrix: slower than Winograd for C >= 64 (9 taps vs 36/16 multiplies per tile).
+
+Shipped (commit 933b4913 and follow-up):
+
+- 3x3x3 conv3d Winograd: the three depth taps are stacked along K (K = 3C), so one GEMM covers the volume, then the
+  per-slice output transform. 1.5-3x over `mx.conv3d` for >= 64 channels; capped at 192 MB of transients
+  (`FF_BAND_MB`), larger volumes fall back to `mx.conv3d`. Wired into `mlx_graph._conv_core` under kernels mode.
+- Work-based gate for small images: `h*w >= 48^2`, or channels >= 64 and `h*w*cin*cout >= 2^25`; groups=1, k=3,
+  stride 1, even channels >= 16.
+
+Survey and goldens: compact, realplksr, span, realesrgan, nafnet-gopro, wd-vit-tagger-v3 and the stereo goldens pass.
+Declaring a kernels mode for hitnet-eth3d (994x1482): portable 800 / 592 ms (fp32 / fp16), kernels 1004 / 746 ms, so it
+is slower and was not declared. aanet, s2m2, dlnr and the SR nets were not declared either: earlier runs showed memory
+roughly doubling for the stereo group, and the portable path is already the faster one.
