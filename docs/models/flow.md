@@ -12,7 +12,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 
 | model | commercial | KITTI 2015 train EPE (px) ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
-| [`flowformer-small-chairs`](#flowformer) | yes | 10.952 | 322, 0.9x (375x1242) | 1698, 0.57x |
+| [`flowformer-small-chairs`](#flowformer) | yes | 10.952 | 320, 0.9x (375x1242) | 1438, 0.48x |
 | [`flowformer-small-sintel`](#flowformer) | yes | 4.657 † | 322, 0.9x (375x1242) | 1698, 0.57x |
 | [`flowformer-small-things`](#flowformer) | yes | 6.884 | 322, 0.9x (375x1242) | 1698, 0.56x |
 | [`flowseek-t`](#flowseek) | yes | 1.348 † | 254, 1.8x | 2114, 0.21x |
@@ -70,7 +70,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `flowformer-small-chairs` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>337<br>322<br>250<br>202 | 3122 / 3718<br>2382 / 2970<br>1404 / 1698<br>1401 / 1698<br>2438 / 3196<br>2087 / 2138 |
+| `flowformer-small-chairs` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>335<br>320<br>250<br>202 | 3122 / 3718<br>2382 / 2970<br>1297 / 1438<br>1293 / 1438<br>2438 / 3196<br>2087 / 2138 |
 | `flowformer-small-things` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>337<br>322<br>250<br>202 | 3122 / 3678<br>2382 / 3010<br>1404 / 1698<br>1401 / 1698<br>2438 / 3196<br>2087 / 2138 |
 | `flowformer-small-sintel` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>336<br>322<br>250<br>202 | 3122 / 3718<br>2382 / 2990<br>1404 / 1698<br>1401 / 1698<br>2438 / 3196<br>2087 / 2138 |
 
@@ -95,7 +95,7 @@ Commercial use: yes.
 - `flowformer-small-sintel` 375x1242, first call: portable + torch.compile 99 s (cold Inductor cache), TensorRT fp16 117 s (ONNX + engine).
 - `flowformer-small-chairs` original (fp32) 375x1242: upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
 - `flowformer-small-chairs` original 375x1242: torch.autocast(float16) around the call; upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
-- `flowformer-small-chairs` kernels 375x1242: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `flowformer-small-chairs` portable 375x1242, kernels 375x1242: CUDA streams patch groups into the embedding buffer. Bitwise parity on three labeled KITTI pairs.
 - `flowformer-small-things` original (fp32) 375x1242: upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
 - `flowformer-small-things` original 375x1242: torch.autocast(float16) around the call; upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
 - `flowformer-small-things` kernels 375x1242: Existing CUDA kernel mode on one fixed input with five warm calls.

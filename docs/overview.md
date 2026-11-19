@@ -663,9 +663,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`flowseek-t-things`](models/flow.md#flowseek) | yes | 4.143 | 457.7 (1080x1920) | 395.3 | 253.9 | 1.8x vs original (1080x1920) | 1947 |
 | [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.933 | 457.6 (1080x1920) | 395.6 | 254.1 | 1.8x vs original (1080x1920) | 1947 |
 | [`memfof-kitti`](models/flow.md#memfof) | yes | 15.584 † | – | 385.6 | 308.8 (375x1242) | 1.2x vs portable | 786 |
+| [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 10.952 | OOM (1080x1920) | 334.6 | 319.9 (375x1242) | 1.0x vs portable | 1293 |
 | [`flowformer-small-sintel`](models/flow.md#flowformer-small) | yes | 4.657 † | OOM (1080x1920) | 336.3 | 321.9 (375x1242) | 1.0x vs portable | 1401 |
 | [`flowformer-small-things`](models/flow.md#flowformer-small) | yes | 6.884 | OOM (1080x1920) | 337.2 | 322.1 (375x1242) | 1.0x vs portable | 1401 |
-| [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 10.952 | OOM (1080x1920) | 336.7 | 322.3 (375x1242) | 1.0x vs portable | 1401 |
 | [`memfof-spring`](models/flow.md#memfof) | yes | 10.780 † | 1034.8 (1080x1920) | 432.6 | 349.3 | 3.0x vs original (1080x1920) | 917 |
 | [`memfof`](models/flow.md#memfof) | yes | 10.891 † | 530.7 (1080x1920) | 432.6 | 349.4 | 1.5x vs original (1080x1920) | 917 |
 | [`gmflow-scale1-things`](models/flow.md#gmflow) | yes | 10.346 | 750.3 (1080x1920) | 447.5 | 445.9 | 1.7x vs original (1080x1920) | 1988 |
