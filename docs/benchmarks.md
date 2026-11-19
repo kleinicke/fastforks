@@ -2431,7 +2431,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | dfine-s-coco | 800x1344 | 11.4 ms | 5.63 ms | 1.65 ms | 3.75 ms | 31.2 s | 51.4 s | 108 / 128 | 131 / 152 | 108 / 170 | 147 / 160 |
 | dfine-x-coco | 800x1344 | 18.6 ms | 11.0 ms | 5.64 ms | 9.59 ms | 47.7 s | 107 s | 230 / 258 | 245 / 284 | 231 / 298 | 342 / 374 |
 | faster-rcnn-r50-fpn-3x-coco | 800x1344 | 22.8 ms | 18.9 ms | 5.35 ms (backbone + FPN only) | 19.5 ms | 26.0 s | 15.6 s | 390 / 490 | 413 / 438 | 391 / 450 | 439 / 494 |
-| grounding-dino-base | 800x1344 | 160 ms | 131 ms | planned for 0.2.1 | – | 98.4 s | – | 1525 / 1624 | 2669 / 2800 | – | – |
+| grounding-dino-base | 800x1344 | 160 ms | 131 ms | 159 ms, fp32 engine (fixed 80-class text prompt) | – | 98.4 s | 130 s | 1525 / 1624 | 2669 / 2800 | – | 1153 / 1160 |
 | grounding-dino-base | 320x320 | – | – | 17.6 ms, fp32 engine (fixed 80-class text prompt) | – | – | 119 s | – | – | – | 609 / 628 |
 | grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | planned for 0.2.1 | – | 72.5 s | – | 1404 / 1468 | 2550 / 2664 | – | – |
 | grounding-dino-tiny | 320x320 | 40.9 ms | – | 13.6 ms, fp32 engine (network with fixed COCO prompts, standalone build) | – | – | – | 781 / 898 | – | – | 387 / 406 |

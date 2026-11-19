@@ -313,7 +313,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 199<br>138<br>–<br>111<br>planned for 0.2.1 | 2541 / 2716<br>1404 / 1468<br>–<br>2550 / 2664<br>– |
 | `grounding-dino-tiny` | synthetic (320x320) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>40.9<br>–<br>13.6 (network with fixed COCO prompts, standalone build) | –<br>781 / 898<br>–<br>387 / 406 |
-| `grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 230<br>160<br>–<br>131<br>planned for 0.2.1 | 2895 / 3094<br>1525 / 1624<br>–<br>2669 / 2800<br>– |
+| `grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 230<br>160<br>–<br>131<br>159 (fixed 80-class text prompt) | 2895 / 3094<br>1525 / 1624<br>–<br>2669 / 2800<br>1153 / 1160 |
 | `grounding-dino-base` | 320x320 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>17.6 (fixed 80-class text prompt) | –<br>–<br>–<br>609 / 628 |
 | `mm-grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 202<br>138<br>–<br>111<br>planned for 0.2.1 | 2541 / 2716<br>1405 / 1470<br>–<br>2555 / 2666<br>– |
 | `mm-grounding-dino-tiny` | synthetic (320x320) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>40.8<br>–<br>13.8 (network with fixed COCO prompts, standalone build) | –<br>784 / 900<br>–<br>387 / 408 |
@@ -338,7 +338,7 @@ Commercial use: yes.
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `grounding-dino-tiny` 3000x4000 (1.3 GiB peak allocated, 1.5 reserved); `grounding-dino-base` 3000x4000 (1.5 GiB peak allocated, 1.7 reserved); `mm-grounding-dino-tiny` 3000x4000 (1.3 GiB peak allocated, 1.5 reserved); `mm-grounding-dino-base` 3000x4000 (1.5 GiB peak allocated, 1.7 reserved)
 - `grounding-dino-tiny` 800x1344, first call: portable + torch.compile 73 s (cold Inductor cache).
-- `grounding-dino-base` 800x1344, first call: portable + torch.compile 98 s (cold Inductor cache).
+- `grounding-dino-base` 800x1344, first call: portable + torch.compile 98 s (cold Inductor cache), TensorRT fp32 130 s (ONNX + engine).
 - `grounding-dino-base` 320x320, first call: TensorRT fp32 119 s (ONNX + engine).
 - `mm-grounding-dino-tiny` 800x1344, first call: portable + torch.compile 71 s (cold Inductor cache).
 - `mm-grounding-dino-base` 800x1344, first call: portable + torch.compile 105 s (cold Inductor cache).
@@ -357,7 +357,7 @@ Commercial use: yes.
 
 ### Measured
 
-pycocotools COCOeval of the top 100 detections per image. Fixed FP32 graph, one prepared prompt for all 80 COCO class names. Score the top 100 query/class pairs per image. The public TensorRT exporter remains gated. Original = the original code named under Details, same checkpoint and protocol.
+pycocotools COCOeval of the top 100 detections per image. Fixed FP32 graph, one prepared prompt for all 80 COCO class names. Score the top 100 query/class pairs per image. The public TensorRT exporter remains gated. Resize the same 500 RGB inputs to 800 x 1344. Use one prepared prompt for all 80 COCO classes and score the top 100 query/class pairs per image. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | TensorRT | note |
 |---|---|---|---|---|---|---|---|
@@ -366,6 +366,7 @@ pycocotools COCOeval of the top 100 detections per image. Fixed FP32 graph, one 
 | `grounding-dino-tiny` | COCO val2017, all 5000 images, box mAP | 48.25 |  | 48.25 |  |  |  |
 | `grounding-dino-base` | COCO val2017, every 10th image, box mAP | 55.67 | 55.73 | 55.72 | 57.13 |  |  |
 | `grounding-dino-base` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 39.83 | 39.76 |  |
+| `grounding-dino-base` | COCO val2017, every 10th image at fixed 800 x 1344, box mAP |  |  |  | 56.21 | 56.15 |  |
 | `mm-grounding-dino-tiny` | COCO val2017, every 10th image, box mAP |  |  |  | 51.49 |  |  |
 | `mm-grounding-dino-tiny` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 35.77 | 35.79 |  |
 | `mm-grounding-dino-tiny` | COCO val2017, every 20th image, box mAP | 55.18 |  | 54.92 |  |  |  |
@@ -373,7 +374,7 @@ pycocotools COCOeval of the top 100 detections per image. Fixed FP32 graph, one 
 | `mm-grounding-dino-base` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 35.64 | 35.60 |  |
 | `mm-grounding-dino-base` | COCO val2017, every 20th image, box mAP | 57.11 |  | 56.94 |  |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84ba91d4 / a981ff86 / aee4b565, 2026-11-12 to 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / 9e3ff83d+dirty / d9caeca2, 2026-11-17 to 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / d9caeca2, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84ba91d4 / a981ff86 / aee4b565, 2026-11-12 to 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / 9e3ff83d+dirty / d9caeca2, 2026-11-17 to 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / d9caeca2, 2026-11-18 to 2026-11-19.
 
 ### Parity
 

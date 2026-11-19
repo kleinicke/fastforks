@@ -68,6 +68,7 @@ _DATASETS = {
     "detection": {
         "coco-val2017-every10": "COCO val2017, every 10th image, box mAP",
         "coco-val2017-every10-fixed-320x320": "COCO val2017, every 10th image at fixed 320 x 320, box mAP",
+        "coco-val2017-every10-fixed-800x1344": "COCO val2017, every 10th image at fixed 800 x 1344, box mAP",
         "coco-val2017-every20": "COCO val2017, every 20th image, box mAP",
         "coco-val2017-every25": "COCO val2017, every 25th image (200), box mAP",
         "coco-val2017-every10-person": "COCO val2017, every 10th image, box AP of the person class",
@@ -346,6 +347,8 @@ _PROTOCOL = {
     "original fp32 is the reference: tag F1 = F1 of the tags at probability 0.35 of our output against the tags of "
     "the original fp32, micro-averaged over the images; top-1 agreement = share of images with the same most likely "
     "tag. The original fp16 row shows the difference of the original itself in half precision. ",
+    ("detection", "coco-val2017-every10-fixed-800x1344"): "Resize the same 500 RGB inputs to 800 x 1344. Use one "
+    "prepared prompt for all 80 COCO classes and score the top 100 query/class pairs per image. ",
     ("detection", "coco-val2017-every10-fixed-320x320"): "Fixed FP32 graph, one prepared prompt for all 80 COCO "
     "class names. Score the top 100 query/class pairs per image. The public TensorRT exporter remains gated. ",
     ("segmentation", "ade20k-val"): "Each image at its own size, argmax of the logits. ",
