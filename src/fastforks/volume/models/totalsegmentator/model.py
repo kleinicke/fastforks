@@ -21,6 +21,7 @@ import torch.nn.functional as F
 
 from fastforks._core.runner import host
 from fastforks.volume import _nnunet_runner as nn_runner
+from fastforks.volume._mlx import port as mlx_port
 from fastforks.volume._nnunet_runner import weight_names
 
 if TYPE_CHECKING:
@@ -105,4 +106,4 @@ class Kernels(Portable, nn_runner.Kernels):
                 part.batch = 1
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_port(Portable)}

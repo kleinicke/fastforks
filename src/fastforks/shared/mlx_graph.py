@@ -549,6 +549,21 @@ OPS[aten.argmin.default] = lambda x, d=None, keep=False: mx.argmin(x, axis=d, ke
 OPS[aten.var.correction] = lambda x, d=None, correction=1, keepdim=False: mx.var(
     x, axis=tuple(d) if d else None, keepdims=keepdim, ddof=int(correction or 0)
 )
+
+
+@_reg(aten.var_mean.correction)
+def _var_mean(
+    x: mx.array, d: Sequence[int] | None = None, correction: float = 1, keepdim: bool = False
+) -> tuple[mx.array, mx.array]:
+    """Variance and mean in float32 (instance norms over millions of voxels), cast back to the input dtype."""
+    y = x.astype(mx.float32)
+    axis = tuple(d) if d else None
+    return (
+        mx.var(y, axis=axis, keepdims=keepdim, ddof=int(correction or 0)).astype(x.dtype),
+        mx.mean(y, axis=axis, keepdims=keepdim).astype(x.dtype),
+    )
+
+
 OPS[aten.max.dim] = lambda x, d, keep=False: (mx.max(x, axis=d, keepdims=keep), mx.argmax(x, axis=d, keepdims=keep))
 OPS[aten.max.default] = lambda x: mx.max(x)
 OPS[aten.min.default] = lambda x: mx.min(x)
@@ -806,16 +821,40 @@ def _conv_core(  # noqa: PLR0913
             y = y + b
         return mx.transpose(y, (0, 2, 1))
     if x.ndim == 5:  # 3-D: [N, C, D, H, W] -> NDHWC
-        if transposed:
-            raise UnsupportedOp("aten.convolution: transposed 3-D")
-        y = mx.conv3d(
-            mx.transpose(x, (0, 2, 3, 4, 1)),
-            mx.transpose(w, (0, 2, 3, 4, 1)),
-            stride=tuple(stride),
-            padding=tuple(padding),
-            dilation=tuple(dilation),
-            groups=groups,
-        )
+        if (
+            transposed
+            and groups == 1
+            and tuple(stride) == tuple(w.shape[2:])
+            and not any(padding)
+            and not any(output_padding)
+            and all(d == 1 for d in dilation)
+        ):
+            # stride == kernel (nnU-Net's up-sampling): one matmul and a depth-to-space reshape (`mx.conv_transpose3d` is wrong on large maps)
+            n, _, d, h, wd = x.shape
+            cin, cout, kd, kh, kw = w.shape
+            xl = mx.transpose(x, (0, 2, 3, 4, 1)).reshape(-1, cin)
+            wm = mx.transpose(w, (0, 2, 3, 4, 1)).reshape(cin, -1)  # columns (kd, kh, kw, cout)
+            y = (xl @ wm).reshape(n, d, h, wd, kd, kh, kw, cout)
+            y = mx.transpose(y, (0, 1, 4, 2, 5, 3, 6, 7)).reshape(n, d * kd, h * kh, wd * kw, cout)
+        elif transposed:
+            y = mx.conv_transpose3d(
+                mx.transpose(x, (0, 2, 3, 4, 1)),
+                mx.transpose(w, (1, 2, 3, 4, 0)),  # [Cin, Cout/g, kd, kh, kw] -> [Cout/g, kd, kh, kw, Cin]
+                stride=tuple(stride),
+                padding=tuple(padding),
+                dilation=tuple(dilation),
+                output_padding=tuple(output_padding),
+                groups=groups,
+            )
+        else:
+            y = mx.conv3d(
+                mx.transpose(x, (0, 2, 3, 4, 1)),
+                mx.transpose(w, (0, 2, 3, 4, 1)),
+                stride=tuple(stride),
+                padding=tuple(padding),
+                dilation=tuple(dilation),
+                groups=groups,
+            )
         if b is not None:
             y = y + b
         return mx.transpose(y, (0, 4, 1, 2, 3))

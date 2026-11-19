@@ -26,6 +26,7 @@ from fastforks._core.errors import OptionsError, WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks._core.runner import Forward
+from fastforks.shared import mlx_wrap
 from fastforks.shared.host_blocks import StreamedModuleList
 from fastforks.volume._nnunet import Encoder, Norm, Plan, UNet
 from fastforks.volume._nnunet_runner import fused_norm_act
@@ -325,4 +326,4 @@ class Kernels(Portable):
         return super()._encode(x)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(Portable)}

@@ -32,6 +32,7 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import InputError
 from fastforks._core.patch import override
 from fastforks._core.runner import Forward
+from fastforks.shared import mlx_wrap
 from fastforks.volume._nnunet import Norm, Plan, UNet, _network, configuration_of
 from fastforks.volume._nnunet_runner import CHECKPOINT_GLOBALS, fused_norm_act
 from fastforks.volume._runner import InteractiveRunner
@@ -451,4 +452,4 @@ class Kernels(Portable):
         return net
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(Portable)}

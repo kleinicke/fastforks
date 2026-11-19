@@ -160,6 +160,10 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | tapnext | tracking | portable_mlx: whole pass as one graph; fp32 only | tapnext fp32 8155 / 3639 vs MPS 5855 / 3754. |
 | cotracker | tracking | portable_mlx: offline = whole pass as one graph; online = window loop eager (data-dependent, `torch.export` guards), CNN and update transformer on MLX; fp32 only | offline fp32 3577 / 3438 vs MPS 1430 / 4725; online 3340 / 3971 vs 1707 / 4689. |
 | track_on | tracking | portable_mlx: per-frame loop eager (data-dependent), DINOv3 adapter backbone as graph; fp32+fp16 pass | track-on2 fp32 21453 / 4902 vs MPS 8354 / 6102; fp16 21190 / 4947. Eager per-frame steps dominate; slower than MPS. |
+| nnfoundation (cnn) | volume | `mlx_wrap.port(Portable)`: 3D UNet exported whole; 5-D conv via `mx.conv3d` (transposed: matmul for stride == kernel, else `conv_transpose3d`) | 200x200 fp32 5421 ms / 10651 MB vs MPS 3645 / 9435; fp16 4721 / 10094 vs 2935 / 7824; goldens pass. Slower and heavier than MPS: MLX 3-D conv is not tuned for this size. |
+| nnfoundation (vit) | volume | same | 192x192 fp32 18038 ms / 4313 MB vs MPS 21342 / 4987; fp16 13037 / 2469 vs 17636 / 3817; goldens pass. Faster and lighter than MPS. |
+| nninteractive | volume | same | fp32 4782 ms / 7025 MB vs MPS 3525 / 11439; fp16 4564 / 6823 (MPS fp16 not run); goldens pass. Memory lower, time 1.35x slower. |
+| totalsegmentator | volume | `_mlx.port`: each part's sub-nets wrapped with `MlxModule(release=True)`, sliding-window glue stays eager | total fp32 58555 ms / 6627 MB vs MPS 27804 / 10180; fp16 42971 / 6614 vs 23070 / 6058; 3mm fp32 1573 / 5085 vs 593 / 4385; fp16 1333 / 4913 vs 522 / 2588; all goldens pass. Memory lower only for fp32 total; time about 2x slower than MPS (3-D conv). |
 
 ## Conv3x3 kernel experiments (M1 Pro, fp16, 1x512x512x64 -> 64, 3x3, pad 1)
 

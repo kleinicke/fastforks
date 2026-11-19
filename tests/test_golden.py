@@ -778,7 +778,7 @@ def test_mlx(ref):
         (got,), backend = run_or_skip(ref, device="mlx", mode=mode, dtype=dtype, opts=options(ref, want), want=want)
         assert (backend.mode, backend.device, str(backend.dtype)) == (mode, "mlx", dtype)
         assert len(backend.kernels) == len(card.mlx_kernel_libs) if mode == "kernels" else not backend.kernels
-        _check(ref, mode, {k: v for k, v in want.items() if k not in INPUTS}, got, f"{mode} {dtype}: ")
+        _check(ref, mode, outputs(ref, want), got, f"{mode} {dtype}: ")
 
 
 def _manifest(lib: str) -> kernels.KernelManifest | None:

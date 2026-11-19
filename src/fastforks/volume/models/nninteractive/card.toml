@@ -25,6 +25,7 @@ autozoom = true
 [modes.portable]
 cuda_dtype = "float16"  # float16 network (upstream: float16 autocast), channels-last 3D; session state on the device
 mps_dtypes = ["float32"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["vol_norm"]  # portable + InstanceNorm + LeakyReLU as one in-place kernel
