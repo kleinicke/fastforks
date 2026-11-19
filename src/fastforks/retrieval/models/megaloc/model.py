@@ -23,6 +23,7 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import OptionsError
 from fastforks.kernels import dpt_fused
 from fastforks.retrieval._runner import Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.depth_anything_v2 import FastViT, fp16_accumulate, sdpa_attention, vit_base
 from fastforks.shared.depth_anything_v2.net.dinov2 import DinoVisionTransformer
@@ -192,4 +193,17 @@ class Kernels(_MegaLoc):
         self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _Graph(Portable):
+    """The backbone and aggregator behind one module (what the MLX port exports `_descriptor` with)."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network."""
+        super().__init__(ctx)
+        self.net = torch.nn.ModuleDict({"vit": self.vit, "agg": self.agg})
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_Graph, attrs=(), methods=("_descriptor",)),
+}
