@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from fastforks.ocr._runner import Forward, Runner, levels
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.pil_resize import pil_bicubic, pil_bicubic_cuda
 
@@ -115,4 +116,15 @@ class Kernels(Portable):
     module = Runner.module
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _Decoding(Portable):
+    """The full 26-step decoding as one graph (no data-dependent early exit), for the MLX port."""
+
+    def _logits(self, image: torch.Tensor) -> torch.Tensor:
+        return self._decode(to_input(image).to(self.dtype))
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_Decoding, attrs=(), methods=("_decode",)),
+}

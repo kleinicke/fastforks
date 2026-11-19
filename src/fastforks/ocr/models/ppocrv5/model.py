@@ -35,6 +35,7 @@ from fastforks.ocr._runner import (
     rec_batches,
     text_boxes,
 )
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cnn_kernels import prepare_generic
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
@@ -166,4 +167,18 @@ class Kernels(Portable):
         self.rec_graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _Scaled(Portable):
+    """The float16 neck scaling applied to the float32 twin that the MLX port converts."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the networks; scale the neck when the run dtype is float16."""
+        super().__init__(ctx)
+        if mlx_wrap.run_dtype(ctx) == "float16" and self.dtype != torch.float16:
+            self.det.scale_neck(FP16_NECK_SCALE)  # ty: ignore[call-non-callable] - Detector
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_Scaled, attrs=("det", "rec")),
+}

@@ -1396,7 +1396,21 @@ class GraphNet:
                         env[name] = f(*[get(env, a) for a in args], **{k: get(env, v) for k, v in kwargs.items()})
                 return tuple(env[n] for n in outs)
 
-            return ins, outs, mx.compile(fn) if compiled else fn
+            if not compiled:
+                return ins, outs, fn
+            jit = mx.compile(fn)
+            use: list[Callable[..., Any]] = [jit]
+
+            def guarded(*xs: mx.array) -> tuple[mx.array, ...]:
+                try:
+                    return use[0](*xs)
+                except ValueError as err:  # a segment mx.compile cannot trace (in-place state): run it eagerly
+                    if use[0] is fn or "uncaptured" not in str(err):
+                        raise
+                    use[0] = fn
+                    return fn(*xs)
+
+            return ins, outs, guarded
 
         bounds = [(a, b) for a, b in zip(cuts, cuts[1:], strict=False) if b > a]
         segments = [make(steps[a:b]) for a, b in bounds]
