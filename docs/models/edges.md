@@ -170,7 +170,7 @@ All 200 BSDS500 test images. The benchmark uses the official boundary correspond
 
 | variant | dataset | original fp32 | portable fp32 | note |
 |---|---|---|---|---|
-| `lineart` | BSDS500 test (200 images), boundary ODS / OIS / AP % | 50.19 / 52.90 / 38.26 |  |  |
+| `lineart` | BSDS500 test (200 images), boundary ODS / OIS / AP % | 50.19 / 52.90 / 38.26 | 50.19 / 52.85 / 38.26 |  |
 | `lineart` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 49.18 / 52.31 / 36.92 | 49.18 / 52.27 / 36.92 |  |
 | `lineart-coarse` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 42.88 / 46.46 / 36.60 | 42.89 / 46.46 / 36.60 |  |
 
