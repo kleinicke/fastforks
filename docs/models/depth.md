@@ -801,7 +801,7 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `marigold-v2-depth` 1988x2880 (12.8 GiB peak allocated, 13.5 reserved)
 - `marigold-v2-depth` 994x1482, first call: portable + torch.compile 141 s (cold Inductor cache).
 - `marigold-v2-depth` 480x640, first call: TensorRT bf16 137 s (ONNX + engine).
-- `marigold-v2-depth` load / first call: portable 7.8 s / 5.094 s, kernels 6.2 s / 3.887 s
+- `marigold-v2-depth` load / first call: original 174.6514255180955 s / 1.761 s (518x770), portable 7.8 s / 5.094 s, kernels 6.2 s / 3.887 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -810,9 +810,10 @@ Aligned depth scores fit scale and shift by least squares, in disparity space fo
 
 | variant | dataset | original half | portable | kernels | portable + torch.compile | TensorRT | note |
 |---|---|---|---|---|---|---|---|
-| `marigold-v2-depth` | NYUv2 test, AbsRel / delta1 | out of memory | 0.0386 / 0.9840 | 0.0386 / 0.9840 |  |  |  |
+| `marigold-v2-depth` | NYUv2 test, AbsRel / delta1 |  | 0.0386 / 0.9840 | 0.0386 / 0.9840 |  |  |  |
 | `marigold-v2-depth` | iBims-1, AbsRel / delta1 |  | 0.0291 / 0.9877 | 0.0291 / 0.9877 | 0.0291 / 0.9878 |  |  |
 | `marigold-v2-depth` | iBims-1, first 10 images, AbsRel / delta1 | 0.0403 / 0.9702 | 0.0403 / 0.9701 |  | 0.0403 / 0.9703 | 0.0401 / 0.9704 |  |
+| `marigold-v2-depth` | NYUv2 test (first 10 images), AbsRel / delta1 | 0.0310 / 0.9897 | 0.0304 / 0.9960 | 0.0304 / 0.9960 |  |  |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519 / 46f88d78 / 6d3bab64, 2026-11-14 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519, 2026-11-14; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 46f88d78, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 07617392, 2026-11-19.
 
@@ -827,8 +828,9 @@ CPU, float32: max |diff| <= 0.02 vs the original. GPU, bfloat16 (the default), p
 ### Limitations
 
 - 20 B transformer in 4 bit: 8.4 GB of weights; by default (`stream=True`, CUDA) it runs in ~1-4 GB of device memory from 8.4 GB of page-locked host RAM (load fails with an error when less is free); `stream=False` keeps it resident (about 9-11 GB of device memory, 16 GB cards: up to ~1024 px).
-- Diffusion model: the VAE posterior sample comes from a CPU generator seeded with `seed` and differs from the original code's (unseeded, device) sample.
-- The first-ten iBims-1 comparison uses the same seeded posterior noise for both implementations. The original uses the authors' NF4 weights with BF16 autocast.
+- Diffusion model: the portable VAE draws its posterior noise with a CPU generator seeded with `seed`. The authors' default path draws from the device generator.
+- The first-ten iBims-1 and NYUv2 comparisons use the same seeded posterior noise for both implementations. The original uses the authors' NF4 weights with BF16 autocast.
+- On the 16 GB reference GPU with expandable allocator segments, the original BF16 stack fits the 518 x 770 speed input and runs out of memory at 994 x 1482.
 - The enlargement to a multiple of 16 is bicubic (the original: OpenCV Lanczos); inputs with sides that are multiples of 16 are not resized.
 - The output is log depth up to scale and shift (`kind = "affine_invariant_log"`): align in log space, not with the other families' depth outputs.
 - A traced or exported module reuses the noise of its traced shape; CPU inference is possible but slow (bf16 GEMMs of a 20 B model).

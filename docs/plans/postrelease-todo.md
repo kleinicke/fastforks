@@ -4,9 +4,8 @@
 
 The November 19 release review covers 578 variants.
 
-- [ ] Default portable accuracy is measured for 576 variants. Of the 39 gaps found in the portable accuracy audit,
-  37 have a score. PiDiNet is being scored on the same 75 BSDS500 images as the FP32 comparisons.
-  FalconsAI NSFW ViT is waiting for access to the labeled UnsafeBench test split.
+- [ ] Default portable accuracy is measured for 577 variants. Of the 39 gaps found in the portable accuracy audit,
+  38 have a score. FalconsAI NSFW ViT is waiting for access to the labeled UnsafeBench test split.
 - [x] Original and portable FP32 accuracy are each measured for 574 variants. Marigold V2 and both SeedVR2 models
   use BF16 in their CUDA portable runners and have scores at that precision. FalconsAI is the remaining labeled
   evaluation to run in FP32.

@@ -40,7 +40,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`swin2sr-x2`](#swin2sr) | yes | 721, 3.6x | 1636, 1.0x |
 | [`swin2sr-x4`](#swin2sr) | yes | 745, 3.9x | 1736, 0.8x |
 | [`swin2sr-x4-real`](#swin2sr) | yes | 751, 3.4x | 1734, 0.65x |
-| [`swinir-l-x4-real`](#swinir) | yes | 921, 4.0x | 1934, 0.7x |
+| [`swinir-l-x4-real`](#swinir) | yes | 896, 4.1x | 1794, 0.65x |
 | [`swinir-m-x2`](#swinir) | yes | 553, 5.9x | 1454, 0.8x |
 | [`swinir-m-x4`](#swinir) | yes | 576, 6.1x | 1456, 0.71x |
 | [`swinir-m-x4-real`](#swinir) | yes | 584, 4.2x | 1814, 0.61x |
@@ -908,7 +908,7 @@ Commercial use: yes.
 | `swinir-m-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3497<br>767<br>576<br>795<br>727 | 1500 / 2058<br>1499 / 2054<br>1354 / 1456<br>1684 / 1796<br>5525 / 5604 |
 | `swinir-m-x2` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3252<br>739<br>553<br>781<br>719 | 1500 / 1818<br>1353 / 1454<br>1353 / 1454<br>1683 / 1796<br>5088 / 5144 |
 | `swinir-m-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2462<br>1242<br>584<br>807<br>733 | 2321 / 2978<br>2387 / 3034<br>1353 / 1814<br>1683 / 1796<br>5427 / 5506 |
-| `swinir-l-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3709<br>1248<br>921<br>1426<br>1118 | 2357 / 2746<br>1806 / 2054<br>1633 / 1934<br>2153 / 2876<br>9182 / 9282 |
+| `swinir-l-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3709<br>1218<br>896<br>1426<br>1118 | 2357 / 2746<br>1600 / 1794<br>1600 / 1794<br>2153 / 2876<br>9182 / 9282 |
 
 <details><summary>Details</summary>
 
@@ -932,7 +932,7 @@ Commercial use: yes.
 - `swinir-m-x2` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swinir.py, float32, no tile
 - `swinir-m-x4-real` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swinir.py, float32, no tile
 - `swinir-l-x4-real` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swinir.py, float32, no tile
-- `swinir-l-x4-real` portable 512x512, kernels 512x512: FP16 CUDA decoder uses row strips; three matched DIV2K RGB PSNR scores changed by under 0.00002 dB. The tested 72 x 80 portable export output matched bitwise.
+- `swinir-l-x4-real` portable 512x512, kernels 512x512: Compact shifted-window masks, verified bitwise on synthetic and labeled DIV2K outputs.
 - `swinir-m-x4` load / first call: original 2.07 s / 3.272 s, portable 0.44 s / 1.36 s, kernels 1.28 s / 0.646 s
 - `swinir-m-x2` load / first call: original 2.95 s / 4.489 s, portable 0.67 s / 0.848 s, kernels 0.43 s / 0.629 s
 - `swinir-m-x4-real` load / first call: original 2.06 s / 3.326 s, portable 0.4 s / 1.386 s, kernels 1.31 s / 0.697 s
