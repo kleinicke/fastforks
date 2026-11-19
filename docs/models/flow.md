@@ -21,7 +21,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`gmflow-scale1-mixdata`](#gmflow) | yes | 3.697 ? | 40.3, 1.3x (375x1242) | 300, 0.46x |
 | [`gmflow-scale1-things`](#gmflow) | yes | 10.346 | 446, 1.7x | 2142, 0.25x |
 | [`gmflow-scale2-mixdata`](#gmflow) | yes | 2.389 ? | 116, 1.3x (375x1242) | 760, 0.5x |
-| [`gmflow-scale2-regrefine6-kitti`](#gmflow) | yes | 0.570 † | 214, 1.2x (375x1242) | 766, 0.47x |
+| [`gmflow-scale2-regrefine6-kitti`](#gmflow) | yes | 0.570 † | 1408, 1.6x | 3210, 0.37x |
 | [`gmflow-scale2-regrefine6-mixdata`](#gmflow) | yes | 1.315 ? | 214, 1.2x (375x1242) | 766, 0.47x |
 | [`gmflow-scale2-regrefine6-sintelft`](#gmflow) | yes | 1.154 † | 214, 1.2x (375x1242) | 766, 0.47x |
 | [`gmflow-scale2-regrefine6-things`](#gmflow) | yes | 4.917 | 1481, 1.5x | 4696, 0.54x |
@@ -229,7 +229,7 @@ Commercial use: yes.
 | `gmflow-scale2-regrefine6-things` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>350 (standalone feature CNN, eager transformer and flow update) | –<br>–<br>–<br>1660 / 2526 |
 | `gmflow-scale2-regrefine6-sintelft` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2184<br>1674<br>–<br>1116<br>public API unavailable | 8522 / 8730<br>8537 / 8822<br>6080 / 6250<br>–<br>10875 / 10972<br>– |
 | `gmflow-scale2-regrefine6-sintelft` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>350 (standalone feature CNN, eager transformer and flow update) | –<br>–<br>–<br>1660 / 2526 |
-| `gmflow-scale2-regrefine6-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2188<br>1678<br>–<br>1116<br>public API unavailable | 8522 / 8710<br>8537 / 8822<br>6080 / 6230<br>–<br>10875 / 10972<br>– |
+| `gmflow-scale2-regrefine6-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2188<br>1405<br>1408<br>1116<br>public API unavailable | 8522 / 8710<br>8537 / 8822<br>3005 / 3190<br>3005 / 3210<br>10875 / 10972<br>– |
 | `gmflow-scale2-regrefine6-kitti` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>351 (standalone feature CNN, eager transformer and flow update) | –<br>–<br>–<br>1660 / 2526 |
 | `gmflow-scale2-regrefine6-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3254<br>2188<br>1675<br>–<br>1116<br>public API unavailable | 8522 / 8710<br>8537 / 8822<br>6080 / 6250<br>–<br>10875 / 10972<br>– |
 | `gmflow-scale2-regrefine6-mixdata` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>349 (standalone feature CNN, eager transformer and flow update) | –<br>–<br>–<br>1660 / 2526 |
@@ -290,6 +290,7 @@ Commercial use: yes.
 - `gmflow-scale2-regrefine6-sintelft` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale2-regrefine6-kitti` original (fp32) 1080x1920: upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale2-regrefine6-kitti` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
+- `gmflow-scale2-regrefine6-kitti` portable 1080x1920, kernels 1080x1920: CUDA feed-forward token strips. Synthetic and three rescaled KITTI flows agree bitwise.
 - `gmflow-scale2-regrefine6-mixdata` original (fp32) 1080x1920: upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale2-regrefine6-mixdata` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale1-things` load / first call: original 0.14 s / 0.942 s, portable 0.16 s / 0.558 s, kernels 0.16 s / 0.875 s

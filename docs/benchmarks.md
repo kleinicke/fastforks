@@ -1389,7 +1389,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | gmflow-scale1-mixdata | 1080x1920 | 1246 | 750 | 556 | – | – | – | 8360 / 8448 | 4496 / 4642 | – |
 | gmflow-scale1-things | 1080x1920 | 1245 | 750 | 448 | 446 | 1.7x | 1.0x | 8360 / 8468 | 1988 / 2142 | 1988 / 2142 |
 | gmflow-scale2-mixdata | 1080x1920 | 2544 | 1608 | 1139 | – | – | – | 8425 / 8572 | 6017 / 6224 | – |
-| gmflow-scale2-regrefine6-kitti | 1080x1920 | 3255 | 2188 | 1678 | – | – | – | 8537 / 8822 | 6080 / 6230 | – |
+| gmflow-scale2-regrefine6-kitti | 1080x1920 | 3255 | 2188 | 1405 | 1408 | 1.6x | 1.0x | 8537 / 8822 | 3005 / 3190 | 3005 / 3210 |
 | gmflow-scale2-regrefine6-mixdata | 1080x1920 | 3254 | 2188 | 1675 | – | – | – | 8537 / 8822 | 6080 / 6250 | – |
 | gmflow-scale2-regrefine6-sintelft | 1080x1920 | 3255 | 2184 | 1674 | – | – | – | 8537 / 8822 | 6080 / 6250 | – |
 | gmflow-scale2-regrefine6-things | 1080x1920 | 3230 | 2175 | 1478 | 1481 | 1.5x | 1.0x | 8537 / 8822 | 4036 / 4696 | 4036 / 4696 |
@@ -2628,7 +2628,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | gmflow-scale1-things | 1080x1920 | 448 ms | 382 ms | 187 ms | 446 ms | 35.3 s | 69.3 s | 1988 / 2142 | 4293 / 4558 | 1988 / 2142 | 4333 / 4390 |
 | gmflow-scale2-mixdata | 1080x1920 | 1139 ms | 765 ms | public API unavailable | – | 46.6 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
 | gmflow-scale2-mixdata | 384x1248 | – | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | – | – | – | 1616 / 2560 |
-| gmflow-scale2-regrefine6-kitti | 1080x1920 | 1678 ms | 1116 ms | public API unavailable | – | 58.4 s | – | 6080 / 6230 | 10875 / 10972 | – | – |
+| gmflow-scale2-regrefine6-kitti | 1080x1920 | 1405 ms | 1116 ms | public API unavailable | 1408 ms | 58.4 s | – | 3005 / 3190 | 10875 / 10972 | 3005 / 3210 | – |
 | gmflow-scale2-regrefine6-kitti | 384x1248 | – | – | 351 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.1 s | – | – | – | 1660 / 2526 |
 | gmflow-scale2-regrefine6-mixdata | 1080x1920 | 1675 ms | 1116 ms | public API unavailable | – | 58.9 s | – | 6080 / 6250 | 10875 / 10972 | – | – |
 | gmflow-scale2-regrefine6-mixdata | 384x1248 | – | – | 349 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | – | – | – | 1660 / 2526 |
