@@ -166,11 +166,11 @@ def _bidir(make: Callable[[torch.Tensor, torch.Tensor], Callable[[torch.Tensor],
     return corr
 
 
-def _raft(raft: RAFT, im1: torch.Tensor, im2: torch.Tensor, iters: int, make: Callable) -> tuple:
-    """Upstream `RAFT.forward(im1, im2, iters, return_feat=True)` -> (flow_up, feats[1:], fmap1)."""
-    image1, image2 = 2 * (im1 / 255.0) - 1.0, 2 * (im2 / 255.0) - 1.0
-    fmap1, fmap2 = raft.fnet([image1.contiguous(), image2.contiguous()])
-    corr_fn = make(fmap1.float(), fmap2.float())
+def _raft(
+    raft: RAFT, image1: torch.Tensor, maps: tuple[torch.Tensor, torch.Tensor], iters: int, make: Callable
+) -> tuple:
+    """Refine one direction using the already encoded features of both input frames."""
+    corr_fn = make(*maps)
     cnet, feats = raft.cnet(image1, return_feature=True)
     net, inp = torch.split(cnet, [raft.hidden_dim, raft.context_dim], dim=1)
     net, inp = torch.tanh(net), torch.relu(inp)
@@ -182,7 +182,7 @@ def _raft(raft: RAFT, im1: torch.Tensor, im2: torch.Tensor, iters: int, make: Ca
         del corr
         coords1 = coords1 + delta
     del corr_fn
-    return raft.upsample_flow(coords1 - coords0, up_mask), feats[1:], fmap1.float()
+    return raft.upsample_flow(coords1 - coords0, up_mask), feats[1:]
 
 
 def _compute_dtype(x: torch.Tensor) -> torch.dtype:
@@ -267,9 +267,14 @@ def _interpolate(  # noqa: PLR0913 - the network, the pair, the time, the params
         image1, image2 = resize(image1, p.ds_factor), resize(image2, p.ds_factor)
     xs = torch.stack((image1, image2), 2)
     b, _, h, w = image1.shape
-    f01, feats0, fnet0 = _raft(net.flow_estimator, 255 * image1, 255 * image2, p.iters, make)
-    f10, feats1, fnet1 = _raft(net.flow_estimator, 255 * image2, 255 * image1, p.iters, make)
+    raft = net.flow_estimator
+    raft_inputs = [(2 * ((255 * image) / 255.0) - 1.0).contiguous() for image in (image1, image2)]
+    fnet0, fnet1 = (feature.float() for feature in raft.fnet(raft_inputs))
+    f01, feats0 = _raft(raft, raft_inputs[0], (fnet0, fnet1), p.iters, make)
+    f10, feats1 = _raft(raft, raft_inputs[1], (fnet1, fnet0), p.iters, make)
+    del raft_inputs
     corr_fn = _bidir(make)(net.amt_fproj(fnet0), net.amt_fproj(fnet1))
+    del fnet0, fnet1
     features0 = [net.amt_second_last_cproj(feats0[0]), net.amt_last_cproj(feats0[1])]
     features1 = [net.amt_second_last_cproj(feats1[0]), net.amt_last_cproj(feats1[1])]
     normal, scalers = normalize_flow(torch.stack([f01, -f10], dim=2))
