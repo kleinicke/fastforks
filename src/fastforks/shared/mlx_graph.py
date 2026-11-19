@@ -846,6 +846,29 @@ def _wino_ok(
     return conv_ops.supported(tuple(xl.shape), w.shape[0])
 
 
+def _wino3d_ok(
+    xl: mx.array, w: mx.array, stride: Sequence[int], padding: Sequence[int], dilation: Sequence[int], groups: int
+) -> bool:
+    """Whether the kernels-mode 3x3x3 Winograd path takes this (NDHWC input) convolution: dense, stride 1, pad 1."""
+    if not _KERNELS or groups != 1 or tuple(w.shape[2:]) != (3, 3, 3) or tuple(stride) != (1, 1, 1):
+        return False
+    if tuple(padding) != (1, 1, 1) or tuple(dilation) != (1, 1, 1) or xl.shape[4] != w.shape[1]:
+        return False
+    from fastforks.kernels.conv_mlx import ops as conv_ops
+
+    return conv_ops.supported3d(tuple(xl.shape), w.shape[0], xl.dtype.size)
+
+
+def _wino3d_weights(w: mx.array, dtype: mx.Dtype) -> mx.array:
+    """The stacked-tap Winograd weights of the constant 3x3x3 kernel `w` (cached like `_wino_weights`)."""
+    hit = _WINO.get(-id(w))
+    if hit is None:
+        from fastforks.kernels.conv_mlx import ops as conv_ops
+
+        hit = _WINO[-id(w)] = (w, conv_ops.weights3d(mx.transpose(w, (0, 2, 3, 4, 1)), 4, dtype))
+    return hit[1]
+
+
 def _wino_weights(w: mx.array, wl: mx.array, dtype: mx.Dtype) -> mx.array:
     """The Winograd-domain weights of constant `w`, made on first use (also while a segment is being traced)."""
     hit = _WINO.get(id(w))
@@ -963,7 +986,11 @@ def _conv_core(  # noqa: PLR0913
     slope: mx.array | None = None,
 ) -> mx.array | None:
     """The convolution; with `act`, `None` unless the Winograd kernel ran (and applied the activation itself)."""
-    if act and (x.ndim in (3, 5) or transposed):
+    if act and (
+        x.ndim == 3
+        or transposed
+        or (x.ndim == 5 and not _wino3d_ok(mx.transpose(x, (0, 2, 3, 4, 1)), w, stride, padding, dilation, groups))
+    ):
         return None
     if x.ndim == 3:  # 1-D: [N, C, L] -> NLC
         xl = mx.transpose(x, (0, 2, 1))
@@ -1020,6 +1047,11 @@ def _conv_core(  # noqa: PLR0913
             xl3 = mx.transpose(x, (0, 2, 3, 4, 1))
             wl3 = mx.transpose(w, (0, 2, 3, 4, 1))
             kw3 = {"stride": tuple(stride), "padding": tuple(padding), "dilation": tuple(dilation)}
+            if _wino3d_ok(xl3, w, stride, padding, dilation, groups):
+                from fastforks.kernels.conv_mlx import ops as conv_ops
+
+                y = conv_ops.conv3d(xl3, _wino3d_weights(w, xl3.dtype), b, act=act, slope=slope)
+                return mx.transpose(y, (0, 4, 1, 2, 3))
             if groups == 1:
                 y = mx.conv3d(xl3, wl3, **kw3)
             else:  # `mx.conv3d` has no groups: one conv per group

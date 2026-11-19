@@ -64,18 +64,23 @@ def _header(m: int) -> str:
 
 
 _IN_SRC = """
-    constexpr int A = MO + 2;
+    constexpr int A = MO + 2, CC = C / CV, NK = K3 ? 3 : 1;
     uint cv = thread_position_in_grid.x, tx = thread_position_in_grid.y, tyn = thread_position_in_grid.z;
-    if (cv >= C / CV) return;
-    uint ty = tyn % TH, n = tyn / TH;
+    if (cv >= NK * CC) return;
+    // K3: the 3x3x3 convolution reads each depth slice `sd = d + kd - 1` for kd = 0..2, one channel block each
+    uint kd = cv / CC, cc = cv % CC;
+    uint ty = tyn % TH, nd = tyn / TH;
+    int sd = K3 ? int(nd % D) + int(kd) - 1 : 0;
+    uint n = K3 ? (nd / D) * D + uint(sd) : nd;
+    bool dok = !K3 || (sd >= 0 && sd < D);
     int ih0 = int(ty + r0[0]) * MO - 1, iw0 = int(tx) * MO - 1;
     typedef vec<float, CV> F;
     F d[A][A];
     const device vec<T, CV>* xv = (const device vec<T, CV>*)x;
     UR for (int i = 0; i < A; ++i) UR for (int j = 0; j < A; ++j) {
         int ih = ih0 + i, iw = iw0 + j;
-        bool ok = ih >= 0 && ih < H && iw >= 0 && iw < W;
-        d[i][j] = ok ? F(xv[((size_t(n) * H + ih) * W + iw) * (C / CV) + cv]) : F(0);
+        bool ok = dok && ih >= 0 && ih < H && iw >= 0 && iw < W;
+        d[i][j] = ok ? F(xv[((size_t(n) * H + ih) * W + iw) * CC + cc]) : F(0);
     }
     F t[A][A];
     UR for (int i = 0; i < A; ++i) UR for (int j = 0; j < A; ++j) {
@@ -83,12 +88,12 @@ _IN_SRC = """
         UR for (int k = 0; k < A; ++k) s += BT[i * A + k] * d[k][j];
         t[i][j] = s;
     }
-    size_t tile = (size_t(n) * TH + ty) * TW + tx;
+    size_t tile = (size_t(nd) * TH + ty) * TW + tx;
     device vec<T, CV>* vv = (device vec<T, CV>*)v;
     UR for (int i = 0; i < A; ++i) UR for (int j = 0; j < A; ++j) {
         F s = F(0);
         UR for (int k = 0; k < A; ++k) s += BT[j * A + k] * t[i][k];
-        vv[(size_t(i * A + j) * NT + tile) * (C / CV) + cv] = vec<T, CV>(s);
+        vv[(size_t(i * A + j) * NT + tile) * (NK * CC) + cv] = vec<T, CV>(s);
     }
 """
 
@@ -162,9 +167,30 @@ def weights(w: mx.array, m: int, dtype: mx.Dtype) -> mx.array:
 
 
 def supported(x_shape: tuple[int, ...], cout: int) -> bool:
-    """Whether `conv3x3` handles an NHWC input of this shape (channels even) and is likely to beat `mx.conv2d`."""
+    """Whether `conv3x3` handles an NHWC input of this shape (channels even) and is likely to beat `mx.conv2d`.
+
+    Measured with chained layers (launch cost amortised): 16-32 channels need a large image (`h*w >= 48^2`); from 64
+    channels on it wins as soon as the layer has about 2^25 multiply-adds per tap (`h*w*cin*cout`: 256 channels at
+    24^2, 128 at 48^2, 512 at 16^2), and not below (64 channels at 32^2 ties, 128 at 32^2 loses).
+    """
     _, h, w, cin = x_shape
-    return cin % CV == 0 and cout % CV == 0 and cin >= _MIN_C and cout >= _MIN_C and h * w >= 48 * 48
+    if cin % CV or cout % CV or cin < _MIN_C or cout < _MIN_C:
+        return False
+    return h * w >= 48 * 48 or (min(cin, cout) >= 64 and h * w * cin * cout >= 1 << 25)
+
+
+def supported3d(x_shape: tuple[int, ...], cout: int, itemsize: int = 2) -> bool:
+    """Whether `conv3d` handles an NDHWC input of this shape (even channels, at least 16) within its memory cap.
+
+    The 3x3x3 form materialises the transformed input with the three depth taps stacked (`36 x tiles x 3*Cin`) and the
+    product (`36 x tiles x Cout`), about 10 activations' worth; layers whose two tensors exceed `_BAND_BYTES` fall back
+    to `mx.conv3d` (whose own temporaries are tiny), so the extra memory stays bounded per layer.
+    """
+    n, d, h, w, cin = x_shape
+    if cin % CV or cout % CV or cin < _MIN_C or cout < _MIN_C or d < 2 or d * h * w < 1024:
+        return False
+    tiles = n * d * -(-h // 4) * -(-w // 4)
+    return 36 * tiles * (3 * cin + cout) * itemsize <= _BAND_BYTES
 
 
 _BAND_BYTES = (
@@ -194,6 +220,8 @@ def _band(x: mx.array, u: mx.array, bias, m, act, slope, residual, r0: int, bth:
             ("NT", nt),
             ("MO", m),
             ("CV", CV),
+            ("K3", 0),
+            ("D", 1),
         ],
         grid=(c // CV, tw, n * bth),
         threadgroup=(min(c // CV, 256), max(1, tx), 1),
@@ -220,6 +248,68 @@ def _band(x: mx.array, u: mx.array, bias, m, act, slope, residual, r0: int, bth:
         output_shapes=[(n, bh, wd, co)],
         output_dtypes=[x.dtype],
     )[0]  # fmt: skip
+
+
+def weights3d(w: mx.array, m: int, dtype: mx.Dtype) -> mx.array:
+    """Winograd-domain weights `[(m+2)^2, 3*Cin, Cout]` of an ODHWI 3x3x3 kernel (the depth taps stacked along K)."""
+    return mx.concatenate([weights(w[:, kd], m, dtype) for kd in range(3)], axis=1)
+
+
+def conv3d(
+    x: mx.array,
+    u: mx.array,
+    bias: mx.array | None = None,
+    *,
+    act: int = 0,
+    slope: mx.array | None = None,
+) -> mx.array:
+    """NDHWC 3x3x3 convolution, stride 1, zero padding 1, with `u = weights3d(..., 4, dtype)`, F(4,3) per depth slice.
+
+    Output slice `d` needs input slices `d-1, d, d+1`: the input transform writes them side by side along the channel
+    axis (zeros past the ends) so a single batched GEMM with `K = 3*Cin` sums the three taps; the inverse transform
+    (with bias and `act` as in `conv3x3`) runs per slice. The whole volume is one band: see `supported3d` for the cap.
+    """
+    n, d, h, wd, c = x.shape
+    m = 4
+    co = u.shape[2]
+    th, tw = -(-h // m), -(-wd // m)
+    nt = n * d * th * tw
+    k_in, k_out = _kernels(m)
+    off = mx.array([0], dtype=mx.uint32)
+    c3 = 3 * c
+    tx = min(_TG // (c3 // CV), tw) if c3 // CV < _TG else 1
+    v = k_in(  # ty: ignore[call-non-callable]
+        inputs=[x.reshape(n * d, h, wd, c), off],
+        template=[
+            ("T", x.dtype), ("C", c), ("H", h), ("W", wd), ("TH", th), ("TW", tw), ("NT", nt),
+            ("MO", m), ("CV", CV), ("K3", 1), ("D", d),
+        ],
+        grid=(c3 // CV, tw, n * d * th),
+        threadgroup=(min(c3 // CV, 256), max(1, tx), 1),
+        output_shapes=[(36, nt, c3)],
+        output_dtypes=[x.dtype],
+    )[0]  # fmt: skip
+    p = mx.matmul(v, u)
+    zero = mx.zeros((co,), dtype=x.dtype)
+    txo = min(_TG // (co // CV), tw) if co // CV < _TG else 1
+    y = k_out(
+        inputs=[
+            p,
+            bias if bias is not None else zero,
+            slope.astype(x.dtype) if slope is not None else zero,
+            zero,
+            off,
+        ],
+        template=[
+            ("T", x.dtype), ("CO", co), ("H", h), ("W", wd), ("TH", th), ("TW", tw), ("NT", nt),
+            ("MO", m), ("CV", CV), ("ACT", act), ("RES", False), ("BH", h),
+        ],
+        grid=(co // CV, tw, n * d * th),
+        threadgroup=(min(co // CV, 256), max(1, txo), 1),
+        output_shapes=[(n * d, h, wd, co)],
+        output_dtypes=[x.dtype],
+    )[0]  # fmt: skip
+    return y.reshape(n, d, h, wd, co)
 
 
 def conv3x3(  # noqa: PLR0913
