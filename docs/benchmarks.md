@@ -2673,7 +2673,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | waft-a1-kitti | 1080x1920 | 791 ms | 610 ms | 343 ms | 519 ms | 84.1 s | 168 s | 3553 / 4196 | 3479 / 3758 | 1851 / 2264 | 1625 / 1672 |
 | waft-a1-sintel | 1080x1920 | 791 ms | 610 ms | 343 ms | 519 ms | 84.7 s | 166 s | 3553 / 4076 | 3479 / 3578 | 1851 / 2264 | 1625 / 1672 |
 | aliked-flexglue | 768x1024 | 129 ms | 96.1 ms | 328 ms, fp32 engine (dense descriptor with eager ALIKED and matching) | – | 78.8 s | 22.3 s | 1775 / 1886 | 1762 / 1826 | – | 2225 / 2410 |
-| aliked-lightglue | 768x1024 | 40.6 ms | 29.5 ms | planned for 0.2.1 | 35.1 ms | 30.8 s | – | 1300 / 1404 | 1653 / 1680 | 1238 / 1324 | – |
+| aliked-lightglue | 768x1024 | 40.6 ms | 29.5 ms | 65.2 ms, fp32 engine (standalone ALIKED encoder with eager keypoint selection and LightGlue) | 35.1 ms | 30.8 s | 26.4 s | 1300 / 1404 | 1653 / 1680 | 1238 / 1324 | 1520 / 1652 |
 | dedode-v2-b | 768x1024 | 246 ms | 164 ms | 494 ms, fp32 engine (FP32 public builder probe) | 189 ms | 50.5 s | 67.8 s | 1535 / 1654 | 1893 / 2434 | 1197 / 1246 | 3354 / 3378 |
 | dedode-v2-g | 768x1024 | 592 ms | 330 ms | planned for 0.2.1 | 332 ms | 86.4 s | – | 2142 / 2334 | 2881 / 3316 | 1787 / 1984 | – |
 | disk-lightglue | 768x1024 | 116 ms | 113 ms | planned for 0.2.1 | 52.1 ms | 21.4 s | – | 1950 / 2398 | 1375 / 1502 | 736 / 778 | – |

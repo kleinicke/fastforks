@@ -8,6 +8,7 @@ limitations = [
   "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.",
   "One image pair per call internally (batches run pair by pair); the keypoint counts differ per image.",
   "No exportable module: the keypoint counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).",
+  "ALIKED-LightGlue has a fixed 768 x 1024 standalone FP32 TensorRT encoder measurement with TF32 disabled. Keypoint selection and LightGlue run in PyTorch. On 300 MegaDepth pairs, AUC@5 was 51.32 versus 49.75 portable FP32, with a worst paired pose error increase of 21.25 degrees.",
 ]
 
 [upstream]
@@ -46,14 +47,14 @@ venue = "ICCV 2023"
 
 [[variants]]
 id = "aliked-lightglue"  # ALIKED-n16 (threshold 0.2) + LightGlue aliked_lightglue v0.1_arxiv
-planned = { onnx = "torch.export stops at a data-dependent branch (masks.sum() == 0)", tensorrt = "staged FP32 ALIKED encoder loses 1.01 pose AUC@5 points on 300 MegaDepth pairs" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { onnx = "torch.export stops at a data-dependent branch (masks.sum() == 0)", tensorrt = "the full matcher still has data-dependent keypoint counts. The measured standalone encoder uses strict FP32" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { extractor = "aliked", detection_threshold = 0.2 }
 weights = [{ name = "aliked_lightglue.pth", size = 47632827, sha256 = "d975e965b105311a6143194852297dff4f02aea5cc2e10cecfed966ca0e22503", url = "https://github.com/cvg/LightGlue/releases/download/v0.1_arxiv/aliked_lightglue.pth" }, { name = "aliked-n16.pth", size = 2738091, sha256 = "5be8704840ed662d9d8c561bf7279c222092674e7eb05fd0feab94899e9d82f2", url = "https://raw.githubusercontent.com/Shiaoming/ALIKED/683d7c65197395c0b3f01ebe76e1084a27e73a65/models/aliked-n16.pth" }]
 
 [[variants]]
 id = "disk-lightglue"  # DISK depth + LightGlue disk_lightglue v0.1_arxiv
-planned = { onnx = "torch.export fails on the variable keypoint counts", tensorrt = "staged FP32 DISK CNN is slower and loses 1.92 pose AUC@5 points on 50 MegaDepth pairs" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { onnx = "torch.export fails on the variable keypoint counts", tensorrt = "the staged DISK CNN loses 1.92 pose AUC@5 points with default FP32 and 4.13 points with TF32 disabled on 50 MegaDepth pairs" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 params = { extractor = "disk", detection_threshold = 0.0 }
 weights = [{ name = "disk_lightglue.pth", size = 47631405, sha256 = "b5b21d47ea24f2c5e501aec9c91b9716e4c8c3429a4dc1e615c133c4c9378335", url = "https://github.com/cvg/LightGlue/releases/download/v0.1_arxiv/disk_lightglue.pth" }, { name = "depth-save.pth", size = 4375832, sha256 = "9c2ee4ded238892dfa51569941372601e35e4a74aa6f84ea80053d2ab1c07abe", url = "https://raw.githubusercontent.com/cvlab-epfl/disk/8dc6d4d65b47210f629e21ad1fbfb56944b11696/depth-save.pth" }]

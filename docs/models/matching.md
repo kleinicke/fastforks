@@ -100,7 +100,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `aliked-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 41.8<br>40.6<br>35.1<br>29.5<br>planned for 0.2.1 | 1305 / 1364<br>1300 / 1404<br>1238 / 1324<br>1653 / 1680<br>– |
+| `aliked-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 41.8<br>40.6<br>35.1<br>29.5<br>65.2 (standalone ALIKED encoder with eager keypoint selection and LightGlue) | 1305 / 1364<br>1300 / 1404<br>1238 / 1324<br>1653 / 1680<br>1520 / 1652 |
 | `disk-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 117<br>116<br>52.1<br>113<br>planned for 0.2.1 | 1955 / 2412<br>1950 / 2398<br>736 / 778<br>1375 / 1502<br>– |
 
 <details><summary>Details</summary>
@@ -117,7 +117,7 @@ Commercial use: yes.
 - Outputs: keypoints1, keypoints2, pairs, scores
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `aliked-lightglue` 3000x4000 (1.5 GiB peak allocated, 2.0 reserved); `disk-lightglue` 3000x4000 (2.2 GiB peak allocated, 2.9 reserved)
-- `aliked-lightglue` 768x1024, first call: portable + torch.compile 31 s (cold Inductor cache).
+- `aliked-lightglue` 768x1024, first call: portable + torch.compile 31 s (cold Inductor cache), TensorRT fp32 26 s (ONNX + engine).
 - `disk-lightglue` 768x1024, first call: portable + torch.compile 21 s (cold Inductor cache).
 - `aliked-lightglue` original 768x1024: the authors' mixed-precision option (float16); upstream match_pair aliked + LightGlue, resize 1024
 - `disk-lightglue` original 768x1024: the authors' mixed-precision option (float16); upstream match_pair disk + LightGlue, resize 1024
@@ -127,15 +127,16 @@ Commercial use: yes.
 
 ### Measured
 
-Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. The same 300 pairs for all modes, so float32 and bfloat16 compare pair for pair. Original = the original code named under Details, same checkpoint and protocol.
+Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Both modes receive pairs resized to 768 x 1024. Map matched pixels to the calibrated evaluation coordinates and use the same RANSAC seed per pair. The same 300 pairs for all modes, so float32 and bfloat16 compare pair for pair. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | kernels | note |
-|---|---|---|---|---|---|---|
-| `aliked-lightglue` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  | 50.7 / 67.6 / 80.0 |  |  |
-| `aliked-lightglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 51.7 / 68.2 / 81.0 | 51.4 / 68.8 / 80.8 | 52.1 / 69.2 / 81.4 | 51.0 / 68.3 / 80.9 |  |
-| `disk-lightglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 45.6 / 63.3 / 77.3 | 44.9 / 63.4 / 77.0 | 45.6 / 63.3 / 77.3 | 45.0 / 62.9 / 76.6 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `aliked-lightglue` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  | 50.7 / 67.6 / 80.0 |  |  |  |  |
+| `aliked-lightglue` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  |  | 49.8 / 67.7 / 80.6 |  | 51.3 / 68.8 / 80.9 |  |
+| `aliked-lightglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 51.7 / 68.2 / 81.0 | 51.4 / 68.8 / 80.8 | 52.1 / 69.2 / 81.4 |  | 51.0 / 68.3 / 80.9 |  |  |
+| `disk-lightglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 45.6 / 63.3 / 77.3 | 44.9 / 63.4 / 77.0 | 45.6 / 63.3 / 77.3 |  | 45.0 / 62.9 / 76.6 |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ec7b1307+port/p1-match, 2026-11-12; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ecac19a2-dirty, 2026-11-15.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ec7b1307+port/p1-match, 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e72c2d6e, 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ecac19a2-dirty, 2026-11-15; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e72c2d6e, 2026-11-19.
 
 ### Parity
 
@@ -151,6 +152,7 @@ CPU, float32: max |diff| <= 3e-05 vs the original. GPU, portable float32 and ker
 - Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.
 - One image pair per call internally (batches run pair by pair); the keypoint counts differ per image.
 - No exportable module: the keypoint counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).
+- ALIKED-LightGlue has a fixed 768 x 1024 standalone FP32 TensorRT encoder measurement with TF32 disabled. Keypoint selection and LightGlue run in PyTorch. On 300 MegaDepth pairs, AUC@5 was 51.32 versus 49.75 portable FP32, with a worst paired pose error increase of 21.25 degrees.
 
 </details>
 
