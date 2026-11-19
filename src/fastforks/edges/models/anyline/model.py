@@ -86,11 +86,20 @@ def remove_small(fg: torch.Tensor, min_pixels: int = MIN_PIXELS) -> torch.Tensor
     """
     n = fg.numel()
     label = torch.where(fg, torch.arange(n, device=fg.device).view(fg.shape), n)
-    for _ in range(min_pixels - 1):
-        label = torch.where(fg, torch.minimum(label, torch.stack(_shifted(label, n)).amin(0)), n)
+    if torch.compiler.is_compiling():
+        for _ in range(min_pixels - 1):
+            label = torch.where(fg, torch.minimum(label, torch.stack(_shifted(label, n)).amin(0)), n)
+    else:
+        background = ~fg
+        for _ in range(min_pixels - 1):
+            # Padding snapshots the previous labels, so the running minimum can reuse the label buffer.
+            for nb in _shifted(label, n):
+                torch.minimum(label, nb, out=label)
+            label.masked_fill_(background, n)
     differs = torch.zeros_like(fg)
     for nb in _shifted(label, n):
         differs |= (nb != label) & (nb < n)
+    nb = None  # release the view of the padded labels before allocating the scatter workspace
     # Give background pixels distinct indices so their zero updates do not
     # contend on one location when the scatter runs on a GPU.
     li = torch.where(fg, label, torch.arange(n, device=fg.device).view(fg.shape))
