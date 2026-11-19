@@ -91,7 +91,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`monster-plusplus-mix-all`](models/stereo.md#monster) | no | 1.08 ? | 4334.5 (994x1482) | 1632.6 | 657.2 | 6.6x vs original (994x1482) | 2438 |
 | [`s2m2-xl`](models/stereo.md#s2m2) | no | 0.52 ? | 1796.1 (994x1482) | 1824.1 | 681.9 | 2.6x vs original (994x1482) | 2092 |
 | [`foundationstereo-vit-s`](models/stereo.md#foundationstereo) | no | 1.10 ? | 3608.6 (994x1482) | 2513.8 | 1120.2 | 3.2x vs original (994x1482) | 2169 |
-| [`c-foundationstereo-s`](models/stereo.md#c-foundationstereo) | yes | 1.24 | 3873.9 (994x1482) | 3643.0 | 1365.9 | 2.8x vs original (994x1482) | 3058 |
+| [`c-foundationstereo-s`](models/stereo.md#c-foundationstereo) | yes | 1.24 | 3873.9 (994x1482) | 3630.8 | 1365.9 | 2.8x vs original (994x1482) | 3058 |
 | [`foundationstereo-vit-l`](models/stereo.md#foundationstereo) | no | 0.65 ? | 4237.0 (994x1482) | 2989.8 | 1513.1 | 2.8x vs original (994x1482) | 2818 |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
@@ -433,8 +433,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`faster-rcnn-r50-fpn-3x-coco`](models/detection.md#detectron2-mask--faster-r-cnn-r50-fpn) | yes | 41.4 (800x1344) | 22.8 | 19.5 | 2.1x vs original (800x1344) | 391 |
 | [`mask-rcnn-r50-fpn-3x-coco`](models/detection.md#detectron2-mask--faster-r-cnn-r50-fpn) | yes | 43.5 (800x1344) | 24.6 | 21.0 | 2.1x vs original (800x1344) | 353 |
 | [`owlv2-b16`](models/detection.md#owlv2-open-vocabulary-clip-b16-and-l14) | yes | 92.3 (800x1344) | 31.8 | 23.7 | 3.9x vs original (800x1344) | 461 |
-| [`grounding-dino-tiny`](models/detection.md#grounding-dino-and-mm-grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 198.9 (800x1344) | 40.9 | 55.4 (320x320) | 0.7x vs portable | 841 |
-| [`mm-grounding-dino-tiny`](models/detection.md#grounding-dino-and-mm-grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 202.0 (800x1344) | 40.8 | 55.5 (320x320) | 0.7x vs portable | 842 |
+| [`grounding-dino-tiny`](models/detection.md#grounding-dino-and-mm-grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 198.9 (800x1344) | 69.0 | 55.4 (320x320) | 1.2x vs portable | 841 |
+| [`mm-grounding-dino-tiny`](models/detection.md#grounding-dino-and-mm-grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 202.0 (800x1344) | 69.2 | 55.5 (320x320) | 1.2x vs portable | 842 |
 | [`grounding-dino-base`](models/detection.md#grounding-dino-and-mm-grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 229.8 (800x1344) | 160.2 | 109.1 | 2.1x vs original (800x1344) | 1156 |
 | [`mm-grounding-dino-base`](models/detection.md#grounding-dino-and-mm-grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 232.5 (800x1344) | 160.2 | 109.5 | 2.1x vs original (800x1344) | 1157 |
 | [`owlv2-l14`](models/detection.md#owlv2-open-vocabulary-clip-b16-and-l14) | yes | 211.7 (800x1344) | 154.4 | 110.0 | 1.9x vs original (800x1344) | 1027 |
@@ -618,7 +618,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`resplat-small-dl3dv`](models/multiview.md#resplat) | yes | 493.4 (480x640) | 1723.4 | 362.1 | 1.4x vs original (480x640) | 4981 |
 | [`anysplat`](models/multiview.md#anysplat) | yes | 741.2 (336x518) | 508.0 | 369.1 | 2.0x vs original (336x518) | 4173 |
 | [`vggt-1b`](models/multiview.md#vggt) | no | 965.0 (336x518) | 652.8 | 445.9 | 2.2x vs original (336x518) | 3580 |
-| [`vggt-omega-1b-512`](models/multiview.md#vggt-omega) | no | 906.4 (336x518) | 725.7 | 466.9 | 1.9x vs original (336x518) | 3404 |
+| [`vggt-omega-1b-512`](models/multiview.md#vggt-omega) | no | 906.4 (336x518) | 727.2 | 469.2 | 1.9x vs original (336x518) | 3270 |
 | [`lingbot-map`](models/multiview.md#lingbot-map) | yes | 992.8 (480x640) | 733.4 | 520.2 | 1.9x vs original (480x640) | 3919 |
 | [`mapanything-apache`](models/multiview.md#mapanything) | yes | 1966.8 (336x518) | 635.9 | 544.0 | 3.6x vs original (336x518) | 3697 |
 | [`pi3`](models/multiview.md#pi3) | no | 1056.6 (336x518) | 820.8 | 558.7 | 1.9x vs original (336x518) | 2367 |
@@ -693,7 +693,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
 | [`xfeat`](models/matching.md#xfeat) | yes | 8.9 (768x1024) | 7.2 | 15.1 | 0.6x vs original (768x1024) | 290 |
-| [`xfeat-lighterglue`](models/matching.md#xfeat) | yes | 23.6 (768x1024) | 21.6 | 29.1 | 0.8x vs original (768x1024) | 460 |
+| [`xfeat-lighterglue`](models/matching.md#xfeat) | yes | 23.6 (768x1024) | 21.3 | 29.1 | 0.8x vs original (768x1024) | 460 |
 | [`aliked-lightglue`](models/matching.md#lightglue) | yes | 41.8 (768x1024) | 40.6 | 35.1 | 1.2x vs original (768x1024) | 1238 |
 | [`disk-lightglue`](models/matching.md#lightglue) | yes | 116.7 (768x1024) | 116.4 | 52.1 | 2.2x vs original (768x1024) | 736 |
 | [`loftr-outdoor`](models/matching.md#loftr) | yes | 241.5 (768x1024) | 109.9 | 95.9 | 2.5x vs original (768x1024) | 760 |
@@ -714,15 +714,15 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 12 models; size 480x854.
 
-- Fastest: [`tapir`](models/tracking.md#tapir) (140.8 ms).
-- Fastest commercially usable: [`tapir`](models/tracking.md#tapir) (140.8 ms).
+- Fastest: [`locotrack-b`](models/tracking.md#locotrack) (108.4 ms).
+- Fastest commercially usable: [`locotrack-b`](models/tracking.md#locotrack) (108.4 ms).
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
+| [`locotrack-b`](models/tracking.md#locotrack) | yes | 203.3 (480x854) | 187.9 | 108.4 | 1.9x vs original (480x854) | 555 |
 | [`tapir`](models/tracking.md#tapir) | yes | 186.9 (480x854) | 181.8 | 140.8 | 1.3x vs original (480x854) | 463 |
 | [`locotrack-s`](models/tracking.md#locotrack) | yes | 192.8 (480x854) | 179.5 | 150.6 | 1.3x vs original (480x854) | 596 |
 | [`cotracker3-offline`](models/tracking.md#cotracker3) | no | 243.5 (480x854) | 162.0 | 154.4 | 1.6x vs original (480x854) | 757 |
-| [`locotrack-b`](models/tracking.md#locotrack) | yes | 203.3 (480x854) | 188.0 | 172.9 | 1.2x vs original (480x854) | 614 |
 | [`cotracker3-online`](models/tracking.md#cotracker3) | no | 327.7 (480x854) | 183.7 | 175.9 | 1.9x vs original (480x854) | 757 |
 | [`bootstapir`](models/tracking.md#tapir) | yes | 242.5 (480x854) | 233.7 | 192.5 | 1.3x vs original (480x854) | 508 |
 | [`alltracker-tiny`](models/tracking.md#alltracker) | yes | 424.2 (480x854) | 329.9 | 217.2 | 2.0x vs original (480x854) | 978 |

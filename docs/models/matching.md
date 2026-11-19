@@ -519,7 +519,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 8.89<br>7.17<br>15.1<br>5.65<br>5.50 (standalone image CNN, eager keypoint selection and matching) | 128 / 174<br>122 / 154<br>290 / 814<br>186 / 212<br>268 / 416 |
-| `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>21.6<br>29.1<br>16.2<br>public API unavailable | 448 / 478<br>445 / 476<br>460 / 818<br>262 / 278<br>– |
+| `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>21.3<br>29.1<br>16.2<br>public API unavailable | 448 / 478<br>445 / 476<br>460 / 818<br>262 / 278<br>– |
 
 <details><summary>Details</summary>
 
@@ -538,8 +538,10 @@ Commercial use: yes.
 - `xfeat` 768x1024, first call: portable + torch.compile 31 s (cold Inductor cache), TensorRT fp32 12 s (ONNX + engine).
 - `xfeat-lighterglue` 768x1024, first call: portable + torch.compile 40 s (cold Inductor cache).
 - `xfeat` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + mnn, top_k 4096
+- `xfeat` portable 768x1024: Matched public-call comparison for the kernels row at the same input, using the card defaults.
 - `xfeat` kernels 768x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `xfeat-lighterglue` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + lighterglue, top_k 4096
+- `xfeat-lighterglue` portable 768x1024: Matched public-call comparison for the kernels row at the same input, using the card defaults.
 - `xfeat-lighterglue` kernels 768x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `xfeat` load / first call: original 1.51 s / 0.629 s, portable 0.16 s / 0.74 s, kernels 0.17 s / 0.638 s
 - `xfeat-lighterglue` load / first call: original 1.46 s / 0.692 s, portable 0.25 s / 0.681 s, kernels 0.16 s / 0.727 s

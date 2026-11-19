@@ -312,11 +312,11 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 199<br>138<br>–<br>111<br>116 (fixed 80-class text prompt) | 2541 / 2716<br>1404 / 1468<br>–<br>2550 / 2664<br>883 / 888 |
-| `grounding-dino-tiny` | synthetic (320x320) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>40.9<br>55.4<br>13.6 (network with fixed COCO prompts, standalone build) | –<br>781 / 898<br>841 / 948<br>387 / 406 |
+| `grounding-dino-tiny` | synthetic (320x320) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>69.0<br>55.4<br>13.6 (network with fixed COCO prompts, standalone build) | –<br>841 / 948<br>841 / 948<br>387 / 406 |
 | `grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 230<br>160<br>109<br>131<br>159 (fixed 80-class text prompt) | 2895 / 3094<br>1525 / 1624<br>1156 / 1364<br>2669 / 2800<br>1153 / 1160 |
 | `grounding-dino-base` | 320x320 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>17.6 (fixed 80-class text prompt) | –<br>–<br>–<br>609 / 628 |
 | `mm-grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 202<br>138<br>–<br>111<br>116 (fixed 80-class text prompt) | 2541 / 2716<br>1405 / 1470<br>–<br>2555 / 2666<br>883 / 890 |
-| `mm-grounding-dino-tiny` | synthetic (320x320) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>40.8<br>55.5<br>13.8 (network with fixed COCO prompts, standalone build) | –<br>784 / 900<br>842 / 950<br>387 / 408 |
+| `mm-grounding-dino-tiny` | synthetic (320x320) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>69.2<br>55.5<br>13.8 (network with fixed COCO prompts, standalone build) | –<br>842 / 950<br>842 / 950<br>387 / 408 |
 | `mm-grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 232<br>160<br>109<br>132<br>158 (fixed 80-class text prompt) | 2895 / 3094<br>1525 / 1624<br>1157 / 1366<br>2669 / 2800<br>1153 / 1160 |
 | `mm-grounding-dino-base` | 320x320 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>17.7 (fixed 80-class text prompt) | –<br>–<br>–<br>641 / 662 |
 
@@ -344,12 +344,12 @@ Commercial use: yes.
 - `mm-grounding-dino-base` 800x1344, first call: portable + torch.compile 105 s (cold Inductor cache), TensorRT fp32 125 s (ONNX + engine).
 - `mm-grounding-dino-base` 320x320, first call: TensorRT fp32 134 s (ONNX + engine).
 - `grounding-dino-tiny` original 800x1344: torch.autocast(float16) around the call; transformers GroundingDinoForObjectDetection + processor (CPU), coco-80 caption, text tower per call
-- `grounding-dino-tiny` portable 320x320: CNN and detection transformer using 80 fixed COCO prompts
+- `grounding-dino-tiny` portable 320x320: Full public call on a 320 x 320 image, resized to 800 x 800. The standalone TensorRT row times the fixed 320 x 320 normalized network input.
 - `grounding-dino-tiny` kernels 320x320: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `grounding-dino-base` original 800x1344: torch.autocast(float16) around the call; transformers GroundingDinoForObjectDetection + processor (CPU), coco-80 caption, text tower per call
 - `grounding-dino-base` kernels 800x1344: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `mm-grounding-dino-tiny` original 800x1344: torch.autocast(float16) around the call; transformers MMGroundingDinoForObjectDetection + processor (CPU), coco-80 caption, text tower per call
-- `mm-grounding-dino-tiny` portable 320x320: CNN and detection transformer using 80 fixed COCO prompts
+- `mm-grounding-dino-tiny` portable 320x320: Full public call on a 320 x 320 image, resized to 800 x 800. The standalone TensorRT row times the fixed 320 x 320 normalized network input.
 - `mm-grounding-dino-tiny` kernels 320x320: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `mm-grounding-dino-base` original 800x1344: torch.autocast(float16) around the call; transformers MMGroundingDinoForObjectDetection + processor (CPU), coco-80 caption, text tower per call
 - `mm-grounding-dino-base` kernels 800x1344: Existing CUDA kernel mode on one fixed input with five warm calls.

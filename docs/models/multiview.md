@@ -23,7 +23,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`resplat-base-re10k`](#resplat) | no | 1178, 2.1x | 6936, 0.55x |
 | [`resplat-small-dl3dv`](#resplat) | yes | 362, 1.4x | 5148, 0.96x |
 | [`vggt-1b`](#vggt) | no | 446, 2.2x | 3854, 0.52x |
-| [`vggt-omega-1b-512`](#vggt_omega) | no | 467, 1.9x | 3494, 0.59x |
+| [`vggt-omega-1b-512`](#vggt_omega) | no | 469, 1.9x | 3330, 0.56x |
 
 <a id="anysplat"></a>
 
@@ -623,7 +623,7 @@ Commercial use: **no** (code: LicenseRef-FAIR-Noncommercial-Research (noncommerc
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `vggt-omega-1b-512` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2650<br>906<br>726<br>467<br>589<br>377 | 5765 / 5912<br>7495 / 7654<br>3421 / 3518<br>3404 / 3494<br>3082 / 3154<br>5657 / 5766 |
+| `vggt-omega-1b-512` | synthetic (336x518) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2650<br>906<br>727<br>469<br>589<br>377 | 5765 / 5912<br>7495 / 7654<br>3269 / 3352<br>3270 / 3330<br>3082 / 3154<br>5657 / 5766 |
 
 <details><summary>Details</summary>
 
@@ -642,7 +642,8 @@ Commercial use: **no** (code: LicenseRef-FAIR-Noncommercial-Research (noncommerc
 - `vggt-omega-1b-512` 336x518, first call: portable + torch.compile 66 s (cold Inductor cache), TensorRT fp16 187 s (ONNX + engine).
 - `vggt-omega-1b-512` original (fp32) 336x518: float32 (the authors' autocast off)
 - `vggt-omega-1b-512` original 336x518: original default VGGTOmega(autocast=True): bfloat16 aggregator, float32 heads
-- `vggt-omega-1b-512` load / first call: original 16.31 s / 1.1 s (336x518), portable 3.31 s / 0.734 s (336x518), kernels 5.24 s / 0.752 s (336x518)
+- `vggt-omega-1b-512` portable 336x518, kernels 336x518: Cache normalized FP16 patch features. Eight-view synthetic and three DTU output sets, and the ten-view portable export, matched bitwise.
+- `vggt-omega-1b-512` load / first call: original 16.31 s / 1.1 s (336x518), portable 2.18 s / 0.947 s (336x518), kernels 5.24 s / 0.752 s (336x518)
 - Protocol, median of 9 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured

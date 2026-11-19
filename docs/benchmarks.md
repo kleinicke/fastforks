@@ -840,7 +840,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | model | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs portable | peak memory (MiB, allocated / reserved): portable | kernels |
 |---|---|---|---|---|---|---|---|
 | c-fast-foundationstereo | – | – | – | 135 | – | – | 1120 / 1236 |
-| c-foundationstereo-s | OOM | – | 3643 | 1366 | 2.7x | 4903 / 7258 | 3058 / 4408 |
+| c-foundationstereo-s | OOM | – | 3631 | 1366 | 2.7x | 4357 / 4950 | 3058 / 4408 |
 | cfnet-sceneflow | – | – | 409 | 225 | 1.8x | 1822 / 2578 | 1073 / 1604 |
 | coex-sceneflow | – | – | 49.9 | 23.5 | 2.1x | 1093 / 1174 | 368 / 514 |
 | defom-stereo-vitl-sceneflow | – | – | – | 645 | – | – | 2781 / 4234 |
@@ -1369,7 +1369,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | resplat-base-re10k | 480x640 | – | 2521 | 7228 | 1178 | 2.1x | 6.1x | 10139 / 12684 | 4364 / 6884 | 4370 / 6936 |
 | resplat-small-dl3dv | 480x640 | – | 493 | 1723 | 362 | 1.4x | 4.8x | 5148 / 5376 | 4995 / 5180 | 4981 / 5148 |
 | vggt-1b | 336x518 | 2502 | 965 | 653 | 446 | 2.2x | 1.5x | 8688 / 9158 | 3573 / 3794 | 3580 / 3854 |
-| vggt-omega-1b-512 | 336x518 | 2650 | 906 | 726 | 467 | 1.9x | 1.6x | 7495 / 7654 | 3421 / 3518 | 3404 / 3494 |
+| vggt-omega-1b-512 | 336x518 | 2650 | 906 | 727 | 469 | 1.9x | 1.5x | 7495 / 7654 | 3269 / 3352 | 3270 / 3330 |
 
 ### Flow, synthetic
 
@@ -1448,7 +1448,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | romav1 | – | 386 | 377 | 356 | 1.1x | 1.1x | 3887 / 4094 | 1720 / 1840 | 1720 / 1860 |
 | romav2 | 1412 | 741 | 550 | 350 | 2.1x | 1.6x | 9881 / 10124 | 1989 / 2476 | 1890 / 2460 |
 | xfeat | – | 8.89 | 7.17 | 15.1 | 0.6x | 0.5x | 128 / 174 | 122 / 154 | 290 / 814 |
-| xfeat-lighterglue | – | 23.6 | 21.6 | 29.1 | 0.8x | 0.7x | 448 / 478 | 445 / 476 | 460 / 818 |
+| xfeat-lighterglue | – | 23.6 | 21.3 | 29.1 | 0.8x | 0.7x | 448 / 478 | 445 / 476 | 460 / 818 |
 
 ### Tracking, synthetic, 480x854
 
@@ -1459,7 +1459,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | bootstapir | 243 | 234 | 192 | 1.3x | 1.2x | 639 / 774 | 508 / 628 | 508 / 628 |
 | cotracker3-offline | 244 | 162 | 154 | 1.6x | 1.0x | 2221 / 2480 | 755 / 882 | 757 / 882 |
 | cotracker3-online | 328 | 184 | 176 | 1.9x | 1.0x | 1659 / 1886 | 755 / 906 | 757 / 888 |
-| locotrack-b | 203 | 188 | 173 | 1.2x | 1.1x | 719 / 784 | 603 / 656 | 614 / 660 |
+| locotrack-b | 203 | 188 | 108 | 1.9x | 1.7x | 719 / 784 | 544 / 596 | 555 / 620 |
 | locotrack-s | 193 | 180 | 151 | 1.3x | 1.2x | 706 / 812 | 759 / 842 | 596 / 642 |
 | tapir | 187 | 182 | 141 | 1.3x | 1.3x | 498 / 574 | 463 / 548 | 463 / 548 |
 | tapnext | 909 | 528 | 381 | 2.4x | 1.4x | 1721 / 1902 | 1220 / 1294 | 1205 / 1254 |
@@ -1993,7 +1993,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | resplat-base-re10k | 2.26 (480x640) | 0.90 (480x640) | 3.30 (480x640) | 2.74 (480x640) | 7.76 (480x640) | 1.98 (480x640) |
 | resplat-small-dl3dv | 16.80 (480x640) | 0.72 (480x640) | 3.88 (480x640) | 10.69 (480x640) | 2.51 (480x640) | 2.84 (480x640) |
 | vggt-1b | 19.37 (336x518) | 6.78 (336x518) | 7.03 (336x518) | 1.29 (336x518) | 1.02 (336x518) | 0.75 (336x518) |
-| vggt-omega-1b-512 | 16.31 (336x518) | 3.31 (336x518) | 5.24 (336x518) | 1.10 (336x518) | 0.73 (336x518) | 0.75 (336x518) |
+| vggt-omega-1b-512 | 16.31 (336x518) | 2.18 (336x518) | 5.24 (336x518) | 1.10 (336x518) | 0.95 (336x518) | 0.75 (336x518) |
 | flowformer-small-chairs | 0.16 (375x1242) | 1.59 (375x1242) | 1.19 (375x1242) | 0.37 (375x1242) | 0.56 (375x1242) | 0.55 (375x1242) |
 | flowformer-small-sintel | 0.15 (375x1242) | 1.56 (375x1242) | 1.29 (375x1242) | 0.30 (375x1242) | 0.58 (375x1242) | 0.55 (375x1242) |
 | flowformer-small-things | 0.15 (375x1242) | 1.42 (375x1242) | 1.18 (375x1242) | 0.30 (375x1242) | 0.56 (375x1242) | 0.55 (375x1242) |
@@ -2136,7 +2136,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | bridgedepth-sf | 994x1482 | 437 ms | 325 ms | public API unavailable | 348 ms | 111 s | – | 2916 / 3214 | 2280 / 2308 | 2310 / 2634 | – |
 | bridgedepth-sf | 375x1242 | 111 ms | – | 284 ms, fp32 engine (DINOv2 and DPT monocular branch with eager stereo inference) | 92.1 ms | – | 54.1 s | 1859 / 1954 | – | 1272 / 1394 | 2358 / 2508 |
 | c-fast-foundationstereo | 994x1482 | 330 ms | 339 ms | 451 ms | 135 ms | 75.4 s | 240 s | 2109 / 2336 | 1649 / 1792 | 1120 / 1236 | 1425 / 1462 |
-| c-foundationstereo-s | 994x1482 | 3643 ms | 2773 ms | 2229 ms | 1366 ms | 626 s | 444 s | 4903 / 7258 | 7298 / 7624 | 3058 / 4408 | 10027 / 10108 |
+| c-foundationstereo-s | 994x1482 | 3631 ms | 2773 ms | 2229 ms | 1366 ms | 626 s | 444 s | 4357 / 4950 | 7298 / 7624 | 3058 / 4408 | 10027 / 10108 |
 | cas-gwcnet-c-sceneflow | 994x1482 | 327 ms | 295 ms | 220 ms | 225 ms | 61.7 s | 131 s | 2006 / 2474 | 2098 / 2448 | 1725 / 1930 | 1533 / 1548 |
 | cas-gwcnet-gc-sceneflow | 994x1482 | 472 ms | 383 ms | 307 ms | 358 ms | 63.7 s | 98.6 s | 2338 / 2794 | 6592 / 6670 | 2272 / 2514 | 4142 / 4194 |
 | cfnet-sceneflow | 994x1482 | 409 ms | 249 ms | 171 ms | 225 ms | 53.0 s | 139 s | 1822 / 2578 | 1026 / 1398 | 1073 / 1604 | 1357 / 1410 |
@@ -2439,7 +2439,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | grounding-dino-base | 800x1344 | 160 ms | 131 ms | 159 ms, fp32 engine (fixed 80-class text prompt) | 109 ms | 98.4 s | 130 s | 1525 / 1624 | 2669 / 2800 | 1156 / 1364 | 1153 / 1160 |
 | grounding-dino-base | 320x320 | – | – | 17.6 ms, fp32 engine (fixed 80-class text prompt) | – | – | 119 s | – | – | – | 609 / 628 |
 | grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | 116 ms, fp32 engine (fixed 80-class text prompt) | – | 72.5 s | 104 s | 1404 / 1468 | 2550 / 2664 | – | 883 / 888 |
-| grounding-dino-tiny | 320x320 | 40.9 ms | – | 13.6 ms, fp32 engine (network with fixed COCO prompts, standalone build) | 55.4 ms | – | – | 781 / 898 | – | 841 / 948 | 387 / 406 |
+| grounding-dino-tiny | 320x320 | 69.0 ms | – | 13.6 ms, fp32 engine (network with fixed COCO prompts, standalone build) | 55.4 ms | – | – | 841 / 948 | – | 841 / 948 | 387 / 406 |
 | lw-detr-large-coco | 800x1344 | 10.2 ms | 5.62 ms | 3.45 ms | 5.64 ms | 29.6 s | 56.0 s | 204 / 230 | 195 / 208 | 192 / 254 | 270 / 296 |
 | lw-detr-medium-coco | 800x1344 | 8.75 ms | 3.74 ms | 2.30 ms | 3.78 ms | 22.4 s | 63.3 s | 131 / 156 | 147 / 174 | 131 / 178 | 185 / 212 |
 | lw-detr-small-coco | 800x1344 | 8.82 ms | 3.63 ms | 1.36 ms | 2.80 ms | 23.0 s | 63.1 s | 97 / 116 | 116 / 134 | 99 / 140 | 121 / 130 |
@@ -2449,7 +2449,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | mm-grounding-dino-base | 800x1344 | 160 ms | 132 ms | 158 ms, fp32 engine (fixed 80-class text prompt) | 109 ms | 105 s | 125 s | 1525 / 1624 | 2669 / 2800 | 1157 / 1366 | 1153 / 1160 |
 | mm-grounding-dino-base | 320x320 | – | – | 17.7 ms, fp32 engine (fixed 80-class text prompt) | – | – | 134 s | – | – | – | 641 / 662 |
 | mm-grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | 116 ms, fp32 engine (fixed 80-class text prompt) | – | 71.2 s | 104 s | 1405 / 1470 | 2555 / 2666 | – | 883 / 890 |
-| mm-grounding-dino-tiny | 320x320 | 40.8 ms | – | 13.8 ms, fp32 engine (network with fixed COCO prompts, standalone build) | 55.5 ms | – | – | 784 / 900 | – | 842 / 950 | 387 / 408 |
+| mm-grounding-dino-tiny | 320x320 | 69.2 ms | – | 13.8 ms, fp32 engine (network with fixed COCO prompts, standalone build) | 55.5 ms | – | – | 842 / 950 | – | 842 / 950 | 387 / 408 |
 | owlv2-b16 | 800x1344 | 31.8 ms | 28.5 ms | 18.4 ms | 23.7 ms | 10.6 s | 25.9 s | 460 / 510 | 487 / 530 | 461 / 612 | 655 / 726 |
 | owlv2-l14 | 800x1344 | 154 ms | 141 ms | 95.9 ms | 110 ms | 12.4 s | 33.8 s | 1097 / 1144 | 1190 / 1242 | 1027 / 1184 | 1786 / 1820 |
 | rf-detr-l-coco | 800x1344 | 10.6 ms | 5.32 ms | 2.87 ms | 5.30 ms | 28.7 s | 65.7 s | 149 / 184 | 164 / 182 | 149 / 206 | 203 / 222 |
@@ -2608,7 +2608,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | resplat-small-dl3dv | 480x640 | 1723 ms | 1538 ms | public API unavailable | 362 ms | 243 s | – | 4995 / 5180 | 4995 / 5138 | 4981 / 5148 | – |
 | resplat-small-dl3dv | 256x448 | – | – | 1362 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 1367 / 1800 |
 | vggt-1b | 336x518 | 653 ms | 557 ms | 424 ms | 446 ms | 74.3 s | 199 s | 3573 / 3794 | 3611 / 3856 | 3580 / 3854 | 6421 / 6472 |
-| vggt-omega-1b-512 | 336x518 | 726 ms | 589 ms | 377 ms | 467 ms | 65.7 s | 187 s | 3421 / 3518 | 3082 / 3154 | 3404 / 3494 | 5657 / 5766 |
+| vggt-omega-1b-512 | 336x518 | 727 ms | 589 ms | 377 ms | 469 ms | 65.7 s | 187 s | 3269 / 3352 | 3082 / 3154 | 3270 / 3330 | 5657 / 5766 |
 | flowformer-small-chairs | 1080x1920 | – | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | – | – | – | – | – | – | – |
 | flowformer-small-chairs | 375x1242 | 335 ms | 250 ms | 202 ms | 320 ms | 98.7 s | 118 s | 1297 / 1438 | 2438 / 3196 | 1293 / 1438 | 2087 / 2138 |
 | flowformer-small-sintel | 1080x1920 | – | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | – | – | – | – | – | – | – |
@@ -2688,7 +2688,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | romav1 | 768x1024 | 377 ms | 247 ms | public API unavailable | 356 ms | 698 s | – | 1720 / 1840 | 1348 / 1476 | 1720 / 1860 | – |
 | romav2 | 768x1024 | 550 ms | 723 ms | 353 ms | 350 ms | 360 s | 185 s | 1989 / 2476 | 3030 / 3144 | 1890 / 2460 | 6694 / 6740 |
 | xfeat | 768x1024 | 7.17 ms | 5.65 ms | 5.50 ms, fp32 engine (standalone image CNN, eager keypoint selection and matching) | 15.1 ms | 30.8 s | 11.8 s | 122 / 154 | 186 / 212 | 290 / 814 | 268 / 416 |
-| xfeat-lighterglue | 768x1024 | 21.6 ms | 16.2 ms | public API unavailable | 29.1 ms | 39.7 s | – | 445 / 476 | 262 / 278 | 460 / 818 | – |
+| xfeat-lighterglue | 768x1024 | 21.3 ms | 16.2 ms | public API unavailable | 29.1 ms | 39.7 s | – | 445 / 476 | 262 / 278 | 460 / 818 | – |
 | alltracker | 480x854 | 391 ms | 284 ms | public API unavailable | 221 ms | 105 s | – | 993 / 1238 | 1273 / 1358 | 1076 / 1288 | – |
 | alltracker | 256x256 | – | – | 330 ms, fp32 engine (frame CNN with eager tracking) | – | – | 20.3 s | – | – | – | 2262 / 3372 |
 | alltracker-tiny | 480x854 | 330 ms | 229 ms | public API unavailable | 217 ms | 103 s | – | 919 / 1178 | 1198 / 1338 | 978 / 1166 | – |
@@ -2698,7 +2698,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | cotracker3-online | 480x854 | 184 ms | 159 ms | public API unavailable | 176 ms | 37.7 s | – | 755 / 906 | 701 / 846 | 757 / 888 | – |
 | cotracker3-online | 256x256 | – | – | 50.3 ms, fp32 engine (fixed eight-frame graph with 16 queries) | – | – | 117 s | – | – | – | 456 / 472 |
 | cotracker3-online | 24x256x256 | 280 ms | – | 141 ms, fp32 engine (fixed 24-frame clip with 16 queries) | – | – | – | 2381 / 2694 | – | – | 850 / 856 |
-| locotrack-b | 480x854 | 188 ms | 82.6 ms | 6.12 ms (8 frames with 16 queries only) | 173 ms | 146 s | – | 603 / 656 | 1117 / 1140 | 614 / 660 | 233 / 242 |
+| locotrack-b | 480x854 | 188 ms | 82.6 ms | 6.12 ms (8 frames with 16 queries only) | 108 ms | 146 s | – | 544 / 596 | 1117 / 1140 | 555 / 620 | 233 / 242 |
 | locotrack-s | 480x854 | 180 ms | 74.1 ms | 5.66 ms (8 frames with 16 queries only) | 151 ms | 140 s | 51.4 s | 759 / 842 | 1000 / 1034 | 596 / 642 | 251 / 256 |
 | tapir | 480x854 | 182 ms | 131 ms | 6.47 ms | 141 ms | 169 s | 55.2 s | 463 / 548 | 630 / 752 | 463 / 548 | 361 / 406 |
 | tapnext | 480x854 | 528 ms | 398 ms | 69.4 ms | 381 ms | 40.5 s | 366 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |
