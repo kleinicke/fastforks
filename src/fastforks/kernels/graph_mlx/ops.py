@@ -274,3 +274,38 @@ def trilinear(x: mx.array, size: tuple[int, int, int], ratios: tuple[float, floa
         grid=(size[2], size[1], n * c * size[0]), threadgroup=(32, 8, 1),
         output_shapes=[(n, c, *size)], output_dtypes=[x.dtype],
     )[0]  # fmt: skip
+
+
+_GWC = metal_kernel(
+    name="graph_gwc_volume",
+    input_names=["l", "r"],
+    output_names=["out"],
+    source="""
+        // one thread per (pixel, disparity): G group means of left[x] * right[x - d] (NHWC features, [D, H, W, G] out)
+        uint x = thread_position_in_grid.x, y = thread_position_in_grid.y, nd = thread_position_in_grid.z;
+        if (x >= W || y >= H) return;
+        uint n = nd / D, d = nd % D;
+        const device T* lp = l + ((size_t(n) * H + y) * W + x) * C;
+        const device T* rp = r + ((size_t(n) * H + y) * W + (x - d)) * C;
+        device T* op = out + (((size_t(n) * D + d) * H + y) * W + x) * G;
+        constexpr int CG = C / G;
+        for (int g = 0; g < G; ++g) {
+            float acc = 0.0f;
+            if (x >= d) {
+                for (int k = 0; k < CG; ++k) acc += float(lp[g * CG + k]) * float(rp[g * CG + k]);
+            }
+            op[g] = T(acc / float(CG));
+        }
+    """,
+)
+
+
+def gwc_volume(left: mx.array, right: mx.array, depth: int, groups: int) -> mx.array:
+    """Group-wise correlation volume of two NHWC feature maps; returns `[B, D, H, W, G]` (zeros where `x < d`)."""
+    n, h, w, c = left.shape
+    return _GWC(
+        inputs=[mx.contiguous(left), mx.contiguous(right)],
+        template=[("T", left.dtype), ("C", c), ("G", groups), ("W", w), ("H", h), ("D", depth)],
+        grid=(w, h, n * depth), threadgroup=(32, 4, 1),
+        output_shapes=[(n, depth, h, w, groups)], output_dtypes=[left.dtype],
+    )[0]  # fmt: skip

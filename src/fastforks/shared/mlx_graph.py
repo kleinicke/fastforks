@@ -33,6 +33,7 @@ import torch
 import torch.utils._pytree as pytree
 
 from fastforks._core.mlx import mx, to_mx, to_torch
+from fastforks._core import volume_ops as _volume_ops  # noqa: F401 - registers `fastforks::gwc_volume`
 from fastforks._core.tracing import EXPORTING_FOR_MLX
 
 if TYPE_CHECKING:
@@ -355,6 +356,14 @@ def _grid_sample_3d(
                 term = v * (wx * wy * wz * ok.astype(mx.float32))[:, :, None]
                 out = term if out is None else out + term
     return mx.transpose(out, (0, 2, 1)).reshape(n, c, *out_shape).astype(x.dtype)
+
+
+@_reg(torch.ops.fastforks.gwc_volume.default)
+def _gwc_volume(left: mx.array, right: mx.array, depth: int, groups: int) -> mx.array:
+    """The group-wise correlation volume op (`fastforks._core.volume_ops`): one Metal kernel, `[B, G, D, H, W]`."""
+    from fastforks.kernels.graph_mlx import ops
+
+    return mx.transpose(ops.gwc_volume(_nhwc(left), _nhwc(right), depth, groups), (0, 4, 1, 2, 3))
 
 
 @_reg(aten.scatter.src)
