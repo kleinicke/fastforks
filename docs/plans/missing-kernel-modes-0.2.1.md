@@ -12,6 +12,23 @@ GPU, dtype, workload and dates. The historical measurements describe the revisio
 The 2026-11-17 website snapshot listed 25 families and 73 variants. The historical sections record why those
 modes were absent and the measurements used when adding them.
 
+## Public CUDA artifacts
+
+The November 19 audit checked the public sm_120 and PTX URLs for the 42 added or changed CUDA manifests.
+CFNet's seven binaries were published, and a fresh FastForks cache downloaded and loaded the sm_120 binary.
+Both probed URLs returned 404 for each of the following 41 libraries, declared by 169 variants.
+
+`acv_volume`, `box_nms`, `cotracker_corr`, `cv_resample`, `dat_interaction`, `depthsplat_corr`, `dual_softmax`,
+`edge_components`, `ema_warp`, `flow_upsample`, `flowseek_corr`, `group_silu`, `image_normalize`, `keypoint_nms`,
+`knn_attention`, `locotrack_sample`, `loma_descriptor`, `map_geometry`, `monster_gwc`, `msda`, `mvsplat_corr`,
+`nafnet_gate`, `ocr_levels`, `omni_cg`, `pil_resample`, `pointdit_norm`, `pose_warp`, `recover_motion`,
+`resize_cat`, `rfdetr_input`, `romav2`, `sam3_fpn`, `sam3_resize`, `sam3_tracker`, `shift_windows`, `smish`,
+`sr_ops`, `style_weights`, `swiglu`, `vggt_rotary`, `vol_norm`.
+
+The 287 local binaries for these libraries match their manifest sizes and SHA-256 digests. Publication and the
+fresh-cache checks are still open. See the
+[CFNet artifact commit](https://huggingface.co/fastforks/kernels/commit/ac9f2c75492a2feebdf2c5233a208cbee4774456).
+
 ## RTX 5060 Ti follow-up
 
 All 73 variants from the original list and all five additional LoMa variants passed their upstream reference checks.

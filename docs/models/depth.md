@@ -812,7 +812,7 @@ Aligned depth scores fit scale and shift by least squares, in disparity space fo
 |---|---|---|---|---|---|---|---|
 | `marigold-v2-depth` | NYUv2 test, AbsRel / delta1 | out of memory | 0.0386 / 0.9840 | 0.0386 / 0.9840 |  |  |  |
 | `marigold-v2-depth` | iBims-1, AbsRel / delta1 |  | 0.0291 / 0.9877 | 0.0291 / 0.9877 | 0.0291 / 0.9878 |  |  |
-| `marigold-v2-depth` | iBims-1, first 10 images, AbsRel / delta1 |  | 0.0403 / 0.9701 |  | 0.0403 / 0.9703 | 0.0401 / 0.9704 |  |
+| `marigold-v2-depth` | iBims-1, first 10 images, AbsRel / delta1 | 0.0403 / 0.9702 | 0.0403 / 0.9701 |  | 0.0403 / 0.9703 | 0.0401 / 0.9704 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519 / 46f88d78 / 6d3bab64, 2026-11-14 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 37687519, 2026-11-14; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 46f88d78, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 07617392, 2026-11-19.
 
@@ -828,6 +828,7 @@ CPU, float32: max |diff| <= 0.02 vs the original. GPU, bfloat16 (the default), p
 
 - 20 B transformer in 4 bit: 8.4 GB of weights; by default (`stream=True`, CUDA) it runs in ~1-4 GB of device memory from 8.4 GB of page-locked host RAM (load fails with an error when less is free); `stream=False` keeps it resident (about 9-11 GB of device memory, 16 GB cards: up to ~1024 px).
 - Diffusion model: the VAE posterior sample comes from a CPU generator seeded with `seed` and differs from the original code's (unseeded, device) sample.
+- The first-ten iBims-1 comparison uses the same seeded posterior noise for both implementations. The original uses the authors' NF4 weights with BF16 autocast.
 - The enlargement to a multiple of 16 is bicubic (the original: OpenCV Lanczos); inputs with sides that are multiples of 16 are not resized.
 - The output is log depth up to scale and shift (`kind = "affine_invariant_log"`): align in log space, not with the other families' depth outputs.
 - A traced or exported module reuses the noise of its traced shape; CPU inference is possible but slow (bf16 GEMMs of a 20 B model).
