@@ -108,6 +108,16 @@ Commercial use: yes.
 - `hed` load / first call: original 0.24 s / 0.057 s, portable 0.18 s / 0.012 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+The first 75 BSDS500 test images by filename. Scores use the official boundary correspondence at 0.0075 of the image diagonal and 99 thresholds on 8-bit predictions without thinning. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable fp32 | note |
+|---|---|---|---|---|
+| `hed` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 61.63 / 62.62 / 61.38 | 61.63 / 62.64 / 61.38 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-17.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.02 and p99 <= 0.25 (absolute error of the output `edges`).
@@ -153,6 +163,17 @@ Commercial use: yes.
 - `lineart` load / first call: original 0.65 s / 0.049 s, portable 0.16 s / 0.019 s
 - `lineart-coarse` load / first call: original 0.16 s / 0.048 s, portable 0.16 s / 0.019 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+The first 75 BSDS500 test images by filename. Scores use the official boundary correspondence at 0.0075 of the image diagonal and 99 thresholds on 8-bit predictions without thinning. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable fp32 | note |
+|---|---|---|---|---|
+| `lineart` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 49.18 / 52.31 / 36.92 | 49.18 / 52.27 / 36.92 |  |
+| `lineart-coarse` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 42.88 / 46.46 / 36.60 | 42.89 / 46.46 / 36.60 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
 
 ### Parity
 
@@ -299,6 +320,16 @@ Commercial use: **no** (code: LicenseRef-research-only (noncommercial); weights:
 - `pidinet` load / first call: original 0.28 s / 0.058 s, portable 0.16 s / 0.014 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+The first 75 BSDS500 test images by filename. Scores use the official boundary correspondence at 0.0075 of the image diagonal and 99 thresholds on 8-bit predictions without thinning. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable fp32 | note |
+|---|---|---|---|---|
+| `pidinet` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 58.79 / 59.59 / 60.31 | 58.79 / 59.55 / 60.31 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-17.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.02 and p99 <= 0.25 (absolute error of the output `edges`).
@@ -339,6 +370,16 @@ Commercial use: yes.
 - `teed` original 1080x1920, original 1024x1024: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c teed, host OpenCV resize, float post-processing
 - `teed` load / first call: original 0.13 s / 0.083 s, portable 0.16 s / 0.005 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
+
+### Measured
+
+The first 75 BSDS500 test images by filename. Scores use the official boundary correspondence at 0.0075 of the image diagonal and 99 thresholds on 8-bit predictions without thinning. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable fp32 | note |
+|---|---|---|---|---|
+| `teed` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 51.58 / 54.40 / 47.90 | 51.58 / 54.41 / 47.90 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-17.
 
 ### Parity
 

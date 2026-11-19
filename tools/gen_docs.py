@@ -119,6 +119,7 @@ _DATASETS = {
     "edges": {
         "yorkurban-102-structural": "YorkUrban test (102 images), line segment sAP@5 / @10 / @15 %",
         "bsds500-test-no-thinning": "BSDS500 test (200 images), boundary ODS / OIS / AP %",
+        "bsds500-test-first75-no-thinning": "BSDS500 test (first 75 images), boundary ODS / OIS / AP %",
     },
     "ocr": {"iiit5k-test-lexicon-free": "IIIT5K test word crops, word accuracy / normalized edit similarity %"},
     "volume": {
@@ -260,11 +261,10 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     ),
     "flow": ((("epe", "{:.3f}", ""), ("fl_all", "{:.2f}", "")), "n", "pairs"),
     "edges": ((("sap5", "{:.2f}", ""), ("sap10", "{:.2f}", ""), ("sap15", "{:.2f}", "")), "n", "images"),
-    ("edges", "bsds500-test-no-thinning"): (
-        (("ods", "{:.2f}", ""), ("ois", "{:.2f}", ""), ("ap", "{:.2f}", "")),
-        "n",
-        "images",
-    ),
+    **{
+        ("edges", dataset): ((("ods", "{:.2f}", ""), ("ois", "{:.2f}", ""), ("ap", "{:.2f}", "")), "n", "images")
+        for dataset in ("bsds500-test-no-thinning", "bsds500-test-first75-no-thinning")
+    },
     "ocr": ((("word_accuracy", "{:.2f}", ""), ("ned", "{:.2f}", "")), "n", "words"),
     ("pose", "coco-wholebody-val-hands-gtbox"): ((("pck20", "{:.2f}", ""), ("epe", "{:.2f}", "")), "n", "hands"),
     ("pose", "lapa-test-landmarks-gtbox"): ((("nme_pct", "{:.4f}", ""),), "n", "faces"),
@@ -370,6 +370,9 @@ _PROTOCOL = {
     ("edges", "bsds500-test-no-thinning"): "All 200 BSDS500 test images. The benchmark uses the official "
     "boundary correspondence with a tolerance of 0.0075 of the image diagonal. ODS, OIS and AP use 99 thresholds "
     "on 8-bit predictions without thinning. ",
+    ("edges", "bsds500-test-first75-no-thinning"): "The first 75 BSDS500 test images by filename. Scores use the "
+    "official boundary correspondence at 0.0075 of the image diagonal and 99 thresholds on 8-bit predictions "
+    "without thinning. ",
     ("ocr", "iiit5k-test-lexicon-free"): "The 3,000 official cropped test words, with no lexicon. Exact accuracy "
     "and normalized edit similarity compare lowercase ASCII letters and digits. Similarity is one minus edit "
     "distance divided by the longer word's length, averaged over the crops. For a model that also detects text, "
