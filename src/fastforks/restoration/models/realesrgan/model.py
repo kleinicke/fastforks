@@ -168,6 +168,7 @@ RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "portable_mlx": mlx_wrap.port(Portable),
+    "kernels_mlx": mlx_wrap.port(Portable, kernels_fp16_only=True, cache_mb=1024),
 }
 
 # ESRGAN's original `model.N` layout (old-arch ESRGAN files, e.g. 4x-UltraSharp) -> BasicSR's RRDBNet names

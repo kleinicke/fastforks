@@ -32,6 +32,8 @@ mps_dtypes = ["float32", "float16"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
+mlx_kernels = ["conv_mlx"]
+mlx_dtypes = ["float32", "float16"]
 kernels = ["cudnn_hacc", "sr_ops"]  # fp16-accumulate convolutions, channels-last
 
 [[papers]]

@@ -931,6 +931,29 @@ def _conv_act(  # noqa: PLR0913
     return _conv_core(x, w, b, stride, padding, dilation, transposed, output_padding, groups)  # ty: ignore[invalid-return-type]
 
 
+def _conv_res(  # noqa: PLR0913
+    x: mx.array,
+    w: mx.array,
+    b: mx.array | None,
+    stride: Sequence[int],
+    padding: Sequence[int],
+    dilation: Sequence[int],
+    transposed: bool,
+    output_padding: Sequence[int],
+    groups: int,
+    residual: mx.array,
+) -> mx.array:
+    """`_conv` plus `residual`; kernels mode adds it in the Winograd output transform."""
+    if _KERNELS:
+        xl = _nhwc(x)
+        if _wino_ok(xl, w, stride, padding, dilation, groups):
+            from fastforks.kernels.conv_mlx import ops as conv_ops
+
+            wl = mx.transpose(w, (0, 2, 3, 1))
+            return _nchw(conv_ops.conv3x3(xl, _wino_weights(w, wl, xl.dtype), b, m=WINO_TILE, residual=_nhwc(residual)))
+    return _conv(x, w, b, stride, padding, dilation, transposed, output_padding, groups) + residual
+
+
 def _shift_pad(x: mx.array, axis: int, lo: int, hi: int) -> mx.array:
     """Zero-pad `axis` by `lo` / `hi` (a negative amount crops instead)."""
     if lo < 0 or hi < 0:
@@ -1743,7 +1766,7 @@ class GraphNet:
         fused = (
             self._fuse_activations(nodes, names, lifted, values)
             if self.kernels
-            else type("Fused", (), {"skip": {}, "conv": {}})()
+            else type("Fused", (), {"skip": {}, "conv": {}, "res": {}})()
         )
         cl_values = (
             set() if os.environ.get("FF_MLX_NO_CL") else _channels_last_values(nodes, {**folds.skip, **fused.skip})
@@ -1761,6 +1784,12 @@ class GraphNet:
                     continue
                 if node.name in fused.skip:
                     plan.append(("alias", node.name, fused.skip[node.name]))
+                    continue
+                if node.name in fused.res:
+                    wk, bk, rname = fused.res[node.name]
+                    a = node.args
+                    args = (a[0], _Name(wk), _Name(bk) if bk else None, *a[3:], _Name(rname))
+                    plan.append(("call", node.name, _conv_res, _plain(args), {}))
                     continue
                 if node.name in fused.conv:
                     act, slope = fused.conv[node.name]
@@ -1809,7 +1838,7 @@ class GraphNet:
         self, nodes: list[Any], names: dict[str, Any], lifted: dict[str, torch.Tensor], values: dict[str, Any]
     ) -> Any:
         """Kernels mode: a 3x3 convolution whose only consumer is ReLU / PReLU (decomposed to gt, mul, where) applies it."""
-        res = type("Fused", (), {"skip": {}, "conv": {}})()
+        res = type("Fused", (), {"skip": {}, "conv": {}, "res": {}})()
         for conv in nodes:
             if conv.op != "call_function" or conv.target is not aten.convolution.default:
                 continue
@@ -1825,8 +1854,16 @@ class GraphNet:
             ):
                 continue
             users = list(conv.users)
+            if self._fuse_residual(conv, users, nodes, names, lifted, values, res):
+                continue
             if len(users) == 1 and users[0].target is aten.relu.default:
                 res.conv[conv.name] = (1, None)
+                res.skip[users[0].name] = conv.name
+            elif len(users) == 1 and users[0].target is aten.leaky_relu.default:
+                key = f"{conv.name}__slope"
+                slope = users[0].args[1] if len(users[0].args) > 1 else 0.01
+                values[key] = mx.full((wv.shape[0],), float(slope), dtype=mx.float32)
+                res.conv[conv.name] = (2, key)
                 res.skip[users[0].name] = conv.name
             elif len(users) == 3 and {u.target for u in users} == {  # noqa: PLR2004
                 aten.gt.Scalar,
@@ -1852,6 +1889,48 @@ class GraphNet:
                 res.conv[conv.name] = (2, key)
                 res.skip.update({gt.name: conv.name, mul.name: conv.name, where.name: conv.name})
         return res
+
+    def _fuse_residual(  # noqa: PLR0913
+        self,
+        conv: Any,  # noqa: ANN401
+        users: list[Any],
+        nodes: list[Any],
+        names: dict[str, Any],
+        lifted: dict[str, torch.Tensor],
+        values: dict[str, Any],
+        res: Any,  # noqa: ANN401
+    ) -> bool:
+        """`conv * c + r` (a residual-block tail): the scale folds into the weights and bias, `r` into the epilogue."""
+        if len(users) != 1 or users[0].target is not aten.mul.Tensor or users[0].args[0] is not conv:
+            return False
+        mul = users[0]
+        scale = mul.args[1]
+        if not isinstance(scale, (int, float)) or len(mul.users) != 1:
+            return False
+        (add,) = mul.users
+        if add.target is not aten.add.Tensor or add.kwargs or len(add.args) != 2:  # noqa: PLR2004
+            return False
+        other = add.args[1] if add.args[0] is mul else add.args[0]
+        if (
+            getattr(other, "op", None) != "call_function"
+            or nodes.index(other) > nodes.index(conv)
+            or other.meta.get("val") is None
+            or tuple(other.meta["val"].shape) != tuple(conv.meta["val"].shape)
+        ):
+            return False
+        wname = names.get(conv.args[1].name)
+        bname = names.get(conv.args[2].name) if conv.args[2] is not None else None
+        if wname is None or (conv.args[2] is not None and bname is None):
+            return False
+        wk, bk = f"{conv.name}__w", f"{conv.name}__b"
+        values[wk] = to_mx((lifted[wname].double() * scale).float()).astype(self.dtype)
+        if bname is not None:
+            values[bk] = to_mx((lifted[bname].double() * scale).float()).astype(self.dtype)
+        self._consumed.update(t for t in (wname, bname) if t)
+        res.res[conv.name] = (wk, bk if bname is not None else None, other.name)
+        res.skip[mul.name] = conv.name
+        res.skip[add.name] = conv.name
+        return True
 
     def _fold_batch_norms(self, nodes: list[Any], names: dict[str, Any], lifted: dict[str, torch.Tensor]) -> Any:
         """Fold eval BatchNorm nodes that follow a convolution with constant weights into that convolution."""
