@@ -9,6 +9,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
+from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
 
 from .net.aanet import AANet
@@ -146,4 +147,9 @@ class MetalKernels(Portable):
         return forward(self.net, left.half(), right.half()).float()  # a float32 disparity
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+}

@@ -9,6 +9,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.errors import WeightsError
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Forward, Runner
 
@@ -163,4 +164,9 @@ class MetalKernels(Portable):
                     setattr(m, name, getattr(costs, name))
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+}

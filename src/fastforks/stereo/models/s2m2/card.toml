@@ -30,6 +30,7 @@ refine_iter = 3
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["s2m2", "s2m2_cutlass", "cudnn_hacc"]

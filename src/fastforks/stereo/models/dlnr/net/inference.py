@@ -14,7 +14,7 @@ forward(model, left, right, iters): == upstream `DLNR.forward(test_mode=True)`: 
   the whole batch). Returns the disparity [B, H, W] (= -flow).
 """
 import torch
-from fastforks._core.tracing import in_onnx_export
+from fastforks._core.tracing import EXPORTING_FOR_MLX, in_onnx_export
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -71,6 +71,8 @@ def _refine(model, flow, i1, i2):
     def unchanged(flow, i1, i2, neg):
         return flow.clone()
 
+    if EXPORTING_FOR_MLX.get():  # no `cond` on MLX: select per sample (the refinement runs always)
+        return refined(flow, i1, i2, neg)
     if _tracing():
         return torch.cond(neg.any(), refined, unchanged, (flow, i1, i2, neg))
     return refined(flow, i1, i2, neg) if bool(neg.any()) else flow

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Forward, Runner
 
@@ -141,4 +142,9 @@ class MetalKernels(Portable):
         patch_igev(self.net, FastGeoEncodingVolume, ConvGRU, stereo_metal.load(ctx.device))
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+}

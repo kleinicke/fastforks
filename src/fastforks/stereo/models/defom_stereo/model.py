@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import torch
 
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import use_sdpa_attention
 from fastforks.stereo._runner import Forward, Runner
 
@@ -127,4 +128,9 @@ class MetalKernels(Portable):
         return self._forward(net, self.lib, left, right, p.iters, p.scale_iters)[:, 0]
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+}

@@ -11,6 +11,7 @@ from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks._core.sampling import grid_sample
+from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
 
 from .net.gwcnet import CostAggregation, GwcNet
@@ -249,4 +250,8 @@ class Kernels(Runner):
         return {"disparity": forward(self.net, left, right)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+}

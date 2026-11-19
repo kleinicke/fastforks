@@ -30,6 +30,7 @@ ns_size = 3  # neighbour-search window of the stage-2 range (scripts/sceneflow.s
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 # The warp's grid_sample uses align_corners=True, the PyTorch 1.2 default the checkpoints were trained with (upstream's
 # code at the pinned commit leaves it unset, which current PyTorch reads as False); the goldens use the same setting
 # (tools/golden/cas_gwcnet.py, patches/cas-gwcnet-align-corners.patch).

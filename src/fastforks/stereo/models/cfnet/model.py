@@ -17,6 +17,7 @@ from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks.kernels import cfnet_volume
+from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
 
 from .net.cfnet import cfnet
@@ -294,4 +295,9 @@ class MetalKernels(Portable):
         return {"disparity": forward(self.net, left, right, self.volume)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+}

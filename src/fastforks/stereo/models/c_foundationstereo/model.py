@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, cast
 import torch
 
 from fastforks._core.checkpoint import config_globals
+from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
 
 from .net.fast_foundation_stereo.ckpt_utils import remap_state_dict, tao_edgenext_keys
@@ -208,4 +209,8 @@ class Kernels(Runner):
         return {"disparity": self._forward(left, right, iters(self.ctx.params))}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+}

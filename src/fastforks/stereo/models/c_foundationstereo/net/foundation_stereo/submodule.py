@@ -491,8 +491,9 @@ class PositionalEmbedding(nn.Module):
         Returns:
             Input tensor with added positional embeddings.
         """
-        self.pe = self.pe.to(x.device).to(x.dtype)
-        pe = self.pe
+        pe = self.pe.to(x.device).to(x.dtype)
+        if not torch.compiler.is_exporting():
+            self.pe = pe
         if pe.shape[1] < x.shape[1]:
             if resize_embed:
                 pe = F.interpolate(

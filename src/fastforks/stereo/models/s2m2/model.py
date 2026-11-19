@@ -10,6 +10,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
+from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Crop, Forward, Runner
 
 from .net import rewrites
@@ -79,9 +80,13 @@ class Portable(_S2M2Runner):
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity, confidence and occlusion of a padded batch."""
         if self.ctx.dtype == "float32":
-            return _maps(*self.net(left, right))
+            return _maps(*self._run(left, right))
         with torch.autocast(self.ctx.device.type, dtype=self.ctx.torch_dtype):
-            return _maps(*self.net(left, right))
+            return _maps(*self._run(left, right))
+
+    def _run(self, left: torch.Tensor, right: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """The network's disparity, occlusion and confidence maps (the part `portable_mlx` runs as one graph)."""
+        return self.net(left, right)
 
     def module(self) -> torch.nn.Module:
         """The network; returns the disparity."""
@@ -104,7 +109,11 @@ class Kernels(_S2M2Runner):
         return _maps(*self.net.forward_fast(left, right, full_outputs=True))  # ty: ignore[call-non-callable] - bound by prepare_kernels
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_run",)),
+}
 
 
 def image_pad(img: torch.Tensor, factor: int) -> torch.Tensor:

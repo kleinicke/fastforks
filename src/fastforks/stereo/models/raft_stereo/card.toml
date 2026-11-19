@@ -28,6 +28,7 @@ iters = { default = 32, min = 1 }  # GRU update iterations
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["raft", "cutlass_conv", "cudnn_hacc"]

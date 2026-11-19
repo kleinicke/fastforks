@@ -32,6 +32,7 @@ import torch
 import torch.utils._pytree as pytree
 
 from fastforks._core.mlx import mx, to_mx, to_torch
+from fastforks._core.tracing import EXPORTING_FOR_MLX
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Sequence
@@ -637,6 +638,12 @@ def _linalg_det(a: mx.array) -> tuple[mx.array, mx.array, mx.array]:
 
 OPS[aten.max.dim] = lambda x, d, keep=False: (mx.max(x, axis=d, keepdims=keep), mx.argmax(x, axis=d, keepdims=keep))
 OPS[aten.max.default] = lambda x: mx.max(x)
+OPS[aten.min.dim] = lambda x, d, keep=False: (mx.min(x, axis=d, keepdims=keep), mx.argmin(x, axis=d, keepdims=keep))
+OPS[aten.any.default] = lambda x: mx.any(x)
+OPS[aten.all.default] = lambda x: mx.all(x)
+OPS[aten.empty_permuted.default] = lambda size, physical_layout, dtype=None, **_: mx.zeros(
+    tuple(size), dtype=_dt(dtype) or mx.float32
+)
 OPS[aten.min.default] = lambda x: mx.min(x)
 
 
@@ -918,14 +925,20 @@ def _conv_core(  # noqa: PLR0913
                 groups=groups,
             )
         else:
-            y = mx.conv3d(
-                mx.transpose(x, (0, 2, 3, 4, 1)),
-                mx.transpose(w, (0, 2, 3, 4, 1)),
-                stride=tuple(stride),
-                padding=tuple(padding),
-                dilation=tuple(dilation),
-                groups=groups,
-            )
+            xl3 = mx.transpose(x, (0, 2, 3, 4, 1))
+            wl3 = mx.transpose(w, (0, 2, 3, 4, 1))
+            kw3 = {"stride": tuple(stride), "padding": tuple(padding), "dilation": tuple(dilation)}
+            if groups == 1:
+                y = mx.conv3d(xl3, wl3, **kw3)
+            else:  # `mx.conv3d` has no groups: one conv per group
+                cg, og = xl3.shape[-1] // groups, wl3.shape[0] // groups
+                y = mx.concatenate(
+                    [
+                        mx.conv3d(xl3[..., g * cg : (g + 1) * cg], wl3[g * og : (g + 1) * og], **kw3)
+                        for g in range(groups)
+                    ],
+                    axis=-1,
+                )
         if b is not None:
             y = y + b
         return mx.transpose(y, (0, 4, 1, 2, 3))
@@ -1014,6 +1027,8 @@ def _max_pool(
         msg = "max_pool2d with dilation"
         raise UnsupportedOp(msg)
     s = s or k
+    if x.ndim == 3:  # unbatched [C, H, W]
+        return _pool_windows(x[None], k, s, pad, -float("inf"), ceil=ceil).max(axis=(-2, -1))[0], None
     return _pool_windows(x, k, s, pad, -float("inf"), ceil=ceil).max(axis=(-2, -1)), None
 
 
@@ -1099,6 +1114,19 @@ def _adaptive_avg_pool(x: mx.array, size: Sequence[int]) -> mx.array:
             cols.append(x[:, :, h0:h1, w0:w1].astype(mx.float32).mean(axis=(2, 3)))
         rows.append(mx.stack(cols, axis=-1))
     return mx.stack(rows, axis=-2).astype(x.dtype)
+
+
+@_reg(aten.adaptive_max_pool2d.default)
+def _adaptive_max_pool(x: mx.array, size: Sequence[int]) -> tuple[mx.array, mx.array]:
+    n, c, h, w = x.shape
+    oh, ow = size
+    rows = []
+    for i in range(oh):
+        h0, h1 = (i * h) // oh, -((-(i + 1) * h) // oh)
+        cols = [x[:, :, h0:h1, (j * w) // ow : -((-(j + 1) * w) // ow)].max(axis=(2, 3)) for j in range(ow)]
+        rows.append(mx.stack(cols, axis=-1))
+    y = mx.stack(rows, axis=-2)
+    return y, mx.zeros(y.shape, dtype=mx.int64)  # the indices are never read
 
 
 @_reg(aten.constant_pad_nd.default)
@@ -1355,6 +1383,13 @@ class GraphNet:
         return self._consts[name]
 
     def _build(self, args: tuple[torch.Tensor, ...]) -> Callable[..., Any]:
+        token = EXPORTING_FOR_MLX.set(True)
+        try:
+            return self._build_graph(args)
+        finally:
+            EXPORTING_FOR_MLX.reset(token)
+
+    def _build_graph(self, args: tuple[torch.Tensor, ...]) -> Callable[..., Any]:
         with torch.no_grad():
             try:
                 ep = torch.export.export(self.module, args, strict=False)

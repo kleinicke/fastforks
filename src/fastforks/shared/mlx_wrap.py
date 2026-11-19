@@ -128,7 +128,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
     portable: type[Runner],
     *,
     attrs: tuple[str, ...] = ("net",),
-    whole: bool = False,
+    whole: bool | str = False,
     methods: tuple[str, ...] = (),
     net_attr: str = "net",
     kernels_fp16_only: bool = False,
@@ -143,6 +143,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
 
     `whole=True`: the runner's `module()` (the network with its pre- and post-processing, image in, image out) runs on
     MLX as one graph and `__call__` returns `{"image": ...}` from it; for a runner whose forward is not `net(x)`.
+    A string names the output instead (`whole="disparity"`; stereo pairs in, one map out).
 
     `fp32_methods`: names among `methods` that always run in float32 (a stage whose activations overflow float16).
 
@@ -150,6 +151,8 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
 
     `kernels_fp16_only=True`: the kernels mode uses its Metal kernels in float16 only (float32 runs as portable).
     """
+
+    out_key = "image" if whole is True else whole
 
     class Mlx(portable):  # ty: ignore[unsupported-base]
         __doc__ = f"Apple MLX: `{portable.__name__}` with its network run by the exported-graph translation."
@@ -214,9 +217,9 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
 
         if whole:
 
-            def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+            def __call__(self, *inputs: torch.Tensor) -> dict[str, torch.Tensor]:
                 """The module's output on MLX."""
-                return {"image": self._whole(image)}
+                return {out_key: self._whole(*inputs)}
 
     Mlx.__name__ = Mlx.__qualname__ = f"Mlx{portable.__name__}"
     return Mlx

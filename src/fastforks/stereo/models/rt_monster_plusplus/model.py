@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.stereo._runner import Forward, Runner
 
@@ -121,4 +122,8 @@ class Kernels(Runner):
         return {"disparity": self._forward(self.net, left, right)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+}

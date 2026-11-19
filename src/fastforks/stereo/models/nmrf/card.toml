@@ -29,6 +29,7 @@ max_disp = 312  # disparity range of the proposal cost volume (configs/zero_shot
 [modes.portable]
 cuda_dtype = "float16"  # our fork's general path runs under float16 autocast (original evaluates in float32)
 mps_dtypes = ["float32", "float16"]  # MPS vs CPU: 0.03 px mean on non-occluded pixels, ~0.7 px where the cost curve is flat
+mlx_dtypes = ["float32", "float16"]
 # (occlusions, left border): the local-maximum test of the proposals flips on last-bit rounding there
 
 [modes.kernels]

@@ -12,6 +12,7 @@ from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks.kernels import cudnn_hacc, stereo_ops
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Crop, Forward, Runner, crop, pad_widths
 
@@ -314,4 +315,9 @@ class MetalKernels(Portable):
         object.__setattr__(self.net, *hook)  # a plain attribute, read by the forward pass
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+}

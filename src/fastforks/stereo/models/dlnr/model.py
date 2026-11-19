@@ -6,6 +6,7 @@ import types
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
 
 from .net.dlnr import DLNR
@@ -75,4 +76,8 @@ class Kernels(Runner):
         return {"disparity": self._forward(self.net, self.k, left, right, self.ctx.params.iters)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+}

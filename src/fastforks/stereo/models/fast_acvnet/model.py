@@ -10,6 +10,7 @@ import torch.nn.functional as F
 
 from fastforks._core.sampling import grid_sample
 from fastforks.kernels import acv_volume, cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Forward, Runner
 
@@ -256,4 +257,8 @@ class Kernels(_FastACVRunner):
         return {"disparity": self._graphs(left, right)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+}

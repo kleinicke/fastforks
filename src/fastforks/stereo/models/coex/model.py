@@ -12,6 +12,7 @@ from fastforks._core.checkpoint import Inert
 from fastforks._core.patch import override
 from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
 from fastforks.kernels import cudnn_hacc, stereo_ops
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Crop, Forward, Runner, crop, pad_widths
 
@@ -170,4 +171,8 @@ class Kernels(_CoExRunner):
         return crop(disp, Crop(pads[2], pads[0], h, w))
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+}

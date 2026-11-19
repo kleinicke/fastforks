@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from fastforks._core.checkpoint import Inert, latin1_encode, numeric_scalar
+from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
 
 from .net.core.foundation_stereo import FoundationStereo
@@ -141,4 +142,9 @@ class Kernels(Runner):
         return {"disparity": self._forward(self.net, left, right, iters=self.ctx.params.iters)[:, 0]}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+}
