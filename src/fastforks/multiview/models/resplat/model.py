@@ -358,6 +358,7 @@ class Net(nn.Module):
             pxo = self.update_module[0]([cloud, x, None])
             del x
             state = self.update_module[1](pxo) + state
+            del pxo
             delta = self.update_head(state).float()
             if m > 1 and not p.same_points:
                 delta = delta.view(v, hl * wl, STATE, m).transpose(-1, -2).reshape(v, -1, STATE)  # c k -> (n k) c
