@@ -233,11 +233,14 @@ def _interpolate(net: Interpolator, image1: torch.Tensor, image2: torch.Tensor, 
     # read with the backward flow and frame 2 with the forward one: sample n reads with the flow of row (n + b) % 2b
     scale = torch.cat((1 - t, t)).float()
     pyramid = []
-    for img, feat, flow, pad in zip(images, feats, flows, fuse.pads, strict=False):
+    # The original image and feature at a level are dead once their warps are ready.
+    images.reverse()
+    feats.reverse()
+    for flow, pad in zip(flows, fuse.pads, strict=False):
         f = flow * scale
         f = torch.cat((f[b:], f[:b]))
         taps = _taps(f, dtype, other=False)
-        wi, wf = _warp(img, taps), _warp(feat, taps)
+        wi, wf = _warp(images.pop(), taps), _warp(feats.pop(), taps)
         fl = f.to(dtype).permute(0, 2, 3, 1)
         zeros = fl.new_zeros(()).expand(b, *fl.shape[1:3], pad)
         pyramid.append([wi[:b], wf[:b], wi[b:], wf[b:], fl[:b], fl[b:], zeros])  # warped 1, warped 2, flows
