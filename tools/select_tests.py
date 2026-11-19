@@ -23,9 +23,10 @@ other tests) selects no family.
 
 Fast tier (`-m "not gpu and not model"`): every test file whose closure reaches no family module, the family-specific
 files of the selected families and every test file whose closure holds a changed file; all of tests/ when conftest.py,
-non-Python test data or the dependencies changed. GPU: per family its golden refs, as a `-k` expression for
-tests/test_golden.py. Use `--golden-nodeids` for exact pytest item IDs that preserve revisions and distinguish
-similarly named families. These IDs can be passed to pytest using an argument file.
+non-Python test data or the dependencies changed. Documentation-only changes use the docs checks, plus the site data
+and speed-floor checks for generated model or benchmark pages and their data. The GPU selection gives each family's
+golden refs as a `-k` expression for tests/test_golden.py. Use `--golden-nodeids` for exact item IDs that preserve
+revisions and distinguish similarly named families. These IDs can be passed to pytest using an argument file.
 """
 
 from __future__ import annotations
@@ -49,6 +50,8 @@ ROOT = Path(__file__).resolve().parents[1]
 HARNESS = ("tests/test_golden.py", "tools/speed_check.py")  # their direct imports seed every family's closure
 GATE_TOOLS = frozenset({"tools/select_tests.py", "tools/speed_check.py", "tools/merge_check.py"})
 DEPENDENCIES = frozenset({"pyproject.toml", "uv.lock"})
+TOP_LEVEL_DOCS = frozenset({"README.md", "CONTRIBUTING.md"})
+BENCHMARK_DOCS = frozenset({"docs/benchmarks.md", "docs/overview.md"})
 GOLDEN_MANIFEST = re.compile(r"src/fastforks/[^/]+/models/[^/]+/golden[.]toml")
 FRAMEWORK = "src/fastforks/"  # outside LAZY_OK and the family dirs: imports inside functions do not count
 LAZY_OK = ("src/fastforks/shared/", "src/fastforks/kernels/", "src/fastforks/_optimize/")
@@ -255,6 +258,13 @@ def select(
     fixture_refs: dict[str, tuple[str, ...]] | None = None,
 ) -> Selection:
     """Select affected variants, using tracked metadata where the caller has both git snapshots."""
+    if changed and all(path in TOP_LEVEL_DOCS or path.startswith("docs/") for path in changed):
+        checks = ["tests/test_docs.py"]
+        if any(path in BENCHMARK_DOCS or path.startswith(("docs/data/", "docs/models/")) for path in changed):
+            checks.extend(("tests/test_site_data.py", "tests/test_speed_floor.py"))
+        if "docs/stereo_geometry.md" in changed:
+            checks.append("tests/test_geometry_example.py")
+        return Selection(changed=sorted(changed), fast=sorted(path for path in checks if (root / path).is_file()))
     graph = Graph(root)
     fams = families(root)
     closures = family_closures(graph, fams)

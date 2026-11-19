@@ -57,6 +57,7 @@ MINI = {
     "src/fastforks/depth/models/fc/card.toml": CARD.format(kernels="[]", uses='["vit"]'),
     "tests/conftest.py": "",
     "tests/data/x.json": "{}",
+    "tests/test_docs.py": "",
     "tests/test_golden.py": "import fastforks._core\nimport fastforks.kernels.kb\nimport fastforks.stereo\n",
     "tests/test_plain.py": "import fastforks._core.util\n",
     "tests/test_fa.py": "from fastforks.stereo.models import fa\n",
@@ -101,8 +102,7 @@ def test_mini_fast_tier(mini: Path) -> None:
     assert "tests/test_fa.py" in fa.fast
     assert "tests/test_plain.py" in fa.fast  # reaches no family: always in the fast tier
     docs = st.select(["docs/index.md"], mini)
-    assert "tests/test_fa.py" not in docs.fast
-    assert "tests/test_plain.py" in docs.fast
+    assert docs.fast == ["tests/test_docs.py"]
     assert st.select(["tests/data/x.json"], mini).fast == ["tests"]
     assert st.select(["tests/conftest.py"], mini).fast == ["tests"]
     release = st.select(["uv.lock"], mini)
@@ -409,5 +409,14 @@ def test_real_cli_docs_only(capsys: pytest.CaptureFixture[str]) -> None:
     assert st.main(["--files", "docs/index.md", "--json"]) == 0
     out = json.loads(capsys.readouterr().out)
     assert out["families"] == {}
-    assert out["fast"]
+    assert out["fast"] == ["tests/test_docs.py"]
     assert not out["release"]
+
+
+def test_documentation_only_checks() -> None:
+    bench = st.select(["docs/data/speed.jsonl", "docs/models/restoration.md", "docs/benchmarks.md"])
+    assert bench.fast == ["tests/test_docs.py", "tests/test_site_data.py", "tests/test_speed_floor.py"]
+    assert not bench.families
+    assert not bench.release
+    geometry = st.select(["README.md", "docs/stereo_geometry.md"])
+    assert geometry.fast == ["tests/test_docs.py", "tests/test_geometry_example.py"]

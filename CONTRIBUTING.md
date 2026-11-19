@@ -52,6 +52,9 @@ machines. Inspect its skips and failures: a missing golden is not evidence of a 
 many families, and a true dependency change sets `release: true` and requires the broader checks. This selector is a
 conservative aid, not proof that every dynamic dependency has been found; include tests for effects known from review.
 
+Documentation-only changes select the docs tests. Edits to generated model or benchmark pages and their data also
+select the site-data and speed-floor checks. Changes to the stereo geometry guide include its executable example check.
+
 Golden-parity tests need the golden outputs: `python tools/fetch_goldens.py --all DIR` and
 `FASTFORKS_GOLDEN_PATH=DIR`. Local weights can be used without downloading via `FASTFORKS_WEIGHTS_PATH`, kernel
 binaries via `FASTFORKS_KERNEL_PATH` (e.g. `build/kernels` after `tools/build_kernels.py`, which needs
