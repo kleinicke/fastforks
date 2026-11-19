@@ -38,10 +38,12 @@ CONV_WIDTH = 4
 
 def posemb_sincos_2d(h: int, w: int, width: int, temperature: float = 10_000.0) -> torch.Tensor:
     """MoCo v3 2D sin-cos embedding `[1, h * w, width]` (float64 math, float32 result, as upstream's numpy)."""
-    y, x = torch.meshgrid(torch.arange(h, dtype=torch.float64), torch.arange(w, dtype=torch.float64), indexing="ij")
     omega = 1.0 / temperature ** (torch.arange(width // 4, dtype=torch.float64) / (width // 4 - 1))
-    y, x = y.flatten()[:, None] * omega, x.flatten()[:, None] * omega
-    return torch.cat([x.sin(), x.cos(), y.sin(), y.cos()], 1).float()[None]
+    x = torch.arange(w, dtype=torch.float64)[:, None] * omega
+    y = torch.arange(h, dtype=torch.float64)[:, None] * omega
+    x = torch.cat([x.sin(), x.cos()], -1).float()[None].expand(h, -1, -1)
+    y = torch.cat([y.sin(), y.cos()], -1).float()[:, None].expand(-1, w, -1)
+    return torch.cat([x, y], -1).reshape(1, h * w, -1)
 
 
 class RMSNorm(nn.Module):
