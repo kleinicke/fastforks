@@ -253,8 +253,6 @@ class Portable(Runner):
         """The one network (device adaptations, e.g. Apple MPS)."""
         return (self.net,)
 
-    reuse_first = False
-
     def _autocast(self) -> contextlib.AbstractContextManager[Any]:
         if self.ctx.dtype == "float32":
             return contextlib.nullcontext()
@@ -286,16 +284,15 @@ class Portable(Runner):
         )
         core.memory.__class__ = _Memory  # the chunked readout (a bound method stored on it would be a reference cycle)
         first = frames(0)[0]
+        # First-frame predictions reset the feature-store index to zero throughout warm-up.
         with self._autocast():
             for ti in range(p.warmup + n):
                 image = first if ti <= p.warmup else frames(ti - p.warmup)[0]
                 if ti == 0:
-                    core.step(image, closed, objects=[1], delete_buffer=not self.reuse_first)
-                    prob = core.step(image, first_frame_pred=True, delete_buffer=not self.reuse_first or p.warmup == 0)
+                    core.step(image, closed, objects=[1], delete_buffer=False)
+                    prob = core.step(image, first_frame_pred=True, delete_buffer=p.warmup == 0)
                 else:
-                    prob = core.step(
-                        image, first_frame_pred=ti <= p.warmup, delete_buffer=not self.reuse_first or ti >= p.warmup
-                    )
+                    prob = core.step(image, first_frame_pred=ti <= p.warmup, delete_buffer=ti >= p.warmup)
                 if ti >= p.warmup:
                     yield core.output_prob_to_mask(prob).float()
 
@@ -332,9 +329,8 @@ def _cuda_encode(
 
 
 class Kernels(Portable):
-    """Reuse the first frame's image features throughout recurrent warm-up."""
+    """Use fused image normalisation before the frame encoder."""
 
-    reuse_first = True
     compiled_methods = ("__call__",)  # keep the kernel checks around the full call
     module = Runner.module
 
