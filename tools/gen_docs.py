@@ -97,6 +97,7 @@ _DATASETS = {
     },
     "classification": {
         "imagenet-val-subset5000-seed0": "ImageNet-1k val, 5000 random images, top-1 / top-5 %",
+        "imagenet-val-every50": "ImageNet-1k val, one image per class (1,000), top-1 / top-5 %",
         "coco-val2017-first500-tags": "COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement %",  # noqa: E501
     },
     "pose": {

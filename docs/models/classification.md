@@ -1722,13 +1722,14 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `resnet18.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 70.80 / 89.18 | 70.80 / 89.18 | 70.82 / 89.12 | 70.72 / 89.12 | 70.74 / 89.10 |  |
-| `resnet50.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.02 / 95.32 | 82.00 / 95.30 | 81.94 / 95.30 | 81.98 / 95.32 | 81.96 / 95.34 |  |
-| `resnet152.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.90 / 96.22 | 82.90 / 96.20 | 82.90 / 96.24 | 82.94 / 96.24 | 82.90 / 96.24 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `resnet18.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 70.80 / 89.18 | 70.80 / 89.18 | 70.82 / 89.12 | 70.72 / 89.12 | 70.74 / 89.10 |  |  |  |
+| `resnet50.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.02 / 95.32 | 82.00 / 95.30 | 81.94 / 95.30 | 81.98 / 95.32 | 81.96 / 95.34 |  |  |  |
+| `resnet50.tv2_in1k` | ImageNet-1k val, one image per class (1,000), top-1 / top-5 % |  |  | 80.20 / 96.40 |  |  | 80.20 / 96.40 | 80.20 / 96.40 |  |
+| `resnet152.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.90 / 96.22 | 82.90 / 96.20 | 82.90 / 96.24 | 82.94 / 96.24 | 82.90 / 96.24 |  |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8 / c45a2130, 2026-11-06 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c45a2130, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c45a2130, 2026-11-19.
 
 ### Parity
 
