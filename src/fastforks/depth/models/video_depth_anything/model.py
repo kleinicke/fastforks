@@ -162,7 +162,7 @@ class _Video(Runner):
     def _window(self, feats: list[torch.Tensor], h: int, w: int, valid: int) -> torch.Tensor:
         """Encoder features of the 32 frames of a window -> float32 depth `[valid, h, w]` (ReLU)."""
         pairs = [(feats[i], feats[i + 1]) for i in range(0, len(feats), 2)]
-        d = self.net.head(pairs, h // PATCH, w // PATCH, INFER_LEN)[0]  # [32, 1, h, w]; h, w: multiples of 14
+        d = self.net.head(pairs, h // PATCH, w // PATCH, INFER_LEN, return_hidden_states=False)[0]
         return F.relu(d[:valid, 0]).float()  # upstream resizes to (h, w) first: the same size, an exact copy
 
     def _video(self, image: torch.Tensor) -> torch.Tensor:
@@ -213,6 +213,7 @@ class _Video(Runner):
                 out[:valid] = d
                 if more:
                     ref = [d[0].clone(), d[KEYFRAMES[1]].clone()]
+            del d
         return out
 
     @host
@@ -270,14 +271,17 @@ def _partial_head(head: DPTHeadTemporal, feats: list[torch.Tensor], h: int, w: i
         maps.append(head.resize_layers[i](head.projects[i](x)))
 
     low, mid, high, coarse = maps
+    del maps
     scratch = head.scratch
     low = scratch.layer1_rn(low)
     mid = scratch.layer2_rn(mid)
     high = scratch.layer3_rn(_temporal(head.motion_modules[0], high))
     coarse = scratch.layer4_rn(_temporal(head.motion_modules[1], coarse))
     path = scratch.refinenet4(coarse, size=high.shape[2:])
+    del coarse
     path = _temporal(head.motion_modules[2], path)
     path = scratch.refinenet3(path, high, size=mid.shape[2:])
+    del high
     path = _temporal(head.motion_modules[3], path)
 
     result = []

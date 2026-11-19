@@ -50,7 +50,9 @@ class DPTHeadTemporal(DPTHead):
                            **motion_module_kwargs)
         ])
 
-    def forward(self, out_features, patch_h, patch_w, frame_length, micro_batch_size=4, cached_hidden_state_list=None):
+    def forward(self, out_features, patch_h, patch_w, frame_length, micro_batch_size=4, cached_hidden_state_list=None,
+                *, return_hidden_states=True):
+        # fastforks: the fixed-window depth runner does not reuse the motion states.
         out = []
         for i, x in enumerate(out_features):
             if self.use_clstoken:
@@ -69,6 +71,7 @@ class DPTHeadTemporal(DPTHead):
             out.append(x)
 
         layer_1, layer_2, layer_3, layer_4 = out
+        del out
 
         B, T = layer_1.shape[0] // frame_length, frame_length
         if cached_hidden_state_list is not None:
@@ -77,20 +80,34 @@ class DPTHeadTemporal(DPTHead):
             N = 0
 
         layer_3, h0 = self.motion_modules[0](layer_3.unflatten(0, (B, T)).permute(0, 2, 1, 3, 4), None, None, cached_hidden_state_list[0:N] if N else None)
+        if not return_hidden_states:
+            h0 = []
         layer_3 = layer_3.permute(0, 2, 1, 3, 4).flatten(0, 1)
         layer_4, h1 = self.motion_modules[1](layer_4.unflatten(0, (B, T)).permute(0, 2, 1, 3, 4), None, None, cached_hidden_state_list[N:2*N] if N else None)
+        if not return_hidden_states:
+            h1 = []
         layer_4 = layer_4.permute(0, 2, 1, 3, 4).flatten(0, 1)
 
         layer_1_rn = self.scratch.layer1_rn(layer_1)
+        del layer_1
         layer_2_rn = self.scratch.layer2_rn(layer_2)
+        del layer_2
         layer_3_rn = self.scratch.layer3_rn(layer_3)
+        del layer_3
         layer_4_rn = self.scratch.layer4_rn(layer_4)
+        del layer_4
 
         path_4 = self.scratch.refinenet4(layer_4_rn, size=layer_3_rn.shape[2:])
+        del layer_4_rn
         path_4, h2 = self.motion_modules[2](path_4.unflatten(0, (B, T)).permute(0, 2, 1, 3, 4), None, None, cached_hidden_state_list[2*N:3*N] if N else None)
+        if not return_hidden_states:
+            h2 = []
         path_4 = path_4.permute(0, 2, 1, 3, 4).flatten(0, 1)
         path_3 = self.scratch.refinenet3(path_4, layer_3_rn, size=layer_2_rn.shape[2:])
+        del path_4, layer_3_rn
         path_3, h3 = self.motion_modules[3](path_3.unflatten(0, (B, T)).permute(0, 2, 1, 3, 4), None, None, cached_hidden_state_list[3*N:] if N else None)
+        if not return_hidden_states:
+            h3 = []
         path_3 = path_3.permute(0, 2, 1, 3, 4).flatten(0, 1)
 
         batch_size = layer_1_rn.shape[0]
@@ -112,7 +129,9 @@ class DPTHeadTemporal(DPTHead):
             for i in range(0, batch_size, micro_batch_size):
                 path_2 = self.scratch.refinenet2(path_3[i:i + micro_batch_size], layer_2_rn[i:i + micro_batch_size], size=layer_1_rn[i:i + micro_batch_size].shape[2:])
                 path_1 = self.scratch.refinenet1(path_2, layer_1_rn[i:i + micro_batch_size])
+                del path_2
                 out = self.scratch.output_conv1(path_1)
+                del path_1
                 out = F.interpolate(
                     out, (int(patch_h * 14), int(patch_w * 14)), mode="bilinear", align_corners=True
                 )
