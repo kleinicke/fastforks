@@ -33,6 +33,8 @@ mlx_dtypes = ["float32", "float16"]
 [modes.kernels]
 kernels = ["raft", "cutlass_conv", "cudnn_hacc"]
 mps_kernels = ["stereo_metal"]
+mlx_kernels = ["conv_mlx"]
+mlx_dtypes = ["float32", "float16"]
 
 # The upstream zip also holds raftstereo-realtime.pth (other architecture) and iraftstereo_rvc.pth (instance-norm
 # context): not supported by the kernels engine yet.

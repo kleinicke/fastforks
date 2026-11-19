@@ -384,3 +384,38 @@ Result: peak memory is below MPS for nearly every family (fp32 mostly 40-60 perc
 | waft-stereo-s | 32 | 3360 ms / 9.4 GB | 6903 ms / 4.2 GB |
 | crestereo-eth3d | 16 | 4484 ms / 2.7 GB | 4308 ms / 2.5 GB |
 | crestereo-eth3d | 32 | 5502 ms / 3.7 GB | 5763 ms / 3.8 GB |
+
+## Stereo speed and memory pass (MLX vs MPS)
+
+Goal: MLX faster than MPS and lower memory on the stereo group. Profiled with
+`FF_MLX_PROFILE=1` (per-op, no compile, so elementwise cost is overstated).
+
+Changes: functional cost-volume builders under export (cfnet, fast-acvnet,
+las2, cas-gwcnet), fused Metal kernels `grid_sample`, `trilinear`
+(3D upsample), `gwc_volume`, `upsample_soft_argmax` (upsample + softmax +
+soft-argmin in one pass), `channel_stats` (instance norm), and a `kernels_mlx`
+runner for raft-stereo (`conv_mlx`).
+
+| Model | dtype | MLX before | MLX after | MPS |
+|---|---|---|---|---|
+| psmnet-sceneflow | 16 | 4461 ms / 7.6 GB | 2606 ms / 3.0 GB | 2579 ms / 6.4 GB |
+| psmnet-sceneflow | 32 | 5625 ms / 11.5 GB | 3595 ms / 5.5 GB | 4615 ms / 11.3 GB |
+| gwcnet-gc-sceneflow | 16 | 4974 ms / 7.9 GB | 2960 ms / 2.7 GB | 2455 ms / 7.1 GB |
+| gwcnet-gc-sceneflow | 32 | 5990 ms / 11.9 GB | 3956 ms / 4.8 GB | 4461 ms / 12.4 GB |
+| cas-gwcnet-gc-sceneflow | 16 | 8431 ms / 4.9 GB | 4586 ms / 4.9 GB | 2995 ms / 7.2 GB |
+| cas-gwcnet-gc-sceneflow | 32 | 8673 ms / 4.9 GB | 5088 ms / 4.8 GB | 5490 ms / 11.9 GB |
+| las2-s | 16 | 670 ms / 1.4 GB | 242 ms / 1.0 GB | 192 ms / 3.6 GB |
+| las2-s | 32 | 945 ms | 300 ms | 245 ms |
+| fast-acvnet | 16 | 735 ms / 2.0 GB | 581 ms / 1.8 GB | 478 ms / 2.7 GB |
+| fast-acvnet | 32 | 853 ms | 754 ms | 944 ms |
+| raft-stereo (kernels) | 16 | 9586 ms | 7745 ms | 3637 ms |
+
+MLX now wins on fp32 for psmnet, gwcnet, cas-gwcnet and fast-acvnet, and on
+memory for every family listed. Still slower than MPS (fp16): the conv-bound
+nets (aanet, hitnet, s2m2, raft-stereo, igev family, monster family, nmrf,
+dlnr, cfnet). MLX 3x3 conv2d and conv3d plateau around 2-3 TFLOPS, below MPS,
+and Winograd or conv2d decompositions for conv3d did not help. Remaining
+profile hot spots: hitnet 1-D grid_sample on stride-2 tensors, aanet
+deformable-conv `mul`, s2m2 GELU and convs, raft GRU gates and correlation
+lookup (candidate fused kernels). `apple_mlx.json` routing is unchanged: only
+crestereo-eth3d wins.
