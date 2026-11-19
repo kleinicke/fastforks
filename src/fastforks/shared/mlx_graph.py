@@ -294,16 +294,17 @@ def _grid_sample(
 
     ix, iy = unnormalize(g[..., 0], w).reshape(n, -1), unnormalize(g[..., 1], h).reshape(n, -1)
     x0, y0 = mx.floor(ix), mx.floor(iy)
-    flat = x.reshape(n, c, h * w)
+    flat = mx.transpose(x.reshape(n, c, h * w), (0, 2, 1))  # [N, HW, C]: a corner's channels are one contiguous row
     out = None
     for dy, wy in ((0, 1 - (iy - y0)), (1, iy - y0)):
         for dx, wx in ((0, 1 - (ix - x0)), (1, ix - x0)):
             xx, yy = x0 + dx, y0 + dy
             ok = (xx >= 0) & (xx <= w - 1) & (yy >= 0) & (yy <= h - 1)
             idx = (mx.clip(yy, 0, h - 1) * w + mx.clip(xx, 0, w - 1)).astype(mx.int32)
-            v = mx.take_along_axis(flat, idx[:, None, :], axis=2).astype(mx.float32)
-            term = v * (wx * wy * ok.astype(mx.float32))[:, None, :]
+            v = mx.take_along_axis(flat, idx[:, :, None], axis=1).astype(mx.float32)
+            term = v * (wx * wy * ok.astype(mx.float32))[:, :, None]
             out = term if out is None else out + term
+    out = mx.transpose(out, (0, 2, 1))
     return out.reshape(n, c, ho, wo).astype(x.dtype)
 
 
@@ -315,6 +316,20 @@ def _scatter_src(x: mx.array, dim: int, index: mx.array, src: mx.array) -> mx.ar
         x.astype(mx.int32) if wide else x, index.astype(mx.int32), src.astype(mx.int32 if wide else x.dtype), axis=dim
     )
     return y.astype(x.dtype)
+
+
+@_reg(aten.scatter_add.default)
+def _scatter_add(x: mx.array, dim: int, index: mx.array, src: mx.array) -> mx.array:
+    """`x.scatter_add(dim, index, src)`: duplicate indices accumulate."""
+    dim %= x.ndim
+    src = src[tuple(slice(0, n) for n in index.shape)]  # torch reads the leading block of src
+    idx = tuple(
+        index.astype(mx.int32)
+        if d == dim
+        else mx.arange(index.shape[d], dtype=mx.int32).reshape([-1 if k == d else 1 for k in range(index.ndim)])
+        for d in range(index.ndim)
+    )
+    return x.at[idx].add(src.astype(x.dtype))
 
 
 @_reg(aten.split.Tensor)
@@ -734,7 +749,7 @@ def _conv_core(  # noqa: PLR0913
     slope: mx.array | None = None,
 ) -> mx.array | None:
     """The convolution; with `act`, `None` unless the Winograd kernel ran (and applied the activation itself)."""
-    if act and (x.ndim == 3 or transposed):
+    if act and (x.ndim in (3, 5) or transposed):
         return None
     if x.ndim == 3:  # 1-D: [N, C, L] -> NLC
         xl = mx.transpose(x, (0, 2, 1))
@@ -754,6 +769,20 @@ def _conv_core(  # noqa: PLR0913
         if b is not None:
             y = y + b
         return mx.transpose(y, (0, 2, 1))
+    if x.ndim == 5:  # 3-D: [N, C, D, H, W] -> NDHWC
+        if transposed:
+            raise UnsupportedOp("aten.convolution: transposed 3-D")
+        y = mx.conv3d(
+            mx.transpose(x, (0, 2, 3, 4, 1)),
+            mx.transpose(w, (0, 2, 3, 4, 1)),
+            stride=tuple(stride),
+            padding=tuple(padding),
+            dilation=tuple(dilation),
+            groups=groups,
+        )
+        if b is not None:
+            y = y + b
+        return mx.transpose(y, (0, 4, 1, 2, 3))
     xl = _nhwc(x)
     if transposed:
         wt = mx.transpose(w, (1, 2, 3, 0))  # [Cin, Cout/g, kh, kw] -> [Cout/g, kh, kw, Cin]
@@ -1114,7 +1143,13 @@ class GraphNet:
         self._consts: dict[str, Any] = {} if shared is None else shared
         self._consumed: set[str] = self._consts.setdefault(_CONSUMED, set())  # twin tensors the MLX side has taken over
 
-    def _const(self, name: str, t: torch.Tensor) -> mx.array:
+    def _const(self, name: str, t: torch.Tensor, *, share: bool = True) -> mx.array:
+        if not share:  # a lifted constant (a grid built in the forward): "lifted_tensor_0" differs per export
+            a = to_mx(t)
+            if t.is_floating_point():
+                a = a.astype(self.dtype)
+            mx.eval(a)
+            return a
         if name not in self._consts:
             a = to_mx(t)
             if t.is_floating_point():
@@ -1143,6 +1178,7 @@ class GraphNet:
             ep = ep.run_decompositions(decomp)
         graph = ep.graph_module.graph
         sig = ep.graph_signature
+        state = set(ep.state_dict)
         lifted = {**ep.state_dict, **dict(ep.constants)}
         names = {s.arg.name: s.target for s in sig.input_specs if s.target is not None}
         nodes = list(graph.nodes)
@@ -1192,7 +1228,7 @@ class GraphNet:
         used.update(n for p in plan if p[0] == "output" for n in _refs(p[1]))
         for node_name, tgt in params.items():  # only what a node reads: a folded convolution's own weight is not
             if node_name in used:
-                values[node_name] = self._const(tgt, lifted[tgt])
+                values[node_name] = self._const(tgt, lifted[tgt], share=tgt in state)
         del ep, graph, sig, lifted, nodes
         gc.collect()
         return self._runner(plan, values)

@@ -25,6 +25,7 @@ from fastforks._core.patch import base_type, override
 from fastforks._core.sampling import grid_sample
 from fastforks.interpolation._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 
 from .net import IFNet
@@ -112,9 +113,13 @@ def _interpolate(
     b, _, h, w = x.shape
     feat = torch.cat((net.encode(x[:, :3]), net.encode(x[:, 3:6])), 0)  # per image, as upstream (faster than batched)
     nf = feat.shape[1]
-    src = torch.empty(2 * b, 3 + nf, h, w, device=dev)  # both sides' image + features, side-major, float32
-    src[:, :3].copy_(torch.cat((x[:, :3], x[:, 3:6]), 0))
-    src[:, 3:].copy_(feat)
+    exporting = torch.compiler.is_exporting()  # a graph (MLX): concatenations, not in-place writes (each a full copy)
+    if exporting:
+        src = torch.cat((torch.cat((x[:, :3], x[:, 3:6]), 0).float(), feat.float()), 1)
+    else:
+        src = torch.empty(2 * b, 3 + nf, h, w, device=dev)  # both sides' image + features, side-major, float32
+        src[:, :3].copy_(torch.cat((x[:, :3], x[:, 3:6]), 0))
+        src[:, 3:].copy_(feat)
     flow = tmp = None
     prev = 1
     blocks = [net.block0, net.block1, net.block2, net.block3, net.block4]
@@ -124,22 +129,39 @@ def _interpolate(
         warped = src if flow is None else _warp(src, _at_points(flow, s), _grid(py, px, h, w))
         side = _pool(_at_points(warped, s) if flow is None else warped, s).view(2, b, 3 + nf, hs, ws).transpose(0, 1)
         extra = 0 if tmp is None else tmp.shape[1]  # mask + features (9), flow (4)
-        inp = torch.empty(b, 7 + 2 * nf + extra, hs, ws, device=dev, dtype=dtype)  # the block input, cast once
-        inp[:, :6].view(b, 2, 3, hs, ws).copy_(side[:, :, :3])  # image 1, image 2
-        inp[:, 6 : 6 + 2 * nf].view(b, 2, nf, hs, ws).copy_(side[:, :, 3:])  # features 1, features 2
-        c = 6 + 2 * nf
-        if isinstance(timestep, torch.Tensor):
-            inp[:, c : c + 1].copy_(timestep.expand(b, 1, hs, ws))
+        if exporting:
+            t_plane = (
+                timestep.expand(b, 1, hs, ws)
+                if isinstance(timestep, torch.Tensor)
+                else side.new_full((b, 1, hs, ws), timestep)
+            )
+            parts = [
+                side[:, :, :3].reshape(b, 6, hs, ws),
+                side[:, :, 3:].reshape(b, 2 * nf, hs, ws),
+                t_plane.to(side.dtype),
+            ]
+            if tmp is not None and flow is not None:
+                parts += [_pool(_upsampled(tmp[:, 4:], s, (py, px), (h, w)), s), _pool(_at_points(flow, s), s) / s]
+            inp = torch.cat(parts, 1).to(dtype)
         else:
-            inp[:, c : c + 1].fill_(timestep)
-        if tmp is not None and flow is not None:  # mask and features of the last block, its flow (block scale units)
-            inp[:, c + 1 : c + extra - 3].copy_(_pool(_upsampled(tmp[:, 4:], s, (py, px), (h, w)), s))
-            inp[:, c + extra - 3 :].copy_(_pool(_at_points(flow, s), s).div_(s))
+            inp = torch.empty(b, 7 + 2 * nf + extra, hs, ws, device=dev, dtype=dtype)  # the block input, cast once
+            inp[:, :6].view(b, 2, 3, hs, ws).copy_(side[:, :, :3])  # image 1, image 2
+            inp[:, 6 : 6 + 2 * nf].view(b, 2, nf, hs, ws).copy_(side[:, :, 3:])  # features 1, features 2
+            c = 6 + 2 * nf
+            if isinstance(timestep, torch.Tensor):
+                inp[:, c : c + 1].copy_(timestep.expand(b, 1, hs, ws))
+            else:
+                inp[:, c : c + 1].fill_(timestep)
+            if (
+                tmp is not None and flow is not None
+            ):  # mask and features of the last block, its flow (block scale units)
+                inp[:, c + 1 : c + extra - 3].copy_(_pool(_upsampled(tmp[:, 4:], s, (py, px), (h, w)), s))
+                inp[:, c + extra - 3 :].copy_(_pool(_at_points(flow, s), s).div_(s))
         tmp = _block(block, inp.contiguous(memory_format=torch.channels_last) if channels_last else inp)
         up = tmp[:, :4].float()
         if s > 1:
             up = F.interpolate(up, scale_factor=s, mode="bilinear", align_corners=False)
-        flow = (up * s).contiguous() if flow is None else flow.add_(up, alpha=s)
+        flow = (up * s).contiguous() if flow is None else (flow + up * s if exporting else flow.add_(up, alpha=s))
         prev = s
     if tmp is None or flow is None:
         msg = "RIFE needs at least one block scale"
@@ -239,4 +261,8 @@ class Kernels(Portable):
             self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_forward",)),
+}

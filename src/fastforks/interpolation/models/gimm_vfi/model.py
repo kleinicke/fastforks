@@ -14,6 +14,7 @@ computes every iteration's and keeps the last), and the correlation lookups go t
 
 from __future__ import annotations
 
+import contextlib
 import math
 from dataclasses import dataclass
 from types import SimpleNamespace
@@ -27,6 +28,7 @@ from fastforks._core.patch import base_type, override
 from fastforks._core.sampling import grid_sample
 from fastforks.interpolation._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
 
 from .net import GIMMVFI_R
 from .net.modules.fi_components import ResBlock
@@ -348,8 +350,10 @@ class Portable(Runner):
         self.make: Callable = _VolumeCorr
 
     def _forward(self, image1: torch.Tensor, image2: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
-        fp16 = self.ctx.dtype == "float16"
-        with torch.autocast(image1.device.type, torch.float16, enabled=fp16):
+        fp16 = self.ctx.dtype == "float16" and not torch.compiler.is_exporting()  # MLX casts the graph itself
+        with (
+            torch.autocast(image1.device.type, torch.float16) if fp16 else contextlib.nullcontext()
+        ):  # not `enabled=False`: export wraps it
             return _interpolate(self.net, image1, image2, t, self.ctx.params, make=self.make).float()
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> dict[str, torch.Tensor]:
@@ -425,4 +429,8 @@ class Kernels(Portable):
                 override(m, _hacc_conv)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_forward",)),
+}

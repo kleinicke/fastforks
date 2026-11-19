@@ -38,6 +38,7 @@ flow_filters = [32, 64, 128, 256]
 [modes.portable]
 cuda_dtype = "float16"  # inference.py --fp16 (`model.half()`; the flows and warps run in float32 here)
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc"]  # fp16-accumulate convs, one CUDA graph per input shape; otherwise the portable float16 network

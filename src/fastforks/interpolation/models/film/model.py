@@ -24,6 +24,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import base_type, override
 from fastforks.interpolation._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import Interpolator
@@ -287,7 +288,10 @@ class Portable(Runner):
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> dict[str, torch.Tensor]:
         """The frame at `timestep` of a padded batch."""
-        return {"frame": _frame(self.net, image1, image2, _time(image1, timestep))}
+        return {"frame": self._run(image1, image2, _time(image1, timestep))}
+
+    def _run(self, image1: torch.Tensor, image2: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        return _frame(self.net, image1, image2, t)
 
     def module(self) -> torch.nn.Module:
         """The network; returns the middle frame (time 0.5)."""
@@ -340,4 +344,8 @@ class Kernels(Portable):
         self.graphs.release()
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_run",)),
+}

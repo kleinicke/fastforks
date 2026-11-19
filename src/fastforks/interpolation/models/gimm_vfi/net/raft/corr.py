@@ -93,7 +93,7 @@ class BidirCorrBlock:
 
         corr = torch.matmul(fmap1.transpose(1, 2), fmap2)
         corr = corr.view(batch, ht, wd, 1, ht, wd)
-        return corr / torch.sqrt(torch.tensor(dim).float())
+        return corr / dim**0.5  # fastforks: python scalar (torch.export cannot lift a `torch.tensor` constant)
 
 
 class AlternateCorrBlock:
@@ -124,7 +124,7 @@ class AlternateCorrBlock:
 
         corr = torch.stack(corr_list, dim=1)
         corr = corr.reshape(B, -1, H, W)
-        return corr / torch.sqrt(torch.tensor(dim).float())
+        return corr / dim**0.5  # fastforks: python scalar (torch.export cannot lift a `torch.tensor` constant)
 
 
 class CorrBlock:
@@ -175,4 +175,4 @@ class CorrBlock:
 
         corr = torch.matmul(fmap1.transpose(1, 2), fmap2)
         corr = corr.view(batch, ht, wd, 1, ht, wd)
-        return corr / torch.sqrt(torch.tensor(dim).float())
+        return corr / dim**0.5  # fastforks: python scalar (torch.export cannot lift a `torch.tensor` constant)
