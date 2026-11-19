@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import merge_check
 import select_tests as st
 
 if TYPE_CHECKING:
@@ -133,6 +134,21 @@ def test_mini_k_expression(mini: Path) -> None:
     assert sel.families["fa"]["refs"] == ["fa-x@1", "fa-y@2"]
     assert sel.k("fa") == "test_gpu and ([fa-x or [fa-y)"
     assert sel.as_dict()["families"]["fa"]["k"] == sel.k("fa")
+
+
+def test_golden_only_includes_each_selected_revision_without_a_floor(monkeypatch: pytest.MonkeyPatch) -> None:
+    def require_no_floor() -> None:
+        pytest.fail("golden-only job selection must not load the speed floor")
+
+    monkeypatch.setattr(merge_check, "speed_check", require_no_floor)
+    families = {"fa": {"task": "stereo", "refs": ["fa-x@1", "fa-x@2"]}}
+    jobs = merge_check.jobs({"families": families}, ["fa"], ["portable", "kernels"], golden_only=True)
+    assert [(job["ref"], job["mode"], job["inputs"]) for job in jobs] == [
+        ("fa-x@1", "portable", []),
+        ("fa-x@1", "kernels", []),
+        ("fa-x@2", "portable", []),
+        ("fa-x@2", "kernels", []),
+    ]
 
 
 @pytest.fixture(scope="module")

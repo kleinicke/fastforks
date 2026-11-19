@@ -25,6 +25,12 @@ uv run python tools/select_tests.py LAST_VERIFIED_COMMIT HEAD --json > selection
 uv run python tools/merge_check.py estimate selection.json
 ```
 
+For a correctness-only CUDA check, run the exact selected revisions. Reuse the same results file to resume.
+
+```
+uv run python tools/merge_check.py run selection.json --golden-only --out goldens.jsonl
+```
+
 Run the fast test files listed in `selection.json` with `-m "not gpu and not model"`, then the slow CPU and GPU tests
 for the listed families and any previously failing cases. `tools/merge_check.py run selection.json --out rows.jsonl`
 combines GPU golden checks and speed measurements for selected models; pass a suitable GPU-lock prefix on shared

@@ -4,6 +4,8 @@
     python tools/merge_check.py run SELECTION.json --out ROWS.jsonl [--family F ...] [--prefix CMD] [--force]
     python tools/merge_check.py table SELECTION.json ROWS.jsonl [--family F ...]  # pass / fail per family (markdown)
 
+Add `--golden-only` to the three commands for a correctness check of the exact selected revisions.
+
 SELECTION.json is `tools/select_tests.py --json`. `run` starts one worker per (ref, mode) of the selected families' refs
 that the speed floor (docs/data/speed.jsonl) has, each under `--prefix` (e.g. a GPU lock with a timeout). The worker is
 tools/speed_check.py's own with `golden_step` after its `speed_step` in `MODEL_STEPS`: speed_check times the floor's
@@ -22,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import hashlib
 import importlib
 import importlib.util
 import io
@@ -59,11 +62,22 @@ def speed_check() -> ModuleType:
     return mod
 
 
-def jobs(sel: dict[str, Any], families: list[str], modes: list[str]) -> list[dict[str, Any]]:
+def jobs(
+    sel: dict[str, Any], families: list[str], modes: list[str], *, golden_only: bool = False
+) -> list[dict[str, Any]]:
     """speed_check jobs (ref, task, mode, floor inputs) of the selected families, plus `family`.
 
-    Refs without floor rows get golden-only jobs (no inputs).
+    Refs without floor rows get golden-only jobs (no inputs). A golden-only selection uses the exact revisions
+    from the selector, including when multiple revisions share a benchmark row.
     """
+    if golden_only:
+        return [
+            {"ref": ref, "task": v["task"], "mode": mode, "inputs": [], "family": fam}
+            for fam, v in sorted(sel["families"].items())
+            if not families or fam in families
+            for ref in sorted(set(v["refs"]))
+            for mode in modes
+        ]
     sc = speed_check()
     out = []
     for fam, v in sorted(sel["families"].items()):
@@ -79,6 +93,8 @@ def jobs(sel: dict[str, Any], families: list[str], modes: list[str]) -> list[dic
 
 def estimate_s(job: dict[str, Any], *, profile: bool = False) -> float:
     """Seconds of one job from its floor rows: load, first call and the protocol's calls per input."""
+    if not job["inputs"]:
+        return OVERHEAD_S
     sc = speed_check()
     floor = sc._floor_index()  # noqa: SLF001 - speed_check's floor index
     calls = 1 + sc.WARMUP + sc.ROUNDS * sc.RUNS + sc.WARMUP + sc.RUNS  # first, warm-up, timed, core_ms
@@ -113,6 +129,8 @@ def golden_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls:
     tg = _test_golden()
     ref = model.variant.ref
     row: dict[str, Any] = {**common, "input": GOLDEN, "golden_ref": ref}
+    if "golden_source" in spec:
+        row["golden_source"] = spec["golden_source"]
     t0 = time.perf_counter()
     m = model
     try:
@@ -154,10 +172,28 @@ def _current(sc: ModuleType, r: dict[str, Any]) -> bool:
     return r.get("code_hash", "")[:16] == sc.files_hash(r.get("files", []))
 
 
-def _done(sc: ModuleType, rows: list[dict[str, Any]], job: dict[str, Any]) -> bool:
+def _golden_source(commit: str) -> str:
+    """Identify the tested tree, including edited cards, golden manifests and the test harness."""
+    diff = subprocess.run(["git", "-C", str(ROOT), "diff", "--binary", "HEAD"], capture_output=True, check=True)
+    return f"{commit}:{hashlib.sha256(diff.stdout).hexdigest()}"
+
+
+def _done(sc: ModuleType, rows: list[dict[str, Any]], job: dict[str, Any], *, golden_source: str | None = None) -> bool:
+    if golden_source is not None:
+        last = next(
+            (
+                r
+                for r in reversed(rows)
+                if r.get("side") == "lib"
+                and r.get("input") in {GOLDEN, "-"}
+                and (r["ref"], r["mode"]) == (job["ref"], job["mode"])
+            ),
+            {},
+        )
+        return last.get("golden") == "pass" and last.get("golden_source") == golden_source and _current(sc, last)
     golden = [r for r in rows if r.get("input") == GOLDEN and (r["ref"], r["mode"]) == (job["ref"], job["mode"])]
     ok = bool(golden) and golden[-1].get("golden") in {"pass", "skip"} and _current(sc, golden[-1])
-    return ok and sc._done(rows, "lib", job)  # noqa: SLF001 - speed_check's resume rule
+    return ok and (not job["inputs"] or sc._done(rows, "lib", job))  # noqa: SLF001 - speed_check's resume rule
 
 
 def run(a: argparse.Namespace) -> int:
@@ -165,13 +201,16 @@ def run(a: argparse.Namespace) -> int:
     sel = json.loads(a.selection.read_text())
     rows = sc.read_rows(a.out)
     commit = sc._commit()  # noqa: SLF001
+    golden_source = _golden_source(commit) if a.golden_only else None
     env = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(ROOT / "src"), os.environ.get("PYTHONPATH")]))}
-    for job in jobs(sel, a.family, a.modes):
+    for job in jobs(sel, a.family, a.modes, golden_only=a.golden_only):
         tag = f"{job['family']} {job['ref']} {job['mode']}"
-        if not a.force and _done(sc, rows, job):
+        if not a.force and _done(sc, rows, job, golden_source=golden_source):
             print(f"== {tag}: done on this code", flush=True)
             continue
         spec = job | {"side": "lib", "out": str(a.out), "commit": commit, "forks": "", "fork_key": ""}
+        if golden_source is not None:
+            spec["golden_source"] = golden_source
         spec["no_profile"] = not a.profile
         print(f"== {tag} {time.strftime('%T')} (estimate {estimate_s(job, profile=a.profile):.0f} s)", flush=True)
         before = len(rows)
@@ -182,7 +221,7 @@ def run(a: argparse.Namespace) -> int:
             err = {k: job[k] for k in ("ref", "task", "mode")} | {"side": "lib", "input": "-", "commit": commit}
             sc._append(a.out, err | {"error": f"worker rc={rc}", "date": time.strftime("%F")})  # noqa: SLF001
             rows = sc.read_rows(a.out)
-    return table(sel, a.out, a.family, a.modes)
+    return table(sel, a.out, a.family, a.modes, golden_only=a.golden_only)
 
 
 def _regressions(sc: ModuleType, path: Path) -> dict[tuple[str, str, str], str]:
@@ -205,7 +244,7 @@ def _job_line(
     n: dict[str, int],
 ) -> str:
     """One markdown row of a job; counts its golden and input outcomes into `n`."""
-    floor = speed_check()._floor_index()  # noqa: SLF001
+    floor = speed_check()._floor_index() if j["inputs"] else {}  # noqa: SLF001
     g = latest.get((j["ref"], j["mode"], GOLDEN), {})
     if latest.get((j["ref"], j["mode"], "-"), {}).get("_i", -1) > g.get("_i", -1):  # load / worker error is the last
         n["error"] += 1
@@ -234,16 +273,24 @@ def _job_line(
     return f"| {fam} | {j['ref']} | {j['mode']} | {gold} | {first.get('load_s', '-')} | {'; '.join(cells)} |"
 
 
-def table(sel: dict[str, Any], path: Path, families: list[str], modes: list[str]) -> int:
+def table(sel: dict[str, Any], path: Path, families: list[str], modes: list[str], *, golden_only: bool = False) -> int:
     """Markdown: one line per family (verdict), then one per job (golden error, ms vs floor, peak MB)."""
     sc = speed_check()
-    reg = _regressions(sc, path)
+    reg = {} if golden_only else _regressions(sc, path)
+    golden_source = _golden_source(sc._commit()) if golden_only else None  # noqa: SLF001
     latest: dict[tuple[str, str, str], dict[str, Any]] = {}
     for i, r in enumerate(sc.read_rows(path)):
-        if r.get("side") == "lib":
-            latest[r["ref"], r["mode"], r.get("input", "-")] = r | {"_i": i}
+        if r.get("side") != "lib":
+            continue
+        if (
+            golden_only
+            and r.get("input") == GOLDEN
+            and (r.get("golden_source") != golden_source or not _current(sc, r))
+        ):
+            continue
+        latest[r["ref"], r["mode"], r.get("input", "-")] = r | {"_i": i}
     by_family: dict[str, list[dict[str, Any]]] = {}
-    for j in jobs(sel, families, modes):
+    for j in jobs(sel, families, modes, golden_only=golden_only):
         by_family.setdefault(j["family"], []).append(j)
     fam_lines, job_lines, bad = [], [], 0
     for fam, js in by_family.items():
@@ -276,7 +323,9 @@ def main() -> int:
             p.add_argument("out", type=Path)
         p.add_argument("--family", nargs="*", default=[])
         p.add_argument("--modes", nargs="*", default=["portable", "kernels"])
-        p.add_argument("--profile", action="store_true", help="also speed_check's profile of one input")
+        kind = p.add_mutually_exclusive_group()
+        kind.add_argument("--profile", action="store_true", help="also speed_check's profile of one input")
+        kind.add_argument("--golden-only", action="store_true", help="only check goldens of the selected revisions")
     p = sub.choices["run"]
     p.add_argument("--out", type=Path, required=True)
     p.add_argument("--prefix", default="", help="command prefix of each worker, e.g. a GPU lock with a timeout")
@@ -289,8 +338,8 @@ def main() -> int:
     if a.cmd == "run":
         return run(a)
     if a.cmd == "table":
-        return table(sel, a.out, a.family, a.modes)
-    js = jobs(sel, a.family, a.modes)
+        return table(sel, a.out, a.family, a.modes, golden_only=a.golden_only)
+    js = jobs(sel, a.family, a.modes, golden_only=a.golden_only)
     per: dict[str, float] = {}
     for j in js:
         per[j["family"]] = per.get(j["family"], 0.0) + estimate_s(j, profile=a.profile)
