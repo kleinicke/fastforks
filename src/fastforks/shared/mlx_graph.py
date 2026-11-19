@@ -842,7 +842,11 @@ def _nchw(x: mx.array) -> mx.array:
 
 
 WINO_TILE = int(os.environ.get("FF_WINO_M", "4"))  # Winograd output tile (2 or 4) of the kernels-mode 3x3 convolution
-_WINO: dict[int, tuple[mx.array, mx.array]] = {}  # id(weight) -> (weight, its Winograd-domain form), per GraphNet
+_WINO: dict[
+    Any, tuple[mx.array, mx.array]
+] = {}  # (id(weight), tile) -> (weight, its Winograd-domain form), per GraphNet
+WINO_LAZY_MB = float(os.environ.get("FF_WINO_LAZY_MB", "4"))  # transformed weights above this size are made per call
+WINO_SMALL_HW = 16 * 16  # a map of at most this many pixels uses F(2,3): its weights are 1.8x (not 4x) the 3x3 kernel
 
 
 def _wino_ok(
@@ -873,21 +877,30 @@ def _wino3d_ok(
 
 def _wino3d_weights(w: mx.array, dtype: mx.Dtype) -> mx.array:
     """The stacked-tap Winograd weights of the constant 3x3x3 kernel `w` (cached like `_wino_weights`)."""
-    hit = _WINO.get(-id(w))
+    hit = _WINO.get((-id(w), 4))
     if hit is None:
         from fastforks.kernels.conv_mlx import ops as conv_ops
 
-        hit = _WINO[-id(w)] = (w, conv_ops.weights3d(mx.transpose(w, (0, 2, 3, 4, 1)), 4, dtype))
+        hit = _WINO[-id(w), 4] = (w, conv_ops.weights3d(mx.transpose(w, (0, 2, 3, 4, 1)), 4, dtype))
     return hit[1]
 
 
-def _wino_weights(w: mx.array, wl: mx.array, dtype: mx.Dtype) -> mx.array:
-    """The Winograd-domain weights of constant `w`, made on first use (also while a segment is being traced)."""
-    hit = _WINO.get(id(w))
+def _wino_tile(xl: mx.array) -> int:
+    """The Winograd tile of this NHWC input: F(2,3) on tiny maps (16x16 with 512 channels: 0.20 ms against 0.36 for F(4,3),
+    and 8 MB of weights per layer, not 18), else `WINO_TILE`."""
+    return 2 if xl.shape[1] * xl.shape[2] <= WINO_SMALL_HW else WINO_TILE
+
+
+def _wino_weights(w: mx.array, wl: mx.array, dtype: mx.Dtype, m: int) -> mx.array:
+    """The tile-`m` Winograd-domain weights of constant `w`, made on first use (also while a segment is being traced)."""
+    hit = _WINO.get((id(w), m))
     if hit is None:
         from fastforks.kernels.conv_mlx import ops as conv_ops
 
-        hit = _WINO[id(w)] = (w, conv_ops.weights(wl, WINO_TILE, dtype))  # `w` stays referenced so its id is not reused
+        if (m + 2) ** 2 * w.shape[0] * w.shape[1] * dtype.size > WINO_LAZY_MB * (1 << 20):
+            # a big layer's transformed weights are not held (4x the kernel for F(4,3)): one layer's transient per call
+            return conv_ops.weights_graph(wl, m, dtype)
+        hit = _WINO[id(w), m] = (w, conv_ops.weights(wl, m, dtype))  # `w` stays referenced so its id is not reused
     return hit[1]
 
 
@@ -950,7 +963,8 @@ def _conv_res(  # noqa: PLR0913
             from fastforks.kernels.conv_mlx import ops as conv_ops
 
             wl = mx.transpose(w, (0, 2, 3, 1))
-            return _nchw(conv_ops.conv3x3(xl, _wino_weights(w, wl, xl.dtype), b, m=WINO_TILE, residual=_nhwc(residual)))
+            m = _wino_tile(xl)
+            return _nchw(conv_ops.conv3x3(xl, _wino_weights(w, wl, xl.dtype, m), b, m=m, residual=_nhwc(residual)))
     return _conv(x, w, b, stride, padding, dilation, transposed, output_padding, groups) + residual
 
 
@@ -1134,7 +1148,8 @@ def _conv_core(  # noqa: PLR0913
         if _KERNELS and _wino_ok(xl, w, stride, padding, dilation, groups):
             from fastforks.kernels.conv_mlx import ops as conv_ops
 
-            return _nchw(conv_ops.conv3x3(xl, _wino_weights(w, wl, xl.dtype), b, m=WINO_TILE, act=act, slope=slope))
+            m = _wino_tile(xl)
+            return _nchw(conv_ops.conv3x3(xl, _wino_weights(w, wl, xl.dtype, m), b, m=m, act=act, slope=slope))
         if act:
             return None
         y = mx.conv2d(xl, wl, stride=tuple(stride), padding=tuple(padding), dilation=tuple(dilation), groups=groups)
@@ -1690,8 +1705,9 @@ class GraphNet:
         compile: bool = True,
         kernels: bool = False,
         shared: dict[str, Any] | None = None,
+        chunk_mb: int = 0,
     ) -> None:
-        """Keep the module until its first export; parameters convert then."""
+        """Keep the module until its first export; parameters convert then (`chunk_mb`: see `_runner`, 0 = `CHUNK_MB`)."""
         self.module = module.eval()
         for m in self.module.modules():  # a buffer computed from parameters (position biases) is a non-leaf tensor
             for name, b in m._buffers.items():
@@ -1704,11 +1720,12 @@ class GraphNet:
         self.max_act = 0
         self.weight_bytes = 0
         self.kernels = kernels
+        self.chunk_mb = chunk_mb
         self._runs: dict[tuple[Any, ...], Callable[..., Any]] = {}
         self.on_built: Callable[[], None] | None = None  # called after each export, before its first run
         self._wino: dict[
-            int, tuple[mx.array, mx.array]
-        ] = {}  # kernels mode: Winograd-domain weights of 3x3 convolutions
+            Any, tuple[mx.array, mx.array]
+        ] = {}  # kernels mode: Winograd-domain weights of 3x3 convolutions, by (id(weight), tile)
         self._consts: dict[str, Any] = {} if shared is None else shared
         self._consumed: set[str] = self._consts.setdefault(_CONSUMED, set())  # twin tensors the MLX side has taken over
 
@@ -2004,7 +2021,7 @@ class GraphNet:
         out_refs = set(_refs(out_names))
         # a net with big weights peaks while loading (the float32 twin), not while running: checkpoint rarely there
         big = min(self.weight_bytes, BIG_CHUNK_MB << 20) if self.weight_bytes >= BIG_WEIGHTS else 0
-        chunk = max(int(os.environ.get("FF_MLX_CHUNK_MB", CHUNK_MB)) << 20, big)
+        chunk = max(int(os.environ.get("FF_MLX_CHUNK_MB", self.chunk_mb or CHUNK_MB)) << 20, big)
         cuts, pending = [0], 0
         for k, (_, p) in enumerate(steps):
             pending += self._sizes.get(p[1], 0)
@@ -2182,8 +2199,9 @@ class MlxModule:
         kernels: bool = False,
         release: bool = False,
         compile: bool = True,  # noqa: A002 - mirrors `GraphNet`
+        chunk_mb: int = 0,
     ) -> None:
-        """Wrap `module` (eval mode, CPU).
+        """Wrap `module` (eval mode, CPU). `chunk_mb`: `GraphNet`'s checkpoint interval (0: `CHUNK_MB`).
 
         `release=True`: once the first export has moved a parameter or buffer to MLX, the module's own tensor is
         replaced by a one-element stand-in of the same shape (a float32 twin of a 340M-parameter network is 1.4 GB).
@@ -2196,6 +2214,7 @@ class MlxModule:
         self.kernels = kernels
         self.release = release
         self.compile = compile
+        self.chunk_mb = chunk_mb
         self._nets: dict[Any, tuple[GraphNet, _Flat]] = {}
         if release:
             for _, t in _tensors(self.module):
@@ -2208,7 +2227,14 @@ class MlxModule:
         if key not in self._nets:
             flat = _Flat(self.module, spec, leaves)
             self._nets[key] = (
-                GraphNet(flat, self.dtype, compile=self.compile, kernels=self.kernels, shared=self._consts()),
+                GraphNet(
+                    flat,
+                    self.dtype,
+                    compile=self.compile,
+                    kernels=self.kernels,
+                    shared=self._consts(),
+                    chunk_mb=self.chunk_mb,
+                ),
                 flat,
             )
         net, flat = self._nets[key]

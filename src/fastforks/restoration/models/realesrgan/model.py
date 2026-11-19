@@ -168,7 +168,13 @@ RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "portable_mlx": mlx_wrap.port(Portable),
-    "kernels_mlx": mlx_wrap.port(Portable, kernels_fp16_only=True, cache_mb=1024),
+    # the cache is resident memory: each variant gets the smallest one that keeps its speed (survey, 512x512 float16)
+    "kernels_mlx": mlx_wrap.port(
+        Portable,
+        kernels_fp16_only=True,
+        cache_mb={"realesrgan-x2plus": 128, "realesrgan-x4plus": 768, "realesrgan-x4plus-anime-6b": 512},
+        chunk_mb={"realesrgan-x2plus": 1024, "realesrgan-x4plus": 1024, "realesrgan-x4plus-anime-6b": 1024},
+    ),
 }
 
 # ESRGAN's original `model.N` layout (old-arch ESRGAN files, e.g. 4x-UltraSharp) -> BasicSR's RRDBNet names

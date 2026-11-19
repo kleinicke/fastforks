@@ -22,7 +22,7 @@ import torch
 from fastforks.shared.mlx_graph import MlxModule
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import Callable, Iterator, Mapping
 
     from fastforks._core.runner import Context, Runner
 
@@ -125,6 +125,11 @@ def _resolve(obj: Any, path: str) -> Any:  # noqa: ANN401
     return obj
 
 
+def _per_variant(value: int | Mapping[str, int], variant_id: str) -> int:
+    """`value`, or its entry for `variant_id` (key `""` for the others)."""
+    return value if isinstance(value, int) else value.get(variant_id, value.get("", 0))
+
+
 def port(  # noqa: C901 - one builder for the four wrapping styles
     portable: type[Runner],
     *,
@@ -135,7 +140,8 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
     kernels_fp16_only: bool = False,
     fp32_methods: tuple[str, ...] = (),
     compile: bool = True,  # noqa: A002 - mirrors `MlxModule`
-    cache_mb: int = 0,
+    cache_mb: int | Mapping[str, int] = 0,
+    chunk_mb: int | Mapping[str, int] = 0,
 ) -> type[Runner]:
     """The MLX runner of `portable`: same call, the module(s) named by `attrs` run on MLX in `ctx.dtype`.
 
@@ -154,6 +160,12 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
     `cache_mb`: raise the MLX buffer cache limit to at least this many MB. An iterative net (a GRU loop) allocates the
     same large temporaries every step; with the small default cache each one is a fresh Metal allocation (zero-filled
     pages), which costs more than the step's arithmetic (RAFT-Stereo 994x1482: 7.3 s at 128 MB, 4.0 s at 2 GB).
+
+    A mapping gives the value per variant id (key `""`: the default for the others): the Winograd nets differ in how much
+    cache their transients need (RealESRGAN x2plus 128 MB, x4plus 768 MB), and the cache is resident memory.
+
+    `chunk_mb`: the MLX graph's checkpoint interval in MB of new activations (0: the default 256; a larger one evaluates
+    less often, which the big-activation Winograd nets need at a small cache); a mapping as for `cache_mb`.
 
     `kernels_fp16_only=True`: the kernels mode uses its Metal kernels in float16 only (float32 runs as portable).
     """
@@ -175,35 +187,45 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                     super().__init__(dataclasses.replace(ctx, dtype="float32"))
             finally:
                 _RUN_DTYPE.reset(token)
-            if cache_mb or os.environ.get("FASTFORKS_MLX_CACHE_MB"):
+            cache = _per_variant(cache_mb, ctx.variant.id)
+            chunk = _per_variant(chunk_mb, ctx.variant.id)
+            if cache or os.environ.get("FASTFORKS_MLX_CACHE_MB"):
                 from fastforks._core.mlx import mx  # noqa: PLC0415 - MLX only
 
                 if forced := os.environ.get("FASTFORKS_MLX_CACHE_MB"):  # sweeps: this exact limit, declared or not
                     mx.set_cache_limit(int(forced) << 20)
                 else:
-                    mx.set_cache_limit(max(cache_mb << 20, mx.set_cache_limit(0)))  # returns the previous limit
+                    mx.set_cache_limit(max(cache << 20, mx.set_cache_limit(0)))  # returns the previous limit
             kernels = ctx.mode == "kernels" and (ctx.dtype == "float16" or not kernels_fp16_only)
             for name in methods:
                 owner, _, leaf = name.rpartition(".")
                 host = _resolve(self, owner) if owner else self
                 dtype = "float32" if name in fp32_methods else ctx.dtype
                 if isinstance(host, torch.nn.Module):  # a method of a submodule: it owns the weights it computes with
-                    mod = MlxModule(_Method(getattr(host, leaf), host), dtype, kernels=kernels, compile=compile)
+                    mod = MlxModule(
+                        _Method(getattr(host, leaf), host), dtype, kernels=kernels, compile=compile, chunk_mb=chunk
+                    )
                     object.__setattr__(host, leaf, mod)  # the instance entry beats the class's function
                 else:
                     net = getattr(self, net_attr)
                     setattr(
                         host,
                         leaf,
-                        MlxModule(_Method(getattr(host, leaf), net), dtype, kernels=kernels, compile=compile),
+                        MlxModule(
+                            _Method(getattr(host, leaf), net), dtype, kernels=kernels, compile=compile, chunk_mb=chunk
+                        ),
                     )
             if whole:
-                self._whole = MlxModule(self.module(), ctx.dtype, kernels=kernels, release=True, compile=compile)
+                self._whole = MlxModule(
+                    self.module(), ctx.dtype, kernels=kernels, release=True, compile=compile, chunk_mb=chunk
+                )
                 return
             for name in attrs:
                 owner, _, leaf = name.rpartition(".")
                 host = _resolve(self, owner) if owner else self
-                mod = MlxModule(getattr(host, leaf), ctx.dtype, kernels=kernels, release=True, compile=compile)
+                mod = MlxModule(
+                    getattr(host, leaf), ctx.dtype, kernels=kernels, release=True, compile=compile, chunk_mb=chunk
+                )
                 if isinstance(host, torch.nn.Module):  # the MLX callable is no child module
                     host._modules.pop(leaf, None)  # noqa: SLF001 - the module registry
                     object.__setattr__(host, leaf, mod)

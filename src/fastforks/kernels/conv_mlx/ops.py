@@ -169,6 +169,20 @@ def weights(w: mx.array, m: int, dtype: mx.Dtype) -> mx.array:
     return out
 
 
+def weights_graph(w: mx.array, m: int, dtype: mx.Dtype) -> mx.array:
+    """`weights(w, m, dtype)` as MLX ops (float32 `kron(G, G)` GEMM), for a weight that may be a graph node.
+
+    Computed inside the replayed graph on every call instead of held: a large layer's transformed weights (4x the
+    kernel for F(4,3)) then cost one layer's transient, not their size for the life of the model. float32 accumulation,
+    so the result differs from `weights` (float64) by float32 rounding only.
+    """
+    o, kh, kw, c = w.shape
+    gm = np.array(_MATS[m]["G"], dtype=np.float64)
+    kron = mx.array(np.kron(gm, gm).astype(np.float32))  # [(a, b), (i, j)]
+    wm = mx.transpose(w.astype(mx.float32), (1, 2, 3, 0)).reshape(kh * kw, c * o)
+    return mx.matmul(kron, wm).reshape((m + 2) ** 2, c, o).astype(dtype)
+
+
 def supported(x_shape: tuple[int, ...], cout: int) -> bool:
     """Whether `conv3x3` handles an NHWC input of this shape (channels even) and is likely to beat `mx.conv2d`.
 
