@@ -72,7 +72,7 @@ def test_overlapping_chunks_of_two_sizes_are_refused():
 
 
 def test_write_keeps_rows_it_did_not_collect():
-    """--write replaces only the (ref, mode, dataset) rows it collected; other rows stay byte-identical, in order."""
+    """--write replaces only the (ref, tier, dataset) rows it collected; other rows stay byte-identical, in order."""
     old = [
         '{"ref": "a", "mode": "portable", "dataset": "nyu", "n": 1}  \n',
         '{"ref": "b", "mode": "portable32", "dataset": "nyu", "n": 2}\n',
@@ -86,3 +86,19 @@ def test_write_keeps_rows_it_did_not_collect():
         old[3],
         '{"ref": "a", "mode": "kernels", "dataset": "nyu", "n": 9}\n',
     ]
+
+
+def test_write_replaces_only_matching_accuracy_tiers():
+    old = [
+        '{"ref":"a", "mode":"portable", "tier":"portable", "dataset":"nyu", "n":1}\n',
+        '{"ref":"a", "mode":"portable", "tier":"portable32", "dataset":"nyu", "n":2}\n',
+        '{"ref":"a", "mode":"upstream", "tier":"upstream", "dataset":"nyu", "n":3}\n',
+        '{"ref":"a", "mode":"upstream", "tier":"upstream16", "dataset":"nyu", "n":4}\n',
+        '{"ref":"b", "mode":"portable32", "dataset":"nyu", "n":5}\n',
+    ]
+    new = [
+        {"ref": "a", "mode": "portable", "tier": "portable", "dataset": "nyu", "n": 6},
+        {"ref": "a", "mode": "upstream-fp16", "tier": "upstream16", "dataset": "nyu", "n": 7},
+        {"ref": "b", "mode": "portable", "tier": "portable32", "dataset": "nyu", "n": 8},
+    ]
+    assert acc_collect.merge_lines(old, new) == [old[1], old[2], *(json.dumps(row) + "\n" for row in new)]
