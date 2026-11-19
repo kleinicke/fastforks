@@ -308,10 +308,10 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 14 models; size 1080x1920.
 
 - Fastest: [`u2netp`](models/matting.md#u²-net) (2.9 ms).
-- Most accurate: [`birefnet`](models/matting.md#birefnet) (121.1 ms, error 0.0325).
+- Most accurate: [`birefnet`](models/matting.md#birefnet) (120.9 ms, error 0.0325).
 - Best trade-off: [`ben2`](models/matting.md#ben2) (105.2 ms, error 0.0403).
 - Fastest commercially usable: [`u2netp`](models/matting.md#u²-net) (2.9 ms).
-- Most accurate commercially usable: [`birefnet`](models/matting.md#birefnet) (121.1 ms, error 0.0325).
+- Most accurate commercially usable: [`birefnet`](models/matting.md#birefnet) (120.9 ms, error 0.0325).
 
 | model | commercial use | DIS-VD MAE | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|---|
@@ -321,12 +321,12 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`isnet-general-use`](models/matting.md#is-net) | yes | – | 38.5 (1080x1920) | 21.0 | 12.1 | 3.2x vs original (1080x1920) | 487 |
 | [`isnet`](models/matting.md#is-net) | yes | – | 38.5 (1080x1920) | 21.0 | 12.1 | 3.2x vs original (1080x1920) | 487 |
 | [`inspyrenet-fast`](models/matting.md#inspyrenet) | yes | – | 71.1 (1080x1920) | 41.7 | 15.5 | 4.6x vs original (1080x1920) | 432 |
-| [`birefnet-lite`](models/matting.md#birefnet) | yes | – | 75.1 (1080x1920) | 58.0 | 48.1 | 1.6x vs original (1080x1920) | 754 |
+| [`birefnet-lite`](models/matting.md#birefnet) | yes | – | 75.1 (1080x1920) | 58.1 | 47.6 | 1.6x vs original (1080x1920) | 594 |
 | [`vitmatte-s`](models/matting.md#vitmatte) | yes | – | 140.2 (1080x1920) | 101.9 | 84.1 | 1.7x vs original (1080x1920) | 1305 |
 | [`ben2`](models/matting.md#ben2) | yes | 0.0403 | 200.6 (1080x1920) | 115.0 | 105.2 | 1.9x vs original (1080x1920) | 1046 |
 | [`inspyrenet`](models/matting.md#inspyrenet) | yes | – | 240.9 (1080x1920) | 108.5 | 107.9 | 2.2x vs original (1080x1920) | 1649 |
-| [`birefnet`](models/matting.md#birefnet) | yes | 0.0325 | 234.4 (1080x1920) | 131.4 | 121.1 | 1.9x vs original (1080x1920) | 1674 |
-| [`rmbg-2.0`](models/matting.md#birefnet) | no | – | 149.0 (1080x1920) | 131.5 | 121.4 | 1.2x vs original (1080x1920) | 1674 |
+| [`rmbg-2.0`](models/matting.md#birefnet) | no | – | 149.0 (1080x1920) | 132.9 | 120.8 | 1.2x vs original (1080x1920) | 1145 |
+| [`birefnet`](models/matting.md#birefnet) | yes | 0.0325 | 234.4 (1080x1920) | 132.9 | 120.9 | 1.9x vs original (1080x1920) | 1145 |
 | [`vitmatte-b`](models/matting.md#vitmatte) | yes | – | 257.3 (1080x1920) | 180.5 | 145.5 | 1.8x vs original (1080x1920) | 747 |
 | [`matanyone`](models/matting.md#matanyone) | no | – | 1219.9 (1080x1920) | 1202.5 | 910.7 | 1.3x vs original (1080x1920) | 2268 |
 
@@ -346,7 +346,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`mlsd`](models/edges.md#m-lsd-line-segments) | yes | 35.6 (1080x1920) | 7.7 | 7.0 (1024x1024) | 1.1x vs portable | 72 |
 | [`lineart`](models/edges.md#line-art-informative-drawings) | yes | 29.8 (1080x1920) | 9.9 | 8.5 (1024x1024) | 1.2x vs portable | 126 |
 | [`lineart-coarse`](models/edges.md#line-art-informative-drawings) | yes | 30.4 (1080x1920) | 9.9 | 8.5 (1024x1024) | 1.2x vs portable | 126 |
-| [`anyline`](models/edges.md#anyline-line-art) | yes | 585.1 (1080x1920) | 24.0 | 18.8 (1024x1024) | 1.3x vs portable | 362 |
+| [`anyline`](models/edges.md#anyline-line-art) | yes | 585.1 (1080x1920) | 21.0 | 18.8 (1024x1024) | 1.1x vs portable | 362 |
 
 ## Promptable segmentation
 

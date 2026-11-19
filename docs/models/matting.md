@@ -13,14 +13,14 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | model | commercial | DIS-VD MAE ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
 | [`ben2`](#ben2) | yes | 0.0403 | 105, 1.9x | 1118, 0.4x |
-| [`birefnet`](#birefnet) | yes | 0.0325 | 121, 1.9x | 1916, 0.99x |
-| [`birefnet-lite`](#birefnet) | yes | – | 48.1, 1.6x | 960, 0.99x |
+| [`birefnet`](#birefnet) | yes | 0.0325 | 121, 1.9x | 1256, 0.65x |
+| [`birefnet-lite`](#birefnet) | yes | – | 47.6, 1.6x | 660, 0.68x |
 | [`inspyrenet`](#inspyrenet) | yes | – | 108, 2.2x | 1874, 0.57x |
 | [`inspyrenet-fast`](#inspyrenet) | yes | – | 15.5, 4.6x | 514, 0.61x |
 | [`isnet`](#isnet) | yes | – | 12.1, 3.2x | 522, 0.5x |
 | [`isnet-general-use`](#isnet) | yes | – | 12.1, 3.2x | 522, 0.5x |
 | [`matanyone`](#matanyone) | no | – | 911, 1.3x | 2706, 0.84x |
-| [`rmbg-2.0`](#birefnet) | no | – | 121, 1.2x | 1936, 0.97x |
+| [`rmbg-2.0`](#birefnet) | no | – | 121, 1.2x | 1296, 0.65x |
 | [`u2net`](#u2net) | yes | – | 5.18, 3.1x | 236, 0.47x |
 | [`u2net-human-seg`](#u2net) | yes | – | 5.14, 3.1x | 236, 0.47x |
 | [`u2netp`](#u2net) | yes | – | 2.92, 5.1x | 124, 0.39x |
@@ -88,9 +88,9 @@ Commercial use: `birefnet`, `birefnet-lite`: yes; `rmbg-2.0`: **no** (weights: C
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `birefnet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>131<br>121<br>138<br>87.8 | 1666 / 1930<br>1660 / 1908<br>1674 / 1916<br>1874 / 1932<br>1753 / 1814 |
-| `birefnet-lite` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 75.1<br>58.0<br>48.1<br>50.2<br>49.0 | 913 / 974<br>810 / 952<br>754 / 960<br>1469 / 1552<br>874 / 934 |
-| `rmbg-2.0` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 149<br>132<br>121<br>110<br>88.1 | 1672 / 1990<br>1660 / 1908<br>1674 / 1936<br>1874 / 1932<br>1723 / 1784 |
+| `birefnet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>133<br>121<br>138<br>87.8 | 1666 / 1930<br>1165 / 1288<br>1145 / 1256<br>1874 / 1932<br>1753 / 1814 |
+| `birefnet-lite` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 75.1<br>58.1<br>47.6<br>50.2<br>49.0 | 913 / 974<br>748 / 792<br>594 / 660<br>1469 / 1552<br>874 / 934 |
+| `rmbg-2.0` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 149<br>133<br>121<br>110<br>88.1 | 1672 / 1990<br>1165 / 1288<br>1145 / 1296<br>1874 / 1932<br>1723 / 1784 |
 
 <details><summary>Details</summary>
 
@@ -110,8 +110,11 @@ Commercial use: `birefnet`, `birefnet-lite`: yes; `rmbg-2.0`: **no** (weights: C
 - `birefnet-lite` 1080x1920, first call: portable + torch.compile 75 s (cold Inductor cache), TensorRT fp16 156 s (ONNX + engine).
 - `rmbg-2.0` 1080x1920, first call: portable + torch.compile 83 s (cold Inductor cache), TensorRT fp16 219 s (ONNX + engine).
 - `birefnet` original 1080x1920: the authors' float16 model option; HF ZhengPeng7/BiRefNet@e2bf8e4460fc birefnet.py, the card's resize / normalisation / sigmoid / resize back
+- `birefnet` portable 1080x1920, kernels 1080x1920: The final eager CUDA FP16 decoder processes row strips with a two-row halo. One synthetic input and an odd-size two-image batch matched bitwise. Three labeled DIS-VD masks also matched bitwise.
 - `birefnet-lite` original 1080x1920: the authors' float16 model option; HF ZhengPeng7/BiRefNet_lite@aa62cd87eafb birefnet.py, the card's resize / normalisation / sigmoid / resize back
+- `birefnet-lite` portable 1080x1920, kernels 1080x1920: The final eager CUDA FP16 decoder processes row strips with a two-row halo. One synthetic input and an odd-size two-image batch matched bitwise. Three labeled DIS-VD masks also matched bitwise.
 - `rmbg-2.0` original 1080x1920: the authors' float16 model option; HF briaai/RMBG-2.0@2fd7b4b0f239 birefnet.py, the card's resize / normalisation / sigmoid / resize back
+- `rmbg-2.0` portable 1080x1920, kernels 1080x1920: The final eager CUDA FP16 decoder processes row strips with a two-row halo. One synthetic input and an odd-size two-image batch matched bitwise.
 - `birefnet` load / first call: original 3.6 s / 0.387 s, portable 0.46 s / 0.556 s, kernels 13.58 s / 0.368 s
 - `birefnet-lite` load / first call: original 8.04 s / 1.104 s, portable 0.67 s / 0.42 s, kernels 0.2 s / 0.471 s
 - `rmbg-2.0` load / first call: original 6.42 s / 0.942 s, portable 0.94 s / 0.494 s, kernels 0.64 s / 0.471 s

@@ -31,8 +31,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `anyline` | synthetic (1080x1920) | original<br>portable<br>kernels | 585<br>50.7<br>– | 909 / 1002<br>654 / 722<br>– |
-| `anyline` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 299<br>24.0<br>18.8<br>11.6<br>12.9 (full line map only; memory estimated) | 509 / 562<br>362 / 384<br>362 / 384<br>306 / 346<br>528 / 542 |
+| `anyline` | synthetic (1080x1920) | original<br>portable<br>kernels | 585<br>47.4<br>– | 909 / 1002<br>654 / 722<br>– |
+| `anyline` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 299<br>21.0<br>18.8<br>11.6<br>12.9 (full line map only; memory estimated) | 509 / 562<br>362 / 384<br>362 / 384<br>306 / 346<br>528 / 542 |
 
 <details><summary>Details</summary>
 
@@ -50,6 +50,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `anyline` 1080x1920 (0.6 GiB peak allocated, 0.7 reserved)
 - `anyline` 1024x1024, first call: portable + torch.compile 40 s (cold Inductor cache), TensorRT fp16 30 s (ONNX + engine).
 - `anyline` original 1080x1920, original 1024x1024: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c anyline, host OpenCV resize, float post-processing
+- `anyline` portable 1080x1920, portable 1024x1024: Eager foreground-component filtering reuses its label buffer. FP16 and FP32 outputs match bitwise on the synthetic input and eight BSDS500 images.
 - `anyline` kernels 1024x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `anyline` load / first call: original 0.11 s / 0.622 s, portable 0.17 s / 0.053 s, kernels 0.15 s / 0.515 s (1024x1024)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -60,8 +61,8 @@ All 200 BSDS500 test images. The benchmark uses the official boundary correspond
 
 | variant | dataset | original fp32 | portable | portable fp32 | note |
 |---|---|---|---|---|---|
-| `anyline` | BSDS500 test (200 images), boundary ODS / OIS / AP % | 50.33 / 53.34 / 22.54 |  | 49.14 / 52.52 / 36.51 |  |
-| `anyline` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 47.91 / 52.07 / 21.22 | 46.56 / 49.99 / 34.80 | 46.57 / 49.97 / 34.80 |  |
+| `anyline` | BSDS500 test (200 images), boundary ODS / OIS / AP % |  |  | 49.14 / 52.52 / 36.51 |  |
+| `anyline` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 45.91 / 50.11 / 33.87 | 46.56 / 49.99 / 34.80 | 46.57 / 49.97 / 34.80 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
 
