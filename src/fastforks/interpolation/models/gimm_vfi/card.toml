@@ -7,6 +7,7 @@ uses = []  # fastforks.shared modules this family imports
 limitations = [
   "At 480 x 854 the standalone GIMM-VFI-R FP32 TensorRT engine returned different frames from portable FP32. Mean normalized absolute pixel error was 0.07687. The same ONNX file run in ONNX Runtime measured 0.000029.",
   "At 480 x 854 the FP32 GIMM-VFI-R-P TensorRT encoders took 1190 ms versus 1231 ms for paired portable FP32. Estimated peak allocated memory was 3592 MiB versus 3282 MiB. The speed table also includes the faster FP16 modes.",
+  "The GIMM-VFI-R feature encoder alone passed the 16-triplet check. End-to-end FP32 latency was 1210 ms versus 1230 ms for paired portable FP32, with a PSNR change of at most 0.0395 dB on the checked triplets.",
 ]
 
 [upstream]

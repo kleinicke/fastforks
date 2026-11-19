@@ -2705,7 +2705,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | ema-vfi-t | 1080x1920 | 233 ms | 165 ms | 125 ms | 207 ms | 84.6 s | 91.5 s | 2827 / 3184 | 3325 / 3702 | 368 / 3566 | 1719 / 1766 |
 | film | 1080x1920 | 417 ms | 332 ms | 189 ms | 332 ms | 41.1 s | 203 s | 2856 / 3080 | 2666 / 3192 | 2856 / 3080 | 2658 / 2658 |
 | gimm-vfi-r | 1080x1920 | 2622 ms | 1498 ms | planned for 0.2.1 | 1629 ms | 307 s | – | 9899 / 10400 | 12051 / 12880 | 4587 / 5362 | – |
-| gimm-vfi-r | 480x854 | 468 ms | – | planned for 0.2.1 | 289 ms | – | – | 1574 / 1674 | – | 1388 / 1618 | – |
+| gimm-vfi-r | 480x854 | 468 ms | – | 1210 ms, fp32 engine (RAFT feature encoder with eager context, flow update and synthesis) | 289 ms | – | 12.9 s | 1574 / 1674 | – | 1388 / 1618 | 3522 / 6116 |
 | gimm-vfi-r-p | 1080x1920 | 2622 ms | 1498 ms | fails: TensorRT parser: Sc node | 1628 ms | 307 s | – | 9899 / 10400 | 12051 / 12880 | 4587 / 5282 | – |
 | gimm-vfi-r-p | 480x854 | 467 ms | – | 1190 ms, fp32 engine (RAFT feature and context encoders with eager flow update and synthesis) | 289 ms | – | 16.9 s | 1574 / 1674 | – | 1388 / 1598 | 3592 / 6000 |
 | rife-4.25 | 1080x1920 | 25.0 ms | 44.9 ms | 17.6 ms | 21.4 ms | 36.1 s | 56.3 s | 755 / 894 | 1094 / 1234 | 848 / 916 | 696 / 714 |
