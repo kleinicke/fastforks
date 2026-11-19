@@ -2174,6 +2174,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | igev-stereo-middlebury | 994x1482 | 763 ms | 527 ms | 338 ms | 288 ms | 110 s | 214 s | 1237 / 1492 | 771 / 1012 | 1113 / 1374 | 1317 / 1376 |
 | igev-stereo-sceneflow | 994x1482 | 763 ms | 527 ms | 340 ms | 288 ms | 111 s | 216 s | 1237 / 1492 | 771 / 1012 | 1113 / 1374 | 1317 / 1376 |
 | las2-h | 994x1482 | 113 ms | 75.0 ms | planned for 0.2.1 | 53.6 ms | 37.5 s | – | 1002 / 1046 | 579 / 724 | 872 / 960 | – |
+| las2-h | 375x1242 | 35.5 ms | – | 17.5 ms (whole graph at fixed 375 x 1242) | 15.0 ms | – | 100 s | 365 / 390 | – | 298 / 368 | 300 / 308 |
 | las2-l | 994x1482 | 75.7 ms | 46.6 ms | 23.4 ms | 30.1 ms | 30.5 s | 97.5 s | 648 / 716 | 385 / 432 | 268 / 362 | 393 / 424 |
 | las2-m | 994x1482 | 37.1 ms | 28.6 ms | 13.2 ms | 18.1 ms | 24.0 s | 98.3 s | 584 / 664 | 252 / 300 | 235 / 336 | 343 / 386 |
 | las2-s | 994x1482 | 27.9 ms | 23.7 ms | 10.3 ms | 14.3 ms | 22.4 s | 86.9 s | 557 / 608 | 238 / 264 | 226 / 320 | 258 / 304 |
@@ -2443,7 +2444,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | mask-rcnn-r50-fpn-3x-coco | 800x1344 | 24.6 ms | 21.5 ms | 5.34 ms (backbone + FPN only) | 21.0 ms | 29.3 s | 18.3 s | 352 / 440 | 333 / 358 | 353 / 400 | 444 / 496 |
 | mm-grounding-dino-base | 800x1344 | 160 ms | 132 ms | 158 ms, fp32 engine (fixed 80-class text prompt) | – | 105 s | 125 s | 1525 / 1624 | 2669 / 2800 | – | 1153 / 1160 |
 | mm-grounding-dino-base | 320x320 | – | – | 17.7 ms, fp32 engine (fixed 80-class text prompt) | – | – | 134 s | – | – | – | 641 / 662 |
-| mm-grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | planned for 0.2.1 | – | 71.2 s | – | 1405 / 1470 | 2555 / 2666 | – | – |
+| mm-grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | 116 ms, fp32 engine (fixed 80-class text prompt) | – | 71.2 s | 104 s | 1405 / 1470 | 2555 / 2666 | – | 883 / 890 |
 | mm-grounding-dino-tiny | 320x320 | 40.8 ms | – | 13.8 ms, fp32 engine (network with fixed COCO prompts, standalone build) | – | – | – | 784 / 900 | – | – | 387 / 408 |
 | owlv2-b16 | 800x1344 | 31.8 ms | 28.5 ms | 18.4 ms | 23.7 ms | 10.6 s | 25.9 s | 460 / 510 | 487 / 530 | 461 / 612 | 655 / 726 |
 | owlv2-l14 | 800x1344 | 154 ms | 141 ms | 95.9 ms | 110 ms | 12.4 s | 33.8 s | 1097 / 1144 | 1190 / 1242 | 1027 / 1184 | 1786 / 1820 |

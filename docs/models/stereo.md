@@ -1211,6 +1211,7 @@ Commercial use: yes.
 | `las2-m` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 79.1<br>52.4<br>37.1<br>18.1<br>28.6<br>13.2 | 1691 / 1762<br>948 / 1000<br>584 / 664<br>235 / 336<br>252 / 300<br>343 / 386 |
 | `las2-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 154<br>90.8<br>75.7<br>30.1<br>46.6<br>23.4 | 1753 / 1812<br>1010 / 1082<br>648 / 716<br>268 / 362<br>385 / 432<br>393 / 424 |
 | `las2-h` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 205<br>135<br>113<br>53.6<br>75.0<br>planned for 0.2.1 | 1839 / 1884<br>1022 / 1084<br>1002 / 1046<br>872 / 960<br>579 / 724<br>– |
+| `las2-h` | KITTI 2015 (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT fp16 | 51.1<br>36.4<br>35.5<br>15.0<br>17.5 (whole graph at fixed 375 x 1242) | 633 / 684<br>352 / 386<br>365 / 390<br>298 / 368<br>300 / 308 |
 
 <details><summary>Details</summary>
 
@@ -1223,7 +1224,7 @@ Commercial use: yes.
 - Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `stereo_ops`
 - Variants: `las2-s`, `las2-m`, `las2-l`, `las2-h`
-- Not in this release (planned for 0.2.1): `las2-h` TensorRT export: the TensorRT 10 engine build fails (Myelin autotuner skips all tactics)
+- Not in this release (planned for 0.2.1): `las2-h` TensorRT export: TensorRT 11.4 fails the Myelin tactic check at 994 x 1482. The 375 x 1242 standalone build passed the 15-pair Middlebury check
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `las2-s` 3000x4000 (7.0 GiB peak allocated, 7.4 reserved); `las2-m` 3000x4000 (7.0 GiB peak allocated, 7.4 reserved); `las2-l` 3000x4000 (7.0 GiB peak allocated, 7.4 reserved); `las2-h` 3000x4000 (8.5 GiB peak allocated, 11.7 reserved)
@@ -1231,10 +1232,11 @@ Commercial use: yes.
 - `las2-m` 994x1482, first call: portable + torch.compile 24 s (cold Inductor cache), TensorRT fp16 98 s (ONNX + engine).
 - `las2-l` 994x1482, first call: portable + torch.compile 31 s (cold Inductor cache), TensorRT fp16 98 s (ONNX + engine).
 - `las2-h` 994x1482, first call: portable + torch.compile 37 s (cold Inductor cache).
+- `las2-h` 375x1242, first call: TensorRT fp16 100 s (ONNX + engine).
 - `las2-s` original 994x1482: torch.autocast(fp16) around the forward
 - `las2-m` original 994x1482: torch.autocast(fp16) around the forward
 - `las2-l` original 994x1482: torch.autocast(fp16) around the forward
-- `las2-h` original 994x1482: torch.autocast(fp16) around the forward
+- `las2-h` original 994x1482, original 375x1242: torch.autocast(fp16) around the forward
 - `las2-s` load / first call: original 0.11 s / 0.019 s (375x1242), portable 0.66 s / 0.342 s (375x1242), kernels 0.6 s / 0.175 s (375x1242)
 - `las2-m` load / first call: original 0.17 s / 0.023 s (375x1242), portable 0.25 s / 0.402 s (375x1242), kernels 0.77 s / 0.179 s (375x1242)
 - `las2-l` load / first call: original 0.39 s / 0.044 s (375x1242), portable 0.53 s / 0.329 s (375x1242), kernels 0.66 s / 0.177 s (375x1242)
@@ -1244,20 +1246,21 @@ Commercial use: yes.
 
 ### Measured
 
-Original = the original code named under Details, same checkpoint and protocol.
+Use all 15 trainingH pairs with a shared centre crop and edge padding. Score valid non-occluded pixels and exclude right-image correspondences outside the crop. Average the per-pair endpoint error and share of pixels with error above 2 pixels. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|---|
-| `las2-s` | ETH3D two-view train, bad > 1 px % / EPE | 4.10 / 0.382 | 4.10 / 0.382 | 4.10 / 0.383 | 4.10 / 0.382 | 4.10 / 0.382 | 4.10 / 0.383 | possibly in the training data |
-| `las2-s` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 16.19 / 3.464 | 16.18 / 3.460 | 16.19 / 3.462 | 16.18 / 3.460 | 16.19 / 3.464 | 16.18 / 3.461 | possibly in the training data |
-| `las2-m` | ETH3D two-view train, bad > 1 px % / EPE | 2.97 / 0.310 | 2.97 / 0.310 | 2.97 / 0.310 | 2.97 / 0.310 | 2.98 / 0.310 | 2.98 / 0.310 | possibly in the training data |
-| `las2-m` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.24 / 2.324 | 11.23 / 2.324 | 11.26 / 2.325 | 11.23 / 2.324 | 11.24 / 2.324 | 11.24 / 2.324 | possibly in the training data |
-| `las2-l` | ETH3D two-view train, bad > 1 px % / EPE | 2.24 / 0.268 | 2.24 / 0.268 | 4.57 / 0.389 | 2.24 / 0.268 | 2.24 / 0.268 | 2.24 / 0.268 | possibly in the training data |
-| `las2-l` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.87 / 2.615 | 11.85 / 2.614 | 17.75 / 3.202 | 11.85 / 2.614 | 11.87 / 2.615 | 11.85 / 2.614 | possibly in the training data |
-| `las2-h` | ETH3D two-view train, bad > 1 px % / EPE | 2.14 / 0.258 | 2.14 / 0.258 | 5.54 / 0.338 | 2.13 / 0.258 | 2.14 / 0.258 | 2.14 / 0.258 | possibly in the training data |
-| `las2-h` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 9.27 / 2.141 | 9.28 / 2.141 | 12.62 / 2.546 | 9.27 / 2.141 | 9.27 / 2.141 | 9.27 / 2.141 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `las2-s` | ETH3D two-view train, bad > 1 px % / EPE | 4.10 / 0.382 | 4.10 / 0.382 | 4.10 / 0.383 | 4.10 / 0.382 | 4.10 / 0.382 | 4.10 / 0.383 |  | possibly in the training data |
+| `las2-s` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 16.19 / 3.464 | 16.18 / 3.460 | 16.19 / 3.462 | 16.18 / 3.460 | 16.19 / 3.464 | 16.18 / 3.461 |  | possibly in the training data |
+| `las2-m` | ETH3D two-view train, bad > 1 px % / EPE | 2.97 / 0.310 | 2.97 / 0.310 | 2.97 / 0.310 | 2.97 / 0.310 | 2.98 / 0.310 | 2.98 / 0.310 |  | possibly in the training data |
+| `las2-m` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.24 / 2.324 | 11.23 / 2.324 | 11.26 / 2.325 | 11.23 / 2.324 | 11.24 / 2.324 | 11.24 / 2.324 |  | possibly in the training data |
+| `las2-l` | ETH3D two-view train, bad > 1 px % / EPE | 2.24 / 0.268 | 2.24 / 0.268 | 4.57 / 0.389 | 2.24 / 0.268 | 2.24 / 0.268 | 2.24 / 0.268 |  | possibly in the training data |
+| `las2-l` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 11.87 / 2.615 | 11.85 / 2.614 | 17.75 / 3.202 | 11.85 / 2.614 | 11.87 / 2.615 | 11.85 / 2.614 |  | possibly in the training data |
+| `las2-h` | ETH3D two-view train, bad > 1 px % / EPE | 2.14 / 0.258 | 2.14 / 0.258 | 5.54 / 0.338 | 2.13 / 0.258 | 2.14 / 0.258 | 2.14 / 0.258 |  | possibly in the training data |
+| `las2-h` | Middlebury 2014 trainingH, bad > 2 px % / EPE | 9.27 / 2.141 | 9.28 / 2.141 | 12.62 / 2.546 | 9.27 / 2.141 | 9.27 / 2.141 | 9.27 / 2.141 |  | possibly in the training data |
+| `las2-h` | Middlebury 2014 trainingH, fixed 375 x 1242, bad > 2 px % / EPE |  |  |  | 6.26 / 1.748 |  |  | 6.22 / 1.747 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 11abf708 / 468fba10, 2026-11-05 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 468fba10, 2026-11-05; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 11abf708, 2026-11-19.
 
 ### Parity
 
