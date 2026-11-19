@@ -217,17 +217,19 @@ class Net(nn.Module):
             intrinsics=k[None], extrinsics=c2w[None], nn_matrix=nn_matrix,
         )  # fmt: skip
         depth = res["depth_preds"][-1]  # [1, V, h, w]
+        cnn = list(res["features_cnn_all_scales"][::-1])
+        mv = res["features_mv"][0]
+        prob = res["match_probs"][-1].max(dim=1, keepdim=True)[0]
         mono = [
             F.interpolate(x, (h // 16, w // 16), mode="bilinear", align_corners=True) for x in res["raw_mono_features"]
         ]
+        del res
         if p.fixed_latent:
             mono = torch.cat([F.pixel_shuffle(x, 4) for x in mono], 1)
             if p.latent == 8:
                 mono = F.interpolate(mono, scale_factor=0.5, mode="bilinear", align_corners=True)
         else:
             mono = torch.cat([F.pixel_shuffle(x, {4: 4, 2: 8, 8: 2}[p.latent]) for x in mono], 1)
-        cnn = list(res["features_cnn_all_scales"][::-1])
-        mv = res["features_mv"][0]
         if p.latent == 2:
             if p.lowest == 8:
                 cnn[1], cnn[2], mv = F.pixel_shuffle(cnn[1], 2), F.pixel_shuffle(cnn[2], 4), F.pixel_shuffle(mv, 4)
@@ -238,8 +240,8 @@ class Net(nn.Module):
             cnn = [F.interpolate(c, size, mode="bilinear", align_corners=True) for c in cnn]
             if mv.shape[-2:] != size:
                 mv = F.interpolate(mv, size, mode="bilinear", align_corners=True)
-        features = torch.cat((mono, torch.cat(cnn, 1), mv), 1)
-        prob = res["match_probs"][-1].max(dim=1, keepdim=True)[0]
+        features = torch.cat((mono, *cnn, mv), 1)
+        del mono, cnn, mv
         x = images.to(features.dtype)
         if p.fixed_latent:
             if p.latent == 8:
@@ -255,6 +257,7 @@ class Net(nn.Module):
         )
         out = torch.cat((out, x, features, lprob.to(x.dtype)), 1)
         tokens = self.proj(out.permute(0, 2, 3, 1).reshape(v * hl * wl, -1))
+        del out, features, x, lprob
         origins, dirs = _rays(_pixels(hl, wl, dev)[None], k, c2w)
         cloud = (origins + dirs * latent_depth[0].reshape(v, -1, 1).float()).reshape(-1, 3)
         out = tokens + self.pt((cloud, tokens, None), b=1, v=v, h=hl, w=wl)
@@ -331,9 +334,9 @@ class Net(nn.Module):
             "opacities": g["opacities"],
             "harmonics": g["harmonics"],
         }
-        rendered = self._render(cur, c2w, k, (h, w), near, far)
         target = None
-        for i in range(steps):
+        for _ in range(steps):
+            rendered = self._render(cur, c2w, k, (h, w), near, far)
             f = self._features(rendered if target is not None else torch.cat((rendered, images.float())), (fh, fw))
             if target is None:
                 f, target = f[:v], f[v:].clone()  # release the rendered-image features after computing the error
@@ -343,6 +346,7 @@ class Net(nn.Module):
             if m != 4:
                 rgb = F.pixel_unshuffle(rgb, p.latent)
             err = err + self.update_rgb_error_proj(rgb.permute(0, 2, 3, 1).reshape(1, -1, rgb.shape[1]).to(dt))
+            del rendered, rgb
             prev = torch.cat((means, scales, rot, opac, sh), -1)  # [V, n, STATE]
             cloud = means
             if m > 1 and not p.same_points:
@@ -371,8 +375,6 @@ class Net(nn.Module):
                 "means": means, "scales": scales, "rotations": rot, "opacities": opac[..., 0].sigmoid(),
                 "harmonics": sh.view(v, -1, 3, SH),
             }  # fmt: skip
-            if i < steps - 1:  # upstream also renders after the last step (unused at inference)
-                rendered = self._render(cur, c2w, k, (h, w), near, far)
         return cur
 
     def forward(
