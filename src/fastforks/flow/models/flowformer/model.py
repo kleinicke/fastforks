@@ -11,7 +11,7 @@ from fastforks._core.checkpoint import check_fits
 from fastforks._core.patch import override
 from fastforks.flow._runner import Forward, Runner
 from fastforks.kernels import flow_upsample
-from fastforks.shared import libnet
+from fastforks.shared import libnet, mlx_wrap
 
 if TYPE_CHECKING:
     from collections.abc import KeysView
@@ -132,4 +132,8 @@ class Kernels(Portable):
         override(self.net.memory_decoder, _upsample, "upsample_flow")
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

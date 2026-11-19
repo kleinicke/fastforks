@@ -20,6 +20,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.flow._runner import Forward, Runner
 from fastforks.kernels import flow_upsample, recover_motion
+from fastforks.shared import mlx_wrap
 
 from .net import BasicBlock, ReCoVEr, ResNetFPN
 
@@ -173,4 +174,8 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

@@ -31,6 +31,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks._core.sampling import grid_sample
 from fastforks.flow._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
 
 from .net.megaflow import MegaFlow, slice_expand_and_flatten
@@ -455,4 +456,8 @@ class Kernels(_Fast):
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

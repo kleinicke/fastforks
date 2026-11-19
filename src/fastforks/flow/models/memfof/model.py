@@ -13,6 +13,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import check_fits
 from fastforks.flow._runner import Forward, Runner
 from fastforks.kernels.flow_upsample import convex
+from fastforks.shared import mlx_wrap
 
 from .net.model import MEMFOF
 
@@ -74,9 +75,12 @@ class Portable(_Scaled):
         self.net = _net(ctx)
         self.fp16 = ctx.dtype == "float16"
 
+    def _flow(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
+        return self.net.forward_pair(image1, image2, self.ctx.params.iters, fp16=self.fp16)
+
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a padded batch."""
-        return {"flow": self.net.forward_pair(image1, image2, self.ctx.params.iters, fp16=self.fp16)}
+        return {"flow": self._flow(image1, image2)}
 
     def module(self) -> torch.nn.Module:
         """The network; returns the flow."""
@@ -153,4 +157,8 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_flow",)),
+}

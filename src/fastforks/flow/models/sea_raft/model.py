@@ -10,6 +10,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
 from fastforks.flow._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 
 from .net import MEDIUM, SEARAFT, SMALL
 
@@ -136,4 +137,9 @@ class MetalKernels(Portable):
         return {"flow": forward(self.net, self.lib, image1, image2, self.ctx.params.iters)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "kernels_mps": MetalKernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

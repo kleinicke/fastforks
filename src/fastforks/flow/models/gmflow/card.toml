@@ -41,6 +41,7 @@ refine = 0  # upstream num_reg_refine with reg_refine; 0 = no refinement block i
 [modes.portable]
 cuda_dtype = "float16"  # autocast for the CNN, the Transformer, the upsampling head and the refinement block; matching, propagation, warping and the flow in float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["flow_upsample"]

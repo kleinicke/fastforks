@@ -12,6 +12,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import check_fits
 from fastforks.flow._runner import Forward, Runner
 from fastforks.kernels import flow_upsample, flowseek_corr
+from fastforks.shared import mlx_wrap
 
 from .net import FlowSeek
 
@@ -101,4 +102,8 @@ class Kernels(Portable):
     module = Runner.module
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

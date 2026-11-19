@@ -11,6 +11,7 @@ import torch
 
 from fastforks._core.checkpoint import check_fits
 from fastforks.flow._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import fold_layer_scale, sdpa_attention
 
 from .net import ViTWarpV8
@@ -92,4 +93,8 @@ class Kernels(Runner):
         return {"flow": self._forward(self.net, image1, image2, self.ctx.params.iters)}
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

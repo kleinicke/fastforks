@@ -105,6 +105,42 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | unik3d | depth | portable_mlx, fp32+fp16 pass | fp16 1637 / 4803 vs MPS 1294 / 4038. |
 | video_depth_anything | depth | portable_mlx (`_encode`/`_window`), fp32+fp16 pass | 480x640 fp16 s 1846 / 5538 vs MPS 926 / 6506 (less memory, 2x slower); metric-s 1822 / 5537 vs 933 / 6535. |
 | zoedepth | depth | portable_mlx, fp32 only | fp32 1297 / 5897 vs MPS 778 / 3558. fp16 gives NaN, so not declared. |
+| yolox | detection | portable_mlx + kernels_mlx (conv_mlx), fp32+fp16 pass | tiny 800x1344 fp16 13 / 438 vs MPS 20 / 1492; fp32 15 / 476 vs 20 / 1497. Winograd kernels 12 / 453 fp16, 14 / 511 fp32 (about 8 % faster, declared). l/x pass goldens. |
+| rtmdet | detection | portable_mlx, fp32+fp16 pass | tiny fp16 23 / 577 vs MPS 27 / 1545; fp32 30 / 644 vs 29 / 1551. Winograd kernels 21-25 ms but the survey golden failed for fp16, so no kernels mode. |
+| dfine / deim | detection | portable_mlx, fp32+fp16 pass | n fp16 23 / 643 vs MPS 25 / 1510; fp32 31 / 667 vs 41 / 1545. |
+| rtdetrv2 | detection | portable_mlx, fp32+fp16 pass | s fp16 42 / 922 vs MPS 44 / 1631; fp32 48 / 933 vs 44 / 1650. Needed `avg_pool2d` ceil_mode / divisor_override in `mlx_graph.py`. |
+| lwdetr | detection | portable_mlx, fp32+fp16 pass | tiny fp16 35 / 942 vs MPS 41 / 1742; fp32 36 / 970 vs 47 / 1776. Needed `aten.select.int` with negative index. |
+| rfdetr (+ keypoint) | detection, pose | portable_mlx, fp32 only | n fp32 22 / 714 vs MPS 32 / 1718; keypoint fp32 90 / 969 vs 148 / 1830. All 8 detection and the keypoint ref pass fp32. fp16 passes n/s/m/l/seg-n/seg-l/seg-xl/seg-2xl but fails rf-detr-seg-s, seg-m (boxes mean 0.37-0.40) and keypoint (keypoint_scores mean 6e-4); `mlx_dtypes` is per card, so fp32 only. Keypoint fp16 77 / 946 was measured. |
+| detr | detection | portable_mlx, fp32+fp16 pass | r50 fp16 116 / 1120 vs MPS 105 / 1954; fp32 147 / 1271 vs 125 / 1995 (ResNet-50 conv backbone, slower). Winograd kernels 216-285 ms: slower, not declared. |
+| rcnn | detection | portable_mlx (`_dense`: backbone, FPN and RPN heads on MLX; proposals, ROI heads and NMS eager), fp32+fp16 pass | mask-rcnn fp16 412 / 1473 vs MPS 203 / 1931; fp32 486 / 1976 vs 222 / 1930. Speed loses (800x1344 conv net); Winograd 407-457 ms, no real gain, not declared. |
+| grounding_dino | detection | portable_mlx (`image` graph), fp32 only | tiny fp32 1524 / 1627 vs MPS 846 / 4787 (3x less memory, 1.8x slower). fp16 passes grounding-dino-tiny and mm-base but fails mm-grounding-dino-tiny (scores p99 0.029); grounding-dino-base cannot be validated (its golden npz does not match golden.toml). |
+| owlv2 | detection | portable_mlx (`image` graph), fp32+fp16 pass | b16 fp32 395 / 1227 vs MPS 394 / 1515; fp16 294 / 985 (MPS has no fp16 row). |
+| ben2 | matting | portable_mlx, fp32 pass | 1945 / 5335 vs MPS 1148 / 6252 (swin: less memory, slower). |
+| birefnet | matting | portable_mlx, fp32+fp16 pass | fp32 2421 / 6331 vs MPS 1333 / 9488; fp16 1736 / 6151 vs 1152 / 5433. |
+| inspyrenet | matting | portable_mlx (`_net` method), fp32 only | fp32 1339 / 2759 vs MPS 1108 / 7284. fp16 gives NaN on inspyrenet (both refs pass fp16 on inspyrenet-fast, but the card is per-card). |
+| isnet | matting | portable_mlx + kernels_mlx (fp16 only), fp32+fp16 pass | fp32 234 / 1649 vs MPS 157 / 1787. fp16 portable 153 / 1259 vs 130 / 1746; Winograd fp16 128 / 1445 (ties MPS, declared fp16 only). |
+| u2net | matting | portable_mlx, fp32+fp16 pass | fp16 62 / 1201 vs MPS 79 / 1885; fp32 83 / 1526 vs 82 / 1910. |
+| vitmatte | matting | portable_mlx (`_net` method), fp32+fp16 pass | s 1080x1920 fp32 1531 / 3035 vs MPS 2333 / 5185; fp16 1486 / 2821 vs 1360 / 2542. |
+| matanyone | matting | not ported | stateful video model (memory bank, top-k readout, per-frame Python control flow), no fixed-shape graph to export; its golden is skipped in the MLX run. |
+| rtmpose / dwpose / rtmw | pose | portable_mlx, fp32+fp16 pass | rtmpose-t fp16 24 / 607 vs MPS 26 / 1460; fp32 27 / 656 vs 26 / 1462. Goldens tried: t, l-384, dwpose-t, rtmw-m, halpe26, hand5, face6, ap10k. |
+| rtmo | pose | portable_mlx, fp32 only | t fp32 17 / 658 vs MPS 21 / 1523. fp16 fails (t scores p99 0.0049, l keypoints p99 0.90). |
+| hrnet | pose | portable_mlx, fp32+fp16 pass | w32 fp16 125 / 1049 vs MPS 122 / 1675; fp32 166 / 1247 vs 141 / 1748. Winograd: tie, not declared. |
+| retinaface | pose | portable_mlx, fp32+fp16 pass | resnet50 fp16 190 / 1266 vs MPS 150 / 1913; fp32 284 / 1521 vs 210 / 1879. Kernels mode fails in float16-only options, not declared. |
+| vitpose | pose | portable_mlx, fp32+fp16 pass | base-simple fp16 156 / 987 vs MPS 186 / 1910; fp32 204 / 1326 vs 196 / 2073. plus-small and plus-huge pass goldens. |
+| yunet | pose | portable_mlx, fp32+fp16 pass | n fp16 21 / 719 vs MPS 22 / 1377; fp32 28 / 771 vs 25 / 1380. |
+| anyline, lineart, lineart_anime, mlsd | edges | portable_mlx, fp32+fp16 pass | anyline fp32 2817 ms / 2045 MB vs MPS 130 / 2346 (memory lower, speed 20x slower: only the TEED net runs as an MLX graph, the line-art post-processing `remove_small` is a long chain of small torch ops that runs eagerly outside it, so it dominates; not fixable without porting that step); lineart-anime fp16 43 / 1032 vs MPS 51 / 1774; mlsd fp16 33 / 715 vs 45 / 1373. lineart fp16 136 / 1170 vs 67 / 1362 (speed loses; Winograd 133, no gain). |
+| hed | edges | portable_mlx, fp32 only | fp32 75 / 1120 vs MPS 65 / 1415. fp16 gives NaN. Winograd slower. |
+| pidinet | edges | portable_mlx + kernels_mlx (conv_mlx), fp32+fp16 pass | fp16 portable 163 / 759, Winograd 78 / 747 vs MPS 73 / 1349 (kernels declared: 2.1x faster than portable); fp32 200 -> 115 / 987 vs 91 / 1359. |
+| teed | edges | portable_mlx, fp32+fp16 pass | fp32 17 ms / 534 MB vs MPS 20 / 1314; fp16 15 / 474 vs 17 / 1313. Wins on both. |
+| flowformer | flow | portable_mlx, fp32+fp16 pass | 1080x1920 out of memory on MLX and on MPS (golden passes at the small size). |
+| flowseek | flow | portable_mlx, fp32+fp16 pass | t 1080x1920 fp16 2667 / 5208, fp32 4083 / 9096; MPS out of memory. |
+| gmflow | flow | portable_mlx (`_flow` method; `index_put` mask assignment added to `mlx_graph.py`), fp32+fp16 pass | scale1-things fp16 6371 / 10879 vs MPS 10676 / 12643; fp32 6846 / 10971 vs 3269 / 11902. |
+| megaflow | flow | portable_mlx, fp32+fp16 pass (golden); needed bicubic antialias resize (`_upsample_bicubic2d_aa`, max err 5e-6 vs torch) | 1080x1920: the fp32 survey job exhausted memory and swap (MPS fp32 is out of memory too; MPS fp16 11196 / 8969), so it was stopped and no row is recorded. |
+| memflow, memfof | flow | portable_mlx (`_flow` method), fp32+fp16 pass | memflow fp32 16607 / 9749 vs MPS 10016 / 12659; memfof fp32 4267 / 2757 vs 3054 / 5038. |
+| neuflow_v2, recover | flow | portable_mlx, fp32 only | neuflow-v2 fp32 1552 / 8929 vs MPS 1039 / 13354 (fp16 mean diff 0.0017); recover-cx fp32 1600 / 1924 vs 1107 / 4781 (the survey's golden check failed at 1080p; pytest golden passes; recover-mn fp16 p99 0.032). |
+| raft | flow | portable_mlx, fp32+fp16 pass | large 1080x1920 fp16 3271 / 8609 vs MPS 2710 / 11644; fp32 3592 / 9668 vs 2522 / 12889. Winograd: no gain, fp16 golden failed, not declared. |
+| sea_raft, waft | flow | portable_mlx, fp32+fp16 pass | sea-raft-m fp16 1785 / 5111 vs MPS 1635 / 9732; fp32 2973 / 8955 vs 1820 / 12542. waft-a1 fp32 10308 / 3514 vs 8225 / 8183. |
+| (summary) detection / matting / pose / edges / flow | all | all families wired except matanyone | Memory is below MPS in nearly every row. Speed is at or above MPS for the transformer and small conv detectors and keypoint nets; the heavy conv and iterative-flow nets stay 1.2-2x slower. Goldens were run on representative refs of each card (smallest, largest, special variants), not every ref; the detection group ran every ref (43 of 48 pass in both dtypes, the rest are covered by the fp32-only declarations above).
 
 ## Conv3x3 kernel experiments (M1 Pro, fp16, 1x512x512x64 -> 64, 3x3, pad 1)
 
