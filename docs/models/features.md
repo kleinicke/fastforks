@@ -133,13 +133,13 @@ Two disjoint seeded subsets of the val folders; each image shorter side 256 (bic
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
 | `c-radio-v3-b` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 57.58 | 57.62 | 57.60 | 57.58 | 57.66 |  |
-| `c-radio-v3-l` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.06 | 67.06 | 67.08 |  | 67.08 |  |
+| `c-radio-v3-l` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.06 | 67.06 | 67.08 | 67.06 | 67.08 |  |
 | `c-radio-v3-h` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 69.52 | 69.52 | 69.54 |  | 69.58 |  |
 | `c-radio-v3-g` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 70.88 | 70.94 | 70.92 |  | 70.98 |  |
 | `c-radio-v4-so400m` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 70.06 | 70.02 | 70.02 | 70.04 | 70.04 |  |
 | `c-radio-v4-h` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 71.38 | 71.36 | 71.32 | 71.38 | 71.36 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 28db82cb / 8bce3316 / cf1956ec, 2026-11-11 to 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884 / 446408848, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 28db82cb / 8bce3316 / cf1956ec, 2026-11-11 to 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 28db82cb / 8bce3316 / cf1956ec, 2026-11-11 to 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884 / 446408848, 2026-11-18 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 28db82cb / 8bce3316 / cf1956ec, 2026-11-11 to 2026-11-13.
 
 ### Parity
 
@@ -835,7 +835,7 @@ Two disjoint seeded subsets of the val folders; each image shorter side 256 (bic
 | `siglip2-l16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 64.74 | 64.84 | 64.68 | 64.68 | 64.62 |  |
 | `siglip2-l16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 65.18 | 65.12 | 65.14 | 65.10 | 65.10 |  |
 | `siglip2-so400m14-224` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.18 | 66.12 | 66.10 | 66.14 | 66.10 |  |
-| `siglip2-so400m14-378` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.90 | 59.94 | 60.00 |  | 59.92 |  |
+| `siglip2-so400m14-378` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.90 | 59.94 | 60.00 | 60.08 | 59.92 |  |
 | `siglip2-so400m16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 59.52 | 59.46 | 59.34 | 59.54 | 59.50 |  |
 | `siglip2-so400m16-512` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.14 | 67.16 | 67.04 |  | 67.20 |  |
 | `siglip2-g16-256` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 67.92 | 67.84 | 67.80 | 67.80 | 68.00 |  |
