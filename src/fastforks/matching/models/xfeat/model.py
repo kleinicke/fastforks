@@ -185,7 +185,8 @@ class Kernels(Portable):
         for layer in extractor.net.modules():
             if isinstance(layer, nn.Conv2d):
                 override(layer, _precise_conv)
-        dense = CapturedModule(extractor.net, pixels=2**20)
+        # The FP32 convolutions are device-bound at 768 x 1024, where a graph largely adds a private memory pool.
+        dense = CapturedModule(extractor.net, pixels=2**19)
         extractor.set_submodule("net", dense)
         self.graphs = dense.graphs
         override(extractor, _maxima, name="NMS")
