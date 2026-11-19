@@ -652,7 +652,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`raft-large-things`](models/flow.md#raft) | yes | 4.834 | 480.5 (1080x1920) | 291.5 | 83.5 | 5.8x vs original (1080x1920) | 332 |
 | [`raft-large-kitti`](models/flow.md#raft) | yes | 0.614 † | 479.6 (1080x1920) | 291.0 | 84.2 | 5.7x vs original (1080x1920) | 332 |
 | [`recover-cx`](models/flow.md#recover) | yes | 1.043 † | 178.6 (1080x1920) | 107.2 | 89.8 | 2.0x vs original (1080x1920) | 733 |
-| [`flowseek-t`](models/flow.md#flowseek) | yes | 1.348 † | 457.0 (1080x1920) | 395.3 | 253.9 | 1.8x vs original (1080x1920) | 1947 |
+| [`flowseek-t`](models/flow.md#flowseek) | yes | 1.348 † | 457.0 (1080x1920) | 396.8 | 253.9 | 1.8x vs original (1080x1920) | 1947 |
 | [`flowseek-t-things`](models/flow.md#flowseek) | yes | 4.143 | 457.7 (1080x1920) | 395.3 | 253.9 | 1.8x vs original (1080x1920) | 1947 |
 | [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.933 | 457.6 (1080x1920) | 395.6 | 254.1 | 1.8x vs original (1080x1920) | 1947 |
 | [`memfof-kitti`](models/flow.md#memfof) | yes | 15.584 † | – | 385.6 | 308.8 (375x1242) | 1.2x vs portable | 786 |

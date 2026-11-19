@@ -144,7 +144,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `flowseek-t` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>457<br>395<br>254<br>258<br>168 | 9902 / 10052<br>8693 / 9880<br>8671 / 8712<br>1947 / 2114<br>6126 / 6212<br>11328 / 11350 |
+| `flowseek-t` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>457<br>397<br>254<br>258<br>168 | 9902 / 10052<br>8693 / 9880<br>6328 / 6822<br>1947 / 2114<br>6126 / 6212<br>11328 / 11350 |
 | `flowseek-t-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>458<br>395<br>254<br>258<br>168 | 9902 / 10012<br>8693 / 9820<br>8671 / 8712<br>1947 / 2114<br>6126 / 6212<br>11330 / 11352 |
 | `flowseek-t-things-notartan` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 651<br>458<br>396<br>254<br>258<br>168 | 9902 / 10052<br>8693 / 9820<br>8671 / 8712<br>1947 / 2114<br>6126 / 6212<br>11328 / 11350 |
 
@@ -168,6 +168,7 @@ Commercial use: yes.
 - `flowseek-t-things-notartan` 1080x1920, first call: portable + torch.compile 54 s (cold Inductor cache), TensorRT fp16 98 s (ONNX + engine).
 - `flowseek-t` original (fp32) 1080x1920: upstream FlowSeek (flowseek-T.json), iters=4
 - `flowseek-t` original 1080x1920: torch.autocast(float16) around the call; upstream FlowSeek (flowseek-T.json), iters=4
+- `flowseek-t` portable 1080x1920: Median of five timed calls after one warm-up on a synthetic pair. Flow matched the previous path on one synthetic pair and three labeled KITTI pairs.
 - `flowseek-t-things` original (fp32) 1080x1920: upstream FlowSeek (flowseek-T.json), iters=4
 - `flowseek-t-things` original 1080x1920: torch.autocast(float16) around the call; upstream FlowSeek (flowseek-T.json), iters=4
 - `flowseek-t-things-notartan` original (fp32) 1080x1920: upstream FlowSeek (flowseek-T.json), iters=4
