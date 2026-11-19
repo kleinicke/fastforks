@@ -32,6 +32,7 @@ from fastforks._core.patch import is_base, override
 from fastforks._core.sampling import grid_sample
 from fastforks.flow._runner import Forward, Runner
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
+from fastforks.shared.qk_affine import cached_qk_affine
 
 from .net.megaflow import MegaFlow, slice_expand_and_flatten
 from .net.model_utils import create_uv_grid, position_grid_to_embed, upsample_flow_with_mask
@@ -194,13 +195,7 @@ class _Fast(Runner):
         return o.transpose(1, 2).reshape(b, n, h * d)
 
     def qk_affine(self, a: Any) -> tuple[torch.Tensor, torch.Tensor]:  # noqa: ANN401 - vendored Attention
-        key = id(a)
-        if key not in self._aff:
-            self._aff[key] = (
-                torch.stack([a.q_norm.weight, a.k_norm.weight])[:, None],
-                torch.stack([a.q_norm.bias, a.k_norm.bias])[:, None],
-            )  # [2, 1, 64] (q, k)
-        return self._aff[key]
+        return cached_qk_affine(a, self._aff)
 
     def rope_tables(self, pos: torch.Tensor, b: int, s: int, p: int) -> tuple[torch.Tensor, torch.Tensor]:
         """Per-token RoPE tables `[B, S*P, 1, 1, 64]`: cos and sign-folded sin (rot(x) = swap(x) * sign)."""

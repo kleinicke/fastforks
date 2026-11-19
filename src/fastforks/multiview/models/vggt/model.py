@@ -34,6 +34,7 @@ from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, invert
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
 from fastforks.shared.host_blocks import StreamedModuleList
+from fastforks.shared.qk_affine import cached_qk_affine
 from fastforks.shared.rope2d import rope_forward
 
 from .net.heads.camera_head import CameraHead
@@ -242,13 +243,7 @@ class _Fast(_Base):
         return o.transpose(1, 2).reshape(b, n, h * d)
 
     def qk_affine(self, a: Any) -> tuple[torch.Tensor, torch.Tensor]:  # noqa: ANN401 - vendored Attention
-        key = id(a)
-        if key not in self._aff:
-            self._aff[key] = (
-                torch.stack([a.q_norm.weight, a.k_norm.weight])[:, None],
-                torch.stack([a.q_norm.bias, a.k_norm.bias])[:, None],
-            )  # [2, 1, 64] (q, k)
-        return self._aff[key]
+        return cached_qk_affine(a, self._aff)
 
     def rope_tables(self, pos: torch.Tensor, b: int, s: int, p: int) -> tuple[torch.Tensor, torch.Tensor]:
         """Per-token RoPE tables `[B, S*P, 1, 1, 64]`: cos and sign-folded sin (rot(x) = swap(x) * sign)."""

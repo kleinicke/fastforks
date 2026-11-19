@@ -32,6 +32,7 @@ from fastforks._core.patch import override
 from fastforks.multiview._runner import Forward, Runner, invert
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
 from fastforks.shared.host_blocks import StreamedModuleList
+from fastforks.shared.qk_affine import cached_qk_affine
 
 from .net.layers.pos_embed import RoPE2D
 from .net.pi3 import Pi3
@@ -222,13 +223,7 @@ class _Fast(_Base):
         return o.transpose(1, 2).reshape(b, n, h * d)
 
     def qk_affine(self, a: Any) -> tuple[torch.Tensor, torch.Tensor]:  # noqa: ANN401 - vendored AttentionRope
-        key = id(a)
-        if key not in self._aff:
-            self._aff[key] = (
-                torch.stack([a.q_norm.weight, a.k_norm.weight])[:, None],
-                torch.stack([a.q_norm.bias, a.k_norm.bias])[:, None],
-            )  # [2, 1, 64] (q, k)
-        return self._aff[key]
+        return cached_qk_affine(a, self._aff)
 
     def rope_tables(self, pos: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Per-token RoPE tables `[B, N, 1, 1, 64]` of positions `[B, N, 2]`: cos and sign-folded sin."""
