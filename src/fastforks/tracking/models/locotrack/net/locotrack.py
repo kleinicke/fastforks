@@ -316,12 +316,13 @@ class LocoTrack(nn.Module):
         stack = torch.cat([interp, cost_hires.reshape(t * b * n, 1, h, w)], 1)  # [tbn, 2, h, w]
         del cost, cost_hires, interp
         pos = self.cost_conv(stack).reshape(t, b, n, h, w).permute(1, 2, 0, 3, 4)
+        occ = self.occ_linear(torch.cat([stack.mean((2, 3)), stack.amax((2, 3)), stack.amin((2, 3))], -1))
+        del stack
         heat = F.softmax(pos.reshape(b, n, t, -1) * SOFTMAX_TEMPERATURE, -1).view_as(pos)
         points = soft_argmax(heat) * torch.tensor([SIZE / w, SIZE / h], device=heat.device)
         del pos, heat
         is_query = torch.round(queries[..., :1]) == torch.arange(t, device=queries.device)  # [B, N, T]
         points = torch.where(is_query[..., None], queries[:, :, None, 1:].flip(-1), points)
-        occ = self.occ_linear(torch.cat([stack.mean((2, 3)), stack.amax((2, 3)), stack.amin((2, 3))], -1))
         occ = occ.reshape(t, b, n, 2).permute(1, 2, 0, 3)
         return points, occ[..., 0], occ[..., 1]
 
@@ -336,7 +337,9 @@ class LocoTrack(nn.Module):
             neighborhood = map_coordinates_2d(grid, yx[:, :, :, None] + ctx)  # [b, n, t, 49, c]
             b, n, t = neighborhood.shape[:3]
             corr = torch.einsum("bntsc,bnjc->bntsj", neighborhood, supp.flatten(2, 3).to(neighborhood.dtype))
+            del neighborhood, yx
             corrs.append(cmdtop(corr.reshape(b * n * t, SUPPORT, SUPPORT, SUPPORT, SUPPORT)).view(b, n, t, -1))
+            del corr
         rel_fwd = F.pad(points[..., :-1, :] - points[..., 1:, :], (0, 0, 0, 1))
         rel_bwd = F.pad(points[..., 1:, :] - points[..., :-1, :], (0, 0, 1, 0))
         rel = torch.cat([rel_fwd, rel_bwd], -1) / SIZE
