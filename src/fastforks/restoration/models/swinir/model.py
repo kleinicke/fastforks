@@ -28,6 +28,7 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
+from fastforks._core.tracing import in_onnx_export
 from fastforks.kernels import cudnn_hacc
 from fastforks.kernels.shift_windows import rearrange
 from fastforks.restoration._runner import Crop, Forward, Runner
@@ -37,6 +38,7 @@ from fastforks.shared.swin_sr import (
     patch_embed,
     relative_bias,
     shift_mask,
+    shifted_window_regions,
     window_attention,
 )
 
@@ -72,13 +74,25 @@ class _NoMask:
 
 
 _NO_MASK = _NoMask()
+_COMPACT_MASK_MIN_WINDOWS = 512
 
 
 def _mask(m: SwinTransformerBlock, x_size: tuple[int, int]) -> torch.Tensor | _NoMask:
     """`SwinTransformerBlock.calculate_mask` made on the device, once per size (upstream: all zeros if unshifted)."""
     if not m.shift_size:
         return _NO_MASK
-    return shift_mask(*x_size, m.window_size, m.shift_size, m.norm1.weight.device, dtype=m.norm1.weight.dtype)
+    h, w = x_size
+    window, shift = m.window_size, m.shift_size
+    weight = m.norm1.weight
+    if (
+        weight.is_cuda
+        and weight.dtype == torch.float16
+        and (h // window) * (w // window) >= _COMPACT_MASK_MIN_WINDOWS
+        and not torch.is_grad_enabled()
+        and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export())
+    ):
+        return shifted_window_regions(h, w, window, shift, weight.device)
+    return shift_mask(h, w, window, shift, weight.device, dtype=weight.dtype)
 
 
 def _attention(m: WindowAttention, x: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
