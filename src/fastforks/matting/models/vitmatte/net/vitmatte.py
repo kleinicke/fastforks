@@ -402,6 +402,7 @@ class VitMatteFusionBlock(nn.Module):
     def forward(self, features, detailed_feature_map):
         upscaled_features = nn.functional.interpolate(features, scale_factor=2, mode="bilinear", align_corners=False)
         out = torch.cat([detailed_feature_map, upscaled_features], dim=1)
+        del upscaled_features
         out = self.conv(out)
 
         return out
