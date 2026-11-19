@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 
 ROOT = Path(__file__).resolve().parents[1]
 GOLDEN = "golden"  # the `input` of a golden row
+GENERATED_DOCS = ("docs/data", "docs/models", "docs/benchmarks.md", "docs/overview.md")
 OVERHEAD_S = 5.0  # per job: interpreter, torch + CUDA init, golden input (hitnet demo: 4-5 s)
 PROFILE_S = 2.0  # profiler start-up on the profiled input
 
@@ -172,14 +173,23 @@ def _current(sc: ModuleType, r: dict[str, Any]) -> bool:
     return r.get("code_hash", "")[:16] == sc.files_hash(r.get("files", []))
 
 
-def _golden_source(commit: str) -> str:
-    """Identify the tested tree, including edited cards, golden manifests and the test harness."""
-    diff = subprocess.run(["git", "-C", str(ROOT), "diff", "--binary", "HEAD"], capture_output=True, check=True)
-    return f"{commit}:{hashlib.sha256(diff.stdout).hexdigest()}"
+def _golden_sources(commit: str) -> tuple[str, str]:
+    """Fingerprint the tested tree and accept the previous format for existing results."""
+    git = ["git", "-C", str(ROOT)]
+    paths = [".", *(f":(exclude){path}" for path in GENERATED_DOCS)]
+    index = subprocess.check_output([*git, "ls-files", "--stage", "-z", "--", *paths])
+    changes = subprocess.check_output([*git, "diff", "--binary", "HEAD", "--", *paths])
+    full_diff = subprocess.check_output([*git, "diff", "--binary", "HEAD"])
+    return (
+        "tree:" + hashlib.sha256(index + b"\0" + changes).hexdigest(),
+        f"{commit}:{hashlib.sha256(full_diff).hexdigest()}",
+    )
 
 
-def _done(sc: ModuleType, rows: list[dict[str, Any]], job: dict[str, Any], *, golden_source: str | None = None) -> bool:
-    if golden_source is not None:
+def _done(
+    sc: ModuleType, rows: list[dict[str, Any]], job: dict[str, Any], *, golden_sources: tuple[str, ...] = ()
+) -> bool:
+    if golden_sources:
         last = next(
             (
                 r
@@ -190,7 +200,7 @@ def _done(sc: ModuleType, rows: list[dict[str, Any]], job: dict[str, Any], *, go
             ),
             {},
         )
-        return last.get("golden") == "pass" and last.get("golden_source") == golden_source and _current(sc, last)
+        return last.get("golden") == "pass" and last.get("golden_source") in golden_sources and _current(sc, last)
     golden = [r for r in rows if r.get("input") == GOLDEN and (r["ref"], r["mode"]) == (job["ref"], job["mode"])]
     ok = bool(golden) and golden[-1].get("golden") in {"pass", "skip"} and _current(sc, golden[-1])
     return ok and (not job["inputs"] or sc._done(rows, "lib", job))  # noqa: SLF001 - speed_check's resume rule
@@ -201,16 +211,16 @@ def run(a: argparse.Namespace) -> int:
     sel = json.loads(a.selection.read_text())
     rows = sc.read_rows(a.out)
     commit = sc._commit()  # noqa: SLF001
-    golden_source = _golden_source(commit) if a.golden_only else None
+    golden_sources = _golden_sources(commit) if a.golden_only else ()
     env = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(ROOT / "src"), os.environ.get("PYTHONPATH")]))}
     for job in jobs(sel, a.family, a.modes, golden_only=a.golden_only):
         tag = f"{job['family']} {job['ref']} {job['mode']}"
-        if not a.force and _done(sc, rows, job, golden_source=golden_source):
+        if not a.force and _done(sc, rows, job, golden_sources=golden_sources):
             print(f"== {tag}: done on this code", flush=True)
             continue
         spec = job | {"side": "lib", "out": str(a.out), "commit": commit, "forks": "", "fork_key": ""}
-        if golden_source is not None:
-            spec["golden_source"] = golden_source
+        if golden_sources:
+            spec["golden_source"] = golden_sources[0]
         spec["no_profile"] = not a.profile
         print(f"== {tag} {time.strftime('%T')} (estimate {estimate_s(job, profile=a.profile):.0f} s)", flush=True)
         before = len(rows)
@@ -277,7 +287,7 @@ def table(sel: dict[str, Any], path: Path, families: list[str], modes: list[str]
     """Markdown: one line per family (verdict), then one per job (golden error, ms vs floor, peak MB)."""
     sc = speed_check()
     reg = {} if golden_only else _regressions(sc, path)
-    golden_source = _golden_source(sc._commit()) if golden_only else None  # noqa: SLF001
+    golden_sources = _golden_sources(sc._commit()) if golden_only else ()  # noqa: SLF001
     latest: dict[tuple[str, str, str], dict[str, Any]] = {}
     for i, r in enumerate(sc.read_rows(path)):
         if r.get("side") != "lib":
@@ -285,7 +295,7 @@ def table(sel: dict[str, Any], path: Path, families: list[str], modes: list[str]
         if (
             golden_only
             and r.get("input") == GOLDEN
-            and (r.get("golden_source") != golden_source or not _current(sc, r))
+            and (r.get("golden_source") not in golden_sources or not _current(sc, r))
         ):
             continue
         latest[r["ref"], r["mode"], r.get("input", "-")] = r | {"_i": i}

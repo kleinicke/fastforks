@@ -25,7 +25,8 @@ uv run python tools/select_tests.py LAST_VERIFIED_COMMIT HEAD --json > selection
 uv run python tools/merge_check.py estimate selection.json
 ```
 
-For a correctness-only CUDA check, run the exact selected revisions. Reuse the same results file to resume.
+For a correctness-only CUDA check, run the exact selected revisions. Reuse the same results file to resume, including
+after updates limited to generated model pages and benchmark data.
 
 ```
 uv run python tools/merge_check.py run selection.json --golden-only --out goldens.jsonl

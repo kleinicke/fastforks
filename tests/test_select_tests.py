@@ -12,6 +12,7 @@ import merge_check
 import select_tests as st
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 CARD = "uses = {uses}\n\n[modes.kernels]\nkernels = {kernels}\n"
@@ -137,10 +138,8 @@ def test_mini_k_expression(mini: Path) -> None:
     assert sel.as_dict()["families"]["fa"]["k"] == sel.k("fa")
 
 
-def test_git_changed_reports_both_sides_of_a_moved_module(tmp_path: Path) -> None:
-    old = "src/fastforks/stereo/models/fa/helper.py"
-    new = "src/fastforks/stereo/models/fb/helper.py"
-
+@pytest.fixture
+def git_repo(tmp_path: Path) -> Callable[..., None]:
     def git(*args: str) -> None:
         subprocess.run(
             [  # noqa: S607 - local test repository uses the installed Git client
@@ -161,16 +160,47 @@ def test_git_changed_reports_both_sides_of_a_moved_module(tmp_path: Path) -> Non
         )
 
     git("init")
-    git("config", "diff.renames", "true")
+    return git
+
+
+def test_git_changed_reports_both_sides_of_a_moved_module(tmp_path: Path, git_repo: Callable[..., None]) -> None:
+    old = "src/fastforks/stereo/models/fa/helper.py"
+    new = "src/fastforks/stereo/models/fb/helper.py"
+    git_repo("config", "diff.renames", "true")
     for name in (old, new):
         (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
     (tmp_path / old).write_text("VALUE = 1\n")
-    git("add", old)
-    git("commit", "-m", "Initial module")
-    git("mv", old, new)
-    git("commit", "-m", "Move module")
+    git_repo("add", old)
+    git_repo("commit", "-m", "Initial module")
+    git_repo("mv", old, new)
+    git_repo("commit", "-m", "Move module")
 
     assert set(st.git_changed("HEAD~1", "HEAD", tmp_path)) == {old, new}
+
+
+def test_golden_source_survives_generated_docs_but_changes_with_fixtures(
+    tmp_path: Path, git_repo: Callable[..., None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    doc = tmp_path / "docs/data/speed.jsonl"
+    golden = tmp_path / "src/fastforks/stereo/models/fa/golden.toml"
+    for path in (doc, golden):
+        path.parent.mkdir(parents=True)
+        path.write_text("")
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Baseline")
+    monkeypatch.setattr(merge_check, "ROOT", tmp_path)
+    first, legacy = merge_check._golden_sources("baseline")
+
+    doc.write_text("{}\n")
+    assert merge_check._golden_sources("baseline")[0] == first
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Refresh timings")
+    source, old_format = merge_check._golden_sources("docs")
+    assert source == first
+    assert old_format != legacy
+
+    golden.write_text('[refs."fa-x@1"]\n')
+    assert merge_check._golden_sources("docs")[0] != first
 
 
 def test_golden_only_includes_each_selected_revision_without_a_floor(monkeypatch: pytest.MonkeyPatch) -> None:
