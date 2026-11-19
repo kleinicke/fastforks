@@ -145,9 +145,12 @@ class _Functional(Runner):
                 t = apply(t, self)
         f = F.layer_norm(t, (c,), bb.ln1.weight, bb.ln1.bias, LN_EPS).view(b, gh, gw, c).permute(0, 3, 1, 2)
         for w in self.deconv:
-            f = _inorm_silu_(self._deconv(f, w))
+            f = self._deconv(f, w)
+            f = _inorm_silu_(f)
+        # Drop the previous feature map before InstanceNorm allocates its reduction workspace.
         for w, bias in self.convs:
-            f = _inorm_silu_(self._conv(f, w, bias, 1))
+            f = self._conv(f, w, bias, 1)
+            f = _inorm_silu_(f)
         return self._conv(f, self.seg_w, self.net.decode_head.conv_seg.bias, 1)
 
     def _scores(self, image: torch.Tensor) -> torch.Tensor:
