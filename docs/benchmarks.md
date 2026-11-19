@@ -1114,7 +1114,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | inspyrenet-fast | 71.1 | 41.7 | – | – | – | 810 / 836 | 432 / 488 | – |
 | isnet | 38.5 | 21.0 | 12.1 | 3.2x | 1.7x | 993 / 1042 | 512 / 562 | 487 / 522 |
 | isnet-general-use | 38.5 | 21.0 | 12.1 | 3.2x | 1.7x | 993 / 1042 | 512 / 562 | 487 / 522 |
-| matanyone | 1220 | 1214 | – | – | – | 2978 / 3208 | 2734 / 3448 | – |
+| matanyone | 1220 | 1203 | 911 | 1.3x | 1.3x | 2978 / 3208 | 2273 / 2728 | 2268 / 2706 |
 | rmbg-2.0 | 149 | 132 | 121 | 1.2x | 1.1x | 1672 / 1990 | 1660 / 1908 | 1674 / 1936 |
 | u2net | 15.9 | 9.77 | 5.18 | 3.1x | 1.9x | 476 / 502 | 240 / 278 | 161 / 236 |
 | u2net-human-seg | 16.0 | 10.0 | 5.14 | 3.1x | 2.0x | 476 / 502 | 240 / 278 | 161 / 236 |
@@ -1477,7 +1477,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | ema-vfi-t | 287 | 233 | 207 | 1.4x | 1.1x | 3940 / 4290 | 2827 / 3184 | 368 / 3566 |
 | film | 464 | 417 | 332 | 1.4x | 1.3x | 2953 / 3556 | 2856 / 3080 | 2856 / 3080 |
 | gimm-vfi-r | OOM | 2635 | 1629 | – | 1.6x | – | 7855 / 9078 | 4587 / 5362 |
-| gimm-vfi-r-p | OOM | 2622 | 1628 | – | 1.6x | – | 9899 / 10400 | 4587 / 5282 |
+| gimm-vfi-r-p | OOM | 2639 | 1628 | – | 1.6x | – | 5936 / 6618 | 4587 / 5282 |
 | rife-4.25 | 24.5 | 25.0 | 21.4 | 1.1x | 1.2x | 987 / 1154 | 755 / 894 | 848 / 916 |
 | rife-4.25-lite | 21.3 | 21.1 | 18.3 | 1.2x | 1.2x | 1012 / 1214 | 754 / 854 | 834 / 896 |
 | rife-4.26 | 24.2 | 25.1 | 21.4 | 1.1x | 1.2x | 1004 / 1154 | 755 / 894 | 848 / 916 |
@@ -1783,7 +1783,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | inspyrenet-fast | 5.93 | 11.07 | – | 1.33 | 0.79 | – |
 | isnet | 1.58 | 0.23 | 1.54 | 0.41 | 0.34 | 0.12 |
 | isnet-general-use | 1.58 | 0.24 | 1.32 | 0.41 | 0.29 | 0.09 |
-| matanyone | 3.39 | 0.40 | – | 2.37 | 1.87 | – |
+| matanyone | 3.39 | 0.40 | 0.35 | 2.37 | 1.87 | 1.56 |
 | rmbg-2.0 | 6.42 | 0.94 | 0.64 | 0.94 | 0.49 | 0.47 |
 | u2net | 0.64 | 0.49 | 1.37 | 0.40 | 0.21 | 0.11 |
 | u2net-human-seg | 0.54 | 0.32 | 1.37 | 0.38 | 0.30 | 0.11 |
@@ -2388,7 +2388,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | inspyrenet-fast | 1080x1920 | 41.7 ms | 17.7 ms | 6.99 ms | – | 76.6 s | 138 s | 432 / 488 | 345 / 376 | – | 561 / 600 |
 | isnet | 1080x1920 | 21.0 ms | 13.1 ms | 6.70 ms | 12.1 ms | 33.8 s | 34.4 s | 512 / 562 | 350 / 400 | 487 / 522 | 404 / 436 |
 | isnet-general-use | 1080x1920 | 21.0 ms | 13.1 ms | 6.66 ms | 12.1 ms | 33.9 s | 32.3 s | 512 / 562 | 350 / 400 | 487 / 522 | 404 / 436 |
-| matanyone | 1080x1920 | 1214 ms | 635 ms | fails: BackendUnavailableError: matanyone@1 (portable) has no expor | – | 35.9 s | – | 2734 / 3448 | 1363 / 3452 | – | – |
+| matanyone | 1080x1920 | 1203 ms | 635 ms | fails: BackendUnavailableError: matanyone@1 (portable) has no expor | 911 ms | 35.9 s | – | 2273 / 2728 | 1363 / 3452 | 2268 / 2706 | – |
 | matanyone | 288x512 | – | – | 1476 ms, fp32 engine (frame and key encoder with eager video memory and alpha decoder, 100 frames) | – | – | 15.8 s | – | – | – | 474 / 542 |
 | rmbg-2.0 | 1080x1920 | 132 ms | 110 ms | 88.1 ms | 121 ms | 82.9 s | 219 s | 1660 / 1908 | 1874 / 1932 | 1674 / 1936 | 1723 / 1784 |
 | u2net | 1080x1920 | 9.77 ms | 9.09 ms | 3.07 ms | 5.18 ms | – | 36.0 s | 240 / 278 | 221 / 258 | 161 / 236 | 335 / 390 |
@@ -2714,7 +2714,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | film | 1080x1920 | 417 ms | 332 ms | 189 ms | 332 ms | 41.1 s | 203 s | 2856 / 3080 | 2666 / 3192 | 2856 / 3080 | 2658 / 2658 |
 | gimm-vfi-r | 1080x1920 | 2635 ms | 1498 ms | planned for 0.2.1 | 1629 ms | 307 s | – | 7855 / 9078 | 12051 / 12880 | 4587 / 5362 | – |
 | gimm-vfi-r | 480x854 | 468 ms | – | 1210 ms, fp32 engine (RAFT feature encoder with eager context, flow update and synthesis) | 289 ms | – | 12.9 s | 1574 / 1674 | – | 1388 / 1618 | 3522 / 6116 |
-| gimm-vfi-r-p | 1080x1920 | 2622 ms | 1498 ms | fails: TensorRT parser: Sc node | 1628 ms | 307 s | – | 9899 / 10400 | 12051 / 12880 | 4587 / 5282 | – |
+| gimm-vfi-r-p | 1080x1920 | 2639 ms | 1498 ms | fails: TensorRT parser: Sc node | 1628 ms | 307 s | – | 5936 / 6618 | 12051 / 12880 | 4587 / 5282 | – |
 | gimm-vfi-r-p | 480x854 | 467 ms | – | 1190 ms, fp32 engine (RAFT feature and context encoders with eager flow update and synthesis) | 289 ms | – | 16.9 s | 1574 / 1674 | – | 1388 / 1598 | 3592 / 6000 |
 | rife-4.25 | 1080x1920 | 25.0 ms | 44.9 ms | 17.6 ms | 21.4 ms | 36.1 s | 56.3 s | 755 / 894 | 1094 / 1234 | 848 / 916 | 696 / 714 |
 | rife-4.25-lite | 1080x1920 | 21.1 ms | 42.3 ms | 14.1 ms | 18.3 ms | 34.9 s | 49.5 s | 754 / 854 | 1061 / 1374 | 834 / 896 | 696 / 714 |

@@ -19,7 +19,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`inspyrenet-fast`](#inspyrenet) | yes | – | – | – |
 | [`isnet`](#isnet) | yes | – | 12.1, 3.2x | 522, 0.5x |
 | [`isnet-general-use`](#isnet) | yes | – | 12.1, 3.2x | 522, 0.5x |
-| [`matanyone`](#matanyone) | no | – | – | – |
+| [`matanyone`](#matanyone) | no | – | 911, 1.3x | 2706, 0.84x |
 | [`rmbg-2.0`](#birefnet) | no | – | 121, 1.2x | 1936, 0.97x |
 | [`u2net`](#u2net) | yes | – | 5.18, 3.1x | 236, 0.47x |
 | [`u2net-human-seg`](#u2net) | yes | – | 5.14, 3.1x | 236, 0.47x |
@@ -261,7 +261,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `matanyone` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1220<br>1214<br>–<br>635<br>fails: BackendUnavailableError: matanyone@1 (portable) has no expor | 2978 / 3208<br>2734 / 3448<br>–<br>1363 / 3452<br>– |
+| `matanyone` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1220<br>1203<br>911<br>635<br>fails: BackendUnavailableError: matanyone@1 (portable) has no expor | 2978 / 3208<br>2273 / 2728<br>2268 / 2706<br>1363 / 3452<br>– |
 | `matanyone` | 288x512 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>1476 (frame and key encoder with eager video memory and alpha decoder, 100 frames) | –<br>–<br>–<br>474 / 542 |
 
 <details><summary>Details</summary>
@@ -280,7 +280,8 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - `matanyone` 1080x1920, first call: portable + torch.compile 36 s (cold Inductor cache).
 - `matanyone` 288x512, first call: TensorRT fp32 16 s (ONNX + engine).
 - `matanyone` original 1080x1920: the authors' mixed-precision option (float16); pq-yang/MatAnyone@e5ddc534c1ff process_video loop on frames in memory, cv2 mask closing
-- `matanyone` load / first call: original 3.39 s / 2.37 s, portable 0.4 s / 1.867 s
+- `matanyone` portable 1080x1920, kernels 1080x1920: Eager CUDA decoder reuses activation storage after projecting the residual.
+- `matanyone` load / first call: original 3.39 s / 2.37 s, portable 0.4 s / 1.867 s, kernels 0.35 s / 1.559 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

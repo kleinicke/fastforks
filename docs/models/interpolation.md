@@ -158,7 +158,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 |---|---|---|---|---|
 | `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2635<br>1629<br>1498<br>planned for 0.2.1 | –<br>7855 / 9078<br>4587 / 5362<br>12051 / 12880<br>– |
 | `gimm-vfi-r` | synthetic (480x854) | original<br>portable<br>kernels<br>TensorRT fp32 | 498<br>468<br>289<br>1210 (RAFT feature encoder with eager context, flow update and synthesis) | 2820 / 3246<br>1574 / 1674<br>1388 / 1618<br>3522 / 6116 |
-| `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2622<br>1628<br>1498<br>fails: TensorRT parser: Sc node | –<br>9899 / 10400<br>4587 / 5282<br>12051 / 12880<br>– |
+| `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2639<br>1628<br>1498<br>fails: TensorRT parser: Sc node | –<br>5936 / 6618<br>4587 / 5282<br>12051 / 12880<br>– |
 | `gimm-vfi-r-p` | synthetic (480x854) | original<br>portable<br>kernels<br>TensorRT fp32 | 498<br>467<br>289<br>1190 (RAFT feature and context encoders with eager flow update and synthesis) | 2820 / 3246<br>1574 / 1674<br>1388 / 1598<br>3592 / 6000 |
 
 <details><summary>Details</summary>
@@ -180,6 +180,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - `gimm-vfi-r-p` 480x854, first call: TensorRT fp32 17 s (ONNX + engine).
 - `gimm-vfi-r` portable 1080x1920: Shared forward and reverse CUDA correlation. Prior portable was 2618.579 ms and 9887 MiB peak allocated. The paired PSNR change was below 0.0002 dB on 27 DAVIS comparisons across both checkpoints.
 - `gimm-vfi-r` original 480x854: torch.autocast(float16) around the call; upstream GIMMVFI_R forward as video_Nx.py, time 0.5, ds_factor 1.0, replicate pad to 32, cupy softsplat
+- `gimm-vfi-r-p` portable 1080x1920: Eager CUDA releases the single-use correlation volumes before decoding.
 - `gimm-vfi-r-p` original 480x854: torch.autocast(float16) around the call; upstream GIMMVFI_R forward as video_Nx.py, time 0.5, ds_factor 1.0, replicate pad to 32, cupy softsplat
 - `gimm-vfi-r` load / first call: original 2.05 s / 1.336 s (480x854), portable 0.27 s / 2.622 s, kernels 0.59 s / 1.631 s
 - `gimm-vfi-r-p` load / first call: original 2.96 s / 1.438 s (480x854), portable 0.27 s / 0.997 s (480x854), kernels 0.58 s / 0.684 s (480x854)
