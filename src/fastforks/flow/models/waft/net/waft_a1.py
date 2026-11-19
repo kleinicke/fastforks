@@ -119,6 +119,12 @@ class ViTWarpV8(nn.Module):
         std = img.new_tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
         return ((img/255.0 - mean) / std).contiguous()
 
+    def _image_features(self, image):
+        depth = self.da_feature(image)['out']
+        features = self.fnet(torch.cat([depth, image], dim=1))[0]
+        depth = F.interpolate(depth, scale_factor=0.5, mode='bilinear', align_corners=True)
+        return self.fmap_conv(torch.cat([features, depth], dim=1))
+
     def forward(self, image1, image2, iters=None, flow_gt=None, *, final_flow_only=False):
         """ Estimate optical flow between pair of frames """
         if iters is None:
@@ -132,14 +138,19 @@ class ViTWarpV8(nn.Module):
         info_predictions = [] 
         N, _, H, W = image1.shape
         # initial feature
-        da_feature1 = self.da_feature(image1)
-        da_feature2 = self.da_feature(image2)
-        fmap1_feats = self.fnet(torch.cat([da_feature1['out'], image1], dim=1))
-        fmap2_feats = self.fnet(torch.cat([da_feature2['out'], image2], dim=1))
-        da_feature1_2x = F.interpolate(da_feature1['out'], scale_factor=0.5, mode='bilinear', align_corners=True)
-        da_feature2_2x = F.interpolate(da_feature2['out'], scale_factor=0.5, mode='bilinear', align_corners=True)
-        fmap1_2x = self.fmap_conv(torch.cat([fmap1_feats[0], da_feature1_2x], dim=1))
-        fmap2_2x = self.fmap_conv(torch.cat([fmap2_feats[0], da_feature2_2x], dim=1))
+        if final_flow_only:
+            # Only the half-resolution maps are reused during refinement.
+            fmap1_2x = self._image_features(image1)
+            fmap2_2x = self._image_features(image2)
+        else:
+            da_feature1 = self.da_feature(image1)
+            da_feature2 = self.da_feature(image2)
+            fmap1_feats = self.fnet(torch.cat([da_feature1['out'], image1], dim=1))
+            fmap2_feats = self.fnet(torch.cat([da_feature2['out'], image2], dim=1))
+            da_feature1_2x = F.interpolate(da_feature1['out'], scale_factor=0.5, mode='bilinear', align_corners=True)
+            da_feature2_2x = F.interpolate(da_feature2['out'], scale_factor=0.5, mode='bilinear', align_corners=True)
+            fmap1_2x = self.fmap_conv(torch.cat([fmap1_feats[0], da_feature1_2x], dim=1))
+            fmap2_2x = self.fmap_conv(torch.cat([fmap2_feats[0], da_feature2_2x], dim=1))
         net = self.hidden_conv(torch.cat([fmap1_2x, fmap2_2x], dim=1))
         flow_2x = torch.zeros(N, 2, H//2, W//2).to(image1.device)
         for itr in range(iters):
@@ -147,8 +158,10 @@ class ViTWarpV8(nn.Module):
             coords2 = (coords_grid(N, H//2, W//2, device=image1.device) + flow_2x).detach()
             warp_2x = bilinear_sampler(fmap2_2x, coords2.permute(0, 2, 3, 1))
             refine_inp = self.warp_linear(torch.cat([fmap1_2x, warp_2x, net, flow_2x], dim=1))
-            refine_outs = self.refine_net(refine_inp)
-            net = self.refine_transform(torch.cat([refine_outs['out'], net], dim=1))
+            refine_out = self.refine_net(refine_inp)['out']
+            del refine_inp, warp_2x
+            net = self.refine_transform(torch.cat([refine_out, net], dim=1))
+            del refine_out
             flow_update = self.flow_head(net)
             flow_2x = flow_2x + flow_update[:, :2]
             if final_flow_only:
