@@ -12,7 +12,15 @@ import numpy as np
 import pytest
 import torch
 
-from fastforks import BackendUnavailableError, CardError, MissingDependencyError, OptionsError, features, stereo
+from fastforks import (
+    BackendUnavailableError,
+    CardError,
+    MissingDependencyError,
+    OptionsError,
+    features,
+    matching,
+    stereo,
+)
 from fastforks._core import model as core_model
 from fastforks._core import registry
 from fastforks._core.cards import parse_card
@@ -37,7 +45,7 @@ def test_card_declares_the_port_per_mode(cre):
     assert card.mlx_kernel_libs == ("crestereo_mlx",)
     assert card.mlx_dtypes("kernels") == ("float32", "float16")
     assert "  mlx       portable (float32, float16), kernels (float32, float16; crestereo_mlx)" in str(card)
-    none = registry.resolve("stereo", "raft-stereo-middlebury")[0]
+    none = registry.resolve("matching", "aliked-lightglue")[0]
     assert (none.portable_mlx_dtypes, none.mlx_kernel_libs, none.mlx_dtypes("kernels")) == ((), (), ())
 
 
@@ -96,7 +104,7 @@ def test_card_rejects_inconsistent_mlx_fields(cre, edit, match):
 
 def test_family_without_a_port_raises():
     with pytest.raises(BackendUnavailableError, match="no Apple MLX port"):
-        stereo.load("raft-stereo-middlebury", device="mlx")
+        matching.load("aliked-lightglue", device="mlx")
 
 
 def test_port_without_kernels_raises_for_kernels():
@@ -169,7 +177,7 @@ class TestTuning:
 
     def test_cache_limit_scales_with_memory_between_its_bounds(self, rt):
         t, gb = rt.Tuning(), 1 << 30
-        assert [t.cache_limit(n * gb) >> 20 for n in (8, 16, 48, 64, 128)] == [512, 512, 1536, 2048, 2048]
+        assert [t.cache_limit(n * gb) >> 20 for n in (8, 16, 48, 64, 128)] == [128, 128, 384, 512, 1024]
 
 
 class TestMpsRouting:

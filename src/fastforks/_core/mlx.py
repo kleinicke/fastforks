@@ -156,7 +156,7 @@ class Tuning:
     compile_steps: bool = True
 
     def cache_limit(self, memory: int) -> int:
-        """The buffer cache limit in bytes for a machine with `memory` bytes: 512 MB at 16 GB, capped at 2 GB."""
+        """The buffer cache limit in bytes for a machine with `memory` bytes: 128 MB at 16 GB (1/128 of the memory, at least 128 MB), capped at 2 GB."""
         return int(min(self.cache_cap_mb * _MB, max(self.cache_min_mb * _MB, memory * self.cache_fraction)))
 
 
