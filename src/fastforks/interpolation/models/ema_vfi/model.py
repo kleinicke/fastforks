@@ -32,6 +32,8 @@ from .net import MotionFormer, MultiScaleFlow
 from .net.feature_extractor import window_partition, window_reverse
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from fastforks.interpolation._runner import Context
 
     from .net.feature_extractor import InterFrameAttention, MotionFormerBlock
@@ -242,7 +244,12 @@ def _head(
     return y[:, :4], y[:, 4:5]
 
 
-def _refine_warped(net: MultiScaleFlow, parts: tuple[torch.Tensor, ...], features: list[torch.Tensor]) -> torch.Tensor:
+def _refine_warped(
+    net: MultiScaleFlow,
+    parts: tuple[torch.Tensor, ...],
+    features: list[torch.Tensor],
+    stack: Callable[[tuple[torch.Tensor, ...], torch.Tensor, torch.Tensor], torch.Tensor],
+) -> torch.Tensor:
     """Run each U-Net block as soon as its pair of warped features is available, releasing that scale's inputs."""
     unet = net.unet
     flow = parts[-1]
@@ -253,7 +260,7 @@ def _refine_warped(net: MultiScaleFlow, parts: tuple[torch.Tensor, ...], feature
     for index, block in enumerate((unet.down0, unet.down1, unet.down2, unet.down3, unet.up0)):
         if index:
             flow = F.interpolate(flow, scale_factor=0.5, mode="bilinear", align_corners=False) * 0.5
-        stacked = ema_warp.stack(inputs, features.pop(), flow)
+        stacked = stack(inputs, features.pop(), flow)
         y = block(stacked)
         del stacked
         if index < len(decoder):  # down0, down1 and down2 feed the matching decoder skip
@@ -273,6 +280,7 @@ def _interpolate(  # noqa: PLR0913
     cache: Cache | None,
     *,
     fused: bool = False,
+    stream_warps: bool = False,
 ) -> torch.Tensor:
     """`MultiScaleFlow.forward(cat(img0, img1), t)[3]` for float32 `[B, 3, H, W]` frames, `t` `[B, 1, 1, 1]`."""
     b = img0.shape[0]
@@ -300,7 +308,20 @@ def _interpolate(  # noqa: PLR0913
         msg = "EMA-VFI needs at least one head"
         raise ValueError(msg)
     parts = (img0, img1, warped0, warped1, mask, flow)
-    if not fused:
+    if fused:
+        del mf
+        tmp = _refine_warped(net, parts, af, ema_warp.stack)
+    elif stream_warps:
+        del mf, m, feat
+
+        def stack(inputs: tuple[torch.Tensor, ...], features: torch.Tensor, coords: torch.Tensor) -> torch.Tensor:
+            left = _warp(features[:b], coords[:, :2]).to(dtype, memory_format=fmt)
+            right = _warp(features[b:], coords[:, 2:4]).to(dtype, memory_format=fmt)
+            normalized = tuple(p.to(dtype, memory_format=fmt) for p in inputs)
+            return torch.cat((*normalized, left, right), 1)
+
+        tmp = _refine_warped(net, parts, af, stack)
+    else:
         c0, c1, fl = [], [], flow
         for i, x in enumerate(af):  # MultiScaleFlow.warp_features
             if i:
@@ -308,9 +329,6 @@ def _interpolate(  # noqa: PLR0913
             c0.append(_warp(x[:b], fl[:, :2]).to(dtype, memory_format=fmt))
             c1.append(_warp(x[b:], fl[:, 2:4]).to(dtype, memory_format=fmt))
         tmp = net.unet(*(p.to(dtype, memory_format=fmt) for p in parts), c0, c1)
-    else:
-        del mf
-        tmp = _refine_warped(net, parts, af)
     res = tmp[:, :3].float() * 2 - 1
     merged = torch.lerp(warped1, warped0, torch.sigmoid(mask))  # warped0 * mask + warped1 * (1 - mask)
     return torch.clamp(merged + res, 0, 1)
@@ -324,14 +342,15 @@ def _frame(  # noqa: PLR0913
     *,
     tta: bool,
     fused: bool = False,
+    stream_warps: bool = False,
 ) -> torch.Tensor:
     """`Model.inference` on RGB frames: BGR in and out; `tta` = `fast_TTA` (the pair turned by 180 degrees, mean)."""
     i0, i1 = pair[0].flip(1), pair[1].flip(1)
     if not tta:
-        return _interpolate(net, i0, i1, t, cache, fused=fused).flip(1)
+        return _interpolate(net, i0, i1, t, cache, fused=fused, stream_warps=stream_warps).flip(1)
     b = i0.shape[0]
     both0, both1 = torch.cat((i0, i0.flip(2, 3))), torch.cat((i1, i1.flip(2, 3)))
-    pred = _interpolate(net, both0, both1, t.repeat(2, 1, 1, 1), cache, fused=fused)
+    pred = _interpolate(net, both0, both1, t.repeat(2, 1, 1, 1), cache, fused=fused, stream_warps=stream_warps)
     return ((pred[:b] + pred[b:].flip(2, 3)) / 2).flip(1)
 
 
@@ -362,7 +381,13 @@ class Portable(Runner):
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> dict[str, torch.Tensor]:
         """The frame at `timestep` of a padded batch."""
         t = torch.full((image1.shape[0], 1, 1, 1), timestep, device=image1.device)
-        return {"frame": _frame(self.net, (image1, image2), t, self.cache, tta=self.ctx.params.tta)}
+        stream_warps = image1.is_cuda and not (
+            torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled()
+        )
+        frame = _frame(
+            self.net, (image1, image2), t, self.cache, tta=self.ctx.params.tta, stream_warps=stream_warps
+        )
+        return {"frame": frame}
 
     def module(self) -> torch.nn.Module:
         """The network; returns the middle frame (time 0.5)."""
