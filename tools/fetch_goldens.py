@@ -10,13 +10,13 @@ one variant per family (pull requests; the nightly run checks all).
 from __future__ import annotations
 
 import argparse
-import subprocess
 from pathlib import Path
 from urllib.parse import quote
 
 import goldens as store
 from fastforks._core import registry
 from fastforks._core.files import FileSpec, download, sha256_of
+from select_tests import git_changed
 
 ROOT = Path(__file__).resolve().parents[1]
 GOLDEN_URL = "https://huggingface.co/datasets/fastforks/reference-outputs/resolve/main/{file}"  # tools/stage_hf.py
@@ -29,12 +29,10 @@ def affected_families(base: str) -> set[str] | None:
     used on CPU (GPU runs check them), docs / tools / other tests cannot move outputs; anything else in `src/` (core,
     task API) and the golden test itself affect every family.
     """
-    out = subprocess.run(
-        ["git", "-C", ROOT, "diff", "--name-only", f"{base}...HEAD"], check=True, capture_output=True, text=True
-    ).stdout
+    paths = git_changed(base, "HEAD", ROOT, from_merge_base=True)
     users = _shared_users()
     families: set[str] = set()
-    for name in out.split():
+    for name in paths:
         match Path(name).parts:
             case ("src", "fastforks", _task, "models", family, _, *_):
                 families.add(family)

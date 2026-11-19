@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import fetch_goldens
 import merge_check
 import select_tests as st
 
@@ -163,9 +164,11 @@ def git_repo(tmp_path: Path) -> Callable[..., None]:
     return git
 
 
-def test_git_changed_reports_both_sides_of_a_moved_module(tmp_path: Path, git_repo: Callable[..., None]) -> None:
-    old = "src/fastforks/stereo/models/fa/helper.py"
-    new = "src/fastforks/stereo/models/fb/helper.py"
+def test_git_changed_reports_both_sides_of_a_moved_module(
+    tmp_path: Path, git_repo: Callable[..., None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    old = "src/fastforks/stereo/models/fa/helper with spaces.py"
+    new = "src/fastforks/stereo/models/fb/helper with spaces.py"
     git_repo("config", "diff.renames", "true")
     for name in (old, new):
         (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
@@ -176,6 +179,9 @@ def test_git_changed_reports_both_sides_of_a_moved_module(tmp_path: Path, git_re
     git_repo("commit", "-m", "Move module")
 
     assert set(st.git_changed("HEAD~1", "HEAD", tmp_path)) == {old, new}
+    monkeypatch.setattr(fetch_goldens, "ROOT", tmp_path)
+    monkeypatch.setattr(fetch_goldens, "_shared_users", dict)
+    assert fetch_goldens.affected_families("HEAD~1") == {"fa", "fb"}
 
 
 def test_golden_source_survives_generated_docs_but_changes_with_fixtures(

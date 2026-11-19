@@ -261,10 +261,12 @@ def select(
     return sel
 
 
-def git_changed(base: str, head: str, root: Path = ROOT) -> list[str]:
+def git_changed(base: str, head: str, root: Path = ROOT, *, from_merge_base: bool = False) -> list[str]:
+    """Return both paths for a move. Use the merge base for pull-request fixture selection."""
     # A cross-family move affects both the deleted module and its new owner.
+    dots = "..." if from_merge_base else ".."
     r = subprocess.run(
-        ["git", "-C", str(root), "diff", "--no-renames", "--name-only", "-z", f"{base}..{head}"],
+        ["git", "-C", str(root), "diff", "--no-renames", "--name-only", "-z", f"{base}{dots}{head}"],
         capture_output=True,
         text=True,
         check=True,
