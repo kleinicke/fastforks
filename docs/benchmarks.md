@@ -1119,7 +1119,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | u2net | 15.9 | 9.77 | 5.18 | 3.1x | 1.9x | 476 / 502 | 240 / 278 | 161 / 236 |
 | u2net-human-seg | 16.0 | 10.0 | 5.14 | 3.1x | 2.0x | 476 / 502 | 240 / 278 | 161 / 236 |
 | u2netp | 14.8 | 15.1 | 2.92 | 5.1x | 5.2x | 280 / 314 | 139 / 180 | 72 / 124 |
-| vitmatte-b | 257 | 182 | 148 | 1.7x | 1.2x | 5070 / 5128 | 1548 / 1692 | 1452 / 1552 |
+| vitmatte-b | 257 | 181 | 147 | 1.7x | 1.2x | 5070 / 5128 | 1210 / 1492 | 1050 / 1330 |
 | vitmatte-s | 140 | 102 | 84.1 | 1.7x | 1.2x | 2536 / 2582 | 1401 / 1524 | 1305 / 1404 |
 
 ### Edges, synthetic, 1080x1920
@@ -1365,7 +1365,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | mvsanywhere | 448x672 | 273 | 219 | 93.2 | 35.2 | 6.2x | 2.7x | 1504 / 1576 | 931 / 1226 | 702 / 760 |
 | mvsplat-re10k | 336x518 | – | 279 | 181 | 172 | 1.6x | 1.0x | 2889 / 4160 | 1239 / 1532 | 1239 / 1532 |
 | patchmatchnet | 1536x1024 | 248 | 220 | 201 | 29.5 | 7.4x | 6.8x | 1228 / 1272 | 1039 / 1212 | 648 / 772 |
-| pi3 | 336x518 | – | 1057 | 821 | 559 | 1.9x | 1.5x | 5926 / 6016 | 2360 / 2416 | 2367 / 2456 |
+| pi3 | 336x518 | – | 1057 | 822 | 560 | 1.9x | 1.5x | 5926 / 6016 | 2209 / 2254 | 2217 / 2296 |
 | resplat-base-re10k | 480x640 | – | 2521 | 7228 | 1178 | 2.1x | 6.1x | 10139 / 12684 | 4364 / 6884 | 4370 / 6936 |
 | resplat-small-dl3dv | 480x640 | – | 493 | 1723 | 362 | 1.4x | 4.8x | 5148 / 5376 | 4995 / 5180 | 4981 / 5148 |
 | vggt-1b | 336x518 | 2502 | 965 | 653 | 446 | 2.2x | 1.5x | 8688 / 9158 | 3573 / 3794 | 3580 / 3854 |
@@ -2394,7 +2394,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | u2net | 1080x1920 | 9.77 ms | 9.09 ms | 3.07 ms | 5.18 ms | – | 36.0 s | 240 / 278 | 221 / 258 | 161 / 236 | 335 / 390 |
 | u2net-human-seg | 1080x1920 | 10.0 ms | 6.18 ms | 3.08 ms | 5.14 ms | – | 34.7 s | 240 / 278 | 193 / 234 | 161 / 236 | 335 / 390 |
 | u2netp | 1080x1920 | 15.1 ms | 5.73 ms | 1.87 ms | 2.92 ms | – | 26.1 s | 139 / 180 | 129 / 144 | 72 / 124 | 206 / 236 |
-| vitmatte-b | 1080x1920 | 182 ms | 157 ms | 108 ms | 148 ms | 32.6 s | 48.8 s | 1548 / 1692 | 1166 / 1472 | 1452 / 1552 | 1233 / 1262 |
+| vitmatte-b | 1080x1920 | 181 ms | 157 ms | 108 ms | 147 ms | 32.6 s | 48.8 s | 1210 / 1492 | 1166 / 1472 | 1050 / 1330 | 1233 / 1262 |
 | vitmatte-s | 1080x1920 | 102 ms | 81.9 ms | 54.6 ms | 84.1 ms | 31.5 s | 51.3 s | 1401 / 1524 | 1025 / 1284 | 1305 / 1404 | 876 / 920 |
 | anyline | 1024x1024 | 24.0 ms | 11.6 ms | 12.9 ms (full line map only; memory estimated) | 18.8 ms | 40.0 s | 29.6 s | 362 / 384 | 306 / 346 | 362 / 384 | 528 / 542 |
 | hed | 1024x1024 | 6.02 ms | 4.81 ms | 2.57 ms | 4.44 ms | 9.37 s | 11.6 s | 117 / 146 | 137 / 166 | 121 / 146 | 170 / 178 |
@@ -2601,7 +2601,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | mvsanywhere | 448x672 | 93.2 ms | 70.8 ms | 75.4 ms (standalone build) | 35.2 ms | 153 s | 217 s | 931 / 1226 | 818 / 860 | 702 / 760 | 1581 / 1658 |
 | mvsplat-re10k | 336x518 | 181 ms | 115 ms | 106 ms | 172 ms | 102 s | 241 s | 1239 / 1532 | 2762 / 2810 | 1239 / 1532 | 4953 / 4972 |
 | patchmatchnet | 1536x1024 | 201 ms | 175 ms | 51.0 ms | 29.5 ms | 29.4 s | 82.1 s | 1039 / 1212 | 1798 / 1888 | 648 / 772 | 1073 / 1106 |
-| pi3 | 336x518 | 821 ms | 752 ms | public API unavailable | 559 ms | 55.6 s | – | 2360 / 2416 | 2205 / 2334 | 2367 / 2456 | – |
+| pi3 | 336x518 | 822 ms | 752 ms | public API unavailable | 560 ms | 55.6 s | – | 2209 / 2254 | 2205 / 2334 | 2217 / 2296 | – |
 | pi3 | 8x512x640 | – | – | 735 ms (DINOv2 encoder with eager scene decoding, 8 views) | – | – | 53.8 s | – | – | – | 2586 / 2976 |
 | resplat-base-re10k | 480x640 | 7228 ms | 7098 ms (standalone Gaussian initialization and recurrent refinement heads, eager rendering and geometry) | fails: TypeError: _Base.forward() missing 1 required positional arg | 1178 ms | 12.6 s | – | 4364 / 6884 | 4656 / 7630 | 4370 / 6936 | – |
 | resplat-base-re10k | 256x256 | – | – | 1028 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 2173 / 2988 |

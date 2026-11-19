@@ -327,7 +327,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`inspyrenet`](models/matting.md#inspyrenet) | yes | – | 240.9 (1080x1920) | 108.5 | 107.9 | 2.2x vs original (1080x1920) | 1649 |
 | [`birefnet`](models/matting.md#birefnet) | yes | 0.0325 | 234.4 (1080x1920) | 131.4 | 121.1 | 1.9x vs original (1080x1920) | 1674 |
 | [`rmbg-2.0`](models/matting.md#birefnet) | no | – | 149.0 (1080x1920) | 131.5 | 121.4 | 1.2x vs original (1080x1920) | 1674 |
-| [`vitmatte-b`](models/matting.md#vitmatte) | yes | – | 257.3 (1080x1920) | 181.7 | 147.7 | 1.7x vs original (1080x1920) | 1452 |
+| [`vitmatte-b`](models/matting.md#vitmatte) | yes | – | 257.3 (1080x1920) | 181.3 | 147.5 | 1.7x vs original (1080x1920) | 1050 |
 | [`matanyone`](models/matting.md#matanyone) | no | – | 1219.9 (1080x1920) | 1202.5 | 910.7 | 1.3x vs original (1080x1920) | 2268 |
 
 ## Edges
@@ -621,7 +621,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`vggt-omega-1b-512`](models/multiview.md#vggt-omega) | no | 906.4 (336x518) | 727.2 | 469.2 | 1.9x vs original (336x518) | 3270 |
 | [`lingbot-map`](models/multiview.md#lingbot-map) | yes | 992.8 (480x640) | 733.4 | 520.2 | 1.9x vs original (480x640) | 3919 |
 | [`mapanything-apache`](models/multiview.md#mapanything) | yes | 1966.8 (336x518) | 637.0 | 525.0 | 3.7x vs original (336x518) | 3252 |
-| [`pi3`](models/multiview.md#pi3) | no | 1056.6 (336x518) | 820.8 | 558.7 | 1.9x vs original (336x518) | 2367 |
+| [`pi3`](models/multiview.md#pi3) | no | 1056.6 (336x518) | 822.1 | 559.8 | 1.9x vs original (336x518) | 2217 |
 | [`resplat-base-re10k`](models/multiview.md#resplat) | no | 2520.8 (480x640) | 7228.5 | 1178.3 | 2.1x vs original (480x640) | 4370 |
 
 ## Flow

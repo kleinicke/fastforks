@@ -19,7 +19,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`mvsanywhere`](#mvsanywhere) | no | 35.2, 6.2x | 760, 0.51x |
 | [`mvsplat-re10k`](#mvsplat) | yes | 172, 1.6x | 1532, 0.37x |
 | [`patchmatchnet`](#patchmatchnet) | yes | 29.5, 7.4x | 772, 0.61x |
-| [`pi3`](#pi3) | no | 559, 1.9x | 2456, 0.41x |
+| [`pi3`](#pi3) | no | 560, 1.9x | 2296, 0.38x |
 | [`resplat-base-re10k`](#resplat) | no | 1178, 2.1x | 6936, 0.55x |
 | [`resplat-small-dl3dv`](#resplat) | yes | 362, 1.4x | 5148, 0.96x |
 | [`vggt-1b`](#vggt) | no | 446, 2.2x | 3854, 0.52x |
@@ -425,7 +425,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `pi3` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1057<br>821<br>559<br>752<br>public API unavailable | 5926 / 6016<br>2360 / 2416<br>2367 / 2456<br>2205 / 2334<br>– |
+| `pi3` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1057<br>822<br>560<br>752<br>public API unavailable | 5926 / 6016<br>2209 / 2254<br>2217 / 2296<br>2205 / 2334<br>– |
 | `pi3` | 8x512x640 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>735 (DINOv2 encoder with eager scene decoding, 8 views) | –<br>–<br>–<br>2586 / 2976 |
 
 ### Weight streaming
@@ -455,6 +455,7 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - `pi3` 336x518, first call: portable + torch.compile 56 s (cold Inductor cache).
 - `pi3` 8x512x640, first call: TensorRT fp16 54 s (ONNX + engine).
 - `pi3` original 336x518: the authors' mixed-precision option (bfloat16); yyfz/Pi3@9fa3ddb3f8d5 Pi3.forward, PIXEL_LIMIT 255000
+- `pi3` portable 336x518, kernels 336x518: Eight-view FP16 profile. The paired decoder lifetime change saves 150 MiB peak allocation and reproduces the synthetic outputs and the matching depth and camera tensors on three DTU scenes.
 - `pi3` load / first call: original 10.64 s / 4.059 s (336x518), portable 3.46 s / 1.284 s (336x518), kernels 3.78 s / 0.7 s (336x518)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
