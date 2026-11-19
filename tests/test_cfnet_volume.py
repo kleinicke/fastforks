@@ -40,3 +40,26 @@ def test_cfnet_portable_stage_matches_export_path(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(cfnet_model, "in_onnx_export", lambda: True)
     expected = stage_volume(net, (left, right), samples, level=4, a=2, groups=4)
     torch.testing.assert_close(portable, expected, rtol=0, atol=0)
+
+
+@pytest.mark.gpu
+@torch.inference_mode()
+def test_cfnet_cuda_halo_preserves_refinement_at_strip_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
+    generator = torch.Generator(device="cuda").manual_seed(0)
+    height, width = 384, 32
+
+    def features() -> dict[str, torch.Tensor]:
+        return {
+            name: torch.rand(1, channels, height, width, device="cuda", dtype=torch.float16, generator=generator)
+            for name, channels in (("gw2", 40), ("concat_feature2", 6))
+        }
+
+    net = cfnet(64, use_concat_volume=True).eval().cuda().half()
+    data = features(), features()
+    lower = torch.linspace(0, 8, height, device="cuda").view(1, 1, height, 1).expand(1, 1, height, width)
+    upper = lower + 6
+    monkeypatch.setattr(torch.backends.cudnn, "deterministic", True)
+    actual, _ = cfnet_model._stage(net, "s2", data, lower, upper, with_std=False, volume=stage_volume)
+    monkeypatch.setattr(cfnet_model, "_CUDA_HALO", cfnet_model.HALO)
+    expected, _ = cfnet_model._stage(net, "s2", data, lower, upper, with_std=False, volume=stage_volume)
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0)

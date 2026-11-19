@@ -39,6 +39,8 @@ if TYPE_CHECKING:
 BATCHNORMS = (nn.BatchNorm2d, nn.BatchNorm3d)
 FP32_MODULES = ("dres0_5", "dres1_5", "dres0_6", "dres1_6")
 STRIP, HALO = 256, 64  # stage rows per strip / halo rows (> the 3D stack's receptive field; multiples of 8)
+_CUDA_HALO = 32
+_CUDA_HALO_MAX_INPUT = (1024, 1536)
 
 
 @dataclass(frozen=True)
@@ -110,6 +112,10 @@ def _warp_features(right: torch.Tensor, index: torch.Tensor, mask: torch.Tensor)
     return (mask * source.gather(-1, index.expand_as(source))).add_(0)
 
 
+def _eager_cuda(tensor: torch.Tensor) -> bool:
+    return tensor.is_cuda and not (torch.compiler.is_compiling() or torch.compiler.is_exporting() or in_onnx_export())
+
+
 def _packed_stage_volume(  # noqa: PLR0913 - source features from two branches
     flg: torch.Tensor,
     frg: torch.Tensor,
@@ -151,7 +157,7 @@ def stage_volume(  # noqa: PLR0913 - the stage's inputs
     b = a + ds.shape[2]
     flc, frc = fl[f"concat_feature{level}"][:, :, a:b], fr[f"concat_feature{level}"][:, :, a:b]
     flg, frg = fl[f"gw{level}"][:, :, a:b], fr[f"gw{level}"][:, :, a:b]
-    if flg.is_cuda and not (torch.compiler.is_compiling() or torch.compiler.is_exporting() or in_onnx_export()):
+    if _eager_cuda(flg):
         return _packed_stage_volume(flg, frg, flc, frc, ds, groups=groups)
     vc, _ = net.cost_volume_generator(flc, frc, ds, "concat")
     vg, ds = net.cost_volume_generator(flg, frg, ds, "gwc", groups)
@@ -187,9 +193,16 @@ def _stage(  # noqa: PLR0913 - one refinement stage of upstream's forward
     rows = lo.shape[2]
     out = torch.empty_like(lo)
     std = torch.empty_like(lo) if with_std else lo.new_empty(0)
+    # Each hourglass reaches 12 rows in either direction. The first four and last two convolutions make 30.
+    # Round up for stride alignment. Keep the existing convolution shapes above the standard profile for parity.
+    halo = HALO
+    stride = 2 ** (level - 1)
+    max_h, max_w = _CUDA_HALO_MAX_INPUT
+    if _eager_cuda(lo) and rows * stride <= max_h and lo.shape[-1] * stride <= max_w:
+        halo = _CUDA_HALO
     for r0 in range(0, rows, STRIP):
         r1 = min(rows, r0 + STRIP)
-        a, b = max(0, r0 - HALO), min(rows, r1 + HALO)
+        a, b = max(0, r0 - halo), min(rows, r1 + halo)
         ds = net.generate_disparity_samples(lo[:, :, a:b], hi[:, :, a:b], count).float()
         cost = c0(volume(net, feats, ds, level=level, a=a, groups=groups))
         cost = c1(cost) + cost
