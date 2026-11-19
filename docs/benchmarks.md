@@ -1523,7 +1523,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
-| nnfoundation-cnn | 200x200 | 501 | 274 | 226 | 211 | 1.3x | 1.1x | 3818 / 4628 | 3011 / 3130 | 2985 / 3710 |
+| nnfoundation-cnn | 200x200 | 501 | 274 | 248 | 232 | 1.2x | 1.1x | 3818 / 4628 | 2368 / 3330 | 2325 / 3330 |
 | nnfoundation-vit | 192x192 | OOM | 1930 | 1848 | 1732 | 1.1x | 1.1x | 3930 / 4298 | 1669 / 1884 | 1669 / 1884 |
 | nninteractive | 200x200 | 705 | 460 | 215 | 201 | 2.3x | 1.1x | 4076 / 4636 | 3075 / 3492 | 2643 / 3072 |
 | totalsegmentator-total | 200x200 | 47779 | 45630 | 1977 | 1647 | 27.7x | 1.2x | 2640 / 2874 | 2017 / 2244 | 1219 / 1638 |
@@ -2756,7 +2756,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | swinir-m-x2 | 512x512 | 739 ms | 781 ms | 719 ms | 553 ms | 60.3 s | 102 s | 1353 / 1454 | 1683 / 1796 | 1353 / 1454 | 5088 / 5144 |
 | swinir-m-x4 | 512x512 | 767 ms | 795 ms | 727 ms | 576 ms | 61.8 s | 104 s | 1499 / 2054 | 1684 / 1796 | 1354 / 1456 | 5525 / 5604 |
 | swinir-m-x4-real | 512x512 | 1242 ms | 807 ms | 733 ms | 584 ms | 59.6 s | 109 s | 2387 / 3034 | 1683 / 1796 | 1353 / 1814 | 5427 / 5506 |
-| nnfoundation-cnn | 200x200 | 226 ms | 170 ms | 255 ms (encoder on a normalized, padded volume only; memory estimated) | 211 ms | 19.8 s | 49.0 s | 3011 / 3130 | 5067 / 5110 | 2985 / 3710 | 3374 / 3398 |
+| nnfoundation-cnn | 200x200 | 248 ms | 170 ms | 255 ms (encoder on a normalized, padded volume only; memory estimated) | 232 ms | 19.8 s | 49.0 s | 2368 / 3330 | 5067 / 5110 | 2325 / 3330 | 3374 / 3398 |
 | nnfoundation-vit | 192x192 | 1848 ms | 1440 ms | 7024 ms, fp32 engine (standalone encoder, fixed 192³, TF32 disabled) | 1732 ms | 69.5 s | 127 s | 1669 / 1884 | 1406 / 1484 | 1669 / 1884 | 8452 / 8452 |
 | nninteractive | 200x200 | 215 ms | 162 ms | fails: The TensorRT export accepts prepared 192³ network patches. | 201 ms | 18.0 s | – | 3075 / 3492 | 3643 / 3832 | 2643 / 3072 | – |
 | nninteractive | 192x192 | – | – | 262 ms (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | – | – | 58.0 s | – | – | – | 2738 / 2740 |
