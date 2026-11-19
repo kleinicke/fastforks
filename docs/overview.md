@@ -327,7 +327,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`inspyrenet`](models/matting.md#inspyrenet) | yes | – | 240.9 (1080x1920) | 108.5 | 107.9 | 2.2x vs original (1080x1920) | 1649 |
 | [`birefnet`](models/matting.md#birefnet) | yes | 0.0325 | 234.4 (1080x1920) | 131.4 | 121.1 | 1.9x vs original (1080x1920) | 1674 |
 | [`rmbg-2.0`](models/matting.md#birefnet) | no | – | 149.0 (1080x1920) | 131.5 | 121.4 | 1.2x vs original (1080x1920) | 1674 |
-| [`vitmatte-b`](models/matting.md#vitmatte) | yes | – | 257.3 (1080x1920) | 181.3 | 147.5 | 1.7x vs original (1080x1920) | 1050 |
+| [`vitmatte-b`](models/matting.md#vitmatte) | yes | – | 257.3 (1080x1920) | 180.5 | 145.5 | 1.8x vs original (1080x1920) | 747 |
 | [`matanyone`](models/matting.md#matanyone) | no | – | 1219.9 (1080x1920) | 1202.5 | 910.7 | 1.3x vs original (1080x1920) | 2268 |
 
 ## Edges
@@ -702,13 +702,13 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`loma-b128`](models/matching.md#loma) | yes | – | 150.5 | 115.9 | 1.3x vs portable | 625 |
 | [`aliked-flexglue`](models/matching.md#flexglue) | yes | 347.6 (768x1024) | 128.7 | 128.6 | 2.7x vs original (768x1024) | 1814 |
 | [`dedode-v2-b`](models/matching.md#dedode-v2) | yes | 318.5 (768x1024) | 246.5 | 189.4 | 1.7x vs original (768x1024) | 1197 |
+| [`romav1`](models/matching.md#roma) | yes | 385.8 (768x1024) | 377.2 | 218.1 | 1.8x vs original (768x1024) | 1597 |
 | [`loma-r`](models/matching.md#loma) | yes | – | 309.5 | 262.1 | 1.2x vs portable | 1217 |
 | [`loma-b`](models/matching.md#loma) | yes | 1036.3 (768x1024) | 309.3 | 262.7 | 3.9x vs original (768x1024) | 1217 |
 | [`loma-l`](models/matching.md#loma) | yes | – | 319.8 | 272.6 | 1.2x vs portable | 1285 |
 | [`loma-g`](models/matching.md#loma) | yes | – | 358.7 | 309.7 | 1.2x vs portable | 1555 |
 | [`dedode-v2-g`](models/matching.md#dedode-v2) | yes | 665.5 (768x1024) | 592.5 | 331.9 | 2.0x vs original (768x1024) | 1787 |
 | [`romav2`](models/matching.md#roma-v2) | yes | 740.9 (768x1024) | 550.2 | 349.6 | 2.1x vs original (768x1024) | 1890 |
-| [`romav1`](models/matching.md#roma) | yes | 385.8 (768x1024) | 376.9 | 356.1 | 1.1x vs original (768x1024) | 1720 |
 
 ## Tracking
 

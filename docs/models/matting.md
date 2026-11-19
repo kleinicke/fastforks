@@ -24,7 +24,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`u2net`](#u2net) | yes | – | 5.18, 3.1x | 236, 0.47x |
 | [`u2net-human-seg`](#u2net) | yes | – | 5.14, 3.1x | 236, 0.47x |
 | [`u2netp`](#u2net) | yes | – | 2.92, 5.1x | 124, 0.39x |
-| [`vitmatte-b`](#vitmatte) | yes | – | 147, 1.7x | 1330, 0.26x |
+| [`vitmatte-b`](#vitmatte) | yes | – | 146, 1.8x | 832, 0.16x |
 | [`vitmatte-s`](#vitmatte) | yes | – | 84.1, 1.7x | 1404, 0.54x |
 
 <a id="ben2"></a>
@@ -384,7 +384,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `vitmatte-s` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 140<br>102<br>84.1<br>81.9<br>54.6 | 2536 / 2582<br>1401 / 1524<br>1305 / 1404<br>1025 / 1284<br>876 / 920 |
-| `vitmatte-b` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 257<br>181<br>147<br>157<br>108 | 5070 / 5128<br>1210 / 1492<br>1050 / 1330<br>1166 / 1472<br>1233 / 1262 |
+| `vitmatte-b` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 257<br>180<br>146<br>157<br>108 | 5070 / 5128<br>891 / 1036<br>747 / 832<br>1166 / 1472<br>1233 / 1262 |
 
 <details><summary>Details</summary>
 
@@ -402,7 +402,7 @@ Commercial use: yes.
 - `vitmatte-b` 1080x1920, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 49 s (ONNX + engine).
 - `vitmatte-s` original 1080x1920: the authors' mixed-precision option (float16); transformers 5.19.0 VitMatteForImageMatting, normalise / trimap / pad 32 / crop
 - `vitmatte-b` original 1080x1920: the authors' mixed-precision option (float16); transformers 5.19.0 VitMatteForImageMatting, normalise / trimap / pad 32 / crop
-- `vitmatte-b` portable 1080x1920, kernels 1080x1920: The paired 1080p decoder change reduces peak allocation by 340 MiB portable and 404 MiB kernels. The synthetic alpha and three labeled AIM-500 alphas match bitwise in both modes.
+- `vitmatte-b` portable 1080x1920, kernels 1080x1920: The 1080p decoder changes reduce paired peak allocation by 657 MiB portable and 706 MiB kernels. All four standard and labeled alphas match in each mode. The odd-size two-image kernels stress test differs by at most 0.000453 alpha.
 - `vitmatte-s` load / first call: original 2.85 s / 0.722 s, portable 0.16 s / 0.413 s, kernels 1.3 s / 0.202 s
 - `vitmatte-b` load / first call: original 0.21 s / 0.562 s, portable 0.52 s / 0.35 s, kernels 1.32 s / 0.249 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

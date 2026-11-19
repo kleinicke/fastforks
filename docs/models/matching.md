@@ -25,7 +25,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`loma-g`](#loma) | yes | 310 | 1668 |
 | [`loma-l`](#loma) | yes | 273 | 1406 |
 | [`loma-r`](#loma) | yes | 262 | 1328 |
-| [`romav1`](#romav1) | yes | 356, 1.1x | 1860, 0.45x |
+| [`romav1`](#romav1) | yes | 218, 1.8x | 1738, 0.42x |
 | [`romav2`](#romav2) | yes | 350, 2.1x | 2460, 0.24x |
 | [`xfeat`](#xfeat) | yes | 15.1, 0.6x | 814, 4.7x |
 | [`xfeat-lighterglue`](#xfeat) | yes | 29.1, 0.8x | 818, 1.7x |
@@ -401,7 +401,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `romav1` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 386<br>377<br>356<br>247<br>public API unavailable | 3887 / 4094<br>1720 / 1840<br>1720 / 1860<br>1348 / 1476<br>– |
+| `romav1` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 386<br>377<br>218<br>247<br>public API unavailable | 3887 / 4094<br>1597 / 1738<br>1597 / 1738<br>1348 / 1476<br>– |
 
 <details><summary>Details</summary>
 
@@ -420,6 +420,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `romav1` 3000x4000 (1.9 GiB peak allocated, 2.2 reserved)
 - `romav1` 768x1024, first call: portable + torch.compile 698 s (cold Inductor cache).
 - `romav1` original 768x1024: the authors' mixed-precision option (float16); upstream RoMa v1 match, one direction; local correlation: upstream's plain-torch path (use_custom_corr off)
+- `romav1` portable 768x1024, kernels 768x1024: The matched portable and kernels runs each save 122 MiB peak allocation. Warp and certainty match bitwise on synthetic input and four MegaDepth stress pairs.
 - `romav1` load / first call: original 6.28 s / 2.57 s, portable 2.34 s / 0.918 s, kernels 3.17 s / 1.026 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
