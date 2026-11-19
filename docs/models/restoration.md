@@ -838,7 +838,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `swin2sr-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2922<br>932<br>745<br>496<br>556 | 1488 / 2160<br>1463 / 2276<br>1459 / 1736<br>1308 / 1556<br>5410 / 5470 |
 | `swin2sr-x2` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2565<br>909<br>721<br>482<br>547 | 1488 / 1578<br>1459 / 1554<br>1459 / 1636<br>1308 / 1516<br>4941 / 4997 |
-| `swin2sr-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2527<br>958<br>751<br>508<br>562 | 2321 / 2660<br>2354 / 2774<br>1459 / 1734<br>1308 / 1556<br>5409 / 5468 |
+| `swin2sr-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2527<br>960<br>751<br>508<br>562 | 2321 / 2660<br>1459 / 1556<br>1459 / 1734<br>1308 / 1556<br>5409 / 5468 |
 
 <details><summary>Details</summary>
 
@@ -858,6 +858,7 @@ Commercial use: yes.
 - `swin2sr-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swin2sr.py, float32, no tile
 - `swin2sr-x2` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swin2sr.py, float32, no tile
 - `swin2sr-x4-real` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swin2sr.py, float32, no tile
+- `swin2sr-x4-real` portable 512x512: CUDA FP16 portable reconstruction in halo row strips. Three paired DIV2K RGB PSNR checks differ by at most 0.0000024 dB.
 - `swin2sr-x4` load / first call: original 1.63 s / 3.583 s, portable 0.48 s / 1.16 s, kernels 0.57 s / 1.023 s
 - `swin2sr-x2` load / first call: original 1.81 s / 4.125 s, portable 0.49 s / 1.154 s, kernels 0.62 s / 0.863 s
 - `swin2sr-x4-real` load / first call: original 1.89 s / 3.754 s, portable 0.47 s / 1.179 s, kernels 0.57 s / 0.882 s

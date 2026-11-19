@@ -783,7 +783,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`drct-x4`](models/restoration.md#drct) | yes | 7491.7 (512x512) | 829.8 | 718.2 | 10.4x vs original (512x512) | 2498 |
 | [`swin2sr-x2`](models/restoration.md#swin2sr) | yes | 2565.1 (512x512) | 908.6 | 720.5 | 3.6x vs original (512x512) | 1459 |
 | [`swin2sr-x4`](models/restoration.md#swin2sr) | yes | 2921.9 (512x512) | 931.7 | 744.9 | 3.9x vs original (512x512) | 1459 |
-| [`swin2sr-x4-real`](models/restoration.md#swin2sr) | yes | 2527.2 (512x512) | 958.1 | 751.2 | 3.4x vs original (512x512) | 1459 |
+| [`swin2sr-x4-real`](models/restoration.md#swin2sr) | yes | 2527.2 (512x512) | 960.0 | 751.2 | 3.4x vs original (512x512) | 1459 |
 | [`swinir-l-x4-real`](models/restoration.md#swinir) | yes | 3709.3 (512x512) | 1247.7 | 921.3 | 4.0x vs original (512x512) | 1633 |
 | [`hat-s-x4`](models/restoration.md#hat) | yes | 2401.8 (512x512) | 1072.2 | 956.5 | 2.5x vs original (512x512) | 1856 |
 | [`dat-2-x4`](models/restoration.md#dat) | yes | 4880.3 (512x512) | 1312.2 | 1037.4 | 4.7x vs original (512x512) | 1534 |
