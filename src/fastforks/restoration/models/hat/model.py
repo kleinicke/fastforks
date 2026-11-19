@@ -28,6 +28,7 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
+from fastforks._core.tracing import in_onnx_export
 from fastforks.kernels import cudnn_hacc
 from fastforks.kernels.shift_windows import rearrange
 from fastforks.restoration._runner import Crop, Forward, Runner
@@ -64,17 +65,64 @@ class Params:
     window: int  # 16: attention window (all released models)
 
 
+_MASK_PARTITION_MIN_WINDOWS = 256
+
+
 def _mask(m: HAT, x_size: tuple[int, int]) -> torch.Tensor:
-    """`HAT.calculate_mask` made on the device, once per size."""
-    return shift_mask(*x_size, m.window_size, m.shift_size, m.conv_first.weight.device, dtype=m.conv_first.weight.dtype)
+    """Shifted-window masks, stored as per-token labels for large CUDA calls."""
+    h, w = x_size
+    window, shift = m.window_size, m.shift_size
+    weight = m.conv_first.weight
+    if (
+        weight.is_cuda
+        and weight.dtype == torch.float16
+        and (h // window) * (w // window) >= _MASK_PARTITION_MIN_WINDOWS
+        and not torch.is_grad_enabled()
+        and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export())
+    ):
+        y, x = (torch.arange(n, device=weight.device) for n in (h, w))
+        rows = (y >= h - window).to(torch.uint8) + (y >= h - shift)
+        cols = (x >= w - window).to(torch.uint8) + (x >= w - shift)
+        regions = 3 * rows[:, None] + cols[None, :]
+        return window_partition(regions[None, :, :, None], window).reshape(-1, window**2)
+    return shift_mask(h, w, window, shift, weight.device, dtype=weight.dtype)
+
+
+def _border_attention(m: WindowAttention, x: torch.Tensor, bias: torch.Tensor, regions: torch.Tensor) -> torch.Tensor:
+    """Recompute the shifted border windows with their full additive masks."""
+    n, tokens, _ = x.shape
+    heads = m.num_heads
+    channels = m.qkv.out_features // (3 * heads)
+    q, k, v = m.qkv(x).reshape(n, tokens, 3, heads, channels).permute(2, 0, 3, 1, 4).unbind(0)
+    bias = bias.to(q.dtype)[None]
+    out = attention(q, k, v, bias.expand(n, -1, -1, -1), m.scale)
+    border = torch.where(regions.ne(regions[:, :1]).any(dim=-1))[0]
+    windows = regions.shape[0]
+    if border.numel():
+        labels = regions.index_select(0, border)
+        shift_mask = labels[:, :, None].ne(labels[:, None, :]).to(q.dtype) * -100.0
+        weights = bias + shift_mask[:, None]
+        batch = n // windows
+        if batch > 1:
+            offsets = torch.arange(batch, device=x.device) * windows
+            border = (offsets[:, None] + border[None, :]).flatten()
+            weights = weights.repeat(batch, 1, 1, 1)
+        selected = attention(*(tensor.index_select(0, border) for tensor in (q, k, v)), weights, m.scale)
+        out.index_copy_(0, border, selected)
+        del weights, selected
+    del q, k, v
+    return m.proj(out.transpose(1, 2).reshape(n, tokens, heads * channels))
 
 
 def _attention(
     m: WindowAttention, x: torch.Tensor, rpi: torch.Tensor, mask: torch.Tensor | None = None
 ) -> torch.Tensor:
-    """`WindowAttention.forward` with the bias gathered at load and one SDPA call."""
+    """Window attention using position bias gathered when the model loads."""
     del rpi
-    return window_attention(x, m.qkv, m.proj, heads=m.num_heads, scale=m.scale, bias=m.bias, mask=mask)  # ty: ignore[invalid-argument-type]
+    bias = m.get_buffer("bias")
+    if mask is not None and mask.ndim == 2:  # noqa: PLR2004 - compact masks are [windows, tokens]
+        return _border_attention(m, x, bias, mask)
+    return window_attention(x, m.qkv, m.proj, heads=m.num_heads, scale=m.scale, bias=bias, mask=mask)
 
 
 def _ocab(m: OCAB, x: torch.Tensor, x_size: tuple[int, int], rpi: torch.Tensor) -> torch.Tensor:
