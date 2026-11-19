@@ -629,9 +629,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 43 models; size 1080x1920.
 
 - Fastest: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.2 ms).
-- Most accurate: [`waft-a1`](models/flow.md#waft) (518.7 ms, error 2.367).
+- Most accurate: [`waft-a1`](models/flow.md#waft) (518.7 ms, error 2.621).
 - Fastest commercially usable: [`sea-raft-s-spring`](models/flow.md#sea-raft) (16.2 ms).
-- Most accurate commercially usable: [`waft-a1`](models/flow.md#waft) (518.7 ms, error 2.367).
+- Most accurate commercially usable: [`waft-a1`](models/flow.md#waft) (518.7 ms, error 2.621).
 
 | model | commercial use | KITTI 2015 train EPE (px) | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|---|
@@ -669,7 +669,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`gmflow-scale1-things`](models/flow.md#gmflow) | yes | 10.346 | 750.3 (1080x1920) | 447.5 | 445.9 | 1.7x vs original (1080x1920) | 1988 |
 | [`waft-a1-sintel`](models/flow.md#waft) | yes | 0.992 † | 1532.7 (1080x1920) | 790.5 | 518.5 | 3.0x vs original (1080x1920) | 1851 |
 | [`waft-a1-kitti`](models/flow.md#waft) | yes | 0.695 † | 1533.3 (1080x1920) | 790.8 | 518.6 | 3.0x vs original (1080x1920) | 1851 |
-| [`waft-a1`](models/flow.md#waft) | yes | 2.367 | 1533.1 (1080x1920) | 741.0 | 518.7 | 3.0x vs original (1080x1920) | 1851 |
+| [`waft-a1`](models/flow.md#waft) | yes | 2.621 | 1533.1 (1080x1920) | 741.0 | 518.7 | 3.0x vs original (1080x1920) | 1851 |
 | [`megaflow`](models/flow.md#megaflow) | yes | 1.714 † | 1588.5 (1080x1920) | 1112.0 | 734.8 | 2.2x vs original (1080x1920) | 2724 |
 | [`memflow-sintel`](models/flow.md#memflow) | yes | 1.218 † | 3214.2 (1080x1920) | 964.5 | 864.5 | 3.7x vs original (1080x1920) | 968 |
 | [`memflow-kitti`](models/flow.md#memflow) | yes | 0.600 † | 3247.3 (1080x1920) | 964.7 | 864.6 | 3.8x vs original (1080x1920) | 968 |
@@ -772,9 +772,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`realesrgan-x2plus`](models/restoration.md#real-esrgan) | yes | 128.2 (512x512) | 97.0 | 80.2 | 1.6x vs original (512x512) | 333 |
 | [`realplksr-nomoswebphoto-x4`](models/restoration.md#realplksr) | yes | 267.3 (512x512) | 181.8 | 129.8 | 2.1x vs original (512x512) | 179 |
 | [`realesrgan-x4plus-anime-6b`](models/restoration.md#real-esrgan) | yes | 205.1 (512x512) | 154.9 | 131.8 | 1.6x vs original (512x512) | 1197 |
+| [`restormer-deblur`](models/restoration.md#restormer) | yes | 233.9 (512x512) | 182.7 | 132.2 | 1.8x vs original (512x512) | 718 |
 | [`restormer-derain`](models/restoration.md#restormer) | yes | 233.8 (512x512) | 228.4 | 132.6 | 1.8x vs original (512x512) | 892 |
 | [`restormer-sidd`](models/restoration.md#restormer) | yes | 217.9 (512x512) | 181.4 | 132.6 | 1.6x vs original (512x512) | 892 |
-| [`restormer-deblur`](models/restoration.md#restormer) | yes | 233.9 (512x512) | 182.7 | 132.7 | 1.8x vs original (512x512) | 766 |
 | [`dat-light-x4`](models/restoration.md#dat) | yes | 2203.5 (512x512) | 267.8 | 231.5 | 9.5x vs original (512x512) | 566 |
 | [`realesrgan-x4plus`](models/restoration.md#real-esrgan) | yes | 631.1 (512x512) | 472.8 | 402.7 | 1.6x vs original (512x512) | 1220 |
 | [`swinir-m-x2`](models/restoration.md#swinir) | yes | 3252.1 (512x512) | 738.8 | 553.0 | 5.9x vs original (512x512) | 1353 |

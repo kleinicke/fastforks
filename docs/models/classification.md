@@ -1053,6 +1053,16 @@ Commercial use: yes.
 - `falconsai-nsfw-vit` load / first call: original 2.95 s / 0.273 s, portable 2.63 s / 0.094 s, kernels 2.42 s / 0.085 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. All 211 Sexual-category images from the official test split (150 unsafe, 61 safe), from LAION-5B and Lexica. Apply each implementation's normal resize and use the checkpoint's default top-1 prediction. Balanced accuracy averages unsafe and safe recall. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | portable fp32 | note |
+|---|---|---|---|---|---|
+| `falconsai-nsfw-vit` | UnsafeBench test (Sexual), balanced accuracy / accuracy / recall / precision / F1 % | 69.03 / 57.35 / 41.33 / 96.72 / 96.88 / 57.94 | 68.21 / 56.87 / 41.33 / 95.08 / 95.38 / 57.67 | 69.03 / 57.35 / 41.33 / 96.72 / 96.88 / 57.94 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ecfe045ca, 2026-11-19.
+
 ### Parity
 
 CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.009 and p99 <= 0.011 (absolute error of the output `logits`).
@@ -1063,7 +1073,7 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
-- No accuracy measurement: the weights' training set (Falconsai's private labelled NSFW images) is not published and no public labelled NSFW test set is part of the evaluation data here; tiers are compared by output parity and speed only.
+- The accuracy comparison covers the Sexual category of the official UnsafeBench test split. Falconsai's training set is private, so overlap with the evaluation images is unknown.
 - The image is stretched to 224 x 224 without keeping its aspect ratio, as the original processor does.
 
 </details>

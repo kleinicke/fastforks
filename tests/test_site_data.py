@@ -146,6 +146,24 @@ def test_bfloat16_original_does_not_claim_float32(monkeypatch):
     assert set(modes) == {"original16"}
 
 
+def test_quality_labels_error_direction(monkeypatch):
+    monkeypatch.setattr(site_data.g, "_overlap", lambda *_: None)
+    monkeypatch.setattr(site_data, "eval_version", lambda *_: "test")
+    cases = {
+        ("depth", "nyu-prompt-every4"): {"met_absrel": True, "met_d1": False},
+        ("depth", "nyu-normals"): {"ang_mean": True, "ang_median": True, "a11.25": False, "a30": False},
+        ("matting", "dis-vd"): {"mae": True, "max_fbeta": False},
+        ("matting", "aim500"): {"sad": True, "mse": True},
+        ("matting", "youtubematte-512x288-every2"): {"mad": True, "mse": True, "dtssd": True},
+        ("pose", "lapa-test-landmarks-gtbox"): {"nme_pct": True},
+        ("volume", "totalseg-featparity-8"): {"cos_min": False, "rel_l2": True},
+    }
+    for (task, dataset), expected in cases.items():
+        row = {"dataset": dataset, "mode": "portable", "dtype": "float16", "metrics": dict.fromkeys(expected, 0.25)}
+        (quality,) = site_data._quality(SimpleNamespace(task=task), SimpleNamespace(id="model"), {"model": [row]})
+        assert {metric["key"]: metric["lower"] for metric in quality["metrics"]} == expected
+
+
 def test_explicit_bf16_original_keeps_autocast_row(monkeypatch):
     monkeypatch.setattr(site_data.g, "_overlap", lambda *_: None)
     monkeypatch.setattr(site_data, "eval_version", lambda *_: "test")

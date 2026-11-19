@@ -30,7 +30,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`realesrgan-x4plus`](#realesrgan) | yes | 403, 1.6x | 1434, 0.57x |
 | [`realesrgan-x4plus-anime-6b`](#realesrgan) | yes | 132, 1.6x | 1410, 0.57x |
 | [`realplksr-nomoswebphoto-x4`](#realplksr) | yes | 130, 2.1x | 216, 0.68x |
-| [`restormer-deblur`](#restormer) | yes | 133, 1.8x | 800, 0.56x |
+| [`restormer-deblur`](#restormer) | yes | 132, 1.8x | 740, 0.52x |
 | [`restormer-derain`](#restormer) | yes | 133, 1.8x | 980, 0.69x |
 | [`restormer-sidd`](#restormer) | yes | 133, 1.6x | 980, 0.69x |
 | [`seedvr2-3b`](#seedvr2) | yes | 2356, 5.6x | 7778, 0.51x |
@@ -630,7 +630,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `restormer-deblur` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>183<br>133<br>143<br>162 | 1221 / 1418<br>724 / 740<br>766 / 800<br>660 / 778<br>757 / 774 |
+| `restormer-deblur` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>183<br>132<br>143<br>162 | 1221 / 1418<br>724 / 740<br>718 / 740<br>660 / 778<br>757 / 774 |
 | `restormer-derain` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>228<br>133<br>144<br>162 | 1221 / 1418<br>850 / 1000<br>892 / 980<br>660 / 778<br>757 / 774 |
 | `restormer-sidd` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 218<br>181<br>133<br>142<br>162 | 1221 / 1416<br>850 / 920<br>892 / 980<br>660 / 778<br>757 / 774 |
 
@@ -652,7 +652,8 @@ Commercial use: yes.
 - `restormer-derain` 512x512, first call: portable + torch.compile 41 s (cold Inductor cache), TensorRT fp16 55 s (ONNX + engine).
 - `restormer-sidd` 512x512, first call: portable + torch.compile 36 s (cold Inductor cache), TensorRT fp16 60 s (ONNX + engine).
 - `restormer-deblur` original 512x512: .half() on 1 modules, fp16 inputs; upstream test.py, float32, no tile
-- `restormer-deblur` portable 512x512, kernels 512x512: Decoder feature lifetimes preserve the synthetic and labeled GoPro predictions.
+- `restormer-deblur` portable 512x512: Decoder feature lifetimes preserve the synthetic and labeled GoPro predictions.
+- `restormer-deblur` kernels 512x512: The fused gate releases its expanded input before output projection.
 - `restormer-derain` original 512x512: .half() on 1 modules, fp16 inputs; upstream test.py, float32, no tile
 - `restormer-sidd` original 512x512: .half() on 1 modules, fp16 inputs; upstream test.py, float32, no tile
 - `restormer-deblur` load / first call: original 0.36 s / 0.897 s, portable 0.28 s / 0.712 s, kernels 0.6 s / 0.528 s
@@ -947,7 +948,7 @@ DIV2K validation HR images and the official bicubic LR images (x4 or x2, the mod
 |---|---|---|---|---|---|---|
 | `swinir-m-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.90 / 0.8423 | 30.90 / 0.8423 | 30.90 / 0.8423 | 30.89 / 0.8422 |  |
 | `swinir-m-x2` | DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y) | 36.86 / 0.9507 |  | 36.86 / 0.9507 |  |  |
-| `swinir-m-x2` | DIV2K validation (every second image, 50 images), bicubic x2 LR -> HR, PSNR / SSIM (Y) |  | 36.61 / 0.9457 |  |  |  |
+| `swinir-m-x2` | DIV2K validation (every second image, 50 images), bicubic x2 LR -> HR, PSNR / SSIM (Y) | 36.62 / 0.9457 | 36.61 / 0.9457 | 36.62 / 0.9457 |  |  |
 | `swinir-m-x4-real` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 26.71 / 0.7516 | 26.71 / 0.7516 | 26.71 / 0.7516 | 26.71 / 0.7515 |  |
 | `swinir-l-x4-real` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 27.04 / 0.7628 | 27.04 / 0.7628 | 27.04 / 0.7628 | 27.05 / 0.7628 |  |
 

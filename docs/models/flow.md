@@ -52,7 +52,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`sea-raft-s`](#sea_raft) | yes | 1.054 † | 50.6, 5.9x | 452, 0.053x |
 | [`sea-raft-s-kitti`](#sea_raft) | yes | 0.935 † | 50.7, 5.9x | 432, 0.051x |
 | [`sea-raft-s-spring`](#sea_raft) | yes | 7.757 † | 16.2, 2.6x | 172, 0.23x |
-| [`waft-a1`](#waft) | yes | 2.367 | 519, 3.0x | 2264, 0.38x |
+| [`waft-a1`](#waft) | yes | 2.621 | 519, 3.0x | 2264, 0.38x |
 | [`waft-a1-kitti`](#waft) | yes | 0.695 † | 519, 3.0x | 2264, 0.38x |
 | [`waft-a1-sintel`](#waft) | yes | 0.992 † | 519, 3.0x | 2264, 0.38x |
 
@@ -945,11 +945,12 @@ Commercial use: yes.
 
 ### Measured
 
-Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. Original = the original code named under Details, same checkpoint and protocol.
+Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. Use the first 100 training pairs in filename order. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
-| `waft-a1` | KITTI 2015 train, EPE / Fl-all % | 2.395 / 8.52 | 2.375 / 8.52 | 2.315 / 8.51 | 2.621 / 9.12 | 2.367 / 8.53 |  |
+| `waft-a1` | KITTI 2015 train, EPE / Fl-all % |  |  |  | 2.621 / 9.12 |  |  |
+| `waft-a1` | KITTI 2015 first 100 train pairs, EPE / Fl-all % | 2.395 / 8.52 | 2.375 / 8.52 | 2.315 / 8.51 | 2.392 / 8.52 | 2.367 / 8.53 |  |
 | `waft-a1-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.695 / 1.64 |  | 0.695 / 1.64 | 0.695 / 1.64 |  | trained on this dataset's public images; not a zero-shot result |
 | `waft-a1-sintel` | KITTI 2015 train, EPE / Fl-all % | 0.992 / 2.81 |  | 0.992 / 2.81 | 0.992 / 2.81 |  | trained on this dataset's public images; not a zero-shot result |
 

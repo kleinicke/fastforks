@@ -4,11 +4,10 @@
 
 The November 19 release review covers 578 variants.
 
-- [ ] Default portable accuracy is measured for 577 variants. Of the 39 gaps found in the portable accuracy audit,
-  38 have a score. FalconsAI NSFW ViT is waiting for access to the labeled UnsafeBench test split.
-- [x] Original and portable FP32 accuracy are each measured for 574 variants. Marigold V2 and both SeedVR2 models
-  use BF16 in their CUDA portable runners and have scores at that precision. FalconsAI is the remaining labeled
-  evaluation to run in FP32.
+- [x] Default portable accuracy is measured for all 578 variants. The 39 gaps from the November 19 audit now
+  have scores, including FalconsAI NSFW ViT on the official UnsafeBench Sexual test subset.
+- [x] Original and portable FP32 accuracy are each measured for 575 variants. Marigold V2 and both SeedVR2 models
+  use BF16 in their CUDA portable runners and have scores at that precision.
 - [x] Compile timings cover all 578 variants. The measured stage is recorded for partial compilation.
 - [ ] TensorRT timings cover 575 variants, including 54 whose selected measurement is for a standalone stage. Three
   configurations remain gated on paired accuracy checks: DISK-LightGlue, XFeat-LighterGlue and RoMa v1.

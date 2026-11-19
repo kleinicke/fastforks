@@ -318,7 +318,24 @@ def _quality(card: ModelCard, v: Variant, rows: dict[str, list[dict]]) -> list[d
     return out
 
 
-_LOWER = {"bad", "epe", "rel_absrel", "absrel", "mae_mm", "fl_all"}  # lower is better; every other metric: higher
+_LOWER = {
+    "absrel",
+    "ang_mean",
+    "ang_median",
+    "bad",
+    "dtssd",
+    "epe",
+    "fl_all",
+    "mad",
+    "mae",
+    "mae_mm",
+    "met_absrel",
+    "mse",
+    "nme_pct",
+    "rel_absrel",
+    "rel_l2",
+    "sad",
+}
 
 
 def _lower(key: str) -> bool:

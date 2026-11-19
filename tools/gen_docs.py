@@ -104,6 +104,9 @@ _DATASETS = {
         "imagenet-val-subset5000-seed0": "ImageNet-1k val, 5000 random images, top-1 / top-5 %",
         "imagenet-val-every50": "ImageNet-1k val, one image per class (1,000), top-1 / top-5 %",
         "coco-val2017-first500-tags": "COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement %",  # noqa: E501
+        "unsafebench-test-sexual": (
+            "UnsafeBench test (Sexual), balanced accuracy / accuracy / recall / precision / F1 %"
+        ),
     },
     "pose": {
         "coco-val2017-every10-keypoints-gtbox": "COCO val2017, every 10th image, GT person boxes, keypoint AP",
@@ -117,6 +120,7 @@ _DATASETS = {
     },
     "flow": {
         "kitti2015-train": "KITTI 2015 train, EPE / Fl-all %",
+        "kitti2015-train-first100": "KITTI 2015 first 100 train pairs, EPE / Fl-all %",
         "kitti2015-train-flow-fixed-384x1248": "KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all %",
         "kitti2015-train-flow-fixed-384x1248-fp16": "KITTI 2015 train (200 pairs) at 384 x 1248 FP16, EPE / Fl-all %",
         "kitti2015-train-flow-first50-fixed-384x1248": "KITTI 2015 first 50 train pairs, 384 x 1248, EPE / Fl-all %",
@@ -266,6 +270,18 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "classification": ((("top1", "{:.2f}", ""), ("top5", "{:.2f}", "")), "n", "images"),
     ("classification", "coco-val2017-first500-tags"): (
         (("tag_f1", "{:.2f}", ""), ("top1_agree", "{:.2f}", "")),
+        "n",
+        "images",
+    ),
+    ("classification", "unsafebench-test-sexual"): (
+        (
+            ("balanced_accuracy", "{:.2f}", ""),
+            ("top1", "{:.2f}", ""),
+            ("nsfw_recall", "{:.2f}", ""),
+            ("safe_recall", "{:.2f}", ""),
+            ("nsfw_precision", "{:.2f}", ""),
+            ("nsfw_f1", "{:.2f}", ""),
+        ),
         "n",
         "images",
     ),
@@ -475,6 +491,7 @@ _PROTOCOL = {
     },
     "flow": "Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean "
     "end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. ",
+    ("flow", "kitti2015-train-first100"): "Use the first 100 training pairs in filename order. ",
     **{
         ("flow", dataset): "The fixed-shape comparison pads the bottom and right with edge pixels to 384 x 1248. "
         "Metrics use predictions cropped to each original ground-truth grid. "
@@ -615,6 +632,9 @@ _PROTOCOL = {
     "The compiled mode accelerates field prediction and keeps the camera fit eager. ",
     "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
     "and its PIL eval transform. ",
+    ("classification", "unsafebench-test-sexual"): "All 211 Sexual-category images from the official test split "
+    "(150 unsafe, 61 safe), from LAION-5B and Lexica. Apply each implementation's normal resize and use the "
+    "checkpoint's default top-1 prediction. Balanced accuracy averages unsafe and safe recall. ",
 }
 # family -> what its original columns ran where that differs from the original code under Details (note column)
 _ORIGINAL_IS = {
@@ -644,6 +664,7 @@ _EVAL_TRAIN_ID = {
     "eth3d": "eth3d",
     "middH": "middlebury",
     "kitti2015-train": "kitti",
+    "kitti2015-train-first100": "kitti",
     "kitti2015-train-flow-fixed-384x1248": "kitti",
     "kitti2015-train-flow-fixed-384x1248-fp16": "kitti",
     "kitti2015-train-flow-first50-fixed-384x1248": "kitti",
