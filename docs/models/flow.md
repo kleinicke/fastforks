@@ -35,7 +35,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`memfof-kitti`](#memfof) | yes | 15.584 † | 309, 3.0x (375x1242) | 916, 0.4x |
 | [`memfof-sintel`](#memfof) | yes | 2.976 † | 1993 | 8820 |
 | [`memfof-spring`](#memfof) | yes | 10.780 † | 349, 3.0x | 1016, 0.38x |
-| [`neuflow-v2`](#neuflow_v2) | yes | 1.577 † | 59.1, 1.3x | 896, 0.2x |
+| [`neuflow-v2`](#neuflow_v2) | yes | 1.577 † | 59.8, 1.3x | 636, 0.14x |
 | [`neuflow-v2-sintel`](#neuflow_v2) | yes | 1.566 † | 58.9, 1.3x | 896, 0.2x |
 | [`neuflow-v2-things`](#neuflow_v2) | yes | 4.095 | 58.9, 1.3x | 896, 0.19x |
 | [`raft-large`](#raft) | yes | 1.526 † | 83.4, 5.7x | 352, 0.032x |
@@ -582,7 +582,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `neuflow-v2` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.6<br>71.2<br>59.1<br>91.4<br>65.0 | 8687 / 9216<br>4367 / 4556<br>2366 / 2398<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
+| `neuflow-v2` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.6<br>72.0<br>59.8<br>91.4<br>65.0 | 8687 / 9216<br>4367 / 4556<br>2327 / 2398<br>490 / 636<br>4529 / 4558<br>8710 / 8748 |
 | `neuflow-v2-sintel` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 171<br>75.7<br>71.3<br>58.9<br>91.4<br>64.9 | 8694 / 9020<br>4367 / 4576<br>2366 / 2398<br>790 / 896<br>4529 / 4558<br>8710 / 8748 |
 | `neuflow-v2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>75.8<br>71.4<br>58.9<br>91.5<br>65.0 | 8694 / 9040<br>4374 / 4720<br>2366 / 2398<br>779 / 896<br>4529 / 4558<br>8710 / 8748 |
 
@@ -606,6 +606,7 @@ Commercial use: yes.
 - `neuflow-v2-things` 1080x1920, first call: portable + torch.compile 29 s (cold Inductor cache), TensorRT fp16 104 s (ONNX + engine).
 - `neuflow-v2` original (fp32) 1080x1920: upstream NeuFlow, iters_s8=8
 - `neuflow-v2` original 1080x1920: the authors' mixed-precision option (float16); upstream NeuFlow, iters_s8=8, infer.py recipe: conv-bn folded, model.half()
+- `neuflow-v2` portable 1080x1920, kernels 1080x1920: Reuses matching scores during FP32 softmax and releases coarse tensors earlier. The synthetic pair and three KITTI flows match bit for bit. In the paired FP32 portable check, peak allocation fell from 8372 to 4376 MiB.
 - `neuflow-v2-sintel` original (fp32) 1080x1920: upstream NeuFlow, iters_s8=8
 - `neuflow-v2-sintel` original 1080x1920: the authors' mixed-precision option (float16); upstream NeuFlow, iters_s8=8, infer.py recipe: conv-bn folded, model.half()
 - `neuflow-v2-things` original (fp32) 1080x1920: upstream NeuFlow, iters_s8=8

@@ -35,7 +35,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`fast-acvnet-plus-sceneflow`](#fast_acvnet) | yes | 12.62 | 46.5, 1.7x | 716, 0.47x |
 | [`fast-acvnet-sceneflow`](#fast_acvnet) | yes | 8.43 | 38.1, 1.6x | 716, 0.48x |
 | [`fast-foundationstereo`](#c_foundationstereo) (max_disp 192, valid_iters 8) | no | 1.72 | 135, 3.9x | 1236, 0.37x |
-| [`foundationstereo-vit-l`](#foundationstereo) | no | 0.65 ? | 1513, 2.8x | 3300, 0.38x |
+| [`foundationstereo-vit-l`](#foundationstereo) | no | 0.65 ? | 1432, 3.0x | 2920, 0.33x |
 | [`foundationstereo-vit-s`](#foundationstereo) | no | 1.10 ? | 1120, 3.2x | 2470, 0.34x |
 | [`great-igev-eth3d`](#great_igev) | yes | 0.49 † | 397, 3.7x | 1302, 0.14x |
 | [`great-igev-kitti`](#great_igev) | yes | 23.36 | 396, 3.7x | 1302, 0.14x |
@@ -783,7 +783,7 @@ Commercial use: **no** (code: LicenseRef-NVIDIA-Source-Code-License-NC AND Apach
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `foundationstereo-vit-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9228<br>4237<br>2990<br>1513<br>2501<br>1513 | 11323 / 11632<br>8286 / 8750<br>3141 / 3436<br>2818 / 3300<br>3453 / 3954<br>4253 / 4322 |
+| `foundationstereo-vit-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9228<br>4237<br>2992<br>1432<br>2501<br>1513 | 11323 / 11632<br>8286 / 8750<br>2923 / 3136<br>2597 / 2920<br>3453 / 3954<br>4253 / 4322 |
 | `foundationstereo-vit-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7129<br>3609<br>2514<br>1120<br>2044<br>1196 | 9991 / 15144<br>6987 / 7280<br>2493 / 2606<br>2169 / 2470<br>2822 / 3646<br>2794 / 2872 |
 
 <details><summary>Details</summary>
@@ -802,7 +802,8 @@ Commercial use: **no** (code: LicenseRef-NVIDIA-Source-Code-License-NC AND Apach
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `foundationstereo-vit-l` 1988x2880 (7.1 GiB peak allocated, 11.4 reserved); `foundationstereo-vit-s` 1988x2880 (6.5 GiB peak allocated, 10.7 reserved)
 - `foundationstereo-vit-l` 994x1482, first call: portable + torch.compile 226 s (cold Inductor cache), TensorRT fp16 611 s (ONNX + engine).
 - `foundationstereo-vit-s` 994x1482, first call: portable + torch.compile 212 s (cold Inductor cache), TensorRT fp16 545 s (ONNX + engine).
-- `foundationstereo-vit-l` load / first call: original 10.86 s / 2.563 s (375x1242), portable 1.98 s / 2.99† s, kernels 1.17† s / 1.517† s
+- `foundationstereo-vit-l` portable 994x1482, kernels 994x1482: Shorter hourglass tensor lifetimes reduce native peak allocation by 197 MiB. The synthetic pair and three labeled Middlebury pairs match the baseline bit for bit.
+- `foundationstereo-vit-l` load / first call: original 10.86 s / 2.563 s (375x1242), portable 1.46 s / 3.776 s, kernels 1.4 s / 2.21 s
 - `foundationstereo-vit-s` load / first call: original 1.44 s / 1.058 s (375x1242), portable 1.03 s / 2.514† s, kernels 0.33† s / 1.12† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls

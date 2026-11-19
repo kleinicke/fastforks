@@ -92,7 +92,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`s2m2-xl`](models/stereo.md#s2m2) | no | 0.52 ? | 1796.1 (994x1482) | 1824.1 | 681.9 | 2.6x vs original (994x1482) | 2092 |
 | [`foundationstereo-vit-s`](models/stereo.md#foundationstereo) | no | 1.10 ? | 3608.6 (994x1482) | 2513.8 | 1120.2 | 3.2x vs original (994x1482) | 2169 |
 | [`c-foundationstereo-s`](models/stereo.md#c-foundationstereo) | yes | 1.24 | 3873.9 (994x1482) | 3630.8 | 1365.9 | 2.8x vs original (994x1482) | 3058 |
-| [`foundationstereo-vit-l`](models/stereo.md#foundationstereo) | no | 0.65 ? | 4237.0 (994x1482) | 2989.8 | 1513.1 | 2.8x vs original (994x1482) | 2818 |
+| [`foundationstereo-vit-l`](models/stereo.md#foundationstereo) | no | 0.65 ? | 4237.0 (994x1482) | 2992.5 | 1432.1 | 3.0x vs original (994x1482) | 2597 |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 
@@ -645,7 +645,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`recover-rn`](models/flow.md#recover) | yes | 1.292 † | 130.3 (1080x1920) | 64.1 | 51.3 | 2.5x vs original (1080x1920) | 590 |
 | [`neuflow-v2-things`](models/flow.md#neuflow-v2) | yes | 4.095 | 75.8 (1080x1920) | 71.4 | 58.9 | 1.3x vs original (1080x1920) | 779 |
 | [`neuflow-v2-sintel`](models/flow.md#neuflow-v2) | yes | 1.566 † | 75.7 (1080x1920) | 71.3 | 58.9 | 1.3x vs original (1080x1920) | 790 |
-| [`neuflow-v2`](models/flow.md#neuflow-v2) | yes | 1.577 † | 75.6 (1080x1920) | 71.2 | 59.1 | 1.3x vs original (1080x1920) | 790 |
+| [`neuflow-v2`](models/flow.md#neuflow-v2) | yes | 1.577 † | 75.6 (1080x1920) | 72.0 | 59.8 | 1.3x vs original (1080x1920) | 490 |
 | [`sea-raft-m-things`](models/flow.md#sea-raft) | yes | 4.307 | 367.3 (1080x1920) | 270.3 | 73.0 | 5.0x vs original (1080x1920) | 425 |
 | [`sea-raft-m-kitti`](models/flow.md#sea-raft) | yes | 0.808 † | 367.3 (1080x1920) | 269.9 | 73.3 | 5.0x vs original (1080x1920) | 425 |
 | [`sea-raft-m`](models/flow.md#sea-raft) | yes | 0.880 † | 366.9 (1080x1920) | 268.6 | 73.4 | 5.0x vs original (1080x1920) | 425 |

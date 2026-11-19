@@ -853,6 +853,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | fast-acvnet-plus-sceneflow | – | – | 70.5 | 46.5 | 1.5x | 651 / 756 | 651 / 716 |
 | fast-acvnet-sceneflow | – | – | 54.7 | 38.1 | 1.4x | 653 / 756 | 654 / 716 |
 | fast-foundationstereo | – | – | – | 135 | – | – | 1120 / 1236 |
+| foundationstereo-vit-l | – | – | 2992 | 1432 | 2.1x | 2923 / 3136 | 2597 / 2920 |
 | great-igev-eth3d | – | – | – | 397 | – | – | 1134 / 1302 |
 | great-igev-kitti | – | – | – | 396 | – | – | 1134 / 1302 |
 | great-igev-middlebury | OOM | OOM | 1789 | 580 | 3.1x | 1602 / 1878 | 1472 / 1642 |
@@ -1398,7 +1399,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | memfof-kitti | 375x1242 | – | 927 | 386 | 309 | 3.0x | 1.2x | 1968 / 2276 | 1619 / 1856 | 786 / 916 |
 | memfof-sintel | 1080x1920 | – | OOM | OOM | 1993 | – | – | – | – | 7249 / 8820 |
 | memfof-spring | 1080x1920 | – | 1035 | 433 | 349 | 3.0x | 1.2x | 2340 / 2676 | 1900 / 2196 | 917 / 1016 |
-| neuflow-v2 | 1080x1920 | 171 | 75.6 | 71.2 | 59.1 | 1.3x | 1.2x | 4367 / 4556 | 2366 / 2398 | 790 / 896 |
+| neuflow-v2 | 1080x1920 | 171 | 75.6 | 72.0 | 59.8 | 1.3x | 1.2x | 4367 / 4556 | 2327 / 2398 | 490 / 636 |
 | neuflow-v2-sintel | 1080x1920 | 171 | 75.7 | 71.3 | 58.9 | 1.3x | 1.2x | 4367 / 4576 | 2366 / 2398 | 790 / 896 |
 | neuflow-v2-things | 1080x1920 | 172 | 75.8 | 71.4 | 58.9 | 1.3x | 1.2x | 4374 / 4720 | 2366 / 2398 | 779 / 896 |
 | raft-large | 1080x1920 | 480 | 567 | 292 | 83.4 | 5.7x | 3.5x | 7164 / 10928 | 5735 / 6042 | 332 / 352 |
@@ -1558,7 +1559,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | fast-acvnet-plus-sceneflow | 0.23 (375x1242) | 0.27 (375x1242) | 0.57 (375x1242) | 0.04 (375x1242) | 0.71 (375x1242) | 0.55 (375x1242) |
 | fast-acvnet-sceneflow | 0.24 (375x1242) | 0.27 (375x1242) | 0.57 (375x1242) | 1.73 (375x1242) | 0.76 (375x1242) | 0.63 (375x1242) |
 | fast-foundationstereo | 0.16 (375x1242) | 0.25 | 0.60 (375x1242) | 0.14 (375x1242) | 0.33† | 0.49 (375x1242) |
-| foundationstereo-vit-l | 10.86 (375x1242) | 1.98 | 1.17† | 2.56 (375x1242) | 2.99† | 1.52† |
+| foundationstereo-vit-l | 10.86 (375x1242) | 1.46 | 1.40 | 2.56 (375x1242) | 3.78 | 2.21 |
 | foundationstereo-vit-s | 1.44 (375x1242) | 1.03 | 0.33† | 1.06 (375x1242) | 2.51† | 1.12† |
 | great-igev-eth3d | 0.44 (375x1242) | 0.32 | 0.70 (375x1242) | 4.60 (375x1242) | 1.10† | 1.14 (375x1242) |
 | great-igev-kitti | 0.44 (375x1242) | 0.32 | 0.65 (375x1242) | 4.60 (375x1242) | 1.10† | 0.70 (375x1242) |
@@ -2155,7 +2156,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | fast-acvnet-plus-sceneflow | 994x1482 | 70.5 ms | 41.9 ms | 40.9 ms | 46.5 ms | 40.6 s | 72.8 s | 651 / 756 | 549 / 830 | 651 / 716 | 1127 / 1178 |
 | fast-acvnet-sceneflow | 994x1482 | 54.7 ms | 36.2 ms | 36.7 ms | 38.1 ms | 41.8 s | 71.3 s | 653 / 756 | 584 / 698 | 654 / 716 | 563 / 576 |
 | fast-foundationstereo | 994x1482 | 330 ms | 339 ms | 156 ms | 135 ms | 78.4 s | 157 s | 2109 / 2256 | 1613 / 1752 | 1120 / 1236 | 1342 / 1398 |
-| foundationstereo-vit-l | 994x1482 | 2990 ms | 2501 ms | 1513 ms | 1513 ms | 226 s | 611 s | 3141 / 3436 | 3453 / 3954 | 2818 / 3300 | 4253 / 4322 |
+| foundationstereo-vit-l | 994x1482 | 2992 ms | 2501 ms | 1513 ms | 1432 ms | 226 s | 611 s | 2923 / 3136 | 3453 / 3954 | 2597 / 2920 | 4253 / 4322 |
 | foundationstereo-vit-s | 994x1482 | 2514 ms | 2044 ms | 1196 ms | 1120 ms | 212 s | 545 s | 2493 / 2606 | 2822 / 3646 | 2169 / 2470 | 2794 / 2872 |
 | great-igev-eth3d | 994x1482 | 1085 ms | 829 ms | 940 ms | 397 ms | 224 s | 685 s | 1402 / 1678 | 2831 / 3362 | 1134 / 1302 | 6151 / 6172 |
 | great-igev-kitti | 994x1482 | 1085 ms | 830 ms | 942 ms | 396 ms | 225 s | 687 s | 1402 / 1678 | 2831 / 3362 | 1134 / 1302 | 6155 / 6234 |
@@ -2649,7 +2650,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | memfof-sintel | 375x1242 | 385 ms | 258 ms | – | 309 ms | 45.0 s | – | 1619 / 1836 | 2041 / 2226 | 786 / 876 | – |
 | memfof-sintel | 384x1248 | – | – | 1334 ms, fp32 engine (ResNet encoders with eager correlation, flow update and upsampling) | – | – | 31.6 s | – | – | – | 4252 / 5692 |
 | memfof-spring | 1080x1920 | 433 ms | 291 ms | 160 ms | 349 ms | 45.4 s | 95.8 s | 1900 / 2196 | 2452 / 2666 | 917 / 1016 | 2070 / 2112 |
-| neuflow-v2 | 1080x1920 | 71.2 ms | 91.4 ms | 65.0 ms | 59.1 ms | 28.5 s | 104 s | 2366 / 2398 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
+| neuflow-v2 | 1080x1920 | 72.0 ms | 91.4 ms | 65.0 ms | 59.8 ms | 28.5 s | 104 s | 2327 / 2398 | 4529 / 4558 | 490 / 636 | 8710 / 8748 |
 | neuflow-v2-sintel | 1080x1920 | 71.3 ms | 91.4 ms | 64.9 ms | 58.9 ms | 28.5 s | 102 s | 2366 / 2398 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
 | neuflow-v2-things | 1080x1920 | 71.4 ms | 91.5 ms | 65.0 ms | 58.9 ms | 28.8 s | 104 s | 2366 / 2398 | 4529 / 4558 | 779 / 896 | 8710 / 8748 |
 | raft-large | 1080x1920 | 292 ms | 195 ms | fails: TensorRT engine build failed | 83.4 ms | 41.3 s | – | 5735 / 6042 | 5886 / 5924 | 332 / 352 | – |
