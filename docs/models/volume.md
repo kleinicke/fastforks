@@ -140,7 +140,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `totalsegmentator-total` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 47779<br>45630<br>1977<br>1647<br>1595<br>fails: no exportable module (multi-network sliding-window pipeline; | 8150 / 8604<br>2640 / 2874<br>2017 / 2244<br>1219 / 1638<br>1697 / 1984<br>– |
+| `totalsegmentator-total` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 47779<br>45630<br>1977<br>1647<br>1595<br>1582 (five nnU-Net patch networks with eager volume processing) | 8150 / 8604<br>2640 / 2874<br>2017 / 2244<br>1219 / 1638<br>1697 / 1984<br>6646 / 7136 |
 | `totalsegmentator-total-3mm` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7304<br>7270<br>70.3<br>71.8<br>63.1<br>74.4 (patch network, standalone build) | 5358 / 5698<br>2010 / 2684<br>962 / 1050<br>913 / 1376<br>907 / 1030<br>2909 / 2970 |
 
 ### Weight streaming
@@ -164,7 +164,7 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - Outputs: labels
 - Input size: any D x H x W volume and its voxel spacing (resampled to the model spacing, sliding window)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `totalsegmentator-total` 512x512x512 voxels (5.5 GiB peak allocated, 5.8 reserved); `totalsegmentator-total-3mm` 512x512x512 voxels (4.3 GiB peak allocated, 5.1 reserved)
-- `totalsegmentator-total` 200x200, first call: portable + torch.compile 37 s (cold Inductor cache).
+- `totalsegmentator-total` 200x200, first call: portable + torch.compile 37 s (cold Inductor cache), TensorRT fp16 152 s (ONNX + engine).
 - `totalsegmentator-total-3mm` 200x200, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 31 s (ONNX + engine).
 - `totalsegmentator-total` original (fp32) 200x200, original 200x200: totalsegmentator(nifti, ml=True, fast=False, device='gpu') on the in-memory NIfTI (CPU numpy in, labels out; weights load per call as upstream)
 - `totalsegmentator-total-3mm` original (fp32) 200x200, original 200x200: totalsegmentator(nifti, ml=True, fast=True, device='gpu') on the in-memory NIfTI (CPU numpy in, labels out; weights load per call as upstream)
@@ -179,10 +179,11 @@ A small subset of real CT cases of the TotalSegmentator dataset (not the full te
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
 |---|---|---|---|---|---|---|---|---|---|
 | `totalsegmentator-total` | TotalSegmentator test subset (7 CT cases), 1.5 mm, mean Dice |  | 0.9365 | 0.9365 |  | 0.9365 |  |  |  |
+| `totalsegmentator-total` | TotalSegmentator CT s0013, mean Dice over present classes |  |  | 0.8943 |  |  |  | 0.8943 |  |
 | `totalsegmentator-total-3mm` | TotalSegmentator test subset (8 CT cases), 3 mm, mean Dice | 0.8285 | 0.8285 | 0.8285 | 0.8285 | 0.8285 |  |  |  |
 | `totalsegmentator-total-3mm` | TotalSegmentator CT s0013, mean Dice over present classes |  |  | 0.7980 |  |  | 0.7980 | 0.7980 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2d71f180 / 550adc40, 2026-11-14 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2d71f180, 2026-11-14; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 550adc40, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2d71f180 / 3bf0bac7 / 550adc40, 2026-11-14 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2d71f180, 2026-11-14; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 550adc40, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18 to 2026-11-19.
 
 ### Parity
 

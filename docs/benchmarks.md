@@ -2434,7 +2434,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | faster-rcnn-r50-fpn-3x-coco | 800x1344 | 22.8 ms | 18.9 ms | 5.35 ms (backbone + FPN only) | 19.5 ms | 26.0 s | 15.6 s | 390 / 490 | 413 / 438 | 391 / 450 | 439 / 494 |
 | grounding-dino-base | 800x1344 | 160 ms | 131 ms | 159 ms, fp32 engine (fixed 80-class text prompt) | – | 98.4 s | 130 s | 1525 / 1624 | 2669 / 2800 | – | 1153 / 1160 |
 | grounding-dino-base | 320x320 | – | – | 17.6 ms, fp32 engine (fixed 80-class text prompt) | – | – | 119 s | – | – | – | 609 / 628 |
-| grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | planned for 0.2.1 | – | 72.5 s | – | 1404 / 1468 | 2550 / 2664 | – | – |
+| grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | 116 ms, fp32 engine (fixed 80-class text prompt) | – | 72.5 s | 104 s | 1404 / 1468 | 2550 / 2664 | – | 883 / 888 |
 | grounding-dino-tiny | 320x320 | 40.9 ms | – | 13.6 ms, fp32 engine (network with fixed COCO prompts, standalone build) | – | – | – | 781 / 898 | – | – | 387 / 406 |
 | lw-detr-large-coco | 800x1344 | 10.2 ms | 5.62 ms | 3.45 ms | 5.64 ms | 29.6 s | 56.0 s | 204 / 230 | 195 / 208 | 192 / 254 | 270 / 296 |
 | lw-detr-medium-coco | 800x1344 | 8.75 ms | 3.74 ms | 2.30 ms | 3.78 ms | 22.4 s | 63.3 s | 131 / 156 | 147 / 174 | 131 / 178 | 185 / 212 |
@@ -2638,8 +2638,10 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | memflow-sintel | 384x1248 | 143 ms | – | 137 ms (full fixed-shape flow network, standalone trace export and build) | – | – | 140 s | 528 / 738 | – | – | 887 / 892 |
 | memfof | 1080x1920 | 433 ms | 291 ms | 160 ms | 349 ms | 50.5 s | 110 s | 1911 / 2196 | 2452 / 2666 | 917 / 1016 | 2070 / 2132 |
 | memfof-kitti | 375x1242 | 386 ms | 258 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 309 ms | 48.7 s | – | 1619 / 1856 | 2041 / 2226 | 786 / 916 | – |
+| memfof-kitti | 384x1248 | – | – | 1335 ms, fp32 engine (ResNet encoders with eager correlation, flow update and upsampling) | – | – | 32.0 s | – | – | – | 4252 / 5692 |
 | memfof-sintel | 1080x1920 | – | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 1.96 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 | 1993 ms | – | – | – | – | 7249 / 8820 | – |
 | memfof-sintel | 375x1242 | 385 ms | 258 ms | – | 309 ms | 45.0 s | – | 1619 / 1836 | 2041 / 2226 | 786 / 876 | – |
+| memfof-sintel | 384x1248 | – | – | 1334 ms, fp32 engine (ResNet encoders with eager correlation, flow update and upsampling) | – | – | 31.6 s | – | – | – | 4252 / 5692 |
 | memfof-spring | 1080x1920 | 433 ms | 291 ms | 160 ms | 349 ms | 45.4 s | 95.8 s | 1900 / 2196 | 2452 / 2666 | 917 / 1016 | 2070 / 2112 |
 | neuflow-v2 | 1080x1920 | 71.2 ms | 91.4 ms | 65.0 ms | 59.1 ms | 28.5 s | 104 s | 2366 / 2398 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
 | neuflow-v2-sintel | 1080x1920 | 71.3 ms | 91.4 ms | 64.9 ms | 58.9 ms | 28.5 s | 102 s | 2366 / 2398 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
@@ -2753,7 +2755,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | nnfoundation-vit | 192x192 | 1848 ms | 1440 ms | planned for 0.2.1 | 1732 ms | 69.5 s | – | 1669 / 1884 | 1406 / 1484 | 1669 / 1884 | – |
 | nninteractive | 200x200 | 215 ms | 162 ms | fails: The TensorRT export accepts prepared 192³ network patches. | 201 ms | 18.0 s | – | 3075 / 3492 | 3643 / 3832 | 2643 / 3072 | – |
 | nninteractive | 192x192 | – | – | 262 ms (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | – | – | 58.0 s | – | – | – | 2738 / 2740 |
-| totalsegmentator-total | 200x200 | 1977 ms | 1595 ms | fails: no exportable module (multi-network sliding-window pipeline; | 1647 ms | 37.0 s | – | 2017 / 2244 | 1697 / 1984 | 1219 / 1638 | – |
+| totalsegmentator-total | 200x200 | 1977 ms | 1595 ms | 1582 ms (five nnU-Net patch networks with eager volume processing) | 1647 ms | 37.0 s | 152 s | 2017 / 2244 | 1697 / 1984 | 1219 / 1638 | 6646 / 7136 |
 | totalsegmentator-total-3mm | 200x200 | 70.3 ms | 63.1 ms | 74.4 ms (patch network, standalone build) | 71.8 ms | 11.9 s | 31.3 s | 962 / 1050 | 907 / 1030 | 913 / 1376 | 2909 / 2970 |
 <!-- compile:end -->
 

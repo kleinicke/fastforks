@@ -311,7 +311,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 199<br>138<br>–<br>111<br>planned for 0.2.1 | 2541 / 2716<br>1404 / 1468<br>–<br>2550 / 2664<br>– |
+| `grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 199<br>138<br>–<br>111<br>116 (fixed 80-class text prompt) | 2541 / 2716<br>1404 / 1468<br>–<br>2550 / 2664<br>883 / 888 |
 | `grounding-dino-tiny` | synthetic (320x320) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>40.9<br>–<br>13.6 (network with fixed COCO prompts, standalone build) | –<br>781 / 898<br>–<br>387 / 406 |
 | `grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 230<br>160<br>–<br>131<br>159 (fixed 80-class text prompt) | 2895 / 3094<br>1525 / 1624<br>–<br>2669 / 2800<br>1153 / 1160 |
 | `grounding-dino-base` | 320x320 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>17.6 (fixed 80-class text prompt) | –<br>–<br>–<br>609 / 628 |
@@ -337,7 +337,7 @@ Commercial use: yes.
 - Outputs: boxes, scores, labels; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `grounding-dino-tiny` 3000x4000 (1.3 GiB peak allocated, 1.5 reserved); `grounding-dino-base` 3000x4000 (1.5 GiB peak allocated, 1.7 reserved); `mm-grounding-dino-tiny` 3000x4000 (1.3 GiB peak allocated, 1.5 reserved); `mm-grounding-dino-base` 3000x4000 (1.5 GiB peak allocated, 1.7 reserved)
-- `grounding-dino-tiny` 800x1344, first call: portable + torch.compile 73 s (cold Inductor cache).
+- `grounding-dino-tiny` 800x1344, first call: portable + torch.compile 73 s (cold Inductor cache), TensorRT fp32 104 s (ONNX + engine).
 - `grounding-dino-base` 800x1344, first call: portable + torch.compile 98 s (cold Inductor cache), TensorRT fp32 130 s (ONNX + engine).
 - `grounding-dino-base` 320x320, first call: TensorRT fp32 119 s (ONNX + engine).
 - `mm-grounding-dino-tiny` 800x1344, first call: portable + torch.compile 71 s (cold Inductor cache), TensorRT fp32 104 s (ONNX + engine).
@@ -363,6 +363,7 @@ pycocotools COCOeval of the top 100 detections per image. Fixed FP32 graph, one 
 |---|---|---|---|---|---|---|---|
 | `grounding-dino-tiny` | COCO val2017, every 10th image, box mAP | 51.08 | 51.16 | 51.14 | 51.12 |  |  |
 | `grounding-dino-tiny` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 35.30 | 35.47 |  |
+| `grounding-dino-tiny` | COCO val2017, every 10th image at fixed 800 x 1344, box mAP |  |  |  | 49.85 | 49.80 |  |
 | `grounding-dino-tiny` | COCO val2017, all 5000 images, box mAP | 48.25 |  | 48.25 |  |  |  |
 | `grounding-dino-base` | COCO val2017, every 10th image, box mAP | 55.67 | 55.73 | 55.72 | 57.13 |  |  |
 | `grounding-dino-base` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 39.83 | 39.76 |  |

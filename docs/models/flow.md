@@ -488,8 +488,10 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `memfof` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 531<br>433<br>349<br>291<br>160 | 2003 / 2144<br>1911 / 2196<br>917 / 1016<br>2452 / 2666<br>2070 / 2132 |
 | `memfof-kitti` | synthetic (375x1242) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 927<br>386<br>309<br>258<br>fails: unsupported: engine build needs more than the 16 GB of this  | 1968 / 2276<br>1619 / 1856<br>786 / 916<br>2041 / 2226<br>– |
+| `memfof-kitti` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>1335 (ResNet encoders with eager correlation, flow update and upsampling) | –<br>–<br>–<br>4252 / 5692 |
 | `memfof-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>OOM<br>1993<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 1.96<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 | –<br>–<br>7249 / 8820<br>–<br>– |
 | `memfof-sintel` | synthetic (375x1242) | original<br>portable<br>kernels<br>portable + torch.compile | 894<br>385<br>309<br>258 | 1968 / 2176<br>1619 / 1836<br>786 / 876<br>2041 / 2226 |
+| `memfof-sintel` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>1334 (ResNet encoders with eager correlation, flow update and upsampling) | –<br>–<br>–<br>4252 / 5692 |
 | `memfof-spring` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1035<br>433<br>349<br>291<br>160 | 2340 / 2676<br>1900 / 2196<br>917 / 1016<br>2452 / 2666<br>2070 / 2112 |
 
 <details><summary>Details</summary>
@@ -512,7 +514,9 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `memfof` 1988x2880 (9.0 GiB peak allocated, 10.6 reserved); `memfof-kitti` 1024x1024 (5.2 GiB peak allocated, 6.1 reserved); `memfof-sintel` 1024x1024 (5.2 GiB peak allocated, 6.1 reserved); `memfof-spring` 1988x2880 (9.0 GiB peak allocated, 10.6 reserved)
 - `memfof` 1080x1920, first call: portable + torch.compile 51 s (cold Inductor cache), TensorRT fp16 110 s (ONNX + engine).
 - `memfof-kitti` 375x1242, first call: portable + torch.compile 49 s (cold Inductor cache).
+- `memfof-kitti` 384x1248, first call: TensorRT fp32 32 s (ONNX + engine).
 - `memfof-sintel` 375x1242, first call: portable + torch.compile 45 s (cold Inductor cache).
+- `memfof-sintel` 384x1248, first call: TensorRT fp32 32 s (ONNX + engine).
 - `memfof-spring` 1080x1920, first call: portable + torch.compile 45 s (cold Inductor cache), TensorRT fp16 96 s (ONNX + engine).
 - `memfof` original 1080x1920: torch.autocast(float16) around the call; upstream MEMFOF + scale_and_forward_flow, iters=8, scale=0, frames (image1, image1, image2)
 - `memfof-kitti` original 375x1242: upstream MEMFOF + scale_and_forward_flow, iters=8, scale=1, frames (image1, image1, image2)
@@ -527,16 +531,18 @@ Commercial use: yes.
 
 ### Measured
 
-Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. Original = the original code named under Details, same checkpoint and protocol.
+Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. The fixed-shape comparison pads the bottom and right with edge pixels to 384 x 1248. Metrics use predictions cropped to each original ground-truth grid. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `memfof` | KITTI 2015 train, EPE / Fl-all % | 10.892 / 27.07 | 10.891 / 27.07 | 10.891 / 27.07 | 10.892 / 27.07 | 10.891 / 27.07 | trained on this dataset's public images; not a zero-shot result |
-| `memfof-kitti` | KITTI 2015 train, EPE / Fl-all % | 15.584 / 26.39 |  |  | 15.584 / 26.39 |  | trained on this dataset's public images; not a zero-shot result |
-| `memfof-sintel` | KITTI 2015 train, EPE / Fl-all % | 2.976 / 7.48 |  |  | 2.976 / 7.48 |  | trained on this dataset's public images; not a zero-shot result |
-| `memfof-spring` | KITTI 2015 train, EPE / Fl-all % | 10.780 / 29.07 |  |  | 10.780 / 29.07 |  | trained on this dataset's public images; not a zero-shot result |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `memfof` | KITTI 2015 train, EPE / Fl-all % | 10.892 / 27.07 | 10.891 / 27.07 | 10.891 / 27.07 | 10.892 / 27.07 | 10.891 / 27.07 |  | trained on this dataset's public images; not a zero-shot result |
+| `memfof-kitti` | KITTI 2015 train, EPE / Fl-all % | 15.584 / 26.39 |  |  | 15.584 / 26.39 |  |  | trained on this dataset's public images; not a zero-shot result |
+| `memfof-kitti` | KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 15.538 / 24.32 |  | 15.538 / 24.32 | trained on this dataset's public images; not a zero-shot result |
+| `memfof-sintel` | KITTI 2015 train, EPE / Fl-all % | 2.976 / 7.48 |  |  | 2.976 / 7.48 |  |  | trained on this dataset's public images; not a zero-shot result |
+| `memfof-sintel` | KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 2.099 / 6.66 |  | 2.099 / 6.66 | trained on this dataset's public images; not a zero-shot result |
+| `memfof-spring` | KITTI 2015 train, EPE / Fl-all % | 10.780 / 29.07 |  |  | 10.780 / 29.07 |  |  | trained on this dataset's public images; not a zero-shot result |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 087f1817+uncommitted, 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 6f0a70e1, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 087f1817+uncommitted, 2026-11-12.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 087f1817+uncommitted, 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 6f0a70e1 / 938a6cc7, 2026-11-17 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 087f1817+uncommitted, 2026-11-12; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 938a6cc7, 2026-11-19.
 
 ### Parity
 
@@ -553,6 +559,7 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 - Pairs only: the multi-frame input (a previous frame and the feature cache of upstream's video demo) is not exposed; each pair runs as the first frame of a clip.
 - Full-frame 1080x1920 runs out of memory on the RTX 5060 Ti 16 GB in the upstream original and in portable; only kernels fit (7.2 GB).
+- At fixed 384 x 1248, the TensorRT ResNet encoders took about 1.33 s versus 1.53 s for paired portable FP32 on the KITTI and Sintel checkpoints. The rest of the flow pipeline ran in PyTorch. The first ten KITTI pairs had at most 0.00002 px of endpoint-error change for either checkpoint.
 
 </details>
 
