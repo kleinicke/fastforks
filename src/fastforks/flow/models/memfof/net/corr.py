@@ -23,10 +23,11 @@ class CorrBlock:
             corr = CorrBlock.corr(fmap1, fmap2, 1)
             batch, h1, w1, dim, h2, w2 = corr.shape
             corr = corr.reshape(batch * h1 * w1, dim, h2, w2)
-            fmap2 = F.interpolate(
-                fmap2, scale_factor=0.5, mode="bilinear", align_corners=False
-            )
             self.corr_pyramid.append(corr)
+            if i + 1 < self.num_levels:
+                fmap2 = F.interpolate(
+                    fmap2, scale_factor=0.5, mode="bilinear", align_corners=False
+                )
 
     def __call__(self, coords, dilation=None):
         r = self.radius
@@ -64,4 +65,4 @@ class CorrBlock:
         fmap2 = fmap2.view(batch, num_head, dim // num_head, h2 * w2)
         corr = fmap1.transpose(2, 3) @ fmap2
         corr = corr.reshape(batch, num_head, h1, w1, h2, w2).permute(0, 2, 3, 1, 4, 5)
-        return corr / torch.sqrt(torch.tensor(dim).float())
+        return corr.div_(torch.sqrt(torch.tensor(dim).float()))
