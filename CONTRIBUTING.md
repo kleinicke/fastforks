@@ -26,7 +26,8 @@ uv run python tools/merge_check.py estimate selection.json
 ```
 
 For a correctness-only CUDA check, run the exact selected revisions. Reuse the same results file to resume, including
-after updates limited to generated model pages and benchmark data.
+after updates limited to unrelated model families, generated model pages or benchmark data. The receipt includes the
+selected family, the model families it imports, and the common test and source files.
 
 ```
 uv run python tools/merge_check.py run selection.json --golden-only --out goldens.jsonl

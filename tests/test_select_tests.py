@@ -248,6 +248,42 @@ def test_golden_source_tracks_untracked_source(
     assert merge_check._golden_sources("baseline") == initial
 
 
+def test_golden_resume_reuses_a_pass_after_an_unrelated_model_change(
+    tmp_path: Path, git_repo: Callable[..., None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name, contents in MINI.items():
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(contents)
+    dependent = tmp_path / "src/fastforks/depth/models/fc/__init__.py"
+    dependent.write_text("from fastforks.stereo.models.fa import model\n")
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Model families")
+    monkeypatch.setattr(merge_check, "ROOT", tmp_path)
+    jobs = [{"family": f, "ref": f"{f}-test@1"} for f in sorted(ALL)]
+
+    def sources() -> dict[str, str]:
+        return {ref: candidates[0] for ref, candidates in merge_check._golden_sources_by_ref(jobs, "HEAD").items()}
+
+    before = sources()
+    fa = tmp_path / "src/fastforks/stereo/models/fa/model.py"
+    fa.write_text(fa.read_text() + "\nVALUE = 1\n")
+    after = sources()
+    assert after["fa-test@1"] != before["fa-test@1"]
+    assert after["fc-test@1"] != before["fc-test@1"]
+    assert after["fb-test@1"] == before["fb-test@1"]
+
+    sibling = fa.with_name("untracked.py")
+    sibling.write_text("VALUE = 2\n")
+    untracked = sources()
+    assert untracked["fa-test@1"] != after["fa-test@1"]
+    assert untracked["fc-test@1"] != after["fc-test@1"]
+    assert untracked["fb-test@1"] == after["fb-test@1"]
+
+    (tmp_path / "tests/data/x.json").write_text('{"changed":true}\n')
+    assert all(sources()[ref] != untracked[ref] for ref in untracked)
+
+
 def test_golden_only_includes_each_selected_revision_without_a_floor(monkeypatch: pytest.MonkeyPatch) -> None:
     def require_no_floor() -> None:
         pytest.fail("golden-only job selection must not load the speed floor")

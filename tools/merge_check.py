@@ -4,7 +4,8 @@
     python tools/merge_check.py run SELECTION.json --out ROWS.jsonl [--family F ...] [--prefix CMD] [--force]
     python tools/merge_check.py table SELECTION.json ROWS.jsonl [--family F ...]  # pass / fail per family (markdown)
 
-Add `--golden-only` to the three commands for a correctness check of the exact selected revisions.
+Add `--golden-only` to the three commands for a correctness check of the exact selected revisions. Passing
+checks are reused across edits limited to unrelated model families.
 
 SELECTION.json is `tools/select_tests.py --json`. `run` starts one worker per (ref, mode) of the selected families' refs
 that the speed floor (docs/data/speed.jsonl) has, each under `--prefix` (e.g. a GPU lock with a timeout). The worker is
@@ -200,6 +201,53 @@ def _golden_sources(commit: str) -> tuple[str, ...]:
     )
 
 
+def _model_directory(name: str) -> str:
+    match name.split("/", 5):
+        case ["src", "fastforks", task, "models", family, _]:
+            return f"src/fastforks/{task}/models/{family}"
+        case _:
+            return ""
+
+
+def _golden_sources_by_ref(js: list[dict[str, Any]], commit: str) -> dict[str, tuple[str, ...]]:
+    """Keep passing results reusable when changes are confined to other model families."""
+    from select_tests import Graph, families, family_closures  # noqa: PLC0415 - only for golden-only orchestration
+
+    family_info = families(ROOT)
+    roots = {f["dir"] for f in family_info.values()}
+    graph = Graph(ROOT)
+    reachable = family_closures(graph, family_info)
+    git = ["git", "-C", str(ROOT), "ls-files", "-z"]
+    paths = [".", *(f":(exclude){path}" for path in GENERATED_DOCS)]
+    tracked = subprocess.check_output([*git, "--cached", "--", *paths])
+    untracked = subprocess.check_output([*git, "--others", "--exclude-standard", "--", "src", "tests", "tools"])
+    common = hashlib.sha256(b"goldens-family-v1\0")
+    per_directory = {directory: hashlib.sha256() for directory in roots}
+    for name in sorted(set(filter(None, tracked.split(b"\0") + untracked.split(b"\0")))):
+        relative = os.fsdecode(name)
+        path = ROOT / relative
+        scope = per_directory.get(_model_directory(relative), common)
+        scope.update(name + b"\0")
+        if path.is_symlink():
+            scope.update(b"link\0" + os.fsencode(path.readlink()) + b"\0")
+        if path.is_file():
+            with path.open("rb") as stream:
+                scope.update(b"file\0" + hashlib.file_digest(stream, "sha256").digest())
+        else:
+            scope.update(b"missing\0")
+
+    legacy = _golden_sources(commit)
+    sources: dict[str, tuple[str, ...]] = {}
+    for family in {j["family"] for j in js} & reachable.keys():
+        dependencies = {_model_directory(path) for path in reachable[family]} & roots
+        dependencies.add(family_info[family]["dir"])
+        digest = common.copy()
+        for directory in sorted(dependencies):
+            digest.update(os.fsencode(directory) + b"\0" + per_directory[directory].digest())
+        sources[family] = ("family:" + digest.hexdigest(), *legacy)
+    return {j["ref"]: sources.get(j["family"], legacy) for j in js}
+
+
 def _done(
     sc: ModuleType, rows: list[dict[str, Any]], job: dict[str, Any], *, golden_sources: tuple[str, ...] = ()
 ) -> bool:
@@ -225,9 +273,11 @@ def run(a: argparse.Namespace) -> int:
     sel = json.loads(a.selection.read_text())
     rows = sc.read_rows(a.out)
     commit = sc._commit()  # noqa: SLF001
-    golden_sources = _golden_sources(commit) if a.golden_only else ()
+    checks = jobs(sel, a.family, a.modes, golden_only=a.golden_only)
+    sources = _golden_sources_by_ref(checks, commit) if a.golden_only else {}
     env = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(ROOT / "src"), os.environ.get("PYTHONPATH")]))}
-    for job in jobs(sel, a.family, a.modes, golden_only=a.golden_only):
+    for job in checks:
+        golden_sources = sources.get(job["ref"], ())
         tag = f"{job['family']} {job['ref']} {job['mode']}"
         if not a.force and _done(sc, rows, job, golden_sources=golden_sources):
             print(f"== {tag}: done on this code", flush=True)
@@ -301,7 +351,8 @@ def table(sel: dict[str, Any], path: Path, families: list[str], modes: list[str]
     """Markdown: one line per family (verdict), then one per job (golden error, ms vs floor, peak MB)."""
     sc = speed_check()
     reg = {} if golden_only else _regressions(sc, path)
-    golden_sources = _golden_sources(sc._commit()) if golden_only else ()  # noqa: SLF001
+    checks = jobs(sel, families, modes, golden_only=golden_only)
+    sources = _golden_sources_by_ref(checks, sc._commit()) if golden_only else {}  # noqa: SLF001
     latest: dict[tuple[str, str, str], dict[str, Any]] = {}
     for i, r in enumerate(sc.read_rows(path)):
         if r.get("side") != "lib":
@@ -309,12 +360,12 @@ def table(sel: dict[str, Any], path: Path, families: list[str], modes: list[str]
         if (
             golden_only
             and r.get("input") == GOLDEN
-            and (r.get("golden_source") not in golden_sources or not _current(sc, r))
+            and (r.get("golden_source") not in sources.get(r["ref"], ()) or not _current(sc, r))
         ):
             continue
         latest[r["ref"], r["mode"], r.get("input", "-")] = r | {"_i": i}
     by_family: dict[str, list[dict[str, Any]]] = {}
-    for j in jobs(sel, families, modes, golden_only=golden_only):
+    for j in checks:
         by_family.setdefault(j["family"], []).append(j)
     fam_lines, job_lines, bad = [], [], 0
     for fam, js in by_family.items():
