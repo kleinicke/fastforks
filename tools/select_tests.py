@@ -262,10 +262,14 @@ def select(
 
 
 def git_changed(base: str, head: str, root: Path = ROOT) -> list[str]:
+    # A cross-family move affects both the deleted module and its new owner.
     r = subprocess.run(
-        ["git", "-C", str(root), "diff", "--name-only", f"{base}..{head}"], capture_output=True, text=True, check=True
+        ["git", "-C", str(root), "diff", "--no-renames", "--name-only", "-z", f"{base}..{head}"],
+        capture_output=True,
+        text=True,
+        check=True,
     )
-    return [line for line in r.stdout.splitlines() if line]
+    return [path for path in r.stdout.split("\0") if path]
 
 
 def git_diff(base: str, head: str, root: Path = ROOT) -> Callable[[str], str]:

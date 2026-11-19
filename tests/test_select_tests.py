@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from typing import TYPE_CHECKING
 
 import pytest
@@ -134,6 +135,42 @@ def test_mini_k_expression(mini: Path) -> None:
     assert sel.families["fa"]["refs"] == ["fa-x@1", "fa-y@2"]
     assert sel.k("fa") == "test_gpu and ([fa-x or [fa-y)"
     assert sel.as_dict()["families"]["fa"]["k"] == sel.k("fa")
+
+
+def test_git_changed_reports_both_sides_of_a_moved_module(tmp_path: Path) -> None:
+    old = "src/fastforks/stereo/models/fa/helper.py"
+    new = "src/fastforks/stereo/models/fb/helper.py"
+
+    def git(*args: str) -> None:
+        subprocess.run(
+            [  # noqa: S607 - local test repository uses the installed Git client
+                "git",
+                "-c",
+                "user.name=Test",
+                "-c",
+                "user.email=test@example.org",
+                "-c",
+                "commit.gpgsign=false",
+                "-c",
+                "core.hooksPath=/dev/null",
+                *args,
+            ],
+            cwd=tmp_path,
+            capture_output=True,
+            check=True,
+        )
+
+    git("init")
+    git("config", "diff.renames", "true")
+    for name in (old, new):
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+    (tmp_path / old).write_text("VALUE = 1\n")
+    git("add", old)
+    git("commit", "-m", "Initial module")
+    git("mv", old, new)
+    git("commit", "-m", "Move module")
+
+    assert set(st.git_changed("HEAD~1", "HEAD", tmp_path)) == {old, new}
 
 
 def test_golden_only_includes_each_selected_revision_without_a_floor(monkeypatch: pytest.MonkeyPatch) -> None:
