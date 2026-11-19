@@ -94,7 +94,7 @@ Commercial use: yes.
 | `rtmpose-l-halpe26-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 206<br>206<br>19.5<br>11.5<br>10.6<br>7.08 (network on person crops only) | 1019 / 1054<br>975 / 1038<br>315 / 416<br>218 / 410<br>243 / 276<br>299 / 322 |
 | `rtmpose-x-halpe26-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 247<br>217<br>33.8<br>19.1<br>21.1<br>13.3 (network on person crops only) | 1470 / 1588<br>470 / 556<br>385 / 478<br>280 / 448<br>262 / 298<br>430 / 456 |
 | `rtmpose-m-hand5` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 192<br>195<br>8.05<br>5.46<br>4.51<br>2.58 (network on person crops only) | 451 / 504<br>425 / 472<br>166 / 214<br>139 / 200<br>176 / 192<br>174 / 192 |
-| `rtmpose-t-face6` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 188<br>204<br>4.53<br>3.61<br>2.23<br>fails: FP16 LaPa NME 154.04% vs 1.78% portable (2,000 faces) | 444 / 498<br>424 / 464<br>116 / 152<br>123 / 180<br>159 / 168<br>– |
+| `rtmpose-t-face6` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 188<br>204<br>4.53<br>3.61<br>2.23<br>1.04 (network on person crops only) | 444 / 498<br>424 / 464<br>116 / 152<br>123 / 180<br>159 / 168<br>83 / 106 |
 | `rtmpose-s-face6` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 258<br>237<br>5.04<br>3.74<br>2.69<br>1.28 (network on person crops only) | 519 / 572<br>504 / 540<br>140 / 174<br>128 / 202<br>164 / 190<br>158 / 178 |
 | `rtmpose-m-face6` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 198<br>207<br>8.75<br>5.77<br>4.79<br>2.67 (network on person crops only) | 666 / 728<br>652 / 698<br>173 / 216<br>145 / 222<br>182 / 192<br>216 / 240 |
 | `rtmpose-m-ap10k` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 196<br>186<br>8.02<br>5.42<br>4.54<br>2.57 (network on person crops only) | 783 / 846<br>757 / 814<br>166 / 214<br>139 / 200<br>176 / 192<br>172 / 188 |
@@ -252,41 +252,41 @@ Commercial use: yes.
 
 Top-down on the same every-tenth-image subset for all modes, ground-truth person boxes, no flip test; people ranked by the mean of their first 17 keypoint scores; pycocotools OKS AP on COCO body joints. Top-down on the ground-truth person boxes (non-crowd, at least one labelled keypoint), no flip test; people ranked by the mean of their 17 keypoint scores (not mmpose's rescoring and OKS-NMS), so not the papers' AP; pycocotools OKS AP; whole-body models scored on their 17 body keypoints. One prediction per annotated hand box. PCK is the mean across landmarks of the fraction within 20% of the longer box side. EPE is the mean pixel distance across annotated landmarks. Flip testing is disabled. One prediction per annotated face box with flip testing disabled. Mean visible-landmark error is divided by the distance between annotated eye landmarks 66 and 79. One prediction per annotated animal box with flip testing disabled. Average the keypoint similarities of the matched predictions with the AP-10K keypoint scales. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | note |
-|---|---|---|---|---|---|---|---|---|
-| `rtmpose-t` | COCO val2017, ground-truth person boxes, keypoint AP | 65.2 | 65.1 | 65.2 | 65.2 | 65.2 |  |  |
-| `rtmpose-s` | COCO val2017, ground-truth person boxes, keypoint AP | 69.8 | 69.8 | 69.8 | 69.8 | 69.8 |  |  |
-| `rtmpose-m` | COCO val2017, ground-truth person boxes, keypoint AP | 75.6 | 75.6 | 75.6 | 75.7 | 75.6 |  |  |
-| `rtmpose-l` | COCO val2017, ground-truth person boxes, keypoint AP | 77.9 | 77.9 | 77.9 | 78.0 | 78.0 |  |  |
-| `rtmpose-m-384` | COCO val2017, ground-truth person boxes, keypoint AP | 78.0 | 77.9 | 77.9 | 78.0 | 78.0 |  |  |
-| `rtmpose-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 80.0 | 80.0 | 80.0 | 80.0 | 79.9 |  |  |
-| `dwpose-t` | COCO val2017, ground-truth person boxes, keypoint AP | 60.2 | 60.2 | 60.1 | 60.1 | 60.1 |  |  |
-| `dwpose-s` | COCO val2017, ground-truth person boxes, keypoint AP | 65.6 | 65.6 | 65.6 | 65.5 | 65.5 |  |  |
-| `dwpose-m` | COCO val2017, ground-truth person boxes, keypoint AP | 71.7 | 71.8 | 71.8 | 71.8 | 71.8 |  |  |
-| `dwpose-l` | COCO val2017, ground-truth person boxes, keypoint AP | 73.9 | 73.9 | 74.0 | 74.0 | 74.0 |  |  |
-| `dwpose-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 75.6 | 75.6 | 75.7 | 75.7 | 75.6 |  |  |
-| `rtmw-m` | COCO val2017, ground-truth person boxes, keypoint AP | 74.5 | 74.5 | 74.5 | 74.5 | 74.6 |  |  |
-| `rtmw-l` | COCO val2017, ground-truth person boxes, keypoint AP | 76.9 | 76.9 | 77.0 | 76.9 | 76.9 |  |  |
-| `rtmw-x` | COCO val2017, ground-truth person boxes, keypoint AP | 77.3 | 77.4 | 77.3 | 77.3 | 77.4 |  |  |
-| `rtmw-l-384` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 80.2 | 80.3 | 80.2 | 80.1 | 80.1 |  |  |
-| `rtmw-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.4 | 79.4 | 79.5 |  | 79.5 |  |  |
-| `rtmw-x-384` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 80.3 | 80.2 | 80.1 | 80.3 | 80.4 |  |  |
-| `rtmw-x-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.6 | 79.6 | 79.6 |  | 79.6 |  |  |
-| `rtmpose-t-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 65.3 | 65.5 | 65.3 | 65.3 | 65.3 |  |  |
-| `rtmpose-s-halpe26` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 71.4 | 71.3 | 71.4 | 71.5 | 71.2 |  |  |
-| `rtmpose-s-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 70.0 | 70.0 | 69.9 |  | 70.0 |  |  |
-| `rtmpose-m-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 76.3 | 76.2 | 76.2 | 76.2 | 76.2 |  |  |
-| `rtmpose-l-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 78.5 | 78.5 | 78.5 | 78.5 | 78.5 |  |  |
-| `rtmpose-m-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 78.3 | 78.4 | 78.3 | 78.3 | 78.3 |  |  |
-| `rtmpose-l-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.8 | 79.8 | 79.8 | 79.8 | 80.0 |  |  |
-| `rtmpose-x-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 80.5 | 80.6 | 80.5 | 80.5 | 80.4 |  |  |
-| `rtmpose-m-hand5` | COCO-WholeBody validation (1,568 images), hand PCK@0.2 % / EPE in px | 80.99 / 4.56 |  |  | 80.98 / 4.56 |  |  |  |
-| `rtmpose-t-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) | 1.7748 |  | 1.7817 | 1.7742 |  | 1.7815 |  |
-| `rtmpose-s-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) | 1.6865 |  |  | 1.6854 |  |  |  |
-| `rtmpose-m-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) | 1.5244 |  |  | 1.5225 |  |  |  |
-| `rtmpose-m-ap10k` | AP-10K validation split 1, annotated animal boxes, paired OKS (%) | 83.835 |  |  | 83.825 |  |  |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `rtmpose-t` | COCO val2017, ground-truth person boxes, keypoint AP | 65.2 | 65.1 | 65.2 | 65.2 | 65.2 |  |  |  |
+| `rtmpose-s` | COCO val2017, ground-truth person boxes, keypoint AP | 69.8 | 69.8 | 69.8 | 69.8 | 69.8 |  |  |  |
+| `rtmpose-m` | COCO val2017, ground-truth person boxes, keypoint AP | 75.6 | 75.6 | 75.6 | 75.7 | 75.6 |  |  |  |
+| `rtmpose-l` | COCO val2017, ground-truth person boxes, keypoint AP | 77.9 | 77.9 | 77.9 | 78.0 | 78.0 |  |  |  |
+| `rtmpose-m-384` | COCO val2017, ground-truth person boxes, keypoint AP | 78.0 | 77.9 | 77.9 | 78.0 | 78.0 |  |  |  |
+| `rtmpose-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 80.0 | 80.0 | 80.0 | 80.0 | 79.9 |  |  |  |
+| `dwpose-t` | COCO val2017, ground-truth person boxes, keypoint AP | 60.2 | 60.2 | 60.1 | 60.1 | 60.1 |  |  |  |
+| `dwpose-s` | COCO val2017, ground-truth person boxes, keypoint AP | 65.6 | 65.6 | 65.6 | 65.5 | 65.5 |  |  |  |
+| `dwpose-m` | COCO val2017, ground-truth person boxes, keypoint AP | 71.7 | 71.8 | 71.8 | 71.8 | 71.8 |  |  |  |
+| `dwpose-l` | COCO val2017, ground-truth person boxes, keypoint AP | 73.9 | 73.9 | 74.0 | 74.0 | 74.0 |  |  |  |
+| `dwpose-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 75.6 | 75.6 | 75.7 | 75.7 | 75.6 |  |  |  |
+| `rtmw-m` | COCO val2017, ground-truth person boxes, keypoint AP | 74.5 | 74.5 | 74.5 | 74.5 | 74.6 |  |  |  |
+| `rtmw-l` | COCO val2017, ground-truth person boxes, keypoint AP | 76.9 | 76.9 | 77.0 | 76.9 | 76.9 |  |  |  |
+| `rtmw-x` | COCO val2017, ground-truth person boxes, keypoint AP | 77.3 | 77.4 | 77.3 | 77.3 | 77.4 |  |  |  |
+| `rtmw-l-384` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 80.2 | 80.3 | 80.2 | 80.1 | 80.1 |  |  |  |
+| `rtmw-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.4 | 79.4 | 79.5 |  | 79.5 |  |  |  |
+| `rtmw-x-384` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 80.3 | 80.2 | 80.1 | 80.3 | 80.4 |  |  |  |
+| `rtmw-x-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.6 | 79.6 | 79.6 |  | 79.6 |  |  |  |
+| `rtmpose-t-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 65.3 | 65.5 | 65.3 | 65.3 | 65.3 |  |  |  |
+| `rtmpose-s-halpe26` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 71.4 | 71.3 | 71.4 | 71.5 | 71.2 |  |  |  |
+| `rtmpose-s-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 70.0 | 70.0 | 69.9 |  | 70.0 |  |  |  |
+| `rtmpose-m-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 76.3 | 76.2 | 76.2 | 76.2 | 76.2 |  |  |  |
+| `rtmpose-l-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 78.5 | 78.5 | 78.5 | 78.5 | 78.5 |  |  |  |
+| `rtmpose-m-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 78.3 | 78.4 | 78.3 | 78.3 | 78.3 |  |  |  |
+| `rtmpose-l-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.8 | 79.8 | 79.8 | 79.8 | 80.0 |  |  |  |
+| `rtmpose-x-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 80.5 | 80.6 | 80.5 | 80.5 | 80.4 |  |  |  |
+| `rtmpose-m-hand5` | COCO-WholeBody validation (1,568 images), hand PCK@0.2 % / EPE in px | 80.99 / 4.56 |  |  | 80.98 / 4.56 |  |  |  |  |
+| `rtmpose-t-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) | 1.7748 |  | 1.7817 | 1.7742 |  | 1.7815 | 1.7827 |  |
+| `rtmpose-s-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) | 1.6865 |  |  | 1.6854 |  |  |  |  |
+| `rtmpose-m-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) | 1.5244 |  |  | 1.5225 |  |  |  |  |
+| `rtmpose-m-ap10k` | AP-10K validation split 1, annotated animal boxes, paired OKS (%) | 83.835 |  |  | 83.825 |  |  |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / 535aedbb / be54b8b0, 2026-11-09 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / be54b8b0, 2026-11-09 to 2026-11-11; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / 535aedbb / be54b8b0, 2026-11-09 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / be54b8b0, 2026-11-09 to 2026-11-11; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 01174ad3, 2026-11-19.
 
 ### Parity
 
