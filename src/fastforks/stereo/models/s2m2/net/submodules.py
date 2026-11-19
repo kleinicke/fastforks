@@ -100,9 +100,36 @@ class CNNEncoder(nn.Module):
     def forward(self, x: torch.Tensor):
         x = self.conv0(x)
         x_2x = self.norm1(self.conv1_down(x))
-        x_2x = self.conv2(x_2x) + x_2x
+        del x
+        if (
+            x_2x.is_cuda
+            and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
+            and x_2x.numel() * x_2x.element_size() >= 256 * 1024**2
+        ):
+            x_2x = self._residual_strips(x_2x)
+        else:
+            x_2x = self.conv2(x_2x) + x_2x
         x_4x = self.conv2_down(x_2x)
         return x_4x, x_2x
+
+    def _residual_strips(self, x: torch.Tensor) -> torch.Tensor:
+        """Bound the workspace of both 3x3 convolutions using two extra rows on either side."""
+        height = x.shape[-2]
+        rows = (height + 3) // 4
+        output = None
+        for start in range(0, height, rows):
+            stop = min(height, start + rows)
+            first = max(0, start - 2)
+            last = min(height, stop + 2)
+            residual = self.conv2(x[..., first:last, :])
+            interior = residual[..., start - first : stop - first, :] + x[..., start:stop, :]
+            if output is None:
+                fmt = torch.channels_last if interior.is_contiguous(memory_format=torch.channels_last) else torch.contiguous_format
+                output = torch.empty(x.shape, dtype=interior.dtype, device=x.device, memory_format=fmt)
+            output[..., start:stop, :].copy_(interior)
+            del residual, interior
+        assert output is not None
+        return output
 
 
 class UpsampleMask4x(nn.Module):
