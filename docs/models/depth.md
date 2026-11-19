@@ -1245,7 +1245,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `stablenormal-turbo` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 299<br>289<br>180<br>238<br>118 | 4156 / 4374<br>3463 / 3628<br>3037 / 3172<br>3019 / 3106<br>5587 / 5626 |
+| `stablenormal-turbo` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 299<br>291<br>180<br>238<br>118 | 4156 / 4374<br>3316 / 3626<br>3037 / 3172<br>3019 / 3106<br>5587 / 5626 |
 
 <details><summary>Details</summary>
 
@@ -1262,6 +1262,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `stablenormal-turbo` 3000x4000 (3.6 GiB peak allocated, 4.8 reserved)
 - `stablenormal-turbo` 994x1482, first call: portable + torch.compile 76 s (cold Inductor cache), TensorRT fp16 198 s (ONNX + engine).
 - `stablenormal-turbo` original 994x1482: the authors' mixed-precision option (float16); upstream YOSONormalsPipeline (turbo, t_start 0), diffusers 0.41.0, latents seed 0
+- `stablenormal-turbo` portable 994x1482: The final VAE upsample uses a bounded workspace. Paired normal maps matched bitwise.
 - `stablenormal-turbo` load / first call: original 6.36 s / 1.128 s, portable 2.94 s / 0.544 s, kernels 3.25 s / 0.352 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

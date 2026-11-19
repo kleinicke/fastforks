@@ -150,7 +150,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`lotus-normal-d-v1-1`](models/depth.md#lotus-normals) | yes | – | 344.3 (994x1482) | 267.6 | 164.1 | 2.1x vs original (994x1482) | 2351 |
 | [`lotus-normal-g-v1-1`](models/depth.md#lotus-normals) | yes | – | 344.1 (994x1482) | 267.5 | 164.1 | 2.1x vs original (994x1482) | 2351 |
 | [`marigold-normals-lcm-v0-1`](models/depth.md#marigold-normals-lcm) | yes | – | 279.5 (994x1482) | 272.0 | 167.1 | 1.7x vs original (994x1482) | 2361 |
-| [`stablenormal-turbo`](models/depth.md#stablenormal-turbo) | yes | – | 299.2 (994x1482) | 289.3 | 180.3 | 1.7x vs original (994x1482) | 3037 |
+| [`stablenormal-turbo`](models/depth.md#stablenormal-turbo) | yes | – | 299.2 (994x1482) | 290.6 | 180.3 | 1.7x vs original (994x1482) | 3037 |
 | [`video-depth-anything-s`](models/depth.md#video-depth-anything) | yes | – | – | 201.8 | 199.7 (1080x1920) | 1.0x vs portable | 1967 |
 | [`video-depth-anything-metric-s`](models/depth.md#video-depth-anything) | yes | – | – | 201.6 | 200.0 (1080x1920) | 1.0x vs portable | 1967 |
 | [`marigold-depth-v1-1`](models/depth.md#marigold) | yes | 0.0561 | 439.2 (994x1482) | 410.0 | 261.4 | 1.7x vs original (994x1482) | 2343 |

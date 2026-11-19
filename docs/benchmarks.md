@@ -927,7 +927,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | pointdit-l-512 | 994x1482 | – | – | 94.6 | 61.3 | – | 1.5x | – | 1297 / 1430 | 1310 / 1676 |
 | prompt-depth-anything-l | 756x1008 | – | – | 125 | 69.3 | – | 1.8x | – | 1318 / 1488 | 1179 / 1348 |
 | prompt-depth-anything-s | 756x1008 | – | – | 18.4 | 11.4 | – | 1.6x | – | 363 / 442 | 297 / 384 |
-| stablenormal-turbo | 994x1482 | – | 299 | 289 | 180 | 1.7x | 1.6x | 4156 / 4374 | 3463 / 3628 | 3037 / 3172 |
+| stablenormal-turbo | 994x1482 | – | 299 | 291 | 180 | 1.7x | 1.6x | 4156 / 4374 | 3316 / 3626 | 3037 / 3172 |
 | unidepth-v2-vitl14 | 994x1482 | – | – | – | 63.0 | – | – | – | – | 1153 / 1252 |
 | unik3d-vitl | 518x770 | 123 | 123 | 99.2 | 58.5 | 2.1x | 1.7x | 3220 / 3530 | 1172 / 1492 | 1070 / 1106 |
 | video-depth-anything-metric-s | 1080x1920 | – | – | 202 | 200 | – | 1.0x | – | 1962 / 2224 | 1967 / 2226 |
@@ -2250,7 +2250,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | pointdit-l-512 | 994x1482 | 94.6 ms | 76.0 ms | 49.1 ms | 61.3 ms | 57.3 s | 150 s | 1297 / 1430 | 1316 / 1430 | 1310 / 1676 | 2474 / 2626 |
 | prompt-depth-anything-l | 756x1008 | 125 ms | 117 ms | 75.3 ms | 69.3 ms | 21.2 s | 52.5 s | 1318 / 1488 | 968 / 1148 | 1179 / 1348 | 1649 / 1714 |
 | prompt-depth-anything-s | 756x1008 | 18.4 ms | 16.3 ms | 10.5 ms | 11.4 ms | 14.7 s | 46.6 s | 363 / 442 | 260 / 322 | 297 / 384 | 368 / 410 |
-| stablenormal-turbo | 994x1482 | 289 ms | 238 ms | 118 ms | 180 ms | 76.3 s | 198 s | 3463 / 3628 | 3019 / 3106 | 3037 / 3172 | 5587 / 5626 |
+| stablenormal-turbo | 994x1482 | 291 ms | 238 ms | 118 ms | 180 ms | 76.3 s | 198 s | 3316 / 3626 | 3019 / 3106 | 3037 / 3172 | 5587 / 5626 |
 | unidepth-v2-vitl14 | 994x1482 | 99.8 ms | 96.4 ms | 64.3 ms | 63.0 ms | 31.1 s | 119 s | 1208 / 1472 | 1304 / 1392 | 1153 / 1252 | 1815 / 1842 |
 | unik3d-vitl | 994x1482 | 108 ms | 94.4 ms | 58.0 ms | 62.9 ms | 32.8 s | 105 s | 1219 / 1492 | 1258 / 1312 | 1166 / 1266 | 1609 / 1678 |
 | video-depth-anything-metric-s | 480x640 | 148 ms | 101 ms | 60.2 ms | 59.1 ms | 32.5 s | 82.1 s | 1461 / 1666 | 1143 / 1464 | 1270 / 1408 | 886 / 914 |
