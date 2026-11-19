@@ -309,3 +309,63 @@ def gwc_volume(left: mx.array, right: mx.array, depth: int, groups: int) -> mx.a
         grid=(w, h, n * depth), threadgroup=(32, 4, 1),
         output_shapes=[(n, depth, h, w, groups)], output_dtypes=[left.dtype],
     )[0]  # fmt: skip
+
+
+_USA = metal_kernel(
+    name="graph_upsample_soft_argmax",
+    input_names=["x"],
+    output_names=["out"],
+    source="""
+        // one thread per output pixel: trilinear taps of the low-resolution volume, online softmax over the MD
+        // disparities, expected disparity. The full-resolution volume never exists; fp32 throughout.
+        uint ox = thread_position_in_grid.x, oy = thread_position_in_grid.y, n = thread_position_in_grid.z;
+        if (ox >= OW || oy >= OH) return;
+        float ys = max((float(oy) + 0.5f) / float(SH) - 0.5f, 0.0f);
+        float xs = max((float(ox) + 0.5f) / float(SW) - 0.5f, 0.0f);
+        int y0 = min(int(ys), H - 1), x0 = min(int(xs), W - 1);
+        int y1 = min(y0 + 1, H - 1), x1 = min(x0 + 1, W - 1);
+        float wy = ys - float(y0), wx = xs - float(x0);
+        const device T* p = x + size_t(n) * D * H * W;
+        int o00 = y0 * W + x0, o01 = y0 * W + x1, o10 = y1 * W + x0, o11 = y1 * W + x1;
+        float m = -INFINITY, s = 0.0f, t = 0.0f;
+        int cur = -1;
+        float a0 = 0.0f, a1 = 0.0f;
+        for (int j = 0; j < MD; ++j) {
+            float zs = max((float(j) + 0.5f) / float(SD) - 0.5f, 0.0f);
+            int z0 = min(int(zs), D - 1), z1 = min(z0 + 1, D - 1);
+            if (z0 != cur) {
+                const device T* q0 = p + size_t(z0) * H * W;
+                const device T* q1 = p + size_t(z1) * H * W;
+                a0 = (float(q0[o00]) * (1.0f - wx) + float(q0[o01]) * wx) * (1.0f - wy)
+                   + (float(q0[o10]) * (1.0f - wx) + float(q0[o11]) * wx) * wy;
+                a1 = (float(q1[o00]) * (1.0f - wx) + float(q1[o01]) * wx) * (1.0f - wy)
+                   + (float(q1[o10]) * (1.0f - wx) + float(q1[o11]) * wx) * wy;
+                cur = z0;
+            }
+            float wz = zs - float(z0);
+            float v = a0 * (1.0f - wz) + a1 * wz;
+            if (v > m) {
+                float k = exp(m - v);
+                s *= k;
+                t *= k;
+                m = v;
+            }
+            float e = exp(v - m);
+            s += e;
+            t += e * float(j);
+        }
+        out[(size_t(n) * OH + oy) * OW + ox] = t / s;
+    """,
+)
+
+
+def upsample_soft_argmax(cost: mx.array, max_disp: int, height: int, width: int) -> mx.array:
+    """Soft-argmin disparity `[B, H, W]` (float32) of a `[B, 1, d, h, w]` cost volume, trilinearly upsampled."""
+    n, _, d, h, w = cost.shape
+    return _USA(
+        inputs=[mx.contiguous(cost)],
+        template=[("T", cost.dtype), ("D", d), ("H", h), ("W", w), ("MD", max_disp), ("OH", height), ("OW", width),
+                  ("SD", max_disp // d), ("SH", height // h), ("SW", width // w)],
+        grid=(width, height, n), threadgroup=(32, 4, 1),
+        output_shapes=[(n, height, width)], output_dtypes=[mx.float32],
+    )[0]  # fmt: skip

@@ -36,3 +36,19 @@ def normalized_groups(x: torch.Tensor, groups: int, eps: float = 1e-5) -> torch.
     b, c, h, w = x.shape
     x = x.view(b, groups, c // groups, h, w)
     return (x / (torch.norm(x, 2, 2, True) + eps)).view(b, c, h, w)
+
+
+@torch.library.custom_op("fastforks::upsample_soft_argmax", mutates_args=())
+def upsample_soft_argmax(cost: torch.Tensor, max_disp: int, height: int, width: int) -> torch.Tensor:
+    """Trilinear upsample of `[B, 1, d, h, w]` to `[max_disp, height, width]`, softmax over disparity, soft-argmin.
+
+    Returns `[B, height, width]` float32 (upstream PSMNet / GwcNet test tail; `align_corners=False`).
+    """
+    up = F.interpolate(cost.float(), size=(max_disp, height, width), mode="trilinear", align_corners=False)
+    values = torch.arange(max_disp, device=cost.device, dtype=torch.float32).view(1, max_disp, 1, 1)
+    return torch.sum(F.softmax(up.squeeze(1), dim=1) * values, 1)
+
+
+@upsample_soft_argmax.register_fake
+def _(cost: torch.Tensor, max_disp: int, height: int, width: int) -> torch.Tensor:  # noqa: ARG001 - same schema
+    return cost.new_empty((cost.shape[0], height, width), dtype=torch.float32)

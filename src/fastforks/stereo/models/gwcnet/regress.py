@@ -13,6 +13,8 @@ import math
 import torch
 import torch.nn.functional as F
 
+from fastforks._core import volume_ops  # noqa: F401 - registers `fastforks::upsample_soft_argmax`
+
 
 def upsample_softmax_regress(
     cost: torch.Tensor, max_disp: int, height: int, width: int, rows: int = 64
@@ -30,9 +32,8 @@ def upsample_softmax_regress(
         msg = f"output {max_disp}x{height}x{width} is not an integer multiple of the volume {d}x{h}x{w}"
         raise ValueError(msg)
     values = torch.arange(max_disp, device=cost.device, dtype=torch.float32).view(1, max_disp, 1, 1)
-    if torch.compiler.is_exporting():  # one block: a traced loop would keep the traced height's blocks
-        up = F.interpolate(cost.float(), size=(max_disp, height, width), mode="trilinear", align_corners=False)
-        return torch.sum(F.softmax(up.squeeze(1), dim=1) * values, 1)
+    if torch.compiler.is_exporting():  # one op: the MLX replay fuses upsample + softmax + regression
+        return torch.ops.fastforks.upsample_soft_argmax(cost, max_disp, height, width)
     out = torch.empty((b, height, width), device=cost.device, dtype=torch.float32)
     for y0 in range(0, height, rows):
         y1 = min(height, y0 + rows)

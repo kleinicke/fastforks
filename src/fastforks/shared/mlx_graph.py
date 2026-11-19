@@ -366,6 +366,14 @@ def _gwc_volume(left: mx.array, right: mx.array, depth: int, groups: int) -> mx.
     return mx.transpose(ops.gwc_volume(_nhwc(left), _nhwc(right), depth, groups), (0, 4, 1, 2, 3))
 
 
+@_reg(torch.ops.fastforks.upsample_soft_argmax.default)
+def _upsample_soft_argmax(cost: mx.array, max_disp: int, height: int, width: int) -> mx.array:
+    """Trilinear upsample + softmax over disparity + soft-argmin (`fastforks._core.volume_ops`) as one Metal kernel."""
+    from fastforks.kernels.graph_mlx import ops
+
+    return ops.upsample_soft_argmax(cost, max_disp, height, width)
+
+
 @_reg(aten.scatter.src)
 def _scatter_src(x: mx.array, dim: int, index: mx.array, src: mx.array) -> mx.array:
     src = src[tuple(slice(0, n) for n in index.shape)]  # torch reads the leading block of src
