@@ -9,6 +9,8 @@ from fastforks import depth
 from fastforks._core import registry
 from fastforks.depth.models.stablenormal.model import finish, network_size, prepare
 from fastforks.shared.sd2 import EMPTY_PROMPT, EMPTY_PROMPT_77
+from fastforks.shared.sd2.net.unet import Upsample2D
+from fastforks.shared.sd2.net.vae import _upsample_tiled
 
 
 def test_card() -> None:
@@ -46,3 +48,11 @@ def test_finish_unpads_and_camera_frame() -> None:
     out = finish(n, (2, 0), (8, 16))
     assert out.shape == (1, 8, 16, 3)
     torch.testing.assert_close(out[0, 7, 15], torch.tensor([-0.3, -0.4, -0.5]) / 0.5**0.5)
+
+
+def test_vae_upsample_strip_boundaries() -> None:
+    """Interior strip boundaries and global padding match one convolution on an odd input height."""
+    up = Upsample2D(3)
+    x = torch.randn(2, 3, 13, 17, generator=torch.Generator().manual_seed(19))
+    with torch.inference_mode():
+        torch.testing.assert_close(_upsample_tiled(up, x), up(x))
