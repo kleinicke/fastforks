@@ -645,11 +645,13 @@ class MetalKernels(Portable):
             override(m, _metal_subm_conv)
 
 
+# compile=False: the compiled fp16 segments of the full-resolution decoder peak at 3.9 GB (moge-2-vits 994x1482), the lazy
+# replay at 2.0 GB, at the same speed (vitb: 8 % slower, 2.1 GB vs MPS 2.3 GB)
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_trunk",)),
-    "kernels_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_trunk",)),
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_trunk",), compile=False),
+    "kernels_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_trunk",), compile=False),
     "kernels_mps": MetalKernels,
 }
 

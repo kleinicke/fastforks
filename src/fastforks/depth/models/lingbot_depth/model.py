@@ -280,8 +280,9 @@ class Kernels(Runner):
             return finish(depth, mask, (h, w), exp=p.exp_output)
 
 
-class _Mlx(mlx_wrap.port(Portable, attrs=(), methods=("_graph",))):  # ty: ignore[unsupported-base]
-    """Apple MLX: the whole forward runs through the exported-graph translation."""
+class _Mlx(mlx_wrap.port(Portable, attrs=(), methods=("_graph",), compile=False)):  # ty: ignore[unsupported-base]
+    """Apple MLX: the whole forward runs through the exported-graph translation (uncompiled: compiled fp16 segments of
+    the full-resolution decoder peak 1.8 GB higher at 7 % higher speed)."""
 
     def _run(self, image: torch.Tensor, prompt: torch.Tensor, *, gather: bool = True) -> dict[str, torch.Tensor]:
         return self._graph(image, prompt)
