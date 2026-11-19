@@ -65,7 +65,16 @@ def test_standalone_engine_measurement_remains_visible_when_export_is_planned(tm
     data.mkdir(parents=True)
     rows = [
         {"ref": "model", "mode": "tensorrt", "input": "32x32", "ms": 5},
-        {"ref": "model", "mode": "tensorrt", "input": "64x64", "ms": 10, "standalone_build": True},
+        {
+            "ref": "model",
+            "mode": "tensorrt",
+            "input": "64x64",
+            "ms": 10,
+            "standalone_build": True,
+            "device_mb": 20,
+            "peak_alloc_mb": 30,
+            "peak_reserved_mb": 40,
+        },
         {"ref": "model", "mode": "compile", "input": "64x64", "ms": 12, "backend_part": "VAE only"},
     ]
     (data / "speed_compile.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows))
@@ -77,9 +86,15 @@ def test_standalone_engine_measurement_remains_visible_when_export_is_planned(tm
     monkeypatch.setattr(g, "_oom", set)
 
     sizes = {row["input"]: row for row in site_data._speed(variant, "depth", {})["inputs"]}
-    assert sizes["64x64"]["tensorrt"]["part"] == "standalone build"
+    engine = sizes["64x64"]["tensorrt"]
+    assert engine["standalone"]
+    assert engine["part"] == "standalone build"
+    assert (engine["peak_alloc_mb"], engine["peak_reserved_mb"]) == (50, 60)
     assert sizes["64x64"]["compile"]["part"] == "VAE only"
     assert "32x32" not in sizes
+    with_portable = {"model": [{"input": "32x32", "mode": "portable", "ms": 20}]}
+    failed = site_data._speed(variant, "depth", with_portable)["inputs"][0]
+    assert failed["tensorrt"] == {"fails": "export needs validation", "planned": True}
     assert g._compile_ms(compiled["model", "tensorrt", "64x64"]) == "10.0 ms (standalone build)"
     assert g._compile_ms(compiled["model", "compile", "64x64"]) == "12.0 ms (VAE only)"
 

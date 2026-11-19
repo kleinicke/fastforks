@@ -26,6 +26,7 @@ import examples
 import gen_docs as g
 import goldens
 from fastforks._core import licences, registry
+from fastforks._core.cards import planned_reason
 from fastforks._core.sizes import size_range
 from fastforks._core.tasks import spec
 
@@ -154,15 +155,23 @@ def _speed(v: Variant, task: str, speed: dict[str, list[dict]]) -> dict[str, Any
             if c is None:
                 continue
             if "fails" in c:
-                extra[mode] = {"fails": g._fail_reason(c["fails"])}  # noqa: SLF001
+                reason = planned_reason(v, mode) if c["fails"] == g.PLANNED else None
+                extra[mode] = (
+                    {"fails": reason, "planned": True} if reason else {"fails": g._fail_reason(c["fails"])}  # noqa: SLF001
+                )
                 continue
+            if mode == "tensorrt":
+                alloc, reserved = g._trt_peaks(c) or (None, None)  # noqa: SLF001 - shared docs helper
+            else:
+                alloc, reserved = c.get("peak_alloc_mb"), c.get("peak_reserved_mb")
             extra[mode] = {
                 "ms": c["ms"],
-                "peak_alloc_mb": c.get("peak_alloc_mb"),
-                "peak_reserved_mb": c.get("peak_reserved_mb"),
+                "peak_alloc_mb": alloc,
+                "peak_reserved_mb": reserved,
                 "device_mb": c.get("device_mb"),
                 "engine_dtype": c.get("engine_dtype", "float16") if mode == "tensorrt" else None,
                 "part": g._backend_part(c).strip(" ()"),  # noqa: SLF001 - shared docs helper
+                "standalone": bool(c.get("standalone_build")),
                 "setup_s": g._setup_seconds(c),  # noqa: SLF001 - shared docs helper
                 "date": c.get("date"),
             }
