@@ -880,7 +880,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | s2m2-m | – | – | 670 | – | – | 2289 / 2766 | – |
 | s2m2-xl | – | – | 1824 | – | – | 5217 / 5614 | – |
 | selective-igev-eth3d-finetune | – | – | 996 | 351 | 2.8x | 1227 / 1448 | 1051 / 1190 |
-| waft-stereo-b | – | – | 1144 | 388 | 2.9x | 3727 / 5814 | 1664 / 1932 |
+| waft-stereo-b | – | – | 1094 | 388 | 2.8x | 2999 / 3070 | 1664 / 1932 |
 | waft-stereo-s | – | – | – | 284 | – | – | 954 / 1102 |
 
 ### Depth, synthetic
@@ -1514,7 +1514,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | swin2sr-x2 | 2565 | 909 | 721 | 3.6x | 1.3x | 1488 / 1578 | 1459 / 1554 | 1459 / 1636 |
 | swin2sr-x4 | 2922 | 932 | 745 | 3.9x | 1.3x | 1488 / 2160 | 1463 / 2276 | 1459 / 1736 |
 | swin2sr-x4-real | 2527 | 958 | 751 | 3.4x | 1.3x | 2321 / 2660 | 2354 / 2774 | 1459 / 1734 |
-| swinir-l-x4-real | 3709 | 2099 | 1036 | 3.6x | 2.0x | 2357 / 2746 | 2425 / 2672 | 1806 / 1934 |
+| swinir-l-x4-real | 3709 | 1248 | 921 | 4.0x | 1.4x | 2357 / 2746 | 1806 / 2054 | 1633 / 1934 |
 | swinir-m-x2 | 3252 | 739 | 553 | 5.9x | 1.3x | 1500 / 1818 | 1353 / 1454 | 1353 / 1454 |
 | swinir-m-x4 | 3497 | 767 | 576 | 6.1x | 1.3x | 1500 / 2058 | 1499 / 2054 | 1354 / 1456 |
 | swinir-m-x4-real | 2462 | 1242 | 584 | 4.2x | 2.1x | 2321 / 2978 | 2387 / 3034 | 1353 / 1814 |
@@ -1604,7 +1604,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | selective-igev-middlebury-finetune | 0.36 (375x1242) | 0.50 | 0.14† | 2.25 (375x1242) | 1.02† | 0.35† |
 | selective-igev-middlebury-train | 0.36 (375x1242) | 0.50 | 0.14† | 2.25 (375x1242) | 1.02† | 0.35† |
 | selective-igev-sceneflow | 0.36 (375x1242) | 0.50 | 0.14† | 2.25 (375x1242) | 1.02† | 0.35† |
-| waft-stereo-b | 3.07 (375x1242) | 1.65 | 1.77 (375x1242) | 0.44 (375x1242) | 1.15† | 0.46 (375x1242) |
+| waft-stereo-b | 3.07 (375x1242) | 0.55 | 1.77 (375x1242) | 0.44 (375x1242) | 1.36 | 0.46 (375x1242) |
 | waft-stereo-s | 1.60 (375x1242) | 0.58 | 1.47 (375x1242) | 0.14 (375x1242) | 0.69† | 0.32 (375x1242) |
 | any2full-b | 3.73 | 6.38 | 0.74 | 0.34 | 3.34 | 0.26 |
 | any2full-l | 9.41 | 1.45 | 1.50 | 0.47 | 0.30 | 0.28 |
@@ -2203,7 +2203,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | selective-igev-middlebury-finetune | 994x1482 | 998 ms | 692 ms | 462 ms | 349 ms | 127 s | 258 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1280 / 1316 |
 | selective-igev-middlebury-train | 994x1482 | 998 ms | 692 ms | 462 ms | 349 ms | 128 s | 256 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
 | selective-igev-sceneflow | 994x1482 | 998 ms | 692 ms | 463 ms | 349 ms | 127 s | 255 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
-| waft-stereo-b | 994x1482 | 1144 ms | 571 ms | public API unavailable | 388 ms | 104 s | – | 3727 / 5814 | 3908 / 3936 | 1664 / 1932 | – |
+| waft-stereo-b | 994x1482 | 1094 ms | 571 ms | public API unavailable | 388 ms | 104 s | – | 2999 / 3070 | 3908 / 3936 | 1664 / 1932 | – |
 | waft-stereo-b | 384x1248 | – | – | 1209 ms, fp32 engine (standalone build) | – | – | 107 s | – | – | – | 1447 / 1454 |
 | waft-stereo-s | 994x1482 | 689 ms | 357 ms | 170 ms | 284 ms | 95.1 s | 152 s | 3293 / 3456 | 2024 / 2058 | 954 / 1102 | 1061 / 1114 |
 | any2full-b | 994x1482 | 26.8 ms | 24.2 ms | 15.8 ms | 17.2 ms | 97.0 s | 64.4 s | 538 / 596 | 442 / 496 | 481 / 536 | 731 / 794 |
@@ -2752,7 +2752,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | swin2sr-x2 | 512x512 | 909 ms | 482 ms | 547 ms | 721 ms | 43.7 s | 112 s | 1459 / 1554 | 1308 / 1516 | 1459 / 1636 | 4941 / 4997 |
 | swin2sr-x4 | 512x512 | 932 ms | 496 ms | 556 ms | 745 ms | 45.8 s | 113 s | 1463 / 2276 | 1308 / 1556 | 1459 / 1736 | 5410 / 5470 |
 | swin2sr-x4-real | 512x512 | 958 ms | 508 ms | 562 ms | 751 ms | 41.7 s | 128 s | 2354 / 2774 | 1308 / 1556 | 1459 / 1734 | 5409 / 5468 |
-| swinir-l-x4-real | 512x512 | 2099 ms | 1426 ms | 1118 ms | 1036 ms | 68.1 s | 193 s | 2425 / 2672 | 2153 / 2876 | 1806 / 1934 | 9182 / 9282 |
+| swinir-l-x4-real | 512x512 | 1248 ms | 1426 ms | 1118 ms | 921 ms | 68.1 s | 193 s | 1806 / 2054 | 2153 / 2876 | 1633 / 1934 | 9182 / 9282 |
 | swinir-m-x2 | 512x512 | 739 ms | 781 ms | 719 ms | 553 ms | 60.3 s | 102 s | 1353 / 1454 | 1683 / 1796 | 1353 / 1454 | 5088 / 5144 |
 | swinir-m-x4 | 512x512 | 767 ms | 795 ms | 727 ms | 576 ms | 61.8 s | 104 s | 1499 / 2054 | 1684 / 1796 | 1354 / 1456 | 5525 / 5604 |
 | swinir-m-x4-real | 512x512 | 1242 ms | 807 ms | 733 ms | 584 ms | 59.6 s | 109 s | 2387 / 3034 | 1683 / 1796 | 1353 / 1814 | 5427 / 5506 |

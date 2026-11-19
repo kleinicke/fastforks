@@ -73,7 +73,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`bridgedepth-rvc-pretrain`](models/stereo.md#bridgedepth) | no | 1.22 ? | 470.1 (994x1482) | 441.6 | 353.6 | 1.3x vs original (994x1482) | 2361 |
 | [`cas-gwcnet-gc-sceneflow`](models/stereo.md#cas-gwcnet) | yes | 8.09 | 566.7 (994x1482) | 471.6 | 357.5 | 1.6x vs original (994x1482) | 2272 |
 | [`s2m2-l`](models/stereo.md#s2m2) | no | 0.82 ? | 1004.7 (994x1482) | 1016.8 | 375.8 | 2.7x vs original (994x1482) | 1249 |
-| [`waft-stereo-b`](models/stereo.md#waft-stereo) | no | 0.74 ? | 1139.5 (994x1482) | 1143.6 | 387.9 | 2.9x vs original (994x1482) | 1664 |
+| [`waft-stereo-b`](models/stereo.md#waft-stereo) | no | 0.74 ? | 1139.5 (994x1482) | 1093.7 | 387.9 | 2.9x vs original (994x1482) | 1664 |
 | [`igev-plusplus-middlebury`](models/stereo.md#igev) | yes | 18.46 ? | 1277.9 (994x1482) | 1080.0 | 393.4 | 3.2x vs original (994x1482) | 1272 |
 | [`igev-plusplus-kitti15`](models/stereo.md#igev) | yes | 25.50 | 1277.9 (994x1482) | 1080.4 | 393.9 | 3.2x vs original (994x1482) | 1272 |
 | [`igev-plusplus-kitti12`](models/stereo.md#igev) | yes | 26.78 | 1277.9 (994x1482) | 1080.1 | 394.3 | 3.2x vs original (994x1482) | 1272 |
@@ -784,8 +784,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`swin2sr-x2`](models/restoration.md#swin2sr) | yes | 2565.1 (512x512) | 908.6 | 720.5 | 3.6x vs original (512x512) | 1459 |
 | [`swin2sr-x4`](models/restoration.md#swin2sr) | yes | 2921.9 (512x512) | 931.7 | 744.9 | 3.9x vs original (512x512) | 1459 |
 | [`swin2sr-x4-real`](models/restoration.md#swin2sr) | yes | 2527.2 (512x512) | 958.1 | 751.2 | 3.4x vs original (512x512) | 1459 |
+| [`swinir-l-x4-real`](models/restoration.md#swinir) | yes | 3709.3 (512x512) | 1247.7 | 921.3 | 4.0x vs original (512x512) | 1633 |
 | [`hat-s-x4`](models/restoration.md#hat) | yes | 2401.8 (512x512) | 1072.2 | 956.5 | 2.5x vs original (512x512) | 1856 |
-| [`swinir-l-x4-real`](models/restoration.md#swinir) | yes | 3709.3 (512x512) | 2098.7 | 1036.5 | 3.6x vs original (512x512) | 1806 |
 | [`dat-2-x4`](models/restoration.md#dat) | yes | 4880.3 (512x512) | 1312.2 | 1037.4 | 4.7x vs original (512x512) | 1534 |
 | [`dat-x4`](models/restoration.md#dat) | yes | 9563.6 (512x512) | 1385.7 | 1208.7 | 7.9x vs original (512x512) | 1541 |
 | [`drct-l-x4`](models/restoration.md#drct) | yes | 14651.1 (512x512) | 1606.9 | 1398.5 | 10.5x vs original (512x512) | 2564 |

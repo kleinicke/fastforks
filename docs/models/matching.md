@@ -444,6 +444,7 @@ CPU, float32: max |diff| <= 4.3e-05 vs the original. GPU, float16 (the default),
 
 - The fixed FP32 DINOv2 TensorRT stage raised AUC@5 from 61.60 to 64.93 on 300 MegaDepth pairs. On one pair the pose error went from 13.67 degrees to the 90-degree failure value, even with TF32 disabled.
 - A separate FP32 TensorRT stage for the fine VGG encoder also introduced a pose failure on a MegaDepth pair solved by portable, with TF32 disabled.
+- Restricting the FP32 engine to the fine VGG stride-8 convolutions introduced zero new pose failures on 300 MegaDepth pairs. AUC@5/10/20 changed from 63.97/77.89/87.40 to 64.00/77.92/87.29, and one pair's pose error rose from 2.58 to 22.71 degrees.
 - One direction (the first image's half of upstream's symmetric call); upstream's sampling / keypoint helpers are not included; tools/eval_matching.py has the MegaDepth-1500 sampling.
 - Both images are resized to squares (upstream's behaviour), whatever their aspect ratio; upstream resizes PIL images, this runner float tensors (bicubic, antialiased).
 
