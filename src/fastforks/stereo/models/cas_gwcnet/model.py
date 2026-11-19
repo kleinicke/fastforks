@@ -118,7 +118,9 @@ def cost_volume(
         dtype = fl.dtype
     b, cc, h, w = xc.shape
     d = disps.shape[1]
-    volume = xc.new_empty((b, channels, d, h, w), dtype=dtype)
+    exporting = torch.compiler.is_exporting()  # MLX replay: planes stacked, no `slice_scatter` copy per write
+    planes: list[torch.Tensor] = []
+    volume = xc.new_empty((b, channels, d, h, w), dtype=dtype) if not exporting else None
     xs = torch.arange(w, device=xc.device, dtype=torch.float32).view(1, 1, w)
     gy = (torch.arange(h, device=xc.device, dtype=torch.float32) / ((h - 1.0) / 2.0) - 1.0).view(1, h, 1)
     gy = gy.expand(b, h, w)
@@ -129,13 +131,19 @@ def cost_volume(
         if gc:
             valid = (xs >= dj).unsqueeze(1).float()  # upstream: x_warped[:, mw < d] = 0
             corr = (xg * valid * warped[:, :cg]).view(b, groups, cg // groups, h, w).mean(2)
-            volume[:, :groups, j] = corr * VOL_SCALE
-            volume[:, groups : groups + cc, j] = xc * valid * VOL_SCALE
-            volume[:, groups + cc :, j] = warped[:, cg:] * VOL_SCALE
+            parts = (corr, xc * valid, warped[:, cg:])
         else:
-            volume[:, :cc, j] = xc * VOL_SCALE
-            volume[:, cc:, j] = warped * VOL_SCALE
-    return volume
+            parts = (xc, warped)
+        if exporting:
+            planes.append(torch.cat([t * VOL_SCALE for t in parts], 1).to(dtype))
+        elif gc:
+            volume[:, :groups, j] = parts[0] * VOL_SCALE
+            volume[:, groups : groups + cc, j] = parts[1] * VOL_SCALE
+            volume[:, groups + cc :, j] = parts[2] * VOL_SCALE
+        else:
+            volume[:, :cc, j] = parts[0] * VOL_SCALE
+            volume[:, cc:, j] = parts[1] * VOL_SCALE
+    return torch.stack(planes, 2) if exporting else volume
 
 
 def _first_hypotheses(net: GwcNet | PSMNet, nd: int, scale: int, device: torch.device) -> tuple[torch.Tensor, ...]:
