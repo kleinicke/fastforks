@@ -2746,7 +2746,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | restormer-sidd | 512x512 | 181 ms | 142 ms | 162 ms | 133 ms | 35.5 s | 59.7 s | 850 / 920 | 660 / 778 | 892 / 980 | 757 / 774 |
 | seedvr2-3b | 512x512 | 2295 ms | 1941 ms | fails: RuntimeError: Inplace update to inference tensor outside Inf | 2296 ms | 238 s | – | 6140 / 6772 | 5237 / 8144 | 6140 / 6772 | – |
 | seedvr2-3b | 64x64 | – | – | 46.8 ms, bf16 engine | – | – | 324 s | – | – | – | 7662 / 7664 |
-| seedvr2-7b | 512x512 | 2712 ms | 2471 ms (VAE only, standalone compile) | fails: RuntimeError: Inplace update to inference tensor outside Inf | 2713 ms | 52.2 s | – | 6419 / 8880 | 5522 / 9042 | 6402 / 7034 | – |
+| seedvr2-7b | 512x512 | 2712 ms | 2471 ms (VAE only, standalone compile) | 2696 ms, bf16 engine (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | 2713 ms | 52.2 s | 271 s | 6419 / 8880 | 5522 / 9042 | 6402 / 7034 | 9369 / 9860 |
 | span-x2 | 512x512 | 23.5 ms | 13.2 ms | 7.98 ms | 14.9 ms | 7.26 s | 9.60 s | 607 / 662 | 204 / 222 | 487 / 522 | 243 / 266 |
 | span-x4 | 512x512 | 24.2 ms | 13.2 ms | 8.28 ms | 14.6 ms | 4.57 s | 9.80 s | 607 / 662 | 204 / 222 | 487 / 522 | 319 / 346 |
 | swin2sr-x2 | 512x512 | 909 ms | 482 ms | 547 ms | 721 ms | 43.7 s | 112 s | 1459 / 1554 | 1308 / 1516 | 1459 / 1636 | 4941 / 4997 |
