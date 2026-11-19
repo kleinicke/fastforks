@@ -424,7 +424,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `pi3` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1057<br>821<br>559<br>752<br>planned for 0.2.1 | 5926 / 6016<br>2360 / 2416<br>2367 / 2456<br>2205 / 2334<br>– |
+| `pi3` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1057<br>821<br>559<br>752<br>public API unavailable | 5926 / 6016<br>2360 / 2416<br>2367 / 2456<br>2205 / 2334<br>– |
 | `pi3` | 8x512x640 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>735 (DINOv2 encoder with eager scene decoding, 8 views) | –<br>–<br>–<br>2586 / 2976 |
 
 ### Weight streaming
@@ -447,7 +447,7 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - Options: `stream` = False (speed only), `pixel_limit` = 255000 (>= 196)
 - Kernel libraries: `fastbb`
 - Variants: `pi3`
-- Not in this release (planned for 0.2.1): `pi3` ONNX / TensorRT export: the ONNX converter fails on the exported program (ConversionError, step 3/3)
+- Public ONNX / TensorRT export is unavailable for `pi3` (the ONNX converter fails on the exported program (ConversionError, step 3/3)).
 - Outputs: depth, confidence, world_points, cam_to_world; kind: `scale_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `pi3` 3000x4000 (4.8 GiB peak allocated, 6.5 reserved)
@@ -493,7 +493,7 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `resplat-small-dl3dv` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 493<br>1723<br>362<br>1538<br>planned for 0.2.1 | 5148 / 5376<br>4995 / 5180<br>4981 / 5148<br>4995 / 5138<br>– |
+| `resplat-small-dl3dv` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 493<br>1723<br>362<br>1538<br>public API unavailable | 5148 / 5376<br>4995 / 5180<br>4981 / 5148<br>4995 / 5138<br>– |
 | `resplat-small-dl3dv` | 256x448 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>1362 (Gaussian initialization and refinement heads with eager depth and rendering) | –<br>–<br>–<br>1367 / 1800 |
 | `resplat-base-re10k` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2521<br>7228<br>1178<br>7098 (standalone Gaussian initialization and recurrent refinement heads, eager rendering and geometry)<br>fails: TypeError: _Base.forward() missing 1 required positional arg | 10139 / 12684<br>4364 / 6884<br>4370 / 6936<br>4656 / 7630<br>– |
 | `resplat-base-re10k` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>1028 (Gaussian initialization and refinement heads with eager depth and rendering) | –<br>–<br>–<br>2173 / 2988 |
@@ -511,7 +511,7 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 - Options: `long_side` = 0 (>= 0), `refine` = 2 (>= 0)
 - Kernel libraries: `fastbb`, `cudnn_hacc`, `gsraster`, `depthsplat_corr`, `knn_attention`
 - Variants: `resplat-small-dl3dv`, `resplat-base-re10k`
-- Not in this release (planned for 0.2.1): `resplat-small-dl3dv` ONNX / TensorRT export: torch.export cannot capture data-dependent Gaussian renderer shapes
+- Public ONNX / TensorRT export is unavailable for `resplat-small-dl3dv` (torch.export cannot capture data-dependent Gaussian renderer shapes).
 - Outputs: depth, confidence, gaussians; kind: `metric`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `resplat-small-dl3dv` 3000x4000 (5.9 GiB peak allocated, 7.0 reserved); `resplat-base-re10k` 3000x4000 (7.8 GiB peak allocated, 11.2 reserved)

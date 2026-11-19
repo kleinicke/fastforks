@@ -333,7 +333,7 @@ Commercial use: yes.
 - Options: `score_threshold` = 0.25 (0.0 to 1.0), `max_detections` = 100 (>= 1)
 - Kernel libraries: `msda`
 - Variants: `grounding-dino-tiny`, `grounding-dino-base`, `mm-grounding-dino-tiny`, `mm-grounding-dino-base`
-- Not in this release (planned for 0.2.1): `grounding-dino-tiny` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `grounding-dino-base` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `mm-grounding-dino-tiny` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true; `mm-grounding-dino-base` ONNX / TensorRT export: the ONNX converter has no decomposition for aten._is_all_true
+- Public ONNX / TensorRT export is unavailable for `grounding-dino-tiny`, `grounding-dino-base`, `mm-grounding-dino-tiny`, `mm-grounding-dino-base` (the ONNX converter has no decomposition for aten._is_all_true).
 - Outputs: boxes, scores, labels; label_set: `coco-80`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `grounding-dino-tiny` 3000x4000 (1.3 GiB peak allocated, 1.5 reserved); `grounding-dino-base` 3000x4000 (1.5 GiB peak allocated, 1.7 reserved); `mm-grounding-dino-tiny` 3000x4000 (1.3 GiB peak allocated, 1.5 reserved); `mm-grounding-dino-base` 3000x4000 (1.5 GiB peak allocated, 1.7 reserved)

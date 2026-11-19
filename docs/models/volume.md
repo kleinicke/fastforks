@@ -41,7 +41,7 @@ Commercial use: yes.
 - Options: `stream` = False (speed only)
 - Kernel libraries: `vol_norm`
 - Variants: `nnfoundation-cnn`, `nnfoundation-vit`
-- Not in this release (planned for 0.2.1): `nnfoundation-vit` ONNX / TensorRT export: the default FP16 TensorRT engine diverges from portable on real CT crops. The standalone FP32 result uses a separate head-grouped export
+- Public ONNX / TensorRT export is unavailable for `nnfoundation-vit` (the default FP16 TensorRT engine diverges from portable on real CT crops. The standalone FP32 result uses a separate head-grouped export).
 - Outputs: features
 - Input size: any D x H x W volume, no resampling, one encoder pass (a fixed-grid ViT: each side up to its grid)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `nnfoundation-cnn` 384x384x384 voxels (14.2 GiB peak allocated, 14.8 reserved); `nnfoundation-vit` 192x192x192 voxels (1.6 GiB peak allocated, 1.8 reserved)

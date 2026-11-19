@@ -35,9 +35,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `alltracker` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 485<br>391<br>221<br>284<br>planned for 0.2.1 | 2100 / 2318<br>993 / 1238<br>1076 / 1288<br>1273 / 1358<br>– |
+| `alltracker` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 485<br>391<br>221<br>284<br>public API unavailable | 2100 / 2318<br>993 / 1238<br>1076 / 1288<br>1273 / 1358<br>– |
 | `alltracker` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>330 (frame CNN with eager tracking) | –<br>–<br>–<br>2262 / 3372 |
-| `alltracker-tiny` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 424<br>330<br>217<br>229<br>planned for 0.2.1 | 1995 / 2200<br>919 / 1178<br>978 / 1166<br>1198 / 1338<br>– |
+| `alltracker-tiny` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 424<br>330<br>217<br>229<br>public API unavailable | 1995 / 2200<br>919 / 1178<br>978 / 1166<br>1198 / 1338<br>– |
 | `alltracker-tiny` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>270 (frame CNN with eager tracking) | –<br>–<br>–<br>2010 / 3220 |
 
 <details><summary>Details</summary>
@@ -50,7 +50,7 @@ Commercial use: yes.
 - Options: `iters` = 4 (>= 1)
 - Kernel libraries: `fvm_conv`
 - Variants: `alltracker`, `alltracker-tiny`
-- Not in this release (planned for 0.2.1): `alltracker` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export); `alltracker-tiny` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export)
+- Public ONNX / TensorRT export is unavailable for `alltracker`, `alltracker-tiny` (torch.export fails (TorchExportError, step 1/3 of the ONNX export)).
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `alltracker` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved); `alltracker-tiny` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved)
@@ -171,7 +171,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `cotracker3-offline` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 244<br>162<br>154<br>135<br>25.9 | 2221 / 2480<br>755 / 882<br>757 / 882<br>755 / 902<br>519 / 586 |
-| `cotracker3-online` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 328<br>184<br>176<br>159<br>planned for 0.2.1 | 1659 / 1886<br>755 / 906<br>757 / 888<br>701 / 846<br>– |
+| `cotracker3-online` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 328<br>184<br>176<br>159<br>public API unavailable | 1659 / 1886<br>755 / 906<br>757 / 888<br>701 / 846<br>– |
 | `cotracker3-online` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>50.3 (fixed eight-frame graph with 16 queries) | –<br>–<br>–<br>456 / 472 |
 | `cotracker3-online` | synthetic (24x256x256) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>280<br>–<br>141 (fixed 24-frame clip with 16 queries) | –<br>2381 / 2694<br>–<br>850 / 856 |
 
@@ -184,7 +184,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - Training data: Upstream paper: trained on synthetic Kubric MOVi-F sequences, then fine-tuned by pseudo-labelling about 15k real internet videos with other trackers (not released). No dataset entry here yet.
 - Kernel libraries: `fvm_conv`, `cotracker_corr`
 - Variants: `cotracker3-offline`, `cotracker3-online`
-- Not in this release (planned for 0.2.1): `cotracker3-online` ONNX / TensorRT export: torch.export fails (TorchExportError, step 1/3 of the ONNX export)
+- Public ONNX / TensorRT export is unavailable for `cotracker3-online` (torch.export fails (TorchExportError, step 1/3 of the ONNX export)).
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `cotracker3-offline` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved); `cotracker3-online` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved)
@@ -365,9 +365,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `track-on2` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1953<br>1193<br>1108<br>1075<br>planned for 0.2.1 | 1403 / 1558<br>1423 / 1712<br>1368 / 1620<br>1340 / 1454<br>– |
+| `track-on2` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1953<br>1193<br>1108<br>1075<br>public API unavailable | 1403 / 1558<br>1423 / 1712<br>1368 / 1620<br>1340 / 1454<br>– |
 | `track-on2` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>961 (standalone eight-frame encoder, eager recurrent decoder) | –<br>–<br>–<br>1979 / 2288 |
-| `track-on-r` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2022<br>1188<br>1102<br>1066<br>planned for 0.2.1 | 1801 / 1928<br>1423 / 1632<br>1368 / 1620<br>1340 / 1454<br>– |
+| `track-on-r` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2022<br>1188<br>1102<br>1066<br>public API unavailable | 1801 / 1928<br>1423 / 1632<br>1368 / 1620<br>1340 / 1454<br>– |
 | `track-on-r` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>958 (standalone eight-frame encoder, eager recurrent decoder) | –<br>–<br>–<br>1979 / 2286 |
 
 <details><summary>Details</summary>
@@ -381,7 +381,8 @@ Commercial use: yes.
 - Options: `memory` = 72 (>= 1), `support_grid` = 20 (>= 0)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `track-on2`, `track-on-r`
-- Not in this release (planned for 0.2.1): `track-on2` ONNX / TensorRT export: torch.export stops at a data-dependent branch (model.py:107); `track-on-r` ONNX / TensorRT export: the export fails in the network call (ValueError: expected 4 values, got 2)
+- Public ONNX / TensorRT export is unavailable for `track-on2` (torch.export stops at a data-dependent branch (model.py:107)).
+- Public ONNX / TensorRT export is unavailable for `track-on-r` (the export fails in the network call (ValueError: expected 4 values, got 2)).
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `track-on2` 3000x4000 (5.0 GiB peak allocated, 6.0 reserved); `track-on-r` 3000x4000 (5.0 GiB peak allocated, 6.0 reserved)

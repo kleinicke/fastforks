@@ -2131,9 +2131,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | aanet-plus-sceneflow | 994x1482 | 159 ms | 143 ms | 202 ms | 88.9 ms | 89.3 s | 145 s | 1142 / 1278 | 3020 / 3716 | 813 / 920 | 1786 / 1834 |
 | aanet-sceneflow | 994x1482 | 140 ms | 91.8 ms | 91.2 ms | 101 ms | 79.9 s | 211 s | 845 / 986 | 754 / 928 | 536 / 644 | 602 / 620 |
-| bridgedepth-rvc-pretrain | 994x1482 | 442 ms | 337 ms | planned for 0.2.1 | 354 ms | 118 s | – | 2968 / 3246 | 2329 / 2360 | 2361 / 2686 | – |
+| bridgedepth-rvc-pretrain | 994x1482 | 442 ms | 337 ms | public API unavailable | 354 ms | 118 s | – | 2968 / 3246 | 2329 / 2360 | 2361 / 2686 | – |
 | bridgedepth-rvc-pretrain | 375x1242 | 114 ms | – | 284 ms, fp32 engine (DINOv2 and DPT monocular branch with eager stereo inference) | 94.7 ms | – | 50.0 s | 1910 / 2006 | – | 1323 / 1446 | 2410 / 2588 |
-| bridgedepth-sf | 994x1482 | 437 ms | 325 ms | planned for 0.2.1 | 348 ms | 111 s | – | 2916 / 3214 | 2280 / 2308 | 2310 / 2634 | – |
+| bridgedepth-sf | 994x1482 | 437 ms | 325 ms | public API unavailable | 348 ms | 111 s | – | 2916 / 3214 | 2280 / 2308 | 2310 / 2634 | – |
 | bridgedepth-sf | 375x1242 | 111 ms | – | 284 ms, fp32 engine (DINOv2 and DPT monocular branch with eager stereo inference) | 92.1 ms | – | 54.1 s | 1859 / 1954 | – | 1272 / 1394 | 2358 / 2508 |
 | c-fast-foundationstereo | 994x1482 | 330 ms | 339 ms | 451 ms | 135 ms | 75.4 s | 240 s | 2109 / 2336 | 1649 / 1792 | 1120 / 1236 | 1425 / 1462 |
 | c-foundationstereo-s | 994x1482 | 3643 ms | 2773 ms | 2229 ms | 1366 ms | 626 s | 444 s | 4903 / 7258 | 7298 / 7624 | 3058 / 4408 | 10027 / 10108 |
@@ -2142,7 +2142,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | cfnet-sceneflow | 994x1482 | 409 ms | 249 ms | 171 ms | 225 ms | 53.0 s | 139 s | 1822 / 2578 | 1026 / 1398 | 1073 / 1604 | 1357 / 1410 |
 | coex-sceneflow | 994x1482 | 49.9 ms | 29.4 ms | 20.6 ms | 23.5 ms | 22.4 s | 56.6 s | 1093 / 1174 | 351 / 452 | 368 / 514 | 438 / 452 |
 | crestereo-eth3d | 994x1482 | 732 ms | 398 ms | 298 ms | 229 ms | 120 s | 224 s | 884 / 1030 | 695 / 748 | 644 / 732 | 703 / 740 |
-| defom-stereo-vitl-sceneflow | 994x1482 | 1531 ms | 1002 ms | planned for 0.2.1 | 645 ms | 122 s | – | 4362 / 4838 | 3021 / 3292 | 2781 / 4234 | – |
+| defom-stereo-vitl-sceneflow | 994x1482 | 1531 ms | 1002 ms | public API unavailable | 645 ms | 122 s | – | 4362 / 4838 | 3021 / 3292 | 2781 / 4234 | – |
 | defom-stereo-vitl-sceneflow | 375x1242 | 404 ms | – | 1151 ms, bf16 engine (whole graph at fixed 375 x 1242) | 180 ms | – | 168 s | 2394 / 2538 | – | 1627 / 1786 | 1782 / 1790 |
 | dlnr-middlebury | 994x1482 | 398 ms | 303 ms | 241 ms | 214 ms | 67.9 s | 156 s | 2635 / 3142 | 1343 / 1692 | 1236 / 1606 | 1455 / 1546 |
 | dlnr-sceneflow | 994x1482 | 398 ms | 301 ms | 241 ms | 214 ms | 69.0 s | 161 s | 2635 / 3142 | 1343 / 1672 | 1236 / 1606 | 1711 / 1784 |
@@ -2176,7 +2176,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | igev-stereo-kitti15 | 994x1482 | 763 ms | 527 ms | 340 ms | 288 ms | 110 s | 214 s | 1237 / 1492 | 771 / 1012 | 1113 / 1374 | 1315 / 1374 |
 | igev-stereo-middlebury | 994x1482 | 763 ms | 527 ms | 338 ms | 288 ms | 110 s | 214 s | 1237 / 1492 | 771 / 1012 | 1113 / 1374 | 1317 / 1376 |
 | igev-stereo-sceneflow | 994x1482 | 763 ms | 527 ms | 340 ms | 288 ms | 111 s | 216 s | 1237 / 1492 | 771 / 1012 | 1113 / 1374 | 1317 / 1376 |
-| las2-h | 994x1482 | 113 ms | 75.0 ms | planned for 0.2.1 | 53.6 ms | 37.5 s | – | 1002 / 1046 | 579 / 724 | 872 / 960 | – |
+| las2-h | 994x1482 | 113 ms | 75.0 ms | public API unavailable | 53.6 ms | 37.5 s | – | 1002 / 1046 | 579 / 724 | 872 / 960 | – |
 | las2-h | 375x1242 | 35.5 ms | – | 17.5 ms (whole graph at fixed 375 x 1242) | 15.0 ms | – | 100 s | 365 / 390 | – | 298 / 368 | 300 / 308 |
 | las2-l | 994x1482 | 75.7 ms | 46.6 ms | 23.4 ms | 30.1 ms | 30.5 s | 97.5 s | 648 / 716 | 385 / 432 | 268 / 362 | 393 / 424 |
 | las2-m | 994x1482 | 37.1 ms | 28.6 ms | 13.2 ms | 18.1 ms | 24.0 s | 98.3 s | 584 / 664 | 252 / 300 | 235 / 336 | 343 / 386 |
@@ -2203,7 +2203,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | selective-igev-middlebury-finetune | 994x1482 | 998 ms | 692 ms | 462 ms | 349 ms | 127 s | 258 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1280 / 1316 |
 | selective-igev-middlebury-train | 994x1482 | 998 ms | 692 ms | 462 ms | 349 ms | 128 s | 256 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
 | selective-igev-sceneflow | 994x1482 | 998 ms | 692 ms | 463 ms | 349 ms | 127 s | 255 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
-| waft-stereo-b | 994x1482 | 1144 ms | 571 ms | planned for 0.2.1 | 388 ms | 104 s | – | 3727 / 5814 | 3908 / 3936 | 1664 / 1932 | – |
+| waft-stereo-b | 994x1482 | 1144 ms | 571 ms | public API unavailable | 388 ms | 104 s | – | 3727 / 5814 | 3908 / 3936 | 1664 / 1932 | – |
 | waft-stereo-b | 384x1248 | – | – | 1209 ms, fp32 engine (standalone build) | – | – | 107 s | – | – | – | 1447 / 1454 |
 | waft-stereo-s | 994x1482 | 689 ms | 357 ms | 170 ms | 284 ms | 95.1 s | 152 s | 3293 / 3456 | 2024 / 2058 | 954 / 1102 | 1061 / 1114 |
 | any2full-b | 994x1482 | 26.8 ms | 24.2 ms | 15.8 ms | 17.2 ms | 97.0 s | 64.4 s | 538 / 596 | 442 / 496 | 481 / 536 | 731 / 794 |
@@ -2235,16 +2235,16 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | lotus-normal-g-v1-1 | 994x1482 | 267 ms | 222 ms | 107 ms | 164 ms | 63.4 s | 183 s | 2777 / 2940 | 2344 / 2416 | 2351 / 2500 | 4213 / 4240 |
 | marigold-depth-v1-1 | 994x1482 | 410 ms | 342 ms | 172 ms | 261 ms | 127 s | 285 s | 2776 / 2938 | 2341 / 2418 | 2343 / 2500 | 4263 / 4318 |
 | marigold-normals-lcm-v0-1 | 994x1482 | 272 ms | 223 ms | 109 ms | 167 ms | 64.5 s | 182 s | 2792 / 2960 | 2348 / 2436 | 2361 / 2500 | 4220 / 4250 |
-| marigold-v2-depth | 994x1482 | 4892 ms | 4599 ms | planned for 0.2.1 | 3887 ms | 141 s | – | 1408 / 1818 | 1959 / 2120 | 1408 / 1818 | – |
+| marigold-v2-depth | 994x1482 | 4892 ms | 4599 ms | public API unavailable | 3887 ms | 141 s | – | 1408 / 1818 | 1959 / 2120 | 1408 / 1818 | – |
 | marigold-v2-depth | 480x640 | – | – | 1156 ms, bf16 engine (VAE encoder and decoder with eager streamed NF4 transformer) | – | – | 137 s | – | – | – | 2042 / 2198 |
 | metric3d-vit-large | 994x1482 | 201 ms | 149 ms | 91.4 ms | 155 ms | 54.7 s | 96.6 s | 1443 / 1576 | 1126 / 1148 | 1475 / 1588 | 1867 / 1952 |
 | midas-dpt-beit-large-512 | 994x1482 | 78.8 ms | 58.8 ms | 52.2 ms | 63.9 ms | 32.6 s | 53.5 s | 992 / 1418 | 1088 / 1116 | 1003 / 1436 | 1514 / 1592 |
 | moge-2-vitb-normal | 994x1482 | 83.9 ms | 60.9 ms | 35.5 ms | 40.7 ms | 133 s | 127 s | 1163 / 1312 | 972 / 1172 | 1093 / 1208 | 1044 / 1092 |
 | moge-2-vitl-normal | 994x1482 | 144 ms | 124 ms | 75.6 ms | 73.4 ms | 152 s | 173 s | 1661 / 1836 | 1411 / 1634 | 1498 / 1610 | 1882 / 1936 |
 | moge-2-vits-normal | 994x1482 | 61.6 ms | 43.9 ms | 24.5 ms | 33.3 ms | 124 s | 131 s | 1007 / 1172 | 836 / 992 | 932 / 1048 | 768 / 852 |
-| moge-3-vitl | 994x1482 | 334 ms | 311 ms | planned for 0.2.1 | 149 ms | 136 s | – | 1678 / 1826 | 1500 / 1724 | 1626 / 1762 | – |
+| moge-3-vitl | 994x1482 | 334 ms | 311 ms | public API unavailable | 149 ms | 136 s | – | 1678 / 1826 | 1500 / 1724 | 1626 / 1762 | – |
 | moge-3-vitl | 480x640 | – | – | 1069 ms, fp32 engine (DINOv2 encoder and projections with eager decoder and sparse refinement) | – | – | – | – | – | – | 4568 / 5382 |
-| omni-dc | 994x1482 | 571 ms | 411 ms | planned for 0.2.1 | 510 ms | 137 s | – | 4130 / 6144 | 4201 / 5932 | 4154 / 6528 | – |
+| omni-dc | 994x1482 | 571 ms | 411 ms | public API unavailable | 510 ms | 137 s | – | 4130 / 6144 | 4201 / 5932 | 4154 / 6528 | – |
 | omni-dc | 480x640 | – | – | 253 ms, fp32 engine (Depth Anything V2 with eager prompt fusion and solver) | – | – | 52.0 s | – | – | – | 2930 / 3298 |
 | pointdit-b-512 | 994x1482 | 31.1 ms | 23.7 ms | 15.5 ms | 20.5 ms | 33.6 s | 86.5 s | 446 / 504 | 465 / 524 | 462 / 630 | 795 / 898 |
 | pointdit-l-512 | 994x1482 | 94.6 ms | 76.0 ms | 49.1 ms | 61.3 ms | 57.3 s | 150 s | 1297 / 1430 | 1316 / 1430 | 1310 / 1676 | 2474 / 2626 |
@@ -2592,7 +2592,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | megaloc | 480x640 | 5.29 ms | 4.27 ms | 3.21 ms | 4.26 ms | 13.2 s | 51.1 s | 483 / 508 | 518 / 530 | 485 / 508 | 937 / 964 |
 | anycalib-pinhole | 1080x1920 | 29.4 ms | 25.5 ms | 12.0 ms | 21.5 ms | 16.5 s | 116 s | 705 / 742 | 719 / 756 | 739 / 812 | 778 / 780 |
 | anycalib-pinhole | 480x640 | 29.9 ms | – | 12.4 ms | – | – | 118 s | 693 / 704 | – | – | 750 / 768 |
-| geocalib-pinhole | 1080x1920 | 81.2 ms | 73.1 ms | planned for 0.2.1 | 81.8 ms | 28.4 s | – | 320 / 378 | 246 / 300 | 277 / 338 | – |
+| geocalib-pinhole | 1080x1920 | 81.2 ms | 73.1 ms | public API unavailable | 81.8 ms | 28.4 s | – | 320 / 378 | 246 / 300 | 277 / 338 | – |
 | geocalib-pinhole | 1920x1440 | 123 ms | – | 109 ms, fp32 engine (field predictor only, standalone build) | – | – | 42.9 s | 433 / 560 | – | – | 540 / 558 |
 | anysplat | 336x518 | 508 ms | 427 ms | 314 ms | 369 ms | 80.3 s | 215 s | 4164 / 5384 | 4137 / 4694 | 4173 / 5548 | 7629 / 7674 |
 | depthsplat-small-re10k | 336x518 | 138 ms | 82.2 ms | 86.4 ms | 95.1 ms | 80.0 s | 224 s | 963 / 1222 | 5432 / 5526 | 965 / 1314 | 3148 / 3194 |
@@ -2601,11 +2601,11 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | mvsanywhere | 448x672 | 93.2 ms | 70.8 ms | 75.4 ms (standalone build) | 35.2 ms | 153 s | 217 s | 931 / 1226 | 818 / 860 | 702 / 760 | 1581 / 1658 |
 | mvsplat-re10k | 336x518 | 181 ms | 115 ms | 106 ms | 172 ms | 102 s | 241 s | 1239 / 1532 | 2762 / 2810 | 1239 / 1532 | 4953 / 4972 |
 | patchmatchnet | 1536x1024 | 201 ms | 175 ms | 51.0 ms | 29.5 ms | 29.4 s | 82.1 s | 1039 / 1212 | 1798 / 1888 | 648 / 772 | 1073 / 1106 |
-| pi3 | 336x518 | 821 ms | 752 ms | planned for 0.2.1 | 559 ms | 55.6 s | – | 2360 / 2416 | 2205 / 2334 | 2367 / 2456 | – |
+| pi3 | 336x518 | 821 ms | 752 ms | public API unavailable | 559 ms | 55.6 s | – | 2360 / 2416 | 2205 / 2334 | 2367 / 2456 | – |
 | pi3 | 8x512x640 | – | – | 735 ms (DINOv2 encoder with eager scene decoding, 8 views) | – | – | 53.8 s | – | – | – | 2586 / 2976 |
 | resplat-base-re10k | 480x640 | 7228 ms | 7098 ms (standalone Gaussian initialization and recurrent refinement heads, eager rendering and geometry) | fails: TypeError: _Base.forward() missing 1 required positional arg | 1178 ms | 12.6 s | – | 4364 / 6884 | 4656 / 7630 | 4370 / 6936 | – |
 | resplat-base-re10k | 256x256 | – | – | 1028 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 2173 / 2988 |
-| resplat-small-dl3dv | 480x640 | 1723 ms | 1538 ms | planned for 0.2.1 | 362 ms | 243 s | – | 4995 / 5180 | 4995 / 5138 | 4981 / 5148 | – |
+| resplat-small-dl3dv | 480x640 | 1723 ms | 1538 ms | public API unavailable | 362 ms | 243 s | – | 4995 / 5180 | 4995 / 5138 | 4981 / 5148 | – |
 | resplat-small-dl3dv | 256x448 | – | – | 1362 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 1367 / 1800 |
 | vggt-1b | 336x518 | 651 ms | 557 ms | 424 ms | 460 ms | 74.3 s | 199 s | 3643 / 3874 | 3611 / 3856 | 3650 / 4194 | 6421 / 6472 |
 | vggt-omega-1b-512 | 336x518 | 726 ms | 589 ms | 377 ms | 467 ms | 65.7 s | 187 s | 3421 / 3518 | 3082 / 3154 | 3404 / 3494 | 5657 / 5766 |
@@ -2620,19 +2620,19 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | flowseek-t-things-notartan | 1080x1920 | 396 ms | 258 ms | 168 ms | 254 ms | 54.3 s | 97.5 s | 8671 / 8712 | 6126 / 6212 | 1947 / 2114 | 11328 / 11350 |
 | gmflow-scale1-mixdata | 1080x1920 | 556 ms | 382 ms | 187 ms | – | 29.1 s | 67.3 s | 4496 / 4642 | 4293 / 4558 | – | 4333 / 4390 |
 | gmflow-scale1-things | 1080x1920 | 448 ms | 382 ms | 187 ms | 446 ms | 35.3 s | 69.3 s | 1988 / 2142 | 4293 / 4558 | 1988 / 2142 | 4333 / 4390 |
-| gmflow-scale2-mixdata | 1080x1920 | 1139 ms | 765 ms | planned for 0.2.1 | – | 46.6 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
+| gmflow-scale2-mixdata | 1080x1920 | 1139 ms | 765 ms | public API unavailable | – | 46.6 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
 | gmflow-scale2-mixdata | 384x1248 | – | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | – | – | – | 1616 / 2560 |
-| gmflow-scale2-regrefine6-kitti | 1080x1920 | 1678 ms | 1116 ms | planned for 0.2.1 | – | 58.4 s | – | 6080 / 6230 | 10875 / 10972 | – | – |
+| gmflow-scale2-regrefine6-kitti | 1080x1920 | 1678 ms | 1116 ms | public API unavailable | – | 58.4 s | – | 6080 / 6230 | 10875 / 10972 | – | – |
 | gmflow-scale2-regrefine6-kitti | 384x1248 | – | – | 351 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.1 s | – | – | – | 1660 / 2526 |
-| gmflow-scale2-regrefine6-mixdata | 1080x1920 | 1675 ms | 1116 ms | planned for 0.2.1 | – | 58.9 s | – | 6080 / 6250 | 10875 / 10972 | – | – |
+| gmflow-scale2-regrefine6-mixdata | 1080x1920 | 1675 ms | 1116 ms | public API unavailable | – | 58.9 s | – | 6080 / 6250 | 10875 / 10972 | – | – |
 | gmflow-scale2-regrefine6-mixdata | 384x1248 | – | – | 349 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | – | – | – | 1660 / 2526 |
-| gmflow-scale2-regrefine6-sintelft | 1080x1920 | 1674 ms | 1116 ms | planned for 0.2.1 | – | 58.5 s | – | 6080 / 6250 | 10875 / 10972 | – | – |
+| gmflow-scale2-regrefine6-sintelft | 1080x1920 | 1674 ms | 1116 ms | public API unavailable | – | 58.5 s | – | 6080 / 6250 | 10875 / 10972 | – | – |
 | gmflow-scale2-regrefine6-sintelft | 384x1248 | – | – | 350 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 14.5 s | – | – | – | 1660 / 2526 |
-| gmflow-scale2-regrefine6-things | 1080x1920 | 1478 ms | 1116 ms | planned for 0.2.1 | 1481 ms | 58.2 s | – | 4036 / 4696 | 10875 / 10972 | 4036 / 4696 | – |
+| gmflow-scale2-regrefine6-things | 1080x1920 | 1478 ms | 1116 ms | public API unavailable | 1481 ms | 58.2 s | – | 4036 / 4696 | 10875 / 10972 | 4036 / 4696 | – |
 | gmflow-scale2-regrefine6-things | 384x1248 | – | – | 350 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.7 s | – | – | – | 1660 / 2526 |
-| gmflow-scale2-sintel | 1080x1920 | 1139 ms | 765 ms | planned for 0.2.1 | – | 46.6 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
+| gmflow-scale2-sintel | 1080x1920 | 1139 ms | 765 ms | public API unavailable | – | 46.6 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
 | gmflow-scale2-sintel | 384x1248 | – | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 12.7 s | – | – | – | 1616 / 2560 |
-| gmflow-scale2-things | 1080x1920 | 1139 ms | 765 ms | planned for 0.2.1 | – | 46.7 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
+| gmflow-scale2-things | 1080x1920 | 1139 ms | 765 ms | public API unavailable | – | 46.7 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
 | gmflow-scale2-things | 384x1248 | – | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | – | – | – | 1616 / 2560 |
 | megaflow | 1080x1920 | 1109 ms | 917 ms | 677 ms | 734 ms | 102 s | 214 s | 3035 / 3246 | 2611 / 2886 | 2866 / 3066 | 9265 / 9300 |
 | memflow | 1080x1920 | 965 ms | 1642 ms | fails: TensorRT engine build failed | 865 ms | 78.9 s | – | 6001 / 6294 | 6813 / 6946 | 968 / 1022 | – |
@@ -2676,7 +2676,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | aliked-lightglue | 768x1024 | 40.6 ms | 29.5 ms | 65.2 ms, fp32 engine (standalone ALIKED encoder with eager keypoint selection and LightGlue) | 35.1 ms | 30.8 s | 26.4 s | 1300 / 1404 | 1653 / 1680 | 1238 / 1324 | 1520 / 1652 |
 | dedode-v2-b | 768x1024 | 246 ms | 164 ms | 494 ms, fp32 engine (FP32 public builder probe) | 189 ms | 50.5 s | 67.8 s | 1535 / 1654 | 1893 / 2434 | 1197 / 1246 | 3354 / 3378 |
 | dedode-v2-g | 768x1024 | 592 ms | 330 ms | 1197 ms, fp32 engine (FP32 descriptor and bilinear sampling with eager detector, keypoint order and matching) | 332 ms | 86.4 s | 71.7 s | 2142 / 2334 | 2881 / 3316 | 1787 / 1984 | 5282 / 6458 |
-| disk-lightglue | 768x1024 | 116 ms | 113 ms | planned for 0.2.1 | 52.1 ms | 21.4 s | – | 1950 / 2398 | 1375 / 1502 | 736 / 778 | – |
+| disk-lightglue | 768x1024 | 116 ms | 113 ms | public API unavailable | 52.1 ms | 21.4 s | – | 1950 / 2398 | 1375 / 1502 | 736 / 778 | – |
 | loftr-indoor | 768x1024 | 111 ms | 71.0 ms | 199 ms, fp32 engine (ResNetFPN with eager coarse and fine matching) | 96.2 ms | 30.2 s | 26.4 s | 796 / 904 | 634 / 684 | 760 / 886 | 2218 / 2962 |
 | loftr-outdoor | 768x1024 | 110 ms | 176 ms | 199 ms, fp32 engine (ResNetFPN with eager coarse and fine matching) | 95.9 ms | 33.3 s | 26.2 s | 796 / 904 | 1149 / 1232 | 760 / 886 | 2206 / 2958 |
 | loma-b | 768x1024 | 309 ms | 287 ms | 326 ms, bf16 engine (standalone build) | 263 ms | 143 s | 176 s | 1767 / 1878 | 2870 / 3258 | 1217 / 1328 | 1986 / 2010 |
@@ -2685,17 +2685,17 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | loma-g | 768x1024 | 359 ms | 331 ms | 366 ms, bf16 engine | 310 ms | 131 s | 171 s | 2444 / 2548 | 3547 / 3890 | 1555 / 1668 | 2298 / 2322 |
 | loma-l | 768x1024 | 320 ms | 298 ms | 336 ms, bf16 engine (standalone build) | 273 ms | 134 s | 157 s | 1903 / 2012 | 3006 / 3194 | 1285 / 1406 | 2042 / 2066 |
 | loma-r | 768x1024 | 309 ms | 287 ms | 326 ms, bf16 engine | 262 ms | 142 s | 175 s | 1767 / 1878 | 2870 / 3256 | 1217 / 1328 | 1986 / 2010 |
-| romav1 | 768x1024 | 377 ms | 247 ms | planned for 0.2.1 | 356 ms | 698 s | – | 1720 / 1840 | 1348 / 1476 | 1720 / 1860 | – |
+| romav1 | 768x1024 | 377 ms | 247 ms | public API unavailable | 356 ms | 698 s | – | 1720 / 1840 | 1348 / 1476 | 1720 / 1860 | – |
 | romav2 | 768x1024 | 550 ms | 723 ms | 353 ms | 350 ms | 360 s | 185 s | 1989 / 2476 | 3030 / 3144 | 1890 / 2460 | 6694 / 6740 |
 | xfeat | 768x1024 | 7.17 ms | 5.65 ms | 5.50 ms, fp32 engine (standalone image CNN, eager keypoint selection and matching) | – | 30.8 s | 11.8 s | 122 / 154 | 186 / 212 | – | 268 / 416 |
-| xfeat-lighterglue | 768x1024 | 21.6 ms | 16.2 ms | planned for 0.2.1 | – | 39.7 s | – | 445 / 476 | 262 / 278 | – | – |
-| alltracker | 480x854 | 391 ms | 284 ms | planned for 0.2.1 | 221 ms | 105 s | – | 993 / 1238 | 1273 / 1358 | 1076 / 1288 | – |
+| xfeat-lighterglue | 768x1024 | 21.6 ms | 16.2 ms | public API unavailable | – | 39.7 s | – | 445 / 476 | 262 / 278 | – | – |
+| alltracker | 480x854 | 391 ms | 284 ms | public API unavailable | 221 ms | 105 s | – | 993 / 1238 | 1273 / 1358 | 1076 / 1288 | – |
 | alltracker | 256x256 | – | – | 330 ms, fp32 engine (frame CNN with eager tracking) | – | – | 20.3 s | – | – | – | 2262 / 3372 |
-| alltracker-tiny | 480x854 | 330 ms | 229 ms | planned for 0.2.1 | 217 ms | 103 s | – | 919 / 1178 | 1198 / 1338 | 978 / 1166 | – |
+| alltracker-tiny | 480x854 | 330 ms | 229 ms | public API unavailable | 217 ms | 103 s | – | 919 / 1178 | 1198 / 1338 | 978 / 1166 | – |
 | alltracker-tiny | 256x256 | – | – | 270 ms, fp32 engine (frame CNN with eager tracking) | – | – | 19.3 s | – | – | – | 2010 / 3220 |
 | bootstapir | 480x854 | 234 ms | 183 ms | 13.2 ms | 192 ms | 207 s | 65.0 s | 508 / 628 | 758 / 832 | 508 / 628 | 492 / 532 |
 | cotracker3-offline | 480x854 | 162 ms | 135 ms | 25.9 ms | 154 ms | 36.5 s | 157 s | 755 / 882 | 755 / 902 | 757 / 882 | 519 / 586 |
-| cotracker3-online | 480x854 | 184 ms | 159 ms | planned for 0.2.1 | 176 ms | 37.7 s | – | 755 / 906 | 701 / 846 | 757 / 888 | – |
+| cotracker3-online | 480x854 | 184 ms | 159 ms | public API unavailable | 176 ms | 37.7 s | – | 755 / 906 | 701 / 846 | 757 / 888 | – |
 | cotracker3-online | 256x256 | – | – | 50.3 ms, fp32 engine (fixed eight-frame graph with 16 queries) | – | – | 117 s | – | – | – | 456 / 472 |
 | cotracker3-online | 24x256x256 | 280 ms | – | 141 ms, fp32 engine (fixed 24-frame clip with 16 queries) | – | – | – | 2381 / 2694 | – | – | 850 / 856 |
 | locotrack-b | 480x854 | 188 ms | 82.6 ms | 6.12 ms (8 frames with 16 queries only) | 173 ms | 146 s | – | 603 / 656 | 1117 / 1140 | 614 / 660 | 233 / 242 |
@@ -2703,16 +2703,16 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | tapir | 480x854 | 182 ms | 131 ms | 6.47 ms | 141 ms | 169 s | 55.2 s | 463 / 548 | 630 / 752 | 463 / 548 | 361 / 406 |
 | tapnext | 480x854 | 528 ms | 398 ms | 69.4 ms | 381 ms | 40.5 s | 366 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |
 | tapnext-pp | 480x854 | 529 ms | 395 ms | 69.5 ms | 381 ms | 34.1 s | 362 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |
-| track-on-r | 480x854 | 1188 ms | 1066 ms | planned for 0.2.1 | 1102 ms | 66.0 s | – | 1423 / 1632 | 1340 / 1454 | 1368 / 1620 | – |
+| track-on-r | 480x854 | 1188 ms | 1066 ms | public API unavailable | 1102 ms | 66.0 s | – | 1423 / 1632 | 1340 / 1454 | 1368 / 1620 | – |
 | track-on-r | 256x256 | – | – | 958 ms, fp32 engine (standalone eight-frame encoder, eager recurrent decoder) | – | – | 42.1 s | – | – | – | 1979 / 2286 |
-| track-on2 | 480x854 | 1193 ms | 1075 ms | planned for 0.2.1 | 1108 ms | 60.0 s | – | 1423 / 1712 | 1340 / 1454 | 1368 / 1620 | – |
+| track-on2 | 480x854 | 1193 ms | 1075 ms | public API unavailable | 1108 ms | 60.0 s | – | 1423 / 1712 | 1340 / 1454 | 1368 / 1620 | – |
 | track-on2 | 256x256 | – | – | 961 ms, fp32 engine (standalone eight-frame encoder, eager recurrent decoder) | – | – | 46.3 s | – | – | – | 1979 / 2288 |
 | ema-vfi | 1080x1920 | 233 ms | 165 ms | 124 ms | 207 ms | 90.6 s | 90.9 s | 1672 / 2242 | 3325 / 3542 | 368 / 3566 | 1719 / 1786 |
 | ema-vfi-small | 1080x1920 | 89.4 ms | 59.6 ms | 43.7 ms | 84.4 ms | 78.5 s | 67.6 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
 | ema-vfi-small-t | 1080x1920 | 89.4 ms | 59.8 ms | 43.4 ms | 84.3 ms | 77.9 s | 68.8 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
 | ema-vfi-t | 1080x1920 | 233 ms | 165 ms | 125 ms | 207 ms | 84.6 s | 91.5 s | 2827 / 3184 | 3325 / 3702 | 368 / 3566 | 1719 / 1766 |
 | film | 1080x1920 | 417 ms | 332 ms | 189 ms | 332 ms | 41.1 s | 203 s | 2461 / 3780 | 2666 / 3192 | 2461 / 3780 | 2658 / 2658 |
-| gimm-vfi-r | 1080x1920 | 2635 ms | 1498 ms | planned for 0.2.1 | 1629 ms | 307 s | – | 7855 / 9078 | 12051 / 12880 | 4587 / 5362 | – |
+| gimm-vfi-r | 1080x1920 | 2635 ms | 1498 ms | public API unavailable | 1629 ms | 307 s | – | 7855 / 9078 | 12051 / 12880 | 4587 / 5362 | – |
 | gimm-vfi-r | 480x854 | 468 ms | – | 1210 ms, fp32 engine (RAFT feature encoder with eager context, flow update and synthesis) | 289 ms | – | 12.9 s | 1574 / 1674 | – | 1388 / 1618 | 3522 / 6116 |
 | gimm-vfi-r-p | 1080x1920 | 2639 ms | 1498 ms | fails: TensorRT parser: Sc node | 1628 ms | 307 s | – | 5936 / 6618 | 12051 / 12880 | 4587 / 5282 | – |
 | gimm-vfi-r-p | 480x854 | 467 ms | – | 1190 ms, fp32 engine (RAFT feature and context encoders with eager flow update and synthesis) | 289 ms | – | 16.9 s | 1574 / 1674 | – | 1388 / 1598 | 3592 / 6000 |

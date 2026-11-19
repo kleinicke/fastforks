@@ -158,7 +158,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2635<br>1629<br>1498<br>planned for 0.2.1 | –<br>7855 / 9078<br>4587 / 5362<br>12051 / 12880<br>– |
+| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2635<br>1629<br>1498<br>public API unavailable | –<br>7855 / 9078<br>4587 / 5362<br>12051 / 12880<br>– |
 | `gimm-vfi-r` | synthetic (480x854) | original<br>portable<br>kernels<br>TensorRT fp32 | 498<br>468<br>289<br>1210 (RAFT feature encoder with eager context, flow update and synthesis) | 2820 / 3246<br>1574 / 1674<br>1388 / 1618<br>3522 / 6116 |
 | `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2639<br>1628<br>1498<br>fails: TensorRT parser: Sc node | –<br>5936 / 6618<br>4587 / 5282<br>12051 / 12880<br>– |
 | `gimm-vfi-r-p` | synthetic (480x854) | original<br>portable<br>kernels<br>TensorRT fp32 | 498<br>467<br>289<br>1190 (RAFT feature and context encoders with eager flow update and synthesis) | 2820 / 3246<br>1574 / 1674<br>1388 / 1598<br>3592 / 6000 |
@@ -172,7 +172,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Training data: Vimeo-90K (septuplets / triplets for frame interpolation) (configs/gimmvfi/gimmvfi_r_arb.yaml: Vimeo-90K septuplets with arbitrary-time targets; the RAFT flow estimator starts from the raft-things checkpoint (FlyingChairs + FlyingThings3D).)
 - Kernel libraries: `raft_flow`, `cudnn_hacc`
 - Variants: `gimm-vfi-r`, `gimm-vfi-r-p`
-- Not in this release (planned for 0.2.1): `gimm-vfi-r` TensorRT export: the full FP32 engine diverges on pixels; the fixed RAFT encoder stage also loses 0.094 dB PSNR on one of 172 DAVIS triplets
+- Public TensorRT export is unavailable for `gimm-vfi-r` (the full FP32 engine diverges on pixels; the fixed RAFT encoder stage also loses 0.094 dB PSNR on one of 172 DAVIS triplets).
 - Outputs: frame
 - Input size: any H x W >= 128, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `gimm-vfi-r` 1024x2048 (13.4 GiB peak allocated, 14.5 reserved); `gimm-vfi-r-p` 1024x2048 (13.0 GiB peak allocated, 14.2 reserved)

@@ -165,9 +165,9 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `bridgedepth-sf` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 616<br>460<br>437<br>348<br>325<br>planned for 0.2.1 | 2852 / 3128<br>2852 / 3144<br>2916 / 3214<br>2310 / 2634<br>2280 / 2308<br>– |
+| `bridgedepth-sf` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 616<br>460<br>437<br>348<br>325<br>public API unavailable | 2852 / 3128<br>2852 / 3144<br>2916 / 3214<br>2310 / 2634<br>2280 / 2308<br>– |
 | `bridgedepth-sf` | KITTI 2015 (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT fp32 | 164<br>118<br>111<br>92.1<br>284 (DINOv2 and DPT monocular branch with eager stereo inference) | 1840 / 1950<br>1840 / 1970<br>1859 / 1954<br>1272 / 1394<br>2358 / 2508 |
-| `bridgedepth-rvc-pretrain` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>470<br>442<br>354<br>337<br>planned for 0.2.1 | 2903 / 3178<br>2903 / 3200<br>2968 / 3246<br>2361 / 2686<br>2329 / 2360<br>– |
+| `bridgedepth-rvc-pretrain` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>470<br>442<br>354<br>337<br>public API unavailable | 2903 / 3178<br>2903 / 3200<br>2968 / 3246<br>2361 / 2686<br>2329 / 2360<br>– |
 | `bridgedepth-rvc-pretrain` | KITTI 2015 (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT fp32 | 169<br>121<br>114<br>94.7<br>284 (DINOv2 and DPT monocular branch with eager stereo inference) | 1891 / 1982<br>1891 / 2006<br>1910 / 2006<br>1323 / 1446<br>2410 / 2588 |
 
 <details><summary>Details</summary>
@@ -181,7 +181,8 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Licence note: The weights embed Depth Anything V2 weights released under CC-BY-NC-4.0, so they are non-commercial even though the code is MIT.
 - Kernel libraries: `fastbb`
 - Variants: `bridgedepth-sf`, `bridgedepth-rvc-pretrain`
-- Not in this release (planned for 0.2.1): `bridgedepth-sf` TensorRT export: TensorRT 11.4 still fails the Myelin tactic check at 994 x 1482; `bridgedepth-rvc-pretrain` TensorRT export: TensorRT 11.4 still fails the Myelin tactic check at 994 x 1482 and 375 x 1242
+- Public TensorRT export is unavailable for `bridgedepth-sf` (TensorRT 11.4 still fails the Myelin tactic check at 994 x 1482).
+- Public TensorRT export is unavailable for `bridgedepth-rvc-pretrain` (TensorRT 11.4 still fails the Myelin tactic check at 994 x 1482 and 375 x 1242).
 - Outputs: disparity
 - Input size: any H x W >= 16, padded to a multiple of 16
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `bridgedepth-sf` 3000x4000 (13.3 GiB peak allocated, 14.2 reserved); `bridgedepth-rvc-pretrain` 3000x4000 (13.3 GiB peak allocated, 14.2 reserved)
@@ -542,7 +543,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `defom-stereo-vitl-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4175<br>2816<br>1531<br>645<br>1002<br>planned for 0.2.1 | 10896 / 11072<br>8639 / 8766<br>4362 / 4838<br>2781 / 4234<br>3021 / 3292<br>– |
+| `defom-stereo-vitl-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4175<br>2816<br>1531<br>645<br>1002<br>public API unavailable | 10896 / 11072<br>8639 / 8766<br>4362 / 4838<br>2781 / 4234<br>3021 / 3292<br>– |
 | `defom-stereo-vitl-sceneflow` | KITTI 2015 (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT bf16 | 947<br>509<br>404<br>180<br>1151 (whole graph at fixed 375 x 1242) | 3172 / 3360<br>2458 / 2610<br>2394 / 2538<br>1627 / 1786<br>1782 / 1790 |
 
 <details><summary>Details</summary>
@@ -556,7 +557,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Options: `iters` = 32 (>= 1), `scale_iters` = 8 (>= 0)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`
 - Variants: `defom-stereo-vitl-sceneflow`
-- Not in this release (planned for 0.2.1): `defom-stereo-vitl-sceneflow` TensorRT export: TensorRT 11.4 still fails the Myelin tactic check at 994 x 1482
+- Public TensorRT export is unavailable for `defom-stereo-vitl-sceneflow` (TensorRT 11.4 still fails the Myelin tactic check at 994 x 1482).
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `defom-stereo-vitl-sceneflow` 1988x2880 (12.0 GiB peak allocated, 14.5 reserved)
@@ -1226,7 +1227,7 @@ Commercial use: yes.
 | `las2-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 62.0<br>43.5<br>27.9<br>14.3<br>23.7<br>10.3 | 1676 / 1746<br>933 / 978<br>557 / 608<br>226 / 320<br>238 / 264<br>258 / 304 |
 | `las2-m` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 79.1<br>52.4<br>37.1<br>18.1<br>28.6<br>13.2 | 1691 / 1762<br>948 / 1000<br>584 / 664<br>235 / 336<br>252 / 300<br>343 / 386 |
 | `las2-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 154<br>90.8<br>75.7<br>30.1<br>46.6<br>23.4 | 1753 / 1812<br>1010 / 1082<br>648 / 716<br>268 / 362<br>385 / 432<br>393 / 424 |
-| `las2-h` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 205<br>135<br>113<br>53.6<br>75.0<br>planned for 0.2.1 | 1839 / 1884<br>1022 / 1084<br>1002 / 1046<br>872 / 960<br>579 / 724<br>– |
+| `las2-h` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 205<br>135<br>113<br>53.6<br>75.0<br>public API unavailable | 1839 / 1884<br>1022 / 1084<br>1002 / 1046<br>872 / 960<br>579 / 724<br>– |
 | `las2-h` | KITTI 2015 (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT fp16 | 51.1<br>36.4<br>35.5<br>15.0<br>17.5 (whole graph at fixed 375 x 1242) | 633 / 684<br>352 / 386<br>365 / 390<br>298 / 368<br>300 / 308 |
 
 <details><summary>Details</summary>
@@ -1240,7 +1241,7 @@ Commercial use: yes.
 - Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `stereo_ops`
 - Variants: `las2-s`, `las2-m`, `las2-l`, `las2-h`
-- Not in this release (planned for 0.2.1): `las2-h` TensorRT export: TensorRT 11.4 fails the Myelin tactic check at 994 x 1482. The 375 x 1242 standalone build passed the 15-pair Middlebury check
+- Public TensorRT export is unavailable for `las2-h` (TensorRT 11.4 fails the Myelin tactic check at 994 x 1482. The 375 x 1242 standalone build passed the 15-pair Middlebury check).
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `las2-s` 3000x4000 (7.0 GiB peak allocated, 7.4 reserved); `las2-m` 3000x4000 (7.0 GiB peak allocated, 7.4 reserved); `las2-l` 3000x4000 (7.0 GiB peak allocated, 7.4 reserved); `las2-h` 3000x4000 (8.5 GiB peak allocated, 11.7 reserved)
@@ -1877,7 +1878,7 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `waft-stereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1252<br>689<br>689<br>284<br>357<br>170 | 3764 / 4352<br>3314 / 3398<br>3293 / 3456<br>954 / 1102<br>2024 / 2058<br>1061 / 1114 |
-| `waft-stereo-b` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1898<br>1140<br>1144<br>388<br>571<br>planned for 0.2.1 | 7348 / 7528<br>5743 / 5876<br>3727 / 5814<br>1664 / 1932<br>3908 / 3936<br>– |
+| `waft-stereo-b` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1898<br>1140<br>1144<br>388<br>571<br>public API unavailable | 7348 / 7528<br>5743 / 5876<br>3727 / 5814<br>1664 / 1932<br>3908 / 3936<br>– |
 | `waft-stereo-b` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>1209 (standalone build) | –<br>–<br>–<br>1447 / 1454 |
 
 <details><summary>Details</summary>
@@ -1892,7 +1893,7 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 - Licence note: Both checkpoints were trained on data that includes NVIDIA's FSD dataset, whose terms for commercial use of trained models are unclear; the status does not depend on the training data.
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`
 - Variants: `waft-stereo-s`, `waft-stereo-b`
-- Not in this release (planned for 0.2.1): `waft-stereo-b` TensorRT export: the fp16 engine outputs all NaN. At 994x1482, the fp32 builder also fails when a tactic requests 6.6 GiB of workspace with a 6 GiB cap
+- Public TensorRT export is unavailable for `waft-stereo-b` (the fp16 engine outputs all NaN. At 994x1482, the fp32 builder also fails when a tactic requests 6.6 GiB of workspace with a 6 GiB cap).
 - Outputs: disparity
 - Input size: any H x W >= 17, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `waft-stereo-s` 1024x2048 (5.3 GiB peak allocated, 8.3 reserved); `waft-stereo-b` 1024x1024 (3.2 GiB peak allocated, 4.7 reserved)

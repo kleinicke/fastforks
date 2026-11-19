@@ -263,7 +263,7 @@ Commercial use: yes.
 - Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `thr_v` = 0.1 (0.0 to 1.0), `thr_d` = 0.1 (>= 0.0)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `mlsd`
-- Not in this release (planned for 0.2.1): `mlsd` TensorRT export: the public graph's CNN outputs diverge from portable FP32. The validated standalone build preserves the MobileNet preactivations as engine outputs
+- Public TensorRT export is unavailable for `mlsd` (the public graph's CNN outputs diverge from portable FP32. The validated standalone build preserves the MobileNet preactivations as engine outputs).
 - Outputs: edges, lines
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mlsd` 1080x1920 (0.1 GiB peak allocated, 0.2 reserved)

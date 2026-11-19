@@ -96,6 +96,7 @@ def test_standalone_engine_measurement_remains_visible_when_export_is_planned(tm
     failed = site_data._speed(variant, "depth", with_portable)["inputs"][0]
     assert failed["tensorrt"] == {"fails": "export needs validation", "planned": True}
     assert g._compile_ms(compiled["model", "tensorrt", "64x64"]) == "10.0 ms (standalone build)"
+    assert g._compile_ms(compiled["model", "tensorrt", "32x32"]) == "public API unavailable"
     assert g._compile_ms(compiled["model", "compile", "64x64"]) == "12.0 ms (VAE only)"
 
 

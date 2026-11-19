@@ -2117,21 +2117,28 @@ PLANNED = f"planned for {PLANNED_RELEASE}"  # a card-`[planned]` feature: not av
 
 
 def _planned_line(card: ModelCard) -> list[str]:
-    """`- Not in this release` for the card's `[planned]` features (they raise "planned for 0.2.1")."""
-    what = {"load": "loading", "compile": "compile()", "onnx": "ONNX / TensorRT export", "tensorrt": "TensorRT export"}
-    parts = [
-        f"`{v.id}` {what.get(f, f)}: {reason.rstrip('.')}"
-        for v in card.variants
-        for f, reason in v.planned.items()
-        if not (f == "tensorrt" and "onnx" in v.planned)
+    """Explain each public API restriction alongside any measured standalone paths."""
+    what = {
+        "load": "loading",
+        "compile": "`compile()`",
+        "onnx": "ONNX / TensorRT export",
+        "tensorrt": "TensorRT export",
+    }
+    restrictions: dict[tuple[str, str], list[str]] = {}
+    for variant in card.variants:
+        for capability, reason in variant.planned.items():
+            if capability != "tensorrt" or "onnx" not in variant.planned:
+                restrictions.setdefault((what.get(capability, capability), reason), []).append(f"`{variant.id}`")
+    return [
+        f"- Public {feature} is unavailable for {', '.join(variants)} ({reason.rstrip('.')})."
+        for (feature, reason), variants in restrictions.items()
     ]
-    return [f"- Not in this release (planned for {PLANNED_RELEASE}): {'; '.join(parts)}"] if parts else []
 
 
 def _fail_cell(msg: str) -> str:
-    """`deferred (build >5 min)` (over the lock limit), `planned for 0.2.1` (card `[planned]`) or `fails: reason`."""
+    """Render a build time limit, a public API restriction or a recorded failure."""
     if msg == PLANNED:
-        return PLANNED
+        return "public API unavailable"
     return "deferred (build >5 min)" if msg.startswith("deferred") else f"fails: {_fail_reason(msg)}"
 
 
