@@ -235,6 +235,37 @@ def test_git_changed_reports_both_sides_of_a_moved_module(
     assert fetch_goldens.affected_families("HEAD~1") == {"fa", "fb"}
 
 
+def test_git_selects_only_the_changed_golden_reference(
+    mini: Path, tmp_path: Path, git_repo: Callable[..., None]
+) -> None:
+    shutil.copytree(mini, tmp_path, dirs_exist_ok=True)
+    manifest = "src/fastforks/stereo/models/fa/golden.toml"
+    file = tmp_path / manifest
+    fixture = '[tolerance]\ncpu_atol = 0.01\n[refs."fa-x@1"]\n[refs."fa-y@2"]\nsha256 = "old"\n'
+    file.write_text(fixture)
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Baseline")
+    file.write_text(fixture.replace('"old"', '"new"'))
+    git_repo("commit", "-am", "Replace one reference")
+
+    paths = st.git_changed("HEAD~1", "HEAD", tmp_path)
+    scopes = st.git_fixture_refs("HEAD~1", "HEAD", paths, tmp_path)
+    assert scopes == {manifest: ("fa-y@2",)}
+    selected = st.select(paths, tmp_path, fixture_refs=scopes)
+    assert selected.families["fa"]["refs"] == ["fa-y@2"]
+    assert selected.golden_nodeids("gpu") == [
+        "tests/test_golden.py::test_gpu[fa-y@2-kernels]",
+        "tests/test_golden.py::test_gpu[fa-y@2-portable]",
+    ]
+    assert st.select(paths, tmp_path).families["fa"]["refs"] == ["fa-x@1", "fa-y@2"]
+    source = "src/fastforks/stereo/models/fa/model.py"
+    assert st.select([*paths, source], tmp_path, fixture_refs=scopes).families["fa"]["refs"] == ["fa-x@1", "fa-y@2"]
+
+    file.write_text(file.read_text().replace("0.01", "0.02"))
+    git_repo("commit", "-am", "Change the shared tolerance")
+    assert st.git_fixture_refs("HEAD~1", "HEAD", paths, tmp_path) == {}
+
+
 def test_fetch_goldens_scopes_single_file_shared_changes(
     tmp_path: Path, git_repo: Callable[..., None], monkeypatch: pytest.MonkeyPatch
 ) -> None:

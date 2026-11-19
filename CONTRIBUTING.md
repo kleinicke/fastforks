@@ -42,6 +42,7 @@ if test -s cpu-goldens.args; then uv run pytest --slow @cpu-goldens.args; fi
 ```
 
 Use `--golden-nodeids gpu` to collect the corresponding CUDA items, including the classification module checks.
+A tracked change to existing golden fixture records selects the affected revisions when shared manifest settings match.
 Recheck previously failed item IDs explicitly.
 
 Run the fast test files listed in `selection.json` with `-m "not gpu and not model"`, then the slow CPU and GPU tests
