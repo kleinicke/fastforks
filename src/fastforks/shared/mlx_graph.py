@@ -20,6 +20,7 @@ An op without a mapping raises `UnsupportedOp` naming it (never a silent fallbac
 from __future__ import annotations
 
 import ctypes
+import functools
 import gc
 import math
 import mmap
@@ -75,6 +76,17 @@ def _reg(*targets: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     def deco(fn: Callable[..., Any]) -> Callable[..., Any]:
         for t in targets:
             OPS[t] = fn
+        return fn
+
+    return deco
+
+
+def _reg_cl(*targets: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """Register the channels-last form of an op (`CL_OPS`), used where its operands are channels-last views."""
+
+    def deco(fn: Callable[..., Any]) -> Callable[..., Any]:
+        for t in targets:
+            CL_OPS[t] = fn
         return fn
 
     return deco
@@ -1402,6 +1414,127 @@ def _nearest(x: mx.array, size: Sequence[int] | None, *scales: Any) -> mx.array:
     return mx.take(mx.take(x, ys, axis=2), xs, axis=3)
 
 
+# ---- channels-last execution of layout-insensitive ops --------------------------------------------------------------
+# Convolutions run NHWC and hand back `_nchw(y)`, a transposed *view*: the data stays NHWC in memory. An elementwise op,
+# a concatenation or a pad that reads such a view in NCHW order gathers with a strided kernel (3-8x slower than a
+# contiguous one) and writes NCHW, which the next convolution has to copy back to NHWC. `GraphNet` therefore tracks
+# which values are such views (`_channels_last_values`) and runs the ops of `CL_OPS` on their channels-last views,
+# returning channels-last results as NCHW views again. (Values that are really NCHW in memory keep the plain ops: a
+# channels-last view of them would only move the strided access.)
+CL_OPS: dict[Any, Callable[..., Any]] = {}
+_CL_ND = (3, 4, 5)
+
+
+def _cl_perm(nd: int) -> tuple[int, ...]:
+    return (0, *range(2, nd), 1)
+
+
+def _cl(x: mx.array) -> mx.array:
+    """The channels-last view (`[N, ..., C]`) of a `[N, C, ...]` array."""
+    return mx.transpose(x, _cl_perm(x.ndim))
+
+
+def _uncl(x: mx.array) -> mx.array:
+    """The `[N, C, ...]` view of a channels-last array."""
+    return mx.transpose(x, (0, x.ndim - 1, *range(1, x.ndim - 1)))
+
+
+def _cl_axis(nd: int, axis: int) -> int:
+    """Axis of the channels-last array that is axis `axis` of the `[N, C, ...]` one."""
+    return _cl_perm(nd).index(axis % nd)
+
+
+def _channels_last(f: Callable[..., Any]) -> Callable[..., Any]:
+    """`f` (elementwise, arrays broadcast against each other) computed on channels-last views of its arrays.
+
+    Applies when every array operand with rank > 0 has the same rank (3, 4 or 5): the views then broadcast exactly as
+    the originals did. Otherwise `f` runs as it is.
+    """
+
+    @functools.wraps(f)
+    def g(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+        arrs = [a for a in args if isinstance(a, mx.array) and a.ndim]
+        if (
+            not arrs
+            or arrs[0].ndim not in _CL_ND
+            or any(a.ndim != arrs[0].ndim for a in arrs)
+            or any(isinstance(v, mx.array) and v.ndim for v in kwargs.values())
+        ):
+            return f(*args, **kwargs)
+        y = f(*[_cl(a) if isinstance(a, mx.array) and a.ndim else a for a in args], **kwargs)
+        return _uncl(y) if isinstance(y, mx.array) and y.ndim == arrs[0].ndim else y
+
+    return g
+
+
+CL_ELEMENTWISE = _a(
+    *(
+        f"{n}.{o}"
+        for n in (
+            "add", "sub", "rsub", "mul", "div", "pow", "where", "masked_fill", "clamp", "clamp_min", "clamp_max",
+            "eq", "ne", "lt", "le", "gt", "ge", "bitwise_and", "bitwise_or", "bitwise_xor", "remainder",
+        )
+        for o in ("Tensor", "Scalar", "self", "ScalarOther", "ScalarSelf", "Tensor_Tensor", "Tensor_Scalar")
+    ),
+    "neg", "abs", "exp", "log", "log1p", "expm1", "sqrt", "rsqrt", "sin", "cos", "tanh", "sigmoid", "erf", "floor",
+    "ceil", "round", "reciprocal", "sign", "square", "relu", "silu", "hardtanh", "hardsigmoid", "hardswish",
+    "leaky_relu", "elu", "softplus", "maximum", "minimum", "logical_not", "logical_and", "logical_or", "bitwise_not",
+    "isnan", "gelu", "_to_copy", "to.dtype", "to.dtype_layout", "type_as",
+)  # fmt: skip
+for _t in CL_ELEMENTWISE:
+    if _t in OPS:
+        CL_OPS[_t] = _channels_last(OPS[_t])
+
+
+@_reg_cl(aten.cat.default)
+def _cat_cl(xs: Sequence[mx.array], d: int = 0) -> mx.array:
+    """`aten.cat` along the channel (or a spatial) axis of channels-last views, when all operands are 3-5-D."""
+    xs = list(xs)
+    nd = xs[0].ndim
+    if nd not in _CL_ND or d % nd == 0 or any(x.ndim != nd for x in xs):
+        return mx.concatenate(xs, axis=d)
+    return _uncl(mx.concatenate([_cl(x) for x in xs], axis=_cl_axis(nd, d)))
+
+
+@_reg_cl(aten.constant_pad_nd.default)
+def _pad_cl(x: mx.array, pad: Sequence[int], value: float = 0.0) -> mx.array:
+    """`_pad` on the channels-last view (spatial axes only; a pad of the channel or batch axis stays as it was)."""
+    nd = x.ndim
+    if nd not in _CL_ND or len(pad) // 2 >= nd - 1:
+        return _pad(x, pad, value)
+    return _uncl(_pad(_cl(x), (0, 0, *pad), value))
+
+
+# ops that return a view of their (first) argument: a channels-last view stays one
+_CL_VIEWS = (aten.slice.Tensor, aten.alias.default, aten.detach.default, aten.clone.default, aten.contiguous.default)
+
+
+def _channels_last_values(nodes: list[Any], skips: dict[str, str]) -> set[str]:
+    """Names of the graph values that are channels-last views: convolution outputs and what is computed from them.
+
+    `skips`: value -> value it aliases (folded batch norm, fused activation).
+    """
+    tagged: set[str] = set()
+    for node in nodes:
+        if node.op != "call_function":
+            continue
+        if node.name in skips:
+            if skips[node.name] in tagged:
+                tagged.add(node.name)
+            continue
+        val = node.meta.get("val")
+        if not isinstance(val, torch.Tensor) or val.ndim not in _CL_ND:
+            continue
+        srcs = list(_refs(node.args))
+        if node.target is aten.convolution.default:
+            tagged.add(node.name)
+        elif node.target in CL_OPS and any(r in tagged for r in srcs):
+            tagged.add(node.name)
+        elif node.target in _CL_VIEWS and srcs and srcs[0] in tagged:
+            tagged.add(node.name)
+    return tagged
+
+
 # ---- interpreter ------------------------------------------------------------------------------------------------
 _HAND_BACK_MIN = 1 << 20
 _MADV_FREE_REUSABLE = 7  # macOS: the pages leave the footprint at once (the allocator would keep them resident)
@@ -1589,6 +1722,9 @@ class GraphNet:
             if self.kernels
             else type("Fused", (), {"skip": {}, "conv": {}})()
         )
+        cl_values = (
+            set() if os.environ.get("FF_MLX_NO_CL") else _channels_last_values(nodes, {**folds.skip, **fused.skip})
+        )
         for node in nodes:
             if node.op == "placeholder":
                 tgt = names.get(node.name)
@@ -1609,7 +1745,8 @@ class GraphNet:
                     plan.append(("call", node.name, _conv_act, _plain(folds.args.get(node.name, node.args)), kw))
                     continue
                 args = folds.args.get(node.name, node.args)
-                plan.append(("call", node.name, self._op(node.target), _plain(args), _plain(dict(node.kwargs))))
+                op = CL_OPS[node.target] if node.name in cl_values and node.target in CL_OPS else self._op(node.target)
+                plan.append(("call", node.name, op, _plain(args), _plain(dict(node.kwargs))))
             elif node.op == "output":
                 plan.append(("output", _plain(node.args[0])))
         # activation sizes in the run dtype (bytes): the largest decides whether compiling pays, the rest pace the
