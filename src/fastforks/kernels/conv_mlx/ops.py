@@ -50,6 +50,9 @@ TILES = tuple(_MATS)
 CV = 2  # channels per thread: the transform keeps (m+2)^2 vectors of this width in registers
 _TG = 256  # threads per threadgroup
 _MIN_C = 16  # fewer channels: the transforms cost more than they save
+_WIDE_C = 64  # from this many channels on a small image still wins (see `supported`)
+_MIN_D = 2  # depth slices of the 3x3x3 form
+_MIN_VOXELS = 1024  # smaller volumes: launch cost dominates
 
 
 def _header(m: int) -> str:
@@ -176,7 +179,7 @@ def supported(x_shape: tuple[int, ...], cout: int) -> bool:
     _, h, w, cin = x_shape
     if cin % CV or cout % CV or cin < _MIN_C or cout < _MIN_C:
         return False
-    return h * w >= 48 * 48 or (min(cin, cout) >= 64 and h * w * cin * cout >= 1 << 25)
+    return h * w >= 48 * 48 or (min(cin, cout) >= _WIDE_C and h * w * cin * cout >= 1 << 25)
 
 
 def supported3d(x_shape: tuple[int, ...], cout: int, itemsize: int = 2) -> bool:
@@ -187,7 +190,7 @@ def supported3d(x_shape: tuple[int, ...], cout: int, itemsize: int = 2) -> bool:
     to `mx.conv3d` (whose own temporaries are tiny), so the extra memory stays bounded per layer.
     """
     n, d, h, w, cin = x_shape
-    if cin % CV or cout % CV or cin < _MIN_C or cout < _MIN_C or d < 2 or d * h * w < 1024:
+    if cin % CV or cout % CV or cin < _MIN_C or cout < _MIN_C or d < _MIN_D or d * h * w < _MIN_VOXELS:
         return False
     tiles = n * d * -(-h // 4) * -(-w // 4)
     return 36 * tiles * (3 * cin + cout) * itemsize <= _BAND_BYTES
@@ -198,7 +201,7 @@ _BAND_BYTES = (
 )  # target size of one band's transformed activations: bounds the peak of huge images
 
 
-def _band(x: mx.array, u: mx.array, bias, m, act, slope, residual, r0: int, bth: int):  # noqa: ANN001, ANN202, PLR0913, PLR0917
+def _band(x: mx.array, u: mx.array, bias, m, act, slope, residual, r0: int, bth: int):  # noqa: ANN001, ANN202, PLR0913
     n, h, wd, c = x.shape
     a = m + 2
     co = u.shape[2]
