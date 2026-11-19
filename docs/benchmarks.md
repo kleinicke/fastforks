@@ -841,7 +841,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 |---|---|---|---|---|---|---|---|
 | c-fast-foundationstereo | – | – | – | 135 | – | – | 1120 / 1236 |
 | c-foundationstereo-s | OOM | – | 3633 | 1366 | 2.7x | 6301 / 6430 | 3058 / 4408 |
-| cfnet-sceneflow | – | – | 445 | 406 | 1.1x | 1822 / 2578 | 3403 / 4338 |
+| cfnet-sceneflow | – | – | 409 | 225 | 1.8x | 1822 / 2578 | 1073 / 1604 |
 | coex-sceneflow | – | – | 49.9 | 23.5 | 2.1x | 1093 / 1174 | 368 / 514 |
 | defom-stereo-vitl-sceneflow | – | – | – | 642 | – | – | 3154 / 3522 |
 | fast-acvnet-generalization | – | – | 54.7 | 38.1 | 1.4x | 653 / 756 | 654 / 716 |
@@ -2139,7 +2139,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | c-foundationstereo-s | 994x1482 | 3633 ms | 2773 ms | 2229 ms | 1366 ms | 626 s | 444 s | 6301 / 6430 | 7298 / 7624 | 3058 / 4408 | 10027 / 10108 |
 | cas-gwcnet-c-sceneflow | 994x1482 | 327 ms | 295 ms | 220 ms | 225 ms | 61.7 s | 131 s | 2006 / 2474 | 2098 / 2448 | 1725 / 1930 | 1533 / 1548 |
 | cas-gwcnet-gc-sceneflow | 994x1482 | 472 ms | 383 ms | 307 ms | 358 ms | 63.7 s | 98.6 s | 2338 / 2794 | 6592 / 6670 | 2272 / 2514 | 4142 / 4194 |
-| cfnet-sceneflow | 994x1482 | 445 ms | 249 ms | 171 ms | 406 ms | 53.0 s | 139 s | 1822 / 2578 | 1026 / 1398 | 3403 / 4338 | 1357 / 1410 |
+| cfnet-sceneflow | 994x1482 | 409 ms | 249 ms | 171 ms | 225 ms | 53.0 s | 139 s | 1822 / 2578 | 1026 / 1398 | 1073 / 1604 | 1357 / 1410 |
 | coex-sceneflow | 994x1482 | 49.9 ms | 29.4 ms | 20.6 ms | 23.5 ms | 22.4 s | 56.6 s | 1093 / 1174 | 351 / 452 | 368 / 514 | 438 / 452 |
 | crestereo-eth3d | 994x1482 | 732 ms | 398 ms | 298 ms | 229 ms | 120 s | 224 s | 884 / 1030 | 695 / 748 | 644 / 732 | 703 / 740 |
 | defom-stereo-vitl-sceneflow | 994x1482 | 1531 ms | 1002 ms | planned for 0.2.1 | 642 ms | 122 s | – | 4362 / 4838 | 3021 / 3292 | 3154 / 3522 | – |

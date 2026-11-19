@@ -20,7 +20,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`c-foundationstereo-s`](#c_foundationstereo) | yes | 1.24 | 1366, 2.8x | 4408, 0.34x |
 | [`cas-gwcnet-c-sceneflow`](#cas_gwcnet) | yes | 7.85 | 225, 1.7x | 1930, 0.65x |
 | [`cas-gwcnet-gc-sceneflow`](#cas_gwcnet) | yes | 8.09 | 358, 1.6x | 2514, 0.29x |
-| [`cfnet-sceneflow`](#cfnet) | yes | 5.60 | 406, 1.3x | 4338, 0.55x |
+| [`cfnet-sceneflow`](#cfnet) | yes | 5.60 | 225, 2.4x | 1604, 0.2x |
 | [`coex-sceneflow`](#coex) | yes | 33.46 | 23.5, 2.6x | 514, 0.24x |
 | [`crestereo-eth3d`](#crestereo) | yes | 1.39 † | 229, 7.0x | 732, 0.42x |
 | [`defom-stereo-vitl-sceneflow`](#defom_stereo) | no | 2.44 | 642, 4.4x | 3522, 0.4x |
@@ -375,7 +375,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `cfnet-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 659<br>545<br>445<br>406<br>249<br>171 | 8551 / 8896<br>6765 / 7880<br>1822 / 2578<br>3403 / 4338<br>1026 / 1398<br>1357 / 1410 |
+| `cfnet-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 659<br>545<br>409<br>225<br>249<br>171 | 8551 / 8896<br>6765 / 7880<br>1822 / 2578<br>1073 / 1604<br>1026 / 1398<br>1357 / 1410 |
 
 <details><summary>Details</summary>
 
@@ -391,7 +391,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `cfnet-sceneflow` 1988x2880 (8.2 GiB peak allocated, 11.5 reserved)
 - `cfnet-sceneflow` 994x1482, first call: portable + torch.compile 53 s (cold Inductor cache), TensorRT fp16 139 s (ONNX + engine).
 - `cfnet-sceneflow` original 994x1482: torch.autocast(float16) around the call
-- `cfnet-sceneflow` portable 994x1482: Median of five timed calls after one warm-up on a synthetic pair. Disparities matched the prior path on one synthetic pair and three labeled Middlebury pairs.
+- `cfnet-sceneflow` portable 994x1482: Median of five timed calls on a synthetic pair after 1 warm-up calls. Disparities matched the previous overlap on one synthetic pair and three labeled Middlebury pairs.
+- `cfnet-sceneflow` kernels 994x1482: Median of five timed calls on a synthetic pair after 4 warm-up calls. Disparities matched the previous overlap on one synthetic pair and three labeled Middlebury pairs.
 - `cfnet-sceneflow` load / first call: original 0.55 s / 0.56 s, portable 0.96 s / 0.356 s (375x1242), kernels 1.14 s / 0.271 s (375x1242)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
