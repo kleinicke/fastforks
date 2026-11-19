@@ -12,22 +12,22 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 
 | model | commercial | KITTI 2015 train EPE (px) ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
-| [`flowformer-small-chairs`](#flowformer) | yes | 10.952 | – | – |
-| [`flowformer-small-sintel`](#flowformer) | yes | 4.657 † | – | – |
-| [`flowformer-small-things`](#flowformer) | yes | 6.884 | – | – |
+| [`flowformer-small-chairs`](#flowformer) | yes | 10.952 | 322, 0.9x (375x1242) | 1698, 0.57x |
+| [`flowformer-small-sintel`](#flowformer) | yes | 4.657 † | 322, 0.9x (375x1242) | 1698, 0.57x |
+| [`flowformer-small-things`](#flowformer) | yes | 6.884 | 322, 0.9x (375x1242) | 1698, 0.56x |
 | [`flowseek-t`](#flowseek) | yes | 1.348 † | 254, 1.8x | 2114, 0.21x |
 | [`flowseek-t-things`](#flowseek) | yes | 4.143 | 254, 1.8x | 2114, 0.22x |
 | [`flowseek-t-things-notartan`](#flowseek) | yes | 3.933 | 254, 1.8x | 2114, 0.22x |
-| [`gmflow-scale1-mixdata`](#gmflow) | yes | 3.697 ? | – | – |
+| [`gmflow-scale1-mixdata`](#gmflow) | yes | 3.697 ? | 40.3, 1.3x (375x1242) | 300, 0.46x |
 | [`gmflow-scale1-things`](#gmflow) | yes | 10.346 | 446, 1.7x | 2142, 0.25x |
-| [`gmflow-scale2-mixdata`](#gmflow) | yes | 2.389 ? | – | – |
-| [`gmflow-scale2-regrefine6-kitti`](#gmflow) | yes | 0.570 † | – | – |
-| [`gmflow-scale2-regrefine6-mixdata`](#gmflow) | yes | 1.315 ? | – | – |
-| [`gmflow-scale2-regrefine6-sintelft`](#gmflow) | yes | 1.154 † | – | – |
+| [`gmflow-scale2-mixdata`](#gmflow) | yes | 2.389 ? | 116, 1.3x (375x1242) | 760, 0.5x |
+| [`gmflow-scale2-regrefine6-kitti`](#gmflow) | yes | 0.570 † | 214, 1.2x (375x1242) | 766, 0.47x |
+| [`gmflow-scale2-regrefine6-mixdata`](#gmflow) | yes | 1.315 ? | 214, 1.2x (375x1242) | 766, 0.47x |
+| [`gmflow-scale2-regrefine6-sintelft`](#gmflow) | yes | 1.154 † | 214, 1.2x (375x1242) | 766, 0.47x |
 | [`gmflow-scale2-regrefine6-things`](#gmflow) | yes | 4.917 | 1481, 1.5x | 4696, 0.54x |
-| [`gmflow-scale2-sintel`](#gmflow) | yes | 1.975 † | – | – |
-| [`gmflow-scale2-things`](#gmflow) | yes | 6.747 | – | – |
-| [`megaflow`](#megaflow) | yes | 1.714 † | 734, 2.2x | 3066, 0.35x |
+| [`gmflow-scale2-sintel`](#gmflow) | yes | 1.975 † | 116, 1.3x (375x1242) | 760, 0.47x |
+| [`gmflow-scale2-things`](#gmflow) | yes | 6.747 | 116, 1.2x (375x1242) | 760, 0.47x |
+| [`megaflow`](#megaflow) | yes | 1.714 † | 735, 2.2x | 3530, 0.4x |
 | [`memflow`](#memflow) | yes | 4.103 | 865, 3.6x | 1022, 0.066x |
 | [`memflow-kitti`](#memflow) | yes | 0.600 † | 865, 3.8x | 1022, 0.066x |
 | [`memflow-sintel`](#memflow) | yes | 1.218 † | 865, 3.7x | 1022, 0.065x |
@@ -70,9 +70,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `flowformer-small-chairs` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>337<br>–<br>250<br>202 | 3122 / 3718<br>2382 / 2970<br>1404 / 1698<br>–<br>2438 / 3196<br>2087 / 2138 |
-| `flowformer-small-things` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>337<br>–<br>250<br>202 | 3122 / 3678<br>2382 / 3010<br>1404 / 1698<br>–<br>2438 / 3196<br>2087 / 2138 |
-| `flowformer-small-sintel` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>336<br>–<br>250<br>202 | 3122 / 3718<br>2382 / 2990<br>1404 / 1698<br>–<br>2438 / 3196<br>2087 / 2138 |
+| `flowformer-small-chairs` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>337<br>322<br>250<br>202 | 3122 / 3718<br>2382 / 2970<br>1404 / 1698<br>1401 / 1698<br>2438 / 3196<br>2087 / 2138 |
+| `flowformer-small-things` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>337<br>322<br>250<br>202 | 3122 / 3678<br>2382 / 3010<br>1404 / 1698<br>1401 / 1698<br>2438 / 3196<br>2087 / 2138 |
+| `flowformer-small-sintel` | synthetic (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 352<br>303<br>336<br>322<br>250<br>202 | 3122 / 3718<br>2382 / 2990<br>1404 / 1698<br>1401 / 1698<br>2438 / 3196<br>2087 / 2138 |
 
 <details><summary>Details</summary>
 
@@ -95,13 +95,16 @@ Commercial use: yes.
 - `flowformer-small-sintel` 375x1242, first call: portable + torch.compile 99 s (cold Inductor cache), TensorRT fp16 117 s (ONNX + engine).
 - `flowformer-small-chairs` original (fp32) 375x1242: upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
 - `flowformer-small-chairs` original 375x1242: torch.autocast(float16) around the call; upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
+- `flowformer-small-chairs` kernels 375x1242: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `flowformer-small-things` original (fp32) 375x1242: upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
 - `flowformer-small-things` original 375x1242: torch.autocast(float16) around the call; upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
+- `flowformer-small-things` kernels 375x1242: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `flowformer-small-sintel` original (fp32) 375x1242: upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
 - `flowformer-small-sintel` original 375x1242: torch.autocast(float16) around the call; upstream FlowFormer Small, iters=32, full frame padded to multiples of 8
-- `flowformer-small-chairs` load / first call: original 0.16 s / 0.366 s (375x1242), portable 1.59 s / 0.561 s (375x1242)
-- `flowformer-small-things` load / first call: original 0.15 s / 0.304 s (375x1242), portable 1.42 s / 0.559 s (375x1242)
-- `flowformer-small-sintel` load / first call: original 0.15 s / 0.304 s (375x1242), portable 1.56 s / 0.581 s (375x1242)
+- `flowformer-small-sintel` kernels 375x1242: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `flowformer-small-chairs` load / first call: original 0.16 s / 0.366 s (375x1242), portable 1.59 s / 0.561 s (375x1242), kernels 1.19 s / 0.55 s (375x1242)
+- `flowformer-small-things` load / first call: original 0.15 s / 0.304 s (375x1242), portable 1.42 s / 0.559 s (375x1242), kernels 1.18 s / 0.545 s (375x1242)
+- `flowformer-small-sintel` load / first call: original 0.15 s / 0.304 s (375x1242), portable 1.56 s / 0.581 s (375x1242), kernels 1.29 s / 0.545 s (375x1242)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -288,14 +291,14 @@ Commercial use: yes.
 - `gmflow-scale2-regrefine6-mixdata` original (fp32) 1080x1920: upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale2-regrefine6-mixdata` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale1-things` load / first call: original 0.14 s / 0.942 s, portable 0.16 s / 0.558 s, kernels 0.16 s / 0.875 s
-- `gmflow-scale1-mixdata` load / first call: original 0.13 s / 0.76 s, portable 0.16 s / 0.558 s
-- `gmflow-scale2-things` load / first call: original 0.14 s / 1.61 s, portable 0.17 s / 1.141 s
-- `gmflow-scale2-sintel` load / first call: original 0.13 s / 1.618 s, portable 0.16 s / 1.141 s
-- `gmflow-scale2-mixdata` load / first call: original 0.13 s / 1.618 s, portable 0.16 s / 1.141 s
+- `gmflow-scale1-mixdata` load / first call: original 0.13 s / 0.76 s, portable 0.16 s / 0.558 s, kernels 0.16 s / 0.572 s (375x1242)
+- `gmflow-scale2-things` load / first call: original 0.14 s / 1.61 s, portable 0.17 s / 1.141 s, kernels 0.17 s / 0.702 s (375x1242)
+- `gmflow-scale2-sintel` load / first call: original 0.13 s / 1.618 s, portable 0.16 s / 1.141 s, kernels 0.16 s / 0.716 s (375x1242)
+- `gmflow-scale2-mixdata` load / first call: original 0.13 s / 1.618 s, portable 0.16 s / 1.141 s, kernels 0.17 s / 0.715 s (375x1242)
 - `gmflow-scale2-regrefine6-things` load / first call: original 0.15 s / 2.186 s, portable 0.16 s / 1.666 s
-- `gmflow-scale2-regrefine6-sintelft` load / first call: original 0.15 s / 2.369 s, portable 0.26 s / 1.676 s
-- `gmflow-scale2-regrefine6-kitti` load / first call: original 0.15 s / 2.199 s, portable 0.46 s / 1.679 s
-- `gmflow-scale2-regrefine6-mixdata` load / first call: original 0.14 s / 2.198 s, portable 0.25 s / 1.676 s
+- `gmflow-scale2-regrefine6-sintelft` load / first call: original 0.15 s / 2.369 s, portable 0.26 s / 1.676 s, kernels 0.36 s / 0.722 s (375x1242)
+- `gmflow-scale2-regrefine6-kitti` load / first call: original 0.15 s / 2.199 s, portable 0.46 s / 1.679 s, kernels 0.17 s / 0.887 s (375x1242)
+- `gmflow-scale2-regrefine6-mixdata` load / first call: original 0.14 s / 2.198 s, portable 0.25 s / 1.676 s, kernels 0.17 s / 0.893 s (375x1242)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -355,7 +358,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `megaflow` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1588<br>1109<br>734<br>917<br>677 | 8230 / 8786<br>3035 / 3246<br>2866 / 3066<br>2611 / 2886<br>9265 / 9300 |
+| `megaflow` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1588<br>1112<br>735<br>917<br>677 | 8230 / 8786<br>2713 / 3518<br>2724 / 3530<br>2611 / 2886<br>9265 / 9300 |
 
 <details><summary>Details</summary>
 
@@ -372,6 +375,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `megaflow` 1080x1920 (3.0 GiB peak allocated, 3.2 reserved)
 - `megaflow` 1080x1920, first call: portable + torch.compile 102 s (cold Inductor cache), TensorRT fp16 214 s (ONNX + engine).
 - `megaflow` original 1080x1920: the authors' mixed-precision option (bfloat16); upstream MegaFlow, num_reg_refine=8, README recipe: bf16 autocast
+- `megaflow` portable 1080x1920, kernels 1080x1920: Unused features and local-correlation chunks are released earlier. Peak reservation uses the native CUDA allocator.
 - `megaflow` load / first call: original 9.56 s / 6.769 s, portable 1.96 s / 0.758 s (375x1242), kernels 7.1 s / 0.668 s (375x1242)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

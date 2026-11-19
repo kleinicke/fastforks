@@ -12,7 +12,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`aliked-flexglue`](#flexglue) | yes | – | – |
+| [`aliked-flexglue`](#flexglue) | yes | 129, 2.7x | 2178, 1.2x |
 | [`aliked-lightglue`](#lightglue) | yes | 35.1, 1.2x | 1324, 0.97x |
 | [`dedode-v2-b`](#dedode) | yes | 189, 1.7x | 1246, 0.63x |
 | [`dedode-v2-g`](#dedode) | yes | 332, 2.0x | 1984, 0.8x |
@@ -27,8 +27,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`loma-r`](#loma) | yes | 262 | 1328 |
 | [`romav1`](#romav1) | yes | 356, 1.1x | 1860, 0.45x |
 | [`romav2`](#romav2) | yes | 350, 2.1x | 2460, 0.24x |
-| [`xfeat`](#xfeat) | yes | – | – |
-| [`xfeat-lighterglue`](#xfeat) | yes | – | – |
+| [`xfeat`](#xfeat) | yes | 15.1, 0.6x | 814, 4.7x |
+| [`xfeat-lighterglue`](#xfeat) | yes | 29.1, 0.8x | 818, 1.7x |
 
 <a id="flexglue"></a>
 
@@ -40,7 +40,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `aliked-flexglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 348<br>129<br>–<br>96.1<br>328 (dense descriptor with eager ALIKED and matching) | 1801 / 1892<br>1775 / 1886<br>–<br>1762 / 1826<br>2225 / 2410 |
+| `aliked-flexglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 348<br>129<br>129<br>96.1<br>328 (dense descriptor with eager ALIKED and matching) | 1801 / 1892<br>1775 / 1886<br>1814 / 2178<br>1762 / 1826<br>2225 / 2410 |
 
 <details><summary>Details</summary>
 
@@ -58,7 +58,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `aliked-flexglue` 3000x4000 (2.0 GiB peak allocated, 2.5 reserved)
 - `aliked-flexglue` 768x1024, first call: portable + torch.compile 79 s (cold Inductor cache), TensorRT fp32 22 s (ONNX + engine).
 - `aliked-flexglue` original 768x1024: upstream FlexGlue(mp=None).match_pair(sparse=True) + ALIKED(origin=corner), 2048 keypoints
-- `aliked-flexglue` load / first call: original 4.5 s / 1.661 s, portable 0.92 s / 1.199 s
+- `aliked-flexglue` kernels 768x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `aliked-flexglue` load / first call: original 4.5 s / 1.661 s, portable 0.92 s / 1.199 s, kernels 0.97 s / 1.063 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -517,8 +518,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 8.89<br>7.17<br>–<br>5.65<br>5.50 (standalone image CNN, eager keypoint selection and matching) | 128 / 174<br>122 / 154<br>–<br>186 / 212<br>268 / 416 |
-| `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>21.6<br>–<br>16.2<br>public API unavailable | 448 / 478<br>445 / 476<br>–<br>262 / 278<br>– |
+| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 8.89<br>7.17<br>15.1<br>5.65<br>5.50 (standalone image CNN, eager keypoint selection and matching) | 128 / 174<br>122 / 154<br>290 / 814<br>186 / 212<br>268 / 416 |
+| `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>21.6<br>29.1<br>16.2<br>public API unavailable | 448 / 478<br>445 / 476<br>460 / 818<br>262 / 278<br>– |
 
 <details><summary>Details</summary>
 
@@ -537,9 +538,11 @@ Commercial use: yes.
 - `xfeat` 768x1024, first call: portable + torch.compile 31 s (cold Inductor cache), TensorRT fp32 12 s (ONNX + engine).
 - `xfeat-lighterglue` 768x1024, first call: portable + torch.compile 40 s (cold Inductor cache).
 - `xfeat` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + mnn, top_k 4096
+- `xfeat` kernels 768x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `xfeat-lighterglue` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + lighterglue, top_k 4096
-- `xfeat` load / first call: original 1.51 s / 0.629 s, portable 0.16 s / 0.74 s
-- `xfeat-lighterglue` load / first call: original 1.46 s / 0.692 s, portable 0.25 s / 0.681 s
+- `xfeat-lighterglue` kernels 768x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `xfeat` load / first call: original 1.51 s / 0.629 s, portable 0.16 s / 0.74 s, kernels 0.17 s / 0.638 s
+- `xfeat-lighterglue` load / first call: original 1.46 s / 0.692 s, portable 0.25 s / 0.681 s, kernels 0.16 s / 0.727 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

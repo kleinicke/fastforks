@@ -10,12 +10,12 @@ Measured on RTX 5060 Ti, torch 2.14.1+cu130; `fastforks bench MODEL --size HxW` 
 
 Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 Pro 16 GB (MLX)](../devices/apple-m1-pro-mlx-16gb.md), [NVIDIA L4](../devices/l4-22gb.md), [NVIDIA L40S](../devices/l40s-44gb.md), [NVIDIA A10](../devices/a10-22gb.md), [NVIDIA A100-SXM4-40GB](../devices/a100-sxm4-40gb.md), [NVIDIA RTX PRO 6000](../devices/rtx-pro-6000-96gb.md); [across devices](../benchmarks.md#other-devices).
 
-| model | commercial |
-|---|---|
-| [`parseq`](#parseq) | yes |
-| [`parseq-tiny`](#parseq) | yes |
-| [`ppocrv5-mobile`](#ppocrv5) | yes |
-| [`ppocrv5-server`](#ppocrv5) | yes |
+| model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
+|---|---|---|---|
+| [`parseq`](#parseq) | yes | 3.62, 4.4x (32x128) | 100, 0.69x |
+| [`parseq-tiny`](#parseq) | yes | 2.10, 6.9x (32x128) | 54, 0.93x |
+| [`ppocrv5-mobile`](#ppocrv5) | yes | 154, 2.7x | 1016, 1.0x |
+| [`ppocrv5-server`](#ppocrv5) | yes | 235, 3.2x | 2708, 0.93x |
 
 <a id="parseq"></a>
 
@@ -27,8 +27,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `parseq` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>19.6<br>3.62<br>–<br>8.80<br>1.67 | 125 / 144<br>126 / 144<br>79 / 100<br>–<br>111 / 118<br>148 / 168 |
-| `parseq-tiny` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>18.0<br>2.10<br>–<br>1.54<br>1.67 | 56 / 58<br>56 / 58<br>44 / 54<br>–<br>76 / 94<br>82 / 90 |
+| `parseq` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>19.6<br>3.62<br>3.62<br>8.80<br>1.67 | 125 / 144<br>126 / 144<br>79 / 100<br>79 / 100<br>111 / 118<br>148 / 168 |
+| `parseq-tiny` | synthetic (32x128) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>18.0<br>2.10<br>2.10<br>1.54<br>1.67 | 56 / 58<br>56 / 58<br>44 / 54<br>44 / 54<br>76 / 94<br>82 / 90 |
 
 <details><summary>Details</summary>
 
@@ -46,9 +46,11 @@ Commercial use: yes.
 - `parseq` 32x128, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 114 s (ONNX + engine).
 - `parseq-tiny` 32x128, first call: portable + torch.compile 18 s (cold Inductor cache), TensorRT fp16 102 s (ONNX + engine).
 - `parseq` original (fp32) 32x128, original 32x128: baudm/parseq902db043c02 strhub PARSeq + read.py transform (PIL bicubic) + Tokenizer.decode
+- `parseq` kernels 32x128: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `parseq-tiny` original (fp32) 32x128, original 32x128: baudm/parseq902db043c02 strhub PARSeq + read.py transform (PIL bicubic) + Tokenizer.decode
-- `parseq` load / first call: original 0.53 s / 1.043 s (32x128), portable 1.44 s / 0.257 s (32x128)
-- `parseq-tiny` load / first call: original 0.34 s / 0.946 s (32x128), portable 0.74 s / 0.198 s (32x128)
+- `parseq-tiny` kernels 32x128: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `parseq` load / first call: original 0.53 s / 1.043 s (32x128), portable 1.44 s / 0.257 s (32x128), kernels 0.91 s / 0.205 s (32x128)
+- `parseq-tiny` load / first call: original 0.34 s / 0.946 s (32x128), portable 0.74 s / 0.198 s (32x128), kernels 0.76 s / 0.192 s (32x128)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -84,8 +86,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `ppocrv5-server` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 762<br>277<br>–<br>277<br>25.1 | 2355 / 2901<br>1357 / 1452<br>–<br>958 / 1132<br>1131 / 1146 |
-| `ppocrv5-mobile` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 619<br>418<br>153<br>–<br>115<br>2.68 | 476 / 1094<br>393 / 1005<br>289 / 448<br>–<br>292 / 448<br>241 / 268 |
+| `ppocrv5-server` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 762<br>277<br>235<br>277<br>25.1 | 2355 / 2901<br>1357 / 1452<br>1328 / 2708<br>958 / 1132<br>1131 / 1146 |
+| `ppocrv5-mobile` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 619<br>418<br>153<br>154<br>115<br>2.68 | 476 / 1094<br>393 / 1005<br>289 / 448<br>500 / 1016<br>292 / 448<br>241 / 268 |
 
 <details><summary>Details</summary>
 
@@ -103,10 +105,12 @@ Commercial use: yes.
 - `ppocrv5-server` 1080x1920, first call: portable + torch.compile 105 s (cold Inductor cache), TensorRT fp16 41 s (ONNX + engine).
 - `ppocrv5-mobile` 1080x1920, first call: portable + torch.compile 75 s (cold Inductor cache), TensorRT fp16 156 s (ONNX + engine).
 - `ppocrv5-server` original 1080x1920: PaddleOCR 3 3.3.3 / paddle 3.3.1 OCR pipeline (GPU Paddle Inference, run mode ['paddle']), no orientation / unwarping / text-line classifier; fp32 only: PaddleOCR's float16 needs TensorRT, and Paddle Inference float16 reads no text (detector overflow)
+- `ppocrv5-server` kernels 1080x1920: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `ppocrv5-mobile` original (fp32) 1080x1920: PaddleOCR 3 3.3.3 / paddle 3.3.1 OCR pipeline (GPU Paddle Inference, run mode ['paddle']), no orientation / unwarping / text-line classifier
 - `ppocrv5-mobile` original 1080x1920: PaddleOCR 3 3.3.3 / paddle 3.3.1 OCR pipeline (GPU Paddle Inference, run mode ['paddle_fp16']), no orientation / unwarping / text-line classifier
-- `ppocrv5-server` load / first call: original 2.07 s / 2.032 s, portable 0.56 s / 1.874 s
-- `ppocrv5-mobile` load / first call: original 1.51 s / 1.82 s, portable 0.27 s / 2.819 s
+- `ppocrv5-mobile` kernels 1080x1920: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `ppocrv5-server` load / first call: original 2.07 s / 2.032 s, portable 0.56 s / 1.874 s, kernels 1.07 s / 1.106 s
+- `ppocrv5-mobile` load / first call: original 1.51 s / 1.82 s, portable 0.27 s / 2.819 s, kernels 0.41 s / 3.002 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

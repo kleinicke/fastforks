@@ -12,7 +12,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`bisenet-face-parsing`](#bisenet) | yes | – | – |
+| [`bisenet-face-parsing`](#bisenet) | yes | 1.59, 3.7x (512x512) | 112, 1.2x |
 | [`deeplabv3-r101-d8-ade20k`](#mmseg) | yes | 20.5, 2.7x | 414, 0.19x |
 | [`deeplabv3plus-r101-d8-ade20k`](#mmseg) | yes | 17.9, 3.0x | 436, 0.22x |
 | [`dinov2-b-linear-ade20k`](#dinov2_linear) | yes | 20.1, 2.0x | 884, 0.4x |
@@ -46,7 +46,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `bisenet-face-parsing` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.94<br>2.41<br>–<br>1.34<br>0.678 | 69 / 94<br>51 / 72<br>–<br>76 / 110<br>85 / 110 |
+| `bisenet-face-parsing` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5.94<br>2.41<br>1.59<br>1.34<br>0.678 | 69 / 94<br>51 / 72<br>61 / 112<br>76 / 110<br>85 / 110 |
 
 <details><summary>Details</summary>
 
@@ -62,7 +62,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `bisenet-face-parsing` 512x512 (0.0 GiB peak allocated, 0.1 reserved)
 - `bisenet-face-parsing` 512x512, first call: portable + torch.compile 6 s (cold Inductor cache), TensorRT fp16 13 s (ONNX + engine).
 - `bisenet-face-parsing` original 512x512: .half() on 1 modules, fp16 inputs; face-parsing.PyTorch test.py: PIL resize 512 x 512 on the CPU, Normalize, net(x)[0], float32
-- `bisenet-face-parsing` load / first call: original 0.31 s / 0.405 s (512x512), portable 0.2 s / 0.275 s (512x512)
+- `bisenet-face-parsing` kernels 512x512: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `bisenet-face-parsing` load / first call: original 0.31 s / 0.405 s (512x512), portable 0.2 s / 0.275 s (512x512), kernels 0.61 s / 0.083 s (512x512)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
