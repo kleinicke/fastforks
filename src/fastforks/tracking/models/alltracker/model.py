@@ -106,6 +106,7 @@ def _direction(
             flows8[s + WINDOW :], visconfs8[s + WINDOW :] = f8[-1:], v8[-1:]
         keep = min(STRIDE if i + 1 < len(starts) else WINDOW, n - s)  # later windows overwrite the rest
         tracks[s : s + keep], vis[s : s + keep] = _sample(f8[:keep], v8[:keep], m[:keep], pts, offset)
+        del f8, v8, m
     return tracks, vis
 
 
@@ -134,7 +135,9 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
             if video.shape[-2:] != (nh, nw):
                 video = F.interpolate(video, (nh, nw), mode="bilinear", align_corners=False)
             chunks.append(net.encode(F.pad(video, (left, right, top, bottom), mode="replicate")))
+            del video
         fmaps = torch.cat(chunks)
+        del chunks
         pts = (queries[:, 1:] + 0.5) * scale - 0.5
         for t0 in queries[:, 0].long().unique().tolist():
             sel = (queries[:, 0] == t0).nonzero()[:, 0]
