@@ -430,16 +430,21 @@ class HourGlass(nn.Module):
         conv3 = self.feature_att_32(conv3, features[3])
 
         conv3_up = self.conv3_up(conv3)
+        del conv3
         conv2 = torch.cat((conv3_up, conv2), dim=1)
+        del conv3_up
         conv2 = self.agg_0(conv2)
         conv2 = self.feature_att_up_16(conv2, features[2])
 
         conv2_up = self.conv2_up(conv2)
+        del conv2
         conv1 = torch.cat((conv2_up, conv1), dim=1)
+        del conv2_up
         conv1 = self.agg_1(conv1)
         conv1 = self.feature_att_up_8(conv1, features[1])
 
         conv = self.conv1_up(conv1)
+        del conv1
         x = self.conv_patch(x)
         if atts_before_upsample:
             x = self.atts["cost_vol_disp"](x)
@@ -448,6 +453,7 @@ class HourGlass(nn.Module):
             x = F.interpolate(x, scale_factor=4, mode="trilinear", align_corners=False)
             x = self.atts["cost_vol_disp"](x)
         conv = conv + x
+        del x  # FastForks: the attention volume is no longer needed by the final 3D convolutions.
         conv = self.conv_out(conv)
         return conv
 
