@@ -130,6 +130,8 @@ _DATASETS = {
         "ground-truth mask",
         "totalseg-featparity-8": "TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: "
         "cosine (worst case) / relative L2",
+        "totalseg-featparity-portable32-8": "TotalSegmentator test subset (8 CT cases), encoder features vs portable "
+        "FP32: cosine (worst case) / relative L2",
     },
     "interpolation": {
         "davis2017-triplets180": "DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM",
@@ -281,6 +283,11 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
         "prompted runs",
     ),
     ("volume", "totalseg-featparity-8"): ((("cos_min", "{:.5f}", ""), ("rel_l2", "{:.4g}", "")), "n", "cases"),
+    ("volume", "totalseg-featparity-portable32-8"): (
+        (("cos_min", "{:.5f}", ""), ("rel_l2", "{:.4g}", "")),
+        "n",
+        "cases",
+    ),
     "restoration": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "images"),
     ("restoration", "div2k-val-inpainting-mask50"): ((("psnr", "{:.4f}", ""),), "n", "masks"),
     ("restoration", "div2k-val-x2-crop64-every4-rgb"): ((("psnr", "{:.4f}", ""),), "n", "images"),
@@ -515,6 +522,8 @@ _PROTOCOL = {
     "encoder feature maps against the original fp32 maps (cosine similarity, worst case over the cases and the mean "
     "over the maps; relative L2 error, mean). Original (fp32) is the reference; the original fp16 row shows the error "
     "the original itself has in half precision. ",
+    ("volume", "totalseg-featparity-portable32-8"): "For the standalone ViT TensorRT comparison, both runs used the "
+    "same normalized 192³ CT crops and FP32 with TF32 disabled. Relative L2 is the mean over the eight cases. ",
     "interpolation": "DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the "
     "frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the "
     "output rounded to uint8, on RGB in [0, 1], averaged over the triplets for the 180-triplet benchmark. ",
