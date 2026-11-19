@@ -26,7 +26,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`oneformer-swinl-ade20k`](#oneformer) | yes | 100, 2.1x | 2476, 0.32x |
 | [`pspnet-r101-d8-ade20k`](#mmseg) | yes | 24.9, 1.9x | 394, 0.19x |
 | [`sapiens-seg-0.3b-goliath`](#sapiens) | no | 92.6, 1.9x | 1762, 0.65x |
-| [`sapiens-seg-1b-goliath`](#sapiens) | no | 185, 1.9x | 3382, 0.57x |
+| [`sapiens-seg-1b-goliath`](#sapiens) | no | 180, 2.0x | 3022, 0.51x |
 | [`segformer-b0-ade20k`](#segformer) (resize 2048x512) | no | 3.49, 4.9x | 178, 0.11x |
 | [`segformer-b2-clothes`](#segformer) (resize 512x512) | no | 3.61, 3.9x (512x512) | 170, 0.35x |
 | [`segformer-b5-ade20k`](#segformer) (resize 2048x640) | no | 25.4, 2.8x | 432, 0.17x |
@@ -395,7 +395,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `sapiens-seg-0.3b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 466<br>173<br>132<br>92.6<br>118<br>156 | 3673 / 4104<br>2520 / 2724<br>1643 / 1762<br>1643 / 1762<br>1373 / 1462<br>2465 / 2526 |
-| `sapiens-seg-1b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1189<br>354<br>275<br>185<br>263<br>244 | 6874 / 7284<br>5721 / 5906<br>3259 / 3384<br>3259 / 3382<br>2986 / 3084<br>5694 / 5742 |
+| `sapiens-seg-1b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1189<br>354<br>276<br>180<br>263<br>244 | 6874 / 7284<br>5721 / 5906<br>2894 / 3024<br>2894 / 3022<br>2986 / 3084<br>5694 / 5742 |
 
 <details><summary>Details</summary>
 
@@ -414,8 +414,9 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - `sapiens-seg-1b-goliath` 1024x2048, first call: portable + torch.compile 19 s (cold Inductor cache), TensorRT fp16 85 s (ONNX + engine).
 - `sapiens-seg-0.3b-goliath` original 1024x2048: torch.autocast(fp16) around the forward
 - `sapiens-seg-1b-goliath` original 1024x2048: torch.autocast(fp16) around the forward
+- `sapiens-seg-1b-goliath` portable 1024x2048, kernels 1024x2048: Previous feature maps are released before normalization. Paired labels and logits matched bitwise.
 - `sapiens-seg-0.3b-goliath` load / first call: original 4.92 s / 1.024 s (512x512), portable 1.22 s / 0.132† s, kernels 0.96† s / 0.092† s
-- `sapiens-seg-1b-goliath` load / first call: original 11.33 s / 0.569 s (512x512), portable 3.54 s / 0.274† s, kernels 2.27† s / 0.18† s
+- `sapiens-seg-1b-goliath` load / first call: original 11.33 s / 0.569 s (512x512), portable 0.8 s / 0.469 s, kernels 1.03 s / 0.29 s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
 

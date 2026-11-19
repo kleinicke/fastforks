@@ -300,7 +300,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`mask2former-swinl-ade20k`](models/segmentation.md#mask2former) | no | 144.8 (1024x2048) | 103.2 | 60.4 | 2.4x vs original (1024x2048) | 1164 |
 | [`sapiens-seg-0.3b-goliath`](models/segmentation.md#sapiens-segmentation) | no | 173.2 (1024x2048) | 131.9 | 92.6 | 1.9x vs original (1024x2048) | 1643 |
 | [`oneformer-swinl-ade20k`](models/segmentation.md#oneformer) | yes | 205.1 (1024x2048) | 139.1 | 100.0 | 2.1x vs original (1024x2048) | 2054 |
-| [`sapiens-seg-1b-goliath`](models/segmentation.md#sapiens-segmentation) | no | 354.4 (1024x2048) | 275.1 | 185.2 | 1.9x vs original (1024x2048) | 3259 |
+| [`sapiens-seg-1b-goliath`](models/segmentation.md#sapiens-segmentation) | no | 354.4 (1024x2048) | 276.4 | 179.8 | 2.0x vs original (1024x2048) | 2894 |
 | [`bisenet-face-parsing`](models/segmentation.md#bisenet-face-parsing) | yes | – | – | – | – | – |
 
 ## Matting
