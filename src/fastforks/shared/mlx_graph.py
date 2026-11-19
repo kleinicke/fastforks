@@ -308,6 +308,42 @@ def _grid_sample(
     return out.reshape(n, c, ho, wo).astype(x.dtype)
 
 
+@_reg(aten.grid_sampler_3d.default)
+def _grid_sample_3d(
+    x: mx.array,
+    grid: mx.array,
+    mode: int = 0,
+    padding_mode: int = 0,
+    align_corners: bool = False,
+) -> mx.array:
+    """Trilinear `grid_sample` (zeros or border padding): eight gathers weighted in float32."""
+    if mode != 0 or padding_mode not in (0, 1):
+        msg = f"grid_sampler_3d mode={mode} padding_mode={padding_mode}"
+        raise UnsupportedOp(msg)
+    n, c, d, h, w = x.shape
+    out_shape = grid.shape[1:4]
+    g = grid.astype(mx.float32)
+
+    def unnormalize(v: mx.array, size: int) -> mx.array:
+        v = (v + 1) * (size - 1) / 2 if align_corners else ((v + 1) * size - 1) / 2
+        return mx.clip(v, 0, size - 1) if padding_mode == 1 else v
+
+    ix, iy, iz = (unnormalize(g[..., k], s).reshape(n, -1) for k, s in enumerate((w, h, d)))
+    x0, y0, z0 = mx.floor(ix), mx.floor(iy), mx.floor(iz)
+    flat = mx.transpose(x.reshape(n, c, d * h * w), (0, 2, 1))
+    out = None
+    for dz, wz in ((0, 1 - (iz - z0)), (1, iz - z0)):
+        for dy, wy in ((0, 1 - (iy - y0)), (1, iy - y0)):
+            for dx, wx in ((0, 1 - (ix - x0)), (1, ix - x0)):
+                xx, yy, zz = x0 + dx, y0 + dy, z0 + dz
+                ok = (xx >= 0) & (xx <= w - 1) & (yy >= 0) & (yy <= h - 1) & (zz >= 0) & (zz <= d - 1)
+                idx = ((mx.clip(zz, 0, d - 1) * h + mx.clip(yy, 0, h - 1)) * w + mx.clip(xx, 0, w - 1)).astype(mx.int32)
+                v = mx.take_along_axis(flat, idx[:, :, None], axis=1).astype(mx.float32)
+                term = v * (wx * wy * wz * ok.astype(mx.float32))[:, :, None]
+                out = term if out is None else out + term
+    return mx.transpose(out, (0, 2, 1)).reshape(n, c, *out_shape).astype(x.dtype)
+
+
 @_reg(aten.scatter.src)
 def _scatter_src(x: mx.array, dim: int, index: mx.array, src: mx.array) -> mx.array:
     src = src[tuple(slice(0, n) for n in index.shape)]  # torch reads the leading block of src
@@ -892,6 +928,28 @@ def _avg_pool(
     else:
         win = win / (k[0] * k[1])
     return win.astype(x.dtype)
+
+
+@_reg(aten.avg_pool3d.default)
+def _avg_pool3d(
+    x: mx.array,
+    k: Sequence[int],
+    s: Sequence[int] = (),
+    pad: Sequence[int] = (0, 0, 0),
+    ceil: bool = False,  # noqa: FBT001, FBT002
+    count_include_pad: bool = True,  # noqa: FBT001, FBT002
+    divisor: int | None = None,
+) -> mx.array:
+    """Non-overlapping, unpadded 3-D average pooling (window = stride), in float32."""
+    s = s or k
+    if tuple(s) != tuple(k) or any(pad) or ceil or divisor is not None:
+        msg = "avg_pool3d: only unpadded windows equal to the stride"
+        raise UnsupportedOp(msg)
+    n, c, d, h, w = x.shape
+    od, oh, ow = d // k[0], h // k[1], w // k[2]
+    y = x[:, :, : od * k[0], : oh * k[1], : ow * k[2]].astype(mx.float32)
+    y = y.reshape(n, c, od, k[0], oh, k[1], ow, k[2]).mean(axis=(3, 5, 7))
+    return y.astype(x.dtype)
 
 
 @_reg(aten._adaptive_avg_pool2d.default, aten.adaptive_avg_pool2d.default)

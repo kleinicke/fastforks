@@ -25,6 +25,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
+from fastforks.shared import mlx_wrap
 from fastforks.tracking._runner import Forward, Runner
 
 from .net.alltracker import DIM, WINDOW, AllTracker, CNBlock1d, CNBlock2d, CorrPyramid, UpdateBlock, upsample
@@ -117,8 +118,12 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
     queries: torch.Tensor,
     params: Params,
     amp: torch.dtype | None,
+    group: int | None = None,
 ) -> dict[str, torch.Tensor]:
-    """`{"tracks": [T, Q, 2], "visibility": [T, Q]}` of frames `frames(t)` `[1, 3, H, W]` in `[0, 1]`."""
+    """`{"tracks": [T, Q, 2], "visibility": [T, Q]}` of frames `frames(t)` `[1, 3, H, W]` in `[0, 1]`.
+
+    `group`: every query starts on this frame (no data-dependent grouping: the graph the MLX port exports).
+    """
     h, w = size
     nh, nw = params.height, params.width
     left, right, top, bottom = _pad(nh, nw)
@@ -136,8 +141,12 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
             chunks.append(net.encode(F.pad(video, (left, right, top, bottom), mode="replicate")))
         fmaps = torch.cat(chunks)
         pts = (queries[:, 1:] + 0.5) * scale - 0.5
-        for t0 in queries[:, 0].long().unique().tolist():
-            sel = (queries[:, 0] == t0).nonzero()[:, 0]
+        for t0 in [group] if group is not None else queries[:, 0].long().unique().tolist():
+            sel = (
+                torch.arange(queries.shape[0], device=queries.device)
+                if group is not None
+                else ((queries[:, 0] == t0).nonzero()[:, 0])
+            )
             tr, vi = _direction(net, fmaps[t0:], pts[sel], offset, params.iters)
             tracks[t0:, sel], vis[t0:, sel] = tr, vi
             if t0 > 0:
@@ -360,4 +369,32 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _Graph(Portable):
+    """The offline pass per query frame as one exported graph (the grouping by start frame stays eager)."""
+
+    def _run(self, video: torch.Tensor, queries: torch.Tensor, group: int) -> dict[str, torch.Tensor]:
+        size = (video.shape[-2], video.shape[-1])
+        return track(
+            self.net, lambda t: video[t : t + 1], video.shape[0], size, queries, self.ctx.params, self.amp, group
+        )
+
+    def __call__(
+        self, frames: Callable[[int], torch.Tensor], n: int, size: tuple[int, int], queries: torch.Tensor
+    ) -> dict[str, torch.Tensor]:
+        """Tracks and visibility of the queries."""
+        del size
+        video = torch.cat([frames(t) for t in range(n)])
+        starts = queries[:, 0].long()
+        tracks, vis = queries.new_zeros(n, queries.shape[0], 2), queries.new_zeros(n, queries.shape[0])
+        for t0 in starts.unique().tolist():
+            sel = (starts == t0).nonzero()[:, 0]
+            out = self._run(video, queries[sel], t0)
+            tracks[:, sel], vis[:, sel] = out["tracks"], out["visibility"]
+        return {"tracks": tracks, "visibility": vis}
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(_Graph, attrs=(), methods=("_run",)),
+}

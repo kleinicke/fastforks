@@ -23,6 +23,7 @@ import torch
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.runner import host
+from fastforks.shared import mlx_wrap
 from fastforks.tracking._runner import Forward, Runner
 
 from .net.track_on import D, TrackOn2
@@ -192,4 +193,8 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.backbone",)),
+}  # the per-frame loop is data-dependent: eager; the backbone is the graph

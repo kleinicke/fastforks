@@ -18,6 +18,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate, half_weights
+from fastforks.tracking._mlx import port as mlx_port
 from fastforks.tracking._runner import Forward, NoParams, Runner
 
 from .net.tapir import SIZE, TAPIR, PIPsConvBlock
@@ -166,4 +167,4 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_port(Portable)}

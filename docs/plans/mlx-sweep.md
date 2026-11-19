@@ -154,6 +154,12 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | ppocrv5 | ocr | portable_mlx (detector and recogniser graphs; boxes, crops, CTC eager; fp16 neck scaling applied to the twin), fp32+fp16 pass | 1080x1920 mobile fp16 772 / 1433 vs MPS 736 / 2987; server fp16 1955 / 2910 vs 1607 / 6545. Memory 2-2.3x lower, speed 1.05-1.4x slower. |
 | boq | retrieval | portable_mlx (`_descriptor` graph over backbone + aggregator; resize eager), fp32+fp16 pass | 480x640 fp32 47 / 905 vs MPS 57 / 987; fp16 52 / 856 vs 48 / 849. About parity. |
 | megaloc | retrieval | portable_mlx (`_descriptor` graph), fp32+fp16 pass | 480x640 fp32 53 / 1345 vs MPS 54 / 1926; fp16 83 / 1496 vs 45 / 2617 (fp16 slower than fp32 on MLX here: the Sinkhorn step casts to float32). Less memory; fp32 is the better MLX dtype. |
+| tapir | tracking | portable_mlx: whole offline pass as one graph (adds `grid_sampler_3d`, `avg_pool3d` ops); fp32 only (fp16 misses the goldens' tolerances) | 480x854 ms / MB, fp32. tapir 2770 / 1720 vs MPS 1382 / 2630. All variants pass goldens. |
+| alltracker | tracking | portable_mlx: per-query-frame group graph (`group` arg replaces data-dependent `unique`/`nonzero`); fp32 only | 480x854 fp32 5397 / 2597 vs MPS 3508 / 4571. |
+| locotrack | tracking | portable_mlx: whole pass as one graph; fp32 only | locotrack-b fp32 2039 / 1679 vs MPS 2104 / 2474 (faster and lighter). |
+| tapnext | tracking | portable_mlx: whole pass as one graph; fp32 only | tapnext fp32 8155 / 3639 vs MPS 5855 / 3754. |
+| cotracker | tracking | portable_mlx: offline = whole pass as one graph; online = window loop eager (data-dependent, `torch.export` guards), CNN and update transformer on MLX; fp32 only | offline fp32 3577 / 3438 vs MPS 1430 / 4725; online 3340 / 3971 vs 1707 / 4689. |
+| track_on | tracking | portable_mlx: per-frame loop eager (data-dependent), DINOv3 adapter backbone as graph; fp32+fp16 pass | track-on2 fp32 21453 / 4902 vs MPS 8354 / 6102; fp16 21190 / 4947. Eager per-frame steps dominate; slower than MPS. |
 
 ## Conv3x3 kernel experiments (M1 Pro, fp16, 1x512x512x64 -> 64, 3x3, pad 1)
 

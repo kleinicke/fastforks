@@ -47,6 +47,7 @@ support_grid = { default = 20, min = 0 }  # support points per side on frame 0 (
 [modes.portable]
 cuda_dtype = "float16"  # autocast; correlation, arg-max, deformable-attention locations and coordinates in float32
 mps_dtypes = ["float32"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "dpt_fused"]  # ViT-S+ blocks: packed q/k/v and gate/up fp16-accumulate GEMMs with fused epilogues, fused RoPE, flash attention; the rest fp16 autocast with fp16 accumulation

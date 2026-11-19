@@ -29,6 +29,7 @@ min_size = 16
 [modes.portable]
 cuda_dtype = "float16"  # as upstream's evaluation: fp16 autocast GEMMs; residual stream, norms, temporal conv and RG-LRU scan float32
 mps_dtypes = ["float32", "float16"]
+mlx_dtypes = ["float32"]
 
 [modes.kernels]
 kernels = ["fvm_conv"]  # GEMMs with fused bias / GELU-tanh gate / residual epilogues, fp16 accumulation

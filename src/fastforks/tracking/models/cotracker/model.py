@@ -40,6 +40,8 @@ from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks.kernels import cotracker_corr
+from fastforks.shared import mlx_wrap
+from fastforks.tracking._mlx import port as mlx_port
 from fastforks.tracking._runner import Forward, Runner
 
 from .net.blocks import Attention
@@ -502,4 +504,19 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+class _MlxOnline(Portable):
+    """The online loop is data-dependent (`torch.export` guards on it): it stays eager, the CNN and update transformer run on MLX."""
+
+
+_MlxOnline = mlx_wrap.port(_MlxOnline, attrs=("core.net.fnet", "core.updateformer"))
+_MlxOffline = mlx_port(Portable)
+
+
+class MlxRunner(Portable):
+    """Apple MLX: the whole pass of cotracker3-offline as one graph; cotracker3-online with its window loop eager."""
+
+    def __new__(cls, ctx: Context) -> Runner:  # noqa: D102
+        return (_MlxOnline if cast("Params", ctx.params).online else _MlxOffline)(ctx)
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxRunner}

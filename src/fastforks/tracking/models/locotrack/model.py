@@ -19,6 +19,7 @@ from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks.kernels.locotrack_sample import neighborhood
+from fastforks.tracking._mlx import port as mlx_port
 from fastforks.tracking._runner import Forward, NoParams, Runner
 
 from .net.locotrack import (
@@ -237,4 +238,4 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_port(Portable)}
