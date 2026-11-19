@@ -16,7 +16,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`aliked-lightglue`](#lightglue) | yes | 35.1, 1.2x | 1324, 0.97x |
 | [`dedode-v2-b`](#dedode) | yes | 189, 1.7x | 1246, 0.63x |
 | [`dedode-v2-g`](#dedode) | yes | 332, 2.0x | 1984, 0.8x |
-| [`disk-lightglue`](#lightglue) | yes | 52.1, 2.2x | 778, 0.32x |
+| [`disk-lightglue`](#lightglue) | yes | 49.2, 2.4x | 778, 0.32x |
 | [`loftr-indoor`](#loftr) | yes | 96.2, 2.5x | 886, 0.46x |
 | [`loftr-outdoor`](#loftr) | yes | 95.9, 2.5x | 886, 0.47x |
 | [`loma-b`](#loma) | yes | 263, 3.9x | 1328, 0.3x |
@@ -102,7 +102,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `aliked-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 41.8<br>40.6<br>35.1<br>29.5<br>65.2 (standalone ALIKED encoder with eager keypoint selection and LightGlue) | 1305 / 1364<br>1300 / 1404<br>1238 / 1324<br>1653 / 1680<br>1520 / 1652 |
-| `disk-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 117<br>116<br>52.1<br>113<br>public API unavailable | 1955 / 2412<br>1950 / 2398<br>736 / 778<br>1375 / 1502<br>– |
+| `disk-lightglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 117<br>116<br>49.2<br>113<br>public API unavailable | 1955 / 2412<br>1950 / 2400<br>736 / 778<br>1375 / 1502<br>– |
 
 <details><summary>Details</summary>
 
@@ -123,6 +123,7 @@ Commercial use: yes.
 - `disk-lightglue` 768x1024, first call: portable + torch.compile 21 s (cold Inductor cache).
 - `aliked-lightglue` original 768x1024: the authors' mixed-precision option (float16); upstream match_pair aliked + LightGlue, resize 1024
 - `disk-lightglue` original 768x1024: the authors' mixed-precision option (float16); upstream match_pair disk + LightGlue, resize 1024
+- `disk-lightglue` portable 768x1024, kernels 768x1024: Reuse the detected indices and cast only the selected descriptors. In matched FP16 runs, the synthetic and three MegaDepth outputs matched bitwise.
 - `aliked-lightglue` load / first call: original 1.49 s / 0.732 s, portable 0.17 s / 0.79 s, kernels 1.46 s / 0.902 s
 - `disk-lightglue` load / first call: original 1.43 s / 0.642 s, portable 0.2 s / 0.633 s, kernels 0.57 s / 0.301 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -155,6 +156,7 @@ CPU, float32: max |diff| <= 3e-05 vs the original. GPU, portable float32 and ker
 - One image pair per call internally (batches run pair by pair); the keypoint counts differ per image.
 - No exportable module: the keypoint counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).
 - ALIKED-LightGlue has a fixed 768 x 1024 standalone FP32 TensorRT encoder measurement with TF32 disabled. Keypoint selection and LightGlue run in PyTorch. On 300 MegaDepth pairs, AUC@5 was 51.32 versus 49.75 portable FP32, with a worst paired pose error increase of 21.25 degrees.
+- Computing DISK descriptors only at selected keypoints also changed pose outcomes. On a 100-pair MegaDepth check, both the PyTorch and TensorRT sparse projections changed a previously solved pair from 25.78 degrees to the 90-degree failure value, despite identical detected keypoints.
 
 </details>
 
