@@ -17,7 +17,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`bootstapir`](#tapir) | yes | 191, 1.3x | 568, 0.73x |
 | [`cotracker3-offline`](#cotracker) | no | 154, 1.6x | 882, 0.36x |
 | [`cotracker3-online`](#cotracker) | no | 176, 1.9x | 888, 0.47x |
-| [`locotrack-b`](#locotrack) | yes | 108, 1.9x | 620, 0.79x |
+| [`locotrack-b`](#locotrack) | yes | 109, 1.9x | 600, 0.77x |
 | [`locotrack-s`](#locotrack) | yes | 151, 1.3x | 642, 0.79x |
 | [`tapir`](#tapir) | yes | 141, 1.3x | 548, 0.95x |
 | [`tapnext`](#tapnext) | yes | 381, 2.4x | 1254, 0.66x |
@@ -242,7 +242,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `locotrack-b` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 203<br>188<br>108<br>82.6<br>6.12 (8 frames with 16 queries only) | 719 / 784<br>544 / 596<br>555 / 620<br>1117 / 1140<br>233 / 242 |
+| `locotrack-b` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 203<br>189<br>109<br>82.6<br>6.12 (8 frames with 16 queries only) | 719 / 784<br>535 / 596<br>507 / 600<br>1117 / 1140<br>233 / 242 |
 | `locotrack-s` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 193<br>180<br>151<br>74.1<br>5.66 (8 frames with 16 queries only) | 706 / 812<br>759 / 842<br>596 / 642<br>1000 / 1034<br>251 / 256 |
 
 <details><summary>Details</summary>
@@ -260,7 +260,7 @@ Commercial use: yes.
 - `locotrack-b` 480x854, first call: portable + torch.compile 146 s (cold Inductor cache).
 - `locotrack-s` 480x854, first call: portable + torch.compile 140 s (cold Inductor cache), TensorRT fp16 51 s (ONNX + engine).
 - `locotrack-b` original 480x854: the authors' mixed-precision option (float16); KU-CVLAB/LocoTrack@3385a233a270 forward, offline (whole video), frames resized to 256 x 256
-- `locotrack-b` portable 480x854, kernels 480x854: Earlier correlation buffer release. 24-frame, 256-query synthetic input and three labeled TAP-Vid DAVIS clips matched bitwise.
+- `locotrack-b` portable 480x854, kernels 480x854: FP16 native model, 24 frames and 256 queried points. Earlier release of consumed tracking intermediates. Tracks and visibility matched the previous path bitwise on synthetic inputs and three DAVIS clips.
 - `locotrack-s` original 480x854: the authors' mixed-precision option (float16); KU-CVLAB/LocoTrack@3385a233a270 forward, offline (whole video), frames resized to 256 x 256
 - `locotrack-b` load / first call: original 0.79 s / 1.058 s, portable 0.35 s / 0.718 s, kernels 0.18 s / 0.872 s
 - `locotrack-s` load / first call: original 0.29 s / 0.229 s, portable 0.06 s / 0.653 s, kernels 1.13 s / 0.655 s

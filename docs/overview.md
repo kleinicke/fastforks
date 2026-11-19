@@ -714,12 +714,12 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 12 models; size 480x854.
 
-- Fastest: [`locotrack-b`](models/tracking.md#locotrack) (108.4 ms).
-- Fastest commercially usable: [`locotrack-b`](models/tracking.md#locotrack) (108.4 ms).
+- Fastest: [`locotrack-b`](models/tracking.md#locotrack) (108.8 ms).
+- Fastest commercially usable: [`locotrack-b`](models/tracking.md#locotrack) (108.8 ms).
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
-| [`locotrack-b`](models/tracking.md#locotrack) | yes | 203.3 (480x854) | 187.9 | 108.4 | 1.9x vs original (480x854) | 555 |
+| [`locotrack-b`](models/tracking.md#locotrack) | yes | 203.3 (480x854) | 188.9 | 108.8 | 1.9x vs original (480x854) | 507 |
 | [`tapir`](models/tracking.md#tapir) | yes | 186.9 (480x854) | 181.8 | 140.8 | 1.3x vs original (480x854) | 463 |
 | [`locotrack-s`](models/tracking.md#locotrack) | yes | 192.8 (480x854) | 179.5 | 150.6 | 1.3x vs original (480x854) | 596 |
 | [`cotracker3-offline`](models/tracking.md#cotracker3) | no | 243.5 (480x854) | 162.0 | 154.4 | 1.6x vs original (480x854) | 757 |

@@ -1464,7 +1464,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | bootstapir | 243 | 233 | 191 | 1.3x | 1.2x | 639 / 774 | 499 / 568 | 499 / 568 |
 | cotracker3-offline | 244 | 162 | 154 | 1.6x | 1.0x | 2221 / 2480 | 755 / 882 | 757 / 882 |
 | cotracker3-online | 328 | 184 | 176 | 1.9x | 1.0x | 1659 / 1886 | 755 / 906 | 757 / 888 |
-| locotrack-b | 203 | 188 | 108 | 1.9x | 1.7x | 719 / 784 | 544 / 596 | 555 / 620 |
+| locotrack-b | 203 | 189 | 109 | 1.9x | 1.7x | 719 / 784 | 535 / 596 | 507 / 600 |
 | locotrack-s | 193 | 180 | 151 | 1.3x | 1.2x | 706 / 812 | 759 / 842 | 596 / 642 |
 | tapir | 187 | 182 | 141 | 1.3x | 1.3x | 498 / 574 | 463 / 548 | 463 / 548 |
 | tapnext | 909 | 528 | 381 | 2.4x | 1.4x | 1721 / 1902 | 1220 / 1294 | 1205 / 1254 |
@@ -2704,7 +2704,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | cotracker3-online | 480x854 | 184 ms | 159 ms | public API unavailable | 176 ms | 37.7 s | – | 755 / 906 | 701 / 846 | 757 / 888 | – |
 | cotracker3-online | 256x256 | – | – | 50.3 ms, fp32 engine (fixed eight-frame graph with 16 queries) | – | – | 117 s | – | – | – | 456 / 472 |
 | cotracker3-online | 24x256x256 | 280 ms | – | 141 ms, fp32 engine (fixed 24-frame clip with 16 queries) | – | – | – | 2381 / 2694 | – | – | 850 / 856 |
-| locotrack-b | 480x854 | 188 ms | 82.6 ms | 6.12 ms (8 frames with 16 queries only) | 108 ms | 146 s | – | 544 / 596 | 1117 / 1140 | 555 / 620 | 233 / 242 |
+| locotrack-b | 480x854 | 189 ms | 82.6 ms | 6.12 ms (8 frames with 16 queries only) | 109 ms | 146 s | – | 535 / 596 | 1117 / 1140 | 507 / 600 | 233 / 242 |
 | locotrack-s | 480x854 | 180 ms | 74.1 ms | 5.66 ms (8 frames with 16 queries only) | 151 ms | 140 s | 51.4 s | 759 / 842 | 1000 / 1034 | 596 / 642 | 251 / 256 |
 | tapir | 480x854 | 182 ms | 131 ms | 6.47 ms | 141 ms | 169 s | 55.2 s | 463 / 548 | 630 / 752 | 463 / 548 | 361 / 406 |
 | tapnext | 480x854 | 528 ms | 398 ms | 69.4 ms | 381 ms | 40.5 s | 366 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |
