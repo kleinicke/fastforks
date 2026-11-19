@@ -1496,6 +1496,29 @@ def _cat_cl(xs: Sequence[mx.array], d: int = 0) -> mx.array:
     return _uncl(mx.concatenate([_cl(x) for x in xs], axis=_cl_axis(nd, d)))
 
 
+@_reg_cl(aten.upsample_nearest2d.default, aten.upsample_nearest2d.vec)
+def _nearest_cl(x: mx.array, size: Sequence[int] | None, *scales: Any) -> mx.array:  # noqa: ANN401
+    """`_nearest` on the channels-last view (4-D): an integer factor is a broadcast copy, anything else a gather."""
+    if x.ndim != 4:  # noqa: PLR2004
+        return _nearest(x, size, *scales)
+    h, w = x.shape[2:]
+    if size is None:
+        fac = scales[0]
+        sh, sw = (fac[0], fac[1]) if isinstance(fac, (list, tuple)) else (scales[0], scales[1])
+        oh, ow = int(h * sh), int(w * sw)
+    else:
+        oh, ow = size
+    xl = _cl(x)
+    if oh % h or ow % w:
+        ys = mx.minimum(mx.floor(mx.arange(oh, dtype=mx.float32) * (h / oh)).astype(mx.int32), h - 1)
+        xs = mx.minimum(mx.floor(mx.arange(ow, dtype=mx.float32) * (w / ow)).astype(mx.int32), w - 1)
+        return _uncl(mx.take(mx.take(xl, ys, axis=1), xs, axis=2))
+    fh, fw = oh // h, ow // w
+    n, _, _, c = xl.shape
+    y = mx.broadcast_to(xl[:, :, None, :, None, :], (n, h, fh, w, fw, c))
+    return _uncl(y.reshape(n, oh, ow, c))
+
+
 @_reg_cl(aten.constant_pad_nd.default)
 def _pad_cl(x: mx.array, pad: Sequence[int], value: float = 0.0) -> mx.array:
     """`_pad` on the channels-last view (spatial axes only; a pad of the channel or batch axis stays as it was)."""
@@ -1764,6 +1787,10 @@ class GraphNet:
         for node_name, tgt in params.items():  # only what a node reads: a folded convolution's own weight is not
             if node_name in used:
                 values[node_name] = self._const(tgt, lifted[tgt], share=tgt in state)
+        if not os.environ.get("FF_MLX_NO_BAND"):
+            from fastforks.shared.mlx_band import band_tail  # noqa: PLC0415
+
+            plan = band_tail(nodes, plan, values, cl_values, self._itemsize)
         del ep, graph, sig, lifted, nodes
         gc.collect()
         return self._runner(plan, values)
@@ -1899,6 +1926,10 @@ class GraphNet:
             if pending > chunk and k + 1 < len(steps):
                 cuts.append(k + 1)
                 pending = 0
+        for k, (_, p) in enumerate(steps):  # a banded tail evaluates band by band: a segment of its own, not compiled
+            if getattr(p[2], "uncompilable", False):
+                cuts.extend(c for c in (k, k + 1) if 0 < c < len(steps))
+        cuts = sorted({*cuts})
         cuts.append(len(steps))
         compiled = self._compile
         seg_max = int(os.environ.get("FF_MLX_SEG_MB", SEG_COMPILE_MAX_MB)) << 20
@@ -1937,7 +1968,11 @@ class GraphNet:
                         env[name] = f(*[get(env, a) for a in args], **{k: get(env, v) for k, v in kwargs.items()})
                 return tuple(env[n] for n in outs)
 
-            if not compiled or max((self._sizes.get(p[1], 0) for _, p in seg), default=0) > seg_max:
+            if (
+                not compiled
+                or max((self._sizes.get(p[1], 0) for _, p in seg), default=0) > seg_max
+                or any(getattr(p[2], "uncompilable", False) for _, p in seg)
+            ):
                 return ins, outs, fn
             jit = mx.compile(fn)
             use: list[Callable[..., Any]] = [jit]
