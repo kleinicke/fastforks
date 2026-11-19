@@ -2623,6 +2623,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | gmflow-scale2-regrefine6-sintelft | 1080x1920 | 1674 ms | 1116 ms | planned for 0.2.1 | – | 58.5 s | – | 6080 / 6250 | 10875 / 10972 | – | – |
 | gmflow-scale2-regrefine6-sintelft | 384x1248 | – | – | 350 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 14.5 s | – | – | – | 1660 / 2526 |
 | gmflow-scale2-regrefine6-things | 1080x1920 | 1665 ms | 1116 ms | planned for 0.2.1 | – | 58.2 s | – | 6080 / 6230 | 10875 / 10972 | – | – |
+| gmflow-scale2-regrefine6-things | 384x1248 | – | – | 350 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.7 s | – | – | – | 1660 / 2526 |
 | gmflow-scale2-sintel | 1080x1920 | 1139 ms | 765 ms | planned for 0.2.1 | – | 46.6 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
 | gmflow-scale2-sintel | 384x1248 | – | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 12.7 s | – | – | – | 1616 / 2560 |
 | gmflow-scale2-things | 1080x1920 | 1139 ms | 765 ms | planned for 0.2.1 | – | 46.7 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
