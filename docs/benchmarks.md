@@ -904,7 +904,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | depth-anything-v2-metric-vkitti-l | 994x1482 | – | – | 54.5 | 31.9 | – | 1.7x | – | 1022 / 1092 | 917 / 1034 |
 | depth-anything-v2-metric-vkitti-s | 994x1482 | – | – | 7.66 | 4.67 | – | 1.6x | – | 244 / 288 | 152 / 208 |
 | depth-anything-v2-s | 518x770 | 45.5 | 38.1 | 7.73 | 4.45 | 8.6x | 1.7x | 373 / 418 | 232 / 326 | 173 / 248 |
-| depth-pro | 994x1482 | – | – | 522 | 277 | – | 1.9x | – | 3297 / 3478 | 3050 / 3198 |
+| depth-pro | 994x1482 | – | – | 521 | 277 | – | 1.9x | – | 3036 / 3298 | 3050 / 3198 |
 | depthfm-v1 | 994x1482 | – | OOM | 4854 | 3555 | – | 1.4x | – | 5422 / 7404 | 3768 / 5942 |
 | distill-any-depth-b | 994x1482 | – | – | 18.6 | 10.8 | – | 1.7x | – | 445 / 514 | 349 / 396 |
 | distill-any-depth-l | 994x1482 | – | – | 54.4 | 31.8 | – | 1.7x | – | 1022 / 1092 | 917 / 1034 |
@@ -2223,7 +2223,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | depth-anything-v2-metric-vkitti-l | 994x1482 | 54.5 ms | 51.3 ms | 32.4 ms | 31.9 ms | 20.1 s | 43.4 s | 1022 / 1092 | 850 / 910 | 917 / 1034 | 1579 / 1634 |
 | depth-anything-v2-metric-vkitti-s | 994x1482 | 7.66 ms | 6.68 ms | 4.47 ms | 4.67 ms | 15.8 s | 29.9 s | 244 / 288 | 201 / 224 | 152 / 208 | 305 / 348 |
 | depth-anything-v2-s | 994x1482 | 7.82 ms | 6.65 ms | 4.46 ms | 4.51 ms | 15.7 s | 29.9 s | 249 / 326 | 201 / 224 | 190 / 248 | 273 / 308 |
-| depth-pro | 994x1482 | 522 ms | 488 ms | 299 ms | 277 ms | 39.2 s | 163 s | 3297 / 3478 | 3053 / 3198 | 3050 / 3198 | 4816 / 4882 |
+| depth-pro | 994x1482 | 521 ms | 488 ms | 299 ms | 277 ms | 39.2 s | 163 s | 3036 / 3298 | 3053 / 3198 | 3050 / 3198 | 4816 / 4882 |
 | depthfm-v1 | 994x1482 | 4854 ms | 3947 ms | fails: ONNX export: conversion failed | 3555 ms | 102 s | – | 5422 / 7404 | 9240 / 10292 | 3768 / 5942 | – |
 | depthfm-v1 | 480x640 | – | – | 353 ms (fixed-shape exported depth network) | – | – | – | – | – | – | 3479 / 3494 |
 | distill-any-depth-b | 994x1482 | 18.6 ms | 17.0 ms | 10.8 ms | 10.8 ms | 16.2 s | 33.0 s | 445 / 514 | 340 / 394 | 349 / 396 | 539 / 614 |

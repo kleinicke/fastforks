@@ -412,7 +412,7 @@ Commercial use: **no** (weights: LicenseRef-research-only).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `depth-pro` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1776<br>569<br>522<br>277<br>488<br>299 | 8170 / 9020<br>3828 / 4294<br>3297 / 3478<br>3050 / 3198<br>3053 / 3198<br>4816 / 4882 |
+| `depth-pro` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1776<br>569<br>521<br>277<br>488<br>299 | 8170 / 9020<br>3828 / 4294<br>3036 / 3298<br>3050 / 3198<br>3053 / 3198<br>4816 / 4882 |
 
 <details><summary>Details</summary>
 
@@ -429,6 +429,7 @@ Commercial use: **no** (weights: LicenseRef-research-only).
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `depth-pro` 3000x4000 (3.4 GiB peak allocated, 4.0 reserved)
 - `depth-pro` 994x1482, first call: portable + torch.compile 39 s (cold Inductor cache), TensorRT fp16 163 s (ONNX + engine).
 - `depth-pro` original 994x1482: torch.autocast(fp16) around the forward; fp16 = original's own precision=float16 model
+- `depth-pro` portable 994x1482: Temporary activations released after last use. Paired depth and camera outputs matched bitwise.
 - `depth-pro` load / first call: original 17.34 s / 0.745 s, portable 6.2 s / 0.522 s, kernels 4.11 s / 0.265 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
