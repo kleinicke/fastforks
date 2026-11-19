@@ -27,8 +27,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`loma-r`](#loma) | yes | 262 | 1328 |
 | [`romav1`](#romav1) | yes | 218, 1.8x | 1738, 0.42x |
 | [`romav2`](#romav2) | yes | 350, 2.1x | 2460, 0.24x |
-| [`xfeat`](#xfeat) | yes | 15.1, 0.6x | 814, 4.7x |
-| [`xfeat-lighterglue`](#xfeat) | yes | 29.1, 0.8x | 818, 1.7x |
+| [`xfeat`](#xfeat) | yes | 15.2, 0.6x | 352, 2.0x |
+| [`xfeat-lighterglue`](#xfeat) | yes | 29.2, 0.8x | 478, 1.0x |
 
 <a id="flexglue"></a>
 
@@ -522,8 +522,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 8.89<br>7.17<br>15.1<br>5.65<br>5.50 (standalone image CNN, eager keypoint selection and matching) | 128 / 174<br>122 / 154<br>290 / 814<br>186 / 212<br>268 / 416 |
-| `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>21.3<br>29.1<br>16.2<br>public API unavailable | 448 / 478<br>445 / 476<br>460 / 818<br>262 / 278<br>– |
+| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 8.89<br>7.17<br>15.2<br>5.65<br>5.50 (standalone image CNN, eager keypoint selection and matching) | 128 / 174<br>122 / 154<br>313 / 352<br>186 / 212<br>268 / 416 |
+| `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>21.3<br>29.2<br>16.2<br>public API unavailable | 448 / 478<br>445 / 476<br>445 / 478<br>262 / 278<br>– |
 
 <details><summary>Details</summary>
 
@@ -543,10 +543,10 @@ Commercial use: yes.
 - `xfeat-lighterglue` 768x1024, first call: portable + torch.compile 40 s (cold Inductor cache).
 - `xfeat` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + mnn, top_k 4096
 - `xfeat` portable 768x1024: Matched public-call comparison for the kernels row at the same input, using the card defaults.
-- `xfeat` kernels 768x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `xfeat` kernels 768x1024: IEEE FP32 extractor uses eager CUDA at this geometry. Its small-shape CUDA graphs are retained. Matches and scores were bitwise equal on 66 MegaDepth pairs.
 - `xfeat-lighterglue` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + lighterglue, top_k 4096
 - `xfeat-lighterglue` portable 768x1024: Matched public-call comparison for the kernels row at the same input, using the card defaults.
-- `xfeat-lighterglue` kernels 768x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `xfeat-lighterglue` kernels 768x1024: IEEE FP32 extractor uses eager CUDA at this geometry. Its small-shape CUDA graphs are retained. Matches and scores were bitwise equal on 66 MegaDepth pairs.
 - `xfeat` load / first call: original 1.51 s / 0.629 s, portable 0.16 s / 0.74 s, kernels 0.17 s / 0.638 s
 - `xfeat-lighterglue` load / first call: original 1.46 s / 0.692 s, portable 0.25 s / 0.681 s, kernels 0.16 s / 0.727 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
