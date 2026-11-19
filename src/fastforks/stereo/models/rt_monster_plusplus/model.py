@@ -126,4 +126,5 @@ RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+    "kernels_mlx": mlx_wrap.port(Portable, whole="disparity"),
 }

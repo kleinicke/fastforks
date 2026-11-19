@@ -36,6 +36,8 @@ mlx_dtypes = ["float32", "float16"]
 [modes.kernels]
 kernels = ["igev", "cutlass_conv", "cudnn_hacc"]
 mps_kernels = ["stereo_metal"]
+mlx_kernels = ["conv_mlx"]
+mlx_dtypes = ["float32", "float16"]
 
 # Upstream also publishes Selective-RAFT weights (another architecture): not part of this family.
 # All variants run with max_disp 192 (the cost-volume depth); the upstream Middlebury demo uses 768. It stays a

@@ -1417,9 +1417,13 @@ def _refs(a: Any) -> Iterator[str]:
             yield from _refs(x)
 
 
-COMPILE_MAX_ACT = 80 << 20
-"""Compile the replay only when no activation exceeds this many bytes: `mx.compile` of a graph with huge maps (dense
-prediction at megapixel size) peaks at about twice the memory of the lazy replay and runs slower."""
+TUNE_MIN_MB = 16
+TUNE_SLACK = 1.03
+"""A compiled segment with an activation above `TUNE_MIN_MB` runs once eagerly and once compiled on its first call and
+keeps the compiled form unless it takes more than `TUNE_SLACK` times as long or peaks 25 % (and 64 MB) higher."""
+SEG_COMPILE_MAX_MB = 200
+"""A replay segment is `mx.compile`d only when none of its activations exceeds this many MB: compiling a segment with
+huge maps (a 5-D cost volume) peaks at about twice the memory of the lazy replay."""
 
 BIG_WEIGHTS = 1 << 30  # weights (run dtype) from which the checkpoint interval grows to the weights' size
 BIG_CHUNK_MB = 2048
@@ -1727,9 +1731,11 @@ class GraphNet:
                 cuts.append(k + 1)
                 pending = 0
         cuts.append(len(steps))
-        compiled = self._compile and self.max_act <= COMPILE_MAX_ACT
+        compiled = self._compile
+        seg_max = int(os.environ.get("FF_MLX_SEG_MB", SEG_COMPILE_MAX_MB)) << 20
         if os.environ.get("FF_MLX_COMPILE"):
             compiled = os.environ["FF_MLX_COMPILE"] == "1"
+            seg_max = 1 << 60
         if PROFILE is not None:
             compiled = False
 
@@ -1762,12 +1768,36 @@ class GraphNet:
                         env[name] = f(*[get(env, a) for a in args], **{k: get(env, v) for k, v in kwargs.items()})
                 return tuple(env[n] for n in outs)
 
-            if not compiled:
+            if not compiled or max((self._sizes.get(p[1], 0) for _, p in seg), default=0) > seg_max:
                 return ins, outs, fn
             jit = mx.compile(fn)
             use: list[Callable[..., Any]] = [jit]
+            seg_big = max((self._sizes.get(p[1], 0) for _, p in seg), default=0)
+            tune = [seg_big > TUNE_MIN_MB << 20 and not os.environ.get("FF_MLX_NO_TUNE")]
+
+            def timed(g: Callable[..., Any], xs: tuple[mx.array, ...]) -> tuple[float, int, Any]:
+                """Seconds and peak bytes of the second call of `g` (the first warms kernels and traces)."""
+                mx.eval(g(*xs))
+                mx.reset_peak_memory()
+                t0 = time.perf_counter()
+                res = g(*xs)
+                mx.eval(res)
+                return time.perf_counter() - t0, mx.get_peak_memory(), res
 
             def guarded(*xs: mx.array) -> tuple[mx.array, ...]:
+                if tune[0]:  # first call of a segment with big maps: keep the compiled form only if it is not slower
+                    tune[0] = False
+                    try:
+                        te, me, res = timed(fn, xs)
+                        tc, mc, res = timed(jit, xs)
+                    except ValueError as err:
+                        if "uncaptured" not in str(err):
+                            raise
+                        use[0] = fn
+                        return fn(*xs)
+                    if tc > te * TUNE_SLACK or mc > me * 1.25 + (64 << 20):
+                        use[0] = fn
+                    return res
                 try:
                     return use[0](*xs)
                 except ValueError as err:  # a segment mx.compile cannot trace (in-place state): run it eagerly

@@ -419,3 +419,35 @@ profile hot spots: hitnet 1-D grid_sample on stride-2 tensors, aanet
 deformable-conv `mul`, s2m2 GELU and convs, raft GRU gates and correlation
 lookup (candidate fused kernels). `apple_mlx.json` routing is unchanged: only
 crestereo-eth3d wins.
+
+## Compile policy and kernels declarations (v0.21 follow-up)
+
+`mx.compile` is now decided per segment instead of per graph: segments whose largest activation exceeds
+`SEG_COMPILE_MAX_MB` (200) run eagerly, and a segment with an activation above `TUNE_MIN_MB` (16) is timed eagerly and
+compiled once on its first call and keeps the compiled form unless it is more than 3 % slower or peaks 25 % higher.
+`FF_MLX_NO_TUNE=1` disables the tuning, `FF_MLX_SEG_MB` moves the size gate.
+
+Portable fp16, 994x1482 (ms / peak MB, this pass, MLX only; MPS values are in the table above):
+
+| Model | portable | kernels (`conv_mlx`) | declared |
+|---|---|---|---|
+| aanet-sceneflow | 1533 / 1152 | 1800 / 2395 | no |
+| s2m2-s | 2775 / 2047 | 2676 / 3594 | no |
+| nmrf-sceneflow | 2674 / 1131 | 2474 / 1145 | no (memory equal) |
+| dlnr-sceneflow | 4300 / 2068 | 3564 / 4040 | no |
+| mocha-v1-sceneflow | 9795 / 2208 | 9484 / 3786 | no |
+| rt-monster-plusplus-mix-all | 1063 / 2250 | 1013 / 2069 | yes |
+| igev-stereo-sceneflow | 8848 / 2385 | 7682 / 2542 | no |
+| bridgedepth-sf | 5079 / 3339 | 4790 / 3270 | no (golden fails in kernels) |
+| coex-sceneflow | 522 / 1827 | 510 / 1831 | no (tie) |
+| waft-stereo-s | 5708 / 3446 | 6206 / 3541 | no |
+| hitnet-eth3d | 591 / 996 | 720 / 2010 | no |
+| selective-igev-sceneflow | 12598 / 3613 | 11854 / 3309 | yes |
+| igev-plusplus-sceneflow | 16198 / 2531 | 9871 / 2697 | yes (speed, memory +6 %) |
+| monster-sceneflow | 17723 / 4332 | 16998 / 7166 | no |
+| great-igev-sceneflow | 19870 / 8861 | 18778 / 8949 | no |
+
+The compile policy alone gave about 10-20 % on aanet, s2m2, nmrf, hitnet and coex with lower memory (coex 525 ms /
+1.8 GB, hitnet 592 ms / 1.0 GB). Winograd in kernels mode mostly doubles peak memory (transformed V/M tensors), so only
+the rows above that win are declared. `apple_mlx.json` is unchanged. Not done: fused GRU gates and correlation lookup,
+deformable-conv sample*mask kernel, hitnet 1-D grid_sample, sibling-conv merge.

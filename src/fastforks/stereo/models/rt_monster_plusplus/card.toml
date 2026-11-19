@@ -39,6 +39,8 @@ mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["monster_gwc", "igev", "cutlass_conv", "cudnn_hacc", "fastbb"]
+mlx_kernels = ["conv_mlx"]
+mlx_dtypes = ["float32", "float16"]
 # Kernels: the portable fp16 path with the ViT-S as the fp16 DINOv2 of fastforks.shared.depth_anything_v2 and every other
 # conv on the fp16-accumulate cuDNN / CUTLASS kernels (fastforks.shared.cnn_kernels, BN / activation in the epilogue).
 # Middlebury-H 93.9 vs 113.7 ms (our earlier fork's fast path 119.5); peak alloc 2660 vs 2595 MB, +65 MB (+2.5 %, likely
