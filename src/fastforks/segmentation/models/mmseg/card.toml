@@ -55,6 +55,8 @@ mps_dtypes = ["float32", "float16"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
+mlx_kernels = ["conv_mlx"]  # Winograd F(4,3) 3x3 convolutions (float16; float32 runs as portable)
+mlx_dtypes = ["float32", "float16"]
 kernels = ["igev", "cutlass_conv", "cudnn_hacc", "seg_conv", "seg_up"]  # fastforks.shared.cnn_kernels: epilogue, CUTLASS and fp16-acc convs
 # BatchNorm folded into fp32 conv epilogues: dense convs with C, K % 8 == 0 (dilated included) and the depthwise ones
 # (DeepLabV3+) run `seg_conv` CUTLASS kernels; the convs it does not take run the fp16-accumulate cuDNN graph
