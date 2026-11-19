@@ -65,7 +65,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`monster-plusplus-mix-all`](#monster_plusplus) | no | 1.08 ? | 657, 6.6x | 2754, 0.43x |
 | [`monster-sceneflow`](#monster) | no | 1.34 | 655, 6.5x | 2514, 0.39x |
 | [`nmrf-sceneflow`](#nmrf) | yes | 3.81 | 196, 1.6x | 1112, 0.54x |
-| [`psmnet-sceneflow`](#psmnet) | yes | 15.13 | 232, 2.6x | 2002, 0.33x |
+| [`psmnet-sceneflow`](#psmnet) | yes | 15.13 | 231, 2.6x | 1782, 0.29x |
 | [`raft-stereo-eth3d`](#raft_stereo) | yes | 2.61 † | 275, 3.8x | 738, 0.28x |
 | [`raft-stereo-middlebury`](#raft_stereo) | yes | 2.79 | 274, 3.8x | 758, 0.29x |
 | [`raft-stereo-sceneflow`](#raft_stereo) | yes | 2.60 | 274, 3.8x | 758, 0.29x |
@@ -1533,7 +1533,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `psmnet-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 760<br>608<br>340<br>232<br>440<br>669 | 7544 / 7640<br>6015 / 6090<br>2035 / 2422<br>1743 / 2002<br>1760 / 2082<br>1611 / 1630 |
+| `psmnet-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 760<br>608<br>340<br>231<br>440<br>669 | 7544 / 7640<br>6015 / 6090<br>1881 / 2402<br>1469 / 1782<br>1760 / 2082<br>1611 / 1630 |
 
 <details><summary>Details</summary>
 
@@ -1549,6 +1549,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `psmnet-sceneflow` 1988x2880 (7.6 GiB peak allocated, 10.6 reserved)
 - `psmnet-sceneflow` 994x1482, first call: portable + torch.compile 60 s (cold Inductor cache), TensorRT fp16 89 s (ONNX + engine).
 - `psmnet-sceneflow` original 994x1482: torch.autocast(fp16) around the forward
+- `psmnet-sceneflow` portable 994x1482, kernels 994x1482: Consume the PSMNet hourglass outputs before the next classification. The synthetic and three labeled Middlebury disparities matched bitwise.
 - `psmnet-sceneflow` load / first call: original 0.2 s / 0.525 s (375x1242), portable 0.3 s / 0.321 s (375x1242), kernels 0.59 s / 0.163 s (375x1242)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

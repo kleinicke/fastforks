@@ -871,7 +871,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | monster-mix-all | – | – | 1583 | 656 | 2.4x | 2325 / 2492 | 2216 / 2514 |
 | monster-plusplus-mix-all | – | – | – | 657 | – | – | 2438 / 2754 |
 | monster-sceneflow | – | – | 1585 | 655 | 2.4x | 2325 / 2574 | 2216 / 2514 |
-| psmnet-sceneflow | – | – | 340 | 232 | 1.5x | 2035 / 2422 | 1743 / 2002 |
+| psmnet-sceneflow | – | – | 340 | 231 | 1.5x | 1881 / 2402 | 1469 / 1782 |
 | raft-stereo-eth3d | – | – | – | 275 | – | – | 722 / 738 |
 | raft-stereo-middlebury | – | – | – | 274 | – | – | 722 / 758 |
 | raft-stereo-sceneflow | – | – | – | 274 | – | – | 722 / 758 |
@@ -2187,7 +2187,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | monster-plusplus-mix-all | 994x1482 | 1633 ms | 1126 ms | 697 ms | 657 ms | 109 s | 416 s | 2583 / 2918 | 2328 / 2532 | 2438 / 2754 | 3489 / 3552 |
 | monster-sceneflow | 994x1482 | 1585 ms | 1096 ms | 671 ms | 655 ms | 103 s | 384 s | 2325 / 2574 | 2081 / 2272 | 2216 / 2514 | 2865 / 2928 |
 | nmrf-sceneflow | 994x1482 | 216 ms | 161 ms | 184 ms | 196 ms | 84.8 s | 142 s | 1510 / 1552 | 854 / 1104 | 1022 / 1112 | 1027 / 1134 |
-| psmnet-sceneflow | 994x1482 | 340 ms | 440 ms | 669 ms | 232 ms | 60.0 s | 88.9 s | 2035 / 2422 | 1760 / 2082 | 1743 / 2002 | 1611 / 1630 |
+| psmnet-sceneflow | 994x1482 | 340 ms | 440 ms | 669 ms | 231 ms | 60.0 s | 88.9 s | 1881 / 2402 | 1760 / 2082 | 1469 / 1782 | 1611 / 1630 |
 | raft-stereo-eth3d | 994x1482 | 746 ms | 506 ms | 333 ms | 275 ms | 99.9 s | 132 s | 1388 / 1492 | 815 / 988 | 722 / 738 | 952 / 972 |
 | raft-stereo-middlebury | 994x1482 | 746 ms | 506 ms | 334 ms | 274 ms | 100 s | 132 s | 1388 / 1492 | 780 / 988 | 722 / 758 | 1012 / 1090 |
 | raft-stereo-sceneflow | 994x1482 | 746 ms | 507 ms | 333 ms | 274 ms | 100 s | 132 s | 1388 / 1492 | 780 / 988 | 722 / 758 | 1014 / 1092 |
