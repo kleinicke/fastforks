@@ -619,7 +619,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`anysplat`](models/multiview.md#anysplat) | yes | 741.2 (336x518) | 503.2 | 363.7 | 2.0x vs original (336x518) | 4849 |
 | [`vggt-1b`](models/multiview.md#vggt) | no | 965.0 (336x518) | 651.5 | 459.8 | 2.1x vs original (336x518) | 3650 |
 | [`vggt-omega-1b-512`](models/multiview.md#vggt-omega) | no | 906.4 (336x518) | 725.7 | 466.9 | 1.9x vs original (336x518) | 3404 |
-| [`lingbot-map`](models/multiview.md#lingbot-map) | yes | 992.8 (480x640) | 729.7 | 515.3 | 1.9x vs original (480x640) | 4519 |
+| [`lingbot-map`](models/multiview.md#lingbot-map) | yes | 992.8 (480x640) | 733.3 | 520.0 | 1.9x vs original (480x640) | 4167 |
 | [`mapanything-apache`](models/multiview.md#mapanything) | yes | 1966.8 (336x518) | 635.9 | 544.0 | 3.6x vs original (336x518) | 3697 |
 | [`pi3`](models/multiview.md#pi3) | no | 1056.6 (336x518) | 820.8 | 558.7 | 1.9x vs original (336x518) | 2367 |
 | [`resplat-base-re10k`](models/multiview.md#resplat) | no | 2520.8 (480x640) | 7085.6 | 1280.2 | 2.0x vs original (480x640) | 6944 |

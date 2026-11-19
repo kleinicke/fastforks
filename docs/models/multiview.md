@@ -14,7 +14,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 |---|---|---|---|
 | [`anysplat`](#anysplat) | yes | 364, 2.0x | 5192, 0.55x |
 | [`depthsplat-small-re10k`](#depthsplat) | yes | 112, 1.1x | 5606, 0.95x |
-| [`lingbot-map`](#lingbot_map) | yes | 515, 1.9x | 4810, 0.63x |
+| [`lingbot-map`](#lingbot_map) | yes | 520, 1.9x | 6178, 0.81x |
 | [`mapanything-apache`](#mapanything) | yes | 544, 3.6x | 4072, 0.47x |
 | [`mvsanywhere`](#mvsanywhere) | no | 35.2, 6.2x | 760, 0.51x |
 | [`mvsplat-re10k`](#mvsplat) | yes | 172, 1.6x | 1532, 0.37x |
@@ -142,7 +142,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `lingbot-map` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 993<br>730<br>515<br>657<br>489 | 7141 / 7672<br>4512 / 4770<br>4519 / 4810<br>3339 / 3468<br>6280 / 6338 |
+| `lingbot-map` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 993<br>733<br>520<br>657<br>489 | 7141 / 7672<br>4158 / 6016<br>4167 / 6178<br>3339 / 3468<br>6280 / 6338 |
 
 <details><summary>Details</summary>
 
@@ -159,6 +159,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lingbot-map` 3000x4000 (5.5 GiB peak allocated, 6.8 reserved)
 - `lingbot-map` 480x640, first call: portable + torch.compile 71 s (cold Inductor cache), TensorRT fp16 181 s (ONNX + engine).
 - `lingbot-map` original 480x640: the authors' mixed-precision option (bfloat16); upstream GCTStream.inference_streaming (demo defaults, SDPA), bfloat16 aggregator
+- `lingbot-map` portable 480x640: Release causal keys and values before the final depth head. The matched eight-view baseline allocated 4719 MiB. Five labeled DTU scenes and both synthetic sequences matched bitwise.
+- `lingbot-map` kernels 480x640: Release causal keys and values before the final depth head. The matched eight-view baseline allocated 4728 MiB. Five labeled DTU scenes and both synthetic sequences matched bitwise.
 - `lingbot-map` load / first call: original 131.28 s / 4.645 s (480x640), portable 6.58 s / 1.077 s (480x640), kernels 5.69 s / 0.843 s (480x640)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
