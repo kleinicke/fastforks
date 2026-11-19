@@ -73,7 +73,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`bridgedepth-rvc-pretrain`](models/stereo.md#bridgedepth) | no | 1.22 ? | 470.1 (994x1482) | 441.6 | 353.6 | 1.3x vs original (994x1482) | 2361 |
 | [`cas-gwcnet-gc-sceneflow`](models/stereo.md#cas-gwcnet) | yes | 8.09 | 566.7 (994x1482) | 471.6 | 357.5 | 1.6x vs original (994x1482) | 2272 |
 | [`s2m2-l`](models/stereo.md#s2m2) | no | 0.82 ? | 1004.7 (994x1482) | 1016.8 | 375.8 | 2.7x vs original (994x1482) | 1249 |
-| [`waft-stereo-b`](models/stereo.md#waft-stereo) | no | 0.74 ? | 1139.5 (994x1482) | 1137.2 | 387.9 | 2.9x vs original (994x1482) | 1664 |
+| [`waft-stereo-b`](models/stereo.md#waft-stereo) | no | 0.74 ? | 1139.5 (994x1482) | 1143.6 | 387.9 | 2.9x vs original (994x1482) | 1664 |
 | [`igev-plusplus-middlebury`](models/stereo.md#igev) | yes | 18.46 ? | 1277.9 (994x1482) | 1080.0 | 393.4 | 3.2x vs original (994x1482) | 1272 |
 | [`igev-plusplus-kitti15`](models/stereo.md#igev) | yes | 25.50 | 1277.9 (994x1482) | 1080.4 | 393.9 | 3.2x vs original (994x1482) | 1272 |
 | [`igev-plusplus-kitti12`](models/stereo.md#igev) | yes | 26.78 | 1277.9 (994x1482) | 1080.1 | 394.3 | 3.2x vs original (994x1482) | 1272 |
@@ -155,7 +155,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`video-depth-anything-metric-s`](models/depth.md#video-depth-anything) | yes | – | – | 201.6 | 200.0 (1080x1920) | 1.0x vs portable | 1967 |
 | [`marigold-depth-v1-1`](models/depth.md#marigold) | yes | 0.0561 | 439.2 (994x1482) | 410.0 | 261.4 | 1.7x vs original (994x1482) | 2343 |
 | [`depth-pro`](models/depth.md#depth-pro) | no | 0.0425 | 568.8 (994x1482) | 522.3 | 276.6 | 2.1x vs original (994x1482) | 3050 |
-| [`omni-dc`](models/depth.md#omni-dc) | no | – | 875.5 (994x1482) | 554.3 | 509.8 | 1.7x vs original (994x1482) | 4981 |
+| [`omni-dc`](models/depth.md#omni-dc) | no | – | 875.5 (994x1482) | 571.1 | 510.3 | 1.7x vs original (994x1482) | 4167 |
 | [`depthfm-v1`](models/depth.md#depthfm) | yes | – | OOM (994x1482) | 4854.3 | 3555.4 | 1.4x vs portable | 3768 |
 | [`marigold-v2-depth`](models/depth.md#marigold-v2) | yes | 0.0386 | OOM (994x1482) | 4891.7 | 3887.1 | 1.3x vs portable | 1408 |
 

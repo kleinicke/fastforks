@@ -6,7 +6,7 @@ outputs = ["disparity"]
 uses = ["cnn_kernels", "depth_anything_v2", "timm_blocks"]  # fastforks.shared modules this family imports
 limitations = [
   "Only the two SynLarge checkpoints (S, B) are included; DAv2L-5 and the Real / KITTI / Middlebury fine-tunes are not.",
-  "Portable WAFT-B is slightly slower than the original code and allocates slightly more memory; kernels is about 3x faster with a third of the memory.",
+  "On the 994 x 1482 FP16 profile, portable WAFT-B groups the attention heads to save about 2 GiB of peak allocation at comparable latency. Kernels runs about three times faster than portable and uses under half its peak allocation.",
   "WAFT-Stereo-B kernels runs its ViT attention with fp16 accumulation: single attention outputs differ from fp32 by up to 34 % (relative), but end-to-end ETH3D / Middlebury-H accuracy matches the fp32 original (EPE 0.163 / 0.728).",
   "The standalone FP32 TensorRT engine at 384 x 1248 matched portable FP32 at 2.904% D1 over 200 KITTI pairs. Median time was 1,208 ms with TensorRT and 381 ms portable. The default FP16 TensorRT exporter remains gated.",
 ]

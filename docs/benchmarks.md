@@ -880,7 +880,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | s2m2-m | – | – | 670 | – | – | 2289 / 2766 | – |
 | s2m2-xl | – | – | 1818 | – | – | 5217 / 6014 | – |
 | selective-igev-eth3d-finetune | – | – | 996 | 351 | 2.8x | 1227 / 1448 | 1051 / 1190 |
-| waft-stereo-b | – | – | – | 388 | – | – | 1664 / 1932 |
+| waft-stereo-b | – | – | 1144 | 388 | 2.9x | 3727 / 5814 | 1664 / 1932 |
 | waft-stereo-s | – | – | – | 284 | – | – | 954 / 1102 |
 
 ### Depth, synthetic
@@ -922,7 +922,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | moge-2-vitl-normal | 518x770 | 500 | 169 | 145 | 73.9 | 2.3x | 2.0x | 2326 / 2418 | 1645 / 1836 | 1481 / 1610 |
 | moge-2-vits-normal | 994x1482 | – | – | 61.6 | 33.3 | – | 1.9x | – | 1007 / 1172 | 932 / 1048 |
 | moge-3-vitl | 994x1482 | – | – | 334 | 149 | – | 2.2x | – | 1678 / 1826 | 1626 / 1762 |
-| omni-dc | 994x1482 | – | 875 | 554 | 510 | 1.7x | 1.1x | 5966 / 6732 | 4958 / 6304 | 4981 / 6030 |
+| omni-dc | 994x1482 | – | 875 | 571 | 510 | 1.7x | 1.1x | 5966 / 6732 | 4145 / 6158 | 4167 / 6580 |
 | pointdit-b-512 | 994x1482 | – | – | 31.1 | 20.5 | – | 1.5x | – | 446 / 504 | 462 / 630 |
 | pointdit-l-512 | 994x1482 | – | – | 94.6 | 61.3 | – | 1.5x | – | 1297 / 1430 | 1310 / 1676 |
 | prompt-depth-anything-l | 756x1008 | – | – | 125 | 69.3 | – | 1.8x | – | 1318 / 1488 | 1179 / 1348 |
@@ -2203,7 +2203,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | selective-igev-middlebury-finetune | 994x1482 | 998 ms | 692 ms | 462 ms | 349 ms | 127 s | 258 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1280 / 1316 |
 | selective-igev-middlebury-train | 994x1482 | 998 ms | 692 ms | 462 ms | 349 ms | 128 s | 256 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
 | selective-igev-sceneflow | 994x1482 | 998 ms | 692 ms | 463 ms | 349 ms | 127 s | 255 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
-| waft-stereo-b | 994x1482 | 1137 ms | 571 ms | planned for 0.2.1 | 388 ms | 104 s | – | 5775 / 5852 | 3908 / 3936 | 1664 / 1932 | – |
+| waft-stereo-b | 994x1482 | 1144 ms | 571 ms | planned for 0.2.1 | 388 ms | 104 s | – | 3727 / 5814 | 3908 / 3936 | 1664 / 1932 | – |
 | waft-stereo-b | 384x1248 | – | – | 1209 ms, fp32 engine (standalone build) | – | – | 107 s | – | – | – | 1447 / 1454 |
 | waft-stereo-s | 994x1482 | 689 ms | 357 ms | 170 ms | 284 ms | 95.1 s | 152 s | 3293 / 3456 | 2024 / 2058 | 954 / 1102 | 1061 / 1114 |
 | any2full-b | 994x1482 | 26.8 ms | 24.2 ms | 15.8 ms | 17.2 ms | 97.0 s | 64.4 s | 538 / 596 | 442 / 496 | 481 / 536 | 731 / 794 |
@@ -2244,7 +2244,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | moge-2-vits-normal | 994x1482 | 61.6 ms | 43.9 ms | 24.5 ms | 33.3 ms | 124 s | 131 s | 1007 / 1172 | 836 / 992 | 932 / 1048 | 768 / 852 |
 | moge-3-vitl | 994x1482 | 334 ms | 311 ms | planned for 0.2.1 | 149 ms | 136 s | – | 1678 / 1826 | 1500 / 1724 | 1626 / 1762 | – |
 | moge-3-vitl | 480x640 | – | – | 1069 ms, fp32 engine (DINOv2 encoder and projections with eager decoder and sparse refinement) | – | – | – | – | – | – | 4568 / 5382 |
-| omni-dc | 994x1482 | 554 ms | 411 ms | planned for 0.2.1 | 510 ms | 137 s | – | 4958 / 6304 | 4201 / 5932 | 4981 / 6030 | – |
+| omni-dc | 994x1482 | 571 ms | 411 ms | planned for 0.2.1 | 510 ms | 137 s | – | 4145 / 6158 | 4201 / 5932 | 4167 / 6580 | – |
 | omni-dc | 480x640 | – | – | 253 ms, fp32 engine (Depth Anything V2 with eager prompt fusion and solver) | – | – | 52.0 s | – | – | – | 2930 / 3298 |
 | pointdit-b-512 | 994x1482 | 31.1 ms | 23.7 ms | 15.5 ms | 20.5 ms | 33.6 s | 86.5 s | 446 / 504 | 465 / 524 | 462 / 630 | 795 / 898 |
 | pointdit-l-512 | 994x1482 | 94.6 ms | 76.0 ms | 49.1 ms | 61.3 ms | 57.3 s | 150 s | 1297 / 1430 | 1316 / 1430 | 1310 / 1676 | 2474 / 2626 |

@@ -1875,7 +1875,7 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `waft-stereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1252<br>689<br>689<br>284<br>357<br>170 | 3764 / 4352<br>3314 / 3398<br>3293 / 3456<br>954 / 1102<br>2024 / 2058<br>1061 / 1114 |
-| `waft-stereo-b` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1898<br>1140<br>1137<br>388<br>571<br>planned for 0.2.1 | 7348 / 7528<br>5743 / 5876<br>5775 / 5852<br>1664 / 1932<br>3908 / 3936<br>– |
+| `waft-stereo-b` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1898<br>1140<br>1144<br>388<br>571<br>planned for 0.2.1 | 7348 / 7528<br>5743 / 5876<br>3727 / 5814<br>1664 / 1932<br>3908 / 3936<br>– |
 | `waft-stereo-b` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>1209 (standalone build) | –<br>–<br>–<br>1447 / 1454 |
 
 <details><summary>Details</summary>
@@ -1899,6 +1899,7 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 - `waft-stereo-b` 384x1248, first call: TensorRT fp32 107 s (ONNX + engine).
 - `waft-stereo-s` original 994x1482: torch.autocast(fp16) around the forward
 - `waft-stereo-b` original 994x1482: torch.autocast(fp16) around the forward
+- `waft-stereo-b` portable 994x1482: Bound full-token DINOv2 attention by independent head groups. The matched synthetic baseline was 1138.434 ms and 5779 MiB peak allocated. The synthetic and three labeled comparisons were bitwise identical.
 - `waft-stereo-s` load / first call: original 1.6 s / 0.14 s (375x1242), portable 0.58 s / 0.691† s, kernels 1.47 s / 0.32 s (375x1242)
 - `waft-stereo-b` load / first call: original 3.07 s / 0.444 s (375x1242), portable 1.65 s / 1.148† s, kernels 1.77 s / 0.459 s (375x1242)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -1930,7 +1931,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 ### Limitations
 
 - Only the two SynLarge checkpoints (S, B) are included; DAv2L-5 and the Real / KITTI / Middlebury fine-tunes are not.
-- Portable WAFT-B is slightly slower than the original code and allocates slightly more memory; kernels is about 3x faster with a third of the memory.
+- On the 994 x 1482 FP16 profile, portable WAFT-B groups the attention heads to save about 2 GiB of peak allocation at comparable latency. Kernels runs about three times faster than portable and uses under half its peak allocation.
 - WAFT-Stereo-B kernels runs its ViT attention with fp16 accumulation: single attention outputs differ from fp32 by up to 34 % (relative), but end-to-end ETH3D / Middlebury-H accuracy matches the fp32 original (EPE 0.163 / 0.728).
 - The standalone FP32 TensorRT engine at 384 x 1248 matched portable FP32 at 2.904% D1 over 200 KITTI pairs. Median time was 1,208 ms with TensorRT and 381 ms portable. The default FP16 TensorRT exporter remains gated.
 
