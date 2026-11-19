@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 
 import torch
 
+from fastforks._core.patch import base_type, override
+from fastforks.shared.depth_anything_v2.net.dinov2_layers.attention import Attention
 from fastforks.stereo._runner import Forward, Runner
 
 from .net.waft import WAFT
@@ -45,6 +47,32 @@ class _CfgNode(dict):
 _EXTRA: dict[tuple[str, str], object] = {  # what the checkpoints' pickles reference besides tensors
     ("bridgedepth.config.config", "CfgNode"): _CfgNode,
 }
+_ATTENTION_BYTES = 256 * 1024**2
+
+
+def _bounded_attention(m: Attention, x: torch.Tensor, attn_bias: torch.Tensor | None = None) -> torch.Tensor:
+    """Keep the original DINOv2 attention math with a bounded CUDA head workspace."""
+    if attn_bias is not None:
+        return base_type(m).forward(m, x, attn_bias)
+    b, n, c = x.shape
+    capture = torch.compiler.is_compiling() or torch.jit.is_tracing()
+    if (
+        not x.is_cuda
+        or capture
+        or torch.is_grad_enabled()
+        or m.training
+        or b * m.num_heads * n * n * x.element_size() <= _ATTENTION_BYTES
+    ):
+        return Attention.forward(m, x)
+    qkv = m.qkv(x).reshape(b, n, 3, m.num_heads, c // m.num_heads).permute(2, 0, 3, 1, 4)
+    q, key, value = qkv.unbind(0)
+    q = q * m.scale
+    key = key.transpose(-2, -1)
+    step = max(1, _ATTENTION_BYTES // (b * n * n * q.element_size()))
+    groups = zip(q.split(step, 1), key.split(step, 1), value.split(step, 1), strict=True)
+    parts = [m.attn_drop((query @ key_part).softmax(dim=-1)) @ value_part for query, key_part, value_part in groups]
+    out = torch.cat(parts, dim=1).transpose(1, 2).reshape(b, n, c)
+    return m.proj_drop(m.proj(out))
 
 
 def _net(ctx: Context) -> WAFT:
@@ -72,6 +100,9 @@ class Portable(Runner):
         super().__init__(ctx)
         self.net = _net(ctx)
         self.half = ctx.dtype == "float16"
+        for module in self.net.modules():
+            if isinstance(module, Attention):
+                override(module, _bounded_attention)
 
     def _run(self, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
         if not self.half:
