@@ -176,10 +176,12 @@ def _raft(raft: RAFT, im1: torch.Tensor, im2: torch.Tensor, iters: int, make: Ca
     net, inp = torch.tanh(net), torch.relu(inp)
     coords0, coords1 = raft.initialize_flow(image1)
     up_mask = None
-    for _ in range(iters):
+    for step in range(iters):
         corr = corr_fn(coords1)
-        net, up_mask, delta = raft.update_block(net, inp, corr, coords1 - coords0)
+        net, up_mask, delta = raft.update_block(net, inp, corr, coords1 - coords0, upsample=step + 1 == iters)
+        del corr
         coords1 = coords1 + delta
+    del corr_fn
     return raft.upsample_flow(coords1 - coords0, up_mask), feats[1:], fmap1.float()
 
 
