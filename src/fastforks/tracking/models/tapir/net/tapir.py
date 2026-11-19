@@ -207,11 +207,15 @@ def map_coordinates_2d(feats: torch.Tensor, coords: torch.Tensor) -> torch.Tenso
 def soft_argmax(heat: torch.Tensor, threshold: float = 5) -> torch.Tensor:
     """`(x, y)` `[B, N, T, 2]` (grid cells, centres at +0.5): the mean of `heat` within `threshold` of its argmax."""
     b, n, t, h, w = heat.shape
-    yy, xx = torch.meshgrid(torch.arange(h, device=heat.device), torch.arange(w, device=heat.device), indexing="ij")
-    coords = torch.stack([xx + 0.5, yy + 0.5], -1)  # [h, w, 2]
+    y = torch.arange(h, device=heat.device) + 0.5
+    x = torch.arange(w, device=heat.device) + 0.5
+    yy, xx = torch.meshgrid(y, x, indexing="ij")
+    coords = torch.stack([xx, yy], -1)  # [h, w, 2]
     pos = coords.reshape(-1, 2)[heat.reshape(b, n, t, -1).argmax(-1)]  # [b, n, t, 2]
-    valid = (coords - pos[:, :, :, None, None]).square().sum(-1, keepdim=True) < threshold**2
-    weight = valid * heat[..., None]
+    dx2 = (x - pos[..., :1]).square()
+    dy2 = (y - pos[..., 1:]).square()
+    valid = dx2[..., None, :] + dy2[..., :, None] < threshold**2
+    weight = valid[..., None] * heat[..., None]
     total = (coords * weight).sum((3, 4))
     return total / torch.clamp(weight.sum((3, 4)), min=1e-12)
 
