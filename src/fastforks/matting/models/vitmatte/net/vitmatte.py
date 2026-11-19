@@ -463,34 +463,35 @@ class VitMatteDetailCaptureModule(nn.Module):
         for i, block in enumerate(self.fusion_blocks[:-1]):
             detailed_feature_map_name = "detailed_feature_map_" + str(len(self.fusion_blocks) - i - 1)
             features = block(features, detail_features.pop(detailed_feature_map_name))
-        return self._alpha(features, pixel_values)
+        return matte_in_strips(features, pixel_values, self._matte)
 
     def _matte(self, features, pixels):
         return self.matting_head(self.fusion_blocks[-1](features, pixels)).sigmoid()
 
-    def _alpha(self, features, pixels):
-        height, width = pixels.shape[-2:]
-        if (
-            not features.is_cuda
-            or features.dtype != torch.float16
-            or height * width < 1024 * 1024
-            or torch.is_grad_enabled()
-            or torch.compiler.is_compiling()
-            or torch.jit.is_tracing()
-        ):
-            return self._matte(features, pixels)
+def matte_in_strips(features, pixels, matte):
+    """Apply the local 2x matting tail in row strips for large FP16 CUDA images."""
+    height, width = pixels.shape[-2:]
+    if (
+        not features.is_cuda
+        or features.dtype != torch.float16
+        or height * width < 1024 * 1024
+        or torch.is_grad_enabled()
+        or torch.compiler.is_compiling()
+        or torch.jit.is_tracing()
+    ):
+        return matte(features, pixels)
 
-        # Adjacent rows for 2x bilinear upsampling and the two full-resolution 3x3 convolutions.
-        # A strip starts at an even output row so bilinear samples use the original pixel centers.
-        half_height = features.shape[-2]
-        rows = max(32, (128 * 1024) // width)
-        output = []
-        for start in range(0, half_height, rows):
-            stop = min(start + rows, half_height)
-            low, high = max(0, start - 2), min(half_height, stop + 2)
-            alpha = self._matte(features[..., low:high, :], pixels[..., 2 * low : 2 * high, :])
-            output.append(alpha[..., 2 * (start - low) : 2 * (stop - low), :])
-        return torch.cat(output, dim=-2)
+    # Adjacent rows for 2x bilinear upsampling and the two full-resolution 3x3 convolutions.
+    # A strip starts at an even output row so bilinear samples use the original pixel centers.
+    half_height = features.shape[-2]
+    rows = max(32, (128 * 1024) // width)
+    output = []
+    for start in range(0, half_height, rows):
+        stop = min(start + rows, half_height)
+        low, high = max(0, start - 2), min(half_height, stop + 2)
+        alpha = matte(features[..., low:high, :], pixels[..., 2 * low : 2 * high, :])
+        output.append(alpha[..., 2 * (start - low) : 2 * (stop - low), :])
+    return torch.cat(output, dim=-2)
 
 
 class VitMatteForImageMatting(nn.Module):

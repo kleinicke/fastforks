@@ -30,7 +30,7 @@ from fastforks.matting._runner import Forward, Runner, scale
 from fastforks.shared.cnn_kernels import ACT, CL, bn_affine, conv_ep, prepare_convs
 from fastforks.shared.cnn_kernels import load as load_cnn
 
-from .net.vitmatte import Config, VitMatteForImageMatting, get_rel_pos
+from .net.vitmatte import Config, VitMatteForImageMatting, get_rel_pos, matte_in_strips
 
 if TYPE_CHECKING:
     from fastforks._core.cards import Io
@@ -310,16 +310,28 @@ class Kernels(_Matting):
         details = [x]
         for conv, (s, t) in zip(self.convs[:n], self.affine[:n], strict=True):
             details.append(conv_ep(conv.conv, details[-1], s, t, relu))
-        y = feats
-        for conv, (s, t) in zip(self.convs[n:], self.affine[n:], strict=True):
+
+        def fuse(
+            y: torch.Tensor, detail: torch.Tensor, conv: torch.nn.Conv2d, scale: torch.Tensor, shift: torch.Tensor
+        ) -> torch.Tensor:
             up = F.interpolate(y, scale_factor=2, mode="bilinear", align_corners=False)
-            merged = torch.cat([details.pop(), up], 1).contiguous(memory_format=CL)
-            del y, up
-            y = conv_ep(conv.conv, merged, s, t, relu)
-            del merged
+            merged = torch.cat([detail, up], 1).contiguous(memory_format=CL)
+            del up
+            return conv_ep(conv, merged, scale, shift, relu)
+
+        y = feats
+        stages = list(zip(self.convs[n:], self.affine[n:], strict=True))
+        for conv, (s, t) in stages[:-1]:
+            y = fuse(y, details.pop(), conv.conv, s, t)
+        conv, (s, t) = stages[-1]
         head = self.net.decoder.matting_head.matting_convs
-        y = conv_ep(head[0], y, *self.head_affine, relu)
-        return conv_ep(head[3], y).float().sigmoid()
+
+        def matte(y: torch.Tensor, pixels: torch.Tensor) -> torch.Tensor:
+            y = fuse(y, pixels, conv.conv, s, t)
+            y = conv_ep(head[0], y, *self.head_affine, relu)
+            return conv_ep(head[3], y).float().sigmoid()
+
+        return matte_in_strips(y, details.pop(), matte)
 
     def _net(self, x: torch.Tensor) -> torch.Tensor:
         k, ps = self.k, self.ps
