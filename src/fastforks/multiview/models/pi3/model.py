@@ -246,16 +246,20 @@ class _Fast(_Base):
         cos, sin = tab
         qk = F.linear(xn, a.qkv.weight[: 2 * c], a.qkv.bias[: 2 * c])  # contiguous q|k: no copy for group_norm
         v = F.linear(xn, a.qkv.weight[2 * c :], a.qkv.bias[2 * c :]).view(bsz, n, nh, d)
+        del xn
         if isinstance(a.q_norm, nn.LayerNorm):
             nrm = F.group_norm(qk.view(bsz * n, 2 * nh, d), 2 * nh, None, None, a.q_norm.eps).view(bsz, n, 2, nh, d)
             w, bb = self.qk_affine(a)
             qk = torch.addcmul(torch.addcmul(bb * cos, _swap(bb), sin), nrm, w * cos)
             qk = qk.addcmul_(_swap(nrm), _swap(w) * sin)
+            del nrm
         else:  # the head decoders: RoPE only
             qk = qk.view(bsz, n, 2, nh, d)
             qk = torch.addcmul(qk * cos, _swap(qk), sin)
         o = F.linear(self.attention(qk[:, :, 0], qk[:, :, 1], v, a.scale), a.proj.weight, a.proj.bias)
+        del qk, v
         x = torch.addcmul(x, o, blk.ls1.gamma) if hasattr(blk.ls1, "gamma") else x + o
+        del o
         m = blk.mlp
         o = F.linear(F.gelu(F.linear(blk.norm2(x), m.fc1.weight, m.fc1.bias)), m.fc2.weight, m.fc2.bias)
         if hasattr(blk.ls2, "gamma"):
@@ -277,9 +281,11 @@ class _Fast(_Base):
         with torch.autocast("cuda", enabled=False), _fp16_accumulate(on=self.gacc):
             xn = ((x - net.image_mean[None]) / net.image_std[None]).view(b * s, 3, hn, wn).to(self.dt)
             pt = self.patch_tokens(xn)
+            del xn
             c = pt.shape[-1]
             reg = net.register_token.expand(b, s, -1, -1).reshape(b * s, -1, c)
             hidden = torch.cat([reg, pt.to(self.dt)], 1)
+            del pt, reg
             p = hidden.shape[1]
             pos = net.position_getter(b * s, hp, wp, x.device) + 1
             pos = torch.cat([torch.zeros(b * s, net.patch_start_idx, 2, device=x.device, dtype=pos.dtype), pos], 1)
@@ -290,18 +296,22 @@ class _Fast(_Base):
             for i, blk in enumerate(net.decoder):
                 features, tab = (hidden.view(b * s, p, c), tf) if i % 2 == 0 else (hidden.view(b, s * p, c), tg)
                 hidden = blk(features, tab, self) if self.ctx.params.stream else self.block(blk, features, tab)
+                del features
                 if i + 1 in (nd - 1, nd):
                     last.append(hidden.view(b * s, p, c))  # blocks never write their input in place
             hidden = torch.cat(last, -1)
-            point_h = self.head(net.point_decoder, hidden, tf)
-            conf_h = self.head(net.conf_decoder, hidden, tf)
-            cam_h = self.head(net.camera_decoder, hidden, tf)
+            del last
             psi = net.patch_start_idx
+            point_h = self.head(net.point_decoder, hidden, tf)
             lp = net.point_head([point_h[:, psi:].float()], (hn, wn)).reshape(b, s, hn, wn, -1)
+            del point_h
             xy, z = lp.split([2, 1], dim=-1)
             z = torch.exp(z)
             local = torch.cat([xy * z, z], dim=-1)
+            conf_h = self.head(net.conf_decoder, hidden, tf)
             conf = net.conf_head([conf_h[:, psi:].float()], (hn, wn)).reshape(b, s, hn, wn, -1)
+            del conf_h
+            cam_h = self.head(net.camera_decoder, hidden, tf)
             poses = net.camera_head(cam_h[:, psi:].float(), hp, wp).reshape(b, s, 4, 4)
             pts = torch.einsum("bnij,bnhwj->bnhwi", poses[..., :3, :3], local) + poses[..., None, None, :3, 3]
         return {"points": pts, "local_points": local, "conf": conf, "camera_poses": poses}
