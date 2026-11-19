@@ -268,6 +268,7 @@ class SEARAFT(nn.Module):
             fmaps = self.fnet(torch.cat([image1, image2], dim=0))  # batch norm in eval mode: per-image as upstream
         fmap1, fmap2 = fmaps.float().chunk(2, dim=0)
         pyramid = _pyramid(fmap1, fmap2, cfg.levels)
+        del fmaps, fmap1, fmap2
         grid = _coords(b, h // FACTOR, w // FACTOR, image1.device)
         for _ in range(iters):
             corr = _lookup(pyramid, grid + flow, cfg.radius)
@@ -275,6 +276,8 @@ class SEARAFT(nn.Module):
                 net = self.update_block(net, context, corr, flow)
                 delta = self.flow_head(net)[:, :2]
             flow = flow + delta.float()
+            del corr
+        del pyramid
         with self._amp(image1.device):
             mask = 0.25 * self.upsample_weight(net)
         return _upsample(flow, mask.float())

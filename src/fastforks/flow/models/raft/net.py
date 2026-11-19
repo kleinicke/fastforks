@@ -349,8 +349,10 @@ class RAFT(nn.Module):
             ctx = self.context_encoder(image1)
         fmap1, fmap2 = fmaps.float().chunk(2, dim=0)
         pyramid = _pyramid(fmap1, fmap2, cfg.corr_levels)
+        del fmaps, fmap1, fmap2
         hidden, context = torch.split(ctx, [cfg.hidden, ctx.shape[1] - cfg.hidden], dim=1)
         hidden, context = torch.tanh(hidden), F.relu(context)
+        del ctx
         coords0 = _coords(b, hs, ws, image1.device)
         coords1 = coords0
         for _ in range(iters):
@@ -358,6 +360,8 @@ class RAFT(nn.Module):
             with self._amp(image1.device):
                 hidden, delta = self.update_block(hidden, context, corr, coords1 - coords0)
             coords1 = coords1 + delta.float()
+            del corr
+        del pyramid
         mask = None
         if cfg.mask:
             with self._amp(image1.device):
