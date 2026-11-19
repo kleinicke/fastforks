@@ -133,14 +133,20 @@ class Portable(Runner):
     def _sample(self, cond: torch.Tensor, h: int, w: int) -> torch.Tensor:
         return sample(self.net, cond, h, w)
 
+    def _encode(self, x: torch.Tensor) -> torch.Tensor:
+        """The DINOv3 backbone's hidden states of the resized, normalised image."""
+        return self.encoder._runner(scale(x, self.ctx.io), self.layers)["hidden_states"]  # noqa: SLF001
+
+    def _dit(self, hidden: torch.Tensor, gh: int, gw: int) -> torch.Tensor:
+        """The sampler on the backbone's states: points `[B, gh * 16, gw * 16, 3]`."""
+        return unpatchify(self._sample(self.net.condition(hidden, gh, gw), gh, gw), gh, gw)
+
     def points(self, image: torch.Tensor) -> torch.Tensor:
         """`[B, 3, H, W]` in `[0, 1]` -> points `[B, H, W, 3]` float32 at the input size."""
         size = image.shape[-2:]
         nh, nw = network_size(*size, self.ctx.params.tokens)
         x = image if (nh, nw) == tuple(size) else F.interpolate(image, (nh, nw), mode="bilinear", align_corners=False)
-        hidden = self.encoder._runner(scale(x, self.ctx.io), self.layers)["hidden_states"]  # noqa: SLF001
-        gh, gw = nh // PATCH, nw // PATCH
-        pts = unpatchify(self._sample(self.net.condition(hidden, gh, gw), gh, gw), gh, gw)
+        pts = self._dit(self._encode(x), nh // PATCH, nw // PATCH)
         if (nh, nw) != tuple(size):
             pts = F.interpolate(pts.permute(0, 3, 1, 2), size, mode="nearest").permute(0, 2, 3, 1)
         return pts.contiguous()
@@ -252,6 +258,6 @@ class Kernels(Portable):
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
-    "kernels_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_encode", "_dit"), fp32_methods=("_encode",)),
+    "kernels_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_encode", "_dit"), fp32_methods=("_encode",)),
 }

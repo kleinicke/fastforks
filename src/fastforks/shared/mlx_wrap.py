@@ -65,6 +65,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
     methods: tuple[str, ...] = (),
     net_attr: str = "net",
     kernels_fp16_only: bool = False,
+    fp32_methods: tuple[str, ...] = (),
 ) -> type[Runner]:
     """The MLX runner of `portable`: same call, the module(s) named by `attrs` run on MLX in `ctx.dtype`.
 
@@ -74,6 +75,8 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
 
     `whole=True`: the runner's `module()` (the network with its pre- and post-processing, image in, image out) runs on
     MLX as one graph and `__call__` returns `{"image": ...}` from it; for a runner whose forward is not `net(x)`.
+
+    `fp32_methods`: names among `methods` that always run in float32 (a stage whose activations overflow float16).
 
     `kernels_fp16_only=True`: the kernels mode uses its Metal kernels in float16 only (float32 runs as portable).
     """
@@ -92,12 +95,13 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
             for name in methods:
                 owner, _, leaf = name.rpartition(".")
                 host = _resolve(self, owner) if owner else self
+                dtype = "float32" if name in fp32_methods else ctx.dtype
                 if isinstance(host, torch.nn.Module):  # a method of a submodule: it owns the weights it computes with
-                    mod = MlxModule(_Method(getattr(host, leaf), host), ctx.dtype, kernels=kernels)
+                    mod = MlxModule(_Method(getattr(host, leaf), host), dtype, kernels=kernels)
                     object.__setattr__(host, leaf, mod)  # the instance entry beats the class's function
                 else:
                     net = getattr(self, net_attr)
-                    setattr(host, leaf, MlxModule(_Method(getattr(host, leaf), net), ctx.dtype, kernels=kernels))
+                    setattr(host, leaf, MlxModule(_Method(getattr(host, leaf), net), dtype, kernels=kernels))
             if whole:
                 self._whole = MlxModule(self.module(), ctx.dtype, kernels=kernels, release=True)
                 return
