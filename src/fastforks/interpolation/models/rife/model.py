@@ -115,6 +115,7 @@ def _interpolate(
     src = torch.empty(2 * b, 3 + nf, h, w, device=dev)  # both sides' image + features, side-major, float32
     src[:, :3].copy_(torch.cat((x[:, :3], x[:, 3:6]), 0))
     src[:, 3:].copy_(feat)
+    del feat
     flow = tmp = None
     prev = 1
     blocks = [net.block0, net.block1, net.block2, net.block3, net.block4]
@@ -127,6 +128,7 @@ def _interpolate(
         inp = torch.empty(b, 7 + 2 * nf + extra, hs, ws, device=dev, dtype=dtype)  # the block input, cast once
         inp[:, :6].view(b, 2, 3, hs, ws).copy_(side[:, :, :3])  # image 1, image 2
         inp[:, 6 : 6 + 2 * nf].view(b, 2, nf, hs, ws).copy_(side[:, :, 3:])  # features 1, features 2
+        del side, warped
         c = 6 + 2 * nf
         if isinstance(timestep, torch.Tensor):
             inp[:, c : c + 1].copy_(timestep.expand(b, 1, hs, ws))
@@ -136,10 +138,12 @@ def _interpolate(
             inp[:, c + 1 : c + extra - 3].copy_(_pool(_upsampled(tmp[:, 4:], s, (py, px), (h, w)), s))
             inp[:, c + extra - 3 :].copy_(_pool(_at_points(flow, s), s).div_(s))
         tmp = _block(block, inp.contiguous(memory_format=torch.channels_last) if channels_last else inp)
+        del inp
         up = tmp[:, :4].float()
         if s > 1:
             up = F.interpolate(up, scale_factor=s, mode="bilinear", align_corners=False)
         flow = (up * s).contiguous() if flow is None else flow.add_(up, alpha=s)
+        del up
         prev = s
     if tmp is None or flow is None:
         msg = "RIFE needs at least one block scale"
