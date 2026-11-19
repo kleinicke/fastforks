@@ -1923,9 +1923,15 @@ class GraphNet:
         if wname is None or (conv.args[2] is not None and bname is None):
             return False
         wk, bk = f"{conv.name}__w", f"{conv.name}__b"
-        values[wk] = to_mx((lifted[wname].double() * scale).float()).astype(self.dtype)
-        if bname is not None:
-            values[bk] = to_mx((lifted[bname].double() * scale).float()).astype(self.dtype)
+        key = f"{wname}\0{bname}\0{scale}\0scaled"  # by parameter names: another input shape reuses it, the twin may be gone
+        if key not in self._consts:
+            w2 = to_mx((lifted[wname].double() * scale).float()).astype(self.dtype)
+            b2 = to_mx((lifted[bname].double() * scale).float()).astype(self.dtype) if bname is not None else None
+            mx.eval(w2, *(() if b2 is None else (b2,)))
+            self._consts[key] = (w2, b2)
+        values[wk], b2 = self._consts[key]
+        if b2 is not None:
+            values[bk] = b2
         self._consumed.update(t for t in (wname, bname) if t)
         res.res[conv.name] = (wk, bk if bname is not None else None, other.name)
         res.skip[mul.name] = conv.name

@@ -621,3 +621,34 @@ dominate. `MLX_MAX_MB_PER_BUFFER=16` has no effect. Kernels mode for realesrgan 
 
 Not done: leaky-ReLU fusion into the conv act (`_fuse_activations` only matches ReLU/PReLU), incremental transform of
 dense-block concats, layout propagation through norm/pool ops, a torch/MPS channels_last equivalent.
+
+## realesrgan-x4plus: where the 2.7x came from, and what closed it
+
+Per-layer profile (512x512, fp16, M1 Pro): MLX's direct `mx.conv2d` runs the 351 convolutions at about 1.55 TFLOPS,
+where MPS reaches about 4.5 TFLOPS effective (Winograd-class). The unfused LeakyReLU / x0.2 / add / cat / nearest
+up-sampling chain adds 1.5-2 s on top. In kernels mode the Winograd convolution fixes the first part; the remaining
+time was allocator churn (cache below the transient sizes) and the 2048x2048 tail's peak memory.
+
+Fixes (each golden-checked, bit-identical to the unbanded path where noted):
+
+- `mlx_band.band_tail`: a row-local tail chain (convs, elementwise, integer nearest up-sampling) ending in the output
+  runs per row band (48 MB slabs, halo rows), each band evaluated before the next; peak MLX memory 5.9 GB -> 1.28 GB.
+  `FF_MLX_NO_BAND=1` disables it; `FF_MLX_BAND_MB` sets the slab size.
+- Nearest up-sampling on the channels-last view (`_nearest_cl`).
+- Kernels mode: LeakyReLU fused into the Winograd output transform (PReLU with a constant slope), and
+  `conv * c + r` (the RDB residual) fused with `c` folded into the weights and bias, `r` added in the epilogue.
+- realesrgan declares `mlx_kernels = ["conv_mlx"]` with `cache_mb=1024` (cache 512 -> 3.4 s, 128 -> 4.3 s: a cliff).
+
+Survey (apple-m1-pro-mlx-16gb, goldens pass), process footprint:
+
+| Mode | dtype | ms | footprint MB | MPS ms / MB |
+|---|---|---|---|---|
+| portable | fp16 | 5376 | 1447 | 2066 / 2466 |
+| kernels | fp16 | 2290 | 2535 | 2066 / 2466 |
+| portable | fp32 | 9196 | 2193 | 3022 / 4546 |
+| kernels | fp32 | 7473 | 2834 | 3022 / 4546 |
+
+fp16 kernels: 5578 -> 2290 ms (MPS 2066, 1.11x), footprint near MPS (the 1 GB allocator cache is resident; MLX's own
+peak is 1284 MB). fp32 stays 2.5x behind MPS but needs 38 % less memory. Not done: removing the dense-block `cat`
+(multi-source input transform), reusing the input transform across concats (the transform is about 45 % of conv time),
+reducing the cache.
