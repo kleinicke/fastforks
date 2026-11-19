@@ -122,7 +122,10 @@ _DATASETS = {
         "bsds500-test-no-thinning": "BSDS500 test (200 images), boundary ODS / OIS / AP %",
         "bsds500-test-first75-no-thinning": "BSDS500 test (first 75 images), boundary ODS / OIS / AP %",
     },
-    "ocr": {"iiit5k-test-lexicon-free": "IIIT5K test word crops, word accuracy / normalized edit similarity %"},
+    "ocr": {
+        "iiit5k-test-lexicon-free": "IIIT5K test word crops, word accuracy / normalized edit similarity %",
+        "iiit5k-test-every10-lexicon-free": "IIIT5K test (300 word crops), word accuracy / normalized edit similarity %",
+    },
     "volume": {
         "totalseg-subset-3mm": "TotalSegmentator test subset (8 CT cases), 3 mm, mean Dice",
         "totalseg-subset-1.5mm": "TotalSegmentator test subset (7 CT cases), 1.5 mm, mean Dice",
@@ -367,8 +370,9 @@ _PROTOCOL = {
     ("segmentation", "ade20k-val"): "Each image at its own size, argmax of the logits. ",
     ("segmentation", "atr-test-shard-200"): "The 200-image ckotait/ATRDataset test split. Scores use one pixel "
     "confusion matrix across the split with 18 classes and ignore label 255. ",
-    ("segmentation", "ade20k-val-every40-fixed-1024x2048"): "Every 40th ADE20K validation image. Resize image inputs "
-    "and nearest-neighbor resample annotations at 1024 x 2048. Score both modes with the same labels and ignore mask. ",
+    ("segmentation", "ade20k-val-every40-fixed-1024x2048"): "Every 40th ADE20K validation image. Resize RGB inputs "
+    "to 1024 x 2048 and resample predictions to native annotation size with nearest-neighbor interpolation. "
+    "Score all modes with the same labels and ignore mask. ",
     ("segmentation", "lapa-test-common-face-parts"): "Scores use one pixel confusion matrix across the split. "
     "Left and right eyes share one class, and left and right brows share one class. Labels outside the eight "
     "shared foreground classes count as background. ",

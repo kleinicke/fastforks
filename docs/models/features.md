@@ -597,14 +597,14 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 
 Two disjoint seeded subsets of the val folders; each image shorter side 256 (bicubic), centre crop 224, the CLS / pooled feature; cosine kNN, vote weighted by similarity. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|---|
-| `dinov3-vits16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 55.38 | 55.42 | 55.42 | 55.42 | 55.36 | 55.36 |  |
-| `dinov3-vitb16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.54 | 66.54 | 66.50 | 66.52 | 66.54 | 66.54 |  |
-| `dinov3-vitl16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 75.94 | 75.92 | 75.78 | 75.80 | 75.94 | 75.88 |  |
-| `dinov3-vith16plus` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 79.50 | 79.50 | 79.54 | 79.52 | 79.50 | 79.52 |  |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `dinov3-vits16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 55.38 | 55.42 | 55.42 | 55.42 | 55.36 | 55.36 | 55.42 | 55.50 |  |
+| `dinov3-vitb16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 66.54 | 66.54 | 66.50 | 66.52 | 66.54 | 66.54 |  |  |  |
+| `dinov3-vitl16` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 75.94 | 75.92 | 75.78 | 75.80 | 75.94 | 75.88 |  |  |  |
+| `dinov3-vith16plus` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 79.50 | 79.50 | 79.54 | 79.52 | 79.50 | 79.52 |  |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19.
 
 ### Parity
 

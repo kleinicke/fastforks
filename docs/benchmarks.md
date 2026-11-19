@@ -2514,7 +2514,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | rtmpose-s-face6 | 1080x1920 | 5.04 ms | 2.69 ms | 1.28 ms (network on person crops only) | 3.74 ms | 11.9 s | 16.9 s | 140 / 174 | 164 / 190 | 128 / 202 | 158 / 178 |
 | rtmpose-s-halpe26 | 1080x1920 | 4.99 ms | 2.11 ms | 1.07 ms (network on person crops only) | 3.05 ms | 11.7 s | 16.6 s | 119 / 152 | 130 / 150 | 110 / 178 | 138 / 170 |
 | rtmpose-t | 1080x1920 | 7.79 ms | 4.07 ms | 0.866 ms (network on person crops only) | 2.25 ms | 16.4 s | 15.9 s | 100 / 128 | 125 / 148 | 91 / 156 | 127 / 164 |
-| rtmpose-t-face6 | 1080x1920 | 4.53 ms | 2.23 ms | 1.00 ms (network on person crops only) | 3.61 ms | 11.5 s | 16.2 s | 116 / 152 | 159 / 168 | 123 / 180 | 145 / 168 |
+| rtmpose-t-face6 | 1080x1920 | 4.53 ms | 2.23 ms | fails: FP16 LaPa NME 154.04% vs 1.78% portable (2,000 faces) | 3.61 ms | 11.5 s | – | 116 / 152 | 159 / 168 | 123 / 180 | – |
 | rtmpose-t-halpe26 | 1080x1920 | 4.61 ms | 1.94 ms | 0.871 ms (network on person crops only) | 2.90 ms | 13.5 s | 17.2 s | 100 / 130 | 125 / 128 | 105 / 156 | 128 / 164 |
 | rtmpose-x-halpe26-384 | 1080x1920 | 33.8 ms | 21.1 ms | 13.3 ms (network on person crops only) | 19.1 ms | 17.4 s | 23.0 s | 385 / 478 | 262 / 298 | 280 / 448 | 430 / 456 |
 | rtmw-l | 1080x1920 | 15.3 ms | 9.34 ms | 5.17 ms (network on person crops only) | 9.99 ms | 18.8 s | 24.9 s | 256 / 308 | 242 / 264 | 217 / 312 | 354 / 396 |
