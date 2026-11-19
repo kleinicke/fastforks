@@ -296,6 +296,7 @@ class TAPIR(nn.Module):
             else:
                 q = last[..., :HIRES] if i == 0 else last[..., HIRES:]
                 corrs.append(torch.einsum("bnfsc,bnfc->bnfs", neighborhood, q))
+            del neighborhood
         if last is None:
             feats = torch.cat([queries[0], queries[1]], -1)[:, :, None].expand(-1, -1, points.shape[2], -1)
         else:
@@ -305,13 +306,21 @@ class TAPIR(nn.Module):
         res = self.torch_pips_mixer(x.reshape(b * n, t, c).float()).reshape(b, n, t, -1)
         return points + res[..., :2], occ + res[..., 2], expd + res[..., 3], feats + res[..., 4:]
 
-    def track(self, f: Features, queries: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def pyramid(self, features: Features) -> list[torch.Tensor]:
+        """The frame grids, shared by all chunks of queries."""
+        grids = [features.hires, features.lowres]
+        for _ in range(self.pyramid_level):
+            grids.append(F.avg_pool3d(grids[-1], kernel_size=(2, 2, 1), stride=(2, 2, 1)))
+        return grids
+
+    def track(
+        self, f: Features, queries: torch.Tensor, *, pyramid: list[torch.Tensor] | None = None
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Final points `[1, Q, T, 2]` `(x, y)`, occlusion and expected-distance logits `[1, Q, T]` of the queries."""
         points, occ, expd = self.initial(f.query_lowres, f.lowres, queries)
         queries_ = [f.query_hires, f.query_lowres] + [f.query_lowres] * self.pyramid_level
-        pyramid = [f.hires, f.lowres]
-        for _ in range(self.pyramid_level):
-            pyramid.append(F.avg_pool3d(pyramid[-1], kernel_size=(2, 2, 1), stride=(2, 2, 1)))
+        if pyramid is None:
+            pyramid = self.pyramid(f)
         last = None
         for _ in range(PIPS_ITERS):
             points, occ, expd, last = self.refine(queries_, pyramid, points, occ, expd, last)
