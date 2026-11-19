@@ -788,7 +788,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`hat-s-x4`](models/restoration.md#hat) | yes | 2401.8 (512x512) | 1072.2 | 956.5 | 2.5x vs original (512x512) | 1856 |
 | [`dat-2-x4`](models/restoration.md#dat) | yes | 4880.3 (512x512) | 1312.2 | 1037.4 | 4.7x vs original (512x512) | 1534 |
 | [`dat-x4`](models/restoration.md#dat) | yes | 9563.6 (512x512) | 1385.7 | 1208.7 | 7.9x vs original (512x512) | 1541 |
-| [`real-hat-gan-x4`](models/restoration.md#hat) | yes | 3038.1 (512x512) | 1539.5 | 1345.6 | 2.3x vs original (512x512) | 1789 |
+| [`real-hat-gan-x4`](models/restoration.md#hat) | yes | 3038.1 (512x512) | 1428.5 | 1234.2 | 2.5x vs original (512x512) | 1312 |
 | [`drct-l-x4`](models/restoration.md#drct) | yes | 14651.1 (512x512) | 1606.9 | 1398.5 | 10.5x vs original (512x512) | 2564 |
 | [`hat-x4`](models/restoration.md#hat) | yes | 3038.2 (512x512) | 1595.9 | 1426.7 | 2.1x vs original (512x512) | 2298 |
 | [`seedvr2-3b`](models/restoration.md#seedvr2) | yes | 13150.0 (512x512) | 2332.3 | 2355.8 | 5.6x vs original (512x512) | 3857 |

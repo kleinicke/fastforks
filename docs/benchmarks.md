@@ -1503,7 +1503,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | hat-x4 | 3038 | 1596 | 1427 | 2.1x | 1.1x | 5318 / 6106 | 2426 / 2590 | 2298 / 2470 |
 | nafnet-gopro | 63.7 | 61.1 | 31.3 | 2.0x | 1.9x | 484 / 612 | 483 / 532 | 376 / 408 |
 | nafnet-sidd | 71.6 | 61.1 | 22.5 | 3.2x | 2.7x | 608 / 730 | 607 / 650 | 502 / 536 |
-| real-hat-gan-x4 | 3038 | 1540 | 1346 | 2.3x | 1.1x | 5318 / 6106 | 1789 / 2050 | 1789 / 2130 |
+| real-hat-gan-x4 | 3038 | 1428 | 1234 | 2.5x | 1.2x | 5318 / 6106 | 1430 / 2070 | 1312 / 1510 |
 | realesr-general-x4v3 | 42.1 | 30.1 | 24.0 | 1.8x | 1.3x | 157 / 206 | 125 / 164 | 125 / 164 |
 | realesrgan-x2plus | 128 | 97.0 | 80.2 | 1.6x | 1.2x | 592 / 656 | 333 / 394 | 333 / 394 |
 | realesrgan-x4plus | 631 | 473 | 403 | 1.6x | 1.2x | 2266 / 2496 | 292 / 354 | 1220 / 1434 |
@@ -2740,7 +2740,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | hat-x4 | 256x256 | 346 ms | – | 217 ms | – | – | 92.0 s | 658 / 1002 | – | – | 681 / 682 |
 | nafnet-gopro | 512x512 | 61.1 ms | 37.3 ms | 52.6 ms | 31.3 ms | 46.2 s | 66.5 s | 483 / 532 | 422 / 470 | 376 / 408 | 722 / 734 |
 | nafnet-sidd | 512x512 | 61.1 ms | 32.3 ms | 24.5 ms | 22.5 ms | 36.9 s | 33.8 s | 607 / 650 | 450 / 488 | 502 / 536 | 650 / 668 |
-| real-hat-gan-x4 | 512x512 | 1540 ms | 1185 ms | fails: TensorRT engine build failed | 1346 ms | 54.3 s | – | 1789 / 2050 | 1811 / 2750 | 1789 / 2130 | – |
+| real-hat-gan-x4 | 512x512 | 1428 ms | 1185 ms | fails: TensorRT engine build failed | 1234 ms | 54.3 s | – | 1430 / 2070 | 1811 / 2750 | 1312 / 1510 | – |
 | real-hat-gan-x4 | 256x256 | 346 ms | – | 217 ms | – | – | 98.7 s | 658 / 1002 | – | – | 681 / 682 |
 | realesr-general-x4v3 | 512x512 | 30.1 ms | 22.6 ms | 11.9 ms | 24.0 ms | 3.89 s | 15.3 s | 125 / 164 | 125 / 144 | 125 / 164 | 220 / 228 |
 | realesrgan-x2plus | 512x512 | 97.0 ms | 85.2 ms | 59.7 ms | 80.2 ms | 33.2 s | 40.3 s | 333 / 394 | 323 / 394 | 333 / 394 | 476 / 500 |
