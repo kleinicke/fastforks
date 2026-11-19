@@ -134,6 +134,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
     kernels_fp16_only: bool = False,
     fp32_methods: tuple[str, ...] = (),
     compile: bool = True,  # noqa: A002 - mirrors `MlxModule`
+    cache_mb: int = 0,
 ) -> type[Runner]:
     """The MLX runner of `portable`: same call, the module(s) named by `attrs` run on MLX in `ctx.dtype`.
 
@@ -148,6 +149,10 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
     `fp32_methods`: names among `methods` that always run in float32 (a stage whose activations overflow float16).
 
     `compile=False`: replay lazily without `mx.compile` (a graph whose fused elementwise kernels exceed Metal's argument limit).
+
+    `cache_mb`: raise the MLX buffer cache limit to at least this many MB. An iterative net (a GRU loop) allocates the
+    same large temporaries every step; with the small default cache each one is a fresh Metal allocation (zero-filled
+    pages), which costs more than the step's arithmetic (RAFT-Stereo 994x1482: 7.3 s at 128 MB, 4.0 s at 2 GB).
 
     `kernels_fp16_only=True`: the kernels mode uses its Metal kernels in float16 only (float32 runs as portable).
     """
@@ -169,6 +174,10 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                     super().__init__(dataclasses.replace(ctx, dtype="float32"))
             finally:
                 _RUN_DTYPE.reset(token)
+            if cache_mb:
+                from fastforks._core.mlx import mx  # noqa: PLC0415 - MLX only
+
+                mx.set_cache_limit(max(cache_mb << 20, mx.set_cache_limit(0)))  # returns the previous limit
             kernels = ctx.mode == "kernels" and (ctx.dtype == "float16" or not kernels_fp16_only)
             for name in methods:
                 owner, _, leaf = name.rpartition(".")

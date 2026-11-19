@@ -128,6 +128,6 @@ RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
-    "kernels_mlx": mlx_wrap.port(Portable, whole="disparity"),
+    "portable_mlx": mlx_wrap.port(Portable, whole="disparity", cache_mb=2048),
+    "kernels_mlx": mlx_wrap.port(Portable, whole="disparity", cache_mb=2048),
 }
