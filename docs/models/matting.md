@@ -12,7 +12,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 
 | model | commercial | DIS-VD MAE ↓ | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|---|
-| [`ben2`](#ben2) | yes | 0.0403 | 104, 1.9x | 1698, 0.61x |
+| [`ben2`](#ben2) | yes | 0.0403 | 105, 1.9x | 1118, 0.4x |
 | [`birefnet`](#birefnet) | yes | 0.0325 | 121, 1.9x | 1916, 0.99x |
 | [`birefnet-lite`](#birefnet) | yes | – | 48.1, 1.6x | 960, 0.99x |
 | [`inspyrenet`](#inspyrenet) | yes | – | 108, 2.2x | 1874, 0.57x |
@@ -37,7 +37,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `ben2` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 201<br>110<br>104<br>103<br>58.2 | 2466 / 2772<br>1681 / 1956<br>1430 / 1698<br>813 / 916<br>1280 / 1326 |
+| `ben2` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 201<br>115<br>105<br>103<br>58.2 | 2466 / 2772<br>1296 / 1376<br>1046 / 1118<br>813 / 916<br>1280 / 1326 |
 
 <details><summary>Details</summary>
 
@@ -53,6 +53,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `ben2` 3000x4000 (1.8 GiB peak allocated, 2.7 reserved)
 - `ben2` 1080x1920, first call: portable + torch.compile 71 s (cold Inductor cache), TensorRT fp16 140 s (ONNX + engine).
 - `ben2` original 1080x1920: the authors' mixed-precision option (float16); PramaLLC/BEN2@2c99a5da477b BEN2.py, bicubic resize / normalisation / bilinear back / min-max
+- `ben2` portable 1080x1920, kernels 1080x1920: Keeps only the downsampled shallow features and applies the final upsample convolution in strips. Alphas match exactly on three AIM-500 images and a two-image odd-size batch.
 - `ben2` load / first call: original 2.29 s / 0.926 s, portable 13.95 s / 0.919 s, kernels 1.12 s / 0.435 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

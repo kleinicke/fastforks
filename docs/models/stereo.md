@@ -24,7 +24,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`coex-sceneflow`](#coex) | yes | 33.46 | 23.5, 2.6x | 514, 0.24x |
 | [`crestereo-eth3d`](#crestereo) | yes | 1.39 † | 229, 7.0x | 732, 0.42x |
 | [`defom-stereo-vitl-sceneflow`](#defom_stereo) | no | 2.44 | 645, 4.4x | 4234, 0.48x |
-| [`dlnr-middlebury`](#dlnr) | yes | 34.38 | 214, 2.8x | 1606, 0.45x |
+| [`dlnr-middlebury`](#dlnr) | yes | 34.38 | 215, 2.8x | 982, 0.28x |
 | [`dlnr-sceneflow`](#dlnr) | yes | 30.27 | 214, 2.8x | 1606, 0.45x |
 | [`fast-acvnet-generalization`](#fast_acvnet) | yes | 6.51 | 38.1, 1.6x | 716, 0.48x |
 | [`fast-acvnet-kitti12`](#fast_acvnet) | yes | 19.06 | 38.1, 1.6x | 716, 0.48x |
@@ -69,7 +69,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`raft-stereo-eth3d`](#raft_stereo) | yes | 2.61 † | 275, 3.8x | 738, 0.28x |
 | [`raft-stereo-middlebury`](#raft_stereo) | yes | 2.79 | 274, 3.8x | 758, 0.29x |
 | [`raft-stereo-sceneflow`](#raft_stereo) | yes | 2.60 | 274, 3.8x | 758, 0.29x |
-| [`rt-monster-plusplus-mix-all`](#rt_monster_plusplus) | no | 2.05 ? | 89.5, 2.8x | 2640, 0.87x |
+| [`rt-monster-plusplus-mix-all`](#rt_monster_plusplus) | no | 2.05 ? | 93.8, 2.7x | 1420, 0.47x |
 | [`s2m2-l`](#s2m2) | no | 0.82 ? | 376, 2.7x | 1568, 0.38x |
 | [`s2m2-m`](#s2m2) | no | 0.95 ? | 248, 2.7x | 1162, 0.4x |
 | [`s2m2-s`](#s2m2) | no | 1.10 ? | 113, 3.1x | 820, 0.41x |
@@ -607,6 +607,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `dlnr-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 978<br>598<br>398<br>214<br>301<br>241 | 3191 / 3608<br>3004 / 3552<br>2635 / 3142<br>1236 / 1606<br>1343 / 1672<br>1711 / 1784 |
+| `dlnr-middlebury` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 978<br>598<br>399<br>215<br>303<br>241 | 3191 / 3608<br>3004 / 3552<br>1502 / 1976<br>851 / 982<br>1343 / 1692<br>1455 / 1546 |
 
 <details><summary>Details</summary>
 
@@ -622,10 +623,12 @@ Commercial use: yes.
 - Outputs: disparity
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `dlnr-sceneflow` 1988x2880 (10.1 GiB peak allocated, 12.7 reserved); `dlnr-middlebury` 1988x2880 (10.1 GiB peak allocated, 12.7 reserved)
-- `dlnr-middlebury`: same network and settings as `dlnr-sceneflow`, measured once (rows not repeated).
 - `dlnr-sceneflow` 994x1482, first call: portable + torch.compile 69 s (cold Inductor cache), TensorRT fp16 161 s (ONNX + engine).
+- `dlnr-middlebury` 994x1482, first call: portable + torch.compile 68 s (cold Inductor cache), TensorRT fp16 156 s (ONNX + engine).
+- `dlnr-middlebury` original (fp32) 994x1482, original 994x1482: timed with dlnr-sceneflow (same network, other weights)
+- `dlnr-middlebury` portable 994x1482, kernels 994x1482: Frees correlation, recurrent and refinement tensors before the full-resolution output. Paired synthetic and three labeled Middlebury disparities match bit for bit.
 - `dlnr-sceneflow` load / first call: original 0.83 s / 1.712 s (375x1242), portable 0.63 s / 0.399† s, kernels 0.26† s / 0.213† s
-- `dlnr-middlebury` load / first call: original 0.83 s / 1.712 s (375x1242), portable 0.63 s / 0.399† s, kernels 0.26† s / 0.213† s
+- `dlnr-middlebury` load / first call: original 0.83 s / 1.712 s (375x1242), portable 0.55 s / 1.048 s, kernels 0.79 s / 0.575 s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
@@ -1660,7 +1663,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `rt-monster-plusplus-mix-all` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 252<br>251<br>113<br>89.5<br>77.0<br>44.1 | 2922 / 3024<br>2922 / 3044<br>2581 / 2618<br>2586 / 2640<br>2750 / 2942<br>1139 / 1210 |
+| `rt-monster-plusplus-mix-all` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 252<br>251<br>109<br>93.8<br>77.0<br>44.1 | 2922 / 3024<br>2922 / 3044<br>1291 / 1378<br>1277 / 1420<br>2750 / 2942<br>1139 / 1210 |
 
 <details><summary>Details</summary>
 
@@ -1676,6 +1679,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rt-monster-plusplus-mix-all` 1988x2880 (9.3 GiB peak allocated, 11.1 reserved)
 - `rt-monster-plusplus-mix-all` 994x1482, first call: portable + torch.compile 69 s (cold Inductor cache), TensorRT fp16 150 s (ONNX + engine).
+- `rt-monster-plusplus-mix-all` portable 994x1482, kernels 994x1482: Reuses right-image samples during portable correlation and releases working tensors after each level in both CUDA modes. Paired Middlebury disparities are bitwise identical.
 - `rt-monster-plusplus-mix-all` load / first call: original 0.99 s / 0.662 s (375x1242), portable 0.63 s / 0.389 s (375x1242), kernels 0.93 s / 0.352 s (375x1242)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

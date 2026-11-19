@@ -844,6 +844,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | cfnet-sceneflow | – | – | 409 | 225 | 1.8x | 1822 / 2578 | 1073 / 1604 |
 | coex-sceneflow | – | – | 49.9 | 23.5 | 2.1x | 1093 / 1174 | 368 / 514 |
 | defom-stereo-vitl-sceneflow | – | – | – | 645 | – | – | 2781 / 4234 |
+| dlnr-middlebury | – | – | 399 | 215 | 1.9x | 1502 / 1976 | 851 / 982 |
 | fast-acvnet-generalization | – | – | 54.7 | 38.1 | 1.4x | 653 / 756 | 654 / 716 |
 | fast-acvnet-kitti12 | – | – | 54.7 | 38.1 | 1.4x | 653 / 756 | 654 / 716 |
 | fast-acvnet-kitti15 | – | – | 54.7 | 38.1 | 1.4x | 653 / 756 | 654 / 716 |
@@ -876,7 +877,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | raft-stereo-eth3d | – | – | – | 275 | – | – | 722 / 738 |
 | raft-stereo-middlebury | – | – | – | 274 | – | – | 722 / 758 |
 | raft-stereo-sceneflow | – | – | – | 274 | – | – | 722 / 758 |
-| rt-monster-plusplus-mix-all | – | – | 113 | 89.5 | 1.3x | 2581 / 2618 | 2586 / 2640 |
+| rt-monster-plusplus-mix-all | – | – | 109 | 93.8 | 1.2x | 1291 / 1378 | 1277 / 1420 |
 | s2m2-l | – | – | 1017 | – | – | 3234 / 3816 | – |
 | s2m2-m | – | – | 670 | – | – | 2289 / 2766 | – |
 | s2m2-xl | – | – | 1824 | – | – | 5217 / 5614 | – |
@@ -1091,7 +1092,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | fcn-r101-d8-ade20k | 1024x2048 | 94.2 | 47.0 | 40.7 | 16.5 | 2.8x | 2.5x | 1925 / 2102 | 414 / 472 | 288 / 374 |
 | hrnet-w48-fcn-ade20k | 1024x2048 | 48.1 | 54.8 | 27.3 | 11.2 | 4.3x | 2.4x | 1915 / 2010 | 421 / 470 | 265 / 344 |
 | mask2former-swinl-ade20k | 1024x2048 | 244 | 145 | 103 | 60.4 | 2.4x | 1.7x | 3572 / 3878 | 1164 / 1400 | 1164 / 1400 |
-| oneformer-swinl-ade20k | 1024x2048 | 307 | 205 | 139 | 100 | 2.1x | 1.4x | 7395 / 7792 | 2054 / 2476 | 2054 / 2476 |
+| oneformer-swinl-ade20k | 1024x2048 | 307 | 205 | 146 | 107 | 1.9x | 1.4x | 7395 / 7792 | 1833 / 2074 | 1833 / 1994 |
 | pspnet-r101-d8-ade20k | 1024x2048 | 92.5 | 47.2 | 48.7 | 24.9 | 1.9x | 2.0x | 1922 / 2222 | 414 / 472 | 335 / 394 |
 | sapiens-seg-0.3b-goliath | 1024x2048 | 466 | 173 | 132 | 92.6 | 1.9x | 1.4x | 2520 / 2724 | 1643 / 1762 | 1643 / 1762 |
 | sapiens-seg-1b-goliath | 1024x2048 | 1189 | 354 | 276 | 180 | 2.0x | 1.5x | 5721 / 5906 | 2894 / 3024 | 2894 / 3022 |
@@ -1108,7 +1109,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|
-| ben2 | 201 | 110 | 104 | 1.9x | 1.1x | 2466 / 2772 | 1681 / 1956 | 1430 / 1698 |
+| ben2 | 201 | 115 | 105 | 1.9x | 1.1x | 2466 / 2772 | 1296 / 1376 | 1046 / 1118 |
 | birefnet | 234 | 131 | 121 | 1.9x | 1.1x | 1666 / 1930 | 1660 / 1908 | 1674 / 1916 |
 | birefnet-lite | 75.1 | 58.0 | 48.1 | 1.6x | 1.2x | 913 / 974 | 810 / 952 | 754 / 960 |
 | inspyrenet | 241 | 109 | 108 | 2.2x | 1.0x | 3240 / 3262 | 1649 / 1848 | 1649 / 1874 |
@@ -1548,7 +1549,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | coex-sceneflow | – | 0.27 (375x1242) | 0.57 (375x1242) | 0.63 (375x1242) | 0.70 (375x1242) | 0.48 (375x1242) |
 | crestereo-eth3d | 0.05 | 0.03 | 0.03† | 1.50 | 0.75† | 0.23† |
 | defom-stereo-vitl-sceneflow | 4.24 | 2.31 | 2.74 (375x1242) | 2.83 | 1.53† | 0.30 (375x1242) |
-| dlnr-middlebury | 0.83 (375x1242) | 0.63 | 0.26† | 1.71 (375x1242) | 0.40† | 0.21† |
+| dlnr-middlebury | 0.83 (375x1242) | 0.55 | 0.79 | 1.71 (375x1242) | 1.05 | 0.57 |
 | dlnr-sceneflow | 0.83 (375x1242) | 0.63 | 0.26† | 1.71 (375x1242) | 0.40† | 0.21† |
 | fast-acvnet-generalization | 0.24 (375x1242) | 0.27 (375x1242) | 0.59 (375x1242) | 1.73 (375x1242) | 0.79 (375x1242) | 0.62 (375x1242) |
 | fast-acvnet-kitti12 | 0.24 (375x1242) | 0.27 (375x1242) | 0.68 (375x1242) | 1.73 (375x1242) | 0.76 (375x1242) | 0.62 (375x1242) |
@@ -1765,7 +1766,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | fcn-r101-d8-ade20k | 4.72 (512x512) | 1.42 (512x512) | 4.35 (512x512) | 0.39 (512x512) | 0.10 (512x512) | 0.02 (512x512) |
 | hrnet-w48-fcn-ade20k | 1.48 (512x512) | 1.18 (512x512) | 1.52 (512x512) | 0.08 (512x512) | 0.11 (512x512) | 0.03 (512x512) |
 | mask2former-swinl-ade20k | 4.86 (512x512) | 3.03 | 3.17† | 0.76 (512x512) | 0.13 | 0.07† |
-| oneformer-swinl-ade20k | 5.08 (512x512) | 4.10 | 3.27† | 0.81 (512x512) | 0.15† | 0.11† |
+| oneformer-swinl-ade20k | 5.08 (512x512) | 6.95 | 4.46 | 0.81 (512x512) | 0.50 | 0.49 |
 | pspnet-r101-d8-ade20k | 1.35 (512x512) | 1.42 (512x512) | 1.59 | 0.09 (512x512) | 0.30 (512x512) | 0.03 |
 | sapiens-seg-0.3b-goliath | 4.92 (512x512) | 1.22 | 0.96† | 1.02 (512x512) | 0.13† | 0.09† |
 | sapiens-seg-1b-goliath | 11.33 (512x512) | 0.80 | 1.03 | 0.57 (512x512) | 0.47 | 0.29 |
@@ -2145,7 +2146,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | crestereo-eth3d | 994x1482 | 732 ms | 398 ms | 298 ms | 229 ms | 120 s | 224 s | 884 / 1030 | 695 / 748 | 644 / 732 | 703 / 740 |
 | defom-stereo-vitl-sceneflow | 994x1482 | 1531 ms | 1002 ms | public API unavailable | 645 ms | 122 s | – | 4362 / 4838 | 3021 / 3292 | 2781 / 4234 | – |
 | defom-stereo-vitl-sceneflow | 375x1242 | 404 ms | – | 1151 ms, bf16 engine (whole graph at fixed 375 x 1242) | 180 ms | – | 168 s | 2394 / 2538 | – | 1627 / 1786 | 1782 / 1790 |
-| dlnr-middlebury | 994x1482 | 398 ms | 303 ms | 241 ms | 214 ms | 67.9 s | 156 s | 2635 / 3142 | 1343 / 1692 | 1236 / 1606 | 1455 / 1546 |
+| dlnr-middlebury | 994x1482 | 399 ms | 303 ms | 241 ms | 215 ms | 67.9 s | 156 s | 1502 / 1976 | 1343 / 1692 | 851 / 982 | 1455 / 1546 |
 | dlnr-sceneflow | 994x1482 | 398 ms | 301 ms | 241 ms | 214 ms | 69.0 s | 161 s | 2635 / 3142 | 1343 / 1672 | 1236 / 1606 | 1711 / 1784 |
 | fast-acvnet-generalization | 994x1482 | 54.7 ms | 36.4 ms | 36.1 ms | 38.1 ms | 41.9 s | 68.4 s | 653 / 756 | 549 / 678 | 654 / 716 | 573 / 624 |
 | fast-acvnet-kitti12 | 994x1482 | 54.7 ms | 36.2 ms | 36.2 ms | 38.1 ms | 42.0 s | 68.7 s | 653 / 756 | 549 / 678 | 654 / 716 | 573 / 624 |
@@ -2192,7 +2193,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | raft-stereo-eth3d | 994x1482 | 746 ms | 506 ms | 333 ms | 275 ms | 99.9 s | 132 s | 1388 / 1492 | 815 / 988 | 722 / 738 | 952 / 972 |
 | raft-stereo-middlebury | 994x1482 | 746 ms | 506 ms | 334 ms | 274 ms | 100 s | 132 s | 1388 / 1492 | 780 / 988 | 722 / 758 | 1012 / 1090 |
 | raft-stereo-sceneflow | 994x1482 | 746 ms | 507 ms | 333 ms | 274 ms | 100 s | 132 s | 1388 / 1492 | 780 / 988 | 722 / 758 | 1014 / 1092 |
-| rt-monster-plusplus-mix-all | 994x1482 | 113 ms | 77.0 ms | 44.1 ms | 89.5 ms | 69.4 s | 150 s | 2581 / 2618 | 2750 / 2942 | 2586 / 2640 | 1139 / 1210 |
+| rt-monster-plusplus-mix-all | 994x1482 | 109 ms | 77.0 ms | 44.1 ms | 93.8 ms | 69.4 s | 150 s | 1291 / 1378 | 2750 / 2942 | 1277 / 1420 | 1139 / 1210 |
 | s2m2-l | 994x1482 | 1017 ms | 650 ms | 497 ms | 376 ms | 144 s | 374 s | 3234 / 3816 | 3169 / 3514 | 1249 / 1568 | 2910 / 2982 |
 | s2m2-m | 994x1482 | 670 ms | 420 ms | 285 ms | 248 ms | 126 s | 305 s | 2289 / 2766 | 2197 / 2572 | 876 / 1162 | 1958 / 2002 |
 | s2m2-s | 994x1482 | 348 ms | 186 ms | 137 ms | 113 ms | 95.9 s | 363 s | 1733 / 1930 | 1579 / 1710 | 686 / 820 | 1186 / 1240 |
@@ -2370,7 +2371,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | fcn-r101-d8-ade20k | 1024x2048 | 40.7 ms | 35.6 ms | 27.4 ms | 16.5 ms | 8.53 s | 22.2 s | 414 / 472 | 414 / 472 | 288 / 374 | 1656 / 1734 |
 | hrnet-w48-fcn-ade20k | 1024x2048 | 27.3 ms | 23.9 ms | 20.9 ms | 11.2 ms | 35.7 s | 29.6 s | 421 / 470 | 421 / 448 | 265 / 344 | 1662 / 1712 |
 | mask2former-swinl-ade20k | 1024x2048 | 103 ms | 94.2 ms | 55.6 ms | 60.4 ms | 101 s | 129 s | 1164 / 1400 | 1485 / 1514 | 1164 / 1400 | 3051 / 3090 |
-| oneformer-swinl-ade20k | 1024x2048 | 139 ms | 182 ms | 83.3 ms | 100 ms | 85.8 s | 140 s | 2054 / 2476 | 2372 / 2426 | 2054 / 2476 | 4524 / 4576 |
+| oneformer-swinl-ade20k | 1024x2048 | 146 ms | 182 ms | 83.3 ms | 107 ms | 85.8 s | 140 s | 1833 / 2074 | 2372 / 2426 | 1833 / 1994 | 4524 / 4576 |
 | pspnet-r101-d8-ade20k | 1024x2048 | 48.7 ms | 41.3 ms | 29.8 ms | 24.9 ms | 11.0 s | 44.1 s | 414 / 472 | 414 / 472 | 335 / 394 | 1859 / 1898 |
 | sapiens-seg-0.3b-goliath | 1024x2048 | 132 ms | 118 ms | 156 ms | 92.6 ms | 12.5 s | 52.9 s | 1643 / 1762 | 1373 / 1462 | 1643 / 1762 | 2465 / 2526 |
 | sapiens-seg-1b-goliath | 1024x2048 | 276 ms | 263 ms | 244 ms | 180 ms | 18.8 s | 84.9 s | 2894 / 3024 | 2986 / 3084 | 2894 / 3022 | 5694 / 5742 |
@@ -2382,7 +2383,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | segnext-mscan-l-ade20k | 1024x2048 | 43.1 ms | 63.6 ms | 32.3 ms | 20.7 ms | 34.9 s | 82.2 s | 417 / 458 | 532 / 578 | 277 / 320 | 1634 / 1694 |
 | segnext-mscan-s-ade20k | 1024x2048 | 18.5 ms | 24.9 ms | 18.0 ms | 8.04 ms | 17.2 s | 56.6 s | 350 / 402 | 465 / 482 | 164 / 202 | 1493 / 1544 |
 | segnext-mscan-t-ade20k | 1024x2048 | 15.9 ms | 16.6 ms | 16.0 ms | 9.02 ms | 19.1 s | 59.6 s | 332 / 378 | 446 / 480 | 110 / 158 | 1476 / 1498 |
-| ben2 | 1080x1920 | 110 ms | 103 ms | 58.2 ms | 104 ms | 70.8 s | 140 s | 1681 / 1956 | 813 / 916 | 1430 / 1698 | 1280 / 1326 |
+| ben2 | 1080x1920 | 115 ms | 103 ms | 58.2 ms | 105 ms | 70.8 s | 140 s | 1296 / 1376 | 813 / 916 | 1046 / 1118 | 1280 / 1326 |
 | birefnet | 1080x1920 | 131 ms | 138 ms | 87.8 ms | 121 ms | 93.8 s | 201 s | 1660 / 1908 | 1874 / 1932 | 1674 / 1916 | 1753 / 1814 |
 | birefnet-lite | 1080x1920 | 58.0 ms | 50.2 ms | 49.0 ms | 48.1 ms | 75.1 s | 156 s | 810 / 952 | 1469 / 1552 | 754 / 960 | 874 / 934 |
 | inspyrenet | 1080x1920 | 109 ms | 85.8 ms | 51.1 ms | 108 ms | 70.8 s | 133 s | 1649 / 1848 | 913 / 1018 | 1649 / 1874 | 1181 / 1252 |

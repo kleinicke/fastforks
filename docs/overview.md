@@ -38,14 +38,14 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`hitnet-middlebury-d400`](models/stereo.md#hitnet) | yes | 7.07 | 483.1 (994x1482) | 176.2 | 53.1 | 9.1x vs original (994x1482) | 1207 |
 | [`las2-h`](models/stereo.md#liteanystereo-v2) | yes | 2.14 ? | 134.9 (994x1482) | 112.7 | 53.6 | 2.5x vs original (994x1482) | 872 |
 | [`aanet-plus-sceneflow`](models/stereo.md#aanet) | yes | 18.50 | 194.2 (994x1482) | 159.2 | 88.9 | 2.2x vs original (994x1482) | 813 |
-| [`rt-monster-plusplus-mix-all`](models/stereo.md#rt-monster) | no | 2.05 ? | 251.4 (994x1482) | 113.4 | 89.5 | 2.8x vs original (994x1482) | 2586 |
+| [`rt-monster-plusplus-mix-all`](models/stereo.md#rt-monster) | no | 2.05 ? | 251.4 (994x1482) | 108.6 | 93.8 | 2.7x vs original (994x1482) | 1277 |
 | [`aanet-sceneflow`](models/stereo.md#aanet) | yes | 14.64 | 178.0 (994x1482) | 139.8 | 100.8 | 1.8x vs original (994x1482) | 536 |
 | [`s2m2-s`](models/stereo.md#s2m2) | no | 1.10 ? | 350.2 (994x1482) | 348.4 | 113.5 | 3.1x vs original (994x1482) | 686 |
 | [`c-fast-foundationstereo`](models/stereo.md#c-foundationstereo) | yes | 2.20 | 527.1 (994x1482) | 329.8 | 134.8 | 3.9x vs original (994x1482) | 1120 |
 | [`fast-foundationstereo`](models/stereo.md#c-foundationstereo) | no | 1.72 | 527.2 (994x1482) | 330.0 | 134.8 | 3.9x vs original (994x1482) | 1120 |
 | [`nmrf-sceneflow`](models/stereo.md#nmrf) | yes | 3.81 | 312.6 (994x1482) | 216.4 | 195.7 | 1.6x vs original (994x1482) | 1022 |
-| [`dlnr-middlebury`](models/stereo.md#dlnr) | yes | 34.38 | 597.7 (994x1482) | 398.2 | 213.9 | 2.8x vs original (994x1482) | 1236 |
 | [`dlnr-sceneflow`](models/stereo.md#dlnr) | yes | 30.27 | 597.7 (994x1482) | 398.2 | 213.9 | 2.8x vs original (994x1482) | 1236 |
+| [`dlnr-middlebury`](models/stereo.md#dlnr) | yes | 34.38 | 597.7 (994x1482) | 398.7 | 214.7 | 2.8x vs original (994x1482) | 851 |
 | [`cfnet-sceneflow`](models/stereo.md#cfnet) | yes | 5.60 | 545.4 (994x1482) | 409.3 | 225.3 | 2.4x vs original (994x1482) | 1073 |
 | [`cas-gwcnet-c-sceneflow`](models/stereo.md#cas-gwcnet) | yes | 7.85 | 389.1 (994x1482) | 327.0 | 225.4 | 1.7x vs original (994x1482) | 1725 |
 | [`crestereo-eth3d`](models/stereo.md#crestereo) | yes | 1.39 † | 1597.4 (994x1482) | 731.8 | 228.9 | 7.0x vs original (994x1482) | 644 |
@@ -300,7 +300,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`dinov2-l-linear-ade20k`](models/segmentation.md#dinov2-linear) | yes | 95.7 (1024x2048) | 83.9 | 52.8 | 1.8x vs original (1024x2048) | 1189 |
 | [`mask2former-swinl-ade20k`](models/segmentation.md#mask2former) | no | 144.8 (1024x2048) | 103.2 | 60.4 | 2.4x vs original (1024x2048) | 1164 |
 | [`sapiens-seg-0.3b-goliath`](models/segmentation.md#sapiens-segmentation) | no | 173.2 (1024x2048) | 131.9 | 92.6 | 1.9x vs original (1024x2048) | 1643 |
-| [`oneformer-swinl-ade20k`](models/segmentation.md#oneformer) | yes | 205.1 (1024x2048) | 139.1 | 100.0 | 2.1x vs original (1024x2048) | 2054 |
+| [`oneformer-swinl-ade20k`](models/segmentation.md#oneformer) | yes | 205.1 (1024x2048) | 145.8 | 106.7 | 1.9x vs original (1024x2048) | 1833 |
 | [`sapiens-seg-1b-goliath`](models/segmentation.md#sapiens-segmentation) | no | 354.4 (1024x2048) | 276.4 | 179.8 | 2.0x vs original (1024x2048) | 2894 |
 
 ## Matting
@@ -309,7 +309,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 - Fastest: [`u2netp`](models/matting.md#u²-net) (2.9 ms).
 - Most accurate: [`birefnet`](models/matting.md#birefnet) (121.1 ms, error 0.0325).
-- Best trade-off: [`ben2`](models/matting.md#ben2) (103.8 ms, error 0.0403).
+- Best trade-off: [`ben2`](models/matting.md#ben2) (105.2 ms, error 0.0403).
 - Fastest commercially usable: [`u2netp`](models/matting.md#u²-net) (2.9 ms).
 - Most accurate commercially usable: [`birefnet`](models/matting.md#birefnet) (121.1 ms, error 0.0325).
 
@@ -323,7 +323,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`inspyrenet-fast`](models/matting.md#inspyrenet) | yes | – | 71.1 (1080x1920) | 41.7 | 15.5 | 4.6x vs original (1080x1920) | 432 |
 | [`birefnet-lite`](models/matting.md#birefnet) | yes | – | 75.1 (1080x1920) | 58.0 | 48.1 | 1.6x vs original (1080x1920) | 754 |
 | [`vitmatte-s`](models/matting.md#vitmatte) | yes | – | 140.2 (1080x1920) | 101.9 | 84.1 | 1.7x vs original (1080x1920) | 1305 |
-| [`ben2`](models/matting.md#ben2) | yes | 0.0403 | 200.6 (1080x1920) | 110.0 | 103.8 | 1.9x vs original (1080x1920) | 1430 |
+| [`ben2`](models/matting.md#ben2) | yes | 0.0403 | 200.6 (1080x1920) | 115.0 | 105.2 | 1.9x vs original (1080x1920) | 1046 |
 | [`inspyrenet`](models/matting.md#inspyrenet) | yes | – | 240.9 (1080x1920) | 108.5 | 107.9 | 2.2x vs original (1080x1920) | 1649 |
 | [`birefnet`](models/matting.md#birefnet) | yes | 0.0325 | 234.4 (1080x1920) | 131.4 | 121.1 | 1.9x vs original (1080x1920) | 1674 |
 | [`rmbg-2.0`](models/matting.md#birefnet) | no | – | 149.0 (1080x1920) | 131.5 | 121.4 | 1.2x vs original (1080x1920) | 1674 |
