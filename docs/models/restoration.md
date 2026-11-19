@@ -690,7 +690,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13150<br>2332<br>2356<br>1941<br>fails: RuntimeError: Inplace update to inference tensor outside Inf | 7598 / 15268<br>4233 / 7262<br>3857 / 7778<br>5237 / 8144<br>– |
+| `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 13150<br>2332<br>2356<br>1941<br>2280 (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | 7598 / 15268<br>4233 / 7262<br>3857 / 7778<br>5237 / 8144<br>9068 / 9284 |
 | `seedvr2-3b` | 64x64 | original<br>portable<br>kernels<br>TensorRT bf16 | –<br>–<br>–<br>46.8 | –<br>–<br>–<br>7662 / 7664 |
 | `seedvr2-7b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | OOM<br>2712<br>2713<br>2471 (VAE only, standalone compile)<br>2696 (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | –<br>6419 / 8880<br>6402 / 7034<br>5522 / 9042<br>9369 / 9860 |
 
@@ -735,12 +735,13 @@ SeedVR2 is a generative one-step restorer, so PSNR is only a fidelity check. Eac
 |---|---|---|---|---|---|---|---|
 | `seedvr2-3b` | DIV2K validation, 4 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original | 22.02 / 0.5865 / – | 22.00 / 0.5863 / 43.13 | 22.00 / 0.5863 / 43.13 |  |  |  |
 | `seedvr2-3b` | DIV2K validation, 25 bicubic x2 center crops of 64 x 64 LR pixels, RGB PSNR |  | 20.2542 |  |  | 20.2671 |  |
+| `seedvr2-3b` | DIV2K, 13 bicubic x2 center crops of 512 x 512 LR pixels, RGB PSNR |  | 20.29 / – |  |  | 20.31 / – |  |
 | `seedvr2-3b` | 4 video clips (first frame), PSNR to the original's output |  | 44.56 | 44.56 |  |  |  |
 | `seedvr2-7b` | DIV2K validation, 2 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original | 23.16 / 0.6228 / – | 23.13 / 0.6227 / 44.85 | 23.13 / 0.6227 / 44.85 |  |  |  |
 | `seedvr2-7b` | DIV2K, 25 bicubic x2 center crops of 512 x 512 LR pixels, RGB PSNR |  | 22.7378 |  | 22.7425 | 22.7468 |  |
 | `seedvr2-7b` | 2 video clips (first frame), PSNR to the original's output |  | 46.14 | 46.14 |  |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / 33b2432c / f7dc867f, 2026-11-16 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f7dc867f, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / a39491d3, 2026-11-18 to 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / 33b2432c / 660d56fb / f7dc867f, 2026-11-16 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f7dc867f, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / 660d56fb / a39491d3, 2026-11-18 to 2026-11-19.
 
 ### Parity
 

@@ -151,6 +151,7 @@ _DATASETS = {
         "div2k-val-x2-crop512-n2": "DIV2K validation, 2 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original",  # noqa: E501
         "div2k-val-x2-crop64-every4-rgb": "DIV2K validation, 25 bicubic x2 center crops of 64 x 64 LR pixels, RGB PSNR",
         "div2k-val-x2-crop512-every4-rgb": "DIV2K, 25 bicubic x2 center crops of 512 x 512 LR pixels, RGB PSNR",
+        "div2k-val-x2-crop512-every8-rgb": "DIV2K, 13 bicubic x2 center crops of 512 x 512 LR pixels, RGB PSNR",
         "seedvr2-clips-n4": "4 video clips (first frame), PSNR to the original's output",
         "seedvr2-clips-n2": "2 video clips (first frame), PSNR to the original's output",
         "div2k-val-x2-every4": "DIV2K validation (every 4th: 25 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
