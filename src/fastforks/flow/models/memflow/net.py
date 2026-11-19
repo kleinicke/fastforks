@@ -185,7 +185,7 @@ class CorrBlock:
     def __init__(self, f1: torch.Tensor, f2: torch.Tensor) -> None:
         """Build the pyramid of `f1 . f2 / sqrt(C)`."""
         b, c, h, w = f1.shape
-        corr = (f1.flatten(2).transpose(1, 2) @ f2.flatten(2)) / math.sqrt(c)
+        corr = (f1.flatten(2).transpose(1, 2) @ f2.flatten(2)).div_(math.sqrt(c))
         corr = corr.reshape(b * h * w, 1, h, w)
         self.pyramid = [corr]
         for _ in range(LEVELS - 1):
