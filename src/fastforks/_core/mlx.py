@@ -145,8 +145,8 @@ class Tuning:
         compile_steps: `mx.compile` the per-iteration step and the encoders [compile].
     """
 
-    cache_fraction: float = 1 / 32
-    cache_min_mb: int = 512
+    cache_fraction: float = 1 / 128
+    cache_min_mb: int = 128
     cache_cap_mb: int = 2048
     threadgroup: int = 256
     warp_lane: int = 8
