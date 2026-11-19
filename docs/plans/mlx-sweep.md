@@ -323,3 +323,64 @@ Still above MPS in memory: moge-2-vits fp16 (+370 MB: call-phase activations, mx
 lingbot-depth fp32 (+200 MB). The SD-family (lotus, marigold, stablenormal) is 1.3-1.7x slower than MPS (time, not memory):
 their resident heap beyond MLX buffers is about 650 MB and the first call pays the mmap page-in. Not done: duplicate
 Winograd / folded-BN weights, fp32 upcasts in `_layer_norm` / `_vector_norm`, segment-size policy.
+
+## Stereo group (994x1482, portable)
+
+All 27 families with a `portable_mlx` pass `test_mlx[<ref>@1]` (cfnet: fp32 only, fp16 misses the tolerance; defom fp32 only). Wrapped with `mlx_wrap.port` (`whole="disparity"`, or `methods=("_run",)` for psmnet / s2m2). Enablers: functional cost volumes under `torch.compiler.is_exporting()` (`stereo/_volume.py`, avoids the slice_scatter copy chain: psmnet 22 s -> 4.5 s), phase-wise `conv_transpose3d` (`mx.conv_transpose3d` is ~18x slower: 167 ms -> 9 ms per 3x3x3 s2 layer), grouped conv3d, ops min.dim / any / all / adaptive_max_pool2d / empty_permuted, unbatched max_pool2d, cond-free DLNR refinement (`EXPORTING_FOR_MLX`).
+
+Result: peak memory is below MPS for nearly every family (fp32 mostly 40-60 percent lower), but speed is 1.1-2.6x slower than MPS, so the speed target is NOT met. Memory is above MPS for gwcnet fp16 and psmnet (the 5-D volume activations). Not done: a fused correlation / cost-volume Metal kernel, conv_mlx / graph_mlx kernels for the stereo nets (no `mlx_kernels` declared), Winograd for the 3-D nets; c-foundationstereo (60 s) and foundationstereo (36 s) are 12 GB peak and dominated by 3-D conv hourglasses.
+
+| ref | dtype | MPS | MLX |
+|---|---|---|---|
+| aanet-sceneflow | 16 | 1141 ms / 3.5 GB | 2176 ms / 2.7 GB |
+| aanet-sceneflow | 32 | 912 ms / 3.5 GB | 2348 ms / 2.7 GB |
+| bridgedepth-sf | 16 | 3782 ms / 6.1 GB | 5540 ms / 3.9 GB |
+| bridgedepth-sf | 32 | 4280 ms / 8.1 GB | 5425 ms / 5.3 GB |
+| c-foundationstereo-s | 16 | - | 60417 ms / 11.8 GB |
+| c-foundationstereo-s | 32 | - | 64038 ms / 11.9 GB |
+| cas-gwcnet-gc-sceneflow | 16 | 2995 ms / 7.0 GB | 8431 ms / 4.8 GB |
+| cas-gwcnet-gc-sceneflow | 32 | 5490 ms / 11.6 GB | 8673 ms / 4.8 GB |
+| cfnet-sceneflow | 32 | - | 5051 ms / 4.2 GB |
+| coex-sceneflow | 16 | 411 ms / 3.5 GB | 560 ms / 2.5 GB |
+| coex-sceneflow | 32 | 784 ms / 5.1 GB | 763 ms / 2.6 GB |
+| defom-stereo-vitl-sceneflow | 32 | 11105 ms / 12.8 GB | 16523 ms / 6.7 GB |
+| dlnr-sceneflow | 16 | 2143 ms / 4.0 GB | 4474 ms / 3.0 GB |
+| dlnr-sceneflow | 32 | 2699 ms / 6.0 GB | 5411 ms / 3.1 GB |
+| fast-acvnet-generalization | 16 | 478 ms / 2.7 GB | 735 ms / 1.9 GB |
+| fast-acvnet-generalization | 32 | 944 ms / 3.6 GB | 853 ms / 1.8 GB |
+| foundationstereo-vit-s | 16 | 20584 ms / 13.3 GB | 36138 ms / 12.1 GB |
+| foundationstereo-vit-s | 32 | - | 40293 ms / 12.1 GB |
+| great-igev-sceneflow | 16 | 11062 ms / 9.7 GB | 20253 ms / 9.5 GB |
+| great-igev-sceneflow | 32 | 32187 ms / 12.4 GB | 22071 ms / 9.7 GB |
+| gwcnet-gc-sceneflow | 16 | 2455 ms / 6.9 GB | 4974 ms / 7.7 GB |
+| gwcnet-gc-sceneflow | 32 | 4461 ms / 12.1 GB | 5990 ms / 11.6 GB |
+| hitnet-eth3d | 16 | 501 ms / 5.4 GB | 957 ms / 2.6 GB |
+| hitnet-eth3d | 32 | 484 ms / 5.4 GB | 1147 ms / 2.4 GB |
+| igev-plusplus-sceneflow | 16 | 8602 ms / 5.9 GB | 15900 ms / 3.4 GB |
+| igev-plusplus-sceneflow | 32 | 10424 ms / 8.9 GB | 17620 ms / 5.0 GB |
+| igev-stereo-sceneflow | 16 | 5772 ms / 3.7 GB | 9039 ms / 3.0 GB |
+| igev-stereo-sceneflow | 32 | 6423 ms / 5.7 GB | 10763 ms / 3.1 GB |
+| las2-s | 16 | 192 ms / 3.5 GB | 670 ms / 1.4 GB |
+| las2-s | 32 | 245 ms / 3.9 GB | 945 ms / 2.3 GB |
+| mocha-v1-sceneflow | 16 | 7967 ms / 5.6 GB | 10631 ms / 3.3 GB |
+| mocha-v1-sceneflow | 32 | 9065 ms / 8.5 GB | 12425 ms / 3.4 GB |
+| monster-plusplus-mix-all | 16 | 11876 ms / 7.2 GB | 19222 ms / 5.4 GB |
+| monster-plusplus-mix-all | 32 | 14519 ms / 10.8 GB | 17403 ms / 6.3 GB |
+| monster-sceneflow | 16 | 11368 ms / 6.2 GB | 18585 ms / 5.6 GB |
+| monster-sceneflow | 32 | 13426 ms / 8.7 GB | 16887 ms / 6.1 GB |
+| nmrf-sceneflow | 16 | 1469 ms / 4.6 GB | 2939 ms / 1.8 GB |
+| nmrf-sceneflow | 32 | 1560 ms / 5.6 GB | 3499 ms / 2.0 GB |
+| psmnet-sceneflow | 16 | 2579 ms / 6.3 GB | 4461 ms / 7.5 GB |
+| psmnet-sceneflow | 32 | 4615 ms / 11.0 GB | 5625 ms / 11.2 GB |
+| raft-stereo-middlebury | 16 | 3940 ms / 4.6 GB | 9857 ms / 3.0 GB |
+| raft-stereo-middlebury | 32 | 4395 ms / 4.6 GB | 11969 ms / 3.2 GB |
+| rt-monster-plusplus-mix-all | 16 | 682 ms / 6.9 GB | 1326 ms / 3.5 GB |
+| rt-monster-plusplus-mix-all | 32 | 663 ms / 6.8 GB | 1363 ms / 3.6 GB |
+| s2m2-s | 16 | 1607 ms / 5.9 GB | 3386 ms / 2.9 GB |
+| s2m2-s | 32 | 1707 ms / 7.9 GB | 3877 ms / 4.4 GB |
+| selective-igev-sceneflow | 16 | 6968 ms / 3.8 GB | 13071 ms / 3.5 GB |
+| selective-igev-sceneflow | 32 | 9010 ms / 6.8 GB | 15360 ms / 3.2 GB |
+| waft-stereo-s | 16 | 6090 ms / 9.0 GB | 6635 ms / 4.2 GB |
+| waft-stereo-s | 32 | 3360 ms / 9.4 GB | 6903 ms / 4.2 GB |
+| crestereo-eth3d | 16 | 4484 ms / 2.7 GB | 4308 ms / 2.5 GB |
+| crestereo-eth3d | 32 | 5502 ms / 3.7 GB | 5763 ms / 3.8 GB |
