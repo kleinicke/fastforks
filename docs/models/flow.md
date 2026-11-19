@@ -19,7 +19,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`flowseek-t-things`](#flowseek) | yes | 4.143 | 254, 1.8x | 2114, 0.22x |
 | [`flowseek-t-things-notartan`](#flowseek) | yes | 3.933 | 254, 1.8x | 2114, 0.22x |
 | [`gmflow-scale1-mixdata`](#gmflow) | yes | 3.697 ? | – | – |
-| [`gmflow-scale1-things`](#gmflow) | yes | 10.346 | – | – |
+| [`gmflow-scale1-things`](#gmflow) | yes | 10.346 | 446, 1.7x | 2142, 0.25x |
 | [`gmflow-scale2-mixdata`](#gmflow) | yes | 2.389 ? | – | – |
 | [`gmflow-scale2-regrefine6-kitti`](#gmflow) | yes | 0.570 † | – | – |
 | [`gmflow-scale2-regrefine6-mixdata`](#gmflow) | yes | 1.315 ? | – | – |
@@ -212,7 +212,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `gmflow-scale1-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1245<br>750<br>556<br>–<br>382<br>187 | 8384 / 8458<br>8360 / 8468<br>4496 / 4642<br>–<br>4293 / 4558<br>4333 / 4390 |
+| `gmflow-scale1-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1245<br>750<br>448<br>446<br>382<br>187 | 8384 / 8458<br>8360 / 8468<br>1988 / 2142<br>1988 / 2142<br>4293 / 4558<br>4333 / 4390 |
 | `gmflow-scale1-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1246<br>750<br>556<br>–<br>382<br>187 | 8384 / 8538<br>8360 / 8448<br>4496 / 4642<br>–<br>4293 / 4558<br>4333 / 4390 |
 | `gmflow-scale2-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2537<br>1599<br>1139<br>–<br>765<br>planned for 0.2.1 | 8512 / 8742<br>8425 / 8552<br>6017 / 6224<br>–<br>10865 / 10904<br>– |
 | `gmflow-scale2-things` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>212 (standalone feature CNN, eager transformer and flow update) | –<br>–<br>–<br>1616 / 2560 |
@@ -268,6 +268,7 @@ Commercial use: yes.
 - `gmflow-scale2-regrefine6-mixdata` 384x1248, first call: TensorRT fp32 14 s (ONNX + engine).
 - `gmflow-scale1-things` original (fp32) 1080x1920: upstream UniMatch ({'num_scales': 1, 'upsample_factor': 8, 'reg_refine': False}, {'attn_type': 'swin', 'attn_splits_list': [2], 'corr_radius_list': [-1], 'prop_radius_list': [-1], 'num_reg_refine': 1, 'task': 'flow'}), padded to multiples of 16
 - `gmflow-scale1-things` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 1, 'upsample_factor': 8, 'reg_refine': False}, {'attn_type': 'swin', 'attn_splits_list': [2], 'corr_radius_list': [-1], 'prop_radius_list': [-1], 'num_reg_refine': 1, 'task': 'flow'}), padded to multiples of 16
+- `gmflow-scale1-things` portable 1080x1920, kernels 1080x1920: One shifted-window mask is shared across the batch on large CUDA inputs. Paired flows matched bitwise.
 - `gmflow-scale1-mixdata` original (fp32) 1080x1920: upstream UniMatch ({'num_scales': 1, 'upsample_factor': 8, 'reg_refine': False}, {'attn_type': 'swin', 'attn_splits_list': [2], 'corr_radius_list': [-1], 'prop_radius_list': [-1], 'num_reg_refine': 1, 'task': 'flow'}), padded to multiples of 16
 - `gmflow-scale1-mixdata` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 1, 'upsample_factor': 8, 'reg_refine': False}, {'attn_type': 'swin', 'attn_splits_list': [2], 'corr_radius_list': [-1], 'prop_radius_list': [-1], 'num_reg_refine': 1, 'task': 'flow'}), padded to multiples of 16
 - `gmflow-scale2-things` original (fp32) 1080x1920: upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': False}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 1, 'task': 'flow'}), padded to multiples of 32
@@ -286,7 +287,7 @@ Commercial use: yes.
 - `gmflow-scale2-regrefine6-kitti` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale2-regrefine6-mixdata` original (fp32) 1080x1920: upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale2-regrefine6-mixdata` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
-- `gmflow-scale1-things` load / first call: original 0.14 s / 0.942 s, portable 0.16 s / 0.558 s
+- `gmflow-scale1-things` load / first call: original 0.14 s / 0.942 s, portable 0.16 s / 0.558 s, kernels 0.16 s / 0.875 s
 - `gmflow-scale1-mixdata` load / first call: original 0.13 s / 0.76 s, portable 0.16 s / 0.558 s
 - `gmflow-scale2-things` load / first call: original 0.14 s / 1.61 s, portable 0.17 s / 1.141 s
 - `gmflow-scale2-sintel` load / first call: original 0.13 s / 1.618 s, portable 0.16 s / 1.141 s
