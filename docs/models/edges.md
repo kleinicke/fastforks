@@ -172,7 +172,7 @@ All 200 BSDS500 test images. The benchmark uses the official boundary correspond
 |---|---|---|---|---|
 | `lineart` | BSDS500 test (200 images), boundary ODS / OIS / AP % | 50.19 / 52.90 / 38.26 | 50.19 / 52.85 / 38.26 |  |
 | `lineart` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 49.18 / 52.31 / 36.92 | 49.18 / 52.27 / 36.92 |  |
-| `lineart-coarse` | BSDS500 test (200 images), boundary ODS / OIS / AP % |  | 44.39 / 48.14 / 38.90 |  |
+| `lineart-coarse` | BSDS500 test (200 images), boundary ODS / OIS / AP % | 44.39 / 48.10 / 38.90 | 44.39 / 48.14 / 38.90 |  |
 | `lineart-coarse` | BSDS500 test (first 75 images), boundary ODS / OIS / AP % | 42.88 / 46.46 / 36.60 | 42.89 / 46.46 / 36.60 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
@@ -250,7 +250,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `mlsd` | synthetic (1080x1920) | original<br>portable<br>kernels | 35.6<br>9.33<br>– | 185 / 212<br>127 / 170<br>– |
-| `mlsd` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 20.6<br>7.65<br>–<br>4.61<br>planned for 0.2.1 | 113 / 132<br>72 / 90<br>–<br>101 / 130<br>– |
+| `mlsd` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 20.6<br>7.65<br>–<br>4.61<br>5.75 (standalone CNN with eager resize and line decoding) | 113 / 132<br>72 / 90<br>–<br>101 / 130<br>295 / 310 |
 
 <details><summary>Details</summary>
 
@@ -262,7 +262,7 @@ Commercial use: yes.
 - Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `thr_v` = 0.1 (0.0 to 1.0), `thr_d` = 0.1 (>= 0.0)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `mlsd`
-- Not in this release (planned for 0.2.1): `mlsd` TensorRT export: TensorRT builds the engine but its CNN outputs diverge from portable FP32 on real images
+- Not in this release (planned for 0.2.1): `mlsd` TensorRT export: the public graph's CNN outputs diverge from portable FP32. The validated standalone build preserves the MobileNet preactivations as engine outputs
 - Outputs: edges, lines
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mlsd` 1080x1920 (0.1 GiB peak allocated, 0.2 reserved)
@@ -275,11 +275,11 @@ Commercial use: yes.
 
 All 102 YorkUrban images in the DT-LSD release. Each M-LSD mode uses 512-pixel short-side detection, cubic resizing, a score and length threshold of 0.1, and up to 200 segments. Structural AP matches endpoints on a 256 x 256 coordinate grid, testing both endpoint orders and matching each annotation at most once. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | portable fp32 | note |
-|---|---|---|---|---|---|
-| `mlsd` | YorkUrban test (102 images), line segment sAP@5 / @10 / @15 % | 6.69 / 13.44 / 17.01 | 6.65 / 13.37 / 16.92 | 6.69 / 13.44 / 17.02 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | TensorRT | note |
+|---|---|---|---|---|---|---|
+| `mlsd` | YorkUrban test (102 images), line segment sAP@5 / @10 / @15 % | 6.69 / 13.44 / 17.01 | 6.65 / 13.37 / 16.92 | 6.69 / 13.44 / 17.02 | 6.69 / 13.44 / 17.02 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 10d473ab, 2026-11-19.
 
 ### Parity
 
@@ -288,6 +288,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `mlsd` | 0.0 / 0.0 | RTX 5060 Ti, torch 2.10.0+cu130 | `cudnn_hacc@cudnn91501`, `cutlass_conv@988138e042cb:sm_120`, `igev@f075827d68c6:sm_120` |
+
+### Limitations
+
+- A standalone FP32 TensorRT CNN that preserves backbone preactivation outputs matches portable FP32 on all 102 YorkUrban images. The measured path uses PyTorch preprocessing and line decoding.
 
 </details>
 

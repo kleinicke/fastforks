@@ -1359,7 +1359,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
 | anysplat | 336x518 | – | 741 | 503 | 364 | 2.0x | 1.4x | 8931 / 9394 | 4842 / 4932 | 4849 / 5192 |
-| depthsplat-small-re10k | 336x518 | – | 126 | 119 | 112 | 1.1x | 1.1x | 5694 / 5892 | 5432 / 5606 | 5434 / 5606 |
+| depthsplat-small-re10k | 336x518 | – | 126 | 138 | 95.1 | 1.3x | 1.4x | 5694 / 5892 | 963 / 1222 | 965 / 1314 |
 | lingbot-map | 480x640 | – | 993 | 733 | 520 | 1.9x | 1.4x | 7141 / 7672 | 4158 / 6016 | 4167 / 6178 |
 | mapanything-apache | 336x518 | 2875 | 1967 | 636 | 544 | 3.6x | 1.2x | 10227 / 10952 | 3697 / 4092 | 3697 / 4072 |
 | mvsanywhere | 448x672 | 273 | 219 | 93.2 | 35.2 | 6.2x | 2.7x | 1504 / 1576 | 931 / 1226 | 702 / 760 |
@@ -2401,7 +2401,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | lineart | 1024x1024 | 9.93 ms | 6.49 ms | 4.80 ms | – | 9.92 s | 10.3 s | 129 / 164 | 117 / 164 | – | 150 / 176 |
 | lineart-anime | 1024x1024 | 3.86 ms | 2.80 ms | 1.54 ms | – | 10.3 s | 13.4 s | 161 / 206 | 180 / 206 | – | 304 / 314 |
 | lineart-coarse | 1024x1024 | 9.92 ms | 6.49 ms | 4.80 ms | – | 9.66 s | 10.5 s | 129 / 164 | 117 / 164 | – | 150 / 176 |
-| mlsd | 1024x1024 | 7.65 ms | 4.61 ms | planned for 0.2.1 | – | 11.4 s | – | 72 / 90 | 101 / 130 | – | – |
+| mlsd | 1024x1024 | 7.65 ms | 4.61 ms | 5.75 ms, fp32 engine (standalone CNN with eager resize and line decoding) | – | 11.4 s | – | 72 / 90 | 101 / 130 | – | 295 / 310 |
 | pidinet | 1024x1024 | 6.59 ms | 5.66 ms | 4.50 ms | – | 12.4 s | 20.4 s | 186 / 228 | 166 / 190 | – | 187 / 200 |
 | teed | 1024x1024 | 2.54 ms | 1.10 ms | 0.799 ms | – | 9.06 s | 12.5 s | 68 / 88 | 71 / 104 | – | 106 / 120 |
 | clipseg | 1024x1024 | 4.46 ms | 3.19 ms | 1.75 ms (segmentation network on a normalized 352x352 image and precomputed text embedding only) | 2.76 ms | 9.92 s | 39.9 s | 328 / 356 | 348 / 374 | 335 / 362 | 464 / 480 |
@@ -2595,7 +2595,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | geocalib-pinhole | 1080x1920 | 81.2 ms | 73.1 ms | planned for 0.2.1 | 81.8 ms | 28.4 s | – | 320 / 378 | 246 / 300 | 277 / 338 | – |
 | geocalib-pinhole | 1920x1440 | 123 ms | – | 109 ms, fp32 engine (field predictor only, standalone build) | – | – | 42.9 s | 433 / 560 | – | – | 540 / 558 |
 | anysplat | 336x518 | 503 ms | 427 ms | 314 ms | 364 ms | 80.3 s | 215 s | 4842 / 4932 | 4137 / 4694 | 4849 / 5192 | 7629 / 7674 |
-| depthsplat-small-re10k | 336x518 | 119 ms | 82.2 ms | 86.4 ms | 112 ms | 80.0 s | 224 s | 5432 / 5606 | 5432 / 5526 | 5434 / 5606 | 3148 / 3194 |
+| depthsplat-small-re10k | 336x518 | 138 ms | 82.2 ms | 86.4 ms | 95.1 ms | 80.0 s | 224 s | 963 / 1222 | 5432 / 5526 | 965 / 1314 | 3148 / 3194 |
 | lingbot-map | 480x640 | 733 ms | 657 ms | 489 ms | 520 ms | 71.0 s | 181 s | 4158 / 6016 | 3339 / 3468 | 4167 / 6178 | 6280 / 6338 |
 | mapanything-apache | 336x518 | 636 ms | 596 ms | 367 ms | 544 ms | 46.2 s | 137 s | 3697 / 4092 | 3347 / 3792 | 3697 / 4072 | 6220 / 6248 |
 | mvsanywhere | 448x672 | 93.2 ms | 70.8 ms | 75.4 ms (standalone build) | 35.2 ms | 153 s | 217 s | 931 / 1226 | 818 / 860 | 702 / 760 | 1581 / 1658 |
