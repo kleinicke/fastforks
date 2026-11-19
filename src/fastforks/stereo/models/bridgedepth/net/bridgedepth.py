@@ -70,10 +70,14 @@ class BridgeDepth(nn.Module):
         image = self.prepare_input(img1, img2)
 
         depth_prior_raw = self.mono.infer(image)
+        del image
         depth_prior = self.depth_feature_down(depth_prior_raw).permute(0, 2, 3, 1).contiguous()
+        del depth_prior_raw
         inputs = {"img1": img1, "img2": img2, "depth_prior": depth_prior}
 
         stereo_outputs = self.stereo_encoder(inputs)
+        del inputs
+        stereo_outputs.pop("prob")
         stereo_embed, stereo_pos_embed = self.stereo_encoder.construct_hypothesis_embedding(
             proposal=stereo_outputs["proposal"].flatten(0, 1).detach(),
             fmap1=stereo_outputs["fmap1_concat_list"][0],
@@ -88,19 +92,24 @@ class BridgeDepth(nn.Module):
             depth_prior,
             stereo_pos_embed
         )
+        del stereo_embed, stereo_pos_embed, depth_prior
         disp_update = self.infer_head(stereo_embeds)  # [num_aux_layers,B,H,W,N,8*8]
         logit = .25 * self.infer_score_head(stereo_embeds)  # [num_aux_layers,B,H,W,N,8*8]
+
+        del stereo_embeds
 
         # prepare stereo embed for next stage
         a, b, h, w, n = disp_update.shape[:5]
         # fastforks: rearrange 'b (h w) n -> b h w n 1'
         proposal = stereo_outputs["proposal"].detach().unflatten(1, (h, -1)).unsqueeze(-1)
         disp_0 = F.relu(proposal[None] + disp_update)
+        del proposal, disp_update
         # fastforks: rearrange 'a b h w n (hs ws) -> a b (h hs) (w ws) n', hs=ws=8
         disp_0 = disp_0.unflatten(-1, (8, 8)).permute(0, 1, 2, 5, 3, 6, 4).reshape(a, b, h * 8, w * 8, n)
         logit = logit.unflatten(-1, (8, 8)).permute(0, 1, 2, 5, 3, 6, 4).reshape(a, b, h * 8, w * 8, n)
         _, indices = torch.max(logit[-1], dim=-1, keepdim=True)
         disp_est = torch.gather(disp_0[-1], dim=-1, index=indices).squeeze(-1).detach() * 2  # [B,H,W]
+        del disp_0, logit, indices
         # fastforks: rearrange 'b (h hs) (w ws) -> b h w (hs ws)', hs=ws=4
         disp_est = disp_est.unflatten(2, (-1, 4)).unflatten(1, (-1, 4)).permute(0, 1, 3, 2, 4).flatten(3)
         # disp_est = torch.median(disp_est.detach(), dim=-1, keepdim=True)[0]
@@ -114,12 +123,15 @@ class BridgeDepth(nn.Module):
             normalizer=128,
         )
 
+        del stereo_outputs
+
         # align: stage 1
         stereo_embeds, mono_embeds_1 = self.align_1(
             stereo_embed,
             mono_embeds[-1],
             stereo_pos_embed
         )
+        del stereo_embed, stereo_pos_embed, mono_embeds, mono_embeds_1
         disp_update = self.refine_head(stereo_embeds.squeeze(-2))  # [num_aux_layers,B,H,W,4*4]
         disp_1 = F.relu(disp_est[None] + disp_update)
         # fastforks: rearrange 'a b h w (hs ws) -> a b (h hs) (w ws)', hs=ws=4

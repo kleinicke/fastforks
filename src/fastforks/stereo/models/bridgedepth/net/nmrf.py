@@ -164,6 +164,7 @@ class NMRF(nn.Module):
         depth_prior = input['depth_prior']
         cost_volume = build_correlation_volume(fmap1_list[0], fmap2_list[0], self.max_disp // 8, self.dpn.cost_group)  # [B,G,D,H,W]
         prob, labels = self.dpn(cost_volume, fmap1_list[0], depth_prior)
+        del cost_volume
 
         # construct hypothesis embedding
         fmap1_concat_list = [self.concatconv(x) for x in fmap1_list]
