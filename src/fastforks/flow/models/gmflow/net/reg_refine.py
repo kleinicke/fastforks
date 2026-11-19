@@ -103,7 +103,7 @@ class BasicUpdateBlock(nn.Module):
                 nn.ReLU(inplace=True),
                 nn.Conv2d(256, downsample_factor ** 2 * 9, 1, padding=0))
 
-    def forward(self, net, inp, corr, flow):
+    def forward(self, net, inp, corr, flow, upsample=True):
         motion_features = self.encoder(flow, corr)
 
         inp = torch.cat([inp, motion_features], dim=1)
@@ -111,7 +111,7 @@ class BasicUpdateBlock(nn.Module):
         net = self.gru(net, inp)
         delta_flow = self.flow_head(net)
 
-        if self.mask is not None:
+        if self.mask is not None and upsample:
             mask = self.mask(net)
         else:
             mask = None
