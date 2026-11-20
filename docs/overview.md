@@ -43,7 +43,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`s2m2-s`](models/stereo.md#s2m2) | no | 1.10 ? | 350.2 (994x1482) | 348.4 | 113.5 | 3.1x vs original (994x1482) | 686 |
 | [`c-fast-foundationstereo`](models/stereo.md#c-foundationstereo) | yes | 2.20 | 527.1 (994x1482) | 329.8 | 134.8 | 3.9x vs original (994x1482) | 1120 |
 | [`fast-foundationstereo`](models/stereo.md#c-foundationstereo) | no | 1.72 | 527.2 (994x1482) | 330.0 | 134.8 | 3.9x vs original (994x1482) | 1120 |
-| [`nmrf-sceneflow`](models/stereo.md#nmrf) | yes | 3.81 | 312.6 (994x1482) | 216.4 | 195.7 | 1.6x vs original (994x1482) | 1022 |
+| [`nmrf-sceneflow`](models/stereo.md#nmrf) | yes | 3.81 | 312.6 (994x1482) | 216.2 | 195.6 | 1.6x vs original (994x1482) | 784 |
 | [`dlnr-sceneflow`](models/stereo.md#dlnr) | yes | 30.27 | 597.7 (994x1482) | 398.2 | 213.9 | 2.8x vs original (994x1482) | 1236 |
 | [`dlnr-middlebury`](models/stereo.md#dlnr) | yes | 34.38 | 597.7 (994x1482) | 398.7 | 214.7 | 2.8x vs original (994x1482) | 851 |
 | [`cfnet-sceneflow`](models/stereo.md#cfnet) | yes | 5.60 | 545.4 (994x1482) | 409.3 | 225.3 | 2.4x vs original (994x1482) | 1073 |

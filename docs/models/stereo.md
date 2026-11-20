@@ -64,7 +64,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`monster-mix-all`](#monster) | no | 1.25 † | 656, 6.5x | 1954, 0.3x |
 | [`monster-plusplus-mix-all`](#monster_plusplus) | no | 1.08 ? | 658, 6.6x | 2054, 0.32x |
 | [`monster-sceneflow`](#monster) | no | 1.34 | 655, 6.5x | 2514, 0.39x |
-| [`nmrf-sceneflow`](#nmrf) | yes | 3.81 | 196, 1.6x | 1112, 0.54x |
+| [`nmrf-sceneflow`](#nmrf) | yes | 3.81 | 196, 1.6x | 970, 0.47x |
 | [`psmnet-sceneflow`](#psmnet) | yes | 15.13 | 231, 2.6x | 1782, 0.29x |
 | [`raft-stereo-eth3d`](#raft_stereo) | yes | 2.61 † | 275, 3.8x | 738, 0.28x |
 | [`raft-stereo-middlebury`](#raft_stereo) | yes | 2.79 | 274, 3.8x | 758, 0.29x |
@@ -1484,7 +1484,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `nmrf-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 445<br>313<br>216<br>196<br>161<br>184 | 2300 / 2426<br>1656 / 2054<br>1510 / 1552<br>1022 / 1112<br>854 / 1104<br>1027 / 1134 |
+| `nmrf-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 445<br>313<br>216<br>196<br>161<br>184 | 2300 / 2426<br>1656 / 2054<br>1186 / 1270<br>784 / 970<br>854 / 1104<br>1027 / 1134 |
 
 <details><summary>Details</summary>
 
@@ -1500,8 +1500,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `nmrf-sceneflow` 3000x4000 (11.0 GiB peak allocated, 13.3 reserved)
 - `nmrf-sceneflow` 994x1482, first call: portable + torch.compile 85 s (cold Inductor cache), TensorRT fp16 142 s (ONNX + engine).
 - `nmrf-sceneflow` original 994x1482: torch.autocast(fp16) around the forward
-- `nmrf-sceneflow` load / first call: original 0.21 s / 0.766 s (375x1242), portable 0.1 s / 0.218† s, kernels 0.07† s / 0.197† s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `nmrf-sceneflow` portable 994x1482, kernels 994x1482: Middlebury 2014 trainingH Motorcycle stereo pair through the full public API.
+- `nmrf-sceneflow` load / first call: original 0.21 s / 0.766 s (375x1242), portable 0.17 s / 0.882 s, kernels 0.16 s / 0.851 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
