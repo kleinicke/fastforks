@@ -161,19 +161,22 @@ class Portable(Runner):
 
     def _run(self, x: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
         net = self.net
-        hs = []
         with _fp16_accumulate() if self.acc else contextlib.nullcontext():
             t = net.prepare_tokens_with_masks(x.half() if self.half else x)
-            if 0 in layers:
-                hs.append(t.float())
+            hs = t.new_empty((t.shape[0], len(layers), *t.shape[1:]), dtype=torch.float32) if layers else None
+            index = 0
+            if hs is not None and 0 in layers:
+                hs[:, index].copy_(t)
+                index += 1
             for i, blk in enumerate(net.blocks, 1):
                 t = blk(t) if self.ctx.params.stream else _block(blk, t)
-                if i in layers:
-                    hs.append(t.float())
+                if hs is not None and i in layers:
+                    hs[:, index].copy_(t)
+                    index += 1
             last = net.norm(t).float()
         out = {"last_hidden_state": last, "pooler_output": last[:, 0]}
-        if layers:
-            out["hidden_states"] = torch.stack(hs, 1)
+        if hs is not None:
+            out["hidden_states"] = hs
         return out
 
     def __call__(self, image: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
@@ -230,19 +233,22 @@ class Kernels(Runner):
         pixels = _GRAPH_WORK * vit.patch_size**2 // vit.embed_dim
         self.graphs = SmallShapeGraphs(self._last, pixels=pixels, graphs=_GRAPHS, enabled=self.staged is None)
 
-    def _run(self, image: torch.Tensor, layers: tuple[int, ...]) -> list[torch.Tensor]:
-        """`[last_hidden_state (fp16), *hidden states at layers (float32)]`."""
+    def _run(self, image: torch.Tensor, layers: tuple[int, ...]) -> tuple[torch.Tensor, torch.Tensor | None]:
+        """Return the FP16 final state and the requested hidden states in their final FP32 layout."""
         fast = self.fast
-        hs = []
         with torch.autocast("cuda", enabled=False), _fp16_accumulate():
             t = fast.tokens(image)
-            if 0 in layers:
-                hs.append(t.float())
+            hs = t.new_empty((t.shape[0], len(layers), *t.shape[1:]), dtype=torch.float32) if layers else None
+            index = 0
+            if hs is not None and 0 in layers:
+                hs[:, index].copy_(t)
+                index += 1
             for i, blk in enumerate(self.staged if self.staged is not None else fast.blocks, 1):
                 t = blk(t, fast) if self.staged is not None else fast.block(blk, t)
-                if i in layers:
-                    hs.append(t.float())
-            return [fast.vit.norm(t), *hs]
+                if hs is not None and i in layers:
+                    hs[:, index].copy_(t)
+                    index += 1
+            return fast.vit.norm(t), hs
 
     def _last(self, image: torch.Tensor) -> torch.Tensor:
         return self._run(image, ())[0].float()
@@ -254,13 +260,13 @@ class Kernels(Runner):
     def __call__(self, image: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
         """Features of a resized batch in [0, 1]."""
         if layers:
-            last, *hs = self._run(image, layers)
+            last, hs = self._run(image, layers)
             last = last.float()
         else:
-            last, hs = self.graphs(image), []
+            last, hs = self.graphs(image), None
         out = {"last_hidden_state": last, "pooler_output": last[:, 0]}
-        if layers:
-            out["hidden_states"] = torch.stack(hs, 1)
+        if hs is not None:
+            out["hidden_states"] = hs
         return out
 
 
