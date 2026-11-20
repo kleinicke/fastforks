@@ -68,6 +68,7 @@ conservative aid, not proof that every dynamic dependency has been found; includ
 
 Documentation-only changes select the docs tests. Edits to generated model or benchmark pages and their data also
 select the site-data and speed-floor checks. Changes to the stereo geometry guide include its executable example check.
+Edits limited to existing model-card summaries and limitations select card, docs and site-data checks.
 
 Golden-parity tests need the golden outputs: `python tools/fetch_goldens.py --all DIR` and
 `FASTFORKS_GOLDEN_PATH=DIR`. Local weights can be used without downloading via `FASTFORKS_WEIGHTS_PATH`, kernel

@@ -18,8 +18,9 @@ select the families whose refs occur in their changed lines. A git range limited
 selects those revisions when the manifest's shared settings are unchanged. Changing tests/test_golden.py selects every
 family. Changing a `GATE_TOOLS` file selects the fast tier. pyproject.toml / uv.lock select every family
 and flag `release` (dependencies changed: use the broad gate). When both git snapshots are available, an edit limited
-to the local package version in either file leaves the dependency selection unchanged. Everything else (docs, tools,
-other tests) selects no family.
+to the local package version in either file leaves the dependency selection unchanged. Edits limited to a card's
+summary and limitations select card and documentation checks. Everything else (docs, tools, other tests) selects
+no family.
 
 An empty change set selects no tests. Fast tier (`-m "not gpu and not model"`): every test file whose closure reaches
 no family module, the family-specific files of the selected families and every test file whose closure holds a changed
@@ -58,6 +59,9 @@ DEPENDENCIES = frozenset({"pyproject.toml", "uv.lock"})
 TOP_LEVEL_DOCS = frozenset({"README.md", "CONTRIBUTING.md"})
 BENCHMARK_DOCS = frozenset({"docs/benchmarks.md", "docs/overview.md"})
 GOLDEN_MANIFEST = re.compile(r"src/fastforks/[^/]+/models/[^/]+/golden[.]toml")
+MODEL_CARD = re.compile(r"src/fastforks/[^/]+/models/[^/]+/card[.]toml")
+CARD_TEXT_FIELDS = frozenset({"summary", "limitations"})
+CARD_TEXT_CHECKS = frozenset({"tests/test_cards.py", "tests/test_docs.py", "tests/test_site_data.py"})
 FRAMEWORK = "src/fastforks/"  # outside LAZY_OK and the family dirs: imports inside functions do not count
 LAZY_OK = ("src/fastforks/shared/", "src/fastforks/kernels/", "src/fastforks/_optimize/")
 REF_TABLES = re.compile(r"src/fastforks/_core/[^/]+\.json")  # tables keyed by ref (auto_portable.json, sizes.json)
@@ -299,12 +303,16 @@ def select(  # noqa: PLR0913 - the source snapshots and local selection mode are
     affected_fast: bool = False,
 ) -> Selection:
     """Select affected variants, using tracked metadata where the caller has both git snapshots."""
-    if all(path in TOP_LEVEL_DOCS or path.startswith("docs/") for path in changed):
-        checks = ["tests/test_docs.py"] if changed else []
+    card_text = {path for path in metadata_only if MODEL_CARD.fullmatch(path)}
+    card_checks = CARD_TEXT_CHECKS if card_text else frozenset()
+    if all(path in TOP_LEVEL_DOCS or path.startswith("docs/") or path in card_text for path in changed):
+        checks = set(card_checks)
+        if changed:
+            checks.add("tests/test_docs.py")
         if any(path in BENCHMARK_DOCS or path.startswith(("docs/data/", "docs/models/")) for path in changed):
-            checks.extend(("tests/test_site_data.py", "tests/test_speed_floor.py"))
+            checks.update(("tests/test_site_data.py", "tests/test_speed_floor.py"))
         if "docs/stereo_geometry.md" in changed:
-            checks.append("tests/test_geometry_example.py")
+            checks.add("tests/test_geometry_example.py")
         return Selection(changed=sorted(changed), fast=sorted(path for path in checks if (root / path).is_file()))
     graph = Graph(root)
     fams = families(root)
@@ -313,7 +321,11 @@ def select(  # noqa: PLR0913 - the source snapshots and local selection mode are
     sel = Selection(changed=sorted(changed), release=bool(dependencies))
     fixtures = fixture_refs or {}
     tables = {c: _table_refs(fams, diff(c)) for c in changed if diff and REF_TABLES.fullmatch(c)}
-    owners = {c: graph.owner(c) for c in changed if c not in GATE_TOOLS and c not in tables and c not in fixtures}
+    owners = {
+        c: graph.owner(c)
+        for c in changed
+        if c not in GATE_TOOLS and c not in tables and c not in fixtures and c not in card_text
+    }
     for name, cl in closures.items():
         family = fams[name]
         why = sorted(c for c, o in owners.items() if o in cl or (sel.release and c in dependencies))
@@ -330,7 +342,8 @@ def select(  # noqa: PLR0913 - the source snapshots and local selection mode are
     if full:
         sel.fast = ["tests"]
         return sel
-    sel.fast = _fast_checks(graph, sel, fams, set(owners.values()), affected_fast=affected_fast)
+    checks = set(_fast_checks(graph, sel, fams, set(owners.values()), affected_fast=affected_fast))
+    sel.fast = sorted(checks | {path for path in card_checks if (root / path).is_file()})
     return sel
 
 
@@ -435,13 +448,31 @@ def git_fixture_refs(base: str, head: str, paths: list[str], root: Path = ROOT) 
     return fixtures
 
 
+def _same_card_runtime(old: str, new: str) -> bool:
+    try:
+        before, after = tomllib.loads(old), tomllib.loads(new)
+    except tomllib.TOMLDecodeError:
+        return False
+    # The representation distinguishes TOML booleans, integers, and floats.
+    return repr({k: v for k, v in before.items() if k not in CARD_TEXT_FIELDS}) == repr(
+        {k: v for k, v in after.items() if k not in CARD_TEXT_FIELDS}
+    )
+
+
 def git_metadata_only(base: str, head: str, paths: list[str], root: Path = ROOT) -> frozenset[str]:
-    """Identify version-only edits using both tracked snapshots."""
+    """Identify version-only and model-card prose edits using both tracked snapshots."""
     unchanged = set()
     for path, compare in (("pyproject.toml", same_project_configuration), ("uv.lock", same_lock_dependencies)):
         if path not in paths:
             continue
         if (snapshots := _git_snapshots(base, head, path, root)) and compare(*snapshots):
+            unchanged.add(path)
+    for path in paths:
+        if (
+            MODEL_CARD.fullmatch(path)
+            and (snapshots := _git_snapshots(base, head, path, root))
+            and _same_card_runtime(*snapshots)
+        ):
             unchanged.add(path)
     return frozenset(unchanged)
 

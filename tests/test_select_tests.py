@@ -288,6 +288,37 @@ def test_git_version_bump_keeps_model_scope(
     assert receipt() != model_receipt
 
 
+def test_card_prose_keeps_goldens_out_of_the_selection(mini: Path, tmp_path: Path, git_repo) -> None:
+    shutil.copytree(mini, tmp_path, dirs_exist_ok=True)
+    for name in ("cards", "site_data"):
+        (tmp_path / f"tests/test_{name}.py").touch()
+    path = "src/fastforks/stereo/models/fa/card.toml"
+    card = tmp_path / path
+    card.write_text('summary = "Old description"\n' + card.read_text() + "\n[params]\na = 1\n")
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Add card")
+
+    card.write_text(
+        card.read_text().replace('summary = "Old description"', 'summary = "New description"\nlimitations = ["note"]')
+    )
+    git_repo("add", path)
+    git_repo("commit", "-m", "Change only the card prose")
+    metadata = st.git_metadata_only("HEAD~1", "HEAD", [path], tmp_path)
+    assert metadata == {path}
+    sel = st.select([path], tmp_path, metadata_only=metadata)
+    assert not sel.families
+    assert sel.fast == ["tests/test_cards.py", "tests/test_docs.py", "tests/test_site_data.py"]
+    other = "src/fastforks/stereo/models/fb/model.py"
+    assert set(st.select([path, other], tmp_path, metadata_only=metadata).families) == {"fb"}
+
+    card.write_text(card.read_text().replace("a = 1", "a = true"))
+    git_repo("add", path)
+    git_repo("commit", "-m", "Change a runtime parameter type")
+    metadata = st.git_metadata_only("HEAD~1", "HEAD", [path], tmp_path)
+    assert not metadata
+    assert set(st.select([path], tmp_path, metadata_only=metadata).families) == {"fa"}
+
+
 def test_git_changed_reports_both_sides_of_a_moved_module(
     tmp_path: Path, git_repo: Callable[..., None], monkeypatch: pytest.MonkeyPatch
 ) -> None:
