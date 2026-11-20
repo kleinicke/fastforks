@@ -57,19 +57,7 @@ Kernels vs portable on the `tests/synth.py` pair (100x150), golden GPU tolerance
 `test_gpu` (both modes against the CPU float32 golden, and the `[validated]` build `fastbb@7d058322634d:sm_120`)
 passes for all three references.
 
-Speed, ms per pair, median of 3 `fastforks bench --runs 30` runs (each itself a median), modes interleaved. Taken while
-another agent and background workers shared the GPU: the spread between runs is up to 1.5x, so read these as
-indicative only. Peak memory is deterministic.
-
-| model | size | kernels | portable | speedup | peak alloc kernels / portable |
-| --- | --- | --- | --- | --- | --- |
-| nmrf-sceneflow | 480x640 | 43.4 (41.7-44.1) | 58.3 (52.4-71.4) | 1.34x | 247 / 390 MiB |
-| nmrf-sceneflow | 375x1242 | 60.4 (58.1-64.7) | 64.3 (63.9-65.6) | 1.06x | 356 / 540 MiB |
-| bridgedepth-sf | 480x640 | 104.3 (98.2-106.7) | 112.2 (109.0-136.9) | 1.08x | 1096 / 1676 MiB |
-| bridgedepth-sf | 375x1242 | 108.0 (105.6-149.8) | 160.0 (153.0-189.3) | 1.48x | 1270 / 1853 MiB |
-
-The cards' Linux numbers (NMRF KITTI 51.8 vs 58.5 ms) are in the same range; a quiet-GPU rerun is needed for real
-numbers.
+Speed: see [Speed on Windows](#speed-on-windows).
 
 Also verified: 25 of the 26 `tests/test_cudnn_hacc.py` GPU tests pass (5 more skip: no `plan_build` binary); the
 failing one loads coex in `mode="kernels"`, which needs `cutlass_conv`. CPU suites `test_kernels.py`,
@@ -162,18 +150,7 @@ Kernels vs portable on the synth pair (100x150; psmnet 256x320, its minimum is 2
 | igev-stereo-sceneflow | 0.00375 | 0.0612 |
 | gwcnet-gc-sceneflow | 0.00524 | 0.0181 |
 
-Speed at 375x1242 (KITTI), ms per pair: median of 3 interleaved `fastforks bench --runs 30` runs (range in
-brackets), taken under `C:\Users\neuer\gpu-timing.lock` but with other agents' work on the GPU (98 % utilization at
-the end). Treat these as indicative only. Peak memory is deterministic.
-
-| model | kernels | portable | speedup | peak alloc kernels / portable |
-| --- | --- | --- | --- | --- |
-| coex-sceneflow | 7.2 (7.1-7.6) | 33.8 (22.7-39.0) | 4.7x | 131 / 346 MiB |
-| psmnet-sceneflow | 89.1 (79.5-99.4) | 123.5 (118.9-133.6) | 1.4x | 477 / 609 MiB |
-| raft-stereo-sceneflow | 90.4 (90.1-93.2) | 282.0 (238.5-293.8) | 3.1x | 239 / 470 MiB |
-| igev-stereo-sceneflow | 139.3 (107.4-144.9) | 292.6 (289.2-368.3) | 2.1x | 368 / 415 MiB |
-
-The `[validated]` per-OS slot and the full stereo sweep followed; see below.
+Speed: see [Speed on Windows](#speed-on-windows). The `[validated]` per-OS slot and the full stereo sweep followed; see below.
 
 ### dpt_fused and fvm_* on Windows
 
@@ -224,8 +201,33 @@ Not run: the families that need `fs_cutlass`, `ffs_cutlass`, `s2m2_cutlass`, `hi
 build). `mode="kernels"` raises `KernelUnavailableError` for them, and on Windows `test_kernels_validated` skips
 them.
 
-Timings: none were repeated after the GPU-lock rule. The cutlass_conv numbers above predate it (medians of 3 on a
-shared GPU).
+## Speed on Windows
+
+ms per call, float16 (the validated dtype), median of 5 `fastforks bench --runs 30 --mode <mode>` runs (each itself a
+median of 30 after warm-up; range in brackets). Each run is its own process under
+`C:\Users\neuer\fastforks-cache\gpulock.py`, one job on the GPU at a time, modes alternated per model and round (the
+GPU was otherwise idle; an idle ComfyUI server held 0 % utilization). RTX 5060 Ti, driver 610.88, torch 2.14.1+cu130.
+
+| model | size | kernels | portable | speedup | peak alloc kernels / portable |
+| --- | --- | --- | --- | --- | --- |
+| coex-sceneflow | 375x1242 | 6.9 (6.9-6.9) | 18.9 (18.8-22.4) | 2.74x | 131 / 346 MiB |
+| psmnet-sceneflow | 375x1242 | 77.5 (77.4-77.6) | 110.1 (110.0-110.3) | 1.42x | 477 / 609 MiB |
+| raft-stereo-sceneflow | 375x1242 | 89.6 (89.2-89.6) | 237.8 (237.5-237.9) | 2.65x | 239 / 470 MiB |
+| igev-stereo-sceneflow | 375x1242 | 103.8 (103.5-124.8) | 284.2 (283.8-284.6) | 2.74x | 368 / 415 MiB |
+| gwcnet-g-sceneflow | 375x1242 | 76.2 (76.2-76.3) | 107.3 (107.1-113.4) | 1.41x | 391 / 501 MiB |
+| gwcnet-gc-sceneflow | 375x1242 | 81.9 (81.8-82.0) | 110.2 (110.1-110.3) | 1.35x | 481 / 568 MiB |
+| cas-gwcnet-c-sceneflow | 375x1242 | 70.3 (70.2-70.5) | 99.1 (98.9-99.2) | 1.41x | 446 / 534 MiB |
+| cas-gwcnet-gc-sceneflow | 375x1242 | 106.7 (106.5-108.3) | 140.5 (140.4-140.6) | 1.32x | 731 / 731 MiB |
+| nmrf-sceneflow | 375x1242 | 55.7 (55.7-55.8) | 62.1 (62.0-62.7) | 1.11x | 289 / 445 MiB |
+| bridgedepth-sf | 375x1242 | 139.2 (137.6-140.0) | 182.3 (181.5-183.7) | 1.31x | 1188 / 1773 MiB |
+| sam2.1-hiera-tiny (dpt_fused) | 1024x1024 | 22.1 (22.1-24.6) | 24.9 (24.8-27.4) | 1.13x | 305 / 294 MiB |
+| convnext_tiny.fb_in1k (fvm_conv) | 224x224 | 1.7 (1.7-1.7) | 11.2 (5.5-11.4) | 6.6x | 125 / 98 MiB |
+
+Notes: the spread is now below 1 % for most rows; single outliers (igev-stereo kernels 124.8, sam2 24.6) are one run
+of five. convnext portable is bimodal (5.5 ms in one run, 11.2-11.4 in the others): launch-bound at batch 1 under
+WDDM, while kernels mode replays a CUDA graph. sam2.1-hiera-tiny with both modes in one process (`fastforks bench`
+without `--mode`, kernels second) measured kernels 29.9 vs portable 24.8 ms once; in separate processes kernels is
+always faster, so time one mode per process.
 
 ## Decisions to review
 
