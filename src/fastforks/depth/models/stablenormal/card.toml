@@ -9,6 +9,7 @@ limitations = [
   "Diffusion model: the seeded noise comes from a CPU generator; upstream draws it from the unseeded global RNG, so its outputs vary from call to call (slightly).",
   "Upstream's `Predictor` wrapper (pre-resize to a multiple of 64 near 1024 px, uint8 round trip, LANCZOS back) is not applied: the runners follow its pipeline (768 px).",
   "A traced or exported module reuses the noise of its traced shape.",
+  "Portable FP16 with long_side=1280 on a 994 × 1482 image uses 4,440 MiB allocated and 4,900 MiB reserved, compared with 4,705/5,440 MiB before. Warm time was 882 vs 862 ms. Normals matched bitwise on two synthetic inputs and three labeled iBims images.",
 ]
 
 [output]
