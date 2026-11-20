@@ -33,7 +33,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`memflow-sintel`](#memflow) | yes | 1.218 † | 865, 3.7x | 1022, 0.065x |
 | [`memfof`](#memfof) | yes | 10.891 † | 349, 1.5x | 1016, 0.47x |
 | [`memfof-kitti`](#memfof) | yes | 15.577 † | 1565 | 4038 |
-| [`memfof-sintel`](#memfof) | yes | 2.977 † | 1565 | 4038 |
+| [`memfof-sintel`](#memfof) | yes | 2.977 † | 1541 | 4018 |
 | [`memfof-spring`](#memfof) | yes | 10.778 † | 349, 3.0x | 1016, 0.38x |
 | [`neuflow-v2`](#neuflow_v2) | yes | 1.577 † | 59.8, 1.3x | 636, 0.14x |
 | [`neuflow-v2-sintel`](#neuflow_v2) | yes | 1.566 † | 58.9, 1.3x | 896, 0.2x |
@@ -513,7 +513,7 @@ Commercial use: yes.
 | `memfof-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels | –<br>2202<br>1565 | –<br>14515 / 14918<br>3805 / 4038 |
 | `memfof-kitti` | synthetic (375x1242) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 927<br>386<br>309<br>258<br>fails: unsupported: engine build needs more than the 16 GB of this  | 1968 / 2276<br>1619 / 1856<br>786 / 916<br>2041 / 2226<br>– |
 | `memfof-kitti` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>1335 (ResNet encoders with eager correlation, flow update and upsampling) | –<br>–<br>–<br>4252 / 5692 |
-| `memfof-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2203<br>1565<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 1.96<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 | –<br>14515 / 14918<br>3805 / 4038<br>–<br>– |
+| `memfof-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2177<br>1541<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 1.96<br>fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 | –<br>14156 / 14418<br>3805 / 4018<br>–<br>– |
 | `memfof-sintel` | synthetic (375x1242) | original<br>portable<br>kernels<br>portable + torch.compile | 894<br>385<br>309<br>258 | 1968 / 2176<br>1619 / 1836<br>786 / 876<br>2041 / 2226 |
 | `memfof-sintel` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>1334 (ResNet encoders with eager correlation, flow update and upsampling) | –<br>–<br>–<br>4252 / 5692 |
 | `memfof-spring` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1035<br>433<br>349<br>291<br>160 | 2340 / 2676<br>1900 / 2196<br>917 / 1016<br>2452 / 2666<br>2070 / 2112 |
@@ -545,7 +545,6 @@ Commercial use: yes.
 - `memfof` original 1080x1920: torch.autocast(float16) around the call; upstream MEMFOF + scale_and_forward_flow, iters=8, scale=0, frames (image1, image1, image2)
 - `memfof-kitti` portable 1080x1920, kernels 1080x1920: The eager CUDA path keeps softmax row groups aligned and bounds the recurrent pointwise workspace. The paired 1080p synthetic and two resized KITTI outputs match bitwise. Five full API calls.
 - `memfof-kitti` original 375x1242: upstream MEMFOF + scale_and_forward_flow, iters=8, scale=1, frames (image1, image1, image2)
-- `memfof-sintel` portable 1080x1920, kernels 1080x1920: The eager CUDA path keeps softmax row groups aligned and bounds the recurrent pointwise workspace. The paired 1080p synthetic and two resized KITTI outputs match bitwise. Fifteen full API calls.
 - `memfof-sintel` original 375x1242: upstream MEMFOF + scale_and_forward_flow, iters=8, scale=1, frames (image1, image1, image2)
 - `memfof-sintel` portable 375x1242: 375x1242 synthetic sample paired across both modes. The standard 1080p build exceeded GPU memory.
 - `memfof-spring` original 1080x1920: upstream MEMFOF + scale_and_forward_flow, iters=8, scale=0, frames (image1, image1, image2)

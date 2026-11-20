@@ -1401,7 +1401,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | memflow-sintel | – | 3214 | 964 | 865 | 3.7x | 1.1x | 15061 / 15634 | 5985 / 6102 | 968 / 1022 |
 | memfof | – | 531 | 433 | 349 | 1.5x | 1.2x | 2003 / 2144 | 1911 / 2196 | 917 / 1016 |
 | memfof-kitti | – | – | 2202 | 1565 | – | 1.4x | – | 14515 / 14918 | 3805 / 4038 |
-| memfof-sintel | – | OOM | 2203 | 1565 | – | 1.4x | – | 14515 / 14918 | 3805 / 4038 |
+| memfof-sintel | – | OOM | 2177 | 1541 | – | 1.4x | – | 14156 / 14418 | 3805 / 4018 |
 | memfof-spring | – | 1035 | 433 | 349 | 3.0x | 1.2x | 2340 / 2676 | 1900 / 2196 | 917 / 1016 |
 | neuflow-v2 | 171 | 75.6 | 72.0 | 59.8 | 1.3x | 1.2x | 4367 / 4556 | 2327 / 2398 | 490 / 636 |
 | neuflow-v2-sintel | 171 | 75.7 | 71.3 | 58.9 | 1.3x | 1.2x | 4367 / 4576 | 2366 / 2398 | 790 / 896 |
@@ -2650,7 +2650,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | memfof | 1080x1920 | 433 ms | 291 ms | 160 ms | 349 ms | 50.5 s | 110 s | 1911 / 2196 | 2452 / 2666 | 917 / 1016 | 2070 / 2132 |
 | memfof-kitti | 375x1242 | 386 ms | 258 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 309 ms | 48.7 s | – | 1619 / 1856 | 2041 / 2226 | 786 / 916 | – |
 | memfof-kitti | 384x1248 | – | – | 1335 ms, fp32 engine (ResNet encoders with eager correlation, flow update and upsampling) | – | – | 32.0 s | – | – | – | 4252 / 5692 |
-| memfof-sintel | 1080x1920 | 2203 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 1.96 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 | 1565 ms | – | – | 14515 / 14918 | – | 3805 / 4038 | – |
+| memfof-sintel | 1080x1920 | 2177 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 1.96 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 | 1541 ms | – | – | 14156 / 14418 | – | 3805 / 4018 | – |
 | memfof-sintel | 375x1242 | 385 ms | 258 ms | – | 309 ms | 45.0 s | – | 1619 / 1836 | 2041 / 2226 | 786 / 876 | – |
 | memfof-sintel | 384x1248 | – | – | 1334 ms, fp32 engine (ResNet encoders with eager correlation, flow update and upsampling) | – | – | 31.6 s | – | – | – | 4252 / 5692 |
 | memfof-spring | 1080x1920 | 433 ms | 291 ms | 160 ms | 349 ms | 45.4 s | 95.8 s | 1900 / 2196 | 2452 / 2666 | 917 / 1016 | 2070 / 2112 |

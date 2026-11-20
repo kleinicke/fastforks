@@ -673,8 +673,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`gmflow-scale2-regrefine6-sintelft`](models/flow.md#gmflow) | yes | 1.154 † | 2184.0 (1080x1920) | 1381.4 | 1383.7 | 1.6x vs original (1080x1920) | 3005 |
 | [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | yes | 0.570 † | 2187.8 (1080x1920) | 1383.3 | 1388.5 | 1.6x vs original (1080x1920) | 3005 |
 | [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | yes | 4.917 | 2175.1 (1080x1920) | 1477.8 | 1480.6 | 1.5x vs original (1080x1920) | 4036 |
+| [`memfof-sintel`](models/flow.md#memfof) | yes | 2.977 † | OOM (1080x1920) | 2176.7 | 1540.6 | 1.4x vs portable | 3805 |
 | [`memfof-kitti`](models/flow.md#memfof) | yes | 15.577 † | – | 2202.3 | 1565.1 | 1.4x vs portable | 3805 |
-| [`memfof-sintel`](models/flow.md#memfof) | yes | 2.977 † | OOM (1080x1920) | 2202.6 | 1565.4 | 1.4x vs portable | 3805 |
 | [`flowformer-small-things`](models/flow.md#flowformer-small) | yes | 6.884 | OOM (1080x1920) | 4002.9 | 3950.3 | 1.0x vs portable | 8696 |
 | [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 10.952 | OOM (1080x1920) | 4006.5 | 3950.9 | 1.0x vs portable | 8696 |
 | [`flowformer-small-sintel`](models/flow.md#flowformer-small) | yes | 4.657 † | OOM (1080x1920) | 4003.3 | 3957.9 | 1.0x vs portable | 8696 |
