@@ -45,19 +45,15 @@ import statistics
 import subprocess
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 import torch
 from PIL import Image
 
-from _data import DATA
-
-if TYPE_CHECKING:
-    from collections.abc import Generator
+from _data import DATA, prefetch
 
 SequenceData = tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
 
@@ -100,19 +96,6 @@ def load_sequence(name: str, *, native: bool = False) -> SequenceData:
     xy = points[np.arange(len(first)), first] * np.array(frames.shape[2:0:-1], dtype=np.float32)
     queries = np.concatenate([first[:, None], xy - 0.5], 1).astype(np.float32)
     return frames, queries, points * SIZE, occluded  # targets in continuous 256 x 256 raster coordinates
-
-
-def _sequence_inputs(names: list[str], *, native: bool) -> Generator[tuple[str, SequenceData], None, None]:
-    """Decode at most one sequence ahead and yield clips in the requested order."""
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        pending = None
-        for name in names:
-            previous = pending
-            pending = name, pool.submit(load_sequence, name, native=native)
-            if previous is not None:
-                yield previous[0], previous[1].result()
-        if pending is not None:
-            yield pending[0], pending[1].result()
 
 
 def metrics(first: np.ndarray, occ: np.ndarray, pts: np.ndarray, pred_occ: np.ndarray, pred: np.ndarray) -> dict:
@@ -370,7 +353,7 @@ def _run(a: argparse.Namespace, ref: str, tier: str) -> bool:
         "command": " ".join(["python", *sys.argv]),
     }
     native = ref in NATIVE_REFS
-    with closing(_sequence_inputs(todo, native=native)) as inputs:
+    with closing(prefetch(lambda name: (name, load_sequence(name, native=native)), todo)) as inputs:
         for index, (name, (frames, queries, pts, occ)) in enumerate(inputs):
             if index == 0:
                 model(frames, queries)  # untimed warm-up on the same decoded sequence

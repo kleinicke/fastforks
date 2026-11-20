@@ -46,14 +46,13 @@ import json
 import statistics
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 
-from _data import DATA
+from _data import DATA, prefetch
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
@@ -90,21 +89,14 @@ def read(path: Path, *, device: str = "cuda") -> torch.Tensor:
         return torch.from_numpy(np.asarray(image.convert("RGB")).copy()).permute(2, 0, 1).to(device)
 
 
-def _read_pair(root: Path, left: str, right: str) -> tuple[torch.Tensor, torch.Tensor]:
-    return read(root / left, device="cpu"), read(root / right, device="cpu")
-
-
 def pair_images(root: Path, pairs: Iterable[tuple[int, str, str]]) -> Iterator[tuple[int, torch.Tensor, torch.Tensor]]:
     """Decode the next pair on the CPU while processing the current pair, in input order."""
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        pending = None
-        for index, left, right in pairs:
-            previous = pending
-            pending = index, pool.submit(_read_pair, root, left, right)
-            if previous is not None:
-                yield previous[0], *previous[1].result()
-        if pending is not None:
-            yield pending[0], *pending[1].result()
+
+    def load(pair: tuple[int, str, str]) -> tuple[int, torch.Tensor, torch.Tensor]:
+        index, left, right = pair
+        return index, read(root / left, device="cpu"), read(root / right, device="cpu")
+
+    return prefetch(load, pairs)
 
 
 def kde(x: torch.Tensor, std: float = 0.1) -> torch.Tensor:

@@ -48,6 +48,7 @@ import statistics
 import subprocess
 import sys
 import time
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -55,7 +56,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from _data import DATA
+from _data import DATA, prefetch
 
 CONCEPT_THRESHOLD = 0.5  # SAM 3's default (fastforks CONCEPT_THRESHOLD, transformers' post-processing example)
 MIN_LEFT_S = 20  # seconds of budget below which no new model is started
@@ -93,6 +94,25 @@ def _point(mask: np.ndarray) -> tuple[float, float]:
     d = distance_transform_edt(np.pad(mask, 1))[1:-1, 1:-1]
     y, x = np.unravel_index(int(np.argmax(d)), d.shape)
     return float(x), float(y)
+
+
+def _point_inputs(
+    coco: Any,  # noqa: ANN401
+    path: Path,
+) -> tuple[int, np.ndarray, list[int], list[np.ndarray], list[tuple[float, float]]]:
+    """Decode the image and prepare its nonempty point prompts on the CPU."""
+    iid = int(path.stem)
+    ids, masks, points = [], [], []
+    for ann in coco.loadAnns(coco.getAnnIds(imgIds=iid, iscrowd=False)):
+        if ann["area"] > 0:
+            mask = coco.annToMask(ann).astype(bool)
+            if mask.any():
+                ids.append(ann["id"])
+                masks.append(mask)
+                points.append(_point(mask))
+    with Image.open(path) as image:
+        rgb = np.asarray(image.convert("RGB"))
+    return iid, rgb, ids, masks, points
 
 
 def _sync() -> float:
@@ -237,19 +257,14 @@ def _prompt(model: Any, coco: Any, files: list[Path], rec: dict[str, Any]) -> tu
         rec["skipped"] = f"no point prompts (takes {sorted(model.prompts)})"
         return [], []
     rows, ms = [], []
-    for f in files:
-        iid = int(f.stem)
-        anns = [a for a in coco.loadAnns(coco.getAnnIds(imgIds=iid, iscrowd=False)) if a["area"] > 0]
-        gts = [coco.annToMask(a).astype(bool) for a in anns]
-        gts = [g for g in gts if g.any()]
-        img = np.asarray(Image.open(f).convert("RGB"))
+    for iid, img, ids, gts, points in prefetch(partial(_point_inputs, coco), files):
         t0 = _sync()
         emb = model.get_image_embeddings(img)
         t1 = _sync()
         if not gts:
             ms.append([1e3 * (t1 - t0), 0.0])
             continue
-        pts = torch.tensor([[_point(g)] for g in gts])  # [P, 1, 2]
+        pts = torch.tensor(points)[:, None]  # [P, 1, 2]
         lab = torch.ones(len(gts), 1)
         t2 = _sync()
         multi = model(emb, input_points=pts, input_labels=lab, multimask_output=True)
@@ -265,7 +280,7 @@ def _prompt(model: Any, coco: Any, files: list[Path], rec: dict[str, Any]) -> tu
             inter = (m & g).flatten(1).sum(1).float()
             union = (m | g).flatten(1).sum(1).float()
             for j, v in enumerate((inter / union.clamp(min=1)).tolist()):
-                rows.append({"image_id": iid, "ann": anns[j]["id"], "kind": name, "iou": v})
+                rows.append({"image_id": iid, "ann": ids[j], "kind": name, "iou": v})
         del t4
     return rows, ms
 
