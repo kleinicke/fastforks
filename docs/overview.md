@@ -600,7 +600,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
 | [`anycalib-pinhole`](models/calibration.md#anycalib) | yes | 38.4 (1080x1920) | 29.4 | 21.5 | 1.8x vs original (1080x1920) | 739 |
-| [`geocalib-pinhole`](models/calibration.md#geocalib) | yes | 106.2 (1080x1920) | 74.7 | 76.2 | 1.4x vs original (1080x1920) | 277 |
+| [`geocalib-pinhole`](models/calibration.md#geocalib) | yes | 106.2 (1080x1920) | 68.0 | 68.4 | 1.6x vs original (1080x1920) | 277 |
 
 ## Multiview
 

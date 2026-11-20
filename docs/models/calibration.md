@@ -13,7 +13,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`anycalib-pinhole`](#anycalib) | yes | 21.5, 1.8x | 812, 0.6x |
-| [`geocalib-pinhole`](#geocalib) | yes | 76.2, 1.4x | 336, 0.6x |
+| [`geocalib-pinhole`](#geocalib) | yes | 68.4, 1.6x | 336, 0.6x |
 
 <a id="anycalib"></a>
 
@@ -85,7 +85,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `geocalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 106<br>74.7<br>76.2<br>73.1<br>public API unavailable | 502 / 558<br>320 / 376<br>277 / 336<br>246 / 300<br>– |
+| `geocalib-pinhole` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 106<br>68.0<br>68.4<br>73.1<br>public API unavailable | 502 / 558<br>320 / 376<br>277 / 336<br>246 / 300<br>– |
 | `geocalib-pinhole` | synthetic (1920x1440) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>123<br>–<br>109 (field predictor only, standalone build) | –<br>433 / 560<br>–<br>540 / 558 |
 
 <details><summary>Details</summary>
@@ -105,7 +105,7 @@ Commercial use: yes.
 - `geocalib-pinhole` 1080x1920, first call: portable + torch.compile 28 s (cold Inductor cache).
 - `geocalib-pinhole` 1920x1440, first call: TensorRT fp32 43 s (ONNX + engine).
 - `geocalib-pinhole` original 1080x1920: torch.autocast(float16) around the call; cvg/GeoCalibdedb29f94fc GeoCalib.calibrate (pinhole), its kornia resize / crop / LM fit
-- `geocalib-pinhole` portable 1080x1920, kernels 1080x1920: The eager Levenberg–Marquardt optimizer reuses the preceding step’s residuals and weights. The five camera output tensors matched on the synthetic input and eight labeled LaMAR images.
+- `geocalib-pinhole` portable 1080x1920, kernels 1080x1920: The eager Levenberg–Marquardt fit reuses the image pixel grid, residuals and weights. All five camera output tensors match on one synthetic input and eight labeled LaMAR photos.
 - `geocalib-pinhole` load / first call: original 1.8 s / 0.841 s, portable 0.27 s / 1.837 s, kernels 0.44 s / 0.745 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

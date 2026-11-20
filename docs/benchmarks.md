@@ -1363,7 +1363,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|
 | anycalib-pinhole | 38.4 | 29.4 | 21.5 | 1.8x | 1.4x | 1343 / 1352 | 705 / 742 | 739 / 812 |
-| geocalib-pinhole | 106 | 74.7 | 76.2 | 1.4x | 1.0x | 502 / 558 | 320 / 376 | 277 / 336 |
+| geocalib-pinhole | 106 | 68.0 | 68.4 | 1.6x | 1.0x | 502 / 558 | 320 / 376 | 277 / 336 |
 
 ### Multiview, synthetic
 
@@ -2603,7 +2603,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | megaloc | 480x640 | 5.29 ms | 4.27 ms | 3.21 ms | 4.26 ms | 13.2 s | 51.1 s | 483 / 508 | 518 / 530 | 485 / 508 | 937 / 964 |
 | anycalib-pinhole | 1080x1920 | 29.4 ms | 25.5 ms | 12.0 ms | 21.5 ms | 16.5 s | 116 s | 705 / 742 | 719 / 756 | 739 / 812 | 778 / 780 |
 | anycalib-pinhole | 480x640 | 29.9 ms | – | 12.4 ms | – | – | 118 s | 693 / 704 | – | – | 750 / 768 |
-| geocalib-pinhole | 1080x1920 | 74.7 ms | 73.1 ms | public API unavailable | 76.2 ms | 28.4 s | – | 320 / 376 | 246 / 300 | 277 / 336 | – |
+| geocalib-pinhole | 1080x1920 | 68.0 ms | 73.1 ms | public API unavailable | 68.4 ms | 28.4 s | – | 320 / 376 | 246 / 300 | 277 / 336 | – |
 | geocalib-pinhole | 1920x1440 | 123 ms | – | 109 ms, fp32 engine (field predictor only, standalone build) | – | – | 42.9 s | 433 / 560 | – | – | 540 / 558 |
 | anysplat | 336x518 | 505 ms | 427 ms | 314 ms | 366 ms | 80.3 s | 215 s | 4032 / 4452 | 4137 / 4694 | 4039 / 4232 | 7629 / 7674 |
 | depthsplat-small-re10k | 336x518 | 122 ms | 82.2 ms | 86.4 ms | 91.4 ms | 80.0 s | 224 s | 764 / 854 | 5432 / 5526 | 766 / 844 | 3148 / 3194 |
