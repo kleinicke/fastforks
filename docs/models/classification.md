@@ -1057,11 +1057,11 @@ Commercial use: yes.
 
 All 211 Sexual-category images from the official test split (150 unsafe, 61 safe), from LAION-5B and Lexica. Apply each implementation's normal resize and use the checkpoint's default top-1 prediction. Balanced accuracy averages unsafe and safe recall. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | portable fp32 | note |
-|---|---|---|---|---|---|
-| `falconsai-nsfw-vit` | UnsafeBench test (Sexual), balanced accuracy / accuracy / recall / precision / F1 % | 69.03 / 57.35 / 41.33 / 96.72 / 96.88 / 57.94 | 68.21 / 56.87 / 41.33 / 95.08 / 95.38 / 57.67 | 69.03 / 57.35 / 41.33 / 96.72 / 96.88 / 57.94 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `falconsai-nsfw-vit` | UnsafeBench test (Sexual), balanced accuracy / accuracy / recall / precision / F1 % | 69.03 / 57.35 / 41.33 / 96.72 / 96.88 / 57.94 | 68.21 / 56.87 / 41.33 / 95.08 / 95.38 / 57.67 | 69.03 / 57.35 / 41.33 / 96.72 / 96.88 / 57.94 | 69.03 / 57.35 / 41.33 / 96.72 / 96.88 / 57.94 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ecfe045ca, 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ecfe045ca, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ecfe045ca, 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 257e02f4d, 2026-11-20.
 
 ### Parity
 

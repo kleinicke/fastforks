@@ -16,8 +16,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`flowformer-small-sintel`](#flowformer) | yes | 4.657 † | 3958 | 8822 |
 | [`flowformer-small-things`](#flowformer) | yes | 6.884 | 3950 | 8822 |
 | [`flowseek-t`](#flowseek) | yes | 1.348 † | 255, 1.8x | 1154, 0.12x |
-| [`flowseek-t-things`](#flowseek) | yes | 4.143 | 254, 1.8x | 1154, 0.12x |
-| [`flowseek-t-things-notartan`](#flowseek) | yes | 3.933 | 254, 1.8x | 1154, 0.12x |
+| [`flowseek-t-things`](#flowseek) | yes | 4.141 | 254, 1.8x | 1154, 0.12x |
+| [`flowseek-t-things-notartan`](#flowseek) | yes | 3.937 | 254, 1.8x | 1154, 0.12x |
 | [`gmflow-scale1-mixdata`](#gmflow) | yes | 3.697 ? | 446, 1.7x | 2142, 0.25x |
 | [`gmflow-scale1-things`](#gmflow) | yes | 10.346 | 446, 1.7x | 2142, 0.25x |
 | [`gmflow-scale2-mixdata`](#gmflow) | yes | 2.389 ? | 915, 1.8x | 3204, 0.37x |
@@ -192,13 +192,13 @@ Commercial use: yes.
 
 Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | note |
-|---|---|---|---|---|---|---|
-| `flowseek-t` | KITTI 2015 train, EPE / Fl-all % | 1.260 / 3.88 | 1.360 / 4.35 | 1.348 / 4.33 | 1.259 / 3.88 | trained on this dataset's public images; not a zero-shot result |
-| `flowseek-t-things` | KITTI 2015 train, EPE / Fl-all % | 4.121 / 12.35 | 4.153 / 12.25 | 4.143 / 12.27 | 4.098 / 12.34 |  |
-| `flowseek-t-things-notartan` | KITTI 2015 train, EPE / Fl-all % | 3.923 / 12.83 | 3.904 / 12.97 | 3.933 / 12.97 | 3.925 / 12.81 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `flowseek-t` | KITTI 2015 train, EPE / Fl-all % | 1.260 / 3.88 | 1.360 / 4.35 | 1.348 / 4.33 | 1.259 / 3.88 | 1.348 / 4.33 | trained on this dataset's public images; not a zero-shot result |
+| `flowseek-t-things` | KITTI 2015 train, EPE / Fl-all % | 4.121 / 12.35 | 4.153 / 12.25 | 4.143 / 12.27 | 4.098 / 12.34 | 4.141 / 12.27 |  |
+| `flowseek-t-things-notartan` | KITTI 2015 train, EPE / Fl-all % | 3.923 / 12.83 | 3.904 / 12.97 | 3.933 / 12.97 | 3.925 / 12.81 | 3.937 / 12.97 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c4a67979, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c4a67979, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 0fba22666, 2026-11-20.
 
 ### Parity
 
@@ -318,26 +318,26 @@ Commercial use: yes.
 
 Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. The fixed-shape comparison pads the bottom and right with edge pixels to 384 x 1248. Metrics use predictions cropped to each original ground-truth grid. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | TensorRT | note |
-|---|---|---|---|---|---|---|---|
-| `gmflow-scale1-things` | KITTI 2015 train, EPE / Fl-all % | 10.347 / 34.31 | 10.347 / 34.30 | 10.346 / 34.30 | 10.347 / 34.30 |  |  |
-| `gmflow-scale1-mixdata` | KITTI 2015 train, EPE / Fl-all % | 3.698 / 17.60 | 3.698 / 17.61 | 3.697 / 17.61 | 3.698 / 17.60 |  | possibly in the training data |
-| `gmflow-scale2-things` | KITTI 2015 train, EPE / Fl-all % | 6.747 / 22.09 | 6.747 / 22.09 | 6.747 / 22.09 | 6.747 / 22.09 |  |  |
-| `gmflow-scale2-things` | KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 4.377 / 19.25 | 4.376 / 19.25 |  |
-| `gmflow-scale2-sintel` | KITTI 2015 train, EPE / Fl-all % | 1.975 / 7.88 | 1.976 / 7.88 | 1.975 / 7.88 | 1.975 / 7.88 |  | trained on this dataset's public images; not a zero-shot result |
-| `gmflow-scale2-sintel` | KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 1.240 / 6.11 | 1.240 / 6.11 | trained on this dataset's public images; not a zero-shot result |
-| `gmflow-scale2-mixdata` | KITTI 2015 train, EPE / Fl-all % | 2.390 / 10.10 | 2.390 / 10.10 | 2.389 / 10.10 | 2.390 / 10.10 |  | possibly in the training data |
-| `gmflow-scale2-mixdata` | KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 1.462 / 6.59 | 1.462 / 6.59 | possibly in the training data |
-| `gmflow-scale2-regrefine6-things` | KITTI 2015 train, EPE / Fl-all % | 4.918 / 16.33 | 4.918 / 16.32 | 4.917 / 16.32 | 4.918 / 16.33 |  |  |
-| `gmflow-scale2-regrefine6-things` | KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 3.230 / 14.46 | 3.222 / 14.46 |  |
-| `gmflow-scale2-regrefine6-sintelft` | KITTI 2015 train, EPE / Fl-all % | 1.153 / 3.92 | 1.154 / 3.92 | 1.154 / 3.92 | 1.153 / 3.92 |  | trained on this dataset's public images; not a zero-shot result |
-| `gmflow-scale2-regrefine6-sintelft` | KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 0.878 / 3.43 | 0.879 / 3.43 | trained on this dataset's public images; not a zero-shot result |
-| `gmflow-scale2-regrefine6-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.570 / 1.15 | 0.570 / 1.15 | 0.570 / 1.15 | 0.570 / 1.15 |  | trained on this dataset's public images; not a zero-shot result |
-| `gmflow-scale2-regrefine6-kitti` | KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 0.387 / 0.64 | 0.387 / 0.64 | trained on this dataset's public images; not a zero-shot result |
-| `gmflow-scale2-regrefine6-mixdata` | KITTI 2015 train, EPE / Fl-all % | 1.315 / 4.64 | 1.315 / 4.63 | 1.315 / 4.64 | 1.314 / 4.64 |  | possibly in the training data |
-| `gmflow-scale2-regrefine6-mixdata` | KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 0.905 / 3.66 | 0.902 / 3.63 | possibly in the training data |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `gmflow-scale1-things` | KITTI 2015 train, EPE / Fl-all % | 10.347 / 34.31 | 10.347 / 34.30 | 10.346 / 34.30 | 10.347 / 34.30 | 10.346 / 34.30 |  |  |
+| `gmflow-scale1-mixdata` | KITTI 2015 train, EPE / Fl-all % | 3.698 / 17.60 | 3.698 / 17.61 | 3.697 / 17.61 | 3.698 / 17.60 | 3.697 / 17.60 |  | possibly in the training data |
+| `gmflow-scale2-things` | KITTI 2015 train, EPE / Fl-all % | 6.747 / 22.09 | 6.747 / 22.09 | 6.747 / 22.09 | 6.747 / 22.09 | 6.747 / 22.09 |  |  |
+| `gmflow-scale2-things` | KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 4.377 / 19.25 |  | 4.376 / 19.25 |  |
+| `gmflow-scale2-sintel` | KITTI 2015 train, EPE / Fl-all % | 1.975 / 7.88 | 1.976 / 7.88 | 1.975 / 7.88 | 1.975 / 7.88 | 1.975 / 7.88 |  | trained on this dataset's public images; not a zero-shot result |
+| `gmflow-scale2-sintel` | KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 1.240 / 6.11 |  | 1.240 / 6.11 | trained on this dataset's public images; not a zero-shot result |
+| `gmflow-scale2-mixdata` | KITTI 2015 train, EPE / Fl-all % | 2.390 / 10.10 | 2.390 / 10.10 | 2.389 / 10.10 | 2.390 / 10.10 | 2.389 / 10.10 |  | possibly in the training data |
+| `gmflow-scale2-mixdata` | KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 1.462 / 6.59 |  | 1.462 / 6.59 | possibly in the training data |
+| `gmflow-scale2-regrefine6-things` | KITTI 2015 train, EPE / Fl-all % | 4.918 / 16.33 | 4.918 / 16.32 | 4.917 / 16.32 | 4.918 / 16.33 |  |  |  |
+| `gmflow-scale2-regrefine6-things` | KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 3.230 / 14.46 |  | 3.222 / 14.46 |  |
+| `gmflow-scale2-regrefine6-sintelft` | KITTI 2015 train, EPE / Fl-all % | 1.153 / 3.92 | 1.154 / 3.92 | 1.154 / 3.92 | 1.153 / 3.92 |  |  | trained on this dataset's public images; not a zero-shot result |
+| `gmflow-scale2-regrefine6-sintelft` | KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 0.878 / 3.43 |  | 0.879 / 3.43 | trained on this dataset's public images; not a zero-shot result |
+| `gmflow-scale2-regrefine6-kitti` | KITTI 2015 train, EPE / Fl-all % | 0.570 / 1.15 | 0.570 / 1.15 | 0.570 / 1.15 | 0.570 / 1.15 |  |  | trained on this dataset's public images; not a zero-shot result |
+| `gmflow-scale2-regrefine6-kitti` | KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 0.387 / 0.64 |  | 0.387 / 0.64 | trained on this dataset's public images; not a zero-shot result |
+| `gmflow-scale2-regrefine6-mixdata` | KITTI 2015 train, EPE / Fl-all % | 1.315 / 4.64 | 1.315 / 4.63 | 1.315 / 4.64 | 1.314 / 4.64 |  |  | possibly in the training data |
+| `gmflow-scale2-regrefine6-mixdata` | KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all % |  |  |  | 0.905 / 3.66 |  | 0.902 / 3.63 | possibly in the training data |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c4a67979, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1 / 8590735f, 2026-11-17 to 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8590735f, 2026-11-18 to 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c4a67979, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1 / 8590735f, 2026-11-17 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 0fba22666, 2026-11-20; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 8590735f, 2026-11-18 to 2026-11-19.
 
 ### Parity
 

@@ -103,14 +103,14 @@ Aligned depth scores fit scale and shift by least squares, in disparity space fo
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
-| `any2full-s` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0040 / 1.0000 |  | 0.0038 / 1.0000 | 0.0038 / 1.0000 |  |  |
-| `any2full-s` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0081 / 0.9958 |  | 0.0079 / 0.9960 | 0.0079 / 0.9960 |  |  |
+| `any2full-s` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0040 / 1.0000 |  | 0.0038 / 1.0000 | 0.0038 / 1.0000 | 0.0038 / 1.0000 |  |
+| `any2full-s` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0081 / 0.9958 |  | 0.0079 / 0.9960 | 0.0079 / 0.9960 | 0.0079 / 0.9960 |  |
 | `any2full-b` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0037 / 1.0000 | 0.0044 / 1.0000 | 0.0034 / 1.0000 | 0.0034 / 1.0000 | 0.0034 / 1.0000 |  |
 | `any2full-b` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0074 / 0.9962 | 0.0077 / 0.9962 | 0.0071 / 0.9964 | 0.0071 / 0.9964 | 0.0071 / 0.9964 |  |
-| `any2full-l` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0037 / 1.0000 |  | 0.0034 / 1.0000 | 0.0034 / 1.0000 |  |  |
-| `any2full-l` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0072 / 0.9963 |  | 0.0069 / 0.9966 | 0.0069 / 0.9966 |  |  |
+| `any2full-l` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0037 / 1.0000 |  | 0.0034 / 1.0000 | 0.0034 / 1.0000 | 0.0034 / 1.0000 |  |
+| `any2full-l` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0072 / 0.9963 |  | 0.0069 / 0.9966 | 0.0069 / 0.9966 | 0.0069 / 0.9966 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0 / 68b2f345, 2026-11-16 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0 / 68b2f345, 2026-11-16 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e / 68b2f345, 2026-11-16 to 2026-11-20.
 
 ### Parity
 
@@ -559,9 +559,9 @@ Aligned depth scores fit scale and shift by least squares, in disparity space fo
 |---|---|---|---|---|---|---|---|
 | `lingbot-depth` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0053 / 1.0000 | 0.0056 / 1.0000 | 0.0053 / 1.0000 | 0.0053 / 1.0000 | 0.0053 / 1.0000 |  |
 | `lingbot-depth` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0089 / 0.9951 | 0.0092 / 0.9950 | 0.0089 / 0.9951 |  | 0.0089 / 0.9951 |  |
-| `lingbot-depth-dc` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0084 / 0.9998 |  | 0.0084 / 0.9998 | 0.0084 / 0.9998 |  |  |
+| `lingbot-depth-dc` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0084 / 0.9998 |  | 0.0084 / 0.9998 | 0.0084 / 0.9998 | 0.0084 / 0.9998 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0 / 68b2f345, 2026-11-16 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0 / 68b2f345, 2026-11-16 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e / 68b2f345, 2026-11-16 to 2026-11-20.
 
 ### Parity
 
@@ -1223,12 +1223,12 @@ Aligned depth scores fit scale and shift by least squares, in disparity space fo
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
-| `prompt-depth-anything-s` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0167 / 0.9938 |  | 0.0158 / 0.9943 | 0.0158 / 0.9943 |  |  |
-| `prompt-depth-anything-s` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0169 / 0.9934 |  | 0.0162 / 0.9937 | 0.0163 / 0.9937 |  |  |
+| `prompt-depth-anything-s` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0167 / 0.9938 |  | 0.0158 / 0.9943 | 0.0158 / 0.9943 | 0.0158 / 0.9943 |  |
+| `prompt-depth-anything-s` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0169 / 0.9934 |  | 0.0162 / 0.9937 | 0.0163 / 0.9937 | 0.0163 / 0.9937 |  |
 | `prompt-depth-anything-l` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0217 / 0.9876 | 0.0217 / 0.9876 | 0.0208 / 0.9883 | 0.0208 / 0.9883 | 0.0208 / 0.9883 |  |
 | `prompt-depth-anything-l` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0150 / 0.9930 | 0.0151 / 0.9930 | 0.0147 / 0.9932 | 0.0146 / 0.9932 | 0.0147 / 0.9932 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 5f4a908a0, 2026-11-16 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 5f4a908a0, 2026-11-16 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 67dbea00e, 2026-11-16 to 2026-11-20.
 
 ### Parity
 

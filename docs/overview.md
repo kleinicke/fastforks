@@ -652,8 +652,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`raft-large-things`](models/flow.md#raft) | yes | 4.834 | 480.5 (1080x1920) | 283.4 | 83.5 | 5.8x vs original (1080x1920) | 332 |
 | [`raft-large-kitti`](models/flow.md#raft) | yes | 0.614 † | 479.6 (1080x1920) | 283.9 | 84.2 | 5.7x vs original (1080x1920) | 332 |
 | [`recover-cx`](models/flow.md#recover) | yes | 1.043 † | 178.6 (1080x1920) | 107.2 | 89.8 | 2.0x vs original (1080x1920) | 733 |
-| [`flowseek-t-things`](models/flow.md#flowseek) | yes | 4.143 | 457.7 (1080x1920) | 394.9 | 253.7 | 1.8x vs original (1080x1920) | 1100 |
-| [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.933 | 457.6 (1080x1920) | 394.8 | 253.7 | 1.8x vs original (1080x1920) | 1100 |
+| [`flowseek-t-things`](models/flow.md#flowseek) | yes | 4.141 | 457.7 (1080x1920) | 394.9 | 253.7 | 1.8x vs original (1080x1920) | 1100 |
+| [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.937 | 457.6 (1080x1920) | 394.8 | 253.7 | 1.8x vs original (1080x1920) | 1100 |
 | [`flowseek-t`](models/flow.md#flowseek) | yes | 1.348 † | 457.0 (1080x1920) | 396.2 | 254.5 | 1.8x vs original (1080x1920) | 1100 |
 | [`memfof-spring`](models/flow.md#memfof) | yes | 10.778 † | 1034.8 (1080x1920) | 432.6 | 349.3 | 3.0x vs original (1080x1920) | 917 |
 | [`memfof`](models/flow.md#memfof) | yes | 10.891 † | 530.7 (1080x1920) | 432.6 | 349.4 | 1.5x vs original (1080x1920) | 917 |
