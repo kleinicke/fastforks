@@ -300,6 +300,7 @@ class Net:
                 x = _shuffle(linear(x, w[f"{q}scale_layers.{idx}.weight"], w[f"{q}scale_layers.{idx}.bias"]))
             x = linear(x, w[f"{q}proj1.weight"], w[f"{q}proj1.bias"])
             out.append(mx.conv2d(x, w[f"{q}proj2.weight"], padding=1) + w[f"{q}proj2.bias"])
+            mx.eval(out[-1])
         return out
 
     def encode(self, pixels: mx.array) -> list[mx.array]:
@@ -387,6 +388,7 @@ class Net:
             x = x + self.attn(f"{q}self_attn.", hp, hp, h)
             x = x + self.attn(f"{q}cross_attn.", self.ln(x, f"{q}layer_norm2"), prompt, prompt)
             x = x + self.mlp(self.ln(x, f"{q}layer_norm3"), f"{q}mlp", self._relu)
+            mx.eval(x)  # one layer's activations at a time (a longer graph keeps every layer's)
         return x
 
     def rpb(self, ref: mx.array) -> mx.array:
@@ -429,6 +431,7 @@ class Net:
             h = self.ln(h + self.mlp(h, f"{q}mlp", self._relu), f"{q}mlp_layer_norm")
             out = self.ln(h[:, 1:], f"{d}output_layer_norm")
             ref = mx.sigmoid(self.decoder_mlp(out, f"{d}box_head", 3) + inverse_sigmoid(ref))
+            mx.eval(h, out, ref)
         presence = self.decoder_mlp(self.ln(h[:, :1], f"{d}presence_layer_norm"), f"{d}presence_head", 3)
         return out, ref, mx.clip(presence[..., 0], -10.0, 10.0)
 
@@ -452,7 +455,9 @@ class Net:
             x = _up2(x) + f.astype(dt)
             x = mx.conv2d(x, self.w[f"{q}conv_layers.{i}.weight"], padding=1) + self.w[f"{q}conv_layers.{i}.bias"]
             x = _gn_relu(x, self.w[f"{q}norms.{i}.weight"], self.w[f"{q}norms.{i}.bias"])
+            mx.eval(x)
         inst = self.lin(x, f"{m}instance_projection")  # [1, 288, 288, C]
+        mx.eval(inst)
         emb = queries.astype(dt)
         for i in range(3):
             emb = self.lin(emb, f"{m}mask_embedder.layers.{i}")
