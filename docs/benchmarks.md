@@ -1150,7 +1150,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|
-| anyline | 585 | 47.4 | 36.9 | 15.9x | 1.3x | 909 / 1002 | 654 / 722 | 654 / 702 |
+| anyline | 585 | 45.2 | 35.0 | 16.7x | 1.3x | 909 / 1002 | 648 / 702 | 648 / 702 |
 | hed | 38.5 | 11.3 | 8.25 | 4.7x | 1.4x | 300 / 324 | 187 / 224 | 193 / 264 |
 | lineart | 29.8 | 18.3 | 15.5 | 1.9x | 1.2x | 221 / 264 | 222 / 284 | 217 / 284 |
 | lineart-anime | 25.2 | 8.36 | 6.50 | 3.9x | 1.3x | 407 / 448 | 241 / 284 | 217 / 244 |

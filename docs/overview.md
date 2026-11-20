@@ -346,7 +346,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`pidinet`](models/edges.md#pidinet-soft-edges) | no | 35.9 (1080x1920) | 13.1 | 12.3 | 2.9x vs original (1080x1920) | 328 |
 | [`lineart-coarse`](models/edges.md#line-art-informative-drawings) | yes | 30.4 (1080x1920) | 18.3 | 15.4 | 2.0x vs original (1080x1920) | 217 |
 | [`lineart`](models/edges.md#line-art-informative-drawings) | yes | 29.8 (1080x1920) | 18.3 | 15.5 | 1.9x vs original (1080x1920) | 217 |
-| [`anyline`](models/edges.md#anyline-line-art) | yes | 585.1 (1080x1920) | 47.4 | 36.9 | 15.9x vs original (1080x1920) | 654 |
+| [`anyline`](models/edges.md#anyline-line-art) | yes | 585.1 (1080x1920) | 45.2 | 35.0 | 16.7x vs original (1080x1920) | 648 |
 
 ## Promptable segmentation
 
