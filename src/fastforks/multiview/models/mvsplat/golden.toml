@@ -22,3 +22,12 @@ torch = "2.14.1+cu130"
 date = "2026-11-18"
 mean_px = 0.00157
 p99_px = 0.00718
+
+[validated."mvsplat-re10k@1".windows]
+kernels = ["cudnn_hacc@cudnn92400", "mvsplat_corr@1dc822ce4354:sm_120"]
+symbols = {"mvsplat_corr" = {"plane_sweep" = "addb06645a549cc7"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00157
+p99_px = 0.00716

@@ -48,6 +48,15 @@ date = "2026-11-03"
 mean_px = 0.04387
 p99_px = 0.1019
 
+[validated."rtdetrv2-l-coco@1".windows]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.04637
+p99_px = 0.19106
+
 [validated."rtdetrv2-m-coco@1"]
 kernels = ["cudnn_hacc@cudnn92400"]
 symbols = {}
@@ -56,6 +65,15 @@ torch = "2.14.1+cu130"
 date = "2026-11-03"
 mean_px = 0.06517
 p99_px = 0.13434
+
+[validated."rtdetrv2-m-coco@1".windows]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.08413
+p99_px = 0.22338
 
 [validated."rtdetrv2-ms-coco@1"]
 kernels = ["cudnn_hacc@cudnn92400"]
@@ -66,6 +84,15 @@ date = "2026-11-03"
 mean_px = 0.06765
 p99_px = 0.17406
 
+[validated."rtdetrv2-ms-coco@1".windows]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.03798
+p99_px = 0.09097
+
 [validated."rtdetrv2-s-coco@1"]
 kernels = ["cudnn_hacc@cudnn92400"]
 symbols = {}
@@ -75,6 +102,15 @@ date = "2026-11-03"
 mean_px = 0.03739
 p99_px = 0.1098
 
+[validated."rtdetrv2-s-coco@1".windows]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.05148
+p99_px = 0.12536
+
 [validated."rtdetrv2-x-coco@1"]
 kernels = ["cudnn_hacc@cudnn92400"]
 symbols = {}
@@ -83,3 +119,12 @@ torch = "2.14.1+cu130"
 date = "2026-11-03"
 mean_px = 0.05571
 p99_px = 0.2201
+
+[validated."rtdetrv2-x-coco@1".windows]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.04259
+p99_px = 0.10844

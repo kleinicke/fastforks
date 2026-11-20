@@ -30,11 +30,29 @@ date = "2026-11-17"
 mean_px = 0.0
 p99_px = 0.0
 
+[validated."parseq-tiny@1".windows]
+kernels = ["pil_resample@a432ef0451fe:sm_120"]
+symbols = {"pil_resample" = {"resample_u8" = "8faf3417450dca7a"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.0
+p99_px = 0.0
+
 [validated."parseq@1"]
 kernels = ["pil_resample@a432ef0451fe:sm_120"]
 symbols = {"pil_resample" = {"resample_u8" = "8faf3417450dca7a"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.10.0+cu130"
 date = "2026-11-17"
+mean_px = 0.0
+p99_px = 0.0
+
+[validated."parseq@1".windows]
+kernels = ["pil_resample@a432ef0451fe:sm_120"]
+symbols = {"pil_resample" = {"resample_u8" = "8faf3417450dca7a"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
 mean_px = 0.0
 p99_px = 0.0

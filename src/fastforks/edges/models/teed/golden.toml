@@ -23,3 +23,12 @@ torch = "2.10.0+cu130"
 date = "2026-11-17"
 mean_px = 0.00023
 p99_px = 0.00137
+
+[validated."teed@1".windows]
+kernels = ["smish@c9aaf63e6ef7:sm_120"]
+symbols = {"smish" = {"smish" = "669bf6da68961c89"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00023
+p99_px = 0.00137

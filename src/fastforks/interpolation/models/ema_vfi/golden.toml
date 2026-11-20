@@ -46,12 +46,30 @@ date = "2026-11-18"
 mean_px = 0.00019
 p99_px = 0.00065
 
+[validated."ema-vfi-small-t@1".windows]
+kernels = ["cudnn_hacc@cudnn92400", "ema_warp@21d377c732d5:sm_120"]
+symbols = {"ema_warp" = {"warp_f16" = "77d008885fb70189", "warp_f32" = "77d008885fb70189"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00019
+p99_px = 0.00065
+
 [validated."ema-vfi-small@1"]
 kernels = ["cudnn_hacc@cudnn92400", "ema_warp@21d377c732d5:sm_120"]
 symbols = {"ema_warp" = {"warp_f16" = "77d008885fb70189", "warp_f32" = "77d008885fb70189"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-18"
+mean_px = 0.00018
+p99_px = 0.00058
+
+[validated."ema-vfi-small@1".windows]
+kernels = ["cudnn_hacc@cudnn92400", "ema_warp@21d377c732d5:sm_120"]
+symbols = {"ema_warp" = {"warp_f16" = "77d008885fb70189", "warp_f32" = "77d008885fb70189"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
 mean_px = 0.00018
 p99_px = 0.00058
 
@@ -64,11 +82,29 @@ date = "2026-11-18"
 mean_px = 0.0002
 p99_px = 0.00082
 
+[validated."ema-vfi-t@1".windows]
+kernels = ["cudnn_hacc@cudnn92400", "ema_warp@21d377c732d5:sm_120"]
+symbols = {"ema_warp" = {"warp_f16" = "77d008885fb70189", "warp_f32" = "77d008885fb70189"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.0002
+p99_px = 0.00082
+
 [validated."ema-vfi@1"]
 kernels = ["cudnn_hacc@cudnn92400", "ema_warp@21d377c732d5:sm_120"]
 symbols = {"ema_warp" = {"warp_f16" = "77d008885fb70189", "warp_f32" = "77d008885fb70189"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-18"
+mean_px = 0.00018
+p99_px = 0.00062
+
+[validated."ema-vfi@1".windows]
+kernels = ["cudnn_hacc@cudnn92400", "ema_warp@21d377c732d5:sm_120"]
+symbols = {"ema_warp" = {"warp_f16" = "77d008885fb70189", "warp_f32" = "77d008885fb70189"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
 mean_px = 0.00018
 p99_px = 0.00062

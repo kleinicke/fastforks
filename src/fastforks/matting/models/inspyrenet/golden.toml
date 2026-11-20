@@ -28,6 +28,15 @@ date = "2026-11-17"
 mean_px = 1e-05
 p99_px = 0.00029
 
+[validated."inspyrenet-fast@1".windows]
+kernels = ["image_normalize@592f5511307a:sm_120"]
+symbols = {"image_normalize" = {"normalize" = "2cc4987178cb44b2"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 1e-05
+p99_px = 0.00032
+
 [validated."inspyrenet@1"]
 kernels = ["image_normalize@592f5511307a:sm_120"]
 symbols = {"image_normalize" = {"normalize" = "2cc4987178cb44b2"}}
@@ -36,3 +45,12 @@ torch = "2.10.0+cu130"
 date = "2026-11-17"
 mean_px = 3e-05
 p99_px = 0.00067
+
+[validated."inspyrenet@1".windows]
+kernels = ["image_normalize@592f5511307a:sm_120"]
+symbols = {"image_normalize" = {"normalize" = "2cc4987178cb44b2"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 3e-05
+p99_px = 0.00066

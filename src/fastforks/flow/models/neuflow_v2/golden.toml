@@ -33,6 +33,15 @@ date = "2026-11-12"
 mean_px = 0.00084
 p99_px = 0.0046
 
+[validated."neuflow-v2-sintel@1".windows]
+kernels = ["raft_flow@a101a33607b6:sm_120"]
+symbols = {"raft_flow" = {"corr_lookup_c128_r4_l1" = "0b6fc81cf76c9772"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.0008
+p99_px = 0.00398
+
 [validated."neuflow-v2-things@1"]
 kernels = ["raft_flow@a101a33607b6:sm_120"]
 symbols = {"raft_flow" = {"corr_lookup_c128_r4_l1" = "0b6fc81cf76c9772"}}
@@ -42,6 +51,15 @@ date = "2026-11-12"
 mean_px = 0.00094
 p99_px = 0.00429
 
+[validated."neuflow-v2-things@1".windows]
+kernels = ["raft_flow@a101a33607b6:sm_120"]
+symbols = {"raft_flow" = {"corr_lookup_c128_r4_l1" = "0b6fc81cf76c9772"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00089
+p99_px = 0.00425
+
 [validated."neuflow-v2@1"]
 kernels = ["raft_flow@a101a33607b6:sm_120"]
 symbols = {"raft_flow" = {"corr_lookup_c128_r4_l1" = "0b6fc81cf76c9772"}}
@@ -50,3 +68,12 @@ torch = "2.14.1+cu130"
 date = "2026-11-12"
 mean_px = 0.00075
 p99_px = 0.00425
+
+[validated."neuflow-v2@1".windows]
+kernels = ["raft_flow@a101a33607b6:sm_120"]
+symbols = {"raft_flow" = {"corr_lookup_c128_r4_l1" = "0b6fc81cf76c9772"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00081
+p99_px = 0.00439
