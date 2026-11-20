@@ -34,14 +34,15 @@ PARAMS = {"track_thresh": 0.6, "track_buffer": 30, "match_thresh": 0.9}
 
 def detect(model: str, out: Path) -> None:
     """Person detections of every train frame -> `<out>/<seq>.npy`."""
-    from fastforks import detection  # noqa: PLC0415
+    from fastforks import detection, read_images  # noqa: PLC0415
 
     out.mkdir(parents=True, exist_ok=True)
     m = detection.load(model, score_threshold=0.05, max_detections=300)
     for seq in sorted(p.name for p in FRAMES.iterdir()):
         rows = []
-        for k, f in enumerate(sorted((FRAMES / seq / "img1").glob("*.jpg")), 1):
-            d = m(str(f))
+        files = sorted((FRAMES / seq / "img1").glob("*.jpg"))
+        for k, frame in enumerate(read_images(files, workers=2), 1):
+            d = m(frame)
             d = d[d.labels == 0].cpu()
             box, score = d.boxes.double().numpy(), d.scores.double().numpy()
             rows.append(np.concatenate([np.full((len(score), 1), k), box, score[:, None]], 1))
