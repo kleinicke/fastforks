@@ -854,9 +854,11 @@ def test_kernels_validated(ref):
         return
     records = goldens.validated_records(FAMILIES[FAMILY[ref]]["validated"].get(ref, {}))
     assert records, f"{ref}: max never validated; run the GPU goldens with --record"
+    manifests = {lib: _manifest(lib) for lib in card.kernel_libs}  # the ones this OS loads (Windows: DLL builds)
+    if sys.platform == "win32" and any(m is not None and kernels.platform_reason(m) for m in manifests.values()):
+        return  # a library has no Windows build yet (a Linux .so): kernels mode cannot run here, nothing to validate
     current = _used_symbols(ref)
-    for lib in card.kernel_libs:
-        manifest = _manifest(lib)  # the one this OS loads: a Windows DLL build or the Linux / cubin one
+    for lib, manifest in manifests.items():
         if manifest is None:
             continue
         problems = [_unvalidated(ref, lib, manifest.tag, current, rec) for rec in records]  # either OS's record
