@@ -120,7 +120,7 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | inspyrenet | matting | portable_mlx (`_net` method), fp32 only | fp32 1339 / 2759 vs MPS 1108 / 7284. fp16 gives NaN on inspyrenet (both refs pass fp16 on inspyrenet-fast, but the card is per-card). |
 | isnet | matting | portable_mlx + kernels_mlx (fp16 only), fp32+fp16 pass | fp32 234 / 1649 vs MPS 157 / 1787. fp16 portable 153 / 1259 vs 130 / 1746; Winograd fp16 128 / 1445 (ties MPS, declared fp16 only). |
 | u2net | matting | portable_mlx, fp32+fp16 pass | fp16 62 / 1201 vs MPS 79 / 1885; fp32 83 / 1526 vs 82 / 1910. |
-| vitmatte | matting | portable_mlx (`_net` method), fp32+fp16 pass | s 1080x1920 fp32 1531 / 3035 vs MPS 2333 / 5185; fp16 1486 / 2821 vs 1360 / 2542. |
+| vitmatte | matting | portable_mlx (`_net` method), fp32+fp16 pass | s 1080x1920 fp32 1317 / 2451 vs MPS 2333 / 5185; fp16 1280 / 2283 vs 1360 / 2542 (was 1595 / 3923: D=256 global attention now query-blocked, tune trials drop their cache, matting tail in strips). b fp32 2502 / 2701 vs 4680 / 5737; fp16 2368 / 2474 vs 2740 / 2966. Routed fp16. |
 | matanyone | matting | not ported (tried, slower) | Tried 2026-11-20: the per-frame stages (`_frame_features`, `_encode_mask`, `pixel_fusion`, `readout_query`, `_segment`, `pred_uncertainty`) exported as fixed-shape MLX graphs, with the memory bank and loop in PyTorch. It worked (golden pass; positional-encoding cache dropped, `aten.prod.dim_int` mapped, aux-mask `torch.where` made exportable) but 1080x1920 ran fp16 6335 ms / 3718 MB vs MPS 3091 / 3838, fp32 8946 / 4671 vs 3444 / 6010. The decoder (`_segment`, 64→16 and 128→64 3x3 convs, 1x1 convs and bilinear upsampling at full and half resolution) takes ~420 ms per step on MLX vs ~136 on MPS, and runs 11 times per call. That is 4.7 of the 6.3 s. Memory gain only 3% in fp16, so the runner was dropped. Revisit when MLX low-channel full-res convs get faster. Golden skipped in the MLX run. |
 | rtmpose / dwpose / rtmw | pose | portable_mlx, fp32+fp16 pass | rtmpose-t fp16 24 / 607 vs MPS 26 / 1460; fp32 27 / 656 vs 26 / 1462. Goldens tried: t, l-384, dwpose-t, rtmw-m, halpe26, hand5, face6, ap10k. |
 | rtmo | pose | portable_mlx, fp32 only | t fp32 17 / 658 vs MPS 21 / 1523. fp16 fails (t scores p99 0.0049, l keypoints p99 0.90). |
@@ -1037,7 +1037,8 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 | vggt-omega-1b-512 | 16 | 336x518 | portable | 8564.1 | 5137 | 7241.942 | 8602 | 1.18 | 0.60 | LOSE | slower (1.18x: portable MLX replay, no fused attention/conv kernels) |
 | video-depth-anything-metric-s | 16 | 480x640 | portable | 871.6 | 2021 | 933.206 | 6535 | 0.93 | 0.31 | WIN |  |
 | video-depth-anything-s | 16 | 480x640 | portable | 896.1 | 2027 | 926.453 | 6506 | 0.97 | 0.31 | WIN |  |
-| vitmatte-s | 16 | 1080x1920 | portable | 1595.1 | 3923 | 1360.354 | 2542 | 1.17 | 1.54 | LOSE | slower (1.17x: portable MLX replay, no fused attention/conv kernels); more memory (1.54x: MLX runtime/buffer cache above the MPS footprint) |
+| vitmatte-b | 16 | 1080x1920 | portable | 2368.0 | 2474 | 2740.0 | 2966 | 0.86 | 0.83 | WIN |  |
+| vitmatte-s | 16 | 1080x1920 | portable | 1280.5 | 2283 | 1360.354 | 2542 | 0.94 | 0.90 | WIN |  |
 | vitpose-base-simple | 16 | 1080x1920 | portable | 168.6 | 1080 | 159.7 | 1977 | 1.06 | 0.55 | LOSE | slower (1.06x: portable MLX replay, no fused attention/conv kernels) |
 | waft-a1 | 16 | 1080x1920 | portable | 9339.5 | 3559 | 7167.849 | 7185 | 1.30 | 0.50 | LOSE | slower (1.30x: portable MLX replay, no fused attention/conv kernels) |
 | waft-stereo-s | 16 | 994x1482 | portable | 6634.9 | 4330 | 6089.657 | 9209 | 1.09 | 0.47 | LOSE | slower (1.09x: portable MLX replay, no fused attention/conv kernels) |
