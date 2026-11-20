@@ -594,6 +594,7 @@ def _vector_norm(
 
 
 OPS[aten.amax.default] = lambda x, d=(), keep=False: mx.max(x, axis=tuple(d) or None, keepdims=keep)
+OPS[aten.prod.dim_int] = lambda x, d, keep=False, **_: _wide(x, lambda y: mx.prod(y, axis=d, keepdims=keep))
 OPS[aten.amin.default] = lambda x, d=(), keep=False: mx.min(x, axis=tuple(d) or None, keepdims=keep)
 OPS[aten.any.dim] = lambda x, d, keep=False: mx.any(x, axis=d, keepdims=keep)
 OPS[aten.all.dim] = lambda x, d, keep=False: mx.all(x, axis=d, keepdims=keep)

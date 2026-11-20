@@ -203,6 +203,8 @@ class QueryTransformer(nn.Module):
 
         aux_mask = torch.cat([aux_foreground_mask, aux_background_mask], dim=1)
 
-        aux_mask[torch.where(aux_mask.sum(-1) == aux_mask.shape[-1])] = False
+        # fastforks: rows blocked everywhere are unblocked; upstream's `aux_mask[torch.where(...)] = False`, without the
+        # data-dependent index (a host sync; not exportable)
+        aux_mask = aux_mask & ~aux_mask.all(-1, keepdim=True)
 
         return aux_mask
