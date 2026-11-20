@@ -1177,6 +1177,18 @@ def _conv_core(  # noqa: PLR0913
                 output_padding=output_padding[0],
                 groups=groups,
             )
+        elif groups > 1 and groups == xl.shape[-1] and stride[0] == 1 and w.shape[2] <= 7:  # noqa: PLR2004
+            # depthwise (channel multiplier w.shape[0] / groups): shifted multiply-adds that fuse with their neighbours
+            # (TAPIR's PIPs mixer [64, 24, 2048], k = 3, fp32: 1.9 -> 0.8 ms; MLX's grouped conv1d is slow)
+            k, dil, pad = w.shape[2], dilation[0], padding[0]
+            if w.shape[0] != groups:
+                xl = mx.repeat(xl, w.shape[0] // groups, axis=-1)
+            xp = mx.pad(xl, [(0, 0), (pad, pad), (0, 0)]) if pad else xl
+            out = xp.shape[1] - dil * (k - 1)
+            y = None
+            for t in range(k):
+                term = xp[:, t * dil : t * dil + out] * w[:, 0, t]
+                y = term if y is None else y + term
         else:
             y = mx.conv1d(xl, wl, stride=stride[0], padding=padding[0], dilation=dilation[0], groups=groups)
         if b is not None:
