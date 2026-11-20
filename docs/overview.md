@@ -367,14 +367,14 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`efficientvit-sam-xl1`](models/promptable_segmentation.md#efficientvit-sam) | yes | 40.9 (1024x1024) | 28.9 | 15.3 | 2.7x vs original (1024x1024) | 569 |
 | [`sam2.1-hiera-small`](models/promptable_segmentation.md#segment-anything-21-sam-21) | yes | 41.8 (1024x1024) | 18.8 | 15.6 | 2.7x vs original (1024x1024) | 330 |
 | [`sam2.1-hiera-base-plus`](models/promptable_segmentation.md#segment-anything-21-sam-21) | yes | 47.2 (1024x1024) | 31.9 | 25.4 | 1.9x vs original (1024x1024) | 414 |
-| [`sam-hq-vit-b`](models/promptable_segmentation.md#hq-sam) | yes | 102.9 (1024x1024) | 49.8 | 36.8 | 2.8x vs original (1024x1024) | 420 |
+| [`sam-hq-vit-b`](models/promptable_segmentation.md#hq-sam) | yes | 102.9 (1024x1024) | 48.3 | 35.3 | 2.9x vs original (1024x1024) | 420 |
 | [`sam-vit-b`](models/promptable_segmentation.md#segment-anything-sam) | yes | 98.2 (1024x1024) | 48.3 | 37.0 | 2.7x vs original (1024x1024) | 377 |
 | [`sam2.1-hiera-large`](models/promptable_segmentation.md#segment-anything-21-sam-21) | yes | 86.4 (1024x1024) | 68.0 | 49.1 | 1.8x vs original (1024x1024) | 748 |
+| [`sam-hq-vit-l`](models/promptable_segmentation.md#hq-sam) | yes | 201.9 (1024x1024) | 114.4 | 79.0 | 2.6x vs original (1024x1024) | 877 |
 | [`sam-vit-l`](models/promptable_segmentation.md#segment-anything-sam) | yes | 197.2 (1024x1024) | 115.7 | 81.5 | 2.4x vs original (1024x1024) | 831 |
-| [`sam-hq-vit-l`](models/promptable_segmentation.md#hq-sam) | yes | 201.9 (1024x1024) | 117.5 | 81.9 | 2.5x vs original (1024x1024) | 877 |
 | [`sam3`](models/promptable_segmentation.md#segment-anything-3-sam-3-image--video-tracker) | yes | 253.5 (1024x1024) | 190.3 | 106.7 | 2.4x vs original (1024x1024) | 1900 |
+| [`sam-hq-vit-h`](models/promptable_segmentation.md#hq-sam) | yes | 311.0 (1024x1024) | 213.0 | 140.4 | 2.2x vs original (1024x1024) | 1528 |
 | [`sam-vit-h`](models/promptable_segmentation.md#segment-anything-sam) | yes | 306.5 (1024x1024) | 214.5 | 143.1 | 2.1x vs original (1024x1024) | 1480 |
-| [`sam-hq-vit-h`](models/promptable_segmentation.md#hq-sam) | yes | 311.0 (1024x1024) | 216.7 | 143.5 | 2.2x vs original (1024x1024) | 1528 |
 | [`insid3-vitl16`](models/promptable_segmentation.md#insid3) | yes | 713.5 (1024x1024) | 254.9 | 156.9 | 4.5x vs original (1024x1024) | 987 |
 
 ## Detection
@@ -615,14 +615,14 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`mvsanywhere`](models/multiview.md#mvsanywhere) | no | 218.7 (448x672) | 93.8 | 35.2 | 6.2x vs original (448x672) | 702 |
 | [`depthsplat-small-re10k`](models/multiview.md#depthsplat) | yes | 126.5 (336x518) | 122.4 | 95.1 | 1.3x vs original (336x518) | 965 |
 | [`mvsplat-re10k`](models/multiview.md#mvsplat) | yes | 279.3 (336x518) | 180.9 | 172.5 | 1.6x vs original (336x518) | 1239 |
-| [`resplat-small-dl3dv`](models/multiview.md#resplat) | yes | 493.4 (480x640) | 1723.4 | 362.1 | 1.4x vs original (480x640) | 4981 |
+| [`resplat-small-dl3dv`](models/multiview.md#resplat) | yes | 493.4 (480x640) | 1692.7 | 362.1 | 1.4x vs original (480x640) | 4981 |
 | [`anysplat`](models/multiview.md#anysplat) | yes | 741.2 (336x518) | 508.0 | 369.1 | 2.0x vs original (336x518) | 4173 |
 | [`vggt-1b`](models/multiview.md#vggt) | no | 965.0 (336x518) | 652.8 | 445.9 | 2.2x vs original (336x518) | 3580 |
 | [`vggt-omega-1b-512`](models/multiview.md#vggt-omega) | no | 906.4 (336x518) | 727.2 | 469.2 | 1.9x vs original (336x518) | 3270 |
 | [`lingbot-map`](models/multiview.md#lingbot-map) | yes | 992.8 (480x640) | 733.4 | 520.2 | 1.9x vs original (480x640) | 3919 |
 | [`mapanything-apache`](models/multiview.md#mapanything) | yes | 1966.8 (336x518) | 637.0 | 525.0 | 3.7x vs original (336x518) | 3252 |
 | [`pi3`](models/multiview.md#pi3) | no | 1056.6 (336x518) | 822.1 | 559.8 | 1.9x vs original (336x518) | 2217 |
-| [`resplat-base-re10k`](models/multiview.md#resplat) | no | 2520.8 (480x640) | 7122.3 | 1169.2 | 2.2x vs original (480x640) | 4348 |
+| [`resplat-base-re10k`](models/multiview.md#resplat) | no | 2520.8 (480x640) | 6962.2 | 1169.2 | 2.2x vs original (480x640) | 4348 |
 
 ## Flow
 

@@ -20,9 +20,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`efficientvit-sam-xl1`](#efficientvit_sam) | yes | 15.3, 2.7x | 686, 0.67x |
 | [`insid3-vitl16`](#insid3) | yes | 157, 4.5x | 1228, 0.7x |
 | [`mobile-sam`](#mobile_sam) | yes | 7.22, 3.3x | 296, 1.0x |
-| [`sam-hq-vit-b`](#sam_hq) | yes | 36.8, 2.8x | 564, 0.32x |
-| [`sam-hq-vit-h`](#sam_hq) | yes | 143, 2.2x | 1688, 0.39x |
-| [`sam-hq-vit-l`](#sam_hq) | yes | 81.9, 2.5x | 1026, 0.34x |
+| [`sam-hq-vit-b`](#sam_hq) | yes | 35.3, 2.9x | 544, 0.31x |
+| [`sam-hq-vit-h`](#sam_hq) | yes | 140, 2.2x | 1648, 0.38x |
+| [`sam-hq-vit-l`](#sam_hq) | yes | 79.0, 2.6x | 1006, 0.33x |
 | [`sam-vit-b`](#sam) | yes | 37.0, 2.7x | 420, 0.23x |
 | [`sam-vit-h`](#sam) | yes | 143, 2.1x | 1524, 0.28x |
 | [`sam-vit-l`](#sam) | yes | 81.5, 2.4x | 862, 0.25x |
@@ -288,9 +288,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam-hq-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>103<br>49.8<br>36.8<br>39.4<br>28.0 (image encoder only) | 2886 / 2934<br>1704 / 1756<br>375 / 422<br>420 / 564<br>372 / 422<br>609 / 642 |
-| `sam-hq-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 412<br>202<br>118<br>81.9<br>97.0<br>68.3 (image encoder only) | 4545 / 4576<br>2969 / 3018<br>834 / 882<br>877 / 1026<br>822 / 902<br>1482 / 1538 |
-| `sam-hq-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 738<br>311<br>217<br>143<br>187<br>125 (image encoder only) | 5848 / 5896<br>4266 / 4318<br>1488 / 1566<br>1528 / 1688<br>1476 / 1526<br>2790 / 2818 |
+| `sam-hq-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>103<br>48.3<br>35.3<br>39.4<br>28.0 (image encoder only) | 2886 / 2934<br>1704 / 1756<br>375 / 422<br>420 / 544<br>372 / 422<br>609 / 642 |
+| `sam-hq-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 412<br>202<br>114<br>79.0<br>97.0<br>68.3 (image encoder only) | 4545 / 4576<br>2969 / 3018<br>834 / 862<br>877 / 1006<br>822 / 902<br>1482 / 1538 |
+| `sam-hq-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 738<br>311<br>213<br>140<br>187<br>125 (image encoder only) | 5848 / 5896<br>4266 / 4318<br>1488 / 1526<br>1528 / 1648<br>1476 / 1526<br>2790 / 2818 |
 
 <details><summary>Details</summary>
 
@@ -309,10 +309,13 @@ Commercial use: yes.
 - `sam-hq-vit-h` 1024x1024, first call: portable + torch.compile 42 s (cold Inductor cache), TensorRT fp16 69 s (ONNX + engine).
 - `sam-hq-vit-b` original (fp32) 1024x1024: upstream SamPredictor.set_image + predict (centre point, multimask_output=True, hq_token_only=False)
 - `sam-hq-vit-b` original 1024x1024: torch.autocast(float16) around the call; upstream SamPredictor.set_image + predict (centre point, multimask_output=True, hq_token_only=False)
+- `sam-hq-vit-b` portable 1024x1024, kernels 1024x1024: CUDA FP16 encoder attention with directly written relative-position padding.
 - `sam-hq-vit-l` original (fp32) 1024x1024: upstream SamPredictor.set_image + predict (centre point, multimask_output=True, hq_token_only=False)
 - `sam-hq-vit-l` original 1024x1024: torch.autocast(float16) around the call; upstream SamPredictor.set_image + predict (centre point, multimask_output=True, hq_token_only=False)
+- `sam-hq-vit-l` portable 1024x1024, kernels 1024x1024: CUDA FP16 encoder attention with directly written relative-position padding.
 - `sam-hq-vit-h` original (fp32) 1024x1024: upstream SamPredictor.set_image + predict (centre point, multimask_output=True, hq_token_only=False)
 - `sam-hq-vit-h` original 1024x1024: torch.autocast(float16) around the call; upstream SamPredictor.set_image + predict (centre point, multimask_output=True, hq_token_only=False)
+- `sam-hq-vit-h` portable 1024x1024, kernels 1024x1024: CUDA FP16 encoder attention with directly written relative-position padding.
 - `sam-hq-vit-b` load / first call: original 0.77 s / 0.192 s, portable 0.69 s / 0.386 s, kernels 0.97 s / 0.378 s
 - `sam-hq-vit-l` load / first call: original 1.98 s / 0.205 s, portable 1.35 s / 0.432 s, kernels 1.25 s / 0.419 s
 - `sam-hq-vit-h` load / first call: original 3.92 s / 0.317 s, portable 2.27 s / 0.522 s, kernels 2.01 s / 0.481 s

@@ -1152,9 +1152,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | efficientvit-sam-xl1 | 72.6 | 40.9 | 28.9 | 15.3 | 2.7x | 1.9x | 984 / 1022 | 586 / 676 | 569 / 686 |
 | insid3-vitl16 | 1649 | 713 | 255 | 157 | 4.5x | 1.6x | 2148 / 2226 | 986 / 1228 | 987 / 1228 |
 | mobile-sam | 30.3 | 23.5 | 10.5 | 7.22 | 3.3x | 1.5x | 207 / 286 | 171 / 190 | 203 / 296 |
-| sam-hq-vit-b | 172 | 103 | 49.8 | 36.8 | 2.8x | 1.4x | 1704 / 1756 | 375 / 422 | 420 / 564 |
-| sam-hq-vit-h | 738 | 311 | 217 | 143 | 2.2x | 1.5x | 4266 / 4318 | 1488 / 1566 | 1528 / 1688 |
-| sam-hq-vit-l | 412 | 202 | 118 | 81.9 | 2.5x | 1.4x | 2969 / 3018 | 834 / 882 | 877 / 1026 |
+| sam-hq-vit-b | 172 | 103 | 48.3 | 35.3 | 2.9x | 1.4x | 1704 / 1756 | 375 / 422 | 420 / 544 |
+| sam-hq-vit-h | 738 | 311 | 213 | 140 | 2.2x | 1.5x | 4266 / 4318 | 1488 / 1526 | 1528 / 1648 |
+| sam-hq-vit-l | 412 | 202 | 114 | 79.0 | 2.6x | 1.4x | 2969 / 3018 | 834 / 862 | 877 / 1006 |
 | sam-vit-b | 168 | 98.2 | 48.3 | 37.0 | 2.7x | 1.3x | 1769 / 1802 | 378 / 420 | 377 / 420 |
 | sam-vit-h | 734 | 306 | 214 | 143 | 2.1x | 1.5x | 5295 / 5404 | 1484 / 2524 | 1480 / 1524 |
 | sam-vit-l | 406 | 197 | 116 | 81.5 | 2.4x | 1.4x | 3411 / 3464 | 833 / 1262 | 831 / 862 |
@@ -1371,8 +1371,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | mvsplat-re10k | 336x518 | – | 279 | 181 | 172 | 1.6x | 1.0x | 2889 / 4160 | 1239 / 1532 | 1239 / 1532 |
 | patchmatchnet | 1536x1024 | 248 | 220 | 201 | 29.5 | 7.4x | 6.8x | 1228 / 1272 | 1039 / 1212 | 648 / 772 |
 | pi3 | 336x518 | – | 1057 | 822 | 560 | 1.9x | 1.5x | 5926 / 6016 | 2209 / 2254 | 2217 / 2296 |
-| resplat-base-re10k | 480x640 | – | 2521 | 7122 | 1169 | 2.2x | 6.1x | 10139 / 12684 | 4343 / 5556 | 4348 / 5546 |
-| resplat-small-dl3dv | 480x640 | – | 493 | 1723 | 362 | 1.4x | 4.8x | 5148 / 5376 | 4995 / 5180 | 4981 / 5148 |
+| resplat-base-re10k | 480x640 | – | 2521 | 6962 | 1169 | 2.2x | 6.0x | 10139 / 12684 | 4336 / 5596 | 4348 / 5546 |
+| resplat-small-dl3dv | 480x640 | – | 493 | 1693 | 362 | 1.4x | 4.7x | 5148 / 5376 | 1103 / 1240 | 4981 / 5148 |
 | vggt-1b | 336x518 | 2502 | 965 | 653 | 446 | 2.2x | 1.5x | 8688 / 9158 | 3573 / 3794 | 3580 / 3854 |
 | vggt-omega-1b-512 | 336x518 | 2650 | 906 | 727 | 469 | 1.9x | 1.5x | 7495 / 7654 | 3269 / 3352 | 3270 / 3330 |
 
@@ -2417,9 +2417,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | efficientvit-sam-xl1 | 1024x1024 | 28.9 ms | 22.9 ms | 38.4 ms, fp32 engine (image encoder only) | 15.3 ms | 26.7 s | 36.6 s | 586 / 676 | 562 / 616 | 569 / 686 | 1894 / 1960 |
 | insid3-vitl16 | 1024x1024 | 255 ms | 235 ms | 64.1 ms (image encoder only) | 157 ms | 17.2 s | 42.1 s | 986 / 1228 | 985 / 1206 | 987 / 1228 | 1339 / 1508 |
 | mobile-sam | 1024x1024 | 10.5 ms | 6.22 ms | 4.99 ms (image encoder only) | 7.22 ms | 25.5 s | 60.9 s | 171 / 190 | 203 / 232 | 203 / 296 | 219 / 252 |
-| sam-hq-vit-b | 1024x1024 | 49.8 ms | 39.4 ms | 28.0 ms (image encoder only) | 36.8 ms | 32.8 s | 39.0 s | 375 / 422 | 372 / 422 | 420 / 564 | 609 / 642 |
-| sam-hq-vit-h | 1024x1024 | 217 ms | 187 ms | 125 ms (image encoder only) | 143 ms | 42.3 s | 69.1 s | 1488 / 1566 | 1476 / 1526 | 1528 / 1688 | 2790 / 2818 |
-| sam-hq-vit-l | 1024x1024 | 118 ms | 97.0 ms | 68.3 ms (image encoder only) | 81.9 ms | 32.9 s | 53.3 s | 834 / 882 | 822 / 902 | 877 / 1026 | 1482 / 1538 |
+| sam-hq-vit-b | 1024x1024 | 48.3 ms | 39.4 ms | 28.0 ms (image encoder only) | 35.3 ms | 32.8 s | 39.0 s | 375 / 422 | 372 / 422 | 420 / 544 | 609 / 642 |
+| sam-hq-vit-h | 1024x1024 | 213 ms | 187 ms | 125 ms (image encoder only) | 140 ms | 42.3 s | 69.1 s | 1488 / 1526 | 1476 / 1526 | 1528 / 1648 | 2790 / 2818 |
+| sam-hq-vit-l | 1024x1024 | 114 ms | 97.0 ms | 68.3 ms (image encoder only) | 79.0 ms | 32.9 s | 53.3 s | 834 / 862 | 822 / 902 | 877 / 1006 | 1482 / 1538 |
 | sam-vit-b | 1024x1024 | 48.3 ms | 40.9 ms | 27.3 ms (image encoder only) | 37.0 ms | 14.5 s | 36.4 s | 378 / 420 | 362 / 400 | 377 / 420 | 545 / 582 |
 | sam-vit-h | 1024x1024 | 214 ms | 188 ms | 124 ms (image encoder only) | 143 ms | 42.6 s | 69.7 s | 1484 / 2524 | 1436 / 1484 | 1480 / 1524 | 2744 / 2784 |
 | sam-vit-l | 1024x1024 | 116 ms | 97.2 ms | 67.5 ms (image encoder only) | 81.5 ms | 32.9 s | 53.4 s | 833 / 1262 | 793 / 862 | 831 / 862 | 1453 / 1520 |
@@ -2609,9 +2609,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | pi3 | 336x518 | 822 ms | 752 ms | public API unavailable | 560 ms | 55.6 s | – | 2209 / 2254 | 2205 / 2334 | 2217 / 2296 | – |
 | pi3 | 8x512x640 | – | – | 735 ms (DINOv2 encoder with eager scene decoding, 8 views) | – | – | 53.8 s | – | – | – | 2586 / 2976 |
 | pi3 | 8x336x518 | – | – | 691 ms (34 decoder blocks with eager encoder and output heads, 8 views) | – | – | 58.0 s | – | – | – | 2600 / 2952 |
-| resplat-base-re10k | 480x640 | 7122 ms | 7098 ms (standalone Gaussian initialization and recurrent refinement heads, eager rendering and geometry) | fails: TypeError: _Base.forward() missing 1 required positional arg | 1169 ms | 12.6 s | – | 4343 / 5556 | 4656 / 7630 | 4348 / 5546 | – |
+| resplat-base-re10k | 480x640 | 6962 ms | 7098 ms (standalone Gaussian initialization and recurrent refinement heads, eager rendering and geometry) | fails: TypeError: _Base.forward() missing 1 required positional arg | 1169 ms | 12.6 s | – | 4336 / 5596 | 4656 / 7630 | 4348 / 5546 | – |
 | resplat-base-re10k | 256x256 | – | – | 1028 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 2173 / 2988 |
-| resplat-small-dl3dv | 480x640 | 1723 ms | 1538 ms | public API unavailable | 362 ms | 243 s | – | 4995 / 5180 | 4995 / 5138 | 4981 / 5148 | – |
+| resplat-small-dl3dv | 480x640 | 1693 ms | 1538 ms | public API unavailable | 362 ms | 243 s | – | 1103 / 1240 | 4995 / 5138 | 4981 / 5148 | – |
 | resplat-small-dl3dv | 256x448 | – | – | 1362 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 1367 / 1800 |
 | vggt-1b | 336x518 | 653 ms | 557 ms | 424 ms | 446 ms | 74.3 s | 199 s | 3573 / 3794 | 3611 / 3856 | 3580 / 3854 | 6421 / 6472 |
 | vggt-omega-1b-512 | 336x518 | 727 ms | 589 ms | 377 ms | 469 ms | 65.7 s | 187 s | 3269 / 3352 | 3082 / 3154 | 3270 / 3330 | 5657 / 5766 |
