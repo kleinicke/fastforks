@@ -5,6 +5,7 @@ tier = "stable"
 uses = ["box_kalman"]  # fastforks.shared modules this family imports (SAMURAI)
 outputs = ["pred_masks", "iou_scores"]
 limitations = [
+  "On the RTX 5060 Ti, SAM 2.1 Hiera Base Plus returned 36 masks from 12 point prompts on a 3840 × 2160 COCO image. Both CUDA modes used 696 MiB peak allocation, down from 1,646 MiB. Masks, scores and logits matched bit for bit. Paired latency was 60.6 to 62.0 ms portable and 54.0 to 55.5 ms kernels.",
   "SAM 2.1 Hiera Tiny video took 2.217 s portable and 2.180 s kernels on the RTX 5060 Ti for 14 DAVIS frames at 480 x 854 and eight synthetic mask prompts. Both modes peaked at 1,419 MiB allocated and 1,522 MiB reserved.",
 ]
 
