@@ -29,6 +29,9 @@ non-Python test data or the dependencies changed. Documentation-only changes use
 and speed-floor checks for generated model or benchmark pages and their data. The GPU selection gives each family's
 golden refs as a `-k` expression for tests/test_golden.py. Use `--golden-nodeids` for exact item IDs that preserve
 revisions and distinguish similarly named families. These IDs can be passed to pytest using an argument file.
+
+For edits limited to existing model implementation files, `--affected-fast` keeps import-linked tests and tests
+that name the affected models. The exact golden selection is the same as in the standard selection.
 """
 
 from __future__ import annotations
@@ -252,13 +255,46 @@ def _table_refs(fams: dict[str, dict], text: str) -> dict[str, bool]:
     return {name: bool(found & {r.split("@")[0] for r in f["refs"]}) for name, f in fams.items()}
 
 
-def select(
+def _fast_checks(
+    graph: Graph, sel: Selection, fams: dict[str, dict], owned: set[str], *, affected_fast: bool
+) -> list[str]:
+    """Find tests linked to the selected files and families, optionally skipping generic tests."""
+    root, changed = graph.root, set(sel.changed)
+    evaluation_only = all(EVALUATION_FILES.fullmatch(path) and (root / path).is_file() for path in changed)
+    family_dirs = tuple(f["dir"] + "/" for f in fams.values())
+    selected_dirs = tuple(fams[name]["dir"] + "/" for name in sel.families)
+    affected_refs = None
+    if (
+        affected_fast
+        and sel.families
+        and all(c in graph.name and c.startswith(family_dirs) and not c.endswith("/__init__.py") for c in changed)
+    ):
+        names = set(sel.families) | {ref.split("@")[0] for f in sel.families.values() for ref in f["refs"]}
+        alternatives = "|".join(re.escape(name) for name in sorted(names))
+        affected_refs = re.compile(rf"(?<![\w-])(?:{alternatives})(?![\w-])")
+    include_generic = not evaluation_only and affected_refs is None
+    checks = []
+    for test in sorted(f for f in graph.name if f.startswith("tests/test_")):
+        cl = graph.closure({test})
+        if (
+            test in changed
+            or cl & owned
+            or any(f.startswith(selected_dirs) for f in cl)
+            or (include_generic and not any(f.startswith(family_dirs) for f in cl))
+            or (affected_refs and affected_refs.search((root / test).read_text()))
+        ):
+            checks.append(test)
+    return checks
+
+
+def select(  # noqa: PLR0913 - the source snapshots and local selection mode are independent
     changed: list[str],
     root: Path = ROOT,
     diff: Callable[[str], str] | None = None,
     *,
     metadata_only: frozenset[str] = frozenset(),
     fixture_refs: dict[str, tuple[str, ...]] | None = None,
+    affected_fast: bool = False,
 ) -> Selection:
     """Select affected variants, using tracked metadata where the caller has both git snapshots."""
     if all(path in TOP_LEVEL_DOCS or path.startswith("docs/") for path in changed):
@@ -292,14 +328,7 @@ def select(
     if full:
         sel.fast = ["tests"]
         return sel
-    evaluation_only = all(EVALUATION_FILES.fullmatch(path) and (root / path).is_file() for path in changed)
-    family_dirs = {name: f["dir"] + "/" for name, f in fams.items()}
-    owned = set(owners.values())
-    for test in sorted(f for f in graph.name if f.startswith("tests/test_")):
-        cl = graph.closure({test})
-        reached = {n for n, d in family_dirs.items() if any(f.startswith(d) for f in cl)}
-        if (not reached and not evaluation_only) or reached & set(sel.families) or cl & owned or test in changed:
-            sel.fast.append(test)
+    sel.fast = _fast_checks(graph, sel, fams, set(owners.values()), affected_fast=affected_fast)
     return sel
 
 
@@ -420,6 +449,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("base", nargs="?")
     ap.add_argument("head", nargs="?", default="HEAD")
     ap.add_argument("--files", nargs="*", help="changed paths instead of a git range")
+    ap.add_argument("--affected-fast", action="store_true", help="scope fast tests for model implementation edits")
     output = ap.add_mutually_exclusive_group()
     output.add_argument("--json", action="store_true")
     output.add_argument("--golden-nodeids", choices=("cpu", "gpu"), help="print exact pytest item IDs for the device")
@@ -429,7 +459,9 @@ def main(argv: list[str] | None = None) -> int:
     files, diff = (a.files, None) if a.files is not None else (git_changed(a.base, a.head), git_diff(a.base, a.head))
     metadata_only = git_metadata_only(a.base, a.head, files) if a.files is None else frozenset()
     fixture_refs = git_fixture_refs(a.base, a.head, files) if a.files is None else None
-    sel = select(files, diff=diff, metadata_only=metadata_only, fixture_refs=fixture_refs)
+    sel = select(
+        files, diff=diff, metadata_only=metadata_only, fixture_refs=fixture_refs, affected_fast=a.affected_fast
+    )
     if a.golden_nodeids:
         for item in sel.golden_nodeids(a.golden_nodeids):
             print(item)

@@ -48,6 +48,10 @@ Recheck previously failed item IDs explicitly with the corresponding CPU or GPU 
 
 Run the fast test files listed in `selection.json` with `-m "not gpu and not model"`, then the slow CPU and GPU tests
 for the listed families and any previously failing cases. Skip the fast test invocation when the `fast` list is empty.
+For local changes limited to existing model implementation files, add `--affected-fast` to `tools/select_tests.py`.
+It selects import-linked fast tests and tests that name the affected models, while preserving the exact CPU and CUDA
+golden lists. Shared code, fixture and dependency changes use the standard checks.
+
 `tools/merge_check.py run selection.json --out rows.jsonl`
 combines GPU golden checks and speed measurements for selected models; pass a suitable GPU-lock prefix on shared
 machines. Add `--no-core` to the estimate and run commands to skip the optional runner-only timing. The full API

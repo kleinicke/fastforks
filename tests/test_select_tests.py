@@ -62,6 +62,7 @@ MINI = {
     "tests/test_golden.py": "import fastforks._core\nimport fastforks.kernels.kb\nimport fastforks.stereo\n",
     "tests/test_plain.py": "import fastforks._core.util\n",
     "tests/test_fa.py": "from fastforks.stereo.models import fa\n",
+    "tests/test_dynamic_fa.py": 'from fastforks import stereo\nx = stereo.load("fa-y@2")\n',
     "tools/select_tests.py": "",
     "tools/_prefetch.py": "",
     "tools/eval_coco.py": "from _prefetch import prefetch\n",
@@ -112,6 +113,18 @@ def test_mini_fast_tier(mini: Path) -> None:
     release = st.select(["uv.lock"], mini)
     assert release.release
     assert release.fast == ["tests"]
+
+
+def test_affected_fast_keeps_imports_and_model_references(mini: Path) -> None:
+    path = "src/fastforks/stereo/models/fa/model.py"
+    result = st.select([path], mini, affected_fast=True)
+    assert result.fast == ["tests/test_dynamic_fa.py", "tests/test_fa.py"]
+    default = st.select([path], mini)
+    assert result.golden_nodeids("cpu") == default.golden_nodeids("cpu")
+    assert result.golden_nodeids("gpu") == default.golden_nodeids("gpu")
+
+    for changed in ([path, "tools/select_tests.py"], ["src/fastforks/shared/vit.py"], ["pyproject.toml"]):
+        assert st.select(changed, mini, affected_fast=True).as_dict() == st.select(changed, mini).as_dict()
 
 
 @pytest.mark.parametrize("changed", ["tools/eval_coco.py", "tools/_prefetch.py", "tests/test_eval_coco.py"])
