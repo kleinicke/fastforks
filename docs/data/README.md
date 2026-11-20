@@ -226,7 +226,9 @@ one row per run; every row says where its numbers came from.
 `devices.toml` lists the measured devices (slug = vendor + model + memory, e.g. `rx-7900-xtx-24gb`; fields described
 in the file). Exactly one is the reference (`reference = true`, the RTX 5060 Ti): its rows are `speed.jsonl` above, its
 tables `docs/benchmarks.md`, and only its rows are a regression floor (`tests/test_speed_floor.py`,
-`tools/speed_check.py`, `tools/merge_check.py`). Every other device is a survey: rows in `speed/<slug>.jsonl`, a
+`tools/speed_check.py`, `tools/merge_check.py`). Supplemental comparisons with a different input or precision
+from the standard benchmark can set `regression_floor: false` on that row and still appear in the tables.
+Every other device is a survey: rows in `speed/<slug>.jsonl`, a
 generated page `docs/devices/<slug>.md`, and **no floor**: a slower survey row never fails a check. A device with
 `hidden = true` keeps its rows (still checked) but gets no page, nav entry or column until the flag is removed.
 

@@ -9,6 +9,7 @@ import json
 
 import pytest
 
+import merge_check
 import speed_check
 
 
@@ -46,6 +47,30 @@ def test_only_takes_model_ids_and_rejects_unknown_names():
     assert speed_check._floor_refs(["mvsplat-re10k@1"]) == {"mvsplat-re10k"}
     with pytest.raises(SystemExit, match="no-such-model"):
         speed_check._floor_refs(["no-such-model"])
+
+
+def test_supplemental_tracking_row_is_not_scheduled():
+    """The fixed FP32 TensorRT comparison uses different arguments from the tracking speed worker."""
+    jobs = speed_check.jobs(["cotracker3-online"])
+    assert {j["mode"] for j in jobs} == {"portable", "kernels"}
+    assert all(j["inputs"] for j in jobs)
+    assert all(len(inp["label"].split("x")) == 2 for j in jobs for inp in j["inputs"])
+
+
+def test_merge_runs_goldens_for_modes_without_speed_rows(monkeypatch, tmp_path):
+    floor = tmp_path / "speed.jsonl"
+    floor.write_text(json.dumps({"ref": "measured", "mode": "portable", "task": "depth", "input": "480x640"}) + "\n")
+    monkeypatch.setattr(speed_check, "FLOOR", floor)
+    sel = {"families": {"demo": {"task": "depth", "refs": ["measured@1", "fresh@1", "fresh@2"]}}}
+    jobs = merge_check.jobs(sel, [], ["portable", "kernels"])
+    assert {(j["ref"], j["mode"], bool(j["inputs"])) for j in jobs} == {
+        ("measured", "portable", True),
+        ("measured@1", "kernels", False),
+        ("fresh@1", "portable", False),
+        ("fresh@1", "kernels", False),
+        ("fresh@2", "portable", False),
+        ("fresh@2", "kernels", False),
+    }
 
 
 def test_full_measurement_prepares_input_without_core_capture(monkeypatch, tmp_path):

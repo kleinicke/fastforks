@@ -82,25 +82,38 @@ def jobs(
             for ref in sorted(set(v["refs"]))
             for mode in modes
         ]
-    sc = speed_check()
+    timed = speed_check().jobs(modes=modes)
+    timed_refs = {j["ref"] for j in timed}
     out = []
     for fam, v in sorted(sel["families"].items()):
         if families and fam not in families:
             continue
-        refs = sorted({r.split("@")[0] for r in v["refs"]})
-        got = sc.jobs(refs, modes)
-        missing = sorted(set(refs) - {j["ref"] for j in got})
-        got += [{"ref": r, "task": v["task"], "mode": m, "inputs": []} for r in missing for m in modes]
+        refs = {ref: ref.partition("@")[0] for ref in sorted(set(v["refs"]))}
+        names = {ref: model_id if model_id in timed_refs else ref for ref, model_id in refs.items()}
+        selected = set(names.values())
+        got = [j for j in timed if j["ref"] in selected]
+        measured = {(j["ref"], j["mode"]) for j in got}
+        got += [
+            {"ref": ref, "task": v["task"], "mode": mode, "inputs": []}
+            for ref, name in names.items()
+            for mode in modes
+            if (name, mode) not in measured
+        ]
         out += [j | {"family": fam} for j in got]
     return out
 
 
-def estimate_s(job: dict[str, Any], *, profile: bool = False, no_core: bool = False) -> float:
+def estimate_s(
+    job: dict[str, Any],
+    floor: dict[tuple[str, str, str], dict[str, Any]],
+    *,
+    profile: bool = False,
+    no_core: bool = False,
+) -> float:
     """Seconds of one job from its floor rows: load, first call and the protocol's calls per input."""
     if not job["inputs"]:
         return OVERHEAD_S
     sc = speed_check()
-    floor = sc._floor_index()  # noqa: SLF001 - speed_check's floor index
     calls = sc.WARMUP + sc.ROUNDS * sc.RUNS
     if not no_core:
         calls += 1 + sc.WARMUP + sc.RUNS  # capture once, then warm up and time the runner
@@ -330,6 +343,7 @@ def run(a: argparse.Namespace) -> int:
     rows = sc.read_rows(a.out)
     commit = sc._commit()  # noqa: SLF001
     checks = jobs(sel, a.family, a.modes, golden_only=a.golden_only)
+    floor = sc._floor_index() if not a.golden_only else {}  # noqa: SLF001
     sources = _golden_sources_by_ref(checks, commit) if a.golden_only else {}
     env = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(ROOT / "src"), os.environ.get("PYTHONPATH")]))}
     for job in checks:
@@ -344,7 +358,8 @@ def run(a: argparse.Namespace) -> int:
         spec["no_profile"] = not a.profile
         spec["no_core"] = a.no_core
         print(
-            f"== {tag} {time.strftime('%T')} (estimate {estimate_s(job, profile=a.profile, no_core=a.no_core):.0f} s)",
+            f"== {tag} {time.strftime('%T')} "
+            f"(estimate {estimate_s(job, floor, profile=a.profile, no_core=a.no_core):.0f} s)",
             flush=True,
         )
         before = len(rows)
@@ -371,14 +386,13 @@ def _regressions(sc: ModuleType, path: Path) -> dict[tuple[str, str, str], str]:
 
 
 def _job_line(
-    fam: str,
     j: dict[str, Any],
+    floor: dict[tuple[str, str, str], dict[str, Any]],
     latest: dict[tuple[str, str, str], dict[str, Any]],
     reg: dict[Any, str],
     n: dict[str, int],
 ) -> str:
     """One markdown row of a job; counts its golden and input outcomes into `n`."""
-    floor = speed_check()._floor_index() if j["inputs"] else {}  # noqa: SLF001
     g = latest.get((j["ref"], j["mode"], GOLDEN), {})
     if latest.get((j["ref"], j["mode"], "-"), {}).get("_i", -1) > g.get("_i", -1):  # load / worker error is the last
         n["error"] += 1
@@ -404,7 +418,7 @@ def _job_line(
     elif "error" in g or "golden_msg" in g:
         gold += f": {g.get('error', g.get('golden_msg', ''))[:80]}"
     first = latest.get((j["ref"], j["mode"], j["inputs"][0]["label"]), {}) if j["inputs"] else {}
-    return f"| {fam} | {j['ref']} | {j['mode']} | {gold} | {first.get('load_s', '-')} | {'; '.join(cells)} |"
+    return f"| {j['family']} | {j['ref']} | {j['mode']} | {gold} | {first.get('load_s', '-')} | {'; '.join(cells)} |"
 
 
 def table(sel: dict[str, Any], path: Path, families: list[str], modes: list[str], *, golden_only: bool = False) -> int:
@@ -412,6 +426,7 @@ def table(sel: dict[str, Any], path: Path, families: list[str], modes: list[str]
     sc = speed_check()
     reg = {} if golden_only else _regressions(sc, path)
     checks = jobs(sel, families, modes, golden_only=golden_only)
+    floor = sc._floor_index() if not golden_only else {}  # noqa: SLF001
     sources = _golden_sources_by_ref(checks, sc._commit()) if golden_only else {}  # noqa: SLF001
     latest: dict[tuple[str, str, str], dict[str, Any]] = {}
     for i, r in enumerate(sc.read_rows(path)):
@@ -430,7 +445,7 @@ def table(sel: dict[str, Any], path: Path, families: list[str], modes: list[str]
     fam_lines, job_lines, bad = [], [], 0
     for fam, js in by_family.items():
         n = dict.fromkeys(("pass", "fail", "skip", "missing", "slow", "error", "timed", "untimed"), 0)
-        job_lines += [_job_line(fam, j, latest, reg, n) for j in js]
+        job_lines += [_job_line(j, floor, latest, reg, n) for j in js]
         ok = n["fail"] == n["missing"] == n["slow"] == n["error"] == n["untimed"] == 0
         bad += not ok
         fam_lines.append(
@@ -477,9 +492,10 @@ def main() -> int:
     if a.cmd == "table":
         return table(sel, a.out, a.family, a.modes, golden_only=a.golden_only)
     js = jobs(sel, a.family, a.modes, golden_only=a.golden_only)
+    floor = speed_check()._floor_index() if not a.golden_only else {}  # noqa: SLF001
     per: dict[str, float] = {}
     for j in js:
-        per[j["family"]] = per.get(j["family"], 0.0) + estimate_s(j, profile=a.profile, no_core=a.no_core)
+        per[j["family"]] = per.get(j["family"], 0.0) + estimate_s(j, floor, profile=a.profile, no_core=a.no_core)
     for fam, t in per.items():
         print(f"{fam}: {sum(j['family'] == fam for j in js)} jobs, ~{t / 60:.1f} min")
     print(f"total: {len(js)} jobs, ~{sum(per.values()) / 60:.0f} min GPU (one lock per job)")

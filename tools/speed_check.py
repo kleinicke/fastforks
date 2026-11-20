@@ -125,7 +125,8 @@ def scene_of(r: dict[str, Any]) -> str:
 
 
 def floor_rows() -> list[dict[str, Any]]:
-    return [json.loads(line) for line in FLOOR.read_text().splitlines() if line.strip()]
+    rows = [json.loads(line) for line in FLOOR.read_text().splitlines() if line.strip()]
+    return [row for row in rows if row.get("regression_floor", True)]
 
 
 def _px(label: str) -> int:
@@ -139,9 +140,10 @@ def jobs(only: Iterable[str] = (), modes: Iterable[str] = MODES) -> list[dict[st
     `compile` / `tensorrt` jobs are the refs of the floor's portable rows, with their standard input only.
     """
     out: dict[tuple[str, str], dict[str, Any]] = {}
-    only, want = _floor_refs(only), set(modes)
+    rows = floor_rows()
+    only, want = _floor_refs(only, rows=rows), set(modes)
     read = (want - set(NEW_MODES)) | ({"portable"} if want & set(NEW_MODES) else set())
-    for r in floor_rows():
+    for r in rows:
         if r["mode"] not in read or (only and r["ref"] not in only):
             continue
         j = out.setdefault((r["ref"], r["mode"]), {"ref": r["ref"], "task": r["task"], "mode": r["mode"], "inputs": []})
@@ -163,12 +165,12 @@ def jobs(only: Iterable[str] = (), modes: Iterable[str] = MODES) -> list[dict[st
     return found
 
 
-def _floor_refs(names: Iterable[str]) -> set[str]:
+def _floor_refs(names: Iterable[str], *, rows: list[dict[str, Any]] | None = None) -> set[str]:
     """Floor refs of `--only` names: a floor ref as is, a model id (`geocalib`) as its variant's ref; else an error.
 
     An unknown name used to select no job, so `run` ended without a row or a message.
     """
-    refs = {r["ref"] for r in floor_rows()}
+    refs = {r["ref"] for r in (floor_rows() if rows is None else rows)}
     out = set()
     for name in names:
         if name not in refs:
