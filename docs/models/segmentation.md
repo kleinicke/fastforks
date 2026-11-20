@@ -22,7 +22,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`eomt-l-dinov3-ade20k`](#eomt) | yes | 38.8, 1.9x | 1584, 0.45x |
 | [`fcn-r101-d8-ade20k`](#mmseg) | yes | 16.5, 2.8x | 374, 0.18x |
 | [`hrnet-w48-fcn-ade20k`](#mmseg) | yes | 11.2, 4.3x | 344, 0.18x |
-| [`mask2former-swinl-ade20k`](#mask2former) | no | 60.4, 2.4x | 1400, 0.38x |
+| [`mask2former-swinl-ade20k`](#mask2former) | no | 60.2, 2.4x | 1238, 0.34x |
 | [`oneformer-swinl-ade20k`](#oneformer) | yes | 107, 1.9x | 1994, 0.26x |
 | [`pspnet-r101-d8-ade20k`](#mmseg) | yes | 24.9, 1.9x | 394, 0.19x |
 | [`sapiens-seg-0.3b-goliath`](#sapiens) | no | 92.6, 1.9x | 1762, 0.65x |
@@ -293,7 +293,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mask2former-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 244<br>145<br>103<br>60.4<br>94.2<br>55.6 | 2966 / 3660<br>3572 / 3878<br>1164 / 1400<br>1164 / 1400<br>1485 / 1514<br>3051 / 3090 |
+| `mask2former-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 244<br>145<br>104<br>60.2<br>94.2<br>55.6 | 2966 / 3660<br>3572 / 3878<br>1052 / 1218<br>999 / 1238<br>1485 / 1514<br>3051 / 3090 |
 
 <details><summary>Details</summary>
 
@@ -309,8 +309,8 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mask2former-swinl-ade20k` 3000x4000 (14.1 GiB peak allocated, 15.1 reserved)
 - `mask2former-swinl-ade20k` 1024x2048, first call: portable + torch.compile 101 s (cold Inductor cache), TensorRT fp16 129 s (ONNX + engine).
 - `mask2former-swinl-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
-- `mask2former-swinl-ade20k` load / first call: original 4.86 s / 0.763 s (512x512), portable 3.03 s / 0.127 s, kernels 3.17† s / 0.069† s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `mask2former-swinl-ade20k` portable 1024x2048, kernels 1024x2048: FP16 labels-only public API at native geometry. Reuses the resized query masks. Synthetic and three ADE20K labels and requested logits matched the previous code bitwise.
+- `mask2former-swinl-ade20k` load / first call: original 4.86 s / 0.763 s (512x512), portable 3.03 s / 0.127 s, kernels 2.82 s / 0.315 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
 
 ### Measured
