@@ -5,14 +5,33 @@ It adds no models of its own: every dropdown lists the fastforks ids of that tas
 
 ## Install
 
+The pack is the folder `integrations/comfyui`, not the repository: clone the repository outside `custom_nodes`
+(ComfyUI imports every folder there and reports the repository root as IMPORT FAILED) and link the folder in.
+
 ```bash
-cd ComfyUI/custom_nodes
 git clone https://github.com/kleinicke/fastforks
-ln -s fastforks/integrations/comfyui comfyui-fastforks    # Windows: copy the folder instead
-pip install "./fastforks[timm,transformers]"               # with ComfyUI's Python (portable: python_embeded\python.exe -m pip)
+ln -s "$PWD/fastforks/integrations/comfyui" ComfyUI/custom_nodes/comfyui-fastforks   # Linux / macOS
+pip install -r ComfyUI/custom_nodes/comfyui-fastforks/requirements.txt              # with ComfyUI's Python
 ```
 
-Once fastforks is on PyPI, ComfyUI-Manager and the Comfy registry install the pack with its `requirements.txt`.
+Windows (cmd): a directory junction needs no administrator rights or developer mode (a symlink, `mklink /D`, does);
+copying the folder also works but does not follow `git pull`.
+
+```bat
+mklink /J ComfyUI\custom_nodes\comfyui-fastforks C:\path\to\fastforks\integrations\comfyui
+python_embeded\python.exe -m pip install -r ComfyUI\custom_nodes\comfyui-fastforks\requirements.txt
+```
+
+`requirements.txt` installs `fastforks-core[timm,transformers]>=0.2` from PyPI and keeps ComfyUI's torch (it needs
+torch >= 2.8); use `pip install -e "./fastforks[timm,transformers]"` instead to run the cloned source. Model families
+whose code is non-commercial (e.g. CodeFormer) are in `fastforks-core[nc]`; without it their ids are not listed. The
+Comfy registry and ComfyUI-Manager can install the pack once it is published from `integrations/comfyui` (installing
+the repository URL with ComfyUI-Manager's "Install via Git URL" clones the root, which is not a node pack).
+
+Windows: the `kernels` backend fails (the CUDA kernels are built for Linux x86-64 so far) and `auto` runs the
+portable PyTorch backend, with one warning per model load. Paths stay short: the cache adds at most ~110 characters
+to the ComfyUI folder (`models\fastforks\blobs\sha256\ab\<sha256>`, downloads in a `.download.*` folder next to it),
+so a ComfyUI folder below ~140 characters needs no long-path setting.
 
 ## Nodes (category `fastforks`)
 
@@ -37,15 +56,21 @@ Once fastforks is on PyPI, ComfyUI-Manager and the Comfy registry install the pa
 | Video segment (SAM 2 / SAMURAI) | IMAGE batch, points / box on frame 0, samurai | MASK batch |
 | Track points | IMAGE batch, grid size or points on frame 0 | IMAGE (tracks drawn on the frames), STRING (JSON tracks) |
 | Upscale / restore | IMAGE, tile (input px, 32 px overlap; 0 = one pass; keep it on for HAT / DAT) | IMAGE |
-| Restore aligned faces (CodeFormer, non-commercial) | IMAGE: aligned 512 x 512 face crops only (no detection / alignment / paste-back in this pack) | IMAGE |
+| Restore aligned faces (GFPGAN / CodeFormer) | IMAGE: aligned 512 x 512 face crops only (no detection / alignment / paste-back in this pack) | IMAGE |
 
 Every node has `model`, `backend` (`auto`: our CUDA kernels where they are faster, else portable PyTorch;
 `portable`; `kernels`) and `dtype` (`auto`: the validated one). Ids marked `[non-commercial]` or `[licence unclear]`
 are not cleared for commercial use; non-commercial weights download only with `FASTFORKS_NONCOMMERCIAL=1`.
 
-Upscale also lists the files in `models/upscale_models` (`file: <name>`) whose architecture fastforks runs, detected
-from the weights: ESRGAN / Real-ESRGAN (RRDBNet, 64 features, x2 / x4, old or new key names), SPAN and SwinIR. Other
-files (e.g. Compact / SRVGG) are not listed; `fastforks.restoration.load_file(path)` names the reason.
+A node lists only the ids it can run: those whose required inputs it passes (`model_card(id).contract().inputs`).
+Depth-prompted and depth-completion models (Prompt Depth Anything, LingBot-Depth, OMNI-DC, Any2Full), video matting
+from a first-frame mask (MatAnyone), in-context segmentation (INSID3) and inpainting (LaMa) need an input no node has
+yet, so no node lists them.
+
+Upscale also lists the files in `models/upscale_models` (`file: <name>`) whose architecture fastforks reads, detected
+from the weights (`fastforks.restoration.load(path)`): ESRGAN / Real-ESRGAN (old or new key names), Compact (SRVGG),
+SPAN, SwinIR, Swin2SR, HAT, DAT, DRCT, RealPLKSR, NAFNet, Restormer. Other files are not listed; `load(path)` names
+the reason.
 
 Weights and kernels already in the fastforks cache, the Hugging Face or torch hub cache are used in place; missing
 ones download on first use into `models/fastforks` (another location: a `fastforks:` entry in
