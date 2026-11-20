@@ -392,6 +392,7 @@ def test_windows_manifest_is_read_and_preferred_on_windows(monkeypatch, tmp_path
     monkeypatch.setattr(kernels.sys, "platform", "linux")
     assert kernels.platform_manifest(linux) == linux
     monkeypatch.setattr(kernels.sys, "platform", "win32")
+    monkeypatch.setattr(kernels.platform, "machine", lambda: "AMD64")  # _host() checks both
     assert kernels.platform_manifest(linux) == path
     path.unlink()
     assert kernels.platform_manifest(linux) == linux
