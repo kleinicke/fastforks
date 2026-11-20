@@ -319,20 +319,19 @@ def _done(
     golden_sources: tuple[str, ...] = (),
     no_core: bool = False,
 ) -> bool:
+    last = next(
+        (
+            r
+            for r in reversed(rows)
+            if r.get("side") == "lib"
+            and r.get("input") in {GOLDEN, "-"}
+            and (r["ref"], r["mode"]) == (job["ref"], job["mode"])
+        ),
+        {},
+    )
     if golden_sources:
-        last = next(
-            (
-                r
-                for r in reversed(rows)
-                if r.get("side") == "lib"
-                and r.get("input") in {GOLDEN, "-"}
-                and (r["ref"], r["mode"]) == (job["ref"], job["mode"])
-            ),
-            {},
-        )
         return last.get("golden") == "pass" and last.get("golden_source") in golden_sources and _current(sc, last)
-    golden = [r for r in rows if r.get("input") == GOLDEN and (r["ref"], r["mode"]) == (job["ref"], job["mode"])]
-    ok = bool(golden) and golden[-1].get("golden") in {"pass", "skip"} and _current(sc, golden[-1])
+    ok = last.get("golden") in {"pass", "skip"} and _current(sc, last)
     timing_job = job | {"no_core": no_core}
     return ok and (not job["inputs"] or sc._done(rows, "lib", timing_job))  # noqa: SLF001 - speed_check's resume rule
 
@@ -362,14 +361,12 @@ def run(a: argparse.Namespace) -> int:
             f"(estimate {estimate_s(job, floor, profile=a.profile, no_core=a.no_core):.0f} s)",
             flush=True,
         )
-        before = len(rows)
         cmd = [*shlex.split(a.prefix), sys.executable, str(Path(__file__).resolve()), "worker", json.dumps(spec)]
         rc = subprocess.run(cmd, env=env, check=False).returncode
-        rows = sc.read_rows(a.out)
-        if rc != 0 and len(rows) == before:
+        if rc != 0:
             err = {k: job[k] for k in ("ref", "task", "mode")} | {"side": "lib", "input": "-", "commit": commit}
             sc._append(a.out, err | {"error": f"worker rc={rc}", "date": time.strftime("%F")})  # noqa: SLF001
-            rows = sc.read_rows(a.out)
+        rows = sc.read_rows(a.out)
     return table(sel, a.out, a.family, a.modes, golden_only=a.golden_only)
 
 

@@ -6,6 +6,8 @@ violation fails too, so the list shrinks with each fix. Re-measuring against the
 """
 
 import json
+from argparse import Namespace
+from subprocess import CompletedProcess
 
 import pytest
 
@@ -141,3 +143,46 @@ def test_resume_distinguishes_full_timing_and_runner_timing(monkeypatch):
     assert not speed_check._done([skipped], "lib", job)
     assert speed_check._done([row], "lib", fast)
     assert speed_check._done([row], "lib", job)
+
+
+def test_interrupted_merge_worker_invalidates_previous_pass(monkeypatch, tmp_path):
+    """A worker killed after writing a timing needs a fresh golden on the next run."""
+    ref, mode = "demo", "portable"
+    out = tmp_path / "rows.jsonl"
+    selection = tmp_path / "selection.json"
+    selection.write_text(json.dumps({"families": {"demo": {"task": "depth", "refs": [ref + "@1"]}}}))
+    floor = tmp_path / "speed.jsonl"
+    floor.write_text(json.dumps({"ref": ref, "mode": mode, "task": "depth", "input": "32x32", "ms": 1.0}) + "\n")
+    monkeypatch.setattr(merge_check, "speed_check", lambda: speed_check)
+    monkeypatch.setattr(speed_check, "FLOOR", floor)
+    monkeypatch.setattr(speed_check, "files_hash", lambda _: "hash")
+    monkeypatch.setattr(speed_check, "_commit", lambda: "revision")
+    base = {"side": "lib", "ref": ref, "mode": mode, "task": "depth", "code_hash": "hash"}
+    timing = base | {"input": "32x32", "ms": 1.0, "peak_alloc_mb": 10, "peak_reserved_mb": 20}
+    golden = base | {"input": "golden", "golden": "pass", "golden_mean": 0.0, "golden_p99": 0.0}
+    speed_check._append(out, timing)
+    speed_check._append(out, golden)
+
+    def interrupted(cmd, **_kwargs):
+        speed_check._append(out, timing)
+        return CompletedProcess(cmd, returncode=124)
+
+    monkeypatch.setattr(merge_check.subprocess, "run", interrupted)
+    args = Namespace(
+        selection=selection,
+        out=out,
+        family=[],
+        modes=[mode],
+        golden_only=False,
+        no_core=True,
+        profile=False,
+        force=True,
+        prefix="",
+    )
+    assert merge_check.run(args) == 1
+    rows = speed_check.read_rows(out)
+    assert rows[-1]["error"] == "worker rc=124"
+    (job,) = merge_check.jobs(json.loads(selection.read_text()), [], [mode])
+    assert merge_check._done(speed_check, rows[:2], job)
+    assert not merge_check._done(speed_check, rows, job)
+    assert merge_check._done(speed_check, [*rows, golden], job)
