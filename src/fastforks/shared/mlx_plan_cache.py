@@ -30,6 +30,7 @@ import json
 import os
 import pickle
 import tempfile
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -126,7 +127,9 @@ class Entry:
             return None
         try:
             info = pickle.loads(meta.read_bytes())  # noqa: S301 - our own cache directory
-            ep = torch.export.load(pt2)
+            with warnings.catch_warnings():  # the loader's notes must not fail a run that turns warnings into errors
+                warnings.simplefilter("ignore", UserWarning)
+                ep = torch.export.load(pt2)
         except Exception:  # noqa: BLE001 - a stale or partly written entry is a miss
             return None
         own = _named_tensors(module)
@@ -152,8 +155,9 @@ class Entry:
             out, bound = dict(store), []
             for name, v in store.items():
                 t = own.get(name)
-                if (
+                if (  # an empty or one-element tensor is stored as is (an empty stand-in breaks torch.export.save)
                     isinstance(v, torch.Tensor)
+                    and v.numel() > 1
                     and t is not None
                     and tuple(t.shape) == tuple(v.shape)
                     and t.dtype == v.dtype
@@ -174,7 +178,9 @@ class Entry:
                     torch.Tensor, lambda t: torch.zeros((), dtype=t.dtype).expand(t.shape), example
                 )
             buf = io.BytesIO()
-            torch.export.save(ep, buf)
+            with warnings.catch_warnings():  # constants that are partial views of one storage: CPU, saved as they are
+                warnings.simplefilter("ignore", UserWarning)
+                torch.export.save(ep, buf)
             info = pickle.dumps({"bound_state": bound_state, "bound_constants": bound_constants, "extra": extra})
         except Exception:  # noqa: BLE001 - an unserialisable program is simply not cached
             return

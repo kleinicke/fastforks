@@ -1782,6 +1782,16 @@ BIG_CHUNK_MB = 2048
 CHUNK_MB = 256  # lazy replay: evaluate the live values after this much new activation (see `GraphNet._runner`)
 
 _CONSUMED = "\0consumed"  # key of the set of twin tensor names whose values live on MLX (in the shared constants)
+# key of the tuning memo in the shared constants: a segment's structure (its ops, its biggest activation to a power of
+# two) -> compiled won. A repeated block (the 24 layers of a ViT, every Swin stage) and the same segment at another
+# input size of the same module reuse the first trial's decision instead of timing it again.
+_TUNE_MEMO = "\0tune"
+
+
+def _op_name(f: Any) -> str:  # noqa: ANN401 - a plan step's callable
+    """A plan step's operation by name (a `functools.partial` by its function's)."""
+    f = getattr(f, "func", f)
+    return getattr(f, "__qualname__", None) or type(f).__qualname__
 
 
 def _tensor_dtype(dtype: mx.Dtype, t: torch.Tensor) -> mx.Dtype | None:
@@ -1861,6 +1871,7 @@ class GraphNet:
         ] = {}  # kernels mode: Winograd-domain weights of 3x3 convolutions, by (id(weight), tile)
         self._consts: dict[str, Any] = {} if shared is None else shared
         self._consumed: set[str] = self._consts.setdefault(_CONSUMED, set())  # twin tensors the MLX side has taken over
+        self._tune_memo: dict[Any, bool] = self._consts.setdefault(_TUNE_MEMO, {})
         # on-disk plan cache (`mlx_plan_cache`, set by `MlxModule` when `FASTFORKS_MLX_PLAN_CACHE` is on): the entry of
         # this net's input signature, what to store beside the program and how to restore it on a hit
         self.plan: Any = None
@@ -2252,7 +2263,11 @@ class GraphNet:
             use: list[Callable[..., Any]] = [jit]
             seg_big = max((self._sizes.get(p[1], 0) for _, p in seg), default=0)
             tune = [seg_big > TUNE_MIN_MB << 20 and not os.environ.get("FF_MLX_NO_TUNE")]
-            if known[k] is not None:  # decided by an earlier process: no trials
+            shape_key = (
+                tuple(p[0] if p[0] == "alias" else _op_name(p[2]) for _, p in seg),
+                seg_big.bit_length(),
+            )
+            if known[k] is not None:  # decided by an earlier process (plan cache): no trials
                 use[0] = jit if known[k] else fn
                 tune[0] = False
 
@@ -2267,6 +2282,10 @@ class GraphNet:
                 return time.perf_counter() - t0, mx.get_peak_memory(), res
 
             def guarded(*xs: mx.array) -> tuple[mx.array, ...]:
+                if tune[0] and (memo := self._tune_memo.get(shape_key)) is not None:
+                    tune[0] = False  # an earlier trial of the same structure decided (recorded with the plan)
+                    use[0] = jit if memo else fn
+                    decided[k] = memo
                 if tune[0]:  # first call of a segment with big maps: keep the compiled form only if it is not slower
                     tune[0] = False
                     try:
@@ -2281,7 +2300,7 @@ class GraphNet:
                         return fn(*xs)
                     if tc > te * TUNE_SLACK or mc > me * 1.25 + (64 << 20):
                         use[0] = fn
-                    decided[k] = use[0] is jit
+                    decided[k] = self._tune_memo[shape_key] = use[0] is jit
                     if TUNE_LOG:
                         print(  # noqa: T201 - FF_MLX_TUNE_LOG=1: the tuning pass's trials
                             f"mlx tune: segment {k} ({len(seg)} ops, {seg_big >> 20} MB) eager {1e3 * te:.1f} ms"
