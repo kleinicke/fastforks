@@ -61,7 +61,9 @@ GOLDEN_MANIFEST = re.compile(r"src/fastforks/[^/]+/models/[^/]+/golden[.]toml")
 FRAMEWORK = "src/fastforks/"  # outside LAZY_OK and the family dirs: imports inside functions do not count
 LAZY_OK = ("src/fastforks/shared/", "src/fastforks/kernels/", "src/fastforks/_optimize/")
 REF_TABLES = re.compile(r"src/fastforks/_core/[^/]+\.json")  # tables keyed by ref (auto_portable.json, sizes.json)
-EVALUATION_FILES = re.compile(r"(?:tools/(?:_prefetch|eval_[^/]+)|tests/test_eval_[^/]+)\.py")
+EVALUATION_FILES = re.compile(
+    r"(?:(?:tools/(?:_prefetch|eval_[^/]+)|tests/test_eval_[^/]+)\.py|tools/bsds_correspond\.cc)"
+)
 PATH_ORDER = ("tests", "tools")  # pytest `pythonpath`: top-level modules of tests/ shadow tools/
 
 
@@ -258,6 +260,8 @@ def _fast_checks(
 ) -> list[str]:
     """Find tests linked to the selected files and families, optionally skipping generic tests."""
     root, changed = graph.root, set(sel.changed)
+    if "tools/bsds_correspond.cc" in changed:
+        owned = owned | {"tools/eval_edges.py"}
     evaluation_only = all(EVALUATION_FILES.fullmatch(path) and (root / path).is_file() for path in changed)
     family_dirs = tuple(f["dir"] + "/" for f in fams.values())
     selected_dirs = tuple(fams[name]["dir"] + "/" for name in sel.families)

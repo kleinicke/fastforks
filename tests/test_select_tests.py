@@ -160,6 +160,15 @@ def test_evaluator_only_changes_select_affected_tools_tests(mini: Path, changed:
     assert "tests/test_plain.py" in st.select([changed, "tools/eval_missing.py"], mini).fast
 
 
+def test_boundary_matcher_change_selects_its_evaluator_test(mini: Path) -> None:
+    (mini / "tools/bsds_correspond.cc").write_text("// matcher adapter")
+    (mini / "tools/eval_edges.py").write_text("")
+    (mini / "tests/test_eval_edges.py").write_text("import eval_edges\n")
+    selection = st.select(["tools/bsds_correspond.cc"], mini)
+    assert selection.fast == ["tests/test_eval_edges.py"]
+    assert not selection.families
+
+
 def test_lockfile_local_version_only_does_not_select_all_families(mini: Path) -> None:
     old = '[[package]]\nname="fastforks-core"\nversion="0.1.1"\nsource={editable="."}\n'
     old += '[[package]]\nname="torch"\nversion="2.8"\nsource={registry="https://example.com"}\n'
