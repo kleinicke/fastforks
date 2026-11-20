@@ -1194,3 +1194,14 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 | yolox-tiny | 16 | 800x1344 | kernels | 12.6 | 470 | 20.062 | 1492 | 0.63 | 0.32 | WIN |  |
 | yunet-n | 16 | 1080x1920 | portable | 22.3 | 717 | 21.593 | 1377 | 1.03 | 0.52 | LOSE |  |
 | zoedepth-nk | 32 | 994x1482 | portable | 861.9 | 2895 | 777.684 | 3558 | 1.11 | 0.81 | LOSE | slower (1.11x: portable MLX replay, no fused attention/conv kernels) |
+
+### Decision: `auto` routes only massive models to MLX (2026-11-21)
+
+MLX compiles per input shape, so its first call is slower than MPS's (median 30 ms extra, but 42 of the 115 routes
+above 1 s, 8 above 10 s). Rather than weigh that per model, `tools/gen_auto_mode.py` now promotes MLX in `auto` /
+`dtypes` only where the MPS path it replaces peaks at `MASSIVE_MB` (4000) or more: 21 models (Depth Pro, SAM 3,
+DINOv2 ViT-g, DINOv3 H+, MoGe-3, VitMatte-B, Swin2SR x4, the large stereo and flow nets, ...), down from 135. There the
+saved memory is the point and the compile is small against the call. Everything else keeps MPS by default and gets
+MLX with `device="mlx"` (always available, any mode, `kernels` included). The `mlx` / `mlx_default` tables (models MPS
+cannot run, such as Marigold-v2) and the explicit `kernels` table are unchanged. `FASTFORKS_MLX_PLAN_CACHE` and
+`Model.warmup` remain the way to take the first-call cost out for a deployed model.

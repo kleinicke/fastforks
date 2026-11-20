@@ -364,3 +364,134 @@ def conv3x3(  # noqa: PLR0913
     bth = -(-th // bands)
     outs = [_band(x, u, bias, m, act, slope, residual, r0, min(bth, th - r0)) for r0 in range(0, th, bth)]
     return outs[0] if len(outs) == 1 else mx.concatenate(outs, axis=1)
+
+
+# ---- direct convolution for few channels --------------------------------------------------------------------------
+# MLX's implicit GEMM runs a conv with 3-32 input channels at full resolution at about 1 TFLOPS (RIFE's 16 -> 16 at
+# 576x960: 2.6 ms, MPS 0.95; its 28 -> 16 stride-2 head at 1152x1920: 8.1 ms, MPS 4.2). This kernel register-blocks
+# PX output pixels of a row x COB output channels per thread, reads each input row segment once per (kh, channel
+# block) and the weights as uniform loads, accumulating in float32.
+_DIRECT_SRC = """
+    constexpr int XW = (PX - 1) * SW + (KW - 1) * DW + 1;
+    constexpr int CB = C / CV, QB = COB / 4;
+    uint cob = thread_position_in_grid.x, oxb = thread_position_in_grid.y, nh = thread_position_in_grid.z;
+    if (cob >= CO / COB || oxb * PX >= OW) return;
+    uint n = nh / OH, oy = nh % OH;
+    int ox0 = int(oxb) * PX;
+    float4 acc[PX][QB];
+    const device vec<T, 4>* bv = (const device vec<T, 4>*)b;
+    UR for (int q = 0; q < QB; ++q) {
+        float4 bb = HASB ? float4(bv[cob * QB + q]) : float4(0);
+        UR for (int p = 0; p < PX; ++p) acc[p][q] = bb;
+    }
+    const device vec<T, CV>* xv = (const device vec<T, CV>*)x;
+    const device vec<T, 4>* wv = (const device vec<T, 4>*)w;
+    int ix0 = ox0 * SW - PW;
+    UR for (int kh = 0; kh < KH; ++kh) {
+        int iy = int(oy) * SH - PH + kh * DH;
+        if (iy < 0 || iy >= H) continue;
+        size_t row = (size_t(n) * H + iy) * W;
+        for (int cb = 0; cb < CB; ++cb) {
+            vec<float, CV> xr[XW];
+            UR for (int j = 0; j < XW; ++j) {
+                int ix = ix0 + j;
+                xr[j] = (ix >= 0 && ix < W) ? vec<float, CV>(xv[(row + ix) * CB + cb]) : vec<float, CV>(0);
+            }
+            UR for (int kw = 0; kw < KW; ++kw) UR for (int cc = 0; cc < CV; ++cc) {
+                size_t wo = ((size_t(kh * KW + kw) * C + cb * CV + cc) * CO) / 4 + cob * QB;
+                UR for (int q = 0; q < QB; ++q) {
+                    float4 wq = float4(wv[wo + q]);
+                    UR for (int p = 0; p < PX; ++p) acc[p][q] += xr[p * SW + kw * DW][cc] * wq;
+                }
+            }
+        }
+    }
+    device vec<T, 4>* ov = (device vec<T, 4>*)out;
+    const device vec<T, 4>* av = (const device vec<T, 4>*)a;
+    UR for (int p = 0; p < PX; ++p) {
+        int ox = ox0 + p;
+        if (ox >= OW) break;
+        size_t o = ((size_t(n) * OH + oy) * OW + ox) * (CO / 4) + cob * QB;
+        UR for (int q = 0; q < QB; ++q) {
+            float4 s = acc[p][q];
+            if (ACT == 1) s = max(s, 0.0f);
+            else if (ACT == 2) s = select(s * float4(av[cob * QB + q]), s, s > 0.0f);
+            ov[o + q] = vec<T, 4>(s);
+        }
+    }
+"""
+_DIRECT: list[object] = []
+DIRECT_MAX_CIN = 32  # wider inputs: MLX's GEMM (or Winograd) is as fast or faster
+
+
+def direct_supported(cin: int, cout: int, k: tuple[int, int], stride: tuple[int, int]) -> bool:
+    """Whether `direct` takes a dense conv of `cin -> cout` channels, kernel `k`, `stride` and is likely faster.
+
+    Measured (M1 Pro, fp16, single image, 288x480 .. 1280x1280): 2-2.4x faster than `mx.conv2d` for 3-28 input
+    channels at stride 2 (to 48 outputs) and for 16 at stride 1 (to 32 outputs); 32 -> 32 at stride 1 ties and 48 or
+    more channels lose, as do 7x7 stems with 64 outputs.
+    """
+    if cout % 4 or k[0] * k[1] > 9 or k[0] * k[1] == 1:  # noqa: PLR2004
+        return False
+    if stride == (2, 2):
+        return cin <= DIRECT_MAX_CIN and cout <= 48  # noqa: PLR2004
+    return stride == (1, 1) and cin <= 16 and cout <= 32  # noqa: PLR2004
+
+
+def direct(  # noqa: PLR0913
+    x: mx.array,
+    w: mx.array,
+    bias: mx.array | None,
+    stride: tuple[int, int],
+    padding: tuple[int, int],
+    dilation: tuple[int, int] = (1, 1),
+    *,
+    act: int = 0,
+    slope: mx.array | None = None,
+) -> mx.array:
+    """NHWC dense convolution with an OHWI kernel `w`, bias and `act` (as in `conv3x3`) fused; float32 accumulation.
+
+    Odd input channel counts are zero-padded to a multiple of 4 (a 3-channel image stem).
+    """
+    if not _DIRECT:
+        _DIRECT.append(
+            metal_kernel(
+                name="conv_direct",
+                input_names=["x", "w", "b", "a"],
+                output_names=["out"],
+                source=_DIRECT_SRC,
+                header='#define UR _Pragma("clang loop unroll(full)")\n',
+            )
+        )
+    n, h, wd, c = x.shape
+    co, kh, kw, _ = w.shape
+    wt = mx.transpose(w, (1, 2, 3, 0))  # [KH, KW, C, CO]: one output-channel vector per (tap, input channel)
+    if c % 2:
+        cp = -(-c // 4) * 4
+        x = mx.pad(x, [(0, 0), (0, 0), (0, 0), (0, cp - c)])
+        wt = mx.pad(wt, [(0, 0), (0, 0), (0, cp - c), (0, 0)])
+        c = cp
+    oh = (h + 2 * padding[0] - dilation[0] * (kh - 1) - 1) // stride[0] + 1
+    ow = (wd + 2 * padding[1] - dilation[1] * (kw - 1) - 1) // stride[1] + 1
+    cob = 8 if co % 8 == 0 else 4
+    px = 2
+    ncb, owb = co // cob, -(-ow // px)
+    zero = mx.zeros((co,), dtype=x.dtype)
+    return _DIRECT[0](  # ty: ignore[call-non-callable]
+        inputs=[
+            x,
+            _as(wt, x.dtype),
+            _as(bias, x.dtype) if bias is not None else zero,
+            _as(slope, x.dtype) if slope is not None else zero,
+        ],
+        template=[
+            ("T", x.dtype), ("C", c), ("CO", co), ("H", h), ("W", wd), ("OH", oh), ("OW", ow), ("KH", kh), ("KW", kw),
+            ("SH", stride[0]), ("SW", stride[1]), ("PH", padding[0]), ("PW", padding[1]), ("DH", dilation[0]),
+            ("DW", dilation[1]), ("PX", px), ("COB", cob), ("CV", 4 if c % 4 == 0 else 2), ("HASB", bias is not None),
+            ("ACT", act),
+        ],
+        grid=(ncb, owb, n * oh),
+        threadgroup=(ncb, max(1, min(owb, _TG // ncb)), 1),
+        output_shapes=[(n, oh, ow, co)],
+        output_dtypes=[x.dtype],
+    )[0]  # fmt: skip

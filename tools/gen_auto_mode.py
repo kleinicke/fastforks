@@ -9,7 +9,9 @@ The Apple table selects among passing, comparable MPS and MLX survey runs. Per m
 
 - `auto` and `dtypes` select MLX if it beats the fastest MPS path by `MIN_GAIN` and does not use more memory
   (peak footprint, within `MEM_SLACK`) than that path. It is also selected when at most `TRADE_SLOWDOWN` slower if it
-  needs at most `TRADE_MEMORY` of that path's peak memory on every workload.
+  needs at most `TRADE_MEMORY` of that path's peak memory on every workload. Only massive models are routed: the
+  path replaced peaks at `MASSIVE_MB` or more on some workload. MLX compiles per input shape, so its first call is
+  slow, and a small model should not pay that by default (`device="mlx"` always runs it).
 - `kernels` and `kernels_default` select MLX if it beats the native MPS kernel by `MIN_GAIN`, likewise in memory.
 - `mlx` and `mlx_default` select the fastest passing MLX path where it is the only optimized backend.
 - `mps_auto` records which native MPS kernel requests beat portable MPS by `MIN_GAIN`.
@@ -39,6 +41,7 @@ MIN_GAIN = 1.05  # kernels must be at least 5 % faster, else the lighter portabl
 MEM_SLACK = 1.02  # an MLX route may use at most 2 % more peak memory than the MPS path it replaces (measurement noise)
 TRADE_SLOWDOWN = 1.01  # ... or be up to 1 % slower than that path ...
 TRADE_MEMORY = 0.90  # ... if it needs at most 90 % of its peak memory (a saving of more than 10 %)
+MASSIVE_MB = 4000  # `auto` takes MLX only where the MPS path it replaces peaks above this (MLX's first call is slow)
 KERNEL_MODES = ("kernels",)  # the mode column of the data files
 
 
@@ -114,11 +117,12 @@ def _winners(
     alternatives: dict[Option, dict[Workload, Run]],
     *,
     memory: bool = False,
+    massive: bool = False,
 ) -> dict[str, Option]:
     """Winning implementation for each requested dtype, plus the unconstrained request under the empty key.
 
     `memory`: a candidate must also stay within `MEM_SLACK` of the fastest alternative's peak footprint on every
-    workload.
+    workload. `massive`: and that alternative must peak at `MASSIVE_MB` or more on at least one workload.
     """
     selected = {}
     for dtype in ("", *sorted({d for _, d in candidates})):
@@ -129,7 +133,7 @@ def _winners(
             if not alternatives:
                 score = statistics.median(ms for ms, _ in rows.values())
             else:
-                ratios, savings = [], []
+                ratios, savings, peak = [], [], 0.0
                 for key, (ms, mem) in rows.items():
                     baseline = [
                         other[key]
@@ -142,9 +146,10 @@ def _winners(
                             ratios = []  # more memory (or unknown) on one workload: no route
                             break
                         ratios.append(ms / fastest_ms)
+                        peak = max(peak, fastest_mem or 0)
                         savings.append(mem / fastest_mem if mem is not None and fastest_mem else None)
                 score = _route_score(ratios, savings, memory=memory)
-                if score is None:
+                if score is None or (massive and peak < MASSIVE_MB):
                     continue
             timings.append((score, option))
         if timings:
@@ -160,7 +165,7 @@ def render_apple() -> str:
         kernels = {option: rows for option, rows in native.items() if option[0] == "kernels"}
         baseline = {option: rows for option, rows in native.items() if option[0] == "portable"}
         # Require a comparable MPS run when automatically promoting an MLX route.
-        auto = _winners(accelerated, native, memory=True) if native else {}
+        auto = _winners(accelerated, native, memory=True, massive=True) if native else {}
         optimized = _winners(accelerated, kernels, memory=True) if kernels else {}
         only_mlx = _winners(accelerated, {})
         metal = _winners(kernels, baseline) if baseline else {}

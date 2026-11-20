@@ -18,7 +18,7 @@ from fastforks import (
     MissingDependencyError,
     OptionsError,
     features,
-    matching,
+    matting,
     stereo,
 )
 from fastforks._core import model as core_model
@@ -45,7 +45,7 @@ def test_card_declares_the_port_per_mode(cre):
     assert card.mlx_kernel_libs == ("crestereo_mlx",)
     assert card.mlx_dtypes("kernels") == ("float32", "float16")
     assert "  mlx       portable (float32, float16), kernels (float32, float16; crestereo_mlx)" in str(card)
-    none = registry.resolve("matching", "aliked-lightglue")[0]
+    none = registry.resolve("matting", "matanyone")[0]
     assert (none.portable_mlx_dtypes, none.mlx_kernel_libs, none.mlx_dtypes("kernels")) == ((), (), ())
 
 
@@ -112,7 +112,7 @@ def test_card_rejects_inconsistent_mlx_fields(cre, edit, match):
 
 def test_family_without_a_port_raises():
     with pytest.raises(BackendUnavailableError, match="no Apple MLX port"):
-        matching.load("aliked-lightglue", device="mlx")
+        matting.load("matanyone", device="mlx")
 
 
 def test_port_without_kernels_raises_for_kernels():
@@ -202,12 +202,15 @@ class TestMpsRouting:
         return core_model._mlx_for_mps(card, variant, mode, dtype)
 
     def test_auto_takes_the_fastest_measured_option(self):
-        assert self.route("crestereo-eth3d") == ("kernels", "float16")
-        assert self.route("realesr-general-x4v3", task="restoration") == ("kernels", "float16")  # faster and leaner
-        assert self.route("dinov2-vits14", task="features") is None  # faster at float16, but more memory than MPS
+        assert self.route("depth-pro", task="depth") == ("portable", "float16")  # massive: MPS peaks at 7 GB
+        assert self.route("sam3", task="promptable_segmentation") == ("portable", "float16")
+        # faster or leaner on MLX, but small: `auto` keeps MPS (no slow first call); device="mlx" opts in
+        assert self.route("crestereo-eth3d") is None
+        assert self.route("realesr-general-x4v3", task="restoration") is None
+        assert self.route("dinov2-vits14", task="features") is None
 
     def test_auto_with_a_dtype_takes_mlx_only_where_it_measured_faster(self):
-        assert self.route("dinov2-vits14", dtype="float32", task="features") == ("portable", "float32")
+        assert self.route("dinov2-vits14", dtype="float32", task="features") is None  # small
         assert self.route("dinov3-vith16plus", dtype="float32", task="features") == (
             "portable",
             "float32",
@@ -238,7 +241,7 @@ class TestMpsRouting:
 
     def test_port_without_kernels_and_family_without_port(self):
         assert self.route("dinov2-vits14", mode="kernels", task="features") == ("portable", "float16")
-        assert self.route("raft-stereo-middlebury") is None
+        assert self.route("matanyone", task="matting") is None
 
     def test_off_by_env_and_without_mlx(self, monkeypatch):
         monkeypatch.setenv("FASTFORKS_MLX", "0")

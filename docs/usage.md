@@ -730,8 +730,12 @@ On Apple silicon, use `device="mps"` for both public modes.
   Metal path by at least 5% to take precedence when both support the request. Explicitly requesting an unavailable
   implementation raises an error.
 - `auto` uses the benchmark table to compare optimized paths against portable MPS. The table uses comparable runs
-  whose golden reference check passed. A promotion requires at least a 5% speed advantage. Pass `dtype` to
-  constrain the choice.
+  whose golden reference check passed. A promotion requires at least a 5% speed advantage (or 10% less memory at
+  equal speed). Pass `dtype` to constrain the choice. **MLX is promoted only for massive models**, those whose MPS
+  run peaks at 4 GB or more (Depth Pro, SAM 3, large DINO backbones, the big stereo and flow nets, ...): there it
+  saves gigabytes and the compile on the first call is small next to the call. For every other model `auto` stays
+  on MPS, which starts fast; ask for MLX with `device="mlx"` (below) if you can afford the first call, for example
+  after [`warmup`](#apple-silicon-mlx).
 
 Results are MPS tensors. An MLX implementation reports `backend.mode == "kernels"` and `backend.device == "mlx"`.
 Set `FASTFORKS_MLX=0` to run only PyTorch MPS implementations. On RoMa v2 this gives access to the float32
