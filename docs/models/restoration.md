@@ -33,8 +33,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`restormer-deblur`](#restormer) | yes | 132, 1.8x | 740, 0.52x |
 | [`restormer-derain`](#restormer) | yes | 133, 1.8x | 980, 0.69x |
 | [`restormer-sidd`](#restormer) | yes | 133, 1.6x | 980, 0.69x |
-| [`seedvr2-3b`](#seedvr2) | yes | 2356, 5.6x | 7778, 0.51x |
-| [`seedvr2-7b`](#seedvr2) | yes | 2748 | 8260 |
+| [`seedvr2-3b`](#seedvr2) | yes | 2365, 5.6x | 3492, 0.23x |
+| [`seedvr2-7b`](#seedvr2) | yes | 2781 | 3814 |
 | [`span-x2`](#span) | yes | 14.9, 1.6x | 522, 0.81x |
 | [`span-x4`](#span) | yes | 14.6, 1.8x | 522, 0.81x |
 | [`swin2sr-x2`](#swin2sr) | yes | 721, 3.6x | 1636, 1.0x |
@@ -700,9 +700,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 13150<br>2332<br>2356<br>1941<br>2280 (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | 7598 / 15268<br>4233 / 7262<br>3857 / 7778<br>5237 / 8144<br>9068 / 9284 |
+| `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 13150<br>2365<br>2365<br>1941<br>2280 (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | 7598 / 15268<br>3453 / 3492<br>3453 / 3492<br>5237 / 8144<br>9068 / 9284 |
 | `seedvr2-3b` | 64x64 | original<br>portable<br>kernels<br>TensorRT bf16 | –<br>–<br>–<br>46.8 | –<br>–<br>–<br>7662 / 7664 |
-| `seedvr2-7b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | OOM<br>2748<br>2748<br>2471 (VAE only, standalone compile)<br>2696 (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | –<br>4495 / 8260<br>4495 / 8260<br>5522 / 9042<br>9369 / 9860 |
+| `seedvr2-7b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | OOM<br>2787<br>2781<br>2471 (VAE only, standalone compile)<br>2696 (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | –<br>3715 / 3814<br>3715 / 3814<br>5522 / 9042<br>9369 / 9860 |
 
 ### Weight streaming
 
@@ -731,10 +731,8 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - `seedvr2-3b` 64x64, first call: TensorRT bf16 324 s (ONNX + engine).
 - `seedvr2-7b` 512x512, first call: portable + torch.compile 52 s (cold Inductor cache), TensorRT bf16 271 s (ONNX + engine).
 - `seedvr2-3b` original 512x512: load: the authors' fp32 .pth files from the page cache (read once before)
-- `seedvr2-3b` portable 512x512: Eager BF16, host-streamed transformer. Bounded single-frame VAE workspace on the 1024 x 1024 output. The largest paired PSNR difference across 13 DIV2K crops was 0.00047 dB.
-- `seedvr2-3b` kernels 512x512: The bounded single-frame VAE with the NF4 transformer. Three labeled DIV2K crops changed by less than 0.0001 dB PSNR.
-- `seedvr2-7b` portable 512x512: Streamed BF16 with bounded eager VAE workspace. Paired PSNR changed by at most 0.001013 dB on three DIV2K crops.
-- `seedvr2-7b` kernels 512x512: Streamed BF16 with quantization disabled, bounded eager VAE workspace and default CUDA allocator settings.
+- `seedvr2-3b` portable 512x512, kernels 512x512: Streamed unquantized BF16. Group-wise FP32 decoder normalization preserves the checked restored images bit for bit.
+- `seedvr2-7b` portable 512x512, kernels 512x512: Streamed unquantized BF16. Group-wise FP32 decoder normalization preserves the checked restored images bit for bit.
 - `seedvr2-3b` load / first call: original 96.2 s / 13.89 s, portable 2.65 s / 2.454 s, kernels 3.27 s / 2.462 s
 - `seedvr2-7b` load / first call: portable 222.77 s / 3.174 s, kernels 118.43 s / 3.176 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

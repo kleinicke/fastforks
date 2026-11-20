@@ -450,8 +450,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 |---|---|---|---|---|---|---|
 | [`parseq-tiny`](models/ocr.md#parseq-scene-text-recognition) | yes | – | 2.1 | 2.1 (32x128) | 1.0x vs portable | 44 |
 | [`parseq`](models/ocr.md#parseq-scene-text-recognition) | yes | – | 3.6 | 3.6 (32x128) | 1.0x vs portable | 79 |
-| [`ppocrv5-mobile`](models/ocr.md#pp-ocrv5-server--mobile) | yes | 418.3 (1080x1920) | 152.9 | 153.8 | 2.7x vs original (1080x1920) | 500 |
-| [`ppocrv5-server`](models/ocr.md#pp-ocrv5-server--mobile) | yes | 762.4 (1080x1920) | 279.1 | 228.0 | 3.3x vs original (1080x1920) | 730 |
+| [`ppocrv5-mobile`](models/ocr.md#pp-ocrv5-server--mobile) | yes | 418.3 (1080x1920) | 152.9 | 155.7 | 2.7x vs original (1080x1920) | 289 |
+| [`ppocrv5-server`](models/ocr.md#pp-ocrv5-server--mobile) | yes | 762.4 (1080x1920) | 279.1 | 231.2 | 3.3x vs original (1080x1920) | 607 |
 
 ## Pose
 
@@ -791,8 +791,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`real-hat-gan-x4`](models/restoration.md#hat) | yes | 3038.1 (512x512) | 1428.5 | 1234.2 | 2.5x vs original (512x512) | 1312 |
 | [`drct-l-x4`](models/restoration.md#drct) | yes | 14651.1 (512x512) | 1566.8 | 1313.7 | 11.2x vs original (512x512) | 1603 |
 | [`hat-x4`](models/restoration.md#hat) | yes | 3038.2 (512x512) | 1595.9 | 1426.7 | 2.1x vs original (512x512) | 2298 |
-| [`seedvr2-3b`](models/restoration.md#seedvr2) | yes | 13150.0 (512x512) | 2332.3 | 2355.8 | 5.6x vs original (512x512) | 3857 |
-| [`seedvr2-7b`](models/restoration.md#seedvr2) | yes | OOM (512x512) | 2747.7 | 2748.1 | 1.0x vs portable | 4495 |
+| [`seedvr2-3b`](models/restoration.md#seedvr2) | yes | 13150.0 (512x512) | 2365.3 | 2364.8 | 5.6x vs original (512x512) | 3453 |
+| [`seedvr2-7b`](models/restoration.md#seedvr2) | yes | OOM (512x512) | 2787.4 | 2780.8 | 1.0x vs portable | 3715 |
 
 ## Volume
 

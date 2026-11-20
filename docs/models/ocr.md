@@ -14,8 +14,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 |---|---|---|---|
 | [`parseq`](#parseq) | yes | 3.62, 4.4x (32x128) | 100, 0.69x |
 | [`parseq-tiny`](#parseq) | yes | 2.10, 6.9x (32x128) | 54, 0.93x |
-| [`ppocrv5-mobile`](#ppocrv5) | yes | 154, 2.7x | 1016, 1.0x |
-| [`ppocrv5-server`](#ppocrv5) | yes | 228, 3.3x | 1648, 0.57x |
+| [`ppocrv5-mobile`](#ppocrv5) | yes | 156, 2.7x | 448, 0.45x |
+| [`ppocrv5-server`](#ppocrv5) | yes | 231, 3.3x | 654, 0.23x |
 
 <a id="parseq"></a>
 
@@ -86,8 +86,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `ppocrv5-server` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 762<br>279<br>228<br>277<br>25.1 | 2355 / 2901<br>615 / 752<br>730 / 1648<br>958 / 1132<br>1131 / 1146 |
-| `ppocrv5-mobile` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 619<br>418<br>153<br>154<br>115<br>2.68 | 476 / 1094<br>393 / 1005<br>289 / 448<br>500 / 1016<br>292 / 448<br>241 / 268 |
+| `ppocrv5-server` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 762<br>279<br>231<br>277<br>25.1 | 2355 / 2901<br>615 / 752<br>607 / 654<br>958 / 1132<br>1131 / 1146 |
+| `ppocrv5-mobile` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 619<br>418<br>153<br>156<br>115<br>2.68 | 476 / 1094<br>393 / 1005<br>289 / 448<br>289 / 448<br>292 / 448<br>241 / 268 |
 
 <details><summary>Details</summary>
 
@@ -105,10 +105,11 @@ Commercial use: yes.
 - `ppocrv5-server` 1080x1920, first call: portable + torch.compile 105 s (cold Inductor cache), TensorRT fp16 41 s (ONNX + engine).
 - `ppocrv5-mobile` 1080x1920, first call: portable + torch.compile 75 s (cold Inductor cache), TensorRT fp16 156 s (ONNX + engine).
 - `ppocrv5-server` original 1080x1920: PaddleOCR 3 3.3.3 / paddle 3.3.1 OCR pipeline (GPU Paddle Inference, run mode ['paddle']), no orientation / unwarping / text-line classifier; fp32 only: PaddleOCR's float16 needs TensorRT, and Paddle Inference float16 reads no text (detector overflow)
-- `ppocrv5-server` portable 1080x1920, kernels 1080x1920: FP16 native OCR with detector head strips. Public boxes, detection scores, and recognized text matched the full head on 24 pages including 23 constructed with labeled IIIT5K crops.
+- `ppocrv5-server` portable 1080x1920: FP16 native OCR with detector head strips. Public boxes, detection scores, and recognized text matched the full head on 24 pages including 23 constructed with labeled IIIT5K crops.
+- `ppocrv5-server` kernels 1080x1920: Large pages release detector and recognition graph pools. All checked text, boxes and scores match bitwise.
 - `ppocrv5-mobile` original (fp32) 1080x1920: PaddleOCR 3 3.3.3 / paddle 3.3.1 OCR pipeline (GPU Paddle Inference, run mode ['paddle']), no orientation / unwarping / text-line classifier
 - `ppocrv5-mobile` original 1080x1920: PaddleOCR 3 3.3.3 / paddle 3.3.1 OCR pipeline (GPU Paddle Inference, run mode ['paddle_fp16']), no orientation / unwarping / text-line classifier
-- `ppocrv5-mobile` kernels 1080x1920: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `ppocrv5-mobile` kernels 1080x1920: Large pages release detector and recognition graph pools. All checked text, boxes and scores match bitwise.
 - `ppocrv5-server` load / first call: original 2.07 s / 2.032 s, portable 0.56 s / 1.874 s, kernels 1.07 s / 1.106 s
 - `ppocrv5-mobile` load / first call: original 1.51 s / 1.82 s, portable 0.27 s / 2.819 s, kernels 0.41 s / 3.002 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

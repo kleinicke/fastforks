@@ -1227,8 +1227,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 |---|---|---|---|---|---|---|---|---|---|---|
 | parseq | 32x128 | 15.9 | 19.6 | 3.62 | 3.62 | 4.4x | 1.0x | 126 / 144 | 79 / 100 | 79 / 100 |
 | parseq-tiny | 32x128 | 14.6 | 18.0 | 2.10 | 2.10 | 6.9x | 1.0x | 56 / 58 | 44 / 54 | 44 / 54 |
-| ppocrv5-mobile | 1080x1920 | 619 | 418 | 153 | 154 | 2.7x | 1.0x | 393 / 1005 | 289 / 448 | 500 / 1016 |
-| ppocrv5-server | 1080x1920 | – | 762 (fp32) | 279 | 228 | 3.3x | 1.2x | 2355 / 2901 | 615 / 752 | 730 / 1648 |
+| ppocrv5-mobile | 1080x1920 | 619 | 418 | 153 | 156 | 2.7x | 1.0x | 393 / 1005 | 289 / 448 | 289 / 448 |
+| ppocrv5-server | 1080x1920 | – | 762 (fp32) | 279 | 231 | 3.3x | 1.2x | 2355 / 2901 | 615 / 752 | 607 / 654 |
 
 ### Pose, synthetic, 1080x1920
 
@@ -1512,8 +1512,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | restormer-deblur | 234 | 183 | 132 | 1.8x | 1.4x | 1221 / 1418 | 724 / 740 | 718 / 740 |
 | restormer-derain | 234 | 228 | 133 | 1.8x | 1.7x | 1221 / 1418 | 850 / 1000 | 892 / 980 |
 | restormer-sidd | 218 | 181 | 133 | 1.6x | 1.4x | 1221 / 1416 | 850 / 920 | 892 / 980 |
-| seedvr2-3b | 13150 | 2332 | 2356 | 5.6x | 1.0x | 7598 / 15268 | 4233 / 7262 | 3857 / 7778 |
-| seedvr2-7b | OOM | 2748 | 2748 | – | 1.0x | – | 4495 / 8260 | 4495 / 8260 |
+| seedvr2-3b | 13150 | 2365 | 2365 | 5.6x | 1.0x | 7598 / 15268 | 3453 / 3492 | 3453 / 3492 |
+| seedvr2-7b | OOM | 2787 | 2781 | – | 1.0x | – | 3715 / 3814 | 3715 / 3814 |
 | span-x2 | 24.6 | 23.5 | 14.9 | 1.6x | 1.6x | 611 / 648 | 607 / 662 | 487 / 522 |
 | span-x4 | 26.9 | 24.2 | 14.6 | 1.8x | 1.7x | 611 / 648 | 607 / 662 | 487 / 522 |
 | swin2sr-x2 | 2565 | 909 | 721 | 3.6x | 1.3x | 1488 / 1578 | 1459 / 1554 | 1459 / 1636 |
@@ -2486,8 +2486,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | yolox-x | 800x1344 | 11.6 ms | 11.3 ms | 5.28 ms | 7.56 ms | 15.8 s | 24.1 s | 246 / 280 | 265 / 296 | 230 / 378 | 432 / 478 |
 | parseq | 32x128 | 3.62 ms | 8.80 ms | 1.67 ms | 3.62 ms | 19.9 s | 114 s | 79 / 100 | 111 / 118 | 79 / 100 | 148 / 168 |
 | parseq-tiny | 32x128 | 2.10 ms | 1.54 ms | 1.67 ms | 2.10 ms | 18.0 s | 102 s | 44 / 54 | 76 / 94 | 44 / 54 | 82 / 90 |
-| ppocrv5-mobile | 1080x1920 | 153 ms | 115 ms | 2.68 ms | 154 ms | 75.0 s | 156 s | 289 / 448 | 292 / 448 | 500 / 1016 | 241 / 268 |
-| ppocrv5-server | 1080x1920 | 279 ms | 277 ms | 25.1 ms | 228 ms | 105 s | 40.6 s | 615 / 752 | 958 / 1132 | 730 / 1648 | 1131 / 1146 |
+| ppocrv5-mobile | 1080x1920 | 153 ms | 115 ms | 2.68 ms | 156 ms | 75.0 s | 156 s | 289 / 448 | 292 / 448 | 289 / 448 | 241 / 268 |
+| ppocrv5-server | 1080x1920 | 279 ms | 277 ms | 25.1 ms | 231 ms | 105 s | 40.6 s | 615 / 752 | 958 / 1132 | 607 / 654 | 1131 / 1146 |
 | dwpose-l | 1080x1920 | 10.3 ms | 5.75 ms | 3.33 ms (network on person crops only) | 6.20 ms | 14.8 s | 20.0 s | 211 / 260 | 197 / 216 | 163 / 266 | 277 / 294 |
 | dwpose-l-384 | 1080x1920 | 21.4 ms | 11.9 ms | 7.46 ms (network on person crops only) | 12.7 ms | 14.9 s | 20.6 s | 325 / 418 | 253 / 296 | 229 / 404 | 347 / 370 |
 | dwpose-m | 1080x1920 | 7.31 ms | 3.80 ms | 2.13 ms (network on person crops only) | 4.86 ms | 12.9 s | 18.9 s | 153 / 196 | 156 / 174 | 133 / 200 | 203 / 228 |
@@ -2750,9 +2750,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | restormer-deblur | 512x512 | 183 ms | 143 ms | 162 ms | 132 ms | 44.1 s | 58.3 s | 724 / 740 | 660 / 778 | 718 / 740 | 757 / 774 |
 | restormer-derain | 512x512 | 228 ms | 144 ms | 162 ms | 133 ms | 41.5 s | 55.3 s | 850 / 1000 | 660 / 778 | 892 / 980 | 757 / 774 |
 | restormer-sidd | 512x512 | 181 ms | 142 ms | 162 ms | 133 ms | 35.5 s | 59.7 s | 850 / 920 | 660 / 778 | 892 / 980 | 757 / 774 |
-| seedvr2-3b | 512x512 | 2332 ms | 1941 ms | 2280 ms, bf16 engine (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | 2356 ms | 238 s | – | 4233 / 7262 | 5237 / 8144 | 3857 / 7778 | 9068 / 9284 |
+| seedvr2-3b | 512x512 | 2365 ms | 1941 ms | 2280 ms, bf16 engine (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | 2365 ms | 238 s | – | 3453 / 3492 | 5237 / 8144 | 3453 / 3492 | 9068 / 9284 |
 | seedvr2-3b | 64x64 | – | – | 46.8 ms, bf16 engine | – | – | 324 s | – | – | – | 7662 / 7664 |
-| seedvr2-7b | 512x512 | 2748 ms | 2471 ms (VAE only, standalone compile) | 2696 ms, bf16 engine (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | 2748 ms | 52.2 s | 271 s | 4495 / 8260 | 5522 / 9042 | 4495 / 8260 | 9369 / 9860 |
+| seedvr2-7b | 512x512 | 2787 ms | 2471 ms (VAE only, standalone compile) | 2696 ms, bf16 engine (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | 2781 ms | 52.2 s | 271 s | 3715 / 3814 | 5522 / 9042 | 3715 / 3814 | 9369 / 9860 |
 | span-x2 | 512x512 | 23.5 ms | 13.2 ms | 7.98 ms | 14.9 ms | 7.26 s | 9.60 s | 607 / 662 | 204 / 222 | 487 / 522 | 243 / 266 |
 | span-x4 | 512x512 | 24.2 ms | 13.2 ms | 8.28 ms | 14.6 ms | 4.57 s | 9.80 s | 607 / 662 | 204 / 222 | 487 / 522 | 319 / 346 |
 | swin2sr-x2 | 512x512 | 909 ms | 482 ms | 547 ms | 721 ms | 43.7 s | 112 s | 1459 / 1554 | 1308 / 1516 | 1459 / 1636 | 4941 / 4997 |
