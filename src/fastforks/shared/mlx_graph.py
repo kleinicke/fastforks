@@ -1144,6 +1144,58 @@ def _conv_transpose3d_phases_whole(x: mx.array, w: mx.array, stride: Sequence[in
     return mx.transpose(y, (3, 4, 0, 5, 1, 6, 2, 7)).reshape(n, d * sd, h * sh, wd * sw, -1)
 
 
+def _conv_transpose2d_phases(
+    x: mx.array, w: mx.array, stride: Sequence[int], padding: Sequence[int], output_padding: Sequence[int]
+) -> mx.array | None:
+    """NHWC transposed conv of ONE input channel (`w` `[1, Cout, kh, kw]`) as shifted multiply-adds per output phase.
+
+    None for more input channels or when the output is not `stride` x the input (no phase grid). stride == kernel
+    without padding is a broadcast multiply and a depth-to-space. TEED's single-channel up-sampling, 640 -> 1280
+    float16: k 2 2.7 -> 0.6 ms, k 4 6.5 -> 1.0 ms (`mx.conv_transpose2d`); with 16 channels MLX's own is faster.
+    """
+    n, h, wd, cin = x.shape
+    k = w.shape[2:]
+    dims = (h, wd)
+    if cin != 1 or any(
+        (m - 1) * s - 2 * p + kk + op != m * s
+        for m, s, p, kk, op in zip(dims, stride, padding, k, output_padding, strict=True)
+    ):
+        return None
+    cout = w.shape[1]
+    sh, sw = stride
+    if tuple(stride) == tuple(k) and not any(padding):
+        wm = mx.transpose(w, (0, 2, 3, 1))  # [Cin, kh, kw, Cout]
+        y = x.reshape(n, h, wd, 1, 1, 1) * wm[0]
+        y = mx.transpose(y.reshape(n, h, wd, sh, sw, cout), (0, 1, 3, 2, 4, 5))
+        return y.reshape(n, h * sh, wd * sw, cout)
+    wt = mx.transpose(w, (1, 2, 3, 0))  # [Cout, kh, kw, 1]
+    taps = []  # per dim, per phase: (kernel indices ordered by input offset, lo pad, hi pad)
+    for ax in range(2):
+        s, p, kk = stride[ax], padding[ax], k[ax]
+        per = []
+        for r in range(s):
+            ks = sorted((j for j in range(kk) if (r + p - j) % s == 0), reverse=True)  # increasing input offset
+            per.append((ks, -((r + p - ks[0]) // s), (r + p - ks[-1]) // s) if ks else None)
+        taps.append(per)
+    out = []
+    for rh in range(sh):
+        for rw in range(sw):
+            t = (taps[0][rh], taps[1][rw])
+            if t[0] is None or t[1] is None:
+                out.append(mx.zeros((n, h, wd, cout), x.dtype))
+                continue
+            sub = wt[:, t[0][0]][:, :, t[1][0]]  # [Cout, th, tw, Cin]
+            xp = _shift_pad(_shift_pad(x, 1, t[0][1], t[0][2]), 2, t[1][1], t[1][2])
+            y = None
+            for i in range(sub.shape[1]):
+                for j in range(sub.shape[2]):
+                    term = xp[:, i : i + h, j : j + wd] * sub[:, i, j, 0]
+                    y = term if y is None else y + term
+            out.append(y)
+    y = mx.stack(out).reshape(sh, sw, n, h, wd, cout)
+    return mx.transpose(y, (2, 3, 0, 4, 1, 5)).reshape(n, h * sh, wd * sw, cout)
+
+
 def _conv_core(  # noqa: PLR0913
     x: mx.array,
     w: mx.array,
@@ -1269,7 +1321,12 @@ def _conv_core(  # noqa: PLR0913
             y = y + b
         return mx.transpose(y, (0, 4, 1, 2, 3))
     xl = _nhwc(x)
-    if transposed:
+    y = None
+    if transposed and groups == 1 and all(d == 1 for d in dilation):
+        y = _conv_transpose2d_phases(xl, w, stride, padding, output_padding)
+    if y is not None:
+        pass
+    elif transposed:
         wt = mx.transpose(w, (1, 2, 3, 0))  # [Cin, Cout/g, kh, kw] -> [Cout/g, kh, kw, Cin]
         y = mx.conv_transpose2d(
             xl,
@@ -1282,6 +1339,11 @@ def _conv_core(  # noqa: PLR0913
         )
     else:
         wl = mx.transpose(w, (0, 2, 3, 1))
+        if 1 < groups == xl.shape[3] < w.shape[0] and w.shape[0] % groups == 0:
+            # depthwise with a channel multiplier: repeat the input, then a plain depthwise conv (MLX's grouped conv
+            # is slow there: TEED's 3 -> 24 at 1280^2 8.2 -> 3.8 ms, 48 -> 96 at 320^2 8.1 -> 1.3 ms, float16)
+            xl = mx.repeat(xl, w.shape[0] // groups, axis=-1)
+            groups = w.shape[0]
         if (
             _KERNELS
             and not act
