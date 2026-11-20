@@ -15,8 +15,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`ben2`](#ben2) | yes | 0.0403 | 105, 1.9x | 1118, 0.4x |
 | [`birefnet`](#birefnet) | yes | 0.0325 | 121, 1.9x | 1256, 0.65x |
 | [`birefnet-lite`](#birefnet) | yes | – | 47.6, 1.6x | 660, 0.68x |
-| [`inspyrenet`](#inspyrenet) | yes | – | 108, 2.2x | 1874, 0.57x |
-| [`inspyrenet-fast`](#inspyrenet) | yes | – | 15.5, 4.6x | 514, 0.61x |
+| [`inspyrenet`](#inspyrenet) | yes | – | 107, 2.3x | 1494, 0.46x |
+| [`inspyrenet-fast`](#inspyrenet) | yes | – | 15.8, 4.5x | 454, 0.54x |
 | [`isnet`](#isnet) | yes | – | 12.1, 3.2x | 522, 0.5x |
 | [`isnet-general-use`](#isnet) | yes | – | 12.1, 3.2x | 522, 0.5x |
 | [`matanyone`](#matanyone) | no | – | 911, 1.3x | 2706, 0.84x |
@@ -155,8 +155,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `inspyrenet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>109<br>108<br>85.8<br>51.1 | 3240 / 3262<br>1649 / 1848<br>1649 / 1874<br>913 / 1018<br>1181 / 1252 |
-| `inspyrenet-fast` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 71.1<br>41.7<br>15.5<br>17.7<br>6.99 | 810 / 836<br>432 / 488<br>432 / 514<br>345 / 376<br>561 / 600 |
+| `inspyrenet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>107<br>107<br>85.8<br>51.1 | 3240 / 3262<br>1153 / 1468<br>1153 / 1494<br>913 / 1018<br>1181 / 1252 |
+| `inspyrenet-fast` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 71.1<br>45.4<br>15.8<br>17.7<br>6.99 | 810 / 836<br>363 / 448<br>363 / 454<br>345 / 376<br>561 / 600 |
 
 <details><summary>Details</summary>
 
@@ -173,9 +173,7 @@ Commercial use: yes.
 - `inspyrenet` 1080x1920, first call: portable + torch.compile 71 s (cold Inductor cache), TensorRT fp16 133 s (ONNX + engine).
 - `inspyrenet-fast` 1080x1920, first call: portable + torch.compile 77 s (cold Inductor cache), TensorRT fp16 138 s (ONNX + engine).
 - `inspyrenet` original 1080x1920: plemeri/transparent-background@f0fa91701a98, float pre- and post-processing
-- `inspyrenet` kernels 1080x1920: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `inspyrenet-fast` original 1080x1920: plemeri/transparent-background@f0fa91701a98, float pre- and post-processing
-- `inspyrenet-fast` kernels 1080x1920: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `inspyrenet` load / first call: original 6.68 s / 1.487 s, portable 0.78 s / 0.625 s, kernels 1.14 s / 0.462 s
 - `inspyrenet-fast` load / first call: original 5.93 s / 1.329 s, portable 11.07 s / 0.794 s, kernels 0.75 s / 0.861 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
