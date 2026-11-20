@@ -34,6 +34,7 @@ import torch
 import torch.utils._pytree as pytree
 
 from fastforks._core.mlx import mx, to_mx, to_torch
+from fastforks._core import mlx_cast as _mlx_cast  # noqa: F401 - registers `fastforks::run_dtype`
 from fastforks._core import volume_ops as _volume_ops  # noqa: F401 - registers `fastforks::gwc_volume`
 from fastforks._core.tracing import EXPORTING_FOR_MLX
 
@@ -438,6 +439,14 @@ def _to(x: mx.array, dtype: torch.dtype | None = None, **_: Any) -> mx.array:
 
 
 OPS[aten.type_as.default] = lambda x, o: x.astype(o.dtype)
+
+
+def _run_dtype(x: mx.array) -> mx.array:
+    """`fastforks::run_dtype` (`fastforks._core.mlx_cast`): the plan binds the replay's dtype in its place."""
+    return x
+
+
+OPS[torch.ops.fastforks.run_dtype.default] = _run_dtype
 
 
 @_reg(aten.arange.default, aten.arange.start, aten.arange.start_step)
@@ -1515,6 +1524,7 @@ def _nearest(x: mx.array, size: Sequence[int] | None, *scales: Any) -> mx.array:
 # returning channels-last results as NCHW views again. (Values that are really NCHW in memory keep the plain ops: a
 # channels-last view of them would only move the strided access.)
 CL_OPS: dict[Any, Callable[..., Any]] = {}
+CL_OPS[torch.ops.fastforks.run_dtype.default] = _run_dtype  # a cast keeps the layout
 _CL_ND = (3, 4, 5)
 
 
@@ -1870,6 +1880,8 @@ class GraphNet:
                     continue
                 args = folds.args.get(node.name, node.args)
                 op = CL_OPS[node.target] if node.name in cl_values and node.target in CL_OPS else self._op(node.target)
+                if op is _run_dtype:
+                    op = functools.partial(mx.astype, dtype=self.dtype)
                 plan.append(("call", node.name, op, _plain(args), _plain(dict(node.kwargs))))
             elif node.op == "output":
                 plan.append(("output", _plain(node.args[0])))
