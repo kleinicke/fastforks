@@ -443,7 +443,7 @@ _EXAMPLE_KEEP = (
 def _examples() -> dict[str, dict[str, Any]]:
     """Latest successful row per ref of docs/data/examples.jsonl (tools/examples.py)."""
     path = _ROOT / "docs/data/examples.jsonl"
-    rows = [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()] if path.exists() else []
     return {r["ref"]: r for r in rows if "error" not in r}
 
 
@@ -562,7 +562,7 @@ def main() -> int:
         rows = g._eval_rows(task)  # noqa: SLF001
         for card in {c.family: c for c, _ in registry.cards(task).values()}.values():
             data = family(card, speed, rows, plain, released)
-            (args.out / f"{card.family}.json").write_text(json.dumps(data, default=str) + "\n")
+            (args.out / f"{card.family}.json").write_text(json.dumps(data, default=str) + "\n", encoding="utf-8")
             index.append(
                 {
                     "family": card.family,
@@ -576,7 +576,7 @@ def main() -> int:
         "reference": {"slug": ref.slug, "name": ref.name, "software": ref.software},
         "families": index,
     }
-    (args.out / "index.json").write_text(json.dumps(meta) + "\n")
+    (args.out / "index.json").write_text(json.dumps(meta) + "\n", encoding="utf-8")
     print(f"{len(index)} families -> {args.out}", file=sys.stderr)
     return 0
 

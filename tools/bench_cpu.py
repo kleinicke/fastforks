@@ -83,14 +83,14 @@ MODELS = {
 
 
 def vm_rss_mb() -> float:
-    for line in Path("/proc/self/status").read_text().splitlines():
+    for line in Path("/proc/self/status").read_text(encoding="utf-8").splitlines():
         if line.startswith("VmRSS"):
             return int(line.split()[1]) / 1024
     return 0.0
 
 
 def busy_jiffies() -> float:
-    f = Path("/proc/stat").read_text().splitlines()[0].split()[1:]
+    f = Path("/proc/stat").read_text(encoding="utf-8").splitlines()[0].split()[1:]
     v = list(map(int, f))
     return sum(v) - v[3] - v[4]  # minus idle, iowait
 
@@ -362,7 +362,7 @@ def main() -> None:
                         scale = [b.abs().max().item() + 1e-12 for b in ref_out]
                         rec["err_abs"] = max(errs)
                         rec["err_rel"] = max(e / s for e, s in zip(errs, scale, strict=True))
-                with Path(args.out).open("a") as fh:
+                with Path(args.out).open("a", encoding="utf-8") as fh:
                     fh.write(json.dumps(rec) + "\n")
                 print(
                     var,
@@ -468,7 +468,7 @@ def ab(head, net, x, mods) -> None:
             errs = [(a - b).abs().max().item() for a, b in zip(o, ref, strict=True)]
             rec["err_abs"] = max(errs)
             rec["err_rel"] = max(e / (b.abs().max().item() + 1e-12) for e, b in zip(errs, ref, strict=True))
-        with Path(args.out).open("a") as fh:
+        with Path(args.out).open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(rec) + "\n")
         print(
             v,

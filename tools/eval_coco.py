@@ -89,7 +89,7 @@ def _done(stem: Path) -> int:
     f = _f(stem, ".jsonl")
     if not f.exists():
         return 0
-    rows = [json.loads(line) for line in f.read_text().splitlines()]
+    rows = [json.loads(line) for line in f.read_text(encoding="utf-8").splitlines()]
     return max((r["stop"] for r in rows if "stop" in r), default=0)
 
 
@@ -368,14 +368,16 @@ def _run(a: argparse.Namespace, ref: str, tier: str) -> bool:  # noqa: PLR0915
     )
     ext = ".dets.json" if a.task in ("detection", "pose") or rec.get("concept") else ".ious.json"
     f = _f(stem, ext)
-    f.write_text(json.dumps((json.loads(f.read_text()) if f.exists() else []) + items))
+    f.write_text(
+        json.dumps((json.loads(f.read_text(encoding="utf-8")) if f.exists() else []) + items), encoding="utf-8"
+    )
     _append(stem, rec)
     print(json.dumps({k: v for k, v in rec.items() if k != "ms"}), flush=True)
     return pos >= len(files)
 
 
 def _append(stem: Path, rec: dict[str, Any]) -> None:
-    with _f(stem, ".jsonl").open("a") as f:
+    with _f(stem, ".jsonl").open("a", encoding="utf-8") as f:
         f.write(json.dumps(rec) + "\n")
 
 
@@ -401,7 +403,7 @@ def _summarize(a: argparse.Namespace) -> None:  # noqa: PLR0915 - one branch per
     lines = ["| task | model | tier | metric | ms/image | MiB alloc / reserved | images |", "|---" * 7 + "|"]
     docs = []
     for jl in sorted(out.glob("*.jsonl")):
-        rows = [json.loads(x) for x in jl.read_text().splitlines()]
+        rows = [json.loads(x) for x in jl.read_text(encoding="utf-8").splitlines()]
         stem = jl.parent / jl.name.removesuffix(".jsonl")
         task, ref, tier = stem.name.split("__")
         coco = cocos.setdefault(task, _gt(task))
@@ -423,14 +425,14 @@ def _summarize(a: argparse.Namespace) -> None:  # noqa: PLR0915 - one branch per
         alloc, res = max(r["alloc_mb"] for r in rows), max(r["res_mb"] for r in rows)
         met: dict[str, Any] = {}
         if task == "pose":
-            dets = json.loads(_f(stem, ".dets.json").read_text())
+            dets = json.loads(_f(stem, ".dets.json").read_text(encoding="utf-8"))
             met["keypoint_ap"] = _coco_map(coco, dets, "keypoints", ids)
             box_source = "GT boxes" if last.get("pose_gt_boxes", True) else "predicted people"
             metric = f"keypoint AP {met['keypoint_ap']} ({box_source}, {len(dets)} people)"
             t = f"{statistics.median(ms):.1f}"
             tm = {"ms": round(statistics.median(ms), 2)}
         elif task == "detection" or rows[0].get("concept"):
-            dets = json.loads(_f(stem, ".dets.json").read_text())
+            dets = json.loads(_f(stem, ".dets.json").read_text(encoding="utf-8"))
             if only := rows[0].get("only"):  # a one-class detector (RTMDet person): the box AP of its class
                 row["dataset"] += f"-{only}"
                 met[f"{only}_ap"] = _coco_map(coco, dets, "bbox", ids, only)
@@ -450,7 +452,7 @@ def _summarize(a: argparse.Namespace) -> None:  # noqa: PLR0915 - one branch per
                 t = f"{statistics.median(ms):.1f}"
                 tm = {"ms": round(statistics.median(ms), 2)}
         else:
-            ious = json.loads(_f(stem, ".ious.json").read_text())
+            ious = json.loads(_f(stem, ".ious.json").read_text(encoding="utf-8"))
             mi = {k: 100 * float(np.mean([r["iou"] for r in ious if r["kind"] == k])) for k in ("best", "single")}
             cnt = sum(r["kind"] == "best" for r in ious)
             met = {"miou_best": round(mi["best"], 2), "miou_single": round(mi["single"], 2), "instances": cnt}
@@ -464,7 +466,7 @@ def _summarize(a: argparse.Namespace) -> None:  # noqa: PLR0915 - one branch per
                     | {k: last.get(k) for k in ("commit", "gpu", "torch", "date", "command")})  # fmt: skip
     print("\n".join(lines))
     if a.rows:
-        Path(a.rows).write_text("".join(json.dumps(d) + "\n" for d in docs))
+        Path(a.rows).write_text("".join(json.dumps(d) + "\n" for d in docs), encoding="utf-8")
 
 
 def main() -> None:

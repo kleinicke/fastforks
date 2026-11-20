@@ -149,7 +149,7 @@ def test_processes_download_the_same_file(tmp_path, monkeypatch):
         for i in range(2)
     ]
     assert [p.wait(120) for p in procs] == [0, 0]
-    paths = {(tmp_path / f"out{i}").read_text() for i in range(2)}
+    paths = {(tmp_path / f"out{i}").read_text(encoding="utf-8") for i in range(2)}
     assert len(paths) == 1
     assert files.Path(paths.pop()).read_bytes() == data
     assert not list(files.cache_root().rglob(".download.*"))

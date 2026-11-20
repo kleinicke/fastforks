@@ -42,7 +42,7 @@ def main() -> None:
     if hashlib.sha256(png.read_bytes()).hexdigest() != IMAGE_SHA256:
         msg = f"{png} is not scikit-image's coffee.png"
         raise SystemExit(msg)
-    names = [s for s in labels_txt.read_text().splitlines() if s]
+    names = [s for s in labels_txt.read_text(encoding="utf-8").splitlines() if s]
     img = Image.open(png).convert("RGB")
     tok = BertTokenizer(str(weights / "bert-uncased.vocab.txt"))
     text = tok(" . ".join(names) + " .", return_tensors="pt")

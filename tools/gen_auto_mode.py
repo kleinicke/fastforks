@@ -75,7 +75,7 @@ Run = tuple[float, float | None]  # (ms, peak footprint MB; None: not recorded)
 def _apple_options(device: str) -> dict[str, dict[Option, dict[Workload, Run]]]:
     """Passing survey rows keyed by revision, implementation and workload."""
     models: dict[str, dict[Option, dict[Workload, Run]]] = {}
-    for line in (ROOT / "docs" / "data" / "speed" / f"{device}.jsonl").read_text().splitlines():
+    for line in (ROOT / "docs" / "data" / "speed" / f"{device}.jsonl").read_text(encoding="utf-8").splitlines():
         row = json.loads(line)
         if row.get("status") != "ok" or row.get("golden") != "pass" or row["mode"] not in ("portable", "kernels"):
             continue
@@ -167,12 +167,12 @@ def main() -> None:
     ap.add_argument("--check", action="store_true", help="exit 1 if the file is out of date")
     files = {OUT: render(), APPLE_OUT: render_apple()}
     if ap.parse_args().check:
-        stale = [p.name for p, text in files.items() if not p.is_file() or p.read_text() != text]
+        stale = [p.name for p, text in files.items() if not p.is_file() or p.read_text(encoding="utf-8") != text]
         if stale:
             sys.exit(f"out of date: {', '.join(stale)} (run tools/gen_auto_mode.py)")
     else:
         for p, text in files.items():
-            p.write_text(text)
+            p.write_text(text, encoding="utf-8")
 
 
 if __name__ == "__main__":

@@ -16,14 +16,14 @@ import speed_check
 
 
 def test_floor_mode_order_or_allowlisted():
-    allow = json.loads(speed_check.ALLOW.read_text())
+    allow = json.loads(speed_check.ALLOW.read_text(encoding="utf-8"))
     found = dict(speed_check.static_violations())
     assert not sorted(set(found) - set(allow)), "slower than a mode it must not lose to; fix it or allowlist it"
     assert not sorted(set(allow) - set(found)), "stale allowlist entries: remove them"
 
 
 def test_allowlist_entries_give_a_reason():
-    for key, reason in json.loads(speed_check.ALLOW.read_text()).items():
+    for key, reason in json.loads(speed_check.ALLOW.read_text(encoding="utf-8")).items():
         assert isinstance(reason, str), key
         assert len(reason) > 20, key
 
@@ -86,7 +86,7 @@ def test_timing_export_preserves_clip_scope(tmp_path, capsys):
         **speed_check._tracking_scope("tracking", (frames, queries), exported=True),
     }
     rows = tmp_path / "timings.jsonl"
-    rows.write_text(json.dumps(row) + "\n")
+    rows.write_text(json.dumps(row) + "\n", encoding="utf-8")
     assert speed_check.export(rows, "test", "test") == 0
     published = json.loads(capsys.readouterr().out)
     assert published["input"] == "256x256"
@@ -97,7 +97,10 @@ def test_timing_export_preserves_clip_scope(tmp_path, capsys):
 
 def test_merge_runs_goldens_for_modes_without_speed_rows(monkeypatch, tmp_path):
     floor = tmp_path / "speed.jsonl"
-    floor.write_text(json.dumps({"ref": "measured", "mode": "portable", "task": "depth", "input": "480x640"}) + "\n")
+    floor.write_text(
+        json.dumps({"ref": "measured", "mode": "portable", "task": "depth", "input": "480x640"}) + "\n",
+        encoding="utf-8",
+    )
     monkeypatch.setattr(speed_check, "FLOOR", floor)
     sel = {"families": {"demo": {"task": "depth", "refs": ["measured@1", "fresh@1", "fresh@2"]}}}
     jobs = merge_check.jobs(sel, [], ["portable", "kernels"])
@@ -186,9 +189,11 @@ def test_interrupted_merge_worker_invalidates_previous_pass(monkeypatch, tmp_pat
     ref, mode = "demo", "portable"
     out = tmp_path / "rows.jsonl"
     selection = tmp_path / "selection.json"
-    selection.write_text(json.dumps({"families": {"demo": {"task": "depth", "refs": [ref + "@1"]}}}))
+    selection.write_text(json.dumps({"families": {"demo": {"task": "depth", "refs": [ref + "@1"]}}}), encoding="utf-8")
     floor = tmp_path / "speed.jsonl"
-    floor.write_text(json.dumps({"ref": ref, "mode": mode, "task": "depth", "input": "32x32", "ms": 1.0}) + "\n")
+    floor.write_text(
+        json.dumps({"ref": ref, "mode": mode, "task": "depth", "input": "32x32", "ms": 1.0}) + "\n", encoding="utf-8"
+    )
     monkeypatch.setattr(merge_check, "speed_check", lambda: speed_check)
     monkeypatch.setattr(speed_check, "FLOOR", floor)
     monkeypatch.setattr(speed_check, "files_hash", lambda _: "hash")
@@ -219,7 +224,7 @@ def test_interrupted_merge_worker_invalidates_previous_pass(monkeypatch, tmp_pat
     assert merge_check.run(args) == 1
     rows = speed_check.read_rows(out)
     assert rows[-1]["error"] == "worker rc=124"
-    (job,) = merge_check.jobs(json.loads(selection.read_text()), [], [mode])
+    (job,) = merge_check.jobs(json.loads(selection.read_text(encoding="utf-8")), [], [mode])
     assert merge_check._done(speed_check, rows[:2], job)
     assert not merge_check._done(speed_check, rows, job)
     assert merge_check._done(speed_check, [*rows, golden], job)
@@ -230,7 +235,7 @@ def test_grouped_goldens_retry_only_unfinished_jobs(monkeypatch, tmp_path):
     out = tmp_path / "rows.jsonl"
     selection = tmp_path / "selection.json"
     refs = ["a@1", "b@1", "c@1"]
-    selection.write_text(json.dumps({"families": {"demo": {"task": "depth", "refs": refs}}}))
+    selection.write_text(json.dumps({"families": {"demo": {"task": "depth", "refs": refs}}}), encoding="utf-8")
     monkeypatch.setattr(merge_check, "speed_check", lambda: speed_check)
     monkeypatch.setattr(speed_check, "files_hash", lambda _: "hash")
     monkeypatch.setattr(speed_check, "_commit", lambda: "revision")

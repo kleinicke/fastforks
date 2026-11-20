@@ -47,7 +47,7 @@ def network(snapshot: Path, weights: Path) -> Any:  # noqa: ANN401 - the HF mode
     pkg.mkdir()
     for f in ("birefnet.py", "BiRefNet_config.py"):
         shutil.copy(snapshot / f, pkg / f)
-    (pkg / "__init__.py").write_text("")
+    (pkg / "__init__.py").write_text("", encoding="utf-8")
     for k in [k for k in sys.modules if k.split(".")[0] == "hf_birefnet"]:  # a second snapshot in one process
         del sys.modules[k]
     sys.path.insert(0, str(pkg.parent))

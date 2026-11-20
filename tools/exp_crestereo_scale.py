@@ -53,7 +53,7 @@ def main() -> None:  # noqa: PLR0915
                             "date": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "mode": "kernels",
                             "command": " ".join(["python", "tools/exp_crestereo_scale.py", *sys.argv[1:]])}  # fmt: skip
     first = True
-    with (a.out / "rows.jsonl").open("w") as f:
+    with (a.out / "rows.jsonl").open("w", encoding="utf-8") as f:
         for iters in dict.fromkeys(i for _, i in SETTINGS):
             model = stereo.load(a.ref, mode="kernels", device="cuda", iters=iters)
             meta["dtype"] = str(model.backend.dtype).removeprefix("torch.")

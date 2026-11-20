@@ -207,7 +207,7 @@ def main() -> None:
                 "command": cmd,
             }
             print(json.dumps(row), flush=True)
-            with Path(a.out).open("a") as f:
+            with Path(a.out).open("a", encoding="utf-8") as f:
                 f.write(json.dumps(row) + "\n")
         del pr
         torch.cuda.empty_cache()

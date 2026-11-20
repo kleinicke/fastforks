@@ -702,7 +702,7 @@ _LEGEND = {
 def _eval_rows(task: str) -> dict[str, list[dict]]:
     path = ROOT / "docs" / "data" / f"{task}_eval.jsonl"
     rows: dict[str, list[dict]] = {}
-    for line in path.read_text().splitlines() if path.is_file() else []:
+    for line in path.read_text(encoding="utf-8").splitlines() if path.is_file() else []:
         row = json.loads(line)
         if not row.get("cold"):  # cold-start rows (`cold: true`, no timings) are read by _startup
             rows.setdefault(row["ref"], []).append(row)
@@ -713,7 +713,7 @@ def _speed_rows() -> dict[str, list[dict]]:
     """docs/data/speed.jsonl by model id (without revision)."""
     path = ROOT / "docs" / "data" / "speed.jsonl"
     rows: dict[str, list[dict]] = {}
-    for line in path.read_text().splitlines() if path.is_file() else []:
+    for line in path.read_text(encoding="utf-8").splitlines() if path.is_file() else []:
         row = json.loads(line)
         if row.get("status") == "oom" or (
             "error" in row and "ms" not in row
@@ -728,7 +728,7 @@ def _speed_rows() -> dict[str, list[dict]]:
 def _oom() -> frozenset[tuple[str, str, str]]:
     """(ref, mode, input) of the speed.jsonl rows that ran out of GPU memory (`status: "oom"`, no time)."""
     path = ROOT / "docs" / "data" / "speed.jsonl"
-    lines = path.read_text().splitlines() if path.is_file() else []
+    lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
     rows = [json.loads(line) for line in lines if line.strip()]
     timed: dict[tuple[str, str, str], str] = {}  # newest date of a measured (ms) row per key
     for r in rows:
@@ -856,7 +856,7 @@ def _compile_rows() -> dict[tuple[str, str, str], dict]:
     path = ROOT / "docs" / "data" / "speed_compile.jsonl"
     rows = {
         (r["ref"], r["mode"], r.get("comparison_input", r["input"])): r
-        for r in map(json.loads, path.read_text().splitlines() if path.is_file() else [])
+        for r in map(json.loads, path.read_text(encoding="utf-8").splitlines() if path.is_file() else [])
     }
     variants = {v.id: v for t in registry.TASKS for _, v in registry.cards(t).values()}
     for (ref, mode, size), r in rows.items():
@@ -978,7 +978,7 @@ def _md_table(head: list[str], rows: list[list[str]], keep: int = 2) -> list[str
 def stream_rows() -> dict[str, list[dict]]:
     """Explicit resident and streamed measurements per variant, including out-of-memory runs."""
     rows: dict[str, list[dict]] = {}
-    for line in (ROOT / "docs/data/speed_options.jsonl").read_text().splitlines():
+    for line in (ROOT / "docs/data/speed_options.jsonl").read_text(encoding="utf-8").splitlines():
         row = json.loads(line)
         options = row.get("options", {})
         if set(options) == {"stream"} and isinstance(options["stream"], bool):
@@ -1064,7 +1064,7 @@ def _cold_rows() -> dict[str, list[dict]]:
     """Cold-start rows (`cold: true`) of docs/data/speed.jsonl by id; none until the release pass records them."""
     path = ROOT / "docs" / "data" / "speed.jsonl"
     out: dict[str, list[dict]] = {}
-    for line in path.read_text().splitlines() if path.is_file() else []:
+    for line in path.read_text(encoding="utf-8").splitlines() if path.is_file() else []:
         row = json.loads(line)
         if row.get("cold"):
             out.setdefault(row["ref"], []).append(row)
@@ -1460,7 +1460,7 @@ def data_text(ids: tuple[str, ...], note: str | None) -> str:
 def _plain() -> dict[str, str]:
     """docs/data/plain.toml: family -> plain-language description."""
     path = ROOT / "docs" / "data" / "plain.toml"
-    return tomllib.loads(path.read_text()) if path.is_file() else {}
+    return tomllib.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
 
 
 def _first_sentences(text: str, n: int = 2) -> str:
@@ -1764,7 +1764,7 @@ def render(task: str, *, cold_rows: dict[str, list[dict]] | None = None) -> str:
 
 def known_models(task: str) -> str:
     """The model id -> distribution index of `task` (TOML): the models that are not in the core wheel."""
-    dists = tomllib.loads((ROOT / "dists.toml").read_text())
+    dists = tomllib.loads((ROOT / "dists.toml").read_text(encoding="utf-8"))
     by_class = {
         cls: name for name, spec in dists.items() if task in spec.get("tasks", (task,)) for cls in spec["code_classes"]
     }
@@ -1828,7 +1828,7 @@ _CELL = re.compile(r"^([\d.]+) ms(?: \(n=\d+\))? / (\d+) / (\d+)$")
 
 def _fixed_sizes() -> dict[tuple[str, str], dict[str, tuple[float, int, int] | str]]:
     """Fixed-size table of docs/benchmarks.md: `{(id, mode): {size column: (ms, alloc MiB, reserved MiB) | status}}`."""
-    text = (ROOT / "docs" / "benchmarks.md").read_text().split(_SIZE_BEGIN, 1)[1].split(_SIZE_END, 1)[0]
+    text = (ROOT / "docs" / "benchmarks.md").read_text(encoding="utf-8").split(_SIZE_BEGIN, 1)[1].split(_SIZE_END, 1)[0]
     head: list[str] = []
     out: dict[tuple[str, str], dict[str, tuple[float, int, int] | str]] = {}
     for line in text.splitlines():
@@ -2477,7 +2477,7 @@ def _device_block(dev: _devices.Device) -> str:
 def device_page(dev: _devices.Device) -> str:
     """A survey device's page: its hand-written text around the generated block (a new page gets a skeleton)."""
     path = ROOT / "docs" / dev.page
-    text = path.read_text() if path.is_file() else f"# {dev.name}\n\n{_DEV_BEGIN} -->\n{_DEV_END}\n"
+    text = path.read_text(encoding="utf-8") if path.is_file() else f"# {dev.name}\n\n{_DEV_BEGIN} -->\n{_DEV_END}\n"
     return _with_block(text, _DEV_BEGIN, _DEV_END, _device_block(dev))
 
 
@@ -2558,7 +2558,7 @@ def _nav_problems() -> list[str]:
 
     Hidden devices get no page, but their rows are still checked here (`_devices.rows` raises on a bad row).
     """
-    nav = (ROOT / "mkdocs.yml").read_text()
+    nav = (ROOT / "mkdocs.yml").read_text(encoding="utf-8")
     slugs = {d.slug for d in _devices.shown() if not d.reference}
     hidden = {d.slug for d in _devices.devices() if d.hidden}
     for d in _devices.devices():
@@ -2593,7 +2593,7 @@ def main() -> None:
     outputs = {
         bench: _with_block(
             _with_block(
-                _with_block(bench.read_text(), _OTHER_BEGIN, _OTHER_END, _other_block()),
+                _with_block(bench.read_text(encoding="utf-8"), _OTHER_BEGIN, _OTHER_END, _other_block()),
                 _TABLE_BEGIN,
                 _TABLE_END,
                 _bench_block(),
@@ -2604,7 +2604,10 @@ def main() -> None:
         ),
         OVERVIEW: overview(),
         gpus: _with_block(
-            _with_block(gpus.read_text(), _LIBS_BEGIN, _LIBS_END, _libs_block()), _CAPS_BEGIN, _CAPS_END, _caps_block()
+            _with_block(gpus.read_text(encoding="utf-8"), _LIBS_BEGIN, _LIBS_END, _libs_block()),
+            _CAPS_BEGIN,
+            _CAPS_END,
+            _caps_block(),
         ),
     }
     for dev in _devices.shown():
@@ -2617,8 +2620,8 @@ def main() -> None:
     for path, text in outputs.items():
         if not check:
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(text)
-        elif not path.is_file() or path.read_text() != text:
+            path.write_text(text, encoding="utf-8")
+        elif not path.is_file() or path.read_text(encoding="utf-8") != text:
             stale.append(str(path.relative_to(ROOT)))
     if stale:
         sys.exit(f"out of date (run tools/gen_docs.py): {', '.join(stale)}")

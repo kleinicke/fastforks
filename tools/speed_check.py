@@ -135,7 +135,7 @@ def scene_of(r: dict[str, Any]) -> str:
 
 
 def floor_rows() -> list[dict[str, Any]]:
-    rows = [json.loads(line) for line in FLOOR.read_text().splitlines() if line.strip()]
+    rows = [json.loads(line) for line in FLOOR.read_text(encoding="utf-8").splitlines() if line.strip()]
     return [row for row in rows if row.get("regression_floor", True)]
 
 
@@ -831,7 +831,7 @@ def worker(spec: dict[str, Any]) -> int:
 
 
 def _append(out: Path, row: dict[str, Any]) -> None:
-    with out.open("a") as f:
+    with out.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row) + "\n")
     print(
         json.dumps({k: v for k, v in row.items() if k not in ("files", "profile", "kernels", "ops")})[:300], flush=True
@@ -852,7 +852,7 @@ def _plugin(path: str) -> Any:  # noqa: ANN401 - a module
 def read_rows(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
 def _done(rows: list[dict[str, Any]], side: str, job: dict[str, Any], fork_key: str = "") -> bool:
@@ -895,7 +895,7 @@ def _warm_start(a: argparse.Namespace, spec: dict[str, Any], cmd: list[str], env
         return
     rows = read_rows(a.out)
     rows[-1]["compile_warm_s"] = got[0]["first_call_s"]
-    a.out.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    a.out.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
 
 
 def _launch(a: argparse.Namespace, spec: dict[str, Any], cmd: list[str], env: dict[str, str]) -> None:
@@ -925,7 +925,7 @@ def _launch(a: argparse.Namespace, spec: dict[str, Any], cmd: list[str], env: di
         rows, cold = read_rows(a.out), next(iter(read_rows(Path(a.cold_from))[::-1]), {})
         if cold.get("compile_s") and "fails" not in cold:
             rows[-1] |= {"compile_warm_s": rows[-1].get("compile_s"), "compile_s": cold["compile_s"]}
-            a.out.write_text("".join(json.dumps(r) + "\n" for r in rows))
+            a.out.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
     if rc == 0 or len(read_rows(a.out)) != before:
         return
     row = {
@@ -1046,7 +1046,7 @@ def static_violations() -> list[tuple[str, str]]:
 
 
 def static() -> int:
-    allow = json.loads(ALLOW.read_text()) if ALLOW.exists() else {}
+    allow = json.loads(ALLOW.read_text(encoding="utf-8")) if ALLOW.exists() else {}
     bad = [(k, m) for k, m in static_violations() if k not in allow]
     for k, m in bad:
         print("VIOLATION", k, m)

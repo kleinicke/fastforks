@@ -76,7 +76,7 @@ def _segformer(tmp_path):
         num_labels=5,
     )  # fmt: skip
     path = tmp_path / "config.json"
-    path.write_text(json.dumps(cfg.to_dict()))
+    path.write_text(json.dumps(cfg.to_dict()), encoding="utf-8")
     return tf.SegformerForSemanticSegmentation(cfg).state_dict(), path
 
 

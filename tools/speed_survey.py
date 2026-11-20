@@ -421,10 +421,10 @@ def _merge(dev: _devices.Device, new: dict[str, Any]) -> None:
     path = dev.data
     path.parent.mkdir(parents=True, exist_ok=True)
     key = (new["ref"], new["mode"], new["dtype"], new["input"])
-    rows = [json.loads(s) for s in path.read_text().splitlines() if s.strip()] if path.is_file() else []
+    rows = [json.loads(s) for s in path.read_text(encoding="utf-8").splitlines() if s.strip()] if path.is_file() else []
     rows = [r for r in rows if (r["ref"], r["mode"], r["dtype"], r["input"]) != key] + [new]
     rows.sort(key=lambda r: (r["task"], r["ref"], _devices.MODES.index(r["mode"]), r["dtype"], r["input"]))
-    path.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    path.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
 
 
 def _worker_cmd(dev: _devices.Device, job: dict[str, Any], out: Path, commit: str) -> list[str]:
@@ -488,7 +488,9 @@ def _measure(
             tail = f"rc={r.returncode}: " + " ".join(r.stderr.split()[-60:])
         except subprocess.TimeoutExpired:
             tail = f"timeout after {timeout:g} s"
-        got = [json.loads(s) for s in out.read_text().splitlines() if s.strip()] if out.is_file() else []
+        got = (
+            [json.loads(s) for s in out.read_text(encoding="utf-8").splitlines() if s.strip()] if out.is_file() else []
+        )
     return got if any(g.get("input") != GOLDEN for g in got) else [{"error": f"worker {tail}"}]
 
 

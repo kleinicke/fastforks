@@ -83,13 +83,13 @@ def test_truncated_and_oversized_images_are_input_errors(monkeypatch):  # IM-1
 
 
 def test_colmap_images_txt_alternates_image_and_observation_lines(tmp_path):  # VIK-01
-    (tmp_path / "cameras.txt").write_text("# c\n1 PINHOLE 64 48 50 50 32 24\n")
+    (tmp_path / "cameras.txt").write_text("# c\n1 PINHOLE 64 48 50 50 32 24\n", encoding="utf-8")
     (tmp_path / "images.txt").write_text(
         "# images\n"
         "1 1 0 0 0 -1000 -2000 -3000 1 l.png\n"
         "0 1 0 0 0 -1 0 0 1 10 10 -1\n"  # an observation row that looks like an image line
         "2 1 0 0 0 -1100 -2000 -3000 1 r.png\n"
-        "\n"  # an empty observation line
+        "\n"  # an empty observation line, encoding="utf-8"
     )
     rig = g.read_calib(tmp_path, "colmap", unit="mm")
     assert rig.baseline == pytest.approx(0.1)
@@ -97,8 +97,8 @@ def test_colmap_images_txt_alternates_image_and_observation_lines(tmp_path):  # 
 
 @pytest.mark.parametrize("bad", [0, -1.0, float("nan"), float("inf"), "km", True])
 def test_unit_accepts_positive_numbers_only(tmp_path, bad):  # VIK-02
-    (tmp_path / "cameras.txt").write_text("1 PINHOLE 64 48 50 50 32 24\n")
-    (tmp_path / "images.txt").write_text("1 1 0 0 0 0 0 0 1 l.png\n\n2 1 0 0 0 -100 0 0 1 r.png\n\n")
+    (tmp_path / "cameras.txt").write_text("1 PINHOLE 64 48 50 50 32 24\n", encoding="utf-8")
+    (tmp_path / "images.txt").write_text("1 1 0 0 0 0 0 0 1 l.png\n\n2 1 0 0 0 -100 0 0 1 r.png\n\n", encoding="utf-8")
     assert g.read_calib(tmp_path, "colmap", unit=0.001).baseline == pytest.approx(0.1)
     with pytest.raises(InputError, match="unit must be"):
         g.read_calib(tmp_path, "colmap", unit=bad)

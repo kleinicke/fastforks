@@ -21,7 +21,7 @@ from fastforks._core.errors import WeightsError
 from fastforks.features.models.convnext_features import model as convnext
 
 REF = "convnext_large.fb_in22k@1"
-TOL = tomllib.loads(Path(convnext.__file__).with_name("golden.toml").read_text())["tolerance"]
+TOL = tomllib.loads(Path(convnext.__file__).with_name("golden.toml").read_text(encoding="utf-8"))["tolerance"]
 
 pytestmark = [pytest.mark.model, pytest.mark.slow]
 

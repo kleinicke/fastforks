@@ -169,7 +169,7 @@ def release_snapshot() -> str | None:
         if r.returncode == 0:
             return r.stdout
     v011 = ROOT / "tests" / "api_snapshot_v0.1.1.txt"
-    return v011.read_text() if v011.exists() else None
+    return v011.read_text(encoding="utf-8") if v011.exists() else None
 
 
 def unlisted_removals(current: str) -> list[str]:
@@ -177,7 +177,7 @@ def unlisted_removals(current: str) -> list[str]:
     old = release_snapshot()
     if old is None:
         return []
-    text = (ROOT / "CHANGELOG.md").read_text()
+    text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     unreleased = text.split("## Unreleased", 1)[-1].split("\n## ", 1)[0]
     return [n for n in removed_items(old, current) if f"`{n}" not in unreleased and f".{n}`" not in unreleased]
 
@@ -194,9 +194,9 @@ def main() -> int:
         if missing := unlisted_removals(text):
             print(f"name these removed / renamed items in CHANGELOG.md (Unreleased): {missing}", file=sys.stderr)
             return 1
-        SNAPSHOT.write_text(text)
+        SNAPSHOT.write_text(text, encoding="utf-8")
     elif args.check:
-        old = SNAPSHOT.read_text() if SNAPSHOT.exists() else ""
+        old = SNAPSHOT.read_text(encoding="utf-8") if SNAPSHOT.exists() else ""
         diff = list(difflib.unified_diff(old.splitlines(), text.splitlines(), "committed", "current", lineterm=""))
         print("\n".join(diff))
         return 1 if diff else 0

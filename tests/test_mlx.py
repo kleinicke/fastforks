@@ -32,7 +32,7 @@ MODELS = Path(registry.__file__).parents[1] / "stereo" / "models"
 
 @pytest.fixture
 def cre():
-    return tomllib.loads((MODELS / "crestereo/card.toml").read_text())
+    return tomllib.loads((MODELS / "crestereo/card.toml").read_text(encoding="utf-8"))
 
 
 def parse(d):

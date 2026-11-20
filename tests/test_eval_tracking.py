@@ -23,7 +23,7 @@ def test_tracking_prefetch_resumes_and_reuses_warmup(
 ) -> None:
     ref, tier = "track-on2", "portable"
     path = ev._f(tmp_path, ref, tier)
-    path.write_text('{"seq": "finished"}\n')
+    path.write_text('{"seq": "finished"}\n', encoding="utf-8")
     decoded: list[str] = []
     infer: list[np.ndarray] = []
 
@@ -59,7 +59,7 @@ def test_tracking_prefetch_resumes_and_reuses_warmup(
     args = argparse.Namespace(out=str(tmp_path), every=3, budget=budget)
     complete = ev._run(args, ref, tier)
     assert decoded == ["first", "second"]
-    records = [json.loads(line)["seq"] for line in path.read_text().splitlines()]
+    records = [json.loads(line)["seq"] for line in path.read_text(encoding="utf-8").splitlines()]
     if budget < 0:
         assert not complete
         assert len(infer) == 1

@@ -80,7 +80,7 @@ def main() -> None:
     if a.smallest:
         selected = smallest(selected)
     if a.required:
-        a.required.write_text("".join(f"{ref}\n" for ref in selected))
+        a.required.write_text("".join(f"{ref}\n" for ref in selected), encoding="utf-8")
     for ref in selected:
         entry = goldens[ref]
         file = f"{ref}.npz"

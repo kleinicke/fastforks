@@ -136,7 +136,7 @@ def main() -> int:
     a = ap.parse_args()
     os.environ.setdefault("FASTFORKS_NONCOMMERCIAL", "1")
     fails = 0
-    with Path(a.out).open("a") as f:
+    with Path(a.out).open("a", encoding="utf-8") as f:
         for task, mid in default_models(a.only, a.task, a.part):
             for mode in modes_of(mid, task, tuple(a.mode)):
                 row = run_one(mid, mode, a.device)

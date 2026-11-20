@@ -160,7 +160,7 @@ def bench_model(name: str, tiers: list[str], zoo: Any, val: str, out: str | None
         line = json.dumps(rec)
         print(line, flush=True)
         if out:
-            with Path(out).open("a") as f:
+            with Path(out).open("a", encoding="utf-8") as f:
                 f.write(line + "\n")
 
 

@@ -59,7 +59,11 @@ def _shim(dev: str) -> None:
 
 def _rewritten(name: str, path: Path, dev: str) -> Any:  # noqa: ANN401 - the module
     """Module `name` from `path` with its "cuda" strings -> `dev` and the measuring machine's root -> FF_ORIG_ROOT."""
-    src = path.read_text().replace('"cuda"', "_FF_DEV").replace(os.environ["FF_BENCH_HOME"], os.environ["FF_ORIG_ROOT"])
+    src = (
+        path.read_text(encoding="utf-8")
+        .replace('"cuda"', "_FF_DEV")
+        .replace(os.environ["FF_BENCH_HOME"], os.environ["FF_ORIG_ROOT"])
+    )
     mod = types.ModuleType(name)
     mod.__file__ = str(path)
     setattr(mod, "_FF_DEV", dev)  # noqa: B010 - the name the rewritten source reads
@@ -208,7 +212,7 @@ def worker(spec: dict[str, Any]) -> int:
             traceback.print_exc()
         err = " ".join(f"{type(e).__name__}: {e}".split())[:600]
         rows += [{**common, "input": ss.GOLDEN, "golden": "fail", "error": err}] if rows else [{**common, "error": err}]
-    out.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    out.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
     gc.collect()
     return 0
 
@@ -276,7 +280,11 @@ def main() -> int:
                     print(r.stderr, file=sys.stderr)
             except subprocess.TimeoutExpired:
                 tail = f"timeout after {a.timeout:g} s"
-            got = [json.loads(s) for s in out.read_text().splitlines() if s.strip()] if out.is_file() else []
+            got = (
+                [json.loads(s) for s in out.read_text(encoding="utf-8").splitlines() if s.strip()]
+                if out.is_file()
+                else []
+            )
         got = got or [{"error": f"worker {tail}"}]
         row = ss._row(dev, job, common, got)  # noqa: SLF001
         ss._merge(dev, row)  # noqa: SLF001

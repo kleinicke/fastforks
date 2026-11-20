@@ -43,7 +43,7 @@ def test_reserved_name_is_refused():
 def test_front_matter_parses(staged):
     out, _ = staged
     for readme in out.glob("*/README.md"):
-        text = readme.read_text()
+        text = readme.read_text(encoding="utf-8")
         assert text.startswith("---\n"), readme
         front = yaml.safe_load(text.split("---\n", 2)[1])
         assert front["library_name"] == "fastforks"
@@ -58,7 +58,7 @@ def test_front_matter_parses(staged):
 def test_no_internal_text_or_base_model(staged):
     out, _ = staged
     for readme in out.glob("*/README.md"):
-        text = readme.read_text()
+        text = readme.read_text(encoding="utf-8")
         for bad in ("exp 0", "results/", "/home/"):
             assert bad not in text, (readme, bad)
         front = yaml.safe_load(text.split("---")[1])
@@ -70,7 +70,7 @@ def test_no_internal_text_or_base_model(staged):
 
 def test_assumed_weights_licence_is_not_firm(staged):
     out, _ = staged
-    text = (out / "psmnet" / "README.md").read_text()
+    text = (out / "psmnet" / "README.md").read_text(encoding="utf-8")
     assert 'license: "other"' in text
     assert 'license_name: "see-model-card"' in text
     assert "the authors do not state a separate weights licence" in text
@@ -148,18 +148,18 @@ def test_licence_headers_are_valid_hf_ids(staged):
     out, _ = staged
     ids = set(stage_hf._HF_LICENCES.values()) | {"other"}
     for readme in out.glob("*/README.md"):
-        front = yaml.safe_load(readme.read_text().split("---")[1])
+        front = yaml.safe_load(readme.read_text(encoding="utf-8").split("---")[1])
         assert front["license"] in ids, readme
         if front["license"] == "other":
             assert not re.search(r"weights-unstated|licenseref", front["license_name"]), readme
-        assert "Files: ." not in readme.read_text(), readme
-    assert 'license: "cc-by-sa-4.0"' in (out / "nnfoundation" / "README.md").read_text()
+        assert "Files: ." not in readme.read_text(encoding="utf-8"), readme
+    assert 'license: "cc-by-sa-4.0"' in (out / "nnfoundation" / "README.md").read_text(encoding="utf-8")
 
 
 def test_sd2_derived_cards_carry_the_openrail_note(staged):
     out, _ = staged
     for fam in stage_hf.SD2_DERIVED:
-        text = (out / stage_hf.repo_name(fam) / "README.md").read_text()
+        text = (out / stage_hf.repo_name(fam) / "README.md").read_text(encoding="utf-8")
         assert 'license: "openrail++"' in text
         assert "OpenRAIL++-M use restrictions" in text, fam
 

@@ -224,7 +224,7 @@ def provenance(method: str, matches: Path) -> dict:
         cpu = next(
             (
                 ln.split(":", 1)[1].strip()
-                for ln in Path("/proc/cpuinfo").read_text().splitlines()
+                for ln in Path("/proc/cpuinfo").read_text(encoding="utf-8").splitlines()
                 if ln.startswith("model name")
             ),
             cpu,
@@ -322,7 +322,7 @@ def main() -> None:  # noqa: PLR0915 - the options
         "commit": commit,
         "date": time.strftime("%Y-%m-%d %H:%M"),
     }
-    with a.out.open("a") as f:
+    with a.out.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row) + "\n")
     if a.errors:
         np.save(a.errors, np.array(errors))

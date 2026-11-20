@@ -114,7 +114,7 @@ def test_numpy_lists_match_single_calls():
 
 def test_directories_natural_order_and_save_names(tmp_path):
     left, right = _folders(tmp_path, ["f_10.png", "f_2.png", "f_1.png"])
-    (left / "notes.txt").write_text("x")
+    (left / "notes.txt").write_text("x", encoding="utf-8")
     (right / ".hidden.png").write_bytes(b"")
     out = list(run_many(Fake(), left, right, save_to=tmp_path / "out", save_format=".npy"))
     assert [r.left_path.name for r in out] == ["f_1.png", "f_2.png", "f_10.png"]

@@ -138,7 +138,7 @@ def main() -> None:
     for ref in a.refs.split(","):
         row = evaluate(ref, a.mode, a.dataset, names)
         row["start"], row["stop"] = a.start, a.stop
-        with Path(a.out).open("a") as f:
+        with Path(a.out).open("a", encoding="utf-8") as f:
             f.write(json.dumps(row) + "\n")
         print(ref, a.mode, a.dataset, row.get("median_ms"), row.get("error", ""), flush=True)
         torch.cuda.empty_cache()

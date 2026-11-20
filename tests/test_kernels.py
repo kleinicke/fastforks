@@ -109,7 +109,9 @@ def _expand(src: str) -> str:
     return "\n".join(out)
 
 
-@pytest.mark.parametrize("lib", [p for p in BUILT if (p / "manifest.toml").read_text().count('kind = "cubin"')])
+@pytest.mark.parametrize(
+    "lib", [p for p in BUILT if (p / "manifest.toml").read_text(encoding="utf-8").count('kind = "cubin"')]
+)
 def test_signatures_match_sources(lib):
     """`SIGNATURES` (what the launcher packs) matches every `extern "C" __global__` kernel it names."""
     mod = importlib.import_module(f"fastforks.kernels.{lib.name}")
@@ -117,7 +119,9 @@ def test_signatures_match_sources(lib):
     found = {
         m[1]: "".join(_code(a, structs) for a in m[2].split(",") if a.strip())
         for cu in lib.glob("*.cu")
-        for m in _KERNEL.finditer(_expand(re.sub(r"//[^\n]*", "", cu.read_text())))  # comments may hold "(" / ","
+        for m in _KERNEL.finditer(
+            _expand(re.sub(r"//[^\n]*", "", cu.read_text(encoding="utf-8")))
+        )  # comments may hold "(" / ","
     }
     bad = {k: (v, found.get(k)) for k, v in mod.SIGNATURES.items() if found.get(k) != v}
     assert not bad, f"{lib.name}: SIGNATURES vs .cu (declared, source): {bad}"
@@ -126,7 +130,7 @@ def test_signatures_match_sources(lib):
 @pytest.mark.parametrize("lib", ALL_LIBS, ids=lambda p: p.name)
 def test_kernel_licences(lib):
     """Kernel libraries ship with the core: permissive, with provenance; manifests carry the same licence."""
-    meta = tomllib.loads((lib / "meta.toml").read_text())
+    meta = tomllib.loads((lib / "meta.toml").read_text(encoding="utf-8"))
     assert set(meta) == {"licence", "derived_from"}
     assert licence_class(meta["licence"], f"kernels/{lib.name}") == "permissive"
     if (lib / "manifest.toml").is_file():
@@ -137,11 +141,11 @@ def test_kernel_licences(lib):
 def test_manifest_is_current(lib):
     """The committed manifest belongs to the committed sources (rebuild with tools/build_kernels.py otherwise)."""
     m = read_manifest(lib / "manifest.toml")
-    cfg = tomllib.loads((lib / "build.toml").read_text())
+    cfg = tomllib.loads((lib / "build.toml").read_text(encoding="utf-8"))
     h = hashlib.sha256((lib / "build.toml").read_bytes())
     for s in cfg["sources"]:
         h.update((lib / s).read_bytes())
-    raw = tomllib.loads((lib / "manifest.toml").read_text())
+    raw = tomllib.loads((lib / "manifest.toml").read_text(encoding="utf-8"))
     assert raw["sources_sha256"] == h.hexdigest(), "sources changed: run tools/build_kernels.py " + lib.name
     assert m.name == lib.name
     assert sorted(m.files) == sorted(cfg["targets"])
@@ -155,8 +159,8 @@ def test_compat_build_matches(lib):
     c = m.compat
     assert c is not None
     assert c.compat is None
-    raw = tomllib.loads((lib / "manifest.toml").read_text())
-    raw_c = tomllib.loads((lib / "manifest.compat.toml").read_text())
+    raw = tomllib.loads((lib / "manifest.toml").read_text(encoding="utf-8"))
+    raw_c = tomllib.loads((lib / "manifest.compat.toml").read_text(encoding="utf-8"))
     assert raw_c["sources_sha256"] == raw["sources_sha256"], "sources changed: rebuild the compat build too"
     assert (c.name, c.kind, c.licence, sorted(c.files)) == (m.name, m.kind, m.licence, sorted(m.files))
     assert c.toolkit < m.toolkit
@@ -204,8 +208,8 @@ def test_manifest_symbols_are_current(lib):
     """`[symbols]` matches the sources (refresh with `tools/build_kernels.py --symbols`)."""
     from fastforks._core.kernel_symbols import library_symbols  # noqa: PLC0415
 
-    raw = tomllib.loads((lib / "manifest.toml").read_text())
-    got = library_symbols(lib, (lib / "build.toml").read_text(), raw["toolchain"])
+    raw = tomllib.loads((lib / "manifest.toml").read_text(encoding="utf-8"))
+    got = library_symbols(lib, (lib / "build.toml").read_text(encoding="utf-8"), raw["toolchain"])
     assert raw["symbols"] == got, "stale [symbols]: run tools/build_kernels.py --symbols " + lib.name
 
 
@@ -214,9 +218,9 @@ def test_every_export_has_a_manifest_hash(lib):
     """Every `extern "C"` function (macro-generated ones too) and every declared signature has a `[symbols]` hash."""
     from fastforks._core.kernel_symbols import exports  # noqa: PLC0415
 
-    cfg = tomllib.loads((lib / "build.toml").read_text())
-    raw = tomllib.loads((lib / "manifest.toml").read_text())
-    exported = exports([(lib / s).read_text() for s in cfg["sources"]])
+    cfg = tomllib.loads((lib / "build.toml").read_text(encoding="utf-8"))
+    raw = tomllib.loads((lib / "manifest.toml").read_text(encoding="utf-8"))
+    exported = exports([(lib / s).read_text(encoding="utf-8") for s in cfg["sources"]])
     assert not set(exported) - set(raw["symbols"]), f"exports without a hash in {lib.name}/manifest.toml"
     assert not set(raw["symbols"]) - set(exported), "hash for a function the sources no longer export"
     sigs = getattr(importlib.import_module(f"fastforks.kernels.{lib.name}"), "SIGNATURES", {})

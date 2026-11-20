@@ -274,7 +274,7 @@ def main() -> None:
     r = run(a.model, tuple(a.size))
     print(json.dumps(r["summary"], indent=1))
     if a.out:
-        with open(a.out, "w") as f:  # noqa: PTH123
+        with open(a.out, "w", encoding="utf-8") as f:  # noqa: PTH123
             json.dump(r, f, indent=1)
 
 

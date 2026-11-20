@@ -116,7 +116,7 @@ def _meta() -> dict:
 def _write(row: dict) -> None:
     print(json.dumps(row), flush=True)
     if a.out:
-        with Path(a.out).open("a") as f:
+        with Path(a.out).open("a", encoding="utf-8") as f:
             f.write(json.dumps(row) + "\n")
 
 

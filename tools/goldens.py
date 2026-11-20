@@ -41,7 +41,7 @@ def path(family: str, task: str = "stereo") -> Path:
 def load(family: str, task: str = "stereo") -> dict:
     """Contents of a family's file (empty sections if it does not exist yet)."""
     p = path(family, task)
-    data = tomllib.loads(p.read_text()) if p.is_file() else {}
+    data = tomllib.loads(p.read_text(encoding="utf-8")) if p.is_file() else {}
     unknown = set(data) - set(SECTIONS)
     if unknown:
         msg = f"{p}: unknown section(s) {sorted(unknown)}"
@@ -74,7 +74,7 @@ def _kept(p: Path) -> dict[tuple[str, str], tuple[list[str], str]]:
     if not p.is_file():
         return out
     table, pending = "", []
-    for line in p.read_text().splitlines():
+    for line in p.read_text(encoding="utf-8").splitlines():
         if line.startswith("#"):
             pending.append(line)
         elif line.startswith("["):
@@ -104,4 +104,4 @@ def dump(family: str, data: dict, task: str = "stereo") -> None:
     for section in ("refs", "validated"):
         for ref in sorted(data[section]):
             lines += ["", *table(f'[{section}."{ref}"]', data[section][ref])]
-    p.write_text("\n".join(lines) + "\n")
+    p.write_text("\n".join(lines) + "\n", encoding="utf-8")

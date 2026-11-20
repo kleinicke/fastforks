@@ -34,7 +34,7 @@ def test_objects_loads_the_inference_module_from_the_requested_checkout(tmp_path
     notebook = tmp_path / "notebook"
     notebook.mkdir()
     (notebook / "inference.py").write_text(
-        "def Inference(config, *, compile):\n    return lambda *_: (config, compile)\n"
+        "def Inference(config, *, compile):\n    return lambda *_: (config, compile)\n", encoding="utf-8"
     )
     predict = sam3d.load_objects(config, checkout=tmp_path, compile_model=True)
     assert predict(None, None) == (str(config), True)

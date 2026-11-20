@@ -22,7 +22,7 @@ def cv2():
 W, H = 1280, 960
 K = (410.0, 405.0, 639.5, 479.5)
 OPENCV_14 = (-0.28, 0.07, 0.0012, -0.0008, -0.006, 0.02, -0.01, 0.003, 0.001, -0.0005, 0.0007, 0.0002, 0.01, -0.02)
-GOLDENS = json.loads((Path(__file__).parent / "data" / "geometry_goldens.json").read_text())
+GOLDENS = json.loads((Path(__file__).parent / "data" / "geometry_goldens.json").read_text(encoding="utf-8"))
 
 WIDE = {  # every model with a field of view it supports (degrees, full angle)
     "pinhole": (g.camera("pinhole", W, H, *K), 120),

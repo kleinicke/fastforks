@@ -53,7 +53,9 @@ def test_video_measurements_keep_distinct_frame_counts(tmp_path, monkeypatch):
         "standalone_build": True,
     }
     separate = {"ref": ref, "mode": "tensorrt", "input": "24x256x256", "ms": 141, "standalone_build": True}
-    (data / "speed_compile.jsonl").write_text("".join(json.dumps(r) + "\n" for r in (engine, separate)))
+    (data / "speed_compile.jsonl").write_text(
+        "".join(json.dumps(r) + "\n" for r in (engine, separate)), encoding="utf-8"
+    )
     monkeypatch.setattr(g, "ROOT", tmp_path)
     engines = g._compile_rows.__wrapped__()
     monkeypatch.setattr(site_data.g, "_compile_rows", lambda: engines)
@@ -113,7 +115,7 @@ def test_standalone_engine_measurement_remains_visible_when_export_is_planned(tm
         },
         {"ref": "model", "mode": "compile", "input": "64x64", "ms": 12, "backend_part": "VAE only"},
     ]
-    (data / "speed_compile.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows))
+    (data / "speed_compile.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
     compiled = g._compile_rows.__wrapped__()
     assert compiled["model", "tensorrt", "32x32"]["fails"] == g.PLANNED
     assert compiled["model", "tensorrt", "64x64"]["ms"] == 10
@@ -255,6 +257,6 @@ def test_stream_rows_preserve_explicit_settings_and_oom(tmp_path, monkeypatch):
         {"ref": "large", "options": {"quant": "nf4", "stream": True}, "ms": 11.2},
         {"ref": "other", "ms": 5.6},
     ]
-    (data / "speed_options.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows))
+    (data / "speed_options.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
     monkeypatch.setattr(site_data.g, "ROOT", tmp_path)
     assert site_data.g.stream_rows.__wrapped__() == {"large": rows[:2]}

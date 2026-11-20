@@ -25,7 +25,7 @@ def timings(file: str, mode: str) -> tuple[dict, set[str]]:
     """Latest matching measurements and ids with any successful timing in the file."""
     newest = {}
     measured = set()
-    for line in (DATA / file).read_text().splitlines():
+    for line in (DATA / file).read_text(encoding="utf-8").splitlines():
         row = json.loads(line)
         ms = row.get("ms")
         if row.get("mode") != mode or row.get("side", "lib") != "lib" or not isinstance(ms, (int, float)):

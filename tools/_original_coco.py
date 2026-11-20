@@ -88,12 +88,12 @@ class Backend:
 
 def coco_names() -> list[str]:
     """COCO's 80 category names in sorted category-id order."""
-    cats = json.loads((DATA / "coco/annotations/instances_val2017.json").read_text())["categories"]
+    cats = json.loads((DATA / "coco/annotations/instances_val2017.json").read_text(encoding="utf-8"))["categories"]
     return [c["name"] for c in sorted(cats, key=lambda c: c["id"])]
 
 
 def coco_ids() -> list[int]:
-    cats = json.loads((DATA / "coco/annotations/instances_val2017.json").read_text())["categories"]
+    cats = json.loads((DATA / "coco/annotations/instances_val2017.json").read_text(encoding="utf-8"))["categories"]
     return sorted(c["id"] for c in cats)
 
 
@@ -414,7 +414,7 @@ def _owlv2(ref: str, tier: str) -> _Detector:
 
     card, variant = registry.resolve("detection", ref)
     config_json, weights, vocab, merges = registry.weights(card, variant, allow_download=False)
-    config = Owlv2Config(**json.loads(Path(config_json).read_text()))
+    config = Owlv2Config(**json.loads(Path(config_json).read_text(encoding="utf-8")))
     net = Owlv2ForObjectDetection(config).eval()
     net.load_state_dict(load_file(str(weights)))
     net = net.to("cuda")

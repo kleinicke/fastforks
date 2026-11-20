@@ -205,7 +205,7 @@ def test_restricted_load_size_cap(monkeypatch, tmp_path):
 
 def test_metric3d_torch_load_is_weights_only():
     src = Path(__file__).parents[1] / "src/fastforks/depth/models/metric3d/net/vit_dino_reg.py"
-    calls = re.findall(r"torch\.load\([^)]*\)", src.read_text())
+    calls = re.findall(r"torch\.load\([^)]*\)", src.read_text(encoding="utf-8"))
     assert calls
     assert all("weights_only=True" in c for c in calls)
 

@@ -161,7 +161,7 @@ def main() -> None:
         for mode in a.modes.split(","):
             with closing(prefetch(partial(_read_pair, a.root), ids, workers=2)) as pairs:
                 row = evaluate(ref, mode, pairs, base)
-            with Path(a.out).open("a") as f:
+            with Path(a.out).open("a", encoding="utf-8") as f:
                 f.write(json.dumps(row) + "\n")
             print(ref, mode, row["metrics"], row["ms_per_img"], row["peak_alloc_mb"], flush=True)
 

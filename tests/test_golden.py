@@ -453,7 +453,9 @@ def _required(ref: str) -> bool:
         return False
     if req == "1":
         return True
-    return ref in Path(req).read_text().split()  # a missing list file fails the test: the CI setup is broken
+    return (
+        ref in Path(req).read_text(encoding="utf-8").split()
+    )  # a missing list file fails the test: the CI setup is broken
 
 
 def run_or_skip(ref: str, **kw: Any) -> tuple[list[dict[str, torch.Tensor]], Any]:
@@ -798,7 +800,9 @@ def _used_symbols(ref: str) -> dict[str, dict[str, str]]:
     for name in card.uses:
         mod = src / "shared" / name
         files += list(mod.rglob("*.py")) if mod.is_dir() else [mod.with_suffix(".py")]
-    quoted = set(re.findall(r"""["'](\w+)["']""", "\n".join(f.read_text() for f in files if f.is_file())))
+    quoted = set(
+        re.findall(r"""["'](\w+)["']""", "\n".join(f.read_text(encoding="utf-8") for f in files if f.is_file()))
+    )
     used = {}
     for lib in card.kernel_libs:
         m = _manifest(lib)
@@ -881,12 +885,14 @@ def test_dump_keeps_notes(tmp_path, monkeypatch):
     """A `--record` rewrite keeps hand-written comments and the lines of unchanged values (format, trailing note)."""
     monkeypatch.setattr(goldens, "SRC", tmp_path)
     (tmp_path / "stereo" / "models" / "fam").mkdir(parents=True)
-    goldens.path("fam").write_text("[tolerance]\n# measured on X\ncpu_atol = 0.0010  # why\ngpu_mean = 0.5\n")
+    goldens.path("fam").write_text(
+        "[tolerance]\n# measured on X\ncpu_atol = 0.0010  # why\ngpu_mean = 0.5\n", encoding="utf-8"
+    )
     store = goldens.load("fam")
     store["tolerance"]["gpu_mean"] = 0.25
     store["validated"]["fam-a@1"] = {"mean_px": 0.01}
     goldens.dump("fam", store)
-    text = goldens.path("fam").read_text()
+    text = goldens.path("fam").read_text(encoding="utf-8")
     assert "# measured on X\ncpu_atol = 0.0010  # why\ngpu_mean = 0.25\n" in text
     assert goldens.load("fam") == store
 

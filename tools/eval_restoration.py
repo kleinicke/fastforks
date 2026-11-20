@@ -190,7 +190,7 @@ def main() -> None:
                     **({} if error is None else {"error": error}),
                 }  # fmt: skip
                 print(json.dumps(row), flush=True)
-                with (a.out / "rows.jsonl").open("a") as f:
+                with (a.out / "rows.jsonl").open("a", encoding="utf-8") as f:
                     f.write(json.dumps(row) + "\n")
             del fn
             torch.cuda.empty_cache()

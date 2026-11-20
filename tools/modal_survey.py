@@ -260,10 +260,10 @@ def survey(
     _weights_path()
     entry, slug = _entry()
     registry = REPO / "docs/data/devices.toml"
-    if slug not in tomllib.loads(registry.read_text()):
-        registry.write_text(registry.read_text().rstrip() + "\n\n" + entry)
+    if slug not in tomllib.loads(registry.read_text(encoding="utf-8")):
+        registry.write_text(registry.read_text(encoding="utf-8").rstrip() + "\n\n" + entry, encoding="utf-8")
     (VOL / "devices").mkdir(parents=True, exist_ok=True)
-    (VOL / "devices" / f"{slug}.toml").write_text(entry)
+    (VOL / "devices" / f"{slug}.toml").write_text(entry, encoding="utf-8")
     rows, local = VOL / "rows" / f"{slug}.jsonl", REPO / "docs/data/speed" / f"{slug}.jsonl"
     rows.parent.mkdir(parents=True, exist_ok=True)
     if local.is_file() and not rows.is_file():  # rows this checkout already has: kept, not re-measured
@@ -301,7 +301,7 @@ def trace(only: str, modes: str = "portable kernels") -> str:
     out.parent.mkdir(parents=True, exist_ok=True)
     cmd = ["tools/speed_check.py", "run", "--trace-diff", "--sides", "lib", "--force", "--out", str(out)]
     _sh(PY, *cmd, "--only", *only.split(), "--modes", *modes.split())
-    return out.read_text() if out.is_file() else ""
+    return out.read_text(encoding="utf-8") if out.is_file() else ""
 
 
 @app.function(image=image, volumes={str(VOL): volume}, cpu=4, memory=16384, timeout=1800)
@@ -311,7 +311,7 @@ def gemm(m: str = "20195 577") -> str:
     out = VOL / "traces" / "gemm.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     _sh(PY, "tools/gemm_shootout.py", "--m", *m.split(), "--out", str(out))
-    return out.read_text() if out.is_file() else ""
+    return out.read_text(encoding="utf-8") if out.is_file() else ""
 
 
 @app.function(image=image, volumes={str(VOL): volume}, cpu=4, memory=32768, timeout=1800)
@@ -322,7 +322,7 @@ def calls(model: str = "depth-pro") -> str:
     out = VOL / "traces" / "calls.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     _sh(PY, "tools/call_sweep.py", "--model", model, "--out", str(out))
-    return out.read_text() if out.is_file() else ""
+    return out.read_text(encoding="utf-8") if out.is_file() else ""
 
 
 @app.function(image=image, volumes={str(VOL): volume}, cpu=4, memory=32768, timeout=1800)
@@ -333,7 +333,7 @@ def cutlass_convs(model: str = "crestereo-eth3d") -> str:
     out = VOL / "traces" / "convs.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     _sh(PY, "tools/conv_sweep.py", "--model", model, "--out", str(out))
-    return out.read_text() if out.is_file() else ""
+    return out.read_text(encoding="utf-8") if out.is_file() else ""
 
 
 test_image = image.add_local_dir(ROOT / "tests", f"{REPO}/tests", ignore=["**/__pycache__", "**/.pytest_cache"])
@@ -359,7 +359,7 @@ def section_times(model: str = "depth-pro") -> str:
     out = VOL / "traces" / "sections.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     _sh(PY, "tools/section_time.py", "--model", model, "--out", str(out))
-    return out.read_text() if out.is_file() else ""
+    return out.read_text(encoding="utf-8") if out.is_file() else ""
 
 
 @app.function(image=lab_image, volumes={str(VOL): volume}, cpu=8, memory=32768, timeout=3600)
@@ -374,9 +374,9 @@ def lab_run(spec: str) -> str:
     d.mkdir(parents=True, exist_ok=True)
     sp = json.loads(spec)
     for name, text in sp.get("sources", {}).items():
-        (d / f"{name}.cu").write_text(text)
+        (d / f"{name}.cu").write_text(text, encoding="utf-8")
         sp["sources"][name] = f"{name}.cu"
-    (d / "spec.json").write_text(json.dumps(sp))
+    (d / "spec.json").write_text(json.dumps(sp), encoding="utf-8")
     import torch  # noqa: PLC0415 - the image's torch
 
     gpu = re.sub(r"[^a-z0-9]+", "-", torch.cuda.get_device_name().lower()).strip("-")
@@ -385,13 +385,13 @@ def lab_run(spec: str) -> str:
     out.unlink(missing_ok=True)
     img = VOL / "data/Middlebury/MiddEval3/trainingH/Motorcycle/im0.png"
     _sh(PY, "tools/kernel_lab.py", "--spec", str(d / "spec.json"), "--image", str(img), "--out", str(out))
-    return out.read_text() if out.is_file() else ""
+    return out.read_text(encoding="utf-8") if out.is_file() else ""
 
 
 def _fetch(slugs: list[str] | None = None) -> list[str]:
     """Copy the volume's rows (and missing devices.toml entries) into this checkout."""
     registry = ROOT / "docs/data/devices.toml"
-    known = tomllib.loads(registry.read_text())
+    known = tomllib.loads(registry.read_text(encoding="utf-8"))
     if slugs is None:
         try:
             slugs = [e.path.split("/")[-1].removesuffix(".toml") for e in volume.listdir("devices")]
@@ -406,14 +406,14 @@ def _fetch(slugs: list[str] | None = None) -> list[str]:
         (ROOT / "docs/data/speed" / f"{slug}.jsonl").write_bytes(rows)
         if slug not in known:
             entry = b"".join(volume.read_file(f"devices/{slug}.toml")).decode()
-            registry.write_text(registry.read_text().rstrip() + "\n\n" + entry)
+            registry.write_text(registry.read_text(encoding="utf-8").rstrip() + "\n\n" + entry, encoding="utf-8")
         got.append(slug)
         print(f"docs/data/speed/{slug}.jsonl: {len(rows.splitlines())} rows")
     return got
 
 
 def _next_steps(slugs: list[str]) -> None:
-    nav = (ROOT / "mkdocs.yml").read_text()
+    nav = (ROOT / "mkdocs.yml").read_text(encoding="utf-8")
     for slug in slugs:
         if f"devices/{slug}.md" not in nav:
             print(f"add `devices/{slug}.md` to mkdocs.yml's nav (next to the Apple M1 Pro page)")
@@ -441,7 +441,7 @@ def _unpublished_kernels() -> list[str]:
 
     missing = []
     for path in sorted((ROOT / "src/fastforks/kernels").glob("*/manifest.toml")):
-        m = tomllib.loads(path.read_text())
+        m = tomllib.loads(path.read_text(encoding="utf-8"))
         name = next(iter(m["files"].values()))["name"]
         url = m["url"].format(lib=m["name"], file=name)
         try:
@@ -499,28 +499,28 @@ def fetch() -> None:
 def profile(out: str, gpu: str = "L4", only: str = "depth-pro", modes: str = "portable kernels") -> None:
     """Kernel-group trace of `--only` refs on one GPU, rows to `--out` (read them with a short script or jq)."""
     rows = trace.with_options(gpu=gpu).remote(only, modes)
-    Path(out).write_text(rows)
+    Path(out).write_text(rows, encoding="utf-8")
     print(f"{out}: {len(rows.splitlines())} rows")
 
 
 @app.local_entrypoint()
 def shootout(out: str, gpu: str = "L4", m: str = "20195 577") -> None:
     """GEMM shoot-out (`tools/gemm_shootout.py`) on one GPU, JSON to `--out`."""
-    Path(out).write_text(gemm.with_options(gpu=gpu).remote(m))
+    Path(out).write_text(gemm.with_options(gpu=gpu).remote(m), encoding="utf-8")
     print(f"{out} written")
 
 
 @app.local_entrypoint()
 def sweep(out: str, gpu: str = "L4", model: str = "depth-pro") -> None:
     """Per-call sweep (`tools/call_sweep.py`) of one model's kernels forward on one GPU, JSON to `--out`."""
-    Path(out).write_text(calls.with_options(gpu=gpu).remote(model))
+    Path(out).write_text(calls.with_options(gpu=gpu).remote(model), encoding="utf-8")
     print(f"{out} written")
 
 
 @app.local_entrypoint()
 def convs(out: str, gpu: str = "L4", model: str = "crestereo-eth3d") -> None:
     """CUTLASS conv sweep (`tools/conv_sweep.py`) of one model's kernels forward on one GPU, JSON to `--out`."""
-    Path(out).write_text(cutlass_convs.with_options(gpu=gpu).remote(model))
+    Path(out).write_text(cutlass_convs.with_options(gpu=gpu).remote(model), encoding="utf-8")
     print(f"{out} written")
 
 
@@ -533,7 +533,7 @@ def goldens(select: str, gpu: str = "L4") -> None:
 @app.local_entrypoint()
 def sections(out: str, gpu: str = "L4", model: str = "depth-pro") -> None:
     """Section timing (`tools/section_time.py`) of one model's kernels forward on one GPU, JSON to `--out`."""
-    Path(out).write_text(section_times.with_options(gpu=gpu).remote(model))
+    Path(out).write_text(section_times.with_options(gpu=gpu).remote(model), encoding="utf-8")
     print(f"{out} written")
 
 
@@ -542,8 +542,8 @@ def lab(spec: str, out: str, gpu: str = "L4") -> None:
     """Kernel lab (`tools/kernel_lab.py`): the variants of `--spec` on one GPU, JSON to `--out`."""
     import json  # noqa: PLC0415
 
-    sp = json.loads(Path(spec).read_text())
+    sp = json.loads(Path(spec).read_text(encoding="utf-8"))
     base = Path(spec).resolve().parent
-    sp["sources"] = {n: (base / p).read_text() for n, p in sp.get("sources", {}).items()}
-    Path(out).write_text(lab_run.with_options(gpu=gpu).remote(json.dumps(sp)))
+    sp["sources"] = {n: (base / p).read_text(encoding="utf-8") for n, p in sp.get("sources", {}).items()}
+    Path(out).write_text(lab_run.with_options(gpu=gpu).remote(json.dumps(sp)), encoding="utf-8")
     print(f"{out} written")

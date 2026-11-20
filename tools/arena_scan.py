@@ -21,7 +21,7 @@ FLOOR = ROOT / "docs" / "data" / "speed.jsonl"
 
 def jobs(tasks: set[str], only: set[str]) -> list[tuple[str, str, str]]:
     seen: dict[tuple[str, str, str], None] = {}
-    for line in FLOOR.read_text().splitlines():
+    for line in FLOOR.read_text(encoding="utf-8").splitlines():
         r = json.loads(line)
         if r["mode"] not in {"portable", "kernels"}:
             continue
@@ -42,7 +42,7 @@ def main() -> None:
     done = set()
     out = Path(a.out)
     if out.exists():
-        done = {(r["ref"], r["mode"]) for r in map(json.loads, out.read_text().splitlines())}
+        done = {(r["ref"], r["mode"]) for r in map(json.loads, out.read_text(encoding="utf-8").splitlines())}
     for task, ref, mode in jobs(set(a.task), set(a.only)):
         if (ref, mode) in done:
             continue
@@ -57,7 +57,7 @@ def main() -> None:
             del m
         except Exception as e:  # noqa: BLE001 - recorded
             row["error"] = f"{type(e).__name__}: {str(e)[:200]}"
-        with out.open("a") as f:
+        with out.open("a", encoding="utf-8") as f:
             f.write(json.dumps(row) + "\n")
         print(row, flush=True)
 

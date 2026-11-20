@@ -273,7 +273,7 @@ def _chunked(a: argparse.Namespace) -> int:  # noqa: C901
     out.parent.mkdir(parents=True, exist_ok=True)  # before the first model runs, not at its first write
     done = set()
     if out.exists():
-        for r in map(json.loads, out.read_text().splitlines()):
+        for r in map(json.loads, out.read_text(encoding="utf-8").splitlines()):
             if "error" not in r:  # failed chunks are retried by the next call
                 done.add((r["model"], r["tier"], r["start"], r["stop"]))
     for ref in a.models.split(","):
@@ -303,7 +303,7 @@ def _chunked(a: argparse.Namespace) -> int:  # noqa: C901
                         rec["error"] = f"OOM, {rec['error']}"
                 rec.update(gpu=torch.cuda.get_device_name(), torch=torch.__version__, commit=_commit(),
                            date=time.strftime("%Y-%m-%d %H:%M"), command=" ".join(["python", *sys.argv]))  # fmt: skip
-                with out.open("a") as f:
+                with out.open("a", encoding="utf-8") as f:
                     f.write(json.dumps(rec) + "\n")
                 print(ref, tier, s0, s1, rec.get("miou", rec.get("error")), rec.get("ms_per_image"), flush=True)
                 if "error" in rec:
@@ -361,7 +361,7 @@ def main() -> None:
                 json.dumps({k: v for k, v in rec.items() if k not in {"intersect", "union", "label_area"}}), flush=True
             )
             if a.out:
-                with Path(a.out).open("a") as f:
+                with Path(a.out).open("a", encoding="utf-8") as f:
                     f.write(line + "\n")
 
 

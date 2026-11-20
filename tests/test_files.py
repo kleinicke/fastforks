@@ -503,7 +503,7 @@ def test_gated_hf_repo_says_what_to_do(tmp_path, monkeypatch, hub):
 
 def test_fastforks_never_reads_a_token_file(tmp_path, monkeypatch):
     (tmp_path / "hf_home").mkdir()
-    (tmp_path / "hf_home" / "token").write_text("hf_file_token")
+    (tmp_path / "hf_home" / "token").write_text("hf_file_token", encoding="utf-8")
     monkeypatch.setenv("HF_TOKEN", "hf_env_token")
     for url in (GATED, "https://example.com/x"):
         assert not files._request(url).has_header("Authorization")
@@ -589,7 +589,7 @@ def test_hf_hub_cache_branch_revision_and_hf_home(tmp_path, monkeypatch):
     _hf_snapshot(hub, "old", b"stale!!")
     path = _hf_snapshot(hub, "c0ffee", b"payload")
     (hub / "models--org--name" / "refs").mkdir()
-    (hub / "models--org--name" / "refs" / "main").write_text("c0ffee")
+    (hub / "models--org--name" / "refs" / "main").write_text("c0ffee", encoding="utf-8")
     spec = spec_for(b"payload", "https://huggingface.co/org/name/resolve/main/sub/w.bin?download=true")
     assert locate(spec, group="fam", env_var=ENV, allow_download=False) == path
 

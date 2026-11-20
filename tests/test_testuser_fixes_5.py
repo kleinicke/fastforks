@@ -140,7 +140,7 @@ def test_broken_symlink_in_directory_and_glob_is_listed(tmp_path):
 
 def test_output_dir_checks(tmp_path):
     f = tmp_path / "file"
-    f.write_text("x")
+    f.write_text("x", encoding="utf-8")
     with pytest.raises(InputError, match="output directory"):
         check_output_dir(f)
     with pytest.raises(InputError, match="output directory"):
@@ -166,7 +166,7 @@ def test_stereo_run_out_is_a_file_fails_before_model_load(capsys, tmp_path):
     _images(tmp_path / "L", "a.png")
     _images(tmp_path / "R", "a.png")
     out = tmp_path / "out"
-    out.write_text("x")
+    out.write_text("x", encoding="utf-8")
     argv = ["stereo", "run", str(tmp_path / "L"), str(tmp_path / "R"), "--model", "hitnet-eth3d", "--out", str(out)]
     assert cli.main(argv) == 1
     err = capsys.readouterr().err

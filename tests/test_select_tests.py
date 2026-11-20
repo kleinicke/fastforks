@@ -76,7 +76,7 @@ def mini(tmp_path_factory: pytest.TempPathFactory) -> Path:
     root = tmp_path_factory.mktemp("mini")
     for rel, text in MINI.items():
         (root / rel).parent.mkdir(parents=True, exist_ok=True)
-        (root / rel).write_text(text)
+        (root / rel).write_text(text, encoding="utf-8")
     return root
 
 
@@ -161,9 +161,9 @@ def test_evaluator_only_changes_select_affected_tools_tests(mini: Path, changed:
 
 
 def test_boundary_matcher_change_selects_its_evaluator_test(mini: Path) -> None:
-    (mini / "tools/bsds_correspond.cc").write_text("// matcher adapter")
-    (mini / "tools/eval_edges.py").write_text("")
-    (mini / "tests/test_eval_edges.py").write_text("import eval_edges\n")
+    (mini / "tools/bsds_correspond.cc").write_text("// matcher adapter", encoding="utf-8")
+    (mini / "tools/eval_edges.py").write_text("", encoding="utf-8")
+    (mini / "tests/test_eval_edges.py").write_text("import eval_edges\n", encoding="utf-8")
     selection = st.select(["tools/bsds_correspond.cc"], mini)
     assert selection.fast == ["tests/test_eval_edges.py"]
     assert not selection.families
@@ -251,8 +251,8 @@ def test_git_version_bump_keeps_model_scope(
     lock = tmp_path / "uv.lock"
     old_project = '[project]\nname="fastforks-core"\nversion="0.2.0"\ndependencies=["torch>=2.8"]\n'
     old_lock = '[[package]]\nname="fastforks-core"\nversion="0.2.0"\nsource={editable="."}\n'
-    project.write_text(old_project)
-    lock.write_text(old_lock)
+    project.write_text(old_project, encoding="utf-8")
+    lock.write_text(old_lock, encoding="utf-8")
     git_repo("add", ".")
     git_repo("commit", "-m", "Release baseline")
     monkeypatch.setattr(merge_check, "ROOT", tmp_path)
@@ -262,11 +262,11 @@ def test_git_version_bump_keeps_model_scope(
         return merge_check._golden_sources_by_ref(jobs, "HEAD")["fa-x@1"][0]
 
     original_receipt = receipt()
-    project.write_text(old_project.replace("0.2.0", "0.2.1"))
-    lock.write_text(old_lock.replace("0.2.0", "0.2.1"))
+    project.write_text(old_project.replace("0.2.0", "0.2.1"), encoding="utf-8")
+    lock.write_text(old_lock.replace("0.2.0", "0.2.1"), encoding="utf-8")
     assert receipt() == original_receipt
     model = "src/fastforks/stereo/models/fa/model.py"
-    (tmp_path / model).write_text("VALUE = 1\n")
+    (tmp_path / model).write_text("VALUE = 1\n", encoding="utf-8")
     git_repo("add", ".")
     git_repo("commit", "-m", "Bump version and update one model")
 
@@ -279,7 +279,7 @@ def test_git_version_bump_keeps_model_scope(
 
     model_receipt = receipt()
     assert model_receipt != original_receipt
-    project.write_text(project.read_text().replace("torch>=2.8", "torch>=2.9"))
+    project.write_text(project.read_text(encoding="utf-8").replace("torch>=2.8", "torch>=2.9"), encoding="utf-8")
     git_repo("add", "pyproject.toml")
     git_repo("commit", "-m", "Change the Torch requirement")
     paths = st.git_changed("HEAD~1", "HEAD", tmp_path)
@@ -294,12 +294,17 @@ def test_card_prose_keeps_goldens_out_of_the_selection(mini: Path, tmp_path: Pat
         (tmp_path / f"tests/test_{name}.py").touch()
     path = "src/fastforks/stereo/models/fa/card.toml"
     card = tmp_path / path
-    card.write_text('summary = "Old description"\n' + card.read_text() + "\n[params]\na = 1\n")
+    card.write_text(
+        'summary = "Old description"\n' + card.read_text(encoding="utf-8") + "\n[params]\na = 1\n", encoding="utf-8"
+    )
     git_repo("add", ".")
     git_repo("commit", "-m", "Add card")
 
     card.write_text(
-        card.read_text().replace('summary = "Old description"', 'summary = "New description"\nlimitations = ["note"]')
+        card.read_text(encoding="utf-8").replace(
+            'summary = "Old description"', 'summary = "New description"\nlimitations = ["note"]'
+        ),
+        encoding="utf-8",
     )
     git_repo("add", path)
     git_repo("commit", "-m", "Change only the card prose")
@@ -311,7 +316,7 @@ def test_card_prose_keeps_goldens_out_of_the_selection(mini: Path, tmp_path: Pat
     other = "src/fastforks/stereo/models/fb/model.py"
     assert set(st.select([path, other], tmp_path, metadata_only=metadata).families) == {"fb"}
 
-    card.write_text(card.read_text().replace("a = 1", "a = true"))
+    card.write_text(card.read_text(encoding="utf-8").replace("a = 1", "a = true"), encoding="utf-8")
     git_repo("add", path)
     git_repo("commit", "-m", "Change a runtime parameter type")
     metadata = st.git_metadata_only("HEAD~1", "HEAD", [path], tmp_path)
@@ -327,7 +332,7 @@ def test_git_changed_reports_both_sides_of_a_moved_module(
     git_repo("config", "diff.renames", "true")
     for name in (old, new):
         (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
-    (tmp_path / old).write_text("VALUE = 1\n")
+    (tmp_path / old).write_text("VALUE = 1\n", encoding="utf-8")
     git_repo("add", old)
     git_repo("commit", "-m", "Initial module")
     git_repo("mv", old, new)
@@ -345,10 +350,10 @@ def test_git_selects_only_the_changed_golden_reference(
     manifest = "src/fastforks/stereo/models/fa/golden.toml"
     file = tmp_path / manifest
     fixture = '[tolerance]\ncpu_atol = 0.01\n[refs."fa-x@1"]\n[refs."fa-y@2"]\nsha256 = "old"\n'
-    file.write_text(fixture)
+    file.write_text(fixture, encoding="utf-8")
     git_repo("add", ".")
     git_repo("commit", "-m", "Baseline")
-    file.write_text(fixture.replace('"old"', '"new"'))
+    file.write_text(fixture.replace('"old"', '"new"'), encoding="utf-8")
     git_repo("commit", "-am", "Replace one reference")
 
     paths = st.git_changed("HEAD~1", "HEAD", tmp_path)
@@ -364,7 +369,7 @@ def test_git_selects_only_the_changed_golden_reference(
     source = "src/fastforks/stereo/models/fa/model.py"
     assert st.select([*paths, source], tmp_path, fixture_refs=scopes).families["fa"]["refs"] == ["fa-x@1", "fa-y@2"]
 
-    file.write_text(file.read_text().replace("0.01", "0.02"))
+    file.write_text(file.read_text(encoding="utf-8").replace("0.01", "0.02"), encoding="utf-8")
     git_repo("commit", "-am", "Change the shared tolerance")
     assert st.git_fixture_refs("HEAD~1", "HEAD", paths, tmp_path) == {}
 
@@ -375,10 +380,10 @@ def test_fetch_goldens_scopes_single_file_shared_changes(
     for name, contents in MINI.items():
         path = tmp_path / name
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(contents)
+        path.write_text(contents, encoding="utf-8")
     git_repo("add", ".")
     git_repo("commit", "-m", "Shared helper baseline")
-    (tmp_path / "src/fastforks/shared/vit.py").write_text("FEATURE = 1\n")
+    (tmp_path / "src/fastforks/shared/vit.py").write_text("FEATURE = 1\n", encoding="utf-8")
     git_repo("add", ".")
     git_repo("commit", "-m", "Update shared helper")
 
@@ -393,13 +398,13 @@ def test_golden_source_survives_generated_docs_but_changes_with_fixtures(
     golden = tmp_path / "src/fastforks/stereo/models/fa/golden.toml"
     for path in (doc, golden):
         path.parent.mkdir(parents=True)
-        path.write_text("")
+        path.write_text("", encoding="utf-8")
     git_repo("add", ".")
     git_repo("commit", "-m", "Baseline")
     monkeypatch.setattr(merge_check, "ROOT", tmp_path)
     first, legacy = merge_check._golden_sources("baseline")
 
-    doc.write_text("{}\n")
+    doc.write_text("{}\n", encoding="utf-8")
     assert merge_check._golden_sources("baseline")[0] == first
     git_repo("add", ".")
     git_repo("commit", "-m", "Refresh timings")
@@ -407,28 +412,28 @@ def test_golden_source_survives_generated_docs_but_changes_with_fixtures(
     assert source == first
     assert old_format != legacy
 
-    golden.write_text('[refs."fa-x@1"]\n')
+    golden.write_text('[refs."fa-x@1"]\n', encoding="utf-8")
     assert merge_check._golden_sources("docs")[0] != first
 
 
 def test_golden_source_tracks_untracked_source(
     tmp_path: Path, git_repo: Callable[..., None], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    (tmp_path / "pyproject.toml").write_text("")
+    (tmp_path / "pyproject.toml").write_text("", encoding="utf-8")
     git_repo("add", ".")
     git_repo("commit", "-m", "Baseline")
     monkeypatch.setattr(merge_check, "ROOT", tmp_path)
     initial = merge_check._golden_sources("baseline")
-    (tmp_path / "selection.json").write_text("{}\n")
+    (tmp_path / "selection.json").write_text("{}\n", encoding="utf-8")
     assert merge_check._golden_sources("baseline") == initial
 
     helper = tmp_path / "src" / "helper.py"
     helper.parent.mkdir()
-    helper.write_text("VALUE = 1\n")
+    helper.write_text("VALUE = 1\n", encoding="utf-8")
     first = merge_check._golden_sources("baseline")
     assert len(first) == 1
     assert first[0] not in initial
-    helper.write_text("VALUE = 2\n")
+    helper.write_text("VALUE = 2\n", encoding="utf-8")
     assert merge_check._golden_sources("baseline") != first
     helper.unlink()
     assert merge_check._golden_sources("baseline") == initial
@@ -440,9 +445,9 @@ def test_golden_resume_reuses_a_pass_after_an_unrelated_model_change(
     for name, contents in MINI.items():
         path = tmp_path / name
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(contents)
+        path.write_text(contents, encoding="utf-8")
     dependent = tmp_path / "src/fastforks/depth/models/fc/__init__.py"
-    dependent.write_text("from fastforks.stereo.models.fa import model\n")
+    dependent.write_text("from fastforks.stereo.models.fa import model\n", encoding="utf-8")
     git_repo("add", ".")
     git_repo("commit", "-m", "Model families")
     monkeypatch.setattr(merge_check, "ROOT", tmp_path)
@@ -452,23 +457,23 @@ def test_golden_resume_reuses_a_pass_after_an_unrelated_model_change(
         return {ref: candidates[0] for ref, candidates in merge_check._golden_sources_by_ref(jobs, "HEAD").items()}
 
     before = sources()
-    (tmp_path / "docs/index.md").write_text("# Revised guide\n")
+    (tmp_path / "docs/index.md").write_text("# Revised guide\n", encoding="utf-8")
     assert sources() == before
     fa = tmp_path / "src/fastforks/stereo/models/fa/model.py"
-    fa.write_text(fa.read_text() + "\nVALUE = 1\n")
+    fa.write_text(fa.read_text(encoding="utf-8") + "\nVALUE = 1\n", encoding="utf-8")
     after = sources()
     assert after["fa-test@1"] != before["fa-test@1"]
     assert after["fc-test@1"] != before["fc-test@1"]
     assert after["fb-test@1"] == before["fb-test@1"]
 
     sibling = fa.with_name("untracked.py")
-    sibling.write_text("VALUE = 2\n")
+    sibling.write_text("VALUE = 2\n", encoding="utf-8")
     untracked = sources()
     assert untracked["fa-test@1"] != after["fa-test@1"]
     assert untracked["fc-test@1"] != after["fc-test@1"]
     assert untracked["fb-test@1"] == after["fb-test@1"]
 
-    (tmp_path / "tests/data/x.json").write_text('{"changed":true}\n')
+    (tmp_path / "tests/data/x.json").write_text('{"changed":true}\n', encoding="utf-8")
     assert all(sources()[ref] != untracked[ref] for ref in untracked)
 
 
@@ -478,7 +483,7 @@ def test_golden_receipt_tracks_only_its_fixture_record(
     shutil.copytree(mini, tmp_path, dirs_exist_ok=True)
     manifest = tmp_path / "src/fastforks/stereo/models/fa/golden.toml"
     fixture = '[tolerance]\ngpu_mean = 0.01\n[refs."fa-x@1"]\nsha256 = "old"\n[refs."fa-y@2"]\nsha256 = "same"\n'
-    manifest.write_text(fixture)
+    manifest.write_text(fixture, encoding="utf-8")
     git_repo("add", ".")
     git_repo("commit", "-m", "Initial golden fixtures")
     monkeypatch.setattr(merge_check, "ROOT", tmp_path)
@@ -488,12 +493,12 @@ def test_golden_receipt_tracks_only_its_fixture_record(
         return {ref: candidates[0] for ref, candidates in merge_check._golden_sources_by_ref(jobs, "HEAD").items()}
 
     baseline = receipts()
-    manifest.write_text(fixture.replace('"old"', '"replacement"'))
+    manifest.write_text(fixture.replace('"old"', '"replacement"'), encoding="utf-8")
     changed = receipts()
     assert changed["fa-x@1"] != baseline["fa-x@1"]
     assert changed["fa-y@2"] == baseline["fa-y@2"]
 
-    manifest.write_text(manifest.read_text().replace("0.01", "0.02"))
+    manifest.write_text(manifest.read_text(encoding="utf-8").replace("0.01", "0.02"), encoding="utf-8")
     assert all(receipt != changed[ref] for ref, receipt in receipts().items())
 
 

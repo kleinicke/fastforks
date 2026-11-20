@@ -28,7 +28,7 @@ def test_port_fills_the_original_columns(tmp_path):
     (tmp_path / "speed").mkdir()
     rec = {"ref": "crestereo-eth3d-pt", "task": "stereo", "mode": "upstream", "input": "375x1242", "ms": 1.0}
     lines = [json.dumps(rec | {"tier": t}) for t in ("upstream", "upstream16")]
-    (tmp_path / "speed/foreign.jsonl").write_text("\n".join(lines) + "\n")
+    (tmp_path / "speed/foreign.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
     sp = acc_collect.speed_rows(tmp_path, {"stereo": picked})
     assert [(r["ref"], r["tier"], r["mode"]) for r in sp] == [
         ("crestereo-eth3d", "upstream", "upstream-default"),
@@ -56,7 +56,7 @@ def test_text_prompt_rows_are_their_own_dataset(tmp_path):
         {"task": "promptable_segmentation", "dataset": "coco-val2017-every10", "metrics": {"box_map": 1.0}},
         {"task": "detection", "dataset": "coco-val2017-every10", "metrics": {"box_map": 1.0}},
     ]
-    (tmp_path / "coco_rows.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    (tmp_path / "coco_rows.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
     got = [r["dataset"] for r in acc_collect._coco(tmp_path)]
     assert got == ["coco-val2017-every10", "coco-val2017-every10-text", "coco-val2017-every10"]
 
