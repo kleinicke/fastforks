@@ -12,9 +12,11 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import half_weights
+from fastforks._core.patch import override
 from fastforks.flow._runner import Forward, Runner
 from fastforks.kernels.flow_upsample import convex
 
+from .net.layer import ConvNextBlock
 from .net.model import MEMFOF
 
 if TYPE_CHECKING:
@@ -22,6 +24,9 @@ if TYPE_CHECKING:
 
     from fastforks._core.kernels import CubinModule
     from fastforks.flow._runner import Context
+
+_REFINE_ROWS = 24
+_REFINE_MIN_PIXELS = 16_384
 
 
 @dataclass(frozen=True)
@@ -38,6 +43,34 @@ def _net(ctx: Context) -> MEMFOF:
     check_fits(net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
     net.load_state_dict(sd)
     return net.eval().to(ctx.device)
+
+
+def _refine_in_rows(block: ConvNextBlock, image: torch.Tensor) -> torch.Tensor:
+    """Keep the spatial convolutions whole and bound pointwise work for large CUDA updates."""
+    if (
+        torch.compiler.is_compiling()
+        or torch.jit.is_tracing()
+        or torch.is_grad_enabled()
+        or image.shape[-2] * image.shape[-1] < _REFINE_MIN_PIXELS
+    ):
+        return ConvNextBlock.forward(block, image)
+    features = block.dwconv(image).permute(0, 2, 3, 1)
+    combined = None
+    layout = torch.channels_last if image.is_contiguous(memory_format=torch.channels_last) else torch.contiguous_format
+    for start in range(0, features.shape[1], _REFINE_ROWS):
+        part = features[:, start : start + _REFINE_ROWS]
+        value = block.pwconv2(block.act(block.pwconv1(block.norm(part))))
+        if block.gamma is not None:
+            value = block.gamma * value
+        stop = start + value.shape[1]
+        value = image[..., start:stop, :] + value.permute(0, 3, 1, 2)
+        if combined is None:
+            combined = torch.empty_like(image, dtype=value.dtype, memory_format=layout)
+        combined[..., start:stop, :] = value
+        del part, value
+    assert combined is not None  # noqa: S101 - the nonempty feature map yields at least one group
+    del features
+    return block.final(combined)
 
 
 class _Scaled(Runner):
@@ -74,6 +107,9 @@ class Portable(_Scaled):
         super().__init__(ctx)
         self.net = _net(ctx)
         self.fp16 = ctx.dtype == "float16"
+        if ctx.device.type == "cuda" and self.fp16:
+            for block in self.net.update_block.refine:
+                override(block, _refine_in_rows)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a padded batch."""
