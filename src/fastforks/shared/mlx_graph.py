@@ -150,7 +150,9 @@ OPS[aten.hardtanh.default] = lambda x, lo=-1.0, hi=1.0: mx.clip(x, lo, hi)
 OPS[aten.hardsigmoid.default] = lambda x: mx.clip(x / 6 + 0.5, 0, 1)
 OPS[aten.hardswish.default] = lambda x: x * mx.clip(x / 6 + 0.5, 0, 1)
 OPS[aten.leaky_relu.default] = lambda x, s=0.01: mx.where(x >= 0, x, x * s)
-OPS[aten.elu.default] = lambda x, a=1.0, *_: mx.where(x > 0, x, a * (mx.exp(x) - 1))
+OPS[aten.elu.default] = lambda x, a=1.0, scale=1.0, input_scale=1.0: (
+    scale * mx.where(x > 0, x, a * (mx.exp(x * input_scale) - 1))
+)  # SELU exports as elu(x, alpha, scale)
 OPS[aten.softplus.default] = lambda x, beta=1.0, thr=20.0: mx.where(
     x * beta > thr, x, mx.log1p(mx.exp(x * beta)) / beta
 )
