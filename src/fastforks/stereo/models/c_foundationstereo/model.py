@@ -9,6 +9,7 @@ import torch
 
 from fastforks._core.checkpoint import config_globals
 from fastforks.shared import mlx_wrap
+from fastforks.shared.depth_anything_v2 import sdpa_attention
 from fastforks.stereo._runner import Forward, Runner
 
 from .net.fast_foundation_stereo.ckpt_utils import remap_state_dict, tao_edgenext_keys
@@ -209,8 +210,20 @@ class Kernels(Runner):
         return {"disparity": self._forward(left, right, iters(self.ctx.params))}
 
 
+class _PortableMlx(Portable):
+    """`Portable` with DINOv2's attention as one `scaled_dot_product_attention` (MLX's fused kernel).
+
+    Upstream's `q @ k^T` and softmax materialise the `[2, 6, 6913, 6913]` scores at 994x1482 (2.2 GB in fp32).
+    """
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network."""
+        super().__init__(ctx)
+        sdpa_attention(self.net)
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+    "portable_mlx": mlx_wrap.port(_PortableMlx, whole="disparity"),
 }

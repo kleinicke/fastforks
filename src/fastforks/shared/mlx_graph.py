@@ -34,6 +34,7 @@ import torch
 import torch.utils._pytree as pytree
 
 from fastforks._core.mlx import mx, to_mx, to_torch
+from fastforks._core import mlx_cast as _mlx_cast  # noqa: F401 - registers `fastforks::run_dtype`
 from fastforks._core import volume_ops as _volume_ops  # noqa: F401 - registers `fastforks::gwc_volume`
 from fastforks._core.tracing import EXPORTING_FOR_MLX
 
@@ -440,6 +441,14 @@ def _to(x: mx.array, dtype: torch.dtype | None = None, **_: Any) -> mx.array:
 OPS[aten.type_as.default] = lambda x, o: x.astype(o.dtype)
 
 
+def _run_dtype(x: mx.array) -> mx.array:
+    """`fastforks::run_dtype` (`fastforks._core.mlx_cast`): the plan binds the replay's dtype in its place."""
+    return x
+
+
+OPS[torch.ops.fastforks.run_dtype.default] = _run_dtype
+
+
 @_reg(aten.arange.default, aten.arange.start, aten.arange.start_step)
 def _arange(*args: Any, dtype: torch.dtype | None = None, **_: Any) -> mx.array:
     out = mx.arange(*args)
@@ -797,6 +806,36 @@ def _batch_norm(
     return x * scale.astype(x.dtype).reshape(shape) + shift.astype(x.dtype).reshape(shape), None, None
 
 
+STATS_CHUNK_MB = 64  # float32 rows per partial sum of `_batch_norm_stats_lean`
+
+
+@functools.partial(mx.compile, shapeless=True)
+def _affine_cast(x: mx.array, scale: mx.array, shift: mx.array) -> mx.array:
+    return (x.astype(mx.float32) * scale + shift).astype(x.dtype)
+
+
+def _batch_norm_stats_lean(x: mx.array, w: mx.array | None, b: mx.array | None, eps: float) -> mx.array:
+    """`_batch_norm_batch_stats` without float32 copies of the map.
+
+    The float32 statistics are partial sums over row blocks; the normalisation and the affine are one fused pass.
+    The plain form held three float32 copies (C-FoundationStereo's 534 MB fp16 volume: peak 3.7 GB -> 0.6 GB).
+    """
+    c = x.shape[1]
+    flat = mx.moveaxis(x, 1, -1).reshape(-1, c)
+    rows = flat.shape[0]
+    step = max(1, (STATS_CHUNK_MB << 20) // (4 * c))
+    blocks = [flat[i : i + step] for i in range(0, rows, step)]
+    mean = sum(mx.sum(f.astype(mx.float32), axis=0) for f in blocks) / rows
+    var = sum(mx.sum(mx.square(f.astype(mx.float32) - mean), axis=0) for f in blocks) / rows
+    scale = mx.rsqrt(mx.maximum(var, 0) + eps)
+    if w is not None:
+        scale = scale * w.astype(mx.float32)
+    shift = -mean * scale
+    if b is not None:
+        shift = shift + b.astype(mx.float32)
+    return mx.moveaxis(_affine_cast(flat, scale, shift).reshape(*x.shape[:1], *x.shape[2:], c), -1, 1)
+
+
 @_reg(aten._native_batch_norm_legit.no_stats)
 def _batch_norm_batch_stats(
     x: mx.array,
@@ -815,14 +854,11 @@ def _batch_norm_batch_stats(
     c = x.shape[1]
     xl = mx.moveaxis(x, 1, -1)  # the statistics over the channels-last view: the layout convolutions leave behind
     flat = xl.reshape(-1, c)
-    if _KERNELS and flat.shape[0] >= 4096:  # noqa: PLR2004
-        from fastforks.kernels.graph_mlx import ops
+    if not (_KERNELS and flat.shape[0] >= 4096):  # noqa: PLR2004
+        return _batch_norm_stats_lean(x, w, b, eps), None, None
+    from fastforks.kernels.graph_mlx import ops
 
-        mean, var = ops.channel_stats(flat)
-    else:
-        ff = flat.astype(mx.float32)
-        mean = mx.mean(ff, axis=0)
-        var = mx.maximum(mx.mean(mx.square(ff - mean), axis=0), 0)
+    mean, var = ops.channel_stats(flat)
     y = ((xl.astype(mx.float32) - mean) * mx.rsqrt(var + eps)).astype(x.dtype)
     y = mx.moveaxis(y, -1, 1)
     if w is not None:
@@ -982,17 +1018,70 @@ def _shift_pad(x: mx.array, axis: int, lo: int, hi: int) -> mx.array:
     return x
 
 
+def _depthwise3d(x: mx.array, w: mx.array, stride: Sequence[int], padding: Sequence[int]) -> mx.array:
+    """NDHWC depthwise conv3d (`w` `[C, 1, kd, kh, kw]`): a sum over the taps of strided slices times each tap.
+
+    The per-group `mx.conv3d` loop copies a channel slice of the whole volume per group (FoundationStereo's `conv_patch`
+    k4 s4 on a 104x256x376x28 volume: 3.4 GB of transients, 440 ms; this: one output-sized accumulator, 36 ms).
+    """
+    if any(padding):
+        x = mx.pad(x, [(0, 0), *((p, p) for p in padding), (0, 0)])
+    k = w.shape[2:]
+    out_dims = [(n - kk) // s + 1 for n, kk, s in zip(x.shape[1:4], k, stride, strict=True)]
+    wl = mx.transpose(w[:, 0], (1, 2, 3, 0))  # [kd, kh, kw, C]
+    acc = None
+    for a in range(k[0]):
+        for b in range(k[1]):
+            for c in range(k[2]):
+                sl = x[
+                    :,
+                    a : a + (out_dims[0] - 1) * stride[0] + 1 : stride[0],
+                    b : b + (out_dims[1] - 1) * stride[1] + 1 : stride[1],
+                    c : c + (out_dims[2] - 1) * stride[2] + 1 : stride[2],
+                ]
+                t = sl * wl[a, b, c]
+                acc = t if acc is None else acc + t
+    return acc  # ty: ignore[invalid-return-type]
+
+
+TRANSPOSE3D_SLAB_MB = 96
+
+
 def _conv_transpose3d_phases(
     x: mx.array, w: mx.array, stride: Sequence[int], padding: Sequence[int], output_padding: Sequence[int]
 ) -> mx.array | None:
     """NDHWC transposed conv as one small stride-1 conv per output phase (`mx.conv_transpose3d` is ~8x slower).
 
     `w` is `[Cin, Cout, kd, kh, kw]`; returns None when the output is not `stride` x the input (no phase grid).
+    A big output is made in depth slabs (input rows with a halo, zero beyond the ends as the full conv sees them):
+    the phases, their stack and interleave of one slab are its only transients (FoundationStereo's `conv1_up` at
+    104x256x376x28: 3.1 GB of transients whole, the slabs' concatenation ~0.6 GB).
     """
     dims = x.shape[1:4]
     k = w.shape[2:]
     if any((n - 1) * s - 2 * p + kk + op != n * s for n, s, p, kk, op in zip(dims, stride, padding, k, output_padding)):
         return None
+    d = dims[0]
+    out_bytes = x.shape[0] * d * stride[0] * dims[1] * stride[1] * dims[2] * stride[2] * w.shape[1] * x.dtype.size
+    rows = max(1, int(d * (TRANSPOSE3D_SLAB_MB << 20) // max(out_bytes, 1)))
+    if rows < d:
+        halo = (k[0] - 1) // stride[0] + 1
+        slabs = []
+        for d0 in range(0, d, rows):
+            d1 = min(d, d0 + rows)
+            a, b = d0 - halo, d1 + halo
+            xs = x[:, max(a, 0) : min(b, d)]
+            if a < 0 or b > d:
+                xs = mx.pad(xs, [(0, 0), (max(-a, 0), max(b - d, 0)), (0, 0), (0, 0), (0, 0)])
+            y = _conv_transpose3d_phases_whole(xs, w, stride, padding)
+            slabs.append(y[:, halo * stride[0] : (halo + d1 - d0) * stride[0]])
+        return mx.concatenate(slabs, axis=1)
+    return _conv_transpose3d_phases_whole(x, w, stride, padding)
+
+
+def _conv_transpose3d_phases_whole(x: mx.array, w: mx.array, stride: Sequence[int], padding: Sequence[int]) -> mx.array:
+    """`_conv_transpose3d_phases` of the whole input in one go."""
+    k = w.shape[2:]
     wt = mx.transpose(w, (1, 2, 3, 4, 0))  # [Cout, kd, kh, kw, Cin]
     taps = []  # per dim, per phase: (kernel indices ordered by input offset, lo pad, hi pad)
     for ax in range(3):
@@ -1103,6 +1192,8 @@ def _conv_core(  # noqa: PLR0913
                 return mx.transpose(y, (0, 4, 1, 2, 3))
             if groups == 1:
                 y = mx.conv3d(xl3, wl3, **kw3)
+            elif groups == xl3.shape[-1] == w.shape[0] and all(d == 1 for d in dilation):
+                y = _depthwise3d(xl3, w, stride, padding)
             else:  # `mx.conv3d` has no groups: one conv per group
                 cg, og = xl3.shape[-1] // groups, wl3.shape[0] // groups
                 y = mx.concatenate(
@@ -1460,6 +1551,7 @@ def _nearest(x: mx.array, size: Sequence[int] | None, *scales: Any) -> mx.array:
 # returning channels-last results as NCHW views again. (Values that are really NCHW in memory keep the plain ops: a
 # channels-last view of them would only move the strided access.)
 CL_OPS: dict[Any, Callable[..., Any]] = {}
+CL_OPS[torch.ops.fastforks.run_dtype.default] = _run_dtype  # a cast keeps the layout
 _CL_ND = (3, 4, 5)
 
 
@@ -1815,6 +1907,8 @@ class GraphNet:
                     continue
                 args = folds.args.get(node.name, node.args)
                 op = CL_OPS[node.target] if node.name in cl_values and node.target in CL_OPS else self._op(node.target)
+                if op is _run_dtype:
+                    op = functools.partial(mx.astype, dtype=self.dtype)
                 plan.append(("call", node.name, op, _plain(args), _plain(dict(node.kwargs))))
             elif node.op == "output":
                 plan.append(("output", _plain(node.args[0])))

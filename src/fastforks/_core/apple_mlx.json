@@ -1589,6 +1589,15 @@
     "float32": "portable"
    }
   },
+  "foundationstereo-vit-l@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable"
+   }
+  },
   "foundationstereo-vit-s@1": {
    "mlx_default": [
     "portable",

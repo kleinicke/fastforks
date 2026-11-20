@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.patch import is_base, override
+from fastforks._core.tracing import EXPORTING_FOR_MLX
 
 from .net.fast_foundation_stereo.fast_foundation_stereo import _FFSPostForwardHelper
 from .net.foundation_stereo.convolution_helper import Conv
@@ -29,12 +30,18 @@ def _chunked(
     """`CostVolumeDisparityAttention.forward`, with each sequence chunk run through all layers at once."""
     b, c, d, h, w = cv.shape
     x = cv.permute(0, 3, 4, 2, 1).reshape(b * h * w, d, c)
-    out = torch.empty_like(x)
+    # on MLX the chunks are joined by `cat`: an exported `empty_like` buffer would be float32 on MLX
+    out = None if EXPORTING_FOR_MLX.get() else torch.empty_like(x)
+    chunks = []
     for i in range(0, x.shape[0], CHUNK):
         y = self.pos_embed0(x[i : i + CHUNK], resize_embed=self.resize_embed)
         for layer in self.sa:
             y = layer(y, window_size=window_size)
-        out[i : i + CHUNK] = y
+        if out is None:
+            chunks.append(y)
+        else:
+            out[i : i + CHUNK] = y
+    out = torch.cat(chunks) if out is None else out
     return out.reshape(b, h, w, d, c).permute(0, 4, 3, 1, 2)
 
 

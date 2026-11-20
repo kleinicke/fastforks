@@ -6,6 +6,7 @@
 
 import torch
 import torch.nn.functional as F
+from fastforks._core.mlx_cast import to_run_dtype
 from ..foundation_stereo.utils import bilinear_sampler
 
 
@@ -180,7 +181,7 @@ class CombinedGeoEncodingVolume:
             base = batch_idx * (depth * height * width) + pixel
             i0, i1, w0, w1 = _lerp_taps(base, height * width, disp / 2**i + taps, depth)
             dtype = geo_volume.dtype
-            geo = rows[i0] * w0.unsqueeze(-1).to(dtype) + rows[i1] * w1.unsqueeze(-1).to(dtype)
+            geo = rows[i0] * to_run_dtype(w0.unsqueeze(-1), dtype) + rows[i1] * to_run_dtype(w1.unsqueeze(-1), dtype)
             # (B, H, W, K, C) -> channel-major, as grid_sample returned it
             out_pyramid.append(geo.transpose(-1, -2).reshape(batch, height, width, -1))
 
@@ -189,7 +190,7 @@ class CombinedGeoEncodingVolume:
             w2 = init_corr.shape[-1]
             i0, i1, w0, w1 = _lerp_taps((batch_idx * (height * width) + pixel) * w2, 1, x / 2**i - disp / 2**i + taps, w2)
             flat = init_corr.reshape(-1)
-            out_pyramid.append((flat[i0] * w0 + flat[i1] * w1).to(dtype))
+            out_pyramid.append(to_run_dtype(flat[i0] * w0 + flat[i1] * w1, dtype))
 
         # Concatenate all sampled features and permute to the desired output shape (a channels-last view).
         return torch.cat(out_pyramid, dim=-1).permute(0, 3, 1, 2)
