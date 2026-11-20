@@ -1219,12 +1219,28 @@ def _conv_core(  # noqa: PLR0913
             xl3 = mx.transpose(x, (0, 2, 3, 4, 1))
             wl3 = mx.transpose(w, (0, 2, 3, 4, 1))
             kw3 = {"stride": tuple(stride), "padding": tuple(padding), "dilation": tuple(dilation)}
-            if _wino3d_ok(xl3, w, stride, padding, dilation, groups):
+            if (
+                groups == 1
+                and xl3.shape[-1] <= 2  # noqa: PLR2004
+                and tuple(stride) == (1, 1, 1)
+                and all(d == 1 for d in dilation)
+            ):
+                # few input channels (a CT / MRI stem): the depth taps folded into channels, one conv2d over the slices
+                # (1 -> 32 channels, 224^3 float16: 130 -> 26 ms; `mx.conv3d` is slow at Cin 1-2)
+                n, dd, hh, ww, cin = xl3.shape
+                kd, pd = w.shape[2], padding[0]
+                xp = mx.pad(xl3, [(0, 0), (pd, pd), (0, 0), (0, 0), (0, 0)]) if pd else xl3
+                do = dd + 2 * pd - kd + 1
+                xs = mx.concatenate([xp[:, a : a + do] for a in range(kd)], axis=-1).reshape(n * do, hh, ww, kd * cin)
+                w2 = mx.transpose(w, (0, 3, 4, 2, 1)).reshape(w.shape[0], w.shape[3], w.shape[4], kd * cin)
+                y = mx.conv2d(xs, w2, padding=tuple(padding[1:]))
+                y = y.reshape(n, do, *y.shape[1:])
+            elif _wino3d_ok(xl3, w, stride, padding, dilation, groups):
                 from fastforks.kernels.conv_mlx import ops as conv_ops
 
                 y = conv_ops.conv3d(xl3, _wino3d_weights(w, xl3.dtype), b, act=act, slope=slope)
                 return mx.transpose(y, (0, 4, 1, 2, 3))
-            if groups == 1:
+            elif groups == 1:
                 y = mx.conv3d(xl3, wl3, **kw3)
             elif groups == xl3.shape[-1] == w.shape[0] and all(d == 1 for d in dilation):
                 y = _depthwise3d(xl3, w, stride, padding)
@@ -1692,6 +1708,34 @@ def _pad_cl(x: mx.array, pad: Sequence[int], value: float = 0.0) -> mx.array:
     return _uncl(_pad(_cl(x), (0, 0, *pad), value))
 
 
+@_reg_cl(aten.var_mean.correction)
+def _var_mean_cl(
+    x: mx.array, d: Sequence[int] | None = None, correction: float = 1, keepdim: bool = False
+) -> tuple[mx.array, mx.array]:
+    """`_var_mean` over the spatial axes of a channels-last view (an instance norm's statistics).
+
+    A column reduction of the `[N, voxels, C]` rows the convolution wrote instead of a strided one in NCHW order
+    (32 x 224^3 float16: 78 -> 44 ms); kernels mode: the one-pass `channel_stats` kernel (9 ms).
+    """
+    nd = x.ndim
+    if nd not in _CL_ND or not d or sorted(a % nd for a in d) != list(range(2, nd)):
+        return _var_mean(x, d, correction, keepdim)
+    n, c = x.shape[:2]
+    flat = _cl(x).reshape(n, -1, c)
+    rows, ddof = flat.shape[1], int(correction or 0)
+    if _KERNELS and rows >= 4096:  # noqa: PLR2004
+        from fastforks.kernels.graph_mlx import ops
+
+        stats = [ops.channel_stats(flat[i]) for i in range(n)]
+        mean = mx.stack([s[0] for s in stats])
+        var = mx.stack([s[1] for s in stats]) * (rows / max(rows - ddof, 1))
+    else:
+        y = flat.astype(mx.float32)
+        mean, var = mx.mean(y, axis=1), mx.var(y, axis=1, ddof=ddof)
+    shape = (n, c, *(1,) * (nd - 2)) if keepdim else (n, c)
+    return var.astype(x.dtype).reshape(shape), mean.astype(x.dtype).reshape(shape)
+
+
 # ops that return a view of their (first) argument: a channels-last view stays one
 _CL_VIEWS = (aten.slice.Tensor, aten.alias.default, aten.detach.default, aten.clone.default, aten.contiguous.default)
 
@@ -1710,9 +1754,13 @@ def _channels_last_values(nodes: list[Any], skips: dict[str, str]) -> set[str]:
                 tagged.add(node.name)
             continue
         val = node.meta.get("val")
+        srcs = list(_refs(node.args))
+        if node.target is aten.var_mean.correction:  # statistics of a channels-last map: tagged, its outputs are not
+            if srcs and srcs[0] in tagged:
+                tagged.add(node.name)
+            continue
         if not isinstance(val, torch.Tensor) or val.ndim not in _CL_ND:
             continue
-        srcs = list(_refs(node.args))
         if node.target is aten.convolution.default:
             tagged.add(node.name)
         elif node.target in CL_OPS and any(r in tagged for r in srcs):
