@@ -5,6 +5,8 @@ tier = "experimental"
 outputs = ["tracks", "visibility"]
 uses = []  # fastforks.shared modules this family imports
 limitations = [
+  "With 256 points introduced on frames 1, 15, 31 and 58 of a 63-frame clip at 480 × 854, reversing one feature window at a time reduced peak allocation from 1,239 to 1,150 MiB portable and from 1,321 to 1,233 MiB kernels. The checked tracks and visibility match bit for bit.",
+  "Tracking 256 points in a 63-frame, 480 × 854 clip on the RTX 5060 Ti used 1,150 MiB portable (was 1,224) and 1,233 MiB kernels (was 1,307). Tracks and visibility matched bit for bit on the synthetic clips and three labeled TAP-Vid DAVIS clips.",
   "Offline: the features of every frame are kept in memory (about 2.5 MB per frame in float16 at 384 x 512); each query frame costs a forward pass (and a backward pass from frame 0 if it is not the first).",
   "Frames are resized to 384 x 512 (upstream's default evaluation size), whatever their size and aspect ratio. Upstream reports higher accuracy at larger sizes (TAP-Vid DAVIS AJ 65.9 at 448 x 768, 67.2 at 768 x 1024); the size is a card parameter.",
   "Tracks are sampled bilinearly at the query position; upstream's evaluation rounds the query to the nearest pixel.",

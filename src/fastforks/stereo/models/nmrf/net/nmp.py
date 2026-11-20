@@ -58,10 +58,20 @@ class Mlp(nn.Module):
         self.act = act_layer()
         self.fc2 = nn.Linear(hidden_features, out_features, bias=bias)
         self.drop = nn.Dropout(drop)
+        self.bounded_activation = False
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.fc1(x)
-        x = self.act(x)
+        if (
+            self.bounded_activation
+            and torch.is_inference_mode_enabled()
+            and x.numel() >= 1 << 22
+            and x.is_contiguous()
+        ):
+            for rows in x.view(-1, x.shape[-1]).split(4096):
+                rows.copy_(self.act(rows))
+        else:
+            x = self.act(x)
         x = self.drop(x)
         x = self.fc2(x)
         x = self.drop(x)
@@ -261,10 +271,11 @@ class WindowAttention(nn.Module):
         # window attention
         q = q * self.scale
         q_embed = q_embed * self.scale
-        qk = (q @ k.transpose(-2, -1))  # B head N C @ B head C N --> B head N N
-        qr = torch.einsum('bhic,ijhc->bhij', q, k_embed)
-        kr = torch.einsum('bhjc,ijhc->bhij', k, q_embed)
-        attn = qk + qr + kr
+        # Add each relative-position term in the original order and release it before the next one.
+        attn = q @ k.transpose(-2, -1)
+        attn = attn + torch.einsum('bhic,ijhc->bhij', q, k_embed)
+        attn = attn + torch.einsum('bhjc,ijhc->bhij', k, q_embed)
+        del q, k, q_embed, k_embed, rpe
 
         if attn_mask is not None:
             L = attn.shape[-1]  # fastforks: rearrange '(b j) h m n -> b j h m n' and back; mask in the logits' dtype
@@ -346,7 +357,9 @@ class SwinNMP(nn.Module):
         x = torch.cat((label_rep, abs_encoding), dim=-1)
         x = x.unflatten(0, (-1, H, W))  # fastforks: rearrange '(b h w) n c -> b h w n c'
         # window attention
-        msg = self.attn(self.qkv(x), attn_mask)
+        x = self.qkv(x)
+        msg = self.attn(x, attn_mask)
+        del x
         msg = self.proj_drop(self.proj(msg))
         return msg.flatten(0, 2)  # fastforks: rearrange 'b h w n c -> (b h w) n c'
 

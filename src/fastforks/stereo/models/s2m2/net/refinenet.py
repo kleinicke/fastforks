@@ -20,6 +20,18 @@ class ConvGRU(nn.Module):
         self.convq2 = nn.Conv2d(hidden_dim+input_dim, hidden_dim, [1,kernel_size], padding=[0, kernel_size // 2])
 
     def forward(self, h: Tensor, x: Tensor):
+        # Portable CUDA FP16 uses the same convolution input layout in both directions.
+        if (
+            h.is_cuda
+            and h.is_contiguous()
+            and x.is_contiguous()
+            and x.dtype == torch.float16
+            and h.dtype in (torch.float16, torch.float32)
+            and torch.is_autocast_enabled("cuda")
+            and torch.get_autocast_dtype("cuda") == torch.float16
+            and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
+        ):
+            return self._forward_reusing_input(h, x)
 
         hx = torch.cat([h,x],dim=1)
         z = torch.sigmoid(self.convz1(hx))
@@ -33,6 +45,21 @@ class ConvGRU(nn.Module):
         q = torch.tanh(self.convq2(torch.cat ([r * h, x], axis=1)))
         h = (1 - z) * h + z * q
 
+        return h.to(x.dtype)
+
+    def _forward_reusing_input(self, h: Tensor, x: Tensor) -> Tensor:
+        """Keep the input channels in one scratch tensor and refresh only the hidden channels."""
+        hx = torch.cat((h, x), dim=1)
+        hidden_channels = hx[:, :h.shape[1]]
+        gates = ((self.convz1, self.convr1, self.convq1), (self.convz2, self.convr2, self.convq2))
+        for step, (conv_z, conv_r, conv_q) in enumerate(gates):
+            if step:
+                hidden_channels.copy_(h)
+            z = torch.sigmoid(conv_z(hx))
+            r = torch.sigmoid(conv_r(hx))
+            hidden_channels.copy_(r * h)
+            q = torch.tanh(conv_q(hx))
+            h = (1 - z) * h + z * q
         return h.to(x.dtype)
 
 
@@ -140,9 +167,12 @@ class LocalRefiner(nn.Module):
         disp_feat = self.disp_feat(disp/1e2)
         conf_feat = self.conf_occ_feat(torch.cat([conf_logit, occ_logit],dim=1).to(disp.dtype))
         disp_corr_ctx_feat = self.disp_corr_ctx_cat(torch.cat([disp_feat, corr_feat1, corr_feat2, ctx, conf_feat], dim=1).to(disp.dtype))
+        del corr1, corr2, corr_feat1, corr_feat2, disp_feat, conf_feat
 
         refine_feat = self.refine_unet(disp_corr_ctx_feat)[0]
+        del disp_corr_ctx_feat
         hidden_new = self.gru(hidden, refine_feat)
+        del refine_feat
         disp_update = self.disp_update(hidden_new)
         conf_update, occ_update = self.conf_occ_update(hidden_new).chunk(2, dim=1)
 

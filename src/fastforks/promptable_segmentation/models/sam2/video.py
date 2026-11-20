@@ -354,30 +354,36 @@ class Tracker:
             ages = [t - k for k in memory]
         else:
             ages = list(range(len(memory), 0, -1))
-        mems, poss = [], []
-        for k, age in [(0, NUM_MASKMEM), *zip(memory, ages, strict=True)]:  # frame 0, then the others, oldest first
+        slots = [(0, NUM_MASKMEM), *zip(memory, ages, strict=True)]  # frame 0, then the others, oldest first
+        max_ptrs = min(n_frames, MAX_PTRS)
+        ptr_frames = [0, *(t - d for d in range(1, max_ptrs) if t - d >= 1)]  # frame 0, then the most recent first
+        split = c // MEM_DIM
+        frame_tokens = h * w
+        bank_tokens = len(slots) * frame_tokens
+        mem_input = raw.new_empty(bank_tokens + len(ptr_frames) * split, p, MEM_DIM, dtype=dt)
+        poss = []
+        for index, (k, age) in enumerate(slots):
             encoded = bank[k][0]
             if encoded is None:
                 msg = f"SAM 2 memory for frame {k} was released before it was read"
                 raise RuntimeError(msg)
-            feats = encoded[rows].to(dt).flatten(2).permute(2, 0, 1)
-            mems.append(feats)
-            poss.append(self.mem_pos.expand(-1, p, -1) + tpos[age - 1])
-        max_ptrs = min(n_frames, MAX_PTRS)
-        ptr_frames = [0, *(t - d for d in range(1, max_ptrs) if t - d >= 1)]  # frame 0, then the most recent first
+            feats = encoded[rows].flatten(2).permute(2, 0, 1)
+            start = index * frame_tokens
+            mem_input[start : start + frame_tokens].copy_(feats)
+            del feats
+            poss.append(self.mem_pos + tpos[age - 1])
         rel = to_device([t - k for k in ptr_frames], raw.device)
         ptrs = torch.stack([bank[k][1][rows] for k in ptr_frames])  # [n, P, 256]
         pos = self.m.obj_ptr_tpos_proj(get_1d_sine_pe(rel / (max_ptrs - 1), dim=DIM))
-        split = c // MEM_DIM
-        ptrs = ptrs.reshape(-1, p, split, MEM_DIM).permute(0, 2, 1, 3).flatten(0, 1).to(dt)
-        pos = pos[:, None].expand(-1, p, -1).repeat_interleave(split, dim=0).to(dt)
-        mems.append(ptrs)
+        ptrs = ptrs.reshape(-1, p, split, MEM_DIM).permute(0, 2, 1, 3).flatten(0, 1)
+        mem_input[bank_tokens:].copy_(ptrs)
+        pos = pos[:, None].repeat_interleave(split, dim=0).to(dt)
         poss.append(pos)
         out = self.m.memory_attention(
             curr=raw.to(dt).flatten(2).permute(2, 0, 1),
             curr_pos=self.pos.expand(-1, p, -1),
-            memory=torch.cat(mems),
-            memory_pos=torch.cat(poss),
+            memory=mem_input,
+            memory_pos=torch.cat(poss).expand(-1, p, -1),
             num_obj_ptr_tokens=ptrs.shape[0],
         )
         return out.permute(1, 2, 0).reshape(p, c, h, w).float()

@@ -57,19 +57,28 @@ class PromptHead(DPTHead):
             setattr(self.scratch, f"refinenet{i}", PromptFusionBlock(features))
         self.scratch.output_conv2[3] = nn.Sigmoid()
 
+    def _project(self, feat: torch.Tensor, i: int, patch_h: int, patch_w: int) -> torch.Tensor:
+        x = feat.permute(0, 2, 1).reshape(feat.shape[0], feat.shape[-1], patch_h, patch_w)
+        return self.resize_layers[i](self.projects[i](x))
+
     def forward(self, out_features: list, patch_h: int, patch_w: int, prompt: torch.Tensor) -> torch.Tensor:  # ty: ignore[invalid-method-override]
         """Features (`get_intermediate_layers` tuples) of 4 layers and the normalised prompt -> `[B, 1, H, W]`."""
-        out = []
-        for i, feat in enumerate(out_features):
-            x = feat[0].permute(0, 2, 1).reshape(feat[0].shape[0], feat[0].shape[-1], patch_h, patch_w)
-            out.append(self.resize_layers[i](self.projects[i](x)))
         s = self.scratch
-        l1, l2, l3, l4 = (s.layer1_rn(out[0]), s.layer2_rn(out[1]), s.layer3_rn(out[2]), s.layer4_rn(out[3]))
-        p4 = s.refinenet4(l4, size=l3.shape[2:], prompt=prompt)
-        p3 = s.refinenet3(p4, l3, size=l2.shape[2:], prompt=prompt)
-        p2 = s.refinenet2(p3, l2, size=l1.shape[2:], prompt=prompt)
-        p1 = s.refinenet1(p2, l1, prompt=prompt)
-        o = F.interpolate(s.output_conv1(p1), (patch_h * 14, patch_w * 14), mode="bilinear", align_corners=True)
+        # Prepare each skip near its refinement so only the current skip and the next one stay live.
+        l4 = s.layer4_rn(self._project(out_features[3][0], 3, patch_h, patch_w))
+        l3 = s.layer3_rn(self._project(out_features[2][0], 2, patch_h, patch_w))
+        p = s.refinenet4(l4, size=l3.shape[2:], prompt=prompt)
+        del l4
+        l2 = s.layer2_rn(self._project(out_features[1][0], 1, patch_h, patch_w))
+        p = s.refinenet3(p, l3, size=l2.shape[2:], prompt=prompt)
+        del l3
+        l1 = s.layer1_rn(self._project(out_features[0][0], 0, patch_h, patch_w))
+        p = s.refinenet2(p, l2, size=l1.shape[2:], prompt=prompt)
+        del l2
+        p = s.refinenet1(p, l1, prompt=prompt)
+        del l1
+        p = s.output_conv1(p)
+        o = F.interpolate(p, (patch_h * 14, patch_w * 14), mode="bilinear", align_corners=True)
         return s.output_conv2(o)
 
 

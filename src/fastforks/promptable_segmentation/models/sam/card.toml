@@ -4,6 +4,10 @@ summary = "Segment Anything (Kirillov et al. 2023): promptable segmentation with
 tier = "stable"
 outputs = ["pred_masks", "iou_scores"]
 
+limitations = [
+  "On the RTX 5060 Ti at 3840 × 2160 with 12 point prompts and 36 output masks, SAM ViT-B used 742 MiB portable and 741 MiB kernels, down from 1,667 MiB in both modes. Masks, scores and logits matched bit for bit. Paired latency was 75.3 to 77.0 ms portable and 64.1 to 65.8 ms kernels.",
+]
+
 [upstream]
 repo = "https://github.com/facebookresearch/segment-anything"
 commit = "dca509f"

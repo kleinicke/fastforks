@@ -217,7 +217,12 @@ EXPECTED: dict[str, tuple[int, int, dict[str, int]]] = {
     "metric3d-vit-large@1": (
         581,
         52,
-        {"Conv2dLoRA.lora_dropout": 62, "ConvTranspose2dLoRA.lora_dropout": 1, "LoRALinear.lora_dropout": 8},
+        {
+            "Conv2dLoRA.lora_dropout": 62,
+            "ConvGRU.forward": 3,
+            "ConvTranspose2dLoRA.lora_dropout": 1,
+            "LoRALinear.lora_dropout": 8,
+        },
     ),
     "midas-dpt-beit-large-512@1": (
         330,

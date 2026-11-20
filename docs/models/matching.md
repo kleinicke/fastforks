@@ -17,18 +17,18 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`dedode-v2-b`](#dedode) | yes | 189, 1.7x | 1246, 0.63x |
 | [`dedode-v2-g`](#dedode) | yes | 332, 2.0x | 1984, 0.8x |
 | [`disk-lightglue`](#lightglue) | yes | 49.2, 2.4x | 778, 0.32x |
-| [`loftr-indoor`](#loftr) | yes | 96.2, 2.5x | 886, 0.46x |
-| [`loftr-outdoor`](#loftr) | yes | 95.9, 2.5x | 886, 0.47x |
+| [`loftr-indoor`](#loftr) | yes | 86.0, 2.8x | 806, 0.42x |
+| [`loftr-outdoor`](#loftr) | yes | 85.8, 2.8x | 806, 0.43x |
 | [`loma-b`](#loma) | yes | 263, 3.9x | 1328, 0.3x |
-| [`loma-b128`](#loma) | yes | 116 | 684 |
-| [`loma-b64`](#loma) | yes | 107 | 720 |
-| [`loma-g`](#loma) | yes | 310 | 1668 |
-| [`loma-l`](#loma) | yes | 273 | 1406 |
-| [`loma-r`](#loma) | yes | 262 | 1328 |
+| [`loma-b128`](#loma) | yes | 116 | 684, 0.3x |
+| [`loma-b64`](#loma) | yes | 107 | 720, 0.47x |
+| [`loma-g`](#loma) | yes | 307 | 1648, 0.33x |
+| [`loma-l`](#loma) | yes | 273 | 1406, 0.31x |
+| [`loma-r`](#loma) | yes | 262 | 1328, 0.3x |
 | [`romav1`](#romav1) | yes | 218, 1.8x | 1738, 0.42x |
 | [`romav2`](#romav2) | yes | 350, 2.1x | 2460, 0.24x |
-| [`xfeat`](#xfeat) | yes | 15.2, 0.6x | 352, 2.0x |
-| [`xfeat-lighterglue`](#xfeat) | yes | 29.2, 0.8x | 478, 1.0x |
+| [`xfeat`](#xfeat) | yes | 17.1, 0.5x | 352, 2.0x |
+| [`xfeat-lighterglue`](#xfeat) | yes | 32.8, 0.7x | 478, 1.0x |
 
 <a id="flexglue"></a>
 
@@ -66,12 +66,12 @@ Commercial use: yes.
 
 Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Both modes receive pairs resized to 768 x 1024. Map matched pixels to the calibrated evaluation coordinates and use the same RANSAC seed per pair. The same 300 pairs for all modes, so float32 and bfloat16 compare pair for pair. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | portable fp32 | TensorRT | note |
-|---|---|---|---|---|---|---|
-| `aliked-flexglue` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 48.9 / 67.6 / 80.5 | 50.4 / 68.6 / 81.1 |  |
-| `aliked-flexglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 50.8 / 68.2 / 80.4 | 51.5 / 69.1 / 81.0 | 51.9 / 69.3 / 81.1 |  |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|
+| `aliked-flexglue` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 48.9 / 67.6 / 80.5 |  | 50.4 / 68.6 / 81.1 |  |
+| `aliked-flexglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 50.8 / 68.2 / 80.4 | 51.5 / 69.1 / 81.0 | 51.9 / 69.3 / 81.1 | 51.5 / 69.1 / 81.0 |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9, 2026-11-20; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9 / 7eb2e0f4, 2026-11-18 to 2026-11-20; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7eb2e0f4, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9, 2026-11-20; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9 / 7eb2e0f4, 2026-11-18 to 2026-11-20; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 78a59767f, 2026-11-20; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7eb2e0f4, 2026-11-18.
 
 ### Parity
 
@@ -172,8 +172,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 318<br>246<br>189<br>164<br>494 (FP32 public builder probe) | 1734 / 1992<br>1535 / 1654<br>1197 / 1246<br>1893 / 2434<br>3354 / 3378 |
-| `dedode-v2-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 666<br>592<br>332<br>330<br>1197 (FP32 descriptor and bilinear sampling with eager detector, keypoint order and matching) | 2335 / 2472<br>2142 / 2334<br>1787 / 1984<br>2881 / 3316<br>5282 / 6458 |
+| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 318<br>236<br>189<br>164<br>494 (FP32 public builder probe) | 1734 / 1992<br>1160 / 1292<br>1197 / 1246<br>1893 / 2434<br>3354 / 3378 |
+| `dedode-v2-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 666<br>379<br>332<br>330<br>1197 (FP32 descriptor and bilinear sampling with eager detector, keypoint order and matching) | 2335 / 2472<br>1761 / 2114<br>1787 / 1984<br>2881 / 3316<br>5282 / 6458 |
 
 <details><summary>Details</summary>
 
@@ -206,11 +206,11 @@ Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstre
 |---|---|---|---|---|---|---|---|---|---|
 | `dedode-v2-b` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 53.2 / 68.2 / 79.8 | 52.4 / 67.6 / 77.8 |  |  | 52.7 / 68.8 / 80.2 |  |
 | `dedode-v2-b` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 56.3 / 72.5 / 83.7 | 57.3 / 71.5 / 82.5 | 54.6 / 71.8 / 83.1 | 56.0 / 72.0 / 82.7 | 57.8 / 74.3 / 84.2 |  |  |  |
-| `dedode-v2-g` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 56.7 / 72.5 / 83.7 | 55.6 / 70.4 / 81.3 |  |  | 55.4 / 70.1 / 81.1 |  |
+| `dedode-v2-g` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 56.7 / 72.5 / 83.7 | 55.6 / 70.4 / 81.3 | 58.8 / 73.7 / 84.3 |  | 55.4 / 70.1 / 81.1 |  |
 | `dedode-v2-g` | MegaDepth-1500, 30 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  |  | 65.0 / 78.3 / 87.7 |  | 65.0 / 78.3 / 87.9 |  |  |
 | `dedode-v2-g` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 57.2 / 72.7 / 83.6 |  |  | 57.1 / 74.7 / 85.5 |  |  |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565 / ce6d1409, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 471d1a12 / c45a2130 / ccc23e40 / d073b335, 2026-11-18 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 23765f70, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 471d1a12 / c45a2130 / ccc23e40 / ce6d1409, 2026-11-18 to 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks aee4b565 / ce6d1409, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 471d1a12 / c45a2130 / ccc23e40 / d073b335, 2026-11-18 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345 / 8630e98f1, 2026-11-16 to 2026-11-20; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 23765f70, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 471d1a12 / c45a2130 / ccc23e40 / ce6d1409, 2026-11-18 to 2026-11-19.
 
 ### Parity
 
@@ -241,8 +241,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `loftr-outdoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 241<br>110<br>95.9<br>176<br>199 (ResNetFPN with eager coarse and fine matching) | 1739 / 1870<br>796 / 904<br>760 / 886<br>1149 / 1232<br>2206 / 2958 |
-| `loftr-indoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 242<br>111<br>96.2<br>71.0<br>199 (ResNetFPN with eager coarse and fine matching) | 1751 / 1910<br>796 / 904<br>760 / 886<br>634 / 684<br>2218 / 2962 |
+| `loftr-outdoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 241<br>110<br>85.8<br>176<br>199 (ResNetFPN with eager coarse and fine matching) | 1739 / 1870<br>733 / 944<br>734 / 806<br>1149 / 1232<br>2206 / 2958 |
+| `loftr-indoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 242<br>110<br>86.0<br>71.0<br>199 (ResNetFPN with eager coarse and fine matching) | 1751 / 1910<br>740 / 944<br>740 / 806<br>634 / 684<br>2218 / 2962 |
 
 <details><summary>Details</summary>
 
@@ -276,10 +276,10 @@ Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstre
 | `loftr-outdoor` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees | 50.1 / 67.5 / 80.3 | 50.6 / 67.6 / 80.3 | 50.8 / 67.8 / 80.2 |  |  |  |
 | `loftr-outdoor` | MegaDepth-1500, 12 selected 768 x 1024 pairs, AUC@5 / @10 / @20 |  |  | 51.2 / 74.5 / 87.2 |  | 51.2 / 74.5 / 87.2 |  |
 | `loftr-outdoor` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 53.8 / 71.8 / 83.7 | 52.1 / 71.0 / 83.3 |  | 57.1 / 74.2 / 85.0 |  |  |
-| `loftr-indoor` | ScanNet-1500 indoor pairs at 480 x 640, relative pose AUC@5 / @10 / @20 degrees | 22.5 / 41.2 / 58.1 | 22.5 / 41.5 / 58.1 | 22.2 / 41.2 / 58.1 |  |  |  |
+| `loftr-indoor` | ScanNet-1500 indoor pairs at 480 x 640, relative pose AUC@5 / @10 / @20 degrees | 22.5 / 41.2 / 58.1 | 22.5 / 41.5 / 58.1 | 22.2 / 41.2 / 58.1 | 23.1 / 41.6 / 58.0 |  |  |
 | `loftr-indoor` | ScanNet-1500, 12 selected 768 x 1024 pairs, pose AUC@5 / @10 / @20 |  |  | 19.7 / 33.5 / 49.4 |  | 19.7 / 35.2 / 54.5 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / aee4b565 / d073b3354, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / 938a6cc7 / d073b335, 2026-11-15 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 938a6cc7, 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / aee4b565 / d073b3354, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / 938a6cc7 / d073b335, 2026-11-15 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e / 68b2f345, 2026-11-16 to 2026-11-20; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 938a6cc7, 2026-11-19.
 
 ### Parity
 
@@ -312,11 +312,11 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `loma-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 1036<br>309<br>263<br>287<br>326 (standalone build) | 4176 / 4390<br>1767 / 1878<br>1217 / 1328<br>2870 / 3258<br>1986 / 2010 |
-| `loma-b64` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>131<br>107<br>102<br>109 | –<br>854 / 962<br>613 / 720<br>1230 / 1356<br>1010 / 1034 |
-| `loma-b128` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>150<br>116<br>124<br>144 | –<br>878 / 984<br>625 / 684<br>1398 / 1800<br>1062 / 1066 |
-| `loma-l` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>320<br>273<br>298<br>336 (standalone build) | –<br>1903 / 2012<br>1285 / 1406<br>3006 / 3194<br>2042 / 2066 |
-| `loma-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>359<br>310<br>331<br>366 | –<br>2444 / 2548<br>1555 / 1668<br>3547 / 3890<br>2298 / 2322 |
-| `loma-r` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | –<br>309<br>262<br>287<br>326 | –<br>1767 / 1878<br>1217 / 1328<br>2870 / 3256<br>1986 / 2010 |
+| `loma-b64` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 317<br>–<br>131<br>107<br>102<br>109 | 1327 / 1530<br>–<br>854 / 962<br>613 / 720<br>1230 / 1356<br>1010 / 1034 |
+| `loma-b128` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 370<br>–<br>150<br>116<br>124<br>144 | 2005 / 2292<br>–<br>878 / 984<br>625 / 684<br>1398 / 1800<br>1062 / 1066 |
+| `loma-l` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 1092<br>–<br>320<br>273<br>298<br>336 (standalone build) | 4311 / 4532<br>–<br>1903 / 2012<br>1285 / 1406<br>3006 / 3194<br>2042 / 2066 |
+| `loma-g` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 1240<br>–<br>357<br>307<br>331<br>366 | 4852 / 5068<br>–<br>2219 / 2388<br>1509 / 1648<br>3547 / 3890<br>2298 / 2322 |
+| `loma-r` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 1037<br>–<br>309<br>262<br>287<br>326 | 4176 / 4390<br>–<br>1767 / 1878<br>1217 / 1328<br>2870 / 3256<br>1986 / 2010 |
 
 <details><summary>Details</summary>
 
@@ -339,34 +339,41 @@ Commercial use: yes.
 - `loma-g` 768x1024, first call: portable + torch.compile 131 s (cold Inductor cache), TensorRT bf16 171 s (ONNX + engine).
 - `loma-r` 768x1024, first call: portable + torch.compile 142 s (cold Inductor cache), TensorRT bf16 175 s (ONNX + engine).
 - `loma-b` original 768x1024: upstream LoMa(LoMaB(mp=False)), float32, 2048 keypoints
+- `loma-b64` original (fp32) 768x1024: upstream loma-b64 (mp=False), float32, 2048 keypoints
+- `loma-b128` original (fp32) 768x1024: upstream loma-b128 (mp=False), float32, 2048 keypoints
+- `loma-l` original (fp32) 768x1024: upstream loma-l (mp=False), float32, 2048 keypoints
+- `loma-g` original (fp32) 768x1024: upstream loma-g (mp=False), float32, 2048 keypoints
+- `loma-g` portable 768x1024: Resize the previous descriptor scale after computing the final convolution. The synthetic and three calibrated MegaDepth pairs returned the same keypoints, matches and scores.
+- `loma-g` kernels 768x1024: Release each old detector context before running the next convolution. The synthetic and three calibrated MegaDepth pairs returned the same keypoints, matches and scores.
+- `loma-r` original (fp32) 768x1024: upstream loma-r (mp=False), float32, 2048 keypoints
 - `loma-b` load / first call: original 8.52 s / 1.373 s, portable 2.53 s / 1.269 s, kernels 1.61 s / 0.757 s
-- `loma-b64` load / first call: portable 0.28 s / 0.759 s, kernels 0.91 s / 0.651 s
-- `loma-b128` load / first call: portable 0.52 s / 0.636 s, kernels 0.85 s / 0.662 s
-- `loma-l` load / first call: portable 1.49 s / 0.69 s, kernels 3.06 s / 0.758 s
-- `loma-g` load / first call: portable 2.36 s / 0.8 s, kernels 2.19 s / 0.677 s
-- `loma-r` load / first call: portable 2.8 s / 0.733 s, kernels 1.93 s / 0.809 s
+- `loma-b64` load / first call: original 4.43 s / 1.508 s, portable 0.28 s / 0.759 s, kernels 0.91 s / 0.651 s
+- `loma-b128` load / first call: original 2.84 s / 0.37 s, portable 0.52 s / 0.636 s, kernels 0.85 s / 0.662 s
+- `loma-l` load / first call: original 10.38 s / 1.087 s, portable 1.49 s / 0.69 s, kernels 3.06 s / 0.758 s
+- `loma-g` load / first call: original 9.48 s / 1.235 s, portable 2.36 s / 0.8 s, kernels 2.19 s / 0.677 s
+- `loma-r` load / first call: original 7.49 s / 1.035 s, portable 2.8 s / 0.733 s, kernels 1.93 s / 0.809 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
 Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Both modes receive pairs resized to 768 x 1024. Map matched pixels to the calibrated evaluation coordinates and use the same RANSAC seed per pair. The same 300 pairs for all modes, so float32 and bfloat16 compare pair for pair. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | portable fp32 | TensorRT | note |
-|---|---|---|---|---|---|---|
-| `loma-b` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 58.1 / 73.5 / 84.2 |  | 56.9 / 73.1 / 84.2 |  |
-| `loma-b` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.5 / 71.6 / 83.7 | 54.3 / 71.3 / 83.6 | 56.2 / 72.7 / 84.1 |  |  |
-| `loma-b64` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 54.8 / 71.4 / 83.2 |  | 58.4 / 74.4 / 84.4 |  |
-| `loma-b64` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 57.0 / 73.6 / 84.8 |  | 54.9 / 71.5 / 83.1 |  |  |
-| `loma-b128` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 53.0 / 70.2 / 82.1 |  | 55.6 / 71.5 / 82.7 |  |
-| `loma-b128` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 55.4 / 71.7 / 82.7 |  | 56.2 / 72.0 / 83.7 |  |  |
-| `loma-l` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 57.1 / 72.9 / 83.8 |  | 55.3 / 72.6 / 83.9 |  |
-| `loma-l` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.3 / 70.9 / 83.3 |  | 57.1 / 72.9 / 84.6 |  |  |
-| `loma-g` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 56.8 / 72.6 / 84.0 |  | 56.7 / 72.4 / 83.3 |  |
-| `loma-g` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 59.1 / 74.1 / 84.5 |  | 58.8 / 74.6 / 85.3 |  |  |
-| `loma-r` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 55.7 / 72.5 / 84.4 |  | 55.3 / 71.0 / 82.6 |  |
-| `loma-r` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 57.1 / 72.6 / 84.1 |  | 56.9 / 72.4 / 83.6 |  |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|
+| `loma-b` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 58.1 / 73.5 / 84.2 |  | 57.2 / 73.8 / 84.8 | 56.9 / 73.1 / 84.2 |  |
+| `loma-b` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.5 / 71.6 / 83.7 | 54.3 / 71.3 / 83.6 | 56.2 / 72.7 / 84.1 |  |  |  |
+| `loma-b64` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 54.8 / 71.4 / 83.2 |  | 56.0 / 71.6 / 83.2 | 58.4 / 74.4 / 84.4 |  |
+| `loma-b64` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 57.0 / 73.6 / 84.8 |  | 54.9 / 71.5 / 83.1 |  |  |  |
+| `loma-b128` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 53.0 / 70.2 / 82.1 |  | 54.9 / 71.8 / 84.0 | 55.6 / 71.5 / 82.7 |  |
+| `loma-b128` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 55.4 / 71.7 / 82.7 |  | 56.2 / 72.0 / 83.7 |  |  |  |
+| `loma-l` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 57.1 / 72.9 / 83.8 |  | 59.9 / 76.0 / 86.2 | 55.3 / 72.6 / 83.9 |  |
+| `loma-l` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.3 / 70.9 / 83.3 |  | 57.1 / 72.9 / 84.6 |  |  |  |
+| `loma-g` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 56.8 / 72.6 / 84.0 |  | 56.9 / 73.0 / 83.9 | 56.7 / 72.4 / 83.3 |  |
+| `loma-g` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 59.1 / 74.1 / 84.5 |  | 58.8 / 74.6 / 85.3 |  |  |  |
+| `loma-r` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 55.7 / 72.5 / 84.4 |  | 54.5 / 70.4 / 83.1 | 55.3 / 71.0 / 82.6 |  |
+| `loma-r` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 57.1 / 72.6 / 84.1 |  | 56.9 / 72.4 / 83.6 |  |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9 / 4475282a / ba3a401e / c4a792fe, 2026-11-18 to 2026-11-20; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9, 2026-11-20; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4475282a / ba3a401e / c4a792fe, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9 / 4475282a / ba3a401e / c4a792fe, 2026-11-18 to 2026-11-20; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9, 2026-11-20; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 379b86e4b / 8630e98f1 / cb6c4aae6, 2026-11-20; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4475282a / ba3a401e / c4a792fe, 2026-11-18.
 
 ### Parity
 
@@ -524,8 +531,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 8.89<br>7.17<br>15.2<br>5.65<br>5.50 (standalone image CNN, eager keypoint selection and matching) | 128 / 174<br>122 / 154<br>313 / 352<br>186 / 212<br>268 / 416 |
-| `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>21.3<br>29.2<br>16.2<br>public API unavailable | 448 / 478<br>445 / 476<br>445 / 478<br>262 / 278<br>– |
+| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 8.89<br>10.6<br>17.1<br>5.65<br>5.50 (standalone image CNN, eager keypoint selection and matching) | 128 / 174<br>122 / 154<br>296 / 352<br>186 / 212<br>268 / 416 |
+| `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>31.8<br>32.8<br>16.2<br>public API unavailable | 448 / 478<br>444 / 476<br>445 / 478<br>262 / 278<br>– |
 
 <details><summary>Details</summary>
 
@@ -544,11 +551,9 @@ Commercial use: yes.
 - `xfeat` 768x1024, first call: portable + torch.compile 31 s (cold Inductor cache), TensorRT fp32 12 s (ONNX + engine).
 - `xfeat-lighterglue` 768x1024, first call: portable + torch.compile 40 s (cold Inductor cache).
 - `xfeat` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + mnn, top_k 4096
-- `xfeat` portable 768x1024: Matched public-call comparison for the kernels row at the same input, using the card defaults.
-- `xfeat` kernels 768x1024: IEEE FP32 extractor uses eager CUDA at this geometry. Its small-shape CUDA graphs are retained. Matches and scores were bitwise equal on 66 MegaDepth pairs.
+- `xfeat` portable 768x1024, kernels 768x1024: Convolution and BatchNorm run separately to preserve the reference pose accuracy.
 - `xfeat-lighterglue` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + lighterglue, top_k 4096
-- `xfeat-lighterglue` portable 768x1024: Matched public-call comparison for the kernels row at the same input, using the card defaults.
-- `xfeat-lighterglue` kernels 768x1024: IEEE FP32 extractor uses eager CUDA at this geometry. Its small-shape CUDA graphs are retained. Matches and scores were bitwise equal on 66 MegaDepth pairs.
+- `xfeat-lighterglue` portable 768x1024, kernels 768x1024: Convolution and BatchNorm run separately to preserve the reference pose accuracy.
 - `xfeat` load / first call: original 1.51 s / 0.629 s, portable 0.16 s / 0.74 s, kernels 0.17 s / 0.638 s
 - `xfeat-lighterglue` load / first call: original 1.46 s / 0.692 s, portable 0.25 s / 0.681 s, kernels 0.16 s / 0.727 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -557,15 +562,15 @@ Commercial use: yes.
 
 Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Both modes receive pairs resized to 768 x 1024. Map matched pixels to the calibrated evaluation coordinates and use the same RANSAC seed per pair. The same 300 pairs for all modes, so float32 and bfloat16 compare pair for pair. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | TensorRT | note |
-|---|---|---|---|---|---|---|---|
-| `xfeat` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  | 26.2 / 42.2 / 57.5 |  |  |  |
-| `xfeat` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  |  | 27.4 / 43.7 / 59.5 | 27.9 / 44.3 / 60.0 |  |
-| `xfeat` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 29.1 / 46.1 / 60.8 | 28.4 / 44.6 / 60.1 | 29.1 / 46.1 / 60.8 |  |  |  |
-| `xfeat-lighterglue` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  | 39.7 / 57.5 / 72.8 |  |  |  |
-| `xfeat-lighterglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 42.0 / 59.4 / 74.3 | 42.7 / 60.1 / 74.1 | 42.0 / 59.4 / 74.3 |  |  |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `xfeat` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  | 26.2 / 42.2 / 57.5 |  |  |  |  |
+| `xfeat` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  |  | 27.4 / 43.7 / 59.5 |  | 27.9 / 44.3 / 60.0 |  |
+| `xfeat` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 29.1 / 46.1 / 60.8 | 28.4 / 44.6 / 60.1 | 29.1 / 46.1 / 60.8 |  | 26.8 / 43.0 / 59.2 |  |  |
+| `xfeat-lighterglue` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  | 39.7 / 57.5 / 72.8 |  |  |  |  |
+| `xfeat-lighterglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 42.0 / 59.4 / 74.3 | 42.7 / 60.1 / 74.1 | 42.0 / 59.4 / 74.3 |  | 40.9 / 58.8 / 73.1 |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ec7b1307+port/p1-match, 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7243b9b8, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7243b9b8, 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7b65b918f / a1d55d1286e64f01e35fbf172487755e5a8a7bc4 / ec7b1307+port/p1-match, 2026-11-12 to 2026-11-20; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7243b9b8, 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 78a59767f / 7b65b918f, 2026-11-20; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7243b9b8, 2026-11-19.
 
 ### Parity
 
@@ -582,6 +587,7 @@ CPU, float32: max |diff| <= 3e-05 vs the original. GPU, float32 (the default), p
 - One image pair per call internally (batches run pair by pair); the keypoint counts differ per image.
 - Whole-model ONNX and TensorRT export stops at the data-dependent keypoint counts. `torch.compile` runs with graph breaks.
 - `xfeat` (mutual nearest neighbours) has no learned confidence: its scores are the descriptors' cosine similarities.
+- On CUDA, kernels uses IEEE FP32 convolutions. Portable follows PyTorch's cuDNN precision setting. Both modes returned identical keypoints, matches and scores on 32 checked MegaDepth pairs when they used the same convolution precision.
 
 </details>
 

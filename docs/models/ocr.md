@@ -14,8 +14,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 |---|---|---|---|
 | [`parseq`](#parseq) | yes | 3.62, 4.4x (32x128) | 100, 0.69x |
 | [`parseq-tiny`](#parseq) | yes | 2.10, 6.9x (32x128) | 54, 0.93x |
-| [`ppocrv5-mobile`](#ppocrv5) | yes | 154, 2.7x | 1016, 1.0x |
-| [`ppocrv5-server`](#ppocrv5) | yes | 228, 3.3x | 1648, 0.57x |
+| [`ppocrv5-mobile`](#ppocrv5) | yes | 156, 2.7x | 448, 0.45x |
+| [`ppocrv5-server`](#ppocrv5) | yes | 231, 3.3x | 654, 0.23x |
 
 <a id="parseq"></a>
 
@@ -59,11 +59,11 @@ The 3,000 official cropped test words, with no lexicon. Exact accuracy and norma
 
 | variant | dataset | original fp32 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
 |---|---|---|---|---|---|---|---|---|
-| `parseq` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 98.37 / 99.62 | 98.37 / 99.62 | 98.37 / 99.62 |  |  |  |  |
+| `parseq` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 98.37 / 99.62 | 98.37 / 99.62 | 98.37 / 99.62 | 98.37 / 99.62 |  |  |  |
 | `parseq-tiny` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 97.67 / 99.45 |  | 97.67 / 99.45 |  |  |  |  |
 | `parseq-tiny` | IIIT5K test (300 crops), word accuracy / normalized edit similarity % |  | 97.00 / 99.32 |  | 97.00 / 99.32 | 97.00 / 99.32 | 97.00 / 99.32 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb / 5f4a908a0, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a54f74f7, 2026-11-19; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb / 5f4a908a0, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00 / a54f74f7, 2026-11-19 to 2026-11-20; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19.
 
 ### Parity
 
@@ -86,8 +86,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `ppocrv5-server` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 762<br>279<br>228<br>277<br>25.1 | 2355 / 2901<br>615 / 752<br>730 / 1648<br>958 / 1132<br>1131 / 1146 |
-| `ppocrv5-mobile` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 619<br>418<br>153<br>154<br>115<br>2.68 | 476 / 1094<br>393 / 1005<br>289 / 448<br>500 / 1016<br>292 / 448<br>241 / 268 |
+| `ppocrv5-server` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 762<br>279<br>231<br>277<br>25.1 | 2355 / 2901<br>615 / 752<br>607 / 654<br>958 / 1132<br>1131 / 1146 |
+| `ppocrv5-mobile` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 619<br>418<br>153<br>156<br>115<br>2.68 | 476 / 1094<br>393 / 1005<br>289 / 448<br>289 / 448<br>292 / 448<br>241 / 268 |
 
 <details><summary>Details</summary>
 
@@ -105,10 +105,11 @@ Commercial use: yes.
 - `ppocrv5-server` 1080x1920, first call: portable + torch.compile 105 s (cold Inductor cache), TensorRT fp16 41 s (ONNX + engine).
 - `ppocrv5-mobile` 1080x1920, first call: portable + torch.compile 75 s (cold Inductor cache), TensorRT fp16 156 s (ONNX + engine).
 - `ppocrv5-server` original 1080x1920: PaddleOCR 3 3.3.3 / paddle 3.3.1 OCR pipeline (GPU Paddle Inference, run mode ['paddle']), no orientation / unwarping / text-line classifier; fp32 only: PaddleOCR's float16 needs TensorRT, and Paddle Inference float16 reads no text (detector overflow)
-- `ppocrv5-server` portable 1080x1920, kernels 1080x1920: FP16 native OCR with detector head strips. Public boxes, detection scores, and recognized text matched the full head on 24 pages including 23 constructed with labeled IIIT5K crops.
+- `ppocrv5-server` portable 1080x1920: FP16 native OCR with detector head strips. Public boxes, detection scores, and recognized text matched the full head on 24 pages including 23 constructed with labeled IIIT5K crops.
+- `ppocrv5-server` kernels 1080x1920: Large pages release detector and recognition graph pools. All checked text, boxes and scores match bitwise.
 - `ppocrv5-mobile` original (fp32) 1080x1920: PaddleOCR 3 3.3.3 / paddle 3.3.1 OCR pipeline (GPU Paddle Inference, run mode ['paddle']), no orientation / unwarping / text-line classifier
 - `ppocrv5-mobile` original 1080x1920: PaddleOCR 3 3.3.3 / paddle 3.3.1 OCR pipeline (GPU Paddle Inference, run mode ['paddle_fp16']), no orientation / unwarping / text-line classifier
-- `ppocrv5-mobile` kernels 1080x1920: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `ppocrv5-mobile` kernels 1080x1920: Large pages release detector and recognition graph pools. All checked text, boxes and scores match bitwise.
 - `ppocrv5-server` load / first call: original 2.07 s / 2.032 s, portable 0.56 s / 1.874 s, kernels 1.07 s / 1.106 s
 - `ppocrv5-mobile` load / first call: original 1.51 s / 1.82 s, portable 0.27 s / 2.819 s, kernels 0.41 s / 3.002 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -117,12 +118,12 @@ Commercial use: yes.
 
 The 3,000 official cropped test words, with no lexicon. Exact accuracy and normalized edit similarity compare lowercase ASCII letters and digits. Similarity is one minus edit distance divided by the longer word's length, averaged over the crops. For a model that also detects text, this benchmark runs only its recognition network on the supplied word crop. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | portable fp32 | note |
-|---|---|---|---|---|---|
-| `ppocrv5-server` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 94.80 / 98.26 | 94.80 / 98.27 | 94.80 / 98.26 |  |
-| `ppocrv5-mobile` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 89.43 / 96.19 | 89.40 / 96.18 | 89.40 / 96.19 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `ppocrv5-server` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 94.80 / 98.26 | 94.80 / 98.27 | 94.80 / 98.26 | 94.80 / 98.25 |  |
+| `ppocrv5-mobile` | IIIT5K test word crops, word accuracy / normalized edit similarity % | 89.43 / 96.19 | 89.40 / 96.18 | 89.40 / 96.19 | 89.40 / 96.18 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00, 2026-11-20.
 
 ### Parity
 

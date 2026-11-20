@@ -43,12 +43,14 @@ from . import convert
 from .net import build
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
     from fastforks.ocr._runner import Context
 
 REC_BATCH = 6  # fixed: PaddleX OCR pipeline `TextRecognition.batch_size`
 FP16_NECK_SCALE = 256.0  # fixed: a power of two (exact); the server neck's ~1.5e6 peaks -> ~6e3 in float16
+_DETECTOR_GRAPH_PIXELS = 1 << 20
 
 
 @dataclass(frozen=True)
@@ -102,14 +104,17 @@ class Portable(Runner):
         """Text lines of a `[1, 3, H, W]` RGB image."""
         p = self.ctx.params
         bgr = self._levels(image)
-        pred = self._detect(det_input(bgr))
+        page = det_input(bgr)
+        recognise = self._page_recogniser(page)
+        pred = self._detect(page)
+        del page
         quads = text_boxes(
             pred, (bgr.shape[-2], bgr.shape[-1]), box_threshold=p.box_threshold, unclip_ratio=p.unclip_ratio
         )
         crops = line_crops(bgr, quads)
         texts, scores = [""] * len(crops), np.zeros(len(crops), np.float32)
         for ids, x in rec_batches(crops, REC_BATCH):
-            t, s = ctc_decode(self._recognise(x), self.chars)
+            t, s = ctc_decode(recognise(x), self.chars)
             for k, i in enumerate(ids):
                 texts[i], scores[i] = t[k], s[k]
         dev = image.device
@@ -126,6 +131,9 @@ class Portable(Runner):
     def _recognise(self, x: torch.Tensor) -> torch.Tensor:
         """Class probabilities `[b, T, classes]` of a recogniser batch `[b, 3, 48, W]`."""
         return self.rec(x.to(self.dtype))
+
+    def _page_recogniser(self, _page: torch.Tensor, /) -> Callable[[torch.Tensor], torch.Tensor]:
+        return self._recognise
 
     def module(self) -> torch.nn.Module:
         """The detector with its normalisation: `[B, 3, h, w]` RGB in `[0, 1]` (multiples of 32) -> map `[B, h, w]`."""
@@ -150,7 +158,7 @@ class Kernels(Portable):
         if ctx.params.server:
             prepare_generic(self.det, ctx.device)
             prepare_generic(self.rec, ctx.device)
-        self.det_graphs = SmallShapeGraphs(super()._detect, pixels=2**22)
+        self.det_graphs = SmallShapeGraphs(super()._detect, pixels=_DETECTOR_GRAPH_PIXELS)
         self.rec_graphs = SmallShapeGraphs(super()._recognise, pixels=2**22)
 
     _levels = staticmethod(ocr_levels.levels)
@@ -160,6 +168,13 @@ class Kernels(Portable):
 
     def _recognise(self, x: torch.Tensor) -> torch.Tensor:
         return self.rec_graphs(x)
+
+    def _page_recogniser(self, page: torch.Tensor, /) -> Callable[[torch.Tensor], torch.Tensor]:
+        if page.shape[0] * page.shape[-2] * page.shape[-1] <= _DETECTOR_GRAPH_PIXELS:
+            return self._recognise
+        # Retire recognition graphs before the large detector allocates its activations.
+        self.rec_graphs.release()
+        return super()._recognise
 
     def release_graphs(self) -> None:
         """Release captured activation buffers."""

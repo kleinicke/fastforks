@@ -219,6 +219,12 @@ def _gru(  # noqa: PLR0913, PLR0917 - one GRU half step
 
     The weights without the context channels; their terms are `c_zr` (z, then r) and `c_q`, with the biases.
     """
+    if hidden.is_cuda and not (torch.is_grad_enabled() or torch.compiler.is_compiling()):
+        # Each convolution owns its result and can reuse it for the next pointwise operation.
+        gates = F.conv2d(torch.cat([hidden, motion], 1), w_zr, padding=pad).add_(c_zr).sigmoid_()
+        z, r = gates.chunk(2, 1)
+        q = F.conv2d(torch.cat([r * hidden, motion], 1), w_q, padding=pad).add_(c_q).tanh_()
+        return (1 - z).mul_(hidden).add_(q.mul_(z))
     z, r = torch.sigmoid(F.conv2d(torch.cat([hidden, motion], 1), w_zr, padding=pad) + c_zr).chunk(2, 1)
     q = torch.tanh(F.conv2d(torch.cat([r * hidden, motion], 1), w_q, padding=pad) + c_q)
     return (1 - z) * hidden + z * q

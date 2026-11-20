@@ -31,6 +31,7 @@ import json
 import subprocess
 import sys
 import time
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +39,7 @@ import numpy as np
 from PIL import Image
 
 from _data import DATA
+from _prefetch import prefetch
 
 STEREO = DATA / "stereo"
 MONO = DATA / "mono/moge_eval"
@@ -304,6 +306,11 @@ def run(a: argparse.Namespace) -> int:
     return 0
 
 
+def _load_item(item: tuple[str, str, Any]) -> tuple[str, str, tuple[np.ndarray, ...]]:
+    dataset, key, load = item
+    return dataset, key, load()
+
+
 def run_one(a: argparse.Namespace, ref: str, t0: float) -> int:  # noqa: C901, PLR0915
     """One ref; tiers `upstreamhalf` is skipped where the authors' code has its own fp16 option."""
     import torch  # noqa: PLC0415
@@ -348,32 +355,33 @@ def run_one(a: argparse.Namespace, ref: str, t0: float) -> int:  # noqa: C901, P
             continue
         f.write(json.dumps(meta) + "\n")
         first = True
-        for ds, key, ld in todo:
-            if time.perf_counter() - t0 > a.max_seconds:
-                again = True
-                break
-            data = ld()
-            gt = data[-1]
-            args = pr.prep(list(data[:-1]))
-            torch.cuda.synchronize()
-            torch.cuda.reset_peak_memory_stats()
-            tc = time.perf_counter()
-            try:
-                pred, space = pr.call(args, ds)
+        with closing(prefetch(_load_item, todo)) as inputs:
+            for _ in todo:
+                if time.perf_counter() - t0 > a.max_seconds:
+                    again = True
+                    break
+                ds, key, data = next(inputs)
+                gt = data[-1]
+                args = pr.prep(list(data[:-1]))
                 torch.cuda.synchronize()
-            except Exception as e:  # noqa: BLE001
-                f.write(json.dumps({"ds": ds, "key": key, "error": f"call: {type(e).__name__}: {e}"[:400]}) + "\n")
-                print("ERROR", ref, tier, key, type(e).__name__, str(e)[:300], flush=True)
-                break
-            ms = 1e3 * (time.perf_counter() - tc)
-            row = {"ds": ds, "key": key, "ms": round(ms, 2), "first": first,
-                   "peak_alloc_mb": round(torch.cuda.max_memory_allocated() / 2**20),
-                   "peak_reserved_mb": round(torch.cuda.max_memory_reserved() / 2**20)}  # fmt: skip
-            row |= _item(pred, space, gt, ds, a.task, pr.kind)
-            first = False
-            f.write(json.dumps(row) + "\n")
-            f.flush()
-            pred = args = None
+                torch.cuda.reset_peak_memory_stats()
+                tc = time.perf_counter()
+                try:
+                    pred, space = pr.call(args, ds)
+                    torch.cuda.synchronize()
+                except Exception as e:  # noqa: BLE001
+                    f.write(json.dumps({"ds": ds, "key": key, "error": f"call: {type(e).__name__}: {e}"[:400]}) + "\n")
+                    print("ERROR", ref, tier, key, type(e).__name__, str(e)[:300], flush=True)
+                    break
+                ms = 1e3 * (time.perf_counter() - tc)
+                row = {"ds": ds, "key": key, "ms": round(ms, 2), "first": first,
+                       "peak_alloc_mb": round(torch.cuda.max_memory_allocated() / 2**20),
+                       "peak_reserved_mb": round(torch.cuda.max_memory_reserved() / 2**20)}  # fmt: skip
+                row |= _item(pred, space, gt, ds, a.task, pr.kind)
+                first = False
+                f.write(json.dumps(row) + "\n")
+                f.flush()
+                pred = args = None
         f.close()
         del pr
         gc.collect()

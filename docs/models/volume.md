@@ -13,7 +13,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`nnfoundation-cnn`](#nnfoundation) | yes | 232, 1.2x | 3330, 0.72x |
-| [`nnfoundation-vit`](#nnfoundation) | yes | 1732, 1.1x (192x192) | 1884, 0.44x |
+| [`nnfoundation-vit`](#nnfoundation) | yes | 1699, 1.1x (192x192) | 1564, 0.36x |
 | [`nninteractive`](#nninteractive) | no | 193, 2.4x | 2772, 0.6x |
 | [`totalsegmentator-total`](#totalsegmentator) | yes | 1647, 27.7x | 1638, 0.57x |
 | [`totalsegmentator-total-3mm`](#totalsegmentator) | yes | 71.8, 101.2x | 1376, 0.51x |
@@ -29,7 +29,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `nnfoundation-cnn` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>274<br>248<br>232<br>170<br>255 (encoder on a normalized, padded volume only; memory estimated) | 7247 / 8734<br>3818 / 4628<br>2368 / 3330<br>2325 / 3330<br>5067 / 5110<br>3374 / 3398 |
-| `nnfoundation-vit` | synthetic (192x192) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | OOM<br>1930<br>1848<br>1732<br>1440<br>7024 (standalone encoder, fixed 192³, TF32 disabled) | –<br>3930 / 4298<br>1669 / 1884<br>1669 / 1884<br>1406 / 1484<br>8452 / 8452 |
+| `nnfoundation-vit` | synthetic (192x192) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | OOM<br>1930<br>1816<br>1699<br>1440<br>7024 (standalone encoder, fixed 192³, TF32 disabled) | –<br>3930 / 4298<br>1510 / 1564<br>1510 / 1564<br>1406 / 1484<br>8452 / 8452 |
 
 <details><summary>Details</summary>
 
@@ -50,6 +50,7 @@ Commercial use: yes.
 - `nnfoundation-cnn` original (fp32) 200x200, original 200x200: nnssl network (dna 0.4.4) encoder; nnU-Net ZScoreNormalization on the CPU + pad + forward
 - `nnfoundation-cnn` portable 200x200, kernels 200x200: Crop the feature maps before converting their returned values to FP32, and reuse the convolution output during portable normalization. All six feature levels matched bitwise on the synthetic 200³ volume and three CT crops.
 - `nnfoundation-vit` original 192x192: nnssl network (dna 0.4.4) encoder; nnU-Net ZScoreNormalization on the CPU + pad + forward
+- `nnfoundation-vit` portable 192x192, kernels 192x192: CUDA FP16 inference bounds ViT normalization and rotary workspaces. Both modes match all previous encoder feature maps on a synthetic volume and three labeled CT crops.
 - `nnfoundation-cnn` load / first call: original 1.18 s / 0.69 s, portable 0.56 s / 0.269 s, kernels 0.39 s / 0.291 s
 - `nnfoundation-vit` load / first call: original 9.54 s / 2.37 s (192x192), portable 1.24 s / 1.867 s (192x192), kernels 1.27 s / 1.756 s (192x192)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -94,7 +95,7 @@ Commercial use: **no** (weights: CC-BY-NC-SA-4.0).
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `nninteractive` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 705<br>460<br>209<br>193<br>162<br>fails: The TensorRT export accepts prepared 192³ network patches. | 7156 / 8408<br>4076 / 4636<br>2423 / 2772<br>2423 / 2772<br>3643 / 3832<br>– |
-| `nninteractive` | 192x192 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>262 (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | –<br>–<br>–<br>2738 / 2740 |
+| `nninteractive` | synthetic (192x192) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>204<br>–<br>262 (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | –<br>2145 / 2608<br>–<br>2738 / 2740 |
 
 <details><summary>Details</summary>
 
@@ -111,6 +112,7 @@ Commercial use: **no** (weights: CC-BY-NC-SA-4.0).
 - `nninteractive` 200x200, first call: portable + torch.compile 18 s (cold Inductor cache).
 - `nninteractive` 192x192, first call: TensorRT fp16 58 s (ONNX + engine).
 - `nninteractive` portable 200x200, kernels 200x200: Prepares each 3D patch directly in the CUDA network layout. Identical prompt-session masks on synthetic and three labeled CT cases in both CUDA modes.
+- `nninteractive` portable 192x192: Portable timing measured separately at the TensorRT comparison's input shape, precision and prepared 8-channel 192×192×192 network patch scope.
 - `nninteractive` load / first call: original 3.23 s / 1.038 s, portable 1.09 s / 0.482 s, kernels 0.65 s / 0.403 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -131,6 +133,10 @@ CPU, float32: max |diff| <= 0.0 vs the original. GPU, float16 (the default), por
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `nninteractive` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@c55f9fff92d3:sm_120` |
+
+### Limitations
+
+- On the RTX 5060 Ti, preparing a 192³ network patch at 2.25× AutoZoom took 43.2 ms and 2,575 MiB peak allocation, down from 50.9 ms and 5,081 MiB on the same synthetic session state. Tested zoomed patches and prompted CT masks matched bit for bit in the paired runs.
 
 </details>
 

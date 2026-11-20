@@ -323,14 +323,20 @@ class BaseCamera(TensorWrapper):
         else:
             raise NotImplementedError(f"Jacobian not implemented for wrt={wrt}")
 
-    def pixel_coordinates(self) -> torch.Tensor:
+    def pixel_coordinates(self, size: Tuple[int, int] | None = None) -> torch.Tensor:
         """Pixel coordinates in self frame.
+
+        Args:
+            size: Optional precomputed height and width of the camera image.
 
         Returns:
             torch.Tensor: Pixel coordinates as a tensor of shape (B, h * w, 2).
         """
-        w, h = self.size[0].unbind(-1)
-        h, w = h.round().to(int), w.round().to(int)
+        if size is None:
+            w, h = self.size[0].unbind(-1)
+            h, w = h.round().to(int), w.round().to(int)
+        else:
+            h, w = size
 
         # create grid
         x = torch.arange(0, w, dtype=self.dtype, device=self.device)

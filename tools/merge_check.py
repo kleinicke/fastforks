@@ -6,6 +6,8 @@
 
 Add `--golden-only` to the three commands for a correctness check of the exact selected revisions. Passing
 checks are reused across edits limited to unrelated model families.
+For correctness-only runs, `--batch-size 4` shares interpreter and CUDA startup across up to four jobs.
+If a group fails, its unfinished jobs retry in fresh processes.
 Add `--no-core` to `estimate` and `run` when the full-call timing is enough for the speed floor.
 
 SELECTION.json is `tools/select_tests.py --json`. `run` starts one worker per (ref, mode) of the selected families' refs
@@ -183,8 +185,30 @@ def worker(spec: dict[str, Any]) -> int:
 
     os.environ.setdefault(registry.NONCOMMERCIAL_ENV, "1")  # as tests/conftest.py: goldens may need such weights
     sc = speed_check()
-    sc.MODEL_STEPS.append(golden_step)
+    if golden_step not in sc.MODEL_STEPS:
+        sc.MODEL_STEPS.append(golden_step)
     return sc.worker(spec)
+
+
+def worker_batch(specs: list[dict[str, Any]]) -> int:
+    """Run correctness checks in one process, stopping before a CUDA error can affect later jobs."""
+    import gc  # noqa: PLC0415
+
+    import torch  # noqa: PLC0415
+
+    for i, spec in enumerate(specs):
+        path = Path(spec["out"])
+        offset = path.stat().st_size if path.exists() else 0
+        if status := worker(spec | {"warm_worker": i > 0}):
+            return status
+        with path.open("rb") as stream:
+            stream.seek(offset)
+            rows = [json.loads(line) for line in stream if line.strip()]
+        if not rows or rows[-1].get("golden") not in {"pass", "skip"}:
+            return 1
+        gc.collect()
+        torch.cuda.empty_cache()
+    return 0
 
 
 # Orchestration (no torch).
@@ -319,22 +343,33 @@ def _done(
     golden_sources: tuple[str, ...] = (),
     no_core: bool = False,
 ) -> bool:
+    last = next(
+        (
+            r
+            for r in reversed(rows)
+            if r.get("side") == "lib"
+            and r.get("input") in {GOLDEN, "-"}
+            and (r["ref"], r["mode"]) == (job["ref"], job["mode"])
+        ),
+        {},
+    )
     if golden_sources:
-        last = next(
-            (
-                r
-                for r in reversed(rows)
-                if r.get("side") == "lib"
-                and r.get("input") in {GOLDEN, "-"}
-                and (r["ref"], r["mode"]) == (job["ref"], job["mode"])
-            ),
-            {},
-        )
         return last.get("golden") == "pass" and last.get("golden_source") in golden_sources and _current(sc, last)
-    golden = [r for r in rows if r.get("input") == GOLDEN and (r["ref"], r["mode"]) == (job["ref"], job["mode"])]
-    ok = bool(golden) and golden[-1].get("golden") in {"pass", "skip"} and _current(sc, golden[-1])
+    ok = last.get("golden") in {"pass", "skip"} and _current(sc, last)
     timing_job = job | {"no_core": no_core}
     return ok and (not job["inputs"] or sc._done(rows, "lib", timing_job))  # noqa: SLF001 - speed_check's resume rule
+
+
+def _launch(specs: tuple[dict[str, Any], ...], prefix: list[str], env: dict[str, str]) -> int:
+    payload = specs[0] if len(specs) == 1 else specs
+    cmd = [*prefix, sys.executable, str(Path(__file__).resolve()), "worker", json.dumps(payload)]
+    return subprocess.run(cmd, env=env, check=False).returncode
+
+
+def _isolated_worker(sc: ModuleType, spec: dict[str, Any], prefix: list[str], env: dict[str, str]) -> None:
+    if rc := _launch((spec,), prefix, env):
+        err = {k: spec[k] for k in ("ref", "task", "mode", "side", "commit")} | {"input": "-"}
+        sc._append(Path(spec["out"]), err | {"error": f"worker rc={rc}", "date": time.strftime("%F")})  # noqa: SLF001
 
 
 def run(a: argparse.Namespace) -> int:
@@ -346,6 +381,8 @@ def run(a: argparse.Namespace) -> int:
     floor = sc._floor_index() if not a.golden_only else {}  # noqa: SLF001
     sources = _golden_sources_by_ref(checks, commit) if a.golden_only else {}
     env = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(ROOT / "src"), os.environ.get("PYTHONPATH")]))}
+    prefix = shlex.split(a.prefix)
+    pending = []
     for job in checks:
         golden_sources = sources.get(job["ref"], ())
         tag = f"{job['family']} {job['ref']} {job['mode']}"
@@ -357,19 +394,27 @@ def run(a: argparse.Namespace) -> int:
             spec["golden_source"] = golden_sources[0]
         spec["no_profile"] = not a.profile
         spec["no_core"] = a.no_core
-        print(
-            f"== {tag} {time.strftime('%T')} "
-            f"(estimate {estimate_s(job, floor, profile=a.profile, no_core=a.no_core):.0f} s)",
-            flush=True,
-        )
-        before = len(rows)
-        cmd = [*shlex.split(a.prefix), sys.executable, str(Path(__file__).resolve()), "worker", json.dumps(spec)]
-        rc = subprocess.run(cmd, env=env, check=False).returncode
-        rows = sc.read_rows(a.out)
-        if rc != 0 and len(rows) == before:
-            err = {k: job[k] for k in ("ref", "task", "mode")} | {"side": "lib", "input": "-", "commit": commit}
-            sc._append(a.out, err | {"error": f"worker rc={rc}", "date": time.strftime("%F")})  # noqa: SLF001
-            rows = sc.read_rows(a.out)
+        pending.append(spec)
+    for start in range(0, len(pending), a.batch_size):
+        group = tuple(pending[start : start + a.batch_size])
+        for spec in group:
+            duration = estimate_s(spec, floor, profile=a.profile, no_core=a.no_core)
+            tag = f"{spec['family']} {spec['ref']} {spec['mode']}"
+            print(f"== {tag} {time.strftime('%T')} (estimate {duration:.0f} s)", flush=True)
+        if len(group) == 1:
+            _isolated_worker(sc, group[0], prefix, env)
+            continue
+        offset = len(sc.read_rows(a.out))
+        if _launch(group, prefix, env):
+            completed = {
+                (r["ref"], r["mode"])
+                for r in sc.read_rows(a.out)[offset:]
+                if r.get("input") == GOLDEN and r.get("golden") in {"pass", "skip"}
+            }
+            for spec in group:
+                if (spec["ref"], spec["mode"]) not in completed:
+                    print(f"== {spec['ref']} {spec['mode']}: retrying in a fresh process", flush=True)
+                    _isolated_worker(sc, spec, prefix, env)
     return table(sel, a.out, a.family, a.modes, golden_only=a.golden_only)
 
 
@@ -482,10 +527,14 @@ def main() -> int:
     p.add_argument("--out", type=Path, required=True)
     p.add_argument("--prefix", default="", help="command prefix of each worker, e.g. a GPU lock with a timeout")
     p.add_argument("--force", action="store_true", help="run again even if the code did not change")
+    p.add_argument("--batch-size", type=int, default=1, help="correctness-only jobs per worker process")
     sub.add_parser("worker").add_argument("spec")
     a = ap.parse_args()
     if a.cmd == "worker":
-        return worker(json.loads(a.spec))
+        spec = json.loads(a.spec)
+        return worker_batch(spec) if isinstance(spec, list) else worker(spec)
+    if a.cmd == "run" and (a.batch_size < 1 or (a.batch_size > 1 and not a.golden_only)):
+        ap.error("--batch-size must be positive and requires --golden-only for groups larger than one")
     sel = json.loads(a.selection.read_text())
     if a.cmd == "run":
         return run(a)

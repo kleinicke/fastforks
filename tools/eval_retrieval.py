@@ -23,13 +23,14 @@ import os
 import subprocess
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
 import cv2
 import numpy as np
 import torch
+
+from _prefetch import prefetch
 
 ROOT = Path(__file__).resolve().parents[1]
 RADIUS = 25.0  # metres
@@ -84,15 +85,14 @@ def predictor(ref: str, tier: str) -> Any:  # noqa: ANN401
 def describe(fn: Any, paths: list[Path], times: list[float]) -> torch.Tensor:  # noqa: ANN401
     """Descriptors `[N, D]` float32 of `paths`, one call each (timed, decoding overlapped)."""
     out = []
-    with ThreadPoolExecutor(4) as pool:
-        for img in pool.map(read, paths):
-            x = torch.from_numpy(img).cuda().permute(2, 0, 1)[None].float() / 255
-            torch.cuda.synchronize()
-            t = time.perf_counter()
-            d = fn(x)
-            torch.cuda.synchronize()
-            times.append(time.perf_counter() - t)
-            out.append(d.float())
+    for img in prefetch(read, paths, workers=4):
+        x = torch.from_numpy(img).cuda().permute(2, 0, 1)[None].float() / 255
+        torch.cuda.synchronize()
+        t = time.perf_counter()
+        d = fn(x)
+        torch.cuda.synchronize()
+        times.append(time.perf_counter() - t)
+        out.append(d.float())
     return torch.stack(out)
 
 

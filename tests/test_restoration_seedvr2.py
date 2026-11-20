@@ -8,6 +8,7 @@ import torch.nn.functional as F
 
 import fastforks.restoration
 from fastforks._core import registry
+from fastforks.restoration.models.seedvr2.net import vae
 from fastforks.restoration.models.seedvr2.net.vae import CausalConv3d, State
 from fastforks.shared import host_blocks, nf4
 
@@ -105,3 +106,18 @@ def test_nf4_portable_tiles_preserve_scale_boundaries(monkeypatch: pytest.Monkey
     decoded = torch.nn.functional.embedding(q.int(), lut).reshape(-1, nf4.BLOCK)
     expected = (decoded * scales[:, None]).bfloat16().view(13, -1)
     torch.testing.assert_close(nf4.dequant_lut(q, scales, lut, 13), expected, atol=0, rtol=0)
+
+
+@pytest.mark.gpu
+def test_group_norm_split_preserves_affine_and_partial_groups(monkeypatch: pytest.MonkeyPatch) -> None:
+    torch.manual_seed(2)
+    x = torch.randn(2, 28, 3, 19, 17, device="cuda", dtype=torch.bfloat16)
+    norm = torch.nn.GroupNorm(7, 28, device="cuda", dtype=torch.bfloat16)
+    with torch.inference_mode():
+        norm.weight.copy_(torch.randn_like(norm.weight))
+        norm.bias.copy_(torch.randn_like(norm.bias))
+        expected = vae.group_norm(norm, x, upcast=True, silu=True)
+        monkeypatch.setattr(vae, "_GROUP_NORM_MIN_BYTES", 1)
+        monkeypatch.setattr(vae, "_GROUP_NORM_CHUNK_BYTES", 23_000)
+        actual = vae.group_norm(norm, x, upcast=True, silu=True)
+    torch.testing.assert_close(actual, expected, atol=0, rtol=0)

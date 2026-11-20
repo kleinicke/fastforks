@@ -9,6 +9,7 @@ limitations = [
   "One image pair per call internally (batches run pair by pair); the keypoint counts differ per image.",
   "Whole-model ONNX and TensorRT export stops at the data-dependent keypoint counts. `torch.compile` runs with graph breaks.",
   "`xfeat` (mutual nearest neighbours) has no learned confidence: its scores are the descriptors' cosine similarities.",
+  "On CUDA, kernels uses IEEE FP32 convolutions. Portable follows PyTorch's cuDNN precision setting. Both modes returned identical keypoints, matches and scores on 32 checked MegaDepth pairs when they used the same convolution precision.",
 ]
 
 [upstream]

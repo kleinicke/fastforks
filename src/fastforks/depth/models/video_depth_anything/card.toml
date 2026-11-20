@@ -13,7 +13,7 @@ limitations = [
   "`model.video(frames)` runs one video in time order (each window attends over time and is aligned to the previous one); calling the model with an image or a batch runs each image as a one-frame video.",
   "Every video runs at least one 32-frame window (shorter videos are padded with copies of their last frame): one image costs about as much as 32 frames in the temporal head.",
   "The whole video's depth is kept on the device as float32 (L x H x W); split very long videos.",
-  "On a 40-frame 480 x 640 FP16 clip, peak allocation was 1347 MiB portable and 1351 MiB kernels on an RTX 5060 Ti, with warm medians of 455.866 and 373.503 ms. The memory change also preserved bitwise outputs on three 38-frame labeled TUM sequences.",
+  "Video Depth Anything Small at 40 frames of 480 × 640 in FP16 uses 1,231 MiB portable and 1,297 MiB kernels on an RTX 5060 Ti, with warm medians of 458.1 and 375.8 ms. Depth matches bitwise on this clip and three labeled TUM clips within each mode.",
 ]
 
 [output]

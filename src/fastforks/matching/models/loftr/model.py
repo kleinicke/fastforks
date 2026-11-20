@@ -149,16 +149,7 @@ def _block_forward(self: BasicBlock, x: torch.Tensor) -> torch.Tensor:
 
 def _fpn_forward(self: ResNetFPN_8_2, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     """`ResNetFPN_8_2.forward` with the stem conv + BN + ReLU fused."""
-    x0 = conv_ep(self.conv1, x, *_affine(self.conv1), cnn_kernels.ACT["relu"])
-    x1 = self.layer1(x0)
-    x2 = self.layer2(x1)
-    x3 = self.layer3(x2)
-    x3_out = self.layer3_outconv(x3)
-    x3_out_2x = F.interpolate(x3_out, scale_factor=2.0, mode="bilinear", align_corners=True)
-    x2_out = self.layer2_outconv2(self.layer2_outconv(x2) + x3_out_2x)
-    x2_out_2x = F.interpolate(x2_out, scale_factor=2.0, mode="bilinear", align_corners=True)
-    x1_out = self.layer1_outconv2(self.layer1_outconv(x1) + x2_out_2x)
-    return x3_out, x1_out
+    return self._pyramid(conv_ep(self.conv1, x, *_affine(self.conv1), cnn_kernels.ACT["relu"]))
 
 
 def _coarse_matches(

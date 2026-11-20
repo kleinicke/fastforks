@@ -79,16 +79,21 @@ class ResNetFPN_8_2(nn.Module):  # noqa: N801 - upstream name
         return nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        x0 = self.relu(self.bn1(self.conv1(x)))
-        x1 = self.layer1(x0)
+        return self._pyramid(self.relu(self.bn1(self.conv1(x))))
+
+    def _pyramid(self, stem: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Build the coarse and fine maps, with only the live pyramid inputs held during each stage."""
+        x1 = self.layer1(stem)
+        del stem
         x2 = self.layer2(x1)
-        x3 = self.layer3(x2)
-        x3_out = self.layer3_outconv(x3)
-        x3_out_2x = F.interpolate(x3_out, scale_factor=2.0, mode="bilinear", align_corners=True)
-        x2_out = self.layer2_outconv2(self.layer2_outconv(x2) + x3_out_2x)
-        x2_out_2x = F.interpolate(x2_out, scale_factor=2.0, mode="bilinear", align_corners=True)
-        x1_out = self.layer1_outconv2(self.layer1_outconv(x1) + x2_out_2x)
-        return x3_out, x1_out
+        coarse = self.layer3_outconv(self.layer3(x2))
+        x2 = self.layer2_outconv2(
+            self.layer2_outconv(x2) + F.interpolate(coarse, scale_factor=2.0, mode="bilinear", align_corners=True)
+        )
+        fine = self.layer1_outconv2(
+            self.layer1_outconv(x1) + F.interpolate(x2, scale_factor=2.0, mode="bilinear", align_corners=True)
+        )
+        return coarse, fine
 
 
 def sine_encoding(d_model: int, h: int, w: int, *, temp_bug_fix: bool, device: torch.device) -> torch.Tensor:

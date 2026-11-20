@@ -26,9 +26,10 @@ The 1500 pairs of scenes 0015 and 0022 (LoFTR's test split; the glue-factory `me
   mixed precision and CUDA TF32 disabled. LoFTR and DeDoDe (`CARD_PROTOCOL`) use their card defaults, with originals
   `_loftr` (float32 only) and `_dedode` (`upstream16`: upstream's float16 autocast).
   LoMa and FlexGlue use the same card defaults as their original adapters, including a 1024 px detector long side.
-- `score` (CPU): per sampling OpenCV `findEssentialMat` RANSAC (threshold 0.5 px over the mean focal length, confidence
-  0.99999) and `recoverPose`, error = max(angle error of R, of t up to sign); 90 degrees if RANSAC fails. AUC@5/10/20
-  over the 7500 errors (upstream `pose_auc`). Appends one row to `--out`.
+- `score` (CPU, up to three pairs in parallel): per sampling OpenCV `findEssentialMat` RANSAC (threshold 0.5 px over the
+  mean focal length, confidence 0.99999) and `recoverPose`. The error is the larger rotation or translation-direction
+  angle (up to sign), or 90 degrees if RANSAC fails. AUC@5/10/20 over the 7500 errors (upstream `pose_auc`).
+  Appends one row to `--out`.
 
 Modes: `portable32` (float32), `portable`, `kernels` (card default dtype) through `fastforks.matching.load`;
 `upstream` / `upstream16`: the original code (`tools/golden/romav2.py` `build`; fp32 with every autocast off and
@@ -46,7 +47,6 @@ import json
 import statistics
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -54,6 +54,7 @@ import numpy as np
 import torch
 
 from _data import DATA
+from _prefetch import prefetch
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
@@ -90,21 +91,14 @@ def read(path: Path, *, device: str = "cuda") -> torch.Tensor:
         return torch.from_numpy(np.asarray(image.convert("RGB")).copy()).permute(2, 0, 1).to(device)
 
 
-def _read_pair(root: Path, left: str, right: str) -> tuple[torch.Tensor, torch.Tensor]:
-    return read(root / left, device="cpu"), read(root / right, device="cpu")
-
-
 def pair_images(root: Path, pairs: Iterable[tuple[int, str, str]]) -> Iterator[tuple[int, torch.Tensor, torch.Tensor]]:
     """Decode the next pair on the CPU while processing the current pair, in input order."""
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        pending = None
-        for index, left, right in pairs:
-            previous = pending
-            pending = index, pool.submit(_read_pair, root, left, right)
-            if previous is not None:
-                yield previous[0], *previous[1].result()
-        if pending is not None:
-            yield pending[0], *pending[1].result()
+
+    def load(pair: tuple[int, str, str]) -> tuple[int, torch.Tensor, torch.Tensor]:
+        index, left, right = pair
+        return index, read(root / left, device="cpu"), read(root / right, device="cpu")
+
+    return prefetch(load, pairs)
 
 
 def kde(x: torch.Tensor, std: float = 0.1) -> torch.Tensor:
@@ -435,6 +429,7 @@ def pose_error(k1: np.ndarray, k2: np.ndarray, x: np.ndarray, gt_r: np.ndarray, 
 
 def score(a: argparse.Namespace) -> None:
     import cv2  # noqa: PLC0415
+    from PIL import Image  # noqa: PLC0415
 
     pairs = load_pairs(a.root)[: a.stop]  # --stop: smoke runs on the first pairs
     index = range(0, len(pairs), a.every)
@@ -447,19 +442,24 @@ def score(a: argparse.Namespace) -> None:
     if missing:
         msg = f"{work}: {len(missing)} pairs not matched yet (first {missing[0]})"
         raise SystemExit(msg)
-    errors = []
-    for i in index:
-        name1, name2, k1, k2, r, t = pairs[i]
-        from PIL import Image  # noqa: PLC0415
 
-        (w1, h1), (w2, h2) = (Image.open(a.root / "images" / n).size for n in (name1, name2))
+    def score_pair(i: int) -> list[float]:
+        name1, name2, k1, k2, r, t = pairs[i]
+        with Image.open(a.root / "images" / name1) as first, Image.open(a.root / "images" / name2) as second:
+            w1, h1 = first.size
+            w2, h2 = second.size
         k1s, k2s = k1.copy(), k2.copy()
         k1s[:2] *= LONG_SIDE / max(w1, h1)
         k2s[:2] *= LONG_SIDE / max(w2, h2)
         rng = np.random.default_rng(i)
+        errors = []
         for run, x in enumerate(kpts[str(i)]):
+            # OpenCV keeps the default RNG state in the calling thread.
             cv2.setRNGSeed(i * N_RUNS + run)
             errors.append(pose_error(k1s, k2s, x[rng.permutation(len(x))], r, t))
+        return errors
+
+    errors = [error for pair_errors in prefetch(score_pair, index, workers=3) for error in pair_errors]
     auc = [round(100 * v, 2) for v in pose_auc(np.array(errors), (5, 10, 20))]
     metrics = {"auc5": auc[0], "auc10": auc[1], "auc20": auc[2]}
     ms = [m for info in infos for m in info["ms"]]

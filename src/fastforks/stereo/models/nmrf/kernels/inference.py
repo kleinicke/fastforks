@@ -19,7 +19,7 @@ from fastforks._core.errors import BackendUnavailableError
 from fastforks.kernels import fastbb
 
 from ..net.inference import forward, prepare
-from ..net.nmp import WindowAttention
+from ..net.nmp import Mlp, WindowAttention
 
 if TYPE_CHECKING:
     from fastforks._core.metal import MetalLibrary
@@ -88,6 +88,9 @@ def prepare_kernels(model: nn.Module, device: torch.device) -> nn.Module:
     if not _swap(model, make):
         msg = "NMRF kernels: no WindowAttention found"
         raise RuntimeError(msg)
+    for layer in model.modules():
+        if isinstance(layer, Mlp) and isinstance(layer.act, nn.GELU):
+            layer.bounded_activation = True
     return model.to(device)
 
 

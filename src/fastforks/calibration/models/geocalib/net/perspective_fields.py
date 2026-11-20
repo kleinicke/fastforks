@@ -3,7 +3,7 @@
 Adapted from https://github.com/jinlinyi/PerspectiveFields/blob/main/perspective2d/utils/panocam.py
 """
 
-from typing import Tuple
+from typing import NamedTuple, Tuple
 
 import torch
 from torch.nn import functional as F
@@ -13,6 +13,19 @@ from .gravity import Gravity
 from .misc import J_up_projection, J_vecnorm, SphericalManifold
 
 # flake8: noqa: E266
+
+
+class ImageGrid(NamedTuple):
+    """Pixel coordinates and dimensions shared by one camera fit."""
+
+    height: int
+    width: int
+    pixels: torch.Tensor
+
+    @classmethod
+    def from_camera(cls, camera: BaseCamera) -> "ImageGrid":
+        w, h = camera.size[0].round().to(torch.int64).tolist()
+        return cls(h, w, camera.pixel_coordinates((h, w)))
 
 
 def get_horizon_line(camera: BaseCamera, gravity: Gravity, relative: bool = True) -> torch.Tensor:
@@ -44,7 +57,9 @@ def get_horizon_line(camera: BaseCamera, gravity: Gravity, relative: bool = True
     return horizon / camera.size[1] if relative else horizon
 
 
-def get_up_field(camera: BaseCamera, gravity: Gravity, normalize: bool = True) -> torch.Tensor:
+def get_up_field(
+    camera: BaseCamera, gravity: Gravity, normalize: bool = True, *, grid: ImageGrid | None = None
+) -> torch.Tensor:
     """Get the up vector field from the camera parameters.
 
     Args:
@@ -57,10 +72,8 @@ def get_up_field(camera: BaseCamera, gravity: Gravity, normalize: bool = True) -
     camera = camera.unsqueeze(0) if len(camera.shape) == 0 else camera
     gravity = gravity.unsqueeze(0) if len(gravity.shape) == 0 else gravity
 
-    w, h = camera.size[0].unbind(-1)
-    h, w = h.round().to(int), w.round().to(int)
-
-    uv = camera.normalize(camera.pixel_coordinates())
+    h, w, xy = ImageGrid.from_camera(camera) if grid is None else grid
+    uv = camera.normalize(xy)
 
     # projected up is (a, b) - c * (u, v)
     abc = gravity.vec3d
@@ -87,6 +100,8 @@ def J_up_field(
     spherical: bool = False,
     log_focal: bool = False,
     camera_R_rig: torch.Tensor = None,
+    *,
+    grid: ImageGrid | None = None,
 ) -> torch.Tensor:
     """Get the jacobian of the up field.
 
@@ -103,11 +118,10 @@ def J_up_field(
     camera = camera.unsqueeze(0) if len(camera.shape) == 0 else camera
     gravity = gravity.unsqueeze(0) if len(gravity.shape) == 0 else gravity
 
-    w, h = camera.size[0].unbind(-1)
-    h, w = h.round().to(int), w.round().to(int)
+    grid = ImageGrid.from_camera(camera) if grid is None else grid
+    h, w, xy = grid
 
     # Forward
-    xy = camera.pixel_coordinates()
     uv = camera.normalize(xy)
 
     projected_up2d = gravity.vec3d[..., None, :2] - gravity.vec3d[..., 2, None, None] * uv
@@ -116,9 +130,10 @@ def J_up_field(
     J = []
 
     # (..., N, 2, 2)
-    J_norm2proj = J_vecnorm(
-        get_up_field(camera, gravity, normalize=False).reshape(camera.shape[0], -1, 2)
-    )
+    unnormalized = projected_up2d
+    if hasattr(camera, "dist"):
+        unnormalized = get_up_field(camera, gravity, normalize=False, grid=grid).reshape(camera.shape[0], -1, 2)
+    J_norm2proj = J_vecnorm(unnormalized)
 
     # distortion values
     if hasattr(camera, "dist"):
@@ -194,7 +209,9 @@ def J_up_field(
     return torch.cat(J, axis=-1).reshape(camera.shape[0], h, w, 2, -1)
 
 
-def get_latitude_field(camera: BaseCamera, gravity: Gravity) -> torch.Tensor:
+def get_latitude_field(
+    camera: BaseCamera, gravity: Gravity, *, grid: ImageGrid | None = None
+) -> torch.Tensor:
     """Get the latitudes of the camera pixels in radians.
 
     Latitudes are defined as the angle between the ray and the up vector.
@@ -209,10 +226,8 @@ def get_latitude_field(camera: BaseCamera, gravity: Gravity) -> torch.Tensor:
     camera = camera.unsqueeze(0) if len(camera.shape) == 0 else camera
     gravity = gravity.unsqueeze(0) if len(gravity.shape) == 0 else gravity
 
-    w, h = camera.size[0].unbind(-1)
-    h, w = h.round().to(int), w.round().to(int)
-
-    uv1, _ = camera.image2world(camera.pixel_coordinates())
+    h, w, xy = ImageGrid.from_camera(camera) if grid is None else grid
+    uv1, _ = camera.image2world(xy)
     rays = camera.pixel_bearing_many(uv1)
 
     lat = torch.einsum("...Nj,...j->...N", rays, gravity.vec3d)
@@ -229,6 +244,8 @@ def J_latitude_field(
     spherical: bool = False,
     log_focal: bool = False,
     camera_R_rig: torch.Tensor = None,
+    *,
+    grid: ImageGrid | None = None,
 ) -> torch.Tensor:
     """Get the jacobian of the latitude field.
 
@@ -245,11 +262,9 @@ def J_latitude_field(
     camera = camera.unsqueeze(0) if len(camera.shape) == 0 else camera
     gravity = gravity.unsqueeze(0) if len(gravity.shape) == 0 else gravity
 
-    w, h = camera.size[0].unbind(-1)
-    h, w = h.round().to(int), w.round().to(int)
+    h, w, xy = ImageGrid.from_camera(camera) if grid is None else grid
 
     # Forward
-    xy = camera.pixel_coordinates()
     uv1, _ = camera.image2world(xy)
     uv1_norm = camera.pixel_bearing_many(uv1)  # (..., N, 3)
 
@@ -304,6 +319,8 @@ def get_perspective_field(
     gravity: Gravity,
     use_up: bool = True,
     use_latitude: bool = True,
+    *,
+    grid: ImageGrid | None = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Get the perspective field from the camera parameters.
 
@@ -322,13 +339,13 @@ def get_perspective_field(
     camera = camera.unsqueeze(0) if len(camera.shape) == 0 else camera
     gravity = gravity.unsqueeze(0) if len(gravity.shape) == 0 else gravity
 
-    w, h = camera.size[0].unbind(-1)
-    h, w = h.round().to(int), w.round().to(int)
+    grid = ImageGrid.from_camera(camera) if grid is None else grid
+    h, w = grid.height, grid.width
 
     if use_up:
         permute = (0, 3, 1, 2)
         # (..., 2, h, w)
-        up = get_up_field(camera, gravity).permute(permute)
+        up = get_up_field(camera, gravity, grid=grid).permute(permute)
     else:
         shape = (camera.shape[0], 2, h, w)
         up = camera.new_zeros(shape)
@@ -336,7 +353,7 @@ def get_perspective_field(
     if use_latitude:
         permute = (0, 3, 1, 2)
         # (..., 1, h, w)
-        lat = get_latitude_field(camera, gravity).permute(permute)
+        lat = get_latitude_field(camera, gravity, grid=grid).permute(permute)
     else:
         shape = (camera.shape[0], 1, h, w)
         lat = camera.new_zeros(shape)
@@ -352,6 +369,8 @@ def J_perspective_field(
     spherical: bool = False,
     log_focal: bool = False,
     camera_R_rig: torch.Tensor = None,
+    *,
+    grid: ImageGrid | None = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Get the jacobian of the perspective field.
 
@@ -373,18 +392,18 @@ def J_perspective_field(
     camera = camera.unsqueeze(0) if len(camera.shape) == 0 else camera
     gravity = gravity.unsqueeze(0) if len(gravity.shape) == 0 else gravity
 
-    w, h = camera.size[0].unbind(-1)
-    h, w = h.round().to(int), w.round().to(int)
+    grid = ImageGrid.from_camera(camera) if grid is None else grid
+    h, w = grid.height, grid.width
 
     if use_up:
-        J_up = J_up_field(camera, gravity, spherical, log_focal, camera_R_rig)  # (..., h, w, 2, 4)
+        J_up = J_up_field(camera, gravity, spherical, log_focal, camera_R_rig, grid=grid)  # (..., h, w, 2, 4)
     else:
         shape = (camera.shape[0], h, w, 2, 4)
         J_up = camera.new_zeros(shape)
 
     if use_latitude:
         J_lat = J_latitude_field(
-            camera, gravity, spherical, log_focal, camera_R_rig
+            camera, gravity, spherical, log_focal, camera_R_rig, grid=grid
         )  # (..., h, w, 1, 4)
     else:
         shape = (camera.shape[0], h, w, 1, 4)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import shutil
 import subprocess
@@ -58,10 +59,14 @@ MINI = {
     "tests/conftest.py": "",
     "tests/data/x.json": "{}",
     "tests/test_docs.py": "",
+    "tests/test_eval_coco.py": "from eval_coco import run\n",
     "tests/test_golden.py": "import fastforks._core\nimport fastforks.kernels.kb\nimport fastforks.stereo\n",
     "tests/test_plain.py": "import fastforks._core.util\n",
     "tests/test_fa.py": "from fastforks.stereo.models import fa\n",
+    "tests/test_dynamic_fa.py": 'from fastforks import stereo\nx = stereo.load("fa-y@2")\n',
     "tools/select_tests.py": "",
+    "tools/_prefetch.py": "",
+    "tools/eval_coco.py": "from _prefetch import prefetch\n",
 }
 ALL = {"fa", "fb", "fc"}
 
@@ -73,6 +78,30 @@ def mini(tmp_path_factory: pytest.TempPathFactory) -> Path:
         (root / rel).parent.mkdir(parents=True, exist_ok=True)
         (root / rel).write_text(text)
     return root
+
+
+def test_imports_in_runtime_statement_bodies() -> None:
+    tree = ast.parse("""
+try:
+    import main
+except ImportError:
+    match platform:
+        case "test":
+            import fallback
+finally:
+    import cleanup
+
+if typing.TYPE_CHECKING:
+    import type_only
+else:
+    import runtime
+
+async def get_model():
+    import lazily
+""")
+    immediate = {"main", "fallback", "cleanup", "runtime"}
+    assert st._imported_names(tree, "", lazy=False) == immediate
+    assert st._imported_names(tree, "", lazy=True) == immediate | {"lazily"}
 
 
 @pytest.mark.parametrize(
@@ -98,6 +127,7 @@ def test_mini_families(mini: Path, changed: str, want: set[str]) -> None:
 
 
 def test_mini_fast_tier(mini: Path) -> None:
+    assert st.select([], mini).as_dict() == {"changed": [], "families": {}, "fast": [], "release": False}
     fa = st.select(["src/fastforks/stereo/models/fa/model.py"], mini)
     assert "tests/test_fa.py" in fa.fast
     assert "tests/test_plain.py" in fa.fast  # reaches no family: always in the fast tier
@@ -108,6 +138,35 @@ def test_mini_fast_tier(mini: Path) -> None:
     release = st.select(["uv.lock"], mini)
     assert release.release
     assert release.fast == ["tests"]
+
+
+def test_affected_fast_keeps_imports_and_model_references(mini: Path) -> None:
+    path = "src/fastforks/stereo/models/fa/model.py"
+    result = st.select([path], mini, affected_fast=True)
+    assert result.fast == ["tests/test_dynamic_fa.py", "tests/test_fa.py"]
+    default = st.select([path], mini)
+    assert result.golden_nodeids("cpu") == default.golden_nodeids("cpu")
+    assert result.golden_nodeids("gpu") == default.golden_nodeids("gpu")
+
+    for changed in ([path, "tools/select_tests.py"], ["src/fastforks/shared/vit.py"], ["pyproject.toml"]):
+        assert st.select(changed, mini, affected_fast=True).as_dict() == st.select(changed, mini).as_dict()
+
+
+@pytest.mark.parametrize("changed", ["tools/eval_coco.py", "tools/_prefetch.py", "tests/test_eval_coco.py"])
+def test_evaluator_only_changes_select_affected_tools_tests(mini: Path, changed: str) -> None:
+    selection = st.select([changed], mini)
+    assert selection.fast == ["tests/test_eval_coco.py"]
+    assert not selection.families
+    assert "tests/test_plain.py" in st.select([changed, "tools/eval_missing.py"], mini).fast
+
+
+def test_boundary_matcher_change_selects_its_evaluator_test(mini: Path) -> None:
+    (mini / "tools/bsds_correspond.cc").write_text("// matcher adapter")
+    (mini / "tools/eval_edges.py").write_text("")
+    (mini / "tests/test_eval_edges.py").write_text("import eval_edges\n")
+    selection = st.select(["tools/bsds_correspond.cc"], mini)
+    assert selection.fast == ["tests/test_eval_edges.py"]
+    assert not selection.families
 
 
 def test_lockfile_local_version_only_does_not_select_all_families(mini: Path) -> None:
@@ -227,6 +286,37 @@ def test_git_version_bump_keeps_model_scope(
     assert not st.git_metadata_only("HEAD~1", "HEAD", paths, tmp_path)
     assert st.select(paths, tmp_path).release
     assert receipt() != model_receipt
+
+
+def test_card_prose_keeps_goldens_out_of_the_selection(mini: Path, tmp_path: Path, git_repo) -> None:
+    shutil.copytree(mini, tmp_path, dirs_exist_ok=True)
+    for name in ("cards", "site_data"):
+        (tmp_path / f"tests/test_{name}.py").touch()
+    path = "src/fastforks/stereo/models/fa/card.toml"
+    card = tmp_path / path
+    card.write_text('summary = "Old description"\n' + card.read_text() + "\n[params]\na = 1\n")
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Add card")
+
+    card.write_text(
+        card.read_text().replace('summary = "Old description"', 'summary = "New description"\nlimitations = ["note"]')
+    )
+    git_repo("add", path)
+    git_repo("commit", "-m", "Change only the card prose")
+    metadata = st.git_metadata_only("HEAD~1", "HEAD", [path], tmp_path)
+    assert metadata == {path}
+    sel = st.select([path], tmp_path, metadata_only=metadata)
+    assert not sel.families
+    assert sel.fast == ["tests/test_cards.py", "tests/test_docs.py", "tests/test_site_data.py"]
+    other = "src/fastforks/stereo/models/fb/model.py"
+    assert set(st.select([path, other], tmp_path, metadata_only=metadata).families) == {"fb"}
+
+    card.write_text(card.read_text().replace("a = 1", "a = true"))
+    git_repo("add", path)
+    git_repo("commit", "-m", "Change a runtime parameter type")
+    metadata = st.git_metadata_only("HEAD~1", "HEAD", [path], tmp_path)
+    assert not metadata
+    assert set(st.select([path], tmp_path, metadata_only=metadata).families) == {"fa"}
 
 
 def test_git_changed_reports_both_sides_of_a_moved_module(

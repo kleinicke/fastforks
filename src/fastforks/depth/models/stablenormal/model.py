@@ -19,11 +19,13 @@ exports; a traced or exported module reuses the noise of its traced shape.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import torch
 import torch.nn.functional as F
+from torch import nn
 
+from fastforks._core.tracing import in_onnx_export
 from fastforks.depth._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared import mlx_wrap
@@ -32,12 +34,17 @@ from fastforks.shared.sd2.net.fast import Fast
 from fastforks.shared.sd2.net.unet import ControlNetEncoder
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from fastforks.depth._runner import Context
+    from fastforks.shared.sd2.net.unet import ResnetBlock2D
+    from fastforks.shared.sd2.net.vae import DecoderBlock
 
 TIMESTEP = 0  # fixed: hubconf StableNormal_turbo `t_start=0`, the ControlNet's and the UNet's timestep
 _ALIGN = 8  # fixed: the VAE downsampling factor; the input is padded to a multiple of it
 _CAMERA = (-1.0, -1.0, -1.0)  # fixed: StableNormal's (x left, y up, z to the viewer) -> camera (y down, z forward)
 _UNUSED = ("controlnet_cond_embedding.", "controlnet_down_blocks.", "controlnet_mid_block.")  # skipped upstream
+_LARGE_DECODER_PIXELS = 1_000_000
 
 
 @dataclass(frozen=True)
@@ -111,6 +118,37 @@ class _Both(torch.nn.Module):
         self.net, self.control = net, control
 
 
+class _DecoderConv(nn.Conv2d):
+    """Bound the final VAE block's convolution workspace in large CUDA inference calls."""
+
+    def forward(self, input: torch.Tensor) -> torch.Tensor:  # noqa: A002 - match nn.Conv2d.forward
+        """Convolve four row groups with the padding halo of the original 3 x 3 convolution."""
+        convolve = super().forward
+        if (
+            input.dtype != torch.float16
+            or not input.is_cuda
+            or not input.is_contiguous()
+            or torch.is_grad_enabled()
+            or torch.compiler.is_compiling()
+            or torch.jit.is_tracing()
+            or in_onnx_export()
+            or input.shape[-2] * input.shape[-1] < _LARGE_DECODER_PIXELS
+        ):
+            return convolve(input)
+
+        batch, _, height, width = input.shape
+        rows = (height + 3) // 4
+        out = input.new_empty((batch, self.out_channels, height, width))
+        for start in range(0, height, rows):
+            stop = min(height, start + rows)
+            first, last = max(0, start - 1), min(height, stop + 1)
+            part = convolve(input[..., first:last, :].contiguous())
+            offset = start - first
+            out[..., start:stop, :].copy_(part[..., offset : offset + stop - start, :])
+            del part
+        return out
+
+
 class Portable(Runner):
     """Plain PyTorch (SDPA attention): float32, or float16 weights and activations."""
 
@@ -123,6 +161,11 @@ class Portable(Runner):
         super().__init__(ctx)
         self.dtype = torch.float16 if ctx.dtype == "float16" else torch.float32
         self.both = _Both(*_nets(ctx)).to(self.dtype)
+        if ctx.device.type == "cuda" and self.dtype == torch.float16:
+            final = cast("DecoderBlock", self.both.net.vae.decoder.up_blocks[-1])
+            for resnet in cast("Iterable[ResnetBlock2D]", final.resnets):
+                resnet.conv1.__class__ = _DecoderConv
+                resnet.conv2.__class__ = _DecoderConv
         self.noise = Noise(ctx.params.seed)
 
     def _run(self, image: torch.Tensor) -> torch.Tensor:

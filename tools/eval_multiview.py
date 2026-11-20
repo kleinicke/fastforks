@@ -24,6 +24,7 @@ import json
 import subprocess
 import sys
 import time
+from contextlib import closing
 from pathlib import Path
 from typing import NoReturn
 
@@ -31,6 +32,7 @@ import numpy as np
 import torch
 
 from _data import DATA
+from _prefetch import prefetch
 
 p = argparse.ArgumentParser()
 p.add_argument("ref")
@@ -78,12 +80,12 @@ D125, MM2, MM4 = 1.25, 2.0, 4.0
 
 
 def sample(scan: int) -> tuple[np.ndarray, dict, np.ndarray]:
-    d = np.load(f"{a.dtu}/scan{scan}/cache_640x512.npz")
-    ids = [a.ref_view, *d["pairs"][a.ref_view][: a.sources].tolist()]
-    kw = {"intrinsics": d["K"][ids], "cam_to_world": d["c2w"][ids]}
-    if RANGE or UP:  # the original adapters take it positionally (MVSAnywhere's ignores it)
-        kw["depth_range"] = (MM_NEAR, MM_FAR)
-    return d["images"][ids], kw if calibrated or UP else {}, d["depth_gt"][a.ref_view]
+    with np.load(f"{a.dtu}/scan{scan}/cache_640x512.npz") as data:
+        ids = [a.ref_view, *data["pairs"][a.ref_view][: a.sources].tolist()]
+        kw = {"intrinsics": data["K"][ids], "cam_to_world": data["c2w"][ids]}
+        if RANGE or UP:  # the original adapters take it positionally (MVSAnywhere's ignores it)
+            kw["depth_range"] = (MM_NEAR, MM_FAR)
+        return data["images"][ids], kw if calibrated or UP else {}, data["depth_gt"][a.ref_view].copy()
 
 
 def metrics(pred: np.ndarray, gt: np.ndarray) -> dict:
@@ -146,31 +148,31 @@ def call(imgs: np.ndarray, kw: dict) -> object:
     return m(imgs, **kw)
 
 
-imgs, kw, _ = sample(a.scans[0])
-t0 = time.perf_counter()
-call(imgs, kw)
-first_ms = (time.perf_counter() - t0) * 1e3
 rows, times = [], []
-torch.cuda.synchronize()
-torch.cuda.reset_peak_memory_stats()
-for scan in a.scans:
-    imgs, kw, gt = sample(scan)
-    for _ in range(a.reps):
-        s, e = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
-        s.record()
-        r = call(imgs, kw)
-        e.record()
-        torch.cuda.synchronize()
-        times.append(s.elapsed_time(e))
-    pred = (r if UP else r.depth[r.views.index(0)]).float().cpu().numpy()
-    rows.append({"scan": scan, **metrics(pred, gt)})
-    if scan == a.scans[0] and a.out:
-        import PIL.Image
+with closing(prefetch(sample, a.scans)) as inputs:
+    for index, (scan, (imgs, kw, gt)) in enumerate(zip(a.scans, inputs, strict=True)):
+        if index == 0:
+            t0 = time.perf_counter()
+            call(imgs, kw)
+            first_ms = (time.perf_counter() - t0) * 1e3
+            torch.cuda.synchronize()
+            torch.cuda.reset_peak_memory_stats()
+        for _ in range(a.reps):
+            s, e = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+            s.record()
+            r = call(imgs, kw)
+            e.record()
+            torch.cuda.synchronize()
+            times.append(s.elapsed_time(e))
+        pred = (r if UP else r.depth[r.views.index(0)]).float().cpu().numpy()
+        rows.append({"scan": scan, **metrics(pred, gt)})
+        if scan == a.scans[0] and a.out:
+            import PIL.Image
 
-        v = pred / np.percentile(pred, 99)
-        PIL.Image.fromarray((np.clip(v, 0, 1) * 255).astype(np.uint8)).save(
-            Path(a.out).with_name(f"depth_{a.ref}_{a.mode}_scan{scan}.png")
-        )
+            v = pred / np.percentile(pred, 99)
+            PIL.Image.fromarray((np.clip(v, 0, 1) * 255).astype(np.uint8)).save(
+                Path(a.out).with_name(f"depth_{a.ref}_{a.mode}_scan{scan}.png")
+            )
 mean = {k: round(float(np.mean([x[k] for x in rows])), 4) for k in rows[0] if k != "scan"}
 _write({
     "ref": a.ref, "mode": a.mode, "options": opts, "scans": a.scans, "ref_view": a.ref_view, "sources": a.sources,

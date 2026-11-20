@@ -6,7 +6,8 @@ outputs = ["depth", "points", "intrinsics", "mask", "normals"]  # intrinsics: th
 uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports
 limitations = [
   "MoGe-3 compiles the dense network and leaves sparse voxel refinement eager. Its 100-image iBims-1 comparison used the default CUDA float16 mode.",
-  "At 994 x 1482, the portable and compiled MoGe-3 timings use the same synthetic image. The original timings use the Middlebury Motorcycle image.",
+  "At 994 x 1482, MoGe-2 Small and Base and MoGe-3 use a synthetic image for portable timings and Middlebury Motorcycle for the original timings. The MoGe-3 compile run uses the same synthetic image as portable. MoGe-2 Large uses Motorcycle for both portable and original timings.",
+  "In paired portable FP16 runs at 994 x 1482, reusing the resize buffer reduced peak allocation by 421 MiB on each MoGe-2 checkpoint and by 121 MiB on MoGe-3 with normals enabled. The checked outputs were bitwise identical.",
 ]
 
 [output]

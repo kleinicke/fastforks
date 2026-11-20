@@ -108,7 +108,10 @@ class ConvRefiner(nn.Module):
 DETECTOR_L = {"8": (512, 512, 256), "4": (512, 256, 128), "2": (256, 128, 64), "1": (128, 64, 1)}, 8
 DETECTOR_S = {"8": (512, 512, 256), "4": (512, 256, 128), "2": (256, 64, 32), "1": (96, 32, 1)}, 3  # DaD (VGG11)
 DESCRIPTOR_B = {"8": (512, 512, 256), "4": (512, 256, 128), "2": (256, 64, 32), "1": (96, 32, 1)}, 5
-DESCRIPTOR_G = {"14": (1024, 768, 512), "8": (1024, 512, 256), "4": (512, 256, 128), "2": (256, 64, 32), "1": (96, 32, 1)}, 5
+DESCRIPTOR_G = (
+    {"14": (1024, 768, 512), "8": (1024, 512, 256), "4": (512, 256, 128), "2": (256, 64, 32), "1": (96, 32, 1)},
+    5,
+)
 
 
 class Decoder(nn.Module):
@@ -198,7 +201,7 @@ def sample_keypoints(logits: torch.Tensor, num_samples: int) -> tuple[torch.Tens
     increase_coverage=True)` (no border removal: `dedode_detector_L`'s default). `[1, 1, H, W]` -> `[N, 2]`, `[N]`."""
     _, _, h, w = logits.shape
     scoremap = logits.reshape(1, h * w).softmax(dim=-1).reshape(1, h, w)
-    weights = (-torch.linspace(-2, 2, steps=51, device=logits.device) ** 2).exp()[None, None]
+    weights = (-(torch.linspace(-2, 2, steps=51, device=logits.device) ** 2)).exp()[None, None]
     local_density_x = F.conv2d((scoremap[:, None] + 1e-6) * 10000, weights[..., None, :], padding=(0, 51 // 2))
     local_density = F.conv2d(local_density_x, weights[..., None], padding=(51 // 2, 0))[:, 0]
     scoremap = scoremap * (local_density + 1e-8) ** (-1 / 2)
@@ -246,6 +249,9 @@ def dual_softmax_match(
         p *= corr.softmax(dim=-1)
     else:  # the row softmax in place (exact on CPU / CUDA): two `[N, M]` matrices live instead of four
         p *= torch.ops.aten._softmax.out(corr, -1, False, out=corr)  # noqa: FBT003 - aten signature
-    keep = (p == p.max(dim=-1, keepdim=True).values) & (p == p.max(dim=-2, keepdim=True).values) & (p > threshold)
+    del corr
+    keep = p == p.max(dim=-1, keepdim=True).values
+    keep.logical_and_(p == p.max(dim=-2, keepdim=True).values)
+    keep.logical_and_(p > threshold)
     pairs = torch.nonzero(keep)
     return pairs, p[pairs[:, 0], pairs[:, 1]]

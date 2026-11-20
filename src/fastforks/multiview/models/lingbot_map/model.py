@@ -307,7 +307,7 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
         pos = agg.position_getter(1, rows, cols, device=dev) + 1
         pos = torch.cat([torch.zeros(1, SPECIAL, 2, device=dev, dtype=pos.dtype), pos], 1)
         tf = self.rope_tables(pos, 1, 1, p)  # frame blocks: [1, P, 1, 1, 64]
-        x = ((images - agg._resnet_mean[0]) / agg._resnet_std[0]).to(self.dt)  # noqa: SLF001
+        mean, std = agg._resnet_mean[0], agg._resnet_std[0]  # noqa: SLF001
         cam, depth, conf = [], [], []
         pend: list[list[torch.Tensor]] = [[] for _ in LAYERS]
         pend_img: list[torch.Tensor] = []
@@ -327,7 +327,8 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
 
         for fr in [range(s)] + [range(g, g + 1) for g in range(s, n_img)]:
             nf = len(fr)
-            t = self.tokens(x[fr.start : fr.stop], fr, s)
+            frame_images = images[fr.start : fr.stop]
+            t = self.tokens(((frame_images - mean) / std).to(self.dt), fr, s)
             tg = self.rope3d(fr, rows, cols)
             slots = cache.step(fr)
             blocks = self.staged if self.staged is not None else agg.frame_blocks
@@ -340,8 +341,9 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
                     frame, t = block(t, self, i, tf, tg, cache.kv[i], slots)
                 if i in LAYERS:
                     pend[LAYERS.index(i)].append(torch.cat([frame, t], -1))
-            cam.append(pend[-1][-1][:, 0].float())
-            pend_img.append(images[fr.start : fr.stop].to(self.dt))
+            # An FP32 view would keep the entire fused feature buffer alive until the camera head.
+            cam.append(pend[-1][-1][:, 0].to(dtype=torch.float32, copy=True))
+            pend_img.append(frame_images.to(self.dt))
             if fr.stop < n_img:
                 heads(force=False)
         # The final DPT pass no longer needs any layer's causal keys or values.

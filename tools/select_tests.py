@@ -18,15 +18,21 @@ select the families whose refs occur in their changed lines. A git range limited
 selects those revisions when the manifest's shared settings are unchanged. Changing tests/test_golden.py selects every
 family. Changing a `GATE_TOOLS` file selects the fast tier. pyproject.toml / uv.lock select every family
 and flag `release` (dependencies changed: use the broad gate). When both git snapshots are available, an edit limited
-to the local package version in either file leaves the dependency selection unchanged. Everything else (docs, tools,
-other tests) selects no family.
+to the local package version in either file leaves the dependency selection unchanged. Edits limited to a card's
+summary and limitations select card and documentation checks. Everything else (docs, tools, other tests) selects
+no family.
 
-Fast tier (`-m "not gpu and not model"`): every test file whose closure reaches no family module, the family-specific
-files of the selected families and every test file whose closure holds a changed file; all of tests/ when conftest.py,
+An empty change set selects no tests. Fast tier (`-m "not gpu and not model"`): every test file whose closure reaches
+no family module, the family-specific files of the selected families and every test file whose closure holds a changed
+file. Changes limited to existing evaluation tools and their tests omit unrelated fast-tier tests. All of tests/ run
+when conftest.py,
 non-Python test data or the dependencies changed. Documentation-only changes use the docs checks, plus the site data
 and speed-floor checks for generated model or benchmark pages and their data. The GPU selection gives each family's
 golden refs as a `-k` expression for tests/test_golden.py. Use `--golden-nodeids` for exact item IDs that preserve
 revisions and distinguish similarly named families. These IDs can be passed to pytest using an argument file.
+
+For edits limited to existing model implementation files, `--affected-fast` keeps import-linked tests and tests
+that name the affected models. The exact golden selection is the same as in the standard selection.
 """
 
 from __future__ import annotations
@@ -43,7 +49,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
     from typing import Literal
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,9 +59,15 @@ DEPENDENCIES = frozenset({"pyproject.toml", "uv.lock"})
 TOP_LEVEL_DOCS = frozenset({"README.md", "CONTRIBUTING.md"})
 BENCHMARK_DOCS = frozenset({"docs/benchmarks.md", "docs/overview.md"})
 GOLDEN_MANIFEST = re.compile(r"src/fastforks/[^/]+/models/[^/]+/golden[.]toml")
+MODEL_CARD = re.compile(r"src/fastforks/[^/]+/models/[^/]+/card[.]toml")
+CARD_TEXT_FIELDS = frozenset({"summary", "limitations"})
+CARD_TEXT_CHECKS = frozenset({"tests/test_cards.py", "tests/test_docs.py", "tests/test_site_data.py"})
 FRAMEWORK = "src/fastforks/"  # outside LAZY_OK and the family dirs: imports inside functions do not count
 LAZY_OK = ("src/fastforks/shared/", "src/fastforks/kernels/", "src/fastforks/_optimize/")
 REF_TABLES = re.compile(r"src/fastforks/_core/[^/]+\.json")  # tables keyed by ref (auto_portable.json, sizes.json)
+EVALUATION_FILES = re.compile(
+    r"(?:(?:tools/(?:_prefetch|eval_[^/]+)|tests/test_eval_[^/]+)\.py|tools/bsds_correspond\.cc)"
+)
 PATH_ORDER = ("tests", "tools")  # pytest `pythonpath`: top-level modules of tests/ shadow tools/
 
 
@@ -165,10 +177,10 @@ class Graph:
 def _imported_names(tree: ast.AST, pkg: str, *, lazy: bool) -> set[str]:
     """Absolute module names `tree` imports (`from a import b`: `a` and `a.b`); `pkg`: the file's package."""
     names: set[str] = set()
-    for node in _runtime_nodes(tree, lazy=lazy):
+    for node in _runtime_imports(tree, lazy=lazy):
         if isinstance(node, ast.Import):
             names |= {a.name for a in node.names}
-        elif isinstance(node, ast.ImportFrom):
+        else:
             base = node.module or ""
             if node.level:
                 up = pkg.split(".")[: len(pkg.split(".")) - node.level + 1]
@@ -177,20 +189,18 @@ def _imported_names(tree: ast.AST, pkg: str, *, lazy: bool) -> set[str]:
     return names
 
 
-def _runtime_nodes(tree: ast.AST, *, lazy: bool) -> list[ast.AST]:
-    """Every node except the bodies of `if TYPE_CHECKING:` blocks (and of functions unless `lazy`)."""
-    out: list[ast.AST] = []
+def _runtime_imports(tree: ast.AST, *, lazy: bool) -> Iterator[ast.Import | ast.ImportFrom]:
+    """Walk statement bodies that can contain imports, skipping type-checking branches."""
+    containers = (ast.stmt, ast.ExceptHandler, ast.match_case)
     todo = [tree]
     while todo:
         node = todo.pop()
-        out.append(node)
-        if isinstance(node, ast.If) and _is_type_checking(node.test):
-            todo += node.orelse
-            continue
-        if not lazy and isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda):
-            continue
-        todo += ast.iter_child_nodes(node)
-    return out
+        if isinstance(node, ast.Import | ast.ImportFrom):
+            yield node
+        elif isinstance(node, ast.If) and _is_type_checking(node.test):
+            todo.extend(node.orelse)
+        elif lazy or not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            todo.extend(child for child in ast.iter_child_nodes(node) if isinstance(child, containers))
 
 
 def _is_type_checking(test: ast.expr) -> bool:
@@ -249,21 +259,60 @@ def _table_refs(fams: dict[str, dict], text: str) -> dict[str, bool]:
     return {name: bool(found & {r.split("@")[0] for r in f["refs"]}) for name, f in fams.items()}
 
 
-def select(
+def _fast_checks(
+    graph: Graph, sel: Selection, fams: dict[str, dict], owned: set[str], *, affected_fast: bool
+) -> list[str]:
+    """Find tests linked to the selected files and families, optionally skipping generic tests."""
+    root, changed = graph.root, set(sel.changed)
+    if "tools/bsds_correspond.cc" in changed:
+        owned = owned | {"tools/eval_edges.py"}
+    evaluation_only = all(EVALUATION_FILES.fullmatch(path) and (root / path).is_file() for path in changed)
+    family_dirs = tuple(f["dir"] + "/" for f in fams.values())
+    selected_dirs = tuple(fams[name]["dir"] + "/" for name in sel.families)
+    affected_refs = None
+    if (
+        affected_fast
+        and sel.families
+        and all(c in graph.name and c.startswith(family_dirs) and not c.endswith("/__init__.py") for c in changed)
+    ):
+        names = set(sel.families) | {ref.split("@")[0] for f in sel.families.values() for ref in f["refs"]}
+        alternatives = "|".join(re.escape(name) for name in sorted(names))
+        affected_refs = re.compile(rf"(?<![\w-])(?:{alternatives})(?![\w-])")
+    include_generic = not evaluation_only and affected_refs is None
+    checks = []
+    for test in sorted(f for f in graph.name if f.startswith("tests/test_")):
+        cl = graph.closure({test})
+        if (
+            test in changed
+            or cl & owned
+            or any(f.startswith(selected_dirs) for f in cl)
+            or (include_generic and not any(f.startswith(family_dirs) for f in cl))
+            or (affected_refs and affected_refs.search((root / test).read_text()))
+        ):
+            checks.append(test)
+    return checks
+
+
+def select(  # noqa: PLR0913 - the source snapshots and local selection mode are independent
     changed: list[str],
     root: Path = ROOT,
     diff: Callable[[str], str] | None = None,
     *,
     metadata_only: frozenset[str] = frozenset(),
     fixture_refs: dict[str, tuple[str, ...]] | None = None,
+    affected_fast: bool = False,
 ) -> Selection:
     """Select affected variants, using tracked metadata where the caller has both git snapshots."""
-    if changed and all(path in TOP_LEVEL_DOCS or path.startswith("docs/") for path in changed):
-        checks = ["tests/test_docs.py"]
+    card_text = {path for path in metadata_only if MODEL_CARD.fullmatch(path)}
+    card_checks = CARD_TEXT_CHECKS if card_text else frozenset()
+    if all(path in TOP_LEVEL_DOCS or path.startswith("docs/") or path in card_text for path in changed):
+        checks = set(card_checks)
+        if changed:
+            checks.add("tests/test_docs.py")
         if any(path in BENCHMARK_DOCS or path.startswith(("docs/data/", "docs/models/")) for path in changed):
-            checks.extend(("tests/test_site_data.py", "tests/test_speed_floor.py"))
+            checks.update(("tests/test_site_data.py", "tests/test_speed_floor.py"))
         if "docs/stereo_geometry.md" in changed:
-            checks.append("tests/test_geometry_example.py")
+            checks.add("tests/test_geometry_example.py")
         return Selection(changed=sorted(changed), fast=sorted(path for path in checks if (root / path).is_file()))
     graph = Graph(root)
     fams = families(root)
@@ -272,7 +321,11 @@ def select(
     sel = Selection(changed=sorted(changed), release=bool(dependencies))
     fixtures = fixture_refs or {}
     tables = {c: _table_refs(fams, diff(c)) for c in changed if diff and REF_TABLES.fullmatch(c)}
-    owners = {c: graph.owner(c) for c in changed if c not in GATE_TOOLS and c not in tables and c not in fixtures}
+    owners = {
+        c: graph.owner(c)
+        for c in changed
+        if c not in GATE_TOOLS and c not in tables and c not in fixtures and c not in card_text
+    }
     for name, cl in closures.items():
         family = fams[name]
         why = sorted(c for c, o in owners.items() if o in cl or (sel.release and c in dependencies))
@@ -289,13 +342,8 @@ def select(
     if full:
         sel.fast = ["tests"]
         return sel
-    family_dirs = {name: f["dir"] + "/" for name, f in fams.items()}
-    owned = set(owners.values())
-    for test in sorted(f for f in graph.name if f.startswith("tests/test_")):
-        cl = graph.closure({test})
-        reached = {n for n, d in family_dirs.items() if any(f.startswith(d) for f in cl)}
-        if not reached or reached & set(sel.families) or cl & owned or test in changed:
-            sel.fast.append(test)
+    checks = set(_fast_checks(graph, sel, fams, set(owners.values()), affected_fast=affected_fast))
+    sel.fast = sorted(checks | {path for path in card_checks if (root / path).is_file()})
     return sel
 
 
@@ -400,13 +448,31 @@ def git_fixture_refs(base: str, head: str, paths: list[str], root: Path = ROOT) 
     return fixtures
 
 
+def _same_card_runtime(old: str, new: str) -> bool:
+    try:
+        before, after = tomllib.loads(old), tomllib.loads(new)
+    except tomllib.TOMLDecodeError:
+        return False
+    # The representation distinguishes TOML booleans, integers, and floats.
+    return repr({k: v for k, v in before.items() if k not in CARD_TEXT_FIELDS}) == repr(
+        {k: v for k, v in after.items() if k not in CARD_TEXT_FIELDS}
+    )
+
+
 def git_metadata_only(base: str, head: str, paths: list[str], root: Path = ROOT) -> frozenset[str]:
-    """Identify version-only edits using both tracked snapshots."""
+    """Identify version-only and model-card prose edits using both tracked snapshots."""
     unchanged = set()
     for path, compare in (("pyproject.toml", same_project_configuration), ("uv.lock", same_lock_dependencies)):
         if path not in paths:
             continue
         if (snapshots := _git_snapshots(base, head, path, root)) and compare(*snapshots):
+            unchanged.add(path)
+    for path in paths:
+        if (
+            MODEL_CARD.fullmatch(path)
+            and (snapshots := _git_snapshots(base, head, path, root))
+            and _same_card_runtime(*snapshots)
+        ):
             unchanged.add(path)
     return frozenset(unchanged)
 
@@ -416,6 +482,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("base", nargs="?")
     ap.add_argument("head", nargs="?", default="HEAD")
     ap.add_argument("--files", nargs="*", help="changed paths instead of a git range")
+    ap.add_argument("--affected-fast", action="store_true", help="scope fast tests for model implementation edits")
     output = ap.add_mutually_exclusive_group()
     output.add_argument("--json", action="store_true")
     output.add_argument("--golden-nodeids", choices=("cpu", "gpu"), help="print exact pytest item IDs for the device")
@@ -425,7 +492,9 @@ def main(argv: list[str] | None = None) -> int:
     files, diff = (a.files, None) if a.files is not None else (git_changed(a.base, a.head), git_diff(a.base, a.head))
     metadata_only = git_metadata_only(a.base, a.head, files) if a.files is None else frozenset()
     fixture_refs = git_fixture_refs(a.base, a.head, files) if a.files is None else None
-    sel = select(files, diff=diff, metadata_only=metadata_only, fixture_refs=fixture_refs)
+    sel = select(
+        files, diff=diff, metadata_only=metadata_only, fixture_refs=fixture_refs, affected_fast=a.affected_fast
+    )
     if a.golden_nodeids:
         for item in sel.golden_nodeids(a.golden_nodeids):
             print(item)

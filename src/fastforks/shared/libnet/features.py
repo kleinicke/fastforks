@@ -204,9 +204,17 @@ class _TimmFeatures(Runner):
 
     def _run(self, image: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
         last, pooled, hs = self._forward(image, layers)
-        out = {"last_hidden_state": last.float(), "pooler_output": pooled.float()}
+        last = last.float()
+        out = {"last_hidden_state": last, "pooler_output": pooled.float()}
         if layers:
-            out["hidden_states"] = torch.stack([h.float() for h in hs], 1)
+            if image.is_cuda:
+                # Copy and cast once into the final layout.
+                hidden = last.new_empty((last.shape[0], len(hs), *hs[0].shape[1:]))
+                for i, state in enumerate(hs):
+                    hidden[:, i].copy_(state)
+                out["hidden_states"] = hidden
+            else:
+                out["hidden_states"] = torch.stack([h.float() for h in hs], 1)
         return out
 
     def module(self) -> torch.nn.Module:

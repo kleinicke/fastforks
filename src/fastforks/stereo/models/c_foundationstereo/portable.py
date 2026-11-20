@@ -10,7 +10,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from fastforks._core.patch import override
+from fastforks._core.patch import is_base, override
 
 from .net.fast_foundation_stereo.fast_foundation_stereo import _FFSPostForwardHelper
 from .net.foundation_stereo.convolution_helper import Conv
@@ -19,7 +19,7 @@ from .net.foundation_stereo.submodule import CostVolumeDisparityAttention, Featu
 # sequences per chunk: memory bound (Q, K, V, out of one chunk are ~200 MB at 375x1242); flash SDPA takes < 65536; the
 # result does not depend on it
 CHUNK = 1 << 13
-ATTENTION_VOLUME_LIMIT = 256 * 1024**2
+LARGE_VOLUME_BYTES = 256 * 1024**2
 PATCH_SCALE = 4
 
 
@@ -51,15 +51,17 @@ def _post(
     return x
 
 
+def _use_volume_strips(volume: torch.Tensor) -> bool:
+    return (
+        volume.is_cuda
+        and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
+        and volume.numel() * volume.element_size() >= LARGE_VOLUME_BYTES
+    )
+
+
 def _merge_attention(self: HourGlass, conv: torch.Tensor, patches: torch.Tensor) -> torch.Tensor:
     """Interpolate and attend in row strips, then add each strip into the owned decoder output."""
-    if (
-        not conv.is_cuda
-        or torch.compiler.is_compiling()
-        or torch.jit.is_tracing()
-        or torch.is_grad_enabled()
-        or conv.numel() * conv.element_size() < ATTENTION_VOLUME_LIMIT
-    ):
+    if not _use_volume_strips(conv):
         return HourGlass.merge_attention(self, conv, patches)
 
     height = patches.shape[-2]
@@ -76,6 +78,28 @@ def _merge_attention(self: HourGlass, conv: torch.Tensor, patches: torch.Tensor)
         dst = conv[..., start * PATCH_SCALE : stop * PATCH_SCALE, :]
         dst.add_(attention(inner))
     return conv
+
+
+def _hourglass_tail(self: nn.Sequential, volume: torch.Tensor) -> torch.Tensor:
+    """Filter large inference volumes one height strip at a time."""
+    if self.training or not _use_volume_strips(volume):
+        return nn.Sequential.forward(self, volume)
+
+    height, width = volume.shape[-2:]
+    rows = max(8, CHUNK // width)
+    if rows >= height:
+        return nn.Sequential.forward(self, volume)
+    halo = 2  # two 3 x 3 spatial convolutions
+    layout = torch.channels_last_3d
+    out = torch.empty_like(volume, memory_format=layout)
+    for start in range(0, height, rows):
+        stop = min(height, start + rows)
+        first, last = max(0, start - halo), min(height, stop + halo)
+        strip = volume[..., first:last, :].contiguous(memory_format=layout)
+        filtered = nn.Sequential.forward(self, strip)
+        out[..., start:stop, :] = filtered[..., start - first : stop - first, :]
+        del strip, filtered
+    return out
 
 
 def _conv(self: Conv, x: torch.Tensor) -> torch.Tensor:
@@ -112,5 +136,7 @@ def prepare_portable(net: nn.Module, *, channels_last: bool = False) -> None:
             override(m, _post)
         elif channels_last and isinstance(m, HourGlass):
             override(m, _merge_attention, "merge_attention")
+            if is_base(m, HourGlass):
+                override(m.conv_out, _hourglass_tail)
         elif fast and isinstance(m, Conv):
             override(m, _conv)

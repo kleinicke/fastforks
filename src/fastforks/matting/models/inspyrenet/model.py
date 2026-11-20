@@ -1,4 +1,4 @@
-"""InSPyReNet runner: weights -> network and the portable forward pass (no kernels runner: see the card).
+"""InSPyReNet runners: weights -> network and the portable and kernels forward passes.
 
 Inference as transparent-background's `Remover.process` (what ComfyUI's InSPyReNet nodes call), static resize: the
 image resized to `size x size` (PIL bilinear, antialiased; here `F.interpolate` with `antialias=True` on floats),
@@ -54,15 +54,24 @@ def _sica(m: SICA, x: torch.Tensor, smap: torch.Tensor, lmap: torch.Tensor | Non
         prob += [torch.clip(lp, 0, 1), torch.clip(-lp, 0, 1)]
     shape = m.stage_size if m.stage_size is not None else (h, w)
     n = shape[0] * shape[1]
-    f = F.interpolate(x, size=shape, mode="bilinear", align_corners=False).view(b, n, -1)  # upstream's view
-    pr = F.interpolate(torch.cat(prob, dim=1), size=shape, mode="bilinear", align_corners=False).view(b, m.ctx, n)
-    context = torch.bmm(pr.float(), f.float()).permute(0, 2, 1).unsqueeze(3)
+    at_size = shape == (h, w)
+    f = x if at_size and x.is_contiguous() else F.interpolate(x, size=shape, mode="bilinear", align_corners=False)
+    pr = torch.cat(prob, dim=1)
+    if not at_size:
+        pr = F.interpolate(pr, size=shape, mode="bilinear", align_corners=False)
+    # Keep the upstream channel layout for the context projection.
+    context = torch.bmm(pr.reshape(b, m.ctx, n).float(), f.view(b, n, -1).float()).permute(0, 2, 1).unsqueeze(3)
+    del f, pr, prob
     query = m.conv_query(x).view(b, m.depth, -1).permute(0, 2, 1)
     key = m.conv_key(context).to(x.dtype).view(b, m.depth, -1)
     value = m.conv_value(context).to(x.dtype).view(b, m.depth, -1).permute(0, 2, 1)
     sim = F.softmax((m.depth**-0.5) * torch.bmm(query, key), dim=-1)
+    del query, key
     context = torch.bmm(sim, value).permute(0, 2, 1).contiguous().view(b, -1, h, w)
-    x = m.conv_out3(m.conv_out2(torch.cat([x, m.conv_out1(context)], dim=1)))
+    del sim, value
+    x = torch.cat([x, m.conv_out1(context)], dim=1)
+    del context
+    x = m.conv_out3(m.conv_out2(x))
     return x, m.conv_out4(x)
 
 

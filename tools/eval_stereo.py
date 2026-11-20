@@ -9,7 +9,7 @@ is one (ref, mode, dataset, pair range) with per-pair metrics, so chunks can be 
 GT pixels that are finite and > 0; `noc` restricts them to the non-occluded mask (mask0nocc.png == 255), `all` keeps the
 occluded pixels (mask >= 128) too. EPE = mean |d - gt|, badK = share of pixels with |d - gt| > K. ms is the median
 over the pairs after one untimed warm-up call on the first pair; MiB is the peak allocated / reserved memory of the
-calls (model load excluded).
+calls (model load excluded). The CPU reads ahead while the GPU processes the current pair.
 """
 
 from __future__ import annotations
@@ -18,6 +18,9 @@ import argparse
 import json
 import statistics
 import time
+from contextlib import closing
+from functools import partial
+from itertools import chain
 from pathlib import Path
 
 import numpy as np
@@ -25,6 +28,7 @@ import torch
 from PIL import Image
 
 from _data import DATA as DATA_ROOT
+from _prefetch import prefetch
 
 DATA = DATA_ROOT / "stereo"
 SETS = {  # name -> (image dir, GT dir)
@@ -64,39 +68,55 @@ def metrics(disp: np.ndarray, gt: np.ndarray, mask: np.ndarray) -> dict[str, flo
     return out
 
 
+def _read_pair(dataset: str, name: str) -> tuple[str, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    imdir, gtdir = SETS[dataset]
+    images, labels = imdir / name, gtdir / name
+    with (
+        Image.open(images / "im0.png") as left,
+        Image.open(images / "im1.png") as right,
+        Image.open(labels / "mask0nocc.png") as mask,
+    ):
+        return (
+            name,
+            np.asarray(left.convert("RGB")),
+            np.asarray(right.convert("RGB")),
+            read_pfm(labels / "disp0GT.pfm"),
+            np.asarray(mask),
+        )
+
+
 def evaluate(ref: str, mode: str, dataset: str, names: list[str]) -> dict:
     import fastforks.stereo as fs  # noqa: PLC0415 - after argparse, so --help is fast
 
-    imdir, gtdir = SETS[dataset]
-    data = []  # read once: images and GT stay in RAM
-    for n in names:
-        left, right = (np.asarray(Image.open(imdir / n / f"im{i}.png").convert("RGB")) for i in (0, 1))
-        data.append(
-            (n, left, right, read_pfm(gtdir / n / "disp0GT.pfm"), np.asarray(Image.open(gtdir / n / "mask0nocc.png")))
-        )
     row: dict = {"ref": ref, "mode": mode, "dataset": dataset}
+    if not names:
+        return {**row, "error": "no stereo pairs selected"}
     row |= {"gpu": torch.cuda.get_device_name(), "date": time.strftime("%F")}
     try:
         model = fs.load(ref, mode=mode)
     except Exception as e:  # noqa: BLE001 - recorded, the queue goes on
         return {**row, "error": f"load: {type(e).__name__}: {str(e)[:300]}"}
     row["backend"] = str(model.backend)
-    model(data[0][1], data[0][2])  # warm-up (untimed)
-    torch.cuda.synchronize()
-    torch.cuda.reset_peak_memory_stats()
     per_pair = []
-    for n, left, right, gt, mask in data:
-        try:
-            torch.cuda.synchronize()
-            t = time.perf_counter()
-            res = model(left, right)
-            torch.cuda.synchronize()
-            ms = (time.perf_counter() - t) * 1000
-            disp = res.disparity.float().cpu().numpy()
-            per_pair.append({"pair": n, "ms": ms, **metrics(disp, gt, mask)})
-        except Exception as e:  # noqa: BLE001 - e.g. OOM on one pair
-            per_pair.append({"pair": n, "error": f"{type(e).__name__}: {str(e)[:200]}"})
-            torch.cuda.empty_cache()
+    with closing(prefetch(partial(_read_pair, dataset), names, workers=2)) as data:
+        first = next(data)
+        model(first[1], first[2])  # warm-up (untimed)
+        torch.cuda.synchronize()
+        torch.cuda.reset_peak_memory_stats()
+        items = chain((first,), data)
+        del first
+        for n, left, right, gt, mask in items:
+            try:
+                torch.cuda.synchronize()
+                t = time.perf_counter()
+                res = model(left, right)
+                torch.cuda.synchronize()
+                ms = (time.perf_counter() - t) * 1000
+                disp = res.disparity.float().cpu().numpy()
+                per_pair.append({"pair": n, "ms": ms, **metrics(disp, gt, mask)})
+            except Exception as e:  # noqa: BLE001 - e.g. OOM on one pair
+                per_pair.append({"pair": n, "error": f"{type(e).__name__}: {str(e)[:200]}"})
+                torch.cuda.empty_cache()
     row["pairs"] = per_pair
     times = [p["ms"] for p in per_pair if "ms" in p]
     row["median_ms"] = statistics.median(times) if times else None

@@ -15,8 +15,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`ben2`](#ben2) | yes | 0.0403 | 105, 1.9x | 1118, 0.4x |
 | [`birefnet`](#birefnet) | yes | 0.0325 | 121, 1.9x | 1256, 0.65x |
 | [`birefnet-lite`](#birefnet) | yes | – | 47.6, 1.6x | 660, 0.68x |
-| [`inspyrenet`](#inspyrenet) | yes | – | 108, 2.2x | 1874, 0.57x |
-| [`inspyrenet-fast`](#inspyrenet) | yes | – | 15.5, 4.6x | 514, 0.61x |
+| [`inspyrenet`](#inspyrenet) | yes | – | 107, 2.3x | 1494, 0.46x |
+| [`inspyrenet-fast`](#inspyrenet) | yes | – | 15.8, 4.5x | 454, 0.54x |
 | [`isnet`](#isnet) | yes | – | 12.1, 3.2x | 522, 0.5x |
 | [`isnet-general-use`](#isnet) | yes | – | 12.1, 3.2x | 522, 0.5x |
 | [`matanyone`](#matanyone) | no | – | 911, 1.3x | 2706, 0.84x |
@@ -155,8 +155,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `inspyrenet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>109<br>108<br>85.8<br>51.1 | 3240 / 3262<br>1649 / 1848<br>1649 / 1874<br>913 / 1018<br>1181 / 1252 |
-| `inspyrenet-fast` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 71.1<br>41.7<br>15.5<br>17.7<br>6.99 | 810 / 836<br>432 / 488<br>432 / 514<br>345 / 376<br>561 / 600 |
+| `inspyrenet` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 241<br>107<br>107<br>85.8<br>51.1 | 3240 / 3262<br>1153 / 1468<br>1153 / 1494<br>913 / 1018<br>1181 / 1252 |
+| `inspyrenet-fast` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 71.1<br>45.4<br>15.8<br>17.7<br>6.99 | 810 / 836<br>363 / 448<br>363 / 454<br>345 / 376<br>561 / 600 |
 
 <details><summary>Details</summary>
 
@@ -173,9 +173,7 @@ Commercial use: yes.
 - `inspyrenet` 1080x1920, first call: portable + torch.compile 71 s (cold Inductor cache), TensorRT fp16 133 s (ONNX + engine).
 - `inspyrenet-fast` 1080x1920, first call: portable + torch.compile 77 s (cold Inductor cache), TensorRT fp16 138 s (ONNX + engine).
 - `inspyrenet` original 1080x1920: plemeri/transparent-background@f0fa91701a98, float pre- and post-processing
-- `inspyrenet` kernels 1080x1920: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `inspyrenet-fast` original 1080x1920: plemeri/transparent-background@f0fa91701a98, float pre- and post-processing
-- `inspyrenet-fast` kernels 1080x1920: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `inspyrenet` load / first call: original 6.68 s / 1.487 s, portable 0.78 s / 0.625 s, kernels 1.14 s / 0.462 s
 - `inspyrenet-fast` load / first call: original 5.93 s / 1.329 s, portable 11.07 s / 0.794 s, kernels 0.75 s / 0.861 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -184,10 +182,10 @@ Commercial use: yes.
 
 Each image at its own size against its binary mask: MAE of the alpha, max F-beta (beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | portable fp32 | note |
-|---|---|---|---|---|---|
-| `inspyrenet` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0129 / 0.9699 | 0.0129 / 0.9699 | 0.0129 / 0.9699 |  |
-| `inspyrenet-fast` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0420 / 0.8952 | 0.0420 / 0.8952 | 0.0420 / 0.8952 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `inspyrenet` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0129 / 0.9699 | 0.0129 / 0.9699 | 0.0129 / 0.9699 | 0.0129 / 0.9699 |  |
+| `inspyrenet-fast` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0420 / 0.8952 | 0.0420 / 0.8952 | 0.0420 / 0.8952 | 0.0420 / 0.8953 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13.
 
@@ -268,7 +266,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `matanyone` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1220<br>966<br>911<br>635<br>fails: BackendUnavailableError: matanyone@1 (portable) has no expor | 2978 / 3208<br>2268 / 2726<br>2268 / 2706<br>1363 / 3452<br>– |
-| `matanyone` | 288x512 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>1476 (frame and key encoder with eager video memory and alpha decoder, 100 frames) | –<br>–<br>–<br>474 / 542 |
+| `matanyone` | YouTubeMatte youtubematte_motion/0004 (100 frames) (100x288x512) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>1721<br>–<br>1476 (frame and key encoder with eager video memory and alpha decoder, 100 frames) | –<br>414 / 496<br>–<br>474 / 542 |
 
 <details><summary>Details</summary>
 
@@ -284,10 +282,11 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `matanyone` 3000x4000 (14.5 GiB peak allocated, 15.1 reserved)
 - `matanyone` 1080x1920, first call: portable + torch.compile 36 s (cold Inductor cache).
-- `matanyone` 288x512, first call: TensorRT fp32 16 s (ONNX + engine).
+- `matanyone` 100x288x512, first call: TensorRT fp32 16 s (ONNX + engine).
 - `matanyone` original 1080x1920: the authors' mixed-precision option (float16); pq-yang/MatAnyone@e5ddc534c1ff process_video loop on frames in memory, cv2 mask closing
 - `matanyone` portable 1080x1920: Portable reuses frame-zero encoder features during warm-up. Synthetic output and all 300 alpha maps from three labeled YouTubeMatte clips matched bitwise.
 - `matanyone` kernels 1080x1920: Eager CUDA decoder reuses activation storage after projecting the residual.
+- `matanyone` portable 100x288x512: The archived portable run used the same 100 YouTubeMatte frames, initial mask and FP32 settings as the staged TensorRT run.
 - `matanyone` load / first call: original 3.39 s / 2.37 s, portable 0.4 s / 1.867 s, kernels 0.35 s / 1.559 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -295,11 +294,11 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 Video matting, YouTubeMatte (MatAnyone's benchmark): each clip at 512 x 288 with the authors' first-frame mask, the authors' evaluation settings (1 warm-up step, mask closing 4 px); 8-bit alpha against the ground truth: mean absolute and squared difference and the temporal coherence error dtSSD (lower is better), averaged over frames, then clips. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | portable + torch.compile | TensorRT | note |
-|---|---|---|---|---|---|---|---|---|
-| `matanyone` | YouTubeMatte 512 x 288, every 2nd clip (32 x 100 frames), first-frame mask, MAD x 1000 / MSE x 1000 / dtSSD x 100 | 2.62 / 0.99 / 1.65 | 2.64 / 1.00 / 1.65 | 2.64 / 1.00 / 1.65 | 2.62 / 0.99 / 1.65 | 2.64 / 1.00 / 1.65 | 2.62 / 0.99 / 1.64 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `matanyone` | YouTubeMatte 512 x 288, every 2nd clip (32 x 100 frames), first-frame mask, MAD x 1000 / MSE x 1000 / dtSSD x 100 | 2.62 / 0.99 / 1.65 | 2.64 / 1.00 / 1.65 | 2.64 / 1.00 / 1.65 | 2.62 / 0.99 / 1.65 | 2.64 / 1.00 / 1.65 | 2.64 / 1.00 / 1.65 | 2.62 / 0.99 / 1.64 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d61a877f, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d9caeca2, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 374541c1b, 2026-11-20; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d61a877f, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d9caeca2, 2026-11-18.
 
 ### Parity
 

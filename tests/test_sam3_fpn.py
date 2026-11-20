@@ -5,6 +5,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks.kernels import sam3_fpn
+from fastforks.promptable_segmentation.models.sam3 import model as sam3_model
 from fastforks.promptable_segmentation.models.sam3.fast import pixel_decode
 from fastforks.promptable_segmentation.models.sam3.net.sam3 import PixelDecoder
 
@@ -74,3 +75,14 @@ def test_bilinear_mask_matches_float_threshold(h, w, oh, ow, pattern) -> None:
     want = F.interpolate(src, (oh, ow), mode="bilinear", align_corners=False) > 0
     got = sam3_fpn.bilinear_mask(src, (oh, ow))
     assert torch.equal(got, want)
+
+
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float16])
+def test_portable_binary_masks_keep_group_boundaries_exact(dtype: torch.dtype, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Several groups of noncontiguous mask logits match the ungrouped threshold."""
+    size = 11, 19
+    src = torch.randint(-1, 2, (5, 3, 7, 11), device="cuda").to(dtype).transpose(-1, -2)
+    monkeypatch.setattr(sam3_model, "_MASK_RESIZE_PIXELS", 2 * 3 * size[0] * size[1])
+    runner = object.__new__(sam3_model.Portable)
+    expected = F.interpolate(src, size, mode="bilinear", align_corners=False) > 0
+    assert torch.equal(runner.binary_masks(src, size), expected)

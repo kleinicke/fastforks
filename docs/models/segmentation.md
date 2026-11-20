@@ -25,7 +25,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`mask2former-swinl-ade20k`](#mask2former) | no | 60.2, 2.4x | 1238, 0.34x |
 | [`oneformer-swinl-ade20k`](#oneformer) | yes | 106, 1.9x | 1914, 0.25x |
 | [`pspnet-r101-d8-ade20k`](#mmseg) | yes | 24.9, 1.9x | 394, 0.19x |
-| [`sapiens-seg-0.3b-goliath`](#sapiens) | no | 92.6, 1.9x | 1762, 0.65x |
+| [`sapiens-seg-0.3b-goliath`](#sapiens) | no | 90.5, 1.9x | 1402, 0.51x |
 | [`sapiens-seg-1b-goliath`](#sapiens) | no | 180, 2.0x | 3022, 0.51x |
 | [`segformer-b0-ade20k`](#segformer) (resize 2048x512) | no | 3.49, 4.9x | 178, 0.11x |
 | [`segformer-b2-clothes`](#segformer) (resize 512x512) | no | 3.61, 3.9x (512x512) | 170, 0.35x |
@@ -70,11 +70,11 @@ Commercial use: yes.
 
 Scores use one pixel confusion matrix across the split. Left and right eyes share one class, and left and right brows share one class. Labels outside the eight shared foreground classes count as background. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | portable fp32 | note |
-|---|---|---|---|---|---|
-| `bisenet-face-parsing` | LaPa test (2,000 images), common face parts, mIoU / aAcc % | 69.11 / 93.52 | 69.11 / 93.52 | 69.12 / 93.52 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `bisenet-face-parsing` | LaPa test (2,000 images), common face parts, mIoU / aAcc % | 69.11 / 93.52 | 69.11 / 93.52 | 69.12 / 93.52 | 69.11 / 93.52 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e, 2026-11-20.
 
 ### Parity
 
@@ -86,7 +86,7 @@ CPU, float32: max |diff| <= 2.6e-05 vs the original. GPU, float16 (the default),
 
 ### Limitations
 
-- No accuracy measurement: face parsing is scored on CelebAMask-HQ, which is not part of the evaluation data here (no public mirror with a clear licence); tiers are compared by output parity and speed only.
+- Accuracy is measured on 2,000 LaPa test images with nine shared face-part labels, including background.
 
 </details>
 
@@ -396,8 +396,8 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sapiens-seg-0.3b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 466<br>173<br>132<br>92.6<br>118<br>156 | 3673 / 4104<br>2520 / 2724<br>1643 / 1762<br>1643 / 1762<br>1373 / 1462<br>2465 / 2526 |
-| `sapiens-seg-1b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1189<br>354<br>276<br>180<br>263<br>244 | 6874 / 7284<br>5721 / 5906<br>2894 / 3024<br>2894 / 3022<br>2986 / 3084<br>5694 / 5742 |
+| `sapiens-seg-0.3b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 466<br>173<br>132<br>90.5<br>118<br>156 | 3673 / 4104<br>2520 / 2724<br>1280 / 1402<br>1280 / 1402<br>1373 / 1462<br>2465 / 2526 |
+| `sapiens-seg-1b-goliath` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1189<br>354<br>277<br>180<br>263<br>244 | 6874 / 7284<br>5721 / 5906<br>2880 / 3024<br>2880 / 3022<br>2986 / 3084<br>5694 / 5742 |
 
 <details><summary>Details</summary>
 
@@ -415,11 +415,11 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - `sapiens-seg-0.3b-goliath` 1024x2048, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 53 s (ONNX + engine).
 - `sapiens-seg-1b-goliath` 1024x2048, first call: portable + torch.compile 19 s (cold Inductor cache), TensorRT fp16 85 s (ONNX + engine).
 - `sapiens-seg-0.3b-goliath` original 1024x2048: torch.autocast(fp16) around the forward
+- `sapiens-seg-0.3b-goliath` portable 1024x2048, kernels 1024x2048: Single-image inference releases the cast input and finished ViT tokens before decoding.
 - `sapiens-seg-1b-goliath` original 1024x2048: torch.autocast(fp16) around the forward
-- `sapiens-seg-1b-goliath` portable 1024x2048, kernels 1024x2048: Previous feature maps are released before normalization. Paired labels and logits matched bitwise.
-- `sapiens-seg-0.3b-goliath` load / first call: original 4.92 s / 1.024 s (512x512), portable 1.22 s / 0.132† s, kernels 0.96† s / 0.092† s
+- `sapiens-seg-1b-goliath` portable 1024x2048, kernels 1024x2048: Single-image inference releases the cast input and finished ViT tokens before decoding.
+- `sapiens-seg-0.3b-goliath` load / first call: original 4.92 s / 1.024 s (512x512), portable 1.28 s / 0.297 s, kernels 0.76 s / 0.218 s
 - `sapiens-seg-1b-goliath` load / first call: original 11.33 s / 0.569 s (512x512), portable 0.8 s / 0.469 s, kernels 1.03 s / 0.29 s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
 
 ### Measured
@@ -445,6 +445,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 ### Limitations
 
 - CUDA stream=True stages the ViT blocks from pinned host RAM. The decoder and its feature maps stay resident on the GPU. Export requires stream=False.
+- On a four-image 1024 × 2048 Sapiens 1B FP16 batch, releasing finished encoder tensors saves 54 MiB allocated in both CUDA modes. All checked labels and logits match bitwise, including three labeled COCO images.
 
 </details>
 
@@ -505,10 +506,10 @@ Each image at its own size, argmax of the logits. Every 40th ADE20K validation i
 | `segformer-b0-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 34.68 / 76.41 | 34.68 / 76.41 | 34.67 / 76.41 | 34.68 / 76.41 | 34.67 / 76.41 |  |  |  |
 | `segformer-b0-ade20k` | ADE20K val (50 images), fixed 1024 x 2048, mIoU / aAcc % |  |  | 26.59 / 78.15 |  |  | 26.58 / 78.15 | 26.58 / 78.15 |  |
 | `segformer-b5-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 48.28 / 82.75 | 48.28 / 82.75 | 48.28 / 82.75 | 48.28 / 82.75 | 48.28 / 82.75 |  |  |  |
-| `segformer-b2-clothes` | ATR mirror test split (200 images), mIoU / aAcc % | 74.92 / 97.85 |  | 74.96 / 97.85 | 74.96 / 97.85 |  |  |  |  |
-| `segformer-b5-face-parsing` | LaPa test (2,000 images), common face parts, mIoU / aAcc % | 72.58 / 94.09 |  | 72.55 / 94.08 | 72.55 / 94.08 |  |  |  |  |
+| `segformer-b2-clothes` | ATR mirror test split (200 images), mIoU / aAcc % | 74.92 / 97.85 |  | 74.96 / 97.85 | 74.96 / 97.85 | 74.96 / 97.85 |  |  |  |
+| `segformer-b5-face-parsing` | LaPa test (2,000 images), common face parts, mIoU / aAcc % | 72.58 / 94.09 |  | 72.55 / 94.08 | 72.55 / 94.08 | 72.55 / 94.08 |  |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 535aedbb / 939adfe8, 2026-11-06 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 535aedbb / 939adfe8, 2026-11-06 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e / 939adfe8, 2026-11-06 to 2026-11-20; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19.
 
 ### Parity
 

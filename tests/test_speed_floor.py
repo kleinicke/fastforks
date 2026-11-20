@@ -6,6 +6,8 @@ violation fails too, so the list shrinks with each fix. Re-measuring against the
 """
 
 import json
+from argparse import Namespace
+from subprocess import CompletedProcess
 
 import pytest
 
@@ -24,6 +26,19 @@ def test_allowlist_entries_give_a_reason():
     for key, reason in json.loads(speed_check.ALLOW.read_text()).items():
         assert isinstance(reason, str), key
         assert len(reason) > 20, key
+
+
+def test_speed_floor_recognizes_task_organized_scene(tmp_path):
+    scene = "Middlebury/MiddEval3/trainingH/Motorcycle/im0.png"
+    flat = tmp_path / scene
+    grouped = tmp_path / "stereo" / scene
+    assert speed_check._scene_path(tmp_path, scene) == flat
+    grouped.parent.mkdir(parents=True)
+    grouped.touch()
+    assert speed_check._scene_path(tmp_path, scene) == grouped
+    flat.parent.mkdir(parents=True)
+    flat.touch()
+    assert speed_check._scene_path(tmp_path, scene) == flat
 
 
 def test_tensorrt_rows_fail_on_all_nan_outputs():
@@ -55,6 +70,29 @@ def test_supplemental_tracking_row_is_not_scheduled():
     assert {j["mode"] for j in jobs} == {"portable", "kernels"}
     assert all(j["inputs"] for j in jobs)
     assert all(len(inp["label"].split("x")) == 2 for j in jobs for inp in j["inputs"])
+
+
+def test_timing_export_preserves_clip_scope(tmp_path, capsys):
+    """Keep the job key and measured clip shape available to downstream report generation."""
+    frames = Namespace(shape=(8, 3, 256, 256))
+    queries = Namespace(shape=(16, 3))
+    row = {
+        "side": "lib",
+        "ref": "model",
+        "task": "tracking",
+        "mode": "tensorrt",
+        "input": "256x256",
+        "ms": 20,
+        **speed_check._tracking_scope("tracking", (frames, queries), exported=True),
+    }
+    rows = tmp_path / "timings.jsonl"
+    rows.write_text(json.dumps(row) + "\n")
+    assert speed_check.export(rows, "test", "test") == 0
+    published = json.loads(capsys.readouterr().out)
+    assert published["input"] == "256x256"
+    assert published["comparison_input"] == "8x256x256"
+    assert (published["frames"], published["queries"]) == (8, 16)
+    assert published["backend_part"] == "8 frames with 16 queries"
 
 
 def test_merge_runs_goldens_for_modes_without_speed_rows(monkeypatch, tmp_path):
@@ -141,3 +179,117 @@ def test_resume_distinguishes_full_timing_and_runner_timing(monkeypatch):
     assert not speed_check._done([skipped], "lib", job)
     assert speed_check._done([row], "lib", fast)
     assert speed_check._done([row], "lib", job)
+
+
+def test_interrupted_merge_worker_invalidates_previous_pass(monkeypatch, tmp_path):
+    """A worker killed after writing a timing needs a fresh golden on the next run."""
+    ref, mode = "demo", "portable"
+    out = tmp_path / "rows.jsonl"
+    selection = tmp_path / "selection.json"
+    selection.write_text(json.dumps({"families": {"demo": {"task": "depth", "refs": [ref + "@1"]}}}))
+    floor = tmp_path / "speed.jsonl"
+    floor.write_text(json.dumps({"ref": ref, "mode": mode, "task": "depth", "input": "32x32", "ms": 1.0}) + "\n")
+    monkeypatch.setattr(merge_check, "speed_check", lambda: speed_check)
+    monkeypatch.setattr(speed_check, "FLOOR", floor)
+    monkeypatch.setattr(speed_check, "files_hash", lambda _: "hash")
+    monkeypatch.setattr(speed_check, "_commit", lambda: "revision")
+    base = {"side": "lib", "ref": ref, "mode": mode, "task": "depth", "code_hash": "hash"}
+    timing = base | {"input": "32x32", "ms": 1.0, "peak_alloc_mb": 10, "peak_reserved_mb": 20}
+    golden = base | {"input": "golden", "golden": "pass", "golden_mean": 0.0, "golden_p99": 0.0}
+    speed_check._append(out, timing)
+    speed_check._append(out, golden)
+
+    def interrupted(cmd, **_kwargs):
+        speed_check._append(out, timing)
+        return CompletedProcess(cmd, returncode=124)
+
+    monkeypatch.setattr(merge_check.subprocess, "run", interrupted)
+    args = Namespace(
+        selection=selection,
+        out=out,
+        family=[],
+        modes=[mode],
+        golden_only=False,
+        no_core=True,
+        profile=False,
+        force=True,
+        prefix="",
+        batch_size=1,
+    )
+    assert merge_check.run(args) == 1
+    rows = speed_check.read_rows(out)
+    assert rows[-1]["error"] == "worker rc=124"
+    (job,) = merge_check.jobs(json.loads(selection.read_text()), [], [mode])
+    assert merge_check._done(speed_check, rows[:2], job)
+    assert not merge_check._done(speed_check, rows, job)
+    assert merge_check._done(speed_check, [*rows, golden], job)
+
+
+def test_grouped_goldens_retry_only_unfinished_jobs(monkeypatch, tmp_path):
+    """A failed group keeps its passing checks and isolates the unfinished checks."""
+    out = tmp_path / "rows.jsonl"
+    selection = tmp_path / "selection.json"
+    refs = ["a@1", "b@1", "c@1"]
+    selection.write_text(json.dumps({"families": {"demo": {"task": "depth", "refs": refs}}}))
+    monkeypatch.setattr(merge_check, "speed_check", lambda: speed_check)
+    monkeypatch.setattr(speed_check, "files_hash", lambda _: "hash")
+    monkeypatch.setattr(speed_check, "_commit", lambda: "revision")
+    monkeypatch.setattr(
+        merge_check, "_golden_sources_by_ref", lambda jobs, _commit: {j["ref"]: ("scope",) for j in jobs}
+    )
+    attempts = []
+
+    def record(spec, verdict):
+        row = {k: spec[k] for k in ("side", "ref", "mode", "task", "golden_source")}
+        speed_check._append(
+            out,
+            row | {"input": "golden", "golden": verdict, "code_hash": "hash", "golden_mean": 0.0, "golden_p99": 0.0},
+        )
+
+    def run(cmd, **_kwargs):
+        specs = json.loads(cmd[-1])
+        if isinstance(specs, list):
+            attempts.append(tuple(s["ref"] for s in specs))
+            record(specs[0], "pass")
+            record(specs[1], "fail")
+            return CompletedProcess(cmd, returncode=1)
+        attempts.append((specs["ref"],))
+        record(specs, "pass")
+        return CompletedProcess(cmd, returncode=0)
+
+    monkeypatch.setattr(merge_check.subprocess, "run", run)
+    args = Namespace(
+        selection=selection,
+        out=out,
+        family=[],
+        modes=["portable"],
+        golden_only=True,
+        no_core=True,
+        profile=False,
+        force=False,
+        prefix="",
+        batch_size=3,
+    )
+    assert merge_check.run(args) == 0
+    assert attempts == [tuple(refs), ("b@1",), ("c@1",)]
+    assert merge_check.run(args) == 0
+    assert len(attempts) == 3
+
+
+def test_grouped_worker_stops_before_a_failed_golden_affects_other_jobs(monkeypatch, tmp_path):
+    import torch  # noqa: PLC0415
+
+    out = tmp_path / "rows.jsonl"
+    attempts = []
+
+    def worker(spec):
+        attempts.append((spec["ref"], spec["warm_worker"]))
+        verdict = "pass" if len(attempts) == 1 else "fail"
+        speed_check._append(out, {"input": "golden", "golden": verdict})
+        return 0
+
+    monkeypatch.setattr(torch.cuda, "empty_cache", lambda: None)
+    monkeypatch.setattr(merge_check, "worker", worker)
+    specs = [{"ref": ref, "out": str(out)} for ref in ("first", "second", "third")]
+    assert merge_check.worker_batch(specs) == 1
+    assert attempts == [("first", False), ("second", True)]

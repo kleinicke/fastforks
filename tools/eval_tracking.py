@@ -31,9 +31,9 @@ for the metrics. Its original (`$ALLTRACKER_SRC`, an aharley/alltracker checkout
 `tools/golden/alltracker.py` `track`: forward + backward passes per query frame, queries sampled bilinearly
 (upstream's evaluation runs forward only from frame 0 with queries rounded to pixels).
 
-Timing: one sequence per call, synchronised, per frame; after one untimed warm-up sequence. Each sequence appends one
-record to `<out>/<model>__<tier>.jsonl`; a run resumes after the last finished sequence and stops after `--budget`
-seconds (exit code 3).
+Timing: one sequence per call, synchronised, per frame, after one untimed warm-up sequence. A CPU worker decodes
+one sequence ahead. Each sequence appends one record to `<out>/<model>__<tier>.jsonl`. A run resumes after the
+last finished sequence and stops after `--budget` seconds (exit code 3).
 """
 
 from __future__ import annotations
@@ -45,6 +45,7 @@ import statistics
 import subprocess
 import sys
 import time
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -53,6 +54,9 @@ import torch
 from PIL import Image
 
 from _data import DATA
+from _prefetch import prefetch
+
+SequenceData = tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
 
 ROOT = DATA / "tapvid/tapvid_davis/npz"
 SIZE = 256
@@ -74,7 +78,7 @@ def sequences(every: int) -> list[str]:
     return sorted(p.stem for p in ROOT.glob("*.npz"))[::every]
 
 
-def load_sequence(name: str, *, native: bool = False) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def load_sequence(name: str, *, native: bool = False) -> SequenceData:
     """Frames, queries `[Q, 3]` `(t, x, y)` in their pixels, target points `[Q, T, 2]` (256 x 256) and occlusion.
 
     The frames are 256 x 256, or with `native` the original ones (the queries then in original pixels).
@@ -350,31 +354,31 @@ def _run(a: argparse.Namespace, ref: str, tier: str) -> bool:
         "command": " ".join(["python", *sys.argv]),
     }
     native = ref in NATIVE_REFS
-    warm = load_sequence(todo[0], native=native)  # untimed warm-up: the first sequence
-    model(warm[0], warm[1])
-    for name in todo:
-        if time.perf_counter() > deadline:
-            return False
-        frames, queries, pts, occ = load_sequence(name, native=native)
-        torch.cuda.synchronize()
-        t = time.perf_counter()
-        pred, pred_occ = model(frames, queries)
-        torch.cuda.synchronize()
-        ms = (time.perf_counter() - t) * 1000 / len(frames)
-        pred = pred * (SIZE / np.array(frames.shape[2:0:-1]))  # to 256 x 256 (a no-op on 256 x 256 frames)
-        rec = common | {
-            "seq": name,
-            "frames": len(frames),
-            "points": len(queries),
-            **metrics(queries[:, 0].astype(int), occ, pts, pred_occ, pred),
-            "ms_frame": round(ms, 3),
-            "alloc_mb": torch.cuda.max_memory_allocated() >> 20,
-            "res_mb": torch.cuda.max_memory_reserved() >> 20,
-            "date": time.strftime("%Y-%m-%d %H:%M"),
-        }
-        with path.open("a") as f:
-            f.write(json.dumps(rec) + "\n")
-        print(json.dumps({k: rec[k] for k in ("model", "tier", "seq", "frames", "aj", "ms_frame")}), flush=True)
+    with closing(prefetch(lambda name: (name, load_sequence(name, native=native)), todo)) as inputs:
+        for index, (name, (frames, queries, pts, occ)) in enumerate(inputs):
+            if index == 0:
+                model(frames, queries)  # untimed warm-up on the same decoded sequence
+            if time.perf_counter() > deadline:
+                return False
+            torch.cuda.synchronize()
+            t = time.perf_counter()
+            pred, pred_occ = model(frames, queries)
+            torch.cuda.synchronize()
+            ms = (time.perf_counter() - t) * 1000 / len(frames)
+            pred = pred * (SIZE / np.array(frames.shape[2:0:-1]))  # to 256 x 256 (a no-op on 256 x 256 frames)
+            rec = common | {
+                "seq": name,
+                "frames": len(frames),
+                "points": len(queries),
+                **metrics(queries[:, 0].astype(int), occ, pts, pred_occ, pred),
+                "ms_frame": round(ms, 3),
+                "alloc_mb": torch.cuda.max_memory_allocated() >> 20,
+                "res_mb": torch.cuda.max_memory_reserved() >> 20,
+                "date": time.strftime("%Y-%m-%d %H:%M"),
+            }
+            with path.open("a") as f:
+                f.write(json.dumps(rec) + "\n")
+            print(json.dumps({k: rec[k] for k in ("model", "tier", "seq", "frames", "aj", "ms_frame")}), flush=True)
     return True
 
 

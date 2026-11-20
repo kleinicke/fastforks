@@ -123,6 +123,9 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
                 tracks[t, :active], logits[t, :active] = p.float() * scale, v.float()
                 memory[:active] = torch.cat([memory[:active, 1:], q.float()[:, None]], 1)
                 mask[:active] = torch.cat([mask[:active, 1:], mask.new_zeros(active, 1)], 1)
+                del frame
+            # Release the current features before the next encoder call allocates its workspace.
+            del feats
     inv = torch.empty_like(order)
     inv[order] = torch.arange(total, device=dev)
     sel = inv[:nq]

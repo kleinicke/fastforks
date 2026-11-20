@@ -289,7 +289,12 @@ def _lookup(pyramid: list[torch.Tensor], coords: torch.Tensor, radius: int) -> t
     centroids = coords.permute(0, 2, 3, 1).reshape(b * h * w, 1, 1, 2)
     out = []
     exporting = in_onnx_export()
-    for corr in pyramid:
+    write_channels = coords.is_cuda and not (
+        exporting or torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled()
+    )
+    result = None
+    channels = side * side
+    for level, corr in enumerate(pyramid):
         ch, cw = corr.shape[-2:]
         grid = centroids + delta
         gx, gy = grid.split([1, 1], dim=-1)
@@ -303,9 +308,16 @@ def _lookup(pyramid: list[torch.Tensor], coords: torch.Tensor, radius: int) -> t
             if exporting
             else grid_sample(corr, normalized, align_corners=True)
         )
-        out.append(sampled.view(b, h, w, -1))
+        window = sampled.view(b, h, w, channels)
+        if write_channels:
+            if result is None:
+                result = sampled.new_empty((b, len(pyramid) * channels, h, w))
+            result[:, level * channels : (level + 1) * channels].copy_(window.permute(0, 3, 1, 2))
+            del sampled, window
+        else:
+            out.append(window)
         centroids = centroids / 2
-    return torch.cat(out, dim=-1).permute(0, 3, 1, 2).contiguous()
+    return result if result is not None else torch.cat(out, dim=-1).permute(0, 3, 1, 2).contiguous()
 
 
 def _upsample(flow: torch.Tensor, mask: torch.Tensor | None) -> torch.Tensor:

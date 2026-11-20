@@ -24,7 +24,7 @@ import os
 import subprocess
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -32,10 +32,11 @@ import cv2
 import numpy as np
 import torch
 
+from _prefetch import prefetch
+
 ROOT = Path(__file__).resolve().parents[1]
 THRESHOLDS = (1, 5, 10)  # degrees
 ANGLES = ("roll", "pitch", "vfov")
-PREFETCH = 8  # limit decoded-image memory independently of dataset size
 TIERS = {  # tier -> (mode, dtype, how, column)
     "upstream": ("upstream", "float32", "fp32", "original fp32"),
     "upstream16": ("upstream-fp16", "float16", "autocast", "original fp16"),
@@ -122,16 +123,15 @@ def predictor(ref: str, tier: str) -> Any:  # noqa: ANN401
 def predict(fn: Any, paths: list[Path], times: list[float]) -> np.ndarray:  # noqa: ANN401
     """`[N, 3]` float64 of `paths`, one call each (timed, decoding overlapped)."""
     out = []
-    with ThreadPoolExecutor(4) as pool:
-        for start in range(0, len(paths), PREFETCH):
-            for img in pool.map(read, paths[start : start + PREFETCH]):
-                x = torch.from_numpy(img).cuda().permute(2, 0, 1)[None].float() / 255
-                torch.cuda.synchronize()
-                t = time.perf_counter()
-                y = fn(x)
-                torch.cuda.synchronize()
-                times.append(time.perf_counter() - t)
-                out.append(y.double().cpu().numpy())
+    with closing(prefetch(read, paths, workers=4)) as images:
+        for img in images:
+            x = torch.from_numpy(img).cuda().permute(2, 0, 1)[None].float() / 255
+            torch.cuda.synchronize()
+            t = time.perf_counter()
+            y = fn(x)
+            torch.cuda.synchronize()
+            times.append(time.perf_counter() - t)
+            out.append(y.double().cpu().numpy())
     return np.stack(out)
 
 

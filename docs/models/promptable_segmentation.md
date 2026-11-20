@@ -66,11 +66,11 @@ Commercial use: yes.
 
 One text prompt per present COCO class. The label is the union of the class's non-crowd masks. Scores average pixel IoU aggregated per class, and IoU per image and prompt. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | portable fp32 | TensorRT | note |
-|---|---|---|---|---|---|---|
-| `clipseg` | COCO val2017, every 10th image, class masks, class / prompt mIoU % | 54.96 / 38.38 | 55.00 / 38.37 | 55.02 / 38.38 | 55.00 / 38.38 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|
+| `clipseg` | COCO val2017, every 10th image, class masks, class / prompt mIoU % | 54.96 / 38.38 | 55.00 / 38.37 | 55.02 / 38.38 | 55.02 / 38.37 | 55.00 / 38.38 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bc6ebb31, 2026-11-17; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bc6ebb31, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bc6ebb31, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bc6ebb31, 2026-11-17; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bc6ebb31, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e, 2026-11-20; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bc6ebb31, 2026-11-18.
 
 ### Parity
 
@@ -82,7 +82,7 @@ CPU, float32: max |diff| <= 0.0005 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
-- No accuracy measurement: CLIPSeg is scored on PhraseCut and Pascal-5i one-shot splits, which are not part of the evaluation data here; tiers are compared by output parity and speed only.
+- Accuracy uses 500 COCO validation images. Each annotated class supplies a text prompt and its target combines that class's instance masks.
 - Requires the optional transformers library (the network is its `CLIPSegForImageSegmentation`).
 - The original in the benchmarks and goldens is the Hugging Face transformers 5.19.0 port with the authors' weights (CIDAS/clipseg-rd64-refined); the authors' timojl/clipseg code was not run.
 - Text prompts only (no box exemplars or visual prompts); one instance per prompt: its mask is every pixel above probability 0.5, its score the highest pixel probability, its box the mask's bounding box.
@@ -168,6 +168,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
+- On the RTX 5060 Ti at 3840 × 2160 with 12 point prompts and 36 output masks, EfficientViT-SAM L0 used 621 MiB portable and 626 MiB kernels, down from 1,546 and 1,552 MiB. Masks, scores and logits matched bit for bit. Paired latency was 37.0 to 38.6 ms portable and 35.3 to 36.9 ms kernels.
 - Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~85 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
@@ -274,6 +275,7 @@ CPU, float32: max |diff| <= 0.0013 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
+- On the RTX 5060 Ti at 3840 × 2160 with 12 point prompts and 36 output masks, MobileSAM used 583 MiB portable and 584 MiB kernels, down from 1,509 and 1,510 MiB. Masks, scores and logits matched bit for bit. Paired latency was 39.6 to 41.2 ms portable and 38.2 to 39.7 ms kernels.
 - Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~85 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
@@ -411,6 +413,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | `sam-vit-l` | 0.01589 / 0.06758 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120` |
 | `sam-vit-h` | 0.00329 / 0.01177 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120` |
 
+### Limitations
+
+- On the RTX 5060 Ti at 3840 × 2160 with 12 point prompts and 36 output masks, SAM ViT-B used 742 MiB portable and 741 MiB kernels, down from 1,667 MiB in both modes. Masks, scores and logits matched bit for bit. Paired latency was 75.3 to 77.0 ms portable and 64.1 to 65.8 ms kernels.
+
 </details>
 
 <a id="sam2"></a>
@@ -486,6 +492,11 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | `sam2.1-hiera-base-plus` | 0.00245 / 0.00842 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120` |
 | `sam2.1-hiera-large` | 0.01872 / 0.08865 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120` |
 
+### Limitations
+
+- On the RTX 5060 Ti, SAM 2.1 Hiera Base Plus returned 36 masks from 12 point prompts on a 3840 × 2160 COCO image. Both CUDA modes used 696 MiB peak allocation, down from 1,646 MiB. Masks, scores and logits matched bit for bit. Paired latency was 60.6 to 62.0 ms portable and 54.0 to 55.5 ms kernels.
+- SAM 2.1 Hiera Tiny video took 2.217 s portable and 2.180 s kernels on the RTX 5060 Ti for 14 DAVIS frames at 480 x 854 and eight synthetic mask prompts. Both modes peaked at 1,419 MiB allocated and 1,522 MiB reserved.
+
 </details>
 
 <a id="sam3"></a>
@@ -498,7 +509,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam3` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 695<br>254<br>190<br>107<br>167<br>89.5 (image encoder only) | 3865 / 3934<br>2052 / 2124<br>1910 / 1984<br>1900 / 2044<br>1863 / 1944<br>2926 / 2944 |
+| `sam3` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 695<br>254<br>173<br>107<br>167<br>89.5 (image encoder only) | 3865 / 3934<br>2052 / 2124<br>1822 / 1904<br>1900 / 2044<br>1863 / 1944<br>2926 / 2944 |
 
 ### Weight streaming
 
@@ -524,6 +535,7 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `sam3` 1080x1920 (1.9 GiB peak allocated, 2.1 reserved)
 - `sam3` 1024x1024, first call: portable + torch.compile 67 s (cold Inductor cache), TensorRT fp16 54 s (ONNX + engine).
 - `sam3` original 1024x1024: Transformers FP16 weights, FP16 inputs; original adapter casting hooks; 500-image COCO accuracy checked
+- `sam3` portable 1024x1024: Synthetic object prompt through the full API. No query exceeded the default threshold, so the portable mask decoder was skipped.
 - `sam3` load / first call: original 1.35 s / 0.256 s, portable 3.85 s / 0.18 s (840x1297), kernels 4.03 s / 0.116 s (840x1297)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -547,6 +559,8 @@ CPU, float32: max |diff| <= 0.0005 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
+- Eager CUDA portable skips the mask decoder when no query passes the score threshold. The synthetic 1024 × 1024 speed input has zero detections. For a COCO person prompt with a surviving detection and a cached image embedding, paired latency was about 30 ms before and after the change.
+- On a 1920 × 1080 COCO image with a person prompt and `score_threshold=0`, portable returned 200 masks and used 2,215 MiB peak allocation, down from 3,765 MiB on the RTX 5060 Ti. Masks, boxes and scores matched bit for bit. Paired latency was 204.3 ms before and 206.0 ms after.
 - On the RTX 5060 Ti, streaming the same 18-frame, 800 × 600 clip with two objects reduced peak allocated memory from 2,304 to 1,482 MiB portable and 2,047 to 1,224 MiB kernels. The masks and scores matched the corresponding resident run exactly.
 - stream=True stages the image encoder from pinned host memory once per embedded frame. Text and prompt heads remain resident, and further prompts on an existing embedding reuse that frame. Image encoder export requires stream=False.
 - Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~300 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.

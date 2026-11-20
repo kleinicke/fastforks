@@ -249,20 +249,20 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | note |
-|---|---|---|---|---|---|---|
-| `coatnet_nano_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.58 / 95.82 | 82.58 / 95.80 | 82.56 / 95.78 | 82.60 / 95.78 |  |
-| `coatnet_rmlp_nano_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.48 / 95.98 | 82.54 / 95.98 | 82.44 / 95.96 | 82.40 / 95.96 |  |
-| `coatnet_0_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.34 / 96.30 | 83.32 / 96.30 | 83.38 / 96.30 | 83.40 / 96.28 |  |
-| `coatnet_1_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.32 / 96.54 | 84.38 / 96.56 | 84.44 / 96.56 | 84.46 / 96.56 |  |
-| `coatnet_rmlp_1_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.58 / 96.74 | 84.58 / 96.74 | 84.46 / 96.56 | 84.50 / 96.56 |  |
-| `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.34 / 97.02 | 85.36 / 97.02 | 85.30 / 97.04 | 85.30 / 97.02 |  |
-| `coatnet_2_rw_224.sw_in12k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.04 / 98.16 | 87.04 / 98.14 | 87.18 / 98.16 | 87.18 / 98.16 |  |
-| `coatnet_rmlp_2_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.12 / 96.86 | 85.08 / 96.86 | 85.16 / 96.80 | 85.16 / 96.78 |  |
-| `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.04 / 98.18 | 87.02 / 98.18 | 87.02 / 98.12 | 87.02 / 98.12 |  |
-| `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.72 / 98.64 | 87.72 / 98.68 | 87.84 / 98.54 | 87.82 / 98.54 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `coatnet_nano_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.58 / 95.82 | 82.58 / 95.80 | 82.56 / 95.78 | 82.60 / 95.78 | 82.56 / 95.78 |  |
+| `coatnet_rmlp_nano_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.48 / 95.98 | 82.54 / 95.98 | 82.44 / 95.96 | 82.40 / 95.96 | 82.44 / 95.96 |  |
+| `coatnet_0_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.34 / 96.30 | 83.32 / 96.30 | 83.38 / 96.30 | 83.40 / 96.28 | 83.38 / 96.30 |  |
+| `coatnet_1_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.32 / 96.54 | 84.38 / 96.56 | 84.44 / 96.56 | 84.46 / 96.56 | 84.44 / 96.56 |  |
+| `coatnet_rmlp_1_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.58 / 96.74 | 84.58 / 96.74 | 84.46 / 96.56 | 84.50 / 96.56 | 84.46 / 96.56 |  |
+| `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.34 / 97.02 | 85.36 / 97.02 | 85.30 / 97.04 | 85.30 / 97.02 | 85.30 / 97.04 |  |
+| `coatnet_2_rw_224.sw_in12k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.04 / 98.16 | 87.04 / 98.14 | 87.18 / 98.16 | 87.18 / 98.16 | 87.18 / 98.16 |  |
+| `coatnet_rmlp_2_rw_224.sw_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.12 / 96.86 | 85.08 / 96.86 | 85.16 / 96.80 | 85.16 / 96.78 | 85.16 / 96.80 |  |
+| `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.04 / 98.18 | 87.02 / 98.18 | 87.02 / 98.12 | 87.02 / 98.12 | 87.02 / 98.12 |  |
+| `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 87.72 / 98.64 | 87.72 / 98.68 | 87.84 / 98.54 | 87.82 / 98.54 | 87.84 / 98.54 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 0e3805948 / 67dbea00e, 2026-11-20.
 
 ### Parity
 
@@ -509,13 +509,13 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | note |
-|---|---|---|---|---|---|---|
-| `davit_tiny.msft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.94 / 96.50 | 83.92 / 96.50 | 83.94 / 96.56 | 83.92 / 96.60 |  |
-| `davit_small.msft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.18 / 97.20 | 85.16 / 97.20 | 85.24 / 97.18 | 85.22 / 97.20 |  |
-| `davit_base.msft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.58 / 97.10 | 85.58 / 97.10 | 85.66 / 97.12 | 85.70 / 97.12 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `davit_tiny.msft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.94 / 96.50 | 83.92 / 96.50 | 83.94 / 96.56 | 83.92 / 96.60 | 83.92 / 96.58 |  |
+| `davit_small.msft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.18 / 97.20 | 85.16 / 97.20 | 85.24 / 97.18 | 85.22 / 97.20 | 85.22 / 97.20 |  |
+| `davit_base.msft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.58 / 97.10 | 85.58 / 97.10 | 85.66 / 97.12 | 85.70 / 97.12 | 85.64 / 97.12 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 0e3805948, 2026-11-20.
 
 ### Parity
 
@@ -720,13 +720,13 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | note |
-|---|---|---|---|---|---|---|
-| `efficientformer_l1.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.14 / 95.22 | 81.16 / 95.24 | 81.14 / 95.12 | 81.14 / 95.14 |  |
-| `efficientformer_l3.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.12 / 96.32 | 83.14 / 96.32 | 83.16 / 96.32 | 83.16 / 96.32 |  |
-| `efficientformer_l7.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.44 / 96.68 | 84.44 / 96.66 | 84.38 / 96.68 | 84.38 / 96.66 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `efficientformer_l1.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 81.14 / 95.22 | 81.16 / 95.24 | 81.14 / 95.12 | 81.14 / 95.14 | 81.12 / 95.12 |  |
+| `efficientformer_l3.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.12 / 96.32 | 83.14 / 96.32 | 83.16 / 96.32 | 83.16 / 96.32 | 83.16 / 96.32 |  |
+| `efficientformer_l7.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.44 / 96.68 | 84.44 / 96.66 | 84.38 / 96.68 | 84.38 / 96.66 | 84.40 / 96.68 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 0e3805948, 2026-11-20.
 
 ### Parity
 
@@ -789,14 +789,14 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | note |
-|---|---|---|---|---|---|---|
-| `efficientformerv2_s0.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 77.04 / 92.94 | 77.00 / 92.76 | 77.34 / 92.82 | 77.02 / 92.88 |  |
-| `efficientformerv2_s1.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.80 / 95.00 | 81.02 / 94.88 | 80.88 / 95.00 | 80.84 / 95.06 |  |
-| `efficientformerv2_s2.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.22 / 96.28 | 83.10 / 96.34 | 83.18 / 96.30 | 83.22 / 96.24 |  |
-| `efficientformerv2_l.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.88 / 96.58 | 83.96 / 96.58 | 84.02 / 96.50 | 83.98 / 96.62 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `efficientformerv2_s0.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 77.04 / 92.94 | 77.00 / 92.76 | 77.34 / 92.82 | 77.02 / 92.88 | 77.32 / 92.82 |  |
+| `efficientformerv2_s1.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.80 / 95.00 | 81.02 / 94.88 | 80.88 / 95.00 | 80.84 / 95.06 | 80.78 / 94.98 |  |
+| `efficientformerv2_s2.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.22 / 96.28 | 83.10 / 96.34 | 83.18 / 96.30 | 83.22 / 96.24 | 83.26 / 96.34 |  |
+| `efficientformerv2_l.snap_dist_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.88 / 96.58 | 83.96 / 96.58 | 84.02 / 96.50 | 83.98 / 96.62 | 84.06 / 96.48 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 0e3805948, 2026-11-20.
 
 ### Parity
 
@@ -1055,13 +1055,13 @@ Commercial use: yes.
 
 ### Measured
 
-fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. All 211 Sexual-category images from the official test split (150 unsafe, 61 safe), from LAION-5B and Lexica. Apply each implementation's normal resize and use the checkpoint's default top-1 prediction. Balanced accuracy averages unsafe and safe recall. Original = the original code named under Details, same checkpoint and protocol.
+All 211 Sexual-category images from the official test split (150 unsafe, 61 safe), from LAION-5B and Lexica. Apply each implementation's normal resize and use the checkpoint's default top-1 prediction. Balanced accuracy averages unsafe and safe recall. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | portable fp32 | note |
-|---|---|---|---|---|---|
-| `falconsai-nsfw-vit` | UnsafeBench test (Sexual), balanced accuracy / accuracy / recall / precision / F1 % | 69.03 / 57.35 / 41.33 / 96.72 / 96.88 / 57.94 | 68.21 / 56.87 / 41.33 / 95.08 / 95.38 / 57.67 | 69.03 / 57.35 / 41.33 / 96.72 / 96.88 / 57.94 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `falconsai-nsfw-vit` | UnsafeBench test (Sexual), balanced accuracy / accuracy / recall / precision / F1 % | 69.03 / 57.35 / 41.33 / 96.72 / 96.88 / 57.94 | 68.21 / 56.87 / 41.33 / 95.08 / 95.38 / 57.67 | 69.03 / 57.35 / 41.33 / 96.72 / 96.88 / 57.94 | 69.03 / 57.35 / 41.33 / 96.72 / 96.88 / 57.94 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ecfe045ca, 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ecfe045ca, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ecfe045ca, 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 257e02f4d, 2026-11-20.
 
 ### Parity
 
@@ -1202,16 +1202,16 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | note |
-|---|---|---|---|---|---|---|
-| `focalnet_tiny_srf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.86 / 96.28 | 82.88 / 96.30 | 82.90 / 96.28 | 82.88 / 96.28 |  |
-| `focalnet_small_srf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.34 / 96.84 | 84.30 / 96.84 | 84.44 / 96.76 | 84.40 / 96.74 |  |
-| `focalnet_base_srf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.20 / 96.86 | 84.18 / 96.86 | 84.16 / 96.84 | 84.16 / 96.84 |  |
-| `focalnet_tiny_lrf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.88 / 96.12 | 82.86 / 96.10 | 82.86 / 96.20 | 82.82 / 96.20 |  |
-| `focalnet_small_lrf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.36 / 96.80 | 84.34 / 96.80 | 84.32 / 96.80 | 84.38 / 96.80 |  |
-| `focalnet_base_lrf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.64 / 96.64 | 84.64 / 96.64 | 84.56 / 96.56 | 84.56 / 96.58 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `focalnet_tiny_srf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.86 / 96.28 | 82.88 / 96.30 | 82.90 / 96.28 | 82.88 / 96.28 | 82.84 / 96.26 |  |
+| `focalnet_small_srf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.34 / 96.84 | 84.30 / 96.84 | 84.44 / 96.76 | 84.40 / 96.74 | 84.40 / 96.76 |  |
+| `focalnet_base_srf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.20 / 96.86 | 84.18 / 96.86 | 84.16 / 96.84 | 84.16 / 96.84 | 84.16 / 96.84 |  |
+| `focalnet_tiny_lrf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.88 / 96.12 | 82.86 / 96.10 | 82.86 / 96.20 | 82.82 / 96.20 | 82.88 / 96.18 |  |
+| `focalnet_small_lrf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.36 / 96.80 | 84.34 / 96.80 | 84.32 / 96.80 | 84.38 / 96.80 | 84.34 / 96.80 |  |
+| `focalnet_base_lrf.ms_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 84.64 / 96.64 | 84.64 / 96.64 | 84.56 / 96.56 | 84.56 / 96.58 | 84.58 / 96.56 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e, 2026-11-20.
 
 ### Parity
 
@@ -1292,17 +1292,17 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | note |
-|---|---|---|---|---|---|---|
-| `hgnetv2_b0.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.50 / 93.98 | 78.40 / 93.96 | 78.50 / 94.04 | 78.50 / 94.04 |  |
-| `hgnetv2_b1.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.08 / 94.40 | 80.00 / 94.46 | 80.12 / 94.38 | 80.16 / 94.42 |  |
-| `hgnetv2_b2.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.50 / 95.92 | 82.48 / 95.92 | 82.50 / 95.92 | 82.50 / 95.92 |  |
-| `hgnetv2_b3.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.68 / 96.08 | 83.68 / 96.08 | 83.66 / 96.02 | 83.64 / 96.06 |  |
-| `hgnetv2_b4.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.96 / 96.66 | 83.98 / 96.66 | 84.00 / 96.64 | 84.02 / 96.64 |  |
-| `hgnetv2_b5.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.50 / 97.14 | 85.52 / 97.14 | 85.52 / 97.18 | 85.52 / 97.16 |  |
-| `hgnetv2_b6.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 86.60 / 97.94 | 86.60 / 97.94 | 86.74 / 98.00 | 86.66 / 98.00 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `hgnetv2_b0.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.50 / 93.98 | 78.40 / 93.96 | 78.50 / 94.04 | 78.50 / 94.04 | 78.58 / 94.04 |  |
+| `hgnetv2_b1.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.08 / 94.40 | 80.00 / 94.46 | 80.12 / 94.38 | 80.16 / 94.42 | 80.14 / 94.40 |  |
+| `hgnetv2_b2.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.50 / 95.92 | 82.48 / 95.92 | 82.50 / 95.92 | 82.50 / 95.92 | 82.48 / 95.92 |  |
+| `hgnetv2_b3.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.68 / 96.08 | 83.68 / 96.08 | 83.66 / 96.02 | 83.64 / 96.06 | 83.62 / 96.06 |  |
+| `hgnetv2_b4.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 83.96 / 96.66 | 83.98 / 96.66 | 84.00 / 96.64 | 84.02 / 96.64 | 84.04 / 96.64 |  |
+| `hgnetv2_b5.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 85.50 / 97.14 | 85.52 / 97.14 | 85.52 / 97.18 | 85.52 / 97.16 | 85.56 / 97.16 |  |
+| `hgnetv2_b6.ssld_stage2_ft_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 86.60 / 97.94 | 86.60 / 97.94 | 86.74 / 98.00 | 86.66 / 98.00 | 86.72 / 98.00 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 0e3805948 / 67dbea00e, 2026-11-20.
 
 ### Parity
 
@@ -1890,14 +1890,14 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | note |
-|---|---|---|---|---|---|---|
-| `shvit_s1.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 74.26 / 91.10 | 74.22 / 91.16 | 74.26 / 91.00 | 74.22 / 90.98 |  |
-| `shvit_s2.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 76.74 / 92.40 | 76.82 / 92.40 | 76.82 / 92.44 | 76.78 / 92.40 |  |
-| `shvit_s3.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.06 / 93.48 | 78.04 / 93.44 | 77.96 / 93.50 | 77.96 / 93.50 |  |
-| `shvit_s4.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.38 / 94.50 | 80.38 / 94.52 | 80.40 / 94.52 | 80.40 / 94.52 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|
+| `shvit_s1.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 74.26 / 91.10 | 74.22 / 91.16 | 74.26 / 91.00 | 74.22 / 90.98 | 74.26 / 91.00 |  |
+| `shvit_s2.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 76.74 / 92.40 | 76.82 / 92.40 | 76.82 / 92.44 | 76.78 / 92.40 | 76.76 / 92.38 |  |
+| `shvit_s3.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 78.06 / 93.48 | 78.04 / 93.44 | 77.96 / 93.50 | 77.96 / 93.50 | 77.98 / 93.48 |  |
+| `shvit_s4.in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 80.38 / 94.50 | 80.38 / 94.52 | 80.40 / 94.52 | 80.40 / 94.52 | 80.42 / 94.54 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7ba7307f, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 0e3805948, 2026-11-20.
 
 ### Parity
 
@@ -2343,20 +2343,16 @@ Commercial use: yes.
 
 ### Measured
 
-fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Taggers have no public benchmark with their tag set, so the original fp32 is the reference: tag F1 = F1 of the tags at probability 0.35 of our output against the tags of the original fp32, micro-averaged over the images; top-1 agreement = share of images with the same most likely tag. The original fp16 row shows the difference of the original itself in half precision. Original = the original code named under Details, same checkpoint and protocol.
+Tagger agreement uses the original FP32 network as the reference on the same COCO images with white square padding and tensor resizing. Tag F1 compares the tags above probability 0.35, micro-averaged over the images. Top-1 agreement counts images with the same most likely tag. The original FP16 measurement casts both the network and inputs directly to half precision. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
-| `wd-vit-tagger-v3` | ImageNet-1k val, 5000 random images, top-1 / top-5 % |  |  |  | 0.08 / 0.36 |  |  |
-| `wd-vit-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.95 / 99.80 | 99.91 / 99.80 |  | 99.90 / 99.20 |  |
-| `wd-convnext-tagger-v3` | ImageNet-1k val, 5000 random images, top-1 / top-5 % |  |  |  | 0.10 / 0.40 |  |  |
-| `wd-convnext-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.92 / 99.80 | 99.90 / 99.60 |  | 99.88 / 99.80 |  |
-| `wd-vit-large-tagger-v3` | ImageNet-1k val, 5000 random images, top-1 / top-5 % |  |  |  | 0.06 / 0.34 |  |  |
-| `wd-vit-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.87 / 99.40 |  | 99.88 / 99.80 |  |
-| `wd-eva02-large-tagger-v3` | ImageNet-1k val, 5000 random images, top-1 / top-5 % |  |  |  | 0.08 / 0.36 |  |  |
-| `wd-eva02-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.84 / 99.80 |  | 99.84 / 99.40 |  |
+| `wd-vit-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.95 / 99.80 | 99.91 / 99.80 | 100.00 / 100.00 | 99.90 / 99.20 |  |
+| `wd-convnext-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.92 / 99.80 | 99.90 / 99.60 | 99.99 / 100.00 | 99.88 / 99.80 |  |
+| `wd-vit-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.87 / 99.40 | 100.00 / 100.00 | 99.88 / 99.80 |  |
+| `wd-eva02-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.84 / 99.80 | 100.00 / 100.00 | 99.84 / 99.40 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 96cbc5e57, 2026-11-20; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16.
 
 ### Parity
 

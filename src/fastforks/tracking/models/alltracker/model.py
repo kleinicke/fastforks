@@ -110,36 +110,41 @@ def _sample(
     return pts + f[:, :2].transpose(1, 2), f[:, 2] * f[:, 3]
 
 
-def _direction(
-    net: AllTracker, fmaps: torch.Tensor, pts: torch.Tensor, offset: torch.Tensor, iters: int
+def _direction(  # noqa: PLR0913 - feature window, point coordinates, and traversal options
+    net: AllTracker, fmaps: torch.Tensor, pts: torch.Tensor, offset: torch.Tensor, iters: int, *, reverse: bool = False
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Tracks `[L, K, 2]` and `visible * confident` `[L, K]` of points on frame 0 of `fmaps` `[L, C, h, w]`."""
+    """Tracks and visibility in traversal order, anchored at the first or last feature frame."""
     n, k = fmaps.shape[0], pts.shape[0]
     tracks, vis = pts[None].repeat(n, 1, 1), pts.new_ones(n, k)
     if n == 1:
         return tracks, vis
+    anchor = fmaps[-1] if reverse else fmaps[0]
     zeros = fmaps.new_zeros((1, 2, *fmaps.shape[-2:]), dtype=torch.float32)
     if n == 2:  # noqa: PLR2004 - upstream's two-frame flow
-        f8, v8, m = net.window(fmaps[0], fmaps[1:], zeros, zeros, iters)
+        adjacent = fmaps[:1] if reverse else fmaps[1:]
+        f8, v8, m = net.window(anchor, adjacent, zeros, zeros, iters)
         tracks[1:], vis[1:] = _sample(f8, v8, m, pts, offset)
         return tracks, vis
     starts = list(range(0, n - WINDOW, STRIDE)) or [0]
     if starts[-1] + WINDOW < n:
         starts.append(starts[-1] + STRIDE)
-    pad = starts[-1] + WINDOW - n
-    if pad:
-        fmaps = torch.cat([fmaps, fmaps[-1:].expand(pad, -1, -1, -1)])
-    flows8 = zeros.repeat(n + pad, 1, 1, 1)
-    visconfs8 = zeros.repeat(n + pad, 1, 1, 1)
+    flows8 = zeros.repeat(WINDOW, 1, 1, 1)
+    visconfs8 = zeros.repeat(WINDOW, 1, 1, 1)
     for i, s in enumerate(starts):
-        win = slice(s, s + WINDOW)
-        f8, v8, m = net.window(fmaps[0], fmaps[win], flows8[win], visconfs8[win], iters)
-        flows8[win], visconfs8[win] = f8, v8
-        if s + WINDOW < n + pad:  # the frames after the window start from its last frame (nearest visited)
-            flows8[s + WINDOW :], visconfs8[s + WINDOW :] = f8[-1:], v8[-1:]
-        keep = min(STRIDE if i + 1 < len(starts) else WINDOW, n - s)  # later windows overwrite the rest
+        stop = min(s + WINDOW, n)
+        window = fmaps[n - stop : n - s].flip(0) if reverse else fmaps[s:stop]
+        if (pad := WINDOW - len(window)) > 0:
+            window = torch.cat((window, window[-1:].expand(pad, -1, -1, -1)))
+        f8, v8, m = net.window(anchor, window, flows8, visconfs8, iters)
+        another = i + 1 < len(starts)
+        keep = min(STRIDE if another else WINDOW, n - s)  # later windows overwrite the rest
         tracks[s : s + keep], vis[s : s + keep] = _sample(f8[:keep], v8[:keep], m[:keep], pts, offset)
-        del f8, v8, m
+        if another:
+            # Keep the overlap and seed only the incoming frames from the last visited frame.
+            for state, updated in ((flows8, f8), (visconfs8, v8)):
+                state[:-STRIDE].copy_(updated[STRIDE:])
+                state[-STRIDE:].copy_(updated[-1:])
+        del f8, v8, m, window
     return tracks, vis
 
 
@@ -185,7 +190,7 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
             tr, vi = _direction(net, fmaps[t0:], pts[sel], offset, params.iters)
             tracks[t0:, sel], vis[t0:, sel] = tr, vi
             if t0 > 0:
-                tr, vi = _direction(net, fmaps[: t0 + 1].flip(0), pts[sel], offset, params.iters)
+                tr, vi = _direction(net, fmaps[: t0 + 1], pts[sel], offset, params.iters, reverse=True)
                 tracks[:t0, sel], vis[:t0, sel] = tr[1:].flip(0), vi[1:].flip(0)
     return {"tracks": (tracks + 0.5) / scale - 0.5, "visibility": vis.clamp(0, 1) ** VIS_POWER}
 

@@ -386,10 +386,10 @@ _PROTOCOL = {
     "compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt "
     "comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with "
     "a LiDAR prompt, L1 in mm): they compare our modes with the original. ",
-    ("classification", "coco-val2017-first500-tags"): "Taggers have no public benchmark with their tag set, so the "
-    "original fp32 is the reference: tag F1 = F1 of the tags at probability 0.35 of our output against the tags of "
-    "the original fp32, micro-averaged over the images; top-1 agreement = share of images with the same most likely "
-    "tag. The original fp16 row shows the difference of the original itself in half precision. ",
+    ("classification", "coco-val2017-first500-tags"): "Tagger agreement uses the original FP32 network as the "
+    "reference on the same COCO images with white square padding and tensor resizing. Tag F1 compares the tags "
+    "above probability 0.35, micro-averaged over the images. Top-1 agreement counts images with the same most likely "
+    "tag. The original FP16 measurement casts both the network and inputs directly to half precision. ",
     ("detection", "coco-val2017-every10-fixed-800x1344"): "Resize the same 500 RGB inputs to 800 x 1344. Use one "
     "prepared prompt for all 80 COCO classes and score the top 100 query/class pairs per image. ",
     ("detection", "coco-val2017-every10-fixed-320x320"): "Fixed FP32 graph, one prepared prompt for all 80 COCO "
@@ -630,8 +630,12 @@ _PROTOCOL = {
     "at their original size. In TensorRT mode only the 416 x 320 field predictor is accelerated. ",
     ("calibration", "lamar2k-every20"): "Every 20th LaMAR image in its original orientation and size. "
     "The compiled mode accelerates field prediction and keeps the camera fit eager. ",
-    "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
-    "and its PIL eval transform. ",
+    **{
+        ("classification", name): "fastforks: the model's own resize / crop on the GPU; original: the library's "
+        "pretrained loader and its PIL eval transform. "
+        for name in _DATASETS["classification"]
+        if name.startswith("imagenet")
+    },
     ("classification", "unsafebench-test-sexual"): "All 211 Sexual-category images from the official test split "
     "(150 unsafe, 61 safe), from LAION-5B and Lexica. Apply each implementation's normal resize and use the "
     "checkpoint's default top-1 prediction. Balanced accuracy averages unsafe and safe recall. ",
@@ -851,7 +855,7 @@ def _compile_rows() -> dict[tuple[str, str, str], dict]:
     """Latest compile and TensorRT rows by model, mode and input size, respecting card gates."""
     path = ROOT / "docs" / "data" / "speed_compile.jsonl"
     rows = {
-        (r["ref"], r["mode"], r["input"]): r
+        (r["ref"], r["mode"], r.get("comparison_input", r["input"])): r
         for r in map(json.loads, path.read_text().splitlines() if path.is_file() else [])
     }
     variants = {v.id: v for t in registry.TASKS for _, v in registry.cards(t).values()}
@@ -1067,14 +1071,14 @@ def _cold_rows() -> dict[str, list[dict]]:
     return out
 
 
-def _startup(task: str, model_id: str, rows: list[dict]) -> dict[str, tuple[dict, str, str]]:
+def _startup(task: str, rows: list[dict], cold_rows: list[dict]) -> dict[str, tuple[dict, str, str]]:
     """Startup row per mode: `{mode: (row, load mark, first-call mark)}`.
 
     One row per (id, mode), independent of the table size: a `cold: true` row if there is one, else the row at the
     task's standard size, else the largest size with a first call (the input is then shown). A mark flags a time
     measured warm (kernels load after the portable one; a size after an earlier one in the same process).
     """
-    all_rows = [r for r in [*rows, *_cold_rows().get(model_id, [])] if "first_call_s" in r]
+    all_rows = [r for r in [*rows, *cold_rows] if "first_call_s" in r]
     std = _std_input(task, {})
     out = {}
     for mode in ("upstream", "portable", "kernels"):
@@ -1094,12 +1098,14 @@ def _startup(task: str, model_id: str, rows: list[dict]) -> dict[str, tuple[dict
     return out
 
 
-def _startup_notes(task: str, measured: list, rows: dict[str, list[dict]]) -> list[str]:
+def _startup_notes(
+    task: str, measured: list, rows: dict[str, list[dict]], cold_rows: dict[str, list[dict]]
+) -> list[str]:
     """Load / first-call times per variant and the timing protocol."""
     notes = []
     used = False
     for v in measured:
-        by = _startup(task, v.id, rows[v.id])
+        by = _startup(task, rows[v.id], cold_rows.get(v.id, []))
         if by:
             parts = ", ".join(
                 f"{_label(m)} {r.get('load_s', DASH)}{lm} s / {r['first_call_s']}{fm} s"
@@ -1128,7 +1134,9 @@ def _env_note(rows: dict[str, list[dict]]) -> str:
     return ", ".join(gpus) + "".join(f", torch {t}" for t in torches)
 
 
-def _speed(card: ModelCard, rows: dict[str, list[dict]]) -> tuple[list[str], list[str]]:
+def _speed(
+    card: ModelCard, rows: dict[str, list[dict]], cold_rows: dict[str, list[dict]]
+) -> tuple[list[str], list[str]]:
     """Speed and peak memory: (the table, the notes); one table row per variant and input, backends as cell lines."""
     oom_at = {v.id: {size for ref, _, size in _oom() if ref == v.id} for v in card.variants}
     compiled = {v.id: _compiled_inputs(v.id) for v in card.variants}
@@ -1194,7 +1202,7 @@ def _speed(card: ModelCard, rows: dict[str, list[dict]]) -> tuple[list[str], lis
                 if (r := by.get(m)) and _note(r):
                     given.setdefault((v.id, _note(r)), []).append(f"{_label(m)} {size}")
     notes += [f"- `{vid}` {', '.join(where)}: {text}" for (vid, text), where in given.items()]
-    notes += _startup_notes(card.task, [v for v in measured if v.id in rows], rows)
+    notes += _startup_notes(card.task, [v for v in measured if v.id in rows], rows, cold_rows)
     missing = [v.id for v in card.variants if v not in measured]
     if missing:
         notes.append(f"- Speed and memory {NM} for: {_ids_of(missing)}.")
@@ -1620,10 +1628,12 @@ def _title(task: str) -> str:
     return _TITLE.get(task, task.capitalize().replace("_", " "))
 
 
-def render(task: str) -> str:
+def render(task: str, *, cold_rows: dict[str, list[dict]] | None = None) -> str:
     """Markdown page of all models of `task`."""
     families = {card.family: card for card, _ in registry.cards(task).values()}
     rows, speed = _eval_rows(task), _speed_rows()
+    if cold_rows is None:
+        cold_rows = _cold_rows()
     std = _std_input(task, speed)
     basis = {_OWN: "each model's own benchmark input (see Benchmarks)"}.get(std, f"one input, {std}")
     gpu = _env_note({i: rs for i, rs in speed.items() if i in {v.id for c in families.values() for v in c.variants}})
@@ -1660,7 +1670,7 @@ def render(task: str) -> str:
     used = {i for card, v in registry.cards(task).values() for i in card.status(v).training_data} - {licences.UNSTATED}
     for card in families.values():
         lic = card.licence
-        table, notes = _speed(card, speed)
+        table, notes = _speed(card, speed, cold_rows)
         lines += [
             "",
             f'<a id="{card.family}"></a>',
@@ -2074,7 +2084,7 @@ def _speed_table(by: dict[str, dict[str, dict]], inputs: dict[str, str] | None =
 
 def _bench_block() -> str:
     """Speed and memory tables per task and scene, from docs/data/speed.jsonl (the block of docs/benchmarks.md)."""
-    speed = _speed_rows()
+    speed, cold_rows = _speed_rows(), _cold_rows()
     tasks = {v.id: t for t in registry.TASKS for _, v in registry.cards(t).values()}
     groups: dict[tuple[str, str], dict[str, dict[str, dict[str, dict]]]] = {}  # (task, scene) -> model -> input
     for model_id, rows in sorted(speed.items()):
@@ -2111,7 +2121,7 @@ def _bench_block() -> str:
     used = False
     for task in registry.TASKS:
         for model_id in sorted(i for i in speed if tasks.get(i) == task):
-            by = _startup(task, model_id, speed[model_id])
+            by = _startup(task, speed[model_id], cold_rows.get(model_id, []))
             cells = [
                 (
                     f"{r[f]:.2f}{lm if f == 'load_s' else fm}"
@@ -2578,6 +2588,7 @@ def main() -> None:
         print("| " + " | ".join(cols) + " |\n|" + "---|" * len(cols))
         print("\n".join("| " + " | ".join(r[c] for c in cols) + " |" for r in rows))
         return
+    cold_rows = _cold_rows()
     bench, gpus = ROOT / "docs" / "benchmarks.md", ROOT / "docs" / "OTHER_GPUS.md"
     outputs = {
         bench: _with_block(
@@ -2600,7 +2611,7 @@ def main() -> None:
         if not dev.reference:
             outputs[ROOT / "docs" / dev.page] = device_page(dev)
     for task in registry.TASKS:
-        outputs[ROOT / "docs" / "models" / f"{task}.md"] = render(task)
+        outputs[ROOT / "docs" / "models" / f"{task}.md"] = render(task, cold_rows=cold_rows)
         outputs[ROOT / "src" / "fastforks" / task / "known_models.toml"] = known_models(task)
     stale = []
     for path, text in outputs.items():

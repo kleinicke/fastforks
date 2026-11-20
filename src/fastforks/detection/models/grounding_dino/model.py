@@ -281,6 +281,7 @@ class Portable(Runner):
         tmask = torch.ones(feat.shape[:2], dtype=torch.bool, device=x.device)
         pmask = torch.ones((b, *x.shape[-2:]), dtype=torch.long, device=x.device)
         vis, poss = m.backbone(x, pmask)
+        del pmask
         maps = [m.input_proj_vision[i](s) for i, (s, _) in enumerate(vis)]
         masks = [k for _, k in vis]
         for lvl in range(len(maps), m.config.num_feature_levels):
@@ -289,15 +290,19 @@ class Portable(Runner):
             maps.append(s)
             masks.append(k)
             poss.append(m.backbone.position_embedding(s, k).to(s.dtype))
+            del s, k
+        del vis
         shapes = [tuple(s.shape[-2:]) for s in maps]
         src = torch.cat([s.flatten(2).transpose(1, 2) for s in maps], 1)
         mflat = torch.cat([k.flatten(1) for k in masks], 1)
         lpos = torch.cat(
             [p.flatten(2).transpose(1, 2) + m.level_embed[i].view(1, 1, -1) for i, p in enumerate(poss)], 1
         )
+        del maps, masks, poss
         sh = torch.as_tensor(shapes, dtype=torch.long, device=x.device)
         start = torch.cat((sh.new_zeros((1,)), sh.prod(1).cumsum(0)[:-1]))
         ratios = torch.ones((b, len(shapes), 2), dtype=src.dtype, device=x.device)
+        del x
         enc = m.encoder(
             vision_features=src,
             vision_attention_mask=~mflat,
@@ -314,11 +319,15 @@ class Portable(Runner):
             return_dict=True,
         )
         vis_h, txt_h = enc.last_hidden_state_vision, enc.last_hidden_state_text
+        del enc, src, lpos, feat, att, pos
         obj, proposals = m.generate_encoder_output_proposals(vis_h, ~mflat, shapes)
         enc_cls = m.encoder_output_class_embed(obj, txt_h, tmask)
         coords = m.encoder_output_bbox_embed(obj) + proposals
+        del obj, proposals
         top = torch.topk(enc_cls.max(-1)[0], m.config.num_queries, dim=1)[1]
+        del enc_cls
         ref = torch.gather(coords, 1, top.unsqueeze(-1).expand(-1, -1, 4)).sigmoid()
+        del coords, top
         target = m.query_position_embeddings.weight.unsqueeze(0).expand(b, -1, -1)
         dec = m.decoder(
             inputs_embeds=target,

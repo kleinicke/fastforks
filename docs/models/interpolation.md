@@ -19,9 +19,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`film`](#film) | yes | 328, 1.4x | 2942, 0.83x |
 | [`gimm-vfi-r`](#gimm_vfi) | no | 1521 | 5282 |
 | [`gimm-vfi-r-p`](#gimm_vfi) | no | 1520 | 5282 |
-| [`rife-4.25`](#rife) | yes | 21.4, 1.1x | 916, 0.79x |
-| [`rife-4.25-lite`](#rife) | yes | 18.3, 1.2x | 896, 0.74x |
-| [`rife-4.26`](#rife) | yes | 21.4, 1.1x | 776, 0.67x |
+| [`rife-4.25`](#rife) | yes | 21.9, 1.1x | 636, 0.55x |
+| [`rife-4.25-lite`](#rife) | yes | 19.4, 1.1x | 596, 0.49x |
+| [`rife-4.26`](#rife) | yes | 22.0, 1.1x | 636, 0.55x |
 
 <a id="ema_vfi"></a>
 
@@ -158,9 +158,9 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2528<br>1521<br>1498<br>public API unavailable | –<br>5872 / 6518<br>4511 / 5282<br>12051 / 12880<br>– |
+| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2528<br>1521<br>1498<br>public API unavailable | –<br>5394 / 6518<br>4511 / 5282<br>12051 / 12880<br>– |
 | `gimm-vfi-r` | synthetic (480x854) | original<br>portable<br>kernels<br>TensorRT fp32 | 498<br>468<br>289<br>1210 (RAFT feature encoder with eager context, flow update and synthesis) | 2820 / 3246<br>1574 / 1674<br>1388 / 1618<br>3522 / 6116 |
-| `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2527<br>1520<br>1498<br>fails: TensorRT parser: Sc node | –<br>5872 / 6518<br>4511 / 5282<br>12051 / 12880<br>– |
+| `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2528<br>1520<br>1498<br>fails: TensorRT parser: Sc node | –<br>5394 / 6518<br>4511 / 5282<br>12051 / 12880<br>– |
 | `gimm-vfi-r-p` | synthetic (480x854) | original<br>portable<br>kernels<br>TensorRT fp32 | 498<br>467<br>289<br>1190 (RAFT feature and context encoders with eager flow update and synthesis) | 2820 / 3246<br>1574 / 1674<br>1388 / 1598<br>3592 / 6000 |
 
 <details><summary>Details</summary>
@@ -180,9 +180,11 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - `gimm-vfi-r` 480x854, first call: TensorRT fp32 13 s (ONNX + engine).
 - `gimm-vfi-r-p` 1080x1920, first call: portable + torch.compile 307 s (cold Inductor cache).
 - `gimm-vfi-r-p` 480x854, first call: TensorRT fp32 17 s (ONNX + engine).
-- `gimm-vfi-r` portable 1080x1920, kernels 1080x1920: One RAFT feature-encoder pass supplies both directions. The deterministic 480x854 output matched exactly and paired DAVIS PSNR changes stay below 0.00004 dB.
+- `gimm-vfi-r` portable 1080x1920: Releases consumed full-resolution fusion and flow buffers. Both checkpoints gave bitwise-identical results using matched softsplat activations.
+- `gimm-vfi-r` kernels 1080x1920: One RAFT feature-encoder pass supplies both directions. The deterministic 480x854 output matched exactly and paired DAVIS PSNR changes stay below 0.00004 dB.
 - `gimm-vfi-r` original 480x854: torch.autocast(float16) around the call; upstream GIMMVFI_R forward as video_Nx.py, time 0.5, ds_factor 1.0, replicate pad to 32, cupy softsplat
-- `gimm-vfi-r-p` portable 1080x1920, kernels 1080x1920: Current shared RAFT input feature encoding and final-only upsampling masks.
+- `gimm-vfi-r-p` portable 1080x1920: Releases consumed full-resolution fusion and flow buffers. Both checkpoints gave bitwise-identical results using matched softsplat activations.
+- `gimm-vfi-r-p` kernels 1080x1920: Current shared RAFT input feature encoding and final-only upsampling masks.
 - `gimm-vfi-r-p` original 480x854: torch.autocast(float16) around the call; upstream GIMMVFI_R forward as video_Nx.py, time 0.5, ds_factor 1.0, replicate pad to 32, cupy softsplat
 - `gimm-vfi-r` load / first call: original 2.05 s / 1.336 s (480x854), portable 0.27 s / 2.622 s, kernels 0.59 s / 1.631 s
 - `gimm-vfi-r-p` load / first call: original 2.96 s / 1.438 s (480x854), portable 0.27 s / 0.997 s (480x854), kernels 0.58 s / 0.684 s (480x854)
@@ -228,9 +230,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `rife-4.25` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.5<br>25.0<br>21.4<br>44.9<br>17.6 | 987 / 1154<br>755 / 894<br>848 / 916<br>1094 / 1234<br>696 / 714 |
-| `rife-4.26` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.2<br>25.0<br>21.4<br>44.5<br>17.6 | 1004 / 1154<br>570 / 754<br>663 / 776<br>1094 / 1234<br>696 / 714 |
-| `rife-4.25-lite` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.3<br>21.1<br>18.3<br>42.3<br>14.1 | 1012 / 1214<br>754 / 854<br>834 / 896<br>1061 / 1374<br>696 / 714 |
+| `rife-4.25` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.5<br>25.0<br>21.9<br>44.9<br>17.6 | 987 / 1154<br>570 / 616<br>561 / 636<br>1094 / 1234<br>696 / 714 |
+| `rife-4.26` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.2<br>25.0<br>22.0<br>44.5<br>17.6 | 1004 / 1154<br>570 / 616<br>561 / 636<br>1094 / 1234<br>696 / 714 |
+| `rife-4.25-lite` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.3<br>21.1<br>19.4<br>42.3<br>14.1 | 1012 / 1214<br>551 / 616<br>545 / 596<br>1061 / 1374<br>696 / 714 |
 
 <details><summary>Details</summary>
 
@@ -249,9 +251,11 @@ Commercial use: yes.
 - `rife-4.26` 1080x1920, first call: portable + torch.compile 35 s (cold Inductor cache), TensorRT fp16 55 s (ONNX + engine).
 - `rife-4.25-lite` 1080x1920, first call: portable + torch.compile 35 s (cold Inductor cache), TensorRT fp16 50 s (ONNX + engine).
 - `rife-4.25` original 1080x1920: the authors' mixed-precision option (float16); upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128, inference_video.py --fp16: half default dtype, model and input
+- `rife-4.25` portable 1080x1920, kernels 1080x1920: Releases the high-resolution input at each refinement block after its strided stem.
 - `rife-4.26` original 1080x1920: the authors' mixed-precision option (float16); upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128, inference_video.py --fp16: half default dtype, model and input
-- `rife-4.26` portable 1080x1920, kernels 1080x1920: Release completed warp buffers. The paired same-process portable checks and separate-process kernels checks matched every frame. Independent portable processes differed by at most 0.00044 dB across three DAVIS scores.
+- `rife-4.26` portable 1080x1920, kernels 1080x1920: Releases the high-resolution input at each refinement block after its strided stem.
 - `rife-4.25-lite` original 1080x1920: the authors' mixed-precision option (float16); upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128, inference_video.py --fp16: half default dtype, model and input
+- `rife-4.25-lite` portable 1080x1920, kernels 1080x1920: Releases the high-resolution input at each refinement block after its strided stem.
 - `rife-4.25` load / first call: original 1.42 s / 0.265 s, portable 0.16 s / 0.447 s, kernels 1.5 s / 0.203 s
 - `rife-4.26` load / first call: original 0.18 s / 0.046 s, portable 0.16 s / 0.334 s, kernels 0.29 s / 0.215 s
 - `rife-4.25-lite` load / first call: original 0.18 s / 0.12 s, portable 0.24 s / 0.273 s, kernels 0.6 s / 0.195 s

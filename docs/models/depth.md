@@ -40,23 +40,23 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`lotus-normal-g-v1-1`](#lotus) | yes | – | 164, 2.1x | 2500, 0.64x |
 | [`marigold-depth-v1-1`](#marigold) | yes | 0.0561 | 261, 1.7x | 2500, 0.7x |
 | [`marigold-normals-lcm-v0-1`](#marigold_normals) | yes | – | 167, 1.7x | 2500, 0.69x |
-| [`marigold-v2-depth`](#marigold_v2) | yes | 0.0386 | 3887 | 1818 |
-| [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 151, 2.9x | 1568, 0.5x |
+| [`marigold-v2-depth`](#marigold_v2) | yes | 0.0386 | 3805 | 1838 |
+| [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 146, 3.0x | 1486, 0.48x |
 | [`midas-dpt-beit-large-512`](#midas) | yes | 0.0487 | 63.9, 5.2x | 1436, 0.5x |
 | [`moge-2-vitb-normal`](#moge) | yes | 0.0404 | 40.7, 2.5x | 1208, 0.76x |
 | [`moge-2-vitl-normal`](#moge) | yes | 0.0357 | 73.4, 2.3x | 1610, 0.66x |
 | [`moge-2-vits-normal`](#moge) | yes | 0.0484 | 33.3, 2.5x | 1048, 0.83x |
 | [`moge-3-vitl`](#moge) | yes | 0.0356 | 149, 3.3x | 1762, 0.67x |
-| [`omni-dc`](#omni_dc) | no | – | 510, 1.7x | 6528, 0.97x |
+| [`omni-dc`](#omni_dc) | no | – | 512, 1.7x | 4566, 0.68x |
 | [`pointdit-b-512`](#pointdit) | yes | 0.0453 | 20.5, 2.4x | 630, 0.63x |
 | [`pointdit-l-512`](#pointdit) | yes | 0.0410 | 61.3, 1.8x | 1676, 0.53x |
-| [`prompt-depth-anything-l`](#prompt_depth_anything) | yes | – | 69.3, 6.3x (756x1008) | 1348, 0.35x |
-| [`prompt-depth-anything-s`](#prompt_depth_anything) | yes | – | 11.4, 6.8x (756x1008) | 384, 0.35x |
+| [`prompt-depth-anything-l`](#prompt_depth_anything) | yes | – | 61.4 | 1128 |
+| [`prompt-depth-anything-s`](#prompt_depth_anything) | yes | – | 10.9 | 322 |
 | [`stablenormal-turbo`](#stablenormal) | yes | – | 180, 1.7x | 3172, 0.73x |
 | [`unidepth-v2-vitl14`](#unidepth_v2) | no | 0.0355 | 63.0, 2.1x | 1252, 0.36x |
-| [`unik3d-vitl`](#unik3d) | no | 0.0346 | 62.9, 2.1x | 1266, 0.35x |
-| [`video-depth-anything-metric-s`](#video_depth_anything) | yes | – | 200, 53.9x (1080x1920) | 2226, 0.19x |
-| [`video-depth-anything-s`](#video_depth_anything) | yes | – | 200, 58.2x (1080x1920) | 2226, 0.19x |
+| [`unik3d-vitl`](#unik3d) | no | 0.0346 | 62.8, 2.1x | 1066, 0.3x |
+| [`video-depth-anything-metric-s`](#video_depth_anything) | yes | – | 65.5 | 1430 |
+| [`video-depth-anything-s`](#video_depth_anything) | yes | – | 65.5 | 1430 |
 | [`zoedepth-nk`](#zoedepth) | yes | 0.0532 | 88.9, 3.1x | 1960, 0.91x |
 
 <a id="any2full"></a>
@@ -103,14 +103,14 @@ Aligned depth scores fit scale and shift by least squares, in disparity space fo
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
-| `any2full-s` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0040 / 1.0000 |  | 0.0038 / 1.0000 | 0.0038 / 1.0000 |  |  |
-| `any2full-s` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0081 / 0.9958 |  | 0.0079 / 0.9960 | 0.0079 / 0.9960 |  |  |
+| `any2full-s` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0040 / 1.0000 |  | 0.0038 / 1.0000 | 0.0038 / 1.0000 | 0.0038 / 1.0000 |  |
+| `any2full-s` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0081 / 0.9958 |  | 0.0079 / 0.9960 | 0.0079 / 0.9960 | 0.0079 / 0.9960 |  |
 | `any2full-b` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0037 / 1.0000 | 0.0044 / 1.0000 | 0.0034 / 1.0000 | 0.0034 / 1.0000 | 0.0034 / 1.0000 |  |
 | `any2full-b` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0074 / 0.9962 | 0.0077 / 0.9962 | 0.0071 / 0.9964 | 0.0071 / 0.9964 | 0.0071 / 0.9964 |  |
-| `any2full-l` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0037 / 1.0000 |  | 0.0034 / 1.0000 | 0.0034 / 1.0000 |  |  |
-| `any2full-l` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0072 / 0.9963 |  | 0.0069 / 0.9966 | 0.0069 / 0.9966 |  |  |
+| `any2full-l` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0037 / 1.0000 |  | 0.0034 / 1.0000 | 0.0034 / 1.0000 | 0.0034 / 1.0000 |  |
+| `any2full-l` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0072 / 0.9963 |  | 0.0069 / 0.9966 | 0.0069 / 0.9966 | 0.0069 / 0.9966 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0 / 68b2f345, 2026-11-16 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0 / 68b2f345, 2026-11-16 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e / 68b2f345, 2026-11-16 to 2026-11-20.
 
 ### Parity
 
@@ -468,7 +468,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `depthfm-v1` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>4854<br>3555<br>3947<br>fails: ONNX export: conversion failed | –<br>5422 / 7404<br>3768 / 5942<br>9240 / 10292<br>– |
-| `depthfm-v1` | 480x640 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>353 (fixed-shape exported depth network) | –<br>–<br>–<br>3479 / 3494 |
+| `depthfm-v1` | synthetic (480x640) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>907<br>–<br>353 (fixed-shape exported depth network) | –<br>4430 / 7296<br>–<br>3479 / 3494 |
 
 <details><summary>Details</summary>
 
@@ -487,6 +487,7 @@ Commercial use: yes.
 - `depthfm-v1` 994x1482, first call: portable + torch.compile 102 s (cold Inductor cache).
 - `depthfm-v1` portable 994x1482: Default four-member ensemble with bounded VAE decoding. Prior portable was 5814.353 ms and 13671 MiB peak allocated. Relative AbsRel changes were below 0.000002 on three matched Middlebury inputs.
 - `depthfm-v1` kernels 994x1482: Default four-member ensemble with bounded VAE decoding. Prior kernels was 3578.895 ms and 9258 MiB peak allocated. Relative AbsRel changes were below 0.000002 on three matched Middlebury inputs.
+- `depthfm-v1` portable 480x640: Portable timing measured separately at the TensorRT comparison's input shape, precision and fixed-shape exported depth network scope.
 - `depthfm-v1` load / first call: portable 3.58 s / 6.004 s, kernels 4.59 s / 3.734 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -559,9 +560,9 @@ Aligned depth scores fit scale and shift by least squares, in disparity space fo
 |---|---|---|---|---|---|---|---|
 | `lingbot-depth` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0053 / 1.0000 | 0.0056 / 1.0000 | 0.0053 / 1.0000 | 0.0053 / 1.0000 | 0.0053 / 1.0000 |  |
 | `lingbot-depth` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0089 / 0.9951 | 0.0092 / 0.9950 | 0.0089 / 0.9951 |  | 0.0089 / 0.9951 |  |
-| `lingbot-depth-dc` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0084 / 0.9998 |  | 0.0084 / 0.9998 | 0.0084 / 0.9998 |  |  |
+| `lingbot-depth-dc` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0084 / 0.9998 |  | 0.0084 / 0.9998 | 0.0084 / 0.9998 | 0.0084 / 0.9998 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0 / 68b2f345, 2026-11-16 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0 / 68b2f345, 2026-11-16 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e / 68b2f345, 2026-11-16 to 2026-11-20.
 
 ### Parity
 
@@ -768,8 +769,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `marigold-v2-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>4892<br>3887<br>4599<br>public API unavailable | –<br>1408 / 1818<br>1408 / 1818<br>1959 / 2120<br>– |
-| `marigold-v2-depth` | 480x640 | original<br>portable<br>kernels<br>TensorRT bf16 | –<br>–<br>–<br>1156 (VAE encoder and decoder with eager streamed NF4 transformer) | –<br>–<br>–<br>2042 / 2198 |
+| `marigold-v2-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>4763<br>3805<br>4599<br>public API unavailable | –<br>1408 / 1838<br>1408 / 1838<br>1959 / 2120<br>– |
+| `marigold-v2-depth` | synthetic (480x640) | original<br>portable<br>kernels<br>TensorRT bf16 | –<br>1179<br>–<br>1156 (VAE encoder and decoder with eager streamed NF4 transformer) | –<br>717 / 964<br>–<br>2042 / 2198 |
 
 ### Weight streaming
 
@@ -800,6 +801,7 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `marigold-v2-depth` 1988x2880 (12.8 GiB peak allocated, 13.5 reserved)
 - `marigold-v2-depth` 994x1482, first call: portable + torch.compile 141 s (cold Inductor cache).
 - `marigold-v2-depth` 480x640, first call: TensorRT bf16 137 s (ONNX + engine).
+- `marigold-v2-depth` portable 480x640: Portable baseline recorded in the same archived timing run as the TensorRT profile at this input size.
 - `marigold-v2-depth` load / first call: original 174.6514255180955 s / 1.761 s (518x770), portable 7.8 s / 5.094 s, kernels 6.2 s / 3.887 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -833,7 +835,7 @@ CPU, float32: max |diff| <= 0.02 vs the original. GPU, bfloat16 (the default), p
 - The enlargement to a multiple of 16 is bicubic (the original: OpenCV Lanczos); inputs with sides that are multiples of 16 are not resized.
 - The output is log depth up to scale and shift (`kind = "affine_invariant_log"`): align in log space, not with the other families' depth outputs.
 - A traced or exported module reuses the noise of its traced shape; CPU inference is possible but slow (bf16 GEMMs of a 20 B model).
-- Model.compile() compiles the VAE encoder and decoder around the streamed transformer. At 994 x 1482, the compiled path took 4.80 s versus 5.09 s portable. The first compiled call took 119.2 s.
+- Model.compile() compiles the VAE encoder and decoder around the streamed transformer. At 994 x 1482, the recorded pair took 4.80 s compiled and 5.09 s portable on the compile run's source revision. The first compiled call took 119.2 s.
 - At 480 x 640, the standalone BF16 TensorRT VAE plans took 1.16 s versus 1.18 s for paired portable inference. Estimated peak allocated device memory was 2042 versus 717 MiB. The streamed NF4 transformer ran in PyTorch for both measurements.
 
 </details>
@@ -848,7 +850,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `metric3d-vit-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>438<br>187<br>151<br>149<br>91.4 | 3077 / 3122<br>3275 / 3350<br>1239 / 1436<br>1464 / 1568<br>1126 / 1148<br>1867 / 1952 |
+| `metric3d-vit-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>438<br>181<br>146<br>149<br>91.4 | 3077 / 3122<br>3275 / 3350<br>1188 / 1256<br>1412 / 1486<br>1126 / 1148<br>1867 / 1952 |
 
 <details><summary>Details</summary>
 
@@ -865,7 +867,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `metric3d-vit-large` 3000x4000 (2.3 GiB peak allocated, 2.9 reserved)
 - `metric3d-vit-large` 994x1482, first call: portable + torch.compile 55 s (cold Inductor cache), TensorRT fp16 97 s (ONNX + engine).
 - `metric3d-vit-large` original 994x1482: torch.autocast(fp16) around the forward
-- `metric3d-vit-large` portable 994x1482, kernels 994x1482: Uses only final depth and normal predictions in eager CUDA inference. Depth, normal and confidence maps matched on the synthetic input and three calibrated iBims scenes. Timing uses the canonical camera.
+- `metric3d-vit-large` portable 994x1482, kernels 994x1482: The finest feature projection runs before nearest replication and final convex upsampling processes one output field at a time. Five checked depth, normals and confidence outputs match bitwise within each CUDA mode.
 - `metric3d-vit-large` load / first call: original 9.96 s / 0.876 s, portable 2.39 s / 0.423 s (518x770), kernels 0.71 s / 0.504 s (518x770)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -962,11 +964,11 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `moge-2-vits-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>82.6<br>61.6<br>33.3<br>43.9<br>24.5 | 1491 / 1628<br>1193 / 1268<br>1007 / 1172<br>932 / 1048<br>836 / 992<br>768 / 852 |
-| `moge-2-vitb-normal` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 237<br>102<br>83.9<br>40.7<br>60.9<br>35.5 | 1773 / 1876<br>1469 / 1596<br>1163 / 1312<br>1093 / 1208<br>972 / 1172<br>1044 / 1092 |
-| `moge-2-vitl-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>171<br>144<br>73.4<br>124<br>75.6 | 2646 / 2818<br>2339 / 2438<br>1661 / 1836<br>1498 / 1610<br>1411 / 1634<br>1882 / 1936 |
-| `moge-3-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 843<br>486<br>328<br>149<br>311<br>public API unavailable | 2812 / 2990<br>2505 / 2630<br>1622 / 1706<br>1626 / 1762<br>1500 / 1724<br>– |
-| `moge-3-vitl` | 480x640 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>1069 (DINOv2 encoder and projections with eager decoder and sparse refinement) | –<br>–<br>–<br>4568 / 5382 |
+| `moge-2-vits-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>82.6<br>58.1<br>33.3<br>43.9<br>24.5 | 1491 / 1628<br>1193 / 1268<br>530 / 612<br>932 / 1048<br>836 / 992<br>768 / 852 |
+| `moge-2-vitb-normal` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 237<br>102<br>79.1<br>40.7<br>60.9<br>35.5 | 1773 / 1876<br>1469 / 1596<br>681 / 772<br>1093 / 1208<br>972 / 1172<br>1044 / 1092 |
+| `moge-2-vitl-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>171<br>140<br>73.4<br>124<br>75.6 | 2646 / 2818<br>2339 / 2438<br>1130 / 1272<br>1498 / 1610<br>1411 / 1634<br>1882 / 1936 |
+| `moge-3-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 843<br>486<br>328<br>149<br>311<br>public API unavailable | 2812 / 2990<br>2505 / 2630<br>1493 / 1684<br>1626 / 1762<br>1500 / 1724<br>– |
+| `moge-3-vitl` | synthetic (480x640) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>1080<br>–<br>1069 (DINOv2 encoder and projections with eager decoder and sparse refinement) | –<br>2859 / 3842<br>–<br>4568 / 5382 |
 
 <details><summary>Details</summary>
 
@@ -988,10 +990,10 @@ Commercial use: yes.
 - `moge-2-vitb-normal` 994x1482, first call: portable + torch.compile 133 s (cold Inductor cache), TensorRT fp16 127 s (ONNX + engine).
 - `moge-2-vitl-normal` 994x1482, first call: portable + torch.compile 152 s (cold Inductor cache), TensorRT fp16 173 s (ONNX + engine).
 - `moge-3-vitl` 994x1482, first call: portable + torch.compile 136 s (cold Inductor cache).
-- `moge-3-vitl` portable 994x1482: Portable uses one buffer for large replicate padding. Synthetic output and three labeled iBims maps were bitwise identical.
+- `moge-3-vitl` portable 480x640: Portable baseline recorded in the same archived timing run as the TensorRT profile at this input size.
 - `moge-2-vits-normal` load / first call: original 0.88 s / 1.501 s, portable 1.18 s / 0.298 s (518x770), kernels 0.21 s / 0.438 s (518x770)
 - `moge-2-vitb-normal` load / first call: original 1.26 s / 0.239 s, portable 0.49 s / 0.397 s (518x770), kernels 1.24 s / 0.285 s (518x770)
-- `moge-2-vitl-normal` load / first call: original 7.24 s / 0.171 s, portable 1.37 s / 0.144 s, kernels 0.63† s / 0.131 s
+- `moge-2-vitl-normal` load / first call: original 7.24 s / 0.171 s, portable 0.9 s / 0.329 s, kernels 0.63† s / 0.131 s
 - `moge-3-vitl` load / first call: original 10.6 s / 2.918 s, portable 2.31 s / 0.69 s (518x770), kernels 1.16 s / 0.742 s (518x770)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, `moge-2-vits-normal`, `moge-2-vitb-normal`, `moge-3-vitl`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -1042,7 +1044,8 @@ CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), p
 ### Limitations
 
 - MoGe-3 compiles the dense network and leaves sparse voxel refinement eager. Its 100-image iBims-1 comparison used the default CUDA float16 mode.
-- At 994 x 1482, the portable and compiled MoGe-3 timings use the same synthetic image. The original timings use the Middlebury Motorcycle image.
+- At 994 x 1482, MoGe-2 Small and Base and MoGe-3 use a synthetic image for portable timings and Middlebury Motorcycle for the original timings. The MoGe-3 compile run uses the same synthetic image as portable. MoGe-2 Large uses Motorcycle for both portable and original timings.
+- In paired portable FP16 runs at 994 x 1482, reusing the resize buffer reduced peak allocation by 421 MiB on each MoGe-2 checkpoint and by 121 MiB on MoGe-3 with normals enabled. The checked outputs were bitwise identical.
 
 </details>
 
@@ -1056,8 +1059,8 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `omni-dc` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 875<br>571<br>510<br>411<br>public API unavailable | 5966 / 6732<br>4130 / 6144<br>4154 / 6528<br>4201 / 5932<br>– |
-| `omni-dc` | 480x640 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>253 (Depth Anything V2 with eager prompt fusion and solver) | –<br>–<br>–<br>2930 / 3298 |
+| `omni-dc` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 875<br>558<br>512<br>411<br>public API unavailable | 5966 / 6732<br>3849 / 5044<br>3873 / 4566<br>4201 / 5932<br>– |
+| `omni-dc` | synthetic (480x640) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>300<br>–<br>253 (Depth Anything V2 with eager prompt fusion and solver) | –<br>2453 / 3296<br>–<br>2930 / 3298 |
 
 <details><summary>Details</summary>
 
@@ -1075,7 +1078,8 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - `omni-dc` 994x1482, first call: portable + torch.compile 137 s (cold Inductor cache).
 - `omni-dc` 480x640, first call: TensorRT fp32 52 s (ONNX + engine).
 - `omni-dc` original 994x1482: upstream OGNIDC.forward (demo.sh arguments), float32, 16-padded
-- `omni-dc` portable 994x1482, kernels 994x1482: Released decoder intermediates after final use. Synthetic and three labeled outputs were bitwise identical.
+- `omni-dc` portable 994x1482, kernels 994x1482: Short decoder convolution bands preserve the full-image attention. Depth matched bitwise on the standard, odd-size and three iBims inputs.
+- `omni-dc` portable 480x640: Portable baseline recorded in the same archived timing run as the TensorRT profile at this input size.
 - `omni-dc` load / first call: original 9.52 s / 2.035 s, portable 2.47 s / 1.062 s, kernels 2.44 s / 0.936 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -1189,7 +1193,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
+| `prompt-depth-anything-s` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>16.3<br>10.9 | –<br>300 / 342<br>236 / 322 |
 | `prompt-depth-anything-s` | example image 1920x1440 area-resized + ARKit 192x256 prompt (756x1008) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 85.7<br>77.3<br>18.4<br>11.4<br>16.3<br>10.5 | 922 / 1284<br>781 / 1112<br>363 / 442<br>297 / 384<br>260 / 322<br>368 / 410 |
+| `prompt-depth-anything-l` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>110<br>61.4 | –<br>1082 / 1148<br>1056 / 1128 |
 | `prompt-depth-anything-l` | example image 1920x1440 area-resized + ARKit 192x256 prompt (756x1008) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 592<br>438<br>125<br>69.3<br>117<br>75.3 | 3369 / 4280<br>3446 / 3810<br>1318 / 1488<br>1179 / 1348<br>968 / 1148<br>1649 / 1714 |
 
 <details><summary>Details</summary>
@@ -1207,7 +1213,9 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `prompt-depth-anything-s` 3000x4000 (0.6 GiB peak allocated, 0.8 reserved); `prompt-depth-anything-l` 3000x4000 (1.4 GiB peak allocated, 1.7 reserved)
 - `prompt-depth-anything-s` 756x1008, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 47 s (ONNX + engine).
 - `prompt-depth-anything-l` 756x1008, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 52 s (ONNX + engine).
+- `prompt-depth-anything-s` portable 994x1482, kernels 994x1482: Depth task input size with the standard sparse depth prompt generated by the speed harness.
 - `prompt-depth-anything-s` original 756x1008: torch.autocast(fp16) around the forward
+- `prompt-depth-anything-l` portable 994x1482, kernels 994x1482: Depth task input size with the standard sparse depth prompt generated by the speed harness.
 - `prompt-depth-anything-l` original 756x1008: torch.autocast(fp16) around the forward
 - `prompt-depth-anything-s` load / first call: original 0.42 s / 0.792 s (756x1008), portable 0.37 s / 0.244 s (756x1008), kernels 1.2 s / 0.181 s (756x1008)
 - `prompt-depth-anything-l` load / first call: original 4.8 s / 0.771 s (756x1008), portable 1.5 s / 0.296 s (756x1008), kernels 2.78 s / 0.223 s (756x1008)
@@ -1219,12 +1227,12 @@ Aligned depth scores fit scale and shift by least squares, in disparity space fo
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
-| `prompt-depth-anything-s` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0167 / 0.9938 |  | 0.0158 / 0.9943 | 0.0158 / 0.9943 |  |  |
-| `prompt-depth-anything-s` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0169 / 0.9934 |  | 0.0162 / 0.9937 | 0.0163 / 0.9937 |  |  |
+| `prompt-depth-anything-s` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0167 / 0.9938 |  | 0.0158 / 0.9943 | 0.0158 / 0.9943 | 0.0158 / 0.9943 |  |
+| `prompt-depth-anything-s` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0169 / 0.9934 |  | 0.0162 / 0.9937 | 0.0163 / 0.9937 | 0.0163 / 0.9937 |  |
 | `prompt-depth-anything-l` | NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0217 / 0.9876 | 0.0217 / 0.9876 | 0.0208 / 0.9883 | 0.0208 / 0.9883 | 0.0208 / 0.9883 |  |
 | `prompt-depth-anything-l` | iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric) | 0.0150 / 0.9930 | 0.0151 / 0.9930 | 0.0147 / 0.9932 | 0.0146 / 0.9932 | 0.0147 / 0.9932 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 5f4a908a0, 2026-11-16 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 5f4a908a0, 2026-11-16 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 30c7a8e9, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 67dbea00e, 2026-11-16 to 2026-11-20.
 
 ### Parity
 
@@ -1296,6 +1304,7 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 - Diffusion model: the seeded noise comes from a CPU generator; upstream draws it from the unseeded global RNG, so its outputs vary from call to call (slightly).
 - Upstream's `Predictor` wrapper (pre-resize to a multiple of 64 near 1024 px, uint8 round trip, LANCZOS back) is not applied: the runners follow its pipeline (768 px).
 - A traced or exported module reuses the noise of its traced shape.
+- Portable FP16 with long_side=1280 on a 994 × 1482 image uses 4,440 MiB allocated and 4,900 MiB reserved, compared with 4,705/5,440 MiB before. Warm time was 882 vs 862 ms. Normals matched bitwise on two synthetic inputs and three labeled iBims images.
 
 </details>
 
@@ -1366,7 +1375,7 @@ Commercial use: **no** (code: CC-BY-NC-SA-4.0 (noncommercial); weights: CC-BY-NC
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `unik3d-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 134<br>134<br>108<br>62.9<br>94.4<br>58.0 | 3307 / 3570<br>3307 / 3570<br>1219 / 1492<br>1166 / 1266<br>1258 / 1312<br>1609 / 1678 |
+| `unik3d-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 134<br>134<br>107<br>62.8<br>94.4<br>58.0 | 3307 / 3570<br>3307 / 3570<br>1063 / 1152<br>985 / 1066<br>1258 / 1312<br>1609 / 1678 |
 
 <details><summary>Details</summary>
 
@@ -1383,7 +1392,8 @@ Commercial use: **no** (code: CC-BY-NC-SA-4.0 (noncommercial); weights: CC-BY-NC
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `unik3d-vitl` 3000x4000 (2.2 GiB peak allocated, 2.4 reserved)
 - `unik3d-vitl` 994x1482, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 105 s (ONNX + engine).
 - `unik3d-vitl` original 994x1482: torch.autocast(fp16) around the forward
-- `unik3d-vitl` load / first call: original 7.28 s / 0.575 s, portable 4.16 s / 0.136 s, kernels 3.77 s / 0.298 s (518x770)
+- `unik3d-vitl` portable 994x1482, kernels 994x1482: Left image from Middlebury 2014 trainingH Motorcycle, with camera prediction and confidence enabled.
+- `unik3d-vitl` load / first call: original 7.28 s / 0.575 s, portable 0.88 s / 0.337 s, kernels 3.77 s / 0.298 s (518x770)
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -1419,10 +1429,12 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `video-depth-anything-s` | TUM RGB-D fr1_room (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile | 11626<br>202<br>200<br>1314 | 8263 / 11890<br>1962 / 2204<br>1967 / 2226<br>7762 / 8530 |
-| `video-depth-anything-s` | TUM RGB-D fr1_room (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3786<br>147<br>58.5<br>100<br>60.3 | 4780 / 6794<br>1070 / 1266<br>1101 / 1288<br>1143 / 1344<br>886 / 914 |
-| `video-depth-anything-metric-s` | TUM RGB-D fr1_room (1080x1920) | original<br>portable<br>kernels | 10776<br>202<br>200 | 8264 / 11916<br>1962 / 2224<br>1967 / 2226 |
-| `video-depth-anything-metric-s` | TUM RGB-D fr1_room (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4012<br>148<br>59.1<br>101<br>60.2 | 4780 / 6806<br>1461 / 1666<br>1270 / 1408<br>1143 / 1464<br>886 / 914 |
+| `video-depth-anything-s` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>165<br>65.5 | –<br>1207 / 1386<br>1242 / 1430 |
+| `video-depth-anything-s` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>147<br>58.4<br>100 (single image)<br>60.3 (single image) | –<br>953 / 1146<br>988 / 1188<br>1143 / 1344<br>886 / 914 |
+| `video-depth-anything-s` | TUM RGB-D fr1_room (88x480x640) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5064<br>3786<br>954<br>835<br>762 (full 88-frame clip)<br>524 (full 88-frame clip) | 6030 / 8210<br>4780 / 6794<br>1730 / 1946<br>1796 / 1946<br>2587 / 3260<br>2753 / 3148 |
+| `video-depth-anything-s` | TUM RGB-D fr1_room (88x1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile | 12158<br>11626<br>1423<br>1233<br>1314 (full 88-frame clip) | 10522 / 14372<br>8263 / 11890<br>6207 / 6524<br>6288 / 6486<br>7762 / 8530 |
+| `video-depth-anything-metric-s` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>165<br>65.5 | –<br>1207 / 1386<br>1242 / 1430 |
+| `video-depth-anything-metric-s` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>147<br>59.5<br>101 (single image)<br>60.2 (single image) | –<br>953 / 1146<br>988 / 1188<br>1143 / 1464<br>886 / 914 |
 
 <details><summary>Details</summary>
 
@@ -1439,15 +1451,19 @@ Commercial use: yes.
 - Outputs: inverse_depth, depth; kind: `affine_invariant_inverse`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `video-depth-anything-s` 3000x4000 (1.8 GiB peak allocated, 3.5 reserved); `video-depth-anything-metric-s` 3000x4000 (1.8 GiB peak allocated, 3.5 reserved)
-- `video-depth-anything-s` 1080x1920, first call: portable + torch.compile 83 s (cold Inductor cache).
 - `video-depth-anything-s` 480x640, first call: portable + torch.compile 35 s (cold Inductor cache), TensorRT fp16 103 s (ONNX + engine).
+- `video-depth-anything-s` 88x480x640, first call: portable + torch.compile 52 s (cold Inductor cache), TensorRT fp16 181 s (ONNX + engine).
+- `video-depth-anything-s` 88x1080x1920, first call: portable + torch.compile 83 s (cold Inductor cache).
 - `video-depth-anything-metric-s` 480x640, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 82 s (ONNX + engine).
-- `video-depth-anything-s` original 1080x1920, original 480x640: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
-- `video-depth-anything-s` portable 1080x1920, kernels 1080x1920: float CUDA frames in [0, 1] in, depth [L, H, W] on the device out
-- `video-depth-anything-s` portable 480x640, kernels 480x640: One image. The separate 40-frame profile at this geometry saved 384 MiB peak allocation in the same mode. One synthetic clip and three 38-frame labeled TUM segments matched bitwise.
-- `video-depth-anything-metric-s` original 1080x1920, original 480x640: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
-- `video-depth-anything-s` load / first call: original 0.26 s / 14.043 s (1080x1920), portable 0.98 s / 0.539 s (480x640), kernels 0.38 s / 0.37 s (480x640)
-- `video-depth-anything-metric-s` load / first call: original 3.85 s / 17.094 s (1080x1920), portable 0.19 s / 0.436 s (480x640), kernels 0.19 s / 0.5 s (480x640)
+- `video-depth-anything-s` portable 994x1482, kernels 994x1482: Single-image full API timing at the depth task input size.
+- `video-depth-anything-s` portable 480x640, kernels 480x640: One synthetic image through the public depth API.
+- `video-depth-anything-s` original (fp32) 88x480x640, original (fp32) 88x1080x1920: upstream infer_video_depth(input_size=518, fp32=True): uint8 numpy frames in, numpy out (its API)
+- `video-depth-anything-s` original 88x480x640, original 88x1080x1920: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
+- `video-depth-anything-s` portable 88x480x640, kernels 88x480x640, portable 88x1080x1920, kernels 88x1080x1920: Float32 CUDA RGB frames in [0, 1] to depth on the device; 88-frame public video API.
+- `video-depth-anything-metric-s` portable 994x1482, kernels 994x1482: Single-image full API timing at the depth task input size.
+- `video-depth-anything-metric-s` portable 480x640, kernels 480x640: One synthetic image through the public depth API.
+- `video-depth-anything-s` load / first call: original 0.26 s / 12.771 s (88x1080x1920), portable 0.98 s / 0.539 s (480x640), kernels 0.38 s / 0.37 s (480x640)
+- `video-depth-anything-metric-s` load / first call: original 2.74 s / 11.32 s (88x1080x1920), portable 0.19 s / 0.436 s (480x640), kernels 0.19 s / 0.5 s (480x640)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -1477,7 +1493,7 @@ CPU, float32: max |diff| <= 1.3e-05 vs the original. GPU, float16 (the default),
 - `model.video(frames)` runs one video in time order (each window attends over time and is aligned to the previous one); calling the model with an image or a batch runs each image as a one-frame video.
 - Every video runs at least one 32-frame window (shorter videos are padded with copies of their last frame): one image costs about as much as 32 frames in the temporal head.
 - The whole video's depth is kept on the device as float32 (L x H x W); split very long videos.
-- On a 40-frame 480 x 640 FP16 clip, peak allocation was 1347 MiB portable and 1351 MiB kernels on an RTX 5060 Ti, with warm medians of 455.866 and 373.503 ms. The memory change also preserved bitwise outputs on three 38-frame labeled TUM sequences.
+- Video Depth Anything Small at 40 frames of 480 × 640 in FP16 uses 1,231 MiB portable and 1,297 MiB kernels on an RTX 5060 Ti, with warm medians of 458.1 and 375.8 ms. Depth matches bitwise on this clip and three labeled TUM clips within each mode.
 
 </details>
 

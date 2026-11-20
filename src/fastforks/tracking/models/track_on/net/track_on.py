@@ -40,6 +40,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.tracing import in_onnx_export
+
 from .dinov3 import CONFIGS, PATCH, REGISTERS, DINOv3ViT
 
 D = 256  # fixed: upstream args.D
@@ -374,7 +376,9 @@ class SimpleFPN(nn.Module):
     def __init__(self) -> None:  # noqa: D107
         super().__init__()
         self.lateral32, self.lateral16, self.lateral8 = _lateral(), _lateral(), _lateral()
-        self.output = nn.Sequential(nn.Conv2d(D, D, 3, padding=1), nn.GroupNorm(32, D), nn.ReLU(), nn.Conv2d(D, D, 3, padding=1))
+        self.output = nn.Sequential(
+            nn.Conv2d(D, D, 3, padding=1), nn.GroupNorm(32, D), nn.ReLU(), nn.Conv2d(D, D, 3, padding=1)
+        )
 
     def forward(self, f4: torch.Tensor, f8: torch.Tensor, f16: torch.Tensor, f32: torch.Tensor) -> torch.Tensor:
         """Maps -> fused 1/4 map."""
@@ -388,7 +392,7 @@ class SimpleFPN(nn.Module):
 class Frame:
     """One frame's features: tokens `[1, P_l, D]` per level, their concatenation, the fused tokens."""
 
-    levels: list[torch.Tensor]
+    levels: list[torch.Tensor]  # views into value
     value: torch.Tensor  # the 4 levels concatenated (deformable attention value)
     unit: list[torch.Tensor]  # L2-normalised levels `[P_l, D]` (correlation)
     fused: torch.Tensor
@@ -435,7 +439,11 @@ class TrackOn2(nn.Module):
         self.fpn = SimpleFPN()
         self.reranking_head = RerankModule()
         self.prediction_head = PredictionHead()
-        self.feature_attention, self.query_attention, self.memory_attention = _layers(LAYERS), _layers(LAYERS), _layers(LAYERS)
+        self.feature_attention, self.query_attention, self.memory_attention = (
+            _layers(LAYERS),
+            _layers(LAYERS),
+            _layers(LAYERS),
+        )
         self.projection1, self.projection2 = nn.Linear(D, D), nn.Linear(D, D)
         self.ms_corr_proj = nn.Conv2d(4, 1, 1)
         self.t_embedding = nn.Parameter(torch.empty(1, memory + 1, D))
@@ -453,11 +461,13 @@ class TrackOn2(nn.Module):
         maps = self.backbone(video)
         fused = self.fpn(*maps).flatten(2).transpose(1, 2)
         levels = [m.flatten(2).transpose(1, 2) for m in maps]
+        level_sizes = [level.shape[1] for level in levels]
         out = []
         for b in range(video.shape[0]):
             lv = [lvl[b : b + 1] for lvl in levels]
             unit = [F.normalize(lvl[0].float(), dim=-1) for lvl in lv]
-            out.append(Frame(lv, torch.cat(lv, 1), unit, fused[b : b + 1]))
+            value = torch.cat(lv, 1)
+            out.append(Frame(list(value.split(level_sizes, dim=1)), value, unit, fused[b : b + 1]))
         return out
 
     def sample(self, frame: Frame, xy: torch.Tensor) -> torch.Tensor:
@@ -470,12 +480,29 @@ class TrackOn2(nn.Module):
         """`multiscale_correlation`: cosine similarity per level, upsampled to 1/4, mixed by a 1 x 1 conv -> `[N, P]`."""
         n = q.shape[0]
         qn = F.normalize(q.float(), dim=-1)
-        cs = []
+        pack = (
+            q.is_cuda
+            and not torch.compiler.is_compiling()
+            and torch.is_inference_mode_enabled()
+            and not (torch.jit.is_tracing() or in_onnx_export())
+        )
+        maps = []
+        packed = None
         for i, (u, (h, w)) in enumerate(zip(frame.unit, self.shapes, strict=True)):
             c = (qn @ u.T).view(n, 1, h, w)
-            cs.append(F.interpolate(c, size=(self.hf, self.wf), mode="bilinear", align_corners=False) if i else c)
+            if i:
+                c = F.interpolate(c, size=(self.hf, self.wf), mode="bilinear", align_corners=False)
+            if pack:
+                # Keep just one upsampled level live alongside the convolution input.
+                if packed is None:
+                    packed = c.new_empty(n, len(self.shapes), self.hf, self.wf)
+                packed[:, i : i + 1].copy_(c)
+            else:
+                maps.append(c)
+            del c
         conv = self.ms_corr_proj
-        return F.conv2d(torch.cat(cs, 1), conv.weight.float(), cast("torch.Tensor", conv.bias).float()).view(n, -1)
+        correlations = torch.cat(maps, 1) if packed is None else packed
+        return F.conv2d(correlations, conv.weight.float(), cast("torch.Tensor", conv.bias).float()).view(n, -1)
 
     def coords(self, idx: torch.Tensor) -> torch.Tensor:
         """`indices_to_coords`: cell centres `(x, y)` in network pixels of flat 1/4 indices."""

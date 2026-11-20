@@ -85,11 +85,11 @@ def _init(runner: Runner, arch: str) -> None:
     runner.num_prefix_tokens, runner.num_register_tokens = 1 + REGISTERS, REGISTERS
 
 
-def _outputs(last: torch.Tensor, hs: list[torch.Tensor]) -> dict[str, torch.Tensor]:
+def _outputs(last: torch.Tensor, hs: torch.Tensor | None) -> dict[str, torch.Tensor]:
     last = last.float()
     out = {"last_hidden_state": last, "pooler_output": last[:, 0]}
-    if hs:
-        out["hidden_states"] = torch.stack([h.float() for h in hs], 1)
+    if hs is not None:
+        out["hidden_states"] = hs
     return out
 
 
@@ -274,9 +274,15 @@ class Kernels(Runner):
     def _graph_forward(self, image: torch.Tensor) -> list[torch.Tensor]:
         return self._forward(image, self._layers)
 
-    def _float(self, outs: list[torch.Tensor]) -> list[torch.Tensor]:
-        """`[last_hidden_state, *hidden states]` as float32, the hidden states times the stream scale."""
-        return [outs[0].float(), *(t.float() * self.net.stream_scale for t in outs[1:])]
+    def _float(self, outs: list[torch.Tensor]) -> dict[str, torch.Tensor]:
+        """Copy the graph or eager outputs directly into their final FP32 tensors."""
+        last = outs[0].float()
+        hs = None
+        if len(outs) > 1:
+            hs = last.new_empty((last.shape[0], len(outs) - 1, *last.shape[1:]))
+            for i, t in enumerate(outs[1:]):
+                hs[:, i].copy_(t).mul_(self.net.stream_scale)
+        return _outputs(last, hs)
 
     def _eager(self, image: torch.Tensor, layers: tuple[int, ...]) -> list[torch.Tensor]:
         """`_forward` on the capture stream: no extra cuBLAS workspace (32 MB) on the caller's stream."""
@@ -307,7 +313,7 @@ class Kernels(Runner):
                     outs = self._float(self._eager(image, layers))
             else:
                 outs = self._float(self._forward(image, layers))
-            return _outputs(outs[0], outs[1:])
+            return outs
 
 
 class MlxPortable(Runner):
@@ -326,7 +332,8 @@ class MlxPortable(Runner):
 
     def __call__(self, image: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
         """Features of a resized, normalised batch."""
-        return _outputs(*self.engine(image, layers))
+        last, states = self.engine(image, layers)
+        return _outputs(last, torch.stack([state.float() for state in states], 1) if states else None)
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxPortable}

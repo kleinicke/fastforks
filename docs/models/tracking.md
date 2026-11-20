@@ -22,8 +22,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`tapir`](#tapir) | yes | 141, 1.3x | 548, 0.95x |
 | [`tapnext`](#tapnext) | yes | 381, 2.4x | 1254, 0.66x |
 | [`tapnext-pp`](#tapnext) | yes | 382, 3.9x | 1074, 0.63x |
-| [`track-on-r`](#track_on) | yes | 1102, 1.8x | 1620, 0.84x |
-| [`track-on2`](#track_on) | yes | 1108, 1.8x | 1620, 1.0x |
+| [`track-on-r`](#track_on) | yes | 1064, 1.9x | 1156, 0.6x |
+| [`track-on2`](#track_on) | yes | 1073, 1.8x | 1158, 0.74x |
 
 <a id="alltracker"></a>
 
@@ -36,9 +36,9 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `alltracker` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 485<br>385<br>213<br>284<br>public API unavailable | 2100 / 2318<br>885 / 998<br>967 / 1068<br>1273 / 1358<br>– |
-| `alltracker` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>330 (frame CNN with eager tracking) | –<br>–<br>–<br>2262 / 3372 |
+| `alltracker` | synthetic (16x256x256) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>412<br>–<br>330 (frame CNN with eager tracking, 16 frames and 16 queries) | –<br>1438 / 2512<br>–<br>2262 / 3372 |
 | `alltracker-tiny` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 424<br>330<br>217<br>229<br>public API unavailable | 1995 / 2200<br>919 / 1178<br>978 / 1166<br>1198 / 1338<br>– |
-| `alltracker-tiny` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>270 (frame CNN with eager tracking) | –<br>–<br>–<br>2010 / 3220 |
+| `alltracker-tiny` | synthetic (16x256x256) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>302<br>–<br>270 (frame CNN with eager tracking, 16 frames and 16 queries) | –<br>1364 / 2548<br>–<br>2010 / 3220 |
 
 <details><summary>Details</summary>
 
@@ -55,12 +55,14 @@ Commercial use: yes.
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `alltracker` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved); `alltracker-tiny` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved)
 - `alltracker` 480x854, first call: portable + torch.compile 105 s (cold Inductor cache).
-- `alltracker` 256x256, first call: TensorRT fp32 20 s (ONNX + engine).
+- `alltracker` 16x256x256, first call: TensorRT fp32 20 s (ONNX + engine).
 - `alltracker-tiny` 480x854, first call: portable + torch.compile 103 s (cold Inductor cache).
-- `alltracker-tiny` 256x256, first call: TensorRT fp32 19 s (ONNX + engine).
+- `alltracker-tiny` 16x256x256, first call: TensorRT fp32 19 s (ONNX + engine).
 - `alltracker` original 480x854: the authors' mixed-precision option (float16); aharley/alltracker@e7553135e7b3 Net.forward, 384 x 512, 4 iters
 - `alltracker` portable 480x854, kernels 480x854: 24 frames with 256 queries. Samples the convex flow and visibility upsampling at the query pixels. Synthetic and three labeled TAP-Vid DAVIS outputs matched bitwise.
+- `alltracker` portable 16x256x256: Portable baseline recorded in the same archived timing run as the TensorRT profile at this input size.
 - `alltracker-tiny` original 480x854: the authors' mixed-precision option (float16); aharley/alltracker@e7553135e7b3 Net.forward, 384 x 512, 4 iters
+- `alltracker-tiny` portable 16x256x256: Portable baseline recorded in the same archived timing run as the TensorRT profile at this input size.
 - `alltracker` load / first call: original 1.68 s / 1.309 s, portable 0.89 s / 2.078 s, kernels 0.26 s / 0.493 s
 - `alltracker-tiny` load / first call: original 1.22 s / 1.398 s, portable 0.06 s / 0.731 s, kernels 0.96 s / 0.54 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -90,6 +92,8 @@ CPU, float32: max |diff| <= 2.3e-05 vs the original. GPU, float16 (the default),
 
 ### Limitations
 
+- With 256 points introduced on frames 1, 15, 31 and 58 of a 63-frame clip at 480 × 854, reversing one feature window at a time reduced peak allocation from 1,239 to 1,150 MiB portable and from 1,321 to 1,233 MiB kernels. The checked tracks and visibility match bit for bit.
+- Tracking 256 points in a 63-frame, 480 × 854 clip on the RTX 5060 Ti used 1,150 MiB portable (was 1,224) and 1,233 MiB kernels (was 1,307). Tracks and visibility matched bit for bit on the synthetic clips and three labeled TAP-Vid DAVIS clips.
 - Offline: the features of every frame are kept in memory (about 2.5 MB per frame in float16 at 384 x 512); each query frame costs a forward pass (and a backward pass from frame 0 if it is not the first).
 - Frames are resized to 384 x 512 (upstream's default evaluation size), whatever their size and aspect ratio. Upstream reports higher accuracy at larger sizes (TAP-Vid DAVIS AJ 65.9 at 448 x 768, 67.2 at 768 x 1024); the size is a card parameter.
 - Tracks are sampled bilinearly at the query position; upstream's evaluation rounds the query to the nearest pixel.
@@ -174,7 +178,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 |---|---|---|---|---|
 | `cotracker3-offline` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 244<br>162<br>154<br>135<br>25.9 | 2221 / 2480<br>755 / 882<br>757 / 882<br>755 / 902<br>519 / 586 |
 | `cotracker3-online` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 328<br>184<br>176<br>159<br>public API unavailable | 1659 / 1886<br>755 / 906<br>757 / 888<br>701 / 846<br>– |
-| `cotracker3-online` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>50.3 (fixed eight-frame graph with 16 queries) | –<br>–<br>–<br>456 / 472 |
+| `cotracker3-online` | Synthetic video (8x256x256) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>97.2<br>–<br>50.3 (fixed eight-frame graph with 16 queries) | –<br>936 / 1298<br>–<br>456 / 472 |
 | `cotracker3-online` | synthetic (24x256x256) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>280<br>–<br>141 (fixed 24-frame clip with 16 queries) | –<br>2381 / 2694<br>–<br>850 / 856 |
 
 <details><summary>Details</summary>
@@ -192,9 +196,10 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `cotracker3-offline` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved); `cotracker3-online` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved)
 - `cotracker3-offline` 480x854, first call: portable + torch.compile 36 s (cold Inductor cache), TensorRT fp16 157 s (ONNX + engine).
 - `cotracker3-online` 480x854, first call: portable + torch.compile 38 s (cold Inductor cache).
-- `cotracker3-online` 256x256, first call: TensorRT fp32 117 s (ONNX + engine).
+- `cotracker3-online` 8x256x256, first call: TensorRT fp32 117 s (ONNX + engine).
 - `cotracker3-offline` original 480x854: the authors' mixed-precision option (float16); facebookresearch/co-tracker@82e02e802975 as its predictor, offline (whole video, 6 x 6 support grid), frames resized to 384 x 512
 - `cotracker3-online` original 480x854: the authors' mixed-precision option (float16); facebookresearch/co-tracker@82e02e802975 as its predictor, online (16-frame windows, step 8), frames resized to 384 x 512
+- `cotracker3-online` portable 8x256x256: The archived portable arm of the same eight-frame, 16-query TensorRT comparison.
 - `cotracker3-online` portable 24x256x256: The same 24-frame, 16-query input timed for TensorRT.
 - `cotracker3-offline` load / first call: original 0.65 s / 0.866 s, portable 0.28 s / 0.416 s, kernels 0.19 s / 0.52 s
 - `cotracker3-online` load / first call: original 0.54 s / 0.536 s, portable 0.27 s / 0.472 s, kernels 0.18 s / 0.515 s
@@ -242,8 +247,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `locotrack-b` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 203<br>189<br>109<br>82.6<br>6.12 (8 frames with 16 queries only) | 719 / 784<br>535 / 596<br>507 / 600<br>1117 / 1140<br>233 / 242 |
-| `locotrack-s` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 193<br>180<br>151<br>74.1<br>5.66 (8 frames with 16 queries only) | 706 / 812<br>759 / 842<br>596 / 642<br>1000 / 1034<br>251 / 256 |
+| `locotrack-b` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile | 203<br>189<br>109<br>82.6 | 719 / 784<br>535 / 596<br>507 / 600<br>1117 / 1140 |
+| `locotrack-b` | Synthetic video (8x480x854) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>27.2<br>–<br>6.12 (8 frames with 16 queries only) | –<br>241 / 278<br>–<br>233 / 242 |
+| `locotrack-s` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile | 193<br>180<br>151<br>74.1 | 706 / 812<br>759 / 842<br>596 / 642<br>1000 / 1034 |
+| `locotrack-s` | Synthetic video (8x480x854) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>25.3<br>–<br>5.66 (8 frames with 16 queries only) | –<br>229 / 280<br>–<br>251 / 256 |
 
 <details><summary>Details</summary>
 
@@ -258,10 +265,13 @@ Commercial use: yes.
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `locotrack-b` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved); `locotrack-s` 3000x4000 (5.4 GiB peak allocated, 5.8 reserved)
 - `locotrack-b` 480x854, first call: portable + torch.compile 146 s (cold Inductor cache).
-- `locotrack-s` 480x854, first call: portable + torch.compile 140 s (cold Inductor cache), TensorRT fp16 51 s (ONNX + engine).
+- `locotrack-s` 480x854, first call: portable + torch.compile 140 s (cold Inductor cache).
+- `locotrack-s` 8x480x854, first call: TensorRT fp16 51 s (ONNX + engine).
 - `locotrack-b` original 480x854: the authors' mixed-precision option (float16); KU-CVLAB/LocoTrack@3385a233a270 forward, offline (whole video), frames resized to 256 x 256
 - `locotrack-b` portable 480x854, kernels 480x854: FP16 native model, 24 frames and 256 queried points. Earlier release of consumed tracking intermediates. Tracks and visibility matched the previous path bitwise on synthetic inputs and three DAVIS clips.
+- `locotrack-b` portable 8x480x854: The eager portable module on the same eight-frame, 16-query example input used for TensorRT.
 - `locotrack-s` original 480x854: the authors' mixed-precision option (float16); KU-CVLAB/LocoTrack@3385a233a270 forward, offline (whole video), frames resized to 256 x 256
+- `locotrack-s` portable 8x480x854: The eager portable module on the same eight-frame, 16-query example input used for TensorRT.
 - `locotrack-b` load / first call: original 0.79 s / 1.058 s, portable 0.35 s / 0.718 s, kernels 0.18 s / 0.872 s
 - `locotrack-s` load / first call: original 0.29 s / 0.229 s, portable 0.06 s / 0.653 s, kernels 1.13 s / 0.655 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -275,9 +285,9 @@ Query-first TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before t
 | `locotrack-b` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 67.19 / 78.05 / 89.58 | 67.31 / 78.11 / 89.85 | 67.31 / 78.07 / 89.89 | 67.23 / 78.11 / 89.76 | 67.29 / 78.10 / 89.83 |  |  |
 | `locotrack-b` | TAP-Vid DAVIS, 8 frames and 16 queries per clip, AJ / delta_avg / OA % |  |  | 89.53 / 94.82 / 97.35 |  |  | 89.53 / 94.81 / 97.35 |  |
 | `locotrack-s` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 64.81 / 76.91 / 86.51 |  |  | 64.75 / 76.86 / 86.42 |  |  |  |
-| `locotrack-s` | TAP-Vid DAVIS, 8 frames and 16 queries per clip, AJ / delta_avg / OA % |  |  | 89.00 / 94.41 / 97.48 |  |  | 89.07 / 94.41 / 97.48 |  |
+| `locotrack-s` | TAP-Vid DAVIS, 8 frames and 16 queries per clip, AJ / delta_avg / OA % |  |  | 89.00 / 94.41 / 97.48 |  | 89.00 / 94.41 / 97.48 | 89.07 / 94.41 / 97.48 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks b3358de3 / db9e79d5, 2026-11-13 to 2026-11-17; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2da1b4d2 / bb4e8b64, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5, 2026-11-13; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks b3358de3, 2026-11-17.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks b3358de3 / db9e79d5, 2026-11-13 to 2026-11-17; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2da1b4d2 / bb4e8b64, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 78a59767f / db9e79d5, 2026-11-13 to 2026-11-20; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks b3358de3, 2026-11-17.
 
 ### Parity
 
@@ -369,10 +379,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `track-on2` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1953<br>1193<br>1108<br>1075<br>public API unavailable | 1403 / 1558<br>1423 / 1712<br>1368 / 1620<br>1340 / 1454<br>– |
-| `track-on2` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>961 (standalone eight-frame encoder, eager recurrent decoder) | –<br>–<br>–<br>1979 / 2288 |
-| `track-on-r` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2022<br>1188<br>1102<br>1066<br>public API unavailable | 1801 / 1928<br>1423 / 1632<br>1368 / 1620<br>1340 / 1454<br>– |
-| `track-on-r` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>958 (standalone eight-frame encoder, eager recurrent decoder) | –<br>–<br>–<br>1979 / 2286 |
+| `track-on2` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1953<br>1159<br>1073<br>1075<br>public API unavailable | 1403 / 1558<br>1030 / 1190<br>975 / 1158<br>1340 / 1454<br>– |
+| `track-on2` | synthetic (16x256x256) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>1092<br>–<br>961 (eight-frame encoder chunks with eager recurrent decoder, 16-frame clip) | –<br>1607 / 1930<br>–<br>1979 / 2288 |
+| `track-on-r` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2022<br>1150<br>1064<br>1066<br>public API unavailable | 1801 / 1928<br>1030 / 1190<br>975 / 1156<br>1340 / 1454<br>– |
+| `track-on-r` | synthetic (16x256x256) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>1086<br>–<br>958 (eight-frame encoder chunks with eager recurrent decoder, 16-frame clip) | –<br>1607 / 1930<br>–<br>1979 / 2286 |
 
 <details><summary>Details</summary>
 
@@ -391,11 +401,13 @@ Commercial use: yes.
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `track-on2` 3000x4000 (5.0 GiB peak allocated, 6.0 reserved); `track-on-r` 3000x4000 (5.0 GiB peak allocated, 6.0 reserved)
 - `track-on2` 480x854, first call: portable + torch.compile 60 s (cold Inductor cache).
-- `track-on2` 256x256, first call: TensorRT fp32 46 s (ONNX + engine).
+- `track-on2` 16x256x256, first call: TensorRT fp32 46 s (ONNX + engine).
 - `track-on-r` 480x854, first call: portable + torch.compile 66 s (cold Inductor cache).
-- `track-on-r` 256x256, first call: TensorRT fp32 42 s (ONNX + engine).
+- `track-on-r` 16x256x256, first call: TensorRT fp32 42 s (ONNX + engine).
 - `track-on2` original 480x854: the authors' mixed-precision option (float16); gorkaydemir/track_on@04efe8a137bd Predictor loop, 384 x 512, memory 72
+- `track-on2` portable 16x256x256: Archived portable timing at the same 256 x 256 clip size with eight-frame chunks. The TensorRT memory replay used the same engine and configuration.
 - `track-on-r` original 480x854: the authors' mixed-precision option (float16); gorkaydemir/track_on@04efe8a137bd Predictor loop, 384 x 512, memory 72
+- `track-on-r` portable 16x256x256: Archived portable timing at the same 256 x 256 clip size with eight-frame chunks. The TensorRT memory replay used the same engine and configuration.
 - `track-on2` load / first call: original 3.77 s / 3.626 s, portable 1.16 s / 1.956 s, kernels 0.63 s / 1.762 s
 - `track-on-r` load / first call: original 0.88 s / 2.907 s, portable 0.24 s / 1.989 s, kernels 1.11 s / 1.72 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -409,9 +421,9 @@ Query-first TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before t
 | `track-on2` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 69.60 / 81.26 / 92.96 | 69.64 / 81.30 / 92.94 | 69.69 / 81.33 / 92.94 | 69.59 / 81.26 / 92.95 | 69.65 / 81.32 / 92.93 |  |  |  |
 | `track-on2` | TAP-Vid DAVIS (10 clips), first 16 frames and up to 20 queries, AJ / delta_avg / OA % |  |  | 80.74 / 90.52 / 95.19 | 80.74 / 90.54 / 95.19 |  | 80.79 / 90.55 / 95.19 | 80.75 / 90.55 / 95.19 |  |
 | `track-on-r` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 71.09 / 82.19 / 94.20 |  |  | 71.09 / 82.19 / 94.20 |  |  |  |  |
-| `track-on-r` | TAP-Vid DAVIS (10 clips), first 16 frames and up to 20 queries, AJ / delta_avg / OA % |  |  | 82.08 / 91.10 / 95.90 | 82.05 / 91.08 / 95.90 |  | 82.06 / 91.08 / 95.90 | 82.05 / 91.08 / 95.90 |  |
+| `track-on-r` | TAP-Vid DAVIS (10 clips), first 16 frames and up to 20 queries, AJ / delta_avg / OA % |  |  | 82.08 / 91.10 / 95.90 | 82.05 / 91.08 / 95.90 | 82.02 / 91.08 / 95.87 | 82.06 / 91.08 / 95.90 | 82.05 / 91.08 / 95.90 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6327e81d / db9e79d5, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2da1b4d2 / bb4e8b64 / c12bf7a9 / c8dd032d, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5, 2026-11-13; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6327e81d, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c12bf7a9 / c8dd032d, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6327e81d / db9e79d5, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2da1b4d2 / bb4e8b64 / c12bf7a9 / c8dd032d, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 78a59767f / db9e79d5, 2026-11-13 to 2026-11-20; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6327e81d, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c12bf7a9 / c8dd032d, 2026-11-18.
 
 ### Parity
 

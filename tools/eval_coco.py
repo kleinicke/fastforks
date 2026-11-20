@@ -48,6 +48,7 @@ import statistics
 import subprocess
 import sys
 import time
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -56,6 +57,7 @@ import torch
 from PIL import Image
 
 from _data import DATA
+from _prefetch import prefetch
 
 CONCEPT_THRESHOLD = 0.5  # SAM 3's default (fastforks CONCEPT_THRESHOLD, transformers' post-processing example)
 MIN_LEFT_S = 20  # seconds of budget below which no new model is started
@@ -64,6 +66,11 @@ COCO = str(DATA / "coco")
 
 def _images(every: int) -> list[Path]:
     return sorted((Path(COCO) / "val2017").glob("*.jpg"))[::every]
+
+
+def _load_rgb(path: Path) -> np.ndarray:
+    with Image.open(path) as image:
+        return np.asarray(image.convert("RGB"))
 
 
 def _gt(task: str = "detection") -> Any:  # noqa: ANN401 - pycocotools.coco.COCO
@@ -93,6 +100,23 @@ def _point(mask: np.ndarray) -> tuple[float, float]:
     d = distance_transform_edt(np.pad(mask, 1))[1:-1, 1:-1]
     y, x = np.unravel_index(int(np.argmax(d)), d.shape)
     return float(x), float(y)
+
+
+def _point_inputs(
+    coco: Any,  # noqa: ANN401
+    path: Path,
+) -> tuple[int, np.ndarray, list[int], list[np.ndarray], list[tuple[float, float]]]:
+    """Decode the image and prepare its nonempty point prompts on the CPU."""
+    iid = int(path.stem)
+    ids, masks, points = [], [], []
+    for ann in coco.loadAnns(coco.getAnnIds(imgIds=iid, iscrowd=False)):
+        if ann["area"] > 0:
+            mask = coco.annToMask(ann).astype(bool)
+            if mask.any():
+                ids.append(ann["id"])
+                masks.append(mask)
+                points.append(_point(mask))
+    return iid, _load_rgb(path), ids, masks, points
 
 
 def _sync() -> float:
@@ -138,8 +162,7 @@ def _detect(model: Any, coco: Any, files: list[Path], rec: dict[str, Any]) -> tu
 
     cats = _cat_map(model, coco)
     dets, ms = [], []
-    for f in files:
-        img = np.asarray(Image.open(f).convert("RGB"))
+    for iid, img in prefetch(lambda f: (int(f.stem), _load_rgb(f)), files, workers=2):
         t = _sync()
         r = model(img)
         ms.append(1e3 * (_sync() - t))
@@ -152,7 +175,7 @@ def _detect(model: Any, coco: Any, files: list[Path], rec: dict[str, Any]) -> tu
             rles = mu.encode(np.asfortranarray(m.transpose(1, 2, 0)))
         for i in range(k):
             d = {
-                "image_id": int(f.stem),
+                "image_id": iid,
                 "category_id": cats[int(lab[i])],
                 "bbox": [float(b[i, 0]), float(b[i, 1]), float(b[i, 2] - b[i, 0]), float(b[i, 3] - b[i, 1])],
                 "score": float(s[i]),
@@ -174,14 +197,20 @@ def _pose(model: Any, coco: Any, files: list[Path], rec: dict[str, Any]) -> tupl
             "all images; top 100 query/class pairs, person class only; score_threshold=0; no NMS; "
             "uncertainty-fused person score (trace_alpha=0.2), joint confidence=findability"
         )
-    for f in files:
+
+    def inputs(f: Path) -> tuple[int, np.ndarray, np.ndarray] | None:
         iid = int(f.stem)
         anns = [a for a in coco.loadAnns(coco.getAnnIds(imgIds=iid, iscrowd=False)) if a["num_keypoints"] > 0]
         if not anns and rec["pose_gt_boxes"]:
-            continue
+            return None
         boxes = np.array([[a["bbox"][0], a["bbox"][1], a["bbox"][0] + a["bbox"][2], a["bbox"][1] + a["bbox"][3]]
                           for a in anns], dtype=np.float32)  # fmt: skip
-        img = np.asarray(Image.open(f).convert("RGB"))
+        return iid, _load_rgb(f), boxes
+
+    for sample in prefetch(inputs, files, workers=2):
+        if sample is None:
+            continue
+        iid, img, boxes = sample
         t = _sync()
         r = model(img, boxes=boxes) if rec["pose_gt_boxes"] else model(img)
         ms.append(1e3 * (_sync() - t))
@@ -202,10 +231,13 @@ def _concept(model: Any, coco: Any, files: list[Path], rec: dict[str, Any]) -> t
 
     names = {c["id"]: c["name"] for c in coco.loadCats(coco.getCatIds())}
     dets, ms = [], []
-    for f in files:
+
+    def inputs(f: Path) -> tuple[int, np.ndarray, list[int]]:
         iid = int(f.stem)
         cats = sorted({a["category_id"] for a in coco.loadAnns(coco.getAnnIds(imgIds=iid, iscrowd=False))})
-        img = np.asarray(Image.open(f).convert("RGB"))
+        return iid, _load_rgb(f), cats
+
+    for iid, img, cats in prefetch(inputs, files, workers=2):
         t0 = _sync()
         emb = model.get_image_embeddings(img)
         t1 = _sync()
@@ -237,19 +269,14 @@ def _prompt(model: Any, coco: Any, files: list[Path], rec: dict[str, Any]) -> tu
         rec["skipped"] = f"no point prompts (takes {sorted(model.prompts)})"
         return [], []
     rows, ms = [], []
-    for f in files:
-        iid = int(f.stem)
-        anns = [a for a in coco.loadAnns(coco.getAnnIds(imgIds=iid, iscrowd=False)) if a["area"] > 0]
-        gts = [coco.annToMask(a).astype(bool) for a in anns]
-        gts = [g for g in gts if g.any()]
-        img = np.asarray(Image.open(f).convert("RGB"))
+    for iid, img, ids, gts, points in prefetch(partial(_point_inputs, coco), files):
         t0 = _sync()
         emb = model.get_image_embeddings(img)
         t1 = _sync()
         if not gts:
             ms.append([1e3 * (t1 - t0), 0.0])
             continue
-        pts = torch.tensor([[_point(g)] for g in gts])  # [P, 1, 2]
+        pts = torch.tensor(points)[:, None]  # [P, 1, 2]
         lab = torch.ones(len(gts), 1)
         t2 = _sync()
         multi = model(emb, input_points=pts, input_labels=lab, multimask_output=True)
@@ -265,7 +292,7 @@ def _prompt(model: Any, coco: Any, files: list[Path], rec: dict[str, Any]) -> tu
             inter = (m & g).flatten(1).sum(1).float()
             union = (m | g).flatten(1).sum(1).float()
             for j, v in enumerate((inter / union.clamp(min=1)).tolist()):
-                rows.append({"image_id": iid, "ann": anns[j]["id"], "kind": name, "iou": v})
+                rows.append({"image_id": iid, "ann": ids[j], "kind": name, "iou": v})
         del t4
     return rows, ms
 

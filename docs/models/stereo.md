@@ -14,8 +14,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 |---|---|---|---|---|
 | [`aanet-plus-sceneflow`](#aanet) | yes | 18.50 | 88.9, 2.2x | 920, 0.24x |
 | [`aanet-sceneflow`](#aanet) | yes | 14.64 | 101, 1.8x | 644, 0.57x |
-| [`bridgedepth-rvc-pretrain`](#bridgedepth) | no | 1.22 ? | 355, 1.3x | 2522, 0.79x |
-| [`bridgedepth-sf`](#bridgedepth) | no | 1.24 | 348, 1.3x | 2634, 0.84x |
+| [`bridgedepth-rvc-pretrain`](#bridgedepth) | no | 1.22 ? | 355, 1.3x | 2322, 0.73x |
+| [`bridgedepth-sf`](#bridgedepth) | no | 1.24 | 350, 1.3x | 2270, 0.73x |
 | [`c-fast-foundationstereo`](#c_foundationstereo) (max_disp 192, valid_iters 8) | yes | 2.20 | 135, 3.9x | 1236, 0.41x |
 | [`c-foundationstereo-s`](#c_foundationstereo) | yes | 1.24 | 1366, 2.8x | 4408, 0.34x |
 | [`cas-gwcnet-c-sceneflow`](#cas_gwcnet) | yes | 7.85 | 225, 1.7x | 1930, 0.65x |
@@ -35,7 +35,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`fast-acvnet-plus-sceneflow`](#fast_acvnet) | yes | 12.62 | 46.5, 1.7x | 716, 0.47x |
 | [`fast-acvnet-sceneflow`](#fast_acvnet) | yes | 8.43 | 38.1, 1.6x | 716, 0.48x |
 | [`fast-foundationstereo`](#c_foundationstereo) (max_disp 192, valid_iters 8) | no | 1.72 | 135, 3.9x | 1236, 0.37x |
-| [`foundationstereo-vit-l`](#foundationstereo) | no | 0.65 ? | 1432, 3.0x | 2920, 0.33x |
+| [`foundationstereo-vit-l`](#foundationstereo) | no | 0.65 ? | 1440, 2.9x | 2760, 0.32x |
 | [`foundationstereo-vit-s`](#foundationstereo) | no | 1.10 ? | 1120, 3.2x | 2470, 0.34x |
 | [`great-igev-eth3d`](#great_igev) | yes | 0.49 † | 397, 3.7x | 1302, 0.14x |
 | [`great-igev-kitti`](#great_igev) | yes | 23.36 | 396, 3.7x | 1302, 0.14x |
@@ -45,11 +45,11 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`gwcnet-gc-sceneflow`](#gwcnet) | yes | 10.96 | 259, 1.4x | 1782, 0.29x |
 | [`hitnet-eth3d`](#hitnet) | yes | 0.93 † | 23.2, 7.9x | 770 |
 | [`hitnet-middlebury-d400`](#hitnet) | yes | 7.07 | 53.1, 9.1x | 1514 |
-| [`igev-plusplus-eth3d`](#igev_plusplus) | yes | 0.50 † | 427, 3.0x | 1514, 0.49x |
-| [`igev-plusplus-kitti12`](#igev_plusplus) | yes | 26.78 | 394, 3.2x | 1514, 0.49x |
-| [`igev-plusplus-kitti15`](#igev_plusplus) | yes | 25.50 | 394, 3.2x | 1494, 0.48x |
-| [`igev-plusplus-middlebury`](#igev_plusplus) | yes | 18.46 ? | 393, 3.2x | 1494, 0.48x |
-| [`igev-plusplus-sceneflow`](#igev_plusplus) | yes | 4.66 | 395, 3.2x | 1514, 0.49x |
+| [`igev-plusplus-eth3d`](#igev_plusplus) | yes | 0.50 † | 394, 3.2x | 1154, 0.37x |
+| [`igev-plusplus-kitti12`](#igev_plusplus) | yes | 26.78 | 395, 3.2x | 1154, 0.37x |
+| [`igev-plusplus-kitti15`](#igev_plusplus) | yes | 25.50 | 395, 3.2x | 1154, 0.37x |
+| [`igev-plusplus-middlebury`](#igev_plusplus) | yes | 18.46 ? | 395, 3.2x | 1154, 0.37x |
+| [`igev-plusplus-sceneflow`](#igev_plusplus) | yes | 4.66 | 395, 3.2x | 1154, 0.37x |
 | [`igev-stereo-eth3d`](#igev_stereo) | yes | 0.56 † | 288, 3.3x | 1374, 0.71x |
 | [`igev-stereo-kitti12`](#igev_stereo) | yes | 26.02 | 288, 3.3x | 1374, 0.71x |
 | [`igev-stereo-kitti15`](#igev_stereo) | yes | 24.63 | 288, 3.3x | 1374, 0.71x |
@@ -62,9 +62,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`mocha-v1-sceneflow`](#mocha_stereo) | yes | 4.35 | 455, 3.2x | 1730, 0.43x |
 | [`mocha-v2-sceneflow`](#mocha_stereo) | yes | 3.82 | 448, 2.9x | 1790, 0.45x |
 | [`monster-mix-all`](#monster) | no | 1.25 † | 656, 6.5x | 1954, 0.3x |
-| [`monster-plusplus-mix-all`](#monster_plusplus) | no | 1.08 ? | 657, 6.6x | 2754, 0.43x |
+| [`monster-plusplus-mix-all`](#monster_plusplus) | no | 1.08 ? | 658, 6.6x | 2054, 0.32x |
 | [`monster-sceneflow`](#monster) | no | 1.34 | 655, 6.5x | 2514, 0.39x |
-| [`nmrf-sceneflow`](#nmrf) | yes | 3.81 | 196, 1.6x | 1112, 0.54x |
+| [`nmrf-sceneflow`](#nmrf) | yes | 3.81 | 196, 1.6x | 970, 0.47x |
 | [`psmnet-sceneflow`](#psmnet) | yes | 15.13 | 231, 2.6x | 1782, 0.29x |
 | [`raft-stereo-eth3d`](#raft_stereo) | yes | 2.61 † | 275, 3.8x | 738, 0.28x |
 | [`raft-stereo-middlebury`](#raft_stereo) | yes | 2.79 | 274, 3.8x | 758, 0.29x |
@@ -165,9 +165,9 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `bridgedepth-sf` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 616<br>460<br>437<br>348<br>325<br>public API unavailable | 2852 / 3128<br>2852 / 3144<br>2916 / 3214<br>2310 / 2634<br>2280 / 2308<br>– |
+| `bridgedepth-sf` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 616<br>460<br>438<br>350<br>325<br>public API unavailable | 2852 / 3128<br>2852 / 3144<br>2656 / 2872<br>2046 / 2270<br>2280 / 2308<br>– |
 | `bridgedepth-sf` | KITTI 2015 (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT fp32 | 164<br>118<br>111<br>92.1<br>284 (DINOv2 and DPT monocular branch with eager stereo inference) | 1840 / 1950<br>1840 / 1970<br>1859 / 1954<br>1272 / 1394<br>2358 / 2508 |
-| `bridgedepth-rvc-pretrain` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>470<br>444<br>355<br>337<br>public API unavailable | 2903 / 3178<br>2903 / 3200<br>2836 / 3144<br>2226 / 2522<br>2329 / 2360<br>– |
+| `bridgedepth-rvc-pretrain` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>470<br>444<br>355<br>337<br>public API unavailable | 2903 / 3178<br>2903 / 3200<br>2707 / 2924<br>2097 / 2322<br>2329 / 2360<br>– |
 | `bridgedepth-rvc-pretrain` | KITTI 2015 (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT fp32 | 169<br>121<br>114<br>94.7<br>284 (DINOv2 and DPT monocular branch with eager stereo inference) | 1891 / 1982<br>1891 / 2006<br>1910 / 2006<br>1323 / 1446<br>2410 / 2588 |
 
 <details><summary>Details</summary>
@@ -192,12 +192,12 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - `bridgedepth-rvc-pretrain` 375x1242, first call: TensorRT fp32 50 s (ONNX + engine).
 - `bridgedepth-sf` original (fp32) 994x1482, original (fp32) 375x1242: original default: its monocular branch (DepthAnything.infer) runs in fp16 even without autocast
 - `bridgedepth-sf` original 994x1482, original 375x1242: torch.autocast(fp16) around the forward; original default: its monocular branch (DepthAnything.infer) runs in fp16 even without autocast
+- `bridgedepth-sf` portable 994x1482, kernels 994x1482: Middlebury trainingH Motorcycle at the task benchmark size. Native projection releases its consumed skip and residual before upsampling.
 - `bridgedepth-rvc-pretrain` original (fp32) 994x1482, original (fp32) 375x1242: original default: its monocular branch (DepthAnything.infer) runs in fp16 even without autocast
 - `bridgedepth-rvc-pretrain` original 994x1482, original 375x1242: torch.autocast(fp16) around the forward; original default: its monocular branch (DepthAnything.infer) runs in fp16 even without autocast
-- `bridgedepth-rvc-pretrain` portable 994x1482, kernels 994x1482: Releases consumed monocular and stereo features. Exact synthetic disparity and three labeled Middlebury pairs.
-- `bridgedepth-sf` load / first call: original 4.86 s / 0.119 s (375x1242), portable 1.53 s / 0.442† s, kernels 0.72† s / 0.351† s
+- `bridgedepth-rvc-pretrain` portable 994x1482, kernels 994x1482: Middlebury trainingH Motorcycle at the task benchmark size. Native projection releases its consumed skip and residual before upsampling.
+- `bridgedepth-sf` load / first call: original 4.86 s / 0.119 s (375x1242), portable 0.97 s / 0.843 s, kernels 1.0 s / 0.825 s
 - `bridgedepth-rvc-pretrain` load / first call: original 5.87 s / 1.363 s (375x1242), portable 1.17 s / 1.064 s, kernels 1.12 s / 1.041 s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -241,7 +241,7 @@ Commercial use: `c-foundationstereo-s`, `c-fast-foundationstereo`: yes; `fast-fo
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `c-foundationstereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>3874<br>3631<br>1366<br>2773<br>2229 | –<br>8338 / 12870<br>4357 / 4950<br>3058 / 4408<br>7298 / 7624<br>10027 / 10108 |
+| `c-foundationstereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>3874<br>3628<br>1366<br>2773<br>2229 | –<br>8338 / 12870<br>3857 / 4152<br>3058 / 4408<br>7298 / 7624<br>10027 / 10108 |
 | `c-fast-foundationstereo` (max_disp 192, valid_iters 8) | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 741<br>527<br>330<br>135<br>339<br>451 | 4569 / 5358<br>2892 / 2996<br>2109 / 2336<br>1120 / 1236<br>1649 / 1792<br>1425 / 1462 |
 | `fast-foundationstereo` (max_disp 192, valid_iters 8) | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 741<br>527<br>330<br>135<br>339<br>156 | 4616 / 5408<br>2939 / 3306<br>2109 / 2256<br>1120 / 1236<br>1613 / 1752<br>1342 / 1398 |
 
@@ -269,7 +269,6 @@ Commercial use: `c-foundationstereo-s`, `c-fast-foundationstereo`: yes; `fast-fo
 - `c-fast-foundationstereo` 994x1482, first call: portable + torch.compile 75 s (cold Inductor cache), TensorRT fp16 240 s (ONNX + engine).
 - `fast-foundationstereo` 994x1482, first call: portable + torch.compile 78 s (cold Inductor cache), TensorRT fp16 157 s (ONNX + engine).
 - `c-foundationstereo-s` original 994x1482: reference implementation (FoundationStereo repo code) with the C-FS-S checkpoint, AMP; NVIDIA's TAO code OOMs (fp32) or errors (AMP) in the same harness
-- `c-foundationstereo-s` portable 994x1482: Portable CUDA disparity attention consumes row strips. Three Middlebury disparities and the synthetic pair matched bitwise.
 - `c-foundationstereo-s` load / first call: original 1.67 s / 2.731 s (375x1242), portable 0.96 s / 2.087 s (375x1242), kernels 0.81 s / 1.376 s (375x1242)
 - `c-fast-foundationstereo` load / first call: original 0.17 s / 0.172 s (375x1242), portable 0.24 s / 0.332† s, kernels 0.72 s / 0.552 s (375x1242)
 - `fast-foundationstereo` load / first call: original 0.16 s / 0.144 s (375x1242), portable 0.25 s / 0.33† s, kernels 0.6 s / 0.493 s (375x1242)
@@ -488,7 +487,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `crestereo-eth3d` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1980<br>1597<br>732<br>229<br>398<br>298 | 1605 / 1870<br>1541 / 1752<br>884 / 1030<br>644 / 732<br>695 / 748<br>703 / 740 |
+| `crestereo-eth3d` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1980<br>1597<br>724<br>229<br>398<br>298 | 1605 / 1870<br>1541 / 1752<br>810 / 946<br>644 / 732<br>695 / 748<br>703 / 740 |
 
 <details><summary>Details</summary>
 
@@ -506,7 +505,7 @@ Commercial use: yes.
 - `crestereo-eth3d` 994x1482, first call: portable + torch.compile 120 s (cold Inductor cache), TensorRT fp16 224 s (ONNX + engine).
 - `crestereo-eth3d` original (fp32) 994x1482: PyTorch 2.14.1+cu130, community port ibaiGorordo/CREStereo-Pytorch @ b6c7a9f, test_model.py inference (2 x 20 iters), BGR, pad 32 (edge)
 - `crestereo-eth3d` original 994x1482: PyTorch 2.14.1+cu130, community port ibaiGorordo/CREStereo-Pytorch @ b6c7a9f, test_model.py inference (2 x 20 iters), BGR, pad 32 (edge), the port's mixed_precision=True
-- `crestereo-eth3d` load / first call: original 0.05 s / 1.499 s, portable 0.03 s / 0.75† s, kernels 0.03† s / 0.229† s
+- `crestereo-eth3d` load / first call: original 0.05 s / 1.499 s, portable 0.16 s / 1.206 s, kernels 0.03† s / 0.229† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
@@ -545,7 +544,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `defom-stereo-vitl-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4175<br>2816<br>1531<br>645<br>1002<br>public API unavailable | 10896 / 11072<br>8639 / 8766<br>4362 / 4838<br>2781 / 4234<br>3021 / 3292<br>– |
+| `defom-stereo-vitl-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4175<br>2816<br>1436<br>645<br>1002<br>public API unavailable | 10896 / 11072<br>8639 / 8766<br>3109 / 3452<br>2781 / 4234<br>3021 / 3292<br>– |
 | `defom-stereo-vitl-sceneflow` | KITTI 2015 (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT bf16 | 947<br>509<br>404<br>180<br>1151 (whole graph at fixed 375 x 1242) | 3172 / 3360<br>2458 / 2610<br>2394 / 2538<br>1627 / 1786<br>1782 / 1790 |
 
 <details><summary>Details</summary>
@@ -566,9 +565,9 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - `defom-stereo-vitl-sceneflow` 994x1482, first call: portable + torch.compile 122 s (cold Inductor cache).
 - `defom-stereo-vitl-sceneflow` 375x1242, first call: TensorRT bf16 168 s (ONNX + engine).
 - `defom-stereo-vitl-sceneflow` original 994x1482, original 375x1242: the authors' mixed-precision option (float16)
+- `defom-stereo-vitl-sceneflow` portable 994x1482: Large portable BF16 inputs reuse one feature workspace across the two views. Paired peak allocation fell from 4101 to 3108 MiB. Disparities matched bitwise on the standard input, an odd batch and three Middlebury scenes.
 - `defom-stereo-vitl-sceneflow` kernels 994x1482: Freed the first normalized activation before the final residual normalization. The matched baseline was 643.826 ms and 3148 MiB peak allocated. The synthetic result and three labeled pairs matched bitwise.
-- `defom-stereo-vitl-sceneflow` load / first call: original 4.24 s / 2.83 s, portable 2.31 s / 1.534† s, kernels 2.74 s / 0.305 s (375x1242)
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `defom-stereo-vitl-sceneflow` load / first call: original 4.24 s / 2.83 s, portable 1.2 s / 1.728 s, kernels 2.74 s / 0.305 s (375x1242)
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -788,7 +787,7 @@ Commercial use: **no** (code: LicenseRef-NVIDIA-Source-Code-License-NC AND Apach
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `foundationstereo-vit-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9228<br>4237<br>2992<br>1432<br>2501<br>1513 | 11323 / 11632<br>8286 / 8750<br>2923 / 3136<br>2597 / 2920<br>3453 / 3954<br>4253 / 4322 |
+| `foundationstereo-vit-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9228<br>4237<br>2989<br>1440<br>2501<br>1513 | 11323 / 11632<br>8286 / 8750<br>2415 / 2656<br>2319 / 2760<br>3453 / 3954<br>4253 / 4322 |
 | `foundationstereo-vit-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7129<br>3609<br>2514<br>1120<br>2044<br>1196 | 9991 / 15144<br>6987 / 7280<br>2493 / 2606<br>2169 / 2470<br>2822 / 3646<br>2794 / 2872 |
 
 <details><summary>Details</summary>
@@ -807,7 +806,6 @@ Commercial use: **no** (code: LicenseRef-NVIDIA-Source-Code-License-NC AND Apach
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `foundationstereo-vit-l` 1988x2880 (7.1 GiB peak allocated, 11.4 reserved); `foundationstereo-vit-s` 1988x2880 (6.5 GiB peak allocated, 10.7 reserved)
 - `foundationstereo-vit-l` 994x1482, first call: portable + torch.compile 226 s (cold Inductor cache), TensorRT fp16 611 s (ONNX + engine).
 - `foundationstereo-vit-s` 994x1482, first call: portable + torch.compile 212 s (cold Inductor cache), TensorRT fp16 545 s (ONNX + engine).
-- `foundationstereo-vit-l` portable 994x1482, kernels 994x1482: Shorter hourglass tensor lifetimes reduce native peak allocation by 197 MiB. The synthetic pair and three labeled Middlebury pairs match the baseline bit for bit.
 - `foundationstereo-vit-l` load / first call: original 10.86 s / 2.563 s (375x1242), portable 1.46 s / 3.776 s, kernels 1.4 s / 2.21 s
 - `foundationstereo-vit-s` load / first call: original 1.44 s / 1.058 s (375x1242), portable 1.03 s / 2.514† s, kernels 0.33† s / 1.12† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
@@ -1068,11 +1066,11 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `igev-plusplus-sceneflow` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1079<br>395<br>718<br>495 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>1272 / 1514<br>917 / 1054<br>3821 / 3900 |
-| `igev-plusplus-kitti12` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1080<br>394<br>718<br>494 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>1272 / 1514<br>917 / 1054<br>3821 / 3900 |
-| `igev-plusplus-kitti15` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1080<br>394<br>718<br>494 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>1272 / 1494<br>917 / 1052<br>3821 / 3900 |
-| `igev-plusplus-middlebury` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1080<br>393<br>718<br>494 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>1272 / 1494<br>917 / 1054<br>3821 / 3900 |
-| `igev-plusplus-eth3d` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1079<br>427<br>716<br>494 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>1272 / 1514<br>952 / 1074<br>3765 / 3786 |
+| `igev-plusplus-sceneflow` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1079<br>395<br>718<br>495 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>970 / 1154<br>917 / 1054<br>3821 / 3900 |
+| `igev-plusplus-kitti12` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1080<br>395<br>718<br>494 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>970 / 1154<br>917 / 1054<br>3821 / 3900 |
+| `igev-plusplus-kitti15` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1080<br>395<br>718<br>494 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>970 / 1154<br>917 / 1052<br>3821 / 3900 |
+| `igev-plusplus-middlebury` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1080<br>395<br>718<br>494 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>970 / 1154<br>917 / 1054<br>3821 / 3900 |
+| `igev-plusplus-eth3d` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1079<br>394<br>716<br>494 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>970 / 1154<br>952 / 1074<br>3765 / 3786 |
 
 <details><summary>Details</summary>
 
@@ -1096,10 +1094,15 @@ Commercial use: yes.
 - `igev-plusplus-kitti15` 994x1482, first call: portable + torch.compile 159 s (cold Inductor cache), TensorRT fp16 425 s (ONNX + engine).
 - `igev-plusplus-middlebury` 994x1482, first call: portable + torch.compile 157 s (cold Inductor cache), TensorRT fp16 436 s (ONNX + engine).
 - `igev-plusplus-eth3d` 994x1482, first call: portable + torch.compile 159 s (cold Inductor cache), TensorRT fp16 425 s (ONNX + engine).
-- `igev-plusplus-sceneflow` original (fp32) 994x1482, original 994x1482, portable 994x1482, kernels 994x1482: measured on igev-plusplus-eth3d (same architecture, other checkpoint)
-- `igev-plusplus-kitti12` original (fp32) 994x1482, original 994x1482, portable 994x1482, kernels 994x1482: measured on igev-plusplus-eth3d (same architecture, other checkpoint)
-- `igev-plusplus-kitti15` original (fp32) 994x1482, original 994x1482, portable 994x1482, kernels 994x1482: measured on igev-plusplus-eth3d (same architecture, other checkpoint)
-- `igev-plusplus-middlebury` original (fp32) 994x1482, original 994x1482, portable 994x1482, kernels 994x1482: measured on igev-plusplus-eth3d (same architecture, other checkpoint)
+- `igev-plusplus-sceneflow` original (fp32) 994x1482, original 994x1482, portable 994x1482: measured on igev-plusplus-eth3d (same architecture, other checkpoint)
+- `igev-plusplus-sceneflow` kernels 994x1482: The context encoder uses rows with a halo to bound its workspace. The Middlebury checkpoint matched bit for bit on the synthetic input and three labeled scenes.
+- `igev-plusplus-kitti12` original (fp32) 994x1482, original 994x1482, portable 994x1482: measured on igev-plusplus-eth3d (same architecture, other checkpoint)
+- `igev-plusplus-kitti12` kernels 994x1482: The context encoder uses rows with a halo to bound its workspace. The Middlebury checkpoint matched bit for bit on the synthetic input and three labeled scenes.
+- `igev-plusplus-kitti15` original (fp32) 994x1482, original 994x1482, portable 994x1482: measured on igev-plusplus-eth3d (same architecture, other checkpoint)
+- `igev-plusplus-kitti15` kernels 994x1482: The context encoder uses rows with a halo to bound its workspace. The Middlebury checkpoint matched bit for bit on the synthetic input and three labeled scenes.
+- `igev-plusplus-middlebury` original (fp32) 994x1482, original 994x1482, portable 994x1482: measured on igev-plusplus-eth3d (same architecture, other checkpoint)
+- `igev-plusplus-middlebury` kernels 994x1482: The context encoder uses rows with a halo to bound its workspace. The Middlebury checkpoint matched bit for bit on the synthetic input and three labeled scenes.
+- `igev-plusplus-eth3d` kernels 994x1482: The context encoder uses rows with a halo to bound its workspace. The Middlebury checkpoint matched bit for bit on the synthetic input and three labeled scenes.
 - `igev-plusplus-sceneflow` load / first call: original 0.42 s / 2.335 s (375x1242), portable 0.9 s / 0.822 s (375x1242), kernels 0.56 s / 0.535 s (375x1242)
 - `igev-plusplus-kitti12` load / first call: original 0.42 s / 2.335 s (375x1242), portable 0.99 s / 0.819 s (375x1242), kernels 0.59 s / 0.532 s (375x1242)
 - `igev-plusplus-kitti15` load / first call: original 0.42 s / 2.335 s (375x1242), portable 0.67 s / 0.822 s (375x1242), kernels 0.6 s / 0.534 s (375x1242)
@@ -1435,7 +1438,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `monster-plusplus-mix-all` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4339<br>4334<br>1633<br>657<br>1126<br>697 | 6382 / 6430<br>6382 / 6430<br>2583 / 2918<br>2438 / 2754<br>2328 / 2532<br>3489 / 3552 |
+| `monster-plusplus-mix-all` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4339<br>4334<br>1633<br>658<br>1126<br>697 | 6382 / 6430<br>6382 / 6430<br>2181 / 2394<br>1919 / 2054<br>2328 / 2532<br>3489 / 3552 |
 
 <details><summary>Details</summary>
 
@@ -1451,8 +1454,8 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `monster-plusplus-mix-all` 1988x2880 (7.7 GiB peak allocated, 9.6 reserved)
 - `monster-plusplus-mix-all` 994x1482, first call: portable + torch.compile 109 s (cold Inductor cache), TensorRT fp16 416 s (ONNX + engine).
-- `monster-plusplus-mix-all` load / first call: original 8.37 s / 1.233 s (375x1242), portable 2.45 s / 1.633† s, kernels 3.12 s / 0.421 s (375x1242)
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `monster-plusplus-mix-all` portable 994x1482, kernels 994x1482: Middlebury 2014 trainingH Motorcycle stereo pair through the full public API.
+- `monster-plusplus-mix-all` load / first call: original 8.37 s / 1.233 s (375x1242), portable 1.05 s / 1.847 s, kernels 3.12 s / 0.421 s (375x1242)
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -1486,7 +1489,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `nmrf-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 445<br>313<br>216<br>196<br>161<br>184 | 2300 / 2426<br>1656 / 2054<br>1510 / 1552<br>1022 / 1112<br>854 / 1104<br>1027 / 1134 |
+| `nmrf-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 445<br>313<br>216<br>196<br>161<br>184 | 2300 / 2426<br>1656 / 2054<br>1186 / 1270<br>784 / 970<br>854 / 1104<br>1027 / 1134 |
 
 <details><summary>Details</summary>
 
@@ -1502,8 +1505,8 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `nmrf-sceneflow` 3000x4000 (11.0 GiB peak allocated, 13.3 reserved)
 - `nmrf-sceneflow` 994x1482, first call: portable + torch.compile 85 s (cold Inductor cache), TensorRT fp16 142 s (ONNX + engine).
 - `nmrf-sceneflow` original 994x1482: torch.autocast(fp16) around the forward
-- `nmrf-sceneflow` load / first call: original 0.21 s / 0.766 s (375x1242), portable 0.1 s / 0.218† s, kernels 0.07† s / 0.197† s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `nmrf-sceneflow` portable 994x1482, kernels 994x1482: Middlebury 2014 trainingH Motorcycle stereo pair through the full public API.
+- `nmrf-sceneflow` load / first call: original 0.21 s / 0.766 s (375x1242), portable 0.17 s / 0.882 s, kernels 0.16 s / 0.851 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -1724,7 +1727,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 | `s2m2-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 582<br>350<br>348<br>113<br>186<br>137 | 2775 / 3008<br>1759 / 1986<br>1733 / 1930<br>686 / 820<br>1579 / 1710<br>1186 / 1240 |
 | `s2m2-m` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1242<br>666<br>670<br>248<br>420<br>285 | 3399 / 3704<br>2371 / 2920<br>2289 / 2766<br>876 / 1162<br>2197 / 2572<br>1958 / 2002 |
 | `s2m2-l` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1934<br>1005<br>1017<br>376<br>650<br>497 | 4333 / 5252<br>3248 / 4090<br>3234 / 3816<br>1249 / 1568<br>3169 / 3514<br>2910 / 2982 |
-| `s2m2-xl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3510<br>1796<br>1824<br>682<br>1298<br>753 | 6940 / 8254<br>5606 / 6080<br>5217 / 5614<br>2092 / 2274<br>5594 / 6014<br>5283 / 5338 |
+| `s2m2-xl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3510<br>1796<br>1824<br>682<br>1298<br>753 | 6940 / 8254<br>5606 / 6080<br>4811 / 5234<br>2092 / 2274<br>5594 / 6014<br>5283 / 5338 |
 
 <details><summary>Details</summary>
 
@@ -1746,7 +1749,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - `s2m2-m` original 994x1482: torch.autocast(fp16) around the forward
 - `s2m2-l` original 994x1482: torch.autocast(float16) around the call
 - `s2m2-xl` original 994x1482: torch.autocast(fp16) around the forward
-- `s2m2-xl` portable 994x1482: CUDA encoder evaluates large residuals in four strips. Three matched Middlebury pairs and synthetic disparity, confidence and occlusion bitwise identical.
+- `s2m2-xl` portable 994x1482: Fifteen full API calls. Bounds the portable recurrent and attention workspaces. Synthetic and three labeled Middlebury disparity, confidence and occlusion outputs match bitwise.
 - `s2m2-s` load / first call: original 0.22 s / 0.143 s (375x1242), portable 0.22 s / 0.352† s, kernels 0.2† s / 0.114† s
 - `s2m2-m` load / first call: original 3.95 s / 0.268 s (375x1242), portable 1.21 s / 0.699 s (375x1242), kernels 0.31† s / 0.249† s
 - `s2m2-l` load / first call: original 1.38 s / 1.007 s, portable 2.61 s / 0.755 s (375x1242), kernels 0.58† s / 0.374† s
@@ -1889,9 +1892,9 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `waft-stereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1252<br>689<br>689<br>284<br>357<br>170 | 3764 / 4352<br>3314 / 3398<br>3293 / 3456<br>954 / 1102<br>2024 / 2058<br>1061 / 1114 |
+| `waft-stereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1252<br>689<br>653<br>284<br>357<br>170 | 3764 / 4352<br>3314 / 3398<br>1609 / 1794<br>954 / 1102<br>2024 / 2058<br>1061 / 1114 |
 | `waft-stereo-b` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1898<br>1140<br>1094<br>388<br>571<br>public API unavailable | 7348 / 7528<br>5743 / 5876<br>2999 / 3070<br>1664 / 1932<br>3908 / 3936<br>– |
-| `waft-stereo-b` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>1209 (standalone build) | –<br>–<br>–<br>1447 / 1454 |
+| `waft-stereo-b` | synthetic (384x1248) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>363<br>–<br>1209 (standalone build) | –<br>1528 / 1826<br>–<br>1447 / 1454 |
 
 <details><summary>Details</summary>
 
@@ -1913,11 +1916,12 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 - `waft-stereo-b` 994x1482, first call: portable + torch.compile 104 s (cold Inductor cache).
 - `waft-stereo-b` 384x1248, first call: TensorRT fp32 107 s (ONNX + engine).
 - `waft-stereo-s` original 994x1482: torch.autocast(fp16) around the forward
+- `waft-stereo-s` portable 994x1482: Current shared WAFT stereo eager path on the same Middlebury Motorcycle input.
 - `waft-stereo-b` original 994x1482: torch.autocast(fp16) around the forward
 - `waft-stereo-b` portable 994x1482: Avoid unused intermediate and uncertainty predictions. The synthetic disparity, three labeled Middlebury disparities and the tested 63 x 87 export matched bitwise.
-- `waft-stereo-s` load / first call: original 1.6 s / 0.14 s (375x1242), portable 0.58 s / 0.691† s, kernels 1.47 s / 0.32 s (375x1242)
+- `waft-stereo-b` portable 384x1248: Portable timing measured separately at the TensorRT comparison's input shape, precision and fixed-shape stereo network scope.
+- `waft-stereo-s` load / first call: original 1.6 s / 0.14 s (375x1242), portable 1.03 s / 0.866 s, kernels 1.47 s / 0.32 s (375x1242)
 - `waft-stereo-b` load / first call: original 3.07 s / 0.444 s (375x1242), portable 0.55 s / 1.357 s, kernels 1.77 s / 0.459 s (375x1242)
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured

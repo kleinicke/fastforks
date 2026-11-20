@@ -20,16 +20,19 @@ import json
 import subprocess
 import sys
 import time
+from contextlib import closing
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 from PIL import Image
 
 from _data import DATA
+from _prefetch import prefetch
 
-sys.path.insert(0, str(Path(__file__).parent / "golden"))
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 VAL = str(DATA / "classification/imagenet1k_val")
 
@@ -55,21 +58,37 @@ class _Set(torch.utils.data.Dataset[tuple[torch.Tensor, int]]):
 
     def __getitem__(self, i: int) -> tuple[torch.Tensor, int]:
         f, label = self.files[i]
-        im = Image.open(f).convert("RGB")
+        with Image.open(f) as source:
+            im = source.convert("RGB")
         if self.transform is not None:
             return self.transform(im), label
-        return torch.from_numpy(__import__("numpy").asarray(im).copy()).permute(2, 0, 1), label
+        return torch.from_numpy(np.asarray(im).copy()).permute(2, 0, 1), label
 
 
-def _loader(files: list[tuple[Path, int]], transform: Any, batch: int) -> torch.utils.data.DataLoader:  # noqa: ANN401
-    collate = None if transform is not None else (lambda b: ([x for x, _ in b], torch.tensor([y for _, y in b])))
-    return torch.utils.data.DataLoader(
-        _Set(files, transform), batch_size=batch, num_workers=12, collate_fn=collate, prefetch_factor=4
-    )
+def _loader(
+    files: list[tuple[Path, int]],
+    transform: Any,  # noqa: ANN401 - the model's image transform, or None for raw images
+    batch: int,
+) -> Generator[tuple[torch.Tensor | list[torch.Tensor], torch.Tensor], None, None]:
+    if batch < 1:
+        msg = "batch size must be positive"
+        raise ValueError(msg)
+    dataset = _Set(files, transform)
+
+    def load(indices: range) -> tuple[torch.Tensor | list[torch.Tensor], torch.Tensor]:
+        images, labels = zip(*(dataset[i] for i in indices), strict=True)
+        xs = list(images) if transform is None else torch.stack(images)
+        return xs, torch.tensor(labels)
+
+    batches = (range(i, min(i + batch, len(dataset))) for i in range(0, len(dataset), batch))
+    return prefetch(load, batches, workers=4)
 
 
 def _upstream(ref: str) -> tuple[torch.nn.Module, Any]:
     """The library's network (fp32, CUDA) and its PIL eval transform."""
+    golden = str(Path(__file__).parent / "golden")
+    if golden not in sys.path:
+        sys.path.insert(0, golden)
     import libnet_classification as lc  # noqa: PLC0415
     import timm  # noqa: PLC0415
     import timm.data  # noqa: PLC0415
@@ -101,6 +120,14 @@ def _upstream(ref: str) -> tuple[torch.nn.Module, Any]:
 
 
 def _run(ref: str, tier: str, files: list[tuple[Path, int]], batch: int) -> dict[str, Any]:
+    from fastforks._core import registry  # noqa: PLC0415
+
+    _, variant = registry.resolve("classification", ref)
+    labels = variant.output_info["label_set"]
+    if labels != "imagenet-1k":
+        msg = f"{variant.ref} uses {labels} labels. ImageNet evaluation requires the ImageNet-1k label set."
+        raise ValueError(msg)
+
     torch.cuda.empty_cache()
     torch.cuda.reset_peak_memory_stats()
     t0 = time.perf_counter()
@@ -137,8 +164,8 @@ def _run(ref: str, tier: str, files: list[tuple[Path, int]], batch: int) -> dict
     rec["build_s"] = round(time.perf_counter() - t0, 1)
     top1 = top5 = n = 0
     t_run = 0.0
-    with torch.inference_mode():
-        for xs, ys in _loader(files, tf, batch):
+    with torch.inference_mode(), closing(_loader(files, tf, batch)) as batches:
+        for xs, ys in batches:
             torch.cuda.synchronize()
             t = time.perf_counter()
             logits = fwd(xs).float()
@@ -221,7 +248,6 @@ def main() -> None:
     a = ap.parse_args()
     if a.chunk:
         sys.exit(_chunked(a))
-    torch.multiprocessing.set_sharing_strategy("file_system")  # lists of decoded images: no fd per tensor
     files = _files(a.val, a.every, a.start, a.stop, a.subset, a.seed)
     rev = subprocess.run(
         ["git", "-C", str(Path(__file__).parent), "rev-parse", "--short", "HEAD"],

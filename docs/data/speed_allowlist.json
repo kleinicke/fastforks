@@ -18,8 +18,10 @@
   "flowformer-small-chairs 375x1242 kernels vs upstream": "Kernels retains the float32 network and accelerates flow upsampling. Current profiles are 353.516 ms kernels, 369.897 ms portable, and 302.65 ms upstream float16 autocast. The matched native workspace test saves 550 MiB in each CUDA mode (2026-11-19).",
   "flowformer-small-sintel 375x1242 kernels vs upstream": "Kernels retains the FP32 network and accelerates flow upsampling. The measured 321.873 ms compares with the original FP16 autocast at 302.97 ms (2026-11-19).",
   "flowformer-small-things 375x1242 kernels vs upstream": "Kernels retains the FP32 network and accelerates flow upsampling. The measured 322.080 ms compares with the original FP16 autocast at 303.13 ms (2026-11-19).",
-  "xfeat 768x1024 kernels vs portable": "IEEE FP32 convolutions preserve the kernel path’s keypoint threshold membership. The large extractor runs eagerly, taking 15.220 ms and reserving 352 MiB. Portable takes 7.165 ms.",
-  "xfeat 768x1024 kernels vs upstream": "The kernels descriptor CNN uses IEEE FP32 to preserve keypoint membership. Its 15.220 ms compares with 8.89 ms in the original using FP16 autocast.",
-  "xfeat-lighterglue 768x1024 kernels vs portable": "IEEE FP32 convolutions preserve the kernel path’s keypoint threshold membership. The large extractor runs eagerly, taking 29.226 ms and reserving 478 MiB. Portable takes 21.264 ms.",
-  "xfeat-lighterglue 768x1024 kernels vs upstream": "The kernels descriptor CNN uses IEEE FP32 to preserve keypoint membership. Its 29.226 ms compares with 23.57 ms in the original using FP16 autocast."
+  "xfeat 768x1024 kernels vs portable": "The kernels CNN uses IEEE FP32 convolutions. Current kernels is 17.131 ms and 296/352 MiB. Portable uses PyTorch's default convolution policy and takes 10.617 ms.",
+  "xfeat 768x1024 kernels vs upstream": "The kernels CNN uses IEEE FP32 convolutions. Its 17.131 ms compares with 8.89 ms in the original FP16 autocast timing.",
+  "xfeat-lighterglue 768x1024 kernels vs portable": "The kernels CNN uses IEEE FP32 convolutions. Current kernels is 32.760 ms and 445/478 MiB. Portable uses PyTorch's default convolution policy and takes 31.773 ms.",
+  "xfeat-lighterglue 768x1024 kernels vs upstream": "The kernels CNN uses IEEE FP32 convolutions. Its 32.760 ms compares with 23.57 ms in the original FP16 autocast timing.",
+  "xfeat 768x1024 portable vs upstream": "Separate FP32 convolution and BatchNorm exactly restore the original pose AUC on 300 pairs. The matched replay adds about 2.1 ms to the folded path. Current portable is 10.617 ms and the original FP16 run is 8.89 ms.",
+  "xfeat-lighterglue 768x1024 portable vs upstream": "Separate FP32 convolution and BatchNorm exactly restore the original pose AUC on 300 pairs. The matched replay adds about 2.0 to 2.6 ms to the folded path. Current portable is 31.773 ms and the original FP16 run is 23.57 ms."
 }

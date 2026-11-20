@@ -16,7 +16,9 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.half import pure_half
+from fastforks._core.patch import override
 from fastforks._core.preprocess import IMAGENET_MEAN
+from fastforks._core.tracing import in_onnx_export
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.depth.models.depth_anything_v2.fused import FusedHead, FusedViT
 from fastforks.kernels import omni_cg
@@ -27,6 +29,7 @@ from fastforks.shared.depth_anything_v2 import fold_layer_scale, sdpa_attention
 
 from .net import (
     MULTIPLE,
+    CBAMBlock,
     CGState,
     OmniDCNet,
     mono_size,
@@ -40,6 +43,8 @@ if TYPE_CHECKING:
     from fastforks.depth._runner import Context
 
 _LAYERS = (4, 11, 17, 23)  # fixed: Depth Anything V2 Large's intermediate layers
+_CBAM_BAND_ROWS = 192
+_CBAM_MIN_ROWS, _CBAM_MIN_PIXELS = 800, 900_000
 
 
 def _graph_solve(cg: GraphCG, d: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
@@ -48,11 +53,38 @@ def _graph_solve(cg: GraphCG, d: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     return cg.run()
 
 
+def _decoder_cbam(block: CBAMBlock, x: torch.Tensor) -> torch.Tensor:
+    """Bound the two full-size 3 x 3 convolution buffers, then attend over the whole feature map."""
+    if (
+        not x.is_cuda
+        or torch.is_grad_enabled()
+        or torch.compiler.is_compiling()
+        or torch.jit.is_tracing()
+        or in_onnx_export()
+    ):
+        return CBAMBlock.forward(block, x)
+    h, w = x.shape[-2:]
+    if h < _CBAM_MIN_ROWS or h * w < _CBAM_MIN_PIXELS:
+        return CBAMBlock.forward(block, x)
+
+    out = torch.empty_like(x)
+    for top in range(0, h, _CBAM_BAND_ROWS):
+        bottom = min(top + _CBAM_BAND_ROWS, h)
+        lo, hi = max(0, top - 2), min(h, bottom + 2)
+        tile = block.bn2(block.conv2(F.relu(block.bn1(block.conv1(x[..., lo:hi, :])))))
+        out[..., top:bottom, :].copy_(tile[..., top - lo : bottom - lo, :])
+        del tile
+    out = block.ca(out) * out
+    out = block.sa(out) * out
+    return F.relu(out + x)
+
+
 def _net(ctx: Context) -> OmniDCNet:
     net = OmniDCNet()
     net.load_state_dict(net.checkpoint_keys(ctx.state_dict()))
     net.eval()
     net.fold_bn()
+    override(net.backbone.dec2[1], _decoder_cbam)
     return net
 
 

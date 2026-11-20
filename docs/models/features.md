@@ -471,6 +471,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 ### Limitations
 
 - On CUDA, stream=True stages the transformer blocks from pinned host RAM. Streamed inference uses eager execution and requires enough host RAM for the blocks.
+- With all hidden states requested at 756 × 1008, ViT-L with registers reduced CUDA peak allocation from 1,416 to 1,096 MiB portable and from 1,419 to 1,108 MiB kernels. The final features and every requested state matched bitwise.
 
 </details>
 
@@ -619,6 +620,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
+- With all hidden states requested at 768 × 1024, ViT-L CUDA portable peak allocation fell from 1,242 to 1,001 MiB, and kernels from 1,243 to 1,099 MiB. All hidden states and final features matched bitwise in both modes.
 - With resident weights, loading ViT-H+ on an RTX 5060 Ti peaked at 1,604 MiB allocated in CUDA portable mode after host-side packing. The prior loader peaked at 6,542 MiB. Both produced bit-identical reference outputs.
 - CUDA portable and kernels accept stream=True to stage packed transformer blocks from pinned host RAM. This setting uses eager inference. Export and CUDA graph replay require resident weights.
 - kernels replays a CUDA graph per small input shape and layer set (up to 512 px, ViT-S 1024 px), captured on the shape's second call; at most 8 per model holding at most 256 MB of outputs (a full cache replaces only graphs unused for 64 calls, other new shapes run eagerly).
@@ -708,7 +710,7 @@ Two disjoint seeded subsets of the val folders; each image shorter side 256 (bic
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
-| `pe-core-t16-384` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 33.34 |  | 33.26 | 33.34 |  |  |
+| `pe-core-t16-384` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 33.34 |  | 33.26 | 33.34 | 33.20 |  |
 | `pe-core-s16-384` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 45.56 | 45.54 | 45.48 | 45.52 | 45.38 |  |
 | `pe-core-b16-224` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 58.54 | 58.56 | 58.54 | 58.54 | 58.50 |  |
 | `pe-core-l14-336` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 65.98 | 66.06 | 65.96 | 66.06 | 66.28 |  |
@@ -719,7 +721,7 @@ Two disjoint seeded subsets of the val folders; each image shorter side 256 (bic
 | `pe-spatial-l14-448` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 17.10 | 17.14 | 17.14 | 17.10 | 17.12 |  |
 | `pe-spatial-g14-448` | ImageNet-1k val, kNN top-1 % (k = 20, 10000 labelled / 5000 test images) | 16.36 | 16.30 | 16.32 | 16.32 | 16.30 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 5f4a908a0 / 8bce3316 / b2ffd65d / c16d5d41, 2026-11-11 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884 / 446408848, 2026-11-18 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 8bce3316 / b2ffd65d / c16d5d41, 2026-11-11 to 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 5f4a908a0 / 8bce3316 / b2ffd65d / c16d5d41, 2026-11-11 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884 / 446408848, 2026-11-18 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c / 67dbea00e / 8bce3316 / b2ffd65d / c16d5d41, 2026-11-11 to 2026-11-20.
 
 ### Parity
 
@@ -740,6 +742,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
+- Returning all PE Spatial G/14 hidden states at 448 × 448 uses 4,058 MiB peak GPU allocation in both CUDA modes, down from 4,345 MiB on the RTX 5060 Ti. All returned features matched bit for bit.
 - CUDA portable and kernels accept stream=True. The encoder blocks occupy page-locked host memory and use two reusable GPU buffers. Embeddings, pooling, activations and requested hidden states remain on the GPU. Streaming disables graph replay and export.
 - kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.
 - Small kernels calls (graph-sized, with or without `layers`) run GEMMs of at most 600 tokens on cuBLAS: faster in a graph replay (ViT-B/16 224 px: 1.26 against 1.52 ms), about 10 % slower eagerly on ViT-T / B; a replay equals the eager call bit for bit.
@@ -934,6 +937,7 @@ CPU, float32: max |diff| <= 6.9e-05 vs the original. GPU, float16 (the default),
 
 ### Limitations
 
+- Returning all TIPSv2 ViT-L/14 hidden states at 768 × 1024 reduces peak GPU allocation from 1,443 to 1,113 MiB portable and from 1,445 to 1,134 MiB kernels on the RTX 5060 Ti. All returned features matched bit for bit.
 - On CUDA, stream=True stages the image encoder blocks from pinned host RAM. Streamed inference runs eagerly and supports intermediate feature layers.
 - Image encoder only: the text encoder in the checkpoint is not loaded (the features task has no text input), although the file is downloaded whole.
 - last_hidden_state holds 2 prefix tokens, then the patches: upstream's first cls token (pooler_output, the global image embedding aligned with text) and its second cls token (index 1, the spatially aware global embedding).

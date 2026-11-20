@@ -39,7 +39,27 @@ from fastforks._core.runner import Context, Forward, NoParams
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-__all__ = ["Context", "Forward", "NoParams", "Runner", "scale"]
+__all__ = ["Context", "Forward", "NoParams", "Runner", "bounded_binary_masks", "scale"]
+
+_MASK_RESIZE_PIXELS = 64 << 20  # target at most 256 MiB of live FP32 resize output per prompt group
+
+
+def bounded_binary_masks(
+    logits: torch.Tensor,
+    size: tuple[int, int],
+    upsample: Callable[[torch.Tensor, tuple[int, int]], torch.Tensor],
+    max_pixels: int,
+) -> torch.Tensor:
+    """Resize groups of CUDA masks and threshold directly into the boolean output."""
+    pixels = max(1, logits.shape[1] * size[0] * size[1])
+    group = max(1, max_pixels // pixels)
+    if not logits.is_cuda or logits.shape[0] <= group or torch.compiler.is_compiling():
+        return upsample(logits, size) > 0
+    masks = torch.empty((*logits.shape[:2], *size), dtype=torch.bool, device=logits.device)
+    for start in range(0, len(masks), group):
+        stop = start + group
+        torch.gt(upsample(logits[start:stop], size), 0, out=masks[start:stop])
+    return masks
 
 
 class Runner(core.Runner):
@@ -221,4 +241,4 @@ class Runner(core.Runner):
 
     def binary_masks(self, pred_masks: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
         """Upsample in the family's coordinate system and apply its zero foreground threshold."""
-        return self.upsample(pred_masks, size) > 0
+        return bounded_binary_masks(pred_masks, size, self.upsample, _MASK_RESIZE_PIXELS)

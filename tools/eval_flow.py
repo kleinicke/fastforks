@@ -20,7 +20,11 @@ import json
 import statistics
 import sys
 import time
+from contextlib import closing
+from functools import partial
+from itertools import chain
 from pathlib import Path
+from typing import TYPE_CHECKING, TypeAlias
 
 import cv2
 import numpy as np
@@ -28,9 +32,14 @@ import torch
 from PIL import Image
 
 from _data import DATA
+from _prefetch import prefetch
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 DATASET = "kitti2015-train"
 OUTLIER_PX, OUTLIER_REL = 3, 0.05  # KITTI Fl: error > 3 px and > 5 % of the ground-truth magnitude
+FlowPair: TypeAlias = tuple[str, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
 
 
 def read_kitti_flow(path: Path) -> tuple[np.ndarray, np.ndarray]:
@@ -44,18 +53,26 @@ def read_kitti_flow(path: Path) -> tuple[np.ndarray, np.ndarray]:
     return flow, raw[..., 2] > 0
 
 
-def load_pairs(
-    root: Path, stop: int | None, start: int = 0
-) -> list[tuple[str, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
+def _pair_ids(root: Path, stop: int | None, start: int) -> list[str]:
     ids = sorted(p.name[:6] for p in (root / "flow_occ").glob("*_10.png"))[start:stop]
     if not ids:
         msg = f"no KITTI 2015 flow_occ files under {root}"
         raise FileNotFoundError(msg)
-    out = []
-    for i in ids:
-        a, b = (np.asarray(Image.open(root / "image_2" / f"{i}_{f}.png").convert("RGB")) for f in (10, 11))
-        out.append((i, a, b, *read_kitti_flow(root / "flow_occ" / f"{i}_10.png")))
-    return out
+    return ids
+
+
+def _read_pair(root: Path, pair_id: str) -> FlowPair:
+    with (
+        Image.open(root / "image_2" / f"{pair_id}_10.png") as a,
+        Image.open(root / "image_2" / f"{pair_id}_11.png") as b,
+    ):
+        first, second = np.asarray(a.convert("RGB")), np.asarray(b.convert("RGB"))
+    return pair_id, first, second, *read_kitti_flow(root / "flow_occ" / f"{pair_id}_10.png")
+
+
+def load_pairs(root: Path, stop: int | None, start: int = 0) -> list[FlowPair]:
+    """Load a bounded slice for callers that need the decoded pairs together."""
+    return [_read_pair(root, pair_id) for pair_id in _pair_ids(root, stop, start)]
 
 
 ORIGINAL = {"upstream": ("upstream", "original fp32"), "upstream16": ("upstream-fp16", "original fp16")}
@@ -72,9 +89,11 @@ def _original(ref: str, tier: str):  # noqa: ANN202 - (call(a, b) -> flow [2, H,
     return call, o.dtype, o.how, o.note
 
 
-def evaluate(ref: str, mode: str, pairs: list, base: dict) -> dict:
+def evaluate(ref: str, mode: str, pairs: Iterable[FlowPair], base: dict) -> dict:
     import fastforks.flow as ff  # noqa: PLC0415 - after argparse, so --help is fast
 
+    remaining = iter(pairs)
+    first = next(remaining)
     if mode in ORIGINAL:
         call, dtype, how, note = _original(ref, mode)
         extra = {"note": note}
@@ -84,12 +103,12 @@ def evaluate(ref: str, mode: str, pairs: list, base: dict) -> dict:
         dtype, how, call = str(model.backend.dtype), None, lambda a, b, m=model: m(a, b).flow
         extra = {"backend": {"mode": backend_mode, "dtype": dtype, "kernels": list(model.backend.kernels)}}
         del model
-    call(pairs[0][1], pairs[0][2])  # warm-up (untimed)
+    call(first[1], first[2])  # warm-up (untimed)
     torch.cuda.synchronize()
     torch.cuda.reset_peak_memory_stats()
     epes, ms, n_out, n_val = [], [], 0, 0
     pair_stats = []
-    for pair_id, a, b, gt, valid in pairs:
+    for pair_id, a, b, gt, valid in chain((first,), remaining):
         torch.cuda.synchronize()
         t = time.perf_counter()
         res = call(a, b)
@@ -108,7 +127,7 @@ def evaluate(ref: str, mode: str, pairs: list, base: dict) -> dict:
     metrics = {"epe": round(float(np.mean(epes)), 4), "fl_all": round(100 * n_out / n_val, 3)}
     docs_mode, column = ORIGINAL.get(mode, ("portable", "portable32") if mode == "portable32" else (mode, mode))
     row = {"ref": ref, "task": "flow", "tier": mode, "mode": docs_mode, "dtype": dtype, "how": how, "dataset": DATASET}
-    row |= {"n": len(pairs), **metrics, "metrics": metrics, "ms_per_img": round(statistics.median(ms), 2)}
+    row |= {"n": len(pair_stats), **metrics, "metrics": metrics, "ms_per_img": round(statistics.median(ms), 2)}
     row |= {"peak_alloc_mb": torch.cuda.max_memory_allocated() >> 20}
     row |= {"peak_reserved_mb": torch.cuda.max_memory_reserved() >> 20}
     del call
@@ -133,14 +152,15 @@ def main() -> None:
     a = ap.parse_args()
     if a.start < 0 or (a.stop is not None and a.stop <= a.start):
         ap.error("--start must be nonnegative and less than --stop")
-    pairs = load_pairs(a.root, a.stop, a.start)
+    ids = _pair_ids(a.root, a.stop, a.start)
     base = {"commit": a.commit, "gpu": torch.cuda.get_device_name(), "torch": torch.__version__}
     if a.source_id:
         base["source_id"] = a.source_id
     base |= {"date": time.strftime("%Y-%m-%d %H:%M"), "command": " ".join(["python", *sys.argv])}
     for ref in a.refs.split(","):
         for mode in a.modes.split(","):
-            row = evaluate(ref, mode, pairs, base)
+            with closing(prefetch(partial(_read_pair, a.root), ids, workers=2)) as pairs:
+                row = evaluate(ref, mode, pairs, base)
             with Path(a.out).open("a") as f:
                 f.write(json.dumps(row) + "\n")
             print(ref, mode, row["metrics"], row["ms_per_img"], row["peak_alloc_mb"], flush=True)
