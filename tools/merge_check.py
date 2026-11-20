@@ -43,7 +43,8 @@ if TYPE_CHECKING:
 
 ROOT = Path(__file__).resolve().parents[1]
 GOLDEN = "golden"  # the `input` of a golden row
-GENERATED_DOCS = ("docs/data", "docs/models", "docs/benchmarks.md", "docs/overview.md")
+GENERATED_DOCS = ("docs/data", "docs/models", "docs/benchmarks.md", "docs/overview.md")  # legacy receipt scope
+GOLDEN_DOCS = ("docs", "README.md", "CONTRIBUTING.md")
 OVERHEAD_S = 5.0  # per job: interpreter, torch + CUDA init, golden input (hitnet demo: 4-5 s)
 PROFILE_S = 2.0  # profiler start-up on the profiled input
 
@@ -220,7 +221,7 @@ def _golden_file_digests(
     )
 
     git = ["git", "-C", str(ROOT), "ls-files", "-z"]
-    paths = [".", *(f":(exclude){path}" for path in GENERATED_DOCS)]
+    paths = [".", *(f":(exclude){path}" for path in GOLDEN_DOCS)]
     tracked = subprocess.check_output([*git, "--cached", "--", *paths])
     untracked = subprocess.check_output([*git, "--others", "--exclude-standard", "--", "src", "tests", "tools"])
     common = hashlib.sha256(b"goldens-family-v2\0")

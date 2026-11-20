@@ -362,6 +362,8 @@ def test_golden_resume_reuses_a_pass_after_an_unrelated_model_change(
         return {ref: candidates[0] for ref, candidates in merge_check._golden_sources_by_ref(jobs, "HEAD").items()}
 
     before = sources()
+    (tmp_path / "docs/index.md").write_text("# Revised guide\n")
+    assert sources() == before
     fa = tmp_path / "src/fastforks/stereo/models/fa/model.py"
     fa.write_text(fa.read_text() + "\nVALUE = 1\n")
     after = sources()
