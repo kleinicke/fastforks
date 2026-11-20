@@ -712,13 +712,12 @@ class LMOptimizer(nn.Module):
         if self.shared_intrinsics or camera_R_rig is not None:
             lamb = data[key].new_ones(1) * self.conf.lambda_
 
+        errors = self.calculate_residuals(camera_opt, gravity_opt, data)
+        costs, weights = self.calculate_costs(errors, data)
         infos = {"stop_at": self.num_steps}
         for i in range(self.num_steps):
             if self.conf.verbose:
                 logger.info(f"Step {i+1}/{self.num_steps}")
-
-            errors = self.calculate_residuals(camera_opt, gravity_opt, data)
-            costs, weights = self.calculate_costs(errors, data)
 
             if i == 0:
                 prev_cost = sum(c.mean(-1) for c in costs.values())
@@ -746,14 +745,13 @@ class LMOptimizer(nn.Module):
                 delta_dist = delta[..., -self.n_intrinsic_params + 1 :].expand(B, -1)
                 delta = torch.cat([delta_g, delta_f, delta_dist], dim=-1)
 
-            # calculate new cost
             camera_opt, gravity_opt = self.update_estimate(
                 camera_opt, gravity_opt, delta, camera_R_rig=camera_R_rig
             )
-            new_cost, _ = self.calculate_costs(
-                self.calculate_residuals(camera_opt, gravity_opt, data), data
-            )
-            new_cost = sum(c.mean(-1) for c in new_cost.values())
+            # These residuals and weights also start the next step or finish the fit.
+            errors = self.calculate_residuals(camera_opt, gravity_opt, data)
+            costs, weights = self.calculate_costs(errors, data)
+            new_cost = sum(c.mean(-1) for c in costs.values())
 
             if not self.conf.fix_lambda:
                 if self.shared_intrinsics or camera_R_rig is not None:
@@ -779,19 +777,16 @@ class LMOptimizer(nn.Module):
             if i == self.num_steps - 1 and self.conf.early_stop:
                 logger.warning("Reached maximum number of steps without convergence.")
 
-        final_errors = self.calculate_residuals(camera_opt, gravity_opt, data)  # (B, N, 3)
-        final_cost, weights = self.calculate_costs(final_errors, data)  # (B, N)
-
         if not self.training:
             infos |= self.estimate_uncertainty(
-                camera_opt, gravity_opt, final_errors, weights, camera_R_rig=camera_R_rig
+                camera_opt, gravity_opt, errors, weights, camera_R_rig=camera_R_rig
             )
 
         infos["stop_at"] = camera_opt.new_ones(camera_opt.shape[0]) * infos["stop_at"]
-        for k, c in final_cost.items():
+        for k, c in costs.items():
             infos[f"final_{k}"] = c.mean(-1)
 
-        infos["final_cost"] = sum(c.mean(-1) for c in final_cost.values())
+        infos["final_cost"] = sum(c.mean(-1) for c in costs.values())
 
         return camera_opt, gravity_opt, infos
 
