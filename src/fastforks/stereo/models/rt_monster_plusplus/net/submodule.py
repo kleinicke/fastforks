@@ -222,6 +222,19 @@ def build_gwc_volume_selective(refimg_fea, targetimg_fea, disp_range_samples, nd
             left = torch.where(invalid[:, None, start:end], 0, refimg_fea[:, :, None])
             gwc_raw[:, :, start:end].mul_(left)
             del left
+    elif refimg_fea.device.type == "mps" and not (torch.is_grad_enabled() or torch.jit.is_tracing()):
+        # fastforks (MPS): sample, mask and reduce a few disparity planes at a time; the full [B, C, D, H, W] volumes
+        # (left repeat, its masked copy, the right samples, their product) cost GBs of 1 GB heaps on MPS
+        cpg = channels // num_groups
+        out = refimg_fea.new_empty(bs, num_groups, ndisps, height, width)
+        step = max(1, _SELECTIVE_MASK_BYTES // bytes_per_plane)
+        for start in range(0, ndisps, step):
+            end = min(start + step, ndisps)
+            raw, invalid = _sample_right(refimg_fea, targetimg_fea, disp_range_samples[:, start:end], end - start)
+            raw.mul_(torch.where(invalid[:, None], 0, refimg_fea[:, :, None]))
+            out[:, :, start:end] = raw.view(bs, num_groups, cpg, end - start, height, width).mean(dim=2)
+            del raw, invalid
+        return out
     else:
         x_warped, y_warped = get_warped_feats(refimg_fea, targetimg_fea, disp_range_samples, ndisps)
         gwc_raw = x_warped * y_warped

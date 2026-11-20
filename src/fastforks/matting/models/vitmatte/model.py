@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.mps import fence
 from fastforks.kernels.dpt_fused import ACT_GELU
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.matting._runner import Forward, Runner, scale
@@ -219,7 +220,7 @@ class Portable(_Matting):
         h = h + pos
         for layer, r in zip(self.net.backbone.encoder.layer, rel, strict=True):
             h = self._block(layer, h, r)
-        return self.net.decoder(h.permute(0, 3, 1, 2), x)
+        return self.net.decoder(fence(h).permute(0, 3, 1, 2), x)
 
 
 def _half(t: torch.Tensor, device: torch.device) -> torch.Tensor:
