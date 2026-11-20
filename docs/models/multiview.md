@@ -17,7 +17,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`lingbot-map`](#lingbot_map) | yes | 520, 1.9x | 5932, 0.77x |
 | [`mapanything-apache`](#mapanything) | yes | 525, 3.7x | 3652, 0.42x |
 | [`mvsanywhere`](#mvsanywhere) | no | 35.2, 6.2x | 760, 0.51x |
-| [`mvsplat-re10k`](#mvsplat) | yes | 172, 1.6x | 1532, 0.37x |
+| [`mvsplat-re10k`](#mvsplat) | yes | 145, 1.9x | 1212, 0.29x |
 | [`patchmatchnet`](#patchmatchnet) | yes | 29.5, 7.4x | 772, 0.61x |
 | [`pi3`](#pi3) | no | 560, 1.9x | 2296, 0.38x |
 | [`resplat-base-re10k`](#resplat) | no | 1169, 2.2x | 5546, 0.44x |
@@ -318,7 +318,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mvsplat-re10k` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 279<br>181<br>172<br>115<br>106 | 2889 / 4160<br>1239 / 1532<br>1239 / 1532<br>2762 / 2810<br>4953 / 4972 |
+| `mvsplat-re10k` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 279<br>182<br>145<br>115<br>106 | 2889 / 4160<br>1134 / 1212<br>1134 / 1212<br>2762 / 2810<br>4953 / 4972 |
 
 <details><summary>Details</summary>
 
@@ -336,7 +336,6 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mvsplat-re10k` 3000x4000 (3.2 GiB peak allocated, 4.4 reserved)
 - `mvsplat-re10k` 336x518, first call: portable + torch.compile 102 s (cold Inductor cache), TensorRT fp16 241 s (ONNX + engine).
 - `mvsplat-re10k` original 336x518: the authors' mixed-precision option (float16); donydchen/mvsplat@01f9a28edb5e EncoderCostVolume, long side 256
-- `mvsplat-re10k` portable 336x518, kernels 336x518: measured on 45b0e4f0 with the cudnn_hacc per-call workspace change of 600d8c2c
 - `mvsplat-re10k` load / first call: original 1.37 s / 2.817 s (336x518), portable 0.15 s / 1.019 s (336x518), kernels 1.27 s / 0.693 s (336x518)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
