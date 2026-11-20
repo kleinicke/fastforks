@@ -69,7 +69,7 @@ def _licences(dirs: list[Path]) -> tuple[set[str], list[str]]:
     for d in dirs:
         card = tomllib.loads((d / "card.toml").read_text(encoding="utf-8"))
         licences.add(card["licence"]["code"])
-        files += [str((d / f).relative_to(ROOT)) for f in card["licence"]["files"]]
+        files += [(d / f).relative_to(ROOT).as_posix() for f in card["licence"]["files"]]
     return licences, files
 
 
@@ -88,7 +88,7 @@ def stage(name: str, spec: dict, version: str, out: Path, extras: dict[str, list
             d, out / d.relative_to(ROOT), ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "golden.toml")
         )
     licences, files = _licences(dirs)
-    include = [str(d.relative_to(ROOT)) for d in dirs]
+    include = [d.relative_to(ROOT).as_posix() for d in dirs]
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     if extras is None:
         extras = project["optional-dependencies"]
@@ -154,7 +154,7 @@ def core_pyproject(text: str, dists: dict, version: str) -> str:
     if _MODELS_EXCLUDE not in text:
         msg = f"pyproject.toml: the wheel exclude has no {_MODELS_EXCLUDE}"
         raise ValueError(msg)
-    others = [str(d.relative_to(ROOT)) + "/" for spec in dists.values() for d in select(spec)]
+    others = [d.relative_to(ROOT).as_posix() + "/" for spec in dists.values() for d in select(spec)]
     exclude = ", ".join([*(json.dumps(x) for x in others), _MODELS_EXCLUDE])
     text = text.replace(_MODELS_EXCLUDE, exclude, 1)
     extras = "".join(f'{name.removeprefix("fastforks-")} = ["{name}=={version}"]\n' for name in dists)

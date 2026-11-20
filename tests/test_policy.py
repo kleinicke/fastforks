@@ -132,9 +132,9 @@ def _literal_prefix(arg: ast.expr) -> str | None:
     return None
 
 
-@pytest.mark.parametrize("path", sorted(SRC.rglob("*.py")), ids=lambda p: str(p.relative_to(SRC)))
+@pytest.mark.parametrize("path", sorted(SRC.rglob("*.py")), ids=lambda p: p.relative_to(SRC).as_posix())
 def test_import_allowlist(path):
-    rel = str(path.relative_to(SRC))
+    rel = path.relative_to(SRC).as_posix()
     bad = {
         r
         for r in imported_roots(path) - ALLOWED - set(sys.stdlib_module_names)
@@ -221,7 +221,7 @@ def test_families_do_not_import_each_other(task):
     for card, _ in registry.cards(task).values():
         own = models + card.family
         for path in _family_files(task, card.family):
-            allowed = CROSS_FAMILY_IMPORTS.get(str(path.relative_to(SRC)), own)
+            allowed = CROSS_FAMILY_IMPORTS.get(path.relative_to(SRC).as_posix(), own)
             prefixes = tuple(p + "." for p in ((allowed,) if isinstance(allowed, str) else allowed))
             bad = {
                 m
@@ -461,7 +461,7 @@ def test_model_code_reads_weights_through_the_context(task):
     """`model.py` does not call `torch.load`; weights come from `ctx.state_dict` (no per-family loaders)."""
     for card, _ in registry.cards(task).values():
         path = SRC / task / "models" / card.family / "model.py"
-        if str(path.relative_to(SRC)) in TORCH_LOAD:
+        if path.relative_to(SRC).as_posix() in TORCH_LOAD:
             continue
         for call in _calls(path):
             f = call.func
@@ -485,7 +485,7 @@ def test_every_licence_file_of_a_family_is_listed_in_its_card(task):
     """The distribution metadata is built from `licence.files`: an unlisted LICENSE / NOTICE is not shipped."""
     for card, _ in registry.cards(task).values():
         d = SRC / task / "models" / card.family
-        on_disk = {str(p.relative_to(d)) for g in ("LICENSE*", "NOTICE*") for p in d.rglob(g)}
+        on_disk = {p.relative_to(d).as_posix() for g in ("LICENSE*", "NOTICE*") for p in d.rglob(g)}
         assert on_disk == set(card.licence.files), (
             f"{card.family}: LICENSE files {on_disk} vs card {card.licence.files}"
         )
@@ -536,7 +536,7 @@ def test_no_architecture_constants_in_model_code(task):
     for card, _ in registry.cards(task).values():
         path = SRC / task / "models" / card.family / "model.py"
         for line, name, documented in _model_constants(path):
-            assert documented or (str(path.relative_to(SRC)), name) in UNDOCUMENTED_CONSTANTS, (
+            assert documented or (path.relative_to(SRC).as_posix(), name) in UNDOCUMENTED_CONSTANTS, (
                 f"{path.relative_to(SRC)}:{line}: {name} belongs in card.toml [params] (or add '# fixed: <reason>')"
             )
 
