@@ -122,7 +122,7 @@ class BasicMultiUpdateBlock(nn.Module):
             nn.ReLU(inplace=True),
             nn.Conv2d(256, (factor**2)*9, 1, padding=0))
 
-    def forward(self, net, inp, corr=None, disp=None, iter08=True, iter16=True, iter32=True, update=True):
+    def forward(self, net, inp, corr=None, disp=None, iter08=True, iter16=True, iter32=True, update=True, *, upsample=True):
 
         if iter32:
             net[2] = self.gru32(net[2], *(inp[2]), pool2x(net[1]))
@@ -144,7 +144,7 @@ class BasicMultiUpdateBlock(nn.Module):
         delta_disp = self.disp_head(net[0])
 
         # scale mask to balence gradients
-        mask = .25 * self.mask(net[0])
+        mask = .25 * self.mask(net[0]) if upsample else None
         return net, mask, delta_disp
 
 
@@ -168,7 +168,7 @@ class ScaleBasicMultiUpdateBlock(nn.Module):
             nn.ReLU(inplace=True),
             nn.Conv2d(256, (factor**2)*9, 1, padding=0))
 
-    def forward(self, net, inp, corr=None, disp=None, iter08=True, iter16=True, iter32=True, update=True):
+    def forward(self, net, inp, corr=None, disp=None, iter08=True, iter16=True, iter32=True, update=True, *, upsample=True):
 
         if iter32:
             net[2] = self.gru32(net[2], *(inp[2]), pool2x(net[1]))
@@ -191,5 +191,5 @@ class ScaleBasicMultiUpdateBlock(nn.Module):
         scale_disp = F.relu6(torch.exp(.25*x_disp))
 
         # scale mask to balence gradients
-        mask = .25 * self.mask(net[0])
+        mask = .25 * self.mask(net[0]) if upsample else None
         return net, mask, scale_disp

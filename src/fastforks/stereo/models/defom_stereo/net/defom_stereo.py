@@ -76,9 +76,12 @@ class DEFOMStereo(nn.Module):
             d_features, dfeat1, dfeat2, disp = self.defomencoder([image1, image2], danv2_io_sizes)
 
             cnet_list = self.cnet(image1, d_features)
+            del d_features
             fmap1, fmap2 = self.fnet([image1, image2], [dfeat1, dfeat2])
+            del image1, image2, dfeat1, dfeat2
             net_list = [torch.tanh(x[0]) for x in cnet_list]
             inp_list = [torch.relu(x[1]) for x in cnet_list]
+            del cnet_list
             # Rather than running the GRU's conv layers on the context features multiple times, we do it once at the beginning
             inp_list = [list(conv(i).split(split_size=conv.out_channels//3, dim=1)) for i, conv in zip(inp_list, self.context_zqr_convs)]
 
@@ -88,9 +91,11 @@ class DEFOMStereo(nn.Module):
         disp = disp.float()
         corr_fn = CorrBlock1D(fmap1, fmap2, coords, radius=self.args.corr_radius, num_levels=self.args.corr_levels,
                               scale_list=self.args.scale_list, scale_corr_radius=self.args.scale_corr_radius)
+        del fmap1, fmap2
 
         disp_predictions = []
         for itr in range(iters):
+            upsample = not test_mode or itr == iters - 1
             disp = disp.detach()
 
             if itr < scale_iters:
@@ -98,7 +103,8 @@ class DEFOMStereo(nn.Module):
                 with autocast(enabled=self.args.mixed_precision):
                     net_list, up_mask, scale_disp = self.scale_update_block(net_list, inp_list, corr, disp,
                                                                             iter32=self.args.n_gru_layers == 3,
-                                                                            iter16=self.args.n_gru_layers >= 2)
+                                                                            iter16=self.args.n_gru_layers >= 2,
+                                                                            upsample=upsample)
 
                 # F(t+1) = \Scale(t) x F(t)
                 disp = scale_disp * disp
@@ -107,7 +113,8 @@ class DEFOMStereo(nn.Module):
                 with autocast(enabled=self.args.mixed_precision):
                     net_list, up_mask, delta_disp = self.update_block(net_list, inp_list, corr, disp,
                                                                       iter32=self.args.n_gru_layers == 3,
-                                                                      iter16=self.args.n_gru_layers >= 2)
+                                                                      iter16=self.args.n_gru_layers >= 2,
+                                                                      upsample=upsample)
 
                     # To avoid unstability, we limit the disparity update within the searching range.
                     delta_disp = torch.clip(delta_disp, min=-2**(self.args.corr_levels-1)*self.args.corr_radius,
@@ -116,9 +123,11 @@ class DEFOMStereo(nn.Module):
                 # F(t+1) = F(t) + \Delta(t)
                 disp = disp + delta_disp
 
-            # We do not need to upsample or output intermediate results in test_mode
-            if test_mode and itr < iters - 1:
+            del corr
+            if not upsample:
                 continue
+            if test_mode:
+                del corr_fn, net_list, inp_list
 
             # upsample predictions
             if up_mask is None:
