@@ -182,10 +182,10 @@ Commercial use: yes.
 
 Each image at its own size against its binary mask: MAE of the alpha, max F-beta (beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | portable | portable fp32 | note |
-|---|---|---|---|---|---|
-| `inspyrenet` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0129 / 0.9699 | 0.0129 / 0.9699 | 0.0129 / 0.9699 |  |
-| `inspyrenet-fast` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0420 / 0.8952 | 0.0420 / 0.8952 | 0.0420 / 0.8952 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|
+| `inspyrenet` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0129 / 0.9699 | 0.0129 / 0.9699 | 0.0129 / 0.9699 | 0.0129 / 0.9699 |  |
+| `inspyrenet-fast` | DIS5K validation (DIS-VD), every 2nd image (235), MAE / max F-beta | 0.0420 / 0.8952 | 0.0420 / 0.8952 | 0.0420 / 0.8952 | 0.0420 / 0.8953 |  |
 
 Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13.
 
