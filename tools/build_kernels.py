@@ -9,8 +9,11 @@ development); `--cuda-home` selects another one, `--ccbin` its host compiler. CU
 `rsqrt` declarations of glibc >= 2.42 unless patched (`shared/patches/cuda13.0-glibc2.42-rsqrt.patch`); the check
 below uses the glibc the host compiler builds against.
 
-On Windows x64 it builds the `shared` libraries as DLLs into `manifest.windows.toml` (cubin libraries are OS
-independent: build them on Linux). It needs the MSVC build tools (Visual Studio 2022 Build Tools, C++ workload),
+On Windows x64 it builds the `shared` libraries as DLLs into `manifest.windows.toml`. Cubin libraries are built on
+Linux and load on Windows too, except one with a kernel parameter over 4 KB. Its parameter metadata (`.nv.info`)
+differs by host OS, and the Windows driver rejects a Linux-built one (`CUDA_ERROR_INVALID_IMAGE`). Such a library gets
+a Windows cubin build: name it explicitly on Windows (it is rebuilt by default once it has a `manifest.windows.toml`).
+It needs the MSVC build tools (Visual Studio 2022 Build Tools, C++ workload),
 found through vswhere; `--ccbin` is unused there. The DLLs link the CUDA runtime and the C runtime statically (/MT),
 export only the `extern "C"` API (a .def file) and are linked with /Brepro (no time stamps).
 """
@@ -119,9 +122,9 @@ def msvc_env() -> dict[str, str]:
     return dict(line.split("=", 1) for line in out.splitlines() if "=" in line)
 
 
-def manifest_name(kind: str) -> str:
-    """The manifest a build writes: a DLL build of a `shared` library has its own, next to the Linux one."""
-    return "manifest.windows.toml" if WINDOWS and kind == "shared" else "manifest.toml"
+def manifest_name() -> str:
+    """The manifest a build writes: a Windows build (DLL, or cubin) has its own, next to the Linux one."""
+    return "manifest.windows.toml" if WINDOWS else "manifest.toml"
 
 
 def pip_cuda_home() -> Path:
@@ -221,7 +224,8 @@ def symbol_lines(lib_dir: Path, toolchain: dict) -> list[str]:
 def refresh_symbols(name: str) -> None:
     """Rewrite only the `[symbols]` table of an existing manifest (no rebuild, same `build_id`)."""
     lib_dir = LIBS / name
-    path = lib_dir / manifest_name(tomllib.loads((lib_dir / "build.toml").read_text(encoding="utf-8"))["kind"])
+    path = lib_dir / manifest_name()
+    path = path if path.is_file() else lib_dir / "manifest.toml"  # a cubin library without a Windows build
     text = path.read_text(encoding="utf-8")
     text = text.split("\n\n[symbols]", 1)[0].rstrip("\n")
     toolchain = tomllib.loads(text)["toolchain"]
@@ -401,7 +405,7 @@ def build_lib(  # noqa: PLR0913, PLR0917 - internal helper, all inputs needed
         digest = hashlib.sha256(p.read_bytes()).hexdigest()
         lines.append(f'{t} = {{ name = "{p.name}", sha256 = "{digest}", size = {p.stat().st_size} }}')
     lines += symbol_lines(lib_dir, toolchain)
-    (lib_dir / manifest_name(cfg["kind"])).write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    (lib_dir / manifest_name()).write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     print(f"{name}@{build_id}: {sum(p.stat().st_size for p in files.values()) / 2**20:.1f} MB")
 
 
@@ -423,11 +427,11 @@ def main() -> None:
     names = a.libs or sorted(p.parent.name for p in LIBS.glob("*/build.toml"))
     if WINDOWS:
         kinds = {n: tomllib.loads((LIBS / n / "build.toml").read_text(encoding="utf-8"))["kind"] for n in names}
-        if cubin := sorted(n for n, k in kinds.items() if k != "shared"):
-            if a.libs:
-                sys.exit(f"{', '.join(cubin)}: cubin libraries are OS independent, build them on Linux")
-            print(f"skipping the cubin libraries (OS independent, built on Linux): {', '.join(cubin)}")
-        for name in (n for n in names if kinds[n] == "shared"):
+        # A cubin library gets a Windows build only on request (named, or it already has one): see the docstring.
+        win = {n for n, k in kinds.items() if k == "shared" or a.libs or (LIBS / n / "manifest.windows.toml").is_file()}
+        if skipped := sorted(set(names) - win):
+            print(f"skipping the cubin libraries (built on Linux, they load on Windows): {', '.join(skipped)}")
+        for name in (n for n in names if n in win):
             build_lib(name, cuda, a.cutlass, a.jobs, False, a.ccbin)  # noqa: FBT003 - no glibc
         return
     header = (cuda_include(cuda) / "crt" / "math_functions.h").read_text(encoding="utf-8")

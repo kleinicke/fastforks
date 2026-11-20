@@ -139,7 +139,7 @@ def test_kernel_licences(lib):
         assert read_manifest(lib / "manifest.toml").licence == meta["licence"], "stale manifest: run build_kernels"
 
 
-# manifest.toml, and manifest.windows.toml for a shared library with a Windows DLL build
+# manifest.toml, and manifest.windows.toml for a library with a Windows build (a DLL, or a cubin with large parameters)
 MANIFESTS = sorted(p for lib in BUILT for p in (lib / "manifest.toml", lib / "manifest.windows.toml") if p.is_file())
 
 
@@ -203,6 +203,8 @@ def test_compat_build_loads(monkeypatch, name):
     """On a driver for the compat toolkit only, a library with a compat build loads that build."""
     mod = importlib.import_module(f"fastforks.kernels.{name}")  # needs the GPU library
     path = LIBS / name / "manifest.toml"
+    if kernels.platform_manifest(path) != path:
+        pytest.skip("the Windows build of this library has no compat build")
     m = read_manifest(path)
     assert m.compat is not None
     monkeypatch.setattr(kernels, "driver_version", lambda: m.compat.toolkit)
@@ -395,10 +397,15 @@ def test_windows_manifest_is_read_and_preferred_on_windows(monkeypatch, tmp_path
     assert kernels.platform_manifest(linux) == linux
 
 
-def test_windows_manifest_is_shared_only(tmp_path):
-    """Cubin libraries are OS independent: one manifest serves Linux and Windows, so `os` is for DLL builds only."""
-    with pytest.raises(ValueError, match="windows"):
-        read_manifest(_windows_manifest(tmp_path, kind="cubin"))
+@pytest.mark.parametrize(("os_name", "system", "ok"), [("linux", "windows", False), ("win32", "windows", True)])
+def test_windows_cubin_build_runs_on_windows_only(monkeypatch, tmp_path, os_name, system, ok):
+    """A cubin with a kernel parameter over 4 KB carries host-OS parameter metadata: its Windows build
+    (`manifest.windows.toml`, kind cubin) is read, preferred on Windows and refused on Linux."""
+    m = read_manifest(_windows_manifest(tmp_path, kind="cubin"))
+    assert (m.kind, m.system) == ("cubin", system)
+    monkeypatch.setattr(kernels.sys, "platform", os_name)
+    monkeypatch.setattr(kernels.platform, "machine", lambda: "AMD64" if os_name == "win32" else "x86_64")
+    assert (kernels.platform_reason(m) is None) == ok
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows DLL loader")

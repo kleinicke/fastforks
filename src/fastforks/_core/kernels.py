@@ -63,8 +63,9 @@ class KernelManifest:
         symbols: Hash per exported function (code, what it calls, build settings); equal hashes across builds mean
             the function compiles to the same code, so a validation of it carries over.
         compat: Build of the same sources with an older toolkit (`manifest.compat.toml`), for older drivers.
-        system: OS of a `"shared"` build: `"linux"` (`manifest.toml`) or `"windows"` (`manifest.windows.toml`); a
-            cubin runs on both.
+        system: OS the build was made on: `"linux"` (`manifest.toml`) or `"windows"` (`manifest.windows.toml`). A
+            shared build runs on its own OS only. A Linux cubin build runs on both, and a Windows cubin build on
+            Windows only (`platform_manifest`).
     """
 
     name: str
@@ -105,7 +106,6 @@ def read_manifest(path: Path) -> KernelManifest:
         if (
             kind not in ("cubin", "shared")
             or system not in ("linux", "windows")
-            or (system == "windows" and kind != "shared")
             or not all(_TARGET.fullmatch(t) for t in files)
         ):
             raise ValueError(kind, system)  # noqa: TRY301 - reported as a CardError below
@@ -268,8 +268,10 @@ def platform_manifest(path: Path) -> Path:
     """The manifest of `path`'s library for this OS: `manifest.windows.toml` on Windows if the library has one.
 
     A cubin is a GPU binary, loaded by the driver API (`nvcuda.dll` / `libcuda.so.1`) the same way on every OS, so a
-    cubin library has one manifest. A shared library's host code is a Linux `.so` (`manifest.toml`) or a Windows DLL
-    (`manifest.windows.toml`), built separately.
+    cubin library usually has one manifest. The exception is a kernel parameter over 4 KB: its parameter metadata
+    differs by host OS, and the Windows driver rejects a Linux-built one, so such a library also has a Windows cubin
+    build. A shared library's host code is a Linux `.so` (`manifest.toml`) or a Windows DLL (`manifest.windows.toml`),
+    built separately.
     """
     if _host() == "windows":
         win = path.with_name("manifest.windows.toml")
@@ -281,10 +283,10 @@ def platform_manifest(path: Path) -> Path:
 def platform_reason(manifest: KernelManifest) -> str | None:
     """Why `manifest`'s binaries cannot run on this OS / CPU, or None.
 
-    Linux x86-64 and Windows x64 run cubin libraries and the shared builds of their own OS (`platform_manifest`).
+    Linux x86-64 and Windows x64 run Linux cubin builds and the builds of their own OS (`platform_manifest`).
     """
     host = _host()
-    if host is not None and (manifest.kind == "cubin" or manifest.system == host):
+    if host is not None and (manifest.system == host or (manifest.kind == "cubin" and manifest.system == "linux")):
         return None
     if host == "windows":
         return (
@@ -292,7 +294,7 @@ def platform_reason(manifest: KernelManifest) -> str | None:
             " cubin kernel libraries and DLL builds run"
         )
     if host == "linux":
-        return "this manifest is a Windows DLL build; Linux loads manifest.toml"
+        return "this manifest is a Windows build; Linux loads manifest.toml"
     machine = platform.machine()
     return f"the kernels are built for Linux x86-64 (cubin libraries: also Windows x64), not {sys.platform} {machine}"
 
@@ -514,7 +516,7 @@ def cubin_library(manifest: Path, signatures: Mapping[str, str]) -> Callable[[to
 
     @functools.cache
     def _load(device: torch.device) -> CubinModule:
-        return CubinModule(read_manifest(manifest), device, signatures)
+        return CubinModule(read_manifest(platform_manifest(manifest)), device, signatures)
 
     def load(device: torch.device) -> CubinModule:
         """Load the library on `device` (once per device).
