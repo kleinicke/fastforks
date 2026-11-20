@@ -2241,16 +2241,16 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | marigold-depth-v1-1 | 994x1482 | 410 ms | 342 ms | 172 ms | 261 ms | 127 s | 285 s | 2776 / 2938 | 2341 / 2418 | 2343 / 2500 | 4263 / 4318 |
 | marigold-normals-lcm-v0-1 | 994x1482 | 272 ms | 223 ms | 109 ms | 167 ms | 64.5 s | 182 s | 2792 / 2960 | 2348 / 2436 | 2361 / 2500 | 4220 / 4250 |
 | marigold-v2-depth | 994x1482 | 4763 ms | 4599 ms | public API unavailable | 3805 ms | 141 s | – | 1408 / 1838 | 1959 / 2120 | 1408 / 1838 | – |
-| marigold-v2-depth | 480x640 | – | – | 1156 ms, bf16 engine (VAE encoder and decoder with eager streamed NF4 transformer) | – | – | 137 s | – | – | – | 2042 / 2198 |
+| marigold-v2-depth | 480x640 | 1179 ms | – | 1156 ms, bf16 engine (VAE encoder and decoder with eager streamed NF4 transformer) | – | – | 137 s | 717 / 964 | – | – | 2042 / 2198 |
 | metric3d-vit-large | 994x1482 | 183 ms | 149 ms | 91.4 ms | 148 ms | 54.7 s | 96.6 s | 1218 / 1294 | 1126 / 1148 | 1453 / 1526 | 1867 / 1952 |
 | midas-dpt-beit-large-512 | 994x1482 | 78.8 ms | 58.8 ms | 52.2 ms | 63.9 ms | 32.6 s | 53.5 s | 992 / 1418 | 1088 / 1116 | 1003 / 1436 | 1514 / 1592 |
 | moge-2-vitb-normal | 994x1482 | 83.9 ms | 60.9 ms | 35.5 ms | 40.7 ms | 133 s | 127 s | 1163 / 1312 | 972 / 1172 | 1093 / 1208 | 1044 / 1092 |
 | moge-2-vitl-normal | 994x1482 | 144 ms | 124 ms | 75.6 ms | 73.4 ms | 152 s | 173 s | 1661 / 1836 | 1411 / 1634 | 1498 / 1610 | 1882 / 1936 |
 | moge-2-vits-normal | 994x1482 | 61.6 ms | 43.9 ms | 24.5 ms | 33.3 ms | 124 s | 131 s | 1007 / 1172 | 836 / 992 | 932 / 1048 | 768 / 852 |
 | moge-3-vitl | 994x1482 | 328 ms | 311 ms | public API unavailable | 149 ms | 136 s | – | 1622 / 1706 | 1500 / 1724 | 1626 / 1762 | – |
-| moge-3-vitl | 480x640 | – | – | 1069 ms, fp32 engine (DINOv2 encoder and projections with eager decoder and sparse refinement) | – | – | – | – | – | – | 4568 / 5382 |
+| moge-3-vitl | 480x640 | 1080 ms | – | 1069 ms, fp32 engine (DINOv2 encoder and projections with eager decoder and sparse refinement) | – | – | – | 2859 / 3842 | – | – | 4568 / 5382 |
 | omni-dc | 994x1482 | 558 ms | 411 ms | public API unavailable | 512 ms | 137 s | – | 3849 / 5044 | 4201 / 5932 | 3873 / 4566 | – |
-| omni-dc | 480x640 | – | – | 253 ms, fp32 engine (Depth Anything V2 with eager prompt fusion and solver) | – | – | 52.0 s | – | – | – | 2930 / 3298 |
+| omni-dc | 480x640 | 300 ms | – | 253 ms, fp32 engine (Depth Anything V2 with eager prompt fusion and solver) | – | – | 52.0 s | 2453 / 3296 | – | – | 2930 / 3298 |
 | pointdit-b-512 | 994x1482 | 31.1 ms | 23.7 ms | 15.5 ms | 20.5 ms | 33.6 s | 86.5 s | 446 / 504 | 465 / 524 | 462 / 630 | 795 / 898 |
 | pointdit-l-512 | 994x1482 | 94.6 ms | 76.0 ms | 49.1 ms | 61.3 ms | 57.3 s | 150 s | 1297 / 1430 | 1316 / 1430 | 1310 / 1676 | 2474 / 2626 |
 | prompt-depth-anything-l | 756x1008 | 125 ms | 117 ms | 75.3 ms | 69.3 ms | 21.2 s | 52.5 s | 1318 / 1488 | 968 / 1148 | 1179 / 1348 | 1649 / 1714 |
@@ -2608,11 +2608,11 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | patchmatchnet | 1536x1024 | 201 ms | 175 ms | 51.0 ms | 29.5 ms | 29.4 s | 82.1 s | 1039 / 1212 | 1798 / 1888 | 648 / 772 | 1073 / 1106 |
 | pi3 | 336x518 | 822 ms | 752 ms | public API unavailable | 560 ms | 55.6 s | – | 2209 / 2254 | 2205 / 2334 | 2217 / 2296 | – |
 | pi3 | 8x512x640 | – | – | 735 ms (DINOv2 encoder with eager scene decoding, 8 views) | – | – | 53.8 s | – | – | – | 2586 / 2976 |
-| pi3 | 8x336x518 | – | – | 691 ms (34 decoder blocks with eager encoder and output heads, 8 views) | – | – | 58.0 s | – | – | – | 2600 / 2952 |
+| pi3 | 8x336x518 | 826 ms | – | 691 ms (34 decoder blocks with eager encoder and output heads, 8 views) | – | – | 58.0 s | 2213 / 2328 | – | – | 2600 / 2952 |
 | resplat-base-re10k | 480x640 | 6868 ms | 7098 ms (standalone Gaussian initialization and recurrent refinement heads, eager rendering and geometry) | fails: TypeError: _Base.forward() missing 1 required positional arg | 1169 ms | 12.6 s | – | 4336 / 5596 | 4656 / 7630 | 4348 / 5546 | – |
-| resplat-base-re10k | 256x256 | – | – | 1028 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 2173 / 2988 |
+| resplat-base-re10k | 256x256 | 1049 ms | – | 1028 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | 1863 / 2680 | – | – | 2173 / 2988 |
 | resplat-small-dl3dv | 480x640 | 1680 ms | 1538 ms | public API unavailable | 313 ms | 243 s | – | 1103 / 1240 | 4995 / 5138 | 1089 / 1208 | – |
-| resplat-small-dl3dv | 256x448 | – | – | 1362 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 1367 / 1800 |
+| resplat-small-dl3dv | 256x448 | 1361 ms | – | 1362 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | 1204 / 1658 | – | – | 1367 / 1800 |
 | vggt-1b | 336x518 | 653 ms | 557 ms | 424 ms | 446 ms | 74.3 s | 199 s | 3573 / 3794 | 3611 / 3856 | 3580 / 3854 | 6421 / 6472 |
 | vggt-omega-1b-512 | 336x518 | 727 ms | 589 ms | 377 ms | 469 ms | 65.7 s | 187 s | 3269 / 3352 | 3082 / 3154 | 3270 / 3330 | 5657 / 5766 |
 | flowformer-small-chairs | 1080x1920 | 4006 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | 3951 ms | – | – | 8780 / 8960 | – | 8696 / 8822 | – |
@@ -2627,44 +2627,44 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | gmflow-scale1-mixdata | 1080x1920 | 448 ms | 382 ms | 187 ms | 446 ms | 29.1 s | 67.3 s | 1988 / 2142 | 4293 / 4558 | 1988 / 2142 | 4333 / 4390 |
 | gmflow-scale1-things | 1080x1920 | 448 ms | 382 ms | 187 ms | 446 ms | 35.3 s | 69.3 s | 1988 / 2142 | 4293 / 4558 | 1988 / 2142 | 4333 / 4390 |
 | gmflow-scale2-mixdata | 1080x1920 | 915 ms | 765 ms | public API unavailable | 915 ms | 46.6 s | – | 2995 / 3184 | 10865 / 10904 | 2995 / 3204 | – |
-| gmflow-scale2-mixdata | 384x1248 | – | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | – | – | – | 1616 / 2560 |
+| gmflow-scale2-mixdata | 384x1248 | 210 ms | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | 1410 / 2272 | – | – | 1616 / 2560 |
 | gmflow-scale2-regrefine6-kitti | 1080x1920 | 1383 ms | 1116 ms | public API unavailable | 1389 ms | 58.4 s | – | 3005 / 3192 | 10875 / 10972 | 3005 / 3212 | – |
-| gmflow-scale2-regrefine6-kitti | 384x1248 | – | – | 351 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.1 s | – | – | – | 1660 / 2526 |
+| gmflow-scale2-regrefine6-kitti | 384x1248 | 349 ms | – | 351 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.1 s | 1455 / 2278 | – | – | 1660 / 2526 |
 | gmflow-scale2-regrefine6-mixdata | 1080x1920 | 1382 ms | 1116 ms | public API unavailable | 1383 ms | 58.9 s | – | 3005 / 3192 | 10875 / 10972 | 3005 / 3212 | – |
-| gmflow-scale2-regrefine6-mixdata | 384x1248 | – | – | 349 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | – | – | – | 1660 / 2526 |
+| gmflow-scale2-regrefine6-mixdata | 384x1248 | 348 ms | – | 349 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | 1455 / 2278 | – | – | 1660 / 2526 |
 | gmflow-scale2-regrefine6-sintelft | 1080x1920 | 1381 ms | 1116 ms | public API unavailable | 1384 ms | 58.5 s | – | 3005 / 3192 | 10875 / 10972 | 3005 / 3212 | – |
-| gmflow-scale2-regrefine6-sintelft | 384x1248 | – | – | 350 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 14.5 s | – | – | – | 1660 / 2526 |
+| gmflow-scale2-regrefine6-sintelft | 384x1248 | 349 ms | – | 350 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 14.5 s | 1455 / 2278 | – | – | 1660 / 2526 |
 | gmflow-scale2-regrefine6-things | 1080x1920 | 1382 ms | 1116 ms | public API unavailable | 1384 ms | 58.2 s | – | 3005 / 3192 | 10875 / 10972 | 3005 / 3212 | – |
-| gmflow-scale2-regrefine6-things | 384x1248 | – | – | 350 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.7 s | – | – | – | 1660 / 2526 |
+| gmflow-scale2-regrefine6-things | 384x1248 | 348 ms | – | 350 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.7 s | 1455 / 2278 | – | – | 1660 / 2526 |
 | gmflow-scale2-sintel | 1080x1920 | 915 ms | 765 ms | public API unavailable | 916 ms | 46.6 s | – | 2995 / 3184 | 10865 / 10904 | 2995 / 3204 | – |
-| gmflow-scale2-sintel | 384x1248 | – | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 12.7 s | – | – | – | 1616 / 2560 |
+| gmflow-scale2-sintel | 384x1248 | 210 ms | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 12.7 s | 1410 / 2272 | – | – | 1616 / 2560 |
 | gmflow-scale2-things | 1080x1920 | 914 ms | 765 ms | public API unavailable | 916 ms | 46.7 s | – | 2995 / 3184 | 10865 / 10904 | 2995 / 3204 | – |
-| gmflow-scale2-things | 384x1248 | – | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | – | – | – | 1616 / 2560 |
+| gmflow-scale2-things | 384x1248 | 210 ms | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | 1410 / 2272 | – | – | 1616 / 2560 |
 | megaflow | 1080x1920 | 1116 ms | 917 ms | 677 ms | 735 ms | 102 s | 214 s | 2629 / 2766 | 2611 / 2886 | 2639 / 2866 | 9265 / 9300 |
 | memflow | 1080x1920 | 965 ms | 1642 ms | fails: TensorRT engine build failed | 865 ms | 78.9 s | – | 6001 / 6294 | 6813 / 6946 | 968 / 1022 | – |
-| memflow | 384x1248 | – | – | 178 ms, fp32 engine (full fixed-shape flow network, standalone trace export and build) | – | – | 99.3 s | – | – | – | 1171 / 1176 |
+| memflow | 384x1248 | 279 ms | – | 178 ms, fp32 engine (full fixed-shape flow network, standalone trace export and build) | – | – | 99.3 s | 535 / 848 | – | – | 1171 / 1176 |
 | memflow-kitti | 1080x1920 | 964 ms | 1644 ms | fails: TensorRT engine build failed | 865 ms | 72.6 s | – | 5985 / 6102 | 6813 / 6946 | 968 / 1022 | – |
 | memflow-kitti | 384x1248 | – | – | 135 ms (full fixed-shape flow network, standalone engine build) | – | – | 330 s | – | – | – | 859 / 864 |
 | memflow-sintel | 1080x1920 | 964 ms | 1640 ms | fails: TensorRT engine build failed | 865 ms | 76.0 s | – | 5985 / 6102 | 6813 / 6946 | 968 / 1022 | – |
 | memflow-sintel | 384x1248 | 143 ms | – | 137 ms (full fixed-shape flow network, standalone trace export and build) | – | – | 140 s | 528 / 738 | – | – | 887 / 892 |
 | memfof | 1080x1920 | 433 ms | 291 ms | 160 ms | 349 ms | 50.5 s | 110 s | 1911 / 2196 | 2452 / 2666 | 917 / 1016 | 2070 / 2132 |
 | memfof-kitti | 375x1242 | 386 ms | 258 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 309 ms | 48.7 s | – | 1619 / 1856 | 2041 / 2226 | 786 / 916 | – |
-| memfof-kitti | 384x1248 | – | – | 1335 ms, fp32 engine (ResNet encoders with eager correlation, flow update and upsampling) | – | – | 32.0 s | – | – | – | 4252 / 5692 |
+| memfof-kitti | 384x1248 | 1526 ms | – | 1335 ms, fp32 engine (ResNet encoders with eager correlation, flow update and upsampling) | – | – | 32.0 s | 3285 / 5238 | – | – | 4252 / 5692 |
 | memfof-sintel | 1080x1920 | 2177 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 1.96 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 3.91 | 1541 ms | – | – | 14156 / 14418 | – | 3805 / 4018 | – |
 | memfof-sintel | 375x1242 | 385 ms | 258 ms | – | 309 ms | 45.0 s | – | 1619 / 1836 | 2041 / 2226 | 786 / 876 | – |
-| memfof-sintel | 384x1248 | – | – | 1334 ms, fp32 engine (ResNet encoders with eager correlation, flow update and upsampling) | – | – | 31.6 s | – | – | – | 4252 / 5692 |
+| memfof-sintel | 384x1248 | 1528 ms | – | 1334 ms, fp32 engine (ResNet encoders with eager correlation, flow update and upsampling) | – | – | 31.6 s | 3285 / 5238 | – | – | 4252 / 5692 |
 | memfof-spring | 1080x1920 | 433 ms | 291 ms | 160 ms | 349 ms | 45.4 s | 95.8 s | 1900 / 2196 | 2452 / 2666 | 917 / 1016 | 2070 / 2112 |
 | neuflow-v2 | 1080x1920 | 72.0 ms | 91.4 ms | 65.0 ms | 59.8 ms | 28.5 s | 104 s | 2327 / 2398 | 4529 / 4558 | 490 / 636 | 8710 / 8748 |
 | neuflow-v2-sintel | 1080x1920 | 71.3 ms | 91.4 ms | 64.9 ms | 58.9 ms | 28.5 s | 102 s | 2366 / 2398 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
 | neuflow-v2-things | 1080x1920 | 71.4 ms | 91.5 ms | 65.0 ms | 58.9 ms | 28.8 s | 104 s | 2366 / 2398 | 4529 / 4558 | 779 / 896 | 8710 / 8748 |
 | raft-large | 1080x1920 | 283 ms | 195 ms | fails: TensorRT engine build failed | 83.4 ms | 41.3 s | – | 5721 / 5758 | 5886 / 5924 | 332 / 352 | – |
-| raft-large | 384x1248 | – | – | 58.9 ms, fp32 engine | – | – | 147 s | – | – | – | 873 / 918 |
+| raft-large | 384x1248 | 72.5 ms | – | 58.9 ms, fp32 engine | – | – | 147 s | 468 / 650 | – | – | 873 / 918 |
 | raft-large-kitti | 1080x1920 | 284 ms | 195 ms | fails: TensorRT engine build failed | 84.2 ms | 39.3 s | – | 5721 / 5758 | 5886 / 5924 | 332 / 352 | – |
-| raft-large-kitti | 384x1248 | – | – | 19.8 ms | – | – | 173 s | – | – | – | 845 / 856 |
+| raft-large-kitti | 384x1248 | 46.2 ms | – | 19.8 ms | – | – | 173 s | 469 / 522 | – | – | 845 / 856 |
 | raft-large-things | 1080x1920 | 283 ms | 195 ms | fails: TensorRT engine build failed | 83.5 ms | 39.4 s | – | 5721 / 5758 | 5886 / 5924 | 332 / 352 | – |
-| raft-large-things | 384x1248 | – | – | 59.0 ms, fp32 engine | – | – | 161 s | – | – | – | 873 / 918 |
+| raft-large-things | 384x1248 | 72.7 ms | – | 59.0 ms, fp32 engine | – | – | 161 s | 468 / 650 | – | – | 873 / 918 |
 | raft-small | 1080x1920 | 141 ms | 110 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 36.5 ms | 37.0 s | – | 5601 / 5646 | 5704 / 5728 | 196 / 204 | – |
-| raft-small | 384x1248 | – | – | 20.7 ms, fp32 engine | – | – | 178 s | – | – | – | 803 / 820 |
+| raft-small | 384x1248 | 29.1 ms | – | 20.7 ms, fp32 engine | – | – | 178 s | 404 / 488 | – | – | 803 / 820 |
 | recover-cx | 1080x1920 | 107 ms | 89.9 ms | 47.5 ms | 89.8 ms | 13.9 s | 41.6 s | 733 / 892 | 504 / 572 | 733 / 892 | 603 / 632 |
 | recover-mn | 1080x1920 | 45.5 ms | 32.2 ms | 21.2 ms | 41.8 ms | 14.4 s | 56.9 s | 580 / 676 | 365 / 416 | 580 / 676 | 425 / 466 |
 | recover-rn | 1080x1920 | 64.1 ms | 48.8 ms | 28.9 ms | 51.3 ms | 9.34 s | 34.1 s | 590 / 672 | 375 / 432 | 590 / 672 | 419 / 466 |
@@ -2696,9 +2696,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | xfeat | 768x1024 | 7.17 ms | 5.65 ms | 5.50 ms, fp32 engine (standalone image CNN, eager keypoint selection and matching) | 15.2 ms | 30.8 s | 11.8 s | 122 / 154 | 186 / 212 | 313 / 352 | 268 / 416 |
 | xfeat-lighterglue | 768x1024 | 21.3 ms | 16.2 ms | public API unavailable | 29.2 ms | 39.7 s | – | 445 / 476 | 262 / 278 | 445 / 478 | – |
 | alltracker | 480x854 | 385 ms | 284 ms | public API unavailable | 213 ms | 105 s | – | 885 / 998 | 1273 / 1358 | 967 / 1068 | – |
-| alltracker | 256x256 | – | – | 330 ms, fp32 engine (frame CNN with eager tracking) | – | – | 20.3 s | – | – | – | 2262 / 3372 |
+| alltracker | 256x256 | 412 ms | – | 330 ms, fp32 engine (frame CNN with eager tracking) | – | – | 20.3 s | 1438 / 2512 | – | – | 2262 / 3372 |
 | alltracker-tiny | 480x854 | 330 ms | 229 ms | public API unavailable | 217 ms | 103 s | – | 919 / 1178 | 1198 / 1338 | 978 / 1166 | – |
-| alltracker-tiny | 256x256 | – | – | 270 ms, fp32 engine (frame CNN with eager tracking) | – | – | 19.3 s | – | – | – | 2010 / 3220 |
+| alltracker-tiny | 256x256 | 302 ms | – | 270 ms, fp32 engine (frame CNN with eager tracking) | – | – | 19.3 s | 1364 / 2548 | – | – | 2010 / 3220 |
 | bootstapir | 480x854 | 233 ms | 183 ms | 13.2 ms | 191 ms | 207 s | 65.0 s | 499 / 568 | 758 / 832 | 499 / 568 | 492 / 532 |
 | cotracker3-offline | 480x854 | 162 ms | 135 ms | 25.9 ms | 154 ms | 36.5 s | 157 s | 755 / 882 | 755 / 902 | 757 / 882 | 519 / 586 |
 | cotracker3-online | 480x854 | 184 ms | 159 ms | public API unavailable | 176 ms | 37.7 s | – | 755 / 906 | 701 / 846 | 757 / 888 | – |
@@ -2710,9 +2710,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | tapnext | 480x854 | 528 ms | 398 ms | 69.4 ms | 381 ms | 40.5 s | 366 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |
 | tapnext-pp | 480x854 | 529 ms | 395 ms | 69.5 ms | 382 ms | 34.1 s | 362 s | 1028 / 1094 | 1164 / 1272 | 1013 / 1074 | 1498 / 1660 |
 | track-on-r | 480x854 | 1150 ms | 1066 ms | public API unavailable | 1064 ms | 66.0 s | – | 1030 / 1190 | 1340 / 1454 | 975 / 1156 | – |
-| track-on-r | 256x256 | – | – | 958 ms, fp32 engine (standalone eight-frame encoder, eager recurrent decoder) | – | – | 42.1 s | – | – | – | 1979 / 2286 |
+| track-on-r | 256x256 | 1086 ms | – | 958 ms, fp32 engine (standalone eight-frame encoder, eager recurrent decoder) | – | – | 42.1 s | 1607 / 1930 | – | – | 1979 / 2286 |
 | track-on2 | 480x854 | 1159 ms | 1075 ms | public API unavailable | 1073 ms | 60.0 s | – | 1030 / 1190 | 1340 / 1454 | 975 / 1158 | – |
-| track-on2 | 256x256 | – | – | 961 ms, fp32 engine (standalone eight-frame encoder, eager recurrent decoder) | – | – | 46.3 s | – | – | – | 1979 / 2288 |
+| track-on2 | 256x256 | 1092 ms | – | 961 ms, fp32 engine (standalone eight-frame encoder, eager recurrent decoder) | – | – | 46.3 s | 1607 / 1930 | – | – | 1979 / 2288 |
 | ema-vfi | 1080x1920 | 233 ms | 165 ms | 124 ms | 185 ms | 90.6 s | 90.9 s | 1659 / 2082 | 3325 / 3542 | 1659 / 2102 | 1719 / 1786 |
 | ema-vfi-small | 1080x1920 | 89.4 ms | 59.6 ms | 43.7 ms | 84.4 ms | 78.5 s | 67.6 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
 | ema-vfi-small-t | 1080x1920 | 89.4 ms | 59.8 ms | 43.4 ms | 84.3 ms | 77.9 s | 68.8 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |

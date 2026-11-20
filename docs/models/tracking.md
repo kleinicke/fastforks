@@ -36,9 +36,9 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `alltracker` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 485<br>385<br>213<br>284<br>public API unavailable | 2100 / 2318<br>885 / 998<br>967 / 1068<br>1273 / 1358<br>– |
-| `alltracker` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>330 (frame CNN with eager tracking) | –<br>–<br>–<br>2262 / 3372 |
+| `alltracker` | synthetic (256x256) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>412<br>–<br>330 (frame CNN with eager tracking) | –<br>1438 / 2512<br>–<br>2262 / 3372 |
 | `alltracker-tiny` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 424<br>330<br>217<br>229<br>public API unavailable | 1995 / 2200<br>919 / 1178<br>978 / 1166<br>1198 / 1338<br>– |
-| `alltracker-tiny` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>270 (frame CNN with eager tracking) | –<br>–<br>–<br>2010 / 3220 |
+| `alltracker-tiny` | synthetic (256x256) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>302<br>–<br>270 (frame CNN with eager tracking) | –<br>1364 / 2548<br>–<br>2010 / 3220 |
 
 <details><summary>Details</summary>
 
@@ -60,7 +60,9 @@ Commercial use: yes.
 - `alltracker-tiny` 256x256, first call: TensorRT fp32 19 s (ONNX + engine).
 - `alltracker` original 480x854: the authors' mixed-precision option (float16); aharley/alltracker@e7553135e7b3 Net.forward, 384 x 512, 4 iters
 - `alltracker` portable 480x854, kernels 480x854: 24 frames with 256 queries. Samples the convex flow and visibility upsampling at the query pixels. Synthetic and three labeled TAP-Vid DAVIS outputs matched bitwise.
+- `alltracker` portable 256x256: Portable baseline recorded in the same archived timing run as the TensorRT profile at this input size.
 - `alltracker-tiny` original 480x854: the authors' mixed-precision option (float16); aharley/alltracker@e7553135e7b3 Net.forward, 384 x 512, 4 iters
+- `alltracker-tiny` portable 256x256: Portable baseline recorded in the same archived timing run as the TensorRT profile at this input size.
 - `alltracker` load / first call: original 1.68 s / 1.309 s, portable 0.89 s / 2.078 s, kernels 0.26 s / 0.493 s
 - `alltracker-tiny` load / first call: original 1.22 s / 1.398 s, portable 0.06 s / 0.731 s, kernels 0.96 s / 0.54 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -370,9 +372,9 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `track-on2` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1953<br>1159<br>1073<br>1075<br>public API unavailable | 1403 / 1558<br>1030 / 1190<br>975 / 1158<br>1340 / 1454<br>– |
-| `track-on2` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>961 (standalone eight-frame encoder, eager recurrent decoder) | –<br>–<br>–<br>1979 / 2288 |
+| `track-on2` | synthetic (256x256) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>1092<br>–<br>961 (standalone eight-frame encoder, eager recurrent decoder) | –<br>1607 / 1930<br>–<br>1979 / 2288 |
 | `track-on-r` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2022<br>1150<br>1064<br>1066<br>public API unavailable | 1801 / 1928<br>1030 / 1190<br>975 / 1156<br>1340 / 1454<br>– |
-| `track-on-r` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>958 (standalone eight-frame encoder, eager recurrent decoder) | –<br>–<br>–<br>1979 / 2286 |
+| `track-on-r` | synthetic (256x256) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>1086<br>–<br>958 (standalone eight-frame encoder, eager recurrent decoder) | –<br>1607 / 1930<br>–<br>1979 / 2286 |
 
 <details><summary>Details</summary>
 
@@ -395,7 +397,9 @@ Commercial use: yes.
 - `track-on-r` 480x854, first call: portable + torch.compile 66 s (cold Inductor cache).
 - `track-on-r` 256x256, first call: TensorRT fp32 42 s (ONNX + engine).
 - `track-on2` original 480x854: the authors' mixed-precision option (float16); gorkaydemir/track_on@04efe8a137bd Predictor loop, 384 x 512, memory 72
+- `track-on2` portable 256x256: Archived portable timing at the same 256 x 256 clip size with eight-frame chunks. The TensorRT memory replay used the same engine and configuration.
 - `track-on-r` original 480x854: the authors' mixed-precision option (float16); gorkaydemir/track_on@04efe8a137bd Predictor loop, 384 x 512, memory 72
+- `track-on-r` portable 256x256: Archived portable timing at the same 256 x 256 clip size with eight-frame chunks. The TensorRT memory replay used the same engine and configuration.
 - `track-on2` load / first call: original 3.77 s / 3.626 s, portable 1.16 s / 1.956 s, kernels 0.63 s / 1.762 s
 - `track-on-r` load / first call: original 0.88 s / 2.907 s, portable 0.24 s / 1.989 s, kernels 1.11 s / 1.72 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

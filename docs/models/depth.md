@@ -769,7 +769,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `marigold-v2-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>4763<br>3805<br>4599<br>public API unavailable | –<br>1408 / 1838<br>1408 / 1838<br>1959 / 2120<br>– |
-| `marigold-v2-depth` | 480x640 | original<br>portable<br>kernels<br>TensorRT bf16 | –<br>–<br>–<br>1156 (VAE encoder and decoder with eager streamed NF4 transformer) | –<br>–<br>–<br>2042 / 2198 |
+| `marigold-v2-depth` | synthetic (480x640) | original<br>portable<br>kernels<br>TensorRT bf16 | –<br>1179<br>–<br>1156 (VAE encoder and decoder with eager streamed NF4 transformer) | –<br>717 / 964<br>–<br>2042 / 2198 |
 
 ### Weight streaming
 
@@ -800,6 +800,7 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `marigold-v2-depth` 1988x2880 (12.8 GiB peak allocated, 13.5 reserved)
 - `marigold-v2-depth` 994x1482, first call: portable + torch.compile 141 s (cold Inductor cache).
 - `marigold-v2-depth` 480x640, first call: TensorRT bf16 137 s (ONNX + engine).
+- `marigold-v2-depth` portable 480x640: Portable baseline recorded in the same archived timing run as the TensorRT profile at this input size.
 - `marigold-v2-depth` load / first call: original 174.6514255180955 s / 1.761 s (518x770), portable 7.8 s / 5.094 s, kernels 6.2 s / 3.887 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -966,7 +967,7 @@ Commercial use: yes.
 | `moge-2-vitb-normal` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 237<br>102<br>83.9<br>40.7<br>60.9<br>35.5 | 1773 / 1876<br>1469 / 1596<br>1163 / 1312<br>1093 / 1208<br>972 / 1172<br>1044 / 1092 |
 | `moge-2-vitl-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>171<br>144<br>73.4<br>124<br>75.6 | 2646 / 2818<br>2339 / 2438<br>1661 / 1836<br>1498 / 1610<br>1411 / 1634<br>1882 / 1936 |
 | `moge-3-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 843<br>486<br>328<br>149<br>311<br>public API unavailable | 2812 / 2990<br>2505 / 2630<br>1622 / 1706<br>1626 / 1762<br>1500 / 1724<br>– |
-| `moge-3-vitl` | 480x640 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>1069 (DINOv2 encoder and projections with eager decoder and sparse refinement) | –<br>–<br>–<br>4568 / 5382 |
+| `moge-3-vitl` | synthetic (480x640) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>1080<br>–<br>1069 (DINOv2 encoder and projections with eager decoder and sparse refinement) | –<br>2859 / 3842<br>–<br>4568 / 5382 |
 
 <details><summary>Details</summary>
 
@@ -989,6 +990,7 @@ Commercial use: yes.
 - `moge-2-vitl-normal` 994x1482, first call: portable + torch.compile 152 s (cold Inductor cache), TensorRT fp16 173 s (ONNX + engine).
 - `moge-3-vitl` 994x1482, first call: portable + torch.compile 136 s (cold Inductor cache).
 - `moge-3-vitl` portable 994x1482: Portable uses one buffer for large replicate padding. Synthetic output and three labeled iBims maps were bitwise identical.
+- `moge-3-vitl` portable 480x640: Portable baseline recorded in the same archived timing run as the TensorRT profile at this input size.
 - `moge-2-vits-normal` load / first call: original 0.88 s / 1.501 s, portable 1.18 s / 0.298 s (518x770), kernels 0.21 s / 0.438 s (518x770)
 - `moge-2-vitb-normal` load / first call: original 1.26 s / 0.239 s, portable 0.49 s / 0.397 s (518x770), kernels 1.24 s / 0.285 s (518x770)
 - `moge-2-vitl-normal` load / first call: original 7.24 s / 0.171 s, portable 1.37 s / 0.144 s, kernels 0.63† s / 0.131 s
@@ -1057,7 +1059,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `omni-dc` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 875<br>558<br>512<br>411<br>public API unavailable | 5966 / 6732<br>3849 / 5044<br>3873 / 4566<br>4201 / 5932<br>– |
-| `omni-dc` | 480x640 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>253 (Depth Anything V2 with eager prompt fusion and solver) | –<br>–<br>–<br>2930 / 3298 |
+| `omni-dc` | synthetic (480x640) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>300<br>–<br>253 (Depth Anything V2 with eager prompt fusion and solver) | –<br>2453 / 3296<br>–<br>2930 / 3298 |
 
 <details><summary>Details</summary>
 
@@ -1076,6 +1078,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - `omni-dc` 480x640, first call: TensorRT fp32 52 s (ONNX + engine).
 - `omni-dc` original 994x1482: upstream OGNIDC.forward (demo.sh arguments), float32, 16-padded
 - `omni-dc` portable 994x1482, kernels 994x1482: Short decoder convolution bands preserve the full-image attention. Depth matched bitwise on the standard, odd-size and three iBims inputs.
+- `omni-dc` portable 480x640: Portable baseline recorded in the same archived timing run as the TensorRT profile at this input size.
 - `omni-dc` load / first call: original 9.52 s / 2.035 s, portable 2.47 s / 1.062 s, kernels 2.44 s / 0.936 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

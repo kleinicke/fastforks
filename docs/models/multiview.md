@@ -425,7 +425,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `pi3` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1057<br>822<br>560<br>752<br>public API unavailable | 5926 / 6016<br>2209 / 2254<br>2217 / 2296<br>2205 / 2334<br>– |
-| `pi3` | 8x336x518 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>691 (34 decoder blocks with eager encoder and output heads, 8 views) | –<br>–<br>–<br>2600 / 2952 |
+| `pi3` | synthetic (8x336x518) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>826<br>–<br>691 (34 decoder blocks with eager encoder and output heads, 8 views) | –<br>2213 / 2328<br>–<br>2600 / 2952 |
 | `pi3` | 8x512x640 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>735 (DINOv2 encoder with eager scene decoding, 8 views) | –<br>–<br>–<br>2586 / 2976 |
 
 ### Weight streaming
@@ -457,6 +457,7 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - `pi3` 8x512x640, first call: TensorRT fp16 54 s (ONNX + engine).
 - `pi3` original 336x518: the authors' mixed-precision option (bfloat16); yyfz/Pi3@9fa3ddb3f8d5 Pi3.forward, PIXEL_LIMIT 255000
 - `pi3` portable 336x518, kernels 336x518: Eight-view FP16 profile. The paired decoder lifetime change saves 150 MiB peak allocation and reproduces the synthetic outputs and the matching depth and camera tensors on three DTU scenes.
+- `pi3` portable 8x336x518: Portable baseline recorded in the same archived timing run as the TensorRT profile at this input size.
 - `pi3` load / first call: original 10.64 s / 4.059 s (336x518), portable 3.46 s / 1.284 s (336x518), kernels 3.78 s / 0.7 s (336x518)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -497,10 +498,10 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
+| `resplat-small-dl3dv` | synthetic (256x448) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>1361<br>–<br>1362 (Gaussian initialization and refinement heads with eager depth and rendering) | –<br>1204 / 1658<br>–<br>1367 / 1800 |
 | `resplat-small-dl3dv` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 493<br>1680<br>313<br>1538<br>public API unavailable | 5148 / 5376<br>1103 / 1240<br>1089 / 1208<br>4995 / 5138<br>– |
-| `resplat-small-dl3dv` | 256x448 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>1362 (Gaussian initialization and refinement heads with eager depth and rendering) | –<br>–<br>–<br>1367 / 1800 |
+| `resplat-base-re10k` | synthetic (256x256) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>1049<br>–<br>1028 (Gaussian initialization and refinement heads with eager depth and rendering) | –<br>1863 / 2680<br>–<br>2173 / 2988 |
 | `resplat-base-re10k` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2521<br>6868<br>1169<br>7098 (standalone Gaussian initialization and recurrent refinement heads, eager rendering and geometry)<br>fails: TypeError: _Base.forward() missing 1 required positional arg | 10139 / 12684<br>4336 / 5596<br>4348 / 5546<br>4656 / 7630<br>– |
-| `resplat-base-re10k` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>1028 (Gaussian initialization and refinement heads with eager depth and rendering) | –<br>–<br>–<br>2173 / 2988 |
 
 <details><summary>Details</summary>
 
@@ -521,9 +522,11 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `resplat-small-dl3dv` 3000x4000 (5.9 GiB peak allocated, 7.0 reserved); `resplat-base-re10k` 3000x4000 (7.8 GiB peak allocated, 11.2 reserved)
 - `resplat-small-dl3dv` 480x640, first call: portable + torch.compile 243 s (cold Inductor cache).
 - `resplat-base-re10k` 480x640, first call: portable + torch.compile 13 s (cold Inductor cache).
+- `resplat-small-dl3dv` portable 256x448: Portable baseline recorded in the same archived timing run as the TensorRT profile at this input size.
 - `resplat-small-dl3dv` original 480x640: the authors' mixed-precision option (bfloat16); cvg/resplat@cae7ddc4cdbd EncoderReSplat, pointops + gsplat extensions, 2 refinement steps, released bfloat16 autocast
 - `resplat-small-dl3dv` portable 480x640: 15 full API calls on eight views. The portable rasterizer reuses temporary tensors and fetches tile counts once per view. Paired synthetic results and 11 held-out rendered views match bitwise.
 - `resplat-small-dl3dv` kernels 480x640: CUDA FP16. Current bounded plane sweep and indexed point attention.
+- `resplat-base-re10k` portable 256x256: Portable baseline recorded in the same archived timing run as the TensorRT profile at this input size.
 - `resplat-base-re10k` original 480x640: the authors' mixed-precision option (bfloat16); cvg/resplat@cae7ddc4cdbd EncoderReSplat, pointops + gsplat extensions, 2 refinement steps, released bfloat16 autocast
 - `resplat-base-re10k` portable 480x640: 5 full API calls on eight views. The portable rasterizer reuses temporary tensors and fetches tile counts once per view. Paired synthetic results and 11 held-out rendered views match bitwise.
 - `resplat-base-re10k` kernels 480x640: Consumed encoder and rendered features are released before refinement. Synthetic depth and Gaussians and six held-out RealEstate10K renders matched bitwise.
