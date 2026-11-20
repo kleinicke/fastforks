@@ -9,6 +9,8 @@ from typing import List, Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from fastforks._core.mlx_cast import to_run_dtype
+from fastforks._core.tracing import EXPORTING_FOR_MLX
 import numpy as np
 
 from ..foundation_stereo.convolution_helper import (Conv, Conv3dNormActReduced)
@@ -500,7 +502,7 @@ class PositionalEmbedding(nn.Module):
         Returns:
             Input tensor with added positional embeddings.
         """
-        pe = self.pe.to(x.device).to(x.dtype)
+        pe = to_run_dtype(self.pe.to(x.device), x.dtype)
         if not torch.compiler.is_exporting():
             self.pe = pe
         if pe.shape[1] < x.shape[1]:
@@ -583,12 +585,16 @@ class DualAttentionMlp(nn.Module):
             src_iea, _ = self.iea(
                 src.float(), src.float(), value=src.float(), attn_mask=mask_self
             )
+        if EXPORTING_FOR_MLX.get():  # the fp32 attention island ends here on MLX
+            src_iea = to_run_dtype(src_iea, src.dtype)
         out = self.norm1(src + self.linear1(src_iea))
 
         with torch.cuda.amp.autocast(enabled=False):  # ty: ignore[deprecated] - upstream code
             ref_iea, _ = self.iea_r(
                 ref.float(), ref.float(), value=ref.float(), attn_mask=mask_self
             )
+        if EXPORTING_FOR_MLX.get():  # the fp32 attention island ends here on MLX
+            ref_iea = to_run_dtype(ref_iea, ref.dtype)
         out_ref = self.norm1r(ref + self.linear1r(ref_iea))
 
         # Cross-attention
@@ -596,6 +602,8 @@ class DualAttentionMlp(nn.Module):
             src_cea, _ = self.cea(
                 out.float(), out_ref.float(), value=out_ref.float(), attn_mask=mask_cross
             )
+        if EXPORTING_FOR_MLX.get():  # the fp32 attention island ends here on MLX
+            src_cea = to_run_dtype(src_cea, out.dtype)
         out = self.norm2(out + self.linear2(src_cea))
 
         return out, out_ref

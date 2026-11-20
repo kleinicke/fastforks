@@ -8,7 +8,9 @@ import itertools
 import numpy as np
 import torch
 import torch.nn.functional as F
-from fastforks._core.tracing import in_onnx_export
+from fastforks._core.tracing import EXPORTING_FOR_MLX, in_onnx_export
+from fastforks._core.mlx_cast import to_run_dtype
+from fastforks._core.volume_ops import gwc_volume
 from fastforks._core.sampling import grid_sample
 
 # fastforks: the upstream low_memory chunk size (batches cuDNN refuses run natively in the shared sampler)
@@ -600,7 +602,7 @@ def build_concat_volume(refimg_feature, targetimg_feature, maxdisp):
     """
     B, C, H, W = refimg_feature.shape
 
-    if torch.jit.is_tracing() or in_onnx_export():
+    if torch.jit.is_tracing() or in_onnx_export() or EXPORTING_FOR_MLX.get():
         return _concat_volume_traced(refimg_feature, targetimg_feature, maxdisp)
 
     # Initialize an empty volume to store the concatenated features.
@@ -759,8 +761,21 @@ def _concat_volume_traced(ref, target, max_disp):
     d = torch.arange(max_disp, device=ref.device).view(-1, 1)
     w = torch.arange(W, device=ref.device).view(1, -1)
     shifted = target.index_select(3, (w - d).clamp(min=0).flatten()).view(B, C, H, max_disp, W)
-    shifted = torch.where(w >= d, shifted, 0.0).permute(0, 1, 3, 2, 4)
+    # the MLX replay keeps the volume in its run dtype (a literal 0.0 is exported as a float32 tensor)
+    zero = to_run_dtype(ref.new_zeros(()), ref.dtype) if EXPORTING_FOR_MLX.get() else 0.0
+    shifted = torch.where(w >= d, shifted, zero).permute(0, 1, 3, 2, 4)
     return torch.cat([ref.unsqueeze(2).expand(B, C, max_disp, H, W), shifted], dim=1).contiguous()
+
+
+def _gwc_volume_mlx(ref, target, max_disp, groups):
+    """`build_gwc_volume` (stride 1, normalized) for the MLX replay: the `fastforks::gwc_volume` Metal kernel in the
+    features' dtype. Normalized in fp32; the kernel's channel mean times channels-per-group is upstream's sum (the
+    factor is folded into the left features)."""
+    B, C, H, W = ref.shape
+    cpg = C // groups
+    f1 = F.normalize(ref.float().reshape(B, groups, cpg, H, W), dim=2).reshape(B, C, H, W) * cpg
+    f2 = F.normalize(target.float().reshape(B, groups, cpg, H, W), dim=2).reshape(B, C, H, W)
+    return gwc_volume(to_run_dtype(f1, ref.dtype), to_run_dtype(f2, ref.dtype), max_disp, groups)
 
 
 def build_gwc_volume(refimg_feature, targetimg_feature, maxdisp, num_groups, stride=1,
@@ -805,6 +820,8 @@ def build_gwc_volume(refimg_feature, targetimg_feature, maxdisp, num_groups, str
     # Calculate the number of disparity levels in the volume based on maxdisp and stride.
     num_disparity_levels = maxdisp // stride
 
+    if EXPORTING_FOR_MLX.get() and stride == 1 and normalize:
+        return _gwc_volume_mlx(refimg_feature, targetimg_feature, num_disparity_levels, num_groups)
     traced = torch.jit.is_tracing() or in_onnx_export()
     if not traced and stride == 1 and num_disparity_levels <= W:
         return _gwc_volume_gemm(refimg_feature, targetimg_feature, num_disparity_levels, num_groups, normalize)
