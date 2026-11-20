@@ -239,15 +239,21 @@ class DINOv3ViT(nn.Module):
             self._rope[key] = cs
         return cs
 
-    def run(self, x: torch.Tensor, layers: tuple[int, ...] = ()) -> tuple[torch.Tensor, list[torch.Tensor]]:
-        """(`last_hidden_state`, the HF `hidden_states` at `layers` (float32, un-normed, stream scale undone))."""
+    def run(self, x: torch.Tensor, layers: tuple[int, ...] = ()) -> tuple[torch.Tensor, torch.Tensor | None]:
+        """Return the final state and the requested unnormalised states stacked in FP32."""
         t = self.tokens(x)
         rope = self.rope(x.shape[-2] // PATCH, x.shape[-1] // PATCH, t.dtype, x.device)
-        hs = [t.float() * self.stream_scale] if 0 in layers else []  # fp32: ViT-L / H+ unscaled exceed fp16
+        hs = t.new_empty((t.shape[0], len(layers), *t.shape[1:]), dtype=torch.float32) if layers else None
+        index = 0
+        if hs is not None and 0 in layers:
+            hs[:, index].copy_(t).mul_(self.stream_scale)
+            index += 1
         for i, blk in enumerate(self.layer, 1):
             t = blk(t, self.block, rope)
-            if i in layers:
-                hs.append(t.float() * self.stream_scale)
+            if hs is not None and i in layers:
+                # Restore the original scale after the copy to FP32. Unscaled ViT-L and H+ can exceed FP16.
+                hs[:, index].copy_(t).mul_(self.stream_scale)
+                index += 1
         return self.norm(t), hs
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
