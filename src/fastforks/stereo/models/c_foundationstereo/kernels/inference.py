@@ -28,6 +28,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.attention import SDPBackend, sdpa_kernel
 
+from fastforks._core.errors import KernelUnavailableError
 from fastforks._core.kernels import linear
 from fastforks._core.patch import override
 from fastforks.kernels import cfs as cfs_kernels
@@ -481,7 +482,16 @@ class _DisparityTransformer:
     """TAO's `CostVolumeDisparityAttention` of C-FS-S ('standard' layout, 28 channels, 4 heads, FFN 28)."""
 
     def __init__(self, att: Patched, device: torch.device) -> None:
-        """Pack the layer parameters (call while fp32)."""
+        """Pack the layer parameters (call while fp32).
+
+        Raises:
+            KernelUnavailableError: This PyTorch build has no flash SDPA (PyTorch's Windows wheels), whose numerics the
+                kernels forward is validated with.
+        """
+        if not torch.backends.cuda.is_flash_attention_available():
+            raise KernelUnavailableError(
+                "cfs", "the disparity transformer needs PyTorch's flash SDPA, which this build lacks"
+            )
         self.k = cfs_kernels.load(device)
         self.fs = fs_kernels.load(device)
         self.layers = []
