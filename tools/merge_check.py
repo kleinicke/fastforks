@@ -209,51 +209,88 @@ def _model_directory(name: str) -> str:
             return ""
 
 
-def _golden_sources_by_ref(js: list[dict[str, Any]], commit: str) -> dict[str, tuple[str, ...]]:
-    """Keep passing results reusable when changes are confined to other model families."""
-    from select_tests import DEPENDENCIES, Graph, configuration_without_local_version, families, family_closures  # noqa: PLC0415
+def _golden_file_digests(
+    roots: set[str],
+) -> tuple[bytes, dict[str, bytes], dict[str, dict[str, object]]]:
+    """Fingerprint common source, each model directory and the separate fixture records."""
+    from select_tests import (  # noqa: PLC0415 - only for golden-only orchestration
+        DEPENDENCIES,
+        configuration_without_local_version,
+        split_golden_manifest,
+    )
 
-    family_info = families(ROOT)
-    roots = {f["dir"] for f in family_info.values()}
-    graph = Graph(ROOT)
-    reachable = family_closures(graph, family_info)
     git = ["git", "-C", str(ROOT), "ls-files", "-z"]
     paths = [".", *(f":(exclude){path}" for path in GENERATED_DOCS)]
     tracked = subprocess.check_output([*git, "--cached", "--", *paths])
     untracked = subprocess.check_output([*git, "--others", "--exclude-standard", "--", "src", "tests", "tools"])
-    common = hashlib.sha256(b"goldens-family-v1\0")
+    common = hashlib.sha256(b"goldens-family-v2\0")
     per_directory = {directory: hashlib.sha256() for directory in roots}
+    fixture_records: dict[str, dict[str, object]] = {}
     for name in sorted(set(filter(None, tracked.split(b"\0") + untracked.split(b"\0")))):
         relative = os.fsdecode(name)
         path = ROOT / relative
-        scope = per_directory.get(_model_directory(relative), common)
+        directory = _model_directory(relative)
+        scope = per_directory.get(directory, common)
+        manifest = directory in roots and relative == f"{directory}/golden.toml"
         scope.update(name + b"\0")
         if path.is_symlink():
             scope.update(b"link\0" + os.fsencode(path.readlink()) + b"\0")
         if path.is_file():
             with path.open("rb") as stream:
-                if relative in DEPENDENCIES:
-                    config = configuration_without_local_version(
-                        relative, stream.read().decode("utf-8", "surrogateescape")
-                    )
-                    if config is not None:
-                        scope.update(b"configuration\0" + hashlib.sha256(repr(config).encode("utf-8")).digest())
-                        continue
+                if relative in DEPENDENCIES or manifest:
+                    raw = stream.read().decode("utf-8", "surrogateescape")
+                    if manifest:
+                        sections = split_golden_manifest(raw)
+                        if sections is not None:
+                            settings, fixture_records[directory] = sections
+                            keys = sorted(fixture_records[directory])
+                            scope.update(
+                                b"golden-settings\0" + hashlib.sha256(repr((settings, keys)).encode()).digest()
+                            )
+                            continue
+                    else:
+                        config = configuration_without_local_version(relative, raw)
+                        if config is not None:
+                            scope.update(b"configuration\0" + hashlib.sha256(repr(config).encode()).digest())
+                            continue
                     stream.seek(0)
                 scope.update(b"file\0" + hashlib.file_digest(stream, "sha256").digest())
         else:
             scope.update(b"missing\0")
 
+    return common.digest(), {directory: scope.digest() for directory, scope in per_directory.items()}, fixture_records
+
+
+def _golden_sources_by_ref(js: list[dict[str, Any]], commit: str) -> dict[str, tuple[str, ...]]:
+    """Keep passing results reusable across unrelated model and fixture edits."""
+    from select_tests import Graph, families, family_closures  # noqa: PLC0415 - only for golden-only orchestration
+
+    family_info = families(ROOT)
+    roots = {f["dir"] for f in family_info.values()}
+    reachable = family_closures(Graph(ROOT), family_info)
+    common, per_directory, fixture_records = _golden_file_digests(roots)
     legacy = _golden_sources(commit)
-    sources: dict[str, tuple[str, ...]] = {}
+    families_digests = {}
     for family in {j["family"] for j in js} & reachable.keys():
         dependencies = {_model_directory(path) for path in reachable[family]} & roots
         dependencies.add(family_info[family]["dir"])
-        digest = common.copy()
+        digest = hashlib.sha256(common)
         for directory in sorted(dependencies):
-            digest.update(os.fsencode(directory) + b"\0" + per_directory[directory].digest())
-        sources[family] = ("family:" + digest.hexdigest(), *legacy)
-    return {j["ref"]: sources.get(j["family"], legacy) for j in js}
+            digest.update(os.fsencode(directory) + b"\0" + per_directory[directory])
+        families_digests[family] = digest
+
+    sources: dict[str, tuple[str, ...]] = {}
+    for job in js:
+        family, ref = job["family"], job["ref"]
+        if family not in families_digests:
+            sources[ref] = legacy
+            continue
+        digest = families_digests[family].copy()
+        records = fixture_records.get(family_info[family]["dir"], {})
+        if ref in records:
+            digest.update(b"fixture\0" + hashlib.sha256(repr(records[ref]).encode()).digest())
+        sources[ref] = ("family:" + digest.hexdigest(), *legacy)
+    return sources
 
 
 def _done(

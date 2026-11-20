@@ -365,17 +365,26 @@ def _git_snapshots(base: str, head: str, path: str, root: Path) -> list[str] | N
     return [s.stdout for s in snapshots] if all(s.returncode == 0 for s in snapshots) else None
 
 
-def _changed_fixture_refs(old: str, new: str) -> tuple[str, ...] | None:
-    """Isolate changes to existing reference records while the rest of the manifest matches."""
+def split_golden_manifest(text: str) -> tuple[dict[str, object], dict[str, object]] | None:
+    """Split a golden manifest into its shared settings and its per-revision fixture records."""
     try:
-        before, after = tomllib.loads(old), tomllib.loads(new)
+        common = tomllib.loads(text)
     except tomllib.TOMLDecodeError:
         return None
-    previous = before.pop("refs", None)
-    current = after.pop("refs", None)
-    if before != after or not isinstance(previous, dict) or not isinstance(current, dict):
+    refs = common.pop("refs", None)
+    if not isinstance(refs, dict) or any(not isinstance(record, dict) for record in refs.values()):
         return None
-    if previous.keys() != current.keys():
+    return common, refs
+
+
+def _changed_fixture_refs(old: str, new: str) -> tuple[str, ...] | None:
+    """Isolate changes to existing reference records while the rest of the manifest matches."""
+    before, after = split_golden_manifest(old), split_golden_manifest(new)
+    if before is None or after is None:
+        return None
+    shared_before, previous = before
+    shared_after, current = after
+    if shared_before != shared_after or previous.keys() != current.keys():
         return None
     return tuple(sorted(ref for ref, data in current.items() if data != previous[ref]))
 

@@ -380,6 +380,31 @@ def test_golden_resume_reuses_a_pass_after_an_unrelated_model_change(
     assert all(sources()[ref] != untracked[ref] for ref in untracked)
 
 
+def test_golden_receipt_tracks_only_its_fixture_record(
+    mini: Path, tmp_path: Path, git_repo: Callable[..., None], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    shutil.copytree(mini, tmp_path, dirs_exist_ok=True)
+    manifest = tmp_path / "src/fastforks/stereo/models/fa/golden.toml"
+    fixture = '[tolerance]\ngpu_mean = 0.01\n[refs."fa-x@1"]\nsha256 = "old"\n[refs."fa-y@2"]\nsha256 = "same"\n'
+    manifest.write_text(fixture)
+    git_repo("add", ".")
+    git_repo("commit", "-m", "Initial golden fixtures")
+    monkeypatch.setattr(merge_check, "ROOT", tmp_path)
+    jobs = [{"family": "fa", "ref": ref} for ref in ("fa-x@1", "fa-y@2")]
+
+    def receipts() -> dict[str, str]:
+        return {ref: candidates[0] for ref, candidates in merge_check._golden_sources_by_ref(jobs, "HEAD").items()}
+
+    baseline = receipts()
+    manifest.write_text(fixture.replace('"old"', '"replacement"'))
+    changed = receipts()
+    assert changed["fa-x@1"] != baseline["fa-x@1"]
+    assert changed["fa-y@2"] == baseline["fa-y@2"]
+
+    manifest.write_text(manifest.read_text().replace("0.01", "0.02"))
+    assert all(receipt != changed[ref] for ref, receipt in receipts().items())
+
+
 def test_golden_only_includes_each_selected_revision_without_a_floor(monkeypatch: pytest.MonkeyPatch) -> None:
     def require_no_floor() -> None:
         pytest.fail("golden-only job selection must not load the speed floor")
