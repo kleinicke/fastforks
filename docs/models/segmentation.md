@@ -23,7 +23,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`fcn-r101-d8-ade20k`](#mmseg) | yes | 16.5, 2.8x | 374, 0.18x |
 | [`hrnet-w48-fcn-ade20k`](#mmseg) | yes | 11.2, 4.3x | 344, 0.18x |
 | [`mask2former-swinl-ade20k`](#mask2former) | no | 60.2, 2.4x | 1238, 0.34x |
-| [`oneformer-swinl-ade20k`](#oneformer) | yes | 107, 1.9x | 1994, 0.26x |
+| [`oneformer-swinl-ade20k`](#oneformer) | yes | 106, 1.9x | 1914, 0.25x |
 | [`pspnet-r101-d8-ade20k`](#mmseg) | yes | 24.9, 1.9x | 394, 0.19x |
 | [`sapiens-seg-0.3b-goliath`](#sapiens) | no | 92.6, 1.9x | 1762, 0.65x |
 | [`sapiens-seg-1b-goliath`](#sapiens) | no | 180, 2.0x | 3022, 0.51x |
@@ -345,7 +345,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `oneformer-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 307<br>205<br>146<br>107<br>182<br>83.3 | 6853 / 7808<br>7395 / 7792<br>1833 / 2074<br>1833 / 1994<br>2372 / 2426<br>4524 / 4576 |
+| `oneformer-swinl-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 307<br>205<br>145<br>106<br>182<br>83.3 | 6853 / 7808<br>7395 / 7792<br>1768 / 1994<br>1768 / 1914<br>2372 / 2426<br>4524 / 4576 |
 
 <details><summary>Details</summary>
 
@@ -361,7 +361,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `oneformer-swinl-ade20k` 1988x2880 (8.4 GiB peak allocated, 14.9 reserved)
 - `oneformer-swinl-ade20k` 1024x2048, first call: portable + torch.compile 86 s (cold Inductor cache), TensorRT fp16 140 s (ONNX + engine).
 - `oneformer-swinl-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
-- `oneformer-swinl-ade20k` portable 1024x2048, kernels 1024x2048: Resizes query masks into contiguous row groups. Paired 1024 x 2048 profiles save about 180 MiB allocated at about 6 ms additional latency. Image labels and full logits match exactly.
+- `oneformer-swinl-ade20k` portable 1024x2048, kernels 1024x2048: Standard timings use labels only. The paired run shows 64 MiB lower label peak allocation after releasing projected masks. With optional full resolution logits, paired peak allocation falls from 3645 to 2445 MiB in both modes. Synthetic and three labeled ADE20K outputs match bitwise.
 - `oneformer-swinl-ade20k` load / first call: original 5.08 s / 0.805 s (512x512), portable 6.95 s / 0.502 s, kernels 4.46 s / 0.494 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
 
