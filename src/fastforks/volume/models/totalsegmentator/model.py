@@ -53,8 +53,11 @@ def zoom_linear(x: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
 
 def zoom_nearest(x: torch.Tensor, shape: Sequence[int]) -> torch.Tensor:
     """`scipy.ndimage.zoom(x, order=0)` to `shape`: index `floor(o * (n - 1) / (m - 1) + 0.5)` per axis."""
-    for axis, m in enumerate(shape):
-        n = x.shape[axis]
+    source = x.shape
+    # Independent axis selections commute. Shrink first and apply the largest expansion last.
+    axes = sorted(enumerate(shape), key=lambda item: item[1] / source[item[0]])
+    for axis, m in axes:
+        n = source[axis]
         if n == m:
             continue
         scale = (n - 1) / (m - 1) if m > 1 else 0.0
