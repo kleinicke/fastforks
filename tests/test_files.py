@@ -9,6 +9,7 @@ import logging
 import os
 import sys
 import tarfile
+import tempfile
 import threading
 import urllib.error
 import warnings
@@ -37,12 +38,31 @@ def stamps():
     return sorted((files.cache_root() / "stamps").rglob("*.json"))
 
 
+def _can_symlink() -> bool:
+    """Whether this process may create symlinks (Windows: only with Developer Mode or as administrator)."""
+    with tempfile.TemporaryDirectory() as d:
+        try:
+            (Path(d) / "link").symlink_to("target")
+        except OSError:
+            return False
+    return True
+
+
+SYMLINKS = _can_symlink()
+needs_symlinks = pytest.mark.skipif(not SYMLINKS, reason="no symlink permission (Windows without Developer Mode)")
+
+
+def view_links(*links: Path) -> list[Path]:
+    """The browsable view links `locate` makes, or none where symlinks cannot be created (`link_view` skips them)."""
+    return list(links) if SYMLINKS else []
+
+
 def test_search_path_both_layouts(tmp_path, monkeypatch):
     flat, grouped = tmp_path / "a", tmp_path / "b"
     (grouped / "fam").mkdir(parents=True)
     flat.mkdir()
     (grouped / "fam" / "w.bin").write_bytes(b"x")
-    monkeypatch.setenv(ENV, f"{flat}:{grouped}")
+    monkeypatch.setenv(ENV, f"{flat}{os.pathsep}{grouped}")
     assert locate(spec_for(b"x"), group="fam", env_var=ENV) == grouped / "fam" / "w.bin"
 
 
@@ -137,9 +157,9 @@ def test_zip_member_download(tmp_path):
     assert p.read_bytes() == b"bbbb"
     assert cache_files() == [
         p,
-        files.cache_root() / "fam" / "b.pth",
+        *view_links(files.cache_root() / "fam" / "b.pth"),
         *stamps(),
-    ]  # + view link
+    ]
 
 
 def test_tar_gz_member_download(tmp_path):
@@ -152,7 +172,7 @@ def test_tar_gz_member_download(tmp_path):
     spec = FileSpec("b.pb", hashlib.sha256(b"bbbb").hexdigest(), 4, path.as_uri(), member="dir/b.pb")
     p = locate(spec, group="fam", env_var=ENV)
     assert p.read_bytes() == b"bbbb"
-    assert cache_files() == [p, files.cache_root() / "fam" / "b.pb", *stamps()]
+    assert cache_files() == [p, *view_links(files.cache_root() / "fam" / "b.pb"), *stamps()]
     gone = FileSpec("c.pb", "0" * 64, None, path.as_uri(), member="c.pb")
     with pytest.raises(WeightsDownloadError, match=r"no member 'c\.pb'"):
         locate(gone, group="fam", env_var=ENV)
@@ -183,7 +203,7 @@ def test_search_path_skips_mismatch(tmp_path, monkeypatch):
     b.mkdir()
     (a / "w.bin").write_bytes(b"other model's file of the same name")
     (b / "w.bin").write_bytes(b"x")
-    monkeypatch.setenv(ENV, f"{a}:{b}")
+    monkeypatch.setenv(ENV, f"{a}{os.pathsep}{b}")
     assert locate(spec_for(b"x"), group="fam", env_var=ENV) == b / "w.bin"
     (a / "fam" / "w.bin").write_bytes(b"x")  # the family directory wins over a flat directory
     assert locate(spec_for(b"x"), group="fam", env_var=ENV) == a / "fam" / "w.bin"
@@ -221,7 +241,8 @@ def test_stamp_detects_changes(tmp_path, monkeypatch):
     locate(spec_for(b"z"), group="fam", env_var=ENV)
     st = f.stat()
     f.write_bytes(b"q")  # same size, new mtime: hashed again
-    os.utime(f, ns=(st.st_atime_ns, st.st_mtime_ns + 1))  # coarse fs clocks may not tick between the writes
+    # coarse fs clocks may not tick between the writes; NTFS keeps 100 ns, so a 1 ns step would round away
+    os.utime(f, ns=(st.st_atime_ns, st.st_mtime_ns + 1_000_000))
     with pytest.raises(WeightsHashError, match="SHA-256"):
         locate(spec_for(b"z"), group="fam", env_var=ENV)
 
@@ -697,6 +718,7 @@ def _view_cache(tmp_path, monkeypatch):
     return spec, blob, tmp_path / "cache"
 
 
+@needs_symlinks
 def test_view_link_on_locate_idempotent_and_shared(tmp_path, monkeypatch):
     spec, blob, root = _view_cache(tmp_path, monkeypatch)
     assert locate(spec, group="fam", env_var="FF_NONE") == blob
@@ -709,6 +731,7 @@ def test_view_link_on_locate_idempotent_and_shared(tmp_path, monkeypatch):
     assert (root / "other" / "sub" / "model.bin").resolve() == blob.resolve() == link.resolve()
 
 
+@needs_symlinks
 def test_view_never_overwrites_real_file_and_lookup_ignores_view(tmp_path, monkeypatch):
     spec, blob, root = _view_cache(tmp_path, monkeypatch)
     real = root / "fam" / "sub" / "model.bin"
@@ -723,6 +746,7 @@ def test_view_never_overwrites_real_file_and_lookup_ignores_view(tmp_path, monke
     assert locate(spec, group="fam", env_var="FF_NONE") == blob
 
 
+@needs_symlinks
 def test_view_replaces_stale_link_and_skips_unwritable(tmp_path, monkeypatch):
     spec, blob, root = _view_cache(tmp_path, monkeypatch)
     link = root / "fam" / "sub" / "model.bin"

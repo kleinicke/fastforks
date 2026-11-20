@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import os
 import types
 
 import numpy as np
@@ -15,6 +16,7 @@ from fastforks import InputError
 from fastforks._core.image import to_rgb_batch
 from fastforks.stereo import geometry as g
 from fastforks.stereo.pipeline import run_many
+from test_files import SYMLINKS
 
 
 def _images(d, *names):
@@ -36,7 +38,13 @@ def test_output_may_not_overwrite_an_input(tmp_path):  # T16-B1
     _images(tmp_path / "L", "a.png")
     _images(tmp_path / "R", "a.png")
     link = tmp_path / "link"
-    link.symlink_to(tmp_path / "L")
+    if SYMLINKS:
+        link.symlink_to(tmp_path / "L")
+    else:  # Windows without the symlink privilege: a junction is another name for the directory too
+        assert os.name == "nt"
+        import _winapi  # noqa: PLC0415 - Windows only
+
+        _winapi.CreateJunction(str(tmp_path / "L"), str(link))
     for out in (tmp_path / "L", link):
         with pytest.raises(InputError, match="overwrite the input"):
             run_many(None, str(tmp_path / "L"), str(tmp_path / "R"), save_to=out, save_format=".png")  # type: ignore[arg-type]
