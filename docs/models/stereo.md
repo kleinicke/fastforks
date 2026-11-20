@@ -45,11 +45,11 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`gwcnet-gc-sceneflow`](#gwcnet) | yes | 10.96 | 259, 1.4x | 1782, 0.29x |
 | [`hitnet-eth3d`](#hitnet) | yes | 0.93 † | 23.2, 7.9x | 770 |
 | [`hitnet-middlebury-d400`](#hitnet) | yes | 7.07 | 53.1, 9.1x | 1514 |
-| [`igev-plusplus-eth3d`](#igev_plusplus) | yes | 0.50 † | 427, 3.0x | 1514, 0.49x |
-| [`igev-plusplus-kitti12`](#igev_plusplus) | yes | 26.78 | 394, 3.2x | 1514, 0.49x |
-| [`igev-plusplus-kitti15`](#igev_plusplus) | yes | 25.50 | 394, 3.2x | 1494, 0.48x |
-| [`igev-plusplus-middlebury`](#igev_plusplus) | yes | 18.46 ? | 393, 3.2x | 1494, 0.48x |
-| [`igev-plusplus-sceneflow`](#igev_plusplus) | yes | 4.66 | 395, 3.2x | 1514, 0.49x |
+| [`igev-plusplus-eth3d`](#igev_plusplus) | yes | 0.50 † | 394, 3.2x | 1154, 0.37x |
+| [`igev-plusplus-kitti12`](#igev_plusplus) | yes | 26.78 | 395, 3.2x | 1154, 0.37x |
+| [`igev-plusplus-kitti15`](#igev_plusplus) | yes | 25.50 | 395, 3.2x | 1154, 0.37x |
+| [`igev-plusplus-middlebury`](#igev_plusplus) | yes | 18.46 ? | 395, 3.2x | 1154, 0.37x |
+| [`igev-plusplus-sceneflow`](#igev_plusplus) | yes | 4.66 | 395, 3.2x | 1154, 0.37x |
 | [`igev-stereo-eth3d`](#igev_stereo) | yes | 0.56 † | 288, 3.3x | 1374, 0.71x |
 | [`igev-stereo-kitti12`](#igev_stereo) | yes | 26.02 | 288, 3.3x | 1374, 0.71x |
 | [`igev-stereo-kitti15`](#igev_stereo) | yes | 24.63 | 288, 3.3x | 1374, 0.71x |
@@ -1066,11 +1066,11 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `igev-plusplus-sceneflow` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1079<br>395<br>718<br>495 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>1272 / 1514<br>917 / 1054<br>3821 / 3900 |
-| `igev-plusplus-kitti12` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1080<br>394<br>718<br>494 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>1272 / 1514<br>917 / 1054<br>3821 / 3900 |
-| `igev-plusplus-kitti15` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1080<br>394<br>718<br>494 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>1272 / 1494<br>917 / 1052<br>3821 / 3900 |
-| `igev-plusplus-middlebury` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1080<br>393<br>718<br>494 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>1272 / 1494<br>917 / 1054<br>3821 / 3900 |
-| `igev-plusplus-eth3d` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1079<br>427<br>716<br>494 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>1272 / 1514<br>952 / 1074<br>3765 / 3786 |
+| `igev-plusplus-sceneflow` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1079<br>395<br>718<br>495 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>970 / 1154<br>917 / 1054<br>3821 / 3900 |
+| `igev-plusplus-kitti12` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1080<br>395<br>718<br>494 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>970 / 1154<br>917 / 1054<br>3821 / 3900 |
+| `igev-plusplus-kitti15` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1080<br>395<br>718<br>494 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>970 / 1154<br>917 / 1052<br>3821 / 3900 |
+| `igev-plusplus-middlebury` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1080<br>395<br>718<br>494 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>970 / 1154<br>917 / 1054<br>3821 / 3900 |
+| `igev-plusplus-eth3d` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2012<br>1278<br>1079<br>394<br>716<br>494 | 4152 / 4242<br>2891 / 3108<br>1583 / 1696<br>970 / 1154<br>952 / 1074<br>3765 / 3786 |
 
 <details><summary>Details</summary>
 
@@ -1094,10 +1094,15 @@ Commercial use: yes.
 - `igev-plusplus-kitti15` 994x1482, first call: portable + torch.compile 159 s (cold Inductor cache), TensorRT fp16 425 s (ONNX + engine).
 - `igev-plusplus-middlebury` 994x1482, first call: portable + torch.compile 157 s (cold Inductor cache), TensorRT fp16 436 s (ONNX + engine).
 - `igev-plusplus-eth3d` 994x1482, first call: portable + torch.compile 159 s (cold Inductor cache), TensorRT fp16 425 s (ONNX + engine).
-- `igev-plusplus-sceneflow` original (fp32) 994x1482, original 994x1482, portable 994x1482, kernels 994x1482: measured on igev-plusplus-eth3d (same architecture, other checkpoint)
-- `igev-plusplus-kitti12` original (fp32) 994x1482, original 994x1482, portable 994x1482, kernels 994x1482: measured on igev-plusplus-eth3d (same architecture, other checkpoint)
-- `igev-plusplus-kitti15` original (fp32) 994x1482, original 994x1482, portable 994x1482, kernels 994x1482: measured on igev-plusplus-eth3d (same architecture, other checkpoint)
-- `igev-plusplus-middlebury` original (fp32) 994x1482, original 994x1482, portable 994x1482, kernels 994x1482: measured on igev-plusplus-eth3d (same architecture, other checkpoint)
+- `igev-plusplus-sceneflow` original (fp32) 994x1482, original 994x1482, portable 994x1482: measured on igev-plusplus-eth3d (same architecture, other checkpoint)
+- `igev-plusplus-sceneflow` kernels 994x1482: The context encoder uses rows with a halo to bound its workspace. The Middlebury checkpoint matched bit for bit on the synthetic input and three labeled scenes.
+- `igev-plusplus-kitti12` original (fp32) 994x1482, original 994x1482, portable 994x1482: measured on igev-plusplus-eth3d (same architecture, other checkpoint)
+- `igev-plusplus-kitti12` kernels 994x1482: The context encoder uses rows with a halo to bound its workspace. The Middlebury checkpoint matched bit for bit on the synthetic input and three labeled scenes.
+- `igev-plusplus-kitti15` original (fp32) 994x1482, original 994x1482, portable 994x1482: measured on igev-plusplus-eth3d (same architecture, other checkpoint)
+- `igev-plusplus-kitti15` kernels 994x1482: The context encoder uses rows with a halo to bound its workspace. The Middlebury checkpoint matched bit for bit on the synthetic input and three labeled scenes.
+- `igev-plusplus-middlebury` original (fp32) 994x1482, original 994x1482, portable 994x1482: measured on igev-plusplus-eth3d (same architecture, other checkpoint)
+- `igev-plusplus-middlebury` kernels 994x1482: The context encoder uses rows with a halo to bound its workspace. The Middlebury checkpoint matched bit for bit on the synthetic input and three labeled scenes.
+- `igev-plusplus-eth3d` kernels 994x1482: The context encoder uses rows with a halo to bound its workspace. The Middlebury checkpoint matched bit for bit on the synthetic input and three labeled scenes.
 - `igev-plusplus-sceneflow` load / first call: original 0.42 s / 2.335 s (375x1242), portable 0.9 s / 0.822 s (375x1242), kernels 0.56 s / 0.535 s (375x1242)
 - `igev-plusplus-kitti12` load / first call: original 0.42 s / 2.335 s (375x1242), portable 0.99 s / 0.819 s (375x1242), kernels 0.59 s / 0.532 s (375x1242)
 - `igev-plusplus-kitti15` load / first call: original 0.42 s / 2.335 s (375x1242), portable 0.67 s / 0.822 s (375x1242), kernels 0.6 s / 0.534 s (375x1242)

@@ -74,14 +74,14 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`cas-gwcnet-gc-sceneflow`](models/stereo.md#cas-gwcnet) | yes | 8.09 | 566.7 (994x1482) | 472.6 | 359.2 | 1.6x vs original (994x1482) | 2035 |
 | [`s2m2-l`](models/stereo.md#s2m2) | no | 0.82 ? | 1004.7 (994x1482) | 1016.8 | 375.8 | 2.7x vs original (994x1482) | 1249 |
 | [`waft-stereo-b`](models/stereo.md#waft-stereo) | no | 0.74 ? | 1139.5 (994x1482) | 1093.7 | 387.9 | 2.9x vs original (994x1482) | 1664 |
-| [`igev-plusplus-middlebury`](models/stereo.md#igev) | yes | 18.46 ? | 1277.9 (994x1482) | 1080.0 | 393.4 | 3.2x vs original (994x1482) | 1272 |
-| [`igev-plusplus-kitti15`](models/stereo.md#igev) | yes | 25.50 | 1277.9 (994x1482) | 1080.4 | 393.9 | 3.2x vs original (994x1482) | 1272 |
-| [`igev-plusplus-kitti12`](models/stereo.md#igev) | yes | 26.78 | 1277.9 (994x1482) | 1080.1 | 394.3 | 3.2x vs original (994x1482) | 1272 |
-| [`igev-plusplus-sceneflow`](models/stereo.md#igev) | yes | 4.66 | 1277.9 (994x1482) | 1079.4 | 394.8 | 3.2x vs original (994x1482) | 1272 |
+| [`igev-plusplus-eth3d`](models/stereo.md#igev) | yes | 0.50 † | 1277.9 (994x1482) | 1079.4 | 393.5 | 3.2x vs original (994x1482) | 970 |
+| [`igev-plusplus-middlebury`](models/stereo.md#igev) | yes | 18.46 ? | 1277.9 (994x1482) | 1080.0 | 394.6 | 3.2x vs original (994x1482) | 970 |
+| [`igev-plusplus-sceneflow`](models/stereo.md#igev) | yes | 4.66 | 1277.9 (994x1482) | 1079.4 | 395.2 | 3.2x vs original (994x1482) | 970 |
+| [`igev-plusplus-kitti15`](models/stereo.md#igev) | yes | 25.50 | 1277.9 (994x1482) | 1080.4 | 395.2 | 3.2x vs original (994x1482) | 970 |
+| [`igev-plusplus-kitti12`](models/stereo.md#igev) | yes | 26.78 | 1277.9 (994x1482) | 1080.1 | 395.3 | 3.2x vs original (994x1482) | 970 |
 | [`great-igev-kitti`](models/stereo.md#great-igev) | yes | 23.36 | 1458.3 (994x1482) | 1084.7 | 396.2 | 3.7x vs original (994x1482) | 1134 |
 | [`great-igev-sceneflow`](models/stereo.md#great-igev) | yes | 4.44 | 1458.3 (994x1482) | 1084.7 | 396.5 | 3.7x vs original (994x1482) | 1134 |
 | [`great-igev-eth3d`](models/stereo.md#great-igev) | yes | 0.49 † | 1458.3 (994x1482) | 1084.7 | 396.7 | 3.7x vs original (994x1482) | 1134 |
-| [`igev-plusplus-eth3d`](models/stereo.md#igev) | yes | 0.50 † | 1277.9 (994x1482) | 1079.4 | 427.0 | 3.0x vs original (994x1482) | 1272 |
 | [`mocha-v2-sceneflow`](models/stereo.md#mocha-stereo) | yes | 3.82 | 1295.1 (994x1482) | 1033.5 | 448.1 | 2.9x vs original (994x1482) | 1587 |
 | [`mocha-v1-sceneflow`](models/stereo.md#mocha-stereo) | yes | 4.35 | 1456.2 (994x1482) | 1057.2 | 455.5 | 3.2x vs original (994x1482) | 1588 |
 | [`great-igev-middlebury`](models/stereo.md#great-igev) | yes | 27.53 ? | OOM (994x1482) | 1789.1 | 580.0 | 3.1x vs portable | 1472 |
