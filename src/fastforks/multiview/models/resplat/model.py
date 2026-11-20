@@ -565,8 +565,21 @@ class Kernels(_Base):
             return super().forward(images, intrinsics, cam_to_world, depth_range)
 
 
+_MlxEncode = mlx_wrap.port(Portable, attrs=(), methods=("net.encode",))
+
+
+class MlxPortable(_MlxEncode):  # ty: ignore[unsupported-base]
+    """Apple MLX: the encoder as the exported graph, the refinement by hand (`net/mlx_refine.py`, Metal kernels)."""
+
+    def __init__(self, ctx: Context) -> None:  # noqa: D107
+        super().__init__(ctx)
+        from .net import mlx_refine  # noqa: PLC0415 - MLX only
+
+        object.__setattr__(self.net, "refine", mlx_refine.Refine(self.net, ctx.dtype))
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("net.encode",)),
+    "portable_mlx": MlxPortable,
 }
