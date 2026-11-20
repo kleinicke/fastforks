@@ -122,10 +122,13 @@ class Net(nn.Module):
             mv_features=res["features_mv"][0],
         )  # fmt: skip
         match_prob = res["match_probs"][-1].max(dim=1, keepdim=True)[0]
+        del res
         match_prob = F.interpolate(match_prob, size=depth.shape[-2:], mode="nearest")
         img = images[0].to(features.dtype)
         out = self.gaussian_regressor(torch.cat((img, depth[:, None].to(features.dtype), match_prob, features), 1))
-        raw = self.gaussian_head(torch.cat((out, img, features, match_prob), 1))
+        head_inputs = torch.cat((out, img, features, match_prob), 1)
+        del out, img, features
+        raw = self.gaussian_head(head_inputs)
         return depth, match_prob, raw
 
 
