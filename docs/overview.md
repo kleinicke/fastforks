@@ -729,8 +729,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`alltracker-tiny`](models/tracking.md#alltracker) | yes | 424.2 (480x854) | 329.9 | 217.2 | 2.0x vs original (480x854) | 978 |
 | [`tapnext`](models/tracking.md#tapnext) | yes | 908.8 (480x854) | 528.4 | 380.7 | 2.4x vs original (480x854) | 1205 |
 | [`tapnext-pp`](models/tracking.md#tapnext) | yes | 1492.8 (480x854) | 529.3 | 381.6 | 3.9x vs original (480x854) | 1013 |
-| [`track-on-r`](models/tracking.md#track-on2) | yes | 2021.8 (480x854) | 1188.0 | 1102.3 | 1.8x vs original (480x854) | 1368 |
-| [`track-on2`](models/tracking.md#track-on2) | yes | 1952.8 (480x854) | 1192.9 | 1108.3 | 1.8x vs original (480x854) | 1368 |
+| [`track-on-r`](models/tracking.md#track-on2) | yes | 2021.8 (480x854) | 1184.3 | 1098.6 | 1.8x vs original (480x854) | 1042 |
+| [`track-on2`](models/tracking.md#track-on2) | yes | 1952.8 (480x854) | 1189.5 | 1108.0 | 1.8x vs original (480x854) | 1042 |
 
 ## Interpolation
 

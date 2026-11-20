@@ -22,8 +22,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`tapir`](#tapir) | yes | 141, 1.3x | 548, 0.95x |
 | [`tapnext`](#tapnext) | yes | 381, 2.4x | 1254, 0.66x |
 | [`tapnext-pp`](#tapnext) | yes | 382, 3.9x | 1074, 0.63x |
-| [`track-on-r`](#track_on) | yes | 1102, 1.8x | 1620, 0.84x |
-| [`track-on2`](#track_on) | yes | 1108, 1.8x | 1620, 1.0x |
+| [`track-on-r`](#track_on) | yes | 1099, 1.8x | 1158, 0.6x |
+| [`track-on2`](#track_on) | yes | 1108, 1.8x | 1158, 0.74x |
 
 <a id="alltracker"></a>
 
@@ -369,9 +369,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `track-on2` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1953<br>1193<br>1108<br>1075<br>public API unavailable | 1403 / 1558<br>1423 / 1712<br>1368 / 1620<br>1340 / 1454<br>– |
+| `track-on2` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1953<br>1190<br>1108<br>1075<br>public API unavailable | 1403 / 1558<br>1097 / 1190<br>1042 / 1158<br>1340 / 1454<br>– |
 | `track-on2` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>961 (standalone eight-frame encoder, eager recurrent decoder) | –<br>–<br>–<br>1979 / 2288 |
-| `track-on-r` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2022<br>1188<br>1102<br>1066<br>public API unavailable | 1801 / 1928<br>1423 / 1632<br>1368 / 1620<br>1340 / 1454<br>– |
+| `track-on-r` | synthetic (480x854) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2022<br>1184<br>1099<br>1066<br>public API unavailable | 1801 / 1928<br>1097 / 1190<br>1042 / 1158<br>1340 / 1454<br>– |
 | `track-on-r` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>958 (standalone eight-frame encoder, eager recurrent decoder) | –<br>–<br>–<br>1979 / 2286 |
 
 <details><summary>Details</summary>

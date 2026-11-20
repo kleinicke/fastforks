@@ -1469,8 +1469,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | tapir | 187 | 182 | 141 | 1.3x | 1.3x | 498 / 574 | 463 / 548 | 463 / 548 |
 | tapnext | 909 | 528 | 381 | 2.4x | 1.4x | 1721 / 1902 | 1220 / 1294 | 1205 / 1254 |
 | tapnext-pp | 1493 | 529 | 382 | 3.9x | 1.4x | 1527 / 1718 | 1028 / 1094 | 1013 / 1074 |
-| track-on-r | 2022 | 1188 | 1102 | 1.8x | 1.1x | 1801 / 1928 | 1423 / 1632 | 1368 / 1620 |
-| track-on2 | 1953 | 1193 | 1108 | 1.8x | 1.1x | 1403 / 1558 | 1423 / 1712 | 1368 / 1620 |
+| track-on-r | 2022 | 1184 | 1099 | 1.8x | 1.1x | 1801 / 1928 | 1097 / 1190 | 1042 / 1158 |
+| track-on2 | 1953 | 1190 | 1108 | 1.8x | 1.1x | 1403 / 1558 | 1097 / 1190 | 1042 / 1158 |
 
 ### Interpolation, synthetic, 1080x1920
 
@@ -2709,9 +2709,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | tapir | 480x854 | 182 ms | 131 ms | 6.47 ms | 141 ms | 169 s | 55.2 s | 463 / 548 | 630 / 752 | 463 / 548 | 361 / 406 |
 | tapnext | 480x854 | 528 ms | 398 ms | 69.4 ms | 381 ms | 40.5 s | 366 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |
 | tapnext-pp | 480x854 | 529 ms | 395 ms | 69.5 ms | 382 ms | 34.1 s | 362 s | 1028 / 1094 | 1164 / 1272 | 1013 / 1074 | 1498 / 1660 |
-| track-on-r | 480x854 | 1188 ms | 1066 ms | public API unavailable | 1102 ms | 66.0 s | – | 1423 / 1632 | 1340 / 1454 | 1368 / 1620 | – |
+| track-on-r | 480x854 | 1184 ms | 1066 ms | public API unavailable | 1099 ms | 66.0 s | – | 1097 / 1190 | 1340 / 1454 | 1042 / 1158 | – |
 | track-on-r | 256x256 | – | – | 958 ms, fp32 engine (standalone eight-frame encoder, eager recurrent decoder) | – | – | 42.1 s | – | – | – | 1979 / 2286 |
-| track-on2 | 480x854 | 1193 ms | 1075 ms | public API unavailable | 1108 ms | 60.0 s | – | 1423 / 1712 | 1340 / 1454 | 1368 / 1620 | – |
+| track-on2 | 480x854 | 1190 ms | 1075 ms | public API unavailable | 1108 ms | 60.0 s | – | 1097 / 1190 | 1340 / 1454 | 1042 / 1158 | – |
 | track-on2 | 256x256 | – | – | 961 ms, fp32 engine (standalone eight-frame encoder, eager recurrent decoder) | – | – | 46.3 s | – | – | – | 1979 / 2288 |
 | ema-vfi | 1080x1920 | 233 ms | 165 ms | 124 ms | 185 ms | 90.6 s | 90.9 s | 1659 / 2082 | 3325 / 3542 | 1659 / 2102 | 1719 / 1786 |
 | ema-vfi-small | 1080x1920 | 89.4 ms | 59.6 ms | 43.7 ms | 84.4 ms | 78.5 s | 67.6 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
