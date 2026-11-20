@@ -24,11 +24,12 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.errors import OptionsError
 from fastforks.kernels import nf4
 from fastforks.restoration._runner import Forward, Runner
 from fastforks.shared.nf4 import code as nf4_code
 
-from .net import BF, LATENT, SPATIAL, Net
+from .net import BF, CONFIGS, LATENT, SPATIAL, Net
 from .net import load as build_net
 
 if TYPE_CHECKING:
@@ -143,6 +144,35 @@ class Kernels(Runner):
         return {"image": infer(self.net, image, self.ctx.params.scale, self.noise)}
 
 
+class MlxPortable(Runner):
+    """Apple MLX (`device="mlx"`): the transformer and VAE in `mx` operations (`net.mlx_net`).
+
+    Weights are read block by block from the bf16 checkpoints into the run dtype (no PyTorch twin); the resize and
+    the noise stay PyTorch.
+    """
+
+    batch = 1
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Read the checkpoints into MLX."""
+        super().__init__(ctx)
+        if ctx.params.quant != "none":
+            msg = f"{ctx.variant.ref}: the MLX port has no quant={ctx.params.quant!r} (bf16 / fp16 weights only)"
+            raise OptionsError(msg)
+        from fastforks.shared.mlx_weights import DTYPES  # noqa: PLC0415 - needs the mlx extra
+
+        from .net import mlx_net  # noqa: PLC0415
+
+        dit, vae = ctx.weights()
+        self.net = mlx_net.Net(dit, vae, CONFIGS[ctx.params.variant], DTYPES[ctx.dtype])
+        self.noise = Noise(ctx.params.seed)
+
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The restored frame, `scale x` the (padded) input size."""
+        return {"image": infer(self.net, image, self.ctx.params.scale, self.noise)}
+
+
 class _Dequant:
     """`fastforks.kernels.nf4.dequant` into one reused bf16 buffer per weight size (no allocator churn).
 
@@ -162,4 +192,4 @@ class _Dequant:
         return out.view(absmax.shape[0], -1)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxPortable}

@@ -48,6 +48,7 @@ quant = { default = "none", choices = ["none", "nf4"] }  # "nf4": the transforme
 
 [modes.portable]
 cuda_dtype = "bfloat16"  # as upstream under autocast: bf16 GEMMs, attention and convolutions, float32 norms and RoPE
+mlx_dtypes = ["bfloat16", "float16"]  # MLX port (net/mlx_net.py): no float32, its 3B weights alone would be 13.6 GB
 
 [modes.kernels]
 dtype = "bfloat16"
