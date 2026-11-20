@@ -4,6 +4,7 @@
 # (`from_pretrained`): the BridgeDepth checkpoint holds these weights. `infer` runs in the caller's precision (upstream
 # wraps it in torch.inference_mode + float16 autocast whenever the weights are float32, also on the CPU).
 import torch.nn as nn
+import torch.nn.functional as F
 
 from fastforks.shared.depth_anything_v2 import DINOv2, DPTHead
 
@@ -27,7 +28,15 @@ class BridgeDPTHead(DPTHead):
         del layer3
         path = scratch.refinenet2(path, layer2, size=layer1.shape[2:])
         del layer2
-        path = scratch.refinenet1(path, layer1)
+        # Release the last skip and its residual before the full-resolution interpolation and projection.
+        block = scratch.refinenet1
+        residual = block.resConfUnit1(layer1)
+        del layer1
+        path = block.skip_add.add(path, residual)
+        del residual
+        path = block.resConfUnit2(path)
+        path = F.interpolate(path, scale_factor=2, mode="bilinear", align_corners=block.align_corners)
+        path = block.out_conv(path)
         return scratch.output_conv1(path)
 
 
