@@ -1,8 +1,10 @@
 # CUDA kernels on Windows
 
-Status: prototype. The `"cubin"` kernel libraries run on Windows x64, and `cutlass_conv` runs as a Windows DLL
-(`manifest.windows.toml`, see [cutlass_conv on Windows](#cutlass_conv-on-windows)). The other `"shared"` libraries
-have the loader, manifest and build recipe but no DLL build yet.
+Status: prototype. The `"cubin"` kernel libraries run on Windows x64. `cutlass_conv`, `dpt_fused`, `fvm_conv`,
+`fvm_extra`, `fvm_mb` and `fvm_r3` run as Windows DLLs (`manifest.windows.toml`). 512 references have a Windows
+`[validated]` record (see [Validation coverage](#validation-coverage-on-windows)). Five small `"shared"` libraries
+(`fs_cutlass`, `ffs_cutlass`, `s2m2_cutlass`, `hitnet_conv`, `seg_conv`) have no DLL build yet. They build the same
+way.
 
 ## Why cubin libraries need no Windows build
 
@@ -87,13 +89,13 @@ interpolation families. The rest are blocked by these `"shared"` libraries:
 
 | library | families | notes |
 | --- | --- | --- |
-| `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3` | 56 / 42 / 42 / 42 (classification, detection, pose, features) | `fvm_r3` `dlopen`s cuBLASLt: port to `GetModuleHandleW` / `GetProcAddress` |
-| `cutlass_conv` | 35 (23 stereo, flow, matching, matting) | CUTLASS 4.7.1 headers |
-| `dpt_fused` | 31 (depth, features, SAM) | CUTLASS |
+| `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3` | 56 / 42 / 42 / 42 (classification, detection, pose, features) | done: Windows DLLs (`fvm_r3` via the `dlfcn.h` shim) |
+| `cutlass_conv` | 35 (23 stereo, flow, matching, matting) | done: Windows DLL |
+| `dpt_fused` | 31 (depth, features, SAM) | done: Windows DLL |
 | `fs_cutlass`, `ffs_cutlass`, `s2m2_cutlass`, `hitnet_conv`, `seg_conv` | 1-2 each | CUTLASS |
 | `cudnn_hacc` (`plan_build`) | none blocked (optional) | |
 
-### Shared libraries as DLLs (implemented, not yet built)
+### Shared libraries as DLLs
 
 One build per library and target, like Linux:
 
@@ -123,11 +125,12 @@ One build per library and target, like Linux:
    the hash-verified bytes to a new file (exclusive create) in a per-process `fastforks-dll-*` directory under the
    user's temp directory and loads that copy with `LoadLibraryExW(..., LOAD_LIBRARY_SEARCH_SYSTEM32)` (the DLLs
    import only `nvcuda.dll` and system DLLs). A loaded DLL is locked by Windows, so the copy cannot be swapped while
-   in use; directories older than a day are swept. Tested with a System32 DLL; not yet with a fastforks DLL.
+   in use. Each load gets its own file. Directories older than a day are swept. Tested with all six DLL libraries
+   in the GPU sweep.
 5. Sources: grep found no `long` in the ctypes C APIs (LLP64 would make it 32-bit on Windows) and no POSIX headers
-   besides `fvm_r3`'s `<dlfcn.h>` (`dlopen` of cuBLASLt: needs a `LoadLibraryExW` / `GetProcAddress` branch, which
-   changes its sources and so its Linux build id: do it together with a Linux rebuild). Inline PTX `asm` is device
-   code and portable. Still to check by compiling.
+   besides `fvm_r3`'s `<dlfcn.h>` (`dlopen` of cuBLASLt). That one is served by an include shim instead of a source
+   change (see [Decisions to review](#decisions-to-review)), so the `.cu` and its Linux build id stay as they are.
+   Inline PTX `asm` is device code and portable. All of cutlass_conv, dpt_fused and fvm_* compile unchanged.
 
 ### cutlass_conv on Windows
 
@@ -170,16 +173,98 @@ the end). Treat these as indicative only. Peak memory is deterministic.
 | raft-stereo-sceneflow | 90.4 (90.1-93.2) | 282.0 (238.5-293.8) | 3.1x | 239 / 470 MiB |
 | igev-stereo-sceneflow | 139.3 (107.4-144.9) | 292.6 (289.2-368.3) | 2.1x | 368 / 415 MiB |
 
-Open:
+The `[validated]` per-OS slot and the full stereo sweep followed; see below.
 
-- `[validated]` has one entry per reference, so `pytest -m gpu --record` on Windows replaces the Linux build ids.
-  The entries need a per-OS slot, for example `[validated."<ref>".windows]`, before Windows records are committed.
-  None are committed. On Windows the recorder also writes CRLF.
-- Publishing: the DLLs have to go to the HF repo (`cutlass_conv/<file>`), like the `.so` files. Until then
-  `FASTFORKS_KERNEL_PATH` has to point at them.
-- cfnet needs `cfnet_volume`, whose current cubin build was not in the local kernel copy, so it was not run.
-Order of value: `cutlass_conv` (23 stereo families, most of the stereo list) then `dpt_fused` (depth / SAM), then the
-`fvm_*` group.
+### dpt_fused and fvm_* on Windows
+
+Same toolchain and recipe: `dpt_fused@2d01fadafb47` (13.6 MB), `fvm_conv@4ab8391e0d66`, `fvm_extra@89af88377928`,
+`fvm_mb@f31d86f5b9ec` and `fvm_r3@3e4d13960677` (23 MB), 7 targets each, no source changes. `fvm_r3` builds through
+the `dlfcn.h` shim. In the GPU goldens its cuBLASLt binding found PyTorch's loaded `cublasLt64_13.dll`, and the
+families using it pass.
+
+```powershell
+uv run python tools/build_kernels.py dpt_fused fvm_conv fvm_extra fvm_mb fvm_r3 --cutlass C:\Users\neuer\cutlass-4.7.1
+```
+
+The sweep found one loader bug: a second load of the same DLL in one process (a second model using `dpt_fused`) failed
+with `FileExistsError`, because the copy's name was fixed. Fixed: each load now gets its own exclusively created
+file, as each Linux load gets its own memfd.
+
+## Validation coverage on Windows
+
+`pytest -m gpu --record` in kernels mode on all runnable references (RTX 5060 Ti sm_120, driver 610.88,
+torch 2.14.1+cu130). Every GPU run held a machine-wide GPU lock (one job at a time). Weights were staged from a
+read-only Linux cache in batches of at most 15 GB and deleted after each batch. Missing sm_120 cubins (the same
+files as on Linux, hash-checked) came from the same cache. The optional extras `timm`, `transformers` and
+`torchvision` were installed for the run.
+
+- 558 references are runnable in kernels mode on Windows: no library without a Windows build, and all binaries
+  present. 512 now have a Windows `[validated]` record (54 stereo, the rest non-stereo).
+- 302 of the 512 records give the same mean / p99 as the Linux record. The others differ in the 4th or 5th decimal,
+  all within the golden tolerance (largest: aliked-flexglue, mean 0.0033 vs 0.0012 px; cfnet and great-igev).
+- 36 references have no weights in the available offline cache: most timm / torchvision classifiers,
+  segformer, sapiens-seg, eomt, mask2former, oneformer, mapanything, vggt-1b, omni-dc. They were not run. Their
+  Windows DLL builds stay unvalidated for them, so `test_kernels_validated` fails for them on Windows until someone
+  runs `--record` with the weights.
+
+Open, found by the sweep:
+
+| reference | result on Windows | portable on Windows | note |
+| --- | --- | --- | --- |
+| `mvsanywhere@1` | `CUDA_ERROR_INVALID_IMAGE` loading `mvsanywhere-7fdcb3aafdd8-sm_120.fatbin` | n/a | Same bytes as Linux (hash-checked). The `compute_80` PTX build of the same library loads. So does a test cubin with an equally large (7.6 KB) by-value parameter built with 13.0. Likely the 12.8-built sm_120 SASS on this Windows driver: try a 13.0 rebuild. |
+| `seedvr2-7b@1` | access violation reading the 16 GB checkpoint (`safe_open` / `get_tensor`, stream mode) | not run | `seedvr2-3b` passes. Needs a rerun on its own (its weights alone exceed the 15 GB staging limit). |
+| `marigold-v2-depth@1` | depth mean 0.0188 (tolerance 0.01) | same failure | Not kernel related (streamed nf4 path); on Linux the record is exactly 0. |
+| `dfine-n-coco@1` | 8 detections, golden 7 | passes | One box on the score threshold. fvm_conv + cudnn_hacc. |
+| `lw-detr-medium-coco@1` | boxes mean 0.29 px | passes | Uses only `cudnn_hacc`: on Windows its plans come from the ctypes path (no `plan_build`). |
+| `rtmo-t@1` | boxes p99 0.0016 | passes | Just over the tolerance. |
+| `sam2.1-hiera-tiny@1` | iou_scores mean 0.0107 | passes | dpt_fused |
+| `sam-hq-vit-b@1` | pred_masks p99 0.0058 | passes | dpt_fused; the other dpt_fused families pass |
+
+Not run: the families that need `fs_cutlass`, `ffs_cutlass`, `s2m2_cutlass`, `hitnet_conv` or `seg_conv` (no Windows
+build). `mode="kernels"` raises `KernelUnavailableError` for them, and on Windows `test_kernels_validated` skips
+them.
+
+Timings: none were repeated after the GPU-lock rule. The cutlass_conv numbers above predate it (medians of 3 on a
+shared GPU).
+
+## Decisions to review
+
+Made without a maintainer to keep the work moving; each is in its own commit so it can be reverted on its own.
+
+1. **`[validated]` per-OS slot** (commit `goldens: per-OS [validated] records (a windows sub-table)`). A Windows
+   `pytest -m gpu --record` used to replace the reference's Linux entry. Now Windows records go to a sub-table,
+   and the Linux entry stays where it was:
+
+   ```toml
+   [validated."coex-sceneflow@1"]          # Linux, unchanged (readers and writers as before)
+   kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", ...]
+   ...
+   [validated."coex-sceneflow@1".windows]  # written only by --record on win32
+   kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@5f1e101619ed:sm_120", ...]
+   ...
+   ```
+
+   `tools/goldens.py`: `OS_SLOTS = ("windows",)`; `dump` writes each slot as its own sub-table after the entry, with
+   LF line endings on every OS; `validated_records(entry)` returns the Linux record (if any) and the slot records.
+   `tests/test_golden.py`: the recorder on win32 writes only `[...windows]` and keeps the Linux keys; on Linux it
+   writes the entry and keeps any slot. `test_kernels_validated` accepts a library build when any one record
+   validates it (its build id, or unchanged `[symbols]` hashes), and it checks against the manifest the platform
+   actually loads (`platform_manifest`). A Linux-only checkout reads exactly as before. Two CPU tests cover the dump
+   format and the either-record rule. Alternative: a separate `golden.windows.toml`. Rejected because it would
+   double the files and the review diff for every family.
+2. **`tools/win_include/dlfcn.h`** (commit `build_kernels: Windows dlfcn.h include shim for DLL builds`).
+   `fvm_r3` binds to cuBLASLt with `dlopen("libcublasLt.so.13", RTLD_NOLOAD)` / `dlsym`. Rather than an `#ifdef _WIN32`
+   branch in the `.cu` (a new Linux build id and a Linux rebuild), MSVC builds get a small header that maps
+   `lib<x>.so.<n>` to `<x>64_<n>.dll`. It prefers an already loaded module (`GetModuleHandleA`: PyTorch's
+   `cublasLt64_13.dll`). Otherwise it uses `LoadLibraryExA(..., LOAD_LIBRARY_SEARCH_DEFAULT_DIRS)`, never the
+   current directory or `PATH`. The directory goes on the include path, and the header's bytes into the build id,
+   only for Windows builds of libraries whose sources `#include` a shimmed header. So every other build id, and every
+   Linux one, is unchanged. If upstream code ever needs more of `<dlfcn.h>`, the build fails at compile time, not
+   silently.
+3. **Toolchain record on Windows.** `host_compiler = "MSVC cl <version> <arch>"` instead of the full `cl` banner (it
+   is localized), plus `windows_sdk` and `c_runtime`; CUTLASS from a release tarball records `4.7.1` without the
+   commit hash (the Linux builds used a git checkout). The `[symbols]` hashes include the toolchain, so they differ
+   from Linux by design.
 
 ## Platform notes
 
