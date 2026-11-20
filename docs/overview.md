@@ -135,7 +135,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`moge-2-vitb-normal`](models/depth.md#moge) | yes | 0.0404 | 102.2 (994x1482) | 83.9 | 40.7 | 2.5x vs original (994x1482) | 1093 |
 | [`any2full-l`](models/depth.md#any2full) | yes | – | 268.8 (994x1482) | 67.7 | 42.3 | 6.4x vs original (994x1482) | 1115 |
 | [`da3-giant-1.1`](models/depth.md#depth-anything-3) | no | 0.0397 | 227.1 (994x1482) | 71.5 | 45.2 | 5.0x vs original (994x1482) | 2535 |
-| [`da3nested-giant-large-1.1`](models/depth.md#depth-anything-3) | no | 0.0387 | 308.2 (994x1482) | 92.4 | 59.5 | 5.2x vs original (994x1482) | 3179 |
+| [`da3nested-giant-large-1.1`](models/depth.md#depth-anything-3) | no | 0.0387 | 308.2 (994x1482) | 92.5 | 59.5 | 5.2x vs original (994x1482) | 3120 |
 | [`pointdit-l-512`](models/depth.md#pointdit) | yes | 0.0410 | 112.0 (994x1482) | 94.6 | 61.3 | 1.8x vs original (994x1482) | 1310 |
 | [`unik3d-vitl`](models/depth.md#unik3d) | no | 0.0346 | 133.7 (994x1482) | 107.8 | 62.9 | 2.1x vs original (994x1482) | 1166 |
 | [`unidepth-v2-vitl14`](models/depth.md#unidepth-v2) | no | 0.0355 | 132.0 (994x1482) | 99.8 | 63.0 | 2.1x vs original (994x1482) | 1153 |
