@@ -1162,7 +1162,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | sam2.1-hiera-large | 242 | 86.4 | 68.0 | 49.1 | 1.8x | 1.4x | 1656 / 1724 | 730 / 768 | 748 / 808 |
 | sam2.1-hiera-small | 74.8 | 41.8 | 18.8 | 15.6 | 2.7x | 1.2x | 618 / 662 | 318 / 366 | 330 / 386 |
 | sam2.1-hiera-tiny | 66.3 | 38.0 | 16.6 | 13.9 | 2.7x | 1.2x | 577 / 636 | 304 / 382 | 316 / 362 |
-| sam3 | 695 | 254 | 190 | 107 | 2.4x | 1.8x | 2052 / 2124 | 1910 / 1984 | 1900 / 2044 |
+| sam3 | 695 | 254 | 173 | 107 | 2.4x | 1.6x | 2052 / 2124 | 1822 / 1904 | 1900 / 2044 |
 
 ### Detection, synthetic, 800x1344
 
@@ -2427,7 +2427,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | sam2.1-hiera-large | 1024x1024 | 68.0 ms | 59.5 ms | 38.1 ms (image encoder only) | 49.1 ms | 38.9 s | 55.3 s | 730 / 768 | 678 / 748 | 748 / 808 | 1212 / 1232 |
 | sam2.1-hiera-small | 1024x1024 | 18.8 ms | 14.9 ms | 9.93 ms (image encoder only) | 15.6 ms | 24.5 s | 40.2 s | 318 / 366 | 283 / 326 | 330 / 386 | 429 / 452 |
 | sam2.1-hiera-tiny | 1024x1024 | 16.6 ms | 14.2 ms | 8.56 ms (image encoder only) | 13.9 ms | 13.4 s | 34.1 s | 304 / 382 | 270 / 322 | 316 / 362 | 414 / 446 |
-| sam3 | 1024x1024 | 190 ms | 167 ms | 89.5 ms (image encoder only) | 107 ms | 66.6 s | 54.2 s | 1910 / 1984 | 1863 / 1944 | 1900 / 2044 | 2926 / 2944 |
+| sam3 | 1024x1024 | 173 ms | 167 ms | 89.5 ms (image encoder only) | 107 ms | 66.6 s | 54.2 s | 1822 / 1904 | 1863 / 1944 | 1900 / 2044 | 2926 / 2944 |
 | deim-l-coco | 800x1344 | 16.3 ms | 7.99 ms | 3.39 ms | 6.50 ms | 49.8 s | 58.1 s | 155 / 172 | 175 / 198 | 151 / 216 | 229 / 266 |
 | deim-m-coco | 800x1344 | 13.8 ms | 6.73 ms | 2.54 ms | 5.08 ms | 39.1 s | 58.2 s | 129 / 142 | 149 / 166 | 129 / 184 | 204 / 232 |
 | deim-n-coco | 800x1344 | 10.4 ms | 5.44 ms | 1.10 ms | 2.46 ms | 28.0 s | 65.6 s | 92 / 114 | 101 / 118 | 94 / 118 | 104 / 128 |

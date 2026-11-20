@@ -502,7 +502,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam3` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 695<br>254<br>190<br>107<br>167<br>89.5 (image encoder only) | 3865 / 3934<br>2052 / 2124<br>1910 / 1984<br>1900 / 2044<br>1863 / 1944<br>2926 / 2944 |
+| `sam3` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 695<br>254<br>173<br>107<br>167<br>89.5 (image encoder only) | 3865 / 3934<br>2052 / 2124<br>1822 / 1904<br>1900 / 2044<br>1863 / 1944<br>2926 / 2944 |
 
 ### Weight streaming
 
@@ -528,6 +528,7 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `sam3` 1080x1920 (1.9 GiB peak allocated, 2.1 reserved)
 - `sam3` 1024x1024, first call: portable + torch.compile 67 s (cold Inductor cache), TensorRT fp16 54 s (ONNX + engine).
 - `sam3` original 1024x1024: Transformers FP16 weights, FP16 inputs; original adapter casting hooks; 500-image COCO accuracy checked
+- `sam3` portable 1024x1024: Synthetic object prompt through the full API. No query exceeded the default threshold, so the portable mask decoder was skipped.
 - `sam3` load / first call: original 1.35 s / 0.256 s, portable 3.85 s / 0.18 s (840x1297), kernels 4.03 s / 0.116 s (840x1297)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -551,6 +552,7 @@ CPU, float32: max |diff| <= 0.0005 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
+- Eager CUDA portable skips the mask decoder when no query passes the score threshold. The synthetic 1024 × 1024 speed input has zero detections. For a COCO person prompt with a surviving detection and a cached image embedding, paired latency was about 30 ms before and after the change.
 - On the RTX 5060 Ti, streaming the same 18-frame, 800 × 600 clip with two objects reduced peak allocated memory from 2,304 to 1,482 MiB portable and 2,047 to 1,224 MiB kernels. The masks and scores matched the corresponding resident run exactly.
 - stream=True stages the image encoder from pinned host memory once per embedded frame. Text and prompt heads remain resident, and further prompts on an existing embedding reuse that frame. Image encoder export requires stream=False.
 - Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~300 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.

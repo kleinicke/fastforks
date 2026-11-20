@@ -372,7 +372,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`sam2.1-hiera-large`](models/promptable_segmentation.md#segment-anything-21-sam-21) | yes | 86.4 (1024x1024) | 68.0 | 49.1 | 1.8x vs original (1024x1024) | 748 |
 | [`sam-hq-vit-l`](models/promptable_segmentation.md#hq-sam) | yes | 201.9 (1024x1024) | 114.4 | 79.0 | 2.6x vs original (1024x1024) | 877 |
 | [`sam-vit-l`](models/promptable_segmentation.md#segment-anything-sam) | yes | 197.2 (1024x1024) | 112.9 | 79.0 | 2.5x vs original (1024x1024) | 818 |
-| [`sam3`](models/promptable_segmentation.md#segment-anything-3-sam-3-image--video-tracker) | yes | 253.5 (1024x1024) | 190.3 | 106.7 | 2.4x vs original (1024x1024) | 1900 |
+| [`sam3`](models/promptable_segmentation.md#segment-anything-3-sam-3-image--video-tracker) | yes | 253.5 (1024x1024) | 172.8 | 106.7 | 2.4x vs original (1024x1024) | 1900 |
 | [`sam-vit-h`](models/promptable_segmentation.md#segment-anything-sam) | yes | 306.5 (1024x1024) | 211.1 | 140.1 | 2.2x vs original (1024x1024) | 1467 |
 | [`sam-hq-vit-h`](models/promptable_segmentation.md#hq-sam) | yes | 311.0 (1024x1024) | 213.0 | 140.4 | 2.2x vs original (1024x1024) | 1528 |
 | [`insid3-vitl16`](models/promptable_segmentation.md#insid3) | yes | 713.5 (1024x1024) | 254.9 | 156.9 | 4.5x vs original (1024x1024) | 987 |
