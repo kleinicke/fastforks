@@ -1071,14 +1071,14 @@ def _cold_rows() -> dict[str, list[dict]]:
     return out
 
 
-def _startup(task: str, model_id: str, rows: list[dict]) -> dict[str, tuple[dict, str, str]]:
+def _startup(task: str, rows: list[dict], cold_rows: list[dict]) -> dict[str, tuple[dict, str, str]]:
     """Startup row per mode: `{mode: (row, load mark, first-call mark)}`.
 
     One row per (id, mode), independent of the table size: a `cold: true` row if there is one, else the row at the
     task's standard size, else the largest size with a first call (the input is then shown). A mark flags a time
     measured warm (kernels load after the portable one; a size after an earlier one in the same process).
     """
-    all_rows = [r for r in [*rows, *_cold_rows().get(model_id, [])] if "first_call_s" in r]
+    all_rows = [r for r in [*rows, *cold_rows] if "first_call_s" in r]
     std = _std_input(task, {})
     out = {}
     for mode in ("upstream", "portable", "kernels"):
@@ -1098,12 +1098,14 @@ def _startup(task: str, model_id: str, rows: list[dict]) -> dict[str, tuple[dict
     return out
 
 
-def _startup_notes(task: str, measured: list, rows: dict[str, list[dict]]) -> list[str]:
+def _startup_notes(
+    task: str, measured: list, rows: dict[str, list[dict]], cold_rows: dict[str, list[dict]]
+) -> list[str]:
     """Load / first-call times per variant and the timing protocol."""
     notes = []
     used = False
     for v in measured:
-        by = _startup(task, v.id, rows[v.id])
+        by = _startup(task, rows[v.id], cold_rows.get(v.id, []))
         if by:
             parts = ", ".join(
                 f"{_label(m)} {r.get('load_s', DASH)}{lm} s / {r['first_call_s']}{fm} s"
@@ -1132,7 +1134,9 @@ def _env_note(rows: dict[str, list[dict]]) -> str:
     return ", ".join(gpus) + "".join(f", torch {t}" for t in torches)
 
 
-def _speed(card: ModelCard, rows: dict[str, list[dict]]) -> tuple[list[str], list[str]]:
+def _speed(
+    card: ModelCard, rows: dict[str, list[dict]], cold_rows: dict[str, list[dict]]
+) -> tuple[list[str], list[str]]:
     """Speed and peak memory: (the table, the notes); one table row per variant and input, backends as cell lines."""
     oom_at = {v.id: {size for ref, _, size in _oom() if ref == v.id} for v in card.variants}
     compiled = {v.id: _compiled_inputs(v.id) for v in card.variants}
@@ -1198,7 +1202,7 @@ def _speed(card: ModelCard, rows: dict[str, list[dict]]) -> tuple[list[str], lis
                 if (r := by.get(m)) and _note(r):
                     given.setdefault((v.id, _note(r)), []).append(f"{_label(m)} {size}")
     notes += [f"- `{vid}` {', '.join(where)}: {text}" for (vid, text), where in given.items()]
-    notes += _startup_notes(card.task, [v for v in measured if v.id in rows], rows)
+    notes += _startup_notes(card.task, [v for v in measured if v.id in rows], rows, cold_rows)
     missing = [v.id for v in card.variants if v not in measured]
     if missing:
         notes.append(f"- Speed and memory {NM} for: {_ids_of(missing)}.")
@@ -1624,10 +1628,12 @@ def _title(task: str) -> str:
     return _TITLE.get(task, task.capitalize().replace("_", " "))
 
 
-def render(task: str) -> str:
+def render(task: str, *, cold_rows: dict[str, list[dict]] | None = None) -> str:
     """Markdown page of all models of `task`."""
     families = {card.family: card for card, _ in registry.cards(task).values()}
     rows, speed = _eval_rows(task), _speed_rows()
+    if cold_rows is None:
+        cold_rows = _cold_rows()
     std = _std_input(task, speed)
     basis = {_OWN: "each model's own benchmark input (see Benchmarks)"}.get(std, f"one input, {std}")
     gpu = _env_note({i: rs for i, rs in speed.items() if i in {v.id for c in families.values() for v in c.variants}})
@@ -1664,7 +1670,7 @@ def render(task: str) -> str:
     used = {i for card, v in registry.cards(task).values() for i in card.status(v).training_data} - {licences.UNSTATED}
     for card in families.values():
         lic = card.licence
-        table, notes = _speed(card, speed)
+        table, notes = _speed(card, speed, cold_rows)
         lines += [
             "",
             f'<a id="{card.family}"></a>',
@@ -2078,7 +2084,7 @@ def _speed_table(by: dict[str, dict[str, dict]], inputs: dict[str, str] | None =
 
 def _bench_block() -> str:
     """Speed and memory tables per task and scene, from docs/data/speed.jsonl (the block of docs/benchmarks.md)."""
-    speed = _speed_rows()
+    speed, cold_rows = _speed_rows(), _cold_rows()
     tasks = {v.id: t for t in registry.TASKS for _, v in registry.cards(t).values()}
     groups: dict[tuple[str, str], dict[str, dict[str, dict[str, dict]]]] = {}  # (task, scene) -> model -> input
     for model_id, rows in sorted(speed.items()):
@@ -2115,7 +2121,7 @@ def _bench_block() -> str:
     used = False
     for task in registry.TASKS:
         for model_id in sorted(i for i in speed if tasks.get(i) == task):
-            by = _startup(task, model_id, speed[model_id])
+            by = _startup(task, speed[model_id], cold_rows.get(model_id, []))
             cells = [
                 (
                     f"{r[f]:.2f}{lm if f == 'load_s' else fm}"
@@ -2582,6 +2588,7 @@ def main() -> None:
         print("| " + " | ".join(cols) + " |\n|" + "---|" * len(cols))
         print("\n".join("| " + " | ".join(r[c] for c in cols) + " |" for r in rows))
         return
+    cold_rows = _cold_rows()
     bench, gpus = ROOT / "docs" / "benchmarks.md", ROOT / "docs" / "OTHER_GPUS.md"
     outputs = {
         bench: _with_block(
@@ -2604,7 +2611,7 @@ def main() -> None:
         if not dev.reference:
             outputs[ROOT / "docs" / dev.page] = device_page(dev)
     for task in registry.TASKS:
-        outputs[ROOT / "docs" / "models" / f"{task}.md"] = render(task)
+        outputs[ROOT / "docs" / "models" / f"{task}.md"] = render(task, cold_rows=cold_rows)
         outputs[ROOT / "src" / "fastforks" / task / "known_models.toml"] = known_models(task)
     stale = []
     for path, text in outputs.items():
