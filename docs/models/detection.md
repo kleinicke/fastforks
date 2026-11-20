@@ -36,7 +36,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`mm-grounding-dino-base`](#grounding_dino) | yes | 110, 2.1x | 1324, 0.43x |
 | [`mm-grounding-dino-tiny`](#grounding_dino) | yes | 87.2, 2.3x | 1108, 0.41x |
 | [`owlv2-b16`](#owlv2) | yes | 23.7, 3.9x | 612, 0.64x |
-| [`owlv2-l14`](#owlv2) | yes | 110, 1.9x | 1184, 0.45x |
+| [`owlv2-l14`](#owlv2) | yes | 110, 1.9x | 1164, 0.45x |
 | [`rf-detr-l-coco`](#rfdetr) | yes | 5.30, 2.2x | 206, 0.86x |
 | [`rf-detr-m-coco`](#rfdetr) | yes | 3.86, 3.0x | 178, 1.0x |
 | [`rf-detr-n-coco`](#rfdetr) | yes | 2.39, 4.4x | 142, 0.89x |
@@ -496,8 +496,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `owlv2-b16` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 92.3<br>31.8<br>23.7<br>28.5<br>18.4 | 921 / 960<br>460 / 510<br>461 / 612<br>487 / 530<br>655 / 726 |
-| `owlv2-l14` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 212<br>154<br>110<br>141<br>95.9 | 2550 / 2606<br>1097 / 1144<br>1027 / 1184<br>1190 / 1242<br>1786 / 1820 |
+| `owlv2-b16` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 92.3<br>30.6<br>23.7<br>28.5<br>18.4 | 921 / 960<br>423 / 490<br>440 / 612<br>487 / 530<br>655 / 726 |
+| `owlv2-l14` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 212<br>154<br>110<br>141<br>95.9 | 2550 / 2606<br>1027 / 1064<br>1027 / 1164<br>1190 / 1242<br>1786 / 1820 |
 
 <details><summary>Details</summary>
 
@@ -515,7 +515,11 @@ Commercial use: yes.
 - `owlv2-b16` 800x1344, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 26 s (ONNX + engine).
 - `owlv2-l14` 800x1344, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
 - `owlv2-b16` original 800x1344: torch.autocast(float16) around the call; transformers Owlv2ForObjectDetection + processor (CPU), coco-80 queries, text tower per call, 300 best
+- `owlv2-b16` portable 800x1344: Release attention intermediates before applying the MLP and reuse the QuickGELU activation buffer.
+- `owlv2-b16` kernels 800x1344: Release the padded detector image during Gaussian resizing.
 - `owlv2-l14` original 800x1344: torch.autocast(float16) around the call; transformers Owlv2ForObjectDetection + processor (CPU), coco-80 queries, text tower per call, 300 best
+- `owlv2-l14` portable 800x1344: Release attention intermediates before applying the MLP and reuse the QuickGELU activation buffer.
+- `owlv2-l14` kernels 800x1344: Release the padded detector image during Gaussian resizing.
 - `owlv2-b16` load / first call: original 8.22 s / 0.744 s, portable 3.41 s / 0.256 s, kernels 3.32 s / 0.244 s
 - `owlv2-l14` load / first call: original 9.55 s / 1.182 s, portable 4.44 s / 0.388 s, kernels 4.1 s / 0.35 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5

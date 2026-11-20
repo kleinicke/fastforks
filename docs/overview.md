@@ -432,12 +432,12 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`rf-detr-seg-2xl-coco`](models/detection.md#rf-detr-n--s--m--l-detection-seg-n-to-2xl) | yes | 25.6 (800x1344) | 26.0 | 16.0 | 1.6x vs original (800x1344) | 209 |
 | [`faster-rcnn-r50-fpn-3x-coco`](models/detection.md#detectron2-mask--faster-r-cnn-r50-fpn) | yes | 41.4 (800x1344) | 22.8 | 19.5 | 2.1x vs original (800x1344) | 391 |
 | [`mask-rcnn-r50-fpn-3x-coco`](models/detection.md#detectron2-mask--faster-r-cnn-r50-fpn) | yes | 43.5 (800x1344) | 24.6 | 21.0 | 2.1x vs original (800x1344) | 353 |
-| [`owlv2-b16`](models/detection.md#owlv2-open-vocabulary-clip-b16-and-l14) | yes | 92.3 (800x1344) | 31.8 | 23.7 | 3.9x vs original (800x1344) | 461 |
+| [`owlv2-b16`](models/detection.md#owlv2-open-vocabulary-clip-b16-and-l14) | yes | 92.3 (800x1344) | 30.6 | 23.7 | 3.9x vs original (800x1344) | 440 |
 | [`grounding-dino-tiny`](models/detection.md#grounding-dino-and-mm-grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 198.9 (800x1344) | 110.1 | 86.9 | 2.3x vs original (800x1344) | 987 |
 | [`mm-grounding-dino-tiny`](models/detection.md#grounding-dino-and-mm-grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 202.0 (800x1344) | 109.8 | 87.2 | 2.3x vs original (800x1344) | 989 |
 | [`grounding-dino-base`](models/detection.md#grounding-dino-and-mm-grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 229.8 (800x1344) | 132.0 | 109.2 | 2.1x vs original (800x1344) | 1105 |
 | [`mm-grounding-dino-base`](models/detection.md#grounding-dino-and-mm-grounding-dino-open-vocabulary-swin-t-and-swin-b) | yes | 232.5 (800x1344) | 132.1 | 109.6 | 2.1x vs original (800x1344) | 1107 |
-| [`owlv2-l14`](models/detection.md#owlv2-open-vocabulary-clip-b16-and-l14) | yes | 211.7 (800x1344) | 154.4 | 110.0 | 1.9x vs original (800x1344) | 1027 |
+| [`owlv2-l14`](models/detection.md#owlv2-open-vocabulary-clip-b16-and-l14) | yes | 211.7 (800x1344) | 154.3 | 109.7 | 1.9x vs original (800x1344) | 1027 |
 
 ## Ocr
 
