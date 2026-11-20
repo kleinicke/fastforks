@@ -921,7 +921,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | marigold-depth-v1-1 | 994x1482 | – | – | 410 | 261 | – | 1.6x | – | 2776 / 2938 | 2343 / 2500 |
 | marigold-normals-lcm-v0-1 | 994x1482 | – | 280 | 272 | 167 | 1.7x | 1.6x | 3441 / 3640 | 2792 / 2960 | 2361 / 2500 |
 | marigold-v2-depth | 994x1482 | – | OOM | 4763 | 3805 | – | 1.3x | – | 1408 / 1838 | 1408 / 1838 |
-| metric3d-vit-large | 994x1482 | – | – | 183 | 148 | – | 1.2x | – | 1218 / 1294 | 1453 / 1526 |
+| metric3d-vit-large | 994x1482 | – | – | 181 | 146 | – | 1.2x | – | 1188 / 1256 | 1412 / 1486 |
 | midas-dpt-beit-large-512 | 518x770 | 399 | 320 | 75.6 | 63.9 | 5.0x | 1.2x | 2759 / 2858 | 975 / 1418 | 986 / 1436 |
 | moge-2-vitb-normal | 994x1482 | – | – | 83.9 | 40.7 | – | 2.1x | – | 1163 / 1312 | 1093 / 1208 |
 | moge-2-vitl-normal | 518x770 | 500 | 169 | 145 | 73.9 | 2.3x | 2.0x | 2326 / 2418 | 1645 / 1836 | 1481 / 1610 |
@@ -2269,7 +2269,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | marigold-normals-lcm-v0-1 | 994x1482 | 272 ms | 223 ms | 109 ms | 167 ms | 64.5 s | 182 s | 2792 / 2960 | 2348 / 2436 | 2361 / 2500 | 4220 / 4250 |
 | marigold-v2-depth | 994x1482 | 4763 ms | 4599 ms | public API unavailable | 3805 ms | 141 s | – | 1408 / 1838 | 1959 / 2120 | 1408 / 1838 | – |
 | marigold-v2-depth | 480x640 | 1179 ms | – | 1156 ms, bf16 engine (VAE encoder and decoder with eager streamed NF4 transformer) | – | – | 137 s | 717 / 964 | – | – | 2042 / 2198 |
-| metric3d-vit-large | 994x1482 | 183 ms | 149 ms | 91.4 ms | 148 ms | 54.7 s | 96.6 s | 1218 / 1294 | 1126 / 1148 | 1453 / 1526 | 1867 / 1952 |
+| metric3d-vit-large | 994x1482 | 181 ms | 149 ms | 91.4 ms | 146 ms | 54.7 s | 96.6 s | 1188 / 1256 | 1126 / 1148 | 1412 / 1486 | 1867 / 1952 |
 | midas-dpt-beit-large-512 | 994x1482 | 78.8 ms | 58.8 ms | 52.2 ms | 63.9 ms | 32.6 s | 53.5 s | 992 / 1418 | 1088 / 1116 | 1003 / 1436 | 1514 / 1592 |
 | moge-2-vitb-normal | 994x1482 | 83.9 ms | 60.9 ms | 35.5 ms | 40.7 ms | 133 s | 127 s | 1163 / 1312 | 972 / 1172 | 1093 / 1208 | 1044 / 1092 |
 | moge-2-vitl-normal | 994x1482 | 144 ms | 124 ms | 75.6 ms | 73.4 ms | 152 s | 173 s | 1661 / 1836 | 1411 / 1634 | 1498 / 1610 | 1882 / 1936 |

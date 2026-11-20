@@ -41,7 +41,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`marigold-depth-v1-1`](#marigold) | yes | 0.0561 | 261, 1.7x | 2500, 0.7x |
 | [`marigold-normals-lcm-v0-1`](#marigold_normals) | yes | – | 167, 1.7x | 2500, 0.69x |
 | [`marigold-v2-depth`](#marigold_v2) | yes | 0.0386 | 3805 | 1838 |
-| [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 148, 3.0x | 1526, 0.49x |
+| [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 146, 3.0x | 1486, 0.48x |
 | [`midas-dpt-beit-large-512`](#midas) | yes | 0.0487 | 63.9, 5.2x | 1436, 0.5x |
 | [`moge-2-vitb-normal`](#moge) | yes | 0.0404 | 40.7, 2.5x | 1208, 0.76x |
 | [`moge-2-vitl-normal`](#moge) | yes | 0.0357 | 73.4, 2.3x | 1610, 0.66x |
@@ -850,7 +850,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `metric3d-vit-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>438<br>183<br>148<br>149<br>91.4 | 3077 / 3122<br>3275 / 3350<br>1218 / 1294<br>1453 / 1526<br>1126 / 1148<br>1867 / 1952 |
+| `metric3d-vit-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>438<br>181<br>146<br>149<br>91.4 | 3077 / 3122<br>3275 / 3350<br>1188 / 1256<br>1412 / 1486<br>1126 / 1148<br>1867 / 1952 |
 
 <details><summary>Details</summary>
 
@@ -867,7 +867,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `metric3d-vit-large` 3000x4000 (2.3 GiB peak allocated, 2.9 reserved)
 - `metric3d-vit-large` 994x1482, first call: portable + torch.compile 55 s (cold Inductor cache), TensorRT fp16 97 s (ONNX + engine).
 - `metric3d-vit-large` original 994x1482: torch.autocast(fp16) around the forward
-- `metric3d-vit-large` portable 994x1482, kernels 994x1482: Reuses the GRU input after the update and reset gates. Depth, normals and confidence matched bitwise in the paired checks.
+- `metric3d-vit-large` portable 994x1482, kernels 994x1482: The finest feature projection runs before nearest replication and final convex upsampling processes one output field at a time. Five checked depth, normals and confidence outputs match bitwise within each CUDA mode.
 - `metric3d-vit-large` load / first call: original 9.96 s / 0.876 s, portable 2.39 s / 0.423 s (518x770), kernels 0.71 s / 0.504 s (518x770)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
