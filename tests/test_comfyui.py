@@ -111,6 +111,25 @@ def test_depth_and_normals(pack: Any) -> None:
     assert torch.allclose(c.normals_image(up)[:, 0, 0], torch.tensor([0.5, 1.0, 0.5]))
 
 
+def test_errors_name_the_backend_input(pack: Any) -> None:
+    """The library's `mode=` is the node's `backend` input: errors say so, keeping their type and other words."""
+    import fastforks  # noqa: PLC0415
+
+    nodes = pack.nodes
+    err = fastforks.KernelUnavailableError("cutlass_conv", "no binary", model="coex")
+    with pytest.raises(fastforks.KernelUnavailableError) as info, nodes.node_errors():
+        raise err
+    assert str(info.value) == (
+        "coex (backend='kernels'): kernel library 'cutlass_conv' unavailable: no binary; use backend='auto' to fall"
+        " back to portable"
+    )
+    assert info.value.library == "cutlass_conv"
+    assert nodes.backend_words("padding_mode='zeros', mode='portable'") == "padding_mode='zeros', backend='portable'"
+    msg = "mode='x'"
+    with pytest.raises(ValueError, match=msg), nodes.node_errors():  # not a fastforks error: unchanged
+        raise ValueError(msg)
+
+
 def test_prompt_parsing(pack: Any) -> None:
     """Points, boxes and detection JSON as typed into STRING widgets."""
     c = pack.convert

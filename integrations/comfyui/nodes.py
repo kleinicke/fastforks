@@ -7,9 +7,11 @@ empties the cache. ComfyUI is imported lazily so the module imports without it (
 
 from __future__ import annotations
 
+import contextlib
 import gc
 import logging
 import os
+import re
 from collections import OrderedDict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, cast
@@ -22,7 +24,7 @@ from fastforks import restoration
 from . import convert
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
 
     from fastforks.detection import DetectionModel
     from fastforks.pose import PoseModel
@@ -73,6 +75,25 @@ def common(ids: list[str], default: str) -> dict[str, Any]:
         "backend": (BACKENDS, {"default": "auto", "tooltip": _BACKEND_TIP}),
         "dtype": (DTYPES, {"default": "auto", "tooltip": _DTYPE_TIP}),
     }
+
+
+_MODE_ARG = re.compile(r"\bmode=")
+
+
+def backend_words(text: str) -> str:
+    """A fastforks message in the node's words: the library's `mode=` argument is the node's `backend` input."""
+    return _MODE_ARG.sub("backend=", text)
+
+
+@contextlib.contextmanager
+def node_errors() -> Generator[None]:
+    """Re-raise fastforks errors (same type and traceback) with `mode=` in their message said as `backend=`."""
+    try:
+        yield
+    except fastforks.FastforksError as e:
+        if e.args and isinstance(e.args[0], str):
+            e.args = (backend_words(e.args[0]), *e.args[1:])
+        raise
 
 
 def _mm() -> Any:  # noqa: ANN401 - comfy.model_management (untyped)
@@ -129,7 +150,8 @@ def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = 
     # weights + activations: ComfyUI unloads its own models until this much is free (no-op if it already is)
     mm.free_memory(2 * (file.stat().st_size if file else _weights_bytes(mid)) + 2**30, device)
     kw: dict[str, Any] = {"mode": backend, "device": device, "dtype": None if dtype == "auto" else dtype}
-    model = restoration.load(file, **kw) if file else fastforks.load(mid, **(options or {}), **kw)
+    with node_errors():
+        model = restoration.load(file, **kw) if file else fastforks.load(mid, **(options or {}), **kw)
     log.info("fastforks: loaded %s (%s)", mid, model.backend)
     _cache[key] = model
     return model
@@ -193,7 +215,8 @@ def each(n: int, fn: Callable[[int], Any]) -> list[Any]:
     try:
         for i in range(n):
             mm.throw_exception_if_processing_interrupted()
-            out.append(fn(i))
+            with node_errors():  # a kernel library can also fail at the first call
+                out.append(fn(i))
             bar.update(1)
     except mm.InterruptProcessingException:
         out.clear()
@@ -294,7 +317,8 @@ class VideoDepth(_Node):
         m = load(model, backend, dtype)
         _mm().throw_exception_if_processing_interrupted()
         video = frames[..., :3].to(m.device, torch.float32).permute(0, 3, 1, 2)
-        r = m.video(video)  # ty: ignore[unresolved-attribute]
+        with node_errors():
+            r = m.video(video)  # ty: ignore[unresolved-attribute]
         maps = convert.depth_image(r.depth, r.inverse_depth)  # [3, T, H, W]: scaled by the clip's min and max
         return (convert.to_image([maps[:, t] for t in range(maps.shape[1])], _out_device()),)
 
@@ -846,7 +870,8 @@ class VideoSegment(_Node):
         m = load(model, backend, dtype, {"samurai": True} if samurai else None)
         _mm().throw_exception_if_processing_interrupted()
         video = frames[..., :3].to(m.device, torch.float32).permute(0, 3, 1, 2)
-        masks = m.video(video, **kwargs).masks  # ty: ignore[unresolved-attribute]
+        with node_errors():
+            masks = m.video(video, **kwargs).masks  # ty: ignore[unresolved-attribute]
         return (convert.to_mask(list(masks), _out_device()),)
 
 
@@ -890,7 +915,8 @@ class PointTrack(_Node):
         queries = torch.tensor([[0.0, x, y] for x, y in pts])
         _mm().throw_exception_if_processing_interrupted()
         video = frames[..., :3].to(m.device, torch.float32).permute(0, 3, 1, 2)
-        r = m(video, queries)
+        with node_errors():
+            r = m(video, queries)
         tracks = r.tracks.float().cpu()
         visible = r.visible.cpu() if r.visibility is not None else torch.ones(tracks.shape[:2], dtype=torch.bool)
         drawn = each(
