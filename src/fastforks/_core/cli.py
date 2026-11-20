@@ -78,7 +78,14 @@ from fastforks._core.errors import (
     install_hint,
 )
 from fastforks._core.files import OFFLINE_ENV, _human_size, cache_root, env_flag, link_view, locate, offline, present
-from fastforks._core.kernels import KERNEL_PATH_ENV, for_driver, read_manifest, select_target
+from fastforks._core.kernels import (
+    KERNEL_PATH_ENV,
+    for_driver,
+    platform_manifest,
+    platform_reason,
+    read_manifest,
+    select_target,
+)
 from fastforks._core.sizes import EXAMPLE_SIZE, size_range
 
 if TYPE_CHECKING:
@@ -289,12 +296,12 @@ def _kernel_files(lib: str, *, archs: Sequence[str], all_archs: bool) -> list[tu
     """`(tag:target, file)` pairs to fetch; libraries without a manifest (e.g. cuDNN-backed) have no binaries.
 
     For this GPU only the build its driver loads; with `--arch` / `--all-archs` (for other machines) the older-driver
-    `compat` build too.
+    `compat` build too. Shared libraries: the build of this OS (`platform_manifest`).
     """
     path = Path(str(importlib.resources.files("fastforks.kernels") / lib / "manifest.toml"))
     if not path.is_file():
         return []
-    manifest = read_manifest(path)
+    manifest = read_manifest(platform_manifest(path))
     builds = [manifest] if manifest.compat is None else [manifest, manifest.compat]
     if all_archs:
         return [(f"{m.tag}:{t}", f) for m in builds for t, f in m.files.items()]
@@ -305,6 +312,9 @@ def _kernel_files(lib: str, *, archs: Sequence[str], all_archs: bool) -> list[tu
         if not torch.cuda.is_available():
             msg = f"no CUDA device to pick {lib} binaries for; name the targets with --arch sm_XX or use --all-archs"
             raise FastforksError(msg)
+        if reason := platform_reason(manifest):  # binaries for this machine: none it cannot load
+            print(f"note: skipping {lib}: {reason}", file=sys.stderr)
+            return []
         caps = [torch.cuda.get_device_capability()]
         builds = [for_driver(manifest)]
     targets: dict[str, tuple[int, int]] = {}
@@ -796,8 +806,10 @@ def _kernel_status(lib: str, arch: tuple[int, int] | None, driver: tuple[int, in
 
 
 def _binary_status(lib: str, path: Path, arch: tuple[int, int] | None, driver: tuple[int, int] | None) -> str:
-    full = read_manifest(path)
+    full = read_manifest(platform_manifest(path))
     manifest = full if driver is None else for_driver(full, driver)
+    if reason := platform_reason(manifest):
+        return f"unusable here: {reason}"
     if arch is None:
         return f"built for {', '.join(manifest.files)}; no CUDA GPU"
     target = select_target(manifest.files, arch)
@@ -845,11 +857,11 @@ def _env(_args: argparse.Namespace) -> None:
     import torch  # noqa: PLC0415 - heavy, only for these commands
 
     from fastforks import __version__  # noqa: PLC0415
-    from fastforks._core.kernels import driver_version  # noqa: PLC0415
+    from fastforks._core.kernels import DRIVER_LIB, driver_version  # noqa: PLC0415
 
     try:
         driver: tuple[int, int] | None = driver_version()
-    except (OSError, RuntimeError):  # no libcuda.so.1, or a failing cuDriverGetVersion
+    except (OSError, RuntimeError):  # no libcuda.so.1 / nvcuda.dll, or a failing cuDriverGetVersion
         driver = None
     cuda = torch.cuda.is_available()
     arch = torch.cuda.get_device_capability() if cuda else None
@@ -876,7 +888,9 @@ def _env(_args: argparse.Namespace) -> None:
             cudnn = f"cuDNN {_backend.version_str(_backend.version())}"
         except Exception as e:  # noqa: BLE001 - a broken install (missing libcudnn ...) is what `env` should show
             cudnn = f"unusable: {type(e).__name__}: {e}"
-        rows["driver"] = f"supports CUDA {driver[0]}.{driver[1]}" if driver else "no NVIDIA driver (libcuda.so.1) found"
+        rows["driver"] = (
+            f"supports CUDA {driver[0]}.{driver[1]}" if driver else f"no NVIDIA driver ({DRIVER_LIB}) found"
+        )
         rows["gpu"] = f"{torch.cuda.get_device_name()}, sm_{arch[0]}{arch[1]}" if arch else "no usable CUDA GPU"
         libs = sorted({lib for card in cards for lib in card.kernel_libs})
         by_status: dict[str, list[str]] = {}  # identical lines (most libraries) collapse into one

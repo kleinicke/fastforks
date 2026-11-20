@@ -786,7 +786,7 @@ def test_mlx(ref):
 def _manifest(lib: str) -> kernels.KernelManifest | None:
     if lib == "cudnn_hacc":  # its binary only builds cuDNN's plans on the host (the ctypes path's plans, see
         return None  # test_native_build_gives_the_ctypes_plan): validated per cuDNN version, like its tag
-    path = Path(kernels.__file__).parents[1] / "kernels" / lib / "manifest.toml"
+    path = kernels.platform_manifest(Path(kernels.__file__).parents[1] / "kernels" / lib / "manifest.toml")
     return kernels.read_manifest(path) if path.is_file() else None  # None: cuDNN libraries (tagged by version)
 
 
