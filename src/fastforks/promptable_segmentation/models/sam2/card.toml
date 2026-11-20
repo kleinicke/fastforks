@@ -4,6 +4,9 @@ summary = "Segment Anything 2.1 (Ravi et al. 2024), image mode: promptable segme
 tier = "stable"
 uses = ["box_kalman"]  # fastforks.shared modules this family imports (SAMURAI)
 outputs = ["pred_masks", "iou_scores"]
+limitations = [
+  "SAM 2.1 Hiera Tiny video took 2.217 s portable and 2.180 s kernels on the RTX 5060 Ti for 14 DAVIS frames at 480 x 854 and eight synthetic mask prompts. Both modes peaked at 1,419 MiB allocated and 1,522 MiB reserved.",
+]
 
 [upstream]
 repo = "https://github.com/facebookresearch/sam2"

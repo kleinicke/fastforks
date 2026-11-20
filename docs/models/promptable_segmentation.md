@@ -486,6 +486,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | `sam2.1-hiera-base-plus` | 0.00245 / 0.00842 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120` |
 | `sam2.1-hiera-large` | 0.01872 / 0.08865 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120` |
 
+### Limitations
+
+- SAM 2.1 Hiera Tiny video took 2.217 s portable and 2.180 s kernels on the RTX 5060 Ti for 14 DAVIS frames at 480 x 854 and eight synthetic mask prompts. Both modes peaked at 1,419 MiB allocated and 1,522 MiB reserved.
+
 </details>
 
 <a id="sam3"></a>
