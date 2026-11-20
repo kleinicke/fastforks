@@ -11,7 +11,7 @@ import torch.nn as nn
 from .camera import BaseCamera, camera_models
 from .gravity import Gravity
 from .misc import J_focal2fov
-from .perspective_fields import J_perspective_field, get_perspective_field
+from .perspective_fields import ImageGrid, J_perspective_field, get_perspective_field
 from .utils import focal2fov, rad2deg
 
 logger = logging.getLogger(__name__)
@@ -331,7 +331,7 @@ class LMOptimizer(nn.Module):
         logger.debug(f"Shared intrinsics:  {self.shared_intrinsics}")
 
     def calculate_residuals(
-        self, camera: BaseCamera, gravity: Gravity, data: Dict[str, torch.Tensor]
+        self, camera: BaseCamera, gravity: Gravity, data: Dict[str, torch.Tensor], *, grid: ImageGrid | None = None
     ) -> Dict[str, torch.Tensor]:
         """Calculate the residuals for the optimization.
 
@@ -343,7 +343,7 @@ class LMOptimizer(nn.Module):
         Returns:
             Dict[str, torch.Tensor]: Residuals for the optimization.
         """
-        perspective_up, perspective_lat = get_perspective_field(camera, gravity)
+        perspective_up, perspective_lat = get_perspective_field(camera, gravity, grid=grid)
         perspective_lat = torch.sin(perspective_lat)
 
         residuals = {}
@@ -456,6 +456,8 @@ class LMOptimizer(nn.Module):
         as_rpf: bool = False,
         shared_intrinsics: bool = False,
         camera_R_rig: torch.Tensor = None,
+        *,
+        grid: ImageGrid | None = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Calculate the gradient and Hessian for the optimization.
 
@@ -479,6 +481,7 @@ class LMOptimizer(nn.Module):
             spherical=self.conf.use_spherical_manifold and not as_rpf,
             log_focal=self.conf.use_log_focal and not as_rpf,
             camera_R_rig=camera_R_rig,
+            grid=grid,
         )
 
         J_up = J_up.reshape(J_up.shape[0], -1, J_up.shape[-2], J_up.shape[-1])  # (B, N, 2, 3)
@@ -545,6 +548,8 @@ class LMOptimizer(nn.Module):
         errors: Dict[str, torch.Tensor],
         weights: Dict[str, torch.Tensor],
         camera_R_rig: torch.Tensor = None,
+        *,
+        grid: ImageGrid | None = None,
     ) -> Dict[str, torch.Tensor]:
         """Estimate the uncertainty of the optimized camera and gravity at the final step.
 
@@ -566,6 +571,7 @@ class LMOptimizer(nn.Module):
             as_rpf=True,
             shared_intrinsics=self.shared_intrinsics,
             camera_R_rig=camera_R_rig,
+            grid=grid,
         )
         Cov = torch.inverse(Hess)
 
@@ -712,7 +718,8 @@ class LMOptimizer(nn.Module):
         if self.shared_intrinsics or camera_R_rig is not None:
             lamb = data[key].new_ones(1) * self.conf.lambda_
 
-        errors = self.calculate_residuals(camera_opt, gravity_opt, data)
+        grid = ImageGrid.from_camera(camera_opt)
+        errors = self.calculate_residuals(camera_opt, gravity_opt, data, grid=grid)
         costs, weights = self.calculate_costs(errors, data)
         infos = {"stop_at": self.num_steps}
         for i in range(self.num_steps):
@@ -733,6 +740,7 @@ class LMOptimizer(nn.Module):
                 weights,
                 shared_intrinsics=self.shared_intrinsics,
                 camera_R_rig=camera_R_rig,
+                grid=grid,
             )
             delta = optimizer_step(Grad, Hess, lamb)  # (B, N_params)
 
@@ -749,7 +757,7 @@ class LMOptimizer(nn.Module):
                 camera_opt, gravity_opt, delta, camera_R_rig=camera_R_rig
             )
             # These residuals and weights also start the next step or finish the fit.
-            errors = self.calculate_residuals(camera_opt, gravity_opt, data)
+            errors = self.calculate_residuals(camera_opt, gravity_opt, data, grid=grid)
             costs, weights = self.calculate_costs(errors, data)
             new_cost = sum(c.mean(-1) for c in costs.values())
 
@@ -779,7 +787,7 @@ class LMOptimizer(nn.Module):
 
         if not self.training:
             infos |= self.estimate_uncertainty(
-                camera_opt, gravity_opt, errors, weights, camera_R_rig=camera_R_rig
+                camera_opt, gravity_opt, errors, weights, camera_R_rig=camera_R_rig, grid=grid
             )
 
         infos["stop_at"] = camera_opt.new_ones(camera_opt.shape[0]) * infos["stop_at"]
