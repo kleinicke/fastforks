@@ -265,8 +265,14 @@ def test_node_model_lists(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         return {nodes.model_id(e) for e in node.INPUT_TYPES()["required"]["model"][0]}
 
     assert {"hat-x4", "hat-s-x4", "real-hat-gan-x4", "dat-x4", "dat-2-x4", "dat-light-x4"} <= ids(nodes.Upscale)
-    assert "codeformer" not in ids(nodes.Upscale)
-    assert ids(nodes.FaceRestore) == {"codeformer"}
+    assert not {"codeformer", "gfpgan-v1.4", "big-lama"} & ids(nodes.Upscale)  # aligned faces; inpainting (mask)
+    assert ids(nodes.FaceRestore) == {"codeformer", "gfpgan-v1.4"}
+    # inputs the nodes do not have: a depth prompt, a first-frame mask (video matting), a reference (in-context)
+    assert not {"prompt-depth-anything-s", "lingbot-depth", "omni-dc"} & ids(nodes.Depth)
+    assert "matanyone" not in ids(nodes.RemoveBackground)
+    assert "vitmatte-s" in ids(nodes.RemoveBackground)  # trimap: an optional input of the node
+    assert "insid3-vitl16" not in ids(nodes.Segment)
+    assert {"sam2.1-hiera-small", "clipseg", "sam3"} <= ids(nodes.Segment)  # points / boxes; text
     tagger = {"wd-vit-tagger-v3", "wd-convnext-tagger-v3", "wd-vit-large-tagger-v3", "wd-eva02-large-tagger-v3"}
     assert ids(nodes.Tag) == tagger
     assert ids(nodes.NsfwCheck) == {"falconsai-nsfw-vit"}
@@ -308,7 +314,7 @@ def test_wd_tags(pack: Any) -> None:
 
 
 def test_every_node_matches_the_library(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Every node: a non-empty model list of existing cards, `run` arguments = inputs, a display name."""
+    """Every node: a non-empty model list of cards whose required inputs it passes, `run` arguments = inputs, a name."""
     import inspect  # noqa: PLC0415
 
     import fastforks  # noqa: PLC0415
@@ -325,4 +331,6 @@ def test_every_node_matches_the_library(pack: Any, monkeypatch: pytest.MonkeyPat
             labels = spec["required"]["model"][0]
             assert labels, f"{name}: no models listed"
             for label in labels:
-                fastforks.model_card(nodes.model_id(label))
+                mid = nodes.model_id(label)
+                fastforks.model_card(mid)
+                assert node.runs(mid), f"{name} lists {mid}, which needs inputs the node does not pass"

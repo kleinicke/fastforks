@@ -210,11 +210,34 @@ def _ids(task: str, keep: Callable[[str], bool] = lambda _: True) -> list[str]:
     return [m for m in fastforks.list_models(task=task) if keep(m)]
 
 
+_IMAGE = frozenset({"image"})
+
+
+def takes(mid: str, given: frozenset[str] = _IMAGE, prompts: frozenset[str] = frozenset()) -> bool:
+    """Whether a node that passes the inputs `given` (and the prompt kinds `prompts`) can run the model `mid`.
+
+    From the model's contract (card and runner classes, no weights): every input it requires is in `given`, and a
+    promptable model takes at least one of `prompts`. E.g. a depth model that needs a depth prompt, a matting model that
+    needs a first-frame mask or an inpainting model that needs a mask cannot run in a node without that input.
+    """
+    inputs = fastforks.model_card(mid).contract().inputs
+    if any(use == "required" and name not in given for name, use in inputs.items() if name != "prompts"):
+        return False
+    return "prompts" not in inputs or bool(set(inputs["prompts"]) & prompts)
+
+
 class _Node:
     CATEGORY = "fastforks"
     FUNCTION = "run"
     DESCRIPTION = ""
     RETURN_TYPES: ClassVar[tuple[str, ...]] = ()
+    TAKES: ClassVar[frozenset[str]] = _IMAGE  # the model inputs `run` passes (contract names)
+    PROMPTS: ClassVar[frozenset[str]] = frozenset()  # promptable segmentation: the prompt kinds `run` passes
+
+    @classmethod
+    def runs(cls, mid: str) -> bool:
+        """Whether `run` gives the model `mid` every input it requires (`takes`)."""
+        return takes(mid, cls.TAKES, cls.PROMPTS)
 
 
 _VIDEO_DEPTH = frozenset({"video_depth_anything"})  # depth families that run a whole clip (`model.video`), not frames
@@ -228,6 +251,7 @@ def _depth_ids(*, video: bool) -> list[str]:
         lambda m: (
             bool(outputs & set(fastforks.model_card(m).outputs))
             and (fastforks.model_card(m).family in _VIDEO_DEPTH) == video
+            and takes(m)  # not the depth-prompted / depth-completion models: the node has no depth prompt input
         ),
     )
 
@@ -284,7 +308,7 @@ class Normals(_Node):
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        ids = _ids("depth", lambda m: "normals" in fastforks.model_card(m).outputs)
+        ids = _ids("depth", lambda m: "normals" in fastforks.model_card(m).outputs and cls.runs(m))
         return {"required": {"image": ("IMAGE",), **common(ids, "stablenormal-turbo")}}
 
     def run(self, *, image: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[torch.Tensor]:
@@ -300,13 +324,15 @@ class RemoveBackground(_Node):
     DESCRIPTION = "Foreground alpha: the image with alpha (RGBA) and the alpha as a mask (1 = foreground)."
     RETURN_TYPES = ("IMAGE", "MASK")
     RETURN_NAMES = ("rgba", "alpha")
+    TAKES = _IMAGE | {"trimap"}
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
         tip = "Only for trimap models (ViTMatte): 0 = background, 1 = foreground, 0.5 = unknown."
+        ids = _ids("matting", cls.runs)  # not video matting from a first-frame mask
         return {
-            "required": {"image": ("IMAGE",), **common(_ids("matting"), "birefnet-lite")},
+            "required": {"image": ("IMAGE",), **common(ids, "birefnet-lite")},
             "optional": {"trimap": ("MASK", {"tooltip": tip})},
         }
 
@@ -329,15 +355,17 @@ class Segment(_Node):
 
     DESCRIPTION = "Mask from point / box prompts (SAM, SAM 2, ...) or a text prompt (SAM 3)."
     RETURN_TYPES = ("MASK",)
+    PROMPTS = frozenset({"points", "boxes", "text"})
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
         px = "in pixels of the input image"
+        ids = _ids("promptable_segmentation", cls.runs)  # not the reference-prompted (in-context) models
         return {
             "required": {
                 "image": ("IMAGE",),
-                **common(_ids("promptable_segmentation"), "sam2.1-hiera-small"),
+                **common(ids, "sam2.1-hiera-small"),
                 "positive_points": ("STRING", {"default": "", "tooltip": f"'x,y; x,y' foreground points {px}"}),
                 "negative_points": ("STRING", {"default": "", "tooltip": f"'x,y; x,y' background points {px}"}),
                 "box": ("STRING", {"default": "", "tooltip": f"'x0,y0,x1,y1' {px}"}),
@@ -483,6 +511,7 @@ class Interpolate(_Node):
 
     DESCRIPTION = "Frame interpolation: inserts multiplier - 1 frames between consecutive frames of the batch."
     RETURN_TYPES = ("IMAGE",)
+    TAKES = frozenset({"image1", "image2"})
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
@@ -698,6 +727,7 @@ class Stereo(_Node):
 
     DESCRIPTION = "Disparity of rectified left / right pairs, scaled to 0-1 per image (near = white, as Depth)."
     RETURN_TYPES = ("IMAGE",)
+    TAKES = frozenset({"left", "right"})
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
@@ -729,6 +759,7 @@ class Flow(_Node):
     DESCRIPTION = "Flow from each frame to the next (B - 1 results): colour-wheel image and raw flow in pixels."
     RETURN_TYPES = ("IMAGE", "FASTFORKS_FLOW")
     RETURN_NAMES = ("flow_image", "flow")
+    TAKES = frozenset({"image1", "image2"})
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
@@ -774,6 +805,7 @@ class VideoSegment(_Node):
 
     DESCRIPTION = "Mask of one object over a frame batch, prompted by points / box on the first frame."
     RETURN_TYPES = ("MASK",)
+    PROMPTS = frozenset({"points", "boxes"})
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
@@ -824,6 +856,7 @@ class PointTrack(_Node):
     DESCRIPTION = "Tracks of a point grid (or given points) of the first frame, drawn on the frames and as JSON."
     RETURN_TYPES = ("IMAGE", "STRING")
     RETURN_NAMES = ("tracks_image", "tracks")
+    TAKES = frozenset({"video", "queries"})
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
@@ -869,24 +902,29 @@ class PointTrack(_Node):
         return convert.to_image(drawn, _out_device()), convert.to_json({"tracks": tracks, "visible": visible})
 
 
-_FACE_IDS = {"codeformer"}  # aligned face crops only: the FaceRestore node, not Upscale
+_FACE_FAMILIES = frozenset({"codeformer", "gfpgan"})  # aligned face crops only: the FaceRestore node, not Upscale
+
+
+def _face(mid: str) -> bool:
+    return fastforks.model_card(mid).family in _FACE_FAMILIES
 
 
 class Upscale(_Node):
     """Super-resolution / restoration (Real-ESRGAN, SPAN, SwinIR, HAT, DAT, ...), tiled for large images."""
 
     DESCRIPTION = (
-        "Upscaled image. Models: fastforks ids (Real-ESRGAN, SPAN, SwinIR, HAT, DAT, ...), or files of"
-        " models/upscale_models (file: ...) of the architectures fastforks runs (Real-ESRGAN / ESRGAN, SPAN, SwinIR);"
-        " other files are not listed. Keep tiling on for HAT and DAT: one pass runs out of memory at 2048 x 1024"
-        " on 16 GB."
+        "Upscaled / restored image. Models: fastforks ids (Real-ESRGAN, SPAN, SwinIR, HAT, DAT, ...), or files of"
+        " models/upscale_models (file: ...) whose architecture fastforks reads (fastforks.restoration.load(path):"
+        " ESRGAN / Real-ESRGAN, Compact, SPAN, SwinIR, HAT, DAT, ...); other files are not listed. Keep tiling on for"
+        " HAT and DAT: one pass runs out of memory at 2048 x 1024 on 16 GB."
     )
     RETURN_TYPES = ("IMAGE",)
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        inputs = common(_ids("restoration", lambda m: m not in _FACE_IDS), "realesrgan-x4plus")
+        # not the face models (FaceRestore) nor the inpainting ones (they need a mask)
+        inputs = common(_ids("restoration", lambda m: not _face(m) and cls.runs(m)), "realesrgan-x4plus")
         entries, opts = inputs["model"]
         inputs["model"] = ([*entries, *upscale_files()], opts)
         tip = "Tile size in input pixels (overlap 32 px, as ComfyUI's upscaler): less memory. 0: one pass."
@@ -906,11 +944,11 @@ class Upscale(_Node):
 
 
 class FaceRestore(_Node):
-    """Face restoration (CodeFormer) of aligned face crops."""
+    """Face restoration (GFPGAN, CodeFormer) of aligned face crops."""
 
     DESCRIPTION = (
-        "[non-commercial] CodeFormer face restoration (fidelity 0.5), research use only. Input: aligned 512 x 512 face"
-        " crops (FFHQ alignment) only; this pack does not detect, align or paste faces back."
+        "Face restoration: GFPGAN v1.4, or CodeFormer (fidelity 0.5; [non-commercial], research use only). Input:"
+        " aligned 512 x 512 face crops (FFHQ alignment) only; this pack does not detect, align or paste faces back."
     )
 
     RETURN_TYPES = ("IMAGE",)
@@ -918,7 +956,7 @@ class FaceRestore(_Node):
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        return {"required": {"image": ("IMAGE",), **common(sorted(_FACE_IDS), "codeformer")}}
+        return {"required": {"image": ("IMAGE",), **common(_ids("restoration", _face), "codeformer")}}
 
     def run(self, *, image: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[torch.Tensor]:
         """Restore every face crop."""
@@ -970,5 +1008,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "FastforksVideoSegment": "Video segment (SAM 2 / SAMURAI, fastforks)",
     "FastforksPointTrack": "Track points (fastforks)",
     "FastforksUpscale": "Upscale / restore (fastforks)",
-    "FastforksFaceRestore": "Restore aligned faces (CodeFormer, fastforks, non-commercial)",
+    "FastforksFaceRestore": "Restore aligned faces (GFPGAN / CodeFormer, fastforks)",
 }
