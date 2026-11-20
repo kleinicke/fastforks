@@ -19,9 +19,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`film`](#film) | yes | 328, 1.4x | 2942, 0.83x |
 | [`gimm-vfi-r`](#gimm_vfi) | no | 1521 | 5282 |
 | [`gimm-vfi-r-p`](#gimm_vfi) | no | 1520 | 5282 |
-| [`rife-4.25`](#rife) | yes | 21.4, 1.1x | 916, 0.79x |
-| [`rife-4.25-lite`](#rife) | yes | 18.3, 1.2x | 896, 0.74x |
-| [`rife-4.26`](#rife) | yes | 21.4, 1.1x | 776, 0.67x |
+| [`rife-4.25`](#rife) | yes | 21.9, 1.1x | 636, 0.55x |
+| [`rife-4.25-lite`](#rife) | yes | 19.4, 1.1x | 596, 0.49x |
+| [`rife-4.26`](#rife) | yes | 22.0, 1.1x | 636, 0.55x |
 
 <a id="ema_vfi"></a>
 
@@ -230,9 +230,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `rife-4.25` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.5<br>25.0<br>21.4<br>44.9<br>17.6 | 987 / 1154<br>755 / 894<br>848 / 916<br>1094 / 1234<br>696 / 714 |
-| `rife-4.26` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.2<br>25.0<br>21.4<br>44.5<br>17.6 | 1004 / 1154<br>570 / 754<br>663 / 776<br>1094 / 1234<br>696 / 714 |
-| `rife-4.25-lite` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.3<br>21.1<br>18.3<br>42.3<br>14.1 | 1012 / 1214<br>754 / 854<br>834 / 896<br>1061 / 1374<br>696 / 714 |
+| `rife-4.25` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.5<br>25.0<br>21.9<br>44.9<br>17.6 | 987 / 1154<br>570 / 616<br>561 / 636<br>1094 / 1234<br>696 / 714 |
+| `rife-4.26` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.2<br>25.0<br>22.0<br>44.5<br>17.6 | 1004 / 1154<br>570 / 616<br>561 / 636<br>1094 / 1234<br>696 / 714 |
+| `rife-4.25-lite` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.3<br>21.1<br>19.4<br>42.3<br>14.1 | 1012 / 1214<br>551 / 616<br>545 / 596<br>1061 / 1374<br>696 / 714 |
 
 <details><summary>Details</summary>
 
@@ -251,9 +251,11 @@ Commercial use: yes.
 - `rife-4.26` 1080x1920, first call: portable + torch.compile 35 s (cold Inductor cache), TensorRT fp16 55 s (ONNX + engine).
 - `rife-4.25-lite` 1080x1920, first call: portable + torch.compile 35 s (cold Inductor cache), TensorRT fp16 50 s (ONNX + engine).
 - `rife-4.25` original 1080x1920: the authors' mixed-precision option (float16); upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128, inference_video.py --fp16: half default dtype, model and input
+- `rife-4.25` portable 1080x1920, kernels 1080x1920: Releases the high-resolution input at each refinement block after its strided stem.
 - `rife-4.26` original 1080x1920: the authors' mixed-precision option (float16); upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128, inference_video.py --fp16: half default dtype, model and input
-- `rife-4.26` portable 1080x1920, kernels 1080x1920: Release completed warp buffers. The paired same-process portable checks and separate-process kernels checks matched every frame. Independent portable processes differed by at most 0.00044 dB across three DAVIS scores.
+- `rife-4.26` portable 1080x1920, kernels 1080x1920: Releases the high-resolution input at each refinement block after its strided stem.
 - `rife-4.25-lite` original 1080x1920: the authors' mixed-precision option (float16); upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128, inference_video.py --fp16: half default dtype, model and input
+- `rife-4.25-lite` portable 1080x1920, kernels 1080x1920: Releases the high-resolution input at each refinement block after its strided stem.
 - `rife-4.25` load / first call: original 1.42 s / 0.265 s, portable 0.16 s / 0.447 s, kernels 1.5 s / 0.203 s
 - `rife-4.26` load / first call: original 0.18 s / 0.046 s, portable 0.16 s / 0.334 s, kernels 0.29 s / 0.215 s
 - `rife-4.25-lite` load / first call: original 0.18 s / 0.12 s, portable 0.24 s / 0.273 s, kernels 0.6 s / 0.195 s
