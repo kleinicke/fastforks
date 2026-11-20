@@ -39,7 +39,7 @@ from .net import PATCH, ConvStack, MoGeNet, Resampler
 from .sparse import Level, SparseKernels, SubmConv3d
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterator, Sequence
 
     from fastforks.depth._runner import Context
 
@@ -447,32 +447,47 @@ class _FusedStack:
     def _conv(self, x: torch.Tensor, c: tuple[torch.Tensor, torch.Tensor], **kw: Any) -> torch.Tensor:  # noqa: ANN401 - epilogue options
         return self.k.conv(x, c[0], c[1], **kw)
 
-    def levels(self, x: torch.Tensor, adds: Sequence[torch.Tensor | None]) -> list[torch.Tensor]:
-        """Level features from level 0's (input block applied) `x`; `adds[i]`: level i's input (i >= 1)."""
+    def _run_levels(
+        self,
+        x: torch.Tensor,
+        adds: Iterator[torch.Tensor | None],
+        outputs: list[torch.Tensor] | None,
+    ) -> torch.Tensor:
+        """Decode from the level-0 projection, keeping all levels only for the neck."""
         k = self.k
-        outs = []
         n = len(self.res)
         for i in range(n):
             for c1, c2 in self.res[i]:
                 y = self._conv(_pad(x, relu=True), c1)
                 x = self._conv(_pad(y, relu=True), c2, res=x, out=x)
-            outs.append(x)
+                del y
+            if outputs is not None:
+                outputs.append(x)
             if i < n - 1:
                 pre, c = self.up[i]
                 _, h, w, _ = x.shape
                 if pre is None:
-                    u = k.bilinear(x, (2 * h, 2 * w), align_corners=False)
+                    padded = _pad(k.bilinear(x, (2 * h, 2 * w), align_corners=False), relu=False)
                 else:
                     _, wg, bg, s = pre
-                    u = k.gemm(x, wg, bg, shuffle=(h, w, s, s))
-                x = self._conv(_pad(u, relu=False), c, res=adds[i + 1])
-        return outs
+                    padded = _pad(k.gemm(x, wg, bg, shuffle=(h, w, s, s)), relu=False)
+                res = next(adds)
+                # A head owns its projections and can overwrite them. The neck reads cached tables.
+                x = self._conv(padded, c, res=res, out=res if outputs is None else None)
+                del padded, res
+        return x
+
+    def levels(self, x: torch.Tensor, adds: Sequence[torch.Tensor | None]) -> list[torch.Tensor]:
+        """Level features from level 0's (input block applied) `x`; `adds[i]`: level i's input (i >= 1)."""
+        outputs: list[torch.Tensor] = []
+        self._run_levels(x, iter(adds[1:]), outputs)
+        return outputs
 
     def head(self, levels: Sequence[torch.Tensor]) -> torch.Tensor:
         """Head over the neck's levels -> its fp32 output `[B, h, w, C_out]` (last level, fp32 1x1 conv)."""
         k = self.k
-        adds = [k.gemm(f, w, b) for f, (w, b) in zip(levels, self.inp, strict=True)]
-        x = self.levels(adds[0], adds)[-1]
+        adds = (k.gemm(f, w, b) for f, (w, b) in zip(levels, self.inp, strict=True))
+        x = self._run_levels(next(adds), adds, None)
         assert self.out is not None  # noqa: S101 - heads have an output conv
         w, b = self.out
         return torch.addmm(b, x.view(-1, x.shape[-1]).float(), w).view(*x.shape[:-1], -1)
