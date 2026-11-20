@@ -135,17 +135,28 @@ def test_kernel_licences(lib):
         assert read_manifest(lib / "manifest.toml").licence == meta["licence"], "stale manifest: run build_kernels"
 
 
-@pytest.mark.parametrize("lib", BUILT, ids=lambda p: p.name)
-def test_manifest_is_current(lib):
+# manifest.toml, and manifest.windows.toml for a shared library with a Windows DLL build
+MANIFESTS = sorted(p for lib in BUILT for p in (lib / "manifest.toml", lib / "manifest.windows.toml") if p.is_file())
+
+
+def _manifest_id(path: Path) -> str:
+    return path.parent.name + ("-windows" if path.name == "manifest.windows.toml" else "")
+
+
+@pytest.mark.parametrize("path", MANIFESTS, ids=_manifest_id)
+def test_manifest_is_current(path):
     """The committed manifest belongs to the committed sources (rebuild with tools/build_kernels.py otherwise)."""
-    m = read_manifest(lib / "manifest.toml")
+    lib = path.parent
+    m = read_manifest(path)
     cfg = tomllib.loads((lib / "build.toml").read_text())
     h = hashlib.sha256((lib / "build.toml").read_bytes())
     for s in cfg["sources"]:
         h.update((lib / s).read_bytes())
-    raw = tomllib.loads((lib / "manifest.toml").read_text())
+    raw = tomllib.loads(path.read_text())
     assert raw["sources_sha256"] == h.hexdigest(), "sources changed: run tools/build_kernels.py " + lib.name
     assert m.name == lib.name
+    assert m.licence == tomllib.loads((lib / "meta.toml").read_text())["licence"]
+    assert (m.system == "windows") == (path.name == "manifest.windows.toml")
     assert sorted(m.files) == sorted(cfg["targets"])
     assert all(f.name.startswith(f"{lib.name}-{m.build_id}-") for f in m.files.values())
 
@@ -201,12 +212,13 @@ def test_compat_build_loads(monkeypatch, name):
     assert tag.startswith(f"{m.compat.tag}:")
 
 
-@pytest.mark.parametrize("lib", BUILT, ids=lambda p: p.name)
-def test_manifest_symbols_are_current(lib):
+@pytest.mark.parametrize("path", MANIFESTS, ids=_manifest_id)
+def test_manifest_symbols_are_current(path):
     """`[symbols]` matches the sources (refresh with `tools/build_kernels.py --symbols`)."""
     from fastforks._core.kernel_symbols import library_symbols  # noqa: PLC0415
 
-    raw = tomllib.loads((lib / "manifest.toml").read_text())
+    lib = path.parent
+    raw = tomllib.loads(path.read_text())
     got = library_symbols(lib, (lib / "build.toml").read_text(), raw["toolchain"])
     assert raw["symbols"] == got, "stale [symbols]: run tools/build_kernels.py --symbols " + lib.name
 
