@@ -266,7 +266,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `matanyone` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1220<br>966<br>911<br>635<br>fails: BackendUnavailableError: matanyone@1 (portable) has no expor | 2978 / 3208<br>2268 / 2726<br>2268 / 2706<br>1363 / 3452<br>– |
-| `matanyone` | YouTubeMatte youtubematte_motion/0004 (100 frames) (288x512) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>1721<br>–<br>1476 (frame and key encoder with eager video memory and alpha decoder, 100 frames) | –<br>414 / 496<br>–<br>474 / 542 |
+| `matanyone` | YouTubeMatte youtubematte_motion/0004 (100 frames) (100x288x512) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>1721<br>–<br>1476 (frame and key encoder with eager video memory and alpha decoder, 100 frames) | –<br>414 / 496<br>–<br>474 / 542 |
 
 <details><summary>Details</summary>
 
@@ -282,11 +282,11 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `matanyone` 3000x4000 (14.5 GiB peak allocated, 15.1 reserved)
 - `matanyone` 1080x1920, first call: portable + torch.compile 36 s (cold Inductor cache).
-- `matanyone` 288x512, first call: TensorRT fp32 16 s (ONNX + engine).
+- `matanyone` 100x288x512, first call: TensorRT fp32 16 s (ONNX + engine).
 - `matanyone` original 1080x1920: the authors' mixed-precision option (float16); pq-yang/MatAnyone@e5ddc534c1ff process_video loop on frames in memory, cv2 mask closing
 - `matanyone` portable 1080x1920: Portable reuses frame-zero encoder features during warm-up. Synthetic output and all 300 alpha maps from three labeled YouTubeMatte clips matched bitwise.
 - `matanyone` kernels 1080x1920: Eager CUDA decoder reuses activation storage after projecting the residual.
-- `matanyone` portable 288x512: The archived portable run used the same 100 YouTubeMatte frames, initial mask and FP32 settings as the staged TensorRT run.
+- `matanyone` portable 100x288x512: The archived portable run used the same 100 YouTubeMatte frames, initial mask and FP32 settings as the staged TensorRT run.
 - `matanyone` load / first call: original 3.39 s / 2.37 s, portable 0.4 s / 1.867 s, kernels 0.35 s / 1.559 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

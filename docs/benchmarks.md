@@ -1140,7 +1140,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | vitmatte-b | 257 | 180 | 146 | 1.8x | 1.2x | 5070 / 5128 | 891 / 1036 | 747 / 832 |
 | vitmatte-s | 140 | 102 | 84.1 | 1.7x | 1.2x | 2536 / 2582 | 1401 / 1524 | 1305 / 1404 |
 
-### Matting, YouTubeMatte youtubematte_motion/0004 (100 frames), 288x512
+### Matting, YouTubeMatte youtubematte_motion/0004 (100 frames), 100x288x512
 
 | model | time (ms): portable | peak memory (MiB, allocated / reserved): portable |
 |---|---|---|
@@ -1490,6 +1490,14 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | tapnext-pp | 1493 | 529 | 382 | 3.9x | 1.4x | 1527 / 1718 | 1028 / 1094 | 1013 / 1074 |
 | track-on-r | 2022 | 1150 | 1064 | 1.9x | 1.1x | 1801 / 1928 | 1030 / 1190 | 975 / 1156 |
 | track-on2 | 1953 | 1159 | 1073 | 1.8x | 1.1x | 1403 / 1558 | 1030 / 1190 | 975 / 1158 |
+
+### Tracking, Synthetic video
+
+| model | input | time (ms): portable | peak memory (MiB, allocated / reserved): portable |
+|---|---|---|---|
+| cotracker3-online | 8x256x256 | 97.2 | 936 / 1298 |
+| locotrack-b | 8x480x854 | 27.2 | 241 / 278 |
+| locotrack-s | 8x480x854 | 25.3 | 229 / 280 |
 
 ### Interpolation, synthetic, 1080x1920
 
@@ -2414,7 +2422,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | isnet | 1080x1920 | 21.0 ms | 13.1 ms | 6.70 ms | 12.1 ms | 33.8 s | 34.4 s | 512 / 562 | 350 / 400 | 487 / 522 | 404 / 436 |
 | isnet-general-use | 1080x1920 | 21.0 ms | 13.1 ms | 6.66 ms | 12.1 ms | 33.9 s | 32.3 s | 512 / 562 | 350 / 400 | 487 / 522 | 404 / 436 |
 | matanyone | 1080x1920 | 966 ms | 635 ms | fails: BackendUnavailableError: matanyone@1 (portable) has no expor | 911 ms | 35.9 s | – | 2268 / 2726 | 1363 / 3452 | 2268 / 2706 | – |
-| matanyone | 288x512 | 1721 ms | – | 1476 ms, fp32 engine (frame and key encoder with eager video memory and alpha decoder, 100 frames) | – | – | 15.8 s | 414 / 496 | – | – | 474 / 542 |
+| matanyone | 100x288x512 | 1721 ms | – | 1476 ms, fp32 engine (frame and key encoder with eager video memory and alpha decoder, 100 frames) | – | – | 15.8 s | 414 / 496 | – | – | 474 / 542 |
 | rmbg-2.0 | 1080x1920 | 133 ms | 110 ms | 88.1 ms | 121 ms | 82.9 s | 219 s | 1165 / 1288 | 1874 / 1932 | 1145 / 1296 | 1723 / 1784 |
 | u2net | 1080x1920 | 9.77 ms | 9.09 ms | 3.07 ms | 5.18 ms | – | 36.0 s | 240 / 278 | 221 / 258 | 161 / 236 | 335 / 390 |
 | u2net-human-seg | 1080x1920 | 10.0 ms | 6.18 ms | 3.08 ms | 5.14 ms | – | 34.7 s | 240 / 278 | 193 / 234 | 161 / 236 | 335 / 390 |
@@ -2716,23 +2724,25 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | xfeat | 768x1024 | 10.6 ms | 5.65 ms | 5.50 ms, fp32 engine (standalone image CNN, eager keypoint selection and matching) | 17.1 ms | 30.8 s | 11.8 s | 122 / 154 | 186 / 212 | 296 / 352 | 268 / 416 |
 | xfeat-lighterglue | 768x1024 | 31.8 ms | 16.2 ms | public API unavailable | 32.8 ms | 39.7 s | – | 444 / 476 | 262 / 278 | 445 / 478 | – |
 | alltracker | 480x854 | 385 ms | 284 ms | public API unavailable | 213 ms | 105 s | – | 885 / 998 | 1273 / 1358 | 967 / 1068 | – |
-| alltracker | 256x256 | 412 ms | – | 330 ms, fp32 engine (frame CNN with eager tracking) | – | – | 20.3 s | 1438 / 2512 | – | – | 2262 / 3372 |
+| alltracker | 16x256x256 | 412 ms | – | 330 ms, fp32 engine (frame CNN with eager tracking, 16 frames and 16 queries) | – | – | 20.3 s | 1438 / 2512 | – | – | 2262 / 3372 |
 | alltracker-tiny | 480x854 | 330 ms | 229 ms | public API unavailable | 217 ms | 103 s | – | 919 / 1178 | 1198 / 1338 | 978 / 1166 | – |
-| alltracker-tiny | 256x256 | 302 ms | – | 270 ms, fp32 engine (frame CNN with eager tracking) | – | – | 19.3 s | 1364 / 2548 | – | – | 2010 / 3220 |
+| alltracker-tiny | 16x256x256 | 302 ms | – | 270 ms, fp32 engine (frame CNN with eager tracking, 16 frames and 16 queries) | – | – | 19.3 s | 1364 / 2548 | – | – | 2010 / 3220 |
 | bootstapir | 480x854 | 233 ms | 183 ms | 13.2 ms | 191 ms | 207 s | 65.0 s | 499 / 568 | 758 / 832 | 499 / 568 | 492 / 532 |
 | cotracker3-offline | 480x854 | 162 ms | 135 ms | 25.9 ms | 154 ms | 36.5 s | 157 s | 755 / 882 | 755 / 902 | 757 / 882 | 519 / 586 |
 | cotracker3-online | 480x854 | 184 ms | 159 ms | public API unavailable | 176 ms | 37.7 s | – | 755 / 906 | 701 / 846 | 757 / 888 | – |
-| cotracker3-online | 256x256 | – | – | 50.3 ms, fp32 engine (fixed eight-frame graph with 16 queries) | – | – | 117 s | – | – | – | 456 / 472 |
+| cotracker3-online | 8x256x256 | 97.2 ms | – | 50.3 ms, fp32 engine (fixed eight-frame graph with 16 queries) | – | – | 117 s | 936 / 1298 | – | – | 456 / 472 |
 | cotracker3-online | 24x256x256 | 280 ms | – | 141 ms, fp32 engine (fixed 24-frame clip with 16 queries) | – | – | – | 2381 / 2694 | – | – | 850 / 856 |
-| locotrack-b | 480x854 | 189 ms | 82.6 ms | 6.12 ms (8 frames with 16 queries only) | 109 ms | 146 s | – | 535 / 596 | 1117 / 1140 | 507 / 600 | 233 / 242 |
-| locotrack-s | 480x854 | 180 ms | 74.1 ms | 5.66 ms (8 frames with 16 queries only) | 151 ms | 140 s | 51.4 s | 759 / 842 | 1000 / 1034 | 596 / 642 | 251 / 256 |
+| locotrack-b | 480x854 | 189 ms | 82.6 ms | – | 109 ms | 146 s | – | 535 / 596 | 1117 / 1140 | 507 / 600 | – |
+| locotrack-b | 8x480x854 | 27.2 ms | – | 6.12 ms (8 frames with 16 queries only) | – | – | – | 241 / 278 | – | – | 233 / 242 |
+| locotrack-s | 480x854 | 180 ms | 74.1 ms | – | 151 ms | 140 s | – | 759 / 842 | 1000 / 1034 | 596 / 642 | – |
+| locotrack-s | 8x480x854 | 25.3 ms | – | 5.66 ms (8 frames with 16 queries only) | – | – | 51.4 s | 229 / 280 | – | – | 251 / 256 |
 | tapir | 480x854 | 182 ms | 131 ms | 6.47 ms | 141 ms | 169 s | 55.2 s | 463 / 548 | 630 / 752 | 463 / 548 | 361 / 406 |
 | tapnext | 480x854 | 528 ms | 398 ms | 69.4 ms | 381 ms | 40.5 s | 366 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |
 | tapnext-pp | 480x854 | 529 ms | 395 ms | 69.5 ms | 382 ms | 34.1 s | 362 s | 1028 / 1094 | 1164 / 1272 | 1013 / 1074 | 1498 / 1660 |
 | track-on-r | 480x854 | 1150 ms | 1066 ms | public API unavailable | 1064 ms | 66.0 s | – | 1030 / 1190 | 1340 / 1454 | 975 / 1156 | – |
-| track-on-r | 256x256 | 1086 ms | – | 958 ms, fp32 engine (standalone eight-frame encoder, eager recurrent decoder) | – | – | 42.1 s | 1607 / 1930 | – | – | 1979 / 2286 |
+| track-on-r | 16x256x256 | 1086 ms | – | 958 ms, fp32 engine (eight-frame encoder chunks with eager recurrent decoder, 16-frame clip) | – | – | 42.1 s | 1607 / 1930 | – | – | 1979 / 2286 |
 | track-on2 | 480x854 | 1159 ms | 1075 ms | public API unavailable | 1073 ms | 60.0 s | – | 1030 / 1190 | 1340 / 1454 | 975 / 1158 | – |
-| track-on2 | 256x256 | 1092 ms | – | 961 ms, fp32 engine (standalone eight-frame encoder, eager recurrent decoder) | – | – | 46.3 s | 1607 / 1930 | – | – | 1979 / 2288 |
+| track-on2 | 16x256x256 | 1092 ms | – | 961 ms, fp32 engine (eight-frame encoder chunks with eager recurrent decoder, 16-frame clip) | – | – | 46.3 s | 1607 / 1930 | – | – | 1979 / 2288 |
 | ema-vfi | 1080x1920 | 233 ms | 165 ms | 124 ms | 185 ms | 90.6 s | 90.9 s | 1659 / 2082 | 3325 / 3542 | 1659 / 2102 | 1719 / 1786 |
 | ema-vfi-small | 1080x1920 | 89.4 ms | 59.6 ms | 43.7 ms | 84.4 ms | 78.5 s | 67.6 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
 | ema-vfi-small-t | 1080x1920 | 89.4 ms | 59.8 ms | 43.4 ms | 84.3 ms | 77.9 s | 68.8 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
