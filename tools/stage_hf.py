@@ -116,9 +116,9 @@ def stage_kernels(src: Path, out: Path) -> list[str]:
 EXCLUDED_GOLDENS = frozenset({"coex-sceneflow@1"})
 
 
-def _find_golden(srcs: list[Path], ref: str, sha256: str) -> Path | None:
-    """First `<ref>.npz` in the source directories whose SHA-256 matches, else None."""
-    return next((p for d in srcs if (p := d / f"{ref}.npz").is_file() and sha256_of(p) == sha256), None)
+def _find_golden(srcs: list[Path], name: str, sha256: str) -> Path | None:
+    """First file `name` (`<ref>.npz`, `<ref>.windows.npz`) in the source directories with that SHA-256, else None."""
+    return next((p for d in srcs if (p := d / name).is_file() and sha256_of(p) == sha256), None)
 
 
 def stage_goldens(srcs: list[Path], out: Path, *, skip_missing: bool = False) -> list[str]:
@@ -135,13 +135,17 @@ def stage_goldens(srcs: list[Path], out: Path, *, skip_missing: bool = False) ->
                 sys.exit(f"{ref}: no card variant (a stale golden ref?)")
             if ref in EXCLUDED_GOLDENS:
                 continue
-            src = _find_golden(srcs, ref, entry["sha256"])
-            if src is None:
+            # its own file, then any per-OS golden (`<ref>.windows.npz`)
+            files = [(local, published, sha) for _, local, published, sha in store.golden_files(ref, entry)]
+            found = [(src, published) for local, published, sha in files if (src := _find_golden(srcs, local, sha))]
+            if len(found) < len(files):
+                missing = ", ".join(local for local, _, sha in files if _find_golden(srcs, local, sha) is None)
                 if skip_missing:
-                    print(f"skipped (no local file with the recorded SHA-256): {ref}", file=sys.stderr)
+                    print(f"skipped (no local file with the recorded SHA-256): {missing}", file=sys.stderr)
                     continue
-                sys.exit(f"{ref}: no file with the recorded SHA-256 in {', '.join(map(str, srcs))}")
-            shutil.copyfile(src, out / entry.get("file", f"{ref}.npz"))
+                sys.exit(f"{missing}: no file with the recorded SHA-256 in {', '.join(map(str, srcs))}")
+            for src, published in found:
+                shutil.copyfile(src, out / published)
             card, v = cards[ref]
             st = card.status(v)
             rows.append(f"| `{ref}` | {card.family} | {card.licence.code} | {st.weights} | {entry['upstream']} |")

@@ -1,5 +1,6 @@
 """`tools/stage_hf.py cards --check-live` diffing and `tools/coverage_report.py` (offline, nothing is fetched)."""
 
+import types
 from collections import Counter
 
 import coverage_report
@@ -75,6 +76,35 @@ def test_find_golden_takes_the_first_source_with_the_recorded_hash(tmp_path):
     (a / "m@1.npz").write_bytes(b"stale")
     (b / "m@1.npz").write_bytes(b"good")
     good = hashlib.sha256(b"good").hexdigest()
-    assert stage_hf._find_golden([a, b], "m@1", good) == b / "m@1.npz"
-    assert stage_hf._find_golden([a], "m@1", good) is None
-    assert stage_hf._find_golden([a, b], "x@1", good) is None
+    assert stage_hf._find_golden([a, b], "m@1.npz", good) == b / "m@1.npz"
+    assert stage_hf._find_golden([a], "m@1.npz", good) is None
+    assert stage_hf._find_golden([a, b], "x@1.npz", good) is None
+
+
+def test_stage_goldens_copies_a_per_os_golden(tmp_path, monkeypatch):
+    """A `[refs."<ref>".windows]` golden is staged next to the ref's own file, each under its published name."""
+    import hashlib  # noqa: PLC0415
+
+    src, out = tmp_path / "src", tmp_path / "out"
+    src.mkdir()
+    (src / "m@1.npz").write_bytes(b"linux")
+    (src / "m@1.windows.npz").write_bytes(b"windows")
+    entry = {
+        "sha256": hashlib.sha256(b"linux").hexdigest(),
+        "upstream": "u",
+        "windows": {"sha256": hashlib.sha256(b"windows").hexdigest(), "upstream": "u"},
+    }
+    card = types.SimpleNamespace(
+        family="fam",
+        licence=types.SimpleNamespace(code="MIT"),
+        status=lambda _v: types.SimpleNamespace(weights="ok"),
+    )
+    monkeypatch.setattr(stage_hf.registry, "cards", lambda _t: {"m": (card, types.SimpleNamespace(ref="m@1"))})
+    monkeypatch.setattr(stage_hf.store, "load_all", lambda _t: {"fam": {"refs": {"m@1": entry}}})
+    monkeypatch.setattr(stage_hf.registry, "TASKS", ("stereo",))
+    rows = stage_hf.stage_goldens([src], out)
+    assert (out / "m@1.npz").read_bytes() == b"linux"
+    assert (out / "m@1.windows.npz").read_bytes() == b"windows"
+    assert len(rows) == 1
+    (src / "m@1.windows.npz").write_bytes(b"stale")
+    assert stage_hf.stage_goldens([src], tmp_path / "out2", skip_missing=True) == []

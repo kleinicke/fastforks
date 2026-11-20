@@ -435,15 +435,17 @@ def tolerance(ref: str, mode: str | None = None) -> dict[str, float]:
 
 
 def golden(ref: str) -> dict[str, np.ndarray]:
+    """The golden of `ref` this OS compares with: its per-OS file if it has one (`goldens.platform_golden`)."""
     root = os.environ.get("FASTFORKS_GOLDEN_PATH")
-    path = Path(root or ".") / f"{ref}.npz"
+    name, _, sha256 = goldens.platform_golden(ref, GOLDEN[ref])
+    path = Path(root or ".") / name
     if not root or not path.is_file():
-        why = f"golden {ref} not available (set FASTFORKS_GOLDEN_PATH)"
+        why = f"golden {name} not available (set FASTFORKS_GOLDEN_PATH)"
         if _required(ref):
             pytest.fail(why)
         pytest.skip(why)
     data = path.read_bytes()
-    assert hashlib.sha256(data).hexdigest() == GOLDEN[ref]["sha256"], f"{path} does not match golden.toml"
+    assert hashlib.sha256(data).hexdigest() == sha256, f"{path} does not match golden.toml"
     with np.load(path) as z:
         return dict(z)
 
@@ -932,6 +934,46 @@ def test_dump_writes_the_windows_record_as_a_sub_table(tmp_path, monkeypatch):
     assert goldens.load("fam") == store
     assert goldens.validated_records(store["validated"]["fam-a@1"]) == [linux, win]
     assert goldens.validated_records({"windows": win}) == [win]
+
+
+def test_per_os_golden(tmp_path, monkeypatch):
+    """A `[refs."<ref>".windows]` golden: written as a sub-table by `_common.write` run on Windows, read there only.
+
+    The ref's own golden, its tolerances and the Linux `[validated]` record stay; only the Windows record is dropped.
+    """
+    spec = importlib.util.spec_from_file_location("_common", Path(goldens.__file__).parent / "golden" / "_common.py")
+    assert spec is not None
+    assert spec.loader is not None
+    common = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(common)
+    monkeypatch.setattr(goldens, "SRC", tmp_path / "src")
+    (tmp_path / "src" / "stereo" / "models" / "fam").mkdir(parents=True)
+    monkeypatch.setenv("FASTFORKS_GOLDEN_PATH", str(tmp_path / "g"))
+    own = {"sha256": "aa", "upstream": "u", "settings": "s", "gpu_mean": 0.5}
+    linux, win = {"mean_px": 0.01}, {"mean_px": 0.02}
+    store = {"tolerance": dict(goldens.DEFAULT_TOLERANCE), "refs": {"fam-a@1": own}, "validated": {}}
+    store["validated"]["fam-a@1"] = linux | {"windows": win}
+    goldens.dump("fam", store)
+    monkeypatch.setattr(goldens.sys, "platform", "win32")
+    monkeypatch.setenv("FASTFORKS_GOLDEN_OS", "windows")
+    common.write("fam-a@1", {"x": np.ones(2)}, family="fam", upstream="u", patch=None, settings="win")
+    after = goldens.load("fam")
+    entry = after["refs"]["fam-a@1"]
+    assert {k: v for k, v in entry.items() if k != "windows"} == own
+    assert entry["windows"]["settings"] == "win"
+    assert after["validated"]["fam-a@1"] == linux
+    assert b'[refs."fam-a@1".windows]\n' in goldens.path("fam").read_bytes()
+    data = (tmp_path / "g" / "fam-a@1.windows.npz").read_bytes()
+    assert entry["windows"]["sha256"] == hashlib.sha256(data).hexdigest()
+    assert goldens.platform_golden("fam-a@1", entry) == (
+        "fam-a@1.windows.npz",
+        "fam-a@1.windows.npz",
+        hashlib.sha256(data).hexdigest(),
+    )
+    monkeypatch.setattr(goldens.sys, "platform", "linux")
+    assert goldens.platform_golden("fam-a@1", entry) == ("fam-a@1.npz", "fam-a@1.npz", "aa")
+    with pytest.raises(SystemExit, match="per-OS golden"):  # a Windows golden comes from a Windows run
+        common.write("fam-a@1", {"x": np.ones(2)}, family="fam", upstream="u", patch=None, settings="x")
 
 
 def test_a_record_validates_its_build_or_unchanged_functions():
