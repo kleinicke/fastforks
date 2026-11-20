@@ -178,6 +178,7 @@ def test_interrupted_merge_worker_invalidates_previous_pass(monkeypatch, tmp_pat
         profile=False,
         force=True,
         prefix="",
+        batch_size=1,
     )
     assert merge_check.run(args) == 1
     rows = speed_check.read_rows(out)
@@ -186,3 +187,73 @@ def test_interrupted_merge_worker_invalidates_previous_pass(monkeypatch, tmp_pat
     assert merge_check._done(speed_check, rows[:2], job)
     assert not merge_check._done(speed_check, rows, job)
     assert merge_check._done(speed_check, [*rows, golden], job)
+
+
+def test_grouped_goldens_retry_only_unfinished_jobs(monkeypatch, tmp_path):
+    """A failed group keeps its passing checks and isolates the unfinished checks."""
+    out = tmp_path / "rows.jsonl"
+    selection = tmp_path / "selection.json"
+    refs = ["a@1", "b@1", "c@1"]
+    selection.write_text(json.dumps({"families": {"demo": {"task": "depth", "refs": refs}}}))
+    monkeypatch.setattr(merge_check, "speed_check", lambda: speed_check)
+    monkeypatch.setattr(speed_check, "files_hash", lambda _: "hash")
+    monkeypatch.setattr(speed_check, "_commit", lambda: "revision")
+    monkeypatch.setattr(
+        merge_check, "_golden_sources_by_ref", lambda jobs, _commit: {j["ref"]: ("scope",) for j in jobs}
+    )
+    attempts = []
+
+    def record(spec, verdict):
+        row = {k: spec[k] for k in ("side", "ref", "mode", "task", "golden_source")}
+        speed_check._append(
+            out,
+            row | {"input": "golden", "golden": verdict, "code_hash": "hash", "golden_mean": 0.0, "golden_p99": 0.0},
+        )
+
+    def run(cmd, **_kwargs):
+        specs = json.loads(cmd[-1])
+        if isinstance(specs, list):
+            attempts.append(tuple(s["ref"] for s in specs))
+            record(specs[0], "pass")
+            record(specs[1], "fail")
+            return CompletedProcess(cmd, returncode=1)
+        attempts.append((specs["ref"],))
+        record(specs, "pass")
+        return CompletedProcess(cmd, returncode=0)
+
+    monkeypatch.setattr(merge_check.subprocess, "run", run)
+    args = Namespace(
+        selection=selection,
+        out=out,
+        family=[],
+        modes=["portable"],
+        golden_only=True,
+        no_core=True,
+        profile=False,
+        force=False,
+        prefix="",
+        batch_size=3,
+    )
+    assert merge_check.run(args) == 0
+    assert attempts == [tuple(refs), ("b@1",), ("c@1",)]
+    assert merge_check.run(args) == 0
+    assert len(attempts) == 3
+
+
+def test_grouped_worker_stops_before_a_failed_golden_affects_other_jobs(monkeypatch, tmp_path):
+    import torch  # noqa: PLC0415
+
+    out = tmp_path / "rows.jsonl"
+    attempts = []
+
+    def worker(spec):
+        attempts.append((spec["ref"], spec["warm_worker"]))
+        verdict = "pass" if len(attempts) == 1 else "fail"
+        speed_check._append(out, {"input": "golden", "golden": verdict})
+        return 0
+
+    monkeypatch.setattr(torch.cuda, "empty_cache", lambda: None)
+    monkeypatch.setattr(merge_check, "worker", worker)
+    specs = [{"ref": ref, "out": str(out)} for ref in ("first", "second", "third")]
+    assert merge_check.worker_batch(specs) == 1
+    assert attempts == [("first", False), ("second", True)]

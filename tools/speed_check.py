@@ -767,7 +767,7 @@ def worker(spec: dict[str, Any]) -> int:
         "torch": torch.__version__,
         "date": time.strftime("%F"),
         "protocol": f"first call, {WARMUP} warm-up, peak reset, median of {ROUNDS} rounds x median of {RUNS}",
-        "cold": True,  # one fresh process per (ref, side, mode): the load is the first in its process
+        "cold": not spec.get("warm_worker", False),  # grouped golden-only workers may reuse a process
         "torch_import_s": round(torch_import_s, 2),
         "cuda_init_s": round(cuda_init_s, 2),
     }

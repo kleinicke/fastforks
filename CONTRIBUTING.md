@@ -35,6 +35,11 @@ model families it imports, and the common test and source files.
 uv run python tools/merge_check.py run selection.json --golden-only --out goldens.jsonl
 ```
 
+Add `--batch-size 4` to share Python and CUDA startup across a small group of golden checks. The checks run
+sequentially in one worker. If a worker fails, the remaining checks retry in individual fresh processes. Pass the
+shared workstation's GPU-lock command through `--prefix` to hold it for each group. Timed release runs still start
+a fresh worker for every model and mode.
+
 To run just the selected CPU goldens and kernel-manifest checks, give pytest the exact item IDs in an argument file:
 
 ```
