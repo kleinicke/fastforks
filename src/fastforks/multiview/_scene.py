@@ -77,7 +77,7 @@ def _names(views: tuple[int, ...], images: bool, given: Sequence[str | os.PathLi
             raise InputError(msg)
         return [f"images/frame_{i + 1:05d}.png" for i in views]
     names = [PurePath(n).as_posix() for n in given]
-    if len(names) != len(views) or any(PurePath(n).is_absolute() for n in names):
+    if len(names) != len(views) or any(PurePath(n).anchor for n in names):  # anchor: Windows `\x` and `C:x` too
         msg = f"image_names must be {len(views)} paths relative to folder (one per view), got {names}"
         raise InputError(msg)
     return names
