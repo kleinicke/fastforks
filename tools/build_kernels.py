@@ -222,7 +222,7 @@ def refresh_symbols(name: str) -> None:
     text = path.read_text(encoding="utf-8")
     text = text.split("\n\n[symbols]", 1)[0].rstrip("\n")
     toolchain = tomllib.loads(text)["toolchain"]
-    path.write_text("\n".join([text, *symbol_lines(lib_dir, toolchain)]) + "\n", encoding="utf-8")
+    path.write_text("\n".join([text, *symbol_lines(lib_dir, toolchain)]) + "\n", encoding="utf-8", newline="\n")
 
 
 def nvcc_cmd(  # noqa: PLR0913, PLR0917 - internal helper, all inputs needed
@@ -381,7 +381,7 @@ def build_lib(  # noqa: PLR0913, PLR0917 - internal helper, all inputs needed
         digest = hashlib.sha256(p.read_bytes()).hexdigest()
         lines.append(f'{t} = {{ name = "{p.name}", sha256 = "{digest}", size = {p.stat().st_size} }}')
     lines += symbol_lines(lib_dir, toolchain)
-    (lib_dir / manifest_name(cfg["kind"])).write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (lib_dir / manifest_name(cfg["kind"])).write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     print(f"{name}@{build_id}: {sum(p.stat().st_size for p in files.values()) / 2**20:.1f} MB")
 
 
