@@ -144,10 +144,10 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
     spd = collections.defaultdict(lambda: collections.defaultdict(list))
     for r in speed:
         spd[r["ref"]][r["mode"]].append(r)
-    comp_rows = collections.defaultdict(dict)
+    comp_rows = collections.defaultdict(lambda: collections.defaultdict(dict))
     for r in comp:
         if r["mode"] in ("compile", "tensorrt"):
-            comp_rows[r["ref"]][r["mode"]] = r  # latest wins (as gen_docs)
+            comp_rows[r["ref"]][r["mode"]][r["input"]] = r  # latest for each measured input
     # ---- eval rows per ref
     evals = collections.defaultdict(lambda: collections.defaultdict(list))
     for p in sorted(DATA.glob("*_eval.jsonl")):
@@ -196,19 +196,26 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
             prob(ref, "contradiction", "kernels", "card says kernels status none but kernels speed rows exist")
         if not k_none and "kernels" in planned:
             pass
-        cr = comp_rows.get(ref, {})
+        portable_sizes = {r["input"] for r in st["portable"]}
+        checked = {}
         for m in ("compile", "tensorrt"):
-            r = cr.get(m)
-            ok = r is not None and ("ms" in r and not r.get("fails"))
-            deferred = r is not None and str(r.get("fails", "")).startswith("deferred")
-            expl = (
-                (r is not None and r.get("fails") and not deferred)
-                or m in planned
-                or (m == "tensorrt" and "onnx" in planned)
-            )
+            profiles = comp_rows[ref][m].values()
+            gated = m in planned or (m == "tensorrt" and "onnx" in planned)
+            ok = [
+                r
+                for r in profiles
+                if (r.get("ms") or 0) > 0
+                and not r.get("fails")
+                and (not gated or (m == "tensorrt" and r.get("standalone_build")))
+            ]
+            failures = [r["fails"] for r in profiles if r.get("fails")]
+            expl = gated or any(not str(reason).startswith("deferred") for reason in failures)
+            deferred = failures and not expl
             why = "deferred build, never measured" if deferred else "none, no fails reason, not planned on the card"
             present((cc, ref), m, ok, f"no {m} row ({why})", expl)
-            if r is not None and r.get("fails") and not (m in planned or (m == "tensorrt" and "onnx" in planned)):
+            if ok:
+                checked[m] = _latest([r for r in ok if r["input"] in portable_sizes] or ok)
+            if failures and not ok and not gated:
                 cc[f"{m} fails"] += 1
         # memory presence
         for m, rows in (("original", orig_t), ("portable", st["portable"]), ("kernels", st["kernels"])):
@@ -246,9 +253,10 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
             o_err = [r for mm in ("upstream", "upstream-fp16") for r in e.get(mm, []) if r.get("error")]
             sib = (not e) and fam in fam_eval
             present((cc, ref), "accuracy original", o_e or o_err, "no original accuracy row", no_orig or not e)
-            no_acc = re.search(
+            # An old dataset limitation cannot explain a missing tier once the checkpoint has measured accuracy.
+            no_acc = not (o_e or p_e or k_e) and re.search(
                 r"No accuracy measurement", " ".join(card.get("limitations", []))
-            )  # the card names why (no public evaluation set)
+            )
             present((cc, ref), "accuracy portable", p_e, "no portable accuracy row", sib or no_acc)
             present(
                 (cc, ref),
@@ -362,7 +370,7 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
                         stale[ref, x["mode"]].append(f"{inp} {x.get('date', '')[:10]}")
         # compile / TRT plausibility
         for m in ("compile", "tensorrt"):
-            r = cr.get(m)
+            r = checked.get(m)
             if r and r.get("ms") and not r.get("fails"):
                 at = [x for x in st["portable"] if x["input"] == r["input"]]
                 if at:
@@ -498,32 +506,12 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
     )
     lines += [
         "",
-        "## Notes (2026-11-16 run)",
+        "## How to read the report",
         "",
-        (
-            "- The `implausible` column counts `stale?` rows too (informational: row older than the family's last "
-            "source commit; `--no-stale` skips them). Real violations of the rules: 0 after the run."
-        ),
-        (
-            "- Gap-fill measured 2026-11-16 on RTX 5060 Ti (a GPU job, one process at a time) with "
-            "`results/raw/2026-11-16_score_audit/kernels_speed.py` via `queue_runner*.sh` / `eval_queue.sh`; rows "
-            "merged by `merge.py`, `merge_fails.py` (placeholders 'deferred: measure later' replaced by the real "
-            "failure). Base commit `5ea6bb9d`."
-        ),
-        (
-            "- Dropped as superseded: stale video-depth-anything-s compile 1080x1920 row (compile/TRT jobs run the "
-            "standard 480x640 input only)."
-        ),
-        (
-            "- Explained, not fixed: loftr-outdoor / dedode-v2-b auc5 on the n=150 subset (EXPLAINED in this script), "
-            "track-on2 reserved memory (speed_allowlist.json)."
-        ),
-        (
-            "- Open: accuracy rows for portable/kernels of families without any eval row (listed below), original "
-            "accuracy of marigold-v2-depth (no runnable upstream harness). "
-            "`tests/test_policy.py::test_no_architecture_constants_in_model_code[matting]` fails on origin/work/ports "
-            "(ben2 `_TINY`), unrelated."
-        ),
+        "- A later backend attempt replaces the earlier record for the same input size.",
+        "- Standalone TensorRT measurements can count when a card still gates public export.",
+        "- The `implausible` column includes `stale?` notices for rows older than the family's last source commit.",
+        "  Use `--no-stale` to skip the git history check.",
         "",
     ]
     lines += ["", f"## Problems ({len(probs)})", "", "| ref | family | kind | mode | issue |", "|---|---|---|---|---|"]
