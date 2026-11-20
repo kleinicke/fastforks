@@ -806,6 +806,36 @@ def _batch_norm(
     return x * scale.astype(x.dtype).reshape(shape) + shift.astype(x.dtype).reshape(shape), None, None
 
 
+STATS_CHUNK_MB = 64  # float32 rows per partial sum of `_batch_norm_stats_lean`
+
+
+@functools.partial(mx.compile, shapeless=True)
+def _affine_cast(x: mx.array, scale: mx.array, shift: mx.array) -> mx.array:
+    return (x.astype(mx.float32) * scale + shift).astype(x.dtype)
+
+
+def _batch_norm_stats_lean(x: mx.array, w: mx.array | None, b: mx.array | None, eps: float) -> mx.array:
+    """`_batch_norm_batch_stats` without float32 copies of the map.
+
+    The float32 statistics are partial sums over row blocks; the normalisation and the affine are one fused pass.
+    The plain form held three float32 copies (C-FoundationStereo's 534 MB fp16 volume: peak 3.7 GB -> 0.6 GB).
+    """
+    c = x.shape[1]
+    flat = mx.moveaxis(x, 1, -1).reshape(-1, c)
+    rows = flat.shape[0]
+    step = max(1, (STATS_CHUNK_MB << 20) // (4 * c))
+    blocks = [flat[i : i + step] for i in range(0, rows, step)]
+    mean = sum(mx.sum(f.astype(mx.float32), axis=0) for f in blocks) / rows
+    var = sum(mx.sum(mx.square(f.astype(mx.float32) - mean), axis=0) for f in blocks) / rows
+    scale = mx.rsqrt(mx.maximum(var, 0) + eps)
+    if w is not None:
+        scale = scale * w.astype(mx.float32)
+    shift = -mean * scale
+    if b is not None:
+        shift = shift + b.astype(mx.float32)
+    return mx.moveaxis(_affine_cast(flat, scale, shift).reshape(*x.shape[:1], *x.shape[2:], c), -1, 1)
+
+
 @_reg(aten._native_batch_norm_legit.no_stats)
 def _batch_norm_batch_stats(
     x: mx.array,
@@ -824,14 +854,11 @@ def _batch_norm_batch_stats(
     c = x.shape[1]
     xl = mx.moveaxis(x, 1, -1)  # the statistics over the channels-last view: the layout convolutions leave behind
     flat = xl.reshape(-1, c)
-    if _KERNELS and flat.shape[0] >= 4096:  # noqa: PLR2004
-        from fastforks.kernels.graph_mlx import ops
+    if not (_KERNELS and flat.shape[0] >= 4096):  # noqa: PLR2004
+        return _batch_norm_stats_lean(x, w, b, eps), None, None
+    from fastforks.kernels.graph_mlx import ops
 
-        mean, var = ops.channel_stats(flat)
-    else:
-        ff = flat.astype(mx.float32)
-        mean = mx.mean(ff, axis=0)
-        var = mx.maximum(mx.mean(mx.square(ff - mean), axis=0), 0)
+    mean, var = ops.channel_stats(flat)
     y = ((xl.astype(mx.float32) - mean) * mx.rsqrt(var + eps)).astype(x.dtype)
     y = mx.moveaxis(y, -1, 1)
     if w is not None:
