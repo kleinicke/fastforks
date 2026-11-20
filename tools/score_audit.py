@@ -23,10 +23,15 @@ import subprocess
 import sys
 import tomllib
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "docs" / "data"
 ORIG_MODES = ("upstream", "upstream-default")
+ORIG_EVAL_MODES = (*ORIG_MODES, "upstream-fp16", "upstream-bf16", "upstreamhalf", "upstream16")
 PRIM = {
     "stereo": "bad",
     "depth": "rel_absrel",
@@ -51,7 +56,6 @@ PRIM = {
 EXPLAINED = {
     ("anycalib-pinhole", "portable"): 1,
     ("anycalib-pinhole", "kernels"): 1,
-    ("flowseek-t", "portable"): 1,
     # n=150 every10 subset: loftr-outdoor on all 1500 pairs portable32 50.75 vs original 50.14; dedode-v2-b auc10/auc20
     # are
     # +0.2/+0.5 above the original on the same pairs, only auc5 (the 5 degree bin, n=150) differs
@@ -70,6 +74,39 @@ _DRIFT = 0.02  # accuracy drift (relative) that counts as worse
 def _latest(rows: list[dict]) -> dict:
     """The newest row by date (the last of equals, as `sorted(...)[-1]`)."""
     return max(reversed(rows), key=lambda r: r.get("date", ""))
+
+
+def _portable_reference(compiled: dict, portable: list[dict]) -> float | None:
+    """Use the measured portable arm of a scoped backend comparison when present."""
+    paired = compiled.get("paired_portable_ms")
+    if isinstance(paired, (int, float)) and paired > 0:
+        return paired
+    same_input = [row for row in portable if row["input"] == compiled["input"]]
+    return _latest(same_input)["ms"] if same_input else None
+
+
+def _accuracy_pairs(evals: dict[str, list[dict]]) -> Iterator[tuple[str, dict, dict]]:
+    """Pair reported scores on the same dataset and precision, and match cohort metadata when available."""
+    originals = collections.defaultdict(list)
+    for mode in ORIG_EVAL_MODES:
+        for row in evals.get(mode, ()):
+            if not row.get("error") and row.get("metrics"):
+                originals[row["dataset"], row.get("dtype")].append(row)
+    keys = ("n", "dataset_manifest_sha256")
+    for mode in ("portable", "kernels"):
+        latest = {
+            (row["dataset"], row.get("dtype"), *(row.get(key) for key in keys)): row
+            for row in evals.get(mode, ())
+            if not row.get("error") and row.get("metrics")
+        }
+        for (dataset, dtype, *_), row in latest.items():
+            candidates = [
+                original
+                for original in originals[dataset, dtype]
+                if all(not original.get(key) or not row.get(key) or original[key] == row[key] for key in keys)
+            ]
+            if candidates:
+                yield mode, row, _latest(candidates)
 
 
 def jl(p: Path) -> list[dict]:
@@ -372,9 +409,8 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
         for m in ("compile", "tensorrt"):
             r = checked.get(m)
             if r and r.get("ms") and not r.get("fails"):
-                at = [x for x in st["portable"] if x["input"] == r["input"]]
-                if at:
-                    pm = _latest(at)["ms"]
+                pm = _portable_reference(r, st["portable"])
+                if pm is not None:
                     if r["ms"] > pm * 3 + 0.3:
                         prob(ref, "implausible", m, f"{r['input']}: {m} {r['ms']} ms vs portable {pm} ms (> 3x)")
                         cc[f"{m} slower than portable"] += 1
@@ -408,41 +444,24 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
         # --- accuracy plausibility
         if eval_task and e:
             prim = PRIM.get(c["task"])
-            by_ds = collections.defaultdict(dict)
-            for mm, rows in e.items():
-                for r in rows:
-                    if not r.get("error") and r.get("metrics"):
-                        by_ds[r["dataset"]].setdefault(mm, r)  # first = ok? take last below
-            for ds in by_ds:
-                for mm in by_ds[ds]:
-                    by_ds[ds][mm] = [
-                        r for r in e[mm] if r.get("dataset") == ds and not r.get("error") and r.get("metrics")
-                    ][-1]
-            for ds, d in by_ds.items():
-                o = d.get("upstream") or d.get("upstream-fp16")
-                if not o:
-                    continue
-                om = o["metrics"]
+            for mm, target, original in _accuracy_pairs(e):
+                om = original["metrics"]
                 key = prim if prim in om else next((k for k, x in om.items() if isinstance(x, (int, float))), None)
-                for mm in ("portable", "kernels"):
-                    t = d.get(mm)
-                    if not t or key not in t["metrics"] or not isinstance(om.get(key), (int, float)) or not om[key]:
-                        continue
-                    rel = (t["metrics"][key] - om[key]) / abs(om[key])
-                    cc["accuracy comparisons"] += 1
-                    worse = (rel > 0) == (key in LOWER_BETTER)
-                    if abs(rel) > _DRIFT and worse and (ref, mm) not in EXPLAINED:
-                        cc["accuracy drift > 2 %"] += 1
-                        prob(
-                            ref,
-                            "implausible",
-                            mm,
-                            f"{ds}: {key} {t['metrics'][key]} vs original {om[key]} ({100 * rel:+.1f} %, worse)",
-                        )
-                    for rr in (o, t):
-                        if rr.get("n") and t.get("n") and rr["n"] != t["n"] and rr is t:
-                            prob(ref, "sizes", mm, f"{ds}: n {t['n']} vs original n {o['n']}")
-                            break
+                value = target["metrics"].get(key)
+                if not isinstance(value, (int, float)) or not isinstance(om.get(key), (int, float)) or not om[key]:
+                    continue
+                rel = (value - om[key]) / abs(om[key])
+                cc["accuracy comparisons"] += 1
+                worse = (rel > 0) == (key in LOWER_BETTER)
+                if abs(rel) > _DRIFT and worse and (ref, mm) not in EXPLAINED:
+                    cc["accuracy drift > 2 %"] += 1
+                    prob(
+                        ref,
+                        "implausible",
+                        mm,
+                        f"{target['dataset']} ({target.get('dtype', 'unknown precision')}): "
+                        f"{key} {value} vs original {om[key]} ({100 * rel:+.1f} %, worse)",
+                    )
     for (ref, m), old_rows in stale.items():
         last_commit = fdates[cards[ref]["task"], cards[ref]["family"]]
         prob(
@@ -468,14 +487,14 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
         ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=False
     ).stdout.strip()
     lines = [
-        "# Score audit, 2026-11-16",
+        "# Score audit",
         "",
         (
             f"Generated by `tools/score_audit.py` (CPU only). Data: docs/data/*.jsonl at `{head}`; "
             "cards `src/fastforks/*/models/*/card.toml`. Cell: present / explained by a card reason or fails row / "
             "MISSING. Implausible = rule violated (portable vs original beyond 3 % / 5 % + 64 MB, kernels vs portable "
             "(reserved memory only above +25 % and +256 MB: allocator workspace),  compile/TRT > 3x portable, "
-            "accuracy > 2 % worse, stale, units, sizes)."
+            "accuracy > 2 % worse at matched precision and cohort, stale, units, sizes)."
         ),
         "",
         "| family | refs | " + " | ".join(labels) + " | implausible | other problems |",
