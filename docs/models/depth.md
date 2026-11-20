@@ -40,7 +40,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`lotus-normal-g-v1-1`](#lotus) | yes | – | 164, 2.1x | 2500, 0.64x |
 | [`marigold-depth-v1-1`](#marigold) | yes | 0.0561 | 261, 1.7x | 2500, 0.7x |
 | [`marigold-normals-lcm-v0-1`](#marigold_normals) | yes | – | 167, 1.7x | 2500, 0.69x |
-| [`marigold-v2-depth`](#marigold_v2) | yes | 0.0386 | 3887 | 1818 |
+| [`marigold-v2-depth`](#marigold_v2) | yes | 0.0386 | 3805 | 1838 |
 | [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 151, 2.9x | 1568, 0.5x |
 | [`midas-dpt-beit-large-512`](#midas) | yes | 0.0487 | 63.9, 5.2x | 1436, 0.5x |
 | [`moge-2-vitb-normal`](#moge) | yes | 0.0404 | 40.7, 2.5x | 1208, 0.76x |
@@ -768,7 +768,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `marigold-v2-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>4892<br>3887<br>4599<br>public API unavailable | –<br>1408 / 1818<br>1408 / 1818<br>1959 / 2120<br>– |
+| `marigold-v2-depth` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>4763<br>3805<br>4599<br>public API unavailable | –<br>1408 / 1838<br>1408 / 1838<br>1959 / 2120<br>– |
 | `marigold-v2-depth` | 480x640 | original<br>portable<br>kernels<br>TensorRT bf16 | –<br>–<br>–<br>1156 (VAE encoder and decoder with eager streamed NF4 transformer) | –<br>–<br>–<br>2042 / 2198 |
 
 ### Weight streaming
@@ -833,7 +833,7 @@ CPU, float32: max |diff| <= 0.02 vs the original. GPU, bfloat16 (the default), p
 - The enlargement to a multiple of 16 is bicubic (the original: OpenCV Lanczos); inputs with sides that are multiples of 16 are not resized.
 - The output is log depth up to scale and shift (`kind = "affine_invariant_log"`): align in log space, not with the other families' depth outputs.
 - A traced or exported module reuses the noise of its traced shape; CPU inference is possible but slow (bf16 GEMMs of a 20 B model).
-- Model.compile() compiles the VAE encoder and decoder around the streamed transformer. At 994 x 1482, the compiled path took 4.80 s versus 5.09 s portable. The first compiled call took 119.2 s.
+- Model.compile() compiles the VAE encoder and decoder around the streamed transformer. At 994 x 1482, the recorded pair took 4.80 s compiled and 5.09 s portable on the compile run's source revision. The first compiled call took 119.2 s.
 - At 480 x 640, the standalone BF16 TensorRT VAE plans took 1.16 s versus 1.18 s for paired portable inference. Estimated peak allocated device memory was 2042 versus 717 MiB. The streamed NF4 transformer ran in PyTorch for both measurements.
 
 </details>

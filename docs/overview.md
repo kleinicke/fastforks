@@ -157,7 +157,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`depth-pro`](models/depth.md#depth-pro) | no | 0.0425 | 568.8 (994x1482) | 520.7 | 276.6 | 2.1x vs original (994x1482) | 3050 |
 | [`omni-dc`](models/depth.md#omni-dc) | no | – | 875.5 (994x1482) | 571.2 | 510.0 | 1.7x vs original (994x1482) | 4154 |
 | [`depthfm-v1`](models/depth.md#depthfm) | yes | – | OOM (994x1482) | 4854.3 | 3555.4 | 1.4x vs portable | 3768 |
-| [`marigold-v2-depth`](models/depth.md#marigold-v2) | yes | 0.0386 | OOM (994x1482) | 4891.7 | 3887.1 | 1.3x vs portable | 1408 |
+| [`marigold-v2-depth`](models/depth.md#marigold-v2) | yes | 0.0386 | OOM (994x1482) | 4762.5 | 3804.8 | 1.3x vs portable | 1408 |
 
 ## Classification
 

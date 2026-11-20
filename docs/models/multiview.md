@@ -189,6 +189,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 - On the RTX 5060 Ti reference input, stream=True reduced peak allocated memory across loading and inference from 3,591 to 2,532 MiB portable and 3,798 to 2,643 MiB kernels. Depth, confidence and camera outputs matched exactly.
 - On CUDA, stream=True keeps the 24 pairs of aggregator blocks in host RAM. Each new view after the initial scale frames transfers those weights again. The camera, depth head and attention cache stay on the GPU.
+- With streamed weights, the portable FP32 benchmark on 24 synthetic 320 x 448 input views takes 10.61 s and peaks at 9,128 MiB allocated and 9,572 MiB reserved on the RTX 5060 Ti.
 - Views are a sequence (a video): each view only sees the first `scale_frames` views and the views before it (older than `window` frames: their 6 special tokens only). At most 1024 views.
 
 </details>
