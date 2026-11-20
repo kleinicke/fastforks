@@ -3551,6 +3551,16 @@
   "seedvr2-3b@1": {
    "mlx_default": [
     "portable",
+    "float16"
+   ],
+   "mlx": {
+    "bfloat16": "portable",
+    "float16": "portable"
+   }
+  },
+  "seedvr2-7b@1": {
+   "mlx_default": [
+    "portable",
     "bfloat16"
    ],
    "mlx": {

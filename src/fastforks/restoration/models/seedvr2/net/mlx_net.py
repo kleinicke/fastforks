@@ -95,15 +95,21 @@ class Plan:
 
 
 class Transformer:
-    """`dit.Transformer` on MLX: constants at load, then 32 / 36 blocks resident in the run dtype.
+    """`dit.Transformer` on MLX: constants at load, then 32 / 36 blocks resident in the run dtype, or streamed.
 
     `quant`: the blocks' linear weights in NF4 (`quant = "nf4"`, as `net.read_dit`), quantised one tensor at a time
-    and expanded per call (`mlx_weights.Nf4`).
+    and expanded per call (`mlx_weights.Nf4`). `stream` (without `quant`): only the blocks that fit in `resident`
+    bytes are kept (spread evenly over the depth); each call reads the others from the file (`Weights.stream`), the
+    next streamed block's read overlapped with the compute of the blocks before it. Memory then holds the resident
+    blocks, two streamed blocks (7B bf16: 0.45 GB each) and the activations; a call takes about the file read time of
+    the streamed blocks (the resident blocks' compute hides under it).
     """
 
-    def __init__(self, w: Weights, cfg: Config, dt: mx.Dtype, *, quant: bool = False) -> None:
+    def __init__(  # noqa: PLR0913 - the checkpoint and the run's settings
+        self, w: Weights, cfg: Config, dt: mx.Dtype, *, quant: bool = False, stream: bool = False, resident: int = 0
+    ) -> None:
         """Read the transformer's checkpoint block by block (`w` keys as in the checkpoint)."""
-        self.cfg, self.dt = cfg, dt
+        self.cfg, self.dt, self.w = cfg, dt, w
         emb = self._time_embedding(w)
         txt = linear(w.peek("txt"), w.peek("txt_in.weight"), w.peek("txt_in.bias"))
         self.txt = txt.astype(dt)
@@ -123,15 +129,20 @@ class Transformer:
         mx.eval(self.txt, self.consts, *((self.out_shift, self.out_scale, self.out_norm) if cfg.out_norm else ()))
         top = ("vid_in.proj.weight", "vid_in.proj.bias", "vid_out.proj.weight", "vid_out.proj.bias")
         self.io = w.take(top, dt)
-        self.blocks = []
-        for i in range(cfg.layers):
-            p = f"blocks.{i}."
-            keys = [k for k in w.prefixed(p) if ".ada." not in k]
+        self.keys = [[k for k in w.prefixed(f"blocks.{i}.") if ".ada." not in k] for i in range(cfg.layers)]
+        kept = range(cfg.layers)
+        if stream and not quant:
+            size = max(sum(w.peek(k).size for k in keys) for keys in self.keys) * dt.size
+            n = min(cfg.layers, resident // size)
+            kept = [i for i in range(cfg.layers) if (i + 1) * n // cfg.layers > i * n // cfg.layers]
+        self.blocks: list[dict[str, mx.array | Nf4] | None] = [None] * cfg.layers  # None: streamed
+        for i in kept:
+            p, keys = f"blocks.{i}.", self.keys[i]
             nf4 = {k for k in keys if quant and k.endswith(".weight") and w.peek(k).ndim == 2}  # noqa: PLR2004
             block: dict[str, mx.array | Nf4] = dict(w.take([k for k in keys if k not in nf4], dt))
             for k in sorted(nf4):
                 block[k] = nf4_quantize(w.take([k])[k])
-            self.blocks.append({k[len(p) :]: v for k, v in block.items()})
+            self.blocks[i] = {k[len(p) :]: v for k, v in block.items()}
         a = dit._angles(torch.arange(self.txt.shape[0])).repeat(1, 3)[:, None]  # noqa: SLF001 - the shared RoPE angles
         pad = dit.HEAD_DIM - 3 * dit.ROPE_AXIS
         self.txt_rope = (
@@ -160,6 +171,13 @@ class Transformer:
                 Plan(dit.make_plan(size, shifted=True, txt_len=n, device=cpu)),
             )
         return self.plans[size]
+
+    def _block_weights(self, i: int) -> dict[str, mx.array | Nf4]:
+        """Block `i`: resident, or fresh lazy reads of the file in the run dtype (`stream`)."""
+        if (t := self.blocks[i]) is not None:
+            return t
+        p = f"blocks.{i}."
+        return {k[len(p) :]: v for k, v in self.w.stream(self.keys[i], self.dt).items()}
 
     def _const(self, i: int, branch: str, layer: int) -> tuple[mx.array, mx.array, mx.array]:
         return self.consts[i, "all" if i >= self.cfg.mm_layers else branch, layer]
@@ -221,9 +239,10 @@ class Transformer:
             )
         return self._lin(t, n + ".proj_out", _gelu_tanh(self._lin(t, n + ".proj_in", x)))
 
-    def block(self, i: int, vid: mx.array, txt: mx.array, plan: Plan) -> tuple[mx.array, mx.array]:
-        """`dit.Transformer.block`."""
-        t = self.blocks[i]
+    def block(
+        self, i: int, t: dict[str, mx.array | Nf4], vid: mx.array, txt: mx.array, plan: Plan
+    ) -> tuple[mx.array, mx.array]:
+        """`dit.Transformer.block` with the block's weights `t`."""
         last = i == self.cfg.layers - 1
         vs, vc, vg = self._const(i, "vid", 0)
         va = modulate(rms(vid), vc, vs)
@@ -252,9 +271,18 @@ class Transformer:
         # float16 the text residual stream and its gated updates stay float32 (58 tokens)
         txt = self.txt.astype(F32) if self.dt == mx.float16 else self.txt
         plans = self._plans(size)
+        streamed = [i for i, t in enumerate(self.blocks) if t is None]
+        reads: dict[int, dict[str, mx.array | Nf4]] = {}
         for i in range(self.cfg.layers):
-            vid, txt = self.block(i, vid, txt, plans[i % 2])
+            t = reads.pop(i) if i in reads else self._block_weights(i)
+            # the next streamed block's read runs while this block (and any resident ones after it) compute
+            j = next((j for j in streamed if j > i), None)
+            if j is not None and j not in reads:
+                reads[j] = self._block_weights(j)
+                mx.async_eval(reads[j])
+            vid, txt = self.block(i, t, vid, txt, plans[i % 2])
             mx.eval(vid, txt)
+            del t
         if self.cfg.out_norm:
             vid = modulate(self.out_norm * rms(vid), self.out_scale, self.out_shift)
         out = linear(vid, self.io["vid_out.proj.weight"], self.io["vid_out.proj.bias"])
@@ -484,10 +512,21 @@ class VAE:
 class Net:
     """`net.Net` on MLX: VAE encode, one transformer step at t = 1000, VAE decode."""
 
-    def __init__(self, dit_path: Path, vae_path: Path, cfg: Config, dtype: mx.Dtype, *, quant: bool = False) -> None:
-        """Read both checkpoints into the run dtype `dtype` (`quant`: the blocks' linear weights in NF4)."""
+    def __init__(
+        self,
+        dit_path: Path,
+        vae_path: Path,
+        cfg: Config,
+        dtype: mx.Dtype,
+        *,
+        quant: bool = False,
+        stream: bool = False,
+        resident: int = 0,
+    ) -> None:
+        """Read both checkpoints into the run dtype `dtype` (`quant`: the blocks' linear weights in NF4; `stream`
+        without `quant`: blocks beyond `resident` bytes are read from the file per call, see `Transformer`)."""
         self.dt = dtype
-        self.dit = Transformer(Weights(dit_path), cfg, dtype, quant=quant)
+        self.dit = Transformer(Weights(dit_path), cfg, dtype, quant=quant, stream=stream, resident=resident)
         self.vae = VAE(Weights(vae_path), dtype)
 
     def __call__(self, x: torch.Tensor, eps: torch.Tensor, noise: torch.Tensor) -> torch.Tensor:
