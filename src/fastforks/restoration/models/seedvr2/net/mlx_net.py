@@ -30,6 +30,7 @@ from .vae import CHANNELS, GROUPS, LATENT, SCALE, TEMPORAL_DOWN, TEMPORAL_UP
 from .vae import EPS as VAE_EPS
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
     from pathlib import Path
 
     from .dit import Config
@@ -288,6 +289,8 @@ def _group_apply(x: mx.array, mean: mx.array, rstd: mx.array, w: mx.array, b: mx
 _group_norm = mx.compile(_group_apply)
 _group_norm_silu = mx.compile(lambda *a: _silu(_group_apply(*a)))
 
+_BAND_BYTES = 32 << 20  # rows of a VAE activation handled at once (`VAE.conv`, `VAE.norm_fn`)
+
 
 # --- VAE (one frame, NHWC) -------------------------------------------------------------------------------------------
 
@@ -331,29 +334,96 @@ class VAE:
         for k in w.prefixed("encoder.") + w.prefixed("decoder."):  # one at a time: the float32 tap sums are transient
             self.p |= w.take([k], dt, _vae_layout)
 
-    def conv(self, name: str, x: mx.array, stride: int = 1, pad: int = 0) -> mx.array:
-        """`CausalConv3d` of a one-frame clip."""
-        return mx.conv2d(x, self.p[name + ".weight"], stride=stride, padding=pad) + self.p[name + ".bias"]
+    def conv(
+        self,
+        name: str,
+        x: mx.array,
+        stride: int = 1,
+        pad: tuple[tuple[int, int], tuple[int, int]] | int = 0,
+        *,
+        pre: Callable[[mx.array], mx.array] | None = None,
+        res: mx.array | None = None,
+    ) -> mx.array:
+        """`CausalConv3d` of a one-frame clip, in bands of output rows: `conv(pre(x)) + res`.
+
+        `pad` is zero padding `((top, bottom), (left, right))` (an int: all four) of `pre(x)`. `pre` (a group norm) is
+        applied per band and `res` added per band, so neither `pre(x)` nor the convolution's workspace ever exists for
+        the whole frame: a 1024 x 1024 x 128 convolution needs ~0.7 GB of workspace in one piece.
+        """
+        w, b = self.p[name + ".weight"], self.p[name + ".bias"]
+        (pt, pb), (pl, pr) = ((pad, pad), (pad, pad)) if isinstance(pad, int) else pad
+        _, h, wd, c = x.shape
+        k, s = w.shape[1], stride
+        rows_out = (h + pt + pb - k) // s + 1
+        rows = max(1, _BAND_BYTES // (wd * c * x.itemsize * s))
+        outs = []
+        for r0 in range(0, rows_out, rows):
+            r1 = min(rows_out, r0 + rows)
+            a, e = s * r0 - pt, s * (r1 - 1) + k - pt  # input rows [a, e), of which [lo, hi) are inside the frame
+            lo, hi = max(a, 0), min(e, h)
+            band = x[:, lo:hi] if (lo, hi) != (0, h) else x
+            if pre is not None:
+                band = pre(band)
+            top, bottom = lo - a, e - hi
+            if top != bottom:  # a band at the top or bottom edge; others leave the padding to the convolution
+                band = mx.pad(band, [(0, 0), (top, bottom), (0, 0), (0, 0)])
+                top = 0
+            if pl != pr:
+                band = mx.pad(band, [(0, 0), (0, 0), (pl, pr), (0, 0)])
+            # its own padding selects other (faster, here more accurate in bf16) kernels than a padded input
+            y = mx.conv2d(band, w, stride=s, padding=(top, pl if pl == pr else 0)) + b
+            if res is not None:
+                y = y + (res[:, r0:r1] if rows < rows_out else res)
+            if rows < rows_out:
+                mx.eval(y)
+            outs.append(y)
+        return outs[0] if len(outs) == 1 else mx.concatenate(outs, axis=1)
+
+    def norm_fn(self, name: str, x: mx.array, *, silu: bool) -> Callable[[mx.array], mx.array]:
+        """Group norm in float32 (`causal_norm_wrapper`), rounded once, then SiLU, as a function of rows of `x`.
+
+        The statistics are those of the whole `x`, summed in float32 band by band (no float32 copy of `x`).
+        """
+        _, h, wd, c = x.shape
+        g = GROUPS
+        rows = max(1, _BAND_BYTES // (wd * c * 4))
+
+        def bands() -> Iterator[mx.array]:
+            for r in range(0, h, rows):
+                yield x[:, r : r + rows].reshape(1, -1, g, c // g).astype(F32)
+
+        total = mx.zeros((1, 1, g, 1), dtype=F32)
+        for xb in bands():
+            total = total + xb.sum(axis=(1, 3), keepdims=True)
+            mx.eval(total)
+        mean = total / (h * wd * (c // g))
+        total = mx.zeros_like(total)
+        for xb in bands():
+            total = total + mx.square(xb - mean).sum(axis=(1, 3), keepdims=True)
+            mx.eval(total)
+        rstd = mx.rsqrt(total / (h * wd * (c // g)) + VAE_EPS)
+        weight, bias = self.p[name + ".weight"], self.p[name + ".bias"]
+        apply = _group_norm_silu if silu else _group_norm
+
+        def f(xb: mx.array) -> mx.array:
+            n, hb, wb, _ = xb.shape
+            return apply(xb.reshape(n, hb * wb, g, c // g), mean, rstd, weight, bias).reshape(n, hb, wb, c)
+
+        return f
 
     def norm(self, name: str, x: mx.array, *, silu: bool) -> mx.array:
-        """Group norm in float32 (`causal_norm_wrapper`), rounded once; then SiLU."""
-        b, h, w, c = x.shape
-        xg = x.reshape(b, h * w, GROUPS, c // GROUPS)
-        mean = xg.astype(F32).mean(axis=(1, 3), keepdims=True)
-        var = mx.square(xg.astype(F32) - mean).mean(axis=(1, 3), keepdims=True)
-        apply = _group_norm_silu if silu else _group_norm
-        y = apply(xg, mean, mx.rsqrt(var + VAE_EPS), self.p[name + ".weight"], self.p[name + ".bias"])
-        return y.reshape(b, h, w, c)
+        """`norm_fn` applied to the whole `x`."""
+        return self.norm_fn(name, x, silu=silu)(x)
 
     def resnet(self, p: str, x: mx.array) -> mx.array:
-        """Evaluated per convolution: one lazy graph of a whole stage keeps most of its intermediates alive at once
-        (a 208 x 304 decode: 1.8 GB instead of 0.2 GB)."""
-        h = self.conv(p + ".conv1", self.norm(p + ".norm1", x, silu=True), pad=1)
+        """Each convolution in bands with its norm folded in (`conv`), evaluated per convolution: one lazy graph of
+        a whole stage keeps most of its intermediates alive at once (a 208 x 304 decode: 1.8 GB instead of 0.2 GB)."""
+        h = self.conv(p + ".conv1", x, pad=1, pre=self.norm_fn(p + ".norm1", x, silu=True))
         mx.eval(h)
-        h = self.conv(p + ".conv2", self.norm(p + ".norm2", h, silu=True), pad=1)
         if p + ".conv_shortcut.weight" in self.p:
             x = self.conv(p + ".conv_shortcut", x)
-        h = h + x
+            mx.eval(x)
+        h = self.conv(p + ".conv2", h, pad=1, pre=self.norm_fn(p + ".norm2", h, silu=True), res=x)
         mx.eval(h)
         return h
 
@@ -378,10 +448,10 @@ class VAE:
             for j in range(2):
                 x = self.resnet(f"{p}.resnets.{j}", x)
             if i < len(TEMPORAL_DOWN):
-                x = self.conv(f"{p}.downsamplers.0.conv", mx.pad(x, [(0, 0), (0, 1), (0, 1), (0, 0)]), 2)
+                x = self.conv(f"{p}.downsamplers.0.conv", x, 2, ((0, 1), (0, 1)))
             mx.eval(x)
         x = self.mid("encoder.mid_block", x)
-        h = self.conv("encoder.conv_out", self.norm("encoder.conv_norm_out", x, silu=True), pad=1)
+        h = self.conv("encoder.conv_out", x, pad=1, pre=self.norm_fn("encoder.conv_norm_out", x, silu=True))
         mean, logvar = h[..., :LATENT], h[..., LATENT:]
         dt = h.dtype
         std = mx.exp((0.5 * mx.clip(logvar, -30.0, 20.0)).astype(dt)).astype(dt)
@@ -400,9 +470,7 @@ class VAE:
             if i < len(TEMPORAL_UP):
                 x = self.upsample(f"{p}.upsamplers.0", x)
             mx.eval(x)
-        x = self.norm("decoder.conv_norm_out", x, silu=True)
-        mx.eval(x)
-        return self.conv("decoder.conv_out", x, pad=1)
+        return self.conv("decoder.conv_out", x, pad=1, pre=self.norm_fn("decoder.conv_norm_out", x, silu=True))
 
     def upsample(self, p: str, x: mx.array) -> mx.array:
         """`Upsample3D` of one frame: 1x1 conv, depth-to-space, 3x3 conv (temporal: the first frame's channels)."""
