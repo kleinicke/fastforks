@@ -706,7 +706,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`loma-r`](models/matching.md#loma) | yes | – | 309.5 | 262.1 | 1.2x vs portable | 1217 |
 | [`loma-b`](models/matching.md#loma) | yes | 1036.3 (768x1024) | 309.3 | 262.7 | 3.9x vs original (768x1024) | 1217 |
 | [`loma-l`](models/matching.md#loma) | yes | – | 319.8 | 272.6 | 1.2x vs portable | 1285 |
-| [`loma-g`](models/matching.md#loma) | yes | – | 358.7 | 309.7 | 1.2x vs portable | 1555 |
+| [`loma-g`](models/matching.md#loma) | yes | – | 357.2 | 306.6 | 1.2x vs portable | 1509 |
 | [`dedode-v2-g`](models/matching.md#dedode-v2) | yes | 665.5 (768x1024) | 379.2 | 331.9 | 2.0x vs original (768x1024) | 1787 |
 | [`romav2`](models/matching.md#roma-v2) | yes | 740.9 (768x1024) | 550.2 | 349.6 | 2.1x vs original (768x1024) | 1890 |
 

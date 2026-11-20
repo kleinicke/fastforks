@@ -22,7 +22,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`loma-b`](#loma) | yes | 263, 3.9x | 1328, 0.3x |
 | [`loma-b128`](#loma) | yes | 116 | 684, 0.3x |
 | [`loma-b64`](#loma) | yes | 107 | 720, 0.47x |
-| [`loma-g`](#loma) | yes | 310 | 1668, 0.33x |
+| [`loma-g`](#loma) | yes | 307 | 1648, 0.33x |
 | [`loma-l`](#loma) | yes | 273 | 1406, 0.31x |
 | [`loma-r`](#loma) | yes | 262 | 1328, 0.3x |
 | [`romav1`](#romav1) | yes | 218, 1.8x | 1738, 0.42x |
@@ -315,7 +315,7 @@ Commercial use: yes.
 | `loma-b64` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 317<br>–<br>131<br>107<br>102<br>109 | 1327 / 1530<br>–<br>854 / 962<br>613 / 720<br>1230 / 1356<br>1010 / 1034 |
 | `loma-b128` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 370<br>–<br>150<br>116<br>124<br>144 | 2005 / 2292<br>–<br>878 / 984<br>625 / 684<br>1398 / 1800<br>1062 / 1066 |
 | `loma-l` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 1092<br>–<br>320<br>273<br>298<br>336 (standalone build) | 4311 / 4532<br>–<br>1903 / 2012<br>1285 / 1406<br>3006 / 3194<br>2042 / 2066 |
-| `loma-g` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 1240<br>–<br>359<br>310<br>331<br>366 | 4852 / 5068<br>–<br>2444 / 2548<br>1555 / 1668<br>3547 / 3890<br>2298 / 2322 |
+| `loma-g` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 1240<br>–<br>357<br>307<br>331<br>366 | 4852 / 5068<br>–<br>2219 / 2388<br>1509 / 1648<br>3547 / 3890<br>2298 / 2322 |
 | `loma-r` | synthetic (768x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 1037<br>–<br>309<br>262<br>287<br>326 | 4176 / 4390<br>–<br>1767 / 1878<br>1217 / 1328<br>2870 / 3256<br>1986 / 2010 |
 
 <details><summary>Details</summary>
@@ -343,6 +343,8 @@ Commercial use: yes.
 - `loma-b128` original (fp32) 768x1024: upstream loma-b128 (mp=False), float32, 2048 keypoints
 - `loma-l` original (fp32) 768x1024: upstream loma-l (mp=False), float32, 2048 keypoints
 - `loma-g` original (fp32) 768x1024: upstream loma-g (mp=False), float32, 2048 keypoints
+- `loma-g` portable 768x1024: Resize the previous descriptor scale after computing the final convolution. The synthetic and three calibrated MegaDepth pairs returned the same keypoints, matches and scores.
+- `loma-g` kernels 768x1024: Release each old detector context before running the next convolution. The synthetic and three calibrated MegaDepth pairs returned the same keypoints, matches and scores.
 - `loma-r` original (fp32) 768x1024: upstream loma-r (mp=False), float32, 2048 keypoints
 - `loma-b` load / first call: original 8.52 s / 1.373 s, portable 2.53 s / 1.269 s, kernels 1.61 s / 0.757 s
 - `loma-b64` load / first call: original 4.43 s / 1.508 s, portable 0.28 s / 0.759 s, kernels 0.91 s / 0.651 s
