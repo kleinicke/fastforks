@@ -12,7 +12,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`anysplat`](#anysplat) | yes | 369, 2.0x | 5548, 0.59x |
+| [`anysplat`](#anysplat) | yes | 366, 2.0x | 4232, 0.45x |
 | [`depthsplat-small-re10k`](#depthsplat) | yes | 91.4, 1.4x | 844, 0.14x |
 | [`lingbot-map`](#lingbot_map) | yes | 520, 1.9x | 5932, 0.77x |
 | [`mapanything-apache`](#mapanything) | yes | 525, 3.7x | 3652, 0.42x |
@@ -35,7 +35,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `anysplat` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 741<br>508<br>369<br>427<br>314 | 8931 / 9394<br>4164 / 5384<br>4173 / 5548<br>4137 / 4694<br>7629 / 7674 |
+| `anysplat` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 741<br>505<br>366<br>427<br>314 | 8931 / 9394<br>4032 / 4452<br>4039 / 4232<br>4137 / 4694<br>7629 / 7674 |
 
 <details><summary>Details</summary>
 
@@ -54,7 +54,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `anysplat` 3000x4000 (6.5 GiB peak allocated, 9.4 reserved)
 - `anysplat` 336x518, first call: portable + torch.compile 80 s (cold Inductor cache), TensorRT fp16 215 s (ONNX + engine).
 - `anysplat` original 336x518: the authors' mixed-precision option (bfloat16); InternRobotics/AnySplat@5f5e208a7dd5 EncoderAnySplat inference, long side 448, voxel_size 0.002
-- `anysplat` portable 336x518, kernels 336x518: Grouped the independent pointwise FP32 head projections. Two synthetic sequences and five DTU scenes preserved depth, confidence, camera and point outputs exactly. Gaussian values differed by at most 7.2e-7.
+- `anysplat` portable 336x518, kernels 336x518: Eight views at 336 x 518. Camera token and DPT workspace lifetimes are shorter. Maps and raw Gaussian values matched bitwise on synthetic inputs and three labeled DTU scenes.
 - `anysplat` load / first call: original 8.32 s / 3.068 s (336x518), portable 4.71 s / 0.891 s (336x518), kernels 4.04 s / 0.708 s (336x518)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

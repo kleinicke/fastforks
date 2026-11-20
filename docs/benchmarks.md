@@ -1127,6 +1127,12 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | vitmatte-b | 257 | 180 | 146 | 1.8x | 1.2x | 5070 / 5128 | 891 / 1036 | 747 / 832 |
 | vitmatte-s | 140 | 102 | 84.1 | 1.7x | 1.2x | 2536 / 2582 | 1401 / 1524 | 1305 / 1404 |
 
+### Matting, YouTubeMatte youtubematte_motion/0004 (100 frames), 288x512
+
+| model | time (ms): portable | peak memory (MiB, allocated / reserved): portable |
+|---|---|---|
+| matanyone | 1721 | 414 / 496 |
+
 ### Edges, synthetic, 1080x1920
 
 | model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
@@ -1363,7 +1369,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
-| anysplat | 336x518 | – | 741 | 508 | 369 | 2.0x | 1.4x | 8931 / 9394 | 4164 / 5384 | 4173 / 5548 |
+| anysplat | 336x518 | – | 741 | 505 | 366 | 2.0x | 1.4x | 8931 / 9394 | 4032 / 4452 | 4039 / 4232 |
 | depthsplat-small-re10k | 336x518 | – | 126 | 122 | 91.4 | 1.4x | 1.3x | 5694 / 5892 | 764 / 854 | 766 / 844 |
 | lingbot-map | 480x640 | – | 993 | 733 | 520 | 1.9x | 1.4x | 7141 / 7672 | 3910 / 5734 | 3919 / 5932 |
 | mapanything-apache | 336x518 | 2875 | 1967 | 637 | 525 | 3.7x | 1.2x | 10227 / 10952 | 3252 / 3652 | 3252 / 3652 |
@@ -2209,7 +2215,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | selective-igev-middlebury-train | 994x1482 | 998 ms | 692 ms | 462 ms | 349 ms | 128 s | 256 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
 | selective-igev-sceneflow | 994x1482 | 998 ms | 692 ms | 463 ms | 349 ms | 127 s | 255 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
 | waft-stereo-b | 994x1482 | 1094 ms | 571 ms | public API unavailable | 388 ms | 104 s | – | 2999 / 3070 | 3908 / 3936 | 1664 / 1932 | – |
-| waft-stereo-b | 384x1248 | – | – | 1209 ms, fp32 engine (standalone build) | – | – | 107 s | – | – | – | 1447 / 1454 |
+| waft-stereo-b | 384x1248 | 363 ms | – | 1209 ms, fp32 engine (standalone build) | – | – | 107 s | 1528 / 1826 | – | – | 1447 / 1454 |
 | waft-stereo-s | 994x1482 | 653 ms | 357 ms | 170 ms | 284 ms | 95.1 s | 152 s | 1609 / 1794 | 2024 / 2058 | 954 / 1102 | 1061 / 1114 |
 | any2full-b | 994x1482 | 26.8 ms | 24.2 ms | 15.8 ms | 17.2 ms | 97.0 s | 64.4 s | 538 / 596 | 442 / 496 | 481 / 536 | 731 / 794 |
 | any2full-l | 994x1482 | 67.7 ms | 63.8 ms | 40.2 ms | 42.3 ms | 33.9 s | 79.0 s | 1178 / 1250 | 987 / 1092 | 1115 / 1210 | 1860 / 1928 |
@@ -2230,7 +2236,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | depth-anything-v2-s | 994x1482 | 7.82 ms | 6.65 ms | 4.46 ms | 4.51 ms | 15.7 s | 29.9 s | 249 / 326 | 201 / 224 | 190 / 248 | 273 / 308 |
 | depth-pro | 994x1482 | 521 ms | 488 ms | 299 ms | 277 ms | 39.2 s | 163 s | 3036 / 3298 | 3053 / 3198 | 3050 / 3198 | 4816 / 4882 |
 | depthfm-v1 | 994x1482 | 4854 ms | 3947 ms | fails: ONNX export: conversion failed | 3555 ms | 102 s | – | 5422 / 7404 | 9240 / 10292 | 3768 / 5942 | – |
-| depthfm-v1 | 480x640 | – | – | 353 ms (fixed-shape exported depth network) | – | – | – | – | – | – | 3479 / 3494 |
+| depthfm-v1 | 480x640 | 907 ms | – | 353 ms (fixed-shape exported depth network) | – | – | – | 4430 / 7296 | – | – | 3479 / 3494 |
 | distill-any-depth-b | 994x1482 | 18.6 ms | 17.0 ms | 10.8 ms | 10.8 ms | 16.2 s | 33.0 s | 445 / 514 | 340 / 394 | 349 / 396 | 539 / 614 |
 | distill-any-depth-l | 994x1482 | 54.4 ms | 51.6 ms | 32.4 ms | 31.8 ms | 20.1 s | 42.5 s | 1022 / 1092 | 850 / 910 | 917 / 1034 | 1579 / 1634 |
 | distill-any-depth-s | 994x1482 | 7.65 ms | 6.67 ms | 4.46 ms | 4.63 ms | 15.9 s | 29.9 s | 244 / 288 | 201 / 224 | 152 / 208 | 305 / 348 |
@@ -2394,7 +2400,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | isnet | 1080x1920 | 21.0 ms | 13.1 ms | 6.70 ms | 12.1 ms | 33.8 s | 34.4 s | 512 / 562 | 350 / 400 | 487 / 522 | 404 / 436 |
 | isnet-general-use | 1080x1920 | 21.0 ms | 13.1 ms | 6.66 ms | 12.1 ms | 33.9 s | 32.3 s | 512 / 562 | 350 / 400 | 487 / 522 | 404 / 436 |
 | matanyone | 1080x1920 | 966 ms | 635 ms | fails: BackendUnavailableError: matanyone@1 (portable) has no expor | 911 ms | 35.9 s | – | 2268 / 2726 | 1363 / 3452 | 2268 / 2706 | – |
-| matanyone | 288x512 | – | – | 1476 ms, fp32 engine (frame and key encoder with eager video memory and alpha decoder, 100 frames) | – | – | 15.8 s | – | – | – | 474 / 542 |
+| matanyone | 288x512 | 1721 ms | – | 1476 ms, fp32 engine (frame and key encoder with eager video memory and alpha decoder, 100 frames) | – | – | 15.8 s | 414 / 496 | – | – | 474 / 542 |
 | rmbg-2.0 | 1080x1920 | 133 ms | 110 ms | 88.1 ms | 121 ms | 82.9 s | 219 s | 1165 / 1288 | 1874 / 1932 | 1145 / 1296 | 1723 / 1784 |
 | u2net | 1080x1920 | 9.77 ms | 9.09 ms | 3.07 ms | 5.18 ms | – | 36.0 s | 240 / 278 | 221 / 258 | 161 / 236 | 335 / 390 |
 | u2net-human-seg | 1080x1920 | 10.0 ms | 6.18 ms | 3.08 ms | 5.14 ms | – | 34.7 s | 240 / 278 | 193 / 234 | 161 / 236 | 335 / 390 |
@@ -2599,7 +2605,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | anycalib-pinhole | 480x640 | 29.9 ms | – | 12.4 ms | – | – | 118 s | 693 / 704 | – | – | 750 / 768 |
 | geocalib-pinhole | 1080x1920 | 81.2 ms | 73.1 ms | public API unavailable | 81.8 ms | 28.4 s | – | 320 / 378 | 246 / 300 | 277 / 338 | – |
 | geocalib-pinhole | 1920x1440 | 123 ms | – | 109 ms, fp32 engine (field predictor only, standalone build) | – | – | 42.9 s | 433 / 560 | – | – | 540 / 558 |
-| anysplat | 336x518 | 508 ms | 427 ms | 314 ms | 369 ms | 80.3 s | 215 s | 4164 / 5384 | 4137 / 4694 | 4173 / 5548 | 7629 / 7674 |
+| anysplat | 336x518 | 505 ms | 427 ms | 314 ms | 366 ms | 80.3 s | 215 s | 4032 / 4452 | 4137 / 4694 | 4039 / 4232 | 7629 / 7674 |
 | depthsplat-small-re10k | 336x518 | 122 ms | 82.2 ms | 86.4 ms | 91.4 ms | 80.0 s | 224 s | 764 / 854 | 5432 / 5526 | 766 / 844 | 3148 / 3194 |
 | lingbot-map | 480x640 | 733 ms | 657 ms | 489 ms | 520 ms | 71.0 s | 181 s | 3910 / 5734 | 3339 / 3468 | 3919 / 5932 | 6280 / 6338 |
 | mapanything-apache | 336x518 | 637 ms | 596 ms | 367 ms | 525 ms | 46.2 s | 137 s | 3252 / 3652 | 3347 / 3792 | 3252 / 3652 | 6220 / 6248 |
@@ -2644,7 +2650,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | memflow | 1080x1920 | 965 ms | 1642 ms | fails: TensorRT engine build failed | 865 ms | 78.9 s | – | 6001 / 6294 | 6813 / 6946 | 968 / 1022 | – |
 | memflow | 384x1248 | 279 ms | – | 178 ms, fp32 engine (full fixed-shape flow network, standalone trace export and build) | – | – | 99.3 s | 535 / 848 | – | – | 1171 / 1176 |
 | memflow-kitti | 1080x1920 | 964 ms | 1644 ms | fails: TensorRT engine build failed | 865 ms | 72.6 s | – | 5985 / 6102 | 6813 / 6946 | 968 / 1022 | – |
-| memflow-kitti | 384x1248 | – | – | 135 ms (full fixed-shape flow network, standalone engine build) | – | – | 330 s | – | – | – | 859 / 864 |
+| memflow-kitti | 384x1248 | 142 ms | – | 135 ms (full fixed-shape flow network, standalone engine build) | – | – | 330 s | 488 / 544 | – | – | 859 / 864 |
 | memflow-sintel | 1080x1920 | 964 ms | 1640 ms | fails: TensorRT engine build failed | 865 ms | 76.0 s | – | 5985 / 6102 | 6813 / 6946 | 968 / 1022 | – |
 | memflow-sintel | 384x1248 | 143 ms | – | 137 ms (full fixed-shape flow network, standalone trace export and build) | – | – | 140 s | 528 / 738 | – | – | 887 / 892 |
 | memfof | 1080x1920 | 433 ms | 291 ms | 160 ms | 349 ms | 50.5 s | 110 s | 1911 / 2196 | 2452 / 2666 | 917 / 1016 | 2070 / 2132 |
@@ -2765,7 +2771,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | nnfoundation-cnn | 200x200 | 248 ms | 170 ms | 255 ms (encoder on a normalized, padded volume only; memory estimated) | 232 ms | 19.8 s | 49.0 s | 2368 / 3330 | 5067 / 5110 | 2325 / 3330 | 3374 / 3398 |
 | nnfoundation-vit | 192x192 | 1848 ms | 1440 ms | 7024 ms, fp32 engine (standalone encoder, fixed 192³, TF32 disabled) | 1732 ms | 69.5 s | 127 s | 1669 / 1884 | 1406 / 1484 | 1669 / 1884 | 8452 / 8452 |
 | nninteractive | 200x200 | 209 ms | 162 ms | fails: The TensorRT export accepts prepared 192³ network patches. | 193 ms | 18.0 s | – | 2423 / 2772 | 3643 / 3832 | 2423 / 2772 | – |
-| nninteractive | 192x192 | – | – | 262 ms (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | – | – | 58.0 s | – | – | – | 2738 / 2740 |
+| nninteractive | 192x192 | 204 ms | – | 262 ms (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | – | – | 58.0 s | 2145 / 2608 | – | – | 2738 / 2740 |
 | totalsegmentator-total | 200x200 | 1977 ms | 1595 ms | 1582 ms (five nnU-Net patch networks with eager volume processing) | 1647 ms | 37.0 s | 152 s | 2017 / 2244 | 1697 / 1984 | 1219 / 1638 | 6646 / 7136 |
 | totalsegmentator-total-3mm | 200x200 | 70.3 ms | 63.1 ms | 74.4 ms (patch network, standalone build) | 71.8 ms | 11.9 s | 31.3 s | 962 / 1050 | 907 / 1030 | 913 / 1376 | 2909 / 2970 |
 <!-- compile:end -->

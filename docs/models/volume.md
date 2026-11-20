@@ -94,7 +94,7 @@ Commercial use: **no** (weights: CC-BY-NC-SA-4.0).
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `nninteractive` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 705<br>460<br>209<br>193<br>162<br>fails: The TensorRT export accepts prepared 192³ network patches. | 7156 / 8408<br>4076 / 4636<br>2423 / 2772<br>2423 / 2772<br>3643 / 3832<br>– |
-| `nninteractive` | 192x192 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>262 (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | –<br>–<br>–<br>2738 / 2740 |
+| `nninteractive` | synthetic (192x192) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>204<br>–<br>262 (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | –<br>2145 / 2608<br>–<br>2738 / 2740 |
 
 <details><summary>Details</summary>
 
@@ -111,6 +111,7 @@ Commercial use: **no** (weights: CC-BY-NC-SA-4.0).
 - `nninteractive` 200x200, first call: portable + torch.compile 18 s (cold Inductor cache).
 - `nninteractive` 192x192, first call: TensorRT fp16 58 s (ONNX + engine).
 - `nninteractive` portable 200x200, kernels 200x200: Prepares each 3D patch directly in the CUDA network layout. Identical prompt-session masks on synthetic and three labeled CT cases in both CUDA modes.
+- `nninteractive` portable 192x192: Portable timing measured separately at the TensorRT comparison's input shape, precision and prepared 8-channel 192×192×192 network patch scope.
 - `nninteractive` load / first call: original 3.23 s / 1.038 s, portable 1.09 s / 0.482 s, kernels 0.65 s / 0.403 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

@@ -616,7 +616,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`depthsplat-small-re10k`](models/multiview.md#depthsplat) | yes | 126.5 (336x518) | 122.5 | 91.4 | 1.4x vs original (336x518) | 766 |
 | [`mvsplat-re10k`](models/multiview.md#mvsplat) | yes | 279.3 (336x518) | 182.1 | 145.1 | 1.9x vs original (336x518) | 1134 |
 | [`resplat-small-dl3dv`](models/multiview.md#resplat) | yes | 493.4 (480x640) | 1679.9 | 313.0 | 1.6x vs original (480x640) | 1089 |
-| [`anysplat`](models/multiview.md#anysplat) | yes | 741.2 (336x518) | 508.0 | 369.1 | 2.0x vs original (336x518) | 4173 |
+| [`anysplat`](models/multiview.md#anysplat) | yes | 741.2 (336x518) | 504.6 | 365.7 | 2.0x vs original (336x518) | 4039 |
 | [`vggt-1b`](models/multiview.md#vggt) | no | 965.0 (336x518) | 654.8 | 445.5 | 2.2x vs original (336x518) | 3507 |
 | [`vggt-omega-1b-512`](models/multiview.md#vggt-omega) | no | 906.4 (336x518) | 727.2 | 469.2 | 1.9x vs original (336x518) | 3270 |
 | [`lingbot-map`](models/multiview.md#lingbot-map) | yes | 992.8 (480x640) | 733.4 | 520.2 | 1.9x vs original (480x640) | 3919 |

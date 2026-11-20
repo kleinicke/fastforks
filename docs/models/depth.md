@@ -468,7 +468,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `depthfm-v1` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>4854<br>3555<br>3947<br>fails: ONNX export: conversion failed | –<br>5422 / 7404<br>3768 / 5942<br>9240 / 10292<br>– |
-| `depthfm-v1` | 480x640 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>353 (fixed-shape exported depth network) | –<br>–<br>–<br>3479 / 3494 |
+| `depthfm-v1` | synthetic (480x640) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>907<br>–<br>353 (fixed-shape exported depth network) | –<br>4430 / 7296<br>–<br>3479 / 3494 |
 
 <details><summary>Details</summary>
 
@@ -487,6 +487,7 @@ Commercial use: yes.
 - `depthfm-v1` 994x1482, first call: portable + torch.compile 102 s (cold Inductor cache).
 - `depthfm-v1` portable 994x1482: Default four-member ensemble with bounded VAE decoding. Prior portable was 5814.353 ms and 13671 MiB peak allocated. Relative AbsRel changes were below 0.000002 on three matched Middlebury inputs.
 - `depthfm-v1` kernels 994x1482: Default four-member ensemble with bounded VAE decoding. Prior kernels was 3578.895 ms and 9258 MiB peak allocated. Relative AbsRel changes were below 0.000002 on three matched Middlebury inputs.
+- `depthfm-v1` portable 480x640: Portable timing measured separately at the TensorRT comparison's input shape, precision and fixed-shape exported depth network scope.
 - `depthfm-v1` load / first call: portable 3.58 s / 6.004 s, kernels 4.59 s / 3.734 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
