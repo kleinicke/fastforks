@@ -55,7 +55,7 @@ def _refine_in_rows(block: ConvNextBlock, image: torch.Tensor) -> torch.Tensor:
     ):
         return ConvNextBlock.forward(block, image)
     features = block.dwconv(image).permute(0, 2, 3, 1)
-    combined = None
+    result = None
     layout = torch.channels_last if image.is_contiguous(memory_format=torch.channels_last) else torch.contiguous_format
     for start in range(0, features.shape[1], _REFINE_ROWS):
         part = features[:, start : start + _REFINE_ROWS]
@@ -64,13 +64,18 @@ def _refine_in_rows(block: ConvNextBlock, image: torch.Tensor) -> torch.Tensor:
             value = block.gamma * value
         stop = start + value.shape[1]
         value = image[..., start:stop, :] + value.permute(0, 3, 1, 2)
-        if combined is None:
-            combined = torch.empty_like(image, dtype=value.dtype, memory_format=layout)
-        combined[..., start:stop, :] = value
+        value = block.final(value.contiguous(memory_format=layout))
+        if result is None:
+            result = torch.empty(
+                (value.shape[0], value.shape[1], features.shape[1], features.shape[2]),
+                device=value.device,
+                dtype=value.dtype,
+                memory_format=layout,
+            )
+        result[..., start:stop, :] = value
         del part, value
-    assert combined is not None  # noqa: S101 - the nonempty feature map yields at least one group
-    del features
-    return block.final(combined)
+    assert result is not None  # noqa: S101 - the nonempty feature map yields at least one group
+    return result
 
 
 class _Scaled(Runner):

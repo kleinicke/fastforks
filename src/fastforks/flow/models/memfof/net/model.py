@@ -328,8 +328,10 @@ class MEMFOF(nn.Module):  # fastforks: no PyTorchModelHubMixin
             corr = torch.cat([corr_fn_21(grid + flow_16x_21), corr_fn_23(grid + flow_16x_23)], dim=1)
             flow_16x = torch.cat([flow_16x_21, flow_16x_23], dim=1)
             with torch.autocast("cuda", torch.float16, enabled=fp16):
-                net = self.update_block(net, context, corr, flow_16x, attention)
+                motion_features = self.update_block.encoder(flow_16x, corr)
                 del corr, flow_16x
+                net = self.update_block.refine_motion(net, context, motion_features, attention)
+                del motion_features
                 flow_update = self.flow_head(net)
             flow_16x_21 = flow_16x_21 + flow_update[:, 0:2].float()
             flow_16x_23 = flow_16x_23 + flow_update[:, 6:8].float()
