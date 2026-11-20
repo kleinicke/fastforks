@@ -103,7 +103,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 46 models; size 994x1482.
 
 - Fastest: [`depth-anything-v2-s`](models/depth.md#depth-anything-v2) (4.5 ms).
-- Most accurate: [`unik3d-vitl`](models/depth.md#unik3d) (62.9 ms, error 0.0346).
+- Most accurate: [`unik3d-vitl`](models/depth.md#unik3d) (62.8 ms, error 0.0346).
 - Best trade-off: [`da3mono-large`](models/depth.md#depth-anything-3) (14.9 ms, error 0.0402).
 - Fastest commercially usable: [`depth-anything-v2-s`](models/depth.md#depth-anything-v2) (4.5 ms).
 - Most accurate commercially usable: [`moge-3-vitl`](models/depth.md#moge) (149.1 ms, error 0.0356).
@@ -138,7 +138,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`da3nested-giant-large-1.1`](models/depth.md#depth-anything-3) | no | 0.0387 | 308.2 (994x1482) | 92.5 | 59.5 | 5.2x vs original (994x1482) | 3120 |
 | [`pointdit-l-512`](models/depth.md#pointdit) | yes | 0.0410 | 112.0 (994x1482) | 94.6 | 61.3 | 1.8x vs original (994x1482) | 1310 |
 | [`prompt-depth-anything-l`](models/depth.md#prompt-depth-anything) | yes | – | – | 110.2 | 61.4 | 1.8x vs portable | 1056 |
-| [`unik3d-vitl`](models/depth.md#unik3d) | no | 0.0346 | 133.7 (994x1482) | 107.8 | 62.9 | 2.1x vs original (994x1482) | 1166 |
+| [`unik3d-vitl`](models/depth.md#unik3d) | no | 0.0346 | 133.7 (994x1482) | 106.7 | 62.8 | 2.1x vs original (994x1482) | 985 |
 | [`unidepth-v2-vitl14`](models/depth.md#unidepth-v2) | no | 0.0355 | 132.0 (994x1482) | 99.8 | 63.0 | 2.1x vs original (994x1482) | 1153 |
 | [`midas-dpt-beit-large-512`](models/depth.md#midas-v31) | yes | 0.0487 | 333.2 (994x1482) | 78.8 | 63.9 | 5.2x vs original (994x1482) | 1003 |
 | [`video-depth-anything-s`](models/depth.md#video-depth-anything) | yes | – | – | 164.7 | 65.5 | 2.5x vs portable | 1242 |

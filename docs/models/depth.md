@@ -54,7 +54,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`prompt-depth-anything-s`](#prompt_depth_anything) | yes | – | 10.9 | 322 |
 | [`stablenormal-turbo`](#stablenormal) | yes | – | 180, 1.7x | 3172, 0.73x |
 | [`unidepth-v2-vitl14`](#unidepth_v2) | no | 0.0355 | 63.0, 2.1x | 1252, 0.36x |
-| [`unik3d-vitl`](#unik3d) | no | 0.0346 | 62.9, 2.1x | 1266, 0.35x |
+| [`unik3d-vitl`](#unik3d) | no | 0.0346 | 62.8, 2.1x | 1066, 0.3x |
 | [`video-depth-anything-metric-s`](#video_depth_anything) | yes | – | 65.5 | 1430 |
 | [`video-depth-anything-s`](#video_depth_anything) | yes | – | 65.5 | 1430 |
 | [`zoedepth-nk`](#zoedepth) | yes | 0.0532 | 88.9, 3.1x | 1960, 0.91x |
@@ -1370,7 +1370,7 @@ Commercial use: **no** (code: CC-BY-NC-SA-4.0 (noncommercial); weights: CC-BY-NC
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `unik3d-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 134<br>134<br>108<br>62.9<br>94.4<br>58.0 | 3307 / 3570<br>3307 / 3570<br>1219 / 1492<br>1166 / 1266<br>1258 / 1312<br>1609 / 1678 |
+| `unik3d-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 134<br>134<br>107<br>62.8<br>94.4<br>58.0 | 3307 / 3570<br>3307 / 3570<br>1063 / 1152<br>985 / 1066<br>1258 / 1312<br>1609 / 1678 |
 
 <details><summary>Details</summary>
 
@@ -1387,7 +1387,8 @@ Commercial use: **no** (code: CC-BY-NC-SA-4.0 (noncommercial); weights: CC-BY-NC
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `unik3d-vitl` 3000x4000 (2.2 GiB peak allocated, 2.4 reserved)
 - `unik3d-vitl` 994x1482, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 105 s (ONNX + engine).
 - `unik3d-vitl` original 994x1482: torch.autocast(fp16) around the forward
-- `unik3d-vitl` load / first call: original 7.28 s / 0.575 s, portable 4.16 s / 0.136 s, kernels 3.77 s / 0.298 s (518x770)
+- `unik3d-vitl` portable 994x1482, kernels 994x1482: Left image from Middlebury 2014 trainingH Motorcycle, with camera prediction and confidence enabled.
+- `unik3d-vitl` load / first call: original 7.28 s / 0.575 s, portable 0.88 s / 0.337 s, kernels 3.77 s / 0.298 s (518x770)
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
