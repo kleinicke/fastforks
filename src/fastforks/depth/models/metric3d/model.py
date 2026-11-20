@@ -20,12 +20,13 @@ from torch import nn
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.half import fp16_accumulate, half_weights, pure_half
 from fastforks._core.patch import override
+from fastforks._core.tracing import in_onnx_export
 from fastforks.depth._runner import Forward, NoParams, Runner, scale
 from fastforks.kernels import dpt_fused
 from fastforks.kernels.fastbb import Flash64
 from fastforks.shared.depth_anything_v2.fast_vit import FastViT
 
-from .net.raft_depth_normal_dpt5 import RAFTDepthNormalDPT5, norm_normalize
+from .net.raft_depth_normal_dpt5 import ConvGRU, RAFTDepthNormalDPT5, norm_normalize
 from .net.vit_dino_reg import Attention, Mlp, vit_large_reg
 
 if TYPE_CHECKING:
@@ -70,6 +71,28 @@ class _Metric3D(nn.Module):
         return self.decoder(self.encoder(x), final_only=final_only)
 
 
+def _inference_gru(
+    gru: ConvGRU, hidden: torch.Tensor, cz: torch.Tensor, cr: torch.Tensor, cq: torch.Tensor, *inputs: torch.Tensor
+) -> torch.Tensor:
+    """Reuse the input channel buffer after its update and reset convolutions."""
+    if (
+        not hidden.is_cuda
+        or torch.compiler.is_compiling()
+        or torch.jit.is_tracing()
+        or in_onnx_export()
+        or torch.is_grad_enabled()
+    ):
+        return ConvGRU.forward(gru, hidden, cz, cr, cq, *inputs)
+    packed = torch.cat((hidden, *inputs), dim=1)
+    update = torch.sigmoid(gru.convz(packed) + cz)
+    reset = torch.sigmoid(gru.convr(packed) + cr)
+    packed[:, : hidden.shape[1]].copy_(reset * hidden)
+    del reset
+    candidate = torch.tanh(gru.convq(packed) + cq)
+    del packed
+    return (1 - update) * hidden + update * candidate
+
+
 def _net(ctx: Context) -> _Metric3D:
     with torch.device(ctx.device):  # random init on the target device (fast on CUDA), then the checkpoint
         net = _Metric3D()
@@ -77,6 +100,10 @@ def _net(ctx: Context) -> _Metric3D:
     load_strict(net, state, f"{ctx.variant.ref} checkpoint", not_in_checkpoint=("encoder.mask_token",))
     net.encoder.mask_token.data.zero_()  # not in the checkpoint; upstream: zeros, only used in training
     net.decoder.register_depth_expectation_anchor(BINS, 1)  # broadcasts over the batch
+    if ctx.device.type == "cuda":
+        for module in net.decoder.update_block.modules():
+            if isinstance(module, ConvGRU):
+                override(module, _inference_gru)
     return net.eval()
 
 
