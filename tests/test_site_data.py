@@ -109,6 +109,13 @@ def test_quality_keeps_precision_specific_rows(monkeypatch):
         {"dataset": "nyu", "mode": "upstream", "tier": "upstream", "dtype": "float32", "metrics": {"rel_absrel": 0.1}},
         {
             "dataset": "nyu",
+            "mode": "upstream-fp32-strict",
+            "tier": "upstream32strict",
+            "dtype": "float32",
+            "metrics": {"rel_absrel": 0.11},
+        },
+        {
+            "dataset": "nyu",
             "mode": "upstream",
             "tier": "upstream16",
             "dtype": "float16",
@@ -126,6 +133,7 @@ def test_quality_keeps_precision_specific_rows(monkeypatch):
     modes = site_data._quality(card, variant, {"model": rows})[0]["modes"]
     assert {key: value["metrics"]["rel_absrel"] for key, value in modes.items()} == {
         "original32": 0.1,
+        "original32strict": 0.11,
         "original16": 0.2,
         "portable32": 0.3,
         "portable": 0.4,
@@ -199,7 +207,7 @@ def test_default_float32_portable_is_also_labelled_as_fp32(monkeypatch):
     row = {"dataset": "nyu", "mode": "portable", "dtype": "float32", "metrics": {"rel_absrel": 0.2}}
     modes = site_data._quality(SimpleNamespace(task="depth"), SimpleNamespace(id="model"), {"model": [row]})[0]["modes"]
     assert modes["portable32"]["metrics"] == modes["portable"]["metrics"]
-    assert "same measurement" in modes["portable32"]["note"]
+    assert "same measurement" in modes["portable32"]["note"].casefold()
 
 
 def test_stream_rows_preserve_explicit_settings_and_oom(tmp_path, monkeypatch):

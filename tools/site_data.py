@@ -40,6 +40,7 @@ if TYPE_CHECKING:
 _SPEED_KEY = {"upstream-default": "original32", "upstream": "original16", "portable": "portable", "kernels": "kernels"}
 _EVAL_KEY = {
     "upstream": "original32",
+    "upstream-fp32-strict": "original32strict",
     "upstream-fp16": "original16",
     "portable32": "portable32",
     "portable": "portable",
@@ -298,7 +299,9 @@ def _quality(card: ModelCard, v: Variant, rows: dict[str, list[dict]]) -> list[d
         portable = modes.get("portable")
         if portable and portable["dtype"] == "float32" and portable["metrics"] and not portable["error"]:
             # A default portable FP32 run is already an FP32 measurement; do not claim a second run.
-            note = "; ".join(x for x in (portable["note"], "same measurement as portable (float32)") if x)
+            note = ". ".join(
+                x for x in ((portable["note"] or "").rstrip("."), "Same measurement as portable (float32).") if x
+            )
             modes.setdefault("portable32", {**portable, "note": note})
         mark = g._overlap(card, v, d)  # noqa: SLF001
         out.append(

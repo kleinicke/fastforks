@@ -642,9 +642,20 @@ _ORIGINAL_IS = {
     "sam3": "original = transformers `Sam3Model`, the port this code follows",
 }
 _MODES = ("upstream", "upstream-default", "portable", "kernels")
-_EVAL_MODES = ("upstream", "upstream-fp16", "upstreamhalf", "portable", "portable32", "kernels", "compile", "tensorrt")
+_EVAL_MODES = (
+    "upstream",
+    "upstream-fp32-strict",
+    "upstream-fp16",
+    "upstreamhalf",
+    "portable",
+    "portable32",
+    "kernels",
+    "compile",
+    "tensorrt",
+)
 _EVAL_LABEL = {
     "upstream": "original fp32",
+    "upstream-fp32-strict": "original strict fp32",
     "upstream-fp16": "original fp16",
     "upstreamhalf": "original half",
     "portable32": "portable fp32",
@@ -1390,6 +1401,15 @@ def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[s
             cells = [_accuracy(task, by, m, d) for m in shown]
             note = "; ".join(n for n in (_NOTE.get(_overlap(card, v, d), ""), _ORIGINAL_IS.get(card.family, "")) if n)
             lines.append(f"| `{v.id}` | {title} | {' | '.join(cells)} | {note} |")
+    if "upstream-fp32-strict" in shown:
+        lines += [
+            "",
+            (
+                "LightGlue's default FP32 configuration uses FP16 attention in both implementations. "
+                "The original strict FP32 run disables FlashAttention, mixed precision and TF32. "
+                "Disabling FlashAttention also selects the authors' lower point-pruning threshold."
+            ),
+        ]
     lines += ["", "Measured on " + where.rstrip(". ") + "."] if where else []
     return lines
 

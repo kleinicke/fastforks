@@ -69,9 +69,9 @@ Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstre
 | variant | dataset | original fp32 | portable | portable fp32 | TensorRT | note |
 |---|---|---|---|---|---|---|
 | `aliked-flexglue` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  | 48.9 / 67.6 / 80.5 | 50.4 / 68.6 / 81.1 |  |
-| `aliked-flexglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 50.8 / 68.2 / 80.4 | 53.3 / 70.1 / 82.0 | 52.8 / 69.6 / 81.7 |  |  |
+| `aliked-flexglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 50.8 / 68.2 / 80.4 | 51.5 / 69.1 / 81.0 | 51.9 / 69.3 / 81.1 |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7eb2e0f4 / d073b335, 2026-11-17 to 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7eb2e0f4, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9, 2026-11-20; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9 / 7eb2e0f4, 2026-11-18 to 2026-11-20; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7eb2e0f4, 2026-11-18.
 
 ### Parity
 
@@ -132,12 +132,14 @@ Commercial use: yes.
 
 Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Both modes receive pairs resized to 768 x 1024. Map matched pixels to the calibrated evaluation coordinates and use the same RANSAC seed per pair. The same 300 pairs for all modes, so float32 and bfloat16 compare pair for pair. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
-|---|---|---|---|---|---|---|---|---|
-| `aliked-lightglue` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  | 50.7 / 67.6 / 80.0 |  |  |  |  |
-| `aliked-lightglue` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  |  | 49.8 / 67.7 / 80.6 |  | 51.3 / 68.8 / 80.9 |  |
-| `aliked-lightglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 51.7 / 68.2 / 81.0 | 51.4 / 68.8 / 80.8 | 52.1 / 69.2 / 81.4 |  | 51.0 / 68.3 / 80.9 |  |  |
-| `disk-lightglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 45.6 / 63.3 / 77.3 | 44.9 / 63.4 / 77.0 | 45.6 / 63.3 / 77.3 |  | 45.0 / 62.9 / 76.6 |  |  |
+| variant | dataset | original fp32 | original strict fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `aliked-lightglue` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  |  | 50.7 / 67.6 / 80.0 |  |  |  |  |
+| `aliked-lightglue` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  |  |  | 49.8 / 67.7 / 80.6 |  | 51.3 / 68.8 / 80.9 |  |
+| `aliked-lightglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 51.7 / 68.2 / 81.0 | 51.5 / 68.1 / 80.3 | 51.4 / 68.8 / 80.8 | 52.1 / 69.2 / 81.4 |  | 51.0 / 68.3 / 80.9 |  |  |
+| `disk-lightglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 45.6 / 63.3 / 77.3 | 47.0 / 64.2 / 77.3 | 44.9 / 63.4 / 77.0 | 45.6 / 63.3 / 77.3 |  | 45.0 / 62.9 / 76.6 |  |  |
+
+LightGlue's default FP32 configuration uses FP16 attention in both implementations. The original strict FP32 run disables FlashAttention, mixed precision and TF32. Disabling FlashAttention also selects the authors' lower point-pruning threshold.
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ec7b1307+port/p1-match, 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e72c2d6e, 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ecac19a2-dirty, 2026-11-15; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e72c2d6e, 2026-11-19.
 
@@ -352,19 +354,19 @@ Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstre
 | variant | dataset | original fp32 | portable | portable fp32 | TensorRT | note |
 |---|---|---|---|---|---|---|
 | `loma-b` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 58.1 / 73.5 / 84.2 |  | 56.9 / 73.1 / 84.2 |  |
-| `loma-b` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.5 / 71.6 / 83.7 | 56.2 / 72.6 / 83.9 | 58.1 / 74.3 / 85.2 |  |  |
+| `loma-b` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.5 / 71.6 / 83.7 | 54.3 / 71.3 / 83.6 | 56.2 / 72.7 / 84.1 |  |  |
 | `loma-b64` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 54.8 / 71.4 / 83.2 |  | 58.4 / 74.4 / 84.4 |  |
-| `loma-b64` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 57.0 / 73.6 / 84.8 |  | 56.0 / 72.0 / 83.1 |  |  |
+| `loma-b64` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 57.0 / 73.6 / 84.8 |  | 54.9 / 71.5 / 83.1 |  |  |
 | `loma-b128` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 53.0 / 70.2 / 82.1 |  | 55.6 / 71.5 / 82.7 |  |
-| `loma-b128` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 55.4 / 71.7 / 82.7 |  | 57.4 / 74.3 / 85.4 |  |  |
+| `loma-b128` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 55.4 / 71.7 / 82.7 |  | 56.2 / 72.0 / 83.7 |  |  |
 | `loma-l` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 57.1 / 72.9 / 83.8 |  | 55.3 / 72.6 / 83.9 |  |
-| `loma-l` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.3 / 70.9 / 83.3 |  | 58.5 / 74.4 / 85.0 |  |  |
+| `loma-l` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 54.3 / 70.9 / 83.3 |  | 57.1 / 72.9 / 84.6 |  |  |
 | `loma-g` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 56.8 / 72.6 / 84.0 |  | 56.7 / 72.4 / 83.3 |  |
-| `loma-g` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 59.1 / 74.1 / 84.5 |  | 57.1 / 72.7 / 84.1 |  |  |
+| `loma-g` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 59.1 / 74.1 / 84.5 |  | 58.8 / 74.6 / 85.3 |  |  |
 | `loma-r` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  | 55.7 / 72.5 / 84.4 |  | 55.3 / 71.0 / 82.6 |  |
-| `loma-r` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 57.1 / 72.6 / 84.1 |  | 58.2 / 73.8 / 85.0 |  |  |
+| `loma-r` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 57.1 / 72.6 / 84.1 |  | 56.9 / 72.4 / 83.6 |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4475282a / 68b2f345 / ba3a401e / c4a792fe, 2026-11-16 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c34edca4 / c34edca40 / d073b335, 2026-11-17 to 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4475282a / ba3a401e / c4a792fe, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9 / 4475282a / ba3a401e / c4a792fe, 2026-11-18 to 2026-11-20; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 32e2e81e9, 2026-11-20; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 4475282a / ba3a401e / c4a792fe, 2026-11-18.
 
 ### Parity
 
