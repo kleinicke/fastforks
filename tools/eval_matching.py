@@ -52,7 +52,8 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import torch
 
-from _data import DATA, prefetch
+from _data import DATA
+from _prefetch import prefetch
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator

@@ -58,10 +58,13 @@ MINI = {
     "tests/conftest.py": "",
     "tests/data/x.json": "{}",
     "tests/test_docs.py": "",
+    "tests/test_eval_coco.py": "from eval_coco import run\n",
     "tests/test_golden.py": "import fastforks._core\nimport fastforks.kernels.kb\nimport fastforks.stereo\n",
     "tests/test_plain.py": "import fastforks._core.util\n",
     "tests/test_fa.py": "from fastforks.stereo.models import fa\n",
     "tools/select_tests.py": "",
+    "tools/_prefetch.py": "",
+    "tools/eval_coco.py": "from _prefetch import prefetch\n",
 }
 ALL = {"fa", "fb", "fc"}
 
@@ -109,6 +112,14 @@ def test_mini_fast_tier(mini: Path) -> None:
     release = st.select(["uv.lock"], mini)
     assert release.release
     assert release.fast == ["tests"]
+
+
+@pytest.mark.parametrize("changed", ["tools/eval_coco.py", "tools/_prefetch.py", "tests/test_eval_coco.py"])
+def test_evaluator_only_changes_select_affected_tools_tests(mini: Path, changed: str) -> None:
+    selection = st.select([changed], mini)
+    assert selection.fast == ["tests/test_eval_coco.py"]
+    assert not selection.families
+    assert "tests/test_plain.py" in st.select([changed, "tools/eval_missing.py"], mini).fast
 
 
 def test_lockfile_local_version_only_does_not_select_all_families(mini: Path) -> None:

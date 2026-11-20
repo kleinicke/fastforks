@@ -56,7 +56,8 @@ import numpy as np
 import torch
 from PIL import Image
 
-from _data import DATA, prefetch
+from _data import DATA
+from _prefetch import prefetch
 
 CONCEPT_THRESHOLD = 0.5  # SAM 3's default (fastforks CONCEPT_THRESHOLD, transformers' post-processing example)
 MIN_LEFT_S = 20  # seconds of budget below which no new model is started

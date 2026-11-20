@@ -23,7 +23,8 @@ other tests) selects no family.
 
 An empty change set selects no tests. Fast tier (`-m "not gpu and not model"`): every test file whose closure reaches
 no family module, the family-specific files of the selected families and every test file whose closure holds a changed
-file; all of tests/ when conftest.py,
+file. Changes limited to existing evaluation tools and their tests omit unrelated fast-tier tests. All of tests/ run
+when conftest.py,
 non-Python test data or the dependencies changed. Documentation-only changes use the docs checks, plus the site data
 and speed-floor checks for generated model or benchmark pages and their data. The GPU selection gives each family's
 golden refs as a `-k` expression for tests/test_golden.py. Use `--golden-nodeids` for exact item IDs that preserve
@@ -57,6 +58,7 @@ GOLDEN_MANIFEST = re.compile(r"src/fastforks/[^/]+/models/[^/]+/golden[.]toml")
 FRAMEWORK = "src/fastforks/"  # outside LAZY_OK and the family dirs: imports inside functions do not count
 LAZY_OK = ("src/fastforks/shared/", "src/fastforks/kernels/", "src/fastforks/_optimize/")
 REF_TABLES = re.compile(r"src/fastforks/_core/[^/]+\.json")  # tables keyed by ref (auto_portable.json, sizes.json)
+EVALUATION_FILES = re.compile(r"(?:tools/(?:_prefetch|eval_[^/]+)|tests/test_eval_[^/]+)\.py")
 PATH_ORDER = ("tests", "tools")  # pytest `pythonpath`: top-level modules of tests/ shadow tools/
 
 
@@ -290,12 +292,13 @@ def select(
     if full:
         sel.fast = ["tests"]
         return sel
+    evaluation_only = all(EVALUATION_FILES.fullmatch(path) and (root / path).is_file() for path in changed)
     family_dirs = {name: f["dir"] + "/" for name, f in fams.items()}
     owned = set(owners.values())
     for test in sorted(f for f in graph.name if f.startswith("tests/test_")):
         cl = graph.closure({test})
         reached = {n for n, d in family_dirs.items() if any(f.startswith(d) for f in cl)}
-        if not reached or reached & set(sel.families) or cl & owned or test in changed:
+        if (not reached and not evaluation_only) or reached & set(sel.families) or cl & owned or test in changed:
             sel.fast.append(test)
     return sel
 

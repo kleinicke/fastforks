@@ -53,7 +53,8 @@ import numpy as np
 import torch
 from PIL import Image
 
-from _data import DATA, prefetch
+from _data import DATA
+from _prefetch import prefetch
 
 SequenceData = tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
 
