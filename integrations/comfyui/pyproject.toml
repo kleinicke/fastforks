@@ -4,7 +4,7 @@ description = "Fast depth, normals, background removal, SAM, detection, pose, in
 version = "0.1.0"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11"
-dependencies = ["fastforks-core[timm,transformers]"]
+dependencies = ["fastforks-core[timm,transformers]>=0.2"]  # 0.2: restoration.load(path), video(), contracts
 
 [project.urls]
 Repository = "https://github.com/kleinicke/fastforks"
