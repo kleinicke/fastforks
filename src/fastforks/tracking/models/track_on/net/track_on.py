@@ -40,6 +40,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.tracing import in_onnx_export
+
 from .dinov3 import CONFIGS, PATCH, REGISTERS, DINOv3ViT
 
 D = 256  # fixed: upstream args.D
@@ -478,12 +480,29 @@ class TrackOn2(nn.Module):
         """`multiscale_correlation`: cosine similarity per level, upsampled to 1/4, mixed by a 1 x 1 conv -> `[N, P]`."""
         n = q.shape[0]
         qn = F.normalize(q.float(), dim=-1)
-        cs = []
+        pack = (
+            q.is_cuda
+            and not torch.compiler.is_compiling()
+            and torch.is_inference_mode_enabled()
+            and not (torch.jit.is_tracing() or in_onnx_export())
+        )
+        maps = []
+        packed = None
         for i, (u, (h, w)) in enumerate(zip(frame.unit, self.shapes, strict=True)):
             c = (qn @ u.T).view(n, 1, h, w)
-            cs.append(F.interpolate(c, size=(self.hf, self.wf), mode="bilinear", align_corners=False) if i else c)
+            if i:
+                c = F.interpolate(c, size=(self.hf, self.wf), mode="bilinear", align_corners=False)
+            if pack:
+                # Keep just one upsampled level live alongside the convolution input.
+                if packed is None:
+                    packed = c.new_empty(n, len(self.shapes), self.hf, self.wf)
+                packed[:, i : i + 1].copy_(c)
+            else:
+                maps.append(c)
+            del c
         conv = self.ms_corr_proj
-        return F.conv2d(torch.cat(cs, 1), conv.weight.float(), cast("torch.Tensor", conv.bias).float()).view(n, -1)
+        correlations = torch.cat(maps, 1) if packed is None else packed
+        return F.conv2d(correlations, conv.weight.float(), cast("torch.Tensor", conv.bias).float()).view(n, -1)
 
     def coords(self, idx: torch.Tensor) -> torch.Tensor:
         """`indices_to_coords`: cell centres `(x, y)` in network pixels of flat 1/4 indices."""
