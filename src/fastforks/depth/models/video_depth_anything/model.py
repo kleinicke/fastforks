@@ -35,7 +35,7 @@ from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import DINOv2, fold_layer_scale, use_fast_vit, use_sdpa_attention
 
 from .net.dpt_temporal import DPTHeadTemporal
-from .net.motion_module.attention import GEGLU
+from .net.motion_module.attention import GEGLU, FeedForward
 from .net.motion_module.motion_module import TemporalAttention
 
 if TYPE_CHECKING:
@@ -105,21 +105,36 @@ class SdpaTemporalAttention(TemporalAttention):
         return self.reshape_batch_dim_to_heads(out.flatten(0, 1))
 
 
-def _eager_cuda(x: torch.Tensor) -> bool:
-    return x.is_cuda and not (
+def _eager_gpu(x: torch.Tensor) -> bool:
+    return x.device.type in {"cuda", "mps"} and not (
         torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export() or torch.is_grad_enabled()
     )
 
 
 class _WorkspaceGEGLU(GEGLU):
-    """Reuse the fresh GELU result during eager CUDA inference."""
+    """Reuse the fresh GELU result during eager CUDA / MPS inference (MPS: float16 GELU, no float32 detour)."""
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
         """Apply the original gate and retain its contiguous output layout."""
-        if not _eager_cuda(hidden_states):
+        if not _eager_gpu(hidden_states):
             return super().forward(hidden_states)
         projected, gate = self.proj(hidden_states).chunk(2, dim=-1)
-        return self.gelu(gate).mul_(projected)
+        return F.gelu(gate).mul_(projected)
+
+
+class _ChunkedFeedForward(FeedForward):
+    """MPS: token chunks of a 64 MB inner projection (the whole `[tokens, 8 C]` one fragments the 1 GB heaps)."""
+
+    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        """`FeedForward.forward`, row blocks into one output on MPS."""
+        x = hidden_states.reshape(-1, hidden_states.shape[-1])
+        rows = max(1, (64 << 20) // (8 * x.shape[-1] * x.element_size()))
+        if x.shape[0] <= rows or not (x.device.type == "mps" and _eager_gpu(x)):
+            return super().forward(hidden_states)
+        out = x.new_empty(x.shape[0], self.net[-1].out_features)
+        for i in range(0, x.shape[0], rows):
+            out[i : i + rows] = super().forward(x[i : i + rows])
+        return out.view(*hidden_states.shape[:-1], -1)
 
 
 class _DepthOutput(nn.Sequential):
@@ -128,7 +143,7 @@ class _DepthOutput(nn.Sequential):
     def forward(self, input: torch.Tensor) -> torch.Tensor:  # noqa: A002 - match nn.Sequential.forward
         """Project each frame independently, keeping the decoder's original output order."""
         project = super().forward
-        if input.shape[0] <= _OUTPUT_BATCH or not _eager_cuda(input):
+        if input.shape[0] <= _OUTPUT_BATCH or not _eager_gpu(input):
             return project(input)
         return torch.cat([project(frames) for frames in input.split(_OUTPUT_BATCH)])
 
@@ -141,6 +156,8 @@ def _cpu_net(ctx: Context) -> Net:
             m.__class__ = SdpaTemporalAttention
         elif ctx.dtype == "float16" and isinstance(m, GEGLU):
             m.__class__ = _WorkspaceGEGLU
+        elif isinstance(m, FeedForward):
+            m.__class__ = _ChunkedFeedForward
     if ctx.dtype == "float16":
         net.head.scratch.output_conv2.__class__ = _DepthOutput
     return net.eval()
