@@ -41,6 +41,8 @@ if TYPE_CHECKING:
 
 __all__ = ["Context", "Forward", "NoParams", "Runner", "bounded_binary_masks", "scale"]
 
+_MASK_RESIZE_PIXELS = 64 << 20  # target at most 256 MiB of live FP32 resize output per prompt group
+
 
 def bounded_binary_masks(
     logits: torch.Tensor,
@@ -239,4 +241,4 @@ class Runner(core.Runner):
 
     def binary_masks(self, pred_masks: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
         """Upsample in the family's coordinate system and apply its zero foreground threshold."""
-        return self.upsample(pred_masks, size) > 0
+        return bounded_binary_masks(pred_masks, size, self.upsample, _MASK_RESIZE_PIXELS)
