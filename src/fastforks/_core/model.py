@@ -1134,7 +1134,11 @@ def _build_mlx(  # noqa: PLR0913 - the resolved arguments of `_load_mlx`
     ctx = Context(
         card, variant, mode, device, dtype, make_params(rcls.Params, card, variant, options), tags, weights, state
     )
-    runner = _construct(rcls, ctx)
+    from fastforks.shared import mlx_plan_cache  # noqa: PLC0415 - MLX loads only
+
+    # the runner's MLX modules get on-disk plan cache keys of this load (FASTFORKS_MLX_PLAN_CACHE; off by default)
+    with mlx_plan_cache.scope(repr((variant.ref, mode, dtype, ctx.params, weights))):
+        runner = _construct(rcls, ctx)
     backend = Backend(
         mode,
         MLX,

@@ -37,6 +37,7 @@ from fastforks._core.mlx import mx, to_mx, to_torch
 from fastforks._core import mlx_cast as _mlx_cast  # noqa: F401 - registers `fastforks::run_dtype`
 from fastforks._core import volume_ops as _volume_ops  # noqa: F401 - registers `fastforks::gwc_volume`
 from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks.shared import mlx_plan_cache
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Sequence
@@ -1787,6 +1788,7 @@ def _tensor_dtype(dtype: mx.Dtype, t: torch.Tensor) -> mx.Dtype | None:
     return dtype if t.is_floating_point() else None
 
 
+TUNE_LOG = bool(os.environ.get("FF_MLX_TUNE_LOG"))  # print each tuning trial (segment, times, peaks, decision)
 PROFILE: dict[tuple[str, str], list[float]] | None = {} if os.environ.get("FF_MLX_PROFILE") else None
 
 
@@ -1859,6 +1861,11 @@ class GraphNet:
         ] = {}  # kernels mode: Winograd-domain weights of 3x3 convolutions, by (id(weight), tile)
         self._consts: dict[str, Any] = {} if shared is None else shared
         self._consumed: set[str] = self._consts.setdefault(_CONSUMED, set())  # twin tensors the MLX side has taken over
+        # on-disk plan cache (`mlx_plan_cache`, set by `MlxModule` when `FASTFORKS_MLX_PLAN_CACHE` is on): the entry of
+        # this net's input signature, what to store beside the program and how to restore it on a hit
+        self.plan: Any = None
+        self.plan_extra: Callable[[], Any] | None = None
+        self.plan_restore: Callable[[Any], None] | None = None
 
     def _const(self, name: str, t: torch.Tensor, *, share: bool = True) -> mx.array:
         if not share:  # a lifted constant (a grid built in the forward): "lifted_tensor_0" differs per export
@@ -1883,7 +1890,14 @@ class GraphNet:
         finally:
             EXPORTING_FOR_MLX.reset(token)
 
-    def _build_graph(self, args: tuple[torch.Tensor, ...]) -> Callable[..., Any]:
+    def _export(self, args: tuple[torch.Tensor, ...]) -> Any:  # noqa: ANN401 - an ExportedProgram
+        """The module exported at `args` and decomposed to core ATen: from the plan cache when it has the entry."""
+        if self.plan is not None and (got := self.plan.load_program(self.module)) is not None:
+            ep, extra = got
+            if self.plan_restore is not None:
+                self.plan_restore(extra)
+            return ep
+        filled = False
         with torch.no_grad():
             try:
                 ep = torch.export.export(self.module, args, strict=False)
@@ -1891,6 +1905,7 @@ class GraphNet:
                 # lazily built buffers (attention bias caches) that export must not assign: fill them with one real
                 # forward (its CPU activations are the peak of the build, so only a module that needs it pays)
                 self.module(*args)
+                filled = True
                 ep = torch.export.export(self.module, args, strict=False)
             decomp = torch.export.default_decompositions()
             for keep in (
@@ -1901,6 +1916,12 @@ class GraphNet:
             ):
                 decomp.pop(keep, None)
             ep = ep.run_decompositions(decomp)
+        if self.plan is not None and not filled:  # a loaded program could not fill the lazy buffers: not cached
+            self.plan.save_program(ep, self.module, self.plan_extra() if self.plan_extra is not None else None)
+        return ep
+
+    def _build_graph(self, args: tuple[torch.Tensor, ...]) -> Callable[..., Any]:
+        ep = self._export(args)
         graph = ep.graph_module.graph
         sig = ep.graph_signature
         state = set(ep.state_dict)
@@ -2183,7 +2204,16 @@ class GraphNet:
                 return type(a)(get(env, x) for x in a)
             return a
 
-        def make(seg: list[tuple[int, tuple[Any, ...]]]) -> tuple[list[str], list[str], Callable[..., Any]]:
+        bounds = [(a, b) for a, b in zip(cuts, cuts[1:], strict=False) if b > a]
+        # the tuning decisions of an earlier process (plan cache): compiled (True) / eager (False) per segment
+        tune_sig = (len(bounds), compiled, seg_max, self.pipeline)
+        known = self.plan.load_tune(tune_sig) if self.plan is not None else None
+        known = known if known is not None and len(known) == len(bounds) else [None] * len(bounds)
+        decided: list[bool | None] = list(known)
+
+        def make(  # noqa: C901
+            k: int, seg: list[tuple[int, tuple[Any, ...]]]
+        ) -> tuple[list[str], list[str], Callable[..., Any]]:
             final = seg[-1][0]
             seg_defs = {p[1] for _, p in seg}
             ins = sorted({n for i, _ in seg for n in uses[i]} - seg_defs - values.keys())
@@ -2222,6 +2252,9 @@ class GraphNet:
             use: list[Callable[..., Any]] = [jit]
             seg_big = max((self._sizes.get(p[1], 0) for _, p in seg), default=0)
             tune = [seg_big > TUNE_MIN_MB << 20 and not os.environ.get("FF_MLX_NO_TUNE")]
+            if known[k] is not None:  # decided by an earlier process: no trials
+                use[0] = jit if known[k] else fn
+                tune[0] = False
 
             def timed(g: Callable[..., Any], xs: tuple[mx.array, ...]) -> tuple[float, int, Any]:
                 """Seconds and peak bytes of the second call of `g` (the first warms kernels and traces)."""
@@ -2244,9 +2277,17 @@ class GraphNet:
                         if "uncaptured" not in str(err):
                             raise
                         use[0] = fn
+                        decided[k] = False
                         return fn(*xs)
                     if tc > te * TUNE_SLACK or mc > me * 1.25 + (64 << 20):
                         use[0] = fn
+                    decided[k] = use[0] is jit
+                    if TUNE_LOG:
+                        print(  # noqa: T201 - FF_MLX_TUNE_LOG=1: the tuning pass's trials
+                            f"mlx tune: segment {k} ({len(seg)} ops, {seg_big >> 20} MB) eager {1e3 * te:.1f} ms"
+                            f" {me >> 20} MB, compiled {1e3 * tc:.1f} ms {mc >> 20} MB -> {'compiled' if decided[k] else 'eager'}",
+                            flush=True,
+                        )
                     return res
                 try:
                     return use[0](*xs)
@@ -2254,12 +2295,12 @@ class GraphNet:
                     if use[0] is fn or "uncaptured" not in str(err):
                         raise
                     use[0] = fn
+                    decided[k] = False
                     return fn(*xs)
 
             return ins, outs, guarded
 
-        bounds = [(a, b) for a, b in zip(cuts, cuts[1:], strict=False) if b > a]
-        segments = [make(steps[a:b]) for a, b in bounds]
+        segments = [make(k, steps[a:b]) for k, (a, b) in enumerate(bounds)]
         seg_last = [steps[b - 1][0] for _, b in bounds]
         input_names = [p[1] for p in plan if p[0] == "input"]
 
@@ -2288,6 +2329,9 @@ class GraphNet:
                 for n in [n for n, i in last.items() if i <= end and n in env and n not in out_refs]:
                     del env[n]
             env.update(values)
+            if self.plan is not None and decided != known:  # new decisions: the next process skips their trials
+                self.plan.save_tune(tune_sig, decided)
+                known[:] = decided
             return tuple(o.astype(mx.float32) for o in get(env, out_names))
 
         return run
@@ -2374,6 +2418,7 @@ class MlxModule:
         self.chunk_mb = chunk_mb
         self.pipeline = pipeline
         self._nets: dict[Any, tuple[GraphNet, _Flat]] = {}
+        self._plan_scope = mlx_plan_cache.next_scope()  # this module's key in the on-disk plan cache (a model load's)
         if release:
             for _, t in _tensors(self.module):
                 t.__dict__.setdefault("_mlx_owners", set()).add(id(self))
@@ -2396,6 +2441,11 @@ class MlxModule:
                 ),
                 flat,
             )
+            net = self._nets[key][0]
+            sig = (repr(key), self.dtype, self.kernels, self.compile, self.chunk_mb)
+            net.plan = mlx_plan_cache.Entry.make(self._plan_scope, flat, sig)
+            net.plan_extra = lambda flat=flat: flat.out.value
+            net.plan_restore = lambda extra, flat=flat: setattr(flat.out, "value", extra)
         net, flat = self._nets[key]
         net.on_built = (lambda: self._release(flat)) if self.release else None
         outs = iter(net(*[x for x in leaves if isinstance(x, torch.Tensor)]))
