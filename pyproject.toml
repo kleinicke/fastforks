@@ -1,6 +1,6 @@
 [project]
 name = "fastforks-core"
-version = "0.1.1"
+version = "0.2.0"
 description = "Fast, typed inference for published vision models: portable PyTorch and custom-kernel backends."
 readme = "README.md"
 license = "Apache-2.0 AND BSD-3-Clause AND MIT"  # + shared/cnn_kernels (MIT) and the CUTLASS-linked kernels (BSD-3-Clause); tests/test_policy.py checks
