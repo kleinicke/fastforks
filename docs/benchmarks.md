@@ -1372,7 +1372,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | patchmatchnet | 1536x1024 | 248 | 220 | 201 | 29.5 | 7.4x | 6.8x | 1228 / 1272 | 1039 / 1212 | 648 / 772 |
 | pi3 | 336x518 | – | 1057 | 822 | 560 | 1.9x | 1.5x | 5926 / 6016 | 2209 / 2254 | 2217 / 2296 |
 | resplat-base-re10k | 480x640 | – | 2521 | 6962 | 1169 | 2.2x | 6.0x | 10139 / 12684 | 4336 / 5596 | 4348 / 5546 |
-| resplat-small-dl3dv | 480x640 | – | 493 | 1693 | 362 | 1.4x | 4.7x | 5148 / 5376 | 1103 / 1240 | 4981 / 5148 |
+| resplat-small-dl3dv | 480x640 | – | 493 | 1693 | 313 | 1.6x | 5.4x | 5148 / 5376 | 1103 / 1240 | 1089 / 1208 |
 | vggt-1b | 336x518 | 2502 | 965 | 653 | 446 | 2.2x | 1.5x | 8688 / 9158 | 3573 / 3794 | 3580 / 3854 |
 | vggt-omega-1b-512 | 336x518 | 2650 | 906 | 727 | 469 | 1.9x | 1.5x | 7495 / 7654 | 3269 / 3352 | 3270 / 3330 |
 
@@ -2611,7 +2611,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | pi3 | 8x336x518 | – | – | 691 ms (34 decoder blocks with eager encoder and output heads, 8 views) | – | – | 58.0 s | – | – | – | 2600 / 2952 |
 | resplat-base-re10k | 480x640 | 6962 ms | 7098 ms (standalone Gaussian initialization and recurrent refinement heads, eager rendering and geometry) | fails: TypeError: _Base.forward() missing 1 required positional arg | 1169 ms | 12.6 s | – | 4336 / 5596 | 4656 / 7630 | 4348 / 5546 | – |
 | resplat-base-re10k | 256x256 | – | – | 1028 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 2173 / 2988 |
-| resplat-small-dl3dv | 480x640 | 1693 ms | 1538 ms | public API unavailable | 362 ms | 243 s | – | 1103 / 1240 | 4995 / 5138 | 4981 / 5148 | – |
+| resplat-small-dl3dv | 480x640 | 1693 ms | 1538 ms | public API unavailable | 313 ms | 243 s | – | 1103 / 1240 | 4995 / 5138 | 1089 / 1208 | – |
 | resplat-small-dl3dv | 256x448 | – | – | 1362 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | – | – | – | 1367 / 1800 |
 | vggt-1b | 336x518 | 653 ms | 557 ms | 424 ms | 446 ms | 74.3 s | 199 s | 3573 / 3794 | 3611 / 3856 | 3580 / 3854 | 6421 / 6472 |
 | vggt-omega-1b-512 | 336x518 | 727 ms | 589 ms | 377 ms | 469 ms | 65.7 s | 187 s | 3269 / 3352 | 3082 / 3154 | 3270 / 3330 | 5657 / 5766 |

@@ -21,7 +21,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`patchmatchnet`](#patchmatchnet) | yes | 29.5, 7.4x | 772, 0.61x |
 | [`pi3`](#pi3) | no | 560, 1.9x | 2296, 0.38x |
 | [`resplat-base-re10k`](#resplat) | no | 1169, 2.2x | 5546, 0.44x |
-| [`resplat-small-dl3dv`](#resplat) | yes | 362, 1.4x | 5148, 0.96x |
+| [`resplat-small-dl3dv`](#resplat) | yes | 313, 1.6x | 1208, 0.22x |
 | [`vggt-1b`](#vggt) | no | 446, 2.2x | 3854, 0.52x |
 | [`vggt-omega-1b-512`](#vggt_omega) | no | 469, 1.9x | 3330, 0.56x |
 
@@ -499,7 +499,7 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `resplat-small-dl3dv` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 493<br>1693<br>362<br>1538<br>public API unavailable | 5148 / 5376<br>1103 / 1240<br>4981 / 5148<br>4995 / 5138<br>– |
+| `resplat-small-dl3dv` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 493<br>1693<br>313<br>1538<br>public API unavailable | 5148 / 5376<br>1103 / 1240<br>1089 / 1208<br>4995 / 5138<br>– |
 | `resplat-small-dl3dv` | 256x448 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>1362 (Gaussian initialization and refinement heads with eager depth and rendering) | –<br>–<br>–<br>1367 / 1800 |
 | `resplat-base-re10k` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2521<br>6962<br>1169<br>7098 (standalone Gaussian initialization and recurrent refinement heads, eager rendering and geometry)<br>fails: TypeError: _Base.forward() missing 1 required positional arg | 10139 / 12684<br>4336 / 5596<br>4348 / 5546<br>4656 / 7630<br>– |
 | `resplat-base-re10k` | 256x256 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>1028 (Gaussian initialization and refinement heads with eager depth and rendering) | –<br>–<br>–<br>2173 / 2988 |
@@ -525,6 +525,7 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 - `resplat-base-re10k` 480x640, first call: portable + torch.compile 13 s (cold Inductor cache).
 - `resplat-small-dl3dv` original 480x640: the authors' mixed-precision option (bfloat16); cvg/resplat@cae7ddc4cdbd EncoderReSplat, pointops + gsplat extensions, 2 refinement steps, released bfloat16 autocast
 - `resplat-small-dl3dv` portable 480x640: CUDA FP16 portable rasterization with reusable scratch buffers.
+- `resplat-small-dl3dv` kernels 480x640: CUDA FP16. Current bounded plane sweep and indexed point attention.
 - `resplat-base-re10k` original 480x640: the authors' mixed-precision option (bfloat16); cvg/resplat@cae7ddc4cdbd EncoderReSplat, pointops + gsplat extensions, 2 refinement steps, released bfloat16 autocast
 - `resplat-base-re10k` portable 480x640: CUDA FP16 portable rasterization with reusable scratch buffers.
 - `resplat-base-re10k` kernels 480x640: Consumed encoder and rendered features are released before refinement. Synthetic depth and Gaussians and six held-out RealEstate10K renders matched bitwise.
