@@ -135,6 +135,7 @@ class _Functional(Runner):
         bb = self.net.backbone
         x = x.to(self.dtype).contiguous(memory_format=torch.channels_last)
         t = self._conv(x, self.patch_w, bb.patch_embed.projection.bias, PATCH)
+        del x
         b, c, gh, gw = t.shape
         t = t.flatten(2).transpose(1, 2) + bb.pos_embed
         if self.staged is None:
@@ -144,6 +145,7 @@ class _Functional(Runner):
             for apply in self.staged:
                 t = apply(t, self)
         f = F.layer_norm(t, (c,), bb.ln1.weight, bb.ln1.bias, LN_EPS).view(b, gh, gw, c).permute(0, 3, 1, 2)
+        del t
         for w in self.deconv:
             f = self._deconv(f, w)
             f = _inorm_silu_(f)
