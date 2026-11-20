@@ -4,7 +4,8 @@ Conventions (as the DINOv3 backbone): a shape is captured after `capture_after` 
 shapes never capture; default 1: on its second call; models on `cudnn_hacc` plans pass `cudnn_hacc.capture_after()`:
 on the 4th call, so a stream of new sizes seen 1-3 times captures nothing); when the cache is full a
 graph unused for `stale` graph-sized calls makes room, else the new shape runs eagerly; a capture failure (OOM,
-unsupported op) marks the shape eager for good and frees the partial pool; a capture (failed or not) empties the
+unsupported op) is logged as a warning, marks the shape eager for good and frees what the capture allocated before the
+capture ends (required by the `cudaMallocAsync` allocator, see `free_captured`); a capture (failed or not) empties the
 allocator cache once, after the lock is released; calls hold a per-cache lock and wait for the
 previous call's stream, so threads / streams never read each other's static buffers; `release()` frees the pool on the
 device. Nothing here empties the process-wide allocator cache while the lock is held.
@@ -17,8 +18,11 @@ life of the process, so a new stream per capture or per loaded model grew the me
 from __future__ import annotations
 
 import functools
+import gc
 import inspect
+import logging
 import threading
+import traceback
 import weakref
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
@@ -30,6 +34,7 @@ from fastforks._core.kernels import checked
 if TYPE_CHECKING:
     from collections.abc import Callable, Hashable
 
+log = logging.getLogger("fastforks")
 _FAILED = 256  # fixed: shapes remembered as not capturable
 _LARGER = 2  # fixed: a new shape this many times larger than every held graph's input frees the graphs
 
@@ -71,6 +76,25 @@ def _weak(forward: Callable[..., Any]) -> Callable[..., Any]:
         return fn(*args)
 
     return call
+
+
+def free_captured(e: BaseException) -> None:
+    """Free, while the capture is still open, what a forward that raised during capture allocated.
+
+    The tensors live on in the frames of the exception's traceback, the cuBLAS workspace in the handle pool. Freed after
+    `capture_end`, they would be frees of captured allocations of a graph that never ran: the native allocator returns
+    them to the graph's private pool, but `cudaMallocAsync` (ComfyUI's default allocator) calls `cudaFreeAsync` on
+    memory that was never mapped, which fails in a tensor destructor and aborts the process. Freed now, they are frees
+    in the graph, which is then discarded.
+    """
+    seen: set[int] = set()
+    err: BaseException | None = e
+    while err is not None and id(err) not in seen:
+        seen.add(id(err))
+        traceback.clear_frames(err.__traceback__)  # skips the frames still running (this one and its callers)
+        err = err.__cause__ or err.__context__
+    gc.collect()  # tensors in reference cycles of the cleared frames
+    torch._C._cuda_clearCublasWorkspaces()  # noqa: SLF001 - no public API; a workspace allocated during the capture
 
 
 def _copy(out: Any) -> Any:  # noqa: ANN401 - a tensor or a list / tuple / dict of them
@@ -163,7 +187,8 @@ class GraphCache:
             return None, False
         try:
             entry = self._capture(inputs)
-        except Exception:  # noqa: BLE001 - OOM / unsupported op during capture: this shape stays eager
+        except Exception as e:  # noqa: BLE001 - OOM / unsupported op during capture: this shape stays eager
+            log.warning("CUDA graph capture failed, this input shape runs eagerly: %s: %s", type(e).__name__, e)
             self._failed[key] = None
             if len(self._failed) > _FAILED:
                 self._failed.popitem(last=False)
@@ -204,6 +229,9 @@ class GraphCache:
             graph.capture_begin(self._pool, capture_error_mode="thread_local")
             try:
                 out = self._forward(*static)
+            except BaseException as e:
+                free_captured(e)
+                raise
             finally:
                 graph.capture_end()
         cur.wait_stream(side)

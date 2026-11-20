@@ -57,7 +57,8 @@ def get_matching_probs(S, dustbin_score=1.0, num_iters=3, reg=1.0):
     S_aug[:, m, :] = dustbin_score
 
     # prepare normalized source and target log-weights
-    norm = -torch.tensor(math.log(n + m), device=S.device)
+    # fastforks: torch.full instead of torch.tensor, which copies a CPU scalar that a CUDA graph capture rejects
+    norm = -torch.full((), math.log(n + m), device=S.device)
     log_a, log_b = norm.expand(m + 1).contiguous(), norm.expand(n).contiguous()
     log_a[-1] = log_a[-1] + math.log(n - m)
     log_a, log_b = log_a.expand(batch_size, -1), log_b.expand(batch_size, -1)

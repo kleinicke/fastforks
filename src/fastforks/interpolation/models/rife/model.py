@@ -82,8 +82,10 @@ def _warp(src: torch.Tensor, flow: torch.Tensor, base: torch.Tensor) -> torch.Te
     """
     h, w = src.shape[-2:]
     b, _, fh, fw = flow.shape
-    d = torch.empty(2, device=flow.device)  # pixels per grid unit (filled on the device: CUDA-graph safe)
-    d[0], d[1] = (w - 1.0) / 2.0, (h - 1.0) / 2.0
+    # pixels per grid unit, filled on the device: `d[0] = x` copies a CPU scalar, which a CUDA graph capture rejects
+    d = torch.empty(2, device=flow.device)
+    d[0].fill_((w - 1.0) / 2.0)
+    d[1].fill_((h - 1.0) / 2.0)
     fp = flow.view(b, 2, 2, fh, fw).transpose(0, 1).reshape(2 * b, 2, fh, fw).permute(0, 2, 3, 1)
     return grid_sample(src, torch.addcdiv(base, fp, d), mode="bilinear", padding_mode="border", align_corners=True)
 
