@@ -18,6 +18,7 @@ import os
 import shlex
 import subprocess
 from concurrent.futures import ProcessPoolExecutor
+from contextlib import suppress
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING
@@ -129,8 +130,13 @@ def score_image(paths: tuple[Path, Path, Path, Path], scorer_id: str) -> NDArray
     positives = confidence.size - np.cumsum(np.bincount(confidence.ravel(), minlength=256))[CUTOFFS - 1]
     counts = np.empty((len(CUTOFFS), 4), dtype=np.int64)
     start = 0
-    if progress.is_file():
+    try:
         previous = np.load(progress, allow_pickle=False)
+    except FileNotFoundError:
+        # A concurrent scorer can publish the result and remove its progress file.
+        with suppress(FileNotFoundError):
+            return np.load(target, allow_pickle=False)
+    else:
         start = len(previous)
         counts[:start] = previous
     match = _matcher(library)
