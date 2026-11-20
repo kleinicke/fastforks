@@ -2,7 +2,8 @@
 
 Status: prototype. The `"cubin"` kernel libraries run on Windows x64. Every `"shared"` library has a Windows DLL
 build (`manifest.windows.toml`): `cutlass_conv`, `dpt_fused`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`,
-`fs_cutlass`, `ffs_cutlass`, `s2m2_cutlass`, `hitnet_conv` and `seg_conv`. 563 references have a Windows
+`fs_cutlass`, `ffs_cutlass`, `s2m2_cutlass`, `hitnet_conv` and `seg_conv`. `mvsanywhere`, a cubin library with a kernel parameter over 4 KB, has a Windows cubin build. 565
+references have a Windows
 `[validated]` record (see [Validation coverage](#validation-coverage-on-windows)). The DLLs need no Visual Studio or
 CUDA toolkit at run time.
 
@@ -11,7 +12,23 @@ CUDA toolkit at run time.
 A `"cubin"` library is a fatbin of SASS (plus PTX for `compute_*`): GPU code only. The driver API
 (`cuModuleLoadData`, `cuModuleGetFunction`, `cuLaunchKernel`) loads it the same way on every OS, and the launch
 arguments are packed by `CubinModule` from the kernel signatures, not by a host compiler. So the Linux build
-(same file, same SHA-256, same manifest entry) runs on Windows unchanged. Only the host side had to change:
+(same file, same SHA-256, same manifest entry) runs on Windows unchanged.
+
+One exception: a kernel parameter over 4 KB. `mvsanywhere` passes its MLP weights by value, a 7.6 KB struct. nvcc
+writes that parameter's `.nv.info` record (attribute `0x45`) in a host-OS form: 12 bytes when built on Linux, 16
+bytes on Windows. The Windows driver rejects the Linux form with `CUDA_ERROR_INVALID_IMAGE`; the Linux driver (also in
+WSL2) accepts it.
+- Reproduced with a one-line kernel: a 7600-byte parameter built on Linux fails on Windows, built on Windows it loads.
+  4000-byte ones load either way.
+- The CUDA version does not matter: a 13.0 Linux rebuild fails the same way.
+
+So such a library also gets a Windows cubin build, `manifest.windows.toml` with `kind = "cubin"` and
+`os = "windows"`. `platform_manifest` picks it on Windows, and `platform_reason` refuses it on Linux.
+`build_kernels.py` on Windows builds a cubin library only when named, or when it already has a Windows manifest. Only
+`mvsanywhere@0c9bd88e6b2f` has one; its Linux `manifest.toml` (`7fdcb3aafdd8`) is unchanged. The alternative was to
+change the kernel to read the weights from a device buffer, a source change for both OSes. It was not chosen.
+
+Only the host side had to change:
 
 | Linux | Windows | change |
 | --- | --- | --- |
@@ -176,15 +193,16 @@ files as on Linux, hash-checked) came from the same cache. The optional extras `
 `torchvision` were installed for the run.
 
 - 578 references can run in kernels mode on Windows: every library has a Windows build and all binaries are
-  present. 563 now have a Windows `[validated]` record. That includes 19 for the five CUTLASS DLLs built last:
-  foundationstereo, c-fast-foundationstereo, fast-foundationstereo, hitnet, s2m2, mmseg and segnext.
-- 338 of the 563 records give the same mean / p99 as the Linux record. The others differ in the 4th or 5th decimal,
+  present. 565 now have a Windows `[validated]` record. That includes 20 for the five CUTLASS DLLs built last:
+  foundationstereo, c-foundationstereo, c-fast-foundationstereo, fast-foundationstereo, hitnet, s2m2, mmseg and
+  segnext. mvsanywhere has one as well.
+- 338 of the 565 records give the same mean / p99 as the Linux record. The others differ in the 4th or 5th decimal,
   all within the golden tolerance (largest: aliked-flexglue, mean 0.0033 vs 0.0012 px; cfnet and great-igev).
 - The offline cache lacked the weights of 36 references, so they were handled separately. For 32 of them, the
   weights were downloaded from their recorded URLs into a temporary cache, recorded, and deleted afterwards. Those
   are the timm / torchvision classifiers, dinov2_vitl14_lc, eva02, siglip, omni-dc, segformer and sapiens-seg; all
-  passed. The other four are mvsanywhere, dfine-n-coco, rtmo-t and sam-hq-vit-b, which fail in kernels mode (see
-  below).
+  passed. mvsanywhere was recorded after its fix (below). dfine-n-coco, rtmo-t and sam-hq-vit-b fail in kernels
+  mode (see below).
 - On another Windows machine without these weights, `test_kernels_validated` skips a reference that has no Windows
   record and no local weights, worded like the repo's other weight-missing skips. It fails as before once the
   weights are present, or when a Windows record is stale. Linux checks exactly as before.
@@ -200,12 +218,24 @@ defom-stereo, hitnet-eth3d and s2m2-l, and they passed. All 11 DLLs were loaded 
 directory, and no module from Visual Studio or the nvcc package was loaded (only PyTorch's own `torch\lib`
 nvrtc). dfine-n-coco and rtmo-t, run in the same process, fail as they do with the tools present.
 
+Fixed after the sweep, each with a Windows record:
+
+- `mvsanywhere@1` gave `CUDA_ERROR_INVALID_IMAGE`. The cause is the large-parameter cubin (see
+  [Why cubin libraries need no Windows build](#why-cubin-libraries-need-no-windows-build)). Its Windows cubin build
+  passes with mean 6e-05 / p99 0.00025 px. A Linux run in WSL2 on the same GPU gives the same numbers, and the Linux
+  build and record are unchanged.
+- `c-foundationstereo-s@1`: PyTorch's Windows wheels have no flash SDPA, and its kernels forward pinned
+  `SDPBackend.FLASH_ATTENTION`. `sdpa_backend()` now takes flash where the build has it and `EFFICIENT_ATTENTION`
+  where it does not. The rule depends only on the PyTorch build, is logged, and each OS's record validates its
+  backend.
+  - On Windows, efficient, cuDNN and math attention all pass the golden.
+  - The record uses efficient: mean 0.00049 / p99 0.00161 px, against 0.00044 / 0.00146 with flash on Linux.
+  - Linux still uses flash and passes, checked in WSL2.
+
 Open, found by the sweep:
 
 | reference | result on Windows | portable on Windows | note |
 | --- | --- | --- | --- |
-| `mvsanywhere@1` | `CUDA_ERROR_INVALID_IMAGE` loading `mvsanywhere-7fdcb3aafdd8-sm_120.fatbin` | n/a | Same bytes as Linux (hash-checked); built with toolkit 12.8. Its `compute_80` PTX build loads. The same source compiled locally with the 13.0 nvcc (`-cubin -arch=sm_120 -O3`) also loads (`cuModuleLoadData` returns 0; not committed). Fix: rebuild `mvsanywhere` with 13.0. A cubin manifest is shared by Linux and Windows, so this changes its Linux build id and needs a Linux GPU `--record`. Left as a follow-up for a Linux session. |
-| `c-foundationstereo-s@1` | `KernelUnavailableError`: needs flash SDPA | passes | PyTorch's Windows wheels lack flash attention (`is_flash_attention_available()` is false). The kernels forward runs its disparity transformer under `SDPBackend.FLASH_ATTENTION`, so kernels mode now raises at load and `auto` logs it and runs portable. Before, it failed inside the forward. |
 | `seedvr2-7b@1` | access violation reading the 16 GB checkpoint (`safe_open` / `get_tensor`, stream mode) | not run | `seedvr2-3b` passes. Needs a rerun on its own (its weights alone exceed the 15 GB staging limit). |
 | `marigold-v2-depth@1` | depth mean 0.0188 (tolerance 0.01) | same failure | Not kernel related (streamed nf4 path); on Linux the record is exactly 0. |
 | `dfine-n-coco@1` | 8 detections, golden 7 | passes | One box on the score threshold. fvm_conv + cudnn_hacc. |
@@ -216,7 +246,7 @@ Open, found by the sweep:
 
 `fs_cutlass@b342a4231e8a`, `ffs_cutlass@c6b9e444a7c4`, `s2m2_cutlass@4ca15fd645fe`, `hitnet_conv@0bd638fd1a17` and
 `seg_conv@d0f93d302f0e` were built with the same recipe and no source changes (5-17 MB each). They pass the GPU goldens
-for all 20 references that use them except `c-foundationstereo-s` (above).
+for all 20 references that use them; `c-foundationstereo-s` passes since the SDPA change above.
 
 ## Speed on Windows
 
@@ -284,6 +314,16 @@ Made without a maintainer to keep the work moving; each is in its own commit so 
    is localized), plus `windows_sdk` and `c_runtime`; CUTLASS from a release tarball records `4.7.1` without the
    commit hash (the Linux builds used a git checkout). The `[symbols]` hashes include the toolchain, so they differ
    from Linux by design.
+4. **Windows cubin builds** (commit `kernels: allow a Windows cubin build for kernels with large parameters`). A
+   cubin manifest may now carry `os = "windows"`, for a library whose Linux cubin the Windows driver rejects (a kernel
+   parameter over 4 KB, see above). It is opt-in per library: name it to `build_kernels.py` on Windows. Alternative:
+   pass mvsanywhere's MLP weights through a device buffer instead of by value. That is a source change, and needs a
+   Linux rebuild and revalidation, with possibly a small speed cost. It was rejected for now.
+5. **C-FS-S attention backend** (commit `c_foundationstereo: memory-efficient SDPA where PyTorch has no flash`).
+   `sdpa_backend()` picks flash, or memory-efficient SDPA when the PyTorch build has no flash, and logs the latter. It
+   is a property of the PyTorch build, not a recovery from a failed call, and each OS's `[validated]` record covers
+   the backend that OS uses. It is still a choice inside kernels mode. If the policy reads "only `auto` chooses"
+   strictly, the alternative is to keep raising `KernelUnavailableError` on Windows (commit `99d0b12c`).
 
 ## Platform notes
 
