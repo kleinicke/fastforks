@@ -1155,9 +1155,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | sam-hq-vit-b | 172 | 103 | 48.3 | 35.3 | 2.9x | 1.4x | 1704 / 1756 | 375 / 422 | 420 / 544 |
 | sam-hq-vit-h | 738 | 311 | 213 | 140 | 2.2x | 1.5x | 4266 / 4318 | 1488 / 1526 | 1528 / 1648 |
 | sam-hq-vit-l | 412 | 202 | 114 | 79.0 | 2.6x | 1.4x | 2969 / 3018 | 834 / 862 | 877 / 1006 |
-| sam-vit-b | 168 | 98.2 | 48.3 | 37.0 | 2.7x | 1.3x | 1769 / 1802 | 378 / 420 | 377 / 420 |
-| sam-vit-h | 734 | 306 | 214 | 143 | 2.1x | 1.5x | 5295 / 5404 | 1484 / 2524 | 1480 / 1524 |
-| sam-vit-l | 406 | 197 | 116 | 81.5 | 2.4x | 1.4x | 3411 / 3464 | 833 / 1262 | 831 / 862 |
+| sam-vit-b | 168 | 98.2 | 46.6 | 35.5 | 2.8x | 1.3x | 1769 / 1802 | 365 / 400 | 365 / 400 |
+| sam-vit-h | 734 | 306 | 211 | 140 | 2.2x | 1.5x | 5295 / 5404 | 1472 / 1504 | 1467 / 1484 |
+| sam-vit-l | 406 | 197 | 113 | 79.0 | 2.5x | 1.4x | 3411 / 3464 | 821 / 882 | 818 / 862 |
 | sam2.1-hiera-base-plus | 107 | 47.2 | 31.9 | 25.4 | 1.9x | 1.3x | 823 / 870 | 400 / 444 | 414 / 464 |
 | sam2.1-hiera-large | 242 | 86.4 | 68.0 | 49.1 | 1.8x | 1.4x | 1656 / 1724 | 730 / 768 | 748 / 808 |
 | sam2.1-hiera-small | 74.8 | 41.8 | 18.8 | 15.6 | 2.7x | 1.2x | 618 / 662 | 318 / 366 | 330 / 386 |
@@ -1384,8 +1384,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | flowformer-small-sintel | 1080x1920 | OOM | OOM | 4003 | 3958 | – | 1.0x | – | 8780 / 8960 | 8696 / 8822 |
 | flowformer-small-things | 1080x1920 | OOM | OOM | 4003 | 3950 | – | 1.0x | – | 8780 / 8960 | 8696 / 8822 |
 | flowseek-t | 1080x1920 | 650 | 457 | 396 | 255 | 1.8x | 1.6x | 8693 / 9880 | 6123 / 6252 | 1100 / 1154 |
-| flowseek-t-things | 1080x1920 | 650 | 458 | 395 | 254 | 1.8x | 1.6x | 8693 / 9820 | 8671 / 8712 | 1947 / 2114 |
-| flowseek-t-things-notartan | 1080x1920 | 651 | 458 | 396 | 254 | 1.8x | 1.6x | 8693 / 9820 | 8671 / 8712 | 1947 / 2114 |
+| flowseek-t-things | 1080x1920 | 650 | 458 | 395 | 254 | 1.8x | 1.6x | 8693 / 9820 | 6123 / 6312 | 1100 / 1154 |
+| flowseek-t-things-notartan | 1080x1920 | 651 | 458 | 395 | 254 | 1.8x | 1.6x | 8693 / 9820 | 6123 / 6312 | 1100 / 1154 |
 | gmflow-scale1-mixdata | 1080x1920 | 1246 | 750 | 556 | – | – | – | 8360 / 8448 | 4496 / 4642 | – |
 | gmflow-scale1-things | 1080x1920 | 1245 | 750 | 448 | 446 | 1.7x | 1.0x | 8360 / 8468 | 1988 / 2142 | 1988 / 2142 |
 | gmflow-scale2-mixdata | 1080x1920 | 2544 | 1608 | 1139 | – | – | – | 8425 / 8572 | 6017 / 6224 | – |
@@ -1482,7 +1482,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | ema-vfi-t | 287 | 233 | 207 | 1.4x | 1.1x | 3940 / 4290 | 2827 / 3184 | 368 / 3566 |
 | film | 464 | 412 | 328 | 1.4x | 1.3x | 2953 / 3556 | 2397 / 2702 | 2397 / 2942 |
 | gimm-vfi-r | OOM | 2528 | 1521 | – | 1.7x | – | 5872 / 6518 | 4511 / 5282 |
-| gimm-vfi-r-p | OOM | 2639 | 1628 | – | 1.6x | – | 5936 / 6618 | 4587 / 5282 |
+| gimm-vfi-r-p | OOM | 2527 | 1520 | – | 1.7x | – | 5872 / 6518 | 4511 / 5282 |
 | rife-4.25 | 24.5 | 25.0 | 21.4 | 1.1x | 1.2x | 987 / 1154 | 755 / 894 | 848 / 916 |
 | rife-4.25-lite | 21.3 | 21.1 | 18.3 | 1.2x | 1.2x | 1012 / 1214 | 754 / 854 | 834 / 896 |
 | rife-4.26 | 24.2 | 25.0 | 21.4 | 1.1x | 1.2x | 1004 / 1154 | 570 / 754 | 663 / 776 |
@@ -1814,9 +1814,9 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | sam-hq-vit-b | 0.77 | 0.69 | 0.97 | 0.19 | 0.39 | 0.38 |
 | sam-hq-vit-h | 3.92 | 2.27 | 2.01 | 0.32 | 0.52 | 0.48 |
 | sam-hq-vit-l | 1.98 | 1.35 | 1.25 | 0.20 | 0.43 | 0.42 |
-| sam-vit-b | 0.75 | 0.46 | 0.17† | 0.18 | 0.05† | 0.04† |
-| sam-vit-h | 4.61 | 2.45 | 0.89† | 0.38 | 0.21† | 0.14† |
-| sam-vit-l | 1.80 | 1.21 | 0.43† | 0.27 | 0.12† | 0.08† |
+| sam-vit-b | 0.75 | 0.32 | 0.33 | 0.18 | 0.56 | 0.54 |
+| sam-vit-h | 4.61 | 1.38 | 1.27 | 0.38 | 0.53 | 0.44 |
+| sam-vit-l | 1.80 | 0.81 | 0.68 | 0.27 | 0.42 | 0.41 |
 | sam2.1-hiera-base-plus | 0.74 | 0.80 (840x1297) | 1.15 (840x1297) | 0.14 | 0.03 (840x1297) | 0.03 (840x1297) |
 | sam2.1-hiera-large | 1.95 | 1.46 (840x1297) | 2.07 (840x1297) | 0.18 | 0.07 (840x1297) | 0.05 (840x1297) |
 | sam2.1-hiera-small | 0.48 | 0.36 | 0.13† | 0.14 | 0.02† | 0.02† |
@@ -2420,9 +2420,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | sam-hq-vit-b | 1024x1024 | 48.3 ms | 39.4 ms | 28.0 ms (image encoder only) | 35.3 ms | 32.8 s | 39.0 s | 375 / 422 | 372 / 422 | 420 / 544 | 609 / 642 |
 | sam-hq-vit-h | 1024x1024 | 213 ms | 187 ms | 125 ms (image encoder only) | 140 ms | 42.3 s | 69.1 s | 1488 / 1526 | 1476 / 1526 | 1528 / 1648 | 2790 / 2818 |
 | sam-hq-vit-l | 1024x1024 | 114 ms | 97.0 ms | 68.3 ms (image encoder only) | 79.0 ms | 32.9 s | 53.3 s | 834 / 862 | 822 / 902 | 877 / 1006 | 1482 / 1538 |
-| sam-vit-b | 1024x1024 | 48.3 ms | 40.9 ms | 27.3 ms (image encoder only) | 37.0 ms | 14.5 s | 36.4 s | 378 / 420 | 362 / 400 | 377 / 420 | 545 / 582 |
-| sam-vit-h | 1024x1024 | 214 ms | 188 ms | 124 ms (image encoder only) | 143 ms | 42.6 s | 69.7 s | 1484 / 2524 | 1436 / 1484 | 1480 / 1524 | 2744 / 2784 |
-| sam-vit-l | 1024x1024 | 116 ms | 97.2 ms | 67.5 ms (image encoder only) | 81.5 ms | 32.9 s | 53.4 s | 833 / 1262 | 793 / 862 | 831 / 862 | 1453 / 1520 |
+| sam-vit-b | 1024x1024 | 46.6 ms | 40.9 ms | 27.3 ms (image encoder only) | 35.5 ms | 14.5 s | 36.4 s | 365 / 400 | 362 / 400 | 365 / 400 | 545 / 582 |
+| sam-vit-h | 1024x1024 | 211 ms | 188 ms | 124 ms (image encoder only) | 140 ms | 42.6 s | 69.7 s | 1472 / 1504 | 1436 / 1484 | 1467 / 1484 | 2744 / 2784 |
+| sam-vit-l | 1024x1024 | 113 ms | 97.2 ms | 67.5 ms (image encoder only) | 79.0 ms | 32.9 s | 53.4 s | 821 / 882 | 793 / 862 | 818 / 862 | 1453 / 1520 |
 | sam2.1-hiera-base-plus | 1024x1024 | 31.9 ms | 26.4 ms | 16.7 ms (image encoder only) | 25.4 ms | 28.3 s | 43.7 s | 400 / 444 | 365 / 404 | 414 / 464 | 588 / 620 |
 | sam2.1-hiera-large | 1024x1024 | 68.0 ms | 59.5 ms | 38.1 ms (image encoder only) | 49.1 ms | 38.9 s | 55.3 s | 730 / 768 | 678 / 748 | 748 / 808 | 1212 / 1232 |
 | sam2.1-hiera-small | 1024x1024 | 18.8 ms | 14.9 ms | 9.93 ms (image encoder only) | 15.6 ms | 24.5 s | 40.2 s | 318 / 366 | 283 / 326 | 330 / 386 | 429 / 452 |
@@ -2622,8 +2622,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | flowformer-small-things | 1080x1920 | 4003 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | 3950 ms | – | – | 8780 / 8960 | – | 8696 / 8822 | – |
 | flowformer-small-things | 375x1242 | 337 ms | 250 ms | 202 ms | 322 ms | 99.3 s | 118 s | 1404 / 1698 | 2438 / 3196 | 1401 / 1698 | 2087 / 2138 |
 | flowseek-t | 1080x1920 | 396 ms | 258 ms | 168 ms | 255 ms | 54.2 s | 107 s | 6123 / 6252 | 6126 / 6212 | 1100 / 1154 | 11328 / 11350 |
-| flowseek-t-things | 1080x1920 | 395 ms | 258 ms | 168 ms | 254 ms | 54.6 s | 102 s | 8671 / 8712 | 6126 / 6212 | 1947 / 2114 | 11330 / 11352 |
-| flowseek-t-things-notartan | 1080x1920 | 396 ms | 258 ms | 168 ms | 254 ms | 54.3 s | 97.5 s | 8671 / 8712 | 6126 / 6212 | 1947 / 2114 | 11328 / 11350 |
+| flowseek-t-things | 1080x1920 | 395 ms | 258 ms | 168 ms | 254 ms | 54.6 s | 102 s | 6123 / 6312 | 6126 / 6212 | 1100 / 1154 | 11330 / 11352 |
+| flowseek-t-things-notartan | 1080x1920 | 395 ms | 258 ms | 168 ms | 254 ms | 54.3 s | 97.5 s | 6123 / 6312 | 6126 / 6212 | 1100 / 1154 | 11328 / 11350 |
 | gmflow-scale1-mixdata | 1080x1920 | 556 ms | 382 ms | 187 ms | – | 29.1 s | 67.3 s | 4496 / 4642 | 4293 / 4558 | – | 4333 / 4390 |
 | gmflow-scale1-things | 1080x1920 | 448 ms | 382 ms | 187 ms | 446 ms | 35.3 s | 69.3 s | 1988 / 2142 | 4293 / 4558 | 1988 / 2142 | 4333 / 4390 |
 | gmflow-scale2-mixdata | 1080x1920 | 1139 ms | 765 ms | public API unavailable | – | 46.6 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
@@ -2720,7 +2720,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | film | 1080x1920 | 412 ms | 332 ms | 189 ms | 328 ms | 41.1 s | 203 s | 2397 / 2702 | 2666 / 3192 | 2397 / 2942 | 2658 / 2658 |
 | gimm-vfi-r | 1080x1920 | 2528 ms | 1498 ms | public API unavailable | 1521 ms | 307 s | – | 5872 / 6518 | 12051 / 12880 | 4511 / 5282 | – |
 | gimm-vfi-r | 480x854 | 468 ms | – | 1210 ms, fp32 engine (RAFT feature encoder with eager context, flow update and synthesis) | 289 ms | – | 12.9 s | 1574 / 1674 | – | 1388 / 1618 | 3522 / 6116 |
-| gimm-vfi-r-p | 1080x1920 | 2639 ms | 1498 ms | fails: TensorRT parser: Sc node | 1628 ms | 307 s | – | 5936 / 6618 | 12051 / 12880 | 4587 / 5282 | – |
+| gimm-vfi-r-p | 1080x1920 | 2527 ms | 1498 ms | fails: TensorRT parser: Sc node | 1520 ms | 307 s | – | 5872 / 6518 | 12051 / 12880 | 4511 / 5282 | – |
 | gimm-vfi-r-p | 480x854 | 467 ms | – | 1190 ms, fp32 engine (RAFT feature and context encoders with eager flow update and synthesis) | 289 ms | – | 16.9 s | 1574 / 1674 | – | 1388 / 1598 | 3592 / 6000 |
 | rife-4.25 | 1080x1920 | 25.0 ms | 44.9 ms | 17.6 ms | 21.4 ms | 36.1 s | 56.3 s | 755 / 894 | 1094 / 1234 | 848 / 916 | 696 / 714 |
 | rife-4.25-lite | 1080x1920 | 21.1 ms | 42.3 ms | 14.1 ms | 18.3 ms | 34.9 s | 49.5 s | 754 / 854 | 1061 / 1374 | 834 / 896 | 696 / 714 |

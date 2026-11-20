@@ -368,13 +368,13 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`sam2.1-hiera-small`](models/promptable_segmentation.md#segment-anything-21-sam-21) | yes | 41.8 (1024x1024) | 18.8 | 15.6 | 2.7x vs original (1024x1024) | 330 |
 | [`sam2.1-hiera-base-plus`](models/promptable_segmentation.md#segment-anything-21-sam-21) | yes | 47.2 (1024x1024) | 31.9 | 25.4 | 1.9x vs original (1024x1024) | 414 |
 | [`sam-hq-vit-b`](models/promptable_segmentation.md#hq-sam) | yes | 102.9 (1024x1024) | 48.3 | 35.3 | 2.9x vs original (1024x1024) | 420 |
-| [`sam-vit-b`](models/promptable_segmentation.md#segment-anything-sam) | yes | 98.2 (1024x1024) | 48.3 | 37.0 | 2.7x vs original (1024x1024) | 377 |
+| [`sam-vit-b`](models/promptable_segmentation.md#segment-anything-sam) | yes | 98.2 (1024x1024) | 46.6 | 35.5 | 2.8x vs original (1024x1024) | 365 |
 | [`sam2.1-hiera-large`](models/promptable_segmentation.md#segment-anything-21-sam-21) | yes | 86.4 (1024x1024) | 68.0 | 49.1 | 1.8x vs original (1024x1024) | 748 |
 | [`sam-hq-vit-l`](models/promptable_segmentation.md#hq-sam) | yes | 201.9 (1024x1024) | 114.4 | 79.0 | 2.6x vs original (1024x1024) | 877 |
-| [`sam-vit-l`](models/promptable_segmentation.md#segment-anything-sam) | yes | 197.2 (1024x1024) | 115.7 | 81.5 | 2.4x vs original (1024x1024) | 831 |
+| [`sam-vit-l`](models/promptable_segmentation.md#segment-anything-sam) | yes | 197.2 (1024x1024) | 112.9 | 79.0 | 2.5x vs original (1024x1024) | 818 |
 | [`sam3`](models/promptable_segmentation.md#segment-anything-3-sam-3-image--video-tracker) | yes | 253.5 (1024x1024) | 190.3 | 106.7 | 2.4x vs original (1024x1024) | 1900 |
+| [`sam-vit-h`](models/promptable_segmentation.md#segment-anything-sam) | yes | 306.5 (1024x1024) | 211.1 | 140.1 | 2.2x vs original (1024x1024) | 1467 |
 | [`sam-hq-vit-h`](models/promptable_segmentation.md#hq-sam) | yes | 311.0 (1024x1024) | 213.0 | 140.4 | 2.2x vs original (1024x1024) | 1528 |
-| [`sam-vit-h`](models/promptable_segmentation.md#segment-anything-sam) | yes | 306.5 (1024x1024) | 214.5 | 143.1 | 2.1x vs original (1024x1024) | 1480 |
 | [`insid3-vitl16`](models/promptable_segmentation.md#insid3) | yes | 713.5 (1024x1024) | 254.9 | 156.9 | 4.5x vs original (1024x1024) | 987 |
 
 ## Detection
@@ -658,8 +658,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`gmflow-scale2-things`](models/flow.md#gmflow) | yes | 6.747 | 1598.6 (1080x1920) | 124.1 | 116.4 (375x1242) | 1.1x vs portable | 663 |
 | [`gmflow-scale2-regrefine6-sintelft`](models/flow.md#gmflow) | yes | 1.154 † | 2184.0 (1080x1920) | 224.3 | 214.0 (375x1242) | 1.0x vs portable | 673 |
 | [`gmflow-scale2-regrefine6-mixdata`](models/flow.md#gmflow) | yes | 1.315 ? | 2187.5 (1080x1920) | 224.1 | 214.3 (375x1242) | 1.0x vs portable | 673 |
-| [`flowseek-t-things`](models/flow.md#flowseek) | yes | 4.143 | 457.7 (1080x1920) | 395.3 | 253.9 | 1.8x vs original (1080x1920) | 1947 |
-| [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.933 | 457.6 (1080x1920) | 395.6 | 254.1 | 1.8x vs original (1080x1920) | 1947 |
+| [`flowseek-t-things`](models/flow.md#flowseek) | yes | 4.143 | 457.7 (1080x1920) | 394.9 | 253.7 | 1.8x vs original (1080x1920) | 1100 |
+| [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.933 | 457.6 (1080x1920) | 394.8 | 253.7 | 1.8x vs original (1080x1920) | 1100 |
 | [`flowseek-t`](models/flow.md#flowseek) | yes | 1.348 † | 457.0 (1080x1920) | 396.2 | 254.5 | 1.8x vs original (1080x1920) | 1100 |
 | [`memfof-kitti`](models/flow.md#memfof) | yes | 15.577 † | – | 385.6 | 308.8 (375x1242) | 1.2x vs portable | 786 |
 | [`memfof-spring`](models/flow.md#memfof) | yes | 10.778 † | 1034.8 (1080x1920) | 432.6 | 349.3 | 3.0x vs original (1080x1920) | 917 |
@@ -749,8 +749,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`ema-vfi`](models/interpolation.md#ema-vfi) | yes | 296.2 (1080x1920) | 232.6 | 184.9 | 1.6x vs original (1080x1920) | 1659 |
 | [`ema-vfi-t`](models/interpolation.md#ema-vfi) | yes | 286.9 (1080x1920) | 233.5 | 206.9 | 1.4x vs original (1080x1920) | 368 |
 | [`film`](models/interpolation.md#film) | yes | 463.8 (1080x1920) | 411.6 | 327.7 | 1.4x vs original (1080x1920) | 2397 |
+| [`gimm-vfi-r-p`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2527.1 | 1520.0 | 1.7x vs portable | 4511 |
 | [`gimm-vfi-r`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2527.6 | 1520.8 | 1.7x vs portable | 4511 |
-| [`gimm-vfi-r-p`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2638.7 | 1627.6 | 1.6x vs portable | 4587 |
 
 ## Restoration
 

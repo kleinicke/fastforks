@@ -23,9 +23,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`sam-hq-vit-b`](#sam_hq) | yes | 35.3, 2.9x | 544, 0.31x |
 | [`sam-hq-vit-h`](#sam_hq) | yes | 140, 2.2x | 1648, 0.38x |
 | [`sam-hq-vit-l`](#sam_hq) | yes | 79.0, 2.6x | 1006, 0.33x |
-| [`sam-vit-b`](#sam) | yes | 37.0, 2.7x | 420, 0.23x |
-| [`sam-vit-h`](#sam) | yes | 143, 2.1x | 1524, 0.28x |
-| [`sam-vit-l`](#sam) | yes | 81.5, 2.4x | 862, 0.25x |
+| [`sam-vit-b`](#sam) | yes | 35.5, 2.8x | 400, 0.22x |
+| [`sam-vit-h`](#sam) | yes | 140, 2.2x | 1484, 0.27x |
+| [`sam-vit-l`](#sam) | yes | 79.0, 2.5x | 862, 0.25x |
 | [`sam2.1-hiera-base-plus`](#sam2) | yes | 25.4, 1.9x | 464, 0.53x |
 | [`sam2.1-hiera-large`](#sam2) | yes | 49.1, 1.8x | 808, 0.53x |
 | [`sam2.1-hiera-small`](#sam2) | yes | 15.6, 2.7x | 386, 0.58x |
@@ -359,9 +359,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 168<br>98.2<br>48.3<br>37.0<br>40.9<br>27.3 (image encoder only) | 2798 / 2832<br>1769 / 1802<br>378 / 420<br>377 / 420<br>362 / 400<br>545 / 582 |
-| `sam-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 406<br>197<br>116<br>81.5<br>97.2<br>67.5 (image encoder only) | 4428 / 4474<br>3411 / 3464<br>833 / 1262<br>831 / 862<br>793 / 862<br>1453 / 1520 |
-| `sam-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 734<br>306<br>214<br>143<br>188<br>124 (image encoder only) | 5702 / 5754<br>5295 / 5404<br>1484 / 2524<br>1480 / 1524<br>1436 / 1484<br>2744 / 2784 |
+| `sam-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 168<br>98.2<br>46.6<br>35.5<br>40.9<br>27.3 (image encoder only) | 2798 / 2832<br>1769 / 1802<br>365 / 400<br>365 / 400<br>362 / 400<br>545 / 582 |
+| `sam-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 406<br>197<br>113<br>79.0<br>97.2<br>67.5 (image encoder only) | 4428 / 4474<br>3411 / 3464<br>821 / 882<br>818 / 862<br>793 / 862<br>1453 / 1520 |
+| `sam-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 734<br>306<br>211<br>140<br>188<br>124 (image encoder only) | 5702 / 5754<br>5295 / 5404<br>1472 / 1504<br>1467 / 1484<br>1436 / 1484<br>2744 / 2784 |
 
 <details><summary>Details</summary>
 
@@ -379,12 +379,14 @@ Commercial use: yes.
 - `sam-vit-l` 1024x1024, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 53 s (ONNX + engine).
 - `sam-vit-h` 1024x1024, first call: portable + torch.compile 43 s (cold Inductor cache), TensorRT fp16 70 s (ONNX + engine).
 - `sam-vit-b` original 1024x1024: torch.autocast(float16) around the call
+- `sam-vit-b` portable 1024x1024, kernels 1024x1024: CUDA FP16 encoder attention with directly written relative-position padding.
 - `sam-vit-l` original 1024x1024: torch.autocast(float16) around the call
+- `sam-vit-l` portable 1024x1024, kernels 1024x1024: CUDA FP16 encoder attention with directly written relative-position padding.
 - `sam-vit-h` original 1024x1024: torch.autocast(float16) around the call
-- `sam-vit-b` load / first call: original 0.75 s / 0.176 s, portable 0.46 s / 0.048† s, kernels 0.17† s / 0.037† s
-- `sam-vit-l` load / first call: original 1.8 s / 0.268 s, portable 1.21 s / 0.116† s, kernels 0.43† s / 0.081† s
-- `sam-vit-h` load / first call: original 4.61 s / 0.376 s, portable 2.45 s / 0.214† s, kernels 0.89† s / 0.143† s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `sam-vit-h` portable 1024x1024, kernels 1024x1024: CUDA FP16 encoder attention with directly written relative-position padding.
+- `sam-vit-b` load / first call: original 0.75 s / 0.176 s, portable 0.32 s / 0.558 s, kernels 0.33 s / 0.536 s
+- `sam-vit-l` load / first call: original 1.8 s / 0.268 s, portable 0.81 s / 0.416 s, kernels 0.68 s / 0.409 s
+- `sam-vit-h` load / first call: original 4.61 s / 0.376 s, portable 1.38 s / 0.525 s, kernels 1.27 s / 0.443 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured

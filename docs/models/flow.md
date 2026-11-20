@@ -16,8 +16,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`flowformer-small-sintel`](#flowformer) | yes | 4.657 † | 3958 | 8822 |
 | [`flowformer-small-things`](#flowformer) | yes | 6.884 | 3950 | 8822 |
 | [`flowseek-t`](#flowseek) | yes | 1.348 † | 255, 1.8x | 1154, 0.12x |
-| [`flowseek-t-things`](#flowseek) | yes | 4.143 | 254, 1.8x | 2114, 0.22x |
-| [`flowseek-t-things-notartan`](#flowseek) | yes | 3.933 | 254, 1.8x | 2114, 0.22x |
+| [`flowseek-t-things`](#flowseek) | yes | 4.143 | 254, 1.8x | 1154, 0.12x |
+| [`flowseek-t-things-notartan`](#flowseek) | yes | 3.933 | 254, 1.8x | 1154, 0.12x |
 | [`gmflow-scale1-mixdata`](#gmflow) | yes | 3.697 ? | 40.3, 1.3x (375x1242) | 300, 0.46x |
 | [`gmflow-scale1-things`](#gmflow) | yes | 10.346 | 446, 1.7x | 2142, 0.25x |
 | [`gmflow-scale2-mixdata`](#gmflow) | yes | 2.389 ? | 116, 1.3x (375x1242) | 760, 0.5x |
@@ -153,8 +153,8 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `flowseek-t` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>457<br>396<br>255<br>258<br>168 | 9902 / 10052<br>8693 / 9880<br>6123 / 6252<br>1100 / 1154<br>6126 / 6212<br>11328 / 11350 |
-| `flowseek-t-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>458<br>395<br>254<br>258<br>168 | 9902 / 10012<br>8693 / 9820<br>8671 / 8712<br>1947 / 2114<br>6126 / 6212<br>11330 / 11352 |
-| `flowseek-t-things-notartan` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 651<br>458<br>396<br>254<br>258<br>168 | 9902 / 10052<br>8693 / 9820<br>8671 / 8712<br>1947 / 2114<br>6126 / 6212<br>11328 / 11350 |
+| `flowseek-t-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 650<br>458<br>395<br>254<br>258<br>168 | 9902 / 10012<br>8693 / 9820<br>6123 / 6312<br>1100 / 1154<br>6126 / 6212<br>11330 / 11352 |
+| `flowseek-t-things-notartan` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 651<br>458<br>395<br>254<br>258<br>168 | 9902 / 10052<br>8693 / 9820<br>6123 / 6312<br>1100 / 1154<br>6126 / 6212<br>11328 / 11350 |
 
 <details><summary>Details</summary>
 
@@ -179,8 +179,10 @@ Commercial use: yes.
 - `flowseek-t` portable 1080x1920, kernels 1080x1920: Releases consumed features and merges depth features per image in eager CUDA. Synthetic and three KITTI flows and an odd-size two-image batch match bitwise.
 - `flowseek-t-things` original (fp32) 1080x1920: upstream FlowSeek (flowseek-T.json), iters=4
 - `flowseek-t-things` original 1080x1920: torch.autocast(float16) around the call; upstream FlowSeek (flowseek-T.json), iters=4
+- `flowseek-t-things` portable 1080x1920, kernels 1080x1920: Current correlation lifetimes and per-image depth-feature merging.
 - `flowseek-t-things-notartan` original (fp32) 1080x1920: upstream FlowSeek (flowseek-T.json), iters=4
 - `flowseek-t-things-notartan` original 1080x1920: torch.autocast(float16) around the call; upstream FlowSeek (flowseek-T.json), iters=4
+- `flowseek-t-things-notartan` portable 1080x1920, kernels 1080x1920: Current correlation lifetimes and per-image depth-feature merging.
 - `flowseek-t` load / first call: original 0.87 s / 0.629 s, portable 0.18 s / 0.458 s (375x1242), kernels 0.28 s / 0.382 s (375x1242)
 - `flowseek-t-things` load / first call: original 0.78 s / 0.459 s, portable 0.18 s / 0.469 s (375x1242), kernels 0.67 s / 0.404 s (375x1242)
 - `flowseek-t-things-notartan` load / first call: original 0.81 s / 0.459 s, portable 0.18 s / 0.46 s (375x1242), kernels 0.37 s / 0.383 s (375x1242)
