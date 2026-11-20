@@ -60,9 +60,7 @@ class VAE2D(nn.Module):
         return F.conv2d(x, w, b, stride=stride, padding=0 if stride == 2 else w.shape[-1] // 2)
 
     @staticmethod
-    def _conv_bands(
-        x: torch.Tensor, w: torch.Tensor, b: torch.Tensor, h: int, rows: int, *, up: bool
-    ) -> torch.Tensor:
+    def _conv_bands(x: torch.Tensor, w: torch.Tensor, b: torch.Tensor, h: int, rows: int, *, up: bool) -> torch.Tensor:
         """Same-padded conv of `x` (upsampled 2x first if `up`, `h` output rows) in bands of `rows` output rows."""
         k = w.shape[-1] // 2
         out = x.new_empty(x.shape[0], w.shape[0], h, 2 * x.shape[-1] if up else x.shape[-1])
@@ -83,14 +81,17 @@ class VAE2D(nn.Module):
     def norm(self, x: torch.Tensor, p: str, *, silu: bool = False) -> torch.Tensor:
         """Upstream `QwenImageRMS_norm`: channel-wise L2 normalisation in float32 x sqrt(C) x gamma (+ SiLU).
 
-        As `F.normalize(x.float(), dim=1).to(x.dtype) * sqrt(C) * gamma`, bit for bit, without its two full float32
-        copies: the norm reduces the bf16 input in float32 (the same sums), the division runs in channel chunks.
+        As `F.normalize(x.float(), dim=1).to(x.dtype) * sqrt(C) * gamma`, bit for bit. The norm reduces the
+        bf16 input in float32. Eager CUDA divides in float32 and writes directly to the bf16 output.
         """
         n = torch.linalg.vector_norm(x, dim=1, keepdim=True, dtype=torch.float32).clamp_min_(1e-12)
         out = torch.empty_like(x)
-        step = max(1, x.shape[1] // _CHUNKS)
-        for c in range(0, x.shape[1], step):
-            out[:, c : c + step] = x[:, c : c + step].float().div_(n)
+        if x.is_cuda and not x.requires_grad and not torch.compiler.is_compiling():
+            torch.div(x, n, out=out)
+        else:
+            step = max(1, x.shape[1] // _CHUNKS)
+            for c in range(0, x.shape[1], step):
+                out[:, c : c + step] = x[:, c : c + step].float().div_(n)
         out.mul_(x.shape[1] ** 0.5).mul_(self.t(p + ".gamma"))
         return F.silu(out, inplace=True) if silu else out
 

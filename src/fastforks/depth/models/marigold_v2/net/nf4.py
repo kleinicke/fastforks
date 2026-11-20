@@ -86,7 +86,7 @@ class NF4Linear(nn.Module):
         y, lora = self._parts(xb)
         if (e := self._epi(lora)) is not None:
             return e.lora_bf16(y, lora)
-        return (y.float() + lora if lora is not None else y.float()).to(BF)
+        return y if lora is None else y.add_(lora)
 
     def gelu(self, xb: torch.Tensor) -> torch.Tensor:
         """`F.gelu(self(xb), approximate="tanh").to(bfloat16)`."""
