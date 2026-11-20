@@ -35,6 +35,15 @@
     "float32": "portable"
    }
   },
+  "aliked-lightglue@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
   "alltracker@1": {
    "mlx_default": [
     "portable",
@@ -1368,6 +1377,22 @@
    ],
    "mlx": {
     "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "disk-lightglue@1": {
+   "auto": [
+    "portable",
+    "float32"
+   ],
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
     "float32": "portable"
    }
   },

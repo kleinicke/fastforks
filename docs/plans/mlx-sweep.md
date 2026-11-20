@@ -186,8 +186,8 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | loma | matching | detector, descriptor, matcher on MLX, fp32 (golden only for loma-b) | loma-b 4152 ms / 6133 MB vs MPS 3037 / 8147. Memory lower, speed slower. |
 | romav1 | matching | whole net on MLX, fp32; `cholesky` became `cholesky_ex(check_errors=False)` to avoid the with_effects op; new CPU-stream cholesky ops in mlx_graph | 4500 ms / 5242 MB vs MPS 3050 / 7979. Memory lower, speed slower. |
 | xfeat | matching | `net.xfeat.net` on MLX, fp32 (LighterGlue stays eager); new `aten.unfold` mapping | 158 ms / 543 MB vs MPS 42 / 1471. Memory lower, speed slower (small net, eager post-processing dominates). |
-| flexglue (aliked) | matching | descriptor net + matcher decode on MLX, fp32 + fp16; wrapping ALIKED dense map rejected (keypoint recall 0.963 < 0.99) | fp32 2249 ms / 3048 MB vs MPS 1124 / 3932; fp16 2255 / 2970 vs 1069 / 3088. Memory lower, speed about 2x slower. |
-| lightglue | matching | not ported: data-dependent keypoint counts in the matcher, and the ALIKED dense map misses recall (as in flexglue) | n/a |
+| flexglue (aliked) | matching | descriptor net + matcher decode on MLX, fp32 + fp16; wrapping ALIKED dense map rejected (keypoint recall 0.963 < 0.99) (cause found later: the `aten.elu` lowering dropped SELU's scale, fixed; the dense map on MLX is worth a retry) | fp32 2249 ms / 3048 MB vs MPS 1124 / 3932; fp16 2255 / 2970 vs 1069 / 3088. Memory lower, speed about 2x slower. |
+| lightglue | matching | portable_mlx fp32: the extractor's fixed-shape dense part as one MLX graph (DISK's U-Net; ALIKED's dense maps + score NMS via `ALIKED.detection_maps`); keypoint selection, descriptors and LightGlue (data-dependent counts) stay eager on the CPU. The old ALIKED recall miss (0.963, also flexglue's) was the `aten.elu` lowering ignoring SELU's scale; fixed in mlx_graph, both goldens pass | disk 1178 ms / 2333 MB vs MPS 1994 / 3531: WIN, routed. aliked 461 / 2416 vs 206 / 2586: leaner but 2.2x slower (dense graph ~93 ms/image vs MPS 81, CPU SDDH + matcher ~140 ms); stays on MPS. |
 
 ## Conv3x3 kernel experiments (M1 Pro, fp16, 1x512x512x64 -> 64, 3x3, pad 1)
 
@@ -821,6 +821,7 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | aanet-sceneflow | 16 | 994x1482 | portable | 1695.2 | 2131 | 630.844 | 2606 | 2.69 | 0.82 | LOSE | slower (2.69x: portable MLX replay, no fused attention/conv kernels) |
 | aliked-flexglue | 16 | 768x1024 | portable | 2308.6 | 2808 | 1068.521 | 3088 | 2.16 | 0.91 | LOSE | slower (2.16x: portable MLX replay, no fused attention/conv kernels) |
+| aliked-lightglue | 32 | 768x1024 | portable | 460.6 | 2416 | 205.897 | 2586 | 2.24 | 0.93 | LOSE | slower: the MLX dense maps + NMS alone take ~93 ms per image (MPS 81), and SDDH descriptors and the matcher run eager on the CPU (~140 ms); unrouted |
 | alltracker | 32 | 480x854 | portable | 5397.2 | 2597 | 3507.681 | 4571 | 1.54 | 0.57 | LOSE | slower (1.54x: portable MLX replay, no fused attention/conv kernels) |
 | any2full-b | 16 | 994x1482 | portable | 378.6 | 1583 | 267.954 | 2198 | 1.41 | 0.72 | LOSE | slower (1.41x: portable MLX replay, no fused attention/conv kernels) |
 | any2full-l | 16 | 994x1482 | portable | 908.5 | 3298 | 684.288 | 3956 | 1.33 | 0.83 | LOSE | slower (1.33x: portable MLX replay, no fused attention/conv kernels) |
@@ -893,6 +894,7 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 | dinov3-convnext-small | 16 | 224x224 | portable | 11.9 | 388 | 18.49 | 612 | 0.64 | 0.63 | WIN |  |
 | dinov3-convnext-tiny | 16 | 224x224 | portable | 7.2 | 315 | 10.645 | 431 | 0.68 | 0.73 | WIN |  |
 | dinov3-vith16plus | 16 | 224x224 | portable | 119.9 | 2174 | 143.346 | 3467 | 0.84 | 0.63 | WIN |  |
+| disk-lightglue | 32 | 768x1024 | portable | 1177.6 | 2333 | 1994.053 | 3531 | 0.59 | 0.66 | WIN | (new port: DISK U-Net as an MLX graph; keypoints and matcher eager on the CPU) |
 | distill-any-depth-b | 16 | 994x1482 | kernels | 169.6 | 1020 | 199.366 | 2061 | 0.85 | 0.49 | WIN |  |
 | distill-any-depth-l | 16 | 994x1482 | portable | 529.2 | 1847 | 579.665 | 3281 | 0.91 | 0.56 | WIN |  |
 | distill-any-depth-s | 16 | 994x1482 | kernels | 66.9 | 698 | 79.298 | 1570 | 0.84 | 0.44 | WIN |  |
