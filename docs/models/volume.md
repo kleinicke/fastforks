@@ -50,7 +50,7 @@ Commercial use: yes.
 - `nnfoundation-cnn` original (fp32) 200x200, original 200x200: nnssl network (dna 0.4.4) encoder; nnU-Net ZScoreNormalization on the CPU + pad + forward
 - `nnfoundation-cnn` portable 200x200, kernels 200x200: Crop the feature maps before converting their returned values to FP32, and reuse the convolution output during portable normalization. All six feature levels matched bitwise on the synthetic 200³ volume and three CT crops.
 - `nnfoundation-vit` original 192x192: nnssl network (dna 0.4.4) encoder; nnU-Net ZScoreNormalization on the CPU + pad + forward
-- `nnfoundation-vit` portable 192x192, kernels 192x192: CUDA FP16 inference bounds ViT normalization and rotary workspaces. Both modes match the previous masks on a synthetic volume and three labeled CT crops.
+- `nnfoundation-vit` portable 192x192, kernels 192x192: CUDA FP16 inference bounds ViT normalization and rotary workspaces. Both modes match all previous encoder feature maps on a synthetic volume and three labeled CT crops.
 - `nnfoundation-cnn` load / first call: original 1.18 s / 0.69 s, portable 0.56 s / 0.269 s, kernels 0.39 s / 0.291 s
 - `nnfoundation-vit` load / first call: original 9.54 s / 2.37 s (192x192), portable 1.24 s / 1.867 s (192x192), kernels 1.27 s / 1.756 s (192x192)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
