@@ -197,13 +197,16 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                 else:
                     mx.set_cache_limit(max(cache << 20, mx.set_cache_limit(0)))  # returns the previous limit
             kernels = ctx.mode == "kernels" and (ctx.dtype == "float16" or not kernels_fp16_only)
+            compiled = (
+                compile and os.environ.get("FASTFORKS_MLX_COMPILE") != "0"
+            )  # sweeps: replay lazily for every port
             for name in methods:
                 owner, _, leaf = name.rpartition(".")
                 host = _resolve(self, owner) if owner else self
                 dtype = "float32" if name in fp32_methods else ctx.dtype
                 if isinstance(host, torch.nn.Module):  # a method of a submodule: it owns the weights it computes with
                     mod = MlxModule(
-                        _Method(getattr(host, leaf), host), dtype, kernels=kernels, compile=compile, chunk_mb=chunk
+                        _Method(getattr(host, leaf), host), dtype, kernels=kernels, compile=compiled, chunk_mb=chunk
                     )
                     object.__setattr__(host, leaf, mod)  # the instance entry beats the class's function
                 else:
@@ -212,19 +215,19 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                         host,
                         leaf,
                         MlxModule(
-                            _Method(getattr(host, leaf), net), dtype, kernels=kernels, compile=compile, chunk_mb=chunk
+                            _Method(getattr(host, leaf), net), dtype, kernels=kernels, compile=compiled, chunk_mb=chunk
                         ),
                     )
             if whole:
                 self._whole = MlxModule(
-                    self.module(), ctx.dtype, kernels=kernels, release=True, compile=compile, chunk_mb=chunk
+                    self.module(), ctx.dtype, kernels=kernels, release=True, compile=compiled, chunk_mb=chunk
                 )
                 return
             for name in attrs:
                 owner, _, leaf = name.rpartition(".")
                 host = _resolve(self, owner) if owner else self
                 mod = MlxModule(
-                    getattr(host, leaf), ctx.dtype, kernels=kernels, release=True, compile=compile, chunk_mb=chunk
+                    getattr(host, leaf), ctx.dtype, kernels=kernels, release=True, compile=compiled, chunk_mb=chunk
                 )
                 if isinstance(host, torch.nn.Module):  # the MLX callable is no child module
                     host._modules.pop(leaf, None)  # noqa: SLF001 - the module registry

@@ -200,7 +200,7 @@ class TestMpsRouting:
 
     def test_auto_with_a_dtype_takes_mlx_only_where_it_measured_faster(self):
         assert self.route("dinov2-vits14", dtype="float32", task="features") == ("portable", "float32")
-        assert self.route("dinov3-vith16plus", dtype="float32", task="features") is None  # 1.03x: below the bar
+        assert self.route("dinov3-vith16plus", dtype="float32", task="features") == ("portable", "float32")  # re-surveyed: 1.08x, leaner
 
     def test_portable_stays_on_pytorch(self):
         assert self.route("crestereo-eth3d", mode="portable") is None

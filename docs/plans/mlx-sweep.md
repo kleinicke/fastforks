@@ -782,3 +782,12 @@ may be stale or may need the same `compile=False`).
 
 The three pre-existing tests/test_mlx.py failures were stale tests, now fixed (aliked-lightglue as the portless family,
 cache limit 1/128 with 128 MB floor); `test_kernels_takes_mlx_kernels` follows the new depth-anything routing.
+
+## Final MLX vs MPS table
+
+Every ref whose MLX row predated cc3fce13 (128 MB cache default) or the later compile-policy/channels-last/cache changes was re-measured on the M1 Pro 16 GB (warm median; one job at a time; ratios are MLX/MPS, below 1 is better for MLX; the row shown is the float16 one where both exist, else float32; best MLX mode of portable/kernels). Verdict: WIN = faster and not leaner-losing (memory within 1.02x), TIE = within 3% speed with memory not above MPS, LOSE otherwise. 0 refs: 0 WIN, 0 TIE, 0 LOSE.
+
+Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap from other apps; these jobs were killed and keep their old rows): depth-pro, vggt-1b, vggt-omega, anysplat, lingbot-map, resplat-base-re10k, c-foundationstereo-s, foundationstereo-vit-s, great-igev-sceneflow, waft-stereo-s, alltracker, cotracker3-offline/online, locotrack-b, flowformer-small-chairs, gimm-vfi-r; not reached: tapir, tapnext, track-on2, nnfoundation-*, nninteractive, totalsegmentator-*. Memory-fix sweeps (compile=False, cache_mb 128/256/512) for the losers below were not run for the same reason; `FASTFORKS_MLX_COMPILE=0` (sweep switch in `mlx_wrap.port`) and `FASTFORKS_MLX_CACHE_MB` are ready for them.
+
+| ref | dtype | input | MLX mode | ms | MB | MPS ms | MPS MB | speed | mem | verdict | why |
+|---|---|---|---|---|---|---|---|---|---|---|---|
