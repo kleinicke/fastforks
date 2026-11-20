@@ -725,6 +725,12 @@ OPS[aten.dot.default] = mx.inner
 OPS[aten.einsum.default] = lambda eq, ts: mx.einsum(eq, *ts)
 
 
+SDPA_FUSED_DIMS = (64, 72, 80, 96, 128)
+"""Head sizes `mx.fast.scaled_dot_product_attention` runs fused (measured, MLX 0.32); others materialise the scores."""
+SDPA_BLOCK_BYTES = 128 << 20
+"""Float32 scores per query block of an unfused attention whose whole score matrix would exceed twice this."""
+
+
 @_reg(aten.scaled_dot_product_attention.default)
 def _sdpa(
     q: mx.array,
@@ -742,7 +748,31 @@ def _sdpa(
         mask = "causal"
     elif mask is not None and mask.dtype not in {mx.bool_, q.dtype}:
         mask = mask.astype(q.dtype)
-    return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask)
+    d = q.shape[-1]
+    if d in SDPA_FUSED_DIMS or q.ndim != 4 or isinstance(mask, str):  # noqa: PLR2004
+        return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask)
+    if d < SDPA_FUSED_DIMS[-1] and k.shape[-1] == d and v.shape[-1] == d:
+        # zero-padded to the next fused head size: the same scores, no materialised score matrix (and faster)
+        pad = [(0, 0)] * 3 + [(0, next(f for f in SDPA_FUSED_DIMS if f > d) - d)]
+        out = mx.fast.scaled_dot_product_attention(
+            mx.pad(q, pad), mx.pad(k, pad), mx.pad(v, pad), scale=scale, mask=mask
+        )
+        return out[..., :d]
+    b, h, lq, _ = q.shape
+    row = b * h * k.shape[-2] * 4  # bytes of one query's float32 scores
+    if lq * row <= 2 * SDPA_BLOCK_BYTES:
+        return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask)
+    # a head size MLX does not fuse materialises the scores: query blocks one after the other (`mx.depends`) bound them
+    blk = max(1, SDPA_BLOCK_BYTES // row)
+    per_query = isinstance(mask, mx.array) and mask.ndim >= 2 and mask.shape[-2] == lq  # noqa: PLR2004
+    outs: list[mx.array] = []
+    for i in range(0, lq, blk):
+        qi = q[:, :, i : i + blk]
+        if outs:
+            qi = mx.depends(qi, outs[-1])
+        mi = mask[..., i : i + blk, :] if per_query else mask
+        outs.append(mx.fast.scaled_dot_product_attention(qi, k, v, scale=scale, mask=mi))
+    return mx.concatenate(outs, axis=2)
 
 
 @_reg(aten._softmax.default, aten.softmax.int)
@@ -2196,6 +2226,7 @@ class GraphNet:
             def timed(g: Callable[..., Any], xs: tuple[mx.array, ...]) -> tuple[float, int, Any]:
                 """Seconds and peak bytes of the second call of `g` (the first warms kernels and traces)."""
                 mx.eval(g(*xs))
+                mx.clear_cache()  # the buffer cache can exceed its limit by a big map: one trial's must not stay
                 mx.reset_peak_memory()
                 t0 = time.perf_counter()
                 res = g(*xs)
@@ -2207,6 +2238,7 @@ class GraphNet:
                     tune[0] = False
                     try:
                         te, me, res = timed(fn, xs)
+                        del res  # the trials' outputs and freed maps must not add up
                         tc, mc, res = timed(jit, xs)
                     except ValueError as err:
                         if "uncaptured" not in str(err):
