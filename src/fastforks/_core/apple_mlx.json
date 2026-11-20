@@ -2730,12 +2730,7 @@
    }
   },
   "psmnet-sceneflow@1": {
-   "auto": [
-    "portable",
-    "float16"
-   ],
    "dtypes": {
-    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
