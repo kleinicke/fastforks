@@ -96,7 +96,7 @@
   "anyline@1": {
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
@@ -3281,6 +3281,16 @@
     "",
     "float32"
    ]
+  },
+  "rt-monster-plusplus-mix-all@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
   },
   "rtdetrv2-s-coco@1": {
    "auto": [

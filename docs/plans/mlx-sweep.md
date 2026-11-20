@@ -128,7 +128,7 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | retinaface | pose | portable_mlx, fp32+fp16 pass | resnet50 fp16 190 / 1266 vs MPS 150 / 1913; fp32 284 / 1521 vs 210 / 1879. Kernels mode fails in float16-only options, not declared. |
 | vitpose | pose | portable_mlx, fp32+fp16 pass | base-simple fp16 156 / 987 vs MPS 186 / 1910; fp32 204 / 1326 vs 196 / 2073. plus-small and plus-huge pass goldens. |
 | yunet | pose | portable_mlx, fp32+fp16 pass | n fp16 21 / 719 vs MPS 22 / 1377; fp32 28 / 771 vs 25 / 1380. |
-| anyline, lineart, lineart_anime, mlsd | edges | portable_mlx, fp32+fp16 pass | anyline fp32 2817 ms / 2045 MB vs MPS 130 / 2346 (memory lower, speed 20x slower: only the TEED net runs as an MLX graph, the line-art post-processing `remove_small` is a long chain of small torch ops that runs eagerly outside it, so it dominates; not fixable without porting that step); lineart-anime fp16 43 / 1032 vs MPS 51 / 1774; mlsd fp16 33 / 715 vs 45 / 1373. lineart fp16 136 / 1170 vs 67 / 1362 (speed loses; Winograd 133, no gain). |
+| anyline, lineart, lineart_anime, mlsd | edges | portable_mlx, fp32+fp16 pass | anyline fp16 201 ms / 1777 MB vs MPS 117 / 1319, fp32 243 / 2030 vs 130 / 2346 (the whole module now replays as one MLX graph; still slower, full-res depthwise convs); lineart-anime fp16 43 / 1032 vs MPS 51 / 1774; mlsd fp16 33 / 715 vs 45 / 1373. lineart fp16 136 / 1170 vs 67 / 1362 (speed loses; Winograd 133, no gain). |
 | hed | edges | portable_mlx, fp32 only | fp32 75 / 1120 vs MPS 65 / 1415. fp16 gives NaN. Winograd slower. |
 | pidinet | edges | portable_mlx + kernels_mlx (conv_mlx), fp32+fp16 pass | fp16 portable 163 / 759, Winograd 78 / 747 vs MPS 73 / 1349 (kernels declared: 2.1x faster than portable); fp32 200 -> 115 / 987 vs 91 / 1359. |
 | teed | edges | portable_mlx, fp32+fp16 pass | fp32 17 ms / 534 MB vs MPS 20 / 1314; fp16 15 / 474 vs 17 / 1313. Wins on both. |
@@ -815,7 +815,7 @@ cache limit 1/128 with 128 MB floor); `test_kernels_takes_mlx_kernels` follows t
 
 Every ref whose MLX row predated cc3fce13 (128 MB cache default) or the later compile-policy/channels-last/cache changes was re-measured on the M1 Pro 16 GB (warm median, one job at a time). Ratios are MLX/MPS, below 1 favours MLX. Row shown: float16 where both dtypes exist, else float32; best MLX mode of portable/kernels. WIN: faster and memory within 1.02x; TIE: within 3% speed, memory not above MPS; LOSE otherwise. 224 refs: 91 WIN, 5 TIE, 128 LOSE.
 
-Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap from other apps, jobs were killed; they keep their old rows): depth-pro, vggt-1b, anysplat, lingbot-map, resplat-base-re10k, great-igev-sceneflow, waft-stereo-s, alltracker, cotracker3-offline/online, locotrack-b, flowformer-small-chairs, gimm-vfi-r. Not reached: tapir, tapnext, track-on2, nnfoundation-*, nninteractive, totalsegmentator-*. The memory-fix sweeps (compile=False, cache_mb 128/256/512) for the memory losers were not run for the same reason; `FASTFORKS_MLX_COMPILE=0` (sweep switch in `mlx_wrap.port`) and `FASTFORKS_MLX_CACHE_MB` are ready for them. oneformer-swinl-ade20k and rt-monster-plusplus-mix-all report golden FAIL on MLX and stay unrouted.
+Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap from other apps, jobs were killed; they keep their old rows): depth-pro, vggt-1b, anysplat, lingbot-map, resplat-base-re10k, great-igev-sceneflow, waft-stereo-s, alltracker, cotracker3-offline/online, locotrack-b, flowformer-small-chairs, gimm-vfi-r. Not reached: tapir, tapnext, track-on2, nnfoundation-*, nninteractive, totalsegmentator-*. The memory-fix sweeps (compile=False, cache_mb 128/256/512) for the memory losers were not run for the same reason; `FASTFORKS_MLX_COMPILE=0` (sweep switch in `mlx_wrap.port`) and `FASTFORKS_MLX_CACHE_MB` are ready for them. oneformer-swinl-ade20k and rt-monster-plusplus-mix-all reported golden FAIL on MLX; both pass now (rt-monster after the `_Normalize` trace fix) and stay unrouted because MLX is slower.
 
 | ref | dtype | input | MLX mode | ms | MB | MPS ms | MPS MB | speed | mem | verdict | why |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -827,11 +827,11 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 | any2full-l | 16 | 994x1482 | portable | 908.5 | 3298 | 684.288 | 3956 | 1.33 | 0.83 | LOSE | slower (1.33x: portable MLX replay, no fused attention/conv kernels) |
 | any2full-s | 16 | 994x1482 | portable | 159.7 | 1012 | 117.84 | 1641 | 1.36 | 0.62 | LOSE | slower (1.36x: portable MLX replay, no fused attention/conv kernels) |
 | anycalib-pinhole | 32 | 1080x1920 | portable | 341.8 | 2089 | 266.497 | 3023 | 1.28 | 0.69 | LOSE | slower (1.28x: portable MLX replay, no fused attention/conv kernels) |
-| anyline | 16 | 1024x1024 | portable | 3013.1 | 1836 | 116.786 | 1319 | 25.80 | 1.39 | LOSE | slower (25.80x: portable MLX replay, no fused attention/conv kernels); more memory (1.39x: MLX runtime/buffer cache above the MPS footprint) |
+| anyline | 16 | 1024x1024 | portable | 201 | 1777 | 116.786 | 1319 | 1.72 | 1.35 | LOSE | slower and more memory: the whole module (TEED + line-art post-processing) runs as one MLX graph, the cost is full-res depthwise convs and their activations (the old 3013 ms row predates the whole-module port); fp32 243 / 2030 vs MPS 130 / 2346 |
 | anysplat | 16 | 336x518 | portable | 6973.7 | 8297 | 5444.081 | 8751 | 1.28 | 0.95 | LOSE | slower (1.28x: portable MLX replay, no fused attention/conv kernels) |
 | ben2 | 32 | 1080x1920 | portable | 1705.7 | 5012 | 1147.957 | 6252 | 1.49 | 0.80 | LOSE | slower (1.49x: portable MLX replay, no fused attention/conv kernels) |
 | birefnet | 16 | 1080x1920 | portable | 1203.1 | 2705 | 1151.581 | 5433 | 1.04 | 0.50 | LOSE | slower (1.04x: portable MLX replay, no fused attention/conv kernels) |
-| bisenet-face-parsing | 16 | 512x512 | portable | 17.6 | 607 | 13.643 | 440 | 1.29 | 1.38 | LOSE | slower (1.29x: portable MLX replay, no fused attention/conv kernels); more memory (1.38x: MLX runtime/buffer cache above the MPS footprint) |
+| bisenet-face-parsing | 16 | 512x512 | portable | 17.6 | 607 | 13.643 | 440 | 1.29 | 1.38 | LOSE | slower (1.29x: portable MLX replay, no fused attention/conv kernels); more memory (1.38x: MLX runtime/buffer cache above the MPS footprint); tiny net: ~100 MB fixed cost of the torch.export imports plus the MLX runtime, not fixable by cache/chunk/compile switches |
 | boq-dinov2 | 16 | 480x640 | portable | 55.3 | 864 | 48.219 | 849 | 1.15 | 1.02 | LOSE | slower (1.15x: portable MLX replay, no fused attention/conv kernels) |
 | bridgedepth-sf | 16 | 994x1482 | portable | 5661.3 | 4483 | 3693.197 | 6270 | 1.53 | 0.71 | LOSE | slower (1.53x: portable MLX replay, no fused attention/conv kernels) |
 | c-radio-v3-b | 16 | 224x224 | portable | 16.4 | 764 | 16.494 | 2230 | 0.99 | 0.34 | WIN |  |
@@ -946,7 +946,7 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 | mobilenetv1_100.ra4_e3600_r224_in1k | 16 | 224x224 | portable | 2.3 | 367 | 5.129 | 461 | 0.45 | 0.80 | WIN |  |
 | mocha-v1-sceneflow | 16 | 994x1482 | portable | 9657.0 | 3382 | 6693.339 | 5695 | 1.44 | 0.59 | LOSE | slower (1.44x: portable MLX replay, no fused attention/conv kernels) |
 | moge-2-vitl-normal | 16 | 994x1482 | portable | 2080.7 | 3009 | 1731.978 | 3265 | 1.20 | 0.92 | LOSE | slower (1.20x: portable MLX replay, no fused attention/conv kernels) |
-| moge-3-vitl | 16 | 994x1482 | portable | 5657.1 | 5822 | 3913.491 | 5968 | 1.45 | 0.98 | LOSE | slower (1.45x: portable MLX replay, no fused attention/conv kernels) |
+| moge-3-vitl | 16 | 994x1482 | portable | 5657.1 | 5822 | 3913.491 | 5968 | 1.45 | 0.98 | LOSE | slower (1.45x: portable MLX replay, no fused attention/conv kernels): the trunk is at parity (1705 ms on both); the MoGe-3 sparse refiner runs eagerly on the CPU in MLX mode (3.8 s vs MPS 2.15 s, ~4 GB CPU memory). Needs a refiner port. |
 | monster-plusplus-mix-all | 16 | 994x1482 | portable | 18356.8 | 5477 | 10202.192 | 7347 | 1.80 | 0.75 | LOSE | slower (1.80x: portable MLX replay, no fused attention/conv kernels) |
 | monster-sceneflow | 16 | 994x1482 | portable | 19649.8 | 5189 | 9642.315 | 6299 | 2.04 | 0.82 | LOSE | slower (2.04x: portable MLX replay, no fused attention/conv kernels) |
 | mvsanywhere | 16 | 448x672 | portable | 3772.5 | 2054 | 1064.367 | 3801 | 3.54 | 0.54 | LOSE | slower (3.54x: portable MLX replay, no fused attention/conv kernels) |
@@ -955,9 +955,9 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 | nnfoundation-vit | 16 | 192x192 | portable | 13036.5 | 2469 | 17636.415 | 3817 | 0.74 | 0.65 | WIN |  |
 | nninteractive | 32 | 200x200 | portable | 4781.8 | 7025 | 3524.991 | 11439 | 1.36 | 0.61 | LOSE | slower (1.36x: portable MLX replay, no fused attention/conv kernels) |
 | omni-dc | 16 | 994x1482 | portable | 5978.0 | 5375 | 2408.429 | 10081 | 2.48 | 0.53 | LOSE | slower (2.48x: portable MLX replay, no fused attention/conv kernels) |
-| oneformer-swinl-ade20k | 16 | 1024x2048 | portable | 2078.1 | 6033 | 1160.815 | 5559 | 1.79 | 1.09 | LOSE | slower (1.79x: portable MLX replay, no fused attention/conv kernels); more memory (1.09x: MLX runtime/buffer cache above the MPS footprint) |
+| oneformer-swinl-ade20k | 16 | 1024x2048 | portable | 2078.1 | 6033 | 1160.815 | 5559 | 1.79 | 1.09 | LOSE | slower (1.79x: portable MLX replay, no fused attention/conv kernels); more memory (1.09x: MLX runtime/buffer cache above the MPS footprint); golden passes (test_mlx and survey), unrouted |
 | owlv2-b16 | 32 | 800x1344 | portable | 398.1 | 1299 | 393.679 | 1515 | 1.01 | 0.86 | TIE |  |
-| parseq | 16 | 32x128 | portable | 17.9 | 495 | 23.603 | 440 | 0.76 | 1.12 | LOSE | more memory (1.12x: MLX runtime/buffer cache above the MPS footprint) |
+| parseq | 16 | 32x128 | portable | 17.9 | 495 | 23.603 | 440 | 0.76 | 1.12 | LOSE | more memory (1.12x: MLX runtime/buffer cache above the MPS footprint); tiny net: ~100 MB fixed cost of the torch.export imports plus the MLX runtime, not fixable by cache/chunk/compile switches |
 | patchmatchnet | 16 | 1536x1024 | portable | 920.2 | 2247 | 1573.872 | 6591 | 0.58 | 0.34 | WIN |  |
 | pe-core-l14-336 | 16 | 224x224 | portable | 95.7 | 3240 | 58.343 | 4528 | 1.64 | 0.72 | LOSE | slower (1.64x: portable MLX replay, no fused attention/conv kernels) |
 | pe-core-t16-384 | 16 | 224x224 | portable | 5.1 | 469 | 7.253 | 388 | 0.70 | 1.21 | LOSE | more memory (1.21x: MLX runtime/buffer cache above the MPS footprint) |
@@ -996,7 +996,7 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 | rife-4.25-lite | 16 | 1080x1920 | portable | 202.2 | 1636 | 79.991 | 2447 | 2.53 | 0.67 | LOSE | slower (2.53x: portable MLX replay, no fused attention/conv kernels) |
 | romav1 | 32 | 768x1024 | portable | 4439.8 | 4499 | 3050.476 | 7979 | 1.46 | 0.56 | LOSE | slower (1.46x: portable MLX replay, no fused attention/conv kernels) |
 | romav2 | 32 | 768x1024 | kernels | 4042.6 | 3150 | 3980.808 | 6725 | 1.02 | 0.47 | TIE |  |
-| rt-monster-plusplus-mix-all | 16 | 994x1482 | portable | 1096.2 | 2644 | 682.191 | 7047 | 1.61 | 0.38 | LOSE | golden FAIL |
+| rt-monster-plusplus-mix-all | 16 | 994x1482 | portable | 842.1 | 2288 | 682.191 | 7047 | 1.23 | 0.32 | LOSE | slower (1.23x); golden passes since `_Normalize` no longer caches its constants while traced (a second export at another shape found the first export's fake tensors); fp32 1038 / 2451 vs MPS 663 / 6986. Unrouted (speed). |
 | rtdetrv2-s-coco | 16 | 800x1344 | portable | 39.5 | 904 | 44.377 | 1631 | 0.89 | 0.55 | WIN |  |
 | rtmdet-tiny-coco | 16 | 800x1344 | portable | 24.4 | 618 | 26.979 | 1545 | 0.91 | 0.40 | WIN |  |
 | rtmo-t | 32 | 1080x1920 | portable | 17.9 | 667 | 20.977 | 1523 | 0.85 | 0.44 | WIN |  |
