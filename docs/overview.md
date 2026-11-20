@@ -663,8 +663,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`waft-a1-kitti`](models/flow.md#waft) | yes | 0.695 † | 1533.3 (1080x1920) | 790.8 | 518.6 | 3.0x vs original (1080x1920) | 1851 |
 | [`waft-a1`](models/flow.md#waft) | yes | 2.621 | 1533.1 (1080x1920) | 741.0 | 518.7 | 3.0x vs original (1080x1920) | 1851 |
 | [`megaflow`](models/flow.md#megaflow) | yes | 1.714 † | 1588.5 (1080x1920) | 1112.0 | 734.8 | 2.2x vs original (1080x1920) | 2724 |
-| [`memflow-sintel`](models/flow.md#memflow) | yes | 1.218 † | 3214.2 (1080x1920) | 964.5 | 864.5 | 3.7x vs original (1080x1920) | 968 |
-| [`memflow-kitti`](models/flow.md#memflow) | yes | 0.600 † | 3247.3 (1080x1920) | 964.7 | 864.6 | 3.8x vs original (1080x1920) | 968 |
+| [`memflow-sintel`](models/flow.md#memflow) | yes | 1.218 † | 3214.2 (1080x1920) | 963.8 | 864.5 | 3.7x vs original (1080x1920) | 968 |
+| [`memflow-kitti`](models/flow.md#memflow) | yes | 0.600 † | 3247.3 (1080x1920) | 963.7 | 864.6 | 3.8x vs original (1080x1920) | 968 |
 | [`memflow`](models/flow.md#memflow) | yes | 4.103 | 3115.6 (1080x1920) | 964.5 | 864.8 | 3.6x vs original (1080x1920) | 968 |
 | [`gmflow-scale2-mixdata`](models/flow.md#gmflow) | yes | 2.389 ? | 1607.7 (1080x1920) | 914.9 | 915.3 | 1.8x vs original (1080x1920) | 2995 |
 | [`gmflow-scale2-sintel`](models/flow.md#gmflow) | yes | 1.975 † | 1606.7 (1080x1920) | 915.1 | 915.7 | 1.8x vs original (1080x1920) | 2995 |
@@ -729,8 +729,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`alltracker-tiny`](models/tracking.md#alltracker) | yes | 424.2 (480x854) | 329.9 | 217.2 | 2.0x vs original (480x854) | 978 |
 | [`tapnext`](models/tracking.md#tapnext) | yes | 908.8 (480x854) | 528.4 | 380.7 | 2.4x vs original (480x854) | 1205 |
 | [`tapnext-pp`](models/tracking.md#tapnext) | yes | 1492.8 (480x854) | 529.3 | 381.6 | 3.9x vs original (480x854) | 1013 |
-| [`track-on-r`](models/tracking.md#track-on2) | yes | 2021.8 (480x854) | 1184.3 | 1098.6 | 1.8x vs original (480x854) | 1042 |
-| [`track-on2`](models/tracking.md#track-on2) | yes | 1952.8 (480x854) | 1189.5 | 1108.0 | 1.8x vs original (480x854) | 1042 |
+| [`track-on-r`](models/tracking.md#track-on2) | yes | 2021.8 (480x854) | 1149.5 | 1064.0 | 1.9x vs original (480x854) | 975 |
+| [`track-on2`](models/tracking.md#track-on2) | yes | 1952.8 (480x854) | 1158.6 | 1073.5 | 1.8x vs original (480x854) | 975 |
 
 ## Interpolation
 

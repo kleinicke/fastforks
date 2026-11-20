@@ -1397,8 +1397,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | gmflow-scale2-things | 2537 | 1599 | 914 | 916 | 1.7x | 1.0x | 8425 / 8552 | 2995 / 3184 | 2995 / 3204 |
 | megaflow | – | 1588 | 1112 | 735 | 2.2x | 1.5x | 8230 / 8786 | 2713 / 3518 | 2724 / 3530 |
 | memflow | – | 3116 | 965 | 865 | 3.6x | 1.1x | 15061 / 15594 | 6001 / 6294 | 968 / 1022 |
-| memflow-kitti | – | 3247 | 965 | 865 | 3.8x | 1.1x | 15061 / 15594 | 8265 / 8382 | 968 / 1022 |
-| memflow-sintel | – | 3214 | 964 | 865 | 3.7x | 1.1x | 15061 / 15634 | 8265 / 8382 | 968 / 1022 |
+| memflow-kitti | – | 3247 | 964 | 865 | 3.8x | 1.1x | 15061 / 15594 | 5985 / 6102 | 968 / 1022 |
+| memflow-sintel | – | 3214 | 964 | 865 | 3.7x | 1.1x | 15061 / 15634 | 5985 / 6102 | 968 / 1022 |
 | memfof | – | 531 | 433 | 349 | 1.5x | 1.2x | 2003 / 2144 | 1911 / 2196 | 917 / 1016 |
 | memfof-kitti | – | – | 2202 | 1565 | – | 1.4x | – | 14515 / 14918 | 3805 / 4038 |
 | memfof-sintel | – | OOM | 2203 | 1565 | – | 1.4x | – | 14515 / 14918 | 3805 / 4038 |
@@ -1469,8 +1469,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | tapir | 187 | 182 | 141 | 1.3x | 1.3x | 498 / 574 | 463 / 548 | 463 / 548 |
 | tapnext | 909 | 528 | 381 | 2.4x | 1.4x | 1721 / 1902 | 1220 / 1294 | 1205 / 1254 |
 | tapnext-pp | 1493 | 529 | 382 | 3.9x | 1.4x | 1527 / 1718 | 1028 / 1094 | 1013 / 1074 |
-| track-on-r | 2022 | 1184 | 1099 | 1.8x | 1.1x | 1801 / 1928 | 1097 / 1190 | 1042 / 1158 |
-| track-on2 | 1953 | 1190 | 1108 | 1.8x | 1.1x | 1403 / 1558 | 1097 / 1190 | 1042 / 1158 |
+| track-on-r | 2022 | 1150 | 1064 | 1.9x | 1.1x | 1801 / 1928 | 1030 / 1190 | 975 / 1156 |
+| track-on2 | 1953 | 1159 | 1073 | 1.8x | 1.1x | 1403 / 1558 | 1030 / 1190 | 975 / 1158 |
 
 ### Interpolation, synthetic, 1080x1920
 
@@ -2643,9 +2643,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | megaflow | 1080x1920 | 1112 ms | 917 ms | 677 ms | 735 ms | 102 s | 214 s | 2713 / 3518 | 2611 / 2886 | 2724 / 3530 | 9265 / 9300 |
 | memflow | 1080x1920 | 965 ms | 1642 ms | fails: TensorRT engine build failed | 865 ms | 78.9 s | – | 6001 / 6294 | 6813 / 6946 | 968 / 1022 | – |
 | memflow | 384x1248 | – | – | 178 ms, fp32 engine (full fixed-shape flow network, standalone trace export and build) | – | – | 99.3 s | – | – | – | 1171 / 1176 |
-| memflow-kitti | 1080x1920 | 965 ms | 1644 ms | fails: TensorRT engine build failed | 865 ms | 72.6 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
+| memflow-kitti | 1080x1920 | 964 ms | 1644 ms | fails: TensorRT engine build failed | 865 ms | 72.6 s | – | 5985 / 6102 | 6813 / 6946 | 968 / 1022 | – |
 | memflow-kitti | 384x1248 | – | – | 135 ms (full fixed-shape flow network, standalone engine build) | – | – | 330 s | – | – | – | 859 / 864 |
-| memflow-sintel | 1080x1920 | 964 ms | 1640 ms | fails: TensorRT engine build failed | 865 ms | 76.0 s | – | 8265 / 8382 | 6813 / 6946 | 968 / 1022 | – |
+| memflow-sintel | 1080x1920 | 964 ms | 1640 ms | fails: TensorRT engine build failed | 865 ms | 76.0 s | – | 5985 / 6102 | 6813 / 6946 | 968 / 1022 | – |
 | memflow-sintel | 384x1248 | 143 ms | – | 137 ms (full fixed-shape flow network, standalone trace export and build) | – | – | 140 s | 528 / 738 | – | – | 887 / 892 |
 | memfof | 1080x1920 | 433 ms | 291 ms | 160 ms | 349 ms | 50.5 s | 110 s | 1911 / 2196 | 2452 / 2666 | 917 / 1016 | 2070 / 2132 |
 | memfof-kitti | 375x1242 | 386 ms | 258 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 309 ms | 48.7 s | – | 1619 / 1856 | 2041 / 2226 | 786 / 916 | – |
@@ -2709,9 +2709,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | tapir | 480x854 | 182 ms | 131 ms | 6.47 ms | 141 ms | 169 s | 55.2 s | 463 / 548 | 630 / 752 | 463 / 548 | 361 / 406 |
 | tapnext | 480x854 | 528 ms | 398 ms | 69.4 ms | 381 ms | 40.5 s | 366 s | 1220 / 1294 | 1164 / 1272 | 1205 / 1254 | 1498 / 1660 |
 | tapnext-pp | 480x854 | 529 ms | 395 ms | 69.5 ms | 382 ms | 34.1 s | 362 s | 1028 / 1094 | 1164 / 1272 | 1013 / 1074 | 1498 / 1660 |
-| track-on-r | 480x854 | 1184 ms | 1066 ms | public API unavailable | 1099 ms | 66.0 s | – | 1097 / 1190 | 1340 / 1454 | 1042 / 1158 | – |
+| track-on-r | 480x854 | 1150 ms | 1066 ms | public API unavailable | 1064 ms | 66.0 s | – | 1030 / 1190 | 1340 / 1454 | 975 / 1156 | – |
 | track-on-r | 256x256 | – | – | 958 ms, fp32 engine (standalone eight-frame encoder, eager recurrent decoder) | – | – | 42.1 s | – | – | – | 1979 / 2286 |
-| track-on2 | 480x854 | 1190 ms | 1075 ms | public API unavailable | 1108 ms | 60.0 s | – | 1097 / 1190 | 1340 / 1454 | 1042 / 1158 | – |
+| track-on2 | 480x854 | 1159 ms | 1075 ms | public API unavailable | 1073 ms | 60.0 s | – | 1030 / 1190 | 1340 / 1454 | 975 / 1158 | – |
 | track-on2 | 256x256 | – | – | 961 ms, fp32 engine (standalone eight-frame encoder, eager recurrent decoder) | – | – | 46.3 s | – | – | – | 1979 / 2288 |
 | ema-vfi | 1080x1920 | 233 ms | 165 ms | 124 ms | 185 ms | 90.6 s | 90.9 s | 1659 / 2082 | 3325 / 3542 | 1659 / 2102 | 1719 / 1786 |
 | ema-vfi-small | 1080x1920 | 89.4 ms | 59.6 ms | 43.7 ms | 84.4 ms | 78.5 s | 67.6 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |

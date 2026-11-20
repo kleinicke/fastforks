@@ -429,9 +429,9 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `memflow` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3116<br>965<br>865<br>1642<br>fails: TensorRT engine build failed | 15061 / 15594<br>6001 / 6294<br>968 / 1022<br>6813 / 6946<br>– |
 | `memflow` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>178 (full fixed-shape flow network, standalone trace export and build) | –<br>–<br>–<br>1171 / 1176 |
-| `memflow-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3214<br>964<br>865<br>1640<br>fails: TensorRT engine build failed | 15061 / 15634<br>8265 / 8382<br>968 / 1022<br>6813 / 6946<br>– |
+| `memflow-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3214<br>964<br>865<br>1640<br>fails: TensorRT engine build failed | 15061 / 15634<br>5985 / 6102<br>968 / 1022<br>6813 / 6946<br>– |
 | `memflow-sintel` | synthetic (384x1248) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>143<br>–<br>137 (full fixed-shape flow network, standalone trace export and build) | –<br>528 / 738<br>–<br>887 / 892 |
-| `memflow-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3247<br>965<br>865<br>1644<br>fails: TensorRT engine build failed | 15061 / 15594<br>8265 / 8382<br>968 / 1022<br>6813 / 6946<br>– |
+| `memflow-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3247<br>964<br>865<br>1644<br>fails: TensorRT engine build failed | 15061 / 15594<br>5985 / 6102<br>968 / 1022<br>6813 / 6946<br>– |
 | `memflow-kitti` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>135 (full fixed-shape flow network, standalone engine build) | –<br>–<br>–<br>859 / 864 |
 
 <details><summary>Details</summary>
