@@ -284,7 +284,12 @@ def _activate(arch_dual: bool, logits: torch.Tensor, sky_logits: torch.Tensor | 
 
 # ------------------------------------------------------------------------------------------------ portable
 def _position_axes(
-    channels: int, hw: tuple[int, int], aspect_ratio: float, *, dtype: torch.dtype, device: torch.device,
+    channels: int,
+    hw: tuple[int, int],
+    aspect_ratio: float,
+    *,
+    dtype: torch.dtype,
+    device: torch.device,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """The independent horizontal and vertical sine/cosine features, in FP32."""
     h, w = hw
@@ -295,7 +300,10 @@ def _position_axes(
 
 
 def _add_position(
-    head: DPT | DualDPT, x: torch.Tensor, w: int, h: int,
+    head: DPT | DualDPT,
+    x: torch.Tensor,
+    w: int,
+    h: int,
 ) -> torch.Tensor:
     """Add the same FP32 embeddings to each axis without allocating a spatial channel grid on CUDA."""
     if not x.is_cuda or torch.is_grad_enabled() or torch.compiler.is_compiling() or torch.jit.is_tracing():
@@ -742,10 +750,11 @@ class _BranchModule(nn.Module):
 
     def __init__(self, host: Portable, br: _Branch) -> None:
         super().__init__()
-        self.host, self.br = host, br
+        self.br = br
+        object.__setattr__(self, "host", host)  # not a submodule: the module's tensors are this branch's alone
 
     def forward(self, x: torch.Tensor) -> dict:
-        return Portable._branch(self.host, self.br, x)  # ty: ignore[invalid-argument-type]
+        return Portable._branch(self.host, self.br, x)  # ty: ignore[invalid-argument-type, unresolved-attribute]
 
 
 def _mlx(portable: type[Portable]) -> type[Portable]:
@@ -759,7 +768,8 @@ def _mlx(portable: type[Portable]) -> type[Portable]:
             super().__init__(ctx)
             kernels = ctx.mode == "kernels"
             self._fns = {
-                id(br): MlxModule(_BranchModule(self, br), ctx.dtype, kernels=kernels) for br in self._branches()
+                id(br): MlxModule(_BranchModule(self, br), ctx.dtype, kernels=kernels, release=True)
+                for br in self._branches()
             }
 
         def _branch(self, br: _Branch, x: torch.Tensor) -> dict:
