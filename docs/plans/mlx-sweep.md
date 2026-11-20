@@ -811,6 +811,94 @@ may be stale or may need the same `compile=False`).
 The three pre-existing tests/test_mlx.py failures were stale tests, now fixed (aliked-lightglue as the portless family,
 cache limit 1/128 with 128 MB floor); `test_kernels_takes_mlx_kernels` follows the new depth-anything routing.
 
+## Cold start: the first call per input size (v0.21 follow-up)
+
+`mlx_graph.GraphNet` builds its replay lazily on the first call of each input signature, in memory only:
+`torch.export` + core-ATen decomposition (1 to 7 s), translation (BN folding, fusion, NHWC, constants), `mx.compile`
+of the segments, and a tuning pass that times every compiled segment above 16 MB once eagerly and once compiled
+(each trial is two calls of each form). MPS has none of it (its `first_call_s` is the warm time plus 0.1 to 0.6 s).
+
+Measured (M1 Pro 16 GB, portable mode, the survey's standard input, one job at a time, process start to first output;
+warm = steady call; "before" is the code at bf3ed8e8, "no cache" includes the tuning memo below, "hit" is a new process
+with a warm plan cache; second shape = one call at 3/4 of the size after the first, no cache -> hit):
+
+| ref (dtype) | warm s | first, before | first, no cache | first, hit | second shape | trials before -> now |
+|---|---|---|---|---|---|---|
+| depth-anything-v2-s (fp16, hand-written) | 0.07 | 0.10 | 0.10 | 0.09 | 0.07 | 0 |
+| dinov2-vitl14 (fp16, hand-written) | 0.06 | 0.08 | 0.08 | 0.08 | 0.03 | 0 |
+| yolox-tiny (fp16) | 0.014 | 1.5 | 1.5 | 1.08 | | 0 |
+| segformer-b0-ade20k (fp16) | 0.08 | 1.65 | 1.65 | 0.78 | 0.14 -> 0.07 | 0 |
+| rf-detr-n-coco (fp32) | 0.023 | 3.1 | 2.5 | 1.21 | 0.02 | 0 |
+| dfine-n-coco (fp16) | 0.021 | 2.9 (8.9 file-cache cold) | 2.9 | 1.16 | 0.02 | 0 |
+| parseq (fp16) | 0.016 | 6.0 | 6.0 | 2.84 | 0.02 | 0 |
+| ppocrv5-mobile (fp32) | 1.19 | 9.8 | 9.8 | 4.18 | | |
+| u2net (fp16) | 0.06 | 3.2 | 3.2 | 1.64 | | 1 |
+| hrnet-w32 (fp16) | 0.11 | 3.0 | 3.0 | 1.8 | 2.19 -> 1.05 | 4 |
+| geocalib-pinhole (fp16) | 0.30 | 5.2 | 5.0 | 2.42 | 3.82 -> 1.64 | 12 -> 12 |
+| da3mono-large (fp32) | 0.30 | 9.1 | 9.1 | 1.66 | 0.31 | 1 |
+| vitmatte-s (fp16) | 1.20 | 11.6 | 11.0 | 3.42 | 5.80 -> 2.03 | 39 -> 37 |
+| prompt-depth-anything-l (fp16) | 1.09 | 12.4 | 9.3 | 2.84 | 3.89 -> 2.05 (was 6.32) | 78 -> 23 |
+| psmnet-sceneflow (fp16) | 2.57 | 7.3 | 6.8 | 4.09 | 6.37 -> 2.20 | 45 -> 32 |
+| patchmatchnet (fp16) | 0.76 | 23.6 | 10.2 | 4.12 | 11.97 -> 3.12 (was 15.6) | 132 -> 95 |
+| depth-pro (fp16) | 4.72 | 33.5 | 21.2 | 8.36 | 4.74 | 154 -> 20 |
+| swin2sr-x2 (fp16) | 7.5 | 39.6 | 16.2 | 11.89 | 12.23 -> 7.64 (was 26.7) | 1076 -> 71 |
+
+Outputs: no cache vs cache miss vs cache hit compared leaf by leaf on two calls of every row above (17 families):
+bit-identical everywhere. `tests/test_golden.py::test_mlx` passes with the cache on, as miss and as hit, for vitmatte-s,
+rf-detr-n-coco, swin2sr-x2, patchmatchnet, prompt-depth-anything-l, hrnet-w32, parseq, dfine-n-coco and geocalib-pinhole
+(the hit runs take 30 to 80 % less time), and without it for swin2sr-x2 and patchmatchnet after the memo; `tests/test_mlx_plan_cache.py`
+checks a hit on a tiny conv + BN net (no export, bit-identical). Warm times unchanged by the memo (within 3 %). Second shape: most nets resize to a fixed
+input (detectors, dinov2, da3, depth-pro), so the second size costs one warm call; hrnet, geocalib, vitmatte, psmnet,
+patchmatchnet, swin2sr and prompt-depth-anything rebuild the graph for it. A cache miss costs 0.3 to 2.5 s more than no
+cache (`torch.export.save`); entries take 1 to 25 MB. The file-cache-cold first process (weights and Python modules not
+in the OS file cache: dfine 8.9 vs 2.9 s) is not touched by any of this.
+
+What was built:
+
+- `Model.warmup(sizes, *, views=8)` (`_core/model.py`): one call per `(height, width)` on the synthetic bench inputs,
+  under `inference_mode`; returns the model. Backend-agnostic (on MPS / CUDA it warms kernels and allocators).
+- `FASTFORKS_MLX_PLAN_CACHE=<dir>` (`shared/mlx_plan_cache.py`, off by default): per `MlxModule` and input signature,
+  the decomposed `ExportedProgram` (`torch.export.save`, parameters and buffers as one-element stand-ins rebound to the
+  module's own tensors by name, shape and dtype on load; the loaded graph is dead-code-eliminated, else the loader's
+  extra getitems on batch norm break BN folding and change bits) and the tuning decisions. Key: the load (ref, mode,
+  dtype, load options, user weight files; set by `Model._build_mlx`), module index and class, parameter shapes, input
+  signature, fastforks / torch / mlx versions and a fingerprint of fastforks' sources. Not cached: modules built outside
+  a model load, and exports that needed the eager forward first (lazy buffers). Empty and one-element tensors are
+  stored as they are (an empty stand-in broke `torch.export.save` for rf-detr).
+- Tuning memo (`mlx_graph._TUNE_MEMO`, always on): a trial's decision is keyed by the segment's op sequence and its
+  biggest activation rounded to a power of two, shared by all input sizes of an `MlxModule`; a repeated block and the
+  same segment at another size take it instead of timing again. Eager won 298 of swin2sr's 1076 trials, 13 of
+  patchmatchnet's 132, 9 of psmnet's 45, 6 of vitmatte's 39, so dropping the trials outright was not an option; the memo
+  keeps one trial per structure.
+- Survey: rows record `load_peak_footprint_mb` (peak after loading) and `second_shape_s` / `second_shape_input` (one
+  call at 3/4 size after the timed runs); `first_call_s` was there already. Existing rows stay valid.
+
+Usage: a server that knows its sizes calls `model.warmup([...])` at start-up; a CLI or batch job that restarts often
+sets `FASTFORKS_MLX_PLAN_CACHE` (both combine: the warm-up of a later process is then the fast "hit" column).
+
+### `cold_ms` and routing
+
+`cold_ms` = `first_call_s * 1000 - ms` of a survey row: the one-off cost of the first call at a size. Over the 115
+`auto` routes of `apple_mlx.json` (rows from before the memo): median 30 ms, 42 above 1 s, 17 above 5 s, 8 above 10 s;
+MPS stays at 0.1 to 1.2 s for the same refs. Calls until the MLX route has paid back its extra cold cost
+(`(cold_mlx - cold_mps) / (ms_mps - ms_mlx)`): swin2sr-x2 / x4 / x4-real 23 to 32, depth-pro 73, patchmatchnet 35,
+vitmatte-s / b 107 / 33, prompt-depth-anything-l 109, geocalib-pinhole 71, nnfoundation-vit 3, but dfine-n-coco 3084,
+parseq 1103, u2net 210, hrnet-w32 613, rf-detr-n-coco 301, segformer-b5 344 to 526, isnet-general-use 567;
+psmnet-sceneflow never (MLX is 0.7 % slower warm and routes on memory). A one-shot CLI call on these small, fast nets
+is slower on MLX than on MPS end to end.
+
+Proposal for `tools/gen_auto_mode.py` (not implemented): read `first_call_s` (and `second_shape_s` where present) from
+the rows and keep the `auto` route of a ref on MLX only when its break-even is at most `COLD_CALLS` calls (say 100) or
+its `cold_ms` is below a floor (say 1 s); otherwise write the MLX choice under a separate `auto_warm` key that the
+loader uses only when the caller warms the model (`Model.warmup` called, or `FASTFORKS_MLX_PLAN_CACHE` set, whose hit
+cold cost would then be the one to measure: survey it with the cache warm). The survey rows of the routed refs should
+be re-taken first (their `first_call_s` predates the memo, and swin2sr / depth-pro / patchmatchnet more than halved).
+
+Left: MLX's own compile and the translation still run on a hit (1 to 4 s on the mid-sized nets, 4 to 7 s on swin2sr /
+depth-pro); `mx.export_function` could store the compiled segments too. The survey rows of the routed refs were not
+re-taken with the memo. ppocrv5-mobile's survey first call is 35 s at fp16 against 9.8 s fp32 in this probe (not
+investigated; likely one graph per text-crop shape).
+
 ## Final MLX vs MPS table
 
 Every ref whose MLX row predated cc3fce13 (128 MB cache default) or the later compile-policy/channels-last/cache changes was re-measured on the M1 Pro 16 GB (warm median, one job at a time). Ratios are MLX/MPS, below 1 favours MLX. Row shown: float16 where both dtypes exist, else float32; best MLX mode of portable/kernels. WIN: faster and memory within 1.02x; TIE: within 3% speed, memory not above MPS; LOSE otherwise. 224 refs: 91 WIN, 5 TIE, 128 LOSE.

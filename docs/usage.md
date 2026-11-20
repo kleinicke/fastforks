@@ -40,6 +40,7 @@ directory.
 | `FASTFORKS_NONCOMMERCIAL` | `1` = also download weights with non-commercial licences (off in every install, also `fastforks`) |
 | `FASTFORKS_COMMERCIAL_ONLY` | `1` = refuse (and hide from `list`, `download`) every model not cleared for commercial use |
 | `FASTFORKS_MLX` | `0` = `device="mps"` always runs PyTorch MPS, never an [MLX port](#mps-takes-the-faster-port) |
+| `FASTFORKS_MLX_PLAN_CACHE` | a directory: [MLX](#apple-silicon-mlx) graph ports keep the exported graph and the tuning decisions of each input size there, so the first call of a size in a new process skips them (off by default; see "First call" there) |
 | `FASTFORKS_MLX_TUNING` | overrides single tunables of the [MLX](#apple-silicon-mlx) backend, e.g. `winograd=0,threadgroup=128` (for measuring; `tools/mlx_tune.py`) |
 | `FASTFORKS_HF_ENDPOINT` | redirects only our own Hugging Face repos (kernels, mirrored weights) to a mirror or `file://` stand-in, not the authors' hosts; for a full mirror use `FASTFORKS_WEIGHTS_PATH` |
 | `HF_TOKEN` | sent only to our own Hugging Face repos (private or rate-limited access); other repos: `huggingface_hub`'s own login |
@@ -780,6 +781,20 @@ print(model.backend.mode, model.backend.device, model.backend.kernels)  # kernel
 - Memory: MLX keeps freed buffers in a cache that is unbounded by default; fastforks caps it per process
   (512 MB on a 16 GB Mac, 1/32 of the memory up to 2 GB on larger ones). `fastforks bench MODEL --device mlx` reports
   MLX's peak of live arrays and that plus the cache.
+- First call: most ports run the network as a graph that is built on the first call of each input size (the network
+  is exported with `torch.export`, translated to `mx` operations, compiled, and on its first replay the large segments
+  are timed once compiled and once eagerly to keep the faster; repeated blocks reuse the first one's decision). That
+  takes from a fraction of a second (hand-written ports such as depth-anything-v2, dinov2) through 1 to 10 s (most
+  detectors, segmenters, matting and depth nets) to about 20 s (depth-pro, swin2sr) on an M1 Pro, a new input size
+  costs most of it again, and the result lives only in the process. Two ways to move it out of the first request:
+  `model.warmup([(1080, 1920), (720, 1280)])` calls the model once per size on synthetic inputs at start-up, and
+  `FASTFORKS_MLX_PLAN_CACHE=<dir>` keeps the exported graph (without weights: the parameters are bound by name on
+  load) and the tuning decisions per model, load options and input size on disk, so a later process skips the export
+  and the timing trials. That removes half to four fifths of the first call's extra time (vitmatte-s 11.0 -> 3.4 s,
+  patchmatchnet 10.2 -> 4.1 s, depth-pro 21.2 -> 8.4 s at 1.2, 0.8 and 4.7 s per warm call); the translation and
+  MLX's own compile still run. An entry takes 1 to 25 MB. The cache is keyed by the fastforks, torch and mlx versions
+  and fastforks' source files, so an upgrade starts it afresh; it is never pruned (delete the directory to reset it).
+  Outputs with and without it are bit-identical.
 - Not there: `model.module()`, `model.compile()` and ONNX / TensorRT export are PyTorch features and raise
   `BackendUnavailableError` on `"mlx"`; the outputs carry no gradients.
 
