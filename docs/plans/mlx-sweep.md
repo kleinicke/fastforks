@@ -178,7 +178,7 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | mobile-sam | promptable_segmentation | same (`_enc` = TinyViT trunk + norm) | fp32 100 ms / 947 MB vs MPS 81 / 1480. fp16 declared off: golden fails (pred_masks mean diff 0.49). Memory 36 percent lower, 1.2x slower. |
 | efficientvit-sam | promptable_segmentation | same; `compile=False` (a new `port` option): the fused elementwise kernels exceed Metal's argument-buffer limit under `mx.compile` | l0 fp32 116 ms / 1064 MB vs MPS 51 / 1779. Goldens pass. Memory lower, 2.3x slower. |
 | sam2 | promptable_segmentation | same (`_enc` = Hiera trunk, neck) | hiera-tiny fp32 219 ms / 1139 MB vs MPS 241 / 2581: faster and 2.3x lighter. fp32 only declared (hiera-base-plus fp16 misses its golden: pred_masks p99 diff 0.0091 > 0.009). |
-| sam3 | promptable_segmentation | `port(Portable, methods=("embed",))`; also fixes `aten.upsample_bilinear2d` antialias on integer images (uint8 resize matmul) | 1024x1024 fp32 2774 ms / 5023 MB vs MPS 3620 / 5807; fp16 2423 / 4198 vs 3688 / 3523. Goldens pass. 25-35 percent faster than MPS; fp16 uses more memory than MPS (peak at load). |
+| sam3 | promptable_segmentation | `MlxPortable`: the whole detector in hand-written `mx` (`sam3/net/mlx_net.py`: trunk, neck, CLIP text encoder, geometry / DETR encoder and decoder, scoring, mask decoder), weights read lazily from the checkpoint (no PyTorch twin), fp32 islands as `half_parts`; head-dim-32 attention zero-padded to 64 so MLX uses its fused SDPA (unfused: 0.8 GB scores in the DETR encoder); `mx.eval` per DETR layer / neck level / pixel-decoder stage (detector peak 1.1 -> 0.6 GB); `video`: MLX trunk + tracker neck, tracker heads CPU torch fp32 | 1024x1024 fp32 2062 ms / 4705 MB vs MPS 3620 / 5807; fp16 1657 / 2768 vs 3688 / 3523. Goldens pass. 55 % faster than MPS, 21 % leaner in fp16 (before: 2423 / 4198, +678 MB). `mx.compile` of the ViT layer: no gain (GEMM-bound). Nothing carries to MPS: its SDPA is already fused at head dim 32 (8.5 ms for 5184 tokens; padded to 64: 17 ms). |
 | clipseg | promptable_segmentation | `methods=("embed","decode")` | 1024x1024 fp32 33 ms / 932 MB vs MPS 45 / 1532; fp16 39 / 984 vs 38 / 1561. Goldens pass. Faster and lighter. |
 | insid3 | promptable_segmentation | `methods=("embed",)` (DINOv3 ViT-L backbone); the reference matching stays eager | vitl16 fp32 3244 ms / 2981 MB vs MPS 2953 / 2963 (parity). fp16 declared off: similarity map NaN. |
 | dedode | matching | `net.detector` + `net.descriptor` on MLX, fp32 only (fp16 keypoints mean diff 0.0022 > 0.002) | v2-b 2915 ms / 4374 MB vs MPS 1464 / 8011; v2-g 4967 / 5662 vs 3767 / 10008. Memory lower, speed slower than MPS. |
@@ -803,8 +803,8 @@ fp16 ms / footprint MB (portable; kernels where it exists), re-surveyed, goldens
 | lingbot-depth | 4.8 GB (probe) | 4577 / 2989 | 3376 / 3228 |
 
 Still behind MPS: dinov2-vits14 (398 vs 346 MB; process baseline, route stays off), moge-2-vits (+345 MB, 3 % slower),
-moge-2-vitb (13 % slower), lingbot-depth (36 % slower; memory is below MPS), sam3 fp16 (+678 MB: only the image encoder runs on
-MLX, the concept/text/decoder stay CPU torch plus the twin; the MLX peak itself is 2.4 GB). Not re-surveyed: prompt-depth-anything,
+moge-2-vitb (13 % slower), lingbot-depth (36 % slower; memory is below MPS). sam3 is fixed: the whole detector now runs
+in `mx` without a twin (fp16 1657 ms / 2768 MB vs MPS 3688 / 3523), so it routes to MLX in both dtypes. Not re-surveyed: prompt-depth-anything,
 moge-3, metric3d, zoedepth, video-depth-anything, unik3d, any2full, mask2former / oneformer, da3 (large-gap old rows,
 may be stale or may need the same `compile=False`).
 
