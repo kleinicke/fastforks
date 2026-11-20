@@ -1452,7 +1452,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | loma-r | 1037 | – | 309 | 262 | – | 1.2x | – | 1767 / 1878 | 1217 / 1328 |
 | romav1 | – | 386 | 377 | 218 | 1.8x | 1.7x | 3887 / 4094 | 1597 / 1738 | 1597 / 1738 |
 | romav2 | 1412 | 741 | 550 | 350 | 2.1x | 1.6x | 9881 / 10124 | 1989 / 2476 | 1890 / 2460 |
-| xfeat | – | 8.89 | 7.17 | 15.2 | 0.6x | 0.5x | 128 / 174 | 122 / 154 | 313 / 352 |
+| xfeat | – | 8.89 | 7.17 | 17.1 | 0.5x | 0.4x | 128 / 174 | 122 / 154 | 296 / 352 |
 | xfeat-lighterglue | – | 23.6 | 21.3 | 29.2 | 0.8x | 0.7x | 448 / 478 | 445 / 476 | 445 / 478 |
 
 ### Tracking, synthetic, 480x854
@@ -2693,7 +2693,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | loma-r | 768x1024 | 309 ms | 287 ms | 326 ms, bf16 engine | 262 ms | 142 s | 175 s | 1767 / 1878 | 2870 / 3256 | 1217 / 1328 | 1986 / 2010 |
 | romav1 | 768x1024 | 377 ms | 247 ms | public API unavailable | 218 ms | 698 s | – | 1597 / 1738 | 1348 / 1476 | 1597 / 1738 | – |
 | romav2 | 768x1024 | 550 ms | 723 ms | 353 ms | 350 ms | 360 s | 185 s | 1989 / 2476 | 3030 / 3144 | 1890 / 2460 | 6694 / 6740 |
-| xfeat | 768x1024 | 7.17 ms | 5.65 ms | 5.50 ms, fp32 engine (standalone image CNN, eager keypoint selection and matching) | 15.2 ms | 30.8 s | 11.8 s | 122 / 154 | 186 / 212 | 313 / 352 | 268 / 416 |
+| xfeat | 768x1024 | 7.17 ms | 5.65 ms | 5.50 ms, fp32 engine (standalone image CNN, eager keypoint selection and matching) | 17.1 ms | 30.8 s | 11.8 s | 122 / 154 | 186 / 212 | 296 / 352 | 268 / 416 |
 | xfeat-lighterglue | 768x1024 | 21.3 ms | 16.2 ms | public API unavailable | 29.2 ms | 39.7 s | – | 445 / 476 | 262 / 278 | 445 / 478 | – |
 | alltracker | 480x854 | 385 ms | 284 ms | public API unavailable | 213 ms | 105 s | – | 885 / 998 | 1273 / 1358 | 967 / 1068 | – |
 | alltracker | 256x256 | 412 ms | – | 330 ms, fp32 engine (frame CNN with eager tracking) | – | – | 20.3 s | 1438 / 2512 | – | – | 2262 / 3372 |

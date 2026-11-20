@@ -27,7 +27,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`loma-r`](#loma) | yes | 262 | 1328, 0.3x |
 | [`romav1`](#romav1) | yes | 218, 1.8x | 1738, 0.42x |
 | [`romav2`](#romav2) | yes | 350, 2.1x | 2460, 0.24x |
-| [`xfeat`](#xfeat) | yes | 15.2, 0.6x | 352, 2.0x |
+| [`xfeat`](#xfeat) | yes | 17.1, 0.5x | 352, 2.0x |
 | [`xfeat-lighterglue`](#xfeat) | yes | 29.2, 0.8x | 478, 1.0x |
 
 <a id="flexglue"></a>
@@ -529,7 +529,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 8.89<br>7.17<br>15.2<br>5.65<br>5.50 (standalone image CNN, eager keypoint selection and matching) | 128 / 174<br>122 / 154<br>313 / 352<br>186 / 212<br>268 / 416 |
+| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 8.89<br>7.17<br>17.1<br>5.65<br>5.50 (standalone image CNN, eager keypoint selection and matching) | 128 / 174<br>122 / 154<br>296 / 352<br>186 / 212<br>268 / 416 |
 | `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>21.3<br>29.2<br>16.2<br>public API unavailable | 448 / 478<br>445 / 476<br>445 / 478<br>262 / 278<br>– |
 
 <details><summary>Details</summary>
@@ -550,7 +550,7 @@ Commercial use: yes.
 - `xfeat-lighterglue` 768x1024, first call: portable + torch.compile 40 s (cold Inductor cache).
 - `xfeat` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + mnn, top_k 4096
 - `xfeat` portable 768x1024: Matched public-call comparison for the kernels row at the same input, using the card defaults.
-- `xfeat` kernels 768x1024: IEEE FP32 extractor uses eager CUDA at this geometry. Its small-shape CUDA graphs are retained. Matches and scores were bitwise equal on 66 MegaDepth pairs.
+- `xfeat` kernels 768x1024: The paired comparison reduced peak allocation by 16 MiB at this shape. Keypoints, matches and scores were bitwise identical on 32 real pairs. Focused CPU and CUDA goldens passed.
 - `xfeat-lighterglue` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + lighterglue, top_k 4096
 - `xfeat-lighterglue` portable 768x1024: Matched public-call comparison for the kernels row at the same input, using the card defaults.
 - `xfeat-lighterglue` kernels 768x1024: IEEE FP32 extractor uses eager CUDA at this geometry. Its small-shape CUDA graphs are retained. Matches and scores were bitwise equal on 66 MegaDepth pairs.

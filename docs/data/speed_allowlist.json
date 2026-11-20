@@ -18,8 +18,8 @@
   "flowformer-small-chairs 375x1242 kernels vs upstream": "Kernels retains the float32 network and accelerates flow upsampling. Current profiles are 353.516 ms kernels, 369.897 ms portable, and 302.65 ms upstream float16 autocast. The matched native workspace test saves 550 MiB in each CUDA mode (2026-11-19).",
   "flowformer-small-sintel 375x1242 kernels vs upstream": "Kernels retains the FP32 network and accelerates flow upsampling. The measured 321.873 ms compares with the original FP16 autocast at 302.97 ms (2026-11-19).",
   "flowformer-small-things 375x1242 kernels vs upstream": "Kernels retains the FP32 network and accelerates flow upsampling. The measured 322.080 ms compares with the original FP16 autocast at 303.13 ms (2026-11-19).",
-  "xfeat 768x1024 kernels vs portable": "IEEE FP32 convolutions preserve the kernel path’s keypoint threshold membership. The large extractor runs eagerly, taking 15.220 ms and reserving 352 MiB. Portable takes 7.165 ms.",
-  "xfeat 768x1024 kernels vs upstream": "The kernels descriptor CNN uses IEEE FP32 to preserve keypoint membership. Its 15.220 ms compares with 8.89 ms in the original using FP16 autocast.",
+  "xfeat 768x1024 kernels vs portable": "The kernels descriptor CNN uses IEEE FP32 convolutions. Under PyTorch's default convolution policy the portable path is faster at this geometry. The latest kernels measurement takes 17.101 ms and allocates 296 MiB, with 352 MiB reserved.",
+  "xfeat 768x1024 kernels vs upstream": "The kernels descriptor CNN uses IEEE FP32 convolutions. Its latest benchmark is 17.101 ms. The original FP16 autocast path measured 8.89 ms.",
   "xfeat-lighterglue 768x1024 kernels vs portable": "IEEE FP32 convolutions preserve the kernel path’s keypoint threshold membership. The large extractor runs eagerly, taking 29.226 ms and reserving 478 MiB. Portable takes 21.264 ms.",
   "xfeat-lighterglue 768x1024 kernels vs upstream": "The kernels descriptor CNN uses IEEE FP32 to preserve keypoint membership. Its 29.226 ms compares with 23.57 ms in the original using FP16 autocast."
 }
