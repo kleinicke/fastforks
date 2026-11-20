@@ -43,7 +43,8 @@ reason here (table at the bottom), not silence.
 
 ```
 export FASTFORKS_GOLDEN_PATH=/Volumes/Daten/ff-golden-all FF_TEST_DEFAULT_CACHES=1 \
-  FASTFORKS_CACHE=/Volumes/Daten/fastforks-cache FASTFORKS_OFFLINE=1 PYTHONPATH=src
+  FASTFORKS_CACHE=/Volumes/Daten/fastforks-cache FASTFORKS_OFFLINE=1 PYTHONPATH=src \
+  FASTFORKS_WEIGHTS_PATH=/Volumes/Daten/fastforks-weights
 PY=/Volumes/Daten/ff-mlx/venv/bin/python
 $PY -m pytest "tests/test_golden.py::test_mlx[<ref>]" -q --basetemp=/Volumes/Daten/fastforks-tmp/bt -p no:cacheprovider -m mlx
 ```
@@ -97,7 +98,7 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | marigold_v2 | depth | portable_mlx (`net/mlx_net.py`), bf16 pass (mean 0.0089 / p99 0.038, limits 0.01 / 0.05) | bf16 51319 ms / 2251 MB; MPS unsupported (cannot run). NF4 stays packed and is expanded per linear; the 60 blocks are read lazily from the file one at a time, the next block's read overlapped (`stream=True`, default; `stream=false` keeps ~9.5 GB resident). Per 994x1482 call: 60 blocks x ~650 ms (GEMM-bound, NF4 expand ~10 ms per linear), VAE encode 1.5 s + decode 2.4 s, ~8 s of cold reads not hidden. Nothing carries over to MPS (the gain is MLX's lazy file reads). fp16 not offered: Qwen-Image activations overflow fp16. |
 | metric3d | depth | portable_mlx, fp32+fp16 pass | fp16 2370 / 5009 vs MPS 1861 / 3636. Slower. |
 | midas | depth | portable_mlx, fp32+fp16 pass | fp16 668 / 4117 vs MPS 635 / 2407. The survey golden shows "fail" on MPS too (survey input quirk); `test_mlx` passes. |
-| moge | depth | portable_mlx (`_trunk` graph), fp32+fp16 pass | vits fp16 1148 / 6234 vs MPS 857 / 1679; vitb 1394 / 6475 vs 1012 / 2265; vitl 2221 / 7987 vs 1732 / 3265; moge-3 6508 / 10192 vs 3913 / 5968. The data-dependent sparse refiner of moge-3 stays eager. Slower and heavier. |
+| moge | depth | portable_mlx (`_trunk` graph), fp32+fp16 pass | vits fp16 1148 / 6234 vs MPS 857 / 1679; vitb 1394 / 6475 vs 1012 / 2265; vitl 2221 / 7987 vs 1732 / 3265; moge-3 fp16 3257 / 3170 vs 3913 / 5968 (fp32 3508 / 4115): its data-dependent sparse refiner runs as hand-written MLX ops + two Metal kernels (`moge/mlx_refine.py`: neighbour tables, gather implicit GEMM per conv, also at the finest level; was eager torch on the CPU, 3.8 s + ~4 GB), 1.5 s of the 3.3 s; fp16 routes to MLX. MoGe-2: slower and heavier. |
 | omni_dc | depth | portable_mlx (pre/post graphs, CG solve on the CPU), fp32+fp16 pass | fp16 3300 / 9841 vs MPS 2408 / 10081. |
 | pointdit | depth | portable_mlx (`_encode` fp32, `_dit`), fp32+fp16 pass | b fp16 373 / 1702 vs MPS 337 / 1912; fp32 357 / 1759 vs 367 / 1812. l fp16 1212 / 3759 vs 1013 / 4548; fp32 1073 / 4343 vs 1086 / 4516. Less memory than MPS. The DINOv3-L backbone overflows float16 (hidden states up to 1.5e5), so the backbone graph always runs in float32 (`fp32_methods`). |
 | prompt_depth_anything | depth | portable_mlx, fp32+fp16 pass | 756x1008 fp16 s 299 / 2138 vs MPS 195 / 1588. l re-surveyed at the new standard 994x1482 (both devices; the stale 756x1008 rows, upstream's included, dropped): fp16 1082 / 2757 vs MPS 1143 / 3303 (routed); fp32 1404 / 4681 vs 1278 / 4944. |
@@ -1093,7 +1094,7 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 | mobilenetv1_100.ra4_e3600_r224_in1k | 16 | 224x224 | portable | 2.3 | 367 | 5.129 | 461 | 0.45 | 0.80 | WIN |  |
 | mocha-v1-sceneflow | 16 | 994x1482 | portable | 9657.0 | 3382 | 6693.339 | 5695 | 1.44 | 0.59 | LOSE | slower (1.44x: portable MLX replay, no fused attention/conv kernels) |
 | moge-2-vitl-normal | 16 | 994x1482 | portable | 2080.7 | 3009 | 1731.978 | 3265 | 1.20 | 0.92 | LOSE | slower (1.20x: portable MLX replay, no fused attention/conv kernels) |
-| moge-3-vitl | 16 | 994x1482 | portable | 5657.1 | 5822 | 3913.491 | 5968 | 1.45 | 0.98 | LOSE | slower (1.45x: portable MLX replay, no fused attention/conv kernels): the trunk is at parity (1705 ms on both); the MoGe-3 sparse refiner runs eagerly on the CPU in MLX mode (3.8 s vs MPS 2.15 s, ~4 GB CPU memory). Needs a refiner port. |
+| moge-3-vitl | 16 | 994x1482 | portable | 3256.8 | 3170 | 3913.491 | 5968 | 0.83 | 0.53 | WIN | the trunk at parity (1.7 s); the sparse refiner on MLX (`mlx_refine.py`: gather implicit GEMM Metal kernel per conv, binary-search neighbour tables), 1.5 s for 3 steps vs MPS 2.15 s |
 | monster-plusplus-mix-all | 16 | 994x1482 | portable | 18356.8 | 5477 | 10202.192 | 7347 | 1.80 | 0.75 | LOSE | slower (1.80x: portable MLX replay, no fused attention/conv kernels) |
 | monster-sceneflow | 16 | 994x1482 | portable | 19649.8 | 5189 | 9642.315 | 6299 | 2.04 | 0.82 | LOSE | slower (2.04x: portable MLX replay, no fused attention/conv kernels) |
 | mvsanywhere | 16 | 448x672 | portable | 3772.5 | 2054 | 1064.367 | 3801 | 3.54 | 0.54 | LOSE | slower (3.54x: portable MLX replay, no fused attention/conv kernels) |

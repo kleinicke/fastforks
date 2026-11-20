@@ -704,13 +704,33 @@ class MetalKernels(Portable):
             override(m, _metal_subm_conv)
 
 
+class _MlxPortable(Portable):
+    """`Portable` for the MLX runners.
+
+    The trunk runs as an MLX graph (`mlx_wrap.port`), the MoGe-3 refiner as hand-written MLX operations and Metal
+    kernels (`mlx_refine`, float32; on the CPU it took 3.8 s and ~4 GB at 994x1482).
+    """
+
+    _mlx_refiner: Any = None
+
+    def _forward(self, image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor]:
+        coords, mask, normal, scale, enc = self._trunk(image)
+        if self.net.refiner is not None:
+            from . import mlx_refine  # noqa: PLC0415 - MLX only on Apple
+
+            if self._mlx_refiner is None:
+                self._mlx_refiner = mlx_refine.MlxRefiner(self.net.refiner)
+            coords = mlx_refine.refine(self._mlx_refiner, coords, enc, _REFINE_STEPS, _DEPTH_RES)
+        return coords, mask, normal, scale
+
+
 # compile=False: the compiled fp16 segments of the full-resolution decoder peak at 3.9 GB (moge-2-vits 994x1482), the lazy
 # replay at 2.0 GB, at the same speed (vitb: 8 % slower, 2.1 GB vs MPS 2.3 GB)
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_trunk",), compile=False),
-    "kernels_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_trunk",), compile=False),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=(), methods=("_trunk",), compile=False),
+    "kernels_mlx": mlx_wrap.port(_MlxPortable, attrs=(), methods=("_trunk",), compile=False),
     "kernels_mps": MetalKernels,
 }
 

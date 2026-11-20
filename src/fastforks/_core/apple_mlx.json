@@ -2359,6 +2359,9 @@
    }
   },
   "moge-3-vitl@1": {
+   "dtypes": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
