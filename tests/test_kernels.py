@@ -410,8 +410,10 @@ def test_dll_image_loads_from_a_private_copy():
     assert lib.GetFileVersionInfoSizeW
     copy = kernels._dll_dir() / "ff_test_version.dll"
     assert copy.read_bytes() == src.read_bytes()
-    with pytest.raises(FileExistsError):  # never overwritten (a loaded image cannot be swapped under its name)
-        kernels._load_dll_image(b"", "ff_test_version.dll")
+    # a second load (e.g. a second model using the library) never overwrites a loaded copy: it gets its own file
+    again = kernels._load_dll_image(src.read_bytes(), "ff_test_version.dll")
+    assert again.GetFileVersionInfoSizeW
+    assert copy.read_bytes() == (kernels._dll_dir() / "ff_test_version.1.dll").read_bytes()
 
 
 def test_binary_names_the_driver_remedy(monkeypatch):
