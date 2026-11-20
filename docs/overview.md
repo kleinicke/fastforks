@@ -85,7 +85,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`mocha-v2-sceneflow`](models/stereo.md#mocha-stereo) | yes | 3.82 | 1295.1 (994x1482) | 1033.5 | 448.1 | 2.9x vs original (994x1482) | 1587 |
 | [`mocha-v1-sceneflow`](models/stereo.md#mocha-stereo) | yes | 4.35 | 1456.2 (994x1482) | 1057.2 | 455.5 | 3.2x vs original (994x1482) | 1588 |
 | [`great-igev-middlebury`](models/stereo.md#great-igev) | yes | 27.53 ? | OOM (994x1482) | 1789.1 | 580.0 | 3.1x vs portable | 1472 |
-| [`defom-stereo-vitl-sceneflow`](models/stereo.md#defom-stereo) | no | 2.44 | 2815.8 (994x1482) | 1439.0 | 645.2 | 4.4x vs original (994x1482) | 2781 |
+| [`defom-stereo-vitl-sceneflow`](models/stereo.md#defom-stereo) | no | 2.44 | 2815.8 (994x1482) | 1436.3 | 645.2 | 4.4x vs original (994x1482) | 2781 |
 | [`monster-sceneflow`](models/stereo.md#monster) | no | 1.34 | 4275.0 (994x1482) | 1584.9 | 654.5 | 6.5x vs original (994x1482) | 2216 |
 | [`monster-mix-all`](models/stereo.md#monster) | no | 1.25 † | 4275.0 (994x1482) | 1584.9 | 655.8 | 6.5x vs original (994x1482) | 1829 |
 | [`monster-plusplus-mix-all`](models/stereo.md#monster) | no | 1.08 ? | 4334.5 (994x1482) | 1633.3 | 657.6 | 6.6x vs original (994x1482) | 1919 |

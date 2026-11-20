@@ -845,7 +845,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | cas-gwcnet-gc-sceneflow | – | – | 473 | 359 | 1.3x | 2032 / 2228 | 2035 / 2230 |
 | cfnet-sceneflow | – | – | 409 | 225 | 1.8x | 1822 / 2578 | 1073 / 1604 |
 | coex-sceneflow | – | – | 49.9 | 23.5 | 2.1x | 1093 / 1174 | 368 / 514 |
-| defom-stereo-vitl-sceneflow | – | – | 1439 | 645 | 2.2x | 4102 / 4252 | 2781 / 4234 |
+| defom-stereo-vitl-sceneflow | – | – | 1436 | 645 | 2.2x | 3109 / 3452 | 2781 / 4234 |
 | dlnr-middlebury | – | – | 399 | 215 | 1.9x | 1502 / 1976 | 851 / 982 |
 | fast-acvnet-generalization | – | – | 54.7 | 38.1 | 1.4x | 653 / 756 | 654 / 716 |
 | fast-acvnet-kitti12 | – | – | 54.7 | 38.1 | 1.4x | 653 / 756 | 654 / 716 |
@@ -2147,7 +2147,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | cfnet-sceneflow | 994x1482 | 409 ms | 249 ms | 171 ms | 225 ms | 53.0 s | 139 s | 1822 / 2578 | 1026 / 1398 | 1073 / 1604 | 1357 / 1410 |
 | coex-sceneflow | 994x1482 | 49.9 ms | 29.4 ms | 20.6 ms | 23.5 ms | 22.4 s | 56.6 s | 1093 / 1174 | 351 / 452 | 368 / 514 | 438 / 452 |
 | crestereo-eth3d | 994x1482 | 724 ms | 398 ms | 298 ms | 229 ms | 120 s | 224 s | 810 / 946 | 695 / 748 | 644 / 732 | 703 / 740 |
-| defom-stereo-vitl-sceneflow | 994x1482 | 1439 ms | 1002 ms | public API unavailable | 645 ms | 122 s | – | 4102 / 4252 | 3021 / 3292 | 2781 / 4234 | – |
+| defom-stereo-vitl-sceneflow | 994x1482 | 1436 ms | 1002 ms | public API unavailable | 645 ms | 122 s | – | 3109 / 3452 | 3021 / 3292 | 2781 / 4234 | – |
 | defom-stereo-vitl-sceneflow | 375x1242 | 404 ms | – | 1151 ms, bf16 engine (whole graph at fixed 375 x 1242) | 180 ms | – | 168 s | 2394 / 2538 | – | 1627 / 1786 | 1782 / 1790 |
 | dlnr-middlebury | 994x1482 | 399 ms | 303 ms | 241 ms | 215 ms | 67.9 s | 156 s | 1502 / 1976 | 1343 / 1692 | 851 / 982 | 1455 / 1546 |
 | dlnr-sceneflow | 994x1482 | 398 ms | 301 ms | 241 ms | 214 ms | 69.0 s | 161 s | 2635 / 3142 | 1343 / 1672 | 1236 / 1606 | 1711 / 1784 |

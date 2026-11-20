@@ -550,7 +550,7 @@ Commercial use: yes.
 - `xfeat-lighterglue` 768x1024, first call: portable + torch.compile 40 s (cold Inductor cache).
 - `xfeat` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + mnn, top_k 4096
 - `xfeat` portable 768x1024: Matched public-call comparison for the kernels row at the same input, using the card defaults.
-- `xfeat` kernels 768x1024: The paired comparison reduced peak allocation by 16 MiB at this shape. Keypoints, matches and scores were bitwise identical on 32 real pairs. Focused CPU and CUDA goldens passed.
+- `xfeat` kernels 768x1024: The paired comparison reduced peak allocation by 16 MiB at this shape. Keypoints, matches and scores were bitwise identical on 32 real pairs. Focused CPU and CUDA reference tests passed.
 - `xfeat-lighterglue` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + lighterglue, top_k 4096
 - `xfeat-lighterglue` portable 768x1024: Matched public-call comparison for the kernels row at the same input, using the card defaults.
 - `xfeat-lighterglue` kernels 768x1024: IEEE FP32 extractor uses eager CUDA at this geometry. Its small-shape CUDA graphs are retained. Matches and scores were bitwise equal on 66 MegaDepth pairs.

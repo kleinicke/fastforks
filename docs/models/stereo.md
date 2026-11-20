@@ -544,7 +544,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `defom-stereo-vitl-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4175<br>2816<br>1439<br>645<br>1002<br>public API unavailable | 10896 / 11072<br>8639 / 8766<br>4102 / 4252<br>2781 / 4234<br>3021 / 3292<br>– |
+| `defom-stereo-vitl-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4175<br>2816<br>1436<br>645<br>1002<br>public API unavailable | 10896 / 11072<br>8639 / 8766<br>3109 / 3452<br>2781 / 4234<br>3021 / 3292<br>– |
 | `defom-stereo-vitl-sceneflow` | KITTI 2015 (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT bf16 | 947<br>509<br>404<br>180<br>1151 (whole graph at fixed 375 x 1242) | 3172 / 3360<br>2458 / 2610<br>2394 / 2538<br>1627 / 1786<br>1782 / 1790 |
 
 <details><summary>Details</summary>
@@ -565,7 +565,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - `defom-stereo-vitl-sceneflow` 994x1482, first call: portable + torch.compile 122 s (cold Inductor cache).
 - `defom-stereo-vitl-sceneflow` 375x1242, first call: TensorRT bf16 168 s (ONNX + engine).
 - `defom-stereo-vitl-sceneflow` original 994x1482, original 375x1242: the authors' mixed-precision option (float16)
-- `defom-stereo-vitl-sceneflow` portable 994x1482: Fifteen full API calls. Portable inference computes only the final upsampling mask. Paired synthetic and three labeled Middlebury disparity outputs match bitwise.
+- `defom-stereo-vitl-sceneflow` portable 994x1482: Large portable BF16 inputs reuse one feature workspace across the two views. Paired peak allocation fell from 4101 to 3108 MiB. Disparities matched bitwise on the standard input, an odd batch and three Middlebury scenes.
 - `defom-stereo-vitl-sceneflow` kernels 994x1482: Freed the first normalized activation before the final residual normalization. The matched baseline was 643.826 ms and 3148 MiB peak allocated. The synthetic result and three labeled pairs matched bitwise.
 - `defom-stereo-vitl-sceneflow` load / first call: original 4.24 s / 2.83 s, portable 1.2 s / 1.728 s, kernels 2.74 s / 0.305 s (375x1242)
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
