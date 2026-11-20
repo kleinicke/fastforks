@@ -97,8 +97,8 @@ def _apple_options(device: str) -> dict[str, dict[Option, dict[Workload, Run]]]:
 def _route_score(ratios: list[float], savings: list[float | None], *, memory: bool) -> float | None:
     """Median `ms / baseline ms` when the route qualifies, else None.
 
-    It qualifies when at least `MIN_GAIN` faster, or (with the memory rule) at most `TRADE_SLOWDOWN` slower while needing
-    at most `TRADE_MEMORY` of the baseline's peak memory on every workload.
+    It qualifies when at least `MIN_GAIN` faster, or (with the memory rule) at most `TRADE_SLOWDOWN` slower while
+    needing at most `TRADE_MEMORY` of the baseline's peak memory on every workload.
     """
     if not ratios:
         return None
