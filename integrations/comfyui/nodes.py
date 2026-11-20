@@ -165,12 +165,16 @@ def setup_cache(environ: os._Environ[str] | dict[str, str] = os.environ) -> None
     """
     import folder_paths  # noqa: PLC0415 - ComfyUI only
 
-    folder_paths.add_model_folder_path("fastforks", os.path.join(folder_paths.models_dir, "fastforks"))  # noqa: PTH118
+    folder_paths.add_model_folder_path("fastforks", str(Path(folder_paths.models_dir) / "fastforks"))
     dirs = list(folder_paths.get_folder_paths("fastforks"))
     normal = environ.get("FASTFORKS_CACHE") or fastforks_cache_default()
     reads = [*dirs[1:], normal, *environ.get("FASTFORKS_READ_CACHES", "").split(os.pathsep)]
     environ["FASTFORKS_CACHE"] = dirs[0]
-    keep = [d for d in dict.fromkeys(reads) if d and d != dirs[0] and os.path.isdir(d)]  # noqa: PTH112
+    seen, keep = {Path(dirs[0]).resolve()}, []
+    for d in filter(None, reads):  # one entry per folder, however it is spelled (separators, `..`, links)
+        if (p := Path(d).resolve()) not in seen and p.is_dir():
+            seen.add(p)
+            keep.append(d)
     environ["FASTFORKS_READ_CACHES"] = os.pathsep.join(keep)
     log.info("fastforks: downloads go to %s; also reading %s", dirs[0], keep)
 

@@ -209,7 +209,8 @@ def test_cache_setup(pack: Any, tmp_path: Path) -> None:
     for d in (extra, normal):
         d.mkdir()
     pack.fp.paths["fastforks"] = [str(first), str(extra), str(tmp_path / "missing")]
-    environ = {"FASTFORKS_CACHE": str(normal)}
+    again = str(tmp_path / "extra" / ".." / "normal")  # the same folder spelled another way is read once
+    environ = {"FASTFORKS_CACHE": str(normal), "FASTFORKS_READ_CACHES": os.pathsep.join([again, str(first)])}
     pack.nodes.setup_cache(environ)
     assert environ["FASTFORKS_CACHE"] == str(first)
     assert environ["FASTFORKS_READ_CACHES"].split(os.pathsep) == [str(extra), str(normal)]
