@@ -12,11 +12,10 @@ Returns both keypoint sets, the index pairs of the matches and their scores. Flo
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import torch
 from torch import nn
-from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.patch import override
@@ -25,7 +24,6 @@ from fastforks.matching._runner import Forward, Runner
 from fastforks.shared.cuda_graphs import CapturedModule
 from fastforks.shared.lightglue import LightGlue, resize_long
 
-from .net.model import BasicLayer
 from .net.xfeat import XFeat
 
 if TYPE_CHECKING:
@@ -121,12 +119,8 @@ def load_matcher(ctx: Context) -> Matcher:
             {k.replace("matcher.", ""): v for k, v in sd.items() if not k.startswith("extractor.")},
             f"{ctx.variant.ref} checkpoint",
         )
-    net.eval().requires_grad_(requires_grad=False)
-    for m in net.xfeat.net.modules():  # BatchNorm (eval statistics) folded into the conv before it
-        if isinstance(m, BasicLayer):
-            conv, bn, relu = cast("tuple[nn.Conv2d, nn.BatchNorm2d, nn.Module]", tuple(m.layer))
-            m.layer = nn.Sequential(fuse_conv_bn_eval(conv, bn), relu)
-    return net.to(ctx.device)
+    # Folded BatchNorm changes the CUDA keypoint threshold decisions and the measured pose accuracy.
+    return net.eval().requires_grad_(requires_grad=False).to(ctx.device)
 
 
 class Portable(Runner):
