@@ -26,7 +26,6 @@ from fastforks.kernels import cudnn_hacc, dpt_fused
 from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import use_sdpa_attention
 from fastforks.shared.depth_anything_v2.fast_vit import FastViT
-from fastforks.shared.mlx_graph import MlxModule
 
 from .net.unidepthv2 import UniDepthV2, _postprocess, get_paddings, get_resize_factor
 from .net.utils import PinholeCamera
@@ -425,6 +424,8 @@ def _mlx(portable: type[Portable]) -> type[Portable]:
 
         def __init__(self, ctx: Context) -> None:
             """Wrap the network."""
+            from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - MLX only (imports mlx)
+
             super().__init__(ctx)
             self._enc = MlxModule(_Encoded(self.net), ctx.dtype, kernels=ctx.mode == "kernels")
 

@@ -9,7 +9,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from fastforks.shared import mlx_wrap
-from fastforks.shared.mlx_graph import MlxModule
 
 if TYPE_CHECKING:
     from fastforks.volume._runner import Context, Runner
@@ -23,6 +22,8 @@ def port(portable: type[Runner]) -> type[Runner]:
 
         def __init__(self, ctx: Context) -> None:
             """Build the PyTorch runner, then replace each network by its MLX graph."""
+            from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - MLX only (imports mlx)
+
             super().__init__(ctx)
             dtype = mlx_wrap.run_dtype(ctx)
             for part in self.parts:

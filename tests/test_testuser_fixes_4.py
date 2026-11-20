@@ -111,7 +111,9 @@ def test_same_aspect_size_change_warns_once(caplog, monkeypatch):
     assert "crop" in msgs[0]
 
 
-@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores directory permissions")
+@pytest.mark.skipif(
+    not hasattr(os, "geteuid") or os.geteuid() == 0, reason="needs POSIX directory permissions (root ignores them)"
+)
 def test_read_only_cache_is_a_weights_download_error(tmp_path):
     ro = tmp_path / "ro"
     ro.mkdir()

@@ -148,7 +148,9 @@ def test_output_dir_checks(tmp_path):
     assert check_output_dir(tmp_path / "new" / "sub").is_dir()
 
 
-@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores directory permissions")
+@pytest.mark.skipif(
+    not hasattr(os, "geteuid") or os.geteuid() == 0, reason="needs POSIX directory permissions (root ignores them)"
+)
 def test_output_dir_not_writable(tmp_path):
     ro = tmp_path / "ro"
     ro.mkdir()

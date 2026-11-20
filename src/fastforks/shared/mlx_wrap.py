@@ -19,8 +19,6 @@ from typing import TYPE_CHECKING, Any
 
 import torch
 
-from fastforks.shared.mlx_graph import MlxModule
-
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Mapping
 
@@ -196,6 +194,8 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                     mx.set_cache_limit(int(forced) << 20)
                 else:
                     mx.set_cache_limit(max(cache << 20, mx.set_cache_limit(0)))  # returns the previous limit
+            from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - MLX only (imports mlx)
+
             kernels = ctx.mode == "kernels" and (ctx.dtype == "float16" or not kernels_fp16_only)
             compiled = (
                 compile and os.environ.get("FASTFORKS_MLX_COMPILE") != "0"
