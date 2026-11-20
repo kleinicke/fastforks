@@ -25,16 +25,16 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`dfine-s-coco`](#dfine) | yes | 3.75, 6.8x | 170, 0.92x |
 | [`dfine-x-coco`](#dfine) | yes | 9.59, 4.7x | 298, 0.61x |
 | [`faster-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 19.5, 2.1x | 450, 0.64x |
-| [`grounding-dino-base`](#grounding_dino) | yes | 109, 2.1x | 1364, 0.44x |
-| [`grounding-dino-tiny`](#grounding_dino) | yes | 86.9, 2.3x | 1188, 0.44x |
+| [`grounding-dino-base`](#grounding_dino) | yes | 109, 2.1x | 1322, 0.43x |
+| [`grounding-dino-tiny`](#grounding_dino) | yes | 86.9, 2.3x | 1106, 0.41x |
 | [`lw-detr-large-coco`](#lwdetr) | yes | 5.64, 4.0x | 254, 0.66x |
 | [`lw-detr-medium-coco`](#lwdetr) | yes | 3.78, 6.2x | 178, 0.65x |
 | [`lw-detr-small-coco`](#lwdetr) | yes | 2.80, 7.1x | 140, 0.84x |
 | [`lw-detr-tiny-coco`](#lwdetr) | yes | 2.20, 7.5x | 134, 1.0x |
 | [`lw-detr-xlarge-coco`](#lwdetr) | yes | 9.39, 2.7x | 382, 0.45x |
 | [`mask-rcnn-r50-fpn-3x-coco`](#rcnn) | yes | 21.0, 2.1x | 400, 0.62x |
-| [`mm-grounding-dino-base`](#grounding_dino) | yes | 109, 2.1x | 1366, 0.44x |
-| [`mm-grounding-dino-tiny`](#grounding_dino) | yes | 87.2, 2.3x | 1188, 0.44x |
+| [`mm-grounding-dino-base`](#grounding_dino) | yes | 110, 2.1x | 1324, 0.43x |
+| [`mm-grounding-dino-tiny`](#grounding_dino) | yes | 87.2, 2.3x | 1108, 0.41x |
 | [`owlv2-b16`](#owlv2) | yes | 23.7, 3.9x | 612, 0.64x |
 | [`owlv2-l14`](#owlv2) | yes | 110, 1.9x | 1184, 0.45x |
 | [`rf-detr-l-coco`](#rfdetr) | yes | 5.30, 2.2x | 206, 0.86x |
@@ -311,13 +311,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 199<br>138<br>86.9<br>111<br>116 (fixed 80-class text prompt) | 2541 / 2716<br>1404 / 1468<br>1034 / 1188<br>2550 / 2664<br>883 / 888 |
+| `grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 199<br>110<br>86.9<br>111<br>116 (fixed 80-class text prompt) | 2541 / 2716<br>987 / 1106<br>987 / 1106<br>2550 / 2664<br>883 / 888 |
 | `grounding-dino-tiny` | synthetic (320x320) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>69.0<br>55.4<br>13.6 (network with fixed COCO prompts, standalone build) | –<br>841 / 948<br>841 / 948<br>387 / 406 |
-| `grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 230<br>160<br>109<br>131<br>159 (fixed 80-class text prompt) | 2895 / 3094<br>1525 / 1624<br>1156 / 1364<br>2669 / 2800<br>1153 / 1160 |
+| `grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 230<br>132<br>109<br>131<br>159 (fixed 80-class text prompt) | 2895 / 3094<br>1105 / 1322<br>1105 / 1322<br>2669 / 2800<br>1153 / 1160 |
 | `grounding-dino-base` | 320x320 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>17.6 (fixed 80-class text prompt) | –<br>–<br>–<br>609 / 628 |
-| `mm-grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 202<br>138<br>87.2<br>111<br>116 (fixed 80-class text prompt) | 2541 / 2716<br>1405 / 1470<br>1035 / 1188<br>2555 / 2666<br>883 / 890 |
+| `mm-grounding-dino-tiny` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 202<br>110<br>87.2<br>111<br>116 (fixed 80-class text prompt) | 2541 / 2716<br>989 / 1108<br>989 / 1108<br>2555 / 2666<br>883 / 890 |
 | `mm-grounding-dino-tiny` | synthetic (320x320) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>69.2<br>55.5<br>13.8 (network with fixed COCO prompts, standalone build) | –<br>842 / 950<br>842 / 950<br>387 / 408 |
-| `mm-grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 232<br>160<br>109<br>132<br>158 (fixed 80-class text prompt) | 2895 / 3094<br>1525 / 1624<br>1157 / 1366<br>2669 / 2800<br>1153 / 1160 |
+| `mm-grounding-dino-base` | synthetic (800x1344) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 232<br>132<br>110<br>132<br>158 (fixed 80-class text prompt) | 2895 / 3094<br>1107 / 1324<br>1107 / 1324<br>2669 / 2800<br>1153 / 1160 |
 | `mm-grounding-dino-base` | 320x320 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>17.7 (fixed 80-class text prompt) | –<br>–<br>–<br>641 / 662 |
 
 <details><summary>Details</summary>
@@ -344,17 +344,17 @@ Commercial use: yes.
 - `mm-grounding-dino-base` 800x1344, first call: portable + torch.compile 105 s (cold Inductor cache), TensorRT fp32 125 s (ONNX + engine).
 - `mm-grounding-dino-base` 320x320, first call: TensorRT fp32 134 s (ONNX + engine).
 - `grounding-dino-tiny` original 800x1344: torch.autocast(float16) around the call; transformers GroundingDinoForObjectDetection + processor (CPU), coco-80 caption, text tower per call
-- `grounding-dino-tiny` kernels 800x1344: Fifteen full API calls at the same standard input size as the existing portable comparison.
+- `grounding-dino-tiny` portable 800x1344, kernels 800x1344: Synthetic 800 × 1344 image and default COCO vocabulary through the full public API.
 - `grounding-dino-tiny` portable 320x320: Full public call on a 320 x 320 image, resized to 800 x 800. The standalone TensorRT row times the fixed 320 x 320 normalized network input.
 - `grounding-dino-tiny` kernels 320x320: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `grounding-dino-base` original 800x1344: torch.autocast(float16) around the call; transformers GroundingDinoForObjectDetection + processor (CPU), coco-80 caption, text tower per call
-- `grounding-dino-base` kernels 800x1344: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `grounding-dino-base` portable 800x1344, kernels 800x1344: Synthetic 800 × 1344 image and default COCO vocabulary through the full public API.
 - `mm-grounding-dino-tiny` original 800x1344: torch.autocast(float16) around the call; transformers MMGroundingDinoForObjectDetection + processor (CPU), coco-80 caption, text tower per call
-- `mm-grounding-dino-tiny` kernels 800x1344: Fifteen full API calls at the same standard input size as the existing portable comparison.
+- `mm-grounding-dino-tiny` portable 800x1344, kernels 800x1344: Synthetic 800 × 1344 image and default COCO vocabulary through the full public API.
 - `mm-grounding-dino-tiny` portable 320x320: Full public call on a 320 x 320 image, resized to 800 x 800. The standalone TensorRT row times the fixed 320 x 320 normalized network input.
 - `mm-grounding-dino-tiny` kernels 320x320: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `mm-grounding-dino-base` original 800x1344: torch.autocast(float16) around the call; transformers MMGroundingDinoForObjectDetection + processor (CPU), coco-80 caption, text tower per call
-- `mm-grounding-dino-base` kernels 800x1344: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `mm-grounding-dino-base` portable 800x1344, kernels 800x1344: Synthetic 800 × 1344 image and default COCO vocabulary through the full public API.
 - `grounding-dino-tiny` load / first call: original 4.06 s / 1.176 s, portable 3.01 s / 0.508 s, kernels 4.14 s / 0.422 s (320x320)
 - `grounding-dino-base` load / first call: original 4.16 s / 0.989 s, portable 3.29 s / 0.527 s, kernels 4.22 s / 0.449 s
 - `mm-grounding-dino-tiny` load / first call: original 4.17 s / 0.99 s, portable 3.26 s / 0.517 s, kernels 3.42 s / 0.43 s (320x320)

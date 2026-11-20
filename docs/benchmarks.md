@@ -1181,16 +1181,16 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | dfine-s-coco | 25.7 | 31.9 | 11.4 | 3.75 | 6.8x | 3.0x | 152 / 184 | 108 / 128 | 108 / 170 |
 | dfine-x-coco | 44.9 | 54.6 | 18.6 | 9.59 | 4.7x | 1.9x | 476 / 536 | 230 / 258 | 231 / 298 |
 | faster-rcnn-r50-fpn-3x-coco | 83.6 | 41.4 | 22.8 | 19.5 | 2.1x | 1.2x | 626 / 708 | 390 / 490 | 391 / 450 |
-| grounding-dino-base | – | 230 | 160 | 109 | 2.1x | 1.5x | 2895 / 3094 | 1525 / 1624 | 1156 / 1364 |
-| grounding-dino-tiny | – | 199 | 138 | 86.9 | 2.3x | 1.6x | 2541 / 2716 | 1404 / 1468 | 1034 / 1188 |
+| grounding-dino-base | – | 230 | 132 | 109 | 2.1x | 1.2x | 2895 / 3094 | 1105 / 1322 | 1105 / 1322 |
+| grounding-dino-tiny | – | 199 | 110 | 86.9 | 2.3x | 1.3x | 2541 / 2716 | 987 / 1106 | 987 / 1106 |
 | lw-detr-large-coco | – | 22.8 | 10.2 | 5.64 | 4.0x | 1.8x | 355 / 382 | 204 / 230 | 192 / 254 |
 | lw-detr-medium-coco | – | 23.3 | 8.75 | 3.78 | 6.2x | 2.3x | 228 / 274 | 131 / 156 | 131 / 178 |
 | lw-detr-small-coco | – | 19.9 | 8.82 | 2.80 | 7.1x | 3.1x | 129 / 166 | 97 / 116 | 99 / 140 |
 | lw-detr-tiny-coco | – | 16.4 | 7.45 | 2.20 | 7.5x | 3.4x | 114 / 132 | 92 / 112 | 94 / 134 |
 | lw-detr-xlarge-coco | – | 25.5 | 12.1 | 9.39 | 2.7x | 1.3x | 762 / 850 | 348 / 360 | 336 / 382 |
 | mask-rcnn-r50-fpn-3x-coco | 85.4 | 43.5 | 24.6 | 21.0 | 2.1x | 1.2x | 604 / 650 | 352 / 440 | 353 / 400 |
-| mm-grounding-dino-base | – | 232 | 160 | 109 | 2.1x | 1.5x | 2895 / 3094 | 1525 / 1624 | 1157 / 1366 |
-| mm-grounding-dino-tiny | – | 202 | 138 | 87.2 | 2.3x | 1.6x | 2541 / 2716 | 1405 / 1470 | 1035 / 1188 |
+| mm-grounding-dino-base | – | 232 | 132 | 110 | 2.1x | 1.2x | 2895 / 3094 | 1107 / 1324 | 1107 / 1324 |
+| mm-grounding-dino-tiny | – | 202 | 110 | 87.2 | 2.3x | 1.3x | 2541 / 2716 | 989 / 1108 | 989 / 1108 |
 | owlv2-b16 | – | 92.3 | 31.8 | 23.7 | 3.9x | 1.3x | 921 / 960 | 460 / 510 | 461 / 612 |
 | owlv2-l14 | – | 212 | 154 | 110 | 1.9x | 1.4x | 2550 / 2606 | 1097 / 1144 | 1027 / 1184 |
 | rf-detr-l-coco | – | 11.8 | 10.6 | 5.30 | 2.2x | 2.0x | 219 / 240 | 149 / 184 | 149 / 206 |
@@ -2441,9 +2441,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | dfine-s-coco | 800x1344 | 11.4 ms | 5.63 ms | 1.65 ms | 3.75 ms | 31.2 s | 51.4 s | 108 / 128 | 131 / 152 | 108 / 170 | 147 / 160 |
 | dfine-x-coco | 800x1344 | 18.6 ms | 11.0 ms | 5.64 ms | 9.59 ms | 47.7 s | 107 s | 230 / 258 | 245 / 284 | 231 / 298 | 342 / 374 |
 | faster-rcnn-r50-fpn-3x-coco | 800x1344 | 22.8 ms | 18.9 ms | 5.35 ms (backbone + FPN only) | 19.5 ms | 26.0 s | 15.6 s | 390 / 490 | 413 / 438 | 391 / 450 | 439 / 494 |
-| grounding-dino-base | 800x1344 | 160 ms | 131 ms | 159 ms, fp32 engine (fixed 80-class text prompt) | 109 ms | 98.4 s | 130 s | 1525 / 1624 | 2669 / 2800 | 1156 / 1364 | 1153 / 1160 |
+| grounding-dino-base | 800x1344 | 132 ms | 131 ms | 159 ms, fp32 engine (fixed 80-class text prompt) | 109 ms | 98.4 s | 130 s | 1105 / 1322 | 2669 / 2800 | 1105 / 1322 | 1153 / 1160 |
 | grounding-dino-base | 320x320 | – | – | 17.6 ms, fp32 engine (fixed 80-class text prompt) | – | – | 119 s | – | – | – | 609 / 628 |
-| grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | 116 ms, fp32 engine (fixed 80-class text prompt) | 86.9 ms | 72.5 s | 104 s | 1404 / 1468 | 2550 / 2664 | 1034 / 1188 | 883 / 888 |
+| grounding-dino-tiny | 800x1344 | 110 ms | 111 ms | 116 ms, fp32 engine (fixed 80-class text prompt) | 86.9 ms | 72.5 s | 104 s | 987 / 1106 | 2550 / 2664 | 987 / 1106 | 883 / 888 |
 | grounding-dino-tiny | 320x320 | 69.0 ms | – | 13.6 ms, fp32 engine (network with fixed COCO prompts, standalone build) | 55.4 ms | – | – | 841 / 948 | – | 841 / 948 | 387 / 406 |
 | lw-detr-large-coco | 800x1344 | 10.2 ms | 5.62 ms | 3.45 ms | 5.64 ms | 29.6 s | 56.0 s | 204 / 230 | 195 / 208 | 192 / 254 | 270 / 296 |
 | lw-detr-medium-coco | 800x1344 | 8.75 ms | 3.74 ms | 2.30 ms | 3.78 ms | 22.4 s | 63.3 s | 131 / 156 | 147 / 174 | 131 / 178 | 185 / 212 |
@@ -2451,9 +2451,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | lw-detr-tiny-coco | 800x1344 | 7.45 ms | 2.98 ms | 0.999 ms | 2.20 ms | 21.6 s | 60.3 s | 92 / 112 | 112 / 130 | 94 / 134 | 116 / 128 |
 | lw-detr-xlarge-coco | 800x1344 | 12.1 ms | 10.7 ms | 6.58 ms | 9.39 ms | 30.5 s | 57.5 s | 348 / 360 | 339 / 358 | 336 / 382 | 544 / 566 |
 | mask-rcnn-r50-fpn-3x-coco | 800x1344 | 24.6 ms | 21.5 ms | 5.34 ms (backbone + FPN only) | 21.0 ms | 29.3 s | 18.3 s | 352 / 440 | 333 / 358 | 353 / 400 | 444 / 496 |
-| mm-grounding-dino-base | 800x1344 | 160 ms | 132 ms | 158 ms, fp32 engine (fixed 80-class text prompt) | 109 ms | 105 s | 125 s | 1525 / 1624 | 2669 / 2800 | 1157 / 1366 | 1153 / 1160 |
+| mm-grounding-dino-base | 800x1344 | 132 ms | 132 ms | 158 ms, fp32 engine (fixed 80-class text prompt) | 110 ms | 105 s | 125 s | 1107 / 1324 | 2669 / 2800 | 1107 / 1324 | 1153 / 1160 |
 | mm-grounding-dino-base | 320x320 | – | – | 17.7 ms, fp32 engine (fixed 80-class text prompt) | – | – | 134 s | – | – | – | 641 / 662 |
-| mm-grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | 116 ms, fp32 engine (fixed 80-class text prompt) | 87.2 ms | 71.2 s | 104 s | 1405 / 1470 | 2555 / 2666 | 1035 / 1188 | 883 / 890 |
+| mm-grounding-dino-tiny | 800x1344 | 110 ms | 111 ms | 116 ms, fp32 engine (fixed 80-class text prompt) | 87.2 ms | 71.2 s | 104 s | 989 / 1108 | 2555 / 2666 | 989 / 1108 | 883 / 890 |
 | mm-grounding-dino-tiny | 320x320 | 69.2 ms | – | 13.8 ms, fp32 engine (network with fixed COCO prompts, standalone build) | 55.5 ms | – | – | 842 / 950 | – | 842 / 950 | 387 / 408 |
 | owlv2-b16 | 800x1344 | 31.8 ms | 28.5 ms | 18.4 ms | 23.7 ms | 10.6 s | 25.9 s | 460 / 510 | 487 / 530 | 461 / 612 | 655 / 726 |
 | owlv2-l14 | 800x1344 | 154 ms | 141 ms | 95.9 ms | 110 ms | 12.4 s | 33.8 s | 1097 / 1144 | 1190 / 1242 | 1027 / 1184 | 1786 / 1820 |
