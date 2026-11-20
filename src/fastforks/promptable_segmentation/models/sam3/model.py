@@ -75,6 +75,7 @@ GLOBAL_LAYERS = (7, 15, 23, 31)  # fixed: ViT layers with global attention
 VOCAB, CONTEXT = 49408, 32  # fixed: CLIP vocabulary and SAM 3's text context length
 QUERIES = 200  # fixed: DETR queries
 MASK = 288  # fixed: mask-logit side (the 4x neck level)
+_MASK_RESIZE_PIXELS = 8 << 20  # at most 32 MiB of fp32 resize output per group, except for one oversized mask
 BUCKETS = (8, 16, CONTEXT)  # fixed: kernels pads the tokens to one of these counts (one CUDA graph each)
 BOX_BUCKET = 16  # fixed: kernels pads 1-16 exemplar boxes to this count (more run without a CUDA graph)
 VISUAL = "visual"  # fixed: the text of a boxes-only prompt (upstream Sam3Processor)
@@ -383,6 +384,18 @@ class Portable(_Sam3):
         """Neck levels `fpn0 [1, 256, 288, 288]`, `fpn1 [.., 144, 144]`, `fpn2 [.., 72, 72]` (compute dtype)."""
         fpn = self._encode(image, exact=image.device.type == "cpu")
         return {f"fpn{i}": f for i, f in enumerate(fpn)}
+
+    def binary_masks(self, pred_masks: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
+        """Resize CUDA logits in groups and threshold directly into the output masks."""
+        pixels = max(1, pred_masks.shape[1] * size[0] * size[1])
+        group = max(1, _MASK_RESIZE_PIXELS // pixels)
+        if not pred_masks.is_cuda or pred_masks.shape[0] <= group or torch.compiler.is_compiling():
+            return super().binary_masks(pred_masks, size)
+        masks = torch.empty((*pred_masks.shape[:2], *size), dtype=torch.bool, device=pred_masks.device)
+        for start in range(0, len(masks), group):
+            stop = start + group
+            torch.gt(self.upsample(pred_masks[start:stop], size), 0, out=masks[start:stop])
+        return masks
 
     @host
     def selected_concepts(
