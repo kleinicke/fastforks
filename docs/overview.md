@@ -16,7 +16,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 71 models; size 994x1482.
 
 - Fastest: [`las2-s`](models/stereo.md#liteanystereo-v2) (14.3 ms).
-- Most accurate: [`bridgedepth-sf`](models/stereo.md#bridgedepth) (348.4 ms, error 1.24).
+- Most accurate: [`bridgedepth-sf`](models/stereo.md#bridgedepth) (349.7 ms, error 1.24).
 - Fastest commercially usable: [`las2-s`](models/stereo.md#liteanystereo-v2) (14.3 ms).
 - Most accurate commercially usable: [`c-foundationstereo-s`](models/stereo.md#c-foundationstereo) (1365.9 ms, error 1.24).
 
@@ -62,15 +62,15 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`igev-stereo-kitti15`](models/stereo.md#igev-stereo) | yes | 24.63 | 941.3 (994x1482) | 763.5 | 288.2 | 3.3x vs original (994x1482) | 1113 |
 | [`igev-stereo-middlebury`](models/stereo.md#igev-stereo) | yes | 19.80 ? | 941.3 (994x1482) | 763.5 | 288.2 | 3.3x vs original (994x1482) | 1113 |
 | [`igev-stereo-sceneflow`](models/stereo.md#igev-stereo) | yes | 4.04 | 941.3 (994x1482) | 763.5 | 288.2 | 3.3x vs original (994x1482) | 1113 |
-| [`bridgedepth-sf`](models/stereo.md#bridgedepth) | no | 1.24 | 459.9 (994x1482) | 436.9 | 348.4 | 1.3x vs original (994x1482) | 2310 |
 | [`selective-igev-eth3d-train`](models/stereo.md#selective-igev) | yes | 0.78 † | 1455.0 (994x1482) | 998.4 | 348.8 | 4.2x vs original (994x1482) | 1109 |
 | [`selective-igev-kitti12`](models/stereo.md#selective-igev) | yes | 24.07 | 1455.0 (994x1482) | 998.4 | 348.8 | 4.2x vs original (994x1482) | 1109 |
 | [`selective-igev-kitti15`](models/stereo.md#selective-igev) | yes | 24.26 | 1455.0 (994x1482) | 998.4 | 348.8 | 4.2x vs original (994x1482) | 1109 |
 | [`selective-igev-middlebury-finetune`](models/stereo.md#selective-igev) | yes | 24.24 | 1455.0 (994x1482) | 998.4 | 348.8 | 4.2x vs original (994x1482) | 1109 |
 | [`selective-igev-middlebury-train`](models/stereo.md#selective-igev) | yes | 10.25 | 1455.0 (994x1482) | 998.4 | 348.8 | 4.2x vs original (994x1482) | 1109 |
 | [`selective-igev-sceneflow`](models/stereo.md#selective-igev) | yes | 6.06 | 1455.0 (994x1482) | 998.4 | 348.8 | 4.2x vs original (994x1482) | 1109 |
+| [`bridgedepth-sf`](models/stereo.md#bridgedepth) | no | 1.24 | 459.9 (994x1482) | 437.8 | 349.7 | 1.3x vs original (994x1482) | 2046 |
 | [`selective-igev-eth3d-finetune`](models/stereo.md#selective-igev) | yes | 0.32 † | 1455.0 (994x1482) | 995.9 | 351.2 | 4.1x vs original (994x1482) | 1051 |
-| [`bridgedepth-rvc-pretrain`](models/stereo.md#bridgedepth) | no | 1.22 ? | 470.1 (994x1482) | 443.6 | 355.4 | 1.3x vs original (994x1482) | 2226 |
+| [`bridgedepth-rvc-pretrain`](models/stereo.md#bridgedepth) | no | 1.22 ? | 470.1 (994x1482) | 443.9 | 355.0 | 1.3x vs original (994x1482) | 2097 |
 | [`cas-gwcnet-gc-sceneflow`](models/stereo.md#cas-gwcnet) | yes | 8.09 | 566.7 (994x1482) | 472.6 | 359.2 | 1.6x vs original (994x1482) | 2035 |
 | [`s2m2-l`](models/stereo.md#s2m2) | no | 0.82 ? | 1004.7 (994x1482) | 1016.8 | 375.8 | 2.7x vs original (994x1482) | 1249 |
 | [`waft-stereo-b`](models/stereo.md#waft-stereo) | no | 0.74 ? | 1139.5 (994x1482) | 1093.7 | 387.9 | 2.9x vs original (994x1482) | 1664 |

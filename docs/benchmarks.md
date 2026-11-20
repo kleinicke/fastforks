@@ -765,8 +765,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 |---|---|---|---|---|---|---|---|---|---|
 | aanet-plus-sceneflow | 263 | 194 | 159 | 88.9 | 2.2x | 1.8x | 3652 / 3784 | 1142 / 1278 | 813 / 920 |
 | aanet-sceneflow | 289 | 178 | 140 | 101 | 1.8x | 1.4x | 1000 / 1126 | 845 / 986 | 536 / 644 |
-| bridgedepth-rvc-pretrain | 629 | 470 | 442 | 354 | 1.3x | 1.2x | 2903 / 3200 | 2968 / 3246 | 2361 / 2686 |
-| bridgedepth-sf | 616 | 460 | 437 | 348 | 1.3x | 1.3x | 2852 / 3144 | 2916 / 3214 | 2310 / 2634 |
+| bridgedepth-rvc-pretrain | 629 | 470 | 444 | 355 | 1.3x | 1.3x | 2903 / 3200 | 2707 / 2924 | 2097 / 2322 |
+| bridgedepth-sf | 616 | 460 | 438 | 350 | 1.3x | 1.3x | 2852 / 3144 | 2656 / 2872 | 2046 / 2270 |
 | c-fast-foundationstereo | 741 | 527 | 330 | 135 | 3.9x | 2.4x | 2892 / 2996 | 2109 / 2336 | 1196 / 1516 |
 | c-foundationstereo-s | OOM | 3874 | 3628 | – | – | – | 8338 / 12870 | 3857 / 4152 | – |
 | cas-gwcnet-c-sceneflow | 656 | 389 | 327 | 225 | 1.7x | 1.5x | 2791 / 2970 | 2006 / 2474 | 1725 / 1930 |
@@ -1543,7 +1543,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | aanet-plus-sceneflow | 0.15 (375x1242) | 0.16 | 0.20† | 0.70 (375x1242) | 0.17† | 0.09† |
 | aanet-sceneflow | 0.12 (375x1242) | 0.19 | 0.27† | 0.07 (375x1242) | 0.14† | 0.10† |
 | bridgedepth-rvc-pretrain | 5.87 (375x1242) | 1.17 | 1.12 | 1.36 (375x1242) | 1.06 | 1.04 |
-| bridgedepth-sf | 4.86 (375x1242) | 1.53 | 0.72† | 0.12 (375x1242) | 0.44† | 0.35† |
+| bridgedepth-sf | 4.86 (375x1242) | 0.97 | 1.00 | 0.12 (375x1242) | 0.84 | 0.82 |
 | c-fast-foundationstereo | 0.17 (375x1242) | 0.24 | 0.72 (375x1242) | 0.17 (375x1242) | 0.33† | 0.55 (375x1242) |
 | c-foundationstereo-s | 1.67 (375x1242) | 0.96 (375x1242) | 0.81 (375x1242) | 2.73 (375x1242) | 2.09 (375x1242) | 1.38 (375x1242) |
 | cas-gwcnet-c-sceneflow | 0.48 (375x1242) | 1.29 | 0.18† | 0.41 (375x1242) | 0.33† | 0.23† |
@@ -2136,9 +2136,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | aanet-plus-sceneflow | 994x1482 | 159 ms | 143 ms | 202 ms | 88.9 ms | 89.3 s | 145 s | 1142 / 1278 | 3020 / 3716 | 813 / 920 | 1786 / 1834 |
 | aanet-sceneflow | 994x1482 | 140 ms | 91.8 ms | 91.2 ms | 101 ms | 79.9 s | 211 s | 845 / 986 | 754 / 928 | 536 / 644 | 602 / 620 |
-| bridgedepth-rvc-pretrain | 994x1482 | 444 ms | 337 ms | public API unavailable | 355 ms | 118 s | – | 2836 / 3144 | 2329 / 2360 | 2226 / 2522 | – |
+| bridgedepth-rvc-pretrain | 994x1482 | 444 ms | 337 ms | public API unavailable | 355 ms | 118 s | – | 2707 / 2924 | 2329 / 2360 | 2097 / 2322 | – |
 | bridgedepth-rvc-pretrain | 375x1242 | 114 ms | – | 284 ms, fp32 engine (DINOv2 and DPT monocular branch with eager stereo inference) | 94.7 ms | – | 50.0 s | 1910 / 2006 | – | 1323 / 1446 | 2410 / 2588 |
-| bridgedepth-sf | 994x1482 | 437 ms | 325 ms | public API unavailable | 348 ms | 111 s | – | 2916 / 3214 | 2280 / 2308 | 2310 / 2634 | – |
+| bridgedepth-sf | 994x1482 | 438 ms | 325 ms | public API unavailable | 350 ms | 111 s | – | 2656 / 2872 | 2280 / 2308 | 2046 / 2270 | – |
 | bridgedepth-sf | 375x1242 | 111 ms | – | 284 ms, fp32 engine (DINOv2 and DPT monocular branch with eager stereo inference) | 92.1 ms | – | 54.1 s | 1859 / 1954 | – | 1272 / 1394 | 2358 / 2508 |
 | c-fast-foundationstereo | 994x1482 | 330 ms | 339 ms | 451 ms | 135 ms | 75.4 s | 240 s | 2109 / 2336 | 1649 / 1792 | 1120 / 1236 | 1425 / 1462 |
 | c-foundationstereo-s | 994x1482 | 3628 ms | 2773 ms | 2229 ms | 1366 ms | 626 s | 444 s | 3857 / 4152 | 7298 / 7624 | 3058 / 4408 | 10027 / 10108 |

@@ -14,8 +14,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 |---|---|---|---|---|
 | [`aanet-plus-sceneflow`](#aanet) | yes | 18.50 | 88.9, 2.2x | 920, 0.24x |
 | [`aanet-sceneflow`](#aanet) | yes | 14.64 | 101, 1.8x | 644, 0.57x |
-| [`bridgedepth-rvc-pretrain`](#bridgedepth) | no | 1.22 ? | 355, 1.3x | 2522, 0.79x |
-| [`bridgedepth-sf`](#bridgedepth) | no | 1.24 | 348, 1.3x | 2634, 0.84x |
+| [`bridgedepth-rvc-pretrain`](#bridgedepth) | no | 1.22 ? | 355, 1.3x | 2322, 0.73x |
+| [`bridgedepth-sf`](#bridgedepth) | no | 1.24 | 350, 1.3x | 2270, 0.73x |
 | [`c-fast-foundationstereo`](#c_foundationstereo) (max_disp 192, valid_iters 8) | yes | 2.20 | 135, 3.9x | 1236, 0.41x |
 | [`c-foundationstereo-s`](#c_foundationstereo) | yes | 1.24 | 1366, 2.8x | 4408, 0.34x |
 | [`cas-gwcnet-c-sceneflow`](#cas_gwcnet) | yes | 7.85 | 225, 1.7x | 1930, 0.65x |
@@ -165,9 +165,9 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `bridgedepth-sf` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 616<br>460<br>437<br>348<br>325<br>public API unavailable | 2852 / 3128<br>2852 / 3144<br>2916 / 3214<br>2310 / 2634<br>2280 / 2308<br>– |
+| `bridgedepth-sf` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 616<br>460<br>438<br>350<br>325<br>public API unavailable | 2852 / 3128<br>2852 / 3144<br>2656 / 2872<br>2046 / 2270<br>2280 / 2308<br>– |
 | `bridgedepth-sf` | KITTI 2015 (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT fp32 | 164<br>118<br>111<br>92.1<br>284 (DINOv2 and DPT monocular branch with eager stereo inference) | 1840 / 1950<br>1840 / 1970<br>1859 / 1954<br>1272 / 1394<br>2358 / 2508 |
-| `bridgedepth-rvc-pretrain` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>470<br>444<br>355<br>337<br>public API unavailable | 2903 / 3178<br>2903 / 3200<br>2836 / 3144<br>2226 / 2522<br>2329 / 2360<br>– |
+| `bridgedepth-rvc-pretrain` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>470<br>444<br>355<br>337<br>public API unavailable | 2903 / 3178<br>2903 / 3200<br>2707 / 2924<br>2097 / 2322<br>2329 / 2360<br>– |
 | `bridgedepth-rvc-pretrain` | KITTI 2015 (375x1242) | original (fp32)<br>original<br>portable<br>kernels<br>TensorRT fp32 | 169<br>121<br>114<br>94.7<br>284 (DINOv2 and DPT monocular branch with eager stereo inference) | 1891 / 1982<br>1891 / 2006<br>1910 / 2006<br>1323 / 1446<br>2410 / 2588 |
 
 <details><summary>Details</summary>
@@ -192,12 +192,12 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - `bridgedepth-rvc-pretrain` 375x1242, first call: TensorRT fp32 50 s (ONNX + engine).
 - `bridgedepth-sf` original (fp32) 994x1482, original (fp32) 375x1242: original default: its monocular branch (DepthAnything.infer) runs in fp16 even without autocast
 - `bridgedepth-sf` original 994x1482, original 375x1242: torch.autocast(fp16) around the forward; original default: its monocular branch (DepthAnything.infer) runs in fp16 even without autocast
+- `bridgedepth-sf` portable 994x1482, kernels 994x1482: Middlebury trainingH Motorcycle at the task benchmark size. Native projection releases its consumed skip and residual before upsampling.
 - `bridgedepth-rvc-pretrain` original (fp32) 994x1482, original (fp32) 375x1242: original default: its monocular branch (DepthAnything.infer) runs in fp16 even without autocast
 - `bridgedepth-rvc-pretrain` original 994x1482, original 375x1242: torch.autocast(fp16) around the forward; original default: its monocular branch (DepthAnything.infer) runs in fp16 even without autocast
-- `bridgedepth-rvc-pretrain` portable 994x1482, kernels 994x1482: Releases consumed monocular and stereo features. Exact synthetic disparity and three labeled Middlebury pairs.
-- `bridgedepth-sf` load / first call: original 4.86 s / 0.119 s (375x1242), portable 1.53 s / 0.442† s, kernels 0.72† s / 0.351† s
+- `bridgedepth-rvc-pretrain` portable 994x1482, kernels 994x1482: Middlebury trainingH Motorcycle at the task benchmark size. Native projection releases its consumed skip and residual before upsampling.
+- `bridgedepth-sf` load / first call: original 4.86 s / 0.119 s (375x1242), portable 0.97 s / 0.843 s, kernels 1.0 s / 0.825 s
 - `bridgedepth-rvc-pretrain` load / first call: original 5.87 s / 1.363 s (375x1242), portable 1.17 s / 1.064 s, kernels 1.12 s / 1.041 s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
