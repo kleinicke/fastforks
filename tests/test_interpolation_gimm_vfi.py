@@ -16,7 +16,6 @@ from fastforks.interpolation.models.gimm_vfi.model import (
     Params,
     _banded,
     _config,
-    _fuse_latent_bands,
     _interpolate,
     _sample,
     _VolumeCorr,
@@ -110,14 +109,3 @@ def test_decoder_bands_are_one_pass() -> None:
     x = torch.randn(1, 49, 90, 12, dtype=torch.float64)
     with torch.inference_mode():
         torch.testing.assert_close(_banded(block, x, band_pixels=12 * 7), block(x), rtol=0, atol=1e-14)
-
-
-def test_latent_fusion_bands_preserve_convolution_context(net: GIMMVFI_R) -> None:
-    """Keep the full five-row context at interior seams and the original reflection at the image edges."""
-    rng = torch.Generator().manual_seed(7)
-    lat0, lat1, lat = (torch.randn(2, c, 23, 13, generator=rng) for c in (16, 16, 32))
-    inputs = (lat0, lat1, lat)
-    with torch.inference_mode():
-        want = inputs[-1] + net.res_conv(torch.cat(inputs, dim=1))
-        got = _fuse_latent_bands(net.res_conv, inputs, torch.float32, band=7)
-    torch.testing.assert_close(got, want, rtol=0, atol=1e-6)

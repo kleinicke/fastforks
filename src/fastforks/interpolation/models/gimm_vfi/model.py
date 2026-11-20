@@ -49,8 +49,7 @@ _REVERSE_MIN_TOKENS = 16_384
 _REVERSE_TILE_BYTES = 128 * 1024 * 1024
 HALO = 17  # fixed: rows `convblock` reads beyond a band (17 3 x 3 convs in a chain: 1 + 3 x 5 + 1)
 BAND_PIXELS = 1 << 20  # larger full-size inputs run `convblock` in row bands of about this many pixels
-FUSION_HALO = 5  # two stem convolutions, two residual convolutions and one output convolution
-FUSION_PIXELS = 500_000
+_FUSION_MIN_PIXELS = 500_000
 HYPO_PIXELS = 1 << 19  # the hyponet MLP runs over pixel chunks of this size (its activations never exist at once)
 
 
@@ -224,30 +223,13 @@ def _hyponet(hn: HypoNet, coord: torch.Tensor, lat: torch.Tensor, chunk: int = H
     return torch.cat(outs, 1).view(b, h, w, -1)
 
 
-def _fuse_latent_bands(
-    block: torch.nn.Module, inputs: tuple[torch.Tensor, torch.Tensor, torch.Tensor], dtype: torch.dtype, band: int
-) -> torch.Tensor:
-    """Run the residual fusion with its original convolution context on each output band."""
-    lat = inputs[-1]
-    h = lat.shape[-2]
-    out = torch.empty_like(lat)
-    for top in range(0, h, band):
-        bottom = min(top + band, h)
-        lo, hi = max(top - FUSION_HALO, 0), min(bottom + FUSION_HALO, h)
-        packed = torch.cat([x[..., lo:hi, :].to(dtype) for x in inputs], dim=1)
-        res = block(packed)[..., top - lo : bottom - lo, :]
-        torch.add(lat[..., top:bottom, :], res, out=out[..., top:bottom, :])
-        del packed, res
-    return out
-
-
 def _predict_flow(  # noqa: PLR0913 - the network, flow and coordinate inputs, and portable fusion policy
-    net: GIMMVFI_R, f: torch.Tensor, coord: torch.Tensor, t: torch.Tensor, flows: torch.Tensor, *, bounded: bool
+    net: GIMMVFI_R, f: torch.Tensor, coord: torch.Tensor, t: torch.Tensor, flows: torch.Tensor, *, portable: bool
 ) -> torch.Tensor:
     """Upstream `predict_flow(f, [(coord, None)], [t], flows)[0]` without the coordinate assert: `[B, 2, 1, H, W]`.
 
-    Build the residual convolution input in its compute dtype. Large eager portable CUDA inputs build one row band
-    at a time, and the hyponet runs in pixel chunks (`_hyponet`).
+    Build the residual convolution input in its compute dtype and release its buffers as each layer consumes them
+    for large eager portable CUDA inputs. The hyponet runs in pixel chunks (`_hyponet`).
     """
     flow01, flow10 = flows[:, :, 0], flows[:, :, 1]
     weights1, weights2 = net.cal_splatting_weights(flow01, flow10)
@@ -260,23 +242,22 @@ def _predict_flow(  # noqa: PLR0913 - the network, flow and coordinate inputs, a
     lat = torch.cat([s0, s1], dim=1)
     del s0, s1
     dt = _compute_dtype(lat)
-    band = None
+    res = torch.cat([lat0.to(dt), lat1.to(dt), lat.to(dt)], dim=1)
     if (
-        bounded
+        portable
         and lat.is_cuda
         and dt == torch.float16
         and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export() or torch.is_grad_enabled())
+        and lat.shape[0] * lat.shape[-2] * lat.shape[-1] > _FUSION_MIN_PIXELS
     ):
-        b, _, _, w = lat.shape
-        band = max(FUSION_PIXELS // (b * w), FUSION_HALO)
-    if band is not None and lat.shape[-2] > band + 2 * FUSION_HALO:
-        lat = _fuse_latent_bands(net.res_conv, (lat0, lat1, lat), dt, band)
         del lat0, lat1
+        for layer in net.res_conv:
+            res = layer(res)
     else:
-        res = net.res_conv(torch.cat([lat0.to(dt), lat1.to(dt), lat.to(dt)], dim=1))
+        res = net.res_conv(res)
         del lat0, lat1
-        lat = lat + res
-        del res
+    lat = lat + res
+    del res
     return _hyponet(net.hyponet, coord[:, 0], lat).unsqueeze(1).permute(0, 4, 1, 2, 3)
 
 
@@ -310,11 +291,13 @@ def _interpolate(  # noqa: PLR0913 - the network, the pair, the time, the params
     del fnet0, fnet1
     features0 = [net.amt_second_last_cproj(feats0[0]), net.amt_last_cproj(feats0[1])]
     features1 = [net.amt_second_last_cproj(feats1[0]), net.amt_last_cproj(feats1[1])]
+    del feats0, feats1
     normal, scalers = normalize_flow(torch.stack([f01, -f10], dim=2))
     flows = torch.stack([f01, f10], dim=2)
+    del f01, f10
     if full is not None:
         h, w = int(full.shape[-2] * p.ds_factor), int(full.shape[-1] * p.ds_factor)  # upstream's upsample_ratio
-    flow_t = _predict_flow(net, normal, _coords(b, h, w, t), t, flows, bounded=make is _VolumeCorr)
+    flow_t = _predict_flow(net, normal, _coords(b, h, w, t), t, flows, portable=make is _VolumeCorr)
     flow_t = unnormalize_flow(flow_t, scalers).squeeze(2)
     return net.frame_synthesize(xs, flow_t, features0, features1, corr_fn, t.reshape(-1, 1, 1, 1), full_img=full)[0]
 
