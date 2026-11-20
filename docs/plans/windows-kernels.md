@@ -1,10 +1,9 @@
 # CUDA kernels on Windows
 
-Status: prototype. The `"cubin"` kernel libraries run on Windows x64. `cutlass_conv`, `dpt_fused`, `fvm_conv`,
-`fvm_extra`, `fvm_mb` and `fvm_r3` run as Windows DLLs (`manifest.windows.toml`). 512 references have a Windows
-`[validated]` record (see [Validation coverage](#validation-coverage-on-windows)). Five small `"shared"` libraries
-(`fs_cutlass`, `ffs_cutlass`, `s2m2_cutlass`, `hitnet_conv`, `seg_conv`) have no DLL build yet. They build the same
-way.
+Status: prototype. The `"cubin"` kernel libraries run on Windows x64. Every `"shared"` library has a Windows DLL
+build (`manifest.windows.toml`): `cutlass_conv`, `dpt_fused`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`,
+`fs_cutlass`, `ffs_cutlass`, `s2m2_cutlass`, `hitnet_conv` and `seg_conv`. 531 references have a Windows
+`[validated]` record (see [Validation coverage](#validation-coverage-on-windows)).
 
 ## Why cubin libraries need no Windows build
 
@@ -80,7 +79,7 @@ interpolation families. The rest are blocked by these `"shared"` libraries:
 | `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3` | 56 / 42 / 42 / 42 (classification, detection, pose, features) | done: Windows DLLs (`fvm_r3` via the `dlfcn.h` shim) |
 | `cutlass_conv` | 35 (23 stereo, flow, matching, matting) | done: Windows DLL |
 | `dpt_fused` | 31 (depth, features, SAM) | done: Windows DLL |
-| `fs_cutlass`, `ffs_cutlass`, `s2m2_cutlass`, `hitnet_conv`, `seg_conv` | 1-2 each | CUTLASS |
+| `fs_cutlass`, `ffs_cutlass`, `s2m2_cutlass`, `hitnet_conv`, `seg_conv` | 1-2 each | done: Windows DLLs |
 | `cudnn_hacc` (`plan_build`) | none blocked (optional) | |
 
 ### Shared libraries as DLLs
@@ -175,20 +174,23 @@ read-only Linux cache in batches of at most 15 GB and deleted after each batch. 
 files as on Linux, hash-checked) came from the same cache. The optional extras `timm`, `transformers` and
 `torchvision` were installed for the run.
 
-- 558 references are runnable in kernels mode on Windows: no library without a Windows build, and all binaries
-  present. 512 now have a Windows `[validated]` record (54 stereo, the rest non-stereo).
-- 302 of the 512 records give the same mean / p99 as the Linux record. The others differ in the 4th or 5th decimal,
+- 578 references can run in kernels mode on Windows: every library has a Windows build and all binaries are
+  present. 531 now have a Windows `[validated]` record. That includes 19 for the five CUTLASS DLLs built last:
+  foundationstereo, c-fast-foundationstereo, fast-foundationstereo, hitnet, s2m2, mmseg and segnext.
+- 314 of the 531 records give the same mean / p99 as the Linux record. The others differ in the 4th or 5th decimal,
   all within the golden tolerance (largest: aliked-flexglue, mean 0.0033 vs 0.0012 px; cfnet and great-igev).
 - 36 references have no weights in the available offline cache: most timm / torchvision classifiers,
-  segformer, sapiens-seg, eomt, mask2former, oneformer, mapanything, vggt-1b, omni-dc. They were not run. Their
-  Windows DLL builds stay unvalidated for them, so `test_kernels_validated` fails for them on Windows until someone
-  runs `--record` with the weights.
+  segformer, sapiens-seg, eomt, mask2former, oneformer, mapanything, vggt-1b, omni-dc. They were not run, so their
+  Windows DLL builds stay unvalidated for them. On Windows, `test_kernels_validated` skips such a reference: no
+  Windows record and weights not local, worded like the repo's other weight-missing skips. It fails as before once
+  the weights are present, or when a Windows record is stale. Linux checks exactly as before.
 
 Open, found by the sweep:
 
 | reference | result on Windows | portable on Windows | note |
 | --- | --- | --- | --- |
-| `mvsanywhere@1` | `CUDA_ERROR_INVALID_IMAGE` loading `mvsanywhere-7fdcb3aafdd8-sm_120.fatbin` | n/a | Same bytes as Linux (hash-checked). The `compute_80` PTX build of the same library loads. So does a test cubin with an equally large (7.6 KB) by-value parameter built with 13.0. Likely the 12.8-built sm_120 SASS on this Windows driver: try a 13.0 rebuild. |
+| `mvsanywhere@1` | `CUDA_ERROR_INVALID_IMAGE` loading `mvsanywhere-7fdcb3aafdd8-sm_120.fatbin` | n/a | Same bytes as Linux (hash-checked); built with toolkit 12.8. Its `compute_80` PTX build loads. The same source compiled locally with the 13.0 nvcc (`-cubin -arch=sm_120 -O3`) also loads (`cuModuleLoadData` returns 0; not committed). Fix: rebuild `mvsanywhere` with 13.0. A cubin manifest is shared by Linux and Windows, so this changes its Linux build id and needs a Linux GPU `--record`. Left as a follow-up for a Linux session. |
+| `c-foundationstereo-s@1` | `KernelUnavailableError`: needs flash SDPA | passes | PyTorch's Windows wheels lack flash attention (`is_flash_attention_available()` is false). The kernels forward runs its disparity transformer under `SDPBackend.FLASH_ATTENTION`, so kernels mode now raises at load and `auto` logs it and runs portable. Before, it failed inside the forward. |
 | `seedvr2-7b@1` | access violation reading the 16 GB checkpoint (`safe_open` / `get_tensor`, stream mode) | not run | `seedvr2-3b` passes. Needs a rerun on its own (its weights alone exceed the 15 GB staging limit). |
 | `marigold-v2-depth@1` | depth mean 0.0188 (tolerance 0.01) | same failure | Not kernel related (streamed nf4 path); on Linux the record is exactly 0. |
 | `dfine-n-coco@1` | 8 detections, golden 7 | passes | One box on the score threshold. fvm_conv + cudnn_hacc. |
@@ -197,15 +199,15 @@ Open, found by the sweep:
 | `sam2.1-hiera-tiny@1` | iou_scores mean 0.0107 | passes | dpt_fused |
 | `sam-hq-vit-b@1` | pred_masks p99 0.0058 | passes | dpt_fused; the other dpt_fused families pass |
 
-Not run: the families that need `fs_cutlass`, `ffs_cutlass`, `s2m2_cutlass`, `hitnet_conv` or `seg_conv` (no Windows
-build). `mode="kernels"` raises `KernelUnavailableError` for them, and on Windows `test_kernels_validated` skips
-them.
+`fs_cutlass@b342a4231e8a`, `ffs_cutlass@c6b9e444a7c4`, `s2m2_cutlass@4ca15fd645fe`, `hitnet_conv@0bd638fd1a17` and
+`seg_conv@d0f93d302f0e` were built with the same recipe and no source changes (5-17 MB each). They pass the GPU goldens
+for all 20 references that use them except `c-foundationstereo-s` (above).
 
 ## Speed on Windows
 
 ms per call, float16 (the validated dtype), median of 5 `fastforks bench --runs 30 --mode <mode>` runs (each itself a
 median of 30 after warm-up; range in brackets). Each run is its own process under
-`C:\Users\neuer\fastforks-cache\gpulock.py`, one job on the GPU at a time, modes alternated per model and round (the
+a machine-wide GPU lock, one job on the GPU at a time, modes alternated per model and round (the
 GPU was otherwise idle; an idle ComfyUI server held 0 % utilization). RTX 5060 Ti, driver 610.88, torch 2.14.1+cu130.
 
 | model | size | kernels | portable | speedup | peak alloc kernels / portable |
