@@ -226,19 +226,19 @@ class Transformer:
         last = i == self.cfg.layers - 1
         vs, vc, vg = self._const(i, "vid", 0)
         va = modulate(rms(vid), vc, vs)
-        ta = rms(txt)
+        ta = rms(txt).astype(self.dt)  # the text stream may be float32 (`__call__`)
         if not (last and self.cfg.last_vid_only):
             ts, tc, _ = self._const(i, "txt", 0)
             ta = modulate(ta, tc, ts)
         vo, to = self.attention(t, va, ta, plan, last=last)
         vid = (vo * vg).astype(self.dt) + vid
         if to is not None:
-            txt = (to * self._const(i, "txt", 0)[2]).astype(self.dt) + txt
+            txt = (to * self._const(i, "txt", 0)[2]).astype(txt.dtype) + txt
         vs, vc, vg = self._const(i, "vid", 1)
         vid = (self.mlp(t, modulate(rms(vid), vc, vs), "vid") * vg).astype(self.dt) + vid
         if not last:
             ts, tc, tg = self._const(i, "txt", 1)
-            txt = (self.mlp(t, modulate(rms(txt), tc, ts), "txt") * tg).astype(self.dt) + txt
+            txt = (self.mlp(t, modulate(rms(txt).astype(self.dt), tc, ts), "txt") * tg).astype(txt.dtype) + txt
         return vid, txt
 
     def __call__(self, x: mx.array) -> mx.array:
@@ -247,7 +247,9 @@ class Transformer:
         size = (tt, hh // 2, ww // 2)
         vid = x.reshape(tt, size[1], 2, size[2], 2, c).transpose(0, 1, 3, 2, 4, 5).reshape(-1, 4 * c)
         vid = linear(vid, self.io["vid_in.proj.weight"], self.io["vid_in.proj.bias"])
-        txt = self.txt
+        # The 7B text stream grows to ~1e5 from block 3 on (its gated MLP output to ~9e4): over float16's range, so in
+        # float16 the text residual stream and its gated updates stay float32 (58 tokens)
+        txt = self.txt.astype(F32) if self.dt == mx.float16 else self.txt
         plans = self._plans(size)
         for i in range(self.cfg.layers):
             vid, txt = self.block(i, vid, txt, plans[i % 2])
