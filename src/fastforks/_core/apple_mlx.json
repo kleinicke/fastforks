@@ -2118,6 +2118,15 @@
     "float32": "portable"
    }
   },
+  "marigold-v2-depth@1": {
+   "mlx_default": [
+    "portable",
+    "bfloat16"
+   ],
+   "mlx": {
+    "bfloat16": "portable"
+   }
+  },
   "mask-rcnn-r50-fpn-3x-coco@1": {
    "mlx_default": [
     "portable",
