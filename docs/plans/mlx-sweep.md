@@ -87,7 +87,7 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | any2full | depth | portable_mlx, fp32+fp16 pass | 994x1482 fp16 s 169 / 1696 vs MPS 118 / 1641; b 435 / 2816 vs 268 / 2198; l 1031 / 5345 vs 684 / 3956. Slower. |
 | depth_anything_3 | depth | portable_mlx, fp32+fp16 pass | mono-large fp16 363 / 2516 vs MPS 280 / 2499; metric-large 367 / 2604 vs 280 / 2499; da3-large-1.1 393 / 2578 vs 318 / 2520; giant-1.1 fp16 963 / 4196 vs 759 / 7243 (less memory); nested giant+large fp16 1334 / 4880 vs 1184 / 8136 (less memory). Slower, but fp16 giants use 40 % less memory. |
 | depth_anything_v2 (and metric, distill-any-depth) | depth | existing MLX runner, fp32+fp16 pass | fp16 s 72 / 898 vs MPS 81 / 1575; b 181 / 1410 vs 199 / 2061; l 519 / 2343 vs 579 / 3282. Faster and lighter than MPS for all 12 refs. The kernels rows are slower (l fp16 548 / 2788). |
-| depth_pro | depth | portable_mlx (net via `fast`), fp32+fp16 pass | fp16 4491 / 11370 vs MPS 5011 / 7169 (faster, more memory); fp32 6473 / 15337 vs 6115 / 11267. |
+| depth_pro | depth | portable_mlx (net via `fast`, released twin, chunk 256 pipelined), fp32+fp16 pass | fp16 4653 / 5490 vs MPS 5011 / 7169 (faster and leaner; routed; was 4491 / 11370); fp32 7541 / 10529 vs 6115 / 11267 (leaner, slower; was 6473 / 15337). The float16 graph comes from the checkpoint's float16 weights (mmapped twin, no float32 copy), `release=True` frees the twin, and a declared 256 MB chunk with `pipeline=True` replaces the 2 GB big-weights segments (chunk 512: 4406 / 6859, 1024: 4736 / 6300 unpipelined). |
 | depthfm | depth | portable_mlx, fp32+fp16 pass | Survey: out of memory on MLX and on MPS alike at 994x1482 (a 66 GB attention buffer). Golden passes at the test size. |
 | lingbot_depth (+dc) | depth | portable_mlx, fp32+fp16 pass | fp16 4589 / 8528 vs MPS 3376 / 3228. Slower and heavier. |
 | lotus (normal g, d) | depth | portable_mlx, fp32+fp16 pass | g fp16 2089 / 9398 vs MPS 1553 / 6632; d fp16 2166 / 9159 vs 1459 / 6628. UNet and VAE run on MLX, loop and noise on the CPU. Slower and heavier. |
@@ -878,7 +878,7 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 | depth-anything-v2-metric-vkitti-b | 16 | 994x1482 | portable | 188.1 | 1021 | 199.299 | 2061 | 0.94 | 0.50 | WIN |  |
 | depth-anything-v2-metric-vkitti-l | 16 | 994x1482 | portable | 543.9 | 1728 | 579.971 | 3283 | 0.94 | 0.53 | WIN |  |
 | depth-anything-v2-metric-vkitti-s | 16 | 994x1482 | kernels | 67.4 | 707 | 79.467 | 1572 | 0.85 | 0.45 | WIN |  |
-| depth-pro | 16 | 994x1482 | portable | 4491.4 | 11370 | 5011.45 | 7169 | 0.90 | 1.59 | LOSE | more memory (1.59x: MLX runtime/buffer cache above the MPS footprint) |
+| depth-pro | 16 | 994x1482 | portable | 4653.3 | 5490 | 5011.45 | 7169 | 0.93 | 0.77 | WIN | (was 4491 / 11370 LOSE: float32 twin kept, 2 GB segments) |
 | depthsplat-small-re10k | 32 | 336x518 | portable | 1269.9 | 2671 | 669.5 | 8880 | 1.90 | 0.30 | LOSE | slower (1.90x: portable MLX replay, no fused attention/conv kernels) |
 | dfine-n-coco | 16 | 800x1344 | portable | 22.3 | 624 | 25.174 | 1510 | 0.89 | 0.41 | WIN |  |
 | dinov2-b-linear-ade20k | 16 | 1024x2048 | portable | 761.1 | 1611 | 360.569 | 2174 | 2.11 | 0.74 | LOSE | slower (2.11x: portable MLX replay, no fused attention/conv kernels) |
