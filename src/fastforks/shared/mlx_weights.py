@@ -11,6 +11,9 @@ then copies its parameters into MLX: a 3.4 B-parameter network needs 13.6 GB for
 - `stream(keys, dtype)` returns the group as fresh lazy reads that are not kept: the bytes come from the file (the
   page cache) on every evaluation, for weights that do not fit resident (a 7 B transformer in bf16 is 16.5 GB).
 - `peek(key)` is one lazy array for load-time arithmetic (embeddings computed once from the checkpoint).
+- `nf4_quantize` / `Nf4.expand`: a linear weight stored in 4 bit (`fastforks.shared.nf4`'s format, bit-exact with its
+  PyTorch quantiser and expansion), for a transformer that does not fit resident in bf16 (SeedVR2 7B: 4.3 GB of NF4
+  blocks instead of 16.3 GB).
 
 A family's hand-written MLX network (`mx` operations, as `seedvr2/net/mlx_net.py`) uses it directly. For a
 safetensors checkpoint nothing is converted or cached; a pickled checkpoint must first be written as safetensors
@@ -19,15 +22,18 @@ safetensors checkpoint nothing is converted or cached; a pickled checkpoint must
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from itertools import pairwise
 from typing import TYPE_CHECKING
 
 from fastforks._core.mlx import mx
+from fastforks.shared.nf4 import BLOCK, NF4_CODE
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
     from pathlib import Path
 
-__all__ = ["DTYPES", "Weights", "nbytes"]
+__all__ = ["DTYPES", "Nf4", "Weights", "nbytes", "nf4_quantize"]
 
 DTYPES = {"float32": mx.float32, "float16": mx.float16, "bfloat16": mx.bfloat16}
 """Run dtype names (the `ctx.dtype` strings) -> MLX dtypes."""
@@ -113,3 +119,57 @@ class Weights:
             a = fresh[k]
             out[k] = _cast(transform(k, a) if transform is not None else a, dtype)
         return out
+
+
+_TINY = 1.1754943508222875e-38  # torch.finfo(torch.float32).tiny
+
+
+@dataclass(frozen=True)
+class Nf4:
+    """A linear weight `[n, k]` in NF4: packed bytes `q` `[n * k / 2]` (high nibble first), bf16 `absmax`."""
+
+    q: mx.array
+    absmax: mx.array
+
+    @property
+    def nbytes(self) -> int:
+        """Bytes held."""
+        return self.q.nbytes + self.absmax.nbytes
+
+    def expand(self, dtype: mx.Dtype) -> mx.array:
+        """The weight in `dtype`: `bf16(code * absmax)` (float32 product, as bitsandbytes), then cast."""
+        return _nf4_expand(self.q, self.absmax).astype(dtype)
+
+
+@mx.compile
+def _nf4_expand(q: mx.array, absmax: mx.array) -> mx.array:
+    code = mx.array(NF4_CODE, dtype=mx.float32)
+    vals = mx.stack([code[(q >> 4).astype(mx.uint32)], code[(q & 15).astype(mx.uint32)]], axis=-1)
+    w = vals.reshape(-1, BLOCK) * absmax.reshape(-1, 1).astype(mx.float32)
+    return w.astype(mx.bfloat16).reshape(absmax.shape[0], -1)
+
+
+@mx.compile
+def _nf4_codes(w: mx.array) -> tuple[mx.array, mx.array]:
+    n, k = w.shape
+    blk = w.astype(mx.float32).reshape(n, k // BLOCK, BLOCK)
+    am = mx.abs(blk).max(axis=-1).astype(mx.bfloat16)
+    x = blk / mx.maximum(am.astype(mx.float32), _TINY)[..., None]
+    idx = mx.zeros(x.shape, dtype=mx.uint8)
+    for a, b in pairwise(NF4_CODE):  # torch.bucketize(x, mids): the mids below x
+        idx = idx + (x > (a + b) / 2).astype(mx.uint8)
+    pairs = idx.reshape(-1, 2)
+    return (pairs[:, 0] << 4) | pairs[:, 1], am
+
+
+def nf4_quantize(w: mx.array) -> Nf4:
+    """Weight `[n, k]` (k a multiple of 64) -> `Nf4`, as `fastforks.shared.nf4.quantize` (evaluated).
+
+    Per block of 64 weights the bf16 absmax, each weight the nearest code value of `w / absmax` (ties to the lower).
+    """
+    if w.shape[1] % BLOCK:
+        msg = f"NF4 needs the input width to be a multiple of {BLOCK}, got {w.shape[1]}"
+        raise ValueError(msg)
+    q, am = _nf4_codes(w)
+    mx.eval(q, am)
+    return Nf4(q, am)

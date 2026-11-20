@@ -23,7 +23,7 @@ import numpy as np
 import torch
 
 from fastforks._core.mlx import mx
-from fastforks.shared.mlx_weights import Weights
+from fastforks.shared.mlx_weights import Nf4, Weights, nf4_quantize
 
 from . import dit
 from .vae import CHANNELS, GROUPS, LATENT, SCALE, TEMPORAL_DOWN, TEMPORAL_UP
@@ -94,9 +94,13 @@ class Plan:
 
 
 class Transformer:
-    """`dit.Transformer` on MLX: constants at load, then 32 / 36 blocks resident in the run dtype."""
+    """`dit.Transformer` on MLX: constants at load, then 32 / 36 blocks resident in the run dtype.
 
-    def __init__(self, w: Weights, cfg: Config, dt: mx.Dtype) -> None:
+    `quant`: the blocks' linear weights in NF4 (`quant = "nf4"`, as `net.read_dit`), quantised one tensor at a time
+    and expanded per call (`mlx_weights.Nf4`).
+    """
+
+    def __init__(self, w: Weights, cfg: Config, dt: mx.Dtype, *, quant: bool = False) -> None:
         """Read the transformer's checkpoint block by block (`w` keys as in the checkpoint)."""
         self.cfg, self.dt = cfg, dt
         emb = self._time_embedding(w)
@@ -122,7 +126,11 @@ class Transformer:
         for i in range(cfg.layers):
             p = f"blocks.{i}."
             keys = [k for k in w.prefixed(p) if ".ada." not in k]
-            self.blocks.append({k[len(p) :]: v for k, v in w.take(keys, dt).items()})
+            nf4 = {k for k in keys if quant and k.endswith(".weight") and w.peek(k).ndim == 2}  # noqa: PLR2004
+            block: dict[str, mx.array | Nf4] = dict(w.take([k for k in keys if k not in nf4], dt))
+            for k in sorted(nf4):
+                block[k] = nf4_quantize(w.take([k])[k])
+            self.blocks.append({k[len(p) :]: v for k, v in block.items()})
         a = dit._angles(torch.arange(self.txt.shape[0])).repeat(1, 3)[:, None]  # noqa: SLF001 - the shared RoPE angles
         pad = dit.HEAD_DIM - 3 * dit.ROPE_AXIS
         self.txt_rope = (
@@ -160,9 +168,9 @@ class Transformer:
         n = f"{name}.{branch}"
         return n if n + ".weight" in t else f"{name}.all"
 
-    @staticmethod
-    def _lin(t: dict[str, mx.array], name: str, x: mx.array) -> mx.array:
-        return linear(x, t[name + ".weight"], t.get(name + ".bias"))
+    def _lin(self, t: dict[str, mx.array | Nf4], name: str, x: mx.array) -> mx.array:
+        wt = t[name + ".weight"]
+        return linear(x, wt.expand(self.dt) if isinstance(wt, Nf4) else wt, t.get(name + ".bias"))
 
     def attention(
         self, t: dict[str, mx.array], vid: mx.array, txt: mx.array, plan: Plan, *, last: bool
@@ -406,10 +414,10 @@ class VAE:
 class Net:
     """`net.Net` on MLX: VAE encode, one transformer step at t = 1000, VAE decode."""
 
-    def __init__(self, dit_path: Path, vae_path: Path, cfg: Config, dtype: mx.Dtype) -> None:
-        """Read both checkpoints into the run dtype `dtype`."""
+    def __init__(self, dit_path: Path, vae_path: Path, cfg: Config, dtype: mx.Dtype, *, quant: bool = False) -> None:
+        """Read both checkpoints into the run dtype `dtype` (`quant`: the blocks' linear weights in NF4)."""
         self.dt = dtype
-        self.dit = Transformer(Weights(dit_path), cfg, dtype)
+        self.dit = Transformer(Weights(dit_path), cfg, dtype, quant=quant)
         self.vae = VAE(Weights(vae_path), dtype)
 
     def __call__(self, x: torch.Tensor, eps: torch.Tensor, noise: torch.Tensor) -> torch.Tensor:

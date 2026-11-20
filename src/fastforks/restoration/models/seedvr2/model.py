@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
-from fastforks._core.errors import OptionsError
 from fastforks.kernels import nf4
 from fastforks.restoration._runner import Forward, Runner
 from fastforks.shared.nf4 import code as nf4_code
@@ -147,8 +146,8 @@ class Kernels(Runner):
 class MlxPortable(Runner):
     """Apple MLX (`device="mlx"`): the transformer and VAE in `mx` operations (`net.mlx_net`).
 
-    Weights are read block by block from the bf16 checkpoints into the run dtype (no PyTorch twin); the resize and
-    the noise stay PyTorch.
+    Weights are read block by block from the bf16 checkpoints into the run dtype (no PyTorch twin), or with
+    `quant = "nf4"` the blocks' linear weights quantised to NF4 as on CUDA; the resize and the noise stay PyTorch.
     """
 
     batch = 1
@@ -157,15 +156,14 @@ class MlxPortable(Runner):
     def __init__(self, ctx: Context) -> None:
         """Read the checkpoints into MLX."""
         super().__init__(ctx)
-        if ctx.params.quant != "none":
-            msg = f"{ctx.variant.ref}: the MLX port has no quant={ctx.params.quant!r} (bf16 / fp16 weights only)"
-            raise OptionsError(msg)
+        _announce(ctx)
         from fastforks.shared.mlx_weights import DTYPES  # noqa: PLC0415 - needs the mlx extra
 
         from .net import mlx_net  # noqa: PLC0415
 
         dit, vae = ctx.weights()
-        self.net = mlx_net.Net(dit, vae, CONFIGS[ctx.params.variant], DTYPES[ctx.dtype])
+        cfg = CONFIGS[ctx.params.variant]
+        self.net = mlx_net.Net(dit, vae, cfg, DTYPES[ctx.dtype], quant=ctx.params.quant == "nf4")
         self.noise = Noise(ctx.params.seed)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
