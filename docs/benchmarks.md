@@ -768,7 +768,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | bridgedepth-rvc-pretrain | 629 | 470 | 442 | 354 | 1.3x | 1.2x | 2903 / 3200 | 2968 / 3246 | 2361 / 2686 |
 | bridgedepth-sf | 616 | 460 | 437 | 348 | 1.3x | 1.3x | 2852 / 3144 | 2916 / 3214 | 2310 / 2634 |
 | c-fast-foundationstereo | 741 | 527 | 330 | 135 | 3.9x | 2.4x | 2892 / 2996 | 2109 / 2336 | 1196 / 1516 |
-| c-foundationstereo-s | OOM | 3874 | – | – | – | – | 8338 / 12870 | – | – |
+| c-foundationstereo-s | OOM | 3874 | 3628 | – | – | – | 8338 / 12870 | 3857 / 4152 | – |
 | cas-gwcnet-c-sceneflow | 656 | 389 | 327 | 225 | 1.7x | 1.5x | 2791 / 2970 | 2006 / 2474 | 1725 / 1930 |
 | cas-gwcnet-gc-sceneflow | 862 | 567 | 472 | 358 | 1.6x | 1.3x | 8317 / 8730 | 2338 / 2794 | 2272 / 2514 |
 | cfnet-sceneflow | 659 | 545 | – | – | – | – | 6765 / 7880 | – | – |
@@ -2141,7 +2141,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | bridgedepth-sf | 994x1482 | 437 ms | 325 ms | public API unavailable | 348 ms | 111 s | – | 2916 / 3214 | 2280 / 2308 | 2310 / 2634 | – |
 | bridgedepth-sf | 375x1242 | 111 ms | – | 284 ms, fp32 engine (DINOv2 and DPT monocular branch with eager stereo inference) | 92.1 ms | – | 54.1 s | 1859 / 1954 | – | 1272 / 1394 | 2358 / 2508 |
 | c-fast-foundationstereo | 994x1482 | 330 ms | 339 ms | 451 ms | 135 ms | 75.4 s | 240 s | 2109 / 2336 | 1649 / 1792 | 1120 / 1236 | 1425 / 1462 |
-| c-foundationstereo-s | 994x1482 | 3631 ms | 2773 ms | 2229 ms | 1366 ms | 626 s | 444 s | 4357 / 4950 | 7298 / 7624 | 3058 / 4408 | 10027 / 10108 |
+| c-foundationstereo-s | 994x1482 | 3628 ms | 2773 ms | 2229 ms | 1366 ms | 626 s | 444 s | 3857 / 4152 | 7298 / 7624 | 3058 / 4408 | 10027 / 10108 |
 | cas-gwcnet-c-sceneflow | 994x1482 | 327 ms | 295 ms | 220 ms | 225 ms | 61.7 s | 131 s | 2006 / 2474 | 2098 / 2448 | 1725 / 1930 | 1533 / 1548 |
 | cas-gwcnet-gc-sceneflow | 994x1482 | 473 ms | 383 ms | 307 ms | 359 ms | 63.7 s | 98.6 s | 2032 / 2228 | 6592 / 6670 | 2035 / 2230 | 4142 / 4194 |
 | cfnet-sceneflow | 994x1482 | 409 ms | 249 ms | 171 ms | 225 ms | 53.0 s | 139 s | 1822 / 2578 | 1026 / 1398 | 1073 / 1604 | 1357 / 1410 |
