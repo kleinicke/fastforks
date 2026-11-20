@@ -133,6 +133,10 @@ CPU, float32: max |diff| <= 0.0 vs the original. GPU, float16 (the default), por
 |---|---|---|---|
 | `nninteractive` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@c55f9fff92d3:sm_120` |
 
+### Limitations
+
+- On the RTX 5060 Ti, preparing a 192³ network patch at 2.25× AutoZoom took 43.2 ms and 2,575 MiB peak allocation, down from 50.9 ms and 5,081 MiB on the same synthetic session state. Tested zoomed patches and prompted CT masks matched bit for bit in the paired runs.
+
 </details>
 
 <a id="totalsegmentator"></a>

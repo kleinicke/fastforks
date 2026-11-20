@@ -47,8 +47,8 @@ Box = list[list[int]]  # [[start, end), ...] per axis
 _BORDER = (1500, 0.2, 100)  # fixed: upstream `_detect_change_at_border` (absolute, relative, minimum changed voxels)
 _MAX_ZOOM = 4.0  # fixed: upstream session constant (max zoom-out factor), not in inference_session_class.json
 _ZOOM_GROWTH = 1.5  # fixed: upstream session constant (zoom-out step), not in inference_session_class.json
-_POOL_ELEMENTS = 256 << 20
-_WIDE_POOL = 7
+_POOL_ELEMENTS = 256 << 20  # fixed: cap the size of CUDA prompt groups
+_WIDE_POOL = 7  # fixed: measured crossover for separable max pooling
 
 
 @dataclass(frozen=True)
