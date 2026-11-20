@@ -289,7 +289,7 @@ python-version = "3.11"
 extra-paths = ["tests", "tools", "tools/golden"]  # tests/synth.py (shared with tools/golden), tools imported by tests, `_common`
 
 [tool.ty.src]
-include = ["src", "tests", "tools"]
+include = ["src", "tests", "tools", "integrations"]
 
 [tool.ty.analysis]
 # Optional extras the CI lint job does not install, and upstream reference trees put on sys.path at run time.
@@ -300,6 +300,7 @@ allowed-unresolved-imports = [
   "matplotlib", "matplotlib.**",  # one-off chart tools (`uv run --with matplotlib`)
   "ffweights",  # the original-speed bench module, on sys.path at run time
   "mlx", "mlx.**",
+  "comfy", "comfy.**", "folder_paths",  # ComfyUI (integrations/comfyui runs inside it)
 ]
 
 [tool.ty.rules]

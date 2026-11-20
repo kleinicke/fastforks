@@ -1,0 +1,15 @@
+[project]
+name = "comfyui-fastforks"
+description = "Fast depth, normals, background removal, SAM, detection, pose, interpolation, segmentation, stereo, flow and tracking nodes (fastforks)."
+version = "0.2.0"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+dependencies = ["fastforks-core[timm,transformers]>=0.2"]  # 0.2: restoration.load(path), video(), contracts
+
+[project.urls]
+Repository = "https://github.com/kleinicke/fastforks"
+
+[tool.comfy]
+PublisherId = "kleinicke"
+DisplayName = "fastforks"
+Icon = ""
