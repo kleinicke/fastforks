@@ -236,7 +236,7 @@ Open, found by the sweep (causes in [Windows-only numerical differences](#window
 
 | reference | result on Windows | portable on Windows | cause |
 | --- | --- | --- | --- |
-| `seedvr2-7b@1` | access violation reading the 16 GB checkpoint (`safe_open` / `get_tensor`, stream mode) in the sweep | passes | Not reproduced when run alone (see below). |
+| `seedvr2-7b@1` | passes (the sweep hit an access violation reading the 16 GB checkpoint) | passes | Not reproduced when run alone (see below). |
 | `marigold-v2-depth@1` | depth mean 0.0188 (tolerance 0.01) | same failure | CPU `torch.polar` in the RoPE tables (MSVC vs glibc `cos` / `sin`). |
 | `dfine-n-coco@1` | 8 detections, golden 7 | passes | No flash SDPA; one box on the score threshold. |
 | `lw-detr-medium-coco@1` | boxes mean 0.29 px | passes | No flash SDPA (the `cudnn_hacc` ctypes plans are bit-equal to Linux). |
@@ -307,8 +307,8 @@ The thread count makes no difference. In the last bits: bilinear / bicubic inter
 
 ### seedvr2-7b
 
-The access violation in the sweep did not come back when the reference ran alone: `test_gpu[seedvr2-7b@1-portable]`
-passes on Windows. The checkpoint is already read through `safe_open` (memory-mapped), one tensor at a time, and NF4
+The access violation in the sweep did not come back when the reference ran alone: `test_gpu[seedvr2-7b@1-portable]` and
+`[seedvr2-7b@1-kernels]` both pass on Windows. The checkpoint is already read through `safe_open` (memory-mapped), one tensor at a time, and NF4
 quantization runs one tensor at a time on the GPU. The likely cause was memory pressure from the sweep's other staged
 weights. Its weights (16.5 GB plus the 0.5 GB VAE) exceed the 15 GB staging limit on their own.
 
