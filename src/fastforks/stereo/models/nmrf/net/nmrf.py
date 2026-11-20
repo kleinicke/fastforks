@@ -105,6 +105,7 @@ class NMRF(nn.Module):
         fmap1_list, fmap2_list = self.extract_feature(img1, img2)
         cost_volume = build_correlation_volume(fmap1_list[0], fmap2_list[0], self.max_disp // 8, self.dpn.cost_group)  # [B,G,D,H,W]
         labels = self.dpn(cost_volume, fmap1_list)
+        del cost_volume
 
         # ---- NMRF inference ---- #
         fmap1 = self.concatconv(fmap1_list[0])
@@ -112,11 +113,13 @@ class NMRF(nn.Module):
         fmap1_gw = self.gw(fmap1_list[0])
         fmap2_gw = self.gw(fmap2_list[0])
         labels_curr = labels[-1].detach()
+        del labels
 
         tgt = self.inference(labels_curr, fmap1, fmap2, fmap1_gw, fmap2_gw)
         disp_delta = self.infer_head(tgt)  # [num_aux_layers,BHW,N,8*8]
         coarse_disp = F.relu(labels_curr[None].unsqueeze(-1) + disp_delta)
         mask = .25 * self.infer_score_head(tgt)  # [num_aux_layers,BHW,N,8*8]
+        del tgt, disp_delta, labels_curr
         bs, _, ht, wd = fmap1.shape
         n = coarse_disp.shape[-2]
 
@@ -125,8 +128,10 @@ class NMRF(nn.Module):
             return x.reshape(bs, ht * 8, wd * 8, n)
 
         # refinement
-        _, indices = torch.max(up8(mask[-1]), dim=-1, keepdim=True)
+        indices = up8(mask[-1]).max(dim=-1, keepdim=True).indices
+        del mask
         disp_curr = torch.gather(up8(coarse_disp[-1]), dim=-1, index=indices).squeeze(-1) * 2  # [B,H,W]
+        del coarse_disp, indices
         # fastforks: rearrange 'b (h hs) (w ws) -> b h w (hs ws)', hs=ws=4
         disp_curr = disp_curr.reshape(bs, ht * 2, 4, wd * 2, 4).permute(0, 1, 3, 2, 4).flatten(-2)
         # fastforks: torch.median (lower median of 16) as sort + index (exports to ONNX)
@@ -136,6 +141,7 @@ class NMRF(nn.Module):
         fmap2 = self.concatconv(fmap2_list[1])
         fmap1_gw = self.gw(fmap1_list[1])
         fmap2_gw = self.gw(fmap2_list[1])
+        del fmap1_list, fmap2_list
         tgt = self.refinement(disp_curr, fmap1, fmap2, fmap1_gw, fmap2_gw)
         disp_delta = self.refine_head(tgt)  # [num_aux_layers,BHW,4*4]
         bs, _, ht, wd = fmap1.shape
