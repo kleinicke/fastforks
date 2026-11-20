@@ -982,17 +982,70 @@ def _shift_pad(x: mx.array, axis: int, lo: int, hi: int) -> mx.array:
     return x
 
 
+def _depthwise3d(x: mx.array, w: mx.array, stride: Sequence[int], padding: Sequence[int]) -> mx.array:
+    """NDHWC depthwise conv3d (`w` `[C, 1, kd, kh, kw]`): a sum over the taps of strided slices times each tap.
+
+    The per-group `mx.conv3d` loop copies a channel slice of the whole volume per group (FoundationStereo's `conv_patch`
+    k4 s4 on a 104x256x376x28 volume: 3.4 GB of transients, 440 ms; this: one output-sized accumulator, 36 ms).
+    """
+    if any(padding):
+        x = mx.pad(x, [(0, 0), *((p, p) for p in padding), (0, 0)])
+    k = w.shape[2:]
+    out_dims = [(n - kk) // s + 1 for n, kk, s in zip(x.shape[1:4], k, stride, strict=True)]
+    wl = mx.transpose(w[:, 0], (1, 2, 3, 0))  # [kd, kh, kw, C]
+    acc = None
+    for a in range(k[0]):
+        for b in range(k[1]):
+            for c in range(k[2]):
+                sl = x[
+                    :,
+                    a : a + (out_dims[0] - 1) * stride[0] + 1 : stride[0],
+                    b : b + (out_dims[1] - 1) * stride[1] + 1 : stride[1],
+                    c : c + (out_dims[2] - 1) * stride[2] + 1 : stride[2],
+                ]
+                t = sl * wl[a, b, c]
+                acc = t if acc is None else acc + t
+    return acc  # ty: ignore[invalid-return-type]
+
+
+TRANSPOSE3D_SLAB_MB = 96
+
+
 def _conv_transpose3d_phases(
     x: mx.array, w: mx.array, stride: Sequence[int], padding: Sequence[int], output_padding: Sequence[int]
 ) -> mx.array | None:
     """NDHWC transposed conv as one small stride-1 conv per output phase (`mx.conv_transpose3d` is ~8x slower).
 
     `w` is `[Cin, Cout, kd, kh, kw]`; returns None when the output is not `stride` x the input (no phase grid).
+    A big output is made in depth slabs (input rows with a halo, zero beyond the ends as the full conv sees them):
+    the phases, their stack and interleave of one slab are its only transients (FoundationStereo's `conv1_up` at
+    104x256x376x28: 3.1 GB of transients whole, the slabs' concatenation ~0.6 GB).
     """
     dims = x.shape[1:4]
     k = w.shape[2:]
     if any((n - 1) * s - 2 * p + kk + op != n * s for n, s, p, kk, op in zip(dims, stride, padding, k, output_padding)):
         return None
+    d = dims[0]
+    out_bytes = x.shape[0] * d * stride[0] * dims[1] * stride[1] * dims[2] * stride[2] * w.shape[1] * x.dtype.size
+    rows = max(1, int(d * (TRANSPOSE3D_SLAB_MB << 20) // max(out_bytes, 1)))
+    if rows < d:
+        halo = (k[0] - 1) // stride[0] + 1
+        slabs = []
+        for d0 in range(0, d, rows):
+            d1 = min(d, d0 + rows)
+            a, b = d0 - halo, d1 + halo
+            xs = x[:, max(a, 0) : min(b, d)]
+            if a < 0 or b > d:
+                xs = mx.pad(xs, [(0, 0), (max(-a, 0), max(b - d, 0)), (0, 0), (0, 0), (0, 0)])
+            y = _conv_transpose3d_phases_whole(xs, w, stride, padding)
+            slabs.append(y[:, halo * stride[0] : (halo + d1 - d0) * stride[0]])
+        return mx.concatenate(slabs, axis=1)
+    return _conv_transpose3d_phases_whole(x, w, stride, padding)
+
+
+def _conv_transpose3d_phases_whole(x: mx.array, w: mx.array, stride: Sequence[int], padding: Sequence[int]) -> mx.array:
+    """`_conv_transpose3d_phases` of the whole input in one go."""
+    k = w.shape[2:]
     wt = mx.transpose(w, (1, 2, 3, 4, 0))  # [Cout, kd, kh, kw, Cin]
     taps = []  # per dim, per phase: (kernel indices ordered by input offset, lo pad, hi pad)
     for ax in range(3):
@@ -1103,6 +1156,8 @@ def _conv_core(  # noqa: PLR0913
                 return mx.transpose(y, (0, 4, 1, 2, 3))
             if groups == 1:
                 y = mx.conv3d(xl3, wl3, **kw3)
+            elif groups == xl3.shape[-1] == w.shape[0] and all(d == 1 for d in dilation):
+                y = _depthwise3d(xl3, w, stride, padding)
             else:  # `mx.conv3d` has no groups: one conv per group
                 cg, og = xl3.shape[-1] // groups, wl3.shape[0] // groups
                 y = mx.concatenate(
