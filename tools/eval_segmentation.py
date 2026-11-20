@@ -36,6 +36,7 @@ import re
 import subprocess
 import sys
 import time
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -44,6 +45,7 @@ import torch
 from PIL import Image
 
 from _data import DATA
+from _prefetch import prefetch
 
 sys.path.insert(0, str(Path(__file__).parent / "golden"))
 
@@ -68,8 +70,9 @@ class _Set(torch.utils.data.Dataset[tuple[torch.Tensor, torch.Tensor]]):
 
     def __getitem__(self, i: int) -> tuple[torch.Tensor, torch.Tensor]:
         im, ann = self.files[i]
-        x = torch.from_numpy(np.asarray(Image.open(im).convert("RGB")).copy()).permute(2, 0, 1)
-        y = torch.from_numpy(np.asarray(Image.open(ann)).astype(np.int64)) - 1  # 0 (ignore) -> -1
+        with Image.open(im) as image, Image.open(ann) as annotation:
+            x = torch.from_numpy(np.asarray(image.convert("RGB")).copy()).permute(2, 0, 1)
+            y = torch.from_numpy(np.asarray(annotation).astype(np.int64)) - 1  # 0 (ignore) -> -1
         return x, y
 
 
@@ -87,7 +90,8 @@ class _Persons(torch.utils.data.Dataset[tuple[torch.Tensor, torch.Tensor]]):
 
     def __getitem__(self, i: int) -> tuple[torch.Tensor, torch.Tensor]:
         f, iid = self.items[i]
-        x = torch.from_numpy(np.asarray(Image.open(f).convert("RGB")).copy()).permute(2, 0, 1)
+        with Image.open(f) as image:
+            x = torch.from_numpy(np.asarray(image.convert("RGB")).copy()).permute(2, 0, 1)
         y = np.zeros(x.shape[1:], np.int64)
         anns = self.coco.loadAnns(self.coco.getAnnIds(imgIds=iid, catIds=[1]))
         for a in anns:
@@ -206,16 +210,15 @@ def _is_sapiens(ref: str) -> bool:
     return ref.startswith("sapiens")
 
 
-def _eval(fwd: Any, ds: torch.utils.data.Dataset[Any], classes: int, person: bool) -> dict[str, Any]:  # noqa: ANN401, FBT001
+def _eval(fwd: Any, ds: _Set | _Persons, classes: int, person: bool) -> dict[str, Any]:  # noqa: ANN401, FBT001
     torch.cuda.synchronize()
     torch.cuda.reset_peak_memory_stats()
     inter = torch.zeros(classes, dtype=torch.int64)
     union = torch.zeros(classes, dtype=torch.int64)
     label_area = torch.zeros(classes, dtype=torch.int64)
     t_run, n, nonfinite = 0.0, 0, 0
-    loader = torch.utils.data.DataLoader(ds, batch_size=None, num_workers=6, prefetch_factor=4)
-    with torch.inference_mode():
-        for x, y in loader:
+    with torch.inference_mode(), closing(prefetch(ds.__getitem__, range(len(ds)), workers=4)) as samples:
+        for x, y in samples:
             xc = x.cuda(non_blocking=True)
             torch.cuda.synchronize()
             t = time.perf_counter()
