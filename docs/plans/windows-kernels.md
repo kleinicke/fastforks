@@ -373,8 +373,8 @@ the speed-table harness: uint8 CUDA input, other warm-up and medians), so they c
   memory-efficient attention, which takes 1.18 ms against flash's 0.62 ms for a [1, 6, 4096, 64] fp16 call. The
   cuDNN SDPA backend is in both wheels and takes 0.61 ms. That accounts for bridgedepth (+38 % kernels, +50 %
   portable), sam2.1-hiera-tiny (+30-35 %) and the ViT/DETR portable rows (depth-anything-v2-s +27 %, rf-detr-s +19 %).
-  Choosing cuDNN attention where flash is missing would likely close the gap. It would be an explicit backend
-  choice like C-FS-S's, and the goldens would need checking.
+  cuDNN attention is now an explicit, logged opt-in (`FASTFORKS_SDPA=cudnn,efficient,math`, decision 9); it is not
+  the default because it fails a golden that passes with memory-efficient.
 - **Some cells are bimodal between processes on both OSes**, not drift within a process (cuDNN benchmarking is
   off). Examples: igev-stereo portable 250 / 285 on Windows, depth-anything-v2-s kernels 5.0 / 11.9 and rife-4.26
   24 / 35 on WSL2, convnext portable 5 / 11 on both. Compare the best values there, not the medians.
@@ -448,6 +448,29 @@ Open, for a maintainer (see [Windows-only numerical differences](#windows-only-n
    tables no longer match the authors' code bit for bit. The alternative is a looser tolerance.
 8. **Float32 CPU goldens.** The nine references listed above differ only in PyTorch's own CPU kernels. Options: widen
    their `cpu_atol` to cover both builds, or mark the CPU golden as Linux-only.
+9. **SDPA backend where PyTorch has no flash** (`fastforks.shared.sdpa`, `FASTFORKS_SDPA`, docs/usage.md). Every CUDA
+   model call runs under one shared policy (`Model._session`); C-FS-S's kernels take theirs from it too. `auto`
+   (default) changes nothing where the build has flash (Linux: no switch entered, C-FS-S pins flash). Without flash
+   it enables memory-efficient, math, cuDNN in that order, which is PyTorch's own order minus flash, and logs it.
+   `torch` leaves PyTorch alone; a list such as `cudnn,efficient,math` sets the priority. cuDNN first was measured
+   on Windows (RTX 5060 Ti, torch 2.14.1+cu130, cuDNN 9.24) and left opt-in:
+
+   - Accuracy against float64 is the same for both (fp16 `[1, 6, 4096, 64]`: mean 5.23e-4, max 1.13e-2), and cuDNN
+     is 1.4-2x faster per call (1.18 -> 0.61 ms at that shape).
+   - `fastforks bench --runs 30 --dtype float16`, median (best) of 5 processes, efficient -> cuDNN first:
+     sam2.1-hiera-tiny 1024x1024 portable 27.8 (25.4) -> 20.9 (20.4), kernels 22.3 (22.1) -> 17.6 (17.6);
+     depth-anything-v2-s 518x770 portable 11.0 (10.5) -> 9.4 (9.3), kernels 5.2 -> 5.2; bridgedepth-sf 375x1242
+     portable 175.5 (139.7) -> 172.0 (126.7), kernels 140.3 (135.0) -> 138.8 (102.7) (bimodal between processes,
+     103 / 140 ms; not the attention: a profile of one kernels call has PyTorch SDPA at 0.77 ms efficient vs 0.68
+     ms cuDNN, the rest of its attention is `flash64`, 5.7 ms either way); rf-detr-s-coco 800x1344 portable 16.2 (16.1) ->
+     17.9 (16.4), kernels 3.9 (3.9) -> 4.4 (3.9) (slower).
+   - Windows GPU goldens of 13 SDPA references (26 cases), efficient -> cuDNN first: rf-detr-n-coco portable and
+     dfine-n-coco kernels start to pass, rf-detr-s-coco portable starts to fail (boxes p99 0.1823), and the others
+     fail or pass alike (sam2.1-hiera-tiny, lw-detr-medium, rtmo-t and sam-hq-vit-b kernels with other numbers;
+     rf-detr-seg-2xl and keypoint-preview portable). Rounding, not accuracy, as in decision 6.
+
+   Decision for a maintainer: make cuDNN the no-flash default once decision 6 settles the tolerances (it is the
+   faster backend for the SAM and ViT models), or keep it opt-in.
 
 ## Platform notes
 
