@@ -247,8 +247,13 @@ class Portable(Runner):
         """Build the network."""
         super().__init__(ctx)
         self.half = ctx.dtype == "float16"
+        self.in_dtype = torch.float16 if self.half else torch.float32
         net = _net(ctx)
-        if not self.half:
+        if (
+            mlx_wrap.twin_dtype() == "float16"
+        ):  # the MLX float16 graph from the checkpoint's float16 weights as they are
+            self.in_dtype = torch.float16
+        elif not self.half:
             net = net.float()
         self.fast = _Fast(net).eval().to(ctx.device)  # a new Module starts in training mode
         if self.half:  # everything after the ViTs on NHWC maps
@@ -257,7 +262,7 @@ class Portable(Runner):
 
     def _run(self, image: torch.Tensor, k: torch.Tensor | None) -> dict[str, torch.Tensor]:
         h, w = image.shape[-2:]
-        x = _prepare(self.ctx, image, torch.float16 if self.half else torch.float32)
+        x = _prepare(self.ctx, image, self.in_dtype)
         with torch.autocast(x.device.type, dtype=torch.float16, enabled=self.half):
             cid, fov = self._graph(x, with_fov=k is None)
         return _finish(cid, fov, k, h, w)
@@ -519,6 +524,10 @@ from fastforks.kernels.dpt_fused import load as load_dpt_fused  # noqa: E402
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_graph",), net_attr="fast"),
-    "kernels_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_graph",), net_attr="fast"),
+    "portable_mlx": mlx_wrap.port(
+        Portable, attrs=(), methods=("_graph",), net_attr="fast", release=True, chunk_mb=256, pipeline=True
+    ),
+    "kernels_mlx": mlx_wrap.port(
+        Portable, attrs=(), methods=("_graph",), net_attr="fast", release=True, chunk_mb=256, pipeline=True
+    ),
 }

@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
     from fastforks._core.runner import Context, Runner
 
-__all__ = ["port", "run_dtype"]
+__all__ = ["port", "run_dtype", "twin_dtype"]
 
 POST_ON_MLX: contextvars.ContextVar[bool] = contextvars.ContextVar("mlx_post", default=False)
 """Set while an MLX runner computes: segmentation's logits resize and argmax run on MLX (`fastforks.shared.mlx_seg`)."""
@@ -40,6 +40,15 @@ def run_dtype(ctx: Context) -> str:
     A runner that rescales weights for float16 (to keep activations finite) asks this instead of `ctx.dtype`.
     """
     return _RUN_DTYPE.get() or ctx.dtype
+
+
+def twin_dtype() -> str | None:
+    """The MLX run dtype while an MLX runner builds its PyTorch twin, else None.
+
+    A runner whose checkpoint is float16 can keep it as it is for a float16 replay (the twin's weights then stay the
+    memory-mapped checkpoint: no float32 copy) by building its float16 graph instead of the float32 one.
+    """
+    return _RUN_DTYPE.get()
 
 
 class LazyTwinError(RuntimeError):
@@ -142,6 +151,8 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
     compile: bool = True,  # noqa: A002 - mirrors `MlxModule`
     cache_mb: int | Mapping[str, int] = 0,
     chunk_mb: int | Mapping[str, int] = 0,
+    release: bool = False,
+    pipeline: bool = False,
 ) -> type[Runner]:
     """The MLX runner of `portable`: same call, the module(s) named by `attrs` run on MLX in `ctx.dtype`.
 
@@ -166,6 +177,12 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
 
     `chunk_mb`: the MLX graph's checkpoint interval in MB of new activations (0: the default 256; a larger one evaluates
     less often, which the big-activation Winograd nets need at a small cache); a mapping as for `cache_mb`.
+
+    `release=True`: the `methods`' graphs hand the twin's tensors they moved to MLX back (stand-ins, as `attrs` always
+    do); only for a runner that computes nothing else with `net_attr`'s weights.
+
+    `pipeline=True`: queue each checkpoint segment before waiting for the previous one (the GPU never idles while the
+    next segment's graph is built, at the cost of one more segment's activations in flight).
 
     `kernels_fp16_only=True`: the kernels mode uses its Metal kernels in float16 only (float32 runs as portable).
     """
@@ -206,7 +223,13 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                 dtype = "float32" if name in fp32_methods else ctx.dtype
                 if isinstance(host, torch.nn.Module):  # a method of a submodule: it owns the weights it computes with
                     mod = MlxModule(
-                        _Method(getattr(host, leaf), host), dtype, kernels=kernels, compile=compiled, chunk_mb=chunk
+                        _Method(getattr(host, leaf), host),
+                        dtype,
+                        kernels=kernels,
+                        compile=compiled,
+                        chunk_mb=chunk,
+                        release=release,
+                        pipeline=pipeline,
                     )
                     object.__setattr__(host, leaf, mod)  # the instance entry beats the class's function
                 else:
@@ -215,19 +238,37 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                         host,
                         leaf,
                         MlxModule(
-                            _Method(getattr(host, leaf), net), dtype, kernels=kernels, compile=compiled, chunk_mb=chunk
+                            _Method(getattr(host, leaf), net),
+                            dtype,
+                            kernels=kernels,
+                            compile=compiled,
+                            chunk_mb=chunk,
+                            release=release,
+                            pipeline=pipeline,
                         ),
                     )
             if whole:
                 self._whole = MlxModule(
-                    self.module(), ctx.dtype, kernels=kernels, release=True, compile=compiled, chunk_mb=chunk
+                    self.module(),
+                    ctx.dtype,
+                    kernels=kernels,
+                    release=True,
+                    compile=compiled,
+                    chunk_mb=chunk,
+                    pipeline=pipeline,
                 )
                 return
             for name in attrs:
                 owner, _, leaf = name.rpartition(".")
                 host = _resolve(self, owner) if owner else self
                 mod = MlxModule(
-                    getattr(host, leaf), ctx.dtype, kernels=kernels, release=True, compile=compiled, chunk_mb=chunk
+                    getattr(host, leaf),
+                    ctx.dtype,
+                    kernels=kernels,
+                    release=True,
+                    compile=compiled,
+                    chunk_mb=chunk,
+                    pipeline=pipeline,
                 )
                 if isinstance(host, torch.nn.Module):  # the MLX callable is no child module
                     host._modules.pop(leaf, None)  # noqa: SLF001 - the module registry

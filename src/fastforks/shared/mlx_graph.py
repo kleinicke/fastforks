@@ -1798,8 +1798,13 @@ class GraphNet:
         kernels: bool = False,
         shared: dict[str, Any] | None = None,
         chunk_mb: int = 0,
+        pipeline: bool = False,
     ) -> None:
-        """Keep the module until its first export; parameters convert then (`chunk_mb`: see `_runner`, 0 = `CHUNK_MB`)."""
+        """Keep the module until its first export; parameters convert then (`chunk_mb`: see `_runner`, 0 = `CHUNK_MB`).
+
+        `pipeline=True`: queue each checkpoint segment (`mx.async_eval`) and wait for the one before it, so the next
+        segment's graph is built while the GPU runs (one more segment's activations in flight).
+        """
         self.module = module.eval()
         for m in self.module.modules():  # a buffer computed from parameters (position biases) is a non-leaf tensor
             for name, b in m._buffers.items():
@@ -1813,6 +1818,7 @@ class GraphNet:
         self.weight_bytes = 0
         self.kernels = kernels
         self.chunk_mb = chunk_mb
+        self.pipeline = pipeline
         self._runs: dict[tuple[Any, ...], Callable[..., Any]] = {}
         self.on_built: Callable[[], None] | None = None  # called after each export, before its first run
         self._wino: dict[
@@ -2115,7 +2121,9 @@ class GraphNet:
         out_refs = set(_refs(out_names))
         # a net with big weights peaks while loading (the float32 twin), not while running: checkpoint rarely there
         big = min(self.weight_bytes, BIG_CHUNK_MB << 20) if self.weight_bytes >= BIG_WEIGHTS else 0
-        chunk = max(int(os.environ.get("FF_MLX_CHUNK_MB", self.chunk_mb or CHUNK_MB)) << 20, big)
+        # a declared interval (`chunk_mb`, or the sweep's `FF_MLX_CHUNK_MB`) is taken as it is
+        declared = os.environ.get("FF_MLX_CHUNK_MB") or self.chunk_mb
+        chunk = int(declared) << 20 if declared else max(CHUNK_MB << 20, big)
         cuts, pending = [0], 0
         for k, (_, p) in enumerate(steps):
             pending += self._sizes.get(p[1], 0)
@@ -2147,21 +2155,28 @@ class GraphNet:
             seg_defs = {p[1] for _, p in seg}
             ins = sorted({n for i, _ in seg for n in uses[i]} - seg_defs - values.keys())
             outs = [p[1] for _, p in seg if p[1] in out_refs or last.get(p[1], -1) > final]
+            keep = set(outs)
+            # values whose last use is this step (dropped then: an eager segment frees them as soon as MLX has
+            # evaluated their consumers, instead of holding every intermediate until the segment ends)
+            dead = {i: [n for n in uses[i] if last.get(n) == i and n not in keep and n not in values] for i, _ in seg}
 
             def fn(*xs: mx.array) -> tuple[mx.array, ...]:
                 env: dict[str, Any] = dict(values)
                 env.update(zip(ins, xs, strict=True))
-                for _, p in seg:
+                del xs
+                for i, p in seg:
                     if p[0] == "alias":
                         env[p[1]] = env[p[2]]
-                        continue
-                    _, name, f, args, kwargs = p
-                    if f is operator.getitem:
-                        env[name] = env[args[0].name][args[1]]
-                    elif PROFILE is not None:
-                        _profiled(env, name, f, args, kwargs, get)
                     else:
-                        env[name] = f(*[get(env, a) for a in args], **{k: get(env, v) for k, v in kwargs.items()})
+                        _, name, f, args, kwargs = p
+                        if f is operator.getitem:
+                            env[name] = env[args[0].name][args[1]]
+                        elif PROFILE is not None:
+                            _profiled(env, name, f, args, kwargs, get)
+                        else:
+                            env[name] = f(*[get(env, a) for a in args], **{k: get(env, v) for k, v in kwargs.items()})
+                    for n in dead[i]:
+                        env.pop(n, None)
                 return tuple(env[n] for n in outs)
 
             if (
@@ -2218,11 +2233,23 @@ class GraphNet:
                 n: x.astype(self.dtype) if mx.issubdtype(x.dtype, mx.floating) else x
                 for n, x in zip(input_names, inputs, strict=True)
             }
+            prev = None
             for k, ((ins, outs, f), end) in enumerate(zip(segments, seg_last, strict=True)):
-                res = f(*[env[n] for n in ins])
+                xs = [env[n] for n in ins]
+                for n in ins:  # inputs that die in this segment: only the segment holds them (freed while it runs)
+                    if last.get(n, -1) <= end and n not in out_refs:
+                        del env[n]
+                res = f(*xs)
+                del xs
                 env.update(zip(outs, res, strict=True))
                 if k + 1 < len(segments):
-                    mx.eval(res)
+                    if self.pipeline:
+                        mx.async_eval(res)
+                        if prev is not None:
+                            mx.eval(prev)
+                        prev = res
+                    else:
+                        mx.eval(res)
                 for n in [n for n, i in last.items() if i <= end and n in env and n not in out_refs]:
                     del env[n]
             env.update(values)
@@ -2294,8 +2321,9 @@ class MlxModule:
         release: bool = False,
         compile: bool = True,  # noqa: A002 - mirrors `GraphNet`
         chunk_mb: int = 0,
+        pipeline: bool = False,
     ) -> None:
-        """Wrap `module` (eval mode, CPU). `chunk_mb`: `GraphNet`'s checkpoint interval (0: `CHUNK_MB`).
+        """Wrap `module` (eval mode, CPU). `chunk_mb`, `pipeline`: see `GraphNet`.
 
         `release=True`: once the first export has moved a parameter or buffer to MLX, the module's own tensor is
         replaced by a one-element stand-in of the same shape (a float32 twin of a 340M-parameter network is 1.4 GB).
@@ -2309,6 +2337,7 @@ class MlxModule:
         self.release = release
         self.compile = compile
         self.chunk_mb = chunk_mb
+        self.pipeline = pipeline
         self._nets: dict[Any, tuple[GraphNet, _Flat]] = {}
         if release:
             for _, t in _tensors(self.module):
@@ -2328,6 +2357,7 @@ class MlxModule:
                     kernels=self.kernels,
                     shared=self._consts(),
                     chunk_mb=self.chunk_mb,
+                    pipeline=self.pipeline,
                 ),
                 flat,
             )
