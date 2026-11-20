@@ -168,6 +168,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
+- On the RTX 5060 Ti at 3840 × 2160 with 12 point prompts and 36 output masks, EfficientViT-SAM L0 used 621 MiB portable and 626 MiB kernels, down from 1,546 and 1,552 MiB. Masks, scores and logits matched bit for bit. Paired latency was 37.0 to 38.6 ms portable and 35.3 to 36.9 ms kernels.
 - Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~85 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
@@ -274,6 +275,7 @@ CPU, float32: max |diff| <= 0.0013 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
+- On the RTX 5060 Ti at 3840 × 2160 with 12 point prompts and 36 output masks, MobileSAM used 583 MiB portable and 584 MiB kernels, down from 1,509 and 1,510 MiB. Masks, scores and logits matched bit for bit. Paired latency was 39.6 to 41.2 ms portable and 38.2 to 39.7 ms kernels.
 - Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~85 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
@@ -410,6 +412,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | `sam-vit-b` | 0.00044 / 0.00203 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120` |
 | `sam-vit-l` | 0.01589 / 0.06758 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120` |
 | `sam-vit-h` | 0.00329 / 0.01177 | RTX 5060 Ti, torch 2.14.1+cu130 | `dpt_fused@48e0065bb7cf:sm_120` |
+
+### Limitations
+
+- On the RTX 5060 Ti at 3840 × 2160 with 12 point prompts and 36 output masks, SAM ViT-B used 742 MiB portable and 741 MiB kernels, down from 1,667 MiB in both modes. Masks, scores and logits matched bit for bit. Paired latency was 75.3 to 77.0 ms portable and 64.1 to 65.8 ms kernels.
 
 </details>
 
