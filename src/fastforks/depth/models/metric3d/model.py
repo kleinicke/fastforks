@@ -26,7 +26,7 @@ from fastforks.kernels import dpt_fused
 from fastforks.kernels.fastbb import Flash64
 from fastforks.shared.depth_anything_v2.fast_vit import FastViT
 
-from .net.raft_depth_normal_dpt5 import ConvGRU, RAFTDepthNormalDPT5, norm_normalize
+from .net.raft_depth_normal_dpt5 import ConvGRU, RAFTDepthNormalDPT5, Token2Feature, norm_normalize
 from .net.vit_dino_reg import Attention, Mlp, vit_large_reg
 
 if TYPE_CHECKING:
@@ -71,17 +71,17 @@ class _Metric3D(nn.Module):
         return self.decoder(self.encoder(x), final_only=final_only)
 
 
+def _eager_cuda(x: torch.Tensor) -> bool:
+    return x.is_cuda and not (
+        torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export() or torch.is_grad_enabled()
+    )
+
+
 def _inference_gru(
     gru: ConvGRU, hidden: torch.Tensor, cz: torch.Tensor, cr: torch.Tensor, cq: torch.Tensor, *inputs: torch.Tensor
 ) -> torch.Tensor:
     """Reuse the input channel buffer after its update and reset convolutions."""
-    if (
-        not hidden.is_cuda
-        or torch.compiler.is_compiling()
-        or torch.jit.is_tracing()
-        or in_onnx_export()
-        or torch.is_grad_enabled()
-    ):
+    if not _eager_cuda(hidden):
         return ConvGRU.forward(gru, hidden, cz, cr, cq, *inputs)
     packed = torch.cat((hidden, *inputs), dim=1)
     update = torch.sigmoid(gru.convz(packed) + cz)
@@ -91,6 +91,32 @@ def _inference_gru(
     candidate = torch.tanh(gru.convq(packed) + cq)
     del packed
     return (1 - update) * hidden + update * candidate
+
+
+def _project_fine_features(readout: Token2Feature, tokens: list[torch.Tensor]) -> torch.Tensor:
+    """Project on the token grid before nearest-neighbor replication."""
+    if not _eager_cuda(tokens[0]):
+        return Token2Feature.forward(readout, tokens)
+    features = readout.readoper(tokens).permute(0, 3, 1, 2).contiguous()
+    projected = readout.sample(features.float())
+    return F.interpolate(projected, scale_factor=readout.scale_factor, mode="nearest")
+
+
+def _upsample_fields(dec: RAFTDepthNormalDPT5, flow: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+    """Apply the same convex upsampling weights independently to each output field."""
+    if not _eager_cuda(flow):
+        return RAFTDepthNormalDPT5.upsample_flow(dec, flow, mask)
+    batch, fields, height, width = flow.shape
+    factor = 2**dec.n_downsample
+    weights = mask.view(batch, 1, 9, factor, factor, height, width).softmax(dim=2)
+    neighbors = F.unfold(flow, (3, 3), padding=1).view(batch, fields, 9, 1, 1, height, width)
+    out = flow.new_empty((batch, fields, factor * height, factor * width))
+    for field in range(fields):
+        section = slice(field, field + 1)
+        value = (weights * neighbors[:, section]).sum(dim=2)
+        out[:, section].copy_(value.permute(0, 1, 4, 2, 5, 3).reshape(batch, 1, factor * height, factor * width))
+        del value
+    return out
 
 
 def _net(ctx: Context) -> _Metric3D:
@@ -104,6 +130,9 @@ def _net(ctx: Context) -> _Metric3D:
         for module in net.decoder.update_block.modules():
             if isinstance(module, ConvGRU):
                 override(module, _inference_gru)
+        if ctx.dtype == "float16":
+            override(net.decoder.token2feature.read_0, _project_fine_features)
+            override(net.decoder, _upsample_fields, "upsample_flow")
     return net.eval()
 
 
