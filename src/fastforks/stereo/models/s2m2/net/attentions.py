@@ -65,6 +65,21 @@ class SelfAttn(nn.Module):
             # leaves a frame cycle that keeps the whole model alive until the cyclic gc runs
             if torch.is_grad_enabled():
                 out = cp.checkpoint(F.scaled_dot_product_attention,q,k,v, use_reentrant=False)
+            elif (
+                q.is_cuda
+                and q.dtype == torch.float16
+                and B > 64
+                and q.numel() * q.element_size() >= 64 * 1024**2
+                and not (torch.compiler.is_compiling() or torch.jit.is_tracing())
+            ):
+                # Attention is independent across the batch. Write each group in the projection's layout.
+                out = q.new_empty((B, N, self.num_heads, self.head_dim)).transpose(1, 2)
+                for start in range(0, B, 64):
+                    end = start + 64
+                    part = F.scaled_dot_product_attention(q[start:end], k[start:end], v[start:end])
+                    out[start:end].copy_(part)
+                    del part
+                del q, k, v
             else:
                 out = F.scaled_dot_product_attention(q, k, v)
 
