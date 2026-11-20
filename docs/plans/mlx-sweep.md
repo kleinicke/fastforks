@@ -100,7 +100,7 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | moge | depth | portable_mlx (`_trunk` graph), fp32+fp16 pass | vits fp16 1148 / 6234 vs MPS 857 / 1679; vitb 1394 / 6475 vs 1012 / 2265; vitl 2221 / 7987 vs 1732 / 3265; moge-3 6508 / 10192 vs 3913 / 5968. The data-dependent sparse refiner of moge-3 stays eager. Slower and heavier. |
 | omni_dc | depth | portable_mlx (pre/post graphs, CG solve on the CPU), fp32+fp16 pass | fp16 3300 / 9841 vs MPS 2408 / 10081. |
 | pointdit | depth | portable_mlx (`_encode` fp32, `_dit`), fp32+fp16 pass | b fp16 373 / 1702 vs MPS 337 / 1912; fp32 357 / 1759 vs 367 / 1812. l fp16 1212 / 3759 vs 1013 / 4548; fp32 1073 / 4343 vs 1086 / 4516. Less memory than MPS. The DINOv3-L backbone overflows float16 (hidden states up to 1.5e5), so the backbone graph always runs in float32 (`fp32_methods`). |
-| prompt_depth_anything | depth | portable_mlx, fp32+fp16 pass | 756x1008 fp16 s 299 / 2138 vs MPS 195 / 1588; l 1931 / 7471 vs 1310 / 3301. |
+| prompt_depth_anything | depth | portable_mlx, fp32+fp16 pass | 756x1008 fp16 s 299 / 2138 vs MPS 195 / 1588. l re-surveyed at the new standard 994x1482 (both devices; the stale 756x1008 rows, upstream's included, dropped): fp16 1082 / 2757 vs MPS 1143 / 3303 (routed); fp32 1404 / 4681 vs 1278 / 4944. |
 | unidepth_v2 | depth | portable_mlx, fp32 only | fp32 1694 / 6215 vs MPS 1252 / 6077. fp16 not declared (golden). |
 | unik3d | depth | portable_mlx, fp32+fp16 pass | fp16 1637 / 4803 vs MPS 1294 / 4038. |
 | video_depth_anything | depth | portable_mlx (`_encode`/`_window`), fp32+fp16 pass | 480x640 fp16 s 1846 / 5538 vs MPS 926 / 6506 (less memory, 2x slower); metric-s 1822 / 5537 vs 933 / 6535. |
@@ -967,7 +967,7 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 | pointdit-l-512 | 16 | 994x1482 | portable | 1231.4 | 3360 | 1013.331 | 4548 | 1.22 | 0.74 | LOSE | slower (1.22x: portable MLX replay, no fused attention/conv kernels) |
 | ppocrv5-mobile | 16 | 1080x1920 | portable | 869.1 | 1610 | 735.803 | 2987 | 1.18 | 0.54 | LOSE | slower (1.18x: portable MLX replay, no fused attention/conv kernels) |
 | ppocrv5-server | 16 | 1080x1920 | portable | 1903.8 | 2666 | 1607.126 | 6545 | 1.18 | 0.41 | LOSE | slower (1.18x: portable MLX replay, no fused attention/conv kernels) |
-| prompt-depth-anything-l | 16 | 756x1008 | portable | 1677.4 | 4384 | 1310.108 | 3301 | 1.28 | 1.33 | LOSE | slower (1.28x: portable MLX replay, no fused attention/conv kernels); more memory (1.33x: MLX runtime/buffer cache above the MPS footprint) |
+| prompt-depth-anything-l | 16 | 994x1482 | portable | 1082.0 | 2757 | 1142.683 | 3303 | 0.95 | 0.83 | WIN |  |
 | prompt-depth-anything-s | 16 | 756x1008 | portable | 244.0 | 1168 | 194.524 | 1588 | 1.25 | 0.74 | LOSE | slower (1.25x: portable MLX replay, no fused attention/conv kernels) |
 | psmnet-sceneflow | 16 | 994x1482 | portable | 2597.3 | 2941 | 2578.896 | 6428 | 1.01 | 0.46 | TIE |  |
 | raft-stereo-middlebury | 16 | 994x1482 | portable | 5704.4 | 4315 | 3633.675 | 4722 | 1.57 | 0.91 | LOSE | slower (1.57x: portable MLX replay, no fused attention/conv kernels) |
