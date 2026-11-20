@@ -11,6 +11,7 @@ from fastforks import flow
 from fastforks._core import registry
 from fastforks._core.bench import synthetic_pair
 from fastforks.flow.models.memfof.model import _kernel_lookup
+from fastforks.flow.models.memfof.net import gma
 from fastforks.flow.models.memfof.net.corr import CorrBlock
 from fastforks.flow.models.memfof.net.model import MEMFOF
 
@@ -68,6 +69,29 @@ def test_batch_odd_size_scale_and_export(weights: Path) -> None:
     torch.testing.assert_close(exported, model(a, b).flow, rtol=0, atol=1e-5)
     up = flow.load("memfof-kitti", weights=weights, device="cpu", iters=1)  # frames upsampled 2x
     assert up(a, b).flow.shape == (1, 2, 256, 288)
+
+
+@pytest.mark.gpu
+def test_attention_softmax_groups_keep_cuda_alignment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A byte budget ending on a misaligned odd row still gives aligned chunks and exact scores."""
+    attention = gma.Attention(16, 1, 16).eval().cuda().half()
+    features = torch.randn(1, 16, 7, 147, device="cuda", dtype=torch.float16)
+    with torch.inference_mode():
+        expected = attention(features)
+        tokens = features.shape[-2] * features.shape[-1]
+        monkeypatch.setattr(gma, "_SOFTMAX_GROUP_BYTES", 18 * tokens * features.element_size())
+        unpatched = torch.Tensor.softmax
+        alignments = []
+
+        def softmax(x: torch.Tensor, dim: int) -> torch.Tensor:
+            alignments.append(x.data_ptr() % 16)
+            return unpatched(x, dim)
+
+        monkeypatch.setattr(torch.Tensor, "softmax", softmax)
+        actual = attention(features)
+    assert len(alignments) > 1
+    assert alignments == [0] * len(alignments)
+    torch.testing.assert_close(actual, expected, atol=0, rtol=0)
 
 
 @pytest.mark.gpu
