@@ -24,6 +24,7 @@ from torch import nn
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.runner import host
 from fastforks.matching._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.aliked import ALIKED
 from fastforks.shared.deform_conv import modulated_deform_conv
 from fastforks.shared.lightglue import LightGlue, match_many, resize_long
@@ -185,4 +186,21 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+_MLX = {
+    "disk": mlx_wrap.port(Portable, attrs=("net.extractor.unet",)),
+    "aliked": mlx_wrap.port(Portable, attrs=(), methods=("net.extractor.detection_maps",), release=True),
+}
+
+
+class MlxRunner(Portable):
+    """Apple MLX: the extractor's fixed-shape dense part as an exported graph, the rest eager on the CPU.
+
+    The graph is DISK's U-Net, or ALIKED's dense maps and score NMS; keypoint selection, descriptors and LightGlue
+    (data-dependent counts) stay eager.
+    """
+
+    def __new__(cls, ctx: Context) -> Runner:  # noqa: D102
+        return _MLX[ctx.params.extractor](ctx)
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxRunner}
