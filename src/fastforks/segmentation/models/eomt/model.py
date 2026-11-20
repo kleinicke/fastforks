@@ -223,8 +223,11 @@ class Portable(Runner):
         crops = torch.cat([x[..., y : y + s, z : z + s] for y, z in wins])
         with _fp16_accumulate(enabled=self.kernels and x.is_cuda and self.ctx.torch_dtype == torch.float16):
             masks, classes = self.net(crops)
-        # fp16 on CUDA from the product on (its dtype) to the labels: no float32 window or image-size scores
-        logits = mask_semantic(resize(masks, crops.shape[-2:]), classes, None)
+        # The resized query logits and accumulated scores are disposable during CUDA inference.
+        inplace = x.is_cuda and torch.is_inference_mode_enabled() and not torch.compiler.is_compiling()
+        masks = resize(masks, crops.shape[-2:])
+        logits = mask_semantic(masks, classes, None, inplace=inplace)
+        del masks, classes, x, crops
         if len(wins) == 1 and (rh, rw) == (s, s):
             return logits
         out = logits.new_zeros((1, logits.shape[1], rh, rw))
@@ -232,7 +235,7 @@ class Portable(Runner):
         for (y, z), lg in zip(wins, logits, strict=True):
             out[..., y : y + s, z : z + s] += lg
             count[..., y : y + s, z : z + s] += 1
-        return out / count
+        return out.div_(count) if inplace else out / count
 
     def _run(self, image: torch.Tensor) -> torch.Tensor:
         h, w = image.shape[-2:]  # `resize` to the image size (no-op at equal size), fused by `seg_up` in kernels
