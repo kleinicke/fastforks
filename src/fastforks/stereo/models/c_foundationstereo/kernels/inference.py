@@ -9,7 +9,7 @@ The network stays TAO's module tree; only the leaves change:
 - conv outputs whose channel count is not a multiple of 8 (the 28-channel volumes) keep the zero channels of the
   padded weights; the next conv reads the padded tensor directly (its weights get zero input channels too).
 - C-FS-S: DINOv2 through `fast_vit`; the disparity transformer (28 channels, 4 heads of 7) through the `cfs` kernels
-  around flash SDPA; the GRU lookups through `fs.geo_lookup_s` on the channels-last hourglass output (no transposed
+  around flash SDPA (memory-efficient SDPA in PyTorch builds without flash: `sdpa_backend`); the GRU lookups through `fs.geo_lookup_s` on the channels-last hourglass output (no transposed
   copy of the volume, level 2 pooled on the fly).
 - cost volumes built straight into channels-last 3-D buffers; softmax, regression and upsampling weights in fp32.
 
@@ -20,6 +20,7 @@ islands where autocast has them).
 from __future__ import annotations
 
 import functools
+import logging
 import math
 from typing import TYPE_CHECKING, Any, cast
 
@@ -28,7 +29,6 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.attention import SDPBackend, sdpa_kernel
 
-from fastforks._core.errors import KernelUnavailableError
 from fastforks._core.kernels import linear
 from fastforks._core.patch import override
 from fastforks.kernels import cfs as cfs_kernels
@@ -61,7 +61,7 @@ STATS_CHUNK = 1 << 24  # elements per fp32 chunk of the instance-norm statistics
 STATS_C = 256  # channels `fs.chan_stats8` takes (8 per thread, 256 threads)
 STATS_BLOCKS = 288  # its blocks per sample (8 per SM of a 36-SM GPU; a few hundred rows per thread at Midd-H)
 ATT_CHUNK = 32768  # disparity sequences per transformer chunk: a whole strip (8192: +30 ms at Midd-H; same result)
-SDPA_CHUNK = 16384  # sequences per flash SDPA call (grid limit)
+SDPA_CHUNK = 16384  # sequences per SDPA call (grid limit)
 STRIP_SEQ = ATT_CHUNK  # disparity sequences per strip of the hourglass tail
 _DIM3D = 5
 C3_MIN_K = (
@@ -478,20 +478,34 @@ def _residual_forward(self: Patched, x: torch.Tensor) -> torch.Tensor:
 
 
 # ------------------------------------------------------------------------------------------------ transformer
+@functools.cache
+def sdpa_backend() -> SDPBackend:
+    """The SDPA backend of the disparity transformer: flash, or memory-efficient where PyTorch has no flash.
+
+    The rule depends only on the PyTorch build, and it is logged. PyTorch's Linux CUDA wheels have flash SDPA, and the
+    Linux `[validated]` record is made with it. The Windows wheels are built without flash, so there the transformer
+    uses `EFFICIENT_ATTENTION`, which the Windows record validates. Both pass the C-FS-S golden; flash is kept where
+    it exists so the Linux numerics stay as validated.
+    """
+    if torch.backends.cuda.is_flash_attention_available():
+        return SDPBackend.FLASH_ATTENTION
+    logging.getLogger("fastforks.stereo").info(
+        "c-foundationstereo kernels: this PyTorch build has no flash SDPA; the disparity transformer uses"
+        " memory-efficient SDPA"
+    )
+    return SDPBackend.EFFICIENT_ATTENTION
+
+
 class _DisparityTransformer:
     """TAO's `CostVolumeDisparityAttention` of C-FS-S ('standard' layout, 28 channels, 4 heads, FFN 28)."""
 
     def __init__(self, att: Patched, device: torch.device) -> None:
         """Pack the layer parameters (call while fp32).
 
-        Raises:
-            KernelUnavailableError: This PyTorch build has no flash SDPA (PyTorch's Windows wheels), whose numerics the
-                kernels forward is validated with.
+        The attention runs on PyTorch's flash SDPA, or on its memory-efficient SDPA in builds without flash
+        (`sdpa_backend`).
         """
-        if not torch.backends.cuda.is_flash_attention_available():
-            raise KernelUnavailableError(
-                "cfs", "the disparity transformer needs PyTorch's flash SDPA, which this build lacks"
-            )
+        self.sdpa = sdpa_backend()
         self.k = cfs_kernels.load(device)
         self.fs = fs_kernels.load(device)
         self.layers = []
@@ -540,7 +554,7 @@ class _DisparityTransformer:
             grid = ((min((tok + 3) // 4, 65535 * 8), 1, 1), (128, 1, 1))
             for wqkv, bqkv, post in self.layers:
                 self.k.launch("tao_qkv", *grid, xs, tok, d, wqkv, bqkv, qkv[0], qkv[1], qkv[2])
-                with sdpa_kernel(SDPBackend.FLASH_ATTENTION):
+                with sdpa_kernel(self.sdpa):
                     for j in range(0, ns, SDPA_CHUNK):
                         q, k, v = (qkv[e, j : min(j + SDPA_CHUNK, ns)] for e in range(3))
                         o[j : j + q.shape[0]] = F.scaled_dot_product_attention(q, k, v, scale=7**-0.5)
