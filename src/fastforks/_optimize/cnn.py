@@ -164,8 +164,9 @@ def fold_layer_scale(gm: fx.GraphModule) -> int:
         g.erase_node(u)
         n += 1
     dce(g)
-    if n:
-        gm.recompile()  # the portable pipeline runs this as its last graph pass
+    # the portable pipeline runs this as its last graph pass: recompile also when only Dropouts or dead nodes went,
+    # else `gm.code` / `_lineno_map` describe the old graph (dynamo indexes the node metas by it: IndexError)
+    gm.recompile()
     return n
 
 
