@@ -9,6 +9,7 @@ swaps the attention for `scaled_dot_product_attention` with the relative positio
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING, cast
 
 import torch
@@ -76,7 +77,9 @@ def _rel_pos_bias(attn: Attention, window: tuple[int, int]) -> torch.Tensor:
     if index is None:
         if len(_INDEX) >= _INDEX_SIZES:  # int64, 18 MB at 994x1482: drop the oldest size instead of growing forever
             del _INDEX[next(iter(_INDEX))]
-        with torch.inference_mode(False), unset_fake_temporarily():  # noqa: FBT003 - positional: dynamo rejects the keyword
+        # a real tensor also under a fake mode (non-strict torch.export); dynamo cannot trace `unset_fake_temporarily`
+        real = contextlib.nullcontext() if torch.compiler.is_dynamo_compiling() else unset_fake_temporarily()
+        with torch.inference_mode(False), real:  # noqa: FBT003 - positional: dynamo rejects the keyword
             index = _INDEX[key] = gen_relative_position_index(window, device=tab.device).view(-1)
     n = window[0] * window[1] + 1
     return table[:, index].view(1, -1, n, n)

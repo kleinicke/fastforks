@@ -1,5 +1,7 @@
 """Compiled TAPNext++ must accept numpy frames and retain its GPU golden accuracy."""
 
+import importlib.util
+
 import pytest
 import torch
 
@@ -8,6 +10,10 @@ from test_golden import _check, forward, golden, options, outputs
 
 
 @pytest.mark.gpu
+@pytest.mark.skipif(
+    importlib.util.find_spec("triton") is None,
+    reason="torch.compile on CUDA needs Triton (not installed: no official Windows wheels)",
+)
 @pytest.mark.slow
 @pytest.mark.model
 def test_compiled_tapnext_pp_numpy_video_matches_golden() -> None:
