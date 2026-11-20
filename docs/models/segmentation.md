@@ -18,8 +18,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`dinov2-b-linear-ade20k`](#dinov2_linear) | yes | 20.1, 2.0x | 884, 0.4x |
 | [`dinov2-l-linear-ade20k`](#dinov2_linear) | yes | 52.8, 1.8x | 1244, 0.4x |
 | [`dinov2-s-linear-ade20k`](#dinov2_linear) | yes | 11.8, 2.1x | 676, 0.34x |
-| [`eomt-l-dinov2-ade20k`](#eomt) | yes | 35.0, 1.8x | 1584, 0.45x |
-| [`eomt-l-dinov3-ade20k`](#eomt) | yes | 38.8, 1.9x | 1584, 0.45x |
+| [`eomt-l-dinov2-ade20k`](#eomt) | yes | 35.1, 1.8x | 1504, 0.43x |
+| [`eomt-l-dinov3-ade20k`](#eomt) | yes | 38.9, 1.9x | 1484, 0.42x |
 | [`fcn-r101-d8-ade20k`](#mmseg) | yes | 16.5, 2.8x | 374, 0.18x |
 | [`hrnet-w48-fcn-ade20k`](#mmseg) | yes | 11.2, 4.3x | 344, 0.18x |
 | [`mask2former-swinl-ade20k`](#mask2former) | no | 60.2, 2.4x | 1238, 0.34x |
@@ -234,8 +234,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `eomt-l-dinov2-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 178<br>63.7<br>50.8<br>35.0<br>49.4<br>54.3 | 3376 / 3526<br>3827 / 4086<br>1515 / 1584<br>1515 / 1584<br>1585 / 1624<br>3475 / 3500 |
-| `eomt-l-dinov3-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 186<br>72.1<br>54.6<br>38.8<br>50.0<br>61.9 | 3372 / 3528<br>3822 / 4086<br>1514 / 1584<br>1514 / 1584<br>1584 / 1624<br>3475 / 3522 |
+| `eomt-l-dinov2-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 178<br>63.7<br>51.2<br>35.1<br>49.4<br>54.3 | 3376 / 3526<br>3827 / 4086<br>1357 / 1504<br>1344 / 1504<br>1585 / 1624<br>3475 / 3500 |
+| `eomt-l-dinov3-ade20k` | synthetic (1024x2048) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 186<br>72.1<br>55.0<br>38.9<br>50.0<br>61.9 | 3372 / 3528<br>3822 / 4086<br>1355 / 1484<br>1342 / 1484<br>1584 / 1624<br>3475 / 3522 |
 
 <details><summary>Details</summary>
 
@@ -255,10 +255,11 @@ Commercial use: yes.
 - `eomt-l-dinov2-ade20k` 1024x2048, first call: portable + torch.compile 17 s (cold Inductor cache), TensorRT fp16 53 s (ONNX + engine).
 - `eomt-l-dinov3-ade20k` 1024x2048, first call: portable + torch.compile 22 s (cold Inductor cache), TensorRT fp16 58 s (ONNX + engine).
 - `eomt-l-dinov2-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
+- `eomt-l-dinov2-ade20k` portable 1024x2048, kernels 1024x2048: FP16 labels-only public API using existing native modes. Reuses window scores. Synthetic and three labeled ADE20K masks and requested logits match the previous output bitwise.
 - `eomt-l-dinov3-ade20k` original 1024x2048: torch.autocast(fp16) around the forward
-- `eomt-l-dinov2-ade20k` load / first call: original 4.8 s / 0.537 s (512x512), portable 3.13 s / 0.053 s, kernels 3.27† s / 0.036† s
-- `eomt-l-dinov3-ade20k` load / first call: original 1.83 s / 0.065 s (512x512), portable 3.2 s / 0.078 s, kernels 3.24† s / 0.039† s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `eomt-l-dinov3-ade20k` portable 1024x2048, kernels 1024x2048: FP16 labels-only public API using existing native modes. Reuses window scores. Synthetic and three labeled ADE20K masks and requested logits match the previous output bitwise.
+- `eomt-l-dinov2-ade20k` load / first call: original 4.8 s / 0.537 s (512x512), portable 3.13 s / 0.053 s, kernels 2.83 s / 0.247 s
+- `eomt-l-dinov3-ade20k` load / first call: original 1.83 s / 0.065 s (512x512), portable 3.2 s / 0.078 s, kernels 2.92 s / 0.227 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5 (tools/speed_check.py), synthetic CUDA input (bench_inputs); peak = max over the first call and the timed calls
 
 ### Measured
