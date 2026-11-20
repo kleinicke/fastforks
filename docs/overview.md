@@ -48,7 +48,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`dlnr-middlebury`](models/stereo.md#dlnr) | yes | 34.38 | 597.7 (994x1482) | 398.7 | 214.7 | 2.8x vs original (994x1482) | 851 |
 | [`cfnet-sceneflow`](models/stereo.md#cfnet) | yes | 5.60 | 545.4 (994x1482) | 409.3 | 225.3 | 2.4x vs original (994x1482) | 1073 |
 | [`cas-gwcnet-c-sceneflow`](models/stereo.md#cas-gwcnet) | yes | 7.85 | 389.1 (994x1482) | 327.0 | 225.4 | 1.7x vs original (994x1482) | 1725 |
-| [`crestereo-eth3d`](models/stereo.md#crestereo) | yes | 1.39 † | 1597.4 (994x1482) | 731.8 | 228.9 | 7.0x vs original (994x1482) | 644 |
+| [`crestereo-eth3d`](models/stereo.md#crestereo) | yes | 1.39 † | 1597.4 (994x1482) | 723.6 | 228.9 | 7.0x vs original (994x1482) | 644 |
 | [`psmnet-sceneflow`](models/stereo.md#psmnet) | yes | 15.13 | 607.8 (994x1482) | 339.8 | 231.5 | 2.6x vs original (994x1482) | 1469 |
 | [`gwcnet-g-sceneflow`](models/stereo.md#gwcnet) | yes | 9.59 | 352.4 (994x1482) | 344.2 | 238.1 | 1.5x vs original (994x1482) | 1799 |
 | [`s2m2-m`](models/stereo.md#s2m2) | no | 0.95 ? | 666.2 (994x1482) | 670.0 | 247.9 | 2.7x vs original (994x1482) | 876 |

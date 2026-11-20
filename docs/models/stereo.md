@@ -488,7 +488,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `crestereo-eth3d` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1980<br>1597<br>732<br>229<br>398<br>298 | 1605 / 1870<br>1541 / 1752<br>884 / 1030<br>644 / 732<br>695 / 748<br>703 / 740 |
+| `crestereo-eth3d` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1980<br>1597<br>724<br>229<br>398<br>298 | 1605 / 1870<br>1541 / 1752<br>810 / 946<br>644 / 732<br>695 / 748<br>703 / 740 |
 
 <details><summary>Details</summary>
 
@@ -506,7 +506,7 @@ Commercial use: yes.
 - `crestereo-eth3d` 994x1482, first call: portable + torch.compile 120 s (cold Inductor cache), TensorRT fp16 224 s (ONNX + engine).
 - `crestereo-eth3d` original (fp32) 994x1482: PyTorch 2.14.1+cu130, community port ibaiGorordo/CREStereo-Pytorch @ b6c7a9f, test_model.py inference (2 x 20 iters), BGR, pad 32 (edge)
 - `crestereo-eth3d` original 994x1482: PyTorch 2.14.1+cu130, community port ibaiGorordo/CREStereo-Pytorch @ b6c7a9f, test_model.py inference (2 x 20 iters), BGR, pad 32 (edge), the port's mixed_precision=True
-- `crestereo-eth3d` load / first call: original 0.05 s / 1.499 s, portable 0.03 s / 0.75† s, kernels 0.03† s / 0.229† s
+- `crestereo-eth3d` load / first call: original 0.05 s / 1.499 s, portable 0.16 s / 1.206 s, kernels 0.03† s / 0.229† s
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 

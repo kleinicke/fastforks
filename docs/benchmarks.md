@@ -773,7 +773,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | cas-gwcnet-gc-sceneflow | 862 | 567 | 472 | 358 | 1.6x | 1.3x | 8317 / 8730 | 2338 / 2794 | 2272 / 2514 |
 | cfnet-sceneflow | 659 | 545 | – | – | – | – | 6765 / 7880 | – | – |
 | coex-sceneflow | 94.9 | 60.0 | – | – | – | – | 2098 / 2160 | – | – |
-| crestereo-eth3d | 1980 | 1597 | 732 | 229 | 7.0x | 3.2x | 1541 / 1752 | 884 / 1030 | 644 / 732 |
+| crestereo-eth3d | 1980 | 1597 | 724 | 229 | 7.0x | 3.2x | 1541 / 1752 | 810 / 946 | 644 / 732 |
 | defom-stereo-vitl-sceneflow | 4175 | 2816 | 1531 | 659 | 4.3x | 2.3x | 8639 / 8766 | 4362 / 4838 | 3154 / 3566 |
 | dlnr-middlebury | 978 | 598 | 398 | 214 | 2.8x | 1.9x | 3004 / 3552 | 2635 / 3142 | 1236 / 1606 |
 | dlnr-sceneflow | 978 | 598 | 398 | 214 | 2.8x | 1.9x | 3004 / 3552 | 2635 / 3142 | 1236 / 1606 |
@@ -1550,7 +1550,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | cas-gwcnet-gc-sceneflow | 0.39 | 1.10 | 0.81 | 0.64 | 0.64 | 0.40 |
 | cfnet-sceneflow | 0.55 | 0.96 (375x1242) | 1.14 (375x1242) | 0.56 | 0.36 (375x1242) | 0.27 (375x1242) |
 | coex-sceneflow | – | 0.27 (375x1242) | 0.57 (375x1242) | 0.63 (375x1242) | 0.70 (375x1242) | 0.48 (375x1242) |
-| crestereo-eth3d | 0.05 | 0.03 | 0.03† | 1.50 | 0.75† | 0.23† |
+| crestereo-eth3d | 0.05 | 0.16 | 0.03† | 1.50 | 1.21 | 0.23† |
 | defom-stereo-vitl-sceneflow | 4.24 | 1.20 | 2.74 (375x1242) | 2.83 | 1.73 | 0.30 (375x1242) |
 | dlnr-middlebury | 0.83 (375x1242) | 0.55 | 0.79 | 1.71 (375x1242) | 1.05 | 0.57 |
 | dlnr-sceneflow | 0.83 (375x1242) | 0.63 | 0.26† | 1.71 (375x1242) | 0.40† | 0.21† |
@@ -2146,7 +2146,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | cas-gwcnet-gc-sceneflow | 994x1482 | 473 ms | 383 ms | 307 ms | 359 ms | 63.7 s | 98.6 s | 2032 / 2228 | 6592 / 6670 | 2035 / 2230 | 4142 / 4194 |
 | cfnet-sceneflow | 994x1482 | 409 ms | 249 ms | 171 ms | 225 ms | 53.0 s | 139 s | 1822 / 2578 | 1026 / 1398 | 1073 / 1604 | 1357 / 1410 |
 | coex-sceneflow | 994x1482 | 49.9 ms | 29.4 ms | 20.6 ms | 23.5 ms | 22.4 s | 56.6 s | 1093 / 1174 | 351 / 452 | 368 / 514 | 438 / 452 |
-| crestereo-eth3d | 994x1482 | 732 ms | 398 ms | 298 ms | 229 ms | 120 s | 224 s | 884 / 1030 | 695 / 748 | 644 / 732 | 703 / 740 |
+| crestereo-eth3d | 994x1482 | 724 ms | 398 ms | 298 ms | 229 ms | 120 s | 224 s | 810 / 946 | 695 / 748 | 644 / 732 | 703 / 740 |
 | defom-stereo-vitl-sceneflow | 994x1482 | 1439 ms | 1002 ms | public API unavailable | 645 ms | 122 s | – | 4102 / 4252 | 3021 / 3292 | 2781 / 4234 | – |
 | defom-stereo-vitl-sceneflow | 375x1242 | 404 ms | – | 1151 ms, bf16 engine (whole graph at fixed 375 x 1242) | 180 ms | – | 168 s | 2394 / 2538 | – | 1627 / 1786 | 1782 / 1790 |
 | dlnr-middlebury | 994x1482 | 399 ms | 303 ms | 241 ms | 215 ms | 67.9 s | 156 s | 1502 / 1976 | 1343 / 1692 | 851 / 982 | 1455 / 1546 |
