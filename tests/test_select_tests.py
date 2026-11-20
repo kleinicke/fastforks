@@ -98,6 +98,7 @@ def test_mini_families(mini: Path, changed: str, want: set[str]) -> None:
 
 
 def test_mini_fast_tier(mini: Path) -> None:
+    assert st.select([], mini).as_dict() == {"changed": [], "families": {}, "fast": [], "release": False}
     fa = st.select(["src/fastforks/stereo/models/fa/model.py"], mini)
     assert "tests/test_fa.py" in fa.fast
     assert "tests/test_plain.py" in fa.fast  # reaches no family: always in the fast tier

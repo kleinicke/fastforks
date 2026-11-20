@@ -39,15 +39,16 @@ To run just the selected CPU goldens and kernel-manifest checks, give pytest the
 
 ```
 uv run python tools/select_tests.py LAST_VERIFIED_COMMIT HEAD --golden-nodeids cpu > cpu-goldens.args
-if test -s cpu-goldens.args; then uv run pytest --slow @cpu-goldens.args; fi
+if test -s cpu-goldens.args; then uv run pytest -m "not gpu" --slow @cpu-goldens.args; fi
 ```
 
 Use `--golden-nodeids gpu` to collect the corresponding CUDA items, including the classification module checks.
 A tracked change to existing golden fixture records selects the affected revisions when shared manifest settings match.
-Recheck previously failed item IDs explicitly.
+Recheck previously failed item IDs explicitly with the corresponding CPU or GPU marker.
 
 Run the fast test files listed in `selection.json` with `-m "not gpu and not model"`, then the slow CPU and GPU tests
-for the listed families and any previously failing cases. `tools/merge_check.py run selection.json --out rows.jsonl`
+for the listed families and any previously failing cases. Skip the fast test invocation when the `fast` list is empty.
+`tools/merge_check.py run selection.json --out rows.jsonl`
 combines GPU golden checks and speed measurements for selected models; pass a suitable GPU-lock prefix on shared
 machines. Add `--no-core` to the estimate and run commands to skip the optional runner-only timing. The full API
 latency and peak memory are still compared with the speed floor.

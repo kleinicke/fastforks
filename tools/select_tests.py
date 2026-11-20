@@ -21,8 +21,9 @@ and flag `release` (dependencies changed: use the broad gate). When both git sna
 to the local package version in either file leaves the dependency selection unchanged. Everything else (docs, tools,
 other tests) selects no family.
 
-Fast tier (`-m "not gpu and not model"`): every test file whose closure reaches no family module, the family-specific
-files of the selected families and every test file whose closure holds a changed file; all of tests/ when conftest.py,
+An empty change set selects no tests. Fast tier (`-m "not gpu and not model"`): every test file whose closure reaches
+no family module, the family-specific files of the selected families and every test file whose closure holds a changed
+file; all of tests/ when conftest.py,
 non-Python test data or the dependencies changed. Documentation-only changes use the docs checks, plus the site data
 and speed-floor checks for generated model or benchmark pages and their data. The GPU selection gives each family's
 golden refs as a `-k` expression for tests/test_golden.py. Use `--golden-nodeids` for exact item IDs that preserve
@@ -258,8 +259,8 @@ def select(
     fixture_refs: dict[str, tuple[str, ...]] | None = None,
 ) -> Selection:
     """Select affected variants, using tracked metadata where the caller has both git snapshots."""
-    if changed and all(path in TOP_LEVEL_DOCS or path.startswith("docs/") for path in changed):
-        checks = ["tests/test_docs.py"]
+    if all(path in TOP_LEVEL_DOCS or path.startswith("docs/") for path in changed):
+        checks = ["tests/test_docs.py"] if changed else []
         if any(path in BENCHMARK_DOCS or path.startswith(("docs/data/", "docs/models/")) for path in changed):
             checks.extend(("tests/test_site_data.py", "tests/test_speed_floor.py"))
         if "docs/stereo_geometry.md" in changed:
