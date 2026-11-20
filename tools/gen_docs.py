@@ -386,10 +386,10 @@ _PROTOCOL = {
     "compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt "
     "comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with "
     "a LiDAR prompt, L1 in mm): they compare our modes with the original. ",
-    ("classification", "coco-val2017-first500-tags"): "Taggers have no public benchmark with their tag set, so the "
-    "original fp32 is the reference: tag F1 = F1 of the tags at probability 0.35 of our output against the tags of "
-    "the original fp32, micro-averaged over the images; top-1 agreement = share of images with the same most likely "
-    "tag. The original fp16 row shows the difference of the original itself in half precision. ",
+    ("classification", "coco-val2017-first500-tags"): "Tagger agreement uses the original FP32 network as the "
+    "reference on the same COCO images with white square padding and tensor resizing. Tag F1 compares the tags "
+    "above probability 0.35, micro-averaged over the images. Top-1 agreement counts images with the same most likely "
+    "tag. The original FP16 measurement casts both the network and inputs directly to half precision. ",
     ("detection", "coco-val2017-every10-fixed-800x1344"): "Resize the same 500 RGB inputs to 800 x 1344. Use one "
     "prepared prompt for all 80 COCO classes and score the top 100 query/class pairs per image. ",
     ("detection", "coco-val2017-every10-fixed-320x320"): "Fixed FP32 graph, one prepared prompt for all 80 COCO "
@@ -630,8 +630,12 @@ _PROTOCOL = {
     "at their original size. In TensorRT mode only the 416 x 320 field predictor is accelerated. ",
     ("calibration", "lamar2k-every20"): "Every 20th LaMAR image in its original orientation and size. "
     "The compiled mode accelerates field prediction and keeps the camera fit eager. ",
-    "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
-    "and its PIL eval transform. ",
+    **{
+        ("classification", name): "fastforks: the model's own resize / crop on the GPU; original: the library's "
+        "pretrained loader and its PIL eval transform. "
+        for name in _DATASETS["classification"]
+        if name.startswith("imagenet")
+    },
     ("classification", "unsafebench-test-sexual"): "All 211 Sexual-category images from the official test split "
     "(150 unsafe, 61 safe), from LAION-5B and Lexica. Apply each implementation's normal resize and use the "
     "checkpoint's default top-1 prediction. Balanced accuracy averages unsafe and safe recall. ",

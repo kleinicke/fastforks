@@ -1055,7 +1055,7 @@ Commercial use: yes.
 
 ### Measured
 
-fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. All 211 Sexual-category images from the official test split (150 unsafe, 61 safe), from LAION-5B and Lexica. Apply each implementation's normal resize and use the checkpoint's default top-1 prediction. Balanced accuracy averages unsafe and safe recall. Original = the original code named under Details, same checkpoint and protocol.
+All 211 Sexual-category images from the official test split (150 unsafe, 61 safe), from LAION-5B and Lexica. Apply each implementation's normal resize and use the checkpoint's default top-1 prediction. Balanced accuracy averages unsafe and safe recall. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | portable | portable fp32 | note |
 |---|---|---|---|---|---|
@@ -2343,20 +2343,16 @@ Commercial use: yes.
 
 ### Measured
 
-fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Taggers have no public benchmark with their tag set, so the original fp32 is the reference: tag F1 = F1 of the tags at probability 0.35 of our output against the tags of the original fp32, micro-averaged over the images; top-1 agreement = share of images with the same most likely tag. The original fp16 row shows the difference of the original itself in half precision. Original = the original code named under Details, same checkpoint and protocol.
+Tagger agreement uses the original FP32 network as the reference on the same COCO images with white square padding and tensor resizing. Tag F1 compares the tags above probability 0.35, micro-averaged over the images. Top-1 agreement counts images with the same most likely tag. The original FP16 measurement casts both the network and inputs directly to half precision. Original = the original code named under Details, same checkpoint and protocol.
 
 | variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|---|
-| `wd-vit-tagger-v3` | ImageNet-1k val, 5000 random images, top-1 / top-5 % |  |  |  | 0.08 / 0.36 |  |  |
-| `wd-vit-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.95 / 99.80 | 99.91 / 99.80 |  | 99.90 / 99.20 |  |
-| `wd-convnext-tagger-v3` | ImageNet-1k val, 5000 random images, top-1 / top-5 % |  |  |  | 0.10 / 0.40 |  |  |
-| `wd-convnext-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.92 / 99.80 | 99.90 / 99.60 |  | 99.88 / 99.80 |  |
-| `wd-vit-large-tagger-v3` | ImageNet-1k val, 5000 random images, top-1 / top-5 % |  |  |  | 0.06 / 0.34 |  |  |
-| `wd-vit-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.87 / 99.40 |  | 99.88 / 99.80 |  |
-| `wd-eva02-large-tagger-v3` | ImageNet-1k val, 5000 random images, top-1 / top-5 % |  |  |  | 0.08 / 0.36 |  |  |
-| `wd-eva02-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.84 / 99.80 |  | 99.84 / 99.40 |  |
+| `wd-vit-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.95 / 99.80 | 99.91 / 99.80 | 100.00 / 100.00 | 99.90 / 99.20 |  |
+| `wd-convnext-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.92 / 99.80 | 99.90 / 99.60 | 99.99 / 100.00 | 99.88 / 99.80 |  |
+| `wd-vit-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.87 / 99.40 | 100.00 / 100.00 | 99.88 / 99.80 |  |
+| `wd-eva02-large-tagger-v3` | COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement % | 100.00 / 100.00 | 99.93 / 99.80 | 99.84 / 99.80 | 100.00 / 100.00 | 99.84 / 99.40 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6f0a70e1, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 96cbc5e57, 2026-11-20; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16.
 
 ### Parity
 

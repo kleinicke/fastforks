@@ -378,13 +378,13 @@ pycocotools COCOeval of the top 100 detections per image. Fixed FP32 graph, one 
 | `mm-grounding-dino-tiny` | COCO val2017, every 10th image, box mAP |  |  |  | 51.49 |  |  |  |
 | `mm-grounding-dino-tiny` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 35.77 |  | 35.79 |  |
 | `mm-grounding-dino-tiny` | COCO val2017, every 10th image at fixed 800 x 1344, box mAP |  |  |  | 50.14 |  | 50.05 |  |
-| `mm-grounding-dino-tiny` | COCO val2017, every 20th image, box mAP | 55.18 |  | 54.92 |  |  |  |  |
+| `mm-grounding-dino-tiny` | COCO val2017, every 20th image, box mAP | 55.18 |  | 54.92 | 55.40 |  |  |  |
 | `mm-grounding-dino-base` | COCO val2017, every 10th image, box mAP |  |  |  | 53.01 |  |  |  |
 | `mm-grounding-dino-base` | COCO val2017, every 10th image at fixed 320 x 320, box mAP |  |  |  | 35.64 |  | 35.60 |  |
 | `mm-grounding-dino-base` | COCO val2017, every 10th image at fixed 800 x 1344, box mAP |  |  |  | 52.09 |  | 52.23 |  |
-| `mm-grounding-dino-base` | COCO val2017, every 20th image, box mAP | 57.11 |  | 56.94 |  |  |  |  |
+| `mm-grounding-dino-base` | COCO val2017, every 20th image, box mAP | 57.11 |  | 56.94 | 56.94 |  |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84ba91d4 / a981ff86 / aee4b565, 2026-11-12 to 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / 9e3ff83d+dirty / d9caeca2, 2026-11-17 to 2026-11-19; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 23765f70, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / d9caeca2, 2026-11-18 to 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84ba91d4 / a981ff86 / aee4b565, 2026-11-12 to 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / 912f67dd / 9e3ff83d+dirty / d9caeca2, 2026-11-17 to 2026-11-20; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 23765f70, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / d9caeca2, 2026-11-18 to 2026-11-19.
 
 ### Parity
 

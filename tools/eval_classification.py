@@ -101,6 +101,14 @@ def _upstream(ref: str) -> tuple[torch.nn.Module, Any]:
 
 
 def _run(ref: str, tier: str, files: list[tuple[Path, int]], batch: int) -> dict[str, Any]:
+    from fastforks._core import registry  # noqa: PLC0415
+
+    _, variant = registry.resolve("classification", ref)
+    labels = variant.output_info["label_set"]
+    if labels != "imagenet-1k":
+        msg = f"{variant.ref} uses {labels} labels. ImageNet evaluation requires the ImageNet-1k label set."
+        raise ValueError(msg)
+
     torch.cuda.empty_cache()
     torch.cuda.reset_peak_memory_stats()
     t0 = time.perf_counter()
