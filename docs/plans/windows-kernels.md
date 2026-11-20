@@ -2,8 +2,9 @@
 
 Status: prototype. The `"cubin"` kernel libraries run on Windows x64. Every `"shared"` library has a Windows DLL
 build (`manifest.windows.toml`): `cutlass_conv`, `dpt_fused`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`,
-`fs_cutlass`, `ffs_cutlass`, `s2m2_cutlass`, `hitnet_conv` and `seg_conv`. 531 references have a Windows
-`[validated]` record (see [Validation coverage](#validation-coverage-on-windows)).
+`fs_cutlass`, `ffs_cutlass`, `s2m2_cutlass`, `hitnet_conv` and `seg_conv`. 563 references have a Windows
+`[validated]` record (see [Validation coverage](#validation-coverage-on-windows)). The DLLs need no Visual Studio or
+CUDA toolkit at run time.
 
 ## Why cubin libraries need no Windows build
 
@@ -175,15 +176,29 @@ files as on Linux, hash-checked) came from the same cache. The optional extras `
 `torchvision` were installed for the run.
 
 - 578 references can run in kernels mode on Windows: every library has a Windows build and all binaries are
-  present. 531 now have a Windows `[validated]` record. That includes 19 for the five CUTLASS DLLs built last:
+  present. 563 now have a Windows `[validated]` record. That includes 19 for the five CUTLASS DLLs built last:
   foundationstereo, c-fast-foundationstereo, fast-foundationstereo, hitnet, s2m2, mmseg and segnext.
-- 314 of the 531 records give the same mean / p99 as the Linux record. The others differ in the 4th or 5th decimal,
+- 338 of the 563 records give the same mean / p99 as the Linux record. The others differ in the 4th or 5th decimal,
   all within the golden tolerance (largest: aliked-flexglue, mean 0.0033 vs 0.0012 px; cfnet and great-igev).
-- 36 references have no weights in the available offline cache: most timm / torchvision classifiers,
-  segformer, sapiens-seg, eomt, mask2former, oneformer, mapanything, vggt-1b, omni-dc. They were not run, so their
-  Windows DLL builds stay unvalidated for them. On Windows, `test_kernels_validated` skips such a reference: no
-  Windows record and weights not local, worded like the repo's other weight-missing skips. It fails as before once
-  the weights are present, or when a Windows record is stale. Linux checks exactly as before.
+- The offline cache lacked the weights of 36 references, so they were handled separately. For 32 of them, the
+  weights were downloaded from their recorded URLs into a temporary cache, recorded, and deleted afterwards. Those
+  are the timm / torchvision classifiers, dinov2_vitl14_lc, eva02, siglip, omni-dc, segformer and sapiens-seg; all
+  passed. The other four are mvsanywhere, dfine-n-coco, rtmo-t and sam-hq-vit-b, which fail in kernels mode (see
+  below).
+- On another Windows machine without these weights, `test_kernels_validated` skips a reference that has no Windows
+  record and no local weights, worded like the repo's other weight-missing skips. It fails as before once the
+  weights are present, or when a Windows record is stale. Linux checks exactly as before.
+
+### Without Visual Studio or a CUDA toolkit
+
+The DLLs need neither at run time. `dumpbin /dependents` lists only `KERNEL32.dll` for all 11 Windows DLLs: the C
+runtime (`/MT`) and cudart are static. The only other DLL name in their bytes is `nvcuda.dll`, the driver, which
+static cudart loads at run time. `fvm_r3`'s cuBLASLt comes from the `cublasLt64_13.dll` that PyTorch has already
+loaded. Check: a process with `PATH=C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem` (no Build Tools, no pip
+`nvidia-cuda-nvcc`, no `CUDA_PATH`) ran the kernels-mode goldens of aanet-plus, c-fast-foundationstereo,
+defom-stereo, hitnet-eth3d and s2m2-l, and they passed. All 11 DLLs were loaded from the per-process temp
+directory, and no module from Visual Studio or the nvcc package was loaded (only PyTorch's own `torch\lib`
+nvrtc). dfine-n-coco and rtmo-t, run in the same process, fail as they do with the tools present.
 
 Open, found by the sweep:
 
