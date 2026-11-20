@@ -47,6 +47,8 @@ Box = list[list[int]]  # [[start, end), ...] per axis
 _BORDER = (1500, 0.2, 100)  # fixed: upstream `_detect_change_at_border` (absolute, relative, minimum changed voxels)
 _MAX_ZOOM = 4.0  # fixed: upstream session constant (max zoom-out factor), not in inference_session_class.json
 _ZOOM_GROWTH = 1.5  # fixed: upstream session constant (zoom-out step), not in inference_session_class.json
+_POOL_ELEMENTS = 256 << 20
+_WIDE_POOL = 7
 
 
 @dataclass(frozen=True)
@@ -355,15 +357,41 @@ class Portable(InteractiveRunner):
             0
         ]
 
+    def _zoomed_cuda_input(self, s: Session, box: Box, size: list[int], k: int) -> torch.Tensor:
+        """Write prompt groups into a single patch without cloning the full zoomed volume."""
+        x = self._cuda_patch(s.image.device)
+        image = _crop_pad(s.image, box)[None, None]
+        x[:1].copy_(F.interpolate(image, self.patch, mode="trilinear")[0])
+        del image
+        x[1:4].copy_(F.interpolate(_crop_pad(s.inter[:3], box)[None], self.patch, mode="area")[0])
+        # Large crops use a single pooled channel to bound the pool workspace.
+        group = max(1, min(2, _POOL_ELEMENTS // math.prod(size)))
+        pad = k // 2
+        pools = (
+            [((k, 1, 1), (pad, 0, 0)), ((1, k, 1), (0, pad, 0)), ((1, 1, k), (0, 0, pad))]
+            if k >= _WIDE_POOL
+            else [((k, k, k), (pad, pad, pad))]
+        )
+        for start in range(3, 7, group):
+            stop = min(start + group, 7)
+            planes = _crop_pad(s.inter[start:stop], box)[None]
+            for window, padding in pools:
+                planes = F.max_pool3d(planes, window, 1, padding)
+            x[1 + start : 1 + stop].copy_(F.interpolate(planes, self.patch, mode="area")[0])
+            del planes
+        return x
+
     def _input(self, s: Session, centre: Sequence[int], zoom: float) -> tuple[torch.Tensor, list[int], Box]:
         """`_build_network_input`: the 8-channel input around `centre`, the zoomed patch size and its box."""
         size = [round(p * zoom) for p in self.patch]
         box = [[c - n // 2, c + n // 2 + n % 2] for c, n in zip(centre, size, strict=True)]
+        k = _odd(zoom * 2 - 1) if size != self.patch else 1
+        if self._channels_last and k > 1:
+            return self._zoomed_cuda_input(s, box, size, k), size, box
         img, inter = _crop_pad(s.image, box)[None], _crop_pad(s.inter, box)
         if size != self.patch:
-            inter = inter.clone()  # the crop may be a view of the state
-            k = _odd(zoom * 2 - 1)
             if k > 1:  # == upstream's iterated 3^3 max pools on replicate padding
+                inter = inter.clone()  # the crop may be a view of the state
                 inter[3:7] = F.max_pool3d(inter[None, 3:7], k, 1, k // 2)[0]
             inter = F.interpolate(inter[None], self.patch, mode="area")[0]
             img = F.interpolate(img[None], self.patch, mode="trilinear")[0]
