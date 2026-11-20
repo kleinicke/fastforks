@@ -28,6 +28,19 @@ def test_allowlist_entries_give_a_reason():
         assert len(reason) > 20, key
 
 
+def test_speed_floor_recognizes_task_organized_scene(tmp_path):
+    scene = "Middlebury/MiddEval3/trainingH/Motorcycle/im0.png"
+    flat = tmp_path / scene
+    grouped = tmp_path / "stereo" / scene
+    assert speed_check._scene_path(tmp_path, scene) == flat
+    grouped.parent.mkdir(parents=True)
+    grouped.touch()
+    assert speed_check._scene_path(tmp_path, scene) == grouped
+    flat.parent.mkdir(parents=True)
+    flat.touch()
+    assert speed_check._scene_path(tmp_path, scene) == flat
+
+
 def test_tensorrt_rows_fail_on_all_nan_outputs():
     """A TensorRT engine that builds but outputs only NaN (mvsanywhere: a fused-graph TensorRT bug) is a failed row."""
     import torch  # noqa: PLC0415

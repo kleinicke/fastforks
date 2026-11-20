@@ -73,6 +73,16 @@ from _data import DATA
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
+
+def _scene_path(root: Path, relative: str) -> Path:
+    """Resolve a speed-floor image in flat and task-organized data roots."""
+    direct = root / relative
+    if direct.is_file():
+        return direct
+    grouped = root / "stereo" / relative
+    return grouped if grouped.is_file() else direct
+
+
 ROOT = Path(__file__).resolve().parents[1]
 FLOOR = ROOT / "docs" / "data" / "speed.jsonl"
 ALLOW = ROOT / "docs" / "data" / "speed_allowlist.json"
@@ -82,8 +92,8 @@ COMPILE_DATA = ROOT / "docs" / "data" / "speed_compile.jsonl"
 WARMUP, RUNS, ROUNDS = 3, 5, 3
 TOL_MS, TOL_MB, TOL_MB_ABS, TOL_STATIC = 0.05, 0.05, 8, 0.03
 SCENES = {  # floor scene prefix -> left image (right: image_3 / im1; flow: the next frame _11), under $FASTFORKS_DATA
-    "KITTI": DATA / "KITTI/training/image_2/000000_10.png",
-    "Middlebury": DATA / "Middlebury/MiddEval3/trainingH/Motorcycle/im0.png",
+    "KITTI": _scene_path(DATA, "KITTI/training/image_2/000000_10.png"),
+    "Middlebury": _scene_path(DATA, "Middlebury/MiddEval3/trainingH/Motorcycle/im0.png"),
 }
 VIEWS = {"mapanything-apache": 9, "patchmatchnet": 5}  # multi-view scenes of the floor (other models: 8 views)
 SWAPPED = {"patchmatchnet"}  # floor input label is WxH
