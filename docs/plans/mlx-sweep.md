@@ -1205,3 +1205,62 @@ saved memory is the point and the compile is small against the call. Everything 
 MLX with `device="mlx"` (always available, any mode, `kernels` included). The `mlx` / `mlx_default` tables (models MPS
 cannot run, such as Marigold-v2) and the explicit `kernels` table are unchanged. `FASTFORKS_MLX_PLAN_CACHE` and
 `Model.warmup` remain the way to take the first-call cost out for a deployed model.
+
+## Conv pass: MLX convs against torch MPS per shape (v0.21 follow-up)
+
+Tools: `tools/mlx_conv_shapes.py <ref>` records every `aten.convolution` a survey job's MLX graph runs (shape, stride,
+groups, dtype, count per forward); `tools/mlx_conv_bench.py <file.json>` times each shape through `_conv_core` in
+portable (`mx.conv2d`) and kernels mode and against torch `F.conv*` on MPS (NCHW, as the MPS path runs it), 8 calls per
+eval, count-weighted totals. Conv totals, fp16, ms (port / kern before / kern now / MPS):
+
+| ref (input) | port | kern before | kern now | MPS | model ms MLX port / MPS |
+|---|---|---|---|---|---|
+| rife-4.25 (1080x1920) | 79.5 | 68.7 | 53.9 | 69.4 | 211 / 106 |
+| anyline (1024^2, net 1280^2) | 27.1 | 21.0 | 18.5 | 14.7 | 197 / 117 |
+| teed (1024^2, net 512^2) | 5.2 | - | 4.4 | - | 19.2 / 16.7 |
+| cotracker3-offline (480x854) | 287 | 165 | - | 246 | 3577 / 1430 |
+
+Findings:
+
+- Where MLX loses per conv: few-channel full-resolution convs. `mx.conv2d` runs them as implicit GEMM with K = 9*Cin
+  of 27-250, far from its tiles: 16 -> 16 at 576x960 2.6 ms vs MPS 0.95, the 3 -> 16 stride-2 stem 1.6 vs 0.47,
+  28 -> 16 stride 2 at 1152x1920 8.1 vs 4.2, 32 -> 32 at 640^2 3.6 vs 1.6, 48 -> 48 at 322^2 2.5 vs 1.3, TEED's
+  3 -> 24 (groups 3) at 1280^2 4.6 vs 1.9. At 64-128 channels the Winograd kernels already beat MPS (cotracker's
+  416 -> 256 26.6 vs 65 ms), and MLX's transposed convs are faster than MPS's in isolation.
+- So convs are NOT the main gap of rife or cotracker: rife's convs total about MPS's (54-69 ms of a 211 ms model; the
+  rest is elementwise lambdas ~140 ms eager-profiled, multiplies 34, bilinear 24, grid_sample 16); cotracker's convs are
+  ~300 ms of 3.6 s. anyline's convs are 18.5 of 181 ms (its edge post-processing dominates).
+
+Built (`kernels/conv_mlx/ops.direct`, kernels mode, `mlx_graph._conv_core`):
+
+- A direct NHWC conv for few channels: each thread computes 2 output pixels x 8 (or 4) output channels in float32
+  registers, one input row segment per kernel row and input-channel vector; odd Cin zero-padded to a multiple of 4; bias
+  and ReLU / PReLU / LeakyReLU fused (the `_fuse_activations` pass now also fuses into convs `direct` takes).
+  Rule (`direct_supported`, at >= 128^2 output pixels): k <= 3x3 (not 1x1), Cout % 4 == 0, and stride 2 with Cin <= 32,
+  Cout <= 48, or stride 1 with Cin <= 16, Cout <= 32. fp16 ms, `mx.conv2d` -> direct (MPS): 16 -> 16 576x960
+  2.6 -> 1.1 (0.95); 28 -> 16 s2 1152x1920 8.1 -> 3.4 (4.2); 3 -> 16 s2 1152x1920 1.6 -> 0.75 (0.47); 28 -> 48 s2
+  288x480 1.1 -> 0.43; 16 -> 16 640^2 1.9 -> 0.82 (0.74). fp32 gains are similar (rife conv total 89.8 -> 71.5).
+- Grouped convs with few input channels (TEED / anyline 3 -> 24 groups 3, or groups < Cin): one dense direct conv with
+  block-diagonal weights: 1280^2 fp16 2.6 (repeat + depthwise) -> 1.5 ms (MPS 1.9), fp32 2.7 -> ~2.5.
+- Not taken (measured, ties or loses): 32 -> 32 stride 1 (tie), 48 -> 48 and 64 -> 64 stride 1 (Winograd / GEMM win),
+  the 3 -> 64 7x7 stem (6.7 vs 4.7 ms), 1x1 convs (plain GEMMs).
+
+Model surveys (kernels mode now declared with `conv_mlx` on rife, anyline, teed), ms / peak MB, golden pass:
+
+| ref | dtype | MLX portable | MLX kernels | MPS portable |
+|---|---|---|---|---|
+| rife-4.25 | fp16 | 211 / 1680 | 180 / 1655 | 106 / 2482 |
+| rife-4.25 | fp32 | 256 / 1628 | 223 / 1743 | 119 / 2481 |
+| anyline | fp16 | 197 / 1776 | 181 / 1604 | 117 / 1319 |
+| anyline | fp32 | 223 / 1920 | 219 / 1997 | 130 / 2346 |
+| teed | fp16 | 19.2 / 492 | 14.1 / 523 | 16.7 / 1313 |
+| teed | fp32 | 19.6 / 603 | 17.5 / 634 | 20.1 / 1314 |
+
+Routes: `mlx_default` / `mlx` pick kernels for the three. teed MLX kernels now beats MPS (16 % / 13 % faster, 60 %
+leaner) but is not a massive model (MPS peak 1.3 GB), so `auto` keeps MPS by the rule above; rife and anyline stay
+well behind MPS (non-conv ops).
+
+Goldens (`test_mlx[<ref>@1]`, kernels where declared, the fused-activation pass is shared): isnet,
+rt-monster-plusplus-mix-all, selective-igev-eth3d-train, raft-stereo-eth3d, igev-plusplus-eth3d, realesr-general-x4v3,
+codeformer, span-x2, realesrgan-x2plus, deeplabv3plus-r101-d8-ade20k, pidinet, yolox-s, rife-4.25, rife-4.25-lite,
+anyline, teed pass.

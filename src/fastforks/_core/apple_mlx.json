@@ -95,12 +95,12 @@
   },
   "anyline@1": {
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    }
   },
   "anysplat@1": {
@@ -2558,12 +2558,12 @@
   },
   "rife-4.25@1": {
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    }
   },
   "romav1@1": {
@@ -3167,12 +3167,12 @@
   },
   "teed@1": {
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    }
   },
   "tipsv2-b14@1": {

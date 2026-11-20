@@ -932,6 +932,19 @@ def _wino_ok(
     return conv_ops.supported(tuple(xl.shape), w.shape[0])
 
 
+def _direct_ok(cin: int, hw: int, wshape: Sequence[int], stride: Sequence[int]) -> bool:
+    """Whether the kernels-mode direct few-channel conv takes this dense 2-D conv (`hw` input pixels, OIHW `wshape`)."""
+    if len(wshape) != 4 or cin != wshape[1] or hw < DIRECT_MIN_HW or DIRECT_OFF:  # noqa: PLR2004
+        return False
+    from fastforks.kernels.conv_mlx import ops as conv_ops
+
+    return conv_ops.direct_supported(wshape[1], wshape[0], tuple(wshape[2:]), tuple(stride))
+
+
+DIRECT_MIN_HW = 128 * 128  # smaller maps: launch-bound either way, `mx.conv2d` keeps them
+DIRECT_OFF = bool(os.environ.get("FF_MLX_NO_DIRECT"))  # kernels mode without the direct few-channel conv
+
+
 def _wino3d_ok(
     xl: mx.array, w: mx.array, stride: Sequence[int], padding: Sequence[int], dilation: Sequence[int], groups: int
 ) -> bool:
@@ -1339,6 +1352,21 @@ def _conv_core(  # noqa: PLR0913
         )
     else:
         wl = mx.transpose(w, (0, 2, 3, 1))
+        if (
+            _KERNELS
+            and groups > 1
+            and (groups < xl.shape[3] or xl.shape[3] <= 4)  # noqa: PLR2004 - wider depthwise: the depthwise kernel
+            and w.shape[0] % groups == 0
+            and _direct_ok(xl.shape[3], xl.shape[1] * xl.shape[2], (w.shape[0], xl.shape[3], *w.shape[2:]), stride)
+        ):
+            # few input channels in groups (TEED's 3 -> 24, groups 3): one dense direct conv with block-diagonal
+            # weights beats the repeat + depthwise below (1280^2 float16 2.6 -> 1.1 ms)
+            cg, og = xl.shape[3] // groups, w.shape[0] // groups
+            mask = (mx.arange(w.shape[0])[:, None] // og) == (mx.arange(xl.shape[3])[None, :] // cg)
+            wd = mx.where(mask[:, None, None, :], mx.tile(wl, (1, 1, 1, groups)), 0).astype(wl.dtype)
+            from fastforks.kernels.conv_mlx import ops as conv_ops
+
+            return _nchw(conv_ops.direct(xl, wd, b, tuple(stride), tuple(padding), tuple(dilation)))
         if 1 < groups == xl.shape[3] < w.shape[0] and w.shape[0] % groups == 0:
             # depthwise with a channel multiplier: repeat the input, then a plain depthwise conv (MLX's grouped conv
             # is slow there: TEED's 3 -> 24 at 1280^2 8.2 -> 3.8 ms, 48 -> 96 at 320^2 8.1 -> 1.3 ms, float16)
@@ -1359,6 +1387,12 @@ def _conv_core(  # noqa: PLR0913
                 ops.depthwise(
                     xl, mx.transpose(w[:, 0], (1, 2, 0)), bias, tuple(stride), tuple(padding), tuple(dilation)
                 )
+            )
+        if _KERNELS and groups == 1 and _direct_ok(xl.shape[3], xl.shape[1] * xl.shape[2], w.shape, stride):
+            from fastforks.kernels.conv_mlx import ops as conv_ops
+
+            return _nchw(
+                conv_ops.direct(xl, wl, b, tuple(stride), tuple(padding), tuple(dilation), act=act, slope=slope)
             )
         if _KERNELS and _wino_ok(xl, w, stride, padding, dilation, groups):
             from fastforks.kernels.conv_mlx import ops as conv_ops
@@ -2187,18 +2221,19 @@ class GraphNet:
             if conv.op != "call_function" or conv.target is not aten.convolution.default:
                 continue
             wv = conv.args[1].meta.get("val")
-            if (
-                conv.args[6]  # transposed
-                or conv.args[8] != 1
-                or wv is None
-                or tuple(wv.shape[2:]) != (3, 3)
-                or list(conv.args[3]) != [1, 1]
-                or list(conv.args[4]) != [1, 1]
-                or list(conv.args[5]) != [1, 1]
-            ):
+            xv = conv.args[0].meta.get("val")
+            if conv.args[6] or conv.args[8] != 1 or wv is None or xv is None or wv.ndim != 4:  # noqa: PLR2004
+                continue
+            wino = (
+                tuple(wv.shape[2:]) == (3, 3)
+                and list(conv.args[3]) == [1, 1]
+                and list(conv.args[4]) == [1, 1]
+                and list(conv.args[5]) == [1, 1]
+            )
+            if not wino and not _direct_ok(xv.shape[1], xv.shape[2] * xv.shape[3], wv.shape, conv.args[3]):
                 continue
             users = list(conv.users)
-            if self._fuse_residual(conv, users, nodes, names, lifted, values, res):
+            if wino and self._fuse_residual(conv, users, nodes, names, lifted, values, res):
                 continue
             if len(users) == 1 and users[0].target is aten.relu.default:
                 res.conv[conv.name] = (1, None)

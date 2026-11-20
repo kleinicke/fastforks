@@ -379,9 +379,9 @@ _DIRECT_SRC = """
     uint n = nh / OH, oy = nh % OH;
     int ox0 = int(oxb) * PX;
     float4 acc[PX][QB];
-    const device vec<T, 4>* bv = (const device vec<T, 4>*)b;
     UR for (int q = 0; q < QB; ++q) {
-        float4 bb = HASB ? float4(bv[cob * QB + q]) : float4(0);
+        uint c4 = (cob * QB + q) * 4;  // b / a: element reads (MLX may place small arrays in constant memory)
+        float4 bb = HASB ? float4(b[c4], b[c4 + 1], b[c4 + 2], b[c4 + 3]) : float4(0);
         UR for (int p = 0; p < PX; ++p) acc[p][q] = bb;
     }
     const device vec<T, CV>* xv = (const device vec<T, CV>*)x;
@@ -407,7 +407,6 @@ _DIRECT_SRC = """
         }
     }
     device vec<T, 4>* ov = (device vec<T, 4>*)out;
-    const device vec<T, 4>* av = (const device vec<T, 4>*)a;
     UR for (int p = 0; p < PX; ++p) {
         int ox = ox0 + p;
         if (ox >= OW) break;
@@ -415,7 +414,10 @@ _DIRECT_SRC = """
         UR for (int q = 0; q < QB; ++q) {
             float4 s = acc[p][q];
             if (ACT == 1) s = max(s, 0.0f);
-            else if (ACT == 2) s = select(s * float4(av[cob * QB + q]), s, s > 0.0f);
+            else if (ACT == 2) {
+                uint c4 = (cob * QB + q) * 4;
+                s = select(s * float4(a[c4], a[c4 + 1], a[c4 + 2], a[c4 + 3]), s, s > 0.0f);
+            }
             ov[o + q] = vec<T, 4>(s);
         }
     }

@@ -36,6 +36,8 @@ mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["edge_components"]
+mlx_kernels = ["conv_mlx"]  # the direct few-channel conv, Winograd 3x3s
+mlx_dtypes = ["float32", "float16"]
 
 [[papers]]
 title = "Tiny and Efficient Model for The Edge Detection Generalization"
