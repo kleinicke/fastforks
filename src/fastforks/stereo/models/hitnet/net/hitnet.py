@@ -145,6 +145,8 @@ def init_cost(lt: torch.Tensor, rt: torch.Tensor, max_disp: int, budget: int = 2
     n, c, h, w = lt.shape
     rp = F.pad(rt, (max_disp - 1, 0, 0, 0), mode="replicate")  # index 4x + 1 - d -> 4x + D - d in rp
     win = rp.unfold(3, max_disp + 1, TILE)[..., :w, :]  # [n, c, h, w, D + 1], [.., x, j] = rp[4x + j], j = D - d
+    if lt.device.type == "mps":  # fastforks: the float32 sum casts the chunk; smaller chunks fit the 1 GB heaps
+        budget //= 4
     rows = max(1, budget // max(1, n * c * w * max_disp * lt.element_size()))
     ds, cs = [], []
     for y0 in range(0, h, rows):
@@ -178,7 +180,7 @@ def tile_sad(hyp: torch.Tensor, fl: torch.Tensor, fr: torch.Tensor) -> torch.Ten
     `[sum |fl|, SAD(+1), SAD(0), SAD(-1)]`, packed (by, bx, k)."""
     n, _, h, w = hyp.shape
     base = x_positions(fl) - expand_tiles(hyp[:, 0:1], hyp[:, 1:2], hyp[:, 2:3])
-    sad = (fl.unsqueeze(1) - warp_rows(fr, torch.cat((base + 1, base, base - 1), 1))).abs().sum(2, dtype=torch.float32)
+    sad = sad_rows(fl, fr, torch.cat((base + 1, base, base - 1), 1))
     cost = torch.cat((fl.abs().sum(1, keepdim=True, dtype=torch.float32), sad), 1)
     return cost.view(n, 4, h, TILE, w, TILE).permute(0, 3, 5, 1, 2, 4).reshape(n, TILE * TILE * 4, h, w)
 
@@ -187,7 +189,16 @@ def refine_sad(d: torch.Tensor, fl: torch.Tensor, fr: torch.Tensor) -> torch.Ten
     """SAD of `fl` against `fr` warped by `d`, `d + 1` and `d - 1` (`d` already scaled): `[n, 3, H, W]`."""
     xs = x_positions(fl)
     pos = torch.cat((xs - d, xs - (d + 1), xs - (d - 1)), 1)
-    return (fl.unsqueeze(1) - warp_rows(fr, pos)).abs().sum(2, dtype=torch.float32)
+    return sad_rows(fl, fr, pos)
+
+
+def sad_rows(fl: torch.Tensor, fr: torch.Tensor, pos: torch.Tensor) -> torch.Tensor:
+    """`sum_c |fl - warp_rows(fr, pos)|` `[n, k, H, W]` float32; one position at a time on MPS (no `[n, k, C, H, W]`
+    float32 warp: 100-300 MB temporaries fragment its 1 GB heaps, and the smaller samples are faster)."""
+    if fl.device.type != "mps":
+        return (fl.unsqueeze(1) - warp_rows(fr, pos)).abs().sum(2, dtype=torch.float32)
+    sads = [(fl.unsqueeze(1) - warp_rows(fr, pos[:, i : i + 1])).abs().sum(2, dtype=torch.float32) for i in range(pos.shape[1])]
+    return torch.cat(sads, 1)
 
 
 class LevelInit(nn.Module):

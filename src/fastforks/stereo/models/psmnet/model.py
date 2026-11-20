@@ -6,7 +6,10 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import torch
+from torch import nn
+from torch.nn.utils.fusion import fuse_conv_bn_eval
 
+from fastforks._core.mps import fence
 from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
 from fastforks.stereo._volume import concat_fn, stacked_volume
@@ -28,7 +31,25 @@ class Params:
 def _net(ctx: Context) -> PSMNet:
     net = PSMNet(ctx.params.max_disp)
     net.load_state_dict(ctx.state_dict(key="state_dict"))
-    return net.eval().to(ctx.device)
+    _fold_batchnorms(net.eval())
+    return net.to(ctx.device)
+
+
+def _fold_batchnorms(module: nn.Module) -> None:
+    """Fold every BatchNorm that directly follows a convolution in an `nn.Sequential` into it (float32, before casts).
+
+    fastforks: no separate normalisation pass over the 3-D volumes (MPS: their outputs fragmented the 1 GB heaps).
+    """
+    for seq in module.modules():
+        if not isinstance(seq, nn.Sequential):
+            continue
+        for i in range(len(seq) - 1):
+            conv, bn = seq[i], seq[i + 1]
+            if isinstance(conv, (nn.Conv2d, nn.Conv3d, nn.ConvTranspose3d)) and isinstance(
+                bn, (nn.BatchNorm2d, nn.BatchNorm3d)
+            ):
+                seq[i] = fuse_conv_bn_eval(conv, bn, transpose=isinstance(conv, nn.ConvTranspose3d))
+                seq[i + 1] = nn.Identity()
 
 
 def cost_volume(net: PSMNet, ref: torch.Tensor, tgt: torch.Tensor) -> torch.Tensor:
@@ -54,7 +75,7 @@ def forward(net: PSMNet, left: torch.Tensor, right: torch.Tensor) -> torch.Tenso
     volume = cost_volume(net, net.feature_extraction(left), net.feature_extraction(right))
     cost0 = net.dres0(volume)
     del volume
-    cost0 = net.dres1(cost0) + cost0
+    cost0 = fence(net.dres1(cost0) + cost0)  # fastforks (MPS): the freed volume is reusable only once the GPU is done
     out1, pre1, post1 = net.dres2(cost0, None, None)
     out1 = out1 + cost0
     out2, pre2, post2 = net.dres3(out1, pre1, post1)
@@ -70,6 +91,7 @@ def forward(net: PSMNet, left: torch.Tensor, right: torch.Tensor) -> torch.Tenso
     del cost0
     cost3 = net.classif3(out3) + (cost2 + cost1)  # upstream's summation order
     del out3, cost2, cost1
+    fence(cost3)
     return upsample_softmax_regress(cost3, net.maxdisp, left.shape[2], left.shape[3])
 
 

@@ -8,6 +8,7 @@ outputs = ["depth", "confidence", "gaussians"]  # confidence: largest match prob
 limitations = [
   "The held-out RGB scores use the authors’ two released RealEstate10K example scenes. They measure novel-view rendering on those scenes. DTU uses a different scene scale, and its depth scores are specific to the DTU setup.",
   "Portable runs upstream's two CUDA extensions (kNN, gsplat rasteriser) as PyTorch ops: 2.8x (base) / 3.5x (small) slower than the bf16 original at 480x640. Slow: kNN topk ~28 %, compositing cumprod/pow ~30 % of GPU time. Kernels: 2.0x / 1.4x faster.",
+  "Apple MLX: encoder as the exported graph, refinement in MLX with Metal kernels (rasteriser, kNN, kNN attention). Base 256x256 x8 on an M1 Pro: fp16 14.6 s / 5.6 GB, fp32 19.4 s / 9.6 GB; the point transformer's matrix multiplies dominate.",
   "The portable kNN pooling calls torch ops that return non-Tensors: 38 graph breaks (`torch.compile` runs with breaks, no `torch.export`).",
   "Compiling only the Base model's depth predictor changed synthetic 8-view 480×640 latency from 7,090 to 7,071 ms and produced a maximum depth change of 1.187 on that input. The complete graph exceeded the compile benchmark’s time limit.",
 ]
@@ -45,7 +46,7 @@ refine = { default = 2, min = 0 }  # recurrent refinement steps (upstream evalua
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32"]
-mlx_dtypes = ["float32"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "cudnn_hacc", "gsraster", "depthsplat_corr", "knn_attention"]

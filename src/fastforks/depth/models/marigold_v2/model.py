@@ -165,6 +165,29 @@ class Kernels(Runner):
         return {"depth": infer(self.net, image, self.ctx.params, self.noise)}
 
 
+class MlxPortable(Runner):
+    """Apple MLX (`device="mlx"`): the VAE and the transformer in `mx` operations (`net.mlx_net`), NF4 kept packed.
+
+    `stream` (default) reads the transformer blocks from the weight file one block ahead per call instead of keeping
+    the 8.5 GB resident; the resize and the seeded noise stay PyTorch on the CPU.
+    """
+
+    batch = 1
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Open the checkpoint in MLX (the VAE and constants resident; the blocks too with `stream=False`)."""
+        super().__init__(ctx)
+        from .net import mlx_net  # noqa: PLC0415 - needs the mlx extra
+
+        self.net = mlx_net.Net(ctx.weights()[0], stream=ctx.params.stream)
+        self.noise = Noise(ctx.params.seed)
+
+    def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
+        """Affine-invariant log depth of one image."""
+        return {"depth": infer(self.net, image.cpu(), self.ctx.params, self.noise)}
+
+
 def _dequant(lin: NF4Linear) -> torch.Tensor:
     q, absmax, bias = (cast("torch.Tensor", t) for t in (lin.q, lin.absmax, lin.bias))  # registered buffers
     # A linear consumes the expansion on the current stream. PyTorch's allocator
@@ -174,4 +197,4 @@ def _dequant(lin: NF4Linear) -> torch.Tensor:
     return out.view(bias.numel(), -1)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxPortable}

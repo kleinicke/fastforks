@@ -83,12 +83,51 @@ def _mlp(m: Any, last: Any) -> tuple[torch.Tensor, list[Conv]]:  # noqa: ANN401 
     return packed, convs
 
 
+_MLP_CHUNK = 2**20  # pixels per `_mlp2d` chunk on MPS (a 64 MB fp32 hidden layer of 16 channels)
+
+
+def _border(x: torch.Tensor, grid: torch.Tensor) -> torch.Tensor:
+    return F.grid_sample(x, grid, mode="bilinear", padding_mode="border", align_corners=False)
+
+
+def _correlate(src: torch.Tensor, grid: torch.Tensor, ref: torch.Tensor, g: int, d: int) -> torch.Tensor:
+    """Group-wise channel sums `[G, D, h*w]` of `src` `[1, C, h, w]` warped by `grid` `[1, D*h, w, 2]` times `ref`.
+
+    MPS: one group at a time (no `[1, C, D*h, w]` warp, a fresh 1 GB heap at 1536x1024).
+    """
+    c, hw = src.shape[1], ref.shape[-2] * ref.shape[-1]
+    cg, step = c // g, 1 if src.device.type == "mps" else g
+    rv = ref.view(g, cg, 1, hw)
+    sim = ref.new_empty(g, d, hw)
+    for g0 in range(0, g, step):
+        with _no_cudnn():  # the native sampler is 10-25 % faster than cuDNN's
+            wv = grid_sample(
+                src[:, g0 * cg : (g0 + step) * cg], grid, mode="bilinear", padding_mode="zeros", align_corners=True
+            ).view(step, cg, d, hw)
+        out = sim[g0 : g0 + step]
+        torch.mul(wv[:, 0], rv[g0 : g0 + step, 0], out=out)
+        for j in range(1, cg):
+            out.addcmul_(wv[:, j], rv[g0 : g0 + step, j])
+    return sim
+
+
 def _mlp2d(x: torch.Tensor, convs: list[Conv]) -> torch.Tensor:
     """`[B, G, D, H, W]` -> `[B, D, H, W]` through the 1x1x1 nets as 1x1 Conv2d over a `[B, G, D*H, W]` view."""
     b, g, d, h, w = x.shape
-    y = F.relu_(F.conv2d(x.reshape(b, g, d * h, w), *convs[0]))  # in place: the conv outputs are fresh (peak memory)
+    x = x.reshape(b, g, d * h, w)
+    if x.device.type == "mps":  # fastforks (MPS): a few depth planes at a time, no [B, 16, D*H, W] hidden layer
+        out = x.new_empty(b, convs[2][0].shape[0], d * h, w)
+        step = h * max(1, _MLP_CHUNK // (h * w))
+        for r in range(0, d * h, step):
+            out[:, :, r : r + step] = _mlp2d_rows(x[:, :, r : r + step], convs)
+        return out.view(b, d, h, w)
+    return _mlp2d_rows(x, convs).view(b, d, h, w)
+
+
+def _mlp2d_rows(x: torch.Tensor, convs: list[Conv]) -> torch.Tensor:
+    y = F.relu_(F.conv2d(x, *convs[0]))  # in place: the conv outputs are fresh (peak memory)
     y = F.relu_(F.conv2d(y, *convs[1]))
-    return F.conv2d(y, *convs[2]).view(b, d, h, w)
+    return F.conv2d(y, *convs[2])
 
 
 @dataclass
@@ -465,8 +504,15 @@ class Portable(_Base):
         src = f[1:].float()
         pgrid, egrid = self.offsets(st, f[:1], h, w)
         ne = st.evaluate
-        wt = F.grid_sample(ref, egrid, mode="bilinear", padding_mode="border", align_corners=False)
-        wt = (wt.view(1, g, c // g, ne, h, w) * ref.view(1, g, c // g, 1, h, w)).mean(2)
+        if f.device.type == "mps":  # fastforks (MPS): one evaluation neighbour at a time, no [1, C, NE*h, w] sample
+            rg, eg = ref.view(1, g, c // g, h, w), egrid.view(1, ne, h, w, 2)
+            wt = torch.stack(
+                [(_border(ref, eg[:, k]).view_as(rg) * rg).mean(2) for k in range(ne)],
+                2,
+            )
+        else:
+            wt = _border(ref, egrid)
+            wt = (wt.view(1, g, c // g, ne, h, w) * ref.view(1, g, c // g, 1, h, w)).mean(2)
         fweight = torch.sigmoid(_mlp2d(wt, st.fw2d))
         ys, xs = torch.meshgrid(
             torch.arange(h, device=f.device, dtype=torch.float32),
@@ -514,16 +560,9 @@ class Portable(_Base):
                 gy = (py / pz) / ((h - 1) / 2) - 1
                 grid = torch.stack((gx[:, 0], gy[:, 0]), 3).view(1, d * h, w, 2)
                 del p, neg, px, py, pz, gx, gy  # not held during the warp (peak memory: ~290 MB at 1536x1024)
-                with _no_cudnn():  # the native sampler is 10-25 % faster than cuDNN's
-                    warped = grid_sample(
-                        src[s : s + 1], grid, mode="bilinear", padding_mode="zeros", align_corners=True
-                    )
-                wv, rv = warped.view(g, c // g, d, h * w), ref.view(g, c // g, 1, h * w)
-                sim = wv[:, 0] * rv[:, 0]
-                for j in range(1, c // g):
-                    sim.addcmul_(wv[:, j], rv[:, j])
+                sim = _correlate(src[s : s + 1], grid, ref, g, d)
                 sim = sim.mul_(g / c).view(1, g, d, h, w)
-                del wv, warped, grid
+                del grid
                 if new_vw:
                     v = torch.sigmoid(_mlp2d(sim, st.pw2d)).amax(1, keepdim=True)  # [1, 1, h, w]
                     vws.append(v)

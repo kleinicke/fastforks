@@ -24,6 +24,11 @@ class _Normalize:
     def __call__(self, x):
         # the constants are built once per (dtype, device): a host-to-device copy per call is a stream sync
         key = (x.dtype, x.device)
+        if torch.compiler.is_compiling():  # traced (e.g. exported for MLX): a cached constant would be a fake tensor
+            mean, std = (
+                torch.as_tensor(v, dtype=x.dtype, device=x.device).view(-1, 1, 1) for v in (self.mean, self.std)
+            )
+            return (x - mean) / std
         if key not in self._cache:
             self._cache[key] = tuple(
                 torch.as_tensor(v, dtype=x.dtype, device=x.device).view(-1, 1, 1) for v in (self.mean, self.std)

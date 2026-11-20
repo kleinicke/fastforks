@@ -17,6 +17,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from fastforks._core.mps import fence
 from fastforks.shared.depth_anything_v2 import use_sdpa_attention
 from fastforks.shared.monster_fit import fit as _fit
 
@@ -140,6 +141,7 @@ def _forward(self, image1, image2, selective):
     inp_list = [torch.relu(x[1]) for x in cnet_list]  # (upstream applies relu twice: idempotent)
     inp_list = [list(conv(i).split(conv.out_channels // 3, dim=1)) for i, conv in zip(inp_list, self.context_zqr_convs)]
     del cnet_list, features_mono_left
+    fence(net_list[0])
 
     disp_next = mask_feat = disp = None
     for i in range(3):
@@ -164,7 +166,7 @@ def _forward(self, image1, image2, selective):
                 del drs
             gwc_volume = self.corr_stem(gwc_volume.to(match_left.dtype))
             gwc_volume = self.corr_feature_att_list[i](gwc_volume, feat_left)
-            geo_encoding_volume = self.cost_agg[i](gwc_volume)
+            geo_encoding_volume = fence(self.cost_agg[i](gwc_volume))
             cur_disp = disp_next
         del gwc_volume
         with _f32(dev):
@@ -198,5 +200,6 @@ def _forward(self, image1, image2, selective):
             del geo_feat, delta_disp
         del geo_fn, feat_left, feat_right
         disp_next = _up2(self, disp, mask_feat, stem_x_list[i + 1], i) if i < 2 else None
+        fence(disp)  # MPS: the scale's temporaries become reusable (fewer 1 GB heaps)
     del net_list, inp_list
     return _up4(self, disp, mask_feat, stem_2x)

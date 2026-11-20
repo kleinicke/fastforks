@@ -27,6 +27,9 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
+from fastforks._core.mps import fence
+from fastforks._core.tracing import EXPORTING_FOR_MLX
+
 
 @dataclass(frozen=True)
 class Config:
@@ -462,22 +465,28 @@ class VitMatteDetailCaptureModule(nn.Module):
         detail_features = self.convstream(pixel_values)
         for i, block in enumerate(self.fusion_blocks[:-1]):
             detailed_feature_map_name = "detailed_feature_map_" + str(len(self.fusion_blocks) - i - 1)
-            features = block(features, detail_features.pop(detailed_feature_map_name))
+            features = fence(block(features, detail_features.pop(detailed_feature_map_name)))
         return matte_in_strips(features, pixel_values, self._matte)
 
     def _matte(self, features, pixels):
         return self.matting_head(self.fusion_blocks[-1](features, pixels)).sigmoid()
 
+
 def matte_in_strips(features, pixels, matte):
-    """Apply the local 2x matting tail in row strips for large FP16 CUDA images."""
+    """Apply the local 2x matting tail in row strips for large FP16 CUDA images (on MPS and MLX, any dtype).
+
+    On MLX the strips are static slices of the exported graph; its checkpoints evaluate them one after the other.
+    """
     height, width = pixels.shape[-2:]
-    if (
-        not features.is_cuda
-        or features.dtype != torch.float16
-        or height * width < 1024 * 1024
-        or torch.is_grad_enabled()
-        or torch.compiler.is_compiling()
-        or torch.jit.is_tracing()
+    mlx = EXPORTING_FOR_MLX.get()
+    if height * width < 1024 * 1024 or (
+        not mlx
+        and (
+            not (features.device.type == "mps" or (features.is_cuda and features.dtype == torch.float16))
+            or torch.is_grad_enabled()
+            or torch.compiler.is_compiling()
+            or torch.jit.is_tracing()
+        )
     ):
         return matte(features, pixels)
 
@@ -489,7 +498,7 @@ def matte_in_strips(features, pixels, matte):
     for start in range(0, half_height, rows):
         stop = min(start + rows, half_height)
         low, high = max(0, start - 2), min(half_height, stop + 2)
-        alpha = matte(features[..., low:high, :], pixels[..., 2 * low : 2 * high, :])
+        alpha = fence(matte(features[..., low:high, :], pixels[..., 2 * low : 2 * high, :]))
         output.append(alpha[..., 2 * (start - low) : 2 * (stop - low), :])
     return torch.cat(output, dim=-2)
 

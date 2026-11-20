@@ -242,6 +242,9 @@ A survey row has the keys of `speed.jsonl` plus:
 | `status` | `ok`, `unsupported` (the card does not offer this mode / dtype on the backend), `failed` (it ran and raised; `error`), `oom` |
 | `protocol_id` | the timing protocol class; cross-device tables compare only equal ids. `warm-median`: median of warm, synchronised calls after warm-up |
 | `memory_kind` | `torch-peak` (`peak_alloc_mb`, `peak_reserved_mb`; CUDA, ROCm) or `process-footprint` (`peak_footprint_mb`, the process's peak physical footprint; MPS and MLX, unified memory). Kinds are never compared |
+| `load_s`, `first_call_s` | the load call and the first call at the input (s): on MLX the first call exports, translates and tunes the graph (see docs/plans/mlx-sweep.md, cold start) |
+| `load_peak_footprint_mb` | optional: the process's peak footprint after the load, before the first call (MiB) |
+| `second_shape_s`, `second_shape_input` | optional: one first call at a second, synthetic input size (3/4 of `input`, multiple of 32), after the timed calls: what a new image size costs a running model |
 | `golden` | optional: `pass`, `fail` or `skip`, the golden check (`tests/test_golden.py::test_gpu`) of the same loaded model on this device; `golden_mean` / `golden_p99` (error), `golden_msg` (why skipped), `golden_error`. A `fail` row keeps its time but is never a table's fastest |
 
 An `ok` row has `ms` and its memory fields; any other status has no `ms` and a `note` or `error`. `ref`, `mode`,

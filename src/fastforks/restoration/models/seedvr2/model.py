@@ -9,8 +9,9 @@ multiple of 16 and crops the output back, so every pixel is restored. Both noise
 diffusion noise) come from one CPU generator seeded with `seed` (upstream's default 666, drawn in the same order and
 shapes), so a seed and size give the same noise on every device and in every mode.
 
-`stream` (default on, CUDA) keeps the transformer blocks in page-locked host memory and uploads one at a time
-(`fastforks.shared.host_blocks`); `quant = "nf4"` quantises the blocks' linear weights to NF4 at load (bitsandbytes'
+`stream` (default on) keeps the transformer blocks in page-locked host memory and uploads one at a time on CUDA
+(`fastforks.shared.host_blocks`); on MLX it keeps the blocks that fit in `MLX_RESIDENT_SHARE` of unified memory and
+reads the others from the weight file per call (`net.mlx_net.Transformer`); `quant = "nf4"` quantises the blocks' linear weights to NF4 at load (bitsandbytes'
 format, `fastforks.shared.nf4`) and expands each to bf16 per call: ~3.5x smaller transformer, a small quality cost
 (measured 2026-11-14). Both are explicit options, printed when used, never silent fallbacks. The kernels
 backend expands NF4 weights with one fused kernel (`fastforks.kernels.nf4`); without `quant` it is the portable path.
@@ -144,6 +145,10 @@ class Kernels(Runner):
         return {"image": infer(self.net, image, self.ctx.params.scale, self.noise)}
 
 
+MLX_RESIDENT_SHARE = 0.25
+"""MLX `stream=True`: share of unified memory the transformer blocks may keep resident; the rest are read per call."""
+
+
 class MlxPortable(Runner):
     """Apple MLX (`device="mlx"`): the transformer and VAE in `mx` operations (`net.mlx_net`).
 
@@ -158,15 +163,25 @@ class MlxPortable(Runner):
         """Read the checkpoints into MLX."""
         super().__init__(ctx)
         _announce(ctx)
-        from fastforks.shared.mlx_weights import DTYPES  # noqa: PLC0415 - needs the mlx extra
+        from fastforks._core.mlx import mx  # noqa: PLC0415 - needs the mlx extra
+        from fastforks.shared.mlx_weights import DTYPES  # noqa: PLC0415
 
         from .net import mlx_net  # noqa: PLC0415
 
         dit, vae = ctx.weights()
-        if ctx.params.quant == "none":
+        p = ctx.params
+        resident = int(MLX_RESIDENT_SHARE * mx.device_info()["memory_size"])
+        if p.quant == "none" and p.stream:
+            print(  # noqa: T201
+                f"{ctx.variant.ref}: stream=True, transformer blocks beyond {resident / 2**30:.1f} GiB are read from "
+                "the weight file per call"
+            )
+        elif p.quant == "none":
             _require_mlx_ram(ctx.variant.ref, (dit, vae), DTYPES[ctx.dtype].size)
-        cfg = CONFIGS[ctx.params.variant]
-        self.net = mlx_net.Net(dit, vae, cfg, DTYPES[ctx.dtype], quant=ctx.params.quant == "nf4")
+        cfg = CONFIGS[p.variant]
+        self.net = mlx_net.Net(
+            dit, vae, cfg, DTYPES[ctx.dtype], quant=p.quant == "nf4", stream=p.stream, resident=resident
+        )
         self.noise = Noise(ctx.params.seed)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
