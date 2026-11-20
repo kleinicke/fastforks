@@ -27,7 +27,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`gmflow-scale2-regrefine6-things`](#gmflow) | yes | 4.915 | 1384, 1.6x | 3212, 0.37x |
 | [`gmflow-scale2-sintel`](#gmflow) | yes | 1.975 † | 916, 1.8x | 3204, 0.37x |
 | [`gmflow-scale2-things`](#gmflow) | yes | 6.747 | 916, 1.7x | 3204, 0.37x |
-| [`megaflow`](#megaflow) | yes | 1.714 † | 735, 2.2x | 3530, 0.4x |
+| [`megaflow`](#megaflow) | yes | 1.714 † | 735, 2.2x | 2866, 0.33x |
 | [`memflow`](#memflow) | yes | 4.103 | 865, 3.6x | 1022, 0.066x |
 | [`memflow-kitti`](#memflow) | yes | 0.600 † | 865, 3.8x | 1022, 0.066x |
 | [`memflow-sintel`](#memflow) | yes | 1.218 † | 865, 3.7x | 1022, 0.065x |
@@ -371,7 +371,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `megaflow` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1588<br>1112<br>735<br>917<br>677 | 8230 / 8786<br>2713 / 3518<br>2724 / 3530<br>2611 / 2886<br>9265 / 9300 |
+| `megaflow` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1588<br>1116<br>735<br>917<br>677 | 8230 / 8786<br>2629 / 2766<br>2639 / 2866<br>2611 / 2886<br>9265 / 9300 |
 
 <details><summary>Details</summary>
 
@@ -388,7 +388,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `megaflow` 1080x1920 (3.0 GiB peak allocated, 3.2 reserved)
 - `megaflow` 1080x1920, first call: portable + torch.compile 102 s (cold Inductor cache), TensorRT fp16 214 s (ONNX + engine).
 - `megaflow` original 1080x1920: the authors' mixed-precision option (bfloat16); upstream MegaFlow, num_reg_refine=8, README recipe: bf16 autocast
-- `megaflow` portable 1080x1920, kernels 1080x1920: Unused features and local-correlation chunks are released earlier. Peak reservation uses the native CUDA allocator.
+- `megaflow` portable 1080x1920, kernels 1080x1920: 1080p native timing after releasing redundant block buffers. Paired outputs matched bit-for-bit on real KITTI and odd synthetic inputs.
 - `megaflow` load / first call: original 9.56 s / 6.769 s, portable 1.96 s / 0.758 s (375x1242), kernels 7.1 s / 0.668 s (375x1242)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 

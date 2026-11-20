@@ -1395,7 +1395,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | gmflow-scale2-regrefine6-things | 3230 | 2175 | 1382 | 1384 | 1.6x | 1.0x | 8537 / 8822 | 3005 / 3192 | 3005 / 3212 |
 | gmflow-scale2-sintel | 2541 | 1607 | 915 | 916 | 1.8x | 1.0x | 8425 / 8552 | 2995 / 3184 | 2995 / 3204 |
 | gmflow-scale2-things | 2537 | 1599 | 914 | 916 | 1.7x | 1.0x | 8425 / 8552 | 2995 / 3184 | 2995 / 3204 |
-| megaflow | – | 1588 | 1112 | 735 | 2.2x | 1.5x | 8230 / 8786 | 2713 / 3518 | 2724 / 3530 |
+| megaflow | – | 1588 | 1116 | 735 | 2.2x | 1.5x | 8230 / 8786 | 2629 / 2766 | 2639 / 2866 |
 | memflow | – | 3116 | 965 | 865 | 3.6x | 1.1x | 15061 / 15594 | 6001 / 6294 | 968 / 1022 |
 | memflow-kitti | – | 3247 | 964 | 865 | 3.8x | 1.1x | 15061 / 15594 | 5985 / 6102 | 968 / 1022 |
 | memflow-sintel | – | 3214 | 964 | 865 | 3.7x | 1.1x | 15061 / 15634 | 5985 / 6102 | 968 / 1022 |
@@ -2640,7 +2640,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | gmflow-scale2-sintel | 384x1248 | – | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 12.7 s | – | – | – | 1616 / 2560 |
 | gmflow-scale2-things | 1080x1920 | 914 ms | 765 ms | public API unavailable | 916 ms | 46.7 s | – | 2995 / 3184 | 10865 / 10904 | 2995 / 3204 | – |
 | gmflow-scale2-things | 384x1248 | – | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | – | – | – | 1616 / 2560 |
-| megaflow | 1080x1920 | 1112 ms | 917 ms | 677 ms | 735 ms | 102 s | 214 s | 2713 / 3518 | 2611 / 2886 | 2724 / 3530 | 9265 / 9300 |
+| megaflow | 1080x1920 | 1116 ms | 917 ms | 677 ms | 735 ms | 102 s | 214 s | 2629 / 2766 | 2611 / 2886 | 2639 / 2866 | 9265 / 9300 |
 | memflow | 1080x1920 | 965 ms | 1642 ms | fails: TensorRT engine build failed | 865 ms | 78.9 s | – | 6001 / 6294 | 6813 / 6946 | 968 / 1022 | – |
 | memflow | 384x1248 | – | – | 178 ms, fp32 engine (full fixed-shape flow network, standalone trace export and build) | – | – | 99.3 s | – | – | – | 1171 / 1176 |
 | memflow-kitti | 1080x1920 | 964 ms | 1644 ms | fails: TensorRT engine build failed | 865 ms | 72.6 s | – | 5985 / 6102 | 6813 / 6946 | 968 / 1022 | – |

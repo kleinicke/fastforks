@@ -275,9 +275,9 @@ Query-first TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before t
 | `locotrack-b` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 67.19 / 78.05 / 89.58 | 67.31 / 78.11 / 89.85 | 67.31 / 78.07 / 89.89 | 67.23 / 78.11 / 89.76 | 67.29 / 78.10 / 89.83 |  |  |
 | `locotrack-b` | TAP-Vid DAVIS, 8 frames and 16 queries per clip, AJ / delta_avg / OA % |  |  | 89.53 / 94.82 / 97.35 |  |  | 89.53 / 94.81 / 97.35 |  |
 | `locotrack-s` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 64.81 / 76.91 / 86.51 |  |  | 64.75 / 76.86 / 86.42 |  |  |  |
-| `locotrack-s` | TAP-Vid DAVIS, 8 frames and 16 queries per clip, AJ / delta_avg / OA % |  |  | 89.00 / 94.41 / 97.48 |  |  | 89.07 / 94.41 / 97.48 |  |
+| `locotrack-s` | TAP-Vid DAVIS, 8 frames and 16 queries per clip, AJ / delta_avg / OA % |  |  | 89.00 / 94.41 / 97.48 |  | 89.00 / 94.41 / 97.48 | 89.07 / 94.41 / 97.48 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks b3358de3 / db9e79d5, 2026-11-13 to 2026-11-17; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2da1b4d2 / bb4e8b64, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5, 2026-11-13; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks b3358de3, 2026-11-17.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks b3358de3 / db9e79d5, 2026-11-13 to 2026-11-17; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2da1b4d2 / bb4e8b64, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 78a59767f / db9e79d5, 2026-11-13 to 2026-11-20; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks b3358de3, 2026-11-17.
 
 ### Parity
 
@@ -409,9 +409,9 @@ Query-first TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before t
 | `track-on2` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 69.60 / 81.26 / 92.96 | 69.64 / 81.30 / 92.94 | 69.69 / 81.33 / 92.94 | 69.59 / 81.26 / 92.95 | 69.65 / 81.32 / 92.93 |  |  |  |
 | `track-on2` | TAP-Vid DAVIS (10 clips), first 16 frames and up to 20 queries, AJ / delta_avg / OA % |  |  | 80.74 / 90.52 / 95.19 | 80.74 / 90.54 / 95.19 |  | 80.79 / 90.55 / 95.19 | 80.75 / 90.55 / 95.19 |  |
 | `track-on-r` | TAP-Vid DAVIS (query first), every 3rd video, AJ / delta_avg / OA % | 71.09 / 82.19 / 94.20 |  |  | 71.09 / 82.19 / 94.20 |  |  |  |  |
-| `track-on-r` | TAP-Vid DAVIS (10 clips), first 16 frames and up to 20 queries, AJ / delta_avg / OA % |  |  | 82.08 / 91.10 / 95.90 | 82.05 / 91.08 / 95.90 |  | 82.06 / 91.08 / 95.90 | 82.05 / 91.08 / 95.90 |  |
+| `track-on-r` | TAP-Vid DAVIS (10 clips), first 16 frames and up to 20 queries, AJ / delta_avg / OA % |  |  | 82.08 / 91.10 / 95.90 | 82.05 / 91.08 / 95.90 | 82.02 / 91.08 / 95.87 | 82.06 / 91.08 / 95.90 | 82.05 / 91.08 / 95.90 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6327e81d / db9e79d5, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2da1b4d2 / bb4e8b64 / c12bf7a9 / c8dd032d, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks db9e79d5, 2026-11-13; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6327e81d, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c12bf7a9 / c8dd032d, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6327e81d / db9e79d5, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2da1b4d2 / bb4e8b64 / c12bf7a9 / c8dd032d, 2026-11-17 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 78a59767f / db9e79d5, 2026-11-13 to 2026-11-20; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 6327e81d, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c12bf7a9 / c8dd032d, 2026-11-18.
 
 ### Parity
 
