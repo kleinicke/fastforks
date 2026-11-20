@@ -30,6 +30,9 @@ GUARD = textwrap.dedent(
 
 
 def _run_guarded(code: str, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    # Windows: Python cannot start (random seed, sockets) without SYSTEMROOT, and `Path.home()` needs USERPROFILE
+    # (POSIX falls back to the password database without HOME)
+    env = {k: os.environ[k] for k in ("SYSTEMROOT", "USERPROFILE") if os.name == "nt" and k in os.environ} | env
     return subprocess.run(
         [sys.executable, "-c", GUARD + textwrap.dedent(code)], env=env, capture_output=True, text=True, check=False
     )
@@ -114,6 +117,8 @@ def test_guard_catches_network(prefilled):
 
 
 def test_offline_read_only_cache(prefilled):
+    if os.name != "posix":
+        pytest.skip("POSIX permissions: Windows ignores the read-only attribute of directories")
     if os.geteuid() == 0:
         pytest.skip("root ignores file permissions")
     spec, env = prefilled

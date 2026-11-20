@@ -107,10 +107,10 @@ def test_cache_dirs_are_private_and_stale_downloads_swept(tmp_path):
     src = tmp_path / "w.bin"
     src.write_bytes(b"payload")
     files.download(src.as_uri(), dest, _spec(b"payload", src.as_uri()))
-    for d in (dest.parent, dest.parent.parent, dest.parent.parent.parent):
-        assert stat.S_IMODE(d.stat().st_mode) == 0o700
     stamp = next((files.cache_root() / "stamps").rglob("*.json"))
-    assert stat.S_IMODE(stamp.parent.stat().st_mode) == 0o700
+    if os.name == "posix":  # Windows has no mode bits (`mkdir(mode=)` is ignored; ACLs decide)
+        for d in (dest.parent, dest.parent.parent, dest.parent.parent.parent, stamp.parent):
+            assert stat.S_IMODE(d.stat().st_mode) == 0o700
     assert not list((files.cache_root() / "stamps").rglob("*.tmp"))
     stale, fresh = dest.parent / ".download.old", dest.parent / ".download.new"
     stale.mkdir()
