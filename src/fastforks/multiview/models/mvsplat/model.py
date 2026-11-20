@@ -369,20 +369,21 @@ def gaussians(
         c2w: `[V, 4, 4]` camera-to-world (input units).
     """
     v, _, h, w = raw.shape
-    raw = raw.float().permute(0, 2, 3, 1).reshape(v, h * w, RAW_DIM)
+    raw = raw.permute(0, 2, 3, 1).reshape(v, h * w, RAW_DIM)
     dev = raw.device
     pixel = 1 / torch.tensor((w, h), dtype=torch.float32, device=dev)
     ys, xs = ((torch.arange(n, device=dev, dtype=torch.float32) + 0.5) / n for n in (h, w))
     xy = torch.stack(torch.meshgrid(xs, ys, indexing="xy"), -1).reshape(1, h * w, 2)
-    xy = xy + (raw[..., :2].sigmoid() - 0.5) * pixel
+    xy = xy + (raw[..., :2].float().sigmoid() - 0.5) * pixel
     scales, rot, sh = raw[..., 2:].split((3, 4, 3 * SH), -1)
     k_inv = invert(k_norm.float())
     multiplier = 0.1 * (k_inv[:, :2, :2] @ pixel).sum(-1)  # [V]
     d = depth.float().reshape(v, h * w, 1)
-    scales = (SCALE_MIN + (SCALE_MAX - SCALE_MIN) * scales.sigmoid()) * d * multiplier[:, None, None]
+    scales = (SCALE_MIN + (SCALE_MAX - SCALE_MIN) * scales.float().sigmoid()) * d * multiplier[:, None, None]
+    rot = rot.float()
     rot = rot / (rot.norm(dim=-1, keepdim=True) + 1e-8)  # x y z w, camera frame
     mask = torch.tensor([1.0] + [0.1 * 0.25**deg for deg in range(1, SH_DEGREE + 1) for _ in range(2 * deg + 1)])
-    sh = sh.reshape(v, h * w, 3, SH) * mask.to(dev)
+    sh = sh.reshape(v, h * w, 3, SH).float() * mask.to(dev)
     c2w = c2w.float()
     r = c2w[:, None, :3, :3]
     rays = (k_inv[:, None] @ torch.cat((xy, torch.ones_like(xy[..., :1])), -1).expand(v, -1, -1)[..., None])[..., 0]
