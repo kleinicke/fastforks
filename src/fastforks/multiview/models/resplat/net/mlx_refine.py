@@ -749,3 +749,15 @@ def _to_torch(a: mx.array) -> torch.Tensor:
     a = a.astype(F32)
     mx.eval(a)
     return torch.from_numpy(np.array(a))
+
+
+def _register() -> None:
+    """The encoder's exported `fastforks::resplat_knn` (`point_transformer.knn_op`) lowers to `knn`."""
+    from fastforks.shared.mlx_graph import OPS  # noqa: PLC0415 - the MLX graph translator
+
+    from . import point_transformer  # noqa: F401, PLC0415 - registers the op
+
+    OPS[torch.ops.fastforks.resplat_knn.default] = knn
+
+
+_register()

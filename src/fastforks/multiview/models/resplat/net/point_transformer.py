@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from fastforks._core.tracing import EXPORTING_FOR_MLX
 from fastforks.shared.depth_anything_v2 import Block, SdpaAttention  # fastforks: upstream's dinov2 Block (SDPA)
 
 
@@ -48,7 +49,7 @@ def _knn_pooled(k, p, qi, idx, rows, pool, margin, budget, g):  # fastforks: one
     return bad.nonzero()[:, 0]  # one host sync per level
 
 
-def knn_query(k, p, rows=128, pool=4096, margin=16, budget=1 << 25):  # fastforks: replaces pointops.knn_query
+def knn_query(k, p, rows=128, pool=4096, margin=16, budget=1 << 25, mlx_op=True):  # fastforks: replaces pointops.knn_query
     """Indices `[N, k]` of the `k` nearest points (including the point itself) of every point of `p` `[N, 3]`.
 
     Exact squared distances as pointops (a CUDA extension; one batch), without the all-pairs matrix: z-ordered chunks of
@@ -59,6 +60,8 @@ def knn_query(k, p, rows=128, pool=4096, margin=16, budget=1 << 25):  # fastfork
     matter (the attention sums over them).
     """
     n = p.shape[0]
+    if mlx_op and EXPORTING_FOR_MLX.get():  # fastforks: one op, lowered to the Metal kNN of `mlx_refine`
+        return knn_op(p.float(), k)
     if torch.compiler.is_exporting():
         # fastforks: fixed-size export uses exact, bounded query chunks. The
         # eager pooled search has a data-dependent retry set that cannot be traced.
@@ -84,6 +87,16 @@ def knn_query(k, p, rows=128, pool=4096, margin=16, budget=1 << 25):  # fastfork
             b = qi[t : t + step]
             idx[b] = (p[None] - p[b, None]).square().sum(-1).topk(k, dim=1, largest=False, sorted=False)[1]
     return idx
+
+
+@torch.library.custom_op("fastforks::resplat_knn", mutates_args=())
+def knn_op(p: torch.Tensor, k: int) -> torch.Tensor:  # fastforks: the MLX export's kNN (eager: knn_query)
+    return knn_query(k, p, mlx_op=False)
+
+
+@knn_op.register_fake
+def _(p: torch.Tensor, k: int) -> torch.Tensor:
+    return p.new_empty((p.shape[0], k), dtype=torch.long)
 
 
 CHUNK = 65536  # fastforks: points per chunk of the per-point attention and MLP (bounds the peak, not the result)
