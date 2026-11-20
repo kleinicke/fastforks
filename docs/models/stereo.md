@@ -62,7 +62,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`mocha-v1-sceneflow`](#mocha_stereo) | yes | 4.35 | 455, 3.2x | 1730, 0.43x |
 | [`mocha-v2-sceneflow`](#mocha_stereo) | yes | 3.82 | 448, 2.9x | 1790, 0.45x |
 | [`monster-mix-all`](#monster) | no | 1.25 † | 656, 6.5x | 1954, 0.3x |
-| [`monster-plusplus-mix-all`](#monster_plusplus) | no | 1.08 ? | 657, 6.6x | 2754, 0.43x |
+| [`monster-plusplus-mix-all`](#monster_plusplus) | no | 1.08 ? | 658, 6.6x | 2054, 0.32x |
 | [`monster-sceneflow`](#monster) | no | 1.34 | 655, 6.5x | 2514, 0.39x |
 | [`nmrf-sceneflow`](#nmrf) | yes | 3.81 | 196, 1.6x | 1112, 0.54x |
 | [`psmnet-sceneflow`](#psmnet) | yes | 15.13 | 231, 2.6x | 1782, 0.29x |
@@ -1433,7 +1433,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `monster-plusplus-mix-all` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4339<br>4334<br>1633<br>657<br>1126<br>697 | 6382 / 6430<br>6382 / 6430<br>2583 / 2918<br>2438 / 2754<br>2328 / 2532<br>3489 / 3552 |
+| `monster-plusplus-mix-all` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4339<br>4334<br>1633<br>658<br>1126<br>697 | 6382 / 6430<br>6382 / 6430<br>2181 / 2394<br>1919 / 2054<br>2328 / 2532<br>3489 / 3552 |
 
 <details><summary>Details</summary>
 
@@ -1449,8 +1449,8 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `monster-plusplus-mix-all` 1988x2880 (7.7 GiB peak allocated, 9.6 reserved)
 - `monster-plusplus-mix-all` 994x1482, first call: portable + torch.compile 109 s (cold Inductor cache), TensorRT fp16 416 s (ONNX + engine).
-- `monster-plusplus-mix-all` load / first call: original 8.37 s / 1.233 s (375x1242), portable 2.45 s / 1.633† s, kernels 3.12 s / 0.421 s (375x1242)
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `monster-plusplus-mix-all` portable 994x1482, kernels 994x1482: Middlebury 2014 trainingH Motorcycle stereo pair through the full public API.
+- `monster-plusplus-mix-all` load / first call: original 8.37 s / 1.233 s (375x1242), portable 1.05 s / 1.847 s, kernels 3.12 s / 0.421 s (375x1242)
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
