@@ -149,7 +149,11 @@ def host_compiler(ccbin: str, env: dict[str, str] | None = None) -> str:
         if cl is None:
             sys.exit("cl.exe is not on the MSVC environment's PATH")
         out = subprocess.run([cl], check=False, capture_output=True, text=True, env=env).stderr
-        return out.strip().splitlines()[0]
+        # the banner is localized (its language is part of the build id otherwise): keep the version only
+        m = re.search(r"\b(\d+\.\d+\.\d+(?:\.\d+)?)\b.*\b(x64|x86|ARM64)\b", out)
+        if m is None:
+            sys.exit(f"cannot parse the cl banner:\n{out}")
+        return f"MSVC cl {m[1]} {m[2]}"
     return subprocess.run([ccbin, "--version"], check=True, capture_output=True, text=True).stdout.splitlines()[0]
 
 
@@ -224,7 +228,8 @@ def refresh_symbols(name: str) -> None:
 def nvcc_cmd(  # noqa: PLR0913, PLR0917 - internal helper, all inputs needed
     cuda: Path, src_dir: Path, cfg: dict, target: str, out: Path, cutlass: Path | None, ccbin: str, exports: Path
 ) -> list[str]:
-    cmd = [str(cuda / "bin" / "nvcc"), f"-ccbin={ccbin}", *cfg["flags"], gencode(target), f"-I{cuda_include(cuda)}"]
+    host = [] if WINDOWS else [f"-ccbin={ccbin}"]  # Windows: the vcvars environment's cl.exe (--use-local-env)
+    cmd = [str(cuda / "bin" / "nvcc"), *host, *cfg["flags"], gencode(target), f"-I{cuda_include(cuda)}"]
     if cfg["kind"] == "cubin":
         cmd.append("-fatbin")
     elif WINDOWS:
