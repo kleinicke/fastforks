@@ -25,6 +25,7 @@ from torch import nn
 
 from fastforks._core.checkpoint import Inert, load_strict
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.patch import override
 from fastforks.kernels import dpt_fused
 from fastforks.multiview._runner import Forward, Runner, f64, invert, scale, take
 from fastforks.shared.depth_anything_v2 import DINOv2, FastViT, use_sdpa_attention
@@ -44,6 +45,7 @@ PLANES = 64  # fixed: upstream matching_num_depth_bins
 MATCH = 4  # fixed: matching features at 1/4 of the network size
 MULTIPLE = 16  # fixed: the network size is a multiple of the ViT stride (16 after the 14/16 resize)
 CHUNK = 4  # fixed: depth planes per cost-volume step (fastest at 448x672)
+_STEM_POOL_VIEWS = 4  # bound max-pool and reflection-pad buffers across independent views
 MAX_SOURCES = 16  # fixed: the cost-volume kernel keeps the per-view terms of at most 16 sources in registers
 _PREFIXES = {  # our module -> checkpoint prefix
     "vit.": "encoder.model.",
@@ -434,6 +436,18 @@ class _Base(Runner):
         return predict
 
 
+def _pool_matching_views(pool: nn.Sequential, x: torch.Tensor) -> torch.Tensor:
+    """Run the matching stem's max-pool and blur-pool with a bounded temporary."""
+    if (
+        torch.compiler.is_compiling()
+        or torch.jit.is_tracing()
+        or torch.is_grad_enabled()
+        or x.shape[0] <= _STEM_POOL_VIEWS
+    ):
+        return nn.Sequential.forward(pool, x)
+    return torch.cat([nn.Sequential.forward(pool, views) for views in x.split(_STEM_POOL_VIEWS)])
+
+
 class Portable(_Base):
     """Plain PyTorch: float32, or fp16 weights + autocast (fp16 cost volume, channels-last convs), SDPA."""
 
@@ -449,6 +463,8 @@ class Portable(_Base):
         self.weights = tuple(w.half() for w in a) if self.half else a
         if self.half:  # fp16 weights (as friendly): half the memory, no per-call casts under autocast
             self.net.half().to(memory_format=torch.channels_last)
+            if ctx.device.type == "cuda":
+                override(self.net.matching.net[3], _pool_matching_views)
 
     def _amp(self) -> contextlib.AbstractContextManager[Any]:
         return torch.autocast(self.ctx.device.type, dtype=torch.float16, enabled=self.half)
