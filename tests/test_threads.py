@@ -5,6 +5,7 @@ from __future__ import annotations
 import concurrent.futures as cf
 import gc
 import hashlib
+import os
 import subprocess
 import sys
 import threading
@@ -20,6 +21,7 @@ from fastforks._core.tasks import spec
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared import cuda_graphs
 from synth import image, pair
+from test_files import SYMLINKS
 from test_golden import API, TASK
 
 REFS = ["hitnet-eth3d@1", "depth-anything-v2-s@1", "mobilenet_v2.tv2_in1k@1", "segformer-b0-ade20k@1"]
@@ -119,7 +121,8 @@ def test_threads_download_the_same_file(tmp_path, monkeypatch):
         if p.is_file() and not p.is_symlink() and p != paths[0] and "stamps" not in p.parts
     ]  # the readable view link `fam/w.bin` is a symlink to the blob, not a stray file
     assert not leftovers
-    assert (files.cache_root() / "fam" / "w.bin").resolve() == paths[0].resolve()
+    if SYMLINKS:  # the view link (none where symlinks need a privilege: `link_view` skips it)
+        assert (files.cache_root() / "fam" / "w.bin").resolve() == paths[0].resolve()
     assert not list(files.cache_root().rglob(".download.*"))
 
 
@@ -144,7 +147,7 @@ def test_processes_download_the_same_file(tmp_path, monkeypatch):
     procs = [
         subprocess.Popen(
             [sys.executable, "-I", "-c", _CHILD, sha, str(len(data)), src.as_uri(), str(tmp_path / f"out{i}")],
-            env={**__import__("os").environ, "PYTHONPATH": ":".join(sys.path)},
+            env={**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)},
         )
         for i in range(2)
     ]

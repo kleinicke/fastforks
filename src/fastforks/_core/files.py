@@ -623,7 +623,15 @@ def _place(part: Path, digest: str, spec: FileSpec, dest: Path, url: str) -> Non
         )
         raise WeightsHashError(msg)
     _mkdir_private(dest.parent)
-    part.replace(dest)
+    try:
+        part.replace(dest)
+    except PermissionError:
+        # Windows refuses to replace a file another thread or process has open (it is reading the same blob, which a
+        # concurrent download placed first). Only a verified copy of the same bytes there makes this a success.
+        if not dest.is_file() or _corrupt(dest, spec) is not None:
+            raise
+        log.debug("%s was placed by a concurrent download", dest)
+        return
     _remember(dest, spec.sha256)
 
 
