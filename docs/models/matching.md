@@ -276,10 +276,10 @@ Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstre
 | `loftr-outdoor` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees | 50.1 / 67.5 / 80.3 | 50.6 / 67.6 / 80.3 | 50.8 / 67.8 / 80.2 |  |  |  |
 | `loftr-outdoor` | MegaDepth-1500, 12 selected 768 x 1024 pairs, AUC@5 / @10 / @20 |  |  | 51.2 / 74.5 / 87.2 |  | 51.2 / 74.5 / 87.2 |  |
 | `loftr-outdoor` | MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees | 53.8 / 71.8 / 83.7 | 52.1 / 71.0 / 83.3 |  | 57.1 / 74.2 / 85.0 |  |  |
-| `loftr-indoor` | ScanNet-1500 indoor pairs at 480 x 640, relative pose AUC@5 / @10 / @20 degrees | 22.5 / 41.2 / 58.1 | 22.5 / 41.5 / 58.1 | 22.2 / 41.2 / 58.1 |  |  |  |
+| `loftr-indoor` | ScanNet-1500 indoor pairs at 480 x 640, relative pose AUC@5 / @10 / @20 degrees | 22.5 / 41.2 / 58.1 | 22.5 / 41.5 / 58.1 | 22.2 / 41.2 / 58.1 | 23.1 / 41.6 / 58.0 |  |  |
 | `loftr-indoor` | ScanNet-1500, 12 selected 768 x 1024 pairs, pose AUC@5 / @10 / @20 |  |  | 19.7 / 33.5 / 49.4 |  | 19.7 / 35.2 / 54.5 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / aee4b565 / d073b3354, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / 938a6cc7 / d073b335, 2026-11-15 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 938a6cc7, 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / aee4b565 / d073b3354, 2026-11-13 to 2026-11-18; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3a7e4880 / 938a6cc7 / d073b335, 2026-11-15 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e / 68b2f345, 2026-11-16 to 2026-11-20; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 938a6cc7, 2026-11-19.
 
 ### Parity
 
@@ -562,15 +562,15 @@ Commercial use: yes.
 
 Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE sampling); sparse matchers: all their matches of one call (LightGlue, XFeat: LightGlue's MegaDepth-1500 setting; LoFTR, DeDoDe: their card defaults). OpenCV essential-matrix RANSAC (0.5 px threshold, normalised by the mean focal length); AUC of the larger of the rotation and translation-direction errors. Both modes receive pairs resized to 768 x 1024. Map matched pixels to the calibrated evaluation coordinates and use the same RANSAC seed per pair. The same 300 pairs for all modes, so float32 and bfloat16 compare pair for pair. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | TensorRT | note |
-|---|---|---|---|---|---|---|---|
-| `xfeat` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  | 26.2 / 42.2 / 57.5 |  |  |  |
-| `xfeat` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  |  | 27.4 / 43.7 / 59.5 | 27.9 / 44.3 / 60.0 |  |
-| `xfeat` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 29.1 / 46.1 / 60.8 | 28.4 / 44.6 / 60.1 | 29.1 / 46.1 / 60.8 |  |  |  |
-| `xfeat-lighterglue` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  | 39.7 / 57.5 / 72.8 |  |  |  |
-| `xfeat-lighterglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 42.0 / 59.4 / 74.3 | 42.7 / 60.1 / 74.1 | 42.0 / 59.4 / 74.3 |  |  |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `xfeat` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  | 26.2 / 42.2 / 57.5 |  |  |  |  |
+| `xfeat` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  |  | 27.4 / 43.7 / 59.5 |  | 27.9 / 44.3 / 60.0 |  |
+| `xfeat` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 29.1 / 46.1 / 60.8 | 28.4 / 44.6 / 60.1 | 27.5 / 44.9 / 60.4 |  | 26.5 / 42.8 / 59.0 |  |  |
+| `xfeat-lighterglue` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  | 39.7 / 57.5 / 72.8 |  |  |  |  |
+| `xfeat-lighterglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 42.0 / 59.4 / 74.3 | 42.7 / 60.1 / 74.1 | 40.5 / 58.7 / 74.0 |  | 41.2 / 58.4 / 72.0 |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ec7b1307+port/p1-match, 2026-11-12; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7243b9b8, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7243b9b8, 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a1d55d1286e64f01e35fbf172487755e5a8a7bc4 / ec7b1307+port/p1-match, 2026-11-12 to 2026-11-20; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7243b9b8, 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 78a59767f, 2026-11-20; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7243b9b8, 2026-11-19.
 
 ### Parity
 
@@ -587,6 +587,7 @@ CPU, float32: max |diff| <= 3e-05 vs the original. GPU, float32 (the default), p
 - One image pair per call internally (batches run pair by pair); the keypoint counts differ per image.
 - Whole-model ONNX and TensorRT export stops at the data-dependent keypoint counts. `torch.compile` runs with graph breaks.
 - `xfeat` (mutual nearest neighbours) has no learned confidence: its scores are the descriptors' cosine similarities.
+- On CUDA, kernels uses IEEE FP32 convolutions. Portable follows PyTorch's cuDNN precision setting. Both modes returned identical keypoints, matches and scores on 32 checked MegaDepth pairs when they used the same convolution precision.
 
 </details>
 
