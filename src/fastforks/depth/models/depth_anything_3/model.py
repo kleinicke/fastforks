@@ -311,19 +311,27 @@ def _decode(head: DPT | DualDPT, feats: list[torch.Tensor], ph: int, pw: int) ->
     """Upstream DPT / DualDPT main branch up to the output convs: tokens `[B, N, C]` -> `[B, 128, 14 ph, 14 pw]`."""
     b = feats[0].shape[0]
     h, w = ph * PATCH, pw * PATCH
+    s: Any = head.scratch
+    # Project one feature map at a time, then release each lateral after its fusion stage.
+    blocks = (s.layer1_rn, s.layer2_rn, s.layer3_rn, s.layer4_rn)
     rs = []
-    for i, f in enumerate(feats):
+    for i, (f, project) in enumerate(zip(feats, blocks, strict=True)):
         x = head.norm(f).transpose(1, 2).reshape(b, -1, ph, pw)
         x = head.projects[i](x)
         if head.pos_embed:
             x = _add_position(head, x, w, h)
-        rs.append(head.resize_layers[i](x))
-    s: Any = head.scratch
-    l1, l2, l3, l4 = s.layer1_rn(rs[0]), s.layer2_rn(rs[1]), s.layer3_rn(rs[2]), s.layer4_rn(rs[3])
+        rs.append(project(head.resize_layers[i](x)))
+        del x
+    l1, l2, l3, l4 = rs
+    del rs
     p = s.refinenet4(l4, size=l3.shape[2:])
+    del l4
     p = s.refinenet3(p, l3, size=l2.shape[2:])
+    del l3
     p = s.refinenet2(p, l2, size=l1.shape[2:])
+    del l2
     p = s.refinenet1(p, l1)
+    del l1
     p = F.interpolate(s.output_conv1(p), (h, w), mode="bilinear", align_corners=True)
     if head.pos_embed:
         p = _add_position(head, p, w, h)
@@ -638,14 +646,25 @@ class _FusedHead:
             r = x.new_empty((*x.shape[:3], rn[0].shape[0]))
             ls.append(self._conv(x, rn, y2=r))
             rs.append(r)
+            del x, r, pos
         l1, l2, l3, l4 = ls
-        p = self._fuse(3, l4, None, rs[3], l3.shape[1:3])
-        p = self._fuse(2, p, l3, rs[2], l2.shape[1:3])
-        p = self._fuse(1, p, l2, rs[1], l1.shape[1:3])
-        p = self._fuse(0, p, l1, rs[0], (2 * l1.shape[1], 2 * l1.shape[2]))
+        r1, r2, r3, r4 = rs
+        del ls, rs
+        p = self._fuse(3, l4, None, r4, l3.shape[1:3])
+        del l4, r4
+        p = self._fuse(2, p, l3, r3, l2.shape[1:3])
+        del l3, r3
+        p = self._fuse(1, p, l2, r2, l1.shape[1:3])
+        del l2, r2
+        p = self._fuse(0, p, l1, r1, (2 * l1.shape[1], 2 * l1.shape[2]))
+        del l1, r1
         p = k.bilinear(self._conv(p, self.oc1), hw, align_corners=True)
         if self.pos_embed:
-            p += self._pos(p.shape[-1], *hw, hw, b)
+            # The final resize only needs the two half-precision axes, with no dense position cache.
+            channels = p.shape[-1]
+            horizontal, vertical = _position_axes(channels, hw, hw[1] / hw[0], dtype=torch.float32, device=self.device)
+            p[..., : channels // 2].add_(horizontal.half()[None, None])
+            p[..., channels // 2 :].add_(vertical.half()[None, :, None])
         maps = []
         for c3, w, bias in self.out:
             o = self._conv(p, c3, act=ACT_RELU)
