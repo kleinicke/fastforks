@@ -49,7 +49,10 @@ Recheck previously failed item IDs explicitly.
 Run the fast test files listed in `selection.json` with `-m "not gpu and not model"`, then the slow CPU and GPU tests
 for the listed families and any previously failing cases. `tools/merge_check.py run selection.json --out rows.jsonl`
 combines GPU golden checks and speed measurements for selected models; pass a suitable GPU-lock prefix on shared
-machines. Inspect its skips and failures: a missing golden is not evidence of a pass. Shared-code changes can select
+machines. Add `--no-core` to the estimate and run commands to skip the optional runner-only timing. The full API
+latency and peak memory are still compared with the speed floor.
+
+Inspect its skips and failures: a missing golden is not evidence of a pass. Shared-code changes can select
 many families, and a true dependency change sets `release: true` and requires the broader checks. This selector is a
 conservative aid, not proof that every dynamic dependency has been found; include tests for effects known from review.
 

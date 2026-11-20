@@ -452,7 +452,7 @@ def speed_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: 
                 full(prepare=True)  # this input only (lib side)
             row |= measure(full)
             if core is not None:
-                row["core_ms"] = core_ms(core)
+                row |= {"core_skipped": True} if spec.get("no_core") else {"core_ms": core_ms(core)}
                 core(release=True)
             if spec["side"] == "lib" and (fb := kernels.fallbacks()):
                 row["fallbacks"] = {f"{a}:{b}": v for (a, b), v in fb.items()}
@@ -828,10 +828,12 @@ def read_rows(path: Path) -> list[dict[str, Any]]:
 
 
 def _done(rows: list[dict[str, Any]], side: str, job: dict[str, Any], fork_key: str = "") -> bool:
-    """All inputs of the job measured on the current code (lib) / with the same fork key (fork)."""
+    """All inputs have the requested measurements on the current code or fork key."""
     got = set()
     for r in rows:
         if r.get("side") != side or r["ref"] != job["ref"] or r["mode"] != job["mode"] or "error" in r:
+            continue
+        if r.get("core_skipped") and not job.get("no_core"):
             continue
         if side == "lib" and r.get("code_hash", "")[:16] != files_hash(r.get("files", [])):
             continue
@@ -932,7 +934,7 @@ def run(a: argparse.Namespace) -> int:
         for side in sides:
             fk = forks.get((job["ref"], job["mode"]), {})
             key = str(fk.get("key", ""))
-            if not a.force and _done(rows, side, job, key):
+            if not a.force and _done(rows, side, job | {"no_core": a.no_core}, key):
                 continue
             spec = {
                 **job,
@@ -941,6 +943,7 @@ def run(a: argparse.Namespace) -> int:
                 "commit": commit,
                 "forks": a.forks,
                 "no_profile": a.no_profile or job["mode"] in NEW_MODES,
+                "no_core": a.no_core,
                 "trace": a.trace_diff,
             }
             spec["fork_key"] = key
@@ -1177,6 +1180,7 @@ def main() -> int:
     p.add_argument("--forks", default="")
     p.add_argument("--force", action="store_true", help="measure again even if the code did not change")
     p.add_argument("--no-profile", action="store_true")
+    p.add_argument("--no-core", action="store_true", help="skip the optional runner-only timing")
     p.add_argument(
         "--warm-start", action="store_true", help="compile: a second start on the filled caches (compile_warm_s)"
     )

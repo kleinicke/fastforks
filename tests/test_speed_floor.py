@@ -72,3 +72,47 @@ def test_full_measurement_prepares_input_without_core_capture(monkeypatch, tmp_p
     assert rows[0]["ms"] == 1.0
     assert "core_ms" not in rows[0]
     assert "fails" not in rows[0]
+
+
+def test_full_timing_can_skip_runner_replay(monkeypatch, tmp_path):
+    """The full-call timing is recorded and its inputs released without a runner replay."""
+    import torch  # noqa: PLC0415
+
+    calls, rows = [], []
+
+    def full(*, prepare=False):
+        calls.append("prepare" if prepare else "call")
+
+    def core(*, release=False):
+        assert release
+        calls.append("release")
+
+    monkeypatch.setattr(speed_check, "measure", lambda fn: (fn(), {"ms": 1.0, "peak_alloc_mb": 2})[1])
+    monkeypatch.setattr(speed_check, "_append", lambda _out, row: rows.append(row.copy()))
+    monkeypatch.setattr(torch.cuda, "empty_cache", lambda: None)
+    spec = {
+        "task": "multiview",
+        "side": "lib",
+        "mode": "portable",
+        "inputs": [{"label": "480x640", "scene": ""}],
+        "no_profile": True,
+        "no_core": True,
+    }
+    speed_check.speed_step(None, spec, {}, [("480x640", full, core)], tmp_path / "rows.jsonl")
+    assert calls == ["prepare", "call", "release"]
+    assert (rows[0]["ms"], rows[0]["peak_alloc_mb"]) == (1.0, 2)
+    assert rows[0]["core_skipped"]
+    assert "core_ms" not in rows[0]
+
+
+def test_resume_distinguishes_full_timing_and_runner_timing(monkeypatch):
+    """A timing receipt without the optional runner result can only resume the same timing scope."""
+    monkeypatch.setattr(speed_check, "files_hash", lambda _: "hash")
+    job = {"ref": "model", "mode": "portable", "inputs": [{"label": "32x32"}]}
+    row = {"side": "lib", "ref": "model", "mode": "portable", "input": "32x32", "code_hash": "hash"}
+    fast = job | {"no_core": True}
+    skipped = row | {"core_skipped": True}
+    assert speed_check._done([skipped], "lib", fast)
+    assert not speed_check._done([skipped], "lib", job)
+    assert speed_check._done([row], "lib", fast)
+    assert speed_check._done([row], "lib", job)

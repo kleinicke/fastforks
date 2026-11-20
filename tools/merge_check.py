@@ -6,6 +6,7 @@
 
 Add `--golden-only` to the three commands for a correctness check of the exact selected revisions. Passing
 checks are reused across edits limited to unrelated model families.
+Add `--no-core` to `estimate` and `run` when the full-call timing is enough for the speed floor.
 
 SELECTION.json is `tools/select_tests.py --json`. `run` starts one worker per (ref, mode) of the selected families' refs
 that the speed floor (docs/data/speed.jsonl) has, each under `--prefix` (e.g. a GPU lock with a timeout). The worker is
@@ -94,18 +95,21 @@ def jobs(
     return out
 
 
-def estimate_s(job: dict[str, Any], *, profile: bool = False) -> float:
+def estimate_s(job: dict[str, Any], *, profile: bool = False, no_core: bool = False) -> float:
     """Seconds of one job from its floor rows: load, first call and the protocol's calls per input."""
     if not job["inputs"]:
         return OVERHEAD_S
     sc = speed_check()
     floor = sc._floor_index()  # noqa: SLF001 - speed_check's floor index
-    calls = 1 + sc.WARMUP + sc.ROUNDS * sc.RUNS + sc.WARMUP + sc.RUNS  # first, warm-up, timed, core_ms
+    calls = sc.WARMUP + sc.ROUNDS * sc.RUNS
+    if not no_core:
+        calls += 1 + sc.WARMUP + sc.RUNS  # capture once, then warm up and time the runner
     t = OVERHEAD_S
     for i, inp in enumerate(job["inputs"]):
         f = floor.get((job["ref"], job["mode"], inp["label"]), {})
         t += f.get("load_s", 0.0) if i == 0 else 0.0
-        t += f.get("first_call_s", 0.0) + calls * f.get("ms", 0.0) / 1e3
+        seconds = f.get("ms", 0.0) / 1e3
+        t += f.get("first_call_s", seconds) + calls * seconds
         if profile and i == 0:
             t += PROFILE_S + 3 * f.get("ms", 0.0) / 1e3
     return t
@@ -295,7 +299,12 @@ def _golden_sources_by_ref(js: list[dict[str, Any]], commit: str) -> dict[str, t
 
 
 def _done(
-    sc: ModuleType, rows: list[dict[str, Any]], job: dict[str, Any], *, golden_sources: tuple[str, ...] = ()
+    sc: ModuleType,
+    rows: list[dict[str, Any]],
+    job: dict[str, Any],
+    *,
+    golden_sources: tuple[str, ...] = (),
+    no_core: bool = False,
 ) -> bool:
     if golden_sources:
         last = next(
@@ -311,7 +320,8 @@ def _done(
         return last.get("golden") == "pass" and last.get("golden_source") in golden_sources and _current(sc, last)
     golden = [r for r in rows if r.get("input") == GOLDEN and (r["ref"], r["mode"]) == (job["ref"], job["mode"])]
     ok = bool(golden) and golden[-1].get("golden") in {"pass", "skip"} and _current(sc, golden[-1])
-    return ok and (not job["inputs"] or sc._done(rows, "lib", job))  # noqa: SLF001 - speed_check's resume rule
+    timing_job = job | {"no_core": no_core}
+    return ok and (not job["inputs"] or sc._done(rows, "lib", timing_job))  # noqa: SLF001 - speed_check's resume rule
 
 
 def run(a: argparse.Namespace) -> int:
@@ -325,14 +335,18 @@ def run(a: argparse.Namespace) -> int:
     for job in checks:
         golden_sources = sources.get(job["ref"], ())
         tag = f"{job['family']} {job['ref']} {job['mode']}"
-        if not a.force and _done(sc, rows, job, golden_sources=golden_sources):
+        if not a.force and _done(sc, rows, job, golden_sources=golden_sources, no_core=a.no_core):
             print(f"== {tag}: done on this code", flush=True)
             continue
         spec = job | {"side": "lib", "out": str(a.out), "commit": commit, "forks": "", "fork_key": ""}
         if golden_sources:
             spec["golden_source"] = golden_sources[0]
         spec["no_profile"] = not a.profile
-        print(f"== {tag} {time.strftime('%T')} (estimate {estimate_s(job, profile=a.profile):.0f} s)", flush=True)
+        spec["no_core"] = a.no_core
+        print(
+            f"== {tag} {time.strftime('%T')} (estimate {estimate_s(job, profile=a.profile, no_core=a.no_core):.0f} s)",
+            flush=True,
+        )
         before = len(rows)
         cmd = [*shlex.split(a.prefix), sys.executable, str(Path(__file__).resolve()), "worker", json.dumps(spec)]
         rc = subprocess.run(cmd, env=env, check=False).returncode
@@ -447,6 +461,8 @@ def main() -> int:
         kind = p.add_mutually_exclusive_group()
         kind.add_argument("--profile", action="store_true", help="also speed_check's profile of one input")
         kind.add_argument("--golden-only", action="store_true", help="only check goldens of the selected revisions")
+        if name != "table":
+            p.add_argument("--no-core", action="store_true", help="skip the optional runner-only timing")
     p = sub.choices["run"]
     p.add_argument("--out", type=Path, required=True)
     p.add_argument("--prefix", default="", help="command prefix of each worker, e.g. a GPU lock with a timeout")
@@ -463,7 +479,7 @@ def main() -> int:
     js = jobs(sel, a.family, a.modes, golden_only=a.golden_only)
     per: dict[str, float] = {}
     for j in js:
-        per[j["family"]] = per.get(j["family"], 0.0) + estimate_s(j, profile=a.profile)
+        per[j["family"]] = per.get(j["family"], 0.0) + estimate_s(j, profile=a.profile, no_core=a.no_core)
     for fam, t in per.items():
         print(f"{fam}: {sum(j['family'] == fam for j in js)} jobs, ~{t / 60:.1f} min")
     print(f"total: {len(js)} jobs, ~{sum(per.values()) / 60:.0f} min GPU (one lock per job)")
