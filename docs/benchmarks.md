@@ -786,7 +786,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | fast-acvnet-plus-sceneflow | 138 | 80.9 | – | – | – | – | 1441 / 1522 | – | – |
 | fast-acvnet-sceneflow | 101 | 60.6 | – | – | – | – | 1421 / 1506 | – | – |
 | fast-foundationstereo | 741 | 527 | 330 | 135 | 3.9x | 2.4x | 2939 / 3306 | 2109 / 2256 | 1196 / 1576 |
-| foundationstereo-vit-l | 9228 | 4237 | 2990 | 1513 | 2.8x | 2.0x | 8286 / 8750 | 3141 / 3436 | 2818 / 3300 |
+| foundationstereo-vit-l | 9228 | 4237 | 2989 | 1440 | 2.9x | 2.1x | 8286 / 8750 | 2415 / 2656 | 2319 / 2760 |
 | foundationstereo-vit-s | 7129 | 3609 | 2514 | 1120 | 3.2x | 2.2x | 6987 / 7280 | 2493 / 2606 | 2169 / 2470 |
 | great-igev-eth3d | 2252 | 1458 | 1085 | 393 | 3.7x | 2.8x | 8861 / 9206 | 1402 / 1678 | 1192 / 1564 |
 | great-igev-kitti | 2252 | 1458 | 1085 | 393 | 3.7x | 2.8x | 8861 / 9206 | 1402 / 1678 | 1192 / 1564 |
@@ -2160,7 +2160,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | fast-acvnet-plus-sceneflow | 994x1482 | 70.5 ms | 41.9 ms | 40.9 ms | 46.5 ms | 40.6 s | 72.8 s | 651 / 756 | 549 / 830 | 651 / 716 | 1127 / 1178 |
 | fast-acvnet-sceneflow | 994x1482 | 54.7 ms | 36.2 ms | 36.7 ms | 38.1 ms | 41.8 s | 71.3 s | 653 / 756 | 584 / 698 | 654 / 716 | 563 / 576 |
 | fast-foundationstereo | 994x1482 | 330 ms | 339 ms | 156 ms | 135 ms | 78.4 s | 157 s | 2109 / 2256 | 1613 / 1752 | 1120 / 1236 | 1342 / 1398 |
-| foundationstereo-vit-l | 994x1482 | 2992 ms | 2501 ms | 1513 ms | 1432 ms | 226 s | 611 s | 2923 / 3136 | 3453 / 3954 | 2597 / 2920 | 4253 / 4322 |
+| foundationstereo-vit-l | 994x1482 | 2989 ms | 2501 ms | 1513 ms | 1440 ms | 226 s | 611 s | 2415 / 2656 | 3453 / 3954 | 2319 / 2760 | 4253 / 4322 |
 | foundationstereo-vit-s | 994x1482 | 2514 ms | 2044 ms | 1196 ms | 1120 ms | 212 s | 545 s | 2493 / 2606 | 2822 / 3646 | 2169 / 2470 | 2794 / 2872 |
 | great-igev-eth3d | 994x1482 | 1085 ms | 829 ms | 940 ms | 397 ms | 224 s | 685 s | 1402 / 1678 | 2831 / 3362 | 1134 / 1302 | 6151 / 6172 |
 | great-igev-kitti | 994x1482 | 1085 ms | 830 ms | 942 ms | 396 ms | 225 s | 687 s | 1402 / 1678 | 2831 / 3362 | 1134 / 1302 | 6155 / 6234 |

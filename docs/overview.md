@@ -92,7 +92,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`s2m2-xl`](models/stereo.md#s2m2) | no | 0.52 ? | 1796.1 (994x1482) | 1824.3 | 681.9 | 2.6x vs original (994x1482) | 2092 |
 | [`foundationstereo-vit-s`](models/stereo.md#foundationstereo) | no | 1.10 ? | 3608.6 (994x1482) | 2513.8 | 1120.2 | 3.2x vs original (994x1482) | 2169 |
 | [`c-foundationstereo-s`](models/stereo.md#c-foundationstereo) | yes | 1.24 | 3873.9 (994x1482) | 3630.8 | 1365.9 | 2.8x vs original (994x1482) | 3058 |
-| [`foundationstereo-vit-l`](models/stereo.md#foundationstereo) | no | 0.65 ? | 4237.0 (994x1482) | 2992.5 | 1432.1 | 3.0x vs original (994x1482) | 2597 |
+| [`foundationstereo-vit-l`](models/stereo.md#foundationstereo) | no | 0.65 ? | 4237.0 (994x1482) | 2988.8 | 1440.1 | 2.9x vs original (994x1482) | 2319 |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 
