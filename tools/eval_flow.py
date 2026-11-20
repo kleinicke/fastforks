@@ -70,6 +70,11 @@ def _read_pair(root: Path, pair_id: str) -> FlowPair:
     return pair_id, first, second, *read_kitti_flow(root / "flow_occ" / f"{pair_id}_10.png")
 
 
+def load_pairs(root: Path, stop: int | None, start: int = 0) -> list[FlowPair]:
+    """Load a bounded slice for callers that need the decoded pairs together."""
+    return [_read_pair(root, pair_id) for pair_id in _pair_ids(root, stop, start)]
+
+
 ORIGINAL = {"upstream": ("upstream", "original fp32"), "upstream16": ("upstream-fp16", "original fp16")}
 
 
