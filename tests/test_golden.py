@@ -862,7 +862,24 @@ def test_kernels_validated(ref):
         if manifest is None:
             continue
         problems = [_unvalidated(ref, lib, manifest.tag, current, rec) for rec in records]  # either OS's record
+        if None not in problems:
+            _skip_unrecordable_on_windows(ref, card)
         assert None in problems, "; ".join(p for p in problems if p)
+
+
+def _skip_unrecordable_on_windows(ref: str, card: Any) -> None:
+    """Windows, no Windows record yet and the weights are not local: skip, as the GPU goldens that would record it do.
+
+    Linux keeps failing (the committed records are checked there, no weights needed); a Windows record that exists
+    but is stale still fails.
+    """
+    if sys.platform != "win32" or "windows" in FAMILIES[FAMILY[ref]]["validated"].get(ref, {}):
+        return
+    _, variant = registry.resolve(TASK[ref], ref)
+    try:
+        registry.weights(card, variant, allow_download=False)
+    except WeightsError as e:
+        pytest.skip(f"weights of {ref} not available locally (no Windows record to check): {e}")
 
 
 def _unvalidated(ref: str, lib: str, tag: str, current: dict[str, dict[str, str]], rec: dict) -> str | None:
