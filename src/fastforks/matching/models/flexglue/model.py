@@ -226,6 +226,6 @@ RUNNERS = {
     "portable_mlx": mlx_wrap.port(
         Portable,
         attrs=("net.descriptor",),
-        methods=("net.matcher.decode",),
+        methods=("net.matcher.decode", "net.extractor.detection_maps"),
     ),
 }

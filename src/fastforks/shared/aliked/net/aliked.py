@@ -679,10 +679,14 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
         return feature_map, score_map
 
     def detection_maps(self, image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """fastforks: the fixed-shape part of `forward` (dense maps and the score NMS), one graph for MLX."""
+        """fastforks: the fixed-shape part of `forward` (dense maps and the score NMS), one graph for MLX.
+
+        Without `describe` the feature map is not returned (an empty tensor): a graph does not compute or copy it.
+        """
         with torch.autocast(image.device.type, dtype=torch.float16, enabled=self.fp16):
             feature_map, score_map = self.extract_dense_map(image)
-        feature_map, score_map = feature_map.float(), score_map.float()
+        score_map = score_map.float()
+        feature_map = feature_map.float() if self.describe else score_map.new_zeros(0)
         return feature_map, score_map, simple_nms(score_map, self.dkd.radius)
 
     def forward(self, data: dict) -> dict:
