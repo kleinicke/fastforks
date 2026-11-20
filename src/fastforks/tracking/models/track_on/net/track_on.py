@@ -374,7 +374,9 @@ class SimpleFPN(nn.Module):
     def __init__(self) -> None:  # noqa: D107
         super().__init__()
         self.lateral32, self.lateral16, self.lateral8 = _lateral(), _lateral(), _lateral()
-        self.output = nn.Sequential(nn.Conv2d(D, D, 3, padding=1), nn.GroupNorm(32, D), nn.ReLU(), nn.Conv2d(D, D, 3, padding=1))
+        self.output = nn.Sequential(
+            nn.Conv2d(D, D, 3, padding=1), nn.GroupNorm(32, D), nn.ReLU(), nn.Conv2d(D, D, 3, padding=1)
+        )
 
     def forward(self, f4: torch.Tensor, f8: torch.Tensor, f16: torch.Tensor, f32: torch.Tensor) -> torch.Tensor:
         """Maps -> fused 1/4 map."""
@@ -388,7 +390,7 @@ class SimpleFPN(nn.Module):
 class Frame:
     """One frame's features: tokens `[1, P_l, D]` per level, their concatenation, the fused tokens."""
 
-    levels: list[torch.Tensor]
+    levels: list[torch.Tensor]  # views into value
     value: torch.Tensor  # the 4 levels concatenated (deformable attention value)
     unit: list[torch.Tensor]  # L2-normalised levels `[P_l, D]` (correlation)
     fused: torch.Tensor
@@ -435,7 +437,11 @@ class TrackOn2(nn.Module):
         self.fpn = SimpleFPN()
         self.reranking_head = RerankModule()
         self.prediction_head = PredictionHead()
-        self.feature_attention, self.query_attention, self.memory_attention = _layers(LAYERS), _layers(LAYERS), _layers(LAYERS)
+        self.feature_attention, self.query_attention, self.memory_attention = (
+            _layers(LAYERS),
+            _layers(LAYERS),
+            _layers(LAYERS),
+        )
         self.projection1, self.projection2 = nn.Linear(D, D), nn.Linear(D, D)
         self.ms_corr_proj = nn.Conv2d(4, 1, 1)
         self.t_embedding = nn.Parameter(torch.empty(1, memory + 1, D))
@@ -453,11 +459,13 @@ class TrackOn2(nn.Module):
         maps = self.backbone(video)
         fused = self.fpn(*maps).flatten(2).transpose(1, 2)
         levels = [m.flatten(2).transpose(1, 2) for m in maps]
+        level_sizes = [level.shape[1] for level in levels]
         out = []
         for b in range(video.shape[0]):
             lv = [lvl[b : b + 1] for lvl in levels]
             unit = [F.normalize(lvl[0].float(), dim=-1) for lvl in lv]
-            out.append(Frame(lv, torch.cat(lv, 1), unit, fused[b : b + 1]))
+            value = torch.cat(lv, 1)
+            out.append(Frame(list(value.split(level_sizes, dim=1)), value, unit, fused[b : b + 1]))
         return out
 
     def sample(self, frame: Frame, xy: torch.Tensor) -> torch.Tensor:
