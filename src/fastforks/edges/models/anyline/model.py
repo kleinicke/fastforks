@@ -21,10 +21,14 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.patch import override
+from fastforks._core.tracing import in_onnx_export
 from fastforks.edges._runner import Forward, Runner, safe_step, to_detect, to_input
 from fastforks.kernels import edge_components
 from fastforks.shared.quantile import kth_smallest
 from fastforks.shared.teed import TED, edge_map
+from fastforks.shared.teed.net.Fsmish import smish
+from fastforks.shared.teed.net.ted import DoubleFusion
 
 if TYPE_CHECKING:
     from fastforks.edges._runner import Context
@@ -129,6 +133,28 @@ def anyline(outputs: list[torch.Tensor], x: torch.Tensor, *, fused: bool = False
     return torch.where(top > 0, 1 - (1 - top) * (1 - base), base)
 
 
+def _activation(x: torch.Tensor) -> torch.Tensor:
+    """Apply Smish in the original operation order using one activation buffer."""
+    return x.sigmoid().add_(1).log_().tanh_().mul_(x)
+
+
+def _fuse_heads(fusion: DoubleFusion, x: torch.Tensor) -> torch.Tensor:
+    """Fuse the edge heads with a smaller eager CUDA workspace."""
+    if (
+        not x.is_cuda
+        or x.dtype != torch.float16
+        or torch.is_grad_enabled()
+        or torch.compiler.is_compiling()
+        or torch.jit.is_tracing()
+        or in_onnx_export()
+    ):
+        return DoubleFusion.forward(fusion, x)
+    # PixelShuffle(1) leaves the spatial and channel order unchanged.
+    first = fusion.DWconv1(_activation(x))
+    second = fusion.DWconv2(_activation(first))
+    return smish(second.add_(first).sum(1, keepdim=True))
+
+
 class Portable(Runner):
     """Upstream's network in plain PyTorch, float32 or float16 (NCHW); the line art in float32."""
 
@@ -142,6 +168,8 @@ class Portable(Runner):
         self.dtype = getattr(torch, ctx.dtype)
         net = TED()
         net.load_state_dict(ctx.state_dict())
+        if ctx.device.type == "cuda" and self.dtype == torch.float16:
+            override(net.block_cat, _fuse_heads)
         # NCHW: channels-last measured 15-25 % slower and +20 % memory at 1024 px (RTX 5060 Ti)
         self.net = net.eval().to(ctx.device, self.dtype)
 
