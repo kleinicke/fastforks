@@ -17,6 +17,7 @@ nav:
   - Home: index.md
   - Usage: usage.md
   - Docker and offline: docker.md
+  - ComfyUI nodes: comfyui.md
   - Export: export.md
   - Stereo geometry: stereo_geometry.md
   - Structure from motion: sfm.md
