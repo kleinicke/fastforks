@@ -50,8 +50,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`omni-dc`](#omni_dc) | no | – | 512, 1.7x | 4566, 0.68x |
 | [`pointdit-b-512`](#pointdit) | yes | 0.0453 | 20.5, 2.4x | 630, 0.63x |
 | [`pointdit-l-512`](#pointdit) | yes | 0.0410 | 61.3, 1.8x | 1676, 0.53x |
-| [`prompt-depth-anything-l`](#prompt_depth_anything) | yes | – | 61.4 | 1288 |
-| [`prompt-depth-anything-s`](#prompt_depth_anything) | yes | – | 10.9 | 384 |
+| [`prompt-depth-anything-l`](#prompt_depth_anything) | yes | – | 61.4 | 1128 |
+| [`prompt-depth-anything-s`](#prompt_depth_anything) | yes | – | 10.9 | 322 |
 | [`stablenormal-turbo`](#stablenormal) | yes | – | 180, 1.7x | 3172, 0.73x |
 | [`unidepth-v2-vitl14`](#unidepth_v2) | no | 0.0355 | 63.0, 2.1x | 1252, 0.36x |
 | [`unik3d-vitl`](#unik3d) | no | 0.0346 | 62.9, 2.1x | 1266, 0.35x |
@@ -1189,9 +1189,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `prompt-depth-anything-s` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>16.3<br>10.9 | –<br>341 / 402<br>282 / 384 |
+| `prompt-depth-anything-s` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>16.3<br>10.9 | –<br>300 / 342<br>236 / 322 |
 | `prompt-depth-anything-s` | example image 1920x1440 area-resized + ARKit 192x256 prompt (756x1008) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 85.7<br>77.3<br>18.4<br>11.4<br>16.3<br>10.5 | 922 / 1284<br>781 / 1112<br>363 / 442<br>297 / 384<br>260 / 322<br>368 / 410 |
-| `prompt-depth-anything-l` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>110<br>61.4 | –<br>1256 / 1388<br>1133 / 1288 |
+| `prompt-depth-anything-l` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>110<br>61.4 | –<br>1082 / 1148<br>1056 / 1128 |
 | `prompt-depth-anything-l` | example image 1920x1440 area-resized + ARKit 192x256 prompt (756x1008) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 592<br>438<br>125<br>69.3<br>117<br>75.3 | 3369 / 4280<br>3446 / 3810<br>1318 / 1488<br>1179 / 1348<br>968 / 1148<br>1649 / 1714 |
 
 <details><summary>Details</summary>
