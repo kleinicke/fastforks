@@ -1,7 +1,9 @@
 # CUDA kernels on Windows
 
-Status: prototype (branch `worktree-agent-a8a322db22ca4f8da`). The `"cubin"` kernel libraries run on Windows x64;
-the `"shared"` ones (Linux `.so`) do not yet.
+Status: prototype (branch `worktree-agent-a8a322db22ca4f8da`). The `"cubin"` kernel libraries run on Windows x64.
+For the `"shared"` ones the loader, the per-OS manifest and the DLL build recipe are in place, but no DLL is built
+yet: the build needs MSVC (Visual Studio 2022 Build Tools), which is not installed on the dev machine (see
+[Blocker](#blocker-msvc)).
 
 ## Why cubin libraries need no Windows build
 
@@ -13,12 +15,12 @@ arguments are packed by `CubinModule` from the kernel signatures, not by a host 
 | Linux | Windows | change |
 | --- | --- | --- |
 | `libcuda.so.1` (ldconfig dirs) | `%SYSTEMROOT%\System32\nvcuda.dll` (absolute path, no DLL search order) | `_libcuda_path`, `DRIVER_LIB` |
-| gate: Linux x86-64 only | `platform_reason(kind)`: Linux x86-64 runs both kinds, Windows AMD64 runs `cubin`; everything else raises as before (macOS: Metal libraries are a separate path, untouched) | `binary` |
+| gate: Linux x86-64 only | `platform_reason(manifest)`: a cubin library runs on Linux x86-64 and Windows AMD64, a `shared` one only on the OS of its manifest (`os`, default `linux`); everything else raises as before (macOS: Metal libraries are a separate path, untouched) | `binary` |
 | `_private`: POSIX owner / mode bits (`pwd`, `grp`, `os.getuid`) | no `os.getuid`: never private, so every load hashes the bytes it loads (`verified_binary`) and loads those bytes (`cuModuleLoadData` takes the image from memory, so there is no check-to-load race) | `_private` |
 | cuDNN: `libcudnn.so.9` via `/proc/self/maps` | the loaded `cudnn64_9.dll` (torch/lib) via `GetModuleHandleW` / `GetModuleFileNameW` | `cudnn_hacc._backend._cudnn_path` |
 
-`mode="kernels"` with a `"shared"` library on Windows raises `KernelUnavailableError` ("this library is a Linux .so
-(no Windows DLL build yet); on Windows only cubin kernel libraries run"); `mode="auto"` logs that and runs portable
+`mode="kernels"` with a `"shared"` library without a Windows build raises `KernelUnavailableError` ("this library is
+a Linux .so and has no Windows DLL build yet (manifest.windows.toml); ..."); `mode="auto"` logs that and runs portable
 (checked with coex). `fastforks env` lists such libraries as unusable; `fastforks download --kernels` for this machine
 skips them with a note (with `--arch` / `--all-archs` it still fetches everything, for other machines).
 
@@ -92,32 +94,54 @@ interpolation families. The rest are blocked by these `"shared"` libraries:
 | `fs_cutlass`, `ffs_cutlass`, `s2m2_cutlass`, `hitnet_conv`, `seg_conv` | 1-2 each | CUTLASS |
 | `cudnn_hacc` (`plan_build`) | none blocked (optional) | |
 
-Plan (one build per library and target, like Linux):
+### Shared libraries as DLLs (implemented, not yet built)
 
-1. Toolchain: CUDA toolkit for Windows (12.8 and 13.0, the manifests' toolkits; nvcc only, the CUDA runtime is linked
-   statically) and MSVC v143 as the host compiler (nvcc on Windows only accepts `cl.exe`): Visual Studio 2022 Build
-   Tools, workload "Desktop development with C++" (`winget install Microsoft.VisualStudio.2022.BuildTools` with
-   `--override "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"`). Not installed here: not needed
-   for the two families above.
-2. `tools/build_kernels.py`: a Windows branch of `nvcc_cmd`: `-shared -o <lib>-<build>-<target>.dll`,
-   `-cudart static`, `-Xcompiler /MT` (static CRT, the analogue of `-static-libstdc++`), exports through a generated
-   `.def` file (`-Xlinker /DEF:...`, from `c_exports`, replacing the version script; no source change for
-   `__declspec(dllexport)`), `-Xlinker /Brepro` and `-Xcompiler /d1trimfile:` (or `/pathmap`) for reproducible bytes
-   (replacing `-ffile-prefix-map`, `--strip-all`), CUTLASS on MSVC usually wants `-Xcompiler /Zc:__cplusplus` and
-   `/permissive-`; drop the glibc checks; the `STAGE` owner check uses `os.getuid` and needs a Windows variant.
-3. Manifest: Windows DLLs have their own bytes, build id (host compiler is part of it) and symbol hashes, so a second
-   manifest per library, e.g. `manifest.win.toml` (kind `shared`, `.dll` files), chosen by `read_manifest` on win32;
-   `[validated]` entries in `golden.toml` then name the Windows build ids (recorded by `pytest -m gpu --record` on a
-   Windows machine). The HF repo layout `{lib}/{file}` needs no change.
-4. Loader: `shared_library` on Windows. `_load_image` uses `memfd_create`; Windows has no anonymous loadable file.
-   Either implement `_private` for Windows (owner SID is the current user, no write ACE for other principals on the
-   file and its parents up to the cache root; per-user `%LOCALAPPDATA%` is private by default) and `LoadLibraryExW`
-   the verified path with `LOAD_LIBRARY_SEARCH_SYSTEM32` (its only dependency is `nvcuda.dll`), or copy the verified
-   bytes into a fresh file in a private directory and load that. Until then a non-private DLL must raise, never load
-   unhashed.
+One build per library and target, like Linux:
+
+1. Toolchain. No CUDA toolkit installer is needed: the pip `nvidia-cuda-nvcc` 13.0.88 of `uv sync --group kernels`
+   ships the complete Windows toolchain under `.venv\Lib\site-packages\nvidia\cu13\` (`bin\nvcc.exe`, `ptxas.exe`,
+   `fatbinary.exe`, `nvvm\bin\cicc.exe`, `nvvm\libdevice`, `lib\x64\cudart_static.lib`), the same toolkit the Linux
+   main builds use. A 12.8 toolkit is only needed for `manifest.compat.toml`-style builds (older drivers), which are
+   not planned for Windows. The host compiler must be MSVC (`cl.exe`; nvcc on Windows accepts nothing else):
+   Visual Studio 2022 Build Tools, C++ workload (about 2.5-3 GB installed with `--includeRecommended`).
+   CUTLASS: the 4.7.1 headers (`include/`, `version.h` = 4.7.1), passed with `--cutlass`.
+2. `tools/build_kernels.py` on win32 (committed): `nvcc -shared -o <lib>-<build>-<target>.dll` with the toolkit
+   passed explicitly (`--dont-use-profile`, `-ldir`, `-isystem cccl`, `-L lib\x64`), `-cudart static`,
+   `-Xcompiler /MT,/EHsc,/Brepro,/Zc:__cplusplus`, `/d1trimfile:` for the stage and CUTLASS paths (the analogue of
+   `-ffile-prefix-map`), `-Xlinker /DEF:<generated .def>` (exports = `c_exports`, no `__declspec` in the sources),
+   `/Brepro /NOIMPLIB /NOEXP`. MSVC comes from vswhere + `vcvars64.bat`, handed to nvcc with `--use-local-env`. The
+   `[toolchain]` table records the `cl` banner, `WindowsSDKVersion` and `c_runtime = "static (/MT)"` instead of
+   glibc, so the build id differs from Linux. The fixed stage is `C:\fastforks-build` (owner checked by SID).
+   Named cubin libraries are refused (they are OS independent, a Windows run would rewrite `manifest.toml`); with
+   no names they are skipped with a note. Linux keeps the same nvcc command line and build ids.
+3. Manifest (committed): `manifest.windows.toml` next to `manifest.toml`, with `os = "windows"` (allowed for
+   `shared` only) and `.dll` files; its compat sibling would be `manifest.windows.compat.toml`.
+   `platform_manifest` picks it on win32 when present (otherwise the Linux manifest, which the gate rejects with a
+   reason). `[validated]` entries in `golden.toml` then name the Windows build ids, recorded by
+   `pytest -m gpu --record` on Windows. The HF layout `{lib}/{file}` needs no change (`tools/stage_hf.py` globs
+   `manifest*.toml`, so it stages the DLLs too).
+4. Loader (committed): Windows has no `memfd_create`, and `_private` is never true there, so `shared_library` writes
+   the hash-verified bytes to a new file (exclusive create) in a per-process `fastforks-dll-*` directory under the
+   user's temp directory and loads that copy with `LoadLibraryExW(..., LOAD_LIBRARY_SEARCH_SYSTEM32)` (the DLLs
+   import only `nvcuda.dll` and system DLLs). A loaded DLL is locked by Windows, so the copy cannot be swapped while
+   in use; directories older than a day are swept. Tested with a System32 DLL; not yet with a fastforks DLL.
 5. Sources: grep found no `long` in the ctypes C APIs (LLP64 would make it 32-bit on Windows) and no POSIX headers
-   besides `fvm_r3`'s `<dlfcn.h>`; inline PTX `asm` is device code and portable. Still to check by compiling.
+   besides `fvm_r3`'s `<dlfcn.h>` (`dlopen` of cuBLASLt: needs a `LoadLibraryExW` / `GetProcAddress` branch, which
+   changes its sources and so its Linux build id: do it together with a Linux rebuild). Inline PTX `asm` is device
+   code and portable. Still to check by compiling.
 
+### Blocker: MSVC
+
+The elevated `winget install Microsoft.VisualStudio.2022.BuildTools` was not run (the agent's permission policy
+blocked an elevated system-wide install without the user's own approval). With the Build Tools installed:
+
+```powershell
+winget install --id Microsoft.VisualStudio.2022.BuildTools --exact --override "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+uv sync --group kernels
+uv run python tools/build_kernels.py cutlass_conv --cutlass C:\path\to\cutlass-4.7.1   # writes manifest.windows.toml
+$env:FASTFORKS_KERNEL_PATH = "$PWD\build\kernels"
+uv run python -m pytest -m gpu tests/test_golden.py -k "coex or psmnet or raft_stereo or igev"         # then --record
+```
 Order of value: `cutlass_conv` (23 stereo families, most of the stereo list) then `dpt_fused` (depth / SAM), then the
 `fvm_*` group.
 
