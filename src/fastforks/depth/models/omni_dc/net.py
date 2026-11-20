@@ -293,9 +293,15 @@ class Backbone(nn.Module):
         del fe3
         f2 = _cat(fd2, fe2)
         del fd2, fe2
-        guide = self.gd_dec0(_cat(self.gd_dec1(f2), fe1))
-        conf_spn = self.cf_dec0(_cat(self.cf_dec1(f2), fe1))
-        del f2, fe1
+        # Keep the projected branches and release their larger shared input before the final full-size convolutions.
+        conf_spn = self.cf_dec1(f2)
+        guide = self.gd_dec1(f2)
+        del f2
+        guide = _cat(guide, fe1)
+        guide = self.gd_dec0(guide)
+        conf_spn = _cat(conf_spn, fe1)
+        del fe1
+        conf_spn = self.cf_dec0(conf_spn)
         f4 = _cat(fd4, fe4)
         del fd4, fe4
         return guide, conf_spn, self.ctx_dec0(self.ctx_dec1(f4)), self.cfi_dec0(self.cfi_dec1(f4))
