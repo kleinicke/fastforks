@@ -23,9 +23,8 @@ python_embeded\python.exe -m pip install -r ComfyUI\custom_nodes\comfyui-fastfor
 ```
 
 `requirements.txt` installs `fastforks-core[timm,transformers]>=0.2` from PyPI and keeps ComfyUI's torch (it needs
-torch >= 2.8); use `pip install -e "./fastforks[timm,transformers]"` instead to run the cloned source. Model families
-whose code is non-commercial (e.g. CodeFormer) are in `fastforks-core[nc]`; without it their ids are not listed. The
-Comfy registry and ComfyUI-Manager can install the pack once it is published from `integrations/comfyui` (installing
+torch >= 2.8); use `pip install -e "./fastforks[timm,transformers]"` instead to run the cloned source. That is the
+commercial-safe set; non-commercial and GPL models need an opt-in (see [Licences](#licences)). The Comfy registry and ComfyUI-Manager can install the pack once it is published from `integrations/comfyui` (installing
 the repository URL with ComfyUI-Manager's "Install via Git URL" clones the root, which is not a node pack).
 
 Windows: the `kernels` backend fails (the CUDA kernels are built for Linux x86-64 so far) and `auto` runs the
@@ -60,7 +59,47 @@ so a ComfyUI folder below ~140 characters needs no long-path setting.
 
 Every node has `model`, `backend` (`auto`: our CUDA kernels where they are faster, else portable PyTorch;
 `portable`; `kernels`) and `dtype` (`auto`: the validated one). Ids marked `[non-commercial]` or `[licence unclear]`
-are not cleared for commercial use; non-commercial weights download only with `FASTFORKS_NONCOMMERCIAL=1`.
+are not cleared for commercial use; non-commercial weights download only with `FASTFORKS_NONCOMMERCIAL=1` (see
+[Licences](#licences)).
+
+## Licences
+
+The pack installs the commercial-safe default: `fastforks-core` ships the model families whose code is permissive,
+and weights under a non-commercial licence do not download. Two separate steps open the rest; the pack takes neither
+for you:
+
+1. **Code**: families whose code is non-commercial or GPL (S2M2, FoundationStereo, MonSter, CoEx, CodeFormer,
+   MatAnyone, Sapiens, ...) are in `fastforks-core[nc]` (or the `fastforks` metapackage, which adds every optional
+   library too). Without it their ids are not listed. Install it into ComfyUI's own Python and restart ComfyUI:
+
+   ```bat
+   rem ComfyUI portable (Windows), in the ComfyUI_windows_portable folder
+   python_embeded\python.exe -m pip install "fastforks-core[nc]"
+   ```
+
+   ```bash
+   # a venv or conda install, with that environment active
+   python -m pip install "fastforks-core[nc]"
+   ```
+
+2. **Weights**: models marked `[non-commercial]` (e.g. SegFormer b2 clothes and b5 face parsing of the Parse node,
+   CodeFormer, S2M2) download their weights only with `FASTFORKS_NONCOMMERCIAL=1` in the environment ComfyUI starts
+   from (copies already in the cache always load). ComfyUI portable: add the line `set FASTFORKS_NONCOMMERCIAL=1`
+   above the `python_embeded\python.exe ...` line of `run_nvidia_gpu.bat` (or the `.bat` you start). Linux / macOS:
+   `FASTFORKS_NONCOMMERCIAL=1 python main.py`. PowerShell: `$env:FASTFORKS_NONCOMMERCIAL = "1"`, then
+   `python main.py`.
+
+This is the library's own variable; the pack adds no switch of its own. At start the pack logs which state it runs in
+(and how many published models are not installed), and the `model` tooltip of each node names the ones of its task
+that are missing. A node whose model needs a step not taken fails with the library's error plus the ComfyUI command
+for that step: a listed `[non-commercial]` model raises `LicenceError` when its weights would download; a shared
+workflow with an id of a package that is not installed fails validation naming the package (instead of ComfyUI's
+"Value not in list"). Dropdown entries keep the same text either way, so saved workflows stay valid.
+
+Installing a package or setting the variable does not license anything: you are responsible for using each model
+within its code and weights licences (`fastforks info MODEL` shows them, with the evidence). `[non-commercial]` means
+research / non-commercial use only; GPL code carries its copyleft terms; `[licence unclear]` is not cleared for
+commercial use. `FASTFORKS_COMMERCIAL_ONLY=1` makes the library refuse every model not cleared for commercial use.
 
 A node lists only the ids it can run: those whose required inputs it passes (`model_card(id).contract().inputs`).
 Depth-prompted and depth-completion models (Prompt Depth Anything, LingBot-Depth, OMNI-DC, Any2Full), video matting

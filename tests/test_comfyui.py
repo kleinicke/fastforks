@@ -157,6 +157,88 @@ def test_errors_name_the_backend_input(pack: Any) -> None:
         raise ValueError(msg)
 
 
+def test_licence_errors_say_what_to_do_in_comfyui(pack: Any) -> None:
+    """The library's licence / install messages stay whole; the node adds ComfyUI's pip commands and the variable."""
+    import fastforks  # noqa: PLC0415
+    from fastforks._core import registry  # noqa: PLC0415
+    from fastforks._core.errors import install_hint  # noqa: PLC0415
+
+    nodes = pack.nodes
+    card = fastforks.model_card("segformer-b2-clothes")
+    variant = next(v for v in card.variants if v.ref == card.variant_ref)
+    gate = registry._nc_weights_error(variant, card)
+    library = str(gate)
+    with pytest.raises(fastforks.LicenceError) as info, nodes.node_errors():
+        raise gate
+    text = str(info.value)
+    assert text.startswith(library)
+    assert "only if your use is within that licence" in text
+    assert "`set FASTFORKS_NONCOMMERCIAL=1` above the python line of run_nvidia_gpu.bat" in text
+    assert "pip" not in text.removeprefix(library)  # the code is installed: nothing to install
+
+    missing = fastforks.ModelNotFoundError(
+        "stereo model 's2m2-s' is in the package fastforks-nc, which is not installed: "
+        'pip install "fastforks-core[nc]" (or fastforks; check its licence first)'
+    )
+    text = nodes.node_words(missing, str(missing))
+    assert text.startswith(str(missing) + ". In ComfyUI: ")
+    assert '`python_embeded\\python.exe -m pip install "fastforks-core[nc]"`' in text
+    assert '`python -m pip install "fastforks-core[nc]"` with that environment active' in text
+    assert "non-commercial weights also need FASTFORKS_NONCOMMERCIAL=1" in text
+
+    dep = fastforks.MissingDependencyError(
+        f"x needs timm, which is not installed: {install_hint('timm', upgrade=True)}"
+    )
+    text = nodes.node_words(dep, str(dep))
+    assert '`python_embeded\\python.exe -m pip install -U "fastforks-core[timm]"`' in text
+    assert "FASTFORKS_NONCOMMERCIAL" not in text  # a permissive extra: no licence words
+
+    only = fastforks.LicenceError("x: commercial use is 'no', and FASTFORKS_COMMERCIAL_ONLY=1 refuses models")
+    assert nodes.node_words(only, str(only)) == str(only)  # the user's own commercial-only switch: nothing to add
+
+
+def test_unlisted_models_say_why(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A saved id the node does not list: the nc package to install (validation, tooltip, load, startup log)."""
+    import fastforks  # noqa: PLC0415
+    from fastforks._core import registry  # noqa: PLC0415
+
+    nodes = pack.nodes
+    monkeypatch.setattr(
+        registry, "_known_models", lambda t: {"fake-nc-stereo": "fastforks-nc"} if t == "stereo" else {}
+    )
+    stereo = nodes.Stereo
+    entries = stereo.INPUT_TYPES()["required"]["model"][0]
+    assert stereo.VALIDATE_INPUTS(entries[0]) is True
+    assert stereo.VALIDATE_INPUTS(None) is True  # linked: checked when it runs
+    nc = next(e for e in entries if e.endswith(" [non-commercial]"))
+    assert stereo.VALIDATE_INPUTS(nodes.model_id(nc)) is True  # saved under another licence tag
+    why = stereo.VALIDATE_INPUTS("fake-nc-stereo")
+    assert isinstance(why, str)
+    assert why.startswith("stereo model 'fake-nc-stereo' is in the package fastforks-nc, which is not installed")
+    assert '-m pip install "fastforks-core[nc]"' in why
+    assert "did you mean" in str(stereo.VALIDATE_INPUTS("raft-stereo-middlebur"))
+    assert "inputs the node does not pass" in str(stereo.VALIDATE_INPUTS("depth-anything-v2-s"))
+    assert nodes.Warp.VALIDATE_INPUTS() is True
+
+    tip = stereo.INPUT_TYPES()["required"]["model"][1]["tooltip"]
+    assert "Not installed: 1 more stereo models with non-commercial or GPL code (e.g. fake-nc-stereo)" in tip
+    assert "Not installed" not in nodes.Depth.INPUT_TYPES()["required"]["model"][1]["tooltip"]
+
+    for name, value in {"get_torch_device": lambda: torch.device("cpu"), "free_memory": lambda *_: None}.items():
+        monkeypatch.setattr(pack.mm, name, value, raising=False)
+    with pytest.raises(fastforks.ModelNotFoundError, match=r"python_embeded\\python.exe -m pip install"):
+        nodes.load("fake-nc-stereo", "auto", "auto")
+
+    monkeypatch.delenv("FASTFORKS_NONCOMMERCIAL", raising=False)
+    line = nodes.licence_state()
+    assert line.startswith("fastforks: commercial-safe default: [non-commercial] weights do not download")
+    assert "1 models with non-commercial or GPL code (e.g. fake-nc-stereo) are not installed" in line
+    monkeypatch.setenv("FASTFORKS_NONCOMMERCIAL", "1")
+    assert "FASTFORKS_NONCOMMERCIAL=1: the weights of [non-commercial] models download" in nodes.licence_state()
+    monkeypatch.setenv("FASTFORKS_NONCOMMERCIAL", "maybe")
+    assert "FASTFORKS_NONCOMMERCIAL='maybe'" in nodes.licence_state()  # reported, not guessed
+
+
 def test_prompt_parsing(pack: Any) -> None:
     """Points, boxes and detection JSON as typed into STRING widgets."""
     c = pack.convert

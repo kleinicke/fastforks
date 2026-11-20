@@ -20,6 +20,7 @@ import torch
 
 import fastforks
 from fastforks import restoration
+from fastforks._core import registry  # the licence gate's variable and the published ids (no public API yet)
 
 from . import convert
 
@@ -65,7 +66,15 @@ def model_input(ids: list[str], default: str) -> tuple[list[str], dict[str, Any]
     """The `model` dropdown of a node."""
     entries = labels(ids)
     pick = next((e for e in entries if model_id(e) == default), entries[0] if entries else "")
-    return entries, {"default": pick, "tooltip": "fastforks model id." + _LICENCE_TIP}
+    tasks = sorted({fastforks.model_card(m).task for m in ids})
+    missing = [m for t in tasks for m in not_installed(t)]
+    more = (
+        f" Not installed: {len(missing)} more {' / '.join(tasks)} models with non-commercial or GPL code (e.g."
+        f" {', '.join(missing[:3])}); they need {NC_EXTRA} in ComfyUI's Python (see the pack's docs)."
+        if missing
+        else ""
+    )
+    return entries, {"default": pick, "tooltip": "fastforks model id." + _LICENCE_TIP + more}
 
 
 def common(ids: list[str], default: str) -> dict[str, Any]:
@@ -85,15 +94,104 @@ def backend_words(text: str) -> str:
     return _MODE_ARG.sub("backend=", text)
 
 
+NC_ENV = registry.NONCOMMERCIAL_ENV
+NC_EXTRA = "fastforks-core[nc]"  # the model families with non-commercial or GPL code (dists.toml `fastforks-nc`)
+_SPEC = re.compile(r"fastforks-core\[[\w,-]+\]")
+_ENV_HOWTO = (
+    f"set {NC_ENV}=1 where ComfyUI starts and restart ComfyUI (ComfyUI portable: add the line"
+    f" `set {NC_ENV}=1` above the python line of run_nvidia_gpu.bat or the .bat you start it with; Linux / macOS:"
+    f' `{NC_ENV}=1 python main.py`; PowerShell: `$env:{NC_ENV} = "1"` before `python main.py`)'
+)
+
+
+def pip_words(specs: str, *, upgrade: bool = False) -> str:
+    """How to pip-install `specs` into ComfyUI's own Python (portable and venv installs), then restart."""
+    u = "-U " if upgrade else ""
+    return (
+        f"install it into ComfyUI's Python and restart ComfyUI: ComfyUI portable (Windows, in the"
+        f" ComfyUI_windows_portable folder): `python_embeded\\python.exe -m pip install {u}{specs}`; a venv or conda"
+        f" install: `python -m pip install {u}{specs}` with that environment active"
+    )
+
+
+def comfy_hint(error: fastforks.FastforksError, text: str) -> str:
+    """What to do in ComfyUI about a fastforks error with message `text` ("" if nothing to add).
+
+    A `pip install` of fastforks extras gets the commands for ComfyUI's Python; the non-commercial weights gate gets
+    how to set `FASTFORKS_NONCOMMERCIAL=1`. Nothing is enabled here: the user sets the variable.
+    """
+    specs = list(dict.fromkeys(_SPEC.findall(text))) if "pip install" in text else []
+    hints = []
+    if specs:
+        hints.append(pip_words(" ".join(f'"{s}"' for s in specs), upgrade="pip install -U" in text))
+    if NC_EXTRA in specs:
+        hints.append(
+            "its models have non-commercial or GPL code (check the licence: `fastforks info MODEL`), and"
+            f" non-commercial weights also need {NC_ENV}=1"
+        )
+    if isinstance(error, fastforks.LicenceError) and NC_ENV in text:
+        hints.append(f"only if your use is within that licence (e.g. non-commercial research): {_ENV_HOWTO}")
+    return f"In ComfyUI: {'; '.join(hints)}." if hints else ""
+
+
+def node_words(error: fastforks.FastforksError, text: str) -> str:
+    """A fastforks message in the node's words: `backend=` for `mode=`, then what to do in ComfyUI (if anything)."""
+    hint = comfy_hint(error, text)
+    words = backend_words(text)
+    return f"{words}{'' if words.endswith('.') else '.'} {hint}" if hint else words
+
+
 @contextlib.contextmanager
 def node_errors() -> Generator[None]:
-    """Re-raise fastforks errors (same type and traceback) with `mode=` in their message said as `backend=`."""
+    """Re-raise fastforks errors (same type and traceback), their message in the node's words (`node_words`)."""
     try:
         yield
     except fastforks.FastforksError as e:
         if e.args and isinstance(e.args[0], str):
-            e.args = (backend_words(e.args[0]), *e.args[1:])
+            e.args = (node_words(e, e.args[0]), *e.args[1:])
         raise
+
+
+def not_installed(task: str | None = None) -> list[str]:
+    """Published ids (of `task`, or all) whose package is not installed here, e.g. `fastforks-core[nc]` ones."""
+    tasks = registry.TASKS if task is None else (task,)
+    # the installed cards, not `list_models`: FASTFORKS_COMMERCIAL_ONLY hides installed models from that
+    known = {m for t in tasks for m in registry._known_models(t)}  # noqa: SLF001 - no public list of published ids
+    return sorted(known - {m for t in tasks for m in registry.cards(t)})
+
+
+def licence_state() -> str:
+    """One line for the startup log: whether non-commercial weights download, and the missing nc package."""
+    try:
+        on = registry.noncommercial_enabled()
+    except fastforks.FastforksError as e:  # a malformed value: loading such a model raises the same
+        return f"fastforks: {e}"
+    if on:
+        line = f"fastforks: {NC_ENV}=1: the weights of [non-commercial] models download; their licences allow"
+        line += " non-commercial use only"
+    else:
+        line = "fastforks: commercial-safe default: [non-commercial] weights do not download; to allow them, "
+        line += _ENV_HOWTO
+    missing = not_installed()
+    if missing:
+        add = pip_words(f'"{NC_EXTRA}"')
+        line += (
+            f". {len(missing)} models with non-commercial or GPL code (e.g. {', '.join(missing[:3])}) are not"
+            f" installed: to add them, {add}"
+        )
+    return line
+
+
+def unlisted(label: str, entries: list[str]) -> str:
+    """Why a saved `model` value is not in a node's list: the library's reason, in the node's words."""
+    mid = model_id(label)
+    if mid.startswith(_FILE):
+        return f"{mid!r}: not a file of models/upscale_models that fastforks reads (fastforks.restoration.load)"
+    try:
+        fastforks.model_card(mid)
+    except fastforks.FastforksError as e:  # not installed (names the package), or unknown (with suggestions)
+        return node_words(e, str(e))
+    return f"{mid!r} is not one of this node's {len(entries)} models (it needs inputs the node does not pass)"
 
 
 def _mm() -> Any:  # noqa: ANN401 - comfy.model_management (untyped)
@@ -147,10 +245,10 @@ def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = 
         _cache.popitem(last=False)
         gc.collect()
         mm.soft_empty_cache()
-    # weights + activations: ComfyUI unloads its own models until this much is free (no-op if it already is)
-    mm.free_memory(2 * (file.stat().st_size if file else _weights_bytes(mid)) + 2**30, device)
     kw: dict[str, Any] = {"mode": backend, "device": device, "dtype": None if dtype == "auto" else dtype}
-    with node_errors():
+    with node_errors():  # `_weights_bytes` already raises for an id that is not installed
+        # weights + activations: ComfyUI unloads its own models until this much is free (no-op if it already is)
+        mm.free_memory(2 * (file.stat().st_size if file else _weights_bytes(mid)) + 2**30, device)
         model = restoration.load(file, **kw) if file else fastforks.load(mid, **(options or {}), **kw)
     log.info("fastforks: loaded %s (%s)", mid, model.backend)
     _cache[key] = model
@@ -262,9 +360,30 @@ class _Node:
     PROMPTS: ClassVar[frozenset[str]] = frozenset()  # promptable segmentation: the prompt kinds `run` passes
 
     @classmethod
+    def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
+        """ComfyUI inputs (every node defines its own)."""
+        raise NotImplementedError
+
+    @classmethod
     def runs(cls, mid: str) -> bool:
         """Whether `run` gives the model `mid` every input it requires (`takes`)."""
         return takes(mid, cls.TAKES, cls.PROMPTS)
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, model: str | None = None) -> bool | str:  # noqa: N802 - ComfyUI's name
+        """ComfyUI's check of the `model` widget, in place of its "Value not in list".
+
+        Accepts a listed entry, or the same id with another licence tag (workflows saved before a tag changed). For
+        any other value, e.g. an id of `fastforks-core[nc]` in a shared workflow where that package is missing,
+        returns why and what to install. `None`: linked or absent, checked when the node runs.
+        """
+        spec = cls.INPUT_TYPES()["required"].get("model")
+        if model is None or spec is None:
+            return True
+        entries = spec[0]
+        if model in entries or model_id(model) in {model_id(e) for e in entries}:
+            return True
+        return unlisted(model, entries)
 
 
 _VIDEO_DEPTH = frozenset({"video_depth_anything"})  # depth families that run a whole clip (`model.video`), not frames
@@ -743,8 +862,8 @@ class Parse(SemanticSegment):
     """Clothes / face parsing (SegFormer b2 clothes, b5 face parsing): masks per body or face part."""
 
     DESCRIPTION = (
-        "[non-commercial] Clothes / face parsing (SegFormer b2 clothes, b5 face parsing): research use only. "
-        + SemanticSegment.DESCRIPTION
+        "[non-commercial] Clothes / face parsing (SegFormer b2 clothes, b5 face parsing): research use only; the"
+        f" weights download only with {NC_ENV}=1 set where ComfyUI starts. " + SemanticSegment.DESCRIPTION
     )
     DEFAULT = "segformer-b2-clothes"
     LABEL_SETS = frozenset({"atr-18", "celebamask-hq-19"})

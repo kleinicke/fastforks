@@ -12,9 +12,10 @@ except ModuleNotFoundError as e:  # ComfyUI shows this message under the pack's 
     )
     raise ImportError(msg) from e
 
-from .nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS, install_unload_hook, setup_cache
+from .nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS, install_unload_hook, licence_state, log, setup_cache
 
 install_unload_hook()
 setup_cache()
+log.info(licence_state())
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
