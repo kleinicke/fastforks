@@ -19,6 +19,7 @@ backend expands NF4 weights with one fused kernel (`fastforks.kernels.nf4`); wit
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import torch
@@ -162,6 +163,8 @@ class MlxPortable(Runner):
         from .net import mlx_net  # noqa: PLC0415
 
         dit, vae = ctx.weights()
+        if ctx.params.quant == "none":
+            _require_mlx_ram(ctx.variant.ref, (dit, vae), DTYPES[ctx.dtype].size)
         cfg = CONFIGS[ctx.params.variant]
         self.net = mlx_net.Net(dit, vae, cfg, DTYPES[ctx.dtype], quant=ctx.params.quant == "nf4")
         self.noise = Noise(ctx.params.seed)
@@ -169,6 +172,24 @@ class MlxPortable(Runner):
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The restored frame, `scale x` the (padded) input size."""
         return {"image": infer(self.net, image, self.ctx.params.scale, self.noise)}
+
+
+def _require_mlx_ram(ref: str, paths: tuple[str, ...], itemsize: int) -> None:
+    """Fail clearly when the resident weights (the bf16 checkpoints in the run dtype) exceed 80 % of unified memory.
+
+    Without the check a 7 B transformer in bf16 (16.5 GB) on a 16 GB Mac pages the weights to swap on every call.
+    """
+    from fastforks._core.mlx import mx  # noqa: PLC0415
+
+    need = sum(Path(p).stat().st_size for p in paths) * itemsize // 2
+    ram = int(mx.device_info()["memory_size"])
+    if need > 0.8 * ram:
+        msg = (
+            f"{ref}: the weights need {need / 2**30:.1f} GiB resident in MLX, but this Mac has {ram / 2**30:.0f} GiB "
+            'of unified memory: pass quant="nf4" (the transformer blocks in 4 bit, ~3.5x smaller) or use a Mac with '
+            "more memory"
+        )
+        raise MemoryError(msg)
 
 
 class _Dequant:
