@@ -217,10 +217,22 @@ class _Sam3(Runner):
             `scores [200]` (sigmoid(logit) * sigmoid(presence)), `boxes [200, 4]` (normalised `x0, y0, x1, y1`),
             `pred_masks [200, 288, 288]` mask logits, all float32.
         """
+        return self._segment_concept(features, text, boxes, labels)
+
+    def _segment_concept(
+        self,
+        features: dict[str, torch.Tensor],
+        text: str | None,
+        boxes: torch.Tensor | None,
+        labels: torch.Tensor | None,
+        *,
+        skip_masks_below: float | None = None,
+    ) -> dict[str, torch.Tensor]:
         dev = self.ctx.device
         ids = torch.tensor([self.tokenizer(VISUAL if text is None else text)], device=dev)
         ex = None if boxes is None or not len(boxes) else exemplars(boxes, labels, dev)
-        return self.concept(ids, [features["fpn0"], features["fpn1"], features["fpn2"]], ex=ex)
+        fpn = [features["fpn0"], features["fpn1"], features["fpn2"]]
+        return self.concept(ids, fpn, ex=ex, skip_masks_below=skip_masks_below)
 
     def concept(
         self,
@@ -228,9 +240,15 @@ class _Sam3(Runner):
         fpn: list[torch.Tensor],
         valid: torch.Tensor | None = None,
         ex: Exemplars | None = None,
+        *,
+        skip_masks_below: float | None = None,
     ) -> dict[str, torch.Tensor]:
         """`segment_concept` on token ids `[1, T]` and the neck levels; `valid [1, T]` float marks padding with 0."""
-        logits, presence, boxes, masks = self.net.detect(fpn, self.pos, self.text(ids), valid, ex)
+        if torch.compiler.is_compiling():
+            skip_masks_below = None
+        logits, presence, boxes, masks = self.net.detect(
+            fpn, self.pos, self.text(ids), valid, ex, skip_masks_below=skip_masks_below
+        )
         return {"scores": (logits.sigmoid() * presence.sigmoid())[0], "boxes": boxes[0], "pred_masks": masks[0]}
 
     def predict(  # noqa: PLR0913 - the interface's signature
@@ -365,6 +383,22 @@ class Portable(_Sam3):
         """Neck levels `fpn0 [1, 256, 288, 288]`, `fpn1 [.., 144, 144]`, `fpn2 [.., 72, 72]` (compute dtype)."""
         fpn = self._encode(image, exact=image.device.type == "cpu")
         return {f"fpn{i}": f for i, f in enumerate(fpn)}
+
+    @host
+    def selected_concepts(
+        self,
+        features: dict[str, torch.Tensor],
+        text: str | None,
+        boxes: torch.Tensor | None,
+        labels: torch.Tensor | None,
+        *,
+        threshold: float,
+    ) -> dict[str, torch.Tensor]:
+        """Skip the mask decoder on eager CUDA calls whose scores all fail the filter."""
+        if self.ctx.device.type != "cuda" or threshold == 0:
+            return super().selected_concepts(features, text, boxes, labels, threshold=threshold)
+        out = self._segment_concept(features, text, boxes, labels, skip_masks_below=threshold)
+        return self.select_concepts(out, threshold) if out["scores"].numel() else out
 
     def module(self) -> torch.nn.Module:
         """The image encoder: `[1, 3, H, W]` in `[0, 1]` -> the neck levels `fpn0`, `fpn1`, `fpn2` (as `embed`)."""

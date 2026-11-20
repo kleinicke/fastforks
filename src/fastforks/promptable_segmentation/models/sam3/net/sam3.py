@@ -796,6 +796,8 @@ class Sam3(nn.Module):
         text: torch.Tensor,
         text_valid: torch.Tensor | None = None,
         exemplars: Exemplars | None = None,
+        *,
+        skip_masks_below: float | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Logits `[B, Q]`, presence `[B, 1]`, boxes `[B, Q, 4]` (normalised xyxy), mask logits `[B, Q, 288, 288]`.
 
@@ -808,6 +810,7 @@ class Sam3(nn.Module):
             text: `prompt` output, `[B, T, 256]` float32.
             text_valid: `[B, T]` float32, 1 for a real token and 0 for padding after `eot`; `None`: no padding.
             exemplars: Exemplar boxes (transformers `input_boxes`), or `None`.
+            skip_masks_below: For eager scoring, return zero queries if no score exceeds this threshold.
         """
         top = fpn[-1]
         b, _, h, w = top.shape
@@ -828,6 +831,9 @@ class Sam3(nn.Module):
         encoded = self.detr_encoder(vision.to(dt), p.to(dt), prompt.to(dt), bias).float()
         queries, boxes, presence = self.detr_decoder(encoded, p, prompt, (h, w), bias)
         logits = self.dot_product_scoring(queries, prompt, valid)
+        if skip_masks_below is not None and not bool((logits.sigmoid() * presence.sigmoid() > skip_masks_below).any()):
+            masks = logits.new_empty((b, 0, *fpn[0].shape[-2:]))
+            return logits[:, :0], presence, boxes[:, :0], masks
         dt = self.mask_decoder.instance_projection.weight.dtype
         fpn = [f.to(dt) for f in fpn]
         masks = self.mask_decoder(queries.to(dt), fpn, encoded.to(dt), prompt.to(dt), bias).float()

@@ -124,6 +124,33 @@ def test_kernels_graph_cache_per_bucket():
 
 @pytest.mark.model
 @pytest.mark.gpu
+def test_sam3_portable_skips_masks_for_empty_selection(monkeypatch):
+    """An empty score selection skips decoding while surviving queries still get their masks."""
+    m = _load("portable", "cuda")
+    emb = m.get_image_embeddings(IMAGE)
+    decoder = cast("Portable", m._runner).net.mask_decoder
+    original = decoder.forward
+    calls = 0
+
+    def count_masks(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(decoder, "forward", count_masks)
+    empty = m(emb, text=TEXT, score_threshold=1.0)
+    assert calls == 0
+    assert empty.scores.shape == (0,)
+    assert empty.boxes.shape == (0, 4)
+    assert empty.masks.shape == (0, *IMAGE.shape[:2])
+
+    full = m(emb, text=TEXT, score_threshold=0.0)
+    assert calls == 1
+    assert 0 < len(full.scores) == len(full.masks)
+
+
+@pytest.mark.model
+@pytest.mark.gpu
 def test_sam3_can_disable_graph_capture(monkeypatch):
     """Repeated prompts stay eager when the caller disables the graph pool."""
     m = _load("kernels", "cuda", cuda_graphs=False)
