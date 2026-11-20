@@ -845,7 +845,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | cas-gwcnet-gc-sceneflow | – | – | 473 | 359 | 1.3x | 2032 / 2228 | 2035 / 2230 |
 | cfnet-sceneflow | – | – | 409 | 225 | 1.8x | 1822 / 2578 | 1073 / 1604 |
 | coex-sceneflow | – | – | 49.9 | 23.5 | 2.1x | 1093 / 1174 | 368 / 514 |
-| defom-stereo-vitl-sceneflow | – | – | – | 645 | – | – | 2781 / 4234 |
+| defom-stereo-vitl-sceneflow | – | – | 1439 | 645 | 2.2x | 4102 / 4252 | 2781 / 4234 |
 | dlnr-middlebury | – | – | 399 | 215 | 1.9x | 1502 / 1976 | 851 / 982 |
 | fast-acvnet-generalization | – | – | 54.7 | 38.1 | 1.4x | 653 / 756 | 654 / 716 |
 | fast-acvnet-kitti12 | – | – | 54.7 | 38.1 | 1.4x | 653 / 756 | 654 / 716 |
@@ -1129,16 +1129,16 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 ### Edges, synthetic, 1080x1920
 
-| model | time (ms): original | portable | peak memory (MiB, allocated / reserved): original | portable |
-|---|---|---|---|---|
-| anyline | 585 | 47.4 | 909 / 1002 | 654 / 722 |
-| hed | 38.5 | 11.3 | 300 / 324 | 187 / 224 |
-| lineart | 29.8 | 18.3 | 221 / 264 | 222 / 284 |
-| lineart-anime | 25.2 | 8.36 | 407 / 448 | 241 / 284 |
-| lineart-coarse | 30.4 | 18.3 | 221 / 264 | 222 / 284 |
-| mlsd | 35.6 | 9.33 | 185 / 212 | 127 / 170 |
-| pidinet | 35.9 | 13.1 | 339 / 368 | 328 / 372 |
-| teed | 29.6 | 4.09 | 149 / 184 | 122 / 146 |
+| model | time (ms): original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
+|---|---|---|---|---|---|---|---|---|
+| anyline | 585 | 47.4 | 36.9 | 15.9x | 1.3x | 909 / 1002 | 654 / 722 | 654 / 702 |
+| hed | 38.5 | 11.3 | 8.25 | 4.7x | 1.4x | 300 / 324 | 187 / 224 | 193 / 264 |
+| lineart | 29.8 | 18.3 | 15.5 | 1.9x | 1.2x | 221 / 264 | 222 / 284 | 217 / 284 |
+| lineart-anime | 25.2 | 8.36 | 6.50 | 3.9x | 1.3x | 407 / 448 | 241 / 284 | 217 / 244 |
+| lineart-coarse | 30.4 | 18.3 | 15.4 | 2.0x | 1.2x | 221 / 264 | 222 / 284 | 217 / 284 |
+| mlsd | 35.6 | 9.33 | 7.73 | 4.6x | 1.2x | 185 / 212 | 127 / 170 | 127 / 148 |
+| pidinet | 35.9 | 13.1 | 12.3 | 2.9x | 1.1x | 339 / 368 | 328 / 372 | 328 / 392 |
+| teed | 29.6 | 4.09 | 3.83 | 7.7x | 1.1x | 149 / 184 | 122 / 146 | 122 / 146 |
 
 ### Promptable segmentation, synthetic, 1024x1024
 
@@ -1182,7 +1182,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | dfine-x-coco | 44.9 | 54.6 | 18.6 | 9.59 | 4.7x | 1.9x | 476 / 536 | 230 / 258 | 231 / 298 |
 | faster-rcnn-r50-fpn-3x-coco | 83.6 | 41.4 | 22.8 | 19.5 | 2.1x | 1.2x | 626 / 708 | 390 / 490 | 391 / 450 |
 | grounding-dino-base | – | 230 | 160 | 109 | 2.1x | 1.5x | 2895 / 3094 | 1525 / 1624 | 1156 / 1364 |
-| grounding-dino-tiny | – | 199 | 138 | – | – | – | 2541 / 2716 | 1404 / 1468 | – |
+| grounding-dino-tiny | – | 199 | 138 | 86.9 | 2.3x | 1.6x | 2541 / 2716 | 1404 / 1468 | 1034 / 1188 |
 | lw-detr-large-coco | – | 22.8 | 10.2 | 5.64 | 4.0x | 1.8x | 355 / 382 | 204 / 230 | 192 / 254 |
 | lw-detr-medium-coco | – | 23.3 | 8.75 | 3.78 | 6.2x | 2.3x | 228 / 274 | 131 / 156 | 131 / 178 |
 | lw-detr-small-coco | – | 19.9 | 8.82 | 2.80 | 7.1x | 3.1x | 129 / 166 | 97 / 116 | 99 / 140 |
@@ -1190,7 +1190,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | lw-detr-xlarge-coco | – | 25.5 | 12.1 | 9.39 | 2.7x | 1.3x | 762 / 850 | 348 / 360 | 336 / 382 |
 | mask-rcnn-r50-fpn-3x-coco | 85.4 | 43.5 | 24.6 | 21.0 | 2.1x | 1.2x | 604 / 650 | 352 / 440 | 353 / 400 |
 | mm-grounding-dino-base | – | 232 | 160 | 109 | 2.1x | 1.5x | 2895 / 3094 | 1525 / 1624 | 1157 / 1366 |
-| mm-grounding-dino-tiny | – | 202 | 138 | – | – | – | 2541 / 2716 | 1405 / 1470 | – |
+| mm-grounding-dino-tiny | – | 202 | 138 | 87.2 | 2.3x | 1.6x | 2541 / 2716 | 1405 / 1470 | 1035 / 1188 |
 | owlv2-b16 | – | 92.3 | 31.8 | 23.7 | 3.9x | 1.3x | 921 / 960 | 460 / 510 | 461 / 612 |
 | owlv2-l14 | – | 212 | 154 | 110 | 1.9x | 1.4x | 2550 / 2606 | 1097 / 1144 | 1027 / 1184 |
 | rf-detr-l-coco | – | 11.8 | 10.6 | 5.30 | 2.2x | 2.0x | 219 / 240 | 149 / 184 | 149 / 206 |
@@ -1551,7 +1551,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | cfnet-sceneflow | 0.55 | 0.96 (375x1242) | 1.14 (375x1242) | 0.56 | 0.36 (375x1242) | 0.27 (375x1242) |
 | coex-sceneflow | – | 0.27 (375x1242) | 0.57 (375x1242) | 0.63 (375x1242) | 0.70 (375x1242) | 0.48 (375x1242) |
 | crestereo-eth3d | 0.05 | 0.03 | 0.03† | 1.50 | 0.75† | 0.23† |
-| defom-stereo-vitl-sceneflow | 4.24 | 2.31 | 2.74 (375x1242) | 2.83 | 1.53† | 0.30 (375x1242) |
+| defom-stereo-vitl-sceneflow | 4.24 | 1.20 | 2.74 (375x1242) | 2.83 | 1.73 | 0.30 (375x1242) |
 | dlnr-middlebury | 0.83 (375x1242) | 0.55 | 0.79 | 1.71 (375x1242) | 1.05 | 0.57 |
 | dlnr-sceneflow | 0.83 (375x1242) | 0.63 | 0.26† | 1.71 (375x1242) | 0.40† | 0.21† |
 | fast-acvnet-generalization | 0.24 (375x1242) | 0.27 (375x1242) | 0.59 (375x1242) | 1.73 (375x1242) | 0.79 (375x1242) | 0.62 (375x1242) |
@@ -2147,7 +2147,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | cfnet-sceneflow | 994x1482 | 409 ms | 249 ms | 171 ms | 225 ms | 53.0 s | 139 s | 1822 / 2578 | 1026 / 1398 | 1073 / 1604 | 1357 / 1410 |
 | coex-sceneflow | 994x1482 | 49.9 ms | 29.4 ms | 20.6 ms | 23.5 ms | 22.4 s | 56.6 s | 1093 / 1174 | 351 / 452 | 368 / 514 | 438 / 452 |
 | crestereo-eth3d | 994x1482 | 732 ms | 398 ms | 298 ms | 229 ms | 120 s | 224 s | 884 / 1030 | 695 / 748 | 644 / 732 | 703 / 740 |
-| defom-stereo-vitl-sceneflow | 994x1482 | 1531 ms | 1002 ms | public API unavailable | 645 ms | 122 s | – | 4362 / 4838 | 3021 / 3292 | 2781 / 4234 | – |
+| defom-stereo-vitl-sceneflow | 994x1482 | 1439 ms | 1002 ms | public API unavailable | 645 ms | 122 s | – | 4102 / 4252 | 3021 / 3292 | 2781 / 4234 | – |
 | defom-stereo-vitl-sceneflow | 375x1242 | 404 ms | – | 1151 ms, bf16 engine (whole graph at fixed 375 x 1242) | 180 ms | – | 168 s | 2394 / 2538 | – | 1627 / 1786 | 1782 / 1790 |
 | dlnr-middlebury | 994x1482 | 399 ms | 303 ms | 241 ms | 215 ms | 67.9 s | 156 s | 1502 / 1976 | 1343 / 1692 | 851 / 982 | 1455 / 1546 |
 | dlnr-sceneflow | 994x1482 | 398 ms | 301 ms | 241 ms | 214 ms | 69.0 s | 161 s | 2635 / 3142 | 1343 / 1672 | 1236 / 1606 | 1711 / 1784 |
@@ -2443,7 +2443,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | faster-rcnn-r50-fpn-3x-coco | 800x1344 | 22.8 ms | 18.9 ms | 5.35 ms (backbone + FPN only) | 19.5 ms | 26.0 s | 15.6 s | 390 / 490 | 413 / 438 | 391 / 450 | 439 / 494 |
 | grounding-dino-base | 800x1344 | 160 ms | 131 ms | 159 ms, fp32 engine (fixed 80-class text prompt) | 109 ms | 98.4 s | 130 s | 1525 / 1624 | 2669 / 2800 | 1156 / 1364 | 1153 / 1160 |
 | grounding-dino-base | 320x320 | – | – | 17.6 ms, fp32 engine (fixed 80-class text prompt) | – | – | 119 s | – | – | – | 609 / 628 |
-| grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | 116 ms, fp32 engine (fixed 80-class text prompt) | – | 72.5 s | 104 s | 1404 / 1468 | 2550 / 2664 | – | 883 / 888 |
+| grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | 116 ms, fp32 engine (fixed 80-class text prompt) | 86.9 ms | 72.5 s | 104 s | 1404 / 1468 | 2550 / 2664 | 1034 / 1188 | 883 / 888 |
 | grounding-dino-tiny | 320x320 | 69.0 ms | – | 13.6 ms, fp32 engine (network with fixed COCO prompts, standalone build) | 55.4 ms | – | – | 841 / 948 | – | 841 / 948 | 387 / 406 |
 | lw-detr-large-coco | 800x1344 | 10.2 ms | 5.62 ms | 3.45 ms | 5.64 ms | 29.6 s | 56.0 s | 204 / 230 | 195 / 208 | 192 / 254 | 270 / 296 |
 | lw-detr-medium-coco | 800x1344 | 8.75 ms | 3.74 ms | 2.30 ms | 3.78 ms | 22.4 s | 63.3 s | 131 / 156 | 147 / 174 | 131 / 178 | 185 / 212 |
@@ -2453,7 +2453,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | mask-rcnn-r50-fpn-3x-coco | 800x1344 | 24.6 ms | 21.5 ms | 5.34 ms (backbone + FPN only) | 21.0 ms | 29.3 s | 18.3 s | 352 / 440 | 333 / 358 | 353 / 400 | 444 / 496 |
 | mm-grounding-dino-base | 800x1344 | 160 ms | 132 ms | 158 ms, fp32 engine (fixed 80-class text prompt) | 109 ms | 105 s | 125 s | 1525 / 1624 | 2669 / 2800 | 1157 / 1366 | 1153 / 1160 |
 | mm-grounding-dino-base | 320x320 | – | – | 17.7 ms, fp32 engine (fixed 80-class text prompt) | – | – | 134 s | – | – | – | 641 / 662 |
-| mm-grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | 116 ms, fp32 engine (fixed 80-class text prompt) | – | 71.2 s | 104 s | 1405 / 1470 | 2555 / 2666 | – | 883 / 890 |
+| mm-grounding-dino-tiny | 800x1344 | 138 ms | 111 ms | 116 ms, fp32 engine (fixed 80-class text prompt) | 87.2 ms | 71.2 s | 104 s | 1405 / 1470 | 2555 / 2666 | 1035 / 1188 | 883 / 890 |
 | mm-grounding-dino-tiny | 320x320 | 69.2 ms | – | 13.8 ms, fp32 engine (network with fixed COCO prompts, standalone build) | 55.5 ms | – | – | 842 / 950 | – | 842 / 950 | 387 / 408 |
 | owlv2-b16 | 800x1344 | 31.8 ms | 28.5 ms | 18.4 ms | 23.7 ms | 10.6 s | 25.9 s | 460 / 510 | 487 / 530 | 461 / 612 | 655 / 726 |
 | owlv2-l14 | 800x1344 | 154 ms | 141 ms | 95.9 ms | 110 ms | 12.4 s | 33.8 s | 1097 / 1144 | 1190 / 1242 | 1027 / 1184 | 1786 / 1820 |

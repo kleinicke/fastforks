@@ -12,14 +12,14 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`anyline`](#anyline) | yes | 18.8, 15.9x (1024x1024) | 384, 0.68x |
-| [`hed`](#hed) | yes | 4.44, 4.6x (1024x1024) | 146, 0.65x |
-| [`lineart`](#lineart) | yes | 8.49, 1.9x (1024x1024) | 186, 1.0x |
-| [`lineart-anime`](#lineart_anime) | yes | 3.62, 2.9x (1024x1024) | 186, 0.46x |
-| [`lineart-coarse`](#lineart) | yes | 8.51, 1.9x (1024x1024) | 166, 0.89x |
-| [`mlsd`](#mlsd) | yes | 7.03, 2.9x (1024x1024) | 90, 0.68x |
-| [`pidinet`](#pidinet) | no | 6.37, 2.9x (1024x1024) | 228, 0.97x |
-| [`teed`](#teed) | yes | 2.43, 6.5x (1024x1024) | 88, 0.8x |
+| [`anyline`](#anyline) | yes | 36.9, 15.9x | 702, 0.7x |
+| [`hed`](#hed) | yes | 8.25, 4.7x | 264, 0.81x |
+| [`lineart`](#lineart) | yes | 15.5, 1.9x | 284, 1.1x |
+| [`lineart-anime`](#lineart_anime) | yes | 6.50, 3.9x | 244, 0.54x |
+| [`lineart-coarse`](#lineart) | yes | 15.4, 2.0x | 284, 1.1x |
+| [`mlsd`](#mlsd) | yes | 7.73, 4.6x | 148, 0.7x |
+| [`pidinet`](#pidinet) | no | 12.3, 2.9x | 392, 1.1x |
+| [`teed`](#teed) | yes | 3.83, 7.7x | 146, 0.79x |
 
 <a id="anyline"></a>
 
@@ -31,7 +31,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `anyline` | synthetic (1080x1920) | original<br>portable<br>kernels | 585<br>47.4<br>– | 909 / 1002<br>654 / 722<br>– |
+| `anyline` | synthetic (1080x1920) | original<br>portable<br>kernels | 585<br>47.4<br>36.9 | 909 / 1002<br>654 / 722<br>654 / 702 |
 | `anyline` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 299<br>21.0<br>18.8<br>11.6<br>12.9 (full line map only; memory estimated) | 509 / 562<br>362 / 384<br>362 / 384<br>306 / 346<br>528 / 542 |
 
 <details><summary>Details</summary>
@@ -51,6 +51,7 @@ Commercial use: yes.
 - `anyline` 1024x1024, first call: portable + torch.compile 40 s (cold Inductor cache), TensorRT fp16 30 s (ONNX + engine).
 - `anyline` original 1080x1920, original 1024x1024: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c anyline, host OpenCV resize, float post-processing
 - `anyline` portable 1080x1920, portable 1024x1024: Eager foreground-component filtering reuses its label buffer. FP16 and FP32 outputs match bitwise on the synthetic input and eight BSDS500 images.
+- `anyline` kernels 1080x1920: Fifteen full API calls at the same standard input size as the existing portable comparison.
 - `anyline` kernels 1024x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `anyline` load / first call: original 0.11 s / 0.622 s, portable 0.17 s / 0.053 s, kernels 0.15 s / 0.515 s (1024x1024)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -90,7 +91,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `hed` | synthetic (1080x1920) | original<br>portable<br>kernels | 38.5<br>11.3<br>– | 300 / 324<br>187 / 224<br>– |
+| `hed` | synthetic (1080x1920) | original<br>portable<br>kernels | 38.5<br>11.3<br>8.25 | 300 / 324<br>187 / 224<br>193 / 264 |
 | `hed` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 20.3<br>6.02<br>4.44<br>4.81<br>2.57 | 199 / 226<br>117 / 146<br>121 / 146<br>137 / 166<br>170 / 178 |
 
 <details><summary>Details</summary>
@@ -108,6 +109,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `hed` 1080x1920 (0.2 GiB peak allocated, 0.2 reserved)
 - `hed` 1024x1024, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 12 s (ONNX + engine).
 - `hed` original 1080x1920, original 1024x1024: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c hed, host OpenCV resize, float post-processing
+- `hed` kernels 1080x1920: Fifteen full API calls at the same standard input size as the existing portable comparison.
 - `hed` kernels 1024x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `hed` load / first call: original 0.24 s / 0.057 s, portable 0.18 s / 0.012 s, kernels 0.31 s / 0.12 s (1024x1024)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -143,9 +145,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `lineart` | synthetic (1080x1920) | original<br>portable<br>kernels | 29.8<br>18.3<br>– | 221 / 264<br>222 / 284<br>– |
+| `lineart` | synthetic (1080x1920) | original<br>portable<br>kernels | 29.8<br>18.3<br>15.5 | 221 / 264<br>222 / 284<br>217 / 284 |
 | `lineart` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.7<br>9.93<br>8.49<br>6.49<br>4.80 | 141 / 186<br>129 / 164<br>126 / 186<br>117 / 164<br>150 / 176 |
-| `lineart-coarse` | synthetic (1080x1920) | original<br>portable<br>kernels | 30.4<br>18.3<br>– | 221 / 264<br>222 / 284<br>– |
+| `lineart-coarse` | synthetic (1080x1920) | original<br>portable<br>kernels | 30.4<br>18.3<br>15.4 | 221 / 264<br>222 / 284<br>217 / 284 |
 | `lineart-coarse` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.8<br>9.92<br>8.51<br>6.49<br>4.80 | 141 / 186<br>129 / 164<br>126 / 166<br>117 / 164<br>150 / 176 |
 
 <details><summary>Details</summary>
@@ -164,8 +166,10 @@ Commercial use: yes.
 - `lineart` 1024x1024, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 10 s (ONNX + engine).
 - `lineart-coarse` 1024x1024, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 10 s (ONNX + engine).
 - `lineart` original 1080x1920, original 1024x1024: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c lineart, host OpenCV resize, float post-processing
+- `lineart` kernels 1080x1920: Fifteen full API calls at the same standard input size as the existing portable comparison.
 - `lineart` kernels 1024x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `lineart-coarse` original 1080x1920, original 1024x1024: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c lineart, host OpenCV resize, float post-processing
+- `lineart-coarse` kernels 1080x1920: Fifteen full API calls at the same standard input size as the existing portable comparison.
 - `lineart-coarse` kernels 1024x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `lineart` load / first call: original 0.65 s / 0.049 s, portable 0.16 s / 0.019 s, kernels 0.28 s / 0.098 s (1024x1024)
 - `lineart-coarse` load / first call: original 0.16 s / 0.048 s, portable 0.16 s / 0.019 s, kernels 0.52 s / 0.093 s (1024x1024)
@@ -205,7 +209,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `lineart-anime` | synthetic (1080x1920) | original<br>portable<br>kernels | 25.2<br>8.36<br>– | 407 / 448<br>241 / 284<br>– |
+| `lineart-anime` | synthetic (1080x1920) | original<br>portable<br>kernels | 25.2<br>8.36<br>6.50 | 407 / 448<br>241 / 284<br>217 / 244 |
 | `lineart-anime` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.3<br>3.86<br>3.62<br>2.80<br>1.54 | 364 / 408<br>161 / 206<br>161 / 186<br>180 / 206<br>304 / 314 |
 
 <details><summary>Details</summary>
@@ -223,6 +227,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `lineart-anime` 1080x1920 (0.2 GiB peak allocated, 0.3 reserved)
 - `lineart-anime` 1024x1024, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 13 s (ONNX + engine).
 - `lineart-anime` original 1080x1920, original 1024x1024: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c lineart_anime, host OpenCV resize, float post-processing
+- `lineart-anime` kernels 1080x1920: Fifteen full API calls at the same standard input size as the existing portable comparison.
 - `lineart-anime` kernels 1024x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `lineart-anime` load / first call: original 0.74 s / 0.037 s, portable 0.82 s / 0.009 s, kernels 0.54 s / 0.126 s (1024x1024)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -258,7 +263,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `mlsd` | synthetic (1080x1920) | original<br>portable<br>kernels | 35.6<br>9.33<br>– | 185 / 212<br>127 / 170<br>– |
+| `mlsd` | synthetic (1080x1920) | original<br>portable<br>kernels | 35.6<br>9.33<br>7.73 | 185 / 212<br>127 / 170<br>127 / 148 |
 | `mlsd` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 20.6<br>7.65<br>7.03<br>4.61<br>5.75 (standalone CNN with eager resize and line decoding) | 113 / 132<br>72 / 90<br>72 / 90<br>101 / 130<br>295 / 310 |
 
 <details><summary>Details</summary>
@@ -277,6 +282,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `mlsd` 1080x1920 (0.1 GiB peak allocated, 0.2 reserved)
 - `mlsd` 1024x1024, first call: portable + torch.compile 11 s (cold Inductor cache).
 - `mlsd` original 1080x1920, original 1024x1024: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c mlsd, host OpenCV resize, float post-processing
+- `mlsd` kernels 1080x1920: Fifteen full API calls at the same standard input size as the existing portable comparison.
 - `mlsd` kernels 1024x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `mlsd` load / first call: original 0.21 s / 0.057 s, portable 0.17 s / 0.011 s, kernels 0.57 s / 0.491 s (1024x1024)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -315,7 +321,7 @@ Commercial use: **no** (code: LicenseRef-research-only (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `pidinet` | synthetic (1080x1920) | original<br>portable<br>kernels | 35.9<br>13.1<br>– | 339 / 368<br>328 / 372<br>– |
+| `pidinet` | synthetic (1080x1920) | original<br>portable<br>kernels | 35.9<br>13.1<br>12.3 | 339 / 368<br>328 / 372<br>328 / 392 |
 | `pidinet` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 18.5<br>6.59<br>6.37<br>5.66<br>4.50 | 199 / 236<br>186 / 228<br>186 / 228<br>166 / 190<br>187 / 200 |
 
 <details><summary>Details</summary>
@@ -333,6 +339,7 @@ Commercial use: **no** (code: LicenseRef-research-only (noncommercial); weights:
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `pidinet` 1080x1920 (0.3 GiB peak allocated, 0.4 reserved)
 - `pidinet` 1024x1024, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 20 s (ONNX + engine).
 - `pidinet` original 1080x1920, original 1024x1024: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c pidinet, host OpenCV resize, float post-processing
+- `pidinet` kernels 1080x1920: Fifteen full API calls at the same standard input size as the existing portable comparison.
 - `pidinet` kernels 1024x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `pidinet` load / first call: original 0.28 s / 0.058 s, portable 0.16 s / 0.014 s, kernels 0.17 s / 0.616 s (1024x1024)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -368,7 +375,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `teed` | synthetic (1080x1920) | original<br>portable<br>kernels | 29.6<br>4.09<br>– | 149 / 184<br>122 / 146<br>– |
+| `teed` | synthetic (1080x1920) | original<br>portable<br>kernels | 29.6<br>4.09<br>3.83 | 149 / 184<br>122 / 146<br>122 / 146 |
 | `teed` | synthetic (1024x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.8<br>2.54<br>2.43<br>1.10<br>0.799 | 89 / 110<br>68 / 88<br>68 / 88<br>71 / 104<br>106 / 120 |
 
 <details><summary>Details</summary>
@@ -386,6 +393,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `teed` 1080x1920 (0.1 GiB peak allocated, 0.1 reserved)
 - `teed` 1024x1024, first call: portable + torch.compile 9 s (cold Inductor cache), TensorRT fp16 12 s (ONNX + engine).
 - `teed` original 1080x1920, original 1024x1024: torch.autocast(float16) around the call; huggingface/controlnet_aux@b1aac318b15c teed, host OpenCV resize, float post-processing
+- `teed` kernels 1080x1920: Fifteen full API calls at the same standard input size as the existing portable comparison.
 - `teed` kernels 1024x1024: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `teed` load / first call: original 0.13 s / 0.083 s, portable 0.16 s / 0.005 s, kernels 0.16 s / 0.443 s (1024x1024)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
