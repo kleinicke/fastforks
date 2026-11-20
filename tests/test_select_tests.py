@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import shutil
 import subprocess
@@ -77,6 +78,30 @@ def mini(tmp_path_factory: pytest.TempPathFactory) -> Path:
         (root / rel).parent.mkdir(parents=True, exist_ok=True)
         (root / rel).write_text(text)
     return root
+
+
+def test_imports_in_runtime_statement_bodies() -> None:
+    tree = ast.parse("""
+try:
+    import main
+except ImportError:
+    match platform:
+        case "test":
+            import fallback
+finally:
+    import cleanup
+
+if typing.TYPE_CHECKING:
+    import type_only
+else:
+    import runtime
+
+async def get_model():
+    import lazily
+""")
+    immediate = {"main", "fallback", "cleanup", "runtime"}
+    assert st._imported_names(tree, "", lazy=False) == immediate
+    assert st._imported_names(tree, "", lazy=True) == immediate | {"lazily"}
 
 
 @pytest.mark.parametrize(

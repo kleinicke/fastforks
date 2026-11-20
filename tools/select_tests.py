@@ -48,7 +48,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
     from typing import Literal
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -171,10 +171,10 @@ class Graph:
 def _imported_names(tree: ast.AST, pkg: str, *, lazy: bool) -> set[str]:
     """Absolute module names `tree` imports (`from a import b`: `a` and `a.b`); `pkg`: the file's package."""
     names: set[str] = set()
-    for node in _runtime_nodes(tree, lazy=lazy):
+    for node in _runtime_imports(tree, lazy=lazy):
         if isinstance(node, ast.Import):
             names |= {a.name for a in node.names}
-        elif isinstance(node, ast.ImportFrom):
+        else:
             base = node.module or ""
             if node.level:
                 up = pkg.split(".")[: len(pkg.split(".")) - node.level + 1]
@@ -183,20 +183,18 @@ def _imported_names(tree: ast.AST, pkg: str, *, lazy: bool) -> set[str]:
     return names
 
 
-def _runtime_nodes(tree: ast.AST, *, lazy: bool) -> list[ast.AST]:
-    """Every node except the bodies of `if TYPE_CHECKING:` blocks (and of functions unless `lazy`)."""
-    out: list[ast.AST] = []
+def _runtime_imports(tree: ast.AST, *, lazy: bool) -> Iterator[ast.Import | ast.ImportFrom]:
+    """Walk statement bodies that can contain imports, skipping type-checking branches."""
+    containers = (ast.stmt, ast.ExceptHandler, ast.match_case)
     todo = [tree]
     while todo:
         node = todo.pop()
-        out.append(node)
-        if isinstance(node, ast.If) and _is_type_checking(node.test):
-            todo += node.orelse
-            continue
-        if not lazy and isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda):
-            continue
-        todo += ast.iter_child_nodes(node)
-    return out
+        if isinstance(node, ast.Import | ast.ImportFrom):
+            yield node
+        elif isinstance(node, ast.If) and _is_type_checking(node.test):
+            todo.extend(node.orelse)
+        elif lazy or not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            todo.extend(child for child in ast.iter_child_nodes(node) if isinstance(child, containers))
 
 
 def _is_type_checking(test: ast.expr) -> bool:
