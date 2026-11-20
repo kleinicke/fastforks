@@ -106,7 +106,8 @@ def remp(R, disp_mono, disp_stereo, left, right, dt, mf):
         [R.conv1_mono(fm), R.conv2_mono(disp_mono.to(dt)), R.conv1_stereo(fs), R.conv2_stereo(disp_stereo.to(dt))], 1
     )
     del fm, fs
-    x = R.RefinementBlock(R.conv_start(x))
+    x = R.conv_start(x)
+    x = R.RefinementBlock(x)
     low = R.LFE(R.AP(x))
     motif = R.LMC(x)
     x = R.final_conv((1 - motif) * low + motif * x)
@@ -131,10 +132,11 @@ def forward_fast(self, image1, image2, iters=32):
     features_right = self.feat_transfer(fmr)
     del fmr
     fr0 = torch.cat((features_right[0], self.stem_4(self.stem_2(i2))), 1)
-    del features_right
+    del features_right, i2
     match_right = self.desc(self.conv(fr0))
     features_left = self.feat_transfer(fml)
     stem_2x = self.stem_2(i1)
+    del i1
     stem_4x = self.stem_4(stem_2x)
     stem_8x = self.stem_8(stem_4x)
     stem_16x = self.stem_16(stem_8x)
@@ -198,12 +200,17 @@ def forward_fast(self, image1, image2, iters=32):
                 net_mono, inp_list, flaw_mono, dm_h, geo_feat_mono, flaw_stereo, disp_h, geo_feat
             )
             disp_mono_4x = disp_mono_4x + delta_mono.float()
+            del flaw_mono, flaw_stereo, geo_feat_mono, dm_h, delta_mono
         disp = disp + delta_disp.float()
+        del geo_feat, disp_h, delta_disp
 
-    def up(dl, mask):
-        xspx = self.spx_2_gru(mask, stem_2x)
+    del geo_fn, fl0f, fr0f, net_list, net_mono, inp_list, init_disp
+
+    def up(dl, mask, stem):
+        xspx = self.spx_2_gru(mask, stem)
         return context_upsample(dl * 4.0, F.softmax(self.spx_gru(xspx).float(), 1)).unsqueeze(1)
 
-    disp_up = up(disp, mask_feat_4)
-    disp_mono_up = up(disp_mono_4x, mask_mono)
+    disp_up = up(disp, mask_feat_4, stem_2x)
+    disp_mono_up = up(disp_mono_4x, mask_mono, stem_2x)
+    del stem_2x, mask_feat_4, mask_mono
     return disp_up + remp(self.REMP, disp_mono_up, disp_up, im1, im2, dt, mf)
