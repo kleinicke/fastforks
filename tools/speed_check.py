@@ -369,6 +369,21 @@ def _src_files() -> list[str]:
     return sorted(out)
 
 
+def _tracking_scope(task: str, args: tuple[Any, ...], *, exported: bool = False) -> dict[str, int | str]:
+    """Record the actual tracking clip and the fixed export's comparison size."""
+    if task != "tracking":
+        return {}
+    video, queries = args
+    frames, points = int(video.shape[0]), int(queries.shape[0])
+    scope: dict[str, int | str] = {"frames": frames, "queries": points}
+    if exported:
+        height, width = video.shape[-2:]
+        scope.update(
+            comparison_input=f"{frames}x{height}x{width}", backend_part=f"{frames} frames with {points} queries"
+        )
+    return scope
+
+
 def _lib_job(
     spec: dict[str, Any],
 ) -> tuple[dict[str, Any], list[tuple[str, Callable[[], Any], Callable[[], Any] | None]]]:
@@ -401,7 +416,7 @@ def _lib_job(
         def full(*, prepare: bool = False, i: Callable[[], Any] = inputs) -> Any:  # noqa: ANN401
             a, k = i()
             if prepare:
-                return None
+                return _tracking_scope(spec["task"], a)
             with torch.inference_mode():
                 return m(*a, **k)
 
@@ -451,7 +466,7 @@ def speed_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: 
 
                 kernels.reset_fallbacks()
             if spec["side"] == "lib":
-                full(prepare=True)  # this input only (lib side)
+                row |= full(prepare=True) or {}  # this input only (lib side)
             row |= measure(full)
             if core is not None:
                 row |= {"core_skipped": True} if spec.get("no_core") else {"core_ms": core_ms(core)}
@@ -595,6 +610,7 @@ def trt_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls: li
         if n > 1:
             row["views"] = n
         inputs = model.example_inputs(h, w, batch=n)
+        row.update(_tracking_scope(spec["task"], inputs, exported=True))
         with tempfile.TemporaryDirectory(prefix="ff-trt-") as tmp:
             t0 = time.perf_counter()
             onnx = model.export_onnx(Path(tmp) / "model.onnx", h, w, batch=n)
@@ -1034,7 +1050,7 @@ def static() -> int:
 FLOOR_KEYS = (
     "ref", "task", "mode", "input", "scene", "ms", "ms_min", "runs", "noise", "peak_alloc_mb", "peak_reserved_mb",
     "peak_first_alloc_mb", "peak_first_reserved_mb", "import_s", "load_s", "first_call_s", "cold", "backend",
-    "protocol", "gpu", "torch", "date", "commit",
+    "protocol", "gpu", "torch", "date", "commit", "frames", "queries", "comparison_input", "backend_part",
 )  # fmt: skip
 
 

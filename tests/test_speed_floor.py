@@ -59,6 +59,29 @@ def test_supplemental_tracking_row_is_not_scheduled():
     assert all(len(inp["label"].split("x")) == 2 for j in jobs for inp in j["inputs"])
 
 
+def test_timing_export_preserves_clip_scope(tmp_path, capsys):
+    """Keep the job key and measured clip shape available to downstream report generation."""
+    frames = Namespace(shape=(8, 3, 256, 256))
+    queries = Namespace(shape=(16, 3))
+    row = {
+        "side": "lib",
+        "ref": "model",
+        "task": "tracking",
+        "mode": "tensorrt",
+        "input": "256x256",
+        "ms": 20,
+        **speed_check._tracking_scope("tracking", (frames, queries), exported=True),
+    }
+    rows = tmp_path / "timings.jsonl"
+    rows.write_text(json.dumps(row) + "\n")
+    assert speed_check.export(rows, "test", "test") == 0
+    published = json.loads(capsys.readouterr().out)
+    assert published["input"] == "256x256"
+    assert published["comparison_input"] == "8x256x256"
+    assert (published["frames"], published["queries"]) == (8, 16)
+    assert published["backend_part"] == "8 frames with 16 queries"
+
+
 def test_merge_runs_goldens_for_modes_without_speed_rows(monkeypatch, tmp_path):
     floor = tmp_path / "speed.jsonl"
     floor.write_text(json.dumps({"ref": "measured", "mode": "portable", "task": "depth", "input": "480x640"}) + "\n")

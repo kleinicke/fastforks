@@ -855,7 +855,7 @@ def _compile_rows() -> dict[tuple[str, str, str], dict]:
     """Latest compile and TensorRT rows by model, mode and input size, respecting card gates."""
     path = ROOT / "docs" / "data" / "speed_compile.jsonl"
     rows = {
-        (r["ref"], r["mode"], r["input"]): r
+        (r["ref"], r["mode"], r.get("comparison_input", r["input"])): r
         for r in map(json.loads, path.read_text().splitlines() if path.is_file() else [])
     }
     variants = {v.id: v for t in registry.TASKS for _, v in registry.cards(t).values()}

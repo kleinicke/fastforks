@@ -39,20 +39,33 @@ def test_compile_and_tensorrt_keep_their_input_sizes(monkeypatch):
         assert ("162 ms" in row) == (row[1] == "200x200")
 
 
-def test_video_measurements_keep_distinct_frame_counts(monkeypatch):
+def test_video_measurements_keep_distinct_frame_counts(tmp_path, monkeypatch):
+    g = site_data.g
     ref = "cotracker3-online"
-    engines = {
-        (ref, "tensorrt", shape): {"ref": ref, "mode": "tensorrt", "input": shape, "ms": ms}
-        for shape, ms in (("8x256x256", 50), ("24x256x256", 141))
+    data = tmp_path / "docs" / "data"
+    data.mkdir(parents=True)
+    engine = {
+        "ref": ref,
+        "mode": "tensorrt",
+        "input": "256x256",
+        "ms": 50,
+        "comparison_input": "8x256x256",
+        "standalone_build": True,
     }
+    separate = {"ref": ref, "mode": "tensorrt", "input": "24x256x256", "ms": 141, "standalone_build": True}
+    (data / "speed_compile.jsonl").write_text("".join(json.dumps(r) + "\n" for r in (engine, separate)))
+    monkeypatch.setattr(g, "ROOT", tmp_path)
+    engines = g._compile_rows.__wrapped__()
     monkeypatch.setattr(site_data.g, "_compile_rows", lambda: engines)
     monkeypatch.setattr(site_data.g, "_oom", set)
 
-    speed = site_data._speed(SimpleNamespace(id=ref), "tracking", {})
-    assert [(row["input"], row["tensorrt"]["ms"]) for row in speed["inputs"]] == [
-        ("8x256x256", 50),
-        ("24x256x256", 141),
-    ]
+    native = {"mode": "portable", "input": "256x256", "ms": 100, "frames": 24, "queries": 256}
+    speed = site_data._speed(SimpleNamespace(id=ref), "tracking", {ref: [native]})
+    rows = {row["input"]: row for row in speed["inputs"]}
+    assert rows["256x256"]["modes"]["portable"]["ms"] == 100
+    assert "tensorrt" not in rows["256x256"]
+    assert rows["8x256x256"]["tensorrt"]["ms"] == 50
+    assert rows["24x256x256"]["tensorrt"]["ms"] == 141
 
 
 def test_published_clip_timings_match_exported_workloads():

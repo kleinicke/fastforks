@@ -153,7 +153,7 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
     cards = load_cards()
     allow = json.loads((DATA / "speed_allowlist.json").read_text())
     speed = jl(DATA / "speed.jsonl")
-    comp = jl(DATA / "speed_compile.jsonl")
+    comp = [{**row, "input": row.get("comparison_input", row["input"])} for row in jl(DATA / "speed_compile.jsonl")]
     fdates = {} if a.no_stale else family_dates()
 
     stale: dict = collections.defaultdict(list)
