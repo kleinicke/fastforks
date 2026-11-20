@@ -543,6 +543,32 @@ class Model:
             runner.__class__ = type(base.__name__, (base,), namespace)
         return self
 
+    def warmup(self, sizes: Sequence[tuple[int, int]], *, views: int = 8) -> Self:
+        """Run one call per input size on synthetic inputs, so that the first real call of each size is warm.
+
+        The first call of an input size pays one-time costs: on `device="mlx"` the graph is exported, translated and
+        tuned (0.1 s to minutes, see `docs/plans/mlx-sweep.md`; `FASTFORKS_MLX_PLAN_CACHE=<dir>` keeps that work on
+        disk for the next process); the kernels backend builds its plans and graphs; `compile()` compiles. Calling
+        this at start-up moves that cost out of the first request. The inputs are those of `fastforks bench` (a
+        textured image or stereo pair, a centre point prompt, `views` views for multi-view models); the outputs are
+        discarded. A model whose network input does not depend on the image size (a classifier's fixed resize) needs
+        one size.
+
+        Args:
+            sizes: `(height, width)` image sizes in pixels, each called once in this order.
+            views: Views per scene for multi-view models.
+
+        Returns:
+            `self`.
+        """
+        from fastforks._core.bench import BenchSize, bench_inputs  # noqa: PLC0415 - not needed for inference
+
+        for height, width in sizes:
+            args, kwargs = bench_inputs(self, BenchSize(int(height), int(width), views))
+            with torch.inference_mode():
+                self(*args, **kwargs)
+        return self
+
     def export_size(self) -> tuple[int, int] | None:
         """The old name of `size_range().export_size` (warns; removed after 2026-12-15)."""
         warn_renamed("model.export_size()", "model.size_range().export_size")

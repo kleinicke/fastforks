@@ -33,6 +33,8 @@ MEMORY_KINDS = {
 PROTOCOLS = {
     "warm-median": "median of warm, synchronised calls after warm-up (at least 5; 2 for calls over 2 s on surveys)",
 }
+# optional startup figures of a survey row: load, first call, the footprint after load, a first call at a second size
+_STARTUP_KEYS = ("load_s", "first_call_s", "load_peak_footprint_mb", "second_shape_s")
 _SLUG = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 _DTYPES = ("float32", "bfloat16", "float16")
 _WARM_RUNS = 5  # fewest timed calls of a reference row counted as `warm-median`
@@ -136,6 +138,11 @@ def _check(path: Path, n: int, row: dict[str, Any], dev: Device) -> list[str]:
     if status == "ok":
         if not isinstance(row.get("ms"), int | float):
             errs.append(f"{where}: an ok row needs ms")
+        errs += [  # optional startup figures (speed_survey): numbers when present
+            f"{where}: {k} must be a number"
+            for k in _STARTUP_KEYS
+            if k in row and (not isinstance(row[k], int | float) or isinstance(row[k], bool) or row[k] < 0)
+        ]
         kind = row.get("memory_kind")
         if kind is not None and (kind not in MEMORY_KINDS or any(k not in row for k in MEMORY_KINDS[kind][0])):
             errs.append(f"{where}: memory_kind not one of {sorted(MEMORY_KINDS)} or its fields missing")

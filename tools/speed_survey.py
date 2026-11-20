@@ -220,6 +220,32 @@ def _inputs(model: Any, job: dict[str, Any]) -> tuple[tuple[Any, ...], dict[str,
     return images, kw, job["scene"]
 
 
+def _second_shape(model: Any, job: dict[str, Any]) -> dict[str, Any]:  # noqa: ANN401
+    """`second_shape_s`: the first call at a second input size (3/4 of the job's, synthetic), `second_shape_input`.
+
+    An MLX graph is built per input shape, so this is what a new image size costs once the model runs; {} when the call
+    fails (a model with a fixed input size, too little memory). Not a timing of the table: one call, never warm.
+    """
+    import torch  # noqa: PLC0415
+
+    from fastforks._core.bench import BenchSize, bench_inputs  # noqa: PLC0415
+
+    h, w = (max(64, int(v) * 3 // 4 // 32 * 32) for v in job["input"].split("x"))
+    if job["ref"] in SWAPPED:
+        h, w = w, h
+    try:
+        args, kw = bench_inputs(model, BenchSize(h, w, VIEWS.get(job["ref"], 8)))
+        sync = torch.mps.synchronize if job["device"] == "mps" else (lambda: None)
+        sync()
+        t0 = time.perf_counter()
+        with torch.inference_mode():
+            model(*args, **kw)
+        sync()
+    except Exception:  # noqa: BLE001 - optional field
+        return {}
+    return {"second_shape_s": round(time.perf_counter() - t0, 3), "second_shape_input": f"{h}x{w}"}
+
+
 def _time_local(call: Callable[[], Any], device: str) -> dict[str, Any]:
     """First call, warm-up, median of the timed calls: MPS_* on mps and mlx, CPU_* on cpu.
 
@@ -269,6 +295,7 @@ def worker_local(spec: dict[str, Any]) -> int:
         if spec["device"] == "mps":
             torch.mps.synchronize()
         common["load_s"] = round(time.perf_counter() - t0, 2)
+        load_peak = _footprint_peak()
         common["backend"] = {"mode": m.backend.mode, "dtype": str(m.backend.dtype), "kernels": list(m.backend.kernels)}
         args, kw, scene = _inputs(m, spec)
 
@@ -278,6 +305,8 @@ def worker_local(spec: dict[str, Any]) -> int:
 
         row = {**common, "scene": scene, **_time_local(call, spec["device"])}
         row["peak_footprint_mb"] = round(_footprint_peak() / 2**20)
+        row["load_peak_footprint_mb"] = round(load_peak / 2**20)
+        row |= _second_shape(model, spec)  # after the peak: a cold call at another size never raises the recorded peak
         if spec["device"] == "cpu":
             row["threads"] = torch.get_num_threads()
     except Exception as e:  # noqa: BLE001 - recorded as a failed / oom row

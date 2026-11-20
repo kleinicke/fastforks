@@ -165,6 +165,7 @@ def fastforks._core.model.Model.export_tensorrt(self, path: 'str | Path', height
 def fastforks._core.model.Model.module(self) -> 'torch.nn.Module'
 def fastforks._core.model.Model.release_graphs(self) -> 'None'
 def fastforks._core.model.Model.size_range(self) -> 'SizeRange'
+def fastforks._core.model.Model.warmup(self, sizes: 'Sequence[tuple[int, int]]', *, views: 'int' = 8) -> 'Self'
 def fastforks._core.outputs.MapOutputs.save(self, path: 'str | Path', key: 'str | None' = None, bits: 'int | None' = None) -> 'None'
 def fastforks._core.outputs.NumpyOutputs.cpu(self) -> 'Self'
 def fastforks._core.outputs.NumpyOutputs.numpy(self) -> 'dict[str, Any]'
