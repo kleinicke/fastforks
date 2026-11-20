@@ -29,10 +29,12 @@ from torch import nn
 
 from fastforks._core.half import pure_half
 from fastforks._core.runner import host
+from fastforks._core.tracing import in_onnx_export
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.shared.depth_anything_v2 import DINOv2, fold_layer_scale, use_fast_vit, use_sdpa_attention
 
 from .net.dpt_temporal import DPTHeadTemporal
+from .net.motion_module.attention import GEGLU
 from .net.motion_module.motion_module import TemporalAttention
 
 if TYPE_CHECKING:
@@ -45,6 +47,7 @@ KEYFRAMES = (0, 12, 24, 25, 26, 27, 28, 29, 30, 31)  # fixed: upstream infer set
 INTERP_LEN = 8  # fixed: upstream infer settings
 STEP = INFER_LEN - OVERLAP
 DECODE_BATCH = 4  # fixed: the upstream head's decoder micro-batch size
+_OUTPUT_BATCH = 2  # bound the eager full-resolution output convolution workspace
 ALIGN = OVERLAP - INTERP_LEN  # frames 0 and 1 of a window: keyframes 0 and 12 of the previous one
 MAX_RATIO = 1.78  # fixed: upstream: "process video with ratio smaller than 16:9 due to memory limitation"
 _CONFIGS = {  # fixed: upstream run.py model_configs (per `arch`)
@@ -101,12 +104,44 @@ class SdpaTemporalAttention(TemporalAttention):
         return self.reshape_batch_dim_to_heads(out.flatten(0, 1))
 
 
+def _eager_cuda(x: torch.Tensor) -> bool:
+    return x.is_cuda and not (
+        torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export() or torch.is_grad_enabled()
+    )
+
+
+class _WorkspaceGEGLU(GEGLU):
+    """Reuse the fresh GELU result during eager CUDA inference."""
+
+    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        """Apply the original gate and retain its contiguous output layout."""
+        if not _eager_cuda(hidden_states):
+            return super().forward(hidden_states)
+        projected, gate = self.proj(hidden_states).chunk(2, dim=-1)
+        return self.gelu(gate).mul_(projected)
+
+
+class _DepthOutput(nn.Sequential):
+    """Bound the full-resolution FP32 convolution workspace to two frames."""
+
+    def forward(self, input: torch.Tensor) -> torch.Tensor:  # noqa: A002 - match nn.Sequential.forward
+        """Project each frame independently, keeping the decoder's original output order."""
+        project = super().forward
+        if input.shape[0] <= _OUTPUT_BATCH or not _eager_cuda(input):
+            return project(input)
+        return torch.cat([project(frames) for frames in input.split(_OUTPUT_BATCH)])
+
+
 def _cpu_net(ctx: Context) -> Net:
     net = Net(ctx.params.arch)
     net.load_state_dict(ctx.state_dict())
     for m in net.modules():
         if isinstance(m, TemporalAttention):
             m.__class__ = SdpaTemporalAttention
+        elif ctx.dtype == "float16" and isinstance(m, GEGLU):
+            m.__class__ = _WorkspaceGEGLU
+    if ctx.dtype == "float16":
+        net.head.scratch.output_conv2.__class__ = _DepthOutput
     return net.eval()
 
 
