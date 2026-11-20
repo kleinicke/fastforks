@@ -1439,8 +1439,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 |---|---|---|---|---|---|---|---|---|---|
 | aliked-flexglue | – | 348 | 129 | 129 | 2.7x | 1.0x | 1801 / 1892 | 1775 / 1886 | 1814 / 2178 |
 | aliked-lightglue | – | 41.8 | 40.6 | 35.1 | 1.2x | 1.2x | 1305 / 1364 | 1300 / 1404 | 1238 / 1324 |
-| dedode-v2-b | – | 318 | 246 | 189 | 1.7x | 1.3x | 1734 / 1992 | 1535 / 1654 | 1197 / 1246 |
-| dedode-v2-g | – | 666 | 592 | 332 | 2.0x | 1.8x | 2335 / 2472 | 2142 / 2334 | 1787 / 1984 |
+| dedode-v2-b | – | 318 | 236 | 189 | 1.7x | 1.2x | 1734 / 1992 | 1160 / 1292 | 1197 / 1246 |
+| dedode-v2-g | – | 666 | 379 | 332 | 2.0x | 1.1x | 2335 / 2472 | 1761 / 2114 | 1787 / 1984 |
 | disk-lightglue | – | 117 | 116 | 49.2 | 2.4x | 2.4x | 1955 / 2412 | 1950 / 2400 | 736 / 778 |
 | loftr-indoor | – | 242 | 110 | 86.0 | 2.8x | 1.3x | 1751 / 1910 | 740 / 944 | 740 / 806 |
 | loftr-outdoor | – | 241 | 110 | 85.8 | 2.8x | 1.3x | 1739 / 1870 | 733 / 944 | 734 / 806 |
@@ -2680,8 +2680,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | waft-a1-sintel | 1080x1920 | 791 ms | 610 ms | 343 ms | 519 ms | 84.7 s | 166 s | 3553 / 4076 | 3479 / 3578 | 1851 / 2264 | 1625 / 1672 |
 | aliked-flexglue | 768x1024 | 129 ms | 96.1 ms | 328 ms, fp32 engine (dense descriptor with eager ALIKED and matching) | 129 ms | 78.8 s | 22.3 s | 1775 / 1886 | 1762 / 1826 | 1814 / 2178 | 2225 / 2410 |
 | aliked-lightglue | 768x1024 | 40.6 ms | 29.5 ms | 65.2 ms, fp32 engine (standalone ALIKED encoder with eager keypoint selection and LightGlue) | 35.1 ms | 30.8 s | 26.4 s | 1300 / 1404 | 1653 / 1680 | 1238 / 1324 | 1520 / 1652 |
-| dedode-v2-b | 768x1024 | 246 ms | 164 ms | 494 ms, fp32 engine (FP32 public builder probe) | 189 ms | 50.5 s | 67.8 s | 1535 / 1654 | 1893 / 2434 | 1197 / 1246 | 3354 / 3378 |
-| dedode-v2-g | 768x1024 | 592 ms | 330 ms | 1197 ms, fp32 engine (FP32 descriptor and bilinear sampling with eager detector, keypoint order and matching) | 332 ms | 86.4 s | 71.7 s | 2142 / 2334 | 2881 / 3316 | 1787 / 1984 | 5282 / 6458 |
+| dedode-v2-b | 768x1024 | 236 ms | 164 ms | 494 ms, fp32 engine (FP32 public builder probe) | 189 ms | 50.5 s | 67.8 s | 1160 / 1292 | 1893 / 2434 | 1197 / 1246 | 3354 / 3378 |
+| dedode-v2-g | 768x1024 | 379 ms | 330 ms | 1197 ms, fp32 engine (FP32 descriptor and bilinear sampling with eager detector, keypoint order and matching) | 332 ms | 86.4 s | 71.7 s | 1761 / 2114 | 2881 / 3316 | 1787 / 1984 | 5282 / 6458 |
 | disk-lightglue | 768x1024 | 116 ms | 113 ms | public API unavailable | 49.2 ms | 21.4 s | – | 1950 / 2400 | 1375 / 1502 | 736 / 778 | – |
 | loftr-indoor | 768x1024 | 110 ms | 71.0 ms | 199 ms, fp32 engine (ResNetFPN with eager coarse and fine matching) | 86.0 ms | 30.2 s | 26.4 s | 740 / 944 | 634 / 684 | 740 / 806 | 2218 / 2962 |
 | loftr-outdoor | 768x1024 | 110 ms | 176 ms | 199 ms, fp32 engine (ResNetFPN with eager coarse and fine matching) | 85.8 ms | 33.3 s | 26.2 s | 733 / 944 | 1149 / 1232 | 734 / 806 | 2206 / 2958 |

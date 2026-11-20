@@ -172,8 +172,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 318<br>246<br>189<br>164<br>494 (FP32 public builder probe) | 1734 / 1992<br>1535 / 1654<br>1197 / 1246<br>1893 / 2434<br>3354 / 3378 |
-| `dedode-v2-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 666<br>592<br>332<br>330<br>1197 (FP32 descriptor and bilinear sampling with eager detector, keypoint order and matching) | 2335 / 2472<br>2142 / 2334<br>1787 / 1984<br>2881 / 3316<br>5282 / 6458 |
+| `dedode-v2-b` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 318<br>236<br>189<br>164<br>494 (FP32 public builder probe) | 1734 / 1992<br>1160 / 1292<br>1197 / 1246<br>1893 / 2434<br>3354 / 3378 |
+| `dedode-v2-g` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 666<br>379<br>332<br>330<br>1197 (FP32 descriptor and bilinear sampling with eager detector, keypoint order and matching) | 2335 / 2472<br>1761 / 2114<br>1787 / 1984<br>2881 / 3316<br>5282 / 6458 |
 
 <details><summary>Details</summary>
 
