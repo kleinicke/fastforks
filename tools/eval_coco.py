@@ -68,6 +68,11 @@ def _images(every: int) -> list[Path]:
     return sorted((Path(COCO) / "val2017").glob("*.jpg"))[::every]
 
 
+def _load_rgb(path: Path) -> np.ndarray:
+    with Image.open(path) as image:
+        return np.asarray(image.convert("RGB"))
+
+
 def _gt(task: str = "detection") -> Any:  # noqa: ANN401 - pycocotools.coco.COCO
     from pycocotools.coco import COCO as Coco  # noqa: PLC0415, N811
 
@@ -111,9 +116,7 @@ def _point_inputs(
                 ids.append(ann["id"])
                 masks.append(mask)
                 points.append(_point(mask))
-    with Image.open(path) as image:
-        rgb = np.asarray(image.convert("RGB"))
-    return iid, rgb, ids, masks, points
+    return iid, _load_rgb(path), ids, masks, points
 
 
 def _sync() -> float:
@@ -159,8 +162,7 @@ def _detect(model: Any, coco: Any, files: list[Path], rec: dict[str, Any]) -> tu
 
     cats = _cat_map(model, coco)
     dets, ms = [], []
-    for f in files:
-        img = np.asarray(Image.open(f).convert("RGB"))
+    for iid, img in prefetch(lambda f: (int(f.stem), _load_rgb(f)), files, workers=2):
         t = _sync()
         r = model(img)
         ms.append(1e3 * (_sync() - t))
@@ -173,7 +175,7 @@ def _detect(model: Any, coco: Any, files: list[Path], rec: dict[str, Any]) -> tu
             rles = mu.encode(np.asfortranarray(m.transpose(1, 2, 0)))
         for i in range(k):
             d = {
-                "image_id": int(f.stem),
+                "image_id": iid,
                 "category_id": cats[int(lab[i])],
                 "bbox": [float(b[i, 0]), float(b[i, 1]), float(b[i, 2] - b[i, 0]), float(b[i, 3] - b[i, 1])],
                 "score": float(s[i]),
@@ -195,14 +197,20 @@ def _pose(model: Any, coco: Any, files: list[Path], rec: dict[str, Any]) -> tupl
             "all images; top 100 query/class pairs, person class only; score_threshold=0; no NMS; "
             "uncertainty-fused person score (trace_alpha=0.2), joint confidence=findability"
         )
-    for f in files:
+
+    def inputs(f: Path) -> tuple[int, np.ndarray, np.ndarray] | None:
         iid = int(f.stem)
         anns = [a for a in coco.loadAnns(coco.getAnnIds(imgIds=iid, iscrowd=False)) if a["num_keypoints"] > 0]
         if not anns and rec["pose_gt_boxes"]:
-            continue
+            return None
         boxes = np.array([[a["bbox"][0], a["bbox"][1], a["bbox"][0] + a["bbox"][2], a["bbox"][1] + a["bbox"][3]]
                           for a in anns], dtype=np.float32)  # fmt: skip
-        img = np.asarray(Image.open(f).convert("RGB"))
+        return iid, _load_rgb(f), boxes
+
+    for sample in prefetch(inputs, files, workers=2):
+        if sample is None:
+            continue
+        iid, img, boxes = sample
         t = _sync()
         r = model(img, boxes=boxes) if rec["pose_gt_boxes"] else model(img)
         ms.append(1e3 * (_sync() - t))
@@ -223,10 +231,13 @@ def _concept(model: Any, coco: Any, files: list[Path], rec: dict[str, Any]) -> t
 
     names = {c["id"]: c["name"] for c in coco.loadCats(coco.getCatIds())}
     dets, ms = [], []
-    for f in files:
+
+    def inputs(f: Path) -> tuple[int, np.ndarray, list[int]]:
         iid = int(f.stem)
         cats = sorted({a["category_id"] for a in coco.loadAnns(coco.getAnnIds(imgIds=iid, iscrowd=False))})
-        img = np.asarray(Image.open(f).convert("RGB"))
+        return iid, _load_rgb(f), cats
+
+    for iid, img, cats in prefetch(inputs, files, workers=2):
         t0 = _sync()
         emb = model.get_image_embeddings(img)
         t1 = _sync()
