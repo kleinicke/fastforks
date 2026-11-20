@@ -14,6 +14,7 @@ and fp16-accumulate GEMMs.
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -90,10 +91,9 @@ class Portable(Runner):
             # Store the activated masks in the contiguous row blocks consumed by the class projection.
             # Each query needs only its own pixels to resize, so the full intermediate grid is never allocated.
             query_step = max(1, _MASK_RESIZE_CHUNK // max(h * w, hp * wp))
-            strips = [
-                (start, masks.new_empty((1, masks.shape[1], min(step, h - start), w)))
-                for start in range(0, h, step)
-            ]
+            strips = deque(
+                (start, masks.new_empty((1, masks.shape[1], min(step, h - start), w))) for start in range(0, h, step)
+            )
             for index, queries in enumerate(masks.split(query_step, dim=1)):
                 up = F.interpolate(queries, (hp, wp), mode="bilinear", align_corners=False)[..., :rh, :rw]
                 activated = resize(up, (h, w)).sigmoid_()
@@ -108,8 +108,11 @@ class Portable(Runner):
             for r0 in range(0, h, step):
                 yield r0, torch.einsum("bqc,bqhw->bchw", probs, masks[:, :, r0 : r0 + step].sigmoid())
             return
-        for r0, stripe in strips:
-            yield r0, torch.einsum("bqc,bqhw->bchw", probs, stripe)
+        while strips:
+            r0, stripe = strips.popleft()
+            scores = torch.einsum("bqc,bqhw->bchw", probs, stripe)
+            del stripe
+            yield r0, scores
 
     def _one(self, image: torch.Tensor) -> torch.Tensor:
         out = None
