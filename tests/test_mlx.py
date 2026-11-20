@@ -85,6 +85,13 @@ def test_romav2_declares_float32_mlx_matching():
     assert card.mlx_kernel_libs == ("roma_mlx", "dpt_mlx")
 
 
+def test_seedvr2_declares_its_reference_dtype_first():
+    """A port whose float32 weights would not fit starts with the family's `cuda_dtype` (bf16) instead."""
+    card = registry.resolve("restoration", "seedvr2-3b")[0]
+    assert card.portable_mlx_dtypes == ("bfloat16", "float16")
+    assert card.portable_cuda_dtype == "bfloat16"
+
+
 @pytest.mark.parametrize(
     ("edit", "match"),
     [
@@ -93,6 +100,7 @@ def test_romav2_declares_float32_mlx_matching():
         (lambda d: d["modes"]["portable"].pop("mlx_dtypes"), "come together"),
         (lambda d: d["modes"]["portable"].update(mlx_dtypes=["float16", "float32"]), "float32"),
         (lambda d: d["modes"]["portable"].update(mlx_dtypes=["float32", "int8"]), "int8"),
+        (lambda d: d["modes"]["portable"].update(mlx_dtypes=["bfloat16"]), "float32"),  # not the cuda_dtype
     ],
 )
 def test_card_rejects_inconsistent_mlx_fields(cre, edit, match):
@@ -200,7 +208,10 @@ class TestMpsRouting:
 
     def test_auto_with_a_dtype_takes_mlx_only_where_it_measured_faster(self):
         assert self.route("dinov2-vits14", dtype="float32", task="features") == ("portable", "float32")
-        assert self.route("dinov3-vith16plus", dtype="float32", task="features") == ("portable", "float32")  # re-surveyed: 1.08x, leaner
+        assert self.route("dinov3-vith16plus", dtype="float32", task="features") == (
+            "portable",
+            "float32",
+        )  # re-surveyed: 1.08x, leaner
 
     def test_portable_stays_on_pytorch(self):
         assert self.route("crestereo-eth3d", mode="portable") is None

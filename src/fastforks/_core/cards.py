@@ -287,7 +287,8 @@ class ModelCard:
         mps_kernels_dtype: The kernels backend's dtype on Apple MPS if it differs from `kernels_dtype` (card
             `[modes.kernels] mps_dtype`).
         portable_mlx_dtypes: Dtypes of the family's Apple MLX port in portable mode, `load(..., device="mlx")` (card
-            `[modes.portable] mlx_dtypes`, float32 first: the default); empty if the family has no MLX port.
+            `[modes.portable] mlx_dtypes`, the default first: float32, or `portable_cuda_dtype` if float32 is not
+            listed); empty if the family has no MLX port.
         mlx_kernel_libs: MLX kernel libraries (Metal kernels run through MLX) of the kernels backend on `"mlx"` (card
             `[modes.kernels] mlx_kernels`); empty if kernels does not run there.
         kernels_mlx_dtypes: Dtypes of the kernels backend on `"mlx"` (card `[modes.kernels] mlx_dtypes`, float32
@@ -740,7 +741,8 @@ def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> M
     portable = _get(modes_t, "portable", dict, f"{where} [modes.portable]")
     _unknown_keys(portable, {"cuda_dtype", "mps_dtypes", "mlx_dtypes"}, f"{where} [modes.portable]")
     mps_dtypes = _dtype_list(portable, "mps_dtypes", f"{where} [modes.portable]", "on MPS")
-    mlx_dtypes = _dtype_list(portable, "mlx_dtypes", f"{where} [modes.portable]", "on MLX")
+    cuda_dtype = _literal(_get(portable, "cuda_dtype", str, where), Dtype, f"{where} [modes.portable]")
+    mlx_dtypes = _dtype_list(portable, "mlx_dtypes", f"{where} [modes.portable]", "on MLX", cuda_dtype)
     mlx_kernel_libs = _str_tuple(max_t.get("mlx_kernels", []), f"{where} [modes.kernels] mlx_kernels")
     kernels_mlx_dtypes = _dtype_list(max_t, "mlx_dtypes", f"{where} [modes.kernels]", "on MLX")
     if bool(mlx_kernel_libs) != bool(kernels_mlx_dtypes) or (mlx_kernel_libs and not mlx_dtypes):
@@ -818,7 +820,7 @@ def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> M
         option_aliases=_aliases(options, where),
         uses=_str_tuple(data.get("uses", []), f"{where} uses"),
         modes=modes,
-        portable_cuda_dtype=_literal(_get(portable, "cuda_dtype", str, where), Dtype, f"{where} [modes.portable]"),
+        portable_cuda_dtype=cuda_dtype,
         kernels_dtype=_literal(max_t.get("dtype", "float16"), Dtype, f"{where} [modes.kernels]"),
         kernel_libs=_str_tuple(max_t.get("kernels", []), f"{where} [modes.kernels] kernels"),
         outputs=outputs,
@@ -911,11 +913,18 @@ def require_available(variant: Variant, feature: Feature) -> None:
         raise BackendUnavailableError(msg)
 
 
-def _dtype_list(table: dict[str, Any], key: str, where: str, place: str) -> tuple[Dtype, ...]:
-    """`mps_dtypes` / `mlx_dtypes` of a mode table: dtype names, float32 first (the default); `()` if absent."""
+def _dtype_list(
+    table: dict[str, Any], key: str, where: str, place: str, reference: Dtype = "float32"
+) -> tuple[Dtype, ...]:
+    """`mps_dtypes` / `mlx_dtypes` of a mode table: dtype names, the default first; `()` if absent.
+
+    The default is float32; a list without float32 starts with `reference` instead (for a portable MLX port the
+    portable `cuda_dtype`: a bf16 transformer whose float32 weights would not fit, e.g. SeedVR2).
+    """
     dtypes = tuple(_literal(d, Dtype, f"{where} {key}") for d in _str_tuple(table.get(key, []), f"{where} {key}"))
-    if dtypes and dtypes[0] != "float32":
-        msg = f"{where}: {key} must start with float32 (the default {place})"
+    if dtypes and dtypes[0] != "float32" and ("float32" in dtypes or dtypes[0] != reference):
+        what = "float32" if reference == "float32" else f"float32, or {reference} (cuda_dtype) if float32 is not listed"
+        msg = f"{where}: {key} must start with {what} (the default {place})"
         raise CardError(msg)
     return dtypes
 
