@@ -41,7 +41,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`marigold-depth-v1-1`](#marigold) | yes | 0.0561 | 261, 1.7x | 2500, 0.7x |
 | [`marigold-normals-lcm-v0-1`](#marigold_normals) | yes | – | 167, 1.7x | 2500, 0.69x |
 | [`marigold-v2-depth`](#marigold_v2) | yes | 0.0386 | 3805 | 1838 |
-| [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 151, 2.9x | 1568, 0.5x |
+| [`metric3d-vit-large`](#metric3d) | yes | 0.0546 | 148, 3.0x | 1526, 0.49x |
 | [`midas-dpt-beit-large-512`](#midas) | yes | 0.0487 | 63.9, 5.2x | 1436, 0.5x |
 | [`moge-2-vitb-normal`](#moge) | yes | 0.0404 | 40.7, 2.5x | 1208, 0.76x |
 | [`moge-2-vitl-normal`](#moge) | yes | 0.0357 | 73.4, 2.3x | 1610, 0.66x |
@@ -50,13 +50,13 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`omni-dc`](#omni_dc) | no | – | 512, 1.7x | 4566, 0.68x |
 | [`pointdit-b-512`](#pointdit) | yes | 0.0453 | 20.5, 2.4x | 630, 0.63x |
 | [`pointdit-l-512`](#pointdit) | yes | 0.0410 | 61.3, 1.8x | 1676, 0.53x |
-| [`prompt-depth-anything-l`](#prompt_depth_anything) | yes | – | 69.3, 6.3x (756x1008) | 1348, 0.35x |
-| [`prompt-depth-anything-s`](#prompt_depth_anything) | yes | – | 11.4, 6.8x (756x1008) | 384, 0.35x |
+| [`prompt-depth-anything-l`](#prompt_depth_anything) | yes | – | 61.4 | 1288 |
+| [`prompt-depth-anything-s`](#prompt_depth_anything) | yes | – | 10.9 | 384 |
 | [`stablenormal-turbo`](#stablenormal) | yes | – | 180, 1.7x | 3172, 0.73x |
 | [`unidepth-v2-vitl14`](#unidepth_v2) | no | 0.0355 | 63.0, 2.1x | 1252, 0.36x |
 | [`unik3d-vitl`](#unik3d) | no | 0.0346 | 62.9, 2.1x | 1266, 0.35x |
-| [`video-depth-anything-metric-s`](#video_depth_anything) | yes | – | 200, 53.9x (1080x1920) | 2226, 0.19x |
-| [`video-depth-anything-s`](#video_depth_anything) | yes | – | 200, 58.2x (1080x1920) | 2226, 0.19x |
+| [`video-depth-anything-metric-s`](#video_depth_anything) | yes | – | 65.5 | 1430 |
+| [`video-depth-anything-s`](#video_depth_anything) | yes | – | 65.5 | 1430 |
 | [`zoedepth-nk`](#zoedepth) | yes | 0.0532 | 88.9, 3.1x | 1960, 0.91x |
 
 <a id="any2full"></a>
@@ -848,7 +848,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `metric3d-vit-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>438<br>187<br>151<br>149<br>91.4 | 3077 / 3122<br>3275 / 3350<br>1239 / 1436<br>1464 / 1568<br>1126 / 1148<br>1867 / 1952 |
+| `metric3d-vit-large` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 629<br>438<br>183<br>148<br>149<br>91.4 | 3077 / 3122<br>3275 / 3350<br>1218 / 1294<br>1453 / 1526<br>1126 / 1148<br>1867 / 1952 |
 
 <details><summary>Details</summary>
 
@@ -865,7 +865,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `metric3d-vit-large` 3000x4000 (2.3 GiB peak allocated, 2.9 reserved)
 - `metric3d-vit-large` 994x1482, first call: portable + torch.compile 55 s (cold Inductor cache), TensorRT fp16 97 s (ONNX + engine).
 - `metric3d-vit-large` original 994x1482: torch.autocast(fp16) around the forward
-- `metric3d-vit-large` portable 994x1482, kernels 994x1482: Uses only final depth and normal predictions in eager CUDA inference. Depth, normal and confidence maps matched on the synthetic input and three calibrated iBims scenes. Timing uses the canonical camera.
+- `metric3d-vit-large` portable 994x1482, kernels 994x1482: Reuses the GRU input after the update and reset gates. Depth, normals and confidence matched bitwise in the paired checks.
 - `metric3d-vit-large` load / first call: original 9.96 s / 0.876 s, portable 2.39 s / 0.423 s (518x770), kernels 0.71 s / 0.504 s (518x770)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -1189,7 +1189,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
+| `prompt-depth-anything-s` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>16.3<br>10.9 | –<br>341 / 402<br>282 / 384 |
 | `prompt-depth-anything-s` | example image 1920x1440 area-resized + ARKit 192x256 prompt (756x1008) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 85.7<br>77.3<br>18.4<br>11.4<br>16.3<br>10.5 | 922 / 1284<br>781 / 1112<br>363 / 442<br>297 / 384<br>260 / 322<br>368 / 410 |
+| `prompt-depth-anything-l` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>110<br>61.4 | –<br>1256 / 1388<br>1133 / 1288 |
 | `prompt-depth-anything-l` | example image 1920x1440 area-resized + ARKit 192x256 prompt (756x1008) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 592<br>438<br>125<br>69.3<br>117<br>75.3 | 3369 / 4280<br>3446 / 3810<br>1318 / 1488<br>1179 / 1348<br>968 / 1148<br>1649 / 1714 |
 
 <details><summary>Details</summary>
@@ -1207,7 +1209,9 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `prompt-depth-anything-s` 3000x4000 (0.6 GiB peak allocated, 0.8 reserved); `prompt-depth-anything-l` 3000x4000 (1.4 GiB peak allocated, 1.7 reserved)
 - `prompt-depth-anything-s` 756x1008, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 47 s (ONNX + engine).
 - `prompt-depth-anything-l` 756x1008, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 52 s (ONNX + engine).
+- `prompt-depth-anything-s` portable 994x1482, kernels 994x1482: Depth task input size with the standard sparse depth prompt generated by the speed harness.
 - `prompt-depth-anything-s` original 756x1008: torch.autocast(fp16) around the forward
+- `prompt-depth-anything-l` portable 994x1482, kernels 994x1482: Depth task input size with the standard sparse depth prompt generated by the speed harness.
 - `prompt-depth-anything-l` original 756x1008: torch.autocast(fp16) around the forward
 - `prompt-depth-anything-s` load / first call: original 0.42 s / 0.792 s (756x1008), portable 0.37 s / 0.244 s (756x1008), kernels 1.2 s / 0.181 s (756x1008)
 - `prompt-depth-anything-l` load / first call: original 4.8 s / 0.771 s (756x1008), portable 1.5 s / 0.296 s (756x1008), kernels 2.78 s / 0.223 s (756x1008)
@@ -1419,9 +1423,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `video-depth-anything-s` | TUM RGB-D fr1_room (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile | 11626<br>202<br>200<br>1314 | 8263 / 11890<br>1962 / 2204<br>1967 / 2226<br>7762 / 8530 |
+| `video-depth-anything-s` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>165<br>65.5 | –<br>1207 / 1386<br>1242 / 1430 |
 | `video-depth-anything-s` | TUM RGB-D fr1_room (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3786<br>147<br>58.5<br>100<br>60.3 | 4780 / 6794<br>1070 / 1266<br>1101 / 1288<br>1143 / 1344<br>886 / 914 |
-| `video-depth-anything-metric-s` | TUM RGB-D fr1_room (1080x1920) | original<br>portable<br>kernels | 10776<br>202<br>200 | 8264 / 11916<br>1962 / 2224<br>1967 / 2226 |
+| `video-depth-anything-s` | TUM RGB-D fr1_room (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile | 11626<br>202<br>200<br>1314 | 8263 / 11890<br>1962 / 2204<br>1967 / 2226<br>7762 / 8530 |
+| `video-depth-anything-metric-s` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>165<br>65.5 | –<br>1207 / 1386<br>1242 / 1430 |
 | `video-depth-anything-metric-s` | TUM RGB-D fr1_room (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4012<br>148<br>59.1<br>101<br>60.2 | 4780 / 6806<br>1461 / 1666<br>1270 / 1408<br>1143 / 1464<br>886 / 914 |
 
 <details><summary>Details</summary>
@@ -1439,13 +1444,15 @@ Commercial use: yes.
 - Outputs: inverse_depth, depth; kind: `affine_invariant_inverse`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `video-depth-anything-s` 3000x4000 (1.8 GiB peak allocated, 3.5 reserved); `video-depth-anything-metric-s` 3000x4000 (1.8 GiB peak allocated, 3.5 reserved)
-- `video-depth-anything-s` 1080x1920, first call: portable + torch.compile 83 s (cold Inductor cache).
 - `video-depth-anything-s` 480x640, first call: portable + torch.compile 35 s (cold Inductor cache), TensorRT fp16 103 s (ONNX + engine).
+- `video-depth-anything-s` 1080x1920, first call: portable + torch.compile 83 s (cold Inductor cache).
 - `video-depth-anything-metric-s` 480x640, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 82 s (ONNX + engine).
-- `video-depth-anything-s` original 1080x1920, original 480x640: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
-- `video-depth-anything-s` portable 1080x1920, kernels 1080x1920: float CUDA frames in [0, 1] in, depth [L, H, W] on the device out
+- `video-depth-anything-s` portable 994x1482, kernels 994x1482: Single-image full API timing at the depth task input size.
+- `video-depth-anything-s` original 480x640, original 1080x1920: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
 - `video-depth-anything-s` portable 480x640, kernels 480x640: One image. The separate 40-frame profile at this geometry saved 384 MiB peak allocation in the same mode. One synthetic clip and three 38-frame labeled TUM segments matched bitwise.
-- `video-depth-anything-metric-s` original 1080x1920, original 480x640: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
+- `video-depth-anything-s` portable 1080x1920, kernels 1080x1920: float CUDA frames in [0, 1] in, depth [L, H, W] on the device out
+- `video-depth-anything-metric-s` portable 994x1482, kernels 994x1482: Single-image full API timing at the depth task input size.
+- `video-depth-anything-metric-s` original 480x640: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
 - `video-depth-anything-s` load / first call: original 0.26 s / 14.043 s (1080x1920), portable 0.98 s / 0.539 s (480x640), kernels 0.38 s / 0.37 s (480x640)
 - `video-depth-anything-metric-s` load / first call: original 3.85 s / 17.094 s (1080x1920), portable 0.19 s / 0.436 s (480x640), kernels 0.19 s / 0.5 s (480x640)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
