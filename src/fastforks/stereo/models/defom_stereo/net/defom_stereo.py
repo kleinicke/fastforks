@@ -6,6 +6,8 @@ from .extractor import BasicEncoder, MultiBasicEncoder, ResidualBlock, DefomEnco
 from .corr import CorrBlock1D
 from .utils import coords_grid, upflow, get_danv2_io_size
 
+PORTABLE_SEQ_FNET_PIXELS = 1_000_000
+
 
 def autocast(enabled):
     # fastforks: upstream aliases the deprecated torch.cuda.amp.autocast; same semantics.
@@ -77,8 +79,22 @@ class DEFOMStereo(nn.Module):
 
             cnet_list = self.cnet(image1, d_features)
             del d_features
-            fmap1, fmap2 = self.fnet([image1, image2], [dfeat1, dfeat2])
-            del image1, image2, dfeat1, dfeat2
+            if (
+                test_mode
+                and self.args.mixed_precision
+                and image1.is_cuda
+                and h * w > PORTABLE_SEQ_FNET_PIXELS
+                and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
+            ):
+                # fastforks: instance norm is per image. Each view needs only its own feature workspace.
+                fmap1 = self.fnet([image1], [dfeat1])[0]
+                del dfeat1
+                fmap2 = self.fnet([image2], [dfeat2])[0]
+                del dfeat2
+            else:
+                fmap1, fmap2 = self.fnet([image1, image2], [dfeat1, dfeat2])
+                del dfeat1, dfeat2
+            del image1, image2
             net_list = [torch.tanh(x[0]) for x in cnet_list]
             inp_list = [torch.relu(x[1]) for x in cnet_list]
             del cnet_list
