@@ -5,6 +5,7 @@ import hashlib
 import importlib
 import os
 import re
+import sys
 import tomllib
 from pathlib import Path
 
@@ -340,9 +341,61 @@ def test_cubin_libraries_pass_the_platform_gate(monkeypatch, os_name, machine):
     monkeypatch.setattr(kernels.platform, "machine", lambda: machine)
     monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
     m = dataclasses.replace(read_manifest(BUILT[0] / "manifest.toml"), kind="cubin")
-    assert kernels.platform_reason("cubin") is None
+    assert kernels.platform_reason(m) is None
     with pytest.raises(KernelUnavailableError, match="has no usable CUDA"):
         kernels.binary(m, torch.device("cuda", 0))
+
+
+@pytest.mark.parametrize(
+    ("os_name", "system", "ok"),
+    [("linux", "linux", True), ("linux", "windows", False), ("win32", "linux", False), ("win32", "windows", True)],
+)
+def test_shared_libraries_load_only_on_their_os(monkeypatch, os_name, system, ok):
+    """A `shared` library is a host binary: the .so build runs on Linux, the DLL build (os = "windows") on Windows."""
+    monkeypatch.setattr(kernels.sys, "platform", os_name)
+    monkeypatch.setattr(kernels.platform, "machine", lambda: "AMD64" if os_name == "win32" else "x86_64")
+    m = dataclasses.replace(read_manifest(BUILT[0] / "manifest.toml"), kind="shared", system=system)
+    assert (kernels.platform_reason(m) is None) == ok
+
+
+def _windows_manifest(tmp_path, kind="shared", name="manifest.windows.toml"):
+    text = (BUILT[0] / "manifest.toml").read_text(encoding="utf-8")
+    text = re.sub(r'(?m)^kind = ".*"$', f'kind = "{kind}"\nos = "windows"', text, count=1)
+    (tmp_path / name).write_text(text, encoding="utf-8")
+    return tmp_path / name
+
+
+def test_windows_manifest_is_read_and_preferred_on_windows(monkeypatch, tmp_path):
+    """`manifest.windows.toml` (os = "windows", a DLL build) is what Windows loads next to `manifest.toml`; Linux keeps
+    `manifest.toml`, and a library without a Windows build keeps its Linux manifest (rejected by the platform gate)."""
+    path = _windows_manifest(tmp_path)
+    assert read_manifest(path).system == "windows"
+    linux = tmp_path / "manifest.toml"
+    monkeypatch.setattr(kernels.sys, "platform", "linux")
+    assert kernels.platform_manifest(linux) == linux
+    monkeypatch.setattr(kernels.sys, "platform", "win32")
+    assert kernels.platform_manifest(linux) == path
+    path.unlink()
+    assert kernels.platform_manifest(linux) == linux
+
+
+def test_windows_manifest_is_shared_only(tmp_path):
+    """Cubin libraries are OS independent: one manifest serves Linux and Windows, so `os` is for DLL builds only."""
+    with pytest.raises(ValueError, match="windows"):
+        read_manifest(_windows_manifest(tmp_path, kind="cubin"))
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows DLL loader")
+def test_dll_image_loads_from_a_private_copy():
+    """Windows has no memfd: the verified bytes are written to a fresh per-process directory and loaded from there,
+    with the DLL search limited to System32 (no DLL planting from the current or PATH directories)."""
+    src = Path(os.environ.get("SYSTEMROOT", r"C:\Windows")) / "System32" / "version.dll"
+    lib = kernels._load_dll_image(src.read_bytes(), "ff_test_version.dll")
+    assert lib.GetFileVersionInfoSizeW
+    copy = kernels._dll_dir() / "ff_test_version.dll"
+    assert copy.read_bytes() == src.read_bytes()
+    with pytest.raises(FileExistsError):  # never overwritten (a loaded image cannot be swapped under its name)
+        kernels._load_dll_image(b"", "ff_test_version.dll")
 
 
 def test_binary_names_the_driver_remedy(monkeypatch):

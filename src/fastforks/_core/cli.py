@@ -71,7 +71,14 @@ from fastforks._core import registry
 from fastforks._core.cards import LIBRARY_EXTRA, Commercial, Tier
 from fastforks._core.errors import BackendUnavailableError, FastforksError, LicenceError, OptionsError, install_hint
 from fastforks._core.files import OFFLINE_ENV, _human_size, cache_root, env_flag, link_view, locate, offline, present
-from fastforks._core.kernels import KERNEL_PATH_ENV, for_driver, platform_reason, read_manifest, select_target
+from fastforks._core.kernels import (
+    KERNEL_PATH_ENV,
+    for_driver,
+    platform_manifest,
+    platform_reason,
+    read_manifest,
+    select_target,
+)
 from fastforks._core.sizes import EXAMPLE_SIZE, size_range
 
 if TYPE_CHECKING:
@@ -257,12 +264,12 @@ def _kernel_files(lib: str, *, archs: Sequence[str], all_archs: bool) -> list[tu
     """`(tag:target, file)` pairs to fetch; libraries without a manifest (e.g. cuDNN-backed) have no binaries.
 
     For this GPU only the build its driver loads; with `--arch` / `--all-archs` (for other machines) the older-driver
-    `compat` build too.
+    `compat` build too. Shared libraries: the build of this OS (`platform_manifest`).
     """
     path = Path(str(importlib.resources.files("fastforks.kernels") / lib / "manifest.toml"))
     if not path.is_file():
         return []
-    manifest = read_manifest(path)
+    manifest = read_manifest(platform_manifest(path))
     builds = [manifest] if manifest.compat is None else [manifest, manifest.compat]
     if all_archs:
         return [(f"{m.tag}:{t}", f) for m in builds for t, f in m.files.items()]
@@ -273,7 +280,7 @@ def _kernel_files(lib: str, *, archs: Sequence[str], all_archs: bool) -> list[tu
         if not torch.cuda.is_available():
             msg = f"no CUDA device to pick {lib} binaries for; name the targets with --arch sm_XX or use --all-archs"
             raise FastforksError(msg)
-        if reason := platform_reason(manifest.kind):  # binaries for this machine: none it cannot load
+        if reason := platform_reason(manifest):  # binaries for this machine: none it cannot load
             print(f"note: skipping {lib}: {reason}", file=sys.stderr)
             return []
         caps = [torch.cuda.get_device_capability()]
@@ -754,9 +761,9 @@ def _kernel_status(lib: str, arch: tuple[int, int] | None, driver: tuple[int, in
 
 
 def _binary_status(lib: str, path: Path, arch: tuple[int, int] | None, driver: tuple[int, int] | None) -> str:
-    full = read_manifest(path)
+    full = read_manifest(platform_manifest(path))
     manifest = full if driver is None else for_driver(full, driver)
-    if reason := platform_reason(manifest.kind):
+    if reason := platform_reason(manifest):
         return f"unusable here: {reason}"
     if arch is None:
         return f"built for {', '.join(manifest.files)}; no CUDA GPU"
