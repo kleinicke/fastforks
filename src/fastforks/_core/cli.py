@@ -71,7 +71,7 @@ from fastforks._core import registry
 from fastforks._core.cards import LIBRARY_EXTRA, Commercial, Tier
 from fastforks._core.errors import BackendUnavailableError, FastforksError, LicenceError, OptionsError, install_hint
 from fastforks._core.files import OFFLINE_ENV, _human_size, cache_root, env_flag, link_view, locate, offline, present
-from fastforks._core.kernels import KERNEL_PATH_ENV, for_driver, read_manifest, select_target
+from fastforks._core.kernels import KERNEL_PATH_ENV, for_driver, platform_reason, read_manifest, select_target
 from fastforks._core.sizes import EXAMPLE_SIZE, size_range
 
 if TYPE_CHECKING:
@@ -273,6 +273,9 @@ def _kernel_files(lib: str, *, archs: Sequence[str], all_archs: bool) -> list[tu
         if not torch.cuda.is_available():
             msg = f"no CUDA device to pick {lib} binaries for; name the targets with --arch sm_XX or use --all-archs"
             raise FastforksError(msg)
+        if reason := platform_reason(manifest.kind):  # binaries for this machine: none it cannot load
+            print(f"note: skipping {lib}: {reason}", file=sys.stderr)
+            return []
         caps = [torch.cuda.get_device_capability()]
         builds = [for_driver(manifest)]
     targets: dict[str, tuple[int, int]] = {}
@@ -753,6 +756,8 @@ def _kernel_status(lib: str, arch: tuple[int, int] | None, driver: tuple[int, in
 def _binary_status(lib: str, path: Path, arch: tuple[int, int] | None, driver: tuple[int, int] | None) -> str:
     full = read_manifest(path)
     manifest = full if driver is None else for_driver(full, driver)
+    if reason := platform_reason(manifest.kind):
+        return f"unusable here: {reason}"
     if arch is None:
         return f"built for {', '.join(manifest.files)}; no CUDA GPU"
     target = select_target(manifest.files, arch)
