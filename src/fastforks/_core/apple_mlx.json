@@ -1589,6 +1589,15 @@
     "float32": "portable"
    }
   },
+  "foundationstereo-vit-l@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable"
+   }
+  },
   "foundationstereo-vit-s@1": {
    "mlx_default": [
     "portable",
@@ -3434,6 +3443,16 @@
     "",
     "float16"
    ]
+  },
+  "seedvr2-3b@1": {
+   "mlx_default": [
+    "portable",
+    "bfloat16"
+   ],
+   "mlx": {
+    "bfloat16": "portable",
+    "float16": "portable"
+   }
   },
   "segformer-b0-ade20k@1": {
    "auto": [

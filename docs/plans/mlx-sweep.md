@@ -336,7 +336,7 @@ Result: peak memory is below MPS for nearly every family (fp32 mostly 40-60 perc
 | aanet-sceneflow | 32 | 912 ms / 3.5 GB | 2348 ms / 2.7 GB |
 | bridgedepth-sf | 16 | 3782 ms / 6.1 GB | 5540 ms / 3.9 GB |
 | bridgedepth-sf | 32 | 4280 ms / 8.1 GB | 5425 ms / 5.3 GB |
-| c-foundationstereo-s | 16 | - | 60417 ms / 11.8 GB |
+| c-foundationstereo-s | 16 | - | 27235 ms / 4.5 GB (was 60417 / 11.8) |
 | c-foundationstereo-s | 32 | - | 64038 ms / 11.9 GB |
 | cas-gwcnet-gc-sceneflow | 16 | 2995 ms / 7.0 GB | 8431 ms / 4.8 GB |
 | cas-gwcnet-gc-sceneflow | 32 | 5490 ms / 11.6 GB | 8673 ms / 4.8 GB |
@@ -348,7 +348,8 @@ Result: peak memory is below MPS for nearly every family (fp32 mostly 40-60 perc
 | dlnr-sceneflow | 32 | 2699 ms / 6.0 GB | 5411 ms / 3.1 GB |
 | fast-acvnet-generalization | 16 | 478 ms / 2.7 GB | 735 ms / 1.9 GB |
 | fast-acvnet-generalization | 32 | 944 ms / 3.6 GB | 853 ms / 1.8 GB |
-| foundationstereo-vit-s | 16 | 20584 ms / 13.3 GB | 36138 ms / 12.1 GB |
+| foundationstereo-vit-s | 16 | 20584 ms / 13.3 GB | 20504 ms / 4.8 GB (was 36138 / 12.1) |
+| foundationstereo-vit-l | 16 | 25647 ms / 13.4 GB | 25847 ms / 4.8 GB |
 | foundationstereo-vit-s | 32 | - | 40293 ms / 12.1 GB |
 | great-igev-sceneflow | 16 | 11062 ms / 9.7 GB | 20253 ms / 9.5 GB |
 | great-igev-sceneflow | 32 | 32187 ms / 12.4 GB | 22071 ms / 9.7 GB |
@@ -419,6 +420,33 @@ profile hot spots: hitnet 1-D grid_sample on stride-2 tensors, aanet
 deformable-conv `mul`, s2m2 GELU and convs, raft GRU gates and correlation
 lookup (candidate fused kernels). `apple_mlx.json` routing is unchanged: only
 crestereo-eth3d wins.
+
+## FoundationStereo family: float16 end to end (v0.21 follow-up)
+
+Goal: peak memory well below MPS, golden passes, speed at least MPS. The twin is exported in float32, so literal
+float32 casts and constants leaked into the float16 replay and doubled the 5-D volume and GRU activations. Changes:
+
+- `fastforks::run_dtype` (`_core/mlx_cast.py`, `to_run_dtype`): a cast to the network's dtype that the replay lowers to
+  its run dtype; used in the FS / C-FS geometry, the DINOv2 / EdgeNeXt positional encodings, the post-interpolate
+  features, the motion encoder and the `torch.where` zero of the concat volume (all guarded by `EXPORTING_FOR_MLX`).
+- C-FS: group-wise correlation through the `gwc_volume` Metal kernel (normalised features, left times channels per group,
+  since the kernel returns the group mean), fused SDPA in the DINOv2 blocks, `_chunked` joins by `torch.cat` (the
+  `empty_like` buffer with slice writes was recorded as a float32 buffer plus copies).
+- `mlx_graph`: depthwise conv3d as strided tap sums, transposed conv3d in depth slabs, and batch-statistics norm from
+  float32 partial sums with one fused affine pass (no float32 copy of the map: 3.7 GB -> 0.6 GB, 196 -> 88 ms per call).
+
+Survey, float16 portable, 994x1482, ms / peak footprint MB (golden pass):
+
+| ref | MPS portable | MPS kernels | MLX before | MLX after |
+|---|---|---|---|---|
+| foundationstereo-vit-s | 20584 / 13617 | 19496 / 12980 | 36138 / 12387 | 20504 / 4943 |
+| foundationstereo-vit-l | 25647 / 13761 | 24480 / 13277 | - | 25847 / 4941 |
+| c-foundationstereo-s | OOM | - | 60417 / 12058 | 27235 / 4625 |
+
+Tried and dropped: `FASTFORKS_MLX_CACHE_MB` 1024 / 2048 (vit-s 20.7-23 s against 21.7-26 s at the default, within the
+noise, +0.3-1.1 GB). `kernels_mlx` with `conv_mlx` (Winograd): vit-s 19.0 s / 4.9 GB at survey size, but kernels float16
+fails the golden at 100x150 (mean |diff| 625; NaN with `FF_WINO_M=2`; vit-l passes), so it is not declared.
+Left: the kernels float16 failure, the SDPA (2.8 GB) and conv3d (3.1-3.7 GB) segment peaks, the float32 rows (old).
 
 ## Compile policy and kernels declarations (v0.21 follow-up)
 
@@ -787,7 +815,7 @@ cache limit 1/128 with 128 MB floor); `test_kernels_takes_mlx_kernels` follows t
 
 Every ref whose MLX row predated cc3fce13 (128 MB cache default) or the later compile-policy/channels-last/cache changes was re-measured on the M1 Pro 16 GB (warm median, one job at a time). Ratios are MLX/MPS, below 1 favours MLX. Row shown: float16 where both dtypes exist, else float32; best MLX mode of portable/kernels. WIN: faster and memory within 1.02x; TIE: within 3% speed, memory not above MPS; LOSE otherwise. 224 refs: 91 WIN, 5 TIE, 128 LOSE.
 
-Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap from other apps, jobs were killed; they keep their old rows): depth-pro, vggt-1b, anysplat, lingbot-map, resplat-base-re10k, c-foundationstereo-s, foundationstereo-vit-s, great-igev-sceneflow, waft-stereo-s, alltracker, cotracker3-offline/online, locotrack-b, flowformer-small-chairs, gimm-vfi-r. Not reached: tapir, tapnext, track-on2, nnfoundation-*, nninteractive, totalsegmentator-*. The memory-fix sweeps (compile=False, cache_mb 128/256/512) for the memory losers were not run for the same reason; `FASTFORKS_MLX_COMPILE=0` (sweep switch in `mlx_wrap.port`) and `FASTFORKS_MLX_CACHE_MB` are ready for them. oneformer-swinl-ade20k and rt-monster-plusplus-mix-all report golden FAIL on MLX and stay unrouted.
+Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap from other apps, jobs were killed; they keep their old rows): depth-pro, vggt-1b, anysplat, lingbot-map, resplat-base-re10k, great-igev-sceneflow, waft-stereo-s, alltracker, cotracker3-offline/online, locotrack-b, flowformer-small-chairs, gimm-vfi-r. Not reached: tapir, tapnext, track-on2, nnfoundation-*, nninteractive, totalsegmentator-*. The memory-fix sweeps (compile=False, cache_mb 128/256/512) for the memory losers were not run for the same reason; `FASTFORKS_MLX_COMPILE=0` (sweep switch in `mlx_wrap.port`) and `FASTFORKS_MLX_CACHE_MB` are ready for them. oneformer-swinl-ade20k and rt-monster-plusplus-mix-all report golden FAIL on MLX and stay unrouted.
 
 | ref | dtype | input | MLX mode | ms | MB | MPS ms | MPS MB | speed | mem | verdict | why |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -876,7 +904,7 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 | eomt-l-dinov2-ade20k | 16 | 1024x2048 | portable | 572.5 | 3710 | 540.048 | 4262 | 1.06 | 0.87 | LOSE | slower (1.06x: portable MLX replay, no fused attention/conv kernels) |
 | eomt-l-dinov3-ade20k | 16 | 1024x2048 | portable | 599.3 | 3724 | 574.509 | 4259 | 1.04 | 0.87 | LOSE | slower (1.04x: portable MLX replay, no fused attention/conv kernels) |
 | fast-acvnet-generalization | 16 | 994x1482 | portable | 549.2 | 1881 | 478.214 | 2737 | 1.15 | 0.69 | LOSE | slower (1.15x: portable MLX replay, no fused attention/conv kernels) |
-| foundationstereo-vit-s | 16 | 994x1482 | portable | 36137.5 | 12387 | 19495.754 | 12980 | 1.85 | 0.95 | LOSE | slower (1.85x: portable MLX replay, no fused attention/conv kernels) |
+| foundationstereo-vit-s | 16 | 994x1482 | portable | 20504.1 | 4943 | 19495.754 | 12980 | 1.05 | 0.38 | LOSE | slower than the MPS kernels (1.05x), at par with portable MPS (20584 ms); see the FoundationStereo pass |
 | geocalib-pinhole | 16 | 1080x1920 | portable | 352.3 | 1013 | 427.123 | 1644 | 0.82 | 0.62 | WIN |  |
 | gfpgan-v1.4 | 32 | 512x512 | portable | 318.4 | 1673 | 153.218 | 1954 | 2.08 | 0.86 | LOSE | slower (2.08x: portable MLX replay, no fused attention/conv kernels) |
 | gmflow-scale1-things | 16 | 1080x1920 | portable | 6821.6 | 10465 | 10676.45 | 12643 | 0.64 | 0.83 | WIN |  |
