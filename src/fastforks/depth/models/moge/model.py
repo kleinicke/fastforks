@@ -21,7 +21,7 @@ The estimated intrinsics have the principal point at the image centre and square
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import torch
 import torch.nn.functional as F
@@ -35,7 +35,7 @@ from fastforks.depth._runner import Forward, Runner
 from fastforks.kernels import sparse_conv
 from fastforks.shared.depth_anything_v2 import fold_layer_scale, sdpa_attention
 
-from .net import PATCH, ConvStack, MoGeNet
+from .net import PATCH, ConvStack, MoGeNet, Resampler
 from .sparse import Level, SparseKernels, SubmConv3d
 
 if TYPE_CHECKING:
@@ -247,6 +247,14 @@ _refine_eager = eager_in_compile(refine)
 
 
 # ------------------------------------------------------------------------------------------------ portable
+def _replicate_border(out: torch.Tensor) -> None:
+    """Fill a one-pixel border from the already populated interior."""
+    out[..., 0, 1:-1].copy_(out[..., 1, 1:-1])
+    out[..., -1, 1:-1].copy_(out[..., -2, 1:-1])
+    out[..., 0].copy_(out[..., 1])
+    out[..., -1].copy_(out[..., -2])
+
+
 def _rep_pad1(x: torch.Tensor) -> torch.Tensor:
     """Replicate-pad both spatial dimensions by one while retaining the input memory format."""
     if (
@@ -259,10 +267,7 @@ def _rep_pad1(x: torch.Tensor) -> torch.Tensor:
         fmt = torch.channels_last if x.is_contiguous(memory_format=torch.channels_last) else torch.contiguous_format
         out = torch.empty((*x.shape[:-2], h + 2, w + 2), device=x.device, dtype=x.dtype, memory_format=fmt)
         out[..., 1:-1, 1:-1].copy_(x)
-        out[..., 0, 1:-1].copy_(x[..., 0, :])
-        out[..., -1, 1:-1].copy_(x[..., -1, :])
-        out[..., 0].copy_(out[..., 1])
-        out[..., -1].copy_(out[..., -2])
+        _replicate_border(out)
         return out
     x = torch.cat([x[..., :1, :], x, x[..., -1:, :]], -2)
     return torch.cat([x[..., :1], x, x[..., -1:]], -1)
@@ -271,6 +276,28 @@ def _rep_pad1(x: torch.Tensor) -> torch.Tensor:
 def _rep_conv(self: nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     """`nn.Conv2d` with 1-pixel replicate padding (the conv itself runs unpadded)."""
     return F.conv2d(_rep_pad1(x), self.weight, self.bias, self.stride, 0, self.dilation, self.groups)
+
+
+def _upsample_rep_conv(self: Resampler, x: torch.Tensor) -> torch.Tensor:
+    """Write the final 2x bilinear resize directly into its replicate-padded convolution buffer."""
+    if (
+        not x.is_cuda
+        or x.dtype != torch.float16
+        or torch.compiler.is_compiling()
+        or torch.jit.is_tracing()
+        or torch.is_grad_enabled()
+        or 4 * x.numel() * x.element_size() < _PAD_COPY_MIN_BYTES
+    ):
+        return base_type(self).forward(self, x)
+    h, w = 2 * x.shape[-2], 2 * x.shape[-1]
+    fmt = torch.channels_last if x.is_contiguous(memory_format=torch.channels_last) else torch.contiguous_format
+    out = torch.empty((*x.shape[:-2], h + 2, w + 2), device=x.device, dtype=x.dtype, memory_format=fmt)
+    torch.ops.aten.upsample_bilinear2d.out(
+        x, [h, w], align_corners=False, scales_h=2.0, scales_w=2.0, out=out[..., 1:-1, 1:-1]
+    )
+    _replicate_border(out)
+    conv = cast("nn.Conv2d", self[1])
+    return F.conv2d(out, conv.weight, conv.bias, conv.stride, 0, conv.dilation, conv.groups)
 
 
 class Portable(Runner):
@@ -298,6 +325,7 @@ class Portable(Runner):
             half_weights(net.encoder, channels_last=False)
             for m in (net.neck, net.points_head, net.mask_head, net.normal_head):
                 half_weights(m)
+                override(m.resamplers[-1], _upsample_rep_conv)
             net.points_head.output_blocks.float()
             net.normal_head.output_blocks.float()
             if net.refiner is not None and ctx.device.type == "cuda":
