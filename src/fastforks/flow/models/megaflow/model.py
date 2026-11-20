@@ -240,7 +240,8 @@ class _Fast(Runner):
         out: list[torch.Tensor | None] = [None] * len(net.frame_blocks)
         for i in range(max(LAYERS) + 1):
             tokens = self.block(net.frame_blocks[i], tokens.view(b * s, p, c), tf)
-            fr = tokens.view(b, s, p, c).clone() if i in LAYERS else None
+            # The global block produces new tokens, so the frame view stays valid until concatenation.
+            fr = tokens.view(b, s, p, c) if i in LAYERS else None
             tokens = self.block(net.global_blocks[i], tokens.view(b, s * p, c), tg)
             if fr is not None:
                 out[i] = torch.cat([fr, tokens.view(b, s, p, c)], -1)
@@ -258,6 +259,7 @@ class _Fast(Runner):
         u: Any = self.net.refine
         mf = u.encoder(flow.half(), corr)
         inp = torch.cat([inp, mf], 1)
+        del mf
         for blk, ta in zip(u.refine, u.temporal_attn_refine, strict=True):
             h = _temporal(ta, blk(torch.cat([h, inp], 1)))
         return h, u.flow_head(h), 0.25 * u.mask(h) if last else None
@@ -269,10 +271,11 @@ class _Fast(Runner):
         x = torch.stack([image1, image2], 1).flatten(0, 1)  # [B*2, 3, H, W]: frames of a batch item adjacent
         rh = round(h * WIDTH / w / PATCH) * PATCH  # upstream fix_width
         xr = F.interpolate(x, (rh, WIDTH), mode="bilinear", align_corners=True)
-        with self.accumulate():
-            toks = self.aggregate(xr.half(), b)
+        # Run the full-size CNN before retaining the transformer's intermediate tokens.
         cnn = net.backbone(x.half().contiguous(memory_format=torch.channels_last))
         del x
+        with self.accumulate():
+            toks = self.aggregate(xr.half(), b)
         feats = net.flow_head(
             toks, images=xr.view(b, 2, 3, rh, WIDTH), patch_start_idx=net.patch_start_idx, cnn_features=cnn
         )
