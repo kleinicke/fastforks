@@ -28,7 +28,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`romav1`](#romav1) | yes | 218, 1.8x | 1738, 0.42x |
 | [`romav2`](#romav2) | yes | 350, 2.1x | 2460, 0.24x |
 | [`xfeat`](#xfeat) | yes | 17.1, 0.5x | 352, 2.0x |
-| [`xfeat-lighterglue`](#xfeat) | yes | 29.2, 0.8x | 478, 1.0x |
+| [`xfeat-lighterglue`](#xfeat) | yes | 32.8, 0.7x | 478, 1.0x |
 
 <a id="flexglue"></a>
 
@@ -529,8 +529,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 8.89<br>7.17<br>17.1<br>5.65<br>5.50 (standalone image CNN, eager keypoint selection and matching) | 128 / 174<br>122 / 154<br>296 / 352<br>186 / 212<br>268 / 416 |
-| `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>21.3<br>29.2<br>16.2<br>public API unavailable | 448 / 478<br>445 / 476<br>445 / 478<br>262 / 278<br>– |
+| `xfeat` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 8.89<br>10.6<br>17.1<br>5.65<br>5.50 (standalone image CNN, eager keypoint selection and matching) | 128 / 174<br>122 / 154<br>296 / 352<br>186 / 212<br>268 / 416 |
+| `xfeat-lighterglue` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 23.6<br>31.8<br>32.8<br>16.2<br>public API unavailable | 448 / 478<br>444 / 476<br>445 / 478<br>262 / 278<br>– |
 
 <details><summary>Details</summary>
 
@@ -549,11 +549,9 @@ Commercial use: yes.
 - `xfeat` 768x1024, first call: portable + torch.compile 31 s (cold Inductor cache), TensorRT fp32 12 s (ONNX + engine).
 - `xfeat-lighterglue` 768x1024, first call: portable + torch.compile 40 s (cold Inductor cache).
 - `xfeat` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + mnn, top_k 4096
-- `xfeat` portable 768x1024: Matched public-call comparison for the kernels row at the same input, using the card defaults.
-- `xfeat` kernels 768x1024: The paired comparison reduced peak allocation by 16 MiB at this shape. Keypoints, matches and scores were bitwise identical on 32 real pairs. Focused CPU and CUDA reference tests passed.
+- `xfeat` portable 768x1024, kernels 768x1024: Convolution and BatchNorm run separately to preserve the reference pose accuracy.
 - `xfeat-lighterglue` original 768x1024: torch.autocast(float16) around the call; upstream XFeat.detectAndCompute + lighterglue, top_k 4096
-- `xfeat-lighterglue` portable 768x1024: Matched public-call comparison for the kernels row at the same input, using the card defaults.
-- `xfeat-lighterglue` kernels 768x1024: IEEE FP32 extractor uses eager CUDA at this geometry. Its small-shape CUDA graphs are retained. Matches and scores were bitwise equal on 66 MegaDepth pairs.
+- `xfeat-lighterglue` portable 768x1024, kernels 768x1024: Convolution and BatchNorm run separately to preserve the reference pose accuracy.
 - `xfeat` load / first call: original 1.51 s / 0.629 s, portable 0.16 s / 0.74 s, kernels 0.17 s / 0.638 s
 - `xfeat-lighterglue` load / first call: original 1.46 s / 0.692 s, portable 0.25 s / 0.681 s, kernels 0.16 s / 0.727 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -566,11 +564,11 @@ Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstre
 |---|---|---|---|---|---|---|---|---|
 | `xfeat` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  | 26.2 / 42.2 / 57.5 |  |  |  |  |
 | `xfeat` | MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20 |  |  |  | 27.4 / 43.7 / 59.5 |  | 27.9 / 44.3 / 60.0 |  |
-| `xfeat` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 29.1 / 46.1 / 60.8 | 28.4 / 44.6 / 60.1 | 27.5 / 44.9 / 60.4 |  | 26.5 / 42.8 / 59.0 |  |  |
+| `xfeat` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 29.1 / 46.1 / 60.8 | 28.4 / 44.6 / 60.1 | 29.1 / 46.1 / 60.8 |  | 26.8 / 43.0 / 59.2 |  |  |
 | `xfeat-lighterglue` | MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees |  |  | 39.7 / 57.5 / 72.8 |  |  |  |  |
-| `xfeat-lighterglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 42.0 / 59.4 / 74.3 | 42.7 / 60.1 / 74.1 | 40.5 / 58.7 / 74.0 |  | 41.2 / 58.4 / 72.0 |  |  |
+| `xfeat-lighterglue` | MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees | 42.0 / 59.4 / 74.3 | 42.7 / 60.1 / 74.1 | 42.0 / 59.4 / 74.3 |  | 40.9 / 58.8 / 73.1 |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a1d55d1286e64f01e35fbf172487755e5a8a7bc4 / ec7b1307+port/p1-match, 2026-11-12 to 2026-11-20; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7243b9b8, 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 78a59767f, 2026-11-20; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7243b9b8, 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7b65b918f / a1d55d1286e64f01e35fbf172487755e5a8a7bc4 / ec7b1307+port/p1-match, 2026-11-12 to 2026-11-20; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7243b9b8, 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 78a59767f / 7b65b918f, 2026-11-20; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7243b9b8, 2026-11-19.
 
 ### Parity
 

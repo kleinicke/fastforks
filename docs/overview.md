@@ -692,8 +692,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 | model | commercial use | original time (ms, its size) | portable time (ms) | kernels time (ms) | kernels speed-up | kernels peak memory (MiB, allocated) |
 |---|---|---|---|---|---|---|
-| [`xfeat`](models/matching.md#xfeat) | yes | 8.9 (768x1024) | 7.2 | 17.1 | 0.5x vs original (768x1024) | 296 |
-| [`xfeat-lighterglue`](models/matching.md#xfeat) | yes | 23.6 (768x1024) | 21.3 | 29.2 | 0.8x vs original (768x1024) | 445 |
+| [`xfeat`](models/matching.md#xfeat) | yes | 8.9 (768x1024) | 10.6 | 17.1 | 0.5x vs original (768x1024) | 296 |
+| [`xfeat-lighterglue`](models/matching.md#xfeat) | yes | 23.6 (768x1024) | 31.8 | 32.8 | 0.7x vs original (768x1024) | 445 |
 | [`aliked-lightglue`](models/matching.md#lightglue) | yes | 41.8 (768x1024) | 40.6 | 35.1 | 1.2x vs original (768x1024) | 1238 |
 | [`disk-lightglue`](models/matching.md#lightglue) | yes | 116.7 (768x1024) | 116.3 | 49.2 | 2.4x vs original (768x1024) | 736 |
 | [`loftr-outdoor`](models/matching.md#loftr) | yes | 241.5 (768x1024) | 109.7 | 85.8 | 2.8x vs original (768x1024) | 734 |
