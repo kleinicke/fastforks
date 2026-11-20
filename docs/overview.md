@@ -637,7 +637,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 |---|---|---|---|---|---|---|---|
 | [`sea-raft-s-spring`](models/flow.md#sea-raft) | yes | 7.757 † | 42.4 (1080x1920) | 32.8 | 16.2 | 2.6x vs original (1080x1920) | 150 |
 | [`sea-raft-m-spring`](models/flow.md#sea-raft) | yes | 6.783 † | 56.7 (1080x1920) | 46.8 | 23.5 | 2.4x vs original (1080x1920) | 170 |
-| [`raft-small`](models/flow.md#raft) | yes | 7.834 | 196.1 (1080x1920) | 144.2 | 36.5 | 5.4x vs original (1080x1920) | 196 |
+| [`raft-small`](models/flow.md#raft) | yes | 7.834 | 196.1 (1080x1920) | 140.6 | 36.5 | 5.4x vs original (1080x1920) | 196 |
 | [`recover-mn`](models/flow.md#recover) | yes | 1.681 † | 102.7 (1080x1920) | 45.5 | 41.8 | 2.5x vs original (1080x1920) | 580 |
 | [`sea-raft-s`](models/flow.md#sea-raft) | yes | 1.054 † | 299.6 (1080x1920) | 210.6 | 50.6 | 5.9x vs original (1080x1920) | 404 |
 | [`sea-raft-s-kitti`](models/flow.md#sea-raft) | yes | 0.935 † | 299.0 (1080x1920) | 210.4 | 50.7 | 5.9x vs original (1080x1920) | 404 |
@@ -648,9 +648,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`sea-raft-m-things`](models/flow.md#sea-raft) | yes | 4.307 | 367.3 (1080x1920) | 270.3 | 73.0 | 5.0x vs original (1080x1920) | 425 |
 | [`sea-raft-m-kitti`](models/flow.md#sea-raft) | yes | 0.808 † | 367.3 (1080x1920) | 269.9 | 73.3 | 5.0x vs original (1080x1920) | 425 |
 | [`sea-raft-m`](models/flow.md#sea-raft) | yes | 0.880 † | 366.9 (1080x1920) | 268.6 | 73.4 | 5.0x vs original (1080x1920) | 425 |
-| [`raft-large`](models/flow.md#raft) | yes | 1.526 † | 479.5 (1080x1920) | 291.6 | 83.4 | 5.7x vs original (1080x1920) | 332 |
-| [`raft-large-things`](models/flow.md#raft) | yes | 4.834 | 480.5 (1080x1920) | 291.5 | 83.5 | 5.8x vs original (1080x1920) | 332 |
-| [`raft-large-kitti`](models/flow.md#raft) | yes | 0.614 † | 479.6 (1080x1920) | 291.0 | 84.2 | 5.7x vs original (1080x1920) | 332 |
+| [`raft-large`](models/flow.md#raft) | yes | 1.526 † | 479.5 (1080x1920) | 283.3 | 83.4 | 5.7x vs original (1080x1920) | 332 |
+| [`raft-large-things`](models/flow.md#raft) | yes | 4.834 | 480.5 (1080x1920) | 283.4 | 83.5 | 5.8x vs original (1080x1920) | 332 |
+| [`raft-large-kitti`](models/flow.md#raft) | yes | 0.614 † | 479.6 (1080x1920) | 283.9 | 84.2 | 5.7x vs original (1080x1920) | 332 |
 | [`recover-cx`](models/flow.md#recover) | yes | 1.043 † | 178.6 (1080x1920) | 107.2 | 89.8 | 2.0x vs original (1080x1920) | 733 |
 | [`flowseek-t-things`](models/flow.md#flowseek) | yes | 4.143 | 457.7 (1080x1920) | 394.9 | 253.7 | 1.8x vs original (1080x1920) | 1100 |
 | [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.933 | 457.6 (1080x1920) | 394.8 | 253.7 | 1.8x vs original (1080x1920) | 1100 |

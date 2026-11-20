@@ -672,13 +672,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `raft-large` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>292<br>83.4<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>5735 / 6042<br>332 / 352<br>5886 / 5924<br>– |
+| `raft-large` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>283<br>83.4<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>5721 / 5758<br>332 / 352<br>5886 / 5924<br>– |
 | `raft-large` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>58.9 | –<br>–<br>–<br>873 / 918 |
-| `raft-large-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 481<br>566<br>291<br>83.5<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>5930 / 6058<br>332 / 352<br>5886 / 5924<br>– |
+| `raft-large-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 481<br>566<br>283<br>83.5<br>195<br>fails: TensorRT engine build failed | 13489 / 13798<br>7164 / 10928<br>5721 / 5758<br>332 / 352<br>5886 / 5924<br>– |
 | `raft-large-things` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>59.0 | –<br>–<br>–<br>873 / 918 |
-| `raft-large-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>291<br>84.2<br>195<br>fails: TensorRT engine build failed | 13489 / 13818<br>7164 / 10928<br>5930 / 6058<br>332 / 352<br>5886 / 5924<br>– |
+| `raft-large-kitti` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 480<br>567<br>284<br>84.2<br>195<br>fails: TensorRT engine build failed | 13489 / 13818<br>7164 / 10928<br>5721 / 5758<br>332 / 352<br>5886 / 5924<br>– |
 | `raft-large-kitti` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>19.8 | –<br>–<br>–<br>845 / 856 |
-| `raft-small` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 196<br>395<br>144<br>36.5<br>110<br>fails: unsupported: engine build needs more than the 16 GB of this  | 13441 / 13686<br>7032 / 10888<br>5669 / 5706<br>196 / 204<br>5704 / 5728<br>– |
+| `raft-small` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 196<br>395<br>141<br>36.5<br>110<br>fails: unsupported: engine build needs more than the 16 GB of this  | 13441 / 13686<br>7032 / 10888<br>5601 / 5646<br>196 / 204<br>5704 / 5728<br>– |
 | `raft-small` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>20.7 | –<br>–<br>–<br>803 / 820 |
 
 <details><summary>Details</summary>
@@ -706,13 +706,16 @@ Commercial use: yes.
 - `raft-small` 384x1248, first call: TensorRT fp32 178 s (ONNX + engine).
 - `raft-large` original (fp32) 1080x1920: torchvision 0.29.1+cu130 raft_large, num_flow_updates=12, [-1, 1] conversion in the call
 - `raft-large` original 1080x1920: torch.autocast(fp16) around the call; torchvision 0.29.1+cu130 raft_large, num_flow_updates=12, [-1, 1] conversion in the call
-- `raft-large` portable 1080x1920: Released the correlation pyramid before final upsampling and scoped encoder and lookup tensors to their use. The matched baseline was 291.134 ms and 5921 MiB peak allocated. The synthetic result and three labeled pairs matched bitwise.
+- `raft-large` portable 1080x1920: Fifteen full API calls. Eager CUDA portable writes correlation windows directly into their output channels. Paired Large and Small synthetic and KITTI flows match bitwise.
 - `raft-large-things` original (fp32) 1080x1920: torchvision 0.29.1+cu130 raft_large, num_flow_updates=12, [-1, 1] conversion in the call
 - `raft-large-things` original 1080x1920: torch.autocast(fp16) around the call; torchvision 0.29.1+cu130 raft_large, num_flow_updates=12, [-1, 1] conversion in the call
+- `raft-large-things` portable 1080x1920: Fifteen full API calls. Eager CUDA portable writes correlation windows directly into their output channels. Paired Large and Small synthetic and KITTI flows match bitwise.
 - `raft-large-kitti` original (fp32) 1080x1920: torchvision 0.29.1+cu130 raft_large, num_flow_updates=12, [-1, 1] conversion in the call
 - `raft-large-kitti` original 1080x1920: torch.autocast(fp16) around the call; torchvision 0.29.1+cu130 raft_large, num_flow_updates=12, [-1, 1] conversion in the call
+- `raft-large-kitti` portable 1080x1920: Fifteen full API calls. Eager CUDA portable writes correlation windows directly into their output channels. Paired Large and Small synthetic and KITTI flows match bitwise.
 - `raft-small` original (fp32) 1080x1920: torchvision 0.29.1+cu130 raft_small, num_flow_updates=12, [-1, 1] conversion in the call
 - `raft-small` original 1080x1920: torch.autocast(fp16) around the call; torchvision 0.29.1+cu130 raft_small, num_flow_updates=12, [-1, 1] conversion in the call
+- `raft-small` portable 1080x1920: Fifteen full API calls. Eager CUDA portable writes correlation windows directly into their output channels. Paired Large and Small synthetic and KITTI flows match bitwise.
 - `raft-large` load / first call: original 0.14 s / 0.762 s, portable 0.17 s / 0.304 s, kernels 1.07 s / 0.107 s
 - `raft-large-things` load / first call: original 0.13 s / 0.58 s, portable 0.25 s / 0.303 s, kernels 1.07 s / 0.108 s
 - `raft-large-kitti` load / first call: original 0.14 s / 0.58 s, portable 0.17 s / 0.304 s, kernels 1.06 s / 0.107 s

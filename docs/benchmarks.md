@@ -1406,10 +1406,10 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | neuflow-v2 | 171 | 75.6 | 72.0 | 59.8 | 1.3x | 1.2x | 4367 / 4556 | 2327 / 2398 | 490 / 636 |
 | neuflow-v2-sintel | 171 | 75.7 | 71.3 | 58.9 | 1.3x | 1.2x | 4367 / 4576 | 2366 / 2398 | 790 / 896 |
 | neuflow-v2-things | 172 | 75.8 | 71.4 | 58.9 | 1.3x | 1.2x | 4374 / 4720 | 2366 / 2398 | 779 / 896 |
-| raft-large | 480 | 567 | 292 | 83.4 | 5.7x | 3.5x | 7164 / 10928 | 5735 / 6042 | 332 / 352 |
-| raft-large-kitti | 480 | 567 | 291 | 84.2 | 5.7x | 3.5x | 7164 / 10928 | 5930 / 6058 | 332 / 352 |
-| raft-large-things | 481 | 566 | 291 | 83.5 | 5.8x | 3.5x | 7164 / 10928 | 5930 / 6058 | 332 / 352 |
-| raft-small | 196 | 395 | 144 | 36.5 | 5.4x | 4.0x | 7032 / 10888 | 5669 / 5706 | 196 / 204 |
+| raft-large | 480 | 567 | 283 | 83.4 | 5.7x | 3.4x | 7164 / 10928 | 5721 / 5758 | 332 / 352 |
+| raft-large-kitti | 480 | 567 | 284 | 84.2 | 5.7x | 3.4x | 7164 / 10928 | 5721 / 5758 | 332 / 352 |
+| raft-large-things | 481 | 566 | 283 | 83.5 | 5.8x | 3.4x | 7164 / 10928 | 5721 / 5758 | 332 / 352 |
+| raft-small | 196 | 395 | 141 | 36.5 | 5.4x | 3.9x | 7032 / 10888 | 5601 / 5646 | 196 / 204 |
 | recover-cx | – | 179 | 107 | 89.8 | 2.0x | 1.2x | 1066 / 1168 | 733 / 892 | 733 / 892 |
 | recover-mn | – | 103 | 45.5 | 41.8 | 2.5x | 1.1x | 921 / 1036 | 580 / 676 | 580 / 676 |
 | recover-rn | – | 130 | 64.1 | 51.3 | 2.5x | 1.2x | 950 / 1046 | 590 / 672 | 590 / 672 |
@@ -2657,13 +2657,13 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | neuflow-v2 | 1080x1920 | 72.0 ms | 91.4 ms | 65.0 ms | 59.8 ms | 28.5 s | 104 s | 2327 / 2398 | 4529 / 4558 | 490 / 636 | 8710 / 8748 |
 | neuflow-v2-sintel | 1080x1920 | 71.3 ms | 91.4 ms | 64.9 ms | 58.9 ms | 28.5 s | 102 s | 2366 / 2398 | 4529 / 4558 | 790 / 896 | 8710 / 8748 |
 | neuflow-v2-things | 1080x1920 | 71.4 ms | 91.5 ms | 65.0 ms | 58.9 ms | 28.8 s | 104 s | 2366 / 2398 | 4529 / 4558 | 779 / 896 | 8710 / 8748 |
-| raft-large | 1080x1920 | 292 ms | 195 ms | fails: TensorRT engine build failed | 83.4 ms | 41.3 s | – | 5735 / 6042 | 5886 / 5924 | 332 / 352 | – |
+| raft-large | 1080x1920 | 283 ms | 195 ms | fails: TensorRT engine build failed | 83.4 ms | 41.3 s | – | 5721 / 5758 | 5886 / 5924 | 332 / 352 | – |
 | raft-large | 384x1248 | – | – | 58.9 ms, fp32 engine | – | – | 147 s | – | – | – | 873 / 918 |
-| raft-large-kitti | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 84.2 ms | 39.3 s | – | 5930 / 6058 | 5886 / 5924 | 332 / 352 | – |
+| raft-large-kitti | 1080x1920 | 284 ms | 195 ms | fails: TensorRT engine build failed | 84.2 ms | 39.3 s | – | 5721 / 5758 | 5886 / 5924 | 332 / 352 | – |
 | raft-large-kitti | 384x1248 | – | – | 19.8 ms | – | – | 173 s | – | – | – | 845 / 856 |
-| raft-large-things | 1080x1920 | 291 ms | 195 ms | fails: TensorRT engine build failed | 83.5 ms | 39.4 s | – | 5930 / 6058 | 5886 / 5924 | 332 / 352 | – |
+| raft-large-things | 1080x1920 | 283 ms | 195 ms | fails: TensorRT engine build failed | 83.5 ms | 39.4 s | – | 5721 / 5758 | 5886 / 5924 | 332 / 352 | – |
 | raft-large-things | 384x1248 | – | – | 59.0 ms, fp32 engine | – | – | 161 s | – | – | – | 873 / 918 |
-| raft-small | 1080x1920 | 144 ms | 110 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 36.5 ms | 37.0 s | – | 5669 / 5706 | 5704 / 5728 | 196 / 204 | – |
+| raft-small | 1080x1920 | 141 ms | 110 ms | fails: unsupported: engine build needs more than the 16 GB of this  | 36.5 ms | 37.0 s | – | 5601 / 5646 | 5704 / 5728 | 196 / 204 | – |
 | raft-small | 384x1248 | – | – | 20.7 ms, fp32 engine | – | – | 178 s | – | – | – | 803 / 820 |
 | recover-cx | 1080x1920 | 107 ms | 89.9 ms | 47.5 ms | 89.8 ms | 13.9 s | 41.6 s | 733 / 892 | 504 / 572 | 733 / 892 | 603 / 632 |
 | recover-mn | 1080x1920 | 45.5 ms | 32.2 ms | 21.2 ms | 41.8 ms | 14.4 s | 56.9 s | 580 / 676 | 365 / 416 | 580 / 676 | 425 / 466 |
