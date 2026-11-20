@@ -129,8 +129,18 @@ def select_target(targets: Iterable[str], arch: tuple[int, int]) -> str | None:
     return ptx[max(older_ptx)] if older_ptx else None
 
 
+_WINDOWS = sys.platform == "win32"
+DRIVER_LIB = "nvcuda.dll" if _WINDOWS else "libcuda.so.1"  # the CUDA driver API library of this platform
+
+
 def _libcuda_path() -> str:
-    """Absolute path of the driver library (`ctypes.util.find_library` knows ldconfig; no `LD_LIBRARY_PATH` search)."""
+    """Absolute path of the driver library (`ctypes.util.find_library` knows ldconfig; no `LD_LIBRARY_PATH` search).
+
+    Windows: `nvcuda.dll` from the system directory, where the NVIDIA driver installs it (an absolute path: the DLL
+    search order would also try the current directory and `PATH`).
+    """
+    if _WINDOWS:
+        return _system_lib(DRIVER_LIB, (os.path.join(os.environ.get("SYSTEMROOT", r"C:\Windows"), "System32"),))  # noqa: PTH118
     return _system_lib(
         "libcuda.so.1",
         ("/usr/lib/x86_64-linux-gnu", "/usr/lib64", "/usr/lib", "/lib/x86_64-linux-gnu", "/usr/lib/wsl/lib"),
@@ -230,11 +240,29 @@ def for_driver(manifest: KernelManifest, driver: tuple[int, int] | None = None) 
     return c
 
 
+def platform_reason(kind: str) -> str | None:
+    """Why kernel libraries of `kind` cannot run on this OS / CPU, or None.
+
+    Linux x86-64 runs both kinds. Windows x64 runs the `"cubin"` libraries: a cubin / fatbin is a GPU binary, loaded
+    by the driver API (`nvcuda.dll`) the same way on every OS. The `"shared"` libraries are Linux `.so` files (host
+    code, CUTLASS / cuDNN calls) with no Windows DLL build yet.
+    """
+    machine = platform.machine()
+    if sys.platform == "linux" and machine == "x86_64":
+        return None
+    if sys.platform == "win32" and machine.lower() == "amd64":
+        if kind == "cubin":
+            return None
+        return "this library is a Linux .so (no Windows DLL build yet); on Windows only cubin kernel libraries run"
+    return f"the kernels are built for Linux x86-64 (cubin libraries: also Windows x64), not {sys.platform} {machine}"
+
+
 def binary(manifest: KernelManifest, device: torch.device) -> tuple[Path, str]:
     """Return the verified binary of `manifest` for `device` and its target.
 
     Raises:
-        KernelUnavailableError: CPU device, ROCm or CPU-only torch, not Linux x86-64, no or too old NVIDIA driver,
+        KernelUnavailableError: CPU device, ROCm or CPU-only torch, an OS / CPU without builds (`platform_reason`),
+            no or too old NVIDIA driver,
             unsupported arch or missing binary;
             the message names the reason and the remedy.
     """
@@ -243,16 +271,14 @@ def binary(manifest: KernelManifest, device: torch.device) -> tuple[Path, str]:
         raise KernelUnavailableError(name, f"needs a CUDA device, got {device}")
     if torch.version.hip:
         raise KernelUnavailableError(name, f"the kernels are NVIDIA CUDA only; torch {torch.__version__} is ROCm/HIP")
-    if sys.platform != "linux" or platform.machine() != "x86_64":
-        raise KernelUnavailableError(
-            name, f"the kernels are built for Linux x86-64, not {sys.platform} {platform.machine()}"
-        )
+    if reason := platform_reason(manifest.kind):
+        raise KernelUnavailableError(name, reason)
     if not torch.cuda.is_available():
         raise KernelUnavailableError(name, f"torch {torch.__version__} has no usable CUDA")
     try:
         drv = driver_version()
     except OSError as e:
-        raise KernelUnavailableError(name, f"cannot load the NVIDIA driver library libcuda.so.1 ({e})") from e
+        raise KernelUnavailableError(name, f"cannot load the NVIDIA driver library {DRIVER_LIB} ({e})") from e
     if drv < manifest.toolkit:
         need = ".".join(map(str, manifest.toolkit))
         driver = _MIN_DRIVER.get(manifest.toolkit)
@@ -301,7 +327,12 @@ def _private(path: Path) -> bool:
     Private: owned by this user and not world-writable or writable by a group with other members (cheap `stat`s).
     Anyone who can write there already is this user; for a shared, foreign or writable location the binary is
     hashed on every load and loaded from the hashed bytes.
+
+    Windows (no POSIX owner / mode bits; ACLs are not checked): never private, so every load hashes the bytes it
+    loads (a cubin library is read once per device and process; ~1 ms per MB).
     """
+    if not hasattr(os, "getuid"):
+        return False
     roots = {r.resolve() for r in (cache_root(), *read_caches(), *search_path(KERNEL_PATH_ENV))}
     uid = os.getuid()
     try:

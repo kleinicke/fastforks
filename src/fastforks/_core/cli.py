@@ -800,11 +800,11 @@ def _env(_args: argparse.Namespace) -> None:
     import torch  # noqa: PLC0415 - heavy, only for these commands
 
     from fastforks import __version__  # noqa: PLC0415
-    from fastforks._core.kernels import driver_version  # noqa: PLC0415
+    from fastforks._core.kernels import DRIVER_LIB, driver_version  # noqa: PLC0415
 
     try:
         driver: tuple[int, int] | None = driver_version()
-    except (OSError, RuntimeError):  # no libcuda.so.1, or a failing cuDriverGetVersion
+    except (OSError, RuntimeError):  # no libcuda.so.1 / nvcuda.dll, or a failing cuDriverGetVersion
         driver = None
     cuda = torch.cuda.is_available()
     arch = torch.cuda.get_device_capability() if cuda else None
@@ -830,7 +830,9 @@ def _env(_args: argparse.Namespace) -> None:
             cudnn = f"cuDNN {_backend.version_str(_backend.version())}"
         except Exception as e:  # noqa: BLE001 - a broken install (missing libcudnn ...) is what `env` should show
             cudnn = f"unusable: {type(e).__name__}: {e}"
-        rows["driver"] = f"supports CUDA {driver[0]}.{driver[1]}" if driver else "no NVIDIA driver (libcuda.so.1) found"
+        rows["driver"] = (
+            f"supports CUDA {driver[0]}.{driver[1]}" if driver else f"no NVIDIA driver ({DRIVER_LIB}) found"
+        )
         rows["gpu"] = f"{torch.cuda.get_device_name()}, sm_{arch[0]}{arch[1]}" if arch else "no usable CUDA GPU"
         libs = sorted({lib for card in cards for lib in card.kernel_libs})
         by_status: dict[str, list[str]] = {}  # identical lines (most libraries) collapse into one

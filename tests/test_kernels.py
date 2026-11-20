@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import importlib
 import os
@@ -315,8 +316,10 @@ def test_cuda_device_passthrough():
     ("patch", "match"),
     [
         ({"hip": "6.4"}, "NVIDIA CUDA only; torch .* is ROCm/HIP"),
-        ({"platform": "darwin"}, "built for Linux x86-64, not darwin"),
-        ({"machine": "aarch64"}, "built for Linux x86-64, not linux aarch64"),
+        ({"platform": "darwin", "machine": "arm64"}, r"built for Linux x86-64 .*, not darwin arm64"),
+        ({"machine": "aarch64"}, r"built for Linux x86-64 .*, not linux aarch64"),
+        ({"platform": "win32", "machine": "ARM64"}, r"built for Linux x86-64 .*, not win32 ARM64"),
+        ({"platform": "win32", "machine": "AMD64", "kind": "shared"}, r"Linux \.so .*only cubin kernel libraries"),
     ],
 )
 def test_binary_rejects_other_platforms(monkeypatch, patch, match):
@@ -324,7 +327,21 @@ def test_binary_rejects_other_platforms(monkeypatch, patch, match):
     monkeypatch.setattr(kernels.sys, "platform", patch.get("platform", "linux"))
     monkeypatch.setattr(kernels.platform, "machine", lambda: patch.get("machine", "x86_64"))
     m = read_manifest(BUILT[0] / "manifest.toml")
+    m = dataclasses.replace(m, kind=patch.get("kind", m.kind))
     with pytest.raises(KernelUnavailableError, match=match):
+        kernels.binary(m, torch.device("cuda", 0))
+
+
+@pytest.mark.parametrize(("os_name", "machine"), [("linux", "x86_64"), ("win32", "AMD64")])
+def test_cubin_libraries_pass_the_platform_gate(monkeypatch, os_name, machine):
+    """A cubin is loaded by the driver API on Linux and Windows alike: the gate lets both through to the CUDA checks."""
+    monkeypatch.setattr(torch.version, "hip", None)
+    monkeypatch.setattr(kernels.sys, "platform", os_name)
+    monkeypatch.setattr(kernels.platform, "machine", lambda: machine)
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    m = dataclasses.replace(read_manifest(BUILT[0] / "manifest.toml"), kind="cubin")
+    assert kernels.platform_reason("cubin") is None
+    with pytest.raises(KernelUnavailableError, match="has no usable CUDA"):
         kernels.binary(m, torch.device("cuda", 0))
 
 

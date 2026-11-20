@@ -132,6 +132,7 @@ def _manifest(path, good, monkeypatch):
 
 
 @needs_non_root
+@pytest.mark.skipif(not hasattr(os, "getuid"), reason="no POSIX owner / mode bits: never private (hashed every load)")
 def test_kernel_in_private_dir_uses_the_stamp_path(monkeypatch, tmp_path):
     root = tmp_path / "kp"
     root.mkdir(mode=0o700)
@@ -159,6 +160,19 @@ def test_kernel_in_writable_dir_is_hashed_every_load_ignoring_stamps(monkeypatch
     os.utime(path, ns=(st.st_atime_ns, st.st_mtime_ns))
     with pytest.raises(KernelUnavailableError, match="does not match"):
         kernels.verified_binary(manifest, None)
+
+
+def test_kernel_without_posix_owners_is_never_private(monkeypatch, tmp_path):
+    """Windows: a kernel in a private cache root is still hashed on every load (ACLs are not checked)."""
+    monkeypatch.delattr(kernels.os, "getuid", raising=False)
+    root = tmp_path / "kp"
+    root.mkdir(mode=0o700)
+    monkeypatch.setenv(kernels.KERNEL_PATH_ENV, str(root))
+    path = root / "k.cubin"
+    path.write_bytes(b"good")
+    assert not kernels._private(path)
+    manifest, _ = _manifest(path, b"good", monkeypatch)
+    assert kernels.verified_binary(manifest, None)[0] == b"good"
 
 
 def test_kernel_outside_any_root_is_not_private(monkeypatch, tmp_path):
