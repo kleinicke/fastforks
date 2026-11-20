@@ -1364,7 +1364,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | model | input | time (ms): original fp32 | original | portable | kernels | kernels speed-up: vs original | vs portable | peak memory (MiB, allocated / reserved): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
 | anysplat | 336x518 | – | 741 | 508 | 369 | 2.0x | 1.4x | 8931 / 9394 | 4164 / 5384 | 4173 / 5548 |
-| depthsplat-small-re10k | 336x518 | – | 126 | 122 | 95.1 | 1.3x | 1.3x | 5694 / 5892 | 956 / 1134 | 965 / 1314 |
+| depthsplat-small-re10k | 336x518 | – | 126 | 122 | 91.4 | 1.4x | 1.3x | 5694 / 5892 | 764 / 854 | 766 / 844 |
 | lingbot-map | 480x640 | – | 993 | 733 | 520 | 1.9x | 1.4x | 7141 / 7672 | 3910 / 5734 | 3919 / 5932 |
 | mapanything-apache | 336x518 | 2875 | 1967 | 637 | 525 | 3.7x | 1.2x | 10227 / 10952 | 3252 / 3652 | 3252 / 3652 |
 | mvsanywhere | 448x672 | 273 | 219 | 93.8 | 35.2 | 6.2x | 2.7x | 1504 / 1576 | 712 / 868 | 702 / 760 |
@@ -2600,7 +2600,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | geocalib-pinhole | 1080x1920 | 81.2 ms | 73.1 ms | public API unavailable | 81.8 ms | 28.4 s | – | 320 / 378 | 246 / 300 | 277 / 338 | – |
 | geocalib-pinhole | 1920x1440 | 123 ms | – | 109 ms, fp32 engine (field predictor only, standalone build) | – | – | 42.9 s | 433 / 560 | – | – | 540 / 558 |
 | anysplat | 336x518 | 508 ms | 427 ms | 314 ms | 369 ms | 80.3 s | 215 s | 4164 / 5384 | 4137 / 4694 | 4173 / 5548 | 7629 / 7674 |
-| depthsplat-small-re10k | 336x518 | 122 ms | 82.2 ms | 86.4 ms | 95.1 ms | 80.0 s | 224 s | 956 / 1134 | 5432 / 5526 | 965 / 1314 | 3148 / 3194 |
+| depthsplat-small-re10k | 336x518 | 122 ms | 82.2 ms | 86.4 ms | 91.4 ms | 80.0 s | 224 s | 764 / 854 | 5432 / 5526 | 766 / 844 | 3148 / 3194 |
 | lingbot-map | 480x640 | 733 ms | 657 ms | 489 ms | 520 ms | 71.0 s | 181 s | 3910 / 5734 | 3339 / 3468 | 3919 / 5932 | 6280 / 6338 |
 | mapanything-apache | 336x518 | 637 ms | 596 ms | 367 ms | 525 ms | 46.2 s | 137 s | 3252 / 3652 | 3347 / 3792 | 3252 / 3652 | 6220 / 6248 |
 | mvsanywhere | 448x672 | 93.8 ms | 70.8 ms | 75.4 ms (standalone build) | 35.2 ms | 153 s | 217 s | 712 / 868 | 818 / 860 | 702 / 760 | 1581 / 1658 |

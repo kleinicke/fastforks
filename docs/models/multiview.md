@@ -13,7 +13,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`anysplat`](#anysplat) | yes | 369, 2.0x | 5548, 0.59x |
-| [`depthsplat-small-re10k`](#depthsplat) | yes | 95.1, 1.3x | 1314, 0.22x |
+| [`depthsplat-small-re10k`](#depthsplat) | yes | 91.4, 1.4x | 844, 0.14x |
 | [`lingbot-map`](#lingbot_map) | yes | 520, 1.9x | 5932, 0.77x |
 | [`mapanything-apache`](#mapanything) | yes | 525, 3.7x | 3652, 0.42x |
 | [`mvsanywhere`](#mvsanywhere) | no | 35.2, 6.2x | 760, 0.51x |
@@ -92,7 +92,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `depthsplat-small-re10k` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 126<br>122<br>95.1<br>82.2<br>86.4 | 5694 / 5892<br>956 / 1134<br>965 / 1314<br>5432 / 5526<br>3148 / 3194 |
+| `depthsplat-small-re10k` | synthetic (336x518) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 126<br>122<br>91.4<br>82.2<br>86.4 | 5694 / 5892<br>764 / 854<br>766 / 844<br>5432 / 5526<br>3148 / 3194 |
 
 <details><summary>Details</summary>
 
@@ -110,8 +110,6 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `depthsplat-small-re10k` 3000x4000 (7.4 GiB peak allocated, 8.6 reserved)
 - `depthsplat-small-re10k` 336x518, first call: portable + torch.compile 80 s (cold Inductor cache), TensorRT fp16 224 s (ONNX + engine).
 - `depthsplat-small-re10k` original 336x518: the authors' mixed-precision option (float16); cvg/depthsplat@2dad25a7b9ba EncoderDepthSplat, long side 256
-- `depthsplat-small-re10k` portable 336x518: Eight views. CUDA reuses warped buffers and camera rays. Synthetic and three calibrated DTU scenes retained bitwise depth and Gaussians.
-- `depthsplat-small-re10k` kernels 336x518: Current eight-view measurement after the bounded plane-sweep change 608071236.
 - `depthsplat-small-re10k` load / first call: original 1.83 s / 2.968 s (336x518), portable 0.22 s / 0.968 s (336x518), kernels 1.47 s / 0.71 s (336x518)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
