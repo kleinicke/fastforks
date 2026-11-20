@@ -3435,6 +3435,16 @@
     "float16"
    ]
   },
+  "seedvr2-3b@1": {
+   "mlx_default": [
+    "portable",
+    "bfloat16"
+   ],
+   "mlx": {
+    "bfloat16": "portable",
+    "float16": "portable"
+   }
+  },
   "segformer-b0-ade20k@1": {
    "auto": [
     "kernels",
