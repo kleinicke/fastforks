@@ -775,7 +775,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`restormer-deblur`](models/restoration.md#restormer) | yes | 233.9 (512x512) | 182.7 | 132.2 | 1.8x vs original (512x512) | 718 |
 | [`restormer-derain`](models/restoration.md#restormer) | yes | 233.8 (512x512) | 228.4 | 132.6 | 1.8x vs original (512x512) | 892 |
 | [`restormer-sidd`](models/restoration.md#restormer) | yes | 217.9 (512x512) | 181.4 | 132.6 | 1.6x vs original (512x512) | 892 |
-| [`dat-light-x4`](models/restoration.md#dat) | yes | 2203.5 (512x512) | 267.8 | 231.5 | 9.5x vs original (512x512) | 566 |
+| [`dat-light-x4`](models/restoration.md#dat) | yes | 2203.5 (512x512) | 233.8 | 230.4 | 9.6x vs original (512x512) | 521 |
 | [`realesrgan-x4plus`](models/restoration.md#real-esrgan) | yes | 631.1 (512x512) | 472.8 | 402.7 | 1.6x vs original (512x512) | 1220 |
 | [`swinir-m-x2`](models/restoration.md#swinir) | yes | 3252.1 (512x512) | 738.8 | 553.0 | 5.9x vs original (512x512) | 1353 |
 | [`swinir-m-x4`](models/restoration.md#swinir) | yes | 3497.4 (512x512) | 767.5 | 575.6 | 6.1x vs original (512x512) | 1354 |
@@ -786,8 +786,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`swin2sr-x4-real`](models/restoration.md#swin2sr) | yes | 2527.2 (512x512) | 960.0 | 751.2 | 3.4x vs original (512x512) | 1459 |
 | [`swinir-l-x4-real`](models/restoration.md#swinir) | yes | 3709.3 (512x512) | 1217.8 | 896.2 | 4.1x vs original (512x512) | 1600 |
 | [`hat-s-x4`](models/restoration.md#hat) | yes | 2401.8 (512x512) | 1072.2 | 956.5 | 2.5x vs original (512x512) | 1856 |
-| [`dat-2-x4`](models/restoration.md#dat) | yes | 4880.3 (512x512) | 1312.2 | 1037.4 | 4.7x vs original (512x512) | 1534 |
-| [`dat-x4`](models/restoration.md#dat) | yes | 9563.6 (512x512) | 1385.7 | 1208.7 | 7.9x vs original (512x512) | 1541 |
+| [`dat-2-x4`](models/restoration.md#dat) | yes | 4880.3 (512x512) | 1156.2 | 1037.5 | 4.7x vs original (512x512) | 1399 |
+| [`dat-x4`](models/restoration.md#dat) | yes | 9563.6 (512x512) | 1386.0 | 1208.7 | 7.9x vs original (512x512) | 1406 |
 | [`real-hat-gan-x4`](models/restoration.md#hat) | yes | 3038.1 (512x512) | 1428.5 | 1234.2 | 2.5x vs original (512x512) | 1312 |
 | [`drct-l-x4`](models/restoration.md#drct) | yes | 14651.1 (512x512) | 1566.8 | 1313.7 | 11.2x vs original (512x512) | 1603 |
 | [`hat-x4`](models/restoration.md#hat) | yes | 3038.2 (512x512) | 1595.9 | 1426.7 | 2.1x vs original (512x512) | 2298 |

@@ -15,7 +15,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`big-lama`](#lama) | yes | 21.2, 1.8x | 284, 0.99x |
 | [`codeformer`](#codeformer) | no | 40.4, 2.1x | 496, 0.46x |
 | [`dat-2-x4`](#dat) | yes | 1037, 4.7x | 2220, 0.88x |
-| [`dat-light-x4`](#dat) | yes | 232, 9.5x | 592, 0.36x |
+| [`dat-light-x4`](#dat) | yes | 230, 9.6x | 532, 0.32x |
 | [`dat-x4`](#dat) | yes | 1209, 7.9x | 2226, 0.88x |
 | [`drct-l-x4`](#drct) | yes | 1314, 11.2x | 1790, 0.26x |
 | [`drct-x4`](#drct) | yes | 674, 11.1x | 1748, 0.44x |
@@ -165,9 +165,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9564<br>1386<br>1209<br>1063<br>1001 | 2443 / 2528<br>1555 / 2246<br>1541 / 2226<br>2552 / 2606<br>9010 / 9056 |
-| `dat-2-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4880<br>1312<br>1037<br>964<br>921 | 2436 / 2518<br>2276 / 2378<br>1534 / 2220<br>2546 / 2598<br>9001 / 9048 |
-| `dat-light-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2204<br>268<br>232<br>158<br>136 | 1606 / 1656<br>1535 / 1552<br>566 / 592<br>1385 / 1412<br>4144 / 4192 |
+| `dat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9564<br>1386<br>1209<br>1063<br>1001 | 2443 / 2528<br>1427 / 2246<br>1406 / 2226<br>2552 / 2606<br>9010 / 9056 |
+| `dat-2-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4880<br>1156<br>1037<br>964<br>921 | 2436 / 2518<br>1420 / 2220<br>1399 / 2220<br>2546 / 2598<br>9001 / 9048 |
+| `dat-light-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2204<br>234<br>230<br>158<br>136 | 1606 / 1656<br>521 / 532<br>521 / 532<br>1385 / 1412<br>4144 / 4192 |
 
 <details><summary>Details</summary>
 
@@ -187,7 +187,6 @@ Commercial use: yes.
 - `dat-2-x4` 512x512, first call: portable + torch.compile 44 s (cold Inductor cache), TensorRT fp16 206 s (ONNX + engine).
 - `dat-light-x4` 512x512, first call: portable + torch.compile 37 s (cold Inductor cache), TensorRT fp16 75 s (ONNX + engine).
 - `dat-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream dat_model.py test, float32, no chop
-- `dat-x4` portable 512x512: Eager CUDA reuses the four shifted-window biases. Bitwise parity on three DIV2K crops.
 - `dat-2-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream dat_model.py test, float32, no chop
 - `dat-light-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream dat_model.py test, float32, no chop
 - `dat-x4` load / first call: original 2.2 s / 6.13 s, portable 2.99 s / 2.307 s, kernels 0.71 s / 2.149 s
