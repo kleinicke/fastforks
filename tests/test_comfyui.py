@@ -1,7 +1,7 @@
 """The ComfyUI node pack (integrations/comfyui): tensor conversions, prompt parsing, labels and the unload hook.
 
 Runs without ComfyUI: `comfy.model_management` is a stub. Model runs are checked against direct API calls in a
-real ComfyUI (results/2026-11-13_comfyui_nodes.md).
+real ComfyUI (see docs/plans/comfyui-windows-results.md).
 """
 
 from __future__ import annotations

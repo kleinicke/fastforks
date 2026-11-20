@@ -111,7 +111,7 @@ After the fixes and a server restart, Depth, Segment, Remove background and Upsc
 Second pass, same day. fastforks came from the `work/windows-portable` checkout (28f47f2b, Windows `cutlass_conv`
 DLL and the cubin libraries); the pack from this branch.
 
-- A second ComfyUI server on port 8190 ran under `gpulock.py`, with `PYTHONPATH` set to that checkout's `src`. The
+- A second ComfyUI server on port 8190 ran while holding the machine's GPU lock, with `PYTHONPATH` set to that checkout's `src`. The
   ComfyUI venv still has this branch installed editable, so `PYTHONPATH` takes precedence.
 - `FASTFORKS_CACHE` and `FASTFORKS_WEIGHTS_PATH` were `C:\Users\neuer\fastforks-cache`, and `FASTFORKS_KERNEL_PATH`
   was `...\fastforks-cache\linux-kernels` (as in that branch's `docs/plans/windows-kernels.md`). `FASTFORKS_OFFLINE=1`
