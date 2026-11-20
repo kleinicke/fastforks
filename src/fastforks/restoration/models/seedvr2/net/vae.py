@@ -26,6 +26,8 @@ EPS = 1e-6
 SCALE = 0.9152  # latent scaling factor
 TEMPORAL_DOWN = (False, True, True)  # encoder downsamplers 0..2
 TEMPORAL_UP = (True, True, False)  # decoder upsamplers 0..2
+_GROUP_NORM_MIN_BYTES = 384 * 1024**2
+_GROUP_NORM_CHUNK_BYTES = 256 * 1024**2
 
 
 class State(Enum):
@@ -112,14 +114,33 @@ def group_norm(norm: nn.GroupNorm, x: torch.Tensor, *, upcast: bool, silu: bool 
     """`causal_norm_wrapper`: per-frame group norm of `[B, C, T, H, W]`, rounded to the input dtype; `silu` then
     applies SiLU in place.
 
-    One frame at a time into one output buffer, so neither the frame-major copy nor the float32 upcast is ever made
-    for the whole clip (the arithmetic per frame is unchanged).
+    Write one frame at a time into the output. For large CUDA decoder frames, split the float32 temporary at whole
+    channel-group boundaries, because each group's normalization depends only on its own channels.
     """
     w, b = (norm.weight.float(), norm.bias.float()) if upcast else (norm.weight, norm.bias)
     out = torch.empty_like(x)
+    groups = norm.num_groups
+    group_chunk = groups
+    if (
+        upcast
+        and x.is_cuda
+        and not (torch.compiler.is_compiling() or torch.jit.is_tracing())
+        and torch.is_inference_mode_enabled()
+    ):
+        batch, channels, _, height, width = x.shape
+        frame_bytes = batch * channels * height * width * torch.float32.itemsize
+        if frame_bytes >= _GROUP_NORM_MIN_BYTES:
+            group_chunk = max(1, _GROUP_NORM_CHUNK_BYTES // (frame_bytes // groups))
+    channels_per_group = x.shape[1] // groups
     for i in range(x.shape[2]):
         f = x[:, :, i]
-        out[:, :, i] = F.group_norm(f.float() if upcast else f.contiguous(), norm.num_groups, w, b, norm.eps)
+        if group_chunk >= groups:
+            out[:, :, i] = F.group_norm(f.float() if upcast else f.contiguous(), groups, w, b, norm.eps)
+        else:
+            for start in range(0, groups, group_chunk):
+                end = min(start + group_chunk, groups)
+                channel = slice(start * channels_per_group, end * channels_per_group)
+                out[:, channel, i] = F.group_norm(f[:, channel].float(), end - start, w[channel], b[channel], norm.eps)
     return F.silu(out, inplace=True) if silu else out
 
 
