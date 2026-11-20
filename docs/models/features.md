@@ -742,6 +742,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
+- Returning all PE Spatial G/14 hidden states at 448 × 448 uses 4,058 MiB peak GPU allocation in both CUDA modes, down from 4,345 MiB on the RTX 5060 Ti. All returned features matched bit for bit.
 - CUDA portable and kernels accept stream=True. The encoder blocks occupy page-locked host memory and use two reusable GPU buffers. Embeddings, pooling, activations and requested hidden states remain on the GPU. Streaming disables graph replay and export.
 - kernels replays a CUDA graph per small input shape without hidden states (up to about 1M activations: ViT-B ~460 px, ViT-L ~300 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.
 - Small kernels calls (graph-sized, with or without `layers`) run GEMMs of at most 600 tokens on cuBLAS: faster in a graph replay (ViT-B/16 224 px: 1.26 against 1.52 ms), about 10 % slower eagerly on ViT-T / B; a replay equals the eager call bit for bit.
@@ -936,6 +937,7 @@ CPU, float32: max |diff| <= 6.9e-05 vs the original. GPU, float16 (the default),
 
 ### Limitations
 
+- Returning all TIPSv2 ViT-L/14 hidden states at 768 × 1024 reduces peak GPU allocation from 1,443 to 1,113 MiB portable and from 1,445 to 1,134 MiB kernels on the RTX 5060 Ti. All returned features matched bit for bit.
 - On CUDA, stream=True stages the image encoder blocks from pinned host RAM. Streamed inference runs eagerly and supports intermediate feature layers.
 - Image encoder only: the text encoder in the checkpoint is not loaded (the features task has no text input), although the file is downloaded whole.
 - last_hidden_state holds 2 prefix tokens, then the patches: upstream's first cls token (pooler_output, the global image embedding aligned with text) and its second cls token (index 1, the spatially aware global embedding).
