@@ -10,6 +10,7 @@ licence_notes = [
 
 limitations = [
   "Eager CUDA portable skips the mask decoder when no query passes the score threshold. The synthetic 1024 × 1024 speed input has zero detections. For a COCO person prompt with a surviving detection and a cached image embedding, paired latency was about 30 ms before and after the change.",
+  "On a 1920 × 1080 COCO image with a person prompt and `score_threshold=0`, portable returned 200 masks and used 2,215 MiB peak allocation, down from 3,765 MiB on the RTX 5060 Ti. Masks, boxes and scores matched bit for bit. Paired latency was 204.3 ms before and 206.0 ms after.",
   "On the RTX 5060 Ti, streaming the same 18-frame, 800 × 600 clip with two objects reduced peak allocated memory from 2,304 to 1,482 MiB portable and 2,047 to 1,224 MiB kernels. The masks and scores matched the corresponding resident run exactly.",
   "stream=True stages the image encoder from pinned host memory once per embedded frame. Text and prompt heads remain resident, and further prompts on an existing embedding reuse that frame. Image encoder export requires stream=False.",
   "Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~300 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
