@@ -22,3 +22,12 @@ torch = "2.10.0+cu130"
 date = "2026-11-17"
 mean_px = 0.00019
 p99_px = 0.00192
+
+[validated."pidinet@1".windows]
+kernels = ["cv_resample@969307ab22a7:sm_120"]
+symbols = {"cv_resample" = {"cv_area" = "93e9afa2e2469981", "cv_cubic" = "276a4219ccdf6169", "name" = "e3e109716600954f", "u8_levels" = "e3e109716600954f"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00019
+p99_px = 0.00193

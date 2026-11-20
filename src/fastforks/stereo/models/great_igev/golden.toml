@@ -38,6 +38,15 @@ date = "2026-10-31"
 mean_px = 0.00214
 p99_px = 0.03202
 
+[validated."great-igev-eth3d@1".windows]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@5f1e101619ed:sm_120", "igev@f075827d68c6:sm_120", "igevpp@df1bb4dbe09a:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "8fb519806822ee95"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73", "affine_act8x" = "8fc98dd41372eb3b", "affine_actx" = "ca5ad43f555f75b3", "defom_lookup" = "b66109ba963ab1a8", "geo_lookup" = "a45447e9edb3f4a9", "gru_update" = "d1b5d534d87e9caf", "gru_zr" = "d28c9176a6b7ece1", "interp_into" = "0fc04d17714db0b2", "interp_into2" = "cb79f763385127b5", "pool2x_into" = "ebe853855c44d114", "pool2x_into2" = "9e6a34ab181beaf8"}, "igevpp" = {"cc_stem0" = "ef5a30a92e2a19ea", "dw357" = "7975ee18b2beb106", "geo_blend" = "8cf567191b69662f", "geo_lookup8" = "5d55fab9d648bbc6", "gwc_volume96" = "ff9f549533f3084d", "layer_norm_rows" = "4b3172748ea86f89", "outlook_fold_k3_c32" = "a66650892132b316", "outlook_fold_k3_c48" = "89b8ee0e6782864b", "outlook_fold_k5_c16" = "ec7678198d772626", "outlook_fold_k7_c8" = "133f0f95f3e66912", "outlook_k3_c32" = "2ae56a8fa2a96bd2", "outlook_k3_c48" = "28ec6fd8252e6fca", "outlook_k5_c16" = "d131d9cbd8435b20", "outlook_k7_c8" = "c4e6378e2ff1f94c", "vol_regress_c8" = "ca507dcc6c09e694", "vol_stats_c16" = "6b01a068999c246a", "vol_stats_c32" = "fce85ea711b366aa", "vol_stats_c48" = "9b6dde58d2bb0715", "vol_stats_c8" = "58927ded9cff36bc", "vol_update_c16" = "c69c0312b0b6c63c", "vol_update_c32" = "1521fc59f6e4219c", "vol_update_c48" = "60f0b5504ecfb89f", "vol_update_c8" = "822f3f210343c7fb"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00169
+p99_px = 0.01861
+
 [validated."great-igev-kitti@1"]
 kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120", "igevpp@df1bb4dbe09a:sm_120"]
 symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73", "affine_act8x" = "8fc98dd41372eb3b", "affine_actx" = "ca5ad43f555f75b3", "defom_lookup" = "b66109ba963ab1a8", "geo_lookup" = "a45447e9edb3f4a9", "gru_update" = "d1b5d534d87e9caf", "gru_zr" = "d28c9176a6b7ece1", "interp_into" = "0fc04d17714db0b2", "interp_into2" = "cb79f763385127b5", "pool2x_into" = "ebe853855c44d114", "pool2x_into2" = "9e6a34ab181beaf8"}, "igevpp" = {"cc_stem0" = "ef5a30a92e2a19ea", "dw357" = "7975ee18b2beb106", "geo_blend" = "8cf567191b69662f", "geo_lookup8" = "5d55fab9d648bbc6", "gwc_volume96" = "ff9f549533f3084d", "layer_norm_rows" = "4b3172748ea86f89", "outlook_fold_k3_c32" = "a66650892132b316", "outlook_fold_k3_c48" = "89b8ee0e6782864b", "outlook_fold_k5_c16" = "ec7678198d772626", "outlook_fold_k7_c8" = "133f0f95f3e66912", "outlook_k3_c32" = "2ae56a8fa2a96bd2", "outlook_k3_c48" = "28ec6fd8252e6fca", "outlook_k5_c16" = "d131d9cbd8435b20", "outlook_k7_c8" = "c4e6378e2ff1f94c", "vol_regress_c8" = "ca507dcc6c09e694", "vol_stats_c16" = "6b01a068999c246a", "vol_stats_c32" = "fce85ea711b366aa", "vol_stats_c48" = "9b6dde58d2bb0715", "vol_stats_c8" = "58927ded9cff36bc", "vol_update_c16" = "c69c0312b0b6c63c", "vol_update_c32" = "1521fc59f6e4219c", "vol_update_c48" = "60f0b5504ecfb89f", "vol_update_c8" = "822f3f210343c7fb"}}
@@ -46,6 +55,15 @@ torch = "2.14.1+cu130"
 date = "2026-10-31"
 mean_px = 0.00284
 p99_px = 0.03707
+
+[validated."great-igev-kitti@1".windows]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@5f1e101619ed:sm_120", "igev@f075827d68c6:sm_120", "igevpp@df1bb4dbe09a:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "8fb519806822ee95"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73", "affine_act8x" = "8fc98dd41372eb3b", "affine_actx" = "ca5ad43f555f75b3", "defom_lookup" = "b66109ba963ab1a8", "geo_lookup" = "a45447e9edb3f4a9", "gru_update" = "d1b5d534d87e9caf", "gru_zr" = "d28c9176a6b7ece1", "interp_into" = "0fc04d17714db0b2", "interp_into2" = "cb79f763385127b5", "pool2x_into" = "ebe853855c44d114", "pool2x_into2" = "9e6a34ab181beaf8"}, "igevpp" = {"cc_stem0" = "ef5a30a92e2a19ea", "dw357" = "7975ee18b2beb106", "geo_blend" = "8cf567191b69662f", "geo_lookup8" = "5d55fab9d648bbc6", "gwc_volume96" = "ff9f549533f3084d", "layer_norm_rows" = "4b3172748ea86f89", "outlook_fold_k3_c32" = "a66650892132b316", "outlook_fold_k3_c48" = "89b8ee0e6782864b", "outlook_fold_k5_c16" = "ec7678198d772626", "outlook_fold_k7_c8" = "133f0f95f3e66912", "outlook_k3_c32" = "2ae56a8fa2a96bd2", "outlook_k3_c48" = "28ec6fd8252e6fca", "outlook_k5_c16" = "d131d9cbd8435b20", "outlook_k7_c8" = "c4e6378e2ff1f94c", "vol_regress_c8" = "ca507dcc6c09e694", "vol_stats_c16" = "6b01a068999c246a", "vol_stats_c32" = "fce85ea711b366aa", "vol_stats_c48" = "9b6dde58d2bb0715", "vol_stats_c8" = "58927ded9cff36bc", "vol_update_c16" = "c69c0312b0b6c63c", "vol_update_c32" = "1521fc59f6e4219c", "vol_update_c48" = "60f0b5504ecfb89f", "vol_update_c8" = "822f3f210343c7fb"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00247
+p99_px = 0.02511
 
 [validated."great-igev-middlebury@1"]
 kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120", "igevpp@df1bb4dbe09a:sm_120"]
@@ -56,6 +74,15 @@ date = "2026-10-31"
 mean_px = 0.00162
 p99_px = 0.00911
 
+[validated."great-igev-middlebury@1".windows]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@5f1e101619ed:sm_120", "igev@f075827d68c6:sm_120", "igevpp@df1bb4dbe09a:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "8fb519806822ee95"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73", "affine_act8x" = "8fc98dd41372eb3b", "affine_actx" = "ca5ad43f555f75b3", "defom_lookup" = "b66109ba963ab1a8", "geo_lookup" = "a45447e9edb3f4a9", "gru_update" = "d1b5d534d87e9caf", "gru_zr" = "d28c9176a6b7ece1", "interp_into" = "0fc04d17714db0b2", "interp_into2" = "cb79f763385127b5", "pool2x_into" = "ebe853855c44d114", "pool2x_into2" = "9e6a34ab181beaf8"}, "igevpp" = {"cc_stem0" = "ef5a30a92e2a19ea", "dw357" = "7975ee18b2beb106", "geo_blend" = "8cf567191b69662f", "geo_lookup8" = "5d55fab9d648bbc6", "gwc_volume96" = "ff9f549533f3084d", "layer_norm_rows" = "4b3172748ea86f89", "outlook_fold_k3_c32" = "a66650892132b316", "outlook_fold_k3_c48" = "89b8ee0e6782864b", "outlook_fold_k5_c16" = "ec7678198d772626", "outlook_fold_k7_c8" = "133f0f95f3e66912", "outlook_k3_c32" = "2ae56a8fa2a96bd2", "outlook_k3_c48" = "28ec6fd8252e6fca", "outlook_k5_c16" = "d131d9cbd8435b20", "outlook_k7_c8" = "c4e6378e2ff1f94c", "vol_regress_c8" = "ca507dcc6c09e694", "vol_stats_c16" = "6b01a068999c246a", "vol_stats_c32" = "fce85ea711b366aa", "vol_stats_c48" = "9b6dde58d2bb0715", "vol_stats_c8" = "58927ded9cff36bc", "vol_update_c16" = "c69c0312b0b6c63c", "vol_update_c32" = "1521fc59f6e4219c", "vol_update_c48" = "60f0b5504ecfb89f", "vol_update_c8" = "822f3f210343c7fb"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00171
+p99_px = 0.0087
+
 [validated."great-igev-sceneflow@1"]
 kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120", "igevpp@df1bb4dbe09a:sm_120"]
 symbols = {"cutlass_conv" = {"fused_conv_rs" = "d627bca7d222a0d6"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73", "affine_act8x" = "8fc98dd41372eb3b", "affine_actx" = "ca5ad43f555f75b3", "defom_lookup" = "b66109ba963ab1a8", "geo_lookup" = "a45447e9edb3f4a9", "gru_update" = "d1b5d534d87e9caf", "gru_zr" = "d28c9176a6b7ece1", "interp_into" = "0fc04d17714db0b2", "interp_into2" = "cb79f763385127b5", "pool2x_into" = "ebe853855c44d114", "pool2x_into2" = "9e6a34ab181beaf8"}, "igevpp" = {"cc_stem0" = "ef5a30a92e2a19ea", "dw357" = "7975ee18b2beb106", "geo_blend" = "8cf567191b69662f", "geo_lookup8" = "5d55fab9d648bbc6", "gwc_volume96" = "ff9f549533f3084d", "layer_norm_rows" = "4b3172748ea86f89", "outlook_fold_k3_c32" = "a66650892132b316", "outlook_fold_k3_c48" = "89b8ee0e6782864b", "outlook_fold_k5_c16" = "ec7678198d772626", "outlook_fold_k7_c8" = "133f0f95f3e66912", "outlook_k3_c32" = "2ae56a8fa2a96bd2", "outlook_k3_c48" = "28ec6fd8252e6fca", "outlook_k5_c16" = "d131d9cbd8435b20", "outlook_k7_c8" = "c4e6378e2ff1f94c", "vol_regress_c8" = "ca507dcc6c09e694", "vol_stats_c16" = "6b01a068999c246a", "vol_stats_c32" = "fce85ea711b366aa", "vol_stats_c48" = "9b6dde58d2bb0715", "vol_stats_c8" = "58927ded9cff36bc", "vol_update_c16" = "c69c0312b0b6c63c", "vol_update_c32" = "1521fc59f6e4219c", "vol_update_c48" = "60f0b5504ecfb89f", "vol_update_c8" = "822f3f210343c7fb"}}
@@ -64,3 +91,12 @@ torch = "2.14.1+cu130"
 date = "2026-10-31"
 mean_px = 0.00166
 p99_px = 0.02857
+
+[validated."great-igev-sceneflow@1".windows]
+kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@5f1e101619ed:sm_120", "igev@f075827d68c6:sm_120", "igevpp@df1bb4dbe09a:sm_120"]
+symbols = {"cutlass_conv" = {"fused_conv_rs" = "8fb519806822ee95"}, "igev" = {"affine_act" = "add1086a04da85fb", "affine_act8" = "7bf50acc36dfcf73", "affine_act8x" = "8fc98dd41372eb3b", "affine_actx" = "ca5ad43f555f75b3", "defom_lookup" = "b66109ba963ab1a8", "geo_lookup" = "a45447e9edb3f4a9", "gru_update" = "d1b5d534d87e9caf", "gru_zr" = "d28c9176a6b7ece1", "interp_into" = "0fc04d17714db0b2", "interp_into2" = "cb79f763385127b5", "pool2x_into" = "ebe853855c44d114", "pool2x_into2" = "9e6a34ab181beaf8"}, "igevpp" = {"cc_stem0" = "ef5a30a92e2a19ea", "dw357" = "7975ee18b2beb106", "geo_blend" = "8cf567191b69662f", "geo_lookup8" = "5d55fab9d648bbc6", "gwc_volume96" = "ff9f549533f3084d", "layer_norm_rows" = "4b3172748ea86f89", "outlook_fold_k3_c32" = "a66650892132b316", "outlook_fold_k3_c48" = "89b8ee0e6782864b", "outlook_fold_k5_c16" = "ec7678198d772626", "outlook_fold_k7_c8" = "133f0f95f3e66912", "outlook_k3_c32" = "2ae56a8fa2a96bd2", "outlook_k3_c48" = "28ec6fd8252e6fca", "outlook_k5_c16" = "d131d9cbd8435b20", "outlook_k7_c8" = "c4e6378e2ff1f94c", "vol_regress_c8" = "ca507dcc6c09e694", "vol_stats_c16" = "6b01a068999c246a", "vol_stats_c32" = "fce85ea711b366aa", "vol_stats_c48" = "9b6dde58d2bb0715", "vol_stats_c8" = "58927ded9cff36bc", "vol_update_c16" = "c69c0312b0b6c63c", "vol_update_c32" = "1521fc59f6e4219c", "vol_update_c48" = "60f0b5504ecfb89f", "vol_update_c8" = "822f3f210343c7fb"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00186
+p99_px = 0.03658

@@ -41,6 +41,9 @@ RECIPE = "4"
 WINDOWS = sys.platform == "win32"
 # Fixed, so every checkout compiles the same source path; build_lib refuses it unless it is ours and private.
 STAGE = Path(r"C:\fastforks-build" if WINDOWS else "/tmp/fastforks-build")  # noqa: S108 - owner (and mode) checked
+# Windows stand-ins for POSIX headers some sources include (`<dlfcn.h>`): on the include path of the DLL builds that
+# use them, so the shared sources and the Linux build ids stay unchanged.
+WIN_INCLUDE = ROOT / "tools" / "win_include"
 
 
 def _check_stage() -> None:
@@ -149,7 +152,11 @@ def host_compiler(ccbin: str, env: dict[str, str] | None = None) -> str:
         if cl is None:
             sys.exit("cl.exe is not on the MSVC environment's PATH")
         out = subprocess.run([cl], check=False, capture_output=True, text=True, env=env).stderr
-        return out.strip().splitlines()[0]
+        # the banner is localized (its language is part of the build id otherwise): keep the version only
+        m = re.search(r"\b(\d+\.\d+\.\d+(?:\.\d+)?)\b.*\b(x64|x86|ARM64)\b", out)
+        if m is None:
+            sys.exit(f"cannot parse the cl banner:\n{out}")
+        return f"MSVC cl {m[1]} {m[2]}"
     return subprocess.run([ccbin, "--version"], check=True, capture_output=True, text=True).stdout.splitlines()[0]
 
 
@@ -218,13 +225,14 @@ def refresh_symbols(name: str) -> None:
     text = path.read_text(encoding="utf-8")
     text = text.split("\n\n[symbols]", 1)[0].rstrip("\n")
     toolchain = tomllib.loads(text)["toolchain"]
-    path.write_text("\n".join([text, *symbol_lines(lib_dir, toolchain)]) + "\n", encoding="utf-8")
+    path.write_text("\n".join([text, *symbol_lines(lib_dir, toolchain)]) + "\n", encoding="utf-8", newline="\n")
 
 
 def nvcc_cmd(  # noqa: PLR0913, PLR0917 - internal helper, all inputs needed
     cuda: Path, src_dir: Path, cfg: dict, target: str, out: Path, cutlass: Path | None, ccbin: str, exports: Path
 ) -> list[str]:
-    cmd = [str(cuda / "bin" / "nvcc"), f"-ccbin={ccbin}", *cfg["flags"], gencode(target), f"-I{cuda_include(cuda)}"]
+    host = [] if WINDOWS else [f"-ccbin={ccbin}"]  # Windows: the vcvars environment's cl.exe (--use-local-env)
+    cmd = [str(cuda / "bin" / "nvcc"), *host, *cfg["flags"], gencode(target), f"-I{cuda_include(cuda)}"]
     if cfg["kind"] == "cubin":
         cmd.append("-fatbin")
     elif WINDOWS:
@@ -295,7 +303,33 @@ def nvcc_cmd(  # noqa: PLR0913, PLR0917 - internal helper, all inputs needed
             sys.exit("this library needs the CUTLASS v4.7.1 headers: --cutlass DIR")
         trim = f"/d1trimfile:{cutlass}\\" if WINDOWS else f"-ffile-prefix-map={cutlass}=cutlass"
         cmd += [f"-I{cutlass / 'include'}", "-Xcompiler", trim]
+    if WINDOWS and win_shims(src_dir, cfg):
+        cmd.append(f"-I{WIN_INCLUDE}")
     return [*cmd, "-o", str(out), *(str(src_dir / s) for s in cfg["sources"])]
+
+
+def win_shims(lib_dir: Path, cfg: dict) -> list[Path]:
+    """The `tools/win_include` headers (POSIX headers MSVC lacks, e.g. `<dlfcn.h>`) the library's sources include."""
+    text = "\n".join((lib_dir / s).read_text(encoding="utf-8") for s in cfg["sources"])
+    return [p for p in sorted(WIN_INCLUDE.glob("*.h")) if re.search(rf"#include\s*<{re.escape(p.name)}>", text)]
+
+
+def build_hashes(
+    lib_dir: Path, cfg: dict, tk: str, toolchain: dict[str, str], cutlass: Path | None
+) -> tuple[str, hashlib._Hash]:
+    """(build id, sources hash) of a library; adds the CUTLASS version to `toolchain` when it needs CUTLASS."""
+    h = hashlib.sha256((lib_dir / "build.toml").read_bytes() + tk.encode() + RECIPE.encode())
+    if "cutlass" in cfg.get("needs", []) and cutlass is not None:
+        toolchain["cutlass"], header = cutlass_version(cutlass)
+        h.update(header)
+    h.update(repr(sorted(toolchain.items())).encode())  # same id <=> same sources, settings and toolchain
+    # Windows header shims, only for the libraries that include one (b"" for the others: their id is unchanged)
+    h.update(b"".join(p.read_bytes() for p in (win_shims(lib_dir, cfg) if WINDOWS else [])))
+    src = hashlib.sha256((lib_dir / "build.toml").read_bytes())
+    for s in cfg["sources"]:
+        h.update((lib_dir / s).read_bytes())
+        src.update((lib_dir / s).read_bytes())
+    return h.hexdigest()[:12], src
 
 
 def build_lib(  # noqa: PLR0913, PLR0917 - internal helper, all inputs needed
@@ -311,16 +345,7 @@ def build_lib(  # noqa: PLR0913, PLR0917 - internal helper, all inputs needed
     tk, nvcc_build = toolkit(cuda / "bin" / "nvcc")
     msvc = msvc_env() if WINDOWS else None
     toolchain = host_toolchain(nvcc_build, ccbin, glibc_patch, msvc)
-    h = hashlib.sha256((lib_dir / "build.toml").read_bytes() + tk.encode() + RECIPE.encode())
-    if "cutlass" in cfg.get("needs", []) and cutlass is not None:
-        toolchain["cutlass"], header = cutlass_version(cutlass)
-        h.update(header)
-    h.update(repr(sorted(toolchain.items())).encode())  # same id <=> same sources, settings and toolchain
-    src = hashlib.sha256((lib_dir / "build.toml").read_bytes())
-    for s in cfg["sources"]:
-        h.update((lib_dir / s).read_bytes())
-        src.update((lib_dir / s).read_bytes())
-    build_id = h.hexdigest()[:12]
+    build_id, src = build_hashes(lib_dir, cfg, tk, toolchain, cutlass)
     out_dir = ROOT / "build" / "kernels" / name
     out_dir.mkdir(parents=True, exist_ok=True)
     ext = ".fatbin" if cfg["kind"] == "cubin" else ".dll" if WINDOWS else ".so"
@@ -376,7 +401,7 @@ def build_lib(  # noqa: PLR0913, PLR0917 - internal helper, all inputs needed
         digest = hashlib.sha256(p.read_bytes()).hexdigest()
         lines.append(f'{t} = {{ name = "{p.name}", sha256 = "{digest}", size = {p.stat().st_size} }}')
     lines += symbol_lines(lib_dir, toolchain)
-    (lib_dir / manifest_name(cfg["kind"])).write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (lib_dir / manifest_name(cfg["kind"])).write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     print(f"{name}@{build_id}: {sum(p.stat().st_size for p in files.values()) / 2**20:.1f} MB")
 
 

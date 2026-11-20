@@ -29,11 +29,29 @@ date = "2026-11-18"
 mean_px = 0.00056
 p99_px = 0.0
 
+[validated."totalsegmentator-total-3mm@1".windows]
+kernels = ["vol_norm@c55f9fff92d3:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "f40ffff97c133f01", "in_final_h" = "5eefed9a4dd8f36f", "in_stats_h" = "e1716ce54b75e405"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00056
+p99_px = 0.0
+
 [validated."totalsegmentator-total@1"]
 kernels = ["vol_norm@c55f9fff92d3:sm_120"]
 symbols = {"vol_norm" = {"in_apply_h" = "f40ffff97c133f01", "in_final_h" = "5eefed9a4dd8f36f", "in_stats_h" = "e1716ce54b75e405"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-18"
+mean_px = 7e-05
+p99_px = 0.0
+
+[validated."totalsegmentator-total@1".windows]
+kernels = ["vol_norm@c55f9fff92d3:sm_120"]
+symbols = {"vol_norm" = {"in_apply_h" = "f40ffff97c133f01", "in_final_h" = "5eefed9a4dd8f36f", "in_stats_h" = "e1716ce54b75e405"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
 mean_px = 7e-05
 p99_px = 0.0

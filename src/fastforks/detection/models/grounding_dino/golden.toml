@@ -49,6 +49,15 @@ date = "2026-11-18"
 mean_px = 0.16413
 p99_px = 0.50577
 
+[validated."grounding-dino-base@1".windows]
+kernels = ["msda@7db8a6f4e515:sm_120"]
+symbols = {"msda" = {"deform_sample" = "ac85d283f7876301"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.16413
+p99_px = 0.50577
+
 [validated."grounding-dino-tiny@1"]
 kernels = ["msda@7db8a6f4e515:sm_120"]
 symbols = {"msda" = {"deform_sample" = "ac85d283f7876301"}}
@@ -57,6 +66,15 @@ torch = "2.10.0+cu130"
 date = "2026-11-17"
 mean_px = 0.12884
 p99_px = 0.53156
+
+[validated."grounding-dino-tiny@1".windows]
+kernels = ["msda@7db8a6f4e515:sm_120"]
+symbols = {"msda" = {"deform_sample" = "ac85d283f7876301"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.11719
+p99_px = 0.5394
 
 [validated."mm-grounding-dino-base@1"]
 kernels = ["msda@7db8a6f4e515:sm_120"]
@@ -67,6 +85,15 @@ date = "2026-11-17"
 mean_px = 0.08714
 p99_px = 0.23686
 
+[validated."mm-grounding-dino-base@1".windows]
+kernels = ["msda@7db8a6f4e515:sm_120"]
+symbols = {"msda" = {"deform_sample" = "ac85d283f7876301"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.07832
+p99_px = 0.22961
+
 [validated."mm-grounding-dino-tiny@1"]
 kernels = ["msda@7db8a6f4e515:sm_120"]
 symbols = {"msda" = {"deform_sample" = "ac85d283f7876301"}}
@@ -74,4 +101,13 @@ gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.10.0+cu130"
 date = "2026-11-17"
 mean_px = 0.08186
+p99_px = 0.19259
+
+[validated."mm-grounding-dino-tiny@1".windows]
+kernels = ["msda@7db8a6f4e515:sm_120"]
+symbols = {"msda" = {"deform_sample" = "ac85d283f7876301"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.09031
 p99_px = 0.19259

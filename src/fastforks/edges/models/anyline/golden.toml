@@ -23,3 +23,12 @@ torch = "2.10.0+cu130"
 date = "2026-11-17"
 mean_px = 8e-05
 p99_px = 2e-05
+
+[validated."anyline@1".windows]
+kernels = ["edge_components@d6becc089ab3:sm_120"]
+symbols = {"edge_components" = {"keep_twelve" = "83fadaf6f5babfd5"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 8e-05
+p99_px = 2e-05

@@ -22,3 +22,12 @@ torch = "2.14.1+cu130"
 date = "2026-11-14"
 mean_px = 0.00031
 p99_px = 0.00118
+
+[validated."realplksr-nomoswebphoto-x4@1".windows]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00031
+p99_px = 0.00118

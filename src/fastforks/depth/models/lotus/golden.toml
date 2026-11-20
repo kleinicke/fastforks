@@ -28,11 +28,29 @@ date = "2026-11-12"
 mean_px = 0.00035
 p99_px = 0.00144
 
+[validated."lotus-normal-d-v1-1@1".windows]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00036
+p99_px = 0.00144
+
 [validated."lotus-normal-g-v1-1@1"]
 kernels = ["cudnn_hacc@cudnn92400"]
 symbols = {}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-12"
+mean_px = 0.0003
+p99_px = 0.00125
+
+[validated."lotus-normal-g-v1-1@1".windows]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
 mean_px = 0.0003
 p99_px = 0.00125

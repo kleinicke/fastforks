@@ -56,6 +56,15 @@ date = "2026-11-13"
 mean_px = 0.00245
 p99_px = 0.00842
 
+[validated."sam2.1-hiera-base-plus@1".windows]
+kernels = ["dpt_fused@2d01fadafb47:sm_120"]
+symbols = {"dpt_fused" = {"dpt_bilinear" = "002b566d86232c23", "dpt_conv" = "9ab96917f55ef94f", "dpt_gemm" = "5dc50cf17f0f1c83", "dpt_head_dot" = "b8da75530ebd7d20", "dpt_patches" = "28aba0fa764b44f6"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00206
+p99_px = 0.00557
+
 [validated."sam2.1-hiera-large@1"]
 kernels = ["dpt_fused@48e0065bb7cf:sm_120"]
 symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}}
@@ -65,6 +74,15 @@ date = "2026-11-13"
 mean_px = 0.01872
 p99_px = 0.08865
 
+[validated."sam2.1-hiera-large@1".windows]
+kernels = ["dpt_fused@2d01fadafb47:sm_120"]
+symbols = {"dpt_fused" = {"dpt_bilinear" = "002b566d86232c23", "dpt_conv" = "9ab96917f55ef94f", "dpt_gemm" = "5dc50cf17f0f1c83", "dpt_head_dot" = "b8da75530ebd7d20", "dpt_patches" = "28aba0fa764b44f6"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.03052
+p99_px = 0.12733
+
 [validated."sam2.1-hiera-small@1"]
 kernels = ["dpt_fused@48e0065bb7cf:sm_120"]
 symbols = {"dpt_fused" = {"dpt_bilinear" = "56f30f2585d0318f", "dpt_conv" = "7a628bb6c93ea5c0", "dpt_gemm" = "9ae0a597c481165c", "dpt_head_dot" = "4e1fdc73e46c77bd", "dpt_patches" = "7879a4c7d44a30f9"}}
@@ -73,6 +91,15 @@ torch = "2.14.1+cu130"
 date = "2026-11-13"
 mean_px = 0.00539
 p99_px = 0.01677
+
+[validated."sam2.1-hiera-small@1".windows]
+kernels = ["dpt_fused@2d01fadafb47:sm_120"]
+symbols = {"dpt_fused" = {"dpt_bilinear" = "002b566d86232c23", "dpt_conv" = "9ab96917f55ef94f", "dpt_gemm" = "5dc50cf17f0f1c83", "dpt_head_dot" = "b8da75530ebd7d20", "dpt_patches" = "28aba0fa764b44f6"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00729
+p99_px = 0.02048
 
 [validated."sam2.1-hiera-tiny@1"]
 kernels = ["dpt_fused@48e0065bb7cf:sm_120"]

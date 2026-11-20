@@ -578,12 +578,19 @@ def _load_dll_image(image: bytes, name: str) -> ctypes.CDLL:
     """Windows: load the verified bytes `image` through a new file in a per-user private directory.
 
     Windows cannot load a DLL from memory; the copy is written exclusively (never an existing file) by this process
-    right before loading, and its only dependencies come from System32 (the CUDA runtime is linked statically).
+    right before loading, and its only dependencies come from System32 (the CUDA runtime is linked statically). Each
+    load gets its own file (`<stem>.<n><suffix>` once the name is taken), as each Linux load gets its own memfd.
     """
-    path = _dll_dir() / name
-    with path.open("xb") as f:
-        f.write(image)
-    return ctypes.CDLL(str(path), winmode=_LOAD_LIBRARY_SEARCH_SYSTEM32)
+    stem, suffix = os.path.splitext(name)  # noqa: PTH122 - a bare file name, not a path
+    for n in itertools.count():
+        path = _dll_dir() / (name if n == 0 else f"{stem}.{n}{suffix}")
+        try:
+            with path.open("xb") as f:
+                f.write(image)
+        except FileExistsError:
+            continue
+        return ctypes.CDLL(str(path), winmode=_LOAD_LIBRARY_SEARCH_SYSTEM32)
+    raise AssertionError  # unreachable: itertools.count() never ends
 
 
 def shared_library(manifest: Path, device: torch.device) -> tuple[ctypes.CDLL, str]:
