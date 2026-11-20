@@ -140,8 +140,11 @@ def floor_rows() -> list[dict[str, Any]]:
 
 
 def _px(label: str) -> int:
-    h, _, w = label.partition("x")
-    return int(h) * int(w)
+    """Elements of an input label `HxW` (volumes: `DxHxW`)."""
+    n = 1
+    for side in label.split("x"):
+        n *= int(side)
+    return n
 
 
 def jobs(only: Iterable[str] = (), modes: Iterable[str] = MODES) -> list[dict[str, Any]]:
