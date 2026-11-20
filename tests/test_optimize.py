@@ -481,3 +481,26 @@ def test_convnext_layer_scale_fold_adds_no_weight_copy():
     )
     assert sum(seen.values()) == own  # no buffer owns storage a parameter does not
     torch.testing.assert_close(got, want, rtol=1e-4, atol=1e-5)
+
+
+class _ConvDropout(nn.Module):
+    """Conv + Dropout (eval: identity) + no LayerScale: the fold pass changes the graph but folds nothing."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.conv = nn.Conv2d(3, 8, 3, padding=1)
+        self.drop = nn.Dropout(0.1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.drop(self.conv(x)) + 1
+
+
+def test_fold_layer_scale_recompiles_after_dropping_dropouts():
+    """Without a fold the dropped Dropout still left `gm.code` / `_lineno_map` stale: dynamo indexed the node metas
+    by the old line map (torch 2.14: IndexError in `_maybe_preserve_original_meta`; ShViT, EfficientFormer, ...)."""
+    gm = fx.symbolic_trace(_ConvDropout().eval())
+    assert cnn.fold_layer_scale(gm) == 0
+    assert "drop" not in gm.code
+    assert max(i for i in gm._lineno_map.values() if i is not None) < len(gm.graph.nodes)
+    x = torch.randn(1, 3, 8, 8)
+    assert torch._dynamo.explain(gm)(x).graph_break_count == 0
