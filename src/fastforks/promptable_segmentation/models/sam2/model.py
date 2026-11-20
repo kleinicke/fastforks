@@ -19,7 +19,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.runner import host
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
-from fastforks.promptable_segmentation._runner import Forward, Runner
+from fastforks.promptable_segmentation._runner import Forward, Runner, bounded_binary_masks
 
 from .fast import Neck, neck, pos_embed, prepare, trunk
 from .fused import FusedEncoder
@@ -41,6 +41,7 @@ PATCH_STRIDE = 4  # fixed: Hiera's patch-embedding stride (all released checkpoi
 STRIDE = 16  # fixed: SAM 2's image-embedding stride (all released checkpoints)
 STABILITY = (0.05, 0.98)  # fixed: upstream build_sam2 post-processing (stability delta, threshold)
 LOGIT_CLAMP = 32.0  # fixed: upstream SAM2ImagePredictor clamps the returned low-resolution logits
+_MASK_RESIZE_PIXELS = 64 << 20  # limit each resize group to 256 MiB of FP32 logits
 # The video-memory modules of the checkpoint (image mode does not use them); every other tensor must fit.
 VIDEO = (*VIDEO_KEYS, "no_mem_pos_enc")  # `video` loads VIDEO_KEYS on first use; no_mem_pos_enc is never used
 
@@ -165,6 +166,10 @@ class _Sam2(Runner):
     def upsample(self, pred_masks: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
         """Upstream `SAM2Transforms.postprocess_masks` (no hole / sprinkle removal, as `SAM2ImagePredictor`)."""
         return F.interpolate(pred_masks, size, mode="bilinear", align_corners=False)
+
+    def binary_masks(self, pred_masks: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
+        """Threshold large prompt batches with bounded resize memory."""
+        return bounded_binary_masks(pred_masks, size, self.upsample, _MASK_RESIZE_PIXELS)
 
     def _tracker(self) -> Tracker:
         """The video modules, loaded on the first `video` call (image use does not hold them)."""

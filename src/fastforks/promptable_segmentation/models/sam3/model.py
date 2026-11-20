@@ -40,7 +40,7 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import InputError, OptionsError
 from fastforks._core.patch import override
 from fastforks._core.runner import host
-from fastforks.promptable_segmentation._runner import Context, Forward, Runner, scale
+from fastforks.promptable_segmentation._runner import Context, Forward, Runner, bounded_binary_masks, scale
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.host_blocks import StreamedModuleList
 
@@ -387,15 +387,7 @@ class Portable(_Sam3):
 
     def binary_masks(self, pred_masks: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
         """Resize CUDA logits in groups and threshold directly into the output masks."""
-        pixels = max(1, pred_masks.shape[1] * size[0] * size[1])
-        group = max(1, _MASK_RESIZE_PIXELS // pixels)
-        if not pred_masks.is_cuda or pred_masks.shape[0] <= group or torch.compiler.is_compiling():
-            return super().binary_masks(pred_masks, size)
-        masks = torch.empty((*pred_masks.shape[:2], *size), dtype=torch.bool, device=pred_masks.device)
-        for start in range(0, len(masks), group):
-            stop = start + group
-            torch.gt(self.upsample(pred_masks[start:stop], size), 0, out=masks[start:stop])
-        return masks
+        return bounded_binary_masks(pred_masks, size, self.upsample, _MASK_RESIZE_PIXELS)
 
     @host
     def selected_concepts(
