@@ -1887,7 +1887,7 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `waft-stereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1252<br>689<br>689<br>284<br>357<br>170 | 3764 / 4352<br>3314 / 3398<br>3293 / 3456<br>954 / 1102<br>2024 / 2058<br>1061 / 1114 |
+| `waft-stereo-s` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1252<br>689<br>653<br>284<br>357<br>170 | 3764 / 4352<br>3314 / 3398<br>1609 / 1794<br>954 / 1102<br>2024 / 2058<br>1061 / 1114 |
 | `waft-stereo-b` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1898<br>1140<br>1094<br>388<br>571<br>public API unavailable | 7348 / 7528<br>5743 / 5876<br>2999 / 3070<br>1664 / 1932<br>3908 / 3936<br>– |
 | `waft-stereo-b` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>1209 (standalone build) | –<br>–<br>–<br>1447 / 1454 |
 
@@ -1911,11 +1911,11 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 - `waft-stereo-b` 994x1482, first call: portable + torch.compile 104 s (cold Inductor cache).
 - `waft-stereo-b` 384x1248, first call: TensorRT fp32 107 s (ONNX + engine).
 - `waft-stereo-s` original 994x1482: torch.autocast(fp16) around the forward
+- `waft-stereo-s` portable 994x1482: Current shared WAFT stereo eager path on the same Middlebury Motorcycle input.
 - `waft-stereo-b` original 994x1482: torch.autocast(fp16) around the forward
 - `waft-stereo-b` portable 994x1482: Avoid unused intermediate and uncertainty predictions. The synthetic disparity, three labeled Middlebury disparities and the tested 63 x 87 export matched bitwise.
-- `waft-stereo-s` load / first call: original 1.6 s / 0.14 s (375x1242), portable 0.58 s / 0.691† s, kernels 1.47 s / 0.32 s (375x1242)
+- `waft-stereo-s` load / first call: original 1.6 s / 0.14 s (375x1242), portable 1.03 s / 0.866 s, kernels 1.47 s / 0.32 s (375x1242)
 - `waft-stereo-b` load / first call: original 3.07 s / 0.444 s (375x1242), portable 0.55 s / 1.357 s, kernels 1.77 s / 0.459 s (375x1242)
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured

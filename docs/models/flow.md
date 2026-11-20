@@ -24,7 +24,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`gmflow-scale2-regrefine6-kitti`](#gmflow) | yes | 0.570 † | 1389, 1.6x | 3212, 0.37x |
 | [`gmflow-scale2-regrefine6-mixdata`](#gmflow) | yes | 1.315 ? | 1383, 1.6x | 3212, 0.37x |
 | [`gmflow-scale2-regrefine6-sintelft`](#gmflow) | yes | 1.154 † | 1384, 1.6x | 3212, 0.37x |
-| [`gmflow-scale2-regrefine6-things`](#gmflow) | yes | 4.917 | 1481, 1.5x | 4696, 0.54x |
+| [`gmflow-scale2-regrefine6-things`](#gmflow) | yes | 4.917 | 1384, 1.6x | 3212, 0.37x |
 | [`gmflow-scale2-sintel`](#gmflow) | yes | 1.975 † | 916, 1.8x | 3204, 0.37x |
 | [`gmflow-scale2-things`](#gmflow) | yes | 6.747 | 916, 1.7x | 3204, 0.37x |
 | [`megaflow`](#megaflow) | yes | 1.714 † | 735, 2.2x | 3530, 0.4x |
@@ -230,7 +230,7 @@ Commercial use: yes.
 | `gmflow-scale2-sintel` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>212 (standalone feature CNN, eager transformer and flow update) | –<br>–<br>–<br>1616 / 2560 |
 | `gmflow-scale2-mixdata` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2544<br>1608<br>915<br>915<br>765<br>public API unavailable | 8512 / 8722<br>8425 / 8572<br>2995 / 3184<br>2995 / 3204<br>10865 / 10904<br>– |
 | `gmflow-scale2-mixdata` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>212 (standalone feature CNN, eager transformer and flow update) | –<br>–<br>–<br>1616 / 2560 |
-| `gmflow-scale2-regrefine6-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3230<br>2175<br>1478<br>1481<br>1116<br>public API unavailable | 8522 / 8730<br>8537 / 8822<br>4036 / 4696<br>4036 / 4696<br>10875 / 10972<br>– |
+| `gmflow-scale2-regrefine6-things` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3230<br>2175<br>1382<br>1384<br>1116<br>public API unavailable | 8522 / 8730<br>8537 / 8822<br>3005 / 3192<br>3005 / 3212<br>10875 / 10972<br>– |
 | `gmflow-scale2-regrefine6-things` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>350 (standalone feature CNN, eager transformer and flow update) | –<br>–<br>–<br>1660 / 2526 |
 | `gmflow-scale2-regrefine6-sintelft` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3255<br>2184<br>1381<br>1384<br>1116<br>public API unavailable | 8522 / 8730<br>8537 / 8822<br>3005 / 3192<br>3005 / 3212<br>10875 / 10972<br>– |
 | `gmflow-scale2-regrefine6-sintelft` | 384x1248 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>350 (standalone feature CNN, eager transformer and flow update) | –<br>–<br>–<br>1660 / 2526 |
@@ -293,8 +293,7 @@ Commercial use: yes.
 - `gmflow-scale2-mixdata` portable 1080x1920, kernels 1080x1920: Five full API calls on the same synthetic 1080p pair in both modes, using the current shared GMFlow workspace reductions.
 - `gmflow-scale2-regrefine6-things` original (fp32) 1080x1920: upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale2-regrefine6-things` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
-- `gmflow-scale2-regrefine6-things` portable 1080x1920: Lower CUDA shifted-window mask allocation. Prior portable was 1628.608 ms and 5421 MiB peak allocated at the same profile. One synthetic and three labeled KITTI pairs matched bitwise.
-- `gmflow-scale2-regrefine6-things` kernels 1080x1920: Lower CUDA shifted-window mask allocation. Prior kernels was 1632.308 ms and 5484 MiB peak allocated at the same profile. One synthetic and three labeled KITTI pairs matched bitwise.
+- `gmflow-scale2-regrefine6-things` portable 1080x1920, kernels 1080x1920: Current shared GMFlow refinement path, with bounded activation lifetimes and a final-only upsampling mask.
 - `gmflow-scale2-regrefine6-sintelft` original (fp32) 1080x1920: upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale2-regrefine6-sintelft` original 1080x1920: torch.autocast(float16) around the call; upstream UniMatch ({'num_scales': 2, 'upsample_factor': 4, 'reg_refine': True}, {'attn_type': 'swin', 'attn_splits_list': [2, 8], 'corr_radius_list': [-1, 4], 'prop_radius_list': [-1, 1], 'num_reg_refine': 6, 'task': 'flow'}), padded to multiples of 32
 - `gmflow-scale2-regrefine6-sintelft` portable 1080x1920, kernels 1080x1920: Five full API calls on the same synthetic 1080p pair in both modes, using the current shared GMFlow workspace reductions.
@@ -309,7 +308,7 @@ Commercial use: yes.
 - `gmflow-scale2-things` load / first call: original 0.14 s / 1.61 s, portable 0.17 s / 1.141 s, kernels 0.17 s / 0.702 s (375x1242)
 - `gmflow-scale2-sintel` load / first call: original 0.13 s / 1.618 s, portable 0.16 s / 1.141 s, kernels 0.16 s / 0.716 s (375x1242)
 - `gmflow-scale2-mixdata` load / first call: original 0.13 s / 1.618 s, portable 0.16 s / 1.141 s, kernels 0.17 s / 0.715 s (375x1242)
-- `gmflow-scale2-regrefine6-things` load / first call: original 0.15 s / 2.186 s, portable 0.16 s / 1.666 s
+- `gmflow-scale2-regrefine6-things` load / first call: original 0.15 s / 2.186 s, portable 0.16 s / 1.666 s, kernels 0.16 s / 1.902 s
 - `gmflow-scale2-regrefine6-sintelft` load / first call: original 0.15 s / 2.369 s, portable 0.26 s / 1.676 s, kernels 0.36 s / 0.722 s (375x1242)
 - `gmflow-scale2-regrefine6-kitti` load / first call: original 0.15 s / 2.199 s, portable 0.46 s / 1.679 s, kernels 0.17 s / 0.887 s (375x1242)
 - `gmflow-scale2-regrefine6-mixdata` load / first call: original 0.14 s / 2.198 s, portable 0.25 s / 1.676 s, kernels 0.17 s / 0.893 s (375x1242)
@@ -928,8 +927,8 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `waft-a1` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>741<br>519<br>610<br>343 | 5537 / 5916<br>1832 / 2196<br>1851 / 2264<br>3479 / 3638<br>1625 / 1672 |
-| `waft-a1-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>519<br>610<br>343 | 5537 / 5936<br>3553 / 4196<br>1851 / 2264<br>3479 / 3758<br>1625 / 1672 |
-| `waft-a1-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>791<br>519<br>610<br>343 | 5537 / 5916<br>3553 / 4076<br>1851 / 2264<br>3479 / 3578<br>1625 / 1672 |
+| `waft-a1-kitti` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>741<br>519<br>610<br>343 | 5537 / 5936<br>1832 / 2196<br>1851 / 2264<br>3479 / 3758<br>1625 / 1672 |
+| `waft-a1-sintel` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 1533<br>741<br>519<br>610<br>343 | 5537 / 5916<br>1832 / 2196<br>1851 / 2264<br>3479 / 3578<br>1625 / 1672 |
 
 <details><summary>Details</summary>
 
@@ -952,7 +951,9 @@ Commercial use: yes.
 - `waft-a1` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t.json), iters=5
 - `waft-a1` portable 1080x1920: Eager CUDA keeps half-resolution image features and upsamples only the last flow. Paired KITTI flows were bitwise equal.
 - `waft-a1-kitti` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t-kitti.json), iters=5
+- `waft-a1-kitti` portable 1080x1920: Uses the shared WAFT eager inference path that frees consumed depth and encoder features before flow refinement.
 - `waft-a1-sintel` original 1080x1920: torch.autocast(float16) around the call; upstream ViTWarpV8 (config/a1/tar-c-t-sintel.json), iters=5
+- `waft-a1-sintel` portable 1080x1920: Uses the shared WAFT eager inference path that frees consumed depth and encoder features before flow refinement.
 - `waft-a1` load / first call: original 5.87 s / 3.409 s, portable 0.51 s / 0.79 s, kernels 0.57 s / 0.21 s (375x1242)
 - `waft-a1-kitti` load / first call: original 4.06 s / 2.874 s, portable 0.54 s / 0.79 s, kernels 1.4 s / 0.285 s (375x1242)
 - `waft-a1-sintel` load / first call: original 2.93 s / 2.873 s, portable 0.51 s / 0.79 s, kernels 0.69 s / 0.21 s (375x1242)

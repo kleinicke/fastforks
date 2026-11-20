@@ -158,9 +158,9 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2528<br>1521<br>1498<br>public API unavailable | –<br>5872 / 6518<br>4511 / 5282<br>12051 / 12880<br>– |
+| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2528<br>1521<br>1498<br>public API unavailable | –<br>5394 / 6518<br>4511 / 5282<br>12051 / 12880<br>– |
 | `gimm-vfi-r` | synthetic (480x854) | original<br>portable<br>kernels<br>TensorRT fp32 | 498<br>468<br>289<br>1210 (RAFT feature encoder with eager context, flow update and synthesis) | 2820 / 3246<br>1574 / 1674<br>1388 / 1618<br>3522 / 6116 |
-| `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2527<br>1520<br>1498<br>fails: TensorRT parser: Sc node | –<br>5872 / 6518<br>4511 / 5282<br>12051 / 12880<br>– |
+| `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2528<br>1520<br>1498<br>fails: TensorRT parser: Sc node | –<br>5394 / 6518<br>4511 / 5282<br>12051 / 12880<br>– |
 | `gimm-vfi-r-p` | synthetic (480x854) | original<br>portable<br>kernels<br>TensorRT fp32 | 498<br>467<br>289<br>1190 (RAFT feature and context encoders with eager flow update and synthesis) | 2820 / 3246<br>1574 / 1674<br>1388 / 1598<br>3592 / 6000 |
 
 <details><summary>Details</summary>
@@ -180,9 +180,11 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - `gimm-vfi-r` 480x854, first call: TensorRT fp32 13 s (ONNX + engine).
 - `gimm-vfi-r-p` 1080x1920, first call: portable + torch.compile 307 s (cold Inductor cache).
 - `gimm-vfi-r-p` 480x854, first call: TensorRT fp32 17 s (ONNX + engine).
-- `gimm-vfi-r` portable 1080x1920, kernels 1080x1920: One RAFT feature-encoder pass supplies both directions. The deterministic 480x854 output matched exactly and paired DAVIS PSNR changes stay below 0.00004 dB.
+- `gimm-vfi-r` portable 1080x1920: Releases consumed full-resolution fusion and flow buffers. Both checkpoints gave bitwise-identical results using matched softsplat activations.
+- `gimm-vfi-r` kernels 1080x1920: One RAFT feature-encoder pass supplies both directions. The deterministic 480x854 output matched exactly and paired DAVIS PSNR changes stay below 0.00004 dB.
 - `gimm-vfi-r` original 480x854: torch.autocast(float16) around the call; upstream GIMMVFI_R forward as video_Nx.py, time 0.5, ds_factor 1.0, replicate pad to 32, cupy softsplat
-- `gimm-vfi-r-p` portable 1080x1920, kernels 1080x1920: Current shared RAFT input feature encoding and final-only upsampling masks.
+- `gimm-vfi-r-p` portable 1080x1920: Releases consumed full-resolution fusion and flow buffers. Both checkpoints gave bitwise-identical results using matched softsplat activations.
+- `gimm-vfi-r-p` kernels 1080x1920: Current shared RAFT input feature encoding and final-only upsampling masks.
 - `gimm-vfi-r-p` original 480x854: torch.autocast(float16) around the call; upstream GIMMVFI_R forward as video_Nx.py, time 0.5, ds_factor 1.0, replicate pad to 32, cupy softsplat
 - `gimm-vfi-r` load / first call: original 2.05 s / 1.336 s (480x854), portable 0.27 s / 2.622 s, kernels 0.59 s / 1.631 s
 - `gimm-vfi-r-p` load / first call: original 2.96 s / 1.438 s (480x854), portable 0.27 s / 0.997 s (480x854), kernels 0.58 s / 0.684 s (480x854)

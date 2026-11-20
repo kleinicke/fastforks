@@ -56,7 +56,7 @@ Measured on one RTX 5060 Ti 16 GB at the size in each section header (median of 
 | [`raft-stereo-sceneflow`](models/stereo.md#raft-stereo) | yes | 2.60 | 1036.7 (994x1482) | 745.6 | 274.1 | 3.8x vs original (994x1482) | 722 |
 | [`raft-stereo-middlebury`](models/stereo.md#raft-stereo) | yes | 2.79 | 1036.7 (994x1482) | 745.6 | 274.2 | 3.8x vs original (994x1482) | 722 |
 | [`raft-stereo-eth3d`](models/stereo.md#raft-stereo) | yes | 2.61 † | 1036.7 (994x1482) | 745.6 | 274.6 | 3.8x vs original (994x1482) | 722 |
-| [`waft-stereo-s`](models/stereo.md#waft-stereo) | yes | 0.95 ? | 689.3 (994x1482) | 689.0 | 283.9 | 2.4x vs original (994x1482) | 954 |
+| [`waft-stereo-s`](models/stereo.md#waft-stereo) | yes | 0.95 ? | 689.3 (994x1482) | 652.5 | 283.9 | 2.4x vs original (994x1482) | 954 |
 | [`igev-stereo-eth3d`](models/stereo.md#igev-stereo) | yes | 0.56 † | 941.3 (994x1482) | 763.5 | 288.2 | 3.3x vs original (994x1482) | 1113 |
 | [`igev-stereo-kitti12`](models/stereo.md#igev-stereo) | yes | 26.02 | 941.3 (994x1482) | 763.5 | 288.2 | 3.3x vs original (994x1482) | 1113 |
 | [`igev-stereo-kitti15`](models/stereo.md#igev-stereo) | yes | 24.63 | 941.3 (994x1482) | 763.5 | 288.2 | 3.3x vs original (994x1482) | 1113 |
@@ -155,7 +155,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`video-depth-anything-metric-s`](models/depth.md#video-depth-anything) | yes | – | – | 201.6 | 200.0 (1080x1920) | 1.0x vs portable | 1967 |
 | [`marigold-depth-v1-1`](models/depth.md#marigold) | yes | 0.0561 | 439.2 (994x1482) | 410.0 | 261.4 | 1.7x vs original (994x1482) | 2343 |
 | [`depth-pro`](models/depth.md#depth-pro) | no | 0.0425 | 568.8 (994x1482) | 520.7 | 276.6 | 2.1x vs original (994x1482) | 3050 |
-| [`omni-dc`](models/depth.md#omni-dc) | no | – | 875.5 (994x1482) | 571.2 | 510.0 | 1.7x vs original (994x1482) | 4154 |
+| [`omni-dc`](models/depth.md#omni-dc) | no | – | 875.5 (994x1482) | 558.4 | 512.0 | 1.7x vs original (994x1482) | 3873 |
 | [`depthfm-v1`](models/depth.md#depthfm) | yes | – | OOM (994x1482) | 4854.3 | 3555.4 | 1.4x vs portable | 3768 |
 | [`marigold-v2-depth`](models/depth.md#marigold-v2) | yes | 0.0386 | OOM (994x1482) | 4762.5 | 3804.8 | 1.3x vs portable | 1408 |
 
@@ -659,8 +659,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`memfof`](models/flow.md#memfof) | yes | 10.891 † | 530.7 (1080x1920) | 432.6 | 349.4 | 1.5x vs original (1080x1920) | 917 |
 | [`gmflow-scale1-mixdata`](models/flow.md#gmflow) | yes | 3.697 ? | 750.1 (1080x1920) | 447.5 | 445.8 | 1.7x vs original (1080x1920) | 1988 |
 | [`gmflow-scale1-things`](models/flow.md#gmflow) | yes | 10.346 | 750.3 (1080x1920) | 447.5 | 445.9 | 1.7x vs original (1080x1920) | 1988 |
-| [`waft-a1-sintel`](models/flow.md#waft) | yes | 0.992 † | 1532.7 (1080x1920) | 790.5 | 518.5 | 3.0x vs original (1080x1920) | 1851 |
-| [`waft-a1-kitti`](models/flow.md#waft) | yes | 0.695 † | 1533.3 (1080x1920) | 790.8 | 518.6 | 3.0x vs original (1080x1920) | 1851 |
+| [`waft-a1-sintel`](models/flow.md#waft) | yes | 0.992 † | 1532.7 (1080x1920) | 741.1 | 518.5 | 3.0x vs original (1080x1920) | 1851 |
+| [`waft-a1-kitti`](models/flow.md#waft) | yes | 0.695 † | 1533.3 (1080x1920) | 741.1 | 518.6 | 3.0x vs original (1080x1920) | 1851 |
 | [`waft-a1`](models/flow.md#waft) | yes | 2.621 | 1533.1 (1080x1920) | 741.0 | 518.7 | 3.0x vs original (1080x1920) | 1851 |
 | [`megaflow`](models/flow.md#megaflow) | yes | 1.714 † | 1588.5 (1080x1920) | 1112.0 | 734.8 | 2.2x vs original (1080x1920) | 2724 |
 | [`memflow-sintel`](models/flow.md#memflow) | yes | 1.218 † | 3214.2 (1080x1920) | 963.8 | 864.5 | 3.7x vs original (1080x1920) | 968 |
@@ -671,8 +671,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`gmflow-scale2-things`](models/flow.md#gmflow) | yes | 6.747 | 1598.6 (1080x1920) | 914.3 | 915.8 | 1.7x vs original (1080x1920) | 2995 |
 | [`gmflow-scale2-regrefine6-mixdata`](models/flow.md#gmflow) | yes | 1.315 ? | 2187.5 (1080x1920) | 1382.4 | 1383.1 | 1.6x vs original (1080x1920) | 3005 |
 | [`gmflow-scale2-regrefine6-sintelft`](models/flow.md#gmflow) | yes | 1.154 † | 2184.0 (1080x1920) | 1381.4 | 1383.7 | 1.6x vs original (1080x1920) | 3005 |
+| [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | yes | 4.917 | 2175.1 (1080x1920) | 1381.9 | 1384.0 | 1.6x vs original (1080x1920) | 3005 |
 | [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | yes | 0.570 † | 2187.8 (1080x1920) | 1383.3 | 1388.5 | 1.6x vs original (1080x1920) | 3005 |
-| [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | yes | 4.917 | 2175.1 (1080x1920) | 1477.8 | 1480.6 | 1.5x vs original (1080x1920) | 4036 |
 | [`memfof-sintel`](models/flow.md#memfof) | yes | 2.977 † | OOM (1080x1920) | 2176.7 | 1540.6 | 1.4x vs portable | 3805 |
 | [`memfof-kitti`](models/flow.md#memfof) | yes | 15.577 † | – | 2202.3 | 1565.1 | 1.4x vs portable | 3805 |
 | [`flowformer-small-things`](models/flow.md#flowformer-small) | yes | 6.884 | OOM (1080x1920) | 4002.9 | 3950.3 | 1.0x vs portable | 8696 |
@@ -749,8 +749,8 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`ema-vfi`](models/interpolation.md#ema-vfi) | yes | 296.2 (1080x1920) | 232.6 | 184.9 | 1.6x vs original (1080x1920) | 1659 |
 | [`ema-vfi-t`](models/interpolation.md#ema-vfi) | yes | 286.9 (1080x1920) | 233.5 | 206.9 | 1.4x vs original (1080x1920) | 368 |
 | [`film`](models/interpolation.md#film) | yes | 463.8 (1080x1920) | 411.6 | 327.7 | 1.4x vs original (1080x1920) | 2397 |
-| [`gimm-vfi-r-p`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2527.1 | 1520.0 | 1.7x vs portable | 4511 |
-| [`gimm-vfi-r`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2527.6 | 1520.8 | 1.7x vs portable | 4511 |
+| [`gimm-vfi-r-p`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2527.6 | 1520.0 | 1.7x vs portable | 4511 |
+| [`gimm-vfi-r`](models/interpolation.md#gimm-vfi) | no | OOM (1080x1920) | 2527.9 | 1520.8 | 1.7x vs portable | 4511 |
 
 ## Restoration
 

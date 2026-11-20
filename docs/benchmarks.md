@@ -833,7 +833,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | selective-igev-middlebury-train | 2201 | 1455 | 998 | 349 | 4.2x | 2.9x | 2013 / 2152 | 1238 / 1488 | 1109 / 1390 |
 | selective-igev-sceneflow | 2201 | 1455 | 998 | 349 | 4.2x | 2.9x | 2013 / 2152 | 1238 / 1488 | 1109 / 1390 |
 | waft-stereo-b | 1898 | 1140 | 1137 | 393 | 2.9x | 2.9x | 5743 / 5876 | 5775 / 5852 | 1907 / 2316 |
-| waft-stereo-s | 1252 | 689 | 689 | 284 | 2.4x | 2.4x | 3314 / 3398 | 3293 / 3456 | 1113 / 1286 |
+| waft-stereo-s | 1252 | 689 | 653 | 284 | 2.4x | 2.3x | 3314 / 3398 | 1609 / 1794 | 1113 / 1286 |
 
 ### Stereo, synthetic, 994x1482
 
@@ -927,7 +927,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | moge-2-vitl-normal | 518x770 | 500 | 169 | 145 | 73.9 | 2.3x | 2.0x | 2326 / 2418 | 1645 / 1836 | 1481 / 1610 |
 | moge-2-vits-normal | 994x1482 | – | – | 61.6 | 33.3 | – | 1.9x | – | 1007 / 1172 | 932 / 1048 |
 | moge-3-vitl | 994x1482 | – | – | 328 | 149 | – | 2.2x | – | 1622 / 1706 | 1626 / 1762 |
-| omni-dc | 994x1482 | – | 875 | 571 | 510 | 1.7x | 1.1x | 5966 / 6732 | 4130 / 6144 | 4154 / 6528 |
+| omni-dc | 994x1482 | – | 875 | 558 | 512 | 1.7x | 1.1x | 5966 / 6732 | 3849 / 5044 | 3873 / 4566 |
 | pointdit-b-512 | 994x1482 | – | – | 31.1 | 20.5 | – | 1.5x | – | 446 / 504 | 462 / 630 |
 | pointdit-l-512 | 994x1482 | – | – | 94.6 | 61.3 | – | 1.5x | – | 1297 / 1430 | 1310 / 1676 |
 | prompt-depth-anything-l | 756x1008 | – | – | 125 | 69.3 | – | 1.8x | – | 1318 / 1488 | 1179 / 1348 |
@@ -1392,7 +1392,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | gmflow-scale2-regrefine6-kitti | 3255 | 2188 | 1383 | 1389 | 1.6x | 1.0x | 8537 / 8822 | 3005 / 3192 | 3005 / 3212 |
 | gmflow-scale2-regrefine6-mixdata | 3254 | 2188 | 1382 | 1383 | 1.6x | 1.0x | 8537 / 8822 | 3005 / 3192 | 3005 / 3212 |
 | gmflow-scale2-regrefine6-sintelft | 3255 | 2184 | 1381 | 1384 | 1.6x | 1.0x | 8537 / 8822 | 3005 / 3192 | 3005 / 3212 |
-| gmflow-scale2-regrefine6-things | 3230 | 2175 | 1478 | 1481 | 1.5x | 1.0x | 8537 / 8822 | 4036 / 4696 | 4036 / 4696 |
+| gmflow-scale2-regrefine6-things | 3230 | 2175 | 1382 | 1384 | 1.6x | 1.0x | 8537 / 8822 | 3005 / 3192 | 3005 / 3212 |
 | gmflow-scale2-sintel | 2541 | 1607 | 915 | 916 | 1.8x | 1.0x | 8425 / 8552 | 2995 / 3184 | 2995 / 3204 |
 | gmflow-scale2-things | 2537 | 1599 | 914 | 916 | 1.7x | 1.0x | 8425 / 8552 | 2995 / 3184 | 2995 / 3204 |
 | megaflow | – | 1588 | 1112 | 735 | 2.2x | 1.5x | 8230 / 8786 | 2713 / 3518 | 2724 / 3530 |
@@ -1421,8 +1421,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | sea-raft-s-kitti | 365 | 299 | 210 | 50.7 | 5.9x | 4.2x | 7323 / 8502 | 6019 / 6136 | 404 / 432 |
 | sea-raft-s-spring | 67.1 | 42.4 | 32.8 | 16.2 | 2.6x | 2.0x | 699 / 764 | 611 / 656 | 150 / 172 |
 | waft-a1 | – | 1533 | 741 | 519 | 3.0x | 1.4x | 5537 / 5916 | 1832 / 2196 | 1851 / 2264 |
-| waft-a1-kitti | – | 1533 | 791 | 519 | 3.0x | 1.5x | 5537 / 5936 | 3553 / 4196 | 1851 / 2264 |
-| waft-a1-sintel | – | 1533 | 791 | 519 | 3.0x | 1.5x | 5537 / 5916 | 3553 / 4076 | 1851 / 2264 |
+| waft-a1-kitti | – | 1533 | 741 | 519 | 3.0x | 1.4x | 5537 / 5936 | 1832 / 2196 | 1851 / 2264 |
+| waft-a1-sintel | – | 1533 | 741 | 519 | 3.0x | 1.4x | 5537 / 5916 | 1832 / 2196 | 1851 / 2264 |
 
 ### Flow, KITTI 2015, 375x1242
 
@@ -1481,8 +1481,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | ema-vfi-small-t | 114 | 89.4 | 84.3 | 1.4x | 1.1x | 2272 / 2384 | 1614 / 1792 | 271 / 1914 |
 | ema-vfi-t | 287 | 233 | 207 | 1.4x | 1.1x | 3940 / 4290 | 2827 / 3184 | 368 / 3566 |
 | film | 464 | 412 | 328 | 1.4x | 1.3x | 2953 / 3556 | 2397 / 2702 | 2397 / 2942 |
-| gimm-vfi-r | OOM | 2528 | 1521 | – | 1.7x | – | 5872 / 6518 | 4511 / 5282 |
-| gimm-vfi-r-p | OOM | 2527 | 1520 | – | 1.7x | – | 5872 / 6518 | 4511 / 5282 |
+| gimm-vfi-r | OOM | 2528 | 1521 | – | 1.7x | – | 5394 / 6518 | 4511 / 5282 |
+| gimm-vfi-r-p | OOM | 2528 | 1520 | – | 1.7x | – | 5394 / 6518 | 4511 / 5282 |
 | rife-4.25 | 24.5 | 25.0 | 21.4 | 1.1x | 1.2x | 987 / 1154 | 755 / 894 | 848 / 916 |
 | rife-4.25-lite | 21.3 | 21.1 | 18.3 | 1.2x | 1.2x | 1012 / 1214 | 754 / 854 | 834 / 896 |
 | rife-4.26 | 24.2 | 25.0 | 21.4 | 1.1x | 1.2x | 1004 / 1154 | 570 / 754 | 663 / 776 |
@@ -1610,7 +1610,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | selective-igev-middlebury-train | 0.36 (375x1242) | 0.50 | 0.14† | 2.25 (375x1242) | 1.02† | 0.35† |
 | selective-igev-sceneflow | 0.36 (375x1242) | 0.50 | 0.14† | 2.25 (375x1242) | 1.02† | 0.35† |
 | waft-stereo-b | 3.07 (375x1242) | 0.55 | 1.77 (375x1242) | 0.44 (375x1242) | 1.36 | 0.46 (375x1242) |
-| waft-stereo-s | 1.60 (375x1242) | 0.58 | 1.47 (375x1242) | 0.14 (375x1242) | 0.69† | 0.32 (375x1242) |
+| waft-stereo-s | 1.60 (375x1242) | 1.03 | 1.47 (375x1242) | 0.14 (375x1242) | 0.87 | 0.32 (375x1242) |
 | any2full-b | 3.73 | 6.38 | 0.74 | 0.34 | 3.34 | 0.26 |
 | any2full-l | 9.41 | 1.45 | 1.50 | 0.47 | 0.30 | 0.28 |
 | any2full-s | 2.55 | 0.31 | 0.37 | 0.74 | 0.36 | 0.30 |
@@ -2011,7 +2011,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | gmflow-scale2-regrefine6-kitti | 0.15 | 0.46 | 0.17 (375x1242) | 2.20 | 1.68 | 0.89 (375x1242) |
 | gmflow-scale2-regrefine6-mixdata | 0.14 | 0.25 | 0.17 (375x1242) | 2.20 | 1.68 | 0.89 (375x1242) |
 | gmflow-scale2-regrefine6-sintelft | 0.15 | 0.26 | 0.36 (375x1242) | 2.37 | 1.68 | 0.72 (375x1242) |
-| gmflow-scale2-regrefine6-things | 0.15 | 0.16 | – | 2.19 | 1.67 | – |
+| gmflow-scale2-regrefine6-things | 0.15 | 0.16 | 0.16 | 2.19 | 1.67 | 1.90 |
 | gmflow-scale2-sintel | 0.13 | 0.16 | 0.16 (375x1242) | 1.62 | 1.14 | 0.72 (375x1242) |
 | gmflow-scale2-things | 0.14 | 0.17 | 0.17 (375x1242) | 1.61 | 1.14 | 0.70 (375x1242) |
 | megaflow | 9.56 | 1.96 (375x1242) | 7.10 (375x1242) | 6.77 | 0.76 (375x1242) | 0.67 (375x1242) |
@@ -2210,7 +2210,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | selective-igev-sceneflow | 994x1482 | 998 ms | 692 ms | 463 ms | 349 ms | 127 s | 255 s | 1238 / 1488 | 915 / 1028 | 1109 / 1390 | 1278 / 1334 |
 | waft-stereo-b | 994x1482 | 1094 ms | 571 ms | public API unavailable | 388 ms | 104 s | – | 2999 / 3070 | 3908 / 3936 | 1664 / 1932 | – |
 | waft-stereo-b | 384x1248 | – | – | 1209 ms, fp32 engine (standalone build) | – | – | 107 s | – | – | – | 1447 / 1454 |
-| waft-stereo-s | 994x1482 | 689 ms | 357 ms | 170 ms | 284 ms | 95.1 s | 152 s | 3293 / 3456 | 2024 / 2058 | 954 / 1102 | 1061 / 1114 |
+| waft-stereo-s | 994x1482 | 653 ms | 357 ms | 170 ms | 284 ms | 95.1 s | 152 s | 1609 / 1794 | 2024 / 2058 | 954 / 1102 | 1061 / 1114 |
 | any2full-b | 994x1482 | 26.8 ms | 24.2 ms | 15.8 ms | 17.2 ms | 97.0 s | 64.4 s | 538 / 596 | 442 / 496 | 481 / 536 | 731 / 794 |
 | any2full-l | 994x1482 | 67.7 ms | 63.8 ms | 40.2 ms | 42.3 ms | 33.9 s | 79.0 s | 1178 / 1250 | 987 / 1092 | 1115 / 1210 | 1860 / 1928 |
 | any2full-s | 994x1482 | 12.4 ms | 9.88 ms | 6.72 ms | 9.47 ms | 26.4 s | 59.0 s | 274 / 312 | 223 / 294 | 218 / 252 | 366 / 398 |
@@ -2249,7 +2249,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | moge-2-vits-normal | 994x1482 | 61.6 ms | 43.9 ms | 24.5 ms | 33.3 ms | 124 s | 131 s | 1007 / 1172 | 836 / 992 | 932 / 1048 | 768 / 852 |
 | moge-3-vitl | 994x1482 | 328 ms | 311 ms | public API unavailable | 149 ms | 136 s | – | 1622 / 1706 | 1500 / 1724 | 1626 / 1762 | – |
 | moge-3-vitl | 480x640 | – | – | 1069 ms, fp32 engine (DINOv2 encoder and projections with eager decoder and sparse refinement) | – | – | – | – | – | – | 4568 / 5382 |
-| omni-dc | 994x1482 | 571 ms | 411 ms | public API unavailable | 510 ms | 137 s | – | 4130 / 6144 | 4201 / 5932 | 4154 / 6528 | – |
+| omni-dc | 994x1482 | 558 ms | 411 ms | public API unavailable | 512 ms | 137 s | – | 3849 / 5044 | 4201 / 5932 | 3873 / 4566 | – |
 | omni-dc | 480x640 | – | – | 253 ms, fp32 engine (Depth Anything V2 with eager prompt fusion and solver) | – | – | 52.0 s | – | – | – | 2930 / 3298 |
 | pointdit-b-512 | 994x1482 | 31.1 ms | 23.7 ms | 15.5 ms | 20.5 ms | 33.6 s | 86.5 s | 446 / 504 | 465 / 524 | 462 / 630 | 795 / 898 |
 | pointdit-l-512 | 994x1482 | 94.6 ms | 76.0 ms | 49.1 ms | 61.3 ms | 57.3 s | 150 s | 1297 / 1430 | 1316 / 1430 | 1310 / 1676 | 2474 / 2626 |
@@ -2634,7 +2634,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | gmflow-scale2-regrefine6-mixdata | 384x1248 | – | – | 349 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | – | – | – | 1660 / 2526 |
 | gmflow-scale2-regrefine6-sintelft | 1080x1920 | 1381 ms | 1116 ms | public API unavailable | 1384 ms | 58.5 s | – | 3005 / 3192 | 10875 / 10972 | 3005 / 3212 | – |
 | gmflow-scale2-regrefine6-sintelft | 384x1248 | – | – | 350 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 14.5 s | – | – | – | 1660 / 2526 |
-| gmflow-scale2-regrefine6-things | 1080x1920 | 1478 ms | 1116 ms | public API unavailable | 1481 ms | 58.2 s | – | 4036 / 4696 | 10875 / 10972 | 4036 / 4696 | – |
+| gmflow-scale2-regrefine6-things | 1080x1920 | 1382 ms | 1116 ms | public API unavailable | 1384 ms | 58.2 s | – | 3005 / 3192 | 10875 / 10972 | 3005 / 3212 | – |
 | gmflow-scale2-regrefine6-things | 384x1248 | – | – | 350 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.7 s | – | – | – | 1660 / 2526 |
 | gmflow-scale2-sintel | 1080x1920 | 915 ms | 765 ms | public API unavailable | 916 ms | 46.6 s | – | 2995 / 3184 | 10865 / 10904 | 2995 / 3204 | – |
 | gmflow-scale2-sintel | 384x1248 | – | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 12.7 s | – | – | – | 1616 / 2560 |
@@ -2676,8 +2676,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | sea-raft-s-kitti | 1080x1920 | 210 ms | 150 ms | 108 ms | 50.7 ms | 31.8 s | 67.3 s | 6019 / 6136 | 5828 / 5876 | 404 / 432 | 11043 / 11078 |
 | sea-raft-s-spring | 1080x1920 | 32.8 ms | 23.8 ms | 3.01 ms | 16.2 ms | 21.9 s | 38.8 s | 611 / 656 | 582 / 596 | 150 / 172 | 215 / 278 |
 | waft-a1 | 1080x1920 | 741 ms | 610 ms | 343 ms | 519 ms | 84.7 s | 166 s | 1832 / 2196 | 3479 / 3638 | 1851 / 2264 | 1625 / 1672 |
-| waft-a1-kitti | 1080x1920 | 791 ms | 610 ms | 343 ms | 519 ms | 84.1 s | 168 s | 3553 / 4196 | 3479 / 3758 | 1851 / 2264 | 1625 / 1672 |
-| waft-a1-sintel | 1080x1920 | 791 ms | 610 ms | 343 ms | 519 ms | 84.7 s | 166 s | 3553 / 4076 | 3479 / 3578 | 1851 / 2264 | 1625 / 1672 |
+| waft-a1-kitti | 1080x1920 | 741 ms | 610 ms | 343 ms | 519 ms | 84.1 s | 168 s | 1832 / 2196 | 3479 / 3758 | 1851 / 2264 | 1625 / 1672 |
+| waft-a1-sintel | 1080x1920 | 741 ms | 610 ms | 343 ms | 519 ms | 84.7 s | 166 s | 1832 / 2196 | 3479 / 3578 | 1851 / 2264 | 1625 / 1672 |
 | aliked-flexglue | 768x1024 | 129 ms | 96.1 ms | 328 ms, fp32 engine (dense descriptor with eager ALIKED and matching) | 129 ms | 78.8 s | 22.3 s | 1775 / 1886 | 1762 / 1826 | 1814 / 2178 | 2225 / 2410 |
 | aliked-lightglue | 768x1024 | 40.6 ms | 29.5 ms | 65.2 ms, fp32 engine (standalone ALIKED encoder with eager keypoint selection and LightGlue) | 35.1 ms | 30.8 s | 26.4 s | 1300 / 1404 | 1653 / 1680 | 1238 / 1324 | 1520 / 1652 |
 | dedode-v2-b | 768x1024 | 236 ms | 164 ms | 494 ms, fp32 engine (FP32 public builder probe) | 189 ms | 50.5 s | 67.8 s | 1160 / 1292 | 1893 / 2434 | 1197 / 1246 | 3354 / 3378 |
@@ -2718,9 +2718,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | ema-vfi-small-t | 1080x1920 | 89.4 ms | 59.8 ms | 43.4 ms | 84.3 ms | 77.9 s | 68.8 s | 1614 / 1792 | 1809 / 1890 | 271 / 1914 | 1018 / 1110 |
 | ema-vfi-t | 1080x1920 | 233 ms | 165 ms | 125 ms | 207 ms | 84.6 s | 91.5 s | 2827 / 3184 | 3325 / 3702 | 368 / 3566 | 1719 / 1766 |
 | film | 1080x1920 | 412 ms | 332 ms | 189 ms | 328 ms | 41.1 s | 203 s | 2397 / 2702 | 2666 / 3192 | 2397 / 2942 | 2658 / 2658 |
-| gimm-vfi-r | 1080x1920 | 2528 ms | 1498 ms | public API unavailable | 1521 ms | 307 s | – | 5872 / 6518 | 12051 / 12880 | 4511 / 5282 | – |
+| gimm-vfi-r | 1080x1920 | 2528 ms | 1498 ms | public API unavailable | 1521 ms | 307 s | – | 5394 / 6518 | 12051 / 12880 | 4511 / 5282 | – |
 | gimm-vfi-r | 480x854 | 468 ms | – | 1210 ms, fp32 engine (RAFT feature encoder with eager context, flow update and synthesis) | 289 ms | – | 12.9 s | 1574 / 1674 | – | 1388 / 1618 | 3522 / 6116 |
-| gimm-vfi-r-p | 1080x1920 | 2527 ms | 1498 ms | fails: TensorRT parser: Sc node | 1520 ms | 307 s | – | 5872 / 6518 | 12051 / 12880 | 4511 / 5282 | – |
+| gimm-vfi-r-p | 1080x1920 | 2528 ms | 1498 ms | fails: TensorRT parser: Sc node | 1520 ms | 307 s | – | 5394 / 6518 | 12051 / 12880 | 4511 / 5282 | – |
 | gimm-vfi-r-p | 480x854 | 467 ms | – | 1190 ms, fp32 engine (RAFT feature and context encoders with eager flow update and synthesis) | 289 ms | – | 16.9 s | 1574 / 1674 | – | 1388 / 1598 | 3592 / 6000 |
 | rife-4.25 | 1080x1920 | 25.0 ms | 44.9 ms | 17.6 ms | 21.4 ms | 36.1 s | 56.3 s | 755 / 894 | 1094 / 1234 | 848 / 916 | 696 / 714 |
 | rife-4.25-lite | 1080x1920 | 21.1 ms | 42.3 ms | 14.1 ms | 18.3 ms | 34.9 s | 49.5 s | 754 / 854 | 1061 / 1374 | 834 / 896 | 696 / 714 |

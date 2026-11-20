@@ -47,7 +47,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`moge-2-vitl-normal`](#moge) | yes | 0.0357 | 73.4, 2.3x | 1610, 0.66x |
 | [`moge-2-vits-normal`](#moge) | yes | 0.0484 | 33.3, 2.5x | 1048, 0.83x |
 | [`moge-3-vitl`](#moge) | yes | 0.0356 | 149, 3.3x | 1762, 0.67x |
-| [`omni-dc`](#omni_dc) | no | – | 510, 1.7x | 6528, 0.97x |
+| [`omni-dc`](#omni_dc) | no | – | 512, 1.7x | 4566, 0.68x |
 | [`pointdit-b-512`](#pointdit) | yes | 0.0453 | 20.5, 2.4x | 630, 0.63x |
 | [`pointdit-l-512`](#pointdit) | yes | 0.0410 | 61.3, 1.8x | 1676, 0.53x |
 | [`prompt-depth-anything-l`](#prompt_depth_anything) | yes | – | 69.3, 6.3x (756x1008) | 1348, 0.35x |
@@ -1056,7 +1056,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `omni-dc` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 875<br>571<br>510<br>411<br>public API unavailable | 5966 / 6732<br>4130 / 6144<br>4154 / 6528<br>4201 / 5932<br>– |
+| `omni-dc` | synthetic (994x1482) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 875<br>558<br>512<br>411<br>public API unavailable | 5966 / 6732<br>3849 / 5044<br>3873 / 4566<br>4201 / 5932<br>– |
 | `omni-dc` | 480x640 | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>–<br>–<br>253 (Depth Anything V2 with eager prompt fusion and solver) | –<br>–<br>–<br>2930 / 3298 |
 
 <details><summary>Details</summary>
@@ -1075,7 +1075,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - `omni-dc` 994x1482, first call: portable + torch.compile 137 s (cold Inductor cache).
 - `omni-dc` 480x640, first call: TensorRT fp32 52 s (ONNX + engine).
 - `omni-dc` original 994x1482: upstream OGNIDC.forward (demo.sh arguments), float32, 16-padded
-- `omni-dc` portable 994x1482, kernels 994x1482: Released decoder intermediates after final use. Synthetic and three labeled outputs were bitwise identical.
+- `omni-dc` portable 994x1482, kernels 994x1482: Short decoder convolution bands preserve the full-image attention. Depth matched bitwise on the standard, odd-size and three iBims inputs.
 - `omni-dc` load / first call: original 9.52 s / 2.035 s, portable 2.47 s / 1.062 s, kernels 2.44 s / 0.936 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
