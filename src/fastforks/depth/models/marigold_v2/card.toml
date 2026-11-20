@@ -47,6 +47,7 @@ stream = true  # transformer blocks in pinned host memory, uploaded one at a tim
 
 [modes.portable]
 cuda_dtype = "bfloat16"  # as upstream under autocast: bf16 GEMMs and attention, float32 norms, RoPE and gates
+mlx_dtypes = ["bfloat16"]  # MLX port (net/mlx_net.py): NF4 kept packed, blocks streamed from the file by default
 
 [modes.kernels]
 dtype = "bfloat16"
