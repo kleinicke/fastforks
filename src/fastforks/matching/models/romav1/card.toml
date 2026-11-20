@@ -5,6 +5,9 @@ tier = "experimental"
 outputs = ["warp", "certainty"]
 uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (the DINOv2 ViT and its fast path)
 limitations = [
+  "The fixed FP32 DINOv2 TensorRT stage raised AUC@5 from 61.60 to 64.93 on 300 MegaDepth pairs. On one pair the pose error went from 13.67 degrees to the 90-degree failure value, even with TF32 disabled.",
+  "A separate FP32 TensorRT stage for the fine VGG encoder also introduced a pose failure on a MegaDepth pair solved by portable, with TF32 disabled.",
+  "Restricting the FP32 engine to the fine VGG stride-8 convolutions introduced zero new pose failures on 300 MegaDepth pairs. AUC@5/10/20 changed from 63.97/77.89/87.40 to 64.00/77.92/87.29, and one pair's pose error rose from 2.58 to 22.71 degrees.",
   "One direction (the first image's half of upstream's symmetric call); upstream's sampling / keypoint helpers are not included; tools/eval_matching.py has the MegaDepth-1500 sampling.",
   "Both images are resized to squares (upstream's behaviour), whatever their aspect ratio; upstream resizes PIL images, this runner float tensors (bicubic, antialiased).",
 ]
@@ -49,7 +52,7 @@ venue = "CVPR 2024"
 
 [[variants]]
 id = "romav1"  # upstream roma_outdoor.pth (roma_outdoor()); MegaDepth-1500 AUC@5/10/20 62.6 / 76.7 / 86.3 (paper)
-planned = { onnx = "the ONNX converter fails on the exported program (ConversionError, step 3/3)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { onnx = "the ONNX converter fails on the exported program (ConversionError, step 3/3)", tensorrt = "component trials with FP32 DINOv2 or fine VGG engines introduce pose failures or large pose errors on MegaDepth, including with TF32 disabled" }
 revision = 1
 weights = [
   { name = "roma_outdoor.pth", size = 445647516, sha256 = "c7a45c80d41ad788a63c641d1b686d7cb3f297f40097c6f4e75039889e5cc8ba", url = "https://github.com/Parskatt/storage/releases/download/roma/roma_outdoor.pth" },

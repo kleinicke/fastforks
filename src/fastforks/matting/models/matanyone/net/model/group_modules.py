@@ -50,11 +50,13 @@ class GroupResBlock(nn.Module):
         self.conv1 = GConv2d(in_dim, out_dim, kernel_size=3, padding=1)
         self.conv2 = GConv2d(out_dim, out_dim, kernel_size=3, padding=1)
 
-    def forward(self, g: torch.Tensor) -> torch.Tensor:
-        out_g = self.conv1(F.relu(g))
-        out_g = self.conv2(F.relu(out_g))
+    def forward(self, g: torch.Tensor, *, consume_input: bool = False) -> torch.Tensor:
+        project_first = consume_input and not torch.is_grad_enabled() and not isinstance(self.downsample, nn.Identity)
+        residual = self.downsample(g) if project_first else None
+        out_g = self.conv1(F.relu(g, inplace=project_first))
+        out_g = self.conv2(F.relu(out_g, inplace=True))
 
-        g = self.downsample(g)
+        g = self.downsample(g) if residual is None else residual
 
         return out_g + g
 

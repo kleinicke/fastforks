@@ -20,17 +20,17 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`efficientvit-sam-xl1`](#efficientvit_sam) | yes | 15.3, 2.7x | 686, 0.67x |
 | [`insid3-vitl16`](#insid3) | yes | 157, 4.5x | 1228, 0.7x |
 | [`mobile-sam`](#mobile_sam) | yes | 7.22, 3.3x | 296, 1.0x |
-| [`sam-hq-vit-b`](#sam_hq) | yes | 36.8, 2.8x | 564, 0.32x |
-| [`sam-hq-vit-h`](#sam_hq) | yes | 143, 2.2x | 1688, 0.39x |
-| [`sam-hq-vit-l`](#sam_hq) | yes | 81.9, 2.5x | 1026, 0.34x |
-| [`sam-vit-b`](#sam) | yes | 37.0, 2.7x | 420, 0.23x |
-| [`sam-vit-h`](#sam) | yes | 143, 2.1x | 1524, 0.28x |
-| [`sam-vit-l`](#sam) | yes | 81.5, 2.4x | 862, 0.25x |
+| [`sam-hq-vit-b`](#sam_hq) | yes | 35.3, 2.9x | 544, 0.31x |
+| [`sam-hq-vit-h`](#sam_hq) | yes | 140, 2.2x | 1648, 0.38x |
+| [`sam-hq-vit-l`](#sam_hq) | yes | 79.0, 2.6x | 1006, 0.33x |
+| [`sam-vit-b`](#sam) | yes | 35.5, 2.8x | 400, 0.22x |
+| [`sam-vit-h`](#sam) | yes | 140, 2.2x | 1484, 0.27x |
+| [`sam-vit-l`](#sam) | yes | 79.0, 2.5x | 862, 0.25x |
 | [`sam2.1-hiera-base-plus`](#sam2) | yes | 25.4, 1.9x | 464, 0.53x |
 | [`sam2.1-hiera-large`](#sam2) | yes | 49.1, 1.8x | 808, 0.53x |
 | [`sam2.1-hiera-small`](#sam2) | yes | 15.6, 2.7x | 386, 0.58x |
 | [`sam2.1-hiera-tiny`](#sam2) | yes | 13.9, 2.7x | 362, 0.57x |
-| [`sam3`](#sam3) | yes | 117, 2.2x | 2264, 1.1x |
+| [`sam3`](#sam3) | yes | 107, 2.4x | 2044, 0.96x |
 
 <a id="clipseg"></a>
 
@@ -66,9 +66,9 @@ Commercial use: yes.
 
 One text prompt per present COCO class. The label is the union of the class's non-crowd masks. Scores average pixel IoU aggregated per class, and IoU per image and prompt. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | portable | portable fp32 | TensorRT | note |
-|---|---|---|---|---|---|
-| `clipseg` | COCO val2017, every 10th image, class masks, class / prompt mIoU % | 55.00 / 38.37 | 55.02 / 38.38 | 55.00 / 38.38 |  |
+| variant | dataset | original fp32 | portable | portable fp32 | TensorRT | note |
+|---|---|---|---|---|---|---|
+| `clipseg` | COCO val2017, every 10th image, class masks, class / prompt mIoU % | 54.96 / 38.38 | 55.00 / 38.37 | 55.02 / 38.38 | 55.00 / 38.38 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bc6ebb31, 2026-11-17; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bc6ebb31, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks bc6ebb31, 2026-11-18.
 
@@ -255,13 +255,14 @@ Commercial use: yes.
 
 ### Measured
 
-One point per ground-truth instance (the interior point farthest from the border); IoU of the best-scored of 3 masks / of the single mask. Original = the original code named under Details, same checkpoint and protocol.
+One point per ground-truth instance (the interior point farthest from the border); IoU of the best-scored of 3 masks / of the single mask. Every 100th validation image in filename order. Give one interior point for the first non-crowd instance with a nonempty mask and score IoU for the highest-scored of three masks and the single-mask output. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `mobile-sam` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 51.53 / 49.90 | 51.48 / 49.91 | 51.53 / 49.91 | 51.51 / 49.90 | 51.53 / 49.91 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | note |
+|---|---|---|---|---|---|---|---|---|
+| `mobile-sam` | COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask % | 51.53 / 49.90 | 51.48 / 49.91 | 51.53 / 49.91 | 51.51 / 49.90 | 51.53 / 49.91 |  |  |
+| `mobile-sam` | COCO val2017, single point, best-of-3 / single-mask mIoU % |  |  |  | 59.13 / 51.47 |  | 59.13 / 51.47 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5eafe838+dirty, 2026-11-10; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5eafe838+dirty, 2026-11-10.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5eafe838+dirty, 2026-11-10; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5eafe838+dirty, 2026-11-10; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 23765f70, 2026-11-19.
 
 ### Parity
 
@@ -287,9 +288,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam-hq-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>103<br>49.8<br>36.8<br>39.4<br>28.0 (image encoder only) | 2886 / 2934<br>1704 / 1756<br>375 / 422<br>420 / 564<br>372 / 422<br>609 / 642 |
-| `sam-hq-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 412<br>202<br>118<br>81.9<br>97.0<br>68.3 (image encoder only) | 4545 / 4576<br>2969 / 3018<br>834 / 882<br>877 / 1026<br>822 / 902<br>1482 / 1538 |
-| `sam-hq-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 738<br>311<br>217<br>143<br>187<br>125 (image encoder only) | 5848 / 5896<br>4266 / 4318<br>1488 / 1566<br>1528 / 1688<br>1476 / 1526<br>2790 / 2818 |
+| `sam-hq-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>103<br>48.3<br>35.3<br>39.4<br>28.0 (image encoder only) | 2886 / 2934<br>1704 / 1756<br>375 / 422<br>420 / 544<br>372 / 422<br>609 / 642 |
+| `sam-hq-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 412<br>202<br>114<br>79.0<br>97.0<br>68.3 (image encoder only) | 4545 / 4576<br>2969 / 3018<br>834 / 862<br>877 / 1006<br>822 / 902<br>1482 / 1538 |
+| `sam-hq-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 738<br>311<br>213<br>140<br>187<br>125 (image encoder only) | 5848 / 5896<br>4266 / 4318<br>1488 / 1526<br>1528 / 1648<br>1476 / 1526<br>2790 / 2818 |
 
 <details><summary>Details</summary>
 
@@ -308,10 +309,13 @@ Commercial use: yes.
 - `sam-hq-vit-h` 1024x1024, first call: portable + torch.compile 42 s (cold Inductor cache), TensorRT fp16 69 s (ONNX + engine).
 - `sam-hq-vit-b` original (fp32) 1024x1024: upstream SamPredictor.set_image + predict (centre point, multimask_output=True, hq_token_only=False)
 - `sam-hq-vit-b` original 1024x1024: torch.autocast(float16) around the call; upstream SamPredictor.set_image + predict (centre point, multimask_output=True, hq_token_only=False)
+- `sam-hq-vit-b` portable 1024x1024, kernels 1024x1024: CUDA FP16 encoder attention with directly written relative-position padding.
 - `sam-hq-vit-l` original (fp32) 1024x1024: upstream SamPredictor.set_image + predict (centre point, multimask_output=True, hq_token_only=False)
 - `sam-hq-vit-l` original 1024x1024: torch.autocast(float16) around the call; upstream SamPredictor.set_image + predict (centre point, multimask_output=True, hq_token_only=False)
+- `sam-hq-vit-l` portable 1024x1024, kernels 1024x1024: CUDA FP16 encoder attention with directly written relative-position padding.
 - `sam-hq-vit-h` original (fp32) 1024x1024: upstream SamPredictor.set_image + predict (centre point, multimask_output=True, hq_token_only=False)
 - `sam-hq-vit-h` original 1024x1024: torch.autocast(float16) around the call; upstream SamPredictor.set_image + predict (centre point, multimask_output=True, hq_token_only=False)
+- `sam-hq-vit-h` portable 1024x1024, kernels 1024x1024: CUDA FP16 encoder attention with directly written relative-position padding.
 - `sam-hq-vit-b` load / first call: original 0.77 s / 0.192 s, portable 0.69 s / 0.386 s, kernels 0.97 s / 0.378 s
 - `sam-hq-vit-l` load / first call: original 1.98 s / 0.205 s, portable 1.35 s / 0.432 s, kernels 1.25 s / 0.419 s
 - `sam-hq-vit-h` load / first call: original 3.92 s / 0.317 s, portable 2.27 s / 0.522 s, kernels 2.01 s / 0.481 s
@@ -355,9 +359,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 168<br>98.2<br>48.3<br>37.0<br>40.9<br>27.3 (image encoder only) | 2798 / 2832<br>1769 / 1802<br>378 / 420<br>377 / 420<br>362 / 400<br>545 / 582 |
-| `sam-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 406<br>197<br>116<br>81.5<br>97.2<br>67.5 (image encoder only) | 4428 / 4474<br>3411 / 3464<br>833 / 1262<br>831 / 862<br>793 / 862<br>1453 / 1520 |
-| `sam-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 734<br>306<br>214<br>143<br>188<br>124 (image encoder only) | 5702 / 5754<br>5295 / 5404<br>1484 / 2524<br>1480 / 1524<br>1436 / 1484<br>2744 / 2784 |
+| `sam-vit-b` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 168<br>98.2<br>46.6<br>35.5<br>40.9<br>27.3 (image encoder only) | 2798 / 2832<br>1769 / 1802<br>365 / 400<br>365 / 400<br>362 / 400<br>545 / 582 |
+| `sam-vit-l` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 406<br>197<br>113<br>79.0<br>97.2<br>67.5 (image encoder only) | 4428 / 4474<br>3411 / 3464<br>821 / 882<br>818 / 862<br>793 / 862<br>1453 / 1520 |
+| `sam-vit-h` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 734<br>306<br>211<br>140<br>188<br>124 (image encoder only) | 5702 / 5754<br>5295 / 5404<br>1472 / 1504<br>1467 / 1484<br>1436 / 1484<br>2744 / 2784 |
 
 <details><summary>Details</summary>
 
@@ -375,12 +379,14 @@ Commercial use: yes.
 - `sam-vit-l` 1024x1024, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 53 s (ONNX + engine).
 - `sam-vit-h` 1024x1024, first call: portable + torch.compile 43 s (cold Inductor cache), TensorRT fp16 70 s (ONNX + engine).
 - `sam-vit-b` original 1024x1024: torch.autocast(float16) around the call
+- `sam-vit-b` portable 1024x1024, kernels 1024x1024: CUDA FP16 encoder attention with directly written relative-position padding.
 - `sam-vit-l` original 1024x1024: torch.autocast(float16) around the call
+- `sam-vit-l` portable 1024x1024, kernels 1024x1024: CUDA FP16 encoder attention with directly written relative-position padding.
 - `sam-vit-h` original 1024x1024: torch.autocast(float16) around the call
-- `sam-vit-b` load / first call: original 0.75 s / 0.176 s, portable 0.46 s / 0.048† s, kernels 0.17† s / 0.037† s
-- `sam-vit-l` load / first call: original 1.8 s / 0.268 s, portable 1.21 s / 0.116† s, kernels 0.43† s / 0.081† s
-- `sam-vit-h` load / first call: original 4.61 s / 0.376 s, portable 2.45 s / 0.214† s, kernels 0.89† s / 0.143† s
-- † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
+- `sam-vit-h` portable 1024x1024, kernels 1024x1024: CUDA FP16 encoder attention with directly written relative-position padding.
+- `sam-vit-b` load / first call: original 0.75 s / 0.176 s, portable 0.32 s / 0.558 s, kernels 0.33 s / 0.536 s
+- `sam-vit-l` load / first call: original 1.8 s / 0.268 s, portable 0.81 s / 0.416 s, kernels 0.68 s / 0.409 s
+- `sam-vit-h` load / first call: original 4.61 s / 0.376 s, portable 1.38 s / 0.525 s, kernels 1.27 s / 0.443 s
 - Protocol, median of 5 after 3 warm-up, uint8 CUDA input (synthetic for bench_inputs sizes), card defaults; gc before each load; peak = max over the first call and the timed calls
 
 ### Measured
@@ -492,7 +498,15 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `sam3` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 695<br>254<br>179<br>117<br>168<br>89.5 (image encoder only) | 3865 / 3934<br>2052 / 2124<br>1910 / 1984<br>1974 / 2264<br>1910 / 2004<br>2926 / 2944 |
+| `sam3` | synthetic (1024x1024) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 695<br>254<br>190<br>107<br>167<br>89.5 (image encoder only) | 3865 / 3934<br>2052 / 2124<br>1910 / 1984<br>1900 / 2044<br>1863 / 1944<br>2926 / 2944 |
+
+### Weight streaming
+
+Warm inference time and peak reserved GPU memory for the same input with both settings. Streamed weights use pinned host memory.
+
+| Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
+|---|---|---|---|---|---|---|
+| sam3 | portable | 480x640 | RTX 5060 Ti | 2.14.1+cu130 | 193.72 ms / 2,196 MiB | 194.74 ms / 1,358 MiB |
 
 <details><summary>Details</summary>
 
@@ -508,7 +522,7 @@ Commercial use: yes.
 - Outputs: boxes, scores, masks
 - Input size: any H x W >= 1, resized inside to the fixed encoder input 1008x1008 (the default export size)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `sam3` 1080x1920 (1.9 GiB peak allocated, 2.1 reserved)
-- `sam3` 1024x1024, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 54 s (ONNX + engine).
+- `sam3` 1024x1024, first call: portable + torch.compile 67 s (cold Inductor cache), TensorRT fp16 54 s (ONNX + engine).
 - `sam3` original 1024x1024: Transformers FP16 weights, FP16 inputs; original adapter casting hooks; 500-image COCO accuracy checked
 - `sam3` load / first call: original 1.35 s / 0.256 s, portable 3.85 s / 0.18 s (840x1297), kernels 4.03 s / 0.116 s (840x1297)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -517,11 +531,11 @@ Commercial use: yes.
 
 One text prompt (the COCO class name) per class in the image; the top 100 instances go to pycocotools COCOeval. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | original half | portable | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `sam3` | COCO val2017, every 10th image, class-name prompts, box / mask mAP | 52.54 / 44.56 | 52.54 / 44.54 | 52.38 / 44.54 | 52.79 / 45.13 | 52.83 / 45.14 | original = transformers `Sam3Model`, the port this code follows |
+| variant | dataset | original fp32 | original fp16 | original half | portable | portable fp32 | kernels | note |
+|---|---|---|---|---|---|---|---|---|
+| `sam3` | COCO val2017, every 10th image, class-name prompts, box / mask mAP | 52.54 / 44.56 | 52.54 / 44.54 | 52.38 / 44.54 | 52.79 / 45.13 | 52.82 / 45.16 | 52.83 / 45.14 | original = transformers `Sam3Model`, the port this code follows |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 446408848, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
 
 ### Parity
 

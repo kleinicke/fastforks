@@ -2,49 +2,30 @@
 
 ## Measurement and implementation coverage
 
-Local generated site data on 2026-11-17 at 23:38 CET covers 578 variants.
+The November 19 release review covers 578 variants.
 
-- [ ] Portable FP32 quality is absent for 175 variants and original FP32 quality for 64. Fifty-four variants have
-  no available quality score. COCO, DAVIS, DTU, MegaDepth, prompted-depth, volumetric, OCR, edge and pose evaluations
-  are in progress.
-- [ ] Compile has a measured row for 562 variants and a recorded failure or planned entry for 13. Three LoMa
-  variants are queued.
-- [ ] TensorRT has a measured row for 506 variants and a recorded failure or planned entry for 69. Three LoMa
-  variants are queued. The two new LoMa engines built, and their data-dependent output allocation is under review.
-- [ ] Kernel work is tracked separately in [the family and variant list](missing-kernel-modes-0.2.1.md).
+- [x] Default portable accuracy is measured for all 578 variants. The 39 gaps from the November 19 audit now
+  have scores, including FalconsAI NSFW ViT on the official UnsafeBench Sexual test subset.
+- [x] Original and portable FP32 accuracy are each measured for 575 variants. Marigold V2 and both SeedVR2 models
+  use BF16 in their CUDA portable runners and have scores at that precision.
+- [x] Compile timings cover all 578 variants. The measured stage is recorded for partial compilation.
+- [ ] TensorRT timings cover 575 variants, with 54 selected timings from standalone builds. Scope labels identify
+  staged runs and restricted inputs. DISK-LightGlue, XFeat-LighterGlue and RoMa v1 remain gated on paired accuracy checks.
+- [x] Kernels timings cover all 578 variants in the local setup. Public CUDA binary availability is tracked separately
+  in [the kernel inventory](missing-kernel-modes-0.2.1.md).
+- [x] Each of the 20 task categories has a labeled comparison for kernels, compile and TensorRT.
 
-Counts use the generated site's per-variant quality and speed entries. A variant can have additional gaps at other
-resolutions or on other datasets. Preserve the existing comparison protocols when filling them.
+Coverage counts use a successful row at any reported resolution or dataset. Keep each comparison tied to its
+measured shape, dataset and backend scope.
 
 ## Website model examples
 
-- [x] Inventory models missing example images on the website.
-- [x] Generate and check representative examples for the 578 variants in the current inventory.
-- [ ] Ensure the example metadata and image assets are available to the website; verify the resulting model pages.
+- [x] Generate or restore examples for all 578 variants. The coverage is 477 rendered outputs and 101 classifier
+  predictions displayed as text.
+- [x] Build the website review branch and verify all 501 distinct referenced assets against its source assets.
+  The assets and generated metadata are available on the
+  [website review branch](https://github.com/kleinicke/fastforks-website/tree/complete-model-examples).
+- [ ] Deploy the review build and verify the production pages.
 
-The existing generator is `tools/examples.py`, with metadata in `docs/data/examples.jsonl`. Earlier generated assets
-are in `site_examples`; they are not committed to this repository. Classification
-examples can contain top-five text without a rendered output image, so count website coverage separately from image
-files. Do not treat generated assets as published until they have actually been made available to the website.
-
-Local inventory on 2026-11-17: the generated site data contains 573 variants. Fourteen have no example metadata;
-101 classification variants have text-only examples; and 289 variants reference an image absent from the newer
-local asset directory. The older batch's output directory was not found during the 2026-11-15 survey, and images
-may already exist on the live site, so these figures are not a count of broken website pages. The per-variant local
-inventory is `2026-11-17_missing_site_examples.tsv` in the experiment workspace.
-The generator's `_done()` currently skips successful metadata rows even if the corresponding local file is missing;
-restore those assets from their original location or explicitly regenerate them rather than relying on the default skip.
-
-A public HTTP check on 2026-11-17 found 174 output WebPs and 17 input WebPs returning 404 among the generated site's
-asset references. A retry confirmed that `crestereo-eth3d.webp` returns a WebP. The missing Marigold v2 depth example
-was regenerated with the portable BF16 backend. The archive at
-`2026-11-17_fastforks_missing_live_assets.zip` in the experiment workspace’s results directory now contains all 191 missing WebPs
-and the new example assets, along with their SHA-256 hashes. Each WebP was decoded successfully before packaging.
-
-The local metadata audit now covers all 578 variants, with rendered images for 477 and text-only examples for
-101 classifiers. The asset package also includes the five newly added LoMa examples. Site upload and live-page
-verification remain open.
-
-On 2026-11-17 the missing `span-x2` and `span-x4` examples were generated and visually checked; their metadata is in
-`docs/data/examples.jsonl`. The two rendered images and distinct 2x/4x input images are in the local asset directory
-above and still need to be supplied to the website. Generation now gives those two degraded inputs different names.
+`tools/examples.py` writes example metadata to `docs/data/examples.jsonl`. It skips examples with successful metadata
+even if the corresponding local file is missing. Restore the asset or explicitly regenerate that example in this case.

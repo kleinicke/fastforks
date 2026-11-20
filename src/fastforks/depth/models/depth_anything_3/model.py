@@ -46,7 +46,7 @@ from .net.dinov2.dinov2 import DinoV2
 from .net.dinov2.layers import Mlp
 from .net.dpt import DPT
 from .net.dualdpt import DualDPT
-from .net.utils.head_utils import create_uv_grid, position_grid_to_embed
+from .net.utils.head_utils import create_uv_grid, make_sincos_pos_embed
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -283,26 +283,60 @@ def _activate(arch_dual: bool, logits: torch.Tensor, sky_logits: torch.Tensor | 
 
 
 # ------------------------------------------------------------------------------------------------ portable
+def _position_axes(
+    channels: int, hw: tuple[int, int], aspect_ratio: float, *, dtype: torch.dtype, device: torch.device,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """The independent horizontal and vertical sine/cosine features, in FP32."""
+    h, w = hw
+    uv = create_uv_grid(w, h, aspect_ratio=aspect_ratio, dtype=dtype, device=device)
+    horizontal = make_sincos_pos_embed(channels // 2, uv[0, :, 0]) * _POS_RATIO
+    vertical = make_sincos_pos_embed(channels // 2, uv[:, 0, 1]) * _POS_RATIO
+    return horizontal, vertical
+
+
+def _add_position(
+    head: DPT | DualDPT, x: torch.Tensor, w: int, h: int,
+) -> torch.Tensor:
+    """Add the same FP32 embeddings to each axis without allocating a spatial channel grid on CUDA."""
+    if not x.is_cuda or torch.is_grad_enabled() or torch.compiler.is_compiling() or torch.jit.is_tracing():
+        return head._add_pos_embed(x, w, h).to(x.dtype)  # noqa: SLF001 - upstream helper
+    ph, pw = x.shape[-2:]
+    channels = x.shape[1] // 2
+    horizontal, vertical = _position_axes(x.shape[1], (ph, pw), w / h, dtype=x.dtype, device=x.device)
+    # Both callers supply a fresh convolution or resize output. The add promotes to float32 and stores in x.dtype.
+    x[:, :channels].add_(horizontal.t()[None, :, None, :])
+    x[:, channels:].add_(vertical.t()[None, :, :, None])
+    return x
+
+
 def _decode(head: DPT | DualDPT, feats: list[torch.Tensor], ph: int, pw: int) -> torch.Tensor:
     """Upstream DPT / DualDPT main branch up to the output convs: tokens `[B, N, C]` -> `[B, 128, 14 ph, 14 pw]`."""
     b = feats[0].shape[0]
     h, w = ph * PATCH, pw * PATCH
+    s: Any = head.scratch
+    # Project one feature map at a time, then release each lateral after its fusion stage.
+    blocks = (s.layer1_rn, s.layer2_rn, s.layer3_rn, s.layer4_rn)
     rs = []
-    for i, f in enumerate(feats):
+    for i, (f, project) in enumerate(zip(feats, blocks, strict=True)):
         x = head.norm(f).transpose(1, 2).reshape(b, -1, ph, pw)
         x = head.projects[i](x)
         if head.pos_embed:
-            x = head._add_pos_embed(x, w, h).to(x.dtype)  # noqa: SLF001 - upstream helper (built in fp32)
-        rs.append(head.resize_layers[i](x))
-    s: Any = head.scratch
-    l1, l2, l3, l4 = s.layer1_rn(rs[0]), s.layer2_rn(rs[1]), s.layer3_rn(rs[2]), s.layer4_rn(rs[3])
+            x = _add_position(head, x, w, h)
+        rs.append(project(head.resize_layers[i](x)))
+        del x
+    l1, l2, l3, l4 = rs
+    del rs
     p = s.refinenet4(l4, size=l3.shape[2:])
+    del l4
     p = s.refinenet3(p, l3, size=l2.shape[2:])
+    del l3
     p = s.refinenet2(p, l2, size=l1.shape[2:])
+    del l2
     p = s.refinenet1(p, l1)
+    del l1
     p = F.interpolate(s.output_conv1(p), (h, w), mode="bilinear", align_corners=True)
     if head.pos_embed:
-        p = head._add_pos_embed(p, w, h).to(p.dtype)  # noqa: SLF001 - upstream helper (built in fp32)
+        p = _add_position(head, p, w, h)
     return p
 
 
@@ -571,9 +605,11 @@ class _FusedHead:
         if key not in self._pe:
             if len(self._pe) >= _PE_SIZES:
                 del self._pe[next(iter(self._pe))]
-            uv = create_uv_grid(w, h, aspect_ratio=hw[1] / hw[0], dtype=torch.float32, device=self.device)
-            pe = position_grid_to_embed(uv, c) * _POS_RATIO
-            self._pe[key] = pe[None].half().expand(b, -1, -1, -1).contiguous()
+            horizontal, vertical = _position_axes(c, (h, w), hw[1] / hw[0], dtype=torch.float32, device=self.device)
+            pe = torch.empty((b, h, w, c), dtype=torch.float16, device=self.device)
+            pe[..., : c // 2].copy_(horizontal.half()[None, None])
+            pe[..., c // 2 :].copy_(vertical.half()[None, :, None])
+            self._pe[key] = pe
         return self._pe[key]
 
     def _conv(self, x: torch.Tensor, c: tuple, **kw: Any) -> torch.Tensor:  # noqa: ANN401 - epilogue options
@@ -612,14 +648,25 @@ class _FusedHead:
             r = x.new_empty((*x.shape[:3], rn[0].shape[0]))
             ls.append(self._conv(x, rn, y2=r))
             rs.append(r)
+            del x, r, pos
         l1, l2, l3, l4 = ls
-        p = self._fuse(3, l4, None, rs[3], l3.shape[1:3])
-        p = self._fuse(2, p, l3, rs[2], l2.shape[1:3])
-        p = self._fuse(1, p, l2, rs[1], l1.shape[1:3])
-        p = self._fuse(0, p, l1, rs[0], (2 * l1.shape[1], 2 * l1.shape[2]))
+        r1, r2, r3, r4 = rs
+        del ls, rs
+        p = self._fuse(3, l4, None, r4, l3.shape[1:3])
+        del l4, r4
+        p = self._fuse(2, p, l3, r3, l2.shape[1:3])
+        del l3, r3
+        p = self._fuse(1, p, l2, r2, l1.shape[1:3])
+        del l2, r2
+        p = self._fuse(0, p, l1, r1, (2 * l1.shape[1], 2 * l1.shape[2]))
+        del l1, r1
         p = k.bilinear(self._conv(p, self.oc1), hw, align_corners=True)
         if self.pos_embed:
-            p += self._pos(p.shape[-1], *hw, hw, b)
+            # The final resize only needs the two half-precision axes, with no dense position cache.
+            channels = p.shape[-1]
+            horizontal, vertical = _position_axes(channels, hw, hw[1] / hw[0], dtype=torch.float32, device=self.device)
+            p[..., : channels // 2].add_(horizontal.half()[None, None])
+            p[..., channels // 2 :].add_(vertical.half()[None, :, None])
         maps = []
         for c3, w, bias in self.out:
             o = self._conv(p, c3, act=ACT_RELU)

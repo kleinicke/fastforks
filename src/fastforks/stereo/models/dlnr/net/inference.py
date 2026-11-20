@@ -87,9 +87,11 @@ def forward(model, left, right, iters):
     i2 = 2 * (right / 255.0) - 1.0
     *cnet_list, x = model.extractor(torch.cat((i1, i2), dim=0).to(dt).contiguous(memory_format=mf))
     fmap1, fmap2 = model.volume_conv(x).float().split(dim=0, split_size=x.shape[0] // 2)
+    del x
     net = [torch.tanh(c[0]) for c in cnet_list]
     ctx = [conv(torch.relu(c[1])) for c, conv in zip(cnet_list, model.bias_convs)]
     corr_fn = CorrBlockGather1D(fmap1, fmap2, radius=a.corr_radius, num_levels=a.corr_levels)
+    del cnet_list, fmap1, fmap2
 
     b, _, h, w = net[0].shape
     x0 = torch.arange(w, device=left.device, dtype=torch.float32).view(1, 1, 1, w)
@@ -102,7 +104,11 @@ def forward(model, left, right, iters):
         motion = ub.encoder(flow2, corr)
         net[0] = _lstm(ub.lstm08, net[0], ctx[0], motion, interp(net[1], net[0]))
         flow = flow + ub.flow_head(net[0])[:, :1].float()
+        del corr, flow2, motion
 
+    del corr_fn, ctx
     mask = 0.25 * ub.mask(net[0]).float()
+    del net
     flow = _upsample(flow, mask, 2**a.n_downsample)
+    del mask
     return -_refine(model, flow, i1, i2)[:, 0]

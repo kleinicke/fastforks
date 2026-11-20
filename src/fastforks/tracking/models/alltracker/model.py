@@ -65,10 +65,42 @@ def _pad(h: int, w: int) -> tuple[int, int, int, int]:
     return pw // 2, pw - pw // 2, ph // 2, ph - ph // 2
 
 
+def _sample_sparse(
+    flows8: torch.Tensor, visconfs8: torch.Tensor, mask: torch.Tensor, pts: torch.Tensor, offset: torch.Tensor
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Evaluate the upsampling stencil only at the four pixels used by each query."""
+    n, _, h, w = flows8.shape
+    xy = pts + offset
+    limit = xy.new_tensor((8 * w - 1, 8 * h - 1))
+    grid = xy * xy.new_tensor((2 / (8 * w - 1), 2 / (8 * h - 1))) - 1
+    # Match grid_sample's align_corners=True coordinates, including its border padding.
+    sample = ((grid + 1) * 0.5 * limit).clamp_min(0).minimum(limit)
+    x, y = sample.unbind(-1)
+    x0, y0 = x.floor().long(), y.floor().long()
+    x1, y1 = x0 + 1, y0 + 1
+    xx = torch.stack([x0, x1, x0, x1]).clamp_max(8 * w - 1)
+    yy = torch.stack([y0, y0, y1, y1]).clamp_max(8 * h - 1)
+    cells = yy.div(8, rounding_mode="floor") * w + xx.div(8, rounding_mode="floor")
+    subpixels = 8 * yy.remainder(8) + xx.remainder(8)
+    weights = mask.view(n, 9, 64, h, w)[:, :, subpixels, yy // 8, xx // 8].softmax(1)
+    values = torch.cat([flows8, visconfs8], 1)
+    patches = F.unfold(8 * values, (3, 3), padding=1).view(n, 4, 9, h * w)
+    samples = (patches[:, :, :, cells] * weights[:, None]).sum(dim=2).to(values.dtype)
+    samples = torch.cat([samples[:, :2], samples[:, 2:].sigmoid()], 1).float()
+    left, right, top, bottom = x1 - x, x - x0, y1 - y, y - y0
+    out = samples[:, :, 0] * (left * top)
+    out = out.addcmul(samples[:, :, 1], right * top)
+    out = out.addcmul(samples[:, :, 2], left * bottom)
+    out = out.addcmul(samples[:, :, 3], right * bottom)
+    return pts + out[:, :2].transpose(1, 2), out[:, 2] * out[:, 3]
+
+
 def _sample(
     flows8: torch.Tensor, visconfs8: torch.Tensor, mask: torch.Tensor, pts: torch.Tensor, offset: torch.Tensor
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Tracks `[S, K, 2]` and `visible * confident` `[S, K]` of the points `pts` `[K, 2]` (unpadded network pixels)."""
+    if flows8.is_cuda and not torch.compiler.is_compiling() and pts.shape[0] <= flows8.shape[-2] * flows8.shape[-1]:
+        return _sample_sparse(flows8, visconfs8, mask, pts, offset)
     flow = upsample(flows8, mask)
     vis = upsample(visconfs8, mask).sigmoid()
     h, w = flow.shape[-2:]
@@ -107,6 +139,7 @@ def _direction(
             flows8[s + WINDOW :], visconfs8[s + WINDOW :] = f8[-1:], v8[-1:]
         keep = min(STRIDE if i + 1 < len(starts) else WINDOW, n - s)  # later windows overwrite the rest
         tracks[s : s + keep], vis[s : s + keep] = _sample(f8[:keep], v8[:keep], m[:keep], pts, offset)
+        del f8, v8, m
     return tracks, vis
 
 
@@ -139,7 +172,9 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
             if video.shape[-2:] != (nh, nw):
                 video = F.interpolate(video, (nh, nw), mode="bilinear", align_corners=False)
             chunks.append(net.encode(F.pad(video, (left, right, top, bottom), mode="replicate")))
+            del video
         fmaps = torch.cat(chunks)
+        del chunks
         pts = (queries[:, 1:] + 0.5) * scale - 0.5
         for t0 in [group] if group is not None else queries[:, 0].long().unique().tolist():
             sel = (

@@ -3,8 +3,9 @@ name = "TIPSv2"
 summary = "TIPSv2 (Google DeepMind, CVPR 2026) image encoders: ViT-B / L at patch 14 from text-image pretraining with patch-text alignment; dense patch tokens and two global tokens at any size (native 448 px)."
 tier = "experimental"
 outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
-uses = ["cuda_graphs", "depth_anything_v2", "mlx_vit"]  # fastforks.shared modules this family imports (CUDA graphs, the vendored DINOv2 ViT, FastViT)
+uses = ["cuda_graphs", "depth_anything_v2", "host_blocks", "mlx_vit"]  # fastforks.shared modules this family imports (CUDA graphs, the vendored DINOv2 ViT, FastViT)
 limitations = [
+  "On CUDA, stream=True stages the image encoder blocks from pinned host RAM. Streamed inference runs eagerly and supports intermediate feature layers.",
   "Image encoder only: the text encoder in the checkpoint is not loaded (the features task has no text input), although the file is downloaded whole.",
   "last_hidden_state holds 2 prefix tokens, then the patches: upstream's first cls token (pooler_output, the global image embedding aligned with text) and its second cls token (index 1, the spatially aware global embedding).",
   "kernels replays a CUDA graph per small input shape without hidden states (up to about 520k activations: ViT-B ~360 px, ViT-L ~310 px), captured on the shape's second call, at most 4 per model; `model.release_graphs()` frees them.",
@@ -30,6 +31,7 @@ interpolation = "bilinear"
 pad = { multiple = 14, mode = "none" }
 
 [options]
+stream = { default = false, effect = "speed" }
 fp16_accumulate = { default = false, effect = "precision" }  # true: cuBLAS fp16 accumulation in the GEMMs (portable, fp16; faster on Ampere and newer, larger error vs fp32)
 
 [modes.portable]

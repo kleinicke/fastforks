@@ -117,11 +117,13 @@ def _forward(self, image1, image2, selective):
     size = (image1.shape[-2], image1.shape[-1])
     disp_mono_list = [F.interpolate(depth_mono, size=tuple(x // s for x in size), mode='bilinear', align_corners=False)
                       for s in (16, 8, 4)]
+    del depth_mono
 
     features_left = self.feat_transfer(features_mono_left)
     features_right = self.feat_transfer(features_mono_right)
     image = torch.cat([image1, image2], 0)
     stem_2x = self.stem_2(image)
+    del image, image1, image2, features_mono_right
     stem_4x = self.stem_4(stem_2x)
     stem_8x = self.stem_8(stem_4x)
     stem_16x = self.stem_16(stem_8x)
@@ -137,6 +139,7 @@ def _forward(self, image1, image2, selective):
     net_list = [torch.tanh(x[0]) for x in cnet_list]
     inp_list = [torch.relu(x[1]) for x in cnet_list]  # (upstream applies relu twice: idempotent)
     inp_list = [list(conv(i).split(conv.out_channels // 3, dim=1)) for i, conv in zip(inp_list, self.context_zqr_convs)]
+    del cnet_list, features_mono_left
 
     disp_next = mask_feat = disp = None
     for i in range(3):
@@ -158,6 +161,7 @@ def _forward(self, image1, image2, selective):
                                                  disp_interval_pixel=self.disp_interval_pixel[i - 1],
                                                  shape=[match_left.shape[0], match_left.shape[2], match_left.shape[3]])
                 gwc_volume = selective(match_left, match_right, drs, self.ndisps[i - 1], 8)
+                del drs
             gwc_volume = self.corr_stem(gwc_volume.to(match_left.dtype))
             gwc_volume = self.corr_feature_att_list[i](gwc_volume, feat_left)
             geo_encoding_volume = self.cost_agg[i](gwc_volume)
@@ -168,6 +172,7 @@ def _forward(self, image1, image2, selective):
                                                   radius=self.args.corr_radius[i])
         b, c, h, w = match_left.shape
         coords = torch.arange(w, device=match_left.device, dtype=torch.float32).reshape(1, 1, w, 1).expand(b, h, w, 1)
+        del match_left, match_right, geo_encoding_volume
         nd = self.ndisps[i - 1] if i > 0 else None
         disp = cur_disp.float()
         for itr in range(iters_list[i]):
@@ -185,9 +190,13 @@ def _forward(self, image1, image2, selective):
                 net_list, mask_feat, delta_disp = self.update_block_mix_stereo(
                     net_list, inp_list, flaw_stereo, disp, geo_feat, flaw_mono, disp_mono_list[i], geo_feat_mono,
                     iter16=False, iter08=False)
+                del flaw_mono, flaw_stereo, geo_feat_mono, fr, fl
             else:
                 net_list, mask_feat, delta_disp = self.update_block_list[i](net_list, inp_list, geo_feat, disp,
                                                                             disp_mono_list[i], **kw)
             disp = disp + delta_disp.float()
+            del geo_feat, delta_disp
+        del geo_fn, feat_left, feat_right
         disp_next = _up2(self, disp, mask_feat, stem_x_list[i + 1], i) if i < 2 else None
+    del net_list, inp_list
     return _up4(self, disp, mask_feat, stem_2x)

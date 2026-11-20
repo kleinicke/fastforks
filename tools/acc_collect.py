@@ -12,7 +12,7 @@ row fills: "original fp32", "original fp16", "portable", "kernels" (null: a tier
 
 "original fp16" = `upstream16`: the authors' own precision option where the code has one, else autocast float16
 (`upstreamac` where the own option fails), as measured, also where it loses accuracy (the point of the column; user
-2026-11-06). `--write` updates docs/data/<task>_eval.jsonl (replaces only the (ref, mode, dataset) rows it
+2026-11-06). `--write` updates docs/data/<task>_eval.jsonl (replaces only the (ref, tier, dataset) rows it
 collected) and appends the original speed rows (fp32 + fp16) to docs/data/speed.jsonl (rows already there are not
 repeated); `--task` limits both to the tasks measured completely.
 """
@@ -251,20 +251,24 @@ def speed_rows(raw: Path, picked: dict[str, dict[str, str]]) -> list[dict[str, A
 
 
 def merge_lines(old: list[str], new: list[dict[str, Any]]) -> list[str]:
-    """Old lines (verbatim, in order) minus those the new rows replace by (ref, mode, dataset), then the new rows."""
-    gone = {(r["ref"], r["mode"], r.get("dataset")) for r in new}
+    """Keep old lines in order unless a new row replaces the same ref, precision tier and dataset."""
+
+    def identity(row: dict[str, Any]) -> tuple[str, str, str | None]:
+        return row["ref"], row.get("tier") or row["mode"], row.get("dataset")
+
+    gone = {identity(row) for row in new}
     keep = []
     for x in old:
         if x.strip():
             r = json.loads(x)
-            if (r["ref"], r["mode"], r.get("dataset")) in gone:
+            if identity(r) in gone:
                 continue
         keep.append(x if x.endswith("\n") else x + "\n")
     return keep + [json.dumps(r) + "\n" for r in new]
 
 
 def write(rows: dict[str, list[dict[str, Any]]], sp: list[dict[str, Any]], tasks: list[str] | tuple[str, ...]) -> None:
-    """Update docs/data/<task>_eval.jsonl (only collected (ref, mode, dataset) rows are replaced), add speed rows."""
+    """Update docs/data/<task>_eval.jsonl (only collected (ref, tier, dataset) rows are replaced), add speed rows."""
     for t in tasks:
         f = ROOT / "docs/data" / f"{t}_eval.jsonl"
         f.write_text("".join(merge_lines(f.read_text().splitlines(keepends=True) if f.exists() else [], rows[t])))

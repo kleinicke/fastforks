@@ -70,7 +70,24 @@ def _replicate_pad(kh: int, kw: int) -> tuple[int, int, int, int]:
     return ((kw - 1) // 2, kw // 2, (kh - 1) // 2, kh // 2)
 
 
+_BOX_BUFFER_BYTES = 16 * 1024**2
+
+
 def _box_mean(x: torch.Tensor, k1: int, k2: int) -> torch.Tensor:
+    """Limit the temporary integral image by processing independent CUDA channels in groups."""
+    if x.is_cuda and not (torch.is_grad_enabled() or torch.compiler.is_compiling() or torch.jit.is_tracing()):
+        batch, channels, h, w = x.shape
+        integral_bytes = 4 * batch * (h + 1) * (w + 1)
+        if integral_bytes * channels >= 6 * _BOX_BUFFER_BYTES:
+            group = max(1, _BOX_BUFFER_BYTES // integral_bytes)
+            out = x.new_empty((batch, channels, h - k1 + 1, w - k2 + 1), dtype=torch.float32)
+            for src, dst in zip(x.split(group, dim=1), out.split(group, dim=1), strict=True):
+                dst.copy_(_integral_mean(src, k1, k2))
+            return out
+    return _integral_mean(x, k1, k2)
+
+
+def _integral_mean(x: torch.Tensor, k1: int, k2: int) -> torch.Tensor:
     h, w = x.shape[-2:]
     s = x.new_zeros((*x.shape[:2], h + 1, w + 1), dtype=torch.float32)  # one float32 buffer, sums in place
     s[:, :, 1:, 1:] = x
@@ -194,7 +211,10 @@ class Portable(Runner):
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The restored batch."""
-        return {"image": self.net(image.to(getattr(torch, self.ctx.dtype)).contiguous(memory_format=self.fmt))}
+        x = image.to(getattr(torch, self.ctx.dtype)).contiguous(memory_format=self.fmt)
+        if x.is_cuda and not (torch.is_grad_enabled() or torch.compiler.is_compiling() or torch.jit.is_tracing()):
+            return {"image": _restore(self.net, x)}
+        return {"image": self.net(x)}
 
     def module(self) -> torch.nn.Module:
         """The network in the card's dtype."""

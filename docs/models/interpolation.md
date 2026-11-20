@@ -12,16 +12,16 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`ema-vfi`](#ema_vfi) | yes | 207, 1.4x | 3566, 0.83x |
+| [`ema-vfi`](#ema_vfi) | yes | 185, 1.6x | 2102, 0.49x |
 | [`ema-vfi-small`](#ema_vfi) | yes | 84.4, 1.4x | 1914, 0.8x |
 | [`ema-vfi-small-t`](#ema_vfi) | yes | 84.3, 1.4x | 1914, 0.8x |
 | [`ema-vfi-t`](#ema_vfi) | yes | 207, 1.4x | 3566, 0.83x |
-| [`film`](#film) | yes | 332, 1.4x | 3080, 0.87x |
-| [`gimm-vfi-r`](#gimm_vfi) | no | 1629 | 5362 |
-| [`gimm-vfi-r-p`](#gimm_vfi) | no | 1628 | 5282 |
+| [`film`](#film) | yes | 328, 1.4x | 2942, 0.83x |
+| [`gimm-vfi-r`](#gimm_vfi) | no | 1521 | 5282 |
+| [`gimm-vfi-r-p`](#gimm_vfi) | no | 1520 | 5282 |
 | [`rife-4.25`](#rife) | yes | 21.4, 1.1x | 916, 0.79x |
 | [`rife-4.25-lite`](#rife) | yes | 18.3, 1.2x | 896, 0.74x |
-| [`rife-4.26`](#rife) | yes | 21.4, 1.1x | 916, 0.79x |
+| [`rife-4.26`](#rife) | yes | 21.4, 1.1x | 776, 0.67x |
 
 <a id="ema_vfi"></a>
 
@@ -33,7 +33,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `ema-vfi` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 296<br>233<br>207<br>165<br>124 | 3940 / 4290<br>2827 / 3184<br>368 / 3566<br>3325 / 3542<br>1719 / 1786 |
+| `ema-vfi` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 296<br>233<br>185<br>165<br>124 | 3940 / 4290<br>1659 / 2082<br>1659 / 2102<br>3325 / 3542<br>1719 / 1786 |
 | `ema-vfi-small` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 121<br>89.4<br>84.4<br>59.6<br>43.7 | 2272 / 2384<br>1614 / 1792<br>271 / 1914<br>1809 / 1890<br>1018 / 1110 |
 | `ema-vfi-t` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 287<br>233<br>207<br>165<br>125 | 3940 / 4290<br>2827 / 3184<br>368 / 3566<br>3325 / 3702<br>1719 / 1766 |
 | `ema-vfi-small-t` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 114<br>89.4<br>84.3<br>59.8<br>43.4 | 2272 / 2384<br>1614 / 1792<br>271 / 1914<br>1809 / 1890<br>1018 / 1110 |
@@ -56,6 +56,7 @@ Commercial use: yes.
 - `ema-vfi-t` 1080x1920, first call: portable + torch.compile 85 s (cold Inductor cache), TensorRT fp16 92 s (ONNX + engine).
 - `ema-vfi-small-t` 1080x1920, first call: portable + torch.compile 78 s (cold Inductor cache), TensorRT fp16 69 s (ONNX + engine).
 - `ema-vfi` original 1080x1920: torch.autocast(float16) around the call; upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32
+- `ema-vfi` portable 1080x1920, kernels 1080x1920: FP16 native path with reused attention and flow buffers. Synthetic and three labeled DAVIS outputs match the previous path bitwise.
 - `ema-vfi-small` original 1080x1920: torch.autocast(float16) around the call; upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32
 - `ema-vfi-t` original 1080x1920: torch.autocast(float16) around the call; upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32
 - `ema-vfi-small-t` original 1080x1920: torch.autocast(float16) around the call; upstream MultiScaleFlow as Model.inference (no TTA), timestep 0.5, BGR, replicate pad to 32
@@ -105,7 +106,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `film` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 464<br>417<br>332<br>332<br>189 | 2953 / 3556<br>2856 / 3080<br>2856 / 3080<br>2666 / 3192<br>2658 / 2658 |
+| `film` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 464<br>412<br>328<br>332<br>189 | 2953 / 3556<br>2397 / 2702<br>2397 / 2942<br>2666 / 3192<br>2658 / 2658 |
 
 <details><summary>Details</summary>
 
@@ -122,6 +123,7 @@ Commercial use: yes.
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `film` 1988x2880 (13.0 GiB peak allocated, 15.3 reserved)
 - `film` 1080x1920, first call: portable + torch.compile 41 s (cold Inductor cache), TensorRT fp16 203 s (ONNX + engine).
 - `film` original 1080x1920: the authors' mixed-precision option (float16); the TorchScript release as inference.py, dt 0.5, zero pad to 64 (centred), --fp16: model.half()
+- `film` portable 1080x1920, kernels 1080x1920: FP16 native path with compact CUDA tap indices and shorter warp and fusion buffer lifetimes. Synthetic, three labeled DAVIS clips and an odd two-item input matched the previous output bitwise.
 - `film` load / first call: original 0.29 s / 0.946 s, portable 0.43 s / 0.418 s, kernels 0.65 s / 0.334 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -156,8 +158,10 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2622<br>1629<br>1498<br>fails: TensorRT parser: Sc node | –<br>9899 / 10400<br>4587 / 5362<br>12051 / 12880<br>– |
-| `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2622<br>1628<br>1498<br>fails: TensorRT parser: Sc node | –<br>9899 / 10400<br>4587 / 5282<br>12051 / 12880<br>– |
+| `gimm-vfi-r` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2528<br>1521<br>1498<br>public API unavailable | –<br>5872 / 6518<br>4511 / 5282<br>12051 / 12880<br>– |
+| `gimm-vfi-r` | synthetic (480x854) | original<br>portable<br>kernels<br>TensorRT fp32 | 498<br>468<br>289<br>1210 (RAFT feature encoder with eager context, flow update and synthesis) | 2820 / 3246<br>1574 / 1674<br>1388 / 1618<br>3522 / 6116 |
+| `gimm-vfi-r-p` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2527<br>1520<br>1498<br>fails: TensorRT parser: Sc node | –<br>5872 / 6518<br>4511 / 5282<br>12051 / 12880<br>– |
+| `gimm-vfi-r-p` | synthetic (480x854) | original<br>portable<br>kernels<br>TensorRT fp32 | 498<br>467<br>289<br>1190 (RAFT feature and context encoders with eager flow update and synthesis) | 2820 / 3246<br>1574 / 1674<br>1388 / 1598<br>3592 / 6000 |
 
 <details><summary>Details</summary>
 
@@ -168,25 +172,34 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Training data: Vimeo-90K (septuplets / triplets for frame interpolation) (configs/gimmvfi/gimmvfi_r_arb.yaml: Vimeo-90K septuplets with arbitrary-time targets; the RAFT flow estimator starts from the raft-things checkpoint (FlyingChairs + FlyingThings3D).)
 - Kernel libraries: `raft_flow`, `cudnn_hacc`
 - Variants: `gimm-vfi-r`, `gimm-vfi-r-p`
+- Public TensorRT export is unavailable for `gimm-vfi-r` (the full FP32 engine diverges on pixels; the fixed RAFT encoder stage also loses 0.094 dB PSNR on one of 172 DAVIS triplets).
 - Outputs: frame
 - Input size: any H x W >= 128, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `gimm-vfi-r` 1024x2048 (13.4 GiB peak allocated, 14.5 reserved); `gimm-vfi-r-p` 1024x2048 (13.0 GiB peak allocated, 14.2 reserved)
 - `gimm-vfi-r` 1080x1920, first call: portable + torch.compile 307 s (cold Inductor cache).
+- `gimm-vfi-r` 480x854, first call: TensorRT fp32 13 s (ONNX + engine).
 - `gimm-vfi-r-p` 1080x1920, first call: portable + torch.compile 307 s (cold Inductor cache).
+- `gimm-vfi-r-p` 480x854, first call: TensorRT fp32 17 s (ONNX + engine).
+- `gimm-vfi-r` portable 1080x1920, kernels 1080x1920: One RAFT feature-encoder pass supplies both directions. The deterministic 480x854 output matched exactly and paired DAVIS PSNR changes stay below 0.00004 dB.
+- `gimm-vfi-r` original 480x854: torch.autocast(float16) around the call; upstream GIMMVFI_R forward as video_Nx.py, time 0.5, ds_factor 1.0, replicate pad to 32, cupy softsplat
+- `gimm-vfi-r-p` portable 1080x1920, kernels 1080x1920: Current shared RAFT input feature encoding and final-only upsampling masks.
+- `gimm-vfi-r-p` original 480x854: torch.autocast(float16) around the call; upstream GIMMVFI_R forward as video_Nx.py, time 0.5, ds_factor 1.0, replicate pad to 32, cupy softsplat
 - `gimm-vfi-r` load / first call: original 2.05 s / 1.336 s (480x854), portable 0.27 s / 2.622 s, kernels 0.59 s / 1.631 s
 - `gimm-vfi-r-p` load / first call: original 2.96 s / 1.438 s (480x854), portable 0.27 s / 0.997 s (480x854), kernels 0.58 s / 0.684 s (480x854)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
 
-DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the output rounded to uint8, on RGB in [0, 1], averaged over the triplets for the 180-triplet benchmark. Original = the original code named under Details, same checkpoint and protocol.
+DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the output rounded to uint8, on RGB in [0, 1], averaged over the triplets for the 180-triplet benchmark. The fixed-shape comparison uses all 172 triplets at the native 480 x 854 size and follows the same scoring protocol. The 16-triplet comparison includes the six largest PSNR changes with TensorRT running both RAFT encoders, plus ten evenly spaced additional triplets. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `gimm-vfi-r` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 |  |
-| `gimm-vfi-r-p` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `gimm-vfi-r` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 | 28.94 / 0.8543 |  |  |
+| `gimm-vfi-r` | DAVIS 2017 (16 selected 480 x 854 triplets), PSNR / SSIM |  |  |  | 25.88 / 0.8305 |  | 25.88 / 0.8305 |  |
+| `gimm-vfi-r-p` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 | 28.81 / 0.8481 |  |  |
+| `gimm-vfi-r-p` | DAVIS 2017 (172 native 480 x 854 triplets), PSNR / SSIM |  |  |  | 28.93 / 0.8505 |  | 28.93 / 0.8505 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks dc38c37c, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a39491d3 / dc38c37c, 2026-11-18 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks a39491d3, 2026-11-19.
 
 ### Parity
 
@@ -200,6 +213,8 @@ CPU, float32: max |diff| <= 5e-05 vs the original. GPU, float16 (the default), p
 ### Limitations
 
 - At 480 x 854 the standalone GIMM-VFI-R FP32 TensorRT engine returned different frames from portable FP32. Mean normalized absolute pixel error was 0.07687. The same ONNX file run in ONNX Runtime measured 0.000029.
+- At 480 x 854 the FP32 GIMM-VFI-R-P TensorRT encoders took 1190 ms versus 1231 ms for paired portable FP32. Estimated peak allocated memory was 3592 MiB versus 3282 MiB. The speed table also includes the faster FP16 modes.
+- The GIMM-VFI-R feature encoder alone passed the 16-triplet check. End-to-end FP32 latency was 1210 ms versus 1230 ms for paired portable FP32, with a PSNR change of at most 0.0395 dB on the checked triplets.
 
 </details>
 
@@ -214,7 +229,7 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `rife-4.25` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.5<br>25.0<br>21.4<br>44.9<br>17.6 | 987 / 1154<br>755 / 894<br>848 / 916<br>1094 / 1234<br>696 / 714 |
-| `rife-4.26` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.2<br>25.1<br>21.4<br>44.5<br>17.6 | 1004 / 1154<br>755 / 894<br>848 / 916<br>1094 / 1234<br>696 / 714 |
+| `rife-4.26` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 24.2<br>25.0<br>21.4<br>44.5<br>17.6 | 1004 / 1154<br>570 / 754<br>663 / 776<br>1094 / 1234<br>696 / 714 |
 | `rife-4.25-lite` | synthetic (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 21.3<br>21.1<br>18.3<br>42.3<br>14.1 | 1012 / 1214<br>754 / 854<br>834 / 896<br>1061 / 1374<br>696 / 714 |
 
 <details><summary>Details</summary>
@@ -235,6 +250,7 @@ Commercial use: yes.
 - `rife-4.25-lite` 1080x1920, first call: portable + torch.compile 35 s (cold Inductor cache), TensorRT fp16 50 s (ONNX + engine).
 - `rife-4.25` original 1080x1920: the authors' mixed-precision option (float16); upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128, inference_video.py --fp16: half default dtype, model and input
 - `rife-4.26` original 1080x1920: the authors' mixed-precision option (float16); upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128, inference_video.py --fp16: half default dtype, model and input
+- `rife-4.26` portable 1080x1920, kernels 1080x1920: Release completed warp buffers. The paired same-process portable checks and separate-process kernels checks matched every frame. Independent portable processes differed by at most 0.00044 dB across three DAVIS scores.
 - `rife-4.25-lite` original 1080x1920: the authors' mixed-precision option (float16); upstream Practical-RIFE Model.inference, timestep 0.5, zero pad to 128, inference_video.py --fp16: half default dtype, model and input
 - `rife-4.25` load / first call: original 1.42 s / 0.265 s, portable 0.16 s / 0.447 s, kernels 1.5 s / 0.203 s
 - `rife-4.26` load / first call: original 0.18 s / 0.046 s, portable 0.16 s / 0.334 s, kernels 0.29 s / 0.215 s
@@ -243,15 +259,16 @@ Commercial use: yes.
 
 ### Measured
 
-DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the output rounded to uint8, on RGB in [0, 1], averaged over the triplets for the 180-triplet benchmark. Original = the original code named under Details, same checkpoint and protocol.
+DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the output rounded to uint8, on RGB in [0, 1], averaged over the triplets for the 180-triplet benchmark. The fixed-shape comparison uses all 172 triplets at the native 480 x 854 size and follows the same scoring protocol. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `rife-4.25` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 27.13 / 0.8082 | 27.03 / 0.8074 | 27.13 / 0.8081 | 27.13 / 0.8082 | 27.13 / 0.8081 |  |
-| `rife-4.26` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 27.24 / 0.8131 | 27.14 / 0.8123 | 27.24 / 0.8131 | 27.24 / 0.8131 | 27.24 / 0.8131 |  |
-| `rife-4.25-lite` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 26.82 / 0.8011 | 26.70 / 0.8001 | 26.81 / 0.8010 | 26.82 / 0.8011 | 26.81 / 0.8010 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | note |
+|---|---|---|---|---|---|---|---|---|
+| `rife-4.25` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 27.13 / 0.8082 | 27.03 / 0.8074 | 27.13 / 0.8081 | 27.13 / 0.8082 | 27.13 / 0.8081 |  |  |
+| `rife-4.25` | DAVIS 2017 (172 native 480 x 854 triplets), PSNR / SSIM |  |  |  | 27.21 / 0.8096 |  | 27.21 / 0.8096 |  |
+| `rife-4.26` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 27.24 / 0.8131 | 27.14 / 0.8123 | 27.24 / 0.8131 | 27.24 / 0.8131 | 27.24 / 0.8131 |  |  |
+| `rife-4.25-lite` | DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM | 26.82 / 0.8011 | 26.70 / 0.8001 | 26.81 / 0.8010 | 26.82 / 0.8011 | 26.81 / 0.8010 |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5b3a5646, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks dc38c37c, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5b3a5646, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5b3a5646, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks dc38c37c, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5b3a5646, 2026-11-13; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 23765f70, 2026-11-19.
 
 ### Parity
 

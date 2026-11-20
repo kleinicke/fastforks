@@ -291,11 +291,22 @@ class Portable(EncoderRunner):
         """Feature maps of one `[C, D, H, W]` volume, cropped to the input."""
         x = self._pad(normalise(volume))
         maps = self._encode(x)
+        del x
+        if len(maps) != len(self.strides):
+            msg = f"expected {len(self.strides)} nnFoundation feature maps, got {len(maps)}"
+            raise ValueError(msg)
+        maps.reverse()
         shape = volume.shape[1:]
         out = []
-        for t, s in zip(maps, self.strides, strict=True):
+        for s in self.strides:
+            t = maps.pop()
             crop = tuple(slice(0, -(-n // s)) for n in shape)
-            out.append(t.float()[(0, slice(None), *crop)])  # CUDA: channels-last strides (a permuting copy: +30 ms)
+            cropped = t[(slice(None), slice(None), *crop)]
+            fmt = torch.preserve_format
+            if t.dtype != torch.float32 and t.is_contiguous(memory_format=torch.channels_last_3d):
+                fmt = torch.channels_last_3d
+            out.append(cropped.to(dtype=torch.float32, memory_format=fmt)[0])
+            del cropped, t
         return {"features": tuple(out)}
 
     def module(self) -> nn.Module:

@@ -81,6 +81,16 @@ def _shift_mask(  # noqa: PLR0913 - the map size, window, shift and where / how 
     return m.masked_fill(m != 0, -100.0).masked_fill(m == 0, 0.0).to(dtype)
 
 
+@functools.lru_cache(maxsize=16)
+def shifted_window_regions(h: int, w: int, window: int, shift: int, device: torch.device) -> torch.Tensor:
+    """One region label per window token, in the order returned by window partition."""
+    y, x = (torch.arange(n, device=device) for n in (h, w))
+    rows = (y >= h - window).to(torch.uint8) + (y >= h - shift)
+    cols = (x >= w - window).to(torch.uint8) + (x >= w - shift)
+    regions = 3 * rows[:, None] + cols[None, :]
+    return regions.view(h // window, window, w // window, window).permute(0, 2, 1, 3).reshape(-1, window**2)
+
+
 def relative_bias(table: torch.Tensor, index: torch.Tensor) -> torch.Tensor:
     """`[nH, N, N]` relative position bias of one block (`table[index]`, as the attention gathers it per call)."""
     n = index.shape[0]
@@ -108,6 +118,28 @@ def pad_heads(qkv: nn.Linear, proj: nn.Linear, heads: int, multiple: int = 8) ->
         proj.in_features = heads * dp
 
 
+def _border_attention(  # noqa: PLR0913 - QKV, bias, region labels and SDPA scale
+    q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, bias: torch.Tensor, regions: torch.Tensor, *, scale: float
+) -> torch.Tensor:
+    """Apply full additive masks only to windows containing multiple shifted regions."""
+    n = q.shape[0]
+    out = attention(q, k, v, bias.expand(n, -1, -1, -1), scale)
+    border = torch.where(regions.ne(regions[:, :1]).any(dim=-1))[0]
+    windows = regions.shape[0]
+    if border.numel():
+        labels = regions.index_select(0, border)
+        shift_mask = labels[:, :, None].ne(labels[:, None, :]).to(q.dtype) * -100.0
+        weights = bias + shift_mask[:, None]
+        batch = n // windows
+        if batch > 1:
+            offsets = torch.arange(batch, device=q.device) * windows
+            border = (offsets[:, None] + border[None, :]).flatten()
+            weights = weights.repeat(batch, 1, 1, 1)
+        selected = attention(*(tensor.index_select(0, border) for tensor in (q, k, v)), weights, scale)
+        out.index_copy_(0, border, selected)
+    return out
+
+
 def window_attention(  # noqa: PLR0913 - the block's projections, head count, scale, bias and mask
     x: torch.Tensor,
     qkv: nn.Linear,
@@ -121,9 +153,10 @@ def window_attention(  # noqa: PLR0913 - the block's projections, head count, sc
 ) -> torch.Tensor:
     """Swin window attention of `[B * nW, N, C]` windows: `proj(softmax(q k^T * scale + bias (+ mask)) v)`.
 
-    `bias` is `relative_bias(...)` `[nH, N, N]`, `mask` the `[nW, N, N]` shifted-window mask or None. The head
-    dimension is `qkv`'s (padded by `pad_heads` or not). `cosine`: Swin V2's cosine attention, its `[nH, 1, 1]`
-    clamped, exponentiated logit scale; q and k are L2-normalised and q is multiplied by it (pass `scale=1`).
+    `bias` is `relative_bias(...)` `[nH, N, N]`. `mask` is an additive shifted-window mask `[nW, N, N]`, compact
+    region labels `[nW, N]`, or None. The head dimension is `qkv`'s, optionally padded by `pad_heads`. For Swin V2,
+    `cosine` is the clamped, exponentiated logit scale `[nH, 1, 1]`. It multiplies q after L2-normalisation of q
+    and k (pass `scale=1`).
     """
     b_, n, _ = x.shape
     d = qkv.out_features // (3 * heads)
@@ -132,12 +165,16 @@ def window_attention(  # noqa: PLR0913 - the block's projections, head count, sc
         q = F.normalize(q, dim=-1) * cosine.to(q.dtype)
         k = F.normalize(k, dim=-1)
     add = bias.to(q.dtype)[None]
-    if mask is not None:
-        nw = mask.shape[0]
-        add = add + mask.to(q.dtype)[:, None]
-        if b_ != nw:
-            add = add.repeat(b_ // nw, 1, 1, 1)
-    out = attention(q, k, v, add.expand(b_, -1, -1, -1), scale)
+    if mask is not None and mask.ndim == 2:  # noqa: PLR2004 - compact labels are [windows, tokens]
+        out = _border_attention(q, k, v, add, mask, scale=scale)
+        del q, k, v
+    else:
+        if mask is not None:
+            nw = mask.shape[0]
+            add = add + mask.to(q.dtype)[:, None]
+            if b_ != nw:
+                add = add.repeat(b_ // nw, 1, 1, 1)
+        out = attention(q, k, v, add.expand(b_, -1, -1, -1), scale)
     return proj(out.transpose(1, 2).reshape(b_, n, heads * d))
 
 

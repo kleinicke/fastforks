@@ -10,13 +10,13 @@ one variant per family (pull requests; the nightly run checks all).
 from __future__ import annotations
 
 import argparse
-import subprocess
 from pathlib import Path
 from urllib.parse import quote
 
 import goldens as store
 from fastforks._core import registry
 from fastforks._core.files import FileSpec, download, sha256_of
+from select_tests import git_changed, select
 
 ROOT = Path(__file__).resolve().parents[1]
 GOLDEN_URL = "https://huggingface.co/datasets/fastforks/reference-outputs/resolve/main/{file}"  # tools/stage_hf.py
@@ -25,21 +25,19 @@ GOLDEN_URL = "https://huggingface.co/datasets/fastforks/reference-outputs/resolv
 def affected_families(base: str) -> set[str] | None:
     """Families whose CPU outputs a change since `base` can move, or `None` for all of them.
 
-    A family is affected by its own directory and by the `shared/` modules its card `uses`. Kernel libraries are not
-    used on CPU (GPU runs check them), docs / tools / other tests cannot move outputs; anything else in `src/` (core,
-    task API) and the golden test itself affect every family.
+    Model and shared changes use the release selector's import closure. Kernel libraries are checked on GPU.
+    Core, task API and golden harness changes affect every family.
     """
-    out = subprocess.run(
-        ["git", "-C", ROOT, "diff", "--name-only", f"{base}...HEAD"], check=True, capture_output=True, text=True
-    ).stdout
-    users = _shared_users()
+    paths = git_changed(base, "HEAD", ROOT, from_merge_base=True)
     families: set[str] = set()
-    for name in out.split():
+    model_paths = []
+    for name in paths:
         match Path(name).parts:
             case ("src", "fastforks", _task, "models", family, _, *_):
                 families.add(family)
-            case ("src", "fastforks", "shared", module, _, *_):
-                families |= users.get(module, set())
+                model_paths.append(name)
+            case ("src", "fastforks", "shared", _, *_):
+                model_paths.append(name)
             case ("src", "fastforks", "kernels", *_):
                 pass
             case ("tests", "test_golden.py" | "synth.py" | "conftest.py"):
@@ -50,17 +48,9 @@ def affected_families(base: str) -> set[str] | None:
                 return None
             case _:
                 pass  # docs, tools, CI
+    if model_paths:
+        families.update(select(model_paths, ROOT).families)
     return families
-
-
-def _shared_users() -> dict[str, set[str]]:
-    """Families by the `shared/` module they use."""
-    users: dict[str, set[str]] = {}
-    for task in registry.TASKS:
-        for card, _ in registry.cards(task).values():
-            for m in card.uses:
-                users.setdefault(m, set()).add(card.family)
-    return users
 
 
 def smallest(refs: list[str]) -> list[str]:

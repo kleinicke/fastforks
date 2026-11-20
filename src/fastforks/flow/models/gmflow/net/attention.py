@@ -117,8 +117,25 @@ def single_head_split_window_attention(q, k, v,
     k = split_feature(k, num_splits=num_splits, channel_last=True)
     v = split_feature(v, num_splits=num_splits, channel_last=True)
 
-    mask = attn_mask.repeat(b, 1, 1) if with_shift else None  # [B*K*K, H/K*W/K, H/K*W/K]
-    out = attention(q.view(b_new, -1, c), k.view(b_new, -1, c), v.view(b_new, -1, c), mask)  # [B*K*K, H/K*W/K, C]
+    q, k, v = (x.view(b_new, -1, c) for x in (q, k, v))
+    if with_shift:
+        # fastforks: CUDA SDPA uses a mask in the query dtype. Cast before copying across the batch.
+        if q.is_cuda:
+            attn_mask = attn_mask.to(q.dtype)
+        if (
+            q.is_cuda and b > 1 and not torch.compiler.is_compiling() and not torch.jit.is_tracing()
+            and attn_mask.numel() > (1 << 27)
+        ):
+            # For large shifted windows, share one mask across batches instead of tiling it.
+            windows = num_splits * num_splits
+            out = torch.cat([
+                attention(qa, ka, va, attn_mask)
+                for qa, ka, va in zip(q.split(windows), k.split(windows), v.split(windows), strict=True)
+            ])
+        else:
+            out = attention(q, k, v, attn_mask.repeat(b, 1, 1))
+    else:
+        out = attention(q, k, v, None)
 
     out = merge_splits(out.view(b_new, h // num_splits, w // num_splits, c),
                        num_splits=num_splits, channel_last=True)  # [B, H, W, C]

@@ -90,12 +90,12 @@ class Conv3dNormActReduced(nn.Module):
         self.conv1 = nn.Sequential(
             nn.Conv3d(C_in, hidden, kernel_size=(1,kernel_size,kernel_size), padding=(0, kernel_size//2, kernel_size//2), stride=(1, stride, stride)),
             norm(hidden),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
         )
         self.conv2 = nn.Sequential(
             nn.Conv3d(hidden, C_out, kernel_size=(kernel_disp, 1, 1), padding=(kernel_disp//2, 0, 0), stride=(stride, 1, 1)),
             norm(C_out),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
         )
 
 

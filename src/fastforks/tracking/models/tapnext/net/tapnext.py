@@ -38,10 +38,12 @@ CONV_WIDTH = 4
 
 def posemb_sincos_2d(h: int, w: int, width: int, temperature: float = 10_000.0) -> torch.Tensor:
     """MoCo v3 2D sin-cos embedding `[1, h * w, width]` (float64 math, float32 result, as upstream's numpy)."""
-    y, x = torch.meshgrid(torch.arange(h, dtype=torch.float64), torch.arange(w, dtype=torch.float64), indexing="ij")
     omega = 1.0 / temperature ** (torch.arange(width // 4, dtype=torch.float64) / (width // 4 - 1))
-    y, x = y.flatten()[:, None] * omega, x.flatten()[:, None] * omega
-    return torch.cat([x.sin(), x.cos(), y.sin(), y.cos()], 1).float()[None]
+    x = torch.arange(w, dtype=torch.float64)[:, None] * omega
+    y = torch.arange(h, dtype=torch.float64)[:, None] * omega
+    x = torch.cat([x.sin(), x.cos()], -1).float()[None].expand(h, -1, -1)
+    y = torch.cat([y.sin(), y.cos()], -1).float()[:, None].expand(-1, w, -1)
+    return torch.cat([x, y], -1).reshape(1, h * w, -1)
 
 
 class RMSNorm(nn.Module):
@@ -208,15 +210,50 @@ class TAPNext(nn.Module):
         self.point_query_token = nn.Parameter(torch.zeros(1, 1, 1, WIDTH))
         self.image_pos_emb = nn.Parameter(torch.zeros(1, g * g, WIDTH))
         self.register_buffer("query_pos_embed", posemb_sincos_2d(SIZE, SIZE, WIDTH))
+        self._query_pos_x: torch.Tensor | None
+        self._query_pos_y: torch.Tensor | None
+        self.register_buffer("_query_pos_x", None, persistent=False)
+        self.register_buffer("_query_pos_y", None, persistent=False)
         self.visible_head = _head(WIDTH, 1)
         self.coordinate_head = _head(WIDTH, 2 * SIZE)
 
+    def _cache_query_axes(self, device: torch.device) -> bool:
+        table = self.query_pos_embed.view(SIZE, SIZE, WIDTH)
+        x, y = table[0, :, :WIDTH // 2], table[:, 0, WIDTH // 2:]
+        if torch.equal(table[..., :WIDTH // 2], x[None].expand(SIZE, -1, -1)) and torch.equal(
+            table[..., WIDTH // 2:], y[:, None].expand(-1, SIZE, -1)
+        ):
+            self._query_pos_x = x.T.contiguous().to(device)
+            self._query_pos_y = y.T.contiguous().to(device)
+            return True
+        self._query_pos_x = self._query_pos_y = None
+        return False
+
+    def to_inference_device(self, device: torch.device) -> None:
+        """Keep separable position axes on CUDA and keep the original checkpoint buffer on the host."""
+        table = self.query_pos_embed
+        if device.type == "cuda" and self._cache_query_axes(device):
+            self.query_pos_embed = None
+            self.to(device)
+            self.query_pos_embed = table
+            self.register_load_state_dict_post_hook(_refresh_query_axes)
+        else:
+            self.to(device)
+
     def query_embedding(self, pos: torch.Tensor) -> torch.Tensor:
         """Point-query tokens `[Q, C]` of query positions `[Q, 2]` `(y, x)` in model pixels."""
-        table = self.query_pos_embed.view(1, SIZE, SIZE, WIDTH).permute(0, 3, 2, 1)  # [1, C, x, y]
-        grid = (pos / SIZE * 2 - 1).to(table.dtype)[None, None]  # (y, x): y indexes the last dim
-        emb = F.grid_sample(table, grid, align_corners=False)[0, :, 0].T  # [Q, C]
-        return (self.point_query_token[0, 0] + emb).to(self.mask_token.dtype)
+        x, y = self._query_pos_x, self._query_pos_y
+        if x is None or y is None:
+            table = self.query_pos_embed.to(pos.device).view(1, SIZE, SIZE, WIDTH).permute(0, 3, 2, 1)  # [1, C, x, y]
+            grid = (pos / SIZE * 2 - 1).to(table.dtype)[None, None]  # (y, x): y indexes the last dim
+            emb = F.grid_sample(table, grid, align_corners=False)
+        else:
+            grid = (pos / SIZE * 2 - 1).to(x.dtype)[None, None]
+            # Use full logical 2D grids so bilinear interpolation and zero padding keep the original rounding.
+            x = x[None, :, :, None].expand(-1, -1, -1, SIZE)
+            y = y[None, :, None, :].expand(-1, -1, SIZE, -1)
+            emb = torch.cat([F.grid_sample(x, grid, align_corners=False), F.grid_sample(y, grid, align_corners=False)], 1)
+        return (self.point_query_token[0, 0] + emb[0, :, 0].T).to(self.mask_token.dtype)
 
     def query_tokens(self, t0: int, t: int, qt: torch.Tensor, point: torch.Tensor) -> torch.Tensor:
         """`[t, Q, C]` tokens of frames `t0 .. t0 + t - 1` for queries on frames `qt [Q]` with tokens `point`."""
@@ -239,6 +276,11 @@ class TAPNext(nn.Module):
         p = self.encoder_norm(x[:, n:])
         logits = self.coordinate_head(p)
         return soft_argmax(logits.float()), self.visible_head(p)[..., 0].float(), logits, new
+
+
+def _refresh_query_axes(module: TAPNext, _keys: object) -> None:
+    # load_state_dict preserves the dense upstream checkpoint format.
+    module._cache_query_axes(module.image_pos_emb.device)  # noqa: SLF001 - TAPNext load hook
 
 
 def soft_argmax(logits: torch.Tensor, radius: int = 20, temperature: float = 0.5) -> torch.Tensor:

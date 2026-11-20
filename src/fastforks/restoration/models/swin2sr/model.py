@@ -148,6 +148,7 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16", "bfloat16")
     Params = Params
+    strip_nearest_reconstruction = True
 
     def __init__(self, ctx: Context) -> None:
         """Build the network, precompute the position biases, pad the heads, cache the masks per size."""
@@ -159,6 +160,7 @@ class Portable(Runner):
                 upscale=p.scale, in_chans=3, img_size=p.img_size, window_size=p.window, img_range=1.0,
                 depths=list(p.depths), embed_dim=p.embed_dim, num_heads=list(p.heads), mlp_ratio=2,
                 upsampler=p.upsampler, resi_connection=p.resi_connection,
+                strip_nearest_reconstruction=self.strip_nearest_reconstruction,
             )  # fmt: skip
         load_strict(self.net, ctx.state_dict(), f"{ctx.variant.ref} checkpoint")
         for m in self.net.modules():
@@ -215,6 +217,7 @@ class Kernels(Portable):
     """float16, fp16-accumulate GEMMs and convolutions (`cudnn_hacc`)."""
 
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
+    strip_nearest_reconstruction = False  # keep the whole-image cuDNN convolution plans
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and route its convolutions through `cudnn_hacc`."""

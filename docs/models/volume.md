@@ -12,11 +12,11 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
-| [`nnfoundation-cnn`](#nnfoundation) | yes | 211, 1.3x | 3710, 0.8x |
+| [`nnfoundation-cnn`](#nnfoundation) | yes | 232, 1.2x | 3330, 0.72x |
 | [`nnfoundation-vit`](#nnfoundation) | yes | 1732, 1.1x (192x192) | 1884, 0.44x |
-| [`nninteractive`](#nninteractive) | no | 201, 2.3x | 3072, 0.66x |
-| [`totalsegmentator-total`](#totalsegmentator) | yes | 1830, 24.9x | 1984, 0.69x |
-| [`totalsegmentator-total-3mm`](#totalsegmentator) | yes | 63.5, 114.4x | 1410, 0.53x |
+| [`nninteractive`](#nninteractive) | no | 193, 2.4x | 2772, 0.6x |
+| [`totalsegmentator-total`](#totalsegmentator) | yes | 1647, 27.7x | 1638, 0.57x |
+| [`totalsegmentator-total-3mm`](#totalsegmentator) | yes | 71.8, 101.2x | 1376, 0.51x |
 
 <a id="nnfoundation"></a>
 
@@ -28,8 +28,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `nnfoundation-cnn` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>274<br>226<br>211<br>170<br>255 (encoder on a normalized, padded volume only; memory estimated) | 7247 / 8734<br>3818 / 4628<br>3011 / 3130<br>2985 / 3710<br>5067 / 5110<br>3374 / 3398 |
-| `nnfoundation-vit` | synthetic (192x192) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>1930<br>1848<br>1732<br>1440<br>planned for 0.2.1 | –<br>3930 / 4298<br>1669 / 1884<br>1669 / 1884<br>1406 / 1484<br>– |
+| `nnfoundation-cnn` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>274<br>248<br>232<br>170<br>255 (encoder on a normalized, padded volume only; memory estimated) | 7247 / 8734<br>3818 / 4628<br>2368 / 3330<br>2325 / 3330<br>5067 / 5110<br>3374 / 3398 |
+| `nnfoundation-vit` | synthetic (192x192) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | OOM<br>1930<br>1848<br>1732<br>1440<br>7024 (standalone encoder, fixed 192³, TF32 disabled) | –<br>3930 / 4298<br>1669 / 1884<br>1669 / 1884<br>1406 / 1484<br>8452 / 8452 |
 
 <details><summary>Details</summary>
 
@@ -41,13 +41,14 @@ Commercial use: yes.
 - Options: `stream` = False (speed only)
 - Kernel libraries: `vol_norm`
 - Variants: `nnfoundation-cnn`, `nnfoundation-vit`
-- Not in this release (planned for 0.2.1): `nnfoundation-vit` ONNX / TensorRT export: the fixed-volume graph exports but TensorRT encoder features diverge from portable on real CT crops
+- Public ONNX / TensorRT export is unavailable for `nnfoundation-vit` (the default FP16 TensorRT engine diverges from portable on real CT crops. The standalone FP32 result uses a separate head-grouped export).
 - Outputs: features
 - Input size: any D x H x W volume, no resampling, one encoder pass (a fixed-grid ViT: each side up to its grid)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `nnfoundation-cnn` 384x384x384 voxels (14.2 GiB peak allocated, 14.8 reserved); `nnfoundation-vit` 192x192x192 voxels (1.6 GiB peak allocated, 1.8 reserved)
 - `nnfoundation-cnn` 200x200, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 49 s (ONNX + engine).
-- `nnfoundation-vit` 192x192, first call: portable + torch.compile 69 s (cold Inductor cache).
+- `nnfoundation-vit` 192x192, first call: portable + torch.compile 69 s (cold Inductor cache), TensorRT fp32 127 s (ONNX + engine).
 - `nnfoundation-cnn` original (fp32) 200x200, original 200x200: nnssl network (dna 0.4.4) encoder; nnU-Net ZScoreNormalization on the CPU + pad + forward
+- `nnfoundation-cnn` portable 200x200, kernels 200x200: Crop the feature maps before converting their returned values to FP32, and reuse the convolution output during portable normalization. All six feature levels matched bitwise on the synthetic 200³ volume and three CT crops.
 - `nnfoundation-vit` original 192x192: nnssl network (dna 0.4.4) encoder; nnU-Net ZScoreNormalization on the CPU + pad + forward
 - `nnfoundation-cnn` load / first call: original 1.18 s / 0.69 s, portable 0.56 s / 0.269 s, kernels 0.39 s / 0.291 s
 - `nnfoundation-vit` load / first call: original 9.54 s / 2.37 s (192x192), portable 1.24 s / 1.867 s (192x192), kernels 1.27 s / 1.756 s (192x192)
@@ -55,14 +56,15 @@ Commercial use: yes.
 
 ### Measured
 
-A small subset of real CT cases of the TotalSegmentator dataset (not the full test split), each run at its card's spacing (1.5 or 3 mm) in the same pipeline; mean over the cases of the Dice (0 to 1) averaged over the classes present, against the ground-truth segmentations (vertebrae_L6 of the subset has no counterpart and is skipped). Original = TotalSegmentator 2.18.0, default fp16 autocast. Encoder models have no task head, so they are judged by their output: the encoder feature maps against the original fp32 maps (cosine similarity, worst case over the cases and the mean over the maps; relative L2 error, mean). Original (fp32) is the reference; the original fp16 row shows the error the original itself has in half precision. Original = the original code named under Details, same checkpoint and protocol.
+A small subset of real CT cases of the TotalSegmentator dataset (not the full test split), each run at its card's spacing (1.5 or 3 mm) in the same pipeline; mean over the cases of the Dice (0 to 1) averaged over the classes present, against the ground-truth segmentations (vertebrae_L6 of the subset has no counterpart and is skipped). Original = TotalSegmentator 2.18.0, default fp16 autocast. Encoder models have no task head, so they are judged by their output: the encoder feature maps against the original fp32 maps (cosine similarity, worst case over the cases and the mean over the maps; relative L2 error, mean). Original (fp32) is the reference; the original fp16 row shows the error the original itself has in half precision. For the standalone ViT TensorRT comparison, both runs used the same normalized 192³ CT crops and FP32 with TF32 disabled. Relative L2 is the mean over the eight cases. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `nnfoundation-cnn` | TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: cosine (worst case) / relative L2 | 1.00000 / 0 | 0.99999 / 0.001359 | 0.99999 / 0.001742 | 1.00000 / 7.915e-07 | 0.99999 / 0.001466 |  |
-| `nnfoundation-vit` | TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: cosine (worst case) / relative L2 | 1.00000 / 0 | 0.99947 / 0.01672 | 0.99950 / 0.0165 |  | 0.99940 / 0.02129 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|
+| `nnfoundation-cnn` | TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: cosine (worst case) / relative L2 | 1.00000 / 0 | 0.99999 / 0.001359 | 0.99999 / 0.001742 | 1.00000 / 7.915e-07 | 0.99999 / 0.001466 | 0.99997 / 0.002853 |  |
+| `nnfoundation-vit` | TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: cosine (worst case) / relative L2 | 1.00000 / 0 | 0.99947 / 0.01672 | 0.99950 / 0.0165 | 1.00000 / 2.349e-05 | 0.99940 / 0.02129 |  |  |
+| `nnfoundation-vit` | TotalSegmentator test subset (8 CT cases), encoder features vs portable FP32: cosine (worst case) / relative L2 |  |  |  |  |  | 1.00000 / 2.095e-05 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 715d7cb5, 2026-11-14 to 2026-11-15; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 36a20781, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 715d7cb5, 2026-11-14 to 2026-11-15.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 715d7cb5, 2026-11-14 to 2026-11-15; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 36a20781, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 715d7cb5, 2026-11-14 to 2026-11-15; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 36a20781 / 8413bf7e, 2026-11-19.
 
 ### Parity
 
@@ -70,13 +72,14 @@ CPU, float32: max |diff| <= 1.8e-06 vs the original. GPU, float16 (the default),
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `nnfoundation-cnn` | 0.00063 / 0.00378 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@aaf727a9a679:sm_120` |
-| `nnfoundation-vit` | 0.0067 / 0.03039 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@aaf727a9a679:sm_120` |
+| `nnfoundation-cnn` | 0.00063 / 0.00378 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@c55f9fff92d3:sm_120` |
+| `nnfoundation-vit` | 0.0067 / 0.03039 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@c55f9fff92d3:sm_120` |
 
 ### Limitations
 
 - CUDA portable and kernels accept stream=True to stage CNN levels or ViT blocks from pinned host memory. On the 192³ nnFoundation ViT reference, peak allocated memory during load and inference on an RTX 5060 Ti fell from 1,665 to 673 MiB in both modes.
 - Kernels peak allocated is equal to portable, but the cuDNN workspace next to the large conv maps (1.4 GiB and 0.3 GiB workspaces) fragments the allocator: peak reserved is ~580 MiB above portable.
+- A standalone fixed 192³ FP32 TensorRT ViT engine matched portable FP32 encoder features on eight CT crops. The standalone run took 7.02 s per crop with an estimated 8,452 MiB peak, versus 9.46 s and 2,864 MiB for portable FP32.
 
 </details>
 
@@ -90,7 +93,7 @@ Commercial use: **no** (weights: CC-BY-NC-SA-4.0).
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `nninteractive` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 705<br>460<br>215<br>201<br>162<br>fails: The TensorRT export accepts prepared 192³ network patches. | 7156 / 8408<br>4076 / 4636<br>3075 / 3492<br>2643 / 3072<br>3643 / 3832<br>– |
+| `nninteractive` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 705<br>460<br>209<br>193<br>162<br>fails: The TensorRT export accepts prepared 192³ network patches. | 7156 / 8408<br>4076 / 4636<br>2423 / 2772<br>2423 / 2772<br>3643 / 3832<br>– |
 | `nninteractive` | 192x192 | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>–<br>–<br>262 (U-Net on one prepared 8-channel, 192³ patch only; memory estimated) | –<br>–<br>–<br>2738 / 2740 |
 
 <details><summary>Details</summary>
@@ -107,6 +110,7 @@ Commercial use: **no** (weights: CC-BY-NC-SA-4.0).
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `nninteractive` 512x512x512 voxels (5.7 GiB peak allocated, 6.1 reserved)
 - `nninteractive` 200x200, first call: portable + torch.compile 18 s (cold Inductor cache).
 - `nninteractive` 192x192, first call: TensorRT fp16 58 s (ONNX + engine).
+- `nninteractive` portable 200x200, kernels 200x200: Prepares each 3D patch directly in the CUDA network layout. Identical prompt-session masks on synthetic and three labeled CT cases in both CUDA modes.
 - `nninteractive` load / first call: original 3.23 s / 1.038 s, portable 1.09 s / 0.482 s, kernels 0.65 s / 0.403 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
@@ -126,7 +130,7 @@ CPU, float32: max |diff| <= 0.0 vs the original. GPU, float16 (the default), por
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `nninteractive` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@aaf727a9a679:sm_120` |
+| `nninteractive` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@c55f9fff92d3:sm_120` |
 
 </details>
 
@@ -140,8 +144,16 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `totalsegmentator-total` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 47779<br>45630<br>1977<br>1830<br>1595<br>fails: no exportable module (multi-network sliding-window pipeline; | 8150 / 8604<br>2640 / 2874<br>2017 / 2244<br>1762 / 1984<br>1697 / 1984<br>– |
-| `totalsegmentator-total-3mm` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7304<br>7270<br>67.8<br>63.5<br>60.3 (patch network, development build)<br>74.4 (patch network, standalone build) | 5358 / 5698<br>2010 / 2684<br>1096 / 1670<br>1037 / 1410<br>910 / 1278<br>2909 / 2970 |
+| `totalsegmentator-total` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 47779<br>45630<br>1977<br>1647<br>1595<br>1582 (five nnU-Net patch networks with eager volume processing) | 8150 / 8604<br>2640 / 2874<br>2017 / 2244<br>1219 / 1638<br>1697 / 1984<br>6646 / 7136 |
+| `totalsegmentator-total-3mm` | synthetic (200x200) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7304<br>7270<br>70.3<br>71.8<br>63.1<br>74.4 (patch network, standalone build) | 5358 / 5698<br>2010 / 2684<br>962 / 1050<br>913 / 1376<br>907 / 1030<br>2909 / 2970 |
+
+### Weight streaming
+
+Warm inference time and peak reserved GPU memory for the same input with both settings. Streamed weights use pinned host memory.
+
+| Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
+|---|---|---|---|---|---|---|
+| totalsegmentator-total | portable | 128x128 | RTX 5060 Ti | 2.14.1+cu130 | 275.85 ms / 1,408 MiB | 343.60 ms / 1,014 MiB |
 
 <details><summary>Details</summary>
 
@@ -156,8 +168,8 @@ Commercial use: yes.
 - Outputs: labels
 - Input size: any D x H x W volume and its voxel spacing (resampled to the model spacing, sliding window)
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `totalsegmentator-total` 512x512x512 voxels (5.5 GiB peak allocated, 5.8 reserved); `totalsegmentator-total-3mm` 512x512x512 voxels (4.3 GiB peak allocated, 5.1 reserved)
-- `totalsegmentator-total` 200x200, first call: portable + torch.compile 37 s (cold Inductor cache).
-- `totalsegmentator-total-3mm` 200x200, first call: portable + torch.compile 8 s (cold Inductor cache), TensorRT fp16 31 s (ONNX + engine).
+- `totalsegmentator-total` 200x200, first call: portable + torch.compile 37 s (cold Inductor cache), TensorRT fp16 152 s (ONNX + engine).
+- `totalsegmentator-total-3mm` 200x200, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 31 s (ONNX + engine).
 - `totalsegmentator-total` original (fp32) 200x200, original 200x200: totalsegmentator(nifti, ml=True, fast=False, device='gpu') on the in-memory NIfTI (CPU numpy in, labels out; weights load per call as upstream)
 - `totalsegmentator-total-3mm` original (fp32) 200x200, original 200x200: totalsegmentator(nifti, ml=True, fast=True, device='gpu') on the in-memory NIfTI (CPU numpy in, labels out; weights load per call as upstream)
 - `totalsegmentator-total` load / first call: original 0.07 s / 54.51 s, portable 0.77 s / 2.103 s, kernels 0.77 s / 1.879 s
@@ -168,13 +180,14 @@ Commercial use: yes.
 
 A small subset of real CT cases of the TotalSegmentator dataset (not the full test split), each run at its card's spacing (1.5 or 3 mm) in the same pipeline; mean over the cases of the Dice (0 to 1) averaged over the classes present, against the ground-truth segmentations (vertebrae_L6 of the subset has no counterpart and is skipped). Original = TotalSegmentator 2.18.0, default fp16 autocast. A paired check on one labeled CT at the variant's spacing. The compiled or TensorRT patch network runs inside the same PyTorch sliding-window pipeline. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp16 | portable | kernels | portable + torch.compile | TensorRT | note |
-|---|---|---|---|---|---|---|---|
-| `totalsegmentator-total` | TotalSegmentator test subset (7 CT cases), 1.5 mm, mean Dice | 0.9365 | 0.9365 | 0.9365 |  |  |  |
-| `totalsegmentator-total-3mm` | TotalSegmentator test subset (8 CT cases), 3 mm, mean Dice | 0.8285 | 0.8285 | 0.8285 |  |  |  |
-| `totalsegmentator-total-3mm` | TotalSegmentator CT s0013, mean Dice over present classes |  | 0.7980 |  | 0.7980 | 0.7980 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `totalsegmentator-total` | TotalSegmentator test subset (7 CT cases), 1.5 mm, mean Dice | 0.9365 | 0.9365 | 0.9365 | 0.9365 | 0.9365 |  |  |  |
+| `totalsegmentator-total` | TotalSegmentator CT s0013, mean Dice over present classes |  |  | 0.8943 |  |  |  | 0.8943 |  |
+| `totalsegmentator-total-3mm` | TotalSegmentator test subset (8 CT cases), 3 mm, mean Dice | 0.8285 | 0.8285 | 0.8285 | 0.8285 | 0.8285 |  |  |  |
+| `totalsegmentator-total-3mm` | TotalSegmentator CT s0013, mean Dice over present classes |  |  | 0.7980 |  |  | 0.7980 | 0.7980 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2d71f180 / 550adc40, 2026-11-14 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2d71f180, 2026-11-14; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 550adc40, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2d71f180 / 3bf0bac7 / 550adc40, 2026-11-14 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2d71f180, 2026-11-14; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 550adc40, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18 to 2026-11-19.
 
 ### Parity
 
@@ -182,8 +195,8 @@ CPU, float32: max |diff| <= 0.0 vs the original. GPU, float16 (the default), por
 
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
-| `totalsegmentator-total` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@aaf727a9a679:sm_120` |
-| `totalsegmentator-total-3mm` | 0.00056 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@aaf727a9a679:sm_120` |
+| `totalsegmentator-total` | 7e-05 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@c55f9fff92d3:sm_120` |
+| `totalsegmentator-total-3mm` | 0.00056 / 0.0 | RTX 5060 Ti, torch 2.14.1+cu130 | `vol_norm@c55f9fff92d3:sm_120` |
 
 ### Limitations
 

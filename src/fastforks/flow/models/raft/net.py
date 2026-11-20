@@ -27,7 +27,9 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.export_sampling import export_bilinear
 from fastforks._core.sampling import grid_sample
+from fastforks._core.tracing import in_onnx_export
 
 FACTOR = 8  # fixed: the encoders downsample by 8 (three stride-2 stages)
 
@@ -286,6 +288,7 @@ def _lookup(pyramid: list[torch.Tensor], coords: torch.Tensor, radius: int) -> t
     b, _, h, w = coords.shape
     centroids = coords.permute(0, 2, 3, 1).reshape(b * h * w, 1, 1, 2)
     out = []
+    exporting = in_onnx_export()
     for corr in pyramid:
         ch, cw = corr.shape[-2:]
         grid = centroids + delta
@@ -293,7 +296,13 @@ def _lookup(pyramid: list[torch.Tensor], coords: torch.Tensor, radius: int) -> t
         gx = 2 * gx / (cw - 1) - 1
         if ch > 1:
             gy = 2 * gy / (ch - 1) - 1
-        sampled = grid_sample(corr, torch.cat([gx, gy], dim=-1), mode="bilinear", align_corners=True)
+        normalized = torch.cat([gx, gy], dim=-1)
+        # TensorRT can miscompile the repeated GridSample layers in the exported update loop.
+        sampled = (
+            export_bilinear(corr, normalized, align_corners=True)
+            if exporting
+            else grid_sample(corr, normalized, align_corners=True)
+        )
         out.append(sampled.view(b, h, w, -1))
         centroids = centroids / 2
     return torch.cat(out, dim=-1).permute(0, 3, 1, 2).contiguous()
@@ -340,8 +349,10 @@ class RAFT(nn.Module):
             ctx = self.context_encoder(image1)
         fmap1, fmap2 = fmaps.float().chunk(2, dim=0)
         pyramid = _pyramid(fmap1, fmap2, cfg.corr_levels)
+        del fmaps, fmap1, fmap2
         hidden, context = torch.split(ctx, [cfg.hidden, ctx.shape[1] - cfg.hidden], dim=1)
         hidden, context = torch.tanh(hidden), F.relu(context)
+        del ctx
         coords0 = _coords(b, hs, ws, image1.device)
         coords1 = coords0
         for _ in range(iters):
@@ -349,6 +360,8 @@ class RAFT(nn.Module):
             with self._amp(image1.device):
                 hidden, delta = self.update_block(hidden, context, corr, coords1 - coords0)
             coords1 = coords1 + delta.float()
+            del corr
+        del pyramid
         mask = None
         if cfg.mask:
             with self._amp(image1.device):

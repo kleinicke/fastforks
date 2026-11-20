@@ -33,6 +33,8 @@ from .net import MotionFormer, MultiScaleFlow
 from .net.feature_extractor import window_partition, window_reverse
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from fastforks.interpolation._runner import Context
 
     from .net.feature_extractor import InterFrameAttention, MotionFormerBlock
@@ -121,6 +123,11 @@ def _rolled(x: torch.Tensor, shift: tuple[int, int], sign: int) -> torch.Tensor:
     return torch.roll(x, shifts=(sign * shift[0], sign * shift[1]), dims=(1, 2)) if shift[0] or shift[1] else x
 
 
+def _eager_cuda(x: torch.Tensor) -> bool:
+    """Whether inference can reuse owned CUDA activations."""
+    return x.is_cuda and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
+
+
 def _attention(
     m: InterFrameAttention, x1: torch.Tensor, x2: torch.Tensor, cor: torch.Tensor, mask: torch.Tensor | None
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -131,10 +138,16 @@ def _attention(
     k, v = m.kv(x2).reshape(b, n, 2, heads, c // heads).permute(2, 0, 3, 1, 4)
     cor_ = m.cor_embed(cor)
     ce = cor_.reshape(b, n, heads, md // heads).transpose(1, 2)
-    attn = (q @ k.transpose(-2, -1)) * m.scale
+    attn = q @ k.transpose(-2, -1)
+    del q, k
+    reuse = _eager_cuda(attn)
+    attn = attn.mul_(m.scale) if reuse else attn * m.scale
     if mask is not None:
         nw = mask.shape[0]
-        attn = (attn.view(b // nw, nw, heads, n, n) + mask[None, :, None].to(attn.dtype)).view(b, heads, n, n)
+        grouped = attn.view(b // nw, nw, heads, n, n)
+        bias = mask[None, :, None].to(attn.dtype)
+        attn = (grouped.add_(bias) if reuse else grouped + bias).view(b, heads, n, n)
+        del grouped, bias
     attn = attn.softmax(dim=-1)
     out = attn @ torch.cat((v, ce), -1)  # one product for both (upstream: two)
     x = m.proj(out[..., : c // heads].transpose(1, 2).reshape(b, n, c))
@@ -158,7 +171,8 @@ def _former_block(  # noqa: PLR0913, PLR0917 - upstream's arguments + the per-sh
     xn = blk.norm1(window_partition(xp, win))
     half = xn.shape[0] // 2
     app, motion = _attention(blk.attn, xn, torch.cat((xn[half:], xn[:half])), cor_win, mask)
-    xn = xn + app  # upstream: the residual on the normed tokens
+    xn = xn.add_(app) if _eager_cuda(xn) else xn + app  # upstream: the residual on the normed tokens
+    del app, xp
     back = _depadded(_rolled(window_reverse(xn, win, hp, wp), shift, 1), h, w, win).reshape(b2, h * w, c)
     motion = _depadded(_rolled(window_reverse(motion, win, hp, wp), shift, 1), h, w, win).reshape(b2, h * w, -1)
     return back + blk.mlp(blk.norm2(back), h, w), motion
@@ -243,7 +257,12 @@ def _head(
     return y[:, :4], y[:, 4:5]
 
 
-def _refine_warped(net: MultiScaleFlow, parts: tuple[torch.Tensor, ...], features: list[torch.Tensor]) -> torch.Tensor:
+def _refine_warped(
+    net: MultiScaleFlow,
+    parts: tuple[torch.Tensor, ...],
+    features: list[torch.Tensor],
+    stack: Callable[[tuple[torch.Tensor, ...], torch.Tensor, torch.Tensor], torch.Tensor],
+) -> torch.Tensor:
     """Run each U-Net block as soon as its pair of warped features is available, releasing that scale's inputs."""
     unet = net.unet
     flow = parts[-1]
@@ -254,7 +273,7 @@ def _refine_warped(net: MultiScaleFlow, parts: tuple[torch.Tensor, ...], feature
     for index, block in enumerate((unet.down0, unet.down1, unet.down2, unet.down3, unet.up0)):
         if index:
             flow = F.interpolate(flow, scale_factor=0.5, mode="bilinear", align_corners=False) * 0.5
-        stacked = ema_warp.stack(inputs, features.pop(), flow)
+        stacked = stack(inputs, features.pop(), flow)
         y = block(stacked)
         del stacked
         if index < len(decoder):  # down0, down1 and down2 feed the matching decoder skip
@@ -274,6 +293,7 @@ def _interpolate(  # noqa: PLR0913
     cache: Cache | None,
     *,
     fused: bool = False,
+    stream_warps: bool = False,
 ) -> torch.Tensor:
     """`MultiScaleFlow.forward(cat(img0, img1), t)[3]` for float32 `[B, 3, H, W]` frames, `t` `[B, 1, 1, 1]`."""
     b = img0.shape[0]
@@ -296,12 +316,27 @@ def _interpolate(  # noqa: PLR0913
         else:
             flow_, mask_ = _head(hd, feat, torch.cat((img0, img1, warped0, warped1, mask), 1), flow, fmt)
             flow, mask = flow + flow_, mask + mask_
+            del flow_, mask_
+        del m, feat
         warped0, warped1 = (ema_warp.pair if fused else _warp_pair)(img0, img1, flow)
     if flow is None or mask is None or warped0 is None or warped1 is None:
         msg = "EMA-VFI needs at least one head"
         raise ValueError(msg)
     parts = (img0, img1, warped0, warped1, mask, flow)
-    if not fused:
+    if fused:
+        del mf
+        tmp = _refine_warped(net, parts, af, ema_warp.stack)
+    elif stream_warps:
+        del mf
+
+        def stack(inputs: tuple[torch.Tensor, ...], features: torch.Tensor, coords: torch.Tensor) -> torch.Tensor:
+            left = _warp(features[:b], coords[:, :2]).to(dtype, memory_format=fmt)
+            right = _warp(features[b:], coords[:, 2:4]).to(dtype, memory_format=fmt)
+            normalized = tuple(p.to(dtype, memory_format=fmt) for p in inputs)
+            return torch.cat((*normalized, left, right), 1)
+
+        tmp = _refine_warped(net, parts, af, stack)
+    else:
         c0, c1, fl = [], [], flow
         for i, x in enumerate(af):  # MultiScaleFlow.warp_features
             if i:
@@ -309,9 +344,6 @@ def _interpolate(  # noqa: PLR0913
             c0.append(_warp(x[:b], fl[:, :2]).to(dtype, memory_format=fmt))
             c1.append(_warp(x[b:], fl[:, 2:4]).to(dtype, memory_format=fmt))
         tmp = net.unet(*(p.to(dtype, memory_format=fmt) for p in parts), c0, c1)
-    else:
-        del mf
-        tmp = _refine_warped(net, parts, af)
     res = tmp[:, :3].float() * 2 - 1
     merged = torch.lerp(warped1, warped0, torch.sigmoid(mask))  # warped0 * mask + warped1 * (1 - mask)
     return torch.clamp(merged + res, 0, 1)
@@ -325,14 +357,15 @@ def _frame(  # noqa: PLR0913
     *,
     tta: bool,
     fused: bool = False,
+    stream_warps: bool = False,
 ) -> torch.Tensor:
     """`Model.inference` on RGB frames: BGR in and out; `tta` = `fast_TTA` (the pair turned by 180 degrees, mean)."""
     i0, i1 = pair[0].flip(1), pair[1].flip(1)
     if not tta:
-        return _interpolate(net, i0, i1, t, cache, fused=fused).flip(1)
+        return _interpolate(net, i0, i1, t, cache, fused=fused, stream_warps=stream_warps).flip(1)
     b = i0.shape[0]
     both0, both1 = torch.cat((i0, i0.flip(2, 3))), torch.cat((i1, i1.flip(2, 3)))
-    pred = _interpolate(net, both0, both1, t.repeat(2, 1, 1, 1), cache, fused=fused)
+    pred = _interpolate(net, both0, both1, t.repeat(2, 1, 1, 1), cache, fused=fused, stream_warps=stream_warps)
     return ((pred[:b] + pred[b:].flip(2, 3)) / 2).flip(1)
 
 
@@ -366,7 +399,9 @@ class Portable(Runner):
         return {"frame": self._run(image1, image2, t)}
 
     def _run(self, image1: torch.Tensor, image2: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
-        return _frame(self.net, (image1, image2), t, self.cache, tta=self.ctx.params.tta)
+        return _frame(
+            self.net, (image1, image2), t, self.cache, tta=self.ctx.params.tta, stream_warps=_eager_cuda(image1)
+        )
 
     def module(self) -> torch.nn.Module:
         """The network; returns the middle frame (time 0.5)."""

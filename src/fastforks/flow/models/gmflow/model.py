@@ -108,10 +108,18 @@ def forward(  # noqa: PLR0913 - network, image pair and inference options
         hidden, context = torch.chunk(net.refine_proj(feature1), chunks=2, dim=1)
         hidden, context = torch.tanh(hidden), torch.relu(context)
     mask = flow
-    for _ in range(params.refine):
+    for step in range(params.refine):
         correlation = local_correlation_with_flow(raw1, raw2, flow=flow, local_radius=REFINE_RADIUS)
         with amp:
-            _, mask, residual = net.refine(hidden, context, correlation, flow.clone())
+            _, up_mask, residual = net.refine(
+                hidden,
+                context,
+                correlation,
+                flow,
+                upsample=step + 1 == params.refine,
+            )
+        if up_mask is not None:
+            mask = up_mask
         flow = flow + residual.float()
     return upsample(flow, mask.float(), upsample_factor=net.upsample_factor)
 

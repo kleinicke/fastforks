@@ -30,7 +30,9 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.export_sampling import export_bilinear
 from fastforks._core.sampling import grid_sample
+from fastforks._core.tracing import in_onnx_export
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -183,7 +185,7 @@ class CorrBlock:
     def __init__(self, f1: torch.Tensor, f2: torch.Tensor) -> None:
         """Build the pyramid of `f1 . f2 / sqrt(C)`."""
         b, c, h, w = f1.shape
-        corr = (f1.flatten(2).transpose(1, 2) @ f2.flatten(2)) / math.sqrt(c)
+        corr = (f1.flatten(2).transpose(1, 2) @ f2.flatten(2)).div_(math.sqrt(c))
         corr = corr.reshape(b * h * w, 1, h, w)
         self.pyramid = [corr]
         for _ in range(LEVELS - 1):
@@ -197,11 +199,17 @@ class CorrBlock:
         b, _, h, w = coords.shape
         centre = coords.permute(0, 2, 3, 1).reshape(b * h * w, 1, 1, 2)
         out = []
+        exporting = in_onnx_export()
         for i, corr in enumerate(self.pyramid):
             xy = centre / 2**i + self.delta
             hh, ww = corr.shape[-2:]
             grid = torch.cat([2 * xy[..., :1] / (ww - 1) - 1, 2 * xy[..., 1:] / (hh - 1) - 1], dim=-1)
-            out.append(grid_sample(corr, grid, align_corners=True).view(b, h, w, -1))
+            sampled = (
+                export_bilinear(corr, grid, align_corners=True)
+                if exporting
+                else grid_sample(corr, grid, align_corners=True)
+            )
+            out.append(sampled.view(b, h, w, -1))
         return torch.cat(out, dim=-1).permute(0, 3, 1, 2).contiguous()
 
 

@@ -28,6 +28,7 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
+from fastforks._core.tracing import in_onnx_export
 from fastforks.kernels import cudnn_hacc
 from fastforks.kernels.shift_windows import rearrange
 from fastforks.restoration._runner import Crop, Forward, Runner
@@ -38,6 +39,7 @@ from fastforks.shared.swin_sr import (
     patch_embed,
     relative_bias,
     shift_mask,
+    shifted_window_regions,
     window_attention,
 )
 
@@ -65,17 +67,60 @@ class Params:
     window: int  # 16: attention window (all released models)
 
 
+_MASK_PARTITION_MIN_WINDOWS = 256
+
+
 def _mask(m: HAT, x_size: tuple[int, int]) -> torch.Tensor:
-    """`HAT.calculate_mask` made on the device, once per size."""
-    return shift_mask(*x_size, m.window_size, m.shift_size, m.conv_first.weight.device, dtype=m.conv_first.weight.dtype)
+    """Shifted-window masks, stored as per-token labels for large CUDA calls."""
+    h, w = x_size
+    window, shift = m.window_size, m.shift_size
+    weight = m.conv_first.weight
+    if (
+        weight.is_cuda
+        and weight.dtype == torch.float16
+        and (h // window) * (w // window) >= _MASK_PARTITION_MIN_WINDOWS
+        and not torch.is_grad_enabled()
+        and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export())
+    ):
+        return shifted_window_regions(h, w, window, shift, weight.device)
+    return shift_mask(h, w, window, shift, weight.device, dtype=weight.dtype)
 
 
 def _attention(
     m: WindowAttention, x: torch.Tensor, rpi: torch.Tensor, mask: torch.Tensor | None = None
 ) -> torch.Tensor:
-    """`WindowAttention.forward` with the bias gathered at load and one SDPA call."""
+    """Window attention using position bias gathered when the model loads."""
     del rpi
-    return window_attention(x, m.qkv, m.proj, heads=m.num_heads, scale=m.scale, bias=m.bias, mask=mask)  # ty: ignore[invalid-argument-type]
+    bias = m.get_buffer("bias")
+    return window_attention(x, m.qkv, m.proj, heads=m.num_heads, scale=m.scale, bias=bias, mask=mask)
+
+
+_OVERLAP_TILE_BYTES = 64 * 2**20
+_OVERLAP_MIN_PIXELS = 256 * 256
+
+
+def _overlap_attention(m: OCAB, q: torch.Tensor, padded: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
+    """Pack and attend over overlapping key/value windows a few window rows at a time."""
+    h, w = size
+    b, twice_c, hp, wp = padded.shape
+    ws, ow, heads = m.window_size, m.overlap_win_size, m.num_heads
+    c, channels = twice_c // 2, q.shape[-1]
+    nr, nc = h // ws, w // ws
+    kv = padded.view(b, 2, heads, channels, hp, wp)
+    windows = kv.unfold(4, ow, ws).unfold(5, ow, ws)
+    rows = max(1, _OVERLAP_TILE_BYTES // (nc * twice_c * ow * ow * padded.element_size()))
+    bias = m.get_buffer("bias").to(q.dtype)[None]
+    out = q.new_empty((q.shape[0], ws * ws, c))
+    for batch in range(b):
+        for start in range(0, nr, rows):
+            stop = min(start + rows, nr)
+            local = windows[batch : batch + 1, :, :, :, start:stop]
+            local = local.permute(1, 0, 4, 5, 2, 6, 7, 3).reshape(2, -1, heads, ow * ow, channels)
+            first, end = (batch * nr + start) * nc, (batch * nr + stop) * nc
+            result = attention(q[first:end], local[0], local[1], bias.expand(end - first, -1, -1, -1), m.scale)
+            out[first:end] = result.transpose(1, 2).reshape(end - first, ws * ws, c)
+            del local, result
+    return out
 
 
 def _ocab(m: OCAB, x: torch.Tensor, x_size: tuple[int, int], rpi: torch.Tensor) -> torch.Tensor:
@@ -87,12 +132,26 @@ def _ocab(m: OCAB, x: torch.Tensor, x_size: tuple[int, int], rpi: torch.Tensor) 
     shortcut = x
     qkv = m.qkv(m.norm1(x).view(b, h, w, c))
     q = window_partition(qkv[..., :c], ws).reshape(-1, ws * ws, heads, c // heads).transpose(1, 2)
-    kv = m.unfold(qkv[..., c:].permute(0, 3, 1, 2))  # [b, 2 * c * ow * ow, nW]: k channels, then v channels
-    kv = kv.view(b, 2, heads, c // heads, ow * ow, -1).permute(1, 0, 5, 2, 4, 3)
-    kv = kv.reshape(2, -1, heads, ow * ow, c // heads)
-    bias = m.get_buffer("bias").to(q.dtype)[None].expand(q.shape[0], -1, -1, -1)
-    out = attention(q, kv[0], kv[1], bias, m.scale)
-    x = window_reverse(out.transpose(1, 2).reshape(-1, ws, ws, c), ws, h, w).view(b, h * w, c)
+    kv_image = qkv[..., c:].permute(0, 3, 1, 2)
+    if (
+        x.is_cuda
+        and x.dtype == torch.float16
+        and h * w >= _OVERLAP_MIN_PIXELS
+        and not torch.is_grad_enabled()
+        and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export())
+    ):
+        p = (ow - ws) // 2
+        padded = F.pad(kv_image, (p, p, p, p))
+        del qkv, kv_image
+        out = _overlap_attention(m, q, padded, (h, w))
+        del padded, q
+    else:
+        kv = m.unfold(kv_image)  # [b, 2 * c * ow * ow, nW]: k channels, then v channels
+        kv = kv.view(b, 2, heads, c // heads, ow * ow, -1).permute(1, 0, 5, 2, 4, 3)
+        kv = kv.reshape(2, -1, heads, ow * ow, c // heads)
+        bias = m.get_buffer("bias").to(q.dtype)[None].expand(q.shape[0], -1, -1, -1)
+        out = attention(q, kv[0], kv[1], bias, m.scale).transpose(1, 2)
+    x = window_reverse(out.reshape(-1, ws, ws, c), ws, h, w).view(b, h * w, c)
     x = m.proj(x) + shortcut
     return x + m.mlp(m.norm2(x))
 

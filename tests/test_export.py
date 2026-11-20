@@ -24,6 +24,7 @@ from fastforks._core.errors import BackendUnavailableError, InputError
 from fastforks._core.export import flat_outputs, output_names
 from fastforks._core.preprocess import resize_crop, scale
 from fastforks._core.tasks import spec
+from fastforks.pose.models.rtmpose.net import ScaleNorm
 from fastforks.stereo import _module  # noqa: F401 - registers the kernels custom op
 from fastforks.stereo._export import _cuda_device, _fix_folded_weight_casts
 from synth import pair, prompt_kwargs, size
@@ -32,6 +33,15 @@ from test_golden import FAMILIES, GOLDEN, SMALLEST, TASK, sweep_model
 LOAD_ONCE = True  # conftest runs the tests of one ref together: `sweep_model` loads it once
 
 SHAPE = (1, 3, 96, 128)  # not a multiple of every pad multiple: padding and cropping are in the traced graph
+
+
+def test_rtmpose_half_export_accumulates_scale_norm_in_fp32():
+    layer = ScaleNorm(64).half().eval()
+    inputs = torch.linspace(-400, 400, 64, dtype=torch.float16).repeat(2, 1)
+    exported = torch.export.export(layer, (inputs,))
+    (norm,) = [node for node in exported.graph.nodes if node.target == torch.ops.aten.linalg_vector_norm.default]
+    assert norm.meta["val"].dtype == torch.float32
+    torch.testing.assert_close(exported.module()(inputs), layer(inputs), rtol=0, atol=0)
 
 
 _ONNX_NEEDS_NEWER_TORCH = {"c-fast-foundationstereo@1", "foundationstereo-vit-s@1", "selective-igev-eth3d-finetune@1"}
@@ -120,16 +130,17 @@ _needs_onnx = pytest.mark.skipif(
 
 @pytest.mark.slow
 @_needs_onnx
-def test_dfine_onnx_bilinear_sampling(tmp_path):
+@pytest.mark.parametrize("align_corners", [False, True])
+def test_dfine_onnx_bilinear_sampling(tmp_path, align_corners):
     """Export the gather-based sampler and compare padding and interpolation across two distinct maps."""
     import onnx  # noqa: PLC0415 - optional
     import onnxruntime as ort  # noqa: PLC0415 - optional
 
-    from fastforks.detection._attention import _export_bilinear  # noqa: PLC0415
+    from fastforks._core.export_sampling import export_bilinear  # noqa: PLC0415
 
     class Sampler(torch.nn.Module):
         def forward(self, feature, grid):
-            return _export_bilinear(feature, grid)
+            return export_bilinear(feature, grid, align_corners=align_corners)
 
     generator = torch.Generator().manual_seed(110)
     feature = torch.randn(2, 4, 5, 8, generator=generator)
@@ -141,7 +152,7 @@ def test_dfine_onnx_bilinear_sampling(tmp_path):
     assert all(node.op_type != "GridSample" for node in onnx.load(path).graph.node)
     session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
     (actual,) = session.run(None, {"feature": feature.numpy(), "grid": grid.numpy()})
-    expected = torch.nn.functional.grid_sample(feature, grid, align_corners=False)
+    expected = torch.nn.functional.grid_sample(feature, grid, align_corners=align_corners)
     torch.testing.assert_close(torch.from_numpy(actual), expected, atol=2e-6, rtol=1e-5)
 
 

@@ -14,12 +14,14 @@ and fp16-accumulate GEMMs.
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.tracing import in_onnx_export
 from fastforks.segmentation._runner import Forward, Runner, scale
 from fastforks.shared import mlx_wrap
 from fastforks.shared.maskformer import MaskFormer
@@ -32,6 +34,7 @@ if TYPE_CHECKING:
 
 # fixed: mask-logit elements per row chunk of the semantic scores (fp16: 128 MB; 1024 x 2048, 250 queries: 8 chunks)
 _ROW_CHUNK = 1 << 26
+_MASK_RESIZE_CHUNK = 1 << 25
 
 
 @dataclass(frozen=True)
@@ -77,12 +80,40 @@ class Portable(Runner):
         rh, rw = target_size(h, w, self.ctx.params.resize)
         x = pad_bottom_right(scale(resize(image, (rh, rw), pil=True), self.ctx.io), self.ctx.params.pad)
         masks, classes = self.net(x)
-        masks = F.interpolate(masks, x.shape[-2:], mode="bilinear", align_corners=False)[..., :rh, :rw]
-        masks = resize(masks, (h, w))
+        hp, wp = x.shape[-2:]
         probs = classes.float().softmax(-1)[..., :-1].to(masks.dtype)  # as `mask_semantic`
         step = max(1, _ROW_CHUNK // (masks.shape[1] * w))
-        for r0 in range(0, h, step):
-            yield r0, torch.einsum("bqc,bqhw->bchw", probs, masks[:, :, r0 : r0 + step].sigmoid())
+        if (
+            masks.is_cuda
+            and not torch.is_grad_enabled()
+            and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export())
+            and masks.shape[1] * max(h * w, hp * wp) > _ROW_CHUNK
+        ):
+            # Store the activated masks in the contiguous row blocks consumed by the class projection.
+            # Each query needs only its own pixels to resize, so the full intermediate grid is never allocated.
+            query_step = max(1, _MASK_RESIZE_CHUNK // max(h * w, hp * wp))
+            strips = deque(
+                (start, masks.new_empty((1, masks.shape[1], min(step, h - start), w))) for start in range(0, h, step)
+            )
+            for index, queries in enumerate(masks.split(query_step, dim=1)):
+                up = F.interpolate(queries, (hp, wp), mode="bilinear", align_corners=False)[..., :rh, :rw]
+                activated = resize(up, (h, w)).sigmoid_()
+                q0 = index * query_step
+                for start, stripe in strips:
+                    stripe[:, q0 : q0 + queries.shape[1]].copy_(activated[..., start : start + stripe.shape[2], :])
+                del up, activated
+            del masks
+        else:
+            masks = F.interpolate(masks, (hp, wp), mode="bilinear", align_corners=False)[..., :rh, :rw]
+            masks = resize(masks, (h, w))
+            for r0 in range(0, h, step):
+                yield r0, torch.einsum("bqc,bqhw->bchw", probs, masks[:, :, r0 : r0 + step].sigmoid())
+            return
+        while strips:
+            r0, stripe = strips.popleft()
+            scores = torch.einsum("bqc,bqhw->bchw", probs, stripe)
+            del stripe
+            yield r0, scores
 
     def _one(self, image: torch.Tensor) -> torch.Tensor:
         out = None

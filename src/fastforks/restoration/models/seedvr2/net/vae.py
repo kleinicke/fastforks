@@ -71,12 +71,40 @@ class CausalConv3d(nn.Conv3d):
             self.memory = None
         # one output frame at a time from its kt input frames: no padded copy of the whole clip
         n = (len(frames) - kt) // st + 1
+        if (
+            not (torch.compiler.is_compiling() or torch.jit.is_tracing())
+            and torch.is_inference_mode_enabled()
+            and n == 1
+            and state is State.DISABLED
+            and self.kernel_size == (3, 3, 3)
+            and self.stride == (1, 1, 1)
+            and self.padding == (0, 1, 1)
+            and x.is_cuda
+            and x.numel() * x.element_size() * kt >= 512 * 1024**2
+        ):
+            return self._spatial_strips(frames)
         out = None
         for j in range(n):
             y = super().forward(torch.stack(frames[j * st : j * st + kt], 2))
             if out is None:
                 out = y.new_empty((*y.shape[:2], n, *y.shape[3:]))
             out[:, :, j : j + 1] = y
+        return out
+
+    def _spatial_strips(self, frames: list[torch.Tensor]) -> torch.Tensor:
+        """Apply a stride-one 3x3 convolution to rows with one input halo on either side."""
+        b, c, h, w = frames[0].shape
+        bytes_per_row = b * c * w * frames[0].element_size() * len(frames)
+        rows = max(1, 256 * 1024**2 // bytes_per_row)
+        out: torch.Tensor | None = None
+        for start in range(0, h, rows):
+            end = min(h, start + rows)
+            top, bottom = max(0, start - 1), min(h, end + 1)
+            y = super().forward(torch.stack([frame[:, :, top:bottom] for frame in frames], dim=2))
+            if out is None:
+                out = y.new_empty((b, self.out_channels, 1, h, w))
+            out[:, :, :, start:end] = y[:, :, :, start - top : end - top]
+        assert out is not None
         return out
 
 

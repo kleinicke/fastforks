@@ -321,6 +321,7 @@ class MEMFOF(nn.Module):  # fastforks: no PyTorchModelHubMixin
                 return CorrBlock(f1.float(), f2.float(), self.corr_levels, self.corr_radius)
         corr_fn_21 = corr_fn(fmap1_16x, fmap1_16x)
         corr_fn_23 = corr_fn(fmap1_16x, fmap3_16x)
+        del cnet, fmap1_16x, fmap3_16x
         B, _, H, W = flow_16x_21.shape
         grid = coords_grid(B, H, W, device=image1.device)
         for _ in range(iters):
@@ -328,9 +329,11 @@ class MEMFOF(nn.Module):  # fastforks: no PyTorchModelHubMixin
             flow_16x = torch.cat([flow_16x_21, flow_16x_23], dim=1)
             with torch.autocast("cuda", torch.float16, enabled=fp16):
                 net = self.update_block(net, context, corr, flow_16x, attention)
+                del corr, flow_16x
                 flow_update = self.flow_head(net)
             flow_16x_21 = flow_16x_21 + flow_update[:, 0:2].float()
             flow_16x_23 = flow_16x_23 + flow_update[:, 6:8].float()
+        del corr_fn_21, corr_fn_23, attention, context, grid
         with torch.autocast("cuda", torch.float16, enabled=fp16):
             weight_update = 0.25 * self.upsample_weight(net)
         if upsample_flow is not None:

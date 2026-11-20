@@ -207,11 +207,15 @@ def map_coordinates_2d(feats: torch.Tensor, coords: torch.Tensor) -> torch.Tenso
 def soft_argmax(heat: torch.Tensor, threshold: float = 5) -> torch.Tensor:
     """`(x, y)` `[B, N, T, 2]` (grid cells, centres at +0.5): the mean of `heat` within `threshold` of its argmax."""
     b, n, t, h, w = heat.shape
-    yy, xx = torch.meshgrid(torch.arange(h, device=heat.device), torch.arange(w, device=heat.device), indexing="ij")
-    coords = torch.stack([xx + 0.5, yy + 0.5], -1)  # [h, w, 2]
+    y = torch.arange(h, device=heat.device) + 0.5
+    x = torch.arange(w, device=heat.device) + 0.5
+    yy, xx = torch.meshgrid(y, x, indexing="ij")
+    coords = torch.stack([xx, yy], -1)  # [h, w, 2]
     pos = coords.reshape(-1, 2)[heat.reshape(b, n, t, -1).argmax(-1)]  # [b, n, t, 2]
-    valid = (coords - pos[:, :, :, None, None]).square().sum(-1, keepdim=True) < threshold**2
-    weight = valid * heat[..., None]
+    dx2 = (x - pos[..., :1]).square()
+    dy2 = (y - pos[..., 1:]).square()
+    valid = dx2[..., None, :] + dy2[..., :, None] < threshold**2
+    weight = valid[..., None] * heat[..., None]
     total = (coords * weight).sum((3, 4))
     return total / torch.clamp(weight.sum((3, 4)), min=1e-12)
 
@@ -296,6 +300,7 @@ class TAPIR(nn.Module):
             else:
                 q = last[..., :HIRES] if i == 0 else last[..., HIRES:]
                 corrs.append(torch.einsum("bnfsc,bnfc->bnfs", neighborhood, q))
+            del neighborhood
         if last is None:
             feats = torch.cat([queries[0], queries[1]], -1)[:, :, None].expand(-1, -1, points.shape[2], -1)
         else:
@@ -305,13 +310,21 @@ class TAPIR(nn.Module):
         res = self.torch_pips_mixer(x.reshape(b * n, t, c).float()).reshape(b, n, t, -1)
         return points + res[..., :2], occ + res[..., 2], expd + res[..., 3], feats + res[..., 4:]
 
-    def track(self, f: Features, queries: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def pyramid(self, features: Features) -> list[torch.Tensor]:
+        """The frame grids, shared by all chunks of queries."""
+        grids = [features.hires, features.lowres]
+        for _ in range(self.pyramid_level):
+            grids.append(F.avg_pool3d(grids[-1], kernel_size=(2, 2, 1), stride=(2, 2, 1)))
+        return grids
+
+    def track(
+        self, f: Features, queries: torch.Tensor, *, pyramid: list[torch.Tensor] | None = None
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Final points `[1, Q, T, 2]` `(x, y)`, occlusion and expected-distance logits `[1, Q, T]` of the queries."""
         points, occ, expd = self.initial(f.query_lowres, f.lowres, queries)
         queries_ = [f.query_hires, f.query_lowres] + [f.query_lowres] * self.pyramid_level
-        pyramid = [f.hires, f.lowres]
-        for _ in range(self.pyramid_level):
-            pyramid.append(F.avg_pool3d(pyramid[-1], kernel_size=(2, 2, 1), stride=(2, 2, 1)))
+        if pyramid is None:
+            pyramid = self.pyramid(f)
         last = None
         for _ in range(PIPS_ITERS):
             points, occ, expd, last = self.refine(queries_, pyramid, points, occ, expd, last)

@@ -10,6 +10,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
+from fastforks._core.half import half_weights
 from fastforks.flow._runner import Forward, Runner
 from fastforks.kernels import flow_upsample, flowseek_corr
 from fastforks.shared import mlx_wrap
@@ -89,6 +90,7 @@ class Kernels(Portable):
     def __init__(self, ctx: Context) -> None:
         """Build the network and load the CUDA correlation kernel."""
         super().__init__(ctx)
+        half_weights(self.net)  # reuse cast weights across the depth encoder and recurrent updates
         self.k = flowseek_corr.load(ctx.device)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:

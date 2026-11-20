@@ -23,7 +23,7 @@ import re
 import types
 import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import torch
 import torch.nn.functional as F
@@ -109,6 +109,35 @@ def _spatial(m: Spatial_Attention, qkv: torch.Tensor, h: int, w: int, mask: torc
     return windows2img(out.transpose(1, 2).reshape(bw, m.H_sp * m.W_sp, -1), m.H_sp, m.W_sp, h, w)
 
 
+def _shifted_window(m: Spatial_Attention, qkv: torch.Tensor, h: int, w: int, shift: tuple[int, int]) -> torch.Tensor:
+    """Share the attention mask within the interior, final row, final column and corner of the shifted grid."""
+    hs, ws = m.H_sp, m.W_sp
+    rows, cols = h // hs, w // ws
+    q, k, v = (_windows(m, t, h, w).unflatten(0, (-1, rows, cols)) for t in qkv.unbind(0))
+    out = torch.empty_like(q)
+    bias = m.get_buffer("bias").to(q.dtype)
+    token = torch.arange(hs * ws, device=q.device)
+    row_zone = (token // ws >= hs - shift[0]).int() * 2
+    col_zone = (token % ws >= ws - shift[1]).int()
+    for r, band in ((False, slice(0, -1)), (True, slice(-1, None))):
+        if rows == 1 and not r:
+            continue
+        for c, stripe in ((False, slice(0, -1)), (True, slice(-1, None))):
+            if cols == 1 and not c:
+                continue
+            pos = bias
+            if r or c:
+                # Tokens straddling either wrapped edge receive the upstream additive bias.
+                zones = row_zone + col_zone if r and c else row_zone if r else col_zone
+                pos = bias + (zones[:, None] != zones[None, :]).to(q.dtype) * -100.0
+            section = (slice(None), band, stripe)
+            q1, k1, v1 = (t[section].flatten(0, 2) for t in (q, k, v))
+            y = attention(q1, k1, v1, pos.expand(q1.shape[0], -1, -1, -1), m.scale)
+            out[section] = y.reshape_as(out[section])
+    result = out.flatten(0, 2)
+    return windows2img(result.transpose(1, 2).reshape(result.shape[0], hs * ws, -1), hs, ws, h, w)
+
+
 def _image(x: torch.Tensor, h: int, w: int) -> torch.Tensor:
     """Tokens `[b, h * w, c]` as a channels-last `[b, c, h, w]` view (upstream: a transposed copy)."""
     return x.unflatten(1, (h, w)).permute(0, 3, 1, 2)
@@ -135,8 +164,17 @@ def _interact(
     return channel * channel_map.sigmoid() + spatial * spatial_map.sigmoid()
 
 
-def _spatial_block(
-    m: Adaptive_Spatial_Attention, x: torch.Tensor, h: int, w: int, *, mix: Callable = _interact
+_COMPACT_MASK_PIXELS = 256**2
+
+
+def _spatial_block(  # noqa: PLR0913 - separate CUDA gate and attention mask specializations
+    m: Adaptive_Spatial_Attention,
+    x: torch.Tensor,
+    h: int,
+    w: int,
+    *,
+    mix: Callable = _interact,
+    compact_mask: bool = False,
 ) -> torch.Tensor:
     """`Adaptive_Spatial_Attention.forward` with its convolutions on channels-last views (no transposed copies)."""
     b, n, c = x.shape
@@ -152,9 +190,20 @@ def _spatial_block(
         (s0, s1), grid = m.shift_size, qkv.view(3, b, hp, wp, c)
         q0 = torch.roll(grid[..., :half], shifts=(-s0, -s1), dims=(2, 3)).view(3, b, -1, half)
         q1 = torch.roll(grid[..., half:], shifts=(-s1, -s0), dims=(2, 3)).view(3, b, -1, half)
-        masks = m.calculate_mask(hp, wp)
-        x1 = torch.roll(m.attns[0](q0, hp, wp, mask=masks[0]), shifts=(s0, s1), dims=(1, 2))
-        x2 = torch.roll(m.attns[1](q1, hp, wp, mask=masks[1]), shifts=(s1, s0), dims=(1, 2))
+        if compact_mask or (
+            x.is_cuda
+            and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
+            and hp * wp >= _COMPACT_MASK_PIXELS
+        ):
+            a = _shifted_window(cast("Spatial_Attention", m.attns[0]), q0, hp, wp, (s0, s1))
+            b_att = _shifted_window(cast("Spatial_Attention", m.attns[1]), q1, hp, wp, (s1, s0))
+        else:
+            masks = m.calculate_mask(hp, wp)
+            a = m.attns[0](q0, hp, wp, mask=masks[0])
+            b_att = m.attns[1](q1, hp, wp, mask=masks[1])
+        x1 = torch.roll(a, shifts=(s0, s1), dims=(1, 2))
+        x2 = torch.roll(b_att, shifts=(s1, s0), dims=(1, 2))
+        del a, b_att
     else:
         x1 = m.attns[0](qkv[..., :half], hp, wp)
         x2 = m.attns[1](qkv[..., half:], hp, wp)
@@ -281,7 +330,7 @@ _HACC_MIN_CHANNELS = 64  # fixed: measured, narrower convolutions run slower thr
 
 
 def _cuda_spatial(m: Adaptive_Spatial_Attention, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
-    return _spatial_block(m, x, h, w, mix=dat_interaction.interaction)
+    return _spatial_block(m, x, h, w, mix=dat_interaction.interaction, compact_mask=True)
 
 
 def _cuda_channel(m: Adaptive_Channel_Attention, x: torch.Tensor, h: int, w: int) -> torch.Tensor:

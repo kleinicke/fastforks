@@ -4,6 +4,10 @@ import torch
 import math
 from torch import nn, einsum
 
+from fastforks.shared.cuda_softmax import softmax_rows_
+
+_SOFTMAX_GROUP_BYTES = 32 * 1024**2
+
 
 def rearrange(t, pattern, **axes):  # fastforks: the four einops patterns used here, in plain torch
     if pattern == "b (h d) x y -> b h x y d":
@@ -48,9 +52,16 @@ class Attention(nn.Module):
         sim = einsum("b h x y d, b h u v d -> b h x y u v", q, k)
 
         sim = rearrange(sim, "b h x y u v -> b h (x y) (u v)")
-        attn = sim.softmax(dim=-1)
-
-        return attn
+        if (
+            sim.is_cuda
+            and sim.is_contiguous()
+            and sim.numel() * sim.element_size() >= 4 * _SOFTMAX_GROUP_BYTES
+            and not torch.is_grad_enabled()
+            and not (torch.compiler.is_compiling() or torch.jit.is_tracing())
+        ):
+            # The recurrence reuses the attention weights. Normalize complete rows in place to retain one matrix.
+            return softmax_rows_(sim, _SOFTMAX_GROUP_BYTES)
+        return sim.softmax(dim=-1)
 
 
 class Aggregate(nn.Module):

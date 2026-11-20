@@ -84,7 +84,7 @@ weights = [{ name = "LAS2_L.pth", size = 109270797, sha256 = "12f86f758b0aa6cd59
 
 [[variants]]
 id = "las2-h"
-planned = { tensorrt = "the TensorRT 10 engine build fails (Myelin autotuner skips all tactics)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { tensorrt = "TensorRT 11.4 fails the Myelin tactic check at 994 x 1482. The 375 x 1242 standalone build passed the 15-pair Middlebury check." }
 revision = 1
 params = { size = "h" }
 weights = [{ name = "LAS2_H.pth", size = 46698761, sha256 = "758585a25c3a332711f92a28ad1437e08080fb714ad1146de7cf2c01ce8479f4", url = "https://huggingface.co/tomtomtommi/LiteAnyStereoV2/resolve/17788d91618646fa781a14462e2926a034b9f49d/LAS2_H.pth" }]

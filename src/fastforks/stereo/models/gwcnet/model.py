@@ -78,9 +78,11 @@ def forward(net: GwcNet, left: torch.Tensor, right: torch.Tensor) -> torch.Tenso
     cost0 = net.dres0(volume)
     del volume
     cost0 = net.dres1(cost0) + cost0
-    out3 = net.dres4(net.dres3(net.dres2(cost0)))
+    for hourglass in (net.dres2, net.dres3, net.dres4):
+        cost0 = hourglass(cost0)
+    logits = net.classif3(cost0)
     del cost0
-    return upsample_softmax_regress(net.classif3(out3), net.maxdisp, left.shape[2], left.shape[3])
+    return upsample_softmax_regress(logits, net.maxdisp, left.shape[2], left.shape[3])
 
 
 class Portable(Runner):

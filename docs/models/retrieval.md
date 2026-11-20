@@ -33,8 +33,8 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 
 | Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
 |---|---|---|---|---|---|---|
-| boq-dinov2 | kernels | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 4 ms / 318 MiB | 14 ms / 136 MiB |
-| boq-dinov2 | portable | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 5 ms / 318 MiB | 14 ms / 138 MiB |
+| boq-dinov2 | kernels | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 3.61 ms / 318 MiB | 13.53 ms / 136 MiB |
+| boq-dinov2 | portable | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 4.85 ms / 318 MiB | 13.69 ms / 138 MiB |
 
 <details><summary>Details</summary>
 
@@ -97,8 +97,8 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 
 | Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
 |---|---|---|---|---|---|---|
-| megaloc | kernels | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 7 ms / 564 MiB | 16 ms / 402 MiB |
-| megaloc | portable | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 8 ms / 562 MiB | 15 ms / 402 MiB |
+| megaloc | kernels | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 6.71 ms / 564 MiB | 16.10 ms / 402 MiB |
+| megaloc | portable | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 8.10 ms / 562 MiB | 15.05 ms / 402 MiB |
 
 <details><summary>Details</summary>
 
@@ -122,12 +122,12 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 
 Every query's descriptor against every database descriptor (cosine similarity, exact top-k on the GPU); a query counts as found at k when one of its k nearest database images is within 25 m (UTM positions of the file names), the standard visual place recognition protocol. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `megaloc` | St Lucia, all 1464 queries against the 1549 database images, recall@1 / @5 % (25 m) | 100.00 / 100.00 |  | 100.00 / 100.00 |  | 100.00 / 100.00 |  |
-| `megaloc` | St Lucia, every 5th query (293) against the 1549 database images, recall@1 / @5 % (25 m) | 100.00 / 100.00 | 100.00 / 100.00 | 100.00 / 100.00 | 100.00 / 100.00 | 100.00 / 100.00 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `megaloc` | St Lucia, all 1464 queries against the 1549 database images, recall@1 / @5 % (25 m) | 100.00 / 100.00 |  | 100.00 / 100.00 |  | 100.00 / 100.00 |  |  |  |
+| `megaloc` | St Lucia, every 5th query (293) against the 1549 database images, recall@1 / @5 % (25 m) | 100.00 / 100.00 | 100.00 / 100.00 | 100.00 / 100.00 | 100.00 / 100.00 | 100.00 / 100.00 | 100.00 / 100.00 | 100.00 / 100.00 |  |
 
-Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84333525, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84333525, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84333525, 2026-11-13; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 84333525, 2026-11-13; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c45a2130, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c45a2130, 2026-11-19.
 
 ### Parity
 

@@ -105,6 +105,37 @@ def _upsampled(x: torch.Tensor, s: int, pts: tuple[torch.Tensor, torch.Tensor], 
     )  # border = the resize's edge clamp
 
 
+def _sources(x: torch.Tensor, feat: torch.Tensor, *, exporting: bool) -> torch.Tensor:
+    """Both sides' image + features, side-major, float32 (graph export: one concatenation, not in-place writes)."""
+    images = torch.cat((x[:, :3], x[:, 3:6]), 0)
+    if exporting:
+        return torch.cat((images.float(), feat.float()), 1)
+    src = torch.empty(images.shape[0], 3 + feat.shape[1], *x.shape[2:], device=x.device)
+    src[:, :3].copy_(images)
+    src[:, 3:].copy_(feat)
+    return src
+
+
+def _graph_input(
+    side: torch.Tensor,
+    timestep: float | torch.Tensor,
+    last: tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] | None,
+    s: int,
+    size: tuple[int, int],
+) -> torch.Tensor:
+    """A block's input as one concatenation (graph export, MLX): images, features, time, last mask/features and flow."""
+    b, _, nf, hs, ws = side.shape
+    nf -= 3
+    t_plane = (
+        timestep.expand(b, 1, hs, ws) if isinstance(timestep, torch.Tensor) else side.new_full((b, 1, hs, ws), timestep)
+    )
+    parts = [side[:, :, :3].reshape(b, 6, hs, ws), side[:, :, 3:].reshape(b, 2 * nf, hs, ws), t_plane.to(side.dtype)]
+    if last is not None:
+        tmp, flow, py, px = last
+        parts += [_pool(_upsampled(tmp[:, 4:], s, (py, px), size), s), _pool(_at_points(flow, s), s) / s]
+    return torch.cat(parts, 1)
+
+
 def _interpolate(
     net: IFNet, x: torch.Tensor, timestep: float | torch.Tensor, scales: list[int], *, channels_last: bool = False
 ) -> torch.Tensor:
@@ -114,12 +145,8 @@ def _interpolate(
     feat = torch.cat((net.encode(x[:, :3]), net.encode(x[:, 3:6])), 0)  # per image, as upstream (faster than batched)
     nf = feat.shape[1]
     exporting = torch.compiler.is_exporting()  # a graph (MLX): concatenations, not in-place writes (each a full copy)
-    if exporting:
-        src = torch.cat((torch.cat((x[:, :3], x[:, 3:6]), 0).float(), feat.float()), 1)
-    else:
-        src = torch.empty(2 * b, 3 + nf, h, w, device=dev)  # both sides' image + features, side-major, float32
-        src[:, :3].copy_(torch.cat((x[:, :3], x[:, 3:6]), 0))
-        src[:, 3:].copy_(feat)
+    src = _sources(x, feat, exporting=exporting)  # both sides' image + features, side-major, float32
+    del feat
     flow = tmp = None
     prev = 1
     blocks = [net.block0, net.block1, net.block2, net.block3, net.block4]
@@ -130,23 +157,13 @@ def _interpolate(
         side = _pool(_at_points(warped, s) if flow is None else warped, s).view(2, b, 3 + nf, hs, ws).transpose(0, 1)
         extra = 0 if tmp is None else tmp.shape[1]  # mask + features (9), flow (4)
         if exporting:
-            t_plane = (
-                timestep.expand(b, 1, hs, ws)
-                if isinstance(timestep, torch.Tensor)
-                else side.new_full((b, 1, hs, ws), timestep)
-            )
-            parts = [
-                side[:, :, :3].reshape(b, 6, hs, ws),
-                side[:, :, 3:].reshape(b, 2 * nf, hs, ws),
-                t_plane.to(side.dtype),
-            ]
-            if tmp is not None and flow is not None:
-                parts += [_pool(_upsampled(tmp[:, 4:], s, (py, px), (h, w)), s), _pool(_at_points(flow, s), s) / s]
-            inp = torch.cat(parts, 1).to(dtype)
+            last = None if tmp is None or flow is None else (tmp, flow, py, px)
+            inp = _graph_input(side, timestep, last, s, (h, w)).to(dtype)
         else:
             inp = torch.empty(b, 7 + 2 * nf + extra, hs, ws, device=dev, dtype=dtype)  # the block input, cast once
             inp[:, :6].view(b, 2, 3, hs, ws).copy_(side[:, :, :3])  # image 1, image 2
             inp[:, 6 : 6 + 2 * nf].view(b, 2, nf, hs, ws).copy_(side[:, :, 3:])  # features 1, features 2
+            del side, warped
             c = 6 + 2 * nf
             if isinstance(timestep, torch.Tensor):
                 inp[:, c : c + 1].copy_(timestep.expand(b, 1, hs, ws))
@@ -158,10 +175,12 @@ def _interpolate(
                 inp[:, c + 1 : c + extra - 3].copy_(_pool(_upsampled(tmp[:, 4:], s, (py, px), (h, w)), s))
                 inp[:, c + extra - 3 :].copy_(_pool(_at_points(flow, s), s).div_(s))
         tmp = _block(block, inp.contiguous(memory_format=torch.channels_last) if channels_last else inp)
+        del inp
         up = tmp[:, :4].float()
         if s > 1:
             up = F.interpolate(up, scale_factor=s, mode="bilinear", align_corners=False)
         flow = (up * s).contiguous() if flow is None else (flow + up * s if exporting else flow.add_(up, alpha=s))
+        del up
         prev = s
     if tmp is None or flow is None:
         msg = "RIFE needs at least one block scale"

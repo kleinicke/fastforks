@@ -82,6 +82,7 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus the auto
                 video = F.interpolate(video, (SIZE, SIZE), mode="bilinear", align_corners=False, antialias=True)
             for g, f in zip(grids, net.frame_features(video * 2 - 1), strict=True):
                 g.append(f)
+            del video
         q = torch.cat([queries[:, :1], ((queries[:, 1:] + 0.5) * scale).flip(-1)], 1)[None]  # (t, y, x)
         f = net.features(tuple(_join(g) for g in grids), q)
         points, vis = [], []

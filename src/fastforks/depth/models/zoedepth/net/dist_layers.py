@@ -27,6 +27,11 @@
 import torch
 import torch.nn as nn
 
+from fastforks._core.tracing import in_onnx_export
+
+
+_CONDITIONAL_MLP_BYTES = 48 * 2**20
+
 
 def log_binom(n, k, eps=1e-7):
     """ log(nCk) using stirling approximation """
@@ -101,7 +106,7 @@ class ConditionalLogBinomial(nn.Module):
             nn.Softplus()
         )
 
-    def forward(self, x, cond):
+    def forward(self, x, cond, *, tiled=False):
         """Forward pass
 
         Args:
@@ -111,7 +116,22 @@ class ConditionalLogBinomial(nn.Module):
         Returns:
             torch.Tensor: Output log binomial distribution
         """
-        pt = self.mlp(torch.concat((x, cond), dim=1))
+        if (
+            tiled and x.is_cuda
+            and not torch.is_grad_enabled()
+            and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export())
+            and x.nbytes + cond.nbytes > _CONDITIONAL_MLP_BYTES
+        ):
+            # The two 1x1 convolutions are independent across rows. Keep the wide concatenation in strips.
+            height = x.shape[-2]
+            row_bytes = (x.nbytes + cond.nbytes) // height
+            rows = max(1, _CONDITIONAL_MLP_BYTES // row_bytes)
+            pt = torch.cat([
+                self.mlp(torch.cat((x[..., start:start + rows, :], cond[..., start:start + rows, :]), dim=1))
+                for start in range(0, height, rows)
+            ], dim=-2)
+        else:
+            pt = self.mlp(torch.concat((x, cond), dim=1))
         p, t = pt[:, :2, ...], pt[:, 2:, ...]
 
         p = p + self.p_eps

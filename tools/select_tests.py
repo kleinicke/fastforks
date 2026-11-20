@@ -2,6 +2,7 @@
 
     python tools/select_tests.py BASE [HEAD] [--json]      # the files of `git diff --name-only BASE..HEAD`
     python tools/select_tests.py --files PATH ... [--json]
+    python tools/select_tests.py BASE [HEAD] --golden-nodeids {cpu,gpu}
 
 A changed file selects every family whose static import closure holds it. The closure of a family starts from its own
 modules (`src/fastforks/<task>/models/<family>/**/*.py`), its card's kernel libraries (`[modes.kernels] kernels`) and
@@ -13,16 +14,19 @@ asks for (`kernel_libs`, a task's save path), and the harness seeds drop kernel 
 that loads its submodules with `pkgutil.iter_modules` (the task specs) imports all of them. A file that is not a module
 (kernel source, manifest, card.toml, golden.toml, a JSON table) belongs to its package; a deleted one to its nearest
 existing package, except the ref tables of _core (`REF_TABLES`: auto_portable.json, sizes.json): with a git range they
-select the families whose refs occur in their changed lines. tests/test_golden.py itself selects every family;
-`GATE_TOOLS` (this file and the gate's timing tools) only the fast tier. pyproject.toml / uv.lock select every family
-and flag `release` (dependencies changed: use the broad gate). For a git range, a lockfile change limited to the local
-editable package's version does not count as a dependency change. Without both snapshots the selector stays
-conservative. Everything else (docs, tools, other tests) selects no family.
+select the families whose refs occur in their changed lines. A git range limited to existing golden reference records
+selects those revisions when the manifest's shared settings are unchanged. Changing tests/test_golden.py selects every
+family. Changing a `GATE_TOOLS` file selects the fast tier. pyproject.toml / uv.lock select every family
+and flag `release` (dependencies changed: use the broad gate). When both git snapshots are available, an edit limited
+to the local package version in either file leaves the dependency selection unchanged. Everything else (docs, tools,
+other tests) selects no family.
 
 Fast tier (`-m "not gpu and not model"`): every test file whose closure reaches no family module, the family-specific
 files of the selected families and every test file whose closure holds a changed file; all of tests/ when conftest.py,
-non-Python test data or the dependencies changed. GPU: per family its golden refs, as a `-k` expression for
-tests/test_golden.py (`[<ref without @rev>` matches the parameter ids of test_gpu and test_gpu_module).
+non-Python test data or the dependencies changed. Documentation-only changes use the docs checks, plus the site data
+and speed-floor checks for generated model or benchmark pages and their data. The GPU selection gives each family's
+golden refs as a `-k` expression for tests/test_golden.py. Use `--golden-nodeids` for exact item IDs that preserve
+revisions and distinguish similarly named families. These IDs can be passed to pytest using an argument file.
 """
 
 from __future__ import annotations
@@ -40,11 +44,15 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from typing import Literal
 
 ROOT = Path(__file__).resolve().parents[1]
 HARNESS = ("tests/test_golden.py", "tools/speed_check.py")  # their direct imports seed every family's closure
 GATE_TOOLS = frozenset({"tools/select_tests.py", "tools/speed_check.py", "tools/merge_check.py"})
 DEPENDENCIES = frozenset({"pyproject.toml", "uv.lock"})
+TOP_LEVEL_DOCS = frozenset({"README.md", "CONTRIBUTING.md"})
+BENCHMARK_DOCS = frozenset({"docs/benchmarks.md", "docs/overview.md"})
+GOLDEN_MANIFEST = re.compile(r"src/fastforks/[^/]+/models/[^/]+/golden[.]toml")
 FRAMEWORK = "src/fastforks/"  # outside LAZY_OK and the family dirs: imports inside functions do not count
 LAZY_OK = ("src/fastforks/shared/", "src/fastforks/kernels/", "src/fastforks/_optimize/")
 REF_TABLES = re.compile(r"src/fastforks/_core/[^/]+\.json")  # tables keyed by ref (auto_portable.json, sizes.json)
@@ -64,6 +72,20 @@ class Selection:
         """The family's `-k` expression for tests/test_golden.py."""
         refs = sorted({r.split("@")[0] for r in self.families[family]["refs"]})
         return "test_gpu and (" + " or ".join(f"[{r}" for r in refs) + ")"
+
+    def golden_nodeids(self, device: Literal["cpu", "gpu"]) -> list[str]:
+        """Exact test_golden.py item IDs for the selected families and revisions."""
+        items = set()
+        for family in self.families.values():
+            for ref in family["refs"]:
+                if device == "cpu":
+                    cases = [f"test_cpu_portable[{ref}]", f"test_kernels_validated[{ref}]"]
+                else:
+                    cases = [f"test_gpu[{ref}-{mode}]" for mode in ("portable", "kernels")]
+                    if family["task"] == "classification":
+                        cases.append(f"test_gpu_module[{ref}]")
+                items.update(f"tests/test_golden.py::{case}" for case in cases)
+        return sorted(items)
 
     def as_dict(self) -> dict:
         """JSON form (tools/merge_check.py reads it)."""
@@ -228,23 +250,39 @@ def _table_refs(fams: dict[str, dict], text: str) -> dict[str, bool]:
 
 
 def select(
-    changed: list[str], root: Path = ROOT, diff: Callable[[str], str] | None = None, *, metadata_only: bool = False
+    changed: list[str],
+    root: Path = ROOT,
+    diff: Callable[[str], str] | None = None,
+    *,
+    metadata_only: frozenset[str] = frozenset(),
+    fixture_refs: dict[str, tuple[str, ...]] | None = None,
 ) -> Selection:
-    """Select changed files; `metadata_only` says the lockfile changed only its local package version."""
+    """Select affected variants, using tracked metadata where the caller has both git snapshots."""
+    if changed and all(path in TOP_LEVEL_DOCS or path.startswith("docs/") for path in changed):
+        checks = ["tests/test_docs.py"]
+        if any(path in BENCHMARK_DOCS or path.startswith(("docs/data/", "docs/models/")) for path in changed):
+            checks.extend(("tests/test_site_data.py", "tests/test_speed_floor.py"))
+        if "docs/stereo_geometry.md" in changed:
+            checks.append("tests/test_geometry_example.py")
+        return Selection(changed=sorted(changed), fast=sorted(path for path in checks if (root / path).is_file()))
     graph = Graph(root)
     fams = families(root)
     closures = family_closures(graph, fams)
-    dependencies = DEPENDENCIES & set(changed)
-    if metadata_only:
-        dependencies -= {"uv.lock"}
+    dependencies = DEPENDENCIES.intersection(changed) - metadata_only
     sel = Selection(changed=sorted(changed), release=bool(dependencies))
+    fixtures = fixture_refs or {}
     tables = {c: _table_refs(fams, diff(c)) for c in changed if diff and REF_TABLES.fullmatch(c)}
-    owners = {c: graph.owner(c) for c in changed if c not in GATE_TOOLS and c not in tables}
+    owners = {c: graph.owner(c) for c in changed if c not in GATE_TOOLS and c not in tables and c not in fixtures}
     for name, cl in closures.items():
+        family = fams[name]
         why = sorted(c for c, o in owners.items() if o in cl or (sel.release and c in dependencies))
         why += sorted(c for c, hit in tables.items() if hit[name])
+        manifest = f"{family['dir']}/golden.toml"
+        refs = family["refs"] if why else list(fixtures.get(manifest, ()))
+        if fixtures.get(manifest):
+            why.append(manifest)
         if why:
-            sel.families[name] = {"task": fams[name]["task"], "refs": fams[name]["refs"], "why": why}
+            sel.families[name] = {"task": family["task"], "refs": refs, "why": why}
     full = sel.release or any(
         c == "tests/conftest.py" or (c.startswith("tests/") and not c.endswith(".py")) for c in changed
     )
@@ -261,11 +299,17 @@ def select(
     return sel
 
 
-def git_changed(base: str, head: str, root: Path = ROOT) -> list[str]:
+def git_changed(base: str, head: str, root: Path = ROOT, *, from_merge_base: bool = False) -> list[str]:
+    """Return both paths for a move. Use the merge base for pull-request fixture selection."""
+    # A cross-family move affects both the deleted module and its new owner.
+    dots = "..." if from_merge_base else ".."
     r = subprocess.run(
-        ["git", "-C", str(root), "diff", "--name-only", f"{base}..{head}"], capture_output=True, text=True, check=True
+        ["git", "-C", str(root), "diff", "--no-renames", "--name-only", "-z", f"{base}{dots}{head}"],
+        capture_output=True,
+        text=True,
+        check=True,
     )
-    return [line for line in r.stdout.splitlines() if line]
+    return [path for path in r.stdout.split("\0") if path]
 
 
 def git_diff(base: str, head: str, root: Path = ROOT) -> Callable[[str], str]:
@@ -278,29 +322,93 @@ def git_diff(base: str, head: str, root: Path = ROOT) -> Callable[[str], str]:
     return diff
 
 
-def same_lock_dependencies(old: str, new: str) -> bool:
-    """Whether two lockfiles differ only in the editable local package's version; invalid input stays conservative."""
+def configuration_without_local_version(path: str, text: str) -> dict[str, object] | None:
+    """Parse package configuration and drop the version of the editable FastForks project."""
     try:
-        docs = [tomllib.loads(text) for text in (old, new)]
-        for doc in docs:
-            local = [
+        doc = tomllib.loads(text)
+        if path == "uv.lock":
+            packages = [
                 p for p in doc["package"] if p.get("name") == "fastforks-core" and p.get("source") == {"editable": "."}
             ]
-            if len(local) != 1 or "version" not in local[0]:
-                return False
-            del local[0]["version"]
-        return docs[0] == docs[1]
+            if len(packages) != 1:
+                return None
+            project = packages[0]
+        else:
+            project = doc["project"]
+            if project.get("name") != "fastforks-core":
+                return None
+        if not isinstance(project.get("version"), str):
+            return None
+        del project["version"]
     except (AttributeError, KeyError, TypeError, tomllib.TOMLDecodeError):
-        return False
+        return None
+    return doc
 
 
-def git_lock_metadata_only(base: str, head: str, root: Path = ROOT) -> bool:
-    """Compare both tracked lockfile snapshots; missing or invalid snapshots require the broad gate."""
+def same_lock_dependencies(old: str, new: str) -> bool:
+    """Whether two lockfiles match without the editable project's version."""
+    reference = configuration_without_local_version("uv.lock", old)
+    return reference is not None and reference == configuration_without_local_version("uv.lock", new)
+
+
+def same_project_configuration(old: str, new: str) -> bool:
+    """Whether two project configurations match without the project's version."""
+    reference = configuration_without_local_version("pyproject.toml", old)
+    return reference is not None and reference == configuration_without_local_version("pyproject.toml", new)
+
+
+def _git_snapshots(base: str, head: str, path: str, root: Path) -> list[str] | None:
     snapshots = [
-        subprocess.run(["git", "-C", str(root), "show", f"{rev}:uv.lock"], capture_output=True, text=True, check=False)
+        subprocess.run(["git", "-C", str(root), "show", f"{rev}:{path}"], capture_output=True, text=True, check=False)
         for rev in (base, head)
     ]
-    return all(s.returncode == 0 for s in snapshots) and same_lock_dependencies(*(s.stdout for s in snapshots))
+    return [s.stdout for s in snapshots] if all(s.returncode == 0 for s in snapshots) else None
+
+
+def split_golden_manifest(text: str) -> tuple[dict[str, object], dict[str, object]] | None:
+    """Split a golden manifest into its shared settings and its per-revision fixture records."""
+    try:
+        common = tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return None
+    refs = common.pop("refs", None)
+    if not isinstance(refs, dict) or any(not isinstance(record, dict) for record in refs.values()):
+        return None
+    return common, refs
+
+
+def _changed_fixture_refs(old: str, new: str) -> tuple[str, ...] | None:
+    """Isolate changes to existing reference records while the rest of the manifest matches."""
+    before, after = split_golden_manifest(old), split_golden_manifest(new)
+    if before is None or after is None:
+        return None
+    shared_before, previous = before
+    shared_after, current = after
+    if shared_before != shared_after or previous.keys() != current.keys():
+        return None
+    return tuple(sorted(ref for ref, data in current.items() if data != previous[ref]))
+
+
+def git_fixture_refs(base: str, head: str, paths: list[str], root: Path = ROOT) -> dict[str, tuple[str, ...]]:
+    """Return the affected revisions for manifests changed only in their existing reference records."""
+    fixtures = {}
+    for path in paths:
+        if GOLDEN_MANIFEST.fullmatch(path) and (snapshots := _git_snapshots(base, head, path, root)):
+            refs = _changed_fixture_refs(*snapshots)
+            if refs is not None:
+                fixtures[path] = refs
+    return fixtures
+
+
+def git_metadata_only(base: str, head: str, paths: list[str], root: Path = ROOT) -> frozenset[str]:
+    """Identify version-only edits using both tracked snapshots."""
+    unchanged = set()
+    for path, compare in (("pyproject.toml", same_project_configuration), ("uv.lock", same_lock_dependencies)):
+        if path not in paths:
+            continue
+        if (snapshots := _git_snapshots(base, head, path, root)) and compare(*snapshots):
+            unchanged.add(path)
+    return frozenset(unchanged)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -308,13 +416,20 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("base", nargs="?")
     ap.add_argument("head", nargs="?", default="HEAD")
     ap.add_argument("--files", nargs="*", help="changed paths instead of a git range")
-    ap.add_argument("--json", action="store_true")
+    output = ap.add_mutually_exclusive_group()
+    output.add_argument("--json", action="store_true")
+    output.add_argument("--golden-nodeids", choices=("cpu", "gpu"), help="print exact pytest item IDs for the device")
     a = ap.parse_args(argv)
     if a.files is None and not a.base:
         ap.error("give BASE [HEAD] or --files")
     files, diff = (a.files, None) if a.files is not None else (git_changed(a.base, a.head), git_diff(a.base, a.head))
-    metadata_only = a.files is None and "uv.lock" in files and git_lock_metadata_only(a.base, a.head)
-    sel = select(files, diff=diff, metadata_only=metadata_only)
+    metadata_only = git_metadata_only(a.base, a.head, files) if a.files is None else frozenset()
+    fixture_refs = git_fixture_refs(a.base, a.head, files) if a.files is None else None
+    sel = select(files, diff=diff, metadata_only=metadata_only, fixture_refs=fixture_refs)
+    if a.golden_nodeids:
+        for item in sel.golden_nodeids(a.golden_nodeids):
+            print(item)
+        return 0
     if a.json:
         print(json.dumps(sel.as_dict(), indent=1))
         return 0

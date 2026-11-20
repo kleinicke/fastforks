@@ -14,33 +14,33 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 |---|---|---|---|
 | [`big-lama`](#lama) | yes | 21.2, 1.8x | 284, 0.99x |
 | [`codeformer`](#codeformer) | no | 40.4, 2.1x | 496, 0.46x |
-| [`dat-2-x4`](#dat) | yes | 1221, 4.0x | 2378, 0.94x |
-| [`dat-light-x4`](#dat) | yes | 264, 8.3x | 1472, 0.89x |
-| [`dat-x4`](#dat) | yes | 1391, 6.9x | 2384, 0.94x |
-| [`drct-l-x4`](#drct) | yes | 1399, 10.5x | 2850, 0.41x |
-| [`drct-x4`](#drct) | yes | 718, 10.4x | 2766, 0.7x |
+| [`dat-2-x4`](#dat) | yes | 1037, 4.7x | 2220, 0.88x |
+| [`dat-light-x4`](#dat) | yes | 232, 9.5x | 592, 0.36x |
+| [`dat-x4`](#dat) | yes | 1209, 7.9x | 2226, 0.88x |
+| [`drct-l-x4`](#drct) | yes | 1314, 11.2x | 1790, 0.26x |
+| [`drct-x4`](#drct) | yes | 674, 11.1x | 1748, 0.44x |
 | [`gfpgan-v1.4`](#gfpgan) | yes | 18.0, 1.2x | 530, 0.79x |
 | [`hat-s-x4`](#hat) | yes | 956, 2.5x | 1888, 0.33x |
 | [`hat-x4`](#hat) | yes | 1427, 2.1x | 2470, 0.4x |
-| [`nafnet-gopro`](#nafnet) | yes | 55.3, 1.2x | 550, 0.9x |
-| [`nafnet-sidd`](#nafnet) | yes | 56.9, 1.3x | 650, 0.89x |
-| [`real-hat-gan-x4`](#hat) | yes | 1427, 2.1x | 2470, 0.4x |
+| [`nafnet-gopro`](#nafnet) | yes | 31.3, 2.0x | 408, 0.67x |
+| [`nafnet-sidd`](#nafnet) | yes | 22.5, 3.2x | 536, 0.73x |
+| [`real-hat-gan-x4`](#hat) | yes | 1234, 2.5x | 1510, 0.25x |
 | [`realesr-general-x4v3`](#compact) | yes | 24.0, 1.8x | 164, 0.8x |
 | [`realesrgan-x2plus`](#realesrgan) | yes | 80.2, 1.6x | 394, 0.6x |
 | [`realesrgan-x4plus`](#realesrgan) | yes | 403, 1.6x | 1434, 0.57x |
 | [`realesrgan-x4plus-anime-6b`](#realesrgan) | yes | 132, 1.6x | 1410, 0.57x |
 | [`realplksr-nomoswebphoto-x4`](#realplksr) | yes | 130, 2.1x | 216, 0.68x |
-| [`restormer-deblur`](#restormer) | yes | 180, 1.3x | 918, 0.65x |
-| [`restormer-derain`](#restormer) | yes | 180, 1.3x | 920, 0.65x |
-| [`restormer-sidd`](#restormer) | yes | 179, 1.2x | 940, 0.66x |
-| [`seedvr2-3b`](#seedvr2) | yes | 2296, 5.7x | 6772, 0.44x |
-| [`seedvr2-7b`](#seedvr2) | yes | 2713 | 7034 |
+| [`restormer-deblur`](#restormer) | yes | 132, 1.8x | 740, 0.52x |
+| [`restormer-derain`](#restormer) | yes | 133, 1.8x | 980, 0.69x |
+| [`restormer-sidd`](#restormer) | yes | 133, 1.6x | 980, 0.69x |
+| [`seedvr2-3b`](#seedvr2) | yes | 2356, 5.6x | 7778, 0.51x |
+| [`seedvr2-7b`](#seedvr2) | yes | 2748 | 8260 |
 | [`span-x2`](#span) | yes | 14.9, 1.6x | 522, 0.81x |
 | [`span-x4`](#span) | yes | 14.6, 1.8x | 522, 0.81x |
 | [`swin2sr-x2`](#swin2sr) | yes | 721, 3.6x | 1636, 1.0x |
 | [`swin2sr-x4`](#swin2sr) | yes | 745, 3.9x | 1736, 0.8x |
 | [`swin2sr-x4-real`](#swin2sr) | yes | 751, 3.4x | 1734, 0.65x |
-| [`swinir-l-x4-real`](#swinir) | yes | 1036, 3.6x | 1934, 0.7x |
+| [`swinir-l-x4-real`](#swinir) | yes | 896, 4.1x | 1794, 0.65x |
 | [`swinir-m-x2`](#swinir) | yes | 553, 5.9x | 1454, 0.8x |
 | [`swinir-m-x4`](#swinir) | yes | 576, 6.1x | 1456, 0.71x |
 | [`swinir-m-x4-real`](#swinir) | yes | 584, 4.2x | 1814, 0.61x |
@@ -131,6 +131,16 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - `codeformer` load / first call: original 1.24 s / 0.406 s, portable 0.69 s / 0.228 s, kernels 0.65 s / 0.23 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+The 3,000 paired degraded inputs and clean targets from DAEFR's CelebA-Test archives. Score aligned 512 x 512 RGB outputs rounded to eight bits, with no border crop. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | portable fp32 | note |
+|---|---|---|---|---|---|
+| `codeformer` | DAEFR CelebA-Test (3,000 aligned faces, 512 x 512), RGB PSNR / SSIM | 21.45 / 0.5754 | 21.45 / 0.5754 | 21.45 / 0.5754 |  |
+
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
+
 ### Parity
 
 CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.02 and p99 <= 0.25 (absolute error of the output `image`).
@@ -155,9 +165,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `dat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9564<br>1565<br>1391<br>1063<br>1001 | 2443 / 2528<br>2552 / 2624<br>2282 / 2384<br>2552 / 2606<br>9010 / 9056 |
-| `dat-2-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4880<br>1312<br>1221<br>964<br>921 | 2436 / 2518<br>2276 / 2378<br>2276 / 2378<br>2546 / 2598<br>9001 / 9048 |
-| `dat-light-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2204<br>268<br>264<br>158<br>136 | 1606 / 1656<br>1535 / 1552<br>1445 / 1472<br>1385 / 1412<br>4144 / 4192 |
+| `dat-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9564<br>1386<br>1209<br>1063<br>1001 | 2443 / 2528<br>1555 / 2246<br>1541 / 2226<br>2552 / 2606<br>9010 / 9056 |
+| `dat-2-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4880<br>1312<br>1037<br>964<br>921 | 2436 / 2518<br>2276 / 2378<br>1534 / 2220<br>2546 / 2598<br>9001 / 9048 |
+| `dat-light-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2204<br>268<br>232<br>158<br>136 | 1606 / 1656<br>1535 / 1552<br>566 / 592<br>1385 / 1412<br>4144 / 4192 |
 
 <details><summary>Details</summary>
 
@@ -177,6 +187,7 @@ Commercial use: yes.
 - `dat-2-x4` 512x512, first call: portable + torch.compile 44 s (cold Inductor cache), TensorRT fp16 206 s (ONNX + engine).
 - `dat-light-x4` 512x512, first call: portable + torch.compile 37 s (cold Inductor cache), TensorRT fp16 75 s (ONNX + engine).
 - `dat-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream dat_model.py test, float32, no chop
+- `dat-x4` portable 512x512: Eager CUDA reuses the four shifted-window biases. Bitwise parity on three DIV2K crops.
 - `dat-2-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream dat_model.py test, float32, no chop
 - `dat-light-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream dat_model.py test, float32, no chop
 - `dat-x4` load / first call: original 2.2 s / 6.13 s, portable 2.99 s / 2.307 s, kernels 0.71 s / 2.149 s
@@ -218,8 +229,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `drct-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7492<br>830<br>718<br>618<br>731 | 3359 / 3944<br>2626 / 3048<br>2498 / 2766<br>1938 / 2348<br>9684 / 9728 |
-| `drct-l-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14651<br>1607<br>1399<br>1210<br>fails: TensorRT engine build failed | 5574 / 6926<br>2692 / 3110<br>2564 / 2850<br>2005 / 2410<br>– |
+| `drct-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7492<br>810<br>674<br>618<br>731 | 3359 / 3944<br>1608 / 1888<br>1560 / 1748<br>1938 / 2348<br>9684 / 9728 |
+| `drct-l-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14651<br>1567<br>1314<br>1210<br>fails: TensorRT engine build failed | 5574 / 6926<br>1675 / 1950<br>1603 / 1790<br>2005 / 2410<br>– |
 | `drct-l-x4` | synthetic (256x256) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>384<br>–<br>289 | –<br>766 / 1204<br>–<br>559 / 560 |
 
 <details><summary>Details</summary>
@@ -238,7 +249,9 @@ Commercial use: yes.
 - `drct-l-x4` 512x512, first call: portable + torch.compile 67 s (cold Inductor cache).
 - `drct-l-x4` 256x256, first call: TensorRT fp16 222 s (ONNX + engine).
 - `drct-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream drct_model.py test, float32, no tile
+- `drct-x4` portable 512x512, kernels 512x512: FP16 native model with bounded reconstruction strips. The portable path also groups the large shifted-window biases. Outputs matched on synthetic, three aligned DIV2K crops and an odd two-image batch.
 - `drct-l-x4` original 512x512: torch.autocast(float16) around the call; upstream drct_model.py test, float32, no tile
+- `drct-l-x4` portable 512x512, kernels 512x512: FP16 native model with bounded reconstruction strips. The portable path also groups the large shifted-window biases. Outputs matched on synthetic, three aligned DIV2K crops and an odd two-image batch.
 - `drct-x4` load / first call: original 1.88 s / 8.657 s, portable 0.39 s / 1.018 s, kernels 1.32 s / 0.773 s
 - `drct-l-x4` load / first call: original 2.09 s / 15.382 s, portable 0.79 s / 1.698 s, kernels 1.84 s / 1.454 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -295,6 +308,16 @@ Commercial use: yes.
 - `gfpgan-v1.4` load / first call: original 0.86 s / 0.333 s, portable 1.04 s / 0.254 s, kernels 0.78 s / 0.073 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+The 3,000 paired degraded inputs and clean targets from DAEFR's CelebA-Test archives. Score aligned 512 x 512 RGB outputs rounded to eight bits, with no border crop. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | portable fp32 | note |
+|---|---|---|---|---|---|
+| `gfpgan-v1.4` | DAEFR CelebA-Test (3,000 aligned faces, 512 x 512), RGB PSNR / SSIM | 20.91 / 0.5855 | 20.90 / 0.5854 | 20.91 / 0.5855 |  |
+
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-18.
+
 ### Parity
 
 CPU, float32: max |diff| <= 6.3e-06 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.00051 and p99 <= 0.0022 (absolute error of the output `image`).
@@ -323,7 +346,7 @@ Commercial use: yes.
 | `hat-x4` | synthetic (256x256) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>346<br>–<br>217 | –<br>658 / 1002<br>–<br>681 / 682 |
 | `hat-s-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2402<br>1072<br>956<br>750<br>fails: TensorRT engine build failed | 5018 / 5644<br>1984 / 2148<br>1856 / 1888<br>2352 / 3068<br>– |
 | `hat-s-x4` | synthetic (256x256) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>233<br>–<br>141 | –<br>531 / 782<br>–<br>533 / 534 |
-| `real-hat-gan-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3038<br>1597<br>1427<br>1185<br>fails: TensorRT engine build failed | 5318 / 6106<br>2426 / 2610<br>2298 / 2470<br>1811 / 2750<br>– |
+| `real-hat-gan-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3038<br>1428<br>1234<br>1185<br>fails: TensorRT engine build failed | 5318 / 6106<br>1430 / 2070<br>1312 / 1510<br>1811 / 2750<br>– |
 | `real-hat-gan-x4` | synthetic (256x256) | original<br>portable<br>kernels<br>TensorRT fp16 | –<br>346<br>–<br>217 | –<br>658 / 1002<br>–<br>681 / 682 |
 
 <details><summary>Details</summary>
@@ -349,6 +372,7 @@ Commercial use: yes.
 - `hat-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream hat_model.py test, float32, no tile
 - `hat-s-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream hat_model.py test, float32, no tile
 - `real-hat-gan-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream hat_model.py test, float32, no tile
+- `real-hat-gan-x4` portable 512x512, kernels 512x512: Compact shifted-window labels and bounded overlapping key/value rows. Synthetic, three DIV2K outputs and an odd-sized two-image HAT-S batch matched exactly.
 - `hat-x4` load / first call: original 1.75 s / 5.422 s, portable 0.47 s / 1.809 s, kernels 1.36 s / 1.569 s
 - `hat-s-x4` load / first call: original 3.14 s / 4.407 s, portable 0.35 s / 1.268 s, kernels 1.58 s / 1.068 s
 - `real-hat-gan-x4` load / first call: original 1.96 s / 5.412 s, portable 1.24 s / 1.769 s, kernels 1.49 s / 1.562 s
@@ -391,8 +415,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `nafnet-gopro` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 63.7<br>60.4<br>55.3<br>35.4<br>52.6 | 484 / 612<br>451 / 532<br>451 / 550<br>422 / 470<br>722 / 734 |
-| `nafnet-sidd` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 71.6<br>60.6<br>56.9<br>30.9<br>24.5 | 608 / 730<br>575 / 670<br>575 / 650<br>450 / 508<br>650 / 668 |
+| `nafnet-gopro` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 63.7<br>60.4<br>31.3<br>37.3<br>52.6 | 484 / 612<br>439 / 472<br>376 / 408<br>422 / 470<br>722 / 734 |
+| `nafnet-sidd` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 71.6<br>61.1<br>22.5<br>32.3<br>24.5 | 608 / 730<br>607 / 650<br>502 / 536<br>450 / 488<br>650 / 668 |
 
 <details><summary>Details</summary>
 
@@ -407,9 +431,10 @@ Commercial use: yes.
 - Outputs: image
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `nafnet-gopro` 1988x2880 (7.0 GiB peak allocated, 9.6 reserved); `nafnet-sidd` 1988x2880 (7.8 GiB peak allocated, 10.1 reserved)
-- `nafnet-gopro` 512x512, first call: portable + torch.compile 38 s (cold Inductor cache), TensorRT fp16 66 s (ONNX + engine).
-- `nafnet-sidd` 512x512, first call: portable + torch.compile 30 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
+- `nafnet-gopro` 512x512, first call: portable + torch.compile 46 s (cold Inductor cache), TensorRT fp16 66 s (ONNX + engine).
+- `nafnet-sidd` 512x512, first call: portable + torch.compile 37 s (cold Inductor cache), TensorRT fp16 34 s (ONNX + engine).
 - `nafnet-gopro` original 512x512: .half() on 1 modules, fp16 inputs; upstream ImageRestorationModel.test, float32, NAFNetLocal (TLC)
+- `nafnet-gopro` portable 512x512: Channel-group local means and consumed decoder skips preserve the native GoPro predictions.
 - `nafnet-sidd` original 512x512: .half() on 1 modules, fp16 inputs; upstream ImageRestorationModel.test, float32
 - `nafnet-gopro` load / first call: original 1.5 s / 0.386 s, portable 0.35 s / 0.278 s, kernels 0.64 s / 0.232 s
 - `nafnet-sidd` load / first call: original 1.16 s / 0.291 s, portable 0.79 s / 0.369 s, kernels 0.7 s / 0.243 s
@@ -496,7 +521,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `realesrgan-x4plus` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 631<br>471<br>403<br>354<br>273 | 2266 / 2496<br>1220 / 1454<br>1220 / 1434<br>1091 / 1394<br>1546 / 1594 |
+| `realesrgan-x4plus` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 631<br>473<br>403<br>354<br>273 | 2266 / 2496<br>292 / 354<br>1220 / 1434<br>1091 / 1394<br>1546 / 1594 |
 | `realesrgan-x2plus` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 128<br>97.0<br>80.2<br>85.2<br>59.7 | 592 / 656<br>333 / 394<br>333 / 394<br>323 / 394<br>476 / 500 |
 | `realesrgan-x4plus-anime-6b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 205<br>155<br>132<br>114<br>83.1 | 2243 / 2472<br>1197 / 1430<br>1197 / 1410<br>1068 / 1370<br>1505 / 1552 |
 
@@ -516,6 +541,7 @@ Commercial use: yes.
 - `realesrgan-x2plus` 512x512, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 40 s (ONNX + engine).
 - `realesrgan-x4plus-anime-6b` 512x512, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
 - `realesrgan-x4plus` original 512x512: the authors' mixed-precision option (float16); upstream RealESRGANer pre_pad 0, no tile, on the float image, half (the default)
+- `realesrgan-x4plus` portable 512x512: Portable releases dense-block growth activations before the final convolution. Three DIV2K crops and the synthetic image matched bitwise.
 - `realesrgan-x2plus` original 512x512: the authors' mixed-precision option (float16); upstream RealESRGANer pre_pad 0, no tile, on the float image, half (the default)
 - `realesrgan-x4plus-anime-6b` original 512x512: the authors' mixed-precision option (float16); upstream RealESRGANer pre_pad 0, no tile, on the float image, half (the default)
 - `realesrgan-x4plus` load / first call: original 1.62 s / 1.641 s, portable 0.2 s / 0.624 s, kernels 2.43 s / 0.435 s
@@ -606,9 +632,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `restormer-deblur` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>228<br>180<br>143<br>162 | 1221 / 1418<br>850 / 1000<br>850 / 918<br>660 / 778<br>757 / 774 |
-| `restormer-derain` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>228<br>180<br>144<br>162 | 1221 / 1418<br>850 / 1000<br>850 / 920<br>660 / 778<br>757 / 774 |
-| `restormer-sidd` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 218<br>181<br>179<br>142<br>162 | 1221 / 1416<br>850 / 920<br>850 / 940<br>660 / 778<br>757 / 774 |
+| `restormer-deblur` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>183<br>132<br>143<br>162 | 1221 / 1418<br>724 / 740<br>718 / 740<br>660 / 778<br>757 / 774 |
+| `restormer-derain` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 234<br>228<br>133<br>144<br>162 | 1221 / 1418<br>850 / 1000<br>892 / 980<br>660 / 778<br>757 / 774 |
+| `restormer-sidd` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 218<br>181<br>133<br>142<br>162 | 1221 / 1416<br>850 / 920<br>892 / 980<br>660 / 778<br>757 / 774 |
 
 <details><summary>Details</summary>
 
@@ -628,6 +654,8 @@ Commercial use: yes.
 - `restormer-derain` 512x512, first call: portable + torch.compile 41 s (cold Inductor cache), TensorRT fp16 55 s (ONNX + engine).
 - `restormer-sidd` 512x512, first call: portable + torch.compile 36 s (cold Inductor cache), TensorRT fp16 60 s (ONNX + engine).
 - `restormer-deblur` original 512x512: .half() on 1 modules, fp16 inputs; upstream test.py, float32, no tile
+- `restormer-deblur` portable 512x512: Decoder feature lifetimes preserve the synthetic and labeled GoPro predictions.
+- `restormer-deblur` kernels 512x512: The fused gate releases its expanded input before output projection.
 - `restormer-derain` original 512x512: .half() on 1 modules, fp16 inputs; upstream test.py, float32, no tile
 - `restormer-sidd` original 512x512: .half() on 1 modules, fp16 inputs; upstream test.py, float32, no tile
 - `restormer-deblur` load / first call: original 0.36 s / 0.897 s, portable 0.28 s / 0.712 s, kernels 0.6 s / 0.528 s
@@ -670,9 +698,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13150<br>2295<br>2296<br>1941<br>fails: RuntimeError: Inplace update to inference tensor outside Inf | 7598 / 15268<br>6140 / 6772<br>6140 / 6772<br>5237 / 8144<br>– |
+| `seedvr2-3b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | 13150<br>2332<br>2356<br>1941<br>2280 (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | 7598 / 15268<br>4233 / 7262<br>3857 / 7778<br>5237 / 8144<br>9068 / 9284 |
 | `seedvr2-3b` | 64x64 | original<br>portable<br>kernels<br>TensorRT bf16 | –<br>–<br>–<br>46.8 | –<br>–<br>–<br>7662 / 7664 |
-| `seedvr2-7b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | OOM<br>2712<br>2713<br>2471 (VAE only, standalone compile)<br>fails: RuntimeError: Inplace update to inference tensor outside Inf | –<br>6419 / 8880<br>6402 / 7034<br>5522 / 9042<br>– |
+| `seedvr2-7b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT bf16 | OOM<br>2748<br>2748<br>2471 (VAE only, standalone compile)<br>2696 (BF16 VAE encoder and decoder with the host-streamed transformer in PyTorch) | –<br>4495 / 8260<br>4495 / 8260<br>5522 / 9042<br>9369 / 9860 |
 
 ### Weight streaming
 
@@ -680,8 +708,8 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 
 | Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
 |---|---|---|---|---|---|---|
-| seedvr2-3b | portable | 512x512 | RTX 5060 Ti | 2.14.1+cu130 | 2,281 ms / 15,348 MiB | 2,294 ms / 8,876 MiB |
-| seedvr2-7b | portable | 512x512 | RTX 5060 Ti | 2.14.1+cu130 | Out of memory | 2,715 ms / 8,880 MiB |
+| seedvr2-3b | portable | 512x512 | RTX 5060 Ti | 2.14.1+cu130 | 2,281.50 ms / 15,348 MiB | 2,294.17 ms / 8,876 MiB |
+| seedvr2-7b | portable | 512x512 | RTX 5060 Ti | 2.14.1+cu130 | Out of memory | 2,714.76 ms / 8,880 MiB |
 
 <details><summary>Details</summary>
 
@@ -699,8 +727,12 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `seedvr2-3b` 512x512 (11.7 GiB peak allocated, 15.0 reserved); `seedvr2-7b` 512x512 (6.3 GiB peak allocated, 8.7 reserved)
 - `seedvr2-3b` 512x512, first call: portable + torch.compile 238 s (cold Inductor cache).
 - `seedvr2-3b` 64x64, first call: TensorRT bf16 324 s (ONNX + engine).
-- `seedvr2-7b` 512x512, first call: portable + torch.compile 52 s (cold Inductor cache).
+- `seedvr2-7b` 512x512, first call: portable + torch.compile 52 s (cold Inductor cache), TensorRT bf16 271 s (ONNX + engine).
 - `seedvr2-3b` original 512x512: load: the authors' fp32 .pth files from the page cache (read once before)
+- `seedvr2-3b` portable 512x512: Eager BF16, host-streamed transformer. Bounded single-frame VAE workspace on the 1024 x 1024 output. The largest paired PSNR difference across 13 DIV2K crops was 0.00047 dB.
+- `seedvr2-3b` kernels 512x512: The bounded single-frame VAE with the NF4 transformer. Three labeled DIV2K crops changed by less than 0.0001 dB PSNR.
+- `seedvr2-7b` portable 512x512: Streamed BF16 with bounded eager VAE workspace. Paired PSNR changed by at most 0.001013 dB on three DIV2K crops.
+- `seedvr2-7b` kernels 512x512: Streamed BF16 with quantization disabled, bounded eager VAE workspace and default CUDA allocator settings.
 - `seedvr2-3b` load / first call: original 96.2 s / 13.89 s, portable 2.65 s / 2.454 s, kernels 3.27 s / 2.462 s
 - `seedvr2-7b` load / first call: portable 222.77 s / 3.174 s, kernels 118.43 s / 3.176 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -713,12 +745,13 @@ SeedVR2 is a generative one-step restorer, so PSNR is only a fidelity check. Eac
 |---|---|---|---|---|---|---|---|
 | `seedvr2-3b` | DIV2K validation, 4 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original | 22.02 / 0.5865 / – | 22.00 / 0.5863 / 43.13 | 22.00 / 0.5863 / 43.13 |  |  |  |
 | `seedvr2-3b` | DIV2K validation, 25 bicubic x2 center crops of 64 x 64 LR pixels, RGB PSNR |  | 20.2542 |  |  | 20.2671 |  |
+| `seedvr2-3b` | DIV2K, 13 bicubic x2 center crops of 512 x 512 LR pixels, RGB PSNR |  | 20.29 / – |  |  | 20.31 / – |  |
 | `seedvr2-3b` | 4 video clips (first frame), PSNR to the original's output |  | 44.56 | 44.56 |  |  |  |
 | `seedvr2-7b` | DIV2K validation, 2 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original | 23.16 / 0.6228 / – | 23.13 / 0.6227 / 44.85 | 23.13 / 0.6227 / 44.85 |  |  |  |
-| `seedvr2-7b` | DIV2K, 25 bicubic x2 center crops of 512 x 512 LR pixels, RGB PSNR |  | 22.7378 |  | 22.7425 |  |  |
+| `seedvr2-7b` | DIV2K, 25 bicubic x2 center crops of 512 x 512 LR pixels, RGB PSNR |  | 22.7378 |  | 22.7425 | 22.7468 |  |
 | `seedvr2-7b` | 2 video clips (first frame), PSNR to the original's output |  | 46.14 | 46.14 |  |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / 33b2432c / f7dc867f, 2026-11-16 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f7dc867f, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / 33b2432c / 660d56fb / f7dc867f, 2026-11-16 to 2026-11-19; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 33b2432c, 2026-11-16; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks f7dc867f, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 29b3bbad / 660d56fb / a39491d3, 2026-11-18 to 2026-11-19.
 
 ### Parity
 
@@ -739,6 +772,7 @@ CPU, float32: max |diff| <= 0.02 vs the original. GPU, bfloat16 (the default), p
 - The 3 B TensorRT measurement uses `stream=False` and fixed 64 x 64 input. Export with `export_onnx`, then build the engine in a fresh process. On 25 DIV2K crops the largest per-crop PSNR change was 0.109 dB. The largest single-pixel RGB channel difference was 0.627 on the [0, 1] scale.
 - The 7 B model's weights are 16.5 GB in bf16: it runs with the default `stream=True` (blocks in ~16.5 GB of page-locked host RAM; load fails with an error when less is free) or `quant="nf4"` (~4.6 GB resident); with `stream=false` and no quant it runs out of GPU memory.
 - The standalone 7 B compile benchmark compiles the VAE encoder and decoder, with the streamed transformer eager. On 25 DIV2K crops at 512 x 512 the largest RGB PSNR change was 0.0575 dB and the largest single-pixel channel change was 0.359.
+- The 7 B TensorRT measurement uses fixed BF16 VAE encoder and decoder plans with the streamed transformer in PyTorch. On the same 25 DIV2K crops at 512 x 512, the largest paired RGB PSNR change was 0.0710 dB. Latency was 2.696 s versus 2.712 s for portable.
 - `quant="nf4"` changes the generated detail: 23-27 dB PSNR against the bf16 output (3 B, 4 clips; 7 B: 26-31 dB, 2 clips), about as far as another `seed` (18-24 dB), with ~3.5x smaller transformer blocks.
 
 </details>
@@ -810,7 +844,7 @@ Commercial use: yes.
 |---|---|---|---|---|
 | `swin2sr-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2922<br>932<br>745<br>496<br>556 | 1488 / 2160<br>1463 / 2276<br>1459 / 1736<br>1308 / 1556<br>5410 / 5470 |
 | `swin2sr-x2` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2565<br>909<br>721<br>482<br>547 | 1488 / 1578<br>1459 / 1554<br>1459 / 1636<br>1308 / 1516<br>4941 / 4997 |
-| `swin2sr-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2527<br>958<br>751<br>508<br>562 | 2321 / 2660<br>2354 / 2774<br>1459 / 1734<br>1308 / 1556<br>5409 / 5468 |
+| `swin2sr-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2527<br>960<br>751<br>508<br>562 | 2321 / 2660<br>1459 / 1556<br>1459 / 1734<br>1308 / 1556<br>5409 / 5468 |
 
 <details><summary>Details</summary>
 
@@ -830,6 +864,7 @@ Commercial use: yes.
 - `swin2sr-x4` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swin2sr.py, float32, no tile
 - `swin2sr-x2` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swin2sr.py, float32, no tile
 - `swin2sr-x4-real` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swin2sr.py, float32, no tile
+- `swin2sr-x4-real` portable 512x512: CUDA FP16 portable reconstruction in halo row strips. Three paired DIV2K RGB PSNR checks differ by at most 0.0000024 dB.
 - `swin2sr-x4` load / first call: original 1.63 s / 3.583 s, portable 0.48 s / 1.16 s, kernels 0.57 s / 1.023 s
 - `swin2sr-x2` load / first call: original 1.81 s / 4.125 s, portable 0.49 s / 1.154 s, kernels 0.62 s / 0.863 s
 - `swin2sr-x4-real` load / first call: original 1.89 s / 3.754 s, portable 0.47 s / 1.179 s, kernels 0.57 s / 0.882 s
@@ -876,7 +911,7 @@ Commercial use: yes.
 | `swinir-m-x4` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3497<br>767<br>576<br>795<br>727 | 1500 / 2058<br>1499 / 2054<br>1354 / 1456<br>1684 / 1796<br>5525 / 5604 |
 | `swinir-m-x2` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3252<br>739<br>553<br>781<br>719 | 1500 / 1818<br>1353 / 1454<br>1353 / 1454<br>1683 / 1796<br>5088 / 5144 |
 | `swinir-m-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 2462<br>1242<br>584<br>807<br>733 | 2321 / 2978<br>2387 / 3034<br>1353 / 1814<br>1683 / 1796<br>5427 / 5506 |
-| `swinir-l-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3709<br>2099<br>1036<br>1426<br>1118 | 2357 / 2746<br>2425 / 2672<br>1806 / 1934<br>2153 / 2876<br>9182 / 9282 |
+| `swinir-l-x4-real` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3709<br>1218<br>896<br>1426<br>1118 | 2357 / 2746<br>1600 / 1794<br>1600 / 1794<br>2153 / 2876<br>9182 / 9282 |
 
 <details><summary>Details</summary>
 
@@ -900,6 +935,7 @@ Commercial use: yes.
 - `swinir-m-x2` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swinir.py, float32, no tile
 - `swinir-m-x4-real` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swinir.py, float32, no tile
 - `swinir-l-x4-real` original 512x512: .half() on 1 modules, fp16 inputs; upstream main_test_swinir.py, float32, no tile
+- `swinir-l-x4-real` portable 512x512, kernels 512x512: Compact shifted-window masks, verified bitwise on synthetic and labeled DIV2K outputs.
 - `swinir-m-x4` load / first call: original 2.07 s / 3.272 s, portable 0.44 s / 1.36 s, kernels 1.28 s / 0.646 s
 - `swinir-m-x2` load / first call: original 2.95 s / 4.489 s, portable 0.67 s / 0.848 s, kernels 0.43 s / 0.629 s
 - `swinir-m-x4-real` load / first call: original 2.06 s / 3.326 s, portable 0.4 s / 1.386 s, kernels 1.31 s / 0.697 s
@@ -914,10 +950,11 @@ DIV2K validation HR images and the official bicubic LR images (x4 or x2, the mod
 |---|---|---|---|---|---|---|
 | `swinir-m-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.90 / 0.8423 | 30.90 / 0.8423 | 30.90 / 0.8423 | 30.89 / 0.8422 |  |
 | `swinir-m-x2` | DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y) | 36.86 / 0.9507 |  | 36.86 / 0.9507 |  |  |
+| `swinir-m-x2` | DIV2K validation (every second image, 50 images), bicubic x2 LR -> HR, PSNR / SSIM (Y) | 36.62 / 0.9457 | 36.61 / 0.9457 | 36.62 / 0.9457 |  |  |
 | `swinir-m-x4-real` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 26.71 / 0.7516 | 26.71 / 0.7516 | 26.71 / 0.7516 | 26.71 / 0.7515 |  |
 | `swinir-l-x4-real` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 27.04 / 0.7628 | 27.04 / 0.7628 | 27.04 / 0.7628 | 27.05 / 0.7628 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 45a5c91f, 2026-11-13 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f / a63c0a86, 2026-11-13 to 2026-11-15; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 45a5c91f, 2026-11-13 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13.
 
 ### Parity
 

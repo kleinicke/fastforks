@@ -249,11 +249,12 @@ class CorrPyramid:
         c, h, w = fmap1.shape
         a = fmap1.reshape(c, h * w).T
         self.levels = []
-        for _ in range(CORR_LEVELS):
+        for level in range(CORR_LEVELS):
             s, _, h2, w2 = fmap2.shape
             corr = (a @ fmap2.reshape(s, c, h2 * w2)) / torch.tensor(float(c)).sqrt()  # as upstream: divide after
             self.levels.append(corr.reshape(s * h * w, 1, h2, w2))
-            fmap2 = F.interpolate(fmap2, scale_factor=0.5, mode="area")
+            if level + 1 < CORR_LEVELS:
+                fmap2 = F.interpolate(fmap2, scale_factor=0.5, mode="area")
         r = torch.linspace(-CORR_RADIUS, CORR_RADIUS, 2 * CORR_RADIUS + 1, device=fmap1.device)
         self.delta = torch.stack(torch.meshgrid(r, r, indexing="ij"), -1)  # (dy, dx) added to (x, y), as upstream
 
@@ -324,9 +325,12 @@ class AllTracker(nn.Module):
         f1 = anchor[None].expand(s, -1, -1, -1)
         flowfeat, ctxfeat = (f1, f1) if self.tiny else f1.split(DIM, 1)
         ctxfeat = ctxfeat + self.time_embed(s).to(ctxfeat.dtype)[:, :, None, None]
-        for _ in range(iters):
+        for step in range(iters):
             corr = corr_fn(coords1 + flows8).to(anchor.dtype)
+            if step + 1 == iters:
+                del corr_fn
             flowfeat = self.update_block(flowfeat, ctxfeat, visconfs8, corr, flows8, s)
+            del corr
             flows8 = flows8 + self.flow_head(flowfeat)
             visconfs8 = visconfs8 + self.visconf_head(flowfeat)
         return flows8, visconfs8, 0.25 * self.upsample_weight(flowfeat)

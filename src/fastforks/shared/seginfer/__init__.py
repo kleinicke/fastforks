@@ -257,6 +257,10 @@ def resize(x: torch.Tensor, size: Sequence[int], *, pil: bool = False) -> torch.
 # end from per-chunk max values + uint8 indices: SegFormer-b0 1024 x 2048 6.83 ms / 262 MB transient vs 6.87 / 340 with
 # unbalanced chunks and a running max, 2^25 7.12 / 174, 2^24 7.52 / 134 (each chunk ~0.15 ms more)
 _ARGMAX_CHUNK = 1 << 26
+# At high resolution, cap the CUDA resize at 128 MiB. SegFormer-B5 at 1024 x 2048 reduced peak allocation by 81 MiB
+# with 0.33 ms added to the full portable call and identical labels.
+_ARGMAX_CUDA_CHUNK = 1 << 25
+_ARGMAX_CUDA_MIN_PIXELS = 1 << 20
 
 
 def _fused(scores: torch.Tensor, sizes: Sequence[Sequence[int]]) -> bool:
@@ -364,7 +368,11 @@ def _argmax(scores: torch.Tensor, sizes: Sequence[Sequence[int]], *, fused: bool
     if fused and _fused(scores, sizes):
         return _launch(scores, sizes, argmax=True)
     b, c = scores.shape[:2]
-    step = max(1, _ARGMAX_CHUNK * 4 // (scores.element_size() * b * max(int(h) * int(w) for h, w in sizes)))
+    pixels = b * max(int(h) * int(w) for h, w in sizes)
+    budget = _ARGMAX_CHUNK
+    if scores.is_cuda and pixels >= _ARGMAX_CUDA_MIN_PIXELS:
+        budget = min(budget, _ARGMAX_CUDA_CHUNK)
+    step = max(1, budget * 4 // (scores.element_size() * pixels))
     step = -(-c // -(-c // step))  # the same chunk count, balanced
     vals, idx = [], []
     for c0 in range(0, c, step):
@@ -439,12 +447,18 @@ def eomt_windows(length: int, crop: int) -> list[int]:
 
 
 def mask_semantic(
-    mask_logits: torch.Tensor, class_logits: torch.Tensor, dtype: torch.dtype | None = torch.float32
+    mask_logits: torch.Tensor,
+    class_logits: torch.Tensor,
+    dtype: torch.dtype | None = torch.float32,
+    *,
+    inplace: bool = False,
 ) -> torch.Tensor:
     """Semantic logits `[B, C, h, w]` from mask logits `[B, Q, h, w]` and class logits `[B, Q, C + 1]`.
 
     The product runs in the dtype of `mask_logits`; the result is in `dtype` (`None`: that dtype, no copy).
+    With `inplace=True`, the activation replaces the supplied mask logits.
     """
     probs = class_logits.float().softmax(-1)[..., :-1]
-    out = torch.einsum("bqc,bqhw->bchw", probs.to(mask_logits.dtype), mask_logits.sigmoid())
+    masks = mask_logits.sigmoid_() if inplace else mask_logits.sigmoid()
+    out = torch.einsum("bqc,bqhw->bchw", probs.to(mask_logits.dtype), masks)
     return out if dtype is None else out.to(dtype)

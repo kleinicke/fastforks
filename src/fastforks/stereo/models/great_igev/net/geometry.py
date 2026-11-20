@@ -86,7 +86,7 @@ def _pool2_last(x):
     """== F.avg_pool1d(x, 2, 2) over the last axis as the mean of even / odd slices (TensorRT 11's Myelin finds no
     tactic for a 1-D average pool over millions of rows)."""
     n = x.shape[-1] // 2
-    return 0.5 * (x[..., 0:2 * n:2] + x[..., 1:2 * n:2])
+    return (x[..., 0:2 * n:2] + x[..., 1:2 * n:2]).mul_(0.5)
 
 
 class FastGeoEncodingVolume:

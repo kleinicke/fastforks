@@ -148,7 +148,9 @@ def test_corrupt_cache_blob_falls_through_to_torch_hub(tmp_path, monkeypatch, ca
     blob = files.blob_path(spec.sha256)
     blob.parent.mkdir(parents=True)
     blob.write_bytes(b"paylaod")  # same size, wrong hash
-    hub = tmp_path / "torch_home" / "hub" / "checkpoints" / "w-1234.pth"
+    torch_home = tmp_path / "torch_home"
+    monkeypatch.setenv("TORCH_HOME", str(torch_home))
+    hub = torch_home / "hub" / "checkpoints" / "w-1234.pth"
     hub.parent.mkdir(parents=True)
     hub.write_bytes(b"payload")
     with caplog.at_level(logging.WARNING, logger="fastforks"):

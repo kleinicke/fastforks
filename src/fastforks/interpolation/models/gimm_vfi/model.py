@@ -46,6 +46,8 @@ if TYPE_CHECKING:
     from .net.raft.raft import RAFT
 
 LEVELS, RADIUS = 4, 4  # the correlation pyramids of RAFT and of the bidirectional lookup
+_REVERSE_MIN_TOKENS = 16_384
+_REVERSE_TILE_BYTES = 128 * 1024 * 1024
 HALO = 17  # fixed: rows `convblock` reads beyond a band (17 3 x 3 convs in a chain: 1 + 3 x 5 + 1)
 BAND_PIXELS = 1 << 20  # larger full-size inputs run `convblock` in row bands of about this many pixels
 HYPO_PIXELS = 1 << 19  # the hyponet MLP runs over pixel chunks of this size (its activations never exist at once)
@@ -112,6 +114,25 @@ class _VolumeCorr:
         for _ in range(LEVELS - 1):
             self.pyramid.append(F.avg_pool2d(self.pyramid[-1], 2, stride=2))
 
+    def reverse(self) -> _VolumeCorr:
+        """Reuse the transposed finest level for a single batch item."""
+        _, h, w = self.shape
+        tokens = h * w
+        transposed = self.pyramid[0].view(tokens, tokens).T
+        base = transposed.view(tokens, 1, h, w)
+        # Pack a tile of queries at a time so pooling never copies the whole transposed volume.
+        tile = max(1, _REVERSE_TILE_BYTES // (tokens * base.element_size()))
+        coarse = base.new_empty((tokens, 1, h // 2, w // 2))
+        for start in range(0, tokens, tile):
+            block = transposed[start : start + tile].contiguous().view(-1, 1, h, w)
+            coarse[start : start + tile].copy_(F.avg_pool2d(block, 2, stride=2))
+        reverse = self.__class__.__new__(self.__class__)
+        reverse.shape = self.shape
+        reverse.pyramid = [base, coarse]
+        for _ in range(LEVELS - 2):
+            reverse.pyramid.append(F.avg_pool2d(reverse.pyramid[-1], 2, stride=2))
+        return reverse
+
     def __call__(self, coords: torch.Tensor) -> torch.Tensor:
         b, h, w = self.shape
         r = torch.arange(-RADIUS, RADIUS + 1, device=coords.device, dtype=torch.float32)
@@ -125,27 +146,45 @@ def _bidir(make: Callable[[torch.Tensor, torch.Tensor], Callable[[torch.Tensor],
     """Upstream `BidirCorrBlock(f0, f1)`: its transposed pyramid is the correlation of `f1` against pooled `f0`."""
 
     def corr(f0: torch.Tensor, f1: torch.Tensor) -> Callable[[torch.Tensor, torch.Tensor], tuple[torch.Tensor, ...]]:
-        fwd, bwd = make(f0, f1), make(f1, f0)
+        fwd = make(f0, f1)
+        capture = torch.compiler.is_compiling() or torch.jit.is_tracing()
+        if (
+            isinstance(fwd, _VolumeCorr)
+            and f0.is_cuda
+            and not capture
+            and not torch.is_grad_enabled()
+            and f0.shape[0] == 1
+            and f0.shape[-2] * f0.shape[-1] >= _REVERSE_MIN_TOKENS
+        ):
+            bwd = fwd.reverse()
+        else:
+            bwd = make(f1, f0)
+        if isinstance(fwd, _VolumeCorr) and not capture and not torch.is_grad_enabled():
+            # Frame synthesis samples this pair once, before the full-resolution decoder.
+            volumes = [bwd, fwd]
+            return lambda c0, c1: (volumes.pop()(c0), volumes.pop()(c1))
         return lambda c0, c1: (fwd(c0), bwd(c1))
 
     return corr
 
 
-def _raft(raft: RAFT, im1: torch.Tensor, im2: torch.Tensor, iters: int, make: Callable) -> tuple:
-    """Upstream `RAFT.forward(im1, im2, iters, return_feat=True)` -> (flow_up, feats[1:], fmap1)."""
-    image1, image2 = 2 * (im1 / 255.0) - 1.0, 2 * (im2 / 255.0) - 1.0
-    fmap1, fmap2 = raft.fnet([image1.contiguous(), image2.contiguous()])
-    corr_fn = make(fmap1.float(), fmap2.float())
+def _raft(
+    raft: RAFT, image1: torch.Tensor, maps: tuple[torch.Tensor, torch.Tensor], iters: int, make: Callable
+) -> tuple:
+    """Refine one direction using the already encoded features of both input frames."""
+    corr_fn = make(*maps)
     cnet, feats = raft.cnet(image1, return_feature=True)
     net, inp = torch.split(cnet, [raft.hidden_dim, raft.context_dim], dim=1)
     net, inp = torch.tanh(net), torch.relu(inp)
     coords0, coords1 = raft.initialize_flow(image1)
     up_mask = None
-    for _ in range(iters):
+    for step in range(iters):
         corr = corr_fn(coords1)
-        net, up_mask, delta = raft.update_block(net, inp, corr, coords1 - coords0)
+        net, up_mask, delta = raft.update_block(net, inp, corr, coords1 - coords0, upsample=step + 1 == iters)
+        del corr
         coords1 = coords1 + delta
-    return raft.upsample_flow(coords1 - coords0, up_mask), feats[1:], fmap1.float()
+    del corr_fn
+    return raft.upsample_flow(coords1 - coords0, up_mask), feats[1:]
 
 
 def _compute_dtype(x: torch.Tensor) -> torch.dtype:
@@ -230,9 +269,14 @@ def _interpolate(  # noqa: PLR0913 - the network, the pair, the time, the params
         image1, image2 = resize(image1, p.ds_factor), resize(image2, p.ds_factor)
     xs = torch.stack((image1, image2), 2)
     b, _, h, w = image1.shape
-    f01, feats0, fnet0 = _raft(net.flow_estimator, 255 * image1, 255 * image2, p.iters, make)
-    f10, feats1, fnet1 = _raft(net.flow_estimator, 255 * image2, 255 * image1, p.iters, make)
+    raft = net.flow_estimator
+    raft_inputs = [(2 * ((255 * image) / 255.0) - 1.0).contiguous() for image in (image1, image2)]
+    fnet0, fnet1 = (feature.float() for feature in raft.fnet(raft_inputs))
+    f01, feats0 = _raft(raft, raft_inputs[0], (fnet0, fnet1), p.iters, make)
+    f10, feats1 = _raft(raft, raft_inputs[1], (fnet1, fnet0), p.iters, make)
+    del raft_inputs
     corr_fn = _bidir(make)(net.amt_fproj(fnet0), net.amt_fproj(fnet1))
+    del fnet0, fnet1
     features0 = [net.amt_second_last_cproj(feats0[0]), net.amt_last_cproj(feats0[1])]
     features1 = [net.amt_second_last_cproj(feats1[0]), net.amt_last_cproj(feats1[1])]
     normal, scalers = normalize_flow(torch.stack([f01, -f10], dim=2))

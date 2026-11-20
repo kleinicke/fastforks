@@ -342,7 +342,10 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
                     pend[LAYERS.index(i)].append(torch.cat([frame, t], -1))
             cam.append(pend[-1][-1][:, 0].float())
             pend_img.append(images[fr.start : fr.stop].to(self.dt))
-            heads(force=False)
+            if fr.stop < n_img:
+                heads(force=False)
+        # The final DPT pass no longer needs any layer's causal keys or values.
+        del cache
         heads(force=True)
         return torch.cat(cam), torch.cat(depth), torch.cat(conf)
 

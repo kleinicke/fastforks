@@ -57,12 +57,19 @@ def forward(net: PSMNet, left: torch.Tensor, right: torch.Tensor) -> torch.Tenso
     cost0 = net.dres1(cost0) + cost0
     out1, pre1, post1 = net.dres2(cost0, None, None)
     out1 = out1 + cost0
-    out2, _, post2 = net.dres3(out1, pre1, post1)
+    out2, pre2, post2 = net.dres3(out1, pre1, post1)
+    del pre2, post1
+    cost1 = net.classif1(out1)
+    del out1
     out2 = out2 + cost0
-    out3, _, _ = net.dres4(out2, pre1, post2)
+    out3 = net.dres4(out2, pre1, post2)[0]
+    del pre1, post2
+    cost2 = net.classif2(out2)
+    del out2
     out3 = out3 + cost0
     del cost0
-    cost3 = net.classif3(out3) + (net.classif2(out2) + net.classif1(out1))  # upstream's summation order
+    cost3 = net.classif3(out3) + (cost2 + cost1)  # upstream's summation order
+    del out3, cost2, cost1
     return upsample_softmax_regress(cost3, net.maxdisp, left.shape[2], left.shape[3])
 
 

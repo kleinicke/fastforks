@@ -31,6 +31,7 @@ from fastforks.kernels import cudnn_hacc, shift_windows
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
 from fastforks.shared.swin_sr import (
+    attention,
     checkpoint_upsampler,
     pad_heads,
     patch_embed,
@@ -68,6 +69,30 @@ class _NoMask:
 
 
 _NO_MASK = _NoMask()
+_LARGE_IMAGE_PIXELS = 256**2
+_WORKSPACE_BYTES = 64 * 1024**2
+
+
+@dataclass(frozen=True)
+class _BoundaryMask:
+    """The geometry of a shifted mask, with materialization deferred to attention."""
+
+    size: tuple[int, int]
+    window: int
+    shift: int
+
+    def to(self, *_: object) -> _BoundaryMask:
+        """Keep the geometry when the vendored block moves its mask to the device."""
+        return self
+
+
+def _eager_inference() -> bool:
+    return not (
+        torch.compiler.is_compiling()
+        or torch.jit.is_tracing()
+        or torch.is_grad_enabled()
+        or torch.is_autocast_enabled("cuda")
+    )
 
 
 def _mask(m: SwinTransformerBlock, x_size: tuple[int, int]) -> torch.Tensor | _NoMask:
@@ -77,9 +102,68 @@ def _mask(m: SwinTransformerBlock, x_size: tuple[int, int]) -> torch.Tensor | _N
     return shift_mask(*x_size, m.window_size, m.shift_size, m.norm1.weight.device, dtype=m.norm1.weight.dtype)
 
 
-def _attention(m: WindowAttention, x: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
-    """`WindowAttention.forward` with the bias gathered at load and one SDPA call."""
+def _bounded_mask(m: SwinTransformerBlock, x_size: tuple[int, int]) -> torch.Tensor | _NoMask | _BoundaryMask:
+    """Describe the shifted mask on large FP16 CUDA inputs."""
+    if m.shift_size and x_size[0] * x_size[1] >= _LARGE_IMAGE_PIXELS and _eager_inference():
+        return _BoundaryMask(x_size, m.window_size, m.shift_size)
+    return _mask(m, x_size)
+
+
+def _attention(m: WindowAttention, x: torch.Tensor, mask: torch.Tensor | _BoundaryMask | None = None) -> torch.Tensor:
+    """`WindowAttention.forward` with the bias gathered at load."""
+    if isinstance(mask, _BoundaryMask):
+        return _bounded_shift_attention(m, x, mask)
     return window_attention(x, m.qkv, m.proj, heads=m.num_heads, scale=m.scale, bias=m.bias, mask=mask)  # ty: ignore[invalid-argument-type]
+
+
+def _bounded_shift_attention(m: WindowAttention, x: torch.Tensor, mask: _BoundaryMask) -> torch.Tensor:
+    """Project all windows together and expand only a group of shifted biases at a time."""
+    count, tokens, _ = x.shape
+    heads = m.num_heads
+    dim = m.qkv.out_features // (3 * heads)
+    q, k, v = m.qkv(x).reshape(count, tokens, 3, heads, dim).permute(2, 0, 3, 1, 4).unbind(0)
+    win = mask.window
+    patterns = shift_mask(2 * win, 2 * win, win, mask.shift, x.device, dtype=q.dtype)
+    biases = m.get_buffer("bias").to(q.dtype)[None] + patterns[:, None]
+    rows, cols = (side // win for side in mask.size)
+    row_kind = (torch.arange(rows, device=x.device) == rows - 1).long() * 2
+    col_kind = (torch.arange(cols, device=x.device) == cols - 1).long()
+    kinds = (row_kind[:, None] + col_kind).flatten().repeat(count // (rows * cols))
+    step = max(1, _WORKSPACE_BYTES // (heads * tokens**2 * q.element_size()))
+    out = q.new_empty((count, tokens, heads, dim))
+    for start in range(0, count, step):
+        section = slice(start, start + step)
+        add = biases.index_select(0, kinds[section])
+        out[section] = attention(q[section], k[section], v[section], add, m.scale).transpose(1, 2)
+    return m.proj(out.reshape(count, tokens, -1))
+
+
+def _strip_reconstruction(m: DRCT, x: torch.Tensor, rows: int) -> torch.Tensor:
+    """Upscale each strip with the two low-resolution halo rows needed by the three convolutions."""
+    batch, _, h, w = x.shape
+    out = x.new_empty((batch, m.conv_last.out_channels, 4 * h, 4 * w))
+    for start in range(0, h, rows):
+        end = min(start + rows, h)
+        lo, hi = max(0, start - 2), min(h, end + 2)
+        tile = m.conv_last(m.upsample(x[:, :, lo:hi]))
+        out[:, :, 4 * start : 4 * end].copy_(tile[:, :, 4 * (start - lo) : 4 * (end - lo)])
+    return out
+
+
+def _forward(m: DRCT, image: torch.Tensor) -> torch.Tensor:
+    """Bound the 4x reconstruction workspace on large FP16 CUDA inputs."""
+    if not _eager_inference():
+        return DRCT.forward(m, image)
+    batch, _, h, w = image.shape
+    row_bytes = batch * m.conv_last.in_channels * w * 16 * image.element_size()
+    rows = max(1, _WORKSPACE_BYTES // row_bytes)
+    if rows >= h:
+        return DRCT.forward(m, image)
+    mean = m.mean.type_as(image)
+    x = m.conv_first((image - mean) * m.img_range)
+    x = m.conv_after_body(m.forward_features(x)) + x
+    x = m.conv_before_upsample(x)
+    return _strip_reconstruction(m, x, rows) / m.img_range + mean
 
 
 def _rdg(m: RDG, x: torch.Tensor, xsize: tuple[int, int]) -> torch.Tensor:
@@ -107,6 +191,7 @@ class Portable(Runner):
         """Build the network, gather the relative position biases, pad the heads, cache the masks per size."""
         super().__init__(ctx)
         p = ctx.params
+        bound_workspace = p.scale == 4 and ctx.dtype == "float16" and torch.device(ctx.device).type == "cuda"  # noqa: PLR2004
         with warnings.catch_warnings():  # upstream's torch.meshgrid without `indexing` ("ij", the default) warns
             warnings.filterwarnings("ignore", "torch.meshgrid", UserWarning)
             self.net = DRCT(
@@ -123,7 +208,7 @@ class Portable(Runner):
                 pad_heads(m.qkv, m.proj, m.num_heads)
                 override(m, _attention)
             elif isinstance(m, SwinTransformerBlock):
-                override(m, _mask, "calculate_mask")
+                override(m, _bounded_mask if bound_workspace else _mask, "calculate_mask")
             elif isinstance(m, RDG):
                 override(m, _rdg)
             elif isinstance(m, PatchEmbed):
@@ -132,6 +217,8 @@ class Portable(Runner):
         del self.net.mean
         self.net.register_buffer("mean", mean, persistent=False)
         self.net.eval().to(ctx.device, getattr(torch, ctx.dtype))
+        if bound_workspace:
+            override(self.net, _forward)
 
     def pad(self, x: torch.Tensor) -> tuple[torch.Tensor, Crop]:
         """`DRCTModel.pre_process`: reflect-pad bottom / right to a multiple of the window."""

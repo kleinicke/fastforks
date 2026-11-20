@@ -14,11 +14,13 @@ from fastforks._core.patch import override
 
 from .net.fast_foundation_stereo.fast_foundation_stereo import _FFSPostForwardHelper
 from .net.foundation_stereo.convolution_helper import Conv
-from .net.foundation_stereo.submodule import CostVolumeDisparityAttention, FeatureAtt
+from .net.foundation_stereo.submodule import CostVolumeDisparityAttention, FeatureAtt, HourGlass
 
 # sequences per chunk: memory bound (Q, K, V, out of one chunk are ~200 MB at 375x1242); flash SDPA takes < 65536; the
 # result does not depend on it
 CHUNK = 1 << 13
+ATTENTION_VOLUME_LIMIT = 256 * 1024**2
+PATCH_SCALE = 4
 
 
 def _chunked(
@@ -47,6 +49,33 @@ def _post(
     for layer in self.out:
         x = layer(x, left_feat) if isinstance(layer, FeatureAtt) else layer(x)
     return x
+
+
+def _merge_attention(self: HourGlass, conv: torch.Tensor, patches: torch.Tensor) -> torch.Tensor:
+    """Interpolate and attend in row strips, then add each strip into the owned decoder output."""
+    if (
+        not conv.is_cuda
+        or torch.compiler.is_compiling()
+        or torch.jit.is_tracing()
+        or torch.is_grad_enabled()
+        or conv.numel() * conv.element_size() < ATTENTION_VOLUME_LIMIT
+    ):
+        return HourGlass.merge_attention(self, conv, patches)
+
+    height = patches.shape[-2]
+    rows = max(1, CHUNK // (PATCH_SCALE * conv.shape[-1]))
+    attention = self.atts["cost_vol_disp"]
+    for start in range(0, height, rows):
+        stop = min(height, start + rows)
+        first, last = max(0, start - 1), min(height, stop + 1)
+        # Align-corners=False needs at most one coarse row of context on each side.
+        expanded = F.interpolate(
+            patches[..., first:last, :], scale_factor=PATCH_SCALE, mode="trilinear", align_corners=False
+        )
+        inner = expanded[..., (start - first) * PATCH_SCALE : (stop - first) * PATCH_SCALE, :]
+        dst = conv[..., start * PATCH_SCALE : stop * PATCH_SCALE, :]
+        dst.add_(attention(inner))
+    return conv
 
 
 def _conv(self: Conv, x: torch.Tensor) -> torch.Tensor:
@@ -81,5 +110,7 @@ def prepare_portable(net: nn.Module, *, channels_last: bool = False) -> None:
             override(m, _chunked)
         elif isinstance(m, _FFSPostForwardHelper):
             override(m, _post)
+        elif channels_last and isinstance(m, HourGlass):
+            override(m, _merge_attention, "merge_attention")
         elif fast and isinstance(m, Conv):
             override(m, _conv)

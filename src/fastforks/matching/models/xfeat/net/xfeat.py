@@ -283,6 +283,11 @@ class XFeat(nn.Module):
 	@torch.inference_mode()
 	def match(self, feats1, feats2, min_cossim = 0.82):
 
+		# fastforks: a blank image can have no keypoints, so there are no mutual matches.
+		if feats1.shape[0] == 0 or feats2.shape[0] == 0:
+			empty = torch.empty(0, dtype=torch.long, device=feats1.device)
+			return empty, empty
+
 		# fastforks: one [N, M] similarity matrix live at a time (upstream keeps both and takes the row maxima twice)
 		best12, match12 = (feats1 @ feats2.t()).max(dim=1)
 		_, match21 = (feats2 @ feats1.t()).max(dim=1)

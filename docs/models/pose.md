@@ -16,18 +16,18 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`dwpose-l-384`](#rtmpose) | yes | 12.7, 15.2x | 404, 0.5x |
 | [`dwpose-m`](#rtmpose) | yes | 4.86, 33.8x | 200, 0.25x |
 | [`dwpose-s`](#rtmpose) | yes | 3.35, 51.6x | 178, 0.21x |
-| [`dwpose-t`](#rtmpose) | yes | 3.17, 50.6x | 174, 0.2x |
+| [`dwpose-t`](#rtmpose) | yes | 2.52, 63.6x | 152, 0.18x |
 | [`hrnet-w32`](#hrnet) | yes | 9.75, 18.0x | 194, 0.6x |
 | [`hrnet-w32-384`](#hrnet) | yes | 19.7, 9.7x | 294, 0.39x |
 | [`hrnet-w48`](#hrnet) | yes | 15.6, 12.8x | 262, 0.57x |
 | [`hrnet-w48-384`](#hrnet) | yes | 34.2, 7.1x | 360, 0.39x |
 | [`retinaface-mobilenet0.25`](#retinaface) | yes | 2.74, 27.7x | 128, 1.2x |
 | [`retinaface-resnet50`](#retinaface) | yes | 11.7, 6.8x | 464, 0.95x |
-| [`rf-detr-keypoint-preview`](#rfdetr_keypoint) | yes | 9.46, 2.0x | 224, 0.92x |
+| [`rf-detr-keypoint-preview`](#rfdetr_keypoint) | yes | 8.98, 2.1x | 224, 0.92x |
 | [`rtmo-l`](#rtmo) | yes | 8.30, 2.1x | 228, 0.35x |
 | [`rtmo-m`](#rtmo) | yes | 6.85, 2.1x | 212, 0.59x |
-| [`rtmo-s`](#rtmo) | yes | 6.27, 1.8x | 180, 0.82x |
-| [`rtmo-t`](#rtmo) | yes | 6.31, 1.8x | 156, 1.4x |
+| [`rtmo-s`](#rtmo) | yes | 3.93, 2.9x | 166, 0.75x |
+| [`rtmo-t`](#rtmo) | yes | 2.96, 3.8x | 140, 1.3x |
 | [`rtmpose-l`](#rtmpose) | yes | 5.70, 28.3x | 244, 0.22x |
 | [`rtmpose-l-384`](#rtmpose) | yes | 11.4, 14.9x | 390, 0.95x |
 | [`rtmpose-l-halpe26`](#rtmpose) | yes | 5.69, 28.9x | 244, 0.46x |
@@ -42,7 +42,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`rtmpose-s`](#rtmpose) | yes | 3.08, 52.1x | 158, 0.33x |
 | [`rtmpose-s-face6`](#rtmpose) | yes | 3.74, 63.4x | 202, 0.37x |
 | [`rtmpose-s-halpe26`](#rtmpose) | yes | 3.05, 56.3x | 178, 0.89x |
-| [`rtmpose-t`](#rtmpose) | yes | 2.90, 52.0x | 156, 0.32x |
+| [`rtmpose-t`](#rtmpose) | yes | 2.25, 67.2x | 156, 0.32x |
 | [`rtmpose-t-face6`](#rtmpose) | yes | 3.61, 52.1x | 180, 0.39x |
 | [`rtmpose-t-halpe26`](#rtmpose) | yes | 2.90, 59.2x | 156, 1.1x |
 | [`rtmpose-x-halpe26-384`](#rtmpose) | yes | 19.1, 11.4x | 448, 0.81x |
@@ -50,7 +50,7 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`rtmw-l-384`](#rtmpose) | yes | 20.6, 13.3x | 458, 0.45x |
 | [`rtmw-m`](#rtmpose) | yes | 7.54, 22.5x | 266, 0.81x |
 | [`rtmw-x`](#rtmpose) | yes | 14.4, 14.3x | 392, 0.62x |
-| [`rtmw-x-384`](#rtmpose) | yes | 50.9, 5.7x | 632, 0.35x |
+| [`rtmw-x-384`](#rtmpose) | yes | 49.1, 5.9x | 612, 0.34x |
 | [`vitpose-base`](#vitpose) | yes | 12.0, 8.8x | 364, 0.6x |
 | [`vitpose-base-simple`](#vitpose) | yes | 12.1, 9.0x | 344, 0.49x |
 | [`vitpose-plus-base`](#vitpose) | yes | 11.9, 9.5x | 344, 0.46x |
@@ -70,13 +70,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `rtmpose-t` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 165<br>151<br>4.60<br>2.90<br>1.91<br>0.866 (network on person crops only) | 475 / 524<br>459 / 490<br>100 / 128<br>105 / 156<br>125 / 128<br>127 / 164 |
+| `rtmpose-t` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 165<br>151<br>7.79<br>2.25<br>4.07<br>0.866 (network on person crops only) | 475 / 524<br>459 / 490<br>100 / 128<br>91 / 156<br>125 / 148<br>127 / 164 |
 | `rtmpose-s` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 161<br>165<br>4.95<br>3.08<br>2.07<br>1.06 (network on person crops only) | 461 / 510<br>449 / 480<br>118 / 152<br>109 / 158<br>129 / 150<br>137 / 170 |
 | `rtmpose-m` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 179<br>180<br>6.36<br>4.50<br>3.42<br>2.02 (network on person crops only) | 323 / 376<br>316 / 364<br>145 / 192<br>125 / 200<br>147 / 172<br>157 / 176 |
 | `rtmpose-l` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 161<br>176<br>9.04<br>5.70<br>5.32<br>3.20 (network on person crops only) | 1076 / 1114<br>1105 / 1154<br>200 / 256<br>152 / 244<br>185 / 194<br>230 / 266 |
 | `rtmpose-m-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 174<br>167<br>13.3<br>9.23<br>7.09<br>4.33 (network on person crops only) | 585 / 666<br>505 / 582<br>224 / 332<br>178 / 320<br>190 / 212<br>212 / 242 |
 | `rtmpose-l-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 192<br>171<br>19.4<br>11.4<br>10.7<br>7.08 (network on person crops only) | 1485 / 1538<br>366 / 410<br>314 / 416<br>217 / 390<br>242 / 274<br>297 / 322 |
-| `dwpose-t` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 160<br>174<br>4.60<br>3.17<br>1.96<br>0.940 (network on person crops only) | 841 / 874<br>832 / 858<br>104 / 132<br>109 / 174<br>129 / 148<br>136 / 160 |
+| `dwpose-t` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 160<br>174<br>7.84<br>2.52<br>3.63<br>0.940 (network on person crops only) | 841 / 874<br>832 / 858<br>104 / 132<br>106 / 152<br>129 / 148<br>136 / 160 |
 | `dwpose-s` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 173<br>180<br>5.16<br>3.35<br>2.27<br>1.17 (network on person crops only) | 807 / 860<br>806 / 848<br>124 / 154<br>115 / 178<br>135 / 150<br>149 / 170 |
 | `dwpose-m` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 169<br>164<br>7.31<br>4.86<br>3.80<br>2.13 (network on person crops only) | 746 / 802<br>756 / 792<br>153 / 196<br>133 / 200<br>156 / 174<br>203 / 228 |
 | `dwpose-l` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 178<br>184<br>10.3<br>6.20<br>5.75<br>3.33 (network on person crops only) | 341 / 388<br>393 / 428<br>211 / 260<br>163 / 266<br>197 / 216<br>277 / 294 |
@@ -85,7 +85,7 @@ Commercial use: yes.
 | `rtmw-l` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 213<br>203<br>15.3<br>9.99<br>9.34<br>5.17 (network on person crops only) | 679 / 708<br>865 / 908<br>256 / 308<br>217 / 312<br>242 / 264<br>354 / 396 |
 | `rtmw-x` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 218<br>207<br>24.0<br>14.4<br>15.3<br>8.47 (network on person crops only) | 1307 / 1360<br>604 / 636<br>335 / 390<br>289 / 392<br>320 / 328<br>497 / 514 |
 | `rtmw-l-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 274<br>275<br>31.8<br>20.6<br>19.5<br>11.2 (network on person crops only) | 982 / 1018<br>1094 / 1144<br>371 / 468<br>276 / 458<br>298 / 344<br>424 / 452 |
-| `rtmw-x-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 306<br>291<br>50.6<br>50.9<br>34.0<br>19.3 (network on person crops only) | 1705 / 1812<br>1874 / 1940<br>466 / 632<br>496 / 632<br>361 / 388<br>581 / 624 |
+| `rtmw-x-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 306<br>291<br>51.7<br>49.1<br>35.8<br>19.3 (network on person crops only) | 1705 / 1812<br>1874 / 1940<br>466 / 552<br>496 / 612<br>361 / 388<br>581 / 624 |
 | `rtmpose-t-halpe26` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 181<br>172<br>4.61<br>2.90<br>1.94<br>0.871 (network on person crops only) | 119 / 158<br>103 / 144<br>100 / 130<br>105 / 156<br>125 / 128<br>128 / 164 |
 | `rtmpose-s-halpe26` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 172<br>173<br>4.99<br>3.05<br>2.11<br>1.07 (network on person crops only) | 174 / 212<br>162 / 200<br>119 / 152<br>110 / 178<br>130 / 150<br>138 / 170 |
 | `rtmpose-m-halpe26` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 179<br>181<br>6.42<br>4.53<br>3.44<br>2.02 (network on person crops only) | 288 / 328<br>283 / 318<br>146 / 192<br>125 / 180<br>148 / 172<br>160 / 180 |
@@ -94,7 +94,7 @@ Commercial use: yes.
 | `rtmpose-l-halpe26-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 206<br>206<br>19.5<br>11.5<br>10.6<br>7.08 (network on person crops only) | 1019 / 1054<br>975 / 1038<br>315 / 416<br>218 / 410<br>243 / 276<br>299 / 322 |
 | `rtmpose-x-halpe26-384` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 247<br>217<br>33.8<br>19.1<br>21.1<br>13.3 (network on person crops only) | 1470 / 1588<br>470 / 556<br>385 / 478<br>280 / 448<br>262 / 298<br>430 / 456 |
 | `rtmpose-m-hand5` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 192<br>195<br>8.05<br>5.46<br>4.51<br>2.58 (network on person crops only) | 451 / 504<br>425 / 472<br>166 / 214<br>139 / 200<br>176 / 192<br>174 / 192 |
-| `rtmpose-t-face6` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 188<br>204<br>4.53<br>3.61<br>2.23<br>1.00 (network on person crops only) | 444 / 498<br>424 / 464<br>116 / 152<br>123 / 180<br>159 / 168<br>145 / 168 |
+| `rtmpose-t-face6` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 188<br>204<br>4.53<br>3.61<br>2.23<br>1.04 (network on person crops only) | 444 / 498<br>424 / 464<br>116 / 152<br>123 / 180<br>159 / 168<br>83 / 106 |
 | `rtmpose-s-face6` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 258<br>237<br>5.04<br>3.74<br>2.69<br>1.28 (network on person crops only) | 519 / 572<br>504 / 540<br>140 / 174<br>128 / 202<br>164 / 190<br>158 / 178 |
 | `rtmpose-m-face6` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 198<br>207<br>8.75<br>5.77<br>4.79<br>2.67 (network on person crops only) | 666 / 728<br>652 / 698<br>173 / 216<br>145 / 222<br>182 / 192<br>216 / 240 |
 | `rtmpose-m-ap10k` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 196<br>186<br>8.02<br>5.42<br>4.54<br>2.57 (network on person crops only) | 783 / 846<br>757 / 814<br>166 / 214<br>139 / 200<br>176 / 192<br>172 / 188 |
@@ -134,13 +134,13 @@ Commercial use: yes.
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rtmpose-t` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `rtmpose-s` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `rtmpose-m` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmpose-l` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmpose-m-384` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `rtmpose-l-384` 3000x4000 (0.6 GiB peak allocated, 1.0 reserved); `dwpose-t` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `dwpose-s` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `dwpose-m` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `dwpose-l` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `dwpose-l-384` 3000x4000 (0.6 GiB peak allocated, 1.0 reserved); `rtmw-m` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmw-l` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmw-x` 3000x4000 (0.6 GiB peak allocated, 0.7 reserved); `rtmw-l-384` 3000x4000 (0.7 GiB peak allocated, 1.0 reserved); `rtmw-x-384` 3000x4000 (0.8 GiB peak allocated, 1.0 reserved); `rtmpose-t-halpe26` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `rtmpose-s-halpe26` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `rtmpose-m-halpe26` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmpose-l-halpe26` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmpose-m-halpe26-384` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved); `rtmpose-l-halpe26-384` 3000x4000 (0.6 GiB peak allocated, 1.0 reserved); `rtmpose-x-halpe26-384` 3000x4000 (0.8 GiB peak allocated, 0.9 reserved); `rtmpose-m-hand5` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmpose-t-face6` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `rtmpose-s-face6` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmpose-m-face6` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmpose-m-ap10k` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved)
-- `rtmpose-t` 1080x1920, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 16 s (ONNX + engine).
+- `rtmpose-t` 1080x1920, first call: portable + torch.compile 16 s (cold Inductor cache), TensorRT fp16 16 s (ONNX + engine).
 - `rtmpose-s` 1080x1920, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 16 s (ONNX + engine).
 - `rtmpose-m` 1080x1920, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 18 s (ONNX + engine).
 - `rtmpose-l` 1080x1920, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 19 s (ONNX + engine).
 - `rtmpose-m-384` 1080x1920, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 19 s (ONNX + engine).
 - `rtmpose-l-384` 1080x1920, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 20 s (ONNX + engine).
-- `dwpose-t` 1080x1920, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 16 s (ONNX + engine).
+- `dwpose-t` 1080x1920, first call: portable + torch.compile 17 s (cold Inductor cache), TensorRT fp16 16 s (ONNX + engine).
 - `dwpose-s` 1080x1920, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 17 s (ONNX + engine).
 - `dwpose-m` 1080x1920, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 19 s (ONNX + engine).
 - `dwpose-l` 1080x1920, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 20 s (ONNX + engine).
@@ -149,7 +149,7 @@ Commercial use: yes.
 - `rtmw-l` 1080x1920, first call: portable + torch.compile 19 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
 - `rtmw-x` 1080x1920, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 27 s (ONNX + engine).
 - `rtmw-l-384` 1080x1920, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 27 s (ONNX + engine).
-- `rtmw-x-384` 1080x1920, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 30 s (ONNX + engine).
+- `rtmw-x-384` 1080x1920, first call: portable + torch.compile 31 s (cold Inductor cache), TensorRT fp16 30 s (ONNX + engine).
 - `rtmpose-t-halpe26` 1080x1920, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 17 s (ONNX + engine).
 - `rtmpose-s-halpe26` 1080x1920, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 17 s (ONNX + engine).
 - `rtmpose-m-halpe26` 1080x1920, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 18 s (ONNX + engine).
@@ -158,7 +158,7 @@ Commercial use: yes.
 - `rtmpose-l-halpe26-384` 1080x1920, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 21 s (ONNX + engine).
 - `rtmpose-x-halpe26-384` 1080x1920, first call: portable + torch.compile 17 s (cold Inductor cache), TensorRT fp16 23 s (ONNX + engine).
 - `rtmpose-m-hand5` 1080x1920, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 18 s (ONNX + engine).
-- `rtmpose-t-face6` 1080x1920, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 16 s (ONNX + engine).
+- `rtmpose-t-face6` 1080x1920, first call: portable + torch.compile 11 s (cold Inductor cache).
 - `rtmpose-s-face6` 1080x1920, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 17 s (ONNX + engine).
 - `rtmpose-m-face6` 1080x1920, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 18 s (ONNX + engine).
 - `rtmpose-m-ap10k` 1080x1920, first call: portable + torch.compile 13 s (cold Inductor cache), TensorRT fp16 18 s (ONNX + engine).
@@ -250,41 +250,43 @@ Commercial use: yes.
 
 ### Measured
 
-Top-down on the same every-tenth-image subset for all modes, ground-truth person boxes, no flip test; people ranked by the mean of their first 17 keypoint scores; pycocotools OKS AP on COCO body joints. Top-down on the ground-truth person boxes (non-crowd, at least one labelled keypoint), no flip test; people ranked by the mean of their 17 keypoint scores (not mmpose's rescoring and OKS-NMS), so not the papers' AP; pycocotools OKS AP; whole-body models scored on their 17 body keypoints. One prediction per annotated hand box. PCK is the mean across landmarks of the fraction within 20% of the longer box side. EPE is the mean pixel distance across annotated landmarks. Flip testing is disabled. One prediction per annotated face box with flip testing disabled. Mean visible-landmark error is divided by the distance between annotated eye landmarks 66 and 79. Original = the original code named under Details, same checkpoint and protocol.
+Top-down on the same every-tenth-image subset for all modes, ground-truth person boxes, no flip test; people ranked by the mean of their first 17 keypoint scores; pycocotools OKS AP on COCO body joints. Top-down on the ground-truth person boxes (non-crowd, at least one labelled keypoint), no flip test; people ranked by the mean of their 17 keypoint scores (not mmpose's rescoring and OKS-NMS), so not the papers' AP; pycocotools OKS AP; whole-body models scored on their 17 body keypoints. One prediction per annotated hand box. PCK is the mean across landmarks of the fraction within 20% of the longer box side. EPE is the mean pixel distance across annotated landmarks. Flip testing is disabled. One prediction per annotated face box with flip testing disabled. Mean visible-landmark error is divided by the distance between annotated eye landmarks 66 and 79. One prediction per annotated animal box with flip testing disabled. Average the keypoint similarities of the matched predictions with the AP-10K keypoint scales. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `rtmpose-t` | COCO val2017, ground-truth person boxes, keypoint AP | 65.2 | 65.1 | 65.2 | 65.2 | 65.2 |  |
-| `rtmpose-s` | COCO val2017, ground-truth person boxes, keypoint AP | 69.8 | 69.8 | 69.8 | 69.8 | 69.8 |  |
-| `rtmpose-m` | COCO val2017, ground-truth person boxes, keypoint AP | 75.6 | 75.6 | 75.6 | 75.7 | 75.6 |  |
-| `rtmpose-l` | COCO val2017, ground-truth person boxes, keypoint AP | 77.9 | 77.9 | 77.9 | 78.0 | 78.0 |  |
-| `rtmpose-m-384` | COCO val2017, ground-truth person boxes, keypoint AP | 78.0 | 77.9 | 77.9 | 78.0 | 78.0 |  |
-| `rtmpose-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 80.0 | 80.0 | 80.0 | 80.0 | 79.9 |  |
-| `dwpose-t` | COCO val2017, ground-truth person boxes, keypoint AP | 60.2 | 60.2 | 60.1 | 60.1 | 60.1 |  |
-| `dwpose-s` | COCO val2017, ground-truth person boxes, keypoint AP | 65.6 | 65.6 | 65.6 | 65.5 | 65.5 |  |
-| `dwpose-m` | COCO val2017, ground-truth person boxes, keypoint AP | 71.7 | 71.8 | 71.8 | 71.8 | 71.8 |  |
-| `dwpose-l` | COCO val2017, ground-truth person boxes, keypoint AP | 73.9 | 73.9 | 74.0 | 74.0 | 74.0 |  |
-| `dwpose-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 75.6 | 75.6 | 75.7 | 75.7 | 75.6 |  |
-| `rtmw-m` | COCO val2017, ground-truth person boxes, keypoint AP | 74.5 | 74.5 | 74.5 | 74.5 | 74.6 |  |
-| `rtmw-l` | COCO val2017, ground-truth person boxes, keypoint AP | 76.9 | 76.9 | 77.0 | 76.9 | 76.9 |  |
-| `rtmw-x` | COCO val2017, ground-truth person boxes, keypoint AP | 77.3 | 77.4 | 77.3 | 77.3 | 77.4 |  |
-| `rtmw-l-384` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 80.2 | 80.3 | 80.2 | 80.1 | 80.1 |  |
-| `rtmw-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.4 | 79.4 | 79.5 |  | 79.5 |  |
-| `rtmw-x-384` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 80.3 | 80.2 | 80.1 | 80.3 | 80.4 |  |
-| `rtmw-x-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.6 | 79.6 | 79.6 |  | 79.6 |  |
-| `rtmpose-t-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 65.3 | 65.5 | 65.3 | 65.3 | 65.3 |  |
-| `rtmpose-s-halpe26` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 71.4 | 71.3 | 71.4 | 71.5 | 71.2 |  |
-| `rtmpose-s-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 70.0 | 70.0 | 69.9 |  | 70.0 |  |
-| `rtmpose-m-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 76.3 | 76.2 | 76.2 | 76.2 | 76.2 |  |
-| `rtmpose-l-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 78.5 | 78.5 | 78.5 | 78.5 | 78.5 |  |
-| `rtmpose-m-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 78.3 | 78.4 | 78.3 | 78.3 | 78.3 |  |
-| `rtmpose-l-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.8 | 79.8 | 79.8 | 79.8 | 80.0 |  |
-| `rtmpose-x-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 80.5 | 80.6 | 80.5 | 80.5 | 80.4 |  |
-| `rtmpose-m-hand5` | COCO-WholeBody validation (1,568 images), hand PCK@0.2 % / EPE in px |  |  |  | 80.98 / 4.56 |  |  |
-| `rtmpose-t-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) |  |  |  | 1.7742 |  |  |
-| `rtmpose-s-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) |  |  |  | 1.6854 |  |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `rtmpose-t` | COCO val2017, ground-truth person boxes, keypoint AP | 65.2 | 65.1 | 65.2 | 65.2 | 65.2 |  |  |  |
+| `rtmpose-s` | COCO val2017, ground-truth person boxes, keypoint AP | 69.8 | 69.8 | 69.8 | 69.8 | 69.8 |  |  |  |
+| `rtmpose-m` | COCO val2017, ground-truth person boxes, keypoint AP | 75.6 | 75.6 | 75.6 | 75.7 | 75.6 |  |  |  |
+| `rtmpose-l` | COCO val2017, ground-truth person boxes, keypoint AP | 77.9 | 77.9 | 77.9 | 78.0 | 78.0 |  |  |  |
+| `rtmpose-m-384` | COCO val2017, ground-truth person boxes, keypoint AP | 78.0 | 77.9 | 77.9 | 78.0 | 78.0 |  |  |  |
+| `rtmpose-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 80.0 | 80.0 | 80.0 | 80.0 | 79.9 |  |  |  |
+| `dwpose-t` | COCO val2017, ground-truth person boxes, keypoint AP | 60.2 | 60.2 | 60.1 | 60.1 | 60.1 |  |  |  |
+| `dwpose-s` | COCO val2017, ground-truth person boxes, keypoint AP | 65.6 | 65.6 | 65.6 | 65.5 | 65.5 |  |  |  |
+| `dwpose-m` | COCO val2017, ground-truth person boxes, keypoint AP | 71.7 | 71.8 | 71.8 | 71.8 | 71.8 |  |  |  |
+| `dwpose-l` | COCO val2017, ground-truth person boxes, keypoint AP | 73.9 | 73.9 | 74.0 | 74.0 | 74.0 |  |  |  |
+| `dwpose-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 75.6 | 75.6 | 75.7 | 75.7 | 75.6 |  |  |  |
+| `rtmw-m` | COCO val2017, ground-truth person boxes, keypoint AP | 74.5 | 74.5 | 74.5 | 74.5 | 74.6 |  |  |  |
+| `rtmw-l` | COCO val2017, ground-truth person boxes, keypoint AP | 76.9 | 76.9 | 77.0 | 76.9 | 76.9 |  |  |  |
+| `rtmw-x` | COCO val2017, ground-truth person boxes, keypoint AP | 77.3 | 77.4 | 77.3 | 77.3 | 77.4 |  |  |  |
+| `rtmw-l-384` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 80.2 | 80.3 | 80.2 | 80.1 | 80.1 |  |  |  |
+| `rtmw-l-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.4 | 79.4 | 79.5 |  | 79.5 |  |  |  |
+| `rtmw-x-384` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 80.3 | 80.2 | 80.1 | 80.3 | 80.4 |  |  |  |
+| `rtmw-x-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.6 | 79.6 | 79.6 |  | 79.6 |  |  |  |
+| `rtmpose-t-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 65.3 | 65.5 | 65.3 | 65.3 | 65.3 |  |  |  |
+| `rtmpose-s-halpe26` | COCO val2017, every 10th image, GT person boxes, keypoint AP | 71.4 | 71.3 | 71.4 | 71.5 | 71.2 |  |  |  |
+| `rtmpose-s-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 70.0 | 70.0 | 69.9 |  | 70.0 |  |  |  |
+| `rtmpose-m-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 76.3 | 76.2 | 76.2 | 76.2 | 76.2 |  |  |  |
+| `rtmpose-l-halpe26` | COCO val2017, ground-truth person boxes, keypoint AP | 78.5 | 78.5 | 78.5 | 78.5 | 78.5 |  |  |  |
+| `rtmpose-m-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 78.3 | 78.4 | 78.3 | 78.3 | 78.3 |  |  |  |
+| `rtmpose-l-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 79.8 | 79.8 | 79.8 | 79.8 | 80.0 |  |  |  |
+| `rtmpose-x-halpe26-384` | COCO val2017, ground-truth person boxes, keypoint AP | 80.5 | 80.6 | 80.5 | 80.5 | 80.4 |  |  |  |
+| `rtmpose-m-hand5` | COCO-WholeBody validation (1,568 images), hand PCK@0.2 % / EPE in px | 80.99 / 4.56 |  | 80.96 / 4.57 | 80.98 / 4.56 |  |  |  |  |
+| `rtmpose-t-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) | 1.7748 |  | 1.7817 | 1.7742 |  | 1.7815 | 1.7827 |  |
+| `rtmpose-s-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) | 1.6865 |  | 1.6929 | 1.6854 |  |  |  |  |
+| `rtmpose-m-face6` | LaPa test (2,000 images), annotated face boxes, normalized mean error (%) | 1.5244 |  | 1.5299 | 1.5225 |  |  |  |  |
+| `rtmpose-m-ap10k` | AP-10K validation split 1, annotated animal boxes, paired OKS (%) | 83.835 |  | 83.829 | 83.825 |  |  |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / be54b8b0, 2026-11-09 to 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / be54b8b0, 2026-11-09 to 2026-11-11.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / 535aedbb / 5f4a908a0 / be54b8b0, 2026-11-09 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 2241b095+uncommitted / be54b8b0, 2026-11-09 to 2026-11-11; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 01174ad3, 2026-11-19.
 
 ### Parity
 
@@ -377,7 +379,7 @@ Top-down on the ground-truth person boxes (non-crowd, at least one labelled keyp
 |---|---|---|---|---|---|---|---|
 | `hrnet-w32` | COCO val2017, ground-truth person boxes, keypoint AP | 75.5 | 75.5 | 76.5 | 75.5 | 76.5 |  |
 | `hrnet-w32-384` | COCO val2017, ground-truth person boxes, keypoint AP | 76.7 | 76.7 | 77.6 | 76.6 | 77.7 |  |
-| `hrnet-w48` | COCO val2017, ground-truth person boxes, keypoint AP | 76.5 | 76.6 | 76.7 |  | 76.7 |  |
+| `hrnet-w48` | COCO val2017, ground-truth person boxes, keypoint AP | 76.5 | 76.6 | 76.7 | 76.5 | 76.7 |  |
 | `hrnet-w48-384` | COCO val2017, ground-truth person boxes, keypoint AP | 77.0 | 77.0 | 77.7 | 77.0 | 77.6 |  |
 
 Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 87e1be16, 2026-11-11; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 87e1be16, 2026-11-11.
@@ -438,9 +440,9 @@ Each image at its own size, score threshold 0.02 and NMS IoU 0.45 (the authors' 
 | variant | dataset | original fp32 | portable | portable fp32 | kernels | note |
 |---|---|---|---|---|---|---|
 | `retinaface-resnet50` | WIDER FACE val, every 4th image (807), face box AP easy / medium / hard | 0.954 / 0.939 / 0.841 | 0.954 / 0.939 / 0.840 | 0.954 / 0.940 / 0.841 | 0.954 / 0.939 / 0.840 |  |
-| `retinaface-mobilenet0.25` | WIDER FACE val, every 4th image (807), face box AP easy / medium / hard | 0.905 / 0.882 / 0.741 |  | 0.905 / 0.882 / 0.741 |  |  |
+| `retinaface-mobilenet0.25` | WIDER FACE val, every 4th image (807), face box AP easy / medium / hard | 0.905 / 0.882 / 0.741 | 0.905 / 0.882 / 0.740 | 0.905 / 0.882 / 0.741 |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 5f4a908a0 / 68b2f345, 2026-11-16 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7, 2026-11-17; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 68b2f345, 2026-11-16.
 
 ### Parity
 
@@ -469,7 +471,7 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `rf-detr-keypoint-preview` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 29.4<br>19.3<br>18.2<br>9.46<br>8.00<br>4.28 (network on person crops only) | 305 / 322<br>186 / 244<br>179 / 204<br>176 / 224<br>191 / 220<br>264 / 294 |
+| `rf-detr-keypoint-preview` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 29.4<br>19.3<br>17.2<br>8.98<br>7.82<br>4.28 (network on person crops only) | 305 / 322<br>186 / 244<br>176 / 202<br>176 / 224<br>160 / 180<br>264 / 294 |
 
 <details><summary>Details</summary>
 
@@ -484,7 +486,7 @@ Commercial use: yes.
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rf-detr-keypoint-preview` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved)
-- `rf-detr-keypoint-preview` 1080x1920, first call: portable + torch.compile 48 s (cold Inductor cache), TensorRT fp16 67 s (ONNX + engine).
+- `rf-detr-keypoint-preview` 1080x1920, first call: TensorRT fp16 67 s (ONNX + engine).
 - `rf-detr-keypoint-preview` original (fp32) 1080x1920: pinned RF-DETR torchvision resize/normalize, original network and uncertainty-fused PostProcess
 - `rf-detr-keypoint-preview` original 1080x1920: the authors' float16 model option; pinned RF-DETR torchvision resize/normalize, original network and uncertainty-fused PostProcess; authors inference(compile=False, dtype=float16, inplace=True)
 - `rf-detr-keypoint-preview` load / first call: original 1.49 s / 0.083 s, portable 2.66 s / 0.386 s, kernels 2.7 s / 0.384 s
@@ -529,10 +531,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `rtmo-t` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.3<br>13.3<br>7.62<br>6.31<br>3.30<br>0.886 (network on person crops only) | 90 / 108<br>118 / 122<br>121 / 136<br>121 / 156<br>111 / 134<br>112 / 150 |
-| `rtmo-s` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.4<br>15.5<br>7.48<br>6.27<br>3.35<br>1.21 (network on person crops only) | 192 / 220<br>228 / 252<br>142 / 160<br>142 / 180<br>121 / 156<br>133 / 164 |
-| `rtmo-m` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.3<br>17.0<br>8.71<br>6.85<br>4.99<br>2.03 (network on person crops only) | 332 / 360<br>422 / 462<br>166 / 190<br>166 / 212<br>146 / 170<br>194 / 232 |
-| `rtmo-l` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.1<br>21.4<br>10.8<br>8.30<br>7.07<br>2.90 (network on person crops only) | 614 / 652<br>800 / 824<br>208 / 226<br>208 / 228<br>192 / 224<br>277 / 306 |
+| `rtmo-t` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.3<br>13.3<br>7.82<br>2.96<br>6.68<br>0.886 (network on person crops only) | 90 / 108<br>118 / 122<br>122 / 140<br>82 / 140<br>111 / 134<br>112 / 150 |
+| `rtmo-s` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.4<br>15.5<br>6.72<br>3.93<br>6.74<br>1.21 (network on person crops only) | 192 / 220<br>228 / 252<br>142 / 176<br>105 / 166<br>121 / 136<br>133 / 164 |
+| `rtmo-m` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.3<br>17.0<br>7.44<br>6.85<br>4.99<br>2.03 (network on person crops only) | 332 / 360<br>422 / 462<br>168 / 192<br>166 / 212<br>146 / 170<br>194 / 232 |
+| `rtmo-l` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.1<br>21.4<br>10.0<br>8.30<br>7.07<br>2.90 (network on person crops only) | 614 / 652<br>800 / 824<br>211 / 242<br>208 / 228<br>192 / 224<br>277 / 306 |
 
 <details><summary>Details</summary>
 
@@ -547,8 +549,8 @@ Commercial use: yes.
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `rtmo-t` 3000x4000 (0.4 GiB peak allocated, 0.5 reserved); `rtmo-s` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmo-m` 3000x4000 (0.5 GiB peak allocated, 0.5 reserved); `rtmo-l` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved)
-- `rtmo-t` 1080x1920, first call: portable + torch.compile 16 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
-- `rtmo-s` 1080x1920, first call: portable + torch.compile 15 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
+- `rtmo-t` 1080x1920, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
+- `rtmo-s` 1080x1920, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
 - `rtmo-m` 1080x1920, first call: portable + torch.compile 18 s (cold Inductor cache), TensorRT fp16 39 s (ONNX + engine).
 - `rtmo-l` 1080x1920, first call: portable + torch.compile 19 s (cold Inductor cache), TensorRT fp16 40 s (ONNX + engine).
 - `rtmo-t` original (fp32) 1080x1920: mmpose 1.3.2 inference_bottomup (CPU cv2 letterbox, network, NMS, decode), all in the timed call
@@ -616,6 +618,14 @@ Commercial use: yes.
 | `vitpose-plus-base` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>113<br>17.9<br>11.9<br>16.4<br>8.87 (network on person crops only) | 729 / 742<br>918 / 1002<br>299 / 322<br>274 / 344<br>597 / 622<br>473 / 516 |
 | `vitpose-plus-large` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 331<br>165<br>53.7<br>33.2<br>46.9<br>29.3 (network on person crops only) | 2111 / 2144<br>2873 / 3004<br>1014 / 1062<br>706 / 764<br>1014 / 1062<br>1312 / 1338 |
 | `vitpose-plus-huge` | synthetic (1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 610<br>242<br>102<br>62.5<br>92.9<br>58.7 (network on person crops only) | 4100 / 4124<br>5732 / 5846<br>1382 / 1424<br>1351 / 1406<br>1641 / 1682<br>2595 / 2654 |
+
+### Weight streaming
+
+Warm inference time and peak reserved GPU memory for the same input with both settings. Streamed weights use pinned host memory.
+
+| Model | Mode | Input | GPU | PyTorch | Resident (`stream=False`) | Streamed (`stream=True`) |
+|---|---|---|---|---|---|---|
+| vitpose-plus-huge | portable | 1080x1920 | RTX 5060 Ti | 2.14.1+cu130 | 103.16 ms / 1,570 MiB | 105.26 ms / 338 MiB |
 
 <details><summary>Details</summary>
 

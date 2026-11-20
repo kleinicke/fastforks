@@ -13,16 +13,16 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | model | commercial | kernels time (ms),<br>speed-up vs original | kernels peak memory (MiB, reserved),<br>ratio to original |
 |---|---|---|---|
 | [`alexnet`](#alexnet) | yes | 0.604, 1.9x | 228, 0.8x |
-| [`coatnet_0_rw_224`](#coatnet) | yes | – | – |
-| [`coatnet_1_rw_224`](#coatnet) | yes | – | – |
-| [`coatnet_2_rw_224`](#coatnet) | yes | – | – |
-| [`coatnet_nano_rw_224`](#coatnet) | yes | – | – |
-| [`coatnet_rmlp_1_rw2_224`](#coatnet) | yes | – | – |
-| [`coatnet_rmlp_1_rw_224`](#coatnet) | yes | – | – |
-| [`coatnet_rmlp_2_rw_224`](#coatnet) | yes | – | – |
-| [`coatnet_rmlp_2_rw_224.sw_in1k`](#coatnet) | yes | – | – |
-| [`coatnet_rmlp_2_rw_384`](#coatnet) | yes | – | – |
-| [`coatnet_rmlp_nano_rw_224`](#coatnet) | yes | – | – |
+| [`coatnet_0_rw_224`](#coatnet) | yes | 1.74, 4.4x | 144, 0.8x |
+| [`coatnet_1_rw_224`](#coatnet) | yes | 2.89, 4.3x | 196, 0.77x |
+| [`coatnet_2_rw_224`](#coatnet) | yes | 4.01, 3.6x | 240, 0.59x |
+| [`coatnet_nano_rw_224`](#coatnet) | yes | 1.62, 4.8x | 106, 0.93x |
+| [`coatnet_rmlp_1_rw2_224`](#coatnet) | yes | 3.01, 4.6x | 178, 0.7x |
+| [`coatnet_rmlp_1_rw_224`](#coatnet) | yes | 3.04, 4.6x | 178, 0.76x |
+| [`coatnet_rmlp_2_rw_224`](#coatnet) | yes | 4.24, 3.6x | 240, 0.59x |
+| [`coatnet_rmlp_2_rw_224.sw_in1k`](#coatnet) | yes | 4.24, 3.6x | 240, 0.59x |
+| [`coatnet_rmlp_2_rw_384`](#coatnet) | yes | 12.8, 1.4x (384x384) | 356, 0.67x |
+| [`coatnet_rmlp_nano_rw_224`](#coatnet) | yes | 1.75, 5.1x | 106, 0.73x |
 | [`convnext_base.fb_in1k`](#convnext) | yes | 2.00, 3.9x | 236, 0.59x |
 | [`convnext_base`](#convnext) | yes | 2.01, 3.9x | 236, 0.59x |
 | [`convnext_base.fb_in22k_ft_in1k_384`](#convnext) | yes | 3.05, 3.7x | 232, 0.53x |
@@ -36,19 +36,19 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`convnext_tiny.fb_in22k_ft_in1k`](#convnext) | yes | 1.15, 3.6x | 110, 0.64x |
 | [`convnext_tiny.fb_in22k_ft_in1k_384`](#convnext) | yes | 1.56, 2.9x | 110, 0.52x |
 | [`convnextv2_base`](#convnextv2) | no | 2.96, 3.6x | 238, 0.57x |
-| [`davit_base`](#davit) | yes | – | – |
-| [`davit_small`](#davit) | yes | – | – |
-| [`davit_tiny`](#davit) | yes | – | – |
+| [`davit_base`](#davit) | yes | 2.09, 6.4x | 244, 0.59x |
+| [`davit_small`](#davit) | yes | 1.88, 6.9x | 168, 0.64x |
+| [`davit_tiny`](#davit) | yes | 1.17, 5.9x | 134, 0.77x |
 | [`deit_base_patch16_224`](#deit) | yes | 1.66, 3.3x | 248, 0.64x |
 | [`densenet121`](#densenet) | yes | 1.29, 8.3x | 92, 1.0x |
 | [`dinov2_vitl14_lc`](#dinov2_linear_cls) | yes | 4.95, 2.2x | 672, 0.55x |
-| [`efficientformer_l1`](#efficientformer) | yes | – | – |
-| [`efficientformer_l3`](#efficientformer) | yes | – | – |
-| [`efficientformer_l7`](#efficientformer) | yes | – | – |
-| [`efficientformerv2_l`](#efficientformerv2) | yes | – | – |
-| [`efficientformerv2_s0`](#efficientformerv2) | yes | – | – |
-| [`efficientformerv2_s1`](#efficientformerv2) | yes | – | – |
-| [`efficientformerv2_s2`](#efficientformerv2) | yes | – | – |
+| [`efficientformer_l1`](#efficientformer) | yes | 0.704, 6.9x | 126, 1.3x |
+| [`efficientformer_l3`](#efficientformer) | yes | 1.21, 6.9x | 218, 1.3x |
+| [`efficientformer_l7`](#efficientformer) | yes | 2.04, 6.0x | 346, 0.92x |
+| [`efficientformerv2_l`](#efficientformerv2) | yes | 3.05, 6.5x | 188, 1.1x |
+| [`efficientformerv2_s0`](#efficientformerv2) | yes | 1.20, 6.8x | 66, 1.1x |
+| [`efficientformerv2_s1`](#efficientformerv2) | yes | 1.39, 7.3x | 88, 1.2x |
+| [`efficientformerv2_s2`](#efficientformerv2) | yes | 2.17, 7.0x | 104, 0.9x |
 | [`efficientnet_b0`](#efficientnet) | yes | 0.769, 7.3x | 118, 1.5x |
 | [`efficientnet_b4`](#efficientnet) | yes | 2.02, 5.5x | 118, 0.68x |
 | [`efficientnet_v2_s`](#efficientnetv2) | yes | 1.91, 6.4x | 128, 0.81x |
@@ -58,19 +58,19 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`fastvit_sa24`](#fastvit) | yes | 1.41, 5.0x (256x256) | 132, 0.93x |
 | [`fastvit_t12.apple_dist_in1k`](#fastvit) | yes | 0.781, 4.6x (256x256) | 76, 0.95x |
 | [`fastvit_t8.apple_dist_in1k`](#fastvit) | yes | 0.709, 4.3x (256x256) | 76, 1.1x |
-| [`focalnet_base_lrf`](#focalnet) | yes | – | – |
-| [`focalnet_base_srf`](#focalnet) | yes | – | – |
-| [`focalnet_small_lrf`](#focalnet) | yes | – | – |
-| [`focalnet_small_srf`](#focalnet) | yes | – | – |
-| [`focalnet_tiny_lrf`](#focalnet) | yes | – | – |
-| [`focalnet_tiny_srf`](#focalnet) | yes | – | – |
-| [`hgnetv2_b0`](#hgnetv2) | yes | – | – |
-| [`hgnetv2_b1`](#hgnetv2) | yes | – | – |
-| [`hgnetv2_b2`](#hgnetv2) | yes | – | – |
-| [`hgnetv2_b3`](#hgnetv2) | yes | – | – |
-| [`hgnetv2_b4`](#hgnetv2) | yes | – | – |
-| [`hgnetv2_b5`](#hgnetv2) | yes | – | – |
-| [`hgnetv2_b6`](#hgnetv2) | yes | – | – |
+| [`focalnet_base_lrf`](#focalnet) | yes | 5.44, 3.3x | 258, 0.62x |
+| [`focalnet_base_srf`](#focalnet) | yes | 4.99, 3.4x | 256, 0.62x |
+| [`focalnet_small_lrf`](#focalnet) | yes | 4.18, 4.0x | 154, 0.61x |
+| [`focalnet_small_srf`](#focalnet) | yes | 3.73, 4.3x | 154, 0.61x |
+| [`focalnet_tiny_lrf`](#focalnet) | yes | 2.39, 3.7x | 138, 0.77x |
+| [`focalnet_tiny_srf`](#focalnet) | yes | 2.19, 3.8x | 138, 0.78x |
+| [`hgnetv2_b0`](#hgnetv2) | yes | 0.568, 7.8x | 72, 1.0x |
+| [`hgnetv2_b1`](#hgnetv2) | yes | 0.603, 7.6x | 70, 0.76x |
+| [`hgnetv2_b2`](#hgnetv2) | yes | 0.765, 8.2x | 94, 0.82x |
+| [`hgnetv2_b3`](#hgnetv2) | yes | 0.909, 7.9x | 116, 0.87x |
+| [`hgnetv2_b4`](#hgnetv2) | yes | 0.864, 8.2x | 138, 0.99x |
+| [`hgnetv2_b5`](#hgnetv2) | yes | 1.29, 8.9x | 156, 0.7x |
+| [`hgnetv2_b6`](#hgnetv2) | yes | 2.10, 7.9x | 232, 0.62x |
 | [`inception_v3`](#inception_v3) | yes | 1.31, 6.0x | 208, 1.2x |
 | [`mobilenet_v2`](#mobilenetv2) | yes | 0.439, 8.2x | 92, 1.3x |
 | [`mobilenet_v3_large`](#mobilenetv3) | yes | 0.545, 7.9x | 114, 1.5x |
@@ -91,10 +91,10 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`resnet18`](#resnet) | yes | 0.472, 4.0x | 110, 0.85x |
 | [`resnet50`](#resnet) | yes | 0.826, 5.7x | 162, 1.0x |
 | [`shufflenet_v2_x1_0`](#shufflenetv2) | yes | 0.804, 6.0x | 76, 1.6x |
-| [`shvit_s1`](#shvit) | yes | – | – |
-| [`shvit_s2`](#shvit) | yes | – | – |
-| [`shvit_s3`](#shvit) | yes | – | – |
-| [`shvit_s4`](#shvit) | yes | – | – |
+| [`shvit_s1`](#shvit) | yes | 0.805, 10.4x | 62, 0.94x |
+| [`shvit_s2`](#shvit) | yes | 0.949, 8.8x | 88, 0.86x |
+| [`shvit_s3`](#shvit) | yes | 1.01, 9.3x | 112, 1.0x |
+| [`shvit_s4`](#shvit) | yes | 1.78, 6.4x (256x256) | 102, 0.86x |
 | [`squeezenet1_1`](#squeezenet) | yes | 0.376, 4.6x | 12, 0.43x |
 | [`starnet_s1`](#starnet) | yes | 0.683, 6.7x | 56, 0.97x |
 | [`starnet_s2`](#starnet) | yes | 0.578, 6.3x | 58, 0.91x |
@@ -173,16 +173,16 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `coatnet_nano_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.88<br>10.6<br>7.23<br>–<br>4.71<br>0.709 | 105 / 114<br>124 / 146<br>74 / 86<br>–<br>96 / 126<br>102 / 124 |
-| `coatnet_rmlp_nano_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.95<br>12.1<br>8.09<br>–<br>9.89<br>0.868 | 121 / 154<br>124 / 146<br>78 / 106<br>–<br>110 / 126<br>122 / 144 |
-| `coatnet_0_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.64<br>9.59<br>6.49<br>–<br>3.59<br>0.849 | 156 / 180<br>194 / 210<br>102 / 124<br>–<br>120 / 142<br>158 / 170 |
-| `coatnet_1_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.3<br>15.7<br>10.7<br>–<br>5.58<br>1.38 | 225 / 254<br>277 / 294<br>132 / 158<br>–<br>149 / 176<br>231 / 250 |
-| `coatnet_rmlp_1_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.0<br>18.4<br>12.4<br>–<br>6.54<br>1.47 | 213 / 234<br>278 / 296<br>131 / 156<br>–<br>155 / 176<br>243 / 262 |
-| `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.9<br>18.3<br>12.3<br>–<br>6.63<br>1.55 | 226 / 254<br>278 / 296<br>132 / 158<br>–<br>162 / 176<br>257 / 276 |
-| `coatnet_2_rw_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>15.7<br>11.9<br>–<br>5.53<br>1.73 | 376 / 410<br>466 / 470<br>207 / 240<br>–<br>211 / 240<br>374 / 416 |
-| `coatnet_rmlp_2_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>18.6<br>15.1<br>–<br>6.34<br>1.92 | 376 / 410<br>466 / 472<br>207 / 240<br>–<br>238 / 260<br>404 / 446 |
-| `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>18.6<br>12.8<br>–<br>6.52<br>1.87 | 376 / 410<br>466 / 470<br>207 / 240<br>–<br>238 / 260<br>402 / 444 |
-| `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` | synthetic (384x384) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 27.9<br>17.9<br>13.9<br>–<br>6.92<br>3.69 | 520 / 566<br>516 / 528<br>296 / 330<br>–<br>326 / 370<br>464 / 500 |
+| `coatnet_nano_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.88<br>10.6<br>7.23<br>1.62<br>4.71<br>0.709 | 105 / 114<br>124 / 146<br>74 / 86<br>72 / 106<br>96 / 126<br>102 / 124 |
+| `coatnet_rmlp_nano_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.95<br>12.1<br>8.09<br>1.75<br>9.89<br>0.868 | 121 / 154<br>124 / 146<br>78 / 106<br>77 / 106<br>110 / 126<br>122 / 144 |
+| `coatnet_0_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.64<br>9.59<br>6.49<br>1.74<br>3.59<br>0.849 | 156 / 180<br>194 / 210<br>102 / 124<br>100 / 144<br>120 / 142<br>158 / 170 |
+| `coatnet_1_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.3<br>15.7<br>10.7<br>2.89<br>5.58<br>1.38 | 225 / 254<br>277 / 294<br>132 / 158<br>130 / 196<br>149 / 176<br>231 / 250 |
+| `coatnet_rmlp_1_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.0<br>18.4<br>12.4<br>3.04<br>6.54<br>1.47 | 213 / 234<br>278 / 296<br>131 / 156<br>129 / 178<br>155 / 176<br>243 / 262 |
+| `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.9<br>18.3<br>12.3<br>3.01<br>6.63<br>1.55 | 226 / 254<br>278 / 296<br>132 / 158<br>130 / 178<br>162 / 176<br>257 / 276 |
+| `coatnet_2_rw_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 14.6<br>15.7<br>11.9<br>4.01<br>5.53<br>1.73 | 376 / 410<br>466 / 470<br>207 / 240<br>204 / 240<br>211 / 240<br>374 / 416 |
+| `coatnet_rmlp_2_rw_224.sw_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>18.6<br>15.1<br>4.24<br>6.34<br>1.92 | 376 / 410<br>466 / 472<br>207 / 240<br>204 / 240<br>238 / 260<br>404 / 446 |
+| `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.3<br>18.6<br>12.8<br>4.24<br>6.52<br>1.87 | 376 / 410<br>466 / 470<br>207 / 240<br>204 / 240<br>238 / 260<br>402 / 444 |
+| `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` | synthetic (384x384) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 27.9<br>17.9<br>13.9<br>12.8<br>6.92<br>3.69 | 520 / 566<br>516 / 528<br>296 / 330<br>288 / 356<br>326 / 370<br>464 / 500 |
 
 <details><summary>Details</summary>
 
@@ -214,25 +214,35 @@ Commercial use: yes.
 - `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` 224x224, first call: portable + torch.compile 18 s (cold Inductor cache), TensorRT fp16 41 s (ONNX + engine).
 - `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` 384x384, first call: portable + torch.compile 19 s (cold Inductor cache), TensorRT fp16 42 s (ONNX + engine).
 - `coatnet_nano_rw_224.sw_in1k` original 224x224: torch.autocast(float16) around the call
+- `coatnet_nano_rw_224.sw_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `coatnet_rmlp_nano_rw_224.sw_in1k` original 224x224: torch.autocast(float16) around the call
+- `coatnet_rmlp_nano_rw_224.sw_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `coatnet_0_rw_224.sw_in1k` original 224x224: torch.autocast(float16) around the call
+- `coatnet_0_rw_224.sw_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `coatnet_1_rw_224.sw_in1k` original 224x224: torch.autocast(float16) around the call
+- `coatnet_1_rw_224.sw_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `coatnet_rmlp_1_rw_224.sw_in1k` original 224x224: torch.autocast(float16) around the call
+- `coatnet_rmlp_1_rw_224.sw_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` original 224x224: torch.autocast(float16) around the call
+- `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `coatnet_2_rw_224.sw_in12k_ft_in1k` original 224x224: torch.autocast(float16) around the call
+- `coatnet_2_rw_224.sw_in12k_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `coatnet_rmlp_2_rw_224.sw_in1k` original 224x224: torch.autocast(float16) around the call
+- `coatnet_rmlp_2_rw_224.sw_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` original 224x224: torch.autocast(float16) around the call
+- `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` original 384x384: torch.autocast(float16) around the call
-- `coatnet_nano_rw_224.sw_in1k` load / first call: original 0.28 s / 0.539 s, portable 1.37 s / 0.422 s
-- `coatnet_rmlp_nano_rw_224.sw_in1k` load / first call: original 0.26 s / 0.187 s, portable 1.36 s / 0.393 s
-- `coatnet_0_rw_224.sw_in1k` load / first call: original 0.38 s / 0.312 s, portable 1.37 s / 0.378 s
-- `coatnet_1_rw_224.sw_in1k` load / first call: original 0.47 s / 0.15 s, portable 1.44 s / 0.366 s
-- `coatnet_rmlp_1_rw_224.sw_in1k` load / first call: original 0.47 s / 0.022 s, portable 1.47 s / 0.373 s
-- `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` load / first call: original 0.47 s / 0.022 s, portable 1.49 s / 0.366 s
-- `coatnet_2_rw_224.sw_in12k_ft_in1k` load / first call: original 0.74 s / 0.314 s, portable 1.52 s / 0.505 s
-- `coatnet_rmlp_2_rw_224.sw_in1k` load / first call: original 0.71 s / 0.022 s, portable 1.54 s / 0.506 s
-- `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` load / first call: original 0.71 s / 0.022 s, portable 1.8 s / 0.504 s
-- `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` load / first call: original 0.74 s / 0.053 s (384x384), portable 1.52 s / 0.435 s (384x384)
+- `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` kernels 384x384: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `coatnet_nano_rw_224.sw_in1k` load / first call: original 0.28 s / 0.539 s, portable 1.37 s / 0.422 s, kernels 2.25 s / 0.45 s
+- `coatnet_rmlp_nano_rw_224.sw_in1k` load / first call: original 0.26 s / 0.187 s, portable 1.36 s / 0.393 s, kernels 2.04 s / 0.311 s
+- `coatnet_0_rw_224.sw_in1k` load / first call: original 0.38 s / 0.312 s, portable 1.37 s / 0.378 s, kernels 1.94 s / 0.285 s
+- `coatnet_1_rw_224.sw_in1k` load / first call: original 0.47 s / 0.15 s, portable 1.44 s / 0.366 s, kernels 2.45 s / 0.284 s
+- `coatnet_rmlp_1_rw_224.sw_in1k` load / first call: original 0.47 s / 0.022 s, portable 1.47 s / 0.373 s, kernels 2.46 s / 0.291 s
+- `coatnet_rmlp_1_rw2_224.sw_in12k_ft_in1k` load / first call: original 0.47 s / 0.022 s, portable 1.49 s / 0.366 s, kernels 2.82 s / 0.291 s
+- `coatnet_2_rw_224.sw_in12k_ft_in1k` load / first call: original 0.74 s / 0.314 s, portable 1.52 s / 0.505 s, kernels 2.88 s / 0.441 s
+- `coatnet_rmlp_2_rw_224.sw_in1k` load / first call: original 0.71 s / 0.022 s, portable 1.54 s / 0.506 s, kernels 2.58 s / 0.434 s
+- `coatnet_rmlp_2_rw_224.sw_in12k_ft_in1k` load / first call: original 0.71 s / 0.022 s, portable 1.8 s / 0.504 s, kernels 2.61 s / 0.43 s
+- `coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k` load / first call: original 0.74 s / 0.053 s (384x384), portable 1.52 s / 0.435 s (384x384), kernels 2.41 s / 0.395 s (384x384)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -465,9 +475,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `davit_tiny.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.93<br>9.88<br>6.33<br>–<br>3.10<br>1.03 | 158 / 174<br>196 / 204<br>96 / 116<br>–<br>125 / 136<br>159 / 166 |
-| `davit_small.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.0<br>18.8<br>12.8<br>–<br>5.54<br>1.92 | 239 / 262<br>319 / 324<br>136 / 150<br>–<br>166 / 190<br>234 / 254 |
-| `davit_base.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.4<br>20.0<br>11.7<br>–<br>5.48<br>2.28 | 390 / 416<br>537 / 548<br>212 / 224<br>–<br>242 / 262<br>403 / 422 |
+| `davit_tiny.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.93<br>9.88<br>6.33<br>1.17<br>3.10<br>1.03 | 158 / 174<br>196 / 204<br>96 / 116<br>93 / 134<br>125 / 136<br>159 / 166 |
+| `davit_small.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.0<br>18.8<br>12.8<br>1.88<br>5.54<br>1.92 | 239 / 262<br>319 / 324<br>136 / 150<br>134 / 168<br>166 / 190<br>234 / 254 |
+| `davit_base.msft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 13.4<br>20.0<br>11.7<br>2.09<br>5.48<br>2.28 | 390 / 416<br>537 / 548<br>212 / 224<br>209 / 244<br>242 / 262<br>403 / 422 |
 
 <details><summary>Details</summary>
 
@@ -485,11 +495,14 @@ Commercial use: yes.
 - `davit_small.msft_in1k` 224x224, first call: portable + torch.compile 22 s (cold Inductor cache), TensorRT fp16 66 s (ONNX + engine).
 - `davit_base.msft_in1k` 224x224, first call: portable + torch.compile 22 s (cold Inductor cache), TensorRT fp16 71 s (ONNX + engine).
 - `davit_tiny.msft_in1k` original 224x224: torch.autocast(float16) around the call
+- `davit_tiny.msft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `davit_small.msft_in1k` original 224x224: torch.autocast(float16) around the call
+- `davit_small.msft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `davit_base.msft_in1k` original 224x224: torch.autocast(float16) around the call
-- `davit_tiny.msft_in1k` load / first call: original 0.39 s / 0.85 s, portable 1.47 s / 0.254 s
-- `davit_small.msft_in1k` load / first call: original 0.53 s / 0.021 s, portable 1.6 s / 0.235 s
-- `davit_base.msft_in1k` load / first call: original 0.99 s / 0.565 s, portable 1.84 s / 0.265 s
+- `davit_base.msft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `davit_tiny.msft_in1k` load / first call: original 0.39 s / 0.85 s, portable 1.47 s / 0.254 s, kernels 2.35 s / 0.117 s
+- `davit_small.msft_in1k` load / first call: original 0.53 s / 0.021 s, portable 1.6 s / 0.235 s, kernels 2.91 s / 0.079 s
+- `davit_base.msft_in1k` load / first call: original 0.99 s / 0.565 s, portable 1.84 s / 0.265 s, kernels 3.74 s / 0.081 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -673,9 +686,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `efficientformer_l1.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.87<br>6.40<br>3.72<br>–<br>1.69<br>0.335 | 87 / 98<br>104 / 124<br>93 / 104<br>–<br>125 / 144<br>128 / 142 |
-| `efficientformer_l3.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.39<br>11.0<br>6.37<br>–<br>2.57<br>0.750 | 164 / 172<br>214 / 236<br>161 / 216<br>–<br>193 / 216<br>227 / 286 |
-| `efficientformer_l7.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.3<br>15.9<br>9.65<br>–<br>3.69<br>1.40 | 363 / 378<br>505 / 522<br>300 / 324<br>–<br>332 / 364<br>460 / 490 |
+| `efficientformer_l1.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.87<br>6.40<br>3.72<br>0.704<br>1.69<br>0.335 | 87 / 98<br>104 / 124<br>93 / 104<br>91 / 126<br>125 / 144<br>128 / 142 |
+| `efficientformer_l3.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.39<br>11.0<br>6.37<br>1.21<br>2.57<br>0.750 | 164 / 172<br>214 / 236<br>161 / 216<br>160 / 218<br>193 / 216<br>227 / 286 |
+| `efficientformer_l7.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 12.3<br>15.9<br>9.65<br>2.04<br>3.69<br>1.40 | 363 / 378<br>505 / 522<br>300 / 324<br>298 / 346<br>332 / 364<br>460 / 490 |
 
 <details><summary>Details</summary>
 
@@ -693,11 +706,14 @@ Commercial use: yes.
 - `efficientformer_l3.snap_dist_in1k` 224x224, first call: portable + torch.compile 12 s (cold Inductor cache), TensorRT fp16 39 s (ONNX + engine).
 - `efficientformer_l7.snap_dist_in1k` 224x224, first call: portable + torch.compile 14 s (cold Inductor cache), TensorRT fp16 40 s (ONNX + engine).
 - `efficientformer_l1.snap_dist_in1k` original 224x224: torch.autocast(float16) around the call
+- `efficientformer_l1.snap_dist_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `efficientformer_l3.snap_dist_in1k` original 224x224: torch.autocast(float16) around the call
+- `efficientformer_l3.snap_dist_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `efficientformer_l7.snap_dist_in1k` original 224x224: torch.autocast(float16) around the call
-- `efficientformer_l1.snap_dist_in1k` load / first call: original 0.22 s / 0.219 s, portable 1.71 s / 0.071 s
-- `efficientformer_l3.snap_dist_in1k` load / first call: original 0.37 s / 0.029 s, portable 1.86 s / 0.076 s
-- `efficientformer_l7.snap_dist_in1k` load / first call: original 0.93 s / 0.03 s, portable 2.27 s / 0.074 s
+- `efficientformer_l7.snap_dist_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `efficientformer_l1.snap_dist_in1k` load / first call: original 0.22 s / 0.219 s, portable 1.71 s / 0.071 s, kernels 1.99 s / 0.072 s
+- `efficientformer_l3.snap_dist_in1k` load / first call: original 0.37 s / 0.029 s, portable 1.86 s / 0.076 s, kernels 2.28 s / 0.055 s
+- `efficientformer_l7.snap_dist_in1k` load / first call: original 0.93 s / 0.03 s, portable 2.27 s / 0.074 s, kernels 2.87 s / 0.057 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -734,10 +750,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `efficientformerv2_s0.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.16<br>11.8<br>7.62<br>–<br>3.34<br>0.550 | 55 / 62<br>55 / 64<br>44 / 64<br>–<br>76 / 104<br>78 / 100 |
-| `efficientformerv2_s1.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.1<br>14.9<br>8.91<br>–<br>3.91<br>0.632 | 65 / 72<br>70 / 80<br>50 / 88<br>–<br>82 / 108<br>86 / 126 |
-| `efficientformerv2_s2.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.2<br>21.8<br>13.9<br>–<br>5.55<br>0.919 | 91 / 116<br>108 / 116<br>64 / 104<br>–<br>96 / 124<br>100 / 142 |
-| `efficientformerv2_l.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.9<br>29.0<br>17.1<br>–<br>7.32<br>1.20 | 145 / 168<br>186 / 198<br>93 / 144<br>–<br>125 / 184<br>161 / 214 |
+| `efficientformerv2_s0.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.16<br>11.8<br>7.62<br>1.20<br>3.34<br>0.550 | 55 / 62<br>55 / 64<br>44 / 64<br>44 / 66<br>76 / 104<br>78 / 100 |
+| `efficientformerv2_s1.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 10.1<br>14.9<br>8.91<br>1.39<br>3.91<br>0.632 | 65 / 72<br>70 / 80<br>50 / 88<br>50 / 88<br>82 / 108<br>86 / 126 |
+| `efficientformerv2_s2.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.2<br>21.8<br>13.9<br>2.17<br>5.55<br>0.919 | 91 / 116<br>108 / 116<br>64 / 104<br>64 / 104<br>96 / 124<br>100 / 142 |
+| `efficientformerv2_l.snap_dist_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 19.9<br>29.0<br>17.1<br>3.05<br>7.32<br>1.20 | 145 / 168<br>186 / 198<br>93 / 144<br>94 / 188<br>125 / 184<br>161 / 214 |
 
 <details><summary>Details</summary>
 
@@ -756,13 +772,17 @@ Commercial use: yes.
 - `efficientformerv2_s2.snap_dist_in1k` 224x224, first call: portable + torch.compile 16 s (cold Inductor cache), TensorRT fp16 39 s (ONNX + engine).
 - `efficientformerv2_l.snap_dist_in1k` 224x224, first call: portable + torch.compile 21 s (cold Inductor cache), TensorRT fp16 45 s (ONNX + engine).
 - `efficientformerv2_s0.snap_dist_in1k` original 224x224: torch.autocast(float16) around the call
+- `efficientformerv2_s0.snap_dist_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `efficientformerv2_s1.snap_dist_in1k` original 224x224: torch.autocast(float16) around the call
+- `efficientformerv2_s1.snap_dist_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `efficientformerv2_s2.snap_dist_in1k` original 224x224: torch.autocast(float16) around the call
+- `efficientformerv2_s2.snap_dist_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `efficientformerv2_l.snap_dist_in1k` original 224x224: torch.autocast(float16) around the call
-- `efficientformerv2_s0.snap_dist_in1k` load / first call: original 0.17 s / 1.757 s, portable 1.88 s / 0.502 s
-- `efficientformerv2_s1.snap_dist_in1k` load / first call: original 0.19 s / 0.586 s, portable 1.96 s / 0.433 s
-- `efficientformerv2_s2.snap_dist_in1k` load / first call: original 0.24 s / 0.861 s, portable 2.68 s / 0.438 s
-- `efficientformerv2_l.snap_dist_in1k` load / first call: original 0.32 s / 0.73 s, portable 2.74 s / 0.432 s
+- `efficientformerv2_l.snap_dist_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `efficientformerv2_s0.snap_dist_in1k` load / first call: original 0.17 s / 1.757 s, portable 1.88 s / 0.502 s, kernels 2.03 s / 0.084 s
+- `efficientformerv2_s1.snap_dist_in1k` load / first call: original 0.19 s / 0.586 s, portable 1.96 s / 0.433 s, kernels 2.14 s / 0.085 s
+- `efficientformerv2_s2.snap_dist_in1k` load / first call: original 0.24 s / 0.861 s, portable 2.68 s / 0.438 s, kernels 2.53 s / 0.087 s
+- `efficientformerv2_l.snap_dist_in1k` load / first call: original 0.32 s / 0.73 s, portable 2.74 s / 0.432 s, kernels 2.91 s / 0.089 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -1033,6 +1053,16 @@ Commercial use: yes.
 - `falconsai-nsfw-vit` load / first call: original 2.95 s / 0.273 s, portable 2.63 s / 0.094 s, kernels 2.42 s / 0.085 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
+### Measured
+
+fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. All 211 Sexual-category images from the official test split (150 unsafe, 61 safe), from LAION-5B and Lexica. Apply each implementation's normal resize and use the checkpoint's default top-1 prediction. Balanced accuracy averages unsafe and safe recall. Original = the original code named under Details, same checkpoint and protocol.
+
+| variant | dataset | original fp32 | portable | portable fp32 | note |
+|---|---|---|---|---|---|
+| `falconsai-nsfw-vit` | UnsafeBench test (Sexual), balanced accuracy / accuracy / recall / precision / F1 % | 69.03 / 57.35 / 41.33 / 96.72 / 96.88 / 57.94 | 68.21 / 56.87 / 41.33 / 95.08 / 95.38 / 57.67 | 69.03 / 57.35 / 41.33 / 96.72 / 96.88 / 57.94 |  |
+
+Measured on NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks ecfe045ca, 2026-11-19.
+
 ### Parity
 
 CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), portable and kernels: mean |diff| <= 0.009 and p99 <= 0.011 (absolute error of the output `logits`).
@@ -1043,7 +1073,7 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
-- No accuracy measurement: the weights' training set (Falconsai's private labelled NSFW images) is not published and no public labelled NSFW test set is part of the evaluation data here; tiers are compared by output parity and speed only.
+- The accuracy comparison covers the Sexual category of the official UnsafeBench test split. Falconsai's training set is private, so overlap with the evaluation images is unknown.
 - The image is stretched to 224 x 224 without keeping its aspect ratio, as the original processor does.
 
 </details>
@@ -1123,12 +1153,12 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `focalnet_tiny_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.39<br>10.4<br>7.36<br>–<br>3.72<br>0.864 | 157 / 178<br>197 / 206<br>95 / 118<br>–<br>120 / 136<br>159 / 188 |
-| `focalnet_small_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>20.1<br>14.0<br>–<br>6.90<br>1.49 | 239 / 252<br>320 / 336<br>136 / 152<br>–<br>161 / 190<br>234 / 256 |
-| `focalnet_base_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.1<br>20.0<br>14.2<br>–<br>6.94<br>1.74 | 390 / 414<br>542 / 558<br>211 / 234<br>–<br>234 / 272<br>401 / 430 |
-| `focalnet_tiny_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.92<br>11.4<br>8.07<br>–<br>3.94<br>0.952 | 158 / 180<br>199 / 208<br>95 / 118<br>–<br>120 / 138<br>158 / 186 |
-| `focalnet_small_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.8<br>22.0<br>15.8<br>–<br>7.28<br>1.70 | 241 / 254<br>323 / 338<br>136 / 152<br>–<br>162 / 192<br>265 / 286 |
-| `focalnet_base_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 18.0<br>22.1<br>15.5<br>–<br>7.47<br>2.08 | 393 / 416<br>546 / 560<br>212 / 234<br>–<br>235 / 274<br>404 / 432 |
+| `focalnet_tiny_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.39<br>10.4<br>7.36<br>2.19<br>3.72<br>0.864 | 157 / 178<br>197 / 206<br>95 / 118<br>93 / 138<br>120 / 136<br>159 / 188 |
+| `focalnet_small_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 15.9<br>20.1<br>14.0<br>3.73<br>6.90<br>1.49 | 239 / 252<br>320 / 336<br>136 / 152<br>134 / 154<br>161 / 190<br>234 / 256 |
+| `focalnet_base_srf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 17.1<br>20.0<br>14.2<br>4.99<br>6.94<br>1.74 | 390 / 414<br>542 / 558<br>211 / 234<br>210 / 256<br>234 / 272<br>401 / 430 |
+| `focalnet_tiny_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.92<br>11.4<br>8.07<br>2.39<br>3.94<br>0.952 | 158 / 180<br>199 / 208<br>95 / 118<br>93 / 138<br>120 / 138<br>158 / 186 |
+| `focalnet_small_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.8<br>22.0<br>15.8<br>4.18<br>7.28<br>1.70 | 241 / 254<br>323 / 338<br>136 / 152<br>136 / 154<br>162 / 192<br>265 / 286 |
+| `focalnet_base_lrf.ms_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 18.0<br>22.1<br>15.5<br>5.44<br>7.47<br>2.08 | 393 / 416<br>546 / 560<br>212 / 234<br>212 / 258<br>235 / 274<br>404 / 432 |
 
 <details><summary>Details</summary>
 
@@ -1149,17 +1179,23 @@ Commercial use: yes.
 - `focalnet_small_lrf.ms_in1k` 224x224, first call: portable + torch.compile 19 s (cold Inductor cache), TensorRT fp16 62 s (ONNX + engine).
 - `focalnet_base_lrf.ms_in1k` 224x224, first call: portable + torch.compile 20 s (cold Inductor cache), TensorRT fp16 64 s (ONNX + engine).
 - `focalnet_tiny_srf.ms_in1k` original 224x224: torch.autocast(float16) around the call
+- `focalnet_tiny_srf.ms_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `focalnet_small_srf.ms_in1k` original 224x224: torch.autocast(float16) around the call
+- `focalnet_small_srf.ms_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `focalnet_base_srf.ms_in1k` original 224x224: torch.autocast(float16) around the call
+- `focalnet_base_srf.ms_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `focalnet_tiny_lrf.ms_in1k` original 224x224: torch.autocast(float16) around the call
+- `focalnet_tiny_lrf.ms_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `focalnet_small_lrf.ms_in1k` original 224x224: torch.autocast(float16) around the call
+- `focalnet_small_lrf.ms_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `focalnet_base_lrf.ms_in1k` original 224x224: torch.autocast(float16) around the call
-- `focalnet_tiny_srf.ms_in1k` load / first call: original 0.4 s / 0.445 s, portable 1.49 s / 0.495 s
-- `focalnet_small_srf.ms_in1k` load / first call: original 0.54 s / 0.023 s, portable 1.73 s / 0.49 s
-- `focalnet_base_srf.ms_in1k` load / first call: original 0.89 s / 0.052 s, portable 1.92 s / 0.487 s
-- `focalnet_tiny_lrf.ms_in1k` load / first call: original 0.36 s / 0.154 s, portable 2.56 s / 0.771 s
-- `focalnet_small_lrf.ms_in1k` load / first call: original 0.54 s / 0.025 s, portable 1.86 s / 0.687 s
-- `focalnet_base_lrf.ms_in1k` load / first call: original 0.91 s / 0.033 s, portable 1.89 s / 0.616 s
+- `focalnet_base_lrf.ms_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `focalnet_tiny_srf.ms_in1k` load / first call: original 0.4 s / 0.445 s, portable 1.49 s / 0.495 s, kernels 2.61 s / 0.139 s
+- `focalnet_small_srf.ms_in1k` load / first call: original 0.54 s / 0.023 s, portable 1.73 s / 0.49 s, kernels 3.08 s / 0.124 s
+- `focalnet_base_srf.ms_in1k` load / first call: original 0.89 s / 0.052 s, portable 1.92 s / 0.487 s, kernels 3.27 s / 0.139 s
+- `focalnet_tiny_lrf.ms_in1k` load / first call: original 0.36 s / 0.154 s, portable 2.56 s / 0.771 s, kernels 2.86 s / 0.138 s
+- `focalnet_small_lrf.ms_in1k` load / first call: original 0.54 s / 0.025 s, portable 1.86 s / 0.687 s, kernels 3.29 s / 0.124 s
+- `focalnet_base_lrf.ms_in1k` load / first call: original 0.91 s / 0.033 s, portable 1.89 s / 0.616 s, kernels 3.85 s / 0.14 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -1202,13 +1238,13 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `hgnetv2_b0.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.45<br>5.89<br>3.46<br>–<br>1.78<br>0.334 | 65 / 70<br>68 / 72<br>48 / 70<br>–<br>78 / 110<br>77 / 100 |
-| `hgnetv2_b1.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.57<br>6.17<br>3.47<br>–<br>1.84<br>0.307 | 66 / 94<br>70 / 92<br>50 / 68<br>–<br>80 / 108<br>81 / 104 |
-| `hgnetv2_b2.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.25<br>7.98<br>4.55<br>–<br>2.33<br>0.383 | 89 / 114<br>98 / 118<br>59 / 94<br>–<br>89 / 134<br>91 / 128 |
-| `hgnetv2_b3.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.16<br>9.30<br>5.22<br>–<br>2.55<br>0.436 | 112 / 134<br>127 / 140<br>76 / 114<br>–<br>99 / 152<br>100 / 150 |
-| `hgnetv2_b4.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.06<br>8.41<br>4.53<br>–<br>2.66<br>0.463 | 131 / 140<br>147 / 166<br>82 / 116<br>–<br>107 / 134<br>139 / 182 |
-| `hgnetv2_b5.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.4<br>13.8<br>7.04<br>–<br>4.13<br>0.758 | 213 / 222<br>260 / 280<br>114 / 150<br>–<br>146 / 190<br>209 / 250 |
-| `hgnetv2_b6.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.5<br>17.9<br>9.44<br>–<br>5.44<br>1.42 | 354 / 376<br>465 / 490<br>198 / 224<br>–<br>217 / 264<br>347 / 394 |
+| `hgnetv2_b0.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.45<br>5.89<br>3.46<br>0.568<br>1.78<br>0.334 | 65 / 70<br>68 / 72<br>48 / 70<br>46 / 72<br>78 / 110<br>77 / 100 |
+| `hgnetv2_b1.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4.57<br>6.17<br>3.47<br>0.603<br>1.84<br>0.307 | 66 / 94<br>70 / 92<br>50 / 68<br>48 / 70<br>80 / 108<br>81 / 104 |
+| `hgnetv2_b2.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 6.25<br>7.98<br>4.55<br>0.765<br>2.33<br>0.383 | 89 / 114<br>98 / 118<br>59 / 94<br>57 / 94<br>89 / 134<br>91 / 128 |
+| `hgnetv2_b3.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.16<br>9.30<br>5.22<br>0.909<br>2.55<br>0.436 | 112 / 134<br>127 / 140<br>76 / 114<br>67 / 116<br>99 / 152<br>100 / 150 |
+| `hgnetv2_b4.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 7.06<br>8.41<br>4.53<br>0.864<br>2.66<br>0.463 | 131 / 140<br>147 / 166<br>82 / 116<br>75 / 138<br>107 / 134<br>139 / 182 |
+| `hgnetv2_b5.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.4<br>13.8<br>7.04<br>1.29<br>4.13<br>0.758 | 213 / 222<br>260 / 280<br>114 / 150<br>115 / 156<br>146 / 190<br>209 / 250 |
+| `hgnetv2_b6.ssld_stage2_ft_in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 16.5<br>17.9<br>9.44<br>2.10<br>5.44<br>1.42 | 354 / 376<br>465 / 490<br>198 / 224<br>188 / 232<br>217 / 264<br>347 / 394 |
 
 <details><summary>Details</summary>
 
@@ -1230,19 +1266,26 @@ Commercial use: yes.
 - `hgnetv2_b5.ssld_stage2_ft_in1k` 224x224, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 24 s (ONNX + engine).
 - `hgnetv2_b6.ssld_stage2_ft_in1k` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 27 s (ONNX + engine).
 - `hgnetv2_b0.ssld_stage2_ft_in1k` original 224x224: torch.autocast(float16) around the call
+- `hgnetv2_b0.ssld_stage2_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `hgnetv2_b1.ssld_stage2_ft_in1k` original 224x224: torch.autocast(float16) around the call
+- `hgnetv2_b1.ssld_stage2_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `hgnetv2_b2.ssld_stage2_ft_in1k` original 224x224: torch.autocast(float16) around the call
+- `hgnetv2_b2.ssld_stage2_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `hgnetv2_b3.ssld_stage2_ft_in1k` original 224x224: torch.autocast(float16) around the call
+- `hgnetv2_b3.ssld_stage2_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `hgnetv2_b4.ssld_stage2_ft_in1k` original 224x224: torch.autocast(float16) around the call
+- `hgnetv2_b4.ssld_stage2_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `hgnetv2_b5.ssld_stage2_ft_in1k` original 224x224: torch.autocast(float16) around the call
+- `hgnetv2_b5.ssld_stage2_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `hgnetv2_b6.ssld_stage2_ft_in1k` original 224x224: torch.autocast(float16) around the call
-- `hgnetv2_b0.ssld_stage2_ft_in1k` load / first call: original 0.19 s / 1.357 s, portable 1.67 s / 0.735 s
-- `hgnetv2_b1.ssld_stage2_ft_in1k` load / first call: original 0.31 s / 0.313 s, portable 1.87 s / 0.396 s
-- `hgnetv2_b2.ssld_stage2_ft_in1k` load / first call: original 0.23 s / 0.59 s, portable 1.79 s / 0.39 s
-- `hgnetv2_b3.ssld_stage2_ft_in1k` load / first call: original 0.27 s / 0.165 s, portable 1.81 s / 0.395 s
-- `hgnetv2_b4.ssld_stage2_ft_in1k` load / first call: original 0.32 s / 0.297 s, portable 1.74 s / 0.389 s
-- `hgnetv2_b5.ssld_stage2_ft_in1k` load / first call: original 0.49 s / 0.305 s, portable 1.95 s / 0.4 s
-- `hgnetv2_b6.ssld_stage2_ft_in1k` load / first call: original 0.86 s / 0.453 s, portable 2.21 s / 0.46 s
+- `hgnetv2_b6.ssld_stage2_ft_in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `hgnetv2_b0.ssld_stage2_ft_in1k` load / first call: original 0.19 s / 1.357 s, portable 1.67 s / 0.735 s, kernels 1.74 s / 0.05 s
+- `hgnetv2_b1.ssld_stage2_ft_in1k` load / first call: original 0.31 s / 0.313 s, portable 1.87 s / 0.396 s, kernels 1.73 s / 0.052 s
+- `hgnetv2_b2.ssld_stage2_ft_in1k` load / first call: original 0.23 s / 0.59 s, portable 1.79 s / 0.39 s, kernels 1.89 s / 0.053 s
+- `hgnetv2_b3.ssld_stage2_ft_in1k` load / first call: original 0.27 s / 0.165 s, portable 1.81 s / 0.395 s, kernels 1.96 s / 0.054 s
+- `hgnetv2_b4.ssld_stage2_ft_in1k` load / first call: original 0.32 s / 0.297 s, portable 1.74 s / 0.389 s, kernels 2.11 s / 0.05 s
+- `hgnetv2_b5.ssld_stage2_ft_in1k` load / first call: original 0.49 s / 0.305 s, portable 1.95 s / 0.4 s, kernels 2.17 s / 0.053 s
+- `hgnetv2_b6.ssld_stage2_ft_in1k` load / first call: original 0.86 s / 0.453 s, portable 2.21 s / 0.46 s, kernels 2.65 s / 0.053 s
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -1722,13 +1765,14 @@ Commercial use: yes.
 
 fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader and its PIL eval transform. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | note |
-|---|---|---|---|---|---|---|---|
-| `resnet18.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 70.80 / 89.18 | 70.80 / 89.18 | 70.82 / 89.12 | 70.72 / 89.12 | 70.74 / 89.10 |  |
-| `resnet50.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.02 / 95.32 | 82.00 / 95.30 | 81.94 / 95.30 | 81.98 / 95.32 | 81.96 / 95.34 |  |
-| `resnet152.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.90 / 96.22 | 82.90 / 96.20 | 82.90 / 96.24 | 82.94 / 96.24 | 82.90 / 96.24 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `resnet18.tv_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 70.80 / 89.18 | 70.80 / 89.18 | 70.82 / 89.12 | 70.72 / 89.12 | 70.74 / 89.10 |  |  |  |
+| `resnet50.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.02 / 95.32 | 82.00 / 95.30 | 81.94 / 95.30 | 81.98 / 95.32 | 81.96 / 95.34 |  |  |  |
+| `resnet50.tv2_in1k` | ImageNet-1k val, one image per class (1,000), top-1 / top-5 % |  |  | 80.20 / 96.40 |  |  | 80.20 / 96.40 | 80.20 / 96.40 |  |
+| `resnet152.tv2_in1k` | ImageNet-1k val, 5000 random images, top-1 / top-5 % | 82.90 / 96.22 | 82.90 / 96.20 | 82.90 / 96.24 | 82.94 / 96.24 | 82.90 / 96.24 |  |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8 / c45a2130, 2026-11-06 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 7c91993, 2026-10-31; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c45a2130, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks c45a2130, 2026-11-19.
 
 ### Parity
 
@@ -1805,10 +1849,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `shvit_s1.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.41<br>11.1<br>6.75<br>–<br>3.11<br>0.510 | 60 / 66<br>70 / 76<br>47 / 58<br>–<br>78 / 98<br>77 / 90 |
-| `shvit_s2.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.37<br>11.1<br>6.76<br>–<br>3.90<br>0.533 | 80 / 102<br>99 / 120<br>56 / 88<br>–<br>88 / 128<br>87 / 120 |
-| `shvit_s3.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9.40<br>12.5<br>8.11<br>–<br>3.64<br>0.575 | 92 / 110<br>115 / 134<br>62 / 112<br>–<br>94 / 132<br>92 / 144 |
-| `shvit_s4.in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.5<br>14.6<br>9.31<br>–<br>4.11<br>0.658 | 103 / 118<br>129 / 146<br>67 / 118<br>–<br>99 / 138<br>101 / 154 |
+| `shvit_s1.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.41<br>11.1<br>6.75<br>0.805<br>3.11<br>0.510 | 60 / 66<br>70 / 76<br>47 / 58<br>47 / 62<br>78 / 98<br>77 / 90 |
+| `shvit_s2.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 8.37<br>11.1<br>6.76<br>0.949<br>3.90<br>0.533 | 80 / 102<br>99 / 120<br>56 / 88<br>57 / 88<br>88 / 128<br>87 / 120 |
+| `shvit_s3.in1k` | synthetic (224x224) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 9.40<br>12.5<br>8.11<br>1.01<br>3.64<br>0.575 | 92 / 110<br>115 / 134<br>62 / 112<br>62 / 112<br>94 / 132<br>92 / 144 |
+| `shvit_s4.in1k` | synthetic (256x256) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 11.5<br>14.6<br>9.31<br>1.78<br>4.11<br>0.658 | 103 / 118<br>129 / 146<br>67 / 118<br>68 / 102<br>99 / 138<br>101 / 154 |
 
 <details><summary>Details</summary>
 
@@ -1829,13 +1873,17 @@ Commercial use: yes.
 - `shvit_s3.in1k` 224x224, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 25 s (ONNX + engine).
 - `shvit_s4.in1k` 256x256, first call: portable + torch.compile 11 s (cold Inductor cache), TensorRT fp16 26 s (ONNX + engine).
 - `shvit_s1.in1k` original 224x224: torch.autocast(float16) around the call
+- `shvit_s1.in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `shvit_s2.in1k` original 224x224: torch.autocast(float16) around the call
+- `shvit_s2.in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `shvit_s3.in1k` original 224x224: torch.autocast(float16) around the call
+- `shvit_s3.in1k` kernels 224x224: Existing CUDA kernel mode on one fixed input with five warm calls.
 - `shvit_s4.in1k` original 256x256: torch.autocast(float16) around the call
-- `shvit_s1.in1k` load / first call: original 0.31 s / 0.921 s, portable 2.16 s / 0.412 s
-- `shvit_s2.in1k` load / first call: original 0.2 s / 0.299 s, portable 2.32 s / 0.478 s
-- `shvit_s3.in1k` load / first call: original 0.21 s / 0.566 s, portable 2.8 s / 0.544 s
-- `shvit_s4.in1k` load / first call: original 0.23 s / 0.307 s (256x256), portable 2.49 s / 0.436 s (256x256)
+- `shvit_s4.in1k` kernels 256x256: Existing CUDA kernel mode on one fixed input with five warm calls.
+- `shvit_s1.in1k` load / first call: original 0.31 s / 0.921 s, portable 2.16 s / 0.412 s, kernels 2.91 s / 0.401 s
+- `shvit_s2.in1k` load / first call: original 0.2 s / 0.299 s, portable 2.32 s / 0.478 s, kernels 2.31 s / 0.454 s
+- `shvit_s3.in1k` load / first call: original 0.21 s / 0.566 s, portable 2.8 s / 0.544 s, kernels 2.22 s / 0.452 s
+- `shvit_s4.in1k` load / first call: original 0.23 s / 0.307 s (256x256), portable 2.49 s / 0.436 s (256x256), kernels 2.38 s / 0.402 s (256x256)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured

@@ -12,6 +12,7 @@ from fastforks import flow
 from fastforks._core import registry
 from fastforks._core.bench import synthetic_pair
 from fastforks.flow.models.gmflow import model as family
+from fastforks.flow.models.gmflow.net import matching
 from fastforks.flow.models.gmflow.net.attention import sdpa
 from fastforks.flow.models.gmflow.net.unimatch import UniMatch
 from fastforks.flow.models.gmflow.net.utils import normalize_img
@@ -107,6 +108,29 @@ def test_cpu_attention_chunks_match_upstream(mask_kind: str) -> None:
     mask = torch.randn(2, 1 if mask_kind == "broadcast" else 530, 80, generator=gen)
     expected = torch.softmax(query @ key.transpose(-2, -1) / 16**0.5 + mask, dim=-1) @ value
     torch.testing.assert_close(sdpa(query, key, value, mask), expected, rtol=0, atol=1e-6)
+
+
+@pytest.mark.gpu
+def test_cuda_local_correlation_chunks(monkeypatch: pytest.MonkeyPatch) -> None:
+    if not torch.cuda.is_available():
+        pytest.skip("needs CUDA")
+    gen = torch.Generator(device="cuda").manual_seed(3)
+    first, second = (torch.randn(2, 16, 11, 17, device="cuda", generator=gen) for _ in range(2))
+    displacement = torch.randn(2, 2, 11, 17, device="cuda", generator=gen)
+
+    with torch.inference_mode():
+        expected_flow, expected_prob = matching.local_correlation_softmax(first, second, 4)
+        expected_refine = matching.local_correlation_with_flow(first, second, displacement, 4)
+        monkeypatch.setattr(matching, "_LOCAL_SAMPLE_BYTES", 128 * 1024)
+        actual_flow, actual_prob = matching.local_correlation_softmax(first, second, 4)
+        actual_refine = matching.local_correlation_with_flow(first, second, displacement, 4)
+
+    for actual, expected in (
+        (actual_flow, expected_flow),
+        (actual_prob, expected_prob),
+        (actual_refine, expected_refine),
+    ):
+        torch.testing.assert_close(actual, expected, rtol=1e-5, atol=8e-6)
 
 
 @pytest.mark.slow

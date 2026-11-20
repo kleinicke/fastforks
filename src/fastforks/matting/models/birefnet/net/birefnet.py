@@ -215,6 +215,8 @@ class Decoder(nn.Module):
             p4 = p4 * gdt_attn_4
         _p4 = F.interpolate(p4, size=x3.shape[2:], mode='bilinear', align_corners=True)
         _p3 = _p4 + self.lateral_block4(x3)
+        # fastforks: free the consumed decoder workspaces before the larger stages.
+        del p4, _p4
 
         if self.config.dec_ipt:
             patches_batch = image2patches(x, patch_ref=_p3, transformation='b c (hg h) (wg w) -> b (c hg wg) h w') if self.split else x
@@ -241,6 +243,7 @@ class Decoder(nn.Module):
             p3 = p3 * gdt_attn_3
         _p3 = F.interpolate(p3, size=x2.shape[2:], mode='bilinear', align_corners=True)
         _p2 = _p3 + self.lateral_block3(x2)
+        del p3, _p3
 
         if self.config.dec_ipt:
             patches_batch = image2patches(x, patch_ref=_p2, transformation='b c (hg h) (wg w) -> b (c hg wg) h w') if self.split else x
@@ -262,6 +265,7 @@ class Decoder(nn.Module):
             p2 = p2 * gdt_attn_2
         _p2 = F.interpolate(p2, size=x1.shape[2:], mode='bilinear', align_corners=True)
         _p1 = _p2 + self.lateral_block2(x1)
+        del p2, _p2
 
         if self.config.dec_ipt:
             patches_batch = image2patches(x, patch_ref=_p1, transformation='b c (hg h) (wg w) -> b (c hg wg) h w') if self.split else x
@@ -271,8 +275,23 @@ class Decoder(nn.Module):
 
         if self.config.dec_ipt:
             patches_batch = image2patches(x, patch_ref=_p1, transformation='b c (hg h) (wg w) -> b (c hg wg) h w') if self.split else x
-            _p1 = torch.cat((_p1, self.ipt_blk1(F.interpolate(patches_batch, size=x.shape[2:], mode='bilinear', align_corners=True))), 1)
-        p1_out = self.conv_out1(_p1)
+            reference = F.interpolate(patches_batch, size=x.shape[2:], mode='bilinear', align_corners=True)
+            if _p1.is_cuda and _p1.dtype == torch.float16 and not self.training and not torch.compiler.is_compiling():
+                # fastforks: two 3x3 convolutions have a two-row halo; the final projection is pointwise.
+                parts = []
+                height = reference.shape[-2]
+                for start in range(0, height, 256):
+                    end = min(start + 256, height)
+                    top = max(0, start - 2)
+                    bottom = min(height, end + 2)
+                    detail = self.ipt_blk1(reference[..., top:bottom, :])[..., start - top:end - top, :]
+                    parts.append(self.conv_out1(torch.cat((_p1[..., start:end, :], detail), dim=1)))
+                p1_out = torch.cat(parts, dim=-2)
+            else:
+                # fastforks: FP32 keeps the original cuDNN convolution shape and rounding.
+                p1_out = self.conv_out1(torch.cat((_p1, self.ipt_blk1(reference)), dim=1))
+        else:
+            p1_out = self.conv_out1(_p1)
 
         if self.config.ms_supervision and self.training:
             outs.append(m4)

@@ -67,8 +67,8 @@ class _Metric3D(nn.Module):
         self.encoder = vit_large_reg(checkpoint=None, out_channels=[1024] * 4, drop_path_rate=0.0)
         self.decoder = RAFTDepthNormalDPT5(_config())
 
-    def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
-        return self.decoder(self.encoder(x))
+    def forward(self, x: torch.Tensor, *, final_only: bool = False) -> dict[str, torch.Tensor]:
+        return self.decoder(self.encoder(x), final_only=final_only)
 
 
 def _net(ctx: Context) -> _Metric3D:
@@ -144,8 +144,11 @@ class Portable(Runner):
 
     def _run(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:
         x, s, pad = _prepare(self.ctx, image)
+        final_only = x.is_cuda and not (
+            torch.is_grad_enabled() or torch.compiler.is_compiling() or torch.jit.is_tracing()
+        )
         with torch.autocast(x.device.type, dtype=torch.float16, enabled=self.half):
-            o = self.net(x)
+            o = self.net(x, final_only=final_only)
         maps = torch.cat([o["prediction"], o["confidence"], o["prediction_normal"][:, :3]], 1)
         return _restore(image, intrinsics, s, pad, maps)
 
@@ -214,10 +217,10 @@ def _decode(dec: Any, tokens: torch.Tensor, b: int, gh: int, gw: int) -> torch.T
     inp = [list(conv(i).split(conv.out_channels // 3, dim=1)) for i, conv in zip(inp, zqr, strict=False)]
     ub = dec.update_block
     mask = None
-    for _ in range(dec.iters):
+    for i in range(dec.iters):
         net = ub(net, inp, iter32=True, iter16=False, iter08=False, update=False)
         net = ub(net, inp, iter32=True, iter16=True, iter08=False, update=False)
-        net, mask, delta = ub(net, inp, None, flow, iter32=True, iter16=True)
+        net, mask, delta = ub(net, inp, None, flow, iter32=True, iter16=True, return_mask=i + 1 == dec.iters)
         flow = flow + delta
     up = dec.upsample_flow(flow, mask)
     depth = dec.clamp(up[:, :1] * dec.regress_scale + dec.max_val)

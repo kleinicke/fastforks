@@ -8,6 +8,8 @@ import torch.nn.functional as F
 # copy of the same code), einops rearrange -> view / permute, timm / cv2 / video / PIL helpers removed
 from fastforks.shared.swin_v1 import swin_v1_b
 
+_UPSAMPLE_STRIP_MIN_PIXELS = 512 * 512
+
 
 def swin_features(backbone, x):  # fastforks: upstream's SwinTransformer.forward, which also returns the patch embedding
     x = backbone.patch_embed(x)
@@ -58,6 +60,23 @@ def rescale_to(x, scale_factor: float = 2, interpolation='nearest'):
 
 def resize_as(x, y, interpolation='bilinear'):
     return F.interpolate(x, size=y.shape[-2:], mode=interpolation)
+
+
+def _upsample2_strips(layers, x):
+    """Nearest 2x and a stride-one 3x3 convolution with one source-row halo."""
+    conv, norm, act = layers
+    b, _, h, w = x.shape
+    layout = torch.channels_last if x.is_contiguous(memory_format=torch.channels_last) else torch.contiguous_format
+    out = torch.empty((b, conv.out_channels, 2 * h, 2 * w), device=x.device, dtype=x.dtype, memory_format=layout)
+    rows = (h + 3) // 4
+    for start in range(0, h, rows):
+        stop = min(start + rows, h)
+        first, last = max(0, start - 1), min(h, stop + 1)
+        pred = conv(rescale_to(x[..., first:last, :]))
+        offset = 2 * (start - first)
+        out[..., 2 * start:2 * stop, :].copy_(pred[..., offset:offset + 2 * (stop - start), :])
+        del pred
+    return act(norm(out))
 
 
 def image2patches(x):
@@ -298,7 +317,6 @@ class BEN_Base(nn.Module):
     def forward(self, x):
         real_batch = x.size(0)
 
-        shallow_batch = self.shallow(x)
         glb_batch = rescale_to(x, scale_factor=0.5, interpolation='bilinear')
 
 
@@ -310,6 +328,13 @@ class BEN_Base(nn.Module):
         final_input = torch.cat(inputs, dim=0)
 
         features = swin_features(self.backbone, final_input)  # fastforks: self.backbone(final_input)
+        del final_input, inputs, glb_batch
+        h, w = features[0].shape[-2:]
+        # Only the two downsampled shallow maps are used by the decoder.
+        shallow = self.shallow(x)
+        shallow_low = F.interpolate(shallow, size=(2 * h, 2 * w), mode="bilinear")
+        shallow_mid = F.interpolate(shallow, size=(4 * h, 4 * w), mode="bilinear")
+        del shallow
         outputs = []
 
         for i in range(real_batch):
@@ -349,11 +374,19 @@ class BEN_Base(nn.Module):
             # merge
             final_output = self.insmask_head(output1_cat)  # (1,128,256,256)
             # shallow feature merge
-            shallow = shallow_batch[i,:,:,:].unsqueeze(dim=0)
-            final_output = final_output + resize_as(shallow, final_output)
+            final_output = final_output + shallow_low[i:i+1]
             final_output = self.upsample1(rescale_to(final_output))
-            final_output = rescale_to(final_output + resize_as(shallow, final_output))
-            final_output = self.upsample2(final_output)
+            final_output = final_output + shallow_mid[i:i+1]
+            if (
+                final_output.is_cuda
+                and final_output.shape[-2] * final_output.shape[-1] >= _UPSAMPLE_STRIP_MIN_PIXELS
+                and not torch.is_grad_enabled()
+                and not torch.is_autocast_enabled("cuda")
+                and not (torch.compiler.is_compiling() or torch.jit.is_tracing())
+            ):
+                final_output = _upsample2_strips(self.upsample2, final_output)
+            else:
+                final_output = self.upsample2(rescale_to(final_output))
             final_output = self.output(final_output)
             outputs.append(final_output)  # fastforks: logits (upstream: final_output.sigmoid())
 

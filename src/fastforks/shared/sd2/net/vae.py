@@ -13,6 +13,26 @@ from torch import nn
 from .unet import Downsample2D, ResnetBlock2D, Upsample2D
 
 EPS = 1e-6
+_UPSAMPLE_TILE_MIN_PIXELS = 256 * 256  # below this the temporary is small enough to use one convolution
+
+
+def _upsample_tiled(up: Upsample2D, x: torch.Tensor) -> torch.Tensor:
+    """Nearest 2x and the 3x3 convolution in strips. Retain a source row on each internal edge."""
+    h, w = x.shape[-2:]
+    rows = (h + 3) // 4
+    out: torch.Tensor | None = None
+    for start in range(0, h, rows):
+        stop = min(start + rows, h)
+        first, last = max(0, start - 1), min(h, stop + 1)
+        resized = F.interpolate(x[..., first:last, :], scale_factor=2.0, mode="nearest")
+        pred = up.conv(resized)
+        if out is None:
+            out = pred.new_empty((x.shape[0], pred.shape[1], 2 * h, 2 * w))
+        offset = 2 * (start - first)
+        out[..., 2 * start : 2 * stop, :].copy_(pred[..., offset : offset + 2 * (stop - start), :])
+        del resized, pred
+    assert out is not None  # noqa: S101 - the convolution input has a positive height
+    return out
 
 
 class AttentionBlock(nn.Module):
@@ -61,15 +81,29 @@ class EncoderBlock(nn.Module):
 class DecoderBlock(nn.Module):
     """`UpDecoderBlock2D`: three resnets, then nearest x2 + conv (not in the last block)."""
 
-    def __init__(self, cin: int, cout: int, *, up: bool) -> None:
+    def __init__(self, cin: int, cout: int, *, up: bool, tile_upsample: bool = False) -> None:
         super().__init__()
         self.resnets = nn.ModuleList([ResnetBlock2D(cin if i == 0 else cout, cout, None, EPS) for i in range(3)])
         self.upsamplers = nn.ModuleList([Upsample2D(cout)]) if up else None
+        self.tile_upsample = tile_upsample
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         for r in self.resnets:
             x = r(x)
-        return x if self.upsamplers is None else self.upsamplers[0](x)
+        if self.upsamplers is None:
+            return x
+        up = self.upsamplers[0]
+        if (
+            self.tile_upsample
+            and not torch.compiler.is_compiling()
+            and not torch.jit.is_tracing()
+            and x.device.type == "cuda"
+            and x.shape[-2] * x.shape[-1] >= _UPSAMPLE_TILE_MIN_PIXELS
+            and x.is_contiguous()
+            and not torch.is_grad_enabled()
+        ):
+            return _upsample_tiled(up, x)
+        return up(x)
 
 
 class Encoder(nn.Module):
@@ -99,7 +133,9 @@ class Decoder(nn.Module):
         n = len(channels)
         self.conv_in = nn.Conv2d(latent, rc[0], 3, padding=1)
         self.mid_block = MidBlock(rc[0])
-        self.up_blocks = nn.ModuleList([DecoderBlock(rc[max(i - 1, 0)], c, up=i < n - 1) for i, c in enumerate(rc)])
+        self.up_blocks = nn.ModuleList(
+            [DecoderBlock(rc[max(i - 1, 0)], c, up=i < n - 1, tile_upsample=i == n - 2) for i, c in enumerate(rc)]
+        )
         self.conv_norm_out = nn.GroupNorm(32, channels[0], eps=EPS)
         self.conv_out = nn.Conv2d(channels[0], 3, 3, padding=1)
 

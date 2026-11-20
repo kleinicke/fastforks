@@ -39,15 +39,19 @@ _COMMERCIAL = {"yes": "yes", "no": "**no**", "unclear": "unclear (treat as no)"}
 _DATASETS = {
     "stereo": {
         "eth3d": "ETH3D two-view train, bad > 1 px % / EPE",
+        "eth3d-fixed-416x704": "ETH3D two-view train, fixed 416 x 704, bad > 1 px % / EPE",
         "middH": "Middlebury 2014 trainingH, bad > 2 px % / EPE",
+        "middH-fixed-375x1242": "Middlebury 2014 trainingH, fixed 375 x 1242, bad > 2 px % / EPE",
         "kitti2015-train-stereo-fixed-384x1248": "KITTI 2015 stereo training, fixed 384 x 1248, D1 % / EPE",
     },
     "depth": {
         "nyu": "NYUv2 test, AbsRel / delta1",
         "nyu-prompt-every4": "NYUv2 test (every 4th: 164 images) with a 192x256 depth prompt, AbsRel / delta1 (metric)",
+        "nyu-prompt-every4-fixed-480x640": "NYUv2 test (164 images at 480 x 640), metric AbsRel / delta1",
         "ibims-prompt": "iBims-1 (100 images) with a 192x256 depth prompt, AbsRel / delta1 (metric)",
         "ibims": "iBims-1, AbsRel / delta1",
         "ibims-first10": "iBims-1, first 10 images, AbsRel / delta1",
+        "nyu-first10": "NYUv2 test (first 10 images), AbsRel / delta1",
         "nyu-first100": "NYUv2 test (first 100 images), AbsRel / delta1",
         "eth3d": "ETH3D two-view train left, AbsRel / delta1",
         "middH": "Middlebury 2014 trainingH left, AbsRel / delta1",
@@ -66,6 +70,8 @@ _DATASETS = {
     "detection": {
         "coco-val2017-every10": "COCO val2017, every 10th image, box mAP",
         "coco-val2017-every10-fixed-320x320": "COCO val2017, every 10th image at fixed 320 x 320, box mAP",
+        "coco-val2017-every100-fixed-320x320": "COCO val2017, 50 images at fixed 320 x 320, box mAP",
+        "coco-val2017-every10-fixed-800x1344": "COCO val2017, every 10th image at fixed 800 x 1344, box mAP",
         "coco-val2017-every20": "COCO val2017, every 20th image, box mAP",
         "coco-val2017-every25": "COCO val2017, every 25th image (200), box mAP",
         "coco-val2017-every10-person": "COCO val2017, every 10th image, box AP of the person class",
@@ -73,6 +79,7 @@ _DATASETS = {
     },
     "promptable_segmentation": {
         "coco-val2017-every10": "COCO val2017, every 10th image, point prompts, mIoU best of 3 / single mask %",
+        "coco-val2017-every100-first-instance-point": "COCO val2017, single point, best-of-3 / single-mask mIoU %",
         "coco-val2017-every10-text": "COCO val2017, every 10th image, class-name prompts, box / mask mAP",
         "coco-val2017-every10-class-mask": "COCO val2017, every 10th image, class masks, class / prompt mIoU %",
         "coco-val2017-oneshot-k3": "COCO val2017, one-shot episodes (3 per class), class mIoU %",
@@ -85,6 +92,7 @@ _DATASETS = {
     },
     "multiview": {
         "dtu-scans1-9-24-33-75-view24": "DTU scans 1, 9, 24, 33, 75, view 24 + 7 sources, AbsRel / delta1 %",
+        "dtu-scans1-9-24-33-75-view24-336x518": "DTU (five scans), view 24 + 7 sources at 336 x 518, AbsRel",
         "dtu-five-scan-view24-480x640": "DTU (five scans), view 24 + 7 sources at 480 x 640, AbsRel / delta1 %",
         "dtu-five-scan-view24-448x672": "DTU, view 24 + 7 sources at 448 x 672, AbsRel / delta1 % / MAE mm",
         "dtu-five-scan-view24-448x672-fp16": "DTU FP16, view 24 + 7 sources at 448 x 672, AbsRel / delta1 % / MAE mm",
@@ -94,7 +102,11 @@ _DATASETS = {
     },
     "classification": {
         "imagenet-val-subset5000-seed0": "ImageNet-1k val, 5000 random images, top-1 / top-5 %",
+        "imagenet-val-every50": "ImageNet-1k val, one image per class (1,000), top-1 / top-5 %",
         "coco-val2017-first500-tags": "COCO val2017 (first 500 images), tag F1 at 0.35 vs the original fp32 / top-1 agreement %",  # noqa: E501
+        "unsafebench-test-sexual": (
+            "UnsafeBench test (Sexual), balanced accuracy / accuracy / recall / precision / F1 %"
+        ),
     },
     "pose": {
         "coco-val2017-every10-keypoints-gtbox": "COCO val2017, every 10th image, GT person boxes, keypoint AP",
@@ -106,9 +118,23 @@ _DATASETS = {
         "ap10k-val1-paired-oks-gtbox": "AP-10K validation split 1, annotated animal boxes, paired OKS (%)",
         "widerface-val-every4": "WIDER FACE val, every 4th image (807), face box AP easy / medium / hard",
     },
-    "flow": {"kitti2015-train": "KITTI 2015 train, EPE / Fl-all %"},
-    "edges": {"yorkurban-102-structural": "YorkUrban test (102 images), line segment sAP@5 / @10 / @15 %"},
-    "ocr": {"iiit5k-test-lexicon-free": "IIIT5K test word crops, word accuracy / normalized edit similarity %"},
+    "flow": {
+        "kitti2015-train": "KITTI 2015 train, EPE / Fl-all %",
+        "kitti2015-train-first100": "KITTI 2015 first 100 train pairs, EPE / Fl-all %",
+        "kitti2015-train-flow-fixed-384x1248": "KITTI 2015 train (200 pairs), fixed 384 x 1248, EPE / Fl-all %",
+        "kitti2015-train-flow-fixed-384x1248-fp16": "KITTI 2015 train (200 pairs) at 384 x 1248 FP16, EPE / Fl-all %",
+        "kitti2015-train-flow-first50-fixed-384x1248": "KITTI 2015 first 50 train pairs, 384 x 1248, EPE / Fl-all %",
+        "kitti2015-train-flow-first10-fixed-384x1248": "KITTI 2015 first 10 train pairs, 384 x 1248, EPE / Fl-all %",
+    },
+    "edges": {
+        "yorkurban-102-structural": "YorkUrban test (102 images), line segment sAP@5 / @10 / @15 %",
+        "bsds500-test-no-thinning": "BSDS500 test (200 images), boundary ODS / OIS / AP %",
+        "bsds500-test-first75-no-thinning": "BSDS500 test (first 75 images), boundary ODS / OIS / AP %",
+    },
+    "ocr": {
+        "iiit5k-test-lexicon-free": "IIIT5K test word crops, word accuracy / normalized edit similarity %",
+        "iiit5k-test-every10-lexicon-free": "IIIT5K test (300 crops), word accuracy / normalized edit similarity %",
+    },
     "volume": {
         "totalseg-subset-3mm": "TotalSegmentator test subset (8 CT cases), 3 mm, mean Dice",
         "totalseg-subset-1.5mm": "TotalSegmentator test subset (7 CT cases), 1.5 mm, mean Dice",
@@ -117,15 +143,21 @@ _DATASETS = {
         "ground-truth mask",
         "totalseg-featparity-8": "TotalSegmentator test subset (8 CT cases), encoder features vs the original fp32: "
         "cosine (worst case) / relative L2",
+        "totalseg-featparity-portable32-8": "TotalSegmentator test subset (8 CT cases), encoder features vs portable "
+        "FP32: cosine (worst case) / relative L2",
     },
     "interpolation": {
         "davis2017-triplets180": "DAVIS 2017 480p, 2 frame triplets per video (180), PSNR / SSIM",
+        "davis2017-triplets-fixed-480x854": "DAVIS 2017 (172 native 480 x 854 triplets), PSNR / SSIM",
+        "davis2017-triplets-fixed-480x854-sampled16": "DAVIS 2017 (16 selected 480 x 854 triplets), PSNR / SSIM",
         "davis2017-first-triplet-1080p": "DAVIS 2017, the first triplet per video resized to 1080p (90), PSNR",
     },
     "restoration": {
+        "celeba-test-daefr-512": "DAEFR CelebA-Test (3,000 aligned faces, 512 x 512), RGB PSNR / SSIM",
         "div2k-val-inpainting-mask50": "DIV2K validation, 25 centre crops with two masks each, masked RGB PSNR (dB)",
         "div2k-val-x4": "DIV2K validation (100 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x2": "DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
+        "div2k-val-x2-every2": "DIV2K validation (every second image, 50 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x4-every2": "DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x4-every4": "DIV2K validation (every 4th: 25 images), bicubic x4 LR -> HR, PSNR / SSIM (Y)",
         "div2k-val-x4-crop256-every4": "DIV2K validation, every fourth image, 256 x 256 LR crops, PSNR / SSIM (Y)",
@@ -133,6 +165,7 @@ _DATASETS = {
         "div2k-val-x2-crop512-n2": "DIV2K validation, 2 centre crops 512 px, bicubic x2 LR -> HR, PSNR / SSIM (Y) / PSNR to the original",  # noqa: E501
         "div2k-val-x2-crop64-every4-rgb": "DIV2K validation, 25 bicubic x2 center crops of 64 x 64 LR pixels, RGB PSNR",
         "div2k-val-x2-crop512-every4-rgb": "DIV2K, 25 bicubic x2 center crops of 512 x 512 LR pixels, RGB PSNR",
+        "div2k-val-x2-crop512-every8-rgb": "DIV2K, 13 bicubic x2 center crops of 512 x 512 LR pixels, RGB PSNR",
         "seedvr2-clips-n4": "4 video clips (first frame), PSNR to the original's output",
         "seedvr2-clips-n2": "2 video clips (first frame), PSNR to the original's output",
         "div2k-val-x2-every4": "DIV2K validation (every 4th: 25 images), bicubic x2 LR -> HR, PSNR / SSIM (Y)",
@@ -146,9 +179,12 @@ _DATASETS = {
     "matching": {
         "megadepth1500": "MegaDepth-1500, relative pose AUC@5 / @10 / @20 degrees",
         "megadepth1500-every5-fixed-768x1024": "MegaDepth-1500, 300 pairs at 768 x 1024, pose AUC@5 / @10 / @20",
+        "megadepth1500-every50-fixed-768x1024": "MegaDepth-1500, 30 pairs at 768 x 1024, pose AUC@5 / @10 / @20",
+        "megadepth1500-fixed-768x1024-sampled12": "MegaDepth-1500, 12 selected 768 x 1024 pairs, AUC@5 / @10 / @20",
         "megadepth1500-every5": "MegaDepth-1500, every 5th pair, relative pose AUC@5 / @10 / @20 degrees",
         "megadepth1500-every10": "MegaDepth-1500, every 10th pair, relative pose AUC@5 / @10 / @20 degrees",
         "scannet-1500-indoor": "ScanNet-1500 indoor pairs at 480 x 640, relative pose AUC@5 / @10 / @20 degrees",
+        "scannet-1500-fixed-768x1024-sampled12": "ScanNet-1500, 12 selected 768 x 1024 pairs, pose AUC@5 / @10 / @20",
     },
     "matting": {
         "dis-vd": "DIS5K validation (DIS-VD), all 470 images, MAE / max F-beta",
@@ -165,7 +201,9 @@ _DATASETS = {
     "calibration": {
         "lamar2k": "LaMAR2k, all 2000 images, roll / pitch / vertical FoV error AUC@5 degrees %",
         "lamar2k-every10": "LaMAR2k, every 10th image (200), roll / pitch / vertical FoV error AUC@5 degrees %",
+        "lamar2k-every20": "LaMAR2k, every 20th image (100), roll / pitch / vertical FoV error AUC@5 degrees %",
         "lamar2k-fixed-480x640": "LaMAR2k, all 2000 images resized to 480 x 640, vertical FoV AUC@5 degrees %",
+        "lamar2k-every40-fixed-1080x1920": "LaMAR2k every 40th image at 1080 x 1920, vertical FoV AUC@5 degrees %",
         "lamar2k-every20-portrait": "LaMAR2k, 97 portrait images from every 20th entry, angle AUC@5 degrees %",
     },
     "tracking": {
@@ -174,9 +212,11 @@ _DATASETS = {
         "tapvid-davis-first16-every3-up-to20": "TAP-Vid DAVIS (10 clips), first 16 frames and up to 20 queries, "
         "AJ / delta_avg / OA %",
         "tapvid-davis-fixed-8x16": "TAP-Vid DAVIS, 8 frames and 16 queries per clip, AJ / delta_avg / OA %",
+        "tapvid-davis-fixed-8x16-256": "TAP-Vid DAVIS, 8 frames at 256 x 256 and 16 queries, AJ / delta_avg / OA %",
+        "tapvid-davis-fixed-24x16-256": "TAP-Vid DAVIS, 24 frames at 256 x 256 and 16 queries, AJ / delta_avg / OA %",
     },
 }
-_BAD_THR = {"eth3d": 1.0, "middH": 2.0}  # stereo
+_BAD_THR = {"eth3d": 1.0, "eth3d-fixed-416x704": 1.0, "middH": 2.0, "middH-fixed-375x1242": 2.0}  # stereo
 # task or (task, dataset) -> ((metric, format, title suffix), ...), count key, noun; a metric with a suffix is optional:
 # shown where the row has it, its suffix appended to the dataset title where a row of the table has it
 _Metric = tuple[str, str, str]
@@ -185,7 +225,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     "depth": ((("rel_absrel", "{:.4f}", ""), ("rel_d1", "{:.4f}", "")), "n_images", "images"),
     **{
         ("depth", d): ((("met_absrel", "{:.4f}", ""), ("met_d1", "{:.4f}", "")), "n_images", "images")
-        for d in ("nyu-prompt-every4", "ibims-prompt")
+        for d in ("nyu-prompt-every4", "nyu-prompt-every4-fixed-480x640", "ibims-prompt")
     },
     **{
         ("depth", d): (
@@ -221,6 +261,7 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     },
     "features": ((("top1", "{:.2f}", ""),), "n", "images"),
     "multiview": ((("absrel", "{:.4f}", ""), ("d125", "{:.2f}", ""), ("mae_mm", "{:.2f}", " / MAE mm")), "n", "scans"),
+    ("multiview", "dtu-scans1-9-24-33-75-view24-336x518"): ((("absrel", "{:.5f}", ""),), "n", "scans"),
     **{
         ("multiview", dataset): ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "views")
         for dataset in ("realestate10k-examples-2v", "realestate10k-examples-8v")
@@ -232,6 +273,18 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
         "n",
         "images",
     ),
+    ("classification", "unsafebench-test-sexual"): (
+        (
+            ("balanced_accuracy", "{:.2f}", ""),
+            ("top1", "{:.2f}", ""),
+            ("nsfw_recall", "{:.2f}", ""),
+            ("safe_recall", "{:.2f}", ""),
+            ("nsfw_precision", "{:.2f}", ""),
+            ("nsfw_f1", "{:.2f}", ""),
+        ),
+        "n",
+        "images",
+    ),
     "pose": ((("keypoint_ap", "{:.1f}", ""),), "n", "images"),
     ("pose", "widerface-val-every4"): (
         (("ap_easy", "{:.3f}", ""), ("ap_medium", "{:.3f}", ""), ("ap_hard", "{:.3f}", "")),
@@ -240,6 +293,10 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     ),
     "flow": ((("epe", "{:.3f}", ""), ("fl_all", "{:.2f}", "")), "n", "pairs"),
     "edges": ((("sap5", "{:.2f}", ""), ("sap10", "{:.2f}", ""), ("sap15", "{:.2f}", "")), "n", "images"),
+    **{
+        ("edges", dataset): ((("ods", "{:.2f}", ""), ("ois", "{:.2f}", ""), ("ap", "{:.2f}", "")), "n", "images")
+        for dataset in ("bsds500-test-no-thinning", "bsds500-test-first75-no-thinning")
+    },
     "ocr": ((("word_accuracy", "{:.2f}", ""), ("ned", "{:.2f}", "")), "n", "words"),
     ("pose", "coco-wholebody-val-hands-gtbox"): ((("pck20", "{:.2f}", ""), ("epe", "{:.2f}", "")), "n", "hands"),
     ("pose", "lapa-test-landmarks-gtbox"): ((("nme_pct", "{:.4f}", ""),), "n", "faces"),
@@ -256,6 +313,11 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
         "prompted runs",
     ),
     ("volume", "totalseg-featparity-8"): ((("cos_min", "{:.5f}", ""), ("rel_l2", "{:.4g}", "")), "n", "cases"),
+    ("volume", "totalseg-featparity-portable32-8"): (
+        (("cos_min", "{:.5f}", ""), ("rel_l2", "{:.4g}", "")),
+        "n",
+        "cases",
+    ),
     "restoration": ((("psnr", "{:.2f}", ""), ("ssim", "{:.4f}", "")), "n", "images"),
     ("restoration", "div2k-val-inpainting-mask50"): ((("psnr", "{:.4f}", ""),), "n", "masks"),
     ("restoration", "div2k-val-x2-crop64-every4-rgb"): ((("psnr", "{:.4f}", ""),), "n", "images"),
@@ -274,11 +336,10 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
     },
     "matching": ((("auc5", "{:.1f}", ""), ("auc10", "{:.1f}", ""), ("auc20", "{:.1f}", "")), "n", "pairs"),
     "tracking": ((("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")), "n", "videos"),
-    ("tracking", "tapvid-davis-fixed-8x16"): (
-        (("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")),
-        "n",
-        "clips",
-    ),
+    **{
+        ("tracking", d): ((("aj", "{:.2f}", ""), ("delta_avg", "{:.2f}", ""), ("oa", "{:.2f}", "")), "n", "clips")
+        for d in ("tapvid-davis-fixed-8x16", "tapvid-davis-fixed-8x16-256", "tapvid-davis-fixed-24x16-256")
+    },
     "matting": ((("mae", "{:.4f}", ""), ("max_fbeta", "{:.4f}", "")), "n", "images"),
     "retrieval": ((("r1", "{:.2f}", ""), ("r5", "{:.2f}", "")), "n", "queries"),
     "calibration": (
@@ -298,11 +359,16 @@ _METRICS: dict[str | tuple[str, str], tuple[tuple[_Metric, ...], str, str]] = {
 }
 # task or (task, dataset) -> protocol sentence of the measured tables (task first, then each shown dataset)
 _PROTOCOL = {
+    ("stereo", "eth3d-fixed-416x704"): "Use the same 416 x 704 centre crop in both views of all 27 training pairs. "
+    "Exclude ground-truth correspondences outside the crop and score the non-occluded pixels. ",
+    ("stereo", "middH-fixed-375x1242"): "Use all 15 trainingH pairs with a shared centre crop and edge padding. "
+    "Score valid non-occluded pixels and exclude right-image correspondences outside the crop. "
+    "Average the per-pair endpoint error and share of pixels with error above 2 pixels. ",
     ("stereo", "kitti2015-train-stereo-fixed-384x1248"): "All 200 KITTI 2015 training pairs, padded on the right "
     "and bottom. D1 is the share of valid pixels with error above both 3 px and 5% of ground truth. EPE is averaged "
     "over the per-pair mean absolute errors. ",
-    "depth": "AbsRel / delta1 after a least-squares scale + shift fit (in disparity space for inverse-depth models), "
-    "mean over images. ",
+    "depth": "Aligned depth scores fit scale and shift by least squares, in disparity space for inverse-depth models. "
+    "Metric depth scores follow each dataset's protocol. Both average over images. ",
     ("depth", "tum-video-110"): "Video: one call per sequence, one scale + shift per sequence, AbsRel / delta1 over "
     "all its pixels with Kinect depth, mean over sequences. ",
     ("depth", "nyu-normals"): "Normals: angle to the ground-truth normal over the pixels with ground truth (Marigold's "
@@ -312,6 +378,9 @@ _PROTOCOL = {
     "compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt "
     "comes from the ground truth, so the numbers are not comparable with the paper's (ARKitScenes / ScanNet++ with "
     "a LiDAR prompt, L1 in mm): they compare our modes with the original. ",
+    ("depth", "nyu-prompt-every4-fixed-480x640"): "Every fourth NYUv2 test image. Resize RGB to 480 x 640 and pass the "
+    "same 192 x 256 depth prompt pooled from ground truth to both backends. Resize the output to the label grid for "
+    "metric AbsRel and delta1 without a scale fit. ",
     ("depth", "ibims-prompt"): "Prompt depth models: the prompt is a 192x256 low-resolution depth built from the "
     "ground truth (mean of the valid pixels per cell, holes filled with the nearest cell), the output is metric depth "
     "compared without any scale fit; AbsRel / delta1 over the pixels with ground truth, mean over images. The prompt "
@@ -321,13 +390,18 @@ _PROTOCOL = {
     "original fp32 is the reference: tag F1 = F1 of the tags at probability 0.35 of our output against the tags of "
     "the original fp32, micro-averaged over the images; top-1 agreement = share of images with the same most likely "
     "tag. The original fp16 row shows the difference of the original itself in half precision. ",
+    ("detection", "coco-val2017-every10-fixed-800x1344"): "Resize the same 500 RGB inputs to 800 x 1344. Use one "
+    "prepared prompt for all 80 COCO classes and score the top 100 query/class pairs per image. ",
     ("detection", "coco-val2017-every10-fixed-320x320"): "Fixed FP32 graph, one prepared prompt for all 80 COCO "
     "class names. Score the top 100 query/class pairs per image. The public TensorRT exporter remains gated. ",
+    ("detection", "coco-val2017-every100-fixed-320x320"): "The same FP32 320 x 320 preparation and top 100 "
+    "predictions for all 80 classes, restricted to every 100th validation image in filename order. ",
     ("segmentation", "ade20k-val"): "Each image at its own size, argmax of the logits. ",
     ("segmentation", "atr-test-shard-200"): "The 200-image ckotait/ATRDataset test split. Scores use one pixel "
     "confusion matrix across the split with 18 classes and ignore label 255. ",
-    ("segmentation", "ade20k-val-every40-fixed-1024x2048"): "Every 40th ADE20K validation image. Resize image inputs "
-    "and nearest-neighbor resample annotations at 1024 x 2048. Score both modes with the same labels and ignore mask. ",
+    ("segmentation", "ade20k-val-every40-fixed-1024x2048"): "Every 40th ADE20K validation image. Resize RGB inputs "
+    "to 1024 x 2048 and resample predictions to native annotation size with nearest-neighbor interpolation. "
+    "Score all modes with the same labels and ignore mask. ",
     ("segmentation", "lapa-test-common-face-parts"): "Scores use one pixel confusion matrix across the split. "
     "Left and right eyes share one class, and left and right brows share one class. Labels outside the eight "
     "shared foreground classes count as background. ",
@@ -335,6 +409,12 @@ _PROTOCOL = {
     "512-pixel short-side detection, cubic resizing, a score and length threshold of 0.1, and up to 200 segments. "
     "Structural AP matches endpoints on a 256 x 256 coordinate grid, testing both endpoint orders and matching "
     "each annotation at most once. ",
+    ("edges", "bsds500-test-no-thinning"): "All 200 BSDS500 test images. The benchmark uses the official "
+    "boundary correspondence with a tolerance of 0.0075 of the image diagonal. ODS, OIS and AP use 99 thresholds "
+    "on 8-bit predictions without thinning. ",
+    ("edges", "bsds500-test-first75-no-thinning"): "The first 75 BSDS500 test images by filename. Scores use the "
+    "official boundary correspondence at 0.0075 of the image diagonal and 99 thresholds on 8-bit predictions "
+    "without thinning. ",
     ("ocr", "iiit5k-test-lexicon-free"): "The 3,000 official cropped test words, with no lexicon. Exact accuracy "
     "and normalized edit similarity compare lowercase ASCII letters and digits. Similarity is one minus edit "
     "distance divided by the longer word's length, averaged over the crops. For a model that also detects text, "
@@ -366,6 +446,9 @@ _PROTOCOL = {
     "ranked by predicted person score after model-specific decoding; pycocotools OKS AP. ",
     ("promptable_segmentation", "coco-val2017-every10"): "One point per ground-truth instance (the interior point "
     "farthest from the border); IoU of the best-scored of 3 masks / of the single mask. ",
+    ("promptable_segmentation", "coco-val2017-every100-first-instance-point"): "Every 100th validation image in "
+    "filename order. Give one interior point for the first non-crowd instance with a nonempty mask and score IoU "
+    "for the highest-scored of three masks and the single-mask output. ",
     ("promptable_segmentation", "coco-val2017-every10-text"): "One text prompt (the COCO class name) per class in the "
     "image; the top 100 instances go to pycocotools COCOeval. ",
     ("promptable_segmentation", "coco-val2017-every10-class-mask"): "One text prompt per present COCO class. The "
@@ -395,6 +478,9 @@ _PROTOCOL = {
     "points. AbsRel / delta1 over GT pixels, after per-image median scaling unless the model takes the cameras "
     "(calibrated MVS: cameras, error in mm; PatchMatchNet also the depth range 425-935 mm, MVSAnywhere its own range "
     "from the camera baselines). ",
+    ("multiview", "dtu-scans1-9-24-33-75-view24-336x518"): "Resize the eight DTU images to 336 x 518 "
+    "and the reference depth with nearest-neighbor sampling. Align the predicted depth by median scale on valid "
+    "reference pixels before averaging AbsRel over the five scans. ",
     ("multiview", "dtu-heldout-render-view13"): "Eight calibrated input views at 336 x 518 per scan. Portable "
     "and TensorRT Gaussians are rendered with gsplat at the same held-out camera. RGB PSNR against that camera's "
     "DTU image is averaged over the five scans. ",
@@ -405,9 +491,22 @@ _PROTOCOL = {
     },
     "flow": "Frames _10 -> _11 at full size against the flow_occ ground truth; EPE = mean of the per-pair mean "
     "end-point error, Fl-all = share of all valid pixels with an error > 3 px and > 5 % of the GT magnitude. ",
+    ("flow", "kitti2015-train-first100"): "Use the first 100 training pairs in filename order. ",
+    **{
+        ("flow", dataset): "The fixed-shape comparison pads the bottom and right with edge pixels to 384 x 1248. "
+        "Metrics use predictions cropped to each original ground-truth grid. "
+        for dataset in (
+            "kitti2015-train-flow-fixed-384x1248",
+            "kitti2015-train-flow-fixed-384x1248-fp16",
+            "kitti2015-train-flow-first50-fixed-384x1248",
+            "kitti2015-train-flow-first10-fixed-384x1248",
+        )
+    },
     ("restoration", "div2k-val-x2-crop64-every4-rgb"): "Every fourth DIV2K validation image. A 64 x 64 center crop "
     "of the official bicubic x2 input is restored at 128 x 128 and compared with the corresponding original pixels. "
     "PSNR uses RGB in [0, 1] and is averaged over the 25 crops. Both modes use resident BF16 weights and seed 666. ",
+    ("restoration", "celeba-test-daefr-512"): "The 3,000 paired degraded inputs and clean targets from DAEFR's "
+    "CelebA-Test archives. Score aligned 512 x 512 RGB outputs rounded to eight bits, with no border crop. ",
     ("restoration", "div2k-val-x2-crop512-every4-rgb"): "Every fourth DIV2K validation image. Restore a 512 x 512 "
     "center crop of the bicubic x2 input at 1024 x 1024. Average RGB PSNR over 25 aligned targets using streamed BF16 "
     "weights and seed 666. Compilation covers the VAE encoder and decoder. ",
@@ -465,9 +564,15 @@ _PROTOCOL = {
     "encoder feature maps against the original fp32 maps (cosine similarity, worst case over the cases and the mean "
     "over the maps; relative L2 error, mean). Original (fp32) is the reference; the original fp16 row shows the error "
     "the original itself has in half precision. ",
+    ("volume", "totalseg-featparity-portable32-8"): "For the standalone ViT TensorRT comparison, both runs used the "
+    "same normalized 192³ CT crops and FP32 with TF32 disabled. Relative L2 is the mean over the eight cases. ",
     "interpolation": "DAVIS 2017 trainval 480p (JPEG), frames 0 / 2 and 20 / 22 of each of the 90 videos give the "
     "frame 1 / 21 at time 0.5, compared with the real one: PSNR and SSIM (Gaussian 11 x 11, sigma 1.5) of the "
     "output rounded to uint8, on RGB in [0, 1], averaged over the triplets for the 180-triplet benchmark. ",
+    ("interpolation", "davis2017-triplets-fixed-480x854"): "The fixed-shape comparison uses all 172 triplets at the "
+    "native 480 x 854 size and follows the same scoring protocol. ",
+    ("interpolation", "davis2017-triplets-fixed-480x854-sampled16"): "The 16-triplet comparison includes the six "
+    "largest PSNR changes with TensorRT running both RAFT encoders, plus ten evenly spaced additional triplets. ",
     ("interpolation", "davis2017-first-triplet-1080p"): "The fixed 1080p validation resizes the first three frames of "
     "each DAVIS video with bilinear interpolation and measures RGB PSNR before rounding the predicted middle frame. ",
     "matching": "Dense matchers: 5000 matches per pair sampled from the warp by certainty (upstream's balanced KDE "
@@ -478,6 +583,14 @@ _PROTOCOL = {
     "The calibrated relative pose is scored by the larger rotation and translation-direction errors. ",
     ("matching", "megadepth1500-every5-fixed-768x1024"): "Both modes receive pairs resized to 768 x 1024. Map "
     "matched pixels to the calibrated evaluation coordinates and use the same RANSAC seed per pair. ",
+    ("matching", "megadepth1500-every50-fixed-768x1024"): "Every 50th pair in MegaDepth-1500, resized to "
+    "768 x 1024. Both modes use strict FP32 and the same calibrated coordinates and RANSAC seeds. ",
+    **{
+        ("matching", dataset): "The 12-pair LoFTR comparisons include the six worst pose changes from the original "
+        "whole-graph TensorRT trials and the first six other pairs from those trials. Both modes use the same "
+        "calibrated evaluation coordinates and RANSAC seeds. "
+        for dataset in ("megadepth1500-fixed-768x1024-sampled12", "scannet-1500-fixed-768x1024-sampled12")
+    },
     ("matching", "megadepth1500-every5"): "The same 300 pairs for all modes, so float32 and bfloat16 compare pair for "
     "pair. ",
     "tracking": "Query-first TAP-Vid protocol: frames resized to 256 x 256 (PIL Lanczos) before the model "
@@ -490,6 +603,10 @@ _PROTOCOL = {
     ("tracking", "tapvid-davis-fixed-8x16"): "The fixed export check uses 28 annotated eight-frame clips resized to "
     "480 x 854, with 16 queries sampled from frames 0, 2, and 4. Scores are averaged over clips after scoring the "
     "frames following each query in TAP-Vid's 256 x 256 coordinate system. ",
+    ("tracking", "tapvid-davis-fixed-24x16-256"): "Use 28 annotated 24-frame clips at 256 x 256. Sample 16 "
+    "visible queries across the three online windows and score the frames following each query. ",
+    ("tracking", "tapvid-davis-fixed-8x16-256"): "The fixed export check uses 28 annotated eight-frame clips at "
+    "256 x 256. Sample 16 visible queries from frames 0, 2, and 4 and score frames after each query. ",
     ("matting", "dis-vd-every2"): "Each image at its own size against its binary mask: MAE of the alpha, max F-beta "
     "(beta^2 = 0.3) over 256 thresholds (BiRefNet's evaluation). ",
     ("matting", "aim500-every5"): "Trimap-guided models, AIM-500: each image at its own size with a trimap made from "
@@ -507,10 +624,17 @@ _PROTOCOL = {
     "siclib's `compute_auc(min_error=1)`), the GeoCalib paper's protocol. ",
     ("calibration", "lamar2k-fixed-480x640"): "Resize all 2,000 images to 480 x 640 before inference. Compare "
     "vertical field of view against the dataset labels with the standard LaMAR AUC scoring. ",
+    ("calibration", "lamar2k-every40-fixed-1080x1920"): "Resize every 40th LaMAR image to 1080 x 1920. "
+    "Compare vertical field of view against the dataset labels. ",
     ("calibration", "lamar2k-every20-portrait"): "Take every 20th LaMAR image and score the 97 portrait images "
     "at their original size. In TensorRT mode only the 416 x 320 field predictor is accelerated. ",
+    ("calibration", "lamar2k-every20"): "Every 20th LaMAR image in its original orientation and size. "
+    "The compiled mode accelerates field prediction and keeps the camera fit eager. ",
     "classification": "fastforks: the model's own resize / crop on the GPU; original: the library's pretrained loader "
     "and its PIL eval transform. ",
+    ("classification", "unsafebench-test-sexual"): "All 211 Sexual-category images from the official test split "
+    "(150 unsafe, 61 safe), from LAION-5B and Lexica. Apply each implementation's normal resize and use the "
+    "checkpoint's default top-1 prediction. Balanced accuracy averages unsafe and safe recall. ",
 }
 # family -> what its original columns ran where that differs from the original code under Details (note column)
 _ORIGINAL_IS = {
@@ -518,9 +642,20 @@ _ORIGINAL_IS = {
     "sam3": "original = transformers `Sam3Model`, the port this code follows",
 }
 _MODES = ("upstream", "upstream-default", "portable", "kernels")
-_EVAL_MODES = ("upstream", "upstream-fp16", "upstreamhalf", "portable", "portable32", "kernels", "compile", "tensorrt")
+_EVAL_MODES = (
+    "upstream",
+    "upstream-fp32-strict",
+    "upstream-fp16",
+    "upstreamhalf",
+    "portable",
+    "portable32",
+    "kernels",
+    "compile",
+    "tensorrt",
+)
 _EVAL_LABEL = {
     "upstream": "original fp32",
+    "upstream-fp32-strict": "original strict fp32",
     "upstream-fp16": "original fp16",
     "upstreamhalf": "original half",
     "portable32": "portable fp32",
@@ -536,7 +671,19 @@ def _label(mode: str) -> str:
 
 
 # eval dataset id -> training-data id (_core/datasets.toml) of the same public images (NYU / iBims: no id, none known)
-_EVAL_TRAIN_ID = {"eth3d": "eth3d", "middH": "middlebury", "kitti2015-train": "kitti"}
+_EVAL_TRAIN_ID = {
+    "eth3d": "eth3d",
+    "eth3d-fixed-416x704": "eth3d",
+    "middH": "middlebury",
+    "middH-fixed-375x1242": "middlebury",
+    "kitti2015-train": "kitti",
+    "kitti2015-train-first100": "kitti",
+    "kitti2015-train-stereo-fixed-384x1248": "kitti",
+    "kitti2015-train-flow-fixed-384x1248": "kitti",
+    "kitti2015-train-flow-fixed-384x1248-fp16": "kitti",
+    "kitti2015-train-flow-first50-fixed-384x1248": "kitti",
+    "kitti2015-train-flow-first10-fixed-384x1248": "kitti",
+}
 _DAGGER = "\u2020"
 _NOTE = {
     _DAGGER: "trained on this dataset's public images; not a zero-shot result",
@@ -823,21 +970,33 @@ def _md_table(head: list[str], rows: list[list[str]], keep: int = 2) -> list[str
     return lines + ["| " + " | ".join(r[i] for i in use) + " |" for r in rows]
 
 
+@functools.cache
+def stream_rows() -> dict[str, list[dict]]:
+    """Explicit resident and streamed measurements per variant, including out-of-memory runs."""
+    rows: dict[str, list[dict]] = {}
+    for line in (ROOT / "docs/data/speed_options.jsonl").read_text().splitlines():
+        row = json.loads(line)
+        options = row.get("options", {})
+        if set(options) == {"stream"} and isinstance(options["stream"], bool):
+            rows.setdefault(row["ref"], []).append(row)
+    return rows
+
+
 def _stream_table(card: ModelCard) -> list[str]:
     """Compare explicit stream settings from the same model build, workload and environment."""
     if "stream" not in card.options:
         return []
-    refs = {v.id for v in card.variants}
     pairs: dict[tuple[str, ...], dict[bool, str]] = {}
-    for row in map(json.loads, (ROOT / "docs/data/speed_options.jsonl").read_text().splitlines()):
-        options = row.get("options", {})
-        if row["ref"] not in refs or set(options) != {"stream"}:
-            continue
+    measurements = stream_rows()
+    for row in (entry for v in card.variants for entry in measurements.get(v.id, ())):
+        options = row["options"]
         key = tuple(row[k] for k in ("ref", "mode", "input", "gpu", "torch", "scene", "commit", "protocol"))
         if row.get("status") == "oom":
             cell = "Out of memory"
+        elif row.get("ms") is not None and row.get("peak_reserved_mb") is not None:
+            cell = f"{row['ms']:,.2f} ms / {row['peak_reserved_mb']:,} MiB"
         else:
-            cell = f"{row['ms']:,.0f} ms / {row['peak_reserved_mb']:,} MiB"
+            continue
         pairs.setdefault(key, {})[options["stream"]] = cell
     rows = [
         [name, mode, size, gpu.removeprefix("NVIDIA GeForce "), torch, pair[False], pair[True]]
@@ -873,8 +1032,8 @@ def _scene(scene: str) -> str:
 
 
 def _pixels(size: str) -> int:
-    h, w = size.split("x")
-    return int(h) * int(w)
+    """Pixel count for an image or a fixed-length clip."""
+    return math.prod(map(int, size.split("x")))
 
 
 def _ids_of(ids: list[str]) -> str:
@@ -1242,6 +1401,15 @@ def _measured(task: str, card: ModelCard, rows: dict[str, list[dict]]) -> list[s
             cells = [_accuracy(task, by, m, d) for m in shown]
             note = "; ".join(n for n in (_NOTE.get(_overlap(card, v, d), ""), _ORIGINAL_IS.get(card.family, "")) if n)
             lines.append(f"| `{v.id}` | {title} | {' | '.join(cells)} | {note} |")
+    if "upstream-fp32-strict" in shown:
+        lines += [
+            "",
+            (
+                "LightGlue's default FP32 configuration uses FP16 attention in both implementations. "
+                "The original strict FP32 run disables FlashAttention, mixed precision and TF32. "
+                "Disabling FlashAttention also selects the authors' lower point-pruning threshold."
+            ),
+        ]
     lines += ["", "Measured on " + where.rstrip(". ") + "."] if where else []
     return lines
 
@@ -2000,21 +2168,28 @@ PLANNED = f"planned for {PLANNED_RELEASE}"  # a card-`[planned]` feature: not av
 
 
 def _planned_line(card: ModelCard) -> list[str]:
-    """`- Not in this release` for the card's `[planned]` features (they raise "planned for 0.2.1")."""
-    what = {"load": "loading", "compile": "compile()", "onnx": "ONNX / TensorRT export", "tensorrt": "TensorRT export"}
-    parts = [
-        f"`{v.id}` {what.get(f, f)}: {reason.rstrip('.')}"
-        for v in card.variants
-        for f, reason in v.planned.items()
-        if not (f == "tensorrt" and "onnx" in v.planned)
+    """Explain each public API restriction alongside any measured standalone paths."""
+    what = {
+        "load": "loading",
+        "compile": "`compile()`",
+        "onnx": "ONNX / TensorRT export",
+        "tensorrt": "TensorRT export",
+    }
+    restrictions: dict[tuple[str, str], list[str]] = {}
+    for variant in card.variants:
+        for capability, reason in variant.planned.items():
+            if capability != "tensorrt" or "onnx" not in variant.planned:
+                restrictions.setdefault((what.get(capability, capability), reason), []).append(f"`{variant.id}`")
+    return [
+        f"- Public {feature} is unavailable for {', '.join(variants)} ({reason.rstrip('.')})."
+        for (feature, reason), variants in restrictions.items()
     ]
-    return [f"- Not in this release (planned for {PLANNED_RELEASE}): {'; '.join(parts)}"] if parts else []
 
 
 def _fail_cell(msg: str) -> str:
-    """`deferred (build >5 min)` (over the lock limit), `planned for 0.2.1` (card `[planned]`) or `fails: reason`."""
+    """Render a build time limit, a public API restriction or a recorded failure."""
     if msg == PLANNED:
-        return PLANNED
+        return "public API unavailable"
     return "deferred (build >5 min)" if msg.startswith("deferred") else f"fails: {_fail_reason(msg)}"
 
 

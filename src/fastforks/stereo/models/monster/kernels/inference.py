@@ -286,11 +286,15 @@ def remp_fast(
     x = rem2 = _c2x(u.conv2b, x, rem2)
     x = rem3 = _c2x(u.conv3b, x, rem3)
     x = _c2x(u.conv4b, x, rem4)
+    del rem4
     x = _c2x(u.deconv4b, x, rem3)
+    del rem3
     x = _c2x(u.deconv3b, x, rem2)
+    del rem2
     x = _c2x(u.deconv2b, x, rem1)
+    del rem1
     x = _c2x(u.deconv1b, x, rem0)
-    del rem0, rem1, rem2, rem3, rem4
+    del rem0
     low = R.LFE(x.float().mean((2, 3), keepdim=True).half())  # AP + LFE (1 x 1)
     l0, l1, l2 = R.LMC[0], R.LMC[1], R.LMC[3]  # conv, conv + ReLU, conv + sigmoid
     motif = conv_ep(l2, conv_ep(l1, conv_ep(l0, x), act=relu), act=ACT["sigmoid"])
@@ -319,10 +323,11 @@ def forward_kernels(self: nn.Module, image1: torch.Tensor, image2: torch.Tensor,
     features_right = self.feat_transfer(fmr)
     del fmr
     fr0 = torch.cat((features_right[0], self.stem_4(self.stem_2(i2))), 1)
-    del features_right
+    del features_right, i2
     match_right = self.desc(self.conv(fr0))
     features_left = self.feat_transfer(fml)
     stem_2x = self.stem_2(i1)
+    del i1
     stem_4x = self.stem_4(stem_2x)
     stem_8x = self.stem_8(stem_4x)
     stem_16x = self.stem_16(stem_8x)
@@ -382,14 +387,19 @@ def forward_kernels(self: nn.Module, image1: torch.Tensor, image2: torch.Tensor,
                 self.update_block_mix_mono, net_mono, ctx_mm, dm_h, cm, disp_h, cs, last
             )
             disp_mono_4x = disp_mono_4x + delta_mono.float()
+            del delta_mono
         disp = disp + delta_disp.float()
+        del geo_feat, delta_disp
 
-    def up(dl: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        xspx = self.spx_2_gru(mask, stem_2x)
+    del geo_fn, fl0f, fr0f, net_list, net_mono, ctx, ctx_ms, ctx_mm, cs, cm, init_disp, disp_h, dm_h
+
+    def up(dl: torch.Tensor, mask: torch.Tensor, stem: torch.Tensor) -> torch.Tensor:
+        xspx = self.spx_2_gru(mask, stem)
         return context_upsample(dl * 4.0, F.softmax(self.spx_gru(xspx).float(), 1)).unsqueeze(1)
 
-    disp_up = up(disp, mask_feat_4)
-    disp_mono_up = up(disp_mono_4x, mask_mono)
+    disp_up = up(disp, mask_feat_4, stem_2x)
+    disp_mono_up = up(disp_mono_4x, mask_mono, stem_2x)
+    del stem_2x, mask_feat_4, mask_mono
     return disp_up + remp_fast(self.REMP, disp_mono_up, disp_up, im1, im2)
 
 

@@ -82,7 +82,10 @@ def letterbox(image: torch.Tensor, size: int) -> tuple[torch.Tensor, float]:
     """(`[1, 3, size, size]` in 0..255 (integers), scale `r`) of `image` `[1, 3, H, W]` in [0, 1] (module docstring)."""
     ih, iw = image.shape[-2:]
     r = min(size / iw, size / ih)
-    x, y = _coordinates(ih, iw, size, r)
+    if image.device.type == "cuda":
+        x, y = _cuda_coordinates(ih, iw, size, image.device).unbind()
+    else:
+        x, y = _coordinates(ih, iw, size, r)
     x0, y0 = x.floor(), y.floor()
     fx, fy = (x - x0).float().to(image.device), (y - y0).float().to(image.device)
     # One border pixel of the fill value around the image: every tap outside reads it
@@ -137,6 +140,10 @@ class Portable(Runner):
         net = RTMO(a)
         net.load_state_dict(net_sd)
         self.net = net.eval().to(ctx.device, ctx.torch_dtype)
+        if ctx.mode == "portable" and ctx.device.type == "cuda" and ctx.dtype == "float16":
+            for conv in self.net.modules():
+                if isinstance(conv, torch.nn.Conv2d):
+                    conv.to(memory_format=torch.channels_last)
         dcc = DCC(a)
         dcc.load_state_dict(dcc_sd)
         self.dcc = dcc.eval().to(ctx.device)

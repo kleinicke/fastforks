@@ -103,7 +103,16 @@ class SegmentationModel(core.Model):
             out = self._runner(chunk)
             scores = self._check_outputs(out, {"logits": (chunk.shape[0], c, h, w)}, cast=False)["logits"]
             labels = scores.argmax(1)  # on the raw scores: the floor below cannot create ties
-            return {"labels": labels, "logits": scores.float().clamp_min(1e-30).log() if log_space else scores.float()}
+            if log_space:
+                # Allocate one float32 result while preserving the runner's output.
+                if scores.dtype == torch.float32:
+                    logits_result = scores.clamp_min(1e-30)
+                else:
+                    logits_result = scores.float().clamp_min_(1e-30)
+                logits_result.log_()
+            else:
+                logits_result = scores.float()
+            return {"labels": labels, "logits": logits_result}
 
         maps = unbatch(self._batched(run, x), image)
         return SegmentationResult(

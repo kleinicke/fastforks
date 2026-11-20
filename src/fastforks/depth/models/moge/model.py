@@ -50,6 +50,7 @@ _TOKENS = (1200, 3600)  # num_tokens_range of the released checkpoints
 _REFINE_STEPS = 3  # MoGe-3 infer default
 _DEPTH_RES = 256  # MoGe-3 refiner_depth_resolution: z bins per unit of log depth
 _FIT = (64, 64)  # recover_focal_shift subsample
+_PAD_COPY_MIN_BYTES = 32 * 1024**2
 
 
 @dataclass(frozen=True)
@@ -248,7 +249,22 @@ _refine_eager = eager_in_compile(refine)
 
 # ------------------------------------------------------------------------------------------------ portable
 def _rep_pad1(x: torch.Tensor) -> torch.Tensor:
-    """Replicate-pad the last two dims by 1 (as `F.pad(mode="replicate")`, which is slower than slices + cat)."""
+    """Replicate-pad both spatial dimensions by one while retaining the input memory format."""
+    if (
+        x.is_cuda
+        and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
+        and x.numel() * x.element_size() >= _PAD_COPY_MIN_BYTES
+    ):
+        # Copy large activations into one buffer. CUDA replication_pad2d converts channels-last here.
+        h, w = x.shape[-2:]
+        fmt = torch.channels_last if x.is_contiguous(memory_format=torch.channels_last) else torch.contiguous_format
+        out = torch.empty((*x.shape[:-2], h + 2, w + 2), device=x.device, dtype=x.dtype, memory_format=fmt)
+        out[..., 1:-1, 1:-1].copy_(x)
+        out[..., 0, 1:-1].copy_(x[..., 0, :])
+        out[..., -1, 1:-1].copy_(x[..., -1, :])
+        out[..., 0].copy_(out[..., 1])
+        out[..., -1].copy_(out[..., -2])
+        return out
     x = torch.cat([x[..., :1, :], x, x[..., -1:, :]], -2)
     return torch.cat([x[..., :1], x, x[..., -1:]], -1)
 

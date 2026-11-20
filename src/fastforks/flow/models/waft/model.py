@@ -60,8 +60,11 @@ class Portable(Runner):
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a batch (the last iteration's)."""
+        final_only = image1.is_cuda and not (
+            torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled()
+        )
         with self._autocast(image1):
-            flow = self.net(image1, image2, self.ctx.params.iters)["flow"][-1]
+            flow = self.net(image1, image2, self.ctx.params.iters, final_flow_only=final_only)["flow"][-1]
         return {"flow": flow.float()}
 
     def module(self) -> torch.nn.Module:

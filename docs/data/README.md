@@ -17,7 +17,7 @@ stereo / depth rows were replaced: they predate this repository's history and th
 | `ref`, `task`, `dataset`, `n` | model id, task, dataset key (below), images / pairs / instances evaluated |
 | `tier` | how the model ran: `upstream` (the authors' code, fp32), `upstream16` (the authors' own precision option, else `torch.autocast` float16), `upstreamac` (autocast float16 also where the authors have an option), `upstreamhalf` (`.half()` on the authors' modules and inputs), `portable32` (fastforks portable, float32), `portable`, `kernels` (card default dtype) |
 | `column` | the docs column the row fills: `original fp32`, `original fp16`, `portable`, `kernels`; `null` = a tier the docs do not show (`portable32`, `upstreamhalf`, `upstreamac` of earlier runs) |
-| `mode` | `upstream` (original fp32), `upstream-fp16` (the chosen fp16 original), `portable-fp32`, `portable`, `kernels`; unchosen fp16 variants keep their tier name. One row per `mode` and `dataset` |
+| `mode` | `upstream` (original fp32), `upstream-fp16` (the chosen fp16 original), `portable-fp32`, `portable`, `kernels`; unchosen fp16 variants keep their tier name |
 | `dtype`, `how`, `note` | precision, how it was obtained (`fp32`, `authors flag`, `autocast`, `half`), details |
 | `selection` | on the `original fp16` rows: why this variant (below) |
 | `metrics` | the task's metrics (below); stereo / depth / flow rows also carry them flat (`bad`, `epe`, `rel_absrel`, `rel_d1`, `fl_all`) |
@@ -39,6 +39,12 @@ Datasets and metrics (all pixels, card default options, uint8 CUDA inputs unless
   noise comes from a seeded CPU generator in fastforks and a CUDA generator upstream (different noise draws).
 - Classification: `top1`, `top5` (%), ImageNet-1k val, a seeded random subset of 5000 images (seed 0), each model's
   own preprocessing.
+- Sexual NSFW classification: all 211 images in the official UnsafeBench Sexual test category, with 150 unsafe and 61
+  safe labels. FalconsAI uses its default top-1 prediction. Balanced accuracy averages the unsafe and safe recall.
+  [UnsafeBench dataset](https://huggingface.co/datasets/yiting/UnsafeBench).
+- Edges: boundary ODS, OIS and AP (%) on all 200 BSDS500 test images or the first 75 by filename. Scores use Berkeley
+  correspondence at 0.0075 of the image diagonal, without thinning, across 99 thresholds. AnyLine uses its
+  1280-pixel detect short side. Its reference retains the original Lanczos resize and uses the authors' float layer blend.
 - Segmentation: `miou`, `aacc` (%), ADE20K val, every 4th image (500), single scale at the card's size. Sapiens
   (Goliath body parts, no ADE20K classes): COCO val2017 persons instead (the images of the detection subset with a
   non-crowd person), `person_iou` = IoU of "any body part" against the union of the person masks (crowd regions
@@ -220,7 +226,9 @@ one row per run; every row says where its numbers came from.
 `devices.toml` lists the measured devices (slug = vendor + model + memory, e.g. `rx-7900-xtx-24gb`; fields described
 in the file). Exactly one is the reference (`reference = true`, the RTX 5060 Ti): its rows are `speed.jsonl` above, its
 tables `docs/benchmarks.md`, and only its rows are a regression floor (`tests/test_speed_floor.py`,
-`tools/speed_check.py`, `tools/merge_check.py`). Every other device is a survey: rows in `speed/<slug>.jsonl`, a
+`tools/speed_check.py`, `tools/merge_check.py`). Supplemental comparisons with a different input or precision
+from the standard benchmark can set `regression_floor: false` on that row and still appear in the tables.
+Every other device is a survey: rows in `speed/<slug>.jsonl`, a
 generated page `docs/devices/<slug>.md`, and **no floor**: a slower survey row never fails a check. A device with
 `hidden = true` keeps its rows (still checked) but gets no page, nav entry or column until the flag is removed.
 

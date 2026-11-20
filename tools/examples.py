@@ -188,9 +188,11 @@ TASK_INPUT = {
     "tracking": "astronaut-pan",
     "volume": "ct-s0013",
 }
-# Variants whose task input is another one: faces for the face models, a text line for the line recogniser.
+# Variants that need a task-specific subject or text crop.
 INPUT_OF = {
     "bisenet-face-parsing": "astronaut-face",
+    "sapiens-seg-0.3b-goliath": "astronaut",
+    "sapiens-seg-1b-goliath": "astronaut",
     "segformer-b5-face-parsing": "astronaut-face",
     "segformer-b2-clothes": "astronaut",
     "parseq": "page-line",

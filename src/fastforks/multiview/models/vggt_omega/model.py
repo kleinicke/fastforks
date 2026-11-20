@@ -360,8 +360,8 @@ class _Fast(_Base):
         w_, b_, eps = self.pe_norm
         return F.layer_norm(tok[:, pre:], (c,), w_, b_, eps)
 
-    def aggregate(self, images: torch.Tensor) -> tuple[list[torch.Tensor | None], int]:
-        """Upstream `Aggregator.forward` -> (cached token lists, patch start index)."""
+    def aggregate(self, images: torch.Tensor) -> tuple[list[torch.Tensor | None], torch.Tensor]:
+        """Retain normalized FP16 patch features and the final FP32 camera and register tokens."""
         agg: Any = self.net.aggregator
         b, s, _, h, w = images.shape
         x = ((images - agg._resnet_mean) / agg._resnet_std).view(b * s, 3, h, w)  # noqa: SLF001
@@ -383,8 +383,16 @@ class _Fast(_Base):
                 cr = self.inter[i](self.block, fr[:, :, :pre].reshape(b, s * pre, c)).view(b, s, pre, c)
                 t4 = torch.cat([cr, fr[:, :, pre:]], 2)
             tokens = t4
-            out.append(torch.cat([fr, t4], -1) if i in agg.cached_layer_indices else None)
-        return out, pre
+            if i in agg.cached_layer_indices:
+                patches = torch.cat((fr[:, :, pre:], t4[:, :, pre:]), dim=-1)
+                out.append(self.ln(patches, self.head_norm[:2], self.head_norm[2]).view(b, s, n - pre, 2 * c))
+                del patches
+            else:
+                out.append(None)
+            if i + 1 == agg.depth:
+                return out, torch.cat((fr[:, :, :pre], t4[:, :, :pre]), dim=-1)
+        msg = "VGGT-Omega aggregator has no blocks"
+        raise RuntimeError(msg)
 
     def _pos_embed(self, x: torch.Tensor, width: int, height: int) -> torch.Tensor:
         key = (tuple(x.shape[1:]), width, height)
@@ -395,10 +403,12 @@ class _Fast(_Base):
             pe = create_uv_grid(pw, ph, aspect_ratio=width / height, dtype=torch.float32, device=x.device)
             pe = position_grid_to_embed(pe, x.shape[1]) * 0.1
             self._pos[key] = pe.permute(2, 0, 1)[None].to(x.dtype).contiguous(memory_format=torch.channels_last)
+        if x.is_cuda and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled()):
+            return x.add_(self._pos[key])
         return x + self._pos[key]
 
     def _dense_chunk(  # noqa: PLR0913, PLR0917 - one chunk of the dense head
-        self, toks: list[torch.Tensor | None], pre: int, b: int, s0: int, s1: int, h: int, w: int
+        self, toks: list[torch.Tensor | None], b: int, s0: int, s1: int, h: int, w: int
     ) -> tuple[torch.Tensor, torch.Tensor]:
         dh: Any = self.net.dense_head
         ph, pw = h // dh.patch_size, w // dh.patch_size
@@ -409,8 +419,7 @@ class _Fast(_Base):
             if t is None:
                 msg = f"VGGT-Omega: aggregator layer {li} is not cached"
                 raise RuntimeError(msg)
-            y = self.ln(t[:, s0:s1, pre:], self.head_norm[:2], self.head_norm[2])  # fp16 NHWC rows
-            y = dh.projects[fi](y.view(n, ph, pw, -1).permute(0, 3, 1, 2))
+            y = dh.projects[fi](t[:, s0:s1].reshape(n, ph, pw, -1).permute(0, 3, 1, 2))
             feats.append(dh.resize_layers[fi](self._pos_embed(y, w, h)))
         fused = self._pos_embed(dh.scratch_forward(feats), w, h)
         r = dh.final_shuffle_factor
@@ -425,10 +434,10 @@ class _Fast(_Base):
         b, s, _, h, w = x.shape
         stage = self.staged.session() if self.staged is not None else contextlib.nullcontext()
         with torch.autocast("cuda", enabled=False), _fp16_accumulate(on=self.gacc), stage:
-            toks, pre = self.aggregate(x)
-        pose = self.net.camera_head(toks, patch_token_start=pre)  # ty: ignore[call-non-callable] - built with the camera head
+            toks, camera = self.aggregate(x)
+        pose = self.net.camera_head([camera], patch_token_start=camera.shape[2])  # ty: ignore[call-non-callable]
         c = self.dense_chunk
-        ds, cs = zip(*[self._dense_chunk(toks, pre, b, i, min(i + c, s), h, w) for i in range(0, s, c)], strict=True)
+        ds, cs = zip(*[self._dense_chunk(toks, b, i, min(i + c, s), h, w) for i in range(0, s, c)], strict=True)
         return {"pose_enc": pose, "depth": torch.cat(ds, 1), "depth_conf": torch.cat(cs, 1)}
 
 

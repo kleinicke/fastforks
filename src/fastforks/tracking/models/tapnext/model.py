@@ -111,7 +111,8 @@ class Portable(Runner):
         sd = load_weights(ctx)
         check_fits(net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
         net.load_state_dict(sd)
-        net.eval().requires_grad_(requires_grad=False).to(ctx.device)
+        net.eval().requires_grad_(requires_grad=False)
+        net.to_inference_device(ctx.device)
         self.amp = torch.float16 if ctx.dtype == "float16" else None
         if self.amp is not None:
             cast_gemm_weights(net, self.amp)

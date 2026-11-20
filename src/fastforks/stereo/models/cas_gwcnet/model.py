@@ -204,13 +204,17 @@ def forward(net: GwcNet | PSMNet, left: torch.Tensor, right: torch.Tensor) -> to
         else:
             full, low = _next_hypotheses(net, pred, stage, scale)
         key = f"stage{stage + 1}"
-        volume = cost_volume(fl[key], fr[key], low, groups[stage])
+        volume = cost_volume(fl.pop(key), fr.pop(key), low, groups[stage])
+        del low
         cost = agg.dres0(volume)
         del volume
         cost = agg.dres1(cost) + cost
         for hourglass in (agg.dres2, agg.dres3, agg.dres4):  # rebinding frees each input volume before the next stage
             cost = hourglass(cost)
-        pred = upsample_softmax_regress(agg.classif3(cost), full, h, w)
+        logits = agg.classif3(cost)
+        del cost
+        pred = upsample_softmax_regress(logits, full, h, w)
+        del logits, full
     return pred
 
 

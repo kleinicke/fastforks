@@ -33,6 +33,7 @@ from fastforks._core.sampling import grid_sample
 from fastforks.flow._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
+from fastforks.shared.qk_affine import cached_qk_affine
 
 from .net.megaflow import MegaFlow, slice_expand_and_flatten
 from .net.model_utils import create_uv_grid, position_grid_to_embed, upsample_flow_with_mask
@@ -134,6 +135,7 @@ def local_corr(f0: torch.Tensor, f1: torch.Tensor, flow: torch.Tensor) -> torch.
         g = (xy[:, s : s + CHUNK, None] + win) * norm - 1  # [B, m, 81, 2]
         wf = grid_sample(f1f, g, padding_mode="zeros", align_corners=True)  # [B, C, m, 81]
         out.append((torch.einsum("bcmk,bmc->bmk", wf, a[:, s : s + CHUNK].float()) / math.sqrt(c)).to(f0.dtype))
+        del wf
     return torch.cat(out, 1).view(b, h, w, -1).permute(0, 3, 1, 2)
 
 
@@ -194,13 +196,7 @@ class _Fast(Runner):
         return o.transpose(1, 2).reshape(b, n, h * d)
 
     def qk_affine(self, a: Any) -> tuple[torch.Tensor, torch.Tensor]:  # noqa: ANN401 - vendored Attention
-        key = id(a)
-        if key not in self._aff:
-            self._aff[key] = (
-                torch.stack([a.q_norm.weight, a.k_norm.weight])[:, None],
-                torch.stack([a.q_norm.bias, a.k_norm.bias])[:, None],
-            )  # [2, 1, 64] (q, k)
-        return self._aff[key]
+        return cached_qk_affine(a, self._aff)
 
     def rope_tables(self, pos: torch.Tensor, b: int, s: int, p: int) -> tuple[torch.Tensor, torch.Tensor]:
         """Per-token RoPE tables `[B, S*P, 1, 1, 64]`: cos and sign-folded sin (rot(x) = swap(x) * sign)."""
@@ -277,10 +273,11 @@ class _Fast(Runner):
         with self.accumulate():
             toks = self.aggregate(xr.half(), b)
         cnn = net.backbone(x.half().contiguous(memory_format=torch.channels_last))
+        del x
         feats = net.flow_head(
             toks, images=xr.view(b, 2, 3, rh, WIDTH), patch_start_idx=net.patch_start_idx, cnn_features=cnn
         )
-        del toks
+        del xr, toks
         f0 = feats[:, 0]
         hf, wf = f0.shape[-2:]
         flow = global_flow(f0, feats[:, 1])
@@ -291,6 +288,7 @@ class _Fast(Runner):
         hid, inp = net.refine_proj(ref).chunk(2, 1)
         c = cnn[-1].view(b, 2, *cnn[-1].shape[1:])
         corr_fn = self.correlate(c[:, 0], c[:, 1])
+        del feats, f0, ref, cnn, c
         mask = None
         for i in range(iters):
             hid, delta, mask = self.update(hid, inp, corr_fn(flow), flow, last=i == iters - 1)
@@ -298,6 +296,7 @@ class _Fast(Runner):
         if mask is None:
             msg = "MegaFlow: iters must be >= 1"
             raise ValueError(msg)
+        del hid, inp, corr_fn
         return upsample_flow_with_mask(flow, mask.float(), upsample_factor=UP)
 
     def accumulate(self) -> contextlib.AbstractContextManager[None]:

@@ -5,7 +5,8 @@ tier = "experimental"
 outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
 uses = ["cnn_kernels"]  # fastforks.shared modules this family imports (fp16-accumulate conv kernels)
 limitations = [
-  "LoFTR Indoor FP32 ONNX Runtime matched all features within 0.00014 px on seven ScanNet pairs at 768 x 1024. TensorRT lost 5.27 AUC@20 points in FP16 and 2.58 AUC@10 points in FP32 on a separate 50-pair check.",
+  "LoFTR Indoor FP32 ONNX Runtime matched all features within 0.00014 px on seven ScanNet pairs at 768 x 1024. Whole-graph TensorRT trials lost 5.27 AUC@20 points in FP16 and 2.58 AUC@10 points in FP32 on a separate 50-pair check.",
+  "The standalone ResNetFPN TensorRT plans took about 199 ms versus 273 ms for paired portable FP32 at 768 x 1024. The matching stages stayed in PyTorch. Each variant passed a 12-pair check that included its six worst whole-graph cases.",
   "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; every match is its own keypoint pair (`pairs` is `[[0, 0], [1, 1], ...]`).",
   "One image pair per call internally (batches run pair by pair); the match counts differ per pair.",
   "Match counts depend on image content. The verified ONNX export takes a fixed input size and returns variable-length matches.",
@@ -51,7 +52,7 @@ venue = "CVPR 2021"
 
 [[variants]]
 id = "loftr-outdoor"  # upstream outdoor_ds: trained with the original (buggy) position encoding, eval border_rm 2
-planned = { onnx = "torch.export stops at a data-dependent branch (loftr.py:190)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { onnx = "torch.export stops at a data-dependent branch (loftr.py:190)", tensorrt = "fixed 768 x 1024 engines lose 4.29 pose AUC@5 points in FP16 and 2.49 in FP32 on 50 MegaDepth pairs" }
 revision = 1
 params = { temp_bug_fix = false, border_rm = 2 }
 weights = [{ name = "loftr_outdoor.ckpt", size = 46341978, sha256 = "21f5bec5968178e8bc8b7633441836fe5de4f47d861dd2cd7dc38e271b0479ec", url = "https://huggingface.co/kornia/loftr/resolve/0fb3b456cf176746709c38fa9cf80695a1c82dac/loftr_outdoor.ckpt" }]

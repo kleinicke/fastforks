@@ -705,7 +705,7 @@ class Swin2SR(nn.Module):
                  drop_rate=0., attn_drop_rate=0., drop_path_rate=0.1,
                  norm_layer=nn.LayerNorm, ape=False, patch_norm=True,
                  use_checkpoint=False, upscale=2, img_range=1., upsampler='', resi_connection='1conv',
-                 **kwargs):
+                 strip_nearest_reconstruction=False, **kwargs):
         super(Swin2SR, self).__init__()
         num_in_ch = in_chans
         num_out_ch = in_chans
@@ -718,6 +718,7 @@ class Swin2SR(nn.Module):
             self.mean = torch.zeros(1, 1, 1, 1)
         self.upscale = upscale
         self.upsampler = upsampler
+        self.strip_nearest_reconstruction = strip_nearest_reconstruction
         self.window_size = window_size
 
         #####################################################################################################
@@ -923,6 +924,37 @@ class Swin2SR(nn.Module):
 
         return x    
 
+    def _nearest_reconstruct(self, x):
+        x = self.lrelu(self.conv_up1(F.interpolate(x, scale_factor=2, mode="nearest")))
+        x = self.lrelu(self.conv_up2(F.interpolate(x, scale_factor=2, mode="nearest")))
+        return self.conv_last(self.lrelu(self.conv_hr(x)))
+
+    def _nearest_strip_rows(self, x):
+        if (
+            self.strip_nearest_reconstruction
+            and x.is_cuda
+            and x.dtype == torch.float16
+            and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
+        ):
+            b, c, _, w = x.shape
+            return max(1, (64 * 1024**2) // (b * c * self.upscale**2 * w * x.element_size()))
+        return x.shape[-2]
+
+    def _nearest_in_strips(self, x, rows):
+        b, _, h, w = x.shape
+        scale = self.upscale
+        out = x.new_empty((b, self.conv_last.out_channels, scale * h, scale * w))
+        for start in range(0, h, rows):
+            stop = min(start + rows, h)
+            # Two low-resolution halo rows cover the four convolutions in the reconstruction.
+            first, last = max(0, start - 2), min(h, stop + 2)
+            tile = self._nearest_reconstruct(x[..., first:last, :])
+            out[..., scale * start : scale * stop, :].copy_(
+                tile[..., scale * (start - first) : scale * (stop - first), :]
+            )
+            del tile
+        return out
+
     def forward(self, x):
         H, W = x.shape[2:]
         x = self.check_image_size(x)
@@ -971,9 +1003,13 @@ class Swin2SR(nn.Module):
             x = self.conv_first(x)
             x = self.conv_after_body(self.forward_features(x)) + x
             x = self.conv_before_upsample(x)
-            x = self.lrelu(self.conv_up1(torch.nn.functional.interpolate(x, scale_factor=2, mode='nearest')))
-            x = self.lrelu(self.conv_up2(torch.nn.functional.interpolate(x, scale_factor=2, mode='nearest')))
-            x = self.conv_last(self.lrelu(self.conv_hr(x)))
+            rows = self._nearest_strip_rows(x)
+            if rows < x.shape[-2]:
+                x = self._nearest_in_strips(x, rows)
+            else:
+                x = self.lrelu(self.conv_up1(F.interpolate(x, scale_factor=2, mode="nearest")))
+                x = self.lrelu(self.conv_up2(F.interpolate(x, scale_factor=2, mode="nearest")))
+                x = self.conv_last(self.lrelu(self.conv_hr(x)))
         else:
             # for image denoising and JPEG compression artifact reduction
             x_first = self.conv_first(x)

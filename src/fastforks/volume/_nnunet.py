@@ -287,7 +287,12 @@ class _ConvNormAct(nn.Module):
         w, b = (t.view(1, -1, 1, 1, 1) for t in (self.norm.weight, self.norm.bias))
         scale = w.float() * torch.rsqrt(var.float() + self.norm.eps)
         shift = b.float() - mean.float() * scale
-        y = torch.addcmul(shift.to(y.dtype), y, scale.to(y.dtype))
+        scale, shift = scale.to(y.dtype), shift.to(y.dtype)
+        if y.is_cuda and not (torch.is_grad_enabled() or torch.compiler.is_compiling() or torch.jit.is_tracing()):
+            # This input is the fresh convolution output. The broadcast affine reads each voxel once.
+            torch.addcmul(shift, y, scale, out=y)
+        else:
+            y = torch.addcmul(shift, y, scale)
         return y if self.slope == 1.0 else F.leaky_relu_(y, self.slope)
 
 

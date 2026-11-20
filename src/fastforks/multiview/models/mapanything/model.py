@@ -205,7 +205,7 @@ class _Regressor(nn.Module):
     def __init__(self) -> None:
         super().__init__()
         self.conv1 = nn.Conv2d(256, 128, 3, padding=1)
-        self.conv2 = nn.Sequential(nn.Conv2d(128, 128, 3, padding=1), nn.ReLU(), nn.Conv2d(128, 6, 1))
+        self.conv2 = nn.Sequential(nn.Conv2d(128, 128, 3, padding=1), nn.ReLU(inplace=True), nn.Conv2d(128, 6, 1))
 
 
 class _ResConv(nn.Module):
@@ -552,7 +552,21 @@ class _Base(Runner):
 
     def project_head(self, y: torch.Tensor) -> torch.Tensor:
         """Apply the final FP32 six-channel DPT projection in per-pixel layout."""
-        return F.linear(y.permute(0, 2, 3, 1).float(), self.head_w, self.head_b)
+        pixels = y.permute(0, 2, 3, 1)
+        rows_per_chunk = 1 << 18  # 128 MiB of cast workspace for the 128-channel activation
+        if (
+            pixels.is_cuda and pixels.dtype != torch.float32 and pixels.is_contiguous()
+            and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
+            and pixels.numel() // pixels.shape[-1] > rows_per_chunk
+        ):
+            rows = pixels.flatten(0, 2)
+            channels = self.head_w.shape[0]
+            out = rows.new_empty((rows.shape[0], channels), dtype=torch.float32)
+            for start in range(0, rows.shape[0], rows_per_chunk):
+                chunk = slice(start, start + rows_per_chunk)
+                out[chunk] = F.linear(rows[chunk].float(), self.head_w, self.head_b)
+            return out.view(*pixels.shape[:-1], channels)
+        return F.linear(pixels.float(), self.head_w, self.head_b)
 
     def dense(self, feats: list[torch.Tensor], h: int, w: int) -> torch.Tensor:
         """DPT on 4 `[V, C, gh, gw]` features -> raw head output `[V, h, w, 6]` (fp32)."""

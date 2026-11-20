@@ -195,6 +195,7 @@ def test_download_kernels_without_gpu_or_arch_names_both_options(capsys, monkeyp
 def test_download_check_fails_on_an_empty_cache(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("FASTFORKS_CACHE", str(tmp_path))
     monkeypatch.delenv("FASTFORKS_WEIGHTS_PATH", raising=False)
+    monkeypatch.delenv("FASTFORKS_READ_CACHES", raising=False)
     monkeypatch.setenv("HF_HUB_CACHE", str(tmp_path / "hub"))
     monkeypatch.setenv("TORCH_HOME", str(tmp_path / "torch"))
     assert cli.main(["download", "hitnet-eth3d", "--check"]) == 1

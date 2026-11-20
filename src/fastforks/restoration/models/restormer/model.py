@@ -51,15 +51,6 @@ class Params:
     multiple: int  # 8: the test scripts' reflect padding
 
 
-def _norm(m: torch.nn.Module, x: torch.Tensor) -> torch.Tensor:
-    """`LayerNorm` over the channels without the affine (folded into the next conv)."""
-    if m.with_bias:
-        y = F.layer_norm(x.permute(0, 2, 3, 1), x.shape[1:2], eps=_EPS).permute(0, 3, 1, 2)
-        return y.contiguous() if x.device.type == "cpu" else y  # a channels-last view makes the CPU convs slow (9x)
-    var = x.float().var(1, keepdim=True, unbiased=False)
-    return x * torch.rsqrt(var + _EPS).to(x.dtype)
-
-
 def _gram(q: torch.Tensor, k: torch.Tensor, *, wide: bool = False) -> torch.Tensor:
     """`q^T k` of `[B, N, C]` token views as `[B, C, C]` float32 (half inputs: float32 GEMM output, no overflow)."""
     if q.dtype == torch.float32:
@@ -144,8 +135,8 @@ def _block(m: TransformerBlock, x: torch.Tensor) -> torch.Tensor:
     """`TransformerBlock.forward` with the norms' affine folded into `qkv` / `project_in`."""
     if x.is_cuda:  # PixelShuffle gives NCHW strides; a mixed-stride add is 8x slower
         x = x.contiguous(memory_format=torch.channels_last)
-    x = x + m.attn(_norm(m.norm1, x))
-    return x + m.ffn(_norm(m.norm2, x))
+    x = x + m.attn(m.norm1(x))
+    return x + m.ffn(m.norm2(x))
 
 
 def _pad_ffn(m: FeedForward) -> None:
@@ -226,8 +217,7 @@ def _gate_ffn(m: FeedForward, _device: torch.device | str) -> None:
 
 
 def _fused_ffn(m: FeedForward, x: torch.Tensor) -> torch.Tensor:
-    projected = m.project_in(x).permute(0, 2, 3, 1)
-    gated = fastbb.dwgate(projected, m.gate_weight, m.gate_bias)  # ty: ignore[invalid-argument-type]
+    gated = fastbb.dwgate(m.project_in(x).permute(0, 2, 3, 1), m.gate_weight, m.gate_bias)  # ty: ignore[invalid-argument-type]
     return m.project_out(gated.permute(0, 3, 1, 2))
 
 
@@ -249,6 +239,55 @@ class _Norm(torch.nn.Module):
     def __init__(self, *, with_bias: bool) -> None:
         super().__init__()
         self.with_bias = with_bias
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Normalize the channels after folding the affine into the next convolution."""
+        if self.with_bias:
+            y = F.layer_norm(x.permute(0, 2, 3, 1), x.shape[1:2], eps=_EPS).permute(0, 3, 1, 2)
+            return y.contiguous() if x.device.type == "cpu" else y  # channels-last slows the CPU convolutions
+        var = x.float().var(1, keepdim=True, unbiased=False)
+        return x * torch.rsqrt(var + _EPS).to(x.dtype)
+
+
+class _CudaNorm(_Norm):
+    """Read and write the channels-last activation in one CUDA pass."""
+
+    def __init__(self, norm: _Norm, unit_weight: torch.Tensor) -> None:
+        super().__init__(with_bias=norm.with_bias)
+        self.register_buffer("unit_weight", unit_weight, persistent=False)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Normalize a half-precision activation with the affine already folded."""
+        tokens = x.permute(0, 2, 3, 1).contiguous()
+        weight = self.get_buffer("unit_weight")
+        return fastbb.ln_lastdim(tokens, weight, None, _EPS, bias_free=not self.with_bias).permute(0, 3, 1, 2)
+
+
+def _restore(net: Restormer, image: torch.Tensor) -> torch.Tensor:
+    """Release each eager CUDA encoder feature after its last decoder use."""
+    if not image.is_cuda or torch.is_grad_enabled() or torch.compiler.is_compiling() or torch.jit.is_tracing():
+        return net(image)
+
+    first = net.patch_embed(image)
+    level1 = net.encoder_level1(first)
+    if not net.dual_pixel_task:
+        first = None
+    level2 = net.encoder_level2(net.down1_2(level1))
+    level3 = net.encoder_level3(net.down2_3(level2))
+    x = net.latent(net.down3_4(level3))
+
+    x = torch.cat((net.up4_3(x), level3), dim=1)
+    del level3
+    x = net.decoder_level3(net.reduce_chan_level3(x))
+    x = torch.cat((net.up3_2(x), level2), dim=1)
+    del level2
+    x = net.decoder_level2(net.reduce_chan_level2(x))
+    x = torch.cat((net.up2_1(x), level1), dim=1)
+    del level1
+    x = net.refinement(net.decoder_level1(x))
+    if first is not None:
+        return net.output(x + net.skip_conv(first))
+    return net.output(x).add_(image)
 
 
 class Portable(Runner):
@@ -289,7 +328,8 @@ class Portable(Runner):
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The restored batch."""
-        return {"image": self.net(image.to(getattr(torch, self.ctx.dtype)).contiguous(memory_format=self.fmt))}
+        x = image.to(getattr(torch, self.ctx.dtype)).contiguous(memory_format=self.fmt)
+        return {"image": _restore(self.net, x)}
 
     def module(self) -> torch.nn.Module:
         """The network in the card's dtype."""
@@ -316,13 +356,23 @@ class Kernels(Portable):
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
         fastbb.load(ctx.device)
+        unit_weights: dict[int, torch.Tensor] = {}
         for m in self.net.modules():
             if is_base(m, torch.nn.Conv2d) and m.groups == 1:
                 override(m, _hacc_conv)
+            elif isinstance(m, TransformerBlock):
+                channels = m.attn.qkv.in_channels
+                if channels % 8 or channels > fastbb.LN_MAX_C:
+                    continue  # arbitrary-width checkpoint variants use the generic channel normalization
+                if channels not in unit_weights:
+                    unit_weights[channels] = torch.ones(channels, device=ctx.device, dtype=torch.float32)
+                for name in ("norm1", "norm2"):
+                    m.register_module(name, _CudaNorm(getattr(m, name), unit_weights[channels]))
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The restored batch."""
-        return {"image": self.net(image.to(torch.float16).contiguous(memory_format=self.fmt))}
+        x = image.to(torch.float16).contiguous(memory_format=self.fmt)
+        return {"image": _restore(self.net, x)}
 
 
 RUNNERS = {

@@ -33,8 +33,7 @@ class MaskUpsampleBlock(nn.Module):
     def forward(self, in_g: torch.Tensor, skip_f: torch.Tensor) -> torch.Tensor:
         g = upsample_groups(in_g, ratio=self.scale_factor)
         g = self.distributor(skip_f, g)
-        g = self.out_conv(g)
-        return g
+        return self.out_conv(g, consume_input=True)
     
 
 class DecoderFeatureProcessor(nn.Module):

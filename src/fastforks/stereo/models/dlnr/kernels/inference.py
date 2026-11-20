@@ -118,9 +118,11 @@ def forward_kernels(
         fh = ub.flow_head
         flow = flow + conv_ep(fh.conv2, conv_ep(fh.conv1, net[0], act=RELU))[:, :1].float()
 
-    del corr, look
+    del corr, look, flow2, ctx
     mask = 0.25 * conv_ep(ub.mask[2], conv_ep(ub.mask[0], net[0], act=RELU)).float()
+    del net
     flow = _upsample(flow, mask, 2**model.args.n_downsample)
+    del mask
     return -_refine(model, flow, i1, i2)[:, 0]
 
 
@@ -148,6 +150,7 @@ def _refinement(r: nn.Module, low_disp: torch.Tensor, left: torch.Tensor, right:
     x2 = torch.nn.functional.conv2d(disp, c2[0].weight, None, 1, 1)
     x2 = torch.nn.functional.leaky_relu_(x2 * c2._s.view(1, -1, 1, 1) + c2._t.view(1, -1, 1, 1), LEAKY)
     x = _bc(r.conv_start, torch.cat((x1, x2.half()), 1).contiguous(memory_format=CL))
+    del warped, x1, x2
     rem0 = x
     x = rem1 = _bc(r.conv1a, x)
     x = rem2 = _bc(r.conv2a, x)
@@ -161,10 +164,15 @@ def _refinement(r: nn.Module, low_disp: torch.Tensor, left: torch.Tensor, right:
     x = rem2 = _c2x(r.conv2b, x, rem2)
     x = rem3 = _c2x(r.conv3b, x, rem3)
     x = _c2x(r.conv4b, x, rem4)
+    del rem4
     x = _c2x(r.deconv4b, x, rem3)
+    del rem3
     x = _c2x(r.deconv3b, x, rem2)
+    del rem2
     x = _c2x(r.deconv2b, x, rem1)
+    del rem1
     x = _c2x(r.deconv1b, x, rem0)
+    del rem0
     residual = conv_ep(r.final_conv, x).float()
     new = torch.nn.functional.leaky_relu(disp + residual)
     return -(new / 1024 * w)

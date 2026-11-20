@@ -16,6 +16,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
+from fastforks._core.tracing import in_onnx_export
 from fastforks.kernels import cfnet_volume
 from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
@@ -39,6 +40,8 @@ if TYPE_CHECKING:
 BATCHNORMS = (nn.BatchNorm2d, nn.BatchNorm3d)
 FP32_MODULES = ("dres0_5", "dres1_5", "dres0_6", "dres1_6")
 STRIP, HALO = 256, 64  # stage rows per strip / halo rows (> the 3D stack's receptive field; multiples of 8)
+_CUDA_HALO = 32
+_CUDA_HALO_MAX_INPUT = (1024, 1536)
 
 
 @dataclass(frozen=True)
@@ -104,6 +107,45 @@ class StageVolume(Protocol):
         ...
 
 
+def _warp_features(right: torch.Tensor, index: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+    """Gather right-view features with one integer index per pixel and disparity."""
+    source = right.unsqueeze(2).expand(-1, -1, index.shape[2], -1, -1)
+    return (mask * source.gather(-1, index.expand_as(source))).add_(0)
+
+
+def _eager_cuda(tensor: torch.Tensor) -> bool:
+    return tensor.is_cuda and not (torch.compiler.is_compiling() or torch.compiler.is_exporting() or in_onnx_export())
+
+
+def _packed_stage_volume(  # noqa: PLR0913 - source features from two branches
+    flg: torch.Tensor,
+    frg: torch.Tensor,
+    flc: torch.Tensor,
+    frc: torch.Tensor,
+    ds: torch.Tensor,
+    *,
+    groups: int,
+) -> torch.Tensor:
+    """Share the warp coordinates and write each result directly into the stage dtype."""
+    batch, disparities, height, width = ds.shape
+    channels = flc.shape[1]
+    x = torch.arange(0.0, width, device=ds.device) - ds.float()
+    index = x.clamp(0, width - 1).long().unsqueeze(1)
+    mask = 1 - ((x < 0) | (x > width - 1)).float().unsqueeze(1)
+    del x
+
+    warped = _warp_features(frg, index, mask)
+    correlations = warped.mul_(flg.unsqueeze(2)).unflatten(1, (groups, -1)).mean(dim=2)
+    del warped
+    out = flg.new_empty((batch, groups + 2 * channels + 1, disparities, height, width))
+    out[:, :groups].copy_(correlations)
+    del correlations
+    out[:, groups : groups + channels].copy_(flc.unsqueeze(2))
+    out[:, groups + channels : -1].copy_(_warp_features(frc, index, mask))
+    out[:, -1:].copy_(ds.unsqueeze(1))
+    return out
+
+
 def stage_volume(  # noqa: PLR0913 - the stage's inputs
     net: cfnet, feats: tuple[Features, Features], ds: torch.Tensor, *, level: int, a: int, groups: int
 ) -> torch.Tensor:
@@ -116,6 +158,8 @@ def stage_volume(  # noqa: PLR0913 - the stage's inputs
     b = a + ds.shape[2]
     flc, frc = fl[f"concat_feature{level}"][:, :, a:b], fr[f"concat_feature{level}"][:, :, a:b]
     flg, frg = fl[f"gw{level}"][:, :, a:b], fr[f"gw{level}"][:, :, a:b]
+    if _eager_cuda(flg):
+        return _packed_stage_volume(flg, frg, flc, frc, ds, groups=groups)
     vc, _ = net.cost_volume_generator(flc, frc, ds, "concat")
     vg, ds = net.cost_volume_generator(flg, frg, ds, "gwc", groups)
     # the warp's float32 mask promotes the volumes (as upstream: the correlation runs in float32)
@@ -150,9 +194,16 @@ def _stage(  # noqa: PLR0913 - one refinement stage of upstream's forward
     rows = lo.shape[2]
     out = torch.empty_like(lo)
     std = torch.empty_like(lo) if with_std else lo.new_empty(0)
+    # Each hourglass reaches 12 rows in either direction. The first four and last two convolutions make 30.
+    # Round up for stride alignment. Keep the existing convolution shapes above the standard profile for parity.
+    halo = HALO
+    stride = 2 ** (level - 1)
+    max_h, max_w = _CUDA_HALO_MAX_INPUT
+    if _eager_cuda(lo) and rows * stride <= max_h and lo.shape[-1] * stride <= max_w:
+        halo = _CUDA_HALO
     for r0 in range(0, rows, STRIP):
         r1 = min(rows, r0 + STRIP)
-        a, b = max(0, r0 - HALO), min(rows, r1 + HALO)
+        a, b = max(0, r0 - halo), min(rows, r1 + halo)
         ds = net.generate_disparity_samples(lo[:, :, a:b], hi[:, :, a:b], count).float()
         cost = c0(volume(net, feats, ds, level=level, a=a, groups=groups))
         cost = c1(cost) + cost
