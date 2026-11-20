@@ -899,6 +899,65 @@ depth-pro); `mx.export_function` could store the compiled segments too. The surv
 re-taken with the memo. ppocrv5-mobile's survey first call is 35 s at fp16 against 9.8 s fp32 in this probe (not
 investigated; likely one graph per text-crop shape).
 
+## MPS lessons from MLX
+
+The MPS rows that used much more memory than MLX were dominated by the allocator, not by the model. Allocations of
+10-512 MB go into 1 GB MTLHeaps, and allocations above 512 MB get heaps of their own size. A freed buffer is reused
+only after its command buffer completes. So a long queue of stages keeps every stage's temporaries alive, and one
+100-500 MB temporary in the wrong place opens another 1 GB heap (sometimes one more on the first warm call). MLX
+avoids both by evaluating graph segments and keeping a small buffer cache. The fixes ported to the portable code,
+all MPS-gated unless noted:
+
+- **`fence`** (`_core/mps.py`, a `torch.mps.synchronize` at a stage boundary): it lets the next stage reuse the last
+  stage's memory. Use it only where profiling shows a new heap. The extra las2 fnet fences cost 4.6% and saved nothing.
+- **Chunk the big temporaries** below about 64 MB: strips (vitmatte), selective-volume chunks (rt-monster++), one
+  group / neighbour at a time (patchmatchnet correlation and evaluation weights), one warp position at a time plus
+  smaller init-cost row chunks (hitnet), and token chunks in the feed-forwards (video-depth-anything). The smaller
+  ops are often faster too (hitnet fp16 -37%).
+- **Fold BatchNorm into the convolutions at load**, in float32 before the dtype cast (psmnet). Folding works on every
+  device and is not MPS-gated.
+- **fp16 GELU in place** for GEGLU (`F.gelu(gate).mul_(x)`), with no float32 gate copy (video-depth-anything, as on
+  CUDA).
+
+| ref (M1 Pro 16 GB, portable MPS) | before ms / MB | after ms / MB | golden |
+|---|---|---|---|
+| vitmatte-s fp16 | 1360 / 2542 | 1254 / 1530 | pass |
+| vitmatte-s fp32 | 2333 / 5185 | 2195 / 2602 | pass |
+| rt-monster-plusplus-mix-all fp16 | 682 / 7047 | 657 / 4062 | pass |
+| rt-monster-plusplus-mix-all fp32 | 663 / 6986 | 669 / 4016 | pass |
+| las2-s fp16 | 192 / 3590 | 189 / 2588 | pass |
+| las2-s fp32 | 245 / 3983 | 176 / 2999 | pass |
+| patchmatchnet fp16 | 1574 / 6591 | 1012 / 3612 | pass |
+| patchmatchnet fp32 | 1010 / 7593 | 1002 / 3608 | pass |
+| psmnet-sceneflow fp16 | 2579 / 6428 | 2442 / 4783 | pass |
+| psmnet-sceneflow fp32 | 4615 / 11257 | 4150 / 8663 | pass |
+| hitnet-eth3d fp16 | 501 / 5510 | 313 / 2463 | pass |
+| hitnet-eth3d fp32 | 484 / 5503 | 307 / 4507 | pass |
+| video-depth-anything-s fp16 480x640 (profiled, warm) | 906 / 5537 | 899 / 4491 | pass |
+| video-depth-anything-s fp16 994x1482 (profiled, warm) | 1008 / 6661 | 1000 / 4618 | pass |
+
+Route flips in `apple_mlx.json`: vitmatte-s fp16 and psmnet-sceneflow fp16 moved from MLX to MPS. patchmatchnet fp16
+stays on MLX (920 ms there). depthsplat-small-re10k rows were stale with no code change: fp16 757 / 8900 -> 734 / 2763,
+fp32 670 / 8880 -> 682 / 3781.
+
+**Not improved, and why:**
+
+- **Small classifiers and detectors** stay about 1 GB above MLX. This is the first 1 GB heap; model code cannot
+  remove it.
+- **video-depth-anything** was not re-surveyed. The survey plan now picks 994x1482, while the existing rows are
+  480x640.
+- **grounding-dino-tiny**: the fp32 row (4787 MB, from 11-12) looks stale. A current profile peaks at 3790 MB warm.
+  The remaining growth is the transformers Swin `relative_position_bias + attention_mask` add, which is upstream code.
+
+**Left:**
+
+- **inspyrenet fp32** at 1080x1920: 6.3 GB lifetime peak against 2.5 GB allocated. Candidates:
+  - the Swin-v1 `attn_mask` add
+  - `torch.cat` / `F.interpolate` in `attention_module.py`
+  - BN folding in `layers.py`
+- **Not looked at:** sam3, depth-pro, disk-lightglue, dat x4, and foundationstereo (too close to 16 GB to profile
+  safely).
+
 ## Final MLX vs MPS table
 
 Every ref whose MLX row predated cc3fce13 (128 MB cache default) or the later compile-policy/channels-last/cache changes was re-measured on the M1 Pro 16 GB (warm median, one job at a time). Ratios are MLX/MPS, below 1 favours MLX. Row shown: float16 where both dtypes exist, else float32; best MLX mode of portable/kernels. WIN: faster and memory within 1.02x; TIE: within 3% speed, memory not above MPS; LOSE otherwise. 224 refs: 91 WIN, 5 TIE, 128 LOSE.
