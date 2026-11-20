@@ -720,7 +720,9 @@ def hourglass_fast(
     # channel-padded (32) buffer, i.e. a full-volume transient (+2.5 GB at Midd-F) if run in one call
     B, C, D, H, W = ctx.dims(x)
     first = hg.conv1[0]
-    orows = max(4, _rows_for(B, D, W) // 2)
+    # Leave space for the skip volumes while the strip convolutions run.
+    rows = max(8, _rows_for(B, D, W) * 2 // 3)
+    orows = max(4, rows // 2)
     c1 = None
     for o0 in range(0, H // 2, orows):
         o1 = min(H // 2, o0 + orows)
@@ -758,7 +760,7 @@ def hourglass_fast(
     )
     halo = 2  # conv_out: 2 x (1,3,3)
     H8, H16 = ctx.dims(conv1)[3], ctx.dims(xp)[3]
-    for h0, h1 in _strips(H, _rows_for(B, D, W)):
+    for h0, h1 in _strips(H, rows):
         r0, r1 = max(0, h0 - halo), min(H, h1 + halo)
         # transposed conv (k4 s2 p1): rows [r0, r1) need conv1 rows [r0//2 - 1, (r1+1)//2 + 1)
         a, b = max(0, r0 // 2 - 1), min(H8, (r1 + 1) // 2 + 1)

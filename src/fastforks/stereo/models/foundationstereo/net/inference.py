@@ -286,9 +286,13 @@ def hourglass_fast(hg, xs, features, model, ctx):
     if ctx.export:
         c1 = first(x)
     else:
+        rows = _rows_for(model, B, D, W)
+        if x.is_cuda:
+            # The hourglass keeps its skip volumes live while each strip is filtered.
+            rows = max(8, rows // 2)
         # first stride-2 conv over the full-resolution volume in H-strips: cuDNN copies a 28-ch NDHWC input into a
         # channel-padded (32) buffer, i.e. a full-volume transient (+2.5 GB at Midd-F) if run in one call
-        orows = max(4, _rows_for(model, B, D, W) // 2)
+        orows = max(4, rows // 2)
         c1 = None
         for o0 in range(0, H // 2, orows):
             o1 = min(H // 2, o0 + orows)
@@ -327,7 +331,7 @@ def hourglass_fast(hg, xs, features, model, ctx):
     out = ctx.empty((B, C, D, H, W), conv1)
     halo = 2  # conv_out: 2 x (1,3,3)
     H8, H16 = conv1.shape[3], xp.shape[3]
-    for h0, h1 in _strips(H, _rows_for(model, B, D, W)):
+    for h0, h1 in _strips(H, rows):
         r0, r1 = max(0, h0 - halo), min(H, h1 + halo)
         # transposed conv (k4 s2 p1): rows [r0, r1) need conv1 rows [r0//2 - 1, (r1+1)//2 + 1)
         a, b = max(0, r0 // 2 - 1), min(H8, (r1 + 1) // 2 + 1)
