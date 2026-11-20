@@ -1373,7 +1373,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | pi3 | 336x518 | – | 1057 | 822 | 560 | 1.9x | 1.5x | 5926 / 6016 | 2209 / 2254 | 2217 / 2296 |
 | resplat-base-re10k | 480x640 | – | 2521 | 6868 | 1169 | 2.2x | 5.9x | 10139 / 12684 | 4336 / 5596 | 4348 / 5546 |
 | resplat-small-dl3dv | 480x640 | – | 493 | 1680 | 313 | 1.6x | 5.4x | 5148 / 5376 | 1103 / 1240 | 1089 / 1208 |
-| vggt-1b | 336x518 | 2502 | 965 | 653 | 446 | 2.2x | 1.5x | 8688 / 9158 | 3573 / 3794 | 3580 / 3854 |
+| vggt-1b | 336x518 | 2502 | 965 | 655 | 446 | 2.2x | 1.5x | 8688 / 9158 | 3500 / 3694 | 3507 / 3734 |
 | vggt-omega-1b-512 | 336x518 | 2650 | 906 | 727 | 469 | 1.9x | 1.5x | 7495 / 7654 | 3269 / 3352 | 3270 / 3330 |
 
 ### Flow, synthetic, 1080x1920
@@ -2613,7 +2613,7 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | resplat-base-re10k | 256x256 | 1049 ms | – | 1028 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | 1863 / 2680 | – | – | 2173 / 2988 |
 | resplat-small-dl3dv | 480x640 | 1680 ms | 1538 ms | public API unavailable | 313 ms | 243 s | – | 1103 / 1240 | 4995 / 5138 | 1089 / 1208 | – |
 | resplat-small-dl3dv | 256x448 | 1361 ms | – | 1362 ms (Gaussian initialization and refinement heads with eager depth and rendering) | – | – | – | 1204 / 1658 | – | – | 1367 / 1800 |
-| vggt-1b | 336x518 | 653 ms | 557 ms | 424 ms | 446 ms | 74.3 s | 199 s | 3573 / 3794 | 3611 / 3856 | 3580 / 3854 | 6421 / 6472 |
+| vggt-1b | 336x518 | 655 ms | 557 ms | 424 ms | 446 ms | 74.3 s | 199 s | 3500 / 3694 | 3611 / 3856 | 3507 / 3734 | 6421 / 6472 |
 | vggt-omega-1b-512 | 336x518 | 727 ms | 589 ms | 377 ms | 469 ms | 65.7 s | 187 s | 3269 / 3352 | 3082 / 3154 | 3270 / 3330 | 5657 / 5766 |
 | flowformer-small-chairs | 1080x1920 | 4006 ms | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | fails: OutOfMemoryError: CUDA out of memory. Tried to allocate 15.7 | 3951 ms | – | – | 8780 / 8960 | – | 8696 / 8822 | – |
 | flowformer-small-chairs | 375x1242 | 338 ms | 250 ms | 202 ms | 326 ms | 98.7 s | 118 s | 744 / 838 | 2438 / 3196 | 740 / 838 | 2087 / 2138 |
