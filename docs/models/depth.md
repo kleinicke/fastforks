@@ -1429,10 +1429,11 @@ Commercial use: yes.
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
 | `video-depth-anything-s` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>165<br>65.5 | –<br>1207 / 1386<br>1242 / 1430 |
-| `video-depth-anything-s` | TUM RGB-D fr1_room (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 3786<br>147<br>58.5<br>100<br>60.3 | 4780 / 6794<br>1070 / 1266<br>1101 / 1288<br>1143 / 1344<br>886 / 914 |
-| `video-depth-anything-s` | TUM RGB-D fr1_room (1080x1920) | original<br>portable<br>kernels<br>portable + torch.compile | 11626<br>202<br>200<br>1314 | 8263 / 11890<br>1962 / 2204<br>1967 / 2226<br>7762 / 8530 |
+| `video-depth-anything-s` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>147<br>58.4<br>100 (single image)<br>60.3 (single image) | –<br>953 / 1146<br>988 / 1188<br>1143 / 1344<br>886 / 914 |
+| `video-depth-anything-s` | TUM RGB-D fr1_room (88x480x640) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 5064<br>3786<br>954<br>835<br>762 (full 88-frame clip)<br>524 (full 88-frame clip) | 6030 / 8210<br>4780 / 6794<br>1730 / 1946<br>1796 / 1946<br>2587 / 3260<br>2753 / 3148 |
+| `video-depth-anything-s` | TUM RGB-D fr1_room (88x1080x1920) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile | 12158<br>11626<br>1423<br>1233<br>1314 (full 88-frame clip) | 10522 / 14372<br>8263 / 11890<br>6207 / 6524<br>6288 / 6486<br>7762 / 8530 |
 | `video-depth-anything-metric-s` | synthetic (994x1482) | original<br>portable<br>kernels | –<br>165<br>65.5 | –<br>1207 / 1386<br>1242 / 1430 |
-| `video-depth-anything-metric-s` | TUM RGB-D fr1_room (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 4012<br>148<br>59.1<br>101<br>60.2 | 4780 / 6806<br>1461 / 1666<br>1270 / 1408<br>1143 / 1464<br>886 / 914 |
+| `video-depth-anything-metric-s` | synthetic (480x640) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | –<br>147<br>59.5<br>101 (single image)<br>60.2 (single image) | –<br>953 / 1146<br>988 / 1188<br>1143 / 1464<br>886 / 914 |
 
 <details><summary>Details</summary>
 
@@ -1450,16 +1451,18 @@ Commercial use: yes.
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `video-depth-anything-s` 3000x4000 (1.8 GiB peak allocated, 3.5 reserved); `video-depth-anything-metric-s` 3000x4000 (1.8 GiB peak allocated, 3.5 reserved)
 - `video-depth-anything-s` 480x640, first call: portable + torch.compile 35 s (cold Inductor cache), TensorRT fp16 103 s (ONNX + engine).
-- `video-depth-anything-s` 1080x1920, first call: portable + torch.compile 83 s (cold Inductor cache).
+- `video-depth-anything-s` 88x480x640, first call: portable + torch.compile 52 s (cold Inductor cache), TensorRT fp16 181 s (ONNX + engine).
+- `video-depth-anything-s` 88x1080x1920, first call: portable + torch.compile 83 s (cold Inductor cache).
 - `video-depth-anything-metric-s` 480x640, first call: portable + torch.compile 33 s (cold Inductor cache), TensorRT fp16 82 s (ONNX + engine).
 - `video-depth-anything-s` portable 994x1482, kernels 994x1482: Single-image full API timing at the depth task input size.
-- `video-depth-anything-s` original 480x640, original 1080x1920: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
-- `video-depth-anything-s` portable 480x640, kernels 480x640: One image. The separate 40-frame profile at this geometry saved 384 MiB peak allocation in the same mode. One synthetic clip and three 38-frame labeled TUM segments matched bitwise.
-- `video-depth-anything-s` portable 1080x1920, kernels 1080x1920: float CUDA frames in [0, 1] in, depth [L, H, W] on the device out
+- `video-depth-anything-s` portable 480x640, kernels 480x640: One synthetic image through the public depth API.
+- `video-depth-anything-s` original (fp32) 88x480x640, original (fp32) 88x1080x1920: upstream infer_video_depth(input_size=518, fp32=True): uint8 numpy frames in, numpy out (its API)
+- `video-depth-anything-s` original 88x480x640, original 88x1080x1920: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
+- `video-depth-anything-s` portable 88x480x640, kernels 88x480x640, portable 88x1080x1920, kernels 88x1080x1920: Float32 CUDA RGB frames in [0, 1] to depth on the device; 88-frame public video API.
 - `video-depth-anything-metric-s` portable 994x1482, kernels 994x1482: Single-image full API timing at the depth task input size.
-- `video-depth-anything-metric-s` original 480x640: upstream infer_video_depth(input_size=518, fp32=False): uint8 numpy frames in, numpy out (its API); the authors' autocast fp16
-- `video-depth-anything-s` load / first call: original 0.26 s / 14.043 s (1080x1920), portable 0.98 s / 0.539 s (480x640), kernels 0.38 s / 0.37 s (480x640)
-- `video-depth-anything-metric-s` load / first call: original 3.85 s / 17.094 s (1080x1920), portable 0.19 s / 0.436 s (480x640), kernels 0.19 s / 0.5 s (480x640)
+- `video-depth-anything-metric-s` portable 480x640, kernels 480x640: One synthetic image through the public depth API.
+- `video-depth-anything-s` load / first call: original 0.26 s / 12.771 s (88x1080x1920), portable 0.98 s / 0.539 s (480x640), kernels 0.38 s / 0.37 s (480x640)
+- `video-depth-anything-metric-s` load / first call: original 2.74 s / 11.32 s (88x1080x1920), portable 0.19 s / 0.436 s (480x640), kernels 0.19 s / 0.5 s (480x640)
 - Protocol, first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
 
 ### Measured
@@ -1489,7 +1492,7 @@ CPU, float32: max |diff| <= 1.3e-05 vs the original. GPU, float16 (the default),
 - `model.video(frames)` runs one video in time order (each window attends over time and is aligned to the previous one); calling the model with an image or a batch runs each image as a one-frame video.
 - Every video runs at least one 32-frame window (shorter videos are padded with copies of their last frame): one image costs about as much as 32 frames in the temporal head.
 - The whole video's depth is kept on the device as float32 (L x H x W); split very long videos.
-- On a 40-frame 480 x 640 FP16 clip, peak allocation was 1347 MiB portable and 1351 MiB kernels on an RTX 5060 Ti, with warm medians of 455.866 and 373.503 ms. The memory change also preserved bitwise outputs on three 38-frame labeled TUM sequences.
+- Video Depth Anything Small at 40 frames of 480 × 640 in FP16 uses 1,231 MiB portable and 1,297 MiB kernels on an RTX 5060 Ti, with warm medians of 458.1 and 375.8 ms. Depth matches bitwise on this clip and three labeled TUM clips within each mode.
 
 </details>
 
