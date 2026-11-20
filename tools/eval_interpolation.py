@@ -23,7 +23,6 @@ import os
 import subprocess
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +30,8 @@ import cv2
 import numpy as np
 import torch
 import torch.nn.functional as F
+
+from _prefetch import prefetch
 
 ROOT = Path(__file__).resolve().parents[1]
 DATASET = "davis2017-triplets180"
@@ -124,16 +125,15 @@ def main() -> None:
             fn(warm, warm)
             torch.cuda.reset_peak_memory_stats()
             scores, times = [], []
-            with ThreadPoolExecutor(4) as pool:  # decode the next frames while the GPU runs
-                for frames in pool.map(read, data):
-                    x1, x2, gt = (torch.from_numpy(f).cuda().permute(2, 0, 1).float() / 255 for f in frames)
-                    torch.cuda.synchronize()
-                    t = time.perf_counter()
-                    with torch.inference_mode():
-                        out = fn(x1[None], x2[None])
-                    torch.cuda.synchronize()
-                    times.append(time.perf_counter() - t)
-                    scores.append(score((out.clamp(0, 1) * 255).round() / 255, gt))
+            for frames in prefetch(read, data):
+                x1, x2, gt = (torch.from_numpy(f).cuda().permute(2, 0, 1).float() / 255 for f in frames)
+                torch.cuda.synchronize()
+                t = time.perf_counter()
+                with torch.inference_mode():
+                    out = fn(x1[None], x2[None])
+                torch.cuda.synchronize()
+                times.append(time.perf_counter() - t)
+                scores.append(score((out.clamp(0, 1) * 255).round() / 255, gt))
             psnr, ssim = np.mean(scores, 0)
             metrics = {"psnr": round(float(psnr), 2), "ssim": round(float(ssim), 4)}
             row = {
