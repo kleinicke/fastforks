@@ -28,6 +28,32 @@ def test_released_variants() -> None:
         assert card.options["iters"] == 32
 
 
+@pytest.mark.gpu
+def test_attention_softmax_preserves_cuda_alignment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The half-precision decoder must not pass an unaligned odd row to CUDA softmax."""
+    from fastforks.flow.models.flowformer.net.FlowFormer.LatentCostFormer import gma  # noqa: PLC0415
+
+    attention = gma.Attention(args=None, dim=16, max_pos_size=7, heads=1, dim_head=16).eval().cuda().half()
+    features = torch.randn(1, 16, 7, 147, device="cuda", dtype=torch.float16)
+    with torch.inference_mode():
+        expected = attention(features)
+        row_bytes = 7 * 147 * features.element_size()
+        monkeypatch.setattr(gma, "_SOFTMAX_MIN_BYTES", 1)
+        monkeypatch.setattr(gma, "_SOFTMAX_GROUP_BYTES", 18 * row_bytes)
+        softmax = torch.Tensor.softmax
+        alignments = []
+
+        def checked_softmax(scores: torch.Tensor, dim: int) -> torch.Tensor:
+            alignments.append(scores.data_ptr() % 16)
+            return softmax(scores, dim)
+
+        monkeypatch.setattr(torch.Tensor, "softmax", checked_softmax)
+        actual = attention(features)
+    assert len(alignments) > 1
+    assert not any(alignments)
+    torch.testing.assert_close(actual, expected, atol=0, rtol=0)
+
+
 @pytest.mark.slow
 def test_batched_network_is_independent() -> None:
     """Each batch member is independent through latent cost memory and recurrent decoding."""

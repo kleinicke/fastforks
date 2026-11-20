@@ -4,8 +4,9 @@ import torch
 import math
 from torch import nn, einsum
 
+from fastforks.shared.cuda_softmax import softmax_rows_
+
 _SOFTMAX_GROUP_BYTES = 32 * 1024**2
-_SOFTMAX_ALIGNMENT_BYTES = 16
 
 
 def rearrange(t, pattern, **axes):  # fastforks: the four einops patterns used here, in plain torch
@@ -59,13 +60,7 @@ class Attention(nn.Module):
             and not (torch.compiler.is_compiling() or torch.jit.is_tracing())
         ):
             # The recurrence reuses the attention weights. Normalize complete rows in place to retain one matrix.
-            row_bytes = sim.shape[-1] * sim.element_size()
-            # Each slice must keep CUDA's vector-load alignment, including when the row width is odd.
-            multiple = _SOFTMAX_ALIGNMENT_BYTES // math.gcd(_SOFTMAX_ALIGNMENT_BYTES, row_bytes)
-            rows = max(multiple, _SOFTMAX_GROUP_BYTES // (row_bytes * multiple) * multiple)
-            for group in sim.flatten(0, -2).split(rows):
-                group.copy_(group.softmax(dim=-1))
-            return sim
+            return softmax_rows_(sim, _SOFTMAX_GROUP_BYTES)
         return sim.softmax(dim=-1)
 
 

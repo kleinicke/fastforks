@@ -1,6 +1,12 @@
 import torch
 from torch import nn, einsum
+
+from fastforks.shared.cuda_softmax import softmax_rows_
+
 from ...ffops import rearrange  # modified: torch-only inference helper
+
+_SOFTMAX_GROUP_BYTES = 32 * 1024**2
+_SOFTMAX_MIN_BYTES = 512 * 1024**2
 
 
 class RelPosEmb(nn.Module):
@@ -74,14 +80,11 @@ class Attention(nn.Module):
         if (
             sim.is_cuda
             and sim.is_contiguous()
-            and sim.numel() * sim.element_size() >= 512 * 1024**2
+            and sim.numel() * sim.element_size() >= _SOFTMAX_MIN_BYTES
             and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
         ):
             # The decoder reuses these weights. Normalize rows in groups without retaining a second full matrix.
-            rows = max(1, 32 * 1024**2 // (sim.shape[-1] * sim.element_size()))
-            for group in sim.flatten(0, -2).split(rows):
-                group.copy_(group.softmax(dim=-1))
-            return sim
+            return softmax_rows_(sim, _SOFTMAX_GROUP_BYTES)
         return sim.softmax(dim=-1)
 
 
