@@ -314,7 +314,9 @@ def _fold_block(m: MSCABlock) -> None:
     scale, shift = _bn_affine(m.norm1)
     _fold_before(m.norm1, m.attn.proj_1)
     _fold_scale(m.attn.proj_2, m.layer_scale_1, shift)
-    m.attn.res_scale = (1 + m.layer_scale_1.double() * scale).to(m.attn.proj_2.weight.dtype)[:, None, None]
+    # detached: computed from Parameters, the buffer would require grad (torch.export warns and detaches it)
+    res = (1 + m.layer_scale_1.double() * scale).to(m.attn.proj_2.weight.dtype)
+    m.attn.res_scale = res.detach()[:, None, None]
     _fold_before(m.norm2, m.mlp.fc1)
     _fold_scale(m.mlp.fc2, m.layer_scale_2)
     m.norm1 = m.norm2 = nn.Identity()
