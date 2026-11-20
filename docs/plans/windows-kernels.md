@@ -344,6 +344,49 @@ WDDM, while kernels mode replays a CUDA graph. sam2.1-hiera-tiny with both modes
 without `--mode`, kernels second) measured kernels 29.9 vs portable 24.8 ms once; in separate processes kernels is
 always faster, so time one mode per process.
 
+## Windows vs Linux
+
+Same machine and GPU, same driver (610.88), same torch 2.14.1+cu130 / cuDNN 9.24 and the same Linux cubins / `.so`
+files: Windows native against WSL2 (Ubuntu, a `git archive` of `work/windows` at `24bdc2c0` with its own `uv sync`).
+WSL2 is not bare-metal Linux: CUDA there goes through the Windows driver (WDDM, via `dxgkrnl`). The last two columns
+are the bare-metal Linux rows of `docs/data/speed.jsonl` for this GPU model (latest per row, 2026-11-03 to 11-20,
+the speed-table harness: uint8 CUDA input, other warm-up and medians), so they compare only roughly. Method as above,
+10 processes per cell, OS and mode alternated per round; median (best process).
+
+| model | size | kernels Win | kernels WSL2 | portable Win | portable WSL2 | Linux kernels / portable |
+| --- | --- | --- | --- | --- | --- | --- |
+| coex-sceneflow | 375x1242 | 6.9 (6.9) | 7.3 (7.0) | 19.3 (18.7) | 18.2 (17.6) | 6.7 / 14.7 |
+| igev-stereo-sceneflow | 375x1242 | 104.5 (103.9) | 105.3 (103.7) | 285.0 (250.0) | 246.2 (243.7) | 96.4 / 213.2 |
+| raft-stereo-sceneflow | 375x1242 | 89.5 (89.4) | 90.8 (90.6) | 238.1 (237.2) | 240.4 (239.2) | 88.0 / 214.7 |
+| psmnet-sceneflow | 375x1242 | fails | fails | 102.2 (101.9) | 102.1 (101.9) | 73.5 / 107.0 |
+| nmrf-sceneflow | 375x1242 | 56.0 (55.8) | 56.3 (56.0) | 62.3 (62.0) | 70.8 (62.3) | 51.5 / 58.1 |
+| bridgedepth-sf | 375x1242 | 141.1 (138.9) | 100.9 (100.7) | 183.1 (180.9) | 120.5 (120.2) | 92.1 / 111.0 |
+| sam2.1-hiera-tiny | 1024x1024 | 22.4 (22.2) | 16.8 (16.5) | 25.6 (25.0) | 19.4 (19.2) | 13.9 / 16.6 |
+| convnext_tiny.fb_in1k | 224x224 | 1.7 (1.3) | 1.6 (1.3) | 11.3 (5.5) | 5.0 (4.6) | 1.15 / 3.3 |
+| depth-anything-v2-s | 518x770 | 5.2 (5.1) | 10.1 (5.0) | 11.1 (10.5) | 8.3 (8.3) | 4.45 / 7.7 |
+| rf-detr-s-coco | 800x1344 | 4.0 (3.9) | 4.8 (3.7) | 23.4 (16.3) | 14.1 (13.7) | 3.3 / 10.0 |
+| rife-4.26 | 1080x1920 | 23.8 (23.7) | 25.8 (23.6) | 27.8 (27.6) | 28.0 (27.5) | 22.0 / 25.0 |
+
+- **Convolution and custom-kernel work runs at the same speed.** Best processes agree within 2 % in kernels mode
+  for every model without attention, and in portable mode for coex, raft-stereo, psmnet, nmrf and rife.
+- **Attention is slower on Windows.** The Windows torch wheel has no flash SDPA: the default falls back to
+  memory-efficient attention, which takes 1.18 ms against flash's 0.62 ms for a [1, 6, 4096, 64] fp16 call. The
+  cuDNN SDPA backend is in both wheels and takes 0.61 ms. That accounts for bridgedepth (+38 % kernels, +50 %
+  portable), sam2.1-hiera-tiny (+30-35 %) and the ViT/DETR portable rows (depth-anything-v2-s +27 %, rf-detr-s +19 %).
+  Choosing cuDNN attention where flash is missing would likely close the gap. It would be an explicit backend
+  choice like C-FS-S's, and the goldens would need checking.
+- **Some cells are bimodal between processes on both OSes**, not drift within a process (cuDNN benchmarking is
+  off). Examples: igev-stereo portable 250 / 285 on Windows, depth-anything-v2-s kernels 5.0 / 11.9 and rife-4.26
+  24 / 35 on WSL2, convnext portable 5 / 11 on both. Compare the best values there, not the medians.
+- **WSL2 is still slower than bare-metal Linux.** Portable stereo is 10-20 % slower (coex 17.6 vs 14.7, igev 244
+  vs 213, raft 239 vs 215). Heavy kernels-mode runs are within 3 % (raft 90.6 vs 88.0), and the attention models
+  are 16-19 % slower (sam2 16.5 vs 13.9). WDDM is the likely common cause, so Windows native also trails bare
+  metal. The harnesses differ, so these are estimates.
+- **No drift on Windows.** It reproduces the table above (coex 6.9, raft 89.5, igev 104.5, nmrf 56.0, sam2 22.4,
+  bridgedepth 141 vs 139). One exception: psmnet portable is now 102 ms, against 110 ms before BatchNorm folding
+  at load (`bd881ef5`). That merge also breaks psmnet kernels mode on both OSes: `RuntimeError: kernels: no conv
+  + BatchNorm run was fused (the module tree changed)`.
+
 ## Decisions to review
 
 Made without a maintainer to keep the work moving; each is in its own commit so it can be reverted on its own.
