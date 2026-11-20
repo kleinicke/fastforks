@@ -1,9 +1,8 @@
 # CUDA kernels on Windows
 
-Status: prototype (branch `worktree-agent-a8a322db22ca4f8da`). The `"cubin"` kernel libraries run on Windows x64.
-For the `"shared"` ones the loader, the per-OS manifest and the DLL build recipe are in place, but no DLL is built
-yet: the build needs MSVC (Visual Studio 2022 Build Tools), which is not installed on the dev machine (see
-[Blocker](#blocker-msvc)).
+Status: prototype. The `"cubin"` kernel libraries run on Windows x64, and `cutlass_conv` runs as a Windows DLL
+(`manifest.windows.toml`, see [cutlass_conv on Windows](#cutlass_conv-on-windows)). The other `"shared"` libraries
+have the loader, manifest and build recipe but no DLL build yet.
 
 ## Why cubin libraries need no Windows build
 
@@ -130,18 +129,55 @@ One build per library and target, like Linux:
    changes its sources and so its Linux build id: do it together with a Linux rebuild). Inline PTX `asm` is device
    code and portable. Still to check by compiling.
 
-### Blocker: MSVC
+### cutlass_conv on Windows
 
-The elevated `winget install Microsoft.VisualStudio.2022.BuildTools` was not run (the agent's permission policy
-blocked an elevated system-wide install without the user's own approval). With the Build Tools installed:
+Built with Visual Studio 2022 Build Tools (MSVC `cl` 19.44.35230, Windows SDK 10.0.26100.0), the pip nvcc 13.0.88
+and CUTLASS 4.7.1: `cutlass_conv@5f1e101619ed`, 7 targets, 8.4 MB in all (sm_120: 1.5 MB), 3.6 min with `--jobs 1`.
+Each DLL imports only `KERNEL32.dll` (the CUDA runtime and the C runtime are static; `nvcuda.dll` is loaded at run
+time) and exports `fused_conv_rs` (plus cudart's `NvOptimusEnablementCuda`). Two clean rebuilds gave the same bytes.
+The `cl` banner is localized (German on this machine), so the toolchain table records `MSVC cl <version> x64`.
 
 ```powershell
-winget install --id Microsoft.VisualStudio.2022.BuildTools --exact --override "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
 uv sync --group kernels
-uv run python tools/build_kernels.py cutlass_conv --cutlass C:\path\to\cutlass-4.7.1   # writes manifest.windows.toml
-$env:FASTFORKS_KERNEL_PATH = "$PWD\build\kernels"
-uv run python -m pytest -m gpu tests/test_golden.py -k "coex or psmnet or raft_stereo or igev"         # then --record
+uv run python tools/build_kernels.py cutlass_conv --cutlass C:\Users\neuer\cutlass-4.7.1
+# put build\kernels\cutlass_conv\*-sm_120.dll on FASTFORKS_KERNEL_PATH (next to the cubin libraries), then:
+uv run python -m pytest -m gpu tests/test_golden.py -k "test_gpu and (coex or psmnet or raft-stereo or igev-stereo or gwcnet)"
 ```
+
+Verified (RTX 5060 Ti sm_120): the GPU golden tests pass in portable and kernels mode for 14 references of 6 families
+(coex, psmnet, raft-stereo x3, igev-stereo x5, gwcnet-g/gc, cas-gwcnet-c/gc; 28 tests). Kernels mode reports
+`cutlass_conv@5f1e101619ed:sm_120`. A `--record` run gives the same mean / p99 px as the committed Linux
+`[validated]` entries for all 14 references; only the build id and symbol hash differ.
+
+Kernels vs portable on the synth pair (100x150; psmnet 256x320, its minimum is 241 px):
+
+| model | mean abs diff px | p99 px |
+| --- | --- | --- |
+| coex-sceneflow | 0.00100 | 0.0038 |
+| psmnet-sceneflow | 0.00434 | 0.0152 |
+| raft-stereo-sceneflow | 0.00251 | 0.0158 |
+| igev-stereo-sceneflow | 0.00375 | 0.0612 |
+| gwcnet-gc-sceneflow | 0.00524 | 0.0181 |
+
+Speed at 375x1242 (KITTI), ms per pair: median of 3 interleaved `fastforks bench --runs 30` runs (range in
+brackets), taken under `C:\Users\neuer\gpu-timing.lock` but with other agents' work on the GPU (98 % utilization at
+the end). Treat these as indicative only. Peak memory is deterministic.
+
+| model | kernels | portable | speedup | peak alloc kernels / portable |
+| --- | --- | --- | --- | --- |
+| coex-sceneflow | 7.2 (7.1-7.6) | 33.8 (22.7-39.0) | 4.7x | 131 / 346 MiB |
+| psmnet-sceneflow | 89.1 (79.5-99.4) | 123.5 (118.9-133.6) | 1.4x | 477 / 609 MiB |
+| raft-stereo-sceneflow | 90.4 (90.1-93.2) | 282.0 (238.5-293.8) | 3.1x | 239 / 470 MiB |
+| igev-stereo-sceneflow | 139.3 (107.4-144.9) | 292.6 (289.2-368.3) | 2.1x | 368 / 415 MiB |
+
+Open:
+
+- `[validated]` has one entry per reference, so `pytest -m gpu --record` on Windows replaces the Linux build ids.
+  The entries need a per-OS slot, for example `[validated."<ref>".windows]`, before Windows records are committed.
+  None are committed. On Windows the recorder also writes CRLF.
+- Publishing: the DLLs have to go to the HF repo (`cutlass_conv/<file>`), like the `.so` files. Until then
+  `FASTFORKS_KERNEL_PATH` has to point at them.
+- cfnet needs `cfnet_volume`, whose current cubin build was not in the local kernel copy, so it was not run.
 Order of value: `cutlass_conv` (23 stereo families, most of the stereo list) then `dpt_fused` (depth / SAM), then the
 `fvm_*` group.
 
