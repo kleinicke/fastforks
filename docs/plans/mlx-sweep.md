@@ -103,7 +103,7 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | pointdit | depth | portable_mlx (`_encode` fp32, `_dit`), fp32+fp16 pass | b fp16 373 / 1702 vs MPS 337 / 1912; fp32 357 / 1759 vs 367 / 1812. l fp16 1212 / 3759 vs 1013 / 4548; fp32 1073 / 4343 vs 1086 / 4516. Less memory than MPS. The DINOv3-L backbone overflows float16 (hidden states up to 1.5e5), so the backbone graph always runs in float32 (`fp32_methods`). |
 | prompt_depth_anything | depth | portable_mlx, fp32+fp16 pass | 756x1008 fp16 s 299 / 2138 vs MPS 195 / 1588. l re-surveyed at the new standard 994x1482 (both devices; the stale 756x1008 rows, upstream's included, dropped): fp16 1082 / 2757 vs MPS 1143 / 3303 (routed); fp32 1404 / 4681 vs 1278 / 4944. |
 | unidepth_v2 | depth | portable_mlx, fp32 only | fp32 1694 / 6215 vs MPS 1252 / 6077. fp16 not declared (golden). |
-| unik3d | depth | portable_mlx, fp32+fp16 pass | fp16 1637 / 4803 vs MPS 1294 / 4038. |
+| unik3d | depth | portable_mlx, fp32+fp16 pass | 2026-11-20: reflection / replication pads kept from the export decomposition (they were index gathers) and lowered as slices + concatenation: fp16 1453 / 3185 -> 1458 / 2388 vs MPS 1294 / 4038, fp32 1385 / 4120 -> 1396 / 3000 vs 1217 / 4001. Same speed, ~25 % leaner; still 13-15 % slower (ViT-L SDPA / MLPs at 3129 tokens, then the decoder convs and bilinear resizes). |
 | video_depth_anything | depth | portable_mlx (`_encode`/`_window`), fp32+fp16 pass | 480x640 fp16 s 1846 / 5538 vs MPS 926 / 6506 (less memory, 2x slower); metric-s 1822 / 5537 vs 933 / 6535. |
 | zoedepth | depth | portable_mlx, fp32 only | fp32 1297 / 5897 vs MPS 778 / 3558. fp16 gives NaN, so not declared. |
 | yolox | detection | portable_mlx + kernels_mlx (conv_mlx), fp32+fp16 pass | tiny 800x1344 fp16 13 / 438 vs MPS 20 / 1492; fp32 15 / 476 vs 20 / 1497. Winograd kernels 12 / 453 fp16, 14 / 511 fp32 (about 8 % faster, declared). l/x pass goldens. |
@@ -1180,7 +1180,7 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 | track-on2 | 32 | 480x854 | portable | 10754.8 | 3318 | 8353.935 | 6102 | 1.29 | 0.54 | LOSE | fp32 slower (1.29x; was 2.57x before the per-frame step graph); fp16 7623 / 3056 WIN, routed |
 | u2net | 16 | 1080x1920 | portable | 62.9 | 1156 | 79.422 | 1885 | 0.79 | 0.61 | WIN |  |
 | unidepth-v2-vitl14 | 32 | 994x1482 | portable | 1691.2 | 3855 | 1252.486 | 6077 | 1.35 | 0.63 | LOSE | slower (1.35x: portable MLX replay, no fused attention/conv kernels) |
-| unik3d-vitl | 16 | 994x1482 | portable | 1452.9 | 3185 | 1293.645 | 4038 | 1.12 | 0.79 | LOSE | slower (1.12x: portable MLX replay, no fused attention/conv kernels) |
+| unik3d-vitl | 16 | 994x1482 | portable | 1457.6 | 2388 | 1293.645 | 4038 | 1.13 | 0.59 | LOSE | 13 % slower, 41 % leaner (edge pads as slices now); the ViT-L encoder dominates; fp32 1396 / 3000 vs MPS 1217 / 4001 |
 | vggt-1b | 16 | 336x518 | portable | 8774.2 | 6853 | 6637.772 | 8423 | 1.32 | 0.81 | LOSE | slower (1.32x: portable MLX replay, no fused attention/conv kernels) |
 | vggt-omega-1b-512 | 16 | 336x518 | portable | 8564.1 | 5137 | 7241.942 | 8602 | 1.18 | 0.60 | LOSE | slower (1.18x: portable MLX replay, no fused attention/conv kernels) |
 | video-depth-anything-metric-s | 16 | 480x640 | portable | 871.6 | 2021 | 933.206 | 6535 | 0.93 | 0.31 | WIN |  |

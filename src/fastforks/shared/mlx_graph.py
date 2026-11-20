@@ -1526,10 +1526,49 @@ def _pad(x: mx.array, pad: Sequence[int], value: float = 0.0) -> mx.array:
     return mx.pad(x, widths, constant_values=value)
 
 
-@_reg(aten.reflection_pad2d.default, aten.replication_pad2d.default)
-def _pad_edge(x: mx.array, pad: Sequence[int]) -> mx.array:
-    msg = "reflection / replication padding"
-    raise UnsupportedOp(msg)
+_EDGE_PADS = (
+    aten.reflection_pad1d.default,
+    aten.reflection_pad2d.default,
+    aten.reflection_pad3d.default,
+    aten.replication_pad1d.default,
+    aten.replication_pad2d.default,
+    aten.replication_pad3d.default,
+)
+"""Kept from the export's decomposition: core ATen makes them index gathers (UniK3D's reflect-padded decoder convs,
+[1, 64, 646, 952] float32: ~20 ms a gather, slices and a concatenation are memory-bound)."""
+
+
+def _edge_pad(x: mx.array, pad: Sequence[int], *, reflect: bool) -> mx.array:
+    """Reflection / replication padding of the trailing dims (`pad` in `F.pad` order) by slices and concatenations."""
+    for i in range(len(pad) // 2):
+        ax, lo, hi = x.ndim - 1 - i, pad[2 * i], pad[2 * i + 1]
+        n = x.shape[ax]
+        parts = []
+        if lo > 0:
+            idx = [slice(None)] * x.ndim
+            idx[ax] = slice(lo, 0, -1) if reflect else slice(0, 1)
+            part = x[tuple(idx)]
+            parts.append(part if reflect else mx.repeat(part, lo, axis=ax))
+        parts.append(x)
+        if hi > 0:
+            idx = [slice(None)] * x.ndim
+            idx[ax] = slice(n - 2, (n - 2 - hi) if n - 2 - hi >= 0 else None, -1) if reflect else slice(n - 1, n)
+            part = x[tuple(idx)]
+            parts.append(part if reflect else mx.repeat(part, hi, axis=ax))
+        x = mx.concatenate(parts, axis=ax) if len(parts) > 1 else x
+    return x
+
+
+def _reflect_pad(x: mx.array, pad: Sequence[int]) -> mx.array:
+    return _edge_pad(x, pad, reflect=True)
+
+
+def _replicate_pad(x: mx.array, pad: Sequence[int]) -> mx.array:
+    return _edge_pad(x, pad, reflect=False)
+
+
+for _op in _EDGE_PADS:
+    OPS[_op] = _reflect_pad if "reflection" in str(_op) else _replicate_pad
 
 
 def _src_index(out: int, inp: int, align: bool, scale: float | None) -> mx.array:
@@ -2046,6 +2085,7 @@ class GraphNet:
                 aten.upsample_bilinear2d.vec,
                 aten.upsample_trilinear3d.vec,
                 aten.linalg_vector_norm.default,
+                *_EDGE_PADS,
             ):
                 decomp.pop(keep, None)
             ep = ep.run_decompositions(decomp)
