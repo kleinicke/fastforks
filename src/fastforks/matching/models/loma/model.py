@@ -29,6 +29,7 @@ from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks._core.patch import override
+from fastforks._core.tracing import in_onnx_export
 from fastforks.kernels import loma_descriptor
 from fastforks.matching._dedode_kernels import prepare
 from fastforks.matching._runner import Forward, Runner
@@ -149,6 +150,14 @@ class Matcher(nn.Module):
         return keypoints, self._descriptions(resized, keypoints)
 
     def _descriptions(self, image: torch.Tensor, keypoints: torch.Tensor) -> torch.Tensor:
+        if (
+            image.is_cuda
+            and self.amp is not None
+            and not (
+                torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export() or torch.is_grad_enabled()
+            )
+        ):
+            return describe_keypoints(_deferred_descriptor(self.descriptor, image), keypoints)
         return describe_keypoints(self.descriptor(image), keypoints)
 
     def _detect(self, image: torch.Tensor) -> torch.Tensor:
@@ -270,6 +279,30 @@ class Kernels(Portable):
         override(self.net, _sample_descriptor, "_descriptions")
 
 
+def _deferred_descriptor(network: Descriptor, image: torch.Tensor) -> torch.Tensor:
+    """Resize the previous descriptor after computing the final convolution."""
+    maps, sizes = network.encoder(image)
+    features = list(maps)
+    del maps
+    scales = list(network.decoder.layers)
+    final = len(scales) - 1
+    descriptor = context = None
+    for i, scale in enumerate(scales):
+        delta, context = network.decoder(features.pop(), scale=scale, context=context)
+        if i == final:
+            if descriptor is None:
+                return delta
+            prior = F.interpolate(descriptor, size=delta.shape[-2:], mode="bilinear", align_corners=False)
+            return delta.add_(prior)
+        descriptor = delta if descriptor is None else delta.add_(descriptor)
+        size = sizes[-2 - i]
+        if i < final - 1:
+            descriptor = F.interpolate(descriptor, size=size, mode="bilinear", align_corners=False)
+        context = F.interpolate(context, size=size, mode="bilinear", align_corners=False)
+    msg = "LoMa needs a descriptor with at least one scale"
+    raise ValueError(msg)
+
+
 def _detector_logits(detector: Detector, image: torch.Tensor) -> torch.Tensor:
     """Keep the multi-scale logits in float32 and resize the context in its next convolution's dtype."""
     maps, sizes = detector.encoder(image)
@@ -277,7 +310,14 @@ def _detector_logits(detector: Detector, image: torch.Tensor) -> torch.Tensor:
     del maps
     logits = context = None
     for i, scale in enumerate(detector.decoder.layers):
-        delta, context = detector.decoder(features.pop(), context=context, scale=scale)
+        layer_input = features.pop()
+        if context is not None:
+            layer_input = torch.cat((layer_input, context), dim=1)
+        del context
+        result = detector.decoder.layers[scale](layer_input)
+        del layer_input
+        delta, context = result[:, : detector.decoder.num_prototypes], result[:, detector.decoder.num_prototypes :]
+        del result
         logits = delta.float() if logits is None else logits.add_(delta)
         if features:
             size = sizes[-2 - i]
