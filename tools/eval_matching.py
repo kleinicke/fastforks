@@ -24,6 +24,7 @@ The 1500 pairs of scenes 0015 and 0022 (LoFTR's test split; the glue-factory `me
   frame. `upstream` / `upstream16`: upstream `match_pair` (`tools/_original.py` `_lightglue`, `mp` off / on; needs
   `FF_LIGHTGLUE_REPO` and kornia). LoFTR and DeDoDe (`CARD_PROTOCOL`): their card defaults (their papers' setting);
   originals `_loftr` (float32 only) / `_dedode` (`upstream16`: upstream's float16 autocast).
+  LoMa and FlexGlue use the same card defaults as their original adapters, including a 1024 px detector long side.
 - `score` (CPU): per sampling OpenCV `findEssentialMat` RANSAC (threshold 0.5 px over the mean focal length, confidence
   0.99999) and `recoverPose`, error = max(angle error of R, of t up to sign); 90 degrees if RANSAC fails. AUC@5/10/20
   over the 7500 errors (upstream `pose_auc`). Appends one row to `--out`.
@@ -129,10 +130,13 @@ def sparse(ref: str) -> bool:
 
 
 def sparse_options(ref: str) -> dict[str, int]:
-    """The options of a sparse matcher: glue-factory's setting, or the card defaults for `CARD_PROTOCOL`."""
+    """Use the detector geometry of the corresponding original runner."""
     from fastforks._core import registry  # noqa: PLC0415
 
-    return {} if registry.resolve("matching", ref)[0].family in CARD_PROTOCOL else SPARSE_OPTIONS
+    family = registry.resolve("matching", ref)[0].family
+    if family in (*CARD_PROTOCOL, "loma", "flexglue"):
+        return {}  # these original adapters use the card's detector geometry
+    return SPARSE_OPTIONS
 
 
 def options_of(ref: str) -> dict[str, int]:
