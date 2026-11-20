@@ -26,9 +26,10 @@ The 1500 pairs of scenes 0015 and 0022 (LoFTR's test split; the glue-factory `me
   mixed precision and CUDA TF32 disabled. LoFTR and DeDoDe (`CARD_PROTOCOL`) use their card defaults, with originals
   `_loftr` (float32 only) and `_dedode` (`upstream16`: upstream's float16 autocast).
   LoMa and FlexGlue use the same card defaults as their original adapters, including a 1024 px detector long side.
-- `score` (CPU): per sampling OpenCV `findEssentialMat` RANSAC (threshold 0.5 px over the mean focal length, confidence
-  0.99999) and `recoverPose`, error = max(angle error of R, of t up to sign); 90 degrees if RANSAC fails. AUC@5/10/20
-  over the 7500 errors (upstream `pose_auc`). Appends one row to `--out`.
+- `score` (CPU, up to three pairs in parallel): per sampling OpenCV `findEssentialMat` RANSAC (threshold 0.5 px over the
+  mean focal length, confidence 0.99999) and `recoverPose`. The error is the larger rotation or translation-direction
+  angle (up to sign), or 90 degrees if RANSAC fails. AUC@5/10/20 over the 7500 errors (upstream `pose_auc`).
+  Appends one row to `--out`.
 
 Modes: `portable32` (float32), `portable`, `kernels` (card default dtype) through `fastforks.matching.load`;
 `upstream` / `upstream16`: the original code (`tools/golden/romav2.py` `build`; fp32 with every autocast off and
@@ -428,6 +429,7 @@ def pose_error(k1: np.ndarray, k2: np.ndarray, x: np.ndarray, gt_r: np.ndarray, 
 
 def score(a: argparse.Namespace) -> None:
     import cv2  # noqa: PLC0415
+    from PIL import Image  # noqa: PLC0415
 
     pairs = load_pairs(a.root)[: a.stop]  # --stop: smoke runs on the first pairs
     index = range(0, len(pairs), a.every)
@@ -440,19 +442,24 @@ def score(a: argparse.Namespace) -> None:
     if missing:
         msg = f"{work}: {len(missing)} pairs not matched yet (first {missing[0]})"
         raise SystemExit(msg)
-    errors = []
-    for i in index:
-        name1, name2, k1, k2, r, t = pairs[i]
-        from PIL import Image  # noqa: PLC0415
 
-        (w1, h1), (w2, h2) = (Image.open(a.root / "images" / n).size for n in (name1, name2))
+    def score_pair(i: int) -> list[float]:
+        name1, name2, k1, k2, r, t = pairs[i]
+        with Image.open(a.root / "images" / name1) as first, Image.open(a.root / "images" / name2) as second:
+            w1, h1 = first.size
+            w2, h2 = second.size
         k1s, k2s = k1.copy(), k2.copy()
         k1s[:2] *= LONG_SIDE / max(w1, h1)
         k2s[:2] *= LONG_SIDE / max(w2, h2)
         rng = np.random.default_rng(i)
+        errors = []
         for run, x in enumerate(kpts[str(i)]):
+            # OpenCV keeps the default RNG state in the calling thread.
             cv2.setRNGSeed(i * N_RUNS + run)
             errors.append(pose_error(k1s, k2s, x[rng.permutation(len(x))], r, t))
+        return errors
+
+    errors = [error for pair_errors in prefetch(score_pair, index, workers=3) for error in pair_errors]
     auc = [round(100 * v, 2) for v in pose_auc(np.array(errors), (5, 10, 20))]
     metrics = {"auc5": auc[0], "auc10": auc[1], "auc20": auc[2]}
     ms = [m for info in infos for m in info["ms"]]
