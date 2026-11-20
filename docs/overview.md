@@ -655,12 +655,12 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`flowseek-t-things`](models/flow.md#flowseek) | yes | 4.141 | 457.7 (1080x1920) | 394.9 | 253.7 | 1.8x vs original (1080x1920) | 1100 |
 | [`flowseek-t-things-notartan`](models/flow.md#flowseek) | yes | 3.937 | 457.6 (1080x1920) | 394.8 | 253.7 | 1.8x vs original (1080x1920) | 1100 |
 | [`flowseek-t`](models/flow.md#flowseek) | yes | 1.348 † | 457.0 (1080x1920) | 396.2 | 254.5 | 1.8x vs original (1080x1920) | 1100 |
-| [`memfof-spring`](models/flow.md#memfof) | yes | 10.778 † | 1034.8 (1080x1920) | 432.6 | 349.3 | 3.0x vs original (1080x1920) | 917 |
+| [`memfof-spring`](models/flow.md#memfof) | yes | 10.780 † | 1034.8 (1080x1920) | 432.6 | 349.3 | 3.0x vs original (1080x1920) | 917 |
 | [`memfof`](models/flow.md#memfof) | yes | 10.891 † | 530.7 (1080x1920) | 432.6 | 349.4 | 1.5x vs original (1080x1920) | 917 |
 | [`gmflow-scale1-mixdata`](models/flow.md#gmflow) | yes | 3.697 ? | 750.1 (1080x1920) | 447.5 | 445.8 | 1.7x vs original (1080x1920) | 1988 |
 | [`gmflow-scale1-things`](models/flow.md#gmflow) | yes | 10.346 | 750.3 (1080x1920) | 447.5 | 445.9 | 1.7x vs original (1080x1920) | 1988 |
-| [`waft-a1-sintel`](models/flow.md#waft) | yes | 0.992 † | 1532.7 (1080x1920) | 741.1 | 518.5 | 3.0x vs original (1080x1920) | 1851 |
-| [`waft-a1-kitti`](models/flow.md#waft) | yes | 0.695 † | 1533.3 (1080x1920) | 741.1 | 518.6 | 3.0x vs original (1080x1920) | 1851 |
+| [`waft-a1-sintel`](models/flow.md#waft) | yes | 0.993 † | 1532.7 (1080x1920) | 741.1 | 518.5 | 3.0x vs original (1080x1920) | 1851 |
+| [`waft-a1-kitti`](models/flow.md#waft) | yes | 0.696 † | 1533.3 (1080x1920) | 741.1 | 518.6 | 3.0x vs original (1080x1920) | 1851 |
 | [`waft-a1`](models/flow.md#waft) | yes | 2.621 | 1533.1 (1080x1920) | 741.0 | 518.7 | 3.0x vs original (1080x1920) | 1851 |
 | [`megaflow`](models/flow.md#megaflow) | yes | 1.714 † | 1588.5 (1080x1920) | 1112.0 | 734.8 | 2.2x vs original (1080x1920) | 2724 |
 | [`memflow-sintel`](models/flow.md#memflow) | yes | 1.218 † | 3214.2 (1080x1920) | 963.8 | 864.5 | 3.7x vs original (1080x1920) | 968 |
@@ -669,15 +669,15 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`gmflow-scale2-mixdata`](models/flow.md#gmflow) | yes | 2.389 ? | 1607.7 (1080x1920) | 914.9 | 915.3 | 1.8x vs original (1080x1920) | 2995 |
 | [`gmflow-scale2-sintel`](models/flow.md#gmflow) | yes | 1.975 † | 1606.7 (1080x1920) | 915.1 | 915.7 | 1.8x vs original (1080x1920) | 2995 |
 | [`gmflow-scale2-things`](models/flow.md#gmflow) | yes | 6.747 | 1598.6 (1080x1920) | 914.3 | 915.8 | 1.7x vs original (1080x1920) | 2995 |
-| [`gmflow-scale2-regrefine6-mixdata`](models/flow.md#gmflow) | yes | 1.315 ? | 2187.5 (1080x1920) | 1382.4 | 1383.1 | 1.6x vs original (1080x1920) | 3005 |
+| [`gmflow-scale2-regrefine6-mixdata`](models/flow.md#gmflow) | yes | 1.314 ? | 2187.5 (1080x1920) | 1382.4 | 1383.1 | 1.6x vs original (1080x1920) | 3005 |
 | [`gmflow-scale2-regrefine6-sintelft`](models/flow.md#gmflow) | yes | 1.154 † | 2184.0 (1080x1920) | 1381.4 | 1383.7 | 1.6x vs original (1080x1920) | 3005 |
-| [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | yes | 4.917 | 2175.1 (1080x1920) | 1381.9 | 1384.0 | 1.6x vs original (1080x1920) | 3005 |
+| [`gmflow-scale2-regrefine6-things`](models/flow.md#gmflow) | yes | 4.915 | 2175.1 (1080x1920) | 1381.9 | 1384.0 | 1.6x vs original (1080x1920) | 3005 |
 | [`gmflow-scale2-regrefine6-kitti`](models/flow.md#gmflow) | yes | 0.570 † | 2187.8 (1080x1920) | 1383.3 | 1388.5 | 1.6x vs original (1080x1920) | 3005 |
-| [`memfof-sintel`](models/flow.md#memfof) | yes | 2.977 † | OOM (1080x1920) | 2176.7 | 1540.6 | 1.4x vs portable | 3805 |
+| [`memfof-sintel`](models/flow.md#memfof) | yes | 2.978 † | OOM (1080x1920) | 2176.7 | 1540.6 | 1.4x vs portable | 3805 |
 | [`memfof-kitti`](models/flow.md#memfof) | yes | 15.577 † | – | 2202.3 | 1565.1 | 1.4x vs portable | 3805 |
-| [`flowformer-small-things`](models/flow.md#flowformer-small) | yes | 6.884 | OOM (1080x1920) | 4002.9 | 3950.3 | 1.0x vs portable | 8696 |
-| [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 10.952 | OOM (1080x1920) | 4006.5 | 3950.9 | 1.0x vs portable | 8696 |
-| [`flowformer-small-sintel`](models/flow.md#flowformer-small) | yes | 4.657 † | OOM (1080x1920) | 4003.3 | 3957.9 | 1.0x vs portable | 8696 |
+| [`flowformer-small-things`](models/flow.md#flowformer-small) | yes | 7.005 | OOM (1080x1920) | 4002.9 | 3950.3 | 1.0x vs portable | 8696 |
+| [`flowformer-small-chairs`](models/flow.md#flowformer-small) | yes | 11.031 | OOM (1080x1920) | 4006.5 | 3950.9 | 1.0x vs portable | 8696 |
+| [`flowformer-small-sintel`](models/flow.md#flowformer-small) | yes | 3.978 † | OOM (1080x1920) | 4003.3 | 3957.9 | 1.0x vs portable | 8696 |
 
 † trained or fine-tuned on this dataset's public images; not a zero-shot result.
 
