@@ -471,6 +471,7 @@ CPU, float32: max |diff| <= 0.0001 vs the original. GPU, float16 (the default), 
 ### Limitations
 
 - On CUDA, stream=True stages the transformer blocks from pinned host RAM. Streamed inference uses eager execution and requires enough host RAM for the blocks.
+- With all hidden states requested at 756 × 1008, ViT-L with registers reduced CUDA peak allocation from 1,416 to 1,096 MiB portable and from 1,419 to 1,108 MiB kernels. The final features and every requested state matched bitwise.
 
 </details>
 
