@@ -133,6 +133,7 @@ def _shifted_window(m: Spatial_Attention, qkv: torch.Tensor, h: int, w: int, shi
             q1, k1, v1 = (t[section].flatten(0, 2) for t in (q, k, v))
             y = attention(q1, k1, v1, pos.expand(q1.shape[0], -1, -1, -1), m.scale)
             out[section] = y.reshape_as(out[section])
+            del q1, k1, v1, y
     result = out.flatten(0, 2)
     return windows2img(result.transpose(1, 2).reshape(result.shape[0], hs * ws, -1), hs, ws, h, w)
 
@@ -186,28 +187,34 @@ def _spatial_block(  # noqa: PLR0913 - separate CUDA gate and attention mask spe
     hp, wp = h + pad_b, w + pad_r
     half = c // 2
     if (m.rg_idx % 2 == 0 and m.b_idx > 0 and (m.b_idx - 2) % 4 == 0) or (m.rg_idx % 2 != 0 and m.b_idx % 4 == 0):
-        (s0, s1), grid = m.shift_size, qkv.view(3, b, hp, wp, c)
-        q0 = torch.roll(grid[..., :half], shifts=(-s0, -s1), dims=(2, 3)).view(3, b, -1, half)
-        q1 = torch.roll(grid[..., half:], shifts=(-s1, -s0), dims=(2, 3)).view(3, b, -1, half)
-        if compact_mask or (
+        s0, s1 = m.shift_size
+        use_compact = compact_mask or (
             x.is_cuda
             and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
             and hp * wp >= _COMPACT_MASK_PIXELS
-        ):
-            a = _shifted_window(cast("Spatial_Attention", m.attns[0]), q0, hp, wp, (s0, s1))
-            b_att = _shifted_window(cast("Spatial_Attention", m.attns[1]), q1, hp, wp, (s1, s0))
-        else:
-            masks = m.calculate_mask(hp, wp)
-            a = m.attns[0](q0, hp, wp, mask=masks[0])
-            b_att = m.attns[1](q1, hp, wp, mask=masks[1])
-        x1 = torch.roll(a, shifts=(s0, s1), dims=(1, 2))
-        x2 = torch.roll(b_att, shifts=(s1, s0), dims=(1, 2))
-        del a, b_att
+        )
+        masks = None if use_compact else m.calculate_mask(hp, wp)
+        parts = []
+        for i, (channels, sh, sw) in enumerate(((slice(None, half), s0, s1), (slice(half, None), s1, s0))):
+            attn = m.attns[i]
+            part = qkv[..., channels].view(3, b, hp, wp, -1)
+            rolled = torch.roll(part, shifts=(-sh, -sw), dims=(2, 3)).view(3, b, -1, half)
+            if masks is None:
+                out = _shifted_window(cast("Spatial_Attention", attn), rolled, hp, wp, (sh, sw))
+            else:
+                out = attn(rolled, hp, wp, mask=masks[i])
+            del part, rolled
+            parts.append(torch.roll(out, shifts=(sh, sw), dims=(1, 2)))
+            del out
+        x1, x2 = parts
+        del parts
     else:
         x1 = m.attns[0](qkv[..., :half], hp, wp)
         x2 = m.attns[1](qkv[..., half:], hp, wp)
     att = torch.cat([x1[:, :h, :w], x2[:, :h, :w]], dim=3).reshape(b, n, c)
+    del x1, x2, qkv
     conv = m.dwconv(v)
+    del v
     channel_map = m.channel_interaction(conv).view(b, 1, c)
     spatial_map = m.spatial_interaction(_image(att, h, w))
     return m.proj(mix(att, conv.flatten(2).transpose(1, 2), channel_map, spatial_map.flatten(2).transpose(1, 2)))
@@ -221,8 +228,10 @@ def _channel_block(
     qkv = m.qkv(x).reshape(b, n, 3, m.num_heads, c // m.num_heads).permute(2, 0, 3, 4, 1)  # 3, b, heads, d, n
     q, k, v = F.normalize(qkv[0], dim=-1), F.normalize(qkv[1], dim=-1), qkv[2]
     attn = ((q @ k.transpose(-2, -1)) * m.temperature).softmax(dim=-1)
+    del q, k
     att = (attn @ v).permute(0, 3, 1, 2).reshape(b, n, c)
     conv = m.dwconv(_image(qkv[2].permute(0, 3, 1, 2).reshape(b, n, c), h, w))
+    del v, qkv, attn
     channel_map = m.channel_interaction(_image(att, h, w))
     spatial_map = _tokens(m.spatial_interaction(conv))
     return m.proj(mix(conv.flatten(2).transpose(1, 2), att, channel_map.flatten(1)[:, None], spatial_map))
