@@ -1,7 +1,8 @@
 """Read and write the per-family `golden.toml` files (`src/fastforks/<task>/models/<family>/golden.toml`).
 
 Each holds `[tolerance]` (parity bounds), `[refs."<id>@<rev>"]` (SHA-256 + provenance of each golden output) and
-`[validated."<id>@<rev>"]` (kernel builds a GPU run checked). A reference's optional `file` names its published
+`[validated."<id>@<rev>"]` (kernel builds a GPU run checked on Linux; a Windows run's record is its
+`[validated."<id>@<rev>".windows]` sub-table). A reference's optional `file` names its published
 file when multiple versions of a fixture are available. The files stay out of the wheels.
 """
 
@@ -23,6 +24,10 @@ HEADER = """\
 # passed with (`pytest -m gpu --record`). Not shipped in wheels.
 """
 DEFAULT_TOLERANCE = {"cpu_atol": 2e-3, "gpu_mean": 0.02, "gpu_p99": 0.25}
+# Per-OS records inside a `[validated."<ref>"]` entry, as `[validated."<ref>".<os>]` sub-tables: a Windows GPU run
+# validates the Windows DLL builds of the `shared` kernel libraries (manifest.windows.toml) next to the Linux record,
+# which stays the entry's own keys.
+OS_SLOTS = ("windows",)
 
 
 def text_codes(texts: list[str]) -> np.ndarray:
@@ -103,5 +108,15 @@ def dump(family: str, data: dict, task: str = "stereo") -> None:
     lines = [HEADER, *table("[tolerance]", data["tolerance"])]
     for section in ("refs", "validated"):
         for ref in sorted(data[section]):
-            lines += ["", *table(f'[{section}."{ref}"]', data[section][ref])]
-    p.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            entry = data[section][ref]
+            slots = {k: entry[k] for k in OS_SLOTS if section == "validated" and k in entry}
+            lines += ["", *table(f'[{section}."{ref}"]', {k: v for k, v in entry.items() if k not in slots})]
+            for k, v in slots.items():
+                lines += ["", *table(f'[{section}."{ref}".{k}]', v)]
+    p.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")  # LF on Windows too
+
+
+def validated_records(entry: dict) -> list[dict]:
+    """The records of a `[validated."<ref>"]` entry: the Linux one (the entry's own keys, if any), then per-OS ones."""
+    own = {k: v for k, v in entry.items() if k not in OS_SLOTS}
+    return ([own] if own else []) + [entry[k] for k in OS_SLOTS if k in entry]

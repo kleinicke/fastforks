@@ -22,6 +22,7 @@ import hashlib
 import importlib.util
 import os
 import re
+import sys
 import warnings
 from pathlib import Path
 from typing import Any
@@ -717,7 +718,7 @@ def test_gpu(ref, mode, request, monkeypatch):
             else:
                 symbols.pop(lib, None)
         store = goldens.load(FAMILY[ref], TASK[ref])
-        store["validated"][ref] = {
+        rec = {
             "kernels": sorted(backend.kernels),
             "symbols": symbols,
             "gpu": torch.cuda.get_device_name(),
@@ -726,6 +727,11 @@ def test_gpu(ref, mode, request, monkeypatch):
             "mean_px": round(float(err.mean()), 5),
             "p99_px": round(float(np.percentile(err, 99)), 5),
         }
+        old = store["validated"].get(ref, {})
+        if sys.platform == "win32":  # the Windows record: its own slot, the Linux one stays
+            store["validated"][ref] = old | {"windows": rec}
+        else:  # the Linux record: the entry's own keys, other OS slots stay
+            store["validated"][ref] = rec | {k: old[k] for k in goldens.OS_SLOTS if k in old}
         goldens.dump(FAMILY[ref], store, TASK[ref])
 
 
@@ -846,22 +852,29 @@ def test_kernels_validated(ref):
     card = API[TASK[ref]].model_card(ref)
     if "kernels" not in card.modes:
         return
-    entry = FAMILIES[FAMILY[ref]]["validated"].get(ref)
-    assert entry, f"{ref}: max never validated; run the GPU goldens with --record"
-    recorded = {_built(t) for t in entry["kernels"]}
+    records = goldens.validated_records(FAMILIES[FAMILY[ref]]["validated"].get(ref, {}))
+    assert records, f"{ref}: max never validated; run the GPU goldens with --record"
     current = _used_symbols(ref)
     for lib in card.kernel_libs:
-        manifest = _manifest(lib)
+        manifest = _manifest(lib)  # the one this OS loads: a Windows DLL build or the Linux / cubin one
         if manifest is None:
             continue
-        tag = manifest.tag
-        old = entry.get("symbols", {}).get(lib)
-        if tag not in recorded and old is not None:  # another build: valid if every function in use is unchanged
-            assert set(current[lib]) <= set(old), f"{ref}: {lib} uses unrecorded functions; rerun --record"
-            changed = sorted(n for n in current[lib] if current[lib][n] != old[n])
-            assert not changed, f"{ref}: {lib} functions changed since validation: {changed}; rerun --record"
-            continue
-        assert tag in recorded, f"{ref}: {tag} not validated (recorded {sorted(recorded)}); rerun GPU goldens --record"
+        problems = [_unvalidated(ref, lib, manifest.tag, current, rec) for rec in records]  # either OS's record
+        assert None in problems, "; ".join(p for p in problems if p)
+
+
+def _unvalidated(ref: str, lib: str, tag: str, current: dict[str, dict[str, str]], rec: dict) -> str | None:
+    """Why `rec` (one OS's `[validated]` record) does not validate build `tag` of `lib`; None if it does."""
+    recorded = {_built(t) for t in rec.get("kernels", ())}
+    old = rec.get("symbols", {}).get(lib)
+    if tag not in recorded and old is not None:  # another build: valid if every function in use is unchanged
+        if not set(current[lib]) <= set(old):
+            return f"{ref}: {lib} uses unrecorded functions; rerun --record"
+        changed = sorted(n for n in current[lib] if current[lib][n] != old[n])
+        return f"{ref}: {lib} functions changed since validation: {changed}; rerun --record" if changed else None
+    if tag not in recorded:
+        return f"{ref}: {tag} not validated (recorded {sorted(recorded)}); rerun GPU goldens --record"
+    return None
 
 
 def test_every_variant_has_a_golden():
@@ -879,6 +892,37 @@ def test_dump_writes_valid_toml(tmp_path, monkeypatch):
     store = {"tolerance": dict(goldens.DEFAULT_TOLERANCE), "refs": {}, "validated": {"fam-a@1": entry}}
     goldens.dump("fam", store)
     assert goldens.load("fam") == store
+
+
+def test_dump_writes_the_windows_record_as_a_sub_table(tmp_path, monkeypatch):
+    """A Windows `--record` lands in `[validated."<ref>".windows]`: the Linux keys stay, the file loads back unchanged
+    and is written with LF line endings on every OS."""
+    monkeypatch.setattr(goldens, "SRC", tmp_path)
+    (tmp_path / "stereo" / "models" / "fam").mkdir(parents=True)
+    linux = {"kernels": ["lib@abc:sm_120"], "symbols": {"lib": {"k": "11"}}, "mean_px": 0.01}
+    win = {"kernels": ["lib@def:sm_120"], "symbols": {"lib": {"k": "22"}}, "mean_px": 0.01}
+    store = {
+        "tolerance": dict(goldens.DEFAULT_TOLERANCE),
+        "refs": {},
+        "validated": {"fam-a@1": linux | {"windows": win}},
+    }
+    goldens.dump("fam", store)
+    raw = goldens.path("fam").read_bytes()
+    assert b"\r" not in raw
+    assert b'[validated."fam-a@1".windows]\n' in raw
+    assert goldens.load("fam") == store
+    assert goldens.validated_records(store["validated"]["fam-a@1"]) == [linux, win]
+    assert goldens.validated_records({"windows": win}) == [win]
+
+
+def test_a_record_validates_its_build_or_unchanged_functions():
+    """`test_kernels_validated` takes either OS's record: the build itself, or another build with the same functions."""
+    cur = {"lib": {"k": "11"}}
+    rec = {"kernels": ["lib@abc:sm_120"], "symbols": {"lib": {"k": "11"}}}
+    assert _unvalidated("r", "lib", "lib@abc", cur, rec) is None
+    assert _unvalidated("r", "lib", "lib@new", cur, rec) is None  # same function hashes
+    assert "changed" in _unvalidated("r", "lib", "lib@new", {"lib": {"k": "99"}}, rec)
+    assert "not validated" in _unvalidated("r", "lib", "lib@new", cur, {"kernels": ["lib@abc:sm_120"]})
 
 
 def test_dump_keeps_notes(tmp_path, monkeypatch):
