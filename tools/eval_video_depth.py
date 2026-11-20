@@ -23,12 +23,15 @@ import os
 import subprocess
 import sys
 import time
+from contextlib import closing
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import cv2
 import numpy as np
 import torch
+
+from _prefetch import prefetch
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
@@ -55,15 +58,30 @@ def load_sequence(name: str, frames: int | None) -> tuple[np.ndarray, np.ndarray
 
     rgb, dep = listing("rgb.txt")[:frames], listing("depth.txt")
     times = np.array([t for t, _ in dep])
-    images, gts = [], []
-    for t, f in rgb:
-        images.append(cv2.imread(str(root / f))[..., ::-1])
+
+    def read(frame: tuple[float, str]) -> tuple[np.ndarray, np.ndarray]:
+        t, file = frame
+        image = cv2.imread(str(root / file))[..., ::-1]
         i = int(np.abs(times - t).argmin())
         if abs(times[i] - t) < 0.02:  # noqa: PLR2004 - 20 ms
-            gts.append(cv2.imread(str(root / dep[i][1]), cv2.IMREAD_UNCHANGED).astype(np.float32) / 5000)
-        else:
-            gts.append(np.zeros(images[-1].shape[:2], np.float32))
-    return np.stack(images), np.stack(gts)
+            gt = cv2.imread(str(root / dep[i][1]), cv2.IMREAD_UNCHANGED).astype(np.float32) / 5000
+            return image, gt
+        return image, np.zeros(image.shape[:2], np.float32)
+
+    if not rgb:
+        msg = f"no RGB frames selected for {name}"
+        raise ValueError(msg)
+    with closing(prefetch(read, rgb, workers=4)) as samples:
+        image, gt = next(samples)
+        images = np.empty((len(rgb), *image.shape), dtype=image.dtype)
+        gts = np.empty((len(rgb), *gt.shape), dtype=gt.dtype)
+        images[0], gts[0] = image, gt
+        for i, (image, gt) in enumerate(samples, 1):
+            if image.shape != images.shape[1:] or gt.shape != gts.shape[1:]:
+                msg = f"inconsistent RGB or depth frame shapes in {name}"
+                raise ValueError(msg)
+            images[i], gts[i] = image, gt
+    return images, gts
 
 
 def _frames(pred: np.ndarray, gt: np.ndarray) -> Iterator[tuple[np.ndarray, np.ndarray]]:
@@ -157,7 +175,6 @@ def main() -> None:
     ap.add_argument("--out", type=Path, required=True)
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
-    data = {s: load_sequence(s, a.frames) for s in SEQUENCES}
     commit = subprocess.run(
         ["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=True
     )
@@ -169,10 +186,12 @@ def main() -> None:
         for tier in a.tiers.split(","):
             mode, dtype, how, column = TIERS[tier]
             fn = predictor(ref, tier)
-            fn(data[SEQUENCES[0]][0][:32])  # warm-up
-            torch.cuda.reset_peak_memory_stats()
             per, seconds, frames = [], 0.0, 0
-            for images, gt in data.values():
+            for seq in SEQUENCES:
+                images, gt = load_sequence(seq, a.frames)
+                if not per:
+                    fn(images[:32])  # warm-up
+                    torch.cuda.reset_peak_memory_stats()
                 torch.cuda.synchronize()
                 t = time.perf_counter()
                 pred = fn(images)
@@ -180,6 +199,7 @@ def main() -> None:
                 seconds += time.perf_counter() - t
                 frames += len(images)
                 per.append(score(pred, gt, inverse=inverse))
+                del images, gt, pred
             metrics = {k: round(float(np.mean([p[k] for p in per])), 4) for k in per[0]}
             row = {
                 "ref": ref, "task": "depth", "tier": tier, "mode": mode, "dtype": dtype, "how": how,
