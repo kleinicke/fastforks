@@ -95,7 +95,7 @@ CPU, float32: max |diff| <= 1e-05 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
-- No accuracy measurement: inpainting is scored on Places / CelebA-HQ with the authors' random masks, which are not part of the evaluation data here; tiers are compared by output parity and speed only.
+- The labeled comparison scores masked regions of 50 inpainting cases from 25 DIV2K validation images cropped to 512 x 512.
 - Fills the masked region from the surrounding image; it does not take a text prompt. The authors' refinement step (`refine=True`, an iterative multi-scale optimisation) is not implemented.
 - Any nonzero mask pixel is a hole (upstream binarises with `mask > 0`): anti-aliased or JPEG masks grow; threshold them first.
 
@@ -151,7 +151,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 
 ### Limitations
 
-- No accuracy measurement: blind face restoration is scored on CelebA-Test / LFW / WebPhoto (FID, NIQE, identity distance), which are not part of the evaluation data here; tiers are compared by output parity and speed only.
+- The labeled comparison reports PSNR and SSIM on DAEFR's paired 512 x 512 CelebA-Test face crops.
 
 </details>
 
@@ -327,7 +327,7 @@ CPU, float32: max |diff| <= 6.3e-06 vs the original. GPU, float16 (the default),
 
 ### Limitations
 
-- No accuracy measurement: blind face restoration is scored on CelebA-Test / LFW / WebPhoto (FID, NIQE, identity distance), which are not part of the evaluation data here; tiers are compared by output parity and speed only.
+- The labeled comparison reports PSNR and SSIM on DAEFR's paired 512 x 512 CelebA-Test face crops.
 
 </details>
 
@@ -950,11 +950,11 @@ DIV2K validation HR images and the official bicubic LR images (x4 or x2, the mod
 |---|---|---|---|---|---|---|
 | `swinir-m-x4` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 30.90 / 0.8423 | 30.90 / 0.8423 | 30.90 / 0.8423 | 30.89 / 0.8422 |  |
 | `swinir-m-x2` | DIV2K validation (100 images), bicubic x2 LR -> HR, PSNR / SSIM (Y) | 36.86 / 0.9507 |  | 36.86 / 0.9507 |  |  |
-| `swinir-m-x2` | DIV2K validation (every second image, 50 images), bicubic x2 LR -> HR, PSNR / SSIM (Y) | 36.62 / 0.9457 | 36.61 / 0.9457 | 36.62 / 0.9457 |  |  |
+| `swinir-m-x2` | DIV2K validation (every second image, 50 images), bicubic x2 LR -> HR, PSNR / SSIM (Y) | 36.62 / 0.9457 | 36.61 / 0.9457 | 36.62 / 0.9457 | 36.61 / 0.9457 |  |
 | `swinir-m-x4-real` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 26.71 / 0.7516 | 26.71 / 0.7516 | 26.71 / 0.7516 | 26.71 / 0.7515 |  |
 | `swinir-l-x4-real` | DIV2K validation (every 2nd: 50 images), bicubic x4 LR -> HR, PSNR / SSIM (Y) | 27.04 / 0.7628 | 27.04 / 0.7628 | 27.04 / 0.7628 | 27.05 / 0.7628 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f / a63c0a86, 2026-11-13 to 2026-11-15; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 45a5c91f, 2026-11-13 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f, 2026-11-13.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 45a5c91f / a63c0a86, 2026-11-13 to 2026-11-15; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 45a5c91f, 2026-11-13 to 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 374541c1b / 45a5c91f, 2026-11-13 to 2026-11-20.
 
 ### Parity
 

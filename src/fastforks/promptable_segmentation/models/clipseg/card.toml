@@ -5,7 +5,7 @@ tier = "experimental"
 outputs = ["boxes", "scores", "masks"]  # the `ConceptSegmentationResult` fields
 uses = ["seginfer", "cuda_graphs", "clip_tokenizer"]  # fastforks.shared modules this family imports
 limitations = [
-  "No accuracy measurement: CLIPSeg is scored on PhraseCut and Pascal-5i one-shot splits, which are not part of the evaluation data here; tiers are compared by output parity and speed only.",
+  "Accuracy uses 500 COCO validation images. Each annotated class supplies a text prompt and its target combines that class's instance masks.",
   "Requires the optional transformers library (the network is its `CLIPSegForImageSegmentation`).",
   "The original in the benchmarks and goldens is the Hugging Face transformers 5.19.0 port with the authors' weights (CIDAS/clipseg-rd64-refined); the authors' timojl/clipseg code was not run.",
   "Text prompts only (no box exemplars or visual prompts); one instance per prompt: its mask is every pixel above probability 0.5, its score the highest pixel probability, its box the mask's bounding box.",

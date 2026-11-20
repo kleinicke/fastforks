@@ -86,7 +86,7 @@ CPU, float32: max |diff| <= 2.6e-05 vs the original. GPU, float16 (the default),
 
 ### Limitations
 
-- No accuracy measurement: face parsing is scored on CelebAMask-HQ, which is not part of the evaluation data here (no public mirror with a clear licence); tiers are compared by output parity and speed only.
+- Accuracy is measured on 2,000 LaPa test images with nine shared face-part labels, including background.
 
 </details>
 
@@ -505,10 +505,10 @@ Each image at its own size, argmax of the logits. Every 40th ADE20K validation i
 | `segformer-b0-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 34.68 / 76.41 | 34.68 / 76.41 | 34.67 / 76.41 | 34.68 / 76.41 | 34.67 / 76.41 |  |  |  |
 | `segformer-b0-ade20k` | ADE20K val (50 images), fixed 1024 x 2048, mIoU / aAcc % |  |  | 26.59 / 78.15 |  |  | 26.58 / 78.15 | 26.58 / 78.15 |  |
 | `segformer-b5-ade20k` | ADE20K val, every 4th image, mIoU / aAcc % | 48.28 / 82.75 | 48.28 / 82.75 | 48.28 / 82.75 | 48.28 / 82.75 | 48.28 / 82.75 |  |  |  |
-| `segformer-b2-clothes` | ATR mirror test split (200 images), mIoU / aAcc % | 74.92 / 97.85 |  | 74.96 / 97.85 | 74.96 / 97.85 |  |  |  |  |
-| `segformer-b5-face-parsing` | LaPa test (2,000 images), common face parts, mIoU / aAcc % | 72.58 / 94.09 |  | 72.55 / 94.08 | 72.55 / 94.08 |  |  |  |  |
+| `segformer-b2-clothes` | ATR mirror test split (200 images), mIoU / aAcc % | 74.92 / 97.85 |  | 74.96 / 97.85 | 74.96 / 97.85 | 74.96 / 97.85 |  |  |  |
+| `segformer-b5-face-parsing` | LaPa test (2,000 images), common face parts, mIoU / aAcc % | 72.58 / 94.09 |  | 72.55 / 94.08 | 72.55 / 94.08 | 72.55 / 94.08 |  |  |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 535aedbb / 939adfe8, 2026-11-06 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 939adfe8, 2026-11-06; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 535aedbb / 939adfe8, 2026-11-06 to 2026-11-19; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 3bf0bac7 / 44640884, 2026-11-18; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 67dbea00e / 939adfe8, 2026-11-06 to 2026-11-20; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 535aedbb, 2026-11-19.
 
 ### Parity
 

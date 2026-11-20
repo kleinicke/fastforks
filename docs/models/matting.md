@@ -293,11 +293,11 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 
 Video matting, YouTubeMatte (MatAnyone's benchmark): each clip at 512 x 288 with the authors' first-frame mask, the authors' evaluation settings (1 warm-up step, mask closing 4 px); 8-bit alpha against the ground truth: mean absolute and squared difference and the temporal coherence error dtSSD (lower is better), averaged over frames, then clips. Original = the original code named under Details, same checkpoint and protocol.
 
-| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | portable + torch.compile | TensorRT | note |
-|---|---|---|---|---|---|---|---|---|
-| `matanyone` | YouTubeMatte 512 x 288, every 2nd clip (32 x 100 frames), first-frame mask, MAD x 1000 / MSE x 1000 / dtSSD x 100 | 2.62 / 0.99 / 1.65 | 2.64 / 1.00 / 1.65 | 2.64 / 1.00 / 1.65 | 2.62 / 0.99 / 1.65 | 2.64 / 1.00 / 1.65 | 2.62 / 0.99 / 1.64 |  |
+| variant | dataset | original fp32 | original fp16 | portable | portable fp32 | kernels | portable + torch.compile | TensorRT | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `matanyone` | YouTubeMatte 512 x 288, every 2nd clip (32 x 100 frames), first-frame mask, MAD x 1000 / MSE x 1000 / dtSSD x 100 | 2.62 / 0.99 / 1.65 | 2.64 / 1.00 / 1.65 | 2.64 / 1.00 / 1.65 | 2.62 / 0.99 / 1.65 | 2.64 / 1.00 / 1.65 | 2.64 / 1.00 / 1.65 | 2.62 / 0.99 / 1.64 |  |
 
-Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d61a877f, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d9caeca2, 2026-11-18.
+Measured on portable: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; portable32: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks e97998ab, 2026-11-14; kernels: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks 374541c1b, 2026-11-20; compile: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d61a877f, 2026-11-18; tensorrt: NVIDIA GeForce RTX 5060 Ti, torch 2.14.1+cu130, fastforks d9caeca2, 2026-11-18.
 
 ### Parity
 
