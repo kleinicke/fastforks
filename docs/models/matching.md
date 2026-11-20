@@ -17,8 +17,8 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`dedode-v2-b`](#dedode) | yes | 189, 1.7x | 1246, 0.63x |
 | [`dedode-v2-g`](#dedode) | yes | 332, 2.0x | 1984, 0.8x |
 | [`disk-lightglue`](#lightglue) | yes | 49.2, 2.4x | 778, 0.32x |
-| [`loftr-indoor`](#loftr) | yes | 96.2, 2.5x | 886, 0.46x |
-| [`loftr-outdoor`](#loftr) | yes | 95.9, 2.5x | 886, 0.47x |
+| [`loftr-indoor`](#loftr) | yes | 86.0, 2.8x | 806, 0.42x |
+| [`loftr-outdoor`](#loftr) | yes | 85.8, 2.8x | 806, 0.43x |
 | [`loma-b`](#loma) | yes | 263, 3.9x | 1328, 0.3x |
 | [`loma-b128`](#loma) | yes | 116 | 684 |
 | [`loma-b64`](#loma) | yes | 107 | 720 |
@@ -241,8 +241,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `loftr-outdoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 241<br>110<br>95.9<br>176<br>199 (ResNetFPN with eager coarse and fine matching) | 1739 / 1870<br>796 / 904<br>760 / 886<br>1149 / 1232<br>2206 / 2958 |
-| `loftr-indoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 242<br>111<br>96.2<br>71.0<br>199 (ResNetFPN with eager coarse and fine matching) | 1751 / 1910<br>796 / 904<br>760 / 886<br>634 / 684<br>2218 / 2962 |
+| `loftr-outdoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 241<br>110<br>85.8<br>176<br>199 (ResNetFPN with eager coarse and fine matching) | 1739 / 1870<br>733 / 944<br>734 / 806<br>1149 / 1232<br>2206 / 2958 |
+| `loftr-indoor` | synthetic (768x1024) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp32 | 242<br>110<br>86.0<br>71.0<br>199 (ResNetFPN with eager coarse and fine matching) | 1751 / 1910<br>740 / 944<br>740 / 806<br>634 / 684<br>2218 / 2962 |
 
 <details><summary>Details</summary>
 

@@ -1442,8 +1442,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | dedode-v2-b | – | 318 | 246 | 189 | 1.7x | 1.3x | 1734 / 1992 | 1535 / 1654 | 1197 / 1246 |
 | dedode-v2-g | – | 666 | 592 | 332 | 2.0x | 1.8x | 2335 / 2472 | 2142 / 2334 | 1787 / 1984 |
 | disk-lightglue | – | 117 | 116 | 49.2 | 2.4x | 2.4x | 1955 / 2412 | 1950 / 2400 | 736 / 778 |
-| loftr-indoor | – | 242 | 111 | 96.2 | 2.5x | 1.1x | 1751 / 1910 | 796 / 904 | 760 / 886 |
-| loftr-outdoor | – | 241 | 110 | 95.9 | 2.5x | 1.1x | 1739 / 1870 | 796 / 904 | 760 / 886 |
+| loftr-indoor | – | 242 | 110 | 86.0 | 2.8x | 1.3x | 1751 / 1910 | 740 / 944 | 740 / 806 |
+| loftr-outdoor | – | 241 | 110 | 85.8 | 2.8x | 1.3x | 1739 / 1870 | 733 / 944 | 734 / 806 |
 | loma-b | – | 1036 | 309 | 263 | 3.9x | 1.2x | 4176 / 4390 | 1767 / 1878 | 1217 / 1328 |
 | loma-b128 | – | – | 150 | 116 | – | 1.3x | – | 878 / 984 | 625 / 684 |
 | loma-b64 | – | – | 131 | 107 | – | 1.2x | – | 854 / 962 | 613 / 720 |
@@ -2683,8 +2683,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | dedode-v2-b | 768x1024 | 246 ms | 164 ms | 494 ms, fp32 engine (FP32 public builder probe) | 189 ms | 50.5 s | 67.8 s | 1535 / 1654 | 1893 / 2434 | 1197 / 1246 | 3354 / 3378 |
 | dedode-v2-g | 768x1024 | 592 ms | 330 ms | 1197 ms, fp32 engine (FP32 descriptor and bilinear sampling with eager detector, keypoint order and matching) | 332 ms | 86.4 s | 71.7 s | 2142 / 2334 | 2881 / 3316 | 1787 / 1984 | 5282 / 6458 |
 | disk-lightglue | 768x1024 | 116 ms | 113 ms | public API unavailable | 49.2 ms | 21.4 s | – | 1950 / 2400 | 1375 / 1502 | 736 / 778 | – |
-| loftr-indoor | 768x1024 | 111 ms | 71.0 ms | 199 ms, fp32 engine (ResNetFPN with eager coarse and fine matching) | 96.2 ms | 30.2 s | 26.4 s | 796 / 904 | 634 / 684 | 760 / 886 | 2218 / 2962 |
-| loftr-outdoor | 768x1024 | 110 ms | 176 ms | 199 ms, fp32 engine (ResNetFPN with eager coarse and fine matching) | 95.9 ms | 33.3 s | 26.2 s | 796 / 904 | 1149 / 1232 | 760 / 886 | 2206 / 2958 |
+| loftr-indoor | 768x1024 | 110 ms | 71.0 ms | 199 ms, fp32 engine (ResNetFPN with eager coarse and fine matching) | 86.0 ms | 30.2 s | 26.4 s | 740 / 944 | 634 / 684 | 740 / 806 | 2218 / 2962 |
+| loftr-outdoor | 768x1024 | 110 ms | 176 ms | 199 ms, fp32 engine (ResNetFPN with eager coarse and fine matching) | 85.8 ms | 33.3 s | 26.2 s | 733 / 944 | 1149 / 1232 | 734 / 806 | 2206 / 2958 |
 | loma-b | 768x1024 | 309 ms | 287 ms | 326 ms, bf16 engine (standalone build) | 263 ms | 143 s | 176 s | 1767 / 1878 | 2870 / 3258 | 1217 / 1328 | 1986 / 2010 |
 | loma-b128 | 768x1024 | 150 ms | 124 ms | 144 ms, bf16 engine | 116 ms | 86.5 s | 103 s | 878 / 984 | 1398 / 1800 | 625 / 684 | 1062 / 1066 |
 | loma-b64 | 768x1024 | 131 ms | 102 ms | 109 ms, bf16 engine | 107 ms | 86.6 s | 102 s | 854 / 962 | 1230 / 1356 | 613 / 720 | 1010 / 1034 |
