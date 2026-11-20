@@ -1386,15 +1386,15 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | flowseek-t | 650 | 457 | 396 | 255 | 1.8x | 1.6x | 8693 / 9880 | 6123 / 6252 | 1100 / 1154 |
 | flowseek-t-things | 650 | 458 | 395 | 254 | 1.8x | 1.6x | 8693 / 9820 | 6123 / 6312 | 1100 / 1154 |
 | flowseek-t-things-notartan | 651 | 458 | 395 | 254 | 1.8x | 1.6x | 8693 / 9820 | 6123 / 6312 | 1100 / 1154 |
-| gmflow-scale1-mixdata | 1246 | 750 | 556 | – | – | – | 8360 / 8448 | 4496 / 4642 | – |
+| gmflow-scale1-mixdata | 1246 | 750 | 448 | 446 | 1.7x | 1.0x | 8360 / 8448 | 1988 / 2142 | 1988 / 2142 |
 | gmflow-scale1-things | 1245 | 750 | 448 | 446 | 1.7x | 1.0x | 8360 / 8468 | 1988 / 2142 | 1988 / 2142 |
-| gmflow-scale2-mixdata | 2544 | 1608 | 1139 | – | – | – | 8425 / 8572 | 6017 / 6224 | – |
+| gmflow-scale2-mixdata | 2544 | 1608 | 915 | 915 | 1.8x | 1.0x | 8425 / 8572 | 2995 / 3184 | 2995 / 3204 |
 | gmflow-scale2-regrefine6-kitti | 3255 | 2188 | 1383 | 1389 | 1.6x | 1.0x | 8537 / 8822 | 3005 / 3192 | 3005 / 3212 |
-| gmflow-scale2-regrefine6-mixdata | 3254 | 2188 | 1675 | – | – | – | 8537 / 8822 | 6080 / 6250 | – |
-| gmflow-scale2-regrefine6-sintelft | 3255 | 2184 | 1674 | – | – | – | 8537 / 8822 | 6080 / 6250 | – |
+| gmflow-scale2-regrefine6-mixdata | 3254 | 2188 | 1382 | 1383 | 1.6x | 1.0x | 8537 / 8822 | 3005 / 3192 | 3005 / 3212 |
+| gmflow-scale2-regrefine6-sintelft | 3255 | 2184 | 1381 | 1384 | 1.6x | 1.0x | 8537 / 8822 | 3005 / 3192 | 3005 / 3212 |
 | gmflow-scale2-regrefine6-things | 3230 | 2175 | 1478 | 1481 | 1.5x | 1.0x | 8537 / 8822 | 4036 / 4696 | 4036 / 4696 |
-| gmflow-scale2-sintel | 2541 | 1607 | 1139 | – | – | – | 8425 / 8552 | 6017 / 6224 | – |
-| gmflow-scale2-things | 2537 | 1599 | 1139 | – | – | – | 8425 / 8552 | 6017 / 6224 | – |
+| gmflow-scale2-sintel | 2541 | 1607 | 915 | 916 | 1.8x | 1.0x | 8425 / 8552 | 2995 / 3184 | 2995 / 3204 |
+| gmflow-scale2-things | 2537 | 1599 | 914 | 916 | 1.7x | 1.0x | 8425 / 8552 | 2995 / 3184 | 2995 / 3204 |
 | megaflow | – | 1588 | 1112 | 735 | 2.2x | 1.5x | 8230 / 8786 | 2713 / 3518 | 2724 / 3530 |
 | memflow | – | 3116 | 965 | 865 | 3.6x | 1.1x | 15061 / 15594 | 6001 / 6294 | 968 / 1022 |
 | memflow-kitti | – | 3247 | 965 | 865 | 3.8x | 1.1x | 15061 / 15594 | 8265 / 8382 | 968 / 1022 |
@@ -2624,21 +2624,21 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | flowseek-t | 1080x1920 | 396 ms | 258 ms | 168 ms | 255 ms | 54.2 s | 107 s | 6123 / 6252 | 6126 / 6212 | 1100 / 1154 | 11328 / 11350 |
 | flowseek-t-things | 1080x1920 | 395 ms | 258 ms | 168 ms | 254 ms | 54.6 s | 102 s | 6123 / 6312 | 6126 / 6212 | 1100 / 1154 | 11330 / 11352 |
 | flowseek-t-things-notartan | 1080x1920 | 395 ms | 258 ms | 168 ms | 254 ms | 54.3 s | 97.5 s | 6123 / 6312 | 6126 / 6212 | 1100 / 1154 | 11328 / 11350 |
-| gmflow-scale1-mixdata | 1080x1920 | 556 ms | 382 ms | 187 ms | – | 29.1 s | 67.3 s | 4496 / 4642 | 4293 / 4558 | – | 4333 / 4390 |
+| gmflow-scale1-mixdata | 1080x1920 | 448 ms | 382 ms | 187 ms | 446 ms | 29.1 s | 67.3 s | 1988 / 2142 | 4293 / 4558 | 1988 / 2142 | 4333 / 4390 |
 | gmflow-scale1-things | 1080x1920 | 448 ms | 382 ms | 187 ms | 446 ms | 35.3 s | 69.3 s | 1988 / 2142 | 4293 / 4558 | 1988 / 2142 | 4333 / 4390 |
-| gmflow-scale2-mixdata | 1080x1920 | 1139 ms | 765 ms | public API unavailable | – | 46.6 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
+| gmflow-scale2-mixdata | 1080x1920 | 915 ms | 765 ms | public API unavailable | 915 ms | 46.6 s | – | 2995 / 3184 | 10865 / 10904 | 2995 / 3204 | – |
 | gmflow-scale2-mixdata | 384x1248 | – | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | – | – | – | 1616 / 2560 |
 | gmflow-scale2-regrefine6-kitti | 1080x1920 | 1383 ms | 1116 ms | public API unavailable | 1389 ms | 58.4 s | – | 3005 / 3192 | 10875 / 10972 | 3005 / 3212 | – |
 | gmflow-scale2-regrefine6-kitti | 384x1248 | – | – | 351 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.1 s | – | – | – | 1660 / 2526 |
-| gmflow-scale2-regrefine6-mixdata | 1080x1920 | 1675 ms | 1116 ms | public API unavailable | – | 58.9 s | – | 6080 / 6250 | 10875 / 10972 | – | – |
+| gmflow-scale2-regrefine6-mixdata | 1080x1920 | 1382 ms | 1116 ms | public API unavailable | 1383 ms | 58.9 s | – | 3005 / 3192 | 10875 / 10972 | 3005 / 3212 | – |
 | gmflow-scale2-regrefine6-mixdata | 384x1248 | – | – | 349 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | – | – | – | 1660 / 2526 |
-| gmflow-scale2-regrefine6-sintelft | 1080x1920 | 1674 ms | 1116 ms | public API unavailable | – | 58.5 s | – | 6080 / 6250 | 10875 / 10972 | – | – |
+| gmflow-scale2-regrefine6-sintelft | 1080x1920 | 1381 ms | 1116 ms | public API unavailable | 1384 ms | 58.5 s | – | 3005 / 3192 | 10875 / 10972 | 3005 / 3212 | – |
 | gmflow-scale2-regrefine6-sintelft | 384x1248 | – | – | 350 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 14.5 s | – | – | – | 1660 / 2526 |
 | gmflow-scale2-regrefine6-things | 1080x1920 | 1478 ms | 1116 ms | public API unavailable | 1481 ms | 58.2 s | – | 4036 / 4696 | 10875 / 10972 | 4036 / 4696 | – |
 | gmflow-scale2-regrefine6-things | 384x1248 | – | – | 350 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.7 s | – | – | – | 1660 / 2526 |
-| gmflow-scale2-sintel | 1080x1920 | 1139 ms | 765 ms | public API unavailable | – | 46.6 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
+| gmflow-scale2-sintel | 1080x1920 | 915 ms | 765 ms | public API unavailable | 916 ms | 46.6 s | – | 2995 / 3184 | 10865 / 10904 | 2995 / 3204 | – |
 | gmflow-scale2-sintel | 384x1248 | – | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 12.7 s | – | – | – | 1616 / 2560 |
-| gmflow-scale2-things | 1080x1920 | 1139 ms | 765 ms | public API unavailable | – | 46.7 s | – | 6017 / 6224 | 10865 / 10904 | – | – |
+| gmflow-scale2-things | 1080x1920 | 914 ms | 765 ms | public API unavailable | 916 ms | 46.7 s | – | 2995 / 3184 | 10865 / 10904 | 2995 / 3204 | – |
 | gmflow-scale2-things | 384x1248 | – | – | 212 ms, fp32 engine (standalone feature CNN, eager transformer and flow update) | – | – | 13.6 s | – | – | – | 1616 / 2560 |
 | megaflow | 1080x1920 | 1112 ms | 917 ms | 677 ms | 735 ms | 102 s | 214 s | 2713 / 3518 | 2611 / 2886 | 2724 / 3530 | 9265 / 9300 |
 | memflow | 1080x1920 | 965 ms | 1642 ms | fails: TensorRT engine build failed | 865 ms | 78.9 s | – | 6001 / 6294 | 6813 / 6946 | 968 / 1022 | – |
