@@ -1505,9 +1505,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | nafnet-sidd | 71.6 | 61.1 | 22.5 | 3.2x | 2.7x | 608 / 730 | 607 / 650 | 502 / 536 |
 | real-hat-gan-x4 | 3038 | 1428 | 1234 | 2.5x | 1.2x | 5318 / 6106 | 1430 / 2070 | 1312 / 1510 |
 | realesr-general-x4v3 | 42.1 | 30.1 | 24.0 | 1.8x | 1.3x | 157 / 206 | 125 / 164 | 125 / 164 |
-| realesrgan-x2plus | 128 | 97.0 | 80.2 | 1.6x | 1.2x | 592 / 656 | 333 / 394 | 333 / 394 |
-| realesrgan-x4plus | 631 | 473 | 403 | 1.6x | 1.2x | 2266 / 2496 | 292 / 354 | 1220 / 1434 |
-| realesrgan-x4plus-anime-6b | 205 | 155 | 132 | 1.6x | 1.2x | 2243 / 2472 | 1197 / 1430 | 1197 / 1410 |
+| realesrgan-x2plus | 128 | 97.2 | 81.4 | 1.6x | 1.2x | 592 / 656 | 200 / 234 | 200 / 234 |
+| realesrgan-x4plus | 631 | 473 | 390 | 1.6x | 1.2x | 2266 / 2496 | 292 / 354 | 324 / 374 |
+| realesrgan-x4plus-anime-6b | 205 | 156 | 129 | 1.6x | 1.2x | 2243 / 2472 | 269 / 330 | 301 / 350 |
 | realplksr-nomoswebphoto-x4 | 267 | 182 | 130 | 2.1x | 1.4x | 244 / 320 | 179 / 216 | 179 / 216 |
 | restormer-deblur | 234 | 183 | 132 | 1.8x | 1.4x | 1221 / 1418 | 724 / 740 | 718 / 740 |
 | restormer-derain | 234 | 228 | 133 | 1.8x | 1.7x | 1221 / 1418 | 850 / 1000 | 892 / 980 |
@@ -2743,9 +2743,9 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | real-hat-gan-x4 | 512x512 | 1428 ms | 1185 ms | fails: TensorRT engine build failed | 1234 ms | 54.3 s | – | 1430 / 2070 | 1811 / 2750 | 1312 / 1510 | – |
 | real-hat-gan-x4 | 256x256 | 346 ms | – | 217 ms | – | – | 98.7 s | 658 / 1002 | – | – | 681 / 682 |
 | realesr-general-x4v3 | 512x512 | 30.1 ms | 22.6 ms | 11.9 ms | 24.0 ms | 3.89 s | 15.3 s | 125 / 164 | 125 / 144 | 125 / 164 | 220 / 228 |
-| realesrgan-x2plus | 512x512 | 97.0 ms | 85.2 ms | 59.7 ms | 80.2 ms | 33.2 s | 40.3 s | 333 / 394 | 323 / 394 | 333 / 394 | 476 / 500 |
-| realesrgan-x4plus | 512x512 | 473 ms | 354 ms | 273 ms | 403 ms | 29.9 s | 55.2 s | 292 / 354 | 1091 / 1394 | 1220 / 1434 | 1546 / 1594 |
-| realesrgan-x4plus-anime-6b | 512x512 | 155 ms | 114 ms | 83.1 ms | 132 ms | 10.0 s | 36.7 s | 1197 / 1430 | 1068 / 1370 | 1197 / 1410 | 1505 / 1552 |
+| realesrgan-x2plus | 512x512 | 97.2 ms | 85.2 ms | 59.7 ms | 81.4 ms | 33.2 s | 40.3 s | 200 / 234 | 323 / 394 | 200 / 234 | 476 / 500 |
+| realesrgan-x4plus | 512x512 | 473 ms | 354 ms | 273 ms | 390 ms | 29.9 s | 55.2 s | 292 / 354 | 1091 / 1394 | 324 / 374 | 1546 / 1594 |
+| realesrgan-x4plus-anime-6b | 512x512 | 156 ms | 114 ms | 83.1 ms | 129 ms | 10.0 s | 36.7 s | 269 / 330 | 1068 / 1370 | 301 / 350 | 1505 / 1552 |
 | realplksr-nomoswebphoto-x4 | 512x512 | 182 ms | 154 ms | 247 ms | 130 ms | 15.2 s | 26.2 s | 179 / 216 | 179 / 196 | 179 / 216 | 358 / 366 |
 | restormer-deblur | 512x512 | 183 ms | 143 ms | 162 ms | 132 ms | 44.1 s | 58.3 s | 724 / 740 | 660 / 778 | 718 / 740 | 757 / 774 |
 | restormer-derain | 512x512 | 228 ms | 144 ms | 162 ms | 133 ms | 41.5 s | 55.3 s | 850 / 1000 | 660 / 778 | 892 / 980 | 757 / 774 |

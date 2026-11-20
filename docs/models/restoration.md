@@ -26,9 +26,9 @@ Other devices: [Apple M1 Pro 16 GB](../devices/apple-m1-pro-16gb.md), [Apple M1 
 | [`nafnet-sidd`](#nafnet) | yes | 22.5, 3.2x | 536, 0.73x |
 | [`real-hat-gan-x4`](#hat) | yes | 1234, 2.5x | 1510, 0.25x |
 | [`realesr-general-x4v3`](#compact) | yes | 24.0, 1.8x | 164, 0.8x |
-| [`realesrgan-x2plus`](#realesrgan) | yes | 80.2, 1.6x | 394, 0.6x |
-| [`realesrgan-x4plus`](#realesrgan) | yes | 403, 1.6x | 1434, 0.57x |
-| [`realesrgan-x4plus-anime-6b`](#realesrgan) | yes | 132, 1.6x | 1410, 0.57x |
+| [`realesrgan-x2plus`](#realesrgan) | yes | 81.4, 1.6x | 234, 0.36x |
+| [`realesrgan-x4plus`](#realesrgan) | yes | 390, 1.6x | 374, 0.15x |
+| [`realesrgan-x4plus-anime-6b`](#realesrgan) | yes | 129, 1.6x | 350, 0.14x |
 | [`realplksr-nomoswebphoto-x4`](#realplksr) | yes | 130, 2.1x | 216, 0.68x |
 | [`restormer-deblur`](#restormer) | yes | 132, 1.8x | 740, 0.52x |
 | [`restormer-derain`](#restormer) | yes | 133, 1.8x | 980, 0.69x |
@@ -520,9 +520,9 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `realesrgan-x4plus` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 631<br>473<br>403<br>354<br>273 | 2266 / 2496<br>292 / 354<br>1220 / 1434<br>1091 / 1394<br>1546 / 1594 |
-| `realesrgan-x2plus` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 128<br>97.0<br>80.2<br>85.2<br>59.7 | 592 / 656<br>333 / 394<br>333 / 394<br>323 / 394<br>476 / 500 |
-| `realesrgan-x4plus-anime-6b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 205<br>155<br>132<br>114<br>83.1 | 2243 / 2472<br>1197 / 1430<br>1197 / 1410<br>1068 / 1370<br>1505 / 1552 |
+| `realesrgan-x4plus` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 631<br>473<br>390<br>354<br>273 | 2266 / 2496<br>292 / 354<br>324 / 374<br>1091 / 1394<br>1546 / 1594 |
+| `realesrgan-x2plus` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 128<br>97.2<br>81.4<br>85.2<br>59.7 | 592 / 656<br>200 / 234<br>200 / 234<br>323 / 394<br>476 / 500 |
+| `realesrgan-x4plus-anime-6b` | synthetic (512x512) | original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 205<br>156<br>129<br>114<br>83.1 | 2243 / 2472<br>269 / 330<br>301 / 350<br>1068 / 1370<br>1505 / 1552 |
 
 <details><summary>Details</summary>
 
@@ -541,8 +541,11 @@ Commercial use: yes.
 - `realesrgan-x4plus-anime-6b` 512x512, first call: portable + torch.compile 10 s (cold Inductor cache), TensorRT fp16 37 s (ONNX + engine).
 - `realesrgan-x4plus` original 512x512: the authors' mixed-precision option (float16); upstream RealESRGANer pre_pad 0, no tile, on the float image, half (the default)
 - `realesrgan-x4plus` portable 512x512: Portable releases dense-block growth activations before the final convolution. Three DIV2K crops and the synthetic image matched bitwise.
+- `realesrgan-x4plus` kernels 512x512: Uses the current shared high-resolution upsampling bands.
 - `realesrgan-x2plus` original 512x512: the authors' mixed-precision option (float16); upstream RealESRGANer pre_pad 0, no tile, on the float image, half (the default)
+- `realesrgan-x2plus` portable 512x512, kernels 512x512: Uses the current shared high-resolution upsampling bands.
 - `realesrgan-x4plus-anime-6b` original 512x512: the authors' mixed-precision option (float16); upstream RealESRGANer pre_pad 0, no tile, on the float image, half (the default)
+- `realesrgan-x4plus-anime-6b` portable 512x512, kernels 512x512: Uses the current shared high-resolution upsampling bands.
 - `realesrgan-x4plus` load / first call: original 1.62 s / 1.641 s, portable 0.2 s / 0.624 s, kernels 2.43 s / 0.435 s
 - `realesrgan-x2plus` load / first call: original 1.54 s / 0.417 s, portable 0.25 s / 0.259 s, kernels 1.26 s / 0.106 s
 - `realesrgan-x4plus-anime-6b` load / first call: original 1.3 s / 0.497 s, portable 0.1 s / 0.232 s, kernels 1.3 s / 0.148 s

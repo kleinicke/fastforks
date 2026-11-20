@@ -769,14 +769,14 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`realesr-general-x4v3`](models/restoration.md#real-esrgan-compact) | yes | 42.1 (512x512) | 30.1 | 24.0 | 1.8x vs original (512x512) | 125 |
 | [`nafnet-gopro`](models/restoration.md#nafnet) | yes | 63.7 (512x512) | 60.4 | 31.3 | 2.0x vs original (512x512) | 376 |
 | [`codeformer`](models/restoration.md#codeformer) | no | 85.7 (512x512) | 48.6 | 40.4 | 2.1x vs original (512x512) | 432 |
-| [`realesrgan-x2plus`](models/restoration.md#real-esrgan) | yes | 128.2 (512x512) | 97.0 | 80.2 | 1.6x vs original (512x512) | 333 |
+| [`realesrgan-x2plus`](models/restoration.md#real-esrgan) | yes | 128.2 (512x512) | 97.2 | 81.4 | 1.6x vs original (512x512) | 200 |
+| [`realesrgan-x4plus-anime-6b`](models/restoration.md#real-esrgan) | yes | 205.1 (512x512) | 156.3 | 129.4 | 1.6x vs original (512x512) | 301 |
 | [`realplksr-nomoswebphoto-x4`](models/restoration.md#realplksr) | yes | 267.3 (512x512) | 181.8 | 129.8 | 2.1x vs original (512x512) | 179 |
-| [`realesrgan-x4plus-anime-6b`](models/restoration.md#real-esrgan) | yes | 205.1 (512x512) | 154.9 | 131.8 | 1.6x vs original (512x512) | 1197 |
 | [`restormer-deblur`](models/restoration.md#restormer) | yes | 233.9 (512x512) | 182.7 | 132.2 | 1.8x vs original (512x512) | 718 |
 | [`restormer-derain`](models/restoration.md#restormer) | yes | 233.8 (512x512) | 228.4 | 132.6 | 1.8x vs original (512x512) | 892 |
 | [`restormer-sidd`](models/restoration.md#restormer) | yes | 217.9 (512x512) | 181.4 | 132.6 | 1.6x vs original (512x512) | 892 |
 | [`dat-light-x4`](models/restoration.md#dat) | yes | 2203.5 (512x512) | 233.8 | 230.4 | 9.6x vs original (512x512) | 521 |
-| [`realesrgan-x4plus`](models/restoration.md#real-esrgan) | yes | 631.1 (512x512) | 472.8 | 402.7 | 1.6x vs original (512x512) | 1220 |
+| [`realesrgan-x4plus`](models/restoration.md#real-esrgan) | yes | 631.1 (512x512) | 472.8 | 389.7 | 1.6x vs original (512x512) | 324 |
 | [`swinir-m-x2`](models/restoration.md#swinir) | yes | 3252.1 (512x512) | 738.8 | 553.0 | 5.9x vs original (512x512) | 1353 |
 | [`swinir-m-x4`](models/restoration.md#swinir) | yes | 3497.4 (512x512) | 767.5 | 575.6 | 6.1x vs original (512x512) | 1354 |
 | [`swinir-m-x4-real`](models/restoration.md#swinir) | yes | 2461.6 (512x512) | 1241.7 | 583.8 | 4.2x vs original (512x512) | 1353 |
