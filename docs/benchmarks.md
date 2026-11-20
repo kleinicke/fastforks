@@ -923,10 +923,10 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | marigold-v2-depth | 994x1482 | – | OOM | 4763 | 3805 | – | 1.3x | – | 1408 / 1838 | 1408 / 1838 |
 | metric3d-vit-large | 994x1482 | – | – | 181 | 146 | – | 1.2x | – | 1188 / 1256 | 1412 / 1486 |
 | midas-dpt-beit-large-512 | 518x770 | 399 | 320 | 75.6 | 63.9 | 5.0x | 1.2x | 2759 / 2858 | 975 / 1418 | 986 / 1436 |
-| moge-2-vitb-normal | 994x1482 | – | – | 83.9 | 40.7 | – | 2.1x | – | 1163 / 1312 | 1093 / 1208 |
+| moge-2-vitb-normal | 994x1482 | – | – | 79.1 | 40.7 | – | 1.9x | – | 681 / 772 | 1093 / 1208 |
 | moge-2-vitl-normal | 518x770 | 500 | 169 | 145 | 73.9 | 2.3x | 2.0x | 2326 / 2418 | 1645 / 1836 | 1481 / 1610 |
-| moge-2-vits-normal | 994x1482 | – | – | 61.6 | 33.3 | – | 1.9x | – | 1007 / 1172 | 932 / 1048 |
-| moge-3-vitl | 994x1482 | – | – | 328 | 149 | – | 2.2x | – | 1622 / 1706 | 1626 / 1762 |
+| moge-2-vits-normal | 994x1482 | – | – | 58.1 | 33.3 | – | 1.7x | – | 530 / 612 | 932 / 1048 |
+| moge-3-vitl | 994x1482 | – | – | 328 | 149 | – | 2.2x | – | 1493 / 1684 | 1626 / 1762 |
 | omni-dc | 994x1482 | – | 875 | 558 | 512 | 1.7x | 1.1x | 5966 / 6732 | 3849 / 5044 | 3873 / 4566 |
 | pointdit-b-512 | 994x1482 | – | – | 31.1 | 20.5 | – | 1.5x | – | 446 / 504 | 462 / 630 |
 | pointdit-l-512 | 994x1482 | – | – | 94.6 | 61.3 | – | 1.5x | – | 1297 / 1430 | 1310 / 1676 |
@@ -965,7 +965,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | metric3d-vit-large | 629 | 438 | – | – | – | – | 3275 / 3350 | – | – |
 | midas-dpt-beit-large-512 | 386 | 333 | 78.8 | 63.9 | 5.2x | 1.2x | 2759 / 2898 | 992 / 1418 | 1003 / 1436 |
 | moge-2-vitb-normal | 237 | 102 | – | – | – | – | 1469 / 1596 | – | – |
-| moge-2-vitl-normal | 501 | 171 | 144 | 73.4 | 2.3x | 2.0x | 2339 / 2438 | 1661 / 1836 | 1498 / 1610 |
+| moge-2-vitl-normal | 501 | 171 | 140 | 73.4 | 2.3x | 1.9x | 2339 / 2438 | 1130 / 1272 | 1498 / 1610 |
 | moge-2-vits-normal | 162 | 82.6 | – | – | – | – | 1193 / 1268 | – | – |
 | moge-3-vitl | 843 | 486 | – | – | – | – | 2505 / 2630 | – | – |
 | pointdit-b-512 | 105 | 48.7 | – | – | – | – | 1214 / 1246 | – | – |
@@ -1670,7 +1670,7 @@ load: from the load call until the model is on the GPU; first call: the whole fi
 | metric3d-vit-large | 9.96 | 2.39 (518x770) | 0.71 (518x770) | 0.88 | 0.42 (518x770) | 0.50 (518x770) |
 | midas-dpt-beit-large-512 | 5.16 | 2.49 | 0.28† | 1.14 | 0.09 | 0.07 |
 | moge-2-vitb-normal | 1.26 | 0.49 (518x770) | 1.24 (518x770) | 0.24 | 0.40 (518x770) | 0.28 (518x770) |
-| moge-2-vitl-normal | 7.24 | 1.37 | 0.63† | 0.17 | 0.14 | 0.13 |
+| moge-2-vitl-normal | 7.24 | 0.90 | 0.63† | 0.17 | 0.33 | 0.13 |
 | moge-2-vits-normal | 0.88 | 1.18 (518x770) | 0.21 (518x770) | 1.50 | 0.30 (518x770) | 0.44 (518x770) |
 | moge-3-vitl | 10.60 | 2.31 (518x770) | 1.16 (518x770) | 2.92 | 0.69 (518x770) | 0.74 (518x770) |
 | omni-dc | 9.52 | 2.47 | 2.44 | 2.04 | 1.06 | 0.94 |
@@ -2271,10 +2271,10 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | marigold-v2-depth | 480x640 | 1179 ms | – | 1156 ms, bf16 engine (VAE encoder and decoder with eager streamed NF4 transformer) | – | – | 137 s | 717 / 964 | – | – | 2042 / 2198 |
 | metric3d-vit-large | 994x1482 | 181 ms | 149 ms | 91.4 ms | 146 ms | 54.7 s | 96.6 s | 1188 / 1256 | 1126 / 1148 | 1412 / 1486 | 1867 / 1952 |
 | midas-dpt-beit-large-512 | 994x1482 | 78.8 ms | 58.8 ms | 52.2 ms | 63.9 ms | 32.6 s | 53.5 s | 992 / 1418 | 1088 / 1116 | 1003 / 1436 | 1514 / 1592 |
-| moge-2-vitb-normal | 994x1482 | 83.9 ms | 60.9 ms | 35.5 ms | 40.7 ms | 133 s | 127 s | 1163 / 1312 | 972 / 1172 | 1093 / 1208 | 1044 / 1092 |
-| moge-2-vitl-normal | 994x1482 | 144 ms | 124 ms | 75.6 ms | 73.4 ms | 152 s | 173 s | 1661 / 1836 | 1411 / 1634 | 1498 / 1610 | 1882 / 1936 |
-| moge-2-vits-normal | 994x1482 | 61.6 ms | 43.9 ms | 24.5 ms | 33.3 ms | 124 s | 131 s | 1007 / 1172 | 836 / 992 | 932 / 1048 | 768 / 852 |
-| moge-3-vitl | 994x1482 | 328 ms | 311 ms | public API unavailable | 149 ms | 136 s | – | 1622 / 1706 | 1500 / 1724 | 1626 / 1762 | – |
+| moge-2-vitb-normal | 994x1482 | 79.1 ms | 60.9 ms | 35.5 ms | 40.7 ms | 133 s | 127 s | 681 / 772 | 972 / 1172 | 1093 / 1208 | 1044 / 1092 |
+| moge-2-vitl-normal | 994x1482 | 140 ms | 124 ms | 75.6 ms | 73.4 ms | 152 s | 173 s | 1130 / 1272 | 1411 / 1634 | 1498 / 1610 | 1882 / 1936 |
+| moge-2-vits-normal | 994x1482 | 58.1 ms | 43.9 ms | 24.5 ms | 33.3 ms | 124 s | 131 s | 530 / 612 | 836 / 992 | 932 / 1048 | 768 / 852 |
+| moge-3-vitl | 994x1482 | 328 ms | 311 ms | public API unavailable | 149 ms | 136 s | – | 1493 / 1684 | 1500 / 1724 | 1626 / 1762 | – |
 | moge-3-vitl | 480x640 | 1080 ms | – | 1069 ms, fp32 engine (DINOv2 encoder and projections with eager decoder and sparse refinement) | – | – | – | 2859 / 3842 | – | – | 4568 / 5382 |
 | omni-dc | 994x1482 | 558 ms | 411 ms | public API unavailable | 512 ms | 137 s | – | 3849 / 5044 | 4201 / 5932 | 3873 / 4566 | – |
 | omni-dc | 480x640 | 300 ms | – | 253 ms, fp32 engine (Depth Anything V2 with eager prompt fusion and solver) | – | – | 52.0 s | 2453 / 3296 | – | – | 2930 / 3298 |

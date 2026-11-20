@@ -964,10 +964,10 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `moge-2-vits-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>82.6<br>61.6<br>33.3<br>43.9<br>24.5 | 1491 / 1628<br>1193 / 1268<br>1007 / 1172<br>932 / 1048<br>836 / 992<br>768 / 852 |
-| `moge-2-vitb-normal` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 237<br>102<br>83.9<br>40.7<br>60.9<br>35.5 | 1773 / 1876<br>1469 / 1596<br>1163 / 1312<br>1093 / 1208<br>972 / 1172<br>1044 / 1092 |
-| `moge-2-vitl-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>171<br>144<br>73.4<br>124<br>75.6 | 2646 / 2818<br>2339 / 2438<br>1661 / 1836<br>1498 / 1610<br>1411 / 1634<br>1882 / 1936 |
-| `moge-3-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 843<br>486<br>328<br>149<br>311<br>public API unavailable | 2812 / 2990<br>2505 / 2630<br>1622 / 1706<br>1626 / 1762<br>1500 / 1724<br>– |
+| `moge-2-vits-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 162<br>82.6<br>58.1<br>33.3<br>43.9<br>24.5 | 1491 / 1628<br>1193 / 1268<br>530 / 612<br>932 / 1048<br>836 / 992<br>768 / 852 |
+| `moge-2-vitb-normal` | synthetic (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 237<br>102<br>79.1<br>40.7<br>60.9<br>35.5 | 1773 / 1876<br>1469 / 1596<br>681 / 772<br>1093 / 1208<br>972 / 1172<br>1044 / 1092 |
+| `moge-2-vitl-normal` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 501<br>171<br>140<br>73.4<br>124<br>75.6 | 2646 / 2818<br>2339 / 2438<br>1130 / 1272<br>1498 / 1610<br>1411 / 1634<br>1882 / 1936 |
+| `moge-3-vitl` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 843<br>486<br>328<br>149<br>311<br>public API unavailable | 2812 / 2990<br>2505 / 2630<br>1493 / 1684<br>1626 / 1762<br>1500 / 1724<br>– |
 | `moge-3-vitl` | synthetic (480x640) | original<br>portable<br>kernels<br>TensorRT fp32 | –<br>1080<br>–<br>1069 (DINOv2 encoder and projections with eager decoder and sparse refinement) | –<br>2859 / 3842<br>–<br>4568 / 5382 |
 
 <details><summary>Details</summary>
@@ -990,11 +990,10 @@ Commercial use: yes.
 - `moge-2-vitb-normal` 994x1482, first call: portable + torch.compile 133 s (cold Inductor cache), TensorRT fp16 127 s (ONNX + engine).
 - `moge-2-vitl-normal` 994x1482, first call: portable + torch.compile 152 s (cold Inductor cache), TensorRT fp16 173 s (ONNX + engine).
 - `moge-3-vitl` 994x1482, first call: portable + torch.compile 136 s (cold Inductor cache).
-- `moge-3-vitl` portable 994x1482: Portable uses one buffer for large replicate padding. Synthetic output and three labeled iBims maps were bitwise identical.
 - `moge-3-vitl` portable 480x640: Portable baseline recorded in the same archived timing run as the TensorRT profile at this input size.
 - `moge-2-vits-normal` load / first call: original 0.88 s / 1.501 s, portable 1.18 s / 0.298 s (518x770), kernels 0.21 s / 0.438 s (518x770)
 - `moge-2-vitb-normal` load / first call: original 1.26 s / 0.239 s, portable 0.49 s / 0.397 s (518x770), kernels 1.24 s / 0.285 s (518x770)
-- `moge-2-vitl-normal` load / first call: original 7.24 s / 0.171 s, portable 1.37 s / 0.144 s, kernels 0.63† s / 0.131 s
+- `moge-2-vitl-normal` load / first call: original 7.24 s / 0.171 s, portable 0.9 s / 0.329 s, kernels 0.63† s / 0.131 s
 - `moge-3-vitl` load / first call: original 10.6 s / 2.918 s, portable 2.31 s / 0.69 s (518x770), kernels 1.16 s / 0.742 s (518x770)
 - † measured in the speed sweep after the portable load (or an earlier size) in the same process: file cache and kernels are warm, so the time is lower than a fresh start.
 - Protocol, `moge-2-vits-normal`, `moge-2-vitb-normal`, `moge-3-vitl`: first call, 3 warm-up, peak reset, median of 3 rounds x median of 5
@@ -1045,7 +1044,8 @@ CPU, float32: max |diff| <= 0.005 vs the original. GPU, float16 (the default), p
 ### Limitations
 
 - MoGe-3 compiles the dense network and leaves sparse voxel refinement eager. Its 100-image iBims-1 comparison used the default CUDA float16 mode.
-- At 994 x 1482, the portable and compiled MoGe-3 timings use the same synthetic image. The original timings use the Middlebury Motorcycle image.
+- At 994 x 1482, MoGe-2 Small and Base and MoGe-3 use a synthetic image for portable timings and Middlebury Motorcycle for the original timings. The MoGe-3 compile run uses the same synthetic image as portable. MoGe-2 Large uses Motorcycle for both portable and original timings.
+- In paired portable FP16 runs at 994 x 1482, reusing the resize buffer reduced peak allocation by 421 MiB on each MoGe-2 checkpoint and by 121 MiB on MoGe-3 with normals enabled. The checked outputs were bitwise identical.
 
 </details>
 
