@@ -397,7 +397,7 @@ def _not_found(model_id: str, task: str | None) -> ModelNotFoundError:
 def _known_models(task: str) -> dict[str, str]:
     """Every published model id of `task` -> its distribution (`<task>/known_models.toml`, from tools/gen_docs.py)."""
     path = Path(__file__).parents[1] / task / "known_models.toml"
-    return tomllib.loads(path.read_text()) if path.is_file() else {}
+    return tomllib.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
 
 
 def import_model(card: ModelCard) -> ModuleType:

@@ -76,7 +76,7 @@ class Portable(nn_runner.Portable):
         p: Params = self.ctx.params
         if p.classes is None:
             return super()._names(labels)
-        lines = (Path(__file__).parent / p.classes).read_text().splitlines()
+        lines = (Path(__file__).parent / p.classes).read_text(encoding="utf-8").splitlines()
         return {k: n for k, n in enumerate(lines, start=1) if n}
 
     @host

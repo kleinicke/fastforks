@@ -255,7 +255,7 @@ def _other_caches(spec: FileSpec) -> Iterator[Path]:
         file = urllib.parse.unquote(hf["file"])
         ref = repo / "refs" / hf["rev"]
         try:
-            rev = ref.read_text().strip() if ref.is_file() else hf["rev"]
+            rev = ref.read_text(encoding="utf-8").strip() if ref.is_file() else hf["rev"]
         except OSError:
             rev = hf["rev"]
         first = repo / "snapshots" / rev / file
@@ -406,7 +406,7 @@ def _remember(path: Path, sha256: str) -> None:
         _mkdir_private(stamp.parent)
         fd, name = tempfile.mkstemp(dir=stamp.parent, suffix=".tmp")
         tmp = Path(name)
-        with os.fdopen(fd, "w") as f:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(json.dumps(_stamp(path, sha256)))
         tmp.replace(stamp)
         tmp = None
@@ -420,7 +420,7 @@ def _remember(path: Path, sha256: str) -> None:
 def stamped(path: Path, spec: FileSpec) -> bool:
     """Whether `path` was verified against `spec` and is unchanged since (its stamp; nothing is hashed)."""
     try:
-        return json.loads(_stamp_file(path).read_text()) == _stamp(path, spec.sha256)
+        return json.loads(_stamp_file(path).read_text(encoding="utf-8")) == _stamp(path, spec.sha256)
     except (OSError, ValueError):
         return False
 

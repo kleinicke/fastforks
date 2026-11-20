@@ -258,7 +258,7 @@ class Portable(InteractiveRunner):
         super().__init__(ctx)
         p: Params = ctx.params
         files = ctx.weights()
-        self.plan = _plan(json.loads(Path(files[0]).read_text()), p.configuration)
+        self.plan = _plan(json.loads(Path(files[0]).read_text(encoding="utf-8")), p.configuration)
         self.patch = list(self.plan.patch_size)
         self.net = self._build(UNet(self.plan, 8))
         sd = ctx.state_dict(1, key="network_weights", strip="", extra=CHECKPOINT_GLOBALS)

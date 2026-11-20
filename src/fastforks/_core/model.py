@@ -823,14 +823,14 @@ _AMPERE = 8  # first GPU generation (compute capability major) with bfloat16 har
 @functools.cache
 def _auto_portable() -> frozenset[str]:
     """Model ids for which `auto` stays on `portable`: the kernels measured no faster (`tools/gen_auto_mode.py`)."""
-    data = json.loads(Path(__file__).with_name("auto_portable.json").read_text())
+    data = json.loads(Path(__file__).with_name("auto_portable.json").read_text(encoding="utf-8"))
     return frozenset(data["portable"])
 
 
 @functools.cache
 def _apple_mlx() -> Mapping[str, Mapping[str, Any]]:
     """Per model id, where a load on Apple MPS takes the MLX port (`tools/gen_auto_mode.py` documents the keys)."""
-    return json.loads(Path(__file__).with_name("apple_mlx.json").read_text())["models"]
+    return json.loads(Path(__file__).with_name("apple_mlx.json").read_text(encoding="utf-8"))["models"]
 
 
 def _mlx_for_mps(card: ModelCard, variant: Variant, mode: ModeArg, dtype: Dtype | None) -> tuple[Mode, Dtype] | None:

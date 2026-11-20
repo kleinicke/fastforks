@@ -63,7 +63,7 @@ def metal_library(name: str, source: Path) -> Callable[[torch.device], MetalLibr
 
     @functools.cache
     def _compile() -> MetalLibrary:
-        return MetalLibrary(name, source.read_text())
+        return MetalLibrary(name, source.read_text(encoding="utf-8"))
 
     def load(device: torch.device) -> MetalLibrary:
         """Compile the library for `device` (once per process).
