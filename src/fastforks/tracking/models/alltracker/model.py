@@ -125,20 +125,22 @@ def _direction(
     starts = list(range(0, n - WINDOW, STRIDE)) or [0]
     if starts[-1] + WINDOW < n:
         starts.append(starts[-1] + STRIDE)
-    pad = starts[-1] + WINDOW - n
-    if pad:
-        fmaps = torch.cat([fmaps, fmaps[-1:].expand(pad, -1, -1, -1)])
-    flows8 = zeros.repeat(n + pad, 1, 1, 1)
-    visconfs8 = zeros.repeat(n + pad, 1, 1, 1)
+    flows8 = zeros.repeat(WINDOW, 1, 1, 1)
+    visconfs8 = zeros.repeat(WINDOW, 1, 1, 1)
     for i, s in enumerate(starts):
-        win = slice(s, s + WINDOW)
-        f8, v8, m = net.window(fmaps[0], fmaps[win], flows8[win], visconfs8[win], iters)
-        flows8[win], visconfs8[win] = f8, v8
-        if s + WINDOW < n + pad:  # the frames after the window start from its last frame (nearest visited)
-            flows8[s + WINDOW :], visconfs8[s + WINDOW :] = f8[-1:], v8[-1:]
-        keep = min(STRIDE if i + 1 < len(starts) else WINDOW, n - s)  # later windows overwrite the rest
+        window = fmaps[s : s + WINDOW]
+        if (pad := WINDOW - len(window)) > 0:
+            window = torch.cat((window, window[-1:].expand(pad, -1, -1, -1)))
+        f8, v8, m = net.window(fmaps[0], window, flows8, visconfs8, iters)
+        another = i + 1 < len(starts)
+        keep = min(STRIDE if another else WINDOW, n - s)  # later windows overwrite the rest
         tracks[s : s + keep], vis[s : s + keep] = _sample(f8[:keep], v8[:keep], m[:keep], pts, offset)
-        del f8, v8, m
+        if another:
+            # Keep the overlap and seed only the incoming frames from the last visited frame.
+            for state, updated in ((flows8, f8), (visconfs8, v8)):
+                state[:-STRIDE].copy_(updated[STRIDE:])
+                state[-STRIDE:].copy_(updated[-1:])
+        del f8, v8, m, window
     return tracks, vis
 
 
