@@ -785,9 +785,233 @@ cache limit 1/128 with 128 MB floor); `test_kernels_takes_mlx_kernels` follows t
 
 ## Final MLX vs MPS table
 
-Every ref whose MLX row predated cc3fce13 (128 MB cache default) or the later compile-policy/channels-last/cache changes was re-measured on the M1 Pro 16 GB (warm median; one job at a time; ratios are MLX/MPS, below 1 is better for MLX; the row shown is the float16 one where both exist, else float32; best MLX mode of portable/kernels). Verdict: WIN = faster and not leaner-losing (memory within 1.02x), TIE = within 3% speed with memory not above MPS, LOSE otherwise. 0 refs: 0 WIN, 0 TIE, 0 LOSE.
+Every ref whose MLX row predated cc3fce13 (128 MB cache default) or the later compile-policy/channels-last/cache changes was re-measured on the M1 Pro 16 GB (warm median, one job at a time). Ratios are MLX/MPS, below 1 favours MLX. Row shown: float16 where both dtypes exist, else float32; best MLX mode of portable/kernels. WIN: faster and memory within 1.02x; TIE: within 3% speed, memory not above MPS; LOSE otherwise. 224 refs: 91 WIN, 5 TIE, 128 LOSE.
 
-Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap from other apps; these jobs were killed and keep their old rows): depth-pro, vggt-1b, vggt-omega, anysplat, lingbot-map, resplat-base-re10k, c-foundationstereo-s, foundationstereo-vit-s, great-igev-sceneflow, waft-stereo-s, alltracker, cotracker3-offline/online, locotrack-b, flowformer-small-chairs, gimm-vfi-r; not reached: tapir, tapnext, track-on2, nnfoundation-*, nninteractive, totalsegmentator-*. Memory-fix sweeps (compile=False, cache_mb 128/256/512) for the losers below were not run for the same reason; `FASTFORKS_MLX_COMPILE=0` (sweep switch in `mlx_wrap.port`) and `FASTFORKS_MLX_CACHE_MB` are ready for them.
+Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap from other apps, jobs were killed; they keep their old rows): depth-pro, vggt-1b, anysplat, lingbot-map, resplat-base-re10k, c-foundationstereo-s, foundationstereo-vit-s, great-igev-sceneflow, waft-stereo-s, alltracker, cotracker3-offline/online, locotrack-b, flowformer-small-chairs, gimm-vfi-r. Not reached: tapir, tapnext, track-on2, nnfoundation-*, nninteractive, totalsegmentator-*. The memory-fix sweeps (compile=False, cache_mb 128/256/512) for the memory losers were not run for the same reason; `FASTFORKS_MLX_COMPILE=0` (sweep switch in `mlx_wrap.port`) and `FASTFORKS_MLX_CACHE_MB` are ready for them. oneformer-swinl-ade20k and rt-monster-plusplus-mix-all report golden FAIL on MLX and stay unrouted.
 
 | ref | dtype | input | MLX mode | ms | MB | MPS ms | MPS MB | speed | mem | verdict | why |
 |---|---|---|---|---|---|---|---|---|---|---|---|
+| aanet-sceneflow | 16 | 994x1482 | portable | 1695.2 | 2131 | 630.844 | 2606 | 2.69 | 0.82 | LOSE | slower (2.69x: portable MLX replay, no fused attention/conv kernels) |
+| aliked-flexglue | 16 | 768x1024 | portable | 2308.6 | 2808 | 1068.521 | 3088 | 2.16 | 0.91 | LOSE | slower (2.16x: portable MLX replay, no fused attention/conv kernels) |
+| alltracker | 32 | 480x854 | portable | 5397.2 | 2597 | 3507.681 | 4571 | 1.54 | 0.57 | LOSE | slower (1.54x: portable MLX replay, no fused attention/conv kernels) |
+| any2full-b | 16 | 994x1482 | portable | 378.6 | 1583 | 267.954 | 2198 | 1.41 | 0.72 | LOSE | slower (1.41x: portable MLX replay, no fused attention/conv kernels) |
+| any2full-l | 16 | 994x1482 | portable | 908.5 | 3298 | 684.288 | 3956 | 1.33 | 0.83 | LOSE | slower (1.33x: portable MLX replay, no fused attention/conv kernels) |
+| any2full-s | 16 | 994x1482 | portable | 159.7 | 1012 | 117.84 | 1641 | 1.36 | 0.62 | LOSE | slower (1.36x: portable MLX replay, no fused attention/conv kernels) |
+| anycalib-pinhole | 32 | 1080x1920 | portable | 341.8 | 2089 | 266.497 | 3023 | 1.28 | 0.69 | LOSE | slower (1.28x: portable MLX replay, no fused attention/conv kernels) |
+| anyline | 16 | 1024x1024 | portable | 3013.1 | 1836 | 116.786 | 1319 | 25.80 | 1.39 | LOSE | slower (25.80x: portable MLX replay, no fused attention/conv kernels); more memory (1.39x: MLX runtime/buffer cache above the MPS footprint) |
+| anysplat | 16 | 336x518 | portable | 6973.7 | 8297 | 5444.081 | 8751 | 1.28 | 0.95 | LOSE | slower (1.28x: portable MLX replay, no fused attention/conv kernels) |
+| ben2 | 32 | 1080x1920 | portable | 1705.7 | 5012 | 1147.957 | 6252 | 1.49 | 0.80 | LOSE | slower (1.49x: portable MLX replay, no fused attention/conv kernels) |
+| birefnet | 16 | 1080x1920 | portable | 1203.1 | 2705 | 1151.581 | 5433 | 1.04 | 0.50 | LOSE | slower (1.04x: portable MLX replay, no fused attention/conv kernels) |
+| bisenet-face-parsing | 16 | 512x512 | portable | 17.6 | 607 | 13.643 | 440 | 1.29 | 1.38 | LOSE | slower (1.29x: portable MLX replay, no fused attention/conv kernels); more memory (1.38x: MLX runtime/buffer cache above the MPS footprint) |
+| boq-dinov2 | 16 | 480x640 | portable | 55.3 | 864 | 48.219 | 849 | 1.15 | 1.02 | LOSE | slower (1.15x: portable MLX replay, no fused attention/conv kernels) |
+| bridgedepth-sf | 16 | 994x1482 | portable | 5661.3 | 4483 | 3693.197 | 6270 | 1.53 | 0.71 | LOSE | slower (1.53x: portable MLX replay, no fused attention/conv kernels) |
+| c-radio-v3-b | 16 | 224x224 | portable | 16.4 | 764 | 16.494 | 2230 | 0.99 | 0.34 | WIN |  |
+| c-radio-v3-g | 16 | 224x224 | portable | 158.0 | 4960 | 144.655 | 9394 | 1.09 | 0.53 | LOSE | slower (1.09x: portable MLX replay, no fused attention/conv kernels) |
+| c-radio-v3-h | 16 | 224x224 | portable | 93.5 | 2983 | 84.991 | 5806 | 1.10 | 0.51 | LOSE | slower (1.10x: portable MLX replay, no fused attention/conv kernels) |
+| c-radio-v3-l | 16 | 224x224 | portable | 47.9 | 1635 | 47.91 | 3322 | 1.00 | 0.49 | WIN |  |
+| cas-gwcnet-gc-sceneflow | 16 | 994x1482 | portable | 3840.6 | 4754 | 2995.289 | 7182 | 1.28 | 0.66 | LOSE | slower (1.28x: portable MLX replay, no fused attention/conv kernels) |
+| clip-b16-openai | 16 | 224x224 | portable | 15.3 | 1478 | 16.051 | 1724 | 0.95 | 0.86 | WIN |  |
+| clip-l14-laion2b | 16 | 224x224 | portable | 70.8 | 2951 | 56.555 | 4424 | 1.25 | 0.67 | LOSE | slower (1.25x: portable MLX replay, no fused attention/conv kernels) |
+| clipseg | 16 | 1024x1024 | portable | 38.5 | 969 | 37.732 | 1561 | 1.02 | 0.62 | TIE |  |
+| coex-sceneflow | 16 | 994x1482 | portable | 608.3 | 3187 | 411.053 | 3576 | 1.48 | 0.89 | LOSE | slower (1.48x: portable MLX replay, no fused attention/conv kernels) |
+| convnext_base.fb_in1k | 16 | 224x224 | portable | 16.2 | 1212 | 24.79 | 2307 | 0.65 | 0.53 | WIN |  |
+| convnext_base.fb_in22k | 16 | 224x224 | portable | 18.1 | 1368 | 24.495 | 2473 | 0.74 | 0.55 | WIN |  |
+| convnext_base.fb_in22k_ft_in1k | 16 | 224x224 | kernels | 16.2 | 1212 | 24.928 | 2308 | 0.65 | 0.53 | WIN |  |
+| convnext_base.fb_in22k_ft_in1k_384 | 16 | 224x224 | portable | 34.1 | 1210 | 45.218 | 2309 | 0.75 | 0.52 | WIN |  |
+| convnext_large.fb_in1k | 16 | 224x224 | kernels | 29.0 | 2340 | 37.956 | 3485 | 0.76 | 0.67 | WIN |  |
+| convnext_large.fb_in22k | 16 | 224x224 | kernels | 29.2 | 2574 | 37.501 | 3704 | 0.78 | 0.69 | WIN |  |
+| convnext_large.fb_in22k_ft_in1k | 16 | 224x224 | portable | 29.1 | 2340 | 39.022 | 3485 | 0.75 | 0.67 | WIN |  |
+| convnext_large.fb_in22k_ft_in1k_384 | 16 | 224x224 | portable | 63.4 | 2340 | 79.609 | 3494 | 0.80 | 0.67 | WIN |  |
+| convnext_small.fb_in1k | 16 | 224x224 | kernels | 12.3 | 813 | 18.214 | 1044 | 0.67 | 0.78 | WIN |  |
+| convnext_small.fb_in22k | 16 | 224x224 | portable | 12.1 | 931 | 17.95 | 1166 | 0.68 | 0.80 | WIN |  |
+| convnext_small.fb_in22k_ft_in1k | 16 | 224x224 | kernels | 12.2 | 812 | 18.683 | 1044 | 0.66 | 0.78 | WIN |  |
+| convnext_small.fb_in22k_ft_in1k_384 | 16 | 224x224 | kernels | 25.0 | 811 | 30.999 | 1043 | 0.81 | 0.78 | WIN |  |
+| convnext_tiny.fb_in1k | 16 | 224x224 | portable | 7.3 | 642 | 10.213 | 748 | 0.71 | 0.86 | WIN |  |
+| convnext_tiny.fb_in22k | 16 | 224x224 | kernels | 7.5 | 761 | 9.957 | 871 | 0.75 | 0.87 | WIN |  |
+| convnext_tiny.fb_in22k_ft_in1k | 16 | 224x224 | portable | 7.5 | 644 | 10.834 | 748 | 0.69 | 0.86 | WIN |  |
+| convnext_tiny.fb_in22k_ft_in1k_384 | 16 | 224x224 | portable | 15.2 | 714 | 18.051 | 749 | 0.84 | 0.95 | WIN |  |
+| convnextv2_base.fcmae_ft_in22k_in1k | 16 | 224x224 | kernels | 19.7 | 1192 | 35.792 | 2323 | 0.55 | 0.51 | WIN |  |
+| cotracker3-offline | 32 | 480x854 | portable | 3577.5 | 3438 | 1430.353 | 4725 | 2.50 | 0.73 | LOSE | slower (2.50x: portable MLX replay, no fused attention/conv kernels) |
+| cotracker3-online | 32 | 480x854 | portable | 3340.3 | 3971 | 1706.522 | 4689 | 1.96 | 0.85 | LOSE | slower (1.96x: portable MLX replay, no fused attention/conv kernels) |
+| crestereo-eth3d | 16 | 994x1482 | kernels | 3557.9 | 1863 | 4126.635 | 2801 | 0.86 | 0.67 | WIN |  |
+| da3-giant-1.1 | 16 | 994x1482 | portable | 919.9 | 3858 | 758.549 | 7243 | 1.21 | 0.53 | LOSE | slower (1.21x: portable MLX replay, no fused attention/conv kernels) |
+| da3-large-1.1 | 16 | 994x1482 | portable | 361.0 | 1975 | 318.477 | 2520 | 1.13 | 0.78 | LOSE | slower (1.13x: portable MLX replay, no fused attention/conv kernels) |
+| da3metric-large | 16 | 994x1482 | portable | 328.0 | 1899 | 279.886 | 2499 | 1.17 | 0.76 | LOSE | slower (1.17x: portable MLX replay, no fused attention/conv kernels) |
+| da3mono-large | 16 | 994x1482 | portable | 325.1 | 1898 | 279.76 | 2499 | 1.16 | 0.76 | LOSE | slower (1.16x: portable MLX replay, no fused attention/conv kernels) |
+| da3nested-giant-large-1.1 | 16 | 994x1482 | portable | 1268.9 | 4267 | 1184.373 | 8136 | 1.07 | 0.52 | LOSE | slower (1.07x: portable MLX replay, no fused attention/conv kernels) |
+| dat-2-x4 | 16 | 512x512 | portable | 17231.6 | 3768 | 9404.292 | 10600 | 1.83 | 0.36 | LOSE | slower (1.83x: portable MLX replay, no fused attention/conv kernels) |
+| dat-light-x4 | 16 | 512x512 | portable | 4091.9 | 2782 | 2562.37 | 6851 | 1.60 | 0.41 | LOSE | slower (1.60x: portable MLX replay, no fused attention/conv kernels) |
+| dat-x4 | 16 | 512x512 | portable | 16649.6 | 3779 | 10511.755 | 10620 | 1.58 | 0.36 | LOSE | slower (1.58x: portable MLX replay, no fused attention/conv kernels) |
+| dedode-v2-g | 32 | 768x1024 | portable | 5544.3 | 6499 | 3767.204 | 10008 | 1.47 | 0.65 | LOSE | slower (1.47x: portable MLX replay, no fused attention/conv kernels) |
+| defom-stereo-vitl-sceneflow | 32 | 994x1482 | portable | 15943.9 | 6974 | 11105.073 | 13138 | 1.44 | 0.53 | LOSE | slower (1.44x: portable MLX replay, no fused attention/conv kernels) |
+| depth-anything-v2-metric-hypersim-b | 16 | 994x1482 | kernels | 169.7 | 1027 | 199.296 | 2062 | 0.85 | 0.50 | WIN |  |
+| depth-anything-v2-metric-hypersim-l | 16 | 994x1482 | portable | 526.8 | 1831 | 579.185 | 3283 | 0.91 | 0.56 | WIN |  |
+| depth-anything-v2-metric-hypersim-s | 16 | 994x1482 | kernels | 68.5 | 710 | 79.524 | 1572 | 0.86 | 0.45 | WIN |  |
+| depth-anything-v2-metric-vkitti-b | 16 | 994x1482 | portable | 188.1 | 1021 | 199.299 | 2061 | 0.94 | 0.50 | WIN |  |
+| depth-anything-v2-metric-vkitti-l | 16 | 994x1482 | portable | 543.9 | 1728 | 579.971 | 3283 | 0.94 | 0.53 | WIN |  |
+| depth-anything-v2-metric-vkitti-s | 16 | 994x1482 | kernels | 67.4 | 707 | 79.467 | 1572 | 0.85 | 0.45 | WIN |  |
+| depth-pro | 16 | 994x1482 | portable | 4491.4 | 11370 | 5011.45 | 7169 | 0.90 | 1.59 | LOSE | more memory (1.59x: MLX runtime/buffer cache above the MPS footprint) |
+| depthsplat-small-re10k | 32 | 336x518 | portable | 1269.9 | 2671 | 669.5 | 8880 | 1.90 | 0.30 | LOSE | slower (1.90x: portable MLX replay, no fused attention/conv kernels) |
+| dfine-n-coco | 16 | 800x1344 | portable | 22.3 | 624 | 25.174 | 1510 | 0.89 | 0.41 | WIN |  |
+| dinov2-b-linear-ade20k | 16 | 1024x2048 | portable | 761.1 | 1611 | 360.569 | 2174 | 2.11 | 0.74 | LOSE | slower (2.11x: portable MLX replay, no fused attention/conv kernels) |
+| dinov2-l-linear-ade20k | 16 | 1024x2048 | portable | 1277.9 | 2388 | 927.202 | 3167 | 1.38 | 0.75 | LOSE | slower (1.38x: portable MLX replay, no fused attention/conv kernels) |
+| dinov2-s-linear-ade20k | 16 | 1024x2048 | portable | 600.3 | 1232 | 194.951 | 1532 | 3.08 | 0.80 | LOSE | slower (3.08x: portable MLX replay, no fused attention/conv kernels) |
+| dinov2-vitg14 | 16 | 224x224 | portable | 192.8 | 2634 | 218.016 | 4504 | 0.88 | 0.58 | WIN |  |
+| dinov2-vitg14-reg | 16 | 224x224 | portable | 203.4 | 2630 | 260.65 | 4505 | 0.78 | 0.58 | WIN |  |
+| dinov2-vitl14-reg | 16 | 224x224 | portable | 58.2 | 1029 | 95.672 | 1566 | 0.61 | 0.66 | WIN |  |
+| dinov2_vitl14_lc | 16 | 224x224 | portable | 57.6 | 3981 | 59.274 | 4443 | 0.97 | 0.90 | WIN |  |
+| dinov3-convnext-base | 16 | 224x224 | kernels | 16.0 | 512 | 23.12 | 880 | 0.69 | 0.58 | WIN |  |
+| dinov3-convnext-large | 16 | 224x224 | portable | 29.9 | 822 | 36.928 | 2088 | 0.81 | 0.39 | WIN |  |
+| dinov3-convnext-small | 16 | 224x224 | portable | 11.9 | 388 | 18.49 | 612 | 0.64 | 0.63 | WIN |  |
+| dinov3-convnext-tiny | 16 | 224x224 | portable | 7.2 | 315 | 10.645 | 431 | 0.68 | 0.73 | WIN |  |
+| dinov3-vith16plus | 16 | 224x224 | portable | 119.9 | 2174 | 143.346 | 3467 | 0.84 | 0.63 | WIN |  |
+| distill-any-depth-b | 16 | 994x1482 | kernels | 169.6 | 1020 | 199.366 | 2061 | 0.85 | 0.49 | WIN |  |
+| distill-any-depth-l | 16 | 994x1482 | portable | 529.2 | 1847 | 579.665 | 3281 | 0.91 | 0.56 | WIN |  |
+| distill-any-depth-s | 16 | 994x1482 | kernels | 66.9 | 698 | 79.298 | 1570 | 0.84 | 0.44 | WIN |  |
+| efficientnet_b0.tv_in1k | 16 | 224x224 | portable | 4.4 | 345 | 13.55 | 503 | 0.32 | 0.69 | WIN |  |
+| efficientnet_b4.tv_in1k | 16 | 224x224 | kernels | 16.0 | 649 | 38.529 | 683 | 0.42 | 0.95 | WIN |  |
+| efficientnet_v2_s.tv_in1k | 16 | 224x224 | kernels | 16.7 | 552 | 36.052 | 661 | 0.46 | 0.84 | WIN |  |
+| efficientvit-sam-l0 | 32 | 1024x1024 | portable | 112.7 | 1102 | 50.612 | 1779 | 2.23 | 0.62 | LOSE | slower (2.23x: portable MLX replay, no fused attention/conv kernels) |
+| ema-vfi-small-t | 16 | 1080x1920 | portable | 876.2 | 2460 | 513.231 | 3583 | 1.71 | 0.69 | LOSE | slower (1.71x: portable MLX replay, no fused attention/conv kernels) |
+| eomt-l-dinov2-ade20k | 16 | 1024x2048 | portable | 572.5 | 3710 | 540.048 | 4262 | 1.06 | 0.87 | LOSE | slower (1.06x: portable MLX replay, no fused attention/conv kernels) |
+| eomt-l-dinov3-ade20k | 16 | 1024x2048 | portable | 599.3 | 3724 | 574.509 | 4259 | 1.04 | 0.87 | LOSE | slower (1.04x: portable MLX replay, no fused attention/conv kernels) |
+| fast-acvnet-generalization | 16 | 994x1482 | portable | 549.2 | 1881 | 478.214 | 2737 | 1.15 | 0.69 | LOSE | slower (1.15x: portable MLX replay, no fused attention/conv kernels) |
+| foundationstereo-vit-s | 16 | 994x1482 | portable | 36137.5 | 12387 | 19495.754 | 12980 | 1.85 | 0.95 | LOSE | slower (1.85x: portable MLX replay, no fused attention/conv kernels) |
+| geocalib-pinhole | 16 | 1080x1920 | portable | 352.3 | 1013 | 427.123 | 1644 | 0.82 | 0.62 | WIN |  |
+| gfpgan-v1.4 | 32 | 512x512 | portable | 318.4 | 1673 | 153.218 | 1954 | 2.08 | 0.86 | LOSE | slower (2.08x: portable MLX replay, no fused attention/conv kernels) |
+| gmflow-scale1-things | 16 | 1080x1920 | portable | 6821.6 | 10465 | 10676.45 | 12643 | 0.64 | 0.83 | WIN |  |
+| great-igev-sceneflow | 16 | 994x1482 | portable | 20253.2 | 9722 | 9861.251 | 10126 | 2.05 | 0.96 | LOSE | slower (2.05x: portable MLX replay, no fused attention/conv kernels) |
+| grounding-dino-tiny | 32 | 800x1344 | portable | 1043.4 | 1645 | 845.995 | 4787 | 1.23 | 0.34 | LOSE | slower (1.23x: portable MLX replay, no fused attention/conv kernels) |
+| gwcnet-gc-sceneflow | 16 | 994x1482 | portable | 2933.5 | 2876 | 2454.734 | 7108 | 1.20 | 0.40 | LOSE | slower (1.20x: portable MLX replay, no fused attention/conv kernels) |
+| hed | 32 | 1024x1024 | portable | 81.9 | 1144 | 64.901 | 1415 | 1.26 | 0.81 | LOSE | slower (1.26x: portable MLX replay, no fused attention/conv kernels) |
+| hrnet-w32 | 16 | 1080x1920 | portable | 116.9 | 911 | 121.77 | 1675 | 0.96 | 0.54 | WIN |  |
+| hrnet-w48-fcn-ade20k | 16 | 1024x2048 | portable | 220.3 | 1112 | 228.267 | 2044 | 0.97 | 0.54 | WIN |  |
+| igev-plusplus-sceneflow | 16 | 994x1482 | portable | 14463.2 | 3562 | 6135.163 | 4972 | 2.36 | 0.72 | LOSE | slower (2.36x: portable MLX replay, no fused attention/conv kernels) |
+| insid3-vitl16 | 32 | 1024x1024 | portable | 3211.1 | 3003 | 2953.299 | 2963 | 1.09 | 1.01 | LOSE | slower (1.09x: portable MLX replay, no fused attention/conv kernels) |
+| inspyrenet | 32 | 1080x1920 | portable | 1273.3 | 2332 | 1107.579 | 7284 | 1.15 | 0.32 | LOSE | slower (1.15x: portable MLX replay, no fused attention/conv kernels) |
+| isnet-general-use | 16 | 1080x1920 | kernels | 122.2 | 1328 | 129.932 | 1746 | 0.94 | 0.76 | WIN |  |
+| las2-s | 16 | 994x1482 | portable | 229.7 | 988 | 192.074 | 3590 | 1.20 | 0.28 | LOSE | slower (1.20x: portable MLX replay, no fused attention/conv kernels) |
+| lineart | 16 | 1024x1024 | portable | 108.2 | 1099 | 66.53 | 1362 | 1.63 | 0.81 | LOSE | slower (1.63x: portable MLX replay, no fused attention/conv kernels) |
+| lineart-anime | 16 | 1024x1024 | portable | 44.5 | 982 | 51.126 | 1774 | 0.87 | 0.55 | WIN |  |
+| lingbot-depth-dc | 16 | 994x1482 | portable | 5338.5 | 2987 | 3373.689 | 3230 | 1.58 | 0.92 | LOSE | slower (1.58x: portable MLX replay, no fused attention/conv kernels) |
+| lingbot-map | 16 | 480x640 | portable | 10046.2 | 8220 | 7124.932 | 8834 | 1.41 | 0.93 | LOSE | slower (1.41x: portable MLX replay, no fused attention/conv kernels) |
+| locotrack-b | 32 | 480x854 | portable | 2039.2 | 1679 | 2104.282 | 2474 | 0.97 | 0.68 | WIN |  |
+| loftr-outdoor | 32 | 768x1024 | portable | 2017.5 | 3685 | 875.487 | 5767 | 2.30 | 0.64 | LOSE | slower (2.30x: portable MLX replay, no fused attention/conv kernels) |
+| loma-b | 32 | 768x1024 | portable | 3859.6 | 6150 | 3037.483 | 8147 | 1.27 | 0.75 | LOSE | slower (1.27x: portable MLX replay, no fused attention/conv kernels) |
+| lotus-normal-g-v1-1 | 16 | 994x1482 | portable | 2004.6 | 5674 | 1552.612 | 6632 | 1.29 | 0.86 | LOSE | slower (1.29x: portable MLX replay, no fused attention/conv kernels) |
+| lw-detr-tiny-coco | 16 | 800x1344 | portable | 34.9 | 935 | 41.22 | 1742 | 0.85 | 0.54 | WIN |  |
+| mapanything-apache | 16 | 336x518 | portable | 8875.8 | 8371 | 6369.19 | 7218 | 1.39 | 1.16 | LOSE | slower (1.39x: portable MLX replay, no fused attention/conv kernels); more memory (1.16x: MLX runtime/buffer cache above the MPS footprint) |
+| marigold-depth-v1-1 | 16 | 994x1482 | portable | 4701.8 | 4287 | 2497.717 | 6640 | 1.88 | 0.65 | LOSE | slower (1.88x: portable MLX replay, no fused attention/conv kernels) |
+| marigold-normals-lcm-v0-1 | 16 | 994x1482 | portable | 2363.0 | 4318 | 1654.841 | 6671 | 1.43 | 0.65 | LOSE | slower (1.43x: portable MLX replay, no fused attention/conv kernels) |
+| mask-rcnn-r50-fpn-3x-coco | 16 | 800x1344 | portable | 411.2 | 1533 | 202.766 | 1931 | 2.03 | 0.79 | LOSE | slower (2.03x: portable MLX replay, no fused attention/conv kernels) |
+| mask2former-swinl-ade20k | 16 | 1024x2048 | portable | 1148.1 | 3795 | 963.996 | 4503 | 1.19 | 0.84 | LOSE | slower (1.19x: portable MLX replay, no fused attention/conv kernels) |
+| megaloc | 16 | 480x640 | portable | 87.3 | 1609 | 45.229 | 2617 | 1.93 | 0.61 | LOSE | slower (1.93x: portable MLX replay, no fused attention/conv kernels) |
+| memfof | 32 | 1080x1920 | portable | 5435.9 | 2716 | 3054.409 | 5038 | 1.78 | 0.54 | LOSE | slower (1.78x: portable MLX replay, no fused attention/conv kernels) |
+| metric3d-vit-large | 16 | 994x1482 | portable | 2460.2 | 2769 | 1861.345 | 3636 | 1.32 | 0.76 | LOSE | slower (1.32x: portable MLX replay, no fused attention/conv kernels) |
+| midas-dpt-beit-large-512 | 16 | 994x1482 | portable | 668.2 | 1994 | 634.656 | 2407 | 1.05 | 0.83 | LOSE | slower (1.05x: portable MLX replay, no fused attention/conv kernels) |
+| mlsd | 16 | 1024x1024 | portable | 35.8 | 676 | 44.568 | 1373 | 0.80 | 0.49 | WIN |  |
+| mobile-sam | 32 | 1024x1024 | portable | 101.6 | 947 | 80.819 | 1480 | 1.26 | 0.64 | LOSE | slower (1.26x: portable MLX replay, no fused attention/conv kernels) |
+| mobilenet_v2.tv2_in1k | 16 | 224x224 | portable | 2.8 | 319 | 8.084 | 444 | 0.34 | 0.72 | WIN |  |
+| mobilenet_v3_large.tv2_in1k | 16 | 224x224 | portable | 3.3 | 335 | 8.964 | 493 | 0.37 | 0.68 | WIN |  |
+| mobilenetv1_100.ra4_e3600_r224_in1k | 16 | 224x224 | portable | 2.3 | 367 | 5.129 | 461 | 0.45 | 0.80 | WIN |  |
+| mocha-v1-sceneflow | 16 | 994x1482 | portable | 9657.0 | 3382 | 6693.339 | 5695 | 1.44 | 0.59 | LOSE | slower (1.44x: portable MLX replay, no fused attention/conv kernels) |
+| moge-2-vitl-normal | 16 | 994x1482 | portable | 2080.7 | 3009 | 1731.978 | 3265 | 1.20 | 0.92 | LOSE | slower (1.20x: portable MLX replay, no fused attention/conv kernels) |
+| moge-3-vitl | 16 | 994x1482 | portable | 5657.1 | 5822 | 3913.491 | 5968 | 1.45 | 0.98 | LOSE | slower (1.45x: portable MLX replay, no fused attention/conv kernels) |
+| monster-plusplus-mix-all | 16 | 994x1482 | portable | 18356.8 | 5477 | 10202.192 | 7347 | 1.80 | 0.75 | LOSE | slower (1.80x: portable MLX replay, no fused attention/conv kernels) |
+| monster-sceneflow | 16 | 994x1482 | portable | 19649.8 | 5189 | 9642.315 | 6299 | 2.04 | 0.82 | LOSE | slower (2.04x: portable MLX replay, no fused attention/conv kernels) |
+| mvsanywhere | 16 | 448x672 | portable | 3772.5 | 2054 | 1064.367 | 3801 | 3.54 | 0.54 | LOSE | slower (3.54x: portable MLX replay, no fused attention/conv kernels) |
+| mvsplat-re10k | 16 | 336x518 | portable | 2417.5 | 2796 | 1111.616 | 4537 | 2.17 | 0.62 | LOSE | slower (2.17x: portable MLX replay, no fused attention/conv kernels) |
+| nnfoundation-cnn | 16 | 200x200 | portable | 4721.2 | 10094 | 2935.289 | 7824 | 1.61 | 1.29 | LOSE | slower (1.61x: portable MLX replay, no fused attention/conv kernels); more memory (1.29x: MLX runtime/buffer cache above the MPS footprint) |
+| nnfoundation-vit | 16 | 192x192 | portable | 13036.5 | 2469 | 17636.415 | 3817 | 0.74 | 0.65 | WIN |  |
+| nninteractive | 32 | 200x200 | portable | 4781.8 | 7025 | 3524.991 | 11439 | 1.36 | 0.61 | LOSE | slower (1.36x: portable MLX replay, no fused attention/conv kernels) |
+| omni-dc | 16 | 994x1482 | portable | 5978.0 | 5375 | 2408.429 | 10081 | 2.48 | 0.53 | LOSE | slower (2.48x: portable MLX replay, no fused attention/conv kernels) |
+| oneformer-swinl-ade20k | 16 | 1024x2048 | portable | 2078.1 | 6033 | 1160.815 | 5559 | 1.79 | 1.09 | LOSE | slower (1.79x: portable MLX replay, no fused attention/conv kernels); more memory (1.09x: MLX runtime/buffer cache above the MPS footprint) |
+| owlv2-b16 | 32 | 800x1344 | portable | 398.1 | 1299 | 393.679 | 1515 | 1.01 | 0.86 | TIE |  |
+| parseq | 16 | 32x128 | portable | 17.9 | 495 | 23.603 | 440 | 0.76 | 1.12 | LOSE | more memory (1.12x: MLX runtime/buffer cache above the MPS footprint) |
+| patchmatchnet | 16 | 1536x1024 | portable | 920.2 | 2247 | 1573.872 | 6591 | 0.58 | 0.34 | WIN |  |
+| pe-core-l14-336 | 16 | 224x224 | portable | 95.7 | 3240 | 58.343 | 4528 | 1.64 | 0.72 | LOSE | slower (1.64x: portable MLX replay, no fused attention/conv kernels) |
+| pe-core-t16-384 | 16 | 224x224 | portable | 5.1 | 469 | 7.253 | 388 | 0.70 | 1.21 | LOSE | more memory (1.21x: MLX runtime/buffer cache above the MPS footprint) |
+| pi3 | 16 | 336x518 | portable | 11593.4 | 3874 | 8340.992 | 6510 | 1.39 | 0.60 | LOSE | slower (1.39x: portable MLX replay, no fused attention/conv kernels) |
+| pidinet | 16 | 1024x1024 | kernels | 75.1 | 732 | 73.21 | 1349 | 1.03 | 0.54 | TIE |  |
+| pointdit-b-512 | 16 | 994x1482 | portable | 356.0 | 1545 | 337.166 | 1912 | 1.06 | 0.81 | LOSE | slower (1.06x: portable MLX replay, no fused attention/conv kernels) |
+| pointdit-l-512 | 16 | 994x1482 | portable | 1231.4 | 3360 | 1013.331 | 4548 | 1.22 | 0.74 | LOSE | slower (1.22x: portable MLX replay, no fused attention/conv kernels) |
+| ppocrv5-mobile | 16 | 1080x1920 | portable | 869.1 | 1610 | 735.803 | 2987 | 1.18 | 0.54 | LOSE | slower (1.18x: portable MLX replay, no fused attention/conv kernels) |
+| ppocrv5-server | 16 | 1080x1920 | portable | 1903.8 | 2666 | 1607.126 | 6545 | 1.18 | 0.41 | LOSE | slower (1.18x: portable MLX replay, no fused attention/conv kernels) |
+| prompt-depth-anything-l | 16 | 756x1008 | portable | 1677.4 | 4384 | 1310.108 | 3301 | 1.28 | 1.33 | LOSE | slower (1.28x: portable MLX replay, no fused attention/conv kernels); more memory (1.33x: MLX runtime/buffer cache above the MPS footprint) |
+| prompt-depth-anything-s | 16 | 756x1008 | portable | 244.0 | 1168 | 194.524 | 1588 | 1.25 | 0.74 | LOSE | slower (1.25x: portable MLX replay, no fused attention/conv kernels) |
+| psmnet-sceneflow | 16 | 994x1482 | portable | 2597.3 | 2941 | 2578.896 | 6428 | 1.01 | 0.46 | TIE |  |
+| raft-stereo-middlebury | 16 | 994x1482 | portable | 5704.4 | 4315 | 3633.675 | 4722 | 1.57 | 0.91 | LOSE | slower (1.57x: portable MLX replay, no fused attention/conv kernels) |
+| recover-cx | 32 | 1080x1920 | portable | 1755.1 | 1933 | 1106.503 | 4781 | 1.59 | 0.40 | LOSE | slower (1.59x: portable MLX replay, no fused attention/conv kernels) |
+| regnety_160.tv2_in1k | 16 | 224x224 | portable | 18.9 | 1047 | 33.084 | 2030 | 0.57 | 0.52 | WIN |  |
+| repvit_m0_9.dist_300e_in1k | 16 | 224x224 | portable | 4.3 | 384 | 13.241 | 470 | 0.33 | 0.82 | WIN |  |
+| repvit_m0_9.dist_450e_in1k | 16 | 224x224 | portable | 4.3 | 384 | 11.973 | 470 | 0.36 | 0.82 | WIN |  |
+| repvit_m1_0.dist_300e_in1k | 16 | 224x224 | portable | 5.2 | 410 | 12.292 | 493 | 0.42 | 0.83 | WIN |  |
+| repvit_m1_0.dist_450e_in1k | 16 | 224x224 | portable | 5.3 | 414 | 12.528 | 493 | 0.42 | 0.84 | WIN |  |
+| repvit_m1_1.dist_300e_in1k | 16 | 224x224 | portable | 4.4 | 425 | 11.882 | 508 | 0.37 | 0.84 | WIN |  |
+| repvit_m1_1.dist_450e_in1k | 16 | 224x224 | portable | 4.4 | 425 | 12.006 | 510 | 0.37 | 0.83 | WIN |  |
+| repvit_m1_5.dist_300e_in1k | 16 | 224x224 | portable | 12.1 | 510 | 19.804 | 582 | 0.61 | 0.88 | WIN |  |
+| repvit_m1_5.dist_450e_in1k | 16 | 224x224 | portable | 6.9 | 506 | 20.036 | 585 | 0.34 | 0.86 | WIN |  |
+| repvit_m2_3.dist_300e_in1k | 16 | 224x224 | portable | 11.1 | 630 | 27.864 | 736 | 0.40 | 0.86 | WIN |  |
+| repvit_m2_3.dist_450e_in1k | 16 | 224x224 | portable | 10.7 | 628 | 27.494 | 734 | 0.39 | 0.86 | WIN |  |
+| resnet152.tv2_in1k | 16 | 224x224 | kernels | 17.0 | 728 | 24.271 | 1101 | 0.70 | 0.66 | WIN |  |
+| resnet18.tv_in1k | 16 | 224x224 | kernels | 3.8 | 382 | 5.371 | 481 | 0.70 | 0.79 | WIN |  |
+| resnet50.tv2_in1k | 16 | 224x224 | kernels | 6.8 | 500 | 10.153 | 667 | 0.67 | 0.75 | WIN |  |
+| restormer-deblur | 16 | 512x512 | portable | 2531.8 | 2666 | 1475.684 | 3657 | 1.72 | 0.73 | LOSE | slower (1.72x: portable MLX replay, no fused attention/conv kernels) |
+| restormer-derain | 16 | 512x512 | portable | 2814.9 | 2668 | 1813.619 | 3655 | 1.55 | 0.73 | LOSE | slower (1.55x: portable MLX replay, no fused attention/conv kernels) |
+| restormer-sidd | 16 | 512x512 | portable | 2426.8 | 2672 | 2329.566 | 3683 | 1.04 | 0.73 | LOSE | slower (1.04x: portable MLX replay, no fused attention/conv kernels) |
+| retinaface-resnet50 | 16 | 1080x1920 | portable | 184.8 | 1165 | 150.321 | 1913 | 1.23 | 0.61 | LOSE | slower (1.23x: portable MLX replay, no fused attention/conv kernels) |
+| rf-detr-keypoint-preview | 32 | 1080x1920 | portable | 92.6 | 997 | 147.777 | 1830 | 0.63 | 0.54 | WIN |  |
+| rf-detr-n-coco | 32 | 800x1344 | portable | 22.1 | 714 | 31.806 | 1718 | 0.69 | 0.42 | WIN |  |
+| rife-4.25 | 16 | 1080x1920 | portable | 210.9 | 1680 | 105.552 | 2482 | 2.00 | 0.68 | LOSE | slower (2.00x: portable MLX replay, no fused attention/conv kernels) |
+| rife-4.25-lite | 16 | 1080x1920 | portable | 202.2 | 1636 | 79.991 | 2447 | 2.53 | 0.67 | LOSE | slower (2.53x: portable MLX replay, no fused attention/conv kernels) |
+| romav1 | 32 | 768x1024 | portable | 4439.8 | 4499 | 3050.476 | 7979 | 1.46 | 0.56 | LOSE | slower (1.46x: portable MLX replay, no fused attention/conv kernels) |
+| romav2 | 32 | 768x1024 | kernels | 4042.6 | 3150 | 3980.808 | 6725 | 1.02 | 0.47 | TIE |  |
+| rt-monster-plusplus-mix-all | 16 | 994x1482 | portable | 1096.2 | 2644 | 682.191 | 7047 | 1.61 | 0.38 | LOSE | golden FAIL |
+| rtdetrv2-s-coco | 16 | 800x1344 | portable | 39.5 | 904 | 44.377 | 1631 | 0.89 | 0.55 | WIN |  |
+| rtmdet-tiny-coco | 16 | 800x1344 | portable | 24.4 | 618 | 26.979 | 1545 | 0.91 | 0.40 | WIN |  |
+| rtmo-t | 32 | 1080x1920 | portable | 17.9 | 667 | 20.977 | 1523 | 0.85 | 0.44 | WIN |  |
+| rtmpose-t | 16 | 1080x1920 | portable | 25.6 | 665 | 25.633 | 1460 | 1.00 | 0.46 | WIN |  |
+| s2m2-s | 16 | 994x1482 | portable | 2938.3 | 2790 | 1607.273 | 5991 | 1.83 | 0.47 | LOSE | slower (1.83x: portable MLX replay, no fused attention/conv kernels) |
+| sam-hq-vit-b | 16 | 1024x1024 | portable | 703.3 | 2588 | 682.56 | 4542 | 1.03 | 0.57 | LOSE |  |
+| sam-vit-b | 16 | 1024x1024 | portable | 666.4 | 2571 | 600.197 | 3762 | 1.11 | 0.68 | LOSE | slower (1.11x: portable MLX replay, no fused attention/conv kernels) |
+| sam2.1-hiera-tiny | 32 | 1024x1024 | portable | 184.1 | 1174 | 241.468 | 2581 | 0.76 | 0.45 | WIN |  |
+| sapiens-seg-0.3b-goliath | 16 | 1024x2048 | portable | 2392.1 | 3921 | 1517.056 | 3748 | 1.58 | 1.05 | LOSE | slower (1.58x: portable MLX replay, no fused attention/conv kernels); more memory (1.05x: MLX runtime/buffer cache above the MPS footprint) |
+| sapiens-seg-1b-goliath | 16 | 1024x2048 | portable | 4110.0 | 6692 | 3112.873 | 6340 | 1.32 | 1.06 | LOSE | slower (1.32x: portable MLX replay, no fused attention/conv kernels); more memory (1.06x: MLX runtime/buffer cache above the MPS footprint) |
+| segformer-b5-ade20k | 16 | 1024x2048 | portable | 357.2 | 1382 | 375.167 | 1974 | 0.95 | 0.70 | WIN |  |
+| segformer-b5-face-parsing | 16 | 512x512 | portable | 100.6 | 963 | 110.76 | 1899 | 0.91 | 0.51 | WIN |  |
+| segnext-mscan-b-ade20k | 16 | 1024x2048 | portable | 263.7 | 894 | 184.121 | 1659 | 1.43 | 0.54 | LOSE | slower (1.43x: portable MLX replay, no fused attention/conv kernels) |
+| segnext-mscan-l-ade20k | 16 | 1024x2048 | portable | 424.1 | 974 | 268.202 | 1840 | 1.58 | 0.53 | LOSE | slower (1.58x: portable MLX replay, no fused attention/conv kernels) |
+| selective-igev-sceneflow | 16 | 994x1482 | portable | 11924.9 | 3442 | 5709.633 | 3907 | 2.09 | 0.88 | LOSE | slower (2.09x: portable MLX replay, no fused attention/conv kernels) |
+| siglip2-b16-256 | 16 | 224x224 | portable | 16.6 | 1306 | 15.803 | 1563 | 1.05 | 0.84 | LOSE | slower (1.05x: portable MLX replay, no fused attention/conv kernels) |
+| siglip2-so400m14-378 | 16 | 224x224 | portable | 70.8 | 3850 | 68.57 | 5553 | 1.03 | 0.69 | LOSE |  |
+| starnet_s1.in1k | 16 | 224x224 | portable | 3.1 | 342 | 14.046 | 400 | 0.22 | 0.85 | WIN |  |
+| starnet_s2.in1k | 16 | 224x224 | portable | 2.7 | 348 | 7.212 | 437 | 0.38 | 0.80 | WIN |  |
+| starnet_s3.in1k | 16 | 224x224 | portable | 3.3 | 375 | 9.548 | 469 | 0.35 | 0.80 | WIN |  |
+| starnet_s4.in1k | 16 | 224x224 | portable | 4.4 | 397 | 12.753 | 491 | 0.34 | 0.81 | WIN |  |
+| swin2sr-x2 | 16 | 512x512 | portable | 8019.8 | 2849 | 9257.892 | 3501 | 0.87 | 0.81 | WIN |  |
+| swin2sr-x4 | 16 | 512x512 | portable | 7994.1 | 3266 | 9409.594 | 4580 | 0.85 | 0.71 | WIN |  |
+| swin2sr-x4-real | 16 | 512x512 | portable | 8554.5 | 2851 | 9530.53 | 4579 | 0.90 | 0.62 | WIN |  |
+| swinir-l-x4-real | 16 | 512x512 | portable | 14530.2 | 3161 | 9873.92 | 4561 | 1.47 | 0.69 | LOSE | slower (1.47x: portable MLX replay, no fused attention/conv kernels) |
+| swinir-m-x2 | 16 | 512x512 | portable | 7248.2 | 2443 | 5796.813 | 3500 | 1.25 | 0.70 | LOSE | slower (1.25x: portable MLX replay, no fused attention/conv kernels) |
+| tapir | 32 | 480x854 | portable | 2770.4 | 1720 | 1382.473 | 2630 | 2.00 | 0.65 | LOSE | slower (2.00x: portable MLX replay, no fused attention/conv kernels) |
+| tapnext | 32 | 480x854 | portable | 8154.8 | 3639 | 5855.372 | 3754 | 1.39 | 0.97 | LOSE | slower (1.39x: portable MLX replay, no fused attention/conv kernels) |
+| teed | 16 | 1024x1024 | portable | 19.2 | 492 | 16.675 | 1313 | 1.15 | 0.37 | LOSE | slower (1.15x: portable MLX replay, no fused attention/conv kernels) |
+| tipsv2-l14 | 16 | 224x224 | portable | 72.9 | 1038 | 61.697 | 1574 | 1.18 | 0.66 | LOSE | slower (1.18x: portable MLX replay, no fused attention/conv kernels) |
+| totalsegmentator-total | 16 | 200x200 | portable | 42970.8 | 6614 | 23069.574 | 6058 | 1.86 | 1.09 | LOSE | slower (1.86x: portable MLX replay, no fused attention/conv kernels); more memory (1.09x: MLX runtime/buffer cache above the MPS footprint) |
+| totalsegmentator-total-3mm | 16 | 200x200 | portable | 1333.0 | 4913 | 521.63 | 2588 | 2.56 | 1.90 | LOSE | slower (2.56x: portable MLX replay, no fused attention/conv kernels); more memory (1.90x: MLX runtime/buffer cache above the MPS footprint) |
+| track-on2 | 32 | 480x854 | portable | 21453.4 | 4902 | 8353.935 | 6102 | 2.57 | 0.80 | LOSE | slower (2.57x: portable MLX replay, no fused attention/conv kernels) |
+| u2net | 16 | 1080x1920 | portable | 62.9 | 1156 | 79.422 | 1885 | 0.79 | 0.61 | WIN |  |
+| unidepth-v2-vitl14 | 32 | 994x1482 | portable | 1691.2 | 3855 | 1252.486 | 6077 | 1.35 | 0.63 | LOSE | slower (1.35x: portable MLX replay, no fused attention/conv kernels) |
+| unik3d-vitl | 16 | 994x1482 | portable | 1452.9 | 3185 | 1293.645 | 4038 | 1.12 | 0.79 | LOSE | slower (1.12x: portable MLX replay, no fused attention/conv kernels) |
+| vggt-1b | 16 | 336x518 | portable | 8774.2 | 6853 | 6637.772 | 8423 | 1.32 | 0.81 | LOSE | slower (1.32x: portable MLX replay, no fused attention/conv kernels) |
+| vggt-omega-1b-512 | 16 | 336x518 | portable | 8564.1 | 5137 | 7241.942 | 8602 | 1.18 | 0.60 | LOSE | slower (1.18x: portable MLX replay, no fused attention/conv kernels) |
+| video-depth-anything-metric-s | 16 | 480x640 | portable | 871.6 | 2021 | 933.206 | 6535 | 0.93 | 0.31 | WIN |  |
+| video-depth-anything-s | 16 | 480x640 | portable | 896.1 | 2027 | 926.453 | 6506 | 0.97 | 0.31 | WIN |  |
+| vitmatte-s | 16 | 1080x1920 | portable | 1595.1 | 3923 | 1360.354 | 2542 | 1.17 | 1.54 | LOSE | slower (1.17x: portable MLX replay, no fused attention/conv kernels); more memory (1.54x: MLX runtime/buffer cache above the MPS footprint) |
+| vitpose-base-simple | 16 | 1080x1920 | portable | 168.6 | 1080 | 159.7 | 1977 | 1.06 | 0.55 | LOSE | slower (1.06x: portable MLX replay, no fused attention/conv kernels) |
+| waft-a1 | 16 | 1080x1920 | portable | 9339.5 | 3559 | 7167.849 | 7185 | 1.30 | 0.50 | LOSE | slower (1.30x: portable MLX replay, no fused attention/conv kernels) |
+| waft-stereo-s | 16 | 994x1482 | portable | 6634.9 | 4330 | 6089.657 | 9209 | 1.09 | 0.47 | LOSE | slower (1.09x: portable MLX replay, no fused attention/conv kernels) |
+| xfeat | 32 | 768x1024 | portable | 164.4 | 538 | 41.694 | 1471 | 3.94 | 0.37 | LOSE | slower (3.94x: portable MLX replay, no fused attention/conv kernels) |
+| yolox-tiny | 16 | 800x1344 | kernels | 12.6 | 470 | 20.062 | 1492 | 0.63 | 0.32 | WIN |  |
+| yunet-n | 16 | 1080x1920 | portable | 22.3 | 717 | 21.593 | 1377 | 1.03 | 0.52 | LOSE |  |
+| zoedepth-nk | 32 | 994x1482 | portable | 861.9 | 2895 | 777.684 | 3558 | 1.11 | 0.81 | LOSE | slower (1.11x: portable MLX replay, no fused attention/conv kernels) |
