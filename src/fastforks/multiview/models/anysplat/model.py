@@ -418,8 +418,8 @@ class _Fast(_Base):
         if last is None:
             msg = "AnySplat: the last aggregator block is not cached"
             raise RuntimeError(msg)
-        ct = [None] * (len(toks) - 1) + [last.float()]
-        pose = net.camera_head(ct)[-1]
+        # The camera head reads only the final layer's camera tokens.
+        pose = net.camera_head([last[:, :, :1].float()])[-1]
         xh = x.to(self.dt)
         depth, depth_conf = net.depth_head(toks, images=xh, patch_start_idx=psi)
         return {
