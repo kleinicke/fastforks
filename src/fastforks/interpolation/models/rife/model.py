@@ -28,7 +28,7 @@ from fastforks.kernels import cudnn_hacc
 from fastforks.shared.cuda_graphs import GraphCache
 
 from .net import IFNet
-from .net.IFNet_HDv3 import IFBlock, ResConv
+from .net.IFNet_HDv3 import ResConv
 
 if TYPE_CHECKING:
     from fastforks.interpolation._runner import Context
@@ -65,11 +65,6 @@ def _at_points(x: torch.Tensor, s: int) -> torch.Tensor:
 def _pool(x: torch.Tensor, s: int) -> torch.Tensor:
     """The 1/`s` bilinear downscale of the full-resolution field sampled at the `_points` (the same 2 x 2 means)."""
     return x if s == 1 else F.interpolate(x, scale_factor=0.5, mode="bilinear", align_corners=False)
-
-
-def _block(block: IFBlock, x: torch.Tensor) -> torch.Tensor:
-    """IFBlock on its already downscaled input, before its upsampling: `[B, 13, H/s, W/s]` (flow, mask, features)."""
-    return block.lastconv(block.convblock(block.conv0(x)))
 
 
 def _grid(py: torch.Tensor, px: torch.Tensor, h: int, w: int) -> torch.Tensor:
@@ -137,8 +132,12 @@ def _interpolate(
         if tmp is not None and flow is not None:  # mask and features of the last block, its flow (block scale units)
             inp[:, c + 1 : c + extra - 3].copy_(_pool(_upsampled(tmp[:, 4:], s, (py, px), (h, w)), s))
             inp[:, c + extra - 3 :].copy_(_pool(_at_points(flow, s), s).div_(s))
-        tmp = _block(block, inp.contiguous(memory_format=torch.channels_last) if channels_last else inp)
+        # Release the full-resolution inputs once the strided stem has consumed them.
+        block_input = block.conv0(inp.contiguous(memory_format=torch.channels_last) if channels_last else inp)
         del inp
+        block_input = block.convblock(block_input)
+        tmp = block.lastconv(block_input)
+        del block_input
         up = tmp[:, :4].float()
         if s > 1:
             up = F.interpolate(up, scale_factor=s, mode="bilinear", align_corners=False)
