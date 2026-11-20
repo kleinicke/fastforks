@@ -73,7 +73,7 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | lama | restoration | portable_mlx whole-module, fp32+fp16 pass | big-lama fp16 286 / 1656 vs MPS 214 / 1679; fp32 277 / 1758 vs 241 / 1797. Slightly slower, same memory. Needed FFT, empty and strided slice_scatter ops. |
 | codeformer | restoration | portable_mlx whole-module, fp32+fp16 pass | fp16 368 / 2512 vs MPS 196 / 1866; fp32 467 / 3128 vs 260 / 3064. Slower. |
 | gfpgan | restoration | portable_mlx whole-module, fp32 only | fp32 364 / 3161 vs MPS 153 / 1954. fp16 golden mean diff 0.157, so not declared. Slower and heavier. |
-| seedvr2 | restoration | portable_mlx (hand-written `mx` net), bf16+fp16 pass; 7B with quant="nf4" | 512x512 -> 1024x1024 ms / MB: 3b bf16 18649 / 8830, fp16 21337 / 8847 (min 15.6 s / 16.7 s; DiT ~15 s compute-bound, VAE decode ~5 s). MPS reports it unsupported, so MLX is the only Apple backend. Golden 3b bf16 mean 0.0042 / p99 0.032, fp16 0.0037 / 0.027. Weights come straight from the bf16 safetensors via the lazy loader `shared/mlx_weights.Weights` (no PyTorch fp32 twin: 6.8 GB resident for the 3b). VAE convs run in 32 MB row bands with group norm, SiLU and residual fused per band (peak 11.7 -> 8.8 GB). 7b: 16.5 GB bf16 does not fit 16 GB, so default options raise a clear MemoryError (survey rows record it); with quant="nf4" (`mlx_weights.Nf4`, bit-exact with shared.nf4) 4.5 GB resident, golden bf16 0.0043 / 0.025, fp16 0.0039 / 0.024, ~7 s per call at test size; not timed by the survey (it loads default options). fp16 7b needed the text residual stream in fp32 (it grows to ~1e5). Open: 7b bf16 without quant needs per-call block streaming (`Weights.stream`, ~+20 s per call from disk) or a bigger Mac. |
+| seedvr2 | restoration | portable_mlx (hand-written `mx` net), bf16+fp16 pass; 7B bf16 by block streaming, or quant="nf4" | 512x512 -> 1024x1024 ms / MB: 3b bf16 14307 / 5177, fp16 14023 / 5178 (was 18649 / 8830 and 21337 / 8847 fully resident); 7b bf16 25365 / 6547, fp16 32426 / 6549 (was MemoryError). MPS reports it unsupported, so MLX is the only Apple backend. Golden 3b bf16 mean 0.0042 / p99 0.032, fp16 0.0037 / 0.027. Weights come straight from the bf16 safetensors via the lazy loader `shared/mlx_weights.Weights` (no PyTorch fp32 twin). VAE convs run in 32 MB row bands with group norm, SiLU and residual fused per band (peak 11.7 -> 8.8 GB). `stream=True` (the card default) now also applies on MLX: the transformer blocks that fit in `MLX_RESIDENT_SHARE` = 25 % of unified memory stay resident, spread evenly over the depth, and the rest are re-read per call with `Weights.stream` (fresh lazy reads), the next streamed block queued with `mx.async_eval` while the current one computes (the marigold_v2 design). The weight disk reads ~0.85 GB/s (dd: 16.5 GB in 19.5 s, no page-cache reuse), so the 7b is read-bound: fully streamed 19.8 s per call at golden size with 1.4 GB peak, 9 of 36 blocks resident 15.2 s with 5.4 GB; the 3b keeps ~19 of 32 blocks and got faster as well (median 14.3 vs 18.6 s, min 14.3 vs 15.6 s: the old run had a noisy median; cause of the rest not isolated). The 7b survey run grew swap 3.5 -> 6.7 GB with 41k pageouts (~0.65 GB over ten calls): small against the 16 GB read per call, timing valid. fp16 7b is slower than bf16 (likely the per-call bf16 -> fp16 cast of the streamed blocks; not profiled). 7b with quant="nf4" (`mlx_weights.Nf4`, bit-exact with shared.nf4) 4.5 GB resident, golden bf16 0.0043 / 0.025, fp16 0.0039 / 0.024, ~7 s per call at test size; the 7b golden is the nf4 one (bf16 vs nf4 differ by ~26 dB PSNR, so bf16 7b is checked by the survey's golden and by the shared code path with the 3b golden). fp16 7b needed the text residual stream in fp32 (it grows to ~1e5). Open: a faster weight disk (internal SSD) would roughly halve the 7b time; not used because the 16.5 GB file must stay on Daten. |
 | deeplabv3 / deeplabv3plus / fcn / pspnet | segmentation | portable_mlx, fp32+fp16 pass | 1024x2048 fp16 ms / MB. deeplabv3 469 / 2804 vs MPS 528 / 2010; fcn 379 / 2772 vs 405 / 1875; pspnet 413 / 2849 vs 411 / 1945; deeplabv3plus 489 / 2882 vs 430 / 1891. Conv-bound: about a tie on speed, more memory. |
 | hrnet | segmentation | portable_mlx, fp32+fp16 pass | fp16 303 / 2603 vs MPS 228 / 2044; fp32 382 / 2844 vs 263 / 3210. Slower. |
 | segformer | segmentation | portable_mlx (+ graph_mlx trial on b0), fp32+fp16 pass | b0 fp16 110 / 2027 vs MPS 113 / 1521; b5 505 / 3097 vs 375 / 1974; b2-clothes (512x512) 67 / 1232 vs 50 / 1643 (less memory); b5-face 113 / 1619 vs 111 / 1899. The graph_mlx kernels gain 5-10 % only. |
@@ -87,20 +87,20 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | any2full | depth | portable_mlx, fp32+fp16 pass | 994x1482 fp16 s 169 / 1696 vs MPS 118 / 1641; b 435 / 2816 vs 268 / 2198; l 1031 / 5345 vs 684 / 3956. Slower. |
 | depth_anything_3 | depth | portable_mlx, fp32+fp16 pass | mono-large fp16 363 / 2516 vs MPS 280 / 2499; metric-large 367 / 2604 vs 280 / 2499; da3-large-1.1 393 / 2578 vs 318 / 2520; giant-1.1 fp16 963 / 4196 vs 759 / 7243 (less memory); nested giant+large fp16 1334 / 4880 vs 1184 / 8136 (less memory). Slower, but fp16 giants use 40 % less memory. |
 | depth_anything_v2 (and metric, distill-any-depth) | depth | existing MLX runner, fp32+fp16 pass | fp16 s 72 / 898 vs MPS 81 / 1575; b 181 / 1410 vs 199 / 2061; l 519 / 2343 vs 579 / 3282. Faster and lighter than MPS for all 12 refs. The kernels rows are slower (l fp16 548 / 2788). |
-| depth_pro | depth | portable_mlx (net via `fast`), fp32+fp16 pass | fp16 4491 / 11370 vs MPS 5011 / 7169 (faster, more memory); fp32 6473 / 15337 vs 6115 / 11267. |
+| depth_pro | depth | portable_mlx (net via `fast`, released twin, chunk 256 pipelined), fp32+fp16 pass | fp16 4653 / 5490 vs MPS 5011 / 7169 (faster and leaner; routed; was 4491 / 11370); fp32 7541 / 10529 vs 6115 / 11267 (leaner, slower; was 6473 / 15337). The float16 graph comes from the checkpoint's float16 weights (mmapped twin, no float32 copy), `release=True` frees the twin, and a declared 256 MB chunk with `pipeline=True` replaces the 2 GB big-weights segments (chunk 512: 4406 / 6859, 1024: 4736 / 6300 unpipelined). |
 | depthfm | depth | portable_mlx, fp32+fp16 pass | Survey: out of memory on MLX and on MPS alike at 994x1482 (a 66 GB attention buffer). Golden passes at the test size. |
 | lingbot_depth (+dc) | depth | portable_mlx, fp32+fp16 pass | fp16 4589 / 8528 vs MPS 3376 / 3228. Slower and heavier. |
 | lotus (normal g, d) | depth | portable_mlx, fp32+fp16 pass | g fp16 2089 / 9398 vs MPS 1553 / 6632; d fp16 2166 / 9159 vs 1459 / 6628. UNet and VAE run on MLX, loop and noise on the CPU. Slower and heavier. |
 | marigold | depth | portable_mlx, fp32+fp16 pass | fp16 4145 / 9333 vs MPS 2498 / 6640. Slower and heavier. |
 | marigold_normals | depth | portable_mlx, fp32+fp16 pass | fp16 2104 / 9797 vs MPS 1655 / 6671. |
 | stablenormal | depth | portable_mlx, fp32+fp16 pass | fp16 2661 / 11417 vs MPS 1690 / 8985 (UNet, ControlNet and VAE on MLX). |
-| marigold_v2 | depth | not ported, infeasible on this Mac | 20 B Qwen-Image transformer (9 GB NF4, about 40 GB dequantized in fp16 or 16 GB with 4-bit per-call expansion) does not fit 16 GB. Card keeps its NF4 bf16 mode only. |
+| marigold_v2 | depth | portable_mlx (`net/mlx_net.py`), bf16 pass (mean 0.0089 / p99 0.038, limits 0.01 / 0.05) | bf16 51319 ms / 2251 MB; MPS unsupported (cannot run). NF4 stays packed and is expanded per linear; the 60 blocks are read lazily from the file one at a time, the next block's read overlapped (`stream=True`, default; `stream=false` keeps ~9.5 GB resident). Per 994x1482 call: 60 blocks x ~650 ms (GEMM-bound, NF4 expand ~10 ms per linear), VAE encode 1.5 s + decode 2.4 s, ~8 s of cold reads not hidden. Nothing carries over to MPS (the gain is MLX's lazy file reads). fp16 not offered: Qwen-Image activations overflow fp16. |
 | metric3d | depth | portable_mlx, fp32+fp16 pass | fp16 2370 / 5009 vs MPS 1861 / 3636. Slower. |
 | midas | depth | portable_mlx, fp32+fp16 pass | fp16 668 / 4117 vs MPS 635 / 2407. The survey golden shows "fail" on MPS too (survey input quirk); `test_mlx` passes. |
 | moge | depth | portable_mlx (`_trunk` graph), fp32+fp16 pass | vits fp16 1148 / 6234 vs MPS 857 / 1679; vitb 1394 / 6475 vs 1012 / 2265; vitl 2221 / 7987 vs 1732 / 3265; moge-3 6508 / 10192 vs 3913 / 5968. The data-dependent sparse refiner of moge-3 stays eager. Slower and heavier. |
 | omni_dc | depth | portable_mlx (pre/post graphs, CG solve on the CPU), fp32+fp16 pass | fp16 3300 / 9841 vs MPS 2408 / 10081. |
 | pointdit | depth | portable_mlx (`_encode` fp32, `_dit`), fp32+fp16 pass | b fp16 373 / 1702 vs MPS 337 / 1912; fp32 357 / 1759 vs 367 / 1812. l fp16 1212 / 3759 vs 1013 / 4548; fp32 1073 / 4343 vs 1086 / 4516. Less memory than MPS. The DINOv3-L backbone overflows float16 (hidden states up to 1.5e5), so the backbone graph always runs in float32 (`fp32_methods`). |
-| prompt_depth_anything | depth | portable_mlx, fp32+fp16 pass | 756x1008 fp16 s 299 / 2138 vs MPS 195 / 1588; l 1931 / 7471 vs 1310 / 3301. |
+| prompt_depth_anything | depth | portable_mlx, fp32+fp16 pass | 756x1008 fp16 s 299 / 2138 vs MPS 195 / 1588. l re-surveyed at the new standard 994x1482 (both devices; the stale 756x1008 rows, upstream's included, dropped): fp16 1082 / 2757 vs MPS 1143 / 3303 (routed); fp32 1404 / 4681 vs 1278 / 4944. |
 | unidepth_v2 | depth | portable_mlx, fp32 only | fp32 1694 / 6215 vs MPS 1252 / 6077. fp16 not declared (golden). |
 | unik3d | depth | portable_mlx, fp32+fp16 pass | fp16 1637 / 4803 vs MPS 1294 / 4038. |
 | video_depth_anything | depth | portable_mlx (`_encode`/`_window`), fp32+fp16 pass | 480x640 fp16 s 1846 / 5538 vs MPS 926 / 6506 (less memory, 2x slower); metric-s 1822 / 5537 vs 933 / 6535. |
@@ -120,15 +120,15 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | inspyrenet | matting | portable_mlx (`_net` method), fp32 only | fp32 1339 / 2759 vs MPS 1108 / 7284. fp16 gives NaN on inspyrenet (both refs pass fp16 on inspyrenet-fast, but the card is per-card). |
 | isnet | matting | portable_mlx + kernels_mlx (fp16 only), fp32+fp16 pass | fp32 234 / 1649 vs MPS 157 / 1787. fp16 portable 153 / 1259 vs 130 / 1746; Winograd fp16 128 / 1445 (ties MPS, declared fp16 only). |
 | u2net | matting | portable_mlx, fp32+fp16 pass | fp16 62 / 1201 vs MPS 79 / 1885; fp32 83 / 1526 vs 82 / 1910. |
-| vitmatte | matting | portable_mlx (`_net` method), fp32+fp16 pass | s 1080x1920 fp32 1531 / 3035 vs MPS 2333 / 5185; fp16 1486 / 2821 vs 1360 / 2542. |
-| matanyone | matting | not ported | stateful video model (memory bank, top-k readout, per-frame Python control flow), no fixed-shape graph to export; its golden is skipped in the MLX run. |
+| vitmatte | matting | portable_mlx (`_net` method), fp32+fp16 pass | s 1080x1920 fp32 1317 / 2451 vs MPS 2333 / 5185; fp16 1280 / 2283 vs 1360 / 2542 (was 1595 / 3923: D=256 global attention now query-blocked, tune trials drop their cache, matting tail in strips). b fp32 2502 / 2701 vs 4680 / 5737; fp16 2368 / 2474 vs 2740 / 2966. Routed fp16. |
+| matanyone | matting | not ported (tried, slower) | Tried 2026-11-20: the per-frame stages (`_frame_features`, `_encode_mask`, `pixel_fusion`, `readout_query`, `_segment`, `pred_uncertainty`) exported as fixed-shape MLX graphs, with the memory bank and loop in PyTorch. It worked (golden pass; positional-encoding cache dropped, `aten.prod.dim_int` mapped, aux-mask `torch.where` made exportable) but 1080x1920 ran fp16 6335 ms / 3718 MB vs MPS 3091 / 3838, fp32 8946 / 4671 vs 3444 / 6010. The decoder (`_segment`, 64→16 and 128→64 3x3 convs, 1x1 convs and bilinear upsampling at full and half resolution) takes ~420 ms per step on MLX vs ~136 on MPS, and runs 11 times per call. That is 4.7 of the 6.3 s. Memory gain only 3% in fp16, so the runner was dropped. Revisit when MLX low-channel full-res convs get faster. Golden skipped in the MLX run. |
 | rtmpose / dwpose / rtmw | pose | portable_mlx, fp32+fp16 pass | rtmpose-t fp16 24 / 607 vs MPS 26 / 1460; fp32 27 / 656 vs 26 / 1462. Goldens tried: t, l-384, dwpose-t, rtmw-m, halpe26, hand5, face6, ap10k. |
 | rtmo | pose | portable_mlx, fp32 only | t fp32 17 / 658 vs MPS 21 / 1523. fp16 fails (t scores p99 0.0049, l keypoints p99 0.90). |
 | hrnet | pose | portable_mlx, fp32+fp16 pass | w32 fp16 125 / 1049 vs MPS 122 / 1675; fp32 166 / 1247 vs 141 / 1748. Winograd: tie, not declared. |
 | retinaface | pose | portable_mlx, fp32+fp16 pass | resnet50 fp16 190 / 1266 vs MPS 150 / 1913; fp32 284 / 1521 vs 210 / 1879. Kernels mode fails in float16-only options, not declared. |
 | vitpose | pose | portable_mlx, fp32+fp16 pass | base-simple fp16 156 / 987 vs MPS 186 / 1910; fp32 204 / 1326 vs 196 / 2073. plus-small and plus-huge pass goldens. |
 | yunet | pose | portable_mlx, fp32+fp16 pass | n fp16 21 / 719 vs MPS 22 / 1377; fp32 28 / 771 vs 25 / 1380. |
-| anyline, lineart, lineart_anime, mlsd | edges | portable_mlx, fp32+fp16 pass | anyline fp32 2817 ms / 2045 MB vs MPS 130 / 2346 (memory lower, speed 20x slower: only the TEED net runs as an MLX graph, the line-art post-processing `remove_small` is a long chain of small torch ops that runs eagerly outside it, so it dominates; not fixable without porting that step); lineart-anime fp16 43 / 1032 vs MPS 51 / 1774; mlsd fp16 33 / 715 vs 45 / 1373. lineart fp16 136 / 1170 vs 67 / 1362 (speed loses; Winograd 133, no gain). |
+| anyline, lineart, lineart_anime, mlsd | edges | portable_mlx, fp32+fp16 pass | anyline fp16 201 ms / 1777 MB vs MPS 117 / 1319, fp32 243 / 2030 vs 130 / 2346 (the whole module now replays as one MLX graph; still slower, full-res depthwise convs); lineart-anime fp16 43 / 1032 vs MPS 51 / 1774; mlsd fp16 33 / 715 vs 45 / 1373. lineart fp16 136 / 1170 vs 67 / 1362 (speed loses; Winograd 133, no gain). |
 | hed | edges | portable_mlx, fp32 only | fp32 75 / 1120 vs MPS 65 / 1415. fp16 gives NaN. Winograd slower. |
 | pidinet | edges | portable_mlx + kernels_mlx (conv_mlx), fp32+fp16 pass | fp16 portable 163 / 759, Winograd 78 / 747 vs MPS 73 / 1349 (kernels declared: 2.1x faster than portable); fp32 200 -> 115 / 987 vs 91 / 1359. |
 | teed | edges | portable_mlx, fp32+fp16 pass | fp32 17 ms / 534 MB vs MPS 20 / 1314; fp16 15 / 474 vs 17 / 1313. Wins on both. |
@@ -169,7 +169,7 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | anysplat | multiview | same | 336x518 fp32 8786 ms / 10565 MB vs MPS 33262 / 10705 (MPS fp32 path is slow); fp16 6974 / 8297 vs 5444 / 8751; goldens pass. fp32 3.8x faster than MPS. |
 | depthsplat | multiview | `port(Portable)`, adds `aten.clamp.Tensor` | 336x518 fp32 1707 ms / 2177 MB vs MPS 670 / 8880; golden passes in fp32 only (fp16 confidence mean diff 0.016 > 0.014, so only fp32 is declared). Memory 4x lower, time 2.5x slower. |
 | mvsplat | multiview | `port(Portable)` | 336x518 fp32 4550 ms / 3460 MB vs MPS 1077 / 4523; fp16 4527 / 3737 vs 1112 / 4537; goldens pass. Memory lower; 4x slower (the 3-D cost-volume warp graph is large and mostly gathers). |
-| resplat | multiview | only `net.encode` on MLX (the Gaussian-rendering refinement loop is data-dependent and cannot be exported; it stays eager on torch CPU) | base-re10k 480x640 fp32 112309 ms / 12071 MB; MPS row missing (MPS does not fit the survey input). Goldens (base, small) pass in fp32. Declared fp32 only; practically unusable for speed: the eager refine dominates. |
+| resplat | multiview | `net.encode` as the exported graph, its kNN as one op (`fastforks::resplat_knn`) lowered to a Metal z-order tiled kNN; the refinement by hand (`net/mlx_refine.py`): Metal projection / tile-intersection / rasteriser kernels, Metal kNN and kNN-attention, ResNet / low-res attention / point transformer in MLX (compiled blocks) | base-re10k 256x256 (the multi-view floor's smallest) fp32 19441 ms / 9553 MB; fp16 14649 / 5639. At 480x640 (warm call, own timing): before 112309 ms / 12071 MB (survey row, refine eager on torch CPU), now fp32 16.3 s, fp16 10.6 s (MLX peak 3.8 GB). Goldens (base, small) pass in fp32 and fp16. Left: the point transformer's GEMMs (~2.3 s per refine step) and the encoder graph (~4 s); MPS rows are still at 480x640 (fp32 14422 / 12080). |
 | lingbot-map | multiview | `methods=("run",)`: the whole streaming pass incl. KV cache unrolled into one exported graph | 480x640 fp32 11010 ms / 9090 MB vs MPS 8840 / 13055; fp16 10046 / 8220 vs 7125 / 8834; goldens pass. Memory lower, time 1.25-1.4x slower. |
 | mapanything | multiview | `methods=("predict",)` (transformer, DPT, heads and edge mask in one graph) | mapanything-apache 336x518 fp32 9091 ms / 11207 MB vs MPS 7357 / 11638; fp16 8284 / 8402 vs 6369 / 7218 (+1.2 GB); goldens pass. |
 | mvsanywhere | multiview | `methods=("encode_image", "matching", "cv_encoder", "decode")`; cost volume stays eager torch | 448x672 fp32 3661 ms / 2475 MB vs MPS 1051 / 3534; fp16 3609 / 2899 vs 1064 / 3801; goldens pass. Memory lower; 3.4x slower (eager CPU cost volume). |
@@ -178,7 +178,7 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | mobile-sam | promptable_segmentation | same (`_enc` = TinyViT trunk + norm) | fp32 100 ms / 947 MB vs MPS 81 / 1480. fp16 declared off: golden fails (pred_masks mean diff 0.49). Memory 36 percent lower, 1.2x slower. |
 | efficientvit-sam | promptable_segmentation | same; `compile=False` (a new `port` option): the fused elementwise kernels exceed Metal's argument-buffer limit under `mx.compile` | l0 fp32 116 ms / 1064 MB vs MPS 51 / 1779. Goldens pass. Memory lower, 2.3x slower. |
 | sam2 | promptable_segmentation | same (`_enc` = Hiera trunk, neck) | hiera-tiny fp32 219 ms / 1139 MB vs MPS 241 / 2581: faster and 2.3x lighter. fp32 only declared (hiera-base-plus fp16 misses its golden: pred_masks p99 diff 0.0091 > 0.009). |
-| sam3 | promptable_segmentation | `port(Portable, methods=("embed",))`; also fixes `aten.upsample_bilinear2d` antialias on integer images (uint8 resize matmul) | 1024x1024 fp32 2774 ms / 5023 MB vs MPS 3620 / 5807; fp16 2423 / 4198 vs 3688 / 3523. Goldens pass. 25-35 percent faster than MPS; fp16 uses more memory than MPS (peak at load). |
+| sam3 | promptable_segmentation | `MlxPortable`: the whole detector in hand-written `mx` (`sam3/net/mlx_net.py`: trunk, neck, CLIP text encoder, geometry / DETR encoder and decoder, scoring, mask decoder), weights read lazily from the checkpoint (no PyTorch twin), fp32 islands as `half_parts`; head-dim-32 attention zero-padded to 64 so MLX uses its fused SDPA (unfused: 0.8 GB scores in the DETR encoder); `mx.eval` per DETR layer / neck level / pixel-decoder stage (detector peak 1.1 -> 0.6 GB); `video`: MLX trunk + tracker neck, tracker heads CPU torch fp32 | 1024x1024 fp32 2062 ms / 4705 MB vs MPS 3620 / 5807; fp16 1657 / 2768 vs 3688 / 3523. Goldens pass. 55 % faster than MPS, 21 % leaner in fp16 (before: 2423 / 4198, +678 MB). `mx.compile` of the ViT layer: no gain (GEMM-bound). Nothing carries to MPS: its SDPA is already fused at head dim 32 (8.5 ms for 5184 tokens; padded to 64: 17 ms). |
 | clipseg | promptable_segmentation | `methods=("embed","decode")` | 1024x1024 fp32 33 ms / 932 MB vs MPS 45 / 1532; fp16 39 / 984 vs 38 / 1561. Goldens pass. Faster and lighter. |
 | insid3 | promptable_segmentation | `methods=("embed",)` (DINOv3 ViT-L backbone); the reference matching stays eager | vitl16 fp32 3244 ms / 2981 MB vs MPS 2953 / 2963 (parity). fp16 declared off: similarity map NaN. |
 | dedode | matching | `net.detector` + `net.descriptor` on MLX, fp32 only (fp16 keypoints mean diff 0.0022 > 0.002) | v2-b 2915 ms / 4374 MB vs MPS 1464 / 8011; v2-g 4967 / 5662 vs 3767 / 10008. Memory lower, speed slower than MPS. |
@@ -186,8 +186,8 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | loma | matching | detector, descriptor, matcher on MLX, fp32 (golden only for loma-b) | loma-b 4152 ms / 6133 MB vs MPS 3037 / 8147. Memory lower, speed slower. |
 | romav1 | matching | whole net on MLX, fp32; `cholesky` became `cholesky_ex(check_errors=False)` to avoid the with_effects op; new CPU-stream cholesky ops in mlx_graph | 4500 ms / 5242 MB vs MPS 3050 / 7979. Memory lower, speed slower. |
 | xfeat | matching | `net.xfeat.net` on MLX, fp32 (LighterGlue stays eager); new `aten.unfold` mapping | 158 ms / 543 MB vs MPS 42 / 1471. Memory lower, speed slower (small net, eager post-processing dominates). |
-| flexglue (aliked) | matching | descriptor net + matcher decode on MLX, fp32 + fp16; wrapping ALIKED dense map rejected (keypoint recall 0.963 < 0.99) | fp32 2249 ms / 3048 MB vs MPS 1124 / 3932; fp16 2255 / 2970 vs 1069 / 3088. Memory lower, speed about 2x slower. |
-| lightglue | matching | not ported: data-dependent keypoint counts in the matcher, and the ALIKED dense map misses recall (as in flexglue) | n/a |
+| flexglue (aliked) | matching | descriptor net + matcher decode on MLX, fp32 + fp16; wrapping ALIKED dense map rejected (keypoint recall 0.963 < 0.99) (cause found later: the `aten.elu` lowering dropped SELU's scale, fixed; the dense map on MLX is worth a retry) | fp32 2249 ms / 3048 MB vs MPS 1124 / 3932; fp16 2255 / 2970 vs 1069 / 3088. Memory lower, speed about 2x slower. |
+| lightglue | matching | portable_mlx fp32: the extractor's fixed-shape dense part as one MLX graph (DISK's U-Net; ALIKED's dense maps + score NMS via `ALIKED.detection_maps`); keypoint selection, descriptors and LightGlue (data-dependent counts) stay eager on the CPU. The old ALIKED recall miss (0.963, also flexglue's) was the `aten.elu` lowering ignoring SELU's scale; fixed in mlx_graph, both goldens pass | disk 1178 ms / 2333 MB vs MPS 1994 / 3531: WIN, routed. aliked 461 / 2416 vs 206 / 2586: leaner but 2.2x slower (dense graph ~93 ms/image vs MPS 81, CPU SDDH + matcher ~140 ms); stays on MPS. |
 
 ## Conv3x3 kernel experiments (M1 Pro, fp16, 1x512x512x64 -> 64, 3x3, pad 1)
 
@@ -803,34 +803,182 @@ fp16 ms / footprint MB (portable; kernels where it exists), re-surveyed, goldens
 | lingbot-depth | 4.8 GB (probe) | 4577 / 2989 | 3376 / 3228 |
 
 Still behind MPS: dinov2-vits14 (398 vs 346 MB; process baseline, route stays off), moge-2-vits (+345 MB, 3 % slower),
-moge-2-vitb (13 % slower), lingbot-depth (36 % slower; memory is below MPS), sam3 fp16 (+678 MB: only the image encoder runs on
-MLX, the concept/text/decoder stay CPU torch plus the twin; the MLX peak itself is 2.4 GB). Not re-surveyed: prompt-depth-anything,
+moge-2-vitb (13 % slower), lingbot-depth (36 % slower; memory is below MPS). sam3 is fixed: the whole detector now runs
+in `mx` without a twin (fp16 1657 ms / 2768 MB vs MPS 3688 / 3523), so it routes to MLX in both dtypes. Not re-surveyed: prompt-depth-anything,
 moge-3, metric3d, zoedepth, video-depth-anything, unik3d, any2full, mask2former / oneformer, da3 (large-gap old rows,
 may be stale or may need the same `compile=False`).
 
 The three pre-existing tests/test_mlx.py failures were stale tests, now fixed (aliked-lightglue as the portless family,
 cache limit 1/128 with 128 MB floor); `test_kernels_takes_mlx_kernels` follows the new depth-anything routing.
 
+## Cold start: the first call per input size (v0.21 follow-up)
+
+`mlx_graph.GraphNet` builds its replay lazily on the first call of each input signature, in memory only:
+`torch.export` + core-ATen decomposition (1 to 7 s), translation (BN folding, fusion, NHWC, constants), `mx.compile`
+of the segments, and a tuning pass that times every compiled segment above 16 MB once eagerly and once compiled
+(each trial is two calls of each form). MPS has none of it (its `first_call_s` is the warm time plus 0.1 to 0.6 s).
+
+Measured (M1 Pro 16 GB, portable mode, the survey's standard input, one job at a time, process start to first output;
+warm = steady call; "before" is the code at bf3ed8e8, "no cache" includes the tuning memo below, "hit" is a new process
+with a warm plan cache; second shape = one call at 3/4 of the size after the first, no cache -> hit):
+
+| ref (dtype) | warm s | first, before | first, no cache | first, hit | second shape | trials before -> now |
+|---|---|---|---|---|---|---|
+| depth-anything-v2-s (fp16, hand-written) | 0.07 | 0.10 | 0.10 | 0.09 | 0.07 | 0 |
+| dinov2-vitl14 (fp16, hand-written) | 0.06 | 0.08 | 0.08 | 0.08 | 0.03 | 0 |
+| yolox-tiny (fp16) | 0.014 | 1.5 | 1.5 | 1.08 | | 0 |
+| segformer-b0-ade20k (fp16) | 0.08 | 1.65 | 1.65 | 0.78 | 0.14 -> 0.07 | 0 |
+| rf-detr-n-coco (fp32) | 0.023 | 3.1 | 2.5 | 1.21 | 0.02 | 0 |
+| dfine-n-coco (fp16) | 0.021 | 2.9 (8.9 file-cache cold) | 2.9 | 1.16 | 0.02 | 0 |
+| parseq (fp16) | 0.016 | 6.0 | 6.0 | 2.84 | 0.02 | 0 |
+| ppocrv5-mobile (fp32) | 1.19 | 9.8 | 9.8 | 4.18 | | |
+| u2net (fp16) | 0.06 | 3.2 | 3.2 | 1.64 | | 1 |
+| hrnet-w32 (fp16) | 0.11 | 3.0 | 3.0 | 1.8 | 2.19 -> 1.05 | 4 |
+| geocalib-pinhole (fp16) | 0.30 | 5.2 | 5.0 | 2.42 | 3.82 -> 1.64 | 12 -> 12 |
+| da3mono-large (fp32) | 0.30 | 9.1 | 9.1 | 1.66 | 0.31 | 1 |
+| vitmatte-s (fp16) | 1.20 | 11.6 | 11.0 | 3.42 | 5.80 -> 2.03 | 39 -> 37 |
+| prompt-depth-anything-l (fp16) | 1.09 | 12.4 | 9.3 | 2.84 | 3.89 -> 2.05 (was 6.32) | 78 -> 23 |
+| psmnet-sceneflow (fp16) | 2.57 | 7.3 | 6.8 | 4.09 | 6.37 -> 2.20 | 45 -> 32 |
+| patchmatchnet (fp16) | 0.76 | 23.6 | 10.2 | 4.12 | 11.97 -> 3.12 (was 15.6) | 132 -> 95 |
+| depth-pro (fp16) | 4.72 | 33.5 | 21.2 | 8.36 | 4.74 | 154 -> 20 |
+| swin2sr-x2 (fp16) | 7.5 | 39.6 | 16.2 | 11.89 | 12.23 -> 7.64 (was 26.7) | 1076 -> 71 |
+
+Outputs: no cache vs cache miss vs cache hit compared leaf by leaf on two calls of every row above (17 families):
+bit-identical everywhere. `tests/test_golden.py::test_mlx` passes with the cache on, as miss and as hit, for vitmatte-s,
+rf-detr-n-coco, swin2sr-x2, patchmatchnet, prompt-depth-anything-l, hrnet-w32, parseq, dfine-n-coco and geocalib-pinhole
+(the hit runs take 30 to 80 % less time), and without it for swin2sr-x2 and patchmatchnet after the memo; `tests/test_mlx_plan_cache.py`
+checks a hit on a tiny conv + BN net (no export, bit-identical). Warm times unchanged by the memo (within 3 %). Second shape: most nets resize to a fixed
+input (detectors, dinov2, da3, depth-pro), so the second size costs one warm call; hrnet, geocalib, vitmatte, psmnet,
+patchmatchnet, swin2sr and prompt-depth-anything rebuild the graph for it. A cache miss costs 0.3 to 2.5 s more than no
+cache (`torch.export.save`); entries take 1 to 25 MB. The file-cache-cold first process (weights and Python modules not
+in the OS file cache: dfine 8.9 vs 2.9 s) is not touched by any of this.
+
+What was built:
+
+- `Model.warmup(sizes, *, views=8)` (`_core/model.py`): one call per `(height, width)` on the synthetic bench inputs,
+  under `inference_mode`; returns the model. Backend-agnostic (on MPS / CUDA it warms kernels and allocators).
+- `FASTFORKS_MLX_PLAN_CACHE=<dir>` (`shared/mlx_plan_cache.py`, off by default): per `MlxModule` and input signature,
+  the decomposed `ExportedProgram` (`torch.export.save`, parameters and buffers as one-element stand-ins rebound to the
+  module's own tensors by name, shape and dtype on load; the loaded graph is dead-code-eliminated, else the loader's
+  extra getitems on batch norm break BN folding and change bits) and the tuning decisions. Key: the load (ref, mode,
+  dtype, load options, user weight files; set by `Model._build_mlx`), module index and class, parameter shapes, input
+  signature, fastforks / torch / mlx versions and a fingerprint of fastforks' sources. Not cached: modules built outside
+  a model load, and exports that needed the eager forward first (lazy buffers). Empty and one-element tensors are
+  stored as they are (an empty stand-in broke `torch.export.save` for rf-detr).
+- Tuning memo (`mlx_graph._TUNE_MEMO`, always on): a trial's decision is keyed by the segment's op sequence and its
+  biggest activation rounded to a power of two, shared by all input sizes of an `MlxModule`; a repeated block and the
+  same segment at another size take it instead of timing again. Eager won 298 of swin2sr's 1076 trials, 13 of
+  patchmatchnet's 132, 9 of psmnet's 45, 6 of vitmatte's 39, so dropping the trials outright was not an option; the memo
+  keeps one trial per structure.
+- Survey: rows record `load_peak_footprint_mb` (peak after loading) and `second_shape_s` / `second_shape_input` (one
+  call at 3/4 size after the timed runs); `first_call_s` was there already. Existing rows stay valid.
+
+Usage: a server that knows its sizes calls `model.warmup([...])` at start-up; a CLI or batch job that restarts often
+sets `FASTFORKS_MLX_PLAN_CACHE` (both combine: the warm-up of a later process is then the fast "hit" column).
+
+### `cold_ms` and routing
+
+`cold_ms` = `first_call_s * 1000 - ms` of a survey row: the one-off cost of the first call at a size. Over the 115
+`auto` routes of `apple_mlx.json` (rows from before the memo): median 30 ms, 42 above 1 s, 17 above 5 s, 8 above 10 s;
+MPS stays at 0.1 to 1.2 s for the same refs. Calls until the MLX route has paid back its extra cold cost
+(`(cold_mlx - cold_mps) / (ms_mps - ms_mlx)`): swin2sr-x2 / x4 / x4-real 23 to 32, depth-pro 73, patchmatchnet 35,
+vitmatte-s / b 107 / 33, prompt-depth-anything-l 109, geocalib-pinhole 71, nnfoundation-vit 3, but dfine-n-coco 3084,
+parseq 1103, u2net 210, hrnet-w32 613, rf-detr-n-coco 301, segformer-b5 344 to 526, isnet-general-use 567;
+psmnet-sceneflow never (MLX is 0.7 % slower warm and routes on memory). A one-shot CLI call on these small, fast nets
+is slower on MLX than on MPS end to end.
+
+Proposal for `tools/gen_auto_mode.py` (not implemented): read `first_call_s` (and `second_shape_s` where present) from
+the rows and keep the `auto` route of a ref on MLX only when its break-even is at most `COLD_CALLS` calls (say 100) or
+its `cold_ms` is below a floor (say 1 s); otherwise write the MLX choice under a separate `auto_warm` key that the
+loader uses only when the caller warms the model (`Model.warmup` called, or `FASTFORKS_MLX_PLAN_CACHE` set, whose hit
+cold cost would then be the one to measure: survey it with the cache warm). The survey rows of the routed refs should
+be re-taken first (their `first_call_s` predates the memo, and swin2sr / depth-pro / patchmatchnet more than halved).
+
+Left: MLX's own compile and the translation still run on a hit (1 to 4 s on the mid-sized nets, 4 to 7 s on swin2sr /
+depth-pro); `mx.export_function` could store the compiled segments too. The survey rows of the routed refs were not
+re-taken with the memo. ppocrv5-mobile's survey first call is 35 s at fp16 against 9.8 s fp32 in this probe (not
+investigated; likely one graph per text-crop shape).
+
+## MPS lessons from MLX
+
+The MPS rows that used much more memory than MLX were dominated by the allocator, not by the model. Allocations of
+10-512 MB go into 1 GB MTLHeaps, and allocations above 512 MB get heaps of their own size. A freed buffer is reused
+only after its command buffer completes. So a long queue of stages keeps every stage's temporaries alive, and one
+100-500 MB temporary in the wrong place opens another 1 GB heap (sometimes one more on the first warm call). MLX
+avoids both by evaluating graph segments and keeping a small buffer cache. The fixes ported to the portable code,
+all MPS-gated unless noted:
+
+- **`fence`** (`_core/mps.py`, a `torch.mps.synchronize` at a stage boundary): it lets the next stage reuse the last
+  stage's memory. Use it only where profiling shows a new heap. The extra las2 fnet fences cost 4.6% and saved nothing.
+- **Chunk the big temporaries** below about 64 MB: strips (vitmatte), selective-volume chunks (rt-monster++), one
+  group / neighbour at a time (patchmatchnet correlation and evaluation weights), one warp position at a time plus
+  smaller init-cost row chunks (hitnet), and token chunks in the feed-forwards (video-depth-anything). The smaller
+  ops are often faster too (hitnet fp16 -37%).
+- **Fold BatchNorm into the convolutions at load**, in float32 before the dtype cast (psmnet). Folding works on every
+  device and is not MPS-gated.
+- **fp16 GELU in place** for GEGLU (`F.gelu(gate).mul_(x)`), with no float32 gate copy (video-depth-anything, as on
+  CUDA).
+
+| ref (M1 Pro 16 GB, portable MPS) | before ms / MB | after ms / MB | golden |
+|---|---|---|---|
+| vitmatte-s fp16 | 1360 / 2542 | 1254 / 1530 | pass |
+| vitmatte-s fp32 | 2333 / 5185 | 2195 / 2602 | pass |
+| rt-monster-plusplus-mix-all fp16 | 682 / 7047 | 657 / 4062 | pass |
+| rt-monster-plusplus-mix-all fp32 | 663 / 6986 | 669 / 4016 | pass |
+| las2-s fp16 | 192 / 3590 | 189 / 2588 | pass |
+| las2-s fp32 | 245 / 3983 | 176 / 2999 | pass |
+| patchmatchnet fp16 | 1574 / 6591 | 1012 / 3612 | pass |
+| patchmatchnet fp32 | 1010 / 7593 | 1002 / 3608 | pass |
+| psmnet-sceneflow fp16 | 2579 / 6428 | 2442 / 4783 | pass |
+| psmnet-sceneflow fp32 | 4615 / 11257 | 4150 / 8663 | pass |
+| hitnet-eth3d fp16 | 501 / 5510 | 313 / 2463 | pass |
+| hitnet-eth3d fp32 | 484 / 5503 | 307 / 4507 | pass |
+| video-depth-anything-s fp16 480x640 (profiled, warm) | 906 / 5537 | 899 / 4491 | pass |
+| video-depth-anything-s fp16 994x1482 (profiled, warm) | 1008 / 6661 | 1000 / 4618 | pass |
+
+Route flips in `apple_mlx.json`: vitmatte-s fp16 and psmnet-sceneflow fp16 moved from MLX to MPS. patchmatchnet fp16
+stays on MLX (920 ms there). depthsplat-small-re10k rows were stale with no code change: fp16 757 / 8900 -> 734 / 2763,
+fp32 670 / 8880 -> 682 / 3781.
+
+**Not improved, and why:**
+
+- **Small classifiers and detectors** stay about 1 GB above MLX. This is the first 1 GB heap; model code cannot
+  remove it.
+- **video-depth-anything** was not re-surveyed. The survey plan now picks 994x1482, while the existing rows are
+  480x640.
+- **grounding-dino-tiny**: the fp32 row (4787 MB, from 11-12) looks stale. A current profile peaks at 3790 MB warm.
+  The remaining growth is the transformers Swin `relative_position_bias + attention_mask` add, which is upstream code.
+
+**Left:**
+
+- **inspyrenet fp32** at 1080x1920: 6.3 GB lifetime peak against 2.5 GB allocated. Candidates:
+  - the Swin-v1 `attn_mask` add
+  - `torch.cat` / `F.interpolate` in `attention_module.py`
+  - BN folding in `layers.py`
+- **Not looked at:** sam3, depth-pro, disk-lightglue, dat x4, and foundationstereo (too close to 16 GB to profile
+  safely).
+
 ## Final MLX vs MPS table
 
 Every ref whose MLX row predated cc3fce13 (128 MB cache default) or the later compile-policy/channels-last/cache changes was re-measured on the M1 Pro 16 GB (warm median, one job at a time). Ratios are MLX/MPS, below 1 favours MLX. Row shown: float16 where both dtypes exist, else float32; best MLX mode of portable/kernels. WIN: faster and memory within 1.02x; TIE: within 3% speed, memory not above MPS; LOSE otherwise. 224 refs: 91 WIN, 5 TIE, 128 LOSE.
 
-Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap from other apps, jobs were killed; they keep their old rows): depth-pro, vggt-1b, anysplat, lingbot-map, resplat-base-re10k, great-igev-sceneflow, waft-stereo-s, alltracker, cotracker3-offline/online, locotrack-b, flowformer-small-chairs, gimm-vfi-r. Not reached: tapir, tapnext, track-on2, nnfoundation-*, nninteractive, totalsegmentator-*. The memory-fix sweeps (compile=False, cache_mb 128/256/512) for the memory losers were not run for the same reason; `FASTFORKS_MLX_COMPILE=0` (sweep switch in `mlx_wrap.port`) and `FASTFORKS_MLX_CACHE_MB` are ready for them. oneformer-swinl-ade20k and rt-monster-plusplus-mix-all report golden FAIL on MLX and stay unrouted.
+Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap from other apps, jobs were killed; they keep their old rows): depth-pro, vggt-1b, anysplat, lingbot-map, resplat-base-re10k, great-igev-sceneflow, waft-stereo-s, alltracker, cotracker3-offline/online, locotrack-b, flowformer-small-chairs, gimm-vfi-r. Not reached: tapir, tapnext, track-on2, nnfoundation-*, nninteractive, totalsegmentator-*. The memory-fix sweeps (compile=False, cache_mb 128/256/512) for the memory losers were not run for the same reason; `FASTFORKS_MLX_COMPILE=0` (sweep switch in `mlx_wrap.port`) and `FASTFORKS_MLX_CACHE_MB` are ready for them. oneformer-swinl-ade20k and rt-monster-plusplus-mix-all reported golden FAIL on MLX; both pass now (rt-monster after the `_Normalize` trace fix) and stay unrouted because MLX is slower.
 
 | ref | dtype | input | MLX mode | ms | MB | MPS ms | MPS MB | speed | mem | verdict | why |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | aanet-sceneflow | 16 | 994x1482 | portable | 1695.2 | 2131 | 630.844 | 2606 | 2.69 | 0.82 | LOSE | slower (2.69x: portable MLX replay, no fused attention/conv kernels) |
 | aliked-flexglue | 16 | 768x1024 | portable | 2308.6 | 2808 | 1068.521 | 3088 | 2.16 | 0.91 | LOSE | slower (2.16x: portable MLX replay, no fused attention/conv kernels) |
+| aliked-lightglue | 32 | 768x1024 | portable | 460.6 | 2416 | 205.897 | 2586 | 2.24 | 0.93 | LOSE | slower: the MLX dense maps + NMS alone take ~93 ms per image (MPS 81), and SDDH descriptors and the matcher run eager on the CPU (~140 ms); unrouted |
 | alltracker | 32 | 480x854 | portable | 5397.2 | 2597 | 3507.681 | 4571 | 1.54 | 0.57 | LOSE | slower (1.54x: portable MLX replay, no fused attention/conv kernels) |
 | any2full-b | 16 | 994x1482 | portable | 378.6 | 1583 | 267.954 | 2198 | 1.41 | 0.72 | LOSE | slower (1.41x: portable MLX replay, no fused attention/conv kernels) |
 | any2full-l | 16 | 994x1482 | portable | 908.5 | 3298 | 684.288 | 3956 | 1.33 | 0.83 | LOSE | slower (1.33x: portable MLX replay, no fused attention/conv kernels) |
 | any2full-s | 16 | 994x1482 | portable | 159.7 | 1012 | 117.84 | 1641 | 1.36 | 0.62 | LOSE | slower (1.36x: portable MLX replay, no fused attention/conv kernels) |
 | anycalib-pinhole | 32 | 1080x1920 | portable | 341.8 | 2089 | 266.497 | 3023 | 1.28 | 0.69 | LOSE | slower (1.28x: portable MLX replay, no fused attention/conv kernels) |
-| anyline | 16 | 1024x1024 | portable | 3013.1 | 1836 | 116.786 | 1319 | 25.80 | 1.39 | LOSE | slower (25.80x: portable MLX replay, no fused attention/conv kernels); more memory (1.39x: MLX runtime/buffer cache above the MPS footprint) |
+| anyline | 16 | 1024x1024 | portable | 201 | 1777 | 116.786 | 1319 | 1.72 | 1.35 | LOSE | slower and more memory: the whole module (TEED + line-art post-processing) runs as one MLX graph, the cost is full-res depthwise convs and their activations (the old 3013 ms row predates the whole-module port); fp32 243 / 2030 vs MPS 130 / 2346 |
 | anysplat | 16 | 336x518 | portable | 6973.7 | 8297 | 5444.081 | 8751 | 1.28 | 0.95 | LOSE | slower (1.28x: portable MLX replay, no fused attention/conv kernels) |
 | ben2 | 32 | 1080x1920 | portable | 1705.7 | 5012 | 1147.957 | 6252 | 1.49 | 0.80 | LOSE | slower (1.49x: portable MLX replay, no fused attention/conv kernels) |
 | birefnet | 16 | 1080x1920 | portable | 1203.1 | 2705 | 1151.581 | 5433 | 1.04 | 0.50 | LOSE | slower (1.04x: portable MLX replay, no fused attention/conv kernels) |
-| bisenet-face-parsing | 16 | 512x512 | portable | 17.6 | 607 | 13.643 | 440 | 1.29 | 1.38 | LOSE | slower (1.29x: portable MLX replay, no fused attention/conv kernels); more memory (1.38x: MLX runtime/buffer cache above the MPS footprint) |
+| bisenet-face-parsing | 16 | 512x512 | portable | 17.6 | 607 | 13.643 | 440 | 1.29 | 1.38 | LOSE | slower (1.29x: portable MLX replay, no fused attention/conv kernels); more memory (1.38x: MLX runtime/buffer cache above the MPS footprint); tiny net: ~100 MB fixed cost of the torch.export imports plus the MLX runtime, not fixable by cache/chunk/compile switches |
 | boq-dinov2 | 16 | 480x640 | portable | 55.3 | 864 | 48.219 | 849 | 1.15 | 1.02 | LOSE | slower (1.15x: portable MLX replay, no fused attention/conv kernels) |
 | bridgedepth-sf | 16 | 994x1482 | portable | 5661.3 | 4483 | 3693.197 | 6270 | 1.53 | 0.71 | LOSE | slower (1.53x: portable MLX replay, no fused attention/conv kernels) |
 | c-radio-v3-b | 16 | 224x224 | portable | 16.4 | 764 | 16.494 | 2230 | 0.99 | 0.34 | WIN |  |
@@ -878,7 +1026,7 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 | depth-anything-v2-metric-vkitti-b | 16 | 994x1482 | portable | 188.1 | 1021 | 199.299 | 2061 | 0.94 | 0.50 | WIN |  |
 | depth-anything-v2-metric-vkitti-l | 16 | 994x1482 | portable | 543.9 | 1728 | 579.971 | 3283 | 0.94 | 0.53 | WIN |  |
 | depth-anything-v2-metric-vkitti-s | 16 | 994x1482 | kernels | 67.4 | 707 | 79.467 | 1572 | 0.85 | 0.45 | WIN |  |
-| depth-pro | 16 | 994x1482 | portable | 4491.4 | 11370 | 5011.45 | 7169 | 0.90 | 1.59 | LOSE | more memory (1.59x: MLX runtime/buffer cache above the MPS footprint) |
+| depth-pro | 16 | 994x1482 | portable | 4653.3 | 5490 | 5011.45 | 7169 | 0.93 | 0.77 | WIN | (was 4491 / 11370 LOSE: float32 twin kept, 2 GB segments) |
 | depthsplat-small-re10k | 32 | 336x518 | portable | 1269.9 | 2671 | 669.5 | 8880 | 1.90 | 0.30 | LOSE | slower (1.90x: portable MLX replay, no fused attention/conv kernels) |
 | dfine-n-coco | 16 | 800x1344 | portable | 22.3 | 624 | 25.174 | 1510 | 0.89 | 0.41 | WIN |  |
 | dinov2-b-linear-ade20k | 16 | 1024x2048 | portable | 761.1 | 1611 | 360.569 | 2174 | 2.11 | 0.74 | LOSE | slower (2.11x: portable MLX replay, no fused attention/conv kernels) |
@@ -893,6 +1041,7 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 | dinov3-convnext-small | 16 | 224x224 | portable | 11.9 | 388 | 18.49 | 612 | 0.64 | 0.63 | WIN |  |
 | dinov3-convnext-tiny | 16 | 224x224 | portable | 7.2 | 315 | 10.645 | 431 | 0.68 | 0.73 | WIN |  |
 | dinov3-vith16plus | 16 | 224x224 | portable | 119.9 | 2174 | 143.346 | 3467 | 0.84 | 0.63 | WIN |  |
+| disk-lightglue | 32 | 768x1024 | portable | 1177.6 | 2333 | 1994.053 | 3531 | 0.59 | 0.66 | WIN | (new port: DISK U-Net as an MLX graph; keypoints and matcher eager on the CPU) |
 | distill-any-depth-b | 16 | 994x1482 | kernels | 169.6 | 1020 | 199.366 | 2061 | 0.85 | 0.49 | WIN |  |
 | distill-any-depth-l | 16 | 994x1482 | portable | 529.2 | 1847 | 579.665 | 3281 | 0.91 | 0.56 | WIN |  |
 | distill-any-depth-s | 16 | 994x1482 | kernels | 66.9 | 698 | 79.298 | 1570 | 0.84 | 0.44 | WIN |  |
@@ -944,7 +1093,7 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 | mobilenetv1_100.ra4_e3600_r224_in1k | 16 | 224x224 | portable | 2.3 | 367 | 5.129 | 461 | 0.45 | 0.80 | WIN |  |
 | mocha-v1-sceneflow | 16 | 994x1482 | portable | 9657.0 | 3382 | 6693.339 | 5695 | 1.44 | 0.59 | LOSE | slower (1.44x: portable MLX replay, no fused attention/conv kernels) |
 | moge-2-vitl-normal | 16 | 994x1482 | portable | 2080.7 | 3009 | 1731.978 | 3265 | 1.20 | 0.92 | LOSE | slower (1.20x: portable MLX replay, no fused attention/conv kernels) |
-| moge-3-vitl | 16 | 994x1482 | portable | 5657.1 | 5822 | 3913.491 | 5968 | 1.45 | 0.98 | LOSE | slower (1.45x: portable MLX replay, no fused attention/conv kernels) |
+| moge-3-vitl | 16 | 994x1482 | portable | 5657.1 | 5822 | 3913.491 | 5968 | 1.45 | 0.98 | LOSE | slower (1.45x: portable MLX replay, no fused attention/conv kernels): the trunk is at parity (1705 ms on both); the MoGe-3 sparse refiner runs eagerly on the CPU in MLX mode (3.8 s vs MPS 2.15 s, ~4 GB CPU memory). Needs a refiner port. |
 | monster-plusplus-mix-all | 16 | 994x1482 | portable | 18356.8 | 5477 | 10202.192 | 7347 | 1.80 | 0.75 | LOSE | slower (1.80x: portable MLX replay, no fused attention/conv kernels) |
 | monster-sceneflow | 16 | 994x1482 | portable | 19649.8 | 5189 | 9642.315 | 6299 | 2.04 | 0.82 | LOSE | slower (2.04x: portable MLX replay, no fused attention/conv kernels) |
 | mvsanywhere | 16 | 448x672 | portable | 3772.5 | 2054 | 1064.367 | 3801 | 3.54 | 0.54 | LOSE | slower (3.54x: portable MLX replay, no fused attention/conv kernels) |
@@ -953,9 +1102,9 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 | nnfoundation-vit | 16 | 192x192 | portable | 13036.5 | 2469 | 17636.415 | 3817 | 0.74 | 0.65 | WIN |  |
 | nninteractive | 32 | 200x200 | portable | 4781.8 | 7025 | 3524.991 | 11439 | 1.36 | 0.61 | LOSE | slower (1.36x: portable MLX replay, no fused attention/conv kernels) |
 | omni-dc | 16 | 994x1482 | portable | 5978.0 | 5375 | 2408.429 | 10081 | 2.48 | 0.53 | LOSE | slower (2.48x: portable MLX replay, no fused attention/conv kernels) |
-| oneformer-swinl-ade20k | 16 | 1024x2048 | portable | 2078.1 | 6033 | 1160.815 | 5559 | 1.79 | 1.09 | LOSE | slower (1.79x: portable MLX replay, no fused attention/conv kernels); more memory (1.09x: MLX runtime/buffer cache above the MPS footprint) |
+| oneformer-swinl-ade20k | 16 | 1024x2048 | portable | 2078.1 | 6033 | 1160.815 | 5559 | 1.79 | 1.09 | LOSE | slower (1.79x: portable MLX replay, no fused attention/conv kernels); more memory (1.09x: MLX runtime/buffer cache above the MPS footprint); golden passes (test_mlx and survey), unrouted |
 | owlv2-b16 | 32 | 800x1344 | portable | 398.1 | 1299 | 393.679 | 1515 | 1.01 | 0.86 | TIE |  |
-| parseq | 16 | 32x128 | portable | 17.9 | 495 | 23.603 | 440 | 0.76 | 1.12 | LOSE | more memory (1.12x: MLX runtime/buffer cache above the MPS footprint) |
+| parseq | 16 | 32x128 | portable | 17.9 | 495 | 23.603 | 440 | 0.76 | 1.12 | LOSE | more memory (1.12x: MLX runtime/buffer cache above the MPS footprint); tiny net: ~100 MB fixed cost of the torch.export imports plus the MLX runtime, not fixable by cache/chunk/compile switches |
 | patchmatchnet | 16 | 1536x1024 | portable | 920.2 | 2247 | 1573.872 | 6591 | 0.58 | 0.34 | WIN |  |
 | pe-core-l14-336 | 16 | 224x224 | portable | 95.7 | 3240 | 58.343 | 4528 | 1.64 | 0.72 | LOSE | slower (1.64x: portable MLX replay, no fused attention/conv kernels) |
 | pe-core-t16-384 | 16 | 224x224 | portable | 5.1 | 469 | 7.253 | 388 | 0.70 | 1.21 | LOSE | more memory (1.21x: MLX runtime/buffer cache above the MPS footprint) |
@@ -965,7 +1114,7 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 | pointdit-l-512 | 16 | 994x1482 | portable | 1231.4 | 3360 | 1013.331 | 4548 | 1.22 | 0.74 | LOSE | slower (1.22x: portable MLX replay, no fused attention/conv kernels) |
 | ppocrv5-mobile | 16 | 1080x1920 | portable | 869.1 | 1610 | 735.803 | 2987 | 1.18 | 0.54 | LOSE | slower (1.18x: portable MLX replay, no fused attention/conv kernels) |
 | ppocrv5-server | 16 | 1080x1920 | portable | 1903.8 | 2666 | 1607.126 | 6545 | 1.18 | 0.41 | LOSE | slower (1.18x: portable MLX replay, no fused attention/conv kernels) |
-| prompt-depth-anything-l | 16 | 756x1008 | portable | 1677.4 | 4384 | 1310.108 | 3301 | 1.28 | 1.33 | LOSE | slower (1.28x: portable MLX replay, no fused attention/conv kernels); more memory (1.33x: MLX runtime/buffer cache above the MPS footprint) |
+| prompt-depth-anything-l | 16 | 994x1482 | portable | 1082.0 | 2757 | 1142.683 | 3303 | 0.95 | 0.83 | WIN |  |
 | prompt-depth-anything-s | 16 | 756x1008 | portable | 244.0 | 1168 | 194.524 | 1588 | 1.25 | 0.74 | LOSE | slower (1.25x: portable MLX replay, no fused attention/conv kernels) |
 | psmnet-sceneflow | 16 | 994x1482 | portable | 2597.3 | 2941 | 2578.896 | 6428 | 1.01 | 0.46 | TIE |  |
 | raft-stereo-middlebury | 16 | 994x1482 | portable | 5704.4 | 4315 | 3633.675 | 4722 | 1.57 | 0.91 | LOSE | slower (1.57x: portable MLX replay, no fused attention/conv kernels) |
@@ -994,7 +1143,7 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 | rife-4.25-lite | 16 | 1080x1920 | portable | 202.2 | 1636 | 79.991 | 2447 | 2.53 | 0.67 | LOSE | slower (2.53x: portable MLX replay, no fused attention/conv kernels) |
 | romav1 | 32 | 768x1024 | portable | 4439.8 | 4499 | 3050.476 | 7979 | 1.46 | 0.56 | LOSE | slower (1.46x: portable MLX replay, no fused attention/conv kernels) |
 | romav2 | 32 | 768x1024 | kernels | 4042.6 | 3150 | 3980.808 | 6725 | 1.02 | 0.47 | TIE |  |
-| rt-monster-plusplus-mix-all | 16 | 994x1482 | portable | 1096.2 | 2644 | 682.191 | 7047 | 1.61 | 0.38 | LOSE | golden FAIL |
+| rt-monster-plusplus-mix-all | 16 | 994x1482 | portable | 842.1 | 2288 | 682.191 | 7047 | 1.23 | 0.32 | LOSE | slower (1.23x); golden passes since `_Normalize` no longer caches its constants while traced (a second export at another shape found the first export's fake tensors); fp32 1038 / 2451 vs MPS 663 / 6986. Unrouted (speed). |
 | rtdetrv2-s-coco | 16 | 800x1344 | portable | 39.5 | 904 | 44.377 | 1631 | 0.89 | 0.55 | WIN |  |
 | rtmdet-tiny-coco | 16 | 800x1344 | portable | 24.4 | 618 | 26.979 | 1545 | 0.91 | 0.40 | WIN |  |
 | rtmo-t | 32 | 1080x1920 | portable | 17.9 | 667 | 20.977 | 1523 | 0.85 | 0.44 | WIN |  |
@@ -1035,7 +1184,8 @@ Not measurable under the 9 GB swap rule (the shared Mac held 10.6 GB stale swap 
 | vggt-omega-1b-512 | 16 | 336x518 | portable | 8564.1 | 5137 | 7241.942 | 8602 | 1.18 | 0.60 | LOSE | slower (1.18x: portable MLX replay, no fused attention/conv kernels) |
 | video-depth-anything-metric-s | 16 | 480x640 | portable | 871.6 | 2021 | 933.206 | 6535 | 0.93 | 0.31 | WIN |  |
 | video-depth-anything-s | 16 | 480x640 | portable | 896.1 | 2027 | 926.453 | 6506 | 0.97 | 0.31 | WIN |  |
-| vitmatte-s | 16 | 1080x1920 | portable | 1595.1 | 3923 | 1360.354 | 2542 | 1.17 | 1.54 | LOSE | slower (1.17x: portable MLX replay, no fused attention/conv kernels); more memory (1.54x: MLX runtime/buffer cache above the MPS footprint) |
+| vitmatte-b | 16 | 1080x1920 | portable | 2368.0 | 2474 | 2740.0 | 2966 | 0.86 | 0.83 | WIN |  |
+| vitmatte-s | 16 | 1080x1920 | portable | 1280.5 | 2283 | 1360.354 | 2542 | 0.94 | 0.90 | WIN |  |
 | vitpose-base-simple | 16 | 1080x1920 | portable | 168.6 | 1080 | 159.7 | 1977 | 1.06 | 0.55 | LOSE | slower (1.06x: portable MLX replay, no fused attention/conv kernels) |
 | waft-a1 | 16 | 1080x1920 | portable | 9339.5 | 3559 | 7167.849 | 7185 | 1.30 | 0.50 | LOSE | slower (1.30x: portable MLX replay, no fused attention/conv kernels) |
 | waft-stereo-s | 16 | 994x1482 | portable | 6634.9 | 4330 | 6089.657 | 9209 | 1.09 | 0.47 | LOSE | slower (1.09x: portable MLX replay, no fused attention/conv kernels) |

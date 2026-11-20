@@ -37,6 +37,7 @@ from fastforks._core.mlx import mx, to_mx, to_torch
 from fastforks._core import mlx_cast as _mlx_cast  # noqa: F401 - registers `fastforks::run_dtype`
 from fastforks._core import volume_ops as _volume_ops  # noqa: F401 - registers `fastforks::gwc_volume`
 from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks.shared import mlx_plan_cache
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Sequence
@@ -150,7 +151,9 @@ OPS[aten.hardtanh.default] = lambda x, lo=-1.0, hi=1.0: mx.clip(x, lo, hi)
 OPS[aten.hardsigmoid.default] = lambda x: mx.clip(x / 6 + 0.5, 0, 1)
 OPS[aten.hardswish.default] = lambda x: x * mx.clip(x / 6 + 0.5, 0, 1)
 OPS[aten.leaky_relu.default] = lambda x, s=0.01: mx.where(x >= 0, x, x * s)
-OPS[aten.elu.default] = lambda x, a=1.0, *_: mx.where(x > 0, x, a * (mx.exp(x) - 1))
+OPS[aten.elu.default] = lambda x, a=1.0, scale=1.0, input_scale=1.0: (
+    scale * mx.where(x > 0, x, a * (mx.exp(x * input_scale) - 1))
+)  # SELU exports as elu(x, alpha, scale)
 OPS[aten.softplus.default] = lambda x, beta=1.0, thr=20.0: mx.where(
     x * beta > thr, x, mx.log1p(mx.exp(x * beta)) / beta
 )
@@ -592,6 +595,7 @@ def _vector_norm(
 
 
 OPS[aten.amax.default] = lambda x, d=(), keep=False: mx.max(x, axis=tuple(d) or None, keepdims=keep)
+OPS[aten.prod.dim_int] = lambda x, d, keep=False, **_: _wide(x, lambda y: mx.prod(y, axis=d, keepdims=keep))
 OPS[aten.amin.default] = lambda x, d=(), keep=False: mx.min(x, axis=tuple(d) or None, keepdims=keep)
 OPS[aten.any.dim] = lambda x, d, keep=False: mx.any(x, axis=d, keepdims=keep)
 OPS[aten.all.dim] = lambda x, d, keep=False: mx.all(x, axis=d, keepdims=keep)
@@ -722,6 +726,12 @@ OPS[aten.dot.default] = mx.inner
 OPS[aten.einsum.default] = lambda eq, ts: mx.einsum(eq, *ts)
 
 
+SDPA_FUSED_DIMS = (64, 72, 80, 96, 128)
+"""Head sizes `mx.fast.scaled_dot_product_attention` runs fused (measured, MLX 0.32); others materialise the scores."""
+SDPA_BLOCK_BYTES = 128 << 20
+"""Float32 scores per query block of an unfused attention whose whole score matrix would exceed twice this."""
+
+
 @_reg(aten.scaled_dot_product_attention.default)
 def _sdpa(
     q: mx.array,
@@ -739,7 +749,31 @@ def _sdpa(
         mask = "causal"
     elif mask is not None and mask.dtype not in {mx.bool_, q.dtype}:
         mask = mask.astype(q.dtype)
-    return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask)
+    d = q.shape[-1]
+    if d in SDPA_FUSED_DIMS or q.ndim != 4 or isinstance(mask, str):  # noqa: PLR2004
+        return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask)
+    if d < SDPA_FUSED_DIMS[-1] and k.shape[-1] == d and v.shape[-1] == d:
+        # zero-padded to the next fused head size: the same scores, no materialised score matrix (and faster)
+        pad = [(0, 0)] * 3 + [(0, next(f for f in SDPA_FUSED_DIMS if f > d) - d)]
+        out = mx.fast.scaled_dot_product_attention(
+            mx.pad(q, pad), mx.pad(k, pad), mx.pad(v, pad), scale=scale, mask=mask
+        )
+        return out[..., :d]
+    b, h, lq, _ = q.shape
+    row = b * h * k.shape[-2] * 4  # bytes of one query's float32 scores
+    if lq * row <= 2 * SDPA_BLOCK_BYTES:
+        return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask)
+    # a head size MLX does not fuse materialises the scores: query blocks one after the other (`mx.depends`) bound them
+    blk = max(1, SDPA_BLOCK_BYTES // row)
+    per_query = isinstance(mask, mx.array) and mask.ndim >= 2 and mask.shape[-2] == lq  # noqa: PLR2004
+    outs: list[mx.array] = []
+    for i in range(0, lq, blk):
+        qi = q[:, :, i : i + blk]
+        if outs:
+            qi = mx.depends(qi, outs[-1])
+        mi = mask[..., i : i + blk, :] if per_query else mask
+        outs.append(mx.fast.scaled_dot_product_attention(qi, k, v, scale=scale, mask=mi))
+    return mx.concatenate(outs, axis=2)
 
 
 @_reg(aten._softmax.default, aten.softmax.int)
@@ -1748,12 +1782,23 @@ BIG_CHUNK_MB = 2048
 CHUNK_MB = 256  # lazy replay: evaluate the live values after this much new activation (see `GraphNet._runner`)
 
 _CONSUMED = "\0consumed"  # key of the set of twin tensor names whose values live on MLX (in the shared constants)
+# key of the tuning memo in the shared constants: a segment's structure (its ops, its biggest activation to a power of
+# two) -> compiled won. A repeated block (the 24 layers of a ViT, every Swin stage) and the same segment at another
+# input size of the same module reuse the first trial's decision instead of timing it again.
+_TUNE_MEMO = "\0tune"
+
+
+def _op_name(f: Any) -> str:  # noqa: ANN401 - a plan step's callable
+    """A plan step's operation by name (a `functools.partial` by its function's)."""
+    f = getattr(f, "func", f)
+    return getattr(f, "__qualname__", None) or type(f).__qualname__
 
 
 def _tensor_dtype(dtype: mx.Dtype, t: torch.Tensor) -> mx.Dtype | None:
     return dtype if t.is_floating_point() else None
 
 
+TUNE_LOG = bool(os.environ.get("FF_MLX_TUNE_LOG"))  # print each tuning trial (segment, times, peaks, decision)
 PROFILE: dict[tuple[str, str], list[float]] | None = {} if os.environ.get("FF_MLX_PROFILE") else None
 
 
@@ -1798,8 +1843,13 @@ class GraphNet:
         kernels: bool = False,
         shared: dict[str, Any] | None = None,
         chunk_mb: int = 0,
+        pipeline: bool = False,
     ) -> None:
-        """Keep the module until its first export; parameters convert then (`chunk_mb`: see `_runner`, 0 = `CHUNK_MB`)."""
+        """Keep the module until its first export; parameters convert then (`chunk_mb`: see `_runner`, 0 = `CHUNK_MB`).
+
+        `pipeline=True`: queue each checkpoint segment (`mx.async_eval`) and wait for the one before it, so the next
+        segment's graph is built while the GPU runs (one more segment's activations in flight).
+        """
         self.module = module.eval()
         for m in self.module.modules():  # a buffer computed from parameters (position biases) is a non-leaf tensor
             for name, b in m._buffers.items():
@@ -1813,6 +1863,7 @@ class GraphNet:
         self.weight_bytes = 0
         self.kernels = kernels
         self.chunk_mb = chunk_mb
+        self.pipeline = pipeline
         self._runs: dict[tuple[Any, ...], Callable[..., Any]] = {}
         self.on_built: Callable[[], None] | None = None  # called after each export, before its first run
         self._wino: dict[
@@ -1820,6 +1871,12 @@ class GraphNet:
         ] = {}  # kernels mode: Winograd-domain weights of 3x3 convolutions, by (id(weight), tile)
         self._consts: dict[str, Any] = {} if shared is None else shared
         self._consumed: set[str] = self._consts.setdefault(_CONSUMED, set())  # twin tensors the MLX side has taken over
+        self._tune_memo: dict[Any, bool] = self._consts.setdefault(_TUNE_MEMO, {})
+        # on-disk plan cache (`mlx_plan_cache`, set by `MlxModule` when `FASTFORKS_MLX_PLAN_CACHE` is on): the entry of
+        # this net's input signature, what to store beside the program and how to restore it on a hit
+        self.plan: Any = None
+        self.plan_extra: Callable[[], Any] | None = None
+        self.plan_restore: Callable[[Any], None] | None = None
 
     def _const(self, name: str, t: torch.Tensor, *, share: bool = True) -> mx.array:
         if not share:  # a lifted constant (a grid built in the forward): "lifted_tensor_0" differs per export
@@ -1844,7 +1901,14 @@ class GraphNet:
         finally:
             EXPORTING_FOR_MLX.reset(token)
 
-    def _build_graph(self, args: tuple[torch.Tensor, ...]) -> Callable[..., Any]:
+    def _export(self, args: tuple[torch.Tensor, ...]) -> Any:  # noqa: ANN401 - an ExportedProgram
+        """The module exported at `args` and decomposed to core ATen: from the plan cache when it has the entry."""
+        if self.plan is not None and (got := self.plan.load_program(self.module)) is not None:
+            ep, extra = got
+            if self.plan_restore is not None:
+                self.plan_restore(extra)
+            return ep
+        filled = False
         with torch.no_grad():
             try:
                 ep = torch.export.export(self.module, args, strict=False)
@@ -1852,6 +1916,7 @@ class GraphNet:
                 # lazily built buffers (attention bias caches) that export must not assign: fill them with one real
                 # forward (its CPU activations are the peak of the build, so only a module that needs it pays)
                 self.module(*args)
+                filled = True
                 ep = torch.export.export(self.module, args, strict=False)
             decomp = torch.export.default_decompositions()
             for keep in (
@@ -1862,6 +1927,12 @@ class GraphNet:
             ):
                 decomp.pop(keep, None)
             ep = ep.run_decompositions(decomp)
+        if self.plan is not None and not filled:  # a loaded program could not fill the lazy buffers: not cached
+            self.plan.save_program(ep, self.module, self.plan_extra() if self.plan_extra is not None else None)
+        return ep
+
+    def _build_graph(self, args: tuple[torch.Tensor, ...]) -> Callable[..., Any]:
+        ep = self._export(args)
         graph = ep.graph_module.graph
         sig = ep.graph_signature
         state = set(ep.state_dict)
@@ -2115,7 +2186,9 @@ class GraphNet:
         out_refs = set(_refs(out_names))
         # a net with big weights peaks while loading (the float32 twin), not while running: checkpoint rarely there
         big = min(self.weight_bytes, BIG_CHUNK_MB << 20) if self.weight_bytes >= BIG_WEIGHTS else 0
-        chunk = max(int(os.environ.get("FF_MLX_CHUNK_MB", self.chunk_mb or CHUNK_MB)) << 20, big)
+        # a declared interval (`chunk_mb`, or the sweep's `FF_MLX_CHUNK_MB`) is taken as it is
+        declared = os.environ.get("FF_MLX_CHUNK_MB") or self.chunk_mb
+        chunk = int(declared) << 20 if declared else max(CHUNK_MB << 20, big)
         cuts, pending = [0], 0
         for k, (_, p) in enumerate(steps):
             pending += self._sizes.get(p[1], 0)
@@ -2142,26 +2215,42 @@ class GraphNet:
                 return type(a)(get(env, x) for x in a)
             return a
 
-        def make(seg: list[tuple[int, tuple[Any, ...]]]) -> tuple[list[str], list[str], Callable[..., Any]]:
+        bounds = [(a, b) for a, b in zip(cuts, cuts[1:], strict=False) if b > a]
+        # the tuning decisions of an earlier process (plan cache): compiled (True) / eager (False) per segment
+        tune_sig = (len(bounds), compiled, seg_max, self.pipeline)
+        known = self.plan.load_tune(tune_sig) if self.plan is not None else None
+        known = known if known is not None and len(known) == len(bounds) else [None] * len(bounds)
+        decided: list[bool | None] = list(known)
+
+        def make(  # noqa: C901
+            k: int, seg: list[tuple[int, tuple[Any, ...]]]
+        ) -> tuple[list[str], list[str], Callable[..., Any]]:
             final = seg[-1][0]
             seg_defs = {p[1] for _, p in seg}
             ins = sorted({n for i, _ in seg for n in uses[i]} - seg_defs - values.keys())
             outs = [p[1] for _, p in seg if p[1] in out_refs or last.get(p[1], -1) > final]
+            keep = set(outs)
+            # values whose last use is this step (dropped then: an eager segment frees them as soon as MLX has
+            # evaluated their consumers, instead of holding every intermediate until the segment ends)
+            dead = {i: [n for n in uses[i] if last.get(n) == i and n not in keep and n not in values] for i, _ in seg}
 
             def fn(*xs: mx.array) -> tuple[mx.array, ...]:
                 env: dict[str, Any] = dict(values)
                 env.update(zip(ins, xs, strict=True))
-                for _, p in seg:
+                del xs
+                for i, p in seg:
                     if p[0] == "alias":
                         env[p[1]] = env[p[2]]
-                        continue
-                    _, name, f, args, kwargs = p
-                    if f is operator.getitem:
-                        env[name] = env[args[0].name][args[1]]
-                    elif PROFILE is not None:
-                        _profiled(env, name, f, args, kwargs, get)
                     else:
-                        env[name] = f(*[get(env, a) for a in args], **{k: get(env, v) for k, v in kwargs.items()})
+                        _, name, f, args, kwargs = p
+                        if f is operator.getitem:
+                            env[name] = env[args[0].name][args[1]]
+                        elif PROFILE is not None:
+                            _profiled(env, name, f, args, kwargs, get)
+                        else:
+                            env[name] = f(*[get(env, a) for a in args], **{k: get(env, v) for k, v in kwargs.items()})
+                    for n in dead[i]:
+                        env.pop(n, None)
                 return tuple(env[n] for n in outs)
 
             if (
@@ -2174,10 +2263,18 @@ class GraphNet:
             use: list[Callable[..., Any]] = [jit]
             seg_big = max((self._sizes.get(p[1], 0) for _, p in seg), default=0)
             tune = [seg_big > TUNE_MIN_MB << 20 and not os.environ.get("FF_MLX_NO_TUNE")]
+            shape_key = (
+                tuple(p[0] if p[0] == "alias" else _op_name(p[2]) for _, p in seg),
+                seg_big.bit_length(),
+            )
+            if known[k] is not None:  # decided by an earlier process (plan cache): no trials
+                use[0] = jit if known[k] else fn
+                tune[0] = False
 
             def timed(g: Callable[..., Any], xs: tuple[mx.array, ...]) -> tuple[float, int, Any]:
                 """Seconds and peak bytes of the second call of `g` (the first warms kernels and traces)."""
                 mx.eval(g(*xs))
+                mx.clear_cache()  # the buffer cache can exceed its limit by a big map: one trial's must not stay
                 mx.reset_peak_memory()
                 t0 = time.perf_counter()
                 res = g(*xs)
@@ -2185,18 +2282,31 @@ class GraphNet:
                 return time.perf_counter() - t0, mx.get_peak_memory(), res
 
             def guarded(*xs: mx.array) -> tuple[mx.array, ...]:
+                if tune[0] and (memo := self._tune_memo.get(shape_key)) is not None:
+                    tune[0] = False  # an earlier trial of the same structure decided (recorded with the plan)
+                    use[0] = jit if memo else fn
+                    decided[k] = memo
                 if tune[0]:  # first call of a segment with big maps: keep the compiled form only if it is not slower
                     tune[0] = False
                     try:
                         te, me, res = timed(fn, xs)
+                        del res  # the trials' outputs and freed maps must not add up
                         tc, mc, res = timed(jit, xs)
                     except ValueError as err:
                         if "uncaptured" not in str(err):
                             raise
                         use[0] = fn
+                        decided[k] = False
                         return fn(*xs)
                     if tc > te * TUNE_SLACK or mc > me * 1.25 + (64 << 20):
                         use[0] = fn
+                    decided[k] = self._tune_memo[shape_key] = use[0] is jit
+                    if TUNE_LOG:
+                        print(  # noqa: T201 - FF_MLX_TUNE_LOG=1: the tuning pass's trials
+                            f"mlx tune: segment {k} ({len(seg)} ops, {seg_big >> 20} MB) eager {1e3 * te:.1f} ms"
+                            f" {me >> 20} MB, compiled {1e3 * tc:.1f} ms {mc >> 20} MB -> {'compiled' if decided[k] else 'eager'}",
+                            flush=True,
+                        )
                     return res
                 try:
                     return use[0](*xs)
@@ -2204,12 +2314,12 @@ class GraphNet:
                     if use[0] is fn or "uncaptured" not in str(err):
                         raise
                     use[0] = fn
+                    decided[k] = False
                     return fn(*xs)
 
             return ins, outs, guarded
 
-        bounds = [(a, b) for a, b in zip(cuts, cuts[1:], strict=False) if b > a]
-        segments = [make(steps[a:b]) for a, b in bounds]
+        segments = [make(k, steps[a:b]) for k, (a, b) in enumerate(bounds)]
         seg_last = [steps[b - 1][0] for _, b in bounds]
         input_names = [p[1] for p in plan if p[0] == "input"]
 
@@ -2218,14 +2328,29 @@ class GraphNet:
                 n: x.astype(self.dtype) if mx.issubdtype(x.dtype, mx.floating) else x
                 for n, x in zip(input_names, inputs, strict=True)
             }
+            prev = None
             for k, ((ins, outs, f), end) in enumerate(zip(segments, seg_last, strict=True)):
-                res = f(*[env[n] for n in ins])
+                xs = [env[n] for n in ins]
+                for n in ins:  # inputs that die in this segment: only the segment holds them (freed while it runs)
+                    if last.get(n, -1) <= end and n not in out_refs:
+                        del env[n]
+                res = f(*xs)
+                del xs
                 env.update(zip(outs, res, strict=True))
                 if k + 1 < len(segments):
-                    mx.eval(res)
+                    if self.pipeline:
+                        mx.async_eval(res)
+                        if prev is not None:
+                            mx.eval(prev)
+                        prev = res
+                    else:
+                        mx.eval(res)
                 for n in [n for n, i in last.items() if i <= end and n in env and n not in out_refs]:
                     del env[n]
             env.update(values)
+            if self.plan is not None and decided != known:  # new decisions: the next process skips their trials
+                self.plan.save_tune(tune_sig, decided)
+                known[:] = decided
             return tuple(o.astype(mx.float32) for o in get(env, out_names))
 
         return run
@@ -2294,8 +2419,9 @@ class MlxModule:
         release: bool = False,
         compile: bool = True,  # noqa: A002 - mirrors `GraphNet`
         chunk_mb: int = 0,
+        pipeline: bool = False,
     ) -> None:
-        """Wrap `module` (eval mode, CPU). `chunk_mb`: `GraphNet`'s checkpoint interval (0: `CHUNK_MB`).
+        """Wrap `module` (eval mode, CPU). `chunk_mb`, `pipeline`: see `GraphNet`.
 
         `release=True`: once the first export has moved a parameter or buffer to MLX, the module's own tensor is
         replaced by a one-element stand-in of the same shape (a float32 twin of a 340M-parameter network is 1.4 GB).
@@ -2309,7 +2435,9 @@ class MlxModule:
         self.release = release
         self.compile = compile
         self.chunk_mb = chunk_mb
+        self.pipeline = pipeline
         self._nets: dict[Any, tuple[GraphNet, _Flat]] = {}
+        self._plan_scope = mlx_plan_cache.next_scope()  # this module's key in the on-disk plan cache (a model load's)
         if release:
             for _, t in _tensors(self.module):
                 t.__dict__.setdefault("_mlx_owners", set()).add(id(self))
@@ -2328,9 +2456,15 @@ class MlxModule:
                     kernels=self.kernels,
                     shared=self._consts(),
                     chunk_mb=self.chunk_mb,
+                    pipeline=self.pipeline,
                 ),
                 flat,
             )
+            net = self._nets[key][0]
+            sig = (repr(key), self.dtype, self.kernels, self.compile, self.chunk_mb)
+            net.plan = mlx_plan_cache.Entry.make(self._plan_scope, flat, sig)
+            net.plan_extra = lambda flat=flat: flat.out.value
+            net.plan_restore = lambda extra, flat=flat: setattr(flat.out, "value", extra)
         net, flat = self._nets[key]
         net.on_built = (lambda: self._release(flat)) if self.release else None
         outs = iter(net(*[x for x in leaves if isinstance(x, torch.Tensor)]))

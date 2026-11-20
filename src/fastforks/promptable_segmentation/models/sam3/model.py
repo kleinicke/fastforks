@@ -36,7 +36,6 @@ from typing import TYPE_CHECKING, cast
 import torch
 import torch.nn.functional as F
 
-from fastforks.shared import mlx_wrap
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import InputError, OptionsError
 from fastforks._core.patch import override
@@ -560,8 +559,72 @@ class Kernels(_Sam3):
             return self.concept(ids, list(rest[:3]), valid, Exemplars(*rest[3:]) if rest[3:] else None)
 
 
-RUNNERS = {
-    "portable": Portable,
-    "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("embed",), net_attr="net"),
-}
+class MlxPortable(_Sam3):
+    """Apple MLX (`device="mlx"`): the trunk, neck, text encoder and detector heads in `mx` operations (`net.mlx_net`).
+
+    The weights are read from the checkpoint straight into MLX (no PyTorch twin), with the precision split of
+    `Portable`; the uint8 resize, the tokenizer and the exemplar ROI weights stay PyTorch on the CPU. The features are
+    the neck levels in the run dtype (NCHW views of NHWC memory). `video` runs the tracker heads in PyTorch float32 on
+    the CPU, the frames through the MLX trunk and the tracker's neck.
+    """
+
+    dtypes = ("float32", "float16")
+
+    def __init__(self, ctx: Context) -> None:
+        """Read the detector's weights into MLX."""
+        super().__init__(ctx)
+        from fastforks.shared.mlx_weights import DTYPES  # noqa: PLC0415 - needs the mlx extra
+
+        from .net import mlx_net  # noqa: PLC0415
+
+        self.mlx = mlx_net
+        self.mnet = mlx_net.Net(ctx.weights()[0], DTYPES[ctx.dtype])
+
+    def _pixels(self, image: torch.Tensor) -> object:
+        return self.mlx.to_mx(prepare(image.cpu(), self.ctx, exact=True))
+
+    def embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Neck levels `fpn0 [1, 256, 288, 288]`, `fpn1 [.., 144, 144]`, `fpn2 [.., 72, 72]` (run dtype)."""
+        fpn = self.mnet.encode(self._pixels(image))
+        return {f"fpn{i}": self.mlx.nhwc_to_torch(f) for i, f in enumerate(fpn)}
+
+    def concept(
+        self,
+        ids: torch.Tensor,
+        fpn: list[torch.Tensor],
+        valid: torch.Tensor | None = None,
+        ex: Exemplars | None = None,
+        *,
+        skip_masks_below: float | None = None,
+    ) -> dict[str, torch.Tensor]:
+        """`_Sam3.concept` on MLX (one prompt, no padding: `valid` and `ex.valid` are `None`)."""
+        del valid, skip_masks_below
+        m = self.mlx
+        levels = [m.to_mx(f.permute(0, 2, 3, 1)) for f in fpn]
+        fields = None if ex is None else [m.to_mx(t) for t in (ex.boxes, ex.labels, ex.pool_y, ex.pool_x)]
+        scores, boxes, masks = self.mnet.detect(levels, ids[0].tolist(), fields)
+        return {"scores": m.to_torch(scores), "boxes": m.to_torch(boxes), "pred_masks": m.to_torch(masks)}
+
+    def module(self) -> torch.nn.Module:
+        """Not available: the network is MLX, not PyTorch.
+
+        Raises:
+            NotImplementedError: Always.
+        """
+        msg = "SAM 3 on MLX has no PyTorch module; export from device='cpu'"
+        raise NotImplementedError(msg)
+
+    def _tracker(self) -> tuple[Tracker, object]:
+        """The tracker heads and memory modules in PyTorch float32 on the CPU (its neck runs on MLX)."""
+        if self._video is None:
+            m, _ = load_tracker(self.ctx)
+            self._video = (Tracker(m, torch.float32), None)
+        return self._video
+
+    def _track_embed(self, image: torch.Tensor, neck: object) -> list[torch.Tensor]:
+        del neck
+        levels = self.mnet.tracker_neck(self.mnet.trunk(self._pixels(image)))
+        return [self.mlx.nhwc_to_torch(f) for f in levels]
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxPortable}

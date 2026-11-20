@@ -8,7 +8,8 @@ file. An explicit `mode="kernels"` is never affected.
 The Apple table selects among passing, comparable MPS and MLX survey runs. Per model revision:
 
 - `auto` and `dtypes` select MLX if it beats the fastest MPS path by `MIN_GAIN` and does not use more memory
-  (peak footprint, within `MEM_SLACK`) than that path.
+  (peak footprint, within `MEM_SLACK`) than that path. It is also selected when at most `TRADE_SLOWDOWN` slower if it
+  needs at most `TRADE_MEMORY` of that path's peak memory on every workload.
 - `kernels` and `kernels_default` select MLX if it beats the native MPS kernel by `MIN_GAIN`, likewise in memory.
 - `mlx` and `mlx_default` select the fastest passing MLX path where it is the only optimized backend.
 - `mps_auto` records which native MPS kernel requests beat portable MPS by `MIN_GAIN`.
@@ -36,6 +37,8 @@ APPLE_DEVICE = "apple-m1-pro-16gb"  # the Mac whose MPS and MLX survey rows deci
 APPLE_MLX_DEVICE = "apple-m1-pro-mlx-16gb"
 MIN_GAIN = 1.05  # kernels must be at least 5 % faster, else the lighter portable backend is chosen
 MEM_SLACK = 1.02  # an MLX route may use at most 2 % more peak memory than the MPS path it replaces (measurement noise)
+TRADE_SLOWDOWN = 1.01  # ... or be up to 1 % slower than that path ...
+TRADE_MEMORY = 0.90  # ... if it needs at most 90 % of its peak memory (a saving of more than 10 %)
 KERNEL_MODES = ("kernels",)  # the mode column of the data files
 
 
@@ -91,6 +94,21 @@ def _apple_options(device: str) -> dict[str, dict[Option, dict[Workload, Run]]]:
     return models
 
 
+def _route_score(ratios: list[float], savings: list[float | None], *, memory: bool) -> float | None:
+    """Median `ms / baseline ms` when the route qualifies, else None.
+
+    It qualifies when at least `MIN_GAIN` faster, or (with the memory rule) at most `TRADE_SLOWDOWN` slower while
+    needing at most `TRADE_MEMORY` of the baseline's peak memory on every workload.
+    """
+    if not ratios:
+        return None
+    score = statistics.median(ratios)
+    if score * MIN_GAIN <= 1:
+        return score
+    lean = memory and score <= TRADE_SLOWDOWN and all(r is not None and r <= TRADE_MEMORY for r in savings)
+    return score if lean else None
+
+
 def _winners(
     candidates: dict[Option, dict[Workload, Run]],
     alternatives: dict[Option, dict[Workload, Run]],
@@ -99,7 +117,8 @@ def _winners(
 ) -> dict[str, Option]:
     """Winning implementation for each requested dtype, plus the unconstrained request under the empty key.
 
-    `memory`: a candidate must also stay within `MEM_SLACK` of the fastest alternative's peak footprint on every workload.
+    `memory`: a candidate must also stay within `MEM_SLACK` of the fastest alternative's peak footprint on every
+    workload.
     """
     selected = {}
     for dtype in ("", *sorted({d for _, d in candidates})):
@@ -110,7 +129,7 @@ def _winners(
             if not alternatives:
                 score = statistics.median(ms for ms, _ in rows.values())
             else:
-                ratios = []
+                ratios, savings = [], []
                 for key, (ms, mem) in rows.items():
                     baseline = [
                         other[key]
@@ -123,9 +142,10 @@ def _winners(
                             ratios = []  # more memory (or unknown) on one workload: no route
                             break
                         ratios.append(ms / fastest_ms)
-                if not ratios or statistics.median(ratios) * MIN_GAIN > 1:
+                        savings.append(mem / fastest_mem if mem is not None and fastest_mem else None)
+                score = _route_score(ratios, savings, memory=memory)
+                if score is None:
                     continue
-                score = statistics.median(ratios)
             timings.append((score, option))
         if timings:
             selected[dtype] = min(timings)[1]

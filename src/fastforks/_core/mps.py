@@ -12,6 +12,11 @@ stays referenced by the command buffer, and a NumPy-owned one is freed from Meta
 GIL; if that happens during interpreter shutdown, the process hangs or aborts ("Fatal Python error:
 gilstate_tss_set", torch 2.14).
 
+`fence` waits for the GPU at a stage boundary. MPS reuses a freed intermediate only once the command buffer that used
+it has completed, so a long queue of stages keeps every stage's temporaries alive, and the allocator backs allocations
+of 10-512 MB with 1 GB heaps (counted whole in the process footprint): a synchronize between big stages lets the next
+stage reuse the last one's memory (vitmatte-s at 1080p: 3.7 -> 2.6 GB, same speed).
+
 `quiet_nd_padding` silences MPS's note that it pads tensors of more than 3 dimensions as view ops (slower, not wrong).
 """
 
@@ -189,6 +194,13 @@ def adapt(net: torch.nn.Module) -> None:
             override(m, _conv_transpose)
         elif kind is torch.nn.ConvTranspose3d:  # whatever dtype the layer gets later (a no-op cast in float32)
             override(m, _float32_conv_transpose3d)
+
+
+def fence(t: torch.Tensor) -> torch.Tensor:
+    """Wait for the queued MPS work when `t` is on MPS (eager only), so freed intermediates become reusable; `t`."""
+    if t.device.type == "mps" and not (torch.compiler.is_compiling() or torch.jit.is_tracing()):
+        torch.mps.synchronize()
+    return t
 
 
 @functools.cache

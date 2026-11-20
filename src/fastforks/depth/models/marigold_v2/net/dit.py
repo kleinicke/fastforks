@@ -46,6 +46,18 @@ def rope_tables() -> tuple[torch.Tensor, torch.Tensor]:
     )
 
 
+def freqs(pos: torch.Tensor, neg: torch.Tensor, n_txt: int, h: int, w: int) -> torch.Tensor:
+    """RoPE frequencies of `n_txt` text tokens then the `h x w` image tokens, `[T, 1, D / 2]` complex (`rope_tables`)."""
+    a = [s // 2 for s in AXES]
+    fp, fn = pos.split(a, dim=1), neg.split(a, dim=1)
+    ff = fp[0][0:1].view(1, 1, 1, -1).expand(1, h, w, -1)
+    fh = torch.cat([fn[1][-(h - h // 2) :], fp[1][: h // 2]], dim=0).view(1, h, 1, -1).expand(1, h, w, -1)
+    fw = torch.cat([fn[2][-(w - w // 2) :], fp[2][: w // 2]], dim=0).view(1, 1, w, -1).expand(1, h, w, -1)
+    f_img = torch.cat([ff, fh, fw], dim=-1).reshape(h * w, -1)
+    m = max(h // 2, w // 2)
+    return torch.cat([pos[m : m + n_txt], f_img]).unsqueeze(1)
+
+
 def rope(x: torch.Tensor, f: torch.Tensor) -> torch.Tensor:
     """Rotate `[B, T, H, D]` (as pairs) by the complex frequencies `f [T, 1, D / 2]`; float32 out."""
     xc = torch.view_as_complex(x.float().reshape(*x.shape[:-1], -1, 2))
@@ -181,14 +193,7 @@ class Transformer(nn.Module):
 
     def freqs(self, h: int, w: int) -> torch.Tensor:
         """RoPE frequencies of the text tokens then the `h x w` image tokens, `[T, 1, D / 2]` complex."""
-        a = [s // 2 for s in AXES]
-        fp, fn = self.pos.split(a, dim=1), self.neg.split(a, dim=1)
-        ff = fp[0][0:1].view(1, 1, 1, -1).expand(1, h, w, -1)
-        fh = torch.cat([fn[1][-(h - h // 2) :], fp[1][: h // 2]], dim=0).view(1, h, 1, -1).expand(1, h, w, -1)
-        fw = torch.cat([fn[2][-(w - w // 2) :], fp[2][: w // 2]], dim=0).view(1, 1, w, -1).expand(1, h, w, -1)
-        f_img = torch.cat([ff, fh, fw], dim=-1).reshape(h * w, -1)
-        m = max(h // 2, w // 2)
-        return torch.cat([self.pos[m : m + self.txt.shape[1]], f_img]).unsqueeze(1)
+        return freqs(self.pos, self.neg, self.txt.shape[1], h, w)
 
     def run_blocks(self, img: torch.Tensor, txt: torch.Tensor, f_all: torch.Tensor) -> torch.Tensor:
         """All blocks, resident or streamed."""

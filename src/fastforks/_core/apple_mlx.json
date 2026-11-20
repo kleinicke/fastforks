@@ -35,6 +35,15 @@
     "float32": "portable"
    }
   },
+  "aliked-lightglue@1": {
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
   "alltracker@1": {
    "mlx_default": [
     "portable",
@@ -87,7 +96,7 @@
   "anyline@1": {
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
@@ -186,7 +195,12 @@
    }
   },
   "c-radio-v3-b@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -219,6 +233,13 @@
    }
   },
   "c-radio-v3-l@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -305,6 +326,9 @@
    }
   },
   "coex-sceneflow@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -678,6 +702,9 @@
    }
   },
   "da3-large-1.1@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float32"
@@ -789,7 +816,8 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels"
+    "float16": "kernels",
+    "float32": "kernels"
    },
    "mlx_default": [
     "kernels",
@@ -890,7 +918,8 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels"
+    "float16": "kernels",
+    "float32": "portable"
    },
    "mlx_default": [
     "kernels",
@@ -907,7 +936,8 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "portable"
+    "float16": "portable",
+    "float32": "kernels"
    },
    "mlx_default": [
     "portable",
@@ -924,7 +954,8 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "portable"
+    "float16": "portable",
+    "float32": "kernels"
    },
    "mlx_default": [
     "portable",
@@ -972,6 +1003,13 @@
    }
   },
   "depth-pro@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -1183,6 +1221,13 @@
    }
   },
   "dinov2_vitl14_lc@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -1332,6 +1377,22 @@
    ],
    "mlx": {
     "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "disk-lightglue@1": {
+   "auto": [
+    "portable",
+    "float32"
+   ],
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
     "float32": "portable"
    }
   },
@@ -1769,6 +1830,13 @@
    ]
   },
   "hrnet-w32@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -1779,6 +1847,13 @@
    }
   },
   "hrnet-w48-fcn-ade20k@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -1974,6 +2049,13 @@
    }
   },
   "locotrack-b@1": {
+   "auto": [
+    "portable",
+    "float32"
+   ],
+   "dtypes": {
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float32"
@@ -2066,6 +2148,15 @@
    "mlx": {
     "float16": "portable",
     "float32": "portable"
+   }
+  },
+  "marigold-v2-depth@1": {
+   "mlx_default": [
+    "portable",
+    "bfloat16"
+   ],
+   "mlx": {
+    "bfloat16": "portable"
    }
   },
   "mask-rcnn-r50-fpn-3x-coco@1": {
@@ -2579,6 +2670,9 @@
    }
   },
   "pointdit-l-512@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float32"
@@ -2609,9 +2703,16 @@
    }
   },
   "prompt-depth-anything-l@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
@@ -3055,9 +3156,10 @@
   "resplat-base-re10k@1": {
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
+    "float16": "portable",
     "float32": "portable"
    }
   },
@@ -3174,6 +3276,16 @@
     "",
     "float32"
    ]
+  },
+  "rt-monster-plusplus-mix-all@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
   },
   "rtdetrv2-s-coco@1": {
    "auto": [
@@ -3309,6 +3421,9 @@
    ]
   },
   "rtmpose-t@1": {
+   "dtypes": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -3372,14 +3487,15 @@
   "sam3@1": {
    "auto": [
     "portable",
-    "float32"
+    "float16"
    ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
@@ -3445,6 +3561,16 @@
    ]
   },
   "seedvr2-3b@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "bfloat16": "portable",
+    "float16": "portable"
+   }
+  },
+  "seedvr2-7b@1": {
    "mlx_default": [
     "portable",
     "bfloat16"
@@ -3841,6 +3967,9 @@
    }
   },
   "teed@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -3978,6 +4107,27 @@
    }
   },
   "video-depth-anything-s@1": {
+   "dtypes": {
+    "float16": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "vitmatte-b@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -3993,7 +4143,7 @@
    },
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
