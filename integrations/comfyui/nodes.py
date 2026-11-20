@@ -746,10 +746,16 @@ class Parse(SemanticSegment):
     LABEL_SETS = frozenset({"atr-18", "celebamask-hq-19"})
 
 
+_STEREO_CLIP = 0.01  # Stereo output: quantiles 0.01 / 0.99 map to black / white (occlusion borders, mismatches)
+
+
 class Stereo(_Node):
     """Stereo matching: disparity of the left image from a rectified left / right pair."""
 
-    DESCRIPTION = "Disparity of rectified left / right pairs, scaled to 0-1 per image (near = white, as Depth)."
+    DESCRIPTION = (
+        "Disparity of rectified left / right pairs, scaled to 0-1 per image from its 1st to 99th percentile (near ="
+        " white, as Depth; the outer 1 % saturate, so a few outlier pixels do not darken the map)."
+    )
     RETURN_TYPES = ("IMAGE",)
     TAKES = frozenset({"left", "right"})
 
@@ -770,9 +776,8 @@ class Stereo(_Node):
         m = load(model, backend, dtype)
 
         def one(i: int) -> torch.Tensor:
-            return convert.depth_image(
-                None, m(convert.frame(left, i, m.device), convert.frame(right, i, m.device)).disparity
-            )
+            r = m(convert.frame(left, i, m.device), convert.frame(right, i, m.device))
+            return convert.depth_image(None, r.disparity, clip=_STEREO_CLIP)  # disparity is an inverse depth
 
         return (convert.to_image(each(left.shape[0], one), _out_device()),)
 

@@ -111,6 +111,33 @@ def test_depth_and_normals(pack: Any) -> None:
     assert torch.allclose(c.normals_image(up)[:, 0, 0], torch.tensor([0.5, 1.0, 0.5]))
 
 
+def test_stereo_scale_ignores_outliers(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stereo: a few huge disparities saturate instead of squashing the rest dark; Depth keeps min / max."""
+    disp = torch.linspace(10.0, 20.0, 1000).reshape(20, 50)
+    disp[0, :5] = 500.0  # 0.5 % mismatches
+    plain = pack.convert.depth_image(None, disp)
+    assert plain[0].median() < 0.05  # min / max: everything but the outliers is near black
+    robust = pack.convert.depth_image(None, disp, clip=0.01)
+    assert robust[0].median() == pytest.approx(0.5, abs=0.02)
+    assert robust[0, 0, :5].tolist() == [1.0] * 5
+    assert robust.min() == 0
+    assert torch.equal(pack.convert.depth_image(None, disp, clip=0.0001), plain)  # under one pixel: min / max
+    nodes = pack.nodes
+
+    class Pair:
+        device = torch.device("cpu")
+
+        def __call__(self, left: torch.Tensor, right: torch.Tensor) -> types.SimpleNamespace:
+            assert left.shape == right.shape == (3, 20, 50)
+            return types.SimpleNamespace(disparity=disp)
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: Pair())
+    monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])  # no comfy.utils progress bar
+    img = torch.rand(1, 20, 50, 3)
+    (out,) = nodes.Stereo().run(left=img, right=img, model="m", backend="auto", dtype="auto")
+    assert torch.equal(out[0, ..., 0], robust[0])
+
+
 def test_errors_name_the_backend_input(pack: Any) -> None:
     """The library's `mode=` is the node's `backend` input: errors say so, keeping their type and other words."""
     import fastforks  # noqa: PLC0415

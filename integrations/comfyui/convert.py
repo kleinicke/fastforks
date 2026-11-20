@@ -69,11 +69,13 @@ def from_mask(mask: torch.Tensor, i: int, device: torch.device) -> torch.Tensor:
     return m.to(device=device, dtype=torch.float32)
 
 
-def depth_image(depth: torch.Tensor | None, inverse_depth: torch.Tensor | None) -> torch.Tensor:
+def depth_image(depth: torch.Tensor | None, inverse_depth: torch.Tensor | None, *, clip: float = 0.0) -> torch.Tensor:
     """A depth map as a gray RGB map `[3, H, W]`: inverse depth scaled to `[0, 1]` (near = white).
 
     Uses `inverse_depth` when the model returns it (relative models), else `1 / depth`; non-finite and non-positive
-    depths are black. Each image is scaled by its own minimum and maximum, as ControlNet depth preprocessors do.
+    depths are black. Each image is scaled by its own minimum and maximum, as ControlNet depth preprocessors do; with
+    `clip`, by the `clip` and `1 - clip` quantiles of its valid pixels instead, so that a few outliers do not squash
+    the rest of the map to one gray (the pixels beyond them saturate to black / white).
     """
     if inverse_depth is not None:
         inv = inverse_depth.float()
@@ -86,9 +88,18 @@ def depth_image(depth: torch.Tensor | None, inverse_depth: torch.Tensor | None) 
     valid = torch.isfinite(inv)
     if not valid.any():
         return torch.zeros(_RGB, *inv.shape, device=inv.device)
-    lo, hi = inv[valid].min(), inv[valid].max()
-    scaled = torch.where(valid, (inv - lo) / (hi - lo).clamp_min(torch.finfo(torch.float32).tiny), 0)
-    return scaled.unsqueeze(0).expand(_RGB, *inv.shape)
+    lo, hi = _range(inv[valid], clip)
+    scaled = ((inv - lo) / (hi - lo).clamp_min(torch.finfo(torch.float32).tiny)).clamp(0, 1)
+    return torch.where(valid, scaled, 0).unsqueeze(0).expand(_RGB, *inv.shape)
+
+
+def _range(values: torch.Tensor, clip: float) -> tuple[torch.Tensor, torch.Tensor]:
+    """The `clip` and `1 - clip` quantiles of a non-empty 1-D tensor (its minimum and maximum for `clip` 0)."""
+    k = int(clip * values.numel())
+    if k == 0:
+        return values.min(), values.max()
+    ordered = values.sort().values  # sort runs on every device (torch.quantile is capped at 16M elements)
+    return ordered[k], ordered[-1 - k]
 
 
 def normals_image(normals: torch.Tensor) -> torch.Tensor:
