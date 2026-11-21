@@ -1894,3 +1894,41 @@ The tiny classifiers and detectors are blocked at 5 to 100x the limit.
 - grounding-dino-base@1: the local npz is stale, not golden.toml. The local copies date from Nov 12 and hash to
   1cc379c1. cfe2c9b1 (Nov 18) deliberately re-pinned the ref to the published `grounding-dino-base@1-6054688b.npz`.
   `tools/fetch_goldens.py` fetches it.
+
+## Re-survey after the fp16 islands (2026-11-21)
+
+Portable MLX on the M1 Pro, second run of two. Cells are ms / peak MB / first call s (compile s); every golden passes.
+
+| ref | dtype | before | after | MPS |
+|---|---|---|---|---|
+| rtmpose-t | fp16 | 26 / 665 / 1.74 (1.72) | 25 / 709 / 1.14 (1.11) | 26 / 1460; kernels fp32 20 / 1532 |
+| rtmpose-t | fp32 | 30 / 742 / 1.75 | 30 / 785 / 1.07 (1.04) | 26 / 1462 |
+| sea-raft-m | fp16 | 1300 / 5656 / 5.13 (3.83) | 1387 / 5600 / 3.53 (2.14) | 1635 / 9732; kernels 1220 / 4752 |
+| sea-raft-m | fp32 | 1853 / 9736 / 4.91 | 2003 / 9715 / 3.82 (1.82) | 1820 / 12542 |
+| fast-acvnet-generalization | fp32 | 761 / 1776 / 8.64 (7.88) | 487 / 1877 / 2.59 (2.10) | 557 / 5022; fp16 410 / 3819 |
+| metric3d-vit-large | fp16 | 2460 / 2769 / 16.81 (14.35) | 2460 / 2922 / 5.83 (3.37) | 1861 / 3636 |
+| metric3d-vit-large | fp32 | 2273 / 3902 / 23.03 | 2450 / 3527 / 5.95 (3.50) | 1822 / 4523 |
+| omni-dc | fp16 | 5978 / 5375 / 28.02 | 3873 / 5387 / 11.94 (8.07) | 2408 / 10081 |
+| omni-dc | fp32 | 3475 / 6632 / 23.95 | 4033 / 6041 / 11.80 (7.77) | 2349 / 12317 |
+| track-on2 | fp16 | 7623 / 3056 / 18.83 (11.21) | 7718 / 3207 / 12.47 (4.75) | fp32 8354 / 6102 |
+| track-on2 | fp32 | 10755 / 3318 | 9798 / 3298 / 13.95 (4.15) | 8354 / 6102 |
+
+The islands were narrowed where they cost time. These are fp16 timings:
+
+- sea-raft: the float32 correlation (`to_float32(fmaps)`) cost about 4 GB and 400 ms at 1080p (1835 / 9670). It is
+  back to `.float()`, so it runs in fp16 on MLX. Spring stays at 0.00169 against 0.00164 (tol 0.002).
+- sea-raft: `half_wino_f32` now takes `(cin, cout)` pairs, and sea-raft uses `((128, 128),)`. Those are the encoders'
+  layer2 convs, the only Winograd convs at the golden's size. All Winograd convs in fp32 measured 1492 ms; the pairs
+  measured 1426 ms. With no fp32 Winograd at all it runs at 1323 ms, but s-spring fails (0.0024).
+- track-on2: MSDA offsets, weights and locations plus the head outputs are back to `.float()`. They had cost
+  7714 -> 8479 ms, about 9%, and the MSDA part is nearly all of it (head only: 8308). Goldens are track-on2 0.0010
+  and track-on-r 0.0059 (tol 0.04 / 0.05). The correlation island must stay: with it in fp16, track-on2's p99 is
+  0.76.
+- omni-dc: the fp32 `_backbone` stays. An fp16 backbone is slower (24.4 s, because of overflow) and fails.
+  metric3d's and rtmpose's islands cost nothing. fast-acvnet got faster.
+
+Route changes:
+
+- track-on2@1 lost `auto` in 59f98089 at 8479 ms and has it back at 7718 ms (MPS 8354 ms).
+- omni-dc@1's `mlx_default` moved from fp32 to fp16.
+- Nothing else changed.
