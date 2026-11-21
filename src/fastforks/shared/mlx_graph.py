@@ -851,7 +851,7 @@ def _sdpa_parts(q: mx.array, k: mx.array, v: mx.array, *parts: mx.array, scale: 
         return ops.window_attention(q, k, v, scale if scale is not None else q.shape[3] ** -0.5, list(parts))
     b = q.shape[0]
     # in the run dtype, as `_sdpa` would cast the sum: an eager half-precision run never holds a float32 [B, H, L, L]
-    mask = functools.reduce(operator.add, parts).astype(q.dtype)
+    mask = functools.reduce(operator.add, [p if p.dtype == q.dtype else p.astype(q.dtype) for p in parts])
     if mask.ndim == 4 and mask.shape[0] not in (1, b):
         mask = mx.tile(mask, (b // mask.shape[0], 1, 1, 1))
     return _sdpa(q, k, v, mask, scale=scale)
