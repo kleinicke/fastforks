@@ -86,6 +86,15 @@ date = "2026-11-13"
 mean_px = 0.1222
 p99_px = 0.42107
 
+[validated."lw-detr-medium-coco@1".windows]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-21"
+mean_px = 0.37577
+p99_px = 1.82456
+
 [validated."lw-detr-small-coco@1"]
 kernels = ["cudnn_hacc@cudnn92400"]
 symbols = {}
