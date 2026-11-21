@@ -35,7 +35,7 @@ import numpy as np
 import torch
 import torch.utils._pytree as pytree
 
-from fastforks._core import mlx_cast as _mlx_cast  # noqa: F401 - registers `fastforks::run_dtype`
+from fastforks._core import mlx_cast as _mlx_cast  # noqa: F401 - registers `fastforks::run_dtype` / `float32`
 from fastforks._core import volume_ops as _volume_ops  # noqa: F401 - registers `fastforks::gwc_volume`
 from fastforks._core.mlx import mx, to_mx, to_torch
 from fastforks._core.tracing import EXPORTING_FOR_MLX
@@ -452,6 +452,14 @@ def _run_dtype(x: mx.array) -> mx.array:
 
 
 OPS[torch.ops.fastforks.run_dtype.default] = _run_dtype
+
+
+def _float32(x: mx.array) -> mx.array:
+    """`fastforks::float32` (`fastforks._core.mlx_cast.to_float32`): a float32 island of a float16 replay."""
+    return x.astype(mx.float32)
+
+
+OPS[torch.ops.fastforks.float32.default] = _float32
 
 
 @_reg(aten.arange.default, aten.arange.start, aten.arange.start_step)
@@ -1858,6 +1866,7 @@ def _nearest(x: mx.array, size: Sequence[int] | None, *scales: Any) -> mx.array:
 # channels-last view of them would only move the strided access.)
 CL_OPS: dict[Any, Callable[..., Any]] = {}
 CL_OPS[torch.ops.fastforks.run_dtype.default] = _run_dtype  # a cast keeps the layout
+CL_OPS[torch.ops.fastforks.float32.default] = _float32
 _CL_ND = (3, 4, 5)
 
 

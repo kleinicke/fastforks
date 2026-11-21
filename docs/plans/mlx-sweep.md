@@ -997,7 +997,7 @@ Not committed (old row kept):
   above. monster++ fp32 would otherwise route to MLX (0.91x MPS, compile 30.5 s under 3 x 16.1 s).
 - monster-plusplus-mix-all fp16: its golden fails (mean |diff| 0.0368 against tolerance 0.03). The pytest golden also
   fails at the head before this pass (0.0359) and with every new switch off (0.0349). The 2026-11-20 row passed at
-  0.0248, so the drift came in between, before this pass.
+  0.0248, so the drift came in between, before this pass. Fixed below ("monster++ fp16 golden").
 
 Goldens: nafnet-gopro@1, wd-vit-tagger-v3@1, and every stereo golden in the survey except monster++ fp16 pass.
 
@@ -1021,6 +1021,37 @@ Left:
 - **ViT encoder.** The depth-anything attention and MLP of MonSter (about 3.5 s eager) are as fast as MLX's
   `scaled_dot_product_attention` and GEMMs go.
 - **Not profiled in this pass:** defom, and the flow nets (memfof, memflow, gmflow fp32).
+
+### monster++ fp16 golden: float32 islands on the float32 twin
+
+Bisected (`git bisect --first-parent`, golden mean < 0.029) to the merge 92496fa8; on its side branch, to c9cd93b2
+(C-FoundationStereo in float16 end to end). That commit routed DINOv2's interpolated position embedding through
+`to_run_dtype`. Before it, the float32 `pos_embed` promoted the ViT tokens, and with them the whole MonSter++ net, to
+float32 on the "float16" replay: the 2026-11-20 row (18357 ms / 5477 MB, golden 0.0248) was a float32 run. Since then the
+net really runs in float16, and the mean error was 0.035-0.037.
+
+The cause is the float32 islands of the portable path. The MLX runner exports the float32 twin, where `.float()` is a
+no-op and is not recorded, so every island ran in float16 on MLX. MPS keeps them. Region by region (that region's
+inputs in float32, `FF_MLX_KEEP_F32_CONV=1`), only `feat_transfer` / `feat_transfer_cnet` mattered (0.0215; the mono
+branch, cost aggregation, update blocks and upsampling / REMP stayed at 0.032-0.037). Those are the modules with the
+`InstanceNorm2d`s: `_in_forward` normalises in float32 per element on MPS and in float16 on MLX.
+
+Fix: `fastforks._core.mlx_cast.to_float32` records `fastforks::float32`, which `mlx_graph` lowers to a float32 cast
+(layout kept). MonSter++'s instance norm takes the float16 branch while exporting for MLX (float32 statistics and
+normalisation, then `to_run_dtype`). The other `.float()` islands of `forward_fast` (disparity state, regression and
+upsampling softmaxes, warps, depth_mono, REMP's residual) use `to_float32` too, as the docstring promises. Alone they did
+not move the golden (0.0366).
+
+| monster-plusplus-mix-all portable fp16 | ms | MB | first call s | golden mean |
+|---|---|---|---|---|
+| 2026-11-20 row (float32 by accident) | 18357 | 5477 | 137.6 | 0.0248 |
+| head, float16 | 11097 | 3639 | 34.2 | 0.0368 (fail) |
+| fixed | 11269 | 3643 | 32.6 | 0.0232 |
+
+The MPS float16 rows are 0.0254 (portable) and 0.0230 (kernels). The fp32 re-run (14435 ms / 5957 MB) is heavier than
+the old row, so it is not committed. monster (0.0011) and the other iterative stereo float16 goldens pass unchanged:
+rt-monster++, igev++, selective-igev, raft-stereo, s2m2-s, waft-stereo-s, igev-stereo, great-igev and mvsanywhere.
+MonSter has the same latent instance-norm island, but its golden passes with a wide margin, so it is unchanged.
 
 ## MPS lessons from MLX
 
