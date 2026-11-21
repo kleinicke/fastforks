@@ -39,7 +39,7 @@ from fastforks._core import mlx_cast as _mlx_cast  # noqa: F401 - registers `fas
 from fastforks._core import volume_ops as _volume_ops  # noqa: F401 - registers `fastforks::gwc_volume`
 from fastforks._core.mlx import mx, to_mx, to_torch
 from fastforks._core.tracing import EXPORTING_FOR_MLX
-from fastforks.shared import mlx_plan_cache
+from fastforks.shared import mlx_dtype_report, mlx_plan_cache
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Sequence
@@ -184,7 +184,23 @@ OPS[aten.bitwise_and.Tensor] = mx.bitwise_and
 OPS[aten.bitwise_or.Tensor] = mx.bitwise_or
 OPS[aten.bitwise_xor.Tensor] = mx.bitwise_xor
 OPS[aten.isnan.default] = mx.isnan
-OPS[aten.where.self] = lambda c, a, b: mx.where(c, a, b)
+
+
+def _where(c: mx.array, a: Any, b: Any) -> mx.array:
+    """`torch.where` with torch's promotion of a 0-dim float operand.
+
+    An exported `scalar_tensor` (float32) takes the other float operand's dtype, as in torch, instead of lifting a
+    half-precision replay to float32 (MLX's rule).
+    """
+    if isinstance(a, mx.array) and isinstance(b, mx.array) and a.dtype != b.dtype:
+        if a.ndim == 0 and b.ndim and mx.issubdtype(a.dtype, mx.floating) and mx.issubdtype(b.dtype, mx.floating):
+            a = a.astype(b.dtype)
+        elif b.ndim == 0 and a.ndim and mx.issubdtype(a.dtype, mx.floating) and mx.issubdtype(b.dtype, mx.floating):
+            b = b.astype(a.dtype)
+    return mx.where(c, a, b)
+
+
+OPS[aten.where.self] = _where
 OPS[aten.where.ScalarOther] = OPS[aten.where.ScalarSelf] = OPS[aten.where.self]
 OPS[aten.masked_fill.Scalar] = lambda x, m, v: mx.where(m, mx.array(v, x.dtype), x)
 OPS[aten.remainder.Scalar] = lambda a, b: mx.remainder(a, b)
@@ -2897,10 +2913,15 @@ class GraphNet:
             from fastforks.shared.mlx_band import band_tail
 
             plan = band_tail(nodes, plan, values, cl_values, self._itemsize)
+        report = (
+            mlx_dtype_report.Report(mlx_dtype_report.meta(nodes), self.dtype)
+            if mlx_dtype_report.ON and self.dtype != mx.float32
+            else None
+        )
         del ep, graph, sig, lifted, nodes
         if self.on_built is not None:  # the release that follows hands back only tensors the program no longer holds
             gc.collect()  # (60 to 90 ms: without a release the twin keeps its tensors, the program's cycles can wait)
-        return self._runner(plan, values)
+        return self._runner(plan, values, report)
 
     @staticmethod
     def _op(target: Any) -> Callable[..., Any]:
@@ -3114,7 +3135,9 @@ class GraphNet:
             res.skip[users[0].name] = conv.name
         return res
 
-    def _runner(self, plan: list[tuple[Any, ...]], values: dict[str, Any]) -> Callable[..., Any]:
+    def _runner(
+        self, plan: list[tuple[Any, ...]], values: dict[str, Any], report: mlx_dtype_report.Report | None = None
+    ) -> Callable[..., Any]:
         """The replay as segments of about `CHUNK_MB` of new activations each, evaluated one after the other.
 
         MLX would otherwise schedule the whole lazy graph at the end and hold far more than the live set. A segment is
@@ -3154,7 +3177,7 @@ class GraphNet:
         if os.environ.get("FF_MLX_COMPILE"):
             compiled = os.environ["FF_MLX_COMPILE"] == "1"
             seg_max = 1 << 60
-        if PROFILE is not None:
+        if PROFILE is not None or report is not None:
             compiled = False
 
         def get(env: dict[str, Any], a: Any) -> Any:
@@ -3190,14 +3213,26 @@ class GraphNet:
                 for i, p in seg:
                     if p[0] == "alias":
                         env[p[1]] = env[p[2]]
+                        if report is not None:
+                            report.note(p[1], [env[p[2]]], {}, [p[2]], env)
                     else:
                         _, name, f, args, kwargs = p
                         if f is operator.getitem:
                             env[name] = env[args[0].name][args[1]]
+                            if report is not None:
+                                report.note(name, [env[name]], {}, [args[0].name], env)
                         elif PROFILE is not None:
                             _profiled(env, name, f, args, kwargs, get)
                         else:
                             env[name] = f(*[get(env, a) for a in args], **{k: get(env, v) for k, v in kwargs.items()})
+                            if report is not None:  # `FF_MLX_DTYPE_REPORT=1`
+                                report.note(
+                                    name,
+                                    [get(env, a) for a in args],
+                                    {k: get(env, v) for k, v in kwargs.items()},
+                                    [n for a in (*args, *kwargs.values()) for n in _refs(a)],
+                                    env,
+                                )
                     for n in dead[i]:
                         env.pop(n, None)
                 return tuple(env[n] for n in outs)
@@ -3343,6 +3378,8 @@ class GraphNet:
                 for n in [n for n, i in last.items() if i <= end and n in env and n not in out_refs]:
                     del env[n]
             env.update(values)
+            if report is not None:
+                report.emit(" " + ",".join(str(tuple(x.shape)) for x in inputs))
             if self.plan is not None and decided != known:  # new decisions: the next process skips their trials
                 self.plan.save_tune(tune_sig, decided)
                 known[:] = decided
