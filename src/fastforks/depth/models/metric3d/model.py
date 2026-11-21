@@ -310,9 +310,15 @@ class Kernels(Runner):
         return _restore(image, intrinsics, s, pad, maps)
 
 
+# The decoder runs as a float32 graph (the portable float16 run keeps it under autocast): a float16 decoder misses the
+# depth golden (mean 0.021, tol 0.01; float32 decoder 0.0001).
+_Mlx = mlx_wrap.port(
+    Portable, attrs=("net.encoder",), methods=("net.decoder.forward",), fp32_methods=("net.decoder.forward",)
+)
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
-    "kernels_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": _Mlx,
+    "kernels_mlx": _Mlx,
 }
