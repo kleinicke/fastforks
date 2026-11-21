@@ -30,6 +30,7 @@ from fastforks._core.tracing import in_onnx_export
 from fastforks.interpolation._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import GIMMVFI_R
 from .net.modules.fi_components import ResBlock
@@ -53,6 +54,9 @@ HALO = 17  # fixed: rows `convblock` reads beyond a band (17 3 x 3 convs in a ch
 BAND_PIXELS = 1 << 20  # larger full-size inputs run `convblock` in row bands of about this many pixels
 _FUSION_MIN_PIXELS = 500_000  # fixed: latent size from which the fused float16 path pays off on CUDA
 HYPO_PIXELS = 1 << 19  # the hyponet MLP runs over pixel chunks of this size (its activations never exist at once)
+# fixed: kernels inputs up to this many pixels (batch x H x W) replay a CUDA graph. They are launch-bound (Windows
+# 480 x 854 308 -> 271 ms); 720 x 1280 gains under 2 % while its capture holds about three eager peaks reserved
+GRAPH_PIXELS = 1 << 19
 
 
 @dataclass(frozen=True)
@@ -61,6 +65,7 @@ class Params:
 
     iters: int  # RAFT iterations (upstream `raft_iter`)
     ds_factor: float  # scale of the flow estimation (upstream `--ds-factor`)
+    cuda_graphs: bool  # kernels: replay the whole call from a CUDA graph for small inputs (`GRAPH_PIXELS`)
 
 
 def _config() -> SimpleNamespace:
@@ -409,6 +414,7 @@ class Portable(Runner):
         super().__init__(ctx)
         self.net = _net(ctx)
         self.make: Callable = _VolumeCorr
+        self.graphs: SmallShapeGraphs | None = None  # kernels only: portable stays the eager reference network
 
     def _forward(self, image1: torch.Tensor, image2: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         fp16 = self.ctx.dtype == "float16" and not torch.compiler.is_exporting()  # MLX casts the graph itself
@@ -418,11 +424,18 @@ class Portable(Runner):
             return _interpolate(self.net, image1, image2, t, self.ctx.params, make=self.make).float()
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> dict[str, torch.Tensor]:
-        """The frame at `timestep` of a padded batch."""
+        """The frame at `timestep` of a padded batch (the time is a graph input: one graph for every time)."""
         if timestep in (0.0, 1.0):  # upstream's lookup scales 1 / t and 1 / (1 - t) are infinite there
             return {"frame": (image1 if timestep == 0.0 else image2).clone()}
         t = torch.full((image1.shape[0],), timestep, device=image1.device)
-        return {"frame": self._forward(image1, image2, t)}
+        # else `self._forward` as bound now (the MLX port replaces it per instance; the graphs hold the original)
+        run = self.graphs if self.graphs is not None and image1.is_cuda else self._forward
+        return {"frame": run(image1, image2, t)}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graph and its memory pool (kernels)."""
+        if self.graphs is not None:
+            self.graphs.release()
 
     def module(self) -> torch.nn.Module:
         """The network; returns the middle frame (time 0.5)."""
@@ -488,6 +501,15 @@ class Kernels(Portable):
                 m.w16 = m.weight.detach().half().contiguous(memory_format=torch.channels_last)
                 m.b16 = m.bias.detach().half()  # ty: ignore[unresolved-attribute]  # every decoder conv has a bias
                 override(m, _hacc_conv)
+        # thousands of small launches (RAFT's 2 x 20 lookups and updates at 1/8): one graph replay for small inputs;
+        # captured after the `cudnn_hacc` plans are built, so the graph records the half-compute ones
+        self.graphs = SmallShapeGraphs(
+            self._forward,
+            pixels=GRAPH_PIXELS,
+            graphs=1,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+        )
 
 
 RUNNERS = {

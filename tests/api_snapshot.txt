@@ -940,6 +940,7 @@ option flow.waft.iters
 option interpolation.ema_vfi.cuda_graphs
 option interpolation.ema_vfi.tta
 option interpolation.film.cuda_graphs
+option interpolation.gimm_vfi.cuda_graphs
 option interpolation.rife.cuda_graphs
 option matching.dedode.max_keypoints
 option matching.dedode.size
