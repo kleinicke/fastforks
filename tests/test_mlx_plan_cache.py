@@ -46,7 +46,7 @@ def test_hit_skips_the_export_and_is_bit_identical(tmp_path, monkeypatch):
     plain = _run(x)
     monkeypatch.setenv(mlx_plan_cache.ENV, str(tmp_path))
     miss = _run(x)
-    assert sorted(p.suffix for p in tmp_path.iterdir()) == [".pkl", ".pt2"]
+    assert sorted(p.suffix for p in tmp_path.iterdir()) == [".graph"]
 
     def no_export(*args, **kwargs):
         msg = "a cache hit must not export"
@@ -64,9 +64,9 @@ def test_other_inputs_scopes_and_unscoped_modules_miss(tmp_path, monkeypatch):
     _run(torch.randn(1, 3, 32, 48))
     _run(torch.randn(1, 3, 32, 64))
     _run(torch.randn(1, 3, 32, 48), scope="other")
-    assert len(list(tmp_path.glob("*.pt2"))) == 3
+    assert len(list(tmp_path.glob("*.graph"))) == 3
     _run(torch.randn(1, 3, 32, 48), scope=None)  # built outside a model load: nothing cached
-    assert len(list(tmp_path.glob("*.pt2"))) == 3
+    assert len(list(tmp_path.glob("*.graph"))) == 3
 
 
 def test_off_by_default(monkeypatch):

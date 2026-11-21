@@ -800,9 +800,10 @@ print(model.backend.mode, model.backend.device, model.backend.kernels)  # kernel
   `model.warmup([(1080, 1920), (720, 1280)])` calls the model once per size on synthetic inputs at start-up, and
   `FASTFORKS_MLX_PLAN_CACHE=<dir>` keeps the exported graph (without weights: the parameters are bound by name on
   load) and the tuning decisions per model, load options and input size on disk, so a later process skips the export
-  and the timing trials. That removes half to four fifths of the first call's extra time (vitmatte-s 11.0 -> 3.4 s,
-  patchmatchnet 10.2 -> 4.1 s, depth-pro 21.2 -> 8.4 s at 1.2, 0.8 and 4.7 s per warm call); the translation and
-  MLX's own compile still run. An entry takes 1 to 25 MB. The cache is keyed by the fastforks, torch and mlx versions
+  and the timing trials. That removes most of the first call's extra time (rt-monster++ kernels fp16 3.8 -> 0.75 s,
+  mvsanywhere fp16 2.9 -> 0.42 s, fcn-r101 fp16 1.19 -> 0.26 s beyond the warm call); the translation and MLX's own
+  compile still run, and the call that writes an entry costs 0.1 to 0.2 s more than one without the cache. An entry
+  takes tens to hundreds of KB. The cache is keyed by the fastforks, torch and mlx versions
   and fastforks' source files, so an upgrade starts it afresh; it is never pruned (delete the directory to reset it).
   Outputs with and without it are bit-identical.
 - Not there: `model.module()`, `model.compile()` and ONNX / TensorRT export are PyTorch features and raise

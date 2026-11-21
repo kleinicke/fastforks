@@ -1932,3 +1932,61 @@ Route changes:
 - track-on2@1 lost `auto` in 59f98089 at 8479 ms and has it back at 7718 ms (MPS 8354 ms).
 - omni-dc@1's `mlx_default` moved from fp32 to fp16.
 - Nothing else changed.
+
+## Compile time: rt-monster++, mvsanywhere and the fixed per-process cost (2026-11-21)
+
+The targets were rt-monster++ (compile 3.6-6 s against a limit of 1.84 s), mvsanywhere fp16 (its `auto` flip is
+fragile), and the fixed ~1.2 s per process that keeps fcn, pspnet, deeplabv3plus fp16 and owlv2 just over their limits.
+
+How the survey measures it: `first_call_s` is the first call after `task.load()`. MLX's load is only 0.14-0.2 s
+because the export and translation run lazily inside that first call. `gen_auto_mode` takes compile as
+`first_call_s - warm`. All numbers below are compile times on the M1 Pro, from the second process (the first process
+after a Metal shader-cache flush is much slower: rt-monster++ took 12 s instead of 3.8 s).
+
+Where the fixed cost goes (`python -X importtime`, first call):
+
+- `torch.export._trace` imports take 0.555 s:
+  - torch._dynamo 0.40
+  - aot_autograd 0.15
+  - partitioners/networkx 0.11
+  - symbolic_shapes/sympy 0.13
+  - torch.distributed fsdp/tensor about 0.1
+- Importing these at `load()` or at package import would only move the cost out of the measured call. That games the
+  metric, so it was not done. The cost goes away only if the export is skipped.
+
+Plan cache (`FASTFORKS_MLX_PLAN_CACHE`, opt-in), new storage format:
+
+- The old entry was a weightless `ExportedProgram`. `torch.export.load` took most of a hit: rt-monster++ was 5.1 s on
+  a miss and 2.85 s on a hit.
+- An entry is now `<key>.graph`, which pickles only what `GraphNet._build_graph` reads:
+  - each node's op, name, `OpOverload` (namespace, name, overload), args/kwargs with node references, and output
+    `meta["val"]` shape/dtype
+  - the input specs
+  - the constants the forward builds
+- On a hit the graph is rebuilt on the `meta` device and bound to the module's own tensors by name, shape and dtype.
+  Hits skip the `torch.export` import entirely.
+
+| model / mode | no cache | miss | hit | limit |
+|---|---|---|---|---|
+| rt-monster++ kernels fp16 | 3.8 s | 3.99 s | 0.75 s | 1.84 s |
+| mvsanywhere portable fp16 | 2.89 s | 3.11 s | 0.42 s | 3.10 s |
+| fcn-r101-d8-ade20k portable fp16 | 1.19 s | 1.30 s | 0.26 s | 1.22 s |
+
+- Outputs on a hit are bit-identical to no cache for all three (rt-monster++ disparity, mvsanywhere's 7 leaves, fcn).
+- An entry is 13-490 KB (rt-monster++ 490 KB).
+- Goldens pass on a miss and then on a hit: rt-monster-plusplus, mvsanywhere, fcn-r101, nafnet-gopro and
+  wd-vit-tagger-v3. rt-monster++ also passes without the cache.
+- `_versions()` (the source-file fingerprint in the key) costs about 0.145 s per process, and only with the cache on.
+
+Not done, as a note for a decision: making the cache on by default. That would turn the survey's second run into a
+hit and flip rt-monster++, and probably fcn/pspnet/deeplabv3plus, to `auto`. A user's first call at a new input size
+would still pay the miss (no-cache time + 0.1-0.2 s). So a hit-based first call reflects a returning user at a known
+size, not a new size. Keyed by shape, that is every new resolution. I left the cache opt-in and the survey uncached,
+so the routes are unchanged. If default-on is wanted, these are also needed:
+
+- a size cap or pruning, since the cache is never pruned
+- test isolation, since conftest only isolates `FASTFORKS_CACHE`
+- changes to `test_off_by_default` and docs/usage.md
+- a survey column for the miss as well as the hit
+
+No re-survey and no route change came out of this work. The survey path (cache off) is unchanged code.

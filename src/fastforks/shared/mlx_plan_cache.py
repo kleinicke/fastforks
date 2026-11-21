@@ -4,9 +4,11 @@ The first call of an `MlxModule` at an input signature exports the network (`tor
 decomposition: 1 to 7 s on the M1 Pro), translates it and, on its first replay, times each big compiled segment once
 eagerly and once compiled (the tuning pass). A new process pays all of it again. With the cache on:
 
-- the decomposed `ExportedProgram` is saved (`torch.export.save`) without the network's weights: every parameter and
-  buffer of the module is a one-element stand-in in the file and is bound to the module's own tensor (same name, shape
-  and dtype, else the entry is not used) when it is loaded; only the constants the forward builds are stored.
+- the decomposed graph is saved as the little the translation reads (`<key>.graph`, a pickle of each node's op, name,
+  target, arguments and output shape/dtype plus the input signature), not as an `ExportedProgram`:
+  `torch.export.load` took 1 to 2 s, more than the export it replaced saved. The network's weights are not stored:
+  every parameter and buffer is bound to the module's own tensor (same name, shape and dtype, else the entry is not
+  used) when it is loaded; only the constants the forward builds are stored.
 - the tuning pass's decisions (compiled or eager per segment) are saved beside it and replace the timing trials.
 
 An entry's key is the load (model ref, mode, dtype, load options, user weight files: `scope`, set while an MLX runner is
@@ -25,12 +27,11 @@ import contextvars
 import functools
 import hashlib
 import importlib.metadata
-import io
 import json
 import os
 import pickle
 import tempfile
-import warnings
+import types
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -41,7 +42,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 ENV = "FASTFORKS_MLX_PLAN_CACHE"
-FORMAT = 1  # bump when the stored layout or what the translation reads from the program changes
+FORMAT = 2  # bump when the stored layout or what the translation reads from the program changes
 
 _SCOPE: contextvars.ContextVar[tuple[str, list[int]] | None] = contextvars.ContextVar("mlx_plan_scope", default=None)
 # env switches that change the segmentation or the compile policy: part of a tuning record's key
@@ -102,7 +103,7 @@ def _named_tensors(module: torch.nn.Module) -> dict[str, torch.Tensor]:
 
 
 class Entry:
-    """A cache entry: the exported program (`<key>.pt2`), call metadata (`<key>.pkl`), tuning (`<key>.tune.json`)."""
+    """A cache entry: the exported program and call metadata (`<key>.graph`), tuning decisions (`<key>.tune.json`)."""
 
     def __init__(self, base: Path) -> None:
         """The entry whose files are `base` plus a suffix."""
@@ -121,73 +122,63 @@ class Entry:
 
     # The exported program.
     def load_program(self, module: torch.nn.Module) -> tuple[Any, Any] | None:
-        """`(ExportedProgram with the module's own tensors bound, metadata)`, or None (miss or unusable entry)."""
-        pt2, meta = self.base.with_suffix(".pt2"), self.base.with_suffix(".pkl")
-        if not (pt2.is_file() and meta.is_file()):
+        """`(the stored program with the module's own tensors bound, metadata)`, or None (miss or unusable entry).
+
+        The program is rebuilt from `_GraphFile` as a plain `torch.fx.Graph` (no `torch.export.load`, whose import and
+        deserialisation cost about as much as the trace on a big net); see `_Program` for what it provides.
+        """
+        path = self.base.with_suffix(".graph")
+        if not path.is_file():
             return None
         try:
-            info = pickle.loads(meta.read_bytes())  # noqa: S301 - our own cache directory
-            with warnings.catch_warnings():  # the loader's notes must not fail a run that turns warnings into errors
-                warnings.simplefilter("ignore", UserWarning)
-                ep = torch.export.load(pt2)
+            stored = pickle.loads(path.read_bytes())  # noqa: S301 - our own cache directory
+            if not isinstance(stored, _GraphFile):
+                return None
+            own = _named_tensors(module)
+            stores: list[dict[str, Any]] = []
+            for kept, bound in ((stored.state, stored.bound_state), (stored.constants, stored.bound_constants)):
+                store = dict(kept)
+                for name, (shape, dtype) in bound.items():
+                    t = own.get(name)
+                    if t is None or tuple(t.shape) != shape or t.dtype != dtype:
+                        return None
+                    store[name] = t
+                stores.append(store)
+            graph = stored.graph()
         except Exception:  # noqa: BLE001 - a stale or partly written entry is a miss
             return None
-        own = _named_tensors(module)
-        for attr, names in (("_state_dict", info["bound_state"]), ("_constants", info["bound_constants"])):
-            store = dict(getattr(ep, attr))
-            for name in names:
-                t, saved = own.get(name), store.get(name)
-                if t is None or saved is None or tuple(t.shape) != tuple(saved.shape) or t.dtype != saved.dtype:
-                    return None
-                store[name] = t
-            setattr(ep, attr, store)
-        # the loader adds a getitem for every output of a multi-output op (batch norm's unused mean and invstd): drop
-        # them, the translation's pattern matches (batch-norm folding) count users
-        ep.graph_module.graph.eliminate_dead_code()
-        ep.graph_module.recompile()
-        return ep, info["extra"]
+        return _Program(graph, stored.inputs, *stores), stored.extra
 
     def save_program(self, ep: Any, module: torch.nn.Module, extra: Any) -> None:  # noqa: ANN401
-        """Store `ep` with the module's tensors as stand-ins, and `extra` (picklable call metadata); best effort."""
+        """Store `ep` without the module's tensors (bound by name on load) and `extra` (picklable); best effort."""
         own = _named_tensors(module)
 
-        def stand_ins(store: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
-            out, bound = dict(store), []
+        def split(store: dict[str, Any]) -> tuple[dict[str, Any], dict[str, tuple[tuple[int, ...], torch.dtype]]]:
+            kept, bound = {}, {}
             for name, v in store.items():
                 t = own.get(name)
-                if (  # an empty or one-element tensor is stored as is (an empty stand-in breaks torch.export.save)
+                if (
                     isinstance(v, torch.Tensor)
-                    and v.numel() > 1
                     and t is not None
                     and tuple(t.shape) == tuple(v.shape)
                     and t.dtype == v.dtype
                 ):
-                    stand = torch.zeros((), dtype=v.dtype).expand(v.shape)
-                    out[name] = (
-                        torch.nn.Parameter(stand, requires_grad=False) if isinstance(v, torch.nn.Parameter) else stand
-                    )
-                    bound.append(name)
-            return out, bound
+                    bound[name] = (tuple(v.shape), v.dtype)
+                else:  # a constant the forward built (a grid): stored as it is
+                    kept[name] = v.detach().clone()
+            return kept, bound
 
-        state, consts, example = ep._state_dict, ep._constants, ep._example_inputs  # noqa: SLF001 - swapped back below
         try:
-            ep._state_dict, bound_state = stand_ins(state)  # noqa: SLF001
-            ep._constants, bound_constants = stand_ins(consts)  # noqa: SLF001
-            if example is not None:  # the sample inputs: shapes only (a stereo pair is tens of MB)
-                ep._example_inputs = pytree.tree_map_only(  # noqa: SLF001
-                    torch.Tensor, lambda t: torch.zeros((), dtype=t.dtype).expand(t.shape), example
-                )
-            buf = io.BytesIO()
-            with warnings.catch_warnings():  # constants that are partial views of one storage: CPU, saved as they are
-                warnings.simplefilter("ignore", UserWarning)
-                torch.export.save(ep, buf)
-            info = pickle.dumps({"bound_state": bound_state, "bound_constants": bound_constants, "extra": extra})
+            state, bound_state = split(dict(ep.state_dict))
+            constants, bound_constants = split(dict(ep.constants))
+            inputs = [(s.arg.name, s.target) for s in ep.graph_signature.input_specs]
+            stored = _GraphFile.of(ep.graph_module.graph, inputs, state, bound_state, constants, bound_constants, extra)
+            data = pickle.dumps(stored, protocol=pickle.HIGHEST_PROTOCOL)
+            if [n.name for n in stored.graph().nodes] != [n.name for n in ep.graph_module.graph.nodes]:
+                return  # the rebuilt graph must have the exported one's names
         except Exception:  # noqa: BLE001 - an unserialisable program is simply not cached
             return
-        finally:
-            ep._state_dict, ep._constants, ep._example_inputs = state, consts, example  # noqa: SLF001
-        _write(self.base.with_suffix(".pt2"), buf.getvalue())
-        _write(self.base.with_suffix(".pkl"), info)
+        _write(self.base.with_suffix(".graph"), data)
 
     # The tuning decisions.
     @staticmethod
@@ -212,6 +203,118 @@ class Entry:
             data = {}
         data[self._tune_key(extra)] = use
         _write(path, json.dumps(data).encode())
+
+
+class _Ref:
+    """A graph node in a stored node's arguments, by name."""
+
+    __slots__ = ("name",)
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+
+class _Meta:
+    """A node's `meta["val"]` tensor in a stored graph: shape and dtype (rebuilt on the meta device)."""
+
+    __slots__ = ("dtype", "shape")
+
+    def __init__(self, shape: tuple[int, ...], dtype: torch.dtype) -> None:
+        self.shape, self.dtype = shape, dtype
+
+
+class _OpRef:
+    """An ATen overload in a stored graph, by namespace, name and overload name."""
+
+    __slots__ = ("path",)
+
+    def __init__(self, target: torch._ops.OpOverload) -> None:
+        ns, name = target._schema.name.split("::")  # noqa: SLF001
+        self.path = (ns, name, target._overloadname)  # noqa: SLF001
+
+    def resolve(self) -> Any:  # noqa: ANN401
+        ns, name, overload = self.path
+        return getattr(getattr(getattr(torch.ops, ns), name), overload)
+
+
+class _GraphFile:
+    """A decomposed program's graph and signature in plain picklable values (`Entry.save_program`).
+
+    Per node: op kind, name, target, args and kwargs (nodes as `_Ref`), and `meta["val"]` with every tensor as `_Meta`;
+    that is all the translation reads. The constants the forward built are stored; the module's own tensors are names
+    with shape and dtype (`bound_*`), bound on load.
+    """
+
+    def __init__(self) -> None:
+        self.nodes: list[tuple[Any, ...]] = []
+        self.inputs: list[tuple[str, str | None]] = []
+        self.state: dict[str, torch.Tensor] = {}
+        self.constants: dict[str, torch.Tensor] = {}
+        self.bound_state: dict[str, tuple[tuple[int, ...], torch.dtype]] = {}
+        self.bound_constants: dict[str, tuple[tuple[int, ...], torch.dtype]] = {}
+        self.extra: Any = None
+
+    @classmethod
+    def of(cls, graph: torch.fx.Graph, inputs: list[tuple[str, str | None]], *stores: Any) -> _GraphFile:  # noqa: ANN401
+        """The stored form of `graph` (stores: state, bound state, constants, bound constants, extra)."""
+        out = cls()
+        out.inputs = inputs
+        out.state, out.bound_state, out.constants, out.bound_constants, out.extra = stores
+
+        def ref(x: Any) -> Any:  # noqa: ANN401
+            return _Ref(x.name) if isinstance(x, torch.fx.Node) else x
+
+        def meta(x: Any) -> Any:  # noqa: ANN401
+            return _Meta(tuple(int(d) for d in x.shape), x.dtype) if isinstance(x, torch.Tensor) else x
+
+        for n in graph.nodes:
+            args, kwargs = torch.fx.node.map_aggregate((n.args, n.kwargs), ref)
+            val = pytree.tree_map(meta, n.meta.get("val"))
+            target = _OpRef(n.target) if isinstance(n.target, torch._ops.OpOverload) else n.target  # noqa: SLF001
+            out.nodes.append((n.op, n.name, target, args, kwargs, val))
+        return out
+
+    def graph(self) -> torch.fx.Graph:
+        """The graph rebuilt (node names as stored; `meta["val"]` tensors on the meta device)."""
+        g = torch.fx.Graph()
+        env: dict[str, torch.fx.Node] = {}
+
+        def node(x: Any) -> Any:  # noqa: ANN401
+            return env[x.name] if isinstance(x, _Ref) else x
+
+        def meta(x: Any) -> Any:  # noqa: ANN401
+            return torch.empty(x.shape, dtype=x.dtype, device="meta") if isinstance(x, _Meta) else x
+
+        is_meta = lambda x: isinstance(x, _Meta)  # noqa: E731
+        for op, name, target, args, kwargs, val in self.nodes:
+            a, kw = pytree.tree_map(node, (args, kwargs), is_leaf=lambda x: isinstance(x, _Ref))
+            fn = target.resolve() if isinstance(target, _OpRef) else target
+            n = g.create_node(op, fn, tuple(a), dict(kw), name=name)
+            if n.name != name:
+                msg = f"node {name} became {n.name}"
+                raise ValueError(msg)
+            if val is not None:
+                n.meta["val"] = pytree.tree_map(meta, val, is_leaf=is_meta)
+            env[name] = n
+        return g
+
+
+class _Program:
+    """What the translation reads of an `ExportedProgram`, for a stored graph: the graph, signature, tensors."""
+
+    def __init__(
+        self,
+        graph: torch.fx.Graph,
+        inputs: list[tuple[str, str | None]],
+        state: dict[str, torch.Tensor],
+        constants: dict[str, torch.Tensor],
+    ) -> None:
+        self.graph_module = types.SimpleNamespace(graph=graph)
+        self.graph_signature = types.SimpleNamespace(
+            input_specs=[types.SimpleNamespace(arg=types.SimpleNamespace(name=n), target=t) for n, t in inputs]
+        )
+        self.state_dict = state
+        self.constants = constants
 
 
 def _write(path: Path, data: bytes) -> None:
