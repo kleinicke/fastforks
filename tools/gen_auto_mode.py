@@ -5,7 +5,8 @@ measured speeds (the fixed-size table of docs/benchmarks.md and docs/data/speed.
 over its measured inputs of `portable ms / kernels ms` is below `MIN_GAIN`. Load time stays free: `auto` reads one small
 file. An explicit `mode="kernels"` is never affected.
 
-The Apple table selects among passing, comparable MPS and MLX survey runs. Per model revision:
+The Apple table selects among passing, comparable MPS and MLX survey runs (MLX runs only in a dtype the card still
+declares for its MLX port). Per model revision:
 
 - `auto` and `dtypes` select MLX if it beats the fastest MPS path by `MIN_GAIN` and does not use more memory
   (peak footprint, within `MEM_SLACK`) than that path. It is also selected when at most `TRADE_SLOWDOWN` slower if it
@@ -25,12 +26,15 @@ tests/test_auto_mode.py runs the check.
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import statistics
 import sys
 from pathlib import Path
 
 import gen_docs
+from fastforks._core import registry
+from fastforks._core.errors import ModelNotFoundError
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "src" / "fastforks" / "_core" / "auto_portable.json"
@@ -78,6 +82,16 @@ Workload = tuple[str, str, str]  # (input, scene, protocol)
 Run = tuple[float, float | None, float]  # (ms, peak footprint MB; None: not recorded, compile s of the first call)
 
 
+@functools.cache
+def _mlx_dtypes(ref: str, mode: str) -> tuple[str, ...] | None:
+    """The dtypes the card of `ref` declares for its MLX port in `mode`; None for a model without a card."""
+    try:
+        card, _ = registry.resolve_any(ref.split("@", maxsplit=1)[0])
+    except ModelNotFoundError:
+        return None
+    return card.mlx_dtypes(mode)
+
+
 def _apple_options(device: str) -> dict[str, dict[Option, dict[Workload, Run]]]:
     """Passing survey rows keyed by revision, implementation and workload."""
     models: dict[str, dict[Option, dict[Workload, Run]]] = {}
@@ -89,6 +103,9 @@ def _apple_options(device: str) -> dict[str, dict[Option, dict[Workload, Run]]]:
         ref = row["ref"]
         if "@" not in ref:
             ref += "@1"  # historical unversioned rows predate checkpoint revisions
+        declared = _mlx_dtypes(ref, row["mode"]) if device == APPLE_MLX_DEVICE else None
+        if declared is not None and dtype not in declared:
+            continue  # a dtype the card no longer declares for MLX (its golden misses since the row was measured)
         workload = (row["input"], row.get("scene", ""), row.get("protocol_id", ""))
         models.setdefault(ref, {}).setdefault((row["mode"], dtype), {})[workload] = (
             row["ms"],

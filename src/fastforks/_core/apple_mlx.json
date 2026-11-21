@@ -1566,10 +1566,9 @@
   "fast-acvnet-generalization@1": {
    "mlx_default": [
     "portable",
-    "float16"
+    "float32"
    ],
    "mlx": {
-    "float16": "portable",
     "float32": "portable"
    }
   },

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.mlx_cast import to_float32
 from fastforks._core.sampling import grid_sample
 from fastforks._core.volume_ops import gwc_volume
 from fastforks.kernels import acv_volume, cudnn_hacc
@@ -49,7 +50,7 @@ def _net(ctx: Context) -> Net:
 
 def _normalized(x: torch.Tensor, groups: int) -> torch.Tensor:
     b, c, h, w = x.shape
-    x = x.float().view(b, groups, c // groups, h, w)
+    x = to_float32(x).view(b, groups, c // groups, h, w)
     return x / (torch.norm(x, 2, 2, keepdim=True) + EPS)
 
 
@@ -85,7 +86,7 @@ def _grid(samples: torch.Tensor) -> torch.Tensor:
 def warp(y: torch.Tensor, samples: torch.Tensor) -> torch.Tensor:
     """Right features `y` `[B, C, H, W]` at the left pixels' disparity samples: float32 `[B, C, N, H, W]`."""
     b, c, h, w = y.shape
-    out = grid_sample(y.float(), _grid(samples), mode="bilinear", padding_mode="zeros", align_corners=True)
+    out = grid_sample(to_float32(y), _grid(samples), mode="bilinear", padding_mode="zeros", align_corners=True)
     return out.view(b, c, samples.shape[1], h, w)
 
 
@@ -125,7 +126,7 @@ def _attention(
     cost = net.hourglass_att(net.corr_feature_att_8(net.patch(corr), fl[1]), fl)
     del corr
     h4, w4 = fl[0].shape[2:]
-    att = F.interpolate(cost.float(), [d4, h4, w4], mode="trilinear")
+    att = F.interpolate(to_float32(cost), [d4, h4, w4], mode="trilinear")
     prob = F.softmax(att.squeeze(1), dim=1)
     pred = disparity_regression(prob, d4).unsqueeze(1)
     gamma, beta = net._gb32  # noqa: SLF001  # ty: ignore[not-iterable]  # set by _net
@@ -133,7 +134,7 @@ def _attention(
     del prob
     variance = net.propagation(variance)
     samples = net.propagation(pred)
-    left4 = s4[:b].float()
+    left4 = to_float32(s4[:b])
     strength = torch.stack([(left4 * warp(s4[b:], samples[:, i : i + 1])[:, :, 0]).mean(dim=1) for i in range(5)], 1)
     strength = torch.softmax(strength * variance, dim=1)
     return torch.sum(net.propagation_prob(att) * strength.unsqueeze(2), dim=1, keepdim=True)
@@ -162,7 +163,7 @@ def forward(net: Net, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
         del match
         cost = net.corr_feature_att_4(net.corr_stem(corr.to(p.dtype).contiguous(memory_format=fmt3)), fl[0])
         del corr
-        att = net.hourglass_att(cost, fl).float()
+        att = to_float32(net.hourglass_att(cost, fl))
         del cost
     att_prob = F.softmax(att, dim=2)
     del att
@@ -177,14 +178,14 @@ def forward(net: Net, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
     else:
         c = concat.shape[1]
         volume = torch.empty((b, 2 * c, TOP_K, *concat.shape[2:]), dtype=p.dtype, device=p.device)
-        volume[:, :c] = att_topk * concat[:b].float().unsqueeze(2)
+        volume[:, :c] = att_topk * to_float32(concat[:b]).unsqueeze(2)
         volume[:, c:] = att_topk * warp(concat[b:], samples)
     del concat, att_topk
     volume = net.concat_feature_att_4(net.concat_stem(volume), fl[0])
     cost = net.hourglass(volume, fl)
     del volume
-    spx = F.softmax(net.spx(net.spx_2(net.spx_4(fl[0]), stem_2x)).float(), 1)
-    pred = regression_topk(cost.squeeze(1).float(), samples, 2)
+    spx = F.softmax(to_float32(net.spx(net.spx_2(net.spx_4(fl[0]), stem_2x))), 1)
+    pred = regression_topk(to_float32(cost.squeeze(1)), samples, 2)
     return context_upsample(pred, spx) * 4
 
 
