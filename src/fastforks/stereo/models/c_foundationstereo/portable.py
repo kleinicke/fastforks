@@ -15,7 +15,12 @@ from fastforks._core.tracing import EXPORTING_FOR_MLX
 
 from .net.fast_foundation_stereo.fast_foundation_stereo import _FFSPostForwardHelper
 from .net.foundation_stereo.convolution_helper import Conv
-from .net.foundation_stereo.submodule import CostVolumeDisparityAttention, FeatureAtt, HourGlass
+from .net.foundation_stereo.submodule import (
+    CostVolumeDisparityAttention,
+    FeatureAtt,
+    FlashMultiheadAttention,
+    HourGlass,
+)
 
 # sequences per chunk: memory bound (Q, K, V, out of one chunk are ~200 MB at 375x1242); flash SDPA takes < 65536; the
 # result does not depend on it
@@ -43,6 +48,34 @@ def _chunked(
             out[i : i + CHUNK] = y
     out = torch.cat(chunks) if out is None else out
     return out.reshape(b, h, w, d, c).permute(0, 4, 3, 1, 2)
+
+
+def _padded_attention(  # noqa: PLR0913, PLR0917 - upstream `FlashMultiheadAttention.forward`'s signature
+    self: FlashMultiheadAttention,
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    attn_mask: torch.Tensor | None = None,
+    window_size: tuple[int, int] = (-1, -1),
+) -> torch.Tensor:
+    """`FlashMultiheadAttention.forward` with a half-precision CUDA head dim zero-padded to a multiple of 8.
+
+    Same output: the zero columns add nothing to `q . k` nor to the kept `v` columns, and the scale stays
+    `head_dim ** -0.5`. PyTorch's flash pads head dim 7 to 8 itself; the memory-efficient and cuDNN backends refuse it,
+    so without flash (Windows) the call fell to the math backend (C-FS-S 375x1242: 1706 ms vs 1170 ms on Linux).
+    """
+    d = self.head_dim
+    if not -d % 8 or not query.is_cuda:
+        return FlashMultiheadAttention.forward(self, query, key, value, attn_mask, window_size)
+    b, n, _ = query.shape
+    shape = (b, self.num_heads, n, d) if self.qkv_layout == "standard" else (b, n, self.num_heads, d)
+    q, k, v = (proj(x).view(shape) for proj, x in ((self.q_proj, query), (self.k_proj, key), (self.v_proj, value)))
+    if q.dtype in (torch.float16, torch.bfloat16):
+        q, k, v = (F.pad(x, (0, -d % 8)) for x in (q, k, v))
+        o = F.scaled_dot_product_attention(q, k, v, scale=d**-0.5)[..., :d]
+    else:  # float32: upstream's call as is
+        o = F.scaled_dot_product_attention(q, k, v)
+    return self.out_proj(o.reshape(b, n, -1))
 
 
 def _post(
@@ -139,6 +172,8 @@ def prepare_portable(net: nn.Module, *, channels_last: bool = False) -> None:
     for m in net.modules():
         if isinstance(m, CostVolumeDisparityAttention):
             override(m, _chunked)
+        elif isinstance(m, FlashMultiheadAttention):
+            override(m, _padded_attention)
         elif isinstance(m, _FFSPostForwardHelper):
             override(m, _post)
         elif channels_last and isinstance(m, HourGlass):
