@@ -22,6 +22,7 @@ import torch
 import torch.nn.functional as F
 from torch.nn.attention import SDPBackend
 
+from fastforks._core.mlx_cast import to_run_dtype
 from fastforks.shared import sdpa
 
 CUDNN_MAX_HEAD_DIM = 128  # fixed: PyTorch's cuDNN SDPA head-dim limit
@@ -96,8 +97,6 @@ def attend(qkv: torch.Tensor, nh: int, rel: Rel, hw: tuple[int, int]) -> torch.T
         return biased(qkv, nh, rel, hw)
     qa, ka, va, d = augmented(qkv, nh, rel, hw)
     return F.scaled_dot_product_attention(qa, ka, va, scale=1.0)[..., :d]
-
-from fastforks._core.mlx_cast import to_run_dtype
 
 
 def augmented(
