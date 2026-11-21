@@ -7,9 +7,10 @@ cropped back to the image (no resize).
 `portable`: the backbone runs channels-last (`[B, H, W, C]` throughout, as upstream's blocks do inside) with the
 attention's decomposed relative-position bias folded into an augmented dot product (`q' = [q * scale, rel_h, rel_w]`,
 `k' = [k, onehot(kh), onehot(kw)]`, padded to a multiple of 8; `v` zero-padded to the same head dim) so SDPA (flash)
-never materialises the N x N matrix (8160 tokens at 1080p); the residual blocks' channel LayerNorms through
-`F.layer_norm` (float32 statistics in float16). Interpolated position embeddings and relative tables are cached per
-token grid. The decoder is upstream's modules. fp32 or fp16 weights and activations.
+never materialises the N x N matrix (8160 tokens at 1080p); without flash (Windows) a global block whose augmented
+head dim exceeds cuDNN's 128 runs SDPA with a chunked dense bias mask instead (`shared.sam_attention`); the residual
+blocks' channel LayerNorms through `F.layer_norm` (float32 statistics in float16). Interpolated position embeddings
+and relative tables are cached per token grid. The decoder is upstream's modules. fp32 or fp16 weights and activations.
 
 `kernels`: fp16; the backbone's GEMMs on `dpt_fused` (fused bias / GELU / residual epilogues, fp16 accumulation; the
 patch embedding with fp32 accumulation) and its 3 x 3 convs as NHWC implicit GEMMs; the decoder's conv + BatchNorm +
@@ -28,7 +29,7 @@ from fastforks._core.mps import fence
 from fastforks.kernels.dpt_fused import ACT_GELU
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.matting._runner import Forward, Runner, scale
-from fastforks.shared import mlx_wrap
+from fastforks.shared import mlx_wrap, sam_attention
 from fastforks.shared.cnn_kernels import ACT, CL, bn_affine, conv_ep, prepare_convs
 from fastforks.shared.cnn_kernels import load as load_cnn
 
@@ -101,8 +102,11 @@ def _augmented(qkv: torch.Tensor, nh: int, rel: Rel, hw: tuple[int, int]) -> tup
 def _attend(qkv: torch.Tensor, heads: int, rel: Rel, hw: tuple[int, int]) -> torch.Tensor:
     """Attention of packed qkv `[B, N, 3C]` -> `[B, N, C]` (before the output projection)."""
     b, n, c3 = qkv.shape
-    qa, ka, va = _augmented(qkv, heads, rel, hw)
-    o = F.scaled_dot_product_attention(qa, ka, va, scale=1.0)[..., : c3 // 3 // heads]
+    if sam_attention.use_biased(qkv, c3 // 3 // heads, hw):  # no flash: SDPA with a dense bias mask
+        o = sam_attention.biased(qkv, heads, rel, hw)
+    else:
+        qa, ka, va = _augmented(qkv, heads, rel, hw)
+        o = F.scaled_dot_product_attention(qa, ka, va, scale=1.0)[..., : c3 // 3 // heads]
     return o.transpose(1, 2).reshape(b, n, c3 // 3)
 
 
