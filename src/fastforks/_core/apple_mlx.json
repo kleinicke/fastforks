@@ -178,7 +178,7 @@
   "bridgedepth-sf@1": {
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
@@ -673,7 +673,7 @@
   "da3-giant-1.1@1": {
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
@@ -683,7 +683,7 @@
   "da3-large-1.1@1": {
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
@@ -693,7 +693,7 @@
   "da3metric-large@1": {
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
@@ -703,7 +703,7 @@
   "da3mono-large@1": {
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
@@ -713,7 +713,7 @@
   "da3nested-giant-large-1.1@1": {
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
@@ -2114,7 +2114,24 @@
   "mask2former-swinl-ade20k@1": {
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "megaflow@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
@@ -2159,7 +2176,7 @@
   "metric3d-vit-large@1": {
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
@@ -3088,6 +3105,9 @@
    }
   },
   "restormer-deblur@1": {
+   "dtypes": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -3349,6 +3369,9 @@
    }
   },
   "sam-vit-b@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -3884,9 +3907,16 @@
    }
   },
   "unik3d-vitl@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
@@ -4011,6 +4041,13 @@
    ]
   },
   "waft-a1@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"

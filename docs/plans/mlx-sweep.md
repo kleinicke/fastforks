@@ -2041,3 +2041,74 @@ Still open:
 - MLX fp32 is still slower than MPS fp32 for vggt-1b, anysplat, lingbot-map and mapanything. fp32 GEMM on MLX is about
   10 % behind MPS, and fp16 is the default route.
 - DA3 was not re-surveyed. Its fp16 rows probably improve too, since the same RoPE output cast applies.
+
+## fp16 replays that ran in fp32: detector and sweep (2026-11-21)
+
+`FF_MLX_DTYPE_REPORT=1` (`shared/mlx_dtype_report.py`; `tools/mlx_dtype_report.py <refs>` runs one quick forward
+per ref) prints, per replay signature:
+
+- the float32 share of the heavy-op FLOPs (mm / addmm / bmm / conv / SDPA / einsum);
+- the first float32 heavy op;
+- the modules that run in float32;
+- the float32 origins, which can be a folded constant, an input, or a deliberate `to_float32` island.
+
+The cause is the same as in the multiview section above. `.to(dtype)`, `new_zeros`, `torch.empty(dtype=x.dtype)` and
+`.float()` are no-ops in the float32 twin, so one float32 table lifts everything downstream. Each table now goes
+through `to_run_dtype` at its source.
+
+Also fixed: in `mlx_graph`, `aten.where` with a 0-dim float32 `scalar_tensor` takes the other operand's dtype, as in
+torch. MLX would promote to float32 (oneformer 95.9 -> 4.9 % with the Swin pad fix).
+
+| ref | heavy fp32 % before | after | fp16 ms / MB before | after | `auto` |
+|---|---|---|---|---|---|
+| da3-large-1.1 | 74.2 | 6.9 | 361 / 1975 | 268 / 1763 | |
+| da3-giant-1.1 | | | 920 / 3858 | 647 / 3454 | |
+| da3nested-giant-large-1.1 | | | 1269 / 4267 | 878 / 4123 | |
+| da3metric-large / da3mono-large | | | 328 / 1899, 322 / 1884 | 231 / 1555, 231 / 1557 | |
+| metric3d-vit-large | 99.9 | 0.0 | 2460 / 2922 | 2337 / 2943 | |
+| unik3d-vitl | 83.2 | 8.3 | 1458 / 2388 | 1032 / 2039 | now MLX fp16 |
+| sam-vit-b | 98.4 | 0.0 | 666 / 2571 | 446 / 1205 | |
+| sam-hq-vit-b | | | 703 / 2588 | 476 / 1510 | |
+| waft-a1 | 36.9 | 0.0 | 9339 / 3559 | 6431 / 2697 | now MLX fp16 |
+| megaflow | | | (no MLX fp16 row) | 8480 / 6561 | now MLX fp16 (MPS 11196) |
+| bridgedepth-sf | 12.2 | 0.3 | 5661 / 4483 | 3977 / 2650 | |
+| nmrf-sceneflow | 58.3 | 0.0 | 2246 / 3106 | 1438 / 2241 | |
+| restormer-deblur | 29.8 | 5.4 | 2532 / 2666 | 1467 / 1317 | |
+| oneformer-swinl-ade20k | 99.0 | 4.9 | 2078 / 6033 | 2077 / 5376 | |
+| mask2former-swinl-ade20k | | 2.1 | 1148 / 3795 | 878 / 3657 | |
+| vitmatte-b | 81.3 | 0.0 | 2192 / 1946 | 1744 / 3013 | |
+| mvsplat-re10k | 26.3 | 0.0 | 2418 / 2796 | 2116 / 2706 | |
+| gmflow-scale1-things | 69.7 | 0.1 | 6822 / 10465 | 3871 / 9100 | (MPS fp32 3269) |
+| big-lama | 70.9 | 7.9 | 321 / 1094 | 225 / 990 | |
+
+All MLX fp16 goldens pass. Also run: tests/test_mlx*.py, nafnet-gopro and wd-vit-tagger-v3. The fp32 rows changed
+only by run-to-run noise. Routes only gained entries: da3 x5, bridgedepth, mask2former and metric3d now default to
+MLX fp16. vitmatte-b's peak rose by 1 GB while it got 20 % faster; this is not investigated.
+
+Deliberate float32 islands kept, and negative results:
+
+- **A generic cast of every folded constant to the run dtype** was rejected. It risks `-inf` / overflow masks and
+  loses precision in coordinate tables. The casts stay per source.
+- **gmflow**: a fully half Transformer missed the golden (mean 0.0036, limit 0.0031). Casting the position table, or
+  only the sum after the position add, did not help. What passes is the CUDA / MPS autocast layout: a float32
+  residual stream, with the projections, the attention and the MLP in half (`TransformerLayer.forward`, export-only).
+  Matching, propagation and the refinement correlation stay float32 through `to_float32`.
+- **restormer / DAT gram matrices** (channel attention) and **the big-lama FFT** (`convg2g.fu`) stay float32. They are
+  the remaining 5.4 % and 7.9 %.
+- **da3 / unik3d**: the remaining 7-8 % is the RoPE rotation, which deliberately stays float32 in
+  `shared/rope2d`.
+- **unidepth-v2**: its card is MLX float32 only, so the DINOv2 edit was reverted.
+
+### MLX findings that plausibly help MPS (not implemented here)
+
+- Look for silent float32 on MPS fp16 too. Autocast leaves float32 tables float32 outside autocast regions (gmflow
+  MPS fp16 10676 ms vs fp32 3269 ms is the outlier to start with). `tools/mlx_dtype_report.py <ref> --mps` counts
+  heavy-op FLOPs by input dtype on an eager MPS forward and lists the top float32 call sites.
+- Cost volumes from `new_zeros` filled in a loop (nmrf, mocha, cfnet, psmnet, cas_gwcnet): one `torch.stack` /
+  `cat` avoids the in-place slice writes and the extra zero fill.
+- Sibling projection fusion (q / k / v, or the gmflow q_proj + k_proj(query) pair) as one GEMM, as the MLX graph pass
+  does.
+- Release intermediates early (`del` before the next stage; `fence` where a new heap opens). The MLX buffer cache
+  shows that most peak gaps are lifetimes, not sizes.
+- Keep a float32 residual stream with half branches only where the golden needs it (vggt-omega, anysplat, gmflow).
+  Everywhere else a fully half stream halves the activation bytes.
