@@ -29,6 +29,7 @@ from torch import nn
 
 from fastforks._core.errors import OptionsError
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.patch import override
 from fastforks._core.tracing import in_onnx_export
 from fastforks.multiview._runner import Forward, Runner
@@ -151,7 +152,9 @@ class _Cache:
         self.ring = min(win, n_img - s)
         self.spec = SPECIAL * max(0, n_img - s - win)
         total = self.spec + p * (s + self.ring)
-        self.kv = [(like.new_empty(1, total, 16, 64), like.new_empty(1, total, 16, 64)) for _ in range(n_layers)]
+        # in the run dtype: float32 buffers of the MLX twin would lift a float16 replay's global attention to float32
+        buf = (to_run_dtype(like.new_empty(1, total, 16, 64), like.dtype) for _ in range(2 * n_layers))
+        self.kv = list(zip(buf, buf, strict=True))
 
     def step(self, fr: range) -> tuple[slice, slice]:
         """Frames `fr` (the scale frames, or one later frame) -> (where their k / v go, the keys they attend to)."""
@@ -251,7 +254,7 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
         if dev.type == "mps":  # MPS has no float64: the tables are built on the CPU
             dev = torch.device("cpu")
         cos, sin = _rope3d_tables(frames, rows, cols, dev, self.dt)
-        return cos.to(self.ctx.device), sin.to(self.ctx.device)
+        return to_run_dtype(cos.to(self.ctx.device), self.dt), to_run_dtype(sin.to(self.ctx.device), self.dt)
 
     def gblock(  # noqa: PLR0913, PLR0917 - explicit block permits both resident and streamed weights
         self,
