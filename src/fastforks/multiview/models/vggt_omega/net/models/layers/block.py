@@ -14,6 +14,9 @@ from typing import Callable, List, Optional
 import torch
 from torch import Tensor, nn
 
+from fastforks._core.mlx_cast import to_float32, to_run_dtype  # fastforks: run-dtype casts on MLX
+from fastforks._core.tracing import EXPORTING_FOR_MLX
+
 from .attention import CausalSelfAttention, SelfAttention
 from .ffn_layers import Mlp
 from .layer_scale import LayerScale  # , DropPath
@@ -195,12 +198,25 @@ class SelfAttentionBlock(nn.Module):
         else:
             x_out = []
             for x, rope in zip(x_list, rope_list):
+                if EXPORTING_FOR_MLX.get():  # fastforks: a float16 MLX replay keeps the residual stream in float32
+                    x_out.append(self._mlx_forward(x, rope))
+                    continue
                 x_attn = x + self.ls1(self.attn(self.norm1(x), rope=rope))
                 x_ffn = x_attn + self.ls2(self.mlp(self.norm2(x_attn)))
                 x_out.append(x_ffn)
             x_ffn = x_out
 
         return x_ffn
+
+    def _mlx_forward(self, x: Tensor, rope) -> Tensor:
+        """fastforks: the MLX export of one block: float32 residual stream, branches in the replay's dtype.
+
+        Upstream runs under bf16 autocast (float32 stream). LayerScale multiplies in float32: an MLP output near the
+        float16 limit (46k on real views) times its gamma overflows.
+        """
+        x = to_float32(x)
+        x = x + self.ls1(to_float32(self.attn(to_run_dtype(self.norm1(x), x.dtype), rope=rope)))
+        return x + self.ls2(to_float32(self.mlp(to_run_dtype(self.norm2(x), x.dtype))))
 
     def forward(self, x_or_x_list, rope_or_rope_list=None) -> List[Tensor]:
         if isinstance(x_or_x_list, Tensor):
