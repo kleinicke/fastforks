@@ -155,6 +155,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
     release: bool = False,
     pipeline: bool = False,
     prune: bool = False,
+    half_wino_f32: bool = False,
 ) -> type[Runner]:
     """The MLX runner of `portable`: same call, the module(s) named by `attrs` run on MLX in `ctx.dtype`.
 
@@ -192,6 +193,9 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
     lifted placeholder, about 0.5 ms of export each, read or not).
 
     `kernels_fp16_only=True`: the kernels mode uses its Metal kernels in float16 only (float32 runs as portable).
+
+    `half_wino_f32=True`: in float16, the 3x3 convs MLX would run as Winograd (its half Winograd's error is ~17x the
+    direct conv's) run in float32 (portable mode; kernels mode has its own Winograd).
     """
     out_key = "image" if whole is True else whole
 
@@ -236,6 +240,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                         chunk_mb=chunk,
                         release=release,
                         pipeline=pipeline,
+                        half_wino_f32=half_wino_f32,
                     )
                     object.__setattr__(host, leaf, mod)  # the instance entry beats the class's function
                 else:
@@ -251,6 +256,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                             chunk_mb=chunk,
                             release=release,
                             pipeline=pipeline,
+                            half_wino_f32=half_wino_f32,
                         ),
                     )
             if whole:
@@ -262,6 +268,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                     compile=compiled,
                     chunk_mb=chunk,
                     pipeline=pipeline,
+                    half_wino_f32=half_wino_f32,
                 )
                 return
             for name in attrs:
@@ -275,6 +282,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                     compile=compiled,
                     chunk_mb=chunk,
                     pipeline=pipeline,
+                    half_wino_f32=half_wino_f32,
                 )
                 if isinstance(host, torch.nn.Module):  # the MLX callable is no child module
                     host._modules.pop(leaf, None)  # noqa: SLF001 - the module registry

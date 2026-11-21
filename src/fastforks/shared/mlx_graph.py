@@ -537,6 +537,7 @@ OPS[aten.index_select.default] = lambda x, d, i: mx.take(x, i, axis=d)
 _KERNELS = (
     False  # kernels mode: our Metal kernels (`fastforks.kernels.graph_mlx`) for depthwise convolution and pooling
 )
+_HALF_WINO_F32 = False  # half-precision 3x3 convs that MLX would run as Winograd run in float32 (`GraphNet` option)
 # The depthwise kernel in portable mode too: `mx.conv2d(groups=C)` falls off its fast path at some channel counts
 # (DAT's 180-channel 3x3 at 512^2: 75 ms against 2.6 ms, 72 per call, 5.7 of 16.4 s) and is never faster.
 DW_KERNEL = not os.environ.get("FF_MLX_NO_DW_KERNEL")
@@ -1689,6 +1690,15 @@ def _conv2d(
     switching to Winograd, so half precision outside kernels mode does not pad into it (see below).
     """
     cout, cin = wl.shape[0], wl.shape[3]
+    if (
+        _HALF_WINO_F32
+        and not _KERNELS
+        and xl.dtype in (mx.float16, mx.bfloat16)
+        and _mlx_winograd(wl.shape, cout, stride, dilation, groups, xl.shape[0] * xl.shape[1] * xl.shape[2])
+    ):
+        # MLX's half Winograd (relative mean 6e-3 against the direct conv's 3.5e-4) is too coarse for some nets
+        f32 = _conv2d(xl.astype(mx.float32), wl.astype(mx.float32), stride, padding, dilation, groups)
+        return f32.astype(xl.dtype)
     if ALIGN_OFF:
         return mx.conv2d(xl, wl, stride=stride, padding=padding, dilation=dilation, groups=groups)
     if (
@@ -2652,8 +2662,11 @@ class GraphNet:
         shared: dict[str, Any] | None = None,
         chunk_mb: int = 0,
         pipeline: bool = False,
+        half_wino_f32: bool = False,
     ) -> None:
         """Keep the module until its first export; parameters convert then (`chunk_mb`: see `_runner`, 0 = `CHUNK_MB`).
+
+        `half_wino_f32=True`: in float16 / bfloat16, the 3x3 convs MLX would run as Winograd run in float32 instead.
 
         `pipeline=True`: queue each checkpoint segment (`mx.async_eval`) and wait for the one before it, so the next
         segment's graph is built while the GPU runs (one more segment's activations in flight).
@@ -2670,6 +2683,7 @@ class GraphNet:
         self.max_act = 0
         self.weight_bytes = 0
         self.kernels = kernels
+        self.half_wino_f32 = half_wino_f32
         self.chunk_mb = chunk_mb
         self.pipeline = pipeline
         self._runs: dict[tuple[Any, ...], Callable[..., Any]] = {}
@@ -3380,8 +3394,9 @@ class GraphNet:
 
     def __call__(self, *tensors: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """Run on CPU tensors; returns float32 CPU tensors."""
-        global _KERNELS, _WINO
+        global _KERNELS, _WINO, _HALF_WINO_F32
         _KERNELS = self.kernels
+        _HALF_WINO_F32 = self.half_wino_f32
         _WINO = self._wino
         key = tuple((tuple(t.shape), str(t.dtype)) for t in tensors)
         if key not in self._runs:
@@ -3443,8 +3458,9 @@ class MlxModule:
         compile: bool = True,
         chunk_mb: int = 0,
         pipeline: bool = False,
+        half_wino_f32: bool = False,
     ) -> None:
-        """Wrap `module` (eval mode, CPU). `chunk_mb`, `pipeline`: see `GraphNet`.
+        """Wrap `module` (eval mode, CPU). `chunk_mb`, `pipeline`, `half_wino_f32`: see `GraphNet`.
 
         `release=True`: once the first export has moved a parameter or buffer to MLX, the module's own tensor is
         replaced by a one-element stand-in of the same shape (a float32 twin of a 340M-parameter network is 1.4 GB).
@@ -3459,6 +3475,7 @@ class MlxModule:
         self.compile = compile
         self.chunk_mb = chunk_mb
         self.pipeline = pipeline
+        self.half_wino_f32 = half_wino_f32
         self._nets: dict[Any, tuple[GraphNet, _Flat]] = {}
         self._plan_scope = mlx_plan_cache.next_scope()  # this module's key in the on-disk plan cache (a model load's)
         if release:
@@ -3480,11 +3497,12 @@ class MlxModule:
                     shared=self._consts(),
                     chunk_mb=self.chunk_mb,
                     pipeline=self.pipeline,
+                    half_wino_f32=self.half_wino_f32,
                 ),
                 flat,
             )
             net = self._nets[key][0]
-            sig = (repr(key), self.dtype, self.kernels, self.compile, self.chunk_mb)
+            sig = (repr(key), self.dtype, self.kernels, self.compile, self.chunk_mb, self.half_wino_f32)
             net.plan = mlx_plan_cache.Entry.make(self._plan_scope, flat, sig)
             net.plan_extra = lambda flat=flat: flat.out.value
             net.plan_restore = lambda extra, flat=flat: setattr(flat.out, "value", extra)
