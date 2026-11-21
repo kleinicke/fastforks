@@ -1445,3 +1445,17 @@ wd-vit-tagger-v3, convnext_base, depth-anything-v2-b, davit_small).
 Left on DAT fp16 (eager profile, per call): linears 1.9 s, d=30 attention 1.7 s, convs 1.1 s, reshape copies 0.6 s,
 `vector_norm` 0.6 s (eager abs and cast; one compiled kernel would take 40 % of that), global mean 0.5 s, the shift
 mask's where / ne / eq 0.6 s (folded at `FF_MLX_CONST_FOLD_MB=1024`).
+
+The window kernel keeps a row of scores per simdgroup in registers, which spill beyond about L = 96: at HAT's
+16x16 windows (L = 256, D = 24, fp16) it took 212 against 46 ms for MLX sdpa (L = 64 / 96: 13 / 12 against
+18 / 28 ms). Windows longer than `FF_MLX_WIN_ATTN_MAX_L` (default 96) now take MLX sdpa with the summed mask parts.
+The dat-light and hat-s rows below come from the same code.
+
+| ref (512x512) | dtype | before ms / MB / first s | after ms / MB / first s |
+|---|---|---|---|
+| dat-light-x4 | fp16 | 4092 / 2782 / 21.2 | 1859 / 2408 / 7.3 |
+| dat-light-x4 | fp32 | 5319 / 3730 / 25.0 | 2678 / 3346 / 8.1 |
+| hat-s-x4 | fp16 | 12676 / 5361 / 48.3 | 10618 / 4539 / 17.0 (window kernel at L = 256: 14866 / 3406) |
+| hat-s-x4 | fp32 | 20203 / 7380 / 79.7 | 15572 / 6016 / 21.1 |
+
+`test_mlx[hat-x4@1]` (fp16, mean |diff| 0.00092 against 0.00083) already failed at c15d5667, before this pass.

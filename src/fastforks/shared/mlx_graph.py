@@ -800,6 +800,9 @@ def _sdpa(
 
 
 WIN_ATTN_OFF = bool(os.environ.get("FF_MLX_NO_WIN_ATTN"))  # masked short attention through `_sdpa` (summed mask)
+# longest window the kernel runs: a row of scores per simdgroup spills its registers beyond (HAT's 16x16 windows,
+# L = 256, D = 24, fp16: 212 against 46 ms for MLX sdpa; L = 64 / 96: 13 / 12 against 18 / 28 ms)
+WIN_ATTN_MAX_L = int(os.environ.get("FF_MLX_WIN_ATTN_MAX_L", "96"))
 
 
 def _win_attn_ok(q: mx.array, k: mx.array, v: mx.array, parts: tuple[mx.array, ...]) -> bool:
@@ -810,6 +813,7 @@ def _win_attn_ok(q: mx.array, k: mx.array, v: mx.array, parts: tuple[mx.array, .
     return (
         not WIN_ATTN_OFF
         and d not in SDPA_FUSED_DIMS
+        and lq <= WIN_ATTN_MAX_L
         and len(parts) <= 2
         and all(
             p.ndim == 4 and b % p.shape[0] == 0 and p.shape[1] in (1, h) and tuple(p.shape[2:]) == (lq, lq)
@@ -847,7 +851,7 @@ def _sdpa_parts(q: mx.array, k: mx.array, v: mx.array, *parts: mx.array, scale: 
         return ops.window_attention(q, k, v, scale if scale is not None else q.shape[3] ** -0.5, list(parts))
     b = q.shape[0]
     # in the run dtype, as `_sdpa` would cast the sum: an eager half-precision run never holds a float32 [B, H, L, L]
-    mask = functools.reduce(operator.add, [p if p.dtype == q.dtype else p.astype(q.dtype) for p in parts])
+    mask = functools.reduce(operator.add, parts).astype(q.dtype)
     if mask.ndim == 4 and mask.shape[0] not in (1, b):
         mask = mx.tile(mask, (b // mask.shape[0], 1, 1, 1))
     return _sdpa(q, k, v, mask, scale=scale)
