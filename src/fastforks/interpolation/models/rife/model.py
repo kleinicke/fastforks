@@ -285,4 +285,5 @@ RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_forward",)),
+    "kernels_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_forward",)),
 }

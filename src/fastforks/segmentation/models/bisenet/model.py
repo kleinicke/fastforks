@@ -158,9 +158,9 @@ def _mlx(portable: type[Portable]) -> type[Portable]:
 
         def __init__(self, ctx: Context) -> None:
             """Wrap the head."""
+            super().__init__(ctx)
             from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - MLX only (imports mlx)
 
-            super().__init__(ctx)
             self._head = MlxModule(_Head(self.net), ctx.dtype, kernels=ctx.mode == "kernels")
 
         def _network(self, x: torch.Tensor) -> torch.Tensor:

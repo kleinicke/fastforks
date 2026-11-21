@@ -1,8 +1,8 @@
 """Group-wise correlation cost volume as one op, so the MLX replay can run it as one Metal kernel.
 
 `gwc_volume(left, right, depth, groups)[b, g, d, y, x]` is the channel mean, per group, of `left[x] * right[x - d]`
-(zero where `x < d`) -- upstream's `build_gwc_volume` family. Eagerly it is the slab loop; an exported graph keeps the op
-and `fastforks.shared.mlx_graph` lowers it to `fastforks.kernels.graph_mlx.ops.gwc_volume`.
+(zero where `x < d`) -- upstream's `build_gwc_volume` family. Eagerly it is the slab loop; an exported graph keeps
+the op and `fastforks.shared.mlx_graph` lowers it to `fastforks.kernels.graph_mlx.ops.gwc_volume`.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def normalized_groups(x: torch.Tensor, groups: int, eps: float = 1e-5) -> torch.
     """`x / (||x|| + eps)` over each group's channels (upstream's `groupwise_correlation_norm`), `[B, C, H, W]`."""
     b, c, h, w = x.shape
     x = x.view(b, groups, c // groups, h, w)
-    return (x / (torch.norm(x, 2, 2, True) + eps)).view(b, c, h, w)
+    return (x / (torch.norm(x, p=2, dim=2, keepdim=True) + eps)).view(b, c, h, w)
 
 
 @torch.library.custom_op("fastforks::upsample_soft_argmax", mutates_args=())

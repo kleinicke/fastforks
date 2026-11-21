@@ -24,6 +24,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.errors import InputError, WeightsError
+from fastforks._core.tracing import EXPORTING_FOR_MLX
 from fastforks.volume import _resample
 
 if TYPE_CHECKING:
@@ -279,7 +280,11 @@ class _ConvNormAct(nn.Module):
         self.slope = plan.slope if act else 1.0
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.norm_act(self.conv(x))
+        conv = self.conv
+        if conv.bias is not None and EXPORTING_FOR_MLX.get():
+            # The instance norm removes any per-channel constant: on MLX the bias is one more pass over the map.
+            return self.norm_act(F.conv3d(x, conv.weight, None, conv.stride, conv.padding, conv.dilation, conv.groups))
+        return self.norm_act(conv(x))
 
     def norm_act(self, y: torch.Tensor) -> torch.Tensor:
         """`leaky_relu(norm(y))` as one scale / shift per channel: `InstanceNorm3d` on `channels_last_3d` is slow."""

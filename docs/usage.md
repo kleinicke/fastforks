@@ -731,14 +731,24 @@ On Apple silicon, use `device="mps"` for both public modes.
   Metal path by at least 5% to take precedence when both support the request. Explicitly requesting an unavailable
   implementation raises an error.
 - `auto` uses the benchmark table to compare optimized paths against portable MPS. The table uses comparable runs
-  whose golden reference check passed. A promotion requires at least a 5% speed advantage. Pass `dtype` to
-  constrain the choice.
+  whose golden reference check passed. A promotion requires at least a 5% speed advantage (or 10% less memory at
+  equal speed). Pass `dtype` to constrain the choice. **MLX compiles per input shape, so it is
+  promoted only where that first call is cheap**: the compile (first call minus one warm call) must be under three
+  times the MPS runtime. That keeps MLX for the models where it also wins speed or memory and whose first call is
+  quick (Depth Pro, with a 26 s compile against a 5 s MPS call, stays on MPS). For models left on MPS, ask for MLX
+  with `device="mlx"` (below) if you can afford the first call, for example after [`warmup`](#apple-silicon-mlx).
 
 Results are MPS tensors. An MLX implementation reports `backend.mode == "kernels"` and `backend.device == "mlx"`.
 Set `FASTFORKS_MLX=0` to run only PyTorch MPS implementations. On RoMa v2 this gives access to the float32
 Metal correlation kernel with `mode="kernels"`.
 
 ## Apple silicon (MLX)
+
+**Choosing MLX.** `device="mps"` picks MLX for you only where it is measured faster or leaner *and* its first call
+is cheap (see [MPS takes the faster port](#mps-takes-the-faster-port)). To use MLX anywhere else, pass
+`device="mlx"` (any family with a port, `mode="portable"` or `"kernels"`): it is often leaner, but the first call
+at each input size compiles the network (seconds for large inputs, see "First call" below). Loading with
+`device="mps"` logs at INFO when an MLX port exists. `fastforks info MODEL` lists it as `apple mlx`.
 
 `device="mlx"` runs a model through Apple's [MLX](https://github.com/ml-explore/mlx) instead of PyTorch's MPS
 backend. It is a device, not a mode: `mode` and `dtype` keep their meaning, and the result is the same object with

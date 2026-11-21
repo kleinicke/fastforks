@@ -1,10 +1,10 @@
 """Apple MLX ports of a family's PyTorch runner: its network runs through `fastforks.shared.mlx_graph`.
 
-`port(Portable)` is the family's `portable_mlx` / `kernels_mlx` runner: the portable runner is built on the CPU in float32
-(its pre- and post-processing stays PyTorch on the CPU), then each network attribute (`attrs`, default `net`) is replaced
-by an `MlxModule`, which exports that module once per input signature, converts its parameters to the run dtype and
-replays the graph with `mx.compile` on the GPU. Kernels mode (`ctx.mode == "kernels"`) swaps in our Metal kernels
-(`fastforks.kernels.graph_mlx`) for depthwise convolution and global pooling.
+`port(Portable)` is the family's `portable_mlx` / `kernels_mlx` runner: the portable runner is built on the CPU in
+float32 (its pre- and post-processing stays PyTorch on the CPU), then each network attribute (`attrs`, default
+`net`) is replaced by an `MlxModule`, which exports that module once per input signature, converts its parameters
+to the run dtype and replays the graph with `mx.compile` on the GPU. Kernels mode (`ctx.mode == "kernels"`) swaps in
+our Metal kernels (`fastforks.kernels.graph_mlx`) for depthwise convolution and global pooling.
 """
 
 from __future__ import annotations
@@ -164,14 +164,15 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
 
     `fp32_methods`: names among `methods` that always run in float32 (a stage whose activations overflow float16).
 
-    `compile=False`: replay lazily without `mx.compile` (a graph whose fused elementwise kernels exceed Metal's argument limit).
+    `compile=False`: replay lazily without `mx.compile` (a graph whose fused elementwise kernels exceed Metal's
+    argument limit).
 
     `cache_mb`: raise the MLX buffer cache limit to at least this many MB. An iterative net (a GRU loop) allocates the
     same large temporaries every step; with the small default cache each one is a fresh Metal allocation (zero-filled
     pages), which costs more than the step's arithmetic (RAFT-Stereo 994x1482: 7.3 s at 128 MB, 4.0 s at 2 GB).
 
-    A mapping gives the value per variant id (key `""`: the default for the others): the Winograd nets differ in how much
-    cache their transients need (RealESRGAN x2plus 128 MB, x4plus 768 MB), and the cache is resident memory.
+    A mapping gives the value per variant id (key `""`: the default for the others): the Winograd nets differ in how
+    much cache their transients need (RealESRGAN x2plus 128 MB, x4plus 768 MB), and the cache is resident memory.
 
     `chunk_mb`: the MLX graph's checkpoint interval in MB of new activations (0: the default 256; a larger one evaluates
     less often, which the big-activation Winograd nets need at a small cache); a mapping as for `cache_mb`.

@@ -61,7 +61,13 @@ _DW = metal_kernel(
 def depthwise(  # noqa: PLR0913
     x: mx.array, w: mx.array, b: mx.array, stride: tuple[int, int], padding: tuple[int, int], dilation: tuple[int, int]
 ) -> mx.array:
-    """NHWC depthwise convolution (channels a multiple of 4). `w` is `[kh, kw, C]`, `b` is `[C]`."""
+    """NHWC depthwise convolution (channels a multiple of 4). `w` is `[kh, kw, C]`, `b` is `[C]`.
+
+    Mixed dtypes promote as in `mx.conv2d` (the kernel reads all three as one type: a float32 activation against float16
+    weights read them as garbage, FoundationStereo's float16 7x7 depthwise convs after a float32 norm).
+    """
+    t = mx.result_type(x.dtype, w.dtype, b.dtype)
+    x, w, b = x.astype(t), w.astype(t), b.astype(t)
     n, h, wd, c = x.shape
     kh, kw = w.shape[0], w.shape[1]
     oh = (h + 2 * padding[0] - dilation[0] * (kh - 1) - 1) // stride[0] + 1
@@ -73,7 +79,8 @@ def depthwise(  # noqa: PLR0913
         inputs=[x, w, b],
         template=[
             ("T", x.dtype), ("C", c), ("KH", kh), ("KW", kw), ("SH", stride[0]), ("SW", stride[1]),
-            ("PH", padding[0]), ("PW", padding[1]), ("DH", dilation[0]), ("DW", dilation[1]), ("OHT", oh), ("OWT", ow), ("R", r),
+            ("PH", padding[0]), ("PW", padding[1]), ("DH", dilation[0]), ("DW", dilation[1]),
+            ("OHT", oh), ("OWT", ow), ("R", r),
         ],
         grid=(-(-c4 // tg) * tg, oh * -(-ow // r), n),
         threadgroup=(tg, 1, 1),
@@ -181,7 +188,7 @@ _GRID = metal_kernel(
 
 
 def grid_sample(x: mx.array, grid: mx.array, *, align_corners: bool, border: bool) -> mx.array:
-    """Bilinear `grid_sample` of an NHWC map by a `[N, HO, WO, 2]` grid; returns `[N, HO, WO, C]` (zeros or border padding)."""
+    """Bilinear `grid_sample` of an NHWC map by a `[N, HO, WO, 2]` grid; `[N, HO, WO, C]` (zeros or border padding)."""
     n, h, w, c = x.shape
     ho, wo = grid.shape[1], grid.shape[2]
     vec = 4 if c % 4 == 0 else 2 if c % 2 == 0 else 1
@@ -302,6 +309,8 @@ _GWC = metal_kernel(
 
 def gwc_volume(left: mx.array, right: mx.array, depth: int, groups: int) -> mx.array:
     """Group-wise correlation volume of two NHWC feature maps; returns `[B, D, H, W, G]` (zeros where `x < d`)."""
+    t = mx.result_type(left.dtype, right.dtype)  # the kernel reads both as one type
+    left, right = left.astype(t), right.astype(t)
     n, h, w, c = left.shape
     return _GWC(
         inputs=[mx.contiguous(left), mx.contiguous(right)],

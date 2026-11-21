@@ -70,7 +70,7 @@ class DepthwiseConvs(FusedConvs):
 
     def _dw(self, c: nn.Conv2d, x: torch.Tensor, act: int) -> torch.Tensor | None:
         """`act(c(x))` through the kernel (`act`: `conv_ops` code), or None if `c` is not such a depthwise conv."""
-        from fastforks._optimize.conv_ops import (
+        from fastforks._optimize.conv_ops import (  # noqa: PLC0415 - lazy: only on the kernels path
             dwconv,
         )
 

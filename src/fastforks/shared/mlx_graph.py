@@ -19,9 +19,11 @@ An op without a mapping raises `UnsupportedOp` naming it (never a silent fallbac
 
 from __future__ import annotations
 
+import contextlib
 import ctypes
 import functools
 import gc
+import itertools
 import math
 import mmap
 import operator
@@ -33,9 +35,9 @@ import numpy as np
 import torch
 import torch.utils._pytree as pytree
 
-from fastforks._core.mlx import mx, to_mx, to_torch
-from fastforks._core import mlx_cast as _mlx_cast  # noqa: F401 - registers `fastforks::run_dtype`
+from fastforks._core import mlx_cast as _mlx_cast  # noqa: F401 - registers `fastforks::run_dtype` / `float32`
 from fastforks._core import volume_ops as _volume_ops  # noqa: F401 - registers `fastforks::gwc_volume`
+from fastforks._core.mlx import mx, to_mx, to_torch
 from fastforks._core.tracing import EXPORTING_FOR_MLX
 from fastforks.shared import mlx_plan_cache
 
@@ -249,7 +251,7 @@ def _flip(x: mx.array, dims: Sequence[int]) -> mx.array:
 
 def _roll(x: mx.array, shifts: Any, dims: Any) -> mx.array:
     if not dims:
-        return mx.roll(x, list(shifts)[0])
+        return mx.roll(x, next(iter(shifts)))
     return mx.roll(x, list(shifts), axis=list(dims))
 
 
@@ -452,6 +454,14 @@ def _run_dtype(x: mx.array) -> mx.array:
 OPS[torch.ops.fastforks.run_dtype.default] = _run_dtype
 
 
+def _float32(x: mx.array) -> mx.array:
+    """`fastforks::float32` (`fastforks._core.mlx_cast.to_float32`): a float32 island of a float16 replay."""
+    return x if x.dtype == mx.float32 else x.astype(mx.float32)
+
+
+OPS[torch.ops.fastforks.float32.default] = _float32
+
+
 @_reg(aten.arange.default, aten.arange.start, aten.arange.start_step)
 def _arange(*args: Any, dtype: torch.dtype | None = None, **_: Any) -> mx.array:
     out = mx.arange(*args)
@@ -486,7 +496,7 @@ def _index(x: mx.array, indices: Sequence[mx.array | None]) -> mx.array:
 
 
 @_reg(aten.index_put.default)
-def _index_put(x: mx.array, indices: Sequence[mx.array | None], values: mx.array, accumulate: bool = False) -> mx.array:  # noqa: FBT001, FBT002
+def _index_put(x: mx.array, indices: Sequence[mx.array | None], values: mx.array, accumulate: bool = False) -> mx.array:
     """`x[indices] = values`; a boolean mask with one value (or one per element) is a `where`."""
     if len(indices) == 1 and indices[0] is not None and indices[0].dtype == mx.bool_:
         mask = indices[0]
@@ -750,7 +760,7 @@ def _sdpa(
     elif mask is not None and mask.dtype not in {mx.bool_, q.dtype}:
         mask = mask.astype(q.dtype)
     d = q.shape[-1]
-    if d in SDPA_FUSED_DIMS or q.ndim != 4 or isinstance(mask, str):  # noqa: PLR2004
+    if d in SDPA_FUSED_DIMS or q.ndim != 4 or isinstance(mask, str):
         return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask)
     if d < SDPA_FUSED_DIMS[-1] and k.shape[-1] == d and v.shape[-1] == d:
         # zero-padded to the next fused head size: the same scores, no materialised score matrix (and faster)
@@ -765,7 +775,7 @@ def _sdpa(
         return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask)
     # a head size MLX does not fuse materialises the scores: query blocks one after the other (`mx.depends`) bound them
     blk = max(1, SDPA_BLOCK_BYTES // row)
-    per_query = isinstance(mask, mx.array) and mask.ndim >= 2 and mask.shape[-2] == lq  # noqa: PLR2004
+    per_query = isinstance(mask, mx.array) and mask.ndim >= 2 and mask.shape[-2] == lq
     outs: list[mx.array] = []
     for i in range(0, lq, blk):
         qi = q[:, :, i : i + blk]
@@ -888,7 +898,7 @@ def _batch_norm_batch_stats(
     c = x.shape[1]
     xl = mx.moveaxis(x, 1, -1)  # the statistics over the channels-last view: the layout convolutions leave behind
     flat = xl.reshape(-1, c)
-    if not (_KERNELS and flat.shape[0] >= 4096):  # noqa: PLR2004
+    if not (_KERNELS and flat.shape[0] >= 4096):
         return _batch_norm_stats_lean(x, w, b, eps), None, None
     from fastforks.kernels.graph_mlx import ops
 
@@ -932,6 +942,19 @@ def _wino_ok(
     return conv_ops.supported(tuple(xl.shape), w.shape[0])
 
 
+def _direct_ok(cin: int, hw: int, wshape: Sequence[int], stride: Sequence[int]) -> bool:
+    """Whether the kernels-mode direct few-channel conv takes this dense 2-D conv (`hw` input pixels, OIHW `wshape`)."""
+    if len(wshape) != 4 or cin != wshape[1] or hw < DIRECT_MIN_HW or DIRECT_OFF:
+        return False
+    from fastforks.kernels.conv_mlx import ops as conv_ops
+
+    return conv_ops.direct_supported(wshape[1], wshape[0], tuple(wshape[2:]), tuple(stride))
+
+
+DIRECT_MIN_HW = 128 * 128  # smaller maps: launch-bound either way, `mx.conv2d` keeps them
+DIRECT_OFF = bool(os.environ.get("FF_MLX_NO_DIRECT"))  # kernels mode without the direct few-channel conv
+
+
 def _wino3d_ok(
     xl: mx.array, w: mx.array, stride: Sequence[int], padding: Sequence[int], dilation: Sequence[int], groups: int
 ) -> bool:
@@ -956,13 +979,16 @@ def _wino3d_weights(w: mx.array, dtype: mx.Dtype) -> mx.array:
 
 
 def _wino_tile(xl: mx.array) -> int:
-    """The Winograd tile of this NHWC input: F(2,3) on tiny maps (16x16 with 512 channels: 0.20 ms against 0.36 for F(4,3),
-    and 8 MB of weights per layer, not 18), else `WINO_TILE`."""
+    """The Winograd tile of this NHWC input.
+
+    F(2,3) on tiny maps (16x16 with 512 channels: 0.20 ms against 0.36 for F(4,3), and 8 MB of weights per layer,
+    not 18), else `WINO_TILE`.
+    """
     return 2 if xl.shape[1] * xl.shape[2] <= WINO_SMALL_HW else WINO_TILE
 
 
 def _wino_weights(w: mx.array, wl: mx.array, dtype: mx.Dtype, m: int) -> mx.array:
-    """The tile-`m` Winograd-domain weights of constant `w`, made on first use (also while a segment is being traced)."""
+    """The tile-`m` Winograd-domain weights of constant `w`, made on first use (also while tracing a segment)."""
     hit = _WINO.get((id(w), m))
     if hit is None:
         from fastforks.kernels.conv_mlx import ops as conv_ops
@@ -972,6 +998,47 @@ def _wino_weights(w: mx.array, wl: mx.array, dtype: mx.Dtype, m: int) -> mx.arra
             return conv_ops.weights_graph(wl, m, dtype)
         hit = _WINO[id(w), m] = (w, conv_ops.weights(wl, m, dtype))  # `w` stays referenced so its id is not reused
     return hit[1]
+
+
+KEEP_F32_CONV = bool(os.environ.get("FF_MLX_KEEP_F32_CONV"))  # float32 inputs of half-precision convolutions stay
+
+
+def _conv_input(x: mx.array, w: mx.array) -> mx.array:
+    """A float32 input of a half-precision convolution in the weights' dtype, as PyTorch's half-precision run has it.
+
+    The replayed twin is float32: a `.to(dtype)` before a convolution, a float32 state buffer (`torch.empty(...,
+    dtype=dt)`) or a float32 lookup result is recorded as float32, and the float16 replay then promoted every layer it
+    feeds, the whole recurrent update block of the RAFT / IGEV / MonSter families (79-92 % of the convolution FLOPs in
+    float32 at 384x576). PyTorch cannot convolve float32 with float16 weights, so its float16 run casts there too.
+    """
+    if not KEEP_F32_CONV and x.dtype == mx.float32 and w.dtype in (mx.float16, mx.bfloat16):
+        return x.astype(w.dtype)
+    return x
+
+
+def _conv_only_cats(nodes: list[Any]) -> set[str]:
+    """`aten.cat` nodes whose value only feeds convolution inputs (directly or through other such cats).
+
+    The convolution casts a float32 input to its half-precision weights (`_conv_input`); a cast commutes with the
+    concatenation, so these cats can cast their float32 operands first and move half the bytes. IGEV++'s update block
+    concatenated the float32 disparity into its 128- and 384-channel GRU inputs: 1.0 s of float32 cats per call at
+    994x1482.
+    """
+    out: set[str] = set()
+    for node in reversed(nodes):
+        if node.op != "call_function" or node.target is not aten.cat.default or not node.users:
+            continue
+        if all(
+            u.name in out or (u.target is aten.convolution.default and u.args[0] is node and node not in u.args[1:])
+            for u in node.users
+        ):
+            out.add(node.name)
+    return out
+
+
+def _cat_in(op: Callable[..., mx.array], dtype: mx.Dtype, xs: Sequence[mx.array], *a: Any, **kw: Any) -> mx.array:
+    """`op` (a cat) with its float32 operands cast to the half-precision `dtype` first (see `_conv_only_cats`)."""
+    return op([x.astype(dtype) if x.dtype == mx.float32 else x for x in xs], *a, **kw)
 
 
 @_reg(aten.convolution.default)
@@ -989,7 +1056,7 @@ def _conv(
     return _conv_act(x, w, b, stride, padding, dilation, transposed, output_padding, groups)
 
 
-def _conv_act(  # noqa: PLR0913
+def _conv_act(
     x: mx.array,
     w: mx.array,
     b: mx.array | None,
@@ -1014,7 +1081,7 @@ def _conv_act(  # noqa: PLR0913
     return _conv_core(x, w, b, stride, padding, dilation, transposed, output_padding, groups)  # ty: ignore[invalid-return-type]
 
 
-def _conv_res(  # noqa: PLR0913
+def _conv_res(
     x: mx.array,
     w: mx.array,
     b: mx.array | None,
@@ -1027,6 +1094,7 @@ def _conv_res(  # noqa: PLR0913
     residual: mx.array,
 ) -> mx.array:
     """`_conv` plus `residual`; kernels mode adds it in the Winograd output transform."""
+    x = _conv_input(x, w)
     if _KERNELS:
         xl = _nhwc(x)
         if _wino_ok(xl, w, stride, padding, dilation, groups):
@@ -1036,6 +1104,11 @@ def _conv_res(  # noqa: PLR0913
             m = _wino_tile(xl)
             return _nchw(conv_ops.conv3x3(xl, _wino_weights(w, wl, xl.dtype, m), b, m=m, residual=_nhwc(residual)))
     return _conv(x, w, b, stride, padding, dilation, transposed, output_padding, groups) + residual
+
+
+def _channel_slice(y: mx.array, lo: int, hi: int) -> mx.array:
+    """Output channels `lo:hi` of a merged convolution (a view)."""
+    return y[:, lo:hi]
 
 
 def _shift_pad(x: mx.array, axis: int, lo: int, hi: int) -> mx.array:
@@ -1093,7 +1166,10 @@ def _conv_transpose3d_phases(
     """
     dims = x.shape[1:4]
     k = w.shape[2:]
-    if any((n - 1) * s - 2 * p + kk + op != n * s for n, s, p, kk, op in zip(dims, stride, padding, k, output_padding)):
+    if any(
+        (n - 1) * s - 2 * p + kk + op != n * s
+        for n, s, p, kk, op in zip(dims, stride, padding, k, output_padding, strict=False)
+    ):
         return None
     d = dims[0]
     out_bytes = x.shape[0] * d * stride[0] * dims[1] * stride[1] * dims[2] * stride[2] * w.shape[1] * x.dtype.size
@@ -1144,7 +1220,59 @@ def _conv_transpose3d_phases_whole(x: mx.array, w: mx.array, stride: Sequence[in
     return mx.transpose(y, (3, 4, 0, 5, 1, 6, 2, 7)).reshape(n, d * sd, h * sh, wd * sw, -1)
 
 
-def _conv_core(  # noqa: PLR0913
+def _conv_transpose2d_phases(
+    x: mx.array, w: mx.array, stride: Sequence[int], padding: Sequence[int], output_padding: Sequence[int]
+) -> mx.array | None:
+    """NHWC transposed conv of ONE input channel (`w` `[1, Cout, kh, kw]`) as shifted multiply-adds per output phase.
+
+    None for more input channels or when the output is not `stride` x the input (no phase grid). stride == kernel
+    without padding is a broadcast multiply and a depth-to-space. TEED's single-channel up-sampling, 640 -> 1280
+    float16: k 2 2.7 -> 0.6 ms, k 4 6.5 -> 1.0 ms (`mx.conv_transpose2d`); with 16 channels MLX's own is faster.
+    """
+    n, h, wd, cin = x.shape
+    k = w.shape[2:]
+    dims = (h, wd)
+    if cin != 1 or any(
+        (m - 1) * s - 2 * p + kk + op != m * s
+        for m, s, p, kk, op in zip(dims, stride, padding, k, output_padding, strict=True)
+    ):
+        return None
+    cout = w.shape[1]
+    sh, sw = stride
+    if tuple(stride) == tuple(k) and not any(padding):
+        wm = mx.transpose(w, (0, 2, 3, 1))  # [Cin, kh, kw, Cout]
+        y = x.reshape(n, h, wd, 1, 1, 1) * wm[0]
+        y = mx.transpose(y.reshape(n, h, wd, sh, sw, cout), (0, 1, 3, 2, 4, 5))
+        return y.reshape(n, h * sh, wd * sw, cout)
+    wt = mx.transpose(w, (1, 2, 3, 0))  # [Cout, kh, kw, 1]
+    taps = []  # per dim, per phase: (kernel indices ordered by input offset, lo pad, hi pad)
+    for ax in range(2):
+        s, p, kk = stride[ax], padding[ax], k[ax]
+        per = []
+        for r in range(s):
+            ks = sorted((j for j in range(kk) if (r + p - j) % s == 0), reverse=True)  # increasing input offset
+            per.append((ks, -((r + p - ks[0]) // s), (r + p - ks[-1]) // s) if ks else None)
+        taps.append(per)
+    out = []
+    for rh in range(sh):
+        for rw in range(sw):
+            t = (taps[0][rh], taps[1][rw])
+            if t[0] is None or t[1] is None:
+                out.append(mx.zeros((n, h, wd, cout), x.dtype))
+                continue
+            sub = wt[:, t[0][0]][:, :, t[1][0]]  # [Cout, th, tw, Cin]
+            xp = _shift_pad(_shift_pad(x, 1, t[0][1], t[0][2]), 2, t[1][1], t[1][2])
+            y = None
+            for i in range(sub.shape[1]):
+                for j in range(sub.shape[2]):
+                    term = xp[:, i : i + h, j : j + wd] * sub[:, i, j, 0]
+                    y = term if y is None else y + term
+            out.append(y)
+    y = mx.stack(out).reshape(sh, sw, n, h, wd, cout)
+    return mx.transpose(y, (2, 3, 0, 4, 1, 5)).reshape(n, h * sh, wd * sw, cout)
+
+
+def _conv_core(
     x: mx.array,
     w: mx.array,
     b: mx.array | None,
@@ -1158,6 +1286,7 @@ def _conv_core(  # noqa: PLR0913
     slope: mx.array | None = None,
 ) -> mx.array | None:
     """The convolution; with `act`, `None` unless the Winograd kernel ran (and applied the activation itself)."""
+    x = _conv_input(x, w)
     if act and (
         x.ndim == 3
         or transposed
@@ -1177,6 +1306,18 @@ def _conv_core(  # noqa: PLR0913
                 output_padding=output_padding[0],
                 groups=groups,
             )
+        elif groups > 1 and groups == xl.shape[-1] and stride[0] == 1 and w.shape[2] <= 7:
+            # depthwise (channel multiplier w.shape[0] / groups): shifted multiply-adds that fuse with their neighbours
+            # (TAPIR's PIPs mixer [64, 24, 2048], k = 3, fp32: 1.9 -> 0.8 ms; MLX's grouped conv1d is slow)
+            k, dil, pad = w.shape[2], dilation[0], padding[0]
+            if w.shape[0] != groups:
+                xl = mx.repeat(xl, w.shape[0] // groups, axis=-1)
+            xp = mx.pad(xl, [(0, 0), (pad, pad), (0, 0)]) if pad else xl
+            out = xp.shape[1] - dil * (k - 1)
+            y = None
+            for t in range(k):
+                term = xp[:, t * dil : t * dil + out] * w[:, 0, t]
+                y = term if y is None else y + term
         else:
             y = mx.conv1d(xl, wl, stride=stride[0], padding=padding[0], dilation=dilation[0], groups=groups)
         if b is not None:
@@ -1191,7 +1332,8 @@ def _conv_core(  # noqa: PLR0913
             and not any(output_padding)
             and all(d == 1 for d in dilation)
         ):
-            # stride == kernel (nnU-Net's up-sampling): one matmul and a depth-to-space reshape (`mx.conv_transpose3d` is wrong on large maps)
+            # stride == kernel (nnU-Net's up-sampling): one matmul and a depth-to-space reshape
+            # (`mx.conv_transpose3d` is wrong on large maps)
             n, _, d, h, wd = x.shape
             cin, cout, kd, kh, kw = w.shape
             xl = mx.transpose(x, (0, 2, 3, 4, 1)).reshape(-1, cin)
@@ -1219,12 +1361,23 @@ def _conv_core(  # noqa: PLR0913
             xl3 = mx.transpose(x, (0, 2, 3, 4, 1))
             wl3 = mx.transpose(w, (0, 2, 3, 4, 1))
             kw3 = {"stride": tuple(stride), "padding": tuple(padding), "dilation": tuple(dilation)}
-            if _wino3d_ok(xl3, w, stride, padding, dilation, groups):
+            if groups == 1 and xl3.shape[-1] <= 2 and tuple(stride) == (1, 1, 1) and all(d == 1 for d in dilation):
+                # few input channels (a CT / MRI stem): the depth taps folded into channels, one conv2d over the slices
+                # (1 -> 32 channels, 224^3 float16: 130 -> 26 ms; `mx.conv3d` is slow at Cin 1-2)
+                n, dd, hh, ww, cin = xl3.shape
+                kd, pd = w.shape[2], padding[0]
+                xp = mx.pad(xl3, [(0, 0), (pd, pd), (0, 0), (0, 0), (0, 0)]) if pd else xl3
+                do = dd + 2 * pd - kd + 1
+                xs = mx.concatenate([xp[:, a : a + do] for a in range(kd)], axis=-1).reshape(n * do, hh, ww, kd * cin)
+                w2 = mx.transpose(w, (0, 3, 4, 2, 1)).reshape(w.shape[0], w.shape[3], w.shape[4], kd * cin)
+                y = mx.conv2d(xs, w2, padding=tuple(padding[1:]))
+                y = y.reshape(n, do, *y.shape[1:])
+            elif _wino3d_ok(xl3, w, stride, padding, dilation, groups):
                 from fastforks.kernels.conv_mlx import ops as conv_ops
 
                 y = conv_ops.conv3d(xl3, _wino3d_weights(w, xl3.dtype), b, act=act, slope=slope)
                 return mx.transpose(y, (0, 4, 1, 2, 3))
-            if groups == 1:
+            elif groups == 1:
                 y = mx.conv3d(xl3, wl3, **kw3)
             elif groups == xl3.shape[-1] == w.shape[0] and all(d == 1 for d in dilation):
                 y = _depthwise3d(xl3, w, stride, padding)
@@ -1241,7 +1394,12 @@ def _conv_core(  # noqa: PLR0913
             y = y + b
         return mx.transpose(y, (0, 4, 1, 2, 3))
     xl = _nhwc(x)
-    if transposed:
+    y = None
+    if transposed and groups == 1 and all(d == 1 for d in dilation):
+        y = _conv_transpose2d_phases(xl, w, stride, padding, output_padding)
+    if y is not None:
+        pass
+    elif transposed:
         wt = mx.transpose(w, (1, 2, 3, 0))  # [Cin, Cout/g, kh, kw] -> [Cout/g, kh, kw, Cin]
         y = mx.conv_transpose2d(
             xl,
@@ -1254,6 +1412,26 @@ def _conv_core(  # noqa: PLR0913
         )
     else:
         wl = mx.transpose(w, (0, 2, 3, 1))
+        if (
+            _KERNELS
+            and groups > 1
+            and (groups < xl.shape[3] or xl.shape[3] <= 4)
+            and w.shape[0] % groups == 0
+            and _direct_ok(xl.shape[3], xl.shape[1] * xl.shape[2], (w.shape[0], xl.shape[3], *w.shape[2:]), stride)
+        ):
+            # few input channels in groups (TEED's 3 -> 24, groups 3): one dense direct conv with block-diagonal
+            # weights beats the repeat + depthwise below (1280^2 float16 2.6 -> 1.1 ms)
+            cg, og = xl.shape[3] // groups, w.shape[0] // groups
+            mask = (mx.arange(w.shape[0])[:, None] // og) == (mx.arange(xl.shape[3])[None, :] // cg)
+            wd = mx.where(mask[:, None, None, :], mx.tile(wl, (1, 1, 1, groups)), 0).astype(wl.dtype)
+            from fastforks.kernels.conv_mlx import ops as conv_ops
+
+            return _nchw(conv_ops.direct(xl, wd, b, tuple(stride), tuple(padding), tuple(dilation)))
+        if 1 < groups == xl.shape[3] < w.shape[0] and w.shape[0] % groups == 0:
+            # depthwise with a channel multiplier: repeat the input, then a plain depthwise conv (MLX's grouped conv
+            # is slow there: TEED's 3 -> 24 at 1280^2 8.2 -> 3.8 ms, 48 -> 96 at 320^2 8.1 -> 1.3 ms, float16)
+            xl = mx.repeat(xl, w.shape[0] // groups, axis=-1)
+            groups = w.shape[0]
         if (
             _KERNELS
             and not act
@@ -1270,6 +1448,12 @@ def _conv_core(  # noqa: PLR0913
                     xl, mx.transpose(w[:, 0], (1, 2, 0)), bias, tuple(stride), tuple(padding), tuple(dilation)
                 )
             )
+        if _KERNELS and groups == 1 and _direct_ok(xl.shape[3], xl.shape[1] * xl.shape[2], w.shape, stride):
+            from fastforks.kernels.conv_mlx import ops as conv_ops
+
+            return _nchw(
+                conv_ops.direct(xl, wl, b, tuple(stride), tuple(padding), tuple(dilation), act=act, slope=slope)
+            )
         if _KERNELS and _wino_ok(xl, w, stride, padding, dilation, groups):
             from fastforks.kernels.conv_mlx import ops as conv_ops
 
@@ -1277,10 +1461,42 @@ def _conv_core(  # noqa: PLR0913
             return _nchw(conv_ops.conv3x3(xl, _wino_weights(w, wl, xl.dtype, m), b, m=m, act=act, slope=slope))
         if act:
             return None
-        y = mx.conv2d(xl, wl, stride=tuple(stride), padding=tuple(padding), dilation=tuple(dilation), groups=groups)
+        y = _conv2d(xl, wl, tuple(stride), tuple(padding), tuple(dilation), groups)
     if b is not None:
         y = y + b
     return _nchw(y)
+
+
+MERGE_OFF = bool(os.environ.get("FF_MLX_NO_MERGE"))  # sibling convolutions (same input and geometry) stay separate
+ALIGN_OFF = bool(os.environ.get("FF_MLX_NO_ALIGN"))  # `mx.conv2d` with ragged channel counts as they are
+
+
+def _conv2d(
+    xl: mx.array,
+    wl: mx.array,
+    stride: tuple[int, ...],
+    padding: tuple[int, ...],
+    dilation: tuple[int, ...],
+    groups: int,
+) -> mx.array:
+    """`mx.conv2d` with ragged channel counts padded to the widths its GEMM tiles take (zero weights, output sliced).
+
+    MLX's implicit GEMM is much slower on output channels that are not a multiple of 16 and on wide inputs that are not
+    a multiple of 32 (M1 Pro, float16, 256x376: 128 -> 126 3x3 11.3 -> 5.0 ms padded to 128; 1x1 1.7 -> 1.2 ms;
+    130 -> 128 9.3 -> 6.4 ms with the input padded to 160; 258 -> 128 17.3 -> 10.1 ms). RAFT-style motion encoders
+    (`128 - 2`), GRU inputs (`128 + 2 + ...`) and correlation features hit both.
+    """
+    cout, cin = wl.shape[0], wl.shape[3]
+    if ALIGN_OFF:
+        return mx.conv2d(xl, wl, stride=stride, padding=padding, dilation=dilation, groups=groups)
+    pad_out = (-cout) % 16 if groups == 1 and cout >= 16 else 0
+    pad_in = (-cin) % 32 if groups == 1 and cin >= 64 and stride == (1, 1) and wl.shape[1] * wl.shape[2] > 1 else 0
+    if pad_out or pad_in:
+        wl = mx.pad(wl, [(0, pad_out), (0, 0), (0, 0), (0, pad_in)])
+    if pad_in:
+        xl = mx.pad(xl, [(0, 0), (0, 0), (0, 0), (0, pad_in)])
+    y = mx.conv2d(xl, wl, stride=stride, padding=padding, dilation=dilation, groups=groups)
+    return y[..., :cout] if pad_out else y
 
 
 def _pool_windows(
@@ -1331,6 +1547,28 @@ def _max_pool(
     return _pool_windows(x, k, s, pad, -float("inf"), ceil=ceil).max(axis=(-2, -1)), None
 
 
+def _window_sum(x: mx.array, k: Sequence[int], s: Sequence[int], pad: Sequence[int]) -> mx.array:
+    """Float32 window sums of NCHW `x` (floor mode) as k strided-slice adds per axis.
+
+    The 6-D `as_strided` window view reduced over its last two axes ran 4 ms for a 3x3 / stride-2 pool of
+    `[1, 128, 256, 376]` on an M1 Pro (RAFT-Stereo's `pool2x`, 32 per call); two separable passes of slice adds are
+    a few contiguous elementwise kernels.
+    """
+    y = x.astype(mx.float32)
+    if any(pad):
+        y = mx.pad(y, [(0, 0), (0, 0), (pad[0], pad[0]), (pad[1], pad[1])])
+    for axis, (kk, ss) in enumerate(zip(k, s, strict=True), start=2):
+        n_out = (y.shape[axis] - kk) // ss + 1
+        idx = [slice(None)] * 4
+        acc = None
+        for i in range(kk):
+            idx[axis] = slice(i, i + ss * (n_out - 1) + 1, ss)
+            part = y[tuple(idx)]
+            acc = part if acc is None else acc + part
+        y = acc
+    return y
+
+
 @_reg(aten.avg_pool2d.default)
 def _avg_pool(
     x: mx.array,
@@ -1342,7 +1580,10 @@ def _avg_pool(
     divisor: int | None = None,
 ) -> mx.array:
     s = s or k
-    win = _pool_windows(x, k, s, pad, 0.0, ceil=ceil).astype(mx.float32).sum(axis=(-2, -1))
+    if ceil or x.ndim != 4:
+        win = _pool_windows(x, k, s, pad, 0.0, ceil=ceil).astype(mx.float32).sum(axis=(-2, -1))
+    else:
+        win = _window_sum(x, k, s, pad)
     if divisor is not None:
         win = win / divisor
     elif (any(pad) and not count_include_pad) or ceil:  # windows clipped to the input (and to the padding, if counted)
@@ -1360,8 +1601,8 @@ def _avg_pool3d(
     k: Sequence[int],
     s: Sequence[int] = (),
     pad: Sequence[int] = (0, 0, 0),
-    ceil: bool = False,  # noqa: FBT001, FBT002
-    count_include_pad: bool = True,  # noqa: FBT001, FBT002
+    ceil: bool = False,
+    count_include_pad: bool = True,
     divisor: int | None = None,
 ) -> mx.array:
     """Unpadded 3-D average pooling in float32: windows equal to the stride, or stride 1 (a sliding mean per axis)."""
@@ -1417,7 +1658,7 @@ def _adaptive_avg_pool(x: mx.array, size: Sequence[int]) -> mx.array:
 
 @_reg(aten.adaptive_max_pool2d.default)
 def _adaptive_max_pool(x: mx.array, size: Sequence[int]) -> tuple[mx.array, mx.array]:
-    n, c, h, w = x.shape
+    _, _, h, w = x.shape
     oh, ow = size
     rows = []
     for i in range(oh):
@@ -1436,10 +1677,49 @@ def _pad(x: mx.array, pad: Sequence[int], value: float = 0.0) -> mx.array:
     return mx.pad(x, widths, constant_values=value)
 
 
-@_reg(aten.reflection_pad2d.default, aten.replication_pad2d.default)
-def _pad_edge(x: mx.array, pad: Sequence[int]) -> mx.array:
-    msg = "reflection / replication padding"
-    raise UnsupportedOp(msg)
+_EDGE_PADS = (
+    aten.reflection_pad1d.default,
+    aten.reflection_pad2d.default,
+    aten.reflection_pad3d.default,
+    aten.replication_pad1d.default,
+    aten.replication_pad2d.default,
+    aten.replication_pad3d.default,
+)
+"""Kept from the export's decomposition: core ATen makes them index gathers (UniK3D's reflect-padded decoder convs,
+[1, 64, 646, 952] float32: ~20 ms a gather, slices and a concatenation are memory-bound)."""
+
+
+def _edge_pad(x: mx.array, pad: Sequence[int], *, reflect: bool) -> mx.array:
+    """Reflection / replication padding of the trailing dims (`pad` in `F.pad` order) by slices and concatenations."""
+    for i in range(len(pad) // 2):
+        ax, lo, hi = x.ndim - 1 - i, pad[2 * i], pad[2 * i + 1]
+        n = x.shape[ax]
+        parts = []
+        if lo > 0:
+            idx = [slice(None)] * x.ndim
+            idx[ax] = slice(lo, 0, -1) if reflect else slice(0, 1)
+            part = x[tuple(idx)]
+            parts.append(part if reflect else mx.repeat(part, lo, axis=ax))
+        parts.append(x)
+        if hi > 0:
+            idx = [slice(None)] * x.ndim
+            idx[ax] = slice(n - 2, (n - 2 - hi) if n - 2 - hi >= 0 else None, -1) if reflect else slice(n - 1, n)
+            part = x[tuple(idx)]
+            parts.append(part if reflect else mx.repeat(part, hi, axis=ax))
+        x = mx.concatenate(parts, axis=ax) if len(parts) > 1 else x
+    return x
+
+
+def _reflect_pad(x: mx.array, pad: Sequence[int]) -> mx.array:
+    return _edge_pad(x, pad, reflect=True)
+
+
+def _replicate_pad(x: mx.array, pad: Sequence[int]) -> mx.array:
+    return _edge_pad(x, pad, reflect=False)
+
+
+for _op in _EDGE_PADS:
+    OPS[_op] = _reflect_pad if "reflection" in str(_op) else _replicate_pad
 
 
 def _src_index(out: int, inp: int, align: bool, scale: float | None) -> mx.array:
@@ -1451,7 +1731,7 @@ def _src_index(out: int, inp: int, align: bool, scale: float | None) -> mx.array
 
 
 @_reg(aten.upsample_bilinear2d.default, aten.upsample_bilinear2d.vec)
-def _bilinear(x: mx.array, size: Sequence[int] | None, align: bool, *scales: Any) -> mx.array:  # noqa: ANN401, FBT001
+def _bilinear(x: mx.array, size: Sequence[int] | None, align: bool, *scales: Any) -> mx.array:
     h, w = x.shape[2:]
     sh = sw = None
     if size is None:
@@ -1488,7 +1768,7 @@ def _bilinear(x: mx.array, size: Sequence[int] | None, align: bool, *scales: Any
 
 
 @_reg(aten.upsample_trilinear3d.vec)
-def _trilinear(x: mx.array, size: Sequence[int] | None, align: bool, scales: Sequence[float] | None = None) -> mx.array:  # noqa: FBT001
+def _trilinear(x: mx.array, size: Sequence[int] | None, align: bool, scales: Sequence[float] | None = None) -> mx.array:
     from fastforks.kernels.graph_mlx.ops import trilinear
 
     shape = x.shape[2:]
@@ -1539,7 +1819,7 @@ def _bicubic_aa(x: mx.array, size: Sequence[int] | None, align: bool, *scales: A
 
 def _resize_aa(
     x: mx.array, size: Sequence[int] | None, align: bool, scales: tuple[Any, ...], *, cubic: bool
-) -> mx.array:  # noqa: FBT001
+) -> mx.array:
     h, w = x.shape[2:]
     sh = sw = None
     if size is None:
@@ -1586,6 +1866,7 @@ def _nearest(x: mx.array, size: Sequence[int] | None, *scales: Any) -> mx.array:
 # channels-last view of them would only move the strided access.)
 CL_OPS: dict[Any, Callable[..., Any]] = {}
 CL_OPS[torch.ops.fastforks.run_dtype.default] = _run_dtype  # a cast keeps the layout
+CL_OPS[torch.ops.fastforks.float32.default] = _float32
 _CL_ND = (3, 4, 5)
 
 
@@ -1616,7 +1897,7 @@ def _channels_last(f: Callable[..., Any]) -> Callable[..., Any]:
     """
 
     @functools.wraps(f)
-    def g(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+    def g(*args: Any, **kwargs: Any) -> Any:
         arrs = [a for a in args if isinstance(a, mx.array) and a.ndim]
         if (
             not arrs
@@ -1661,9 +1942,9 @@ def _cat_cl(xs: Sequence[mx.array], d: int = 0) -> mx.array:
 
 
 @_reg_cl(aten.upsample_nearest2d.default, aten.upsample_nearest2d.vec)
-def _nearest_cl(x: mx.array, size: Sequence[int] | None, *scales: Any) -> mx.array:  # noqa: ANN401
+def _nearest_cl(x: mx.array, size: Sequence[int] | None, *scales: Any) -> mx.array:
     """`_nearest` on the channels-last view (4-D): an integer factor is a broadcast copy, anything else a gather."""
-    if x.ndim != 4:  # noqa: PLR2004
+    if x.ndim != 4:
         return _nearest(x, size, *scales)
     h, w = x.shape[2:]
     if size is None:
@@ -1692,6 +1973,34 @@ def _pad_cl(x: mx.array, pad: Sequence[int], value: float = 0.0) -> mx.array:
     return _uncl(_pad(_cl(x), (0, 0, *pad), value))
 
 
+@_reg_cl(aten.var_mean.correction)
+def _var_mean_cl(
+    x: mx.array, d: Sequence[int] | None = None, correction: float = 1, keepdim: bool = False
+) -> tuple[mx.array, mx.array]:
+    """`_var_mean` over the spatial axes of a channels-last view (an instance norm's statistics).
+
+    A column reduction of the `[N, voxels, C]` rows the convolution wrote instead of a strided one in NCHW order
+    (32 x 224^3 float16: 78 -> 44 ms); kernels mode: the one-pass `channel_stats` kernel (9 ms).
+    """
+    nd = x.ndim
+    if nd not in _CL_ND or not d or sorted(a % nd for a in d) != list(range(2, nd)):
+        return _var_mean(x, d, correction, keepdim)
+    n, c = x.shape[:2]
+    flat = _cl(x).reshape(n, -1, c)
+    rows, ddof = flat.shape[1], int(correction or 0)
+    if _KERNELS and rows >= 4096:
+        from fastforks.kernels.graph_mlx import ops
+
+        stats = [ops.channel_stats(flat[i]) for i in range(n)]
+        mean = mx.stack([s[0] for s in stats])
+        var = mx.stack([s[1] for s in stats]) * (rows / max(rows - ddof, 1))
+    else:
+        y = flat.astype(mx.float32)
+        mean, var = mx.mean(y, axis=1), mx.var(y, axis=1, ddof=ddof)
+    shape = (n, c, *(1,) * (nd - 2)) if keepdim else (n, c)
+    return var.astype(x.dtype).reshape(shape), mean.astype(x.dtype).reshape(shape)
+
+
 # ops that return a view of their (first) argument: a channels-last view stays one
 _CL_VIEWS = (aten.slice.Tensor, aten.alias.default, aten.detach.default, aten.clone.default, aten.contiguous.default)
 
@@ -1710,14 +2019,18 @@ def _channels_last_values(nodes: list[Any], skips: dict[str, str]) -> set[str]:
                 tagged.add(node.name)
             continue
         val = node.meta.get("val")
+        srcs = list(_refs(node.args))
+        if node.target is aten.var_mean.correction:  # statistics of a channels-last map: tagged, its outputs are not
+            if srcs and srcs[0] in tagged:
+                tagged.add(node.name)
+            continue
         if not isinstance(val, torch.Tensor) or val.ndim not in _CL_ND:
             continue
-        srcs = list(_refs(node.args))
-        if node.target is aten.convolution.default:
-            tagged.add(node.name)
-        elif node.target in CL_OPS and any(r in tagged for r in srcs):
-            tagged.add(node.name)
-        elif node.target in _CL_VIEWS and srcs and srcs[0] in tagged:
+        if (
+            node.target is aten.convolution.default
+            or (node.target in CL_OPS and any(r in tagged for r in srcs))
+            or (node.target in _CL_VIEWS and srcs and srcs[0] in tagged)
+        ):
             tagged.add(node.name)
     return tagged
 
@@ -1729,7 +2042,7 @@ _MADV_FREE_REUSABLE = 7  # macOS: the pages leave the footprint at once (the all
 
 def _exclusive(storage: torch.UntypedStorage) -> bool:
     """No tensor but one shares this storage (its use count: that tensor and this wrapper)."""
-    return torch._C._storage_Use_Count(storage._cdata) == 2  # noqa: SLF001, PLR2004
+    return torch._C._storage_Use_Count(storage._cdata) == 2
 
 
 def _hand_back(storage: torch.UntypedStorage) -> None:
@@ -1788,7 +2101,7 @@ _CONSUMED = "\0consumed"  # key of the set of twin tensor names whose values liv
 _TUNE_MEMO = "\0tune"
 
 
-def _op_name(f: Any) -> str:  # noqa: ANN401 - a plan step's callable
+def _op_name(f: Any) -> str:
     """A plan step's operation by name (a `functools.partial` by its function's)."""
     f = getattr(f, "func", f)
     return getattr(f, "__qualname__", None) or type(f).__qualname__
@@ -1800,11 +2113,14 @@ def _tensor_dtype(dtype: mx.Dtype, t: torch.Tensor) -> mx.Dtype | None:
 
 TUNE_LOG = bool(os.environ.get("FF_MLX_TUNE_LOG"))  # print each tuning trial (segment, times, peaks, decision)
 PROFILE: dict[tuple[str, str], list[float]] | None = {} if os.environ.get("FF_MLX_PROFILE") else None
+# `FF_MLX_COLD_LOG=1`: where a first call's time goes (export, translation, each segment's first against its fifth
+# call by kind: eager, compiled, tuned, memo), printed after the fifth call of each input signature
+COLD_LOG = bool(os.environ.get("FF_MLX_COLD_LOG"))
 
 
 def _profiled(
     env: dict[str, Any], name: str, f: Callable[..., Any], args: Any, kwargs: Any, get: Callable[..., Any]
-) -> None:  # noqa: ANN401
+) -> None:
     """Profiling (`FF_MLX_PROFILE=1`): one op evaluated on its own; time and call count per op and output shape."""
     a = [get(env, x) for x in args]
     kw = {k: get(env, v) for k, v in kwargs.items()}
@@ -1820,6 +2136,42 @@ def _profiled(
     rec = PROFILE.setdefault((getattr(f, "__name__", str(f)), f"{ins}->{shape}"), [0.0, 0])  # type: ignore[union-attr]
     rec[0] += dt
     rec[1] += 1
+
+
+@contextlib.contextmanager
+def _no_op_regions() -> Iterator[None]:
+    """While exporting: autocast and grad-mode regions that change nothing are not recorded.
+
+    `torch.export` records every `torch.autocast` and `torch.no_grad` region of the forward and then splits the graph at
+    each one, regenerating the Python code of the whole graph per split (quadratic: IGEV's 65 autocast regions over 8k
+    nodes are 10 to 20 s of a 29 s export). A region that leaves the state as it was (an autocast that is or turns off,
+    for a device whose autocast is already off, such as a CUDA autocast on a Mac; `no_grad` under `no_grad`) has no
+    effect on the traced ops, so it is skipped. A region that changes the state is recorded as before.
+    """
+    autocast = torch.amp.autocast_mode.autocast
+    enter, exit_ = autocast.__enter__, autocast.__exit__
+    set_grad = torch._C._set_grad_enabled
+
+    def lean_enter(self: Any) -> Any:
+        skip = not getattr(self, "_enabled", True) and not torch.is_autocast_enabled(self.device)
+        self.__dict__.setdefault("_ff_skipped", []).append(skip)
+        return self if skip else enter(self)
+
+    def lean_exit(self: Any, *exc: object) -> Any:
+        skipped = self.__dict__.get("_ff_skipped")
+        return False if skipped and skipped.pop() else exit_(self, *exc)
+
+    def lean_set_grad(mode: bool) -> None:
+        if bool(mode) != torch.is_grad_enabled():
+            set_grad(mode)
+
+    autocast.__enter__, autocast.__exit__ = lean_enter, lean_exit  # type: ignore[method-assign]
+    torch._C._set_grad_enabled = lean_set_grad
+    try:
+        yield
+    finally:
+        autocast.__enter__, autocast.__exit__ = enter, exit_  # type: ignore[method-assign]
+        torch._C._set_grad_enabled = set_grad
 
 
 class GraphNet:
@@ -1877,6 +2229,7 @@ class GraphNet:
         self.plan: Any = None
         self.plan_extra: Callable[[], Any] | None = None
         self.plan_restore: Callable[[Any], None] | None = None
+        self._cold: dict[str, Any] = {}  # `COLD_LOG`: the current build's phase times
 
     def _const(self, name: str, t: torch.Tensor, *, share: bool = True) -> mx.array:
         if not share:  # a lifted constant (a grid built in the forward): "lifted_tensor_0" differs per export
@@ -1896,20 +2249,31 @@ class GraphNet:
 
     def _build(self, args: tuple[torch.Tensor, ...]) -> Callable[..., Any]:
         token = EXPORTING_FOR_MLX.set(True)
+        t0 = time.perf_counter()
         try:
             return self._build_graph(args)
         finally:
             EXPORTING_FOR_MLX.reset(token)
+            if COLD_LOG:
+                self._cold["build"] = time.perf_counter() - t0
 
-    def _export(self, args: tuple[torch.Tensor, ...]) -> Any:  # noqa: ANN401 - an ExportedProgram
+    def _export(self, args: tuple[torch.Tensor, ...]) -> Any:
         """The module exported at `args` and decomposed to core ATen: from the plan cache when it has the entry."""
+        t0 = time.perf_counter()
+        try:
+            return self._export_program(args)
+        finally:
+            if COLD_LOG:
+                self._cold["export"] = time.perf_counter() - t0
+
+    def _export_program(self, args: tuple[torch.Tensor, ...]) -> Any:
         if self.plan is not None and (got := self.plan.load_program(self.module)) is not None:
             ep, extra = got
             if self.plan_restore is not None:
                 self.plan_restore(extra)
             return ep
         filled = False
-        with torch.no_grad():
+        with torch.no_grad(), _no_op_regions():
             try:
                 ep = torch.export.export(self.module, args, strict=False)
             except (RuntimeError, ValueError, AssertionError, UserWarning):
@@ -1924,9 +2288,13 @@ class GraphNet:
                 aten.upsample_bilinear2d.vec,
                 aten.upsample_trilinear3d.vec,
                 aten.linalg_vector_norm.default,
+                *_EDGE_PADS,
             ):
                 decomp.pop(keep, None)
+            t0 = time.perf_counter()
             ep = ep.run_decompositions(decomp)
+            if COLD_LOG:
+                self._cold["decomp"] = time.perf_counter() - t0
         if self.plan is not None and not filled:  # a loaded program could not fill the lazy buffers: not cached
             self.plan.save_program(ep, self.module, self.plan_extra() if self.plan_extra is not None else None)
         return ep
@@ -1951,6 +2319,12 @@ class GraphNet:
         cl_values = (
             set() if os.environ.get("FF_MLX_NO_CL") else _channels_last_values(nodes, {**folds.skip, **fused.skip})
         )
+        merged = (
+            {}
+            if MERGE_OFF
+            else self._merge_siblings(nodes, names, lifted, values, {*folds.args, *fused.conv, *fused.res})
+        )
+        half_cats = _conv_only_cats(nodes) if self.dtype in (mx.float16, mx.bfloat16) and not KEEP_F32_CONV else set()
         for node in nodes:
             if node.op == "placeholder":
                 tgt = names.get(node.name)
@@ -1964,6 +2338,14 @@ class GraphNet:
                     continue
                 if node.name in fused.skip:
                     plan.append(("alias", node.name, fused.skip[node.name]))
+                    continue
+                if node.name in merged:
+                    lead, lo, hi, wk, bk = merged[node.name]
+                    if wk is not None:  # the first sibling runs the merged convolution
+                        a = node.args
+                        args = (a[0], _Name(wk), _Name(bk) if bk else None, *a[3:])
+                        plan.append(("call", lead, _conv, _plain(args), {}))
+                    plan.append(("call", node.name, _channel_slice, (_Name(lead), lo, hi), {}))
                     continue
                 if node.name in fused.res:
                     wk, bk, rname = fused.res[node.name]
@@ -1980,6 +2362,8 @@ class GraphNet:
                 op = CL_OPS[node.target] if node.name in cl_values and node.target in CL_OPS else self._op(node.target)
                 if op is _run_dtype:
                     op = functools.partial(mx.astype, dtype=self.dtype)
+                elif node.name in half_cats:
+                    op = functools.partial(_cat_in, op, self.dtype)
                 plan.append(("call", node.name, op, _plain(args), _plain(dict(node.kwargs))))
             elif node.op == "output":
                 plan.append(("output", _plain(node.args[0])))
@@ -1990,6 +2374,8 @@ class GraphNet:
             for node in nodes
             if node.op == "call_function" and isinstance(v := node.meta.get("val"), torch.Tensor)
         }
+        for name, (lead, *_) in merged.items():  # a merged convolution's output: its siblings' together
+            self._sizes[lead] = self._sizes.get(lead, 0) + self._sizes.get(name, 0)
         self.max_act = max(self._sizes.values(), default=0)
         self.weight_bytes = sum(t.numel() for t in lifted.values() if isinstance(t, torch.Tensor)) * self._itemsize
         values.update(folds.values)
@@ -1999,7 +2385,7 @@ class GraphNet:
             if node_name in used:
                 values[node_name] = self._const(tgt, lifted[tgt], share=tgt in state)
         if not os.environ.get("FF_MLX_NO_BAND"):
-            from fastforks.shared.mlx_band import band_tail  # noqa: PLC0415
+            from fastforks.shared.mlx_band import band_tail
 
             plan = band_tail(nodes, plan, values, cl_values, self._itemsize)
         del ep, graph, sig, lifted, nodes
@@ -2016,27 +2402,79 @@ class GraphNet:
             msg = f"no MLX mapping for {target}"
             raise UnsupportedOp(msg) from None
 
+    def _merge_siblings(
+        self,
+        nodes: list[Any],
+        names: dict[str, Any],
+        lifted: dict[str, torch.Tensor],
+        values: dict[str, Any],
+        exclude: set[str],
+    ) -> dict[str, tuple[str, int, int, str | None, str | None]]:
+        """Convolutions that read the same value with the same geometry, merged into one along the output channels.
+
+        A GRU's update and reset gates (`convz(hx)`, `convr(hx)`) and twin heads become one wider convolution whose
+        output the siblings slice: the input is read (and, for Winograd, transformed) once and the GEMM is wider.
+        Returns conv name -> (merged value, first channel, end channel, merged weight key, bias key); the keys are set
+        on the first sibling only.
+        """
+        groups: dict[tuple[Any, ...], list[Any]] = {}
+        for conv in nodes:
+            if conv.op != "call_function" or conv.target is not aten.convolution.default or conv.name in exclude:
+                continue
+            a = conv.args
+            wv = a[1].meta.get("val") if hasattr(a[1], "meta") else None
+            if a[6] or a[8] != 1 or wv is None or wv.ndim != 4 or names.get(a[1].name) is None:
+                continue
+            if a[2] is not None and names.get(a[2].name) is None:
+                continue
+            key = (a[0].name, tuple(wv.shape[1:]), tuple(a[3]), tuple(a[4]), tuple(a[5]), a[2] is None)
+            groups.setdefault(key, []).append(conv)
+        out: dict[str, tuple[str, int, int, str | None, str | None]] = {}
+        for convs in groups.values():
+            if len(convs) < 2:
+                continue
+            wnames = [names[c.args[1].name] for c in convs]
+            bnames = [names[c.args[2].name] for c in convs] if convs[0].args[2] is not None else []
+            lead = f"{convs[0].name}__merged"
+            wk = "\0".join(wnames) + "\0merged"
+            bk = "\0".join(bnames) + "\0merged" if bnames else None
+            if wk not in self._consts:
+                self._consts[wk] = self._const(f"{wk}\0w", torch.cat([lifted[n] for n in wnames]), share=False)
+            values[wk] = self._consts[wk]
+            if bk is not None:
+                if bk not in self._consts:
+                    self._consts[bk] = self._const(f"{bk}\0b", torch.cat([lifted[n] for n in bnames]), share=False)
+                values[bk] = self._consts[bk]
+            self._consumed.update((*wnames, *bnames))
+            lo = 0
+            for i, c in enumerate(convs):
+                hi = lo + int(c.args[1].meta["val"].shape[0])
+                out[c.name] = (lead, lo, hi, wk if i == 0 else None, bk if i == 0 else None)
+                lo = hi
+        return out
+
     def _fuse_activations(
         self, nodes: list[Any], names: dict[str, Any], lifted: dict[str, torch.Tensor], values: dict[str, Any]
     ) -> Any:
-        """Kernels mode: a 3x3 convolution whose only consumer is ReLU / PReLU (decomposed to gt, mul, where) applies it."""
+        """Kernels mode: a 3x3 convolution whose only consumer is ReLU / PReLU (gt, mul, where) applies it."""
         res = type("Fused", (), {"skip": {}, "conv": {}, "res": {}})()
         for conv in nodes:
             if conv.op != "call_function" or conv.target is not aten.convolution.default:
                 continue
             wv = conv.args[1].meta.get("val")
-            if (
-                conv.args[6]  # transposed
-                or conv.args[8] != 1
-                or wv is None
-                or tuple(wv.shape[2:]) != (3, 3)
-                or list(conv.args[3]) != [1, 1]
-                or list(conv.args[4]) != [1, 1]
-                or list(conv.args[5]) != [1, 1]
-            ):
+            xv = conv.args[0].meta.get("val")
+            if conv.args[6] or conv.args[8] != 1 or wv is None or xv is None or wv.ndim != 4:
+                continue
+            wino = (
+                tuple(wv.shape[2:]) == (3, 3)
+                and list(conv.args[3]) == [1, 1]
+                and list(conv.args[4]) == [1, 1]
+                and list(conv.args[5]) == [1, 1]
+            )
+            if not wino and not _direct_ok(xv.shape[1], xv.shape[2] * xv.shape[3], wv.shape, conv.args[3]):
                 continue
             users = list(conv.users)
-            if self._fuse_residual(conv, users, nodes, names, lifted, values, res):
+            if wino and self._fuse_residual(conv, users, nodes, names, lifted, values, res):
                 continue
             if len(users) == 1 and users[0].target is aten.relu.default:
                 res.conv[conv.name] = (1, None)
@@ -2047,7 +2485,7 @@ class GraphNet:
                 values[key] = mx.full((wv.shape[0],), float(slope), dtype=mx.float32)
                 res.conv[conv.name] = (2, key)
                 res.skip[users[0].name] = conv.name
-            elif len(users) == 3 and {u.target for u in users} == {  # noqa: PLR2004
+            elif len(users) == 3 and {u.target for u in users} == {
                 aten.gt.Scalar,
                 aten.mul.Tensor,
                 aten.where.self,
@@ -2072,15 +2510,15 @@ class GraphNet:
                 res.skip.update({gt.name: conv.name, mul.name: conv.name, where.name: conv.name})
         return res
 
-    def _fuse_residual(  # noqa: PLR0913
+    def _fuse_residual(
         self,
-        conv: Any,  # noqa: ANN401
+        conv: Any,
         users: list[Any],
         nodes: list[Any],
         names: dict[str, Any],
         lifted: dict[str, torch.Tensor],
         values: dict[str, Any],
-        res: Any,  # noqa: ANN401
+        res: Any,
     ) -> bool:
         """`conv * c + r` (a residual-block tail): the scale folds into the weights and bias, `r` into the epilogue."""
         if len(users) != 1 or users[0].target is not aten.mul.Tensor or users[0].args[0] is not conv:
@@ -2090,7 +2528,7 @@ class GraphNet:
         if not isinstance(scale, (int, float)) or len(mul.users) != 1:
             return False
         (add,) = mul.users
-        if add.target is not aten.add.Tensor or add.kwargs or len(add.args) != 2:  # noqa: PLR2004
+        if add.target is not aten.add.Tensor or add.kwargs or len(add.args) != 2:
             return False
         other = add.args[1] if add.args[0] is mul else add.args[0]
         if (
@@ -2105,7 +2543,8 @@ class GraphNet:
         if wname is None or (conv.args[2] is not None and bname is None):
             return False
         wk, bk = f"{conv.name}__w", f"{conv.name}__b"
-        key = f"{wname}\0{bname}\0{scale}\0scaled"  # by parameter names: another input shape reuses it, the twin may be gone
+        # by parameter names: another input shape reuses it, the twin may be gone
+        key = f"{wname}\0{bname}\0{scale}\0scaled"
         if key not in self._consts:
             w2 = to_mx((lifted[wname].double() * scale).float()).astype(self.dtype)
             b2 = to_mx((lifted[bname].double() * scale).float()).astype(self.dtype) if bname is not None else None
@@ -2208,23 +2647,23 @@ class GraphNet:
         if PROFILE is not None:
             compiled = False
 
-        def get(env: dict[str, Any], a: Any) -> Any:  # noqa: ANN401
+        def get(env: dict[str, Any], a: Any) -> Any:
             if isinstance(a, _Name) or (hasattr(a, "name") and hasattr(a, "op")):
                 return env[a.name]
             if isinstance(a, (list, tuple)):
                 return type(a)(get(env, x) for x in a)
             return a
 
-        bounds = [(a, b) for a, b in zip(cuts, cuts[1:], strict=False) if b > a]
+        bounds = [(a, b) for a, b in itertools.pairwise(cuts) if b > a]
         # the tuning decisions of an earlier process (plan cache): compiled (True) / eager (False) per segment
         tune_sig = (len(bounds), compiled, seg_max, self.pipeline)
         known = self.plan.load_tune(tune_sig) if self.plan is not None else None
         known = known if known is not None and len(known) == len(bounds) else [None] * len(bounds)
         decided: list[bool | None] = list(known)
+        kinds = ["eager"] * len(bounds)  # `COLD_LOG`: how each segment's first call ran
+        cold_runs: list[list[float]] = []
 
-        def make(  # noqa: C901
-            k: int, seg: list[tuple[int, tuple[Any, ...]]]
-        ) -> tuple[list[str], list[str], Callable[..., Any]]:
+        def make(k: int, seg: list[tuple[int, tuple[Any, ...]]]) -> tuple[list[str], list[str], Callable[..., Any]]:
             final = seg[-1][0]
             seg_defs = {p[1] for _, p in seg}
             ins = sorted({n for i, _ in seg for n in uses[i]} - seg_defs - values.keys())
@@ -2260,6 +2699,7 @@ class GraphNet:
             ):
                 return ins, outs, fn
             jit = mx.compile(fn)
+            kinds[k] = "compiled"
             use: list[Callable[..., Any]] = [jit]
             seg_big = max((self._sizes.get(p[1], 0) for _, p in seg), default=0)
             tune = [seg_big > TUNE_MIN_MB << 20 and not os.environ.get("FF_MLX_NO_TUNE")]
@@ -2270,6 +2710,7 @@ class GraphNet:
             if known[k] is not None:  # decided by an earlier process (plan cache): no trials
                 use[0] = jit if known[k] else fn
                 tune[0] = False
+                kinds[k] = "known"
 
             def timed(g: Callable[..., Any], xs: tuple[mx.array, ...]) -> tuple[float, int, Any]:
                 """Seconds and peak bytes of the second call of `g` (the first warms kernels and traces)."""
@@ -2281,11 +2722,63 @@ class GraphNet:
                 mx.eval(res)
                 return time.perf_counter() - t0, mx.get_peak_memory(), res
 
+            # the trial spread over the segment's first four calls: compiled, eager (both warm their kernels), then
+            # compiled and eager timed; no call replays the segment, so the first call pays no trial
+            spread: list[Any] | None = None if os.environ.get("FF_MLX_TUNE_FIRST") else []
+
+            def decide(te: float, me: int, tc: float, mc: int) -> None:
+                if tc > te * TUNE_SLACK or mc > me * 1.25 + (64 << 20):
+                    use[0] = fn
+                decided[k] = use[0] is jit
+                self._tune_memo.setdefault(shape_key, decided[k])
+                kinds[k] = "tuned-" + ("compiled" if decided[k] else "eager")
+                if TUNE_LOG:
+                    print(  # noqa: T201 - FF_MLX_TUNE_LOG=1: the tuning pass's trials
+                        f"mlx tune: segment {k} ({len(seg)} ops, {seg_big >> 20} MB) eager {1e3 * te:.1f} ms"
+                        f" {me >> 20} MB, compiled {1e3 * tc:.1f} ms {mc >> 20} MB"
+                        f" -> {'compiled' if decided[k] else 'eager'}",
+                        flush=True,
+                    )
+
+            def step(xs: tuple[mx.array, ...]) -> tuple[mx.array, ...]:
+                """One call of the spread trial (`spread` holds the timings so far)."""
+                n = len(spread)
+                g = jit if n % 2 == 0 else fn
+                if n < 2:
+                    spread.append(None)
+                    res = g(*xs)
+                    if n == 0:
+                        kinds[k] = "trial"
+                    return res
+                mx.eval(xs)  # a pipelined segment before this one has finished
+                mx.synchronize()
+                mx.reset_peak_memory()
+                t0 = time.perf_counter()
+                res = g(*xs)
+                mx.eval(res)
+                spread.append((time.perf_counter() - t0, mx.get_peak_memory()))
+                if n == 3:
+                    tune[0] = False
+                    (tc, mc), (te, me) = spread[2], spread[3]
+                    decide(te, me, tc, mc)
+                return res
+
             def guarded(*xs: mx.array) -> tuple[mx.array, ...]:
                 if tune[0] and (memo := self._tune_memo.get(shape_key)) is not None:
                     tune[0] = False  # an earlier trial of the same structure decided (recorded with the plan)
                     use[0] = jit if memo else fn
                     decided[k] = memo
+                    kinds[k] = "memo-" + ("compiled" if memo else "eager")
+                if tune[0] and spread is not None:
+                    try:
+                        return step(xs)
+                    except ValueError as err:
+                        if "uncaptured" not in str(err):
+                            raise
+                        tune[0] = False
+                        use[0] = fn
+                        decided[k] = False
+                        return fn(*xs)
                 if tune[0]:  # first call of a segment with big maps: keep the compiled form only if it is not slower
                     tune[0] = False
                     try:
@@ -2298,15 +2791,7 @@ class GraphNet:
                         use[0] = fn
                         decided[k] = False
                         return fn(*xs)
-                    if tc > te * TUNE_SLACK or mc > me * 1.25 + (64 << 20):
-                        use[0] = fn
-                    decided[k] = self._tune_memo[shape_key] = use[0] is jit
-                    if TUNE_LOG:
-                        print(  # noqa: T201 - FF_MLX_TUNE_LOG=1: the tuning pass's trials
-                            f"mlx tune: segment {k} ({len(seg)} ops, {seg_big >> 20} MB) eager {1e3 * te:.1f} ms"
-                            f" {me >> 20} MB, compiled {1e3 * tc:.1f} ms {mc >> 20} MB -> {'compiled' if decided[k] else 'eager'}",
-                            flush=True,
-                        )
+                    decide(te, me, tc, mc)
                     return res
                 try:
                     return use[0](*xs)
@@ -2353,7 +2838,51 @@ class GraphNet:
                 known[:] = decided
             return tuple(o.astype(mx.float32) for o in get(env, out_names))
 
-        return run
+        if not COLD_LOG:
+            return run
+
+        def clocked(f: Callable[..., tuple[mx.array, ...]]) -> Callable[..., tuple[mx.array, ...]]:
+            def g(*xs: mx.array) -> tuple[mx.array, ...]:
+                if len(cold_runs) > 5 or not cold_runs:
+                    return f(*xs)
+                t0 = time.perf_counter()
+                res = f(*xs)
+                mx.eval(res)
+                cold_runs[-1].append(time.perf_counter() - t0)
+                return res
+
+            return g
+
+        segments[:] = [(ins, outs, clocked(f)) for ins, outs, f in segments]
+
+        def cold_run(*inputs: mx.array) -> tuple[mx.array, ...]:
+            if len(cold_runs) < 5:
+                cold_runs.append([])
+            res = run(*inputs)
+            if len(cold_runs) == 5:
+                self._cold_report(kinds, [cold_runs[0], cold_runs[4]], bounds)
+                cold_runs.append([])  # done: later calls run unclocked
+            return res
+
+        return cold_run
+
+    def _cold_report(self, kinds: list[str], runs: list[list[float]], bounds: list[tuple[int, int]]) -> None:
+        """`COLD_LOG`: the first call's extra time (first minus fifth call) by phase and segment kind."""
+        by: dict[str, list[float]] = {}
+        for kind, a, b, (lo, hi) in zip(kinds, *runs, bounds, strict=True):
+            rec = by.setdefault(kind, [0, 0.0, 0.0, 0])
+            rec[0] += 1
+            rec[1] += a - b
+            rec[2] += b
+            rec[3] += hi - lo
+        export = self._cold.get("export", 0.0)
+        parts = [
+            f"export {export:.2f}s (decomp {self._cold.get('decomp', 0.0):.2f}s)",
+            f"translate {self._cold.get('build', 0.0) - export:.2f}s",
+        ]
+        parts += [f"{k} x{n} ({ops} ops) +{extra:.2f}s (warm {warm:.2f}s)" for k, (n, extra, warm, ops) in by.items()]
+        parts.append(f"first {sum(runs[0]):.2f}s fifth {sum(runs[1]):.2f}s")
+        print("mlx cold: " + " | ".join(parts), flush=True)  # noqa: T201 - FF_MLX_COLD_LOG=1
 
     def __call__(self, *tensors: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """Run on CPU tensors; returns float32 CPU tensors."""
@@ -2380,7 +2909,7 @@ class _Box:
 
 
 class _Flat(torch.nn.Module):
-    """`module(*args, **kwargs)` as a function of its tensor arguments (the rest is baked in), with flat tensor outputs."""
+    """`module(*args, **kwargs)` as a function of its tensor arguments (the rest baked in), flat tensor outputs."""
 
     def __init__(self, module: torch.nn.Module, spec: Any, leaves: list[Any]) -> None:
         super().__init__()
@@ -2417,7 +2946,7 @@ class MlxModule:
         *,
         kernels: bool = False,
         release: bool = False,
-        compile: bool = True,  # noqa: A002 - mirrors `GraphNet`
+        compile: bool = True,
         chunk_mb: int = 0,
         pipeline: bool = False,
     ) -> None:
@@ -2468,7 +2997,7 @@ class MlxModule:
         net, flat = self._nets[key]
         net.on_built = (lambda: self._release(flat)) if self.release else None
         outs = iter(net(*[x for x in leaves if isinstance(x, torch.Tensor)]))
-        assert flat.out.value is not None  # set while exporting
+        assert flat.out.value is not None  # noqa: S101 - narrows the Optional; set while exporting
         out_spec, others, dtypes = flat.out.value
         merged = [next(outs).to(d) if d is not None else o for o, d in zip(others, dtypes, strict=True)]
         return pytree.tree_unflatten(merged, out_spec)
@@ -2503,7 +3032,7 @@ class MlxModule:
 
 
 def _tensors(module: torch.nn.Module, *, names: bool = False) -> Iterator[Any]:
-    """The module's parameters and buffers: `(name, host module, leaf name, tensor)` if `names`, else `(None, tensor)`."""
+    """The module's parameters and buffers: `(name, host, leaf name, tensor)` if `names`, else `(None, tensor)`."""
     seen: set[int] = set()
     for prefix, host in module.named_modules(remove_duplicate=False):
         for leaf, t in (*host._parameters.items(), *host._buffers.items()):

@@ -26,14 +26,13 @@ from fastforks._core.runner import host
 from fastforks.shared import mlx_wrap
 from fastforks.tracking._runner import Forward, Runner
 
-from .net.track_on import D, TrackOn2
+from .net.track_on import D, Frame, TrackOn2
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from fastforks.tracking._runner import Context
 
-    from .net.track_on import Frame
 
 FRAME_CHUNK = 8  # fixed: memory chunking of the feature pass, not an architecture value
 VIS_SHIFT = math.log(0.8 / 0.2)  # fixed: maps upstream's 0.8 visibility threshold to 0.5
@@ -86,6 +85,7 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
     amp: torch.dtype | None,
     *,
     features: Callable[[torch.Tensor], list[Frame]],
+    step: Callable[[torch.Tensor, torch.Tensor, torch.Tensor, Frame], tuple[torch.Tensor, ...]] | None = None,
 ) -> dict[str, torch.Tensor]:
     """`{"tracks": [T, Q, 2], "visibility": [T, Q]}` of frames `frames(t)` `[1, 3, H, W]` in `[0, 1]`."""
     h, w = size
@@ -109,6 +109,7 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
     mask = torch.ones(total, params.memory, dtype=torch.bool, device=dev)
     region = torch.autocast(dev.type, amp) if amp is not None else contextlib.nullcontext()
     active = 0
+    step = step or net.step
     with region:
         for s in range(qt_sorted[0] if total else n, n, FRAME_CHUNK):
             feats = features(torch.cat([frames(t) for t in range(s, min(n, s + FRAME_CHUNK))]))
@@ -119,7 +120,7 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
                 if new > active:
                     q_init[active:new] = net.sample(frame, xy_sorted[active:new]).float()
                     active = new
-                p, v, q = net.step(q_init[:active], mask[:active], memory[:active], frame)
+                p, v, q = step(q_init[:active], mask[:active], memory[:active], frame)
                 tracks[t, :active], logits[t, :active] = p.float() * scale, v.float()
                 memory[:active] = torch.cat([memory[:active, 1:], q.float()[:, None]], 1)
                 mask[:active] = torch.cat([mask[:active, 1:], mask.new_zeros(active, 1)], 1)
@@ -151,12 +152,38 @@ class Portable(Runner):
     def _features(self, video: torch.Tensor) -> list[Frame]:
         return self.net.features(video)
 
+    def _step(  # `TrackOn2.step` with the frame's tensors as arguments: an exportable call
+        self,
+        q_init: torch.Tensor,
+        mask: torch.Tensor,
+        memory: torch.Tensor,
+        value: torch.Tensor,
+        fused: torch.Tensor,
+        *unit: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        return self.net.step(q_init, mask, memory, Frame([], value, list(unit), fused))
+
+    def _frame_step(
+        self, q_init: torch.Tensor, mask: torch.Tensor, memory: torch.Tensor, frame: Frame
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        return self._step(q_init, mask, memory, frame.value, frame.fused, *frame.unit)
+
     @host
     def __call__(
         self, frames: Callable[[int], torch.Tensor], n: int, size: tuple[int, int], queries: torch.Tensor
     ) -> dict[str, torch.Tensor]:
         """Tracks and visibility of the queries."""
-        return track(self.net, frames, n, size, queries, self.ctx.params, self.amp, features=self._features)
+        return track(
+            self.net,
+            frames,
+            n,
+            size,
+            queries,
+            self.ctx.params,
+            self.amp,
+            features=self._features,
+            step=self._frame_step,
+        )
 
     def module(self) -> torch.nn.Module:
         """The network with the online loop; `forward(video [T, 3, H, W], queries [Q, 3])`."""
@@ -199,5 +226,5 @@ class Kernels(Portable):
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.backbone",)),
-}  # the per-frame loop is data-dependent: eager; the backbone is the graph
+    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.backbone",), methods=("_step",)),
+}  # the per-frame loop is data-dependent: eager; the backbone and the per-frame step are graphs

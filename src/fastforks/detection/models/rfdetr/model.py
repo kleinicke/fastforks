@@ -69,7 +69,7 @@ class Portable(Runner):
         self.net.load_state_dict(state)
         self.net = self.net.eval().to(ctx.device, ctx.torch_dtype)
         export_path(self.net)  # the authors' inference path (their float16 benchmark row uses it)
-        from fastforks.shared.rfdetr.net.models.postprocess import (
+        from fastforks.shared.rfdetr.net.models.postprocess import (  # noqa: PLC0415 - lazy: heavy vendored import
             PostProcess,
         )
 

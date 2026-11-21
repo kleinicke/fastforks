@@ -36,6 +36,8 @@ mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc"]  # fp16-accumulate convs and transposed convs, the residual scales folded, one CUDA graph per input shape
+mlx_kernels = ["conv_mlx"]  # the direct few-channel conv, Winograd 3x3s
+mlx_dtypes = ["float32", "float16"]
 
 [[papers]]
 title = "Real-Time Intermediate Flow Estimation for Video Frame Interpolation"

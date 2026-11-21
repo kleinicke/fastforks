@@ -199,6 +199,23 @@ runtime-evaluated-base-classes = []
   "EM",     # `gr.Error` messages are shown to the visitor as written
   "TRY003",
 ]
+# MLX graph translator: op handlers mirror torch/aten signatures (positional flags, many positional operands, Any-typed
+# tensors/args), dispatch on literal ranks/dims, read torch FX private attributes, and import mlx lazily (optional
+# dependency, absent off Apple silicon). Splitting these would only obscure the op-by-op correspondence.
+"src/fastforks/shared/mlx_graph.py" = [
+  "ANN401", "FBT001", "FBT002", "SLF001", "PLC0415", "PLR0917", "PLR0913", "PLR2004",
+  "C901", "PLR0912", "PLR0915", "PLR0911",
+  "ARG001", "ARG005",  # handlers share the aten signature and ignore flags MLX has no equivalent for
+  "A002",  # parameter names follow the aten op (`ord`, `compile`)
+  "PLW0603",  # lazily built module-level kernel caches
+  "PLW0108",  # `lambda x, e: mx.power(x, e)` pins the aten arity (extra args must fail, not reach MLX kwargs)
+  "N818",  # `UnsupportedOp` is the public control-flow signal, named in callers and tests
+]
+# MLX kernel/conv wrappers and tools take the full tensor/shape parameter list positionally by design.
+"src/fastforks/kernels/{conv_mlx,graph_mlx}/ops.py" = ["PLR0917", "PLR2004"]
+"tests/test_conv_mlx.py" = ["PLR0917"]
+"tools/mlx_conv_*.py" = ["PLR0917", "SLF001"]
+"src/fastforks/shared/mlx_wrap.py" = ["PLR0913", "FBT003"]
 # One-off measurement scripts (not part of the package, not type-checked).
 "src/fastforks/matching/relative_pose.py" = ["N806"]  # tensor shape names (P, N, A, C)
 "runs/**" = ["ANN", "D", "E501", "FURB", "INP001", "PLC3002", "PLR2004", "PTH", "S607", "SLF001", "T201"]
