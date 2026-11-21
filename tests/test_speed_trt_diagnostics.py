@@ -2,9 +2,9 @@
 
 import pytest
 import torch
-from tools.speed_check import trt_output_diagnostics
 
 from fastforks._core import export
+from speed_check import trt_output_diagnostics
 
 
 def test_trt_diagnostics(monkeypatch):
