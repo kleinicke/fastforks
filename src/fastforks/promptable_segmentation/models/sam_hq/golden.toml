@@ -16,8 +16,14 @@ upstream = "https://github.com/SysCV/sam-hq@e696978d60352dc9a26b12631cd91781502c
 settings = "CPU float32, SamPredictor set_image + predict (point; box + point; hq_token_only=False), torch 2.14.1+cu130"
 gpu_mean = 0.0019
 gpu_p99 = 0.0053
-gpu_extra = [["box_iou_scores", 0.0023, 0.0023], ["box_pred_masks", 0.0017, 0.0049], ["iou_scores", 0.0032, 0.0032]]
+# maintainer decision 2026-11-21: bounds cover flash (Linux), memory-efficient, cuDNN and math SDPA:
+# iou_scores mean / p99: flash 0.0021 / 0.0021, efficient 0.0033 / 0.0033, cudnn 0.0041 / 0.0041, math 0.0054 / 0.0054; 1.25 x the max (RTX 5060 Ti, torch 2.14.1+cu130, Windows 11 + WSL2)
+gpu_extra = [["box_iou_scores", 0.0023, 0.0023], ["box_pred_masks", 0.0017, 0.0049], ["iou_scores", 0.0068, 0.0068]]
 cpu_extra = [["pred_masks", 0.012]]
+# maintainer decision 2026-11-21: bounds cover flash (Linux), memory-efficient, cuDNN and math SDPA:
+# kernels pred_masks mean / p99: flash 0.0012 / 0.0035, efficient 0.0017 / 0.0058, cudnn 0.0029 / 0.0096, math 0.0028 / 0.01; 1.25 x the max (RTX 5060 Ti, torch 2.14.1+cu130, Windows 11 + WSL2)
+gpu_mean_kernels = 0.0036
+gpu_p99_kernels = 0.013
 
 [refs."sam-hq-vit-h@1"]
 sha256 = "6e9f6ff725c25652b63568672438bbfaf77e0c09218b93054951a36eaeb34982"

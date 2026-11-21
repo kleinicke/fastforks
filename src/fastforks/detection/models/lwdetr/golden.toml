@@ -27,6 +27,10 @@ sha256 = "92fe1d8409629f0553e912a316f09f9033961743d256a65fbe13b449c4f10a22"
 upstream = "https://github.com/huggingface/transformers@v5.19.0"
 settings = "CPU float32, transformers LwDetrForObjectDetection + DeformableDetrImageProcessor 640x640, the authors' PostProcess (num_select 300), skimage coffee.png, score threshold 0.5, torch 2.14.1+cu130"
 options = [["score_threshold", 0.5]]
+# maintainer decision 2026-11-21: bounds cover flash (Linux), memory-efficient, cuDNN and math SDPA:
+# kernels boxes mean / p99: flash 0.12 / 0.42, efficient 0.29 / 1.5, cudnn 0.38 / 1.8, math 0.095 / 0.33; 1.25 x the max (RTX 5060 Ti, torch 2.14.1+cu130, Windows 11 + WSL2)
+gpu_mean_kernels = 0.47
+gpu_p99_kernels = 2.3
 
 [refs."lw-detr-small-coco@1"]
 gpu_mean = 0.28

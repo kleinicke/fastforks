@@ -33,6 +33,10 @@ sha256 = "b9c68dea5dcc269f5f76cbaaaef0bd4f19bf1f5b55e7095eea7677a49f3b3fb6"
 upstream = "https://github.com/roboflow/rf-detr@5b22dfc0940697ce1abdfa681a5f7392b3eddbfb"
 settings = "CPU float32 eval mode, original RF-DETR network and PostProcess; torchvision resize antialias=False, ImageNet normalization; skimage coffee.png (whole), score threshold 0.4909; torch 2.14.1+cu130"
 options = [["score_threshold", 0.4909]]
+# maintainer decision 2026-11-21: bounds cover flash (Linux), memory-efficient, cuDNN and math SDPA:
+# portable boxes mean / p99: flash 0.052 / 0.15, efficient 0.069 / 0.23, cudnn 0.056 / 0.15, math 0.052 / 0.15; 1.25 x the max (RTX 5060 Ti, torch 2.14.1+cu130, Windows 11 + WSL2)
+gpu_mean_portable = 0.087
+gpu_p99_portable = 0.29
 
 [refs."rf-detr-s-coco@1"]
 gpu_mean = 0.11
@@ -41,6 +45,10 @@ sha256 = "a0936fd23fa88aa33be1f90d6db99b1966f150a159760eb00c7695c1edca9adc"
 upstream = "https://github.com/roboflow/rf-detr@5b22dfc0940697ce1abdfa681a5f7392b3eddbfb"
 settings = "CPU float32 eval mode, original RF-DETR network and PostProcess; torchvision resize antialias=False, ImageNet normalization; skimage coffee.png (whole), score threshold 0.9266; torch 2.14.1+cu130"
 options = [["score_threshold", 0.9266]]
+# maintainer decision 2026-11-21: bounds cover flash (Linux), memory-efficient, cuDNN and math SDPA:
+# portable boxes mean / p99: flash 0.067 / 0.11, efficient 0.067 / 0.13, cudnn 0.098 / 0.18, math 0.067 / 0.11; 1.25 x the max (RTX 5060 Ti, torch 2.14.1+cu130, Windows 11 + WSL2)
+gpu_mean_portable = 0.13
+gpu_p99_portable = 0.23
 
 [refs."rf-detr-seg-2xl-coco@1"]
 gpu_mean = 0.49
@@ -49,6 +57,13 @@ sha256 = "36e63ad39a5e686d74cad0800ddc78e3c9d78385ea22e0cb89c350f5d058d9e8"
 upstream = "https://github.com/roboflow/rf-detr@5b22dfc0940697ce1abdfa681a5f7392b3eddbfb"
 settings = "CPU float32 eval mode, original RF-DETR network and PostProcess; torchvision resize antialias=False, ImageNet normalization; skimage coffee.png (whole), score threshold 0.2454; torch 2.14.1+cu130"
 options = [["score_threshold", 0.2454]]
+# maintainer decision 2026-11-21: bounds cover flash (Linux), memory-efficient, cuDNN and math SDPA:
+# portable boxes mean / p99: flash 0.33 / 1.1, efficient 0.4 / 2.2, cudnn 0.29 / 2, math 0.36 / 1.1; 1.25 x the max (RTX 5060 Ti, torch 2.14.1+cu130, Windows 11 + WSL2)
+gpu_mean_portable = 0.51
+gpu_p99_portable = 2.7
+# maintainer decision 2026-11-21: bounds cover flash (Linux), memory-efficient, cuDNN and math SDPA:
+# scores mean / p99: flash 0.02 / 0.05, efficient 0.028 / 0.059, cudnn 0.02 / 0.052, math 0.02 / 0.051; 1.25 x the max (RTX 5060 Ti, torch 2.14.1+cu130, Windows 11 + WSL2)
+gpu_extra = [["labels", 0.001, 0.001], ["masks", 0.0017, 0.001], ["scores", 0.036, 0.076]]
 
 [refs."rf-detr-seg-l-coco@1"]
 gpu_mean = 0.52

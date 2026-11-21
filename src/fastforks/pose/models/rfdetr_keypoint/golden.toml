@@ -12,13 +12,21 @@ gpu_min_score = 0.3
 gpu_extra = [["boxes", 0.00069, 0.0016], ["scores", 0.00079, 0.00079], ["keypoint_scores", 0.00048, 0.0039]]
 
 [refs."rf-detr-keypoint-preview@1"]
-gpu_mean_portable = 0.072
-gpu_p99_portable = 0.17
-gpu_mean_kernels = 0.12
-gpu_p99_kernels = 0.32
+# maintainer decision 2026-11-21: bounds cover flash (Linux), memory-efficient, cuDNN and math SDPA:
+# portable keypoints mean / p99: flash 0.036 / 0.11, efficient 0.051 / 0.17, cudnn 0.048 / 0.16, math 0.064 / 0.17; 1.25 x the max (RTX 5060 Ti, torch 2.14.1+cu130, Windows 11 + WSL2)
+gpu_mean_portable = 0.08
+gpu_p99_portable = 0.22
+# maintainer decision 2026-11-21: bounds cover flash (Linux), memory-efficient, cuDNN and math SDPA:
+# kernels keypoints mean / p99: flash 0.079 / 0.21, efficient 0.091 / 0.21, cudnn 0.075 / 0.22, math 0.099 / 0.29; 1.25 x the max (RTX 5060 Ti, torch 2.14.1+cu130, Windows 11 + WSL2)
+gpu_mean_kernels = 0.13
+gpu_p99_kernels = 0.37
 sha256 = "fe1c87700da0c1e1230fa1e120cc990859aacec53bcbc986c00fcfb559cdd17d"
 upstream = "https://github.com/roboflow/rf-detr@5b22dfc0940697ce1abdfa681a5f7392b3eddbfb"
 settings = "CPU float32 eval mode, original RF-DETR network and PostProcess; torchvision resize antialias=False, ImageNet normalization, uncertainty trace_alpha=0.2, person threshold=0.5; NASA astronaut.png; torch 2.14.1+cu130"
+# maintainer decision 2026-11-21: bounds cover flash (Linux), memory-efficient, cuDNN and math SDPA:
+# boxes mean / p99: flash 0.00046 / 0.001, efficient 0.00046 / 0.00068, cudnn 0.00041 / 0.00067, math 0.00064 / 0.001;
+# keypoint_scores mean / p99: flash 0.00031 / 0.0026, efficient 0.0003 / 0.0025, cudnn 0.00043 / 0.0044, math 0.00046 / 0.0053; 1.25 x the max (RTX 5060 Ti, torch 2.14.1+cu130, Windows 11 + WSL2)
+gpu_extra = [["boxes", 0.0008, 0.0016], ["scores", 0.00079, 0.00079], ["keypoint_scores", 0.00058, 0.0066]]
 
 [validated."rf-detr-keypoint-preview@1"]
 kernels = ["fastbb@7d058322634d:sm_120", "rfdetr_input@fc544cee4666:sm_120"]

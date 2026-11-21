@@ -44,10 +44,15 @@ settings = "CPU float32, mmpose inference_bottomup (body7 config), OpenCV 4.10.0
 
 [refs."rtmo-t@1"]
 gpu_mean_portable = 0.035
-gpu_p99_portable = 0.19
+# maintainer decision 2026-11-21: bounds cover flash (Linux), memory-efficient, cuDNN and math SDPA:
+# portable keypoints mean / p99: flash 0.024 / 0.16, efficient 0.022 / 0.19, cudnn 0.024 / 0.18, math 0.021 / 0.19; 1.25 x the max (RTX 5060 Ti, torch 2.14.1+cu130, Windows 11 + WSL2)
+gpu_p99_portable = 0.24
 gpu_mean_kernels = 0.041
 gpu_p99_kernels = 0.22
-gpu_extra = [["boxes", 0.00029, 0.0013], ["keypoint_scores", 0.0095, 0.068], ["scores", 0.0027, 0.0047]]
+# maintainer decision 2026-11-21: bounds cover flash (Linux), memory-efficient, cuDNN and math SDPA:
+# boxes mean / p99: flash 0.00019 / 0.00084, efficient 0.00023 / 0.0016, cudnn 0.00024 / 0.0014, math 0.00022 / 0.0016;
+# scores mean / p99: flash 0.0018 / 0.0031, efficient 0.0021 / 0.0031, cudnn 0.0021 / 0.0038, math 0.0016 / 0.0031; 1.25 x the max (RTX 5060 Ti, torch 2.14.1+cu130, Windows 11 + WSL2)
+gpu_extra = [["boxes", 0.00031, 0.0021], ["keypoint_scores", 0.0095, 0.068], ["scores", 0.0027, 0.0048]]
 sha256 = "41203b85555cee9ae61ecfc6f377af984d459d4c9f5897e31877c7f3664e9943"
 upstream = "https://github.com/open-mmlab/mmpose@5408bc76f5b848cf925a0d1857899011d8c5b497"
 settings = "CPU float32, mmpose inference_bottomup (body7 config), OpenCV 4.10.0, skimage astronaut.png as BGR uint8, torch 2.14.1+cu130"
