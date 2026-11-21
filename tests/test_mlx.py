@@ -18,7 +18,7 @@ from fastforks import (
     MissingDependencyError,
     OptionsError,
     features,
-    matching,
+    matting,
     stereo,
 )
 from fastforks._core import model as core_model
@@ -45,7 +45,7 @@ def test_card_declares_the_port_per_mode(cre):
     assert card.mlx_kernel_libs == ("crestereo_mlx",)
     assert card.mlx_dtypes("kernels") == ("float32", "float16")
     assert "  mlx       portable (float32, float16), kernels (float32, float16; crestereo_mlx)" in str(card)
-    none = registry.resolve("matching", "aliked-lightglue")[0]
+    none = registry.resolve("matting", "matanyone")[0]  # the one family without an MLX port
     assert (none.portable_mlx_dtypes, none.mlx_kernel_libs, none.mlx_dtypes("kernels")) == ((), (), ())
 
 
@@ -112,7 +112,7 @@ def test_card_rejects_inconsistent_mlx_fields(cre, edit, match):
 
 def test_family_without_a_port_raises():
     with pytest.raises(BackendUnavailableError, match="no Apple MLX port"):
-        matching.load("aliked-lightglue", device="mlx")
+        matting.load("matanyone", device="mlx")
 
 
 def test_port_without_kernels_raises_for_kernels():
