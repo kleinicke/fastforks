@@ -190,7 +190,7 @@ def _constants(blk: MotionFormerBlock, shape: tuple[int, int, int], x: torch.Ten
     cor = _rolled(_padded(torch.stack((gx, gy), -1), win), shift, -1)
     mask = _mask(h, w, win, shift)
     out = (window_partition(cor, win).to(x.dtype), None if mask is None else mask.to(x.device))
-    if cache is not None:
+    if cache is not None and type(out[0]) is torch.Tensor:  # not a traced one (an MLX export's fake tensor)
         cache[key] = out
     return out
 

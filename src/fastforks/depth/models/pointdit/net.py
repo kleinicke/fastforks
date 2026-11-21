@@ -271,12 +271,15 @@ class PointDiT(nn.Module):
         """`[h * w, C]` float32: the position terms (bicubic from the 32 x 32 grid as upstream) + the biases."""
         if torch.compiler.is_compiling():
             return self._position(h, w)
-        if (h, w) not in self._pos:
-            if len(self._pos) >= 8:  # noqa: PLR2004 - cache policy
-                self._pos.clear()
+        found = self._pos.get((h, w))
+        if found is None:
             with torch.inference_mode(mode=False):  # normal tensors: the cache may meet autograd (module() traced)
-                self._pos[h, w] = self._position(h, w)
-        return self._pos[h, w]
+                found = self._position(h, w)
+            if type(found) is torch.Tensor:  # not a traced / fake one (an MLX export or its fake-tensor run)
+                if len(self._pos) >= 8:  # noqa: PLR2004 - cache policy
+                    self._pos.clear()
+                self._pos[h, w] = found
+        return found
 
     @staticmethod
     def _rope_table(h: int, w: int, device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
@@ -288,12 +291,15 @@ class PointDiT(nn.Module):
         """`(cos, sin)` `[h * w, 1, 1, 64]` float32 of the rotate-half layout (broadcast over q / k and heads)."""
         if torch.compiler.is_compiling():
             return self._rope_table(h, w, device)
-        if (h, w) not in self._rope:
-            if len(self._rope) >= 8:  # noqa: PLR2004 - cache policy
-                self._rope.clear()
+        found = self._rope.get((h, w))
+        if found is None:
             with torch.inference_mode(mode=False):
-                self._rope[h, w] = self._rope_table(h, w, device)
-        return self._rope[h, w]
+                found = self._rope_table(h, w, device)
+            if type(found[0]) is torch.Tensor:  # not a traced / fake one (an MLX export or its fake-tensor run)
+                if len(self._rope) >= 8:  # noqa: PLR2004 - cache policy
+                    self._rope.clear()
+                self._rope[h, w] = found
+        return found
 
     def condition(self, hidden: torch.Tensor, h: int, w: int) -> torch.Tensor:
         """DINOv3 hidden states `[B, 4, P + N, Cenc]` float32 -> the per-image token constant `[B, N, C]` float32."""

@@ -189,12 +189,15 @@ class Kernels(Portable):
 
     def _table(self, h: int, w: int, device: torch.device) -> torch.Tensor:
         """fp32 `[h * w, 2, 32]`: cos | sin of the first half (the second half repeats it), as `rope_qk_h` reads it."""
-        if (h, w) not in self._cs:
-            if len(self._cs) >= _GRAPHS:
-                del self._cs[next(iter(self._cs))]
+        found = self._cs.get((h, w))
+        if found is None:
             a = rope_angles(h, w, device)
-            self._cs[h, w] = torch.stack((a.cos(), a.sin()), 1).contiguous()
-        return self._cs[h, w]
+            found = torch.stack((a.cos(), a.sin()), 1).contiguous()
+            if type(found) is torch.Tensor:  # not a traced one
+                if len(self._cs) >= _GRAPHS:
+                    del self._cs[next(iter(self._cs))]
+                self._cs[h, w] = found
+        return found
 
     def _block(self, blk: Block, x: torch.Tensor, s: int, cs: torch.Tensor) -> torch.Tensor:
         b, n, _ = x.shape

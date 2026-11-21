@@ -132,14 +132,17 @@ class _Net(torch.nn.Module):
 
     def _cos_sin(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         key = (x.shape[-2], x.shape[-1])
-        if key not in self._rope:
-            if len(self._rope) >= _ROPE_SIZES:
-                del self._rope[next(iter(self._rope))]
+        found = self._rope.get(key)
+        if found is None:
             assert self.rope is not None  # noqa: S101 - DINOv3 only
             cos, sin = self.rope(x[:1].float())
             dt = self.model.layernorm.weight.dtype
-            self._rope[key] = (cos.to(dt)[None, :, None], sin.to(dt)[None, :, None])
-        return self._rope[key]
+            found = (cos.to(dt)[None, :, None], sin.to(dt)[None, :, None])
+            if type(found[0]) is torch.Tensor:  # not a traced one (an MLX export's fake tensor)
+                if len(self._rope) >= _ROPE_SIZES:
+                    del self._rope[next(iter(self._rope))]
+                self._rope[key] = found
+        return found
 
     def _block(self, layer: _Hf, x: torch.Tensor, cs: tuple[torch.Tensor, torch.Tensor] | None) -> torch.Tensor:
         b, n, c = x.shape
