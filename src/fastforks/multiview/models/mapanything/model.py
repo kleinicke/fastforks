@@ -40,6 +40,7 @@ from torch import nn
 from fastforks._core import kernels
 from fastforks._core.errors import OptionsError
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.mlx_cast import to_run_dtype
 from fastforks.kernels import map_geometry, swiglu
 from fastforks.multiview._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
@@ -510,7 +511,7 @@ class _Base(Runner):
                 grid = pe[:, 1:].reshape(1, m, m, -1).permute(0, 3, 1, 2)
                 g = F.interpolate(grid, scale_factor=((gh + 0.1) / m, (gw + 0.1) / m), mode="bicubic")
                 out = torch.cat([pe[:, :1], g.permute(0, 2, 3, 1).flatten(1, 2)], 1)
-            found = out.to(self.dt)
+            found = to_run_dtype(out, self.dt)  # a float32 table would lift a float16 MLX replay to float32
             if type(found) is torch.Tensor:  # not a traced one (an MLX export's fake tensor)
                 if len(self._pos) >= _POS_SIZES:
                     del self._pos[next(iter(self._pos))]
