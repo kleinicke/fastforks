@@ -267,7 +267,9 @@ class SEARAFT(nn.Module):
             net, context = self.init_conv(self.cnet(torch.cat([image1, image2], dim=1))).split(cfg.dim, dim=1)
             flow = to_float32(self.flow_head(net)[:, :2])
             fmaps = self.fnet(torch.cat([image1, image2], dim=0))  # batch norm in eval mode: per-image as upstream
-        fmap1, fmap2 = to_float32(fmaps).chunk(2, dim=0)
+        # `.float()` keeps the correlation in float16 on MLX: float32 there costs ~4 GB and ~25% of the time at 1080p
+        # for a golden gain of 0.00169 -> 0.00164 (spring, tol 0.002)
+        fmap1, fmap2 = fmaps.float().chunk(2, dim=0)
         pyramid = _pyramid(fmap1, fmap2, cfg.levels)
         del fmaps, fmap1, fmap2
         grid = _coords(b, h // FACTOR, w // FACTOR, image1.device)

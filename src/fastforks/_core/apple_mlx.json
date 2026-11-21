@@ -3836,6 +3836,10 @@
    }
   },
   "track-on2@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "mlx_default": [
     "portable",
     "float16"

@@ -537,7 +537,7 @@ OPS[aten.index_select.default] = lambda x, d, i: mx.take(x, i, axis=d)
 _KERNELS = (
     False  # kernels mode: our Metal kernels (`fastforks.kernels.graph_mlx`) for depthwise convolution and pooling
 )
-_HALF_WINO_F32 = False  # half-precision 3x3 convs that MLX would run as Winograd run in float32 (`GraphNet` option)
+_HALF_WINO_F32: bool | tuple[tuple[int, int], ...] = False  # `GraphNet` option: half Winograd 3x3 convs run in float32
 # The depthwise kernel in portable mode too: `mx.conv2d(groups=C)` falls off its fast path at some channel counts
 # (DAT's 180-channel 3x3 at 512^2: 75 ms against 2.6 ms, 72 per call, 5.7 of 16.4 s) and is never faster.
 DW_KERNEL = not os.environ.get("FF_MLX_NO_DW_KERNEL")
@@ -1692,6 +1692,7 @@ def _conv2d(
     cout, cin = wl.shape[0], wl.shape[3]
     if (
         _HALF_WINO_F32
+        and (_HALF_WINO_F32 is True or (cin, cout) in _HALF_WINO_F32)
         and not _KERNELS
         and xl.dtype in (mx.float16, mx.bfloat16)
         and _mlx_winograd(wl.shape, cout, stride, dilation, groups, xl.shape[0] * xl.shape[1] * xl.shape[2])
@@ -2662,11 +2663,12 @@ class GraphNet:
         shared: dict[str, Any] | None = None,
         chunk_mb: int = 0,
         pipeline: bool = False,
-        half_wino_f32: bool = False,
+        half_wino_f32: bool | tuple[tuple[int, int], ...] = False,
     ) -> None:
         """Keep the module until its first export; parameters convert then (`chunk_mb`: see `_runner`, 0 = `CHUNK_MB`).
 
-        `half_wino_f32=True`: in float16 / bfloat16, the 3x3 convs MLX would run as Winograd run in float32 instead.
+        `half_wino_f32=True`: in float16 / bfloat16, the 3x3 convs MLX would run as Winograd run in float32 instead;
+        a tuple of `(cin, cout)` pairs limits that to those convs.
 
         `pipeline=True`: queue each checkpoint segment (`mx.async_eval`) and wait for the one before it, so the next
         segment's graph is built while the GPU runs (one more segment's activations in flight).
@@ -3458,7 +3460,7 @@ class MlxModule:
         compile: bool = True,
         chunk_mb: int = 0,
         pipeline: bool = False,
-        half_wino_f32: bool = False,
+        half_wino_f32: bool | tuple[tuple[int, int], ...] = False,
     ) -> None:
         """Wrap `module` (eval mode, CPU). `chunk_mb`, `pipeline`, `half_wino_f32`: see `GraphNet`.
 

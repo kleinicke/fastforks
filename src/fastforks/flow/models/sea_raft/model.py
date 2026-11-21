@@ -141,5 +141,6 @@ RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": mlx_wrap.port(Portable, cache_mb=1024, half_wino_f32=True),
+    # the encoders' layer2 128 -> 128 convs: the half Winograd convs at the golden's size, where the error was measured
+    "portable_mlx": mlx_wrap.port(Portable, cache_mb=1024, half_wino_f32=((128, 128),)),
 }

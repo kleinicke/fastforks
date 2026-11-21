@@ -94,10 +94,12 @@ class MSDA(nn.Module):
         b, q, _ = query.shape
         h, nl, p = self.heads, self.levels, self.points
         v = self.value_proj(value).view(b, value.shape[1], h, -1)
-        off = to_float32(self.sampling_offsets(query).view(b, q, h, nl, p, 2))
-        w = to_float32(self.attention_weights(query).view(b, q, h, nl * p)).softmax(-1).view(b, q, h, nl, p)
+        # `.float()`, not `to_float32`: on MLX these stay float16 (float32 cost ~8% of track-on2's time for no golden
+        # need; golden mean 0.0010 against 0.0167, tol 0.04)
+        off = self.sampling_offsets(query).view(b, q, h, nl, p, 2).float()
+        w = self.attention_weights(query).view(b, q, h, nl * p).float().softmax(-1).view(b, q, h, nl, p)
         norm = torch.tensor([(wl, hl) for hl, wl in shapes], dtype=torch.float32, device=off.device)
-        loc = to_float32(ref)[:, :, None, :, None, :] + off / norm[:, None, :]
+        loc = ref.float()[:, :, None, :, None, :] + off / norm[:, None, :]
         return self.output_proj(msda_sample(v, shapes, loc, w))
 
 
@@ -532,7 +534,7 @@ class TrackOn2(nn.Module):
         qo = q[None]
         for blk in ph.offset_transformer:
             qo = blk(qo, frame.value, ref, self.shapes)
-        return to_float32(ph.offset_layer(qo)[0]) * STRIDE, to_float32(ph.vis_layer(q)[:, 0])
+        return ph.offset_layer(qo)[0].float() * STRIDE, ph.vis_layer(q)[:, 0].float()  # float16 on MLX: no golden cost
 
     def step(
         self, q_init: torch.Tensor, mask: torch.Tensor, memory: torch.Tensor, frame: Frame

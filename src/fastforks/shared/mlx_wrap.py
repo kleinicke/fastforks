@@ -155,7 +155,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
     release: bool = False,
     pipeline: bool = False,
     prune: bool = False,
-    half_wino_f32: bool = False,
+    half_wino_f32: bool | tuple[tuple[int, int], ...] = False,
 ) -> type[Runner]:
     """The MLX runner of `portable`: same call, the module(s) named by `attrs` run on MLX in `ctx.dtype`.
 
@@ -195,7 +195,8 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
     `kernels_fp16_only=True`: the kernels mode uses its Metal kernels in float16 only (float32 runs as portable).
 
     `half_wino_f32=True`: in float16, the 3x3 convs MLX would run as Winograd (its half Winograd's error is ~17x the
-    direct conv's) run in float32 (portable mode; kernels mode has its own Winograd).
+    direct conv's) run in float32 (portable mode; kernels mode has its own Winograd); a tuple of `(cin, cout)` pairs
+    limits that to those convs.
     """
     out_key = "image" if whole is True else whole
 
