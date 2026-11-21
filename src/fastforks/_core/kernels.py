@@ -296,7 +296,7 @@ def platform_reason(manifest: KernelManifest) -> str | None:
     if host == "linux":
         return "this manifest is a Windows build; Linux loads manifest.toml"
     machine = platform.machine()
-    return f"the kernels are built for Linux x86-64 (cubin libraries: also Windows x64), not {sys.platform} {machine}"
+    return f"the kernels are built for Linux and Windows x86-64, not {sys.platform} {machine}"
 
 
 def binary(manifest: KernelManifest, device: torch.device) -> tuple[Path, str]:

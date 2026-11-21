@@ -10,7 +10,7 @@ Every model has two backends; kernels run only where the GPU and driver fit (oth
 
 - **portable**: the original network in plain PyTorch, checked against the authors' code. Validated on CPU, NVIDIA
   CUDA and Apple MPS; other PyTorch devices are untested.
-- **kernels**: the same network with our CUDA kernels (NVIDIA sm_80 or newer, Linux x86-64) and, for 19 families, Metal
+- **kernels**: the same network with our CUDA kernels (NVIDIA sm_80 or newer, Linux or Windows x86-64) and, for 19 families, Metal
   kernels on Apple silicon. Across the models and sizes we measured, the median is 1.9x faster than portable, with a
   quarter at 2.5x or more and the best at 10x (small classifiers at batch 1). A few plain ViT classifiers gain nothing
   ([benchmarks](https://fastforks.dev/benchmarks)).
@@ -132,7 +132,7 @@ Gated weights (e.g. DINOv3): accept the licence on the model's Hugging Face page
 `huggingface_hub.login()` in Python), and load the model; the download goes through `huggingface_hub`. fastforks never
 handles your Hugging Face token.
 
-Requirements: Python >= 3.11 and PyTorch >= 2.8. Metal kernels run on Apple silicon (see the usage guide). The CUDA kernels need Linux on x86-64, an NVIDIA GPU of compute
+Requirements: Python >= 3.11 and PyTorch >= 2.8. Metal kernels run on Apple silicon (see the usage guide). The CUDA kernels need Linux or Windows on x86-64, an NVIDIA GPU of compute
 capability 8.0 or newer (RTX 30 series, A100 and later) and a driver >= 570. So far it is tested only on an
 RTX 5060 Ti: `fastforks env` shows what your GPU would use, and
 [Other GPUs](https://fastforks.dev/other-gpus) explains how to measure it and send

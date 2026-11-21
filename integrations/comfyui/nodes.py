@@ -65,7 +65,7 @@ _COMMERCIAL_TIP = (
 )
 _BACKEND_TIP = (
     "auto: our CUDA kernels where they are faster, else portable PyTorch. portable: plain PyTorch (any device)."
-    " kernels: our CUDA kernels (Linux x86-64 + NVIDIA only; fails elsewhere)."
+    " kernels: our CUDA kernels (NVIDIA on Linux or Windows x86-64; fails elsewhere)."
 )
 _DTYPE_TIP = "auto: the validated dtype of the backend. Others are checked against the model card at load."
 

@@ -42,8 +42,8 @@ python_embeded\python.exe -m pip install -r ComfyUI\custom_nodes\comfyui-fastfor
 `requirements.txt` installs `fastforks-core[timm,transformers]>=0.2`. Installing the repository URL with
 ComfyUI-Manager's "Install via Git URL" clones the root, which is not a node pack.
 
-Windows: the `kernels` backend fails (the CUDA kernels are built for Linux x86-64 so far) and `auto` runs the
-portable PyTorch backend, with one warning per model load. Paths stay short: the cache adds at most ~110 characters
+Windows: the `kernels` backend works like on Linux (the DLLs download once, like the weights, and need no C++ toolchain). A
+library without a Windows build makes `kernels` fail for that model and `auto` run portable, with one warning per model load. Paths stay short: the cache adds at most ~110 characters
 to the ComfyUI folder (`models\fastforks\blobs\sha256\ab\<sha256>`, downloads in a `.download.*` folder next to it),
 so a ComfyUI folder below ~140 characters needs no long-path setting.
 

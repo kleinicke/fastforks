@@ -335,9 +335,9 @@ def test_cuda_device_passthrough():
     ("patch", "match"),
     [
         ({"hip": "6.4"}, "NVIDIA CUDA only; torch .* is ROCm/HIP"),
-        ({"platform": "darwin", "machine": "arm64"}, r"built for Linux x86-64 .*, not darwin arm64"),
-        ({"machine": "aarch64"}, r"built for Linux x86-64 .*, not linux aarch64"),
-        ({"platform": "win32", "machine": "ARM64"}, r"built for Linux x86-64 .*, not win32 ARM64"),
+        ({"platform": "darwin", "machine": "arm64"}, r"built for Linux and Windows x86-64, not darwin arm64"),
+        ({"machine": "aarch64"}, r"built for Linux and Windows x86-64, not linux aarch64"),
+        ({"platform": "win32", "machine": "ARM64"}, r"built for Linux and Windows x86-64, not win32 ARM64"),
         ({"platform": "win32", "machine": "AMD64", "kind": "shared"}, r"Linux \.so .*only cubin kernel libraries"),
     ],
 )
