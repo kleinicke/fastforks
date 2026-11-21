@@ -40,6 +40,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.mlx_cast import to_float32
 from fastforks._core.tracing import in_onnx_export
 
 from .dinov3 import CONFIGS, PATCH, REGISTERS, DINOv3ViT
@@ -93,10 +94,10 @@ class MSDA(nn.Module):
         b, q, _ = query.shape
         h, nl, p = self.heads, self.levels, self.points
         v = self.value_proj(value).view(b, value.shape[1], h, -1)
-        off = self.sampling_offsets(query).view(b, q, h, nl, p, 2).float()
-        w = self.attention_weights(query).view(b, q, h, nl * p).float().softmax(-1).view(b, q, h, nl, p)
+        off = to_float32(self.sampling_offsets(query).view(b, q, h, nl, p, 2))
+        w = to_float32(self.attention_weights(query).view(b, q, h, nl * p)).softmax(-1).view(b, q, h, nl, p)
         norm = torch.tensor([(wl, hl) for hl, wl in shapes], dtype=torch.float32, device=off.device)
-        loc = ref.float()[:, :, None, :, None, :] + off / norm[:, None, :]
+        loc = to_float32(ref)[:, :, None, :, None, :] + off / norm[:, None, :]
         return self.output_proj(msda_sample(v, shapes, loc, w))
 
 
@@ -479,7 +480,7 @@ class TrackOn2(nn.Module):
     def correlation(self, q: torch.Tensor, frame: Frame) -> torch.Tensor:
         """`multiscale_correlation`: cosine similarity per level, upsampled to 1/4, mixed by a 1 x 1 conv -> `[N, P]`."""
         n = q.shape[0]
-        qn = F.normalize(q.float(), dim=-1)
+        qn = F.normalize(to_float32(q), dim=-1)
         pack = (
             q.is_cuda
             and not torch.compiler.is_compiling()
@@ -489,7 +490,7 @@ class TrackOn2(nn.Module):
         maps = []
         packed = None
         for i, (u, (h, w)) in enumerate(zip(frame.unit, self.shapes, strict=True)):
-            c = (qn @ u.T).view(n, 1, h, w)
+            c = (qn @ to_float32(u).T).view(n, 1, h, w)
             if i:
                 c = F.interpolate(c, size=(self.hf, self.wf), mode="bilinear", align_corners=False)
             if pack:
@@ -502,7 +503,7 @@ class TrackOn2(nn.Module):
             del c
         conv = self.ms_corr_proj
         correlations = torch.cat(maps, 1) if packed is None else packed
-        return F.conv2d(correlations, conv.weight.float(), cast("torch.Tensor", conv.bias).float()).view(n, -1)
+        return F.conv2d(correlations, to_float32(conv.weight), to_float32(cast("torch.Tensor", conv.bias))).view(n, -1)
 
     def coords(self, idx: torch.Tensor) -> torch.Tensor:
         """`indices_to_coords`: cell centres `(x, y)` in network pixels of flat 1/4 indices."""
@@ -531,7 +532,7 @@ class TrackOn2(nn.Module):
         qo = q[None]
         for blk in ph.offset_transformer:
             qo = blk(qo, frame.value, ref, self.shapes)
-        return ph.offset_layer(qo)[0].float() * STRIDE, ph.vis_layer(q)[:, 0].float()
+        return to_float32(ph.offset_layer(qo)[0]) * STRIDE, to_float32(ph.vis_layer(q)[:, 0])
 
     def step(
         self, q_init: torch.Tensor, mask: torch.Tensor, memory: torch.Tensor, frame: Frame
