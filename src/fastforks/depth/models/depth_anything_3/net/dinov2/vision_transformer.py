@@ -13,6 +13,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.utils.checkpoint
+from fastforks._core.mlx_cast import to_run_dtype  # fastforks: run-dtype casts on MLX
 # fastforks: einops (rearrange -> reshape below) and the package logger (log lines dropped) are not dependencies
 
 from .layers import LayerScale
@@ -240,7 +241,7 @@ class DinoVisionTransformer(nn.Module):
         )
         assert (w0, h0) == patch_pos_embed.shape[-2:]
         patch_pos_embed = patch_pos_embed.permute(0, 2, 3, 1).view(1, -1, dim)
-        return torch.cat((class_pos_embed.unsqueeze(0), patch_pos_embed), dim=1).to(previous_dtype)
+        return to_run_dtype(torch.cat((class_pos_embed.unsqueeze(0), patch_pos_embed), dim=1), previous_dtype)  # fastforks: to_run_dtype (.to is a no-op in the float32 MLX twin)
 
     def prepare_cls_token(self, B, S):
         cls_token = self.cls_token.expand(B, S, -1)

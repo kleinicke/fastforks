@@ -21,6 +21,7 @@ import torch.utils.checkpoint
 from fastforks._core.deferred_init import trunc_normal_  # fastforks: torch.nn.init.trunc_normal_ per call
 import torch.nn.init
 import torch.nn.functional as F
+from fastforks._core.mlx_cast import to_run_dtype  # fastforks: run-dtype casts on MLX
 
 #from dinov2.layers import Mlp, PatchEmbed, SwiGLUFFNFused, MemEffAttention, NestedTensorBlock as Block
 
@@ -915,7 +916,8 @@ class DinoVisionTransformer(nn.Module):
         assert int(w0) == patch_pos_embed.shape[-2]
         assert int(h0) == patch_pos_embed.shape[-1]
         patch_pos_embed = patch_pos_embed.permute(0, 2, 3, 1).view(1, -1, dim)
-        return torch.cat((class_pos_embed.unsqueeze(0), patch_pos_embed), dim=1).to(previous_dtype)
+        # fastforks: to_run_dtype (a float32 table would lift a float16 MLX replay to float32)
+        return to_run_dtype(torch.cat((class_pos_embed.unsqueeze(0), patch_pos_embed), dim=1), previous_dtype)
 
     def prepare_tokens_with_masks(self, x, masks=None):
         B, nc, w, h = x.shape

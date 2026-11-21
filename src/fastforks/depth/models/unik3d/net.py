@@ -18,6 +18,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.mlx_cast import to_run_dtype
 from fastforks.shared.depth_anything_v2 import vit_large
 
 HIDDEN = 512  # decoder width
@@ -407,7 +408,7 @@ class UniK3DNet(nn.Module):
         h, w = hh // PATCH, ww // PATCH
         t = vit.patch_embed(x)
         t = torch.cat((vit.cls_token.expand(b, -1, -1), t), 1)
-        t = t + self.pos_table(h, w).to(t.dtype)
+        t = t + to_run_dtype(self.pos_table(h, w), t.dtype)  # .to: a no-op in the float32 MLX twin
         feats, cls = [], []
         for i, blk in enumerate(vit.blocks[: LAYERS[-1] + 1]):
             t = blk(t)
