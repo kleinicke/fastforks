@@ -1512,3 +1512,10 @@ Winograd at 4096 positions); 1024 -> 1024 takes 27.6 ms against 50.9 ms. In fp16
 1024-input convs at 1/8 scale and the SD UNet's middle levels sit in this band. A dispatch picked from a measured table
 (per position count and channel pair) should replace these hand rules. Scripts: cv3.py-cv7.py in the session
 scratchpad.
+
+MLX's Winograd is also much less accurate in half precision: relative mean error 6e-3 against 3.5e-4 for the direct
+conv in float16 (bfloat16 4.8e-2 against 2.8e-3; float32 4e-6), exactly where its dispatch switches (dense 3x3, stride
+and dilation 1, channels multiples of 32 summing to >= 256, >= 4096 positions). `_conv2d`'s ragged-channel padding
+(d7a21332) owed its padded-input gains to entering it, and pushed HAT's 180-channel convs over hat-x4's float16 golden
+(mean 0.00058 -> 0.00092). Half precision outside kernels mode now never pads into Winograd: hat-x4 fp16 golden 0.00057,
+11550 ms / 3651 MB; hat-s-x4 10010 / 3396, dat-x4 9358 / 3305, dat-light-x4 1870 / 2425 (no slower than the rows before).

@@ -1646,6 +1646,32 @@ WIDE_OUT_OFF = bool(os.environ.get("FF_MLX_NO_WIDE_OUT"))  # 32 / 48-output 3x3 
 SPLIT_IN_OFF = bool(os.environ.get("FF_MLX_NO_SPLIT_IN"))  # very wide-input 3x3 convs as one `mx.conv2d`
 
 
+def _mlx_winograd(
+    wshape: Sequence[int],
+    cout: int,
+    stride: tuple[int, ...],
+    dilation: tuple[int, ...],
+    groups: int,
+    positions: int,
+) -> bool:
+    """Whether `mx.conv2d` runs an OHWI kernel of this shape with `cout` outputs as Winograd.
+
+    MLX 0.32's dispatch: dense 3x3, stride and dilation 1, channels multiples of 32 summing to at least 256, at least
+    4096 positions (checked against the float16 error, which jumps 17x exactly there).
+    """
+    cin = wshape[3]
+    return (
+        groups == 1
+        and tuple(wshape[1:3]) == (3, 3)
+        and stride == (1, 1)
+        and dilation == (1, 1)
+        and cin % 32 == 0
+        and cout % 32 == 0
+        and cin + cout >= 256
+        and positions >= 4096
+    )
+
+
 def _conv2d(
     xl: mx.array,
     wl: mx.array,
@@ -1659,7 +1685,8 @@ def _conv2d(
     MLX's implicit GEMM is much slower on output channels that are not a multiple of 16 and on wide inputs that are not
     a multiple of 32 (M1 Pro, float16, 256x376: 128 -> 126 3x3 11.3 -> 5.0 ms padded to 128; 1x1 1.7 -> 1.2 ms;
     130 -> 128 9.3 -> 6.4 ms with the input padded to 160; 258 -> 128 17.3 -> 10.1 ms). RAFT-style motion encoders
-    (`128 - 2`), GRU inputs (`128 + 2 + ...`) and correlation features hit both.
+    (`128 - 2`), GRU inputs (`128 + 2 + ...`) and correlation features hit both. The padded-input gains are MLX
+    switching to Winograd, so half precision outside kernels mode does not pad into it (see below).
     """
     cout, cin = wl.shape[0], wl.shape[3]
     if ALIGN_OFF:
@@ -1697,6 +1724,18 @@ def _conv2d(
         # float16 16.5 -> 13.2 ms, float32 27.8 -> 15.6 ms; 64 -> 32 float32 11.2 -> 6.8 ms; 160 -> 48 float32
         # 21.5 -> 15.8 ms; at 32 -> 32 and float16 64 -> 32 the narrow one is as fast or faster): zero outputs to 64
         pad_out = 64 - cout
+    if (pad_out or pad_in) and not _KERNELS and xl.dtype in (mx.float16, mx.bfloat16):
+        # Half precision: padding must not move the conv into MLX's Winograd, whose float16 error is ~17x the direct
+        # conv's (relative mean 6e-3 against 3.5e-4, bfloat16 4.8e-2; float32 4e-6). Its speed-up was all the input
+        # padding gave: without Winograd a padded input is no faster or much slower (512^2, 144 -> 160 inputs: 4x).
+        # HAT's 180-channel convs padded to 192 put hat-x4 float16 over its golden (mean 0.00058 -> 0.00092).
+        # Kernels mode runs its own Winograd (F(4,3), 2.9e-3) anyway and keeps the padding.
+        pad_in = 0
+        hw = xl.shape[0] * xl.shape[1] * xl.shape[2]
+        if _mlx_winograd(wl.shape, cout + pad_out, stride, dilation, groups, hw) and not _mlx_winograd(
+            wl.shape, cout, stride, dilation, groups, hw
+        ):
+            pad_out = 0
     if pad_out or pad_in:
         wl = mx.pad(wl, [(0, pad_out), (0, 0), (0, 0), (0, pad_in)])
     if pad_in:
