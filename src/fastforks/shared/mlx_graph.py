@@ -43,7 +43,7 @@ from fastforks._core.tracing import EXPORTING_FOR_MLX
 from fastforks.shared import mlx_dtype_report, mlx_plan_cache
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator, Sequence
+    from collections.abc import Callable, Iterable, Iterator, Sequence
 
 __all__ = ["GraphNet", "UnsupportedOp"]
 
@@ -2343,8 +2343,8 @@ _PREFETCH_PIECE = 64 << 20  # bytes per touch (a thread lets go of a storage bet
 _PREFETCH_MIN = 64 << 20  # smaller nets: not worth the threads
 
 
-def _prefetch(module: torch.nn.Module) -> list[threading.Thread]:
-    """Threads that read one byte per page of the module's CPU weights, to run while the export traces.
+def _prefetch(tensors: Iterable[Any]) -> list[threading.Thread]:
+    """Threads that read one byte per page of these CPU tensors (the module's weights, to run while the export traces).
 
     A no-op for weights already in memory and the disk read of a mmapped checkpoint otherwise (clean file-backed pages,
     which the translation reads anyway). Touched, not `MADV_WILLNEED`: macOS counts read-ahead pages in the process's
@@ -2353,8 +2353,8 @@ def _prefetch(module: torch.nn.Module) -> list[threading.Thread]:
     them before anything checks `_exclusive`.
     """
     spans: dict[int, tuple[torch.UntypedStorage, list[tuple[int, int]]]] = {}
-    for t in itertools.chain(module.parameters(), module.buffers()):
-        if t.device.type != "cpu" or t.is_meta or t.numel() == 0:
+    for t in tensors:
+        if not isinstance(t, torch.Tensor) or t.device.type != "cpu" or t.is_meta or t.numel() == 0:
             continue
         s = t.untyped_storage()
         off = t.data_ptr() - s.data_ptr()
@@ -2800,7 +2800,7 @@ class GraphNet:
         t0 = time.perf_counter()
         if not PREFETCH_OFF and not self._prefetched:
             self._prefetched = True
-            self._prefetching = _prefetch(self.module)
+            self._prefetching = _prefetch(itertools.chain(self.module.parameters(), self.module.buffers()))
         try:
             return self._build_graph(args)
         finally:
@@ -2881,12 +2881,14 @@ class GraphNet:
 
     def _build_graph(self, args: tuple[torch.Tensor, ...]) -> Callable[..., Any]:
         ep = self._export(args)
-        while self._prefetching:  # the weights are read next (and the threads must let go of their storages)
-            self._prefetching.pop().join()
         graph = ep.graph_module.graph
         sig = ep.graph_signature
         state = set(ep.state_dict)
         lifted = {**ep.state_dict, **dict(ep.constants)}
+        if self._prefetched and not PREFETCH_OFF:  # tensors the export lifted that are no parameter (plain attributes)
+            self._prefetching += _prefetch(v for k, v in lifted.items() if k not in self._consts)
+        while self._prefetching:  # the weights are read next (and the threads must let go of their storages)
+            self._prefetching.pop().join()
         names = {s.arg.name: s.target for s in sig.input_specs if s.target is not None}
         nodes = list(graph.nodes)
         plan: list[tuple[Any, ...]] = []
