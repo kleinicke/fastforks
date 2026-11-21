@@ -5,6 +5,7 @@ from typing import Optional, Callable
 import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
+from fastforks._core.mlx_cast import to_run_dtype  # fastforks: run-dtype casts on MLX
 
 
 # fastforks: einops' rearrange / repeat as view / permute / expand (the runtime has no einops); two shared helpers:
@@ -332,7 +333,7 @@ class WindowAttention(nn.Module):
         attn = qk + qr + kr
         if attn_mask is not None:
             nW = attn_mask.shape[0]
-            attn = attn.view(B_ // nW, nW, self.num_heads, L, L) + attn_mask.unsqueeze(1).unsqueeze(0)
+            attn = attn.view(B_ // nW, nW, self.num_heads, L, L) + to_run_dtype(attn_mask.unsqueeze(1).unsqueeze(0), attn.dtype)
             attn = attn.view(-1, self.num_heads, L, L)
         attn = F.softmax(attn, dim=-1, dtype=attn.dtype)
         attn = self.attn_drop(attn)
@@ -660,7 +661,7 @@ class Propagation(nn.Module):
 
         # position encoding
         label_seed = label_seed.float()
-        pos_embed = fourier_coord_embed(label_seed.reshape(-1, H, W, N, 1), N_freqs=15, normalizer=3.14 / 64)
+        pos_embed = to_run_dtype(fourier_coord_embed(label_seed.reshape(-1, H, W, N, 1), N_freqs=15, normalizer=3.14 / 64), corr.dtype)  # fastforks: a float32 table would lift a float16 MLX replay to float32
 
         # hypothesis embedding
         geo_prior = geo_prior.unsqueeze(-2).repeat(1, 1, 1, N, 1)

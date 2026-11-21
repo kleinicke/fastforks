@@ -8,6 +8,7 @@ from .dpn import DPN
 from .submodule import build_correlation_volume
 from .nmp import fourier_coord_embed, Mlp
 from fastforks._core.sampling import grid_sample
+from fastforks._core.mlx_cast import to_run_dtype  # fastforks: run-dtype casts on MLX
 
 
 class NMRF(nn.Module):
@@ -128,7 +129,7 @@ class NMRF(nn.Module):
         feat_concat = feat_concat.permute(0, 2, 3, 4, 1)  # fastforks: rearrange 'b c h w n -> b h w n c'
         x = self.ffn(torch.cat((feat_concat, corr), dim=-1))
         proposal = proposal.unflatten(0, (-1, H, W))  # fastforks: rearrange '(b h w) n -> b h w n'
-        pos_embed = fourier_coord_embed(proposal.unsqueeze(-1), N_freqs=15, normalizer=3.14 / normalizer)
+        pos_embed = to_run_dtype(fourier_coord_embed(proposal.unsqueeze(-1), N_freqs=15, normalizer=3.14 / normalizer), x.dtype)  # fastforks: a float32 table would lift a float16 MLX replay to float32
         return x, pos_embed
 
     def extract_feature(self, img1, img2):

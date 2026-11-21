@@ -4,6 +4,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
 from fastforks._core.sampling import grid_sample
+from fastforks._core.mlx_cast import to_run_dtype  # fastforks: run-dtype casts on MLX
 
 
 # fastforks: einops' rearrange / repeat as view / permute / expand (the runtime has no einops); shared helpers:
@@ -279,7 +280,7 @@ class WindowAttention(nn.Module):
 
         if attn_mask is not None:
             L = attn.shape[-1]  # fastforks: rearrange '(b j) h m n -> b j h m n' and back; mask in the logits' dtype
-            attn = attn.view(bs, -1, self.num_heads, L, L) + attn_mask[None, :, None, :, :].to(attn.dtype)
+            attn = attn.view(bs, -1, self.num_heads, L, L) + to_run_dtype(attn_mask[None, :, None, :, :], attn.dtype)
             attn = attn.view(-1, self.num_heads, L, L)
 
         attn = F.softmax(attn, dim=-1, dtype=attn.dtype)
@@ -462,7 +463,7 @@ class CSWinAttention(nn.Module):
         # upstream: q * scale, q @ k^T + mask, softmax, @ v on materialized logits)
         window_size = (H_sp, W_sp, dd)
         mask = cached_mask(self._masks, (window_size, q.device), lambda: WindowAttention.gen_window_attn_mask(window_size, q.device))
-        x = F.scaled_dot_product_attention(q, k, v.to(q.dtype), attn_mask=mask[None, None].to(q.dtype),
+        x = F.scaled_dot_product_attention(q, k, v.to(q.dtype), attn_mask=to_run_dtype(mask[None, None], q.dtype),
                                            dropout_p=self.attn_drop.p if self.training else 0.0, scale=self.scale) + rpe
         x = unwindows(x, ht_ // H_sp, wd_ // W_sp, H_sp, W_sp)
         x = x[:, top_pad:ht+top_pad, left_pad:wd+left_pad, :, :]
@@ -569,7 +570,7 @@ class Propagation(nn.Module):
         cost = Propagation.sample_cost(cost_volume, label_seed)
         cost_feat = self.cost_encoder(cost)
         label_seed = label_seed.float()
-        disp_encoding = fourier_coord_embed(label_seed.unsqueeze(-1), N_freqs=15, normalizer=3.14/64)
+        disp_encoding = to_run_dtype(fourier_coord_embed(label_seed.unsqueeze(-1), N_freqs=15, normalizer=3.14/64), cost_feat.dtype)  # fastforks: a float32 table would lift a float16 MLX replay to float32
         # concat & proj
         sample_embed = self.proj(torch.cat((cost_feat, disp_encoding), dim=-1))
 
@@ -681,7 +682,7 @@ class Inference(nn.Module):
         feat_concat = feat_concat.permute(0, 2, 3, 4, 1).flatten(0, 2)  # fastforks: rearrange 'b c h w n -> (b h w) n c'
         label_rep = self.ffn(torch.cat((feat_concat, corr), dim=-1))
 
-        abs_encoding = fourier_coord_embed(labels.unsqueeze(-1), N_freqs=15, normalizer=3.14/64)
+        abs_encoding = to_run_dtype(fourier_coord_embed(labels.unsqueeze(-1), N_freqs=15, normalizer=3.14/64), label_rep.dtype)  # fastforks: a float32 table would lift a float16 MLX replay to float32
 
         window_size = self.layers[0].window_size
         window_size = (window_size, window_size, N)
@@ -745,7 +746,7 @@ class Refinement(Inference):
         feat_concat = feat_concat.permute(0, 2, 3, 1).flatten(0, 2).unsqueeze(1)  # fastforks: rearrange 'b c h w -> (b h w) 1 c'
         label_rep = self.ffn(torch.cat((feat_concat, corr), dim=-1))
 
-        abs_encoding = fourier_coord_embed(labels.unsqueeze(-1), N_freqs=15, normalizer=3.14 / 128)
+        abs_encoding = to_run_dtype(fourier_coord_embed(labels.unsqueeze(-1), N_freqs=15, normalizer=3.14 / 128), label_rep.dtype)  # fastforks: a float32 table would lift a float16 MLX replay to float32
 
         window_size = self.layers[0].window_size
         window_size = (window_size, window_size)
