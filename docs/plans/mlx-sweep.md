@@ -1264,3 +1264,28 @@ Goldens (`test_mlx[<ref>@1]`, kernels where declared, the fused-activation pass 
 rt-monster-plusplus-mix-all, selective-igev-eth3d-train, raft-stereo-eth3d, igev-plusplus-eth3d, realesr-general-x4v3,
 codeformer, span-x2, realesrgan-x2plus, deeplabv3plus-r101-d8-ade20k, pidinet, yolox-s, rife-4.25, rife-4.25-lite,
 anyline, teed pass.
+
+FoundationStereo kernels float16 (was NaN on vit-s): not Winograd. `graph_mlx.depthwise` got a float32 activation (after
+a float32 norm) with float16 weights and read all three as the activation's type, so the 7x7 depthwise weights came
+out as garbage (1e30, then inf / NaN). Found by running the golden with `mx.compile` off and every conv_mlx / graph_mlx
+op wrapped in a finite check. Fix: `depthwise` and `gwc_volume` promote mixed inputs as `mx.conv2d` would
+(`conv_mlx.direct` / Winograd already cast the weights). Unit test: `test_depthwise_mixed_dtypes`.
+
+Winograd float16 range: separately, F(4,3)'s input transform grows a tile up to 100x, so float16 activations above
+~650 overflowed `v` (the unit test at |x| ~ 2000: NaN). The transformed input and the GEMM output are now stored
+divided by 32 (F(2,3): 4) and the output transform multiplies back in float32; powers of two, so the error is
+unchanged (F(4,3) float16 ~1.3 % of max at any magnitude, F(2,3) ~0.1 %, `mx.conv2d` float16 ~0.04 %).
+`FF_WINO_M=2` did not help FoundationStereo because the 3x3x3 path always uses m 4 (and the cause was elsewhere).
+
+FoundationStereo kernels declared again (`conv_mlx`, float32 + float16; float32 not surveyed: 40 s / 12 GB on this Mac):
+
+| ref | dtype | MLX portable | MLX kernels | MPS portable |
+|---|---|---|---|---|
+| foundationstereo-vit-s | fp16 | 20504 / 4943 | 17814 / 4613 | 20584 / 13617 |
+
+Routes: foundationstereo-vit-s `auto`, `kernels` and `mlx` float16 now MLX kernels (13 % faster than MPS, 66 % leaner;
+massive). vit-l and c-foundationstereo-s not re-surveyed in kernels mode.
+
+Goldens after both fixes: foundationstereo-vit-s and -vit-l (all four MLX runs), the 15 conv_mlx families above, and
+the graph_mlx depthwise users convnext_tiny, convnextv2_base, nafnet-sidd, segnext-mscan-t, efficientnet_b0,
+wd-convnext-tagger-v3, crestereo-eth3d, depth-anything-v2-s pass (dinov3-convnext-tiny: gated weights not on this Mac).

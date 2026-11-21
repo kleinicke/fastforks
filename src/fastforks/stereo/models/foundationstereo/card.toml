@@ -41,6 +41,8 @@ mlx_dtypes = ["float32", "float16"]
 [modes.kernels]
 kernels = ["fs", "fs_cutlass", "cudnn_hacc", "fastbb"]
 mps_kernels = ["stereo_metal"]
+mlx_kernels = ["conv_mlx"]  # Winograd 3x3 / 3x3x3, the direct few-channel conv
+mlx_dtypes = ["float32", "float16"]
 
 [[papers]]
 title = "FoundationStereo: Zero-Shot Stereo Matching"

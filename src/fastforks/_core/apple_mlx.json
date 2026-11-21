@@ -1222,12 +1222,26 @@
    }
   },
   "foundationstereo-vit-s@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels"
+   },
+   "kernels_default": [
+    "kernels",
+    "float16"
+   ],
+   "kernels": {
+    "float16": "kernels"
+   },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
+    "float16": "kernels",
     "float32": "portable"
    },
    "mps_auto": [

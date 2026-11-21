@@ -61,7 +61,13 @@ _DW = metal_kernel(
 def depthwise(  # noqa: PLR0913
     x: mx.array, w: mx.array, b: mx.array, stride: tuple[int, int], padding: tuple[int, int], dilation: tuple[int, int]
 ) -> mx.array:
-    """NHWC depthwise convolution (channels a multiple of 4). `w` is `[kh, kw, C]`, `b` is `[C]`."""
+    """NHWC depthwise convolution (channels a multiple of 4). `w` is `[kh, kw, C]`, `b` is `[C]`.
+
+    Mixed dtypes promote as in `mx.conv2d` (the kernel reads all three as one type: a float32 activation against float16
+    weights read them as garbage, FoundationStereo's float16 7x7 depthwise convs after a float32 norm).
+    """
+    t = mx.result_type(x.dtype, w.dtype, b.dtype)
+    x, w, b = x.astype(t), w.astype(t), b.astype(t)
     n, h, wd, c = x.shape
     kh, kw = w.shape[0], w.shape[1]
     oh = (h + 2 * padding[0] - dilation[0] * (kh - 1) - 1) // stride[0] + 1
@@ -302,6 +308,8 @@ _GWC = metal_kernel(
 
 def gwc_volume(left: mx.array, right: mx.array, depth: int, groups: int) -> mx.array:
     """Group-wise correlation volume of two NHWC feature maps; returns `[B, D, H, W, G]` (zeros where `x < d`)."""
+    t = mx.result_type(left.dtype, right.dtype)  # the kernel reads both as one type
+    left, right = left.astype(t), right.astype(t)
     n, h, w, c = left.shape
     return _GWC(
         inputs=[mx.contiguous(left), mx.contiguous(right)],

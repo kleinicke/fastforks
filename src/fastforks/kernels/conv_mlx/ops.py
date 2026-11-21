@@ -96,7 +96,7 @@ _IN_SRC = """
     UR for (int i = 0; i < A; ++i) UR for (int j = 0; j < A; ++j) {
         F s = F(0);
         UR for (int k = 0; k < A; ++k) s += BT[j * A + k] * t[i][k];
-        vv[(size_t(i * A + j) * NT + tile) * (NK * CC) + cv] = vec<T, CV>(s);
+        vv[(size_t(i * A + j) * NT + tile) * (NK * CC) + cv] = vec<T, CV>(s * (1.0f / float(SC)));
     }
 """
 
@@ -109,7 +109,7 @@ _OUT_SRC = """
     typedef vec<float, CV> F;
     const device vec<T, CV>* mv = (const device vec<T, CV>*)m;
     F mm[A][A];
-    UR for (int f = 0; f < A * A; ++f) mm[f / A][f % A] = F(mv[(size_t(f) * NT + tile) * (CO / CV) + cv]);
+    UR for (int f = 0; f < A * A; ++f) mm[f / A][f % A] = F(mv[(size_t(f) * NT + tile) * (CO / CV) + cv]) * float(SC);
     F t[MO][A];
     UR for (int i = 0; i < MO; ++i) UR for (int j = 0; j < A; ++j) {
         F s = F(0);
@@ -139,6 +139,17 @@ _OUT_SRC = """
 """
 
 _K: dict[int, tuple[object, object]] = {}
+
+
+def _scale(m: int, dtype: mx.Dtype) -> int:
+    """Float16 range guard: `v` and the GEMM output are stored divided by this, the output transform multiplies it back.
+
+    F(4,3)'s input transform grows a tile up to 100x (|B^T| row sums 10), so float16 activations above ~650 overflowed;
+    F(2,3) grows 4x. Powers of two: exact in any dtype.
+    """
+    if dtype != mx.float16:
+        return 1
+    return 32 if m == 4 else 4  # noqa: PLR2004
 
 
 def _kernels(m: int) -> tuple[object, object]:
@@ -245,6 +256,7 @@ def _band(x: mx.array, u: mx.array, bias, m, act, slope, residual, r0: int, bth:
             ("TW", tw),
             ("NT", nt),
             ("MO", m),
+            ("SC", _scale(m, x.dtype)),
             ("CV", CV),
             ("K3", 0),
             ("D", 1),
@@ -267,7 +279,7 @@ def _band(x: mx.array, u: mx.array, bias, m, act, slope, residual, r0: int, bth:
         ],
         template=[
             ("T", x.dtype), ("CO", co), ("H", h), ("W", wd), ("TH", bth), ("TW", tw), ("NT", nt),
-            ("MO", m), ("CV", CV), ("ACT", act), ("RES", residual is not None), ("BH", bh),
+            ("MO", m), ("SC", _scale(m, x.dtype)), ("CV", CV), ("ACT", act), ("RES", residual is not None), ("BH", bh),
         ],
         grid=(co // CV, tw, n * bth),
         threadgroup=(min(co // CV, 256), max(1, txo), 1),
@@ -308,7 +320,7 @@ def conv3d(
         inputs=[x.reshape(n * d, h, wd, c), off],
         template=[
             ("T", x.dtype), ("C", c), ("H", h), ("W", wd), ("TH", th), ("TW", tw), ("NT", nt),
-            ("MO", m), ("CV", CV), ("K3", 1), ("D", d),
+            ("MO", m), ("SC", _scale(m, x.dtype)), ("CV", CV), ("K3", 1), ("D", d),
         ],
         grid=(c3 // CV, tw, n * d * th),
         threadgroup=(min(c3 // CV, 256), max(1, tx), 1),
@@ -328,7 +340,7 @@ def conv3d(
         ],
         template=[
             ("T", x.dtype), ("CO", co), ("H", h), ("W", wd), ("TH", th), ("TW", tw), ("NT", nt),
-            ("MO", m), ("CV", CV), ("ACT", act), ("RES", False), ("BH", h),
+            ("MO", m), ("SC", _scale(m, x.dtype)), ("CV", CV), ("ACT", act), ("RES", False), ("BH", h),
         ],
         grid=(co // CV, tw, n * d * th),
         threadgroup=(min(co // CV, 256), max(1, txo), 1),
