@@ -1990,3 +1990,54 @@ so the routes are unchanged. If default-on is wanted, these are also needed:
 - a survey column for the miss as well as the hit
 
 No re-survey and no route change came out of this work. The survey path (cache off) is unchanged code.
+
+## Multiview transformers: fp16 replays that ran in fp32 (2026-11-21)
+
+`FF_MLX_PROFILE=1` showed the same cause for all six refs that lost to MPS: the "float16" replay ran its transformer in
+float32. The twin is exported in float32, so `.to(dtype)` on a table is a no-op there. Any float32 table the forward
+builds (RoPE cos / sin, a bicubic-resized position table, a KV buffer from `new_empty`) then promotes every op
+downstream of it under MLX type promotion. That covered most addmm, SDPA and LayerNorm calls in the aggregator. fp16
+GEMM and SDPA on MLX are on par with or faster than MPS (8456x1024x4096 GEMM 15.7 vs 16.3 ms, SDPA L8456 74.6 vs 88.6 ms).
+
+The fix is `to_run_dtype` at each table, a no-op off MLX:
+
+- vggt-omega: q / k after the float32 RoPE. With only that change, the fp16 golden was nan: an fc2 output of 46k times
+  the LayerScale gamma overflowed. So on MLX the block keeps the residual stream and LayerScale in float32, with the
+  branches in fp16 (`_mlx_forward`). This matches upstream bf16 autocast and the MPS fast path.
+- `shared/rope2d.rope_forward` (vggt-1b, anysplat, da3) and pi3's `_rope_forward`: the output goes back to the run
+  dtype, and the rotation stays in float32. Casting the tables to fp16 instead was tried first. AnySplat then missed
+  its `gaussians.means` bound (mean 0.0038, limit 0.0031), and still missed it (p99 0.0124, limit 0.012) with a float32
+  residual stream.
+- AnySplat's `Block` keeps a float32 residual stream on MLX. Without it the golden misses (mean 0.0038).
+- mapanything: `pos_embed`, the bicubic-resized float32 table.
+- lingbot-map runs the VGGT fast path on MLX, not `rope_forward`. Its fix is in `vggt._Fast.rope_tables`, the 3D
+  `rope3d` tables and the `_Cache` KV buffers.
+
+Survey rows (warm median ms / peak MB; compile = first call - warm):
+
+| ref | dtype | MLX before | MLX after | compile | MPS (fastest) | `auto` |
+|---|---|---|---|---|---|---|
+| vggt-omega-1b-512 | fp16 | 8564 / 5137 | 5853 / 4289 | 20.0 s | 7242 / 8602 | now MLX fp16 |
+| vggt-omega-1b-512 | fp32 | 16674 / 7431 (outlier row) | 7746 / 7388 | | 7938 / 8221 | |
+| vggt-1b | fp16 | 8774 / 6853 | 5711 / 5689 | 24.8 s (limit 19.9) | 6638 / 8423 | blocked by compile |
+| vggt-1b | fp32 | 9359 / 9387 | 7826 / 8964 | | 7016 (kernels) | |
+| pi3 | fp16 | 10309 / 3859 | 7752 / 3102 | 8.8 s | 8341 / 6510 | now MLX fp16 |
+| pi3 | fp32 | 11851 / 5526 | 10305 / 5246 | | 10298 / 6201 | |
+| anysplat | fp16 | 6974 / 8297 | 4824 / 6370 | 9.3 s | 5164 / 8809 | now MLX fp16 |
+| anysplat | fp32 | 8786 / 10565 | 6109 / 9821 | | 5566 / 8719 | |
+| lingbot-map (480x640) | fp16 | 10046 / 8220 | 7217 / 5409 | 22.7 s (limit 21.4) | 7125 / 8834 | 1.3 % slower; compile over |
+| lingbot-map (480x640) | fp32 | 11010 / 9090 | 9852 / 9304 | | 8840 / 13055 | |
+| mapanything-apache | fp16 | 8876 / 8371 | 5894 / 5495 | 26.1 s (limit 19.1) | 6369 / 7218 | blocked by compile |
+| mapanything-apache | fp32 | 11871 / 11118 | 9075 / 10774 | | 7357 / 11638 | |
+
+All goldens pass: `test_mlx` for every touched family, da3 (5 refs, which share `rope_forward`), nafnet-gopro and
+wd-vit-tagger-v3, and tests/test_mlx*.py. The fp32 gains are run-to-run differences, not code: fp32 replays were
+already float32. Routes only gain entries; none are lost.
+
+Still open:
+
+- Compile for vggt-1b, mapanything-apache and lingbot-map: the survey's no-cache first call is 30-32 s. The fp16 speed
+  is already below MPS.
+- MLX fp32 is still slower than MPS fp32 for vggt-1b, anysplat, lingbot-map and mapanything. fp32 GEMM on MLX is about
+  10 % behind MPS, and fp16 is the default route.
+- DA3 was not re-surveyed. Its fp16 rows probably improve too, since the same RoPE output cast applies.
