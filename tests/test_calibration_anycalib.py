@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import pytest
 import torch
 import torch.nn.functional as F
 
 from fastforks import calibration
 from fastforks._core import registry
-from fastforks.calibration.models.anycalib.model import Params, fit, preprocess, target_size
+from fastforks._core.errors import WeightsError
+from fastforks.calibration.models.anycalib.model import Params, _AnyCalib, fit, preprocess, target_size
 from fastforks.calibration.models.anycalib.net.utils import solve_small_export
+from fastforks.kernels import cudnn_hacc
 
 P = Params(resolution=102400, edge=14, ar_min=0.5, ar_max=2.0, gn_iters=10, cuda_graphs=False)
 
@@ -89,3 +92,35 @@ def test_export_fit_preserves_degenerate_rays() -> None:
     exported = torch.export.export(Fitter(), (rays,), strict=False).module()(rays)
     torch.testing.assert_close(exported[:2], eager[:2], atol=1e-3, rtol=1e-4)
     assert exported[2].isnan().all()
+
+
+@pytest.mark.gpu
+@pytest.mark.model
+def test_kernels_graph_replays_network_and_fit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The kernels graph holds the network and the camera fit: replay equals eager bit for bit, with fresh outputs."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    monkeypatch.setattr(cudnn_hacc, "BUILD_AFTER", 0)  # plans on the first call, the graph on the second
+    monkeypatch.setattr(cudnn_hacc, "CAPTURE_AFTER", 1)
+    try:
+        model = calibration.load("anycalib-pinhole", mode="kernels", device="cuda")
+    except WeightsError as e:
+        pytest.skip(f"anycalib-pinhole weights not available: {e}")
+    r = model._runner
+    cache = r.graphs
+    assert cache is not None
+    g = torch.Generator().manual_seed(0)
+    a, b = (torch.rand(1, 3, 266, 392, generator=g).cuda() for _ in range(2))
+    with torch.inference_mode():
+        want_a = _AnyCalib._camera(r, a)  # the eager network + fit
+        want_b = _AnyCalib._camera(r, b)
+        r._camera(a)  # first call: eager
+        assert not cache.graphs
+        first = r._camera(a)  # captures
+        assert len(cache.graphs) == 1
+        second = r._camera(b)  # replay with new data; `first` must not change
+    torch.testing.assert_close(first, want_a, rtol=0, atol=0)
+    torch.testing.assert_close(second, want_b, rtol=0, atol=0)
+    assert first.data_ptr() != second.data_ptr()
+    model.release_graphs()
+    assert not cache.graphs

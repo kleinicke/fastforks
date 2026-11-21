@@ -932,6 +932,7 @@ option flow.flowseek.iters
 option flow.megaflow.iters
 option flow.memflow.iters
 option flow.memfof.iters
+option flow.neuflow_v2.cuda_graphs
 option flow.neuflow_v2.iters
 option flow.raft.iters
 option flow.recover.iters
@@ -988,6 +989,7 @@ option ocr.parseq.cuda_graphs
 option ocr.ppocrv5.box_threshold aliases text_det_box_thresh
 option ocr.ppocrv5.unclip_ratio aliases text_det_unclip_ratio
 option pose.hrnet.flip_test
+option pose.retinaface.cuda_graphs
 option pose.retinaface.score_threshold
 option pose.rfdetr_keypoint.score_threshold
 option pose.rtmo.cuda_graphs

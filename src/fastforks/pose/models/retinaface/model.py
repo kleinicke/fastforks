@@ -21,9 +21,10 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import torch
 
 from fastforks._optimize import optimize
-from fastforks.kernels import box_nms
+from fastforks.kernels import box_nms, cudnn_hacc
 from fastforks.pose._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import ANCHORS, HEAD, Arch, RetinaFace, convert
 
@@ -45,6 +46,7 @@ class Params(Arch):
 
     nms_iou: float  # NMS IoU threshold
     score_threshold: float  # option: minimum face probability
+    cuda_graphs: bool  # option: kernels replays the network from CUDA graphs for small repeated shapes
 
 
 def anchors(h: int, w: int, device: torch.device) -> torch.Tensor:
@@ -153,10 +155,37 @@ class Portable(Runner):
         return Forward(self.net, fn, output_names=("head_s8", "head_s16", "head_s32"))
 
 
+_GRAPH_PIXELS = 2_100_000  # fixed: batch x H x W; the MobileNet-0.25 network is launch-bound up to 1080p, measured
+_GRAPHS = 2  # fixed: graph cache policy
+
+
 class Kernels(Portable):
-    """Run greedy suppression on the device with a bounded overlap buffer."""
+    """Run greedy suppression on the device with a bounded overlap buffer.
+
+    A repeated input shape up to `_GRAPH_PIXELS` replays the network from a CUDA graph
+    (`fastforks.shared.cuda_graphs`); the decoding (a data-dependent number of faces) stays eager.
+    """
 
     suppress = staticmethod(box_nms.indices)
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network as portable does, with a CUDA graph cache for it."""
+        super().__init__(ctx)
+        self.graphs = SmallShapeGraphs(
+            super().dense,
+            pixels=_GRAPH_PIXELS,
+            graphs=_GRAPHS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+        )
+
+    def dense(self, image: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """float32 head maps of `image` `[B, 3, H, W]` RGB in [0, 1], from a graph for a small repeated shape."""
+        return self.graphs(image)
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool on the device."""
+        self.graphs.release()
 
 
 RUNNERS = {

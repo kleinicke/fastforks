@@ -375,8 +375,11 @@ class PromptableSegmentationModel(core.Model):
             msg = f"{self.variant.ref} is not a concept model: {extra} apply to text / exemplar prompts only"
             raise InputError(msg)
         prompts, batched = self._prompts(given)
+        # the point check reads the caller's (host) arrays: on the device copies it waited for the image encoder
+        # (six host syncs), so the prompt decoder could not be launched while the encoder ran
+        host = {k: _numeric(k, given[k], _PROMPTS[k][2]) for k in ("input_points", "input_labels") if k in prompts}
         emb = self._embedding(image)
-        _check_points_in_image(prompts, emb.image_size)
+        _check_points_in_image(host, emb.image_size)
         p = next(iter(prompts.values())).shape[0]
         if p == 0:  # an empty prompt batch (e.g. a detector found nothing): an empty result, no model run
             return self._no_masks(emb, multimask_output)
