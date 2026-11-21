@@ -2099,11 +2099,25 @@ Deliberate float32 islands kept, and negative results:
   `shared/rope2d`.
 - **unidepth-v2**: its card is MLX float32 only, so the DINOv2 edit was reverted.
 
+### Native MPS: no silent promotion (negative result)
+
+`tools/mlx_dtype_report.py <ref> --mps` counted the heavy-op FLOPs by input dtype on an eager MPS fp16 forward. In
+eager torch, `.to(dtype)` and `new_zeros` keep their real dtype, so the twin's failure mode does not exist there:
+
+| ref | MPS fp16 heavy fp32 % | note |
+|---|---|---|
+| gmflow-scale1-things | 0.5 | MPS fp16 10676 ms vs fp32 3269 ms is not promotion; the cause is still open |
+| moge-3-vitl | 6.4 | sparse `subm_conv` addmm and a few linears |
+| video-depth-anything-metric-s | 0.0 | |
+| mvsanywhere | 0.0 | |
+| raft-large | n/a | no heavy op was seen by the dispatch hook |
+
+No MPS code was changed. The fp16 >= fp32 MPS rows (sam3, swin2sr, moge, raft-large, gmflow) need an op-level
+profile instead.
+
 ### MLX findings that plausibly help MPS (not implemented here)
 
-- Look for silent float32 on MPS fp16 too. Autocast leaves float32 tables float32 outside autocast regions (gmflow
-  MPS fp16 10676 ms vs fp32 3269 ms is the outlier to start with). `tools/mlx_dtype_report.py <ref> --mps` counts
-  heavy-op FLOPs by input dtype on an eager MPS forward and lists the top float32 call sites.
+- Re-run `tools/mlx_dtype_report.py <ref> --mps` after MPS code changes. The check above found no promotion today.
 - Cost volumes from `new_zeros` filled in a loop (nmrf, mocha, cfnet, psmnet, cas_gwcnet): one `torch.stack` /
   `cat` avoids the in-place slice writes and the extra zero fill.
 - Sibling projection fusion (q / k / v, or the gmflow q_proj + k_proj(query) pair) as one GEMM, as the MLX graph pass
