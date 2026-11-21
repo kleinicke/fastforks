@@ -3,11 +3,19 @@
 Every node takes a model id, a backend (`auto` / `portable` / `kernels`) and a dtype. Loaded models stay cached across
 runs (at most `_MAX_CACHED`, least recently used dropped first) on ComfyUI's device; ComfyUI's "Unload models" also
 empties the cache. ComfyUI is imported lazily so the module imports without it (unit tests).
+
+Two packs share this module (one copy, `fastforks_comfyui.nodes`): the default pack `fastforks` (this folder,
+`mappings()`) lists every model, non-commercial ones tagged, and runs its nodes inside `registry.allow_noncommercial()`
+(installing it is the opt-in to their weights); `fastforks-commercial` (integrations/comfyui-commercial,
+`mappings(commercial_only=True)`) has the same node classes with only the models cleared for commercial use and never
+runs another. Same class names: a workflow saved with one pack loads in the other.
 """
 
 from __future__ import annotations
 
 import contextlib
+import contextvars
+import functools
 import gc
 import logging
 import os
@@ -39,10 +47,21 @@ _MAX_CACHED = 2
 _FILE = "file: "  # dropdown prefix of a checkpoint file of ComfyUI's `models/upscale_models`
 _files: dict[str, tuple[float, str | None]] = {}  # path -> (mtime, `restoration._api._checkpoint_family`)
 _cache: OrderedDict[tuple[Any, ...], fastforks.Model] = OrderedDict()
-_LICENCE_TIP = (
-    " Ids marked [non-commercial] have a non-commercial code or weights licence (research use only; their weights"
-    " download only with the environment variable FASTFORKS_NONCOMMERCIAL=1); [licence unclear] means not cleared"
-    " for commercial use. `fastforks info MODEL` shows the licences."
+FULL_PACK = "fastforks"  # registry id of the default pack (integrations/comfyui): every model, nc ones tagged
+COMMERCIAL_PACK = "fastforks-commercial"  # registry id of the commercial-only pack (integrations/comfyui-commercial)
+ONLY_FULL = (
+    f"is only in the {FULL_PACK} pack (it is not cleared for commercial use, so {COMMERCIAL_PACK} does not offer"
+    f" it): install {FULL_PACK} with ComfyUI-Manager or `comfy node install {FULL_PACK}` instead"
+)
+NC_NOTICE = (
+    "Models marked [non-commercial] are for non-commercial / research use only (GPL code: its copyleft terms) and"
+    " [licence unclear] ones are not cleared for commercial use; using each within its licence is your"
+    " responsibility (`fastforks info MODEL`)."
+)
+_LICENCE_TIP = " " + NC_NOTICE
+_COMMERCIAL_TIP = (
+    " Only models cleared for commercial use (code and weights licence) are listed. `fastforks info MODEL` shows the"
+    " licences."
 )
 _BACKEND_TIP = (
     "auto: our CUDA kernels where they are faster, else portable PyTorch. portable: plain PyTorch (any device)."
@@ -62,25 +81,38 @@ def model_id(label: str) -> str:
     return label if label.startswith(_FILE) else label.split(" [", 1)[0]
 
 
-def model_input(ids: list[str], default: str) -> tuple[list[str], dict[str, Any]]:
-    """The `model` dropdown of a node."""
+def commercial(mid: str) -> bool:
+    """Whether the installed model `mid` is cleared for commercial use (code and weights licence: `yes`)."""
+    card, variant = registry.resolve_any(mid)
+    return card.status(variant).commercial == "yes"
+
+
+def model_input(node: type[_Node]) -> tuple[list[str], dict[str, Any]]:
+    """The `model` dropdown of a node: the ids its pack runs (`node.ids()`), its default and a licence tooltip."""
+    ids = node.ids()
     entries = labels(ids)
-    pick = next((e for e in entries if model_id(e) == default), entries[0] if entries else "")
-    tasks = sorted({fastforks.model_card(m).task for m in ids})
-    missing = [m for t in tasks for m in not_installed(t)]
-    more = (
-        f" Not installed: {len(missing)} more {' / '.join(tasks)} models with non-commercial or GPL code (e.g."
-        f" {', '.join(missing[:3])}); they need {NC_EXTRA} in ComfyUI's Python (see the pack's docs)."
-        if missing
-        else ""
-    )
-    return entries, {"default": pick, "tooltip": "fastforks model id." + _LICENCE_TIP + more}
+    pick = next((e for e in entries if model_id(e) == node.DEFAULT), entries[0] if entries else "")
+    task = node.TASK or ""
+    missing = not_installed(task)
+    if node.COMMERCIAL_ONLY:
+        others = [*(m for m in node.ids(commercial_only=False) if not commercial(m)), *missing]
+        tip = _COMMERCIAL_TIP
+        if others:
+            tip += f" {len(others)} more {task} models (e.g. {', '.join(others[:3])}) are only in the {FULL_PACK} pack."
+    else:
+        tip = _LICENCE_TIP
+        if missing:
+            tip += (
+                f" Not installed: {len(missing)} more {task} models with non-commercial or GPL code (e.g."
+                f" {', '.join(missing[:3])}); they need {NC_DIST} in ComfyUI's Python (this pack's requirements.txt)."
+            )
+    return entries, {"default": pick, "tooltip": "fastforks model id." + tip}
 
 
-def common(ids: list[str], default: str) -> dict[str, Any]:
-    """The `model`, `backend` and `dtype` inputs every node has."""
+def common(node: type[_Node]) -> dict[str, Any]:
+    """The `model`, `backend` and `dtype` inputs every node with a model has."""
     return {
-        "model": model_input(ids, default),
+        "model": model_input(node),
         "backend": (BACKENDS, {"default": "auto", "tooltip": _BACKEND_TIP}),
         "dtype": (DTYPES, {"default": "auto", "tooltip": _DTYPE_TIP}),
     }
@@ -94,14 +126,12 @@ def backend_words(text: str) -> str:
     return _MODE_ARG.sub("backend=", text)
 
 
-NC_ENV = registry.NONCOMMERCIAL_ENV
+NC_ENV = registry.NONCOMMERCIAL_ENV  # the library's own switch for library users; the packs never set it
 NC_EXTRA = "fastforks-core[nc]"  # the model families with non-commercial or GPL code (dists.toml `fastforks-nc`)
+NC_DIST = "fastforks"  # the PyPI metapackage (fastforks-core[nc,libs]) the default pack installs
 _SPEC = re.compile(r"fastforks-core\[[\w,-]+\]")
-_ENV_HOWTO = (
-    f"set {NC_ENV}=1 where ComfyUI starts and restart ComfyUI (ComfyUI portable: add the line"
-    f" `set {NC_ENV}=1` above the python line of run_nvidia_gpu.bat or the .bat you start it with; Linux / macOS:"
-    f' `{NC_ENV}=1 python main.py`; PowerShell: `$env:{NC_ENV} = "1"` before `python main.py`)'
-)
+# set while a node of the commercial pack runs (`_Node.execute`): `load` refuses other models, errors name the pack
+_COMMERCIAL_RUN: contextvars.ContextVar[bool] = contextvars.ContextVar("fastforks_comfyui_commercial", default=False)
 
 
 def pip_words(specs: str, *, upgrade: bool = False) -> str:
@@ -114,29 +144,25 @@ def pip_words(specs: str, *, upgrade: bool = False) -> str:
     )
 
 
-def comfy_hint(error: fastforks.FastforksError, text: str) -> str:
+def comfy_hint(error: fastforks.FastforksError, text: str, *, commercial_only: bool = False) -> str:
     """What to do in ComfyUI about a fastforks error with message `text` ("" if nothing to add).
 
-    A `pip install` of fastforks extras gets the commands for ComfyUI's Python; the non-commercial weights gate gets
-    how to set `FASTFORKS_NONCOMMERCIAL=1`. Nothing is enabled here: the user sets the variable.
+    A `pip install` of fastforks extras gets the commands for ComfyUI's Python. In the commercial pack a model of
+    `fastforks-core[nc]` or with non-commercial weights gets the fastforks pack instead (`ONLY_FULL`).
     """
     specs = list(dict.fromkeys(_SPEC.findall(text))) if "pip install" in text else []
-    hints = []
+    licence = isinstance(error, fastforks.LicenceError) and NC_ENV in text
+    if commercial_only and (NC_EXTRA in specs or licence):
+        return f"In ComfyUI: this model {ONLY_FULL}."
     if specs:
-        hints.append(pip_words(" ".join(f'"{s}"' for s in specs), upgrade="pip install -U" in text))
-    if NC_EXTRA in specs:
-        hints.append(
-            "its models have non-commercial or GPL code (check the licence: `fastforks info MODEL`), and"
-            f" non-commercial weights also need {NC_ENV}=1"
-        )
-    if isinstance(error, fastforks.LicenceError) and NC_ENV in text:
-        hints.append(f"only if your use is within that licence (e.g. non-commercial research): {_ENV_HOWTO}")
-    return f"In ComfyUI: {'; '.join(hints)}." if hints else ""
+        quoted = " ".join(f'"{s}"' for s in specs)
+        return f"In ComfyUI: {pip_words(quoted, upgrade='pip install -U' in text)}."
+    return ""
 
 
-def node_words(error: fastforks.FastforksError, text: str) -> str:
+def node_words(error: fastforks.FastforksError, text: str, *, commercial_only: bool = False) -> str:
     """A fastforks message in the node's words: `backend=` for `mode=`, then what to do in ComfyUI (if anything)."""
-    hint = comfy_hint(error, text)
+    hint = comfy_hint(error, text, commercial_only=commercial_only)
     words = backend_words(text)
     return f"{words}{'' if words.endswith('.') else '.'} {hint}" if hint else words
 
@@ -148,7 +174,7 @@ def node_errors() -> Generator[None]:
         yield
     except fastforks.FastforksError as e:
         if e.args and isinstance(e.args[0], str):
-            e.args = (node_words(e, e.args[0]), *e.args[1:])
+            e.args = (node_words(e, e.args[0], commercial_only=_COMMERCIAL_RUN.get()), *e.args[1:])
         raise
 
 
@@ -160,38 +186,49 @@ def not_installed(task: str | None = None) -> list[str]:
     return sorted(known - {m for t in tasks for m in registry.cards(t)})
 
 
-def licence_state() -> str:
-    """One line for the startup log: whether non-commercial weights download, and the missing nc package."""
-    try:
-        on = registry.noncommercial_enabled()
-    except fastforks.FastforksError as e:  # a malformed value: loading such a model raises the same
-        return f"fastforks: {e}"
-    if on:
-        line = f"fastforks: {NC_ENV}=1: the weights of [non-commercial] models download; their licences allow"
-        line += " non-commercial use only"
-    else:
-        line = "fastforks: commercial-safe default: [non-commercial] weights do not download; to allow them, "
-        line += _ENV_HOWTO
+def licence_state(*, commercial_only: bool = False) -> str:
+    """One line for the startup log: what the pack lists and downloads, and where the other models are."""
     missing = not_installed()
+    if commercial_only:
+        others = len([m for m in fastforks.list_models() if not commercial(m)]) + len(missing)
+        line = f"fastforks: {COMMERCIAL_PACK} lists only models cleared for commercial use and downloads no"
+        line += " non-commercial weights"
+        return line + (f"; {others} other models are only in the {FULL_PACK} pack" if others else "")
+    nc = len([m for m in fastforks.list_models() if not commercial(m)])
+    line = (
+        f"fastforks: {FULL_PACK} pack: {nc} of its models are not cleared for commercial use (tagged [non-commercial]"
+        " or [licence unclear]); installing this pack is the opt-in to download their weights, for its nodes only"
+        f" (not the environment). Using each model within its licence is your responsibility; {COMMERCIAL_PACK} is"
+        " the pack with commercial models only"
+    )
     if missing:
-        add = pip_words(f'"{NC_EXTRA}"')
+        spec = f'"{NC_DIST}"'
         line += (
             f". {len(missing)} models with non-commercial or GPL code (e.g. {', '.join(missing[:3])}) are not"
-            f" installed: to add them, {add}"
+            f" installed: to add them, {pip_words(spec)}"
         )
     return line
 
 
-def unlisted(label: str, entries: list[str]) -> str:
-    """Why a saved `model` value is not in a node's list: the library's reason, in the node's words."""
+def _only_full(mid: str) -> bool:
+    """Whether `mid` is a model the commercial pack never offers: installed and not cleared, or of the nc package."""
+    if registry.task_of(mid) is not None:
+        return not commercial(mid)
+    return any(registry._known_models(t).get(mid.lower()) == "fastforks-nc" for t in registry.TASKS)  # noqa: SLF001
+
+
+def unlisted(label: str, node: type[_Node]) -> str:
+    """Why a saved `model` value is not in a node's list (a workflow from another install), in the node's words."""
     mid = model_id(label)
     if mid.startswith(_FILE):
         return f"{mid!r}: not a file of models/upscale_models that fastforks reads (fastforks.restoration.load)"
+    if node.COMMERCIAL_ONLY and _only_full(mid):
+        return f"{mid!r} {ONLY_FULL}."
     try:
         fastforks.model_card(mid)
     except fastforks.FastforksError as e:  # not installed (names the package), or unknown (with suggestions)
-        return node_words(e, str(e))
-    return f"{mid!r} is not one of this node's {len(entries)} models (it needs inputs the node does not pass)"
+        return node_words(e, str(e), commercial_only=node.COMMERCIAL_ONLY)
+    return f"{mid!r} is not one of this node's {len(node.ids())} models (it needs inputs the node does not pass)"
 
 
 def _mm() -> Any:  # noqa: ANN401 - comfy.model_management (untyped)
@@ -247,6 +284,9 @@ def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = 
         mm.soft_empty_cache()
     kw: dict[str, Any] = {"mode": backend, "device": device, "dtype": None if dtype == "auto" else dtype}
     with node_errors():  # `_weights_bytes` already raises for an id that is not installed
+        if not file and _COMMERCIAL_RUN.get() and _only_full(mid):  # e.g. a linked `model` input: not validated
+            msg = f"{mid} {ONLY_FULL}."
+            raise fastforks.LicenceError(msg)
         # weights + activations: ComfyUI unloads its own models until this much is free (no-op if it already is)
         mm.free_memory(2 * (file.stat().st_size if file else _weights_bytes(mid)) + 2**30, device)
         model = restoration.load(file, **kw) if file else fastforks.load(mid, **(options or {}), **kw)
@@ -293,6 +333,13 @@ def unload_all() -> None:
     _mm().soft_empty_cache()
 
 
+@functools.cache
+def start() -> None:
+    """Once per process, by whichever pack imports this module first: the unload hook and the cache folders."""
+    install_unload_hook()
+    setup_cache()
+
+
 def install_unload_hook() -> None:
     """Make ComfyUI's `unload_all_models` ("Unload models", `/free`) also drop our cache. Idempotent."""
     mm = _mm()
@@ -331,10 +378,6 @@ def _out_device() -> torch.device:
     return _mm().intermediate_device()
 
 
-def _ids(task: str, keep: Callable[[str], bool] = lambda _: True) -> list[str]:
-    return [m for m in fastforks.list_models(task=task) if keep(m)]
-
-
 _IMAGE = frozenset({"image"})
 
 
@@ -352,12 +395,18 @@ def takes(mid: str, given: frozenset[str] = _IMAGE, prompts: frozenset[str] = fr
 
 
 class _Node:
+    """A node over one task: its pack (`COMMERCIAL_ONLY` or not), the ids it lists and ComfyUI's entry `execute`."""
+
     CATEGORY = "fastforks"
-    FUNCTION = "run"
+    FUNCTION = "execute"
     DESCRIPTION = ""
     RETURN_TYPES: ClassVar[tuple[str, ...]] = ()
+    TASK: ClassVar[str | None] = None  # the task of the listed models; None: the node takes no model (Warp)
+    DEFAULT: ClassVar[str] = ""  # the default model id ("" or not listed in the pack: the first listed)
+    COMMERCIAL_ONLY: ClassVar[bool] = False  # a node of fastforks-commercial (`_commercial_class`)
     TAKES: ClassVar[frozenset[str]] = _IMAGE  # the model inputs `run` passes (contract names)
     PROMPTS: ClassVar[frozenset[str]] = frozenset()  # promptable segmentation: the prompt kinds `run` passes
+    run: Callable[..., tuple[Any, ...]]  # every node defines its own
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
@@ -370,12 +419,29 @@ class _Node:
         return takes(mid, cls.TAKES, cls.PROMPTS)
 
     @classmethod
+    def lists(cls, mid: str) -> bool:  # noqa: ARG003 - overridden by the nodes that keep only some ids of the task
+        """Whether the node lists the model `mid` of its task (licence aside)."""
+        return True
+
+    @classmethod
+    def ids(cls, *, commercial_only: bool | None = None) -> list[str]:
+        """The ids the node lists in its pack (`commercial_only`: in that pack instead)."""
+        return list(cls._listed(commercial_only=commercial_only))
+
+    @classmethod
+    def _listed(cls, *, commercial_only: bool | None = None) -> Generator[str]:
+        only = cls.COMMERCIAL_ONLY if commercial_only is None else commercial_only
+        ids = fastforks.list_models(task=cls.TASK) if cls.TASK else []
+        return (m for m in ids if cls.lists(m) and (not only or commercial(m)))
+
+    @classmethod
     def VALIDATE_INPUTS(cls, model: str | None = None) -> bool | str:  # noqa: N802 - ComfyUI's name
         """ComfyUI's check of the `model` widget, in place of its "Value not in list".
 
         Accepts a listed entry, or the same id with another licence tag (workflows saved before a tag changed). For
-        any other value, e.g. an id of `fastforks-core[nc]` in a shared workflow where that package is missing,
-        returns why and what to install. `None`: linked or absent, checked when the node runs.
+        any other value (a workflow from another install) returns why: in fastforks-commercial a model only the
+        fastforks pack offers, else an id that is not installed or unknown. `None`: linked or absent, checked when the
+        node runs (`load`).
         """
         spec = cls.INPUT_TYPES()["required"].get("model")
         if model is None or spec is None:
@@ -383,22 +449,33 @@ class _Node:
         entries = spec[0]
         if model in entries or model_id(model) in {model_id(e) for e in entries}:
             return True
-        return unlisted(model, entries)
+        return unlisted(model, cls)
+
+    def execute(self, **inputs: Any) -> tuple[Any, ...]:  # noqa: ANN401 - ComfyUI's inputs
+        """ComfyUI's entry: `run` in its pack's licence scope.
+
+        In the fastforks pack inside `registry.allow_noncommercial()`: this call (no other code, not the environment)
+        may download non-commercial weights, as installing the pack asks for. In fastforks-commercial `load` refuses
+        any model not cleared for commercial use, and no such weights download.
+        """
+        token = _COMMERCIAL_RUN.set(self.COMMERCIAL_ONLY)
+        try:
+            with contextlib.nullcontext() if self.COMMERCIAL_ONLY else registry.allow_noncommercial():
+                return self.run(**inputs)
+        finally:
+            _COMMERCIAL_RUN.reset(token)
 
 
 _VIDEO_DEPTH = frozenset({"video_depth_anything"})  # depth families that run a whole clip (`model.video`), not frames
 
 
-def _depth_ids(*, video: bool) -> list[str]:
-    """Depth model ids that return depth / inverse depth: the clip models (`video`) or the image models."""
-    outputs = {"depth", "inverse_depth"}
-    return _ids(
-        "depth",
-        lambda m: (
-            bool(outputs & set(fastforks.model_card(m).outputs))
-            and (fastforks.model_card(m).family in _VIDEO_DEPTH) == video
-            and takes(m)  # not the depth-prompted / depth-completion models: the node has no depth prompt input
-        ),
+def _depth(mid: str, *, video: bool) -> bool:
+    """Whether a depth model returns depth / inverse depth and runs as a clip (`video`) or per image."""
+    card = fastforks.model_card(mid)
+    return (
+        bool({"depth", "inverse_depth"} & set(card.outputs))
+        and (card.family in _VIDEO_DEPTH) == video
+        and takes(mid)  # not the depth-prompted / depth-completion models: the node has no depth prompt input
     )
 
 
@@ -407,11 +484,18 @@ class Depth(_Node):
 
     DESCRIPTION = "Depth map (inverse depth scaled to 0-1 per image, near = white)."
     RETURN_TYPES = ("IMAGE",)
+    TASK = "depth"
+    DEFAULT = "depth-anything-v2-s"
+
+    @classmethod
+    def lists(cls, mid: str) -> bool:
+        """Image depth models (not the clip ones of Video depth)."""
+        return _depth(mid, video=False)
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        return {"required": {"image": ("IMAGE",), **common(_depth_ids(video=False), "depth-anything-v2-s")}}
+        return {"required": {"image": ("IMAGE",), **common(cls)}}
 
     def run(self, *, image: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[torch.Tensor]:
         """Run the model on every image."""
@@ -429,11 +513,18 @@ class VideoDepth(_Node):
 
     DESCRIPTION = "Depth maps of a frame batch run as one video (near = white; one scale for all frames, no flicker)."
     RETURN_TYPES = ("IMAGE",)
+    TASK = "depth"
+    DEFAULT = "video-depth-anything-s"
+
+    @classmethod
+    def lists(cls, mid: str) -> bool:
+        """The clip models (Video Depth Anything)."""
+        return _depth(mid, video=True)
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        return {"required": {"frames": ("IMAGE",), **common(_depth_ids(video=True), "video-depth-anything-s")}}
+        return {"required": {"frames": ("IMAGE",), **common(cls)}}
 
     def run(self, *, frames: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[torch.Tensor]:
         """Run the model on the frames as one video."""
@@ -451,12 +542,18 @@ class Normals(_Node):
 
     DESCRIPTION = "Surface normals as colours (red = right, green = up, blue = towards the camera)."
     RETURN_TYPES = ("IMAGE",)
+    TASK = "depth"
+    DEFAULT = "stablenormal-turbo"
+
+    @classmethod
+    def lists(cls, mid: str) -> bool:
+        """Depth-task models with a normals output."""
+        return "normals" in fastforks.model_card(mid).outputs and cls.runs(mid)
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        ids = _ids("depth", lambda m: "normals" in fastforks.model_card(m).outputs and cls.runs(m))
-        return {"required": {"image": ("IMAGE",), **common(ids, "stablenormal-turbo")}}
+        return {"required": {"image": ("IMAGE",), **common(cls)}}
 
     def run(self, *, image: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[torch.Tensor]:
         """Run the model on every image."""
@@ -472,14 +569,20 @@ class RemoveBackground(_Node):
     RETURN_TYPES = ("IMAGE", "MASK")
     RETURN_NAMES = ("rgba", "alpha")
     TAKES = _IMAGE | {"trimap"}
+    TASK = "matting"
+    DEFAULT = "birefnet-lite"
+
+    @classmethod
+    def lists(cls, mid: str) -> bool:
+        """Not video matting from a first-frame mask."""
+        return cls.runs(mid)
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
         tip = "Only for trimap models (ViTMatte): 0 = background, 1 = foreground, 0.5 = unknown."
-        ids = _ids("matting", cls.runs)  # not video matting from a first-frame mask
         return {
-            "required": {"image": ("IMAGE",), **common(ids, "birefnet-lite")},
+            "required": {"image": ("IMAGE",), **common(cls)},
             "optional": {"trimap": ("MASK", {"tooltip": tip})},
         }
 
@@ -503,16 +606,22 @@ class Segment(_Node):
     DESCRIPTION = "Mask from point / box prompts (SAM, SAM 2, ...) or a text prompt (SAM 3)."
     RETURN_TYPES = ("MASK",)
     PROMPTS = frozenset({"points", "boxes", "text"})
+    TASK = "promptable_segmentation"
+    DEFAULT = "sam2.1-hiera-small"
+
+    @classmethod
+    def lists(cls, mid: str) -> bool:
+        """Not the reference-prompted (in-context) models."""
+        return cls.runs(mid)
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
         px = "in pixels of the input image"
-        ids = _ids("promptable_segmentation", cls.runs)  # not the reference-prompted (in-context) models
         return {
             "required": {
                 "image": ("IMAGE",),
-                **common(ids, "sam2.1-hiera-small"),
+                **common(cls),
                 "positive_points": ("STRING", {"default": "", "tooltip": f"'x,y; x,y' foreground points {px}"}),
                 "negative_points": ("STRING", {"default": "", "tooltip": f"'x,y; x,y' background points {px}"}),
                 "box": ("STRING", {"default": "", "tooltip": f"'x0,y0,x1,y1' {px}"}),
@@ -564,6 +673,8 @@ class Detect(_Node):
     DESCRIPTION = "Detections as one mask (instance masks or boxes) and as JSON (box, score, class_name per image)."
     RETURN_TYPES = ("MASK", "STRING")
     RETURN_NAMES = ("mask", "detections")
+    TASK = "detection"
+    DEFAULT = "rf-detr-s-coco"
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
@@ -575,7 +686,7 @@ class Detect(_Node):
         return {
             "required": {
                 "image": ("IMAGE",),
-                **common(_ids("detection"), "rf-detr-s-coco"),
+                **common(cls),
                 "score_threshold": ("FLOAT", {"default": 0.3, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "classes": ("STRING", {"default": "", "tooltip": tip}),
             }
@@ -607,6 +718,8 @@ class Pose(_Node):
     DESCRIPTION = "Keypoints as a skeleton image and as JSON. Top-down models use the person boxes of a Detect node."
     RETURN_TYPES = ("IMAGE", "STRING")
     RETURN_NAMES = ("pose_image", "keypoints")
+    TASK = "pose"
+    DEFAULT = "vitpose-plus-small"
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
@@ -615,7 +728,7 @@ class Pose(_Node):
         return {
             "required": {
                 "image": ("IMAGE",),
-                **common(_ids("pose"), "vitpose-plus-small"),
+                **common(cls),
                 "keypoint_threshold": ("FLOAT", {"default": 0.3, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "line_width": ("INT", {"default": 4, "min": 1, "max": 64}),
             },
@@ -659,6 +772,8 @@ class Interpolate(_Node):
     DESCRIPTION = "Frame interpolation: inserts multiplier - 1 frames between consecutive frames of the batch."
     RETURN_TYPES = ("IMAGE",)
     TAKES = frozenset({"image1", "image2"})
+    TASK = "interpolation"
+    DEFAULT = "rife-4.26"
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
@@ -666,7 +781,7 @@ class Interpolate(_Node):
         return {
             "required": {
                 "frames": ("IMAGE",),
-                **common(_ids("interpolation"), "rife-4.26"),
+                **common(cls),
                 "multiplier": ("INT", {"default": 2, "min": 2, "max": 16}),
             }
         }
@@ -693,6 +808,8 @@ class Classify(_Node):
 
     DESCRIPTION = "Top-k classes per image as 'name: probability' lines (images separated by a blank line)."
     RETURN_TYPES = ("STRING",)
+    TASK = "classification"
+    DEFAULT = "convnext_tiny.fb_in22k_ft_in1k"
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
@@ -700,7 +817,7 @@ class Classify(_Node):
         return {
             "required": {
                 "image": ("IMAGE",),
-                **common(_ids("classification"), "convnext_tiny.fb_in22k_ft_in1k"),
+                **common(cls),
                 "top_k": ("INT", {"default": 5, "min": 1, "max": 100}),
             }
         }
@@ -735,16 +852,22 @@ class Tag(_Node):
     )
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("tags",)
+    TASK = "classification"
+    DEFAULT = "wd-eva02-large-tagger-v3"
+
+    @classmethod
+    def lists(cls, mid: str) -> bool:
+        """Multi-label (sigmoid) taggers."""
+        return fastforks.model_card(mid).output_info.get("probs") == "sigmoid"
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        ids = _ids("classification", lambda m: fastforks.model_card(m).output_info.get("probs") == "sigmoid")
         thr = {"min": 0.0, "max": 1.0, "step": 0.01}
         return {
             "required": {
                 "image": ("IMAGE",),
-                **common(ids, "wd-eva02-large-tagger-v3"),
+                **common(cls),
                 "general_threshold": ("FLOAT", {"default": 0.35, **thr}),
                 "character_threshold": ("FLOAT", {"default": 0.75, **thr}),
             }
@@ -777,12 +900,18 @@ class NsfwCheck(_Node):
     DESCRIPTION = "The class per image (normal / nsfw, one line each) and the highest nsfw probability of the batch."
     RETURN_TYPES = ("STRING", "FLOAT")
     RETURN_NAMES = ("label", "nsfw_score")
+    TASK = "classification"
+    DEFAULT = "falconsai-nsfw-vit"
+
+    @classmethod
+    def lists(cls, mid: str) -> bool:
+        """Normal / nsfw classifiers."""
+        return fastforks.model_card(mid).output_info.get("label_set") == "nsfw-2"
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        ids = _ids("classification", lambda m: fastforks.model_card(m).output_info.get("label_set") == "nsfw-2")
-        return {"required": {"image": ("IMAGE",), **common(ids, "falconsai-nsfw-vit")}}
+        return {"required": {"image": ("IMAGE",), **common(cls)}}
 
     def run(self, *, image: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[str, float]:
         """Classify every image."""
@@ -813,6 +942,7 @@ class SemanticSegment(_Node):
     )
     RETURN_TYPES = ("IMAGE", "MASK", "STRING", "MASK")
     RETURN_NAMES = ("colour_map", "mask", "classes_found", "class_masks")
+    TASK = "segmentation"
     DEFAULT = "segnext-mscan-t-ade20k"
     LABEL_SETS: ClassVar[frozenset[str]] = frozenset()  # the label sets of the listed models; empty: all
 
@@ -828,7 +958,7 @@ class SemanticSegment(_Node):
         return {
             "required": {
                 "image": ("IMAGE",),
-                **common(_ids("segmentation", cls.lists), cls.DEFAULT),
+                **common(cls),
                 "classes": ("STRING", {"default": "", "tooltip": tip}),
             }
         }
@@ -861,10 +991,7 @@ class SemanticSegment(_Node):
 class Parse(SemanticSegment):
     """Clothes / face parsing (SegFormer b2 clothes, b5 face parsing): masks per body or face part."""
 
-    DESCRIPTION = (
-        "[non-commercial] Clothes / face parsing (SegFormer b2 clothes, b5 face parsing): research use only; the"
-        f" weights download only with {NC_ENV}=1 set where ComfyUI starts. " + SemanticSegment.DESCRIPTION
-    )
+    DESCRIPTION = "Clothes / face parsing (SegFormer b2 clothes, b5 face parsing). " + SemanticSegment.DESCRIPTION
     DEFAULT = "segformer-b2-clothes"
     LABEL_SETS = frozenset({"atr-18", "celebamask-hq-19"})
 
@@ -881,13 +1008,13 @@ class Stereo(_Node):
     )
     RETURN_TYPES = ("IMAGE",)
     TAKES = frozenset({"left", "right"})
+    TASK = "stereo"
+    DEFAULT = "raft-stereo-middlebury"
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        return {
-            "required": {"left": ("IMAGE",), "right": ("IMAGE",), **common(_ids("stereo"), "raft-stereo-middlebury")}
-        }
+        return {"required": {"left": ("IMAGE",), "right": ("IMAGE",), **common(cls)}}
 
     def run(
         self, *, left: torch.Tensor, right: torch.Tensor, model: str, backend: str, dtype: str
@@ -912,11 +1039,13 @@ class Flow(_Node):
     RETURN_TYPES = ("IMAGE", "FASTFORKS_FLOW")
     RETURN_NAMES = ("flow_image", "flow")
     TAKES = frozenset({"image1", "image2"})
+    TASK = "flow"
+    DEFAULT = "sea-raft-s"
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        return {"required": {"frames": ("IMAGE",), **common(_ids("flow"), "sea-raft-s")}}
+        return {"required": {"frames": ("IMAGE",), **common(cls)}}
 
     def run(self, *, frames: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[torch.Tensor, torch.Tensor]:
         """Flow of every pair of consecutive frames."""
@@ -958,16 +1087,22 @@ class VideoSegment(_Node):
     DESCRIPTION = "Mask of one object over a frame batch, prompted by points / box on the first frame."
     RETURN_TYPES = ("MASK",)
     PROMPTS = frozenset({"points", "boxes"})
+    TASK = "promptable_segmentation"
+    DEFAULT = "sam2.1-hiera-small"
+
+    @classmethod
+    def lists(cls, mid: str) -> bool:
+        """The SAM 2 video models (they take the samurai option)."""
+        return "samurai" in fastforks.model_card(mid).options
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        ids = _ids("promptable_segmentation", lambda m: "samurai" in fastforks.model_card(m).options)
         tip = "SAMURAI: motion-aware memory (Kalman filter), steadier on fast motion and occlusions; best with a box."
         return {
             "required": {
                 "frames": ("IMAGE",),
-                **common(ids, "sam2.1-hiera-small"),
+                **common(cls),
                 **_prompt_inputs(),
                 "samurai": ("BOOLEAN", {"default": False, "tooltip": tip}),
             }
@@ -1010,6 +1145,8 @@ class PointTrack(_Node):
     RETURN_TYPES = ("IMAGE", "STRING")
     RETURN_NAMES = ("tracks_image", "tracks")
     TAKES = frozenset({"video", "queries"})
+    TASK = "tracking"
+    DEFAULT = "tapir"
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
@@ -1017,7 +1154,7 @@ class PointTrack(_Node):
         return {
             "required": {
                 "frames": ("IMAGE",),
-                **common(_ids("tracking"), "tapir"),
+                **common(cls),
                 "grid_size": ("INT", {"default": 10, "min": 1, "max": 64, "tooltip": "n x n points if no points"}),
                 "points": ("STRING", {"default": "", "tooltip": f"'x,y; x,y' points to track {_PX}"}),
                 "trail": ("INT", {"default": 8, "min": 0, "max": 1000, "tooltip": "frames of track drawn per point"}),
@@ -1073,13 +1210,19 @@ class Upscale(_Node):
         " HAT and DAT: one pass runs out of memory at 2048 x 1024 on 16 GB."
     )
     RETURN_TYPES = ("IMAGE",)
+    TASK = "restoration"
+    DEFAULT = "realesrgan-x4plus"
+
+    @classmethod
+    def lists(cls, mid: str) -> bool:
+        """Not the face models (FaceRestore) nor the inpainting ones (they need a mask)."""
+        return not _face(mid) and cls.runs(mid)
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        # not the face models (FaceRestore) nor the inpainting ones (they need a mask)
-        inputs = common(_ids("restoration", lambda m: not _face(m) and cls.runs(m)), "realesrgan-x4plus")
-        entries, opts = inputs["model"]
+        inputs = common(cls)
+        entries, opts = inputs["model"]  # and your own files of models/upscale_models (both packs)
         inputs["model"] = ([*entries, *upscale_files()], opts)
         tip = "Tile size in input pixels (overlap 32 px, as ComfyUI's upscaler): less memory. 0: one pass."
         return {
@@ -1101,16 +1244,23 @@ class FaceRestore(_Node):
     """Face restoration (GFPGAN, CodeFormer) of aligned face crops."""
 
     DESCRIPTION = (
-        "Face restoration: GFPGAN v1.4, or CodeFormer (fidelity 0.5; [non-commercial], research use only). Input:"
-        " aligned 512 x 512 face crops (FFHQ alignment) only; this pack does not detect, align or paste faces back."
+        "Face restoration: GFPGAN v1.4, or CodeFormer (fidelity 0.5; [non-commercial], not in"
+        " fastforks-commercial). Input: aligned 512 x 512 face crops (FFHQ alignment) only; this pack does not detect,"
+        " align or paste faces back."
     )
-
     RETURN_TYPES = ("IMAGE",)
+    TASK = "restoration"
+    DEFAULT = "codeformer"
+
+    @classmethod
+    def lists(cls, mid: str) -> bool:
+        """The aligned-face models."""
+        return _face(mid)
 
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        return {"required": {"image": ("IMAGE",), **common(_ids("restoration", _face), "codeformer")}}
+        return {"required": {"image": ("IMAGE",), **common(cls)}}
 
     def run(self, *, image: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[torch.Tensor]:
         """Restore every face crop."""
@@ -1120,47 +1270,91 @@ class FaceRestore(_Node):
         )
 
 
-NODE_CLASS_MAPPINGS = {
-    "FastforksDepth": Depth,
-    "FastforksVideoDepth": VideoDepth,
-    "FastforksNormals": Normals,
-    "FastforksRemoveBackground": RemoveBackground,
-    "FastforksSegment": Segment,
-    "FastforksDetect": Detect,
-    "FastforksPose": Pose,
-    "FastforksInterpolate": Interpolate,
-    "FastforksClassify": Classify,
-    "FastforksTag": Tag,
-    "FastforksNsfwCheck": NsfwCheck,
-    "FastforksSemanticSegment": SemanticSegment,
-    "FastforksParse": Parse,
-    "FastforksStereo": Stereo,
-    "FastforksFlow": Flow,
-    "FastforksWarp": Warp,
-    "FastforksVideoSegment": VideoSegment,
-    "FastforksPointTrack": PointTrack,
-    "FastforksUpscale": Upscale,
-    "FastforksFaceRestore": FaceRestore,
-}
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "FastforksDepth": "Depth (fastforks)",
-    "FastforksVideoDepth": "Video depth (fastforks)",
-    "FastforksNormals": "Normals (fastforks)",
-    "FastforksRemoveBackground": "Remove background (fastforks)",
-    "FastforksSegment": "Segment (SAM, fastforks)",
-    "FastforksDetect": "Detect objects (fastforks)",
-    "FastforksPose": "Pose (fastforks)",
-    "FastforksInterpolate": "Interpolate frames (fastforks)",
-    "FastforksClassify": "Classify (fastforks)",
-    "FastforksTag": "Tag (WD tagger, fastforks)",
-    "FastforksNsfwCheck": "NSFW check (fastforks)",
-    "FastforksSemanticSegment": "Semantic segmentation (fastforks)",
-    "FastforksParse": "Parse clothes / face (fastforks, non-commercial)",
-    "FastforksStereo": "Stereo disparity (fastforks)",
-    "FastforksFlow": "Optical flow (fastforks)",
-    "FastforksWarp": "Warp by flow (fastforks)",
-    "FastforksVideoSegment": "Video segment (SAM 2 / SAMURAI, fastforks)",
-    "FastforksPointTrack": "Track points (fastforks)",
-    "FastforksUpscale": "Upscale / restore (fastforks)",
-    "FastforksFaceRestore": "Restore aligned faces (GFPGAN / CodeFormer, fastforks)",
-}
+# (key, node, display name): ComfyUI's class name is `Fastforks<key>` in both packs (a workflow loads in either; with
+# both installed only the fastforks pack registers them, see integrations/comfyui-commercial); `{pack}` is "fastforks"
+# or "fastforks, commercial".
+_NODES: tuple[tuple[str, type[_Node], str], ...] = (
+    ("Depth", Depth, "Depth ({pack})"),
+    ("VideoDepth", VideoDepth, "Video depth ({pack})"),
+    ("Normals", Normals, "Normals ({pack})"),
+    ("RemoveBackground", RemoveBackground, "Remove background ({pack})"),
+    ("Segment", Segment, "Segment (SAM, {pack})"),
+    ("Detect", Detect, "Detect objects ({pack})"),
+    ("Pose", Pose, "Pose ({pack})"),
+    ("Interpolate", Interpolate, "Interpolate frames ({pack})"),
+    ("Classify", Classify, "Classify ({pack})"),
+    ("Tag", Tag, "Tag (WD tagger, {pack})"),
+    ("NsfwCheck", NsfwCheck, "NSFW check ({pack})"),
+    ("SemanticSegment", SemanticSegment, "Semantic segmentation ({pack})"),
+    ("Parse", Parse, "Parse clothes / face ({pack})"),
+    ("Stereo", Stereo, "Stereo disparity ({pack})"),
+    ("Flow", Flow, "Optical flow ({pack})"),
+    ("Warp", Warp, "Warp by flow ({pack})"),
+    ("VideoSegment", VideoSegment, "Video segment (SAM 2 / SAMURAI, {pack})"),
+    ("PointTrack", PointTrack, "Track points ({pack})"),
+    ("Upscale", Upscale, "Upscale / restore ({pack})"),
+    ("FaceRestore", FaceRestore, "Restore aligned faces (GFPGAN / CodeFormer, {pack})"),
+)
+
+
+@functools.cache
+def _pack_class(node: type[_Node], *, commercial_only: bool) -> type[_Node]:
+    """The node as a pack registers it.
+
+    fastforks-commercial's lists only commercial models; the fastforks pack's says in its description that some of its
+    models are non-commercial (if it lists one).
+    """
+    attrs: dict[str, Any] = {"__doc__": node.__doc__, "__module__": __name__}
+    if commercial_only:
+        attrs["COMMERCIAL_ONLY"] = True
+    elif any(not commercial(m) for m in node._listed(commercial_only=False)):  # noqa: SLF001 - own class
+        attrs["DESCRIPTION"] = f"{node.DESCRIPTION} {NC_NOTICE}"
+    else:
+        return node
+    return type(node.__name__, (node,), attrs)
+
+
+@functools.cache
+def mappings(*, commercial_only: bool = False) -> tuple[dict[str, type[_Node]], dict[str, str]]:
+    """ComfyUI's NODE_CLASS_MAPPINGS and NODE_DISPLAY_NAME_MAPPINGS of a pack (`commercial_only`: fastforks-commercial).
+
+    A pack has the nodes that list at least one model there (and Warp, which takes no model): in
+    fastforks-commercial not Parse, whose models are all non-commercial. Model files of models/upscale_models are not
+    counted (they are listed when ComfyUI asks).
+    """
+    classes: dict[str, type[_Node]] = {}
+    names: dict[str, str] = {}
+    for key, node, title in _NODES:
+        if node.TASK is not None and next(node._listed(commercial_only=commercial_only), None) is None:  # noqa: SLF001
+            continue
+        classes[f"Fastforks{key}"] = _pack_class(node, commercial_only=commercial_only)
+        names[f"Fastforks{key}"] = title.format(pack="fastforks, commercial" if commercial_only else "fastforks")
+    return classes, names
+
+
+README_START = "<!-- models: generated by tools/gen_comfyui_readme.py from the registry, do not edit -->"
+README_END = "<!-- end of models -->"
+
+
+def readme_models(*, commercial_only: bool = False) -> str:
+    """The README's list of a pack's nodes and the models each lists (by family), between `README_START` / `README_END`.
+
+    From the installed cards, as the dropdowns: tools/gen_comfyui_readme.py writes it, tests/test_comfyui.py checks it.
+    """
+    classes, _ = mappings(commercial_only=commercial_only)
+    lines = [README_START, ""]
+    for key, node, title in _NODES:
+        if f"Fastforks{key}" not in classes:
+            continue
+        name = title.replace(", {pack})", ")").replace(" ({pack})", "")
+        ids = classes[f"Fastforks{key}"].ids()
+        if not ids:
+            lines.append(f"- **{name}**: no model (it applies a flow field)")
+            continue
+        families: dict[str, list[str]] = {}
+        for entry in labels(ids):
+            families.setdefault(registry.resolve_any(model_id(entry))[0].name, []).append(f"`{entry}`")
+        own = " (and your own `.pth` / `.safetensors` files in models/upscale_models)" if node is Upscale else ""
+        lines.append(f"- **{name}**{own}:")
+        lines += [f"  - {family}: {', '.join(entries)}" for family, entries in families.items()]
+    return "\n".join([*lines, "", README_END])

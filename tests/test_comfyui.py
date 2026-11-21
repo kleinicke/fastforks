@@ -1,4 +1,4 @@
-"""The ComfyUI node pack (integrations/comfyui): tensor conversions, prompt parsing, labels and the unload hook.
+"""The ComfyUI node packs (integrations/comfyui, integrations/comfyui-commercial): conversions, lists, licences.
 
 Runs without ComfyUI: `comfy.model_management` is a stub. Model runs are checked against direct API calls in a
 real ComfyUI (see docs/plans/comfyui-windows-results.md).
@@ -18,11 +18,28 @@ import pytest
 import torch
 
 PACK = Path(__file__).resolve().parents[1] / "integrations" / "comfyui"
+COMMERCIAL_PACK = PACK.parent / "comfyui-commercial"
+
+
+def _import(name: str, folder: Path) -> Any:
+    spec = importlib.util.spec_from_file_location(
+        name, folder / "__init__.py", submodule_search_locations=[str(folder)]
+    )
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 @pytest.fixture(scope="module")
 def pack(tmp_path_factory: pytest.TempPathFactory) -> Any:
-    """The pack as a package (`comfyui_fastforks`), imported with a stub `comfy.model_management`."""
+    """The pack as a package (`comfyui_fastforks`), imported with a stub `comfy.model_management`.
+
+    `pack.commercial` is fastforks-commercial (`comfyui_fastforks_commercial`), imported after it (it is not in a
+    custom_nodes folder, so it registers its nodes next to the fastforks pack's).
+    """
     calls: list[str] = []
     mm = types.ModuleType("comfy.model_management")
     mm.unload_all_models = lambda: calls.append("comfy")
@@ -41,14 +58,8 @@ def pack(tmp_path_factory: pytest.TempPathFactory) -> Any:
     env = dict(os.environ)
     sys.modules |= {"comfy": comfy, "comfy.model_management": mm, "folder_paths": fp}
     try:
-        spec = importlib.util.spec_from_file_location(
-            "comfyui_fastforks", PACK / "__init__.py", submodule_search_locations=[str(PACK)]
-        )
-        assert spec is not None
-        assert spec.loader is not None
-        module = importlib.util.module_from_spec(spec)
-        sys.modules["comfyui_fastforks"] = module
-        spec.loader.exec_module(module)
+        module = _import("comfyui_fastforks", PACK)
+        module.commercial = _import("comfyui_fastforks_commercial", COMMERCIAL_PACK)
         module.calls = calls
         module.mm = mm
         module.fp = fp
@@ -61,7 +72,7 @@ def pack(tmp_path_factory: pytest.TempPathFactory) -> Any:
                 sys.modules.pop(k, None)
             else:
                 sys.modules[k] = v
-        for k in [k for k in sys.modules if k.startswith("comfyui_fastforks")]:
+        for k in [k for k in sys.modules if k.startswith(("comfyui_fastforks", "fastforks_comfyui"))]:
             del sys.modules[k]
 
 
@@ -157,8 +168,8 @@ def test_errors_name_the_backend_input(pack: Any) -> None:
         raise ValueError(msg)
 
 
-def test_licence_errors_say_what_to_do_in_comfyui(pack: Any) -> None:
-    """The library's licence / install messages stay whole; the node adds ComfyUI's pip commands and the variable."""
+def test_licence_errors_in_each_pack(pack: Any) -> None:
+    """The library's messages stay whole; fastforks-commercial adds the fastforks pack, never the variable."""
     import fastforks  # noqa: PLC0415
     from fastforks._core import registry  # noqa: PLC0415
     from fastforks._core.errors import install_hint  # noqa: PLC0415
@@ -168,75 +179,234 @@ def test_licence_errors_say_what_to_do_in_comfyui(pack: Any) -> None:
     variant = next(v for v in card.variants if v.ref == card.variant_ref)
     gate = registry._nc_weights_error(variant, card)
     library = str(gate)
-    with pytest.raises(fastforks.LicenceError) as info, nodes.node_errors():
-        raise gate
-    text = str(info.value)
+    text = nodes.node_words(gate, library, commercial_only=True)
     assert text.startswith(library)
-    assert "only if your use is within that licence" in text
-    assert "`set FASTFORKS_NONCOMMERCIAL=1` above the python line of run_nvidia_gpu.bat" in text
-    assert "pip" not in text.removeprefix(library)  # the code is installed: nothing to install
+    added = text.removeprefix(library)
+    assert added == f". In ComfyUI: this model {nodes.ONLY_FULL}."
+    assert "comfy node install fastforks`" in added
+    assert "FASTFORKS_NONCOMMERCIAL" not in added
+    assert ".bat" not in added
 
     missing = fastforks.ModelNotFoundError(
         "stereo model 's2m2-s' is in the package fastforks-nc, which is not installed: "
         'pip install "fastforks-core[nc]" (or fastforks; check its licence first)'
     )
-    text = nodes.node_words(missing, str(missing))
-    assert text.startswith(str(missing) + ". In ComfyUI: ")
-    assert '`python_embeded\\python.exe -m pip install "fastforks-core[nc]"`' in text
-    assert '`python -m pip install "fastforks-core[nc]"` with that environment active' in text
-    assert "non-commercial weights also need FASTFORKS_NONCOMMERCIAL=1" in text
+    text = nodes.node_words(missing, str(missing), commercial_only=True)
+    assert text == f"{missing}. In ComfyUI: this model {nodes.ONLY_FULL}."
+    full = nodes.node_words(missing, str(missing))  # the fastforks pack: install the missing package
+    assert '`python_embeded\\python.exe -m pip install "fastforks-core[nc]"`' in full
+    assert nodes.FULL_PACK + " pack" not in full
 
     dep = fastforks.MissingDependencyError(
         f"x needs timm, which is not installed: {install_hint('timm', upgrade=True)}"
     )
-    text = nodes.node_words(dep, str(dep))
-    assert '`python_embeded\\python.exe -m pip install -U "fastforks-core[timm]"`' in text
-    assert "FASTFORKS_NONCOMMERCIAL" not in text  # a permissive extra: no licence words
+    for commercial_only in (False, True):
+        text = nodes.node_words(dep, str(dep), commercial_only=commercial_only)
+        assert '`python_embeded\\python.exe -m pip install -U "fastforks-core[timm]"`' in text
+        assert "non-commercial" not in text  # a permissive extra: no licence words
 
     only = fastforks.LicenceError("x: commercial use is 'no', and FASTFORKS_COMMERCIAL_ONLY=1 refuses models")
     assert nodes.node_words(only, str(only)) == str(only)  # the user's own commercial-only switch: nothing to add
 
 
 def test_unlisted_models_say_why(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A saved id the node does not list: the nc package to install (validation, tooltip, load, startup log)."""
-    import fastforks  # noqa: PLC0415
+    """A saved id the node does not list: in fastforks-commercial one sentence naming the fastforks pack."""
     from fastforks._core import registry  # noqa: PLC0415
 
     nodes = pack.nodes
     monkeypatch.setattr(
         registry, "_known_models", lambda t: {"fake-nc-stereo": "fastforks-nc"} if t == "stereo" else {}
     )
-    stereo = nodes.Stereo
-    entries = stereo.INPUT_TYPES()["required"]["model"][0]
-    assert stereo.VALIDATE_INPUTS(entries[0]) is True
-    assert stereo.VALIDATE_INPUTS(None) is True  # linked: checked when it runs
-    nc = next(e for e in entries if e.endswith(" [non-commercial]"))
-    assert stereo.VALIDATE_INPUTS(nodes.model_id(nc)) is True  # saved under another licence tag
-    why = stereo.VALIDATE_INPUTS("fake-nc-stereo")
-    assert isinstance(why, str)
+    stereo, cstereo = nodes.Stereo, pack.commercial.NODE_CLASS_MAPPINGS["FastforksStereo"]
+    entries = cstereo.INPUT_TYPES()["required"]["model"][0]
+    assert cstereo.VALIDATE_INPUTS(entries[0]) is True
+    assert cstereo.VALIDATE_INPUTS(None) is True  # linked: checked when it runs
+    assert cstereo.VALIDATE_INPUTS(entries[0] + " [non-commercial]") is True  # saved under another licence tag
+    for mid in ("s2m2-l", "s2m2-l [non-commercial]", "fake-nc-stereo"):  # installed and not cleared; not installed
+        why = cstereo.VALIDATE_INPUTS(mid)
+        assert why == f"'{nodes.model_id(mid)}' {nodes.ONLY_FULL}.", mid
+        assert why.count(". ") == 0  # one sentence
+    assert "only in the fastforks pack" in nodes.ONLY_FULL
+    assert "comfy node install fastforks`" in nodes.ONLY_FULL
+    assert stereo.VALIDATE_INPUTS("s2m2-l [non-commercial]") is True  # the fastforks pack lists it
+    why = str(stereo.VALIDATE_INPUTS("fake-nc-stereo"))  # published, not installed: install the package
     assert why.startswith("stereo model 'fake-nc-stereo' is in the package fastforks-nc, which is not installed")
-    assert '-m pip install "fastforks-core[nc]"' in why
-    assert "did you mean" in str(stereo.VALIDATE_INPUTS("raft-stereo-middlebur"))
-    assert "inputs the node does not pass" in str(stereo.VALIDATE_INPUTS("depth-anything-v2-s"))
+    assert "python_embeded" in why
+    assert "did you mean" in str(cstereo.VALIDATE_INPUTS("raft-stereo-middlebur"))
+    assert "inputs the node does not pass" in str(cstereo.VALIDATE_INPUTS("depth-anything-v2-s"))
     assert nodes.Warp.VALIDATE_INPUTS() is True
 
-    tip = stereo.INPUT_TYPES()["required"]["model"][1]["tooltip"]
-    assert "Not installed: 1 more stereo models with non-commercial or GPL code (e.g. fake-nc-stereo)" in tip
-    assert "Not installed" not in nodes.Depth.INPUT_TYPES()["required"]["model"][1]["tooltip"]
+    tip = cstereo.INPUT_TYPES()["required"]["model"][1]["tooltip"]
+    n = len([m for m in stereo.ids() if not nodes.commercial(m)]) + 1
+    assert f"{n} more stereo models (e.g." in tip
+    assert "are only in the fastforks pack" in tip
+    full_tip = stereo.INPUT_TYPES()["required"]["model"][1]["tooltip"]
+    assert nodes.NC_NOTICE in full_tip
+    assert "Not installed: 1 more stereo models" in full_tip
+    assert "FASTFORKS_NONCOMMERCIAL" not in tip + full_tip
 
-    for name, value in {"get_torch_device": lambda: torch.device("cpu"), "free_memory": lambda *_: None}.items():
-        monkeypatch.setattr(pack.mm, name, value, raising=False)
-    with pytest.raises(fastforks.ModelNotFoundError, match=r"python_embeded\\python.exe -m pip install"):
-        nodes.load("fake-nc-stereo", "auto", "auto")
-
-    monkeypatch.delenv("FASTFORKS_NONCOMMERCIAL", raising=False)
+    line = nodes.licence_state(commercial_only=True)
+    assert line.startswith("fastforks: fastforks-commercial lists only models cleared for commercial use")
+    assert "other models are only in the fastforks pack" in line
     line = nodes.licence_state()
-    assert line.startswith("fastforks: commercial-safe default: [non-commercial] weights do not download")
+    assert "installing this pack is the opt-in" in line
+    assert "your responsibility" in line
     assert "1 models with non-commercial or GPL code (e.g. fake-nc-stereo) are not installed" in line
-    monkeypatch.setenv("FASTFORKS_NONCOMMERCIAL", "1")
-    assert "FASTFORKS_NONCOMMERCIAL=1: the weights of [non-commercial] models download" in nodes.licence_state()
-    monkeypatch.setenv("FASTFORKS_NONCOMMERCIAL", "maybe")
-    assert "FASTFORKS_NONCOMMERCIAL='maybe'" in nodes.licence_state()  # reported, not guessed
+    assert "FASTFORKS_NONCOMMERCIAL" not in line
+
+
+def test_commercial_pack_never_runs_nc_models(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """fastforks-commercial refuses an nc id before any download (a linked input skips validation); the fastforks
+    pack's run allows non-commercial weights, and only while it runs."""
+    import fastforks  # noqa: PLC0415
+    from fastforks._core import registry  # noqa: PLC0415
+
+    nodes = pack.nodes
+    monkeypatch.delenv(registry.NONCOMMERCIAL_ENV, raising=False)
+    monkeypatch.setattr(pack.mm, "get_torch_device", lambda: torch.device("cpu"), raising=False)
+    monkeypatch.setattr(pack.mm, "free_memory", lambda *_: pytest.fail("got as far as freeing memory"), raising=False)
+    monkeypatch.setattr(fastforks, "load", lambda *_a, **_k: pytest.fail("loaded"))
+    seen: list[tuple[bool, bool]] = []
+
+    def run(self: Any, **inputs: Any) -> tuple[Any, ...]:
+        seen.append((registry.noncommercial_enabled(), nodes._COMMERCIAL_RUN.get()))
+        if inputs.get("load"):
+            nodes.load(inputs["load"], "auto", "auto")
+        return (inputs,)
+
+    monkeypatch.setattr(nodes.SemanticSegment, "run", run)
+    full = pack.NODE_CLASS_MAPPINGS["FastforksSemanticSegment"]
+    commercial = pack.commercial.NODE_CLASS_MAPPINGS["FastforksSemanticSegment"]
+    assert full.FUNCTION == commercial.FUNCTION == "execute"
+    with pytest.raises(fastforks.LicenceError) as info:
+        commercial().execute(load="segformer-b2-clothes [non-commercial]")
+    assert str(info.value) == f"segformer-b2-clothes {nodes.ONLY_FULL}."
+    assert full().execute(model="m") == ({"model": "m"},)
+    assert seen == [(False, True), (True, False)]
+    assert not registry.noncommercial_enabled()  # only during the run; the environment is untouched
+    assert not nodes._COMMERCIAL_RUN.get()
+    assert registry.NONCOMMERCIAL_ENV not in os.environ
+
+
+def test_pack_split(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The fastforks pack lists every model (nc ones tagged), fastforks-commercial commercial ones; same classes."""
+    nodes = pack.nodes
+    monkeypatch.setattr(nodes, "upscale_files", list)
+    full, commercial = pack.NODE_CLASS_MAPPINGS, pack.commercial.NODE_CLASS_MAPPINGS
+    assert set(commercial) == set(full) - {"FastforksParse"}  # Parse: both of its models are non-commercial
+    assert all(k.startswith("Fastforks") for k in full)
+    assert set(pack.NODE_DISPLAY_NAME_MAPPINGS) == set(full)
+    assert set(pack.commercial.NODE_DISPLAY_NAME_MAPPINGS) == set(commercial)
+    for key, name in pack.commercial.NODE_DISPLAY_NAME_MAPPINGS.items():
+        assert name.endswith((" (fastforks, commercial)", ", fastforks, commercial)")), name
+        assert name != pack.NODE_DISPLAY_NAME_MAPPINGS[key]
+    assert all(v.COMMERCIAL_ONLY for v in commercial.values())
+    assert not any(v.COMMERCIAL_ONLY for v in full.values())
+    assert pack.commercial.nodes is nodes  # one implementation
+
+    def entries(node: type) -> list[str]:
+        model = node.INPUT_TYPES()["required"].get("model")
+        return model[0] if model else []
+
+    def ids(node: type) -> list[str]:
+        return [nodes.model_id(e) for e in entries(node)]
+
+    for name, node in commercial.items():
+        if node.TASK:
+            assert ids(node), name
+            assert all(nodes.commercial(m) for m in ids(node)), name
+            assert not any(e.endswith("]") for e in entries(node)), name
+            assert set(ids(node)) <= set(ids(full[name])), name
+    for name, node in full.items():
+        for e in entries(node):
+            assert e.endswith(("[non-commercial]", "[licence unclear]")) != nodes.commercial(nodes.model_id(e)), e
+        if any(e.endswith("]") for e in entries(node)):
+            assert nodes.NC_NOTICE in node.DESCRIPTION, name
+    assert nodes.NC_NOTICE not in commercial["FastforksStereo"].DESCRIPTION
+    assert {"s2m2-l", "foundationstereo-vit-s"} <= set(ids(full["FastforksStereo"]))
+    assert not {"s2m2-l", "foundationstereo-vit-s"} & set(ids(commercial["FastforksStereo"]))
+    assert ids(full["FastforksParse"]) == ["segformer-b2-clothes", "segformer-b5-face-parsing"]
+    assert full["FastforksFaceRestore"].INPUT_TYPES()["required"]["model"][1]["default"].startswith("codeformer")
+    assert ids(commercial["FastforksFaceRestore"]) == ["gfpgan-v1.4"]
+    monkeypatch.setattr(nodes, "upscale_files", lambda: ["file: x.pth"])  # your own files: both packs
+    assert "file: x.pth" in ids(full["FastforksUpscale"])
+    assert "file: x.pth" in ids(commercial["FastforksUpscale"])
+
+
+def test_commercial_pack_steps_aside(pack: Any, tmp_path: Path) -> None:
+    """With the fastforks pack next to it in custom_nodes, fastforks-commercial registers nothing; else it finds the
+    implementation (imported, bundled or the clone's integrations/comfyui) or says what is missing."""
+    find, impl = pack.commercial.full_pack, pack.commercial.implementation
+    assert find(COMMERCIAL_PACK) is None  # integrations/ is not custom_nodes, though integrations/comfyui is there
+    custom = tmp_path / "custom_nodes"
+    here, other, ours, off = (custom / n for n in ("fastforks-commercial", "a-pack", "renamed", "z.disabled"))
+    for d in (here, other, ours, off):
+        d.mkdir(parents=True)
+        (d / "nodes.py").write_text("")
+    (other / "pyproject.toml").write_text('[project]\nname = "a-pack"\n')
+    full_meta = (PACK / "pyproject.toml").read_text(encoding="utf-8")
+    (off / "pyproject.toml").write_text(full_meta, encoding="utf-8")
+    assert find(here) is None  # a disabled fastforks pack does not count
+    (ours / "pyproject.toml").write_text(full_meta, encoding="utf-8")
+    assert find(here) == ours
+    assert impl(here) is pack.nodes  # already imported: the one copy
+    saved = sys.modules.pop("fastforks_comfyui")
+    try:
+        with pytest.raises(ImportError, match="has no nodes"):
+            impl(tmp_path / "elsewhere" / "fastforks-commercial")
+        assert "fastforks_comfyui" not in sys.modules
+    finally:
+        sys.modules["fastforks_comfyui"] = saved
+
+
+def test_pack_metadata() -> None:
+    """Both packs: registry metadata, their own requirements, no env-var or .bat instructions; the licence notice."""
+    import tomllib  # noqa: PLC0415
+
+    meta = {d.name: tomllib.loads((d / "pyproject.toml").read_text(encoding="utf-8")) for d in (PACK, COMMERCIAL_PACK)}
+    assert {d: m["project"]["name"] for d, m in meta.items()} == {
+        "comfyui": "fastforks",
+        "comfyui-commercial": "fastforks-commercial",
+    }
+    for d, m in meta.items():
+        comfy = m["tool"]["comfy"]
+        assert {"PublisherId", "DisplayName", "Icon"} <= set(comfy), d
+        assert comfy["DisplayName"].startswith("fastforks \N{EN DASH} fast vision models"), d
+        assert m["project"]["license"] == {"text": "Apache-2.0"}, d
+        requirements = (PACK.parent / d / "requirements.txt").read_text(encoding="utf-8").split()
+        assert requirements == m["project"]["dependencies"], d
+        assert m["project"]["description"].startswith("Fast vision nodes: "), d
+    assert meta["comfyui"]["project"]["dependencies"] == ["fastforks>=0.2"]
+    assert meta["comfyui-commercial"]["project"]["dependencies"] == ["fastforks-core[timm,transformers]>=0.2"]
+    assert meta["comfyui-commercial"]["tool"]["comfy"]["DisplayName"].endswith("(commercial use)")
+    assert meta["comfyui-commercial"]["tool"]["comfy"]["includes"] == ["fastforks_comfyui"]
+    assert "your responsibility" in meta["comfyui"]["project"]["description"]
+    assert "[non-commercial]" in meta["comfyui"]["project"]["description"]
+    docs = Path(__file__).resolve().parents[1] / "docs" / "comfyui.md"
+    for path in [docs, *PACK.glob("*.*"), *COMMERCIAL_PACK.glob("*.*")]:
+        text = path.read_text(encoding="utf-8")
+        assert "FASTFORKS_NONCOMMERCIAL=1" not in text, path
+        assert "run_nvidia_gpu.bat" not in text, path
+
+
+def test_readme_model_lists_match_the_registry(pack: Any) -> None:
+    """Each pack's README lists its nodes and the models of their dropdowns (tools/gen_comfyui_readme.py)."""
+    nodes = pack.nodes
+    if nodes.not_installed():
+        pytest.skip("the README lists are written with every model family installed")
+    for commercial_only, folder in ((False, PACK), (True, COMMERCIAL_PACK)):
+        text = (folder / "README.md").read_text(encoding="utf-8")
+        block = text[text.index(nodes.README_START) : text.index(nodes.README_END) + len(nodes.README_END)]
+        assert block == nodes.readme_models(commercial_only=commercial_only), (
+            f"{folder / 'README.md'} is out of date: run tools/gen_comfyui_readme.py"
+        )
+    full = nodes.readme_models()
+    commercial = nodes.readme_models(commercial_only=True)
+    assert "`s2m2-l [non-commercial]`" in full
+    assert "s2m2-l" not in commercial
+    assert "[non-commercial]" not in commercial
+    assert "Parse clothes / face" in full
+    assert "Parse clothes / face" not in commercial
 
 
 def test_prompt_parsing(pack: Any) -> None:
@@ -395,7 +565,7 @@ def test_node_model_lists(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert {"hat-x4", "hat-s-x4", "real-hat-gan-x4", "dat-x4", "dat-2-x4", "dat-light-x4"} <= ids(nodes.Upscale)
     assert not {"codeformer", "gfpgan-v1.4", "big-lama"} & ids(nodes.Upscale)  # aligned faces; inpainting (mask)
-    assert ids(nodes.FaceRestore) == {"codeformer", "gfpgan-v1.4"}
+    assert ids(nodes.FaceRestore) == {"codeformer", "gfpgan-v1.4"}  # CodeFormer: not in fastforks-commercial
     # inputs the nodes do not have: a depth prompt, a first-frame mask (video matting), a reference (in-context)
     assert not {"prompt-depth-anything-s", "lingbot-depth", "omni-dc"} & ids(nodes.Depth)
     assert "matanyone" not in ids(nodes.RemoveBackground)
@@ -405,8 +575,9 @@ def test_node_model_lists(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     tagger = {"wd-vit-tagger-v3", "wd-convnext-tagger-v3", "wd-vit-large-tagger-v3", "wd-eva02-large-tagger-v3"}
     assert ids(nodes.Tag) == tagger
     assert ids(nodes.NsfwCheck) == {"falconsai-nsfw-vit"}
-    assert ids(nodes.Parse) == {"segformer-b2-clothes", "segformer-b5-face-parsing"}
-    assert {"segformer-b2-clothes", "segnext-mscan-t-ade20k"} <= ids(nodes.SemanticSegment)
+    assert ids(nodes.Parse) == {"segformer-b2-clothes", "segformer-b5-face-parsing"}  # not in fastforks-commercial
+    assert "segnext-mscan-t-ade20k" in ids(nodes.SemanticSegment)
+    assert "segformer-b2-clothes" in ids(nodes.SemanticSegment)
     clips = ids(nodes.VideoDepth)
     assert clips == {"video-depth-anything-s", "video-depth-anything-metric-s"}
     assert not clips & ids(nodes.Depth)  # video models run as a clip in Video depth, not frame by frame
@@ -450,9 +621,9 @@ def test_every_node_matches_the_library(pack: Any, monkeypatch: pytest.MonkeyPat
 
     nodes = pack.nodes
     monkeypatch.setattr(nodes, "upscale_files", list)
-    for name, node in nodes.NODE_CLASS_MAPPINGS.items():
+    for name, node in [*pack.NODE_CLASS_MAPPINGS.items(), *pack.commercial.NODE_CLASS_MAPPINGS.items()]:
         spec = node.INPUT_TYPES()
-        assert name in nodes.NODE_DISPLAY_NAME_MAPPINGS
+        assert name in pack.NODE_DISPLAY_NAME_MAPPINGS
         assert set(inspect.signature(node.run).parameters) - {"self"} == set(spec["required"]) | set(
             spec.get("optional", {})
         ), name
