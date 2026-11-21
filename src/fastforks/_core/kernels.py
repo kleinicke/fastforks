@@ -583,9 +583,13 @@ def _load_dll_image(image: bytes, name: str) -> ctypes.CDLL:
     right before loading, and its only dependencies come from System32 (the CUDA runtime is linked statically). Each
     load gets its own file (`<stem>.<n><suffix>` once the name is taken), as each Linux load gets its own memfd.
     """
+    # `name` is the cache blob's name (the SHA-256, no suffix) for a downloaded library: LoadLibrary appends ".dll" to
+    # a path without a suffix and then does not find the copy, so the copy always ends in ".dll"
     stem, suffix = os.path.splitext(name)  # noqa: PTH122 - a bare file name, not a path
+    if suffix.lower() != ".dll":
+        stem, suffix = name, ".dll"
     for n in itertools.count():
-        path = _dll_dir() / (name if n == 0 else f"{stem}.{n}{suffix}")
+        path = _dll_dir() / (f"{stem}{suffix}" if n == 0 else f"{stem}.{n}{suffix}")
         try:
             with path.open("xb") as f:
                 f.write(image)

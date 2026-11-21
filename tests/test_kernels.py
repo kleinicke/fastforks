@@ -424,6 +424,16 @@ def test_dll_image_loads_from_a_private_copy():
     assert copy.read_bytes() == (kernels._dll_dir() / "ff_test_version.1.dll").read_bytes()
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows DLL loader")
+def test_dll_image_loads_under_a_suffixless_cache_blob_name():
+    """A downloaded library is a content-addressed cache blob named by its SHA-256, with no suffix; LoadLibrary
+    appends ".dll" to a path without one, so the private copy must carry the suffix itself."""
+    src = Path(os.environ.get("SYSTEMROOT", r"C:\Windows")) / "System32" / "version.dll"
+    lib = kernels._load_dll_image(src.read_bytes(), "ab" * 32)
+    assert lib.GetFileVersionInfoSizeW
+    assert (kernels._dll_dir() / f"{'ab' * 32}.dll").is_file()
+
+
 def test_binary_names_the_driver_remedy(monkeypatch):
     monkeypatch.setattr(torch.version, "hip", None)
     monkeypatch.setattr(kernels.sys, "platform", "linux")
