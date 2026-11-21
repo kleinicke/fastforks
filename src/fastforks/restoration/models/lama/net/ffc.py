@@ -8,6 +8,7 @@
 import torch
 import torch.nn as nn
 
+from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.tracing import in_onnx_export
 
 from ._export import inverse_real_dft2, real_dft2
@@ -20,6 +21,7 @@ def reflect_pad(x, p):
     b, c, h, w = x.shape
     fmt = torch.channels_last if x.stride(1) == 1 and c > 1 else torch.contiguous_format
     out = torch.empty((b, c, h + 2 * p, w + 2 * p), dtype=x.dtype, device=x.device, memory_format=fmt)
+    out = to_run_dtype(out, x.dtype)  # fastforks: the MLX twin's buffer is float32 (MLX run dtype); else a no-op
     out[..., p : p + h, p : p + w] = x
     if p == 1 and h >= 4 and w >= 4:  # noqa: PLR2004 - two strided copies: columns 1, w - 2 and rows 2, h - 1
         out[..., 1 : h + 1, :: w + 1] = x[..., :, 1 : w - 1 : w - 3]
@@ -65,7 +67,7 @@ class FourierUnit(nn.Module):
         if exporting:
             return inverse_real_dft2(ffted.permute(0, 3, 1, 2, 4), w).to(dtype)
         output = torch.fft.irfftn(torch.view_as_complex(ffted), s=(h, w), dim=(1, 2), norm="ortho")
-        return output.permute(0, 3, 1, 2).to(dtype)
+        return to_run_dtype(output.permute(0, 3, 1, 2), dtype)  # the float32 island ends here (MLX replay too)
 
 
 class SpectralTransform(nn.Module):

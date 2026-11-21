@@ -20,6 +20,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
+from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, fastbb
 from fastforks.restoration._runner import Crop, Forward, Runner
@@ -81,7 +82,7 @@ def _attention(m: Attention, x: torch.Tensor) -> torch.Tensor:
     block: torch.Tensor = m.block  # ty: ignore[invalid-assignment]
     proj: torch.Tensor = m.proj  # ty: ignore[invalid-assignment]
     g = _gram(q, k, wide=m.wide) * (scale / nq)[:, :, None] / nk[:, None, :] + block  # ty: ignore[invalid-argument-type]
-    mat = (proj @ g.softmax(-1)).to(v.dtype)  # [B, C out, C in]
+    mat = to_run_dtype(proj @ g.softmax(-1), v.dtype)  # [B, C out, C in]; .to: a no-op in the float32 MLX twin
     return (v @ mat.mT).view(b, h, w, c).permute(0, 3, 1, 2)
 
 
@@ -119,7 +120,7 @@ def _head_attention(m: Attention, x: torch.Tensor) -> torch.Tensor:
         nq, nk = norm.view(2, heads, width).unbind()
         gram = _gram(q, k, wide=m.wide) * (temperature / nq).unsqueeze(-1) / nk.unsqueeze(-2)  # ty: ignore[invalid-argument-type]
         matrices.append(torch.bmm(gram.softmax(-1).mT, proj).reshape(c, c))
-    mat = (matrices[0].unsqueeze(0) if b == 1 else torch.stack(matrices)).to(tokens.dtype)
+    mat = to_run_dtype(matrices[0].unsqueeze(0) if b == 1 else torch.stack(matrices), tokens.dtype)
     return torch.bmm(tokens[..., 2 * c :], mat).view(b, h, w, c).permute(0, 3, 1, 2)
 
 
