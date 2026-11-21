@@ -716,7 +716,7 @@
   "dat-2-x4@1": {
    "mlx_default": [
     "portable",
-    "float16"
+    "float32"
    ],
    "mlx": {
     "float16": "portable",
@@ -724,6 +724,14 @@
    }
   },
   "dat-light-x4@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -3591,7 +3599,8 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "portable"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
     "portable",
@@ -3603,6 +3612,14 @@
    }
   },
   "swin2sr-x4-real@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -3623,6 +3640,13 @@
    }
   },
   "swinir-l-x4-real@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -3633,6 +3657,13 @@
    }
   },
   "swinir-m-x2@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
