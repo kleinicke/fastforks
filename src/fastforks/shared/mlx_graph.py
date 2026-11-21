@@ -456,7 +456,7 @@ OPS[torch.ops.fastforks.run_dtype.default] = _run_dtype
 
 def _float32(x: mx.array) -> mx.array:
     """`fastforks::float32` (`fastforks._core.mlx_cast.to_float32`): a float32 island of a float16 replay."""
-    return x.astype(mx.float32)
+    return x if x.dtype == mx.float32 else x.astype(mx.float32)
 
 
 OPS[torch.ops.fastforks.float32.default] = _float32

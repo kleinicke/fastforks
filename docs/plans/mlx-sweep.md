@@ -1053,6 +1053,25 @@ the old row, so it is not committed. monster (0.0011) and the other iterative st
 rt-monster++, igev++, selective-igev, raft-stereo, s2m2-s, waft-stereo-s, igev-stereo, great-igev and mvsanywhere.
 MonSter has the same latent instance-norm island, but its golden passes with a wide margin, so it is unchanged.
 
+### fp32 peak "regression": a measurement artifact, not code
+
+The float32 MLX peaks of raft-stereo kernels, monster, monster++, s2m2-s, great-igev and pi3 looked 1-8 % above the
+2026-11-19/20 rows. Re-surveying the old commit 85384184 today with the same tool:
+
+| ref (float32 portable) | old row | 85384184 today | head today |
+|---|---|---|---|
+| monster++ | 5520 MB | 14898 ms / 6114 MB | 14435 ms / 5957 MB |
+| s2m2-s | 3993 MB | 2938 ms / 4103 MB | 4110 MB |
+
+Head is no heavier than the old code. The old rows were taken while about 10.6 GB of stale swap was resident (see above).
+Those rows were also slower. Under that memory pressure the OS compresses or swaps pages, so `phys_footprint` reads lower.
+The rows stay as they are until a clean full re-run.
+
+The monster++ peak sits inside single lazy segments, not across them. Segment 57 is a conv-heavy encoder segment that
+peaks at 5755 MB with only 2486 MB live on entry. Every GRU iteration segment also peaks at about 5440 MB. Shrinking only
+the encoder segment would therefore gain nothing. `FF_MLX_CHUNK_MB=64` cuts the footprint to 5356 MB, but warm time goes
+from 14.4 s to 19.4 s. `FF_MLX_COMPILE=0` and `FASTFORKS_MLX_CACHE_MB=1` leave the peak unchanged. So there is no cheap win.
+
 ## MPS lessons from MLX
 
 The MPS rows that used much more memory than MLX were dominated by the allocator, not by the model. Allocations of
