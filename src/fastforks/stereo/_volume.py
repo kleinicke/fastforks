@@ -22,7 +22,7 @@ def stacked_volume(
     disparities: int,
     fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
 ) -> torch.Tensor:
-    """`[B, C', D, H, W]` with slab `i` = `fn(left[..., i:], right[..., :w - i])` shifted right by `i` (zeros left of it).
+    """`[B, C', D, H, W]`: slab `i` = `fn(left[..., i:], right[..., :w - i])` shifted right by `i` (zeros left of it).
 
     `fn` maps two `[B, C, H, W - i]` tensors to `[B, C', H, W - i]`; disparities >= width stay zero.
     """

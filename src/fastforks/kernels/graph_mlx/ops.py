@@ -79,7 +79,8 @@ def depthwise(  # noqa: PLR0913
         inputs=[x, w, b],
         template=[
             ("T", x.dtype), ("C", c), ("KH", kh), ("KW", kw), ("SH", stride[0]), ("SW", stride[1]),
-            ("PH", padding[0]), ("PW", padding[1]), ("DH", dilation[0]), ("DW", dilation[1]), ("OHT", oh), ("OWT", ow), ("R", r),
+            ("PH", padding[0]), ("PW", padding[1]), ("DH", dilation[0]), ("DW", dilation[1]),
+            ("OHT", oh), ("OWT", ow), ("R", r),
         ],
         grid=(-(-c4 // tg) * tg, oh * -(-ow // r), n),
         threadgroup=(tg, 1, 1),
@@ -187,7 +188,7 @@ _GRID = metal_kernel(
 
 
 def grid_sample(x: mx.array, grid: mx.array, *, align_corners: bool, border: bool) -> mx.array:
-    """Bilinear `grid_sample` of an NHWC map by a `[N, HO, WO, 2]` grid; returns `[N, HO, WO, C]` (zeros or border padding)."""
+    """Bilinear `grid_sample` of an NHWC map by a `[N, HO, WO, 2]` grid; `[N, HO, WO, C]` (zeros or border padding)."""
     n, h, w, c = x.shape
     ho, wo = grid.shape[1], grid.shape[2]
     vec = 4 if c % 4 == 0 else 2 if c % 2 == 0 else 1

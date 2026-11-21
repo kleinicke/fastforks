@@ -11,10 +11,11 @@ shapes), so a seed and size give the same noise on every device and in every mod
 
 `stream` (default on) keeps the transformer blocks in page-locked host memory and uploads one at a time on CUDA
 (`fastforks.shared.host_blocks`); on MLX it keeps the blocks that fit in `MLX_RESIDENT_SHARE` of unified memory and
-reads the others from the weight file per call (`net.mlx_net.Transformer`); `quant = "nf4"` quantises the blocks' linear weights to NF4 at load (bitsandbytes'
-format, `fastforks.shared.nf4`) and expands each to bf16 per call: ~3.5x smaller transformer, a small quality cost
-(measured 2026-11-14). Both are explicit options, printed when used, never silent fallbacks. The kernels
-backend expands NF4 weights with one fused kernel (`fastforks.kernels.nf4`); without `quant` it is the portable path.
+reads the others from the weight file per call (`net.mlx_net.Transformer`); `quant = "nf4"` quantises the blocks'
+linear weights to NF4 at load (bitsandbytes' format, `fastforks.shared.nf4`) and expands each to bf16 per call: ~3.5x
+smaller transformer, a small quality cost (measured 2026-11-14). Both are explicit options, printed when used,
+never silent fallbacks. The kernels backend expands NF4 weights with one fused kernel (`fastforks.kernels.nf4`);
+without `quant` it is the portable path.
 """
 
 from __future__ import annotations

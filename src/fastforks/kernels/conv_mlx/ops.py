@@ -149,7 +149,7 @@ def _scale(m: int, dtype: mx.Dtype) -> int:
     """
     if dtype != mx.float16:
         return 1
-    return 32 if m == 4 else 4  # noqa: PLR2004
+    return 32 if m == 4 else 4
 
 
 def _kernels(m: int) -> tuple[object, object]:
@@ -445,11 +445,11 @@ def direct_supported(cin: int, cout: int, k: tuple[int, int], stride: tuple[int,
     channels at stride 2 (to 48 outputs) and for 16 at stride 1 (to 32 outputs); 32 -> 32 at stride 1 ties and 48 or
     more channels lose, as do 7x7 stems with 64 outputs.
     """
-    if cout % 4 or k[0] * k[1] > 9 or k[0] * k[1] == 1:  # noqa: PLR2004
+    if cout % 4 or k[0] * k[1] > 9 or k[0] * k[1] == 1:
         return False
     if stride == (2, 2):
-        return cin <= DIRECT_MAX_CIN and cout <= 48  # noqa: PLR2004
-    return stride == (1, 1) and cin <= 16 and cout <= 32  # noqa: PLR2004
+        return cin <= DIRECT_MAX_CIN and cout <= 48
+    return stride == (1, 1) and cin <= 16 and cout <= 32
 
 
 def direct(  # noqa: PLR0913

@@ -49,14 +49,14 @@ def bench(row: dict, dtype: str, reps: int, *, mps: bool = True) -> dict[str, fl
     op = row.get("output_padding", [0] * len(row["stride"]))
     args = (row["stride"], row["padding"], row["dilation"], row["transposed"], op, row["groups"])
     for name, kern in (("port", False), ("kern", True)):
-        g._KERNELS = kern  # noqa: SLF001
+        g._KERNELS = kern
 
         def f() -> None:
-            mx.eval([g._conv_core(xm, wm, bm, *args) for _ in range(reps)])  # noqa: SLF001
+            mx.eval([g._conv_core(xm, wm, bm, *args) for _ in range(reps)])
 
         out[name] = _median(f) / reps
-    g._KERNELS = False  # noqa: SLF001
-    g._WINO.clear()  # noqa: SLF001
+    g._KERNELS = False
+    g._WINO.clear()
     if mps:
         import torch  # noqa: PLC0415
         import torch.nn.functional as F  # noqa: PLC0415

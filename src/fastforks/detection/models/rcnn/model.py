@@ -269,10 +269,10 @@ class _Rcnn(Runner):
         """detectron2 `RPN.forward` + `find_top_rpn_proposals` (inference, one image): `[R, 4]` boxes."""
         p = self.ctx.params
         boxes, scores, lvls = [], [], []
-        for i, (obj, dl) in enumerate(self._rpn_maps(feats) if maps is None else maps):
-            h, w = obj.shape[-2:]
-            obj = obj.permute(0, 2, 3, 1).flatten(1)[0]
-            dl = dl.view(1, -1, 4, h, w).permute(0, 3, 4, 1, 2).flatten(1, -2)[0]
+        for i, (obj_map, dl_map) in enumerate(self._rpn_maps(feats) if maps is None else maps):
+            h, w = obj_map.shape[-2:]
+            obj = obj_map.permute(0, 2, 3, 1).flatten(1)[0]
+            dl = dl_map.view(1, -1, 4, h, w).permute(0, 3, 4, 1, 2).flatten(1, -2)[0]
             s, idx = obj.topk(min(p.pre_nms_topk, obj.numel()))
             anchors = grid_anchors(self.cells[i], (h, w), 2 ** (i + 2))
             boxes.append(apply_deltas(dl[idx], anchors[idx], RPN_WEIGHTS))

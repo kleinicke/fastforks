@@ -508,7 +508,10 @@ class Kernels(Portable):
 
 
 class _MlxOnline(Portable):
-    """The online loop is data-dependent (`torch.export` guards on it): it stays eager, the CNN and update transformer run on MLX."""
+    """The online loop is data-dependent (`torch.export` guards on it): it stays eager.
+
+    The CNN and update transformer run on MLX.
+    """
 
 
 _MlxOnline = mlx_wrap.port(_MlxOnline, attrs=("core.net.fnet", "core.updateformer"))

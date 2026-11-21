@@ -35,12 +35,12 @@ def main() -> int:
     import speed_survey  # noqa: PLC0415
     from fastforks.shared import mlx_graph  # noqa: PLC0415
 
-    dev = speed_survey._device("apple-m1-pro-mlx-16gb")  # noqa: SLF001
+    dev = speed_survey._device("apple-m1-pro-mlx-16gb")
     job = next(j for j in speed_survey.plan(dev, only=[a.ref], modes=[a.mode]) if j["dtype"] == a.dtype)
     if a.input:
         job["input"] = a.input
     seen: Counter[tuple] = Counter()
-    orig = mlx_graph._conv_core  # noqa: SLF001
+    orig = mlx_graph._conv_core
 
     def wrap(x, w, b, stride, padding, dilation, transposed, output_padding, groups, act=0, slope=None):  # noqa: ANN001, ANN202, PLR0913
         seen[
@@ -51,10 +51,10 @@ def main() -> int:
         ] += 1  # fmt: skip
         return orig(x, w, b, stride, padding, dilation, transposed, output_padding, groups, act, slope)
 
-    mlx_graph._conv_core = wrap  # noqa: SLF001
+    mlx_graph._conv_core = wrap
     task = __import__(f"fastforks.{job['task']}", fromlist=["load"])
     model = task.load(a.ref, mode=a.mode, device="mlx", dtype=a.dtype)
-    args, kw, _ = speed_survey._inputs(model, job)  # noqa: SLF001
+    args, kw, _ = speed_survey._inputs(model, job)
     with torch.inference_mode():
         model(*args, **kw)
     keys = ("x", "w", "stride", "padding", "dilation", "transposed", "groups", "output_padding", "dtype", "bias")
