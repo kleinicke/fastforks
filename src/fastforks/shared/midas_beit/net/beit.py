@@ -107,13 +107,14 @@ class Attention(nn.Module):
 
         key = str(window_size[1]) + "," + str(window_size[0])
         # fastforks: the index is generated on the table's device (upstream: on the CPU, copied on every call)
-        if key not in self.relative_position_indices.keys() or \
-                self.relative_position_indices[key].device != old_relative_position_bias_table.device:
-            self.relative_position_indices[key] = gen_relative_position_index(
-                window_size, device=old_relative_position_bias_table.device)
+        index = self.relative_position_indices.get(key)
+        if index is None or index.device != old_relative_position_bias_table.device:
+            index = gen_relative_position_index(window_size, device=old_relative_position_bias_table.device)
+            if type(index) is torch.Tensor:  # fastforks: not a traced one (an MLX export's fake tensor)
+                self.relative_position_indices[key] = index
 
         relative_position_bias = new_relative_position_bias_table[
-            self.relative_position_indices[key].view(-1)].view(
+            index.view(-1)].view(
             window_size[0] * window_size[1] + 1,
             window_size[0] * window_size[1] + 1, -1)  # Wh*Ww,Wh*Ww,nH
         relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()  # nH, Wh*Ww, Wh*Ww

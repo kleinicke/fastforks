@@ -127,3 +127,39 @@ def test_position_encodings_cache_no_fake_tensor():
     assert _plain(sam2.cache)
     assert rfdetr._pos_cache
     assert _plain(rfdetr._pos_cache)
+
+
+class Beit(torch.nn.Module):
+    """A MiDaS BEiT attention (SDPA forward, shared relative position index) at a 3 x 4 patch window."""
+
+    def __init__(self, *, sdpa: bool) -> None:
+        super().__init__()
+        from fastforks.shared import midas_beit  # noqa: PLC0415
+        from fastforks.shared.midas_beit.net.beit import Attention  # noqa: PLC0415
+
+        torch.manual_seed(0)
+        self.a = Attention(32, 2, (4, 4))
+        torch.nn.init.normal_(self.a.relative_position_bias_table)
+        if sdpa:
+            midas_beit.use_sdpa_attention(self)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.a(x, (48, 64))
+
+
+@pytest.mark.parametrize("sdpa", [True, False])
+def test_midas_beit_exports_share_no_fake_tensor(sdpa):
+    from fastforks.shared import midas_beit  # noqa: PLC0415
+
+    midas_beit._INDEX.clear()
+    net = Beit(sdpa=sdpa).eval()
+    m = mlx_graph.MlxModule(net)  # exported before any eager call fills the index cache
+    for b in (1, 2, 1):
+        x = torch.randn(b, 13, 32)
+        got = m(x)  # before the eager reference fills the cache
+        with torch.no_grad():
+            want = Beit(sdpa=sdpa).eval()(x)
+        torch.testing.assert_close(got, want, atol=1e-4, rtol=1e-4)
+        midas_beit._INDEX.clear()
+    assert _plain(midas_beit._INDEX)
+    assert _plain(net.a.relative_position_indices)
