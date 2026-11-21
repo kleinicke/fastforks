@@ -1008,6 +1008,31 @@ def _conv_input(x: mx.array, w: mx.array) -> mx.array:
     return x
 
 
+def _conv_only_cats(nodes: list[Any]) -> set[str]:
+    """`aten.cat` nodes whose value only feeds convolution inputs (directly or through other such cats).
+
+    The convolution casts a float32 input to its half-precision weights (`_conv_input`); a cast commutes with the
+    concatenation, so these cats can cast their float32 operands first and move half the bytes. IGEV++'s update block
+    concatenated the float32 disparity into its 128- and 384-channel GRU inputs: 1.0 s of float32 cats per call at
+    994x1482.
+    """
+    out: set[str] = set()
+    for node in reversed(nodes):
+        if node.op != "call_function" or node.target is not aten.cat.default or not node.users:
+            continue
+        if all(
+            u.name in out or (u.target is aten.convolution.default and u.args[0] is node and node not in u.args[1:])
+            for u in node.users
+        ):
+            out.add(node.name)
+    return out
+
+
+def _cat_in(op: Callable[..., mx.array], dtype: mx.Dtype, xs: Sequence[mx.array], *a: Any, **kw: Any) -> mx.array:
+    """`op` (a cat) with its float32 operands cast to the half-precision `dtype` first (see `_conv_only_cats`)."""
+    return op([x.astype(dtype) if x.dtype == mx.float32 else x for x in xs], *a, **kw)
+
+
 @_reg(aten.convolution.default)
 def _conv(
     x: mx.array,
@@ -2290,6 +2315,7 @@ class GraphNet:
             if MERGE_OFF
             else self._merge_siblings(nodes, names, lifted, values, {*folds.args, *fused.conv, *fused.res})
         )
+        half_cats = _conv_only_cats(nodes) if self.dtype in (mx.float16, mx.bfloat16) and not KEEP_F32_CONV else set()
         for node in nodes:
             if node.op == "placeholder":
                 tgt = names.get(node.name)
@@ -2327,6 +2353,8 @@ class GraphNet:
                 op = CL_OPS[node.target] if node.name in cl_values and node.target in CL_OPS else self._op(node.target)
                 if op is _run_dtype:
                     op = functools.partial(mx.astype, dtype=self.dtype)
+                elif node.name in half_cats:
+                    op = functools.partial(_cat_in, op, self.dtype)
                 plan.append(("call", node.name, op, _plain(args), _plain(dict(node.kwargs))))
             elif node.op == "output":
                 plan.append(("output", _plain(node.args[0])))

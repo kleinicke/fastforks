@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+from fastforks._core.mlx_cast import to_run_dtype  # fastforks: run-dtype casts on MLX
 from .utils import bilinear_sampler  # fastforks: was core.utils.utils (only this function is vendored)
 
 
@@ -93,7 +94,7 @@ class FastGeoEncodingVolume:
         f1 = fmap1.permute(0, 2, 3, 1).reshape(b * h, w, -1)
         f2 = fmap2.permute(0, 2, 1, 3).reshape(b * h, -1, w)
         ct = torch.float32 if out_dtype == torch.float32 else torch.float16
-        corr = torch.bmm(f1.to(ct), f2.to(ct)).view(b * h * w, w)
+        corr = torch.bmm(to_run_dtype(f1, ct), to_run_dtype(f2, ct)).view(b * h * w, w)
         self.geo, self.corr = [g], [corr]
         for _ in range(num_levels - 1):
             g = _pool2_last(g)
@@ -131,5 +132,5 @@ class FastGeoEncodingVolume:
             sc = 1.0 / 2 ** i
             out.append(self._sample(self.geo[i], dsp * sc + self.dx))
             out.append(self._sample(self.corr[i], self.coords * sc - dsp * sc + self.dx))
-        out = torch.cat(out, 1).to(self.out_dtype)
+        out = to_run_dtype(torch.cat(out, 1), self.out_dtype)
         return out.view(b, h, w, -1).permute(0, 3, 1, 2)
