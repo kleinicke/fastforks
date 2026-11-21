@@ -632,8 +632,23 @@ class Kernels(_Base):
             return super().cv_encoder(cv, feats)
 
 
+class MlxPortable(mlx_wrap.port(Portable, attrs=(), methods=("encode_image", "matching", "cv_encoder", "decode"))):  # ty: ignore[unsupported-base]
+    """Apple MLX: the ViTs, conv nets and heads as exported graphs, the cost volume as one Metal kernel (`mlx_cv`)."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the MLX runner and pack the cost-volume MLP for the kernel."""
+        from .mlx_cv import CostVolume  # noqa: PLC0415 - MLX only
+
+        super().__init__(ctx)
+        self.cv_kernel = CostVolume(self.net.mlp)
+
+    def cost_volume(self, cur: torch.Tensor, src: torch.Tensor, g: Geometry, rng: torch.Tensor) -> torch.Tensor:
+        """The fused Metal cost volume (float32, as the CUDA kernel)."""
+        return self.cv_kernel(cur, src, g, rng, planes(rng))
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("encode_image", "matching", "cv_encoder", "decode")),
+    "portable_mlx": MlxPortable,
 }
