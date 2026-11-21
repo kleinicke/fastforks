@@ -251,9 +251,19 @@ def extra() -> dict[tuple[str, str], object]:
     return {**NUMPY_ARRAYS, ("_codecs", "encode"): latin1_encode, ("__builtin__", "bytes"): empty_bytes}
 
 
+# The SimCC head runs as a float32 graph: its 1D-bin argmax flips half-pixel bins on float16 logits (face6-s
+# keypoints mean 0.065 px vs tol 0.061 with a float16 head).
+_Mlx = mlx_wrap.port(
+    Portable,
+    attrs=(),
+    methods=("net.features", "net.head.forward"),
+    fp32_methods=("net.head.forward",),
+    prune=True,
+)
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": _Mlx,
 }

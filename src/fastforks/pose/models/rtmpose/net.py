@@ -216,6 +216,10 @@ class RTMPose(nn.Module):
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """SimCC logits."""
+        return self.head(self.features(x))
+
+    def features(self, x: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, ...]:
+        """What the head reads: the last backbone stage (RTMW: the neck's outputs)."""
         if self.neck is None:
-            return self.head(self.backbone(x)[-1])
-        return self.head(self.neck(*self.backbone(x)))
+            return self.backbone(x)[-1]
+        return self.neck(*self.backbone(x))
