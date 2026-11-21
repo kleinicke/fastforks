@@ -1504,7 +1504,8 @@ realesrgan-x4plus, convnext_base).
 | marigold-normals-lcm-v0-1 | fp16 | 2363 / 4318 / 38.7 | 1770 / 4220 / 19.5 | 1655 / 6671 |
 | marigold-normals-lcm-v0-1 | fp32 | 5109 / 7471 / 44.6 | 3025 / 7310 / 38.3 | 2075 / 9727 |
 
-Not acted on yet: `mx.conv2d`'s 3x3 timings jump with the position count and channel width. These are M1 Pro numbers,
+Measured, then left as is (see "Measured conv dispatch" below):
+`mx.conv2d`'s 3x3 timings jump with the position count and channel width. These are M1 Pro numbers,
 taken outside any net. In fp32, 1024 -> 768 at 63x64 takes 19.5 ms and at 64x64 34.2 ms (MLX appears to switch to
 Winograd at 4096 positions); 1024 -> 1024 takes 27.6 ms against 50.9 ms. In fp16, 1024 -> 1024 takes 23.2 ms against
 33.8 ms. 2560 -> 1280 at 63x64 takes 435 ms in fp32 and 164 ms in fp16. At 64^2, a 3x3 run as nine per-tap matmuls
@@ -1519,3 +1520,102 @@ and dilation 1, channels multiples of 32 summing to >= 256, >= 4096 positions). 
 (d7a21332) owed its padded-input gains to entering it, and pushed HAT's 180-channel convs over hat-x4's float16 golden
 (mean 0.00058 -> 0.00092). Half precision outside kernels mode now never pads into Winograd: hat-x4 fp16 golden 0.00057,
 11550 ms / 3651 MB; hat-s-x4 10010 / 3396, dat-x4 9358 / 3305, dat-light-x4 1870 / 2425 (no slower than the rows before).
+
+## Measured conv dispatch: tried, not kept (2026-11-21)
+
+Question: should a table measured per conv shape replace `_conv2d`'s hand rules? Those rules are the ragged-channel
+padding, the 32 / 48 -> 64 output pad, the 640-input split and the half-precision Winograd guard. Answer: no. No real net
+gains more than 5% from such a table, so the rules stay as they are.
+
+Method: the shapes and call counts of every `_conv2d` call were logged at the survey inputs of memfof, memflow,
+defom-stereo, raft-stereo, sea-raft-m, marigold-depth, realesrgan-x4plus, hat-x4 and nafnet (366 distinct keys over
+fp32 / fp16). Each key was timed alone (warm median) as:
+
+- a direct `mx.conv2d`
+- the current rules
+- output pads to 16 / 32 / 64
+- an input pad to 32
+- input slices of 256-1024
+- 16 extra outputs, which keeps MLX off Winograd
+- nine per-tap matmuls
+
+A half-precision candidate counted as unsafe if it entered Winograd where the direct conv does not.
+
+The winners, each beating the rules by at least 10% and 0.3 ms, became a 20-entry table. Its key was dtype, kernel,
+stride, cin, cout and the position-count bucket round(2 log2(N H W)). Its biggest isolated wins:
+
+| Conv | Net | Lowering | Before -> after (ms) |
+|---|---|---|---|
+| fp32 stride-2 3x3 stem 64 -> 96 at 1024x1504 | raft-stereo / defom | outputs padded to 128 | 52.0 -> 18.5 |
+| the same stem at 540x960 | memflow / sea-raft | outputs padded to 128 | 17.2 -> 6.5 |
+| fp32 1x1 256 -> 144 | raft-stereo / defom | outputs padded to 192 | 15.1 -> 3.7 |
+| fp32 1024 -> 768 at 68x120 (Winograd band) | memfof | 320-input slices | 40.9 -> 27.0 |
+| fp32 1280 -> 1280 at 32x48 | marigold | 320-input slices | 33.6 -> 15.8 |
+| fp32 512 -> 512 at 64x96 | marigold | 256-input slices | 10.2 -> 5.5 |
+| hat fp32 60 -> 180 | hat | both padded to 32 multiples | 19.6 -> 14.1 |
+| fp16 960-1920 -> 640 / 1280 at 32x48 | marigold | per-tap matmuls | 15-22% faster |
+
+The fp16 per-tap matmuls have a relative error of 4.8e-4, against 1.8e-4 for the direct conv; Winograd's is 6e-3. The
+fp32 lowerings stay at about 1e-5. Summed over each net's call counts, the table cut the estimated conv time to between
+0.69x (raft-stereo fp32) and 0.94x (defom) of the rules. All goldens passed with it.
+
+Whole nets, on against off (`FF_MLX_NO_CONV_TABLE`, same session, warm median of 5):
+
+| Net | dtype | Table on (ms / MB) | Table off (ms / MB) | Change |
+|---|---|---|---|---|
+| memfof | fp32 | 3427 / 3179 | 3572 / 3013 | -4.1%, +166 MB |
+| raft-stereo-sceneflow | fp32 | 4456 / 5928 | 4640 / 5915 | -4.0% |
+| marigold-depth-v1-1 | fp32 | 4297 / 7259 | 4427 / 7262 | -2.9% |
+| marigold-depth-v1-1 | fp16 | 2845 / 4172 | 2875 / 4205 | -1.0% |
+| defom-stereo-vitl-sceneflow | fp32 | 13773 / 6417 | 13889 / 6456 | -0.8% |
+| hat-x4 | fp32 | 17384 / 6057 | 17341 / 6052 | 0 |
+| raft-stereo-sceneflow | fp16 | 2794 / 4750 | 2775 / 4747 | 0 |
+
+The survey rows confirm this. With the table on, against the rows below without it:
+
+| Net | dtype | With table (ms) | Without table (ms) |
+|---|---|---|---|
+| memfof | fp32 | 3502 | 3576 |
+| marigold-depth | fp32 | 4257 | 4442 |
+| marigold-normals | fp32 | 2882 | 2981 |
+| defom | fp32 | 13578 | 13878 |
+| raft-stereo | fp32 | 5822 | 5754 (the table was slower here) |
+
+The memfof slices also cost about 170 MB. The isolated wins mostly vanish inside a net. The warm call is dominated by
+the rest of the graph (correlation, attention, GRU updates), and MLX overlaps a conv's dispatch with neighbouring
+kernels, so a conv that is 3x faster alone hardly moves the end-to-end time. The table was 70 lines of shape-specific
+entries, bound to one chip and one MLX version, for at most 4%. It was dropped.
+
+Worth revisiting only:
+
+- with a newer MLX whose conv kernel selection changes
+- on another chip
+- if a net turns out to be conv-bound end to end
+
+A per-net conv-time estimate above 0.85x is a sign it will not pay. Scripts: collect.py, bench.py, analyze.py,
+verify.py and probe.py in the session scratchpad.
+
+Survey rows at the committed code, `--modes portable --force`. The "before" rows were taken at older commits, so these
+deltas include the earlier passes. All goldens pass:
+
+| ref | dtype | input | before ms / MB / first s | now ms / MB / first s |
+|---|---|---|---|---|
+| defom-stereo-vitl-sceneflow | fp32 | 994x1482 | 15944 / 6974 / 95.2 | 13878 / 6458 / 24.5 |
+| hat-x4 | fp16 | 512x512 | 11550 / 3651 / 17.3 | 11318 / 3674 / 17.1 |
+| hat-x4 | fp32 | 512x512 | 24576 / 7377 / 89.3 | 17231 / 6065 / 23.8 |
+| marigold-depth-v1-1 | fp16 | 994x1482 | 2867 / 4176 / 19.3 | 2868 / 4172 / 17.3 |
+| marigold-depth-v1-1 | fp32 | 994x1482 | 4441 / 7268 / 37.8 | 4442 / 7286 / 30.7 |
+| marigold-normals-lcm-v0-1 | fp16 | 994x1482 | 1770 / 4220 / 19.5 | 1772 / 4212 / 14.9 |
+| marigold-normals-lcm-v0-1 | fp32 | 994x1482 | 3025 / 7310 / 38.3 | 2981 / 7309 / 34.5 |
+| memflow | fp32 | 1080x1920 | 13101 / 10550 / 66.8 | 10095 / 9232 / 18.9 |
+| memfof | fp32 | 1080x1920 | 5436 / 2716 / 30.2 | 3576 / 3012 / 13.0 |
+| raft-stereo-sceneflow | fp16 | 994x1482 | 4212 / 3926 / 15.7 | 4232 / 3955 / 15.5 |
+| raft-stereo-sceneflow | fp32 | 994x1482 | 6093 / 4705 / 20.2 | 5754 / 4789 / 19.0 |
+| sea-raft-m | fp16 | 1080x1920 | 1427 / 5714 / 7.6 | 1300 / 5656 / 5.1 |
+| sea-raft-m | fp32 | 1080x1920 | 2187 / 9721 / 8.7 | 1853 / 9736 / 4.9 |
+
+Three rows are slower than before, all within run-to-run noise: raft-stereo fp16 (+0.5%) and marigold-depth fp16 /
+fp32 (+1 ms each). memfof's peak rose 2716 -> 3012 MB with this code and no table, so the rise comes from the earlier
+passes (the 2716 row was taken at 85384184), not from this one. Regenerated routes: memflow's cheaper compile (18.9 s
+first call) now routes `auto` to MLX, and raft-stereo's `device="mlx"` float32 now picks portable (5754 ms) over
+kernels.
