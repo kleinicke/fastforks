@@ -28,6 +28,7 @@ import math
 import mmap
 import operator
 import os
+import threading
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -2334,6 +2335,49 @@ def _hand_back(storage: torch.UntypedStorage) -> None:
         pass
 
 
+# `FF_MLX_NO_PREFETCH=1`: no read-ahead of the weights during the export (a lazy twin's parameters are the mmapped
+# checkpoint, so the first call's translation faults them in page by page otherwise: 11-24 s of vggt-1b's first call)
+PREFETCH_OFF = bool(os.environ.get("FF_MLX_NO_PREFETCH"))
+_PREFETCH_THREADS = 8  # parallel page faults: one thread reads a cold mmap at ~0.2 GB/s, several overlap the SSD reads
+
+
+def _prefetch(module: torch.nn.Module) -> list[threading.Thread]:
+    """Threads that read one byte per page of the module's CPU weights, to run while the export traces.
+
+    A no-op for weights already in memory and the disk read of a mmapped checkpoint otherwise (clean file-backed pages,
+    which the translation reads anyway). Touched, not `MADV_WILLNEED`: macOS counts read-ahead pages in the process's
+    physical footprint (vggt-1b +4.3 GB peak), faulted ones it does not. The threads hold the storages, so the caller
+    joins them before anything checks `_exclusive`.
+    """
+    seen: dict[int, torch.UntypedStorage] = {}
+    for t in itertools.chain(module.parameters(), module.buffers()):
+        if t.device.type == "cpu" and not t.is_meta:
+            s = t.untyped_storage()
+            if s.nbytes() >= _HAND_BACK_MIN:
+                seen.setdefault(s.data_ptr(), s)
+    if not seen:
+        return []
+    parts: list[list[torch.UntypedStorage]] = [[] for _ in range(_PREFETCH_THREADS)]
+    load = [0] * _PREFETCH_THREADS
+    for s in sorted(seen.values(), key=lambda s: -s.nbytes()):  # the largest first, each to the least loaded thread
+        i = load.index(min(load))
+        parts[i].append(s)
+        load[i] += s.nbytes()
+    page = mmap.PAGESIZE
+
+    def touch(storages: list[torch.UntypedStorage]) -> None:
+        with torch.no_grad():
+            while storages:
+                b = torch.empty(0, dtype=torch.uint8).set_(storages.pop())
+                b[::page].max()  # one read per page (torch releases the GIL in the reduction)
+                del b
+
+    threads = [threading.Thread(target=touch, args=(p,), daemon=True) for p in parts if p]
+    for th in threads:
+        th.start()
+    return threads
+
+
 def _plain(a: Any) -> Any:
     """`a` with its fx nodes replaced by their names (a plan must not keep the exported graph and its fake tensors)."""
     if hasattr(a, "name") and hasattr(a, "op"):
@@ -2718,6 +2762,8 @@ class GraphNet:
         self.plan_extra: Callable[[], Any] | None = None
         self.plan_restore: Callable[[Any], None] | None = None
         self._cold: dict[str, Any] = {}  # `COLD_LOG`: the current build's phase times
+        self._prefetched = False  # `_prefetch` ran once (a later signature's build finds the weights read)
+        self._prefetching: list[threading.Thread] = []
 
     def _const(self, name: str, t: torch.Tensor, *, share: bool = True) -> mx.array:
         if not share:  # a lifted constant (a grid built in the forward): "lifted_tensor_0" differs per export
@@ -2738,6 +2784,9 @@ class GraphNet:
     def _build(self, args: tuple[torch.Tensor, ...]) -> Callable[..., Any]:
         token = EXPORTING_FOR_MLX.set(True)
         t0 = time.perf_counter()
+        if not PREFETCH_OFF and not self._prefetched:
+            self._prefetched = True
+            self._prefetching = _prefetch(self.module)
         try:
             return self._build_graph(args)
         finally:
@@ -2818,6 +2867,8 @@ class GraphNet:
 
     def _build_graph(self, args: tuple[torch.Tensor, ...]) -> Callable[..., Any]:
         ep = self._export(args)
+        while self._prefetching:  # the weights are read next (and the threads must let go of their storages)
+            self._prefetching.pop().join()
         graph = ep.graph_module.graph
         sig = ep.graph_signature
         state = set(ep.state_dict)
