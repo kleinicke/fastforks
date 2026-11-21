@@ -1872,3 +1872,25 @@ Not candidates, because speed or memory blocks them and a shorter compile cannot
 - memflow and raft-stereo-sceneflow kernels fp16 are already routed.
 
 The tiny classifiers and detectors are blocked at 5 to 100x the limit.
+
+## Six fp16 golden misses (2026-11-21)
+
+| ref | before (mean / tol) | after | fix | commit |
+|---|---|---|---|---|
+| omni-dc@1 | NaN / 0.015 | 0.00094 | RGB-D backbone as a float32 graph (`fp32_methods`); PVT features reach 3e5 | 32458853 |
+| metric3d-vit-large@1 | 0.021 / 0.01 | 0.00011 | decoder as a float32 graph | a0820d13 |
+| fast-acvnet-plus-sceneflow@1 | 0.135 / 0.02 | fp32 only | card `mlx_dtypes = ["float32"]`; fp16 flips a top-k cell (4x-eps noise flips it in 3 of 6 seeds) | 3b2909b5 |
+| rtmpose-s-face6@1 | 0.065 / 0.061 | 0.0175 | SimCC head as a float32 graph | a116edaa |
+| sea-raft-s-spring@1 | 0.0024 / 0.002 | 0.00164 | `port(half_wino_f32=True)`: fp16 3x3 convs MLX would run as Winograd run in fp32 | 45ea7cec |
+| track-on2@1 | 0.046 / 0.04 | 0.0167 | `to_float32` for correlation, MSDA offsets/weights/locations, head outputs | 3d2ecc65 |
+
+- The common cause is the float32 twin. `.float()` records nothing on it, so float32 islands vanish in an fp16
+  replay. Since d7a21332 the replay also casts fp32 conv inputs to the half weights' dtype, which exposed
+  omni-dc and metric3d. Use `to_float32` or `fp32_methods` for regions that must stay fp32.
+- MLX 0.32's half Winograd has about 17x the direct conv's error. sea-raft's layer2 convs measured 2.8e-3 rel
+  against 4e-4. The new opt-in `half_wino_f32` option (port / MlxModule / GraphNet) is off by default.
+- gen_auto_mode now drops survey rows whose MLX dtype the card does not declare. fast-acvnet-generalization's
+  `mlx_default` moved from fp16 to fp32.
+- grounding-dino-base@1: the local npz is stale, not golden.toml. The local copies date from Nov 12 and hash to
+  1cc379c1. cfe2c9b1 (Nov 18) deliberately re-pinned the ref to the published `grounding-dino-base@1-6054688b.npz`.
+  `tools/fetch_goldens.py` fetches it.
