@@ -19,6 +19,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
+from fastforks._core.mlx_cast import to_float32, to_run_dtype
 from fastforks.flow._runner import Forward, Runner
 from fastforks.kernels import flow_upsample
 from fastforks.shared import mlx_wrap
@@ -57,7 +58,7 @@ def _headed(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tenso
     channels = v.shape[-1]
     v = F.pad(v, (0, -channels % 8))
     q, k, v = (x.contiguous().unsqueeze(1) for x in (q, k, v))
-    bias = None if mask is None else mask.to(q.dtype).unsqueeze(1)
+    bias = None if mask is None else to_run_dtype(mask, q.dtype).unsqueeze(1)  # .to: a no-op in the MLX twin
     return F.scaled_dot_product_attention(q, k, v, attn_mask=bias).squeeze(1)[..., :channels]
 
 
@@ -80,7 +81,7 @@ def forward(  # noqa: PLR0913 - network, image pair and inference options
         feature1, feature2 = feature_add_position(feature1, feature2, splits, net.feature_channels)
         with amp:
             feature1, feature2 = net.transformer(feature1, feature2, attn_type="swin", attn_num_splits=splits)
-        feature1, feature2 = feature1.float(), feature2.float()
+        feature1, feature2 = to_float32(feature1), to_float32(feature2)  # matching: float32 also in the MLX twin
         b, _, h, w = feature1.shape
         tokens1 = feature1.flatten(2).transpose(1, 2)  # [B, H*W, C]
         if corr_radius == -1:  # global matching: the expected position of the match
@@ -109,7 +110,9 @@ def forward(  # noqa: PLR0913 - network, image pair and inference options
         hidden, context = torch.tanh(hidden), torch.relu(context)
     mask = flow
     for step in range(params.refine):
-        correlation = local_correlation_with_flow(raw1, raw2, flow=flow, local_radius=REFINE_RADIUS)
+        correlation = local_correlation_with_flow(
+            to_float32(raw1), to_float32(raw2), flow=flow, local_radius=REFINE_RADIUS
+        )
         with amp:
             _, up_mask, residual = net.refine(
                 hidden,

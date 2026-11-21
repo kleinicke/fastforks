@@ -1,4 +1,5 @@
 import torch
+from fastforks._core.mlx_cast import to_float32, to_run_dtype  # fastforks: run-dtype casts on MLX
 import torch.nn as nn
 
 from .attention import (single_head_full_attention, single_head_split_window_attention,
@@ -64,6 +65,10 @@ class TransformerLayer(nn.Module):
                 attn_num_splits=None,
                 ):
         # source, target: [B, L, C]
+        residual = source
+        if torch.compiler.is_exporting():  # fastforks: MLX twin: float32 residual, run-dtype branches (as autocast)
+            residual = to_float32(source)
+            source, target = to_run_dtype(source, source.dtype), to_run_dtype(target, target.dtype)
         query, key, value = source, target, target
 
         # for stereo: 2d attn in self-attn, 1d attn in cross-attn
@@ -164,7 +169,7 @@ class TransformerLayer(nn.Module):
             message = self.mlp(torch.cat([source, message], dim=-1))
             message = self.norm2(message)
 
-        return source + message
+        return residual + message  # fastforks: `residual` is `source` off the MLX twin
 
 
 class TransformerBlock(nn.Module):
@@ -273,6 +278,7 @@ class FeatureTransformer(nn.Module):
                 shift_size_w=window_size_w // 2,
                 device=feature0.device,
             )  # [K*K, H/K*W/K, H/K*W/K]
+            shifted_window_attn_mask = to_run_dtype(shifted_window_attn_mask, feature0.dtype)  # fastforks: MLX twin's f32
         else:
             shifted_window_attn_mask = None
 

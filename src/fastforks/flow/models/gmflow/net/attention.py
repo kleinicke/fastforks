@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from fastforks._core.mlx_cast import to_run_dtype  # fastforks: run-dtype casts on MLX
 
 from .utils import split_feature, merge_splits, split_feature_1d, merge_splits_1d
 
@@ -30,7 +31,7 @@ def sdpa(q, k, v, attn_mask=None):
     if pad:
         v = F.pad(v, (0, pad))
     if attn_mask is not None:
-        attn_mask = attn_mask.to(q.dtype)
+        attn_mask = to_run_dtype(attn_mask, q.dtype)  # fastforks: .to is a no-op in the float32 MLX twin
     # ONNX requires an explicit attention head dimension for rank-three inputs.
     export = torch.compiler.is_exporting() and q.dim() == 3
     if export:
