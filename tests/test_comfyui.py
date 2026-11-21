@@ -44,6 +44,8 @@ def pack(tmp_path_factory: pytest.TempPathFactory) -> Any:
     mm = types.ModuleType("comfy.model_management")
     mm.unload_all_models = lambda: calls.append("comfy")
     mm.soft_empty_cache = lambda: calls.append("empty")
+    mm.free_memory = lambda *_, **__: []
+    mm.get_free_memory = lambda *_, **__: float("inf")
     mm.throw_exception_if_processing_interrupted = lambda: None
     mm.intermediate_device = lambda: torch.device("cpu")
     comfy = types.ModuleType("comfy")
@@ -491,6 +493,45 @@ def test_labels_and_unload_hook(pack: Any) -> None:
     assert pack.calls == ["comfy", "empty"]
     assert not nodes._cache
     assert set(pack.NODE_CLASS_MAPPINGS) == set(pack.NODE_DISPLAY_NAME_MAPPINGS)
+
+
+def test_comfyui_making_room_frees_our_models(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """ComfyUI's free_memory, short after unloading its own models: our CUDA graphs go first, then our models (least
+    recently used first), only on that device and only until enough is free."""
+    nodes, mm = pack.nodes, pack.mm
+    cuda, other = torch.device("cuda", 0), torch.device("cuda", 1)
+
+    class Held:
+        def __init__(self, device: torch.device, weights: int, graphs: int) -> None:
+            self.device, self.weights, self.graphs = device, weights, graphs
+
+        def release_graphs(self) -> None:
+            self.graphs = 0
+
+    monkeypatch.setattr(nodes, "_cache", nodes.OrderedDict())
+    nodes._cache[("old",)] = Held(cuda, 3, 2)
+    nodes._cache[("new",)] = Held(cuda, 3, 2)
+    nodes._cache[("elsewhere",)] = Held(other, 3, 2)
+    total = 20
+
+    def used(dev: torch.device, *, graphs: bool) -> int:
+        return sum(m.weights + graphs * m.graphs for m in nodes._cache.values() if m.device == dev)
+
+    # as ComfyUI: a graph's pool is PyTorch's cached memory, counted as free; the device itself does not have it
+    monkeypatch.setattr(mm, "get_free_memory", lambda dev, **_: total - used(dev, graphs=False))
+    monkeypatch.setattr(nodes, "_device_free", lambda dev: total - used(dev, graphs=True))
+    monkeypatch.setattr(mm, "free_memory", lambda *_, **__: ["comfy"])
+    nodes.install_unload_hook()  # wraps the stub just set
+
+    assert mm.free_memory(9, cuda) == ["comfy"]  # 10 free on the device: nothing to do
+    assert all(m.graphs == 2 for m in nodes._cache.values())
+    mm.free_memory(13, cuda)  # ComfyUI sees 14 free, the device has 10: the graphs go, both models stay
+    assert list(nodes._cache) == [("old",), ("new",), ("elsewhere",)]
+    assert [m.graphs for m in nodes._cache.values()] == [0, 0, 2]  # the other device's graphs stay
+    mm.free_memory(17, cuda)  # one model (3) more is enough: the least recently used goes
+    assert list(nodes._cache) == [("new",), ("elsewhere",)]
+    mm.free_memory(100, cuda)  # never enough: every model on that device goes, the other device's stays
+    assert list(nodes._cache) == [("elsewhere",)]
 
 
 def test_cache_setup(pack: Any, tmp_path: Path) -> None:

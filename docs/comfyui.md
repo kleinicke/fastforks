@@ -110,7 +110,8 @@ Weights and kernels already in the fastforks cache, the Hugging Face or torch hu
 ones download on first use into `models/fastforks` (another location: a `fastforks:` entry in
 `extra_model_paths.yaml`). Models run on ComfyUI's device and
 stay loaded between runs (the two most recently used); ComfyUI's "Unload models" frees them, and ComfyUI unloads its
-own models first when a fastforks model needs the room. Batches run one image at a time, so a cancel stops after the
+own models first when a fastforks model needs the room. When ComfyUI needs room for one of its models and unloading its
+own was not enough, the fastforks models on that device free their CUDA graphs, then unload, least recently used first. Batches run one image at a time, so a cancel stops after the
 current image.
 
 ## Speed

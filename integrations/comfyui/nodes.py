@@ -341,17 +341,68 @@ def start() -> None:
 
 
 def install_unload_hook() -> None:
-    """Make ComfyUI's `unload_all_models` ("Unload models", `/free`) also drop our cache. Idempotent."""
+    """Hook our cache into ComfyUI's memory management. Idempotent.
+
+    `unload_all_models` ("Unload models", `/free`) also drops our cache; `free_memory` (called before ComfyUI loads a
+    model) also frees our models' memory when unloading its own left too little (`make_room`).
+    """
     mm = _mm()
     original = mm.unload_all_models
-    if original.__name__ == "_unload_all_models":  # already wrapped
+    if original.__name__ != "_unload_all_models":  # not wrapped yet
+
+        def _unload_all_models() -> None:
+            original()
+            unload_all()
+
+        mm.unload_all_models = _unload_all_models
+    free = mm.free_memory
+    if free.__name__ != "_free_memory":
+
+        def _free_memory(memory_required: float, device: torch.device | None, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401 - ComfyUI's list of unloaded models
+            unloaded = free(memory_required, device, *args, **kwargs)
+            make_room(memory_required, device)
+            return unloaded
+
+        mm.free_memory = _free_memory
+
+
+def _device_free(device: torch.device) -> int:
+    """Bytes free on the device itself, without PyTorch's cached blocks (ComfyUI's measure elsewhere)."""
+    device = torch.device(device)
+    return torch.cuda.mem_get_info(device)[0] if device.type == "cuda" else _mm().get_free_memory(device)
+
+
+def make_room(memory_required: float, device: torch.device | None) -> None:
+    """Free our cached models' memory on `device` while there is less than `memory_required` free there.
+
+    First their CUDA graphs (recaptured on later calls), then the models, least recently used first. ComfyUI's
+    `get_free_memory` counts PyTorch's cached blocks as free, a graph's pool among them, though only that graph can
+    use it: the graphs go whenever the device itself has too little free, measured by `_device_free`.
+    """
+    mm = _mm()
+
+    def short() -> bool:
+        return mm.get_free_memory(device) < memory_required
+
+    if device is None:  # ComfyUI frees every device: nothing to measure
         return
-
-    def _unload_all_models() -> None:
-        original()
-        unload_all()
-
-    mm.unload_all_models = _unload_all_models
+    held = [m for m in _cache.values() if m.device == torch.device(device)]
+    if not held or _device_free(device) >= memory_required:
+        return
+    for m in held:
+        m.release_graphs()
+    gc.collect()
+    mm.soft_empty_cache()
+    if not short():  # with the graphs gone, PyTorch's cached blocks are free for anyone
+        log.info("fastforks: freed the CUDA graphs of %d cached model(s) for ComfyUI", len(held))
+        return
+    for key in [k for k, m in _cache.items() if m.device == torch.device(device)]:
+        log.info("fastforks: unloading %s for ComfyUI (%.0f MiB needed)", key[0], memory_required / 2**20)
+        del _cache[key]
+        gc.collect()
+        mm.soft_empty_cache()
+        if not short():
+            return
 
 
 def each(n: int, fn: Callable[[int], Any]) -> list[Any]:
