@@ -47,11 +47,11 @@ if TYPE_CHECKING:
     from .net.raft.raft import RAFT
 
 LEVELS, RADIUS = 4, 4  # the correlation pyramids of RAFT and of the bidirectional lookup
-_REVERSE_MIN_TOKENS = 16_384
+_REVERSE_MIN_TOKENS = 16_384  # fixed: feature size from which reusing the forward volume pays off on CUDA
 _REVERSE_TILE_BYTES = 128 * 1024 * 1024
 HALO = 17  # fixed: rows `convblock` reads beyond a band (17 3 x 3 convs in a chain: 1 + 3 x 5 + 1)
 BAND_PIXELS = 1 << 20  # larger full-size inputs run `convblock` in row bands of about this many pixels
-_FUSION_MIN_PIXELS = 500_000
+_FUSION_MIN_PIXELS = 500_000  # fixed: latent size from which the fused float16 path pays off on CUDA
 HYPO_PIXELS = 1 << 19  # the hyponet MLP runs over pixel chunks of this size (its activations never exist at once)
 
 

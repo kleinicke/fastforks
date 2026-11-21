@@ -536,7 +536,7 @@ _IMAGE_FDS: list[int] = []
 
 def _load_image(image: bytes, name: str) -> ctypes.CDLL:
     """`dlopen` the bytes `image` through an anonymous in-memory file (kept open for the process lifetime)."""
-    if sys.platform != "linux":  # memfd_create is Linux-only (so are the CUDA kernel libraries)
+    if sys.platform != "linux":  # memfd_create is Linux-only (Windows loads its DLLs from a file)
         msg = f"in-memory kernel images need Linux, not {sys.platform}"
         raise OSError(msg)
     fd = os.memfd_create(name)

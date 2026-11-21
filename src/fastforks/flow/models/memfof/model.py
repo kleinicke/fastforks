@@ -26,8 +26,8 @@ if TYPE_CHECKING:
     from fastforks._core.kernels import CubinModule
     from fastforks.flow._runner import Context
 
-_REFINE_ROWS = 24
-_REFINE_MIN_PIXELS = 16_384
+_REFINE_ROWS = 24  # fixed: rows per pointwise ConvNeXt chunk for large updates (memory bound, not numerics)
+_REFINE_MIN_PIXELS = 16_384  # fixed: update size from which the pointwise work is chunked
 
 
 @dataclass(frozen=True)

@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 BATCHNORMS = (nn.BatchNorm2d, nn.BatchNorm3d)
 FP32_MODULES = ("dres0_5", "dres1_5", "dres0_6", "dres1_6")
 STRIP, HALO = 256, 64  # stage rows per strip / halo rows (> the 3D stack's receptive field; multiples of 8)
-_CUDA_HALO = 32
+_CUDA_HALO = 32  # fixed: eager-CUDA strip halo (> the 30-row receptive field below, rounded up for stride alignment)
 _CUDA_HALO_MAX_INPUT = (1024, 1536)
 
 

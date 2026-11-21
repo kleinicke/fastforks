@@ -46,7 +46,7 @@ PLANES = 64  # fixed: upstream matching_num_depth_bins
 MATCH = 4  # fixed: matching features at 1/4 of the network size
 MULTIPLE = 16  # fixed: the network size is a multiple of the ViT stride (16 after the 14/16 resize)
 CHUNK = 4  # fixed: depth planes per cost-volume step (fastest at 448x672)
-_STEM_POOL_VIEWS = 4  # bound max-pool and reflection-pad buffers across independent views
+_STEM_POOL_VIEWS = 4  # fixed: bound max-pool and reflection-pad buffers across independent views
 MAX_SOURCES = 16  # fixed: the cost-volume kernel keeps the per-view terms of at most 16 sources in registers
 _PREFIXES = {  # our module -> checkpoint prefix
     "vit.": "encoder.model.",

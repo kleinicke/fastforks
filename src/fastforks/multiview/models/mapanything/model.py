@@ -555,7 +555,9 @@ class _Base(Runner):
         pixels = y.permute(0, 2, 3, 1)
         rows_per_chunk = 1 << 18  # 128 MiB of cast workspace for the 128-channel activation
         if (
-            pixels.is_cuda and pixels.dtype != torch.float32 and pixels.is_contiguous()
+            pixels.is_cuda
+            and pixels.dtype != torch.float32
+            and pixels.is_contiguous()
             and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
             and pixels.numel() // pixels.shape[-1] > rows_per_chunk
         ):

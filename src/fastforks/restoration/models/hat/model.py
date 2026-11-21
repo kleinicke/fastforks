@@ -67,7 +67,7 @@ class Params:
     window: int  # 16: attention window (all released models)
 
 
-_MASK_PARTITION_MIN_WINDOWS = 256
+_MASK_PARTITION_MIN_WINDOWS = 256  # fixed: window count from which per-token mask labels beat a dense mask
 
 
 def _mask(m: HAT, x_size: tuple[int, int]) -> torch.Tensor:

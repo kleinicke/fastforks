@@ -44,7 +44,7 @@ TIMESTEP = 0  # fixed: hubconf StableNormal_turbo `t_start=0`, the ControlNet's 
 _ALIGN = 8  # fixed: the VAE downsampling factor; the input is padded to a multiple of it
 _CAMERA = (-1.0, -1.0, -1.0)  # fixed: StableNormal's (x left, y up, z to the viewer) -> camera (y down, z forward)
 _UNUSED = ("controlnet_cond_embedding.", "controlnet_down_blocks.", "controlnet_mid_block.")  # skipped upstream
-_LARGE_DECODER_PIXELS = 1_000_000
+_LARGE_DECODER_PIXELS = 1_000_000  # fixed: input size from which the decoder runs memory-bounded (no numerics change)
 
 
 @dataclass(frozen=True)

@@ -75,7 +75,7 @@ class _NoMask:
 
 
 _NO_MASK = _NoMask()
-_COMPACT_MASK_MIN_WINDOWS = 512
+_COMPACT_MASK_MIN_WINDOWS = 512  # fixed: window count from which per-token mask labels beat a dense mask
 
 
 def _mask(m: SwinTransformerBlock, x_size: tuple[int, int]) -> torch.Tensor | _NoMask:
