@@ -836,6 +836,7 @@ CPU, float32: max |diff| <= 0.02 vs the original. GPU, bfloat16 (the default), p
 - The output is log depth up to scale and shift (`kind = "affine_invariant_log"`): align in log space, not with the other families' depth outputs.
 - A traced or exported module reuses the noise of its traced shape; CPU inference is possible but slow (bf16 GEMMs of a 20 B model).
 - Model.compile() compiles the VAE encoder and decoder around the streamed transformer. At 994 x 1482, the recorded pair took 4.80 s compiled and 5.09 s portable on the compile run's source revision. The first compiled call took 119.2 s.
+- Apple MLX (`device="mlx"`, bf16 only): the NF4 blocks are read lazily from the weight file one at a time, 51.3 s per 994 x 1482 call at a 2.3 GB peak footprint on a 16 GB M1 Pro (MPS cannot run this model).
 - At 480 x 640, the standalone BF16 TensorRT VAE plans took 1.16 s versus 1.18 s for paired portable inference. Estimated peak allocated device memory was 2042 versus 717 MiB. The streamed NF4 transformer ran in PyTorch for both measurements.
 
 </details>
