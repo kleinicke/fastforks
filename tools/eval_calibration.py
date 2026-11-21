@@ -49,7 +49,7 @@ TIERS = {  # tier -> (mode, dtype, how, column)
 def dataset(every: int = 1) -> tuple[list[Path], np.ndarray]:
     """Image paths in the csv's order, every `every`-th, and their ground truth `[N, 3]` (roll, pitch, vfov; rad)."""
     root = Path(os.environ["FASTFORKS_DATA"]) / "calibration" / "lamar2k"
-    with (root / "images.csv").open() as f:
+    with (root / "images.csv").open(encoding="utf-8") as f:
         rows = list(csv.DictReader(f))[::every]
     gt = np.array([[float(r["roll"]), float(r["pitch"]), float(r["vfov"])] for r in rows])
     return [root / "images" / r["fname"] for r in rows], gt
@@ -171,7 +171,7 @@ def main() -> None:
                 "peak_reserved_mb": round(torch.cuda.max_memory_reserved() / 2**20), "column": column,
             }  # fmt: skip
             print(json.dumps(row), flush=True)
-            with (a.out / "rows.jsonl").open("a") as f:
+            with (a.out / "rows.jsonl").open("a", encoding="utf-8") as f:
                 f.write(json.dumps(row) + "\n")
             del fn
             torch.cuda.empty_cache()

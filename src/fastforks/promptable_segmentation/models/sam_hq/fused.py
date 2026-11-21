@@ -24,8 +24,9 @@ import torch.nn.functional as F
 
 from fastforks._core.errors import BackendUnavailableError
 from fastforks.kernels.dpt_fused import ACT_GELU
+from fastforks.shared.sam_attention import attend
 
-from .fast import augmented, rel_tables, window_partition, window_unpartition
+from .fast import rel_tables, window_partition, window_unpartition
 
 if TYPE_CHECKING:
     from fastforks.kernels.dpt_fused import DptFused
@@ -88,8 +89,7 @@ class FusedEncoder:
         """`[B, h, w, C]` (normed, partitioned) -> attention output before proj, rows `[B * h * w, C]`."""
         bw, h, w, c = x.shape
         qkv = self.k.gemm(x.view(-1, c), *b.qkv).view(bw, h * w, 3 * c)
-        qa, ka, va, d = augmented(qkv, b.heads, b.rel, (h, w))
-        o = F.scaled_dot_product_attention(qa, ka, va, scale=1.0)[..., :d]
+        o = attend(qkv, b.heads, b.rel, (h, w))
         return o.transpose(1, 2).reshape(-1, c)
 
     def _block(self, b: _Block, x: torch.Tensor) -> torch.Tensor:

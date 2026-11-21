@@ -29,7 +29,7 @@ RAFT-small 4513 -> 386 ms, SEA-RAFT-M 1820 -> 1220 ms, SEA-RAFT-S 2115 -> 833 ms
 is the update block (about 62 ms per iteration) and the encoders, SEA-RAFT's mostly its encoders (fp16 gains nothing
 there on MPS). The spring variants are faster by design: they halve the input first.
 
-<!-- device:begin (tools/gen_docs.py, from docs/data/devices.toml and docs/data/speed/apple-m1-pro-16gb.jsonl) -->
+<!-- device:begin (tools/gen_docs.py, from docs/data/devices.toml and docs\data\speed\apple-m1-pro-16gb.jsonl) -->
 
 | | |
 |---|---|
@@ -39,8 +39,8 @@ there on MPS). The spring variants are faster by design: they halve the input fi
 | hardware | 16-core GPU |
 | software | macOS 27, torch 2.14 |
 | torch (rows) | 2.14.1 |
-| measured | 2026-11-06 to 2026-11-18 |
-| rows | 2241 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
+| measured | 2026-11-06 to 2026-11-21 |
+| rows | 2240 in `docs\data\speed\apple-m1-pro-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -52,67 +52,67 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | kernels speed-up: vs original | vs portable | peak memory (MiB, process footprint, fastest dtype): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|
-| [`aanet-plus-sceneflow`](../models/stereo.md#aanet) | 870 | 990 | 1505 | 818 | 1.1x | 1.2x | 6805 | 4987 | 3754 |
-| [`aanet-sceneflow`](../models/stereo.md#aanet) | 813 | 912 | 1141 | 631 | 1.3x | 1.4x | 3710 | 3604 | 2606 |
+| [`aanet-plus-sceneflow`](../models/stereo.md#aanet) | 870 | 990 | 1285 | 818 | 1.1x | 1.2x | 6805 | 5012 | 3754 |
+| [`aanet-sceneflow`](../models/stereo.md#aanet) | 813 | 940 | 1163 | 631 | 1.3x | 1.5x | 3710 | 3633 | 2606 |
 | [`bridgedepth-rvc-pretrain`](../models/stereo.md#bridgedepth) | 4416 | 4375 | 4232 | 3756 | 1.2x | 1.1x | 7028 | 6115 | 5100 |
 | [`bridgedepth-sf`](../models/stereo.md#bridgedepth) | 4279 | 4280 | 3782 | 3693 | 1.2x | 1.0x | 7464 | 6271 | 6270 |
 | [`c-fast-foundationstereo`](../models/stereo.md#c_foundationstereo) | 7562 | 4881 | 18200 | unsupported | – | – | 13037 | 12882 | – |
 | [`c-foundationstereo-s`](../models/stereo.md#c_foundationstereo) | OOM | OOM | OOM | unsupported | – | – | – | – | – |
 | [`cas-gwcnet-c-sceneflow`](../models/stereo.md#cas_gwcnet) | 7909 | 4747 | 2489 | unsupported | – | – | 9174 | 5132 | – |
-| [`cas-gwcnet-gc-sceneflow`](../models/stereo.md#cas_gwcnet) | OOM | 5490 | 2995 | unsupported | – | – | – | 7182 | – |
+| [`cas-gwcnet-gc-sceneflow`](../models/stereo.md#cas_gwcnet) | OOM | 3361 | 2731 | unsupported | – | – | – | 8420 | – |
 | [`cfnet-sceneflow`](../models/stereo.md#cfnet) | OOM | OOM | OOM | 2206 | – | – | – | – | 5416 |
-| [`coex-sceneflow`](../models/stereo.md#coex) | 1024 | 784 | 411 | unsupported | – | – | 5473 | 3576 | – |
+| [`coex-sceneflow`](../models/stereo.md#coex) | 1024 | 323 | 241 | unsupported | – | – | 5473 | 3631 | – |
 | [`crestereo-eth3d`](../models/stereo.md#crestereo) | 15862 | 5502 | 4484 | 4127 | 3.8x | 1.1x | 4683 | 2747 | 2801 |
 | [`defom-stereo-vitl-sceneflow`](../models/stereo.md#defom_stereo) | OOM | 11105 | – | 8224 | – | 1.4x | – | 13138 | 8328 |
-| [`dlnr-middlebury`](../models/stereo.md#dlnr) | 3257 | 2694 | 2143 | unsupported | – | – | 7472 | 5148 | – |
-| [`dlnr-sceneflow`](../models/stereo.md#dlnr) | 3258 | 2699 | 2143 | unsupported | – | – | 7469 | 4094 | – |
-| [`fast-acvnet-generalization`](../models/stereo.md#fast_acvnet) | 1334 | 944 | 478 | unsupported | – | – | 4975 | 2737 | – |
-| [`fast-acvnet-kitti12`](../models/stereo.md#fast_acvnet) | 1334 | 942 | 464 | unsupported | – | – | 4976 | 2739 | – |
-| [`fast-acvnet-kitti15`](../models/stereo.md#fast_acvnet) | 1334 | 943 | 463 | unsupported | – | – | 4974 | 2736 | – |
-| [`fast-acvnet-plus-generalization`](../models/stereo.md#fast_acvnet) | 1764 | 1322 | 625 | unsupported | – | – | 4992 | 2749 | – |
-| [`fast-acvnet-plus-kitti12`](../models/stereo.md#fast_acvnet) | 1761 | 1321 | 624 | unsupported | – | – | 3963 | 2746 | – |
-| [`fast-acvnet-plus-kitti15`](../models/stereo.md#fast_acvnet) | 1762 | 1322 | 624 | unsupported | – | – | 4991 | 2746 | – |
-| [`fast-acvnet-plus-sceneflow`](../models/stereo.md#fast_acvnet) | 1762 | 1322 | 624 | unsupported | – | – | 3962 | 2748 | – |
-| [`fast-acvnet-sceneflow`](../models/stereo.md#fast_acvnet) | 1333 | 942 | 463 | unsupported | – | – | 4980 | 2738 | – |
-| [`fast-foundationstereo`](../models/stereo.md#c_foundationstereo) | 9528 | 5195 | 5083 | unsupported | – | – | 12528 | 12517 | – |
+| [`dlnr-middlebury`](../models/stereo.md#dlnr) | 3257 | 2693 | 2143 | unsupported | – | – | 7472 | 4149 | – |
+| [`dlnr-sceneflow`](../models/stereo.md#dlnr) | 3258 | 2751 | 2195 | unsupported | – | – | 7469 | 4146 | – |
+| [`fast-acvnet-generalization`](../models/stereo.md#fast_acvnet) | 1334 | 557 | 410 | unsupported | – | – | 4975 | 3819 | – |
+| [`fast-acvnet-kitti12`](../models/stereo.md#fast_acvnet) | 1334 | 540 | 397 | unsupported | – | – | 4976 | 3817 | – |
+| [`fast-acvnet-kitti15`](../models/stereo.md#fast_acvnet) | 1334 | 537 | 397 | unsupported | – | – | 4974 | 3822 | – |
+| [`fast-acvnet-plus-generalization`](../models/stereo.md#fast_acvnet) | 1764 | 513 | 401 | unsupported | – | – | 4992 | 3843 | – |
+| [`fast-acvnet-plus-kitti12`](../models/stereo.md#fast_acvnet) | 1761 | 512 | 401 | unsupported | – | – | 3963 | 3839 | – |
+| [`fast-acvnet-plus-kitti15`](../models/stereo.md#fast_acvnet) | 1762 | 512 | 402 | unsupported | – | – | 4991 | 2814 | – |
+| [`fast-acvnet-plus-sceneflow`](../models/stereo.md#fast_acvnet) | 1762 | 513 | 402 | unsupported | – | – | 3962 | 3844 | – |
+| [`fast-acvnet-sceneflow`](../models/stereo.md#fast_acvnet) | 1333 | 537 | 396 | unsupported | – | – | 4980 | 3819 | – |
+| [`fast-foundationstereo`](../models/stereo.md#c_foundationstereo) | 9528 | 3209 | 3047 | unsupported | – | – | 12528 | 13515 | – |
 | [`foundationstereo-vit-l`](../models/stereo.md#foundationstereo) | OOM | OOM | 25647 | 24480 | – | 1.0x | – | 13761 | 13277 |
-| [`foundationstereo-vit-s`](../models/stereo.md#foundationstereo) | OOM | OOM | 20584 | 19496 | – | 1.1x | – | 13617 | 12980 |
+| [`foundationstereo-vit-s`](../models/stereo.md#foundationstereo) | OOM | OOM | 19700 | 19496 | – | 1.0x | – | 13239 | 12980 |
 | [`great-igev-eth3d`](../models/stereo.md#great_igev) | OOM | OOM | 11459 | 9636 | – | 1.2x | – | 10531 | 10133 |
 | [`great-igev-kitti`](../models/stereo.md#great_igev) | OOM | 31916 | 11076 | 9634 | – | 1.1x | – | 10538 | 10130 |
 | [`great-igev-middlebury`](../models/stereo.md#great_igev) | OOM | OOM | 26930 | 25368 | – | 1.1x | – | 11544 | 12420 |
-| [`great-igev-sceneflow`](../models/stereo.md#great_igev) | OOM | 32187 | 11062 | 9861 | – | 1.1x | – | 9960 | 10126 |
+| [`great-igev-sceneflow`](../models/stereo.md#great_igev) | OOM | 10367 | 9090 | 9861 | – | 0.9x | – | 11106 | 10126 |
 | [`gwcnet-g-sceneflow`](../models/stereo.md#gwcnet) | 6074 | 4340 | 2378 | unsupported | – | – | 10858 | 6522 | – |
-| [`gwcnet-gc-sceneflow`](../models/stereo.md#gwcnet) | OOM | 4461 | 2455 | unsupported | – | – | – | 7108 | – |
-| [`hitnet-eth3d`](../models/stereo.md#hitnet) | unsupported | 484 | 501 | 136 | – | 3.6x | – | 5503 | 2486 |
+| [`gwcnet-gc-sceneflow`](../models/stereo.md#gwcnet) | OOM | 3559 | 2759 | unsupported | – | – | – | 7601 | – |
+| [`hitnet-eth3d`](../models/stereo.md#hitnet) | unsupported | 307 | 313 | 136 | – | 2.3x | – | 4507 | 2486 |
 | [`hitnet-middlebury-d400`](../models/stereo.md#hitnet) | unsupported | 1155 | 1227 | 440 | – | 2.6x | – | 10563 | 4591 |
 | [`igev-plusplus-eth3d`](../models/stereo.md#igev_plusplus) | 9851 | 10444 | 8613 | 6139 | 1.6x | 1.4x | 7730 | 6040 | 4971 |
 | [`igev-plusplus-kitti12`](../models/stereo.md#igev_plusplus) | 9779 | 10398 | 8606 | 6124 | 1.6x | 1.4x | 7841 | 6034 | 4967 |
 | [`igev-plusplus-kitti15`](../models/stereo.md#igev_plusplus) | 11619 | 10489 | 8597 | 6125 | 1.9x | 1.4x | 8295 | 6034 | 4967 |
 | [`igev-plusplus-middlebury`](../models/stereo.md#igev_plusplus) | 9785 | 10399 | 8595 | 6130 | 1.6x | 1.4x | 8179 | 6037 | 4966 |
-| [`igev-plusplus-sceneflow`](../models/stereo.md#igev_plusplus) | 10992 | 10424 | 8602 | 6135 | 1.8x | 1.4x | 7860 | 6037 | 4972 |
-| [`igev-stereo-eth3d`](../models/stereo.md#igev_stereo) | 6627 | 6407 | 5635 | 3998 | 1.7x | 1.4x | 7008 | 3822 | 3789 |
-| [`igev-stereo-kitti12`](../models/stereo.md#igev_stereo) | 6805 | 6411 | 5480 | 4006 | 1.7x | 1.4x | 7022 | 3822 | 3791 |
-| [`igev-stereo-kitti15`](../models/stereo.md#igev_stereo) | 6841 | 6407 | 5421 | 4008 | 1.7x | 1.4x | 5985 | 3821 | 3791 |
-| [`igev-stereo-middlebury`](../models/stereo.md#igev_stereo) | 5660 | 6408 | 5431 | 4007 | 1.4x | 1.4x | 7012 | 3820 | 3792 |
-| [`igev-stereo-sceneflow`](../models/stereo.md#igev_stereo) | 5949 | 6423 | 5772 | 4001 | 1.5x | 1.4x | 5984 | 3819 | 3793 |
-| [`las2-h`](../models/stereo.md#las2) | 1306 | 1271 | 826 | 734 | 1.8x | 1.1x | 5643 | 4411 | 3771 |
-| [`las2-l`](../models/stereo.md#las2) | 604 | 576 | 400 | 519 | 1.2x | 0.8x | 4740 | 3475 | 2818 |
-| [`las2-m`](../models/stereo.md#las2) | 327 | 300 | 237 | 281 | 1.2x | 0.8x | 4615 | 3636 | 2666 |
-| [`las2-s`](../models/stereo.md#las2) | 273 | 245 | 192 | 198 | 1.4x | 1.0x | 4556 | 3590 | 2620 |
-| [`mocha-v1-sceneflow`](../models/stereo.md#mocha_stereo) | 8561 | 9065 | 7967 | 6693 | 1.3x | 1.2x | 8058 | 5765 | 5695 |
-| [`mocha-v2-sceneflow`](../models/stereo.md#mocha_stereo) | 7685 | 8887 | 7766 | 6501 | 1.2x | 1.2x | 9037 | 5750 | 4643 |
+| [`igev-plusplus-sceneflow`](../models/stereo.md#igev_plusplus) | 10992 | 9676 | 8611 | 6135 | 1.8x | 1.4x | 7860 | 6104 | 4972 |
+| [`igev-stereo-eth3d`](../models/stereo.md#igev_stereo) | 6627 | 5849 | 5217 | 3998 | 1.7x | 1.3x | 7008 | 3862 | 3789 |
+| [`igev-stereo-kitti12`](../models/stereo.md#igev_stereo) | 6805 | 5859 | 5210 | 4006 | 1.7x | 1.3x | 7022 | 3862 | 3791 |
+| [`igev-stereo-kitti15`](../models/stereo.md#igev_stereo) | 6841 | 5849 | 5221 | 4008 | 1.7x | 1.3x | 5985 | 3862 | 3791 |
+| [`igev-stereo-middlebury`](../models/stereo.md#igev_stereo) | 5660 | 5848 | 5210 | 4007 | 1.4x | 1.3x | 7012 | 3861 | 3792 |
+| [`igev-stereo-sceneflow`](../models/stereo.md#igev_stereo) | 5949 | 6375 | 5347 | 4001 | 1.5x | 1.3x | 5984 | 3867 | 3793 |
+| [`las2-h`](../models/stereo.md#las2) | 1306 | 661 | 821 | 734 | 1.8x | 0.9x | 5643 | 4806 | 3771 |
+| [`las2-l`](../models/stereo.md#las2) | 604 | 486 | 401 | 519 | 1.2x | 0.8x | 4740 | 3496 | 2818 |
+| [`las2-m`](../models/stereo.md#las2) | 327 | 229 | 237 | 281 | 1.2x | 0.8x | 4615 | 3051 | 2666 |
+| [`las2-s`](../models/stereo.md#las2) | 273 | 186 | 193 | 198 | 1.4x | 0.9x | 4556 | 3001 | 2620 |
+| [`mocha-v1-sceneflow`](../models/stereo.md#mocha_stereo) | 8561 | 8362 | 7564 | 6693 | 1.3x | 1.1x | 8058 | 5829 | 5695 |
+| [`mocha-v2-sceneflow`](../models/stereo.md#mocha_stereo) | 7685 | 8323 | 7560 | 6501 | 1.2x | 1.2x | 9037 | 5807 | 4643 |
 | [`monster-mix-all`](../models/stereo.md#monster) | 20936 | 13423 | 11377 | 9646 | 2.2x | 1.2x | 12856 | 6320 | 6330 |
-| [`monster-plusplus-mix-all`](../models/stereo.md#monster_plusplus) | 17464 | 14519 | 11876 | 10202 | 1.7x | 1.2x | 12920 | 7369 | 7347 |
-| [`monster-sceneflow`](../models/stereo.md#monster) | 18672 | 13426 | 11368 | 9642 | 1.9x | 1.2x | 13435 | 6320 | 6299 |
+| [`monster-plusplus-mix-all`](../models/stereo.md#monster_plusplus) | 17464 | 16071 | 11368 | 10202 | 1.7x | 1.1x | 12920 | 7467 | 7347 |
+| [`monster-sceneflow`](../models/stereo.md#monster) | 18672 | 12916 | 11133 | 9642 | 1.9x | 1.2x | 13435 | 6364 | 6299 |
 | [`nmrf-sceneflow`](../models/stereo.md#nmrf) | 1736 | 1560 | 1469 | 1204 | 1.4x | 1.2x | 7232 | 4747 | 3806 |
-| [`psmnet-sceneflow`](../models/stereo.md#psmnet) | 6066 | 4615 | 2579 | unsupported | – | – | 10870 | 6428 | – |
+| [`psmnet-sceneflow`](../models/stereo.md#psmnet) | 6066 | 2631 | 2022 | unsupported | – | – | 10870 | 5537 | – |
 | [`raft-stereo-eth3d`](../models/stereo.md#raft_stereo) | 5162 | 4396 | 3937 | 3638 | 1.4x | 1.1x | 9712 | 5720 | 4721 |
 | [`raft-stereo-middlebury`](../models/stereo.md#raft_stereo) | 5574 | 4395 | 3940 | 3634 | 1.5x | 1.1x | 9545 | 4695 | 4722 |
 | [`raft-stereo-sceneflow`](../models/stereo.md#raft_stereo) | 5066 | 4396 | 3938 | 3637 | 1.4x | 1.1x | 9437 | 4695 | 4720 |
-| [`rt-monster-plusplus-mix-all`](../models/stereo.md#rt_monster_plusplus) | 917 | 663 | 682 | unsupported | – | – | 6269 | 6986 | – |
+| [`rt-monster-plusplus-mix-all`](../models/stereo.md#rt_monster_plusplus) | 917 | 618 | 612 | unsupported | – | – | 6269 | 4076 | – |
 | [`s2m2-l`](../models/stereo.md#s2m2) | unsupported | 8709 | 6590 | unsupported | – | – | – | 9213 | – |
 | [`s2m2-m`](../models/stereo.md#s2m2) | unsupported | 4714 | 3620 | unsupported | – | – | – | 7941 | – |
-| [`s2m2-s`](../models/stereo.md#s2m2) | unsupported | 1707 | 1607 | unsupported | – | – | – | 5991 | – |
+| [`s2m2-s`](../models/stereo.md#s2m2) | unsupported | 1710 | 1606 | unsupported | – | – | – | 6017 | – |
 | [`s2m2-xl`](../models/stereo.md#s2m2) | unsupported | OOM | 13398 | unsupported | – | – | – | 12386 | – |
 | [`selective-igev-eth3d-finetune`](../models/stereo.md#selective_igev) | 8184 | 9066 | 6991 | 5708 | 1.4x | 1.2x | 7003 | 3854 | 3904 |
 | [`selective-igev-eth3d-train`](../models/stereo.md#selective_igev) | 8192 | 9010 | 6969 | 5710 | 1.4x | 1.2x | 7002 | 3862 | 3907 |
@@ -120,9 +120,9 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`selective-igev-kitti15`](../models/stereo.md#selective_igev) | 8194 | 9016 | 6963 | 5710 | 1.4x | 1.2x | 7002 | 3853 | 3905 |
 | [`selective-igev-middlebury-finetune`](../models/stereo.md#selective_igev) | 8198 | 9026 | 6989 | 5778 | 1.4x | 1.2x | 7003 | 3852 | 3907 |
 | [`selective-igev-middlebury-train`](../models/stereo.md#selective_igev) | 8195 | 9100 | 7206 | 5738 | 1.4x | 1.3x | 7003 | 3854 | 3907 |
-| [`selective-igev-sceneflow`](../models/stereo.md#selective_igev) | 8196 | 9010 | 6968 | 5710 | 1.4x | 1.2x | 7002 | 3859 | 3907 |
+| [`selective-igev-sceneflow`](../models/stereo.md#selective_igev) | 8196 | 8458 | 6848 | 5710 | 1.4x | 1.2x | 7002 | 3946 | 3907 |
 | [`waft-stereo-b`](../models/stereo.md#waft_stereo) | OOM | 11022 | OOM | unsupported | – | – | – | 12854 | – |
-| [`waft-stereo-s`](../models/stereo.md#waft_stereo) | 4098 | 3360 | 6090 | unsupported | – | – | 10164 | 9608 | – |
+| [`waft-stereo-s`](../models/stereo.md#waft_stereo) | 4098 | 3236 | 3323 | unsupported | – | – | 10164 | 7454 | – |
 
 Note: no Metal kernels for this family (card mps_kernels).
 Note: the authors' original is a TensorFlow graph (google-research/hitnet, released SavedModel checkpoints), not PyTorch; there is no MPS execution path for it and no original-code adapter in the bench.
@@ -144,7 +144,6 @@ Note: not measured: the original has no speed adapter (tools/_original.py LOCAL 
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
 |---|---|---|---|---|---|---|
-| [`prompt-depth-anything-l`](../models/depth.md#prompt_depth_anything) | 1744 | 1494 | 1310 | unsupported | 6841 | 3301 |
 | [`prompt-depth-anything-s`](../models/depth.md#prompt_depth_anything) | 251 | 216 | 195 | unsupported | 2741 | 1588 |
 
 Note: no Metal kernels for this family (card mps_kernels).
@@ -184,13 +183,14 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`marigold-v2-depth`](../models/depth.md#marigold_v2) | – | unsupported | – | – | – | unsupported | – | – | – | – | – |
 | [`metric3d-vit-large`](../models/depth.md#metric3d) | 1946 | 1822 | 1861 | – | unsupported | – | – | – | 4973 | 4523 | – |
 | [`midas-dpt-beit-large-512`](../models/depth.md#midas) | 1107 | 679 | 635 | – | unsupported | – | – | – | 4976 | 2407 | – |
-| [`moge-2-vitb-normal`](../models/depth.md#moge) | 915 | 585 | 1012 | 586 | – | – | 1.6x | 1.0x | 3223 | 3089 | 3160 |
-| [`moge-2-vitl-normal`](../models/depth.md#moge) | 1553 | 1343 | 1732 | 1344 | – | – | 1.2x | 1.0x | 4036 | 3914 | 3994 |
-| [`moge-2-vits-normal`](../models/depth.md#moge) | 516 | 361 | 857 | 362 | – | – | 1.4x | 1.0x | 2849 | 2634 | 2704 |
+| [`moge-2-vitb-normal`](../models/depth.md#moge) | 915 | 610 | 1108 | 586 | – | – | 1.6x | 1.0x | 3223 | 3111 | 3160 |
+| [`moge-2-vitl-normal`](../models/depth.md#moge) | 1553 | 1406 | 1790 | 1344 | – | – | 1.2x | 1.0x | 4036 | 3937 | 3994 |
+| [`moge-2-vits-normal`](../models/depth.md#moge) | 516 | 375 | 869 | 362 | – | – | 1.4x | 1.0x | 2849 | 2661 | 2704 |
 | [`moge-3-vitl`](../models/depth.md#moge) | unsupported | 3469 | 3913 | 2415 | – | – | – | 1.4x | – | 6239 | 6121 |
 | [`omni-dc`](../models/depth.md#omni_dc) | – | 2349 | 2408 | – | unsupported | – | – | – | – | 12317 | – |
 | [`pointdit-b-512`](../models/depth.md#pointdit) | 468 | 367 | 337 | – | unsupported | – | – | – | 3167 | 1912 | – |
 | [`pointdit-l-512`](../models/depth.md#pointdit) | 1356 | 1086 | 1013 | – | unsupported | – | – | – | 6994 | 4548 | – |
+| [`prompt-depth-anything-l`](../models/depth.md#prompt_depth_anything) | – | 1278 | 1143 | – | unsupported | – | – | – | – | 3303 | – |
 | [`stablenormal-turbo`](../models/depth.md#stablenormal) | 51987 | 2718 | 1690 | – | unsupported | – | – | – | 11428 | 8985 | – |
 | [`unidepth-v2-vitl14`](../models/depth.md#unidepth_v2) | 1356 | 1252 | – | – | unsupported | – | – | – | 5260 | 6077 | – |
 | [`unik3d-vitl`](../models/depth.md#unik3d) | 1333 | 1217 | 1294 | – | unsupported | – | – | – | 5316 | 4001 | – |
@@ -396,13 +396,13 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`inspyrenet-fast`](../models/matting.md#inspyrenet) | 225 | 208 | 145 | unsupported | – | 2304 | 2071 |
 | [`isnet`](../models/matting.md#isnet) | 156 | 157 | 129 | – | unsupported | 2032 | 1745 |
 | [`isnet-general-use`](../models/matting.md#isnet) | 156 | 157 | 130 | – | unsupported | 2030 | 1746 |
-| [`matanyone`](../models/matting.md#matanyone) | 6473 | 6198 | 5907 | unsupported | – | 6365 | 3851 |
+| [`matanyone`](../models/matting.md#matanyone) | 6473 | 3444 | 3091 | unsupported | – | 6365 | 3838 |
 | [`rmbg-2.0`](../models/matting.md#birefnet) | – | 1096 | 1008 | – | unsupported | – | 5434 |
 | [`u2net`](../models/matting.md#u2net) | 80.7 | 81.6 | 79.4 | – | unsupported | 1910 | 1885 |
 | [`u2net-human-seg`](../models/matting.md#u2net) | 81.7 | 81.7 | 75.1 | – | unsupported | 1911 | 1884 |
 | [`u2netp`](../models/matting.md#u2net) | 53.1 | 55.1 | 50.2 | – | unsupported | 1404 | 1402 |
 | [`vitmatte-b`](../models/matting.md#vitmatte) | OOM | 4680 | 2740 | – | unsupported | – | 2966 |
-| [`vitmatte-s`](../models/matting.md#vitmatte) | 3605 | 2333 | 1360 | – | unsupported | 9787 | 2542 |
+| [`vitmatte-s`](../models/matting.md#vitmatte) | 3605 | 2195 | 1254 | – | unsupported | 9787 | 1530 |
 
 Note: no Metal kernels for this family (card mps_kernels).
 Note: the card has no kernels mode.
@@ -687,10 +687,10 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs original | vs portable | peak memory (MiB, process footprint, fastest dtype): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
-| [`anysplat`](../models/multiview.md#anysplat) | unsupported | 33262 | 5444 | – | unsupported | – | – | – | 8751 | – |
-| [`depthsplat-small-re10k`](../models/multiview.md#depthsplat) | unsupported | 670 | 757 | – | unsupported | – | – | – | 8880 | – |
+| [`anysplat`](../models/multiview.md#anysplat) | unsupported | 5566 | 5164 | – | unsupported | – | – | – | 8809 | – |
+| [`depthsplat-small-re10k`](../models/multiview.md#depthsplat) | unsupported | 697 | 749 | – | unsupported | – | – | – | 3779 | – |
 | [`mapanything-apache`](../models/multiview.md#mapanything) | 8492 | 7357 | 6369 | – | unsupported | – | – | 11136 | 7218 | – |
-| [`mvsplat-re10k`](../models/multiview.md#mvsplat) | unsupported | 1077 | 1112 | – | unsupported | – | – | – | 4523 | – |
+| [`mvsplat-re10k`](../models/multiview.md#mvsplat) | unsupported | 1040 | 1123 | – | unsupported | – | – | – | 4540 | – |
 | [`pi3`](../models/multiview.md#pi3) | 10379 | 10298 | 8341 | – | unsupported | – | – | 6238 | 6510 | – |
 | [`vggt-1b`](../models/multiview.md#vggt) | 7987 | 7209 | 6638 | 7016 | – | 1.1x | 0.9x | 10337 | 8423 | 10692 |
 | [`vggt-omega-1b-512`](../models/multiview.md#vggt_omega) | 7828 | 7938 | 7242 | – | unsupported | – | – | 9079 | 8602 | – |
@@ -704,7 +704,7 @@ Note: upstream's Gaussian rotation (e3nn Wigner D) builds complex tensors, which
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
 |---|---|---|---|---|---|
-| [`mvsanywhere`](../models/multiview.md#mvsanywhere) | unsupported | 1051 | 1064 | unsupported | 3534 |
+| [`mvsanywhere`](../models/multiview.md#mvsanywhere) | unsupported | 1050 | 1034 | unsupported | 3805 |
 
 Note: the original's compiled (TorchScript) functions fail with variable arguments under torch 2.14.
 Note: no Metal kernels for this family (card mps_kernels).
@@ -723,7 +723,7 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
 |---|---|---|---|---|---|---|
-| [`patchmatchnet`](../models/multiview.md#patchmatchnet) | 875 | 1010 | 1574 | unsupported | 3724 | 7593 |
+| [`patchmatchnet`](../models/multiview.md#patchmatchnet) | 875 | 1008 | 1019 | unsupported | 3724 | 3614 |
 
 Note: no Metal kernels for this family (card mps_kernels).
 
@@ -909,7 +909,7 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
 |---|---|---|---|---|---|
-| [`nnfoundation-cnn`](../models/volume.md#nnfoundation) | unsupported | 3645 | 2935 | unsupported | 7824 |
+| [`nnfoundation-cnn`](../models/volume.md#nnfoundation) | unsupported | 3736 | 3302 | unsupported | 9195 |
 | [`nninteractive`](../models/volume.md#nninteractive) | – | 3525 | – | unsupported | 11439 |
 | [`totalsegmentator-total`](../models/volume.md#totalsegmentator) | unsupported | 27804 | 23070 | unsupported | 6058 |
 | [`totalsegmentator-total-3mm`](../models/volume.md#totalsegmentator) | unsupported | 593 | 522 | unsupported | 2588 |

@@ -107,10 +107,10 @@ def test_cache_dirs_are_private_and_stale_downloads_swept(tmp_path):
     src = tmp_path / "w.bin"
     src.write_bytes(b"payload")
     files.download(src.as_uri(), dest, _spec(b"payload", src.as_uri()))
-    for d in (dest.parent, dest.parent.parent, dest.parent.parent.parent):
-        assert stat.S_IMODE(d.stat().st_mode) == 0o700
     stamp = next((files.cache_root() / "stamps").rglob("*.json"))
-    assert stat.S_IMODE(stamp.parent.stat().st_mode) == 0o700
+    if os.name == "posix":  # Windows has no mode bits (`mkdir(mode=)` is ignored; ACLs decide)
+        for d in (dest.parent, dest.parent.parent, dest.parent.parent.parent, stamp.parent):
+            assert stat.S_IMODE(d.stat().st_mode) == 0o700
     assert not list((files.cache_root() / "stamps").rglob("*.tmp"))
     stale, fresh = dest.parent / ".download.old", dest.parent / ".download.new"
     stale.mkdir()
@@ -132,6 +132,7 @@ def _manifest(path, good, monkeypatch):
 
 
 @needs_non_root
+@pytest.mark.skipif(not hasattr(os, "getuid"), reason="no POSIX owner / mode bits: never private (hashed every load)")
 def test_kernel_in_private_dir_uses_the_stamp_path(monkeypatch, tmp_path):
     root = tmp_path / "kp"
     root.mkdir(mode=0o700)
@@ -159,6 +160,19 @@ def test_kernel_in_writable_dir_is_hashed_every_load_ignoring_stamps(monkeypatch
     os.utime(path, ns=(st.st_atime_ns, st.st_mtime_ns))
     with pytest.raises(KernelUnavailableError, match="does not match"):
         kernels.verified_binary(manifest, None)
+
+
+def test_kernel_without_posix_owners_is_never_private(monkeypatch, tmp_path):
+    """Windows: a kernel in a private cache root is still hashed on every load (ACLs are not checked)."""
+    monkeypatch.delattr(kernels.os, "getuid", raising=False)
+    root = tmp_path / "kp"
+    root.mkdir(mode=0o700)
+    monkeypatch.setenv(kernels.KERNEL_PATH_ENV, str(root))
+    path = root / "k.cubin"
+    path.write_bytes(b"good")
+    assert not kernels._private(path)
+    manifest, _ = _manifest(path, b"good", monkeypatch)
+    assert kernels.verified_binary(manifest, None)[0] == b"good"
 
 
 def test_kernel_outside_any_root_is_not_private(monkeypatch, tmp_path):
@@ -205,7 +219,7 @@ def test_restricted_load_size_cap(monkeypatch, tmp_path):
 
 def test_metric3d_torch_load_is_weights_only():
     src = Path(__file__).parents[1] / "src/fastforks/depth/models/metric3d/net/vit_dino_reg.py"
-    calls = re.findall(r"torch\.load\([^)]*\)", src.read_text())
+    calls = re.findall(r"torch\.load\([^)]*\)", src.read_text(encoding="utf-8"))
     assert calls
     assert all("weights_only=True" in c for c in calls)
 

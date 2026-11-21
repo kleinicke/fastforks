@@ -104,8 +104,8 @@ def folder(tmp_path_factory: pytest.TempPathFactory) -> Path:
         (d / f"fold_{k}").mkdir(parents=True)
         ckpt = {"network_weights": _net(k).state_dict(), "inference_allowed_mirroring_axes": (0, 1, 2)}
         torch.save(ckpt, d / f"fold_{k}" / "checkpoint_final.pth")
-    (d / "plans.json").write_text(json.dumps(_plans()))
-    (d / "dataset.json").write_text(json.dumps(_DATASET))
+    (d / "plans.json").write_text(json.dumps(_plans()), encoding="utf-8")
+    (d / "dataset.json").write_text(json.dumps(_DATASET), encoding="utf-8")
     return d
 
 
@@ -398,7 +398,7 @@ def test_read_dicom_matches_nifti_convention(tmp_path: Path) -> None:
     hu = rng.integers(-1000, 1000, (4, 5, 6)).astype(np.int16)  # [slice, row, col] in HU
     series = tmp_path / "series"
     series.mkdir()
-    (series / "README.txt").write_text("not dicom")
+    (series / "README.txt").write_text("not dicom", encoding="utf-8")
     order = [2, 0, 3, 1]  # file name order differs from position order
     for k in range(4):
         meta = FileMetaDataset()

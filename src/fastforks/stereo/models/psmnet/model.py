@@ -28,11 +28,13 @@ class Params:
     max_disp: int
 
 
-def _net(ctx: Context) -> PSMNet:
+def _net(ctx: Context, *, fold: bool) -> PSMNet:
+    """The network with the checkpoint, eval, on `ctx.device`; `fold`: BatchNorms folded into the convs (portable)."""
     net = PSMNet(ctx.params.max_disp)
     net.load_state_dict(ctx.state_dict(key="state_dict"))
-    _fold_batchnorms(net.eval())
-    return net.to(ctx.device)
+    if fold:
+        _fold_batchnorms(net.eval())
+    return net.eval().to(ctx.device)
 
 
 def _fold_batchnorms(module: nn.Module) -> None:
@@ -104,7 +106,7 @@ class Portable(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
         super().__init__(ctx)
-        self.net = _net(ctx).to(ctx.torch_dtype)
+        self.net = _net(ctx, fold=True).to(ctx.torch_dtype)
         if ctx.device.type == "cuda":  # NHWC for the 2D feature network (the 3D cost-volume convs stay NCDHW)
             self.net.feature_extraction.to(memory_format=torch.channels_last)
 
@@ -131,7 +133,7 @@ class Kernels(Runner):
         super().__init__(ctx)
         from fastforks.shared.cnn_kernels import prepare_generic  # noqa: PLC0415 - needs the kernel libraries
 
-        self.net = _net(ctx)
+        self.net = _net(ctx, fold=False)  # prepare_generic fuses each conv + BatchNorm run into the epilogue itself
         if not prepare_generic(self.net, ctx.device):
             msg = "kernels: no conv + BatchNorm run was fused (the module tree changed)"
             raise RuntimeError(msg)

@@ -241,7 +241,11 @@ def _tiers(a: argparse.Namespace) -> int:  # noqa: C901, PLR0912, PLR0915 - resu
         msg = f"cache {a.cache} has {len(imgs)} images, expected {len(tr) + len(te)}"
         raise SystemExit(msg)
     jl = out / "features.jsonl"
-    done = {(r["model"], r["tier"]) for r in map(json.loads, jl.read_text().splitlines())} if jl.exists() else set()
+    done = (
+        {(r["model"], r["tier"]) for r in map(json.loads, jl.read_text(encoding="utf-8").splitlines())}
+        if jl.exists()
+        else set()
+    )
     for ref in a.models.split(","):
         for tier in a.tiers.split(","):
             if (ref, tier) in done:
@@ -306,7 +310,7 @@ def _tiers(a: argparse.Namespace) -> int:  # noqa: C901, PLR0912, PLR0915 - resu
                 rec["error"] = err
             rec |= {"gpu": torch.cuda.get_device_name(), "torch": torch.__version__, "commit": _commit(),
                     "date": time.strftime("%F %H:%M"), "command": " ".join(["python", *sys.argv])}  # fmt: skip
-            with jl.open("a") as fo:
+            with jl.open("a", encoding="utf-8") as fo:
                 fo.write(json.dumps(rec) + "\n")
             print(json.dumps(rec), flush=True)
     return 0
@@ -398,7 +402,7 @@ def main() -> None:  # noqa: PLR0915
         rec["command"] = " ".join(["python", *sys.argv])
         print(json.dumps(rec), flush=True)
         if a.out:
-            with Path(a.out).open("a") as f:
+            with Path(a.out).open("a", encoding="utf-8") as f:
                 f.write(json.dumps(rec) + "\n")
 
 

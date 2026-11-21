@@ -8,7 +8,9 @@
   decomposed relative-position bias `rel_h[q, kh] + rel_w[q, kw]` runs through SDPA by folding the bias into an
   augmented dot product (`q' = [q * scale, rel_h, rel_w]`, `k' = [k, onehot(kh), onehot(kw)]`, padded to a multiple
   of 8; `v` zero-padded to the same head dim so the flash kernel takes it), never materialising the N x N attention
-  matrix. The neck's `LayerNorm2d`s run channels-last through `F.layer_norm` (float32 statistics for float16).
+  matrix; without flash (Windows) the global blocks (augmented head dim 192 > cuDNN's 128) run SDPA with a chunked
+  dense bias mask instead (`shared.sam_attention`). The neck's `LayerNorm2d`s run channels-last through
+  `F.layer_norm` (float32 statistics for float16).
 - HQ features: `MaskDecoderHQ.forward` computes `embedding_encoder(image_embeddings) + compress_vit_feat(early ViT
   feature)` on every prompt call although it depends on the image only; `hq_features` computes it once per image.
 - decode: upstream `PromptEncoder.forward` + `MaskDecoderHQ.predict_masks` (`decode`) and the mask choice of
@@ -25,7 +27,7 @@ import torch.nn.functional as F
 from PIL import Image
 
 from fastforks.promptable_segmentation._runner import scale
-from fastforks.shared.sam_attention import augmented
+from fastforks.shared.sam_attention import attend
 
 from .net.image_encoder import get_rel_pos
 
@@ -115,8 +117,7 @@ def attention(blk: Any, x: torch.Tensor, rel: Rel) -> torch.Tensor:  # noqa: ANN
     a = blk.attn
     b, h, w, c = x.shape
     qkv = a.qkv(x.reshape(b, h * w, c))
-    qa, ka, va, d = augmented(qkv, a.num_heads, rel, (h, w))
-    o = F.scaled_dot_product_attention(qa, ka, va, scale=1.0)[..., :d]
+    o = attend(qkv, a.num_heads, rel, (h, w))
     return a.proj(o.transpose(1, 2).reshape(b, h, w, c))
 
 

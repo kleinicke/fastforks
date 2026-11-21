@@ -23,7 +23,7 @@ def test_list_is_current():
 
 
 def test_listed_models_exist_and_have_kernels():
-    listed = json.loads((ROOT / "src/fastforks/_core/auto_portable.json").read_text())["portable"]
+    listed = json.loads((ROOT / "src/fastforks/_core/auto_portable.json").read_text(encoding="utf-8"))["portable"]
     assert listed
     for model_id in listed:
         card, _ = registry.resolve_any(model_id)
@@ -89,7 +89,7 @@ def test_apple_routing_uses_passing_comparable_rows(tmp_path, monkeypatch):
         ],
     }
     for device, rows in cases.items():
-        (speed / f"{device}.jsonl").write_text("\n".join(map(json.dumps, rows)))
+        (speed / f"{device}.jsonl").write_text("\n".join(map(json.dumps, rows)), encoding="utf-8")
     measured = json.loads(gen_auto_mode.render_apple())["models"]
     assert "auto" not in measured["example@2"]
     assert measured["example@2"]["mps_auto"] == ["", "float32"]

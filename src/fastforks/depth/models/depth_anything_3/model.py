@@ -37,7 +37,6 @@ from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cv2_resize import cv2_resize
 from fastforks.shared.host_blocks import StreamedModuleList
-from fastforks.shared.mlx_graph import MlxModule
 from fastforks.shared.quantile import kth_smallest
 from fastforks.shared.rope2d import rope_forward
 
@@ -765,6 +764,8 @@ def _mlx(portable: type[Portable]) -> type[Portable]:
 
         def __init__(self, ctx: Context) -> None:
             """Wrap the branches."""
+            from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - MLX only (imports mlx)
+
             super().__init__(ctx)
             kernels = ctx.mode == "kernels"
             self._fns = {

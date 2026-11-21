@@ -110,18 +110,25 @@ def _accuracy_pairs(evals: dict[str, list[dict]]) -> Iterator[tuple[str, dict, d
 
 
 def jl(p: Path) -> list[dict]:
-    return [json.loads(x) for x in p.read_text().splitlines() if x.strip()] if p.is_file() else []
+    return [json.loads(x) for x in p.read_text(encoding="utf-8").splitlines() if x.strip()] if p.is_file() else []
 
 
 def load_cards() -> dict[str, dict]:
     """Ref -> {task, family, card (dict), variant (dict)}."""
     out = {}
     for p in sorted((ROOT / "src/fastforks").glob("*/models/*/card.toml")):
-        t = tomllib.loads(p.read_text())
+        t = tomllib.loads(p.read_text(encoding="utf-8"))
         parts = p.parts
         task, fam = parts[-4], parts[-2]
         for v in t.get("variants", []):
-            out[v["id"]] = {"task": task, "family": fam, "card": t, "variant": v, "path": str(p), "text": p.read_text()}
+            out[v["id"]] = {
+                "task": task,
+                "family": fam,
+                "card": t,
+                "variant": v,
+                "path": str(p),
+                "text": p.read_text(encoding="utf-8"),
+            }
     return out
 
 
@@ -151,7 +158,7 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
     ap.add_argument("--no-stale", action="store_true", help="skip the git-based stale-row check")
     a = ap.parse_args()
     cards = load_cards()
-    allow = json.loads((DATA / "speed_allowlist.json").read_text())
+    allow = json.loads((DATA / "speed_allowlist.json").read_text(encoding="utf-8"))
     speed = jl(DATA / "speed.jsonl")
     comp = [{**row, "input": row.get("comparison_input", row["input"])} for row in jl(DATA / "speed_compile.jsonl")]
     fdates = {} if a.no_stale else family_dates()
@@ -536,7 +543,7 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one linear pass over every 
     lines += ["", f"## Problems ({len(probs)})", "", "| ref | family | kind | mode | issue |", "|---|---|---|---|---|"]
     for p in sorted(probs, key=lambda p: (p["kind"], p["family"], p["ref"])):
         lines.append(f"| {p['ref']} | {p['family']} | {p['kind']} | {p['mode']} | {p['issue'].replace('|', '/')} |")
-    Path(a.out).write_text("\n".join(lines) + "\n")
+    Path(a.out).write_text("\n".join(lines) + "\n", encoding="utf-8")
     if a.csv:
         Path(a.csv).mkdir(parents=True, exist_ok=True)
         with (Path(a.csv) / "problems.csv").open("w", newline="") as f:

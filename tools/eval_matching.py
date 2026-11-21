@@ -76,7 +76,7 @@ ORIGINAL = {
 def load_pairs(root: Path) -> list[tuple[str, str, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
     """(image1, image2, K1, K2, R, t) per line of `pairs_calibrated.txt`; R, t map camera 1 to camera 2."""
     out = []
-    for line in (root / "pairs_calibrated.txt").read_text().splitlines():
+    for line in (root / "pairs_calibrated.txt").read_text(encoding="utf-8").splitlines():
         a, b, *v = line.split()
         x = np.array(v, dtype=np.float64)
         out.append((a, b, x[:9].reshape(3, 3), x[9:18].reshape(3, 3), x[18:27].reshape(3, 3), x[27:30]))
@@ -385,7 +385,7 @@ def match(a: argparse.Namespace) -> None:  # noqa: C901, PLR0912, PLR0915 - one 
     np.savez(out / f"{a.start:04d}.npz", **kpts)
     info = {"start": a.start, "n": len(pairs), "dtype": dtype, "ms": ms, "first_ms": first, **extra}
     info |= {"peak_alloc_mb": peak[0] >> 20, "peak_reserved_mb": peak[1] >> 20, "gpu": torch.cuda.get_device_name()}
-    (out / f"{a.start:04d}.json").write_text(json.dumps(info))
+    (out / f"{a.start:04d}.json").write_text(json.dumps(info), encoding="utf-8")
     print(a.mode, a.start, len(pairs), f"{statistics.median(ms) if ms else first:.0f} ms/pair", flush=True)
 
 
@@ -435,7 +435,7 @@ def score(a: argparse.Namespace) -> None:
     index = range(0, len(pairs), a.every)
     work = a.work / f"{a.ref}-{a.mode}"
     kpts: dict[str, np.ndarray] = {}
-    infos = [json.loads(p.read_text()) for p in sorted(work.glob("*.json"))]
+    infos = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(work.glob("*.json"))]
     for p in sorted(work.glob("*.npz")):
         kpts |= {k: v for k, v in np.load(p).items() if int(k) < len(pairs) and int(k) % a.every == 0}
     missing = sorted(set(index) - {int(k) for k in kpts})
@@ -479,7 +479,7 @@ def score(a: argparse.Namespace) -> None:
     row |= {k: infos[0][k] for k in ("backend", "note") if k in infos[0]}
     row |= {"commit": a.commit, "gpu": infos[0]["gpu"], "torch": torch.__version__}
     row |= {"date": time.strftime("%Y-%m-%d %H:%M"), "command": " ".join(["python", *sys.argv]), "column": column}
-    with Path(a.out).open("a") as f:
+    with Path(a.out).open("a", encoding="utf-8") as f:
         f.write(json.dumps(row) + "\n")
     print(a.ref, a.mode, metrics, row["ms_per_img"], row["peak_alloc_mb"], row["peak_reserved_mb"], flush=True)
 

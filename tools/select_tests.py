@@ -133,7 +133,7 @@ class Graph:
         path = self.root / file
         if not path.is_file():
             return set()
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         me = self.name.get(file, "")
         pkg = me if file.endswith("__init__.py") else me.rpartition(".")[0]
         lazy = not file.startswith(FRAMEWORK) or file.startswith(LAZY_OK) or "/models/" in file
@@ -213,9 +213,9 @@ def families(root: Path) -> dict[str, dict]:
     """Per family {"task", "dir", "refs", "kernel_libs", "uses"} from the card.toml / golden.toml files."""
     out = {}
     for card in sorted((root / "src" / "fastforks").glob("*/models/*/card.toml")):
-        c = tomllib.loads(card.read_text())
+        c = tomllib.loads(card.read_text(encoding="utf-8"))
         g = card.with_name("golden.toml")
-        refs = sorted(tomllib.loads(g.read_text()).get("refs", {})) if g.is_file() else []
+        refs = sorted(tomllib.loads(g.read_text(encoding="utf-8")).get("refs", {})) if g.is_file() else []
         out[card.parent.name] = {
             "task": card.parents[2].name,
             "dir": card.parent.relative_to(root).as_posix(),
@@ -287,7 +287,7 @@ def _fast_checks(
             or cl & owned
             or any(f.startswith(selected_dirs) for f in cl)
             or (include_generic and not any(f.startswith(family_dirs) for f in cl))
-            or (affected_refs and affected_refs.search((root / test).read_text()))
+            or (affected_refs and affected_refs.search((root / test).read_text(encoding="utf-8")))
         ):
             checks.append(test)
     return checks

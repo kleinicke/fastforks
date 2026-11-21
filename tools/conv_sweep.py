@@ -155,7 +155,7 @@ def main() -> None:
         print(f"{row['key']:44s} x{row['calls']:<4d} best {row['best']} {row['best_ms']:.3f} rule {row['rule_ms']}"
               f" f32acc {f32:.3f} f16acc {f16:.3f}")  # fmt: skip
     if a.out:
-        with open(a.out, "w") as f:  # noqa: PTH123
+        with open(a.out, "w", encoding="utf-8") as f:  # noqa: PTH123
             json.dump(r, f, indent=1)
 
 

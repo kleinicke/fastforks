@@ -37,14 +37,14 @@ def main() -> None:
     if hashlib.sha256(png.read_bytes()).hexdigest() != IMAGE_SHA256:
         msg = f"{png} is not scikit-image's coffee.png"
         raise SystemExit(msg)
-    names = [s for s in labels_txt.read_text().splitlines() if s]
+    names = [s for s in labels_txt.read_text(encoding="utf-8").splitlines() if s]
     img = Image.open(png).convert("RGB")
     tok = CLIPTokenizer(str(weights / "clip-bpe.vocab.json"), str(weights / "clip-bpe.merges.txt"))
     text = tok(names, padding="max_length", max_length=16, truncation=True, return_tensors="pt")
     side = max(img.width, img.height)
     for key in sys.argv[4:] or THRESHOLDS:
         ref = f"owlv2-{key}"
-        config = Owlv2Config(**json.loads((weights / f"{ref}.config.json").read_text()))
+        config = Owlv2Config(**json.loads((weights / f"{ref}.config.json").read_text(encoding="utf-8")))
         size = config.vision_config.image_size
         proc = Owlv2ImageProcessor(size={"height": size, "width": size})
         x = proc(images=img, return_tensors="pt")["pixel_values"]

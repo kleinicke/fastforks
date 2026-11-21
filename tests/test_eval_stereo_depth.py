@@ -23,7 +23,7 @@ def test_depth_read_ahead_resumes_in_order(tmp_path: Path, monkeypatch: pytest.M
     ref = "depth-model"
     target = tmp_path / "depth" / f"{ref}__portable.jsonl"
     target.parent.mkdir()
-    target.write_text('{"ds": "nyu", "key": "done"}\n')
+    target.write_text('{"ds": "nyu", "key": "done"}\n', encoding="utf-8")
     decoded = []
 
     def read(key: str) -> tuple[str, str]:
@@ -58,6 +58,6 @@ def test_depth_read_ahead_resumes_in_order(tmp_path: Path, monkeypatch: pytest.M
     )
     assert evaluator.run_one(args, ref, time.perf_counter()) == 0
     assert decoded == ["first", "second"]
-    records = [json.loads(line) for line in target.read_text().splitlines()]
+    records = [json.loads(line) for line in target.read_text(encoding="utf-8").splitlines()]
     assert [row["key"] for row in records if "key" in row] == list(names)
     assert [row["prediction"] for row in records if "prediction" in row] == decoded

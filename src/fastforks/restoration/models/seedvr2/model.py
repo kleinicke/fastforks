@@ -146,7 +146,7 @@ class Kernels(Runner):
         return {"image": infer(self.net, image, self.ctx.params.scale, self.noise)}
 
 
-MLX_RESIDENT_SHARE = 0.25
+MLX_RESIDENT_SHARE = 0.25  # fixed: MLX memory budget, see below
 """MLX `stream=True`: share of unified memory the transformer blocks may keep resident; the rest are read per call."""
 
 

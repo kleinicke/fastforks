@@ -1,5 +1,7 @@
 """The compiled interactive session must retain the existing GPU golden accuracy."""
 
+import importlib.util
+
 import pytest
 import torch
 
@@ -8,6 +10,10 @@ from test_golden import golden, tolerance
 
 
 @pytest.mark.gpu
+@pytest.mark.skipif(
+    importlib.util.find_spec("triton") is None,
+    reason="torch.compile on CUDA needs Triton (not installed: no official Windows wheels)",
+)
 @pytest.mark.slow
 @pytest.mark.model
 def test_compiled_session_matches_real_ct_golden() -> None:

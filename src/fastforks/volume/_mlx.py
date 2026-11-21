@@ -13,7 +13,6 @@ import numpy as np
 import torch
 
 from fastforks.shared import mlx_wrap
-from fastforks.shared.mlx_graph import MlxModule
 from fastforks.volume._nnunet import Predictor, _labels_dtype
 
 if TYPE_CHECKING:
@@ -43,6 +42,8 @@ def port(portable: type[Runner]) -> type[Runner]:
 
         def __init__(self, ctx: Context) -> None:
             """Build the PyTorch runner, then replace each network by its MLX graph."""
+            from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - MLX only (imports mlx)
+
             super().__init__(ctx)
             dtype = mlx_wrap.run_dtype(ctx)
             kernels = ctx.mode == "kernels"

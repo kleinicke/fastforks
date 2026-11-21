@@ -33,8 +33,8 @@ def main() -> None:
     sys.path.insert(0, str(root))
     from models.stereo.CoEx import CoEx  # noqa: PLC0415  # reference checkout on sys.path
 
-    cfg = yaml.safe_load((root / "configs/stereo/cfg_coex.yaml").read_text())["model"]["stereo"]
-    cfg["backbone"].update(yaml.safe_load((root / "configs/backbone.yaml").read_text()))
+    cfg = yaml.safe_load((root / "configs/stereo/cfg_coex.yaml").read_text(encoding="utf-8"))["model"]["stereo"]
+    cfg["backbone"].update(yaml.safe_load((root / "configs/backbone.yaml").read_text(encoding="utf-8")))
     cfg["backbone"]["from_scratch"] = True
     net = CoEx(cfg)
     ckpt = torch.load(weights / "sceneflow.ckpt", map_location="cpu", weights_only=False)["state_dict"]

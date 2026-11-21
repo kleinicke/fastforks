@@ -54,7 +54,7 @@ def main() -> None:
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
     os.environ.setdefault("FASTFORKS_NONCOMMERCIAL", "1")
-    with Path(a.out).open("a") as f:
+    with Path(a.out).open("a", encoding="utf-8") as f:
         for ref in a.refs:
             for mode in a.mode:
                 res: dict[bool, list[dict[str, float]]] = {True: [], False: []}

@@ -26,7 +26,7 @@ def _parse(d: dict) -> object:
 
 @pytest.fixture
 def data() -> dict:
-    return tomllib.loads(S2M2.read_text())
+    return tomllib.loads(S2M2.read_text(encoding="utf-8"))
 
 
 def test_card_and_variant_planned_merge(data: dict) -> None:
@@ -50,7 +50,7 @@ def test_bad_planned_is_a_card_error(data: dict, bad: dict) -> None:
 
 
 def _variant(**planned: str) -> object:
-    v = _parse(tomllib.loads(S2M2.read_text())).variants[0]
+    v = _parse(tomllib.loads(S2M2.read_text(encoding="utf-8"))).variants[0]
     return dataclasses.replace(v, planned=planned)
 
 
@@ -77,7 +77,7 @@ def test_hooks_raise_before_any_work() -> None:
 
 
 def test_auto_skips_planned_kernels() -> None:
-    card = _parse(tomllib.loads(S2M2.read_text()))
+    card = _parse(tomllib.loads(S2M2.read_text(encoding="utf-8")))
     reason = _no_auto_kernels(card, _variant(kernels="k"), torch.device("cuda"), fp32=False, want=None)
     assert reason is not None
     assert "planned for 0.2.1" in reason

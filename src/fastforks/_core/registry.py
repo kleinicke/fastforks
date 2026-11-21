@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import dataclasses
 import difflib
 import fnmatch
@@ -32,7 +34,7 @@ from fastforks._core.files import env_flag, locate, present
 from fastforks._core.tasks import TASK_SPECS
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Generator, Mapping, Sequence
     from types import ModuleType
 
 
@@ -175,11 +177,30 @@ def require(card: ModelCard, model: str) -> None:
 
 
 NONCOMMERCIAL_ENV = "FASTFORKS_NONCOMMERCIAL"
+_NC_ALLOWED: contextvars.ContextVar[bool] = contextvars.ContextVar("fastforks_noncommercial", default=False)
 
 
 def noncommercial_enabled() -> bool:
-    """Whether non-commercial weights may be downloaded: only with `FASTFORKS_NONCOMMERCIAL=1` (installing does not)."""
-    return env_flag(NONCOMMERCIAL_ENV)
+    """Whether non-commercial weights may be downloaded: only on request (installing does not).
+
+    Requested with `FASTFORKS_NONCOMMERCIAL=1` (the whole process) or inside `allow_noncommercial()` (that block).
+    """
+    return _NC_ALLOWED.get() or env_flag(NONCOMMERCIAL_ENV)
+
+
+@contextlib.contextmanager
+def allow_noncommercial() -> Generator[None]:
+    """Let non-commercial weights download inside the block (this thread / task only).
+
+    As `FASTFORKS_NONCOMMERCIAL=1` does for the whole process. For a front end whose user opted in explicitly (the
+    ComfyUI pack `fastforks`, whose install is that opt-in, runs its nodes in it); the environment and other callers are
+    unchanged.
+    """
+    token = _NC_ALLOWED.set(True)
+    try:
+        yield
+    finally:
+        _NC_ALLOWED.reset(token)
 
 
 COMMERCIAL_ONLY_ENV = "FASTFORKS_COMMERCIAL_ONLY"
@@ -397,7 +418,7 @@ def _not_found(model_id: str, task: str | None) -> ModelNotFoundError:
 def _known_models(task: str) -> dict[str, str]:
     """Every published model id of `task` -> its distribution (`<task>/known_models.toml`, from tools/gen_docs.py)."""
     path = Path(__file__).parents[1] / task / "known_models.toml"
-    return tomllib.loads(path.read_text()) if path.is_file() else {}
+    return tomllib.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
 
 
 def import_model(card: ModelCard) -> ModuleType:

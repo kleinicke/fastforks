@@ -18,12 +18,12 @@ S2M2_CARD = MODELS / "s2m2/card.toml"
 
 @pytest.fixture
 def data():
-    return tomllib.loads(S2M2_CARD.read_text())
+    return tomllib.loads(S2M2_CARD.read_text(encoding="utf-8"))
 
 
 @pytest.fixture
 def raft():
-    d = tomllib.loads((MODELS / "raft_stereo/card.toml").read_text())
+    d = tomllib.loads((MODELS / "raft_stereo/card.toml").read_text(encoding="utf-8"))
     return parse_card(d, family="raft_stereo", task="stereo", where="card")
 
 
@@ -148,11 +148,14 @@ def test_pad_none(data):
 def test_architecture_lives_in_the_cards():
     """Per-variant padding and encoder choices are card data (no `_Padded` runner, no id -> encoder table)."""
     aanet = parse_card(
-        tomllib.loads((MODELS / "aanet/card.toml").read_text()), family="aanet", task="stereo", where="card"
+        tomllib.loads((MODELS / "aanet/card.toml").read_text(encoding="utf-8")),
+        family="aanet",
+        task="stereo",
+        where="card",
     )
     assert {v.id: v.io.pad_multiple for v in aanet.variants} == {"aanet-sceneflow": 48, "aanet-plus-sceneflow": 96}
     fs = parse_card(
-        tomllib.loads((MODELS / "foundationstereo/card.toml").read_text()),
+        tomllib.loads((MODELS / "foundationstereo/card.toml").read_text(encoding="utf-8")),
         family="foundationstereo",
         task="stereo",
         where="card",

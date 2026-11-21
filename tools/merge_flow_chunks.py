@@ -105,9 +105,14 @@ def main() -> None:
     ids = {p.name[:6] for p in (args.root / "flow_occ").glob("*_10.png")}
     if len(ids) != KITTI_TRAIN_PAIRS:
         ap.error(f"expected 200 KITTI flow pairs, found {len(ids)}")
-    rows = [json.loads(line) for path in args.chunks for line in path.read_text().splitlines() if line.strip()]
+    rows = [
+        json.loads(line)
+        for path in args.chunks
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
     row = merge(rows, ids)
-    with args.out.open("a") as f:
+    with args.out.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row) + "\n")
 
 

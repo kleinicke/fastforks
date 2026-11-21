@@ -4,7 +4,8 @@
     uv run python tools/fetch_goldens.py --changed origin/main DIR
 
 `--changed BASE` selects the families a change since BASE can affect (`affected_families`); `--smallest` keeps
-one variant per family (pull requests; the nightly run checks all).
+one variant per family (pull requests; the nightly run checks all). A ref with a per-OS golden
+(`[refs."<ref>".windows]`) gets the file of the OS this runs on, `<ref>.windows.npz` on Windows.
 """
 
 from __future__ import annotations
@@ -80,15 +81,14 @@ def main() -> None:
     if a.smallest:
         selected = smallest(selected)
     if a.required:
-        a.required.write_text("".join(f"{ref}\n" for ref in selected))
+        a.required.write_text("".join(f"{ref}\n" for ref in selected), encoding="utf-8")
     for ref in selected:
-        entry = goldens[ref]
-        file = f"{ref}.npz"
+        file, published, sha256 = store.platform_golden(ref, goldens[ref])  # this OS's (a per-OS golden, if any)
         dest = a.dir / file
-        if dest.is_file() and sha256_of(dest) == entry["sha256"]:
+        if dest.is_file() and sha256_of(dest) == sha256:
             continue
-        remote = quote(entry.get("file", file), safe="")
-        download(GOLDEN_URL.format(file=remote), dest, FileSpec(file, entry["sha256"]))
+        remote = quote(published, safe="")
+        download(GOLDEN_URL.format(file=remote), dest, FileSpec(file, sha256))
         print(f"{ref}: {dest}")
 
 

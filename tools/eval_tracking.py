@@ -302,7 +302,7 @@ def _f(out: Path, ref: str, tier: str) -> Path:
 
 
 def _records(path: Path) -> list[dict[str, Any]]:
-    return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()] if path.exists() else []
 
 
 def _run(a: argparse.Namespace, ref: str, tier: str) -> bool:
@@ -376,7 +376,7 @@ def _run(a: argparse.Namespace, ref: str, tier: str) -> bool:
                 "res_mb": torch.cuda.max_memory_reserved() >> 20,
                 "date": time.strftime("%Y-%m-%d %H:%M"),
             }
-            with path.open("a") as f:
+            with path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(rec) + "\n")
             print(json.dumps({k: rec[k] for k in ("model", "tier", "seq", "frames", "aj", "ms_frame")}), flush=True)
     return True

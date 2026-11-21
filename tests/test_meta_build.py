@@ -24,7 +24,7 @@ def test_drop_path_schedules_are_built_on_the_cpu() -> None:
     bad = [
         f"{path.relative_to(SRC)}:{text[: m.start()].count(chr(10)) + 1}"
         for path in SRC.rglob("*.py")
-        for text in (path.read_text(),)
+        for text in (path.read_text(encoding="utf-8"),)
         for m in pattern.finditer(text)
         if 'device="cpu"' not in m.group(1)
     ]
@@ -44,7 +44,7 @@ def test_forwards_ask_for_onnx_export_without_importing_it() -> None:
         f"{path.relative_to(SRC)}:{n}"
         for path in SRC.rglob("*.py")
         if path.relative_to(SRC).as_posix() != "_core/tracing.py"
-        for n, line in enumerate(path.read_text().splitlines(), 1)
+        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
         if "is_in_onnx_export(" in line
     ]
     assert not bad, bad

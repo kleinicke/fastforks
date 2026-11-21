@@ -2,12 +2,78 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+import textwrap
+
 import pytest
 import torch
 
 from fastforks.shared.cuda_graphs import GraphCache
 
 pytestmark = pytest.mark.gpu
+
+# A forward that fails during capture after allocating (intermediates, cuBLAS workspace), and graphs that are evicted
+# and released: under cudaMallocAsync, a captured allocation freed after a failed capture aborted the process.
+_ASYNC_SCRIPT = textwrap.dedent(
+    """
+    import torch
+    from fastforks.shared.cuda_graphs import GraphCache
+
+    assert torch.cuda.memory.get_allocator_backend() == "cudaMallocAsync"
+    w = torch.randn(256, 256, device="cuda")
+
+    def failing(x):
+        y = torch.relu(x @ w)
+        d = torch.empty(2, device=x.device)
+        d[0] = 1.5  # a CPU scalar copy: rejected during capture (RIFE's warp did this)
+        return y * d[0]
+
+    def fine(x):
+        return torch.relu(x @ w) + 1
+
+    for forward, captures in ((failing, False), (fine, True)):
+        cache = GraphCache(forward, graphs=1, stale=1)
+        for rows in (64, 64, 128, 128):  # the second shape evicts the first graph
+            x = torch.randn(rows, 256, device="cuda")
+            for _ in range(3):
+                out = cache.run(rows, x)
+                if out is not None:
+                    torch.testing.assert_close(out, forward(x))
+            assert bool(cache.graphs) == captures
+        cache.release()
+        torch.cuda.synchronize()
+    print("survived")
+    """
+)
+
+
+def test_failed_capture_under_cuda_malloc_async_does_not_abort():
+    """ComfyUI's default allocator: a failed capture stays eager instead of aborting the process (RIFE kernels)."""
+    env = {**os.environ, "PYTORCH_CUDA_ALLOC_CONF": "backend:cudaMallocAsync"}
+    p = subprocess.run(
+        [sys.executable, "-c", _ASYNC_SCRIPT], env=env, capture_output=True, text=True, timeout=300, check=False
+    )
+    assert p.returncode == 0, p.stderr[-4000:]
+    assert "survived" in p.stdout
+
+
+def test_failed_capture_is_logged(caplog: pytest.LogCaptureFixture):
+    def forward(x: torch.Tensor) -> torch.Tensor:
+        y = x * 2  # the graph is not empty (an empty one warns, an error under pytest's filters)
+        if torch.cuda.is_current_stream_capturing():
+            msg = "unsupported op during capture"
+            raise RuntimeError(msg)
+        return y
+
+    cache = GraphCache(forward)
+    x = torch.ones(4, device="cuda")
+    with caplog.at_level("WARNING", logger="fastforks"):
+        cache.run("k", x)
+        cache.run("k", x)
+    assert "CUDA graph capture failed" in caplog.text
+    assert "unsupported op during capture" in caplog.text
 
 
 @pytest.fixture(autouse=True)

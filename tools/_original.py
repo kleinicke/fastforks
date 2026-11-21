@@ -353,7 +353,7 @@ def _sea_raft(a: Any, full: str) -> Any:  # noqa: ANN401
     card, variant = registry.resolve("flow", full)
     size = variant.params.get("size", card.params.get("size"))
     scale = variant.params.get("scale", card.params["scale"])
-    net = RAFT(argparse.Namespace(**json.loads((a.tree / "config/eval" / g.CONFIG[size]).read_text())))
+    net = RAFT(argparse.Namespace(**json.loads((a.tree / "config/eval" / g.CONFIG[size]).read_text(encoding="utf-8"))))
     sd = load_state_dict(registry.weights(card, variant, allow_download=False)[0])
     sd |= {k.replace(".bn3.", ".downsample.1."): v for k, v in sd.items() if ".bn3." in k}
     net.load_state_dict(sd, strict=True)

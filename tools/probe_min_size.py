@@ -56,7 +56,9 @@ def main() -> None:
     """Probe every family of the given tasks and append the results."""
     out = Path(sys.argv[1])
     tasks = tuple(sys.argv[2:]) or TASKS
-    done = {json.loads(line)["card"] for line in out.read_text().splitlines()} if out.exists() else set()
+    done = (
+        {json.loads(line)["card"] for line in out.read_text(encoding="utf-8").splitlines()} if out.exists() else set()
+    )
     for task in tasks:
         seen = set()
         for card, _ in registry.cards(task).values():
@@ -78,7 +80,7 @@ def main() -> None:
             except Exception as e:  # noqa: BLE001
                 row["error"] = f"{type(e).__name__}: {str(e)[:200]}"
             gc.collect()
-            with out.open("a") as f:
+            with out.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(row) + "\n")
             print(row["card"], row["min"], row.get("error", ""), flush=True)
 

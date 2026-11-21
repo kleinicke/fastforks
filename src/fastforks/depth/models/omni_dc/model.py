@@ -24,7 +24,7 @@ from fastforks.depth.models.depth_anything_v2.fused import FusedHead, FusedViT
 from fastforks.kernels import omni_cg
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.shared import mlx_wrap
-from fastforks.shared.cuda_graphs import CAPTURE_LOCK, capture_stream
+from fastforks.shared.cuda_graphs import CAPTURE_LOCK, capture_stream, free_captured
 from fastforks.shared.depth_anything_v2 import fold_layer_scale, sdpa_attention
 
 from .net import (
@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from fastforks.depth._runner import Context
 
 _LAYERS = (4, 11, 17, 23)  # fixed: Depth Anything V2 Large's intermediate layers
-_CBAM_BAND_ROWS = 192
+_CBAM_BAND_ROWS = 192  # fixed: CBAM convolution band height for large CUDA inputs (memory bound, not numerics)
 _CBAM_MIN_ROWS, _CBAM_MIN_PIXELS = 800, 900_000
 
 
@@ -227,8 +227,12 @@ class GraphCG(CGState):
                     self.step()
                 self.graph = torch.cuda.CUDAGraph()
                 with torch.cuda.graph(self.graph, stream=side):
-                    for _ in range(self.CHUNK):
-                        self.step()
+                    try:
+                        for _ in range(self.CHUNK):
+                            self.step()
+                    except BaseException as e:
+                        free_captured(e)  # before the capture ends (cudaMallocAsync would abort later)
+                        raise
             main.wait_stream(side)
 
     def run(self) -> torch.Tensor:

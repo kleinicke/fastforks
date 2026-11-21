@@ -80,7 +80,7 @@ def _attention(m: Attention, x: torch.Tensor) -> torch.Tensor:
     scale: torch.Tensor = m.scale  # ty: ignore[invalid-assignment]
     block: torch.Tensor = m.block  # ty: ignore[invalid-assignment]
     proj: torch.Tensor = m.proj  # ty: ignore[invalid-assignment]
-    g = _gram(q, k, wide=m.wide) * (scale / nq)[:, :, None] / nk[:, None, :] + block
+    g = _gram(q, k, wide=m.wide) * (scale / nq)[:, :, None] / nk[:, None, :] + block  # ty: ignore[invalid-argument-type]
     mat = (proj @ g.softmax(-1)).to(v.dtype)  # [B, C out, C in]
     return (v @ mat.mT).view(b, h, w, c).permute(0, 3, 1, 2)
 
@@ -98,6 +98,7 @@ def _fold_attention(m: Attention, device: torch.device | str) -> None:
     m.block = torch.zeros(c, c).masked_fill_(ids[:, None] != ids[None, :], float("-inf")).to(device)
     m.proj = m.project_out.weight.detach()[:, :, 0, 0].float().to(device)
     del m.temperature, m.project_out
+    m.wide = False  # ty: ignore[invalid-assignment] - the runner sets it for the MLX twin of a float16 run
     override(m, _attention)
 
 
@@ -116,7 +117,7 @@ def _head_attention(m: Attention, x: torch.Tensor) -> torch.Tensor:
     for values, norm in zip(tokens.unbind(), norms.unbind(), strict=True):
         q, k, _ = values.view(h * w, 3, heads, width).permute(1, 2, 0, 3).unbind()
         nq, nk = norm.view(2, heads, width).unbind()
-        gram = _gram(q, k, wide=m.wide) * (temperature / nq).unsqueeze(-1) / nk.unsqueeze(-2)
+        gram = _gram(q, k, wide=m.wide) * (temperature / nq).unsqueeze(-1) / nk.unsqueeze(-2)  # ty: ignore[invalid-argument-type]
         matrices.append(torch.bmm(gram.softmax(-1).mT, proj).reshape(c, c))
     mat = (matrices[0].unsqueeze(0) if b == 1 else torch.stack(matrices)).to(tokens.dtype)
     return torch.bmm(tokens[..., 2 * c :], mat).view(b, h, w, c).permute(0, 3, 1, 2)
@@ -128,6 +129,7 @@ def _fold_head_attention(m: Attention, device: torch.device | str) -> None:
     m.scale = m.temperature.detach().view(heads, 1).float().to(device)
     m.proj = m.project_out.weight.detach()[:, :, 0, 0].T.reshape(heads, c // heads, c).float().contiguous().to(device)
     del m.temperature, m.project_out
+    m.wide = False  # ty: ignore[invalid-assignment] - the runner sets it for the MLX twin of a float16 run
     override(m, _head_attention)
 
 
@@ -313,7 +315,7 @@ class Portable(Runner):
                 m.norm2 = _fold_norm(m.norm2, m.ffn.project_in)  # ty: ignore[invalid-assignment]
                 override(m, _block)
                 self._prepare_attention(m.attn, ctx.device)
-                m.attn.wide = mlx_wrap.run_dtype(ctx) == "float16" and ctx.dtype == "float32"
+                m.attn.wide = mlx_wrap.run_dtype(ctx) == "float16" and ctx.dtype == "float32"  # ty: ignore[invalid-assignment]
                 _pad_ffn(m.ffn)
                 self._prepare_ffn(m.ffn, ctx.device)
         self.fmt = torch.channels_last if torch.device(ctx.device).type == "cuda" else torch.contiguous_format

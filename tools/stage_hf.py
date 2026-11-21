@@ -97,7 +97,7 @@ def stage_kernels(src: Path, out: Path) -> list[str]:
     """Copy the manifest-listed binaries; return the card's table rows."""
     rows = []
     for manifest in sorted(KERNELS.glob("*/manifest*.toml")):  # + manifest.compat.toml (older-driver builds)
-        m = tomllib.loads(manifest.read_text())
+        m = tomllib.loads(manifest.read_text(encoding="utf-8"))
         lib = m["name"]
         for f in m["files"].values():
             _check(src / lib / f["name"], f["sha256"], f["size"])
@@ -116,9 +116,9 @@ def stage_kernels(src: Path, out: Path) -> list[str]:
 EXCLUDED_GOLDENS = frozenset({"coex-sceneflow@1"})
 
 
-def _find_golden(srcs: list[Path], ref: str, sha256: str) -> Path | None:
-    """First `<ref>.npz` in the source directories whose SHA-256 matches, else None."""
-    return next((p for d in srcs if (p := d / f"{ref}.npz").is_file() and sha256_of(p) == sha256), None)
+def _find_golden(srcs: list[Path], name: str, sha256: str) -> Path | None:
+    """First file `name` (`<ref>.npz`, `<ref>.windows.npz`) in the source directories with that SHA-256, else None."""
+    return next((p for d in srcs if (p := d / name).is_file() and sha256_of(p) == sha256), None)
 
 
 def stage_goldens(srcs: list[Path], out: Path, *, skip_missing: bool = False) -> list[str]:
@@ -135,13 +135,17 @@ def stage_goldens(srcs: list[Path], out: Path, *, skip_missing: bool = False) ->
                 sys.exit(f"{ref}: no card variant (a stale golden ref?)")
             if ref in EXCLUDED_GOLDENS:
                 continue
-            src = _find_golden(srcs, ref, entry["sha256"])
-            if src is None:
+            # its own file, then any per-OS golden (`<ref>.windows.npz`)
+            files = [(local, published, sha) for _, local, published, sha in store.golden_files(ref, entry)]
+            found = [(src, published) for local, published, sha in files if (src := _find_golden(srcs, local, sha))]
+            if len(found) < len(files):
+                missing = ", ".join(local for local, _, sha in files if _find_golden(srcs, local, sha) is None)
                 if skip_missing:
-                    print(f"skipped (no local file with the recorded SHA-256): {ref}", file=sys.stderr)
+                    print(f"skipped (no local file with the recorded SHA-256): {missing}", file=sys.stderr)
                     continue
-                sys.exit(f"{ref}: no file with the recorded SHA-256 in {', '.join(map(str, srcs))}")
-            shutil.copyfile(src, out / entry.get("file", f"{ref}.npz"))
+                sys.exit(f"{missing}: no file with the recorded SHA-256 in {', '.join(map(str, srcs))}")
+            for src, published in found:
+                shutil.copyfile(src, out / published)
             card, v = cards[ref]
             st = card.status(v)
             rows.append(f"| `{ref}` | {card.family} | {card.licence.code} | {st.weights} | {entry['upstream']} |")
@@ -181,7 +185,7 @@ def stage_mirrors(out: Path) -> list[str]:
 
 def weights_repos() -> dict[str, dict]:
     """`tools/weights_repos.toml`: repo name -> its table (title, licence, files name -> sha256, ...)."""
-    return {k: v for k, v in tomllib.loads(WEIGHTS_REPOS.read_text()).items() if k != "discuss_later"}
+    return {k: v for k, v in tomllib.loads(WEIGHTS_REPOS.read_text(encoding="utf-8")).items() if k != "discuss_later"}
 
 
 def weight_users() -> dict[str, list[tuple[ModelCard, Variant, FileSpec]]]:
@@ -302,8 +306,8 @@ def stage_weights(out: Path, *, standin: bool = False) -> list[str]:
         if "script" in meta:
             shutil.copyfile(ROOT / meta["script"], d / Path(meta["script"]).name)
         if "notice" in meta:
-            (d / "NOTICE").write_text(meta["notice"])
-        (d / "README.md").write_text(render_weights_card(repo, meta, users))
+            (d / "NOTICE").write_text(meta["notice"], encoding="utf-8")
+        (d / "README.md").write_text(render_weights_card(repo, meta, users), encoding="utf-8")
         ids.append(f"fastforks/{repo}")
     return ids
 
@@ -565,7 +569,7 @@ def _families() -> dict[str, tuple[ModelCard, list[Variant]]]:
 
 def _benchmark_tables() -> list[tuple[str, list[str], dict[str, list[list[str]]]]]:
     """(heading, header cells, {model id: [row cells]}) of every `model` table of docs/benchmarks.md."""
-    lines = (ROOT / "docs" / "benchmarks.md").read_text().splitlines()
+    lines = (ROOT / "docs" / "benchmarks.md").read_text(encoding="utf-8").splitlines()
     out, heading, i = [], "", 0
     while i < len(lines):
         if lines[i].startswith("#"):
@@ -820,7 +824,7 @@ def _accuracy_section(card: ModelCard) -> list[str]:
 
 def _parity_section(card: ModelCard) -> list[str]:
     path = ROOT / "src" / "fastforks" / card.task / "models" / card.family / "golden.toml"
-    tol = tomllib.loads(path.read_text()).get("tolerance") if path.is_file() else None
+    tol = tomllib.loads(path.read_text(encoding="utf-8")).get("tolerance") if path.is_file() else None
     if not tol:
         return ["No golden tolerance recorded."]
     return [
@@ -887,7 +891,7 @@ def stage_cards(out: Path) -> list[str]:
     cards = staged_cards()
     for repo_id, text in cards.items():
         (out / repo_id.split("/", 1)[1]).mkdir(parents=True)
-        (out / repo_id.split("/", 1)[1] / "README.md").write_text(text)
+        (out / repo_id.split("/", 1)[1] / "README.md").write_text(text, encoding="utf-8")
     return list(cards)
 
 
@@ -1036,7 +1040,7 @@ def main() -> None:
         sys.exit("goldens need --from DIR")
     else:
         rows, card = stage_goldens(a.src, out, skip_missing=a.skip_missing), GOLDENS_CARD
-    (out / "README.md").write_text(card + "\n".join(rows) + "\n")
+    (out / "README.md").write_text(card + "\n".join(rows) + "\n", encoding="utf-8")
     print(f"staged {len(rows)} entries in {out}")
     if a.standin:
         print(f"use it: FASTFORKS_HF_ENDPOINT=file://{a.out.resolve()}")

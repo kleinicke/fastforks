@@ -304,7 +304,7 @@ def test_every_family_loads_user_weights_strictly(ref, change, tmp_path, monkeyp
         path = tmp_path
         for spec, f in zip(variant.weights, files, strict=True):
             (tmp_path / spec.name).parent.mkdir(parents=True, exist_ok=True)
-            (tmp_path / spec.name).symlink_to(f)
+            _link(tmp_path / spec.name, f)
     monkeypatch.setattr(runner, "load_state_dict", _perturbed(change, _USED.get(name, "")))
     monkeypatch.setattr(registry, "weights", _no_download)  # e.g. gated SAM 3: a local copy only
     monkeypatch.setattr(files_mod, "download", _no_download)
@@ -316,6 +316,18 @@ def test_every_family_loads_user_weights_strictly(ref, change, tmp_path, monkeyp
     }[change]
     with pytest.raises(CheckpointMismatchError, match=rf"for {re.escape(ref)} does not fit the network: {keys}"):
         API[TASK[ref]].load(ref, device="cpu", weights=path)
+
+
+def _link(link: Path, target: Path) -> None:
+    """`link` -> `target` without copying: a symlink, else a hard link (Windows: symlinks need a privilege or
+    Developer Mode, WinError 1314), else a copy (another volume)."""
+    try:
+        link.symlink_to(target)
+    except OSError:
+        try:
+            link.hardlink_to(target)
+        except OSError:
+            shutil.copyfile(target, link)
 
 
 def _no_download(*args, **kwargs):

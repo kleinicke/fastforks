@@ -195,7 +195,7 @@ def main() -> None:
     args = parser.parse_args()
     if args.workers < 1:
         parser.error("--workers must be positive")
-    manifest = json.loads((args.work / "inference.json").read_text())
+    manifest = json.loads((args.work / "inference.json").read_text(encoding="utf-8"))
     labels = sorted((args.bsr / "BSDS500/data/groundTruth/test").glob("*.mat"))
     predictions = sorted(args.work.glob("*.npy"))
     n = len(predictions)

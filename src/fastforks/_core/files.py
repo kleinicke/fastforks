@@ -255,7 +255,7 @@ def _other_caches(spec: FileSpec) -> Iterator[Path]:
         file = urllib.parse.unquote(hf["file"])
         ref = repo / "refs" / hf["rev"]
         try:
-            rev = ref.read_text().strip() if ref.is_file() else hf["rev"]
+            rev = ref.read_text(encoding="utf-8").strip() if ref.is_file() else hf["rev"]
         except OSError:
             rev = hf["rev"]
         first = repo / "snapshots" / rev / file
@@ -406,7 +406,7 @@ def _remember(path: Path, sha256: str) -> None:
         _mkdir_private(stamp.parent)
         fd, name = tempfile.mkstemp(dir=stamp.parent, suffix=".tmp")
         tmp = Path(name)
-        with os.fdopen(fd, "w") as f:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(json.dumps(_stamp(path, sha256)))
         tmp.replace(stamp)
         tmp = None
@@ -420,7 +420,7 @@ def _remember(path: Path, sha256: str) -> None:
 def stamped(path: Path, spec: FileSpec) -> bool:
     """Whether `path` was verified against `spec` and is unchanged since (its stamp; nothing is hashed)."""
     try:
-        return json.loads(_stamp_file(path).read_text()) == _stamp(path, spec.sha256)
+        return json.loads(_stamp_file(path).read_text(encoding="utf-8")) == _stamp(path, spec.sha256)
     except (OSError, ValueError):
         return False
 
@@ -623,7 +623,15 @@ def _place(part: Path, digest: str, spec: FileSpec, dest: Path, url: str) -> Non
         )
         raise WeightsHashError(msg)
     _mkdir_private(dest.parent)
-    part.replace(dest)
+    try:
+        part.replace(dest)
+    except PermissionError:
+        # Windows refuses to replace a file another thread or process has open (it is reading the same blob, which a
+        # concurrent download placed first). Only a verified copy of the same bytes there makes this a success.
+        if not dest.is_file() or _corrupt(dest, spec) is not None:
+            raise
+        log.debug("%s was placed by a concurrent download", dest)
+        return
     _remember(dest, spec.sha256)
 
 

@@ -30,7 +30,6 @@ from fastforks.kernels import cudnn_hacc, dpt_fused, fastbb
 from fastforks.segmentation._runner import Forward, Runner, scale
 from fastforks.segmentation.models.sapiens.net import IN_EPS, LN_EPS, PATCH, Arch, Layer, Sapiens
 from fastforks.shared.host_blocks import StreamedModuleList
-from fastforks.shared.mlx_graph import MlxModule
 from fastforks.shared.seginfer import upsample, upsample_argmax
 
 if TYPE_CHECKING:
@@ -258,6 +257,8 @@ class MlxPortable(Portable):
 
     def __init__(self, ctx: Context) -> None:
         """Build the PyTorch network in float32 on the CPU, then export it to MLX."""
+        from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - MLX only (imports mlx)
+
         super().__init__(dataclasses.replace(ctx, dtype="float32"))
         self.ctx = ctx
         self._mlx = MlxModule(self.net, ctx.dtype, kernels=ctx.mode == "kernels")

@@ -7,7 +7,7 @@ import json
 import sys
 from collections import defaultdict
 
-rows = [json.loads(line) for f in sys.argv[1:] for line in open(f)]
+rows = [json.loads(line) for f in sys.argv[1:] for line in open(f, encoding="utf-8")]
 cells: dict = defaultdict(list)
 for r in rows:
     cells[(r["model"], r["threads"], r["kind"], r["side"], r["variant"])].append(r)

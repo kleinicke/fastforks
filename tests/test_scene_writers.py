@@ -90,8 +90,12 @@ def test_colmap_poses_points_and_pixels(tmp_path):
     sparse = tmp_path / "sparse/0"
     cams, images = _colmap_cameras(sparse, ".txt"), _colmap_images(sparse, ".txt")
     assert len(cams) == 2  # views 0 and 1 share intrinsics
-    assert "PINHOLE" in (sparse / "cameras.txt").read_text()
-    lines = [ln.split() for ln in (sparse / "points3D.txt").read_text().splitlines() if not ln.startswith("#")]
+    assert "PINHOLE" in (sparse / "cameras.txt").read_text(encoding="utf-8")
+    lines = [
+        ln.split()
+        for ln in (sparse / "points3D.txt").read_text(encoding="utf-8").splitlines()
+        if not ln.startswith("#")
+    ]
     xyz = np.array([ln[1:4] for ln in lines], float)
     rgb = np.array([ln[4:7] for ln in lines], np.uint8)
     assert all(len(ln) == 8 for ln in lines)  # empty track
@@ -116,7 +120,7 @@ def test_colmap_poses_points_and_pixels(tmp_path):
 def test_nerfstudio_file_ply_and_images(tmp_path):
     r = _result(3)
     r.save_scene(tmp_path, "nerfstudio", max_points=20)
-    scene = json.loads((tmp_path / "transforms.json").read_text())
+    scene = json.loads((tmp_path / "transforms.json").read_text(encoding="utf-8"))
     assert scene["camera_model"] == "PINHOLE"
     assert scene["ply_file_path"] == "sparse_pc.ply"
     k = r.intrinsics.numpy()
@@ -139,8 +143,8 @@ def test_both_formats_share_the_points_and_a_fixed_seed(tmp_path):
     for d in ("a", "b"):
         r.save_scene(tmp_path / d, "colmap", max_points=7)
         r.save_scene(tmp_path / d, "nerfstudio", max_points=7)
-    text = (tmp_path / "a/sparse/0/points3D.txt").read_text()
-    assert text == (tmp_path / "b/sparse/0/points3D.txt").read_text()
+    text = (tmp_path / "a/sparse/0/points3D.txt").read_text(encoding="utf-8")
+    assert text == (tmp_path / "b/sparse/0/points3D.txt").read_text(encoding="utf-8")
     ply = (tmp_path / "a/sparse_pc.ply").read_bytes()
     assert ply == (tmp_path / "b/sparse_pc.ply").read_bytes()
     xyz = np.array([ln.split()[1:4] for ln in text.splitlines() if not ln.startswith("#")], np.float32)
@@ -157,9 +161,11 @@ def test_image_names_are_referenced_not_written(tmp_path):
     _check_rig(rig, r, 0, 1)
     # without the input images (and with image_names): grey points, unprojected depth for a result without points
     dataclasses.replace(r, world_points=None).save_scene(tmp_path / "c", "colmap", image_names=["a.png", "b.png"])
-    line = (tmp_path / "c/sparse/0/points3D.txt").read_text().splitlines()[3].split()
+    line = (tmp_path / "c/sparse/0/points3D.txt").read_text(encoding="utf-8").splitlines()[3].split()
     assert line[4:7] == ["128", "128", "128"]
-    assert "../a.png" in (tmp_path / "c/sparse/0/images.txt").read_text()  # COLMAP names: relative to images/
+    assert "../a.png" in (tmp_path / "c/sparse/0/images.txt").read_text(
+        encoding="utf-8"
+    )  # COLMAP names: relative to images/
 
 
 def test_float64_poses_keep_precision(tmp_path):

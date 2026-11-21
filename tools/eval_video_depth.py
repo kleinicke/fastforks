@@ -53,7 +53,9 @@ def load_sequence(name: str, frames: int | None) -> tuple[np.ndarray, np.ndarray
     root = Path(os.environ["FASTFORKS_DATA"]) / "multiview" / "tum_independent" / f"rgbd_dataset_{name}"
 
     def listing(file: str) -> list[tuple[float, str]]:
-        rows = (line.split() for line in (root / file).read_text().splitlines() if not line.startswith("#"))
+        rows = (
+            line.split() for line in (root / file).read_text(encoding="utf-8").splitlines() if not line.startswith("#")
+        )
         return [(float(t), f) for t, f in rows]
 
     rgb, dep = listing("rgb.txt")[:frames], listing("depth.txt")
@@ -213,7 +215,7 @@ def main() -> None:
                 "peak_reserved_mb": round(torch.cuda.max_memory_reserved() / 2**20), "column": column,
             }  # fmt: skip
             print(json.dumps(row), flush=True)
-            with (a.out / "rows.jsonl").open("a") as f:
+            with (a.out / "rows.jsonl").open("a", encoding="utf-8") as f:
                 f.write(json.dumps(row) + "\n")
             del fn
             torch.cuda.empty_cache()

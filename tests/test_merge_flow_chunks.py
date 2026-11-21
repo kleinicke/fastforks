@@ -1,7 +1,8 @@
 """Full flow metrics must never be assembled from partial or overlapping chunks."""
 
 import pytest
-from tools.merge_flow_chunks import merge
+
+from merge_flow_chunks import merge
 
 
 def test_merge_flow_chunks():

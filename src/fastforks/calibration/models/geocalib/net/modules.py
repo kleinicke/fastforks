@@ -557,7 +557,8 @@ class MSCAN(nn.Module):
     def forward(self, data):
         """Forward pass."""
         # rgb -> bgr and from [0, 1] to [0, 255]
-        x = data["image"][:, [2, 1, 0], :, :] * 255.0
+        # fastforks: flip instead of indexing with [2, 1, 0], a CPU index tensor that a CUDA graph capture rejects
+        x = data["image"].flip(1) * 255.0
         B = x.shape[0]
 
         outs = []

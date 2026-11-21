@@ -42,6 +42,7 @@ directory.
 | `FASTFORKS_MLX` | `0` = `device="mps"` always runs PyTorch MPS, never an [MLX port](#mps-takes-the-faster-port) |
 | `FASTFORKS_MLX_PLAN_CACHE` | a directory: [MLX](#apple-silicon-mlx) graph ports keep the exported graph and the tuning decisions of each input size there, so the first call of a size in a new process skips them (off by default; see "First call" there) |
 | `FASTFORKS_MLX_TUNING` | overrides single tunables of the [MLX](#apple-silicon-mlx) backend, e.g. `winograd=0,threadgroup=128` (for measuring; `tools/mlx_tune.py`) |
+| `FASTFORKS_SDPA` | which `scaled_dot_product_attention` backends CUDA calls may use, in priority order: `auto` (default: PyTorch's order where the build has flash, as the Linux wheels do; without flash, as in the Windows wheels, cuDNN, then memory-efficient, then math; logged), `torch` (PyTorch's order everywhere), or a priority list of `flash`, `cudnn`, `efficient`, `math`: `efficient,math,cudnn` is PyTorch's own order without flash (see `fastforks.shared.sdpa`); a call none of the listed backends supports raises. A policy without flash also runs the SAM / HQ-SAM / ViTMatte global attention as SDPA with a dense bias mask (`fastforks.shared.sam_attention`, logged) |
 | `FASTFORKS_HF_ENDPOINT` | redirects only our own Hugging Face repos (kernels, mirrored weights) to a mirror or `file://` stand-in, not the authors' hosts; for a full mirror use `FASTFORKS_WEIGHTS_PATH` |
 | `HF_TOKEN` | sent only to our own Hugging Face repos (private or rate-limited access); other repos: `huggingface_hub`'s own login |
 

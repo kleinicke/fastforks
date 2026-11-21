@@ -23,3 +23,12 @@ torch = "2.14.1+cu130"
 date = "2026-10-29"
 mean_px = 0.00013
 p99_px = 0.00047
+
+[validated."marigold-depth-v1-1@1".windows]
+kernels = ["cudnn_hacc@cudnn92400"]
+symbols = {}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.00016
+p99_px = 0.0005

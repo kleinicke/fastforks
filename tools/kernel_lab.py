@@ -87,7 +87,7 @@ def build(name: str, src: Path, out_dir: Path) -> Path:
     import build_kernels as bk  # noqa: PLC0415 - tools/, needs the kernels dependency group
 
     lib_dir = ROOT / "src/fastforks/kernels/dpt_fused"
-    cfg = tomllib.loads((lib_dir / "build.toml").read_text())
+    cfg = tomllib.loads((lib_dir / "build.toml").read_text(encoding="utf-8"))
     cap = torch.cuda.get_device_capability()
     target = f"sm_{cap[0]}{cap[1]}"
     cuda = (
@@ -98,7 +98,7 @@ def build(name: str, src: Path, out_dir: Path) -> Path:
     stage.mkdir(parents=True, exist_ok=True)
     (stage / "dpt_fused.cu").write_bytes(src.read_bytes())
     exports = stage / "exports.map"
-    exports.write_text(f"{{ global: {'; '.join(bk.c_exports(stage, cfg))}; local: *; }};\n")
+    exports.write_text(f"{{ global: {'; '.join(bk.c_exports(stage, cfg))}; local: *; }};\n", encoding="utf-8")
     so = stage / f"{name}-{target}.so"
     tools = os.pathsep.join(str(d) for d in (cuda / "bin", cuda / "nvvm" / "bin"))
     env = dict(os.environ, PATH=f"{tools}{os.pathsep}{os.environ.get('PATH', '')}")
@@ -290,7 +290,7 @@ def main() -> None:
     ap.add_argument("--build-dir", default="/tmp/fastforks-lab")  # noqa: S108 - scratch builds
     a = ap.parse_args()
     spec_path = Path(a.spec)
-    spec = json.loads(spec_path.read_text())
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
     dev = torch.device("cuda")
     libs = {}
     for name, src in spec.get("sources", {}).items():
@@ -301,7 +301,7 @@ def main() -> None:
         print(f"{name:24s} {v['ms']:7.1f} ms {v['j_per_fwd']:6.2f} J {v['sm_mhz']} MHz {v['power_w']} W "
               f"err fp32 {v['err_fp32']} base {v['err_base']}", flush=True)  # fmt: skip
     if a.out:
-        Path(a.out).write_text(json.dumps(r, indent=1))
+        Path(a.out).write_text(json.dumps(r, indent=1), encoding="utf-8")
 
 
 if __name__ == "__main__":

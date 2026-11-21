@@ -888,7 +888,7 @@ def _done() -> set[str]:
     if not ROWS.exists():
         return set()
     today = _today()  # a failure of today is not retried (the next step of the same job would hit it again)
-    rows = map(json.loads, ROWS.read_text().splitlines())
+    rows = map(json.loads, ROWS.read_text(encoding="utf-8").splitlines())
     return {r["ref"] for r in rows if "error" not in r or r.get("date") == today}
 
 
@@ -921,7 +921,7 @@ def main() -> int:
     done = _done()
     inflight = a.out / f".inflight-{a.task}"
     if inflight.exists():  # the previous step was killed (time limit) on this variant: record it, do not retry
-        ref = inflight.read_text()
+        ref = inflight.read_text(encoding="utf-8")
         inflight.unlink()
         row = {
             "ref": ref,
@@ -930,7 +930,7 @@ def main() -> int:
             "date": _today(),
             "error": "killed: over the 175 s step limit",
         }
-        with ROWS.open("a") as f:
+        with ROWS.open("a", encoding="utf-8") as f:
             f.write(json.dumps(row) + "\n")
     for ref in refs:
         if ref in done and not a.force:
@@ -942,7 +942,7 @@ def main() -> int:
         _save_inputs(a.out, name, imgs)
         target = a.out / f"{ref}.webp"
         row: dict[str, Any] = {"ref": ref, "task": a.task, "input": name, "date": _today()}
-        inflight.write_text(ref)
+        inflight.write_text(ref, encoding="utf-8")
         try:
             model = api.load(ref, mode=a.mode, device=a.device)
             with torch.inference_mode():
@@ -961,7 +961,7 @@ def main() -> int:
                 torch.cuda.empty_cache()
         inflight.unlink(missing_ok=True)
         print(json.dumps(row), flush=True)
-        with ROWS.open("a") as f:
+        with ROWS.open("a", encoding="utf-8") as f:
             f.write(json.dumps(row) + "\n")
     return 0
 

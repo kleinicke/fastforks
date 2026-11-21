@@ -61,7 +61,7 @@ def test_export_attention_matches_upstream(coordinates: int, family: str) -> Non
 
 
 def _runner(tmp_path, max_len: int = 256) -> Portable:
-    (tmp_path / "vocab.txt").write_text("\n".join(VOCAB) + "\n")
+    (tmp_path / "vocab.txt").write_text("\n".join(VOCAB) + "\n", encoding="utf-8")
     runner = object.__new__(Portable)
     runner.tokenizer = BertTokenizer(tmp_path / "vocab.txt")
     runner.separators = {runner.tokenizer.vocab[s] for s in SEPARATORS}

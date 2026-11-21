@@ -68,7 +68,7 @@ class Device:
 def devices() -> list[Device]:
     """The registry in its order; exactly one reference device."""
     out = []
-    for slug, d in tomllib.loads(REGISTRY.read_text()).items():
+    for slug, d in tomllib.loads(REGISTRY.read_text(encoding="utf-8")).items():
         extra = set(d) - {"name", "backend", "match", "memory", "details", "software", "reference", "hidden"}
         if not _SLUG.match(slug) or extra or d.get("backend") not in BACKENDS:
             msg = f"devices.toml [{slug}]: bad slug, unknown keys {sorted(extra)} or backend not one of {BACKENDS}"
@@ -154,7 +154,11 @@ def _check(path: Path, n: int, row: dict[str, Any], dev: Device) -> list[str]:
 def survey_rows(dev: Device) -> list[dict[str, Any]]:
     """The rows of a survey device, checked; raises ValueError naming every bad row."""
     path = dev.data
-    rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()] if path.is_file() else []
+    rows = (
+        [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        if path.is_file()
+        else []
+    )
     errs = [e for n, r in enumerate(rows, 1) for e in _check(path, n, r, dev)]
     seen: dict[tuple[str, str, str, str], int] = {}
     for n, r in enumerate(rows, 1):
@@ -179,5 +183,5 @@ def rows(dev: Device) -> list[dict[str, Any]]:
     """The device's rows: the floor as recorded for the reference, else the checked survey rows."""
     if not dev.reference:
         return survey_rows(dev)
-    floor = [json.loads(line) for line in FLOOR.read_text().splitlines() if line.strip()]
+    floor = [json.loads(line) for line in FLOOR.read_text(encoding="utf-8").splitlines() if line.strip()]
     return [r for r in floor if not r.get("cold") or "ms" in r]  # cold-start rows without timings: startup only

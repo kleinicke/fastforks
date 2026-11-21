@@ -23,12 +23,16 @@ import math
 import os
 import platform
 import re
+import shutil
 import struct
 import sys
+import tempfile
 import threading
+import time
 import tomllib
 from collections import Counter
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Literal, TypeVar
 
 import torch
@@ -38,12 +42,10 @@ from fastforks._core.files import FileSpec, cache_root, locate, read_caches, sea
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Mapping, Sequence
-    from pathlib import Path
 
 log = logging.getLogger(__name__)
 
 KERNEL_PATH_ENV = "FASTFORKS_KERNEL_PATH"
-_COMPAT = "manifest.compat.toml"
 _TARGET = re.compile(r"(sm|compute)_(\d+)")
 
 
@@ -55,12 +57,15 @@ class KernelManifest:
         name: Library name, e.g. `"s2m2"`.
         build_id: Hash of sources + build settings + toolkit; part of every file name.
         toolkit: CUDA toolkit `(major, minor)` the binaries were built with (the driver must support it).
-        kind: `"cubin"` (driver-API module) or `"shared"` (a `.so` called through ctypes).
+        kind: `"cubin"` (driver-API module) or `"shared"` (a `.so` / `.dll` called through ctypes).
         files: Binary per target (`"sm_86"`, `"compute_80"`, ...).
         licence: SPDX expression of the sources (incl. headers compiled in, e.g. CUTLASS).
         symbols: Hash per exported function (code, what it calls, build settings); equal hashes across builds mean
             the function compiles to the same code, so a validation of it carries over.
         compat: Build of the same sources with an older toolkit (`manifest.compat.toml`), for older drivers.
+        system: OS the build was made on: `"linux"` (`manifest.toml`) or `"windows"` (`manifest.windows.toml`). A
+            shared build runs on its own OS only. A Linux cubin build runs on both, and a Windows cubin build on
+            Windows only (`platform_manifest`).
     """
 
     name: str
@@ -71,6 +76,7 @@ class KernelManifest:
     licence: str = "unknown"
     symbols: Mapping[str, str] = field(default_factory=dict)
     compat: KernelManifest | None = None
+    system: Literal["linux", "windows"] = "linux"
 
     @property
     def tag(self) -> str:
@@ -80,6 +86,8 @@ class KernelManifest:
 
 def read_manifest(path: Path) -> KernelManifest:
     """Read `manifest.toml`, with its `manifest.compat.toml` next to it as `compat` if there is one.
+
+    A Windows build `manifest.windows.toml` has its compat build in `manifest.windows.compat.toml`.
 
     Raises:
         CardError: Malformed manifest.
@@ -92,10 +100,15 @@ def read_manifest(path: Path) -> KernelManifest:
             target: FileSpec(f["name"], f["sha256"], f["size"], d["url"].format(lib=d["name"], file=f["name"]))
             for target, f in d["files"].items()
         }
-        kind = d["kind"]
-        compat = path.with_name(_COMPAT)
-        if kind not in ("cubin", "shared") or not all(_TARGET.fullmatch(t) for t in files):
-            raise ValueError(kind)  # noqa: TRY301 - reported as a CardError below
+        kind, system = d["kind"], d.get("os", "linux")
+        is_compat = path.name.endswith(".compat.toml")
+        compat = path.with_name(path.name.removesuffix(".toml") + ".compat.toml")
+        if (
+            kind not in ("cubin", "shared")
+            or system not in ("linux", "windows")
+            or not all(_TARGET.fullmatch(t) for t in files)
+        ):
+            raise ValueError(kind, system)  # noqa: TRY301 - reported as a CardError below
         return KernelManifest(
             d["name"],
             d["build_id"],
@@ -104,7 +117,8 @@ def read_manifest(path: Path) -> KernelManifest:
             files,
             d.get("licence", "unknown"),
             dict(d.get("symbols", {})),
-            read_manifest(compat) if path.name != _COMPAT and compat.is_file() else None,
+            read_manifest(compat) if not is_compat and compat.is_file() else None,
+            system,
         )
     except (KeyError, ValueError, TypeError) as e:
         msg = f"{path}: malformed kernel manifest ({e!r})"
@@ -129,8 +143,18 @@ def select_target(targets: Iterable[str], arch: tuple[int, int]) -> str | None:
     return ptx[max(older_ptx)] if older_ptx else None
 
 
+_WINDOWS = sys.platform == "win32"
+DRIVER_LIB = "nvcuda.dll" if _WINDOWS else "libcuda.so.1"  # the CUDA driver API library of this platform
+
+
 def _libcuda_path() -> str:
-    """Absolute path of the driver library (`ctypes.util.find_library` knows ldconfig; no `LD_LIBRARY_PATH` search)."""
+    """Absolute path of the driver library (`ctypes.util.find_library` knows ldconfig; no `LD_LIBRARY_PATH` search).
+
+    Windows: `nvcuda.dll` from the system directory, where the NVIDIA driver installs it (an absolute path: the DLL
+    search order would also try the current directory and `PATH`).
+    """
+    if _WINDOWS:
+        return _system_lib(DRIVER_LIB, (os.path.join(os.environ.get("SYSTEMROOT", r"C:\Windows"), "System32"),))  # noqa: PTH118
     return _system_lib(
         "libcuda.so.1",
         ("/usr/lib/x86_64-linux-gnu", "/usr/lib64", "/usr/lib", "/lib/x86_64-linux-gnu", "/usr/lib/wsl/lib"),
@@ -230,11 +254,57 @@ def for_driver(manifest: KernelManifest, driver: tuple[int, int] | None = None) 
     return c
 
 
+def _host() -> Literal["linux", "windows"] | None:
+    """The OS of this machine if kernel builds exist for it (x86-64 Linux or Windows), else None."""
+    machine = platform.machine()
+    if sys.platform == "linux" and machine == "x86_64":
+        return "linux"
+    if sys.platform == "win32" and machine.lower() == "amd64":
+        return "windows"
+    return None
+
+
+def platform_manifest(path: Path) -> Path:
+    """The manifest of `path`'s library for this OS: `manifest.windows.toml` on Windows if the library has one.
+
+    A cubin is a GPU binary, loaded by the driver API (`nvcuda.dll` / `libcuda.so.1`) the same way on every OS, so a
+    cubin library usually has one manifest. The exception is a kernel parameter over 4 KB: its parameter metadata
+    differs by host OS, and the Windows driver rejects a Linux-built one, so such a library also has a Windows cubin
+    build. A shared library's host code is a Linux `.so` (`manifest.toml`) or a Windows DLL (`manifest.windows.toml`),
+    built separately.
+    """
+    if _host() == "windows":
+        win = path.with_name("manifest.windows.toml")
+        if win.is_file():
+            return win
+    return path
+
+
+def platform_reason(manifest: KernelManifest) -> str | None:
+    """Why `manifest`'s binaries cannot run on this OS / CPU, or None.
+
+    Linux x86-64 and Windows x64 run Linux cubin builds and the builds of their own OS (`platform_manifest`).
+    """
+    host = _host()
+    if host is not None and (manifest.system == host or (manifest.kind == "cubin" and manifest.system == "linux")):
+        return None
+    if host == "windows":
+        return (
+            "this library is a Linux .so and has no Windows DLL build yet (manifest.windows.toml); on Windows only"
+            " cubin kernel libraries and DLL builds run"
+        )
+    if host == "linux":
+        return "this manifest is a Windows build; Linux loads manifest.toml"
+    machine = platform.machine()
+    return f"the kernels are built for Linux and Windows x86-64, not {sys.platform} {machine}"
+
+
 def binary(manifest: KernelManifest, device: torch.device) -> tuple[Path, str]:
     """Return the verified binary of `manifest` for `device` and its target.
 
     Raises:
-        KernelUnavailableError: CPU device, ROCm or CPU-only torch, not Linux x86-64, no or too old NVIDIA driver,
+        KernelUnavailableError: CPU device, ROCm or CPU-only torch, an OS / CPU without builds (`platform_reason`),
+            no or too old NVIDIA driver,
             unsupported arch or missing binary;
             the message names the reason and the remedy.
     """
@@ -243,16 +313,14 @@ def binary(manifest: KernelManifest, device: torch.device) -> tuple[Path, str]:
         raise KernelUnavailableError(name, f"needs a CUDA device, got {device}")
     if torch.version.hip:
         raise KernelUnavailableError(name, f"the kernels are NVIDIA CUDA only; torch {torch.__version__} is ROCm/HIP")
-    if sys.platform != "linux" or platform.machine() != "x86_64":
-        raise KernelUnavailableError(
-            name, f"the kernels are built for Linux x86-64, not {sys.platform} {platform.machine()}"
-        )
+    if reason := platform_reason(manifest):
+        raise KernelUnavailableError(name, reason)
     if not torch.cuda.is_available():
         raise KernelUnavailableError(name, f"torch {torch.__version__} has no usable CUDA")
     try:
         drv = driver_version()
     except OSError as e:
-        raise KernelUnavailableError(name, f"cannot load the NVIDIA driver library libcuda.so.1 ({e})") from e
+        raise KernelUnavailableError(name, f"cannot load the NVIDIA driver library {DRIVER_LIB} ({e})") from e
     if drv < manifest.toolkit:
         need = ".".join(map(str, manifest.toolkit))
         driver = _MIN_DRIVER.get(manifest.toolkit)
@@ -301,7 +369,12 @@ def _private(path: Path) -> bool:
     Private: owned by this user and not world-writable or writable by a group with other members (cheap `stat`s).
     Anyone who can write there already is this user; for a shared, foreign or writable location the binary is
     hashed on every load and loaded from the hashed bytes.
+
+    Windows (no POSIX owner / mode bits; ACLs are not checked): never private, so every load hashes the bytes it
+    loads (a cubin library is read once per device and process; ~1 ms per MB).
     """
+    if not hasattr(os, "getuid"):
+        return False
     roots = {r.resolve() for r in (cache_root(), *read_caches(), *search_path(KERNEL_PATH_ENV))}
     uid = os.getuid()
     try:
@@ -443,7 +516,7 @@ def cubin_library(manifest: Path, signatures: Mapping[str, str]) -> Callable[[to
 
     @functools.cache
     def _load(device: torch.device) -> CubinModule:
-        return CubinModule(read_manifest(manifest), device, signatures)
+        return CubinModule(read_manifest(platform_manifest(manifest)), device, signatures)
 
     def load(device: torch.device) -> CubinModule:
         """Load the library on `device` (once per device).
@@ -463,7 +536,7 @@ _IMAGE_FDS: list[int] = []
 
 def _load_image(image: bytes, name: str) -> ctypes.CDLL:
     """`dlopen` the bytes `image` through an anonymous in-memory file (kept open for the process lifetime)."""
-    if sys.platform != "linux":  # memfd_create is Linux-only (so are the CUDA kernel libraries)
+    if sys.platform != "linux":  # memfd_create is Linux-only (Windows loads its DLLs from a file)
         msg = f"in-memory kernel images need Linux, not {sys.platform}"
         raise OSError(msg)
     fd = os.memfd_create(name)
@@ -478,17 +551,72 @@ def _load_image(image: bytes, name: str) -> ctypes.CDLL:
     return lib
 
 
+_DLL_DIR: list[Path] = []  # this process's directory of verified DLL copies (created on first use)
+_DLL_LOCK = threading.Lock()
+_STALE_DLL_DIR_S = 86400.0
+_LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x800  # LoadLibraryExW flag: dependencies only from System32 (nvcuda.dll, the OS)
+
+
+def _dll_dir() -> Path:
+    r"""A new directory in the user's temp directory for this process's DLL copies; sweeps day-old ones first.
+
+    The temp directory (`%LOCALAPPDATA%\Temp`) is writable by this user (and administrators / SYSTEM) only, by the
+    profile's default ACL. A copy stays locked by Windows while loaded, so a sweep only removes copies no process holds.
+    """
+    with _DLL_LOCK:
+        if not _DLL_DIR:
+            base = Path(tempfile.gettempdir())
+            for d in base.glob("fastforks-dll-*"):
+                try:
+                    if time.time() - d.stat().st_mtime > _STALE_DLL_DIR_S:
+                        shutil.rmtree(d, ignore_errors=True)
+                except OSError:
+                    continue
+            _DLL_DIR.append(Path(tempfile.mkdtemp(prefix="fastforks-dll-")))
+        return _DLL_DIR[0]
+
+
+def _load_dll_image(image: bytes, name: str) -> ctypes.CDLL:
+    """Windows: load the verified bytes `image` through a new file in a per-user private directory.
+
+    Windows cannot load a DLL from memory; the copy is written exclusively (never an existing file) by this process
+    right before loading, and its only dependencies come from System32 (the CUDA runtime is linked statically). Each
+    load gets its own file (`<stem>.<n><suffix>` once the name is taken), as each Linux load gets its own memfd.
+    """
+    # `name` is the cache blob's name (the SHA-256, no suffix) for a downloaded library: LoadLibrary appends ".dll" to
+    # a path without a suffix and then does not find the copy, so the copy always ends in ".dll"
+    stem, suffix = os.path.splitext(name)  # noqa: PTH122 - a bare file name, not a path
+    if suffix.lower() != ".dll":
+        stem, suffix = name, ".dll"
+    for n in itertools.count():
+        path = _dll_dir() / (f"{stem}{suffix}" if n == 0 else f"{stem}.{n}{suffix}")
+        try:
+            with path.open("xb") as f:
+                f.write(image)
+        except FileExistsError:
+            continue
+        return ctypes.CDLL(str(path), winmode=_LOAD_LIBRARY_SEARCH_SYSTEM32)
+    raise AssertionError  # unreachable: itertools.count() never ends
+
+
 def shared_library(manifest: Path, device: torch.device) -> tuple[ctypes.CDLL, str]:
-    """Load the `.so` of a shared kernel library for `device`; returns it and its tag `name@build_id:target`.
+    """Load the `.so` (Windows: `.dll`) of a shared kernel library for `device`; returns it and its tag.
+
+    The tag is `name@build_id:target`. On Windows `manifest.windows.toml` replaces `manifest` (`platform_manifest`).
 
     Raises:
-        KernelUnavailableError: No usable binary for this GPU / driver, or the library does not load.
+        KernelUnavailableError: No usable binary for this GPU / driver / OS, or the library does not load.
     """
-    m = for_driver(read_manifest(manifest))
+    m = for_driver(read_manifest(platform_manifest(manifest)))
     image, path, target = verified_binary(m, device)
     try:
         # a shared or writable location loads the verified bytes, not the file name (no check-to-load race)
-        lib = ctypes.CDLL(str(path)) if image is None else _load_image(image, path.name)
+        if image is None:
+            lib = ctypes.CDLL(str(path))
+        elif sys.platform == "win32":
+            lib = _load_dll_image(image, path.name)
+        else:
+            lib = _load_image(image, path.name)
     except OSError as e:
         raise KernelUnavailableError(m.name, f"cannot load {path.name}: {e}") from e
     return lib, f"{m.tag}:{target}"

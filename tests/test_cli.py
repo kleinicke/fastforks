@@ -564,7 +564,7 @@ def test_export_output_creates_parent_and_reports_os_errors(tmp_path, capsys):
     assert cli.main(["export", "no-such-model", "--format", "onnx", "-o", str(out)]) == 1  # fails after the mkdir
     assert out.parent.is_dir()
     assert "fastforks: error:" in capsys.readouterr().err
-    (tmp_path / "file").write_text("x")
+    (tmp_path / "file").write_text("x", encoding="utf-8")
     assert cli.main(["export", "hitnet-eth3d", "--format", "onnx", "-o", str(tmp_path / "file" / "f.onnx")]) == 1
     assert "fastforks: error: cannot write" in capsys.readouterr().err
 

@@ -91,7 +91,9 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one resumable loop
     out.parent.mkdir(parents=True, exist_ok=True)
     have = set()
     if out.exists():
-        rows = [r for r in map(json.loads, out.read_text().splitlines()) if r.get("part", "call") == a.part]
+        rows = [
+            r for r in map(json.loads, out.read_text(encoding="utf-8").splitlines()) if r.get("part", "call") == a.part
+        ]
         have = {(r["ref"], r["tier"], r.get("input")) for r in rows}
     torch.zeros(1, device="cuda").sum().item()
     for ref in a.refs.split(","):
@@ -122,7 +124,7 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one resumable loop
                 load_s = time.perf_counter() - tb
             except Exception as e:  # noqa: BLE001 - recorded
                 err = f"{type(e).__name__}: {str(e)[:300]}"
-                with out.open("a") as f:
+                with out.open("a", encoding="utf-8") as f:
                     f.write(json.dumps(base | {"error": ("OOM, " if "out of memory" in err else "") + err}) + "\n")
                 continue
             base |= {"dtype": o.dtype, "how": o.how, "note": o.note}
@@ -153,7 +155,7 @@ def main() -> int:  # noqa: C901, PLR0912, PLR0915 - one resumable loop
                     "commit": _pin(adapter), "ff_commit": _commit(),
                     "source": "", "command": " ".join(["python", "tools/speed_original.py", *sys.argv[1:]]),
                 }  # fmt: skip
-                with out.open("a") as f:
+                with out.open("a", encoding="utf-8") as f:
                     f.write(json.dumps(row) + "\n")
                 print(json.dumps({k: row.get(k) for k in ("ref", "tier", "input", "ms", "peak_reserved_mb", "error")}))
             del o

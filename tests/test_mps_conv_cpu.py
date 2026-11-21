@@ -122,7 +122,7 @@ def test_metal_runners_adapt():
 
     found = 0
     for path in Path(fastforks.__file__).parent.rglob("model.py"):
-        src = path.read_text()
+        src = path.read_text(encoding="utf-8")
         if "class MetalKernels(Portable)" in src:
             if path.parent.name in OWN_DECONV:
                 continue
@@ -152,7 +152,7 @@ def test_metal_sources_have_no_infinity_compare():
     import fastforks  # noqa: PLC0415
 
     for path in (Path(fastforks.__file__).parent / "kernels").rglob("*.metal"):
-        src = path.read_text()
+        src = path.read_text(encoding="utf-8")
         assert "== -INFINITY" not in src, path
         assert "m = -INFINITY" not in src, path
 

@@ -91,7 +91,7 @@ def build(tree: Path, ckpt: Path) -> torch.nn.Module:
     sd = load_state_dict(ckpt)
     (tree / "weights").mkdir(exist_ok=True)
     torch.save({k[5:]: v for k, v in sd.items() if k.startswith("dav2.")}, tree / "weights/depth_anything_v2_vits.pth")
-    cfg = json.loads((tree / "config/eval" / CONFIG).read_text())
+    cfg = json.loads((tree / "config/eval" / CONFIG).read_text(encoding="utf-8"))
     with contextlib.chdir(tree):  # upstream opens weights/depth_anything_v2_vits.pth relative to the working dir
         model = upstream.FlowSeek(argparse.Namespace(**cfg))
     model.load_state_dict(sd, strict=True)

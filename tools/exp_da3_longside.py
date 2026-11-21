@@ -110,7 +110,7 @@ def main() -> None:
             "dtype": pr.dtype, "command": " ".join(["python", "tools/exp_da3_longside.py", *sys.argv[1:]])}  # fmt: skip
     check(a.ref, pr.model, pr.prep([ev.depth_items("ibims")[0][1]()[0]])[0])
     first = True
-    with (a.out / "rows.jsonl").open("w") as f:
+    with (a.out / "rows.jsonl").open("w", encoding="utf-8") as f:
         for ds in ev.DATASETS["depth"]:
             items = ev.depth_items(ds)[: a.limit or None]
             for setting in SETTINGS:

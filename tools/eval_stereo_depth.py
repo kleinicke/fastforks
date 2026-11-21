@@ -76,7 +76,7 @@ def read_depth_png(path: str) -> np.ndarray:
 
 
 def read_calib(path: str) -> tuple[np.ndarray, float, float]:
-    c = dict(line.strip().split("=", 1) for line in Path(path).read_text().splitlines() if "=" in line)
+    c = dict(line.strip().split("=", 1) for line in Path(path).read_text(encoding="utf-8").splitlines() if "=" in line)
     k = np.array([[float(x) for x in r.split()] for r in c["cam0"].strip("[]").split(";")])
     return k, float(c["baseline"]) / 1000.0, float(c.get("doffs", 0))
 
@@ -94,7 +94,7 @@ def stereo_items(ds: str) -> list[tuple[str, Any]]:
         pairs = list(zip(ims, gts, strict=True))
     else:
         root = f"{STEREO}/Middlebury/MiddEval3"
-        names = Path(f"{root}/official_train.txt").read_text().split()
+        names = Path(f"{root}/official_train.txt").read_text(encoding="utf-8").split()
         ims = sorted(f"{root}/trainingH/{n}/im0.png" for n in names)
         pairs = [(i, i.replace("im0.png", "disp0GT.pfm")) for i in ims]
     return [
@@ -122,7 +122,7 @@ def depth_items(ds: str) -> list[tuple[str, Any]]:
     items: list[tuple[str, Any]] = []
     if ds in {"nyu", "ibims"}:
         root = f"{MONO}/{'NYUv2' if ds == 'nyu' else 'iBims-1'}"
-        for k in Path(f"{root}/.index.txt").read_text().split():
+        for k in Path(f"{root}/.index.txt").read_text(encoding="utf-8").split():
 
             def ld(k: str = k, root: str = root) -> tuple[np.ndarray, np.ndarray]:
                 gt = read_depth_png(f"{root}/{k}/depth.png")
@@ -328,7 +328,7 @@ def run_one(a: argparse.Namespace, ref: str, t0: float) -> int:  # noqa: C901, P
             if _original.own_option(a.task, ref):
                 continue
         per = out / f"{ref}__{tier}.jsonl"
-        rows = [json.loads(x) for x in per.read_text().splitlines()] if per.exists() else []
+        rows = [json.loads(x) for x in per.read_text(encoding="utf-8").splitlines()] if per.exists() else []
         if any("error" in r for r in rows):
             continue
         done = {(r["ds"], r["key"]) for r in rows if "key" in r}
@@ -338,7 +338,7 @@ def run_one(a: argparse.Namespace, ref: str, t0: float) -> int:  # noqa: C901, P
         if time.perf_counter() - t0 > a.max_seconds - a.build_reserve:
             again = True
             break
-        f = per.open("a")
+        f = per.open("a", encoding="utf-8")
         meta: dict[str, Any] = {"meta": True, "ref": ref, "tier": tier, "commit": _commit(),
                                 "gpu": torch.cuda.get_device_name(), "torch": torch.__version__,
                                 "date": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
@@ -397,7 +397,7 @@ def summary_rows(out: Path, limit: int = 0) -> list[dict[str, Any]]:  # noqa: C9
     for per in sorted(p for task in ("stereo", "depth") for p in (out / task).glob("*__*.jsonl")):  # not coco/
         task = per.parent.name
         ref, tier = per.stem.split("__")
-        rows = [json.loads(x) for x in per.read_text().splitlines()]
+        rows = [json.loads(x) for x in per.read_text(encoding="utf-8").splitlines()]
         metas = [r for r in rows if r.get("meta")]
         if not metas:
             continue

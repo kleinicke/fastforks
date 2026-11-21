@@ -24,7 +24,6 @@ from fastforks.segmentation.models.bisenet.net import BiSeNet
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cnn_kernels import prepare_generic
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
-from fastforks.shared.mlx_graph import MlxModule
 from fastforks.shared.seginfer import resize, target_size, upsample, upsample_argmax
 
 if TYPE_CHECKING:
@@ -160,6 +159,8 @@ def _mlx(portable: type[Portable]) -> type[Portable]:
         def __init__(self, ctx: Context) -> None:
             """Wrap the head."""
             super().__init__(ctx)
+            from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - MLX only (imports mlx)
+
             self._head = MlxModule(_Head(self.net), ctx.dtype, kernels=ctx.mode == "kernels")
 
         def _network(self, x: torch.Tensor) -> torch.Tensor:

@@ -59,7 +59,7 @@ def build(tree: Path, ckpt: Path, variant: str) -> torch.nn.Module:
 
     feature = getattr(waft_a1.DepthAnythingFeature, "func", waft_a1.DepthAnythingFeature)
     waft_a1.DepthAnythingFeature = functools.partial(feature, pretrained=False)  # no depth-anything-ckpts/ read
-    cfg = json.loads((tree / "config/a1" / CONFIG[variant]).read_text())
+    cfg = json.loads((tree / "config/a1" / CONFIG[variant]).read_text(encoding="utf-8"))
     model = waft_a1.ViTWarpV8(argparse.Namespace(**cfg)).eval()
     model.load_state_dict(load_state_dict(ckpt), strict=True)
     return model

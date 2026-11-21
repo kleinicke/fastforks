@@ -100,11 +100,11 @@ def track(dets: Path, out: Path) -> None:  # noqa: C901, PLR0912
                         lines[name].append(f"{k},{tid},{x0:.2f},{y0:.2f},{w:.2f},{h:.2f},1,-1,-1,-1\n")
         for name, rows in lines.items():
             (out / name / "data").mkdir(parents=True, exist_ok=True)
-            (out / name / "data" / f"{seq}-FRCNN.txt").write_text("".join(rows))
+            (out / name / "data" / f"{seq}-FRCNN.txt").write_text("".join(rows), encoding="utf-8")
         res[seq] = {"frames": n, "id_mismatch_frames": mismatch, "max_box_diff": maxdiff}
         res[seq].update({f"{k}_ms": 1e3 * float(np.median(v)) for k, v in times.items()})
         print(seq, res[seq], flush=True)
-    (out / "compare.json").write_text(json.dumps(res, indent=1))
+    (out / "compare.json").write_text(json.dumps(res, indent=1), encoding="utf-8")
 
 
 def score(out: Path, gt: Path) -> None:
@@ -138,7 +138,7 @@ def score(out: Path, gt: Path) -> None:
         table[n] = hota | {"MOTA": 100 * c["CLEAR"]["MOTA"], "IDF1": 100 * c["Identity"]["IDF1"]}
         table[n]["IDSW"] = int(c["CLEAR"]["IDSW"])
     print(json.dumps(table, indent=1))
-    (out / "metrics.json").write_text(json.dumps(table, indent=1))
+    (out / "metrics.json").write_text(json.dumps(table, indent=1), encoding="utf-8")
 
 
 def main() -> None:

@@ -232,7 +232,7 @@ def test_compiled_methods_exist(task):
 
 
 # host code around the entry points
-HELPERS = {"module", "input_use", "pad", "resize", "restore", "upsample", "scene", "segment_concept"}
+HELPERS = {"module", "input_use", "pad", "resize", "restore", "upsample", "binary_masks", "scene", "segment_concept"}
 
 
 def _is_host(cls: type, name: str) -> bool:

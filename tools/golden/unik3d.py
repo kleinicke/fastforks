@@ -29,7 +29,7 @@ def main() -> None:
     sys.path.insert(0, str(reference_tree(repo, REF_COMMIT)))
     from unik3d.models import UniK3D  # noqa: PLC0415  # reference checkout
 
-    net = UniK3D(json.loads((weights / "config.json").read_text()))
+    net = UniK3D(json.loads((weights / "config.json").read_text(encoding="utf-8")))
     net.load_state_dict(load_file(weights / "model.safetensors"))
     net.resolution_level = 9
     net.interpolation_mode = "bilinear"

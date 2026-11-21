@@ -172,7 +172,7 @@ def test_archive_download_announces_the_archive_size(tmp_path, monkeypatch, capl
 
 def test_cache_variable_naming_a_file(tmp_path, monkeypatch, capsys):  # TM-9
     f = tmp_path / "not_a_dir"
-    f.write_text("x")
+    f.write_text("x", encoding="utf-8")
     for env in (f, f / "sub"):
         monkeypatch.setenv("FASTFORKS_CACHE", str(env))
         with pytest.raises(OptionsError, match=r"FASTFORKS_CACHE=.*is not a directory"):

@@ -189,7 +189,7 @@ UNSTATED = "unstated"  # training-data id for "not stated upstream"
 @functools.cache
 def datasets() -> dict[str, Dataset]:
     """All known training datasets by id."""
-    data = tomllib.loads((importlib.resources.files("fastforks._core") / "datasets.toml").read_text())
+    data = tomllib.loads((importlib.resources.files("fastforks._core") / "datasets.toml").read_text(encoding="utf-8"))
     out = {}
     for key, t in data.items():
         commercial = t["commercial"]

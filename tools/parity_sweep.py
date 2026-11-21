@@ -244,7 +244,7 @@ def tolerance(task: str, ref: str, mode: str) -> dict[str, Any]:
     path = Path(fastforks.__file__).parent / task / "models" / fam / "golden.toml"
     if not path.is_file():
         return {}
-    d = tomllib.loads(path.read_text())
+    d = tomllib.loads(path.read_text(encoding="utf-8"))
     entry = d.get("refs", {}).get(f"{ref}@1", {})
     own = {k: v for k, v in entry.items() if k.startswith(("gpu_mean", "gpu_p99", "gpu_extra"))}
     tol = d.get("tolerance", {}) | own
@@ -454,18 +454,22 @@ def cmd_cpu(a: argparse.Namespace) -> int:
                 del m
             except Exception as e:  # noqa: BLE001
                 meta["skipped"] = f"load: {type(e).__name__}: {str(e)[:200]}"
-        meta_path(work, name).write_text(json.dumps(meta))
+        meta_path(work, name).write_text(json.dumps(meta), encoding="utf-8")
         gc.collect()
         print(name, meta.get("skipped") or [(c["size"], c["cpu"]) for c in meta["cases"]], flush=True)
     return 0
 
 
 def _read(out: Path) -> list[dict]:
-    return [json.loads(x) for x in out.read_text().splitlines() if x.strip("\0 \n")] if out.is_file() else []
+    return (
+        [json.loads(x) for x in out.read_text(encoding="utf-8").splitlines() if x.strip("\0 \n")]
+        if out.is_file()
+        else []
+    )
 
 
 def _append(out: Path, rec: dict) -> None:
-    with out.open("a") as f:
+    with out.open("a", encoding="utf-8") as f:
         f.write(json.dumps(rec) + "\n")
 
 
@@ -490,7 +494,7 @@ def cmd_gpu(a: argparse.Namespace) -> int:  # noqa: C901, PLR0912, PLR0915
     rc = 0
     for name in a.families:
         task = name.split("/")[0]
-        meta = json.loads(meta_path(work, name).read_text())
+        meta = json.loads(meta_path(work, name).read_text(encoding="utf-8"))
         ref = meta["ref"]
         base = {"family": name, "task": task, "ref": ref, "gpu": gpu, "commit": commit, "date": now()}
         if meta.get("skipped"):

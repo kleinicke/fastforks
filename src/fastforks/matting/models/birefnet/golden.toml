@@ -35,6 +35,15 @@ date = "2026-11-12"
 mean_px = 0.0
 p99_px = 1e-05
 
+[validated."birefnet-lite@1".windows]
+kernels = ["deform_conv@a38662ea1bfc:sm_120"]
+symbols = {"deform_conv" = {"deform_conv_fwd" = "3d728397880ef467"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.0
+p99_px = 1e-05
+
 [validated."birefnet@1"]
 kernels = ["deform_conv@a38662ea1bfc:sm_120"]
 symbols = {"deform_conv" = {"deform_conv_fwd" = "3d728397880ef467"}}
@@ -44,11 +53,29 @@ date = "2026-11-12"
 mean_px = 0.0
 p99_px = 0.0
 
+[validated."birefnet@1".windows]
+kernels = ["deform_conv@a38662ea1bfc:sm_120"]
+symbols = {"deform_conv" = {"deform_conv_fwd" = "3d728397880ef467"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
+mean_px = 0.0
+p99_px = 0.0
+
 [validated."rmbg-2.0@1"]
 kernels = ["deform_conv@a38662ea1bfc:sm_120"]
 symbols = {"deform_conv" = {"deform_conv_fwd" = "3d728397880ef467"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
 date = "2026-11-14"
+mean_px = 9e-05
+p99_px = 0.00038
+
+[validated."rmbg-2.0@1".windows]
+kernels = ["deform_conv@a38662ea1bfc:sm_120"]
+symbols = {"deform_conv" = {"deform_conv_fwd" = "3d728397880ef467"}}
+gpu = "NVIDIA GeForce RTX 5060 Ti"
+torch = "2.14.1+cu130"
+date = "2026-11-20"
 mean_px = 9e-05
 p99_px = 0.00038

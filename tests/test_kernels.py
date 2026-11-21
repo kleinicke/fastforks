@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import importlib
 import os
 import re
+import sys
 import tomllib
 from pathlib import Path
 
@@ -109,7 +111,9 @@ def _expand(src: str) -> str:
     return "\n".join(out)
 
 
-@pytest.mark.parametrize("lib", [p for p in BUILT if (p / "manifest.toml").read_text().count('kind = "cubin"')])
+@pytest.mark.parametrize(
+    "lib", [p for p in BUILT if (p / "manifest.toml").read_text(encoding="utf-8").count('kind = "cubin"')]
+)
 def test_signatures_match_sources(lib):
     """`SIGNATURES` (what the launcher packs) matches every `extern "C" __global__` kernel it names."""
     mod = importlib.import_module(f"fastforks.kernels.{lib.name}")
@@ -117,7 +121,9 @@ def test_signatures_match_sources(lib):
     found = {
         m[1]: "".join(_code(a, structs) for a in m[2].split(",") if a.strip())
         for cu in lib.glob("*.cu")
-        for m in _KERNEL.finditer(_expand(re.sub(r"//[^\n]*", "", cu.read_text())))  # comments may hold "(" / ","
+        for m in _KERNEL.finditer(
+            _expand(re.sub(r"//[^\n]*", "", cu.read_text(encoding="utf-8")))
+        )  # comments may hold "(" / ","
     }
     bad = {k: (v, found.get(k)) for k, v in mod.SIGNATURES.items() if found.get(k) != v}
     assert not bad, f"{lib.name}: SIGNATURES vs .cu (declared, source): {bad}"
@@ -126,24 +132,35 @@ def test_signatures_match_sources(lib):
 @pytest.mark.parametrize("lib", ALL_LIBS, ids=lambda p: p.name)
 def test_kernel_licences(lib):
     """Kernel libraries ship with the core: permissive, with provenance; manifests carry the same licence."""
-    meta = tomllib.loads((lib / "meta.toml").read_text())
+    meta = tomllib.loads((lib / "meta.toml").read_text(encoding="utf-8"))
     assert set(meta) == {"licence", "derived_from"}
     assert licence_class(meta["licence"], f"kernels/{lib.name}") == "permissive"
     if (lib / "manifest.toml").is_file():
         assert read_manifest(lib / "manifest.toml").licence == meta["licence"], "stale manifest: run build_kernels"
 
 
-@pytest.mark.parametrize("lib", BUILT, ids=lambda p: p.name)
-def test_manifest_is_current(lib):
+# manifest.toml, and manifest.windows.toml for a library with a Windows build (a DLL, or a cubin with large parameters)
+MANIFESTS = sorted(p for lib in BUILT for p in (lib / "manifest.toml", lib / "manifest.windows.toml") if p.is_file())
+
+
+def _manifest_id(path: Path) -> str:
+    return path.parent.name + ("-windows" if path.name == "manifest.windows.toml" else "")
+
+
+@pytest.mark.parametrize("path", MANIFESTS, ids=_manifest_id)
+def test_manifest_is_current(path):
     """The committed manifest belongs to the committed sources (rebuild with tools/build_kernels.py otherwise)."""
-    m = read_manifest(lib / "manifest.toml")
-    cfg = tomllib.loads((lib / "build.toml").read_text())
+    lib = path.parent
+    m = read_manifest(path)
+    cfg = tomllib.loads((lib / "build.toml").read_text(encoding="utf-8"))
     h = hashlib.sha256((lib / "build.toml").read_bytes())
     for s in cfg["sources"]:
         h.update((lib / s).read_bytes())
-    raw = tomllib.loads((lib / "manifest.toml").read_text())
+    raw = tomllib.loads(path.read_text(encoding="utf-8"))
     assert raw["sources_sha256"] == h.hexdigest(), "sources changed: run tools/build_kernels.py " + lib.name
     assert m.name == lib.name
+    assert m.licence == tomllib.loads((lib / "meta.toml").read_text(encoding="utf-8"))["licence"]
+    assert (m.system == "windows") == (path.name == "manifest.windows.toml")
     assert sorted(m.files) == sorted(cfg["targets"])
     assert all(f.name.startswith(f"{lib.name}-{m.build_id}-") for f in m.files.values())
 
@@ -155,8 +172,8 @@ def test_compat_build_matches(lib):
     c = m.compat
     assert c is not None
     assert c.compat is None
-    raw = tomllib.loads((lib / "manifest.toml").read_text())
-    raw_c = tomllib.loads((lib / "manifest.compat.toml").read_text())
+    raw = tomllib.loads((lib / "manifest.toml").read_text(encoding="utf-8"))
+    raw_c = tomllib.loads((lib / "manifest.compat.toml").read_text(encoding="utf-8"))
     assert raw_c["sources_sha256"] == raw["sources_sha256"], "sources changed: rebuild the compat build too"
     assert (c.name, c.kind, c.licence, sorted(c.files)) == (m.name, m.kind, m.licence, sorted(m.files))
     assert c.toolkit < m.toolkit
@@ -186,6 +203,8 @@ def test_compat_build_loads(monkeypatch, name):
     """On a driver for the compat toolkit only, a library with a compat build loads that build."""
     mod = importlib.import_module(f"fastforks.kernels.{name}")  # needs the GPU library
     path = LIBS / name / "manifest.toml"
+    if kernels.platform_manifest(path) != path:
+        pytest.skip("the Windows build of this library has no compat build")
     m = read_manifest(path)
     assert m.compat is not None
     monkeypatch.setattr(kernels, "driver_version", lambda: m.compat.toolkit)
@@ -199,13 +218,14 @@ def test_compat_build_loads(monkeypatch, name):
     assert tag.startswith(f"{m.compat.tag}:")
 
 
-@pytest.mark.parametrize("lib", BUILT, ids=lambda p: p.name)
-def test_manifest_symbols_are_current(lib):
+@pytest.mark.parametrize("path", MANIFESTS, ids=_manifest_id)
+def test_manifest_symbols_are_current(path):
     """`[symbols]` matches the sources (refresh with `tools/build_kernels.py --symbols`)."""
     from fastforks._core.kernel_symbols import library_symbols  # noqa: PLC0415
 
-    raw = tomllib.loads((lib / "manifest.toml").read_text())
-    got = library_symbols(lib, (lib / "build.toml").read_text(), raw["toolchain"])
+    lib = path.parent
+    raw = tomllib.loads(path.read_text(encoding="utf-8"))
+    got = library_symbols(lib, (lib / "build.toml").read_text(encoding="utf-8"), raw["toolchain"])
     assert raw["symbols"] == got, "stale [symbols]: run tools/build_kernels.py --symbols " + lib.name
 
 
@@ -214,9 +234,9 @@ def test_every_export_has_a_manifest_hash(lib):
     """Every `extern "C"` function (macro-generated ones too) and every declared signature has a `[symbols]` hash."""
     from fastforks._core.kernel_symbols import exports  # noqa: PLC0415
 
-    cfg = tomllib.loads((lib / "build.toml").read_text())
-    raw = tomllib.loads((lib / "manifest.toml").read_text())
-    exported = exports([(lib / s).read_text() for s in cfg["sources"]])
+    cfg = tomllib.loads((lib / "build.toml").read_text(encoding="utf-8"))
+    raw = tomllib.loads((lib / "manifest.toml").read_text(encoding="utf-8"))
+    exported = exports([(lib / s).read_text(encoding="utf-8") for s in cfg["sources"]])
     assert not set(exported) - set(raw["symbols"]), f"exports without a hash in {lib.name}/manifest.toml"
     assert not set(raw["symbols"]) - set(exported), "hash for a function the sources no longer export"
     sigs = getattr(importlib.import_module(f"fastforks.kernels.{lib.name}"), "SIGNATURES", {})
@@ -315,8 +335,10 @@ def test_cuda_device_passthrough():
     ("patch", "match"),
     [
         ({"hip": "6.4"}, "NVIDIA CUDA only; torch .* is ROCm/HIP"),
-        ({"platform": "darwin"}, "built for Linux x86-64, not darwin"),
-        ({"machine": "aarch64"}, "built for Linux x86-64, not linux aarch64"),
+        ({"platform": "darwin", "machine": "arm64"}, r"built for Linux and Windows x86-64, not darwin arm64"),
+        ({"machine": "aarch64"}, r"built for Linux and Windows x86-64, not linux aarch64"),
+        ({"platform": "win32", "machine": "ARM64"}, r"built for Linux and Windows x86-64, not win32 ARM64"),
+        ({"platform": "win32", "machine": "AMD64", "kind": "shared"}, r"Linux \.so .*only cubin kernel libraries"),
     ],
 )
 def test_binary_rejects_other_platforms(monkeypatch, patch, match):
@@ -324,8 +346,92 @@ def test_binary_rejects_other_platforms(monkeypatch, patch, match):
     monkeypatch.setattr(kernels.sys, "platform", patch.get("platform", "linux"))
     monkeypatch.setattr(kernels.platform, "machine", lambda: patch.get("machine", "x86_64"))
     m = read_manifest(BUILT[0] / "manifest.toml")
+    m = dataclasses.replace(m, kind=patch.get("kind", m.kind))
     with pytest.raises(KernelUnavailableError, match=match):
         kernels.binary(m, torch.device("cuda", 0))
+
+
+@pytest.mark.parametrize(("os_name", "machine"), [("linux", "x86_64"), ("win32", "AMD64")])
+def test_cubin_libraries_pass_the_platform_gate(monkeypatch, os_name, machine):
+    """A cubin is loaded by the driver API on Linux and Windows alike: the gate lets both through to the CUDA checks."""
+    monkeypatch.setattr(torch.version, "hip", None)
+    monkeypatch.setattr(kernels.sys, "platform", os_name)
+    monkeypatch.setattr(kernels.platform, "machine", lambda: machine)
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    m = dataclasses.replace(read_manifest(BUILT[0] / "manifest.toml"), kind="cubin")
+    assert kernels.platform_reason(m) is None
+    with pytest.raises(KernelUnavailableError, match="has no usable CUDA"):
+        kernels.binary(m, torch.device("cuda", 0))
+
+
+@pytest.mark.parametrize(
+    ("os_name", "system", "ok"),
+    [("linux", "linux", True), ("linux", "windows", False), ("win32", "linux", False), ("win32", "windows", True)],
+)
+def test_shared_libraries_load_only_on_their_os(monkeypatch, os_name, system, ok):
+    """A `shared` library is a host binary: the .so build runs on Linux, the DLL build (os = "windows") on Windows."""
+    monkeypatch.setattr(kernels.sys, "platform", os_name)
+    monkeypatch.setattr(kernels.platform, "machine", lambda: "AMD64" if os_name == "win32" else "x86_64")
+    m = dataclasses.replace(read_manifest(BUILT[0] / "manifest.toml"), kind="shared", system=system)
+    assert (kernels.platform_reason(m) is None) == ok
+
+
+def _windows_manifest(tmp_path, kind="shared", name="manifest.windows.toml"):
+    text = (BUILT[0] / "manifest.toml").read_text(encoding="utf-8")
+    text = re.sub(r'(?m)^kind = ".*"$', f'kind = "{kind}"\nos = "windows"', text, count=1)
+    (tmp_path / name).write_text(text, encoding="utf-8")
+    return tmp_path / name
+
+
+def test_windows_manifest_is_read_and_preferred_on_windows(monkeypatch, tmp_path):
+    """`manifest.windows.toml` (os = "windows", a DLL build) is what Windows loads next to `manifest.toml`; Linux keeps
+    `manifest.toml`, and a library without a Windows build keeps its Linux manifest (rejected by the platform gate)."""
+    path = _windows_manifest(tmp_path)
+    assert read_manifest(path).system == "windows"
+    linux = tmp_path / "manifest.toml"
+    monkeypatch.setattr(kernels.sys, "platform", "linux")
+    assert kernels.platform_manifest(linux) == linux
+    monkeypatch.setattr(kernels.sys, "platform", "win32")
+    monkeypatch.setattr(kernels.platform, "machine", lambda: "AMD64")  # _host() checks both
+    assert kernels.platform_manifest(linux) == path
+    path.unlink()
+    assert kernels.platform_manifest(linux) == linux
+
+
+@pytest.mark.parametrize(("os_name", "system", "ok"), [("linux", "windows", False), ("win32", "windows", True)])
+def test_windows_cubin_build_runs_on_windows_only(monkeypatch, tmp_path, os_name, system, ok):
+    """A cubin with a kernel parameter over 4 KB carries host-OS parameter metadata: its Windows build
+    (`manifest.windows.toml`, kind cubin) is read, preferred on Windows and refused on Linux."""
+    m = read_manifest(_windows_manifest(tmp_path, kind="cubin"))
+    assert (m.kind, m.system) == ("cubin", system)
+    monkeypatch.setattr(kernels.sys, "platform", os_name)
+    monkeypatch.setattr(kernels.platform, "machine", lambda: "AMD64" if os_name == "win32" else "x86_64")
+    assert (kernels.platform_reason(m) is None) == ok
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows DLL loader")
+def test_dll_image_loads_from_a_private_copy():
+    """Windows has no memfd: the verified bytes are written to a fresh per-process directory and loaded from there,
+    with the DLL search limited to System32 (no DLL planting from the current or PATH directories)."""
+    src = Path(os.environ.get("SYSTEMROOT", r"C:\Windows")) / "System32" / "version.dll"
+    lib = kernels._load_dll_image(src.read_bytes(), "ff_test_version.dll")
+    assert lib.GetFileVersionInfoSizeW
+    copy = kernels._dll_dir() / "ff_test_version.dll"
+    assert copy.read_bytes() == src.read_bytes()
+    # a second load (e.g. a second model using the library) never overwrites a loaded copy: it gets its own file
+    again = kernels._load_dll_image(src.read_bytes(), "ff_test_version.dll")
+    assert again.GetFileVersionInfoSizeW
+    assert copy.read_bytes() == (kernels._dll_dir() / "ff_test_version.1.dll").read_bytes()
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows DLL loader")
+def test_dll_image_loads_under_a_suffixless_cache_blob_name():
+    """A downloaded library is a content-addressed cache blob named by its SHA-256, with no suffix; LoadLibrary
+    appends ".dll" to a path without one, so the private copy must carry the suffix itself."""
+    src = Path(os.environ.get("SYSTEMROOT", r"C:\Windows")) / "System32" / "version.dll"
+    lib = kernels._load_dll_image(src.read_bytes(), "ab" * 32)
+    assert lib.GetFileVersionInfoSizeW
+    assert (kernels._dll_dir() / f"{'ab' * 32}.dll").is_file()
 
 
 def test_binary_names_the_driver_remedy(monkeypatch):

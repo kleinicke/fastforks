@@ -261,7 +261,7 @@ def main() -> None:
         **info,
     }
     row |= {"commit": commit, "date": time.strftime("%Y-%m-%d %H:%M"), "command": " ".join(["python", *sys.argv])}
-    with a.out.open("a") as f:
+    with a.out.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row) + "\n")
     if a.errors:
         np.save(a.errors, np.array(errors))

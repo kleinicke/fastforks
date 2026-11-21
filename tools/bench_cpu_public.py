@@ -34,7 +34,7 @@ import synth  # noqa: E402  # needs the sys.path entry
 
 
 def busy():
-    f = Path("/proc/stat").read_text().splitlines()[0].split()[1:]
+    f = Path("/proc/stat").read_text(encoding="utf-8").splitlines()[0].split()[1:]
     return sum(map(int, f[:3] + f[5:8])) / os.sysconf("SC_CLK_TCK")
 
 
@@ -71,7 +71,7 @@ def setup(ref):
 head = {
     "torch": torch.__version__,
     "threads": args.threads,
-    "cpu": Path("/proc/cpuinfo").read_text().split("model name\t: ")[1].split("\n")[0],
+    "cpu": Path("/proc/cpuinfo").read_text(encoding="utf-8").split("model name\t: ")[1].split("\n")[0],
     "commit": subprocess.run(
         ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=False
     ).stdout.strip(),
@@ -128,6 +128,6 @@ for ref in args.models.split(","):
             report_channels_last=rep.get("channels_last"),
             report_family=rep.get("family"),
         )
-        with Path(args.out).open("a") as fh:
+        with Path(args.out).open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(rec) + "\n")
         print(rec["model"], v, rec["median_ms"], rec["ratio_vs_contiguous"], "fc", rec["foreign_cores"], flush=True)

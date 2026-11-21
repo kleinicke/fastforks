@@ -374,7 +374,7 @@ def _isolated_worker(sc: ModuleType, spec: dict[str, Any], prefix: list[str], en
 
 def run(a: argparse.Namespace) -> int:
     sc = speed_check()
-    sel = json.loads(a.selection.read_text())
+    sel = json.loads(a.selection.read_text(encoding="utf-8"))
     rows = sc.read_rows(a.out)
     commit = sc._commit()  # noqa: SLF001
     checks = jobs(sel, a.family, a.modes, golden_only=a.golden_only)
@@ -535,7 +535,7 @@ def main() -> int:
         return worker_batch(spec) if isinstance(spec, list) else worker(spec)
     if a.cmd == "run" and (a.batch_size < 1 or (a.batch_size > 1 and not a.golden_only)):
         ap.error("--batch-size must be positive and requires --golden-only for groups larger than one")
-    sel = json.loads(a.selection.read_text())
+    sel = json.loads(a.selection.read_text(encoding="utf-8"))
     if a.cmd == "run":
         return run(a)
     if a.cmd == "table":

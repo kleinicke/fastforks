@@ -102,7 +102,7 @@ UNDOCUMENTED_CONSTANTS = {
 
 def imported_roots(path: Path) -> set[str]:
     roots = set()
-    for node in ast.walk(ast.parse(path.read_text(), str(path))):
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"), str(path))):
         if isinstance(node, ast.Import):
             roots |= {a.name.split(".")[0] for a in node.names}
         elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
@@ -132,9 +132,9 @@ def _literal_prefix(arg: ast.expr) -> str | None:
     return None
 
 
-@pytest.mark.parametrize("path", sorted(SRC.rglob("*.py")), ids=lambda p: str(p.relative_to(SRC)))
+@pytest.mark.parametrize("path", sorted(SRC.rglob("*.py")), ids=lambda p: p.relative_to(SRC).as_posix())
 def test_import_allowlist(path):
-    rel = str(path.relative_to(SRC))
+    rel = path.relative_to(SRC).as_posix()
     bad = {
         r
         for r in imported_roots(path) - ALLOWED - set(sys.stdlib_module_names)
@@ -153,13 +153,13 @@ def test_model_directories(task):
         for f in card.licence.files:
             assert (d / f).is_file(), f"{fam}: licence file {f} missing"
         assert (d / "__init__.py").is_file()
-        assert "RUNNERS = " in (d / "model.py").read_text()
+        assert "RUNNERS = " in (d / "model.py").read_text(encoding="utf-8")
         for lib in card.kernel_libs + card.mps_kernel_libs + card.mlx_kernel_libs:
             assert (SRC / "kernels" / lib / "__init__.py").is_file(), f"{fam}: unknown kernel library {lib}"
 
 
 def test_every_model_is_in_exactly_one_wheel():
-    dists = tomllib.loads((ROOT / "dists.toml").read_text())
+    dists = tomllib.loads((ROOT / "dists.toml").read_text(encoding="utf-8"))
     specs = [{"code_classes": build_dists.CORE_CLASSES}, *dists.values()]
     shipped = [d.relative_to(SRC).as_posix() for spec in specs for d in build_dists.select(spec)]
     every = {f"{c.task}/models/{c.family}" for t in registry.TASKS for c, _ in registry.cards(t).values()}
@@ -167,7 +167,7 @@ def test_every_model_is_in_exactly_one_wheel():
 
 
 def test_distributions_are_licence_classes():
-    dists = tomllib.loads((ROOT / "dists.toml").read_text())
+    dists = tomllib.loads((ROOT / "dists.toml").read_text(encoding="utf-8"))
     for name, spec in dists.items():
         assert set(spec) <= {"summary", "code_classes", "tasks"}, name
         assert set(spec["code_classes"]) <= set(get_args(CodeClass)) - set(build_dists.CORE_CLASSES), name
@@ -176,10 +176,10 @@ def test_distributions_are_licence_classes():
 
 def test_core_wheel_licence_covers_its_model_families():
     """The generated core pyproject adds the code licences and licence files of the permissive families."""
-    text = build_dists.core_pyproject((ROOT / "pyproject.toml").read_text(), {}, "1.2.3")
+    text = build_dists.core_pyproject((ROOT / "pyproject.toml").read_text(encoding="utf-8"), {}, "1.2.3")
     project = tomllib.loads(text)["project"]
     core = [c for t in registry.TASKS for c, _ in registry.cards(t).values() if c.licence.code_class == "permissive"]
-    wanted = _terms(tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["license"])
+    wanted = _terms(tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["license"])
     for card in core:
         wanted |= _terms(card.licence.code)
     assert _terms(project["license"]) == wanted
@@ -196,7 +196,7 @@ def imported_modules(path: Path, *, top_only: bool = False) -> set[str]:
     package = ["fastforks", *path.relative_to(SRC).parent.parts]
     package.append("")  # level 1 resolves against the containing package, for modules and `__init__.py` alike
     out = set()
-    tree = ast.parse(path.read_text(), str(path))
+    tree = ast.parse(path.read_text(encoding="utf-8"), str(path))
     for node in tree.body if top_only else ast.walk(tree):
         if isinstance(node, ast.Import):
             out |= {a.name for a in node.names}
@@ -221,7 +221,7 @@ def test_families_do_not_import_each_other(task):
     for card, _ in registry.cards(task).values():
         own = models + card.family
         for path in _family_files(task, card.family):
-            allowed = CROSS_FAMILY_IMPORTS.get(str(path.relative_to(SRC)), own)
+            allowed = CROSS_FAMILY_IMPORTS.get(path.relative_to(SRC).as_posix(), own)
             prefixes = tuple(p + "." for p in ((allowed,) if isinstance(allowed, str) else allowed))
             bad = {
                 m
@@ -259,7 +259,7 @@ def test_core_does_not_import_models(area):
 @pytest.mark.parametrize("module", SHARED)
 def test_shared_modules_are_permissive(module):
     d = SRC / "shared" / module
-    meta = tomllib.loads((d / "meta.toml").read_text())
+    meta = tomllib.loads((d / "meta.toml").read_text(encoding="utf-8"))
     assert set(meta) <= {"summary", "licence", "files", "derived_from"}, f"{module}: unknown meta.toml keys"
     assert licence_class(meta["licence"], f"shared/{module}") == "permissive", "shared code ships in the core wheel"
     for f in meta["files"]:
@@ -356,7 +356,7 @@ def _optimize_imports(files: list[Path]) -> set[str]:
     queue = [(p, True) for p in files]
     while queue:
         path, whole = queue.pop()
-        tree = ast.parse(path.read_text(), str(path))
+        tree = ast.parse(path.read_text(encoding="utf-8"), str(path))
         package = ["fastforks", *path.relative_to(SRC).parent.parts, ""]
         for node in ast.walk(tree) if whole else tree.body:
             if isinstance(node, ast.Import):
@@ -432,7 +432,7 @@ def _kernel_import_bounds(family: str, declared: set[str], direct: set[str], pos
 
 
 def _calls(path: Path):
-    for node in ast.walk(ast.parse(path.read_text(), str(path))):
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"), str(path))):
         if isinstance(node, ast.Call):
             yield node
 
@@ -443,7 +443,7 @@ def test_unsafe_unpickling_only_in_core_checkpoint():
     for path in sorted(SRC.rglob("*.py")):
         if path == SRC / "_core" / "checkpoint.py":
             continue
-        tree = ast.parse(path.read_text(), str(path))
+        tree = ast.parse(path.read_text(encoding="utf-8"), str(path))
         for node in ast.walk(tree):
             if isinstance(node, ast.keyword) and node.arg == "weights_only":
                 assert not (isinstance(node.value, ast.Constant) and node.value.value is False), (
@@ -461,7 +461,7 @@ def test_model_code_reads_weights_through_the_context(task):
     """`model.py` does not call `torch.load`; weights come from `ctx.state_dict` (no per-family loaders)."""
     for card, _ in registry.cards(task).values():
         path = SRC / task / "models" / card.family / "model.py"
-        if str(path.relative_to(SRC)) in TORCH_LOAD:
+        if path.relative_to(SRC).as_posix() in TORCH_LOAD:
             continue
         for call in _calls(path):
             f = call.func
@@ -474,7 +474,10 @@ def _terms(expression: str) -> set[str]:
 
 
 def _meta_licences(area: str) -> dict[str, str]:
-    return {p.parent.name: tomllib.loads(p.read_text())["licence"] for p in sorted((SRC / area).glob("*/meta.toml"))}
+    return {
+        p.parent.name: tomllib.loads(p.read_text(encoding="utf-8"))["licence"]
+        for p in sorted((SRC / area).glob("*/meta.toml"))
+    }
 
 
 @pytest.mark.parametrize("task", registry.TASKS)
@@ -482,7 +485,7 @@ def test_every_licence_file_of_a_family_is_listed_in_its_card(task):
     """The distribution metadata is built from `licence.files`: an unlisted LICENSE / NOTICE is not shipped."""
     for card, _ in registry.cards(task).values():
         d = SRC / task / "models" / card.family
-        on_disk = {str(p.relative_to(d)) for g in ("LICENSE*", "NOTICE*") for p in d.rglob(g)}
+        on_disk = {p.relative_to(d).as_posix() for g in ("LICENSE*", "NOTICE*") for p in d.rglob(g)}
         assert on_disk == set(card.licence.files), (
             f"{card.family}: LICENSE files {on_disk} vs card {card.licence.files}"
         )
@@ -496,7 +499,7 @@ def test_kernel_licences_are_permissive(kernel):
 
 def test_core_licence_covers_core_shared_and_kernels():
     """The core wheel's `license` is Apache-2.0 AND every licence of the shared modules and kernels it ships."""
-    declared = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["license"]
+    declared = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["license"]
     wanted = {"Apache-2.0"}
     for area in ("shared", "kernels"):
         for expression in _meta_licences(area).values():
@@ -506,7 +509,7 @@ def test_core_licence_covers_core_shared_and_kernels():
 
 
 def test_cutlass_kernels_are_in_the_third_party_notices():
-    notices = (ROOT / "THIRD_PARTY_NOTICES.md").read_text()
+    notices = (ROOT / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
     for kernel, expression in _meta_licences("kernels").items():
         if "BSD-3-Clause" in _terms(expression):
             assert f"`{kernel}`" in notices, f"kernel {kernel} (BSD-3-Clause) is missing in THIRD_PARTY_NOTICES.md"
@@ -514,8 +517,8 @@ def test_cutlass_kernels_are_in_the_third_party_notices():
 
 def _model_constants(path: Path):
     """Module-level `NAME = <number>` assignments of a `model.py` (line, name)."""
-    src = path.read_text().splitlines()
-    for node in ast.parse(path.read_text(), str(path)).body:
+    src = path.read_text(encoding="utf-8").splitlines()
+    for node in ast.parse(path.read_text(encoding="utf-8"), str(path)).body:
         if isinstance(node, ast.Assign | ast.AnnAssign):
             value = node.value
             targets = node.targets if isinstance(node, ast.Assign) else [node.target]
@@ -533,7 +536,7 @@ def test_no_architecture_constants_in_model_code(task):
     for card, _ in registry.cards(task).values():
         path = SRC / task / "models" / card.family / "model.py"
         for line, name, documented in _model_constants(path):
-            assert documented or (str(path.relative_to(SRC)), name) in UNDOCUMENTED_CONSTANTS, (
+            assert documented or (path.relative_to(SRC).as_posix(), name) in UNDOCUMENTED_CONSTANTS, (
                 f"{path.relative_to(SRC)}:{line}: {name} belongs in card.toml [params] (or add '# fixed: <reason>')"
             )
 
@@ -544,7 +547,7 @@ def test_kernels_runners_do_not_declare_dtypes(task):
     for card, _ in registry.cards(task).values():
         if "kernels" not in card.modes:
             continue
-        tree = ast.parse((SRC / task / "models" / card.family / "model.py").read_text())
+        tree = ast.parse((SRC / task / "models" / card.family / "model.py").read_text(encoding="utf-8"))
         for cls in (n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "Kernels"):
             names = {t.id for n in cls.body if isinstance(n, ast.Assign) for t in n.targets if isinstance(t, ast.Name)}
             assert "dtypes" not in names, f"{card.family}: Kernels.dtypes is never read; remove it"
@@ -626,9 +629,9 @@ def test_commercial_status_follows_code_and_weights_licence_only(task):
 
 
 def test_core_wheel_extras_pin_the_model_distributions():
-    dists = tomllib.loads((ROOT / "dists.toml").read_text())
-    project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
-    text = build_dists.core_pyproject((ROOT / "pyproject.toml").read_text(), dists, project["version"])
+    dists = tomllib.loads((ROOT / "dists.toml").read_text(encoding="utf-8"))
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    text = build_dists.core_pyproject((ROOT / "pyproject.toml").read_text(encoding="utf-8"), dists, project["version"])
     extras = tomllib.loads(text)["project"]["optional-dependencies"]
     for name in dists:
         assert extras[name.removeprefix("fastforks-")] == [f"{name}=={project['version']}"]
@@ -638,7 +641,7 @@ def test_core_wheel_extras_pin_the_model_distributions():
 @pytest.mark.parametrize("task", registry.TASKS)
 def test_task_load_is_generated_by_task_api(task):
     """Option, dtype, device and mode logic lives in `_core/model.py`; a task's `load` is made by `task_api`."""
-    tree = ast.parse((SRC / task / "_api.py").read_text())
+    tree = ast.parse((SRC / task / "_api.py").read_text(encoding="utf-8"))
     loads = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "load"]
     if not loads:
         assigns = [n for n in tree.body if isinstance(n, ast.Assign) and isinstance(n.value, ast.Call)]

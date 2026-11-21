@@ -65,7 +65,7 @@ def test_instances_and_pose_json(tmp_path: Path) -> None:
         "portable",
     )
     det.save(tmp_path / "d.json")
-    rows = json.loads((tmp_path / "d.json").read_text())
+    rows = json.loads((tmp_path / "d.json").read_text(encoding="utf-8"))
     assert rows == [{k: v for k, v in d.items() if k != "mask"} for d in det.to_list()]
     assert rows[0]["class_name"] == "dog"
     with pytest.raises(InputError, match=r"writes \.json"):
@@ -86,5 +86,5 @@ def test_instances_and_pose_json(tmp_path: Path) -> None:
     assert torch.equal(top.keypoints, pose.keypoints[:1])
     assert torch.equal(top.keypoint_scores, pose.keypoint_scores[:1])
     fastforks.save(tmp_path / "p.json", pose)
-    got = json.loads((tmp_path / "p.json").read_text())
+    got = json.loads((tmp_path / "p.json").read_text(encoding="utf-8"))
     assert got[1]["keypoints"]["c"] == list(pose.to_list()[1]["keypoints"]["c"])

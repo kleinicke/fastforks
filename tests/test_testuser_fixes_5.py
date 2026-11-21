@@ -15,6 +15,7 @@ from fastforks._core import cli, files, registry
 from fastforks._core.errors import FastforksError, InputError, OptionsError
 from fastforks.depth import DepthResult
 from fastforks.stereo.pipeline import _files, check_output_dir, run_many
+from test_files import needs_symlinks
 
 
 @pytest.mark.parametrize("value", ["1", "TRUE", " yes ", "On"])
@@ -39,6 +40,7 @@ def test_env_flag_typo_fails_closed(monkeypatch, name):
 
 def test_cache_and_search_path_expand_and_absolutize(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))  # what `expanduser` reads on Windows
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("FASTFORKS_CACHE", "~/c")
     assert files.cache_root() == tmp_path / "c"
@@ -50,13 +52,13 @@ def test_cache_and_search_path_expand_and_absolutize(monkeypatch, tmp_path):
 
 def test_search_path_warns_once_per_bad_entry(monkeypatch, tmp_path, caplog):
     bad = tmp_path / "a,b"
-    monkeypatch.setenv("FASTFORKS_WEIGHTS_PATH", f"{bad}:{tmp_path}")
+    monkeypatch.setenv("FASTFORKS_WEIGHTS_PATH", f"{bad}{os.pathsep}{tmp_path}")
     with caplog.at_level(logging.WARNING, logger=files.log.name):
         files.search_path("FASTFORKS_WEIGHTS_PATH")
         files.search_path("FASTFORKS_WEIGHTS_PATH")
     msgs = [r.getMessage() for r in caplog.records if str(bad) in r.getMessage()]
     assert len(msgs) == 1
-    assert "':'" in msgs[0]
+    assert repr(os.pathsep) in msgs[0]
     assert not [r for r in caplog.records if str(tmp_path) + " is not" in r.getMessage()]
 
 
@@ -131,6 +133,7 @@ def _images(d: Path, *names: str) -> None:
         Image.fromarray(np.zeros((4, 4, 3), np.uint8)).save(d / n)
 
 
+@needs_symlinks
 def test_broken_symlink_in_directory_and_glob_is_listed(tmp_path):
     _images(tmp_path / "L", "a.png")
     (tmp_path / "L" / "b.png").symlink_to(tmp_path / "missing.png")
@@ -140,7 +143,7 @@ def test_broken_symlink_in_directory_and_glob_is_listed(tmp_path):
 
 def test_output_dir_checks(tmp_path):
     f = tmp_path / "file"
-    f.write_text("x")
+    f.write_text("x", encoding="utf-8")
     with pytest.raises(InputError, match="output directory"):
         check_output_dir(f)
     with pytest.raises(InputError, match="output directory"):
@@ -148,7 +151,9 @@ def test_output_dir_checks(tmp_path):
     assert check_output_dir(tmp_path / "new" / "sub").is_dir()
 
 
-@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores directory permissions")
+@pytest.mark.skipif(
+    not hasattr(os, "geteuid") or os.geteuid() == 0, reason="needs POSIX directory permissions (root ignores them)"
+)
 def test_output_dir_not_writable(tmp_path):
     ro = tmp_path / "ro"
     ro.mkdir()
@@ -164,7 +169,7 @@ def test_stereo_run_out_is_a_file_fails_before_model_load(capsys, tmp_path):
     _images(tmp_path / "L", "a.png")
     _images(tmp_path / "R", "a.png")
     out = tmp_path / "out"
-    out.write_text("x")
+    out.write_text("x", encoding="utf-8")
     argv = ["stereo", "run", str(tmp_path / "L"), str(tmp_path / "R"), "--model", "hitnet-eth3d", "--out", str(out)]
     assert cli.main(argv) == 1
     err = capsys.readouterr().err

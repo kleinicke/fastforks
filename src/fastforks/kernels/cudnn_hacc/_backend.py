@@ -10,6 +10,7 @@ The library is the `libcudnn.so.9` PyTorch loaded (one cuDNN per process); the c
 from __future__ import annotations
 
 import ctypes
+import sys
 import threading
 from typing import TYPE_CHECKING
 
@@ -71,14 +72,34 @@ def _mapped_path(soname: str) -> str:
     return soname
 
 
+def _module_path(name: str) -> str:
+    """Windows: absolute path of the already loaded DLL `name` (`GetModuleHandleW`), else `name` itself."""
+    if sys.platform != "win32":
+        return name
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    k32.GetModuleHandleW.argtypes, k32.GetModuleHandleW.restype = [ctypes.c_wchar_p], _VP
+    k32.GetModuleFileNameW.argtypes = [_VP, ctypes.c_wchar_p, ctypes.c_uint32]
+    k32.GetModuleFileNameW.restype = ctypes.c_uint32
+    handle = k32.GetModuleHandleW(name)
+    if not handle:
+        return name
+    buf = ctypes.create_unicode_buffer(32768)
+    return buf.value if k32.GetModuleFileNameW(handle, buf, len(buf)) else name
+
+
+def _cudnn_path() -> str:
+    """The cuDNN 9 library torch loaded: `cudnn64_9.dll` (in torch/lib) on Windows, `libcudnn.so.9` elsewhere."""
+    return _module_path("cudnn64_9.dll") if sys.platform == "win32" else _mapped_path("libcudnn.so.9")
+
+
 class _Lib:
-    """`libcudnn.so.9` with the backend API's signatures."""
+    """`libcudnn.so.9` (Windows: `cudnn64_9.dll`) with the backend API's signatures."""
 
     def __init__(self) -> None:
         import torch  # noqa: PLC0415 - loads cuDNN first
 
         torch.backends.cudnn.version()  # loads the library torch links: dlopen by soname then finds that copy
-        lib = ctypes.CDLL(_mapped_path("libcudnn.so.9"))
+        lib = ctypes.CDLL(_cudnn_path())
         i32 = ctypes.c_int32
         sig = {
             "cudnnCreate": [ctypes.POINTER(_VP)],
