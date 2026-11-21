@@ -19,6 +19,7 @@ An op without a mapping raises `UnsupportedOp` naming it (never a silent fallbac
 
 from __future__ import annotations
 
+import contextlib
 import ctypes
 import functools
 import gc
@@ -1995,6 +1996,9 @@ def _tensor_dtype(dtype: mx.Dtype, t: torch.Tensor) -> mx.Dtype | None:
 
 TUNE_LOG = bool(os.environ.get("FF_MLX_TUNE_LOG"))  # print each tuning trial (segment, times, peaks, decision)
 PROFILE: dict[tuple[str, str], list[float]] | None = {} if os.environ.get("FF_MLX_PROFILE") else None
+# `FF_MLX_COLD_LOG=1`: where a first call's time goes (export, translation, each segment's first against its fifth
+# call by kind: eager, compiled, tuned, memo), printed after the fifth call of each input signature
+COLD_LOG = bool(os.environ.get("FF_MLX_COLD_LOG"))
 
 
 def _profiled(
@@ -2015,6 +2019,42 @@ def _profiled(
     rec = PROFILE.setdefault((getattr(f, "__name__", str(f)), f"{ins}->{shape}"), [0.0, 0])  # type: ignore[union-attr]
     rec[0] += dt
     rec[1] += 1
+
+
+@contextlib.contextmanager
+def _no_op_regions() -> Iterator[None]:
+    """While exporting: autocast and grad-mode regions that change nothing are not recorded.
+
+    `torch.export` records every `torch.autocast` and `torch.no_grad` region of the forward and then splits the graph at
+    each one, regenerating the Python code of the whole graph per split (quadratic: IGEV's 65 autocast regions over 8k
+    nodes are 10 to 20 s of a 29 s export). A region that leaves the state as it was (an autocast that is or turns off,
+    for a device whose autocast is already off, such as a CUDA autocast on a Mac; `no_grad` under `no_grad`) has no
+    effect on the traced ops, so it is skipped. A region that changes the state is recorded as before.
+    """
+    autocast = torch.amp.autocast_mode.autocast
+    enter, exit_ = autocast.__enter__, autocast.__exit__
+    set_grad = torch._C._set_grad_enabled  # noqa: SLF001 - what torch's grad-mode managers call at call time
+
+    def lean_enter(self: Any) -> Any:  # noqa: ANN401
+        skip = not getattr(self, "_enabled", True) and not torch.is_autocast_enabled(self.device)
+        self.__dict__.setdefault("_ff_skipped", []).append(skip)
+        return self if skip else enter(self)
+
+    def lean_exit(self: Any, *exc: object) -> Any:  # noqa: ANN401
+        skipped = self.__dict__.get("_ff_skipped")
+        return False if skipped and skipped.pop() else exit_(self, *exc)
+
+    def lean_set_grad(mode: bool) -> None:  # noqa: FBT001 - torch's signature
+        if bool(mode) != torch.is_grad_enabled():
+            set_grad(mode)
+
+    autocast.__enter__, autocast.__exit__ = lean_enter, lean_exit  # type: ignore[method-assign]
+    torch._C._set_grad_enabled = lean_set_grad  # noqa: SLF001
+    try:
+        yield
+    finally:
+        autocast.__enter__, autocast.__exit__ = enter, exit_  # type: ignore[method-assign]
+        torch._C._set_grad_enabled = set_grad  # noqa: SLF001
 
 
 class GraphNet:
@@ -2072,6 +2112,7 @@ class GraphNet:
         self.plan: Any = None
         self.plan_extra: Callable[[], Any] | None = None
         self.plan_restore: Callable[[Any], None] | None = None
+        self._cold: dict[str, Any] = {}  # `COLD_LOG`: the current build's phase times
 
     def _const(self, name: str, t: torch.Tensor, *, share: bool = True) -> mx.array:
         if not share:  # a lifted constant (a grid built in the forward): "lifted_tensor_0" differs per export
@@ -2091,20 +2132,31 @@ class GraphNet:
 
     def _build(self, args: tuple[torch.Tensor, ...]) -> Callable[..., Any]:
         token = EXPORTING_FOR_MLX.set(True)
+        t0 = time.perf_counter()
         try:
             return self._build_graph(args)
         finally:
             EXPORTING_FOR_MLX.reset(token)
+            if COLD_LOG:
+                self._cold["build"] = time.perf_counter() - t0
 
     def _export(self, args: tuple[torch.Tensor, ...]) -> Any:  # noqa: ANN401 - an ExportedProgram
         """The module exported at `args` and decomposed to core ATen: from the plan cache when it has the entry."""
+        t0 = time.perf_counter()
+        try:
+            return self._export_program(args)
+        finally:
+            if COLD_LOG:
+                self._cold["export"] = time.perf_counter() - t0
+
+    def _export_program(self, args: tuple[torch.Tensor, ...]) -> Any:  # noqa: ANN401 - an ExportedProgram
         if self.plan is not None and (got := self.plan.load_program(self.module)) is not None:
             ep, extra = got
             if self.plan_restore is not None:
                 self.plan_restore(extra)
             return ep
         filled = False
-        with torch.no_grad():
+        with torch.no_grad(), _no_op_regions():
             try:
                 ep = torch.export.export(self.module, args, strict=False)
             except (RuntimeError, ValueError, AssertionError, UserWarning):
@@ -2122,7 +2174,10 @@ class GraphNet:
                 *_EDGE_PADS,
             ):
                 decomp.pop(keep, None)
+            t0 = time.perf_counter()
             ep = ep.run_decompositions(decomp)
+            if COLD_LOG:
+                self._cold["decomp"] = time.perf_counter() - t0
         if self.plan is not None and not filled:  # a loaded program could not fill the lazy buffers: not cached
             self.plan.save_program(ep, self.module, self.plan_extra() if self.plan_extra is not None else None)
         return ep
@@ -2418,6 +2473,8 @@ class GraphNet:
         known = self.plan.load_tune(tune_sig) if self.plan is not None else None
         known = known if known is not None and len(known) == len(bounds) else [None] * len(bounds)
         decided: list[bool | None] = list(known)
+        kinds = ["eager"] * len(bounds)  # `COLD_LOG`: how each segment's first call ran
+        cold_runs: list[list[float]] = []
 
         def make(  # noqa: C901
             k: int, seg: list[tuple[int, tuple[Any, ...]]]
@@ -2457,6 +2514,7 @@ class GraphNet:
             ):
                 return ins, outs, fn
             jit = mx.compile(fn)
+            kinds[k] = "compiled"
             use: list[Callable[..., Any]] = [jit]
             seg_big = max((self._sizes.get(p[1], 0) for _, p in seg), default=0)
             tune = [seg_big > TUNE_MIN_MB << 20 and not os.environ.get("FF_MLX_NO_TUNE")]
@@ -2467,6 +2525,7 @@ class GraphNet:
             if known[k] is not None:  # decided by an earlier process (plan cache): no trials
                 use[0] = jit if known[k] else fn
                 tune[0] = False
+                kinds[k] = "known"
 
             def timed(g: Callable[..., Any], xs: tuple[mx.array, ...]) -> tuple[float, int, Any]:
                 """Seconds and peak bytes of the second call of `g` (the first warms kernels and traces)."""
@@ -2478,11 +2537,63 @@ class GraphNet:
                 mx.eval(res)
                 return time.perf_counter() - t0, mx.get_peak_memory(), res
 
+            # the trial spread over the segment's first four calls: compiled, eager (both warm their kernels), then
+            # compiled and eager timed; no call replays the segment, so the first call pays no trial
+            spread: list[Any] | None = None if os.environ.get("FF_MLX_TUNE_FIRST") else []
+
+            def decide(te: float, me: int, tc: float, mc: int) -> None:
+                if tc > te * TUNE_SLACK or mc > me * 1.25 + (64 << 20):
+                    use[0] = fn
+                decided[k] = use[0] is jit
+                self._tune_memo.setdefault(shape_key, decided[k])
+                kinds[k] = "tuned-" + ("compiled" if decided[k] else "eager")
+                if TUNE_LOG:
+                    print(  # noqa: T201 - FF_MLX_TUNE_LOG=1: the tuning pass's trials
+                        f"mlx tune: segment {k} ({len(seg)} ops, {seg_big >> 20} MB) eager {1e3 * te:.1f} ms"
+                        f" {me >> 20} MB, compiled {1e3 * tc:.1f} ms {mc >> 20} MB"
+                        f" -> {'compiled' if decided[k] else 'eager'}",
+                        flush=True,
+                    )
+
+            def step(xs: tuple[mx.array, ...]) -> tuple[mx.array, ...]:
+                """One call of the spread trial (`spread` holds the timings so far)."""
+                n = len(spread)
+                g = jit if n % 2 == 0 else fn
+                if n < 2:  # noqa: PLR2004 - the two warming calls
+                    spread.append(None)
+                    res = g(*xs)
+                    if n == 0:
+                        kinds[k] = "trial"
+                    return res
+                mx.eval(xs)  # a pipelined segment before this one has finished
+                mx.synchronize()
+                mx.reset_peak_memory()
+                t0 = time.perf_counter()
+                res = g(*xs)
+                mx.eval(res)
+                spread.append((time.perf_counter() - t0, mx.get_peak_memory()))
+                if n == 3:  # noqa: PLR2004
+                    tune[0] = False
+                    (tc, mc), (te, me) = spread[2], spread[3]
+                    decide(te, me, tc, mc)
+                return res
+
             def guarded(*xs: mx.array) -> tuple[mx.array, ...]:
                 if tune[0] and (memo := self._tune_memo.get(shape_key)) is not None:
                     tune[0] = False  # an earlier trial of the same structure decided (recorded with the plan)
                     use[0] = jit if memo else fn
                     decided[k] = memo
+                    kinds[k] = "memo-" + ("compiled" if memo else "eager")
+                if tune[0] and spread is not None:
+                    try:
+                        return step(xs)
+                    except ValueError as err:
+                        if "uncaptured" not in str(err):
+                            raise
+                        tune[0] = False
+                        use[0] = fn
+                        decided[k] = False
+                        return fn(*xs)
                 if tune[0]:  # first call of a segment with big maps: keep the compiled form only if it is not slower
                     tune[0] = False
                     try:
@@ -2495,15 +2606,7 @@ class GraphNet:
                         use[0] = fn
                         decided[k] = False
                         return fn(*xs)
-                    if tc > te * TUNE_SLACK or mc > me * 1.25 + (64 << 20):
-                        use[0] = fn
-                    decided[k] = self._tune_memo[shape_key] = use[0] is jit
-                    if TUNE_LOG:
-                        print(  # noqa: T201 - FF_MLX_TUNE_LOG=1: the tuning pass's trials
-                            f"mlx tune: segment {k} ({len(seg)} ops, {seg_big >> 20} MB) eager {1e3 * te:.1f} ms"
-                            f" {me >> 20} MB, compiled {1e3 * tc:.1f} ms {mc >> 20} MB -> {'compiled' if decided[k] else 'eager'}",
-                            flush=True,
-                        )
+                    decide(te, me, tc, mc)
                     return res
                 try:
                     return use[0](*xs)
@@ -2550,7 +2653,51 @@ class GraphNet:
                 known[:] = decided
             return tuple(o.astype(mx.float32) for o in get(env, out_names))
 
-        return run
+        if not COLD_LOG:
+            return run
+
+        def clocked(f: Callable[..., tuple[mx.array, ...]]) -> Callable[..., tuple[mx.array, ...]]:
+            def g(*xs: mx.array) -> tuple[mx.array, ...]:
+                if len(cold_runs) > 5 or not cold_runs:  # noqa: PLR2004 - the first five calls are clocked
+                    return f(*xs)
+                t0 = time.perf_counter()
+                res = f(*xs)
+                mx.eval(res)
+                cold_runs[-1].append(time.perf_counter() - t0)
+                return res
+
+            return g
+
+        segments[:] = [(ins, outs, clocked(f)) for ins, outs, f in segments]
+
+        def cold_run(*inputs: mx.array) -> tuple[mx.array, ...]:
+            if len(cold_runs) < 5:  # noqa: PLR2004
+                cold_runs.append([])
+            res = run(*inputs)
+            if len(cold_runs) == 5:  # noqa: PLR2004 - the first call against the fifth (tuned)
+                self._cold_report(kinds, [cold_runs[0], cold_runs[4]], bounds)
+                cold_runs.append([])  # done: later calls run unclocked
+            return res
+
+        return cold_run
+
+    def _cold_report(self, kinds: list[str], runs: list[list[float]], bounds: list[tuple[int, int]]) -> None:
+        """`COLD_LOG`: the first call's extra time (first minus fifth call) by phase and segment kind."""
+        by: dict[str, list[float]] = {}
+        for kind, a, b, (lo, hi) in zip(kinds, *runs, bounds, strict=True):
+            rec = by.setdefault(kind, [0, 0.0, 0.0, 0])
+            rec[0] += 1
+            rec[1] += a - b
+            rec[2] += b
+            rec[3] += hi - lo
+        export = self._cold.get("export", 0.0)
+        parts = [
+            f"export {export:.2f}s (decomp {self._cold.get('decomp', 0.0):.2f}s)",
+            f"translate {self._cold.get('build', 0.0) - export:.2f}s",
+        ]
+        parts += [f"{k} x{n} ({ops} ops) +{extra:.2f}s (warm {warm:.2f}s)" for k, (n, extra, warm, ops) in by.items()]
+        parts.append(f"first {sum(runs[0]):.2f}s fifth {sum(runs[1]):.2f}s")
+        print("mlx cold: " + " | ".join(parts), flush=True)  # noqa: T201 - FF_MLX_COLD_LOG=1
 
     def __call__(self, *tensors: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """Run on CPU tensors; returns float32 CPU tensors."""

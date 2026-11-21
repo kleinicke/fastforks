@@ -453,8 +453,9 @@ Left: the kernels float16 failure, the SDPA (2.8 GB) and conv3d (3.1-3.7 GB) seg
 
 `mx.compile` is now decided per segment instead of per graph: segments whose largest activation exceeds
 `SEG_COMPILE_MAX_MB` (200) run eagerly, and a segment with an activation above `TUNE_MIN_MB` (16) is timed eagerly and
-compiled once on its first call and keeps the compiled form unless it is more than 3 % slower or peaks 25 % higher.
-`FF_MLX_NO_TUNE=1` disables the tuning, `FF_MLX_SEG_MB` moves the size gate.
+compiled and keeps the compiled form unless it is more than 3 % slower or peaks 25 % higher. The trial is spread over
+the segment's first four calls (see "Spread tuning" under Cold start); `FF_MLX_TUNE_FIRST=1` runs it all on the first
+call as before. `FF_MLX_NO_TUNE=1` disables the tuning, `FF_MLX_SEG_MB` moves the size gate.
 
 Portable fp16, 994x1482 (ms / peak MB, this pass, MLX only; MPS values are in the table above):
 
@@ -899,6 +900,40 @@ Left: MLX's own compile and the translation still run on a hit (1 to 4 s on the 
 depth-pro); `mx.export_function` could store the compiled segments too. The survey rows of the routed refs were not
 re-taken with the memo. ppocrv5-mobile's survey first call is 35 s at fp16 against 9.8 s fp32 in this probe (not
 investigated; likely one graph per text-crop shape).
+
+### Big nets: export regions and spread tuning (v0.21 follow-up)
+
+`FF_MLX_COLD_LOG=1` prints the first call's cost by phase (export, decomposition, translation) and segment kind (first
+call against the fifth). On the big nets the first call was export plus tuning trials:
+
+- igev-stereo fp16: export 29.1 s, of which about 15 s were torch.export's `replace_autocast_with_hop_pass` /
+  `replace_set_grad_with_hop_pass`. They split the graph at every no-op `autocast(enabled=False)` and `set_grad_enabled`
+  region and recompile the GraphModule each time (quadratic in the regions). `_no_op_regions()` skips autocast regions
+  that change nothing (disabled, with autocast already off) and grad toggles to the current mode while exporting under
+  `no_grad`: export 29.1 -> 14.6 s (decomposition 8.5 s of it, a full retrace, left as is).
+- Tuning trials replayed each segment above 16 MB three more times on the first call (pi3 +28.7 s, igev +8 s). The trial
+  is now spread over the segment's first four calls: call 1 compiled, call 2 eager (both untimed, they warm kernels),
+  calls 3 and 4 timed (synchronized, peak memory reset), then the same decision rule. No call replays a segment, so the
+  first call pays only one compile. Decisions still go to the memo and the plan cache (partial ones are saved as None).
+  `FF_MLX_TUNE_FIRST=1` restores the old first-call trials.
+
+Survey (portable, M1 Pro 16 GB, before = committed rows, after = this change):
+
+| ref (dtype) | first_call_s before -> after | warm ms before -> after | peak MB before -> after |
+|---|---|---|---|
+| igev-stereo-sceneflow (fp16) | 63.3 -> 22.1 | 6026 -> 5678 | 4931 -> 4566 |
+| igev-stereo-sceneflow (fp32) | 62.6 -> 26.1 | 6812 -> 6303 | 4599 -> 4404 |
+| pi3 (fp16) | 80.9 -> 29.2 | 11593 -> 10309 | 3874 -> 3859 |
+| dat-2-x4 (fp16) | 77.4 -> 25.4 | 17232 -> 15757 | 3768 -> 3512 |
+| dat-2-x4 (fp32) | 88.9 -> 31.1 | 23853 -> 20494 | 5890 -> 5886 |
+| great-igev-sceneflow (fp16) | 62.6 -> 38.5 | 20253 -> 14349 | 9722 -> 9356 |
+
+Not committed: pi3 fp32 (85.1 -> 44.0 s, 11851 -> 10942 ms, but 5526 -> 5591 MB) and great-igev fp32 (118.2 -> 45.2 s,
+23111 -> 16330 ms, 9355 -> 10080 MB). The great-igev fp32 peak is the same with `FF_MLX_TUNE_FIRST=1` (10081 MB), so
+it comes from earlier changes on the branch, not from this one. Part of the warm gains comes from earlier commits too
+(the old rows predate them). Left: the decomposition retrace (5 to 8 s), translation on a page-cache-cold weight file
+(pi3: 17 to 22 s cold vs 1 s warm, mmapped safetensors read while converting constants), and memo hits for repeated
+blocks whose segment cuts do not line up.
 
 ## MPS lessons from MLX
 
