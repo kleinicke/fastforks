@@ -992,6 +992,22 @@ def _wino_weights(w: mx.array, wl: mx.array, dtype: mx.Dtype, m: int) -> mx.arra
     return hit[1]
 
 
+KEEP_F32_CONV = bool(os.environ.get("FF_MLX_KEEP_F32_CONV"))  # float32 inputs of half-precision convolutions stay
+
+
+def _conv_input(x: mx.array, w: mx.array) -> mx.array:
+    """A float32 input of a half-precision convolution in the weights' dtype, as PyTorch's half-precision run has it.
+
+    The replayed twin is float32: a `.to(dtype)` before a convolution, a float32 state buffer (`torch.empty(...,
+    dtype=dt)`) or a float32 lookup result is recorded as float32, and the float16 replay then promoted every layer it
+    feeds, the whole recurrent update block of the RAFT / IGEV / MonSter families (79-92 % of the convolution FLOPs in
+    float32 at 384x576). PyTorch cannot convolve float32 with float16 weights, so its float16 run casts there too.
+    """
+    if not KEEP_F32_CONV and x.dtype == mx.float32 and w.dtype in (mx.float16, mx.bfloat16):
+        return x.astype(w.dtype)
+    return x
+
+
 @_reg(aten.convolution.default)
 def _conv(
     x: mx.array,
@@ -1045,6 +1061,7 @@ def _conv_res(
     residual: mx.array,
 ) -> mx.array:
     """`_conv` plus `residual`; kernels mode adds it in the Winograd output transform."""
+    x = _conv_input(x, w)
     if _KERNELS:
         xl = _nhwc(x)
         if _wino_ok(xl, w, stride, padding, dilation, groups):
@@ -1054,6 +1071,11 @@ def _conv_res(
             m = _wino_tile(xl)
             return _nchw(conv_ops.conv3x3(xl, _wino_weights(w, wl, xl.dtype, m), b, m=m, residual=_nhwc(residual)))
     return _conv(x, w, b, stride, padding, dilation, transposed, output_padding, groups) + residual
+
+
+def _channel_slice(y: mx.array, lo: int, hi: int) -> mx.array:
+    """Output channels `lo:hi` of a merged convolution (a view)."""
+    return y[:, lo:hi]
 
 
 def _shift_pad(x: mx.array, axis: int, lo: int, hi: int) -> mx.array:
@@ -1231,6 +1253,7 @@ def _conv_core(
     slope: mx.array | None = None,
 ) -> mx.array | None:
     """The convolution; with `act`, `None` unless the Winograd kernel ran (and applied the activation itself)."""
+    x = _conv_input(x, w)
     if act and (
         x.ndim == 3
         or transposed
@@ -1405,10 +1428,42 @@ def _conv_core(
             return _nchw(conv_ops.conv3x3(xl, _wino_weights(w, wl, xl.dtype, m), b, m=m, act=act, slope=slope))
         if act:
             return None
-        y = mx.conv2d(xl, wl, stride=tuple(stride), padding=tuple(padding), dilation=tuple(dilation), groups=groups)
+        y = _conv2d(xl, wl, tuple(stride), tuple(padding), tuple(dilation), groups)
     if b is not None:
         y = y + b
     return _nchw(y)
+
+
+MERGE_OFF = bool(os.environ.get("FF_MLX_NO_MERGE"))  # sibling convolutions (same input and geometry) stay separate
+ALIGN_OFF = bool(os.environ.get("FF_MLX_NO_ALIGN"))  # `mx.conv2d` with ragged channel counts as they are
+
+
+def _conv2d(
+    xl: mx.array,
+    wl: mx.array,
+    stride: tuple[int, ...],
+    padding: tuple[int, ...],
+    dilation: tuple[int, ...],
+    groups: int,
+) -> mx.array:
+    """`mx.conv2d` with ragged channel counts padded to the widths its GEMM tiles take (zero weights, output sliced).
+
+    MLX's implicit GEMM is much slower on output channels that are not a multiple of 16 and on wide inputs that are not
+    a multiple of 32 (M1 Pro, float16, 256x376: 128 -> 126 3x3 11.3 -> 5.0 ms padded to 128; 1x1 1.7 -> 1.2 ms;
+    130 -> 128 9.3 -> 6.4 ms with the input padded to 160; 258 -> 128 17.3 -> 10.1 ms). RAFT-style motion encoders
+    (`128 - 2`), GRU inputs (`128 + 2 + ...`) and correlation features hit both.
+    """
+    cout, cin = wl.shape[0], wl.shape[3]
+    if ALIGN_OFF:
+        return mx.conv2d(xl, wl, stride=stride, padding=padding, dilation=dilation, groups=groups)
+    pad_out = (-cout) % 16 if groups == 1 and cout >= 16 else 0
+    pad_in = (-cin) % 32 if groups == 1 and cin >= 64 and stride == (1, 1) and wl.shape[1] * wl.shape[2] > 1 else 0
+    if pad_out or pad_in:
+        wl = mx.pad(wl, [(0, pad_out), (0, 0), (0, 0), (0, pad_in)])
+    if pad_in:
+        xl = mx.pad(xl, [(0, 0), (0, 0), (0, 0), (0, pad_in)])
+    y = mx.conv2d(xl, wl, stride=stride, padding=padding, dilation=dilation, groups=groups)
+    return y[..., :cout] if pad_out else y
 
 
 def _pool_windows(
@@ -1459,6 +1514,28 @@ def _max_pool(
     return _pool_windows(x, k, s, pad, -float("inf"), ceil=ceil).max(axis=(-2, -1)), None
 
 
+def _window_sum(x: mx.array, k: Sequence[int], s: Sequence[int], pad: Sequence[int]) -> mx.array:
+    """Float32 window sums of NCHW `x` (floor mode) as k strided-slice adds per axis.
+
+    The 6-D `as_strided` window view reduced over its last two axes ran 4 ms for a 3x3 / stride-2 pool of
+    `[1, 128, 256, 376]` on an M1 Pro (RAFT-Stereo's `pool2x`, 32 per call); two separable passes of slice adds are
+    a few contiguous elementwise kernels.
+    """
+    y = x.astype(mx.float32)
+    if any(pad):
+        y = mx.pad(y, [(0, 0), (0, 0), (pad[0], pad[0]), (pad[1], pad[1])])
+    for axis, (kk, ss) in enumerate(zip(k, s, strict=True), start=2):
+        n_out = (y.shape[axis] - kk) // ss + 1
+        idx = [slice(None)] * 4
+        acc = None
+        for i in range(kk):
+            idx[axis] = slice(i, i + ss * (n_out - 1) + 1, ss)
+            part = y[tuple(idx)]
+            acc = part if acc is None else acc + part
+        y = acc
+    return y
+
+
 @_reg(aten.avg_pool2d.default)
 def _avg_pool(
     x: mx.array,
@@ -1470,7 +1547,10 @@ def _avg_pool(
     divisor: int | None = None,
 ) -> mx.array:
     s = s or k
-    win = _pool_windows(x, k, s, pad, 0.0, ceil=ceil).astype(mx.float32).sum(axis=(-2, -1))
+    if ceil or x.ndim != 4:
+        win = _pool_windows(x, k, s, pad, 0.0, ceil=ceil).astype(mx.float32).sum(axis=(-2, -1))
+    else:
+        win = _window_sum(x, k, s, pad)
     if divisor is not None:
         win = win / divisor
     elif (any(pad) and not count_include_pad) or ceil:  # windows clipped to the input (and to the padding, if counted)
@@ -2205,6 +2285,11 @@ class GraphNet:
         cl_values = (
             set() if os.environ.get("FF_MLX_NO_CL") else _channels_last_values(nodes, {**folds.skip, **fused.skip})
         )
+        merged = (
+            {}
+            if MERGE_OFF
+            else self._merge_siblings(nodes, names, lifted, values, {*folds.args, *fused.conv, *fused.res})
+        )
         for node in nodes:
             if node.op == "placeholder":
                 tgt = names.get(node.name)
@@ -2218,6 +2303,14 @@ class GraphNet:
                     continue
                 if node.name in fused.skip:
                     plan.append(("alias", node.name, fused.skip[node.name]))
+                    continue
+                if node.name in merged:
+                    lead, lo, hi, wk, bk = merged[node.name]
+                    if wk is not None:  # the first sibling runs the merged convolution
+                        a = node.args
+                        args = (a[0], _Name(wk), _Name(bk) if bk else None, *a[3:])
+                        plan.append(("call", lead, _conv, _plain(args), {}))
+                    plan.append(("call", node.name, _channel_slice, (_Name(lead), lo, hi), {}))
                     continue
                 if node.name in fused.res:
                     wk, bk, rname = fused.res[node.name]
@@ -2244,6 +2337,8 @@ class GraphNet:
             for node in nodes
             if node.op == "call_function" and isinstance(v := node.meta.get("val"), torch.Tensor)
         }
+        for name, (lead, *_) in merged.items():  # a merged convolution's output: its siblings' together
+            self._sizes[lead] = self._sizes.get(lead, 0) + self._sizes.get(name, 0)
         self.max_act = max(self._sizes.values(), default=0)
         self.weight_bytes = sum(t.numel() for t in lifted.values() if isinstance(t, torch.Tensor)) * self._itemsize
         values.update(folds.values)
@@ -2269,6 +2364,57 @@ class GraphNet:
         except KeyError:
             msg = f"no MLX mapping for {target}"
             raise UnsupportedOp(msg) from None
+
+    def _merge_siblings(
+        self,
+        nodes: list[Any],
+        names: dict[str, Any],
+        lifted: dict[str, torch.Tensor],
+        values: dict[str, Any],
+        exclude: set[str],
+    ) -> dict[str, tuple[str, int, int, str | None, str | None]]:
+        """Convolutions that read the same value with the same geometry, merged into one along the output channels.
+
+        A GRU's update and reset gates (`convz(hx)`, `convr(hx)`) and twin heads become one wider convolution whose
+        output the siblings slice: the input is read (and, for Winograd, transformed) once and the GEMM is wider.
+        Returns conv name -> (merged value, first channel, end channel, merged weight key, bias key); the keys are set
+        on the first sibling only.
+        """
+        groups: dict[tuple[Any, ...], list[Any]] = {}
+        for conv in nodes:
+            if conv.op != "call_function" or conv.target is not aten.convolution.default or conv.name in exclude:
+                continue
+            a = conv.args
+            wv = a[1].meta.get("val") if hasattr(a[1], "meta") else None
+            if a[6] or a[8] != 1 or wv is None or wv.ndim != 4 or names.get(a[1].name) is None:
+                continue
+            if a[2] is not None and names.get(a[2].name) is None:
+                continue
+            key = (a[0].name, tuple(wv.shape[1:]), tuple(a[3]), tuple(a[4]), tuple(a[5]), a[2] is None)
+            groups.setdefault(key, []).append(conv)
+        out: dict[str, tuple[str, int, int, str | None, str | None]] = {}
+        for convs in groups.values():
+            if len(convs) < 2:
+                continue
+            wnames = [names[c.args[1].name] for c in convs]
+            bnames = [names[c.args[2].name] for c in convs] if convs[0].args[2] is not None else []
+            lead = f"{convs[0].name}__merged"
+            wk = "\0".join(wnames) + "\0merged"
+            bk = "\0".join(bnames) + "\0merged" if bnames else None
+            if wk not in self._consts:
+                self._consts[wk] = self._const(f"{wk}\0w", torch.cat([lifted[n] for n in wnames]), share=False)
+            values[wk] = self._consts[wk]
+            if bk is not None:
+                if bk not in self._consts:
+                    self._consts[bk] = self._const(f"{bk}\0b", torch.cat([lifted[n] for n in bnames]), share=False)
+                values[bk] = self._consts[bk]
+            self._consumed.update((*wnames, *bnames))
+            lo = 0
+            for i, c in enumerate(convs):
+                hi = lo + int(c.args[1].meta["val"].shape[0])
+                out[c.name] = (lead, lo, hi, wk if i == 0 else None, bk if i == 0 else None)
+                lo = hi
+        return out
 
     def _fuse_activations(
         self, nodes: list[Any], names: dict[str, Any], lifted: dict[str, torch.Tensor], values: dict[str, Any]
