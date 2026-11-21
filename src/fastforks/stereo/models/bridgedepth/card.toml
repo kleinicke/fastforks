@@ -3,7 +3,7 @@ name = "BridgeDepth"
 summary = "BridgeDepth (Guan et al. 2025): Depth Anything V2 (ViT-L) features combined with NMRF stereo hypotheses; window-attention message passing between mono and stereo embeddings, inference at 1/8 resolution plus a 1/4 refinement."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "depth_anything_v2"]  # fastforks.shared modules this family imports
 limitations = [
   "ONNX Runtime resolves top-k ties differently from PyTorch on noise pairs: bridgedepth-sf differs by up to 0.010 px (mean 0.001) on a synthetic textured pair.",
   "At fixed 375 x 1242, the FP32 standalone monocular TensorRT branch took 284 ms on both checkpoints versus 324 to 325 ms for paired portable FP32. The stereo branch stayed in PyTorch. The largest individual NOC endpoint-error change was 0.0023 px across the two 15-pair Middlebury checks.",
@@ -33,6 +33,9 @@ backbone = "resnet"  # stereo feature encoder: "resnet" (BasicEncoder) or "convn
 backbone_channels = 256
 max_disp = 320  # disparity range of the proposal cost volume (at full resolution)
 
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for small repeated shapes (false: eager, no extra memory)
+
 [modes.portable]
 cuda_dtype = "float16"  # original runs the mono branch under float16 autocast; our fork runs the whole net so
 mps_dtypes = ["float32", "float16"]
@@ -44,6 +47,11 @@ mps_kernels = ["stereo_metal"]
 # Kernels: the portable float16 path with every window attention as one fused kernel (fastbb win_rpe_attn, as NMRF) and
 # the Depth Anything V2 ViT-L as the fp16 DINOv2 of fastforks.shared.depth_anything_v2 (fp16-accumulate GEMMs, fastbb
 # flash attention). Middlebury-H 350 vs 437 ms (our earlier fork 430), peak 2.7 vs 2.9 GB; KITTI 92.9 vs 111.6 ms
+# CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x padded H x W <= 500k (up to KITTI
+# 375x1242) replays a CUDA graph, captured on a shape's second call, at most 2 shapes per model (Windows KITTI
+# 126 -> 93 ms). The graph pool stays reserved (KITTI 2.5 vs 1.4 GB eager) until `model.release_graphs()`;
+# `cuda_graphs=False` turns it off. Larger inputs are GPU-bound and run eagerly (Middlebury-H 356 vs 351 ms with a
+# graph, for 5.9 vs 2.6 GB reserved)
 
 # Upstream also publishes l_sf (a
 # Scene Flow pretraining checkpoint for fine-tuning; fails on real images: not added), rvc and the KITTI / ETH3D /

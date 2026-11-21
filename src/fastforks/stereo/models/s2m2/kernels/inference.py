@@ -753,11 +753,10 @@ def _attn_rel_pe_flash(
     Q[..., :hd] = q
     K[..., :hd] = k
     V[..., :hd] = v
-    j = torch.arange(N, device=dev)
-    oh = torch.zeros((N, w + h), device=dev, dtype=dt)
-    oh[j, j % w] = 1
-    oh[j, w + j // w] = 1
-    V[..., hd : hd + w + h] = oh
+    j = torch.arange(N, device=dev)[:, None]
+    # one-hot rows by comparison: an index_put of the scalar 1 copies it from the host (no CUDA graph capture)
+    oh = torch.cat((j % w == torch.arange(w, device=dev), j // w == torch.arange(h, device=dev)), 1)
+    V[..., hd : hd + w + h] = oh.to(dt)
     o2 = F.scaled_dot_product_attention(Q, K, V, scale=attn.scale)
     del Q, K, V
     c = n * H

@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from fastforks._core.checkpoint import NUMPY_ARRAYS
+from fastforks.kernels import cudnn_hacc
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Forward, Runner
 
 from .net import Model
@@ -24,6 +26,7 @@ class Params:
     """Load options (card `[options]`)."""
 
     iters: int
+    cuda_graphs: bool  # kernels replays CUDA graphs for small repeated shapes
 
 
 def _net(ctx: Context) -> Model:
@@ -81,8 +84,16 @@ class MetalKernels(Portable):
         return forward_fast(net, left, right, self.ctx.params.iters, self.ops)
 
 
+_GRAPH_PIXELS = 1_000_000  # fixed: batch x padded H x W; launch-bound up to 1280x720 (2 x 20 GRU passes), measured
+_GRAPHS = 2  # fixed: graph cache policy
+
+
 class Kernels(Runner):
-    """Our kernels: fused-norm encoder, adaptive group correlation, fused GRU epilogues, fp16-accumulate convs."""
+    """Our kernels: fused-norm encoder, adaptive group correlation, fused GRU epilogues, fp16-accumulate convs.
+
+    A repeated input shape up to `_GRAPH_PIXELS` replays a CUDA graph (`fastforks.shared.cuda_graphs`): the eager
+    pass is launch-bound there.
+    """
 
     Params = Params
 
@@ -92,10 +103,24 @@ class Kernels(Runner):
         from .kernels.inference import Engine  # noqa: PLC0415 - needs the kernel libraries
 
         self.engine = Engine(_net(ctx), ctx.device)
+        self._graphs = SmallShapeGraphs(
+            self._run,
+            pixels=_GRAPH_PIXELS,
+            graphs=_GRAPHS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+        )
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool on the device."""
+        self._graphs.release()
+
+    def _run(self, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+        return self.engine(left, right, self.ctx.params.iters)
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity of a padded pair."""
-        return {"disparity": self.engine(left, right, self.ctx.params.iters)}
+        return {"disparity": self._graphs(left, right)}
 
 
 class MlxPortable(Runner):

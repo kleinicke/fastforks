@@ -9,7 +9,9 @@ from typing import TYPE_CHECKING
 import torch
 
 from fastforks._core.patch import base_type, override
+from fastforks.kernels import cudnn_hacc
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.depth_anything_v2.net.dinov2_layers.attention import Attention
 from fastforks.stereo._runner import Forward, Runner
 
@@ -25,6 +27,7 @@ class Params:
 
     max_disp: int
     arch: str  # Depth Anything V2 feature encoder: "vits" or "vitb"
+    cuda_graphs: bool  # option: kernels replays CUDA graphs for small repeated shapes
 
 
 def _cfg(arch: str, max_disp: int) -> types.SimpleNamespace:
@@ -122,8 +125,16 @@ class Portable(Runner):
         return Forward(self.net, lambda _net, left, right: self._run(left, right))
 
 
+_GRAPH_PIXELS = 500_000  # fixed: batch x H x W; launch-bound up to KITTI 375x1242, measured
+_GRAPHS = 2  # fixed: graph cache policy
+
+
 class Kernels(Runner):
-    """Our kernels: merged LoRA, fp16 NHWC convs with fused InstanceNorm / SiLU / GELU / residual epilogues."""
+    """Our kernels: merged LoRA, fp16 NHWC convs with fused InstanceNorm / SiLU / GELU / residual epilogues.
+
+    A repeated input shape up to `_GRAPH_PIXELS` replays a CUDA graph (`fastforks.shared.cuda_graphs`): the eager
+    pass is launch-bound there.
+    """
 
     Params = Params
 
@@ -135,10 +146,24 @@ class Kernels(Runner):
         self.net = _net(ctx)
         prepare_kernels(self.net, ctx.device)
         self._forward = forward_kernels
+        self._graphs = SmallShapeGraphs(
+            self._run,
+            pixels=_GRAPH_PIXELS,
+            graphs=_GRAPHS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+        )
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool on the device."""
+        self._graphs.release()
+
+    def _run(self, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+        return self._forward(self.net, left, right)
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity of a batch (0..255 images)."""
-        return {"disparity": self._forward(self.net, left, right)}
+        return {"disparity": self._graphs(left, right)}
 
 
 RUNNERS = {

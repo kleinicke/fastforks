@@ -68,7 +68,9 @@ def test_forward_matches_upstream(net: GIMMVFI_R) -> None:
     with torch.inference_mode():
         coord = [(net.sample_coord_input(1, xs.shape[-2:], [0.3], device=xs.device), None)]
         want = net(xs, coord, t=[0.3 * torch.ones(1)], ds_factor=1.0)["imgt_pred"][0]
-        got = _interpolate(net, a, b, torch.full((1,), 0.3), Params(iters=20, ds_factor=1.0), make=_VolumeCorr)
+        got = _interpolate(
+            net, a, b, torch.full((1,), 0.3), Params(iters=20, ds_factor=1.0, cuda_graphs=False), make=_VolumeCorr
+        )
     assert torch.isfinite(want).all()
     torch.testing.assert_close(got, want, rtol=0, atol=1e-5)
 
