@@ -1071,6 +1071,8 @@ def _mps_via_mlx(  # noqa: PLR0913 - the resolved arguments of `load_model`
 ) -> M | None:
     """The MLX port for `device="mps"` where it measured faster (`_mlx_for_mps`), results on `dev`; None: PyTorch."""
     if (route := _mlx_for_mps(card, variant, mode, dtype)) is None:
+        if mode == "auto" and card.portable_mlx_dtypes and os.environ.get("FASTFORKS_MLX", "1") != "0":
+            log.info('%s: an MLX port exists; load(..., device="mlx") runs it (slower first call)', variant.ref)
         return None
     try:
         m = _load_mlx(

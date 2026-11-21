@@ -743,6 +743,12 @@ Metal correlation kernel with `mode="kernels"`.
 
 ## Apple silicon (MLX)
 
+**Choosing MLX.** `device="mps"` picks MLX for you only where it is measured faster or leaner *and* its first call
+is cheap (see [MPS takes the faster port](#mps-takes-the-faster-port)). To use MLX anywhere else, pass
+`device="mlx"` (any family with a port, `mode="portable"` or `"kernels"`): it is often leaner, but the first call
+at each input size compiles the network (seconds for large inputs, see "First call" below). Loading with
+`device="mps"` logs at INFO when an MLX port exists. `fastforks info MODEL` lists it as `apple mlx`.
+
 `device="mlx"` runs a model through Apple's [MLX](https://github.com/ml-explore/mlx) instead of PyTorch's MPS
 backend. It is a device, not a mode: `mode` and `dtype` keep their meaning, and the result is the same object with
 the same outputs.
