@@ -30,10 +30,10 @@ from typing import Any
 import torch
 import torch.nn.functional as F
 
-from fastforks.shared import mlx_wrap
 from fastforks._core.errors import InputError
 from fastforks._core.half import fp16_accumulate
 from fastforks.promptable_segmentation._runner import Context, Forward, Runner, scale
+from fastforks.shared import mlx_wrap
 from fastforks.shared.clip_tokenizer import ClipTokenizer
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.seginfer import pretrained

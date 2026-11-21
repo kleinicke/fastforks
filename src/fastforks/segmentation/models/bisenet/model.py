@@ -22,9 +22,9 @@ from fastforks._core.checkpoint import load_strict
 from fastforks.segmentation._runner import Forward, Runner, scale
 from fastforks.segmentation.models.bisenet.net import BiSeNet
 from fastforks.shared import mlx_wrap
-from fastforks.shared.mlx_graph import MlxModule
 from fastforks.shared.cnn_kernels import prepare_generic
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
+from fastforks.shared.mlx_graph import MlxModule
 from fastforks.shared.seginfer import resize, target_size, upsample, upsample_argmax
 
 if TYPE_CHECKING:

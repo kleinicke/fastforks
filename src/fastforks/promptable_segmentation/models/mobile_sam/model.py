@@ -18,10 +18,10 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
-from fastforks.shared import mlx_wrap
 from fastforks._core.checkpoint import load_strict
 from fastforks._optimize import optimize
 from fastforks.promptable_segmentation._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.sam_prompt import decode, prepare, preprocess_shape
 from fastforks.shared.sam_prompt.net.mask_decoder import MaskDecoder

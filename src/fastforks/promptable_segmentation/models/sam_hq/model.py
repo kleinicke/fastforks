@@ -16,10 +16,10 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
-from fastforks.shared import mlx_wrap
 from fastforks._core.checkpoint import load_strict
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.promptable_segmentation._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 
 from .fast import decode, encode, hq_features, prepare, preprocess_shape, rel_tables, select

@@ -30,8 +30,8 @@ from fastforks._core.errors import OptionsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks.multiview._runner import Forward, Runner, invert
-from fastforks.shared.depth_anything_v2 import FastViT, vit_large
 from fastforks.shared import mlx_wrap
+from fastforks.shared.depth_anything_v2 import FastViT, vit_large
 from fastforks.shared.host_blocks import StreamedModuleList
 from fastforks.shared.qk_affine import cached_qk_affine
 

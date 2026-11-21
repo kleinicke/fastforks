@@ -18,10 +18,10 @@ import torch
 import torch.nn.functional as F
 from torch import fx
 
-from fastforks.shared import mlx_wrap
 from fastforks._core.checkpoint import load_strict
 from fastforks._optimize import optimize
 from fastforks.promptable_segmentation._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 
 from .fast import Trunk, decode, prepare, preprocess_shape, tensor_eps, wide_points
