@@ -389,6 +389,76 @@ the speed-table harness: uint8 CUDA input, other warm-up and medians), so they c
   at load (`bd881ef5`). That merge also breaks psmnet kernels mode on both OSes: `RuntimeError: kernels: no conv
   + BatchNorm run was fused (the module tree changed)`.
 
+## Attention speed on Windows (work/attn-speed)
+
+The remaining gap after decision 9 (cuDNN first without flash) was profiled with `torch.profiler` over one call
+per reference, Windows native against WSL2 (same GPU, driver, torch 2.14.1+cu130 / cuDNN 9.24). Each cell is its own
+process under the GPU lock, median of 30 calls after warm-up, fp16, `mode` as named. GPU time is the summed kernel
+time of a profiled call; "attn" is the part spent in SDPA / flash kernels.
+
+What was left, per reference (before this work):
+
+| reference (size) | mode | Windows ms (GPU, attn) | Linux ms (GPU, attn) | cause |
+| --- | --- | --- | --- | --- |
+| sam-hq-vit-b (1024) | kernels | 67.4 (64.3, 45.0) | 36.9 (34.4, 15.2) | augmented head dim 192: no cuDNN, memory-efficient |
+| sam-hq-vit-b (1024) | portable | 82.1 (80.0, 45.3) | 51.7 (45.7, 15.2) | same |
+| c-foundationstereo-s (375x1242) | portable | 1706 (1682, 0 SDPA kernels) | 1170 (1116, 29) | head dim 7: math backend |
+| c-foundationstereo-s (375x1242) | kernels | 459 (453, 52) | 442 (431, 34) | cuDNN at head dim 8 vs flash |
+| sam2.1-hiera-tiny (1024) | kernels | 17.7 (13.3, 4.5) | 16.7 (12.9, 4.0) | cuDNN d96 global attention vs flash |
+| depth-anything-v2-s (518x770) | kernels | 6.7, best 5.6 (4.3, 1.4) | 5.0 (4.5, 1.4) | none on the GPU (fastbb `flash64` on both): WDDM launches |
+| bridgedepth-sf (375x1242) | kernels | 114, best 100 (99, 10.6) | 101 (92, 10.6) | not attention (equal); bimodal |
+
+Fixed (pure PyTorch, so both modes gain and the portable path stays portable):
+
+- **SAM / HQ-SAM / ViTMatte global attention** (`shared/sam_attention.py`, commit `Run SAM's global attention with a
+  dense bias where SDPA has no flash`). The augmented form `q' = [q * scale, rel_h, rel_w]` has head dim 192 in
+  the global blocks; cuDNN takes at most 128, so Windows ran memory-efficient (10.8 ms per `[1, 12, 4096, 192]`
+  call; Linux flash 3.4 ms). Where the SDPA policy has no flash and the augmented head dim exceeds 128, the call now
+  runs SDPA at head dim 64 with `rel_h + rel_w` as a dense mask (cuDNN: 3.1 ms), in chunks of at most 128 MiB
+  (`MASK_BYTES`), logged once. Linux defaults keep the augmented form. Tried and rejected: q/k at 192 with v at 64
+  (memory-efficient takes it, 7.9 ms; cuDNN still refuses), folding one table into the keys per query row (805 MB
+  of keys at 1024).
+- **C-FoundationStereo portable** (`c_foundationstereo/portable.py`, commit `Pad C-FoundationStereo's head dim 7 to
+  8 in portable attention`): an override of `FlashMultiheadAttention.forward` zero-pads half-precision CUDA
+  Q / K / V to head dim 8 (scale `7 ** -0.5`), which memory-efficient and cuDNN accept; flash did the same padding
+  internally, and Linux output is bit-equal to before.
+
+After (Windows "before" is the branch base run from a `git worktree` of it, same session):
+
+| reference (size) | mode | Windows before | Windows after | Linux (WSL2) |
+| --- | --- | --- | --- | --- |
+| sam-hq-vit-b (1024) | kernels | 67.0 | 37.2 (best 35.6) | 37.2 |
+| sam-hq-vit-b (1024) | portable | 88.1 | 53.8 | 54.0 |
+| sam-vit-b (1024) | kernels | 69.3 | 42.2 (best 38.1) | 40.6 |
+| sam-vit-b (1024) | portable | 83.9 | 49.7 | 50.4 |
+| vitmatte-s (1080x1920) | kernels | 140.6 | 68.8 | 83.5 |
+| vitmatte-s (1080x1920) | portable | 160.3 | 87.6 | 102.7 |
+| c-foundationstereo-s (375x1242) | portable | 1706 | 1197 | 1170 |
+| c-foundationstereo-s (375x1242) | kernels | 459 | 461 (unchanged) | 442 |
+
+The SAM attention now takes 11.5 ms of GPU time per call on Windows against 15.2 ms for flash on Linux; ViTMatte
+at 1080p (8160 tokens) is faster on Windows than on Linux. The bias form would also be faster on Linux, but Linux
+keeps PyTorch's order (decision 9), so its numbers and goldens do not move. GPU goldens, both modes: Windows
+sam-vit-b, sam-vit-l, sam-hq-vit-b, vitmatte-s, vitmatte-b, c-foundationstereo-s, c-fast-foundationstereo pass;
+WSL2 sam-vit-b, sam-hq-vit-b, vitmatte-s, c-foundationstereo-s, c-fast-foundationstereo pass with the default
+policy, and the three SAM / ViTMatte references also with `FASTFORKS_SDPA=cudnn,efficient,math` (the bias form). No
+kernel library was rebuilt, so no `[validated]` record changed.
+
+Not done:
+
+- **A fastforks FA2 kernel for kernels mode.** A prototype cubin (fp16, no mask, any `Nq` / `Nk`, head dim a
+  multiple of 8 up to 128 zero-padded in shared memory, fp32 accumulation, 64- or 128-row query tiles) matches
+  cuDNN / flash accuracy. Per call against cuDNN on Windows: d32 `[1, 8, 4096]` 0.49 vs 0.87 ms (flash 0.48), SAM 2
+  window `[25, 4, 196, 96]` 0.12 vs 0.17 ms, but SAM 2 global d96 `[1, 4, 4096]` 0.76 vs 0.90 ms (flash 0.67) and d128
+  1.96 vs 1.71 ms. At the shapes the references run the gain is under 0.5 ms per call (sam2.1-hiera-tiny: about
+  0.5 ms of 17.7), not worth a new library with Linux and Windows records. A kernel with the SAM bias fused in
+  (the tables read per key tile instead of a dense mask) would save about another 1-2 ms per SAM global block.
+- **C-FS-S kernels attention** at head dim 8: cuDNN 52 ms vs flash 34 ms of 459 ms (4 %).
+- **WDDM launch overhead** (depth-anything-v2-s kernels 135 launches: 6.7 ms median vs 4.3 ms GPU): CUDA graphs
+  in kernels mode where a family does not use them yet.
+- `sam3` was not profiled on Windows (its weights are not in the Windows cache); on Linux it runs fastbb
+  `flash64` plus PyTorch flash at d32 / d64 (about 4 ms), which cuDNN covers except d32.
+
 ## Decisions to review
 
 Made without a maintainer to keep the work moving; each is in its own commit so it can be reverted on its own.
@@ -532,6 +602,12 @@ Decided by the maintainer on 2026-11-21 (see [Windows-only numerical differences
 
    Decided: cuDNN is the no-flash default (it is the faster backend for the SAM and ViT models; RF-DETR is about
    10 % slower with it).
+10. **SAM relative-position attention formulation follows the SDPA policy** (`shared.sam_attention.use_biased`, see
+    [Attention speed on Windows](#attention-speed-on-windows-workattn-speed)). Without flash in the policy, global
+    blocks run SDPA with a dense bias mask instead of the augmented dot product: the same maths, a different SDPA
+    call, chosen per call from the policy and logged once. It is not a fallback: nothing is retried, and a policy
+    that names no backend for the call still raises. Linux defaults are unchanged; using the bias form there too
+    (faster than flash on the augmented form) would move Linux numbers and is left to a maintainer.
 
 ## Platform notes
 
