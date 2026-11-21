@@ -9,7 +9,7 @@ import torch
 
 from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
-from fastforks.stereo._volume import concat_fn, stacked_volume
+from fastforks.stereo._volume import stacked_volume
 
 from .net.gwcnet import GwcNet
 from .net.submodule import groupwise_correlation

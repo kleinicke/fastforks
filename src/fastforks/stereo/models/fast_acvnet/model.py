@@ -9,11 +9,11 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.sampling import grid_sample
+from fastforks._core.volume_ops import gwc_volume
 from fastforks.kernels import acv_volume, cudnn_hacc
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Forward, Runner
-from fastforks._core.volume_ops import gwc_volume
 
 from .net.fast_acv import Fast_ACVNet
 from .net.fast_acv_plus import Fast_ACVNet_plus

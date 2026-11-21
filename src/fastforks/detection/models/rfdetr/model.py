@@ -70,7 +70,7 @@ class Portable(Runner):
         self.net = self.net.eval().to(ctx.device, ctx.torch_dtype)
         export_path(self.net)  # the authors' inference path (their float16 benchmark row uses it)
         from fastforks.shared.rfdetr.net.models.postprocess import (
-            PostProcess,  # noqa: PLC0415 - after optional dependencies
+            PostProcess,
         )
 
         self.postprocess = PostProcess(num_select=ctx.params.num_select)

@@ -20,13 +20,13 @@ from typing import TYPE_CHECKING, ClassVar, Literal
 import torch
 import torch.nn.functional as F
 
-from fastforks.shared import mlx_wrap
 from fastforks._core import registry
 from fastforks._core.image import checked_ranges
 from fastforks._core.model import load_variant
 from fastforks._core.runner import host
 from fastforks.features._api import TASK, FeaturesModel
 from fastforks.promptable_segmentation._runner import Forward, Runner
+from fastforks.shared import mlx_wrap
 
 if TYPE_CHECKING:
     from fastforks.promptable_segmentation._runner import Context

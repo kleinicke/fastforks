@@ -71,7 +71,7 @@ class DepthwiseConvs(FusedConvs):
     def _dw(self, c: nn.Conv2d, x: torch.Tensor, act: int) -> torch.Tensor | None:
         """`act(c(x))` through the kernel (`act`: `conv_ops` code), or None if `c` is not such a depthwise conv."""
         from fastforks._optimize.conv_ops import (
-            dwconv,  # noqa: PLC0415 - loads the fvm_conv kernels (kernels mode only)
+            dwconv,
         )
 
         if not (c.groups == c.in_channels == c.out_channels and c.groups % 8 == 0 and c.dilation == (1, 1)):

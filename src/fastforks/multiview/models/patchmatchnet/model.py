@@ -22,9 +22,9 @@ from typing import TYPE_CHECKING, Any
 import torch
 import torch.nn.functional as F
 
-from fastforks.shared import mlx_wrap
 from fastforks._core.sampling import grid_sample
 from fastforks.multiview._runner import Forward, NoParams, Runner, f64, invert, take
+from fastforks.shared import mlx_wrap
 
 from .net.net import PatchmatchNet
 
@@ -735,7 +735,7 @@ class _Traceable(Portable):
     def random_init(self, dmin: torch.Tensor, dmax: torch.Tensor, h: int, w: int) -> torch.Tensor:
         """`_Base.random_init` with its seeded draw on real tensors."""
         if (h, w) not in self._init_cache:
-            from torch.utils._python_dispatch import _disable_current_modes  # noqa: PLC0415, PLC2701 - untraced draw
+            from torch.utils._python_dispatch import _disable_current_modes  # noqa: PLC0415 - untraced draw
 
             with _disable_current_modes():
                 super().random_init(torch.ones(1), torch.ones(1), h, w)

@@ -184,7 +184,6 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
 
     `kernels_fp16_only=True`: the kernels mode uses its Metal kernels in float16 only (float32 runs as portable).
     """
-
     out_key = "image" if whole is True else whole
 
     class Mlx(portable):  # ty: ignore[unsupported-base]
