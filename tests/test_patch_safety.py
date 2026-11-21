@@ -62,6 +62,14 @@ def test_stem_c8_cache_hits_follows_writes_and_drops_dead_weights():
     assert len(conv_ops._STEM_C8_W) == n - 1
 
 
+def test_stem_c8_cache_accepts_inference_tensor_weights():
+    """ComfyUI loads weights in inference mode; such tensors have no version counter (reading it raised)."""
+    with torch.inference_mode():
+        w = torch.randn(16, 8, 3, 3)
+    a = conv_ops._stem_c8_weight(w)
+    assert conv_ops._stem_c8_weight(w) is a
+
+
 # --- finding 4: transformed-weight caches follow load_state_dict ------------------------------------------------
 
 

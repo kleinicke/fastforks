@@ -99,16 +99,27 @@ def _stem_c8_drop(key: int, ref: weakref.ref[torch.Tensor]) -> None:
         del _STEM_C8_W[key]
 
 
+def _version(w: torch.Tensor) -> int:
+    """`w`'s in-place edit counter; -1 for an inference tensor, which has none (ComfyUI loads weights that way).
+
+    The cache then relies on the storage address alone, and an in-place edit of an inference tensor goes unseen.
+    """
+    try:
+        return w._version  # noqa: SLF001 - torch's counter
+    except RuntimeError:  # "Inference tensors do not track version counter."
+        return -1
+
+
 def _stem_c8_weight(w: torch.Tensor) -> torch.Tensor:
     """[K, 8, R, S] -> [K/8][R][S][8 in][8 out] (cached per weight tensor, version and storage)."""
     key = id(w)
     hit = _STEM_C8_W.get(key)
-    if hit is not None and hit[0]() is w and hit[1] == w._version and hit[2] == w.data_ptr():  # noqa: SLF001
+    if hit is not None and hit[0]() is w and hit[1] == _version(w) and hit[2] == w.data_ptr():
         return hit[3]
     k, _, r, s = w.shape
     wt = w.contiguous().view(k // 8, 8, 8, r, s).permute(0, 3, 4, 2, 1).contiguous()
     ref = weakref.ref(w, lambda r, key=key: _stem_c8_drop(key, r))
-    _STEM_C8_W[key] = (ref, w._version, w.data_ptr(), wt)  # noqa: SLF001
+    _STEM_C8_W[key] = (ref, _version(w), w.data_ptr(), wt)
     return wt
 
 
