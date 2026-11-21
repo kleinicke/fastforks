@@ -10,6 +10,7 @@ from .waftv1_dav2 import DepthAnythingFeature
 from .vit import VisionTransformer, MODEL_CONFIGS
 
 from .utils import coords_grid, Padder, bilinear_sampler
+from fastforks._core.mlx_cast import to_run_dtype  # fastforks: run-dtype casts on MLX
 
 from fastforks.shared.timm_blocks import resnet_layers
 
@@ -157,7 +158,8 @@ class ViTWarpV8(nn.Module):
             flow_2x = flow_2x.detach()
             coords2 = (coords_grid(N, H//2, W//2, device=image1.device) + flow_2x).detach()
             warp_2x = bilinear_sampler(fmap2_2x, coords2.permute(0, 2, 3, 1))
-            refine_inp = self.warp_linear(torch.cat([fmap1_2x, warp_2x, net, flow_2x], dim=1))
+            # fastforks: the float32 flow state and warp would lift a float16 MLX replay's refinement ViT to float32
+            refine_inp = self.warp_linear(to_run_dtype(torch.cat([fmap1_2x, warp_2x, net, flow_2x], dim=1), fmap1_2x.dtype))
             refine_out = self.refine_net(refine_inp)['out']
             del refine_inp, warp_2x
             net = self.refine_transform(torch.cat([refine_out, net], dim=1))

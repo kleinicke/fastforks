@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
+from fastforks._core.mlx_cast import to_run_dtype  # fastforks: run-dtype casts on MLX
 
 # fastforks: timm.create_model(<name>, pretrained=True).blocks -> the timm-free blocks of fastforks.shared.timm_blocks
 # (same parameter names; the WAFT checkpoint holds all weights, so no ImageNet download); PatchEmbed (identical to the
@@ -62,7 +63,7 @@ class VisionTransformer(nn.Module):
         assert int(w0) == pos_embed.shape[-1]
         assert int(h0) == pos_embed.shape[-2]
         pos_embed = pos_embed.permute(0, 2, 3, 1).view(1, -1, dim)
-        return pos_embed.to(previous_dtype)
+        return to_run_dtype(pos_embed, previous_dtype)  # fastforks: to_run_dtype (.to is a no-op in the float32 MLX twin)
 
     def forward(self, x):
         B, nc, h, w = x.shape
