@@ -534,6 +534,32 @@ def test_comfyui_making_room_frees_our_models(pack: Any, monkeypatch: pytest.Mon
     assert list(nodes._cache) == [("elsewhere",)]
 
 
+def test_load_keeps_models_while_memory_lasts(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A workflow cycling several nodes reloads none of them; only memory (or `_MAX_CACHED`) drops the oldest."""
+    nodes, mm = pack.nodes, pack.mm
+    loads: list[str] = []
+    asked: list[float] = []
+
+    def fake_load(mid: str, **kw: Any) -> Any:
+        loads.append(mid)
+        return types.SimpleNamespace(device=kw["device"], backend="portable", release_graphs=lambda: None)
+
+    monkeypatch.setattr(nodes, "_cache", nodes.OrderedDict())
+    monkeypatch.setattr(nodes.fastforks, "load", fake_load)
+    monkeypatch.setattr(nodes, "_weights_bytes", lambda _: 2**20)
+    monkeypatch.setattr(mm, "get_torch_device", lambda: torch.device("cpu"), raising=False)
+    monkeypatch.setattr(mm, "free_memory", lambda need, *_, **__: asked.append(need) or [])
+    ids = ["depth-anything-v2-s", "birefnet-lite", "sam2.1-hiera-small", "rife-4.26", "realesr-general-x4v3"]
+    for _ in range(3):
+        for mid in ids:
+            nodes.load(mid, "auto", "auto")
+    assert loads == ids  # each loaded once
+    assert asked == [2 * 2**20 + 2**30] * len(ids)  # room asked before each load, never on a cache hit
+    monkeypatch.setattr(nodes, "_MAX_CACHED", 2)
+    nodes.load("rtdetrv2-r18", "auto", "auto")
+    assert [k[0] for k in nodes._cache] == ["realesr-general-x4v3", "rtdetrv2-r18"]  # oldest dropped first
+
+
 def test_cache_setup(pack: Any, tmp_path: Path) -> None:
     """Downloads go to models/fastforks; the normal cache and extra model folders are read in place."""
     first, extra, normal = tmp_path / "first", tmp_path / "extra", tmp_path / "normal"

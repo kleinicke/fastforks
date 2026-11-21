@@ -1,8 +1,9 @@
 """ComfyUI nodes over the public fastforks API: `fastforks.load(id)` once, then call the model per image.
 
 Every node takes a model id, a backend (`auto` / `portable` / `kernels`) and a dtype. Loaded models stay cached across
-runs (at most `_MAX_CACHED`, least recently used dropped first) on ComfyUI's device; ComfyUI's "Unload models" also
-empties the cache. ComfyUI is imported lazily so the module imports without it (unit tests).
+runs on ComfyUI's device. When ComfyUI (or a node loading another model) needs memory, the least recently used
+ones go first (`make_room`); `_MAX_CACHED` only bounds how many are kept. ComfyUI's "Unload models" also empties the
+cache. ComfyUI is imported lazily so the module imports without it (unit tests).
 
 Two packs share this module (one copy, `fastforks_comfyui.nodes`): the default pack `fastforks` (this folder,
 `mappings()`) lists every model, non-commercial ones tagged, and runs its nodes inside `registry.allow_noncommercial()`
@@ -43,7 +44,7 @@ log = logging.getLogger("fastforks.comfyui")
 BACKENDS = ["auto", "portable", "kernels"]
 DTYPES = ["auto", "float32", "float16", "bfloat16"]
 _TAGS = {"no": " [non-commercial]", "unclear": " [licence unclear]"}
-_MAX_CACHED = 2
+_MAX_CACHED = 8  # memory decides first (`make_room`): a workflow cycling a few nodes reloads none
 _FILE = "file: "  # dropdown prefix of a checkpoint file of ComfyUI's `models/upscale_models`
 _files: dict[str, tuple[float, str | None]] = {}  # path -> (mtime, `restoration._api._checkpoint_family`)
 _cache: OrderedDict[tuple[Any, ...], fastforks.Model] = OrderedDict()
@@ -287,7 +288,8 @@ def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = 
         if not file and _COMMERCIAL_RUN.get() and _only_full(mid):  # e.g. a linked `model` input: not validated
             msg = f"{mid} {ONLY_FULL}."
             raise fastforks.LicenceError(msg)
-        # weights + activations: ComfyUI unloads its own models until this much is free (no-op if it already is)
+        # weights + activations: ComfyUI unloads its own models, then `make_room` our least recently used ones, until
+        # this much is free (no-op if it already is)
         mm.free_memory(2 * (file.stat().st_size if file else _weights_bytes(mid)) + 2**30, device)
         model = restoration.load(file, **kw) if file else fastforks.load(mid, **(options or {}), **kw)
     log.info("fastforks: loaded %s (%s)", mid, model.backend)
@@ -396,8 +398,10 @@ def make_room(memory_required: float, device: torch.device | None) -> None:
     if not short():  # with the graphs gone, PyTorch's cached blocks are free for anyone
         log.info("fastforks: freed the CUDA graphs of %d cached model(s) for ComfyUI", len(held))
         return
+    # ComfyUI's "free everything" (`/free`, `unload_all_models`) asks for 1e30 bytes
+    need = "all memory" if memory_required >= 2**60 else f"{memory_required / 2**20:.0f} MiB"
     for key in [k for k, m in _cache.items() if m.device == torch.device(device)]:
-        log.info("fastforks: unloading %s for ComfyUI (%.0f MiB needed)", key[0], memory_required / 2**20)
+        log.info("fastforks: unloading %s for ComfyUI (%s needed)", key[0], need)
         del _cache[key]
         gc.collect()
         mm.soft_empty_cache()
