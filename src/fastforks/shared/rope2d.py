@@ -8,6 +8,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.mlx_cast import to_run_dtype
+
 
 def rope_forward(self: nn.Module, tokens: torch.Tensor, positions: torch.Tensor) -> torch.Tensor:
     """Upstream `RotaryPositionEmbedding2D.forward` with a table sized by the token count, not `positions.max()`.
@@ -23,4 +25,5 @@ def rope_forward(self: nn.Module, tokens: torch.Tensor, positions: torch.Tensor)
     sc = torch.cat((-sc[:, : d // 2], sc[:, d // 2 :]), -1)
     cos, sin = (torch.cat((F.embedding(positions[..., 0], t), F.embedding(positions[..., 1], t)), -1) for t in (cc, sc))
     swapped = tokens.unflatten(-1, (2, 2, d // 2)).flip(-2).flatten(-3)
-    return torch.addcmul(tokens * cos[:, None], swapped, sin[:, None])
+    out = torch.addcmul(tokens * cos[:, None], swapped, sin[:, None])
+    return to_run_dtype(out, tokens.dtype)  # the MLX twin's float32 tables would lift a float16 attention to float32

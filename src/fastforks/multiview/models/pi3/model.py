@@ -28,6 +28,7 @@ from torch import nn
 
 from fastforks._core.errors import OptionsError
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.patch import override
 from fastforks.multiview._runner import Forward, Runner, invert
 from fastforks.shared import mlx_wrap
@@ -154,9 +155,10 @@ def _rope_forward(self: nn.Module, tokens: torch.Tensor, positions: torch.Tensor
     d = tokens.size(3) // 2
     cos, sin = rope.get_cos_sin(d, tokens.size(-2) + 1, tokens.device, tokens.dtype)
     y, x = tokens.chunk(2, dim=-1)
-    return torch.cat(
+    out = torch.cat(
         (rope.apply_rope1d(y, positions[:, :, 0], cos, sin), rope.apply_rope1d(x, positions[:, :, 1], cos, sin)), -1
     )
+    return to_run_dtype(out, tokens.dtype)  # the MLX twin's float32 tables would lift a float16 attention to float32
 
 
 @functools.cache
