@@ -2669,6 +2669,13 @@
    ]
   },
   "raft-stereo-sceneflow@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels"
+   },
    "kernels_default": [
     "kernels",
     "float16"
@@ -2682,7 +2689,7 @@
    ],
    "mlx": {
     "float16": "kernels",
-    "float32": "portable"
+    "float32": "kernels"
    },
    "mps_auto": [
     "",

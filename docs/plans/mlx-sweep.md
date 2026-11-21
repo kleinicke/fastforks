@@ -1619,3 +1619,73 @@ fp32 (+1 ms each). memfof's peak rose 2716 -> 3012 MB with this code and no tabl
 passes (the 2716 row was taken at 85384184), not from this one. Regenerated routes: memflow's cheaper compile (18.9 s
 first call) now routes `auto` to MLX, and raft-stereo's `device="mlx"` float32 now picks portable (5754 ms) over
 kernels.
+
+## Cold-start cut for the iterative nets: one-pass export (2026-11-21)
+
+Goal: bring the MLX compile (`first_call_s` minus one warm call) of raft-stereo, mvsanywhere and rt-monster++ under
+the routing limit of 3 MPS runtimes (`COLD_FACTOR`): 10.9 s for raft-stereo fp16 (MPS kernels 3636 ms), 3.1 s for
+mvsanywhere (1034 ms), 1.84 s for rt-monster++ (612 ms).
+
+Where the seconds went (`FF_MLX_COLD_LOG=1` plus phase timers; raft-stereo kernels fp16, 994x1482, 32 GRU iterations
+unrolled into a 6378-node graph): export 9.4 s of a 12.9 s first call. Of that, 3.8 s was the `torch.export.export`
+trace (the pre-dispatch training IR) and 5.6 s was `run_decompositions`, which traces that graph a second time through
+AOT export. Translation took 0.3 s, the segment compiles and tuning about 0.3 s, and the first-time imports (sympy,
+mpmath and so on, 1220 modules) about 0.7 s. Per-node Python stack traces were 10 to 20 % of each trace. mvsanywhere
+has five exported nets of 0.3 to 0.7 s each. Its rest is `gc.collect` (5 x 70 ms), constants (0.2 s) and the
+first-time imports. rt-monster++ is one 3.8 s export plus about 1 s of segment work.
+
+What changed (`shared/mlx_graph.py`):
+
+- `_export_decomposed`: one post-dispatch trace (`torch.export._trace._export(pre_dispatch=False)`) with
+  `run_decompositions`' own table split, so the trace emits core ATen directly. Composite ops are overridden while
+  tracing and the rest go to the AOT tracer's decomposition table. The program has the same ops and signature except
+  for the no-op `_assert_tensor_metadata` nodes (5764 nodes instead of 6378 on raft-stereo). It is private torch API:
+  any failure falls back to the old two-pass path, which is also used for modules that need the eager fill of lazy
+  buffers. `FF_MLX_TWO_PASS_EXPORT=1` forces the old path.
+- `torch.fx.config.do_not_emit_stack_traces` is set while exporting, because nothing reads the stack traces.
+- The decomposition table and its split are built once per process (`_decomp_table`, `_split_decomp_table`) instead
+  of once per export (40 ms each).
+
+Outputs: raft-stereo kernels fp16 is bit-identical to the two-pass export (`torch.equal` on every leaf, with and
+without the plan cache). Goldens pass for raft-stereo-sceneflow, mvsanywhere, rt-monster++, igev-stereo-sceneflow,
+sea-raft-m-kitti, raft-small, nafnet-gopro and wd-vit-tagger-v3, along with `tests/test_mlx_plan_cache.py`.
+
+Survey rows (ms / peak MB / first call s, so compile = first minus ms):
+
+| ref | mode dtype | before | after | compile before -> after | limit |
+|---|---|---|---|---|---|
+| raft-stereo-sceneflow | kernels fp16 | 2986 / 4650 / 14.2 | 2798 / 4613 / 8.0 | 11.2 -> 5.2 s | 10.9 s |
+| raft-stereo-sceneflow | portable fp16 | 4232 / 3955 / 15.5 | 4219 / 3863 / 10.5 | 11.3 -> 6.3 s | (slower than MPS) |
+| raft-stereo-sceneflow | portable fp32 | 5754 / 4789 / 19.0 | 6216 / 4653 / 13.9 | 13.3 -> 7.7 s | (slower than MPS) |
+| raft-stereo-sceneflow | kernels fp32 | 5818 / 5590 / 32.0 | 4662 / 5837 / 11.7 | 26.2 -> 7.0 s | (slower than MPS) |
+| mvsanywhere | portable fp16 | 506 / 1425 / 7.4 | 470 / 1471 / 5.0 | 6.9 -> 4.6 s | 3.1 s |
+| mvsanywhere | portable fp32 | 635 / 2119 / 7.4 | 616 / 2133 / 5.1 | 6.8 -> 4.5 s | 3.2 s |
+| rt-monster++ | kernels fp16 | 622 / 2046 / 13.1 | 574 / 1979 / 9.1 | 12.4 -> 8.5 s | 1.84 s |
+| rt-monster++ | portable fp16 | 713 / 2006 / 13.4 | 672 / 1910 / 9.5 | 12.7 -> 8.9 s | 1.84 s |
+| rt-monster++ | portable fp32 | 1025 / 2394 / 16.1 | 950 / 2286 / 10.5 | 15.1 -> 9.5 s | 1.85 s |
+| rt-monster++ | kernels fp32 | 1020 / 2503 / 14.4 | 934 / 2407 / 9.4 | 13.3 -> 8.4 s | 1.85 s |
+
+Regenerated routes: raft-stereo-sceneflow now routes `auto` to MLX kernels fp16 (0.77x the MPS runtime, with less
+memory than MPS and a compile of 5.2 s against 10.9 s). Its `device="mlx"` float32 now picks kernels (4662 ms). Neither
+mvsanywhere nor rt-monster++ flips.
+
+The survey's first call is noisy for one reason that has nothing to do with this code: the Metal shader cache. The
+first process that runs a kernel set compiles its Metal sources, and later processes find them in the OS cache.
+rt-monster++ portable fp16 took 12.8 s on its first probe and 5.0 s on the next. The survey worker re-run directly gave
+kernels fp16 a 5.6 s first call against the 9.1 s survey row. mvsanywhere fp32's first survey run gave 9.7 s; the
+re-run recorded above gave 5.1 s. The rows above are what the survey measured (one shader-cold run each for raft-stereo
+and rt-monster++). The probe numbers with a warm shader cache are lower still: raft kernels fp16 4.9 s, mvsanywhere fp16
+3.5 to 4.1 s, rt-monster++ 4.3 to 5.0 s.
+
+Plan cache (`FASTFORKS_MLX_PLAN_CACHE`), measured separately with a warm shader cache:
+
+- raft-stereo kernels fp16: compile 4.9 s with no cache, 9.5 s on a miss (`torch.export.save` of the 5.8k-node
+  program) and 4.7 s on a hit. With the one-pass export, loading the program costs about as much as tracing it, so the
+  cache no longer pays on this net.
+- mvsanywhere fp16: 5.4 s with no cache (a noisy run; 4.1 s earlier), 5.5 s on a miss and 2.9 s on a hit. A hit is
+  under its 3.1 s limit, but the routing rule measures a cold process.
+
+What is left: rt-monster++'s export alone (3.8 s) is twice its 1.84 s budget, so only a stored program, a much cheaper
+trace (exporting the GRU body once instead of unrolled) or `Model.warmup` can route it. mvsanywhere needs another
+1 to 1.5 s: its five traces (2.5 s), `gc.collect` after each build (0.35 s) and the first-time imports (about 0.6 s)
+are what remain.

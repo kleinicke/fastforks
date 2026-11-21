@@ -2509,6 +2509,73 @@ def _no_op_regions() -> Iterator[None]:
         torch._C._set_grad_enabled = set_grad
 
 
+TWO_PASS_EXPORT = bool(os.environ.get("FF_MLX_TWO_PASS_EXPORT"))
+"""`FF_MLX_TWO_PASS_EXPORT=1`: export the training IR, then retrace it with `run_decompositions` (the public API path;
+about twice the trace time of `_export_decomposed`)."""
+
+
+@contextlib.contextmanager
+def _no_stack_traces() -> Iterator[None]:
+    """While exporting: no Python stack trace per graph node (nothing here reads them; 10 to 20 % of a trace)."""
+    from torch.fx import config
+
+    old, config.do_not_emit_stack_traces = config.do_not_emit_stack_traces, True
+    try:
+        yield
+    finally:
+        config.do_not_emit_stack_traces = old
+
+
+@functools.cache
+def _decomp_table() -> dict[Any, Any]:
+    """`torch.export.default_decompositions()` minus the ops the translator runs natively (built once per process)."""
+    decomp = torch.export.default_decompositions()
+    for keep in (
+        aten.scaled_dot_product_attention.default,
+        aten.upsample_bilinear2d.vec,
+        aten.upsample_trilinear3d.vec,
+        aten.linalg_vector_norm.default,
+        aten.roll.default,  # `mx.roll`: the decomposition is an index gather (several times slower)
+        *_EDGE_PADS,
+    ):
+        decomp.pop(keep, None)
+    return decomp
+
+
+@functools.cache
+def _split_decomp_table() -> tuple[dict[Any, Any], dict[Any, Any]]:
+    """`_decomp_table` split as `run_decompositions` splits it: (composite ops, AOT tracer table); 40 ms a call."""
+    from torch.export.exported_program import _split_decomp_table_to_cia_and_python_decomp
+
+    return _split_decomp_table_to_cia_and_python_decomp(dict(_decomp_table()))
+
+
+def _export_decomposed(module: torch.nn.Module, args: tuple[Any, ...]) -> Any:
+    """`module` exported at `args` straight to the ATen opset of `decomp` in one trace, or None when that fails.
+
+    `torch.export.export` traces the pre-dispatch training IR and `run_decompositions` traces that graph again, which
+    on an unrolled GRU loop (RAFT-Stereo's 32 updates, 6k nodes) is more than half of the export. This is the
+    post-dispatch export (`pre_dispatch=False`, the pre-2.5 default) with `run_decompositions`' own table split: the
+    composite (CIA) ops to keep or replace are overridden while tracing, the others go to the AOT tracer's table. The
+    program has the same ops and signature, minus the no-op `_assert_tensor_metadata` nodes. Private torch API: any
+    failure (including a lazily built buffer that export must not assign) returns None for the two-pass path.
+    """
+    try:
+        from torch.export import _trace
+        from torch.export.exported_program import _override_composite_implicit_decomp
+
+        cia, python_decomp = _split_decomp_table()
+        to_aten = _trace._export_to_aten_ir
+        _trace._export_to_aten_ir = functools.partial(to_aten, decomp_table=python_decomp)
+        try:
+            with _override_composite_implicit_decomp(cia):
+                return _trace._export(module, args, strict=False, pre_dispatch=False)
+        finally:
+            _trace._export_to_aten_ir = to_aten
+    except Exception:  # noqa: BLE001 - private API or a module only the two-pass path exports: take that path
+        return None
+
+
 class GraphNet:
     """An eval-mode `torch.nn.Module` run on MLX: `net(*tensors) -> tuple of float32 CPU tensors`.
 
@@ -2608,29 +2675,21 @@ class GraphNet:
                 self.plan_restore(extra)
             return ep
         filled = False
-        with torch.no_grad(), _no_op_regions():
-            try:
-                ep = torch.export.export(self.module, args, strict=False)
-            except (RuntimeError, ValueError, AssertionError, UserWarning):
-                # lazily built buffers (attention bias caches) that export must not assign: fill them with one real
-                # forward (its CPU activations are the peak of the build, so only a module that needs it pays)
-                self.module(*args)
-                filled = True
-                ep = torch.export.export(self.module, args, strict=False)
-            decomp = torch.export.default_decompositions()
-            for keep in (
-                aten.scaled_dot_product_attention.default,
-                aten.upsample_bilinear2d.vec,
-                aten.upsample_trilinear3d.vec,
-                aten.linalg_vector_norm.default,
-                aten.roll.default,  # `mx.roll`: the decomposition is an index gather (several times slower)
-                *_EDGE_PADS,
-            ):
-                decomp.pop(keep, None)
-            t0 = time.perf_counter()
-            ep = ep.run_decompositions(decomp)
-            if COLD_LOG:
-                self._cold["decomp"] = time.perf_counter() - t0
+        with torch.no_grad(), _no_op_regions(), _no_stack_traces():
+            ep = None if TWO_PASS_EXPORT else _export_decomposed(self.module, args)
+            if ep is None:
+                try:
+                    ep = torch.export.export(self.module, args, strict=False)
+                except (RuntimeError, ValueError, AssertionError, UserWarning):
+                    # lazily built buffers (attention bias caches) that export must not assign: fill them with one
+                    # real forward (its CPU activations are the peak of the build, so only a module that needs it pays)
+                    self.module(*args)
+                    filled = True
+                    ep = torch.export.export(self.module, args, strict=False)
+                t0 = time.perf_counter()
+                ep = ep.run_decompositions(dict(_decomp_table()))
+                if COLD_LOG:
+                    self._cold["decomp"] = time.perf_counter() - t0
         if self.plan is not None and not filled:  # a loaded program could not fill the lazy buffers: not cached
             self.plan.save_program(ep, self.module, self.plan_extra() if self.plan_extra is not None else None)
         return ep
