@@ -422,12 +422,15 @@ class _Fast(_Base):
         # The camera head reads only the final layer's camera tokens.
         pose = net.camera_head([last[:, :, :1].float()])[-1]
         xh = x.to(self.dt)
-        depth, depth_conf = net.depth_head(toks, images=xh, patch_start_idx=psi)
+        # MPS: the heads one view at a time. All 8 views at once make 1 GB fp32 maps at 1/1 (256 channels), each on a
+        # heap of its own: fp32 336x518 x 8 views 11.2 -> 8.7 GB peak, 6.7 -> 5.6 s (fp16 8.8 -> 8.6 GB, same speed).
+        chunk = 1 if x.device.type == "mps" else 8
+        depth, depth_conf = net.depth_head(toks, images=xh, patch_start_idx=psi, frames_chunk_size=chunk)
         return {
             "pose_enc": pose,
             "depth": depth,
             "depth_conf": depth_conf,
-            "gs": net.gaussian_param_head(toks, xh, psi),
+            "gs": net.gaussian_param_head(toks, xh, psi, chunk),
         }
 
     def _use_fp16_gemm(self) -> bool:
