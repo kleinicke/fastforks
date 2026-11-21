@@ -243,9 +243,6 @@
    }
   },
   "cas-gwcnet-gc-sceneflow@1": {
-   "dtypes": {
-    "float32": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
@@ -1611,11 +1608,7 @@
    "mlx": {
     "float16": "kernels",
     "float32": "portable"
-   },
-   "mps_auto": [
-    "",
-    "float16"
-   ]
+   }
   },
   "geocalib-pinhole@1": {
    "mlx_default": [
@@ -1697,9 +1690,6 @@
    }
   },
   "gwcnet-gc-sceneflow@1": {
-   "dtypes": {
-    "float32": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
@@ -1884,7 +1874,6 @@
   },
   "las2-h@1": {
    "mps_auto": [
-    "",
     "float16"
    ]
   },
@@ -2579,9 +2568,6 @@
    }
   },
   "psmnet-sceneflow@1": {
-   "dtypes": {
-    "float32": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
