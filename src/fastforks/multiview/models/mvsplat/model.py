@@ -35,6 +35,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.patch import is_base, override
 from fastforks._core.sampling import grid_sample
 from fastforks.kernels import mvsplat_corr
@@ -103,7 +104,7 @@ class Backbone(nn.Module):
         cnn = self.backbone((images - mean) / std)[0]
         views = list(cnn.unbind(0))
         splits = [split_feature(x[None], num_splits=SPLITS) for x in views]
-        pos = PositionEmbeddingSine(num_pos_feats=FEATURES // 2)(splits[0])
+        pos = to_run_dtype(PositionEmbeddingSine(num_pos_feats=FEATURES // 2)(splits[0]), cnn.dtype)  # float32 table
         views = [merge_splits(x + pos, num_splits=SPLITS) for x in splits]
         return torch.cat(self.transformer(views, attn_num_splits=SPLITS), 0), cnn
 
@@ -240,7 +241,7 @@ class Net(nn.Module):
         disp = lo[:, None] + torch.linspace(0.0, 1.0, CANDIDATES, device=feat.device)[None] * (hi - lo)[:, None]
         head: Any = p.depth_head_lowres[0]
         costs = correlation(feat, k, c2w, disp, dtype=head.weight.dtype, fused=self.fused_correlation)
-        corr = torch.cat((costs.to(feat.dtype), feat), 1)
+        corr = torch.cat((to_run_dtype(costs, feat.dtype), feat), 1)  # .to: a no-op in the float32 MLX twin
         del costs
         corr = p.corr_refine_net(corr) + p.regressor_residual(corr)
         pdf = F.softmax(p.depth_head_lowres(corr).float(), dim=1)
@@ -249,7 +250,8 @@ class Net(nn.Module):
         disps = F.interpolate(coarse, scale_factor=4, mode="bilinear", align_corners=True)
         x = images.to(feat.dtype)
         up = p.upsampler(torch.cat((feat, cnn), 1))
-        refined = p.refine_unet(torch.cat((x, p.proj_feature(up), disps.to(x.dtype), pdf_max.to(x.dtype)), 1))
+        coarse_maps = (to_run_dtype(disps, x.dtype), to_run_dtype(pdf_max, x.dtype))  # .to: a no-op in the MLX twin
+        refined = p.refine_unet(torch.cat((x, p.proj_feature(up), *coarse_maps), 1))
         raw = p.to_gaussians(torch.cat((refined, x, up), 1))
         delta, density = p.to_disparity(refined).float().split(1, dim=1)
         fine = (disps + delta).clamp(lo.view(v, 1, 1, 1), hi.view(v, 1, 1, 1))

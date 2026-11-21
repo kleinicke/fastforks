@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from fastforks._core.mlx_cast import to_run_dtype  # fastforks: run-dtype casts on MLX
 
 from .unimatch.utils import split_feature, merge_splits
 
@@ -131,7 +132,7 @@ def single_head_split_window_attention(
 
         dt = torch.get_autocast_dtype(q.device.type) if torch.is_autocast_enabled(q.device.type) else q.dtype
         heads = num_splits * num_splits
-        mask = attn_mask.repeat(1, 1, m).to(dt)[None] if with_shift else None
+        mask = to_run_dtype(attn_mask.repeat(1, 1, m), dt)[None] if with_shift else None  # fastforks: MLX run dtype
         out = F.scaled_dot_product_attention(
             q.reshape(b, heads, -1, c).to(dt), k.view(b, heads, -1, c).to(dt), v.view(b, heads, -1, c).to(dt),
             attn_mask=mask, scale=1 / scale_factor,
@@ -602,6 +603,7 @@ class MultiViewFeatureTransformer(nn.Module):
                 shift_size_w=window_size_w // 2,
                 device=multi_view_features[0].device,
             )  # [K*K, H/K*W/K, H/K*W/K]
+            shifted_window_attn_mask = to_run_dtype(shifted_window_attn_mask, multi_view_features[0].dtype)  # fastforks: MLX twin's f32
         else:
             shifted_window_attn_mask = None
 
