@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, cast
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.mps import fence
 from fastforks.shared.igev_blocks.net.submodule import context_upsample
 
 from .net.geometry import FastGeoEncodingVolume
@@ -56,6 +57,8 @@ def forward_fast(net: GREATStereo, left: torch.Tensor, right: torch.Tensor, iter
 
     match_left, match_right, volume, disp, stem_2x = encode(net, im1, im2)
     del im2
+    # MPS: let the context encoder reuse the cost volume's temporaries (fp32 994x1482: 12.4 -> 11.8 GB peak, steadier)
+    fence(disp)
 
     cnet_list = net.cnet(im1, num_layers=a.n_gru_layers)
     del im1

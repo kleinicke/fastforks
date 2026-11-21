@@ -5,7 +5,8 @@ on MPS", torch 2.14), and its transposed convolutions are slow in every dtype. `
 stride-2 one (the cost-volume families' 3-D upsampling, most 2-D ones) as one convolution per parity of the output
 position, a 2-D one whose kernel equals its stride (ViT necks and DPT heads) as a 1 x 1 convolution and
 `pixel_shuffle`, each 1.3-4x faster on an M1 Pro; any other float16 / bfloat16 3-D one in float32 (input and weights
-cast for the call, the output cast back).
+cast for the call, the output cast back). Its 3-D convolutions are slow too (channels-last-3d far more so): `adapt`
+runs a plain `Conv3d` as one 2-D convolution over the depth planes per depth tap (`conv3d`, 3-30x faster).
 
 `sync_at_exit` waits for the GPU before the interpreter shuts down: a CPU tensor copied to MPS (a NumPy image, say)
 stays referenced by the command buffer, and a NumPy-owned one is freed from Metal's completion thread, which needs the
@@ -38,6 +39,62 @@ _POLYPHASE = 2  # the stride `conv_transpose` splits into output parities
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+
+
+def conv3d(
+    x: torch.Tensor,
+    weight: torch.Tensor,
+    bias: torch.Tensor | None,
+    stride: tuple[int, int, int],
+    padding: tuple[int, int, int],
+) -> torch.Tensor:
+    """`F.conv3d` (groups 1, dilation 1, zero padding) as one `conv2d` over the depth planes per depth tap.
+
+    Output plane `d` sums tap `k` of the input plane `d * stride + k - padding`; the planes of `x` in
+    channels-last-3d are channels-last 2-D images (`[N, C, D, H, W]` -> `[N * D, C, H, W]` is a view), and the output
+    is channels-last-3d. On an M1 Pro, 192 -> 96 (1, 3, 3) / 96 -> 48 3x3x3 / 48 -> 8 3x3x3 on 18 x 256 x 376 fp32:
+    torch NCDHW 481 / 413 / 83 ms, channels-last-3d 3303 / 2512 / 1245 ms, this 105 / 130 / 21 ms (fp16 3-6x).
+    """
+    n, c, d = x.shape[:3]
+    kd, sd, pd = weight.shape[2], stride[0], padding[0]
+    d_out = (d + 2 * pd - kd) // sd + 1
+    x = x.contiguous(memory_format=torch.channels_last_3d)  # no-op when it already is
+    out: torch.Tensor | None = None
+    for k in sorted(range(kd), key=lambda k: k != pd):  # the centre tap first: it covers every output plane
+        lo = max(0, -((k - pd) // sd))  # first output plane whose input plane d * sd + k - pd is >= 0
+        hi = min(d_out - 1, (d - 1 + pd - k) // sd)
+        if hi < lo:
+            continue
+        i0 = lo * sd + k - pd
+        planes = x[:, :, i0 : i0 + (hi - lo) * sd + 1 : sd].permute(0, 2, 1, 3, 4).reshape(-1, c, *x.shape[3:])
+        full = out is None and lo == 0 and hi == d_out - 1
+        y = F.conv2d(planes, weight[:, :, k], bias if full else None, stride[1:], padding[1:])
+        y = y.view(n, hi - lo + 1, *y.shape[1:]).permute(0, 2, 1, 3, 4)
+        if full:
+            out = y
+            continue
+        if out is None:
+            out = y.new_zeros(n, y.shape[1], d_out, *y.shape[3:]).contiguous(memory_format=torch.channels_last_3d)
+            if bias is not None:
+                out += bias.view(-1, 1, 1, 1)
+        out[:, :, lo : hi + 1] += y
+    if out is None:  # no tap reaches any output plane (a padding wider than the kernel)
+        out = F.conv3d(x, weight, bias, stride, padding)
+    return out
+
+
+def _conv3d(self: torch.nn.Conv3d, input: torch.Tensor) -> torch.Tensor:  # noqa: A002 - torch's name
+    """`Conv3d.forward` of a layer `adapt` picked, by `conv3d` (in the input dtype)."""
+    unbatched = input.dim() == 4  # noqa: PLR2004 - [C, D, H, W]
+    x = input.unsqueeze(0) if unbatched else input
+    out = conv3d(
+        x,
+        self.weight.to(x.dtype),
+        _cast(self.bias, x),
+        cast("tuple[int, int, int]", self.stride),
+        cast("tuple[int, int, int]", self.padding),
+    )
+    return out.squeeze(0) if unbatched else out
 
 
 def _float32_conv_transpose3d(
@@ -109,7 +166,7 @@ def _polyphase(
     lo = [max(0, -min(a[1] for a in axis)) for axis in taps]
     hi = [max(0, max(a[2] for a in axis) - n[d] + 1) for d, axis in enumerate(taps)]
     x = F.pad(x, [v for d in reversed(range(nd)) for v in (lo[d], hi[d])])
-    conv = F.conv2d if nd == 2 else F.conv3d  # noqa: PLR2004 - 2-D
+    conv = F.conv2d if nd == 2 else functools.partial(conv3d, stride=(1, 1, 1), padding=(0, 0, 0))  # noqa: PLR2004 - 2-D
     out = x.new_empty(x.shape[0], weight.shape[1], *sizes)
     for parity in itertools.product((0, 1), repeat=nd):
         axes = [taps[d][e] for d, e in enumerate(parity)]
@@ -177,7 +234,9 @@ def _quiet_nd_padding() -> Generator[None]:
 
 
 def adapt(net: torch.nn.Module) -> None:
-    """Replace the transposed convolutions of `net` (a runner's module) that MPS runs slowly or not at all; in place.
+    """Replace the 3-D / transposed convolutions of `net` (a runner's module) MPS runs slowly or not at all; in place.
+
+    A `Conv3d` with groups 1, dilation 1 and zero padding goes through `conv3d`.
 
     A layer `conv_transpose` speeds up (groups 1, dilation 1, the same stride and padding on every axis, square
     kernel equal to the stride or stride 2) goes through it in the input dtype; any other
@@ -185,6 +244,16 @@ def adapt(net: torch.nn.Module) -> None:
     """
     for m in net.modules():
         kind = base_type(m)
+        if kind is torch.nn.Conv3d:
+            m = cast("torch.nn.Conv3d", m)
+            if (
+                m.groups == 1
+                and set(m.dilation) == {1}
+                and m.padding_mode == "zeros"
+                and not isinstance(m.padding, str)
+            ):
+                override(m, _conv3d)
+            continue
         if kind not in (torch.nn.ConvTranspose2d, torch.nn.ConvTranspose3d):
             continue
         m = cast("torch.nn.ConvTranspose2d | torch.nn.ConvTranspose3d", m)
