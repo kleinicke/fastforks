@@ -1459,3 +1459,27 @@ The dat-light and hat-s rows below come from the same code.
 | hat-s-x4 | fp32 | 20203 / 7380 / 79.7 | 15572 / 6016 / 21.1 |
 
 `test_mlx[hat-x4@1]` (fp16, mean |diff| 0.00092 against 0.00083) already failed at c15d5667, before this pass.
+
+## Real-ESRGAN: 3x3 convs with 32 / 48 outputs
+
+`mx.conv2d` picks a narrow, slow tile for 32 / 48 output channels. At 512x512, a 160 -> 32 3x3 conv takes 16.5 ms
+(fp16) / 27.8 ms (fp32), and 13.2 / 15.6 ms with the output padded to 64. 64 -> 32 fp32: 11.2 -> 6.8 ms, 160 -> 48
+fp32: 21.5 -> 15.8 ms. 32 -> 32, fp16 64 -> 32, 8-24 outputs and 1x1 kernels gain nothing or lose. `_conv2d` now pads
+the stride-1, undilated 3x3 convs with 48 outputs, or 32 outputs from >= 128 inputs (>= 64 in fp32), to 64 and slices
+the result. RRDB's dense blocks are made of these (160 / 128 / 96 / 64 -> 32). Off switch: `FF_MLX_NO_WIDE_OUT`.
+Goldens pass (realesrgan-x4plus, realesrgan-x4plus-anime-6b, nafnet-gopro, wd-vit-tagger-v3, convnext_base).
+
+| ref (512x512) | dtype | before ms / MB / first s | after ms / MB / first s |
+|---|---|---|---|
+| realesrgan-x4plus | fp16 | 5320 / 1390 / 24.3 | 4766 / 1463 / 8.5 (not recorded: heavier) |
+| realesrgan-x4plus | fp32 | 9349 / 2186 / 37.9 | 7548 / 2180 / 11.5 |
+| realesrgan-x2plus | fp16 | 1199 / 974 / 8.3 | 1139 / 992 / 4.8 (not recorded) |
+| realesrgan-x2plus | fp32 | 1599 / 1047 / 10.1 | 1489 / 1064 / 5.4 (not recorded) |
+| realesrgan-x4plus-anime-6b | fp16 | 1617 / 1319 / 7.3 | 1484 / 1336 / 3.2 (not recorded) |
+| realesrgan-x4plus-anime-6b | fp32 | 2700 / 2040 / 10.8 | 2293 / 2046 / 4.0 (not recorded) |
+
+The x2plus and anime-6b rows are 6-18 MB heavier, which is within run-to-run spread. x4plus fp16 is 73 MB heavier.
+Same-session footprints of x4plus fp16 were 1467 MB on and 1440 MB off, so most of that gap predates this change.
+Each padded 64-wide output is held until its slice is consumed.
+Left on x4plus fp16: the dense-block `_cat_in` concats (0.93 s per call), the leaky-relu lambda (0.52 s), and the
+banded upsample (0.33 s).

@@ -1642,6 +1642,7 @@ def _conv_core(
 
 MERGE_OFF = bool(os.environ.get("FF_MLX_NO_MERGE"))  # sibling convolutions (same input and geometry) stay separate
 ALIGN_OFF = bool(os.environ.get("FF_MLX_NO_ALIGN"))  # `mx.conv2d` with ragged channel counts as they are
+WIDE_OUT_OFF = bool(os.environ.get("FF_MLX_NO_WIDE_OUT"))  # 32 / 48-output 3x3 convs on MLX's narrow tile
 
 
 def _conv2d(
@@ -1663,7 +1664,21 @@ def _conv2d(
     if ALIGN_OFF:
         return mx.conv2d(xl, wl, stride=stride, padding=padding, dilation=dilation, groups=groups)
     pad_out = (-cout) % 16 if groups == 1 and cout >= 16 else 0
-    pad_in = (-cin) % 32 if groups == 1 and cin >= 64 and stride == (1, 1) and wl.shape[1] * wl.shape[2] > 1 else 0
+    spatial = wl.shape[1] * wl.shape[2] > 1
+    pad_in = (-cin) % 32 if groups == 1 and cin >= 64 and stride == (1, 1) and spatial else 0
+    o = cout + pad_out
+    if (
+        not WIDE_OUT_OFF
+        and groups == 1
+        and spatial
+        and stride == (1, 1)
+        and dilation == (1, 1)
+        and (o == 48 or (o == 32 and (cin >= 128 or (cin >= 64 and xl.dtype == mx.float32))))
+    ):
+        # a 3x3 with 32-48 outputs takes MLX's narrow tile, slower than the 64-wide one (512^2, 160 -> 32:
+        # float16 16.5 -> 13.2 ms, float32 27.8 -> 15.6 ms; 64 -> 32 float32 11.2 -> 6.8 ms; 160 -> 48 float32
+        # 21.5 -> 15.8 ms; at 32 -> 32 and float16 64 -> 32 the narrow one is as fast or faster): zero outputs to 64
+        pad_out = 64 - cout
     if pad_out or pad_in:
         wl = mx.pad(wl, [(0, pad_out), (0, 0), (0, 0), (0, pad_in)])
     if pad_in:
