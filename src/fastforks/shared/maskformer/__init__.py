@@ -34,6 +34,7 @@ import torch.nn.functional as F
 from fastforks._core.errors import BackendUnavailableError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.kernels import note_fallback
+from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.model import eager_in_compile
 from fastforks._core.patch import base_type, override
 from fastforks.kernels import fvm_seg
@@ -143,14 +144,14 @@ def _swin_layer(  # the signature of transformers' `SwinLayer.forward`
         fvm_seg.load(x.device).launch("ln_gather_h", *_grid(g.rows, 8), *args)
     else:
         xl = F.layer_norm(x, (c,), ln1.weight, ln1.bias, ln1.eps)
-        win = torch.cat([xl, xl.new_zeros(1, c)]).index_select(0, g.idx)
+        win = torch.cat([xl, to_run_dtype(xl.new_zeros(1, c), xl.dtype)]).index_select(0, g.idx)  # MLX twin: f32
     qkv = F.linear(win, a.ff_qkv_w, a.ff_qkv_b).view(g.windows, t, 3, nh, hd).permute(2, 0, 3, 1, 4)
     q, k, v = qkv.unbind(0)
     rpb, ni = a.ff_rpb, g.interior
     if g.mask is None:
         o = F.scaled_dot_product_attention(q, k, v, attn_mask=rpb.expand(g.windows, -1, -1, -1), scale=a.scaling)
     else:
-        bm = rpb + g.mask[:, None].to(x.dtype)
+        bm = rpb + to_run_dtype(g.mask[:, None], x.dtype)  # .to: a no-op in the float32 MLX twin
         o = F.scaled_dot_product_attention(q[ni:], k[ni:], v[ni:], attn_mask=bm, scale=a.scaling)
         if ni:
             oi = F.scaled_dot_product_attention(
@@ -351,7 +352,8 @@ def _sine_position_embedding(
     """Keep the upstream half-precision floor division out of Inductor's Triton lowering."""
     if dtype == torch.float16 and not torch.compiler.is_exporting():
         return _eager_sine_position_embedding(self, shape, device, dtype, mask)
-    return _upstream_sine_position_embedding(self, shape, device, dtype, mask)
+    # to_run_dtype: the float32 table would lift a float16 MLX replay (of the float32 twin) to float32
+    return to_run_dtype(_upstream_sine_position_embedding(self, shape, device, dtype, mask), dtype)
 
 
 def _patch_backbone_and_decoder(model: _Hf, *, kernels: bool) -> None:

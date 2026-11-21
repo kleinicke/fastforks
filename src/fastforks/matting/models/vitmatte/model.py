@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.mps import fence
 from fastforks.kernels.dpt_fused import ACT_GELU
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
@@ -92,10 +93,10 @@ def _augmented(qkv: torch.Tensor, nh: int, rel: Rel, hw: tuple[int, int]) -> tup
     rel_w = torch.einsum("bhwnc,wkc->bnhwk", r_q, rw).reshape(b, nh, n, w)
     pad = -(d + h + w) % 8
     qt = q.transpose(1, 2)
-    zeros = qt.new_zeros(b, nh, n, pad)
+    zeros = to_run_dtype(qt.new_zeros(b, nh, n, pad), qt.dtype)  # the float32 twin's new_zeros
     qa = torch.cat([qt * d**-0.5, rel_h, rel_w, zeros], -1)
     ka = torch.cat([k.transpose(1, 2), onehot.expand(b, nh, n, h + w), zeros], -1)
-    va = torch.cat([v.transpose(1, 2), qt.new_zeros(b, nh, n, h + w + pad)], -1)
+    va = torch.cat([v.transpose(1, 2), to_run_dtype(qt.new_zeros(b, nh, n, h + w + pad), qt.dtype)], -1)
     return qa, ka, va
 
 
@@ -145,7 +146,7 @@ class _Geometry:
                 emb = self.net.backbone.embeddings
                 pos = emb.get_absolute_positions(emb.position_embeddings.float(), True, h, w)  # noqa: FBT003
                 rel = [self._rel(layer, h, w) for layer in self.net.backbone.encoder.layer]
-                found = pos.to(self.device, self.dtype).contiguous(), rel
+                found = to_run_dtype(pos.to(self.device), self.dtype).contiguous(), rel  # float32 in the MLX twin
             if type(found[0]) is torch.Tensor:  # not a traced one (an MLX export's fake tensor)
                 self.cache[h, w] = found
         return found
@@ -153,9 +154,9 @@ class _Geometry:
     def _rel(self, layer: Any, h: int, w: int) -> Rel:  # noqa: ANN401 - upstream VitDetLayer
         a, ws = layer.attention, int(layer.window_size)
         sh, sw = (ws, ws) if ws else (h, w)
-        rh = get_rel_pos(sh, sh, a.rel_pos_h.float()).to(self.device, self.dtype)
-        rw = get_rel_pos(sw, sw, a.rel_pos_w.float()).to(self.device, self.dtype)
-        return rh, rw, _onehot_keys(sh, sw, self.device, self.dtype)
+        rh = to_run_dtype(get_rel_pos(sh, sh, a.rel_pos_h.float()).to(self.device), self.dtype)
+        rw = to_run_dtype(get_rel_pos(sw, sw, a.rel_pos_w.float()).to(self.device), self.dtype)
+        return rh, rw, to_run_dtype(_onehot_keys(sh, sw, self.device, self.dtype), self.dtype)
 
 
 # ------------------------------------------------------------------------------------------------ runners
