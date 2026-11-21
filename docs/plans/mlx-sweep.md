@@ -1689,3 +1689,76 @@ What is left: rt-monster++'s export alone (3.8 s) is twice its 1.84 s budget, so
 trace (exporting the GRU body once instead of unrolled) or `Model.warmup` can route it. mvsanywhere needs another
 1 to 1.5 s: its five traces (2.5 s), `gc.collect` after each build (0.35 s) and the first-time imports (about 0.6 s)
 are what remain.
+
+## Cold-start cut, part 2: smaller traces (2026-11-21)
+
+Three changes, all on the trace:
+
+- `kth_smallest` (shared/quantile.py) sorts under an MLX export instead of running the 64 bisection passes that TensorRT
+  needs. Each call was about 500 graph nodes. monster_fit calls it once per refinement iteration, so rt-monster++'s
+  graph goes from 5142 to 2834 nodes, and its export from 4.3 to 3.1 s.
+- Pruned exports (`mlx_wrap.port(prune=True)`, `GraphNet._export_used`). Every registered parameter becomes a lifted
+  placeholder, used or not. Each costs about 0.45 ms of fakifying and functionalizing (500 unused `Linear`s add
+  0.5 s to a toy export). mvsanywhere's four methods each lift all 515 tensors but read only 30 to 224 of them.
+  - How it works: a fake-tensor run under a `TorchFunctionMode` (0.01 to 0.1 s after the first) records the
+    parameters and buffers that are read. The unread ones become plain attributes for the export.
+  - The module's `__dict__`, `_parameters` and `_buffers` are restored after the fake run, so a lazy cache cannot
+    keep a fake tensor.
+  - If a read was missed, export lifts that tensor as a constant on the same storage. That case is detected, and
+    the method is exported again in full. A failed fake run, or one that reads more than 3/4 of the tensors, also
+    gets the full export.
+  - Result: mvsanywhere's exports go from 3.4 to 2.5 s.
+  - Opt-in only. For a whole net it costs more than it saves: rt-monster++ reads 515 of its 757 tensors, so pruning
+    would save about 0.1 s but the fake run costs 0.6 s.
+- `gc.collect` after a build now runs only when a release follows, because the release hands back only tensors that
+  the program no longer holds. Without a release, the twin keeps its tensors anyway. This saves 60 to 90 ms per graph,
+  0.34 s on mvsanywhere's five.
+
+Golden fix found along the way: DA3's `PositionGetter` cached the positions of the first export as a FakeTensor. The
+one-pass export of the next branch then lifted that FakeTensor as a constant, and `.numpy()` failed on it. This was
+already failing at b0fa8c02, `test_mlx[da3-large-1.1@1]`. The fix: the cache no longer stores traced tensors. The
+copies in vggt, anysplat and megaflow have the same cache. They were not changed or tested here.
+
+Rows are ms / peak MB / first call s, each the second of two survey runs unless noted. Compile is the first call minus
+the warm ms.
+
+| ref | mode dtype | before | after | compile before -> after | limit |
+|---|---|---|---|---|---|
+| mvsanywhere | portable fp16 | 470 / 1471 / 5.0 | 467 / 1467 / 3.35 | 4.6 -> 2.89 s | 3.10 s |
+| mvsanywhere | portable fp32 | 616 / 2133 / 5.1 | 619 / 2130 / 3.42 | 4.5 -> 2.80 s | 3.15 s |
+| rt-monster++ | kernels fp16 | 574 / 1979 / 9.1 | 580 / 2124 / 4.42 | 8.5 -> 3.84 s | 1.84 s |
+| rt-monster++ | portable fp16 | 672 / 1910 / 9.5 | 666 / 2055 / 6.62 | 8.9 -> 5.95 s | 1.84 s |
+| rt-monster++ | portable fp32 | 950 / 2286 / 10.5 | 994 / 2224 / 6.25 | 9.5 -> 5.26 s | 1.85 s |
+| rt-monster++ | kernels fp32 | 934 / 2407 / 9.4 | 946 / 2308 / 4.59 | 8.4 -> 3.64 s | 1.85 s |
+
+Noise across runs:
+
+- mvsanywhere fp16: 3.37 and 3.35 s in fp16-only surveys. It was 3.94 s when the fp32 job had run just before it in
+  the same survey, a compile of 3.47 s, which is over the limit.
+- mvsanywhere fp32: 3.98, 3.41 and 3.42 s.
+- rt-monster++, first of the two runs:
+
+  | mode dtype | first call | peak MB |
+  |---|---|---|
+  | portable fp16 | 7.43 s | 1834 |
+  | portable fp32 | 8.63 s | 2205 |
+  | kernels fp16 | 5.16 s | 1897 |
+  | kernels fp32 | 4.68 s | 2323 |
+
+  The peak swings by about 200 MB between runs.
+
+Regenerated routes: mvsanywhere now routes `auto` to MLX portable fp16 (0.45x the MPS runtime). rt-monster++ does not
+flip.
+
+Where rt-monster++'s 3.8 s (kernels fp16, warm shader cache) goes:
+
+- Steady trace: 1.83 s.
+- First-time costs of the process: about 1.27 s. Imports of torch._dynamo, aot_autograd, sympy and networkx take
+  about 0.65 s, and the first use of each op the rest.
+- Translate: 0.28 s.
+- Segment compile and tuning: 0.3 s. With a cold shader cache this is 0.8 s.
+
+The forward unrolls four refinement iterations through three different update blocks (iters [1, 1, 2]), so there is
+no single loop body to export once and reuse. The 12 ViT blocks are only 360 of the 2834 nodes. The 1.84 s budget is
+smaller than the first-time costs plus a minimal trace, so only a stored program (the plan cache) or `Model.warmup`
+can route it.

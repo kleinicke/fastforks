@@ -2576,6 +2576,60 @@ def _export_decomposed(module: torch.nn.Module, args: tuple[Any, ...]) -> Any:
         return None
 
 
+def _used_tensors(module: torch.nn.Module, args: tuple[Any, ...]) -> set[int] | None:
+    """Ids of the parameters / buffers a forward at `args` passes to a torch function (a fake-tensor run), or None."""
+    from torch._subclasses.fake_tensor import FakeTensorMode
+    from torch.overrides import TorchFunctionMode
+
+    ids = {id(t) for _, t in _tensors(module)}
+    seen: set[int] = set()
+
+    class _Record(TorchFunctionMode):
+        def __torch_function__(self, func: Any, types: Any, a: Any = (), kw: Any = None) -> Any:
+            kw = kw or {}
+            seen.update(id(x) for x in pytree.tree_leaves((a, kw)) if isinstance(x, torch.Tensor) and id(x) in ids)
+            return func(*a, **kw)
+
+    try:
+        with FakeTensorMode(allow_non_fake_inputs=True) as fake, _Record():
+            module(*(fake.from_tensor(x) if isinstance(x, torch.Tensor) else x for x in args))
+    except Exception:  # noqa: BLE001 - only a shortcut: the full export runs instead
+        return None
+    return seen
+
+
+@contextlib.contextmanager
+def _unused_hidden(module: torch.nn.Module, used: set[int]) -> Iterator[dict[str, torch.Tensor]]:
+    """While exporting: the parameters / buffers outside `used` as plain attributes, which export does not lift.
+
+    A method of a large net (a runner's `encode_image`) reads a tenth of its weights, and each lifted placeholder
+    costs about 0.5 ms of fakifying and functionalizing. A tensor read that the fake run missed still works (export
+    lifts it as a constant: `"a.lifted_tensor_0"`, on the hidden tensor's storage); the caller checks the program's
+    constants against the yielded tensors (by name) and exports again in full.
+    """
+    hidden: dict[str, torch.Tensor] = {}
+    saved: list[tuple[torch.nn.Module, dict[str, Any], dict[str, Any]]] = []
+    for prefix, host in module.named_modules(remove_duplicate=False):
+        drop = {
+            n: t for n, t in (*host._parameters.items(), *host._buffers.items()) if t is not None and id(t) not in used
+        }
+        if not drop:
+            continue
+        saved.append((host, host._parameters, host._buffers))
+        host._parameters = {n: t for n, t in host._parameters.items() if n not in drop}
+        host._buffers = {n: t for n, t in host._buffers.items() if n not in drop}
+        for n, t in drop.items():
+            host.__dict__[n] = t
+            hidden[f"{prefix}.{n}" if prefix else n] = t
+    try:
+        yield hidden
+    finally:
+        for host, params, buffers in saved:
+            for n in (*params, *buffers):
+                host.__dict__.pop(n, None)
+            host._parameters, host._buffers = params, buffers
+
+
 class GraphNet:
     """An eval-mode `torch.nn.Module` run on MLX: `net(*tensors) -> tuple of float32 CPU tensors`.
 
@@ -2676,7 +2730,9 @@ class GraphNet:
             return ep
         filled = False
         with torch.no_grad(), _no_op_regions(), _no_stack_traces():
-            ep = None if TWO_PASS_EXPORT else _export_decomposed(self.module, args)
+            ep = None if TWO_PASS_EXPORT else self._export_used(args)
+            if ep is None and not TWO_PASS_EXPORT:
+                ep = _export_decomposed(self.module, args)
             if ep is None:
                 try:
                     ep = torch.export.export(self.module, args, strict=False)
@@ -2693,6 +2749,40 @@ class GraphNet:
         if self.plan is not None and not filled:  # a loaded program could not fill the lazy buffers: not cached
             self.plan.save_program(ep, self.module, self.plan_extra() if self.plan_extra is not None else None)
         return ep
+
+    def _export_used(self, args: tuple[torch.Tensor, ...]) -> Any:
+        """The one-pass export with only the tensors a fake run reads lifted (`_Method(prune=True)`), or None.
+
+        None (the full export follows) when the module does not ask for it, the fake run fails, it reads most of the
+        tensors anyway, or the export lifted a tensor the fake run missed.
+        """
+        inner = getattr(self.module, "module", None)
+        if not getattr(inner, "prune_unused", False):
+            return None
+        modules = list(self.module.modules())
+        state = [(m, dict(m.__dict__), dict(m._parameters), dict(m._buffers)) for m in modules]
+        try:
+            used = _used_tensors(self.module, args)
+        finally:  # a forward that caches a tensor on the module (a lazy grid) must not keep the fake one
+            for m, d, p, b in state:
+                m.__dict__.clear()
+                m.__dict__.update(d)
+                m._parameters.clear()
+                m._parameters.update(p)
+                m._buffers.clear()
+                m._buffers.update(b)
+        total = sum(1 for _ in _tensors(self.module))
+        if used is None or len(used) > total * 3 // 4:
+            return None
+        with _unused_hidden(self.module, used) as hidden:
+            ep = _export_decomposed(self.module, args)
+        if ep is None:
+            return None
+        ptrs = {p for t in hidden.values() if (p := t.untyped_storage().data_ptr())}
+        missed = any(
+            isinstance(c, torch.Tensor) and c.untyped_storage().data_ptr() in ptrs for c in ep.constants.values()
+        )
+        return None if missed or set(hidden) & {str(s.target) for s in ep.graph_signature.input_specs} else ep
 
     def _build_graph(self, args: tuple[torch.Tensor, ...]) -> Callable[..., Any]:
         ep = self._export(args)
@@ -2792,7 +2882,8 @@ class GraphNet:
 
             plan = band_tail(nodes, plan, values, cl_values, self._itemsize)
         del ep, graph, sig, lifted, nodes
-        gc.collect()
+        if self.on_built is not None:  # the release that follows hands back only tensors the program no longer holds
+            gc.collect()  # (60 to 90 ms: without a release the twin keeps its tensors, the program's cycles can wait)
         return self._runner(plan, values)
 
     @staticmethod

@@ -632,7 +632,9 @@ class Kernels(_Base):
             return super().cv_encoder(cv, feats)
 
 
-class MlxPortable(mlx_wrap.port(Portable, attrs=(), methods=("encode_image", "matching", "cv_encoder", "decode"))):  # ty: ignore[unsupported-base]
+class MlxPortable(
+    mlx_wrap.port(Portable, attrs=(), methods=("encode_image", "matching", "cv_encoder", "decode"), prune=True)
+):  # ty: ignore[unsupported-base]
     """Apple MLX: the ViTs, conv nets and heads as exported graphs, the cost volume as one Metal kernel (`mlx_cv`)."""
 
     def __init__(self, ctx: Context) -> None:

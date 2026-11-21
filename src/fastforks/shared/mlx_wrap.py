@@ -118,10 +118,11 @@ def _lazy_twin() -> Iterator[None]:
 class _Method(torch.nn.Module):
     """A runner method (tensors in, tensors out) as a module that owns the runner's network: what MLX exports."""
 
-    def __init__(self, fn: Callable[..., Any], net: torch.nn.Module) -> None:
+    def __init__(self, fn: Callable[..., Any], net: torch.nn.Module, *, prune: bool = False) -> None:
         super().__init__()
         self.net = net
         self.fn = fn
+        self.prune_unused = prune  # `GraphNet`: export with only the weights a fake run of `fn` reads
 
     def forward(self, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
         return self.fn(*args, **kwargs)
@@ -153,6 +154,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
     chunk_mb: int | Mapping[str, int] = 0,
     release: bool = False,
     pipeline: bool = False,
+    prune: bool = False,
 ) -> type[Runner]:
     """The MLX runner of `portable`: same call, the module(s) named by `attrs` run on MLX in `ctx.dtype`.
 
@@ -184,6 +186,10 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
 
     `pipeline=True`: queue each checkpoint segment before waiting for the previous one (the GPU never idles while the
     next segment's graph is built, at the cost of one more segment's activations in flight).
+
+    `prune=True`: each of the `methods` is exported with only the weights it reads (found by a fake-tensor run, about
+    a tenth of an export); for methods that each use a small part of a large `net_attr` (every registered weight is a
+    lifted placeholder, about 0.5 ms of export each, read or not).
 
     `kernels_fp16_only=True`: the kernels mode uses its Metal kernels in float16 only (float32 runs as portable).
     """
@@ -223,7 +229,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                 dtype = "float32" if name in fp32_methods else ctx.dtype
                 if isinstance(host, torch.nn.Module):  # a method of a submodule: it owns the weights it computes with
                     mod = MlxModule(
-                        _Method(getattr(host, leaf), host),
+                        _Method(getattr(host, leaf), host, prune=prune),
                         dtype,
                         kernels=kernels,
                         compile=compiled,
@@ -238,7 +244,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                         host,
                         leaf,
                         MlxModule(
-                            _Method(getattr(host, leaf), net),
+                            _Method(getattr(host, leaf), net, prune=prune),
                             dtype,
                             kernels=kernels,
                             compile=compiled,

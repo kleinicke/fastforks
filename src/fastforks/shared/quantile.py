@@ -3,7 +3,8 @@
 `kth_smallest` bisects on the value: the k-th smallest entry v_k is the smallest x with count(v <= x) > k. The
 invariant count(v <= lo) <= k < count(v <= hi) holds from the start (lo below the minimum, hi the maximum), so hi ends
 within range * 2^-64 of v_k; it is v_k exactly once lo and hi are adjacent floats, which 64 halvings reach unless
-|v_k| is below ~1e-12 of the range (depth, disparity and confidence maps: exact).
+|v_k| is below ~1e-12 of the range (depth, disparity and confidence maps: exact). An export for MLX (no TopK limit)
+sorts instead: the same value, and a graph of a few nodes instead of 64 passes over the input.
 """
 
 from __future__ import annotations
@@ -11,6 +12,8 @@ from __future__ import annotations
 import math
 
 import torch
+
+from fastforks._core.tracing import EXPORTING_FOR_MLX
 
 STEPS = 64
 
@@ -25,6 +28,10 @@ def kth_smallest(
     computed in float32 (counts are exact up to 2^24 entries per row), returned in `v`'s dtype.
     """
     x = v.float()
+    if EXPORTING_FOR_MLX.get():  # MLX sorts any length: one sort instead of the 64 bisection passes (500 graph nodes)
+        s = (x if valid is None else torch.where(valid, x, torch.inf)).sort(-1).values
+        kth = s[..., k] if isinstance(k, int) else s.gather(-1, k.long()[..., None])[..., 0]
+        return kth.to(v.dtype)
     big = torch.finfo(torch.float32).max
     if valid is None:
         lo, hi = x.amin(-1), x.amax(-1)
