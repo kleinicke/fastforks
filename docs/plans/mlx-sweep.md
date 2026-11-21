@@ -935,6 +935,93 @@ it comes from earlier changes on the branch, not from this one. Part of the warm
 (pi3: 17 to 22 s cold vs 1 s warm, mmapped safetensors read while converting constants), and memo hits for repeated
 blocks whose segment cuts do not line up.
 
+## Iterative stereo pass: half-precision convs, merged siblings, geometry casts (v0.21 follow-up)
+
+Target: MLX at or below MPS on the iterative stereo nets (mvsanywhere, the IGEV / MonSter family, raft-stereo,
+waft-stereo-s, s2m2-s). `FF_MLX_PROFILE=1` on the fp16 runs showed the same pattern on all of them: the recurrent
+convs ran in float32 although the run dtype was float16, the ragged channel counts (`128 - 1`, `128 + 2 + ...`) fell off
+MLX's fast GEMM tiles, and the GRU gates read the same input in separate convs.
+
+Causes and changes (`shared/mlx_graph.py` unless noted; each graph change has an off switch for A/B runs):
+
+- **float32 conv inputs at fp16.** The exported twin is float32, so values the net builds from float32 math (the
+  correlation lookups, a `cat` of a float32 lookup with half features) reach the conv as float32 and MLX promotes the
+  conv to float32. `_conv_input` casts a float32 input to the weight dtype (`FF_MLX_KEEP_F32_CONV=1`: off).
+- **Half cats.** A `cat` whose users are all conv inputs (or other such cats) casts its float32 parts first, so the
+  concatenated buffer is half too (`_conv_only_cats`, `_cat_in`): half the bytes for the 384-channel GRU inputs.
+- **Geometry casts.** The IGEV / MonSter / Selective / Mocha / GREAT geometry lookups (`*/net/geometry.py`) cast the
+  correlation to float32 with literal casts, which the twin records as real casts. They use `to_run_dtype`
+  (`fastforks::run_dtype`), which the replay maps to its run dtype; CUDA and MPS are unchanged.
+- **Channel alignment.** `_conv2d` zero-pads output channels to a multiple of 16 and wide 3x3 inputs to a multiple of
+  32, then slices the output (M1 Pro fp16 256x376: 128 -> 126 3x3 11.3 -> 5.0 ms; 258 -> 128 17.3 -> 10.1 ms).
+  `FF_MLX_NO_ALIGN=1`: off.
+- **Merged sibling convs.** Convs that read the same value with the same geometry (a GRU's z / r gates, twin heads)
+  become one conv over the stacked weights plus channel slices (`_merge_siblings`; `FF_MLX_NO_MERGE=1`: off).
+- **avg_pool as strided slice adds.** `_window_sum` sums a separable window with strided slices in float32 instead of
+  materialising the `[N, C, OH, OW, kh, kw]` window view (the IGEV pyramid pools).
+- **mvsanywhere cost volume** as one Metal kernel instead of the eager CPU torch volume (3.77 s -> 0.51 s fp16).
+
+Survey (M1 Pro 16 GB, before = rows at 64bd11f9, after = this pass; MPS = fastest MPS row of the same dtype group the
+cmp script uses):
+
+| ref | mode dtype | ms before -> after | MB before -> after | first call s before -> after | after / MPS |
+|---|---|---|---|---|---|
+| mvsanywhere | portable fp16 | 3772 -> 506 | 2054 -> 1425 | 12.4 -> 7.4 | 0.49 |
+| mvsanywhere | portable fp32 | 3791 -> 635 | 2498 -> 2119 | 16.1 -> 7.4 | 0.61 |
+| raft-stereo-sceneflow | kernels fp16 | 4181 -> 2986 | 4678 -> 4650 | 29.8 -> 14.2 | 0.82 |
+| raft-stereo-sceneflow | portable fp16 | 5772 -> 4212 | 4708 -> 3926 | 38.5 -> 15.7 | 1.16 |
+| raft-stereo-sceneflow | portable fp32 | 8090 -> 6093 | 4729 -> 4705 | 40.5 -> 20.2 | 1.39 |
+| igev-plusplus-sceneflow | kernels fp16 | new: 5895 | 3184 | 28.1 | 0.96 |
+| igev-plusplus-sceneflow | kernels fp32 | new: 10986 | 4977 | 33.5 | 1.14 |
+| igev-plusplus-sceneflow | portable fp16 | 14463 -> 10068 | 3562 -> 2993 | 105.1 -> 31.3 | 1.64 |
+| igev-plusplus-sceneflow | portable fp32 | 15882 -> 14770 | 5319 -> 4834 | 114.0 -> 44.7 | 1.53 |
+| selective-igev-sceneflow | kernels fp16 | new: 6296 | 2735 | 24.7 | 1.10 |
+| selective-igev-sceneflow | portable fp16 | 11925 -> 6659 | 3442 -> 2167 | 68.3 -> 24.3 | 1.17 |
+| selective-igev-sceneflow | portable fp32 | 13766 -> 11452 | 3038 -> 2938 | 81.8 -> 29.3 | 1.40 |
+| monster-sceneflow | portable fp16 | 19650 -> 10863 | 5189 -> 3633 | 143.7 -> 36.1 | 1.13 |
+| monster-plusplus-mix-all | portable fp16 | 18357 -> 11097 (not committed) | 5477 -> 3639 | 137.6 -> 34.2 | 1.09 |
+| rt-monster-plusplus-mix-all | kernels fp16 | new: 622 | 2046 | 13.1 | 1.02 |
+| rt-monster-plusplus-mix-all | portable fp16 | 842 -> 713 | 2288 -> 2006 | 19.8 -> 13.4 | 1.16 |
+| waft-stereo-s | portable fp16 | 6635 -> 3509 | 4330 -> 1835 | 14.2 -> 14.2 | 1.06 |
+| waft-stereo-s | portable fp32 | 6903 -> 5474 | 4303 -> 2869 | 16.3 -> 18.9 | 1.69 |
+| s2m2-s | portable fp16 | 2938 -> 1835 | 2790 -> 2779 | 21.2 -> 12.7 | 1.14 |
+
+Not committed (old row kept):
+
+- Heavier fp32 rows: raft-stereo kernels (5818 -> 4706 ms, 5590 -> 5852 MB), monster (16562 -> 13918 ms, 5687 -> 5874
+  MB), monster++ (17687 -> 14572 ms, 5520 -> 5850 MB), s2m2-s (4036 -> 2897 ms, 3993 -> 4110 MB) and the igev++
+  portable fp32 re-run (4834 -> 4911 MB). The extra memory does not come from this pass. On monster++ fp32 with
+  `FF_MLX_NO_ALIGN=1 FF_MLX_NO_MERGE=1`, the MLX peak (5505 MB) and the process peak footprint (6.19 GB) are the same as
+  with this pass on. The geometry casts and half cats do nothing at fp32. On s2m2-s fp32 the MLX peak is 3025 MB with
+  every switch. So the extra memory comes from earlier commits since the 2026-11-20 rows, like the great-igev fp32 note
+  above. monster++ fp32 would otherwise route to MLX (0.91x MPS, compile 30.5 s under 3 x 16.1 s).
+- monster-plusplus-mix-all fp16: its golden fails (mean |diff| 0.0368 against tolerance 0.03). The pytest golden also
+  fails at the head before this pass (0.0359) and with every new switch off (0.0349). The 2026-11-20 row passed at
+  0.0248, so the drift came in between, before this pass.
+
+Goldens: nafnet-gopro@1, wd-vit-tagger-v3@1, and every stereo golden in the survey except monster++ fp16 pass.
+
+Routing: none of these rows flips `auto` yet. The runtimes are close, but the compile (first call minus a warm call) is
+over `COLD_FACTOR` x the MPS runtime:
+
+- raft-stereo kernels fp16: 11.2 s against the 10.9 s limit.
+- igev++ kernels fp16: 22.2 s against 18.4 s; it is also only 4% faster, and `auto` needs 5%.
+- mvsanywhere fp16: 6.9 s against 3.1 s.
+- rt-monster++: 12.4 s against 1.8 s.
+
+Left:
+
+- **First call.** The iterative nets pay 13 to 36 s of export, decomposition and translation. Cutting that, for
+  example with a stored export, is what flips raft-stereo and mvsanywhere.
+- **IGEV-family geometry lookup.** It is still a chain of small elementwise ops on `(B*H*W, levels, 2r+2)` tensors,
+  about 1 s of eager op time per monster call. A Metal kernel as a custom op, like `gwc_volume`, would remove most of
+  them.
+- **GRU convs.** The 384 -> 256 / 384 -> 128 3x3 convs at 1/4 resolution are about 1.8 s per monster call. These are
+  MLX implicit-GEMM bound, so there is no graph-level fix.
+- **ViT encoder.** The depth-anything attention and MLP of MonSter (about 3.5 s eager) are as fast as MLX's
+  `scaled_dot_product_attention` and GEMMs go.
+- **Not profiled in this pass:** defom, and the flow nets (memfof, memflow, gmflow fp32).
+
 ## MPS lessons from MLX
 
 The MPS rows that used much more memory than MLX were dominated by the allocator, not by the model. Allocations of
