@@ -232,18 +232,19 @@ Fixed after the sweep, each with a Windows record:
   - The record uses efficient: mean 0.00049 / p99 0.00161 px, against 0.00044 / 0.00146 with flash on Linux.
   - Linux still uses flash and passes, checked in WSL2.
 
-Open, found by the sweep (causes in [Windows-only numerical differences](#windows-only-numerical-differences)):
+Found by the sweep (causes in [Windows-only numerical differences](#windows-only-numerical-differences)), resolved
+by the maintainer decisions of 2026-11-21 (decisions 6-9 below):
 
-| reference | result on Windows | portable on Windows | cause |
+| reference | result on Windows before | now | cause |
 | --- | --- | --- | --- |
 | `seedvr2-7b@1` | passes (the sweep hit an access violation reading the 16 GB checkpoint) | passes | Not reproduced when run alone (see below). |
-| `marigold-v2-depth@1` | depth mean 0.0188 (tolerance 0.01) | same failure | CPU `torch.polar` in the RoPE tables (MSVC vs glibc `cos` / `sin`). |
-| `dfine-n-coco@1` | 8 detections, golden 7 | passes | No flash SDPA; one box on the score threshold. |
+| `marigold-v2-depth@1` | depth mean 0.0188 (tolerance 0.01) | passes (Windows golden) | CPU `torch.polar` in the RoPE tables (MSVC vs glibc `cos` / `sin`). |
+| `dfine-n-coco@1` | 8 detections, golden 7 | passes with cuDNN (default), flash, math | No flash SDPA; one query's score crosses the golden's threshold with memory-efficient. |
 | `lw-detr-medium-coco@1` | boxes mean 0.29 px | passes | No flash SDPA (the `cudnn_hacc` ctypes plans are bit-equal to Linux). |
 | `rtmo-t@1` | boxes p99 0.0016 | passes | No flash SDPA; just over the tolerance. |
 | `sam2.1-hiera-tiny@1` | iou_scores mean 0.0107 | passes | No flash SDPA, plus the CPU bicubic `pos_embed` at load. |
 | `sam-hq-vit-b@1` | pred_masks p99 0.0058 | passes | No flash SDPA. |
-| `rf-detr-n-coco@1`, `rf-detr-seg-2xl-coco@1`, `rf-detr-keypoint-preview@1` | GPU portable fails | fails | No flash SDPA. |
+| `rf-detr-n-coco@1`, `rf-detr-seg-2xl-coco@1`, `rf-detr-keypoint-preview@1` | GPU portable fails | passes | No flash SDPA. |
 | `grounding-dino-base@1` | passes | passes | Passes on a rerun with the `transformers` extra installed; the local npz matches the `golden.toml` hash. |
 
 ## Windows-only numerical differences
@@ -273,7 +274,7 @@ Windows. Linux with `sdpa_kernel(EFFICIENT_ATTENTION)` gives the Windows numbers
 Against a float64 reference, flash, efficient, cuDNN and math SDPA have the same error at these shapes. The difference
 is rounding, not accuracy: the tolerances were fitted to the flash result with almost no margin (rf-detr-n's p99 is
 0.23003 against 0.23). Some references pass with math or cuDNN on Windows, but that is luck in the rounding, so no
-backend was pinned for them. Fixing these needs a maintainer decision (below), not a code change.
+backend was pinned for them. Resolved by decision 6: their bounds now cover all four backends.
 
 ### CPU float32 ATen kernels (GCC vs MSVC builds)
 
@@ -289,7 +290,7 @@ The thread count makes no difference. In the last bits: bilinear / bicubic inter
   Linux noise injected instead, nothing changes. The model amplifies this to a depth mean of 0.0188 (tolerance 0.01).
   No formulation gives the Linux bits on both OSes: float64 trig rounded to float32 differs from the current Linux
   tables in 13778 entries, vectorized float32 in 51619. Any platform-independent table therefore changes the Linux
-  output and needs a new golden and a revision bump.
+  output and needs a new golden and a revision bump. Resolved by decision 7 (a Windows golden).
 - `sam2.1-hiera-tiny@1` (kernels): the bicubic `pos_embed` interpolation at load (`fast.py`) is the first op that
   differs. With it computed on the GPU, Linux passes both modes, but Windows kernels still fails (iou p99 0.0154)
   because of SDPA as well.
@@ -303,7 +304,8 @@ The thread count makes no difference. In the last bits: bilinear / bicubic inter
   | `rf-detr-seg-n-coco` | `upsample_bilinear2d` | |
   | `sam-vit-b`, `sam3`, `dat-light-x4` | `layer_norm` | sam3 mixed_boxes 0.00138, atol 0.001 |
 
-  resplat also flips a data-dependent count (`repeat_interleave` gives 32946 elements vs 32945).
+  resplat also flips a data-dependent count (`repeat_interleave` gives 32946 elements vs 32945); the stored outputs
+  keep their shapes, a few Gaussians move. Resolved by decision 8.
 
 ### seedvr2-7b
 
@@ -436,18 +438,75 @@ Made without a maintainer to keep the work moving; each is in its own commit so 
    the backend that OS uses. It is still a choice inside kernels mode. If the policy reads "only `auto` chooses"
    strictly, the alternative is to keep raising `KernelUnavailableError` on Windows (commit `99d0b12c`).
 
-Open, for a maintainer (see [Windows-only numerical differences](#windows-only-numerical-differences)):
+Decided by the maintainer on 2026-11-21 (see [Windows-only numerical differences](#windows-only-numerical-differences)):
 
-6. **Tolerances for PyTorch builds without flash SDPA.** rf-detr-n / seg-2xl / keypoint-preview, dfine-n, lw-detr-medium,
-   rtmo-t, sam-hq-vit-b and sam2.1-hiera-tiny fail on Windows only because attention runs memory-efficient instead of
-   flash, which is equally accurate. Options: re-fit those tolerances so both backends pass (the non-flash numbers can
-   be produced on Linux with `sdpa_kernel(EFFICIENT_ATTENTION)`), or a per-OS tolerance. Pinning one backend on both
-   OSes would change the Linux goldens.
-7. **Marigold v2 RoPE tables.** Computing them platform-independently (float64 `cos` / `sin`, rounded to float32)
-   makes Windows and Linux agree, but it changes the Linux output too: a new golden and a revision bump, and the
-   tables no longer match the authors' code bit for bit. The alternative is a looser tolerance.
-8. **Float32 CPU goldens.** The nine references listed above differ only in PyTorch's own CPU kernels. Options: widen
-   their `cpu_atol` to cover both builds, or mark the CPU golden as Linux-only.
+6. **Tolerances for PyTorch builds without flash SDPA: re-fitted, attention references only** (commit `goldens: GPU
+   bounds of attention references that cover every SDPA backend`). rf-detr-n / s / seg-2xl / keypoint-preview,
+   dfine-n, lw-detr-medium, rtmo-t, sam-hq-vit-b and sam2.1-hiera-tiny were measured in both modes with flash (WSL2)
+   and memory-efficient, cuDNN and math (Windows 11), RTX 5060 Ti, torch 2.14.1+cu130. Each bound is 1.25 x the
+   largest value, rounded up to two digits, where the old bound did not already cover it; primary outputs get a
+   `gpu_mean_<mode>` / `gpu_p99_<mode>` key only for the mode that needed it, `gpu_extra` rows are per reference. The
+   measured values are in a comment next to each bound. Changed (mean / p99, max measured -> new):
+
+   | reference (mode) | output | old | max measured | new |
+   | --- | --- | --- | --- | --- |
+   | `rf-detr-n-coco` (portable) | boxes | 0.079 / 0.23 | 0.069 / 0.23 | 0.087 / 0.29 |
+   | `rf-detr-s-coco` (portable) | boxes | 0.11 / 0.17 | 0.098 / 0.18 | 0.13 / 0.23 |
+   | `rf-detr-seg-2xl-coco` (portable) | boxes | 0.49 / 1.8 | 0.40 / 2.16 | 0.51 / 2.7 |
+   | `rf-detr-seg-2xl-coco` | scores | 0.03 / 0.076 | 0.028 / 0.059 | 0.036 / 0.076 |
+   | `lw-detr-medium-coco` (kernels) | boxes | 0.19 / 0.64 | 0.38 / 1.83 | 0.47 / 2.3 |
+   | `rtmo-t` (portable) | keypoints | 0.035 / 0.19 | 0.024 / 0.188 | 0.035 / 0.24 |
+   | `rtmo-t` | boxes | 0.00029 / 0.0013 | 0.00024 / 0.0016 | 0.00031 / 0.0021 |
+   | `rtmo-t` | scores | 0.0027 / 0.0047 | 0.0021 / 0.0038 | 0.0027 / 0.0048 |
+   | `rf-detr-keypoint-preview` (kernels) | keypoints | 0.12 / 0.32 | 0.099 / 0.29 | 0.13 / 0.37 |
+   | `rf-detr-keypoint-preview` (portable) | keypoints | 0.072 / 0.17 | 0.064 / 0.17 | 0.08 / 0.22 |
+   | `rf-detr-keypoint-preview` | boxes | 0.00069 / 0.0016 | 0.00064 / 0.001 | 0.0008 / 0.0016 |
+   | `rf-detr-keypoint-preview` | keypoint_scores | 0.00048 / 0.0039 | 0.00046 / 0.0053 | 0.00058 / 0.0066 |
+   | `sam-hq-vit-b` (kernels) | pred_masks | 0.0019 / 0.0053 | 0.0029 / 0.0102 | 0.0036 / 0.013 |
+   | `sam-hq-vit-b` | iou_scores | 0.0032 / 0.0032 | 0.0054 / 0.0054 | 0.0068 / 0.0068 |
+   | `sam2.1-hiera-tiny` (kernels) | pred_masks | 0.0037 / 0.015 | 0.0039 / 0.0196 | 0.0049 / 0.025 |
+   | `sam2.1-hiera-tiny` | iou_scores | 0.0081 / 0.013 | 0.015 / 0.026 | 0.02 / 0.034 |
+   | `sam2.1-hiera-tiny` | video_object_score_logits | 0.0023 / 0.0038 | 0.0019 / 0.0028 | 0.0024 / 0.0038 |
+
+   dfine-n's bounds already cover every backend (boxes max 0.099 / 0.53 against 0.2 / 1.0), but its kernels path
+   with memory-efficient SDPA keeps 8 detections against the golden's 7: one query's score crosses the 0.45 cut the
+   golden was made with. That is a different detection set, not a tolerance, and stays: it passes with flash, cuDNN
+   (the Windows default since decision 9) and math. sam2.1-hiera-tiny's `pos_embed` stays a CPU interpolation at
+   load: computed once, bit-equal to upstream's CPU reference on Linux, and a GPU version would change the Linux
+   numbers for no speed gain.
+7. **Marigold v2 RoPE tables: a Windows golden** (commits `goldens: per-OS golden files ([refs."<ref>".windows])`,
+   `marigold_v2: per-OS golden for Windows`). The tables stay bit-equal to the authors' code. A `[refs]` entry can
+   carry a per-OS golden as a sub-table, like `[validated."<ref>".windows]`:
+
+   ```toml
+   [refs."marigold-v2-depth@1".windows]   # file marigold-v2-depth@1.windows.npz
+   sha256 = "525c0eae..."
+   upstream = "..."
+   settings = "..."
+   ```
+
+   The family's golden tool writes it on Windows with `FASTFORKS_GOLDEN_OS=windows` (or on Windows for a reference that
+   already has one); `tests/test_golden.golden` and `tools/fetch_goldens.py` read this OS's file, `tools/stage_hf.py
+   goldens` stages every file of an entry. Marigold's reference is the family's own net on the GPU with `exact_mask =
+   True` (the authors' code needs more than 16 GB), run on Windows the same way as on Linux. Windows portable and
+   kernels pass against it; Linux reads the unchanged golden. `marigold-v2-depth@1.windows.npz` still has to be
+   uploaded with `tools/stage_hf.py goldens`.
+8. **Float32 CPU goldens: widened per reference and output** (commit `goldens: CPU float32 bounds that cover
+   PyTorch's Windows and Linux builds`). Each bound is 1.25 x the larger max |diff| of Windows and WSL2, with both in a
+   comment; family bounds stay. resplat's count flip uses its outlier bound (share of elements beyond `cpu_atol`),
+   which a `[refs]` entry can now override:
+
+   | reference | output | Windows | Linux | old | new |
+   | --- | --- | --- | --- | --- | --- |
+   | `megaloc` | descriptor | 1.49e-07 | 5.84e-08 | 8.8e-08 | 1.9e-07 |
+   | `anycalib-pinhole` | intrinsics | 3.66e-04 | 1.22e-04 | 1.9e-04 | 4.6e-04 |
+   | `rf-detr-seg-n-coco` | boxes | 2.14e-04 | 0 | 1e-04 | 2.7e-04 |
+   | `sam-vit-b` | pred_masks | 2.68e-03 | 9.52e-04 | 2e-03 | 3.4e-03 |
+   | `ben2` | alpha | 7.15e-06 | 2.32e-06 | 3.5e-06 | 9e-06 |
+   | `dat-light-x4` | image | 3.86e-06 | 2.86e-06 | 3.6e-06 | 4.9e-06 |
+   | `wd-vit-tagger-v3` | logits | 2.10e-05 | 6.68e-06 | 1.5e-05 | 2.7e-05 |
+   | `sam3` | mixed_boxes | 1.38e-03 | 6.49e-04 | 1e-03 | 1.8e-03 |
+   | `resplat-small-dl3dv` | outlier share (rotations) | 0.0235 | 0.0150 | 0.02 | 0.03 |
 9. **SDPA backend where PyTorch has no flash** (`fastforks.shared.sdpa`, `FASTFORKS_SDPA`, docs/usage.md). Every CUDA
    model call runs under one shared policy (`Model._session`); C-FS-S's kernels take theirs from it too. `auto`
    (default) changes nothing where the build has flash (Linux: no switch entered, C-FS-S pins flash). Without flash
