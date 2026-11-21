@@ -100,7 +100,8 @@ class RotaryPositionEmbedding2D(nn.Module):
             Tuple of (cosine, sine) tensors for frequency components.
         """
         cache_key = (dim, seq_len, device, dtype)
-        if cache_key not in self.frequency_cache:
+        components = self.frequency_cache.get(cache_key)
+        if components is None:
             # Compute frequency bands
             exponents = torch.arange(0, dim, 2, device=device).float() / dim
             inv_freq = 1.0 / (self.base_frequency**exponents)
@@ -114,9 +115,11 @@ class RotaryPositionEmbedding2D(nn.Module):
             angles = torch.cat((angles, angles), dim=-1)
             cos_components = angles.cos().to(dtype)
             sin_components = angles.sin().to(dtype)
-            self.frequency_cache[cache_key] = (cos_components, sin_components)
+            components = (cos_components, sin_components)
+            if type(cos_components) is torch.Tensor:  # fastforks: not a traced one (an export's fake tensor)
+                self.frequency_cache[cache_key] = components
 
-        return self.frequency_cache[cache_key]
+        return components
 
     @staticmethod
     def _rotate_features(x: torch.Tensor) -> torch.Tensor:

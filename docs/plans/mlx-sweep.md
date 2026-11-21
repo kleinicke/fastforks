@@ -1716,8 +1716,27 @@ Three changes, all on the trace:
 
 Golden fix found along the way: DA3's `PositionGetter` cached the positions of the first export as a FakeTensor. The
 one-pass export of the next branch then lifted that FakeTensor as a constant, and `.numpy()` failed on it. This was
-already failing at b0fa8c02, `test_mlx[da3-large-1.1@1]`. The fix: the cache no longer stores traced tensors. The
-copies in vggt, anysplat and megaflow have the same cache. They were not changed or tested here.
+already failing at b0fa8c02, `test_mlx[da3-large-1.1@1]`. The fix: the cache no longer stores traced tensors.
+
+The same latent bug sat in every copy of the RoPE caches:
+
+- The `PositionGetter` position cache and the `RotaryPositionEmbedding2D` frequency cache in vggt, anysplat and
+  megaflow. lingbot-map uses vggt's aggregator.
+- DA3's frequency cache. `shared/rope2d.rope_forward` asks it for the same key on every export.
+- pi3's `RoPE2D.get_cos_sin` and `PositionGetter`.
+
+At HEAD, `test_mlx` failed with `.numpy() is not supported for tensor subclasses` for pi3, vggt-1b, anysplat,
+megaflow and lingbot-map. The cache filled while the first export traced, so the second export found a
+FunctionalTensor in it. vggt-omega-1b-512 passed.
+
+All five files now cache only a plain `torch.Tensor`. The fix was checked as follows:
+
+- tests/test_mlx_rope_cache.py is a toy per family that exports one module at b=2, then at b=3, with the same keys.
+  It failed for all five families before the fix.
+- After the fix, `test_mlx` passes for pi3, megaflow, lingbot-map, vggt-1b, anysplat, vggt-omega-1b-512 and
+  da3-large-1.1.
+- `test_mps` (portable plus kernels) passes for pi3, megaflow, lingbot-map, vggt-1b and anysplat. da3-large-1.1 is
+  not in the default MPS set, so it was checked with FASTFORKS_MPS_FULL=1.
 
 Rows are ms / peak MB / first call s, each the second of two survey runs unless noted. Compile is the first call minus
 the warm ms.
