@@ -104,10 +104,8 @@ def _version(w: torch.Tensor) -> int:
 
     The cache then relies on the storage address alone, and an in-place edit of an inference tensor goes unseen.
     """
-    try:
-        return w._version  # noqa: SLF001 - torch's counter
-    except RuntimeError:  # "Inference tensors do not track version counter."
-        return -1
+    # asked first: raising and catching "Inference tensors do not track version counter" cost ~0.2 ms per call
+    return -1 if w.is_inference() else w._version  # noqa: SLF001 - torch's counter
 
 
 def _stem_c8_weight(w: torch.Tensor) -> torch.Tensor:
