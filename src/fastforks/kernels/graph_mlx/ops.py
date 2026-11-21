@@ -378,3 +378,150 @@ def upsample_soft_argmax(cost: mx.array, max_disp: int, height: int, width: int)
         grid=(width, height, n), threadgroup=(32, 4, 1),
         output_shapes=[(n, height, width)], output_dtypes=[mx.float32],
     )[0]  # fmt: skip
+
+
+_WIN_SRC = """
+        // one threadgroup per (window, head), one simdgroup per QT * 8 queries (QT = 2 is fastest at L = 64); K and
+        // V of the window staged in threadgroup memory (faster than reading them through the cache). S = Q K^T by
+        // 8x8 simdgroup MMA with float32 accumulators kept in registers; scale, additive masks and the row softmax
+        // in float32; P rounded to T for O = P V by MMA.
+        // MLX's 8x8 fragment layout: a lane holds row fm, columns fn and fn + 1; the lanes of a row differ in lane
+        // bits 0 and 3, so row reductions are xor-shuffles over 1 and 8.
+        uint sg = simdgroup_index_in_threadgroup, lane = thread_index_in_simdgroup;
+        uint bh = threadgroup_position_in_grid.x;
+        uint b = bh / NH, h = bh % NH;
+        // q, k and v rows `RS` apart from `b * BS + h * HS` (plus `KO` / `VO`): `[B, H, L, D]` arrays, or the one
+        // `[B, L, 3, H, D]` projection a fused qkv linear gives, read where it lies
+        size_t base = size_t(b) * BS + size_t(h) * HS;
+        threadgroup T ks[L * D];
+        threadgroup T vs[L * D];
+        {
+            const device vec<T, 4>* kp = (const device vec<T, 4>*)(k + base + KO);
+            const device vec<T, 4>* vp = (const device vec<T, 4>*)(v + base + VO);
+            for (uint e = thread_position_in_threadgroup.x; e < uint(L * D / 4); e += TPG) {
+                uint src = (e / (D / 4)) * (RS / 4) + e % (D / 4);
+                ((threadgroup vec<T, 4>*)ks)[e] = kp[src];
+                ((threadgroup vec<T, 4>*)vs)[e] = vp[src];
+            }
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        short qid = lane / 4;
+        short fm = (qid & 4) + ((lane / 2) % 4);
+        short fn = (qid & 2) * 2 + (lane % 2) * 2;
+        float scale = sc[0];
+        simdgroup_float8x8 sm[QT][L / 8];
+        float mx_[QT], inv[QT];
+        for (int qt = 0; qt < QT; ++qt) {
+            uint r0 = (sg * QT + qt) * 8;
+            const device T* qp = q + base + size_t(r0) * RS;
+            simdgroup_matrix<T, 8, 8> qm[D / 8];
+            for (int dt = 0; dt < D / 8; ++dt) simdgroup_load(qm[dt], qp + dt * 8, RS);
+            const device M1* r1 = m1 + ((size_t(b % MB1) * MH1 + (MH1 > 1 ? h : 0)) * L + r0 + fm) * L;
+            const device M2* r2 = m2 + ((size_t(b % MB2) * MH2 + (MH2 > 1 ? h : 0)) * L + r0 + fm) * L;
+            float m = -INFINITY;
+            for (int jt = 0; jt < L / 8; ++jt) {
+                simdgroup_float8x8 acc = simdgroup_float8x8(0.0f);
+                for (int dt = 0; dt < D / 8; ++dt) {
+                    simdgroup_matrix<T, 8, 8> kt;  // K^T tile: (d, key)
+                    simdgroup_load(kt, ks + jt * 8 * D + dt * 8, D, ulong2(0, 0), true);
+                    simdgroup_multiply_accumulate(acc, qm[dt], kt, acc);
+                }
+                for (int e = 0; e < 2; ++e) {
+                    float x = acc.thread_elements()[e] * scale;
+                    if (HAS1) x += float(r1[jt * 8 + fn + e]);
+                    if (HAS2) x += float(r2[jt * 8 + fn + e]);
+                    acc.thread_elements()[e] = x;
+                    m = max(m, x);
+                }
+                sm[qt][jt] = acc;
+            }
+            m = max(m, simd_shuffle_xor(m, 1));
+            m = max(m, simd_shuffle_xor(m, 8));
+            float sum = 0.0f;
+            for (int jt = 0; jt < L / 8; ++jt) {
+                for (int e = 0; e < 2; ++e) {
+                    float x = exp(sm[qt][jt].thread_elements()[e] - m);
+                    sm[qt][jt].thread_elements()[e] = x;
+                    sum += x;
+                }
+            }
+            sum += simd_shuffle_xor(sum, 1);
+            sum += simd_shuffle_xor(sum, 8);
+            inv[qt] = 1.0f / sum;
+        }
+        for (int dt = 0; dt < D / 8; ++dt) {
+            simdgroup_float8x8 acc[QT];
+            for (int qt = 0; qt < QT; ++qt) acc[qt] = simdgroup_float8x8(0.0f);
+            for (int jt = 0; jt < L / 8; ++jt) {
+                simdgroup_matrix<T, 8, 8> vm;
+                simdgroup_load(vm, vs + jt * 8 * D + dt * 8, D);
+                for (int qt = 0; qt < QT; ++qt) {
+                    simdgroup_matrix<T, 8, 8> pm;
+                    pm.thread_elements()[0] = T(sm[qt][jt].thread_elements()[0]);
+                    pm.thread_elements()[1] = T(sm[qt][jt].thread_elements()[1]);
+                    simdgroup_multiply_accumulate(acc[qt], pm, vm, acc[qt]);
+                }
+            }
+            for (int qt = 0; qt < QT; ++qt) {
+                // out is [B, L, H, D]
+                device T* op = out + ((size_t(b) * L + (sg * QT + qt) * 8 + fm) * NH + h) * D + dt * 8 + fn;
+                op[0] = T(acc[qt].thread_elements()[0] * inv[qt]);
+                op[1] = T(acc[qt].thread_elements()[1] * inv[qt]);
+            }
+        }
+"""
+
+
+_WIN_ATTN = metal_kernel(
+    name="graph_window_attention",
+    input_names=["q", "k", "v", "m1", "m2", "sc"],
+    output_names=["out"],
+    header="#include <metal_simdgroup_matrix>\n",
+    source=_WIN_SRC,
+)
+
+WIN_ATTN_TG_BYTES = 32768
+"""Threadgroup memory of `window_attention`: K and V of one window and head in the input dtype."""
+
+
+def window_attention_ok(q: mx.array, k: mx.array, v: mx.array) -> bool:
+    """Whether `window_attention` runs these shapes (self-attention, `L` and `D` multiples of 8, fits 32 KB)."""
+    if q.ndim != 4 or k.shape != q.shape or v.shape != q.shape or q.dtype not in (mx.float16, mx.float32):
+        return False
+    n, d = q.shape[2:]
+    return n % 8 == 0 and d % 8 == 0 and n <= 256 and d <= 128 and 2 * n * d * q.dtype.size <= WIN_ATTN_TG_BYTES
+
+
+def window_attention(
+    q: mx.array, k: mx.array | None, v: mx.array | None, scale: float, masks: list[mx.array]
+) -> mx.array:
+    """`softmax(q k^T * scale + sum(masks)) v` of short self-attention (`[B, H, L, D]`, see `window_attention_ok`).
+
+    With `k` and `v` None, `q` is the `[B, L, 3, H, D]` output of a fused qkv projection, read in place (slicing q, k
+    and v out of it costs MLX a strided copy each). Each of the (at most two) additive masks is `[MB, MH, L, L]` with
+    `MB` dividing `B` (batch `b` reads mask `b % MB`, as a broadcast or a `repeat` over the batch gives) and `MH` 1 or
+    `H`; the summed `[B, H, L, L]` mask is never built. Scores and softmax in float32. The result is a `[B, H, L, D]`
+    view of a `[B, L, H, D]` array, so the usual `transpose(1, 2).reshape(B, L, H * D)` after it is free.
+    """
+    if k is None or v is None:
+        qkv = mx.contiguous(q)
+        b, n, _, nh, d = qkv.shape
+        q = k = v = qkv
+        strides = [("RS", 3 * nh * d), ("BS", n * 3 * nh * d), ("HS", d), ("KO", nh * d), ("VO", 2 * nh * d)]
+    else:
+        b, nh, n, d = q.shape
+        q, k, v = mx.contiguous(q), mx.contiguous(k), mx.contiguous(v)
+        strides = [("RS", d), ("BS", nh * n * d), ("HS", n * d), ("KO", 0), ("VO", 0)]
+    dummy = mx.zeros((1, 1, n, n), q.dtype)  # a one-element array would be bound as `constant`
+    ms = [mx.contiguous(m) for m in masks] + [dummy] * (2 - len(masks))
+    qt = 2 if n % 16 == 0 else 1
+    tpg = n // qt * 4  # one simdgroup per QT * 8 queries
+    tmpl = [("T", q.dtype), ("NH", nh), ("L", n), ("D", d), ("TPG", tpg), ("QT", qt), *strides]
+    for i, m in enumerate(ms, 1):
+        tmpl += [(f"M{i}", m.dtype), (f"MB{i}", m.shape[0]), (f"MH{i}", m.shape[1]), (f"HAS{i}", i <= len(masks))]
+    return _WIN_ATTN(
+        inputs=[q, k, v, *ms, mx.array([scale], mx.float32)],
+        template=tmpl,
+        grid=(tpg * b * nh, 1, 1), threadgroup=(tpg, 1, 1),
+        output_shapes=[(b, n, nh, d)], output_dtypes=[q.dtype],
+    )[0].swapaxes(1, 2)  # fmt: skip

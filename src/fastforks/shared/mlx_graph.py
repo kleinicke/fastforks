@@ -199,12 +199,22 @@ OPS[aten.fmod.Scalar] = OPS[aten.fmod.Tensor] = _fmod
 OPS[aten.floor_divide.default] = lambda a, b: mx.floor_divide(a, b)
 
 
+def _gelu_tanh(x: mx.array) -> mx.array:
+    c = math.sqrt(2 / math.pi)
+    return 0.5 * x * (1 + mx.tanh(c * (x + 0.044715 * x * x * x)))
+
+
+def _gelu_erf(x: mx.array) -> mx.array:
+    return 0.5 * x * (1 + mx.erf(x * (1 / math.sqrt(2))))
+
+
+if not os.environ.get("FF_MLX_NO_GELU_COMPILE"):  # one fused kernel even in an eager segment (5 passes otherwise)
+    _gelu_tanh, _gelu_erf = mx.compile(_gelu_tanh, shapeless=True), mx.compile(_gelu_erf, shapeless=True)
+
+
 @_reg(aten.gelu.default)
 def _gelu(x: mx.array, approximate: str = "none") -> mx.array:
-    if approximate == "tanh":
-        c = math.sqrt(2 / math.pi)
-        return 0.5 * x * (1 + mx.tanh(c * (x + 0.044715 * x * x * x)))
-    return 0.5 * x * (1 + mx.erf(x * (1 / math.sqrt(2))))
+    return _gelu_tanh(x) if approximate == "tanh" else _gelu_erf(x)
 
 
 # ---- shape ------------------------------------------------------------------------------------------------------
@@ -786,6 +796,59 @@ def _sdpa(
     return mx.concatenate(outs, axis=2)
 
 
+WIN_ATTN_OFF = bool(os.environ.get("FF_MLX_NO_WIN_ATTN"))  # masked short attention through `_sdpa` (summed mask)
+
+
+def _win_attn_ok(q: mx.array, k: mx.array, v: mx.array, parts: tuple[mx.array, ...]) -> bool:
+    """Whether `ops.window_attention` runs this attention with these mask parts (see `_sdpa_parts`)."""
+    from fastforks.kernels.graph_mlx import ops
+
+    b, h, lq, d = q.shape
+    return (
+        not WIN_ATTN_OFF
+        and d not in SDPA_FUSED_DIMS
+        and len(parts) <= 2
+        and all(
+            p.ndim == 4 and b % p.shape[0] == 0 and p.shape[1] in (1, h) and tuple(p.shape[2:]) == (lq, lq)
+            and p.dtype in (mx.float16, mx.bfloat16, mx.float32)
+            for p in parts
+        )
+        and ops.window_attention_ok(q, k, v)
+    )  # fmt: skip
+
+
+def _sdpa_qkv(qkv: mx.array, *parts: mx.array, scale: float | None = None) -> mx.array:
+    """`_sdpa_parts` of q, k and v sliced out of `qkv.permute(2, 0, 3, 1, 4)` (`[B, L, 3, H, D]`, `_sdpa_qkv_args`).
+
+    The window kernel reads them where they lie; MLX would copy each slice of the permuted array (19 of 31 ms per
+    SwinIR-L block at 512x512 fp16).
+    """
+    q, k, v = qkv.transpose(2, 0, 3, 1, 4)
+    if _win_attn_ok(q, k, v, parts):
+        from fastforks.kernels.graph_mlx import ops
+
+        return ops.window_attention(qkv, None, None, scale if scale is not None else q.shape[3] ** -0.5, list(parts))
+    return _sdpa_parts(q, k, v, *parts, scale=scale)
+
+
+def _sdpa_parts(q: mx.array, k: mx.array, v: mx.array, *parts: mx.array, scale: float | None = None) -> mx.array:
+    """`_sdpa` whose additive mask is `sum(parts)` broadcast and tiled over the batch (`_sdpa_mask_parts`).
+
+    Windowed attention (Swin and its kin: `bias[None] + shift_mask[:, None]`, expanded to the batch) runs our
+    kernel, which reads each part where it lies instead of a materialised `[B, H, L, L]` mask; it is used for the
+    head sizes MLX does not fuse (it zero-pads them to 64, over 1.7x slower at `L = 64, D = 32`).
+    """
+    if _win_attn_ok(q, k, v, parts):
+        from fastforks.kernels.graph_mlx import ops
+
+        return ops.window_attention(q, k, v, scale if scale is not None else q.shape[3] ** -0.5, list(parts))
+    b = q.shape[0]
+    mask = functools.reduce(operator.add, parts)
+    if mask.ndim == 4 and mask.shape[0] not in (1, b):
+        mask = mx.tile(mask, (b // mask.shape[0], 1, 1, 1))
+    return _sdpa(q, k, v, mask, scale=scale)
+
+
 @_reg(aten._softmax.default, aten.softmax.int)
 def _softmax(x: mx.array, dim: int, half_to_float: bool = False) -> mx.array:
     del half_to_float
@@ -1014,6 +1077,92 @@ def _conv_input(x: mx.array, w: mx.array) -> mx.array:
     if not KEEP_F32_CONV and x.dtype == mx.float32 and w.dtype in (mx.float16, mx.bfloat16):
         return x.astype(w.dtype)
     return x
+
+
+QKV_OFF = bool(os.environ.get("FF_MLX_NO_WIN_QKV"))  # window attention on sliced (copied) q, k, v
+
+
+def _sdpa_mask_parts(nodes: list[Any]) -> tuple[dict[str, tuple[Callable[..., Any], list[Any]]], set[str]]:
+    """Attention nodes whose float mask is `expand(repeat(a + b))` (each step optional, sole users): their call.
+
+    `_sdpa_parts` runs them on the parts, so the peeled nodes (returned too) never build the `[B, H, L, L]` mask;
+    `_sdpa_qkv` when q, k and v are slices of one fused projection (`_sdpa_qkv_args`), which is peeled as well.
+    """
+    out: dict[str, tuple[Callable[..., Any], list[Any]]] = {}
+    skip: set[str] = set()
+    if WIN_ATTN_OFF:
+        return out, skip
+
+    def call(n: Any, target: Any) -> bool:
+        return isinstance(n, torch.fx.Node) and n.target is target and len(n.users) == 1
+
+    for node in nodes:
+        a = node.args
+        if (
+            node.op != "call_function"
+            or node.target is not aten.scaled_dot_product_attention.default
+            or len(a) != 4
+            or set(node.kwargs) - {"scale"}
+        ):
+            continue
+        m, peeled = a[3], []
+        if call(m, aten.expand.default):
+            peeled.append(m)
+            m = m.args[0]
+        if call(m, aten.repeat.default) and list(m.args[1])[1:] == [1, 1, 1]:
+            peeled.append(m)
+            m = m.args[0]
+        terms = [m]
+        if call(m, aten.add.Tensor) and not m.kwargs and all(isinstance(t, torch.fx.Node) for t in m.args):
+            peeled.append(m)
+            terms = list(m.args)
+        vals = [t.meta.get("val") if isinstance(t, torch.fx.Node) else None for t in terms]
+        if not peeled or not all(isinstance(v, torch.Tensor) and v.ndim == 4 and v.is_floating_point() for v in vals):
+            continue
+        qkv = None if QKV_OFF else _sdpa_qkv_args(node)
+        if qkv is not None:
+            out[node.name] = (_sdpa_qkv, [qkv[0], *terms])
+            peeled += qkv[1]
+        else:
+            out[node.name] = (_sdpa_parts, [*a[:3], *terms])
+        skip.update(p.name for p in peeled)
+    return out, skip
+
+
+def _sdpa_qkv_args(node: Any) -> tuple[Any, list[Any]] | None:
+    """`(qkv, peeled)` when the attention's q, k, v are `qkv.permute(2, 0, 3, 1, 4)[0 / 1 / 2]` (sole users).
+
+    The fused qkv projection of Swin and ViT blocks; the slice is `select`, or `slice` + `squeeze`.
+    """
+    peeled: list[Any] = []
+    perm = None
+    for i, arg in enumerate(node.args[:3]):
+        chain, t = [], arg
+        if isinstance(t, torch.fx.Node) and t.target is aten.squeeze.dims and list(t.args[1]) == [0]:
+            chain.append(t)
+            t = t.args[0]
+            ok = t.target is aten.slice.Tensor and list(t.args[1:]) in ([0, i, i + 1], [0, i, i + 1, 1])
+        else:
+            ok = isinstance(t, torch.fx.Node) and t.target is aten.select.int and list(t.args[1:]) == [0, i]
+        if not ok or len(t.users) != 1:
+            return None
+        chain.append(t)
+        p = t.args[0]
+        if perm is None:
+            perm = p
+        if p is not perm:
+            return None
+        peeled += chain
+    if not (
+        perm.target is aten.permute.default and list(perm.args[1]) == [2, 0, 3, 1, 4] and len(perm.users) == 3
+        and all(u in peeled for u in perm.users)
+    ):  # fmt: skip
+        return None
+    base = perm.args[0]
+    val = base.meta.get("val") if isinstance(base, torch.fx.Node) else None
+    if not isinstance(val, torch.Tensor) or val.ndim != 5 or val.shape[2] != 3:
+        return None
+    return base, [*peeled, perm]
 
 
 def _conv_only_cats(nodes: list[Any]) -> set[str]:
@@ -2082,6 +2231,93 @@ def _refs(a: Any) -> Iterator[str]:
             yield from _refs(x)
 
 
+CONST_FOLD_OFF = bool(os.environ.get("FF_MLX_NO_CONST_FOLD"))  # constant subgraphs run on every call
+CONST_FOLD_MAX_MB = 512
+"""Folded constants kept at most (else none are folded): their arrays stay resident for the net's lifetime."""
+
+
+def _fold_constants(plan: list[tuple[Any, ...]], values: dict[str, Any]) -> list[tuple[Any, ...]]:
+    """`plan` without the steps that read only constants: those run once here, their results become constants.
+
+    Masks and coordinate grids that a port builds in the graph from the input's (static) shape — Swin's shifted
+    window mask, recomputed by every shifted block — otherwise run on every call. Steps of the same op on the same
+    arguments share one result (the 27 identical masks of SwinIR-L are one array).
+    """
+    if CONST_FOLD_OFF:
+        return plan
+
+    def canon(a: Any) -> Any:
+        if isinstance(a, _Name):
+            return keys[a.name]
+        if isinstance(a, (list, tuple)):
+            return tuple(canon(x) for x in a)
+        return a
+
+    def get(a: Any) -> Any:
+        if isinstance(a, _Name):
+            return env[a.name]
+        if isinstance(a, (list, tuple)):
+            return type(a)(get(x) for x in a)
+        return a
+
+    env: dict[str, Any] = dict(values)
+    seen: dict[Any, int] = {}  # structural key (op, argument ids) -> id
+    first: dict[int, str] = {}  # id -> the step that computed it
+    ids = itertools.count()
+    keys: dict[str, int] = {}  # constant name -> id of its structural key
+    for n, a in values.items():  # the lifted scalars of each block (`_tensor_constant`s) by value
+        small = isinstance(a, mx.array) and a.size <= 64
+        k = ("value", a.dtype, tuple(a.shape), tuple(a.reshape(-1).tolist())) if small else ("const", n)
+        keys[n] = seen.setdefault(k, next(ids))
+    folded: set[str] = set()
+    for p in plan:
+        if p[0] == "alias" and p[2] in keys:
+            keys[p[1]], env[p[1]] = keys[p[2]], env[p[2]]
+            folded.add(p[1])
+            continue
+        if p[0] != "call" or getattr(p[2], "uncompilable", False):
+            continue
+        refs = [n for a in (*p[3], *p[4].values()) for n in _refs(a)]
+        if not all(r in keys for r in refs):
+            continue
+        op = p[2]
+        if isinstance(op, functools.partial):  # built per node (`_run_dtype`, `_cat_in`): the same op by value
+            op = (op.func, op.args, tuple(sorted(op.keywords.items())))
+        key: Any = (op, canon(p[3]), tuple(sorted((k, canon(v)) for k, v in p[4].items())))
+        try:
+            hash(key)
+        except TypeError:
+            key = ("step", p[1])
+        if key in seen:
+            env[p[1]] = env[first[seen[key]]]
+        else:
+            try:
+                env[p[1]] = p[2](*get(p[3]), **get(p[4]))
+            except (RuntimeError, ValueError, TypeError, IndexError, UnsupportedOp):  # runs only in the graph: kept
+                continue
+            seen[key] = next(ids)
+            first[seen[key]] = p[1]
+        keys[p[1]] = seen[key]
+        folded.add(p[1])
+    if not folded:
+        return plan
+    rest = [p for p in plan if p[0] not in ("call", "alias") or p[1] not in folded]
+    need = {n for p in rest if p[0] == "call" for a in (*p[3], *p[4].values()) for n in _refs(a)}
+    need.update(p[2] for p in rest if p[0] == "alias")
+    need.update(n for p in rest if p[0] == "output" for n in _refs(p[1]))
+    frontier = {n: env[n] for n in folded & need}
+    arrays = {id(a): a for a in frontier.values() if isinstance(a, mx.array)}
+    if any(not isinstance(a, (mx.array, int, float, bool)) for a in frontier.values()) or (
+        sum(a.nbytes for a in arrays.values()) > CONST_FOLD_MAX_MB << 20
+    ):
+        return plan
+    mx.eval(list(arrays.values()))
+    for n in [n for n in values if n not in need]:  # constants only the folded steps read
+        del values[n]
+    values.update(frontier)
+    return rest
+
+
 TUNE_MIN_MB = 16
 TUNE_SLACK = 1.03
 """A compiled segment with an activation above `TUNE_MIN_MB` runs once eagerly and once compiled on its first call and
@@ -2133,7 +2369,10 @@ def _profiled(
     first = out[0] if isinstance(out, (tuple, list)) and out else out
     shape = tuple(first.shape) if isinstance(first, mx.array) else ()
     ins = ",".join(str(tuple(x.shape)) for x in a[:2] if isinstance(x, mx.array))
-    rec = PROFILE.setdefault((getattr(f, "__name__", str(f)), f"{ins}->{shape}"), [0.0, 0])  # type: ignore[union-attr]
+    op = getattr(f, "__name__", str(f))
+    if op == "<lambda>":  # the op table's lambdas: named by their line in this file
+        op = f"lambda@{f.__code__.co_firstlineno}"
+    rec = PROFILE.setdefault((op, f"{ins}->{shape}"), [0.0, 0])  # type: ignore[union-attr]
     rec[0] += dt
     rec[1] += 1
 
@@ -2288,6 +2527,7 @@ class GraphNet:
                 aten.upsample_bilinear2d.vec,
                 aten.upsample_trilinear3d.vec,
                 aten.linalg_vector_norm.default,
+                aten.roll.default,  # `mx.roll`: the decomposition is an index gather (several times slower)
                 *_EDGE_PADS,
             ):
                 decomp.pop(keep, None)
@@ -2325,6 +2565,7 @@ class GraphNet:
             else self._merge_siblings(nodes, names, lifted, values, {*folds.args, *fused.conv, *fused.res})
         )
         half_cats = _conv_only_cats(nodes) if self.dtype in (mx.float16, mx.bfloat16) and not KEEP_F32_CONV else set()
+        mask_parts, mask_skip = _sdpa_mask_parts(nodes)
         for node in nodes:
             if node.op == "placeholder":
                 tgt = names.get(node.name)
@@ -2352,6 +2593,12 @@ class GraphNet:
                     a = node.args
                     args = (a[0], _Name(wk), _Name(bk) if bk else None, *a[3:], _Name(rname))
                     plan.append(("call", node.name, _conv_res, _plain(args), {}))
+                    continue
+                if node.name in mask_skip:  # built by `_sdpa_parts` from its parts
+                    continue
+                if node.name in mask_parts:
+                    fn, args = mask_parts[node.name]
+                    plan.append(("call", node.name, fn, _plain(tuple(args)), _plain(dict(node.kwargs))))
                     continue
                 if node.name in fused.conv:
                     act, slope = fused.conv[node.name]
@@ -2384,6 +2631,7 @@ class GraphNet:
         for node_name, tgt in params.items():  # only what a node reads: a folded convolution's own weight is not
             if node_name in used:
                 values[node_name] = self._const(tgt, lifted[tgt], share=tgt in state)
+        plan = _fold_constants(plan, values)
         if not os.environ.get("FF_MLX_NO_BAND"):
             from fastforks.shared.mlx_band import band_tail
 

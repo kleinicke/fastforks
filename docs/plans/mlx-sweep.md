@@ -1376,3 +1376,44 @@ slow-compiling nets stay on MPS by default; small nets with a first call of a fe
 available with `device="mlx"`. The `mlx` / `mlx_default` tables (models MPS cannot run, such as Marigold-v2) and the
 explicit `kernels` table are unchanged. `FASTFORKS_MLX_PLAN_CACHE` and `Model.warmup` remain the way to take the
 first-call cost out of a deployed model.
+
+## Swin window attention pass (v0.21 follow-up, 2026-11-21)
+
+SwinIR-L at 512x512 fp16 spent 13.8 s warm (MPS 9.9 s). Causes, in profile order:
+
+- Masked attention at head size 32 (`[4225, 8, 64, 32]` per block): MLX fuses sdpa only for head sizes
+  64/72/80/96/128 and zero-pads the rest to 64, and the summed `bias[None] + shift_mask[:, None]` mask was built at
+  `[B, H, L, L]` each block. Now `ops.window_attention`: one threadgroup per (window, head), K and V staged in
+  threadgroup memory, S = QK^T and PV by 8x8 simdgroup MMA, float32 softmax, the (at most two) mask parts read where
+  they lie (`b % MB`, head-broadcast). 13 ms against 23.7 ms for MLX sdpa (fp16), 24 against 35-58 ms (fp32). Used only
+  for unfused head sizes; `_sdpa_mask_parts` peels `expand(repeat(a + b))` so the mask is never materialised.
+- q, k, v sliced out of `qkv.permute(2, 0, 3, 1, 4)`: MLX copies each slice of a transposed array (19 ms of 31 per
+  block). `_sdpa_qkv_args` peels the slices and the kernel reads the `[B, L, 3, H, D]` projection in place; it writes
+  `[B, L, H, D]` and returns a transposed view, so the following `transpose(1, 2).reshape` is free (154 ms per call).
+- `aten.roll` decomposed to an index gather: kept (`mx.roll`), about 3x faster.
+- GELU as five eager passes: `mx.compile(shapeless=True)` makes it one kernel.
+- About half of the plan was constant work (relative-position bias gathers, shift masks, per-block lifted scalars):
+  `_fold_constants` evaluates steps whose inputs are all constants once at build time (4959 -> 2448 steps on SwinIR-L;
+  small constants are deduplicated by value; capped at 512 MB of folded values).
+
+Off switches: `FF_MLX_NO_WIN_ATTN` (kernel and mask peeling), `FF_MLX_NO_WIN_QKV` (fused-qkv read),
+`FF_MLX_NO_GELU_COMPILE`, `FF_MLX_NO_CONST_FOLD`. Goldens pass (swinir-l-x4-real, swinir-m-x2, swin2sr-x2,
+swin2sr-x4-real, dat-2-x4, dat-light-x4, hat-s-x4, swin_base window7, mask2former-swinl, nafnet-gopro,
+wd-vit-tagger-v3).
+
+| ref (512x512) | dtype | before ms / MB / first s | after ms / MB / first s | MPS ms / MB |
+|---|---|---|---|---|
+| swinir-l-x4-real | fp16 | 14530 / 3161 / 45.8 | 8691 / 2437 / 17.4 | 9874 / 4561 |
+| swinir-l-x4-real | fp32 | 26151 / 4087 / 38.5 | 14252 / 4075 / 23.2 | 12063 / - |
+| swinir-m-x2 | fp16 | 7248 / 2443 / 31.9 | 4312 / 2423 / 10.4 | 5797 / 3500 |
+| swinir-m-x2 | fp32 | 13788 / 3456 / 46.8 | 6857 / 2865 / 12.8 | - |
+| swin2sr-x2 | fp16 | 7619 / 2875 / 17.1 | 5144 / 1980 / 11.9 | 9258 / 3501 |
+| swin2sr-x2 | fp32 | 14183 / 3876 / 52.2 | 8277 / 2881 / 15.0 | - |
+| swin2sr-x4-real | fp16 | 8555 / 2851 / 39.5 | 5522 / 2268 / 12.3 | 9531 / 4579 |
+| swin2sr-x4-real | fp32 | 14296 / 4082 / 53.2 | 8813 / 3869 / 15.6 | - |
+| swin2sr-x4 | fp16 | 7994 / 3266 / 39.7 | 5360 / 3322 / 12.4 (not recorded: +56 MB) | 9410 / 4580 |
+| swin2sr-x4 | fp32 | 13955 / 5925 / 55.2 | 8631 / 5983 / 15.8 (not recorded: +58 MB) | - |
+
+Left on SwinIR-L fp16 (eager profile, per call): linears 4.5 s (already ahead of MPS), attention 1.0 s, roll plus
+window partition / reverse copies 0.9 s (a fused roll-and-window gather would save about 0.5 s), GELU 0.64 s, residual
+adds 0.62 s, layer norm 0.51 s, convs 1.0 s.
