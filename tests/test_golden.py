@@ -421,14 +421,19 @@ def primary(ref: str, maps: dict[str, np.ndarray]) -> str:
 
 
 def tolerance(ref: str, mode: str | None = None) -> dict[str, float]:
-    """The family's `[tolerance]`; a `[refs]` entry may override `gpu_mean`, `gpu_p99`, `gpu_extra` and `cpu_extra`.
+    """The family's `[tolerance]`; a `[refs]` entry may override `gpu_mean`, `gpu_p99`, `gpu_extra`, `cpu_extra` and
+    `cpu_outliers`.
 
     `gpu_mean_<mode>` / `gpu_p99_<mode>` (family or ref) bound one mode only, e.g. a kernels path that is much closer to
     the reference than portable fp16, so a bound fitted to portable would not catch a kernels regression. Sparse
     matchers take `gpu_min_recall_<mode>` / `gpu_min_match_<mode>` the same way (a kernels path that keeps different
     keypoints than portable but matches better on the task).
     """
-    own = {k: v for k, v in GOLDEN[ref].items() if k.startswith(("gpu_mean", "gpu_p99", "gpu_extra", "cpu_extra"))}
+    own = {
+        k: v
+        for k, v in GOLDEN[ref].items()
+        if k.startswith(("gpu_mean", "gpu_p99", "gpu_extra", "cpu_extra", "cpu_outliers"))
+    }
     tol = FAMILIES[FAMILY[ref]]["tolerance"] | own
     keys = ("gpu_mean", "gpu_p99", "gpu_min_recall", "gpu_min_match")
     return tol | {k: tol[f"{k}_{mode}"] for k in keys if f"{k}_{mode}" in tol}

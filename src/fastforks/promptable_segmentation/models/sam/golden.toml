@@ -17,6 +17,9 @@ settings = "CPU float32, SamPredictor set_image + predict (point; box + point), 
 gpu_mean = 0.0021
 gpu_p99 = 0.0098
 gpu_extra = [["box_iou_scores", 0.0029, 0.0029], ["box_pred_masks", 0.006, 0.015], ["iou_scores", 0.0096, 0.025]]
+# maintainer decision 2026-11-21: PyTorch's CPU float32 layer_norm differs between its Windows
+# (MSVC) and Linux (GCC) builds. Max |diff| pred_masks: Windows 0.00268, Linux 0.000952; bound 1.25 x the larger (Windows 11 / WSL2, torch 2.14.1+cu130)
+cpu_extra = [["pred_masks", 0.0034]]
 
 [refs."sam-vit-h@1"]
 sha256 = "f1f3b3d32c5fc2c30996f4e74a7e69c2ae0ad7dc52682e6d61bd12ee2b02eb58"

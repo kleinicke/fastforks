@@ -13,6 +13,9 @@ gpu_p99 = 0.00026
 sha256 = "8ac1f94d0943bc41aaaefa165175016888db3f6fb88cbcf135aeb9f4c783234d"
 upstream = "https://github.com/PramaLLC/BEN2@2c99a5da477b5523585bfa5c893888a6e818a8f6"
 settings = "CPU float32, BEN2.py + weights PramaLLC/BEN2@e48a20765fb421d19dcdb0bf3cc61e802ca5ec8f, 1024x1024 bicubic antialiased, ImageNet normalisation, sigmoid, bilinear back, min-max, coffee.png, torch 2.14.1+cu130"
+# maintainer decision 2026-11-21: PyTorch's CPU float32 _upsample_bicubic2d_aa differs between its Windows
+# (MSVC) and Linux (GCC) builds. Max |diff| alpha: Windows 7.15e-06, Linux 2.32e-06; bound 1.25 x the larger (Windows 11 / WSL2, torch 2.14.1+cu130)
+cpu_extra = [["alpha", 9e-06]]
 
 [validated."ben2@1"]
 kernels = ["cudnn_hacc@cudnn92400", "cutlass_conv@988138e042cb:sm_120", "igev@f075827d68c6:sm_120"]

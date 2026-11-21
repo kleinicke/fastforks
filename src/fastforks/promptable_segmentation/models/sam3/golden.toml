@@ -11,7 +11,9 @@ gpu_p99 = 2.0
 
 [refs."sam3@1"]
 gated = true
-cpu_extra = [["mixed_boxes", 0.001]]
+# maintainer decision 2026-11-21: PyTorch's CPU float32 layer_norm differs between its Windows
+# (MSVC) and Linux (GCC) builds. Max |diff| mixed_boxes: Windows 0.00138, Linux 0.000649 (was 0.001); bound 1.25 x the larger (Windows 11 / WSL2, torch 2.14.1+cu130)
+cpu_extra = [["mixed_boxes", 0.0018]]
 sha256 = "5b9525ecf84a64269fe53a51fa0adfa1356ac00ec6e041f185d467e20b26d53b"
 upstream = "https://github.com/huggingface/transformers@v5.19.0"
 settings = "CPU float32, transformers Sam3Processor + Sam3Model (geometry encoder on), skimage coins.png, tests/synth.py concepts() (text, exemplar boxes, both), torch 2.14.1+cu130"

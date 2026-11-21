@@ -14,6 +14,9 @@ relative = true
 sha256 = "c08edbfde19c8599bb4b99faa5853d306dad8240330b86d5d09eab942653d677"
 upstream = "https://github.com/gmberton/MegaLoc@5fe0dd697c4a70ba3e23607f6716ab3c606b16db"
 settings = "CPU float32, megaloc_model.py + weights gberton/MegaLoc@a0f34722c4297ff787e022433799250180860af7, 322x322 bilinear antialiased, ImageNet normalisation, coffee.png, torch 2.14.1+cu130"
+# maintainer decision 2026-11-21: PyTorch's CPU float32 _upsample_bilinear2d_aa differs between its Windows
+# (MSVC) and Linux (GCC) builds. Max |diff| descriptor: Windows 1.49e-07, Linux 5.84e-08; bound 1.25 x the larger (Windows 11 / WSL2, torch 2.14.1+cu130)
+cpu_extra = [["descriptor", 1.9e-07]]
 
 [validated."megaloc@1"]
 kernels = ["dpt_fused@48e0065bb7cf:sm_120", "fastbb@7d058322634d:sm_120"]

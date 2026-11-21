@@ -25,6 +25,11 @@ sha256 = "75f336f42804c6359553a2badf141bf350c40687c0ad66ec01981f81b59cfebf"
 upstream = "https://github.com/cvg/resplat@cae7ddc4cdbd80e05e9f5fa00f5ea02c4e9056b1"
 settings = "CPU float32, synth scene (4 views) at 120x160 -> network 192x256, 2 refinement steps, torch 2.14.1+cu130"
 options = [["long_side", 256]]
+# maintainer decision 2026-11-21: PyTorch's CPU float32 _upsample_bicubic2d_aa differs between its Windows (MSVC)
+# and Linux (GCC) builds; it flips a data-dependent count (repeat_interleave 32946 vs 32945 elements) and moves
+# a few Gaussians. Share of elements beyond atol, gaussians.rotations: Windows 0.0235, Linux 0.0150 (opacities
+# 0.0196 / 0.0071; family bound 0.02); bound 1.25 x the larger (Windows 11 / WSL2, torch 2.14.1+cu130)
+cpu_outliers = 0.03
 
 [validated."resplat-base-re10k@1"]
 kernels = ["cudnn_hacc@cudnn92400", "depthsplat_corr@041692f383aa:sm_120", "fastbb@7d058322634d:sm_120", "gsraster@be9d99ba7071:sm_120", "knn_attention@4791e40186cb:sm_120"]

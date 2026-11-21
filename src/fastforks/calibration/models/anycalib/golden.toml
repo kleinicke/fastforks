@@ -13,6 +13,9 @@ gpu_p99 = 0.51
 sha256 = "19bcaf01108c3f6d7a4205b2dd6ce31c5f9ff190f5ac9f030c9df6f01b571593"
 upstream = "https://github.com/javrtg/AnyCalib@027a8497d893f4b2596f23d6324c05e4b81064ed"
 settings = "CPU float32, anycalib.AnyCalib().predict(cam_id='pinhole'), coffee.png, torch 2.14.1+cu130"
+# maintainer decision 2026-11-21: PyTorch's CPU float32 _upsample_bicubic2d_aa differs between its Windows
+# (MSVC) and Linux (GCC) builds. Max |diff| intrinsics: Windows 0.000366, Linux 0.000122; bound 1.25 x the larger (Windows 11 / WSL2, torch 2.14.1+cu130)
+cpu_extra = [["intrinsics", 0.00046]]
 
 [validated."anycalib-pinhole@1"]
 kernels = ["cudnn_hacc@cudnn92400", "dpt_fused@48e0065bb7cf:sm_120", "fastbb@7d058322634d:sm_120"]

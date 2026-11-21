@@ -73,6 +73,9 @@ sha256 = "7710a220557480580056a3153c1daa8fdfa3ff0290361f9530cfb0d36d7e2ecb"
 upstream = "https://github.com/roboflow/rf-detr@5b22dfc0940697ce1abdfa681a5f7392b3eddbfb"
 settings = "CPU float32 eval mode, original RF-DETR network and PostProcess; torchvision resize antialias=False, ImageNet normalization; skimage coffee.png (top), score threshold 0.2904; torch 2.14.1+cu130"
 options = [["score_threshold", 0.2904]]
+# maintainer decision 2026-11-21: PyTorch's CPU float32 upsample_bilinear2d differs between its Windows
+# (MSVC) and Linux (GCC) builds. Max |diff| boxes: Windows 0.000214, Linux 0; bound 1.25 x the larger (Windows 11 / WSL2, torch 2.14.1+cu130)
+cpu_extra = [["boxes", 0.00027]]
 
 [refs."rf-detr-seg-s-coco@1"]
 gpu_mean = 0.24
