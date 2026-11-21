@@ -149,6 +149,30 @@ def test_stereo_scale_ignores_outliers(pack: Any, monkeypatch: pytest.MonkeyPatc
     assert torch.equal(out[0, ..., 0], robust[0])
 
 
+def test_normals_node_turns_on_moges_normal_head(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MoGe returns `normals=None` unless loaded with `normals=True`; the other normals models take no such option."""
+    nodes = pack.nodes
+    loaded: list[tuple[str, Any]] = []
+
+    class Model:
+        device = torch.device("cpu")
+
+        def __call__(self, _image: torch.Tensor) -> types.SimpleNamespace:
+            return types.SimpleNamespace(normals=torch.zeros(4, 5, 3))
+
+    def fake_load(label: str, backend: str, dtype: str, options: Any = None) -> Model:
+        loaded.append((label, options))
+        return Model()
+
+    monkeypatch.setattr(nodes, "load", fake_load)
+    monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])
+    img = torch.rand(1, 4, 5, 3)
+    for mid in ("moge-2-vitb-normal", "lotus-normal-d-v1-1"):
+        label = next(label for label in nodes.Normals.INPUT_TYPES()["required"]["model"][0] if mid in label)
+        nodes.Normals().run(image=img, model=label, backend="auto", dtype="auto")
+    assert [o for _, o in loaded] == [{"normals": True}, None]
+
+
 def test_errors_name_the_backend_input(pack: Any) -> None:
     """The library's `mode=` is the node's `backend` input: errors say so, keeping their type and other words."""
     import fastforks  # noqa: PLC0415
@@ -349,6 +373,20 @@ def test_commercial_pack_steps_aside(pack: Any, tmp_path: Path) -> None:
     assert find(here) is None  # a disabled fastforks pack does not count
     (ours / "pyproject.toml").write_text(full_meta, encoding="utf-8")
     assert find(here) == ours
+    # ComfyUI that skips the full pack (--disable-all-custom-nodes without it in --whitelist-custom-nodes) does not
+    # load it, so fastforks-commercial must not step aside for it
+    fake = types.SimpleNamespace(args=types.SimpleNamespace(disable_all_custom_nodes=True, whitelist_custom_nodes=[]))
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setitem(sys.modules, "comfy", types.ModuleType("comfy"))
+        mp.setitem(sys.modules, "comfy.cli_args", fake)
+        assert find(here) is None
+        fake.args.whitelist_custom_nodes = ["fastforks-commercial"]
+        assert find(here) is None
+        fake.args.whitelist_custom_nodes = ["renamed"]
+        assert find(here) == ours
+        fake.args.disable_all_custom_nodes = False
+        fake.args.whitelist_custom_nodes = []
+        assert find(here) == ours
     assert impl(here) is pack.nodes  # already imported: the one copy
     saved = sys.modules.pop("fastforks_comfyui")
     try:

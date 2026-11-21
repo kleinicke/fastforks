@@ -62,9 +62,24 @@ def full_pack(here: Path) -> Path | None:
         return None
     for folder in sorted(custom.iterdir()):
         other = folder.name != here.name and not folder.name.endswith(".disabled")
-        if other and (folder / "nodes.py").is_file() and _name(folder) == FULL:
+        if other and (folder / "nodes.py").is_file() and _name(folder) == FULL and _comfyui_loads(folder.name):
             return folder
     return None
+
+
+def _comfyui_loads(folder: str) -> bool:
+    """Whether ComfyUI loads the custom node folder `folder`.
+
+    Not under `--disable-all-custom-nodes` unless it is whitelisted: the rule of ComfyUI's `load_custom_nodes`.
+    Outside ComfyUI (tests) every folder counts as loaded.
+    """
+    try:
+        from comfy.cli_args import args  # noqa: PLC0415 - ComfyUI only
+    except ImportError:
+        return True
+    return not getattr(args, "disable_all_custom_nodes", False) or folder in (
+        getattr(args, "whitelist_custom_nodes", None) or []
+    )
 
 
 def implementation(here: Path) -> types.ModuleType:

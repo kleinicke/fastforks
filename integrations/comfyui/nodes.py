@@ -557,7 +557,9 @@ class Normals(_Node):
 
     def run(self, *, image: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[torch.Tensor]:
         """Run the model on every image."""
-        m = load(model, backend, dtype)
+        # MoGe runs its normal head only when asked (its `normals` option is off by default); the others always have it
+        wants = "normals" in fastforks.model_card(model_id(model)).options
+        m = load(model, backend, dtype, {"normals": True} if wants else None)
         maps = each(image.shape[0], lambda i: convert.normals_image(m(convert.frame(image, i, m.device)).normals))
         return (convert.to_image(maps, _out_device()),)
 
