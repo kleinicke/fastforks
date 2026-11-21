@@ -2254,7 +2254,7 @@
   "monster-plusplus-mix-all@1": {
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
