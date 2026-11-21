@@ -1643,6 +1643,7 @@ def _conv_core(
 MERGE_OFF = bool(os.environ.get("FF_MLX_NO_MERGE"))  # sibling convolutions (same input and geometry) stay separate
 ALIGN_OFF = bool(os.environ.get("FF_MLX_NO_ALIGN"))  # `mx.conv2d` with ragged channel counts as they are
 WIDE_OUT_OFF = bool(os.environ.get("FF_MLX_NO_WIDE_OUT"))  # 32 / 48-output 3x3 convs on MLX's narrow tile
+SPLIT_IN_OFF = bool(os.environ.get("FF_MLX_NO_SPLIT_IN"))  # very wide-input 3x3 convs as one `mx.conv2d`
 
 
 def _conv2d(
@@ -1663,6 +1664,23 @@ def _conv2d(
     cout, cin = wl.shape[0], wl.shape[3]
     if ALIGN_OFF:
         return mx.conv2d(xl, wl, stride=stride, padding=padding, dilation=dilation, groups=groups)
+    if (
+        not SPLIT_IN_OFF
+        and groups == 1
+        and wl.shape[1] * wl.shape[2] > 1
+        and stride == (1, 1)
+        and dilation == (1, 1)
+        and xl.shape[1] * xl.shape[2] <= 48 * 48
+        and (cin >= 1920 or (cin >= 1280 and xl.dtype == mx.float32 and xl.shape[1] * xl.shape[2] <= 24 * 24))
+    ):
+        # MLX's implicit GEMM slows down on very wide inputs at small spatial sizes (a UNet's concatenated skips);
+        # input slices of 640 summed are faster (M1 Pro 3x3, 24^2 2560 -> 1280: float16 26.5 -> 12.2 ms, float32
+        # 60.4 -> 14.5 ms; 12^2: 6.9 -> 3.8 / 15.5 -> 5.6 ms; float32 24^2 1280 -> 1280 12.7 -> 7.4 ms)
+        parts = [
+            _conv2d(xl[..., s : s + 640], wl[..., s : s + 640], stride, padding, dilation, groups)
+            for s in range(0, cin, 640)
+        ]
+        return functools.reduce(operator.add, parts)
     pad_out = (-cout) % 16 if groups == 1 and cout >= 16 else 0
     spatial = wl.shape[1] * wl.shape[2] > 1
     pad_in = (-cin) % 32 if groups == 1 and cin >= 64 and stride == (1, 1) and spatial else 0

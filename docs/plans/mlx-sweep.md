@@ -1483,3 +1483,23 @@ Same-session footprints of x4plus fp16 were 1467 MB on and 1440 MB off, so most 
 Each padded 64-wide output is held until its slice is consumed.
 Left on x4plus fp16: the dense-block `_cat_in` concats (0.93 s per call), the leaky-relu lambda (0.52 s), and the
 banded upsample (0.33 s).
+
+## Marigold: wide-input 3x3 convs in input slices
+
+The SD UNet decoder's convs on concatenated skips (2560 / 1920 inputs at 12-48 px) are slow in `mx.conv2d`. On an
+M1 Pro, a 3x3 at 24^2 with 2560 -> 1280 takes 26.5 ms in fp16 and 60.4 ms in fp32. The same conv as four 640-input
+convs summed takes 12.2 / 14.5 ms. At 12^2 the times are 6.9 -> 3.8 ms (fp16) and 15.5 -> 5.6 ms (fp32). In fp32,
+24^2 1280 -> 1280 goes from 12.7 to 7.4 ms. An im2col matmul or a per-tap matmul only wins at small sizes and loses
+badly above 96 px. `_conv2d` now splits stride-1, undilated 3x3 convs with at most 48x48 positions into 640-input
+slices when they have >= 1920 inputs, or >= 1280 inputs in fp32 at <= 24x24 positions. Off switch:
+`FF_MLX_NO_SPLIT_IN`. Same-session marigold-depth at 512^2 (fp.py), on against off: fp16 4.73 against 4.90 s (+111 MB),
+fp32 7.50 against 8.38 s (same MB). The table compares against rows from 85384184, so it also includes the earlier
+passes. Goldens pass (marigold-depth-v1-1, marigold-normals-lcm-v0-1, nafnet-gopro, wd-vit-tagger-v3,
+realesrgan-x4plus, convnext_base).
+
+| ref (994x1482) | dtype | before ms / MB / first s | after ms / MB / first s | MPS ms / MB |
+|---|---|---|---|---|
+| marigold-depth-v1-1 | fp16 | 4702 / 4287 / 31.9 | 2867 / 4176 / 19.3 | 2498 / 6640 |
+| marigold-depth-v1-1 | fp32 | 5831 / 7406 / 42.3 | 4441 / 7268 / 37.8 | 2970 / 9709 |
+| marigold-normals-lcm-v0-1 | fp16 | 2363 / 4318 / 38.7 | 1770 / 4220 / 19.5 | 1655 / 6671 |
+| marigold-normals-lcm-v0-1 | fp32 | 5109 / 7471 / 44.6 | 3025 / 7310 / 38.3 | 2075 / 9727 |
