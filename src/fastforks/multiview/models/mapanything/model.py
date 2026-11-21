@@ -500,9 +500,8 @@ class _Base(Runner):
 
     def pos_embed(self, gh: int, gw: int) -> torch.Tensor:
         """DINOv2 `interpolate_pos_encoding` (bicubic on the fp32 37 x 37 table, offset 0.1) in `dt`."""
-        if (gh, gw) not in self._pos:
-            if len(self._pos) >= _POS_SIZES:
-                del self._pos[next(iter(self._pos))]
+        found = self._pos.get((gh, gw))
+        if found is None:
             pe = self.net.encoder.model.pos_embed.float()
             m = 37
             if gh * gw == m * m and gh == gw:
@@ -511,8 +510,12 @@ class _Base(Runner):
                 grid = pe[:, 1:].reshape(1, m, m, -1).permute(0, 3, 1, 2)
                 g = F.interpolate(grid, scale_factor=((gh + 0.1) / m, (gw + 0.1) / m), mode="bicubic")
                 out = torch.cat([pe[:, :1], g.permute(0, 2, 3, 1).flatten(1, 2)], 1)
-            self._pos[gh, gw] = out.to(self.dt)
-        return self._pos[gh, gw]
+            found = out.to(self.dt)
+            if type(found) is torch.Tensor:  # not a traced one (an MLX export's fake tensor)
+                if len(self._pos) >= _POS_SIZES:
+                    del self._pos[next(iter(self._pos))]
+                self._pos[gh, gw] = found
+        return found
 
     def encode(self, x: torch.Tensor, blocks: Iterable[_Blk]) -> torch.Tensor:
         """Normalised images `[V, 3, H, W]` -> DINOv2 tokens `[V, 1 + P, C]` (cls first; no final norm) in `dt`."""

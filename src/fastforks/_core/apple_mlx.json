@@ -777,16 +777,27 @@
    }
   },
   "deeplabv3-r101-d8-ade20k@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "portable"
+   },
    "mlx_default": [
     "kernels",
     "float16"
    ],
    "mlx": {
     "float16": "kernels",
-    "float32": "kernels"
+    "float32": "portable"
    }
   },
   "deeplabv3plus-r101-d8-ade20k@1": {
+   "dtypes": {
+    "float32": "kernels"
+   },
    "mlx_default": [
     "kernels",
     "float16"
@@ -1569,7 +1580,7 @@
    ],
    "mlx": {
     "float16": "kernels",
-    "float32": "kernels"
+    "float32": "portable"
    }
   },
   "film@1": {
@@ -1808,6 +1819,13 @@
    ]
   },
   "igev-plusplus-sceneflow@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels"
+   },
    "kernels_default": [
     "kernels",
     "float16"
@@ -1853,6 +1871,21 @@
    ]
   },
   "igev-stereo-sceneflow@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "kernels_default": [
+    "portable",
+    "float16"
+   ],
+   "kernels": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -1960,6 +1993,13 @@
    }
   },
   "locotrack-b@1": {
+   "auto": [
+    "portable",
+    "float32"
+   ],
+   "dtypes": {
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float32"
@@ -2585,6 +2625,13 @@
    }
   },
   "prompt-depth-anything-l@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -3659,6 +3706,14 @@
    }
   },
   "swin2sr-x4@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -3865,7 +3920,12 @@
    }
   },
   "vitmatte-b@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [

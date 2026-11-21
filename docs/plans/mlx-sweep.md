@@ -1781,3 +1781,94 @@ The forward unrolls four refinement iterations through three different update bl
 no single loop body to export once and reuse. The 12 ViT blocks are only 360 of the 2834 nodes. The 1.84 s budget is
 smaller than the first-time costs plus a minimal trace, so only a stored program (the plan cache) or `Model.warmup`
 can route it.
+
+### Compile re-measured after the one-pass export (blocked and borderline `auto` rows)
+
+These were the MLX rows that `auto` blocked on compile (it must be under 3x the fastest MPS runtime). All of them
+predated b0fa8c02 and f7958e27.
+
+Each job ran twice with `speed_survey.py run --force`, and the table gives the second run, with the OS Metal shader
+cache warm. Cells read ms / peak MB / first call s, with the compile (first call minus warm ms) in brackets. Limit is
+3x the fastest passing MPS ms, for any dtype / for the same dtype.
+
+| ref | mode dtype | before | after (second run) | limit |
+|---|---|---|---|---|
+| igev-stereo-sceneflow | portable 16 | 5678 / 4566 / 22.08 (16.40) | 3951 / 3367 / 12.59 (8.63) | 12.00 / 12.00 s |
+| igev-stereo-sceneflow | portable 32 | 6303 / 4404 / 26.07 (19.77) | 5702 / 4315 / 14.04 (8.34) | 12.00 / 19.12 s |
+| swin2sr-x4 | portable 16 | 7994 / 3266 / 39.66 (31.66) | 4902 / 3313 / 9.65 (4.75) | 28.23 / 28.23 s |
+| swin2sr-x4 | portable 32 | 13955 / 5925 / 55.22 (41.26) | 8163 / 5971 / 13.02 (4.86) | 28.23 / 28.82 s |
+| igev-plusplus-sceneflow | kernels 16 | 5895 / 3184 / 28.11 (22.22) | 6039 / 2957 / 17.38 (11.34) | 18.41 / 18.41 s |
+| igev-plusplus-sceneflow | kernels 32 | 10986 / 4977 / 33.46 (22.48) | 10647 / 4814 / 22.49 (11.84) | 18.41 / 29.03 s |
+| deeplabv3-r101-d8-ade20k | portable 16 | 457 / 1571 / 2.92 (2.46) | 442 / 1404 / 1.73 (1.28) | 1.58 / 1.58 s |
+| deeplabv3-r101-d8-ade20k | portable 32 | 654 / 2244 / 3.91 (3.25) | 668 / 1764 / 1.94 (1.27) | 1.58 / 2.16 s |
+| deeplabv3-r101-d8-ade20k | kernels 16 | 452 / 1588 / 2.92 (2.46) | 441 / 1426 / 1.75 (1.30) | 1.58 / 1.58 s |
+| deeplabv3-r101-d8-ade20k | kernels 32 | 645 / 2264 / 3.97 (3.33) | 675 / 1770 / 2.09 (1.41) | 1.58 / 2.16 s |
+| deeplabv3plus-r101-d8-ade20k | kernels 16 | 365 / 1638 / 2.89 (2.52) | 370 / 1358 / 1.70 (1.33) | 1.29 / 1.29 s |
+| deeplabv3plus-r101-d8-ade20k | kernels 32 | 511 / 2092 / 3.73 (3.22) | 505 / 1958 / 1.85 (1.34) | 1.29 / 1.55 s |
+| fcn-r101-d8-ade20k | portable 16 | 358 / 1567 / 2.25 (1.89) | 359 / 1568 / 1.61 (1.25) | 1.22 / 1.22 s |
+| fcn-r101-d8-ade20k | portable 32 | 496 / 2051 / 3.34 (2.84) | 491 / 2472 / 1.69 (1.20) | 1.22 / 1.40 s |
+| fcn-r101-d8-ade20k | kernels 16 | 349 / 1642 / 3.23 (2.89) | 352 / 1608 / 1.63 (1.28) | 1.22 / 1.22 s |
+| fcn-r101-d8-ade20k | kernels 32 | 492 / 2145 / 4.33 (3.84) | 495 / 2424 / 1.74 (1.25) | 1.22 / 1.40 s |
+| pspnet-r101-d8-ade20k | portable 16 | 388 / 1582 / 2.48 (2.09) | 380 / 1441 / 1.70 (1.32) | 1.23 / 1.23 s |
+| pspnet-r101-d8-ade20k | portable 32 | 517 / 2439 / 3.71 (3.20) | 510 / 2103 / 1.79 (1.28) | 1.23 / 1.46 s |
+| pspnet-r101-d8-ade20k | kernels 16 | 376 / 1602 / 2.44 (2.06) | 375 / 1450 / 1.73 (1.35) | 1.23 / 1.23 s |
+| pspnet-r101-d8-ade20k | kernels 32 | 521 / 2550 / 3.52 (3.00) | 511 / 2116 / 1.82 (1.31) | 1.23 / 1.46 s |
+| vitmatte-b | portable 16 | 2368 / 2474 / 15.26 (12.89) | 2192 / 1946 / 5.88 (3.69) | 8.22 / 8.22 s |
+| vitmatte-b | portable 32 | 2502 / 2701 / 16.45 (13.95) | 2430 / 3249 / 6.15 (3.72) | 8.22 / 14.04 s |
+| vitmatte-s | portable 16 | 1280 / 2283 / 10.13 (8.85) | 1018 / 2128 / 4.61 (3.59) | 3.76 / 3.76 s |
+| vitmatte-s | portable 32 | 1317 / 2451 / 14.01 (12.69) | 1204 / 3067 / 4.79 (3.59) | 3.76 / 6.58 s |
+| locotrack-b | portable 32 | 2039 / 1679 / 12.78 (10.74) | 1484 / 1608 / 7.30 (5.81) | 6.31 / 6.31 s |
+| prompt-depth-anything-l | portable 16 | 1082 / 2757 / 7.91 (6.83) | 1069 / 2833 / 3.19 (2.12) | 3.43 / 3.43 s |
+| prompt-depth-anything-l | portable 32 | 1404 / 4681 / 8.05 (6.65) | 1391 / 4767 / 3.51 (2.12) | 3.43 / 3.83 s |
+| owlv2-b16 | portable 16 | 295 / 1005 / 2.75 (2.45) | 294 / 991 / 1.56 (1.26) | no fp16 MPS row |
+| owlv2-b16 | portable 32 | 398 / 1299 / 3.02 (2.63) | 390 / 1213 / 1.60 (1.21) | 1.18 / 1.18 s |
+
+Compile fell by 35 to 85 %. igev-stereo, swin2sr, locotrack and vitmatte also got faster warm. swin2sr fp16 went from
+7994 to 4902 ms.
+
+vitmatte-b failed at f7958e27 with "Attempting to use FunctionalTensor on its own". Its `_Geometry` cache (the
+position embedding and relative tables per token grid) had the same traced-tensor leak as the RoPE caches. 0957b9e7
+fixes it the same way, and its rows above are from after that fix.
+
+The other per-shape caches of the MLX-ported runners were checked with `test_mlx`:
+
+- Two more failed with `.numpy()` at f7958e27 and are fixed the same way. They now pass on MLX and on MPS:
+  - cotracker3-offline: `time_embed`.
+  - mapanything-apache: `pos_embed`.
+- These pass and were left alone: da3mono, da3metric, eomt-l (dinov2 and dinov3), lingbot-depth, moge-2-vits,
+  patchmatchnet (it seeds its cache on real tensors) and vitmatte-s.
+- pointdit's `_table` has the same pattern but was not run. Its DINOv3 weights are not on the Mac.
+
+The other 560 or so MLX goldens have not been re-run since the one-pass export. A full `test_mlx` sweep would show
+whether more caches leak.
+
+Routes after the regeneration:
+
+| ref | `auto` before -> after | `dtypes` after |
+|---|---|---|
+| igev-stereo-sceneflow | MPS -> MLX portable fp16 | fp16, fp32 portable |
+| swin2sr-x4 | MPS -> MLX portable fp16 | fp16, fp32 portable |
+| igev-plusplus-sceneflow | MPS -> MLX kernels fp16 | fp16 kernels |
+| deeplabv3-r101-d8-ade20k | MPS -> MLX kernels fp16 | fp16 kernels, fp32 portable |
+| locotrack-b | MPS -> MLX portable fp32 | fp32 portable |
+| prompt-depth-anything-l | MPS -> MLX portable fp16 | fp16 portable |
+| vitmatte-b | MPS -> MLX portable fp16 | fp16 portable (fp32 portable already) |
+| deeplabv3plus-r101-d8-ade20k | stays MPS | fp32 kernels (new) |
+
+igev-stereo-sceneflow also gains `kernels_default` MLX portable fp16, ahead of the MPS kernel.
+
+These stay on MPS:
+
+- On compile, just over the limit: fcn (1.25 vs 1.22 s), pspnet (1.32 vs 1.23 s), deeplabv3plus fp16 (1.33 vs
+  1.29 s) and owlv2-b16 fp32 (1.21 vs 1.18 s). About 1.2 s is the fixed first-call cost of a process.
+- On memory: vitmatte-s. MPS fp16 is at 1530 MB after the strips change, against 2128 MB on MLX.
+
+video-depth-anything-s was not re-measured. The survey now runs it at 994x1482, but its MPS rows and its old MLX rows
+are at 480x640, so the new rows were dropped.
+
+Not candidates, because speed or memory blocks them and a shorter compile cannot change that:
+
+- sea-raft-m, selective-igev, monster, monster++, mocha, great-igev, defom, raft-stereo portable.
+- memflow and raft-stereo-sceneflow kernels fp16 are already routed.
+
+The tiny classifiers and detectors are blocked at 5 to 100x the limit.

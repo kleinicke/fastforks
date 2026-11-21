@@ -142,12 +142,15 @@ class Core:
 
     def time_embed(self, s: int) -> torch.Tensor:
         """Upstream `interpolate_time_embed` for `s` frames, `[s, 1110 + in_pad]` in the compute dtype (cached)."""
-        if s not in self.temb:
+        found = self.temb.get(s)
+        if found is None:
             te = cast("torch.Tensor", self.net.time_emb).float()
             if te.shape[1] != s:
                 te = F.interpolate(te.permute(0, 2, 1), size=s, mode="linear").permute(0, 2, 1)
-            self.temb[s] = F.pad(te[0], (0, self.in_pad)).to(self.dt)
-        return self.temb[s]
+            found = F.pad(te[0], (0, self.in_pad)).to(self.dt)
+            if type(found) is torch.Tensor:  # not a traced one (an MLX export's fake tensor)
+                self.temb[s] = found
+        return found
 
     def encode(self, video: torch.Tensor) -> list[torch.Tensor]:
         """Feature pyramid of `video` `[t, 3, 384, 512]` in `[0, 1]`: per level `[t, h, w, 128]` (compute dtype)."""
