@@ -1503,3 +1503,12 @@ realesrgan-x4plus, convnext_base).
 | marigold-depth-v1-1 | fp32 | 5831 / 7406 / 42.3 | 4441 / 7268 / 37.8 | 2970 / 9709 |
 | marigold-normals-lcm-v0-1 | fp16 | 2363 / 4318 / 38.7 | 1770 / 4220 / 19.5 | 1655 / 6671 |
 | marigold-normals-lcm-v0-1 | fp32 | 5109 / 7471 / 44.6 | 3025 / 7310 / 38.3 | 2075 / 9727 |
+
+Not acted on yet: `mx.conv2d`'s 3x3 timings jump with the position count and channel width. These are M1 Pro numbers,
+taken outside any net. In fp32, 1024 -> 768 at 63x64 takes 19.5 ms and at 64x64 34.2 ms (MLX appears to switch to
+Winograd at 4096 positions); 1024 -> 1024 takes 27.6 ms against 50.9 ms. In fp16, 1024 -> 1024 takes 23.2 ms against
+33.8 ms. 2560 -> 1280 at 63x64 takes 435 ms in fp32 and 164 ms in fp16. At 64^2, a 3x3 run as nine per-tap matmuls
+(1024 -> 1024: 19.1 / 23.6 ms) or as 640-input slices (1024 -> 768 fp16: 10.5 ms) beats `mx.conv2d`. memfof's
+1024-input convs at 1/8 scale and the SD UNet's middle levels sit in this band. A dispatch picked from a measured table
+(per position count and channel pair) should replace these hand rules. Scripts: cv3.py-cv7.py in the session
+scratchpad.
