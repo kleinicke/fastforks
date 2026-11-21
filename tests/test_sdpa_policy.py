@@ -19,7 +19,7 @@ def _fresh() -> None:
 def test_auto_keeps_torch_order_with_flash(monkeypatch: pytest.MonkeyPatch, flash: bool) -> None:  # noqa: FBT001
     monkeypatch.delenv(sdpa.ENV, raising=False)
     monkeypatch.setattr(torch.backends.cuda, "is_flash_attention_available", lambda: flash)
-    want = None if flash else (SDPBackend.EFFICIENT_ATTENTION, SDPBackend.MATH, SDPBackend.CUDNN_ATTENTION)
+    want = None if flash else (SDPBackend.CUDNN_ATTENTION, SDPBackend.EFFICIENT_ATTENTION, SDPBackend.MATH)
     assert sdpa.backends() == want
 
 

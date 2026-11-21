@@ -8,10 +8,10 @@ on an RTX 5060 Ti: 1.18 ms efficient, 0.62 ms flash, 0.61 ms cuDNN).
 Policy (`FASTFORKS_SDPA`, read at each call):
 
 - `auto` (default): PyTorch's own order where the build has flash (Linux wheels: unchanged, nothing logged).
-  Without flash: memory-efficient, then math, then cuDNN (PyTorch's order minus flash), logged. cuDNN first was
-  measured and is opt-in, not the default: it is as accurate and 15-25 % faster for SAM 2 and Depth Anything V2
-  portable on Windows (RF-DETR: slower), but it fails the `rf-detr-s-coco@1` portable golden that passes with
-  memory-efficient (and fixes two others: rounding, not accuracy; docs/plans/windows-kernels.md, decision 9).
+  Without flash: cuDNN, then memory-efficient, then math, logged. cuDNN is as accurate as memory-efficient and
+  15-25 % faster for SAM 2 and Depth Anything V2 portable on Windows (RF-DETR: about 10 % slower); the golden
+  bounds of the attention references cover flash, cuDNN, memory-efficient and math (docs/plans/windows-kernels.md,
+  decisions 6 and 9).
 - `torch`: PyTorch's own order everywhere (fastforks changes nothing).
 - a comma-separated priority list of `flash`, `cudnn`, `efficient`, `math`, e.g. `cudnn,efficient,math` (cuDNN
   where it supports the call, else memory-efficient, else math): only those backends, in that order. PyTorch
@@ -47,7 +47,7 @@ NAMES = {
     "efficient": SDPBackend.EFFICIENT_ATTENTION,
     "math": SDPBackend.MATH,
 }
-NO_FLASH = (SDPBackend.EFFICIENT_ATTENTION, SDPBackend.MATH, SDPBackend.CUDNN_ATTENTION)  # `auto` without flash
+NO_FLASH = (SDPBackend.CUDNN_ATTENTION, SDPBackend.EFFICIENT_ATTENTION, SDPBackend.MATH)  # `auto` without flash
 
 
 def backends() -> tuple[SDPBackend, ...] | None:
@@ -69,8 +69,8 @@ def _resolve(value: str) -> tuple[SDPBackend, ...] | None:
         if torch.backends.cuda.is_flash_attention_available():
             return None  # PyTorch's order, flash first: nothing to log, nothing changes
         log.info(
-            "SDPA: this PyTorch build has no flash attention; CUDA attention uses memory-efficient, then math, then "
-            "cuDNN (%s=auto; %s=cudnn,efficient,math prefers cuDNN: faster, other rounding)",
+            "SDPA: this PyTorch build has no flash attention; CUDA attention uses cuDNN, then memory-efficient, then "
+            "math (%s=auto; %s=efficient,math,cudnn is PyTorch's order without flash)",
             ENV,
             ENV,
         )
