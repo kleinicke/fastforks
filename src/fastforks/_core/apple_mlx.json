@@ -104,9 +104,6 @@
    }
   },
   "anysplat@1": {
-   "dtypes": {
-    "float32": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
@@ -1681,9 +1678,6 @@
    ]
   },
   "great-igev-sceneflow@1": {
-   "dtypes": {
-    "float32": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
@@ -1691,11 +1685,7 @@
    "mlx": {
     "float16": "portable",
     "float32": "portable"
-   },
-   "mps_auto": [
-    "",
-    "float16"
-   ]
+   }
   },
   "grounding-dino-tiny@1": {
    "mlx_default": [
