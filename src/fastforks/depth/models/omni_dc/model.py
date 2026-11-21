@@ -164,12 +164,25 @@ class Portable(Runner):
 
     def _pre(self, x: torch.Tensor, dep: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """The network before the linear solve: the normal equations `(d, b)` and what the final steps need."""
-        net = self.net
-        net_in, small, mask = sparse_inputs(dep)
-        guide, conf_spn, context, conf_in = net.backbone(x, torch.cat([net_in, net.mono(x)], 1))
-        grad, up = net.update_block(context)
+        guide, conf_spn, context, conf_in = self._backbone(x, dep, self._mono(x))
+        d, b, up = self._update(context, dep, conf_in)
+        return d, b, up, guide, conf_spn
+
+    def _mono(self, x: torch.Tensor) -> torch.Tensor:
+        """The Depth Anything V2 map."""
+        return self.net.mono(x)
+
+    def _backbone(self, x: torch.Tensor, dep: torch.Tensor, dav2: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """The RGB-D backbone (float32 in a float16 run: its PVT features reach ~1e6)."""
+        net_in, _, _ = sparse_inputs(dep)
+        return self.net.backbone(x, torch.cat([net_in, dav2], 1))
+
+    def _update(self, context: torch.Tensor, dep: torch.Tensor, conf_in: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """The update block and the normal equations `(d, b)` of the linear solve."""
+        _, small, mask = sparse_inputs(dep)
+        grad, up = self.net.update_block(context)
         d, b = system(grad.float(), small, mask, conf_in.float())
-        return d.float(), b.float(), up, guide, conf_spn
+        return d.float(), b.float(), up
 
     def _post(
         self, log_depth: torch.Tensor, up: torch.Tensor, guide: torch.Tensor, dep: torch.Tensor, conf_spn: torch.Tensor
@@ -311,8 +324,15 @@ class Kernels(Runner):
         return {"depth": out[:, 0, :h, :w]}
 
 
-class _Mlx(mlx_wrap.port(Portable, attrs=(), methods=("_pre", "_post"))):  # ty: ignore[unsupported-base]
-    """Apple MLX: the network before and after the linear solve; the conjugate-gradient solve stays PyTorch (CPU)."""
+class _Mlx(  # ty: ignore[unsupported-base]
+    mlx_wrap.port(
+        Portable, attrs=(), methods=("_mono", "_backbone", "_update", "_post"), fp32_methods=("_backbone",), prune=True
+    )
+):
+    """Apple MLX: the network before and after the linear solve; the conjugate-gradient solve stays PyTorch (CPU).
+
+    As in the portable float16 run, the RGB-D backbone stays float32 (its PVT features overflow float16).
+    """
 
     def _graph(self, x: torch.Tensor, dep: torch.Tensor) -> torch.Tensor:
         d, b, up, guide, conf_spn = self._pre(x, dep)
