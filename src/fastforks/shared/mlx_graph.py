@@ -2339,6 +2339,8 @@ def _hand_back(storage: torch.UntypedStorage) -> None:
 # checkpoint, so the first call's translation faults them in page by page otherwise: 11-24 s of vggt-1b's first call)
 PREFETCH_OFF = bool(os.environ.get("FF_MLX_NO_PREFETCH"))
 _PREFETCH_THREADS = 8  # parallel page faults: one thread reads a cold mmap at ~0.2 GB/s, several overlap the SSD reads
+_PREFETCH_PIECE = 64 << 20  # bytes per touch (a thread lets go of a storage between pieces)
+_PREFETCH_MIN = 64 << 20  # smaller nets: not worth the threads
 
 
 def _prefetch(module: torch.nn.Module) -> list[threading.Thread]:
@@ -2346,34 +2348,46 @@ def _prefetch(module: torch.nn.Module) -> list[threading.Thread]:
 
     A no-op for weights already in memory and the disk read of a mmapped checkpoint otherwise (clean file-backed pages,
     which the translation reads anyway). Touched, not `MADV_WILLNEED`: macOS counts read-ahead pages in the process's
-    physical footprint (vggt-1b +4.3 GB peak), faulted ones it does not. The threads hold the storages, so the caller
-    joins them before anything checks `_exclusive`.
+    physical footprint (vggt-1b +4.3 GB peak), faulted ones it does not. The bytes of the tensors, not their storages:
+    a safetensors checkpoint is one storage for the whole file. The threads hold the storages, so the caller joins
+    them before anything checks `_exclusive`.
     """
-    seen: dict[int, torch.UntypedStorage] = {}
+    spans: dict[int, tuple[torch.UntypedStorage, list[tuple[int, int]]]] = {}
     for t in itertools.chain(module.parameters(), module.buffers()):
-        if t.device.type == "cpu" and not t.is_meta:
-            s = t.untyped_storage()
-            if s.nbytes() >= _HAND_BACK_MIN:
-                seen.setdefault(s.data_ptr(), s)
-    if not seen:
+        if t.device.type != "cpu" or t.is_meta or t.numel() == 0:
+            continue
+        s = t.untyped_storage()
+        off = t.data_ptr() - s.data_ptr()
+        extent = (sum((n - 1) * st for n, st in zip(t.shape, t.stride(), strict=True)) + 1) * t.element_size()
+        spans.setdefault(s.data_ptr(), (s, []))[1].append((off, off + extent))
+    pieces: list[tuple[torch.UntypedStorage, int, int]] = []  # (storage, start, end) of at most _PREFETCH_PIECE bytes
+    for s, ranges in spans.values():
+        ranges.sort()
+        merged = [list(ranges[0])]
+        for a, b in ranges[1:]:
+            if a <= merged[-1][1]:
+                merged[-1][1] = max(merged[-1][1], b)
+            else:
+                merged.append([a, b])
+        pieces += [(s, a, min(a + _PREFETCH_PIECE, hi)) for lo, hi in merged for a in range(lo, hi, _PREFETCH_PIECE)]
+    if sum(b - a for _, a, b in pieces) < _PREFETCH_MIN:
         return []
-    parts: list[list[torch.UntypedStorage]] = [[] for _ in range(_PREFETCH_THREADS)]
-    load = [0] * _PREFETCH_THREADS
-    for s in sorted(seen.values(), key=lambda s: -s.nbytes()):  # the largest first, each to the least loaded thread
-        i = load.index(min(load))
-        parts[i].append(s)
-        load[i] += s.nbytes()
     page = mmap.PAGESIZE
 
-    def touch(storages: list[torch.UntypedStorage]) -> None:
+    def touch(work: list[tuple[torch.UntypedStorage, int, int]]) -> None:
         with torch.no_grad():
-            while storages:
-                b = torch.empty(0, dtype=torch.uint8).set_(storages.pop())
-                b[::page].max()  # one read per page (torch releases the GIL in the reduction)
-                del b
+            while work:
+                s, a, b = work.pop()
+                torch.empty(0, dtype=torch.uint8).set_(s, a, (b - a,))[::page].max()  # torch drops the GIL here
+                del s
 
-    threads = [threading.Thread(target=touch, args=(p,), daemon=True) for p in parts if p]
+    n = _PREFETCH_THREADS  # contiguous runs of pieces per thread: sequential reads within each
+    threads = [
+        threading.Thread(target=touch, args=(pieces[i * len(pieces) // n : (i + 1) * len(pieces) // n][::-1],))
+        for i in range(n)
+    ]
     for th in threads:
+        th.daemon = True
         th.start()
     return threads
 
