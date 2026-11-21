@@ -2126,3 +2126,59 @@ profile instead.
   shows that most peak gaps are lifetimes, not sizes.
 - Keep a float32 residual stream with half branches only where the golden needs it (vggt-omega, anysplat, gmflow).
   Everywhere else a fully half stream halves the activation bytes.
+
+## Multiview first call: the weights' disk read (2026-11-22)
+
+vggt-1b, mapanything-apache and lingbot-map missed `auto` on compile alone (the survey's first call was 30-32 s at
+fp16). Timers on each `GraphNet` phase (vggt-1b fp16, 8 views, 26 s first call):
+
+| phase | s | note |
+|---|---|---|
+| `_export_decomposed` | 7.4 | fake-tensor tracing and pytree work, spread thin (no single hot spot) |
+| `to_mx`, 1405 tensors | 11.4 (24 from a cold page cache) | the disk read, not the conversion: warm it is under 1 s |
+| `mx.compile`, tuning | 0.4 | |
+| first replay | 6.1 | about one warm call |
+
+The lazy twin's parameters are the mmapped checkpoint (`torch.load(mmap=True)`, the safetensors mmap). `load_s` is
+0.3-1.3 s because nothing is read at load. The first call's translation then faults 5 GB in page by page on one thread,
+at about 0.2 GB/s. The 16 GB Mac does not keep the file in its page cache between runs. MPS reads the same bytes at
+load instead: its `load_s` is 8-17 s, which the cold rule does not count.
+
+Fix (`mlx_graph._prefetch`): when the first input signature is built, 8 threads read one byte per page of every CPU
+weight while the export traces. They are joined before the translation, because they hold the storages and
+`_exclusive` must not see them. After the export, the lifted constants that are not yet converted are touched the
+same way. mapanything keeps its ViT blocks as plain tensor attributes (`_Blk`), so only the export sees them. The
+touch covers each tensor's own byte range, cut into 64 MB pieces: a safetensors checkpoint is one storage for the
+whole file, and a split by storage gave mapanything a single thread. `FF_MLX_NO_PREFETCH=1` turns it off. Nothing
+moved out of the measured call: the export, the reads and the translation all stay in it.
+
+Survey, second run (warm ms / first call s / peak MB):
+
+| ref | dtype | before | after | compile (limit) | `auto` |
+|---|---|---|---|---|---|
+| vggt-1b | fp16 | 5711 / 30.5 / 5689 | 5725 / 15.6 / 5755 | 9.9 s (19.9) | now MLX fp16 |
+| vggt-1b | fp32 | 7826 / 60.3 / 8964 | 8081 / 18.4 / 8829 | | |
+| mapanything-apache | fp16 | 5894 / 32.0 / 5495 | 5993 / 18.2 / 5514 | 12.2 s (19.1) | now MLX fp16 |
+| mapanything-apache | fp32 | 9075 / 44.8 / 10774 | 9055 / 19.4 / 10756 | | |
+| lingbot-map (480x640) | fp16 | 7217 / 29.9 / 5409 | 7261 / 14.0 / 5438 | 6.8 s (21.4) | still MPS: 1.9 % slower warm |
+| lingbot-map (480x640) | fp32 | 9852 / 43.0 / 9304 | 9970 / 18.7 / 8930 | | |
+
+A control run of lingbot-map in the same session with `FF_MLX_NO_PREFETCH=1` gave 25.8 s (fp16) and 40.3 s (fp32).
+How cold the page cache is varies from run to run, and the first runs after another model ran 1-4 s slower. One
+lingbot-map run measured 8023 ms warm, but a third run gave 7227 ms (the control gave 7230), so the warm speed did not
+change. Goldens pass: `test_mlx` for the three refs, nafnet-gopro and wd-vit-tagger-v3, and tests/test_mlx*.py.
+
+Negative results:
+
+- `MADV_WILLNEED` on the storages was as fast (5 GB in 5-9 s from 4 threads), but macOS counts read-ahead pages in
+  the process's physical footprint. vggt-1b's survey peak went from 5.7 to 9.9 GB (fp32 13.3 GB). Faulted pages are
+  not counted.
+- One-thread sequential touching is no faster than the translation's own faults (23.5 s for vggt-1b).
+- Cold-cache benchmarks need care: `msync(MS_KILLPAGES)` on a shared mapping evicted the file only some of the time,
+  and `purge` needs root. The survey's own second run is the measurement here.
+- The 7.4 s export (vggt-1b; mapanything 3.6 s) is the largest cost left. The profile shows no hot spot to cut.
+  Only the opt-in plan cache (`FASTFORKS_MLX_PLAN_CACHE`) skips it.
+
+For MPS (not implemented): the same threaded page touch before the `.to("mps")` copy would cut the 8-17 s `load_s`
+of these checkpoints, since MPS reads every weight at load from the same mmapped files. The cold rule compares only
+the MLX compile with MPS warm ms. If `load_s` counted, MLX (0.3-1.4 s) would win the cold start for all three refs.

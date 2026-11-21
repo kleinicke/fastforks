@@ -2063,6 +2063,13 @@
    }
   },
   "mapanything-apache@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -3924,6 +3931,13 @@
    }
   },
   "vggt-1b@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
    "kernels_default": [
     "portable",
     "float16"
