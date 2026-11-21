@@ -202,15 +202,14 @@ class TestMpsRouting:
         return core_model._mlx_for_mps(card, variant, mode, dtype)
 
     def test_auto_takes_the_fastest_measured_option(self):
-        assert self.route("depth-pro", task="depth") == ("portable", "float16")  # massive: MPS peaks at 7 GB
         assert self.route("sam3", task="promptable_segmentation") == ("portable", "float16")
-        # faster or leaner on MLX, but small: `auto` keeps MPS (no slow first call); device="mlx" opts in
-        assert self.route("crestereo-eth3d") is None
+        assert self.route("crestereo-eth3d") == ("kernels", "float16")
+        # faster, but the first call (compile 26 s) costs more than 3 MPS runs (5 s): `auto` keeps MPS
+        assert self.route("depth-pro", task="depth") is None
         assert self.route("realesr-general-x4v3", task="restoration") is None
-        assert self.route("dinov2-vits14", task="features") is None
 
     def test_auto_with_a_dtype_takes_mlx_only_where_it_measured_faster(self):
-        assert self.route("dinov2-vits14", dtype="float32", task="features") is None  # small
+        assert self.route("dinov2-vits14", dtype="float32", task="features") == ("portable", "float32")
         assert self.route("dinov3-vith16plus", dtype="float32", task="features") == (
             "portable",
             "float32",
