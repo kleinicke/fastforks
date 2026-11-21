@@ -537,6 +537,9 @@ OPS[aten.index_select.default] = lambda x, d, i: mx.take(x, i, axis=d)
 _KERNELS = (
     False  # kernels mode: our Metal kernels (`fastforks.kernels.graph_mlx`) for depthwise convolution and pooling
 )
+# The depthwise kernel in portable mode too: `mx.conv2d(groups=C)` falls off its fast path at some channel counts
+# (DAT's 180-channel 3x3 at 512^2: 75 ms against 2.6 ms, 72 per call, 5.7 of 16.4 s) and is never faster.
+DW_KERNEL = not os.environ.get("FF_MLX_NO_DW_KERNEL")
 
 
 def _mean(x: mx.array, d: Sequence[int] | None = None, keep: bool = False, **_: object) -> mx.array:
@@ -843,7 +846,8 @@ def _sdpa_parts(q: mx.array, k: mx.array, v: mx.array, *parts: mx.array, scale: 
 
         return ops.window_attention(q, k, v, scale if scale is not None else q.shape[3] ** -0.5, list(parts))
     b = q.shape[0]
-    mask = functools.reduce(operator.add, parts)
+    # in the run dtype, as `_sdpa` would cast the sum: an eager half-precision run never holds a float32 [B, H, L, L]
+    mask = functools.reduce(operator.add, [p if p.dtype == q.dtype else p.astype(q.dtype) for p in parts])
     if mask.ndim == 4 and mask.shape[0] not in (1, b):
         mask = mx.tile(mask, (b // mask.shape[0], 1, 1, 1))
     return _sdpa(q, k, v, mask, scale=scale)
@@ -861,11 +865,27 @@ OPS[aten._log_softmax.default] = lambda x, d, h=False: (
 
 
 # ---- normalisation ----------------------------------------------------------------------------------------------
+ROW_LN = not os.environ.get("FF_MLX_NO_ROW_LN")  # narrow layer norms through `mx.fast.layer_norm`
+
+
+def _ops() -> Any:
+    from fastforks.kernels.graph_mlx import ops
+
+    return ops
+
+
 @_reg(aten.native_layer_norm.default)
 def _layer_norm(
     x: mx.array, shape: Sequence[int], w: mx.array | None, b: mx.array | None, eps: float
 ) -> tuple[mx.array, None, None]:
     if len(shape) == 1:
+        if (
+            ROW_LN
+            and x.shape[-1] <= _ops().ROW_LN_MAX
+            and x.dtype in (mx.float16, mx.bfloat16, mx.float32)
+            and all(t is None or t.dtype == x.dtype for t in (w, b))
+        ):
+            return _ops().row_layer_norm(x, w, b, eps), None, None
         return mx.fast.layer_norm(x, w, b, eps), None, None
     axes = tuple(range(x.ndim - len(shape), x.ndim))
     xf = x.astype(mx.float32)
@@ -1582,7 +1602,7 @@ def _conv_core(
             xl = mx.repeat(xl, w.shape[0] // groups, axis=-1)
             groups = w.shape[0]
         if (
-            _KERNELS
+            (_KERNELS or DW_KERNEL)
             and not act
             and groups > 1
             and groups == xl.shape[3] == w.shape[0]
@@ -2232,7 +2252,7 @@ def _refs(a: Any) -> Iterator[str]:
 
 
 CONST_FOLD_OFF = bool(os.environ.get("FF_MLX_NO_CONST_FOLD"))  # constant subgraphs run on every call
-CONST_FOLD_MAX_MB = 512
+CONST_FOLD_MAX_MB = int(os.environ.get("FF_MLX_CONST_FOLD_MB", "512"))
 """Folded constants kept at most (else none are folded): their arrays stay resident for the net's lifetime."""
 
 

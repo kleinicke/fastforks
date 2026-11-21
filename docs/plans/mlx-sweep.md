@@ -1417,3 +1417,31 @@ wd-vit-tagger-v3).
 Left on SwinIR-L fp16 (eager profile, per call): linears 4.5 s (already ahead of MPS), attention 1.0 s, roll plus
 window partition / reverse copies 0.9 s (a fused roll-and-window gather would save about 0.5 s), GELU 0.64 s, residual
 adds 0.62 s, layer norm 0.51 s, convs 1.0 s.
+
+### DAT: depthwise conv, narrow layer norm, half-precision mask sum
+
+DAT-2 at 512x512 fp16 spent 15.8 s warm (MPS 9.4 s). Causes, in profile order:
+
+- `mx.conv2d(groups=C)` falls off its fast path at some channel counts: DAT's 180-channel 3x3 depthwise conv at 512^2
+  took 75 ms against 2.6 ms for `ops.depthwise` (302 against 9.7 ms at 1024^2), 72 per call, 5.7 s in all. The
+  depthwise kernel, so far a kernels-mode kernel, now runs in portable mode too (never slower in the sweep).
+- `mx.fast.layer_norm` is slow at narrow or odd widths (47M fp16 elements: C=30 118 ms, C=96 25 ms, C=180 8 ms,
+  C=384 5.8 ms). `ops.row_layer_norm` (one simdgroup per row, the row in registers, float32 mean and centred
+  variance) takes about 1.3 ms at every C up to 512; used for 1-D layer norms with C <= 512.
+- DAT's d=30, L=256 attention stays on MLX sdpa (the window kernel spills registers at L=256: 119 against 23 ms), but
+  its peeled mask parts were summed in float32 before `_sdpa` cast them: the eager tuning trial held a float32
+  `[1024, 1, 256, 256]` (call peak 2807 -> 2208 MB). `_sdpa_parts` now casts each part to the run dtype first.
+
+Off switches: `FF_MLX_NO_DW_KERNEL`, `FF_MLX_NO_ROW_LN`. `FF_MLX_CONST_FOLD_MB` sets the folded-constant cap (default
+512): at 1024 DAT folds its two 256 MB float32 shift masks, 0.6 s faster per call but 512 MB heavier, so the default
+stays. Goldens pass (dat-2-x4, dat-light-x4, hat-s-x4, swinir-l-x4-real, swin2sr-x2, swin_base window7, nafnet-gopro,
+wd-vit-tagger-v3, convnext_base, depth-anything-v2-b, davit_small).
+
+| ref (512x512) | dtype | before ms / MB / first s | after ms / MB / first s | MPS ms / MB |
+|---|---|---|---|---|
+| dat-2-x4 | fp16 | 15757 / 3512 / 25.4 | 8676 / 3515 / 18.0 (not recorded: +3 MB; another run 8681 / 3538) | 9404 / 10600 |
+| dat-2-x4 | fp32 | 20494 / 5886 / 31.1 | 12210 / 5878 / 22.8 | - |
+
+Left on DAT fp16 (eager profile, per call): linears 1.9 s, d=30 attention 1.7 s, convs 1.1 s, reshape copies 0.6 s,
+`vector_norm` 0.6 s (eager abs and cast; one compiled kernel would take 40 % of that), global mean 0.5 s, the shift
+mask's where / ne / eq 0.6 s (folded at `FF_MLX_CONST_FOLD_MB=1024`).

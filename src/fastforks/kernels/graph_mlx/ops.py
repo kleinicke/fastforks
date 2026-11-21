@@ -525,3 +525,66 @@ def window_attention(
         grid=(tpg * b * nh, 1, 1), threadgroup=(tpg, 1, 1),
         output_shapes=[(b, n, nh, d)], output_dtypes=[q.dtype],
     )[0].swapaxes(1, 2)  # fmt: skip
+
+
+_ROW_LN = metal_kernel(
+    name="graph_row_layer_norm",
+    input_names=["x", "w", "b", "eps"],
+    output_names=["out"],
+    source="""
+        // one simdgroup per row of C (<= 32 * NPL) elements held in registers: float32 mean, then the centred variance
+        uint lane = thread_index_in_simdgroup;
+        size_t row = size_t(threadgroup_position_in_grid.x) * SG + simdgroup_index_in_threadgroup;
+        if (row >= size_t(ROWS)) return;
+        const device T* xr = x + row * C;
+        float v[NPL];
+        float s = 0.0f;
+        for (int i = 0; i < NPL; ++i) {
+            uint c = lane + 32 * i;
+            v[i] = c < uint(C) ? float(xr[c]) : 0.0f;
+            s += v[i];
+        }
+        float mean = simd_sum(s) / C;
+        float q = 0.0f;
+        for (int i = 0; i < NPL; ++i) {
+            uint c = lane + 32 * i;
+            float d = c < uint(C) ? v[i] - mean : 0.0f;
+            q += d * d;
+        }
+        float rstd = rsqrt(simd_sum(q) / C + eps[0]);
+        device T* o = out + row * C;
+        for (int i = 0; i < NPL; ++i) {
+            uint c = lane + 32 * i;
+            if (c < uint(C)) {
+                float y = (v[i] - mean) * rstd;
+                if (HAS_W) y *= float(w[c]);
+                if (HAS_B) y += float(b[c]);
+                o[c] = T(y);
+            }
+        }
+    """,
+)
+
+ROW_LN_MAX = 512
+"""Widest row `row_layer_norm` takes (MLX 0.32, M1 Pro, 47M elements: never slower up to 512, equal at 240, 256 and
+512; at 768 `mx.fast.layer_norm` is 15 % faster)."""
+
+
+def row_layer_norm(x: mx.array, w: mx.array | None, b: mx.array | None, eps: float) -> mx.array:
+    """Layer norm over the last axis for narrow rows (`C <= ROW_LN_MAX`): one simdgroup per row.
+
+    `mx.fast.layer_norm` is several times slower at many such widths (47M float16 elements: C = 180 8.1 against 1.3
+    ms, C = 384 5.8 against 1.3 ms, C = 96 25 against 1.3 ms). `w` and `b` are read in `x`'s dtype.
+    """
+    c = x.shape[-1]
+    rows = x.size // c
+    sg = 8
+    dummy = mx.zeros((c,), x.dtype)
+    return _ROW_LN(
+        inputs=[mx.contiguous(x), w if w is not None else dummy, b if b is not None else dummy,
+                mx.array([eps], mx.float32)],
+        template=[("T", x.dtype), ("C", c), ("NPL", -(-c // 32)), ("SG", sg), ("ROWS", rows),
+                  ("HAS_W", w is not None), ("HAS_B", b is not None)],
+        grid=(-(-rows // sg) * 32 * sg, 1, 1), threadgroup=(32 * sg, 1, 1),
+        output_shapes=[x.shape], output_dtypes=[x.dtype],
+    )[0]  # fmt: skip
