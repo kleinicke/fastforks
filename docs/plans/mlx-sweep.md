@@ -2317,6 +2317,13 @@ Survey rows, second of two runs (ms warm median / peak footprint MB):
 - **video-depth-anything**: already `pure_half`, but channels-last. NCHW on MPS: the 32-frame head window took 630 ms
   against 827 ms. The survey now takes 994x1482 from the reference floor (new rows). The 480x640 rows of 2026-11-12/17
   stay as they were (the survey cannot re-measure them).
+- **Iterative stereo / flow (sea-raft, selective-igev, monster, mocha, great-igev, igev, raft-stereo), scan only**: on
+  MPS each fp16 portable row is already faster than fp32 (0.71-0.91x) at a lower peak, so autocast does run fp16
+  there. raft-stereo already keeps NCHW on MPS, stores fp16 conv weights and avoids the fp32 promotion of the GRU input.
+  Pure fp16 would also put the flow / disparity state and the lookup coordinates in fp16, so it was not tried.
+  Suspect rows to re-survey alone: the fp32 rows of sea-raft-m-kitti (median 5026 / min 4287), sea-raft-m-things
+  (4162 / 2641), sea-raft-s (2115 / 1849) and monster-plusplus-mix-all (16071 / 13884), all at 11.5-12.7 GB. Their
+  0.3-0.5x fp16 ratios are most likely fp32 pressure, not fp16 gains. defom-stereo has no MPS fp16 row.
 
 
 ## Later idea: fp16 checkpoints from the start (2026-11-22, not started)
