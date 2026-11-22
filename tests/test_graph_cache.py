@@ -189,3 +189,38 @@ def test_shared_input_requires_matching_layout_and_survives_eviction():
     assert torch.equal(cache.run("b", x, a + 9), x + a + 9)
     cache.release()
     assert not cache.graphs
+
+
+def test_uploads_in_a_capture_outlive_the_staging_allocator():
+    from fastforks._core.upload import device_tensor, to_device  # noqa: PLC0415
+
+    def forward(x):
+        scale = to_device(torch.tensor([2.0, 3.0]), x.device)
+        shift = device_tensor([1.0, -1.0], device=x.device)
+        return x * scale + shift
+
+    cache = GraphCache(forward)
+    x = torch.ones(4, 2, device="cuda")
+    assert cache.run("k", x) is None  # first call of a key: the caller runs eagerly
+    cache.run("k", x)  # captured
+    graph = cache.graphs["k"][0]
+    assert len(graph.uploads) == 2  # the pinned staging buffers, held with the graph
+    for _ in range(8):  # freed pinned blocks are reused with other values
+        to_device(torch.full((2,), 9.0), "cuda")
+    torch.cuda.synchronize()
+    torch.testing.assert_close(cache.run("k", x), torch.tensor([[3.0, 2.0]] * 4, device="cuda"))
+
+
+def test_uploads_in_a_bare_capture_raise():
+    from fastforks._core.upload import to_device  # noqa: PLC0415
+
+    graph = torch.cuda.CUDAGraph()
+    side = torch.cuda.Stream()
+    x = torch.zeros(2, device="cuda")
+    with torch.cuda.stream(side), pytest.raises(RuntimeError, match="capture_uploads"):  # noqa: PT012
+        graph.capture_begin(capture_error_mode="thread_local")
+        try:
+            x.add_(1)  # not an empty graph
+            to_device(torch.ones(2), "cuda")
+        finally:
+            graph.capture_end()

@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 import torch
 
 from fastforks._core.kernels import checked
+from fastforks._core.upload import capture_uploads
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Hashable
@@ -40,6 +41,12 @@ _LARGER = 2  # fixed: a new shape this many times larger than every held graph's
 
 # serialises the warm-ups + captures on the shared capture stream (reentrant: a captured forward may hold it again)
 CAPTURE_LOCK = threading.RLock()
+
+
+class _Graph(torch.cuda.CUDAGraph):
+    """A CUDA graph that holds the pinned host buffers its captured uploads copy from (`capture_uploads`)."""
+
+    uploads: list[torch.Tensor]
 
 
 @functools.cache
@@ -215,7 +222,7 @@ class GraphCache:
         static = tuple(self._static_input(i, x) for i, x in enumerate(inputs))
         cur = torch.cuda.current_stream(device)
         side = capture_stream(device)
-        graph = torch.cuda.CUDAGraph()
+        graph = _Graph()
         with CAPTURE_LOCK, torch.cuda.stream(side):
             side.wait_stream(cur)
             try:
@@ -228,7 +235,8 @@ class GraphCache:
             torch._C._cuda_clearCublasWorkspaces()  # noqa: SLF001 - no public API
             graph.capture_begin(self._pool, capture_error_mode="thread_local")
             try:
-                out = self._forward(*static)
+                with capture_uploads() as graph.uploads:  # replays copy from these host buffers again
+                    out = self._forward(*static)
             except BaseException as e:
                 free_captured(e)
                 raise
