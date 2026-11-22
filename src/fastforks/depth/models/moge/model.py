@@ -20,6 +20,7 @@ The estimated intrinsics have the principal point at the image centre and square
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
@@ -48,7 +49,6 @@ if TYPE_CHECKING:
 
     from .sparse import SparseUNet
 
-    Array = torch.Tensor | np.ndarray
 
 _TOKENS = (1200, 3600)  # num_tokens_range of the released checkpoints
 _REFINE_STEPS = 3  # MoGe-3 infer default
@@ -101,52 +101,84 @@ def _net(ctx: Context) -> MoGeNet:
 
 
 # ------------------------------------------------------------------------------------------------ post-processing
-def _total(t: Array) -> Array:
-    """`t.sum((1, 2))` in torch's float64 reduction order also for numpy arrays (numpy sums pairwise)."""
-    return t.sum((1, 2)) if isinstance(t, torch.Tensor) else torch.from_numpy(t).sum((1, 2)).numpy()
-
-
-def _solve_shift(uv: Array, xyz: Array, w: Array, focal: Array | None) -> Array:
+def _solve_shift(uv: torch.Tensor, xyz: torch.Tensor, w: torch.Tensor, focal: torch.Tensor | None) -> torch.Tensor:
     """Levenberg-Marquardt for `min_s |f * xy / (z + s) - uv|^2` over the weighted points, per batch item (float64).
 
     `f` is the given focal length or, if `None`, the optimal one for each `s` (upstream `solve_optimal_focal_shift`).
-    The arrays are numpy (eager: a numpy op costs a few microseconds on the host, a CPU tensor op tens) or CPU
-    tensors (traced); both run the same float64 operations and the sums in torch's order, so they agree exactly.
     """
-    xp = cast("Any", torch if isinstance(uv, torch.Tensor) else np)
     xy, z = xyz[..., :2], xyz[..., 2:]
     w = w[..., None]
 
-    def residual(s: Array) -> tuple[Array, Array]:
+    def residual(s: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         d = z + s[:, None, None]
-        p = xp.where(w > 0, xy / d, 0)
-        dp = xp.where(w > 0, -p / d, 0)
+        p = torch.where(w > 0, xy / d, 0)
+        dp = torch.where(w > 0, -p / d, 0)
         if focal is None:
-            a, b = _total(p * uv * w), _total(p * p * w)
-            da, db = _total(dp * uv * w), 2 * _total(p * dp * w)
+            a, b = (p * uv * w).sum((1, 2)), (p * p * w).sum((1, 2))
+            da, db = (dp * uv * w).sum((1, 2)), 2 * (p * dp * w).sum((1, 2))
             f, df = a / b, (da * b - a * db) / (b * b)
         else:
-            f, df = focal, xp.zeros_like(focal)
+            f, df = focal, torch.zeros_like(focal)
         r = (f[:, None, None] * p - uv) * w
         return r, (df[:, None, None] * p + f[:, None, None] * dp) * w
 
-    s = xp.zeros(xyz.shape[0], dtype=xp.float64)
-    lam = xp.full_like(s, 1e-3)
+    s = torch.zeros(xyz.shape[0], dtype=torch.float64)
+    lam = torch.full_like(s, 1e-3)
     r, jac = residual(s)
-    cost = _total(r * r)
+    cost = (r * r).sum((1, 2))
     for _ in range(100):
-        g, hess = _total(jac * r), _total(jac * jac)
-        step = -g / xp.clip(hess * (1 + lam), 1e-300, None)
+        g, hess = (jac * r).sum((1, 2)), (jac * jac).sum((1, 2))
+        step = -g / (hess * (1 + lam)).clamp_min(1e-300)
         r2, j2 = residual(s + step)
-        c2 = _total(r2 * r2)
-        ok = xp.isfinite(c2) & (c2 <= cost)
-        s = xp.where(ok, s + step, s)
-        r, jac = xp.where(ok[:, None, None], r2, r), xp.where(ok[:, None, None], j2, jac)
-        cost = xp.where(ok, c2, cost)
-        lam = xp.where(ok, lam / 10, lam * 10)
+        c2 = (r2 * r2).sum((1, 2))
+        ok = torch.isfinite(c2) & (c2 <= cost)
+        s = torch.where(ok, s + step, s)
+        r, jac = torch.where(ok[:, None, None], r2, r), torch.where(ok[:, None, None], j2, jac)
+        cost = torch.where(ok, c2, cost)
+        lam = torch.where(ok, lam / 10, lam * 10)
         if torch.compiler.is_compiling():  # traced: all iterations (no host sync); converged steps change s < 1e-13
             continue
-        if bool((xp.abs(step) <= 1e-13 * (xp.abs(s) + 1e-9)).all()):
+        if bool((step.abs() <= 1e-13 * (s.abs() + 1e-9)).all()):
+            break
+    return s
+
+
+def _solve_shift_item(uv: np.ndarray, xyz: np.ndarray, focal: float | None) -> float:
+    """`_solve_shift` of one batch item on its valid points only (`uv` `[n, 2]`, `xyz` `[n, 3]`, float64): eager path.
+
+    The same Levenberg-Marquardt steps; the sums are BLAS dot products over the n valid points and the scalars Python
+    floats, so an iteration costs about 15 vector operations instead of `_solve_shift`'s masked `[B, 4096, 2]` ones
+    (moge-2-vitb 1482 x 994 on Windows: 10.5 -> about 1 ms). The sums are in a different order, so the shift differs
+    from `_solve_shift`'s in the last float64 bits.
+    """
+    u, v, x, y, z = (np.ascontiguousarray(c) for c in (uv[:, 0], uv[:, 1], xyz[:, 0], xyz[:, 1], xyz[:, 2]))
+    dot = np.dot
+
+    def residual(s: float) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        q = 1 / (z + s)
+        px, py = x * q, y * q
+        qx, qy = px * q, py * q  # -dp/ds
+        if focal is None:
+            a, b = dot(px, u) + dot(py, v), dot(px, px) + dot(py, py)
+            da, db = -(dot(qx, u) + dot(qy, v)), -2 * (dot(px, qx) + dot(py, qy))
+            f, df = a / b, (da * b - a * db) / (b * b)
+        else:
+            f, df = focal, 0.0
+        return f * px - u, f * py - v, df * px - f * qx, df * py - f * qy
+
+    s, lam = 0.0, 1e-3
+    rx, ry, jx, jy = residual(s)
+    cost = dot(rx, rx) + dot(ry, ry)
+    for _ in range(100):
+        g, hess = dot(jx, rx) + dot(jy, ry), dot(jx, jx) + dot(jy, jy)
+        step = -g / max(hess * (1 + lam), 1e-300)
+        r2 = residual(s + step)
+        c2 = dot(r2[0], r2[0]) + dot(r2[1], r2[1])
+        if math.isfinite(c2) and c2 <= cost:
+            s, (rx, ry, jx, jy), cost, lam = s + step, r2, c2, lam / 10
+        else:
+            lam *= 10
+        if abs(step) <= 1e-13 * (abs(s) + 1e-9):
             break
     return s
 
@@ -172,11 +204,15 @@ def focal_shift(
     )
     fd = focal.cpu().double() if focal is not None else None
     if torch.compiler.is_compiling():
-        shift = cast("torch.Tensor", _solve_shift(ul, pl, wl, fd))
+        shift = _solve_shift(ul, pl, wl, fd)
     else:
-        with np.errstate(divide="ignore", invalid="ignore", over="ignore"):  # masked points: 0 / 0, as torch.where
-            arrays = (ul.numpy(), pl.numpy(), wl.numpy(), None if fd is None else fd.numpy())
-            shift = torch.from_numpy(_solve_shift(*arrays))
+        uvn, xyzn, keep = ul.expand(b, -1, -1).numpy(), pl.numpy(), wl.numpy() > 0
+        with np.errstate(divide="ignore", invalid="ignore", over="ignore"):  # z + s = 0: an infinite cost, rejected
+            items = [
+                _solve_shift_item(uvn[i][keep[i]], xyzn[i][keep[i]], None if fd is None else float(fd[i]))
+                for i in range(b)
+            ]
+        shift = torch.tensor(items, dtype=torch.float64)
     few = wl.sum(1) < 2  # noqa: PLR2004 - upstream: fewer than 2 points -> focal 1, shift 0
     shift = torch.where(few, 0, shift).float()
     if fd is None:
