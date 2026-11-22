@@ -27,8 +27,9 @@ import torch
 from fastforks._core.checkpoint import NUMPY_ARRAYS, Inert, latin1_encode, numeric_scalar
 from fastforks._optimize import optimize
 from fastforks.kernels import pose_warp
-from fastforks.pose._runner import Forward, TopDown
+from fastforks.pose._runner import BUCKETS, Forward, TopDown, in_buckets
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.topdown import FLIP, MEAN, STD, crop, crop_boxes
 
 from .net import STRIDE, Arch, HRNet, convert
@@ -44,6 +45,7 @@ class Params(Arch):
     """Card `[params]` + variant `params` + `[options]`."""
 
     flip_test: bool  # average with the mirrored crop (option; the reference's COCO AP protocol)
+    cuda_graphs: bool  # kernels: replay a CUDA graph per person bucket (option)
 
 
 def decode(hm: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -129,7 +131,8 @@ class Portable(TopDown):
 class Kernels(Portable):
     """CUDA: the network through `fastforks._optimize` (fp16, channels-last, fp16-accumulating convs for big batches).
 
-    Cropping, decoding and the mapping back as in `Portable`.
+    Normalisation, the network and decoding replay as one CUDA graph per person bucket (`BUCKETS`, zero crops pad a
+    batch up; `cuda_graphs = false`: eager). Cropping and the mapping back run eagerly.
     """
 
     crop = staticmethod(pose_warp.crop)
@@ -138,10 +141,30 @@ class Kernels(Portable):
         """The portable network, then its optimized version (replaces it: a second set of weights was 121 MiB)."""
         super().__init__(ctx)
         self.net = self.fast = optimize(self.net.float(), mode="kernels", device=ctx.device, family="cnn")
+        a: Params = ctx.params
+        self.graphs = SmallShapeGraphs(
+            self._decoded, pixels=BUCKETS[-1] * a.height * a.width, enabled=ctx.params.cuda_graphs
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """float32 heatmaps of normalised float32 crops."""
         return self.fast(x).float()
+
+    def _decoded(self, crops: torch.Tensor) -> torch.Tensor:
+        """`[P, K, 3]` float32 (x, y in network input pixels, score) of crops `[P, 3, h, w]` in 0..255."""
+        coords, score = decode(self.heatmaps(crops))
+        return torch.cat([coords, score[..., None]], -1)
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool on the device."""
+        self.graphs.release()
+
+    def people(self, crops: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The graphed network and decoding per person bucket, mapped back to the input."""
+        out = in_buckets(self.graphs, crops)
+        kp = out[..., :2] * (size / self.net_size)[:, None] + (centre - size * 0.5)[:, None]
+        score = out[..., 2]
+        return {"keypoints": kp, "keypoint_scores": score, "scores": score.mean(1)}
 
 
 def extra() -> dict[tuple[str, str], object]:

@@ -171,6 +171,18 @@ class Portable(Runner):
     def _forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         return self.net(x)
 
+    def select(self, logits: torch.Tensor, boxes: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """The best `num_select` scores, their labels (-1: unused id) and boxes (`x0, y0, x1, y1`, 0..1)."""
+        scores, idx = logits.sigmoid().flatten(1).topk(self.ctx.params.num_select)  # [B, num_select]
+        classes = logits.shape[-1]
+        labels, query = self.ids[idx % classes], idx // classes
+        cx, cy, bw, bh = boxes.gather(1, query[..., None].expand(-1, -1, 4)).unbind(-1)
+        return scores, labels, torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1)
+
+    def _selected(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """`select` of the network outputs of `x`."""
+        return self.select(*self._forward(x))
+
     def __call__(self, image: torch.Tensor, score_threshold: float) -> dict[str, torch.Tensor]:
         """Every detection above the threshold (best first, at most `max_detections`), in input pixels."""
         return self.detect_batch(image, score_threshold)[0]
@@ -179,14 +191,8 @@ class Portable(Runner):
         """`__call__` for every image of `images` `[B, 3, H, W]`, one network call."""
         p: Any = self.ctx.params
         h, w = images.shape[-2:]
-        logits, boxes = self._forward(self.normalise(square(images, p.size)))
-        scores, idx = logits.sigmoid().flatten(1).topk(p.num_select)  # [B, num_select]
-        classes = logits.shape[-1]
-        labels, query = self.ids[idx % classes], idx // classes
-        cx, cy, bw, bh = boxes.gather(1, query[..., None].expand(-1, -1, 4)).unbind(-1)
-        out = torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1) * device_tensor(
-            [w, h, w, h], device=boxes.device, dtype=boxes.dtype
-        )
+        scores, labels, boxes = self._selected(self.normalise(square(images, p.size)))
+        out = boxes * device_tensor([w, h, w, h], device=boxes.device, dtype=boxes.dtype)
         keep = (labels >= 0) & (scores >= score_threshold)
         return split_kept(keep, p.max_detections, boxes=out, scores=scores, labels=labels)
 
@@ -210,7 +216,7 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
 
 
 class Kernels(Portable):
-    """float16 with fp16-accumulate convs (`cudnn_hacc`) and GEMMs; the network replays from a CUDA graph per shape."""
+    """float16, fp16-accumulate convs (`cudnn_hacc`) and GEMMs; network + top-k replay from a CUDA graph per shape."""
 
     module = Runner.module  # fp16-accumulate GEMMs are a cuBLAS mode, not an exportable operator
 
@@ -225,11 +231,16 @@ class Kernels(Portable):
         after = cudnn_hacc.capture_after()
         self.graphs = GraphCache(self._eager, graphs=1, capture_after=after) if ctx.params.cuda_graphs else None
 
-    def _eager(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        with fp16_accumulate():
-            return self.net(x)
+    def _eager(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """Network and top-k selection, the graph's forward.
 
-    def _forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        The resize, the threshold and the scale to input pixels stay eager: a graph of the resize per input shape
+        measured 0.1 ms at best, for up to 48 MiB more reserved.
+        """
+        with fp16_accumulate():
+            return self.select(*self.net(x))
+
+    def _selected(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
         out = None if self.graphs is None else self.graphs.run((x.device, x.dtype, tuple(x.shape)), x)
         return self._eager(x) if out is None else out
 
