@@ -114,6 +114,46 @@ def test_dav2_kernels_graph_replay_matches_eager():
     assert off._runner._graphs.cache is None
 
 
+@pytest.mark.gpu
+@pytest.mark.model
+def test_any2full_kernels_graph_replay_matches_eager():
+    """Any2Full replays its whole pass (embedding, prompt branches, fit) from a graph: eager bit for bit, opt-out."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    try:
+        m = depth.load("any2full-s", mode="kernels", device="cuda")
+    except (WeightsError, BackendUnavailableError) as e:
+        pytest.skip(f"any2full-s kernels: {e}")
+    g = m._runner._graphs
+    assert g.cache is not None
+    gen = torch.Generator("cuda").manual_seed(0)
+    a, b = (torch.rand(1, 3, 300, 400, device="cuda", generator=gen) for _ in range(2))
+    da, db = (
+        torch.where(torch.rand(300, 400, device="cuda", generator=gen) < 0.05, 1 + 9 * x[0, 0], 0) for x in (a, b)
+    )
+
+    def eager(x: torch.Tensor, d: torch.Tensor) -> torch.Tensor:
+        pixels, g.pixels = g.pixels, 0
+        try:
+            return m(x, prompt_depth=d).depth
+        finally:
+            g.pixels = pixels
+
+    want_a, want_b = eager(a, da), eager(b, db)
+    m(a, prompt_depth=da)  # first call: eager
+    assert not g.cache.graphs
+    first = m(a, prompt_depth=da).depth  # captures
+    assert len(g.cache.graphs) == 1
+    second = m(b, prompt_depth=db).depth  # replays with new data; `first` must not change
+    torch.testing.assert_close(first, want_a, rtol=0, atol=0)
+    torch.testing.assert_close(second, want_b, rtol=0, atol=0)
+    assert first.data_ptr() != second.data_ptr()
+    m.release_graphs()
+    assert not g.cache.graphs
+    off = depth.load("any2full-s", mode="kernels", device="cuda", cuda_graphs=False)
+    assert off._runner._graphs.cache is None
+
+
 @pytest.mark.parametrize(("h", "w"), [(352, 480), (480, 640), (375, 1242), (994, 1482), (1000, 400), (97, 131)])
 def test_unidepth_padding(h, w):
     """Pad to the aspect range only outside it (352 x 480 padded by -1 px before: W * H / W rounded down)."""

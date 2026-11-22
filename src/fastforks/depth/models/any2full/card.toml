@@ -3,7 +3,7 @@ name = "Any2Full"
 summary = "Any2Full (2026): one-stage depth completion that prompts Depth Anything V2 with a sparse depth map of any pattern and density; the depth tokens modulate the ViT features entering the DPT head, the disparity is fitted to the prompt."
 tier = "experimental"
 outputs = ["depth"]
-uses = ["depth_anything_v2", "mlx_wrap"]  # fastforks.shared modules this family imports (the ViT, the DPT head)
+uses = ["cuda_graphs", "depth_anything_v2", "mlx_wrap"]  # fastforks.shared modules this family imports (the ViT, the DPT head)
 limitations = [
   "The depth map is required: call the model with `prompt_depth=` a metric map in metres (any size, sparse points or holes as 0 / NaN / inf). The output is fitted to it by scale and shift in disparity, so it needs at least two distinct valid values.",
   "Export has a fixed input size.",
@@ -30,6 +30,7 @@ pad = "none"
 
 [options]
 short_side = { default = 518, min = 14 }  # the shorter network side is at least this (upstream resize_lower_size)
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for repeated input shapes (false: eager, no extra memory)
 
 [modes.portable]
 cuda_dtype = "float16"

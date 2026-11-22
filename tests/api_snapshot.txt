@@ -834,6 +834,7 @@ name fastforks.volume.VolumeResult = class fastforks.volume._api.VolumeResult
 name fastforks.volume.VolumeSession = class fastforks.volume._api.VolumeSession
 option calibration.anycalib.cuda_graphs
 option calibration.geocalib.cuda_graphs
+option depth.any2full.cuda_graphs
 option depth.any2full.short_side
 option depth.depth_anything_3.long_side aliases process_res
 option depth.depth_anything_3.stream
