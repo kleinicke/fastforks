@@ -3,7 +3,7 @@ name = "M-LSD line segments"
 summary = "Mobile line segment detector (Gu et al., AAAI 2022; controlnet_aux `MLSDdetector`, ComfyUI's \"M-LSD Lines\"): a MobileNetV2 network that predicts segment centers and end-point displacements; returns the straight segments and the 1-pixel line map ControlNet's MLSD model takes."
 tier = "experimental"
 outputs = ["edges", "lines"]
-uses = ["cnn_kernels", "mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "A standalone FP32 TensorRT CNN that preserves backbone preactivation outputs matches portable FP32 on all 102 YorkUrban images. The measured path uses PyTorch preprocessing and line decoding.",
 ]
@@ -27,6 +27,7 @@ input = "0-1"  # the runner resizes to the detect size (OpenCV area / cubic on u
 short_side = { default = 512, min = 64, aliases = ["resolution", "detect_resolution"] }  # the network input's short side, sides rounded to a multiple of 64 (controlnet_aux detect_resolution)
 thr_v = { default = 0.1, min = 0.0, max = 1.0 }  # center score threshold (kept if above; controlnet_aux thr_v)
 thr_d = { default = 0.1, min = 0.0 }  # segment length threshold in half-resolution pixels (kept if above; controlnet_aux thr_d)
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the network and the line decoding from a CUDA graph for small repeated shapes (false: eager, no extra memory)
 
 [modes.portable]
 cuda_dtype = "float16"

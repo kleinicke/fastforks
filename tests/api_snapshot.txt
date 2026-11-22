@@ -901,13 +901,16 @@ option edges.anyline.short_side aliases detect_resolution,resolution
 option edges.hed.safe
 option edges.hed.short_side aliases detect_resolution,resolution
 option edges.lineart.short_side aliases detect_resolution,resolution
+option edges.lineart_anime.cuda_graphs
 option edges.lineart_anime.short_side aliases detect_resolution,resolution
+option edges.mlsd.cuda_graphs
 option edges.mlsd.short_side aliases detect_resolution,resolution
 option edges.mlsd.thr_d
 option edges.mlsd.thr_v
 option edges.pidinet.apply_filter
 option edges.pidinet.safe
 option edges.pidinet.short_side aliases detect_resolution,resolution
+option edges.teed.cuda_graphs
 option edges.teed.safe_steps
 option edges.teed.short_side aliases detect_resolution,resolution
 option features.c_radio.fp16_accumulate

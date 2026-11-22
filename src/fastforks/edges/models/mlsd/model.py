@@ -24,6 +24,7 @@ from fastforks._core.upload import device_tensor
 from fastforks.edges._runner import Forward, Runner, to_detect, to_input
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cnn_kernels import prepare_generic
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import MobileV2_MLSD_Large
 
@@ -41,11 +42,13 @@ class Params:
         short_side: The short side of the network input (controlnet_aux detect resolution; rounded to a multiple of 64).
         thr_v: Center score threshold (kept if above).
         thr_d: Segment length threshold in half-resolution pixels (kept if above).
+        cuda_graphs: Kernels replays the network and the line decoding from a CUDA graph for small repeated shapes.
     """
 
     short_side: int
     thr_v: float
     thr_d: float
+    cuda_graphs: bool = True
 
 
 def decode(maps: torch.Tensor, thr_v: float, thr_d: float) -> tuple[torch.Tensor, torch.Tensor]:
@@ -169,8 +172,14 @@ class Portable(Runner):
 
     def _edges_and_segments(self, image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, int, int]:
         """Compute the line map and fixed-size segment candidates before filtering."""
+        x = to_detect(image, self.ctx.params.short_side)
+        hd, wd = x.shape[-2:]
+        edges, seg, keep = self._detect_lines(x)
+        return to_input(edges.to(image.device), image), seg, keep, hd, wd
+
+    def _detect_lines(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Line map `[B, hd, wd]`, segment candidates `[B, K, 4]` and `keep` `[B, K]` of `x` at the detect size."""
         p = self.ctx.params
-        x = to_detect(image, p.short_side)
         hd, wd = x.shape[-2:]
         x = torch.cat((x, torch.ones_like(x[:, :1])), 1) / 127.5 - 1
         if self.cl:
@@ -179,8 +188,7 @@ class Portable(Runner):
         if maps.device.type == "mps":  # the decoding and drawing are float64 / int64 maths, which MPS lacks
             maps = maps.cpu()
         seg, keep = decode(maps, p.thr_v, p.thr_d)
-        edges = draw(seg.trunc().long(), keep, hd, wd)
-        return to_input(edges.to(image.device), image), seg, keep, hd, wd
+        return draw(seg.trunc().long(), keep, hd, wd), seg, keep
 
     @host
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor | list[torch.Tensor]]:
@@ -197,6 +205,12 @@ class Portable(Runner):
         return Forward(self.net, lambda _net, image: self._edges_and_segments(image)[0])
 
 
+# kernels replays a CUDA graph up to this many images x H x W at the detect size: the fixed-size line decoding is
+# ~400 tiny kernels, launch bound (RTX 5060 Ti, Windows, fp16, ms per image: 512 px 11.3 -> 3.0, 1024 x 768
+# 11.7 -> 3.9; +160 MB reserved)
+GRAPH_PIXELS = 4 * 512 * 512  # fixed: a speed threshold, not the architecture
+
+
 class Kernels(Portable):
     """Run the convolution blocks with fused CUDA kernels."""
 
@@ -206,6 +220,16 @@ class Kernels(Portable):
         """Prepare the convolution blocks for inference."""
         super().__init__(ctx)
         prepare_generic(self.net, ctx.device)
+        forward = super()._detect_lines
+        self.graphs = SmallShapeGraphs(forward, pixels=GRAPH_PIXELS, enabled=ctx.params.cuda_graphs)
+
+    def release_graphs(self) -> None:
+        """Release the CUDA graphs and their pool."""
+        self.graphs.release()
+
+    def _detect_lines(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """`Portable._detect_lines`, from a CUDA graph for a small repeated shape (the decoding is fixed-size)."""
+        return self.graphs(x)
 
 
 RUNNERS = {

@@ -219,7 +219,7 @@ Commercial use: yes.
 - Weights licence: MIT (assumed from code)
 - Licence evidence: https://github.com/huggingface/controlnet_aux/blob/b1aac318b15c4e65a21bc516dc236ad4bf593d46/src/controlnet_aux/lineart_anime/LICENSE ; https://huggingface.co/lllyasviel/Annotators
 - Training data: Not stated for these checkpoints (lllyasviel/Annotators, ControlNet 1.1); ControlNet 1.1 describes the anime line art model as trained on anime illustrations and their line drawings.
-- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`)
+- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `cuda_graphs` = True (speed only)
 - Kernel libraries: `cv_resample`
 - Variants: `lineart-anime`
 - Outputs: edges
@@ -273,7 +273,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/lhwcv/mlsd_pytorch/blob/2312205254e66911703decf775f626995d260f17/LICENSE ; https://github.com/lhwcv/mlsd_pytorch/tree/2312205254e66911703decf775f626995d260f17/models
 - Training data: Not stated for this checkpoint; the M-LSD paper trains on the Wireframe dataset (Huang et al. 2018, no licence stated).
-- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `thr_v` = 0.1 (0.0 to 1.0), `thr_d` = 0.1 (>= 0.0)
+- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `thr_v` = 0.1 (0.0 to 1.0), `thr_d` = 0.1 (>= 0.0), `cuda_graphs` = True (speed only)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `mlsd`
 - Public TensorRT export is unavailable for `mlsd` (the public graph's CNN outputs diverge from portable FP32. The validated standalone build preserves the MobileNet preactivations as engine outputs).
@@ -385,7 +385,7 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: https://github.com/xavysp/TEED/blob/40fa4b1391dc6424f88989d0ca75d5b592c8681d/LICENSE ; https://github.com/xavysp/TEED/tree/40fa4b1391dc6424f88989d0ca75d5b592c8681d/checkpoints/BIPED/5
 - Training data: BIPED (Barcelona Images for Perceptual Edge Detection) (BIPED (the repository's checkpoints/BIPED folder and README); the dataset is for non-commercial use.)
-- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `safe_steps` = 2 (0 to 255)
+- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `safe_steps` = 2 (0 to 255), `cuda_graphs` = True (speed only)
 - Kernel libraries: `smish`
 - Variants: `teed`
 - Outputs: edges
