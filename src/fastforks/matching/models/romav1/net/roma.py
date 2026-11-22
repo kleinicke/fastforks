@@ -10,6 +10,7 @@ import math
 import torch
 import torch.nn.functional as F
 from torch import nn
+from fastforks._core.upload import device_tensor  # fastforks
 
 from fastforks.shared.depth_anything_v2 import Block, SdpaAttention
 
@@ -34,8 +35,8 @@ def grid(b: int, h: int, w: int, device: torch.device) -> torch.Tensor:
 
 
 def imagenet(img: torch.Tensor) -> torch.Tensor:
-    mean = torch.tensor(IMAGENET_MEAN, device=img.device).view(1, 3, 1, 1)
-    std = torch.tensor(IMAGENET_STD, device=img.device).view(1, 3, 1, 1)
+    mean = device_tensor(IMAGENET_MEAN, device=img.device).view(1, 3, 1, 1)  # fastforks: no host sync (a pageable upload syncs the host)
+    std = device_tensor(IMAGENET_STD, device=img.device).view(1, 3, 1, 1)  # fastforks: no host sync (a pageable upload syncs the host)
     return (img - mean) / std
 
 
@@ -142,7 +143,7 @@ class GP(nn.Module):
     def kernel(self, x: torch.Tensor, y: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
         """Upstream `CosKernel`: `exp((cos(x, y) - 1) / T)`."""
         c = torch.einsum("bnd,bmd->bnm", x, y) / (x.norm(dim=-1)[..., None] * y.norm(dim=-1)[:, None] + eps)
-        return ((c - 1.0) / torch.tensor(self.temperature, device=c.device)).exp()
+        return ((c - 1.0) / device_tensor(self.temperature, device=c.device)).exp()  # fastforks: no host sync (a pageable upload syncs the host)
 
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         b, _, h1, w1 = x.shape

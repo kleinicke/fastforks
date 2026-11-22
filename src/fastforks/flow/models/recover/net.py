@@ -27,6 +27,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.upload import device_tensor
+
 FACTOR = 8  # fixed: the context encoders downsample by 8
 DIM = 128  # fixed: hidden state and context channels (upstream args.dim)
 CORR = 4 * 9 * 9  # fixed: upstream's correlation channels (4 levels, radius 4), all zero at inference
@@ -295,8 +297,8 @@ class BasicMotionEncoder(nn.Module):
         cor = F.relu(self.convc2(cor))
         wc = self.conv.weight[:, : cor.shape[1]]
         small = F.conv2d(cor, wc, self.conv.bias, padding=1)
-        iy = torch.tensor([0, 1] + [2] * (h - 4) + [3, 4], device=small.device)
-        ix = torch.tensor([0, 1] + [2] * (w - 4) + [3, 4], device=small.device)
+        iy = device_tensor([0, 1] + [2] * (h - 4) + [3, 4], device=small.device)
+        ix = device_tensor([0, 1] + [2] * (w - 4) + [3, 4], device=small.device)
         return small.index_select(2, iy).index_select(3, ix)
 
     def forward(self, flow: torch.Tensor, corr_term: torch.Tensor) -> torch.Tensor:

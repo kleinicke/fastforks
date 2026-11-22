@@ -19,6 +19,7 @@ from fastforks._core.image import ImageLike, is_batch, to_rgb_batch
 from fastforks._core.instances import Instances
 from fastforks._core.model import Backend, Dtype, ModeArg
 from fastforks._core.outputs import MapOutputs, NumpyOutputs
+from fastforks._core.upload import device_tensor
 
 if TYPE_CHECKING:
     import os
@@ -535,7 +536,7 @@ class PromptableSegmentationModel(core.Model):
         h, w = emb.image_size
         with self._session():
             out = self._runner.selected_concepts(dict(emb.features), text, ex_boxes, ex_labels, threshold=threshold)
-            boxes = out["boxes"] * torch.tensor([w, h, w, h], device=self.device, dtype=torch.float32)
+            boxes = out["boxes"] * device_tensor([w, h, w, h], device=self.device, dtype=torch.float32)
             if len(boxes):
                 masks = self._runner.binary_masks(out["pred_masks"][:, None], (h, w))[:, 0]
             else:  # nothing found: no zero-batch interpolation

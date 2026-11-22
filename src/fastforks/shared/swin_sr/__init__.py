@@ -83,12 +83,22 @@ def _shift_mask(  # noqa: PLR0913 - the map size, window, shift and where / how 
 
 @functools.lru_cache(maxsize=16)
 def shifted_window_regions(h: int, w: int, window: int, shift: int, device: torch.device) -> torch.Tensor:
-    """One region label per window token, in the order returned by window partition."""
+    """One region label per window token, in the order returned by window partition.
+
+    `.border_windows` holds the windows with more than one region (found once per size: finding them reads the count
+    back from the device, a host sync in each attention block).
+    """
     y, x = (torch.arange(n, device=device) for n in (h, w))
     rows = (y >= h - window).to(torch.uint8) + (y >= h - shift)
     cols = (x >= w - window).to(torch.uint8) + (x >= w - shift)
     regions = 3 * rows[:, None] + cols[None, :]
-    return regions.view(h // window, window, w // window, window).permute(0, 2, 1, 3).reshape(-1, window**2)
+    regions = regions.view(h // window, window, w // window, window).permute(0, 2, 1, 3).reshape(-1, window**2)
+    regions.border_windows = _border_windows(regions)  # ty: ignore[unresolved-attribute] - a Python attribute
+    return regions
+
+
+def _border_windows(regions: torch.Tensor) -> torch.Tensor:
+    return torch.where(regions.ne(regions[:, :1]).any(dim=-1))[0]
 
 
 def relative_bias(table: torch.Tensor, index: torch.Tensor) -> torch.Tensor:
@@ -124,7 +134,9 @@ def _border_attention(  # noqa: PLR0913 - QKV, bias, region labels and SDPA scal
     """Apply full additive masks only to windows containing multiple shifted regions."""
     n = q.shape[0]
     out = attention(q, k, v, bias.expand(n, -1, -1, -1), scale)
-    border = torch.where(regions.ne(regions[:, :1]).any(dim=-1))[0]
+    border = getattr(regions, "border_windows", None)
+    if border is None or torch.compiler.is_compiling():
+        border = _border_windows(regions)
     windows = regions.shape[0]
     if border.numel():
         labels = regions.index_select(0, border)

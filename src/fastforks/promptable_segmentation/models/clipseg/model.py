@@ -32,6 +32,7 @@ import torch.nn.functional as F
 
 from fastforks._core.errors import InputError
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.upload import device_tensor
 from fastforks.promptable_segmentation._runner import Context, Forward, Runner, scale
 from fastforks.shared import mlx_wrap
 from fastforks.shared.clip_tokenizer import ClipTokenizer
@@ -61,7 +62,7 @@ def box(mask: torch.Tensor) -> torch.Tensor:
     big = max(h, w)
     y0, y1 = torch.where(rows, i[:h], big).amin(), torch.where(rows, i[:h], -1).amax() + 1
     x0, x1 = torch.where(cols, i[:w], big).amin(), torch.where(cols, i[:w], -1).amax() + 1
-    b = torch.stack((x0, y0, x1, y1)).float() / torch.tensor([w, h, w, h], device=mask.device, dtype=torch.float32)
+    b = torch.stack((x0, y0, x1, y1)).float() / device_tensor([w, h, w, h], device=mask.device, dtype=torch.float32)
     return torch.where(rows.any(), b, 0.0)
 
 
@@ -114,7 +115,7 @@ class Portable(Runner):
             if hit is not None:
                 self._text.move_to_end(text)
                 return hit
-        ids = torch.tensor([self.tokenizer(text)], device=self.ctx.device)
+        ids = device_tensor([self.tokenizer(text)], device=self.ctx.device)
         clip = self.net.clip
         with torch.no_grad():
             c = clip.text_projection(clip.text_model(input_ids=ids).pooler_output)

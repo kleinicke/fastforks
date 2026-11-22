@@ -23,6 +23,7 @@ from fastforks._core.outputs import MapOutputs, _array
 from fastforks._core.save import CLOUD_SUFFIXES
 from fastforks._core.tasks import spec
 from fastforks._core.tasks.multiview import MultiViewKind
+from fastforks._core.upload import device_tensor, to_device
 from fastforks.multiview._gaussians import Gaussians, pop_gaussians
 from fastforks.multiview._runner import Runner
 from fastforks.multiview._scene import SceneFormat, save_scene
@@ -338,7 +339,7 @@ class MultiViewModel(core.Model):
         maps = outs[0] if len(outs) == 1 else {name: torch.cat([o[name] for o in outs]) for name in outs[0]}
         views = tuple(range(n)) if r.per_view else refs
         out = self._check(maps, len(views), (x.shape[-2], x.shape[-1]))
-        idx = torch.tensor(views, device=x.device)
+        idx = device_tensor(views, device=x.device)
         for name, given in (("intrinsics", k), ("cam_to_world", c2w)):
             if given is not None and name not in out:
                 out[name] = given[idx.to(given.device)]
@@ -430,7 +431,7 @@ class MultiViewModel(core.Model):
             raise InputError(msg)
         if t.dtype == torch.float64 and self.device.type == "mps":  # no float64 on MPS: kept on the CPU
             return t.cpu().contiguous()
-        return t.to(self.device).contiguous()
+        return to_device(t, self.device).contiguous()  # a pageable upload would sync the host
 
     def _check_principal_point(self, k: torch.Tensor, h: int, w: int) -> None:
         """Normalised or identity matrices (principal point near the corner) are not pixel intrinsics: refuse them.
@@ -464,7 +465,7 @@ class MultiViewModel(core.Model):
         if t.numel() != 2 or not torch.isfinite(t).all() or not 0 < t[0] < t[1]:  # noqa: PLR2004
             msg = f"depth_range must be finite (near, far) with 0 < near < far, got {value}"
             raise InputError(msg)
-        return t.to(self.device)
+        return to_device(t, self.device)
 
     def _references(self, reference: int | Sequence[int], n: int) -> tuple[int, ...]:
         if isinstance(reference, (int, np.integer)) and not isinstance(reference, bool):

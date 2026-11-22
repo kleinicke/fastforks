@@ -41,6 +41,7 @@ from fastforks._core import kernels
 from fastforks._core.errors import OptionsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.mlx_cast import to_run_dtype
+from fastforks._core.upload import device_tensor
 from fastforks.kernels import map_geometry, swiglu
 from fastforks.multiview._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
@@ -377,7 +378,7 @@ def edge_mask(pts: torch.Tensor, depth: torch.Tensor, mask: torch.Tensor) -> tor
             dot = (n * _shift(npad, a, b)).sum(-1)
             ang = torch.maximum(ang, torch.where(_shift(mpad, b, a), torch.arccos(dot), 0.0))  # NaN propagates (np.max)
     normal_edges = _maxpool_nan(ang) > math.radians(EDGE_NORMAL_DEG)
-    inf = torch.tensor(float("-inf"), device=depth.device)
+    inf = device_tensor(float("-inf"), device=depth.device)
     diff = (F.max_pool2d(torch.where(mask, depth, inf)[:, None], 3, 1, 1)
             + F.max_pool2d(torch.where(mask, -depth, inf)[:, None], 3, 1, 1))[:, 0]  # fmt: skip
     return ~((diff / depth > EDGE_DEPTH_RTOL) & normal_edges)

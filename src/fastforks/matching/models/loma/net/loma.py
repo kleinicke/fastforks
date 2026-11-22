@@ -82,7 +82,7 @@ def filter_matches(scores: torch.Tensor, th: float) -> tuple[torch.Tensor, torch
     max0, max1 = scores[0].max(1), scores[0].max(0)
     m0, m1 = max0.indices, max1.indices
     mutual0 = torch.arange(m0.shape[0], device=m0.device) == m1[m0]
-    mscores0 = torch.where(mutual0, max0.values, max0.values.new_tensor(0))
+    mscores0 = torch.where(mutual0, max0.values, max0.values.new_zeros(()))  # fastforks: made on the device (no upload)
     valid0 = mutual0 & (mscores0 > th)
     return torch.where(valid0, m0, -1), mscores0
 

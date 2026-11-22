@@ -15,6 +15,7 @@ import fastforks
 from fastforks import InputError
 from fastforks._core import image as image_mod
 from fastforks._core.image import to_rgb_batch
+from fastforks._core.upload import device_tensor
 from fastforks.stereo import pipeline
 
 CPU = torch.device("cpu")
@@ -305,3 +306,11 @@ def test_deferred_ranges_checks_once_on_leaving():
         fail_inside()
     with image_mod.deferred_ranges():
         to_rgb_batch(good, cpu)
+
+
+def test_device_tensor_matches_torch_tensor() -> None:
+    for data, dtype in (([1.5, 2.0], None), ([[1, 2]], torch.long), ([0.25], torch.float64)):
+        want = torch.tensor(data, dtype=dtype)
+        got = device_tensor(data, device="cpu", dtype=dtype)
+        assert got.dtype == want.dtype
+        assert torch.equal(got, want)

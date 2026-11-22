@@ -22,6 +22,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import base_type, override
+from fastforks._core.upload import device_tensor
 from fastforks.interpolation._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared import mlx_wrap
@@ -128,7 +129,7 @@ def _phases(up: torch.nn.Conv2d) -> torch.nn.Conv2d:
     `pixel_shuffle(2)` wants. Its input is the coarse map zero padded right and bottom.
     """
     w = up.weight.float()
-    m = torch.tensor([[[1.0, 1.0], [0.0, 0.0]], [[1.0, 0.0], [0.0, 1.0]]], device=w.device)  # [phase, kernel row, tap]
+    m = device_tensor([[[1.0, 1.0], [0.0, 0.0]], [[1.0, 0.0], [0.0, 1.0]]], device=w.device)  # [phase, kernel row, tap]
     k = torch.einsum("ira,jsb,ocab->oijcrs", m, m, w).reshape(-1, w.shape[1], 2, 2)
     return _conv(k, None if up.bias is None else up.bias.float().repeat_interleave(4), 0)
 

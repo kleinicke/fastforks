@@ -10,6 +10,7 @@ from ...ffops import Rearrange  # modified: torch-only inference helper
 from ...ffops import rearrange  # modified: torch-only inference helper
 
 from ...utils import coords_grid, bilinear_sampler, upflow8
+from fastforks._core.upload import to_device  # fastforks
 from .attention import MultiHeadAttention, LinearPositionEmbeddingSine, ExpPositionEmbeddingSine
 from typing import Optional, Tuple
 
@@ -21,8 +22,8 @@ from .gma import Attention
 def initialize_flow(img):
     """ Flow is represented as difference between two means flow = mean1 - mean0"""
     N, C, H, W = img.shape
-    mean = coords_grid(N, H, W).to(img.device)
-    mean_init = coords_grid(N, H, W).to(img.device)
+    mean = coords_grid(N, H, W, device=img.device)  # fastforks: made on the device (was made on the CPU, then uploaded: a host sync per call)
+    mean_init = coords_grid(N, H, W, device=img.device)  # fastforks: made on the device (was made on the CPU, then uploaded: a host sync per call)
 
     # optical flow computed as difference: flow = mean1 - mean0
     return mean, mean_init
@@ -194,7 +195,7 @@ class MemoryDecoder(nn.Module):
         r = 4
         dx = torch.linspace(-r, r, 2*r+1)
         dy = torch.linspace(-r, r, 2*r+1)
-        delta = torch.stack(torch.meshgrid(dy, dx, indexing='ij'), axis=-1).to(coords.device)
+        delta = to_device(torch.stack(torch.meshgrid(dy, dx, indexing='ij'), axis=-1), coords.device)  # fastforks: to_device (a pageable upload syncs the host)
 
         centroid = coords.reshape(batch*h1*w1, 1, 1, 2)
         delta = delta.view(1, 2*r+1, 2*r+1, 2)

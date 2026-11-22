@@ -13,6 +13,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import Inert
+from fastforks._core.upload import device_tensor
 from fastforks.detection._runner import Forward, Runner
 from fastforks.kernels import rfdetr_input
 from fastforks.shared import mlx_wrap
@@ -90,7 +91,7 @@ class Portable(Runner):
     def __call__(self, image: torch.Tensor, score_threshold: float) -> dict[str, torch.Tensor]:
         """Every detection above the threshold (best first, at most `max_detections`), in input pixels."""
         raw = {k: v.float() for k, v in self._raw(image).items()}
-        size = torch.tensor([image.shape[-2:]], device=image.device)
+        size = device_tensor([image.shape[-2:]], device=image.device)
         r = self.postprocess(raw, target_sizes=size, score_threshold=score_threshold)[0]
         labels = self.ids[r["labels"]]
         keep = ((labels >= 0) & (r["scores"] > score_threshold)).nonzero()[:, 0][: self.ctx.params.max_detections]

@@ -64,8 +64,8 @@ def indexing(img, coords, mask=False):
 
     return img
 
-def coords_grid(batch, ht, wd):
-    coords = torch.meshgrid(torch.arange(ht), torch.arange(wd), indexing='ij')
+def coords_grid(batch, ht, wd, device=None):  # fastforks: device
+    coords = torch.meshgrid(torch.arange(ht, device=device), torch.arange(wd, device=device), indexing='ij')  # fastforks: device
     coords = torch.stack(coords[::-1], dim=0).float()
     return coords[None].repeat(batch, 1, 1, 1)
 

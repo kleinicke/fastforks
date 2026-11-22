@@ -23,6 +23,7 @@ import torch.nn.functional as F
 
 from fastforks._core.patch import override
 from fastforks._core.tracing import in_onnx_export
+from fastforks._core.upload import to_device
 from fastforks.edges._runner import Forward, Runner, safe_step, to_detect, to_input
 from fastforks.kernels import edge_components
 from fastforks.shared import mlx_wrap
@@ -55,7 +56,7 @@ def gaussian_blur(x: torch.Tensor) -> torch.Tensor:
     """OpenCV `GaussianBlur(x, (0, 0), 2.0)` of `[B, C, H, W]` float32 (separable, reflect-101 border)."""
     t = torch.arange(TAPS, dtype=torch.float64) - TAPS // 2  # float64 on the CPU: MPS has none
     k = torch.exp(-(t**2) / (2 * SIGMA**2))
-    k = (k / k.sum()).float().to(x.device)
+    k = to_device((k / k.sum()).float(), x.device)
     c, p = x.shape[1], TAPS // 2
     x = F.conv2d(F.pad(x, (p, p, 0, 0), mode="reflect"), k.view(1, 1, 1, -1).expand(c, 1, 1, TAPS), groups=c)
     return F.conv2d(F.pad(x, (0, 0, p, p), mode="reflect"), k.view(1, 1, -1, 1).expand(c, 1, TAPS, 1), groups=c)

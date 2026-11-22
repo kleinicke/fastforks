@@ -26,6 +26,7 @@ from torch import nn
 from fastforks._core.checkpoint import Inert, load_strict
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
+from fastforks._core.upload import device_tensor
 from fastforks.kernels import dpt_fused
 from fastforks.multiview._runner import Forward, Runner, f64, invert, scale, take
 from fastforks.shared import mlx_wrap
@@ -203,7 +204,7 @@ def refine_range(depth: torch.Tensor, rng: torch.Tensor) -> torch.Tensor:
     if torch.compiler.is_exporting():  # fastforks: TensorRT's TopK (the exported sort) takes at most 3840 elements
         q = torch.stack([quantile(flat, lo), quantile(flat, hi)])
     else:
-        q = torch.quantile(flat, torch.tensor([lo, hi], device=depth.device))
+        q = torch.quantile(flat, device_tensor([lo, hi], device=depth.device))
     new_min = torch.where(frac_min > lo, mn * 0.5, torch.maximum(mn, q[0] * shrink))
     new_max = torch.where(frac_max > lo, mx * 2.0, torch.minimum(mx, q[1] * grow))
     return torch.stack([new_min, new_max])
@@ -247,7 +248,7 @@ def cost_volume(
     t = g.proj[:, :, 3]
     crayd = g.cray.to(dt).view(1, 1, 3, hw)
     posed = g.pose.to(dt).view(k, 1, 3, 1)
-    to_grid = torch.tensor([2.0 / w, 2.0 / h], device=src.device).view(1, 1, 2, 1)
+    to_grid = device_tensor([2.0 / w, 2.0 / h], device=src.device).view(1, 1, 2, 1)
     deps = planes(rng)
     outs = []
     for d0 in range(0, PLANES, CHUNK):

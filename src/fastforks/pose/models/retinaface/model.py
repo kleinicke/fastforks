@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 import torch
 
+from fastforks._core.upload import device_tensor
 from fastforks._optimize import optimize
 from fastforks.kernels import box_nms, cudnn_hacc
 from fastforks.pose._runner import Forward, Runner
@@ -55,7 +56,7 @@ def anchors(h: int, w: int, device: torch.device) -> torch.Tensor:
     for step, sizes in zip(STEPS, MIN_SIZES, strict=True):
         ys = (torch.arange(math.ceil(h / step), device=device, dtype=torch.float32) + 0.5) * step
         xs = (torch.arange(math.ceil(w / step), device=device, dtype=torch.float32) + 0.5) * step
-        s = torch.tensor(sizes, device=device, dtype=torch.float32)
+        s = device_tensor(sizes, device=device, dtype=torch.float32)
         cy, cx, side = torch.meshgrid(ys, xs, s, indexing="ij")
         out.append(torch.stack([cx, cy, side, side], -1).reshape(-1, 4))
     return torch.cat(out)
@@ -77,7 +78,7 @@ def nms(boxes: torch.Tensor, iou: float) -> torch.Tensor:
         if not gone[i]:
             keep.append(i)
             gone |= over[i]
-    return torch.tensor(keep, dtype=torch.long, device=boxes.device)
+    return device_tensor(keep, dtype=torch.long, device=boxes.device)
 
 
 def split(maps: tuple[torch.Tensor, ...]) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:

@@ -35,6 +35,7 @@ from torch import nn
 
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
+from fastforks._core.upload import device_tensor
 from fastforks.kernels import depthsplat_corr, knn_attention
 from fastforks.multiview._runner import Forward, Runner, f64, invert
 from fastforks.multiview.models.depthsplat.model import (
@@ -212,7 +213,7 @@ class Net(nn.Module):
             xyz = c2w[None, :, :3, -1].float()
             dist = (xyz[:, :, None] - xyz[:, None]).norm(dim=-1)  # upstream torch.cdist (no ONNX conversion)
             nn_matrix = torch.argsort(dist)[:, :, : NEIGHBOURS + 1]
-        bounds = torch.tensor((near, far), device=dev).view(2, 1, 1).expand(2, 1, v)
+        bounds = device_tensor((near, far), device=dev).view(2, 1, 1).expand(2, 1, v)
         res = self.depth_predictor(
             images[None], attn_splits_list=[2], min_depth=1.0 / bounds[1], max_depth=1.0 / bounds[0],
             intrinsics=k[None], extrinsics=c2w[None], nn_matrix=nn_matrix,
@@ -280,7 +281,7 @@ class Net(nn.Module):
             depths = latent_depth
             rgb = F.interpolate(images, scale_factor=1.0 / p.latent, mode="area")
         gh, gw = hl * sf, wl * sf
-        xy = _pixels(gh, gw, dev)[None] + (offset.sigmoid() - 0.5) / torch.tensor((gw, gh), device=dev)
+        xy = _pixels(gh, gw, dev)[None] + (offset.sigmoid() - 0.5) / device_tensor((gw, gh), device=dev)
         origins, dirs = _rays(xy, k, c2w)
         sh = sh.reshape(v, -1, 3, SH).clone()
         sh[..., 0] += (rgb.float().permute(0, 2, 3, 1).reshape(v, -1, 3) - 0.5) / C0

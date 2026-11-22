@@ -280,7 +280,8 @@ class DinoVisionTransformer(nn.Module):
             pos_nodiff = torch.zeros_like(pos).to(pos.dtype)
             if self.patch_start_idx > 0:
                 pos = pos + 1
-                pos_special = torch.zeros(B * S, self.patch_start_idx, 2).to(device).to(pos.dtype)
+                # fastforks: made on the device (was zeros on the CPU, then uploaded: a host sync per call)
+                pos_special = pos.new_zeros(B * S, self.patch_start_idx, 2)
                 pos_special = pos_special.reshape(B, S, *pos_special.shape[1:])  # fastforks: rearrange
                 pos = torch.cat([pos_special, pos], dim=2)
                 pos_nodiff = pos_nodiff + 1

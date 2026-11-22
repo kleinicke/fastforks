@@ -30,6 +30,7 @@ from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks._core.sampling import grid_sample
+from fastforks._core.upload import device_tensor
 from fastforks.flow._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
@@ -105,7 +106,7 @@ def global_flow(f0: torch.Tensor, f1: torch.Tensor) -> torch.Tensor:
     q = f0.flatten(2).transpose(1, 2).float()[:, None]
     k = f1.flatten(2).transpose(1, 2).float()[:, None]
     g = _grid(1, h, w, f0.device)[0].flatten(1).t()  # [HW, 2]
-    g = g - torch.tensor([(w - 1) / 2, (h - 1) / 2], device=g.device)
+    g = g - device_tensor([(w - 1) / 2, (h - 1) / 2], device=g.device)
     v = F.pad(g, (0, 6))[None, None].expand(b, 1, -1, -1)
     o = F.scaled_dot_product_attention(q, k, v)[:, 0, :, :2]  # default scale 1 / sqrt(C), as upstream
     return (o - g).transpose(1, 2).reshape(b, 2, h, w)
@@ -126,7 +127,7 @@ def local_corr(f0: torch.Tensor, f1: torch.Tensor, flow: torch.Tensor) -> torch.
     """
     b, c, h, w = f0.shape
     xy = (_grid(b, h, w, flow.device) + flow.float()).flatten(2).transpose(1, 2)  # [B, HW, 2]
-    norm = torch.tensor([2 / (w - 1), 2 / (h - 1)], device=flow.device)
+    norm = device_tensor([2 / (w - 1), 2 / (h - 1)], device=flow.device)
     win = _window(flow.device)
     f1f = f1.float()
     a = f0.flatten(2).transpose(1, 2)  # [B, HW, C]
@@ -204,7 +205,7 @@ class _Fast(Runner):
         cc, sc = rope._compute_frequency_components(32, p + 1, pos.device, torch.float16)  # noqa: SLF001 - pos <= p
         q = pos.view(b, s * p, 2)
         cos = torch.cat([F.embedding(q[..., 0], cc), F.embedding(q[..., 1], cc)], -1)
-        sgn = torch.tensor([-1.0] * 16 + [1.0] * 16, device=pos.device, dtype=torch.float16).repeat(2)
+        sgn = device_tensor([-1.0] * 16 + [1.0] * 16, device=pos.device, dtype=torch.float16).repeat(2)
         sin = torch.cat([F.embedding(q[..., 0], sc), F.embedding(q[..., 1], sc)], -1) * sgn
         return cos[:, :, None, None], sin[:, :, None, None]
 
@@ -286,7 +287,7 @@ class _Fast(Runner):
         flow = global_flow(f0, feats[:, 1])
         h4, w4 = h // UP, w // UP
         flow = F.interpolate(flow, (h4, w4), mode="bilinear", align_corners=True)
-        flow = flow * torch.tensor([w4 / wf, h4 / hf], device=flow.device).view(1, 2, 1, 1)
+        flow = flow * device_tensor([w4 / wf, h4 / hf], device=flow.device).view(1, 2, 1, 1)
         ref = F.interpolate(f0, (h4, w4), mode="bilinear", align_corners=True)
         hid, inp = net.refine_proj(ref).chunk(2, 1)
         c = cnn[-1].view(b, 2, *cnn[-1].shape[1:])

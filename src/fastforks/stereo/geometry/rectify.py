@@ -29,6 +29,7 @@ import torch.nn.functional as F
 
 from fastforks._core.errors import InputError
 from fastforks._core.sampling import grid_sample
+from fastforks._core.upload import device_tensor
 from fastforks.stereo.geometry.cameras import hw_size
 from fastforks.stereo.geometry.rig import (
     ArrayT,
@@ -708,7 +709,7 @@ class Rectification:
         valid = valid & self._valid(_device(valid.device))[side]
         points = points.masked_fill(~valid[..., None], torch.nan)
         if frame == "camera":
-            points = points @ torch.tensor((self.R1, self.R2)[side], dtype=points.dtype, device=points.device)
+            points = points @ device_tensor((self.R1, self.R2)[side], dtype=points.dtype, device=points.device)
         return PointCloud(_back(points, numpy), _back(valid, numpy), _check_colors(colors, valid))
 
     def _unrectify_map(self, device: torch.device, side: int = 0) -> tuple[torch.Tensor, torch.Tensor]:
@@ -800,7 +801,7 @@ class Rectification:
             fac = fac.index_put((idx[:, 0], idx[:, 1]), fac64.float().to(dev))
             ok = ok.index_put((idx[:, 0], idx[:, 1]), ok64.to(dev))
         ok &= (uv[..., 0] >= 0) & (uv[..., 0] <= nw - 1) & (uv[..., 1] >= 0) & (uv[..., 1] <= nh - 1)
-        scale = torch.tensor([2 / (nw - 1), 2 / (nh - 1)], dtype=torch.float32, device=dev)
+        scale = device_tensor([2 / (nw - 1), 2 / (nh - 1)], dtype=torch.float32, device=dev)
         grid.copy_(torch.where(ok[..., None], uv * scale - 1, -2.0))
         factor.copy_(torch.where(ok, fac, torch.nan))
 

@@ -90,7 +90,7 @@ class PatchEmbed(nn.Module):
         out_size = x.shape[2:] 
 
         coord_batch = 1 if share_position else B
-        patch_coord = coords_grid(coord_batch, out_size[0], out_size[1]).to(x.device) * self.patch_size + self.patch_size/2 # in feature coordinate space
+        patch_coord = coords_grid(coord_batch, out_size[0], out_size[1], device=x.device) * self.patch_size + self.patch_size/2 # in feature coordinate space  # fastforks: made on the device (was made on the CPU, then uploaded: a host sync per call)
         patch_coord = patch_coord.view(coord_batch, 2, -1).permute(0, 2, 1)
         if self.pe == 'linear':
             patch_coord_enc = LinearPositionEmbeddingSine(patch_coord, dim=self.dim)

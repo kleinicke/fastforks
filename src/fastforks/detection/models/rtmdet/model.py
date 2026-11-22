@@ -35,6 +35,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import NUMPY_ARRAYS, Inert, latin1_encode, numeric_scalar
 from fastforks._core.errors import InputError
 from fastforks._core.patch import override
+from fastforks._core.upload import device_tensor
 from fastforks._optimize import optimize
 from fastforks.detection._cv2_resize import cv2_linear
 from fastforks.detection._ops import ops
@@ -162,7 +163,7 @@ class Portable(Runner):
                 parts.append(m[score[m].topk(p.nms_pre).indices] if m.numel() > p.nms_pre else m)
             sel = torch.cat(parts)
             cell, label, score = cell[sel], label[sel], score[sel]
-        out = boxes[cell].clamp_(0, p.size) / boxes.new_tensor([sx, sy, sx, sy])
+        out = boxes[cell].clamp_(0, p.size) / device_tensor([sx, sy, sx, sy], device=boxes.device, dtype=boxes.dtype)
         ok = (out[:, 2] > out[:, 0]) & (out[:, 3] > out[:, 1])  # the reference's `min_bbox_size = 0`
         out, label, score = out[ok], label[ok], score[ok]
         if out.numel():

@@ -70,6 +70,13 @@ def _area(n_in: int, n_out: int) -> tuple[torch.Tensor, torch.Tensor]:
     return idx, torch.tensor([[w for _, w in row] for row in pad], dtype=torch.float32)  # OpenCV's float tables
 
 
+@functools.lru_cache(maxsize=64)
+def _on_device(kind: Kind, n_in: int, n_out: int, device: torch.device, dtype: torch.dtype) -> tuple[torch.Tensor, ...]:
+    """The tables of `kind` on `device` (weights in `dtype`), uploaded once: a pageable upload per call syncs."""
+    idx, wts = (_cubic if kind == "cubic" else _area)(n_in, n_out)
+    return idx.to(device), wts.to(device, dtype)
+
+
 def _gather(x: torch.Tensor, idx: torch.Tensor, wts: torch.Tensor) -> torch.Tensor:
     """Resample the last axis of `x`: `out[..., o] = sum_k x[..., idx[o, k]] * wts[o, k]`."""
     return (x[..., idx.to(x.device)] * wts.to(x.device, x.dtype)).sum(-1)
@@ -81,12 +88,14 @@ def cv2_resize(x: torch.Tensor, h: int, w: int, kind: Kind, *, levels: bool = Tr
     `levels`: `x` holds uint8 levels (any dtype, values 0..255), rounded and clamped as OpenCV's uint8 path; else a
     float32 image, resized without rounding as OpenCV's float path. `kind` applies to both axes, as OpenCV's flag does.
     """
-    taps, dtype = (_cubic, torch.float64) if kind == "cubic" else (_area, torch.float32)
+    dtype = torch.float64 if kind == "cubic" else torch.float32
     if x.device.type == "mps":  # no float64 there; 4 taps of levels <= 255 differ by ~1e-5, only exact ties round apart
         dtype = torch.float32
     if torch.compiler.is_compiling():  # dynamo cannot trace through lru_cache; the graph holds the tables anyway
-        taps = taps.__wrapped__
-    (ix, wx), (iy, wy) = taps(x.shape[-1], w), taps(x.shape[-2], h)
+        taps = (_cubic if kind == "cubic" else _area).__wrapped__
+        (ix, wx), (iy, wy) = taps(x.shape[-1], w), taps(x.shape[-2], h)
+    else:
+        (ix, wx), (iy, wy) = (_on_device(kind, n, m, x.device, dtype) for n, m in ((x.shape[-1], w), (x.shape[-2], h)))
     v = _gather(_gather(x.to(dtype), ix, wx).transpose(-1, -2), iy, wy).transpose(-1, -2)
     if not levels:
         return v.float()

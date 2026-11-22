@@ -1,4 +1,5 @@
 import torch
+from fastforks._core.upload import to_device  # fastforks
 import torch.nn.functional as F
 
 
@@ -32,15 +33,15 @@ def coords_grid(b, h, w, device):
 def get_pe(h: int, w: int, pe_dim: int, dtype: str, device: str):
     """ relative positional encoding """
     with torch.no_grad():
-        grid_y, grid_x = torch.meshgrid(torch.linspace(0, h-1, h).to(device).to(dtype),
-                                        torch.linspace(0, w-1, w).to(device).to(dtype), indexing='ij')
+        grid_y, grid_x = torch.meshgrid(to_device(torch.linspace(0, h-1, h), device).to(dtype),  # fastforks: to_device (a pageable upload syncs the host)
+                                        to_device(torch.linspace(0, w-1, w), device).to(dtype), indexing='ij')  # fastforks: to_device (a pageable upload syncs the host)
         rel_x_pos = (grid_x.reshape(-1, 1) - grid_x.reshape(1, -1)).long()
         rel_y_pos = (grid_y.reshape(-1, 1) - grid_y.reshape(1, -1)).long()
 
         L = 2 * w + 1
         sig = 5 / pe_dim
-        x_pos = torch.linspace(-3, 3, L).to(device).to(dtype).tanh()
-        dim_t = torch.linspace(-1, 1, pe_dim//2).to(device).to(dtype)
+        x_pos = to_device(torch.linspace(-3, 3, L), device).to(dtype).tanh()  # fastforks: to_device (a pageable upload syncs the host)
+        dim_t = to_device(torch.linspace(-1, 1, pe_dim//2), device).to(dtype)  # fastforks: to_device (a pageable upload syncs the host)
         pe_x = custom_sinc((dim_t[None, :] - x_pos[:, None]) / sig)
 
         pe_x = F.normalize(pe_x, p=2, dim=-1)
@@ -48,8 +49,8 @@ def get_pe(h: int, w: int, pe_dim: int, dtype: str, device: str):
 
         L = 2 * h + 1
         sig = 5 / pe_dim
-        y_pos = torch.linspace(-3, 3, L).to(device).to(dtype).tanh()
-        dim_t = torch.linspace(-1, 1, pe_dim//2).to(device).to(dtype)
+        y_pos = to_device(torch.linspace(-3, 3, L), device).to(dtype).tanh()  # fastforks: to_device (a pageable upload syncs the host)
+        dim_t = to_device(torch.linspace(-1, 1, pe_dim//2), device).to(dtype)  # fastforks: to_device (a pageable upload syncs the host)
         pe_y = custom_sinc((dim_t[None, :] - y_pos[:, None]) / sig)
 
         pe_y = F.normalize(pe_y, p=2, dim=-1)

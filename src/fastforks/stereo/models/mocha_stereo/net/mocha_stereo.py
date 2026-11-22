@@ -1,4 +1,5 @@
 import torch
+from fastforks._core.upload import to_device  # fastforks
 import torch.nn as nn
 import torch.nn.functional as F
 # fastforks: relative imports (were core.* / nets.*; nets/MCCV.py is mccv.py), the unused `import time` dropped
@@ -191,7 +192,7 @@ class Mocha(nn.Module):
         corr_block = Combined_Geo_Encoding_Volume
         corr_fn = corr_block(match_left.float(), match_right.float(), Final_Correlation_Volume.float(), radius=self.args.corr_radius, num_levels=self.args.corr_levels)
         b, c, h, w = match_left.shape
-        coords = torch.arange(w).float().to(match_left.device).reshape(1,1,w,1).repeat(b, h, 1, 1)
+        coords = to_device(torch.arange(w).float(), match_left.device).reshape(1,1,w,1).repeat(b, h, 1, 1)  # fastforks: to_device (a pageable upload syncs the host)
         disp = init_disp
         disp_preds = []
 

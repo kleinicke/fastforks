@@ -34,6 +34,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.sampling import grid_sample
+from fastforks._core.upload import device_tensor
 from fastforks.shared.depth_anything_v2 import DepthAnythingV2
 
 if TYPE_CHECKING:
@@ -351,8 +352,8 @@ class FlowSeek(nn.Module):
         b, _, h, w = image1.shape
         device = image1.device
         both = torch.cat([image1, image2], dim=0)
-        mean = torch.tensor(MEAN, device=device).view(1, 3, 1, 1)
-        std = torch.tensor(STD, device=device).view(1, 3, 1, 1)
+        mean = device_tensor(MEAN, device=device).view(1, 3, 1, 1)
+        std = device_tensor(STD, device=device).view(1, 3, 1, 1)
         small = F.interpolate(both, (DA_SIZE, DA_SIZE), mode="bilinear", align_corners=False)
         with self._amp(device):
             # upstream's normalisation (x / mean - std, not (x - mean) / std): the checkpoints were trained with it

@@ -23,6 +23,7 @@ import torch
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.runner import host
+from fastforks._core.upload import device_tensor
 from fastforks.shared import mlx_wrap
 from fastforks.tracking._runner import Forward, Runner
 
@@ -67,7 +68,7 @@ def build(ctx: Context) -> TrackOn2:
 def grid(n: int, h: int, w: int, device: torch.device) -> torch.Tensor:
     """Upstream `get_points_on_a_grid(n, (h, w))`: `[n^2, 2]` (x, y), edge-aligned pixels."""
     if n == 1:
-        return torch.tensor([[w / 2, h / 2]], device=device)
+        return device_tensor([[w / 2, h / 2]], device=device)
     m = w / GRID_MARGIN
     ys, xs = torch.meshgrid(
         torch.linspace(m, h - m, n, device=device), torch.linspace(m, w - m, n, device=device), indexing="ij"
@@ -99,9 +100,9 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
         xy = torch.cat([xy, g])
     order = torch.sort(qt, stable=True).indices
     qt_sorted = qt[order].tolist()
-    xy_sorted = xy[order] / xy.new_tensor((w, h))
+    xy_sorted = xy[order] / device_tensor((w, h), device=xy.device, dtype=xy.dtype)
     total = len(qt_sorted)
-    scale = xy.new_tensor((w / params.width, h / params.height))
+    scale = device_tensor((w / params.width, h / params.height), device=xy.device, dtype=xy.dtype)
     tracks = queries.new_zeros(n, total, 2)
     logits = queries.new_full((n, total), -math.inf)
     q_init = queries.new_zeros(total, D)

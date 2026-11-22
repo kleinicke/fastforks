@@ -30,6 +30,7 @@ from torch import nn
 from fastforks._core.half import pure_half
 from fastforks._core.runner import host
 from fastforks._core.tracing import in_onnx_export
+from fastforks._core.upload import device_tensor
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import DINOv2, fold_layer_scale, use_fast_vit, use_sdpa_attention
@@ -247,12 +248,12 @@ class _Video(Runner):
             if ids == pool_ids:
                 window = pool
             else:
-                sel = torch.tensor([pos[i] for i in ids], device=image.device)
+                sel = device_tensor([pos[i] for i in ids], device=image.device)
                 window = [t[sel] for t in pool]
             # Only these keyframes can reappear in the next window. The head consumes
             # the assembled window; release the full encoder pool before it runs.
             cache_ids = sorted({ids[k] for k in KEYFRAMES}) if more else []
-            keep = torch.tensor([pos[i] for i in cache_ids], device=image.device, dtype=torch.long)
+            keep = device_tensor([pos[i] for i in cache_ids], device=image.device, dtype=torch.long)
             cache = [t[keep] for t in pool] if cache_ids else []
             del pool
             d = self._window(window, h, w, valid)

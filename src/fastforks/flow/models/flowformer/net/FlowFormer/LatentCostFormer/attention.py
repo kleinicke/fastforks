@@ -1,4 +1,5 @@
 import torch
+from fastforks._core.upload import to_device  # fastforks
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import einsum
@@ -150,11 +151,11 @@ class MultiHeadAttentionRelative(nn.Module):
 def LinearPositionEmbeddingSine(x, dim=128, NORMALIZE_FACOR=1/200):
     # 200 should be enough for a 8x downsampled image
     # assume x to be [_, _, 2]
-    freq_bands = torch.linspace(0, dim//4-1, dim//4).to(x.device)
+    freq_bands = to_device(torch.linspace(0, dim//4-1, dim//4), x.device)  # fastforks: to_device (a pageable upload syncs the host)
     return torch.cat([torch.sin(3.14*x[..., -2:-1]*freq_bands*NORMALIZE_FACOR), torch.cos(3.14*x[..., -2:-1]*freq_bands*NORMALIZE_FACOR), torch.sin(3.14*x[..., -1:]*freq_bands*NORMALIZE_FACOR), torch.cos(3.14*x[..., -1:]*freq_bands*NORMALIZE_FACOR)], dim=-1)
 
 def ExpPositionEmbeddingSine(x, dim=128, NORMALIZE_FACOR=1/200):
     # 200 should be enough for a 8x downsampled image
     # assume x to be [_, _, 2]
-    freq_bands = torch.linspace(0, dim//4-1, dim//4).to(x.device)
+    freq_bands = to_device(torch.linspace(0, dim//4-1, dim//4), x.device)  # fastforks: to_device (a pageable upload syncs the host)
     return torch.cat([torch.sin(x[..., -2:-1]*(NORMALIZE_FACOR * 2 ** freq_bands)), torch.cos(x[..., -2:-1]*(NORMALIZE_FACOR * 2 ** freq_bands)), torch.sin(x[..., -1:]*(NORMALIZE_FACOR * 2 ** freq_bands)), torch.cos(x[..., -1:]*(NORMALIZE_FACOR * 2 ** freq_bands))], dim=-1)
