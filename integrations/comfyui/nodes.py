@@ -478,6 +478,23 @@ def each_result(
     return [o for c in each(len(starts), chunk) for o in c]
 
 
+def each_pairs(
+    frames: torch.Tensor, m: fastforks.Model, batch_size: int, fn: Callable[[torch.Tensor, torch.Tensor], list[Any]]
+) -> list[Any]:
+    """`fn(image1, image2)` on `batch_size` consecutive pairs of a ComfyUI batch at a time: frames `i` and `i + 1`.
+
+    `fn` gets two `[k, 3, H, W]` batches (each frame uploaded once per chunk) and returns one entry per pair.
+    """
+    starts = range(0, frames.shape[0] - 1, batch_size)
+
+    def chunk(j: int) -> list[Any]:
+        stop = min(frames.shape[0] - 1, starts[j] + batch_size)
+        x = convert.frames(frames, starts[j], stop + 1, m.device)
+        return fn(x[:-1], x[1:])
+
+    return [o for c in each(len(starts), chunk) for o in c]
+
+
 def _out_device() -> torch.device:
     return _mm().intermediate_device()
 
@@ -919,17 +936,26 @@ class Interpolate(_Node):
                 "frames": ("IMAGE",),
                 **common(cls),
                 "multiplier": ("INT", {"default": 2, "min": 2, "max": 16}),
-            }
+            },
+            "optional": BATCH,
         }
 
-    def run(
-        self, *, frames: torch.Tensor, model: str, backend: str, dtype: str, multiplier: int
+    def run(  # noqa: PLR0913 - the node's inputs
+        self, *, frames: torch.Tensor, model: str, backend: str, dtype: str, multiplier: int, batch_size: int = 1
     ) -> tuple[torch.Tensor]:
-        """Interpolate between every pair of consecutive frames."""
+        """Interpolate between every pair of consecutive frames (`batch_size` pairs per model call)."""
         m = load(model, backend, dtype)
         n = frames.shape[0]
         if n < 2:  # noqa: PLR2004 - a pair
             return (frames,)
+        if batch_size > 1:
+
+            def pairs_of(a: torch.Tensor, b: torch.Tensor) -> list[list[torch.Tensor]]:
+                mids = [m(a, b, timestep=k / multiplier).frame for k in range(1, multiplier)]
+                return [[a[i]] + [t[i] for t in mids] for i in range(len(a))]
+
+            out = [f for pair in each_pairs(frames, m, batch_size, pairs_of) for f in pair]
+            return (convert.to_image([*out, convert.frame(frames, n - 1, m.device)], _out_device()),)
 
         last: list[torch.Tensor] = []  # the previous pair's second frame: each frame is uploaded once
 
@@ -1193,18 +1219,23 @@ class Flow(_Node):
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        return {"required": {"frames": ("IMAGE",), **common(cls)}}
+        return {"required": {"frames": ("IMAGE",), **common(cls)}, "optional": BATCH}
 
-    def run(self, *, frames: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[torch.Tensor, torch.Tensor]:
-        """Flow of every pair of consecutive frames."""
+    def run(
+        self, *, frames: torch.Tensor, model: str, backend: str, dtype: str, batch_size: int = 1
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Flow of every pair of consecutive frames (`batch_size` pairs per model call)."""
         if frames.shape[0] < 2:  # noqa: PLR2004 - a pair
             msg = "Flow needs a batch of at least 2 frames"
             raise ValueError(msg)
         m = load(model, backend, dtype)
-        flows = each(
-            frames.shape[0] - 1,
-            lambda i: m(convert.frame(frames, i, m.device), convert.frame(frames, i + 1, m.device)).flow,
-        )
+        if batch_size > 1:
+            flows = each_pairs(frames, m, batch_size, lambda a, b: list(m(a, b).flow))
+        else:
+            flows = each(
+                frames.shape[0] - 1,
+                lambda i: m(convert.frame(frames, i, m.device), convert.frame(frames, i + 1, m.device)).flow,
+            )
         raw = torch.stack([f.detach().float().permute(1, 2, 0) for f in flows]).to(_out_device()).contiguous()
         return convert.to_image([convert.flow_image(f) for f in flows], _out_device()), raw
 
