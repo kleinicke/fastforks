@@ -39,7 +39,7 @@ HALF = 0.5  # fixed: upstream's threshold of resized binary masks
 # Clusters below which the merge rounds continue in numpy: a GPU round costs about 15 launches, a host sync and an
 # upload whatever its size, a numpy round on a 256 x 256 float64 matrix a fraction of a millisecond (4096 patches:
 # 34 rounds; RTX 5060 Ti, Windows: 43.5 -> 21.7 ms). The labels do not depend on it.
-HOST_TAIL = 256
+HOST_TAIL = 256  # fixed: a speed threshold, not the architecture
 
 
 @dataclass(frozen=True)
