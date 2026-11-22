@@ -341,8 +341,8 @@ class Kernels(Portable):
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
-    "kernels_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": mlx_wrap.port(Portable, half_wino_f32=True),
+    "kernels_mlx": mlx_wrap.port(Portable, half_wino_f32=True),
 }
 
 _BLOCK = re.compile(r"(encoders|decoders)\.(\d+)\.(\d+)\.beta|middle_blks\.(\d+)\.beta")

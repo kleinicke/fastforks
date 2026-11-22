@@ -3277,3 +3277,43 @@ Routes are unchanged. MPS rt-monster++ portable fp16 runs at 612 ms / 4076 MB, s
 at 39 % of the memory, but its first call (5.1 s) is above 3x the MPS runtime, so it gets no auto route. The MPS
 memory of monster(++) was not addressed. New tests: `test_linear_sample_kernel_matches_torch` (fp32 / fp16) and
 `test_gwc_warp_kernel_matches_torch`. Goldens pass: test_mlx for the seven geometry families and rt-monster++.
+
+### 2026-11-22 (evening): fp16 retry of fp32-only MLX cards with `half_wino_f32`
+
+Cards whose MLX `mlx_dtypes` lacked float16 got one cheap attempt: add float16 and port with
+`half_wino_f32=True` (fp16 Winograd convs computed in fp32), then run test_mlx in every mode and dtype.
+
+Kept (MLX, second run, ms / peak MB / first call s):
+
+| ref | dtype | before | after | MPS best |
+| --- | --- | --- | --- | --- |
+| hed | portable fp32 | 81.9 / 1144 / 1.26 | 74.9 / 1089 / 0.98 | fp16 56.9 / 1381 |
+| hed | portable fp16 (new) | | 65.2 / 1174 / 0.96 | |
+| nafnet-gopro | portable fp32 | 648.9 / 1745 / 8.8 | 524.3 / 1409 / 3.6 | fp16 368.3 / 1715 |
+| nafnet-gopro | kernels fp16 (new) | | 358.2 / 1124 / 3.3 | |
+
+The fp32 gains come from earlier shared changes (Winograd, conv padding), not from this item. `mlx_default` moves
+to float16 for hed (portable) and nafnet-gopro (kernels). There is no auto route: hed MLX is slower than MPS, and
+nafnet MLX fp16 is only 2.7 % faster than MPS fp16 (needs more than 5 %) with a 3.3 s first call. nafnet-sidd
+shares the card and passes the fp16 golden as well.
+
+Rejected (goldens fail in fp16 even with `half_wino_f32`; cards stay fp32-only):
+
+- gfpgan-v1.4: image mean diff 0.157.
+- rtmo: rtmo-t scores p99 0.0049 (s / m / l pass, but the card is shared).
+- tapir: tracks mean 0.0098; bootstapir 0.0092.
+- locotrack: s tracks mean 0.53, b 0.116.
+- cfnet-sceneflow: disparity mean 1.20.
+- xfeat and xfeat-lighterglue: keypoint recall 0.9952.
+- loftr-indoor and loftr-outdoor pass the golden, but fp16 is slower (2224 vs 1839 ms fp32), so the card stays
+  fp32. Side note: loftr-outdoor fp32 now measures 1839 ms / 4863 MB (11-19 row: 2017 / 3685). The peak growth
+  was not investigated; the old row is kept.
+
+Not tried (earlier notes still hold):
+
+- fast-acvnet: a top-k flip on a decision boundary.
+- mobile-sam: mean diff 0.49.
+- neuflow and recover: fp16 is slower.
+- rfdetr: some seg variants fail.
+- coatnet, fastvit, wd-tagger: they use the libnet wrapper.
+- cotracker, lightglue, ben2, efficientvit-sam: fp32-only on MPS too.
