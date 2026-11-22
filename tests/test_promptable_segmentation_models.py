@@ -10,6 +10,7 @@ import torch
 
 from fastforks import BackendUnavailableError, WeightsError, promptable_segmentation
 from fastforks._core import registry
+from fastforks.promptable_segmentation.models.insid3 import model as insid3
 from fastforks.promptable_segmentation.models.sam3.model import BOX_BUCKET, Kernels, Portable, exemplars
 from synth import image
 
@@ -233,3 +234,20 @@ def test_streamed_sam3_reuses_frame_for_subsequent_prompts(mode: Mode, monkeypat
     m(emb, text=TEXT)
     m(emb, input_boxes=[[4, 5, 30, 40]])
     assert len(uploaded) == 32
+
+
+@pytest.mark.parametrize("seed", [0, 1])
+def test_insid3_linkage_host_tail_matches_device_rounds(monkeypatch: pytest.MonkeyPatch, seed: int) -> None:
+    """INSID3's average linkage gives the same labels with its small rounds in numpy as all in torch (ties included)."""
+    gen = torch.Generator().manual_seed(seed)
+    centres = torch.randn(12, 32, generator=gen)
+    x = centres[torch.randint(0, 12, (600,), generator=gen)] + 0.6 * torch.randn(600, 32, generator=gen)
+    x[500:] = x[:100]  # duplicated points: tied distances
+    x = torch.nn.functional.normalize(x, dim=1)
+    labels = {}
+    for tail in (0, 10**9, 128):
+        monkeypatch.setattr(insid3, "HOST_TAIL", tail)
+        labels[tail] = insid3.average_linkage(x, 0.4)
+    assert int(labels[0].max()) > 1
+    assert torch.equal(labels[0], labels[10**9])
+    assert torch.equal(labels[0], labels[128])
