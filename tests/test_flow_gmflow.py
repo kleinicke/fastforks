@@ -58,7 +58,7 @@ def test_card_variants() -> None:
 @pytest.mark.parametrize(("scales", "refine"), [(1, 0), (2, 0), (2, 2)])
 def test_forward_shape(scales: int, refine: int) -> None:
     net = _net(scales, refine)
-    params = family.Params(scales=scales, refine=refine)
+    params = family.Params(scales=scales, refine=refine, cuda_graphs=False)
     a, b = _pair(64, 96, batch=2)
     with torch.inference_mode():
         out = family.forward(net, a, b, params, fp16=False)
@@ -74,7 +74,9 @@ def test_forward_is_upstreams() -> None:
     net = _net(2, 3)
     a, b = _pair(64, 96)
     with torch.inference_mode():
-        ours = family.forward(net, *normalize_img(a * 255, b * 255), family.Params(scales=2, refine=3), fp16=False)
+        ours = family.forward(
+            net, *normalize_img(a * 255, b * 255), family.Params(scales=2, refine=3, cuda_graphs=False), fp16=False
+        )
         ref = net(
             a * 255,
             b * 255,

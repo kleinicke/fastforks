@@ -23,6 +23,7 @@ from fastforks._core.mlx_cast import to_float32, to_run_dtype
 from fastforks.flow._runner import Forward, Runner
 from fastforks.kernels import flow_upsample
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net.attention import sdpa
 from .net.geometry import coords_grid, flow_warp
@@ -43,10 +44,11 @@ REFINE_RADIUS = 4  # fixed: upstream's correlation radius of the refinement (the
 
 @dataclass(frozen=True)
 class Params:
-    """Card `[params]`."""
+    """Card `[params]` + load options."""
 
     scales: int  # 1: matching at 1/8; 2: at 1/8, then 1/4 (upstream num_scales; upsample_factor 8 / 4)
     refine: int  # local regression refinements after the last scale (upstream num_reg_refine; 0 = no refinement block)
+    cuda_graphs: bool  # option: kernels replays CUDA graphs for small repeated shapes
 
 
 def attend(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
@@ -161,8 +163,16 @@ class Portable(Runner):
         return Forward(self.net, lambda net, image1, image2: forward(net, image1, image2, params, fp16=fp16))
 
 
+_GRAPH_PIXELS = 262_144  # fixed: batch x padded H x W; launch-bound up to 384x512 (1.14x), 544x960 gains under 2 %
+_GRAPHS = 2  # fixed: graph cache policy
+
+
 class Kernels(Portable):
-    """Use explicit attention heads for fused SDPA and fuse the final convex upsampling."""
+    """Use explicit attention heads for fused SDPA and fuse the final convex upsampling.
+
+    A repeated input shape up to `_GRAPH_PIXELS` replays a CUDA graph (`fastforks.shared.cuda_graphs`): the eager
+    pass is launch-bound there.
+    """
 
     module = Runner.module
     fused_upsample = True
@@ -173,6 +183,16 @@ class Kernels(Portable):
         for layer in self.net.transformer.modules():
             if isinstance(layer, TransformerLayer):
                 layer.window_options = {"attention": _headed}
+        self._graphs = SmallShapeGraphs(
+            super()._flow, pixels=_GRAPH_PIXELS, graphs=_GRAPHS, enabled=ctx.params.cuda_graphs
+        )
+
+    def _flow(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
+        return self._graphs(image1, image2)
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool on the device."""
+        self._graphs.release()
 
 
 RUNNERS = {

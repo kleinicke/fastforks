@@ -17,7 +17,7 @@ def generate_window_grid(h_min, h_max, w_min, w_max, len_h, len_w, device=None):
 
 def normalize_coords(coords, h, w):
     # coords: [B, H, W, 2]
-    c = torch.Tensor([(w - 1) / 2., (h - 1) / 2.]).float().to(coords.device)
+    c = to_device(torch.Tensor([(w - 1) / 2., (h - 1) / 2.]).float(), coords.device)  # fastforks: to_device (graph-capturable)
     return (coords - c) / c  # [-1, 1]
 
 
