@@ -837,6 +837,7 @@ option calibration.geocalib.cuda_graphs
 option depth.any2full.short_side
 option depth.depth_anything_3.long_side aliases process_res
 option depth.depth_anything_3.stream
+option depth.depth_anything_v2.cuda_graphs
 option depth.depth_anything_v2.short_side aliases input_size
 option depth.depthfm.ensemble aliases ensemble_size
 option depth.depthfm.long_side aliases processing_res
