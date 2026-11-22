@@ -101,10 +101,16 @@ def _downsample_mask(mask: torch.Tensor, h: int, w: int) -> torch.Tensor:
     return down
 
 
+def _counts(labels: torch.Tensor, k: int, where: torch.Tensor | None = None) -> torch.Tensor:
+    """`torch.bincount(labels[where], minlength=k)` for labels in `[0, k)`, without the host syncs on CUDA."""
+    ones = torch.ones_like(labels) if where is None else where.long()
+    return torch.zeros(k, dtype=torch.long, device=labels.device).index_add_(0, labels, ones)
+
+
 def _cluster_means(x: torch.Tensor, labels: torch.Tensor, k: int) -> torch.Tensor:
     """Per-cluster means `[K, C]` of rows `x` `[N, C]`."""
     s = torch.zeros(k, x.shape[1], device=x.device, dtype=x.dtype).index_add_(0, labels, x)
-    return s / torch.bincount(labels, minlength=k).clamp_min(1)[:, None].to(x.dtype)
+    return s / _counts(labels, k).clamp_min(1)[:, None].to(x.dtype)
 
 
 class Portable(Runner):
@@ -210,8 +216,8 @@ class Portable(Runner):
         k = int(labels.max()) + 1
         protos_deb = F.normalize(_cluster_means(tgt_deb_flat.T, labels, k), dim=1)
         protos_orig = F.normalize(_cluster_means(tgt_flat, labels, k), dim=1)
-        counts = torch.bincount(labels, minlength=k).float()
-        matched = torch.bincount(labels[candidate], minlength=k).float()
+        counts = _counts(labels, k).float()
+        matched = _counts(labels, k, candidate).float()
         area = matched / counts
         cross_matched = (protos_deb @ proto).masked_fill(matched == 0, -math.inf)
         seed = int(cross_matched.argmax())  # the matched cluster closest to the reference (first on ties)

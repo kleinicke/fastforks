@@ -252,7 +252,7 @@ class TAPIR(nn.Module):
         hires, lowres = hires[None], lowres[None]
         out = []
         for grid in (hires, lowres):
-            scale = torch.tensor([1.0, grid.shape[2] / SIZE, grid.shape[3] / SIZE], device=queries.device)
+            scale = device_tensor([1.0, grid.shape[2] / SIZE, grid.shape[3] / SIZE], device=queries.device)  # fastforks: no host sync (a pageable upload syncs the host)
             out.append(map_coordinates_3d(grid, queries * scale))
         return Features(hires, lowres, out[0], out[1])
 
