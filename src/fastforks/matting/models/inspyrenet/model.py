@@ -98,6 +98,10 @@ class Portable(Runner):
     Params = Params
     sdpa_auto = "efficient,cudnn,math"  # Swin window attention: cuDNN rebuilds per shape (`fastforks.shared.sdpa`)
     dtypes = ("float32", "float16")
+    batch = None
+    # network pixels (images x size^2) per call: the eager call is launch bound at 384 (RTX 5060 Ti, Windows, fp16,
+    # 8 images: inspyrenet-fast 57.4 -> 13.9 ms per image), not at 1024 (115 vs 107 ms, 7.5 GB): one image there
+    net_pixels = 1_300_000
 
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
@@ -111,11 +115,15 @@ class Portable(Runner):
     def _net(self, x: torch.Tensor) -> torch.Tensor:
         return self.net.forward_inspyre(x)["saliency"][3]  # ty: ignore[call-non-callable] - the upstream class
 
+    def _nets(self, x: torch.Tensor) -> torch.Tensor:
+        step = max(1, self.net_pixels // (x.shape[-2] * x.shape[-1]))
+        return torch.cat([self._net(x[i : i + step]) for i in range(0, len(x), step)])
+
     def __call__(self, image: torch.Tensor, trimap: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
         """Alpha `[B, H, W]` of `[B, 3, H, W]` RGB in `[0, 1]`."""
         s = self.ctx.params.size
         x = F.interpolate(image, (s, s), mode="bilinear", align_corners=False, antialias=True)
-        y = torch.sigmoid(self._net(self._normalize(x).to(self.dtype)).float())
+        y = torch.sigmoid(self._nets(self._normalize(x).to(self.dtype)).float())
         lo, hi = y.amin((1, 2, 3), keepdim=True), y.amax((1, 2, 3), keepdim=True)
         y = (y - lo) / (hi - lo + 1e-8)
         return {"alpha": F.interpolate(y, image.shape[-2:], mode="bilinear", align_corners=True)[:, 0]}
@@ -148,8 +156,14 @@ class Kernels(Portable):
         self.graphs.release()
 
 
+class _OneImage(Portable):
+    """Portable for the MLX port: one image per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_net",)),
+    "portable_mlx": mlx_wrap.port(_OneImage, attrs=(), methods=("_net",)),
 }

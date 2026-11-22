@@ -66,18 +66,26 @@ class _Matting(Runner):
     """Resize, divide by the maximum, normalise, network (`d0`), min-max, resize back."""
 
     Params = Params
+    batch = None
+    # network pixels (images x size^2) per call: the eager call is launch bound (RTX 5060 Ti, Windows, fp16, 8 images:
+    # u2netp 14.1 -> 3.7 ms per image, u2net 14.1 -> 6.2; kernels 2.9 -> 2.5, 4.9 -> 3.9)
+    net_pixels = 1_300_000
     net: torch.nn.Module
     dtype: torch.dtype
 
     def _net(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)[0]
 
+    def _nets(self, x: torch.Tensor) -> torch.Tensor:
+        step = max(1, self.net_pixels // (x.shape[-2] * x.shape[-1]))
+        return torch.cat([self._net(x[i : i + step]) for i in range(0, len(x), step)])
+
     def __call__(self, image: torch.Tensor, trimap: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
         """Alpha `[B, H, W]` of `[B, 3, H, W]` RGB in `[0, 1]`."""
         s = self.ctx.params.size
         x = F.interpolate(image, (s, s), mode="bilinear", align_corners=False, antialias=True)
         x = x / x.amax((1, 2, 3), keepdim=True).clamp_min(_TINY)  # a black image stays black, not 0 / 0
-        y = self._net(scale(x, self.ctx.io).to(self.dtype)).float()
+        y = self._nets(scale(x, self.ctx.io).to(self.dtype)).float()
         lo, hi = y.amin((1, 2, 3), keepdim=True), y.amax((1, 2, 3), keepdim=True)
         y = (y - lo) / (hi - lo).clamp_min(_TINY)  # a constant map stays 0, not 0 / 0
         return {"alpha": F.interpolate(y, image.shape[-2:], mode="bilinear", align_corners=False)[:, 0]}
@@ -173,8 +181,8 @@ class Kernels(_Matting):
         self.net = net
         self.graphs = SmallShapeGraphs(
             self.net,
-            pixels=ctx.params.size**2,
-            graphs=1,
+            pixels=self.net_pixels,
+            graphs=2,  # a batch's full chunks and its last one
             enabled=ctx.params.cuda_graphs,
             capture_after=cudnn_hacc.capture_after(),
         )
@@ -187,8 +195,14 @@ class Kernels(_Matting):
         return self.graphs(x.contiguous(memory_format=CL))
 
 
+class _OneImage(Portable):
+    """Portable for the MLX port: one image per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": mlx_wrap.port(_OneImage),
 }
