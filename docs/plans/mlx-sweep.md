@@ -2326,6 +2326,89 @@ Survey rows, second of two runs (ms warm median / peak footprint MB):
   0.3-0.5x fp16 ratios are most likely fp32 pressure, not fp16 gains. defom-stereo has no MPS fp16 row.
 
 
+### fp16 >= fp32, part 3, and clean re-surveys (2026-11-22)
+
+Ms are warm medians (second of two survey runs), MB the process-footprint peak. MPS goldens pass in both dtypes
+(`FASTFORKS_MPS_FULL=1`); MLX goldens of the touched families pass too.
+
+| ref | dtype | before ms / MB | after ms / MB |
+|---|---|---|---|
+| restormer-sidd | fp16 | 2330 / 3683 | 1132 / 3675 |
+| restormer-sidd | fp32 | 2218 / 4761 | 1112 / 5777 |
+| restormer-derain | fp16 | 1814 / 3655 | 988 / 3653 |
+| restormer-derain | fp32 | 1678 / 5778 | 995 / 4728 |
+| restormer-deblur | fp16 | 1476 / 3657 | 990 / 3651 |
+| restormer-deblur | fp32 | 1376 / 4735 | 989 / 4726 |
+| swin2sr-x2 | fp16 | 9258 / 3501 | 4607 / 3495 |
+| swin2sr-x2 | fp32 | 11075 / 6215 | 5731 / 6213 |
+| swin2sr-x4 | fp16 | 9410 / 4580 | 4690 / 4581 |
+| swin2sr-x4 | fp32 | 9608 / 8391 | 5793 / 8393 |
+| swin2sr-x4-real | fp16 | 9531 / 4579 | 4751 / 4576 |
+| swin2sr-x4-real | fp32 | 11350 / 8389 | 5894 / 8390 |
+| swinir-m-x2 | fp16 | 5797 / 3500 | 3674 / 3492 |
+| swinir-m-x2 | fp32 | 6260 / 5198 | 4760 / 5196 |
+| swinir-m-x4 | fp16 | 5893 / 5060 | 3750 / 5064 |
+| swinir-m-x4 | fp32 | 6506 / 8392 | 4824 / 8390 |
+| swinir-m-x4-real | fp16 | 5851 / 5060 | 3829 / 5059 |
+| swinir-m-x4-real | fp32 | 6622 / 8388 | 5045 / 8383 |
+| swinir-l-x4-real | fp16 | 9874 / 4561 | 7252 / 5594 |
+| swinir-l-x4-real | fp32 | 12063 / 9130 | 10185 / 9135 |
+
+- **restormer (MPS)**: fp16 was no faster than fp32 because of the layout, not the dtype. It now runs channels-last
+  on every non-CPU device; it was CUDA only before. The MPS q / k L2 norms are `square().sum().sqrt()`: the norm kernel
+  over the pixel axis of channels-last tokens is 3x slower (microbench `[262144, 192]` fp32: `vector_norm` 10.4 ms,
+  `square().sum()` 3.3 ms). In half precision, q / k are cast to fp32 once in their stored order, because MPS has no
+  fp32-output half GEMM for the Gram matrix. Negatives:
+  - NCHW with the norm on the contiguous channel axis: sidd fp16 1295 ms, fp32 1861 ms.
+  - NCHW with a contiguous WithBias `layer_norm` output: deblur fp16 1360 ms, but fp32 regressed from 1378 to 1954 ms.
+  - fp32 `var_mean` over the NCHW channel axis: deblur fp16 1488 ms.
+  - Channels-last while the PixelShuffle output stayed NCHW: mixed-stride residual adds, deblur fp16 1270 ms.
+  - The fp32-accumulating half `vector_norm` over a strided axis is 3x slower than the fp32 one (12.3 ms).
+- **swin2sr (MPS)**: the profile at 512x512 fp16 (8.1 s) had `F.normalize` of the strided q / k plus its division and
+  the cosine product at 3.4 s, and 7 3x3 convs on the channels-last `PatchUnEmbed` view at 1.33 s.
+  - Cosine attention now uses `F.rms_norm(x, (d,), d**-0.5 weight)`, which equals `x / |x|`. The weighted MPS kernel is
+    fused, sums in fp32 and does not overflow (checked at 1000x input scale); without a weight it is 3x slower.
+  - `shared.swin_sr.patch_unembed` returns a contiguous NCHW copy on MPS. The 3x3 conv took 187 ms on the view against
+    44 ms contiguous in fp16, and 254 against 47 ms in fp32. HAT's upstream `PatchUnEmbed` is already contiguous.
+  - SwinIR shares the helper. The SwinIR "before" rows are from 2026-11-15, so part of their gain comes from other
+    commits. A same-commit A/B (opprof, fp16) gave swinir-m-x4 4776 -> 3809 ms and swinir-l-x4-real 7680 -> 7390 ms.
+    swinir-l-x4-real's fp16 peak of 5.6 GB is the same with or without the copy (5605 / 5604 MB in the A/B), so the
+    rise from the 4561 MB row predates this change. The swinir-l fp32 row ran with 6 GB swap (median 10185, min 9532).
+  - Negatives: fp32 `square().sum()` norms written back in place (5.9 s, peak +480 MB); in-place or out-of-place half
+    products by the `[..., 1]` factor on the strided slice (6.0 s). A broadcast multiply by a last-dim-1 factor costs
+    15 ms per 100M elements on MPS whatever the layout.
+  - Left: the per-head cosine product (0.42 s) cannot fold into the rms_norm weight, which is per channel.
+- **sea-raft fp32 (clean re-survey, quiet machine)**: m-kitti 5026 / 12688 -> 1423 / 9778, m-things 4162 / 11697 ->
+  1425 / 9778, s 2115 / 11645 -> 1049 / 9653. The old rows were pressure runs.
+- **monster-plusplus-mix-all fp32**: not measurable cleanly. The median was 32.8 s against a 23.6 s min with 8.4 GB of
+  swap, so the old row stays.
+- **lingbot-map fp32 golden OOM**: not caused by `assign=True`. With assign True and False MPS memory is identical
+  (4418 MB allocated, 5160 MB driver). The fp32 golden needs 11.64 of the 11.84 GiB MPS limit, so the old row (8840 ms,
+  golden skipped) stays.
+- **video-depth-anything(-metric)-s 480x640**: the stale rows were dropped; the survey takes 994x1482 now.
+- **vitmatte-b MLX fp16 peak 1946 -> 3013 MB**: `_fold_constants` in `shared/mlx_graph.py` kept its environment of
+  folded intermediates alive (1.1 GB resident; MLX active 1402 against 209 MB). It now clears them after folding.
+  Another 140 MB came from zeros-concat padding constants, which are now `F.pad` in vitmatte `_augmented` and
+  `sam_attention`.
+
+  | ref (MLX) | dtype | before ms / MB | after ms / MB |
+  |---|---|---|---|
+  | vitmatte-b | fp16 | 1744 / 3013 | 1670 / 1824 |
+  | vitmatte-b | fp32 | 2502 / 3267 | 2487 / 3270 |
+  | vitmatte-s | fp16 | 1018 / 2128 | 806 / 1676 |
+  | vitmatte-s | fp32 | 1204 / 3067 | 1231 / 3044 |
+  | sam-vit-b | fp16 | 446 / 1205 | 441 / 1150 |
+  | sam-vit-b | fp32 | 637 / 1646 | 600 / 1642 |
+  | sam-hq-vit-b | fp16 | 476 / 1510 | 493 / 1464 |
+  | sam-hq-vit-b | fp32 | 680 / 1953 | 648 / 1946 |
+  | mask2former-swinl-ade20k | fp16 | 878 / 3657 | 850 / 3614 |
+
+- **By design**: lingbot-depth keeps an fp32 residual stream for NYUv2 AbsRel accuracy, so its fp16 peak stays near
+  fp32.
+- **Not done (time box)**: tapnext / tapnext-pp and locotrack run autocast with an fp32 scan and have identical peaks.
+  unik3d, metric3d, mvsplat and omni-dc were flagged by the scan but not profiled.
+
+
 ## Later idea: fp16 checkpoints from the start (2026-11-22, not started)
 
 Loading is disk-bound (0.3-0.5 GB/s from the external drive, 8-17 s for the big multiview checkpoints). Where the
