@@ -50,6 +50,14 @@ def frame(image: torch.Tensor, i: int, device: torch.device) -> torch.Tensor:
     return x[..., :_RGB].permute(2, 0, 1)
 
 
+def frames(image: torch.Tensor, start: int, stop: int, device: torch.device) -> torch.Tensor:
+    """Images `start:stop` of a ComfyUI IMAGE batch as one fastforks batch `[B, 3, H, W]` on `device` (as `frame`)."""
+    x = upload.to_device(image[start:stop], device).to(dtype=torch.float32)
+    if x.shape[-1] == 1:
+        x = x.expand(-1, -1, -1, _RGB)
+    return x[..., :_RGB].permute(0, 3, 1, 2)
+
+
 def to_image(maps: Sequence[torch.Tensor], device: torch.device | str = "cpu") -> torch.Tensor:
     """RGB maps of fastforks `[3, H, W]` in `[0, 1]` (one per image) -> IMAGE `[B, H, W, 3]` float32."""
     return torch.stack([m.detach().float().permute(1, 2, 0) for m in maps]).clamp(0, 1).to(device).contiguous()
