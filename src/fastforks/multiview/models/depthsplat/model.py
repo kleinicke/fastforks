@@ -175,7 +175,7 @@ def sh_rotation(r: torch.Tensor) -> torch.Tensor:
 
     `e3nn`: `D_0 = 1`, `D_1 = R` (its degree-1 basis is `x y z`), `D_2 Y_2(s) = Y_2(R s)` for every direction `s`.
     """
-    s, p = _S.to(r), _P.to(r)
+    s, p = to_device(_S, r.device).to(r.dtype), to_device(_P, r.device).to(r.dtype)
     d = r.new_zeros(r.shape[0], SH, SH)
     d[:, 0, 0] = 1
     d[:, 1:4, 1:4] = r

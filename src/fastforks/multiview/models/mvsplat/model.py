@@ -323,8 +323,11 @@ def sh_rotation(r: torch.Tensor) -> torch.Tensor:
     """
     d = r.new_zeros(r.shape[0], SH, SH)
     d[:, 0, 0] = 1
-    for deg, (y, p) in enumerate(zip(_y((r @ _S.to(r)).transpose(1, 2)), _P, strict=True), 1):
-        d[:, deg**2 : (deg + 1) ** 2, deg**2 : (deg + 1) ** 2] = project_harmonics(y, p.to(r))
+    s = to_device(_S, r.device).to(r.dtype)
+    for deg, (y, p) in enumerate(zip(_y((r @ s).transpose(1, 2)), _P, strict=True), 1):
+        d[:, deg**2 : (deg + 1) ** 2, deg**2 : (deg + 1) ** 2] = project_harmonics(
+            y, to_device(p, r.device).to(r.dtype)
+        )
     return d
 
 
