@@ -393,3 +393,22 @@ def test_fp32_inputs_keep_float32_in_a_float16_replay():
     assert float(cam_out[0]) == pytest.approx(2**-14)
     with pytest.raises(TypeError, match="no argument"):
         MlxModule(Diff(), "float16", fp32_inputs=("k",))(v, v)
+
+
+def test_released_twin_exports_a_second_shape_after_inference_mode_calls():
+    """`release=True` stand-ins made in an inference-mode call are normal tensors: the next shape's export (outside
+    inference mode) lifts them (an inference stand-in failed on `requires_grad`; waft-a1's survey second shape)."""
+    pytest.importorskip("mlx.core")
+    from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - optional (the mlx extra)
+
+    torch.manual_seed(0)
+    net = torch.nn.Sequential(torch.nn.Conv2d(3, 8, 3, padding=1), torch.nn.ReLU(), torch.nn.Conv2d(8, 4, 1)).eval()
+    ref = copy.deepcopy(net)
+    m = MlxModule(net, "float32", release=True)
+    for hw in ((16, 16), (24, 32)):
+        x = torch.randn(1, 3, *hw)
+        with torch.inference_mode():
+            got = m(x)
+            want = ref(x)
+        torch.testing.assert_close(got, want, atol=1e-5, rtol=1e-5)
+    assert not any(t.is_inference() for t in (*net.parameters(), *net.buffers()))

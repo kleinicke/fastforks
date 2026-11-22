@@ -3959,7 +3959,9 @@ class MlxModule:
             done.add(id(self))
             if not t.__dict__.get("_mlx_owners", set()) <= done or t.numel() <= 1:
                 continue
-            stand_in = torch.zeros((), dtype=t.dtype).expand(t.shape)
+            # a normal tensor even in an inference-mode call: the next shape's export (out of it) lifts the stand-in
+            with torch.inference_mode(mode=False):
+                stand_in = torch.zeros((), dtype=t.dtype).expand(t.shape)
             old = t.untyped_storage()
             hand_back = old.nbytes() >= _HAND_BACK_MIN and _exclusive(old) and not getattr(old, "filename", None)
             if leaf in host._parameters:
