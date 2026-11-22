@@ -3106,3 +3106,30 @@ The rest of the fp32 gap is GEMM speed, not graph overhead. EoMT-L's eager profi
 family-specific. Microbench, fp32 `[M, K] @ [K, N]`, MLX vs MPS: at EoMT's M = 2058, MLX is ~5 % slower (K 1024 N 4096:
 4.56 vs 4.35 ms); padded to M = 2112 it is 4.29. Not kept: per-block padding would gain ~1 % end to end (a pad and a
 slice per MLP, the earlier padding reject stands). CLIP's M = 257..320 shows no padding win at all.
+
+## 2026-11-22 (evening): MVSplat Metal plane sweep on MPS (`mvsplat_metal`, kernels mode, M1 Pro 16 GB)
+
+Portable MPS runs the plane sweep as `grid_sample` of 32 depths at a time plus a channel sum
+(`[V, C, 32, h, w]` warped chunks). `kernels/mvsplat_metal` ports the MLX `warp_dot` kernel to `torch.mps`: one SIMD
+group per (view, depth, pixel), 4-channel slices of the four bilinear taps on NHWC features, fp32 products, one
+`simd_sum`; the other view is indexed (no `roll` copy), offset 1 writes the volume, later offsets add (the CUDA
+`mvsplat_corr.accumulate` contract). `correlation(fused=...)` now takes the accumulate function (CUDA:
+`cuda_accumulate`, the grid in the features' dtype as before). New `kernels_mps` runner, card `mps_kernels`,
+`mps_dtype = "float32"` (portable fp32 beats fp16 on MPS here; the kernel costs the same in both).
+
+Correlation alone, C = 128, D = 128, ms min (loop -> Metal): 2 views 64 x 64 fp32 25.9 -> 10.3, fp16 18.2 -> 10.3;
+3 views 64 x 64 fp32 79.2 -> 28.2, fp16 52.6 -> 28.1. Max error against a float64 reference: equal in fp32
+(1.4e-5); fp16 1.3e-5 instead of 6e-2 (the loop samples with an fp16 grid).
+
+Survey, MPS, second run, ms median (min) / MB peak / first call s:
+
+| ref | mode / dtype | ms | MB |
+| --- | --- | --- | --- |
+| mvsplat-re10k | portable fp32 | 1039.6 (1039.0) | 4532 |
+| mvsplat-re10k | portable fp16 | 1110.0 (1108.5) | 3535 |
+| mvsplat-re10k | kernels fp32 (new) | 896.3 (881.4) | 4293 |
+
+-14 % time and -239 MB against portable fp32. Route change: `mps_auto` for mvsplat-re10k@1 now picks the Metal
+kernels in float32. Goldens pass: test_mps[mvsplat-re10k@1] (FASTFORKS_MPS_FULL=1, portable fp32 / fp16 and kernels
+fp32), test_mlx[mvsplat-re10k@1]. New test: `test_metal_plane_sweep` (2 and 3 views, fp32 / fp16, against float64).
+MLX stays much slower than MPS here (portable fp32 1573 ms, fp16 1259 ms): not looked at in this pass.

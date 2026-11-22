@@ -25,7 +25,9 @@ fp16; kernels adds cuDNN fp16-accumulate convs and fp16-accumulate GEMMs. The Ga
 
 from __future__ import annotations
 
+import functools
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -70,6 +72,14 @@ NEAR = 1.0  # fixed: the scene is scaled so that near = 1 (upstream's re10k trai
 MEAN = (0.485, 0.456, 0.406)  # fixed: ImageNet normalisation of the UniMatch backbone
 STD = (0.229, 0.224, 0.225)
 DEPTH_CHUNK = 32  # fixed: a memory bound (depth candidates warped at once, [V, C, D, h, w] volume)
+
+
+Accumulate = Callable[[torch.Tensor, torch.Tensor, torch.Tensor, int], None]  # a fused plane sweep (`correlation`)
+
+
+def cuda_accumulate(feat: torch.Tensor, grid: torch.Tensor, out: torch.Tensor, offset: int) -> None:
+    """`mvsplat_corr.accumulate` with the grid in the features' (CUDA autocast) precision, as `grid_sample` takes it."""
+    mvsplat_corr.accumulate(feat, grid.to(feat.dtype), out, offset)
 
 
 @dataclass(frozen=True)
@@ -157,7 +167,7 @@ def correlation(  # noqa: PLR0913 - camera geometry and execution precision
     disp: torch.Tensor,
     *,
     dtype: torch.dtype,
-    fused: bool = False,
+    fused: Accumulate | None = None,
 ) -> torch.Tensor:
     """Upstream's plane-sweep cost volume, averaged over all other views.
 
@@ -167,7 +177,8 @@ def correlation(  # noqa: PLR0913 - camera geometry and execution precision
         c2w: `[V, 4, 4]` camera-to-world.
         disp: `[V, D]` inverse-depth candidates.
         dtype: dtype of the projected grid and input features.
-        fused: sample and accumulate in one CUDA kernel, using the CUDA autocast precision of grid_sample.
+        fused: sample and accumulate in one kernel, `(features, fp32 grid, volume, offset)` (`cuda_accumulate`, or
+            `mvsplat_metal.accumulate` bound to its library): channels-last features, offset 1 writes the volume.
 
     Returns:
         `[V, D, h, w]` mean correlation (dot product / sqrt(C)) of every view's features with each other view's
@@ -181,7 +192,7 @@ def correlation(  # noqa: PLR0913 - camera geometry and execution precision
     grid = torch.stack((xs, ys, torch.ones_like(xs)), 0).float().view(1, 3, h * w)
     rays = invert(k.float()) @ grid  # [V, 3, hw]
     depth = (1.0 / disp.float()).view(v, 1, d, 1)
-    if fused:
+    if fused is not None:
         feat = feat.contiguous(memory_format=torch.channels_last)
         out = feat.new_empty(v, d, h, w, dtype=torch.float32)
     else:
@@ -193,8 +204,8 @@ def correlation(  # noqa: PLR0913 - camera geometry and execution precision
         pix = pix.view(v, 3, d, h * w)
         uv = pix[:, :2] / pix[:, 2:].clamp(min=1e-3)
         g = torch.stack((2 * uv[:, 0] / (w - 1) - 1, 2 * uv[:, 1] / (h - 1) - 1), -1)  # [V, D, hw, 2]
-        if fused:
-            mvsplat_corr.accumulate(feat, g.to(dtype), out, i)
+        if fused is not None:
+            fused(feat, g, out, i)
             continue
         if EXPORTING_FOR_MLX.get():  # one Metal kernel in the replay: no [V, C, D, h, w] warped volume
             out = out + warp_dot(feat, feat.roll(-i, 0), g)
@@ -215,7 +226,7 @@ class Net(nn.Module):
         super().__init__()
         self.backbone = Backbone()
         self.depth_predictor = DepthPredictor()
-        self.fused_correlation = False
+        self.fused_correlation: Accumulate | None = None
 
     def forward(
         self, images: torch.Tensor, k_norm: torch.Tensor, c2w: torch.Tensor, near: torch.Tensor, far: torch.Tensor
@@ -514,7 +525,7 @@ class Kernels(_Base):
         from fastforks.kernels import cudnn_hacc  # noqa: PLC0415 - kernels only
 
         cudnn_hacc.load(ctx.device)
-        self.net.fused_correlation = True
+        self.net.fused_correlation = cuda_accumulate
         if _hacc_convs(self.net) == 0:
             msg = "MVSplat kernels: no conv routed through cudnn_hacc"
             raise RuntimeError(msg)
@@ -527,4 +538,25 @@ class Kernels(_Base):
             return super().forward(images, intrinsics, cam_to_world, depth_range)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(Portable)}
+class MetalKernels(Portable):
+    """PyTorch MPS with the plane sweep in one Metal kernel (`mvsplat_metal`: no warped `[V, C, D, h, w]` chunks)."""
+
+    def __init__(self, ctx: Context) -> None:  # noqa: D107
+        super().__init__(ctx)
+        from fastforks._core import mps  # noqa: PLC0415 - device-specific adaptation
+        from fastforks.kernels import mvsplat_metal  # noqa: PLC0415 - device-specific library
+
+        mps.adapt(self.net)  # the convention of Metal runners (no 3-D or transposed convs here: a no-op)
+        self.net.fused_correlation = functools.partial(mvsplat_metal.accumulate, mvsplat_metal.load(ctx.device))
+
+    def module(self) -> torch.nn.Module:
+        """The Metal plane sweep cannot be exported as a PyTorch module."""
+        return Runner.module(self)
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "kernels_mps": MetalKernels,
+    "portable_mlx": mlx_wrap.port(Portable),
+}

@@ -2567,7 +2567,11 @@
    "mlx": {
     "float16": "portable",
     "float32": "portable"
-   }
+   },
+   "mps_auto": [
+    "",
+    "float32"
+   ]
   },
   "nafnet-gopro@1": {
    "mlx_default": [

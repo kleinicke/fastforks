@@ -40,7 +40,7 @@ def test_harmonic_projection_matches_matrix_product(channels: int, dtype: torch.
 @pytest.mark.gpu
 @pytest.mark.parametrize("views", [2, 3])
 def test_fused_plane_sweep(views: int) -> None:
-    from fastforks.multiview.models.mvsplat.model import correlation  # noqa: PLC0415
+    from fastforks.multiview.models.mvsplat.model import correlation, cuda_accumulate  # noqa: PLC0415
 
     torch.manual_seed(25)
     feat = torch.randn(views, 37, 9, 13, device="cuda", dtype=torch.float16)
@@ -52,5 +52,31 @@ def test_fused_plane_sweep(views: int) -> None:
     disp = torch.linspace(0.05, 2.3, 15, device="cuda").expand(views, -1)
     with torch.autocast("cuda", dtype=torch.float16):
         expected = correlation(feat, intrinsics, camera, disp, dtype=torch.float16)
-        actual = correlation(feat, intrinsics, camera, disp, dtype=torch.float16, fused=True)
+        actual = correlation(feat, intrinsics, camera, disp, dtype=torch.float16, fused=cuda_accumulate)
     torch.testing.assert_close(actual, expected, rtol=2e-5, atol=5e-6)
+
+
+@pytest.mark.parametrize("views", [2, 3])
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float16])
+def test_metal_plane_sweep(views: int, dtype: torch.dtype) -> None:
+    """`mvsplat_metal.accumulate` against the portable `grid_sample` sweep (in float64 on the CPU)."""
+    if not torch.backends.mps.is_available():
+        pytest.skip("needs PyTorch MPS")
+    import functools  # noqa: PLC0415
+
+    from fastforks.kernels import mvsplat_metal  # noqa: PLC0415 - device-specific library
+    from fastforks.multiview.models.mvsplat.model import correlation  # noqa: PLC0415
+
+    torch.manual_seed(25)
+    feat = torch.randn(views, 36, 9, 13).to(dtype)
+    intrinsics = torch.eye(3).repeat(views, 1, 1)
+    intrinsics[:, 0, 0] = 10.5
+    intrinsics[:, 1, 1] = 8.75
+    camera = torch.eye(4).repeat(views, 1, 1)
+    camera[:, 0, 3] = torch.arange(views) * 0.17
+    disp = torch.linspace(0.05, 2.3, 15).expand(views, -1)
+    want = correlation(feat.double(), intrinsics, camera, disp, dtype=torch.float64).float()
+    fused = functools.partial(mvsplat_metal.accumulate, mvsplat_metal.load(torch.device("mps")))
+    mps = [t.to("mps") for t in (feat, intrinsics, camera, disp)]
+    got = correlation(*mps, dtype=dtype, fused=fused).cpu()
+    torch.testing.assert_close(got, want, atol=1e-5, rtol=1e-5)
