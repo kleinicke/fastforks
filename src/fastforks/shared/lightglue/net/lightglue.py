@@ -539,18 +539,29 @@ class LightGlue(nn.Module):
                 token0, token1 = self.token_confidence[i](desc0, desc1)
                 if self.check_if_stop(token0[..., :m], token1[..., :n], i, m + n):
                     break
-            if do_point_pruning and desc0.shape[-2] > pruning_th:
+            # fastforks: both pruning masks first, then their sizes in one host sync (torch.where synced once per
+            # image); on CUDA nonzero_static with the known size gives the same indices as torch.where without a sync
+            prune_0 = do_point_pruning and desc0.shape[-2] > pruning_th
+            prune_1 = do_point_pruning and desc1.shape[-2] > pruning_th
+            masks = []
+            if prune_0:
                 scores0 = self.log_assignment[i].get_matchability(desc0)
                 prunemask0 = self.get_pruning_mask(token0, scores0, i)
-                keep0 = torch.where(prunemask0)[1]
+                masks.append(prunemask0)
+            if prune_1:
+                scores1 = self.log_assignment[i].get_matchability(desc1)
+                prunemask1 = self.get_pruning_mask(token1, scores1, i)
+                masks.append(prunemask1)
+            if masks:
+                sizes = torch.stack([mk.sum() for mk in masks]).tolist()
+            if prune_0:
+                keep0 = (torch.nonzero_static(prunemask0, size=sizes[0]) if prunemask0.is_cuda else prunemask0.nonzero())[:, 1]
                 ind0 = ind0.index_select(1, keep0)
                 desc0 = desc0.index_select(1, keep0)
                 encoding0 = encoding0.index_select(-2, keep0)
                 prune0[:, ind0] += 1
-            if do_point_pruning and desc1.shape[-2] > pruning_th:
-                scores1 = self.log_assignment[i].get_matchability(desc1)
-                prunemask1 = self.get_pruning_mask(token1, scores1, i)
-                keep1 = torch.where(prunemask1)[1]
+            if prune_1:
+                keep1 = (torch.nonzero_static(prunemask1, size=sizes[-1]) if prunemask1.is_cuda else prunemask1.nonzero())[:, 1]
                 ind1 = ind1.index_select(1, keep1)
                 desc1 = desc1.index_select(1, keep1)
                 encoding1 = encoding1.index_select(-2, keep1)
