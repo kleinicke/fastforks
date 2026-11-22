@@ -204,7 +204,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/facebookresearch/detr/blob/29901c51d7fe8712168b8d0d64351170bc0f83e0/README.md (License section)
 - Training data: COCO 2017 (train, instance annotations), ImageNet-1k (ILSVRC 2012 classification) (COCO 2017 train (500 epochs); the ResNet backbone was initialised from torchvision's ImageNet-1k model)
-- Options: `score_threshold` = 0.05 (0.0 to 1.0), `max_detections` = 100 (>= 1)
+- Options: `score_threshold` = 0.05 (0.0 to 1.0), `max_detections` = 100 (>= 1), `cuda_graphs` = True (speed only)
 - Kernel libraries: `cudnn_hacc`
 - Variants: `detr-r50-coco`, `detr-r101-coco`
 - Outputs: boxes, scores, labels; label_set: `coco-80`

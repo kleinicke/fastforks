@@ -157,7 +157,7 @@ class Portable(Runner):
     batch = None
     # images x H x W per network call (`estimate_batch`): launch bound (RTX 5060 Ti, Windows, fp16,
     # 8 frames 480 x 640, ms per frame:
-    # mobilenet0.25 7.0 -> 3.2 (kernels with CUDA graphs 1.4 -> 0.92), resnet50 9.3 -> 5.6 (3.5 -> 2.3)); 1080p runs
+    # mobilenet0.25 6.9 -> 2.3 (kernels with CUDA graphs 1.4 -> 0.92), resnet50 9.3 -> 5.6 (3.5 -> 2.3)); 1080p runs
     # one image per call
     batch_pixels = 2_100_000
 

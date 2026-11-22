@@ -119,7 +119,7 @@ class Portable(Runner):
     batch = None
     # images x H x W per network call (`estimate_batch`): launch bound (RTX 5060 Ti, Windows, fp16,
     # 8 frames 480 x 640, ms per frame:
-    # yunet-n 5.5 -> 2.6 (kernels with CUDA graphs 1.2 -> 0.87), yunet-s 5.0 -> 2.5 (1.2 -> 0.85)); 1080p runs one image
+    # yunet-n 5.3 -> 2.0 (kernels with CUDA graphs 1.2 -> 0.87), yunet-s 5.0 -> 2.5 (1.2 -> 0.85)); 1080p runs one image
     # per call
     batch_pixels = 2_100_000
 

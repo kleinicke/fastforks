@@ -871,6 +871,7 @@ option depth.unik3d.resolution_level
 option depth.video_depth_anything.short_side aliases input_size
 option depth.zoedepth.flip
 option depth.zoedepth.pad_input
+option detection.detr.cuda_graphs
 option detection.detr.max_detections
 option detection.detr.score_threshold
 option detection.dfine.cuda_graphs
