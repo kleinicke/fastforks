@@ -7,7 +7,8 @@ clustering of the target patches (cosine distance, threshold 1 - tau), then seed
 
 Here the backbone is `fastforks.features` DINOv3 in the same mode (portable: SDPA fp16; kernels: the fastbb / dpt_fused
 ViT), and the clustering runs on the device (`average_linkage`: reciprocal-nearest-neighbour merges, the same
-dendrogram as upstream's scikit-learn on the CPU). The per-cluster loops are scatter reductions.
+dendrogram as upstream's scikit-learn on the CPU) until at most `HOST_TAIL` clusters remain, then on the host. The
+per-cluster loops are scatter reductions.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, Literal
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 
@@ -24,6 +26,7 @@ from fastforks._core import registry
 from fastforks._core.image import checked_ranges
 from fastforks._core.model import load_variant
 from fastforks._core.runner import host
+from fastforks._core.upload import to_device
 from fastforks.features._api import TASK, FeaturesModel
 from fastforks.promptable_segmentation._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
@@ -33,6 +36,10 @@ if TYPE_CHECKING:
 
 PREFIX = 5  # fixed: DINOv3 cls + 4 register tokens in front of the patch grid
 HALF = 0.5  # fixed: upstream's threshold of resized binary masks
+# Clusters below which the merge rounds continue in numpy: a GPU round costs about 15 launches, a host sync and an
+# upload whatever its size, a numpy round on a 256 x 256 float64 matrix a fraction of a millisecond (4096 patches:
+# 34 rounds; RTX 5060 Ti, Windows: 43.5 -> 21.7 ms). The labels do not depend on it.
+HOST_TAIL = 256
 
 
 @dataclass(frozen=True)
@@ -62,32 +69,78 @@ def average_linkage(x: torch.Tensor, threshold: float) -> torch.Tensor:
     dev = x.device
     d = (1.0 - (x @ x.T).clamp(-1, 1)).double()
     d.fill_diagonal_(math.inf)
-    ids = torch.arange(n, device=dev)  # original representative of each row of `d`
-    size = torch.ones(n, dtype=torch.float64, device=dev)
-    owner = torch.arange(n, device=dev)  # representative of each point
+    # the bookkeeping on the host: original representative of each row of `d`, cluster sizes, representative of each
+    # point; the device does only the dense row / column work of a round (one copy each way per round)
+    ids, size, owner = np.arange(n), np.ones(n), np.arange(n)
     while d.shape[0] > 1:
         m = d.shape[0]
-        nn_d, nn = d.min(1)
-        r = torch.arange(m, device=dev)
-        pair = (nn[nn] == r) & (r < nn) & (nn_d < threshold)
-        i = pair.nonzero().squeeze(1)
-        if i.numel() == 0:
+        if m <= HOST_TAIL:  # small: the rest of the rounds in numpy
+            owner = _merge_rounds(d.cpu().numpy(), ids, size, owner, threshold)
             break
-        j = nn[i]
-        a = size[i] / (size[i] + size[j])
-        b = 1.0 - a
-        d[i] = a[:, None] * d[i] + b[:, None] * d[j]  # Lance-Williams: rows of the merged clusters
-        d[:, i] = d[:, i] * a + d[:, j] * b  # then their columns (fixes merged-merged entries too)
-        size[i] += size[j]
-        remap = torch.arange(n, device=dev)
-        remap[ids[j]] = ids[i]
-        owner = remap[owner]
-        # the rows left, in order, without a host sync (boolean-mask indexing reads the count back): `j` holds distinct
-        # rows (mutual nearest-neighbour pairs are disjoint), so the first m - len(j) of a stable sort are the kept ones
-        gone = torch.zeros(m, dtype=torch.uint8, device=dev).index_fill_(0, j, 1)
-        rows = torch.argsort(gone, stable=True)[: m - j.numel()]
-        d, ids, size = d.index_select(0, rows).index_select(1, rows), ids[rows], size[rows]
-    return torch.unique(owner, return_inverse=True)[1]
+        nn_d, nn = d.min(1)
+        host = torch.cat((nn_d, nn.double())).cpu().numpy()  # one host sync; indices < 2**53 are exact in float64
+        merge = _merge_plan(host[:m], host[m:].astype(np.int64), size, threshold)
+        if merge is None:
+            break
+        i, j, a, b = merge
+        keep = np.ones(m, dtype=bool)
+        keep[j] = False
+        idx = to_device(torch.from_numpy(np.concatenate((i, j, np.flatnonzero(keep)))), dev)
+        ab = to_device(torch.from_numpy(np.stack((a, b))), dev)
+        ti, tj, rows, ta, tb = idx[: i.size], idx[i.size : 2 * i.size], idx[2 * i.size :], ab[0], ab[1]
+        # Lance-Williams: rows of the merged clusters, then their columns (fixes merged-merged entries too)
+        d.index_copy_(0, ti, ta[:, None] * d.index_select(0, ti) + tb[:, None] * d.index_select(0, tj))
+        d.index_copy_(1, ti, d.index_select(1, ti) * ta + d.index_select(1, tj) * tb)
+        d = d.index_select(0, rows).index_select(1, rows)
+        ids, size, owner = _merged((ids, size, owner), i, j, keep)
+    return torch.unique(torch.from_numpy(owner), return_inverse=True)[1].to(dev)
+
+
+def _merge_plan(
+    nn_d: np.ndarray, nn: np.ndarray, size: np.ndarray, threshold: float
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray] | None:
+    """The merges of a round: mutual nearest-neighbour rows `i < j` closer than `threshold`, and their row weights."""
+    r = np.arange(nn.shape[0])
+    i = np.flatnonzero((nn[nn] == r) & (r < nn) & (nn_d < threshold))
+    if i.size == 0:
+        return None
+    j = nn[i]
+    a = size[i] / (size[i] + size[j])
+    return i, j, a, 1.0 - a
+
+
+_State = tuple[np.ndarray, np.ndarray, np.ndarray]  # ids, size, owner
+
+
+def _merged(state: _State, i: np.ndarray, j: np.ndarray, keep: np.ndarray) -> _State:
+    """The bookkeeping after merging rows `j` into rows `i`: `ids` and `size` of the rows kept, `owner` relabelled."""
+    ids, size, owner = state
+    size = size.copy()
+    size[i] += size[j]
+    remap = np.arange(owner.shape[0])
+    remap[ids[j]] = ids[i]
+    return ids[keep], size[keep], remap[owner]
+
+
+def _merge_rounds(d: np.ndarray, ids: np.ndarray, size: np.ndarray, owner: np.ndarray, threshold: float) -> np.ndarray:
+    """`average_linkage`'s merge rounds in numpy, from a state of its loop; returns `owner`.
+
+    The same float64 operations, so the same merges (argmin returns the first minimum, as torch's `min`).
+    """
+    while d.shape[0] > 1:
+        m = d.shape[0]
+        nn = d.argmin(1)
+        merge = _merge_plan(d[np.arange(m), nn], nn, size, threshold)
+        if merge is None:
+            break
+        i, j, a, b = merge
+        d[i] = a[:, None] * d[i] + b[:, None] * d[j]
+        d[:, i] = d[:, i] * a + d[:, j] * b
+        keep = np.ones(m, dtype=bool)
+        keep[j] = False
+        d = d[np.ix_(keep, keep)]
+        ids, size, owner = _merged((ids, size, owner), i, j, keep)
+    return owner
 
 
 def _downsample_mask(mask: torch.Tensor, h: int, w: int) -> torch.Tensor:
