@@ -28,6 +28,7 @@ import torch.nn.functional as F
 
 from fastforks._core.errors import InputError
 from fastforks._core.labels import label_set
+from fastforks._core.mlx_cast import to_float32
 from fastforks._core.patch import base_type, override
 from fastforks._core.runner import host
 from fastforks._core.upload import device_tensor
@@ -345,12 +346,12 @@ class Portable(Runner):
             self_attn_mask=None,
             return_dict=True,
         )
-        hid = dec.intermediate_hidden_states[:, -1].float()
+        hid = to_float32(dec.intermediate_hidden_states[:, -1])
         last_ref = dec.intermediate_reference_points[:, -2] if len(m.decoder.layers) > 1 else ref
-        logits = hid @ txt_h.float().transpose(-1, -2)
+        logits = hid @ to_float32(txt_h).transpose(-1, -2)
         if self.logit_affine is not None:
             logits = logits / self.logit_affine[0] + self.logit_affine[1]
-        boxes = (self.head(hid) + torch.special.logit(last_ref.float(), eps=1e-5)).sigmoid()
+        boxes = (self.head(hid) + torch.special.logit(to_float32(last_ref), eps=1e-5)).sigmoid()
         return logits, boxes
 
     def _image(self, x: torch.Tensor, text: Text) -> tuple[torch.Tensor, torch.Tensor]:

@@ -47,7 +47,7 @@ arch = "GroundingDinoForObjectDetection"
 [modes.portable]
 cuda_dtype = "float16"  # backbone, encoder and decoder; the text tower (once per query list) and the last heads stay float32
 mps_dtypes = ["float32"]
-mlx_dtypes = ["float32"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["msda"]
