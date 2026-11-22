@@ -344,10 +344,7 @@ def variant_card(card: ModelCard, variant: Variant) -> ModelCard:
 
 def task_of(model: str) -> str | None:
     """The task whose installed models include `model` (`"id"` or `"id@revision"`); `None` if none (or not a str)."""
-    if not isinstance(model, str):
-        return None
-    model_id = model.partition("@")[0]
-    return next((t for t in TASKS if _lookup(t, model_id) is not None), None)
+    return next((t for t in TASKS if known(t, model)), None)
 
 
 def _lookup(task: str, model_id: str) -> tuple[ModelCard, Variant] | None:
