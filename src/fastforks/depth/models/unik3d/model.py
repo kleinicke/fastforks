@@ -116,6 +116,8 @@ def _refl_conv(self: nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
         and x.is_contiguous(memory_format=torch.channels_last)
     ):
         x = _pad_reflect(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
+    elif x.device.type == "mps":  # 2-5x faster than the two concatenations there
+        x = F.pad(x, (1, 1, 1, 1), mode="reflect")
     else:
         x = torch.cat([x[..., 1:2, :], x, x[..., -2:-1, :]], -2)
         x = torch.cat([x[..., 1:2], x, x[..., -2:-1]], -1)
