@@ -26,6 +26,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.half import half_weights
 from fastforks._core.patch import override
 from fastforks._core.upload import device_tensor
 from fastforks.kernels import image_normalize
@@ -217,6 +218,9 @@ class Kernels(Portable):
         """Prepare the accelerated inference path on the model device."""
         super().__init__(ctx)
         descriptor = self.net.descriptor
+        if self.net.amp == torch.float16:
+            # runs only under float16 autocast, which recast its requires_grad=False fp32 weights on every call
+            half_weights(descriptor, channels_last=False)
         override(descriptor, _descriptor_forward)
         dense = CapturedModule(self.net.descriptor, pixels=2**21)
         self.net.set_submodule("descriptor", dense)
