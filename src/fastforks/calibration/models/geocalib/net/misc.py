@@ -200,7 +200,8 @@ class SphericalManifold:
         xpiv = x[..., -1]
         norm = torch.norm(x, dim=-1)
         small = sigma < 1e-7
-        if not torch.compiler.is_compiling() and torch.any(small):
+        # fastforks: the check reads the device (a sync per call); log only when debugging
+        if not torch.compiler.is_compiling() and logger.isEnabledFor(logging.DEBUG) and torch.any(small):
             logger.warning("sigma < 1e-7")
         sigma = torch.where(small, sigma + 1e-7, sigma)
 
@@ -228,7 +229,7 @@ class SphericalManifold:
         """Plus operator Jacobian."""
         v, beta = cls.householder_vector(x)
         H = -torch.einsum("..., ...k, ...l->...kl", beta, v, v)
-        H = H + torch.eye(H.shape[-1]).to(H)
+        H = H + torch.eye(H.shape[-1], dtype=H.dtype, device=H.device)  # fastforks: made on the device, no upload
         return H[..., :-1]  # J
 
     @classmethod

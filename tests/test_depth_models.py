@@ -11,6 +11,7 @@ import torch
 
 from fastforks import BackendUnavailableError, InputError, WeightsError, depth
 from fastforks._core import registry
+from fastforks.depth.models.depth_anything_v2 import model as dav2_model
 from fastforks.depth.models.depth_anything_v2.model import network_size
 from fastforks.depth.models.unidepth_v2.model import RATIO_BOUNDS, _geometry, _prepare, _restore
 from fastforks.depth.models.unidepth_v2.net.utils import PinholeCamera
@@ -56,6 +57,61 @@ def _map(result: depth.DepthResult) -> torch.Tensor:
 )
 def test_dav2_network_size(h, w, short_side, want):
     assert network_size(h, w, short_side) == want
+
+
+@pytest.mark.parametrize(
+    ("shape", "short_side", "graphed"),
+    [
+        ((1, 3, 512, 512), 518, True),  # network 518 x 518
+        ((1, 3, 1080, 1920), 518, True),  # 518 x 924: the network size counts, not the image's
+        ((2, 3, 518, 770), 518, False),  # a batch of two: 2 x 518 x 770
+        ((1, 3, 518, 770), 1036, False),  # 1036 x 1540
+        ((1, 3, 2160, 3840), 518, False),  # 4K: the graph's copy of the image would cost 133 MB
+    ],
+)
+def test_dav2_kernels_graph_size(shape, short_side, graphed):
+    """Kernels replays CUDA graphs by network size (the fused patch kernel resizes), within an image-size bound."""
+    ctx = types.SimpleNamespace(params=types.SimpleNamespace(short_side=short_side))
+    size = dav2_model.Kernels._size(types.SimpleNamespace(ctx=ctx), torch.empty(shape, device="meta"))  # ty: ignore[invalid-argument-type]
+    assert (size <= dav2_model._GRAPH_PIXELS) is graphed
+
+
+@pytest.mark.model
+@pytest.mark.gpu
+def test_dav2_kernels_graph_replay_matches_eager():
+    """A repeated shape replays a CUDA graph: the eager map bit for bit, fresh outputs, `release_graphs`, opt-out."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    try:
+        m = depth.load("depth-anything-v2-s", mode="kernels", device="cuda")
+    except (WeightsError, BackendUnavailableError) as e:
+        pytest.skip(f"depth-anything-v2-s kernels: {e}")
+    r = m._runner
+    g = r._graphs
+    assert g.cache is not None
+    gen = torch.Generator("cuda").manual_seed(0)
+    a, b = (torch.rand(1, 3, 300, 400, device="cuda", generator=gen) for _ in range(2))
+
+    def eager(x: torch.Tensor) -> torch.Tensor:
+        pixels, g.pixels = g.pixels, 0
+        try:
+            return m(x).inverse_depth
+        finally:
+            g.pixels = pixels
+
+    want_a, want_b = eager(a), eager(b)
+    m(a)  # first call: eager
+    assert not g.cache.graphs
+    first = m(a).inverse_depth  # captures
+    assert len(g.cache.graphs) == 1
+    second = m(b).inverse_depth  # replays with new data; `first` must not change
+    torch.testing.assert_close(first, want_a, rtol=0, atol=0)
+    torch.testing.assert_close(second, want_b, rtol=0, atol=0)
+    assert first.data_ptr() != second.data_ptr()
+    m.release_graphs()
+    assert not g.cache.graphs
+    off = depth.load("depth-anything-v2-s", mode="kernels", device="cuda", cuda_graphs=False)
+    assert off._runner._graphs.cache is None
 
 
 @pytest.mark.parametrize(("h", "w"), [(352, 480), (480, 640), (375, 1242), (994, 1482), (1000, 400), (97, 131)])

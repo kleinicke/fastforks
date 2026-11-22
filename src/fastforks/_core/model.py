@@ -850,9 +850,12 @@ _AMPERE = 8  # first GPU generation (compute capability major) with bfloat16 har
 
 @functools.cache
 def _auto_portable() -> frozenset[str]:
-    """Model ids for which `auto` stays on `portable`: the kernels measured no faster (`tools/gen_auto_mode.py`)."""
+    """Model ids for which `auto` stays on `portable`: the kernels measured no faster (`tools/gen_auto_mode.py`).
+
+    On Windows the list measured there (WDDM launches cost more, which favours the kernels).
+    """
     data = json.loads(Path(__file__).with_name("auto_portable.json").read_text(encoding="utf-8"))
-    return frozenset(data["portable"])
+    return frozenset((data["windows"] if sys.platform == "win32" else data)["portable"])
 
 
 @functools.cache

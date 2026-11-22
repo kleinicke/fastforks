@@ -282,13 +282,13 @@ _Output = TypeVar("_Output")
 class SmallShapeGraphs(Generic[_Output]):
     """A kernels forward that replays a `GraphCache` graph for small inputs and runs eagerly otherwise.
 
-    Small means `batch x H x W` of the first input <= `pixels` (launch-bound: the host issues the kernels slower than
-    the GPU runs them); larger inputs are GPU-bound, where a graph's pool would only cost memory: such an input first
-    frees the graphs of earlier small shapes (they capture again when a shape repeats). `enabled=False`
-    (option `cuda_graphs = false`) keeps every call eager; `release()` frees the graphs and their pool.
+    Small means `batch x H x W` of the first input (or `size(*inputs)`) <= `pixels` (launch-bound: the host issues the
+    kernels slower than the GPU runs them); larger inputs are GPU-bound, where a graph's pool would only cost memory:
+    such an input first frees the graphs of earlier small shapes (they capture again when a shape repeats).
+    `enabled=False` (option `cuda_graphs = false`) keeps every call eager; `release()` frees the graphs and their pool.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 - the cache policy
         self,
         forward: Callable[..., _Output],
         *,
@@ -296,16 +296,23 @@ class SmallShapeGraphs(Generic[_Output]):
         graphs: int = 2,
         enabled: bool = True,
         capture_after: int = 1,
+        size: Callable[..., int] | None = None,
     ) -> None:
-        """`forward(*tensors) -> Tensor`; at most `graphs` shapes keep a graph (see `GraphCache`)."""
+        """`forward(*tensors) -> Tensor`; at most `graphs` shapes keep a graph (see `GraphCache`).
+
+        `size(*inputs)` replaces `batch x H x W` of the first input as the size compared with `pixels` (a forward
+        that resizes its input inside: the network size).
+        """
         self.forward = _weak(forward)
         self.pixels = pixels
+        self.size = size
         self.cache = GraphCache(forward, graphs=graphs, capture_after=capture_after) if enabled else None
 
     def __call__(self, *inputs: torch.Tensor) -> _Output:
         """`forward(*inputs)`, from a graph when the input is small, CUDA and its shape repeats."""
         x = inputs[0]
-        if self.cache is not None and x.is_cuda and x.shape[0] * x.shape[-2] * x.shape[-1] <= self.pixels:
+        small = (self.size(*inputs) if self.size else x.shape[0] * x.shape[-2] * x.shape[-1]) <= self.pixels
+        if self.cache is not None and x.is_cuda and small:
             key = (x.device, tuple((t.dtype, tuple(t.shape)) for t in inputs))
             out = self.cache.run(key, *inputs)
             if out is not None:

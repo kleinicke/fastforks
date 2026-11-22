@@ -31,6 +31,7 @@ class Params:
     dim_expansion: int
     use_positivity: bool
     refine_iter: int
+    cuda_graphs: bool
 
 
 class Dummy(Runner):

@@ -116,3 +116,35 @@ def test_kernel_lookup_matches_portable(height: int, width: int, batch: int) -> 
     got = _kernel_lookup(raft_flow.load(torch.device("cuda")), features)(flow_)
     assert got.shape == want.shape
     torch.testing.assert_close(got.float(), want.half().float(), rtol=0, atol=2e-3)  # fp16 ulp of |corr| < 4
+
+
+@pytest.mark.gpu
+def test_kernels_graph_replay_matches_eager(weights: Path) -> None:
+    """Kernels replays a repeated small shape from a CUDA graph: the eager numbers, fresh outputs, opt-out."""
+    model = flow.load("neuflow-v2", weights=weights, device="cuda", mode="kernels", iters=2)
+    r = model._runner
+    g = r._graphs
+    assert g.cache is not None
+    pairs = [tuple(t.cuda() for t in _pair(64, 96, batch=2)), tuple(t.cuda().flip(-1) for t in _pair(64, 96, batch=2))]
+
+    def eager(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        pixels, g.pixels = g.pixels, 0
+        try:
+            return r(a, b)["flow"]
+        finally:
+            g.pixels = pixels
+
+    with torch.inference_mode():
+        want = [eager(*p) for p in pairs]
+        r(*pairs[0])  # first call: eager
+        assert not g.cache.graphs
+        first = r(*pairs[0])["flow"]  # second call: captures
+        assert len(g.cache.graphs) == 1
+        second = r(*pairs[1])["flow"]  # replay with new data; `first` must not change
+    torch.testing.assert_close(first, want[0], rtol=0, atol=0)
+    torch.testing.assert_close(second, want[1], rtol=0, atol=0)
+    assert first.data_ptr() != second.data_ptr()
+    model.release_graphs()
+    assert not g.cache.graphs
+    off = flow.load("neuflow-v2", weights=weights, device="cuda", mode="kernels", iters=2, cuda_graphs=False)
+    assert off._runner._graphs.cache is None

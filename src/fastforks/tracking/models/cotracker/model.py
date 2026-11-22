@@ -227,7 +227,7 @@ class Core:
         """Upstream's iterations on one window: level-0 `coords` `[S, N, 2]`, logits `vis` / `conf` `[S, N]`."""
         s = coords.shape[0]
         net = self.net
-        scale = torch.tensor([net.model_resolution[1], net.model_resolution[0]], device=coords.device) / net.stride
+        scale = _pair(net.model_resolution[1], net.model_resolution[0], coords.device) / net.stride
         temb = self.time_embed(s)
         for _ in range(iters):
             cn = coords.transpose(0, 1)  # [N, S, 2]
@@ -257,7 +257,14 @@ def _frames(frames: Callable[[int], torch.Tensor], a: int, b: int) -> torch.Tens
 def _scale(size: tuple[int, int], device: torch.device) -> torch.Tensor:
     """Input pixels -> network pixels `(x, y)` (upstream: `(interp - 1) / (W - 1)`)."""
     h, w = size
-    return torch.tensor([(SIZE[1] - 1) / (w - 1), (SIZE[0] - 1) / (h - 1)], device=device)
+    return _pair((SIZE[1] - 1) / (w - 1), (SIZE[0] - 1) / (h - 1), device)
+
+
+def _pair(a: float, b: float, device: torch.device) -> torch.Tensor:
+    """float32 `[a, b]` filled on `device` (`torch.tensor` uploads from pageable memory, which waits for the device)."""
+    t = torch.full((2,), a, dtype=torch.float32, device=device)
+    t[1:].fill_(b)  # not t[1] = b: that uploads the scalar
+    return t
 
 
 def track_offline(

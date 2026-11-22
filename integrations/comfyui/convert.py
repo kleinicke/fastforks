@@ -150,18 +150,31 @@ def box(text: str) -> list[float] | None:
     return values
 
 
-def person_boxes(detections: str, i: int) -> list[list[float]] | None:
-    """The person boxes of image `i` from a detection node's JSON output; `None` for empty text.
+# COCO classes of the bodies a pose label set describes; hand and face models take every box (a hand / face detector's)
+_ANIMALS = frozenset({"bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe"})
+_PEOPLE = frozenset({"person"})
+SUBJECTS: dict[str, frozenset[str]] = {
+    "coco-keypoints-17": _PEOPLE,
+    "coco-wholebody-133": _PEOPLE,
+    "halpe-26": _PEOPLE,
+    "ap10k-17": _ANIMALS,
+}
 
-    The JSON is a list (one entry per image) of lists of dicts with `box` and `class_name`; boxes of every class are
-    used if no detection is named `person`.
+
+def subject_boxes(detections: str, i: int, label_set: str) -> list[list[float]] | None:
+    """The boxes of image `i` a pose model of `label_set` estimates, from a detection node's JSON; `None`: empty text.
+
+    The JSON is a list (one entry per image) of lists of dicts with `box` and `class_name`. Body models take the
+    detections of their subject (people, or the COCO animals for AP-10K); boxes of every class are used if none is
+    one, and for hand and face models.
     """
     if not detections.strip():
         return None
     per_image: list[list[dict[str, Any]]] = json.loads(detections)
     dets = per_image[min(i, len(per_image) - 1)]
-    people = [d for d in dets if d.get("class_name") == "person"] or dets
-    return [list(map(float, d["box"])) for d in people]
+    subject = SUBJECTS.get(label_set)
+    picked = [d for d in dets if d.get("class_name") in subject] if subject else []
+    return [list(map(float, d["box"])) for d in picked or dets]
 
 
 def draw_pose(  # noqa: PLR0913 - the fields of one image's pose result

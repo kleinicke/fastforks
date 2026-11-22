@@ -44,6 +44,8 @@ def pack(tmp_path_factory: pytest.TempPathFactory) -> Any:
     mm = types.ModuleType("comfy.model_management")
     mm.unload_all_models = lambda: calls.append("comfy")
     mm.soft_empty_cache = lambda: calls.append("empty")
+    mm.free_memory = lambda *_, **__: []
+    mm.get_free_memory = lambda *_, **__: float("inf")
     mm.throw_exception_if_processing_interrupted = lambda: None
     mm.intermediate_device = lambda: torch.device("cpu")
     comfy = types.ModuleType("comfy")
@@ -460,8 +462,15 @@ def test_prompt_parsing(pack: Any) -> None:
     with pytest.raises(ValueError, match="box"):
         c.box("1,2,3")
     dets = json.dumps([[{"box": [0, 0, 5, 5], "class_name": "dog"}, {"box": [1, 1, 2, 2], "class_name": "person"}]])
-    assert c.person_boxes(dets, 3) == [[1.0, 1.0, 2.0, 2.0]]
-    assert c.person_boxes("", 0) is None
+    assert c.subject_boxes(dets, 3, "coco-keypoints-17") == [[1.0, 1.0, 2.0, 2.0]]
+    assert c.subject_boxes(dets, 0, "ap10k-17") == [[0.0, 0.0, 5.0, 5.0]]  # the animal, not the person
+    assert c.subject_boxes(dets, 0, "lapa-106") == [[0.0, 0.0, 5.0, 5.0], [1.0, 1.0, 2.0, 2.0]]  # face boxes: all
+    cars = json.dumps([[{"box": [0, 0, 5, 5], "class_name": "car"}]])
+    assert c.subject_boxes(cars, 0, "ap10k-17") == [[0.0, 0.0, 5.0, 5.0]]  # no animal: every box
+    assert c.subject_boxes("", 0, "halpe-26") is None
+    from fastforks.pose._api import SKELETONS  # noqa: PLC0415 - only this check needs the pose task
+
+    assert set(c.SUBJECTS) <= set(SKELETONS)  # every named label set exists
     assert json.loads(c.to_json([{"a": torch.tensor([1.5])}])) == [{"a": [1.5]}]
 
 
@@ -491,6 +500,71 @@ def test_labels_and_unload_hook(pack: Any) -> None:
     assert pack.calls == ["comfy", "empty"]
     assert not nodes._cache
     assert set(pack.NODE_CLASS_MAPPINGS) == set(pack.NODE_DISPLAY_NAME_MAPPINGS)
+
+
+def test_comfyui_making_room_frees_our_models(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """ComfyUI's free_memory, short after unloading its own models: our CUDA graphs go first, then our models (least
+    recently used first), only on that device and only until enough is free."""
+    nodes, mm = pack.nodes, pack.mm
+    cuda, other = torch.device("cuda", 0), torch.device("cuda", 1)
+
+    class Held:
+        def __init__(self, device: torch.device, weights: int, graphs: int) -> None:
+            self.device, self.weights, self.graphs = device, weights, graphs
+
+        def release_graphs(self) -> None:
+            self.graphs = 0
+
+    monkeypatch.setattr(nodes, "_cache", nodes.OrderedDict())
+    nodes._cache[("old",)] = Held(cuda, 3, 2)
+    nodes._cache[("new",)] = Held(cuda, 3, 2)
+    nodes._cache[("elsewhere",)] = Held(other, 3, 2)
+    total = 20
+
+    def used(dev: torch.device, *, graphs: bool) -> int:
+        return sum(m.weights + graphs * m.graphs for m in nodes._cache.values() if m.device == dev)
+
+    # as ComfyUI: a graph's pool is PyTorch's cached memory, counted as free; the device itself does not have it
+    monkeypatch.setattr(mm, "get_free_memory", lambda dev, **_: total - used(dev, graphs=False))
+    monkeypatch.setattr(nodes, "_device_free", lambda dev: total - used(dev, graphs=True))
+    monkeypatch.setattr(mm, "free_memory", lambda *_, **__: ["comfy"])
+    nodes.install_unload_hook()  # wraps the stub just set
+
+    assert mm.free_memory(9, cuda) == ["comfy"]  # 10 free on the device: nothing to do
+    assert all(m.graphs == 2 for m in nodes._cache.values())
+    mm.free_memory(13, cuda)  # ComfyUI sees 14 free, the device has 10: the graphs go, both models stay
+    assert list(nodes._cache) == [("old",), ("new",), ("elsewhere",)]
+    assert [m.graphs for m in nodes._cache.values()] == [0, 0, 2]  # the other device's graphs stay
+    mm.free_memory(17, cuda)  # one model (3) more is enough: the least recently used goes
+    assert list(nodes._cache) == [("new",), ("elsewhere",)]
+    mm.free_memory(100, cuda)  # never enough: every model on that device goes, the other device's stays
+    assert list(nodes._cache) == [("elsewhere",)]
+
+
+def test_load_keeps_models_while_memory_lasts(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A workflow cycling several nodes reloads none of them; only memory (or `_MAX_CACHED`) drops the oldest."""
+    nodes, mm = pack.nodes, pack.mm
+    loads: list[str] = []
+    asked: list[float] = []
+
+    def fake_load(mid: str, **kw: Any) -> Any:
+        loads.append(mid)
+        return types.SimpleNamespace(device=kw["device"], backend="portable", release_graphs=lambda: None)
+
+    monkeypatch.setattr(nodes, "_cache", nodes.OrderedDict())
+    monkeypatch.setattr(nodes.fastforks, "load", fake_load)
+    monkeypatch.setattr(nodes, "_weights_bytes", lambda _: 2**20)
+    monkeypatch.setattr(mm, "get_torch_device", lambda: torch.device("cpu"), raising=False)
+    monkeypatch.setattr(mm, "free_memory", lambda need, *_, **__: asked.append(need) or [])
+    ids = ["depth-anything-v2-s", "birefnet-lite", "sam2.1-hiera-small", "rife-4.26", "realesr-general-x4v3"]
+    for _ in range(3):
+        for mid in ids:
+            nodes.load(mid, "auto", "auto")
+    assert loads == ids  # each loaded once
+    assert asked == [2 * 2**20 + 2**30] * len(ids)  # room asked before each load, never on a cache hit
+    monkeypatch.setattr(nodes, "_MAX_CACHED", 2)
+    nodes.load("rtdetrv2-r18", "auto", "auto")
+    assert [k[0] for k in nodes._cache] == ["realesr-general-x4v3", "rtdetrv2-r18"]  # oldest dropped first
 
 
 def test_cache_setup(pack: Any, tmp_path: Path) -> None:

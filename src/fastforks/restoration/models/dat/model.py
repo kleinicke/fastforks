@@ -17,6 +17,7 @@ it, its `eps` divided by the square (exact).
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import math
 import re
@@ -32,7 +33,7 @@ from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
-from fastforks._core.half import fp16_accumulate
+from fastforks._core.half import fp16_accumulate, fp32_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, dat_interaction
 from fastforks.restoration._runner import Crop, Forward, Runner
@@ -221,14 +222,28 @@ def _spatial_block(  # noqa: PLR0913 - separate CUDA gate and attention mask spe
     return m.proj(mix(att, conv.flatten(2).transpose(1, 2), channel_map, spatial_map.flatten(2).transpose(1, 2)))
 
 
-def _channel_block(
-    m: Adaptive_Channel_Attention, x: torch.Tensor, h: int, w: int, *, mix: Callable = _interact
+def _channel_block(  # noqa: PLR0913 - a CUDA gate and the fp32 scores, like `_spatial_block`
+    m: Adaptive_Channel_Attention,
+    x: torch.Tensor,
+    h: int,
+    w: int,
+    *,
+    mix: Callable = _interact,
+    fp32_scores: bool = False,
 ) -> torch.Tensor:
-    """`Adaptive_Channel_Attention.forward` with its convolutions on channels-last views (no transposed copies)."""
+    """`Adaptive_Channel_Attention.forward` with its convolutions on channels-last views (no transposed copies).
+
+    `fp32_scores`: q k^T (a sum over all h * w tokens) accumulates in fp32 also under `fp16_accumulate`. An fp16
+    accumulator cannot add the many small products of the normalized q and k (a 512 x 512 tile: 262144 terms, sum at
+    most 1): DAT x4 kernels then differed from portable by up to 112 / 255 on a photo. Same speed: the d x d GEMM is
+    bound by reading q and k, not by the accumulation rate.
+    """
     b, n, c = x.shape
     qkv = m.qkv(x).reshape(b, n, 3, m.num_heads, c // m.num_heads).permute(2, 0, 3, 4, 1)  # 3, b, heads, d, n
     q, k, v = F.normalize(qkv[0], dim=-1), F.normalize(qkv[1], dim=-1), qkv[2]
-    attn = ((q @ k.transpose(-2, -1)) * m.temperature).softmax(dim=-1)
+    with fp32_accumulate() if fp32_scores else contextlib.nullcontext():
+        scores = q @ k.transpose(-2, -1)
+    attn = (scores * m.temperature).softmax(dim=-1)
     del q, k
     att = (attn @ v).permute(0, 3, 1, 2).reshape(b, n, c)
     conv = m.dwconv(_image(qkv[2].permute(0, 3, 1, 2).reshape(b, n, c), h, w))
@@ -343,7 +358,7 @@ def _cuda_spatial(m: Adaptive_Spatial_Attention, x: torch.Tensor, h: int, w: int
 
 
 def _cuda_channel(m: Adaptive_Channel_Attention, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
-    return _channel_block(m, x, h, w, mix=dat_interaction.interaction)
+    return _channel_block(m, x, h, w, mix=dat_interaction.interaction, fp32_scores=True)
 
 
 class Kernels(Portable):

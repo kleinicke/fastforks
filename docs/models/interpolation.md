@@ -170,6 +170,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Weights licence: LicenseRef-noncommercial
 - Licence evidence: https://github.com/GSeanCDAT/GIMM-VFI/blob/dbc56449994a3c2e045d46fd46bed570239913f8/LICENSE ; https://github.com/GSeanCDAT/GIMM-VFI/blob/dbc56449994a3c2e045d46fd46bed570239913f8/README.md (weights: https://huggingface.co/GSean/GIMM-VFI)
 - Training data: Vimeo-90K (septuplets / triplets for frame interpolation) (configs/gimmvfi/gimmvfi_r_arb.yaml: Vimeo-90K septuplets with arbitrary-time targets; the RAFT flow estimator starts from the raft-things checkpoint (FlyingChairs + FlyingThings3D).)
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `raft_flow`, `cudnn_hacc`
 - Variants: `gimm-vfi-r`, `gimm-vfi-r-p`
 - Public TensorRT export is unavailable for `gimm-vfi-r` (the full FP32 engine diverges on pixels; the fixed RAFT encoder stage also loses 0.094 dB PSNR on one of 172 DAVIS triplets).

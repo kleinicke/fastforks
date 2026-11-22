@@ -32,7 +32,7 @@ from ..net.aanet import AANet
 from ..net.deform import DeformConv2d, DeformSimpleBottleneck, SimpleBottleneck
 from ..net.estimation import DisparityEstimation
 from ..net.refinement import HourglassRefinement, StereoDRNetRefinement
-from ..net.warp import disp_warp
+from ..net.warp import normalize_coords
 
 
 def _dense(conv: nn.Conv2d) -> nn.Conv2d:
@@ -120,6 +120,23 @@ def _estimation_forward(self: DisparityEstimation, cost_volume: torch.Tensor) ->
     return torch.sum(prob * candidates, 1)
 
 
+def _disp_warp(img: torch.Tensor, disp: torch.Tensor) -> torch.Tensor:
+    """`net.warp.disp_warp(img, disp)[0]` (the warped image, float32 inside) with the pixel grid made on the device.
+
+    The same numbers: upstream's `meshgrid` builds the grid with a CPU `arange`, a host-to-device copy that a CUDA
+    graph cannot capture; the unused validity mask is left out.
+    """
+    dtype, img, disp = img.dtype, img.float(), disp.float()
+    b, _, h, w = img.shape
+    x_range = torch.arange(w, device=img.device, dtype=img.dtype).view(1, 1, w).expand(1, h, w)
+    y_range = torch.arange(h, device=img.device, dtype=img.dtype).view(1, h, 1).expand(1, h, w)
+    grid = torch.cat((x_range, y_range), dim=0).unsqueeze(0).expand(b, 2, h, w)  # [B, 2, H, W] in image scale
+    offset = torch.cat((-disp, torch.zeros_like(disp)), dim=1)
+    sample_grid = normalize_coords(grid + offset)  # [B, H, W, 2] in [-1, 1]
+    warped = F.grid_sample(img, sample_grid, mode="bilinear", padding_mode="border", align_corners=False)
+    return warped.to(dtype)
+
+
 def _refine(
     self: StereoDRNetRefinement | HourglassRefinement, low_disp: torch.Tensor, left: torch.Tensor, right: torch.Tensor
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -131,7 +148,7 @@ def _refine(
     scale = left.size(-1) / disp.size(-1)
     if scale != 1.0:
         disp = F.interpolate(disp, size=left.size()[-2:], mode="bilinear", align_corners=False) * scale
-    warped = disp_warp(right, disp)[0]
+    warped = _disp_warp(right, disp)
     concat = torch.cat((warped - left, left), dim=1).half().contiguous(memory_format=CL)
     feat = torch.cat((self.conv1(concat), self.conv2(disp.half().contiguous(memory_format=CL))), dim=1)
     return disp, feat

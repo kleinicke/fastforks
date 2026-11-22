@@ -1,8 +1,9 @@
 """ComfyUI nodes over the public fastforks API: `fastforks.load(id)` once, then call the model per image.
 
 Every node takes a model id, a backend (`auto` / `portable` / `kernels`) and a dtype. Loaded models stay cached across
-runs (at most `_MAX_CACHED`, least recently used dropped first) on ComfyUI's device; ComfyUI's "Unload models" also
-empties the cache. ComfyUI is imported lazily so the module imports without it (unit tests).
+runs on ComfyUI's device. When ComfyUI (or a node loading another model) needs memory, the least recently used
+ones go first (`make_room`); `_MAX_CACHED` only bounds how many are kept. ComfyUI's "Unload models" also empties the
+cache. ComfyUI is imported lazily so the module imports without it (unit tests).
 
 Two packs share this module (one copy, `fastforks_comfyui.nodes`): the default pack `fastforks` (this folder,
 `mappings()`) lists every model, non-commercial ones tagged, and runs its nodes inside `registry.allow_noncommercial()`
@@ -43,7 +44,7 @@ log = logging.getLogger("fastforks.comfyui")
 BACKENDS = ["auto", "portable", "kernels"]
 DTYPES = ["auto", "float32", "float16", "bfloat16"]
 _TAGS = {"no": " [non-commercial]", "unclear": " [licence unclear]"}
-_MAX_CACHED = 2
+_MAX_CACHED = 8  # memory decides first (`make_room`): a workflow cycling a few nodes reloads none
 _FILE = "file: "  # dropdown prefix of a checkpoint file of ComfyUI's `models/upscale_models`
 _files: dict[str, tuple[float, str | None]] = {}  # path -> (mtime, `restoration._api._checkpoint_family`)
 _cache: OrderedDict[tuple[Any, ...], fastforks.Model] = OrderedDict()
@@ -88,7 +89,18 @@ def commercial(mid: str) -> bool:
 
 
 def model_input(node: type[_Node]) -> tuple[list[str], dict[str, Any]]:
-    """The `model` dropdown of a node: the ids its pack runs (`node.ids()`), its default and a licence tooltip."""
+    """The `model` dropdown of a node: the ids its pack runs (`node.ids()`), its default and a licence tooltip.
+
+    Computed once per node class (`_model_input`), copies returned: ComfyUI calls `INPUT_TYPES` several times per node
+    and run (validation, input fetch, caching), and listing the models takes ~11 ms (every card's licence status). The
+    entries change only with the installed packages, which ComfyUI reads at start.
+    """
+    entries, opts = _model_input(node)
+    return list(entries), dict(opts)
+
+
+@functools.cache
+def _model_input(node: type[_Node]) -> tuple[tuple[str, ...], dict[str, Any]]:
     ids = node.ids()
     entries = labels(ids)
     pick = next((e for e in entries if model_id(e) == node.DEFAULT), entries[0] if entries else "")
@@ -106,7 +118,7 @@ def model_input(node: type[_Node]) -> tuple[list[str], dict[str, Any]]:
                 f" Not installed: {len(missing)} more {task} models with non-commercial or GPL code (e.g."
                 f" {', '.join(missing[:3])}); they need {NC_DIST} in ComfyUI's Python (this pack's requirements.txt)."
             )
-    return entries, {"default": pick, "tooltip": "fastforks model id." + tip}
+    return tuple(entries), {"default": pick, "tooltip": "fastforks model id." + tip}
 
 
 def common(node: type[_Node]) -> dict[str, Any]:
@@ -287,7 +299,8 @@ def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = 
         if not file and _COMMERCIAL_RUN.get() and _only_full(mid):  # e.g. a linked `model` input: not validated
             msg = f"{mid} {ONLY_FULL}."
             raise fastforks.LicenceError(msg)
-        # weights + activations: ComfyUI unloads its own models until this much is free (no-op if it already is)
+        # weights + activations: ComfyUI unloads its own models, then `make_room` our least recently used ones, until
+        # this much is free (no-op if it already is)
         mm.free_memory(2 * (file.stat().st_size if file else _weights_bytes(mid)) + 2**30, device)
         model = restoration.load(file, **kw) if file else fastforks.load(mid, **(options or {}), **kw)
     log.info("fastforks: loaded %s (%s)", mid, model.backend)
@@ -341,17 +354,70 @@ def start() -> None:
 
 
 def install_unload_hook() -> None:
-    """Make ComfyUI's `unload_all_models` ("Unload models", `/free`) also drop our cache. Idempotent."""
+    """Hook our cache into ComfyUI's memory management. Idempotent.
+
+    `unload_all_models` ("Unload models", `/free`) also drops our cache; `free_memory` (called before ComfyUI loads a
+    model) also frees our models' memory when unloading its own left too little (`make_room`).
+    """
     mm = _mm()
     original = mm.unload_all_models
-    if original.__name__ == "_unload_all_models":  # already wrapped
+    if original.__name__ != "_unload_all_models":  # not wrapped yet
+
+        def _unload_all_models() -> None:
+            original()
+            unload_all()
+
+        mm.unload_all_models = _unload_all_models
+    free = mm.free_memory
+    if free.__name__ != "_free_memory":
+
+        def _free_memory(memory_required: float, device: torch.device | None, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401 - ComfyUI's list of unloaded models
+            unloaded = free(memory_required, device, *args, **kwargs)
+            make_room(memory_required, device)
+            return unloaded
+
+        mm.free_memory = _free_memory
+
+
+def _device_free(device: torch.device) -> int:
+    """Bytes free on the device itself, without PyTorch's cached blocks (ComfyUI's measure elsewhere)."""
+    device = torch.device(device)
+    return torch.cuda.mem_get_info(device)[0] if device.type == "cuda" else _mm().get_free_memory(device)
+
+
+def make_room(memory_required: float, device: torch.device | None) -> None:
+    """Free our cached models' memory on `device` while there is less than `memory_required` free there.
+
+    First their CUDA graphs (recaptured on later calls), then the models, least recently used first. ComfyUI's
+    `get_free_memory` counts PyTorch's cached blocks as free, a graph's pool among them, though only that graph can
+    use it: the graphs go whenever the device itself has too little free, measured by `_device_free`.
+    """
+    mm = _mm()
+
+    def short() -> bool:
+        return mm.get_free_memory(device) < memory_required
+
+    if device is None:  # ComfyUI frees every device: nothing to measure
         return
-
-    def _unload_all_models() -> None:
-        original()
-        unload_all()
-
-    mm.unload_all_models = _unload_all_models
+    held = [m for m in _cache.values() if m.device == torch.device(device)]
+    if not held or _device_free(device) >= memory_required:
+        return
+    for m in held:
+        m.release_graphs()
+    gc.collect()
+    mm.soft_empty_cache()
+    if not short():  # with the graphs gone, PyTorch's cached blocks are free for anyone
+        log.info("fastforks: freed the CUDA graphs of %d cached model(s) for ComfyUI", len(held))
+        return
+    # ComfyUI's "free everything" (`/free`, `unload_all_models`) asks for 1e30 bytes
+    need = "all memory" if memory_required >= 2**60 else f"{memory_required / 2**20:.0f} MiB"
+    for key in [k for k, m in _cache.items() if m.device == torch.device(device)]:
+        log.info("fastforks: unloading %s for ComfyUI (%s needed)", key[0], need)
+        del _cache[key]
+        gc.collect()
+        mm.soft_empty_cache()
+        if not short():
+            return
 
 
 def each(n: int, fn: Callable[[int], Any]) -> list[Any]:
@@ -715,9 +781,12 @@ class Detect(_Node):
 
 
 class Pose(_Node):
-    """Human keypoints, drawn as skeletons on black (pose ControlNet input) and as JSON."""
+    """Human (or animal) keypoints, drawn as skeletons on black (pose ControlNet input) and as JSON."""
 
-    DESCRIPTION = "Keypoints as a skeleton image and as JSON. Top-down models use the person boxes of a Detect node."
+    DESCRIPTION = (
+        "Keypoints as a skeleton image and as JSON. Top-down models use the boxes of a Detect node (people; animals for"
+        " AP-10K models)."
+    )
     RETURN_TYPES = ("IMAGE", "STRING")
     RETURN_NAMES = ("pose_image", "keypoints")
     TASK = "pose"
@@ -726,7 +795,10 @@ class Pose(_Node):
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        tip = "Top-down models: the 'detections' output of a Detect node (person boxes); empty: the whole image."
+        tip = (
+            "Top-down models: the 'detections' output of a Detect node (person boxes; animal boxes for AP-10K models;"
+            " any boxes if none is one); empty: the whole image."
+        )
         return {
             "required": {
                 "image": ("IMAGE",),
@@ -756,7 +828,7 @@ class Pose(_Node):
             h, w = x.shape[-2:]
             boxes = None
             if cast("PoseModel", m).needs_boxes:
-                found = convert.person_boxes(detections, i)
+                found = convert.subject_boxes(detections, i, m.variant.output_info["label_set"])
                 boxes = [[0.0, 0.0, float(w), float(h)]] if found is None else found
             r = m(x, boxes=boxes)
             drawn = convert.draw_pose(

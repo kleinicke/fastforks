@@ -154,16 +154,19 @@ class FusedViT(FastViT):
         x += k.gemm(hid, m.fc2.weight, m.fc2.bias, scale=g2)
         return x
 
-    def embed_tokens(self, image: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
+    def embed_tokens(
+        self, image: torch.Tensor, size: tuple[int, int], tables: tuple[torch.Tensor, torch.Tensor] | None = None
+    ) -> torch.Tensor:
         """The ViT's input tokens `[B, 1 + gh * gw, C]` (fp16: cls, patches + positions) of float `[B, 3, H, W]`.
 
-        `image` in [0, 1] is resized to `size` and ImageNet-normalised by the patch kernel.
+        `image` in [0, 1] is resized to `size` and ImageNet-normalised by the patch kernel. `tables`: the
+        `_pos_tables` of the grid (default: looked up; a CUDA graph passes its static copies, as the cache may evict).
         """
         vit, k = self.vit, self.k
         ps = vit.patch_size
         gh, gw = size[0] // ps, size[1] // ps
         cols = k.patches(image, size, ps, self.kp, IMAGENET_MEAN, IMAGENET_STD)
-        pos, cls = self._pos_tables(gh, gw)
+        pos, cls = self._pos_tables(gh, gw) if tables is None else tables
         b = image.shape[0]
         t = torch.empty((b, gh * gw + 1, vit.embed_dim), device=image.device, dtype=torch.float16)
         t[:, 0] = cls
@@ -171,10 +174,19 @@ class FusedViT(FastViT):
             k.gemm(cols[i], self.w_patch, self.b_patch, res=pos, out=t[i, 1:], acc32=True)
         return t
 
-    def features(self, image: torch.Tensor, size: tuple[int, int], layers: Sequence[int]) -> list[torch.Tensor]:
-        """Normalised patch tokens `[B, gh * gw, C]` (fp16, no cls) of `layers` for float `[B, 3, H, W]` in [0, 1]."""
+    def features(
+        self,
+        image: torch.Tensor,
+        size: tuple[int, int],
+        layers: Sequence[int],
+        tables: tuple[torch.Tensor, torch.Tensor] | None = None,
+    ) -> list[torch.Tensor]:
+        """Normalised patch tokens `[B, gh * gw, C]` (fp16, no cls) of `layers` for float `[B, 3, H, W]` in [0, 1].
+
+        `tables`: as `embed_tokens`.
+        """
         vit = self.vit
-        t = self.embed_tokens(image, size)
+        t = self.embed_tokens(image, size, tables)
         outs = []
         last = max(layers)
         for i in range(last + 1):

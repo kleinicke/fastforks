@@ -9,6 +9,9 @@ import pytest
 import torch
 import torch.nn.functional as F
 
+from fastforks import pose
+from fastforks._core.errors import WeightsError
+from fastforks.kernels import cudnn_hacc
 from fastforks.pose.models.retinaface import model as rf
 from fastforks.pose.models.retinaface.net import HEAD, _up
 
@@ -89,3 +92,37 @@ def test_bounded_nms_preserves_order(count: int) -> None:
         xyxy[::17, 2:] = xyxy[::17, :2]  # zero-area candidates
     expected = nms(xyxy.cpu(), 0.42).cuda()
     torch.testing.assert_close(box_nms.indices(xyxy, 0.42), expected)
+
+
+@pytest.mark.gpu
+@pytest.mark.model
+def test_kernels_graph_replays_the_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Kernels replays the head maps of a repeated shape from a CUDA graph: the eager maps, fresh outputs, opt-out."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    monkeypatch.setattr(cudnn_hacc, "BUILD_AFTER", 0)  # plans on the first call, the graph on the second
+    monkeypatch.setattr(cudnn_hacc, "CAPTURE_AFTER", 1)
+    try:
+        model = pose.load("retinaface-mobilenet0.25", mode="kernels", device="cuda")
+    except WeightsError as e:
+        pytest.skip(f"retinaface weights not available: {e}")
+    r = model._runner
+    cache = r.graphs.cache
+    assert cache is not None
+    g = torch.Generator().manual_seed(0)
+    a, b = (torch.rand(1, 3, 96, 160, generator=g).cuda() for _ in range(2))
+    with torch.inference_mode():
+        want_a, want_b = rf.Portable.dense(r, a), rf.Portable.dense(r, b)
+        r.dense(a)  # first call: eager
+        assert not cache.graphs
+        first = r.dense(a)  # captures
+        assert len(cache.graphs) == 1
+        second = r.dense(b)  # replay with new data; `first` must not change
+    for got, want in ((first, want_a), (second, want_b)):
+        for x, y in zip(got, want, strict=True):
+            torch.testing.assert_close(x, y, rtol=0, atol=0)
+    assert first[0].data_ptr() != second[0].data_ptr()
+    model.release_graphs()
+    assert not cache.graphs
+    off = pose.load("retinaface-mobilenet0.25", mode="kernels", device="cuda", cuda_graphs=False)
+    assert off._runner.graphs.cache is None

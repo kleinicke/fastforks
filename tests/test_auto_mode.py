@@ -30,6 +30,15 @@ def test_listed_models_exist_and_have_kernels():
         assert "kernels" in card.modes, f"{model_id}: listed, but has no kernels backend"
 
 
+def test_windows_reads_its_own_list(monkeypatch):
+    data = json.loads((ROOT / "src/fastforks/_core/auto_portable.json").read_text(encoding="utf-8"))
+    for platform, listed in (("win32", data["windows"]["portable"]), ("linux", data["portable"])):
+        monkeypatch.setattr(core_model.sys, "platform", platform)
+        core_model._auto_portable.cache_clear()
+        assert core_model._auto_portable() == frozenset(listed), platform
+    core_model._auto_portable.cache_clear()
+
+
 def test_auto_skips_kernels_for_listed_models(monkeypatch, caplog):
     _gpu(monkeypatch, (12, 0))
     monkeypatch.setattr(core_model, "_auto_portable", lambda: frozenset({"s2m2-s"}))

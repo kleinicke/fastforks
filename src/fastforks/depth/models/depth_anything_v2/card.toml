@@ -3,7 +3,7 @@ name = "Depth Anything V2"
 summary = "Depth Anything V2 (Yang et al. 2024): relative monocular depth from a DINOv2 ViT encoder and a DPT head, trained on synthetic labels and 62M pseudo-labelled real images; with the authors' metric fine-tunes (Hypersim indoor, Virtual KITTI 2 outdoor) and the Distill-Any-Depth checkpoints (He et al. 2025) of the same network."
 tier = "stable"
 outputs = ["inverse_depth", "depth"]  # union; each variant lists its own
-uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "depth_anything_v2"]  # fastforks.shared modules this family imports
 
 licence_notes = [
   "Only the Small weights are Apache-2.0; the Base and Large weights are CC-BY-NC-4.0. The training data of even the Small model has unclear commercial terms (a note only).",
@@ -36,6 +36,7 @@ pad = "none"
 
 [options]
 short_side = { default = 518, min = 14, aliases = ["input_size"] }  # lower bound of the resized sides (original infer_image's input_size)
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for repeated input shapes (false: eager, no extra memory)
 
 [params]
 max_depth = 0.0  # relative (ReLU head); metric variants set the sigmoid head's scale in metres
@@ -48,6 +49,11 @@ mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fastbb", "dpt_fused"]
+# CUDA graphs (kernels): the ~120-launch pass is launch-bound on Windows at the default short side; batch x network
+# H x W <= 640k (and batch x image H x W <= 2048 x 2048) replays a CUDA graph, captured on a shape's 2nd call, at most 2
+# shapes per model (Windows RTX 5060 Ti, ViT-S, ms: 512x512 5.3 -> 3.1, 994x1482 5.4 -> 4.8; ViT-B / L are GPU-bound,
+# 1-3 %). The graph pool stays reserved until `model.release_graphs()` (ViT-S 994x1482: 236 vs 194 MiB);
+# `cuda_graphs=False` turns it off.
 mlx_kernels = ["dpt_mlx"]
 mlx_dtypes = ["float32", "float16"]
 

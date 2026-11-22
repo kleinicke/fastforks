@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from fastforks._core import mps
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Forward, Runner
 
 from .net.inference import forward, prepare
@@ -24,6 +25,7 @@ class Params:
     """Architecture (card `[params]`)."""
 
     max_disp: int
+    cuda_graphs: bool  # option: kernels replays CUDA graphs for small repeated shapes
 
 
 def _cfg(p: Params) -> SimpleNamespace:
@@ -80,8 +82,16 @@ class Portable(Runner):
         return Forward(self.net, self._run)
 
 
+_GRAPH_PIXELS = 500_000  # fixed: batch x padded H x W; launch-bound up to KITTI 375x1242, measured
+_GRAPHS = 2  # fixed: graph cache policy
+
+
 class Kernels(Runner):
-    """Our kernels: the portable float16 path with the window attention as one fused kernel (`fastbb`)."""
+    """Our kernels: the portable float16 path with the window attention as one fused kernel (`fastbb`).
+
+    A repeated input shape up to `_GRAPH_PIXELS` replays a CUDA graph (`fastforks.shared.cuda_graphs`): the eager
+    pass is launch-bound there.
+    """
 
     Params = Params
 
@@ -92,10 +102,18 @@ class Kernels(Runner):
 
         self.net = prepare_kernels(_net(ctx), ctx.device)
         self._forward = forward_kernels
+        self._graphs = SmallShapeGraphs(self._run, pixels=_GRAPH_PIXELS, graphs=_GRAPHS, enabled=ctx.params.cuda_graphs)
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool on the device."""
+        self._graphs.release()
+
+    def _run(self, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+        return self._forward(self.net, left, right)
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity of a padded batch."""
-        return {"disparity": self._forward(self.net, left, right)}
+        return {"disparity": self._graphs(left, right)}
 
 
 class MetalKernels(Portable):

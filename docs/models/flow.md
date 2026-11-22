@@ -621,7 +621,7 @@ Commercial use: yes.
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (README: "trained with multiple datasets" (not listed); the mixed stages of upstream's data_utils/datasets.py use FlyingThings3D (part of SceneFlow), Sintel, KITTI 2015, HD1K and, in one stage, VIPER)
   - `neuflow-v2-sintel`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (FlyingThings3D (part of SceneFlow), then upstream's 'sintel' stage: Sintel, KITTI 2015, HD1K and FlyingThings3D)
   - `neuflow-v2-things`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa) (FlyingThings3D (part of SceneFlow), upstream's 'things' stage)
-- Options: `iters` = 8 (>= 1)
+- Options: `iters` = 8 (>= 1), `cuda_graphs` = True (speed only)
 - Kernel libraries: `raft_flow`
 - Variants: `neuflow-v2`, `neuflow-v2-sintel`, `neuflow-v2-things`
 - Outputs: flow

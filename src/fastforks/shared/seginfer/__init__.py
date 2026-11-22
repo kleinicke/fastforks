@@ -89,13 +89,19 @@ _UNUSED_UNEXPECTED = re.compile(
 
 @contextlib.contextmanager
 def _quiet(tf: ModuleType) -> Generator[None]:
-    """No weight-loading progress bar (restored afterwards)."""
+    """No weight-loading progress bar and no load report (both restored afterwards).
+
+    transformers logs a "LOAD REPORT" table of missing / unexpected keys as a warning; `pretrained` checks the same
+    keys itself (raises on any but the known unused ones), so the table only repeated those.
+    """
     log = tf.utils.logging
-    was = log.is_progress_bar_enabled()
+    was, level = log.is_progress_bar_enabled(), log.get_verbosity()
     log.disable_progress_bar()
+    log.set_verbosity_error()
     try:
         yield
     finally:
+        log.set_verbosity(level)
         if was:
             log.enable_progress_bar()
 

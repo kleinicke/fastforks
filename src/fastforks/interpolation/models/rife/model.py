@@ -75,28 +75,36 @@ def _grid(py: torch.Tensor, px: torch.Tensor, h: int, w: int) -> torch.Tensor:
     return torch.stack(torch.meshgrid(gx, gy, indexing="xy"), -1)
 
 
-def _warp(src: torch.Tensor, flow: torch.Tensor, base: torch.Tensor) -> torch.Tensor:
-    """Upstream `warp` of both sides `[2B, C, H, W]` (side-major) by their flows `[B, 4, h, w]` at `base`.
+def _units(h: int, w: int, device: torch.device) -> torch.Tensor:
+    """Pixels per `grid_sample` unit (x, y) of an `h` x `w` image (upstream `warp`'s flow scale)."""
+    # filled on the device: `d[0] = x` copies a CPU scalar, which a CUDA graph capture rejects
+    d = torch.empty(2, device=device)
+    d[0].fill_((w - 1.0) / 2.0)
+    d[1].fill_((h - 1.0) / 2.0)
+    return d
+
+
+def _warp(src: torch.Tensor, flow: torch.Tensor, base: torch.Tensor, d: torch.Tensor) -> torch.Tensor:
+    """Upstream `warp` of both sides `[2B, C, H, W]` (side-major) by their flows `[B, 4, h, w]` at `base` (`_units` d).
 
     One `grid_sample` (bilinear, border, align_corners) -> `[2B, C, h, w]`.
     """
-    h, w = src.shape[-2:]
     b, _, fh, fw = flow.shape
-    # pixels per grid unit, filled on the device: `d[0] = x` copies a CPU scalar, which a CUDA graph capture rejects
-    d = torch.empty(2, device=flow.device)
-    d[0].fill_((w - 1.0) / 2.0)
-    d[1].fill_((h - 1.0) / 2.0)
     fp = flow.view(b, 2, 2, fh, fw).transpose(0, 1).reshape(2 * b, 2, fh, fw).permute(0, 2, 3, 1)
     return grid_sample(src, torch.addcdiv(base, fp, d), mode="bilinear", padding_mode="border", align_corners=True)
 
 
-def _upsampled(x: torch.Tensor, s: int, pts: tuple[torch.Tensor, torch.Tensor], size: tuple[int, int]) -> torch.Tensor:
-    """`x` bilinearly upsampled to `size` (upstream `IFBlock`'s output resize) at the pixels `pts` (rows, columns)."""
-    (py, px), (h, w) = pts, size
-    if s <= 2:  # noqa: PLR2004 - every pixel: the resize itself
-        return F.interpolate(x, size=(h, w), mode="bilinear", align_corners=False)
+def _up_grid(py: torch.Tensor, px: torch.Tensor, h: int, w: int) -> torch.Tensor:
+    """`grid_sample` grid `[len(py), len(px), 2]` of the pixels `py` x `px` of an `h` x `w` resize."""
     gy, gx = torch.meshgrid((py + 0.5) * (2 / h) - 1, (px + 0.5) * (2 / w) - 1, indexing="ij")
-    g = torch.stack((gx, gy), -1).expand(x.shape[0], -1, -1, -1)
+    return torch.stack((gx, gy), -1)
+
+
+def _upsampled(x: torch.Tensor, s: int, grid: torch.Tensor | None, size: tuple[int, int]) -> torch.Tensor:
+    """`x` bilinearly upsampled to `size` (upstream `IFBlock`'s output resize) at the `_up_grid` pixels."""
+    if s <= 2 or grid is None:  # noqa: PLR2004 - every pixel: the resize itself
+        return F.interpolate(x, size=size, mode="bilinear", align_corners=False)
+    g = grid.expand(x.shape[0], -1, -1, -1)
     return grid_sample(
         x.float(), g, mode="bilinear", padding_mode="border", align_corners=False
     )  # border = the resize's edge clamp
@@ -116,7 +124,7 @@ def _sources(x: torch.Tensor, feat: torch.Tensor, *, exporting: bool) -> torch.T
 def _graph_input(
     side: torch.Tensor,
     timestep: float | torch.Tensor,
-    last: tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] | None,
+    last: tuple[torch.Tensor, torch.Tensor, torch.Tensor | None] | None,
     s: int,
     size: tuple[int, int],
 ) -> torch.Tensor:
@@ -128,33 +136,59 @@ def _graph_input(
     )
     parts = [side[:, :, :3].reshape(b, 6, hs, ws), side[:, :, 3:].reshape(b, 2 * nf, hs, ws), t_plane.to(side.dtype)]
     if last is not None:
-        tmp, flow, py, px = last
-        parts += [_pool(_upsampled(tmp[:, 4:], s, (py, px), size), s), _pool(_at_points(flow, s), s) / s]
+        tmp, flow, up = last
+        parts += [_pool(_upsampled(tmp[:, 4:], s, up, size), s), _pool(_at_points(flow, s), s) / s]
     return torch.cat(parts, 1)
 
 
-def _interpolate(
-    net: IFNet, x: torch.Tensor, timestep: float | torch.Tensor, scales: list[int], *, channels_last: bool = False
+Grids = tuple[torch.Tensor, torch.Tensor | None, torch.Tensor]  # warp grid, upsample grid (s > 2), pixel units
+
+
+def _grids(h: int, w: int, s: int, device: torch.device, cache: dict | None) -> Grids:
+    """The 1/`s` block's warp and upsample grids of an `h` x `w` image and its pixel units (cached in `cache`)."""
+    key = (h, w, s, device)
+    if cache is not None and key in cache:
+        return cache[key]
+    py, px = _points(h, s, device), _points(w, s, device)
+    out = (_grid(py, px, h, w), _up_grid(py, px, h, w) if s > 2 else None, _units(h, w, device))  # noqa: PLR2004
+    if cache is not None:
+        cache[key] = out
+    return out
+
+
+def _interpolate(  # noqa: PLR0913, PLR0915 - upstream's forward, one loop over the blocks
+    net: IFNet,
+    x: torch.Tensor,
+    timestep: float | torch.Tensor,
+    scales: list[int],
+    *,
+    channels_last: bool = False,
+    cache: dict | None = None,
 ) -> torch.Tensor:
-    """`IFNet.forward(x, timestep, scales)[2][-1]` (fastmode, no ensemble), evaluated where the blocks read it."""
+    """`IFNet.forward(x, timestep, scales)[2][-1]` (fastmode, no ensemble), evaluated where the blocks read it.
+
+    `cache` keeps the shape-only grids between calls (eager only: not while exporting or capturing a CUDA graph).
+    """
     dtype, dev = x.dtype, x.device
     b, _, h, w = x.shape
     feat = torch.cat((net.encode(x[:, :3]), net.encode(x[:, 3:6])), 0)  # per image, as upstream (faster than batched)
     nf = feat.shape[1]
     exporting = torch.compiler.is_exporting()  # a graph (MLX): concatenations, not in-place writes (each a full copy)
+    if exporting:
+        cache = None
     src = _sources(x, feat, exporting=exporting)  # both sides' image + features, side-major, float32
     del feat
     flow = tmp = None
     prev = 1
     blocks = [net.block0, net.block1, net.block2, net.block3, net.block4]
     for block, s in zip(blocks, scales, strict=True):
-        py, px = _points(h, s, dev), _points(w, s, dev)
+        grid, up_grid, units = _grids(h, w, s, dev, cache)
         hs, ws = h // s, w // s
-        warped = src if flow is None else _warp(src, _at_points(flow, s), _grid(py, px, h, w))
+        warped = src if flow is None else _warp(src, _at_points(flow, s), grid, units)
         side = _pool(_at_points(warped, s) if flow is None else warped, s).view(2, b, 3 + nf, hs, ws).transpose(0, 1)
         extra = 0 if tmp is None else tmp.shape[1]  # mask + features (9), flow (4)
         if exporting:
-            last = None if tmp is None or flow is None else (tmp, flow, py, px)
+            last = None if tmp is None or flow is None else (tmp, flow, up_grid)
             inp = _graph_input(side, timestep, last, s, (h, w)).to(dtype)
         else:
             inp = torch.empty(b, 7 + 2 * nf + extra, hs, ws, device=dev, dtype=dtype)  # the block input, cast once
@@ -169,7 +203,7 @@ def _interpolate(
             if (
                 tmp is not None and flow is not None
             ):  # mask and features of the last block, its flow (block scale units)
-                inp[:, c + 1 : c + extra - 3].copy_(_pool(_upsampled(tmp[:, 4:], s, (py, px), (h, w)), s))
+                inp[:, c + 1 : c + extra - 3].copy_(_pool(_upsampled(tmp[:, 4:], s, up_grid, (h, w)), s))
                 inp[:, c + extra - 3 :].copy_(_pool(_at_points(flow, s), s).div_(s))
         # Release the full-resolution inputs once the strided stem has consumed them.
         block_input = block.conv0(inp.contiguous(memory_format=torch.channels_last) if channels_last else inp)
@@ -189,7 +223,8 @@ def _interpolate(
     mask = tmp[:, 4:5].float()
     if prev > 1:
         mask = F.interpolate(mask, scale_factor=prev, mode="bilinear", align_corners=False)
-    warped = _warp(src[:, :3], flow, _grid(_points(h, 1, dev), _points(w, 1, dev), h, w))
+    grid, _, units = _grids(h, w, 1, dev, cache)
+    warped = _warp(src[:, :3], flow, grid, units)
     return torch.lerp(warped[b:], warped[:b], torch.sigmoid(mask)).to(dtype)
 
 
@@ -199,6 +234,9 @@ class Portable(Runner):
     dtypes = ("float32", "float16")
     Params = Params
     channels_last = False  # the blocks' input layout
+    # cuDNN's default transposed convs accumulate with atomics, and the warps amplify the last bits: two calls on the
+    # same 720 x 1280 pair differed by up to 0.009 (smooth frames; 0.95 on noise). Deterministic costs ~3 % there.
+    deterministic_cudnn = True
 
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
@@ -208,9 +246,14 @@ class Portable(Runner):
         check_fits(self.net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
         self.net.load_state_dict(sd)
         self.net.eval().to(ctx.device, getattr(torch, ctx.dtype))
+        self._grids: dict | None = {}  # shape -> `_grids` (portable: eager, 2 shapes)
 
     def _forward(self, x: torch.Tensor, timestep: float | torch.Tensor) -> torch.Tensor:
-        return _interpolate(self.net, x, timestep, list(self.ctx.params.scales), channels_last=self.channels_last)
+        if self._grids is not None and len(self._grids) > 2 * len(self.ctx.params.scales) + 2:  # 2 shapes' worth
+            self._grids.clear()
+        return _interpolate(
+            self.net, x, timestep, list(self.ctx.params.scales), channels_last=self.channels_last, cache=self._grids
+        )
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> dict[str, torch.Tensor]:
         """The frame at `timestep` of a padded batch."""
@@ -244,6 +287,7 @@ class Kernels(Portable):
 
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
     channels_last = True
+    deterministic_cudnn = False  # its convolutions are `cudnn_hacc` plans, not cuDNN's algorithm choice
 
     def __init__(self, ctx: Context) -> None:
         """Build the network, fold the residual scales, route the convolutions through `cudnn_hacc`."""
@@ -261,6 +305,7 @@ class Kernels(Portable):
             elif isinstance(m, torch.nn.ConvTranspose2d) and base_type(m) is torch.nn.ConvTranspose2d:
                 m.weight.data = m.weight.data.contiguous(memory_format=torch.channels_last)
                 override(m, _hacc_deconv)
+        self._grids = None  # a captured graph holds its own grids
         after = cudnn_hacc.capture_after()
         self.graphs = GraphCache(self._eager, graphs=1, capture_after=after) if ctx.params.cuda_graphs else None
 

@@ -3,6 +3,7 @@ name = "NMRF"
 summary = "NMRF (Guan et al. 2024): neural Markov random field with disparity proposals from a group-wise cost volume, CSWin label-seed propagation and window-attention inference at 1/8 resolution plus a 1/4 refinement."
 tier = "stable"
 outputs = ["disparity"]
+uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
 limitations = [
   "ONNX Runtime resolves top-k ties differently from PyTorch on noise pairs: nmrf-sceneflow differs by up to 0.56 px (mean 0.006) on a synthetic textured pair.",
 ]
@@ -26,6 +27,9 @@ pad = { multiple = 8, mode = "bottom_right", fill = "replicate" }  # original In
 [params]
 max_disp = 312  # disparity range of the proposal cost volume (configs/zero_shot_evaluation.yaml; training: 320)
 
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for small repeated shapes (false: eager, no extra memory)
+
 [modes.portable]
 cuda_dtype = "float16"  # our fork's general path runs under float16 autocast (original evaluates in float32)
 mps_dtypes = ["float32", "float16"]  # MPS vs CPU: 0.03 px mean on non-occluded pixels, ~0.7 px where the cost curve is flat
@@ -39,6 +43,11 @@ mps_kernels = ["stereo_metal"]
 # (fastbb win_rpe_attn: relative-position embeddings, mask, online softmax; reads the packed qkv projection with the
 # Swin shift folded into the indexing). Middlebury-H 196 vs 217 ms (our earlier fork 205), peak 1.0 vs 1.5 GB; KITTI
 # 51.8 vs 58.5 ms.
+# CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x padded H x W <= 500k (up to KITTI
+# 375x1242) replays a CUDA graph, captured on a shape's second call, at most 2 shapes per model (Windows KITTI
+# 56-61 -> 52 ms). The graph pool stays reserved (KITTI 818 vs 474 MiB eager) until `model.release_graphs()`;
+# `cuda_graphs=False` turns it off. Larger inputs are GPU-bound and run eagerly (Middlebury-H 200 vs 197 ms with a
+# graph, for 2.6 vs 1.1 GB reserved)
 
 # Upstream also publishes a KITTI fine-tune and Swin-T models (need MSDeformAttn; not added).
 

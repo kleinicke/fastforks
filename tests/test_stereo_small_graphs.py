@@ -12,7 +12,8 @@ from fastforks import stereo
 from fastforks._core.errors import WeightsError
 from fastforks.kernels import cudnn_hacc
 
-# one ref per family / code path: LAS2 feed-forward + iterative, CoEx, Fast-ACVNet + plus, HITNet, IGEV++, GREAT-IGEV
+# one ref per family / code path: LAS2 feed-forward + iterative, CoEx, Fast-ACVNet + plus, HITNet, IGEV++, GREAT-IGEV,
+# AANet + plus, CREStereo, MoCha-Stereo, NMRF, BridgeDepth, S2M2, WAFT-Stereo
 REFS = [
     "las2-m@1",
     "las2-h@1",
@@ -22,7 +23,16 @@ REFS = [
     "hitnet-eth3d@1",
     "igev-plusplus-sceneflow@1",
     "great-igev-sceneflow@1",
+    "aanet-sceneflow@1",
+    "aanet-plus-sceneflow@1",
+    "crestereo-eth3d@1",
+    "mocha-v2-sceneflow@1",
+    "nmrf-sceneflow@1",
+    "bridgedepth-sf@1",
+    "s2m2-s@1",
+    "waft-stereo-s@1",
 ]
+_SIZE = {"aanet-sceneflow@1": (192, 288), "aanet-plus-sceneflow@1": (192, 288)}  # padded: multiples of 48 / 96
 
 pytestmark = [pytest.mark.model, pytest.mark.gpu]
 
@@ -66,13 +76,14 @@ def test_replay_matches_eager(ref: str) -> None:
     r = model._runner
     g = r._graphs
     assert g.cache is not None
-    a, b = _pair(r, 0)
+    size = _SIZE.get(ref, (128, 192))
+    a, b = _pair(r, 0, *size)
     eager = _eager(r, a, b)
     r(a, b)  # first call: eager
     assert not g.cache.graphs
     first = r(a, b)["disparity"]  # second call: captures
     assert len(g.cache.graphs) == 1
-    c, d = _pair(r, 1)
+    c, d = _pair(r, 1, *size)
     second = r(c, d)["disparity"]  # replay with new data; `first` must not change
     torch.testing.assert_close(first, eager, rtol=0, atol=1e-3)
     torch.testing.assert_close(second, _eager(r, c, d), rtol=0, atol=1e-3)

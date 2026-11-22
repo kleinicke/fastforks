@@ -79,8 +79,34 @@ def test_stream_and_resident_ram_check(monkeypatch: pytest.MonkeyPatch) -> None:
         host_blocks.require_host_ram(8 * 2**30, "seedvr2-3b")
     monkeypatch.setattr(host_blocks, "available_host_bytes", lambda: 40 * 2**30)
     host_blocks.require_host_ram(8 * 2**30, "seedvr2-3b")
-    monkeypatch.setattr(host_blocks, "available_host_bytes", lambda: None)  # unreadable (not Linux): no check
+    monkeypatch.setattr(host_blocks, "available_host_bytes", lambda: None)  # unreadable: no check
     host_blocks.require_host_ram(8 * 2**30, "seedvr2-3b")
+
+
+def test_register_prefix_pins_what_the_os_allows(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The OS page-locks at most `limit` bytes (Windows: about half of the RAM): the longest block prefix is pinned."""
+
+    class Cudart:
+        def __init__(self, limit: int) -> None:
+            self.limit, self.held = limit, 0
+
+        def cudaHostRegister(self, ptr: int, n: int, flags: int) -> int:  # noqa: ARG002, N802 - cudart's names
+            if self.held or n > self.limit:
+                return 2  # cudaErrorMemoryAllocation
+            self.held = n
+            return 0
+
+        def cudaHostUnregister(self, ptr: int) -> int:  # noqa: ARG002, N802
+            self.held = 0
+            return 0
+
+    ends = [10, 20, 30, 40, 50]
+    for limit, pinned in ((60, 50), (50, 50), (49, 40), (35, 30), (10, 10), (9, 0)):
+        fake = Cudart(limit)
+        monkeypatch.setattr(host_blocks.torch.cuda, "cudart", lambda fake=fake: fake)
+        monkeypatch.setattr(host_blocks, "_clear_last_error", lambda: None)
+        assert host_blocks._register_prefix(0, ends) == pinned, limit
+        assert fake.held == pinned  # exactly one registration left
 
 
 @pytest.mark.gpu

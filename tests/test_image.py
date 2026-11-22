@@ -278,3 +278,30 @@ def test_read_images_decodes_ahead_in_order(tmp_path) -> None:
     with pytest.raises(InputError, match="missing"):
         next(reader)
     assert fastforks.read_images is image_mod.read_images
+
+
+def test_deferred_ranges_checks_once_on_leaving():
+    """Inside `deferred_ranges` float range checks wait until the block ends; an error inside checks nothing."""
+    cpu = torch.device("cpu")
+    good, bad = torch.full((3, 8, 8), 0.5), torch.full((3, 8, 8), 1.5)
+    seen = []
+
+    def convert_all() -> None:
+        with image_mod.deferred_ranges():
+            to_rgb_batch(good, cpu)
+            to_rgb_batch(bad, cpu)
+            seen.append("after bad")  # not raised yet
+
+    def fail_inside() -> None:
+        with image_mod.deferred_ranges():
+            to_rgb_batch(bad, cpu)
+            msg = "inner"
+            raise RuntimeError(msg)
+
+    with pytest.raises(InputError, match="float images must be finite and in"):
+        convert_all()
+    assert seen == ["after bad"]
+    with pytest.raises(RuntimeError, match="inner"):  # the block's own error, not the range check
+        fail_inside()
+    with image_mod.deferred_ranges():
+        to_rgb_batch(good, cpu)

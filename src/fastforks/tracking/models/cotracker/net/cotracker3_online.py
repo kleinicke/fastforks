@@ -33,9 +33,8 @@ def posenc(x, min_deg, max_deg):
     """
     if min_deg == max_deg:
         return x
-    scales = torch.tensor(
-        [2**i for i in range(min_deg, max_deg)], dtype=x.dtype, device=x.device
-    )
+    # fastforks: made on the device (torch.tensor uploads, which syncs); exp2 of integers is exact, same values
+    scales = torch.arange(min_deg, max_deg, dtype=x.dtype, device=x.device).exp2()
 
     xb = (x[..., None, :] * scales[:, None]).reshape(list(x.shape[:-1]) + [-1])
     four_feat = torch.sin(torch.cat([xb, xb + 0.5 * torch.pi], dim=-1))
