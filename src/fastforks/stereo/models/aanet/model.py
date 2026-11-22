@@ -105,7 +105,8 @@ class Portable(Runner):
         return Forward(self.net, lambda _net, left, right: self._run(left, right))
 
 
-_GRAPH_PIXELS = 500_000  # fixed: batch x padded H x W; launch-bound up to KITTI 375x1242, measured
+_GRAPH_PIXELS = 1_000_000  # fixed: batch x padded H x W; launch-bound up to KITTI 375x1242, measured
+# Windows (RTX 5060 Ti, eager -> graph): 544x960 44.1 -> 33.0 ms, 720x1280 60.2 -> 57.3 ms (reserved 794 -> 578 MiB)
 _GRAPHS = 2  # fixed: graph cache policy
 
 

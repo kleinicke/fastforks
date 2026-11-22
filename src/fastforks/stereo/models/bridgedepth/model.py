@@ -95,7 +95,8 @@ class Portable(Runner):
         return Forward(self.net, self._run)
 
 
-_GRAPH_PIXELS = 500_000  # fixed: batch x padded H x W; launch-bound up to KITTI 375x1242, measured
+_GRAPH_PIXELS = 600_000  # fixed: batch x padded H x W; launch-bound up to KITTI 375x1242, measured
+# Windows (RTX 5060 Ti, eager -> graph): 544x960 110.7 -> 102.9 ms; 720x1280 gains 3 %
 _GRAPHS = 2  # fixed: graph cache policy
 
 

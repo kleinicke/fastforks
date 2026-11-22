@@ -234,7 +234,8 @@ class Portable(Runner):
         return Forward(self.net, self._run)
 
 
-_GRAPH_PIXELS = 1_000_000  # fixed: launch-bound up to 1280x720 (batch x H x W of the raw input), measured
+_GRAPH_PIXELS = 2_100_000  # fixed: batch x H x W of the raw input; launch-bound up to 1080p, measured
+# Windows (RTX 5060 Ti, las2-s, eager -> graph): 1080x1920 20.6 -> 14.9 ms (reserved 456 -> 562 MiB)
 _GRAPHS = 2  # fixed: graph cache policy
 
 
