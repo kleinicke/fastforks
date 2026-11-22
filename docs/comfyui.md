@@ -113,9 +113,10 @@ stay loaded between runs (the two most recently used); ComfyUI's "Unload models"
 own models first when a fastforks model needs the room. When ComfyUI needs room for one of its models and unloading its
 own was not enough, the fastforks models on that device free their CUDA graphs, then unload, least recently used first. By default batches run one image at a time, so a cancel stops after the
 current image. Depth, Normals, Remove background (without a trimap), Detect, Pose, Classify, Tag, NSFW check, Semantic
-segment, Parse and Face restore have an optional `batch_size` input: several images per model call, which is several
-times faster for small models at 224-512 px (convnext-tiny 8.6x, depth-anything-v2-s 1.8x, rf-detr-s 5.9x on an RTX 5060
-Ti under Windows) and uses more memory; models that cannot batch raise an error. Interpolate and Flow take `batch_size`
+segment, Parse, Face restore and Stereo have an optional `batch_size` input: several images (pairs) per model call,
+which is several times faster for small models at 224-512 px (convnext-tiny 8.6x, depth-anything-v2-s 1.8x, rf-detr-s
+5.9x; 480 x 640 stereo: coex 1.8x, aanet 2.1x, on an RTX 5060 Ti under Windows) and uses more memory; models that cannot
+batch raise an error, stereo models that gain nothing from it run one pair at a time. Interpolate and Flow take `batch_size`
 consecutive pairs per call, 8 by default (384 x 384: rife-4.26 5.6x; 480 x 640: rife-4.26 2.6x, raft-small 3.2x,
 neuflow-v2 2.7x); models that gain nothing from it (sea-raft, gmflow, film, larger frames) still run them one pair at a
 time. A cancel stops after the current `batch_size` pairs.
