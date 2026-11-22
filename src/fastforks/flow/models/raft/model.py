@@ -30,6 +30,11 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16")
     Params = Params
+    batch = None
+    # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti, Windows,
+    # fp16, 8 pairs 480 x 640: small 43.1 -> 13.7 ms per pair, large 50.3 -> 34.2), not at 720p (small 51 -> 59 ms
+    # and 9.4 GB for 8 pairs a call)
+    batch_pixels = 1_300_000
 
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
@@ -89,6 +94,8 @@ class MetalKernels(Portable):
     its dot products on the fly. Encoders and update block as portable.
     """
 
+    batch = 1  # one pair per call, as before batching (not measured on Apple GPUs)
+
     module = Runner.module  # the Metal kernels are not exportable
 
     def __init__(self, ctx: Context) -> None:
@@ -105,9 +112,15 @@ class MetalKernels(Portable):
         return {"flow": forward(self.net, self.lib, image1, image2, self.ctx.params.iters)}
 
 
+class _OnePair(Portable):
+    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": mlx_wrap.port(Portable, cache_mb=1024),
+    "portable_mlx": mlx_wrap.port(_OnePair, cache_mb=1024),
 }

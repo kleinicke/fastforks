@@ -36,10 +36,10 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16")
     Params = Params
-    batch = None  # the runner chunks a batch itself (`chunk_pixels`)
+    batch = None
     # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti, Windows,
     # fp16, 8 pairs 480 x 640: 22.1 -> 7.9 ms per pair), not at 720p (30.2 vs 29.7 ms, and 4 GB for 8 pairs)
-    chunk_pixels = 1_300_000
+    batch_pixels = 1_300_000
 
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
@@ -56,13 +56,8 @@ class Portable(Runner):
             self.net.to(memory_format=torch.channels_last)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
-        """Flow of a padded batch, `chunk_pixels` at a time."""
-        step = max(1, self.chunk_pixels // (image1.shape[-2] * image1.shape[-1]))
-        out = [self._run(image1[i : i + step], image2[i : i + step]) for i in range(0, len(image1), step)]
-        return {"flow": out[0] if len(out) == 1 else torch.cat(out)}
-
-    def _run(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
-        return self.net(image1, image2, self.ctx.params.iters)
+        """Flow of a padded batch."""
+        return {"flow": self.net(image1, image2, self.ctx.params.iters)}
 
     def module(self) -> torch.nn.Module:
         """The network; returns the flow."""
@@ -113,7 +108,7 @@ class Kernels(Portable):
     pass is launch-bound there.
     """
 
-    chunk_pixels = _GRAPH_PIXELS  # each chunk of a batch replays a graph
+    batch_pixels = _GRAPH_PIXELS  # each chunk of a batch replays a graph
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and bind the lookup kernel."""
@@ -121,15 +116,14 @@ class Kernels(Portable):
         from fastforks.kernels import raft_flow  # noqa: PLC0415 - needs the kernel library
 
         self.net.correlate = functools.partial(_kernel_lookup, raft_flow.load(ctx.device))
-        self._graphs = SmallShapeGraphs(
-            self._eager, pixels=_GRAPH_PIXELS, graphs=_GRAPHS, enabled=ctx.params.cuda_graphs
-        )
+        self._graphs = SmallShapeGraphs(self._run, pixels=_GRAPH_PIXELS, graphs=_GRAPHS, enabled=ctx.params.cuda_graphs)
 
     def _run(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
-        return self._graphs(image1, image2)
-
-    def _eager(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
         return self.net(image1, image2, self.ctx.params.iters)
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Flow of a padded batch."""
+        return {"flow": self._graphs(image1, image2)}
 
     def release_graphs(self) -> None:
         """Free the CUDA graphs and their memory pool on the device."""
@@ -143,7 +137,7 @@ class Kernels(Portable):
 class _OnePair(Portable):
     """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
 
-    chunk_pixels = 0
+    batch = 1
 
 
 RUNNERS = {
