@@ -42,7 +42,7 @@ iters = { default = 4, min = 1 }  # refinement steps per window (upstream infere
 [modes.portable]
 cuda_dtype = "float16"  # autocast; the 1D blocks' attention (16 tokens) as two batched GEMMs and a softmax, not SDPA; flow state, correlation lookup and point sampling in float32
 mps_dtypes = ["float32", "float16"]
-mlx_dtypes = ["float32"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["fvm_conv"]  # ConvNeXt blocks, update block and heads: depthwise 7 x 7 and fused convs / GEMMs (ReLU / GELU / residual epilogues), one q/k/v GEMM, fp16 accumulation

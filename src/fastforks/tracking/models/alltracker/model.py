@@ -25,11 +25,22 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.mlx_cast import to_float32
 from fastforks._core.upload import device_tensor
 from fastforks.shared import mlx_wrap
 from fastforks.tracking._runner import Forward, Runner
 
-from .net.alltracker import DIM, WINDOW, AllTracker, CNBlock1d, CNBlock2d, CorrPyramid, UpdateBlock, upsample
+from .net.alltracker import (
+    DIM,
+    WINDOW,
+    AllTracker,
+    CNBlock1d,
+    CNBlock2d,
+    CorrPyramid,
+    UpdateBlock,
+    scale_xy,
+    upsample,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -102,13 +113,12 @@ def _sample(
     """Tracks `[S, K, 2]` and `visible * confident` `[S, K]` of the points `pts` `[K, 2]` (unpadded network pixels)."""
     if flows8.is_cuda and not torch.compiler.is_compiling() and pts.shape[0] <= flows8.shape[-2] * flows8.shape[-1]:
         return _sample_sparse(flows8, visconfs8, mask, pts, offset)
-    flow = upsample(flows8, mask)
-    vis = upsample(visconfs8, mask).sigmoid()
+    mask = to_float32(mask)  # float32 islands of a float16 MLX replay (`.float()` records nothing there)
+    flow = upsample(to_float32(flows8), mask)
+    vis = upsample(to_float32(visconfs8), mask).sigmoid()
     h, w = flow.shape[-2:]
     xy = pts + offset
-    grid = (xy * device_tensor((2 / (w - 1), 2 / (h - 1)), device=xy.device, dtype=xy.dtype) - 1)[None, None].expand(
-        flow.shape[0], -1, -1, -1
-    )
+    grid = (scale_xy(xy, 2 / (w - 1), 2 / (h - 1)) - 1)[None, None].expand(flow.shape[0], -1, -1, -1)
     f = F.grid_sample(torch.cat([flow, vis], 1).float(), grid, align_corners=True, padding_mode="border")[:, :, 0]
     return pts + f[:, :2].transpose(1, 2), f[:, 2] * f[:, 3]
 
@@ -122,7 +132,7 @@ def _direction(  # noqa: PLR0913 - feature window, point coordinates, and traver
     if n == 1:
         return tracks, vis
     anchor = fmaps[-1] if reverse else fmaps[0]
-    zeros = fmaps.new_zeros((1, 2, *fmaps.shape[-2:]), dtype=torch.float32)
+    zeros = to_float32(fmaps.new_zeros((1, 2, *fmaps.shape[-2:])))  # the carried window state: float32 on MLX too
     if n == 2:  # noqa: PLR2004 - upstream's two-frame flow
         adjacent = fmaps[:1] if reverse else fmaps[1:]
         f8, v8, m = net.window(anchor, adjacent, zeros, zeros, iters)
@@ -166,9 +176,9 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
     `group`: every query starts on this frame (no data-dependent grouping: the graph the MLX port exports).
     """
     h, w = size
+    queries = to_float32(queries)  # the point coordinates stay float32 in a float16 MLX replay
     nh, nw = params.height, params.width
     left, right, top, bottom = _pad(nh, nw)
-    scale = device_tensor((nw / w, nh / h), device=queries.device)  # (x, y)
     offset = device_tensor((left, top), device=queries.device, dtype=torch.float32)
     region = torch.autocast(queries.device.type, amp) if amp is not None else contextlib.nullcontext()
     tracks = queries.new_zeros(n, queries.shape[0], 2)
@@ -183,7 +193,7 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
             del video
         fmaps = torch.cat(chunks)
         del chunks
-        pts = (queries[:, 1:] + 0.5) * scale - 0.5
+        pts = scale_xy(queries[:, 1:] + 0.5, nw / w, nh / h) - 0.5
         for t0 in [group] if group is not None else queries[:, 0].long().unique().tolist():
             sel = (
                 torch.arange(queries.shape[0], device=queries.device)
@@ -195,7 +205,7 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
             if t0 > 0:
                 tr, vi = _direction(net, fmaps[: t0 + 1], pts[sel], offset, params.iters, reverse=True)
                 tracks[:t0, sel], vis[:t0, sel] = tr[1:].flip(0), vi[1:].flip(0)
-    return {"tracks": (tracks + 0.5) / scale - 0.5, "visibility": vis.clamp(0, 1) ** VIS_POWER}
+    return {"tracks": scale_xy(tracks + 0.5, w / nw, h / nh) - 0.5, "visibility": vis.clamp(0, 1) ** VIS_POWER}
 
 
 class Portable(Runner):
@@ -439,5 +449,5 @@ class _Graph(Portable):
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(_Graph, attrs=(), methods=("_run",)),
+    "portable_mlx": mlx_wrap.port(_Graph, attrs=(), methods=("_run",), half_wino_f32=True),
 }
