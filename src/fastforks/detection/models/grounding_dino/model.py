@@ -30,6 +30,7 @@ from fastforks._core.errors import InputError
 from fastforks._core.labels import label_set
 from fastforks._core.patch import base_type, override
 from fastforks._core.runner import host
+from fastforks._core.upload import device_tensor
 from fastforks.detection._attention import deformable_sample
 from fastforks.detection._runner import Forward, Runner
 from fastforks.kernels import msda
@@ -113,12 +114,13 @@ def _attention_forward(  # noqa: PLR0913, PLR0917 - transformers' signature
     level_start_index: torch.Tensor | None = None,
     output_attentions: bool = False,  # noqa: FBT001, FBT002 - upstream signature
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Export the upstream attention without its redundant internal spatial-length assertion.
+    """Upstream's attention without its redundant spatial-length assertion.
 
-    The runner constructs both the flattened features and spatial shapes from the same maps. Ordinary eager and
-    compiled calls retain upstream's check; this path only changes fixed/dynamic ONNX tracing.
+    The runner constructs both the flattened features and spatial shapes from the same maps, so the check cannot fail;
+    it read the shapes back from the device in each of the 12 layers (a host sync each), and ONNX tracing cannot
+    trace it. Only calls asking for the attention maps run upstream's forward.
     """
-    if not torch.compiler.is_exporting():
+    if output_attentions:
         return base_type(self).forward(
             self,
             hidden_states,
@@ -238,7 +240,7 @@ class Portable(Runner):
         att, pos = phrase_masks(ids, self.separators)
         dev = self.ctx.device
         m = self.net.model
-        i = torch.tensor([ids], device=dev)
+        i = device_tensor([ids], device=dev)
         att, pos = att[None].to(dev), pos[None].to(dev)
         with torch.no_grad():
             h = m.text_backbone(i, att[:, None], torch.zeros_like(i), pos).last_hidden_state
@@ -299,7 +301,7 @@ class Portable(Runner):
             [p.flatten(2).transpose(1, 2) + m.level_embed[i].view(1, 1, -1) for i, p in enumerate(poss)], 1
         )
         del maps, masks, poss
-        sh = torch.as_tensor(shapes, dtype=torch.long, device=x.device)
+        sh = device_tensor(shapes, dtype=torch.long, device=x.device)
         start = torch.cat((sh.new_zeros((1,)), sh.prod(1).cumsum(0)[:-1]))
         ratios = torch.ones((b, len(shapes), 2), dtype=src.dtype, device=x.device)
         del x
@@ -384,7 +386,9 @@ class Portable(Runner):
         scores, flat = scores[keep], flat[keep]
         cx, cy, bw, bh = boxes[0][flat // n].unbind(-1)
         h, w = image.shape[-2:]
-        out = torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1) * boxes.new_tensor([w, h, w, h])
+        out = torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1) * device_tensor(
+            [w, h, w, h], device=boxes.device, dtype=boxes.dtype
+        )
         return {"boxes": out, "scores": scores, "labels": flat % n}
 
 
