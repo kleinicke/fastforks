@@ -36,6 +36,8 @@ import torch.nn.functional as F
 from fastforks._core.patch import base_type, override
 
 _POLYPHASE = 2  # the stride `conv_transpose` splits into output parities
+_DEPTH_TAPS = 4  # `conv3d`: a (kd, 1, 1) kernel with more depth taps than this runs as one `conv2d` ...
+_DEPTH_ROW_BYTES = 256  # ... when one input position's channels take at most this many bytes
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -58,6 +60,8 @@ def conv3d(
     n, c, d = x.shape[:3]
     kd, sd, pd = weight.shape[2], stride[0], padding[0]
     d_out = (d + 2 * pd - kd) // sd + 1
+    if _depth_only(weight, stride, padding) and kd > _DEPTH_TAPS and c * x.element_size() <= _DEPTH_ROW_BYTES:
+        return _depth_conv(x, weight, bias, sd, pd)
     x = x.contiguous(memory_format=torch.channels_last_3d)  # no-op when it already is
     out: torch.Tensor | None = None
     for k in sorted(range(kd), key=lambda k: k != pd):  # the centre tap first: it covers every output plane
@@ -81,6 +85,25 @@ def conv3d(
     if out is None:  # no tap reaches any output plane (a padding wider than the kernel)
         out = F.conv3d(x, weight, bias, stride, padding)
     return out
+
+
+def _depth_only(weight: torch.Tensor, stride: tuple[int, int, int], padding: tuple[int, int, int]) -> bool:
+    """A `(kd, 1, 1)` kernel, stride 1 and no padding in height and width."""
+    return weight.shape[3:] == (1, 1) and tuple(stride[1:]) == (1, 1) and tuple(padding[1:]) == (0, 0)
+
+
+def _depth_conv(x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor | None, sd: int, pd: int) -> torch.Tensor:
+    """A `(kd, 1, 1)` kernel as one `(kd, 1)` `conv2d` over the contiguous `[N, C, D, H * W]` (output contiguous).
+
+    The taps loop runs `kd` 1 x 1 `conv2d`s, then adds partial planes. M1 Pro, C -> C (17, 1, 1) at C-FoundationStereo's
+    hourglass levels, taps / this (ms, the channels-last-3d input copy included): fp16 28 @ 104 x 256 x 376 402 / 278,
+    56 @ 52 x 128 x 188 151 / 108, 112 @ 26 x 64 x 94 34 / 27, 168 @ 13 x 32 x 47 11.4 / 12.6; fp32 544 / 321,
+    163 / 151, 39 / 81 (also 96 and 128 channels lose in fp32). Hence the gates: more than `_DEPTH_TAPS` taps
+    ((2, 1, 1) stride 2 loses, 0.8 / 1.5 ms) and input rows of at most `_DEPTH_ROW_BYTES`.
+    """
+    n, c, _, h, w = x.shape
+    y = F.conv2d(x.contiguous().view(n, c, -1, h * w), weight.squeeze(-1), bias, (sd, 1), (pd, 0))
+    return y.view(n, y.shape[1], y.shape[2], h, w)
 
 
 def _conv3d(self: torch.nn.Conv3d, input: torch.Tensor) -> torch.Tensor:  # noqa: A002 - torch's name

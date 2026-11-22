@@ -3043,3 +3043,40 @@ Not done:
 
 - MPS float16 for these families was not revisited. Of the MLX tricks, the inspyrenet context scale and the zoedepth
   softplus could transfer to MPS half nets if their MPS float16 paths ever overflow.
+
+## 2026-11-22 (evening): MPS `(kd, 1, 1)` Conv3d as one `conv2d` (M1 Pro 16 GB)
+
+`mps.conv3d` ran a depth-only kernel (`Conv3dNormActReduced`'s `(17, 1, 1)`, also 13 / 9 / 3 in Fast-FS) as 17
+1 x 1 `conv2d`s plus partial-plane adds. Now a `(kd, 1, 1)` kernel with stride 1 / no padding in height and width
+runs as one `(kd, 1)` `conv2d` over the contiguous `[N, C, D, H * W]` (`_depth_conv`). Microbenchmark, C -> C
+`(17, 1, 1)` at C-FS's hourglass levels, taps / new ms (input layout copy included):
+
+| level | fp16 | fp32 |
+| --- | --- | --- |
+| 28 @ 104 x 256 x 376 | 402 / 278 | 544 / 321 |
+| 56 @ 52 x 128 x 188 | 151 / 108 | 163 / 151 |
+| 112 @ 26 x 64 x 94 | 34 / 27 | 39 / 81 |
+| 168 @ 13 x 32 x 47 | 11.4 / 12.6 | 12.0 / 13.3 |
+
+Gates from this: more than 4 taps (IGEV++'s `(2, 1, 1)` / `(4, 1, 1)` stride-2 patch convs: taps 0.8 vs 1.5 ms, kept
+on taps) and at most 256 bytes of channels per position (fp16 C <= 128, fp32 C <= 64; fp32 96 / 112 / 128 lose 1.1-2x,
+reproducible). Tried, not kept: the same `conv2d` on the channels-last-3d view (no copy, but 1.2-3x slower than the
+contiguous one at >= 56 channels: MPS's channels-last `(kd, 1)` conv is slow) and a `(1, kd)` conv over the
+transposed `[N, C, H * W, D]` (as slow).
+
+Survey, MPS portable, second run, ms median (min) / MB peak:
+
+| ref | dtype | before | after |
+| --- | --- | --- | --- |
+| c-foundationstereo-s | fp16 | 25783 / 12573 | 23526 (23040) / 12489 |
+| c-foundationstereo-s | fp32 | OOM | OOM (same 1.06 GiB request) |
+| c-fast-foundationstereo | fp16 | 2539 / 8483 | 2472 (2470) / 8460 |
+| c-fast-foundationstereo | fp32 | 3184 (2978) / 13079 | 3326 (2967) / 13001 (pageout-noisy: min equal) |
+| fast-foundationstereo | fp16 | 2715 / 8478 | 2477 (2475) / 8462 |
+| fast-foundationstereo | fp32 | 3209 (3093) / 13359 | 3471 (3035) / 13035 (pageout-noisy) |
+| foundationstereo-vit-s | fp16 | 19700 (18671) / 13239 | 19059 (18554) / 13094 |
+| foundationstereo-vit-s | fp32 | OOM (2026-11-06) | 22956 (22452) / 13425 (the old row predates other passes) |
+
+Goldens pass (test_mps, FASTFORKS_MPS_FULL=1): c-foundationstereo-s, c-fast-foundationstereo, fast-foundationstereo,
+foundationstereo-vit-s, foundationstereo-vit-l (all @1; a counting wrapper confirmed the new path runs in them, fp16
+and fp32). test_mps_conv_cpu gains two depth-only cases. No route change (`gen_auto_mode --check` clean).

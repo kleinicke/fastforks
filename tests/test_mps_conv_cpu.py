@@ -70,6 +70,8 @@ def test_output_size_per_axis(stride: int, kernel: int, nd: int):
         ((3, 3, 3), (2, 2, 2), (1, 1, 1), 7, True),
         ((4, 3, 3), (2, 1, 1), (1, 1, 1), 6, False),
         ((3, 1, 1), (1, 1, 1), (0, 0, 0), 5, True),
+        ((17, 1, 1), (1, 1, 1), (8, 0, 0), 20, True),  # depth-only kernel: one (kd, 1) conv2d
+        ((5, 1, 1), (2, 1, 1), (2, 0, 0), 9, False),
         ((5, 3, 3), (1, 1, 1), (3, 1, 1), 2, True),  # padding past the input: taps off every plane
         ((3, 3, 3), (3, 1, 1), (2, 1, 1), 1, False),
     ],
