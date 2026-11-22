@@ -98,6 +98,11 @@ class Portable(Runner):
     convolutions and the ViT / attention parts (6 % slower in total at Middlebury-H).
     """
 
+    batch = None
+    # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti,
+    # Windows, 8 pairs 480 x 640: 98.5 -> 78.9 ms per pair)
+    batch_pixels = 1_300_000
+
     dtypes = ("float32", "float16")
     Params = Params
 
@@ -166,8 +171,14 @@ class Kernels(Runner):
         return {"disparity": self._graphs(left, right)}
 
 
+class _OnePair(Portable):
+    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+    "portable_mlx": mlx_wrap.port(_OnePair, whole="disparity"),
 }

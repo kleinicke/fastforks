@@ -201,6 +201,11 @@ class Portable(Runner):
     ran the depthwise convolutions and the norms slower.
     """
 
+    batch = None
+    # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti,
+    # Windows, 8 pairs 480 x 640: 22.2 -> 6.3 ms per pair)
+    batch_pixels = 1_300_000
+
     deterministic_cudnn = True
 
     dtypes = ("float32", "float16")
@@ -301,6 +306,8 @@ class Kernels(Runner):
 class MetalKernels(Portable):
     """Apple MPS: the portable network with the correlation / group-wise correlation volume as one Metal kernel."""
 
+    batch = 1  # not measured on Apple GPUs
+
     module = Runner.module  # the Metal kernel is not exportable
 
     def __init__(self, ctx: Context) -> None:
@@ -319,9 +326,15 @@ class MetalKernels(Portable):
         object.__setattr__(self.net, *hook)  # a plain attribute, read by the forward pass
 
 
+class _OnePair(Portable):
+    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+    "portable_mlx": mlx_wrap.port(_OnePair, whole="disparity"),
 }

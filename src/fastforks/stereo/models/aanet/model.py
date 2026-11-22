@@ -79,6 +79,11 @@ class Portable(Runner):
     features ran 7-15 % slower channels-last.
     """
 
+    batch = None
+    # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti,
+    # Windows, 8 pairs 480 x 640: 63.7 -> 32.6 ms per pair)
+    batch_pixels = 1_300_000
+
     dtypes = ("float32", "float16")
     Params = Params
 
@@ -153,6 +158,8 @@ class MetalKernels(Portable):
     float16 weights and NCHW, no autocast (its casts took a quarter of the time).
     """
 
+    batch = 1  # not measured on Apple GPUs
+
     module = Runner.module  # the Metal kernel is not exportable
 
     def __init__(self, ctx: Context) -> None:
@@ -173,9 +180,15 @@ class MetalKernels(Portable):
         return forward(self.net, left.half(), right.half()).float()  # a float32 disparity
 
 
+class _OnePair(Portable):
+    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+    "portable_mlx": mlx_wrap.port(_OnePair, whole="disparity"),
 }

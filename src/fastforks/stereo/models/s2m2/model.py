@@ -69,6 +69,11 @@ class _S2M2Runner(Runner):
 class Portable(_S2M2Runner):
     """Plain PyTorch (upstream network with our rewrites), autocast to the card's CUDA dtype."""
 
+    batch = None
+    # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti,
+    # Windows, 8 pairs 480 x 640: 82.5 -> 58.1 ms per pair)
+    batch_pixels = 1_300_000
+
     dtypes = ("float32", "float16", "bfloat16")
 
     def __init__(self, ctx: Context) -> None:
@@ -136,10 +141,16 @@ class Kernels(_S2M2Runner):
         return self._graphs(left, right)
 
 
+class _OnePair(Portable):
+    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_run",)),
+    "portable_mlx": mlx_wrap.port(_OnePair, attrs=(), methods=("_run",)),
 }
 
 
