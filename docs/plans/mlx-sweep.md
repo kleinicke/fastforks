@@ -2844,3 +2844,10 @@ Investigated, not changed:
   keep their merge.
 
 Route: no change (MLX stays slower than MPS on both refs). Goldens: test_mlx for totalsegmentator-total-3mm and totalsegmentator-total pass; survey goldens pass.
+
+**Re-measure (quiet machine, swap 2.0 GB and flat, nothing else running): the fp16 slowdown was noise.** One process,
+both paths interleaved (`MlxPredictor._accumulate` vs the CPU merge through a temporary env switch, a warm-up call of
+each, then 3 alternating pairs): MLX merge median 32074 / min 31885 ms, CPU merge median 33068 / min 32658 ms, so the
+MLX merge is about 3 % faster, as on 3mm. Two back-to-back survey runs gave 30669 (min 30600) and 33823 (min 33108)
+ms at the same code: a 33-second call drifts by about 10 % with the machine's thermal state, more than the merge's
+effect. Recorded row (second run, as the protocol says): 33823 / 3402 MB / 38.2 s, golden pass. No code change.
