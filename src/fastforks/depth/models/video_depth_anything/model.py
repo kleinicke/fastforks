@@ -278,7 +278,8 @@ class _Video(Runner):
 class Portable(_Video):
     """Plain PyTorch with fused SDPA attention (encoder and temporal modules).
 
-    float32, or on CUDA the network in fp16 (no autocast; the last output conv runs in fp32).
+    float32, or the network in fp16 (no autocast; the last output conv runs in fp32), channels-last on CUDA and NCHW
+    on MPS (channels-last ran the head 25 % slower there: 827 ms against 630 ms per 32-frame window at 480x640).
     """
 
     dtypes = ("float32", "float16")
@@ -291,7 +292,7 @@ class Portable(_Video):
         fold_layer_scale(self.net.pretrained)
         self.half = ctx.dtype == "float16"
         if self.half:
-            pure_half(self.net, fp32=[self.net.head.scratch.output_conv2])
+            pure_half(self.net, fp32=[self.net.head.scratch.output_conv2], channels_last=ctx.device.type != "mps")
 
     def _encode(self, x: torch.Tensor) -> list[torch.Tensor]:
         return super()._encode(x.half() if self.half else x)
