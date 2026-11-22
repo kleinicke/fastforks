@@ -320,6 +320,68 @@ def gwc_volume(left: mx.array, right: mx.array, depth: int, groups: int) -> mx.a
     )[0]  # fmt: skip
 
 
+_WARP_DOT = metal_kernel(
+    name="graph_warp_dot",
+    input_names=["f", "o", "grid"],
+    output_names=["out"],
+    source="""
+        // one SIMD group per (view, depth, pixel): each lane takes VEC-channel slices of the four bilinear taps of
+        // `o` and of `f` at the pixel (NHWC, coalesced rows), fp32 products, one simd_sum. No warped volume.
+        uint lane = thread_position_in_grid.x, pix = thread_position_in_grid.y, nd = thread_position_in_grid.z;
+        uint n = nd / D;
+        bool live = pix < H * W;
+        float gx = 0.0f, gy = 0.0f;
+        if (live) {
+            size_t gi = (size_t(nd) * H * W + pix) * 2;
+            gx = grid[gi];
+            gy = grid[gi + 1];
+        }
+        float ix = (gx + 1.0f) * float(W - 1) * 0.5f, iy = (gy + 1.0f) * float(H - 1) * 0.5f;
+        float fx = floor(ix), fy = floor(iy);
+        float ax = ix - fx, ay = iy - fy;
+        int x0 = int(fx), y0 = int(fy);
+        const device vec<T, VEC>* o4 = (const device vec<T, VEC>*)o;
+        const device vec<T, VEC>* f4 = (const device vec<T, VEC>*)f;
+        float acc = 0.0f;
+        if (live) {
+            for (uint cv = lane; cv < C / VEC; cv += 32) {
+                float4 s = float4(0.0f);
+                for (int dy = 0; dy < 2; ++dy) {
+                    int yy = y0 + dy;
+                    if (yy < 0 || yy >= H) continue;
+                    float wy = dy ? ay : 1.0f - ay;
+                    for (int dx = 0; dx < 2; ++dx) {
+                        int xx = x0 + dx;
+                        if (xx < 0 || xx >= W) continue;
+                        float wgt = wy * (dx ? ax : 1.0f - ax);
+                        vec<T, VEC> v = o4[((size_t(n) * H + yy) * W + xx) * (C / VEC) + cv];
+                        for (int k = 0; k < VEC; ++k) s[k] += float(v[k]) * wgt;
+                    }
+                }
+                vec<T, VEC> a = f4[(size_t(n) * H * W + pix) * (C / VEC) + cv];
+                for (int k = 0; k < VEC; ++k) acc += float(a[k]) * s[k];
+            }
+        }
+        acc = simd_sum(acc);
+        if (live && lane == 0) out[size_t(nd) * H * W + pix] = acc;
+    """,
+)
+
+
+def warp_dot(feat: mx.array, other: mx.array, grid: mx.array) -> mx.array:
+    """`fastforks::warp_dot` of NHWC `feat`, `other` `[N, H, W, C]` and a `[N, D, H*W, 2]` grid; `[N, D, H, W]` fp32."""
+    t = mx.result_type(feat.dtype, other.dtype)  # the kernel reads both as one type
+    n, h, w, c = feat.shape
+    d = grid.shape[1]
+    vec = 4 if c % 4 == 0 else 2 if c % 2 == 0 else 1
+    return _WARP_DOT(
+        inputs=[mx.contiguous(feat.astype(t)), mx.contiguous(other.astype(t)), mx.contiguous(grid.astype(mx.float32))],
+        template=[("T", t), ("C", c), ("H", h), ("W", w), ("D", d), ("VEC", vec)],
+        grid=(32, -(-(h * w) // 8) * 8, n * d), threadgroup=(32, 8, 1),
+        output_shapes=[(n, d, h, w)], output_dtypes=[mx.float32],
+    )[0]  # fmt: skip
+
+
 _USA = metal_kernel(
     name="graph_upsample_soft_argmax",
     input_names=["x"],

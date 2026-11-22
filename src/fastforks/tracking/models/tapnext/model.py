@@ -25,10 +25,22 @@ from torch import nn
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.upload import device_tensor
-from fastforks.tracking._mlx import port as mlx_port
+from fastforks.shared import mlx_wrap
 from fastforks.tracking._runner import Forward, NoParams, Runner
 
-from .net.tapnext import SIZE, BlockDiagonalLinear, EncoderBlock, MLPBlock, RecurrentBlock, TAPNext, from_jax
+from .net.tapnext import (
+    CONV_WIDTH,
+    DEPTH,
+    PATCH,
+    SIZE,
+    WIDTH,
+    BlockDiagonalLinear,
+    EncoderBlock,
+    MLPBlock,
+    RecurrentBlock,
+    TAPNext,
+    from_jax,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -157,10 +169,10 @@ def _recurrent(m: RecurrentBlock) -> Callable[..., Any]:
     wy, by, wx, bx = _w4(m.linear_y.weight), _t(m.linear_y.bias), _w4(m.linear_x.weight), _t(m.linear_x.bias)
     wo, bo = _w4(m.linear_out.weight), _t(m.linear_out.bias)
 
-    def forward(x: torch.Tensor, cache: tuple[torch.Tensor, torch.Tensor] | None) -> Any:  # noqa: ANN401 - upstream's
+    def forward(x: torch.Tensor, cache: tuple[torch.Tensor, torch.Tensor] | None, first: Any = None) -> Any:  # noqa: ANN401 - upstream's
         x16 = x.half()
         y = lin(x16, wy, by, act=GELU_TANH)
-        return m.temporal(lin(x16, wx, bx).float(), cache, y, lambda v: lin(v.half(), wo, bo))
+        return m.temporal(lin(x16, wx, bx).float(), cache, y, lambda v: lin(v.half(), wo, bo), first)
 
     return forward
 
@@ -226,4 +238,52 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_port(Portable)}
+class Steps(Portable):
+    """The MLX pass: one exported step graph (a frame in, its tracks and the new state out) run once per frame.
+
+    One graph serves every video length and is exported once (about 2 s; the whole 24-frame pass as one graph was
+    32 s of export, again for every other length). Frame 0 runs the same graph from a zero state with `first` set,
+    which is upstream's reset (`RGLRU.forward`). The state stays on MLX between frames (`MlxModule.raw`; copying it
+    out and back, 189 MB per frame, was 0.7 s of a 5 s call). The query tokens are computed once, in PyTorch.
+    """
+
+    def _step(  # noqa: PLR0913, PLR0917 - the step graph's tensors
+        self,
+        frame: torch.Tensor,
+        t: torch.Tensor,
+        qt: torch.Tensor,
+        point: torch.Tensor,
+        first: torch.Tensor,
+        state: list[tuple[torch.Tensor, torch.Tensor]],
+    ) -> tuple[torch.Tensor, torch.Tensor, list[tuple[torch.Tensor, torch.Tensor]]]:
+        if frame.shape[-2:] != (SIZE, SIZE):
+            frame = F.interpolate(frame, (SIZE, SIZE), mode="bilinear", align_corners=False, antialias=True)
+        yx, logit, _, state = self.net(frame * 2 - 1, qt, point, t, state, first)
+        return yx, logit.sigmoid(), state
+
+    def __call__(
+        self, frames: Callable[[int], torch.Tensor], n: int, size: tuple[int, int], queries: torch.Tensor
+    ) -> dict[str, torch.Tensor]:
+        """Tracks and visibility of the queries."""
+        h, w = size
+        scale = torch.tensor((SIZE / w, SIZE / h))  # (x, y)
+        qt = queries[:, 0]
+        point = self.net.query_embedding(((queries[:, 1:] + 0.5) * scale).flip(-1))
+        tokens = (SIZE // PATCH) ** 2 + queries.shape[0]
+        state = [(torch.zeros(tokens, WIDTH), torch.zeros(CONV_WIDTH - 1, tokens, WIDTH))] * DEPTH
+        from fastforks._core.mlx import to_torch  # noqa: PLC0415 - MLX only
+
+        step = cast("Any", self._step).raw  # the `MlxModule` of `mlx_wrap.port(methods=("_step",))`
+        tracks, vis = [], []
+        for t in range(n):
+            yx, v, state = step(frames(t), torch.tensor(float(t)), qt, point, torch.tensor(t == 0), state)
+            tracks.append(to_torch(yx).flip(-1) / scale - 0.5)
+            vis.append(to_torch(v))
+        return {"tracks": torch.cat(tracks), "visibility": torch.cat(vis)}
+
+
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Steps, attrs=(), methods=("_step",), release=True, pipeline=True),
+}

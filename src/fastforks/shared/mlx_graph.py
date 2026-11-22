@@ -19,6 +19,7 @@ An op without a mapping raises `UnsupportedOp` naming it (never a silent fallbac
 
 from __future__ import annotations
 
+import bisect
 import contextlib
 import ctypes
 import functools
@@ -72,6 +73,14 @@ _DTYPES = {
 
 def _dt(d: torch.dtype | None) -> mx.Dtype | None:
     return None if d is None else _DTYPES[d]
+
+
+_TORCH_DTYPES = {v: k for k, v in _DTYPES.items() if k is not torch.float64}
+
+
+def _sig(t: torch.Tensor | mx.array) -> tuple[tuple[int, ...], torch.dtype]:
+    """Shape and (torch) dtype of a graph input: an `mx.array` passed back into its graph keys as its tensor did."""
+    return tuple(t.shape), _TORCH_DTYPES[t.dtype] if isinstance(t, mx.array) else t.dtype
 
 
 OPS: dict[Any, Callable[..., Any]] = {}
@@ -409,6 +418,14 @@ def _gwc_volume(left: mx.array, right: mx.array, depth: int, groups: int) -> mx.
     from fastforks.kernels.graph_mlx import ops
 
     return mx.transpose(ops.gwc_volume(_nhwc(left), _nhwc(right), depth, groups), (0, 4, 1, 2, 3))
+
+
+@_reg(torch.ops.fastforks.warp_dot.default)
+def _warp_dot(feat: mx.array, other: mx.array, grid: mx.array) -> mx.array:
+    """The plane-sweep correlation op (`fastforks._core.volume_ops`): one Metal kernel, `[N, D, H, W]` float32."""
+    from fastforks.kernels.graph_mlx import ops
+
+    return ops.warp_dot(_nhwc(feat), _nhwc(other), grid)
 
 
 @_reg(torch.ops.fastforks.upsample_soft_argmax.default)
@@ -3469,6 +3486,12 @@ class GraphNet:
 
         segments = [make(k, steps[a:b]) for k, (a, b) in enumerate(bounds)]
         seg_last = [steps[b - 1][0] for _, b in bounds]
+        # the values to drop after each segment: those whose last use falls in it (a scan of `last` per segment was
+        # quadratic, about 1.5 s of Python per call for tapnext's 701 segments of 37k ops)
+        drops: list[list[str]] = [[] for _ in seg_last]
+        for n, i in last.items():
+            if n not in out_refs and (k := bisect.bisect_left(seg_last, i)) < len(seg_last):
+                drops[k].append(n)
         input_names = [p[1] for p in plan if p[0] == "input"]
 
         def run(*inputs: mx.array) -> tuple[mx.array, ...]:
@@ -3493,8 +3516,8 @@ class GraphNet:
                         prev = res
                     else:
                         mx.eval(res)
-                for n in [n for n, i in last.items() if i <= end and n in env and n not in out_refs]:
-                    del env[n]
+                for n in drops[k]:
+                    env.pop(n, None)
             env.update(values)
             if report is not None:
                 report.emit(" " + ",".join(str(tuple(x.shape)) for x in inputs))
@@ -3549,19 +3572,23 @@ class GraphNet:
         parts.append(f"first {sum(runs[0]):.2f}s fifth {sum(runs[1]):.2f}s")
         print("mlx cold: " + " | ".join(parts), flush=True)  # noqa: T201 - FF_MLX_COLD_LOG=1
 
-    def __call__(self, *tensors: torch.Tensor) -> tuple[torch.Tensor, ...]:
-        """Run on CPU tensors; returns float32 CPU tensors."""
+    def __call__(self, *tensors: torch.Tensor | mx.array, raw: bool = False) -> tuple[Any, ...]:
+        """Run on CPU tensors; returns float32 CPU tensors.
+
+        `raw=True`: `mx.array` inputs are taken as they are and the outputs stay float32 `mx.array`s (no copies). The
+        first call at an input signature exports the network, so it needs CPU tensors.
+        """
         global _KERNELS, _WINO, _HALF_WINO_F32
         _KERNELS = self.kernels
         _HALF_WINO_F32 = self.half_wino_f32
         _WINO = self._wino
-        key = tuple((tuple(t.shape), str(t.dtype)) for t in tensors)
+        key = tuple((s, str(d)) for s, d in map(_sig, tensors))
         if key not in self._runs:
             self._runs[key] = self._build(tuple(tensors))
             if self.on_built is not None:
                 self.on_built()
-        outs = self._runs[key](*[to_mx(t) for t in tensors])
-        return tuple(to_torch(o) for o in outs)
+        outs = self._runs[key](*[t if isinstance(t, mx.array) else to_mx(t) for t in tensors])
+        return outs if raw else tuple(to_torch(o) for o in outs)
 
 
 class _Box:
@@ -3641,9 +3668,22 @@ class MlxModule:
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Run the module on MLX."""
+        return self._call(args, kwargs, raw=False)
+
+    def raw(self, *args: Any, **kwargs: Any) -> Any:
+        """As a call, but `mx.array` arguments are taken as they are and tensor outputs stay float32 `mx.array`s.
+
+        A loop that feeds a step's outputs back in (a recurrent state) keeps them on MLX, without two copies per call.
+        The first call at a signature exports the module from CPU tensors (`mx.array`s are copied to CPU for it).
+        """
+        return self._call(args, kwargs, raw=True)
+
+    def _call(self, args: Any, kwargs: Any, *, raw: bool) -> Any:
         leaves, spec = pytree.tree_flatten((args, kwargs))
-        key = (spec, tuple((tuple(x.shape), x.dtype) if isinstance(x, torch.Tensor) else repr(x) for x in leaves))
+        array = (torch.Tensor, mx.array)
+        key = (spec, tuple(_sig(x) if isinstance(x, array) else repr(x) for x in leaves))
         if key not in self._nets:
+            leaves = [to_torch(x).to(_sig(x)[1]) if isinstance(x, mx.array) else x for x in leaves]
             flat = _Flat(self.module, spec, leaves)
             self._nets[key] = (
                 GraphNet(
@@ -3665,10 +3705,13 @@ class MlxModule:
             net.plan_restore = lambda extra, flat=flat: setattr(flat.out, "value", extra)
         net, flat = self._nets[key]
         net.on_built = (lambda: self._release(flat)) if self.release else None
-        outs = iter(net(*[x for x in leaves if isinstance(x, torch.Tensor)]))
+        outs = iter(net(*[x for x in leaves if isinstance(x, array)], raw=raw))
         assert flat.out.value is not None  # noqa: S101 - narrows the Optional; set while exporting
         out_spec, others, dtypes = flat.out.value
-        merged = [next(outs).to(d) if d is not None else o for o, d in zip(others, dtypes, strict=True)]
+        if raw:
+            merged = [next(outs) if d is not None else o for o, d in zip(others, dtypes, strict=True)]
+        else:
+            merged = [next(outs).to(d) if d is not None else o for o, d in zip(others, dtypes, strict=True)]
         return pytree.tree_unflatten(merged, out_spec)
 
     def _release(self, flat: torch.nn.Module) -> None:

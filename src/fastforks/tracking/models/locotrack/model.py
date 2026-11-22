@@ -18,6 +18,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
+from fastforks._core.tracing import EXPORTING_FOR_MLX
 from fastforks._core.upload import device_tensor
 from fastforks.kernels.locotrack_sample import neighborhood
 from fastforks.tracking._mlx import port as mlx_port
@@ -43,6 +44,9 @@ if TYPE_CHECKING:
 
 FRAME_CHUNK = 16  # fixed: memory chunking of the feature pass, not an architecture value
 QUERY_CHUNK = 64  # fixed: upstream's inference chunk
+# the MLX export unrolls every chunk (256 bench queries: 4 x 64); 128 halves the refinement's trace, export 5.4 -> 3.4 s
+# at 4 % more warm time (256: 2.3 s, 8 %). Each query is computed on its own, so the chunk does not change the tracks.
+MLX_QUERY_CHUNK = 128
 GELU = 5  # fixed: fused-epilogue activation code of exact GELU (fastforks._optimize.conv_ops)
 
 
@@ -87,8 +91,9 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus the auto
         q = torch.cat([queries[:, :1], ((queries[:, 1:] + 0.5) * scale).flip(-1)], 1)[None]  # (t, y, x)
         f = net.features(tuple(_join(g) for g in grids), q)
         points, vis = [], []
-        for s in range(0, q.shape[1], QUERY_CHUNK):
-            p, occ, expd = net.track(f, q, slice(s, s + QUERY_CHUNK))
+        chunk = MLX_QUERY_CHUNK if EXPORTING_FOR_MLX.get() else QUERY_CHUNK
+        for s in range(0, q.shape[1], chunk):
+            p, occ, expd = net.track(f, q, slice(s, s + chunk))
             points.append(p[0])
             vis.append(((1 - occ.float().sigmoid()) * (1 - expd.float().sigmoid()))[0])
     tracks = torch.cat(points).float().transpose(0, 1) / scale - 0.5

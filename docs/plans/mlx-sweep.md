@@ -157,8 +157,8 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | megaloc | retrieval | portable_mlx (`_descriptor` graph), fp32+fp16 pass | 480x640 fp32 53 / 1345 vs MPS 54 / 1926; fp16 83 / 1496 vs 45 / 2617 (fp16 slower than fp32 on MLX here: the Sinkhorn step casts to float32). Less memory; fp32 is the better MLX dtype. |
 | tapir | tracking | portable_mlx: whole offline pass as one graph (adds `grid_sampler_3d`, `avg_pool3d` ops); fp32 only (fp16 misses the goldens' tolerances) | 480x854 ms / MB, fp32. tapir 2770 / 1720 -> 1592 / 1717 vs MPS 1382 / 2630 (2026-11-20: depthwise conv1d of the PIPs mixer as shifted multiply-adds instead of MLX's grouped conv1d, which fuse with the GELU: 1.9 -> 0.8 ms per [64, 24, 2048] conv). 1.15x slower, 35% leaner: not routed. All variants pass goldens. |
 | alltracker | tracking | portable_mlx: per-query-frame group graph (`group` arg replaces data-dependent `unique`/`nonzero`); fp32 only | 480x854 fp32 5397 / 2597 vs MPS 3508 / 4571. |
-| locotrack | tracking | portable_mlx: whole pass as one graph; fp32 only | locotrack-b fp32 2039 / 1679 vs MPS 2104 / 2474 (faster and lighter). |
-| tapnext | tracking | portable_mlx: whole pass as one graph; fp32 only | tapnext fp32 8155 / 3639 -> 7477 / 3673 vs MPS 5855 / 3754 (2026-11-20 re-survey, depthwise conv1d change; not profiled further). |
+| locotrack | tracking | portable_mlx: whole pass as one graph; fp32 only | 2026-11-22: locotrack-b fp32 1482 / 1738 (first call 5.1 s), locotrack-s 1209 / 1653 (4.7 s) vs MPS 2104 / 2474 and 1781 / 2427. MLX export uses 128-query chunks; both auto-route to MLX. |
+| tapnext | tracking | portable_mlx: per-frame step graph (pipelined, released); fp32 only | 2026-11-22: tapnext fp32 7477 / 3673 -> 4034 / 2443 (first call 77 -> 6.5 s), tapnext-pp 4036 / 2025, vs MPS 5855 / 3754 and 5610 / 3657. Both auto-route to MLX. |
 | cotracker | tracking | portable_mlx: offline = whole pass as one graph; online = window loop eager (data-dependent, `torch.export` guards), CNN and update transformer on MLX; fp32 only | offline fp32 3577 / 3438 vs MPS 1430 / 4725 (bench after the shared fixes: ~3057 ms, not re-surveyed); online 3340 / 3971 vs 1707 / 4689. 2026-11-20 profile (offline): about half is the feature CNN's convs (MLX conv2d 2-3x slower than MPS), the rest correlation lerps and SDPA; no cheap win. |
 | track_on | tracking | portable_mlx: per-frame loop eager (data-dependent: queries join at their frame), DINOv3 adapter backbone and the per-frame `step` (attention over memory, correlation, rerank, head; the frame's tensors as arguments) as graphs; fp32+fp16 pass | track-on2 fp32 21453 / 4902 -> 10755 / 3318 vs MPS 8354 / 6102; fp16 21190 / 4947 -> 7623 / 3056 (2026-11-20: the step ran eagerly on the CPU before). fp16 routed (`auto`): 9% faster than MPS fp32 (no MPS fp16 row) at half the memory. |
 | nnfoundation (cnn) | volume | `mlx_wrap.port(Portable)`: 3D UNet exported whole; 5-D conv via `mx.conv3d` (transposed: matmul for stride == kernel, else `conv_transpose3d`) | 200x200 fp32 5421 ms / 10651 MB -> 4271 / 9100 vs MPS 3645 / 9435; fp16 4721 / 10094 -> 3520 / 8041 vs 2935 / 7824 (2026-11-20: channels-last instance-norm statistics, 1-channel stem conv3d as one conv2d over folded depth taps); goldens pass. Still 1.2x slower: the rest is `mx.conv3d` itself (~2.4 TFLOPS: 64@112^3 ~115 ms, 32@224^3 ~258 ms per conv). With the graph kernels forced (channel_stats, Winograd 3D) fp16 bench 3045 / 6469: 3.7% slower but 17% leaner than MPS, short of the route rule, so no kernels mode is declared. |
@@ -169,7 +169,7 @@ Fill one row per family: MLX portable / kernels vs MPS (ms and MB, at the survey
 | vggt | multiview | same (`_Upstream.predict`) | vggt-1b 336x518 fp32 9359 ms / 9387 MB vs MPS 7209 / 10654; fp16 8774 / 6853 vs 6638 / 8423. vggt-omega-1b-512 fp32 9167 / 7391 vs 7938 / 8221; fp16 8358 / 5294 vs 7242 / 8602. Goldens pass; memory lower, time 1.15-1.3x slower. |
 | anysplat | multiview | same | 336x518 fp32 8786 ms / 10565 MB vs MPS 33262 / 10705 (MPS fp32 path is slow); fp16 6974 / 8297 vs 5444 / 8751; goldens pass. fp32 3.8x faster than MPS. |
 | depthsplat | multiview | `port(Portable)`, adds `aten.clamp.Tensor` | 336x518 fp32 1707 ms / 2177 MB vs MPS 670 / 8880; golden passes in fp32 only (fp16 confidence mean diff 0.016 > 0.014, so only fp32 is declared). Memory 4x lower, time 2.5x slower. |
-| mvsplat | multiview | `port(Portable)` | 336x518 fp32 4550 ms / 3460 MB vs MPS 1077 / 4523; fp16 4527 / 3737 vs 1112 / 4537; goldens pass. Memory lower; 4x slower (the 3-D cost-volume warp graph is large and mostly gathers). |
+| mvsplat | multiview | `port(Portable)` + fused `fastforks::warp_dot` Metal kernel | 2026-11-22: fp16 2116 / 2706 -> 1258 / 2541, fp32 2573 / 3466 -> 1573 / 3456 vs MPS 1123 / 4323 and 1040 / 4540. Still 1.1-1.5x slower: no auto route. |
 | resplat | multiview | `net.encode` as the exported graph, its kNN as one op (`fastforks::resplat_knn`) lowered to a Metal z-order tiled kNN; the refinement by hand (`net/mlx_refine.py`): Metal projection / tile-intersection / rasteriser kernels, Metal kNN and kNN-attention, ResNet / low-res attention / point transformer in MLX (compiled blocks) | base-re10k 256x256 (the multi-view floor's smallest) fp32 19441 ms / 9553 MB; fp16 14649 / 5639. At 480x640 (warm call, own timing): before 112309 ms / 12071 MB (survey row, refine eager on torch CPU), now fp32 16.3 s, fp16 10.6 s (MLX peak 3.8 GB). Goldens (base, small) pass in fp32 and fp16. Left: the point transformer's GEMMs (~2.3 s per refine step) and the encoder graph (~4 s); MPS rows are still at 480x640 (fp32 14422 / 12080). |
 | lingbot-map | multiview | `methods=("run",)`: the whole streaming pass incl. KV cache unrolled into one exported graph | 480x640 fp32 11010 ms / 9090 MB vs MPS 8840 / 13055; fp16 10046 / 8220 vs 7125 / 8834; goldens pass. Memory lower, time 1.25-1.4x slower. |
 | mapanything | multiview | `methods=("predict",)` (transformer, DPT, heads and edge mask in one graph) | mapanything-apache 336x518 fp32 9091 ms / 11207 MB vs MPS 7357 / 11638; fp16 8284 / 8402 vs 6369 / 7218 (+1.2 GB); goldens pass. |
@@ -2420,7 +2420,7 @@ Ms are warm medians (second of two survey runs), MB the process-footprint peak. 
   - tapnext: 1280-token tensors, thousands of small ops; synced sum 12.0 s against 5.8 s warm. The fp32 residual
     stream and fp32 biases (`add f16 + f32`, `to` 1.06 s) are the card's design around the fp32 scan. A pure-fp16
     port would need new golden evidence.
-- **Not done (time box)**: tapnext-pp and locotrack (same autocast-around-fp32-scan pattern as tapnext), mvsplat.
+- **Not done (time box)**: tapnext-pp and locotrack (same autocast-around-fp32-scan pattern as tapnext), mvsplat. Done 2026-11-22, see the section at the end.
 
 
 ## Later idea: fp16 checkpoints from the start (2026-11-22, not started)
@@ -2684,3 +2684,54 @@ Not done, or rejected:
   it. Its 13.2 GB MPS fp16 peak was not re-profiled in this pass.
 - **The remaining MPS time** is the attention (~7 s; it has to materialise the 104 x 104 scores without a fused kernel)
   and the 22 GRU iterations (~8 s, 2-D convs at 1/4 resolution).
+
+## 2026-11-22: tapnext, tapnext-pp, locotrack, mvsplat (M1 Pro 16 GB)
+
+Second survey run each, `--modes portable`; ms / MB peak footprint / first call s.
+
+| ref | dtype | MLX before | MLX after | MPS |
+| --- | --- | --- | --- | --- |
+| tapnext | fp32 | 7477 / 3673 / 77.1 | 4034 / 2443 / 6.5 | 5855 / 3754 |
+| tapnext-pp | fp32 | no row | 4036 / 2025 / 6.4 | 5680 / 3308 -> 5610 / 3657 |
+| tapnext-pp | fp16 | - | - | 5785 / 3310 -> 5654 / 3552 |
+| locotrack-b | fp32 | 1484 / 1608 / 7.3 | 1482 / 1738 / 5.1 | 2104 / 2474 |
+| locotrack-s | fp32 | no row | 1209 / 1653 / 4.7 | 1781 / 2427 |
+| mvsplat-re10k | fp16 | 2116 / 2706 / 8.7 | 1258 / 2541 / 5.8 | 1123 / 4323 |
+| mvsplat-re10k | fp32 | 2573 / 3466 / 9.1 | 1573 / 3456 / 6.3 | 1040 / 4540 |
+
+The MPS tapnext-pp rows replace stale golden-"skip" rows.
+
+Changes:
+
+- **tapnext / tapnext-pp**: the MLX port is a per-frame `Steps` graph (`_step`, pipelined, released) instead of one
+  unrolled whole-video graph. A `first` flag replaces the `h=None` reset, so every frame uses the same graph. Compile
+  drops from 77 to 6.5 s; warm time drops 46%, peak memory 33%.
+- **mlx_graph**: the per-segment `drops` list is built with bisect instead of a quadratic scan. A `raw=` passthrough
+  lets a step graph keep MLX arrays between calls.
+- **locotrack**: the MLX export uses 128-query chunks (`MLX_QUERY_CHUNK`; eager stays at `QUERY_CHUNK`). Every chunk is
+  unrolled in the export, so 64 -> 128 cuts export 5.4 -> 3.4 s for 4% more warm time and +130-180 MB. This lets
+  locotrack-s pass the cold-factor rule (it missed with 5.76 s compile against 3 x 1.78 s).
+- **mvsplat**: new custom op `fastforks::warp_dot` (plane-sweep warp plus channel dot, `_core/volume_ops.py`). Eagerly
+  it is the grid_sample loop; the MLX replay lowers it to one Metal kernel (`kernels/graph_mlx/ops.py`, one SIMD group
+  per view/depth/pixel, fp32 accumulation). It never materialises the `[N, C, D, H, W]` warped volume. It is only used
+  under `EXPORTING_FOR_MLX`, so MPS and CPU are unchanged.
+- **mvsplat `sh_rotation`**: cast the float64 constants on the CPU before upload. test_mps[mvsplat-re10k@1] failed at
+  HEAD with a float64 MPS TypeError; it passes now.
+
+Routes (`apple_mlx.json`): tapnext@1 gains `auto` / `dtypes` (fp32 portable). New entries for tapnext-pp@1 and
+locotrack-s@1 (`auto`, `dtypes`, `mlx_default`, fp32 portable). No mvsplat auto route.
+
+Investigated, not changed:
+
+- **tapnext `FF_MLX_CHUNK_MB=2048`**: no gain. The step is GEMM-bound: the MLP and QKV linears are about 3.8 of
+  10.2 s eager.
+- **locotrack chunk 256**: export 2.3 s but 8% slower warm. Kept 128.
+- **mvsplat remainder**: the full-resolution refine convs (163 -> 168 channels at 160x256, about 137 ms per call) and
+  the instance-norm stats. The `channel_stats` fast path in `_batch_norm_batch_stats` is gated to kernels mode, and
+  mvsplat has no MLX kernels mode. Left as is.
+- **MPS warp_dot**: MPS keeps the grid_sample loop. A Metal kernel for torch MPS would be a separate job; it is a
+  transfer idea from the MLX kernel.
+
+Goldens pass: test_mlx for tapnext, tapnext-pp, locotrack-b/s, mvsplat-re10k, plus nafnet-gopro, wd-vit-tagger-v3 and
+c-fast-foundationstereo (shared mlx_graph change); MPS/CPU goldens for tapnext, locotrack and mvsplat (`--slow`);
+test_auto_mode, test_mlx, test_mlx_plan_cache, test_mlx_shape_caches (67 passed).

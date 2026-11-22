@@ -75,8 +75,14 @@ class RGLRU(nn.Module):
         self.input_gate = BlockDiagonalLinear(width, heads)
         self.a_gate = BlockDiagonalLinear(width, heads)
 
-    def forward(self, x: torch.Tensor, h: torch.Tensor | None) -> tuple[torch.Tensor, torch.Tensor]:
-        """`x [T, N, C]` (float32), `h [N, C]` float32 state or `None` at the video start."""
+    def forward(
+        self, x: torch.Tensor, h: torch.Tensor | None, first: torch.Tensor | None = None
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """`x [T, N, C]` (float32), `h [N, C]` float32 state or `None` at the video start.
+
+        `first` (bool, one element): with a zero `h`, whether `x` starts the video (the same reset as `h=None`, as a
+        tensor: one exported step graph serves every frame).
+        """
         gate_x = torch.sigmoid(self.input_gate(x))
         log_a = -8.0 * torch.sigmoid(self.a_gate(x)) * F.softplus(self.a_param.float())
         a = log_a.exp()
@@ -84,6 +90,8 @@ class RGLRU(nn.Module):
         if h is None:  # reset at the first frame
             mult = torch.cat([torch.ones_like(mult[:1]), mult[1:]])
             h = torch.zeros_like(x[0], dtype=torch.float32)
+        elif first is not None:
+            mult = torch.cat([torch.where(first, torch.ones_like(mult[:1]), mult[:1]), mult[1:]])
         xs = (x * gate_x * mult).float()
         ys = []
         for t in range(x.shape[0]):
@@ -103,18 +111,19 @@ class RecurrentBlock(nn.Module):
         self.conv_1d.b = nn.Parameter(torch.zeros(width))
         self.rg_lru = RGLRU(width, heads)
 
-    def forward(self, x: torch.Tensor, cache: tuple[torch.Tensor, torch.Tensor] | None):
+    def forward(self, x: torch.Tensor, cache: tuple[torch.Tensor, torch.Tensor] | None, first=None):
         y = F.gelu(self.linear_y(x), approximate="tanh")
-        return self.temporal(self.linear_x(x).float(), cache, y, self.linear_out)
+        return self.temporal(self.linear_x(x).float(), cache, y, self.linear_out, first)
 
-    def temporal(self, x: torch.Tensor, cache, y: torch.Tensor, out: Callable[[torch.Tensor], torch.Tensor]):
-        """The temporal conv and the RG-LRU scan of the float32 `x` branch, gated by `y`, through `out`."""
+    def temporal(self, x: torch.Tensor, cache, y: torch.Tensor, out: Callable[[torch.Tensor], torch.Tensor], first=None):
+        """The temporal conv and the RG-LRU scan of the float32 `x` branch, gated by `y`, through `out` (`first`: see
+        `RGLRU.forward`)."""
         conv_state = x.new_zeros(CONV_WIDTH - 1, *x.shape[1:]) if cache is None else cache[1]
         xp = torch.cat([conv_state, x])  # [T + 3, N, C]
         t = x.shape[0]
         w = self.conv_1d.w.float()
         x = self.conv_1d.b.float() + sum(w[k] * xp[k : k + t] for k in range(CONV_WIDTH))
-        x, h = self.rg_lru(x, None if cache is None else cache[0])
+        x, h = self.rg_lru(x, None if cache is None else cache[0], first)
         x = out((x * y).to(y.dtype))
         return x, (h, xp[-(CONV_WIDTH - 1) :])
 
@@ -141,8 +150,8 @@ class ResidualBlock(nn.Module):
         self.channel_pre_norm = RMSNorm(width)
         self.mlp_block = MLPBlock(width, 4 * width)
 
-    def forward(self, x: torch.Tensor, cache):
-        y, cache = self.recurrent_block(self.temporal_pre_norm(x), cache)
+    def forward(self, x: torch.Tensor, cache, first=None):
+        y, cache = self.recurrent_block(self.temporal_pre_norm(x), cache, first)
         x = x + y
         return x + self.mlp_block(self.channel_pre_norm(x)), cache
 
@@ -184,8 +193,8 @@ class TRecViTBlock(nn.Module):
         self.ssm_block = ResidualBlock(width, heads)
         self.vit_block = EncoderBlock(width, heads)
 
-    def forward(self, x: torch.Tensor, cache):
-        x, cache = self.ssm_block(x, cache)  # over time, per token
+    def forward(self, x: torch.Tensor, cache, first=None):
+        x, cache = self.ssm_block(x, cache, first)  # over time, per token
         return self.vit_block(x), cache  # over tokens, per frame
 
 
@@ -255,23 +264,31 @@ class TAPNext(nn.Module):
             emb = torch.cat([F.grid_sample(x, grid, align_corners=False), F.grid_sample(y, grid, align_corners=False)], 1)
         return (self.point_query_token[0, 0] + emb[0, :, 0].T).to(self.mask_token.dtype)
 
-    def query_tokens(self, t0: int, t: int, qt: torch.Tensor, point: torch.Tensor) -> torch.Tensor:
+    def query_tokens(self, t0: int | torch.Tensor, t: int, qt: torch.Tensor, point: torch.Tensor) -> torch.Tensor:
         """`[t, Q, C]` tokens of frames `t0 .. t0 + t - 1` for queries on frames `qt [Q]` with tokens `point`."""
-        frames = torch.arange(t0, t0 + t, device=qt.device, dtype=qt.dtype)[:, None, None]
+        frames = torch.arange(t, device=qt.device, dtype=qt.dtype)[:, None, None] + t0  # t0: int or 0-d tensor
         qt = qt[None, :, None]
         tok = torch.where(frames == qt, point[None], self.mask_token[0])
         return torch.where(frames < qt, self.unknown_token[0], tok)
 
-    def forward(self, video: torch.Tensor, qt: torch.Tensor, point: torch.Tensor, t0: int, state: list | None):
+    def forward(  # noqa: PLR0913, PLR0917 - upstream's arguments plus the step graph's reset flag
+        self,
+        video: torch.Tensor,
+        qt: torch.Tensor,
+        point: torch.Tensor,
+        t0: int | torch.Tensor,
+        state: list | None,
+        first: torch.Tensor | None = None,
+    ):
         """`video [T, 3, 256, 256]` in [-1, 1], frames `t0 ..`; returns `(y, x)` tracks `[T, Q, 2]`, visible logits
-        `[T, Q]`, track logits `[T, Q, 512]` and the new state."""
+        `[T, Q]`, track logits `[T, Q, 512]` and the new state (`first`: see `RGLRU.forward`)."""
         t = video.shape[0]
         x = self.lin_proj(video).flatten(2).transpose(1, 2) + self.image_pos_emb  # [T, 1024, C]
         n = x.shape[1]
         x = torch.cat([x, self.query_tokens(t0, t, qt, point).to(x.dtype)], 1)
         new = []
         for blk, cache in zip(self.blocks, state or [None] * len(self.blocks), strict=True):
-            x, c = blk(x, cache)
+            x, c = blk(x, cache, first)
             new.append(c)
         p = self.encoder_norm(x[:, n:])
         logits = self.coordinate_head(p)

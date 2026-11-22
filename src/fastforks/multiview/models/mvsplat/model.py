@@ -38,7 +38,9 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.patch import is_base, override
 from fastforks._core.sampling import grid_sample
+from fastforks._core.tracing import EXPORTING_FOR_MLX
 from fastforks._core.upload import device_tensor, to_device
+from fastforks._core.volume_ops import warp_dot
 from fastforks.kernels import mvsplat_corr
 from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, f64, invert, project_harmonics
@@ -194,6 +196,9 @@ def correlation(  # noqa: PLR0913 - camera geometry and execution precision
         if fused:
             mvsplat_corr.accumulate(feat, g.to(dtype), out, i)
             continue
+        if EXPORTING_FOR_MLX.get():  # one Metal kernel in the replay: no [V, C, D, h, w] warped volume
+            out = out + warp_dot(feat, feat.roll(-i, 0), g)
+            continue
         other = feat.roll(-i, 0)  # view j against view (j + i) % V
         for j in range(0, d, DEPTH_CHUNK):
             gj = g[:, j : j + DEPTH_CHUNK].reshape(v, -1, w, 2).to(feat.dtype)
@@ -325,10 +330,10 @@ def sh_rotation(r: torch.Tensor) -> torch.Tensor:
     """
     d = r.new_zeros(r.shape[0], SH, SH)
     d[:, 0, 0] = 1
-    s = to_device(_S, r.device).to(r.dtype)
+    s = to_device(_S.to(r.dtype), r.device)  # cast on the CPU first: MPS has no float64
     for deg, (y, p) in enumerate(zip(_y((r @ s).transpose(1, 2)), _P, strict=True), 1):
         d[:, deg**2 : (deg + 1) ** 2, deg**2 : (deg + 1) ** 2] = project_harmonics(
-            y, to_device(p, r.device).to(r.dtype)
+            y, to_device(p.to(r.dtype), r.device)
         )
     return d
 

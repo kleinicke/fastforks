@@ -2037,6 +2037,22 @@
     "float32": "portable"
    }
   },
+  "locotrack-s@1": {
+   "auto": [
+    "portable",
+    "float32"
+   ],
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
   "loftr-outdoor@1": {
    "mlx_default": [
     "portable",
@@ -3844,7 +3860,30 @@
     "float32": "portable"
    }
   },
+  "tapnext-pp@1": {
+   "auto": [
+    "portable",
+    "float32"
+   ],
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float32"
+   ],
+   "mlx": {
+    "float32": "portable"
+   }
+  },
   "tapnext@1": {
+   "auto": [
+    "portable",
+    "float32"
+   ],
+   "dtypes": {
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float32"
