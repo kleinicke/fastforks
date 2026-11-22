@@ -440,6 +440,39 @@ def each(n: int, fn: Callable[[int], Any]) -> list[Any]:
     return out
 
 
+_BATCH_TIP = (
+    "Images per model call: larger is faster for small models (several times at 224-512 px) and needs more GPU"
+    " memory; 1 runs one image at a time. Models that cannot batch raise an error."
+)
+BATCH = {"batch_size": ("INT", {"default": 1, "min": 1, "max": 64, "tooltip": _BATCH_TIP})}
+
+
+def at(t: Any, k: int | None) -> Any:  # noqa: ANN401 - a result field: tensor or None
+    """Image `k` of a batched result field (`None`: the field of a one-image result, as it is)."""
+    return t if k is None or t is None else t[k]
+
+
+def each_result(
+    image: torch.Tensor, m: fastforks.Model, batch_size: int, fn: Callable[[Any, int | None], Any]
+) -> list[Any]:
+    """`fn(result, k)` for every image of a ComfyUI batch, the model called on `batch_size` images at a time.
+
+    With `batch_size` 1 the model takes single images and `k` is None; else `k` is the image's index in the batched
+    result (read its fields with `at`).
+    """
+    n = image.shape[0]
+    if batch_size <= 1:
+        return each(n, lambda i: fn(m(convert.frame(image, i, m.device)), None))
+    starts = range(0, n, batch_size)
+
+    def chunk(j: int) -> list[Any]:
+        stop = min(n, starts[j] + batch_size)
+        r = m(convert.frames(image, starts[j], stop, m.device))
+        return [fn(r, k) for k in range(stop - starts[j])]
+
+    return [o for c in each(len(starts), chunk) for o in c]
+
+
 def _out_device() -> torch.device:
     return _mm().intermediate_device()
 
@@ -561,17 +594,17 @@ class Depth(_Node):
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        return {"required": {"image": ("IMAGE",), **common(cls)}}
+        return {"required": {"image": ("IMAGE",), **common(cls)}, "optional": BATCH}
 
-    def run(self, *, image: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[torch.Tensor]:
+    def run(
+        self, *, image: torch.Tensor, model: str, backend: str, dtype: str, batch_size: int = 1
+    ) -> tuple[torch.Tensor]:
         """Run the model on every image."""
         m = load(model, backend, dtype)
-
-        def one(i: int) -> torch.Tensor:
-            r = m(convert.frame(image, i, m.device))
-            return convert.depth_image(r.depth, r.inverse_depth)
-
-        return (convert.to_image(each(image.shape[0], one), _out_device()),)
+        maps = each_result(
+            image, m, batch_size, lambda r, k: convert.depth_image(at(r.depth, k), at(r.inverse_depth, k))
+        )
+        return (convert.to_image(maps, _out_device()),)
 
 
 class VideoDepth(_Node):
@@ -619,14 +652,16 @@ class Normals(_Node):
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        return {"required": {"image": ("IMAGE",), **common(cls)}}
+        return {"required": {"image": ("IMAGE",), **common(cls)}, "optional": BATCH}
 
-    def run(self, *, image: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[torch.Tensor]:
+    def run(
+        self, *, image: torch.Tensor, model: str, backend: str, dtype: str, batch_size: int = 1
+    ) -> tuple[torch.Tensor]:
         """Run the model on every image."""
         # MoGe runs its normal head only when asked (its `normals` option is off by default); the others always have it
         wants = "normals" in fastforks.model_card(model_id(model)).options
         m = load(model, backend, dtype, {"normals": True} if wants else None)
-        maps = each(image.shape[0], lambda i: convert.normals_image(m(convert.frame(image, i, m.device)).normals))
+        maps = each_result(image, m, batch_size, lambda r, k: convert.normals_image(at(r.normals, k)))
         return (convert.to_image(maps, _out_device()),)
 
 
@@ -898,17 +933,20 @@ class Classify(_Node):
                 "image": ("IMAGE",),
                 **common(cls),
                 "top_k": ("INT", {"default": 5, "min": 1, "max": 100}),
-            }
+            },
+            "optional": BATCH,
         }
 
-    def run(self, *, image: torch.Tensor, model: str, backend: str, dtype: str, top_k: int) -> tuple[str]:
+    def run(  # noqa: PLR0913 - one argument per input
+        self, *, image: torch.Tensor, model: str, backend: str, dtype: str, top_k: int, batch_size: int = 1
+    ) -> tuple[str]:
         """Classify every image."""
         m = load(model, backend, dtype)
 
-        def one(i: int) -> str:
-            return "\n".join(f"{name}: {p:.4f}" for name, p in m(convert.frame(image, i, m.device)).top(top_k))
+        def one(r: Any, k: int | None) -> str:  # noqa: ANN401 - a classification result
+            return "\n".join(f"{name}: {p:.4f}" for name, p in at(r.top(top_k), k))
 
-        return ("\n\n".join(each(image.shape[0], one)),)
+        return ("\n\n".join(each_result(image, m, batch_size, one)),)
 
 
 _WD_GENERAL, _WD_CHARACTERS = 4, 8110  # WD v3 label set: ratings, then general tags, then characters (card)
@@ -949,7 +987,8 @@ class Tag(_Node):
                 **common(cls),
                 "general_threshold": ("FLOAT", {"default": 0.35, **thr}),
                 "character_threshold": ("FLOAT", {"default": 0.75, **thr}),
-            }
+            },
+            "optional": BATCH,
         }
 
     def run(  # noqa: PLR0913 - one argument per input
@@ -961,16 +1000,16 @@ class Tag(_Node):
         dtype: str,
         general_threshold: float,
         character_threshold: float,
+        batch_size: int = 1,
     ) -> tuple[str]:
         """Tag every image."""
         m = load(model, backend, dtype)
         names = cast("tuple[str, ...]", m.class_names)  # ty: ignore[unresolved-attribute]
 
-        def one(i: int) -> str:
-            probs = m(convert.frame(image, i, m.device)).probs.float().cpu()
-            return wd_tags(probs, names, general_threshold, character_threshold)
+        def one(r: Any, k: int | None) -> str:  # noqa: ANN401 - a classification result
+            return wd_tags(at(r.probs, k).float().cpu(), names, general_threshold, character_threshold)
 
-        return ("\n".join(each(image.shape[0], one)),)
+        return ("\n".join(each_result(image, m, batch_size, one)),)
 
 
 class NsfwCheck(_Node):
@@ -990,13 +1029,15 @@ class NsfwCheck(_Node):
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        return {"required": {"image": ("IMAGE",), **common(cls)}}
+        return {"required": {"image": ("IMAGE",), **common(cls)}, "optional": BATCH}
 
-    def run(self, *, image: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[str, float]:
+    def run(
+        self, *, image: torch.Tensor, model: str, backend: str, dtype: str, batch_size: int = 1
+    ) -> tuple[str, float]:
         """Classify every image."""
         m = load(model, backend, dtype)
         names = cast("tuple[str, ...]", m.class_names)  # ty: ignore[unresolved-attribute]
-        probs = each(image.shape[0], lambda i: m(convert.frame(image, i, m.device)).probs.float().cpu())
+        probs = each_result(image, m, batch_size, lambda r, k: at(r.probs, k).float().cpu())
         labels = "\n".join(names[int(p.argmax())] for p in probs)
         return labels, max(float(p[names.index("nsfw")]) for p in probs)
 
@@ -1039,11 +1080,12 @@ class SemanticSegment(_Node):
                 "image": ("IMAGE",),
                 **common(cls),
                 "classes": ("STRING", {"default": "", "tooltip": tip}),
-            }
+            },
+            "optional": BATCH,
         }
 
-    def run(
-        self, *, image: torch.Tensor, model: str, backend: str, dtype: str, classes: str
+    def run(  # noqa: PLR0913 - one argument per input
+        self, *, image: torch.Tensor, model: str, backend: str, dtype: str, classes: str, batch_size: int = 1
     ) -> tuple[torch.Tensor, torch.Tensor, str, torch.Tensor]:
         """Segment every image."""
         m = load(model, backend, dtype)
@@ -1051,13 +1093,13 @@ class SemanticSegment(_Node):
         wanted = torch.tensor(convert.class_ids(classes, names), dtype=torch.long)
         colours = convert.palette(len(names))
 
-        def one(i: int) -> tuple[torch.Tensor, torch.Tensor, list[str], list[torch.Tensor]]:
-            lab = m(convert.frame(image, i, m.device)).labels
+        def one(r: Any, k: int | None) -> tuple[torch.Tensor, torch.Tensor, list[str], list[torch.Tensor]]:  # noqa: ANN401
+            lab = at(r.labels, k)
             present = [names[c] for c in lab.unique().tolist()]
             mask = torch.isin(lab, wanted.to(lab.device))
             return convert.labels_image(lab, colours), mask, present, [lab == c for c in wanted.tolist()] or [mask]
 
-        out = each(image.shape[0], one)
+        out = each_result(image, m, batch_size, one)
         found = "\n".join(", ".join(o[2]) for o in out)
         return (
             convert.to_image([o[0] for o in out], _out_device()),
@@ -1339,14 +1381,14 @@ class FaceRestore(_Node):
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        return {"required": {"image": ("IMAGE",), **common(cls)}}
+        return {"required": {"image": ("IMAGE",), **common(cls)}, "optional": BATCH}
 
-    def run(self, *, image: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[torch.Tensor]:
+    def run(
+        self, *, image: torch.Tensor, model: str, backend: str, dtype: str, batch_size: int = 1
+    ) -> tuple[torch.Tensor]:
         """Restore every face crop."""
         m = load(model, backend, dtype)
-        return (
-            convert.to_image(each(image.shape[0], lambda i: m(convert.frame(image, i, m.device)).image), _out_device()),
-        )
+        return (convert.to_image(each_result(image, m, batch_size, lambda r, k: at(r.image, k)), _out_device()),)
 
 
 # (key, node, display name): ComfyUI's class name is `Fastforks<key>` in both packs (a workflow loads in either; with
