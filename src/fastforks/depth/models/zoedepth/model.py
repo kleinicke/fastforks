@@ -112,6 +112,25 @@ def _infer(run: Callable[[torch.Tensor], torch.Tensor], image: torch.Tensor, par
     return out
 
 
+class _Softplus(torch.nn.Module):
+    """`nn.Softplus()` as relu(x) + log1p(exp(-|x|)), finite in float16.
+
+    The export decomposes softplus into exp(x), which overflows float16 above x = 11 in a float16 MLX replay (the seed
+    bin centres reach 21).
+    """
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return F.relu(x) + torch.log1p(torch.exp(-x.abs()))
+
+
+def _stable_softplus(net: torch.nn.Module) -> None:
+    """Swap every `nn.Softplus` of `net` (bin centre and attractor heads) for `_Softplus`."""
+    for parent in list(net.modules()):
+        for name, child in parent.named_children():
+            if isinstance(child, torch.nn.Softplus):
+                setattr(parent, name, _Softplus())
+
+
 class Portable(Runner):
     """Upstream network (SDPA attention with the relative position bias as mask): float32, or fp16 autocast."""
 
@@ -124,6 +143,8 @@ class Portable(Runner):
         super().__init__(ctx)
         self.net = _net(ctx)
         use_sdpa_attention(self.net)
+        if mlx_wrap.twin_dtype() == "float16":
+            _stable_softplus(self.net)
         self.half = ctx.dtype == "float16"
 
     def _pass(self, x: torch.Tensor) -> torch.Tensor:
