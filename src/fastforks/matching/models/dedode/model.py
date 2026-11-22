@@ -208,7 +208,6 @@ class Kernels(Portable):
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(
-        Portable, attrs=("net.detector", "net.descriptor"), cache_mb=1024, half_wino_f32=True
-    ),
+    # buffer cache 384 MB: as fast as 1024 MB on v2-g and v2-b fp16 (v2-b fp32 within ~3 %), ~640 MB less peak
+    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.detector", "net.descriptor"), cache_mb=384, half_wino_f32=True),
 }

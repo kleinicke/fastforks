@@ -3571,3 +3571,34 @@ inference mode. Tried and rejected: a retry in the call's mode after the Runtime
 |diff| 4.23 then, before the sticky merge fix, so not conclusive), and leaving inference mode only for a GraphNet's
 first export (`not self._runs`; still failed, so the second shape is likely a fresh GraphNet). The pytest golden
 (fresh model, one shape) passes. Left for a separate fix of 8bc4bd86.
+
+### dedode-v2-b/-g: buffer cache 1024 -> 384 MB
+
+The +1.1 GB of 751ce81d (2915 / 4374 -> 2284 / 5444) is its `cache_mb=1024`; conv toggles (NO_TUNE, NO_WINO32,
+NO_OUT64, NO_ALIGN, NO_MERGE, NO_SPLIT_IN, NO_WIDE_OUT) moved nothing. Cache sweep (probe, s / peak MB):
+
+| run | 1024 | 640 | 384 | 256 | 128 |
+|---|---|---|---|---|---|
+| v2-b fp32 | 2.19-2.25 / 5457 | 2.29 / 5083 | 2.25-2.36 / 4818 | 2.32 / 4687 | 2.475 / 4517 |
+| v2-b fp16 | 1.725-1.75 / 4289 | | 1.746-1.757 / 3642 | 1.80-2.0 / 3461 | |
+| v2-g fp16 | 3.15 / 4877 | | 3.16 / 4265 | | |
+| v2-g fp32 | 4.10 / 6664 | | 4.10 / 6021 | | |
+
+384 MB keeps the speed (v2-b fp32 within ~3 %) for ~640 MB less peak; below it v2-b slows.
+
+Survey (second run, ms / peak MB, before = 1024 MB rows of 11-22):
+
+| ref | before | after |
+|---|---|---|
+| dedode-v2-b fp32 | 2284 / 5444 | 2389 / 4801 |
+| dedode-v2-b fp16 | 1776 / 4575 | 1814 / 3622 |
+| dedode-v2-g fp32 | 4161 / 6626 | 4240 / 5971 |
+| dedode-v2-g fp16 | 3329 / 4871 | 3222 / 4226 |
+
+v2-b fp32 gives back ~4.6 % (still far ahead of 11-19's 2915 ms) for 640 MB; the rest is within ~2 % for 650-950 MB
+less. Goldens (test_mlx and the survey's golden step) pass.
+
+Routes: unchanged after both items (`gen_auto_mode --check` clean). Disk 29 GB free throughout; swap 7.7 GB used at the
+start, 5.8 GB at the end. Goldens after the merge change: the mandated `test_mlx` list plus waft-a1,
+raft-stereo-sceneflow, dedode-v2-b and dedode-v2-g (16 pass); tests/test_mlx*.py, test_auto_mode.py and test_policy.py
+pass.
