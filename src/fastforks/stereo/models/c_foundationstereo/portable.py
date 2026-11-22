@@ -10,6 +10,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.half import pure_half
 from fastforks._core.patch import is_base, override
 from fastforks._core.tracing import EXPORTING_FOR_MLX
 
@@ -182,3 +183,14 @@ def prepare_portable(net: nn.Module, *, channels_last: bool = False) -> None:
                 override(m.conv_out, _hourglass_tail)
         elif fast and isinstance(m, Conv):
             override(m, _conv)
+
+
+def mps_half(net: nn.Module) -> None:
+    """The whole network in fp16 on MPS (TAO's AMP blocks only autocast on CUDA).
+
+    The GRU lookups keep TAO's fp32 (`features.float()`, `disp.float()`); the update block and the upsampling heads
+    cast their inputs back to fp16 (`pure_half` on each).
+    """
+    pure_half(net, channels_last=False)
+    for m in (net.update_block, net.spx_2_gru, net.spx_gru):
+        pure_half(m, channels_last=False)

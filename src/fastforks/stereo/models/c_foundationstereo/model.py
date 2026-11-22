@@ -15,7 +15,7 @@ from fastforks.stereo._runner import Forward, Runner
 from .net.fast_foundation_stereo.ckpt_utils import remap_state_dict, tao_edgenext_keys
 from .net.fast_foundation_stereo.fast_foundation_stereo import FastFoundationStereo
 from .net.foundation_stereo.foundation_stereo import FoundationStereo
-from .portable import prepare_portable
+from .portable import mps_half, prepare_portable
 
 if TYPE_CHECKING:
     from torch import nn
@@ -166,7 +166,7 @@ def iters(p: Params) -> int:
 
 
 class Portable(Runner):
-    """Plain PyTorch: TAO's forward (its fp16 AMP on CUDA), the disparity transformer chunked over its sequences."""
+    """Plain PyTorch: TAO's forward (its fp16 AMP on CUDA, pure fp16 on MPS), the disparity transformer chunked."""
 
     deterministic_cudnn = True
 
@@ -180,6 +180,8 @@ class Portable(Runner):
         # TAO's own AMP switch: fp16 autocast inside the network's AUTOCAST blocks, the GRU lookups in fp32
         cast("_Args", self.net.args)["mixed_precision"] = ctx.device.type == "cuda" and ctx.dtype == "float16"
         prepare_portable(self.net, channels_last=ctx.device.type == "cuda")
+        if ctx.device.type == "mps" and ctx.dtype == "float16":
+            mps_half(self.net)
 
     def _run(self, net: nn.Module, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
         return net(left, right, iters=iters(self.ctx.params), test_mode=True)[:, 0].float()
