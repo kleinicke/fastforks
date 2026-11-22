@@ -553,15 +553,16 @@ def _load_image(image: bytes, name: str) -> ctypes.CDLL:
 
 _DLL_DIR: list[Path] = []  # this process's directory of verified DLL copies (created on first use)
 _DLL_LOCK = threading.Lock()
-_STALE_DLL_DIR_S = 86400.0
+_STALE_DLL_DIR_S = 3600.0  # fixed: an hour; a test run starts hundreds of processes (a day kept 1.9 GB of copies)
 _LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x800  # LoadLibraryExW flag: dependencies only from System32 (nvcuda.dll, the OS)
 
 
 def _dll_dir() -> Path:
-    r"""A new directory in the user's temp directory for this process's DLL copies; sweeps day-old ones first.
+    r"""A new directory in the user's temp directory for this process's DLL copies; sweeps hour-old ones first.
 
     The temp directory (`%LOCALAPPDATA%\Temp`) is writable by this user (and administrators / SYSTEM) only, by the
-    profile's default ACL. A copy stays locked by Windows while loaded, so a sweep only removes copies no process holds.
+    profile's default ACL. A copy stays locked by Windows while loaded, so a sweep only removes copies no process holds;
+    a live process whose directory lost every file that way makes it again on its next load (`_load_dll_image`).
     """
     with _DLL_LOCK:
         if not _DLL_DIR:
@@ -595,6 +596,10 @@ def _load_dll_image(image: bytes, name: str) -> ctypes.CDLL:
                 f.write(image)
         except FileExistsError:
             continue
+        except FileNotFoundError:  # another process's sweep removed the directory: none of its copies were loaded
+            path.parent.mkdir(exist_ok=True)
+            with path.open("xb") as f:
+                f.write(image)
         return ctypes.CDLL(str(path), winmode=_LOAD_LIBRARY_SEARCH_SYSTEM32)
     raise AssertionError  # unreachable: itertools.count() never ends
 
