@@ -2262,3 +2262,13 @@ stage and the refinement, not in this attention.
   video-depth-anything-metric-s, 1.2-1.3x) are left for later. Check the large ones for memory pressure first, as
   gmflow and neuflow showed.
 
+
+## Later idea: fp16 checkpoints from the start (2026-11-22, not started)
+
+Loading is disk-bound (0.3-0.5 GB/s from the external drive, 8-17 s for the big multiview checkpoints). Where the
+upstream file is fp32 and every shipped mode that reads it runs fp16, a converted fp16 copy halves the bytes read and
+downloaded and drops the cast at load. Per-tensor dtypes inside one safetensors file allow keeping fp32 only where a
+golden needs it (fp32 islands, the fp32 mode). Open points: hosting and pinning the converted artifact with its
+provenance, re-checking goldens against it, keeping or fetching the original for fp32 runs, and the alternative of a
+local fp16 cache written on first load. First step: list stored dtype and size per checkpoint from the safetensors
+headers to see which models gain.
