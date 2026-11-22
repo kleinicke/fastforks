@@ -3,7 +3,7 @@ name = "TAPNext"
 summary = "TAPNext (Zholus, Doersch, Yang, Koppula et al., Google DeepMind 2025): tracking any point as next-token prediction. A TRecViT-B (12 blocks, each a gated linear recurrence over time per token and a ViT layer over the tokens of a frame) reads 8 x 8 patches of 256 x 256 frames plus one token per query point and predicts, frame by frame, the point's position (512-bin classification, windowed soft-argmax) and whether it is visible. Online: each frame only sees the past."
 tier = "experimental"
 outputs = ["tracks", "visibility"]
-uses = []  # fastforks.shared modules this family imports
+uses = ["mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "Online, causal: a point is tracked from its query frame on; in frames before it the model has no information (the tracks there are its guess, with a low visibility). Query on the first frame, or run the reversed video for the backward part.",
   "Frames are resized to 256 x 256 (the training size), whatever their size and aspect ratio.",

@@ -519,7 +519,7 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
-FNET_FRAMES = 2  # frames per feature-CNN call on MLX and MPS (see `_chunk_encode`)
+FNET_FRAMES = 2  # fixed: memory chunking of the feature CNN on MLX and MPS (see `_chunk_encode`)
 
 
 def _chunk_encode(core: Core) -> None:
