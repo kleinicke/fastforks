@@ -3412,3 +3412,33 @@ Rejected:
 Route: unchanged (`gen_auto_mode --check` clean). Goldens: `test_mlx` for nafnet-gopro, wd-vit-tagger-v3, tapnext,
 cotracker3-online, alltracker, loma-b, memfof, depthsplat-small-re10k, zoedepth-nk, eomt-l-dinov2-ade20k,
 mvsplat-re10k, loftr-outdoor and loftr-indoor all pass, as do tests/test_mlx*.py and test_auto_mode.py.
+
+### Survey regression scan after the shared conv changes (2026-11-22)
+
+Every current MLX row was compared with the best older row of the same ref / mode / dtype / input across the git
+history of the jsonl. A row was flagged at > 8 % and > 150 MB more peak, or > 10 % more ms. Most flags are trades:
+the stereo nets (raft-stereo, igev, dlnr, nmrf) and dedode-v2 got 10-40 % faster for 20-60 % more memory. The SR
+transformers' ms flags come from older rows measured before MLX's swap-heavy runs, and their memory went down. Six
+refs were re-surveyed (second run, fp32 unless noted; ms / peak MB):
+
+| ref | old best | before (HEAD~) | after | cause |
+|---|---|---|---|---|
+| vitmatte-s | 1317 / 2451 (11-20) | 1231 / 3044 | 1165 / 2408 | the Winograd pad gate above (1080x1920 convs) |
+| fcn-r101-d8-ade20k | 496 / 2051 (11-19) | 494 / 2468 | 490 / 1822 | unequal sibling merge (below) |
+| fcn-r101-d8-ade20k fp16 | | 358 / 1579 | 353 / 1357 | same |
+| detr-r50-coco | 128 / 2149 (11-19) | 120 / 1843 (probe) | 118 / 1720 | same |
+| detr-r50-coco fp16 | 106 / 1924 (11-19) | | 97 / 1414 | same |
+| waft-a1 | 10168 / 3075 (11-19) | 9372 / 4184 | 8806 / 4184 | not found (a trade: 13 % faster) |
+| dedode-v2-b | 2915 / 4374 (11-19) | 2508 / 5450 | 2284 / 5444 | a trade (22 % faster) |
+
+fcn-r101 was bisected with `git bisect --first-parent` on its lifetime peak: the first bad commit is d7a21332 (merged
+sibling convs). Its old peak was 2068 MB, at HEAD 2528 MB. `FF_MLX_NO_MERGE=1` gives 1819 MB at the same speed;
+`NO_ALIGN`, `NO_OUT64`, `NO_WIDE_OUT`, `NO_SPLIT_IN` and `NO_TUNE` do not change it. The merged pairs are a ResNet
+stage's first 1x1 reduce and its projection shortcut (64 + 256, 256 + 1024, 512 + 2048 outputs). The last
+segment's eval peak went from 1242 to 1756 MB even without compile, although the merged output is a view. The
+merge was made for a GRU's equal gates, so siblings of unequal widths now stay separate
+(`FF_MLX_MERGE_UNEQUAL=1` restores it).
+
+Routes: fcn-r101-d8-ade20k `auto` goes from kernels to portable MLX (now the faster of the two by noise), and
+vitmatte-s fp32 now takes MLX. Goldens: the mandated `test_mlx` list plus fcn-r101-d8-ade20k, detr-r50-coco and
+raft-stereo-sceneflow all pass, as do tests/test_mlx*.py and test_auto_mode.py.

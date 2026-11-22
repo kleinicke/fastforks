@@ -1788,6 +1788,7 @@ def _conv_core(
 
 
 MERGE_OFF = bool(os.environ.get("FF_MLX_NO_MERGE"))  # sibling convolutions (same input and geometry) stay separate
+MERGE_UNEQUAL = bool(os.environ.get("FF_MLX_MERGE_UNEQUAL"))  # ... merged also when their output counts differ
 ALIGN_OFF = bool(os.environ.get("FF_MLX_NO_ALIGN"))  # `mx.conv2d` with ragged channel counts as they are
 WIDE_OUT_OFF = bool(os.environ.get("FF_MLX_NO_WIDE_OUT"))  # 32 / 48-output 3x3 convs on MLX's narrow tile
 SPLIT_IN_OFF = bool(os.environ.get("FF_MLX_NO_SPLIT_IN"))  # very wide-input 3x3 convs as one `mx.conv2d`
@@ -3293,6 +3294,10 @@ class GraphNet:
         out: dict[str, tuple[str, int, int, str | None, str | None]] = {}
         for convs in groups.values():
             if len(convs) < 2:
+                continue
+            if not MERGE_UNEQUAL and len({int(c.args[1].meta["val"].shape[0]) for c in convs}) > 1:
+                # siblings of unequal widths (a ResNet block's 1x1 reduce and its projection shortcut) stay separate:
+                # no faster merged, and the peak rose (fcn-r101 fp32 1024x2048 1809 -> 2528 MB, detr-r50 1716 -> 1843)
                 continue
             wnames = [names[c.args[1].name] for c in convs]
             bnames = [names[c.args[2].name] for c in convs] if convs[0].args[2] is not None else []
