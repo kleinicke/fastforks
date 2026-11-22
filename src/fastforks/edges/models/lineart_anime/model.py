@@ -45,6 +45,10 @@ class Params:
 class Portable(Runner):
     """Upstream's U-Net in plain PyTorch, float32 or float16."""
 
+    # images per network call: launch bound (RTX 5060 Ti, Windows, fp16, 8 images, ms per image: 512 px 4.4 -> 2.6,
+    # 1024 px 4.7 -> 3.3); the network runs at the detect size, so memory per image does not grow with the input
+    batch = 16
+
     _detect = staticmethod(to_detect)
     _resize = staticmethod(cv2_resize)
     Params = Params
@@ -86,8 +90,14 @@ class Kernels(Portable):
     _detect = staticmethod(to_detect_cuda)
 
 
+class _OneImage(Portable):
+    """Portable for the MLX port: one image per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": mlx_wrap.port(_OneImage),
 }

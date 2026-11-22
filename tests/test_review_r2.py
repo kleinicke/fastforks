@@ -87,7 +87,7 @@ def _stub(device: str) -> types.SimpleNamespace:
     return types.SimpleNamespace(
         device=torch.device(device),
         backend=types.SimpleNamespace(device=device),
-        _runner=types.SimpleNamespace(deterministic_cudnn=False),
+        _runner=types.SimpleNamespace(deterministic_cudnn=False, sdpa_auto=None),
         _lock=threading.RLock(),
     )
 

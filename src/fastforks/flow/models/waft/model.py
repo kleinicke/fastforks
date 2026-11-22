@@ -42,6 +42,10 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16")
     Params = Params
+    batch = None
+    # pixels (pairs x H x W) per network call: 8 pairs 480 x 640 101.6 -> 80.7 ms per pair at 1.4 GB (RTX 5060 Ti,
+    # Windows, fp16; mean |flow diff| to one pair per call 0.004 px); 720p runs one pair per call, as before
+    batch_pixels = 1_300_000
 
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
@@ -96,8 +100,14 @@ class Kernels(Runner):
         return {"flow": self._forward(self.net, image1, image2, self.ctx.params.iters)}
 
 
+class _OnePair(Portable):
+    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": mlx_wrap.port(_OnePair),
 }

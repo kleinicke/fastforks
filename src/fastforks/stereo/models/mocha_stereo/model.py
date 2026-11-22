@@ -59,6 +59,11 @@ def _net(ctx: Context) -> Mocha:
 class Portable(Runner):
     """Plain PyTorch: fp32 BatchNorm affine, merged LSTM gate convs, pure fp16 (CUDA) or fp32 weights, NHWC on CUDA."""
 
+    batch = None
+    # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti,
+    # Windows, 8 pairs 480 x 640: 294.9 -> 214.4 ms per pair)
+    batch_pixels = 1_300_000
+
     deterministic_cudnn = True
 
     dtypes = ("float32", "float16")
@@ -127,6 +132,8 @@ class Kernels(Runner):
 class MetalKernels(Portable):
     """Apple MPS: the portable network with its geometry / correlation lookup as Metal kernels (not its LSTMs)."""
 
+    batch = 1  # not measured on Apple GPUs
+
     module = Runner.module  # the Metal kernels are not exportable
 
     def __init__(self, ctx: Context) -> None:
@@ -143,9 +150,15 @@ class MetalKernels(Portable):
         patch_igev(self.net, FastGeoEncodingVolume, None, stereo_metal.load(ctx.device))
 
 
+class _OnePair(Portable):
+    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+    "portable_mlx": mlx_wrap.port(_OnePair, whole="disparity"),
 }

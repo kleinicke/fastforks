@@ -83,6 +83,11 @@ class _HitnetRunner(Runner):
 class Portable(_HitnetRunner):
     """Plain PyTorch: float32 (CPU), or float16 convolutions with float32 hypotheses and warps (CUDA)."""
 
+    batch = None
+    # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti,
+    # Windows, 8 pairs 480 x 640: 27.2 -> 15.3 ms per pair)
+    batch_pixels = 1_300_000
+
     dtypes = ("float32", "float16")
 
     def __init__(self, ctx: Context) -> None:
@@ -148,6 +153,8 @@ class Kernels(_HitnetRunner):
 class MetalKernels(Portable):
     """Apple MPS: the portable network with the level-init cost and the warp SADs as Metal kernels."""
 
+    batch = 1  # not measured on Apple GPUs
+
     module = Runner.module  # the Metal kernels are not exportable
 
     def __init__(self, ctx: Context) -> None:
@@ -165,9 +172,15 @@ class MetalKernels(Portable):
                     setattr(m, name, getattr(costs, name))
 
 
+class _OnePair(Portable):
+    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": mlx_wrap.port(Portable, whole="disparity"),
+    "portable_mlx": mlx_wrap.port(_OnePair, whole="disparity"),
 }

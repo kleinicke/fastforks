@@ -46,7 +46,7 @@ FRAME_CHUNK = 16  # fixed: memory chunking of the feature pass, not an architect
 QUERY_CHUNK = 64  # fixed: upstream's inference chunk
 # the MLX export unrolls every chunk (256 bench queries: 4 x 64); 128 halves the refinement's trace, export 5.4 -> 3.4 s
 # at 4 % more warm time (256: 2.3 s, 8 %). Each query is computed on its own, so the chunk does not change the tracks.
-MLX_QUERY_CHUNK = 128
+MLX_QUERY_CHUNK = 128  # fixed: export trace size of the MLX port, not an architecture value
 GELU = 5  # fixed: fused-epilogue activation code of exact GELU (fastforks._optimize.conv_ops)
 
 
