@@ -273,7 +273,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/lhwcv/mlsd_pytorch/blob/2312205254e66911703decf775f626995d260f17/LICENSE ; https://github.com/lhwcv/mlsd_pytorch/tree/2312205254e66911703decf775f626995d260f17/models
 - Training data: Not stated for this checkpoint; the M-LSD paper trains on the Wireframe dataset (Huang et al. 2018, no licence stated).
-- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `thr_v` = 0.1 (0.0 to 1.0), `thr_d` = 0.1 (>= 0.0)
+- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `thr_v` = 0.1 (0.0 to 1.0), `thr_d` = 0.1 (>= 0.0), `cuda_graphs` = True (speed only)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `mlsd`
 - Public TensorRT export is unavailable for `mlsd` (the public graph's CNN outputs diverge from portable FP32. The validated standalone build preserves the MobileNet preactivations as engine outputs).
