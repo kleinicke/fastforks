@@ -3442,3 +3442,68 @@ merge was made for a GRU's equal gates, so siblings of unequal widths now stay s
 Routes: fcn-r101-d8-ade20k `auto` goes from kernels to portable MLX (now the faster of the two by noise), and
 vitmatte-s fp32 now takes MLX. Goldens: the mandated `test_mlx` list plus fcn-r101-d8-ade20k, detr-r50-coco and
 raft-stereo-sceneflow all pass, as do tests/test_mlx*.py and test_auto_mode.py.
+
+### First-call time: where it goes (2026-11-22)
+
+`FF_MLX_COLD_LOG=1` plus cProfile of the first call, on the survey inputs (fp16, warm page cache, own process):
+
+| ref | first call s | export | of which `run_decompositions` | translate | tuning / first segments |
+|---|---|---|---|---|---|
+| birefnet 1080x1920 | 7.3 | 5.7 | 0 | 0.46 | ~0.05 (run 1.1) |
+| vitmatte-s 1080x1920 | 4.5 | 3.5 | 1.9 | 0.17 | ~0.03 (run 0.8) |
+| vitmatte-b 1080x1920 | 5.7 | 3.5 | 1.9 | 0.22 | ~0.02 |
+| midas-dpt-beit-large-512 994x1482 | 6.6 | 4.6 | 0 | 0.36 | 0.3 (tuned-eager) |
+| marigold-depth-v1-1 994x1482 | 7.6 | 2.4 + 0.6 + 0.4 | 0 | 0.8 | ~0.1 |
+
+The export (torch's fake-tensor trace) is 70-80 % of a first call. The rest of it is spread over torch internals
+(fake-tensor cache keys, pytree, functionalization), with no single hot spot. Inside it:
+
+- `torch.export._trace` is imported on the first export: 0.6 s and 1214 modules, once per process.
+- `GraphModule.recompile` (Python codegen of the whole graph) runs 5 times per export, 0.53 s for birefnet.
+- The tuning trial, the translation and the converted weights (`_const`: 742 tensors, 0.2 s) are small next to it.
+  Weights already convert lazily, at the first export.
+
+Fixed: **export outside inference mode.** vitmatte's one-pass export (`_export_decomposed`) failed. Its relative
+tables are built under `inference_mode(False)`, and `onehot.expand` inside the trace then raised "Cannot set
+version_counter for inference tensor". So vitmatte took the two-pass export plus `run_decompositions` (1.9 s). The
+export now runs under `torch.inference_mode(False)` (and `no_grad`, as before), and the model's own toggle is a
+no-op there. Outside inference mode every export also traces about 8 % faster (A/B, same process order):
+
+| ref (fp16) | first call s before -> after | export s before -> after |
+|---|---|---|
+| vitmatte-s | 4.50 -> 3.21 | 3.49 -> 2.21 |
+| vitmatte-b | 5.69 -> 4.07 | 3.53 -> 2.19 |
+| birefnet | 8.47 -> 7.08 | 5.85 -> 5.34 |
+| midas-dpt-beit-large-512 | 6.56 -> 5.66 | 4.55 -> 4.15 |
+| marigold-depth-v1-1 (first graph) | 7.55 -> 7.04 | 2.37 -> 2.11 |
+| pointdit-b-512 (two graphs) | 4.55 -> 3.69 | 1.52 + 1.77 -> 1.46 + 1.64 |
+
+Rejected:
+
+- **Lazy `recompile`** (torch's `_LazyGraphModule`, or patching `GraphModule.recompile` while exporting). At most
+  ~0.4 s of 7 s. Export builds most of its graph modules directly rather than through `_make_graph_module`, and
+  torch notes that a lazy module does not fill `_out_spec`. That is too much private-API risk for the gain.
+- **Importing `torch.export._trace` early** (in a thread during `load`). It overlaps only the 0.2 s load, and the
+  first export then waits on the import lock.
+- **ppocrv5-mobile's 35 s first call.** It is one recogniser export per text-line width. Padding the widths to
+  buckets would change outputs, so it stays as is.
+- The plan cache (`FASTFORKS_MLX_PLAN_CACHE`) removes the export on a repeat process, but its default (off) is
+  unchanged.
+
+The old survey `first_call_s` values of 2026-11-19 are noisy. birefnet's row said 20.6 s, a survey batch tonight
+10.2 s, and a lone worker 7.3 s with the same code. Compare first calls only within one session.
+
+Survey (second run, ms / peak MB / first call s). The before rows are from earlier today:
+
+| ref | before | after |
+|---|---|---|
+| vitmatte-s fp16 | 809 / 1640 / 4.53 | 816 / 1622 / 3.25 |
+| vitmatte-s fp32 | 1165 / 2408 / 4.99 | 1181 / 2392 / 3.58 |
+| vitmatte-b fp16 | 1670 / 1824 / 5.36 | 1652 / 1741 / 4.14 |
+| vitmatte-b fp32 | 2487 / 3270 / 6.17 | 2370 / 2484 / 4.81 |
+
+The birefnet rows were refreshed at 69193a52, before this change: fp16 1048 / 2364 / 7.3 against 1203 / 2705 / 20.6
+on 11-19. Routes: unchanged (`gen_auto_mode --check` clean). Goldens: the mandated `test_mlx` list plus vitmatte-s,
+vitmatte-b, birefnet, pointdit-b-512, midas-dpt-beit-large-512 and dinov3-convnext-tiny all pass (17 tests), as do
+tests/test_mlx*.py and test_auto_mode.py. dinov3-convnext-tiny's golden is present and passes on MLX, so nothing is
+pending there.

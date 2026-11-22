@@ -3078,7 +3078,10 @@ class GraphNet:
                 self.plan_restore(extra)
             return ep
         filled = False
-        with torch.no_grad(), _no_op_regions(), _no_stack_traces():
+        # out of inference mode (the call's): a forward that leaves it for its constants (`inference_mode(False)`, as
+        # vitmatte's relative tables) makes the one-pass export fail on an inference tensor and take the two-pass path
+        # (vitmatte-s 1080x1920 first call 4.5 -> 3.2 s); under `no_grad` the trace is the same
+        with torch.inference_mode(mode=False), torch.no_grad(), _no_op_regions(), _no_stack_traces():
             ep = None if TWO_PASS_EXPORT else self._export_used(args)
             if ep is None and not TWO_PASS_EXPORT:
                 ep = _export_decomposed(self.module, args)
