@@ -3361,3 +3361,54 @@ per-stage trace (MPS allocator, empty_cache before each stage) gives:
 
 The rest of the 6.3 GB footprint is outside the PyTorch allocator (MPSGraph / Metal caches). There is no cheap
 chunking target, so nothing changed.
+
+## loftr-outdoor fp32 memory regression: big Winograd paddings (2026-11-22)
+
+The MLX fp32 row went from 2017 ms / 3685 MB (2026-11-19, 85384184) to 1758 ms / 4862 MB. Re-measured today, the
+old commit gives 1962 ms / 3687 MB, so the old row was real (not a swap artifact, unlike the note above). Toggles at
+HEAD (ms / MB): all conv rewrites off 2330 / 4049, `FF_MLX_NO_OUT64` 2311 / 4049, `FF_MLX_NO_WINO32` 2191 / 4107,
+`NO_WIDE_OUT` and `NO_SPLIT_IN` no change.
+
+Two shared rewrites pad LoFTR's 1/2-res convs (both images as batch 2, 312x420) into MLX's Winograd:
+
+- WINO32 (5ae248f8, the mvsplat change): 196 -> 196 becomes 224 -> 224 Winograd. The per-op transient is 1916 MB,
+  against 629 MB without.
+- The input padding to a multiple of 32: 196 -> 128 at 224 inputs is Winograd too (1346 MB transient). The
+  `to_torch` eval of the last segment peaks at 1601 MB against 592 MB before.
+
+The Winograd transforms are about 4 x positions x (cin + cout) floats per sample. The batch chunks (`WINO_CHUNK_BYTES`)
+do not bound them, because MLX frees a chunk's temporaries only when its command buffer completes.
+`FF_MLX_WINO_CHUNK_MB` variants and `MLX_MAX_MB_PER_BUFFER` change nothing; at batch 2 chunking even raised the
+peak (1720 against 1484 MB, though 73 against 87 ms).
+
+Fix (`_conv2d`, `WINO_PAD_SAMPLE_BYTES`, 512 MB, `FF_MLX_WINO_PAD_MB`): no padding moves a conv into Winograd when
+one sample's transforms exceed 512 MB.
+
+- The input padding is dropped then (196 -> 128 float32: 54.8 ms / 336 MB as it is, 57.5 ms / 987 MB padded).
+- WINO32 is skipped then. When the input was padded, the outputs go to a multiple of 64 on the unpadded input
+  (not Winograd). MLX's implicit GEMM is erratic at odd multiples of 16 outputs: 196 -> 208 on 224 inputs takes
+  101-163 ms, 196 -> 256 on 196 inputs 97 ms.
+- Below 512 MB per sample nothing changes. That covers mvsplat's 8 x 160x256 (about 250 MB) and LoFTR's 1/4-res
+  convs (235 MB).
+
+| loftr-outdoor fp32 (survey, second run) | ms (min) | peak MB | first call s |
+|---|---|---|---|
+| 85384184 (11-19), re-measured | 1962 | 3687 | |
+| HEAD before | 1758 | 4862 | |
+| gate on WINO32 only | 2088 | 4101 | |
+| both gates (committed) | 1782 (1758) | 4110 | 3.8 |
+
+The remaining ~420 MB over 11-19 are in the tuning calls. `FF_MLX_NO_TUNE=1` gives a steady state of 3793 MB.
+The spread tuning trial on calls 1-2 peaks at 3902 / 4099 MB, while the old code peaked at 3681 MB in call 1. The
+1/4-res WINO32 convs (kept, they are faster) add segment transients of 1271 / 1196 MB against 422 / 808. This is
+not touched here.
+
+Rejected:
+
+- The WINO32-only gate: +330 ms, because the plain 224 -> 208 GEMM is slow in the graph.
+- Row strips (cutting the conv along H): not useful, because the frees are async.
+- Chunk sizes and `MLX_MAX_MB_PER_BUFFER`: no effect.
+
+Route: unchanged (`gen_auto_mode --check` clean). Goldens: `test_mlx` for nafnet-gopro, wd-vit-tagger-v3, tapnext,
+cotracker3-online, alltracker, loma-b, memfof, depthsplat-small-re10k, zoedepth-nk, eomt-l-dinov2-ade20k,
+mvsplat-re10k, loftr-outdoor and loftr-indoor all pass, as do tests/test_mlx*.py and test_auto_mode.py.

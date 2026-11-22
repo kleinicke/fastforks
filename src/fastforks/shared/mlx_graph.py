@@ -1794,6 +1794,7 @@ SPLIT_IN_OFF = bool(os.environ.get("FF_MLX_NO_SPLIT_IN"))  # very wide-input 3x3
 OUT64_OFF = bool(os.environ.get("FF_MLX_NO_OUT64"))  # output counts as they are, not padded to a multiple of 64
 WINO_CHUNK_BYTES = int(os.environ.get("FF_MLX_WINO_CHUNK_MB", "128")) << 20  # see `_conv2d`
 WINO32_OFF = bool(os.environ.get("FF_MLX_NO_WINO32"))  # float32 odd multiples of 16 not padded into MLX's Winograd
+WINO_PAD_SAMPLE_BYTES = int(os.environ.get("FF_MLX_WINO_PAD_MB", "512")) << 20  # see `_conv2d`
 
 
 def _mlx_winograd(
@@ -1820,6 +1821,11 @@ def _mlx_winograd(
         and cin + cout >= 256
         and positions >= 4096
     )
+
+
+def _wino_bytes(positions: int, cin: int, cout: int, dtype: mx.Dtype) -> int:
+    """About the bytes of MLX's Winograd transforms (input and output tiles) for one sample of `positions` pixels."""
+    return 4 * positions * (cin + cout) * dtype.size
 
 
 def _conv2d(
@@ -1872,6 +1878,15 @@ def _conv2d(
     spatial = wl.shape[1] * wl.shape[2] > 1
     pad_in = (-cin) % 32 if groups == 1 and cin >= 64 and stride == (1, 1) and spatial else 0
     o = cout + pad_out
+    per_sample = xl.shape[1] * xl.shape[2]
+    if (
+        pad_in
+        and _mlx_winograd((o, *wl.shape[1:3], cin + pad_in), o, stride, dilation, groups, xl.shape[0] * per_sample)
+        and _wino_bytes(per_sample, cin + pad_in, o, xl.dtype) > WINO_PAD_SAMPLE_BYTES
+    ):
+        # not padded into a big Winograd: no faster there, and a transient that the batch chunks below do not bound
+        # (2 x 312x420 196 -> 128 float32: 54.8 ms / 336 MB as it is, 57.5 ms / 987 MB padded to 224 inputs)
+        pad_in = 0
     if (
         not WIDE_OUT_OFF
         and groups == 1
@@ -1911,10 +1926,19 @@ def _conv2d(
         ):
             # an odd multiple of 16 (MLX's implicit GEMM is erratic there, 2-8x off): 16 more outputs put the conv
             # into MLX's Winograd, always faster in the shapes measured (M1 Pro 3x3, float32: mvsplat's 8 x 160x256
-            # 192 -> 176 275 -> 70 ms, 8 x 96x128 256 -> 112 17.9 -> 9.9, 256x376 256 -> 208 122.9 -> 14.8; float16
+            # 192 -> 176 275 -> 70 ms, 8 x 96x128 256 -> 112 17.9 -> 9.9; float16
             # 192 -> 176 107 -> 34 ms). Float32 (error ~4e-6) and kernels mode only: portable half precision stays
-            # out of MLX's Winograd (below). Not for multiples of 32 (256 -> 96 into 128 was slower).
-            pad_out = o + 16 - cout
+            # out of MLX's Winograd (below). Not for multiples of 32 (256 -> 96 into 128 was slower). Not when one
+            # sample's Winograd transforms exceed `WINO_PAD_SAMPLE_BYTES`: the transient (about 6 x the input) is not
+            # bounded by the batch chunks below (MLX frees a chunk's buffers only once its command buffer completes),
+            # and there the direct conv is only 10-30 % slower (LoFTR's 2 x 312x420 224 -> 208: 70 -> 101 ms, but
+            # +1290 MB; 256x376 256 -> 208 33 -> 37 ms, +436 MB)
+            if _wino_bytes(per_sample, cin_p, o + 16, xl.dtype) <= WINO_PAD_SAMPLE_BYTES:
+                pad_out = o + 16 - cout
+            elif pad_in and not _mlx_winograd((o64, *wl.shape[1:3], cin), o64, stride, dilation, groups, hw):
+                # too big for Winograd: a multiple of 64 outputs on the unpadded (so not Winograd) input instead, the
+                # GEMM's fast tile (2 x 312x420 196 -> 196: 208 outputs on 224 inputs 101-163 ms, 256 on 196 97 ms)
+                pad_out, pad_in = o64 - cout, 0
     if (pad_out or pad_in) and not _KERNELS and xl.dtype in (mx.float16, mx.bfloat16):
         # Half precision: padding must not move the conv into MLX's Winograd, whose float16 error is ~17x the direct
         # conv's (relative mean 6e-3 against 3.5e-4, bfloat16 4.8e-2; float32 4e-6). Its speed-up was all the input
