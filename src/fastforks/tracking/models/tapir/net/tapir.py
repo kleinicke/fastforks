@@ -21,6 +21,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from typing import NamedTuple
 
 import torch
@@ -292,14 +293,19 @@ class TAPIR(nn.Module):
             torch.meshgrid(torch.arange(-3, 4), torch.arange(-3, 4), indexing="ij"), -1
         ).reshape(-1, 2).to(points.device)
         corrs = []
+        # fastforks: on MPS the correlations of the fp32 neighbourhoods run in fp32 outside autocast (its fp16 casts of
+        # the strided neighbourhoods ran 4x slower than the fp32 product)
+        mps = points.device.type == "mps"
+        region = torch.autocast("mps", enabled=False) if mps else contextlib.nullcontext()
         for i, (query, grid) in enumerate(zip(queries, pyramid, strict=True)):
             yx = (points * torch.tensor([grid.shape[3] / SIZE, grid.shape[2] / SIZE], device=points.device)).flip(-1)
             neighborhood = map_coordinates_2d(grid, yx[:, :, :, None] + ctx)
-            if last is None:
-                corrs.append(torch.einsum("bnfsc,bnc->bnfs", neighborhood, query))
-            else:
-                q = last[..., :HIRES] if i == 0 else last[..., HIRES:]
-                corrs.append(torch.einsum("bnfsc,bnfc->bnfs", neighborhood, q))
+            q = query if last is None else last[..., :HIRES] if i == 0 else last[..., HIRES:]
+            with region:
+                if mps:
+                    neighborhood, q = neighborhood.float(), q.float()
+                eq = "bnfsc,bnc->bnfs" if last is None else "bnfsc,bnfc->bnfs"
+                corrs.append(torch.einsum(eq, neighborhood, q))
             del neighborhood
         if last is None:
             feats = torch.cat([queries[0], queries[1]], -1)[:, :, None].expand(-1, -1, points.shape[2], -1)
