@@ -336,5 +336,7 @@ def _sample_descriptor(net: Matcher, image: torch.Tensor, keypoints: torch.Tenso
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.detector", "net.descriptor", "net.matcher")),
+    "portable_mlx": mlx_wrap.port(
+        Portable, attrs=("net.detector", "net.descriptor", "net.matcher"), half_wino_f32=True
+    ),
 }
