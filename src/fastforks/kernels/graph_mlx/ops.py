@@ -356,6 +356,99 @@ def gwc_volume(left: mx.array, right: mx.array, depth: int, groups: int) -> mx.a
     )[0]  # fmt: skip
 
 
+_LINEAR_SAMPLE = metal_kernel(
+    name="graph_linear_sample",
+    input_names=["vol", "x"],
+    output_names=["out"],
+    source="""
+        // one thread per (position, channel, tap): lerp of vol[p, c, :] at x[p, k], zeros outside (fp32 math)
+        uint j = thread_position_in_grid.x, p = thread_position_in_grid.y;
+        if (j >= C * K || p >= P) return;
+        uint c = j / K, k = j % K;
+        float xv = x[size_t(p) * K + k];
+        float x0 = floor(xv), w1 = xv - x0;
+        int i0 = int(x0);
+        const device T* v = vol + (size_t(p) * C + c) * D;
+        float acc = 0.0f;
+        if (i0 >= 0 && i0 < D) acc += float(v[i0]) * (1.0f - w1);
+        if (i0 + 1 >= 0 && i0 + 1 < D) acc += float(v[i0 + 1]) * w1;
+        out[size_t(p) * C * K + j] = acc;
+    """,
+)
+
+
+def linear_sample(vol: mx.array, x: mx.array) -> mx.array:
+    """`fastforks::linear_sample`: `vol` `[P, C, D]` or `[P, D]`, `x` `[P, K]` -> `[P, C * K]` float32."""
+    p, d = vol.shape[0], vol.shape[-1]
+    c = vol.shape[1] if vol.ndim == 3 else 1
+    k = x.shape[1]
+    tx = min(c * k, 64)
+    return _LINEAR_SAMPLE(
+        inputs=[mx.contiguous(vol), mx.contiguous(x.astype(mx.float32))],
+        template=[("T", vol.dtype), ("P", p), ("C", c), ("K", k), ("D", d)],
+        grid=(c * k, p, 1), threadgroup=(tx, max(1, 256 // tx), 1),
+        output_shapes=[(p, c * k)], output_dtypes=[mx.float32],
+    )[0]  # fmt: skip
+
+
+_GWC_WARP = metal_kernel(
+    name="graph_gwc_warp",
+    input_names=["l", "r", "disp"],
+    output_names=["out"],
+    source="""
+        // one thread per (pixel, sample): the four bilinear taps of `r` at (x - disp, y) (upstream's grid_sample
+        // coordinates: normalized by W - 1, align_corners=False, zeros padding) dotted with `l` at the pixel, per
+        // group, fp32 sums; NHWC features, `[B, D, H, W]` disparities, `[B, G, D, H, W]` out, zero where x < disp.
+        uint x = thread_position_in_grid.x, y = thread_position_in_grid.y, bd = thread_position_in_grid.z;
+        if (x >= W || y >= H) return;
+        uint b = bd / D, dd = bd % D;
+        float dv = disp[(size_t(bd) * H + y) * W + x];
+        size_t o = ((size_t(b) * G * D + dd) * H + y) * W + x;
+        if (float(x) < dv) {
+            for (uint g = 0; g < G; ++g) out[o + size_t(g) * D * H * W] = T(0.0f);
+            return;
+        }
+        float gx = (float(x) - dv) / ((float(W) - 1.0f) / 2.0f) - 1.0f;
+        float gy = float(y) / ((float(H) - 1.0f) / 2.0f) - 1.0f;
+        float ix = ((gx + 1.0f) * float(W) - 1.0f) / 2.0f, iy = ((gy + 1.0f) * float(H) - 1.0f) / 2.0f;
+        float fx = floor(ix), fy = floor(iy);
+        float ax = ix - fx, ay = iy - fy;
+        int x0 = int(fx), y0 = int(fy);
+        float wt[4];
+        size_t base[4];
+        for (int t = 0; t < 4; ++t) {
+            int yy = y0 + (t >> 1), xx = x0 + (t & 1);
+            bool ok = yy >= 0 && yy < int(H) && xx >= 0 && xx < int(W);
+            wt[t] = ok ? ((t >> 1) ? ay : 1.0f - ay) * ((t & 1) ? ax : 1.0f - ax) : 0.0f;
+            base[t] = ok ? ((size_t(b) * H + yy) * W + xx) * C : 0;
+        }
+        const device T* lp = l + ((size_t(b) * H + y) * W + x) * C;
+        for (uint g = 0; g < G; ++g) {
+            float acc = 0.0f;
+            for (uint k = g * CG; k < (g + 1) * CG; ++k) {
+                float s = float(r[base[0] + k]) * wt[0] + float(r[base[1] + k]) * wt[1]
+                        + float(r[base[2] + k]) * wt[2] + float(r[base[3] + k]) * wt[3];
+                acc += float(lp[k]) * s;
+            }
+            out[o + size_t(g) * D * H * W] = T(acc / float(CG));
+        }
+    """,
+)
+
+
+def gwc_warp(left: mx.array, right: mx.array, disp: mx.array, groups: int) -> mx.array:
+    """`fastforks::gwc_warp` of NHWC `left`, `right` `[B, H, W, C]`, `[B, D, H, W]` disparities: `[B, G, D, H, W]`."""
+    t = mx.result_type(left.dtype, right.dtype)  # the kernel reads both as one type
+    b, h, w, c = left.shape
+    d = disp.shape[1]
+    return _GWC_WARP(
+        inputs=[mx.contiguous(left.astype(t)), mx.contiguous(right.astype(t)), mx.contiguous(disp.astype(mx.float32))],
+        template=[("T", t), ("C", c), ("CG", c // groups), ("G", groups), ("H", h), ("W", w), ("D", d)],
+        grid=(w, h, b * d), threadgroup=(32, 8, 1),
+        output_shapes=[(b, groups, d, h, w)], output_dtypes=[t],
+    )[0]  # fmt: skip
+
+
 _WARP_DOT = metal_kernel(
     name="graph_warp_dot",
     input_names=["f", "o", "grid"],

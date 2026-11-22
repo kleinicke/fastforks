@@ -11,6 +11,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.sampling import grid_sample
+from fastforks._core.tracing import EXPORTING_FOR_MLX
 
 
 @torch.library.custom_op("fastforks::gwc_volume", mutates_args=())
@@ -62,6 +63,85 @@ def warp_dot(feat: torch.Tensor, other: torch.Tensor, grid: torch.Tensor) -> tor
 def _(feat: torch.Tensor, other: torch.Tensor, grid: torch.Tensor) -> torch.Tensor:  # noqa: ARG001 - same schema
     n, _, h, w = feat.shape
     return feat.new_empty((n, grid.shape[1], h, w), dtype=torch.float32)
+
+
+def _linear_sample(vol: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+    d = vol.shape[-1]
+    x0 = torch.floor(x)
+    w1 = x - x0
+    i0 = x0.long()
+    i1 = i0 + 1
+    v0 = ((i0 >= 0) & (i0 < d)).float() * (1 - w1)
+    v1 = ((i1 >= 0) & (i1 < d)).float() * w1
+    idx = torch.cat([i0, i1], 1).clamp_(0, d - 1)
+    wgt = torch.cat([v0, v1], 1)
+    k = x.shape[1]
+    if vol.dim() == 3:  # noqa: PLR2004 - [P, C, D] against [P, D]
+        p, c, _ = vol.shape
+        s = vol.gather(2, idx.unsqueeze(1).expand(p, c, 2 * k)).float() * wgt.unsqueeze(1)
+        return (s[..., :k] + s[..., k:]).reshape(p, c * k)
+    s = vol.gather(1, idx).float() * wgt
+    return s[:, :k] + s[:, k:]
+
+
+@torch.library.custom_op("fastforks::linear_sample", mutates_args=())
+def _linear_sample_op(vol: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+    return _linear_sample(vol, x)
+
+
+@_linear_sample_op.register_fake
+def _(vol: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+    c = vol.shape[1] if vol.dim() == 3 else 1  # noqa: PLR2004 - [P, C, D] against [P, D]
+    return x.new_empty((x.shape[0], c * x.shape[1]), dtype=torch.float32)
+
+
+def linear_sample(vol: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+    """1-D linear interpolation of the IGEV-family geometry / correlation lookups (zeros outside, fp32 math).
+
+    `vol` `[P, C, D]` or `[P, D]`, `x` `[P, K]` fp32 positions along `D`; returns `[P, C * K]` (`[P, K]`) float32,
+    `out[p, c * K + k] = lerp(vol[p, c], x[p, k])`. Eagerly two gathers; while exporting for the MLX replay it is the
+    `fastforks::linear_sample` op, one Metal kernel there (a compiled gather chain costs ~8x more per lookup).
+    """
+    if EXPORTING_FOR_MLX.get():
+        return _linear_sample_op(vol, x)
+    return _linear_sample(vol, x)
+
+
+def _gwc_warp(left: torch.Tensor, right: torch.Tensor, disp: torch.Tensor, groups: int) -> torch.Tensor:
+    b, c, h, w = left.shape
+    d = disp.shape[1]
+    ys = torch.arange(h, dtype=left.dtype, device=left.device).view(1, 1, h, 1).expand(b, d, h, w)
+    xs = torch.arange(w, dtype=left.dtype, device=left.device).view(1, 1, 1, w)
+    gx = (xs - disp) / ((w - 1.0) / 2.0) - 1.0
+    gy = ys / ((h - 1.0) / 2.0) - 1.0
+    grid = torch.stack([gx, gy], dim=4).view(b, d * h, w, 2)
+    warped = F.grid_sample(right, grid, mode="bilinear", padding_mode="zeros", align_corners=False)
+    masked = torch.where((xs < disp)[:, None], 0, left[:, :, None])
+    return (masked * warped.view(b, c, d, h, w)).view(b, groups, c // groups, d, h, w).mean(dim=2)
+
+
+@torch.library.custom_op("fastforks::gwc_warp", mutates_args=())
+def _gwc_warp_op(left: torch.Tensor, right: torch.Tensor, disp: torch.Tensor, groups: int) -> torch.Tensor:
+    return _gwc_warp(left, right, disp, groups)
+
+
+@_gwc_warp_op.register_fake
+def _(left: torch.Tensor, right: torch.Tensor, disp: torch.Tensor, groups: int) -> torch.Tensor:  # noqa: ARG001
+    b, _, h, w = left.shape
+    return left.new_empty((b, groups, disp.shape[1], h, w))
+
+
+def gwc_warp(left: torch.Tensor, right: torch.Tensor, disp: torch.Tensor, groups: int) -> torch.Tensor:
+    """Group-wise correlation at per-pixel disparity samples (RT-MonSter++'s `build_gwc_volume_selective`).
+
+    `left`, `right` `[B, C, H, W]`, `disp` `[B, D, H, W]`; returns `[B, groups, D, H, W]`: the per-group channel mean
+    of `left[y, x]` times `right` bilinearly sampled at `(x - disp, y)` (upstream's `grid_sample` with coordinates
+    normalized by `W - 1`, `align_corners=False`, zeros padding), zero where `x < disp`. Eagerly the warped volume;
+    while exporting for the MLX replay the `fastforks::gwc_warp` op, one Metal kernel there (no `[B, C, D, H, W]`).
+    """
+    if EXPORTING_FOR_MLX.get():
+        return _gwc_warp_op(left, right, disp, groups)
+    return _gwc_warp(left, right, disp, groups)
 
 
 @torch.library.custom_op("fastforks::upsample_soft_argmax", mutates_args=())

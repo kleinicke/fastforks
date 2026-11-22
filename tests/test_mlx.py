@@ -314,6 +314,41 @@ def test_conv_padded_into_winograd_matches_torch(monkeypatch, chunk_mb):
     torch.testing.assert_close(mlx_graph.MlxModule(m, "float32")(x), m(x), atol=1e-4, rtol=1e-4)
 
 
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float16])
+def test_linear_sample_kernel_matches_torch(dtype):
+    """The IGEV-family geometry / correlation lookup (`fastforks::linear_sample`, one Metal kernel) against eager."""
+    pytest.importorskip("mlx.core")
+    from fastforks._core.volume_ops import linear_sample  # noqa: PLC0415
+    from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - optional (the mlx extra)
+
+    class Lookup(torch.nn.Module):
+        def forward(self, geo: torch.Tensor, corr: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+            return torch.cat([linear_sample(geo, x), linear_sample(corr, x * 3.0)], 1)
+
+    torch.manual_seed(0)
+    geo, corr = torch.randn(500, 8, 24), torch.randn(500, 40).to(dtype)
+    x = torch.rand(500, 9) * 30 - 3  # some taps outside both ends
+    want = Lookup()(geo, corr, x)
+    torch.testing.assert_close(MlxModule(Lookup(), "float32")(geo, corr, x), want, atol=1e-5, rtol=1e-5)
+
+
+def test_gwc_warp_kernel_matches_torch():
+    """RT-MonSter++'s selective group-wise correlation (`fastforks::gwc_warp`, one Metal kernel) against eager."""
+    pytest.importorskip("mlx.core")
+    from fastforks._core.volume_ops import gwc_warp  # noqa: PLC0415
+    from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - optional (the mlx extra)
+
+    class Volume(torch.nn.Module):
+        def forward(self, left: torch.Tensor, right: torch.Tensor, disp: torch.Tensor) -> torch.Tensor:
+            return gwc_warp(left, right, disp, 8)
+
+    torch.manual_seed(0)
+    left, right = torch.randn(1, 96, 20, 37), torch.randn(1, 96, 20, 37)
+    disp = torch.rand(1, 13, 20, 37) * 12 - 1  # negative and fractional samples, some with x < disp
+    want = Volume()(left, right, disp)
+    torch.testing.assert_close(MlxModule(Volume(), "float32")(left, right, disp), want, atol=1e-5, rtol=1e-5)
+
+
 @pytest.mark.parametrize("align", [True, False])
 def test_channels_last_instance_norm_and_bilinear_match_torch(align):
     """Instance norm (N > 1, affine) and bilinear resize of conv outputs (the channels-last lowerings) against torch."""

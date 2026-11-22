@@ -430,6 +430,22 @@ def _warp_dot(feat: mx.array, other: mx.array, grid: mx.array) -> mx.array:
     return ops.warp_dot(_nhwc(feat), _nhwc(other), grid)
 
 
+@_reg(torch.ops.fastforks.gwc_warp.default)
+def _gwc_warp(left: mx.array, right: mx.array, disp: mx.array, groups: int) -> mx.array:
+    """RT-MonSter++'s selective group-wise correlation (`fastforks._core.volume_ops.gwc_warp`): one Metal kernel."""
+    from fastforks.kernels.graph_mlx import ops
+
+    return ops.gwc_warp(_nhwc(left), _nhwc(right), disp, groups)
+
+
+@_reg(torch.ops.fastforks.linear_sample.default)
+def _linear_sample(vol: mx.array, x: mx.array) -> mx.array:
+    """The IGEV-family 1-D lookup op (`fastforks._core.volume_ops.linear_sample`): one Metal kernel."""
+    from fastforks.kernels.graph_mlx import ops
+
+    return ops.linear_sample(vol, x)
+
+
 @_reg(torch.ops.fastforks.upsample_soft_argmax.default)
 def _upsample_soft_argmax(cost: mx.array, max_disp: int, height: int, width: int) -> mx.array:
     """Trilinear upsample + softmax over disparity + soft-argmin (`fastforks._core.volume_ops`) as one Metal kernel."""

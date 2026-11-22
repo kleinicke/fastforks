@@ -3246,3 +3246,34 @@ memfof MLX re-surveyed after the odd-16 Winograd padding change (second run, ms 
 fp32 3683.7 / 2964 / 8.1 → 3645.7 / 2980 / 7.3; fp16 3380.6 / 2417 / 7.7 → 3278.9 / 2380 / 7.3. Small gain
 from the shared conv change, no memfof-specific code; goldens pass in both dtypes (fp16 passed in this survey).
 No route change. Monster(++) not investigated (time box spent on cotracker3 and mvsplat).
+
+### 2026-11-22 (evening): IGEV / MonSter family lookup kernels
+
+Two new custom ops, each one Metal kernel in the MLX replay (eager / MPS paths unchanged):
+
+- `fastforks::linear_sample` (`_core/volume_ops.linear_sample`): the 1-D geometry / correlation lookup of the
+  `FastGeoEncodingVolume` in igev-stereo, igev++, selective-igev, great-igev, mocha-stereo, monster, monster++.
+  Compiled as a gather chain it took 9.9 ms per lookup; the kernel takes 1.25 ms.
+- `fastforks::gwc_warp` (`gwc_warp`): RT-MonSter++'s `build_gwc_volume_selective` (grid_sample of the right
+  features at per-pixel disparity samples, group-wise mean with the left). It no longer builds the
+  `[B, C, D, H, W]` warped volume.
+
+MLX survey (second run, ms / peak MB / first call s):
+
+| ref | mode | before | after |
+| --- | --- | --- | --- |
+| igev-stereo | fp16 | 3951 | 3641 |
+| igev-stereo | fp32 | 5702 / first 12.6 | 4609 / first 9.2 |
+| monster | fp16 | 10411 / 3295 / 21.3 | 10064 / 2941 / 18.4 |
+| monster | fp32 | 13236 / 6569 | 13099 / 5829 |
+| monster++ | fp16 | 10966 / 3294 / 21.9 | 10647 (min 10479) / 3033 / 18.9 |
+| monster++ | fp32 | 13947 / 6575 | 13670 / 5919 |
+| rt-monster++ | kernels fp16 | 580.1 / 2124 / 4.4 | 510.8 / 1591 / 5.1 |
+| rt-monster++ | kernels fp32 | 945.7 / 2308 | 852.1 / 2308 |
+| rt-monster++ | portable fp16 | 666.4 / 2055 | 605.1 / 1453 |
+| rt-monster++ | portable fp32 | 993.9 / 2224 | 890.8 / 2154 |
+
+Routes are unchanged. MPS rt-monster++ portable fp16 runs at 612 ms / 4076 MB, so MLX kernels fp16 is 17 % faster
+at 39 % of the memory, but its first call (5.1 s) is above 3x the MPS runtime, so it gets no auto route. The MPS
+memory of monster(++) was not addressed. New tests: `test_linear_sample_kernel_matches_torch` (fp32 / fp16) and
+`test_gwc_warp_kernel_matches_torch`. Goldens pass: test_mlx for the seven geometry families and rt-monster++.

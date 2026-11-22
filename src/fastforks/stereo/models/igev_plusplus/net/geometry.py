@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 from fastforks._core.mlx_cast import to_run_dtype  # fastforks: run-dtype casts on MLX
+from fastforks._core.volume_ops import linear_sample  # fastforks: the lookup, one Metal kernel on MLX
 from fastforks._core.sampling import grid_sample
 
 
@@ -135,25 +136,7 @@ class FastGeoEncodingVolume:
         self.dx = torch.arange(-radius, radius + 1, device=geo0.device, dtype=torch.float32).view(1, -1)
         self.coords = torch.arange(w, device=geo0.device, dtype=torch.float32).repeat(b * h).view(-1, 1)
 
-    @staticmethod
-    def _sample(vol, x):
-        """vol [P, C, D] or [P, D]; x [P, K] fp32 positions -> [P, C*K] or [P, K] (fp32 math)."""
-        D = vol.shape[-1]
-        x0 = torch.floor(x)
-        w1 = x - x0
-        i0 = x0.long()
-        i1 = i0 + 1
-        v0 = ((i0 >= 0) & (i0 < D)).float() * (1 - w1)
-        v1 = ((i1 >= 0) & (i1 < D)).float() * w1
-        idx = torch.cat([i0, i1], 1).clamp_(0, D - 1)
-        wgt = torch.cat([v0, v1], 1)
-        K = x.shape[1]
-        if vol.dim() == 3:
-            P, C, _ = vol.shape
-            s = vol.gather(2, idx.unsqueeze(1).expand(P, C, 2 * K)).float() * wgt.unsqueeze(1)
-            return (s[..., :K] + s[..., K:]).reshape(P, C * K)
-        s = vol.gather(1, idx).float() * wgt
-        return s[:, :K] + s[:, K:]
+    _sample = staticmethod(linear_sample)  # vol [P, C, D] or [P, D]; x [P, K] fp32 positions -> [P, C*K] fp32
 
     def _nchw(self, x):
         b, h, w = self.shape
