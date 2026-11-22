@@ -8,7 +8,10 @@ unsupported op) is logged as a warning, marks the shape eager for good and frees
 capture ends (required by the `cudaMallocAsync` allocator, see `free_captured`); a capture (failed or not) empties the
 allocator cache once, after the lock is released; calls hold a per-cache lock and wait for the
 previous call's stream, so threads / streams never read each other's static buffers; `release()` frees the pool on the
-device. Nothing here empties the process-wide allocator cache while the lock is held.
+device. The only allocator-cache emptying under the lock is the one between a capture's warm-up and the capture itself
+(under `CAPTURE_LOCK`, so no capture is open): the warm-up's blocks, cached on the capture stream, and the caller's
+cached blocks would otherwise stay reserved beside the new graph's pool (aliked-lightglue's first call: 3874 -> 2612 MiB
+peak reserved).
 
 Every warm-up + capture runs on one shared stream per device (`capture_stream`, under `CAPTURE_LOCK`), and kernels
 that overlap work on side streams take them from `side_stream`: cuBLAS keeps a 32 MB workspace per stream for the
@@ -242,6 +245,7 @@ class GraphCache:
             # PyTorch frees every cuBLAS workspace when any CUDA graph is destroyed. Release the warm-up workspace
             # so capture allocates one in the graph pool, which outlives the graph.
             torch._C._cuda_clearCublasWorkspaces()  # noqa: SLF001 - no public API
+            torch.cuda.empty_cache()  # the warm-up's cached blocks: the capture's pool cannot reuse them
             graph.capture_begin(self._pool, capture_error_mode="thread_local")
             try:
                 with capture_uploads() as graph.uploads:  # replays copy from these host buffers again

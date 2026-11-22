@@ -15,6 +15,7 @@ as in float32 (ALIKED 18.2 -> 14.5 ms, DISK 48.7 -> 38.1 ms per 1024 px image on
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -22,11 +23,13 @@ import torch
 from torch import nn
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.patch import base_type, override
 from fastforks._core.runner import host
 from fastforks._core.upload import device_tensor
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
 from fastforks.shared.aliked import ALIKED
+from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.deform_conv import modulated_deform_conv
 from fastforks.shared.lightglue import LightGlue, match_many, resize_long
 
@@ -47,6 +50,7 @@ class Params:
     detection_threshold: float  # upstream extractor default (ALIKED 0.2, DISK 0.0)
     max_keypoints: int  # per image
     long_side: int  # longest side the features are detected at; 0 = the input size
+    cuda_graphs: bool  # kernels, ALIKED: replay the dense maps from a CUDA graph per input size
 
 
 class Matcher(nn.Module):
@@ -169,11 +173,18 @@ class Portable(Runner):
 
 
 class Kernels(Portable):
-    """Portable with DISK's U-Net on fp16 NHWC `conv_ep` convolutions; ALIKED's dense network in fp16."""
+    """Portable with DISK's U-Net on fp16 NHWC `conv_ep` convolutions; ALIKED's dense network in fp16.
+
+    ALIKED's dense maps (`detection_maps`, fixed shape: about 260 launches) replay from a CUDA graph per input size
+    (`cuda_graphs`): 16.8 -> 12.6 ms per 768 x 1024 image on an RTX 5060 Ti under Windows, bit-equal. The graph's
+    static outputs are handed to the keypoint selection and descriptors without a copy (the float32 feature map is
+    400 MB at that size), so one extraction runs at a time (`_extract_lock`) and none of its outputs is a view of them.
+    """
 
     def __init__(self, ctx: Context) -> None:
         """Build the networks and switch the extractor to its kernels path."""
         super().__init__(ctx)
+        self.graphs: GraphCache | None = None
         if ctx.params.extractor == "disk":
             from .kernels.inference import prepare_disk  # noqa: PLC0415 - needs the kernel libraries
 
@@ -181,10 +192,45 @@ class Kernels(Portable):
             assert isinstance(disk, DISK)  # noqa: S101 - narrows the union for the type checker
             disk.fp16 = False
             prepare_disk(disk, ctx.device)
+        elif ctx.params.cuda_graphs and torch.device(ctx.device).type == "cuda":
+            aliked = self.net.extractor
+            assert isinstance(aliked, ALIKED)  # noqa: S101 - narrows the union for the type checker
+            # the cache holds the bound method weakly: no reference cycle keeps the graph pool after the model goes
+            self.graphs = vars(aliked)["maps_graphs"] = GraphCache(aliked.detection_maps, graphs=2)
+            override(aliked, _graphed_detection_maps, "detection_maps")
+            self._extract_lock = threading.Lock()
+
+    def describe(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """`Portable.describe`, one at a time while the dense maps' graph outputs are read without a copy."""
+        if self.graphs is None:
+            return super().describe(image)
+        with self._extract_lock:
+            return super().describe(image)
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+        """`Portable.__call__` through `describe`."""
+        return self.net.match(self.describe(image1), self.describe(image2))
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool."""
+        if self.graphs is not None:
+            self.graphs.release()
 
     def module(self) -> torch.nn.Module:
         """No exportable module: the extractor runs kernel launches."""
         return Runner.module(self)
+
+
+def _graphed_detection_maps(self: ALIKED, image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """`ALIKED.detection_maps` replayed from the image size's CUDA graph once captured: its static outputs, no copy."""
+    graphs: GraphCache = vars(self)["maps_graphs"]
+    out = graphs.run((image.device, image.dtype, tuple(image.shape)), image, post=_static)
+    return base_type(self).detection_maps(self, image) if out is None else out
+
+
+def _static(out: tuple[torch.Tensor, ...]) -> tuple[torch.Tensor, ...]:
+    """A graph's static outputs as they are: read before the next replay (`Kernels._extract_lock`)."""
+    return out
 
 
 _MLX = {

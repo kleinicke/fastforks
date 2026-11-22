@@ -5,8 +5,10 @@ from __future__ import annotations
 import pytest
 import torch
 
+import fastforks
 from fastforks import matching
 from fastforks._core import registry
+from fastforks._core.errors import WeightsError
 from fastforks.matching import SparseMatchingResult
 from fastforks.matching.models.lightglue.model import Matcher, Params
 from fastforks.shared.lightglue import LightGlue, match_many, resize_long
@@ -16,7 +18,11 @@ def test_cards() -> None:
     cards = {v.id: (c, v) for c, v in registry.cards("matching").values() if c.family == "lightglue"}
     assert sorted(cards) == ["aliked-lightglue", "disk-lightglue"]
     for mid, (card, variant) in cards.items():
-        assert dict(card.options) == {"max_keypoints": 2048, "long_side": 1024}  # upstream's match_pair setting
+        assert dict(card.options) == {
+            "max_keypoints": 2048,
+            "long_side": 1024,
+            "cuda_graphs": True,
+        }  # upstream's match_pair
         assert set(variant.outputs or card.outputs) == {"keypoints1", "keypoints2", "pairs", "scores"}
         assert mid in matching.list_models()
 
@@ -79,7 +85,7 @@ def test_float16_extractor_keeps_float32_outputs(extractor) -> None:
     """`dtype="float16"` autocasts only the dense network: keypoints and descriptors come out float32 (the matcher's
     and the API's dtype) and are the float32 run's up to half precision."""
     torch.manual_seed(0)
-    net = Matcher(Params(extractor, 0.0, 64, 0)).eval()
+    net = Matcher(Params(extractor, 0.0, 64, 0, cuda_graphs=False)).eval()
     image = torch.rand(1, 3, 64, 96)
     with torch.inference_mode():
         ref = net.extract(image)
@@ -91,3 +97,31 @@ def test_float16_extractor_keeps_float32_outputs(extractor) -> None:
     # the same detections up to the half-precision maps (random weights: near-equal scores change the score order)
     d = torch.cdist(out["keypoints"][0], ref["keypoints"][0]).min(1).values
     assert (d < 1.0).float().mean() > 0.9, d
+
+
+@pytest.mark.gpu
+def test_aliked_kernels_graphs_match_eager() -> None:
+    """ALIKED's graphed dense maps: matches and `describe` bit-equal to eager at two sizes; release frees them."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    try:
+        graphed = fastforks.load("aliked-lightglue", mode="kernels", device="cuda")
+        eager = fastforks.load("aliked-lightglue", mode="kernels", device="cuda", cuda_graphs=False)
+    except WeightsError as e:
+        pytest.skip(f"aliked-lightglue weights not available: {e}")
+    assert eager._runner.graphs is None
+    gen = torch.Generator().manual_seed(0)
+    images = [torch.rand(1, 3, h, w, generator=gen).cuda() for h, w in ((240, 320), (320, 240), (300, 400))]
+    keys = ("keypoints1", "keypoints2", "pairs", "scores")
+    with torch.inference_mode():
+        for i, j in [(0, 1)] * 4 + [(2, 0)] * 3 + [(1, 0)]:
+            got, want = graphed._runner(images[i], images[j]), eager._runner(images[i], images[j])
+            for k in keys:
+                torch.testing.assert_close(got[k], want[k], rtol=0, atol=0, msg=k)
+        got, want = graphed._runner.describe(images[2]), eager._runner.describe(images[2])
+        for k, v in want.items():
+            torch.testing.assert_close(got[k], v, rtol=0, atol=0, msg=k)
+    graphs = graphed._runner.graphs
+    assert len(graphs.graphs) == 2, f"want one graph per long-side size (failed: {list(graphs._failed)})"
+    graphed.release_graphs()
+    assert not graphs.graphs
