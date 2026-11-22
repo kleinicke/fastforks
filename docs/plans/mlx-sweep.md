@@ -3080,3 +3080,29 @@ Survey, MPS portable, second run, ms median (min) / MB peak:
 Goldens pass (test_mps, FASTFORKS_MPS_FULL=1): c-foundationstereo-s, c-fast-foundationstereo, fast-foundationstereo,
 foundationstereo-vit-s, foundationstereo-vit-l (all @1; a counting wrapper confirmed the new path runs in them, fp16
 and fp32). test_mps_conv_cpu gains two depth-only cases. No route change (`gen_auto_mode --check` clean).
+
+## 2026-11-22 (evening): MLX kernel == stride ConvTranspose2d as one GEMM; the CLIP-L / EoMT-L fp32 gap (M1 Pro 16 GB)
+
+`mx.conv_transpose2d` is slow for a transposed conv whose kernel equals its stride (no overlap): `_conv_core` now
+runs it as `[N*H*W, Cin] @ [Cin, kh*kw*Cout]` (bias tiled) plus a depth-to-space transpose
+(`_conv_transpose2d_gemm`), bit-identical to the old path. EoMT-L's 2 x 2 upsampler, 1024 -> 1024 channels, fp32:
+3 x 32 x 32 16.1 -> 6.9 ms, 3 x 64 x 64 44.0 -> 26.1 ms (fp16 alike). Same layer shape in DPT / SAM / Sapiens /
+MoGe / Depth Pro necks and decoders.
+
+Survey, MLX portable, second run, ms median (min) / MB / compile s:
+
+| ref | dtype | before | after |
+| --- | --- | --- | --- |
+| eomt-l-dinov2-ade20k | fp32 | 681.7 (657.8) / 4504 / 2.34 | 666.6 (642.8) / 4518 / 2.32 |
+| eomt-l-dinov2-ade20k | fp16 | 582.9 (576.6) / 3663 / 2.26 | 574.1 (558.5) / 3661 / 2.25 |
+
+MPS fp32 is 608 ms: EoMT-L's gap shrinks from ~12 % to ~10 %. Goldens pass (test_mlx): eomt-l-dinov2-ade20k,
+nafnet-gopro, wd-vit-tagger-v3, c-fast-foundationstereo, tapnext, cotracker3-online, alltracker, loma-b, memfof,
+depthsplat-small-re10k, zoedepth-nk, depth-anything-v2-s, sam-vit-b, sapiens-seg-0.3b-goliath, moge-2-vits-normal,
+depth-pro (all @1). New test_mlx case for the lowering. No route change.
+
+The rest of the fp32 gap is GEMM speed, not graph overhead. EoMT-L's eager profile (FF_MLX_PROFILE=1): addmm 399 of
+673 ms, SDPA 98, GELU 46, convs 35. CLIP-L (MLX 62.9 vs MPS 60.6 ms): GEMMs 73 of 130 ms eager, nothing
+family-specific. Microbench, fp32 `[M, K] @ [K, N]`, MLX vs MPS: at EoMT's M = 2058, MLX is ~5 % slower (K 1024 N 4096:
+4.56 vs 4.35 ms); padded to M = 2112 it is 4.29. Not kept: per-block padding would gain ~1 % end to end (a pad and a
+slice per MLP, the earlier padding reject stands). CLIP's M = 257..320 shows no padding win at all.

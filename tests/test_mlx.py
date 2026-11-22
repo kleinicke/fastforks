@@ -289,6 +289,18 @@ def test_dpt_resize_matches_torch(size):
         torch.testing.assert_close(got, want, atol=1e-5, rtol=1e-5)
 
 
+@pytest.mark.parametrize(("kernel", "bias"), [((2, 2), True), ((4, 4), False), ((2, 3), True)])
+def test_conv_transpose_kernel_equals_stride_matches_torch(kernel, bias):
+    """A transposed conv whose kernel equals its stride (the GEMM + depth-to-space lowering) against torch's."""
+    pytest.importorskip("mlx.core")
+    from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - optional (the mlx extra)
+
+    torch.manual_seed(0)
+    m = torch.nn.ConvTranspose2d(12, 8, kernel, kernel, bias=bias)
+    x = torch.randn(2, 12, 5, 7)
+    torch.testing.assert_close(MlxModule(m, "float32")(x), m(x), atol=1e-5, rtol=1e-5)
+
+
 def test_fp32_inputs_keep_float32_in_a_float16_replay():
     """`MlxModule(fp32_inputs=...)`: the named argument enters a float16 replay unrounded, the others are cast."""
     pytest.importorskip("mlx.core")
