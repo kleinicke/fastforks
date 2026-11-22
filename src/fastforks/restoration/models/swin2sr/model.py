@@ -180,6 +180,10 @@ class Portable(Runner):
         del self.net.mean
         self.net.register_buffer("mean", mean, persistent=False)
         self.net.eval().to(ctx.device, getattr(torch, ctx.dtype))
+        if ctx.device.type == "cuda" and ctx.dtype == "float16":
+            # channels-last weights: cuDNN's fp16 convolutions skip the NCHW<->NHWC conversion around each conv
+            # (256x256 x4 portable 216.8 -> 212.5 ms and 521 -> 452 MB, kernels 473 -> 427 MB; RTX 5060 Ti, Windows)
+            self.net.to(memory_format=torch.channels_last)
 
     def pad(self, x: torch.Tensor) -> tuple[torch.Tensor, Crop]:
         """`main_test_swin2sr.py`: mirror-pad bottom / right to `(size // window + 1) * window`."""
