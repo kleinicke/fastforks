@@ -15,7 +15,7 @@ from fastforks.stereo._runner import Forward, Runner
 from .net.fast_foundation_stereo.ckpt_utils import remap_state_dict, tao_edgenext_keys
 from .net.fast_foundation_stereo.fast_foundation_stereo import FastFoundationStereo
 from .net.foundation_stereo.foundation_stereo import FoundationStereo
-from .portable import mps_half, prepare_portable
+from .portable import classifier_taps, mps_half, prepare_portable
 
 if TYPE_CHECKING:
     from torch import nn
@@ -179,7 +179,7 @@ class Portable(Runner):
         self.net = build(ctx).to(ctx.device)
         # TAO's own AMP switch: fp16 autocast inside the network's AUTOCAST blocks, the GRU lookups in fp32
         cast("_Args", self.net.args)["mixed_precision"] = ctx.device.type == "cuda" and ctx.dtype == "float16"
-        prepare_portable(self.net, channels_last=ctx.device.type == "cuda")
+        prepare_portable(self.net, channels_last=ctx.device.type == "cuda", mps=ctx.device.type == "mps")
         if ctx.device.type == "mps" and ctx.dtype == "float16":
             mps_half(self.net)
 
@@ -222,6 +222,7 @@ class _PortableMlx(Portable):
         """Build the network."""
         super().__init__(ctx)
         sdpa_attention(self.net)
+        classifier_taps(self.net)
 
 
 RUNNERS = {

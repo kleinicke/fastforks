@@ -185,7 +185,24 @@
     "float32": "portable"
    }
   },
+  "c-fast-foundationstereo@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
   "c-foundationstereo-s@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"

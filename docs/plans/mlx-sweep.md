@@ -2297,8 +2297,8 @@ Survey rows, second of two runs (ms warm median / peak footprint MB):
   min, 8 GB swap) were pressure runs and were not kept; the older fp32 rows stay.
   - Negative: making `AUTOCAST` follow the device (MPS autocast) gave nothing: 3.7-3.9 s, 12.6 GB, BatchNorm outputs
     fp32, one flaky MPS OOM. Reverted.
-  - Open: c-foundationstereo-s fp16 at 994x1482 still OOMs on MPS (6.1 GiB allocated plus 6 GiB other in the
-    allocator). The CUDA-only volume strips are the likely lever.
+  - Fixed (2026-11-22): c-foundationstereo-s fp16 at 994x1482 no longer OOMs on MPS. See "C-FoundationStereo on MPS
+    and MLX: strips, bmm attention, classifier taps" below.
 - **las2**: MPS autocast with channels-last H ran 926 ms against 702 ms fp32 (probe). NCHW alone gave 761 ms; pure fp16
   gave 636 ms at 3.7 GB instead of 5.1 GB. All four sizes use the same path on MPS. las2-l moved between 386 and
   426 ms across the two runs (400 before), so it is about flat; its peak dropped 0.7 GB. With the faster portable row,
@@ -2605,3 +2605,82 @@ Investigated, not changed:
   done.
 - **Transfer to MPS**: the slice_scatter chain and the float32 pool copy are artefacts of the MLX export and replay.
   On MPS, the eager in-place volume writes and native `avg_pool2d` have no such copies, so nothing carries over.
+
+## C-FoundationStereo on MPS and MLX: strips, bmm attention, classifier taps (2026-11-22)
+
+Goal: c-foundationstereo-s fp16 OOMed on MPS at 994x1482 ("Tried to allocate 5.38 GiB"). The task was to find the
+cause, then cut peak memory and time on MPS and MLX.
+
+Profile (MPS fp16, synchronised module hooks, padded 1024x1504; the 1/4 volume is 28 x 104 x 256 x 376, 560 MB in fp16):
+
+| stage | time | driver memory |
+|---|---|---|
+| cost_agg (hourglass) | 17-22 s | grows to 15.5-16.7 GB |
+| merge_attention (inside cost_agg) | ~12 s | 6.8 -> 13.4 GB |
+| conv_out (inside cost_agg) | 2.9 s | +2.1 GB in its (17, 1, 1) conv |
+| classifier | 1.9-3.0 s | 1.5 s or more in the 14 -> 1, k7 `Conv3d` |
+| update_block (22 iterations) | ~8 s | - |
+
+The cause is TAO's disparity transformer. It runs at full 1/4 resolution: 96256 sequences of length 104, head dim 7.
+`merge_attention` first interpolates the whole 1/4-resolution volume, then holds the permuted copies and the chunk
+outputs next to it. The row strips that fix this (`_merge_attention`, `_hourglass_tail`) were CUDA-only.
+
+Changes (`c_foundationstereo/portable.py`):
+
+- **Row strips on MPS.** `_use_volume_strips` now takes MPS volumes, never under the MLX export. The Portable runner
+  passes `mps=True`. The output is bit-identical to the unstripped path (736x1024 fp16, both stripped hooks ran: max
+  |diff| 0).
+- **Attention as `bmm`, softmax, `bmm`** (MPS and the MLX export), instead of `scaled_dot_product_attention`:
+  - MPS, one 20-row strip: 551 ms against 912 ms, with 1.6 GB of driver growth against 3.7 GB.
+  - MLX pads head dim 7 to 64 for its fused kernel: 54 ms per 8192-sequence chunk, against 38 ms for the matmul form.
+- **Classifier taps.** The classifier's last `Conv3d` (14 -> 1, k7) runs as one `conv2d` whose 7 output channels are
+  the depth taps, then a shift-add along depth (the research FS `_conv_k7_to1` idea). On MPS this is 409 ms against
+  1504 ms for `mps.conv3d`, which runs one `conv2d` per tap. The MLX export uses it as well (`_PortableMlx`).
+
+Hooked profile afterwards: driver peak 7.3-8.4 GB (was 15-16.7), total 24-26 s (was 34-43 s).
+
+Results (994x1482, ms median / MB peak footprint, second survey run). The MLX first-call column is the compile time in
+seconds:
+
+| ref | dtype | MPS before | MPS after | MLX before (first call s) | MLX after (first call s) |
+|---|---|---|---|---|---|
+| c-foundationstereo-s | fp16 | OOM | 25783 / 12573 | 27235 / 4625 (130) | 18737 / 4010 (31) |
+| c-foundationstereo-s | fp32 | OOM | OOM | 62607 / 8203 (217) | 29962 / 7023 (45) |
+| c-fast-foundationstereo | fp16 | 2714 / 8484 | 2539 / 8483 | - | 2737 / 2858 (7.8) |
+| c-fast-foundationstereo | fp32 | 4881 / 12882 (11-06) | 3184 / 13079 | - | 4565 / 4181 (10.5) |
+
+Notes:
+
+- The c-fast-foundationstereo fp32 "before" row is from 2026-11-06, so its delta includes earlier passes.
+- A first survey pass ran without `FASTFORKS_GOLDEN_PATH` (golden "skip"), so `gen_auto_mode` dropped the rows. It was
+  re-run with goldens and both runs passed.
+
+Routes (`apple_mlx.json`):
+
+- c-foundationstereo-s now has `auto` / `dtypes` fp16 -> MLX portable: 1.38x faster than MPS at 0.32x the memory, and a
+  12.6 s compile against 25.8 s MPS.
+- c-fast-foundationstereo gets an `mlx_default` entry. MLX is slower than MPS (2737 against 2539 ms), so there is no
+  `auto` entry.
+
+Goldens pass: test_mps (FASTFORKS_MPS_FULL=1) and test_mlx for c-foundationstereo-s@1 and c-fast-foundationstereo@1.
+
+Not done, or rejected:
+
+- **c-foundationstereo-s fp32 on MPS** still OOMs: 9.75 GiB allocated, then a 1.06 GiB request, which is one fp32
+  full-resolution 1/4 volume. A synchronised hooked run completes at 14.5 GB driver memory and is swap-bound (120 s).
+  The volumes are 1.1 GB each in fp32, so fp32 at this size does not fit 16 GB without stripping every 3-D stage.
+  MLX fp32 is the route (30 s, 7.0 GB).
+- **Fused QKV projection** (one 28 -> 84 linear plus split): 805 ms against 551 ms per strip on MPS. The split and
+  reshape copies cost more than the two saved linears. Rejected.
+- **Attention chunk size** (2048 to 16384 sequences) did not change the MPS time (912 ms each). Only the driver growth
+  changed. `CHUNK` is unchanged.
+- **Generic `mps.conv3d` taps path** for every small-output `Conv3d`: the IGEV-family 8 -> 1, k3 classifier goes from
+  19 to 12 ms. That is too small for a shared `mps.py` change that would re-touch every family's goldens. The taps path
+  stays local to C-FS.
+- **The (17, 1, 1) convs** of `Conv3dNormActReduced` cost 0.5 s each through `mps.conv3d`, against 190 ms as a
+  `(17, 1)` `conv2d` over `(C, D, H*W)`. That would be a shared `mps.py` change. Not done.
+- **Research foundationstereo-vit-s / vit-l** use separate code (`forward_fast`). It already has strip-wise volumes, the
+  k7 classifier trick, and attention over 4 heads (sequence length 4, math backend). None of these changes apply to
+  it. Its 13.2 GB MPS fp16 peak was not re-profiled in this pass.
+- **The remaining MPS time** is the attention (~7 s; it has to materialise the 104 x 104 scores without a fused kernel)
+  and the 22 GRU iterations (~8 s, 2-D convs at 1/4 resolution).

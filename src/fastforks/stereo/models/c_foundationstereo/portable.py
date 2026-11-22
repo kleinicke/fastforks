@@ -66,6 +66,8 @@ def _padded_attention(  # noqa: PLR0913, PLR0917 - upstream `FlashMultiheadAtten
     so without flash (Windows) the call fell to the math backend (C-FS-S 375x1242: 1706 ms vs 1170 ms on Linux).
     """
     d = self.head_dim
+    if query.device.type == "mps" or EXPORTING_FOR_MLX.get():
+        return _bmm_attention(self, query, key, value)
     if not -d % 8 or not query.is_cuda:
         return FlashMultiheadAttention.forward(self, query, key, value, attn_mask, window_size)
     b, n, _ = query.shape
@@ -77,6 +79,25 @@ def _padded_attention(  # noqa: PLR0913, PLR0917 - upstream `FlashMultiheadAtten
     else:  # float32: upstream's call as is
         o = F.scaled_dot_product_attention(q, k, v)
     return self.out_proj(o.reshape(b, n, -1))
+
+
+def _bmm_attention(
+    self: FlashMultiheadAttention, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor
+) -> torch.Tensor:
+    """Upstream's attention as `bmm`, softmax, `bmm` (MPS, MLX): faster than SDPA at head dim 7.
+
+    C-FS-S 994x1482 fp16, MPS, one 20-row strip of the disparity transformer: 551 ms vs 912 ms, 1.6 vs 3.7 GB driver
+    growth. MLX pads head dim 7 to 64 for its fused kernel: 38 vs 54 ms per 8192-sequence chunk.
+    """
+    b, n, _ = query.shape
+    if self.qkv_layout == "standard":  # upstream's `view(B, heads, L, head_dim)` of the (B, L, C) projections
+        q, k, v = (
+            proj(x).view(b * self.num_heads, n, self.head_dim)
+            for proj, x in ((self.q_proj, query), (self.k_proj, key), (self.v_proj, value))
+        )
+        o = torch.bmm(torch.softmax(torch.bmm(q * self.head_dim**-0.5, k.transpose(1, 2)), -1), v)
+        return self.out_proj(o.view(b, n, -1))
+    return FlashMultiheadAttention.forward(self, query, key, value)
 
 
 def _post(
@@ -94,8 +115,13 @@ def _post(
 
 def _use_volume_strips(volume: torch.Tensor) -> bool:
     return (
-        volume.is_cuda
-        and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
+        volume.device.type in {"cuda", "mps"}
+        and not (
+            torch.compiler.is_compiling()
+            or torch.jit.is_tracing()
+            or torch.is_grad_enabled()
+            or EXPORTING_FOR_MLX.get()
+        )
         and volume.numel() * volume.element_size() >= LARGE_VOLUME_BYTES
     )
 
@@ -143,6 +169,56 @@ def _hourglass_tail(self: nn.Sequential, volume: torch.Tensor) -> torch.Tensor:
     return out
 
 
+def _taps_conv3d(conv: nn.Conv3d, x: torch.Tensor) -> torch.Tensor:
+    """A stride-1 `Conv3d` with few outputs (TAO's 14 -> 1, 7 x 7 x 7 classifier) as one `conv2d` plus a shift-add.
+
+    The depth planes are a batch of 2-D images; output channel `k * out + j` of the `conv2d` is depth tap `k` of output
+    `j`, and output plane `d` sums tap `k` of plane `d + k - pad`. C-FS-S 994x1482 fp16 on MPS: 409 ms vs 1504 ms for
+    `mps.conv3d` (one `conv2d` per tap).
+    """
+    if x.device.type != "mps" and not EXPORTING_FOR_MLX.get():
+        return conv(x)
+    n, c, d = x.shape[:3]
+    w = conv.weight.to(x.dtype)
+    o, kd, pd = w.shape[0], w.shape[2], conv.padding[0]
+    planes = x.permute(0, 2, 1, 3, 4).reshape(n * d, c, *x.shape[3:])
+    y = F.conv2d(planes, w.permute(2, 0, 1, 3, 4).reshape(kd * o, c, *w.shape[3:]), None, 1, conv.padding[1:])
+    y = y.view(n, d, kd, o, *y.shape[2:])
+    out = y.new_zeros(n, d, o, *y.shape[3:]) if conv.bias is None else None
+    if out is None:
+        out = conv.bias.to(y.dtype).view(1, 1, o, 1, 1).expand(n, d, o, *y.shape[4:]).clone()
+    for k in range(kd):
+        lo, hi = max(0, pd - k), min(d, d + pd - k)
+        out[:, lo:hi] += y[:, lo + k - pd : hi + k - pd, k]
+    return out.permute(0, 2, 1, 3, 4)
+
+
+def _taps(conv: nn.Module) -> bool:
+    """Whether `_taps_conv3d` takes `conv`: a plain stride-1 `Conv3d` with at most 8 outputs x depth taps."""
+    return (
+        isinstance(conv, nn.Conv3d)
+        and conv.groups == 1
+        and set(conv.stride) == set(conv.dilation) == {1}
+        and conv.padding_mode == "zeros"
+        and not isinstance(conv.padding, str)
+        and conv.out_channels * conv.kernel_size[0] <= 8  # noqa: PLR2004 - one conv2d output tile
+    )
+
+
+def _classifier(self: nn.Sequential, volume: torch.Tensor) -> torch.Tensor:
+    """TAO's classifier with its last `Conv3d` through `_taps_conv3d`."""
+    for layer in self[:-1]:
+        volume = layer(volume)
+    return _taps_conv3d(self[-1], volume)
+
+
+def classifier_taps(net: nn.Module) -> None:
+    """Run the last `Conv3d` of `net.classifier` through `_taps_conv3d` (MPS and the MLX export)."""
+    head = getattr(net, "classifier", None)
+    if isinstance(head, nn.Sequential) and _taps(head[-1]):
+        override(head, _classifier)
+
+
 def _conv(self: Conv, x: torch.Tensor) -> torch.Tensor:
     """`Conv.forward` with the LeakyReLU in place (on the fresh conv / norm output)."""
     x = self.conv(x)
@@ -160,8 +236,11 @@ def _channels_last(net: nn.Module) -> None:
             m.weight.data = m.weight.data.contiguous(memory_format=torch.channels_last_3d)
 
 
-def prepare_portable(net: nn.Module, *, channels_last: bool = False) -> None:
+def prepare_portable(net: nn.Module, *, channels_last: bool = False, mps: bool = False) -> None:
     """Chunk every disparity transformer of `net` and apply the hourglass memory fixes (the output is unchanged).
+
+    With `mps` (the portable runner on MPS) the hourglass's full-resolution attention and tail run in row strips as on
+    CUDA, and the classifier's last conv goes through `_taps_conv3d`.
 
     With `channels_last` (the portable runner on CUDA) the conv weights go channels-last as well. The in-place LeakyReLU
     is applied to the Fast-FoundationStereo hourglass only: in FoundationStereo it leaves peak allocated unchanged and
@@ -169,6 +248,8 @@ def prepare_portable(net: nn.Module, *, channels_last: bool = False) -> None:
     """
     if channels_last:
         _channels_last(net)
+    if mps:
+        classifier_taps(net)
     fast = any(isinstance(m, _FFSPostForwardHelper) for m in net.modules())
     for m in net.modules():
         if isinstance(m, CostVolumeDisparityAttention):
@@ -177,7 +258,7 @@ def prepare_portable(net: nn.Module, *, channels_last: bool = False) -> None:
             override(m, _padded_attention)
         elif isinstance(m, _FFSPostForwardHelper):
             override(m, _post)
-        elif channels_last and isinstance(m, HourGlass):
+        elif (channels_last or mps) and isinstance(m, HourGlass):
             override(m, _merge_attention, "merge_attention")
             if is_base(m, HourGlass):
                 override(m.conv_out, _hourglass_tail)
