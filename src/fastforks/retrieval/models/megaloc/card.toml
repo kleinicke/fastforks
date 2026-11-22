@@ -3,7 +3,7 @@ name = "MegaLoc"
 summary = "MegaLoc (Berton and Masone, CVPR 2025 workshops): one image-retrieval model for visual place recognition, landmark retrieval and structure-from-motion pair selection. A DINOv2 ViT-B/14 fine-tuned on a mix of place-recognition, landmark and SfM datasets; its patch features are assigned to 64 clusters by optimal transport (SALAD-style aggregation) and projected to an 8448-d unit descriptor."
 tier = "experimental"
 outputs = ["descriptor"]
-uses = ["cuda_graphs", "depth_anything_v2", "host_blocks"]  # fastforks.shared modules this family imports (CUDA graphs, the vendored DINOv2 ViT, FastViT)
+uses = ["cuda_graphs", "depth_anything_v2", "host_blocks", "mlx_wrap"]  # fastforks.shared modules this family imports (CUDA graphs, the vendored DINOv2 ViT, FastViT)
 
 limitations = ["With CUDA, stream=True stages the DINOv2 backbone blocks from pinned host RAM during descriptor extraction. The aggregator stays on the GPU. Export requires stream=False."]
 

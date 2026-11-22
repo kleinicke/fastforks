@@ -3,7 +3,7 @@ name = "GeoCalib"
 summary = "GeoCalib (Veicht et al., ECCV 2024): single-image camera calibration. An MSCAN-L network predicts per-pixel perspective fields (up vectors and latitude) with confidences; a differentiable Levenberg-Marquardt optimiser fits the focal length and gravity direction (roll, pitch) to them. Gives intrinsics, gravity, roll, pitch and vertical field of view."
 tier = "experimental"
 outputs = ["intrinsics", "gravity", "roll", "pitch", "vfov"]
-uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "The Levenberg-Marquardt loop branches and logs on its convergence (35 graph breaks: `torch.compile` runs with breaks, no `torch.export`); its damping, singularity check and early stop are batch-wide, as upstream, so a batch is one problem and an image's result can depend on its batch mates.",
   "The standalone FP32 TensorRT benchmark accelerates the 416 x 320 field predictor and uses the usual PyTorch camera optimizer. On 97 portrait LaMAR images the largest angle difference was 0.000048 degrees.",

@@ -3,7 +3,7 @@ name = "Anime line art"
 summary = "Anime line art preprocessor of ControlNet 1.1 (controlnet_aux `LineartAnimeDetector`, ComfyUI's \"Anime Lineart\"): a pix2pix U-Net (8 levels, instance norm, 54 M parameters) turns an anime-style image into a clean line drawing at a multiple of 256 px."
 tier = "experimental"
 outputs = ["edges"]
-uses = ["cv2_resize"]  # fastforks.shared modules this family imports
+uses = ["cv2_resize", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/huggingface/controlnet_aux"

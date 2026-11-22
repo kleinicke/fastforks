@@ -3,7 +3,7 @@ name = "BoQ"
 summary = "BoQ, Bag-of-Queries (Ali-bey, Chaib-draa and Giguère, CVPR 2024): visual place recognition. A DINOv2 ViT-B/14 (last two blocks fine-tuned on GSV-Cities); its patch features are projected by a 3x3 convolution, refined by two transformer encoder layers and read out by two sets of 64 learned queries with cross-attention, then projected to a 12288-d unit descriptor."
 tier = "experimental"
 outputs = ["descriptor"]
-uses = ["cuda_graphs", "depth_anything_v2", "host_blocks"]  # fastforks.shared modules this family imports (CUDA graphs, the vendored DINOv2 ViT, FastViT)
+uses = ["cuda_graphs", "depth_anything_v2", "host_blocks", "mlx_wrap"]  # fastforks.shared modules this family imports (CUDA graphs, the vendored DINOv2 ViT, FastViT)
 
 limitations = ["With CUDA, stream=True stages the DINOv2 backbone blocks from pinned host RAM during descriptor extraction. The aggregator stays on the GPU. Export requires stream=False."]
 

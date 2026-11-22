@@ -3,7 +3,7 @@ name = "mmseg CNN classics"
 summary = "The mmsegmentation ADE20K checkpoints of the CNN classics: FCN, PSPNet, DeepLabV3 and DeepLabV3+ on a dilated ResNet-101 (output stride 8), and HRNetV2-W48 with an FCN head; networks vendored from mmsegmentation (no mmseg / mmcv dependency)."
 tier = "stable"
 outputs = ["logits"]
-uses = ["cnn_kernels", "cuda_graphs", "seginfer"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs", "seginfer", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/open-mmlab/mmsegmentation"

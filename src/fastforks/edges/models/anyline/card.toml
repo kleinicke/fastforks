@@ -3,7 +3,7 @@ name = "AnyLine line art"
 summary = "AnyLine preprocessor of MistoLine (TheMisto.ai; controlnet_aux `AnylineDetector`, ComfyUI-Anyline): the MTEED edge network (TEED architecture, weights by TheMisto.ai) blended with a Gaussian-difference line art whose small specks are removed; sharp line maps for line-conditioned ControlNets."
 tier = "experimental"
 outputs = ["edges"]
-uses = ["teed"]  # fastforks.shared modules this family imports
+uses = ["teed", "mlx_wrap", "quantile"]  # fastforks.shared modules this family imports
 licence_notes = [
   "The MTEED weights use the OpenRAIL++-M licence: commercial use is allowed but with use restrictions that must be passed on; the training data terms are not checked.",
 ]

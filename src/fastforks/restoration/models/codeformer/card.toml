@@ -4,7 +4,7 @@ summary = "CodeFormer (Zhou et al., NeurIPS 2022): blind face restoration with a
 tier = "experimental"
 outputs = ["image"]
 limitations = ["The labeled comparison reports PSNR and SSIM on DAEFR's paired 512 x 512 CelebA-Test face crops."]
-uses = ["cnn_kernels"]  # fastforks.shared modules this family imports (fp16-accumulate conv / epilogue kernels)
+uses = ["cnn_kernels", "mlx_wrap"]  # fastforks.shared modules this family imports (fp16-accumulate conv / epilogue kernels)
 
 [upstream]
 repo = "https://github.com/sczhou/CodeFormer"

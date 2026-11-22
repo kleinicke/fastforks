@@ -3,7 +3,7 @@ name = "HQ-SAM"
 summary = "Segment Anything in High Quality (Ke et al. 2023): SAM with one more output token and a small head that fuses the final embedding with an early ViT feature, for sharper mask borders and thin structures; SAM's weights are frozen, so prompts work the same. Each prompt gives one mask (SAM's mask plus the HQ mask, upstream's default); `multimask_output` picks the best-scored of SAM's three candidates as the SAM part. The portable `module()` is the image side only (embedding and HQ feature)."
 tier = "stable"
 outputs = ["pred_masks", "iou_scores"]
-uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap", "sam_attention"]  # fastforks.shared modules this family imports
 
 limitations = [
   "Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~125 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",

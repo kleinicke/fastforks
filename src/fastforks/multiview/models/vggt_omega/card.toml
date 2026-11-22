@@ -2,7 +2,7 @@ schema = 2
 name = "VGGT-Omega"
 summary = "VGGT-Omega (Meta), the successor of VGGT: cameras and depth maps of every view from unposed images in one forward pass. A DINOv3 ViT-L/16 patch embedding feeds 24 frame and 24 inter-frame (global or register-only) attention blocks with q/k norm and 2-D RoPE; a camera head and a DPT dense head decode the tokens. The checkpoint is gated on Hugging Face (accept the FAIR licence there, then put the file on FASTFORKS_WEIGHTS_PATH); there is no mirror."
 tier = "stable"
-uses = ["host_blocks"]
+uses = ["host_blocks", "mlx_wrap"]
 limitations = ["CUDA stream=True keeps the patch encoder and alternating attention blocks in pinned host RAM. Output heads and activations remain resident. Export requires stream=False."]
 outputs = ["depth", "confidence", "intrinsics", "cam_to_world"]  # world points: multiview.unproject(depth, intrinsics, cam_to_world)
 

@@ -3,7 +3,7 @@ name = "LoMa"
 summary = "LoMa (Nordström, Edstedt et al. 2026): local feature matching with a light transformer. DaD (a VGG11 detector trained by distillation, Edstedt et al. 2025) finds 2048 keypoints per image, a DeDoDe descriptor (VGG for B64/B128, VGG plus DINOv2 for B/L/G/R) describes them, and nine LightGlue-style transformer layers (rotary self-attention, cross-attention) refine the descriptions before a dual-softmax assignment. Returns both keypoint sets, the index pairs of the matches and their scores."
 tier = "experimental"
 outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
-uses = ["dedode", "depth_anything_v2", "lightglue", "cnn_kernels"]  # fastforks.shared modules this family imports (the DaD / DeDoDe nets; the DINOv2 ViT-L/14; the transformer blocks)
+uses = ["dedode", "depth_anything_v2", "lightglue", "mlx_wrap"]  # fastforks.shared modules this family imports (the DaD / DeDoDe nets; the DINOv2 ViT-L/14; the transformer blocks)
 limitations = [
   "The standalone B and L BF16 TensorRT engines at 768 x 1024 were compared on ten shifted photos. Minimum match precision within 2 px was 96.62% for B and 95.46% for L.",
   "For LoMa-B at 768 x 1024 BF16, export ONNX and build TensorRT in a fresh process. On the first 50 calibrated MegaDepth pairs, AUC@5 was 64.16 portable, 62.97 with the separately built plan, and 54.30 with the bundled TensorRT export.",

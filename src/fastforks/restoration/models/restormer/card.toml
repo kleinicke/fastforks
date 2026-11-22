@@ -3,6 +3,7 @@ name = "Restormer"
 summary = "Restormer (Zamir et al., CVPR 2022): a U-Net of transformer blocks for high-resolution image restoration: channel ('transposed') self-attention whose cost grows linearly with the pixels (MDTA) and a gated depthwise-conv feed-forward (GDFN), four 2 x down / up levels plus refinement blocks. `restormer-deblur` removes motion blur (GoPro), `restormer-derain` removes rain streaks (Rain13K), `restormer-sidd` removes smartphone sensor noise (SIDD)."
 tier = "experimental"
 outputs = ["image"]
+uses = ["mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/swz30/Restormer"

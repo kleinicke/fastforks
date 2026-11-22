@@ -6,7 +6,7 @@ licence_notes = [
   "The eomt-l-dinov3-ade20k checkpoint is fine-tuned from DINOv3, so it also carries the DINOv3 License (redistribution must include its text); that licence does not exclude commercial use.",
 ]
 outputs = ["logits"]
-uses = ["seginfer"]  # fastforks.shared modules this family imports
+uses = ["seginfer", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/huggingface/transformers"

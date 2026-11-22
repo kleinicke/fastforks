@@ -3,7 +3,7 @@ name = "AllTracker"
 summary = "AllTracker (Harley et al., ICCV 2025): tracking every pixel of a query frame through a video offline, as long-range optical flow. A ConvNeXt (tiny: a residual CNN) encodes every frame at 1/8; 16-frame windows (stride 8) refine the flow and visibility of all anchor pixels to all window frames at once, with a correlation pyramid, 2D ConvNeXt blocks over space and 1D blocks over time, then an 8x convex upsampling. Point queries read the dense result."
 tier = "experimental"
 outputs = ["tracks", "visibility"]
-uses = []  # fastforks.shared modules this family imports
+uses = ["mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "With 256 points introduced on frames 1, 15, 31 and 58 of a 63-frame clip at 480 × 854, reversing one feature window at a time reduced peak allocation from 1,239 to 1,150 MiB portable and from 1,321 to 1,233 MiB kernels. The checked tracks and visibility match bit for bit.",
   "Tracking 256 points in a 63-frame, 480 × 854 clip on the RTX 5060 Ti used 1,150 MiB portable (was 1,224) and 1,233 MiB kernels (was 1,307). Tracks and visibility matched bit for bit on the synthetic clips and three labeled TAP-Vid DAVIS clips.",

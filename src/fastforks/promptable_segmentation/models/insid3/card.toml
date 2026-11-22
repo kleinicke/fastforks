@@ -3,6 +3,7 @@ name = "INSID3"
 summary = "INSID3 (2026): training-free in-context segmentation. Reference images with masks -> the same concept in a target image, from frozen DINOv3 ViT-L patch features (positional debiasing, forward / backward matching, average-linkage clustering of the target patches). The backbone is fastforks' DINOv3 (`features`), the clustering runs on the GPU. The portable `module()` is the backbone only."
 tier = "experimental"
 outputs = ["similarity", "masks"]  # the `InContextSegmentationResult` fields
+uses = ["mlx_wrap"]  # fastforks.shared modules this family imports
 licence_notes = [
   "The INSID3 code is Apache-2.0; it ships no weights of its own and runs the DINOv3 ViT-L/16 checkpoint, which is under the DINOv3 License (Meta: attribution and conditions apply; gated on Hugging Face); read it before commercial use.",
 ]

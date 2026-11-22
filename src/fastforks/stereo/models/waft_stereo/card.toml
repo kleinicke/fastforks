@@ -3,7 +3,7 @@ name = "WAFT-Stereo"
 summary = "WAFT-Stereo (Wang and Deng 2025): warping instead of a cost volume; Depth Anything V2 (LoRA) features, a ViT-based disparity proposal and 3 warp-and-refine iterations."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels", "cuda_graphs", "depth_anything_v2", "timm_blocks"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs", "depth_anything_v2", "timm_blocks", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "Only the two SynLarge checkpoints (S, B) are included; DAv2L-5 and the Real / KITTI / Middlebury fine-tunes are not.",
   "On the 994 x 1482 FP16 profile, portable WAFT-B groups the attention heads to save about 2 GiB of peak allocation at comparable latency. Kernels runs about three times faster than portable and uses under half its peak allocation.",

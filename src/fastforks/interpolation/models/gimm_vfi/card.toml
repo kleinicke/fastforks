@@ -3,7 +3,7 @@ name = "GIMM-VFI"
 summary = "GIMM-VFI (Guo et al., NeurIPS 2024), the RAFT-based GIMM-VFI-R: arbitrary-time video frame interpolation. RAFT estimates the flow between both frames in both directions; a generalizable implicit motion model (a SIREN MLP on time and position, conditioned on the forward-splatted flow latents) predicts the flow at the requested time; an AMT-style decoder refines it with the bidirectional feature correlation and blends both warped frames. Any time in [0, 1]. `gimm-vfi-r` is trained for accuracy, `gimm-vfi-r-p` adds an LPIPS loss for sharper, perceptually better frames."
 tier = "experimental"
 outputs = ["frame"]
-uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "At 480 x 854 the standalone GIMM-VFI-R FP32 TensorRT engine returned different frames from portable FP32. Mean normalized absolute pixel error was 0.07687. The same ONNX file run in ONNX Runtime measured 0.000029.",
   "At 480 x 854 the FP32 GIMM-VFI-R-P TensorRT encoders took 1190 ms versus 1231 ms for paired portable FP32. Estimated peak allocated memory was 3592 MiB versus 3282 MiB. The speed table also includes the faster FP16 modes.",

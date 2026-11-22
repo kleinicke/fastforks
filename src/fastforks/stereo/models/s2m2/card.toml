@@ -3,7 +3,7 @@ name = "S2M2"
 summary = "S2M2 (Min et al. 2025): multi-resolution transformer with optimal-transport matching; also outputs confidence and occlusion maps."
 tier = "stable"
 outputs = ["disparity", "confidence", "occlusion"]
-uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "At 994x1482 portable S2M2-S is about as fast as the original code and allocates slightly more memory; use kernels for speed and memory.",
 ]

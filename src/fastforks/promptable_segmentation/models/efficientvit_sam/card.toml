@@ -3,7 +3,7 @@ name = "EfficientViT-SAM"
 summary = "EfficientViT-SAM (Zhang, Cai et al. 2024, MIT Han lab): Segment Anything with the ViT-H image encoder replaced by an EfficientViT (conv stages + ReLU linear attention) distilled from it; SAM's prompt encoder and mask decoder, so points, boxes and mask logits work the same. The portable `module()` is the image encoder only."
 tier = "stable"
 outputs = ["pred_masks", "iou_scores"]
-uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 limitations = [
   "On the RTX 5060 Ti at 3840 × 2160 with 12 point prompts and 36 output masks, EfficientViT-SAM L0 used 621 MiB portable and 626 MiB kernels, down from 1,546 and 1,552 MiB. Masks, scores and logits matched bit for bit. Paired latency was 37.0 to 38.6 ms portable and 35.3 to 36.9 ms kernels.",

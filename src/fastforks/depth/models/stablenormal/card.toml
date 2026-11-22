@@ -3,7 +3,7 @@ name = "StableNormal turbo"
 summary = "StableNormal turbo (Ye et al., SIGGRAPH Asia 2024): surface normals in one step (YOSO, v0.3); a Stable Diffusion 2 UNet denoises a normals latent with the image latent fed through a ControlNet encoder."
 tier = "experimental"
 outputs = ["normals"]
-uses = ["sd2"]  # fastforks.shared modules this family imports
+uses = ["sd2", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "Normals only: no depth.",
   "Diffusion model: the seeded noise comes from a CPU generator; upstream draws it from the unseeded global RNG, so its outputs vary from call to call (slightly).",

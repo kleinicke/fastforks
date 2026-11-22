@@ -3,7 +3,7 @@ name = "LoFTR"
 summary = "LoFTR (Sun et al., CVPR 2021): detector-free dense matching. A ResNet-FPN gives 1/8 and 1/2 resolution features; a linear-attention transformer matches the 1/8 cells of both images (dual-softmax, mutual nearest neighbours above a confidence threshold) and a second transformer refines each match to sub-pixel precision in a 5 x 5 window at 1/2 resolution. Returns the matched points of both images, their (identity) index pairs and the coarse confidence."
 tier = "experimental"
 outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
-uses = ["cnn_kernels"]  # fastforks.shared modules this family imports (fp16-accumulate conv kernels)
+uses = ["cnn_kernels", "mlx_wrap"]  # fastforks.shared modules this family imports (fp16-accumulate conv kernels)
 limitations = [
   "LoFTR Indoor FP32 ONNX Runtime matched all features within 0.00014 px on seven ScanNet pairs at 768 x 1024. Whole-graph TensorRT trials lost 5.27 AUC@20 points in FP16 and 2.58 AUC@10 points in FP32 on a separate 50-pair check.",
   "The standalone ResNetFPN TensorRT plans took about 199 ms versus 273 ms for paired portable FP32 at 768 x 1024. The matching stages stayed in PyTorch. Each variant passed a 12-pair check that included its six worst whole-graph cases.",
