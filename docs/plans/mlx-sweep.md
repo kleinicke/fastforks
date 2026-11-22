@@ -3564,13 +3564,9 @@ separately (their torch twins consumed), and the small one then merged them from
 consumed separately stay separate. With that the survey's golden step passes (rows above; recorded with the export
 context of 8bc4bd86 reverted locally, see below; the export is not in the timed calls).
 
-Open, not from this change: since 8bc4bd86 (the export out of inference mode) the survey's golden step fails on waft-a1
-with `Setting requires_grad=True on inference tensor outside InferenceMode` (gate on, and with FF_MLX_MERGE_MB=100000
-too; passes with 8bc4bd86's context reverted). The second-shape export after inference-mode calls cannot run outside
-inference mode. Tried and rejected: a retry in the call's mode after the RuntimeError (the retry's flow was wrong, mean
-|diff| 4.23 then, before the sticky merge fix, so not conclusive), and leaving inference mode only for a GraphNet's
-first export (`not self._runs`; still failed, so the second shape is likely a fresh GraphNet). The pytest golden
-(fresh model, one shape) passes. Left for a separate fix of 8bc4bd86.
+Resolved in 299b80bc: the cause was `MlxModule._release`, whose zero stand-ins for the released weights became
+inference tensors when built during an inference-mode call; the next shape's export (outside inference mode) failed on
+them. They are now built under `inference_mode(False)`; the survey golden step on waft-a1 passes again.
 
 ### dedode-v2-b/-g: buffer cache 1024 -> 384 MB
 
