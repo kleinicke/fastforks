@@ -3317,3 +3317,36 @@ Not tried (earlier notes still hold):
 - rfdetr: some seg variants fail.
 - coatnet, fastvit, wd-tagger: they use the libnet wrapper.
 - cotracker, lightglue, ben2, efficientvit-sam: fp32-only on MPS too.
+
+### 2026-11-22 (evening): MPS frame chunks for the tracker feature passes (cotracker transfer)
+
+Cotracker's 2-frame feature-CNN chunks halved its MPS peak, so the other trackers got an MPS-only
+`MPS_FRAME_CHUNK`. MLX and CUDA keep `FRAME_CHUNK`, so the exported MLX graphs do not change. Each A/B is two
+survey runs on the same tree (second run, MPS portable, ms / peak MB):
+
+| ref | dtype | old chunk | new chunk |
+| --- | --- | --- | --- |
+| alltracker | fp32 | 16: 3326.9 / 4912 | 2: 3218.1 / 4445 |
+| alltracker | fp16 | 16: 3042.2 / 3806 | 2: 3066.8 / 3782 |
+| locotrack-b | fp32 | 16: 1806.6 / 2482 | 4: 1786.5 / 1470 |
+| locotrack-b | fp16 | 16: 2076.2 / 2487 | 4: 2084.4 / 1483 |
+| track-on2 | fp32 | 8: 8266.5 / 4925 | 4: 8370.1 / 3823 |
+
+Chunk sizes tried:
+
+- locotrack: 2 gives the same memory as 4 (1497 / 1520 MB) at 2 % more time in fp16.
+- track-on: 2 gives 8579 ms / 3828 MB, so 4 keeps the memory saving at less cost.
+- alltracker: 4 gives 3238 / 5032 (fp32) and 3045 / 3787 (fp16).
+
+Route change: locotrack-b `auto` drops MLX. MLX fp32 (1482 ms / 1738 MB) is still 17 % faster, but it now uses
+more memory than MPS (1470 MB).
+
+Rejected: **tapir** chunk 2. 1365 / 1651 (fp32) and 1382 / 1639 (fp16) against 1356 / 1604 and 1393 / 1610: no
+memory saving, because its peak is not in the feature pass.
+
+The other two tricks found no MPS sibling worth a try this window. The mvsplat plane-sweep Metal kernel is
+mvsplat-specific, and the geometry lookup kernel above is MLX-only. On MPS that lookup is already the two-gather
+eager path.
+
+Goldens pass: test_mps for alltracker-tiny, locotrack-b and track-on-r, plus the survey goldens for alltracker,
+locotrack-b and track-on2. tests/test_mps*.py pass.

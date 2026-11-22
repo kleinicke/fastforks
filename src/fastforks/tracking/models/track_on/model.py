@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 
 
 FRAME_CHUNK = 8  # fixed: memory chunking of the feature pass, not an architecture value
+MPS_FRAME_CHUNK = 4  # fixed: on MPS, 22 % less peak memory for about 1 % more time
 VIS_SHIFT = math.log(0.8 / 0.2)  # fixed: maps upstream's 0.8 visibility threshold to 0.5
 GRID_MARGIN = 64  # fixed: upstream get_points_on_a_grid margin W / 64
 
@@ -112,8 +113,9 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
     active = 0
     step = step or net.step
     with region:
-        for s in range(qt_sorted[0] if total else n, n, FRAME_CHUNK):
-            feats = features(torch.cat([frames(t) for t in range(s, min(n, s + FRAME_CHUNK))]))
+        chunk = MPS_FRAME_CHUNK if dev.type == "mps" else FRAME_CHUNK
+        for s in range(qt_sorted[0] if total else n, n, chunk):
+            feats = features(torch.cat([frames(t) for t in range(s, min(n, s + chunk))]))
             for t, frame in enumerate(feats, s):
                 new = active
                 while new < total and qt_sorted[new] <= t:

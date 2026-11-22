@@ -2095,13 +2095,6 @@
    }
   },
   "locotrack-b@1": {
-   "auto": [
-    "portable",
-    "float32"
-   ],
-   "dtypes": {
-    "float32": "portable"
-   },
    "mlx_default": [
     "portable",
     "float32"

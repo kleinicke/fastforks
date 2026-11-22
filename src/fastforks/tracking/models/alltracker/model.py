@@ -48,6 +48,7 @@ if TYPE_CHECKING:
     from fastforks.tracking._runner import Context
 
 FRAME_CHUNK = 16  # fixed: memory chunking of the feature pass, not an architecture value
+MPS_FRAME_CHUNK = 2  # fixed: the same on MPS, where smaller chunks cost no time but save memory
 STRIDE = WINDOW // 2  # fixed: upstream's window stride at inference
 VIS_POWER = math.log(0.5) / math.log(0.6)  # fixed: maps upstream's 0.6 visibility threshold to 0.5
 
@@ -185,8 +186,9 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
     vis = queries.new_zeros(n, queries.shape[0])
     with region:
         chunks = []
-        for s in range(0, n, FRAME_CHUNK):
-            video = torch.cat([frames(t) for t in range(s, min(n, s + FRAME_CHUNK))])
+        step = MPS_FRAME_CHUNK if queries.device.type == "mps" else FRAME_CHUNK
+        for s in range(0, n, step):
+            video = torch.cat([frames(t) for t in range(s, min(n, s + step))])
             if video.shape[-2:] != (nh, nw):
                 video = F.interpolate(video, (nh, nw), mode="bilinear", align_corners=False)
             chunks.append(net.encode(F.pad(video, (left, right, top, bottom), mode="replicate")))

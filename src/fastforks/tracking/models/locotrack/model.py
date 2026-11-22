@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from fastforks.tracking._runner import Context
 
 FRAME_CHUNK = 16  # fixed: memory chunking of the feature pass, not an architecture value
+MPS_FRAME_CHUNK = 4  # fixed: the same on MPS, where smaller chunks cost no time but save memory
 QUERY_CHUNK = 64  # fixed: upstream's inference chunk
 # the MLX export unrolls every chunk (256 bench queries: 4 x 64); 128 halves the refinement's trace, export 5.4 -> 3.4 s
 # at 4 % more warm time (256: 2.3 s, 8 %). Each query is computed on its own, so the chunk does not change the tracks.
@@ -81,8 +82,9 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus the auto
     region = torch.autocast(queries.device.type, amp) if amp is not None else contextlib.nullcontext()
     grids: list[list[torch.Tensor]] = [[], [], []]
     with region:
-        for s in range(0, n, FRAME_CHUNK):
-            video = torch.cat([frames(t) for t in range(s, min(n, s + FRAME_CHUNK))])
+        step = MPS_FRAME_CHUNK if queries.device.type == "mps" else FRAME_CHUNK
+        for s in range(0, n, step):
+            video = torch.cat([frames(t) for t in range(s, min(n, s + step))])
             if video.shape[-2:] != (SIZE, SIZE):
                 video = F.interpolate(video, (SIZE, SIZE), mode="bilinear", align_corners=False, antialias=True)
             for g, f in zip(grids, net.frame_features(video * 2 - 1), strict=True):
