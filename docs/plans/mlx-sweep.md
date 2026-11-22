@@ -2884,3 +2884,41 @@ raft-stereo fp32 is about 15 % faster (OFF/ON interleaved, so not drift); fp16 a
 (cotracker's 96 -> 96 conv was 22.6 ms only in the slow, state-dependent regime; alone it is about 7 ms). Goldens
 pass (test_mlx: nafnet-gopro, wd-vit-tagger-v3, c-fast-foundationstereo, tapnext, tapnext-pp, cotracker3-online;
 survey goldens for the rows above). No route change (`gen_auto_mode --check` clean).
+
+## 2026-11-22: float16 on MLX for float32-only families with mixed dtypes (M1 Pro 16 GB)
+
+Families whose card had float16 off on MLX, now on with float32 islands. Goldens and tolerances are unchanged. The
+times are the survey's (median of 5, the second run, golden pass, 994x1482 stereo / 1080p flow / 768x1024 matching).
+
+| ref (portable MLX) | before fp32 ms / MB | after fp16 ms / MB | fp32 now | golden fp16 (tol) | route |
+| --- | --- | --- | --- | --- | --- |
+| memfof (+ spring) | 3531 / 2983 | 3381 / 2417 | 3684 / 2964 | mean 0.00068 (0.00099) | mlx_default fp16 |
+| defom-stereo-vitl-sceneflow | 13878 / 6458 | 10693 / 5189 | 13339 / 7039 | mean 0.00165 (0.02) | mlx_default fp16 |
+| dedode-v2-b | 2534 / 5327 | 1756 / 4273 | 2508 / 5450 | matches pass (0.986) | mlx_default fp16 |
+| dedode-v2-g | 5544 / 6499 | 3329 / 4871 | 4161 / 6626 | matches pass (0.986) | **auto -> MLX fp16** (MPS 3767 / 10008) |
+
+What each needed:
+
+- memfof (`c83edfea`): the flow state, its accumulation and the convex-upsampling weights as `to_float32` islands
+  (`.float()` records nothing on the float32 twin, so upstream's casts vanished in the replay), plus
+  `half_wino_f32=True`. Islands alone: mean 0.0015; Winograd alone: 0.00113; both: 0.00068. The correlation stays
+  float16. The one Winograd conv at 1080p (1024 -> 512, 8160 positions) costs about 500 ms in float32. A float16 direct
+  conv in 3 row chunks was tried (24.3 ms vs float32 22.6 ms vs half Winograd 14.1 ms, error 3.6e-4 vs 6.1e-3) and is
+  not cheaper.
+- defom-stereo (`08ab387c`): the whole-graph port split into three graphs, as `kernels/metal.py` does on MPS:
+  `_encode` (DAv2 ViT + depth head, float16), `_dfeat` (DPT feature head + fnet's `convd`, float32 via
+  `fp32_methods`: the refinenet1 / refinenet2 activations exceed float16) and `_loop` (cnet / fnet, the correlation and
+  32 updates in float16; the disparity state and the upsampling are `to_float32`). A `to_float32` island cannot make a
+  conv float32 inside a float16 graph (`_conv_input` casts its input to the half weights), so a separate graph is the
+  only way. The float32 run also goes through the split now: 13.3 s vs 13.9 s, but +580 MB peak (tensors between the
+  graphs).
+- dedode (`599c5a3b`): only `half_wino_f32=True`. The earlier float16 failure (keypoints mean 0.0022) was MLX's half
+  Winograd on the VGG convs: without it the match agreement is 0.9853 < 0.986.
+
+Not done or rejected:
+
+- memfof MPS float16: upstream's `torch.autocast("cuda")` does nothing on MPS. A "float16" MPS run matched float32
+  exactly, so the dtype would only be a label. It needs real MPS autocast or halved weights first.
+- defom MPS portable float16: not tried. `kernels_mps` already runs the float16 recipe.
+- romav1 / romav2, alltracker, loma-b: not reached in the time box. romav2's card notes float16 overflows in
+  upstream's bfloat16 regions. Given dedode, try `half_wino_f32=True` first for the conv-heavy ones.
