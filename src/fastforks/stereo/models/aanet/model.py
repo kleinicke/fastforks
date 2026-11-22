@@ -9,6 +9,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.half import pure_half
 from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
 
@@ -73,7 +74,8 @@ class Portable(Runner):
     """Plain PyTorch: float32 or fp16 autocast on CUDA (the deformable convolution is `grid_sample` + matmuls).
 
     fp16 AANet runs channels-last; AANet+ stays NCHW like upstream: its full-resolution hourglass refinement and GA-Net
-    features ran 7-15 % slower channels-last.
+    features ran 7-15 % slower channels-last. On MPS fp16 is the whole network in fp16, NCHW (`pure_half`): autocast
+    there ran slower than fp32 (AANet 1163 ms against 940 ms at 994x1482, pure fp16 736 ms).
     """
 
     dtypes = ("float32", "float16")
@@ -84,12 +86,18 @@ class Portable(Runner):
         super().__init__(ctx)
         self.net = _net(ctx)
         self.half = ctx.dtype == "float16"
-        self.fmt = torch.channels_last if self.half and not ctx.params.plus else torch.contiguous_format
+        self.pure = self.half and ctx.device.type == "mps"
+        cl = self.half and not ctx.params.plus and not self.pure
+        self.fmt = torch.channels_last if cl else torch.contiguous_format
         self.net.to(memory_format=self.fmt)
+        if self.pure:
+            pure_half(self.net, channels_last=False)
 
     def _run(self, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
         if not self.half:
             return forward(self.net, left, right)
+        if self.pure:
+            return forward(self.net, left, right).float()
         with torch.autocast(left.device.type, dtype=torch.float16):
             return forward(self.net, left.contiguous(memory_format=self.fmt), right.contiguous(memory_format=self.fmt))
 
