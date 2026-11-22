@@ -22,13 +22,15 @@ import torch
 
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.runner import host
+from fastforks._core.upload import to_device
 from fastforks.kernels import ocr_levels
 from fastforks.ocr._runner import (
     DET_MEAN,
     DET_STD,
     Forward,
     Runner,
-    ctc_decode,
+    ctc_best,
+    ctc_decode_best,
     det_input,
     levels,
     line_crops,
@@ -113,15 +115,17 @@ class Portable(Runner):
         )
         crops = line_crops(bgr, quads)
         texts, scores = [""] * len(crops), np.zeros(len(crops), np.float32)
-        for ids, x in rec_batches(crops, REC_BATCH):
-            t, s = ctc_decode(recognise(x), self.chars)
+        # every batch queued before the first is read back: decoding one batch on the host would idle the device
+        best = [(ids, ctc_best(recognise(x))) for ids, x in rec_batches(crops, REC_BATCH)]
+        for ids, (bp, bk) in best:
+            t, s = ctc_decode_best(bp, bk, self.chars)
             for k, i in enumerate(ids):
                 texts[i], scores[i] = t[k], s[k]
         dev = image.device
         return {
-            "boxes": torch.from_numpy(quads.astype(np.float32)).to(dev),
+            "boxes": to_device(torch.from_numpy(quads.astype(np.float32)), dev),
             "texts": texts,
-            "scores": torch.from_numpy(scores).to(dev),
+            "scores": to_device(torch.from_numpy(scores), dev),
         }
 
     def _detect(self, x: torch.Tensor) -> torch.Tensor:

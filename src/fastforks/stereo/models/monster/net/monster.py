@@ -50,7 +50,7 @@ def compute_scale_shift(monocular_depth, gt_depth, mask=None):
     b = torch.matmul(X.t(), y)
     params = torch.linalg.solve(A, b)
     
-    scale, shift = params[0].item(), params[1].item()
+    scale, shift = params.tolist()  # fastforks: one host sync, not two (the same Python floats)
     
     return scale, shift
 
