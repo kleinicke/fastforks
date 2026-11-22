@@ -396,10 +396,10 @@ def test_card_kernels_match_imports(task):
         # Shared modules count for families with a kernels backend (a portable-only family's `uses` is checked against
         # its imports in test_card_uses_matches_imports).
         family = _family_files(task, card.family)
-        files = family + [
-            p for u in card.uses if "kernels" in card.modes for p in sorted((SRC / "shared" / u).rglob("*.py"))
-        ]
-        files += _task_helpers(task, files)  # D-FINE: `detection._convs.DepthwiseConvs` loads fvm_conv
+        helpers = _task_helpers(task, family)  # D-FINE: `detection._convs.DepthwiseConvs` loads fvm_conv
+        shared = [*card.uses, *(m.split(".")[2] for p in helpers for m in imported_modules(p) if m.startswith(_SHARED))]
+        files = family + helpers + (_shared_closure(shared) if "kernels" in card.modes else [])
+        files += [p for p in _task_helpers(task, files) if p not in files]
         mods = {m for p in files for m in imported_modules(p)} | _optimize_imports(files)
         used = {m.split(".")[2] for m in mods if m.startswith("fastforks.kernels.") and m.split(".")[2] in libs}
         direct = {
@@ -424,6 +424,24 @@ def test_card_kernels_match_imports(task):
         _kernel_import_bounds(card.family, set(card.kernel_libs), direct & cuda, cuda | via)
         _kernel_import_bounds(card.family, set(card.mps_kernel_libs), direct & metal, metal)
         _kernel_import_bounds(card.family, set(card.mlx_kernel_libs), direct & mlx, mlx)
+
+
+_SHARED = "fastforks.shared."
+
+
+def _shared_closure(uses: list[str]) -> list[Path]:
+    """The files of the shared modules `uses` names (packages and single-file modules) and the shared modules they
+    import in turn (`mlx_wrap` -> `mlx_graph` -> `kernels.conv_mlx`)."""
+    todo, seen, files = list(uses), set(), []
+    while todo:
+        u = todo.pop()
+        if u in seen:
+            continue
+        seen.add(u)
+        new = sorted((SRC / "shared" / u).rglob("*.py")) + [p for p in [SRC / "shared" / f"{u}.py"] if p.is_file()]
+        files += new
+        todo += [m.split(".")[2] for p in new for m in imported_modules(p) if m.startswith("fastforks.shared.")]
+    return files
 
 
 def _kernel_import_bounds(family: str, declared: set[str], direct: set[str], possible: set[str]) -> None:
