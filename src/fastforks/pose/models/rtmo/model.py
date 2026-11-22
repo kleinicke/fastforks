@@ -173,7 +173,7 @@ class Portable(Runner):
         keep = self.suppress(boxes, a.nms_iou)
         idx, boxes = idx[keep], boxes[keep]
         centre = (boxes[:, :2] + boxes[:, 2:]) / 2
-        kp = self.dcc(vec[idx], centre, (boxes[:, 2:] - boxes[:, :2]) * PADDING, self.prior[idx])
+        kp = self.keypoints(vec[idx], centre, (boxes[:, 2:] - boxes[:, :2]) * PADDING, self.prior[idx])
         offset = device_tensor([width, height], device=kp.device) / 2 - a.size / (2 * r)
         return {
             "keypoints": kp / r + offset,
@@ -181,6 +181,12 @@ class Portable(Runner):
             "scores": score[idx],
             "boxes": boxes.clamp(0, a.size) / r + offset.repeat(2),
         }
+
+    def keypoints(
+        self, vec: torch.Tensor, centre: torch.Tensor, scale: torch.Tensor, grid: torch.Tensor
+    ) -> torch.Tensor:
+        """Keypoints `[P, K, 2]` of the kept people (`DCC.forward`)."""
+        return self.dcc(vec, centre, scale, grid)
 
     def __call__(self, image: torch.Tensor, boxes: torch.Tensor | None) -> dict[str, torch.Tensor]:
         """The people in the image with their keypoints."""
@@ -204,6 +210,34 @@ class Portable(Runner):
             return self.dense(x * 255)
 
         return Forward(self.net, fn, output_names=("class_logits", "box_offsets", "visibility_logits", "pose_vectors"))
+
+
+# people per DCC call in kernels mode: every call pads its people to this many and replays one CUDA graph (the
+# decoding is ~60 tiny kernels; eager they cost rtmo-s ~0.7 ms of host launches per image on Windows); more run eagerly
+DCC_ROWS = 64
+
+
+class _GraphedDCC:
+    """`DCC` on the kept people padded to `DCC_ROWS` rows (copies of the first), from one CUDA graph.
+
+    The DCC is per person (its attention runs over one person's keypoints), so the padding rows change no real row.
+    """
+
+    def __init__(self, dcc: DCC, *, enabled: bool, capture_after: int) -> None:
+        self.dcc = dcc
+        self.graphs = SmallShapeGraphs(
+            dcc, pixels=DCC_ROWS, graphs=1, enabled=enabled, capture_after=capture_after, size=lambda v, *_: v.shape[0]
+        )
+
+    def __call__(
+        self, vec: torch.Tensor, centre: torch.Tensor, scale: torch.Tensor, grid: torch.Tensor
+    ) -> torch.Tensor:
+        """Keypoints `[P, K, 2]` (`DCC.forward`)."""
+        p = vec.shape[0]
+        if p == 0 or p > DCC_ROWS:
+            return self.dcc(vec, centre, scale, grid)
+        padded = [torch.cat([t, t[:1].expand(DCC_ROWS - p, *t.shape[1:])]) for t in (vec, centre, scale, grid)]
+        return self.graphs(*padded)[:p]
 
 
 class Kernels(Portable):
@@ -234,10 +268,18 @@ class Kernels(Portable):
             enabled=ctx.params.cuda_graphs,
             capture_after=cudnn_hacc.capture_after(),
         )
+        self.dcc_graph = _GraphedDCC(self.dcc, enabled=ctx.params.cuda_graphs, capture_after=cudnn_hacc.capture_after())
 
     def release_graphs(self) -> None:
-        """Release the one fixed-size network graph and its workspaces."""
+        """Release the fixed-size network graph, the DCC graph and their workspaces."""
         self.graphs.release()
+        self.dcc_graph.graphs.release()
+
+    def keypoints(
+        self, vec: torch.Tensor, centre: torch.Tensor, scale: torch.Tensor, grid: torch.Tensor
+    ) -> torch.Tensor:
+        """Keypoints `[P, K, 2]` of the kept people, from the DCC graph."""
+        return self.dcc_graph(vec, centre, scale, grid)
 
     def dense(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """Replay the fixed-size network while keeping the variable-length person decoding eager."""
