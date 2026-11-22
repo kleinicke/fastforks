@@ -7,6 +7,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from fastforks._core.upload import device_tensor  # fastforks
+
 from .dinov3 import DinoVisionTransformer
 from .features import VGG19BN
 from .geometry import bhwc_interpolate
@@ -70,7 +72,7 @@ class RoMaV2(nn.Module):
         stages = [(img_A_lr, img_B_lr)] + ([(img_A_hr, img_B_hr)] if img_A_hr is not None else [])
         for stage, (img_A, img_B) in enumerate(stages):
             B, C, H, W = img_A.shape
-            scale_factor = torch.tensor((W / self.anchor_width, H / self.anchor_height), device=img_A.device)
+            scale_factor = device_tensor((W / self.anchor_width, H / self.anchor_height), device=img_A.device)  # fastforks: no host sync (a pageable upload syncs the host)
             refiner_features_A = self.refiner_features(img_A)
             refiner_features_B = self.refiner_features(img_B)
             for patch_size_str, refiner in self.refiners.items():

@@ -3,6 +3,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from fastforks._core.upload import to_device  # fastforks
 
 # fastforks: BEN2.py (PramaLLC/BEN2) inference network only: the Swin backbone is fastforks.shared.swin_v1 (upstream's
 # copy of the same code), einops rearrange -> view / permute, timm / cv2 / video / PIL helpers removed
@@ -122,7 +123,7 @@ class PositionEmbeddingSine:
             y_embed = (y_embed - 0.5) / (y_embed[:, -1:, :] + eps) * self.scale
             x_embed = (x_embed - 0.5) / (x_embed[:, :, -1:] + eps) * self.scale
 
-        dim_t = self.temperature ** (2 * (self.dim_t.to(device) // 2) / self.num_pos_feats)
+        dim_t = self.temperature ** (2 * (to_device(self.dim_t, device) // 2) / self.num_pos_feats)  # fastforks: no host sync (a pageable upload syncs the host)
         pos_x = x_embed[:, :, :, None] / dim_t
         pos_y = y_embed[:, :, :, None] / dim_t
 
