@@ -8,7 +8,7 @@ Test-time protocol of the configs (mmseg `test_pipeline`, `SegDataPreProcessor` 
 `portable` runs the folded network (`net.fold`) as plain PyTorch, fp16 channels-last on CUDA with the depthwise strip
 convs in NCHW (PyTorch's native kernel). `kernels` runs every depthwise conv as one direct NHWC kernel (`seg_conv`;
 the MLP's 3x3 with its GELU in `fvm_conv`), the 1x1 convs as fp16-accumulate cuBLAS GEMMs with the bias fused, the
-logits resize as one `seg_up` pass, and replays a CUDA graph per repeated small input shape.
+logits resize as one `seg_up` pass, and replays a CUDA graph per repeated network input shape.
 
 One deviation from upstream: the head's matrix factorisation starts from fixed bases (`net.Hamburger`), so the same
 image always gives the same logits; upstream draws random ones on every call.
@@ -39,8 +39,9 @@ if TYPE_CHECKING:
 _DIVISOR = 32  # fixed: the configs' `test_cfg=dict(size_divisor=32)`
 _CL = torch.channels_last
 _GELU = 5  # fixed: fvm activation code of exact (erf) GELU, the MLP activation
-# CUDA graphs (kernels): the eager forward is host-bound below the ADE20K test size (~15 launches per block)
-_GRAPH_PIXELS = 512 * 512  # fixed: larger inputs are GPU-bound
+# CUDA graphs (kernels): the eager forward (~15 launches per block) is host-bound on Windows up to the largest network
+# input the 2048 x 512 resize gives (MSCAN-T 1024x2048 image -> 512x1024: 13.8 -> 5.9 ms, MSCAN-L 30.2 -> 19.2 ms)
+_GRAPH_PIXELS = 512 * 2048  # fixed: batch x network H x W
 _GRAPHS = 2  # fixed: graph cache policy
 
 

@@ -441,7 +441,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/facebookresearch/sam2/blob/main/README.md (License section: model checkpoints and code under Apache 2.0)
 - Training data: SA-1B and the SA-V video dataset (plus internal data) per the paper; SA-V itself is under CC BY 4.0, SA-1B under its research licence
-- Options: `samurai` = False
+- Options: `samurai` = False, `cuda_graphs` = True (speed only)
 - Kernel libraries: `dpt_fused`
 - Variants: `sam2.1-hiera-tiny`, `sam2.1-hiera-small`, `sam2.1-hiera-base-plus`, `sam2.1-hiera-large`
 - Outputs: pred_masks, iou_scores
@@ -495,6 +495,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 ### Limitations
 
 - On the RTX 5060 Ti, SAM 2.1 Hiera Base Plus returned 36 masks from 12 point prompts on a 3840 × 2160 COCO image. Both CUDA modes used 696 MiB peak allocation, down from 1,646 MiB. Masks, scores and logits matched bit for bit. Paired latency was 60.6 to 62.0 ms portable and 54.0 to 55.5 ms kernels.
+- Kernels keep CUDA graphs of the image encoder and the prompt decode: their private pools and static buffers stay reserved, so peak reserved is ~125 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 - SAM 2.1 Hiera Tiny video took 2.217 s portable and 2.180 s kernels on the RTX 5060 Ti for 14 DAVIS frames at 480 x 854 and eight synthetic mask prompts. Both modes peaked at 1,419 MiB allocated and 1,522 MiB reserved.
 
 </details>

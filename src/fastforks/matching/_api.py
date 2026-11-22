@@ -530,7 +530,8 @@ class MatchingModel(core.Model):
         shapes = {"keypoints1": (n, 2), "keypoints2": (m, 2), "pairs": (k, 2), "scores": (k,)}
         maps = self._check_outputs(out, shapes)
         pairs = maps["pairs"].long()
-        if k and (pairs.min() < 0 or pairs[:, 0].max() >= n or pairs[:, 1].max() >= m):
+        bad = torch.stack([pairs.min() < 0, pairs[:, 0].max() >= n, pairs[:, 1].max() >= m]) if k else None
+        if bad is not None and bool(bad.any()):  # one host sync (three on device)
             msg = f"{self.variant.ref}: runner returned pairs outside the keypoint sets ({n}, {m})"
             raise CardError(msg)
         return SparseMatchingResult(

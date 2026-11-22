@@ -57,6 +57,7 @@ _UINT16_BITS, _UINT16_MAX = 16, 65535
 _EXIF_ORIENTATION = 0x0112
 _TIFF_BITS, _TIFF_SAMPLES = 258, 277  # BitsPerSample, SamplesPerPixel
 _CHECKED: ContextVar[bool] = ContextVar("fastforks_images_checked", default=False)  # see `checked_ranges`
+_DEFERRED: ContextVar[list | None] = ContextVar("fastforks_images_deferred", default=None)  # `deferred_ranges`
 _LOSSLESS_FIX = (
     "load it with tifffile or cv2.imread(path, cv2.IMREAD_UNCHANGED) (then BGR->RGB) and pass the numpy array"
     " (HWC, uint16 or float in [0, 1])"
@@ -390,10 +391,30 @@ def checked_ranges() -> Generator[None]:
         _CHECKED.reset(token)
 
 
+@contextlib.contextmanager
+def deferred_ranges() -> Generator[None]:
+    """Internal: inside, float value-range checks are collected and run once on leaving (one host sync in all).
+
+    For per-frame video decoding: one check per frame would wait for the device once per frame. An out-of-range frame
+    then raises (naming its values) after the block's work, not before it; a block left by an exception checks nothing.
+    """
+    pending: list[tuple[torch.Tensor, torch.Tensor]] = []
+    token = _DEFERRED.set(pending)
+    try:
+        yield
+    finally:
+        _DEFERRED.reset(token)
+    _check_ranges(pending)
+
+
 def _check_ranges(bounds: Sequence[tuple[torch.Tensor, torch.Tensor] | None]) -> None:
     """Raise `InputError` for the first float image whose `[min, max]` (`bounds`) is not finite and in `[0, 1]`."""
     given = [b for b in bounds if b is not None]
     if not given:
+        return
+    pending = _DEFERRED.get()
+    if pending is not None:
+        pending.extend(given)
         return
     ok = [(lo >= 0) & (hi <= 1) for lo, hi in given]  # also rejects NaN (every comparison with NaN is False)
     if bool(ok[0] if len(ok) == 1 else torch.stack(ok).all()):  # one host sync

@@ -82,7 +82,8 @@ After the fixes and a server restart, Depth, Segment, Remove background and Upsc
   - ComfyUI's `vram_free` rises by about 717 MiB.
   - Task Manager and `nvidia-smi` totals move too, but other jobs on the shared GPU make them noisy.
 - **Caching.** Each model logs `fastforks: loaded` once. Later runs skip the load, which is why runs 1 and 2 above are
-  fast. The pack keeps at most two models.
+  fast. The pack used to keep at most two models. It now keeps up to eight and drops the least recently used ones only
+  when ComfyUI needs the memory (see "Model cache" below).
 - **Cancel.** I ran a 40-pair foundationstereo batch and sent `POST /interrupt` after 6.1 s.
   - The prompt ended 0.25 s later with `execution_interrupted`.
   - The model stayed cached: the next run took 0.54 s.
@@ -144,6 +145,29 @@ DLL and the cubin libraries); the pack from this branch.
   These match the CPU float32 numbers above (0.55 and 0.98 px).
 - **Output scaling.** All of these PNGs use the new percentile scaling. fast-acvnet-plus on cones went from a median
   gray of 0.19 (min / max) to 0.43.
+
+## Model cache (portable ComfyUI 0.46, `work/windows`)
+
+ComfyUI portable 0.46.0 with `python_embeded`, the fastforks-core and fastforks-nc 0.2.0 wheels of this branch, and the
+pack copied into `custom_nodes`. The server was started with `--cache-none`. Every node ran with `backend=auto`, which
+picked the Windows kernels.
+
+- **Before.** The pack kept two models. A workflow set cycling five nodes (Depth, Remove background, Segment, Upscale,
+  Interpolate x8) reloaded a model on every run: Depth took 0.7 s instead of 0.1 s.
+- **After.** `make_room` already drops our least recently used models when ComfyUI's `free_memory` is short, so the
+  count cap is now only a bound (eight).
+  - The same five-node cycle, eight rounds: each model logs `fastforks: loaded` once.
+  - Warm runs: Depth 0.08 to 0.13 s, Remove background 0.15 to 0.17 s, Segment 0.11 s, Upscale 0.39 to 0.41 s,
+    Interpolate x8 0.6 to 0.7 s.
+  - VRAM stays flat at 576 MiB of torch memory across the rounds.
+  - After `POST /free`, torch memory is 288 MiB.
+- **Hog.** Another process held 12.1 GB of the 16 GB card. All eight workflows ran, including sam2.1-hiera-large, with
+  no errors.
+- **WDDM and other processes.** On Windows, `torch.cuda.mem_get_info` does not count VRAM that another process holds.
+  - Measured: free memory stayed at 15173 MiB while a second process held 6 GiB. It dropped by 4 GiB when the same
+    process allocated.
+  - WDDM pages memory between processes instead of failing, so neither ComfyUI nor the pack can see another app's
+    usage. Both only manage their own process.
 
 ## Bugs fixed (branch `work/comfyui-windows`, not pushed)
 

@@ -837,6 +837,7 @@ option calibration.geocalib.cuda_graphs
 option depth.any2full.short_side
 option depth.depth_anything_3.long_side aliases process_res
 option depth.depth_anything_3.stream
+option depth.depth_anything_v2.cuda_graphs
 option depth.depth_anything_v2.short_side aliases input_size
 option depth.depthfm.ensemble aliases ensemble_size
 option depth.depthfm.long_side aliases processing_res
@@ -932,6 +933,7 @@ option flow.flowseek.iters
 option flow.megaflow.iters
 option flow.memflow.iters
 option flow.memfof.iters
+option flow.neuflow_v2.cuda_graphs
 option flow.neuflow_v2.iters
 option flow.raft.iters
 option flow.recover.iters
@@ -940,6 +942,7 @@ option flow.waft.iters
 option interpolation.ema_vfi.cuda_graphs
 option interpolation.ema_vfi.tta
 option interpolation.film.cuda_graphs
+option interpolation.gimm_vfi.cuda_graphs
 option interpolation.rife.cuda_graphs
 option matching.dedode.max_keypoints
 option matching.dedode.size
@@ -987,6 +990,7 @@ option ocr.parseq.cuda_graphs
 option ocr.ppocrv5.box_threshold aliases text_det_box_thresh
 option ocr.ppocrv5.unclip_ratio aliases text_det_unclip_ratio
 option pose.hrnet.flip_test
+option pose.retinaface.cuda_graphs
 option pose.retinaface.score_threshold
 option pose.rfdetr_keypoint.score_threshold
 option pose.rtmo.cuda_graphs
@@ -996,6 +1000,7 @@ option pose.vitpose.fp32_accumulate
 option pose.vitpose.stream
 option pose.yunet.score_threshold
 option promptable_segmentation.clipseg.cuda_graphs
+option promptable_segmentation.sam2.cuda_graphs
 option promptable_segmentation.sam2.samurai
 option promptable_segmentation.sam3.cuda_graphs
 option promptable_segmentation.sam3.stream
@@ -1007,8 +1012,11 @@ option restoration.seedvr2.stream
 option retrieval.boq.stream
 option retrieval.megaloc.stream
 option segmentation.sapiens.stream
+option stereo.aanet.cuda_graphs
+option stereo.bridgedepth.cuda_graphs
 option stereo.c_foundationstereo.iters
 option stereo.coex.cuda_graphs
+option stereo.crestereo.cuda_graphs
 option stereo.crestereo.iters
 option stereo.defom_stereo.iters
 option stereo.defom_stereo.scale_iters
@@ -1022,12 +1030,16 @@ option stereo.igev_plusplus.cuda_graphs
 option stereo.igev_plusplus.iters
 option stereo.igev_stereo.iters
 option stereo.las2.cuda_graphs
+option stereo.mocha_stereo.cuda_graphs
 option stereo.mocha_stereo.iters
 option stereo.monster.iters
 option stereo.monster_plusplus.iters
+option stereo.nmrf.cuda_graphs
 option stereo.raft_stereo.iters
 option stereo.rt_monster_plusplus.cuda_graphs
+option stereo.s2m2.cuda_graphs
 option stereo.selective_igev.iters
+option stereo.waft_stereo.cuda_graphs
 option tracking.alltracker.iters
 option tracking.track_on.memory
 option tracking.track_on.support_grid

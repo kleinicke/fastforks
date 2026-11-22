@@ -107,3 +107,12 @@ match = "NVIDIA GeForce RTX 3090"
 memory = "24 GB"
 details = "sm_86, 350 W"
 software = "torch 2.14.1+cu130, cuda 13.0, driver 580.178.04"
+
+[rtx-5060-ti-windows-16gb]
+name = "RTX 5060 Ti 16 GB, Windows"
+hidden = true  # the reference card under Windows (WDDM): rows decide `auto` on Windows (auto_portable.json); page later
+backend = "cuda"
+match = "NVIDIA GeForce RTX 5060 Ti"
+memory = "16 GB GDDR7"
+details = "Blackwell, sm_120, the reference card, WDDM driver model"
+software = "Windows 11, torch 2.14.1+cu130, cuda 13.0, cuDNN 9.24, driver 610.88"

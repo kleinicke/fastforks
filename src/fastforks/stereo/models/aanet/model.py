@@ -10,7 +10,9 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.half import pure_half
+from fastforks.kernels import cudnn_hacc
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Forward, Runner
 
 from .net.aanet import AANet
@@ -35,6 +37,7 @@ class Params:
 
     plus: bool
     max_disp: int
+    cuda_graphs: bool  # option: kernels replays CUDA graphs for small repeated shapes
 
 
 def _net(ctx: Context) -> AANet:
@@ -110,8 +113,16 @@ class Portable(Runner):
         return Forward(self.net, lambda _net, left, right: self._run(left, right))
 
 
+_GRAPH_PIXELS = 500_000  # fixed: batch x padded H x W; launch-bound up to KITTI 375x1242, measured
+_GRAPHS = 2  # fixed: graph cache policy
+
+
 class Kernels(Runner):
-    """Our kernels: fp16-accumulate convolutions, conv + BatchNorm + activation fused into one epilogue, fp16."""
+    """Our kernels: fp16-accumulate convolutions, conv + BatchNorm + activation fused into one epilogue, fp16.
+
+    A repeated input shape up to `_GRAPH_PIXELS` replays a CUDA graph (`fastforks.shared.cuda_graphs`): the eager
+    pass is launch-bound there.
+    """
 
     Params = Params
 
@@ -123,10 +134,24 @@ class Kernels(Runner):
         self.net = _net(ctx)
         prepare_kernels(self.net, ctx.device)
         self._forward = forward_kernels
+        self._graphs = SmallShapeGraphs(
+            self._run,
+            pixels=_GRAPH_PIXELS,
+            graphs=_GRAPHS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+        )
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool on the device."""
+        self._graphs.release()
+
+    def _run(self, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+        return self._forward(self.net, left, right)
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity of a padded pair."""
-        return {"disparity": self._forward(self.net, left, right)}
+        return {"disparity": self._graphs(left, right)}
 
 
 class MetalKernels(Portable):

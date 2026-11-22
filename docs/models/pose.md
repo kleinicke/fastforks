@@ -417,7 +417,7 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: <https://github.com/xinntao/facexlib/blob/260620ae93990a300f4b16448df9bb459f1caba9/README.md>
 - Training data: WIDER FACE (32k images, 394k labelled faces) (WIDER FACE train with the RetinaFace five-landmark annotations; the ResNet-50 backbone starts from ImageNet classification weights)
-- Options: `score_threshold` = 0.8 (0.0 to 1.0)
+- Options: `score_threshold` = 0.8 (0.0 to 1.0), `cuda_graphs` = True (speed only)
 - Kernel libraries: `box_nms`, `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `retinaface-resnet50`, `retinaface-mobilenet0.25`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `face-5`

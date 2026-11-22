@@ -10,7 +10,9 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
+from fastforks.kernels import cudnn_hacc
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Crop, Forward, Runner
 
 from .net import rewrites
@@ -29,6 +31,7 @@ class Params:
     dim_expansion: int
     use_positivity: bool
     refine_iter: int
+    cuda_graphs: bool  # option: kernels replays CUDA graphs for small repeated shapes
 
 
 _UNUSED = ("feature_flow_attn.q_proj.", "feature_flow_attn.k_proj.", "upsample_mask_4x.", "disp_init.layer_norm1.")
@@ -93,8 +96,16 @@ class Portable(_S2M2Runner):
         return Forward(self.net, lambda net, left, right: net(left, right)[0][:, 0])
 
 
+_GRAPH_PIXELS = 500_000  # fixed: batch x padded H x W; launch-bound up to KITTI 375x1242, measured
+_GRAPHS = 2  # fixed: graph cache policy
+
+
 class Kernels(_S2M2Runner):
-    """Our kernels: fp16 with fp16-accumulate convolutions and fused attention / matching kernels."""
+    """Our kernels: fp16 with fp16-accumulate convolutions and fused attention / matching kernels.
+
+    A repeated input shape up to `_GRAPH_PIXELS` replays a CUDA graph (`fastforks.shared.cuda_graphs`): the eager
+    pass is launch-bound there.
+    """
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and bind the fast forward."""
@@ -103,10 +114,24 @@ class Kernels(_S2M2Runner):
 
         self.net = _net(ctx)
         prepare_kernels(self.net, hacc=True, kernels=True)
+        self._graphs = SmallShapeGraphs(
+            self._run,
+            pixels=_GRAPH_PIXELS,
+            graphs=_GRAPHS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+        )
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool on the device."""
+        self._graphs.release()
+
+    def _run(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
+        return _maps(*self.net.forward_fast(left, right, full_outputs=True))  # ty: ignore[call-non-callable] - bound by prepare_kernels
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity, confidence and occlusion of a padded pair."""
-        return _maps(*self.net.forward_fast(left, right, full_outputs=True))  # ty: ignore[call-non-callable] - bound by prepare_kernels
+        return self._graphs(left, right)
 
 
 RUNNERS = {

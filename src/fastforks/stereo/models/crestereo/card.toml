@@ -3,7 +3,7 @@ name = "CREStereo"
 summary = "CREStereo (Li et al. 2022): cascaded recurrent stereo with adaptive group correlation (2-D / 1-D local search, learned offsets, cross attention at 1/16), a 1/16 -> 1/8 -> 1/4 GRU cascade and two passes (half, then full resolution) of 20 iterations each."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs"]  # fastforks.shared modules this family imports
 limitations = [
   "CUDA output (float16, kernels, float32 with PyTorch's default TF32 convolutions) differs from the CPU by ~0.1-0.2 px mean / 3 px p99 at 720x1280, 0.03 px with full float32: rounding amplified by 2 x 20 GRU iterations. Portable and kernels reach the same ETH3D / Middlebury accuracy.",
 ]
@@ -32,6 +32,7 @@ min_size = 33  # at <= 32 px the padded 1/16 level is 2 px high or wide and the 
 
 [options]
 iters = { default = 20, min = 1 }  # GRU iterations per stage and pass (original test.py n_iter)
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for small repeated shapes (false: eager, no extra memory)
 
 [modes.portable]
 cuda_dtype = "float16"
@@ -43,6 +44,11 @@ kernels = ["crestereo", "fastbb", "igev", "cutlass_conv", "cudnn_hacc"]
 mps_kernels = ["stereo_metal"]
 mlx_kernels = ["crestereo_mlx"]
 mlx_dtypes = ["float32", "float16"]
+# CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x padded H x W <= 1M (up to
+# 1280x720) replays a CUDA graph, captured on a shape's 4th call (after its `cudnn_hacc` plans), at most 2 shapes per
+# model (Windows KITTI 104 -> 77 ms, 720x1280 165 -> 142 ms). The graph pool stays reserved (KITTI 828 vs 298 MiB
+# eager, 720x1280 1.5 vs 0.5 GB) until `model.release_graphs()`; `cuda_graphs=False` turns it off. Larger inputs are
+# GPU-bound and run eagerly (Middlebury-H 233 vs 229 ms with a graph, for 2.4 vs 0.9 GB reserved)
 
 [[papers]]
 title = "Practical Stereo Matching via Cascaded Recurrent Network with Adaptive Correlation"

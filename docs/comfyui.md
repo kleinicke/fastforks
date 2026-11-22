@@ -110,5 +110,20 @@ Weights and kernels already in the fastforks cache, the Hugging Face or torch hu
 ones download on first use into `models/fastforks` (another location: a `fastforks:` entry in
 `extra_model_paths.yaml`). Models run on ComfyUI's device and
 stay loaded between runs (the two most recently used); ComfyUI's "Unload models" frees them, and ComfyUI unloads its
-own models first when a fastforks model needs the room. Batches run one image at a time, so a cancel stops after the
+own models first when a fastforks model needs the room. When ComfyUI needs room for one of its models and unloading its
+own was not enough, the fastforks models on that device free their CUDA graphs, then unload, least recently used first. Batches run one image at a time, so a cancel stops after the
 current image.
+
+## Speed
+
+A node's time is the model's time plus what ComfyUI does around every node, which any pack pays. On ComfyUI 0.46
+(RTX 5060 Ti, Windows):
+
+- IMAGE outputs live on the CPU, so each node copies its result off the GPU: ~6 ms for a 2048 x 2048 output.
+- Dynamic VRAM (the default) synchronises after each node: 1-5 ms per node. `--disable-dynamic-vram` removes it
+  (SPAN x4 on 512 x 512: 28.2 -> 24.4 ms per run, GFPGAN: 31.7 -> 26.8 ms).
+- The executor adds ~8 ms per run.
+
+Models that take a few milliseconds (SPAN, Compact, the WD tagger, SegFormer) therefore take about twice their library
+time in a workflow (SPAN x4: 13 ms model, 28 ms node); for slow ones (HAT, DAT, SwinIR) the overhead does not matter. The portable ComfyUI build and a
+ComfyUI from git run the nodes at the same speed.

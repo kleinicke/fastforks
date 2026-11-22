@@ -12,6 +12,7 @@ import torch
 from fastforks._core.checkpoint import check_fits
 from fastforks.flow._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import RADIUS, NeuFlow, _grid
 
@@ -27,6 +28,7 @@ class Params:
     """Card `[options]`."""
 
     iters: int  # refinements at 1/8 resolution (upstream `iters_s8`)
+    cuda_graphs: bool  # option: kernels replays CUDA graphs for small repeated shapes
 
 
 class Portable(Runner):
@@ -87,8 +89,16 @@ def _kernel_lookup(k: CubinModule, features: torch.Tensor) -> Callable[[torch.Te
     return lookup
 
 
+_GRAPH_PIXELS = 1_000_000  # fixed: batch x padded H x W; launch-bound up to 544x960, 720x1280 still gains 6 %
+_GRAPHS = 2  # fixed: graph cache policy
+
+
 class Kernels(Portable):
-    """The portable fp16 pass with the correlation window computed on the fly (`raft_flow`): no all-pairs volume."""
+    """The portable fp16 pass with the correlation window computed on the fly (`raft_flow`): no all-pairs volume.
+
+    A repeated input shape up to `_GRAPH_PIXELS` replays a CUDA graph (`fastforks.shared.cuda_graphs`): the eager
+    pass is launch-bound there.
+    """
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and bind the lookup kernel."""
@@ -96,6 +106,18 @@ class Kernels(Portable):
         from fastforks.kernels import raft_flow  # noqa: PLC0415 - needs the kernel library
 
         self.net.correlate = functools.partial(_kernel_lookup, raft_flow.load(ctx.device))
+        self._graphs = SmallShapeGraphs(self._run, pixels=_GRAPH_PIXELS, graphs=_GRAPHS, enabled=ctx.params.cuda_graphs)
+
+    def _run(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
+        return self.net(image1, image2, self.ctx.params.iters)
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Flow of a padded batch."""
+        return {"flow": self._graphs(image1, image2)}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool on the device."""
+        self._graphs.release()
 
     def module(self) -> torch.nn.Module:
         """No exportable module: the lookup is a kernel launch."""

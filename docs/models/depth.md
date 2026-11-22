@@ -272,7 +272,7 @@ Commercial use: `depth-anything-v2-s`, `depth-anything-v2-metric-hypersim-s`, `d
 - Licence note: Only the Small weights are Apache-2.0; the Base and Large weights are CC-BY-NC-4.0. The training data of even the Small model has unclear commercial terms (a note only).
 - Licence note: The six metric checkpoints are Apache-2.0 on their Hugging Face cards, but the Base / Large ones are fine-tuned from the CC-BY-NC-4.0 relative Base / Large weights, and Virtual KITTI 2 (the outdoor fine-tune) is CC BY-NC-SA 3.0, Hypersim CC BY-SA 3.0.
 - Licence note: Distill-Any-Depth: Apache-2.0 on the Hugging Face card (the authors' transformers ports say MIT, the code is MIT). The paper initialises the Large model from the CC-BY-NC-4.0 Depth Anything V2 Large weights; its teachers include Depth Anything V2 and it trains on unlabeled SA-1B images (research licence).
-- Options: `short_side` = 518 (>= 14; also `input_size`)
+- Options: `short_side` = 518 (>= 14; also `input_size`), `cuda_graphs` = True (speed only)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `depth-anything-v2-s`, `depth-anything-v2-b`, `depth-anything-v2-l`, `depth-anything-v2-metric-hypersim-s`, `depth-anything-v2-metric-hypersim-b`, `depth-anything-v2-metric-hypersim-l`, `depth-anything-v2-metric-vkitti-s`, `depth-anything-v2-metric-vkitti-b`, `depth-anything-v2-metric-vkitti-l`, `distill-any-depth-s`, `distill-any-depth-b`, `distill-any-depth-l`
 - Outputs: inverse_depth, depth; kind: `affine_invariant_inverse`

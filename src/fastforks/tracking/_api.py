@@ -13,7 +13,7 @@ from fastforks._core import model as core
 from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
 from fastforks._core.errors import InputError
-from fastforks._core.image import ImageLike, to_rgb_batch
+from fastforks._core.image import ImageLike, deferred_ranges, to_rgb_batch
 from fastforks._core.model import Backend
 from fastforks._core.outputs import NumpyOutputs
 
@@ -147,7 +147,7 @@ class TrackingModel(core.Model):
 
         q, single = _queries(queries, n)
         _check_in_image(q, size)
-        with self._session():
+        with self._session(), deferred_ranges():  # one range check for all frames, not one sync per frame
             out = self._runner(frame, n, size, q.to(self.device))
         maps = self._check_outputs(out, {"tracks": (n, q.shape[0], 2), "visibility": (n, q.shape[0])})
         if single:

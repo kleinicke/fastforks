@@ -30,7 +30,7 @@ from fastforks.shared.timm_blocks import Mlp
 
 from ..net._lora import PeftModel
 from ..net.block import resconv
-from ..net.utils import Padder, disp_warp
+from ..net.utils import Padder, normalize_coords
 
 if TYPE_CHECKING:
     from ..net.waft import WAFT
@@ -89,12 +89,39 @@ def prepare_kernels(model: WAFT, device: torch.device) -> None:
         elif isinstance(m, Mlp) and isinstance(m.fc1, nn.Conv2d):
             override(m, _mlp_conv_forward)
     cnn_kernels.prepare_generic(model, device)
+    # `WAFT.normalize_image`'s constants, on the device once: its `new_tensor` is a host copy per call
+    model._image_mean = torch.tensor([0.485, 0.456, 0.406], device=device).view(1, 3, 1, 1)
+    model._image_std = torch.tensor([0.229, 0.224, 0.225], device=device).view(1, 3, 1, 1)
+
+
+# Host copies (a CPU `new_tensor` / `arange`) cannot be captured in a CUDA graph: the kernels path makes the same
+# tensors on the device instead of calling upstream's `normalize_image` / `disp_warp`
+def _normalize(model: WAFT, img: torch.Tensor) -> torch.Tensor:
+    """`WAFT.normalize_image` (`(img / 255 - mean) / std`) with the constants `prepare_kernels` put on the device."""
+    mean = model._image_mean.to(img.dtype)
+    std = model._image_std.to(img.dtype)
+    return ((img / 255.0 - mean) / std).contiguous()
+
+
+def _pixel_grid(feature: torch.Tensor) -> torch.Tensor:
+    """`net.utils.meshgrid(feature)`, made on the device: `[B, 2, H, W]`, `grid[:, :, i, j] = (j, i)`."""
+    b, _, h, w = feature.shape
+    x_range = torch.arange(w, device=feature.device, dtype=feature.dtype).view(1, 1, w).expand(1, h, w)
+    y_range = torch.arange(h, device=feature.device, dtype=feature.dtype).view(1, h, 1).expand(1, h, w)
+    return torch.cat((x_range, y_range), dim=0).unsqueeze(0).expand(b, 2, h, w)
+
+
+def _disp_warp(feature: torch.Tensor, disp: torch.Tensor, grid: torch.Tensor) -> torch.Tensor:
+    """`net.utils.disp_warp(feature, disp, padding_mode="zeros")` on the pixel grid `_pixel_grid(feature)`."""
+    offset = torch.cat((-disp, torch.zeros_like(disp)), dim=1)  # [B, 2, H, W]
+    sample_grid = normalize_coords(grid + offset)  # [B, H, W, 2] in [-1, 1]
+    return F.grid_sample(feature, sample_grid, mode="bilinear", padding_mode="zeros", align_corners=False)
 
 
 @torch.no_grad()
 def forward_kernels(model: WAFT, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
     """Disparity `[B, H, W]` of a pair in 0..255; the same math as `WAFT.forward` (test path)."""
-    image1, image2 = model.normalize_image(left), model.normalize_image(right)
+    image1, image2 = _normalize(model, left), _normalize(model, right)
     padder = Padder(image1.shape, factor=model.factor)
     image1, image2 = padder.pad(image1), padder.pad(image2)
     fmap1, fmap2, hidden = model.encoder(torch.stack([image1, image2], dim=1).half())
@@ -105,8 +132,9 @@ def forward_kernels(model: WAFT, left: torch.Tensor, right: torch.Tensor) -> tor
     disp = torch.sum(prob * bins, dim=1, keepdim=True)
     del prob, prop
     fmap2_f32 = fmap2.float()
+    grid = _pixel_grid(fmap2_f32)
     for _ in range(model.iters):
-        warped = disp_warp(fmap2_f32, disp, padding_mode="zeros").half()
+        warped = _disp_warp(fmap2_f32, disp, grid).half()
         x = torch.cat([fmap1, warped, hidden, disp.half()], dim=1).contiguous(memory_format=CL)
         hidden = model.delta_decoder(model.delta_proj(x))
         disp = disp + model.delta_disp_head(hidden).float()

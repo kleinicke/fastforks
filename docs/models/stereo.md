@@ -108,6 +108,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0 (assumed from code)
 - Licence evidence: <https://github.com/haofeixu/aanet/blob/8d0d747e69bbdba43e2578b60ad7df63ba7fdac2/LICENSE>
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `deform_conv`, `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `aanet-sceneflow`, `aanet-plus-sceneflow`
 - Outputs: disparity
@@ -179,6 +180,7 @@ Commercial use: **no** (weights: CC-BY-NC-4.0).
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
   - `bridgedepth-rvc-pretrain`: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), NVIDIA Falling Things (FAT), CREStereo synthetic stereo dataset (Megvii), TartanAir, MPI Sintel stereo, not stated by the authors (configs/rvc_pretrain.yaml: Scene Flow, Falling Things, CREStereo, TartanAir, CARLA high-res, Sintel, Virtual KITTI 2 (started from l_sf, Scene Flow); README recommends it for in-the-wild use)
 - Licence note: The weights embed Depth Anything V2 weights released under CC-BY-NC-4.0, so they are non-commercial even though the code is MIT.
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `fastbb`
 - Variants: `bridgedepth-sf`, `bridgedepth-rvc-pretrain`
 - Public TensorRT export is unavailable for `bridgedepth-sf` (TensorRT 11.4 still fails the Myelin tactic check at 994 x 1482).
@@ -496,7 +498,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0 (assumed from code)
 - Licence evidence: <https://github.com/megvii-research/CREStereo/blob/ad3a1613bdedd88b93247e5f002cb7c80799762d/README.md#L82>
 - Training data: CREStereo synthetic stereo dataset (Megvii), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel stereo, Middlebury stereo (2014), ETH3D two-view stereo, KITTI stereo / optical flow 2012 / 2015, NVIDIA Falling Things (FAT), InStereo2K, HR-VS (high-resolution virtual stereo, Yang et al. CVPR 2019) (the datasets original README lists as used for training; which of them the released checkpoint saw is not stated)
-- Options: `iters` = 20 (>= 1)
+- Options: `iters` = 20 (>= 1), `cuda_graphs` = True (speed only)
 - Kernel libraries: `crestereo`, `fastbb`, `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `crestereo-eth3d`
 - Outputs: disparity
@@ -1328,7 +1330,7 @@ Commercial use: yes.
 - Weights licence: MIT (assumed from code)
 - Licence evidence: <https://github.com/ZYangChen/MoCha-Stereo/blob/78c5889c467fe31414c9425f1280afc0a8f6c1a0/README.md#L69>
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
-- Options: `iters` = 32 (>= 1)
+- Options: `iters` = 32 (>= 1), `cuda_graphs` = True (speed only)
 - Kernel libraries: `igev`, `mocha`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `mocha-v1-sceneflow`, `mocha-v2-sceneflow`
 - Outputs: disparity
@@ -1498,6 +1500,7 @@ Commercial use: yes.
 - Weights licence: MIT (assumed from code)
 - Licence evidence: <https://github.com/aeolusguan/NMRF/blob/a50bd8f407ae481c38f95cf141e1b5256e962cb7/README.md#L103>
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `fastbb`
 - Variants: `nmrf-sceneflow`
 - Outputs: disparity
@@ -1736,6 +1739,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - Weights licence: CC-BY-NC-4.0
 - Licence evidence: <https://github.com/junhong-3dv/s2m2/blob/8f3bd785df593619d955203c6f2c741bef6e31df/README.md#L24>
 - Training data: README: extended training data incl. transparent objects
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `s2m2`, `s2m2_cutlass`, `cudnn_hacc`
 - Variants: `s2m2-s`, `s2m2-m`, `s2m2-l`, `s2m2-xl`
 - Outputs: disparity, confidence, occlusion (in `extras`)
@@ -1906,6 +1910,7 @@ Commercial use: `waft-stereo-s`: yes; `waft-stereo-b`: **no** (weights: CC-BY-NC
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), not stated by the authors (SceneFlow, TartanAir, CREStereo, Falling Things, Sintel, Virtual KITTI 2, UnrealStereo4K, WMGStereo, CARLA, Spring, TartanGround, FSD (configs/SynLarge/*.yaml); only SceneFlow is in datasets.toml)
 - Licence note: WAFT-Stereo-B is labelled CC-BY-NC-4.0 conservatively although the Hugging Face card says BSD-3-Clause: the checkpoint embeds a fine-tuned Depth Anything V2 ViT-B whose original weights are CC-BY-NC-4.0.
 - Licence note: Both checkpoints were trained on data that includes NVIDIA's FSD dataset, whose terms for commercial use of trained models are unclear; the status does not depend on the training data.
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `fastbb`, `dpt_fused`
 - Variants: `waft-stereo-s`, `waft-stereo-b`
 - Public TensorRT export is unavailable for `waft-stereo-b` (the fp16 engine outputs all NaN. At 994x1482, the fp32 builder also fails when a tactic requests 6.6 GiB of workspace with a 6 GiB cap).

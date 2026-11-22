@@ -11,7 +11,7 @@ from fastforks._core import model as core
 from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
 from fastforks._core.errors import InputError
-from fastforks._core.image import ImageLike, to_rgb_batch, unbatch
+from fastforks._core.image import ImageLike, deferred_ranges, to_rgb_batch, unbatch
 from fastforks._core.model import Backend
 from fastforks._core.outputs import MapOutputs, NumpyOutputs
 
@@ -150,7 +150,7 @@ class MattingModel(core.Model):
         if m is None or m.shape[0] != 1:
             msg = "video takes one mask (the object on frame 0)"
             raise InputError(msg)
-        with self._session():
+        with self._session(), deferred_ranges():  # one range check for all frames, not one sync per frame
             out = self._runner.track(frame, n, size, m[0, 0])
         return VideoMattingResult(out["alpha"], self.variant.ref, self.backend, self.options)
 
