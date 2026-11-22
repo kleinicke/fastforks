@@ -299,6 +299,9 @@ class Kernels(Runner):
         super().__init__(ctx)
         self.net = _net(ctx)
         self.vit = _ViT(self.net.encoder, "hh", dpt_fused.load(ctx.device))
+        # autocast casts these weights to fp16 at every conv (bit-identical, ~700 copies per call: 151.6 -> 148.9 ms
+        # at 994 x 1482); NCHW stays, the channels-last decoder ran slower (layout copies around its other ops)
+        half_weights(self.net.decoder, channels_last=False)
 
     def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:
         """Metric depth, normals and confidence of a batch."""
