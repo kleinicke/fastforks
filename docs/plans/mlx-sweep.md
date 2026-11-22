@@ -2106,7 +2106,7 @@ eager torch, `.to(dtype)` and `new_zeros` keep their real dtype, so the twin's f
 
 | ref | MPS fp16 heavy fp32 % | note |
 |---|---|---|
-| gmflow-scale1-things | 0.5 | MPS fp16 10676 ms vs fp32 3269 ms is not promotion; the cause is still open |
+| gmflow-scale1-things | 0.5 | MPS fp16 10676 ms vs fp32 3269 ms is not promotion: memory pressure (see "MPS pass" below) |
 | moge-3-vitl | 6.4 | sparse `subm_conv` addmm and a few linears |
 | video-depth-anything-metric-s | 0.0 | |
 | mvsanywhere | 0.0 | |
@@ -2182,3 +2182,83 @@ Negative results:
 For MPS (not implemented): the same threaded page touch before the `.to("mps")` copy would cut the 8-17 s `load_s`
 of these checkpoints, since MPS reads every weight at load from the same mmapped files. The cold rule compares only
 the MLX compile with MPS warm ms. If `load_s` counted, MLX (0.3-1.4 s) would win the cold start for all three refs.
+
+## MPS pass: load time, gmflow, fp16 >= fp32 rows (2026-11-22)
+
+All numbers: M1 Pro 16 GB, portable mode on MPS, survey second run (warm ms / peak MB) unless noted.
+
+### Load time of the big multiview checkpoints
+
+`load_state_dict(..., assign=True)` on MPS (vggt-1b, lingbot-map `_net`): the mmapped float32 checkpoint moves to the
+GPU as it is, without the full CPU copy that `load_state_dict` makes first (about 2.8 s for vggt's 4.8 GB).
+
+| ref | dtype | `load_s` before / after | warm ms before / after | peak MB before / after |
+|---|---|---|---|---|
+| vggt-1b | fp16 | 17.3 / 12.2 | 6638 / 6193 | 8423 / 8700 |
+| vggt-1b | fp32 | 12.5 / 11.1 | 7209 / 7223 | 10654 / 11354 |
+| lingbot-map (480x640) | fp16 | 14.1 / 8.5 | 7125 / 7124 | 8834 / 7956 |
+| lingbot-map (480x640) | fp32 | 14.0 / (11.6, not recorded) | | |
+
+vggt-1b's peak rose by 0.3-0.7 GB, likely because the assigned parameters keep the mapped pages alive until `.to("mps")` replaces
+them. lingbot-map's fell by 0.9 GB (it halves on the CPU before the move, so the copy was its peak).
+The lingbot-map fp32 re-survey hit the MPS memory ceiling in its golden (11.45 GiB allocated, swap 4-5 GB used) and
+ran 11.0 s warm against 8.8 s before, a memory-pressure run. Its old row is kept. Goldens pass for both refs.
+
+Negative results:
+
+- The threaded page touch of `mlx_graph._prefetch` before `.to("mps")` gives nothing. The weights on /Volumes/Daten
+  read at 0.3-0.5 GB/s with 1 or 8 threads, so the load is disk-bound: joined first, the touch alone took 10.7 s for
+  4.8 GB (vggt fp16 `load_s` 20.9 / 17.9 s against 22.4 / 17.2 s without); overlapped with the net build it was
+  16.9 / 17.6 s (lingbot 12.8 / 15.2 against 15.3 / 15.4 s). Not kept. mapanything-apache (`load_s` 7.6-9.0 s, 3.3 GB)
+  showed no change either.
+- During the MPS load the faulted pages of the mapped checkpoint add about 3 GB to the footprint (vggt-1b load peak
+  8.4-8.5 GB for a 4.8 GB checkpoint that ends up as 2.4 GB of fp16 GPU weights). They are dropped once the state dict
+  is released. Moving the weights in 256 MB chunks with a sync after each did not lower that peak.
+
+### gmflow: MPS attention writes the whole score matrix
+
+The fp16 slowdown was memory, not compute: at 544x960 fp16 already won (283 ms against 336 ms fp32). At 1080p the old
+fp16 row had a 12.6 GB peak and `ms_min` 4170 ms against a 10676 ms median (pageouts). With the MPS watermark at 1.0,
+both dtypes ran out of memory in the global matching / propagation: MPS SDPA allocates the full `[B, L, M]` scores,
+4 GB for L = M = 32640. The shifted-window mask (`[4, 8160, 8160]`, 1 GB fp32) was also tiled over the batch in fp32
+and then cast, because the CUDA-only branch did not cover MPS.
+
+Fix (`gmflow/net/attention.py`): on MPS, `sdpa` chunks the queries to at most 2^27 scores per call, and the shift mask
+is cast once and shared across the batch as on CUDA. Goldens pass, also with the chunk limit forced down to 2^20 (the
+golden size does not reach the 2^27 limit).
+
+| ref | dtype | before | after |
+|---|---|---|---|
+| gmflow-scale1-things | fp16 | 10676 / 12643 | 2756 / 7112 |
+| gmflow-scale1-things | fp32 | 3269 / 11902 | 3780 / 8183 |
+| gmflow-scale1-mixdata | fp16 | 9282 / 12270 | 2904 / 7113 |
+| gmflow-scale1-mixdata | fp32 | 3269 / 12049 | 3845 / 8160 |
+
+fp32 is 16 % slower: a chunk limit of 2^28 gave the same speed (3659 ms) for 2.5 GB more peak, 2^25 was slower
+(4.0 s), and 2^29 ran out of memory at watermark 1.0. MPS fp16 now beats MLX fp16 (3871 ms), and `auto` takes MPS for
+gmflow-scale1-things fp16 again. The scale2-regrefine6 variants, out of memory at 1080p before, now run (22-27 s) but at
+13.7-14.2 GB peak. Those timings are pageout-bound, so the old `oom` rows are kept. Their memory is in the 1/4-scale
+stage and the refinement, not in this attention.
+
+### Other fp16 >= fp32 rows
+
+- **moge (all four variants)**: on MPS the fp16 head convs ran channels-last and the replicate-padded 3x3 convs used
+  `_rep_conv` (two `torch.cat` per conv, written for CUDA's channels-last copy). Each cost about 2x there. MPS now keeps
+  the plain layout and the native replicate padding. Goldens pass.
+
+  | ref (994x1482) | fp16 before | fp16 after | fp32 after |
+  |---|---|---|---|
+  | moge-2-vits-normal | 869 | 303 | 362 |
+  | moge-2-vitb-normal | 1108 | 494 | 585 |
+  | moge-2-vitl-normal | 1790 | 1176 | 1350 |
+  | moge-3-vitl | 3913 | 3333 | 3692 |
+
+- **neuflow-v2 (three variants), no code change**: the 2026-11-12/14 rows (fp16 2.8-4.6 s against fp32 0.95-1.08 s,
+  12-13 GB peaks) were memory-pressure runs. A re-survey of the same code gives fp16 0.70-0.74 s and fp32 0.74-0.76 s.
+  The fp16 `_lookup_half` gather is not slow on MPS (723 ms against 792 ms fp32 in an isolated run).
+- **starnet_s1** (14 ms fp16 against 8 ms fp32 at 224x224): dispatch-bound at this size, and s2-s4 are equal or
+  faster in fp16. Not touched.
+- **c-fast-foundationstereo** (fp16 3.7x, 12.8 GB peak) and the smaller ratios (tapir, aanet, las2-h,
+  video-depth-anything-metric-s, 1.2-1.3x) are left for later. Check the large ones for memory pressure first, as
+  gmflow and neuflow showed.
+
