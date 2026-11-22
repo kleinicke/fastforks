@@ -245,6 +245,10 @@ class Portable(Runner):
         sd = {k: v for k, v in ctx.state_dict().items() if not k.startswith(_TRAINING_ONLY)}
         check_fits(self.net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
         self.net.load_state_dict(sd)
+        if ctx.device.type == "cuda":
+            # residual scales folded into their convs (in float32, before the cast): one launch fewer per ResConv,
+            # 40 per frame; the eager call is launch bound (RTX 5060 Ti, Windows, fp16 384 x 384: 10.0 -> 9.3 ms)
+            _fold_res_convs(self.net)
         self.net.eval().to(ctx.device, getattr(torch, ctx.dtype))
         if ctx.device.type == "cuda" and ctx.dtype == "float16":
             # channels-last blocks and weights: cuDNN otherwise converts NCHW <-> NHWC around each fp16 conv (~120
@@ -288,6 +292,16 @@ def _res_conv(m: ResConv, x: torch.Tensor) -> torch.Tensor:
     return m.relu(m.conv(x) + x)  # beta folded into the conv
 
 
+def _fold_res_convs(net: torch.nn.Module) -> None:
+    """Fold each `ResConv`'s `beta` into its conv's weight and bias (`conv(x) * beta` -> `conv'(x)`)."""
+    for m in net.modules():
+        if isinstance(m, ResConv):
+            beta = m.beta.data.view(-1)
+            m.conv.weight.data.mul_(beta.view(-1, 1, 1, 1))
+            m.conv.bias.data.mul_(beta)  # ty: ignore[unresolved-attribute]
+            override(m, _res_conv)
+
+
 class Kernels(Portable):
     """float16, channels-last, fp16-accumulate convs and transposed convs (`cudnn_hacc`), one CUDA graph per shape."""
 
@@ -296,16 +310,11 @@ class Kernels(Portable):
     deterministic_cudnn = False  # its convolutions are `cudnn_hacc` plans, not cuDNN's algorithm choice
 
     def __init__(self, ctx: Context) -> None:
-        """Build the network, fold the residual scales, route the convolutions through `cudnn_hacc`."""
+        """Build the network (residual scales folded), route the convolutions through `cudnn_hacc`."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
         for m in self.net.modules():
-            if isinstance(m, ResConv):
-                beta = m.beta.data.view(-1)
-                m.conv.weight.data.mul_(beta.view(-1, 1, 1, 1))
-                m.conv.bias.data.mul_(beta)  # ty: ignore[unresolved-attribute]
-                override(m, _res_conv)
-            elif isinstance(m, torch.nn.Conv2d) and base_type(m) is torch.nn.Conv2d:
+            if isinstance(m, torch.nn.Conv2d) and base_type(m) is torch.nn.Conv2d:
                 m.weight.data = m.weight.data.contiguous(memory_format=torch.channels_last)
                 override(m, _hacc_conv)
             elif isinstance(m, torch.nn.ConvTranspose2d) and base_type(m) is torch.nn.ConvTranspose2d:
