@@ -2258,9 +2258,65 @@ stage and the refinement, not in this attention.
   The fp16 `_lookup_half` gather is not slow on MPS (723 ms against 792 ms fp32 in an isolated run).
 - **starnet_s1** (14 ms fp16 against 8 ms fp32 at 224x224): dispatch-bound at this size, and s2-s4 are equal or
   faster in fp16. Not touched.
-- **c-fast-foundationstereo** (fp16 3.7x, 12.8 GB peak) and the smaller ratios (tapir, aanet, las2-h,
-  video-depth-anything-metric-s, 1.2-1.3x) are left for later. Check the large ones for memory pressure first, as
-  gmflow and neuflow showed.
+- **c-fast-foundationstereo** and the 1.2-1.3x rows (tapir, aanet, las2-h, video-depth-anything-metric-s): see the
+  next section.
+
+### fp16 >= fp32, part 2: autocast on MPS (2026-11-22)
+
+Common cause: most of these runners take fp16 as `torch.autocast(device.type)` around plain PyTorch, which on MPS
+either did not run fp16 at all or cost more in casts than it saved. Autocast's norms return fp32, so the activations
+between the convs stay fp32 and every conv / matmul casts its input again. Where it is safe, the fix is the whole
+network in fp16 on MPS (`pure_half`, NCHW). CUDA paths are unchanged everywhere. MPS goldens pass for every touched
+family (`FASTFORKS_MPS_FULL=1`, both dtypes).
+
+Detector for the next ones: an MPS fp16 row with the same peak as fp32 is not running fp16 (c-fast-foundationstereo,
+aanet). A lower peak but a slower time points to casts or a layout (las2, tapir, video-depth-anything).
+
+Survey rows, second of two runs (ms warm median / peak footprint MB):
+
+| ref | input | fp16 before | fp16 after | fp32 |
+|---|---|---|---|---|
+| c-fast-foundationstereo | 994x1482 | 18200 / 12830 | 2714 / 8484 | 4881 / 12882 (row of 2026-11-06) |
+| fast-foundationstereo | 994x1482 | 3047 / 13515 | 2715 / 8478 | 3209 / 13359 (row of 2026-11-21) |
+| las2-h | 994x1482 | 821 / 4422 | 588 / 3674 | 664 / 5108 |
+| las2-l | 994x1482 | 401 / 3496 | 426 / 2818 (run 1: 386) | 500 / 4238 |
+| las2-m | 994x1482 | 237 / 2634 | 232 / 2684 | 241 / 3041 |
+| las2-s | 994x1482 | 193 / 2587 | 167 / 2564 | 182 / 2994 |
+| aanet-sceneflow | 994x1482 | 1163 / 3632 | 723 / 2594 | 880 / 3622 |
+| aanet-plus-sceneflow | 994x1482 | 1285 / 5031 | 936 / 3836 | 992 / 5109 |
+| tapir | 480x854 | 1809 / 1611 | 1393 / 1610 | 1356 / 1604 |
+| bootstapir | 480x854 | 2059 / 1750 | 1719 / 1845 | 1704 / 1743 |
+| video-depth-anything-metric-s | 480x640 (probe) | 897 | 700 | 748 |
+| video-depth-anything-metric-s | 994x1482 (new rows) | - | 780 / 4581 | 836 / 6522 |
+| video-depth-anything-s | 994x1482 (new rows) | - | 779 / 4578 | 839 / 6523 |
+
+- **c-fast-foundationstereo / fast-foundationstereo**: TAO's AMP blocks are `autocast('cuda', ...)`, so MPS "fp16" was
+  the fp32 network, with pageouts on top of a 12.8 GB peak (min 5.7 s, median 18.2 s). Now the whole network is fp16
+  on MPS (`c_foundationstereo.portable.mps_half`). The GRU lookups keep TAO's `.float()` and the update block and
+  upsampling heads cast back to fp16. The fp32 rows of this survey (9.9 s and 6.2 s median against 4.8 s and 3.7 s
+  min, 8 GB swap) were pressure runs and were not kept; the older fp32 rows stay.
+  - Negative: making `AUTOCAST` follow the device (MPS autocast) gave nothing: 3.7-3.9 s, 12.6 GB, BatchNorm outputs
+    fp32, one flaky MPS OOM. Reverted.
+  - Open: c-foundationstereo-s fp16 at 994x1482 still OOMs on MPS (6.1 GiB allocated plus 6 GiB other in the
+    allocator). The CUDA-only volume strips are the likely lever.
+- **las2**: MPS autocast with channels-last H ran 926 ms against 702 ms fp32 (probe). NCHW alone gave 761 ms; pure fp16
+  gave 636 ms at 3.7 GB instead of 5.1 GB. All four sizes use the same path on MPS. las2-l moved between 386 and
+  426 ms across the two runs (400 before), so it is about flat; its peak dropped 0.7 GB. With the faster portable row,
+  the regenerated routes drop las2-h's `mps_auto` fp16 entry (the Metal kernels no longer beat portable by `MIN_GAIN`).
+- **aanet**: autocast ran at the fp32 peak. Pure fp16 NCHW gave AANet 736 ms. AANet+ stayed slower (1095 ms against
+  990 ms) until the shared deformable conv was fixed. Its full-resolution hourglass `conv_start` took 270 ms in fp16
+  against 158 ms in fp32. The cause is `torch.mul(cols_fp32, mask_fp16_strided_view, out=fp16)`, which runs 4x slower
+  on MPS than the fp32 product (130 against 32 ms per call). `shared.deform_conv` now multiplies by an fp32 copy of the
+  mask slice and casts after that, on MPS only. The result is bit-identical. ALIKED shares the op; its goldens pass.
+- **tapir / bootstapir**: the PIPs correlations (`einsum("bnfsc,bnfc->bnfs")`) take fp32 neighbourhoods. These are
+  grid_sample outputs with channels as the slowest stride. Autocast cast them to fp16 on every call: 240 ms against
+  59 ms in fp32. On MPS they now run in fp32 outside autocast, which brings fp16 to parity with fp32.
+  - Negative: fp16 gives nothing else on MPS here. The ResNet took 159 ms in fp16 against 145 ms, and the mixer 881 ms
+    against 858 ms.
+  - Not done: a pure-fp16 TAPIR would put the sampling coordinates in fp16 and meet the mixer's explicit `.float()`.
+- **video-depth-anything**: already `pure_half`, but channels-last. NCHW on MPS: the 32-frame head window took 630 ms
+  against 827 ms. The survey now takes 994x1482 from the reference floor (new rows). The 480x640 rows of 2026-11-12/17
+  stay as they were (the survey cannot re-measure them).
 
 
 ## Later idea: fp16 checkpoints from the start (2026-11-22, not started)
@@ -2272,3 +2328,45 @@ golden needs it (fp32 islands, the fp32 mode). Open points: hosting and pinning 
 provenance, re-checking goldens against it, keeping or fetching the original for fp32 runs, and the alternative of a
 local fp16 cache written on first load. First step: list stored dtype and size per checkpoint from the safetensors
 headers to see which models gain.
+
+### Inventory (2026-11-22, read-only)
+
+Method: every `weights` entry of every card (665 entries, 654 distinct files), found locally by name and size;
+safetensors read from the header only, `.pth` / `.pt` with `torch.load(mmap=True, weights_only=True)` (dtype and
+`nbytes` only, no data read). Byte shares count floating tensors only.
+
+Strictly, nothing gains: a card counts as fp16-only when no mode on any device lists `float32`, and only marigold-v2
+and seedvr2 are such cards. They are already stored in bf16 (about 10 MB of fp32 residue in total). 640 of the 654
+files belong to cards that ship float32 and float16, so an fp16 copy would sit next to the fp32 original, not
+replace it.
+
+Already half on disk: depth-pro, lotus, stablenormal, birefnet and hed (fp16); marigold-v2 and seedvr2 (bf16).
+anysplat (62 % bf16), loma (80 %) and romav2 (55 %) are mixed. xfeat is the only fp32-only card.
+
+What an fp16 copy would save on the fp16 runs, with the fp32 file still needed for `dtype="float32"` (largest 15):
+
+| checkpoint | fp32 GB | fp16 copy saves GB | load s saved at 0.5 / 0.3 GB/s |
+|---|---|---|---|
+| perception-encoder pe-core-g14-448 | 7.5 | 3.8 | 7.5 / 12.5 |
+| perception-encoder pe-spatial-g14-448 | 7.4 | 3.7 | 7.4 / 12.3 |
+| da3nested-giant-large-1.1 | 6.8 | 3.4 | 6.8 / 11.3 |
+| da3-giant-1.1 | 5.4 | 2.7 | 5.4 / 9.0 |
+| vggt-1b | 5.0 | 2.5 | 5.0 / 8.4 |
+| mapanything | 4.9 | 2.5 | 4.9 / 8.2 |
+| siglip2-g16-384, siglip2-g16-256 (each) | 4.7 | 2.3 | 4.7 / 7.8 |
+| c-radio-v3-g | 4.6 | 2.3 | 4.6 / 7.7 |
+| lingbot-map | 4.6 | 2.3 | 4.6 / 7.7 |
+| vggt-omega-1b-512 | 4.6 | 2.3 | 4.6 / 7.6 |
+| dinov2 vitg14, vitg14-reg (each) | 4.5 | 2.3 | 4.5 / 7.6 |
+| pi3 | 3.8 | 1.9 | 3.8 / 6.4 |
+| pointdit-l-512 | 3.7 | 1.9 | 3.7 / 6.2 |
+
+The top 15 save about 38 GB and 77-128 s of load in total; all 489 inspected fp32 files hold 281 GB of fp32 bytes (an
+fp16 copy of everything: about 141 GB). So the gain is real only for the dozen multi-GB ViT checkpoints, and only as
+an extra file (a local fp16 cache written on first fp16 load fits that best: no hosting, no second download).
+
+Not covered: 153 local files (38.5 GB) that `weights_only` + mmap could not open (legacy-format pickles: rtmpose /
+rtmdet / rtmo, hrnet, mmseg, rfdetr, any2full, bridgedepth, foundationstereo, c-foundationstereo, waft-stereo,
+mvsanywhere, depthfm, lama and others), the non-torch formats (sapiens `.pt2` 6 GB, tapnext `.npz`, ppocrv5, crestereo
+`.mge`, hitnet `.pb`), and 12 files not present locally (7.5 GB by card size: dinov3-convnext, the dinov3 ViT files of
+pointdit / insid3, four loma variants).
