@@ -154,6 +154,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
     pipeline: bool = False,
     prune: bool = False,
     half_wino_f32: bool | tuple[tuple[int, int], ...] = False,
+    fp32_inputs: tuple[str, ...] = (),
 ) -> type[Runner]:
     """The MLX runner of `portable`: same call, the module(s) named by `attrs` run on MLX in `ctx.dtype`.
 
@@ -195,6 +196,9 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
     `half_wino_f32=True`: in float16, the 3x3 convs MLX would run as Winograd (its half Winograd's error is ~17x the
     direct conv's) run in float32 (portable mode; kernels mode has its own Winograd); a tuple of `(cin, cout)` pairs
     limits that to those convs.
+
+    `fp32_inputs`: argument names of the wrapped modules / methods whose floating tensors enter a float16 replay as
+    float32 (camera intrinsics and poses, depth bounds: the replay would round them before any float32 island).
     """
     out_key = "image" if whole is True else whole
 
@@ -242,6 +246,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                         release=release,
                         pipeline=pipeline,
                         half_wino_f32=half_wino_f32,
+                        fp32_inputs=fp32_inputs,
                     )
                     object.__setattr__(host, leaf, mod)  # the instance entry beats the class's function
                 else:
@@ -258,6 +263,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                             release=release,
                             pipeline=pipeline,
                             half_wino_f32=half_wino_f32,
+                            fp32_inputs=fp32_inputs,
                         ),
                     )
             if whole:
@@ -270,6 +276,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                     chunk_mb=chunk,
                     pipeline=pipeline,
                     half_wino_f32=half_wino_f32,
+                    fp32_inputs=fp32_inputs,
                 )
                 return
             for name in attrs:
@@ -284,6 +291,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                     chunk_mb=chunk,
                     pipeline=pipeline,
                     half_wino_f32=half_wino_f32,
+                    fp32_inputs=fp32_inputs,
                 )
                 if isinstance(host, torch.nn.Module):  # the MLX callable is no child module
                     host._modules.pop(leaf, None)  # noqa: SLF001 - the module registry

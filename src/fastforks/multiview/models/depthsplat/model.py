@@ -433,4 +433,8 @@ class Kernels(_Base):
             return super().forward(images, intrinsics, cam_to_world, depth_range)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(Portable)}
+RUNNERS = {
+    "portable": Portable,
+    "kernels": Kernels,
+    "portable_mlx": mlx_wrap.port(Portable, fp32_inputs=("k_norm", "c2w", "near", "far")),
+}

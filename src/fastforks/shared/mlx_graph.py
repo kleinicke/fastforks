@@ -24,6 +24,7 @@ import contextlib
 import ctypes
 import functools
 import gc
+import inspect
 import itertools
 import math
 import mmap
@@ -2816,11 +2817,15 @@ class GraphNet:
         chunk_mb: int = 0,
         pipeline: bool = False,
         half_wino_f32: bool | tuple[tuple[int, int], ...] = False,
+        fp32_inputs: frozenset[int] = frozenset(),
     ) -> None:
         """Keep the module until its first export; parameters convert then (`chunk_mb`: see `_runner`, 0 = `CHUNK_MB`).
 
         `half_wino_f32=True`: in float16 / bfloat16, the 3x3 convs MLX would run as Winograd run in float32 instead;
         a tuple of `(cin, cout)` pairs limits that to those convs.
+
+        `fp32_inputs`: positions of floating inputs that enter a float16 / bfloat16 replay as float32 instead of being
+        cast to the run dtype (cameras and other geometry: rounded at entry, a `to_float32` island comes too late).
 
         `pipeline=True`: queue each checkpoint segment (`mx.async_eval`) and wait for the one before it, so the next
         segment's graph is built while the GPU runs (one more segment's activations in flight).
@@ -2838,6 +2843,7 @@ class GraphNet:
         self.weight_bytes = 0
         self.kernels = kernels
         self.half_wino_f32 = half_wino_f32
+        self.fp32_inputs = fp32_inputs
         self.chunk_mb = chunk_mb
         self.pipeline = pipeline
         self._runs: dict[tuple[Any, ...], Callable[..., Any]] = {}
@@ -3517,8 +3523,8 @@ class GraphNet:
 
         def run(*inputs: mx.array) -> tuple[mx.array, ...]:
             env: dict[str, Any] = {
-                n: x.astype(self.dtype) if mx.issubdtype(x.dtype, mx.floating) else x
-                for n, x in zip(input_names, inputs, strict=True)
+                n: x.astype(self.dtype) if mx.issubdtype(x.dtype, mx.floating) and i not in self.fp32_inputs else x
+                for i, (n, x) in enumerate(zip(input_names, inputs, strict=True))
             }
             prev = None
             for k, ((ins, outs, f), end) in enumerate(zip(segments, seg_last, strict=True)):
@@ -3664,8 +3670,13 @@ class MlxModule:
         chunk_mb: int = 0,
         pipeline: bool = False,
         half_wino_f32: bool | tuple[tuple[int, int], ...] = False,
+        fp32_inputs: tuple[str, ...] = (),
     ) -> None:
         """Wrap `module` (eval mode, CPU). `chunk_mb`, `pipeline`, `half_wino_f32`: see `GraphNet`.
+
+        `fp32_inputs`: names of the module's (or a `_Method`'s function's) arguments whose floating tensors stay float32
+        in a float16 replay (`GraphNet`'s `fp32_inputs`); matched by identity, so a tensor passed as another argument
+        too stays float32 there as well.
 
         `release=True`: once the first export has moved a parameter or buffer to MLX, the module's own tensor is
         replaced by a one-element stand-in of the same shape (a float32 twin of a 340M-parameter network is 1.4 GB).
@@ -3681,6 +3692,7 @@ class MlxModule:
         self.chunk_mb = chunk_mb
         self.pipeline = pipeline
         self.half_wino_f32 = half_wino_f32
+        self.fp32_inputs = fp32_inputs
         self._nets: dict[Any, tuple[GraphNet, _Flat]] = {}
         self._plan_scope = mlx_plan_cache.next_scope()  # this module's key in the on-disk plan cache (a model load's)
         if release:
@@ -3704,6 +3716,7 @@ class MlxModule:
         array = (torch.Tensor, mx.array)
         key = (spec, tuple(_sig(x) if isinstance(x, array) else repr(x) for x in leaves))
         if key not in self._nets:
+            keep = self._fp32_positions(args, kwargs, [x for x in leaves if isinstance(x, array)])
             leaves = [to_torch(x).to(_sig(x)[1]) if isinstance(x, mx.array) else x for x in leaves]
             flat = _Flat(self.module, spec, leaves)
             self._nets[key] = (
@@ -3716,11 +3729,14 @@ class MlxModule:
                     chunk_mb=self.chunk_mb,
                     pipeline=self.pipeline,
                     half_wino_f32=self.half_wino_f32,
+                    fp32_inputs=keep,
                 ),
                 flat,
             )
             net = self._nets[key][0]
             sig = (repr(key), self.dtype, self.kernels, self.compile, self.chunk_mb, self.half_wino_f32)
+            if self.fp32_inputs:
+                sig = (*sig, self.fp32_inputs)
             net.plan = mlx_plan_cache.Entry.make(self._plan_scope, flat, sig)
             net.plan_extra = lambda flat=flat: flat.out.value
             net.plan_restore = lambda extra, flat=flat: setattr(flat.out, "value", extra)
@@ -3734,6 +3750,19 @@ class MlxModule:
         else:
             merged = [next(outs).to(d) if d is not None else o for o, d in zip(others, dtypes, strict=True)]
         return pytree.tree_unflatten(merged, out_spec)
+
+    def _fp32_positions(self, args: Any, kwargs: Any, tensors: list[Any]) -> frozenset[int]:
+        """Positions among `tensors` (the call's flat tensor leaves) of those in the `fp32_inputs` arguments."""
+        if not self.fp32_inputs:
+            return frozenset()
+        fn = getattr(self.module, "fn", self.module.forward)  # `_Method`: the runner method it wraps
+        bound = inspect.signature(fn).bind(*args, **kwargs).arguments
+        unknown = set(self.fp32_inputs) - set(inspect.signature(fn).parameters)
+        if unknown:
+            msg = f"fp32_inputs: no argument(s) {sorted(unknown)}"
+            raise TypeError(msg)
+        keep = {id(x) for name in self.fp32_inputs for x in pytree.tree_leaves(bound.get(name))}
+        return frozenset(i for i, x in enumerate(tensors) if id(x) in keep)
 
     def _release(self, flat: torch.nn.Module) -> None:
         """Replace the twin's tensors that MLX holds (and that no other `MlxModule` still needs) by stand-ins."""

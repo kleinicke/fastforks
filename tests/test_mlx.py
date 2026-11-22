@@ -287,3 +287,20 @@ def test_dpt_resize_matches_torch(size):
     for resize in (mlx_net.resize, ops.resize):
         got = torch.from_numpy(np.array(resize(xm, *size)))
         torch.testing.assert_close(got, want, atol=1e-5, rtol=1e-5)
+
+
+def test_fp32_inputs_keep_float32_in_a_float16_replay():
+    """`MlxModule(fp32_inputs=...)`: the named argument enters a float16 replay unrounded, the others are cast."""
+    pytest.importorskip("mlx.core")
+    from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - optional (the mlx extra)
+
+    class Diff(torch.nn.Module):
+        def forward(self, x: torch.Tensor, cam: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+            return x - 1, cam - 1
+
+    v = torch.full((4,), 1 + 2**-14)  # rounds to 1 in float16
+    x_out, cam_out = MlxModule(Diff(), "float16", fp32_inputs=("cam",))(v, cam=v.clone())
+    assert float(x_out[0]) == 0
+    assert float(cam_out[0]) == pytest.approx(2**-14)
+    with pytest.raises(TypeError, match="no argument"):
+        MlxModule(Diff(), "float16", fp32_inputs=("k",))(v, v)
