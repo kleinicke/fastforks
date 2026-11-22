@@ -219,7 +219,7 @@ Commercial use: yes.
 - Weights licence: MIT (assumed from code)
 - Licence evidence: https://github.com/huggingface/controlnet_aux/blob/b1aac318b15c4e65a21bc516dc236ad4bf593d46/src/controlnet_aux/lineart_anime/LICENSE ; https://huggingface.co/lllyasviel/Annotators
 - Training data: Not stated for these checkpoints (lllyasviel/Annotators, ControlNet 1.1); ControlNet 1.1 describes the anime line art model as trained on anime illustrations and their line drawings.
-- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`)
+- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `cuda_graphs` = True (speed only)
 - Kernel libraries: `cv_resample`
 - Variants: `lineart-anime`
 - Outputs: edges
@@ -385,7 +385,7 @@ Commercial use: yes.
 - Weights licence: MIT
 - Licence evidence: https://github.com/xavysp/TEED/blob/40fa4b1391dc6424f88989d0ca75d5b592c8681d/LICENSE ; https://github.com/xavysp/TEED/tree/40fa4b1391dc6424f88989d0ca75d5b592c8681d/checkpoints/BIPED/5
 - Training data: BIPED (Barcelona Images for Perceptual Edge Detection) (BIPED (the repository's checkpoints/BIPED folder and README); the dataset is for non-commercial use.)
-- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `safe_steps` = 2 (0 to 255)
+- Options: `short_side` = 512 (>= 64; also `resolution`; also `detect_resolution`), `safe_steps` = 2 (0 to 255), `cuda_graphs` = True (speed only)
 - Kernel libraries: `smish`
 - Variants: `teed`
 - Outputs: edges
