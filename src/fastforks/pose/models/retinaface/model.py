@@ -126,6 +126,12 @@ class Portable(Runner):
     Params = Params
     suppress = staticmethod(nms)
     needs_boxes: ClassVar[bool] = False
+    compiled_methods = ("__call__", "estimate_batch")
+    batch = None
+    # images x H x W per network call (`estimate_batch`): launch bound (RTX 5060 Ti, Windows, fp16,
+    # 8 frames 480 x 640, ms per frame:
+    # mobilenet0.25 7.0 -> 3.2 (kernels 2.4 -> 2.1), resnet50 9.3 -> 5.6 (4.3 -> 3.5)); 1080p runs one image per call
+    batch_pixels = 2_100_000
 
     def __init__(self, ctx: Context) -> None:
         """Build the network with the checkpoint and optimise it for the mode."""
@@ -146,6 +152,16 @@ class Portable(Runner):
         assert boxes is None  # noqa: S101 - the task API rejects boxes for one-stage families
         a: Params = self.ctx.params
         return faces(self.dense(image), *image.shape[-2:], a.score_threshold, a.nms_iou, suppress=self.suppress)
+
+    def estimate_batch(self, images: torch.Tensor, boxes: list[torch.Tensor]) -> list[dict[str, torch.Tensor]]:
+        """The faces of each image of `[B, 3, H, W]`: one network call, decoded per image."""
+        assert all(b is None for b in boxes)  # noqa: S101 - one-stage: the task API passes no boxes
+        a: Params = self.ctx.params
+        dense, (h, w) = self.dense(images), images.shape[-2:]
+        return [
+            faces(tuple(t[i : i + 1] for t in dense), h, w, a.score_threshold, a.nms_iou, suppress=self.suppress)
+            for i in range(images.shape[0])
+        ]
 
     def module(self) -> torch.nn.Module:
         """The network: images `[B, 3, H, W]` RGB in [0, 1] -> the stride 8 / 16 / 32 head maps."""
@@ -189,8 +205,14 @@ class Kernels(Portable):
         self.graphs.release()
 
 
+class _OneImage(Portable):
+    """Portable for the MLX port: one image per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": mlx_wrap.port(_OneImage),
 }

@@ -202,8 +202,9 @@ class PoseModel(core.Model):
             return self._runner(x, boxes)
 
     def _raw_images(self, x: torch.Tensor) -> list[dict[str, torch.Tensor]]:
-        """A one-stage runner on a batch: `batch` images per `estimate_batch` call (`None`: all of them)."""
-        step = self._runner.batch or x.shape[0]
+        """A one-stage runner on a batch: `batch` images per `estimate_batch` call (`None`: as `batch_pixels` allow)."""
+        pixels = self._runner.batch_pixels
+        step = self._runner.batch or (max(1, pixels // (x.shape[-2] * x.shape[-1])) if pixels else x.shape[0])
         outs: list[dict[str, torch.Tensor]] = []
         for s in range(0, x.shape[0], step):
             chunk = x[s : s + step]
