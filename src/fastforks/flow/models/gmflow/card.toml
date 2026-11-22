@@ -4,7 +4,7 @@ summary = "GMFlow (Xu, Zhang, Cai, Rezatofighi & Tao 2022) in its UniMatch relea
 tier = "experimental"
 outputs = ["flow"]
 limitations = ["TensorRT builds at 1080x1920 fail for scale2 variants with a Myelin CHECK(is_const()) error on RTX 5060 Ti; scale1 variants build."]
-uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/autonomousvision/unimatch"

@@ -3,7 +3,7 @@ name = "MobileSAM"
 summary = "MobileSAM (Zhang et al. 2023, Kyung Hee University): Segment Anything with the ViT-H image encoder replaced by a TinyViT-5M (an MBConv stage, then window attention with depthwise convs) distilled from it; SAM's own prompt encoder and mask decoder, so points, boxes and mask logits work the same. The portable `module()` is the image encoder only."
 tier = "experimental"
 outputs = ["pred_masks", "iou_scores"]
-uses = ["cuda_graphs", "sam_prompt"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "sam_prompt", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 limitations = [
   "On the RTX 5060 Ti at 3840 × 2160 with 12 point prompts and 36 output masks, MobileSAM used 583 MiB portable and 584 MiB kernels, down from 1,509 and 1,510 MiB. Masks, scores and logits matched bit for bit. Paired latency was 39.6 to 41.2 ms portable and 38.2 to 39.7 ms kernels.",

@@ -6,7 +6,7 @@ licence_notes = [
   "The authors state no weights licence; the checkpoints are fetched from the PINTO model-zoo mirror (a third-party host), not from Google, and the code licence is assumed to cover them.",
 ]
 outputs = ["disparity"]
-uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "CUDA output (float16, kernels, float32 with PyTorch's default TF32 convolutions) differs from the CPU by ~0.2 px mean / 4 px p99 at 720x1280: the argmin flips on near-equal tile costs. Full float32 (`torch.backends.cudnn.allow_tf32 = False`) matches the CPU to 0.00002 px.",
   "The weights are the authors' frozen TensorFlow graphs read without TensorFlow; the FlyingThings and Middlebury d160 / d288 graphs are not included.",

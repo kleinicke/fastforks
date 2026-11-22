@@ -3,7 +3,7 @@ name = "SEA-RAFT"
 summary = "SEA-RAFT (Wang, Lipson & Deng 2024): RAFT with ResNet encoders, an initial flow regressed from the context features and a ConvNeXt update block, so 4 iterations suffice; correlation pyramid at 1/8 resolution, convex upsampling. The authors' released weights (pretrained on TartanAir); the network is ported from princeton-vl/SEA-RAFT. `sea-raft-m` / `sea-raft-s` are the general checkpoints (trained on the FlyingThings3D, Sintel, KITTI and HD1K mix); the `-spring` variants are made for 1080p footage and work at half resolution, as upstream evaluates them: the pair is halved (bilinear), the flow is upsampled and doubled. Paper (zero-shot after FlyingChairs + FlyingThings, the C-T weights): KITTI 2015 train EPE 4.29 / Fl-all 14.2 % (M), Sintel train EPE 1.21 clean / 4.04 final (M); M with 12 iterations (`iters=12`) is the paper's SEA-RAFT (L)."
 tier = "stable"
 outputs = ["flow"]
-uses = []  # fastforks.shared modules this family imports
+uses = ["mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/princeton-vl/SEA-RAFT"

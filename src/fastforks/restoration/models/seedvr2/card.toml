@@ -3,7 +3,7 @@ name = "SeedVR2"
 summary = "SeedVR2 (Wang et al., ByteDance Seed 2025): one-step video restoration and super-resolution by a diffusion transformer (NaDiT, adversarially post-trained) on the latents of a causal 3-D VAE. `seedvr2-3b` and `seedvr2-7b` are the 3 B and 7 B transformers (same VAE); frames are restored one at a time."
 tier = "experimental"
 outputs = ["image"]
-uses = ["host_blocks", "nf4"]  # fastforks.shared modules this family imports (NF4 weights, host-streamed blocks)
+uses = ["host_blocks", "nf4", "mlx_weights"]  # fastforks.shared modules this family imports (NF4 weights, host-streamed blocks)
 limitations = [
   "Generative restoration: the output depends on `seed` (one CPU generator draws the VAE posterior noise and the diffusion noise, upstream's default 666); other seeds give other plausible details.",
   "One frame per call: the clip mode of the original (temporal attention over 4n + 1 frames) is not used by this image API.",

@@ -3,6 +3,7 @@ name = "GFPGAN"
 summary = "GFPGAN v1.4 (Wang et al., CVPR 2021): blind face restoration with a generative facial prior: a U-Net encoder whose features modulate (spatial feature transform) a pretrained StyleGAN2 face generator. Input: an aligned 512 x 512 face crop (FFHQ alignment); detecting, aligning and pasting the face back are not part of the model."
 tier = "experimental"
 outputs = ["image"]
+uses = ["mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = ["The labeled comparison reports PSNR and SSIM on DAEFR's paired 512 x 512 CelebA-Test face crops."]
 
 [upstream]

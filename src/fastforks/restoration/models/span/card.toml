@@ -3,6 +3,7 @@ name = "SPAN"
 summary = "SPAN (Wan et al., CVPRW 2024; NTIRE 2024 efficient super-resolution winner): a small bicubic super-resolution network (about 0.4 M parameters at inference) of six parameter-free attention blocks (re-parameterised 3 x 3 convs, attention = sigmoid(features) - 0.5) and a pixel-shuffle upsampler, trained for PSNR. `span-x4` and `span-x2` are the 48-channel release models."
 tier = "experimental"
 outputs = ["image"]
+uses = ["mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/hongyuanyu/SPAN"

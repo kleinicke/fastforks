@@ -3,7 +3,7 @@ name = "RAFT"
 summary = "RAFT (Teed & Deng 2020): all-pairs correlation pyramid at 1/8 resolution and a ConvGRU that refines the flow in 12 iterations, upsampled with a learned convex mask (raft-small: bilinear). torchvision's V2 weights (trained from scratch with its optical-flow reference recipe); the network is ported from torchvision (no torchvision dependency)."
 tier = "stable"
 outputs = ["flow"]
-uses = []  # fastforks.shared modules this family imports
+uses = ["mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/pytorch/vision"

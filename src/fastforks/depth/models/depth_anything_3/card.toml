@@ -3,7 +3,7 @@ name = "Depth Anything 3"
 summary = "Depth Anything 3 (Lin et al. 2025, ByteDance): monocular depth from a DINOv2 ViT with DPT heads; relative (Mono), metric (Metric), any-view depth with camera (Large, Giant) and Giant aligned to Metric (Nested)."
 tier = "stable"
 outputs = ["depth", "confidence", "intrinsics", "mask", "sky"]  # union; each variant lists its own
-uses = ["cv2_resize", "depth_anything_v2", "host_blocks", "quantile", "rope2d"]  # shared modules imported directly by this family
+uses = ["cv2_resize", "depth_anything_v2", "host_blocks", "quantile", "rope2d", "mlx_graph", "mlx_wrap"]  # shared modules imported directly by this family
 
 limitations = ["On CUDA, stream=True keeps transformer weights in pinned host RAM. Two GPU buffers per backbone hold successive blocks. The heads and activations stay resident. Export requires stream=False."]
 

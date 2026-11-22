@@ -3,7 +3,7 @@ name = "U²-Net"
 summary = "U²-Net (Qin et al., Pattern Recognition 2020): salient object detection with a two-level nested U-structure: six residual U-blocks (RSU) in the encoder, five in the decoder, a fused sigmoid map at 320 x 320. rembg's default background remover. `u2net` / `u2netp` (1.1 M parameters) are the DUTS-TR salient object models, `u2net-human-seg` the human segmentation model (Supervisely Person Dataset)."
 tier = "experimental"
 outputs = ["alpha"]
-uses = ["cnn_kernels", "cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/xuebinqin/U-2-Net"

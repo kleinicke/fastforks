@@ -2,7 +2,7 @@ schema = 2
 name = "RF-DETR Keypoint"
 summary = "Roboflow RF-DETR Keypoint Preview: a DINOv2-small backbone with windowed attention and a deformable transformer decoder that predicts people and 17 COCO joints directly from the whole image. The 40.7M-parameter Apache-2.0 preview uses 576 x 576 square inputs and conditional keypoint queries. Person confidence includes the upstream localization-uncertainty fusion; joint confidence is findability. No person detector, boxes or NMS are required."
 tier = "stable"
-uses = ["rfdetr", "cuda_graphs"]
+uses = ["rfdetr", "cuda_graphs", "mlx_wrap"]
 outputs = ["keypoints", "keypoint_scores", "boxes", "scores"]
 limitations = ["Requires the optional transformers and torchvision libraries.", "This is the Apache-2.0 Keypoint Preview checkpoint; restricted RF-DETR Plus detection variants are not included.", "module() exports raw boxes, class logits and keypoint predictions; confidence fusion and thresholding remain outside the exported graph.", "Float16 and float32 may retain different people near the score threshold; raw query ordering can differ across export engines.", "torch.compile uses upstream positional-interpolation graph breaks; fullgraph=True is unsupported. Fixed-shape torch.export and ONNX remain supported."]
 

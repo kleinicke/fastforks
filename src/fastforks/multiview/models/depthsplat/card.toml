@@ -2,7 +2,7 @@ schema = 2
 name = "DepthSplat"
 summary = "DepthSplat (Xu et al. 2025): feed-forward 3D Gaussian splatting and depth from posed, calibrated images. A multi-view cost volume (UniMatch transformer, 2D U-Net) fused with a monocular DINOv2 ViT-S predicts every view's depth; a DPT feature upsampler and a Gaussian head predict one Gaussian per pixel (opacity, scale, rotation, degree-2 SH) in the given world frame (`result.gaussians`, `.save(\"scene.ply\")`). Forward pass only: no renderer."
 tier = "experimental"
-uses = ["depth_anything_v2"]  # shared modules imported directly by this family (DINOv2)
+uses = ["depth_anything_v2", "mlx_wrap"]  # shared modules imported directly by this family (DINOv2)
 outputs = ["depth", "confidence", "gaussians"]  # confidence: largest match probability over the depth candidates; gaussians: MultiViewResult.gaussians (not a map)
 
 licence_notes = [

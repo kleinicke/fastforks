@@ -3,7 +3,7 @@ name = "Video Depth Anything"
 summary = "Video Depth Anything (Chen et al., CVPR 2025): temporally consistent depth of long videos from the Depth Anything V2 encoder and a DPT head with temporal attention, run in overlapping 32-frame windows; relative (Small) and metric (Metric Small) checkpoints."
 tier = "experimental"
 outputs = ["inverse_depth", "depth"]  # union; each variant lists its own
-uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports
+uses = ["depth_anything_v2", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 licence_notes = [
   "Only the Small checkpoints (relative and metric) are Apache-2.0; the Base and Large checkpoints are CC-BY-NC-4.0 and not included.",

@@ -3,7 +3,7 @@ name = "DLNR"
 summary = "DLNR (Zhao et al. 2023): Restormer channel-attention feature extractor, a RAFT-Stereo style 1-D correlation pyramid and 3-level LSTM updates with normalization refinement, 10 iterations."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/David-Zhao-1997/High-frequency-Stereo-Matching-Network"

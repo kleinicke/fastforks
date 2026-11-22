@@ -3,7 +3,7 @@ name = "MoGe"
 summary = "MoGe-2 / MoGe-3 (Wang et al., Microsoft): monocular metric geometry; a DINOv2 ViT with conv heads predicts an affine point map, a validity mask, normals and a metric scale, and the focal length and shift are recovered from the points (MoGe-3 adds a sparse 3-D refiner)."
 tier = "stable"
 outputs = ["depth", "points", "intrinsics", "mask", "normals"]  # intrinsics: the camera of the points (given ones: only fx is used; fy != fx or an off-centre principal point raise); normals: option `normals`
-uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports
+uses = ["depth_anything_v2", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "MoGe-3 compiles the dense network and leaves sparse voxel refinement eager. Its 100-image iBims-1 comparison used the default CUDA float16 mode.",
   "At 994 x 1482, MoGe-2 Small and Base and MoGe-3 use a synthetic image for portable timings and Middlebury Motorcycle for the original timings. The MoGe-3 compile run uses the same synthetic image as portable. MoGe-2 Large uses Motorcycle for both portable and original timings.",

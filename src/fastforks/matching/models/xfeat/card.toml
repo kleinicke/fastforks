@@ -3,7 +3,7 @@ name = "XFeat"
 summary = "XFeat (Potje et al., CVPR 2024): lightweight sparse feature matching. A small CNN finds up to 4096 keypoints per image with 64-dimensional descriptors; they are matched as mutual nearest neighbours or with LighterGlue, a smaller LightGlue trained for XFeat. Returns both keypoint sets, the index pairs of the matches and their confidence."
 tier = "experimental"
 outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
-uses = ["cuda_graphs", "lightglue"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "lightglue", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.",
   "One image pair per call internally (batches run pair by pair); the keypoint counts differ per image.",

@@ -3,7 +3,7 @@ name = "RT-MonSter++"
 summary = "RT-MonSter++ (Cheng et al. 2025), the real-time MonSter++: Depth Anything V2 (ViT-S) monocular branch + coarse-to-fine (1/16, 1/8, 1/4) local geometry volumes, stereo and mono ConvGRUs, 4 updates."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels", "cuda_graphs", "depth_anything_v2", "monster_fit"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs", "depth_anything_v2", "monster_fit", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 limitations = [
   "Kernels at 994 x 1482 peak 2631 MB (reserved 3436) vs 2581 MB (2658) portable and 2922 MB original, 21 % faster than portable; the difference is cached CUDA-graph / cuDNN workspace blocks.",

@@ -94,6 +94,12 @@ class Portable(Runner):
     Params = Params
     suppress = staticmethod(nms)
     needs_boxes: ClassVar[bool] = False
+    compiled_methods = ("__call__", "estimate_batch")
+    batch = None
+    # images x H x W per network call (`estimate_batch`): launch bound (RTX 5060 Ti, Windows, fp16,
+    # 8 frames 480 x 640, ms per frame:
+    # yunet-n 5.5 -> 2.6 (kernels 2.7 -> 1.8), yunet-s 5.0 -> 2.5 (2.6 -> 1.7)); 1080p runs one image per call
+    batch_pixels = 2_100_000
 
     def __init__(self, ctx: Context) -> None:
         """Build the network with the checkpoint (heads merged) and optimise it for the mode."""
@@ -117,6 +123,16 @@ class Portable(Runner):
         a: Params = self.ctx.params
         return faces(self.dense(image), a.score_threshold, a.nms_iou, self.suppress)
 
+    def estimate_batch(self, images: torch.Tensor, boxes: list[torch.Tensor]) -> list[dict[str, torch.Tensor]]:
+        """The faces of each image of `[B, 3, H, W]`: one network call, decoded per image."""
+        assert all(b is None for b in boxes)  # noqa: S101 - one-stage: the task API passes no boxes
+        a: Params = self.ctx.params
+        dense = self.dense(images)
+        return [
+            faces(tuple(t[i : i + 1] for t in dense), a.score_threshold, a.nms_iou, self.suppress)
+            for i in range(images.shape[0])
+        ]
+
     def module(self) -> torch.nn.Module:
         """The network: images `[B, 3, H, W]` RGB in [0, 1] -> the stride 8 / 16 / 32 head maps."""
 
@@ -132,8 +148,14 @@ class Kernels(Portable):
     suppress = staticmethod(box_nms.indices)
 
 
+class _OneImage(Portable):
+    """Portable for the MLX port: one image per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": mlx_wrap.port(_OneImage),
 }
