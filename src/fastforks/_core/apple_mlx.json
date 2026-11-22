@@ -941,7 +941,7 @@
    ],
    "dtypes": {
     "float16": "portable",
-    "float32": "kernels"
+    "float32": "portable"
    },
    "mlx_default": [
     "portable",
@@ -949,7 +949,7 @@
    ],
    "mlx": {
     "float16": "portable",
-    "float32": "kernels"
+    "float32": "portable"
    }
   },
   "depth-anything-v2-metric-vkitti-s@1": {
