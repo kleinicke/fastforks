@@ -38,7 +38,7 @@ fine_size = { default = 864, min = 0 }  # square side of the upsampling pass (up
 [modes.portable]
 cuda_dtype = "float16"  # as upstream: DINOv2 in fp16 weights, the VGG, the projections, the transformer classifier and the refiner blocks under fp16 autocast (upstream enables it on CUDA for every region); Gaussian process, refiner outputs and warps float32
 mps_dtypes = ["float32"]
-mlx_dtypes = ["float32"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 dtype = "float16"  # as portable
