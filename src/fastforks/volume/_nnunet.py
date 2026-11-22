@@ -25,6 +25,7 @@ from torch import nn
 
 from fastforks._core.errors import InputError, WeightsError
 from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.upload import to_device
 from fastforks.volume import _resample
 
 if TYPE_CHECKING:
@@ -483,11 +484,11 @@ def gaussian(patch: Sequence[int], device: torch.device, dtype: torch.dtype = to
         w /= w.sum()
         axes.append(torch.where(x.abs() <= radius, w[(x + radius).clamp(0, 2 * radius).long()], 0.0))
     g = axes[0][:, None, None] * axes[1][None, :, None] * axes[2][None, None, :]
-    g = (g / (g.max() / 10)).to(device, dtype)
+    g = (g / (g.max() / 10)).to(dtype)  # cast and zero fix on the CPU: on the device each was a host sync
     zero = g == 0
     if zero.any():
         g[zero] = g[~zero].min()
-    return g
+    return to_device(g, device)
 
 
 def sliding_steps(size: Sequence[int], patch: Sequence[int], step: float) -> list[list[int]]:
@@ -503,13 +504,19 @@ def sliding_steps(size: Sequence[int], patch: Sequence[int], step: float) -> lis
     return out
 
 
+def nonzero_extent(nz: torch.Tensor) -> list[tuple[int, int] | None]:
+    """Per axis of a mask, `(first, last + 1)` of its nonzero entries (`None`: none), with one host sync."""
+    rows = []
+    for d in range(nz.dim()):
+        hit = nz.any(dim=tuple(a for a in range(nz.dim()) if a != d)).to(torch.uint8)
+        # whether there is a nonzero entry, the first and the last one (argmax gives the first maximum)
+        rows.append(torch.stack((hit.amax().long(), hit.argmax(), hit.numel() - hit.flip(0).argmax())))
+    return [(i, j) if any_ else None for any_, i, j in torch.stack(rows).tolist()]
+
+
 def _bbox(nz: torch.Tensor) -> tuple[slice, ...]:
     """nnU-Net's `crop_to_nonzero` box of a nonzero mask (all of the volume if it is empty)."""
-    out = []
-    for d in range(nz.dim()):
-        hit = nz.any(dim=tuple(a for a in range(nz.dim()) if a != d)).nonzero()
-        out.append(slice(int(hit[0]), int(hit[-1]) + 1) if hit.numel() else slice(0, nz.shape[d]))
-    return tuple(out)
+    return tuple(slice(*e) if e else slice(0, n) for e, n in zip(nonzero_extent(nz), nz.shape, strict=True))
 
 
 def _normalise(x: torch.Tensor, norms: Sequence[Norm], mask: torch.Tensor | None) -> torch.Tensor:
