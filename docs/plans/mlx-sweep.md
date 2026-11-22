@@ -2806,3 +2806,41 @@ Investigated, not changed:
 
 Route: no change (MLX stays 1.34x slower than MPS). Goldens: test_mlx for cotracker3-online, plus nafnet-gopro,
 wd-vit-tagger-v3, c-fast-foundationstereo, tapnext, tapnext-pp (mlx_graph change) pass; survey goldens pass.
+
+### nnU-Net glue: TotalSegmentator sliding-window merge (MLX)
+
+ms / peak footprint MB / first call s (survey, second run):
+
+| ref | dtype | MLX before | MLX after | MPS |
+| --- | --- | --- | --- | --- |
+| totalsegmentator-total-3mm | fp16 | 1111 / 4730 / 3.8 | 740 (min 731) / 3246 / 1.9 | 522 / 2588 |
+| totalsegmentator-total-3mm | fp32 | 1208 / 4834 / 4.3 | 828 (min 811) / 3031 / 2.2 | 593 / 4385 |
+| totalsegmentator-total | fp16 | 31549 / 5163 / 52.7 | 33946 (min 33703) / 3416 / 38.1 | 23070 / 6058 |
+| totalsegmentator-total | fp32 | 43030 / 5924 / 58.1 | 42521 (min 41505) / 4198 / 47.6 | 27804 / 10180 |
+
+Profile (3mm, fp16, 200^3, one call): MLX 1138 ms, of which the window networks (`_logits`) 615, the CPU adds of
+the Gaussian-weighted window logits into the float16 sums about 330, and the argmax (upload of the sums to MLX) 155.
+MPS 629 ms: networks 501, merge and argmax on the GPU. Preprocessing and resampling are under 5 ms on both (the
+bench volume is already at the plan spacing; the resampled path is the same PyTorch code on both backends).
+
+Change: `MlxPredictor._accumulate` keeps the window logits, the float16 ring buffer of sums (`[heads, patch depth,
+H, W]`) and the argmax on MLX when there is one fold network, no mirroring, argmax labels and a plain `net(x)`
+forward (TotalSegmentator's tasks). The rounding is `Predictor`'s (float32 logits times the float16 Gaussian, added to
+the float16 sums in float32, rounded to float16), so the labels are bit-identical to the CPU merge. The 118-head
+float32 window logits no longer come back to the CPU, which is the memory saving. Other cases (several folds,
+mirroring, regions, resampled logits) keep the CPU merge.
+
+On totalsegmentator-total (1.5 mm, 8x more windows) the merge is a small share of the call: peak memory drops by
+about 1.7 GB, fp32 is unchanged within noise (-1 %), fp16 is 7 % slower in this run (33.9 s vs 31.5 s; the first
+call is 14.5 s faster). The fp16 difference is network-dominated and was not re-measured within the time box; a
+later quiet-machine re-run should confirm or refute it.
+
+Investigated, not changed:
+
+- **The rest of the gap is the network.** 3mm `_logits` is 615 ms on MLX vs 501 on MPS; 3D conv lowering is the
+  next target, not the glue.
+- **MPS**: no transfer. The MPS merge already runs on the GPU in the same PyTorch code.
+- **nnfoundation, nninteractive**: they port the whole runner (`mlx_wrap.port(Portable)`), not `MlxPredictor`, so they
+  keep their merge.
+
+Route: no change (MLX stays slower than MPS on both refs). Goldens: test_mlx for totalsegmentator-total-3mm and totalsegmentator-total pass; survey goldens pass.
