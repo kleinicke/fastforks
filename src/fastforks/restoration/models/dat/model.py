@@ -331,6 +331,10 @@ class Portable(Runner):
         if mlx_wrap.run_dtype(ctx) == "float16":
             _scale_last_group(self.net)
         self.net.to(ctx.device, getattr(torch, ctx.dtype))
+        if ctx.device.type == "cuda" and ctx.dtype == "float16":
+            # channels-last weights: cuDNN's fp16 convolutions skip the NCHW<->NHWC conversion around each conv
+            # (256x256 x4 dat-light peak 251 -> 195 MB, same speed; RTX 5060 Ti, Windows)
+            self.net.to(memory_format=torch.channels_last)
 
     def pad(self, x: torch.Tensor) -> tuple[torch.Tensor, Crop]:
         """No padding: the network pads its window attention itself (`dat_model.py` test: `net_g(img)`)."""
