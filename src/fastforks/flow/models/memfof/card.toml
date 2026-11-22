@@ -38,7 +38,7 @@ scale = 0  # upstream get_val_scale: the frames are resized by 2^scale (bilinear
 [modes.portable]
 cuda_dtype = "float16"  # autocast for the encoders and the update block; correlation, lookup and upsampling in float32
 mps_dtypes = ["float32"]
-mlx_dtypes = ["float32"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["raft_flow", "flow_upsample"]  # the correlation windows on the fly (four levels, 1024 channels, radius 4) instead of the all-pairs volumes; the network stays the portable fp16 one

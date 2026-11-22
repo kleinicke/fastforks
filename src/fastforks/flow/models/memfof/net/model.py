@@ -12,6 +12,8 @@ from .layer import conv3x3
 from .update import GMAUpdateBlock
 from .utils import InputPadder, coords_grid
 
+from fastforks._core.mlx_cast import to_float32  # fastforks: float32 islands that survive a float16 MLX replay
+
 
 AVAILABLE_MODELS = [
     "MEMFOF-Tartan",
@@ -314,8 +316,8 @@ class MEMFOF(nn.Module):  # fastforks: no PyTorchModelHubMixin
             flow_update = self.flow_head(net)
             fmap1_16x = self.fnet(image1)
             fmap3_16x = self.fnet(image2)
-        flow_16x_21 = flow_update[:, 0:2].float()
-        flow_16x_23 = flow_update[:, 6:8].float()
+        flow_16x_21 = to_float32(flow_update[:, 0:2])
+        flow_16x_23 = to_float32(flow_update[:, 6:8])
         if corr_fn is None:
             def corr_fn(f1, f2):
                 return CorrBlock(f1.float(), f2.float(), self.corr_levels, self.corr_radius)
@@ -333,14 +335,14 @@ class MEMFOF(nn.Module):  # fastforks: no PyTorchModelHubMixin
                 net = self.update_block.refine_motion(net, context, motion_features, attention)
                 del motion_features
                 flow_update = self.flow_head(net)
-            flow_16x_21 = flow_16x_21 + flow_update[:, 0:2].float()
-            flow_16x_23 = flow_16x_23 + flow_update[:, 6:8].float()
+            flow_16x_21 = flow_16x_21 + to_float32(flow_update[:, 0:2])
+            flow_16x_23 = flow_16x_23 + to_float32(flow_update[:, 6:8])
         del corr_fn_21, corr_fn_23, attention, context, grid
         with torch.autocast("cuda", torch.float16, enabled=fp16):
             weight_update = 0.25 * self.upsample_weight(net)
         if upsample_flow is not None:
             # FastForks: the pair API returns only forward flow. Its head holds only that mask.
             return upsample_flow(flow_16x_23, weight_update, 16)
-        info = flow_update[:, 8:12].float()
-        flow, _ = self._upsample_data(flow_16x_23, info, weight_update[:, 16 * 16 * 9 :].float())
+        info = to_float32(flow_update[:, 8:12])
+        flow, _ = self._upsample_data(flow_16x_23, info, to_float32(weight_update[:, 16 * 16 * 9 :]))
         return flow
