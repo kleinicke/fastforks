@@ -172,8 +172,11 @@ class Portable(Runner):
         net.load_state_dict(ctx.state_dict())
         if ctx.device.type == "cuda" and self.dtype == torch.float16:
             override(net.block_cat, _fuse_heads)
-        # NCHW: channels-last measured 15-25 % slower and +20 % memory at 1024 px (RTX 5060 Ti)
         self.net = net.eval().to(ctx.device, self.dtype)
+        if ctx.device.type == "cuda" and self.dtype == torch.float16:
+            # channels-last weights: cuDNN's fp16 kernels skip the NCHW<->NHWC conversions; with the fused heads
+            # 5-7 % faster from 512 px to 4K, same memory (1080p kernels 35.4 -> 33.1 ms, RTX 5060 Ti, Windows)
+            self.net.to(memory_format=torch.channels_last)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """AnyLine map `[B, H, W]` of `[B, 3, H, W]` RGB in `[0, 1]`."""
