@@ -87,6 +87,7 @@ class XFeat(nn.Module):
 		mkpts = mkpts * scale.view(1, 1, -1)
 
 		valid = scores > 0
+		valid = [valid[b].nonzero()[:, 0] for b in range(B)]  # fastforks: as indices, one host sync per image, not three
 		return [  
 				   {'keypoints': mkpts[b][valid[b]],
 					'scores': scores[b][valid[b]],
