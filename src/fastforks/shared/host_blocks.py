@@ -11,17 +11,22 @@ memory stays at the first call's.
 
 from __future__ import annotations
 
+import ctypes
 import functools
 import itertools
+import logging
+import sys
 import threading
 import weakref
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import torch
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator
 
+log = logging.getLogger("fastforks")
 ALIGN = 256  # bytes: start of every tensor in the packed buffers
 
 
@@ -30,7 +35,9 @@ def _up(n: int) -> int:
 
 
 def available_host_bytes() -> int | None:
-    """Host RAM available without swapping (Linux `MemAvailable`); None where it cannot be read."""
+    """Host RAM available without swapping (Linux `MemAvailable`, Windows `ullAvailPhys`); None where unreadable."""
+    if sys.platform == "win32":
+        return _windows_available()
     try:
         with open("/proc/meminfo", encoding="ascii") as f:  # noqa: PTH123
             for line in f:
@@ -39,6 +46,22 @@ def available_host_bytes() -> int | None:
     except (OSError, ValueError):
         pass
     return None
+
+
+def _windows_available() -> int | None:
+    class _Status(ctypes.Structure):
+        _fields_: ClassVar = [
+            ("dwLength", ctypes.c_ulong),
+            ("dwMemoryLoad", ctypes.c_ulong),
+            *((name, ctypes.c_ulonglong) for name in ("total", "avail", "total_pf", "avail_pf", "total_v", "avail_v")),
+            ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+        ]
+
+    status = _Status()
+    status.dwLength = ctypes.sizeof(_Status)
+    kernel32 = getattr(ctypes, "windll").kernel32  # noqa: B009 - ctypes.windll exists only on Windows
+    ok = kernel32.GlobalMemoryStatusEx(ctypes.byref(status))
+    return int(status.avail) if ok else None
 
 
 def require_host_ram(need: int, what: str) -> None:
@@ -59,6 +82,58 @@ def require_host_ram(need: int, what: str) -> None:
 
 def _unregister(ptr: int) -> None:
     torch.cuda.cudart().cudaHostUnregister(ptr)
+
+
+def _register_prefix(ptr: int, ends: list[int]) -> int:
+    """Register `[ptr, ptr + ends[k])` for the largest `k` the OS allows (one registration); its size, 0 if none.
+
+    `ends`: the block ends, increasing. The whole buffer is tried first; the OS limits page-locked memory (Windows: to
+    about half of the RAM), so on failure the longest block prefix that registers is found by bisection.
+    """
+    cudart = torch.cuda.cudart()
+
+    def register(n: int) -> bool:
+        if int(cudart.cudaHostRegister(ptr, n, 0)) == 0:
+            return True
+        _clear_last_error()  # else the next CUDA call checked by torch (an allocation) raises this out-of-memory
+        return False
+
+    if register(ends[-1]):
+        return ends[-1]
+    lo, hi = 0, len(ends)  # block counts: a prefix of `hi` blocks fails, one of `lo` fits (0: nothing)
+    while hi - lo > 1:
+        mid = (lo + hi) // 2
+        if register(ends[mid - 1]):
+            cudart.cudaHostUnregister(ptr)
+            lo = mid
+        else:
+            hi = mid
+    if lo == 0 or not register(ends[lo - 1]):
+        return 0
+    return ends[lo - 1]
+
+
+@functools.cache
+def _runtime() -> ctypes.CDLL | None:
+    """The CUDA runtime library torch loaded (the same instance, hence the same error state); None if not found."""
+    if sys.platform == "win32":
+        found = sorted(str(p) for p in Path(torch.__file__).parent.glob("lib/cudart64_*.dll"))
+    else:
+        try:
+            maps = Path("/proc/self/maps").read_text(encoding="utf-8")
+        except OSError:
+            maps = ""
+        found = sorted({line.split()[-1] for line in maps.splitlines() if "/libcudart.so" in line})
+    return ctypes.CDLL(found[0]) if len(found) == 1 else None
+
+
+def _clear_last_error() -> None:
+    """Reset the CUDA runtime's last error (`cudaGetLastError`), which a failed `cudaHostRegister` leaves set."""
+    lib = _runtime()
+    if lib is None:
+        msg = "cudaHostRegister failed, and the CUDA runtime library to reset its error was not found"
+        raise RuntimeError(msg)
+    lib.cudaGetLastError()
 
 
 class HostBlocks:
@@ -89,10 +164,18 @@ class HostBlocks:
                 a = self.starts[i] + off
                 fill(k, self.buf[a : a + n].view(dt).view(shape))
         ptr = self.buf.data_ptr()
-        err = int(torch.cuda.cudart().cudaHostRegister(ptr, pos, 0))
-        if err != 0:
-            msg = f"cudaHostRegister of the {pos / 2**30:.1f} GiB block buffer failed (cudaError {err})"
+        self.pinned = _register_prefix(ptr, [*self.starts[1:], pos])
+        if self.pinned == 0:
+            msg = f"cudaHostRegister of the {pos / 2**30:.1f} GiB block buffer failed"
             raise RuntimeError(msg)
+        if self.pinned < pos:  # Windows page-locks at most about half of the RAM (15.1 GiB of 32 GB)
+            log.warning(
+                "the OS page-locked %.1f of the %.1f GiB of streamed blocks; the other blocks upload from pageable"
+                " memory, without overlapping the computation (slower). More RAM, or a smaller variant / NF4 where"
+                " the model offers one, keeps every block page-locked",
+                self.pinned / 2**30,
+                pos / 2**30,
+            )
         weakref.finalize(self, _unregister, ptr)  # before the buffer is freed (the finalizer runs first)
         self.dev: list[torch.Tensor] = []
         self.side: torch.cuda.Stream | None = None
