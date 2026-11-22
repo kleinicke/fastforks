@@ -80,7 +80,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/zhiyuandaily/Any2Full/blob/main/LICENSE and the Hugging Face model card zhiyuandaily/Any2Full (license: apache-2.0)
 - Training data: Training data and code not released yet (arXiv 2603.05711); the ViT and head start from Depth Anything V2
-- Options: `short_side` = 518 (>= 14)
+- Options: `short_side` = 518 (>= 14), `cuda_graphs` = True (speed only)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `any2full-s`, `any2full-b`, `any2full-l`
 - Outputs: depth; kind: `metric`

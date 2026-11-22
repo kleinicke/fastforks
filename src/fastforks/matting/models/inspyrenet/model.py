@@ -79,7 +79,7 @@ def _sica(m: SICA, x: torch.Tensor, smap: torch.Tensor, lmap: torch.Tensor | Non
 
 
 CTX_SCALE_ATTR = "_ff_ctx_scale"
-CTX_SCALE = 4096.0  # base checkpoint: context sums reach 1.6e5, the first key / value batch-norm variances 5.4e10
+CTX_SCALE = 4096.0  # fixed: float16 range; base checkpoint context sums reach 1.6e5, key / value BN variances 5.4e10
 
 
 @torch.no_grad()
