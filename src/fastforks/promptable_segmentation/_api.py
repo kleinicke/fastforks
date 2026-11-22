@@ -646,7 +646,7 @@ class PromptableSegmentationModel(core.Model):
                 msg = f"{name} must have {dims} (or {dims - 1}, without P) dims, got shape {tuple(t.shape)}"
                 raise InputError(msg)
             batched.add(t.ndim == dims)
-            out[name] = (t if t.ndim == dims else t[None]).to(self.device)
+            out[name] = _upload(t if t.ndim == dims else t[None], self.device)
         self._check_prompt_shapes(out, caller)
         points = out.get("input_points")
         if points is not None and points.shape[0] and not points.shape[1]:  # P prompts with no point each
@@ -858,6 +858,17 @@ def _exemplar_labels(labels: PromptLike, n: int) -> torch.Tensor:
         msg = "input_boxes_labels must be 1 (positive) or 0 (negative); pass only real boxes (no padding)"
         raise InputError(msg)
     return lab.long()
+
+
+def _upload(t: torch.Tensor, device: torch.device) -> torch.Tensor:
+    """`t` on `device`; a host tensor goes to a GPU through a fresh pinned copy, which does not wait for the stream.
+
+    A pageable copy (`t.to("cuda")`) is a host sync per prompt array; the pinned staging block is ours (the caller may
+    change `t` right away) and is reused only after the copy has run.
+    """
+    if device.type != "cuda" or t.device.type != "cpu":
+        return t.to(device)
+    return torch.empty(t.shape, dtype=t.dtype, pin_memory=True).copy_(t).to(device, non_blocking=True)
 
 
 def _check_points_in_image(prompts: dict[str, torch.Tensor], size: tuple[int, int]) -> None:

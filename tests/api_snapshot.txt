@@ -1000,6 +1000,7 @@ option pose.vitpose.fp32_accumulate
 option pose.vitpose.stream
 option pose.yunet.score_threshold
 option promptable_segmentation.clipseg.cuda_graphs
+option promptable_segmentation.sam2.cuda_graphs
 option promptable_segmentation.sam2.samurai
 option promptable_segmentation.sam3.cuda_graphs
 option promptable_segmentation.sam3.stream
