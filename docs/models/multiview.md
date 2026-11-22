@@ -102,7 +102,7 @@ Commercial use: yes.
 - Licence evidence: https://github.com/cvg/depthsplat/blob/2dad25a7b9ba7c5537aba08463ef88d8511a06be/LICENSE and https://github.com/cvg/depthsplat/blob/2dad25a7b9ba7c5537aba08463ef88d8511a06be/MODEL_ZOO.md and https://huggingface.co/haofeixu/depthsplat/tree/ed5116c11f7932fff3714989e2b65716730f6f87
 - Training data: RealEstate10K (camera trajectories of YouTube real-estate videos) (RealEstate10K (YouTube videos, camera poses from ORB-SLAM; research use per its release), from a UniMatch depth / Depth Anything V2 Small initialisation.)
 - Licence note: Only the Small RealEstate10K checkpoint is shipped: MIT code and weights, its monocular branch initialised from Depth Anything V2 Small (Apache-2.0). The Base / Large checkpoints build on Depth Anything V2 Base / Large (CC-BY-NC-4.0) and are not offered.
-- Options: `long_side` = 256 (>= 16)
+- Options: `long_side` = 256 (>= 16), `cuda_graphs` = True (speed only)
 - Kernel libraries: `fastbb`, `cudnn_hacc`, `depthsplat_corr`
 - Variants: `depthsplat-small-re10k`
 - Outputs: depth, confidence, gaussians; kind: `metric`
@@ -130,6 +130,10 @@ CPU, float32: max |diff| <= 1.6e-05 vs the original. GPU, float16 (the default),
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `depthsplat-small-re10k` | 0.00197 / 0.00898 | RTX 5060 Ti, torch 2.14.1+cu130 | `cudnn_hacc@cudnn92400`, `depthsplat_corr@041692f383aa:sm_120`, `fastbb@7d058322634d:sm_120` |
+
+### Limitations
+
+- Kernels keep a CUDA graph per input size: its private pool and static outputs stay reserved, ~120 MiB at the 336 x 518 survey input (968 vs 846 MiB peak reserved, peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
 

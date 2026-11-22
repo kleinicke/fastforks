@@ -40,6 +40,7 @@ from fastforks.kernels import depthsplat_corr
 from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, f64, invert, project_harmonics
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.depth_anything_v2 import use_fast_vit
 
 from .net.dpt_head import DPTHead
@@ -66,6 +67,7 @@ class Params:
     """Load options."""
 
     long_side: int  # network long side (both sides rounded to multiples of 16)
+    cuda_graphs: bool  # kernels: replay the whole forward from a CUDA graph per input shape
 
 
 def network_size(h: int, w: int, long_side: int) -> tuple[int, int]:
@@ -246,7 +248,7 @@ def gaussians(
     rays = rays[..., 0] / rays[..., 2:, 0]
     means = c2w[:, None, :3, 3] + (r @ rays[..., None])[..., 0] * depth.float().reshape(v, h * w, 1)
     c2w64 = f64(c2w)[:, :3, :3]
-    q = quaternion_product(matrix_quaternion(c2w64)[:, None], f64(rot[..., [3, 0, 1, 2]]))
+    q = quaternion_product(matrix_quaternion(c2w64)[:, None], f64(rot.roll(1, -1)))
     q = (q * torch.where(q[..., :1] < 0, -1.0, 1.0)).float()
     harmonics = sh @ sh_rotation(c2w64).float()[:, None].transpose(-1, -2)
     return {
@@ -424,13 +426,29 @@ class Kernels(_Base):
         if _hacc_convs(self.net) == 0:
             msg = "DepthSplat kernels: no conv routed through cudnn_hacc"
             raise RuntimeError(msg)
+        # about 2000 launches per call: WDDM's per-launch cost made Windows host-bound (wall 102 vs GPU 88 ms)
+        after = cudnn_hacc.capture_after()
+        self.graphs = GraphCache(self._eager, graphs=2, capture_after=after) if ctx.params.cuda_graphs else None
+
+    def _eager(
+        self, images: torch.Tensor, intrinsics: torch.Tensor, cam_to_world: torch.Tensor, depth_range: torch.Tensor
+    ) -> dict[str, torch.Tensor]:
+        with fp16_accumulate():
+            return super().forward(images, intrinsics, cam_to_world, depth_range)
 
     def forward(
         self, images: torch.Tensor, intrinsics: torch.Tensor, cam_to_world: torch.Tensor, depth_range: torch.Tensor
     ) -> dict[str, torch.Tensor]:
-        """`_Base.forward` with fp16-accumulate GEMMs."""
-        with fp16_accumulate():
-            return super().forward(images, intrinsics, cam_to_world, depth_range)
+        """`_Base.forward` with fp16-accumulate GEMMs, replayed from the input shapes' CUDA graph once captured."""
+        inputs = (images, intrinsics, cam_to_world, depth_range)
+        key = tuple((t.device, t.dtype, tuple(t.shape)) for t in inputs)
+        out = self.graphs.run(key, *inputs) if self.graphs is not None else None
+        return self._eager(*inputs) if out is None else out
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool."""
+        if self.graphs is not None:
+            self.graphs.release()
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": mlx_wrap.port(Portable)}

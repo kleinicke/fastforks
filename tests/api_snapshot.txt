@@ -974,6 +974,7 @@ option matting.matanyone.warmup aliases n_warmup
 option matting.u2net.cuda_graphs
 option multiview.anysplat.long_side
 option multiview.anysplat.voxel_size
+option multiview.depthsplat.cuda_graphs
 option multiview.depthsplat.long_side
 option multiview.lingbot_map.long_side
 option multiview.lingbot_map.scale_frames

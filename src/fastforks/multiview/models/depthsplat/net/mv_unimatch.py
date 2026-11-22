@@ -424,7 +424,7 @@ class MultiViewUniMatch(nn.Module):
                 )  # [BV]
 
                 linear_space = (
-                    torch.linspace(0, 1, num_depth_candidates)
+                    to_device(torch.linspace(0, 1, num_depth_candidates), features_list_cnn[0].device)  # fastforks: to_device (a pageable upload syncs the host)
                     .type_as(features_list_cnn[0])
                     .view(1, num_depth_candidates, 1, 1)
                 )  # [1, D, 1, 1]
@@ -453,7 +453,7 @@ class MultiViewUniMatch(nn.Module):
                 ).clamp(max=max_depth.view(-1, 1, 1, 1))
 
                 linear_space = (
-                    torch.linspace(0, 1, num_depth_candidates)
+                    to_device(torch.linspace(0, 1, num_depth_candidates), features_list_cnn[0].device)  # fastforks: to_device (a pageable upload syncs the host)
                     .type_as(features_list_cnn[0])
                     .view(1, num_depth_candidates, 1, 1)
                 )  # [1, D, 1, 1]
