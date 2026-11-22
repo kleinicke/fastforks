@@ -10,6 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .cotracker3_online import CoTrackerThreeBase, posenc
+from fastforks._core.upload import device_tensor  # fastforks
 
 # fastforks: upstream's import-time `torch.manual_seed(0)` removed (a library must not reseed the caller's RNG;
 # inference draws no random numbers).
@@ -96,7 +97,7 @@ class CoTrackerThreeOffline(CoTrackerThreeBase):
         fmaps = fmaps / torch.sqrt(
             torch.maximum(
                 torch.sum(torch.square(fmaps), axis=-1, keepdims=True),
-                torch.tensor(1e-12, device=fmaps.device),
+                device_tensor(1e-12, device=fmaps.device),  # fastforks: no host sync (a pageable upload syncs the host)
             )
         )
         fmaps = fmaps.permute(0, 3, 1, 2).reshape(
@@ -174,7 +175,7 @@ class CoTrackerThreeOffline(CoTrackerThreeBase):
                 rel_coords_backward, (0, 0, 0, 0, 1, 0)
             )
             scale = (
-                torch.tensor(
+                device_tensor(  # fastforks: no host sync (a pageable upload syncs the host)
                     [self.model_resolution[1], self.model_resolution[0]],
                     device=coords.device,
                 )

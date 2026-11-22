@@ -150,7 +150,7 @@ def _volume(volume: np.ndarray | torch.Tensor, channels: int, ref: str) -> torch
 
 def _check_intensities(x: torch.Tensor, ref: str) -> None:
     """NaN / inf are an error; a value range that cannot be Hounsfield units (CT) is logged once per call."""
-    lo, hi = (float(v) for v in torch.aminmax(x))
+    lo, hi = (float(v) for v in torch.stack(torch.aminmax(x)).tolist())  # one host sync, not one per value
     if not (math.isfinite(lo) and math.isfinite(hi)):
         msg = f"the volume has NaN or infinite voxels ({int((~torch.isfinite(x)).sum())}): fill or mask them first"
         raise InputError(msg)

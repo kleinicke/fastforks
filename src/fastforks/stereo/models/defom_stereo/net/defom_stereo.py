@@ -5,6 +5,7 @@ from .update import BasicMultiUpdateBlock, ScaleBasicMultiUpdateBlock
 from .extractor import BasicEncoder, MultiBasicEncoder, ResidualBlock, DefomEncoder
 from .corr import CorrBlock1D
 from .utils import coords_grid, upflow, get_danv2_io_size
+from fastforks._core.upload import to_device  # fastforks
 
 PORTABLE_SEQ_FNET_PIXELS = 1_000_000
 
@@ -46,7 +47,7 @@ class DEFOMStereo(nn.Module):
             = coords0[:, :1] - coords1[:, :1] """
         N, _, H, W = img.shape
 
-        coords = coords_grid(N, H, W)[:, :1].to(img.device)
+        coords = to_device(coords_grid(N, H, W)[:, :1].contiguous(), img.device)  # fastforks: no host sync (a pageable upload syncs the host)
 
         return coords
 

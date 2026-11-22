@@ -116,6 +116,9 @@ class Portable(_Scaled):
         if ctx.device.type == "cuda" and self.fp16:
             for block in self.net.update_block.refine:
                 override(block, _refine_in_rows)
+            # channels-last weights: cuDNN's fp16 kernels skip the NCHW<->NHWC conversion around each conv
+            # (375x1242 99.0 -> 84.0 ms, peak 695 -> 488 MB RTX 5060 Ti, Windows); float32 stays NCHW
+            self.net.to(memory_format=torch.channels_last)
 
     def _flow(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
         return self.net.forward_pair(image1, image2, self.ctx.params.iters, fp16=self.fp16)

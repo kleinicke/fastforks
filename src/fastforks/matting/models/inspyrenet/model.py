@@ -96,6 +96,7 @@ class Portable(Runner):
     """Upstream's modules in plain PyTorch, float32 or float16."""
 
     Params = Params
+    sdpa_auto = "efficient,cudnn,math"  # Swin window attention: cuDNN rebuilds per shape (`fastforks.shared.sdpa`)
     dtypes = ("float32", "float16")
 
     def __init__(self, ctx: Context) -> None:

@@ -83,9 +83,8 @@ class Portable(Runner):
         out = torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1) * device_tensor(
             [w, h, w, h], device=boxes.device, dtype=boxes.dtype
         )
-        keep = scores >= score_threshold
-        n = p.max_detections
-        return {"boxes": out[keep][:n], "scores": scores[keep][:n], "labels": labels[keep][:n]}
+        keep = (scores >= score_threshold).nonzero()[:, 0][: p.max_detections]  # one host sync for all three outputs
+        return {"boxes": out[keep], "scores": scores[keep], "labels": labels[keep]}
 
     def _forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         return self.net(x)

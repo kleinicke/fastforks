@@ -249,6 +249,10 @@ class Portable(Runner):
         load_strict(self.net, ctx.state_dict(), f"{ctx.variant.ref} checkpoint")
         override(self.net, _encode_image, "encode_image")
         self.net.eval().to(ctx.device)
+        if ctx.device.type == "cuda" and ctx.dtype == "float16":  # under autocast
+            # channels-last weights: cuDNN's fp16 kernels skip the NCHW<->NHWC conversion around each conv
+            # (1080p frame 911 -> 871 ms, peak 2274 -> 2090 MB, portable and kernels; RTX 5060 Ti, Windows)
+            self.net.to(memory_format=torch.channels_last)
 
     def networks(self) -> tuple[torch.nn.Module, ...]:
         """The one network (device adaptations, e.g. Apple MPS)."""

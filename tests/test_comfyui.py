@@ -175,6 +175,28 @@ def test_normals_node_turns_on_moges_normal_head(pack: Any, monkeypatch: pytest.
     assert [o for _, o in loaded] == [{"normals": True}, None]
 
 
+def test_batch_size_gives_the_per_image_outputs(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`batch_size` > 1 calls the model on chunks of the batch (last one shorter), outputs as one at a time."""
+    nodes = pack.nodes
+    shapes: list[tuple[int, ...]] = []
+
+    class Model:
+        device = torch.device("cpu")
+
+        def __call__(self, x: torch.Tensor) -> types.SimpleNamespace:
+            shapes.append(tuple(x.shape))
+            return types.SimpleNamespace(depth=None, inverse_depth=x.sum(-3))  # [H, W] or [B, H, W]
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: Model())
+    monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])
+    img = torch.rand(5, 4, 6, 3)
+    outs = [nodes.Depth().run(image=img, model="m", backend="auto", dtype="auto", batch_size=b)[0] for b in (1, 2, 5)]
+    assert shapes == [(3, 4, 6)] * 5 + [(2, 3, 4, 6), (2, 3, 4, 6), (1, 3, 4, 6), (5, 3, 4, 6)]
+    assert torch.equal(outs[0], outs[1])
+    assert torch.equal(outs[0], outs[2])
+    assert "batch_size" in nodes.Depth.INPUT_TYPES()["optional"]
+
+
 def test_errors_name_the_backend_input(pack: Any) -> None:
     """The library's `mode=` is the node's `backend` input: errors say so, keeping their type and other words."""
     import fastforks  # noqa: PLC0415

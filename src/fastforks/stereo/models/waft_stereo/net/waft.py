@@ -2,6 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from fastforks._core.upload import device_tensor  # fastforks
 
 from copy import deepcopy
 # fastforks: timm's Mlp is a small local copy (fastforks.shared.timm_blocks); the unused einops import is dropped; sibling modules are relative
@@ -43,8 +44,8 @@ class WAFT(nn.Module):
         @img: (B,C,H,W) in range 0-255, RGB order
         '''
         # fastforks: torchvision's Normalize written out (same arithmetic: (x - mean) / std)
-        mean = img.new_tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
-        std = img.new_tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
+        mean = device_tensor([0.485, 0.456, 0.406], device=img.device, dtype=img.dtype).view(1, 3, 1, 1)  # fastforks: no host sync (a pageable upload syncs the host)
+        std = device_tensor([0.229, 0.224, 0.225], device=img.device, dtype=img.dtype).view(1, 3, 1, 1)  # fastforks: no host sync (a pageable upload syncs the host)
         return ((img/255.0 - mean) / std).contiguous()
 
     def convex_upsample(self, info, mask):

@@ -174,6 +174,10 @@ class Portable(Runner):
             override(last, _rstb_scaled)
             self.net.norm.eps /= _LAST_SCALE**2  # LayerNorm(x / k, eps / k²) = LayerNorm(x, eps)
         self.net.eval().to(ctx.device, getattr(torch, ctx.dtype))
+        if ctx.device.type == "cuda" and ctx.dtype == "float16":
+            # channels-last weights: cuDNN's fp16 convolutions skip the NCHW<->NHWC conversion around each conv
+            # (256x256 x4 portable 167.3 -> 163.0 ms and 417 -> 368 MB, kernels unchanged; RTX 5060 Ti, Windows)
+            self.net.to(memory_format=torch.channels_last)
 
     def pad(self, x: torch.Tensor) -> tuple[torch.Tensor, Crop]:
         """`main_test_swinir.py`: mirror-pad bottom / right to `(size // window + 1) * window`."""

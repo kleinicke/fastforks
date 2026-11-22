@@ -3,6 +3,7 @@
 import torch
 import torch.nn.functional as F
 from .utils import bilinear_sampler
+from fastforks._core.upload import to_device  # fastforks
 
 
 class CorrBlock1D:
@@ -15,10 +16,10 @@ class CorrBlock1D:
         self.corr_pyramid = []
         self.coords_pyramid = []
         dx = torch.linspace(-radius, radius, 2*radius+1)
-        self.dx = dx[:, None].to(coords.device)
+        self.dx = to_device(dx[:, None], coords.device)  # fastforks: no host sync (a pageable upload syncs the host)
 
         sdx = torch.linspace(-scale_corr_radius, scale_corr_radius, 2*scale_corr_radius+1)
-        self.sdx = sdx[:, None].to(coords.device)
+        self.sdx = to_device(sdx[:, None], coords.device)  # fastforks: no host sync (a pageable upload syncs the host)
 
         # all pairs correlation
         corr = CorrBlock1D.corr(fmap1, fmap2)

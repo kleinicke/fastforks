@@ -107,7 +107,8 @@ class Portable(_HitnetRunner):
         return Forward(self.net, self._forward)
 
 
-_GRAPH_PIXELS = 500_000  # fixed: launch-bound up to KITTI 375x1242 (batch x H x W of the raw input), measured
+_GRAPH_PIXELS = 1_000_000  # fixed: batch x H x W of the raw input; launch-bound up to KITTI 375x1242, measured
+# Windows (RTX 5060 Ti, eager -> graph): 544x960 12.4 -> 8.7 ms, 720x1280 17.4 -> 14.9 ms (reserved 742 -> 518 MiB)
 _GRAPHS = 2  # fixed: graph cache policy
 
 

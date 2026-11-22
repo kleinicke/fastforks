@@ -11,6 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .model_utils import sample_features5d, bilinear_sampler
 from .embeddings import get_1d_sincos_pos_embed_from_grid
+from fastforks._core.upload import device_tensor  # fastforks
 
 from .blocks import Mlp, BasicEncoder
 from .cotracker import EfficientUpdateFormer
@@ -224,7 +225,7 @@ class CoTrackerThreeOnline(CoTrackerThreeBase):
             )
 
             scale = (
-                torch.tensor(
+                device_tensor(  # fastforks: no host sync (a pageable upload syncs the host)
                     [self.model_resolution[1], self.model_resolution[0]],
                     device=coords.device,
                 )
@@ -387,7 +388,7 @@ class CoTrackerThreeOnline(CoTrackerThreeBase):
         fmaps = fmaps / torch.sqrt(
             torch.maximum(
                 torch.sum(torch.square(fmaps), axis=-1, keepdims=True),
-                torch.tensor(1e-12, device=fmaps.device),
+                device_tensor(1e-12, device=fmaps.device),  # fastforks: no host sync (a pageable upload syncs the host)
             )
         )
         fmaps = fmaps.permute(0, 3, 1, 2).reshape(

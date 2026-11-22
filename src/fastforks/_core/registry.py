@@ -285,6 +285,25 @@ def resolve(task: str, model: str) -> tuple[ModelCard, Variant]:
     return entry
 
 
+def known(task: str, model: object) -> bool:
+    """Whether `task` has the id of `model` (`"id"` or `"id@revision"`), without building `resolve`'s error."""
+    if not isinstance(model, str):
+        return False
+    model_id = model.partition("@")[0]
+    # a card declares its ids as literal strings: a task none of whose card texts holds the id cannot know it, and
+    # is answered without parsing its cards or importing its models package (top-level load asks every task)
+    text = _card_text(task)
+    return (text is None or model_id.lower() in text) and _lookup(task, model_id) is not None
+
+
+@functools.cache
+def _card_text(task: str) -> str | None:
+    root = Path(__file__).resolve().parents[1] / task / "models"
+    if not root.is_dir():  # not installed as files (e.g. zipped): no shortcut
+        return None
+    return "\0".join(f.read_text(encoding="utf-8").lower() for f in sorted(root.glob("*/card.toml")))
+
+
 def _split(model: object) -> tuple[str, str, str]:
     """`(id, "@", revision)` of an id string (`model.partition("@")`); a non-string is a `ModelNotFoundError`."""
     if not isinstance(model, str):

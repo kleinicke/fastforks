@@ -39,12 +39,31 @@ _COLOURS = [  # OpenPose-like limb colours
 ]
 
 
+def upload(x: torch.Tensor, device: torch.device) -> torch.Tensor:
+    """`x` on `device` as float32; CPU -> CUDA through pinned memory, asynchronously.
+
+    A pageable upload waits for the copy, which empties the GPU's launch queue per image (costly under Windows'
+    WDDM). Plain torch, not `fastforks._core.upload`: the pack also runs with an older fastforks.
+    """
+    if x.device.type == "cpu" and torch.device(device).type == "cuda":
+        x = x.pin_memory().to(device, non_blocking=True)
+    return x.to(device=device, dtype=torch.float32)
+
+
 def frame(image: torch.Tensor, i: int, device: torch.device) -> torch.Tensor:
     """Image `i` of a ComfyUI IMAGE batch as a fastforks input `[3, H, W]` on `device` (alpha dropped, gray to RGB)."""
-    x = image[i].to(device=device, dtype=torch.float32)
+    x = upload(image[i], device)
     if x.shape[-1] == 1:
         x = x.expand(-1, -1, _RGB)
     return x[..., :_RGB].permute(2, 0, 1)
+
+
+def frames(image: torch.Tensor, start: int, stop: int, device: torch.device) -> torch.Tensor:
+    """Images `start:stop` of a ComfyUI IMAGE batch as one fastforks batch `[B, 3, H, W]` on `device` (as `frame`)."""
+    x = upload(image[start:stop], device)
+    if x.shape[-1] == 1:
+        x = x.expand(-1, -1, -1, _RGB)
+    return x[..., :_RGB].permute(0, 3, 1, 2)
 
 
 def to_image(maps: Sequence[torch.Tensor], device: torch.device | str = "cpu") -> torch.Tensor:

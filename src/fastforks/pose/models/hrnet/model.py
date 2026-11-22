@@ -79,6 +79,10 @@ class Portable(Runner):
         net = HRNet(a)
         net.load_state_dict(convert(ctx.state_dict(key="state_dict", strip="", extra=extra())))
         self.net = net.eval().to(ctx.device, ctx.torch_dtype)
+        if ctx.device.type == "cuda" and ctx.dtype == "float16":
+            # channels-last weights: cuDNN's fp16 kernels skip the NCHW<->NHWC conversion around each conv
+            # (w32, 15 people at 1080p 45.4 -> 37.2 ms, RTX 5060 Ti, Windows); float32 stays NCHW
+            self.net.to(memory_format=torch.channels_last)
         self.mean = torch.tensor(MEAN, device=ctx.device).view(1, 3, 1, 1)
         self.std = torch.tensor(STD, device=ctx.device).view(1, 3, 1, 1)
         self.flip = torch.tensor(FLIP[ctx.variant.output_info["label_set"]], device=ctx.device)

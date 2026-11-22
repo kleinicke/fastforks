@@ -213,6 +213,10 @@ class Portable(Runner):
             override(last, _rhag_scaled)
             self.net.norm.eps /= _LAST_SCALE**2  # LayerNorm(x / k, eps / k²) = LayerNorm(x, eps)
         self.net.eval().to(ctx.device, getattr(torch, ctx.dtype))
+        if ctx.device.type == "cuda" and ctx.dtype == "float16":
+            # channels-last weights: cuDNN's fp16 convolutions skip the NCHW<->NHWC conversion around each conv
+            # (256x256 x4 portable peak 477 -> 385 MB, kernels 419 -> 385 MB, same speed; RTX 5060 Ti, Windows)
+            self.net.to(memory_format=torch.channels_last)
 
     def pad(self, x: torch.Tensor) -> tuple[torch.Tensor, Crop]:
         """`HATModel.pre_process`: reflect-pad bottom / right to a multiple of the window."""

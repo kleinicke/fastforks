@@ -217,6 +217,10 @@ class Portable(Runner):
         del self.net.mean
         self.net.register_buffer("mean", mean, persistent=False)
         self.net.eval().to(ctx.device, getattr(torch, ctx.dtype))
+        if ctx.device.type == "cuda" and ctx.dtype == "float16":
+            # channels-last weights: cuDNN's fp16 convolutions skip the NCHW<->NHWC conversion around each conv
+            # (256x256 x4 peak portable 620 -> 596 MB, kernels 495 -> 471 MB, same speed; RTX 5060 Ti, Windows)
+            self.net.to(memory_format=torch.channels_last)
         if bound_workspace:
             override(self.net, _forward)
 

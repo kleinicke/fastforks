@@ -216,7 +216,8 @@ class Portable(_FastACVRunner):
         return Forward(self.net, forward)
 
 
-_GRAPH_PIXELS = 500_000  # fixed: launch-bound up to KITTI 375x1242 (batch x padded H x W), measured
+_GRAPH_PIXELS = 1_000_000  # fixed: batch x padded H x W; launch-bound up to KITTI 375x1242, measured
+# Windows (RTX 5060 Ti, eager -> graph): 544x960 18.7 -> 11.4 ms, 720x1280 24.0 -> 21.6 ms (reserved 626 -> 448 MiB)
 _GRAPHS = 2  # fixed: graph cache policy
 
 
