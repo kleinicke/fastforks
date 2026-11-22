@@ -7,7 +7,7 @@ uses = ["aliked", "cnn_kernels", "cuda_graphs", "deform_conv", "lightglue", "mlx
 limitations = [
   "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.",
   "One image pair per call internally (batches run pair by pair); the keypoint counts differ per image.",
-  "Kernels (ALIKED) keep a CUDA graph of the dense maps per detection size: its private pool stays reserved, ~130 MiB at 768 x 1024 (1494 vs 1360 MiB reserved after the first call, peak allocated is not), and the capture in the first call peaks at 2560 MiB reserved; `cuda_graphs=false` or `release_graphs()` frees it.",
+  "Kernels (ALIKED) keep a CUDA graph of the dense maps per detection size: ~130 MiB more reserved at 768 x 1024 (1494 vs 1360 MiB), 2560 MiB reserved peak in the first call (the capture); peak allocated is not; `cuda_graphs=false` or `release_graphs()` frees it.",
   "No exportable module: the keypoint counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).",
   "ALIKED-LightGlue has a fixed 768 x 1024 standalone FP32 TensorRT encoder measurement with TF32 disabled. Keypoint selection and LightGlue run in PyTorch. On 300 MegaDepth pairs, AUC@5 was 51.32 versus 49.75 portable FP32, with a worst paired pose error increase of 21.25 degrees.",
   "Computing DISK descriptors only at selected keypoints also changed pose outcomes. On a 100-pair MegaDepth check, both the PyTorch and TensorRT sparse projections changed a previously solved pair from 25.78 degrees to the 90-degree failure value, despite identical detected keypoints.",
