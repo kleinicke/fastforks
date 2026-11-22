@@ -2487,3 +2487,53 @@ their own folder or at the top level; the grounding-dino and loma goldens were s
 Weights layout: a file is found as `<FASTFORKS_WEIGHTS_PATH>/<family>/<name>` or `<...>/<name>`. A checkpoint shared by
 several families (the DINOv3 ones) needs a top-level entry (a symlink is enough); family folders hold only their own files.
 Run the sweep in chunks, not as one process: the giant models spike swap and kill a long run.
+
+## fp32 gap to MPS on the big transformers (2026-11-22)
+
+MLX fp32 ran about 10 % behind MPS fp32 on the ViT-L-class GraphNet refs. FF_MLX_PROFILE (eager, per op) puts
+about 58 % of the time in `addmm` (clip-l14 224: 72 of 126 ms; eomt-l 1024x2048: 407 of 701 ms). The rest is not
+the cause: `mx.fast` SDPA beats MPS SDPA (L=4000: 22.0 vs 26.0 ms), manual attention is slower than both,
+LayerNorm is faster on MLX and GELU is even.
+
+**Cause found and fixed: transposed weight reads.** Every `nn.Linear` exports as `mm` / `addmm` of `permute(w,
+[1, 0])`, so MLX ran the GEMM with a transposed `[out, in]` operand ("NT"). On ViT shapes MLX's NT GEMM is 4-5 %
+slower than NN in fp32 and about 3 % in fp16 (bf16: no difference). GraphNet now stores such weights (2-D float
+placeholders whose every user is `t` / `permute [1, 0]`) once as their contiguous transpose
+(`_transposed_weights`, `_const(transpose=True)`; `FF_MLX_NO_WT=1` turns it off). The transpose runs on the GPU,
+then `mx.clear_cache()` drops the untransposed copies (without it, fp16 CLIP-L's peak rose by 58 MB; a CPU
+transpose instead added 0.3 s to the first call). The hand-written ports (mlx_vit, depth_anything_v2 mlx_net,
+dinov2/dinov3, c_radio, tipsv2) already store `[in, out]` and are untouched.
+
+Survey, second run, portable, ms median / min / peak MB (A = `FF_MLX_NO_WT=1`, B = the change):
+
+| ref | dtype | A | B | MPS |
+| --- | --- | --- | --- | --- |
+| clip-l14-laion2b 224 | fp32 | 65.1 / 64.9 / 3564 | 63.0 / 62.8 / 3580 | 60.6 / 4426 |
+| clip-l14-laion2b 224 | fp16 | 55.6 / 55.5 / 2948 | 54.5 / 54.3 / 2958 | 56.6 / 4424 |
+| siglip2-so400m14-378 224 | fp32 | 74.8 / 74.6 / 4666 | 72.4 / 72.2 / 4682 | 75.9 / 5551 |
+| siglip2-so400m14-378 224 | fp16 | 65.4 / 65.4 / 3847 | 66.4 / 63.4 / 3825 | 68.6 / 5553 |
+| eomt-l-dinov2-ade20k 1024x2048 | fp32 | 691.5 / 690.9 / 4618 | 681.7 / 657.8 / 4504 | 608.2 / 6308 |
+| eomt-l-dinov2-ade20k 1024x2048 | fp16 | 581.1 / 574.6 / 3673 | 582.9 / 576.6 / 3663 | 540.0 / 4262 |
+| unik3d-vitl 994x1482 | fp32 | 1295.1 / 1293.7 / 3250 | 1229.7 / 1224.7 / 3465 | 1217.5 / 4001 |
+| unik3d-vitl 994x1482 | fp16 | 999.2 / 997.8 / 2023 | 947.3 / 944.3 / 1830 | 1129.4 / 4036 |
+
+Peaks stay below MPS everywhere (unik3d fp32 +215 MB over A, still 536 MB under MPS). The eomt B row is noisy
+(min 658 vs median 682). Goldens pass: nafnet-gopro, wd-vit-tagger-v3, clip-l14-laion2b, sam-vit-b,
+eomt-l-dinov2-ade20k, unik3d-vitl, siglip2-so400m14-378 (all @1).
+
+**What is left, and why it stays.** The remaining fp32 gap (clip 4 %, eomt ~10 %) is MLX's fp32 GEMM itself on
+specific shapes; there is no tf32-like mode on Metal to switch on. Microbenchmarks, MLX NN vs MPS `F.linear`:
+- unaligned M (CLIP-L's 257 tokens) costs more per row than M=320;
+- K=4096, N=1024 (the MLP down projection) at small M is 15 % slower than MPS (low occupancy);
+- eomt's 2058-row GEMMs (`[2058,1024]x[1024,4096]` 113 ms x20, the down projection 101 ms x20) dominate its
+  profile, then SDPA 101 ms and the ConvTranspose upsampler 52 ms.
+
+Tried, not kept:
+- padding M to 16/32/64 mostly loses (e.g. K1024 N4096 M4097 fp32: 8.5 -> 9.2-9.8 ms). The one win, fp32
+  M=2035 -> 2048 (4.7 -> 4.0 ms), is a single-shape anomaly that is absent in fp16, and the pad and slice copies
+  eat it in a whole net (see "Measured conv dispatch");
+- split-K for K=4096 (2 or 4 batched chunks, then a sum): -6 % at M=257, a loss from M=577 up;
+- merged QKV and SDPA were already in place, and LN/GELU are not behind.
+
+Not checked: whether the NN layout transfers to MPS (torch's `F.linear` already picks its own layout, so there is
+nothing comparable to change there).

@@ -1122,6 +1122,31 @@ def _conv_input(x: mx.array, w: mx.array) -> mx.array:
 
 
 QKV_OFF = bool(os.environ.get("FF_MLX_NO_WIN_QKV"))  # window attention on sliced (copied) q, k, v
+WT_OFF = bool(os.environ.get("FF_MLX_NO_WT"))  # linear weights stay `[out, in]`, read through a transposed view
+
+
+def _transposed_weights(nodes: list[Any], names: dict[str, Any]) -> dict[str, str]:
+    """`permute(w, [1, 0])` / `t(w)` nodes of 2-D weights that are read only that way: node name -> weight target.
+
+    Every `nn.Linear` exports as `mm` / `addmm` of the transposed weight. MLX's GEMM reads a transposed `[out, in]`
+    operand 4-5 % slower in float32 (3 % in float16) than a contiguous `[in, out]` one (M1 Pro, ViT shapes), so the
+    translator stores these weights transposed once, in place of the original.
+    """
+    if WT_OFF:
+        return {}
+    out: dict[str, str] = {}
+    for p in nodes:
+        tgt = names.get(p.name) if p.op == "placeholder" else None
+        val = p.meta.get("val") if tgt is not None else None
+        if not isinstance(val, torch.Tensor) or val.ndim != 2 or not val.is_floating_point() or not p.users:
+            continue
+        users = list(p.users)
+        if all(
+            u.target is aten.t.default or (u.target is aten.permute.default and list(u.args[1]) == [1, 0])
+            for u in users
+        ):
+            out.update((u.name, str(tgt)) for u in users)
+    return out
 
 
 def _sdpa_mask_parts(nodes: list[Any]) -> tuple[dict[str, tuple[Callable[..., Any], list[Any]]], set[str]]:
@@ -2780,21 +2805,22 @@ class GraphNet:
         self._prefetched = False  # `_prefetch` ran once (a later signature's build finds the weights read)
         self._prefetching: list[threading.Thread] = []
 
-    def _const(self, name: str, t: torch.Tensor, *, share: bool = True) -> mx.array:
-        if not share:  # a lifted constant (a grid built in the forward): "lifted_tensor_0" differs per export
-            a = to_mx(t)
-            if t.is_floating_point():
-                a = a.astype(self.dtype)
-            mx.eval(a)
-            return a
-        if name not in self._consts:
-            a = to_mx(t)
-            if t.is_floating_point():
-                a = a.astype(self.dtype)
-            mx.eval(a)
-            self._consts[name] = a
-        self._consumed.add(name)
-        return self._consts[name]
+    def _const(self, name: str, t: torch.Tensor, *, share: bool = True, transpose: bool = False) -> mx.array:
+        """`t` on MLX in the run dtype (`transpose`: a 2-D tensor stored as its contiguous transpose)."""
+        key = f"{name}\0T" if transpose else name
+        if share and key in self._consts:
+            self._consumed.add(name)
+            return self._consts[key]
+        a = to_mx(t)
+        if t.is_floating_point():
+            a = a.astype(self.dtype)
+        if transpose:  # on the GPU (a CPU transpose of a ViT-L's weights adds 0.3 s to the first call)
+            a = mx.contiguous(a.T)
+        mx.eval(a)
+        if share:
+            self._consts[key] = a
+            self._consumed.add(name)
+        return a
 
     def _build(self, args: tuple[torch.Tensor, ...]) -> Callable[..., Any]:
         token = EXPORTING_FOR_MLX.set(True)
@@ -2887,7 +2913,9 @@ class GraphNet:
         state = set(ep.state_dict)
         lifted = {**ep.state_dict, **dict(ep.constants)}
         if self._prefetched and not PREFETCH_OFF:  # tensors the export lifted that are no parameter (plain attributes)
-            self._prefetching += _prefetch(v for k, v in lifted.items() if k not in self._consts)
+            self._prefetching += _prefetch(
+                v for k, v in lifted.items() if k not in self._consts and f"{k}\0T" not in self._consts
+            )
         while self._prefetching:  # the weights are read next (and the threads must let go of their storages)
             self._prefetching.pop().join()
         names = {s.arg.name: s.target for s in sig.input_specs if s.target is not None}
@@ -2911,6 +2939,7 @@ class GraphNet:
         )
         half_cats = _conv_only_cats(nodes) if self.dtype in (mx.float16, mx.bfloat16) and not KEEP_F32_CONV else set()
         mask_parts, mask_skip = _sdpa_mask_parts(nodes)
+        transposed = _transposed_weights(nodes, names)
         for node in nodes:
             if node.op == "placeholder":
                 tgt = names.get(node.name)
@@ -2940,6 +2969,8 @@ class GraphNet:
                     plan.append(("call", node.name, _conv_res, _plain(args), {}))
                     continue
                 if node.name in mask_skip:  # built by `_sdpa_parts` from its parts
+                    continue
+                if node.name in transposed:  # a constant: the weight stored transposed
                     continue
                 if node.name in mask_parts:
                     fn, args = mask_parts[node.name]
@@ -2976,6 +3007,11 @@ class GraphNet:
         for node_name, tgt in params.items():  # only what a node reads: a folded convolution's own weight is not
             if node_name in used:
                 values[node_name] = self._const(tgt, lifted[tgt], share=tgt in state)
+        for node_name, tgt in transposed.items():
+            if node_name in used:
+                values[node_name] = self._const(tgt, lifted[tgt], share=tgt in state, transpose=True)
+        if transposed:
+            mx.clear_cache()  # the untransposed copies: they would stay in the buffer cache (fp16 CLIP-L: +58 MB peak)
         plan = _fold_constants(plan, values)
         if not os.environ.get("FF_MLX_NO_BAND"):
             from fastforks.shared.mlx_band import band_tail
