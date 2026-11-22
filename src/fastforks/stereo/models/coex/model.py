@@ -99,7 +99,8 @@ class Portable(_CoExRunner):
         return Forward(self.net, forward)
 
 
-_GRAPH_PIXELS = 500_000  # fixed: launch-bound up to KITTI 375x1242 (batch x H x W of the raw input), measured
+_GRAPH_PIXELS = 1_000_000  # fixed: batch x H x W of the raw input; launch-bound up to KITTI 375x1242, measured
+# Windows (RTX 5060 Ti, eager -> graph): 544x960 12.2 -> 7.6 ms, 720x1280 16.2 -> 14.0 ms (reserved 562 -> 408 MiB)
 _GRAPHS = 2  # fixed: graph cache policy
 
 
