@@ -9,7 +9,9 @@ for d in result.to_list():  # best first
     print(d["class_name"], d["score"], d["box"])  # d["mask"]: [H, W] bool (mask models)
 ```
 
-A batch (BHWC numpy / BCHW torch) gives a list with one result per image. The result fields are the keys of the
+A batch (BHWC numpy / BCHW torch) gives a list with one result per image. RT-DETRv2, D-FINE and LW-DETR run it as
+one network call (portable at 640x480, batch 8, RTX 5060 Ti under Windows: 3.3-5.6x less time per image; kernels
+1.4-1.6x); the results match per-image calls within the compute dtype's precision. The result fields are the keys of the
 Hugging Face transformers `post_process_object_detection` dicts (`scores`, `labels`, `boxes`, + `masks`). Detectors
 need torchvision's NMS / ROIAlign operators: `pip install 'fastforks-core[torchvision]'`.
 

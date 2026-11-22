@@ -453,21 +453,26 @@ def at(t: Any, k: int | None) -> Any:  # noqa: ANN401 - a result field: tensor o
 
 
 def each_result(
-    image: torch.Tensor, m: fastforks.Model, batch_size: int, fn: Callable[[Any, int | None], Any]
+    image: torch.Tensor,
+    m: fastforks.Model,
+    batch_size: int,
+    fn: Callable[[Any, int | None], Any],
+    call: Callable[[torch.Tensor], Any] | None = None,
 ) -> list[Any]:
     """`fn(result, k)` for every image of a ComfyUI batch, the model called on `batch_size` images at a time.
 
     With `batch_size` 1 the model takes single images and `k` is None; else `k` is the image's index in the batched
-    result (read its fields with `at`).
+    result (read its fields with `at`). `call` runs the model on the images (default: `m` itself).
     """
     n = image.shape[0]
+    call = call or m
     if batch_size <= 1:
-        return each(n, lambda i: fn(m(convert.frame(image, i, m.device)), None))
+        return each(n, lambda i: fn(call(convert.frame(image, i, m.device)), None))
     starts = range(0, n, batch_size)
 
     def chunk(j: int) -> list[Any]:
         stop = min(n, starts[j] + batch_size)
-        r = m(convert.frames(image, starts[j], stop, m.device))
+        r = call(convert.frames(image, starts[j], stop, m.device))
         return [fn(r, k) for k in range(stop - starts[j])]
 
     return [o for c in each(len(starts), chunk) for o in c]
@@ -792,26 +797,36 @@ class Detect(_Node):
                 **common(cls),
                 "score_threshold": ("FLOAT", {"default": 0.3, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "classes": ("STRING", {"default": "", "tooltip": tip}),
-            }
+            },
+            "optional": BATCH,
         }
 
     def run(  # noqa: PLR0913 - one argument per input
-        self, *, image: torch.Tensor, model: str, backend: str, dtype: str, score_threshold: float, classes: str
+        self,
+        *,
+        image: torch.Tensor,
+        model: str,
+        backend: str,
+        dtype: str,
+        score_threshold: float,
+        classes: str,
+        batch_size: int = 1,
     ) -> tuple[torch.Tensor, str]:
         """Detect in every image."""
         m = load(model, backend, dtype)
         names = [c.strip() for c in classes.split(",") if c.strip()]
         text = names if cast("DetectionModel", m).open_vocabulary else None
+        size = (image.shape[1], image.shape[2])  # BHWC
 
-        def one(i: int) -> tuple[torch.Tensor, list[dict[str, Any]]]:
-            x = convert.frame(image, i, m.device)
-            r = m(x, score_threshold=score_threshold, text=text)
+        def finish(r: Any) -> tuple[torch.Tensor, list[dict[str, Any]]]:  # noqa: ANN401 - a detection result
             if names and text is None:
                 r = r[torch.tensor([d.get("class_name") in names for d in r.to_list()], dtype=torch.bool)]
             dets = [{k: v for k, v in d.items() if k != "mask"} for d in r.to_list()]
-            return convert.union_mask(r.masks, r.boxes, (x.shape[-2], x.shape[-1])), dets
+            return convert.union_mask(r.masks, r.boxes, size), dets
 
-        out = each(image.shape[0], one)
+        # a batch: one network call where the family batches (DETR-style detectors), else one image at a time
+        detect = functools.partial(m, score_threshold=score_threshold, text=text)
+        out = each_result(image, m, batch_size, lambda r, k: finish(at(r, k)), call=detect)
         return convert.to_mask([o[0] for o in out], _out_device()), convert.to_json([o[1] for o in out])
 
 
