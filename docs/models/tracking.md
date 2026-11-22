@@ -326,6 +326,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: <https://github.com/google-deepmind/tapnet/blob/ceedd60bb9f6c9f7c74796e4445aff6c6ddf7c9b/README.md#license-and-disclaimer>
 - Training data: Upstream: TAPNext is trained on synthetic Kubric MOVi-F sequences and fine-tuned with BootsTAP self-training on unlabelled real videos (not released); TAPNext++ is further fine-tuned on PointOdyssey and Kubric-1024 (1024-frame synthetic sequences). None has a dataset entry here yet.
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `fvm_conv`
 - Variants: `tapnext`, `tapnext-pp`
 - Outputs: tracks, visibility
@@ -366,6 +367,7 @@ CPU, float32: max |diff| <= 4.6e-05 vs the original. GPU, float16 (the default),
 - Online, causal: a point is tracked from its query frame on; in frames before it the model has no information (the tracks there are its guess, with a low visibility). Query on the first frame, or run the reversed video for the backward part.
 - Frames are resized to 256 x 256 (the training size), whatever their size and aspect ratio.
 - One video per call; all queries of a call share the video.
+- Kernels mode replays frames from CUDA graphs (per query count): 24 frames, 256 queries, 480x854, RTX 5060 Ti, Windows: 600 -> 395 ms, peak reserved 1074 -> 1722 MiB. One model tracks one video at a time. `cuda_graphs=False` turns this off, `release_graphs()` frees it.
 
 </details>
 

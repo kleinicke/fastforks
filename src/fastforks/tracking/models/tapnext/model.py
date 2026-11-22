@@ -16,6 +16,8 @@ scan in float32. The GEMM weights are stored in fp16 (autocast would cast them o
 from __future__ import annotations
 
 import contextlib
+import threading
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
 import torch
@@ -26,7 +28,8 @@ from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.upload import device_tensor
 from fastforks.shared import mlx_wrap
-from fastforks.tracking._runner import Forward, NoParams, Runner
+from fastforks.shared.cuda_graphs import GraphCache
+from fastforks.tracking._runner import Forward, Runner
 
 from .net.tapnext import (
     CONV_WIDTH,
@@ -46,6 +49,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from fastforks.tracking._runner import Context
+
+    Step = Callable[..., tuple[torch.Tensor, torch.Tensor, list]]
 
 
 def load_weights(ctx: Context) -> dict[str, torch.Tensor]:
@@ -76,6 +81,13 @@ def cast_gemm_weights(net: TAPNext, dtype: torch.dtype) -> None:
                 p.data = p.data.to(dtype)
 
 
+@dataclass(frozen=True)
+class Params:
+    """Card `[params]`."""
+
+    cuda_graphs: bool  # kernels: replay every frame after the first from a CUDA graph (option)
+
+
 @torch.compiler.disable
 def _read_frame(frames: Callable[[int], torch.Tensor], index: int) -> torch.Tensor:
     """Read and validate a public video frame outside Dynamo's tensor-only network graph."""
@@ -91,8 +103,12 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus the auto
     amp: torch.dtype | None,
     *,
     eager_frames: bool = False,
+    step: Step | None = None,
 ) -> dict[str, torch.Tensor]:
-    """`{"tracks": [T, Q, 2], "visibility": [T, Q]}` of frames `frames(t)` `[1, 3, H, W]` in `[0, 1]`."""
+    """`{"tracks": [T, Q, 2], "visibility": [T, Q]}` of frames `frames(t)` `[1, 3, H, W]` in `[0, 1]`.
+
+    `step(video, qt, point, t, state) -> (yx, visible logit, state)` replaces the network call of one frame.
+    """
     h, w = size
     scale = device_tensor((SIZE / w, SIZE / h), device=queries.device)  # (x, y)
     qt = queries[:, 0]
@@ -105,7 +121,10 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus the auto
             video = _read_frame(frames, t) if eager_frames else frames(t)
             if video.shape[-2:] != (SIZE, SIZE):
                 video = F.interpolate(video, (SIZE, SIZE), mode="bilinear", align_corners=False, antialias=True)
-            yx, logit, _, state = net(video * 2 - 1, qt, point, t, state)
+            if step is None:
+                yx, logit, _, state = net(video * 2 - 1, qt, point, t, state)
+            else:
+                yx, logit, state = step(video * 2 - 1, qt, point, t, state)
             tracks.append(yx.flip(-1) / scale - 0.5)
             vis.append(logit.sigmoid())
     return {"tracks": torch.cat(tracks), "visibility": torch.cat(vis)}
@@ -115,7 +134,7 @@ class Portable(Runner):
     """Plain PyTorch; fp16 autocast on CUDA as upstream's evaluation (see the module docstring)."""
 
     dtypes = ("float32", "float16")
-    Params = NoParams
+    Params = Params
 
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
@@ -225,13 +244,60 @@ class Kernels(Portable):
                 m.forward = _mlp(m)  # ty: ignore[invalid-assignment]  # per-instance override
             elif isinstance(m, EncoderBlock):
                 m.forward = _encoder(m)  # ty: ignore[invalid-assignment]  # per-instance override
+        # a frame as a CUDA graph per query count, one for the first frame (no state) and one for the others (online
+        # tracking is ~900 launches a frame, launch-bound on Windows; both share one pool). The second writes the new
+        # state into its static state inputs, which the next frame passes back (no copy): one model tracks one video
+        # at a time (`_lock`)
+        self.steps = GraphCache(self._graph_step, graphs=4) if ctx.params.cuda_graphs else None
+        self._lock = threading.Lock()
+
+    def _graph_step(
+        self, video: torch.Tensor, qt: torch.Tensor, point: torch.Tensor, t0: torch.Tensor, *state: torch.Tensor
+    ) -> tuple[torch.Tensor, ...]:
+        """One frame from the flat state `(h, conv) x blocks`, which it overwrites with the new state.
+
+        Without a state (the first frame): `(yx, logit, *new state)`.
+        """
+        if not state:
+            yx, logit, _, new = self.net(video, qt, point, t0, None)
+            return (yx, logit, *(v for c in new for v in c))
+        cache = [(state[i], state[i + 1]) for i in range(0, len(state), 2)]
+        yx, logit, _, new = self.net(video, qt, point, t0, cache)
+        for old, v in zip(state, (v for c in new for v in c), strict=True):
+            old.copy_(v)
+        return yx, logit
+
+    def _step(
+        self, video: torch.Tensor, qt: torch.Tensor, point: torch.Tensor, t: int, state: list | None
+    ) -> tuple[torch.Tensor, torch.Tensor, list]:
+        """`track`'s frame step: from the frame's graph once it is captured, else eager."""
+        if self.steps is not None:
+            key = (video.device, tuple(video.shape), tuple(qt.shape), torch.is_autocast_enabled(video.device.type))
+            t0 = torch.full((), t, dtype=qt.dtype, device=qt.device)
+            if state is None:
+                out = self.steps.run((*key, "first"), video, qt, point, t0)
+                if out is not None:
+                    return out[0], out[1], [(out[i], out[i + 1]) for i in range(2, len(out), 2)]
+            else:
+                out = self.steps.run(key, video, qt, point, t0, *(v for c in state for v in c))
+                static = self.steps.static_inputs(key)
+                if out is not None and static is not None:
+                    return out[0], out[1], [(static[i], static[i + 1]) for i in range(4, len(static), 2)]
+        yx, logit, _, state = self.net(video, qt, point, t, state)
+        return yx, logit, state
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs, their pool and the state buffers."""
+        if self.steps is not None:
+            with self._lock:
+                self.steps.release()
 
     def __call__(
         self, frames: Callable[[int], torch.Tensor], n: int, size: tuple[int, int], queries: torch.Tensor
     ) -> dict[str, torch.Tensor]:
         """Tracks and visibility of the queries."""
-        with fp16_accumulate():
-            return super().__call__(frames, n, size, queries)
+        with self._lock, fp16_accumulate():
+            return track(self.net, frames, n, size, queries, self.amp, step=self._step)
 
     def module(self) -> torch.nn.Module:
         """No exportable module: the GEMMs are kernel launches."""

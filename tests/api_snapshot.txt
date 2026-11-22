@@ -1051,6 +1051,7 @@ option stereo.s2m2.cuda_graphs
 option stereo.selective_igev.iters
 option stereo.waft_stereo.cuda_graphs
 option tracking.alltracker.iters
+option tracking.tapnext.cuda_graphs
 option tracking.track_on.memory
 option tracking.track_on.support_grid
 option volume.nnfoundation.stream
