@@ -2770,3 +2770,39 @@ Investigated, not changed:
 
 No route change (gen_auto_mode: no diff). Goldens: test_cpu_portable and test_mps for lingbot-map pass; the survey's
 fp32 and fp16 goldens pass.
+
+### cotracker3-online (MLX)
+
+| dtype | MLX before | MLX after | MPS |
+| --- | --- | --- | --- |
+| fp32 | 3340 / 3971 / 6.7 | 2314 (min 2269) / 2749 / 4.6 | 1707 / 4689, golden skip -> 1731 / 4767, golden pass |
+
+Profile (24 frames, 256 queries, 2 windows): on MLX the feature CNN was about 1.5 s and the refinement about
+1.5 s per call; on MPS 0.46 s and 1.43 s. The refinement ran its correlation in PyTorch on the CPU, only the update
+transformer on MLX.
+
+Changes:
+
+- **Step graph** (as tapnext): one refinement iteration (correlation, its MLP, update transformer) is one exported
+  graph (`_OnlineSteps._iteration`), run 6 times per window. The window's levels and support features go to MLX once
+  per window and the track state stays on MLX (`raw`). One unrolled window graph was as fast warm but took 9.1 s on
+  the first call (step graph 5.4 s).
+- **One CNN graph**: the first window encodes its 16 frames as two 8-frame chunks, so the CNN is exported once.
+  Peak 3800 -> 2750 MB, first call 5.4 -> 4.6 s.
+- **`cache_mb=256`**: the default 128 MB cache made each iteration's temporaries fresh Metal allocations. At the same
+  code: 3150 ms at 128 MB vs 2460 at 256 MB (512: 2363 ms / +240 MB; 1024: 2212 ms / +730 MB). 256 is the memory pick.
+- **mlx_graph**: `aten.exp2` mapping (`posenc`'s scales; the offline whole-graph export folded it away).
+
+Investigated, not changed:
+
+- **The remaining gap is the feature CNN.** MLX fp32 conv2d is irregular in the output channel count: at 96x128,
+  8 frames, 96 -> 96 takes 22.6 ms (MPS 3.6) but 96 -> 128 takes 7.0 and 128 -> 128 takes 6.6. Couts 80, 112 and
+  144 hit the same slow path. cotracker's layer2 (96 channels) is about 106 ms of the 270 ms CNN per 8 frames.
+  Zero-padding layer2 to 128 channels in the MLX export would save about 60 ms per 8 frames; a generic cout-padding
+  rule in mlx_graph's conv lowering would need a sweep over the ported models (the cost is not monotone in cout).
+  Left for a later job; it would also help cotracker3-offline.
+- **MPS**: no transfer. The MPS refinement is already on the GPU (no CPU correlation), and step graphs only help the
+  MLX export.
+
+Route: no change (MLX stays 1.34x slower than MPS). Goldens: test_mlx for cotracker3-online, plus nafnet-gopro,
+wd-vit-tagger-v3, c-fast-foundationstereo, tapnext, tapnext-pp (mlx_graph change) pass; survey goldens pass.

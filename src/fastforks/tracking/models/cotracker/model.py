@@ -30,7 +30,7 @@ Same network maths as upstream, different evaluation order (all runners, also fl
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import torch
 import torch.nn.functional as F
@@ -517,14 +517,60 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
-class _MlxOnline(Portable):
-    """The online loop is data-dependent (`torch.export` guards on it): it stays eager.
+class _OnlineSteps(Portable):
+    """The online loop is data-dependent (`torch.export` guards on it): it stays eager, its steps run on MLX.
 
-    The CNN and update transformer run on MLX.
+    The feature CNN is one graph of `window_len // 2` frames (the first window encodes two such chunks). One refinement
+    iteration (correlation, its MLP and the update transformer) is a step graph, exported once and run `ITERS` times
+    per window: every window has the same shapes (levels padded to `window_len`). The window's levels and support
+    features go to MLX once per window and the track state stays on MLX between iterations (`MlxModule.raw`). Before,
+    only the CNN and the update transformer ran on MLX and the correlation ran in PyTorch on the CPU (cotracker3-online
+    24 frames: 3150 -> 2460 ms at the same cache; the whole window as one graph was as fast, but 3.7 s more first call).
     """
 
+    def __init__(self, ctx: Context) -> None:
+        """The portable runner; `net` names the network the step graph computes with."""
+        super().__init__(ctx)
+        self.net = self.core.net
+        self.core.refine = self._steps  # ty: ignore[invalid-assignment]  # per-instance override
+        encode, step = self.core.encode, self.net.window_len // 2
 
-_MlxOnline = mlx_wrap.port(_MlxOnline, attrs=("core.net.fnet", "core.updateformer"))
+        def chunked(video: torch.Tensor) -> list[torch.Tensor]:  # the first window too: one CNN graph to export
+            parts = [encode(video[a : a + step]) for a in range(0, len(video), step)]
+            return [torch.cat(level) for level in zip(*parts, strict=True)]
+
+        self.core.encode = chunked  # ty: ignore[invalid-assignment]  # per-instance override
+
+    def _iteration(
+        self,
+        levels: list[torch.Tensor],
+        sup: list[torch.Tensor],
+        coords: torch.Tensor,
+        vis: torch.Tensor,
+        conf: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        return Core.refine(self.core, levels, sup, coords, vis, conf, iters=1)
+
+    def _steps(
+        self,
+        levels: list[torch.Tensor],
+        sup: list[torch.Tensor],
+        coords: torch.Tensor,
+        vis: torch.Tensor,
+        conf: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - MLX only
+
+        step = cast("Any", self._iteration).raw  # the `MlxModule` of `mlx_wrap.port(methods=("_iteration",))`
+        lv, sp = [to_mx(f) for f in levels], [to_mx(s) for s in sup]
+        state: tuple[Any, ...] = (coords, vis, conf)
+        for _ in range(ITERS):
+            state = step(lv, sp, *state)
+        c, v, f = (to_torch(s) for s in state)
+        return c, v, f
+
+
+_MlxOnline = mlx_wrap.port(_OnlineSteps, attrs=("core.net.fnet",), methods=("_iteration",), prune=True, cache_mb=256)
 _MlxOffline = mlx_port(Portable)
 
 

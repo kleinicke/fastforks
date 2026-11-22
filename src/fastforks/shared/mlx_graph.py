@@ -136,6 +136,7 @@ OPS[aten.div.Scalar] = operator.truediv
 OPS[aten.neg.default] = operator.neg
 OPS[aten.abs.default] = mx.abs
 OPS[aten.exp.default] = mx.exp
+OPS[aten.exp2.default] = lambda x: mx.power(mx.array(2.0, dtype=x.dtype), x)
 OPS[aten.log.default] = mx.log
 OPS[aten.log1p.default] = mx.log1p
 OPS[aten.expm1.default] = mx.expm1
