@@ -2851,3 +2851,36 @@ each, then 3 alternating pairs): MLX merge median 32074 / min 31885 ms, CPU merg
 MLX merge is about 3 % faster, as on 3mm. Two back-to-back survey runs gave 30669 (min 30600) and 33823 (min 33108)
 ms at the same code: a 33-second call drifts by about 10 % with the machine's thermal state, more than the merge's
 effect. Recorded row (second run, as the protocol says): 33823 / 3402 MB / 38.2 s, golden pass. No code change.
+
+## 2026-11-22: MLX conv output-channel padding to a multiple of 64 (M1 Pro 16 GB)
+
+Micro-benchmark (MLX 0.32.4, `mx.set_cache_limit(256 MB)`; without a cache limit the sweep pushed swap to 10 GB and
+the timings were worthless), 8 x 96x128 inputs, output counts 24 ... 320:
+
+- 3x3 conv2d, stride 2: padding the outputs up to a multiple of 64 (weights zero-padded, output sliced) wins almost
+  everywhere, often 2-5x (64 -> 96 2.8 -> 1.4 ms). Stride 1: wins for cout % 64 in {16, 48} and for 96
+  (128 -> 96 41 -> 7 ms, 96 -> 144 67 -> 6.4, 256 -> 112 83 -> 10.5); 160 / 224 / 288 are neutral or a bit slower.
+  float16 behaves alike.
+- 1x1 conv2d: float32 wins up to 4x (256 -> 208 19.5 -> 4.8 ms); float16 neutral.
+- Many of the biggest raw wins came from the padded shape landing in MLX's Winograd path. Those are excluded: the
+  rule never pads when the original or the padded count would be Winograd (`_mlx_winograd`), so the output stays
+  bit-identical (288 shapes checked through `_conv2d` with the flag toggled: 0 differing outputs; sum 3255 -> 2517 ms).
+  The first version without that guard made 256 -> 96 slower (15.3 -> 19.75 ms).
+- matmul / Linear: only 5-15 %, not done.
+- Conv3d: wins at 80 / 96 / 144 / 160 (fp16) and 80 (fp32), but no surveyed 3-D net uses those counts (nnU-Net is
+  32 / 64 / 128 / 256 / 320), so not done.
+- PyTorch MPS conv2d: no such effect, padding only adds cost (96 -> 96 fp32 3.32 -> 4.43 ms). No MPS transform.
+
+Implemented in `shared/mlx_graph.py` `_conv2d` (groups 1, no dilation, cout > 64 and not a multiple of 64; 1x1 only
+in float32 at stride 1; at stride 1 only for cout % 64 != 32 or 96). `FF_MLX_NO_OUT64=1` switches it off.
+
+| ref (portable) | dtype | before ms / MB | OFF (same session) | after ms / MB |
+| --- | --- | --- | --- | --- |
+| raft-stereo-sceneflow | fp32 | 6216 / 4653 | 6272, 6625 | 5271, 5336 (min 5197) / 4661 |
+| raft-stereo-sceneflow | fp16 | 4219 / 3863 | | 4163 / 3867 |
+| cotracker3-online | fp32 | 2314 / 2749 | 2225 | 2135, 2233 / 2747 |
+
+raft-stereo fp32 is about 15 % faster (OFF/ON interleaved, so not drift); fp16 and cotracker3-online are within noise
+(cotracker's 96 -> 96 conv was 22.6 ms only in the slow, state-dependent regime; alone it is about 7 ms). Goldens
+pass (test_mlx: nafnet-gopro, wd-vit-tagger-v3, c-fast-foundationstereo, tapnext, tapnext-pp, cotracker3-online;
+survey goldens for the rows above). No route change (`gen_auto_mode --check` clean).

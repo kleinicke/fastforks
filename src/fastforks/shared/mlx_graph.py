@@ -1705,6 +1705,7 @@ MERGE_OFF = bool(os.environ.get("FF_MLX_NO_MERGE"))  # sibling convolutions (sam
 ALIGN_OFF = bool(os.environ.get("FF_MLX_NO_ALIGN"))  # `mx.conv2d` with ragged channel counts as they are
 WIDE_OUT_OFF = bool(os.environ.get("FF_MLX_NO_WIDE_OUT"))  # 32 / 48-output 3x3 convs on MLX's narrow tile
 SPLIT_IN_OFF = bool(os.environ.get("FF_MLX_NO_SPLIT_IN"))  # very wide-input 3x3 convs as one `mx.conv2d`
+OUT64_OFF = bool(os.environ.get("FF_MLX_NO_OUT64"))  # output counts as they are, not padded to a multiple of 64
 
 
 def _mlx_winograd(
@@ -1795,6 +1796,25 @@ def _conv2d(
         # float16 16.5 -> 13.2 ms, float32 27.8 -> 15.6 ms; 64 -> 32 float32 11.2 -> 6.8 ms; 160 -> 48 float32
         # 21.5 -> 15.8 ms; at 32 -> 32 and float16 64 -> 32 the narrow one is as fast or faster): zero outputs to 64
         pad_out = 64 - cout
+    o64 = -(-o // 64) * 64
+    if (
+        not OUT64_OFF
+        and groups == 1
+        and dilation == (1, 1)
+        and o > 64
+        and o % 64
+        and (spatial or (xl.dtype == mx.float32 and stride == (1, 1)))
+        and (stride != (1, 1) or o % 64 != 32 or o == 96 or not spatial)
+    ):
+        # MLX's conv GEMM is slow on output counts that are not a multiple of 64 (M1 Pro, 8 x 96x128 3x3, float32:
+        # 128 -> 96 41 -> 7 ms padded to 128, 96 -> 144 67 -> 6.4, 256 -> 112 83 -> 10.5, stride 2 64 -> 96 2.8 -> 1.4;
+        # float16 alike; 1x1 float32 256 -> 208 19.5 -> 4.8). At stride 1, 160 / 224 / 288 outputs are as fast unpadded.
+        # Not into or within MLX's Winograd (a Winograd conv is slower padded): the output stays bit-identical (the
+        # zero columns are sliced off).
+        hw = xl.shape[0] * xl.shape[1] * xl.shape[2]
+        cin_p = cin + pad_in
+        if not any(_mlx_winograd((c, *wl.shape[1:3], cin_p), c, stride, dilation, groups, hw) for c in (o, o64)):
+            pad_out = o64 - cout
     if (pad_out or pad_in) and not _KERNELS and xl.dtype in (mx.float16, mx.bfloat16):
         # Half precision: padding must not move the conv into MLX's Winograd, whose float16 error is ~17x the direct
         # conv's (relative mean 6e-3 against 3.5e-4, bfloat16 4.8e-2; float32 4e-6). Its speed-up was all the input
