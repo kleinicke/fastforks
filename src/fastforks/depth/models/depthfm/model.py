@@ -24,6 +24,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import NUMPY_ARRAYS, config_globals
+from fastforks._core.upload import device_tensor
 from fastforks.depth._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared import mlx_wrap
@@ -183,7 +184,7 @@ class Portable(Runner):
         text = net.empty_text.to(dt).expand(p.ensemble, -1, -1)
         grid = times(p.steps)
         for t, t1 in itertools.pairwise(grid):
-            v = net.unet(torch.cat([y.to(dt), cond], dim=1), torch.tensor(t, device=z.device), text)
+            v = net.unet(torch.cat([y.to(dt), cond], dim=1), device_tensor(t, device=z.device), text)
             y = y + (t1 - t) * v.float()
         decoded = _decode_ensemble(net.vae.decode, (y / LATENT_SCALE).to(dt))
         return finish(decoded, image.shape[-2:])

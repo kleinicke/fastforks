@@ -33,6 +33,7 @@ from torch import nn
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import OptionsError
 from fastforks._core.patch import override
+from fastforks._core.upload import device_tensor
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cv2_resize import cv2_resize
@@ -188,7 +189,7 @@ def _prepare(ctx: Context, image: torch.Tensor) -> torch.Tensor:
 def _quantile(v: torch.Tensor, valid: torch.Tensor, q: float) -> torch.Tensor:
     """Per row of `v` `[B, N]`: `torch.quantile` (linear) of the `valid` entries, without a host sync; `[B]`."""
     n = valid.sum(1)
-    rank = torch.tensor(q, dtype=v.dtype, device=v.device) * (n - 1).clamp(min=0).to(v.dtype)
+    rank = device_tensor(q, dtype=v.dtype, device=v.device) * (n - 1).clamp(min=0).to(v.dtype)
     lo = rank.floor().long()
     hi = rank.ceil().long()
     if torch.compiler.is_exporting():  # TensorRT's TopK (sort) takes at most 3840 elements: bisect, same values

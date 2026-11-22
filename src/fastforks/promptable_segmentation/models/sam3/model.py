@@ -40,6 +40,7 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import InputError, OptionsError
 from fastforks._core.patch import override
 from fastforks._core.runner import host
+from fastforks._core.upload import device_tensor
 from fastforks.promptable_segmentation._runner import Context, Forward, Runner, bounded_binary_masks, scale
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.host_blocks import StreamedModuleList
@@ -230,7 +231,7 @@ class _Sam3(Runner):
         skip_masks_below: float | None = None,
     ) -> dict[str, torch.Tensor]:
         dev = self.ctx.device
-        ids = torch.tensor([self.tokenizer(VISUAL if text is None else text)], device=dev)
+        ids = device_tensor([self.tokenizer(VISUAL if text is None else text)], device=dev)
         ex = None if boxes is None or not len(boxes) else exemplars(boxes, labels, dev)
         fpn = [features["fpn0"], features["fpn1"], features["fpn2"]]
         return self.concept(ids, fpn, ex=ex, skip_masks_below=skip_masks_below)
@@ -321,11 +322,11 @@ class _Sam3(Runner):
             p = mask.shape[0]
         else:
             (h, w) = size
-            wh = torch.tensor([w, h], device=dev, dtype=torch.float32)
+            wh = device_tensor([w, h], device=dev, dtype=torch.float32)
             cs, ls = [], []
             if boxes is not None:
                 cs.append(boxes.float().view(-1, 2, 2) / wh * SIZE)
-                ls.append(torch.tensor([[2, 3]], device=dev).expand(boxes.shape[0], 2))
+                ls.append(device_tensor([[2, 3]], device=dev).expand(boxes.shape[0], 2))
             if points is not None and labels is not None:
                 cs.append(points.float() / wh * SIZE)
                 ls.append(labels)

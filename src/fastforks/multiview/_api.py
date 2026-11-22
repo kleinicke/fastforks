@@ -23,6 +23,7 @@ from fastforks._core.outputs import MapOutputs, _array
 from fastforks._core.save import CLOUD_SUFFIXES
 from fastforks._core.tasks import spec
 from fastforks._core.tasks.multiview import MultiViewKind
+from fastforks._core.upload import device_tensor
 from fastforks.multiview._gaussians import Gaussians, pop_gaussians
 from fastforks.multiview._runner import Runner
 from fastforks.multiview._scene import SceneFormat, save_scene
@@ -338,7 +339,7 @@ class MultiViewModel(core.Model):
         maps = outs[0] if len(outs) == 1 else {name: torch.cat([o[name] for o in outs]) for name in outs[0]}
         views = tuple(range(n)) if r.per_view else refs
         out = self._check(maps, len(views), (x.shape[-2], x.shape[-1]))
-        idx = torch.tensor(views, device=x.device)
+        idx = device_tensor(views, device=x.device)
         for name, given in (("intrinsics", k), ("cam_to_world", c2w)):
             if given is not None and name not in out:
                 out[name] = given[idx.to(given.device)]

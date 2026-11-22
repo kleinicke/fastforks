@@ -23,6 +23,7 @@ from torch import nn
 
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.runner import host
+from fastforks._core.upload import device_tensor
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
 from fastforks.shared.aliked import ALIKED
@@ -73,7 +74,7 @@ class Matcher(nn.Module):
         p = self.params
         h, w = image.shape[-2:]
         x = resize_long(image, p.long_side) if p.long_side > 0 else image
-        scale = torch.tensor([x.shape[-1] / w, x.shape[-2] / h], device=x.device, dtype=x.dtype)
+        scale = device_tensor([x.shape[-1] / w, x.shape[-2] / h], device=x.device, dtype=x.dtype)
         if p.extractor == "aliked":
             feats = self.extractor({"image": x})
             kpts, desc = feats["keypoints"], feats["descriptors"]
@@ -89,7 +90,7 @@ class Matcher(nn.Module):
         return {
             "keypoints": (kpts + 0.5) / scale - 0.5,
             "descriptors": desc.contiguous(),
-            "image_size": torch.tensor([[w, h]], device=x.device, dtype=x.dtype),
+            "image_size": device_tensor([[w, h]], device=x.device, dtype=x.dtype),
         }
 
     def forward(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:

@@ -29,6 +29,7 @@ from torch import nn
 
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
+from fastforks._core.upload import device_tensor
 from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, invert
 from fastforks.shared import mlx_wrap
@@ -362,7 +363,7 @@ class _Fast(_Base):
         cc, sc = rope._compute_frequency_components(32, p + 1, pos.device, self.dt)  # noqa: SLF001 - pos <= p
         q = pos.view(b, s * p, 2)
         cos = torch.cat([F.embedding(q[..., 0], cc), F.embedding(q[..., 1], cc)], -1)
-        sgn = torch.tensor([-1.0] * 16 + [1.0] * 16, device=pos.device, dtype=self.dt).repeat(2)
+        sgn = device_tensor([-1.0] * 16 + [1.0] * 16, device=pos.device, dtype=self.dt).repeat(2)
         sin = torch.cat([F.embedding(q[..., 0], sc), F.embedding(q[..., 1], sc)], -1) * sgn
         return cos[:, :, None, None], sin[:, :, None, None]
 

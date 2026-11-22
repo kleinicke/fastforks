@@ -25,6 +25,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
+from fastforks._core.upload import device_tensor
 from fastforks.kernels import dual_softmax
 from fastforks.matching._dedode_kernels import prepare
 from fastforks.matching._runner import Forward, Runner
@@ -114,7 +115,7 @@ class Matcher(nn.Module):
     def to_input(keypoints: torch.Tensor, image: torch.Tensor) -> torch.Tensor:
         """Normalised keypoints in input pixels (pixel centres at integers)."""
         h, w = image.shape[-2:]
-        return (keypoints + 1) / 2 * torch.tensor([w, h], device=keypoints.device) - 0.5
+        return (keypoints + 1) / 2 * device_tensor([w, h], device=keypoints.device) - 0.5
 
     def match(
         self, image1: torch.Tensor, image2: torch.Tensor, d1: Described, d2: Described

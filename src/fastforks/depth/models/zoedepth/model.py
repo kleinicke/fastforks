@@ -18,6 +18,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.errors import InputError
+from fastforks._core.upload import device_tensor
 from fastforks.depth._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared import mlx_wrap
@@ -170,7 +171,7 @@ def _head(zoe: ZoeDepthNK, feats: Sequence[torch.Tensor]) -> torch.Tensor:
         return _bins(zoe, HEADS[route[0]], x, last, blocks)
     out = torch.empty((x.shape[0], 1, *last.shape[-2:]), device=x.device)
     for k in set(route):
-        i = torch.tensor([j for j, r in enumerate(route) if r == k], device=x.device)
+        i = device_tensor([j for j, r in enumerate(route) if r == k], device=x.device)
         out[i] = _bins(zoe, HEADS[k], x[i], last[i], [b[i] for b in blocks]).float()
     return out
 

@@ -19,6 +19,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.patch import override
+from fastforks._core.upload import device_tensor
 from fastforks.kernels import dual_softmax
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared import cnn_kernels, mlx_wrap
@@ -73,7 +74,7 @@ class Matcher(nn.Module):
         g = (image * self.gray).sum(1, keepdim=True)
         if (rh, rw) != (h, w):
             g = F.interpolate(g, size=(rh, rw), mode="bilinear", align_corners=False)
-        return g.to(self.gray.dtype), torch.tensor([w / rw, h / rh], device=image.device)
+        return g.to(self.gray.dtype), device_tensor([w / rw, h / rh], device=image.device)
 
     def forward(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """The pair's matches (batch 1)."""

@@ -17,6 +17,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.upload import device_tensor
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.promptable_segmentation._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
@@ -117,7 +118,7 @@ class _Sam(Runner):
         nh, nw = preprocess_shape(h, w, s)
         dev = self.ctx.device
         f64 = torch.device("cpu") if dev.type == "mps" else dev  # MPS has no float64
-        xy = torch.tensor([nw / w, nh / h], device=f64, dtype=torch.float64)
+        xy = device_tensor([nw / w, nh / h], device=f64, dtype=torch.float64)
         pts = None if points is None or labels is None else ((points.to(f64).double() * xy).float().to(dev), labels)
         box = None if boxes is None else (boxes.view(-1, 2, 2).to(f64).double() * xy).float().view(-1, 4).to(dev)
         all_masks, iou = self._decode(features["image_embeddings"], features["hq_features"], pts, box, masks)

@@ -25,6 +25,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.upload import device_tensor
 from fastforks.shared import mlx_wrap
 from fastforks.tracking._runner import Forward, Runner
 
@@ -71,8 +72,8 @@ def _sample_sparse(
     """Evaluate the upsampling stencil only at the four pixels used by each query."""
     n, _, h, w = flows8.shape
     xy = pts + offset
-    limit = xy.new_tensor((8 * w - 1, 8 * h - 1))
-    grid = xy * xy.new_tensor((2 / (8 * w - 1), 2 / (8 * h - 1))) - 1
+    limit = device_tensor((8 * w - 1, 8 * h - 1), device=xy.device, dtype=xy.dtype)
+    grid = xy * device_tensor((2 / (8 * w - 1), 2 / (8 * h - 1)), device=xy.device, dtype=xy.dtype) - 1
     # Match grid_sample's align_corners=True coordinates, including its border padding.
     sample = ((grid + 1) * 0.5 * limit).clamp_min(0).minimum(limit)
     x, y = sample.unbind(-1)
@@ -105,7 +106,9 @@ def _sample(
     vis = upsample(visconfs8, mask).sigmoid()
     h, w = flow.shape[-2:]
     xy = pts + offset
-    grid = (xy * xy.new_tensor((2 / (w - 1), 2 / (h - 1))) - 1)[None, None].expand(flow.shape[0], -1, -1, -1)
+    grid = (xy * device_tensor((2 / (w - 1), 2 / (h - 1)), device=xy.device, dtype=xy.dtype) - 1)[None, None].expand(
+        flow.shape[0], -1, -1, -1
+    )
     f = F.grid_sample(torch.cat([flow, vis], 1).float(), grid, align_corners=True, padding_mode="border")[:, :, 0]
     return pts + f[:, :2].transpose(1, 2), f[:, 2] * f[:, 3]
 
@@ -165,8 +168,8 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
     h, w = size
     nh, nw = params.height, params.width
     left, right, top, bottom = _pad(nh, nw)
-    scale = torch.tensor((nw / w, nh / h), device=queries.device)  # (x, y)
-    offset = torch.tensor((left, top), device=queries.device, dtype=torch.float32)
+    scale = device_tensor((nw / w, nh / h), device=queries.device)  # (x, y)
+    offset = device_tensor((left, top), device=queries.device, dtype=torch.float32)
     region = torch.autocast(queries.device.type, amp) if amp is not None else contextlib.nullcontext()
     tracks = queries.new_zeros(n, queries.shape[0], 2)
     vis = queries.new_zeros(n, queries.shape[0])

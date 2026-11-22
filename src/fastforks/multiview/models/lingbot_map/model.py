@@ -31,6 +31,7 @@ from fastforks._core.errors import OptionsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks._core.tracing import in_onnx_export
+from fastforks._core.upload import device_tensor
 from fastforks.multiview._runner import Forward, Runner
 from fastforks.multiview.models.vggt import model as vggt
 from fastforks.multiview.models.vggt.net.heads.camera_head import modulate
@@ -287,8 +288,8 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
         """Normalised network images `[F, 3, h, w]` of `frames` -> tokens `[F, P, C]` (specials + patches)."""
         agg = self.net.aggregator
         pt = self.patch_tokens(x)
-        idx = torch.tensor([0 if g == 0 else 1 for g in frames], device=x.device)
-        sdx = torch.tensor([0 if g < s else 1 for g in frames], device=x.device)
+        idx = device_tensor([0 if g == 0 else 1 for g in frames], device=x.device)
+        sdx = device_tensor([0 if g < s else 1 for g in frames], device=x.device)
         return torch.cat(
             [agg.camera_token[0, idx], agg.register_token[0, idx], agg.scale_token[0, sdx], pt.to(self.dt)], 1
         )

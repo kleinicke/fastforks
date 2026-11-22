@@ -33,6 +33,7 @@ from torch import nn
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.patch import is_base, override
 from fastforks._core.runner import host
+from fastforks._core.upload import device_tensor
 from fastforks.calibration._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc, dpt_fused
 from fastforks.shared import mlx_wrap
@@ -109,8 +110,8 @@ def preprocess(image: torch.Tensor, size: tuple[int, int]) -> tuple[torch.Tensor
     h, w = x.shape[-2:]
     x = F.interpolate(x, size, mode="bicubic", align_corners=False, antialias=True).clamp(0, 1)
     s2 = (wt / w, ht / h)
-    scale = torch.tensor([s1[0] * s2[0], s1[1] * s2[1]], dtype=torch.float32, device=dev)
-    return x, scale, torch.tensor([shift[0] * s2[0], shift[1] * s2[1]], dtype=torch.float32, device=dev)
+    scale = device_tensor([s1[0] * s2[0], s1[1] * s2[1]], dtype=torch.float32, device=dev)
+    return x, scale, device_tensor([shift[0] * s2[0], shift[1] * s2[1]], dtype=torch.float32, device=dev)
 
 
 class _Net(nn.Module):

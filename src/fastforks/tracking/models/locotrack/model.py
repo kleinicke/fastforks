@@ -18,6 +18,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
+from fastforks._core.upload import device_tensor
 from fastforks.kernels.locotrack_sample import neighborhood
 from fastforks.tracking._mlx import port as mlx_port
 from fastforks.tracking._runner import Forward, NoParams, Runner
@@ -72,7 +73,7 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus the auto
 ) -> dict[str, torch.Tensor]:
     """`{"tracks": [T, Q, 2], "visibility": [T, Q]}` of frames `frames(t)` `[1, 3, H, W]` in `[0, 1]`."""
     h, w = size
-    scale = torch.tensor((SIZE / w, SIZE / h), device=queries.device)  # (x, y)
+    scale = device_tensor((SIZE / w, SIZE / h), device=queries.device)  # (x, y)
     region = torch.autocast(queries.device.type, amp) if amp is not None else contextlib.nullcontext()
     grids: list[list[torch.Tensor]] = [[], [], []]
     with region:

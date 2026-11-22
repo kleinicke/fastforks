@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import torch
 
 from fastforks._core.checkpoint import NUMPY_ARRAYS, latin1_encode
+from fastforks._core.upload import device_tensor
 from fastforks._optimize import optimize
 from fastforks.kernels import box_nms, cudnn_hacc, pose_warp
 from fastforks.pose._runner import Forward, Runner
@@ -120,7 +121,7 @@ def nms(boxes: torch.Tensor, iou: float) -> torch.Tensor:
         if not gone[i]:
             keep.append(i)
             gone |= over[i]
-    return torch.tensor(keep, dtype=torch.long, device=boxes.device)
+    return device_tensor(keep, dtype=torch.long, device=boxes.device)
 
 
 class Portable(Runner):
@@ -168,7 +169,7 @@ class Portable(Runner):
         idx, boxes = idx[keep], boxes[keep]
         centre = (boxes[:, :2] + boxes[:, 2:]) / 2
         kp = self.dcc(vec[idx], centre, (boxes[:, 2:] - boxes[:, :2]) * PADDING, self.prior[idx])
-        offset = torch.tensor([width, height], device=kp.device) / 2 - a.size / (2 * r)
+        offset = device_tensor([width, height], device=kp.device) / 2 - a.size / (2 * r)
         return {
             "keypoints": kp / r + offset,
             "keypoint_scores": vis[idx].sigmoid(),

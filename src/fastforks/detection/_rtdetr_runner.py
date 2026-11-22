@@ -13,6 +13,7 @@ import torch
 
 from fastforks._core.errors import InputError
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.upload import device_tensor
 from fastforks.detection._convs import FusedConvs
 from fastforks.detection._rtdetr import ConvBn, RepVgg
 from fastforks.detection._runner import Forward, Runner
@@ -79,7 +80,9 @@ class Portable(Runner):
         scores, idx = logits.float().sigmoid()[0].flatten().topk(p.num_queries)
         labels, query = idx % p.num_classes, idx // p.num_classes
         cx, cy, bw, bh = boxes[0].float()[query].unbind(-1)
-        out = torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1) * boxes.new_tensor([w, h, w, h])
+        out = torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1) * device_tensor(
+            [w, h, w, h], device=boxes.device, dtype=boxes.dtype
+        )
         keep = scores >= score_threshold
         n = p.max_detections
         return {"boxes": out[keep][:n], "scores": scores[keep][:n], "labels": labels[keep][:n]}

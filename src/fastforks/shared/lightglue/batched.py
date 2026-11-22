@@ -20,6 +20,8 @@ from typing import TYPE_CHECKING, Any
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.upload import device_tensor
+
 from .net.lightglue import CrossBlock, SelfBlock, apply_cached_rotary_emb
 
 if TYPE_CHECKING:
@@ -67,11 +69,11 @@ class _Side:
         self.cu = self.cu_seqlens()
 
     def offsets(self) -> torch.Tensor:
-        return torch.tensor([0, *self.lens[:-1]], device=self.desc.device).cumsum(0)
+        return device_tensor([0, *self.lens[:-1]], device=self.desc.device).cumsum(0)
 
     def seg(self) -> torch.Tensor:
         """The pair (position) of every token."""
-        lens = torch.tensor(self.lens, device=self.desc.device)
+        lens = device_tensor(self.lens, device=self.desc.device)
         return torch.arange(len(self.lens), device=self.desc.device).repeat_interleave(lens)
 
     def spans(self) -> list[tuple[int, int]]:
@@ -83,7 +85,7 @@ class _Side:
 
     def cu_seqlens(self) -> torch.Tensor:
         cu = [0, *(end for _, end in self.spans())]
-        return torch.tensor(cu, device=self.desc.device, dtype=torch.int32)
+        return device_tensor(cu, device=self.desc.device, dtype=torch.int32)
 
     def select(self, keep: torch.Tensor, lens: list[int]) -> None:
         """Keep the tokens `keep` (sorted indices); `lens`: the new tokens per pair."""
@@ -138,8 +140,8 @@ def _pad_index(offsets: list[int], lens: list[int], device: torch.device) -> tup
     """`[G, L]` packed-token index of the padded rows and the valid mask."""
     n = max(lens)
     ar = torch.arange(n, device=device)
-    idx = torch.tensor(offsets, device=device)[:, None] + ar[None]
-    mask = ar[None] < torch.tensor(lens, device=device)[:, None]
+    idx = device_tensor(offsets, device=device)[:, None] + ar[None]
+    mask = ar[None] < device_tensor(lens, device=device)[:, None]
     return idx * mask, mask
 
 
@@ -239,7 +241,7 @@ class _Batch:
         low = torch.zeros(len(self.active), device=cth.device)
         low.index_add_(0, self.s0.seg(), (token0 < cth).float())
         low.index_add_(0, self.s1.seg(), (token1 < cth).float())
-        ratio = 1.0 - low / torch.tensor(self.num_points, device=cth.device, dtype=torch.float32)
+        ratio = 1.0 - low / device_tensor(self.num_points, device=cth.device, dtype=torch.float32)
         return (ratio > self.net.conf.depth_confidence).nonzero().squeeze(1).tolist()
 
     def head(self, i: int, pairs: list[int], results: list[Match]) -> None:
@@ -259,7 +261,7 @@ class _Batch:
             if net.conf.width_confidence > 0 and any(side.lens[k] > pruning_th for k in continuing):
                 head: Any = net.log_assignment[i]  # MatchAssignment
                 keep = net.get_pruning_mask(token, head.get_matchability(side.desc), i)  # ty: ignore[invalid-argument-type] - upstream accepts None
-                big = torch.tensor([n > pruning_th for n in side.lens], device=keep.device)
+                big = device_tensor([n > pruning_th for n in side.lens], device=keep.device)
                 keep |= ~big[side.seg()]
             side.prune(keep, continuing)
         self.active = [self.active[k] for k in continuing]

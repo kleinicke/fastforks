@@ -19,6 +19,7 @@ from fastforks._core.half import pure_half
 from fastforks._core.patch import override
 from fastforks._core.preprocess import IMAGENET_MEAN
 from fastforks._core.tracing import in_onnx_export
+from fastforks._core.upload import device_tensor
 from fastforks.depth._runner import Forward, Runner, scale
 from fastforks.depth.models.depth_anything_v2.fused import FusedHead, FusedViT
 from fastforks.kernels import omni_cg
@@ -104,7 +105,7 @@ def prepare(image: torch.Tensor, prompt: torch.Tensor) -> tuple[torch.Tensor, to
         max(32, (h + MULTIPLE - 1) // MULTIPLE * MULTIPLE) - h,
     )
     if any(pads):
-        mean = torch.tensor(IMAGENET_MEAN, device=image.device, dtype=image.dtype).view(1, 3, 1, 1)
+        mean = device_tensor(IMAGENET_MEAN, device=image.device, dtype=image.dtype).view(1, 3, 1, 1)
         image = F.pad(image - mean, pads) + mean
         d = F.pad(d, pads)
     return image, d
