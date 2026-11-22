@@ -403,3 +403,28 @@ def test_place_raises_a_replace_refused_on_every_try(tmp_path, monkeypatch):
         files._place(part, s.sha256, s, dest, "file:///x")
     assert calls[0] == files._REPLACE_TRIES
     assert not dest.exists()
+
+
+def test_place_retries_while_a_concurrent_blob_is_not_readable_yet(tmp_path, monkeypatch):
+    """A concurrent rename's blob that cannot be read yet (Errno 13) is retried, then accepted once it verifies."""
+    data = b"payload"
+    s = _spec(data, None)
+    part = tmp_path / "part"
+    part.write_bytes(data)
+    dest = tmp_path / "blobs" / s.sha256
+    dest.parent.mkdir()
+    dest.write_bytes(data)  # the concurrent download's copy
+    calls = _refusing_replace(monkeypatch, 99)
+    checks = [0]
+    real = files._corrupt
+
+    def corrupt(path, spec):
+        checks[0] += 1
+        if checks[0] == 1:
+            raise PermissionError(13, "Permission denied", str(path))
+        return real(path, spec)
+
+    monkeypatch.setattr(files, "_corrupt", corrupt)
+    files._place(part, s.sha256, s, dest, "file:///x")
+    assert (calls[0], checks[0]) == (2, 2)
+    assert dest.read_bytes() == data

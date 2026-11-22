@@ -630,9 +630,13 @@ def _place(part: Path, digest: str, spec: FileSpec, dest: Path, url: str) -> Non
         except PermissionError:
             # Windows refuses to replace a file another thread or process has open (it is reading the same blob, which
             # a concurrent download placed first), and also while a concurrent rename onto `dest` is still in flight
-            # (`dest` not visible yet). Only a verified copy of the same bytes there makes this a success; otherwise
-            # the other rename gets a moment to land before the next try.
-            if dest.is_file() and _corrupt(dest, spec) is None:
+            # (`dest` not visible yet, or visible but not yet readable). Only a verified copy of the same bytes there
+            # makes this a success; otherwise the other rename gets a moment to land before the next try.
+            try:
+                placed = dest.is_file() and _corrupt(dest, spec) is None
+            except PermissionError:
+                placed = False
+            if placed:
                 log.debug("%s was placed by a concurrent download", dest)
                 return
             if attempt == _REPLACE_TRIES - 1:
