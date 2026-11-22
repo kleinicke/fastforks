@@ -112,7 +112,7 @@ class Params:
 
 def _net(ctx: Context) -> Net:
     net = Net()
-    net.load_state_dict(ctx.state_dict(), strict=True)
+    net.load_state_dict(ctx.state_dict(), strict=True, assign=ctx.device.type == "mps")  # MPS: no CPU copy (vggt._net)
     return net.eval().requires_grad_(requires_grad=False)
 
 

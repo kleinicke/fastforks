@@ -95,7 +95,8 @@ class Net(nn.Module):
 def _net(ctx: Context) -> Net:
     sd = {k: v for k, v in ctx.state_dict().items() if not k.startswith("track_head.")}
     net = Net()
-    net.load_state_dict(sd, strict=True)
+    # MPS: the mmapped checkpoint moves to the GPU as it is (no 4.8 GB float32 CPU copy first: about -4 s of load)
+    net.load_state_dict(sd, strict=True, assign=ctx.device.type == "mps")
     return net.eval().requires_grad_(requires_grad=False).to("cpu" if ctx.params.stream else ctx.device)
 
 
