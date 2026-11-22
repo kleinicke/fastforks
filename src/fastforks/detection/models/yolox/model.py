@@ -17,7 +17,8 @@ upstream.
 
 Portable runs the network in float16 on CUDA (channels-last), scores and boxes in float32. Kernels runs the whole
 network through `fastforks._optimize` (fused conv + SiLU / residual / concat kernels, fp16, channels-last) and replays
-network and box decoding from one CUDA graph (the input is always `size x size`).
+network and box decoding from one CUDA graph per batch size (the input is always `size x size`; one image and one
+batch size are kept).
 """
 
 from __future__ import annotations
@@ -62,10 +63,10 @@ def fit(h: int, w: int, size: int) -> tuple[int, int]:
 
 
 def canvas(image: torch.Tensor, size: int) -> tuple[torch.Tensor, float]:
-    """`[1, 3, H, W]` RGB in [0, 1] or uint8 -> the padded `[1, 3, size, size]` canvas (0..255), resize factor."""
+    """`[B, 3, H, W]` RGB in [0, 1] or uint8 -> the padded `[B, 3, size, size]` canvas (0..255), resize factor."""
     h, w = image.shape[-2:]
     nh, nw = fit(h, w, size)
-    x = image.new_full((1, 3, size, size), PAD, dtype=torch.float32)
+    x = image.new_full((image.shape[0], 3, size, size), PAD, dtype=torch.float32)
     x[..., :nh, :nw] = cv2_linear(image, nh, nw, 1.0 if image.dtype == torch.uint8 else 255.0)
     return x, min(size / h, size / w)
 
@@ -76,6 +77,8 @@ class Portable(Runner):
     dtypes = ("float32", "float16")
     Params = Params
     uint8_input = True
+    batch = None  # `detect_batch`: a batch of images in one network call (NMS per image)
+    compiled_methods = ("__call__", "detect_batch")
 
     def __init__(self, ctx: Context) -> None:
         """Build the network with the checkpoint (BatchNorm folded) on the device."""
@@ -100,15 +103,24 @@ class Portable(Runner):
         return boxes, obj * conf, label
 
     def _forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Boxes `[N, 4]`, scores `[N]` and labels `[N]` of the canvas."""
-        boxes, score, label = self.predict(x, self.grid)
-        return boxes[0], score[0], label[0]
+        """Boxes `[B, N, 4]`, scores `[B, N]` and labels `[B, N]` of the canvases."""
+        return self.predict(x, self.grid)
 
     def __call__(self, image: torch.Tensor, score_threshold: float) -> dict[str, torch.Tensor]:
         """The reference's preprocessing and postprocessing on one image."""
-        p: Params = self.ctx.params
-        x, r = canvas(image, p.size)
+        return self.detect_batch(image, score_threshold)[0]
+
+    def detect_batch(self, images: torch.Tensor, score_threshold: float) -> list[dict[str, torch.Tensor]]:
+        """`__call__` on each image of `[B, 3, H, W]`, the network run once on the batch."""
+        x, r = canvas(images, self.ctx.params.size)
         boxes, score, label = self._forward(x)
+        return [self._finish(boxes[i], score[i], label[i], r, score_threshold) for i in range(len(boxes))]
+
+    def _finish(
+        self, boxes: torch.Tensor, score: torch.Tensor, label: torch.Tensor, r: float, score_threshold: float
+    ) -> dict[str, torch.Tensor]:
+        """Threshold, NMS and the best `max_detections` of one image's cells."""
+        p: Params = self.ctx.params
         keep = (score >= score_threshold).nonzero()[:, 0]
         boxes, score, label = boxes[keep] / r, score[keep], label[keep]
         if boxes.numel():
@@ -144,22 +156,22 @@ class Kernels(Portable):
         """The portable network, then its optimized copy and the graph cache."""
         super().__init__(ctx)
         self.net = optimize(copy.deepcopy(self.net.float()), mode="kernels", device=ctx.device, family="cnn")
-        self.graphs = GraphCache(self._eager, graphs=1) if ctx.params.cuda_graphs else None
+        self.graphs = GraphCache(self._eager, graphs=2) if ctx.params.cuda_graphs else None  # one image + one batch
 
     def run(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """The head maps of a float32 input (the optimized network converts dtype and layout itself)."""
         return self.net(x)
 
     def _eager(self, x: torch.Tensor) -> torch.Tensor:
-        """Boxes, score and label of the canvas as one float32 `[N, 6]` tensor (one graph output)."""
+        """Boxes, score and label of the canvases as one float32 `[B, N, 6]` tensor (one graph output)."""
         boxes, score, label = self.predict(x, self.grid)
-        return torch.cat((boxes[0], score[0, :, None], label[0, :, None].float()), -1)
+        return torch.cat((boxes, score[..., None], label[..., None].float()), -1)
 
     def _forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         out = self.graphs.run((x.device, tuple(x.shape)), x) if self.graphs is not None else None
         if out is None:
             out = self._eager(x)
-        return out[:, :4], out[:, 4], out[:, 5].long()
+        return out[..., :4], out[..., 4], out[..., 5].long()
 
     def release_graphs(self) -> None:
         """Free the CUDA graph and its memory pool."""
