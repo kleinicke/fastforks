@@ -14,6 +14,7 @@ from bisect import bisect_right
 
 import torch
 
+from fastforks._core.upload import device_tensor
 from fastforks.multiview._runner import invert
 
 TILE = 16  # fixed: gsplat's tile size
@@ -132,7 +133,7 @@ def render(  # noqa: PLR0915 - one tile pass per view
     pix = origin.view(-1, 1, 2).flip(-1).float() * TILE + local + 0.5  # [tiles, 256, 2] pixel centres (x, y)
     out = []
     for v in range(c2w.shape[0]):
-        k = k_norm[v].float() * torch.tensor((w, h, 1.0), device=dev)[:, None]
+        k = k_norm[v].float() * device_tensor((w, h, 1.0), device=dev)[:, None]
         ids, m2, conic, o, rad = _project(means, cov, opacities, w2c[v], k, h, w, near, far)
         d = means[ids] - c2w[v, :3, 3].float()
         col = (sh[ids] @ sh_basis(d / d.norm(dim=-1, keepdim=True))[..., None])[..., 0].add(0.5).clamp_min(0)
@@ -142,14 +143,16 @@ def render(  # noqa: PLR0915 - one tile pass per view
         lo, hi = lo.long(), torch.stack((hi[:, 0].clamp(max=tw), hi[:, 1].clamp(max=th)), -1).long()
         n = (hi - lo).clamp_min(0)
         cnt = n[:, 0] * n[:, 1]
-        g = torch.repeat_interleave(torch.arange(len(ids), device=dev), cnt)
-        j = torch.arange(len(g), device=dev) - torch.repeat_interleave(cnt.cumsum(0) - cnt, cnt)
+        # one host sync for the pair count; every repeat_interleave without output_size (and bincount) syncs again
+        total = int(cnt.sum())
+        g = torch.repeat_interleave(torch.arange(len(ids), device=dev), cnt, output_size=total)
+        j = torch.arange(total, device=dev) - torch.repeat_interleave(cnt.cumsum(0) - cnt, cnt, output_size=total)
         tile = (lo[g, 1] + j // n[g, 0]) * tw + lo[g, 0] + j % n[g, 0]
         tile, perm = tile.sort(stable=True)
         g = g[perm]
-        per = torch.bincount(tile, minlength=tw * th)
+        per = torch.zeros(tw * th, dtype=torch.long, device=dev).index_add_(0, tile, torch.ones_like(tile))  # bincount
         rank = per.argsort(descending=True, stable=True)
-        pos = torch.arange(len(g), device=dev) - torch.repeat_interleave(per.cumsum(0) - per, per)
+        pos = torch.arange(total, device=dev) - torch.repeat_interleave(per.cumsum(0) - per, per, output_size=total)
         active = per[rank]
         counts = active.tolist() if reuse else None
         if counts is None:

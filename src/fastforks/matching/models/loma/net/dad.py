@@ -9,6 +9,8 @@ from __future__ import annotations
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.upload import device_tensor  # fastforks
+
 from fastforks.shared.dedode import get_grid
 
 
@@ -31,5 +33,5 @@ def sample_keypoints(logits: torch.Tensor, num_samples: int, nms_size: int, temp
     patches = padded.unfold(0, nms_size, 1).unfold(1, nms_size, 1)[y, x].flatten(1).mT.contiguous()
     weights = (patches / temp).softmax(dim=0)
     offsets = get_grid(nms_size, nms_size, logits.device) * nms_size  # upstream: the k x k grid times k / size
-    offsets = offsets / torch.tensor([w, h], device=logits.device, dtype=offsets.dtype)
+    offsets = offsets / device_tensor([w, h], device=logits.device, dtype=offsets.dtype)  # fastforks: no host sync (a pageable upload syncs the host)
     return kpts + weights.mT @ offsets

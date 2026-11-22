@@ -20,6 +20,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.runner import host
+from fastforks._core.upload import device_tensor
 from fastforks.edges._runner import Forward, Runner, to_detect, to_input
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cnn_kernels import prepare_generic
@@ -142,7 +143,7 @@ def draw(seg: torch.Tensor, keep: torch.Tensor, h: int, w: int) -> torch.Tensor:
     image = torch.arange(b, device=seg.device).repeat_interleave(k)[:, None].expand_as(px)
     flat = torch.where(valid, (image * h + py.clamp(0, h - 1)) * w + px.clamp(0, w - 1), b * h * w)
     out = torch.zeros(b * h * w + 1, device=seg.device)
-    out[flat.flatten()] = 1
+    out.index_fill_(0, flat.flatten(), 1)  # a Python value: an index_put of 1 copies it from the host
     return out[:-1].view(b, h, w)
 
 
@@ -185,7 +186,9 @@ class Portable(Runner):
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor | list[torch.Tensor]]:
         """Line map `[B, H, W]` and segments (`B` x `[N, 4]`, input pixels) of `[B, 3, H, W]` RGB in `[0, 1]`."""
         edges, seg, keep, hd, wd = self._edges_and_segments(image)
-        scale = seg.new_tensor([image.shape[-1] / wd, image.shape[-2] / hd]).repeat(2)
+        scale = device_tensor([image.shape[-1] / wd, image.shape[-2] / hd], device=seg.device, dtype=seg.dtype).repeat(
+            2
+        )
         lines = [(s[k] * scale).float().to(image.device) for s, k in zip(seg, keep, strict=True)]
         return {"edges": edges, "lines": lines}
 

@@ -24,6 +24,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.upload import device_tensor
 from fastforks.detection._convs import Convs, FusedConvs
 from fastforks.detection._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
@@ -81,8 +82,8 @@ def prepare(image: torch.Tensor, p: Params) -> torch.Tensor:
 
 def normalise(x: torch.Tensor) -> torch.Tensor:
     """RGB `[B, 3, h, w]` in `[0, 1]` -> minus the ImageNet mean over its std."""
-    mean = torch.tensor(MEAN, device=x.device, dtype=torch.float32).view(1, 3, 1, 1)
-    return (x - mean) / torch.tensor(STD, device=x.device, dtype=torch.float32).view(1, 3, 1, 1)
+    mean = device_tensor(MEAN, device=x.device, dtype=torch.float32).view(1, 3, 1, 1)
+    return (x - mean) / device_tensor(STD, device=x.device, dtype=torch.float32).view(1, 3, 1, 1)
 
 
 class Portable(Runner):
@@ -127,7 +128,9 @@ class Portable(Runner):
         logits, boxes = self._logits(prepare(image, p))
         scores, ids = logits.float().softmax(-1)[0, :, :-1].max(-1)
         cx, cy, bw, bh = boxes[0].float().unbind(-1)
-        boxes = torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1) * boxes.new_tensor([w, h, w, h])
+        boxes = torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1) * device_tensor(
+            [w, h, w, h], device=boxes.device, dtype=boxes.dtype
+        )
         labels = self.ids[ids]
         keep = (labels >= 0) & (scores >= score_threshold)
         scores, order = scores[keep].sort(descending=True)

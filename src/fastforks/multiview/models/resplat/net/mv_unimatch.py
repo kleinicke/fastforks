@@ -1,4 +1,5 @@
 import torch
+from fastforks._core.upload import to_device  # fastforks
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -233,8 +234,8 @@ class MultiViewUniMatch(nn.Module):
         images: (B, V, C, H, W)
         """
         shape = [*[1] * (images.dim() - 3), 3, 1, 1]
-        mean = torch.tensor([0.485, 0.456, 0.406]).reshape(*shape).to(images.device)
-        std = torch.tensor([0.229, 0.224, 0.225]).reshape(*shape).to(images.device)
+        mean = to_device(torch.tensor([0.485, 0.456, 0.406]).reshape(*shape), images.device)  # fastforks: to_device (a pageable upload syncs the host)
+        std = to_device(torch.tensor([0.229, 0.224, 0.225]).reshape(*shape), images.device)  # fastforks: to_device (a pageable upload syncs the host)
 
         return (images - mean) / std
 

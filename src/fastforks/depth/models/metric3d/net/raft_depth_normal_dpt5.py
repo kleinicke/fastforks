@@ -229,9 +229,9 @@ def upflow4(flow, mode='bilinear'):
     with torch.autocast(device_type='cuda', dtype=torch.bfloat16, enabled=False):
         return  F.interpolate(flow, size=new_size, mode=mode, align_corners=True)
 
-def coords_grid(batch, ht, wd):
+def coords_grid(batch, ht, wd, device=None):  # fastforks: device (the zeros were made on the CPU and uploaded per call)
     # coords = torch.meshgrid(torch.arange(ht), torch.arange(wd))
-    coords = (torch.zeros((ht, wd)), torch.zeros((ht, wd)), torch.zeros((ht, wd)), torch.zeros((ht, wd)), torch.zeros((ht, wd)), torch.zeros((ht, wd)))
+    coords = tuple(torch.zeros((ht, wd), device=device) for _ in range(6))  # fastforks: six zero planes, as upstream
     coords = torch.stack(coords[::-1], dim=0).float()
     return coords[None].repeat(batch, 1, 1, 1)
 
@@ -869,8 +869,8 @@ class RAFTDepthNormalDPT5(nn.Module):
         """ Flow is represented as difference between two coordinate grids flow = coords1 - coords0"""
         N, _, H, W = img.shape
 
-        coords0 = coords_grid(N, H, W).to(img.device)
-        coords1 = coords_grid(N, H, W).to(img.device)
+        coords0 = coords_grid(N, H, W, img.device)  # fastforks: made on the device
+        coords1 = coords_grid(N, H, W, img.device)  # fastforks: made on the device
 
         return coords0, coords1
     

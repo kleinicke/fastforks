@@ -13,6 +13,7 @@ from .utils import coords_grid, Padder, bilinear_sampler
 from fastforks._core.mlx_cast import to_run_dtype  # fastforks: run-dtype casts on MLX
 
 from fastforks.shared.timm_blocks import resnet_layers
+from fastforks._core.upload import device_tensor  # fastforks
 
 class resconv(nn.Module):
     def __init__(self, inp, oup, k=3, s=1):
@@ -116,8 +117,8 @@ class ViTWarpV8(nn.Module):
         @img: (B,C,H,W) in range 0-255, RGB order
         '''
         # fastforks: torchvision's Normalize written out (same arithmetic: (x - mean) / std)
-        mean = img.new_tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
-        std = img.new_tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
+        mean = device_tensor([0.485, 0.456, 0.406], device=img.device, dtype=img.dtype).view(1, 3, 1, 1)  # fastforks: device_tensor (a pageable upload syncs the host)
+        std = device_tensor([0.229, 0.224, 0.225], device=img.device, dtype=img.dtype).view(1, 3, 1, 1)  # fastforks: device_tensor (a pageable upload syncs the host)
         return ((img/255.0 - mean) / std).contiguous()
 
     def _image_features(self, image):
@@ -153,7 +154,7 @@ class ViTWarpV8(nn.Module):
             fmap1_2x = self.fmap_conv(torch.cat([fmap1_feats[0], da_feature1_2x], dim=1))
             fmap2_2x = self.fmap_conv(torch.cat([fmap2_feats[0], da_feature2_2x], dim=1))
         net = self.hidden_conv(torch.cat([fmap1_2x, fmap2_2x], dim=1))
-        flow_2x = torch.zeros(N, 2, H//2, W//2).to(image1.device)
+        flow_2x = torch.zeros(N, 2, H//2, W//2, device=image1.device)  # fastforks: made on the device
         for itr in range(iters):
             flow_2x = flow_2x.detach()
             coords2 = (coords_grid(N, H//2, W//2, device=image1.device) + flow_2x).detach()

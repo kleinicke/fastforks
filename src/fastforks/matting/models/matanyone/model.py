@@ -28,6 +28,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.patch import override
 from fastforks._core.runner import host
+from fastforks._core.upload import to_device
 from fastforks.kernels import image_normalize
 from fastforks.matting._runner import Runner
 
@@ -109,7 +110,7 @@ def _ellipse(k: int, device: torch.device) -> torch.Tensor:
         if abs(dy) <= r:
             dx = round(c * math.sqrt((r * r - dy * dy) / (r * r)))
             kernel[i, max(c - dx, 0) : min(c + dx + 1, k)] = 1
-    return kernel.to(device)[None, None]
+    return to_device(kernel, device)[None, None]
 
 
 def close_mask(mask: torch.Tensor, dilate: int, erode: int) -> torch.Tensor:

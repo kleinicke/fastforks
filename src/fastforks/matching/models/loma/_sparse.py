@@ -5,6 +5,7 @@ from collections.abc import Callable
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.upload import device_tensor
 from fastforks.shared.dedode import ConvRefiner, Descriptor
 
 
@@ -60,7 +61,9 @@ def sample(
         msg = "LoMa sparse descriptors require a multi-scale DeDoDe decoder"
         raise ValueError(msg)
     h, w = features[0].shape[-2:]
-    x, y = (((keypoints.float() + 1) * keypoints.new_tensor([w, h]) - 1) / 2).unbind(1)
+    x, y = (
+        ((keypoints.float() + 1) * device_tensor([w, h], device=keypoints.device, dtype=keypoints.dtype) - 1) / 2
+    ).unbind(1)
     x0, y0 = x.floor(), y.floor()
     wx, wy = x - x0, y - y0
     ix = torch.stack((x0, x0 + 1, x0, x0 + 1)).long()

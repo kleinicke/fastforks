@@ -21,6 +21,7 @@ from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
+from fastforks._core.upload import device_tensor
 from fastforks.detection._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared import mlx_wrap
@@ -104,7 +105,7 @@ class Network(torch.nn.Module):
     def _levels(self, shapes: tuple[tuple[int, int], ...], device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
         hit = self._shapes.get(shapes)
         if hit is None:
-            t = torch.tensor(shapes, dtype=torch.long, device=device)
+            t = device_tensor(shapes, dtype=torch.long, device=device)
             hit = (t, torch.cat((t.new_zeros(1), t.prod(1).cumsum(0)[:-1])))
             self._shapes[shapes] = hit
         return hit
@@ -177,7 +178,9 @@ class Portable(Runner):
         classes = logits.shape[-1]
         labels, query = self.ids[idx % classes], idx // classes
         cx, cy, bw, bh = boxes[0][query].unbind(-1)
-        out = torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1) * boxes.new_tensor([w, h, w, h])
+        out = torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1) * device_tensor(
+            [w, h, w, h], device=boxes.device, dtype=boxes.dtype
+        )
         keep = ((labels >= 0) & (scores >= score_threshold)).nonzero()[:, 0][: p.max_detections]
         return {"boxes": out[keep], "scores": scores[keep], "labels": labels[keep]}
 

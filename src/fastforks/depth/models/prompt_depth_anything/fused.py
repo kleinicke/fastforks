@@ -16,6 +16,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.upload import device_tensor
 from fastforks.depth.models.depth_anything_v2.fused import FusedHead, FusedViT, _Conv, _conv
 from fastforks.kernels.dpt_fused import ACT_RELU, DptFused
 
@@ -96,6 +97,6 @@ class PromptFusedHead(FusedHead):
         o = k.bilinear(z, (14 * gh, 14 * gw), align_corners=True)
         del z
         o = self._conv(o, self.oc2, act=ACT_RELU)
-        return torch.sigmoid(F.linear(o.float(), self.w_last[None], o.new_tensor(self.b_last, dtype=torch.float32)))[
-            ..., 0
-        ]
+        return torch.sigmoid(
+            F.linear(o.float(), self.w_last[None], device_tensor(self.b_last, dtype=torch.float32, device=o.device))
+        )[..., 0]

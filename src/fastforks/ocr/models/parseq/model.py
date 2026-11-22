@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 
 import torch
 
+from fastforks._core.upload import device_tensor
 from fastforks.ocr._runner import Forward, Runner, levels
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
@@ -97,7 +98,7 @@ class Portable(Runner):
         text = "".join(CHARSET[i - 1] for i in ids_l[:end])
         score = p[: end + 1].mean()  # the characters and the end token, as upstream's `Tokenizer._filter`
         h, w = image.shape[-2:]
-        box = torch.tensor([[[0, 0], [w, 0], [w, h], [0, h]]], dtype=torch.float32, device=image.device)
+        box = device_tensor([[[0, 0], [w, 0], [w, h], [0, h]]], dtype=torch.float32, device=image.device)
         return {"boxes": box, "texts": [text], "scores": score.view(1)}
 
     def module(self) -> torch.nn.Module:

@@ -82,9 +82,11 @@ def average_linkage(x: torch.Tensor, threshold: float) -> torch.Tensor:
         remap = torch.arange(n, device=dev)
         remap[ids[j]] = ids[i]
         owner = remap[owner]
-        keep = torch.ones(m, dtype=torch.bool, device=dev)
-        keep[j] = False
-        d, ids, size = d[keep][:, keep], ids[keep], size[keep]
+        # the rows left, in order, without a host sync (boolean-mask indexing reads the count back): `j` holds distinct
+        # rows (mutual nearest-neighbour pairs are disjoint), so the first m - len(j) of a stable sort are the kept ones
+        gone = torch.zeros(m, dtype=torch.uint8, device=dev).index_fill_(0, j, 1)
+        rows = torch.argsort(gone, stable=True)[: m - j.numel()]
+        d, ids, size = d.index_select(0, rows).index_select(1, rows), ids[rows], size[rows]
     return torch.unique(owner, return_inverse=True)[1]
 
 

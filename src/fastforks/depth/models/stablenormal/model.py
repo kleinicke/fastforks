@@ -26,6 +26,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.tracing import in_onnx_export
+from fastforks._core.upload import device_tensor
 from fastforks.depth._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared import mlx_wrap
@@ -84,7 +85,7 @@ def finish(n: torch.Tensor, pad: tuple[int, int], size: tuple[int, ...]) -> torc
     n = _unit(n.float())[:, :, : -ph or None, : -pw or None]
     if tuple(n.shape[-2:]) != tuple(size):
         n = F.interpolate(n, size, mode="bilinear")
-    n = _unit(n) * n.new_tensor(_CAMERA)[:, None, None]
+    n = _unit(n) * device_tensor(_CAMERA, device=n.device, dtype=n.dtype)[:, None, None]
     return n.permute(0, 2, 3, 1)
 
 
@@ -105,7 +106,7 @@ def infer(net: SD2Net, control: ControlNetEncoder, image: torch.Tensor, params: 
     rgb = net.vae.encode_mean(x.to(dtype)) * LATENT_SCALE
     (z,) = noise(rgb.shape, rgb.device, dtype)
     ctx = net.empty_text.to(dtype).expand(rgb.shape[0], -1, -1)
-    t = torch.tensor(TIMESTEP, device=rgb.device)
+    t = device_tensor(TIMESTEP, device=rgb.device)
     pred = net.unet(z, t, ctx, residuals=control(rgb, t, ctx))
     return finish(net.vae.decode(pred / LATENT_SCALE), pad, image.shape[-2:])
 

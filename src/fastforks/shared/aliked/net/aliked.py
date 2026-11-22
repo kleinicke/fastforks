@@ -40,6 +40,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.modules.utils import _pair
 from fastforks._core.sampling import grid_sample
+from fastforks._core.upload import device_tensor  # fastforks
 
 
 # fastforks: torchvision.models.resnet.conv1x1 / conv3x3 (bias-free), without the torchvision dependency
@@ -182,7 +183,7 @@ class DKD(nn.Module):
                     indices = indices[sel_idx]
                 indices_keypoints.append(indices)
 
-        wh = torch.tensor([w - 1, h - 1], device=scores_nograd.device)
+        wh = device_tensor([w - 1, h - 1], device=scores_nograd.device)  # fastforks: no host sync (a pageable upload syncs the host)
 
         keypoints = []
         scoredispersitys = []
@@ -509,7 +510,7 @@ class SDDH(nn.Module):
         # x: [B,C,H,W]
         # keypoints: list, [[N_kpts,2], ...] (w,h)
         b, c, h, w = x.shape
-        wh = torch.tensor([[w - 1, h - 1]], device=x.device)
+        wh = device_tensor([[w - 1, h - 1]], device=x.device)  # fastforks: no host sync (a pageable upload syncs the host)
         max_offset = max(h, w) / 4.0
 
         offsets = []
@@ -698,7 +699,7 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
             score_map, image_size=data.get("image_size"), nms_scores=nms_scores
         )
         _, _, h, w = image.shape
-        wh = torch.tensor([w - 1, h - 1], device=image.device)
+        wh = device_tensor([w - 1, h - 1], device=image.device)  # fastforks: no host sync (a pageable upload syncs the host)
         # no padding required
         # we can set detection_threshold=-1 and conf.max_num_keypoints > 0
         out = {

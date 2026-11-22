@@ -5,6 +5,8 @@ from typing import Any as DictConfig  # fastforks: omegaconf only annotated the 
 from typing import List, Dict
 import torch
 
+from fastforks._core.upload import device_tensor  # fastforks
+
 from fastforks.matting.models.matanyone.net.inference.object_manager import ObjectManager
 from fastforks.matting.models.matanyone.net.inference.kv_memory_store import KeyValueMemoryStore
 from fastforks.matting.models.matanyone.net.model.matanyone import MatAnyone
@@ -97,7 +99,8 @@ class MemoryManager:
 
     def _get_mask_by_ids(self, mask: torch.Tensor, obj_ids: List[int]) -> torch.Tensor:
         # -1 because the mask does not contain the background channel
-        return mask[:, [self.object_manager.find_tmp_by_id(obj) - 1 for obj in obj_ids]]
+        # fastforks: the index through device_tensor (a Python list index is uploaded from pageable memory: a host sync)
+        return mask[:, device_tensor([self.object_manager.find_tmp_by_id(obj) - 1 for obj in obj_ids], device=mask.device)]
 
     def _get_sensory_by_ids(self, obj_ids: List[int]) -> torch.Tensor:
         return torch.stack([self.sensory[obj] for obj in obj_ids], dim=1)

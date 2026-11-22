@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.upload import device_tensor
 from fastforks.depth._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared import mlx_wrap
@@ -77,7 +78,7 @@ def infer(net: SD2Net, image: torch.Tensor, params: Params, noise: Noise, ddim: 
     (z,) = noise(rgb.shape, rgb.device, dtype)
     ctx = net.empty_text.to(dtype).expand(rgb.shape[0], -1, -1)
     for t in ddim.timesteps:
-        v = net.unet(torch.cat([rgb, z], dim=1), torch.tensor(t, device=rgb.device), ctx)
+        v = net.unet(torch.cat([rgb, z], dim=1), device_tensor(t, device=rgb.device), ctx)
         z = ddim.step(v, t, z)
     return finish(net.vae.decode(z / LATENT_SCALE), image.shape[-2:])
 

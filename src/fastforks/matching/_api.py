@@ -17,6 +17,7 @@ from fastforks._core.errors import CardError, InputError
 from fastforks._core.image import ImageLike, is_batch, to_rgb_batch, to_rgb_batches, unbatch
 from fastforks._core.model import Backend
 from fastforks._core.outputs import NumpyOutputs, short_repr
+from fastforks._core.upload import device_tensor
 from fastforks.matching._pairs import DecodedImages, PairCache
 from fastforks.matching._runner import scale
 from fastforks.matching.relative_pose import FundamentalMatrix, RelativePose, estimate_fundamental, estimate_pose
@@ -159,7 +160,7 @@ class MatchingResult(NumpyOutputs):
             m = min(4 * n, int((weight > 0).sum(1).min()))
             cand = _draw(weight, m, gen)  # [B, 4 n]
             xy = torch.cat((torch.stack((cand % w, cand // w), -1).float(), _at(warp, cand)), -1)
-            density = _density(xy / torch.tensor([w, h, w, h], device=warp.device) * 2 - 1)
+            density = _density(xy / device_tensor([w, h, w, h], device=warp.device) * 2 - 1)
             p = torch.where(density < _MIN_DENSITY, 1e-7, 1 / (density + 1))
             ind = torch.gather(cand, 1, _draw(p, n, gen))
         else:

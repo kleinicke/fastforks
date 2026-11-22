@@ -6,6 +6,7 @@ import importlib
 import os
 import re
 import sys
+import time
 import tomllib
 from pathlib import Path
 
@@ -432,6 +433,26 @@ def test_dll_image_loads_under_a_suffixless_cache_blob_name():
     lib = kernels._load_dll_image(src.read_bytes(), "ab" * 32)
     assert lib.GetFileVersionInfoSizeW
     assert (kernels._dll_dir() / f"{'ab' * 32}.dll").is_file()
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows DLL loader")
+def test_dll_dirs_older_than_an_hour_are_swept_and_a_swept_live_dir_comes_back(tmp_path, monkeypatch):
+    """Every process that loads a kernel library leaves a directory of copies; a new process removes the hour-old
+    ones no process holds, and a live process whose unloaded copies were swept with their directory makes it again."""
+    monkeypatch.setattr(kernels.tempfile, "tempdir", str(tmp_path))
+    monkeypatch.setattr(kernels, "_DLL_DIR", [])
+    old, new = tmp_path / "fastforks-dll-old", tmp_path / "fastforks-dll-new"
+    for d in (old, new):
+        d.mkdir()
+        (d / "x.dll").write_bytes(b"x")
+    os.utime(old, (time.time() - 2 * kernels._STALE_DLL_DIR_S,) * 2)
+    mine = kernels._dll_dir()
+    assert not old.exists()
+    assert new.exists()
+    mine.rmdir()  # what a sweep in another process does to a directory without a loaded copy
+    src = Path(os.environ.get("SYSTEMROOT", r"C:\Windows")) / "System32" / "version.dll"
+    assert kernels._load_dll_image(src.read_bytes(), "ff_test_version.dll").GetFileVersionInfoSizeW
+    assert (mine / "ff_test_version.dll").is_file()
 
 
 def test_binary_names_the_driver_remedy(monkeypatch):

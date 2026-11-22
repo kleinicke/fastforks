@@ -14,6 +14,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import Inert
 from fastforks._core.patch import base_type, override
+from fastforks._core.upload import device_tensor
 from fastforks.kernels import rfdetr_input
 from fastforks.pose._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
@@ -104,7 +105,7 @@ class Portable(Runner):
         post = self.postprocess
         obj, labels, query = post._select_topk(raw["pred_logits"].float())  # noqa: SLF001
         height, width = image.shape[-2:]
-        size = torch.tensor([[height, width]], device=image.device)
+        size = device_tensor([[height, width]], device=image.device)
         xyxy = post._gather_and_scale_boxes(raw["pred_boxes"].float(), query, size)[0]  # noqa: SLF001
         joints = post.num_keypoints_per_class[PERSON]
         points = raw["pred_keypoints"][0, :, joints:].index_select(0, query[0]).float()

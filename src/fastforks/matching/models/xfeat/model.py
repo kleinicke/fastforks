@@ -19,6 +19,7 @@ from torch import nn
 
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.patch import override
+from fastforks._core.upload import device_tensor
 from fastforks.kernels import keypoint_nms
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
@@ -82,7 +83,7 @@ class Matcher(nn.Module):
         h, w = image.shape[-2:]
         if (int(size[0]), int(size[1])) == (w, h):
             return kpts
-        scale = torch.tensor([float(size[0]) / w, float(size[1]) / h], device=kpts.device, dtype=kpts.dtype)
+        scale = device_tensor([float(size[0]) / w, float(size[1]) / h], device=kpts.device, dtype=kpts.dtype)
         return (kpts + 0.5) / scale - 0.5
 
     def forward(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:

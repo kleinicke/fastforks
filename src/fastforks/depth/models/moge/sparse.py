@@ -34,6 +34,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.kernels import CubinModule, linear
+from fastforks._core.upload import device_tensor
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -150,9 +151,9 @@ def sparse_level(coords: torch.Tensor, extent: tuple[int, int, int]) -> Level:
     key = _key(coords, extent)
     n = key.numel()
     h, w, z = extent
-    d = torch.tensor(_TAPS, device=coords.device)  # [27, 3]
+    d = device_tensor(_TAPS, device=coords.device)  # [27, 3]
     c = coords[None, :, 1:] + d[:, None]  # [27, N, 3] neighbour coordinates
-    inside = ((c >= 0) & (c < torch.tensor([h, w, z], device=coords.device))).all(-1)
+    inside = ((c >= 0) & (c < device_tensor([h, w, z], device=coords.device))).all(-1)
     want = key + ((d[:, 0] * w + d[:, 1]) * z + d[:, 2])[:, None]
     pos = torch.searchsorted(key, want).clamp_(max=n - 1)
     return Level(coords, extent, torch.where(inside & (key[pos] == want), pos, -1).int())

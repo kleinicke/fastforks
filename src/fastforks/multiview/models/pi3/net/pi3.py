@@ -156,7 +156,8 @@ class Pi3(nn.Module):  # fastforks: no PyTorchModelHubMixin
             # do not use position embedding for special tokens (camera and register tokens)
             # so set pos to 0 for the special tokens
             pos = pos + 1
-            pos_special = torch.zeros(B * N, self.patch_start_idx, 2).to(hidden.device).to(pos.dtype)
+            # fastforks: made on the device (was zeros on the CPU, then uploaded: a host sync per call)
+            pos_special = pos.new_zeros(B * N, self.patch_start_idx, 2)
             pos = torch.cat([pos_special, pos], dim=1)
        
         for i in range(len(self.decoder)):

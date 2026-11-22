@@ -27,6 +27,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.patch import override
+from fastforks._core.upload import device_tensor
 from fastforks.kernels import image_normalize
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
@@ -85,7 +86,7 @@ class Matcher(nn.Module):
         p = self.params
         h, w = image.shape[-2:]
         x = resize_long(image, p.long_side) if p.long_side > 0 else image
-        scale = torch.tensor([x.shape[-1] / w, x.shape[-2] / h], device=x.device, dtype=x.dtype)
+        scale = device_tensor([x.shape[-1] / w, x.shape[-2] / h], device=x.device, dtype=x.dtype)
         kpts = self.extractor({"image": x})["keypoints"][0]
         sq = F.interpolate(image, (p.size, p.size), mode="bilinear", align_corners=False)
         with torch.autocast(image.device.type, self.amp or torch.float16, enabled=self.amp is not None):
@@ -97,8 +98,14 @@ class Matcher(nn.Module):
     ) -> dict[str, torch.Tensor]:
         """The pair's matches from both images' `describe` results."""
         (k0, f0), (k1, f1) = d1, d2
-        sizes = [image.new_tensor([image.shape[-1], image.shape[-2]]) for image in (image1, image2)]
-        resized = [f.new_tensor([STRIDE * f.shape[-1], STRIDE * f.shape[-2]]) for f in (f0, f1)]
+        sizes = [
+            device_tensor([image.shape[-1], image.shape[-2]], device=image.device, dtype=image.dtype)
+            for image in (image1, image2)
+        ]
+        resized = [
+            device_tensor([STRIDE * f.shape[-1], STRIDE * f.shape[-2]], device=f.device, dtype=f.dtype)
+            for f in (f0, f1)
+        ]
         kpts = [k0[None], k1[None]]
         cf = self.matcher.decode(f0, f1, self.amp)
         p2d, conf = [], []

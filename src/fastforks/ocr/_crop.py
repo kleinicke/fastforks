@@ -16,6 +16,7 @@ import functools
 import numpy as np
 import torch
 
+from fastforks._core.upload import device_tensor
 from fastforks.ocr._db import hull_order, min_area_rect, mini_boxes
 
 __all__ = ["crop_quads", "crop_sources", "perspective", "rotate_tall", "sort_quads"]
@@ -152,7 +153,7 @@ def _coords(
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Integer source pixel (x, y) and table index of every crop pixel (all crops concatenated, row-major)."""
     f64 = torch.float64
-    m = torch.tensor(mats, dtype=f64, device=device)
+    m = device_tensor(mats, dtype=f64, device=device)
     parts = []
     for i, (h, w) in enumerate(sizes):
         bh = min(BLOCK // 2, h)

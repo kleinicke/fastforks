@@ -38,6 +38,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.patch import is_base, override
 from fastforks._core.sampling import grid_sample
+from fastforks._core.upload import device_tensor, to_device
 from fastforks.kernels import mvsplat_corr
 from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, f64, invert, project_harmonics
@@ -100,7 +101,7 @@ class Backbone(nn.Module):
 
     def forward(self, images: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """`[V, 3, h, w]` in `[0, 1]` -> transformer and CNN features, both `[V, C, h / 4, w / 4]`."""
-        mean, std = (torch.tensor(t, device=images.device).view(1, 3, 1, 1) for t in (MEAN, STD))
+        mean, std = (device_tensor(t, device=images.device).view(1, 3, 1, 1) for t in (MEAN, STD))
         cnn = self.backbone((images - mean) / std)[0]
         views = list(cnn.unbind(0))
         splits = [split_feature(x[None], num_splits=SPLITS) for x in views]
@@ -324,8 +325,11 @@ def sh_rotation(r: torch.Tensor) -> torch.Tensor:
     """
     d = r.new_zeros(r.shape[0], SH, SH)
     d[:, 0, 0] = 1
-    for deg, (y, p) in enumerate(zip(_y((r @ _S.to(r)).transpose(1, 2)), _P, strict=True), 1):
-        d[:, deg**2 : (deg + 1) ** 2, deg**2 : (deg + 1) ** 2] = project_harmonics(y, p.to(r))
+    s = to_device(_S, r.device).to(r.dtype)
+    for deg, (y, p) in enumerate(zip(_y((r @ s).transpose(1, 2)), _P, strict=True), 1):
+        d[:, deg**2 : (deg + 1) ** 2, deg**2 : (deg + 1) ** 2] = project_harmonics(
+            y, to_device(p, r.device).to(r.dtype)
+        )
     return d
 
 
@@ -374,7 +378,7 @@ def gaussians(
     v, _, h, w = raw.shape
     raw = raw.permute(0, 2, 3, 1).reshape(v, h * w, RAW_DIM)
     dev = raw.device
-    pixel = 1 / torch.tensor((w, h), dtype=torch.float32, device=dev)
+    pixel = 1 / device_tensor((w, h), dtype=torch.float32, device=dev)
     ys, xs = ((torch.arange(n, device=dev, dtype=torch.float32) + 0.5) / n for n in (h, w))
     xy = torch.stack(torch.meshgrid(xs, ys, indexing="xy"), -1).reshape(1, h * w, 2)
     xy = xy + (raw[..., :2].float().sigmoid() - 0.5) * pixel
@@ -386,7 +390,7 @@ def gaussians(
     rot = rot.float()
     rot = rot / (rot.norm(dim=-1, keepdim=True) + 1e-8)  # x y z w, camera frame
     mask = torch.tensor([1.0] + [0.1 * 0.25**deg for deg in range(1, SH_DEGREE + 1) for _ in range(2 * deg + 1)])
-    sh = sh.reshape(v, h * w, 3, SH).float() * mask.to(dev)
+    sh = sh.reshape(v, h * w, 3, SH).float() * to_device(mask, dev)
     c2w = c2w.float()
     r = c2w[:, None, :3, :3]
     rays = (k_inv[:, None] @ torch.cat((xy, torch.ones_like(xy[..., :1])), -1).expand(v, -1, -1)[..., None])[..., 0]

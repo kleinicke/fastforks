@@ -30,6 +30,7 @@ from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks._core.checkpoint import check_fits
+from fastforks._core.upload import device_tensor
 from fastforks.kernels.romav2 import correlate_roma1
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
@@ -71,7 +72,7 @@ def forward(net: RoMa, image1: torch.Tensor, image2: torch.Tensor, params: Param
     if warp.shape[-2:] != (h1, w1):
         warp = F.interpolate(warp, (h1, w1), mode="bilinear", align_corners=False)
         certainty = F.interpolate(certainty[:, None], (h1, w1), mode="bilinear", align_corners=False)[:, 0]
-    size = torch.tensor((w2, h2), dtype=warp.dtype, device=warp.device).view(1, 2, 1, 1)
+    size = device_tensor((w2, h2), dtype=warp.dtype, device=warp.device).view(1, 2, 1, 1)
     return {"warp": (warp + 1) * (size / 2) - 0.5, "certainty": certainty}
 
 

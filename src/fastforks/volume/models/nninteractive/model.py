@@ -32,6 +32,7 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import InputError
 from fastforks._core.patch import override
 from fastforks._core.runner import Forward
+from fastforks._core.upload import device_tensor
 from fastforks.shared import mlx_wrap
 from fastforks.volume._nnunet import Norm, Plan, UNet, _network, configuration_of
 from fastforks.volume._nnunet_runner import CHECKPOINT_GLOBALS, fused_norm_act
@@ -169,11 +170,11 @@ def _sat(mask: torch.Tensor) -> torch.Tensor:
 
 def _bounds(c: torch.Tensor, size: Sequence[int], margin: Sequence[int], shape: Sequence[int]) -> torch.Tensor:
     """The covered part `[lo, hi)` (`[N, 2, 3]`) of boxes of `size` centred on `c` (`[N, 3]`), `margin` left out."""
-    half = torch.tensor([s // 2 for s in size], device=c.device)
-    end = torch.tensor([s - s // 2 for s in size], device=c.device)
-    m = torch.tensor(list(margin), device=c.device)
+    half = device_tensor([s // 2 for s in size], device=c.device)
+    end = device_tensor([s - s // 2 for s in size], device=c.device)
+    m = device_tensor(list(margin), device=c.device)
     lo = (c - half + m).clamp(min=0)
-    hi = torch.minimum(c + end - m, torch.tensor(list(shape), device=c.device))
+    hi = torch.minimum(c + end - m, device_tensor(list(shape), device=c.device))
     return torch.stack((lo, hi), 1)
 
 

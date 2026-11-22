@@ -27,6 +27,7 @@ from fastforks._core.checkpoint import load_strict
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks._core.runner import host
+from fastforks._core.upload import device_tensor
 from fastforks.calibration._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared import mlx_wrap
@@ -97,8 +98,8 @@ def preprocess(image: torch.Tensor, side: int, edge: int) -> tuple[torch.Tensor,
     left, top = pw // 2, ph // 2
     x = x[..., -top : nh + ph - top, -left : nw + pw - left]
     dev = image.device
-    scales = torch.tensor([nw / w, nh / h], dtype=torch.float32, device=dev)
-    crop = torch.tensor([float(pw), float(ph)], dtype=torch.float32, device=dev)
+    scales = device_tensor([nw / w, nh / h], dtype=torch.float32, device=dev)
+    crop = device_tensor([float(pw), float(ph)], dtype=torch.float32, device=dev)
     return x, scales, crop
 
 

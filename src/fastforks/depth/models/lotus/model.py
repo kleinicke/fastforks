@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.upload import device_tensor
 from fastforks.depth._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared import mlx_wrap
@@ -72,7 +73,11 @@ def finish(n: torch.Tensor, size: tuple[int, ...]) -> torch.Tensor:
     if tuple(n.shape[-2:]) != tuple(size):
         n = F.interpolate(n, size, mode="nearest-exact")  # upstream maps "nearest" to NEAREST_EXACT
     n = n * 2.0 - 1.0
-    n = n / torch.linalg.vector_norm(n, dim=1, keepdim=True).clamp(min=1e-6) * n.new_tensor(_CAMERA)[:, None, None]
+    n = (
+        n
+        / torch.linalg.vector_norm(n, dim=1, keepdim=True).clamp(min=1e-6)
+        * device_tensor(_CAMERA, device=n.device, dtype=n.dtype)[:, None, None]
+    )
     return n.permute(0, 2, 3, 1)
 
 
@@ -89,7 +94,7 @@ def infer(net: SD2Net, image: torch.Tensor, params: Params, noise: Noise) -> tor
     x = torch.cat([rgb, eps], dim=1) if params.generative else rgb
     ctx = net.empty_text.to(dtype).expand(rgb.shape[0], -1, -1)
     labels = torch.tensor([TASK], device=rgb.device, dtype=dtype).expand(rgb.shape[0], -1)
-    pred = net.unet(x, torch.tensor(TIMESTEP, device=rgb.device), ctx, labels)
+    pred = net.unet(x, device_tensor(TIMESTEP, device=rgb.device), ctx, labels)
     return finish(net.vae.decode(pred / LATENT_SCALE), image.shape[-2:])
 
 

@@ -35,6 +35,7 @@ from torch import nn
 
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
+from fastforks._core.upload import device_tensor, to_device
 from fastforks.kernels import depthsplat_corr
 from fastforks.kernels.cudnn_hacc import conv_half_acc
 from fastforks.multiview._runner import Forward, Runner, f64, invert, project_harmonics
@@ -174,7 +175,7 @@ def sh_rotation(r: torch.Tensor) -> torch.Tensor:
 
     `e3nn`: `D_0 = 1`, `D_1 = R` (its degree-1 basis is `x y z`), `D_2 Y_2(s) = Y_2(R s)` for every direction `s`.
     """
-    s, p = _S.to(r), _P.to(r)
+    s, p = to_device(_S, r.device).to(r.dtype), to_device(_P, r.device).to(r.dtype)
     d = r.new_zeros(r.shape[0], SH, SH)
     d[:, 0, 0] = 1
     d[:, 1:4, 1:4] = r
@@ -230,11 +231,11 @@ def gaussians(
     dev = raw.device
     ys, xs = ((torch.arange(n, device=dev, dtype=torch.float32) + 0.5) / n for n in (h, w))
     xy = torch.stack(torch.meshgrid(xs, ys, indexing="xy"), -1).reshape(1, h * w, 2)
-    xy = xy + (raw[..., 1:3].sigmoid() - 0.5) / torch.tensor((w, h), dtype=torch.float32, device=dev)
+    xy = xy + (raw[..., 1:3].sigmoid() - 0.5) / device_tensor((w, h), dtype=torch.float32, device=dev)
     scales, rot, sh = raw[..., 3:].split((3, 4, 3 * SH), -1)
     rot = rot / (rot.norm(dim=-1, keepdim=True) + 1e-8)  # x y z w, camera frame
     mask = torch.tensor([1.0] + [0.1 * 0.25**deg for deg in range(1, SH_DEGREE + 1) for _ in range(2 * deg + 1)])
-    sh = sh.reshape(v, h * w, 3, SH) * mask.to(dev)
+    sh = sh.reshape(v, h * w, 3, SH) * to_device(mask, dev)
     rgb = images.float().permute(0, 2, 3, 1).reshape(v, h * w, 3)
     sh = torch.cat((sh[..., :1] + ((rgb - 0.5) / C0)[..., None], sh[..., 1:]), -1)
     c2w = c2w.float()

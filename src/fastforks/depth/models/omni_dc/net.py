@@ -17,6 +17,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.upload import device_tensor
 from fastforks.shared.depth_anything_v2.net.dpt import DepthAnythingV2
 
 RES = 3  # fixed: upstream num_resolution (gradients at 1, 1/2, 1/4 of the 1/4-resolution grid)
@@ -462,7 +463,7 @@ class OmniDCNet(nn.Module):
         oa = self.prop_layer.conv_offset_aff(guide.float())
         off = oa[:, : 2 * NUM * PROP].view(b, PROP, NUM, 2, h, w)
         aff = oa[:, 2 * NUM * PROP :].view(b, PROP, NUM, h, w).softmax(2)
-        o3 = torch.tensor(OFFSETS, dtype=torch.float32, device=depth.device)
+        o3 = device_tensor(OFFSETS, dtype=torch.float32, device=depth.device)
         ys = torch.arange(h, dtype=torch.float32, device=depth.device)
         xs = torch.arange(w, dtype=torch.float32, device=depth.device)
         # grid_sample (align_corners False) at pixel (x + dx + ox, y + dy + oy): normalised (2 p + 1) / size - 1
@@ -487,7 +488,7 @@ def mono_size(h: int, w: int) -> tuple[int, int]:
 def quantile_normalise(d: torch.Tensor) -> torch.Tensor:
     """`relu(d)` mapped so its 2 % / 98 % quantiles (per image) are 0 / 1."""
     d = F.relu(d)
-    q = torch.quantile(d.flatten(1), torch.tensor(QUANT, device=d.device), dim=1)
+    q = torch.quantile(d.flatten(1), device_tensor(QUANT, device=d.device), dim=1)
     lo, hi = q[0].view(-1, 1, 1, 1), q[1].view(-1, 1, 1, 1)
     return (d - lo) / (hi - lo)
 

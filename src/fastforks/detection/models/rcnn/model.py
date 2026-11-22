@@ -30,6 +30,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import NUMPY_ARRAYS
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.upload import device_tensor
 from fastforks.detection._convs import Convs, FusedConvs
 from fastforks.detection._ops import ops
 from fastforks.detection._runner import Forward, Runner
@@ -91,7 +92,7 @@ def prepare(image: torch.Tensor, p: Params) -> tuple[torch.Tensor, tuple[int, in
 
 def normalise(x: torch.Tensor, p: Params) -> torch.Tensor:
     """RGB `0..255` `[B, 3, h, w]` -> BGR minus the pixel mean, zero-padded to a multiple of `size_divisibility`."""
-    x = x.flip(1) - torch.tensor(PIXEL_MEAN_BGR, device=x.device, dtype=torch.float32).view(1, 3, 1, 1)
+    x = x.flip(1) - device_tensor(PIXEL_MEAN_BGR, device=x.device, dtype=torch.float32).view(1, 3, 1, 1)
     d = p.size_divisibility
     return F.pad(x, (0, -x.shape[-1] % d, 0, -x.shape[-2] % d))
 

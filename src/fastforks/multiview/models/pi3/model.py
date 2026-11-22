@@ -30,6 +30,7 @@ from fastforks._core.errors import OptionsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.patch import override
+from fastforks._core.upload import device_tensor
 from fastforks.multiview._runner import Forward, Runner, invert
 from fastforks.shared import mlx_wrap
 from fastforks.shared.depth_anything_v2 import FastViT, vit_large
@@ -236,7 +237,7 @@ class _Fast(_Base):
         f = torch.cat([f, f], -1)
         cc, sc = f.cos(), f.sin()
         cos = torch.cat([F.embedding(pos[..., 0], cc), F.embedding(pos[..., 1], cc)], -1)
-        sgn = torch.tensor([-1.0] * 16 + [1.0] * 16, device=pos.device, dtype=self.dt).repeat(2)
+        sgn = device_tensor([-1.0] * 16 + [1.0] * 16, device=pos.device, dtype=self.dt).repeat(2)
         sin = torch.cat([F.embedding(pos[..., 0], sc), F.embedding(pos[..., 1], sc)], -1) * sgn
         return cos[:, :, None, None], sin[:, :, None, None]
 
