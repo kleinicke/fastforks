@@ -80,11 +80,19 @@ def huber_loss(x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tenso
     """The classical robust Huber loss, with first and second derivatives."""
     mask = x <= 1
     sx = torch.sqrt(x + 1e-8)  # avoid nan in backward pass
-    isx = torch.max(sx.new_tensor(torch.finfo(torch.float).eps), 1 / sx)
+    # fastforks: clamp instead of max with a new device scalar (an upload, which syncs with the device; same values)
+    isx = torch.clamp(1 / sx, min=torch.finfo(torch.float).eps)
     loss = torch.where(mask, x, 2 * sx - 1)
     loss_d1 = torch.where(mask, torch.ones_like(x), isx)
     loss_d2 = torch.where(mask, torch.zeros_like(x), -isx / (2 * x))
     return loss, loss_d1, loss_d2
+
+
+def _take(x: torch.Tensor, dims: Tuple[int, ...]) -> torch.Tensor:
+    """fastforks: `x[..., dims]`, as a slice for consecutive dims (an index tuple uploads, which syncs; same values)."""
+    if dims and dims[0] >= 0 and dims == tuple(range(dims[0], dims[-1] + 1)):
+        return x[..., dims[0] : dims[-1] + 1]
+    return x[..., dims]
 
 
 def early_stop(new_cost: torch.Tensor, prev_cost: torch.Tensor, atol: float, rtol: float) -> bool:
@@ -428,7 +436,7 @@ class LMOptimizer(nn.Module):
             dims += tuple(range(3, 3 + self.camera_model.num_dist_params()))
         assert dims, "No parameters to optimize"
 
-        J = J[..., dims]
+        J = _take(J, dims)  # fastforks: no index upload
 
         # fastforks: one weighted GEMM per image instead of per-pixel outer products summed afterwards
         Jw = (weights[..., None, None] * J).flatten(-3, -2)  # (B, N * j, k)
@@ -665,7 +673,7 @@ class LMOptimizer(nn.Module):
                 delta_gravity = delta[..., :2]
         else:
             delta_gravity = (
-                delta[..., self.gravity_delta_dims]
+                _take(delta, self.gravity_delta_dims)  # fastforks: no index upload
                 if self.estimate_gravity
                 else delta.new_zeros(delta.shape[:-1] + (2,))
             )
@@ -680,7 +688,7 @@ class LMOptimizer(nn.Module):
             new_gravity = gravity.update(delta_gravity, spherical=self.conf.use_spherical_manifold)
 
         delta_f = (
-            delta[..., self.focal_delta_dims]
+            _take(delta, self.focal_delta_dims)  # fastforks: no index upload
             if self.estimate_focal
             else delta.new_zeros(delta.shape[:-1] + (1,))
         )
