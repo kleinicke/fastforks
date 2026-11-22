@@ -1700,6 +1700,20 @@
    ]
   },
   "great-igev-sceneflow@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
+   "kernels_default": [
+    "portable",
+    "float16"
+   ],
+   "kernels": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -2150,16 +2164,17 @@
   "memflow@1": {
    "auto": [
     "portable",
-    "float32"
+    "float16"
    ],
    "dtypes": {
     "float32": "portable"
    },
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
+    "float16": "portable",
     "float32": "portable"
    }
   },
@@ -2263,6 +2278,20 @@
    }
   },
   "mocha-v1-sceneflow@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
+   "kernels_default": [
+    "portable",
+    "float16"
+   ],
+   "kernels": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -2277,6 +2306,28 @@
    ]
   },
   "mocha-v2-sceneflow@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
+   "kernels_default": [
+    "portable",
+    "float16"
+   ],
+   "kernels": {
+    "float16": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mps_auto": [
     "",
     "float16"
@@ -2336,6 +2387,9 @@
    ]
   },
   "monster-plusplus-mix-all@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"

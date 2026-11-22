@@ -2537,3 +2537,71 @@ Tried, not kept:
 
 Not checked: whether the NN layout transfers to MPS (torch's `F.linear` already picks its own layout, so there is
 nothing comparable to change there).
+
+## Remaining stereo / flow nets: volume build, pyramid pools, memflow fp16 (2026-11-22)
+
+Scope: selective-igev, monster, monster++, mocha, great-igev, defom, memflow, memfof (M1 Pro 16 GB, 994x1482
+stereo / 1080x1920 flow). Each net was profiled with `FF_MLX_PROFILE=1`. Three changes:
+
+- **great-igev concat volume** (`great_igev/net/great_igev.py`, `ExcitiveAttentionVolume.cost_volume`). The chunked
+  in-place plane writes exported as `slice_scatter` chains: each disparity copied the whole `[1, 192, 18, 256, 376]`
+  chunk, plus `where` plane masks. Together that was 5.6 s of the 17 s eager fp16 call. Under
+  `torch.compiler.is_exporting()` the chunk is now built functionally: left broadcast over the planes, right shifted
+  and padded per plane, `torch.stack`, then `torch.cat` over the chunks. It keeps upstream's semantics, where the left
+  half fills every plane, so `stacked_volume` / `concat_fn` (which zero the left half too) do not fit. CUDA / MPS eager
+  is unchanged. The fp32 MLX peak is 9175 MB, against 8921 MB with the in-place build (A/B in one session), so the
+  fp32 row's size is not this change.
+- **`_window_sum` for non-overlapping windows** (`shared/mlx_graph.py`). The function cast the whole pool input to
+  float32 before slicing. On memflow's 1080p all-pairs volume (`[8160, 1, 136, 240]`-shaped levels, ~1e9 elements),
+  that was a 4.2 GB float32 copy at fp16 and the 2.1 GB first separable pass at fp32. For `k == s` without padding
+  (the correlation pyramids), it now sums the kh x kw strided views with a per-view cast, which compiles to one kernel
+  that writes only the pooled output. Pool 2x2 of `[4080, 1, 136, 240]`, compiled: fp16 762 -> 64 MB transient,
+  12.0 -> 2.2 ms; fp32 381 -> 127 MB, 8.3 -> 3.9 ms; max diff 6e-5 / 2e-7.
+  - Overlapping windows keep the separable path. The one-pass form over 9 views made selective-igev fp16 about 2.5%
+    slower: 7.02-7.15 against 6.81-7.06 s per call, A/B in both orders.
+- **memflow fp16 on MLX** (card `mlx_dtypes`). The fp16 MLX goldens pass (memflow, -kitti, -sintel).
+
+Survey, second run, portable, ms median / peak MB / first call s (MLX before -> after; MPS = fastest MPS row):
+
+| ref | dtype | MLX before | MLX after | MPS | route |
+|---|---|---|---|---|---|
+| great-igev-sceneflow | fp16 | 14349 / 9356 / 38.5 | 8028 / 5560 / 19.8 | 9090 / 11106 (portable) | new: MLX fp16 (0.88x, 0.50x memory) |
+| great-igev-sceneflow | fp32 | 23111 / 9355 / 118 (11-20) | 12477 / 10685 / 24.9 | 10367 / 11801 | none (1.20x) |
+| memflow | fp16 | - | 6997 / 8345 / 11.7 | no fp16 row (fp32 10016 / 12659) | new: auto -> MLX fp16 |
+| memflow | fp32 | 10095 / 9232 / 18.9 | 9908 / 7333 / 14.5 | 10016 / 12659 | MLX (unchanged) |
+| mocha-v1-sceneflow | fp16 | 9657 / 3382 / 68.1 (11-20) | 6508 / 2182 / 20.2 | 6693 / 5695 (kernels) | new: MLX fp16 (0.97x, 0.38x memory) |
+| mocha-v1-sceneflow | fp32 | 11379 / 3750 (11-20) | 10109 / 3545 / 23.9 | 8362 / 8787 | none |
+| mocha-v2-sceneflow | fp16 | - | 6354 / 2187 / 18.9 | 6501 / 4643 (kernels) | new: MLX fp16 (0.98x, 0.47x memory) |
+| mocha-v2-sceneflow | fp32 | - | 9856 / 3547 / 22.6 | 8323 / 8771 | none |
+| monster-plusplus-mix-all | fp16 | 11269 / 3643 / 32.6 | 10966 / 3294 / 21.9 | 10202 / 7347 (kernels) | none (1.07x) |
+| monster-plusplus-mix-all | fp32 | 17687 / 5520 / 130.6 (11-20) | 13947 / 6575 / 25.4 | 15001 / 11991 (re-surveyed; min 13973) | new: MLX fp32 (0.93x, 0.55x memory) |
+| monster-sceneflow | fp16 | 10863 / 3633 / 36.1 | 10411 / 3295 / 21.3 | 9642 / 6299 (kernels) | none (1.08x) |
+| monster-sceneflow | fp32 | 16562 / 5687 / 127.7 (11-20) | 13236 / 6569 / 24.4 | 12916 / 8976 | none (1.02x) |
+| selective-igev-sceneflow | fp16 | 6659 / 2167 / 24.3 | 6895 / 1814 / 16.0 | 5709 / 3907 (kernels) | none |
+| selective-igev-sceneflow | fp32 | 11452 / 2938 / 29.3 | 11924 / 2678 / 21.8 | 8458 / 7023 | none |
+| memfof | fp32 | 3576 / 3012 / 13.0 | 3531 / 2983 / 7.1 | 3054 / 5038 | none (1.16x) |
+
+Notes:
+
+- Most "before" rows are older commits, so the monster, mocha and selective deltas include earlier passes.
+- The selective-igev runs vary by ±4% between runs on the shared Mac (fp16 7183 then 6895, fp32 11980 then 11924).
+- The monster++ MPS fp32 row was re-surveyed. It still has a median well above its min at 12 GB (15001 / 13973).
+  Even against that min, MLX is at 1.00x and 0.55x memory.
+- Goldens pass: every MLX golden of great-igev, memflow, memfof, mocha (v1 / v2), monster, monster++, selective-igev
+  and raft-stereo-sceneflow, plus nafnet-gopro@1 and wd-vit-tagger-v3@1.
+
+Investigated, not changed:
+
+- **memfof fp16 on MLX**: the goldens fail (flow mean |diff| 0.0018 against tolerance 0.00099). The card stays fp32.
+  The fp32 profile is conv-bound: the ResNet-34 encoder and the 1024 -> 768 / 508 heads run at 2.3 TFLOPS, and the
+  2048-wide linears at 3.7 TFLOPS. That is MLX's fp32 rate, and the conv table measured earlier already gave memfof
+  only -4%.
+- **defom fp32**: the profile is 8.6 s conv, 2.7 s SDPA (24 x `[2, 16, 6017, 64]`, 2.7 TFLOPS) and 2.1 s ViT-L
+  linears (3.2 TFLOPS). fp16 is out, because DAv2's activations overflow (the runner docstring). bf16 is emulated on
+  M1. A mixed run (DAv2 fp32, GRU fp16), as MPS's MetalKernels does, would need per-region dtypes in the replay. It
+  was not tried.
+- **IGEV-family geometry lookup kernel** (selective / monster / mocha / great): the lookup's elementwise ops are about
+  0.6 s per eager call, less once compiled. A Metal custom op like `gwc_volume` would give a few percent at most. Not
+  done.
+- **Transfer to MPS**: the slice_scatter chain and the float32 pool copy are artefacts of the MLX export and replay.
+  On MPS, the eager in-place volume writes and native `avg_pool2d` have no such copies, so nothing carries over.

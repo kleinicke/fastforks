@@ -1849,9 +1849,23 @@ def _window_sum(x: mx.array, k: Sequence[int], s: Sequence[int], pad: Sequence[i
     """Float32 window sums of NCHW `x` (floor mode) as k strided-slice adds per axis.
 
     The 6-D `as_strided` window view reduced over its last two axes ran 4 ms for a 3x3 / stride-2 pool of
-    `[1, 128, 256, 376]` on an M1 Pro (RAFT-Stereo's `pool2x`, 32 per call); two separable passes of slice adds are
-    a few contiguous elementwise kernels.
+    `[1, 128, 256, 376]` on an M1 Pro (RAFT-Stereo's `pool2x`, 32 per call); strided slice adds are a few
+    elementwise kernels.
+
+    Non-overlapping windows (`k == s`, the correlation pyramids) are one pass over the kh x kw strided views of the
+    input, each cast to float32 on its own: compiled, one fused kernel writing only the pooled output. Casting the
+    whole input first materialised a float32 copy of it: 4.2 GB for MemFlow's 1080p fp16 all-pairs volume (pool 2x2
+    of `[8160, 1, 136, 240]` fp16: 762 -> 64 MB transient, 12.0 -> 2.2 ms). Overlapping windows keep the separable
+    passes over a float32 copy: one pass over 9 views made Selective-IGEV's fp16 3x3 / stride-2 `pool2x` ~2.5% slower.
     """
+    if tuple(k) == tuple(s) and not any(pad):
+        oh, ow = x.shape[2] // k[0], x.shape[3] // k[1]
+        acc = None
+        for i in range(k[0]):
+            for j in range(k[1]):
+                part = x[:, :, i : i + k[0] * (oh - 1) + 1 : k[0], j : j + k[1] * (ow - 1) + 1 : k[1]]
+                acc = part.astype(mx.float32) if acc is None else acc + part.astype(mx.float32)
+        return acc
     y = x.astype(mx.float32)
     if any(pad):
         y = mx.pad(y, [(0, 0), (0, 0), (pad[0], pad[0]), (pad[1], pad[1])])
