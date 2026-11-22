@@ -3,11 +3,12 @@ name = "TAPNext"
 summary = "TAPNext (Zholus, Doersch, Yang, Koppula et al., Google DeepMind 2025): tracking any point as next-token prediction. A TRecViT-B (12 blocks, each a gated linear recurrence over time per token and a ViT layer over the tokens of a frame) reads 8 x 8 patches of 256 x 256 frames plus one token per query point and predicts, frame by frame, the point's position (512-bin classification, windowed soft-argmax) and whether it is visible. Online: each frame only sees the past."
 tier = "experimental"
 outputs = ["tracks", "visibility"]
-uses = []  # fastforks.shared modules this family imports
+uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
 limitations = [
   "Online, causal: a point is tracked from its query frame on; in frames before it the model has no information (the tracks there are its guess, with a low visibility). Query on the first frame, or run the reversed video for the backward part.",
   "Frames are resized to 256 x 256 (the training size), whatever their size and aspect ratio.",
   "One video per call; all queries of a call share the video.",
+  "Kernels mode replays frames from CUDA graphs (per query count): 24 frames, 256 queries, 480x854, RTX 5060 Ti, Windows: 600 -> 395 ms, peak reserved 1074 -> 1722 MiB. One model tracks one video at a time. `cuda_graphs=False` turns this off, `release_graphs()` frees it.",
 ]
 
 [upstream]
@@ -33,6 +34,9 @@ mlx_dtypes = ["float32"]
 
 [modes.kernels]
 kernels = ["fvm_conv"]  # GEMMs with fused bias / GELU-tanh gate / residual epilogues, fp16 accumulation
+
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay every frame after the first from a CUDA graph per query count (false: eager, no graph pool)
 
 [[papers]]
 title = "TAPNext: Tracking Any Point (TAP) as Next Token Prediction"
