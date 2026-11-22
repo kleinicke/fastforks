@@ -22,6 +22,7 @@ import torch.nn.functional as F
 
 from fastforks._core import registry
 from fastforks._core.image import checked_ranges
+from fastforks._core.mlx_cast import to_float32
 from fastforks._core.model import load_variant
 from fastforks._core.runner import host
 from fastforks.features._api import TASK, FeaturesModel
@@ -162,7 +163,7 @@ class Portable(Runner):
         with checked_ranges():  # the core checked the pixel range
             tokens = self.encoder(image, size=self.size).last_hidden_state.reshape(image.shape[0], -1, self.hidden)
         h, w = self.size[0] // 16, self.size[1] // 16
-        f = tokens[:, PREFIX:].float().transpose(1, 2).reshape(image.shape[0], -1, h, w)
+        f = to_float32(tokens[:, PREFIX:]).transpose(1, 2).reshape(image.shape[0], -1, h, w)  # norm: no fp16 overflow
         return {"features": F.normalize(f, dim=1)}
 
     @property

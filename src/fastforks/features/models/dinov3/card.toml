@@ -3,7 +3,7 @@ name = "DINOv3 ViT"
 summary = "DINOv3 ViT (Meta, 2025): self-supervised ViT backbones with 4 register tokens and RoPE; dense patch + cls features at any size (Hugging Face format checkpoints). Gated weights: accept the DINOv3 licence on each model's Hugging Face page, download model.safetensors yourself and put it under FASTFORKS_WEIGHTS_PATH (path and SHA-256 in the load error); fastforks does not send HF_TOKEN there."
 tier = "stable"
 outputs = ["last_hidden_state", "pooler_output", "hidden_states"]
-uses = ["arena", "cuda_graphs", "depth_anything_v2", "host_blocks", "mlx_vit"]  # fastforks.shared modules this family imports (fastbb flash attention / fp16-accumulate GEMMs)
+uses = ["arena", "cuda_graphs", "depth_anything_v2", "host_blocks", "mlx_vit", "mlx_wrap"]  # fastforks.shared modules this family imports (fastbb flash attention / fp16-accumulate GEMMs)
 limitations = [
   "With all hidden states requested at 768 × 1024, ViT-L CUDA portable peak allocation fell from 1,242 to 1,001 MiB, and kernels from 1,243 to 1,099 MiB. All hidden states and final features matched bitwise in both modes.",
   "With resident weights, loading ViT-H+ on an RTX 5060 Ti peaked at 1,604 MiB allocated in CUDA portable mode after host-side packing. The prior loader peaked at 6,542 MiB. Both produced bit-identical reference outputs.",

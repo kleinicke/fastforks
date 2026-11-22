@@ -22,6 +22,7 @@ from fastforks.kernels import swiglu
 from fastforks.kernels.dpt_fused import DEEP_K, DptFused
 from fastforks.kernels.fastbb import Flash64
 from fastforks.kernels.fastbb import load as load_kernels
+from fastforks.shared import mlx_wrap
 from fastforks.shared.arena import upload
 from fastforks.shared.cuda_graphs import CAPTURE_LOCK, GraphCache, capture_stream
 from fastforks.shared.depth_anything_v2.fast_vit import HEAD_DIM, _flash, _fp16_accumulate
@@ -105,10 +106,10 @@ class Portable(Runner):
         super().__init__(ctx)
         self.half = ctx.dtype == "float16"
         self.acc = self.half and ctx.params.fp16_accumulate
-        # fp16 weights (no per-call autocast casts); packed qkv
-        self.net = _network(
-            ctx, _stream_scale(ctx.params.arch) if self.half else 1.0, torch.float16 if self.half else None
-        )
+        # fp16 weights (no per-call autocast casts); packed qkv. The stream scale also in the float32 twin of a float16
+        # MLX replay (insid3's exported encoder): its residual stream overflows float16 there too
+        scale = _stream_scale(ctx.params.arch) if mlx_wrap.run_dtype(ctx) == "float16" else 1.0
+        self.net = _network(ctx, scale, torch.float16 if self.half else None)
         _init(self, ctx.params.arch)
 
     def _run(self, x: torch.Tensor, layers: tuple[int, ...]) -> dict[str, torch.Tensor]:
