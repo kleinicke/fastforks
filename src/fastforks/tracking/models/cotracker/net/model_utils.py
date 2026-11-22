@@ -11,6 +11,7 @@ import torch
 import torch.nn.functional as F
 from typing import Optional, Tuple
 from fastforks._core.sampling import grid_sample
+from fastforks._core.upload import device_tensor  # fastforks
 
 
 def get_points_on_a_grid(
@@ -56,7 +57,7 @@ def get_points_on_a_grid(
         Tensor: grid.
     """
     if size == 1:
-        return torch.tensor([extent[1] / 2, extent[0] / 2], device=device)[None, None]
+        return device_tensor([extent[1] / 2, extent[0] / 2], device=device)[None, None]  # fastforks: no host sync (a pageable upload syncs the host)
 
     if center is None:
         center = [extent[0] / 2, extent[1] / 2]
@@ -192,11 +193,11 @@ def bilinear_sampler(input, coords, align_corners=True, padding_mode="border"):
         coords = coords[..., [1, 2, 0]]
 
     if align_corners:
-        coords = coords * torch.tensor(
+        coords = coords * device_tensor(  # fastforks: no host sync (a pageable upload syncs the host)
             [2 / max(size - 1, 1) for size in reversed(sizes)], device=coords.device
         )
     else:
-        coords = coords * torch.tensor(
+        coords = coords * device_tensor(  # fastforks: no host sync (a pageable upload syncs the host)
             [2 / size for size in reversed(sizes)], device=coords.device
         )
 

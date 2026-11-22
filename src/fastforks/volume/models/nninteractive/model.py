@@ -34,7 +34,7 @@ from fastforks._core.patch import override
 from fastforks._core.runner import Forward
 from fastforks._core.upload import device_tensor
 from fastforks.shared import mlx_wrap
-from fastforks.volume._nnunet import Norm, Plan, UNet, _network, configuration_of
+from fastforks.volume._nnunet import Norm, Plan, UNet, _network, configuration_of, nonzero_extent
 from fastforks.volume._nnunet_runner import CHECKPOINT_GLOBALS, fused_norm_act
 from fastforks.volume._runner import InteractiveRunner
 
@@ -289,11 +289,11 @@ class Portable(InteractiveRunner):
     def start(self, volume: torch.Tensor) -> Session:
         """A session on a `[1, D, H, W]` float32 volume: crop to its nonzero box, z-score."""
         v = volume[0]
-        nz = [torch.nonzero((v != 0).any(dim=tuple(a for a in range(3) if a != d)))[:, 0] for d in range(3)]
-        if any(len(n) == 0 for n in nz):
+        extent = nonzero_extent(v != 0)
+        if any(e is None for e in extent):
             msg = "nnInteractive needs a volume with nonzero voxels (it crops to their bounding box)"
             raise InputError(msg)
-        lo, hi = [int(n[0]) for n in nz], [int(n[-1]) + 1 for n in nz]
+        lo, hi = [e[0] for e in extent], [e[1] for e in extent]  # ty: ignore[not-subscriptable]
         image = v[lo[0] : hi[0], lo[1] : hi[1], lo[2] : hi[2]].float().clone()
         image -= image.mean()
         image /= image.std()

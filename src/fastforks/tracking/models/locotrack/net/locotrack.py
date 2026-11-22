@@ -28,6 +28,7 @@ from typing import NamedTuple
 import torch
 from torch import nn
 from torch.nn import functional as F
+from fastforks._core.upload import device_tensor  # fastforks
 
 SIZE = 256  # training resolution; the network runs at it
 PIPS_ITERS = 4
@@ -140,7 +141,7 @@ def alibi_bias(heads: int, t: int, device: torch.device) -> torch.Tensor:
     """`[heads, t, t]`: half the heads attend to past frames, half to future ones, with ALiBi distance slopes."""
     half = heads // 2
     base = 24 ** (1 / half)
-    slope = torch.tensor([1 / base ** (i + 1) for i in range(half)], device=device)[:, None, None]
+    slope = device_tensor([1 / base ** (i + 1) for i in range(half)], device=device)[:, None, None]  # fastforks: no host sync (a pageable upload syncs the host)
     ar = torch.arange(t, device=device)
     rel = (ar[None, :] - ar[:, None]).float()  # [query, key] key - query
     neg = torch.full((t, t), float("-inf"), device=device)
@@ -226,7 +227,7 @@ def map_coordinates_3d(feats: torch.Tensor, coords: torch.Tensor) -> torch.Tenso
     x = feats.permute(0, 4, 1, 2, 3)
     y = coords[:, :, None, None, :].float().clone()
     y[..., 0] += 0.5
-    y = 2 * (y / torch.tensor(x.shape[2:], device=y.device)) - 1
+    y = 2 * (y / device_tensor(x.shape[2:], device=y.device)) - 1  # fastforks: no host sync (a pageable upload syncs the host)
     out = F.grid_sample(x, y.flip(-1), mode="bilinear", align_corners=False, padding_mode="border")
     return out.squeeze(4).squeeze(3).permute(0, 2, 1)
 
@@ -237,7 +238,7 @@ def map_coordinates_2d(feats: torch.Tensor, coords: torch.Tensor) -> torch.Tenso
     x = feats.permute(0, 1, 4, 2, 3).reshape(n * t, c, h, w)
     n, p, t, s, _ = coords.shape
     y = coords.permute(0, 2, 1, 3, 4).reshape(n * t, p, s, 2)
-    y = (2 * (y / torch.tensor([h, w], device=y.device)) - 1).flip(-1).to(x.dtype)
+    y = (2 * (y / device_tensor([h, w], device=y.device)) - 1).flip(-1).to(x.dtype)  # fastforks: no host sync (a pageable upload syncs the host)
     out = F.grid_sample(x, y, mode="bilinear", align_corners=False, padding_mode="zeros")
     return out.permute(0, 2, 3, 1).reshape(n, t, p, s, -1).permute(0, 2, 1, 3, 4)
 
@@ -298,7 +299,7 @@ class LocoTrack(nn.Module):
         ctx = F.pad(_offsets(queries.device), (1, 0)).to(queries.dtype)  # (0, dy, dx)
         supports = []
         for grid in grids:
-            scale = torch.tensor([1.0, grid.shape[2] / SIZE, grid.shape[3] / SIZE], device=queries.device)
+            scale = device_tensor([1.0, grid.shape[2] / SIZE, grid.shape[3] / SIZE], device=queries.device)  # fastforks: no host sync (a pageable upload syncs the host)
             pos = (queries * scale)[:, :, None] + ctx  # [1, Q, 49, 3]
             supp = map_coordinates_3d(grid, pos.flatten(1, 2))
             supports.append(supp.view(1, -1, SUPPORT, SUPPORT, grid.shape[-1]))
@@ -319,7 +320,7 @@ class LocoTrack(nn.Module):
         occ = self.occ_linear(torch.cat([stack.mean((2, 3)), stack.amax((2, 3)), stack.amin((2, 3))], -1))
         del stack
         heat = F.softmax(pos.reshape(b, n, t, -1) * SOFTMAX_TEMPERATURE, -1).view_as(pos)
-        points = soft_argmax(heat) * torch.tensor([SIZE / w, SIZE / h], device=heat.device)
+        points = soft_argmax(heat) * device_tensor([SIZE / w, SIZE / h], device=heat.device)  # fastforks: no host sync (a pageable upload syncs the host)
         del pos, heat
         is_query = torch.round(queries[..., :1]) == torch.arange(t, device=queries.device)  # [B, N, T]
         points = torch.where(is_query[..., None], queries[:, :, None, 1:].flip(-1), points)
@@ -333,7 +334,7 @@ class LocoTrack(nn.Module):
         ctx = _offsets(points.device)
         corrs = []
         for supp, grid, cmdtop in zip(supports, f.grids, self.cmdtop, strict=True):
-            yx = (points * torch.tensor([grid.shape[3] / SIZE, grid.shape[2] / SIZE], device=points.device)).flip(-1)
+            yx = (points * device_tensor([grid.shape[3] / SIZE, grid.shape[2] / SIZE], device=points.device)).flip(-1)  # fastforks: no host sync (a pageable upload syncs the host)
             neighborhood = map_coordinates_2d(grid, yx[:, :, :, None] + ctx)  # [b, n, t, 49, c]
             b, n, t = neighborhood.shape[:3]
             corr = torch.einsum("bntsc,bnjc->bntsj", neighborhood, supp.flatten(2, 3).to(neighborhood.dtype))

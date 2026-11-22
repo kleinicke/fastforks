@@ -39,6 +39,7 @@ from typing import cast
 import torch
 import torch.nn.functional as F
 from torch import nn
+from fastforks._core.upload import device_tensor  # fastforks
 
 from fastforks._core.mlx_cast import to_float32
 from fastforks._core.tracing import in_onnx_export
@@ -98,7 +99,7 @@ class MSDA(nn.Module):
         # need; golden mean 0.0010 against 0.0167, tol 0.04)
         off = self.sampling_offsets(query).view(b, q, h, nl, p, 2).float()
         w = self.attention_weights(query).view(b, q, h, nl * p).float().softmax(-1).view(b, q, h, nl, p)
-        norm = torch.tensor([(wl, hl) for hl, wl in shapes], dtype=torch.float32, device=off.device)
+        norm = device_tensor([(wl, hl) for hl, wl in shapes], dtype=torch.float32, device=off.device)  # fastforks: no host sync (a pageable upload syncs the host)
         loc = ref.float()[:, :, None, :, None, :] + off / norm[:, None, :]
         return self.output_proj(msda_sample(v, shapes, loc, w))
 
@@ -512,7 +513,7 @@ class TrackOn2(nn.Module):
         return torch.stack(((idx % self.wf).float() + 0.5, (idx // self.wf).float() + 0.5), -1) * STRIDE
 
     def _norm(self, p: torch.Tensor) -> torch.Tensor:
-        return (p / p.new_tensor((self.size[1], self.size[0]))).clamp(0, 1)
+        return (p / device_tensor((self.size[1], self.size[0]), device=p.device, dtype=p.dtype)).clamp(0, 1)  # fastforks: no host sync (a pageable upload syncs the host)
 
     def rerank(self, q: torch.Tensor, frame: Frame, c1: torch.Tensor) -> torch.Tensor:
         """`Rerank_Module.forward` (inference outputs): the re-ranked query `[N, D]`."""
