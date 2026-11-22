@@ -27,6 +27,17 @@ def sdpa(q, k, v, attn_mask=None):
                 scores = scores + mask
             out.append(torch.matmul(torch.softmax(scores, dim=-1), v))
         return torch.cat(out, dim=-2)
+    if q.device.type == "mps" and not torch.compiler.is_compiling() and not torch.jit.is_tracing():
+        # fastforks: MPS SDPA writes the [B, L, M] scores (4 GB for the global matching at 1080p), so chunk the
+        # queries to at most 2^27 scores per call: rows are independent, the maths is unchanged
+        rows = max(1, (1 << 27) // (q.numel() // (q.size(-2) * q.size(-1)) * k.size(-2)))
+        if rows < q.size(-2):
+            return torch.cat([
+                sdpa(q[..., start:start + rows, :], k, v,
+                     attn_mask if attn_mask is None or attn_mask.size(-2) == 1
+                     else attn_mask[..., start:start + rows, :])
+                for start in range(0, q.size(-2), rows)
+            ], dim=-2)
     pad = -v.size(-1) % 8
     if pad:
         v = F.pad(v, (0, pad))
@@ -120,11 +131,12 @@ def single_head_split_window_attention(q, k, v,
 
     q, k, v = (x.view(b_new, -1, c) for x in (q, k, v))
     if with_shift:
-        # fastforks: CUDA SDPA uses a mask in the query dtype. Cast before copying across the batch.
-        if q.is_cuda:
+        # fastforks: CUDA and MPS SDPA use a mask in the query dtype. Cast before copying across the batch.
+        gpu = q.device.type in ("cuda", "mps")
+        if gpu:
             attn_mask = attn_mask.to(q.dtype)
         if (
-            q.is_cuda and b > 1 and not torch.compiler.is_compiling() and not torch.jit.is_tracing()
+            gpu and b > 1 and not torch.compiler.is_compiling() and not torch.jit.is_tracing()
             and attn_mask.numel() > (1 << 27)
         ):
             # For large shifted windows, share one mask across batches instead of tiling it.
