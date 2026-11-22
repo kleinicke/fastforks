@@ -12,6 +12,7 @@ import os
 import sys
 import types
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -227,6 +228,40 @@ def test_detect_batch_size_passes_the_call_options(pack: Any, monkeypatch: pytes
     assert torch.equal(outs[0][0], outs[1][0])
     assert outs[0][1] == outs[1][1]
     assert "batch_size" in nodes.Detect.INPUT_TYPES()["optional"]
+
+
+def test_pose_batch_size_passes_each_images_boxes(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pose with `batch_size` > 1: chunks of the batch with one box list per image, outputs as one at a time."""
+    nodes = pack.nodes
+    calls: list[tuple[tuple[int, ...], Any]] = []
+
+    class Result:
+        keypoints = torch.tensor([[[1.0, 1.0], [2.0, 2.0]]])
+        keypoint_scores = torch.tensor([[0.9, 0.8]])
+        skeleton = ((0, 1),)
+
+        def to_list(self) -> list[dict[str, Any]]:
+            return [{"box": [0.0, 0.0, 6.0, 4.0], "score": 0.9, "keypoints": {}}]
+
+    class Model:
+        device = torch.device("cpu")
+        needs_boxes = True
+        variant = SimpleNamespace(output_info={"label_set": "coco_keypoints"})
+
+        def __call__(self, x: torch.Tensor, *, boxes: Any) -> Any:
+            calls.append((tuple(x.shape), boxes))
+            return Result() if x.ndim == 3 else [Result() for _ in range(x.shape[0])]
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: Model())
+    monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])
+    img = torch.rand(3, 4, 6, 3)
+    kw = {"image": img, "model": "m", "backend": "auto", "dtype": "auto", "keypoint_threshold": 0.3, "line_width": 1}
+    outs = [nodes.Pose().run(**kw, batch_size=b) for b in (1, 2)]
+    whole = [[0.0, 0.0, 6.0, 4.0]]
+    assert calls == [((3, 4, 6), whole)] * 3 + [((2, 3, 4, 6), [whole, whole]), ((1, 3, 4, 6), [whole])]
+    assert torch.equal(outs[0][0], outs[1][0])
+    assert outs[0][1] == outs[1][1]
+    assert "batch_size" in nodes.Pose.INPUT_TYPES()["optional"]
 
 
 def test_errors_name_the_backend_input(pack: Any) -> None:

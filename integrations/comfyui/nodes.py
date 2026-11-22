@@ -856,7 +856,7 @@ class Pose(_Node):
                 "keypoint_threshold": ("FLOAT", {"default": 0.3, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "line_width": ("INT", {"default": 4, "min": 1, "max": 64}),
             },
-            "optional": {"detections": ("STRING", {"forceInput": True, "tooltip": tip})},
+            "optional": {"detections": ("STRING", {"forceInput": True, "tooltip": tip}), **BATCH},
         }
 
     def run(  # noqa: PLR0913 - one argument per input
@@ -869,24 +869,36 @@ class Pose(_Node):
         keypoint_threshold: float,
         line_width: int,
         detections: str = "",
+        batch_size: int = 1,
     ) -> tuple[torch.Tensor, str]:
-        """Estimate the people of every image."""
+        """Estimate the people of every image (`batch_size` images per model call)."""
         m = load(model, backend, dtype)
+        n, h, w = image.shape[0], image.shape[1], image.shape[2]
 
-        def one(i: int) -> tuple[torch.Tensor, list[dict[str, Any]]]:
-            x = convert.frame(image, i, m.device)
-            h, w = x.shape[-2:]
-            boxes = None
-            if cast("PoseModel", m).needs_boxes:
-                found = convert.subject_boxes(detections, i, m.variant.output_info["label_set"])
-                boxes = [[0.0, 0.0, float(w), float(h)]] if found is None else found
-            r = m(x, boxes=boxes)
+        def boxes(i: int) -> Any:  # noqa: ANN401 - box rows or None
+            if not cast("PoseModel", m).needs_boxes:
+                return None
+            found = convert.subject_boxes(detections, i, m.variant.output_info["label_set"])
+            return [[0.0, 0.0, float(w), float(h)]] if found is None else found
+
+        def finish(r: Any) -> tuple[torch.Tensor, list[dict[str, Any]]]:  # noqa: ANN401 - a pose result
             drawn = convert.draw_pose(
                 r.keypoints, r.keypoint_scores, r.skeleton, (h, w), threshold=keypoint_threshold, width=line_width
             )
             return drawn, r.to_list()
 
-        out = each(image.shape[0], one)
+        if batch_size <= 1:
+            out = each(n, lambda i: finish(m(convert.frame(image, i, m.device), boxes=boxes(i))))
+        else:
+            starts = range(0, n, batch_size)
+
+            def chunk(j: int) -> list[tuple[torch.Tensor, list[dict[str, Any]]]]:
+                idx = range(starts[j], min(n, starts[j] + batch_size))
+                per = [boxes(i) for i in idx]
+                rs = m(convert.frames(image, idx.start, idx.stop, m.device), boxes=None if per[0] is None else per)
+                return [finish(r) for r in rs]
+
+            out = [o for c in each(len(starts), chunk) for o in c]
         return convert.to_image([o[0] for o in out], _out_device()), convert.to_json([o[1] for o in out])
 
 
