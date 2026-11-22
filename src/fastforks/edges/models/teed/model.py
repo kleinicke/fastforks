@@ -41,6 +41,10 @@ class Params:
 class Portable(Runner):
     """Upstream's network in plain PyTorch, float32 or float16."""
 
+    # images per network call: launch bound (RTX 5060 Ti, Windows, fp16, 8 images, ms per image: 512 px 3.5 -> 2.0,
+    # 1024 px 4.8 -> 2.7); the network runs at the detect size, so memory per image does not grow with the input
+    batch = 16
+
     Params = Params
     dtypes = ("float32", "float16")
 
@@ -79,9 +83,15 @@ class Kernels(Portable):
                 self.net.set_submodule(name, smish.Activation(ctx.device))
 
 
+class _OneImage(Portable):
+    """Portable for the MLX port: one image per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
-    "kernels_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": mlx_wrap.port(_OneImage),
+    "kernels_mlx": mlx_wrap.port(_OneImage),
 }
