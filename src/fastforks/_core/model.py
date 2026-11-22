@@ -755,9 +755,10 @@ class Model:
     def _batched(
         self, fn: Callable[..., dict[str, torch.Tensor]], *inputs: torch.Tensor | None
     ) -> dict[str, torch.Tensor]:
-        """`fn` on chunks of at most `runner.batch` inputs (dim 0; `None` stays `None`) in one session, concatenated."""
-        n = next(x for x in inputs if x is not None).shape[0]
-        step = self._runner.batch or n
+        """`fn` on chunks of `runner.batch` (or `batch_pixels`) inputs (dim 0; `None` stays `None`), concatenated."""
+        first = next(x for x in inputs if x is not None)
+        n, pixels = first.shape[0], self._runner.batch_pixels
+        step = self._runner.batch or (max(1, pixels // (first.shape[-2] * first.shape[-1])) if pixels else n)
         with self._session():
             outs = [fn(*(None if x is None else x[i : i + step] for x in inputs)) for i in range(0, n, step)]
         return {k: torch.cat([o[k] for o in outs]) if len(outs) > 1 else outs[0][k] for k in outs[0]}

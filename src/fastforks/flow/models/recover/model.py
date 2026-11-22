@@ -97,6 +97,10 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16")
     Params = Params
+    batch = None
+    # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti, Windows,
+    # fp16, 8 pairs 480 x 640: mn 12.9 -> 6.6 ms per pair, kernels 14.1 -> 5.5; rn and cx gain 5-35 %), not at 720p
+    batch_pixels = 1_300_000
     gacc = False  # fp16-accumulate GEMMs
 
     def __init__(self, ctx: Context) -> None:
@@ -174,8 +178,14 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
+class _OnePair(Portable):
+    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": mlx_wrap.port(_OnePair),
 }
