@@ -88,6 +88,10 @@ class Portable(_Matting):
         super().__init__(ctx)
         self.dtype = getattr(torch, ctx.dtype)
         self.net = _cpu_net(ctx, fold=self.dtype == torch.float16).to(ctx.device, self.dtype)
+        if ctx.device.type == "cuda" and self.dtype == torch.float16:
+            # channels-last weights: cuDNN's fp16 kernels skip the NCHW<->NHWC conversion around each conv
+            # (1080p 32.9 -> 26.6 ms, peak 571 -> 506 MB RTX 5060 Ti, Windows); float32 stays NCHW
+            self.net.to(memory_format=torch.channels_last)
 
 
 def _rebnconv(m: REBNCONV, x: torch.Tensor) -> torch.Tensor:
