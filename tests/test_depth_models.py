@@ -13,6 +13,7 @@ from fastforks import BackendUnavailableError, InputError, WeightsError, depth
 from fastforks._core import registry
 from fastforks.depth.models.depth_anything_v2 import model as dav2_model
 from fastforks.depth.models.depth_anything_v2.model import network_size
+from fastforks.depth.models.moge import model as moge_model
 from fastforks.depth.models.unidepth_v2.model import RATIO_BOUNDS, _geometry, _prepare, _restore
 from fastforks.depth.models.unidepth_v2.net.utils import PinholeCamera
 from fastforks.depth.models.unik3d import model as unik3d_model
@@ -500,3 +501,20 @@ def test_zoedepth_sizes_are_python_ints(h, w):
         assert all(type(s) is int and s % 32 == 0 for s in size), size
     assert all(type(p) is int for p in _pads(h, w))
     assert _pads(h, w) == (int(np.sqrt(h / 2) * 3), int(np.sqrt(w / 2) * 3))  # the upstream NumPy values
+
+
+@pytest.mark.parametrize("given_focal", [False, True])
+def test_moge_shift_solver_numpy_equals_torch(*, given_focal: bool) -> None:
+    """The eager numpy Levenberg-Marquardt of `focal_shift` runs the traced torch one's float64 operations exactly."""
+    gen = torch.Generator().manual_seed(0)
+    uv = torch.rand(2, 4096, 2, generator=gen, dtype=torch.float64) * 2 - 1
+    z = torch.rand(2, 4096, 1, generator=gen, dtype=torch.float64) + 0.5
+    xyz = torch.cat([uv * (z + 0.3) / 1.7 + 1e-3 * torch.randn(2, 4096, 2, generator=gen, dtype=torch.float64), z], -1)
+    w = (torch.rand(2, 4096, generator=gen) > 0.2).double()
+    w[1, :4000] = 0  # a sparse item: the masked points divide 0 / 0
+    focal = torch.tensor([1.7, 2.0], dtype=torch.float64) if given_focal else None
+    want = moge_model._solve_shift(uv, xyz, w, focal)
+    with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
+        got = moge_model._solve_shift(uv.numpy(), xyz.numpy(), w.numpy(), None if focal is None else focal.numpy())
+    assert isinstance(got, np.ndarray)
+    assert torch.equal(torch.from_numpy(got), want), (got, want)

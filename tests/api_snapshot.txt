@@ -974,6 +974,7 @@ option matting.matanyone.warmup aliases n_warmup
 option matting.u2net.cuda_graphs
 option multiview.anysplat.long_side
 option multiview.anysplat.voxel_size
+option multiview.depthsplat.cuda_graphs
 option multiview.depthsplat.long_side
 option multiview.lingbot_map.long_side
 option multiview.lingbot_map.scale_frames
@@ -984,6 +985,7 @@ option multiview.mapanything.stream
 option multiview.mvsanywhere.long_side
 option multiview.mvsanywhere.refinement_steps
 option multiview.mvsplat.long_side
+option multiview.patchmatchnet.cuda_graphs
 option multiview.pi3.pixel_limit
 option multiview.pi3.stream
 option multiview.resplat.long_side
@@ -1051,6 +1053,7 @@ option stereo.s2m2.cuda_graphs
 option stereo.selective_igev.iters
 option stereo.waft_stereo.cuda_graphs
 option tracking.alltracker.iters
+option tracking.tapnext.cuda_graphs
 option tracking.track_on.memory
 option tracking.track_on.support_grid
 option volume.nnfoundation.stream

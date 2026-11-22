@@ -26,6 +26,7 @@ SCALE = 1 << 15  # fixed: OpenCV INTER_REMAP_COEF_SCALE
 BLOCK = 32  # fixed: WarpPerspectiveInvoker BLOCK_SZ
 LINE_GAP = 10  # fixed: SortQuadBoxes swaps neighbours less than 10 px apart in y
 TALL = 1.5  # fixed: get_rotate_crop_image rotates crops with h / w >= 1.5
+COORD_CHUNK = 1 << 20  # crop pixels whose coordinates are computed together (bounds the float64 temporaries)
 
 
 def sort_quads(quads: np.ndarray) -> np.ndarray:
@@ -151,27 +152,51 @@ def _cubic_table() -> np.ndarray:
 def _coords(
     mats: list[list[float]], sizes: list[tuple[int, int]], device: torch.device
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Integer source pixel (x, y) and table index of every crop pixel (all crops concatenated, row-major)."""
+    """Integer source pixel (x, y) and table index of every crop pixel (all crops concatenated, row-major).
+
+    The crops are computed together, up to `COORD_CHUNK` pixels at a time (a few launches per chunk, not per crop);
+    each pixel takes its crop's matrix row and block layout, so the float64 sums are the per-crop ones.
+    """
     f64 = torch.float64
     m = device_tensor(mats, dtype=f64, device=device)
-    parts = []
-    for i, (h, w) in enumerate(sizes):
-        bh = min(BLOCK // 2, h)
-        bw = min(BLOCK * BLOCK // bh, w)
-        col = torch.arange(w, device=device)
-        start = (col // bw * bw).to(f64)[None]
-        x1 = (col % bw).to(f64)[None]
-        y = torch.arange(h, device=device, dtype=f64)[:, None]
-        r = m[i]
-        x0 = r[0] * start + r[1] * y + r[2]  # per block row start, as WarpPerspectiveInvoker
-        y0 = r[3] * start + r[4] * y + r[5]
-        w0 = r[6] * start + r[7] * y + r[8]
-        ww = w0 + r[6] * x1
+    layout = []  # per crop: (width, block width, first pixel in its chunk, pixels)
+    for h, w in sizes:
+        bw = min(BLOCK * BLOCK // min(BLOCK // 2, h), w)
+        layout.append((w, bw, h * w))
+    parts, start_crop = [], 0
+    while start_crop < len(sizes):
+        end, total = start_crop, 0
+        while end < len(sizes) and (end == start_crop or total + layout[end][2] <= COORD_CHUNK):
+            total += layout[end][2]
+            end += 1
+        offsets = np.cumsum([0] + [n for _, _, n in layout[start_crop:end]])[:-1]
+        meta = device_tensor(
+            [(w, bw, int(o), n) for (w, bw, n), o in zip(layout[start_crop:end], offsets, strict=True)],
+            dtype=torch.int64,
+            device=device,
+        )
+        crop = torch.repeat_interleave(torch.arange(end - start_crop, device=device), meta[:, 3], output_size=total)
+        pos = torch.arange(total, device=device) - meta[crop, 2]
+        width, bw = meta[crop, 0], meta[crop, 1]
+        row, col = pos // width, pos % width
+        start = (col // bw * bw).to(f64)
+        x1 = (col % bw).to(f64)
+        y = row.to(f64)
+        mc = m[start_crop:end]
+
+        def r(k: int, mc: torch.Tensor = mc, crop: torch.Tensor = crop) -> torch.Tensor:
+            return mc[:, k][crop]  # entry k of each pixel's crop matrix
+
+        r0, r3, r6 = r(0), r(3), r(6)
+        x0 = r0 * start + r(1) * y + r(2)  # per block row start, as WarpPerspectiveInvoker
+        y0 = r3 * start + r(4) * y + r(5)
+        ww = r6 * start + r(7) * y + r(8) + r6 * x1
         ww = torch.where(ww != 0, TAB / torch.where(ww != 0, ww, 1), 0)
         lim = float(2**31 - 1)
-        xs = ((x0 + r[0] * x1) * ww).clamp(-lim - 1, lim).round()  # saturate_cast<int>: ties to even
-        ys = ((y0 + r[3] * x1) * ww).clamp(-lim - 1, lim).round()
-        parts.append(torch.stack((xs.reshape(-1), ys.reshape(-1))))
+        xs = ((x0 + r0 * x1) * ww).clamp(-lim - 1, lim).round()  # saturate_cast<int>: ties to even
+        ys = ((y0 + r3 * x1) * ww).clamp(-lim - 1, lim).round()
+        parts.append(torch.stack((xs, ys)))
+        start_crop = end
     xy = torch.cat(parts, 1).to(torch.int64)
     alpha = (xy[1] & (TAB - 1)) * TAB + (xy[0] & (TAB - 1))
     pix = (xy >> 5).clamp(-(2**15), 2**15 - 1)  # saturate_cast<short>

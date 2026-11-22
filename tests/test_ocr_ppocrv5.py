@@ -1,4 +1,4 @@
-"""PP-OCRv5 and the shared OCR steps: card, components, crops, CTC decoding, float16 neck scaling, bench page."""
+"""PP-OCRv5 and the shared OCR steps: card, components, box lines, crops, CTC, float16 neck scaling, bench page."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import pytest
 import torch
 
 from fastforks._core import registry
-from fastforks.ocr import _crop, _runner
+from fastforks.ocr import _crop, _db, _runner
 from fastforks.ocr._api import text_page
 from fastforks.ocr.models.ppocrv5.net import Detector
 from fastforks.ocr.models.ppocrv5.net.heads import DBHead
@@ -124,3 +124,47 @@ def test_local_detector_strips_preserve_halos() -> None:
         full = head.last_1(head.last_3(torch.cat((shrink, up(half_res, 2)), dim=1))).sigmoid()
         strips = head._local_strips(shrink, half_res)
     torch.testing.assert_close(strips, full, rtol=0.0, atol=1e-6)
+
+
+def _reference_line(mask: np.ndarray, p: tuple[int, int], q: tuple[int, int]) -> None:
+    """OpenCV's 8-connected `Line` stepped pixel by pixel (the loop `_db._line` replaces with its closed form)."""
+    h, w = mask.shape
+    a, b = list(p), list(q)
+    if _db._outside(w, h, a, b) and not _db._clip_line(w, h, a, b):
+        return
+    (x0, y0), (x1, y1) = a, b
+    if x1 < x0:
+        x0, y0, x1, y1 = x1, y1, x0, y0
+    dx, dy = x1 - x0, y1 - y0
+    sy = 1 if dy >= 0 else -1
+    dy = abs(dy)
+    vert = dy > dx
+    if vert:
+        dx, dy = dy, dx
+    err = dx - 2 * dy
+    x, y = x0, y0
+    for _ in range(dx + 1):
+        mask[y, x] = 1
+        diag = err < 0
+        err += -2 * dy + (2 * dx if diag else 0)
+        if vert:
+            y += sy
+            x += 1 if diag else 0
+        else:
+            x += 1
+            y += sy if diag else 0
+
+
+def test_line_matches_the_stepped_line() -> None:
+    """`_db._line`'s closed form draws OpenCV's stepped line exactly: every direction, long lines, clipped ends."""
+    rng = np.random.default_rng(0)
+    h, w = 61, 3000
+    ends = [((5, 5), (5, 5)), ((0, 0), (2999, 60)), ((2999, 0), (0, 60)), ((10, 60), (11, 0)), ((-40, -7), (3100, 70))]
+    ends += [
+        tuple(tuple(int(v) for v in rng.integers((-50, -20), (w + 50, h + 20))) for _ in range(2)) for _ in range(400)
+    ]
+    for p, q in ends:
+        got, want = np.zeros((h, w), np.uint8), np.zeros((h, w), np.uint8)
+        _db._line(got, p, q)
+        _reference_line(want, p, q)
+        assert np.array_equal(got, want), (p, q)

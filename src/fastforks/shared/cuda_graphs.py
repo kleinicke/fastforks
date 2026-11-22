@@ -181,6 +181,15 @@ class GraphCache:
             torch.cuda.empty_cache()
         return result
 
+    def static_inputs(self, key: Hashable) -> tuple[torch.Tensor, ...] | None:
+        """The static input buffers of `key`'s graph (None: no graph).
+
+        A forward that writes a recurrent state into its own static inputs (in place, at the end) lets the caller pass
+        these back on the next call: copying a tensor onto itself launches nothing, so the state never moves.
+        """
+        entry = self.graphs.get(key)
+        return None if entry is None else entry[1]
+
     def _add(self, key: Hashable, inputs: tuple[torch.Tensor, ...]) -> tuple[Any, bool]:
         """Capture `key` after `capture_after` eager calls: `(entry or None, capture failed)`."""
         n = self._seen.pop(key, 0)

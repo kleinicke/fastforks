@@ -23,6 +23,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -46,6 +47,8 @@ if TYPE_CHECKING:
     from fastforks.depth._runner import Context
 
     from .sparse import SparseUNet
+
+    Array = torch.Tensor | np.ndarray
 
 _TOKENS = (1200, 3600)  # num_tokens_range of the released checkpoints
 _REFINE_STEPS = 3  # MoGe-3 infer default
@@ -98,44 +101,52 @@ def _net(ctx: Context) -> MoGeNet:
 
 
 # ------------------------------------------------------------------------------------------------ post-processing
-def _solve_shift(uv: torch.Tensor, xyz: torch.Tensor, w: torch.Tensor, focal: torch.Tensor | None) -> torch.Tensor:
+def _total(t: Array) -> Array:
+    """`t.sum((1, 2))` in torch's float64 reduction order also for numpy arrays (numpy sums pairwise)."""
+    return t.sum((1, 2)) if isinstance(t, torch.Tensor) else torch.from_numpy(t).sum((1, 2)).numpy()
+
+
+def _solve_shift(uv: Array, xyz: Array, w: Array, focal: Array | None) -> Array:
     """Levenberg-Marquardt for `min_s |f * xy / (z + s) - uv|^2` over the weighted points, per batch item (float64).
 
     `f` is the given focal length or, if `None`, the optimal one for each `s` (upstream `solve_optimal_focal_shift`).
+    The arrays are numpy (eager: a numpy op costs a few microseconds on the host, a CPU tensor op tens) or CPU
+    tensors (traced); both run the same float64 operations and the sums in torch's order, so they agree exactly.
     """
+    xp = cast("Any", torch if isinstance(uv, torch.Tensor) else np)
     xy, z = xyz[..., :2], xyz[..., 2:]
     w = w[..., None]
 
-    def residual(s: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def residual(s: Array) -> tuple[Array, Array]:
         d = z + s[:, None, None]
-        p = torch.where(w > 0, xy / d, 0)
-        dp = torch.where(w > 0, -p / d, 0)
+        p = xp.where(w > 0, xy / d, 0)
+        dp = xp.where(w > 0, -p / d, 0)
         if focal is None:
-            a, b = (p * uv * w).sum((1, 2)), (p * p * w).sum((1, 2))
-            da, db = (dp * uv * w).sum((1, 2)), 2 * (p * dp * w).sum((1, 2))
+            a, b = _total(p * uv * w), _total(p * p * w)
+            da, db = _total(dp * uv * w), 2 * _total(p * dp * w)
             f, df = a / b, (da * b - a * db) / (b * b)
         else:
-            f, df = focal, torch.zeros_like(focal)
+            f, df = focal, xp.zeros_like(focal)
         r = (f[:, None, None] * p - uv) * w
         return r, (df[:, None, None] * p + f[:, None, None] * dp) * w
 
-    s = torch.zeros(xyz.shape[0], dtype=torch.float64)
-    lam = torch.full_like(s, 1e-3)
+    s = xp.zeros(xyz.shape[0], dtype=xp.float64)
+    lam = xp.full_like(s, 1e-3)
     r, jac = residual(s)
-    cost = (r * r).sum((1, 2))
+    cost = _total(r * r)
     for _ in range(100):
-        g, hess = (jac * r).sum((1, 2)), (jac * jac).sum((1, 2))
-        step = -g / (hess * (1 + lam)).clamp_min(1e-300)
+        g, hess = _total(jac * r), _total(jac * jac)
+        step = -g / xp.clip(hess * (1 + lam), 1e-300, None)
         r2, j2 = residual(s + step)
-        c2 = (r2 * r2).sum((1, 2))
-        ok = torch.isfinite(c2) & (c2 <= cost)
-        s = torch.where(ok, s + step, s)
-        r, jac = torch.where(ok[:, None, None], r2, r), torch.where(ok[:, None, None], j2, jac)
-        cost = torch.where(ok, c2, cost)
-        lam = torch.where(ok, lam / 10, lam * 10)
+        c2 = _total(r2 * r2)
+        ok = xp.isfinite(c2) & (c2 <= cost)
+        s = xp.where(ok, s + step, s)
+        r, jac = xp.where(ok[:, None, None], r2, r), xp.where(ok[:, None, None], j2, jac)
+        cost = xp.where(ok, c2, cost)
+        lam = xp.where(ok, lam / 10, lam * 10)
         if torch.compiler.is_compiling():  # traced: all iterations (no host sync); converged steps change s < 1e-13
             continue
-        if bool((step.abs() <= 1e-13 * (s.abs() + 1e-9)).all()):
+        if bool((xp.abs(step) <= 1e-13 * (xp.abs(s) + 1e-9)).all()):
             break
     return s
 
@@ -160,7 +171,12 @@ def focal_shift(
         t.view_as(r) for t, r in zip(host.split((pl.numel(), ul.numel(), ml.numel())), (pl, ul, ml), strict=True)
     )
     fd = focal.cpu().double() if focal is not None else None
-    shift = _solve_shift(ul, pl, wl, fd)
+    if torch.compiler.is_compiling():
+        shift = cast("torch.Tensor", _solve_shift(ul, pl, wl, fd))
+    else:
+        with np.errstate(divide="ignore", invalid="ignore", over="ignore"):  # masked points: 0 / 0, as torch.where
+            arrays = (ul.numpy(), pl.numpy(), wl.numpy(), None if fd is None else fd.numpy())
+            shift = torch.from_numpy(_solve_shift(*arrays))
     few = wl.sum(1) < 2  # noqa: PLR2004 - upstream: fewer than 2 points -> focal 1, shift 0
     shift = torch.where(few, 0, shift).float()
     if fd is None:

@@ -3,6 +3,7 @@ import contextlib
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.upload import to_device  # fastforks
 from fastforks.multiview._runner import invert  # fastforks: closed-form inverses (torch.inverse has no ONNX op)
 from fastforks._core.sampling import grid_sample
 
@@ -21,7 +22,7 @@ def coords_grid(b, h, w, homogeneous=False, device=None):
     grid = grid[None].repeat(b, 1, 1, 1)  # [B, 2, H, W] or [B, 3, H, W]
 
     if device is not None:
-        grid = grid.to(device)
+        grid = to_device(grid, device)  # fastforks: to_device (a pageable upload syncs the host)
 
     return grid
 

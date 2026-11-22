@@ -16,6 +16,7 @@ the 1x1x1 Conv3d nets as 1x1 Conv2d, the sources warped and correlated one at a 
 from __future__ import annotations
 
 import contextlib
+import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -23,8 +24,9 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.sampling import grid_sample
-from fastforks.multiview._runner import Forward, NoParams, Runner, f64, invert, take
+from fastforks.multiview._runner import Forward, Runner, f64, invert, take
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import GraphCache
 
 from .net.net import PatchmatchNet
 
@@ -130,6 +132,13 @@ def _mlp2d_rows(x: torch.Tensor, convs: list[Conv]) -> torch.Tensor:
     return F.conv2d(y, *convs[2])
 
 
+@dataclass(frozen=True)
+class Params:
+    """Load options."""
+
+    cuda_graphs: bool  # kernels: replay the features and PatchMatch stages from a CUDA graph per input shape
+
+
 @dataclass
 class Stage:
     """One PatchMatch stage: settings and folded weights."""
@@ -212,7 +221,7 @@ class _Base(Runner):
     per_view = False
     min_views = 2
     batch = None
-    Params = NoParams
+    Params = Params
     compiled_methods = ("__call__", "prepare", "predict")  # `scene` (several references) calls the last two
 
     def __init__(self, ctx: Context) -> None:
@@ -622,9 +631,39 @@ class Kernels(_Base):
             if (c, st.groups) not in CONFIGS or st.evaluate != 9:  # noqa: PLR2004 - aggregate kernel: 9 neighbours
                 msg = f"PatchmatchNet kernels: stage {st.stage} ({c} channels, {st.groups} groups) has no kernel"
                 raise ValueError(msg)
+        # about 700 launches per call: WDDM's per-launch cost made Windows host-bound; the depth range's inverse is a
+        # scalar kernel argument, so it is part of the key
+        self.graphs = GraphCache(self._graphed, graphs=2) if ctx.params.cuda_graphs else None
+        self._inv: tuple[float, float] | None = None  # `host_range` of the call being captured
+        self._lock = threading.Lock()
 
     def _dtype(self) -> torch.dtype:
         return torch.float16
+
+    def _graphed(
+        self, images: torch.Tensor, intrinsics: torch.Tensor, cam_to_world: torch.Tensor, depth_range: torch.Tensor
+    ) -> dict[str, torch.Tensor]:
+        x, feats = self.prepare(images)
+        size = (images.shape[-2], images.shape[-1])
+        return self.predict(x, feats, size, intrinsics, cam_to_world, depth_range, inv=self._inv)
+
+    def forward(
+        self, images: torch.Tensor, intrinsics: torch.Tensor, cam_to_world: torch.Tensor, depth_range: torch.Tensor
+    ) -> dict[str, torch.Tensor]:
+        """`_Base.forward`, replayed from the input shapes' and depth range's CUDA graph once captured."""
+        if self.graphs is None or torch.compiler.is_compiling():
+            return super().forward(images, intrinsics, cam_to_world, depth_range)
+        inputs = (images, intrinsics, cam_to_world, depth_range)
+        with self._lock:
+            self._inv = self.host_range(depth_range)  # before any GPU work, so its host sync does not wait
+            key = (self._inv, *((t.device, t.dtype, tuple(t.shape)) for t in inputs))
+            out = self.graphs.run(key, *inputs)
+            return self._graphed(*inputs) if out is None else out
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool."""
+        if self.graphs is not None:
+            self.graphs.release()
 
     def host_range(self, depth_range: torch.Tensor) -> tuple[float, float]:
         """`(1 / near, 1 / far)` on the host for the kernels' scalar arguments: one sync per scene."""
