@@ -77,7 +77,9 @@ class Portable(_S2M2Runner):
         self.net = _net(ctx)
         # CUDA: no 1x1-conv-before-upsample commute (3 % slower, 4 % larger there)
         rewrites.prepare(self.net, upconv=ctx.device.type == "cpu")
-        if ctx.device.type == "cpu":  # oneDNN runs channels_last convolutions faster (S2M2 has no 3-D convs)
+        # channels-last (S2M2 has no 3-D convs): oneDNN runs it faster; on CUDA fp16 cuDNN skips the NCHW<->NHWC
+        # conversions (375x1242 l 315 -> 290 ms, peak 2066 -> 1630 MB RTX 5060 Ti, Windows)
+        if ctx.device.type == "cpu" or (ctx.device.type == "cuda" and ctx.dtype == "float16"):
             self.net.to(memory_format=torch.channels_last)
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
