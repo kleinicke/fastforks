@@ -91,23 +91,26 @@ def _sample(vol: torch.Tensor, xy: torch.Tensor) -> torch.Tensor:
     """`grid_sample(vol, xy)` (bilinear, zeros, align_corners, pixel coordinates `xy` `[N, K, 2]`) -> `[N, K]`.
 
     float32: upstream `bilinear_sampler`. float16 volumes: the same weights in float32 on gathered corners (autocast
-    would promote the whole volume to float32 for `grid_sample`).
+    would promote the whole volume to float32 for `grid_sample`). The weights, bounds and indices are separable: they
+    are computed per axis for both neighbours (`[N, K, 2]`) and combined as outer products, and the corners (dx, dy) =
+    (0, 0), (0, 1), (1, 0), (1, 1) are summed in that order. These are the numbers of a corner at a time, in about a
+    third of the kernel launches and with less memory traffic (a frame runs 168 lookups).
     """
     n, _, h, w = vol.shape
     if vol.dtype == torch.float32:
         g = torch.stack((2 * xy[..., 0] / (w - 1) - 1, 2 * xy[..., 1] / (h - 1) - 1), -1)
         return grid_sample(vol, g[:, None], align_corners=True)[:, 0, 0]
     flat = vol.reshape(n, h * w)
-    x0, y0 = xy[..., 0].floor(), xy[..., 1].floor()
-    out = xy.new_zeros(xy.shape[:-1])
-    for dx in (0, 1):
-        for dy in (0, 1):
-            cx, cy = x0 + dx, y0 + dy
-            wgt = (1 - (xy[..., 0] - cx).abs()) * (1 - (xy[..., 1] - cy).abs())
-            ok = (cx >= 0) & (cx <= w - 1) & (cy >= 0) & (cy <= h - 1)
-            idx = (cy.clamp(0, h - 1) * w + cx.clamp(0, w - 1)).long()
-            out += torch.where(ok, flat.gather(1, idx).float() * wgt, 0.0)
-    return out
+    x, y = xy[..., 0:1], xy[..., 1:2]
+    x0, y0 = x.floor(), y.floor()
+    cx, cy = torch.cat((x0, x0 + 1), -1), torch.cat((y0, y0 + 1), -1)  # [N, K, 2]: d = 0, 1
+    wx, wy = 1 - (x - cx).abs(), 1 - (y - cy).abs()
+    okx, oky = (cx >= 0) & (cx <= w - 1), (cy >= 0) & (cy <= h - 1)
+    idx = (cy.clamp(0, h - 1)[..., None, :] * w + cx.clamp(0, w - 1)[..., :, None]).long()  # [N, K, dx, dy]
+    wgt = wx[..., :, None] * wy[..., None, :]
+    ok = okx[..., :, None] & oky[..., None, :]
+    v = torch.where(ok, flat.gather(1, idx.view(n, -1)).view(idx.shape).float() * wgt, 0.0).flatten(-2)
+    return v[..., 0] + v[..., 1] + v[..., 2] + v[..., 3]
 
 
 class _VolumeCorr:
