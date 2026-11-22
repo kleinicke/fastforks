@@ -203,7 +203,7 @@ def fastforks.detection._tracks.ByteTracker.update(self, detections: 'Any') -> '
 def fastforks.detection.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.detection.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.detection._api.DetectionModel
 def fastforks.detection.model_card(model: 'str') -> 'ModelCard'
-def fastforks.detection.track_objects(video: 'Iterable[Any]', detector: 'Callable[..., Any] | None' = None, *, classes: 'Sequence[int | str] | None' = None, **tracker: 'float') -> 'list[ObjectTracks]'
+def fastforks.detection.track_objects(video: 'Iterable[Any]', detector: 'Callable[..., Any] | None' = None, *, classes: 'Sequence[int | str] | None' = None, batch_size: 'int' = 1, **tracker: 'float') -> 'list[ObjectTracks]'
 def fastforks.edges._api.EdgesModel.__call__(self, image: 'ImageLike') -> 'EdgesResult'
 def fastforks.edges.list_models(filter: 'str | Sequence[str]' = '*', *, exclude_filters: 'str | Sequence[str]' = (), commercial: 'Commercial | None' = None, tier: 'Tier | None' = None, family: 'str | None' = None, runnable: 'bool | None' = None) -> 'list[str]'
 def fastforks.edges.load(model: 'str', *, mode: 'ModeArg' = 'auto', device: 'str | torch.device | None' = None, dtype: 'Dtype | torch.dtype | None' = None, weights: 'str | os.PathLike[str] | None' = None, **options: 'object') -> fastforks.edges._api.EdgesModel
@@ -930,6 +930,7 @@ option features.tipsv2.fp16_accumulate
 option features.tipsv2.stream
 option flow.flowformer.iters
 option flow.flowseek.iters
+option flow.gmflow.cuda_graphs
 option flow.megaflow.iters
 option flow.memflow.iters
 option flow.memfof.iters
