@@ -22,7 +22,6 @@ import torch
 import torch.nn.functional as F
 from torch.nn.attention import SDPBackend
 
-from fastforks._core.mlx_cast import to_run_dtype
 from fastforks.shared import sdpa
 
 CUDNN_MAX_HEAD_DIM = 128  # fixed: PyTorch's cuDNN SDPA head-dim limit
@@ -136,8 +135,8 @@ def augmented(
         return qa, ka, va, d
     rel_h = torch.einsum("bhwnc,hkc->bnhwk", r_q, rh).reshape(b, nh, n, h)
     rel_w = torch.einsum("bhwnc,wkc->bnhwk", r_q, rw).reshape(b, nh, n, w)
-    zeros = to_run_dtype(qt.new_zeros(b, nh, n, pad), qt.dtype)  # new_zeros: float32 in the MLX twin
-    qa = torch.cat([qt * d**-0.5, rel_h, rel_w, zeros], -1)
-    ka = torch.cat([k.transpose(1, 2), onehot.expand(b, nh, n, h + w), zeros], -1)
-    va = torch.cat([v.transpose(1, 2), to_run_dtype(qt.new_zeros(b, nh, n, h + w + pad), qt.dtype)], -1)
+    # zero columns by padding: a zeros tensor is a constant the MLX twin would fold and keep resident
+    qa = F.pad(torch.cat([qt * d**-0.5, rel_h, rel_w], -1), (0, pad))
+    ka = F.pad(torch.cat([k.transpose(1, 2), onehot.expand(b, nh, n, h + w)], -1), (0, pad))
+    va = F.pad(v.transpose(1, 2), (0, h + w + pad))
     return qa, ka, va, d

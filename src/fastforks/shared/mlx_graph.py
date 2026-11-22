@@ -2487,6 +2487,7 @@ def _fold_constants(plan: list[tuple[Any, ...]], values: dict[str, Any]) -> list
     need.update(p[2] for p in rest if p[0] == "alias")
     need.update(n for p in rest if p[0] == "output" for n in _refs(p[1]))
     frontier = {n: env[n] for n in folded & need}
+    env.clear()  # the folded steps' intermediates outlived the call otherwise (vitmatte-b fp16: 1.1 GB resident)
     arrays = {id(a): a for a in frontier.values() if isinstance(a, mx.array)}
     if any(not isinstance(a, (mx.array, int, float, bool)) for a in frontier.values()) or (
         sum(a.nbytes for a in arrays.values()) > CONST_FOLD_MAX_MB << 20
