@@ -711,7 +711,7 @@ class Model:
             self._lock,
             on_device,
             det,
-            sdpa.policy(self.device),  # the SDPA backends where PyTorch has no flash (`fastforks.shared.sdpa`)
+            sdpa.policy(self.device, self._runner.sdpa_auto),  # SDPA backends without flash (`fastforks.shared.sdpa`)
             torch.inference_mode(),
             _no_autocast(self.device),
         ):

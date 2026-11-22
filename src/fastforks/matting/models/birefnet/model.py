@@ -55,6 +55,7 @@ class _Matting(Runner):
     """Resize, normalise, network, sigmoid, resize back."""
 
     Params = Params
+    sdpa_auto = "efficient,cudnn,math"  # Swin window attention: cuDNN rebuilds per shape (`fastforks.shared.sdpa`)
     net: BiRefNet
     dtype: torch.dtype
 

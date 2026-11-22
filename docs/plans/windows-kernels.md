@@ -602,6 +602,16 @@ Decided by the maintainer on 2026-11-21 (see [Windows-only numerical differences
 
    Decided: cuDNN is the no-flash default (it is the faster backend for the SAM and ViT models; RF-DETR is about
    10 % slower with it).
+
+   Per-family exception (`Runner.sdpa_auto`, only under `auto` without flash, logged): Swin v1 window attention
+   (`shared.swin_v1`, 144 tokens with a bias mask) in BiRefNet and InSPyReNet runs memory-efficient first. cuDNN
+   builds a graph of 35-55 ms for every new attention shape (each input size brings new ones) and is not faster at
+   that shape (fp16 `[484, 6, 144, 32]`: 1.21 ms cuDNN, 0.98 ms efficient). RTX 5060 Ti, Windows, 1080p kernels,
+   cuDNN first -> efficient first: birefnet first call 0.93 -> 0.34 s, steady 126.6 -> 124.2 ms; birefnet-lite 0.92
+   -> 0.30 s, 53.6 -> 54.6 ms; inspyrenet 0.77 -> 0.48 s, 108.5 -> 107.2 ms; inspyrenet-fast 0.86 -> 0.58 s, 18.5 ->
+   16.0 ms. BEN2 keeps cuDNN first: 0.82 -> 0.34 s on the first call but 102.5 -> 114 ms per later call (3 runs), a
+   loss for video. The outputs differ by fp16 rounding (birefnet max 2.3e-7); the birefnet-lite and inspyrenet-fast
+   GPU goldens pass in both modes.
 10. **SAM relative-position attention formulation follows the SDPA policy** (`shared.sam_attention.use_biased`, see
     [Attention speed on Windows](#attention-speed-on-windows-workattn-speed)). Without flash in the policy, global
     blocks run SDPA with a dense bias mask instead of the augmented dot product: the same maths, a different SDPA
