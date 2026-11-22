@@ -16,7 +16,8 @@ Policy (`FASTFORKS_SDPA`, read at each call):
   logged): BiRefNet's and InSPyReNet's Swin window attention (`shared.swin_v1`: 144 tokens, a bias mask) takes
   `efficient,cudnn,math`, since cuDNN builds a graph of about 40 ms for each new shape (birefnet's first call at
   1080p 0.93 -> 0.34 s) and is no faster there (birefnet 126.6 -> 124.2 ms, inspyrenet-fast 18.5 -> 16.0 ms; RTX
-  5060 Ti, Windows; docs/plans/windows-kernels.md, decision 9).
+  5060 Ti, Windows; docs/plans/windows-kernels.md, decision 9). OneFormer's Swin backbone (`shared.maskformer`) does
+  the same (first 1024 x 2048 call 0.95 -> 0.45 s).
 - `torch`: PyTorch's own order everywhere (fastforks changes nothing).
 - a comma-separated priority list of `flash`, `cudnn`, `efficient`, `math`, e.g. `cudnn,efficient,math` (cuDNN
   where it supports the call, else memory-efficient, else math): only those backends, in that order. PyTorch

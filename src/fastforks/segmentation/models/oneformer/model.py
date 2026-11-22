@@ -62,6 +62,9 @@ class Portable(Runner):
     batch = None
     Params = Params
     kernels = False
+    # Swin window attention (a bias mask): cuDNN builds a graph per new shape, so the first 1024 x 2048 call took
+    # 0.95 s (memory-efficient: 0.45 s) and it is no faster after (kernels 112.4 -> 111.0 ms; `fastforks.shared.sdpa`)
+    sdpa_auto = "efficient,cudnn,math"
 
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
