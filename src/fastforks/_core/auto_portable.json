@@ -31,5 +31,33 @@
   "wd-vit-tagger-v3",
   "xfeat",
   "xfeat-lighterglue"
- ]
+ ],
+ "windows": {
+  "measured_on": "rtx-5060-ti-windows-16gb",
+  "portable": [
+   "cotracker3-offline",
+   "cotracker3-online",
+   "dat-light-x4",
+   "flowformer-small-chairs",
+   "flowformer-small-sintel",
+   "flowformer-small-things",
+   "gmflow-scale1-things",
+   "gmflow-scale2-mixdata",
+   "gmflow-scale2-regrefine6-kitti",
+   "gmflow-scale2-regrefine6-mixdata",
+   "gmflow-scale2-regrefine6-sintelft",
+   "gmflow-scale2-regrefine6-things",
+   "gmflow-scale2-sintel",
+   "gmflow-scale2-things",
+   "parseq",
+   "parseq-tiny",
+   "ppocrv5-mobile",
+   "seedvr2-3b",
+   "seedvr2-7b",
+   "segformer-b0-ade20k",
+   "vit_so400m_patch14_siglip_378.webli_ft_in1k",
+   "xfeat",
+   "xfeat-lighterglue"
+  ]
+ }
 }

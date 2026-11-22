@@ -3,7 +3,9 @@
 `auto` takes the kernels backend when it can load. That is a loss where the kernels are not faster. This tool reads the
 measured speeds (the fixed-size table of docs/benchmarks.md and docs/data/speed.jsonl) and lists a model when the median
 over its measured inputs of `portable ms / kernels ms` is below `MIN_GAIN`. Load time stays free: `auto` reads one small
-file. An explicit `mode="kernels"` is never affected.
+file. An explicit `mode="kernels"` is never affected. On Windows `auto` reads the `windows` list instead: the same rule
+over the rows of `WINDOWS_DEVICE` (the reference card under WDDM, where every launch costs more) for the models that
+survey measured, over the reference rows for the others.
 
 The Apple table selects among passing, comparable MPS and MLX survey runs. Per model revision:
 
@@ -37,6 +39,7 @@ OUT = ROOT / "src" / "fastforks" / "_core" / "auto_portable.json"
 APPLE_OUT = OUT.with_name("apple_mlx.json")
 APPLE_DEVICE = "apple-m1-pro-16gb"  # the Mac whose MPS and MLX survey rows decide apple_mlx.json
 APPLE_MLX_DEVICE = "apple-m1-pro-mlx-16gb"
+WINDOWS_DEVICE = "rtx-5060-ti-windows-16gb"  # the reference card under Windows: its rows decide `auto` there
 MIN_GAIN = 1.05  # kernels must be at least 5 % faster, else the lighter portable backend is chosen
 MEM_SLACK = 1.02  # an MLX route may use at most 2 % more peak memory than the MPS path it replaces (measurement noise)
 TRADE_SLOWDOWN = 1.01  # ... or be up to 1 % slower than that path ...
@@ -68,9 +71,35 @@ def _ratios() -> dict[str, list[float]]:
     return found
 
 
+def _survey_ratios(device: str) -> dict[str, list[float]]:
+    """`{model id: [portable ms / kernels ms, ...]}` over the inputs a survey device measured in both modes."""
+    pairs: dict[tuple[str, str], dict[str, float]] = {}
+    path = ROOT / "docs" / "data" / "speed" / f"{device}.jsonl"
+    for line in path.read_text(encoding="utf-8").splitlines() if path.is_file() else ():
+        row = json.loads(line)
+        if row.get("status") == "ok" and row.get("golden") != "fail" and row["mode"] in ("portable", *KERNEL_MODES):
+            ms = pairs.setdefault((row["ref"].split("@")[0], row["input"]), {})
+            mode = "portable" if row["mode"] == "portable" else "k"
+            ms[mode] = min(ms.get(mode, row["ms"]), row["ms"])
+    found: dict[str, list[float]] = {}
+    for (model_id, _), ms in pairs.items():
+        if "portable" in ms and "k" in ms:
+            found.setdefault(model_id, []).append(ms["portable"] / ms["k"])
+    return found
+
+
 def render() -> str:
-    slow = sorted(ref for ref, r in _ratios().items() if statistics.median(r) < MIN_GAIN)
-    return json.dumps({"min_gain": MIN_GAIN, "portable": slow}, indent=1) + "\n"
+    reference = _ratios()
+    slow = sorted(ref for ref, r in reference.items() if statistics.median(r) < MIN_GAIN)
+    # on Windows a model the Windows survey measured is decided by those rows, every other one by the reference rows
+    windows = {**reference, **_survey_ratios(WINDOWS_DEVICE)}
+    slow_windows = sorted(ref for ref, r in windows.items() if statistics.median(r) < MIN_GAIN)
+    data = {
+        "min_gain": MIN_GAIN,
+        "portable": slow,
+        "windows": {"measured_on": WINDOWS_DEVICE, "portable": slow_windows},
+    }
+    return json.dumps(data, indent=1) + "\n"
 
 
 Option = tuple[str, str]  # (mode, dtype)
