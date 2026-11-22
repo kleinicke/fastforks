@@ -155,6 +155,8 @@ class Runner(abc.ABC):  # noqa: B024 - abstract `__call__` is declared by each t
         deterministic_cudnn: Run each CUDA call with `torch.backends.cudnn.deterministic = True` (restored after).
             Set on the portable runners where cuDNN's default algorithms (atomics in transposed convs) made repeated
             calls differ and the deterministic ones cost nothing (measured on IGEV++, LAS2 and the other GRU families).
+        sdpa_auto: This family's SDPA backend priority (`efficient,cudnn,math`) in place of cuDNN first under
+            `FASTFORKS_SDPA=auto` where PyTorch has no flash (`fastforks.shared.sdpa`); `None`: the shared policy.
         uint8_input: The task API passes uint8 images on as uint8 `[B, 3, H, W]` (levels 0..255) instead of float32 in
             `[0, 1]` (other inputs stay float32): for families that resize the 8-bit levels themselves, so no full-size
             float32 copy is made (detection).
@@ -168,6 +170,7 @@ class Runner(abc.ABC):  # noqa: B024 - abstract `__call__` is declared by each t
     batch: ClassVar[int | None] = 1
     Params: ClassVar[type[Any]] = NoParams
     deterministic_cudnn: ClassVar[bool] = False
+    sdpa_auto: ClassVar[str | None] = None
     uint8_input: ClassVar[bool] = False
     compiled_methods: ClassVar[tuple[str, ...]] = ("__call__",)
 
