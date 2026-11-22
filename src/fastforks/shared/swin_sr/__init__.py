@@ -161,7 +161,11 @@ def window_attention(  # noqa: PLR0913 - the block's projections, head count, sc
     b_, n, _ = x.shape
     d = qkv.out_features // (3 * heads)
     q, k, v = qkv(x).reshape(b_, n, 3, heads, d).permute(2, 0, 3, 1, 4).unbind(0)
-    if cosine is not None:  # zero padded head columns leave the norms unchanged
+    if cosine is not None and q.device.type == "mps":  # its fused weighted rms_norm is 3x faster than normalize
+        w = q.new_full((d,), d**-0.5)  # x / sqrt(mean(x^2)) * d^-1/2 = x / |x|, float32 sums, no overflow
+        q = F.rms_norm(q, (d,), w, 1e-12) * cosine.to(q.dtype)
+        k = F.rms_norm(k, (d,), w, 1e-12)
+    elif cosine is not None:  # zero padded head columns leave the norms unchanged
         q = F.normalize(q, dim=-1) * cosine.to(q.dtype)
         k = F.normalize(k, dim=-1)
     add = bias.to(q.dtype)[None]
@@ -193,6 +197,16 @@ def attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Ten
         q, k, v = (t if t.stride(-1) == 1 else t.contiguous() for t in (q, k, v))
     out = F.scaled_dot_product_attention(q, k, v, attn_mask=mask, scale=scale)
     return out[..., :d] if pad else out
+
+
+def patch_unembed(m: nn.Module, x: torch.Tensor, x_size: tuple[int, int]) -> torch.Tensor:
+    """`PatchUnEmbed.forward` (`[B, H * W, C]` tokens -> `[B, C, H, W]`), NCHW-contiguous on MPS.
+
+    Upstream returns the channels-last view; the MPS 3 x 3 conv after it runs 4x slower on it (Swin2SR 512 x 512
+    float16: 1.33 of 8.1 s for 7 convs, 0.19 s with the copy). CUDA keeps the view.
+    """
+    x = x.transpose(1, 2).view(x.shape[0], m.embed_dim, *x_size)
+    return x.contiguous() if x.device.type == "mps" else x
 
 
 def patch_embed(m: nn.Module, x: torch.Tensor) -> torch.Tensor:

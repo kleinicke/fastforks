@@ -31,10 +31,10 @@ from fastforks.kernels import cudnn_hacc
 from fastforks.kernels.shift_windows import rearrange
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
-from fastforks.shared.swin_sr import checkpoint_upsampler, pad_heads, shift_mask, window_attention
+from fastforks.shared.swin_sr import checkpoint_upsampler, pad_heads, patch_unembed, shift_mask, window_attention
 
 from .net import Swin2SR
-from .net.network_swin2sr import RSTB, PatchEmbed, SwinTransformerBlock, WindowAttention
+from .net.network_swin2sr import RSTB, PatchEmbed, PatchUnEmbed, SwinTransformerBlock, WindowAttention
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -174,6 +174,8 @@ class Portable(Runner):
         for m in self.net.modules():
             if isinstance(m, PatchEmbed):
                 override(m, _patch_embed)
+            elif isinstance(m, PatchUnEmbed):
+                override(m, patch_unembed)
         _scale_last(self.net.layers[-1])  # ty: ignore[invalid-argument-type]
         self.net.norm.eps *= _LAST_SCALE**2  # LayerNorm(s * x, eps * s^2) == LayerNorm(x, eps)
         mean = self.net.mean
