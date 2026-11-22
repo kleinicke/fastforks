@@ -81,7 +81,10 @@ class XFeat(nn.Module):
 		feats = F.normalize(feats, dim=-1)
 
 		#Correct kpt scale
-		mkpts = mkpts * torch.tensor([rw1,rh1], device=mkpts.device).view(1, 1, -1)
+		# fastforks: the scale filled on the device (torch.tensor uploads, which syncs; same values)
+		scale = torch.full((2,), rw1, device=mkpts.device, dtype=torch.get_default_dtype())
+		scale[1] = rh1
+		mkpts = mkpts * scale.view(1, 1, -1)
 
 		valid = scores > 0
 		return [  
@@ -330,7 +333,10 @@ class XFeat(nn.Module):
 
 		feats = torch.gather( M1, 1, top_k[...,None].expand(-1, -1, 64))
 		mkpts = torch.gather(xy1, 1, top_k[...,None].expand(-1, -1, 2))
-		mkpts = mkpts * torch.tensor([rw1, rh1], device=mkpts.device).view(1,-1)
+		# fastforks: the scale filled on the device (torch.tensor uploads, which syncs; same values)
+		scale = torch.full((2,), rw1, device=mkpts.device, dtype=torch.get_default_dtype())
+		scale[1] = rh1
+		mkpts = mkpts * scale.view(1,-1)
 
 		return mkpts, feats
 
