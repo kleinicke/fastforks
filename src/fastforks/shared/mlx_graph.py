@@ -1789,6 +1789,9 @@ def _conv_core(
 
 MERGE_OFF = bool(os.environ.get("FF_MLX_NO_MERGE"))  # sibling convolutions (same input and geometry) stay separate
 MERGE_UNEQUAL = bool(os.environ.get("FF_MLX_MERGE_UNEQUAL"))  # ... merged also when their output counts differ
+# ... and stay separate when one sample's merged output exceeds this (waft-a1 fp32 1080x1920: two 128-output convs on
+# 560x1008, a 551 MB merged map, 8.72 s / 4206 MB merged against 8.52 s / 3018 MB separate)
+MERGE_MAX_BYTES = int(os.environ.get("FF_MLX_MERGE_MB", "256")) << 20
 ALIGN_OFF = bool(os.environ.get("FF_MLX_NO_ALIGN"))  # `mx.conv2d` with ragged channel counts as they are
 WIDE_OUT_OFF = bool(os.environ.get("FF_MLX_NO_WIDE_OUT"))  # 32 / 48-output 3x3 convs on MLX's narrow tile
 SPLIT_IN_OFF = bool(os.environ.get("FF_MLX_NO_SPLIT_IN"))  # very wide-input 3x3 convs as one `mx.conv2d`
@@ -3307,6 +3310,12 @@ class GraphNet:
             lead = f"{convs[0].name}__merged"
             wk = "\0".join(wnames) + "\0merged"
             bk = "\0".join(bnames) + "\0merged" if bnames else None
+            if wk not in self._consts:  # the first signature decides, later ones keep it (its weights are consumed)
+                if any(n in self._consumed for n in (*wnames, *bnames)):
+                    continue  # taken over separately by an earlier signature: their torch twins are gone
+                outs = [c.meta["val"].shape for c in convs]  # [N, C, H, W]
+                if sum(o[1:].numel() for o in outs) * self.dtype.size > MERGE_MAX_BYTES:
+                    continue  # a huge merged map and its slices outweigh the shared input read (`MERGE_MAX_BYTES`)
             if wk not in self._consts:
                 self._consts[wk] = self._const(f"{wk}\0w", torch.cat([lifted[n] for n in wnames]), share=False)
             values[wk] = self._consts[wk]

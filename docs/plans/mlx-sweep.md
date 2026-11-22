@@ -3519,3 +3519,55 @@ Three slower first calls (fp16, after the change; none used the two-pass export)
 On these nets the time after export goes to MLX compiles and first-use Metal kernels, not to redundant passes.
 Trimming the tuning trial would change routes and speed, so it is left for a separate pass. A plain eager first
 segment would also need first-call kernel builds, so there is no cheap win.
+
+## 2026-11-22 late: first calls beyond the export, two memory-for-speed trades
+
+### First calls (film, s2m2-s, pi3): no code change
+
+The +6.8 s (s2m2-s) and the +2.9 s phases (film) above come from a cold system Metal shader cache
+(`$(getconf DARWIN_USER_CACHE_DIR)com.apple.metal/.../libraries*.data`, ~1.5 GB, rotating), not from the replay.
+Probe (scratch, the survey's plan and inputs; fp16; per-call s; first call / export / segments beyond a warm call), in a
+repeat process with a warm Metal cache:
+
+| ref | first call | export | translate | segments beyond warm |
+|---|---|---|---|---|
+| s2m2-s 994x1482 | 6.1 | 3.84 | 0.26 | +0.34 |
+| pi3 336x518 | 15.1 | 6.0 | 0.88 | +0.39 |
+| film 1080x1920 | 7.26 (13.4 on a cold cache) | 1.5 | 0.08 | ~0 (cold: eager +1.0, tuned-compiled +2.4, one 117-op tuned-eager +2.8) |
+
+What is left is the export; the trial and the compiles cost well under a second when Metal has the kernels. No route
+can flip: s2m2-s is slower than MPS (1834 vs 1606 ms) and pi3 already passes the cold rule.
+
+Rejected: an eager-first trial order (call 1 eager, call 2 compiled, then the timed pair), meant to let the trial
+reuse the first call's result. Call 2 became +4.6 to +5 s even with a warm cache (s2m2-s fp16 calls 1/2: 6.13 / 1.81 ->
+5.88 / 6.64; film 7.26 / 5.28 -> 7.12 / 10.49); cProfile puts it all inside the evals. Cause not found; reverted.
+
+### waft-a1: sibling-conv merge capped by size (`MERGE_MAX_BYTES`, `FF_MLX_MERGE_MB`, default 256)
+
+The 11-19 -> 11-22 change (8806 ms / 4184 MB against 10168 / 3075) was not a trade. No conv toggle moved the peak
+(NO_WINO32, NO_OUT64, NO_ALIGN, NO_TUNE, FASTFORKS_MLX_COMPILE=0, NO_SPLIT_IN: all ~4200 MB). `git bisect
+--first-parent` on the peak (85384184 good at 3151 MB) gives d7a21332, the sibling-conv merge (4212 MB; the spread tuning
+before it, 64bd11f9, ~3400 MB). waft's merged groups are five pairs of 128-output 3x3 convs on [1, 64, 560, 1008]: each
+merged output is 551 MB in fp32, and the map plus its two slices outweigh the shared read of the input. FF_MLX_NO_MERGE=1
+gives 8.52 s / 3018 MB, faster and 1.2 GB less.
+
+A merge now stays separate when one sample's merged output exceeds 256 MB. Probe (5 calls, s / peak MB), gate against
+FF_MLX_MERGE_MB=100000: fp32 8.48-8.63 / 3016 against 8.77-8.89 / 4204; fp16 6.07-6.10 / 2603 against 6.14-6.18 / 2728.
+
+Survey (ms / peak MB; the last of several runs tonight, all within 8454-8587 and 6033-6100 ms): fp32 8806 / 4184 ->
+8587 / 2998; fp16 6152 / 2707 -> 6080 / 2583.
+
+The gate made the merge depend on the input shape, which broke a second signature: the survey's golden step re-runs
+the loaded model at the golden shape after the 1080x1920 timed calls. The large signature had taken the convs over
+separately (their torch twins consumed), and the small one then merged them from the consumed twins: flow mean |diff|
+4.23. So the first signature now decides: a merged constant that exists is reused, and siblings an earlier signature
+consumed separately stay separate. With that the survey's golden step passes (rows above; recorded with the export
+context of 8bc4bd86 reverted locally, see below; the export is not in the timed calls).
+
+Open, not from this change: since 8bc4bd86 (the export out of inference mode) the survey's golden step fails on waft-a1
+with `Setting requires_grad=True on inference tensor outside InferenceMode` (gate on, and with FF_MLX_MERGE_MB=100000
+too; passes with 8bc4bd86's context reverted). The second-shape export after inference-mode calls cannot run outside
+inference mode. Tried and rejected: a retry in the call's mode after the RuntimeError (the retry's flow was wrong, mean
+|diff| 4.23 then, before the sticky merge fix, so not conclusive), and leaving inference mode only for a GraphNet's
+first export (`not self._runs`; still failed, so the second shape is likely a fresh GraphNet). The pytest golden
+(fresh model, one shape) passes. Left for a separate fix of 8bc4bd86.
