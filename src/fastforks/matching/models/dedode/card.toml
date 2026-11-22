@@ -38,7 +38,7 @@ threshold = 0.01  # dual-softmax probability a match needs (upstream demos; the 
 [modes.portable]
 cuda_dtype = "float16"  # as upstream: encoders and refiners under float16 autocast, DINOv2 (-G) in float16; keypoint sampling and matching float32
 mps_dtypes = ["float32"]
-mlx_dtypes = ["float32"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 dtype = "float16"  # the VGG and refiner convs as fused fp16 channels-last conv + BatchNorm + ReLU (the BN is not folded); dedode-v2-g: 12 % faster, peak memory -3 % (the peak is in the DINOv2 descriptor, as portable), AUC@5 -0.2 on 1500 pairs
