@@ -3239,3 +3239,10 @@ Goldens pass: test_mlx[mvsplat-re10k@1] (portable fp32 / fp16, kernels fp32 / fp
 nafnet-gopro, wd-vit-tagger-v3, tapnext*, cotracker3-online, alltracker*, loma-b, memfof, depthsplat-small-re10k,
 zoedepth, eomt-l-dinov2-ade20k, raft-stereo*, hat*, monster*, igev*, flowformer* (shared conv change). New test:
 `test_conv_padded_into_winograd_matches_torch` (whole and per-sample chunks).
+
+### 2026-11-22 (night): memfof / monster follow-up
+
+memfof MLX re-surveyed after the odd-16 Winograd padding change (second run, ms / peak MB / first call s):
+fp32 3683.7 / 2964 / 8.1 → 3645.7 / 2980 / 7.3; fp16 3380.6 / 2417 / 7.7 → 3278.9 / 2380 / 7.3. Small gain
+from the shared conv change, no memfof-specific code; goldens pass in both dtypes (fp16 passed in this survey).
+No route change. Monster(++) not investigated (time box spent on cotracker3 and mvsplat).
