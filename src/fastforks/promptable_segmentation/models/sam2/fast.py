@@ -19,7 +19,12 @@ from typing import TYPE_CHECKING, Any
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.mlx_cast import to_float32, to_run_dtype
+from fastforks._core.tracing import EXPORTING_FOR_MLX
 from fastforks.promptable_segmentation._runner import scale
+
+from .net.backbone_utils import window_partition, window_unpartition
+from .net.hieradet import do_pool
 
 if TYPE_CHECKING:
     from fastforks._core.cards import Io
@@ -98,21 +103,49 @@ def up2(x: torch.Tensor) -> torch.Tensor:
 def neck(n: Neck, feats: list[torch.Tensor], linear: Any = F.linear) -> dict[str, torch.Tensor]:  # noqa: ANN401 - F.linear-like
     """Channels-last Hiera stage outputs -> float32 NCHW `image_embed` `[1, 256, S/16, S/16]`, `feat_s1`, `feat_s0`."""
     f0, f1, f2, f3 = feats
-    top = linear(f3, *n.top).float()
-    mid = linear(f2, *n.mid).float() + up2(top) + n.no_mem
+    top = to_float32(linear(f3, *n.top))
+    mid = to_float32(linear(f2, *n.mid)) + up2(top) + n.no_mem
     return {
         "image_embed": mid.permute(0, 3, 1, 2).contiguous(),
-        "feat_s1": linear(f1, *n.s1).float().permute(0, 3, 1, 2).contiguous(),
-        "feat_s0": linear(f0, *n.s0).float().permute(0, 3, 1, 2).contiguous(),
+        "feat_s1": to_float32(linear(f1, *n.s1)).permute(0, 3, 1, 2).contiguous(),
+        "feat_s0": to_float32(linear(f0, *n.s0)).permute(0, 3, 1, 2).contiguous(),
     }
+
+
+def _block_f32_stream(blk: Any, x: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - upstream MultiScaleBlock
+    """`MultiScaleBlock.forward` with a float32 residual stream in a float16 MLX replay (autocast's layout).
+
+    The norms read the float32 stream; attention and MLP run in the replay's dtype; the residual adds are float32.
+    """
+    shortcut = x
+    h = to_run_dtype(blk.norm1(x), torch.float32)
+    if blk.dim != blk.dim_out:
+        shortcut = to_float32(do_pool(blk.proj(h), blk.pool))
+    size = h.shape[1:3]
+    pad_hw = size
+    if blk.window_size > 0:
+        h, pad_hw = window_partition(h, blk.window_size)
+    h = blk.attn(h)
+    window = blk.window_size
+    if blk.q_stride:
+        window = blk.window_size // blk.q_stride[0]
+        size = shortcut.shape[1:3]
+        pad_hw = (size[0] + (window - size[0] % window) % window, size[1] + (window - size[1] % window) % window)
+    if blk.window_size > 0:
+        h = window_unpartition(h, window, pad_hw, size)
+    x = shortcut + to_float32(h)
+    return x + to_float32(blk.mlp(to_run_dtype(blk.norm2(x), torch.float32)))
 
 
 def trunk(t: Any, x: torch.Tensor, pos: torch.Tensor) -> list[torch.Tensor]:  # noqa: ANN401 - upstream Hiera
     """Upstream `Hiera.forward` with a precomputed position embedding: the channels-last output of every stage."""
     x = t.patch_embed(x.to(pos.dtype)) + pos
+    f32_stream = EXPORTING_FOR_MLX.get()  # the float32 twin of an MLX replay: no-op casts in a float32 one
+    if f32_stream:
+        x = to_float32(x)
     out = []
     for i, blk in enumerate(t.blocks):
-        x = blk(x)
+        x = _block_f32_stream(blk, x) if f32_stream else blk(x)
         if i in t.stage_ends:
-            out.append(x)
+            out.append(to_run_dtype(x, torch.float32) if f32_stream else x)
     return out

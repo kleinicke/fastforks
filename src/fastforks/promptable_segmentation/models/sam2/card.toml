@@ -36,7 +36,7 @@ cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the image 
 [modes.portable]
 cuda_dtype = "float16"  # image encoder; prompt encoder / mask decoder stay float32
 mps_dtypes = ["float32", "float16"]
-mlx_dtypes = ["float32"]
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["dpt_fused"]
