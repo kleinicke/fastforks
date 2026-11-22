@@ -153,8 +153,10 @@ def pool(feats: list[torch.Tensor], boxes: torch.Tensor, side: int, tv: ModuleTy
     lvl = torch.floor(CANONICAL_LEVEL + torch.log2(torch.sqrt(area) / CANONICAL_SIZE + 1e-8))
     lvl = lvl.clamp(min=2, max=1 + len(feats)).to(torch.int64) - 2
     out = feats[0].new_zeros(boxes.shape[0], feats[0].shape[1], side, side)
-    for i, f in enumerate(feats):
-        inds = torch.nonzero(lvl == i, as_tuple=True)[0]
+    # the boxes of each level in increasing order, as nonzero(lvl == i) gives them, with one host sync for all levels
+    order = torch.argsort(lvl, stable=True)
+    counts = (lvl[None] == torch.arange(len(feats), device=lvl.device)[:, None]).sum(1).tolist()
+    for i, (f, inds) in enumerate(zip(feats, order.split(counts), strict=True)):
         r = rois[inds].to(f.dtype)
         out.index_put_((inds,), tv.roi_align(f, r, (side, side), 1.0 / 2 ** (i + 2), 0, aligned=True))
     return out
@@ -311,7 +313,7 @@ class _Rcnn(Runner):
         boxes = clip(boxes.reshape(-1, 4), size).view(-1, boxes.shape[1] // 4, 4)
         mask = scores > threshold
         inds = mask.nonzero()
-        boxes, scores = boxes[mask], scores[mask]
+        boxes, scores = boxes[inds[:, 0], inds[:, 1]], scores[inds[:, 0], inds[:, 1]]  # as [mask], without two syncs
         keep = self.tv.batched_nms(boxes.float(), scores, inds[:, 1], p.box_nms)[: p.max_detections]
         return boxes[keep], scores[keep], inds[keep, 1]
 
@@ -345,7 +347,7 @@ class _Rcnn(Runner):
         boxes[:, 0::2] *= w / size[1]
         boxes[:, 1::2] *= h / size[0]
         boxes = clip(boxes, (h, w))
-        keep = nonempty(boxes)
+        keep = nonempty(boxes).nonzero()[:, 0]  # one host sync for all outputs
         out = {"boxes": boxes[keep], "scores": scores[keep], "labels": classes[keep]}
         if probs is not None:
             out["masks"] = paste_masks(probs[keep], out["boxes"], (h, w))
