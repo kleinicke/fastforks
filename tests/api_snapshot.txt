@@ -985,6 +985,7 @@ option multiview.mapanything.stream
 option multiview.mvsanywhere.long_side
 option multiview.mvsanywhere.refinement_steps
 option multiview.mvsplat.long_side
+option multiview.patchmatchnet.cuda_graphs
 option multiview.pi3.pixel_limit
 option multiview.pi3.stream
 option multiview.resplat.long_side
