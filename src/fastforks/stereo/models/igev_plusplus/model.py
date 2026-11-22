@@ -81,7 +81,8 @@ class Portable(Runner):
 
 
 # graph vs eager, measured: -12.6 % at KITTI 384x1248, -7.7 % at 544x960, -2.1 % at 736x1280
-_GRAPH_PIXELS = 500_000  # fixed: batch x padded H x W; launch-bound up to KITTI 384x1248
+_GRAPH_PIXELS = 1_000_000  # fixed: batch x padded H x W; launch-bound up to KITTI 384x1248
+# Windows (RTX 5060 Ti, eager -> graph): 544x960 157 -> 139 ms, 720x1280 250 -> 238 ms (reserved 1498 -> 1032 MiB)
 _GRAPHS = 2  # fixed: graph cache policy
 
 
