@@ -8,7 +8,10 @@ import types
 import pytest
 import torch
 
+import fastforks
 from fastforks._core import registry
+from fastforks._core.bench import BenchSize, bench_inputs
+from fastforks._core.errors import WeightsError
 from fastforks.multiview._gaussians import pop_gaussians
 from fastforks.multiview.models.depthsplat import model
 from fastforks.multiview.models.depthsplat.net.matching import reference_cost_volume
@@ -172,3 +175,32 @@ def test_chunked_plane_sweep(monkeypatch: pytest.MonkeyPatch) -> None:
     want = reference_cost_volume(ref, targets, k, poses, depth, grid_sample_disable_cudnn=False)
     got = model._chunked_cost_volume(None, ref, targets, k, poses, depth, grid_sample_disable_cudnn=False)  # ty: ignore[invalid-argument-type]
     torch.testing.assert_close(got, want, rtol=0, atol=1e-6)
+
+
+def _arrays(result: object) -> dict[str, torch.Tensor]:
+    out = {k: v for k, v in vars(result).items() if isinstance(v, torch.Tensor)}
+    return out | {f"gaussians/{k}": v for k, v in vars(result.gaussians).items() if isinstance(v, torch.Tensor)}
+
+
+@pytest.mark.gpu
+def test_kernels_graphs_match_eager() -> None:
+    """The graphed kernels forward: bit-equal to eager for two input sizes; release frees the graphs."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    try:
+        graphed = fastforks.load("depthsplat-small-re10k", mode="kernels", device="cuda")
+        eager = fastforks.load("depthsplat-small-re10k", mode="kernels", device="cuda", cuda_graphs=False)
+    except WeightsError as e:
+        pytest.skip(f"depthsplat weights not available: {e}")
+    assert eager._runner.graphs is None
+    sizes = [bench_inputs(graphed, BenchSize(h, w, 8)) for h, w in ((120, 160), (96, 200))]
+    with torch.inference_mode():
+        for args, kw in [sizes[0]] * 5 + [sizes[1]] * 5 + [sizes[0]]:
+            got, want = _arrays(graphed(*args, **kw)), _arrays(eager(*args, **kw))
+            assert got.keys() == want.keys()
+            for k, v in want.items():
+                torch.testing.assert_close(got[k], v, rtol=0, atol=0, msg=k)
+    graphs = graphed._runner.graphs
+    assert len(graphs.graphs) == 2, f"want one graph per input size (failed: {list(graphs._failed)})"
+    graphed.release_graphs()
+    assert not graphs.graphs
