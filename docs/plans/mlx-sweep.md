@@ -2975,3 +2975,71 @@ Not done:
 - Other float32-only MLX families (unidepth_v2, zoedepth, insid3, inspyrenet NaN / golden failures; sam2, grounding
   dino) were not reached. Before adding islands, check for float constants and float inputs that carry geometry
   (`device_tensor`, camera inputs): they are the cheapest failure to miss.
+
+## 2026-11-22 (afternoon): float16 on MLX for depthsplat and the float32-only families (M1 Pro 16 GB)
+
+Continued from the "Not done" list above, same rules (goldens and tolerances unchanged; second survey run, median
+of 5). One attempt per family, cheapest first: card dtype only, then `to_float32` islands, float32 graph inputs,
+`half_wino_f32`. All seven now pass float16.
+
+| ref (portable MLX) | old fp32 ms / MB | fp16 ms / MB | fp32 now | golden fp16 (tol) | MPS best | route |
+| --- | --- | --- | --- | --- | --- | --- |
+| depthsplat-small-re10k | - | 709 / 1716 | 820 / 2133 | depth mean 0.00040 (0.0035), conf 0.0033 (0.014) | - | mlx_default fp16 |
+| insid3 | 3211 / 3003 | 2512 / 2227 | 3216 / 2929 | similarity mean 0.00053 (0.002), p99 0.00144 (0.005) | fp16 2510 / 3414 | **auto -> MLX fp16** |
+| grounding-dino-tiny | 1043 / 1645 | 753 / 1499 | 933 / 1452 | pass (all 4 variants) | fp32 846 / 4787 | mlx_default fp16 |
+| grounding-dino-mm-tiny | - | 766 / 1507 | 935 / 1453 | scores p99 0.0063 (0.025) | fp32 1104 / 4804 | mlx_default fp16 |
+| grounding-dino-base | - | 947 / 1705 | 1227 / 1952 | pass | fp32 1087 / 6001 | mlx_default fp16 |
+| grounding-dino-mm-base | - | 916 / 1719 | 1254 / 1953 | pass | fp32 1273 / 4952 | mlx_default fp16 |
+| zoedepth | 862 / 2895 | 759 / 1955 | 957 / 2958 | depth mean 0.00029 (0.01), p99 0.00093 (0.03) | fp32 778 / 3558 | mlx_default fp16 |
+| inspyrenet (1080p) | 1273 / 2332 | 679 / 1741 | 1121 / 2441 | alpha p99 0.00064 (0.25) | fp16 702 / 4172 | mlx_default fp16 |
+| inspyrenet-fast (1080p) | - | 96 / 1060 | 129 / 1303 | alpha p99 0.00048 (0.25) | fp16 145 / 2071 | mlx_default fp16 |
+| sam2.1-hiera-tiny | 184 / 1174 | 141 / 933 | 176 / 1051 | pass | fp16 129 / 1514 | mlx_default fp16 (was fp32) |
+| sam2.1-hiera-small | - | 164 / 951 | 204 / 1068 | pass | fp16 148 / 1550 | mlx_default fp16 |
+| sam2.1-hiera-base-plus | - | 282 / 1099 | 352 / 1467 | pred_masks mean 0.0018 (0.0026), p99 0.0079 (0.009) | fp16 394 / 3988 | mlx_default fp16, **dtype=float32 -> MLX** |
+| sam2.1-hiera-large | - | 597 / 1460 | 713 / 1932 | pass | fp16 544 / 2206 | mlx_default fp16, **dtype=float32 -> MLX** |
+| unidepth-v2-vitl14 | 1691 / 3855 | 1173 / 1825 | 1254 / 3337 | depth mean 0.00062 (0.01), p99 0.00135 (0.02) | fp32 1252 / 6077 | **auto -> MLX fp16**, dtype=float32 -> MLX |
+
+Where MLX float16 is faster but auto stays on MPS (grounding dino, zoedepth, inspyrenet, sam2), the first-call
+compile is over the 3-MPS-runtime cold budget, or MPS float16 is simply faster (sam2 tiny / small / large).
+
+What each needed:
+
+- depthsplat (`d44ac91b`): a new `mlx_graph` mechanism, `fp32_inputs` (argument names passed through `MlxModule` /
+  `mlx_wrap.port`). `GraphNet` keeps those inputs float32 instead of casting every floating input to the run dtype
+  at graph entry. depthsplat keeps its cameras (intrinsics, poses, near / far) float32. `half_wino_f32` was not
+  needed. Covered by a new `tests/test_mlx.py` case.
+- insid3 (`4d004c0f`): the DINOv3 stream scale (`_stream_scale`) is now also applied when the MLX twin runs float16
+  (`mlx_wrap.run_dtype(ctx) == "float16"`), not only for the MPS half net. The patch tokens leave through
+  `to_float32`. The dinov3 MLX goldens still pass.
+- grounding dino (`ba3735d1`): the `.float()` casts on the decoder hidden states, the text hidden states and the
+  last reference points become `to_float32` (`.float()` records nothing on the float32 twin). mm-tiny scores p99
+  0.029 -> 0.0063.
+- zoedepth (`ec081b23`): the export decomposes `nn.Softplus` into `exp(x)`, which overflows float16 above about 11;
+  the seed bin centres reach 21. In the float16 twin, every Softplus is swapped for `relu(x) + log1p(exp(-|x|))`. A
+  remaining inf in the inverse attractor's `alpha * dx^2` is harmless, because it is divided to 0.
+- inspyrenet (`81b8b3ce`): the SICA context `bmm` reaches 1.6e5, with BN variances up to 5.4e10. `to_float32` alone
+  fails, because the next 1x1 conv casts its input back to float16 (inf). In the float16 twin, the context is scaled
+  by 1/4096 and the following key / value BN `running_mean` / `running_var` by 1/4096 and 1/4096^2. The convs are
+  bias-free 1x1, so the scaling is exact. The float16 SICA override now also applies to the twin.
+- sam2 (`89b0e75b`): the MLX export runs each Hiera block in autocast's layout. The residual stream and its norms
+  stay float32, while attention and the MLP run in the run dtype (`to_run_dtype` / `to_float32`). The neck's
+  `.float()` casts become `to_float32`. Both parts are needed: the stream alone gives base-plus p99 0.0096, and the
+  neck alone gives p99 0.0127.
+- unidepth_v2 (`cf6ce2b0`): only the card's dtype list. The plain float16 replay passes, so the earlier "float32
+  only" note no longer holds.
+
+Rejected or not needed:
+
+- `half_wino_f32` on depthsplat (not needed once the cameras were float32) and on sam2 (no change).
+- A shared `mlx_graph` softplus -> `logaddexp` lowering: no effect, because softplus is decomposed before it reaches
+  the op table. It was reverted in favour of the zoedepth-local module swap.
+- The partial sam2 fixes above (stream only, neck only).
+
+Lessons: float overflow on large activations (softplus, attention context) needs a value-level fix (a stable
+formula or a folded scale), not an island, because the next op casts back to float16. Search the export for
+`.float()` first: on the float32 twin it is a no-op.
+
+Not done:
+
+- MPS float16 for these families was not revisited. Of the MLX tricks, the inspyrenet context scale and the zoedepth
+  softplus could transfer to MPS half nets if their MPS float16 paths ever overflow.
