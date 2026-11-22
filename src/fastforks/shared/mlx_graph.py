@@ -1036,6 +1036,57 @@ def _batch_norm_batch_stats(
     return y, None, None
 
 
+INORM_OFF = bool(os.environ.get("FF_MLX_NO_INORM"))  # `InstanceNorm` as ATen's reshape + batch norm + reshape
+
+
+@_reg(aten.instance_norm.default)
+def _instance_norm(
+    x: mx.array,
+    w: mx.array | None,
+    b: mx.array | None,
+    running_mean: mx.array | None,
+    running_var: mx.array | None,
+    use_input_stats: bool,
+    momentum: float,
+    eps: float,
+    cudnn_enabled: bool = False,
+) -> mx.array:
+    """`InstanceNorm` with per-sample statistics over the channels-last map (the layout convolutions leave behind).
+
+    ATen's decomposition reshapes `[N, C, ...]` to `[1, N * C, ...]` for a batch norm and back: two transposing copies
+    of a channels-last map when N > 1 (cotracker's 8-frame CNN chunks: 30 copies of up to 100 MB per chunk). Here the
+    statistics are per (sample, channel) block sums over the `[N, P, C]` view, then one fused normalisation pass. N = 1,
+    kernels mode and half precision are the batch-norm path itself: in float16 the other summation order moves single
+    ulps, and flowformer-small-sintel / alltracker-tiny sit at their p99 bounds (0.0153 against 0.013).
+    """
+    del cudnn_enabled
+    if not use_input_stats:
+        return _batch_norm(x, w, b, running_mean, running_var, eps)[0]  # type: ignore[arg-type]
+    n, c = x.shape[:2]
+    if n == 1 or _KERNELS or x.dtype != mx.float32:
+        y = _batch_norm_batch_stats(
+            x.reshape(1, n * c, *x.shape[2:]), None, None, training=True, momentum=momentum, eps=eps
+        )[0]
+        y = y.reshape(x.shape)
+        shape = [1, -1] + [1] * (x.ndim - 2)
+        if w is not None:
+            y = y * w.reshape(shape)
+        return y + b.reshape(shape) if b is not None else y
+    flat = mx.moveaxis(x, 1, -1).reshape(n, -1, c)  # a view of a channels-last map
+    rows = flat.shape[1]
+    step = max(1, (STATS_CHUNK_MB << 20) // (4 * c * n))
+    blocks = [flat[:, i : i + step] for i in range(0, rows, step)]
+    mean = sum(mx.sum(f.astype(mx.float32), axis=1, keepdims=True) for f in blocks) / rows
+    var = sum(mx.sum(mx.square(f.astype(mx.float32) - mean), axis=1, keepdims=True) for f in blocks) / rows
+    scale = mx.rsqrt(mx.maximum(var, 0) + eps)  # [N, 1, C]
+    if w is not None:
+        scale = scale * w.astype(mx.float32)
+    shift = -mean * scale
+    if b is not None:
+        shift = shift + b.astype(mx.float32)
+    return mx.moveaxis(_affine_cast(flat, scale, shift).reshape(n, *x.shape[2:], c), -1, 1)
+
+
 # ---- spatial ----------------------------------------------------------------------------------------------------
 def _nhwc(x: mx.array) -> mx.array:
     return mx.transpose(x, (0, 2, 3, 1))
@@ -2099,18 +2150,38 @@ def _src_index(out: int, inp: int, align: bool, scale: float | None) -> mx.array
     return mx.maximum((i + 0.5) * ratio - 0.5, 0.0)
 
 
-@_reg(aten.upsample_bilinear2d.default, aten.upsample_bilinear2d.vec)
-def _bilinear(x: mx.array, size: Sequence[int] | None, align: bool, *scales: Any) -> mx.array:
-    h, w = x.shape[2:]
+def _bilinear_size(
+    hw: Sequence[int], size: Sequence[int] | None, scales: Sequence[Any]
+) -> tuple[tuple[int, int], tuple[float | None, float | None]]:
+    """Output size and scale factors of `aten.upsample_bilinear2d` (`.default` or `.vec`) on an `hw` map."""
+    h, w = hw
     sh = sw = None
     if size is None:
         fac = scales[0]
         sh, sw = (fac[0], fac[1]) if isinstance(fac, (list, tuple)) else (scales[0], scales[1])
-        oh, ow = int(h * sh), int(w * sw)
-    else:
-        oh, ow = size
-        if len(scales) >= 2 and not isinstance(scales[0], (list, tuple)):
-            sh, sw = scales[0], scales[1]
+        return (int(h * sh), int(w * sw)), (sh, sw)
+    if len(scales) >= 2 and not isinstance(scales[0], (list, tuple)):
+        sh, sw = scales[0], scales[1]
+    return (int(size[0]), int(size[1])), (sh, sw)
+
+
+def _bilinear_ratios(
+    hw: Sequence[int], out: Sequence[int], scales: Sequence[float | None], align: bool
+) -> tuple[float, float]:
+    """Input / output coordinate ratio per axis, as torch's `upsample_bilinear2d` computes it."""
+
+    def ratio(o: int, i: int, scale: float | None) -> float:
+        if align:
+            return (i - 1) / (o - 1) if o > 1 else 0.0
+        return (1.0 / scale) if scale else i / o
+
+    return ratio(out[0], hw[0], scales[0]), ratio(out[1], hw[1], scales[1])
+
+
+@_reg(aten.upsample_bilinear2d.default, aten.upsample_bilinear2d.vec)
+def _bilinear(x: mx.array, size: Sequence[int] | None, align: bool, *scales: Any) -> mx.array:
+    h, w = x.shape[2:]
+    (oh, ow), (sh, sw) = _bilinear_size((h, w), size, scales)
     if (
         x.ndim == 4
         and x.dtype in (mx.float16, mx.bfloat16, mx.float32)
@@ -2118,12 +2189,7 @@ def _bilinear(x: mx.array, size: Sequence[int] | None, align: bool, *scales: Any
     ):
         from fastforks.kernels.graph_mlx.ops import bilinear
 
-        def ratio(out: int, inp: int, scale: float | None) -> float:
-            if align:
-                return (inp - 1) / (out - 1) if out > 1 else 0.0
-            return (1.0 / scale) if scale else inp / out
-
-        return bilinear(x, (oh, ow), (ratio(oh, h, sh), ratio(ow, w, sw)), align=align)
+        return bilinear(x, (oh, ow), _bilinear_ratios((h, w), (oh, ow), (sh, sw), align), align=align)
     ys, xs = _src_index(oh, h, align, sh), _src_index(ow, w, align, sw)
     y0 = mx.minimum(mx.floor(ys).astype(mx.int32), h - 1)
     x0 = mx.minimum(mx.floor(xs).astype(mx.int32), w - 1)
@@ -2236,6 +2302,7 @@ def _nearest(x: mx.array, size: Sequence[int] | None, *scales: Any) -> mx.array:
 CL_OPS: dict[Any, Callable[..., Any]] = {}
 CL_OPS[torch.ops.fastforks.run_dtype.default] = _run_dtype  # a cast keeps the layout
 CL_OPS[torch.ops.fastforks.float32.default] = _float32
+CL_OPS[aten.instance_norm.default] = _instance_norm  # its output is a channels-last view, as its input
 _CL_ND = (3, 4, 5)
 
 
@@ -2308,6 +2375,18 @@ def _cat_cl(xs: Sequence[mx.array], d: int = 0) -> mx.array:
     if nd not in _CL_ND or d % nd == 0 or any(x.ndim != nd for x in xs):
         return mx.concatenate(xs, axis=d)
     return _uncl(mx.concatenate([_cl(x) for x in xs], axis=_cl_axis(nd, d)))
+
+
+@_reg_cl(aten.upsample_bilinear2d.default, aten.upsample_bilinear2d.vec)
+def _bilinear_cl(x: mx.array, size: Sequence[int] | None, align: bool, *scales: Any) -> mx.array:
+    """`_bilinear` on the channels-last view (4-D float): the NHWC kernel, so the output stays channels-last."""
+    if x.ndim != 4 or x.dtype not in (mx.float16, mx.bfloat16, mx.float32) or os.environ.get("FF_MLX_NO_FUSED_RESIZE"):
+        return _bilinear(x, size, align, *scales)
+    from fastforks.kernels.graph_mlx.ops import bilinear_nhwc
+
+    hw = x.shape[2:]
+    out, fac = _bilinear_size(hw, size, scales)
+    return _uncl(bilinear_nhwc(_cl(x), out, _bilinear_ratios(hw, out, fac, align), align=align))
 
 
 @_reg_cl(aten.upsample_nearest2d.default, aten.upsample_nearest2d.vec)
@@ -2719,6 +2798,7 @@ def _decomp_table() -> dict[Any, Any]:
         aten.linalg_vector_norm.default,
         aten.roll.default,  # `mx.roll`: the decomposition is an index gather (several times slower)
         *_EDGE_PADS,
+        *(() if INORM_OFF else (aten.instance_norm.default,)),
     ):
         decomp.pop(keep, None)
     return decomp

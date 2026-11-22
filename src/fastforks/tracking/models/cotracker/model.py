@@ -377,6 +377,8 @@ class Portable(Runner):
         super().__init__(ctx)
         net = build(ctx).eval().requires_grad_(requires_grad=False).to(ctx.device)
         self.core = self.core_type(net, half=ctx.dtype == "float16")
+        if torch.device(ctx.device).type == "mps":  # the same time, half the memory (`_chunk_encode`)
+            _chunk_encode(self.core)
 
     def __call__(
         self, frames: Callable[[int], torch.Tensor], n: int, size: tuple[int, int], queries: torch.Tensor
@@ -517,15 +519,37 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
+FNET_FRAMES = 2  # frames per feature-CNN call on MLX and MPS (see `_chunk_encode`)
+
+
+def _chunk_encode(core: Core) -> None:
+    """Make `core.encode` run the feature CNN `FNET_FRAMES` frames at a time (one CNN graph to export online).
+
+    MLX: see `_OnlineSteps`. MPS, 24 frames at 480 x 854, float32: online 1693 ms / 4762 MB -> 1698 / 2770, offline
+    1414 / 5811 -> 1429 / 2758 (the 8- and 16-frame CNN activations are the peak).
+    """
+    encode = core.encode
+
+    def chunked(video: torch.Tensor) -> list[torch.Tensor]:
+        parts = [encode(video[a : a + FNET_FRAMES]) for a in range(0, len(video), FNET_FRAMES)]
+        return [torch.cat(level) for level in zip(*parts, strict=True)]
+
+    core.encode = chunked  # ty: ignore[invalid-assignment]  # per-instance override
+
+
 class _OnlineSteps(Portable):
     """The online loop is data-dependent (`torch.export` guards on it): it stays eager, its steps run on MLX.
 
-    The feature CNN is one graph of `window_len // 2` frames (the first window encodes two such chunks). One refinement
+    The feature CNN is one graph of `FNET_FRAMES` frames, run over each window's new frames. One refinement
     iteration (correlation, its MLP and the update transformer) is a step graph, exported once and run `ITERS` times
     per window: every window has the same shapes (levels padded to `window_len`). The window's levels and support
     features go to MLX once per window and the track state stays on MLX between iterations (`MlxModule.raw`). Before,
     only the CNN and the update transformer ran on MLX and the correlation ran in PyTorch on the CPU (cotracker3-online
     24 frames: 3150 -> 2460 ms at the same cache; the whole window as one graph was as fast, but 3.7 s more first call).
+
+    Two frames per CNN call instead of eight keep its transients (`[8, 64, 192, 256]` float32: 100 MB each) small enough
+    for the buffer cache to recycle; with the 1 GB cache the iterations reuse theirs too (24 frames: 1926 ms / 2538 MB
+    at 8 frames and 256 MB, 1588 ms / 2649 MB now; 8 frames at 1 GB: 1720 ms / 3307 MB).
     """
 
     def __init__(self, ctx: Context) -> None:
@@ -533,13 +557,7 @@ class _OnlineSteps(Portable):
         super().__init__(ctx)
         self.net = self.core.net
         self.core.refine = self._steps  # ty: ignore[invalid-assignment]  # per-instance override
-        encode, step = self.core.encode, self.net.window_len // 2
-
-        def chunked(video: torch.Tensor) -> list[torch.Tensor]:  # the first window too: one CNN graph to export
-            parts = [encode(video[a : a + step]) for a in range(0, len(video), step)]
-            return [torch.cat(level) for level in zip(*parts, strict=True)]
-
-        self.core.encode = chunked  # ty: ignore[invalid-assignment]  # per-instance override
+        _chunk_encode(self.core)
 
     def _iteration(
         self,
@@ -570,8 +588,21 @@ class _OnlineSteps(Portable):
         return c, v, f
 
 
-_MlxOnline = mlx_wrap.port(_OnlineSteps, attrs=("core.net.fnet",), methods=("_iteration",), prune=True, cache_mb=256)
-_MlxOffline = mlx_port(Portable)
+class _OfflineChunks(Portable):
+    """The offline pass as one graph, its feature CNN `FNET_FRAMES` frames at a time (`_OnlineSteps`).
+
+    cotracker3-offline 24 frames: 2417 ms / 3355 MB at 16-frame chunks and the default cache, 1455 ms / 3201 MB now
+    (2-frame chunks at the default cache: 2411 ms / 1763 MB; at 1 GB: 1541 ms / 2709 MB).
+    """
+
+    def __init__(self, ctx: Context) -> None:
+        """The portable runner with the chunked feature CNN."""
+        super().__init__(ctx)
+        _chunk_encode(self.core)
+
+
+_MlxOnline = mlx_wrap.port(_OnlineSteps, attrs=("core.net.fnet",), methods=("_iteration",), prune=True, cache_mb=1024)
+_MlxOffline = mlx_port(_OfflineChunks, cache_mb=1536)
 
 
 class MlxRunner(Portable):

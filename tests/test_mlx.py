@@ -301,6 +301,35 @@ def test_conv_transpose_kernel_equals_stride_matches_torch(kernel, bias):
     torch.testing.assert_close(MlxModule(m, "float32")(x), m(x), atol=1e-5, rtol=1e-5)
 
 
+@pytest.mark.parametrize("align", [True, False])
+def test_channels_last_instance_norm_and_bilinear_match_torch(align):
+    """Instance norm (N > 1, affine) and bilinear resize of conv outputs (the channels-last lowerings) against torch."""
+    pytest.importorskip("mlx.core")
+    from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - optional (the mlx extra)
+
+    class Net(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.a = torch.nn.Conv2d(3, 16, 3, padding=1)
+            self.norm = torch.nn.InstanceNorm2d(16, affine=True)
+            self.b = torch.nn.Conv2d(16, 24, 3, stride=2, padding=1)
+            self.out = torch.nn.Conv2d(40, 8, 3, padding=1)
+
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            a = torch.relu(self.norm(self.a(x)))
+            b = torch.nn.functional.instance_norm(self.b(a))
+            up = torch.nn.functional.interpolate(b, size=a.shape[2:], mode="bilinear", align_corners=align)
+            return self.out(torch.cat([a, up], 1))
+
+    torch.manual_seed(0)
+    m = Net().eval()
+    with torch.no_grad():
+        m.norm.weight.uniform_(0.5, 1.5)
+        m.norm.bias.normal_()
+    x = torch.randn(3, 3, 21, 30)
+    torch.testing.assert_close(MlxModule(m, "float32")(x), m(x), atol=1e-4, rtol=1e-4)
+
+
 def test_fp32_inputs_keep_float32_in_a_float16_replay():
     """`MlxModule(fp32_inputs=...)`: the named argument enters a float16 replay unrounded, the others are cast."""
     pytest.importorskip("mlx.core")

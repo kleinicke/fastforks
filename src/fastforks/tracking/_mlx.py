@@ -14,8 +14,11 @@ if TYPE_CHECKING:
     from fastforks.tracking._runner import Context, Runner
 
 
-def port(portable: type[Runner]) -> type[Runner]:
-    """`portable` with its `module()` (video `[T, 3, H, W]` and queries in, tracks and visibility out) run on MLX."""
+def port(portable: type[Runner], *, cache_mb: int = 0) -> type[Runner]:
+    """`portable` with its `module()` (video `[T, 3, H, W]` and queries in, tracks and visibility out) run on MLX.
+
+    `cache_mb`: as for `mlx_wrap.port`.
+    """
 
     class Graph(portable):  # ty: ignore[unsupported-base]
         """The runner whose pass is one exported module."""
@@ -36,4 +39,4 @@ def port(portable: type[Runner]) -> type[Runner]:
             return self._run(torch.cat([frames(t) for t in range(n)]), queries)
 
     Graph.__name__ = Graph.__qualname__ = f"Graph{portable.__name__}"
-    return mlx_wrap.port(Graph, attrs=(), methods=("_run",), net_attr="_fwd")
+    return mlx_wrap.port(Graph, attrs=(), methods=("_run",), net_attr="_fwd", cache_mb=cache_mb)

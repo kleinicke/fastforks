@@ -3133,3 +3133,66 @@ Survey, MPS, second run, ms median (min) / MB peak / first call s:
 kernels in float32. Goldens pass: test_mps[mvsplat-re10k@1] (FASTFORKS_MPS_FULL=1, portable fp32 / fp16 and kernels
 fp32), test_mlx[mvsplat-re10k@1]. New test: `test_metal_plane_sweep` (2 and 3 views, fp32 / fp16, against float64).
 MLX stays much slower than MPS here (portable fp32 1573 ms, fp16 1259 ms): not looked at in this pass.
+
+## 2026-11-22 (night): CoTracker3 on MLX and MPS (M1 Pro 16 GB, 24 frames at 480 x 854, float32)
+
+Start: 17 GB free disk, 7.5 GB swap; end: 30 GB free, 6.9 GB swap.
+
+Where online MLX lost (2314 ms against MPS 1731): not in the refinement (MLX 1114 ms, MPS ~1430), but in the feature CNN
+(MLX 887 ms over three 8-frame chunks, MPS ~460). The convs alone (`tools/mlx_conv_bench.py`, per 8-frame chunk) are
+close to MPS (MLX 109 ms portable, MPS 89). The rest were copies and fresh allocations:
+
+- **`aten.instance_norm` lowering** (`shared/mlx_graph.py`, kept out of the decomposition): ATen reshapes
+  `[N, C, H, W]` to `[1, N * C, H, W]` for a batch norm and back, two transposing copies of the channels-last map per norm
+  when N > 1. Now per-(sample, channel) block sums over the `[N, P, C]` view and one fused pass (also a CL op). float32
+  only: in float16 the other summation order moves single ulps, and flowformer-small-sintel (p99 0.0153 against 0.013)
+  and alltracker-tiny failed their goldens. N = 1 and kernels mode keep the batch-norm path. `FF_MLX_NO_INORM=1`
+  restores the decomposition (sweep switch). cotracker3-online: fnet 887 -> 739 ms; final setup 1702 -> 1588 ms
+  without / with.
+- **Channels-last bilinear** (`_bilinear_cl`, new `graph_mlx.ops.bilinear_nhwc` kernel, exact against the NCHW one): the
+  pyramid upsamples of conv outputs stay NHWC, so the 416-channel cat is `_cat_cl` and conv2 reads no transposed copy.
+  Neutral on its own here (eager conv2 stays ~46 ms, the microbench's 22 ms is a warm buffer); kept because it saves a
+  163 MB copy.
+- **Frame chunks + buffer cache** (the main gain): the 8-frame CNN transients (`[8, 64, 192, 256]` float32, 100 MB each)
+  are larger than what the 256 MB cache recycles, so every one is a fresh, zero-filled Metal allocation. The CNN now runs
+  `FNET_FRAMES = 2` frames per call (`_chunk_encode`, online and offline, results identical: per-sample norms), and the
+  cache is 1 GB online, 1.5 GB offline. Sweep, bench median ms / peak MB:
+
+| setup | online | offline |
+| --- | --- | --- |
+| 8 / 16 frames, cache 256 MB / default (before) | 1926 / 2538 | 2417 / 3355 |
+| 8 / 16 frames, cache 1 GB | 1720 / 3307 | 1654 / 3174 (8 fr.) |
+| 8 frames, cache 2 / 3 GB | 1597 / 4070, 1509 / 4077 | |
+| 4 frames, cache 256 MB / 1 GB | 1863 / 2178, 1631 / 2864 | 1592 / 2701 (1 GB) |
+| 2 frames, cache 256 MB / default | 1775 / 1904 | 2411 / 1763 |
+| 2 frames, cache 768 MB | 1616 / 2422 | |
+| **2 frames, cache 1 GB** (online, kept) | **1588 / 2649** | 1541 / 2709 |
+| **2 frames, cache 1.5 GB** (offline, kept) | 1516 / 2847 | **1455 / 3201** |
+| 2 frames, cache 2 GB | | 1436 / 3722 |
+| 1 frame, cache 256 MB | 1809 / 1915 | |
+
+- **Transfer to MPS**: the same 2-frame chunks on portable MPS halve the peak at equal speed (`Portable.__init__` on
+  `mps`; 4 frames: online 1700 / 2704, offline 1426 / 3829).
+
+Survey, second run, ms median (min) / MB peak / first call s:
+
+| ref | device | before | after |
+| --- | --- | --- | --- |
+| cotracker3-online | MLX | 2233 / 2747 / 4.59 | 1590.2 (1584.9) / 2641 / 4.36 |
+| cotracker3-offline | MLX | 3577 / 3438 / 12.97 | 1446.3 (1442.0) / 3213 / 7.37 |
+| cotracker3-online | MPS | 1731 (1698) / 4767 / 1.83 | 1704.1 (1702.8) / 2748 / 1.84 |
+| cotracker3-offline | MPS | 1430 (1430) / 4725 / 2.07 | 1428.1 (1427.1) / 2751 / 1.50 |
+
+Route change (`apple_mlx.json`): cotracker3-online@1 gains `auto` / `dtypes` (fp32 portable on MLX: 1590 against MPS
+1704 ms, first call 4.4 s < 3 x 1.7 s). cotracker3-offline stays on MPS (1446 vs 1428 ms).
+
+Investigated, not kept:
+
+- **`channel_stats` for the instance norm**: 4.6 against 4.9 ms per `[8, 64, 192, 256]` norm (one-pass kernel vs block
+  sums), mx.mean / mx.var 6.7 ms. Not worth a kernels-only path.
+- **Bigger caches online** (2-3 GB): 1509-1597 ms but +1.4 GB peak.
+
+Goldens pass (test_mlx): cotracker3-online/offline, nafnet-gopro, wd-vit-tagger-v3, tapnext, alltracker(-tiny), loma-b,
+memfof, depthsplat-small-re10k, zoedepth, eomt-l-dinov2-ade20k, raft / sea-raft, locotrack, tapir, track-on, flowformer,
+mvsplat, monster, nninteractive, nnunet refs (51 cases); test_mps cotracker3-online/offline (FASTFORKS_MPS_FULL=1).
+New test: `test_channels_last_instance_norm_and_bilinear_match_torch`.

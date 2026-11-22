@@ -241,6 +241,42 @@ def bilinear(x: mx.array, size: tuple[int, int], ratios: tuple[float, float], *,
     )[0]  # fmt: skip
 
 
+_BILINEAR_NHWC = metal_kernel(
+    name="graph_bilinear_nhwc",
+    input_names=["x", "r"],
+    output_names=["out"],
+    source="""
+        // `graph_bilinear` on an NHWC map: one thread per output channel value, channel-fastest (coalesced taps)
+        uint ch = thread_position_in_grid.x, ox = thread_position_in_grid.y, z = thread_position_in_grid.z;
+        if (ch >= C || ox >= OW) return;
+        uint n = z / OH, oy = z % OH;
+        float ys = ALIGN ? float(oy) * r[0] : max((float(oy) + 0.5f) * r[0] - 0.5f, 0.0f);
+        float xs = ALIGN ? float(ox) * r[1] : max((float(ox) + 0.5f) * r[1] - 0.5f, 0.0f);
+        int y0 = min(int(ys), H - 1), x0 = min(int(xs), W - 1);
+        int y1 = min(y0 + 1, H - 1), x1 = min(x0 + 1, W - 1);
+        float wy = ys - float(y0), wx = xs - float(x0);
+        const device T* p = x + size_t(n) * H * W * C + ch;
+        float top = float(p[(y0 * W + x0) * C]) * (1.0f - wx) + float(p[(y0 * W + x1) * C]) * wx;
+        float bot = float(p[(y1 * W + x0) * C]) * (1.0f - wx) + float(p[(y1 * W + x1) * C]) * wx;
+        out[((size_t(n) * OH + oy) * OW + ox) * C + ch] = T(top * (1.0f - wy) + bot * wy);
+    """,
+)
+
+
+def bilinear_nhwc(x: mx.array, size: tuple[int, int], ratios: tuple[float, float], *, align: bool) -> mx.array:
+    """`bilinear` of an NHWC map (`[N, H, W, C]` in and out)."""
+    n, h, w, c = x.shape
+    tg = min(c, 32)
+    return _BILINEAR_NHWC(
+        inputs=[x, mx.array(ratios, dtype=mx.float32)],
+        template=[("T", x.dtype), ("C", c), ("H", h), ("W", w), ("OH", size[0]), ("OW", size[1]), ("ALIGN", align)],
+        grid=(-(-c // tg) * tg, size[1], n * size[0]),
+        threadgroup=(tg, max(1, 256 // tg), 1),
+        output_shapes=[(n, size[0], size[1], c)],
+        output_dtypes=[x.dtype],
+    )[0]  # fmt: skip
+
+
 _TRILINEAR = metal_kernel(
     name="graph_trilinear",
     input_names=["x", "r"],
