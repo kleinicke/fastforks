@@ -453,22 +453,44 @@ def at(t: Any, k: int | None) -> Any:  # noqa: ANN401 - a result field: tensor o
 
 
 def each_result(
-    image: torch.Tensor, m: fastforks.Model, batch_size: int, fn: Callable[[Any, int | None], Any]
+    image: torch.Tensor,
+    m: fastforks.Model,
+    batch_size: int,
+    fn: Callable[[Any, int | None], Any],
+    call: Callable[[torch.Tensor], Any] | None = None,
 ) -> list[Any]:
     """`fn(result, k)` for every image of a ComfyUI batch, the model called on `batch_size` images at a time.
 
     With `batch_size` 1 the model takes single images and `k` is None; else `k` is the image's index in the batched
-    result (read its fields with `at`).
+    result (read its fields with `at`). `call` runs the model on the images (default: `m` itself).
     """
     n = image.shape[0]
+    call = call or m
     if batch_size <= 1:
-        return each(n, lambda i: fn(m(convert.frame(image, i, m.device)), None))
+        return each(n, lambda i: fn(call(convert.frame(image, i, m.device)), None))
     starts = range(0, n, batch_size)
 
     def chunk(j: int) -> list[Any]:
         stop = min(n, starts[j] + batch_size)
-        r = m(convert.frames(image, starts[j], stop, m.device))
+        r = call(convert.frames(image, starts[j], stop, m.device))
         return [fn(r, k) for k in range(stop - starts[j])]
+
+    return [o for c in each(len(starts), chunk) for o in c]
+
+
+def each_pairs(
+    frames: torch.Tensor, m: fastforks.Model, batch_size: int, fn: Callable[[torch.Tensor, torch.Tensor], list[Any]]
+) -> list[Any]:
+    """`fn(image1, image2)` on `batch_size` consecutive pairs of a ComfyUI batch at a time: frames `i` and `i + 1`.
+
+    `fn` gets two `[k, 3, H, W]` batches (each frame uploaded once per chunk) and returns one entry per pair.
+    """
+    starts = range(0, frames.shape[0] - 1, batch_size)
+
+    def chunk(j: int) -> list[Any]:
+        stop = min(frames.shape[0] - 1, starts[j] + batch_size)
+        x = convert.frames(frames, starts[j], stop + 1, m.device)
+        return fn(x[:-1], x[1:])
 
     return [o for c in each(len(starts), chunk) for o in c]
 
@@ -686,20 +708,31 @@ class RemoveBackground(_Node):
         tip = "Only for trimap models (ViTMatte): 0 = background, 1 = foreground, 0.5 = unknown."
         return {
             "required": {"image": ("IMAGE",), **common(cls)},
-            "optional": {"trimap": ("MASK", {"tooltip": tip})},
+            "optional": {"trimap": ("MASK", {"tooltip": tip}), **BATCH},
         }
 
-    def run(
-        self, image: torch.Tensor, model: str, backend: str, dtype: str, trimap: torch.Tensor | None = None
+    def run(  # noqa: PLR0913 - the node's inputs
+        self,
+        *,
+        image: torch.Tensor,
+        model: str,
+        backend: str,
+        dtype: str,
+        trimap: torch.Tensor | None = None,
+        batch_size: int = 1,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Run the model on every image."""
+        """Run the model on every image (`batch_size` per model call; with a trimap one at a time)."""
         m = load(model, backend, dtype)
 
         def one(i: int) -> torch.Tensor:
             tri = None if trimap is None else convert.from_mask(trimap, i, m.device)
             return m(convert.frame(image, i, m.device), trimap=tri).alpha
 
-        alpha = convert.to_mask(each(image.shape[0], one), _out_device())
+        if trimap is None and batch_size > 1:
+            maps = each_result(image, m, batch_size, lambda r, k: at(r.alpha, k))
+        else:
+            maps = each(image.shape[0], one)
+        alpha = convert.to_mask(maps, _out_device())
         return convert.with_alpha(image.to(alpha.device), alpha), alpha
 
 
@@ -792,26 +825,36 @@ class Detect(_Node):
                 **common(cls),
                 "score_threshold": ("FLOAT", {"default": 0.3, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "classes": ("STRING", {"default": "", "tooltip": tip}),
-            }
+            },
+            "optional": BATCH,
         }
 
     def run(  # noqa: PLR0913 - one argument per input
-        self, *, image: torch.Tensor, model: str, backend: str, dtype: str, score_threshold: float, classes: str
+        self,
+        *,
+        image: torch.Tensor,
+        model: str,
+        backend: str,
+        dtype: str,
+        score_threshold: float,
+        classes: str,
+        batch_size: int = 1,
     ) -> tuple[torch.Tensor, str]:
         """Detect in every image."""
         m = load(model, backend, dtype)
         names = [c.strip() for c in classes.split(",") if c.strip()]
         text = names if cast("DetectionModel", m).open_vocabulary else None
+        size = (image.shape[1], image.shape[2])  # BHWC
 
-        def one(i: int) -> tuple[torch.Tensor, list[dict[str, Any]]]:
-            x = convert.frame(image, i, m.device)
-            r = m(x, score_threshold=score_threshold, text=text)
+        def finish(r: Any) -> tuple[torch.Tensor, list[dict[str, Any]]]:  # noqa: ANN401 - a detection result
             if names and text is None:
                 r = r[torch.tensor([d.get("class_name") in names for d in r.to_list()], dtype=torch.bool)]
             dets = [{k: v for k, v in d.items() if k != "mask"} for d in r.to_list()]
-            return convert.union_mask(r.masks, r.boxes, (x.shape[-2], x.shape[-1])), dets
+            return convert.union_mask(r.masks, r.boxes, size), dets
 
-        out = each(image.shape[0], one)
+        # a batch: one network call where the family batches (DETR-style detectors), else one image at a time
+        detect = functools.partial(m, score_threshold=score_threshold, text=text)
+        out = each_result(image, m, batch_size, lambda r, k: finish(at(r, k)), call=detect)
         return convert.to_mask([o[0] for o in out], _out_device()), convert.to_json([o[1] for o in out])
 
 
@@ -841,7 +884,7 @@ class Pose(_Node):
                 "keypoint_threshold": ("FLOAT", {"default": 0.3, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "line_width": ("INT", {"default": 4, "min": 1, "max": 64}),
             },
-            "optional": {"detections": ("STRING", {"forceInput": True, "tooltip": tip})},
+            "optional": {"detections": ("STRING", {"forceInput": True, "tooltip": tip}), **BATCH},
         }
 
     def run(  # noqa: PLR0913 - one argument per input
@@ -854,24 +897,36 @@ class Pose(_Node):
         keypoint_threshold: float,
         line_width: int,
         detections: str = "",
+        batch_size: int = 1,
     ) -> tuple[torch.Tensor, str]:
-        """Estimate the people of every image."""
+        """Estimate the people of every image (`batch_size` images per model call)."""
         m = load(model, backend, dtype)
+        n, h, w = image.shape[0], image.shape[1], image.shape[2]
 
-        def one(i: int) -> tuple[torch.Tensor, list[dict[str, Any]]]:
-            x = convert.frame(image, i, m.device)
-            h, w = x.shape[-2:]
-            boxes = None
-            if cast("PoseModel", m).needs_boxes:
-                found = convert.subject_boxes(detections, i, m.variant.output_info["label_set"])
-                boxes = [[0.0, 0.0, float(w), float(h)]] if found is None else found
-            r = m(x, boxes=boxes)
+        def boxes(i: int) -> Any:  # noqa: ANN401 - box rows or None
+            if not cast("PoseModel", m).needs_boxes:
+                return None
+            found = convert.subject_boxes(detections, i, m.variant.output_info["label_set"])
+            return [[0.0, 0.0, float(w), float(h)]] if found is None else found
+
+        def finish(r: Any) -> tuple[torch.Tensor, list[dict[str, Any]]]:  # noqa: ANN401 - a pose result
             drawn = convert.draw_pose(
                 r.keypoints, r.keypoint_scores, r.skeleton, (h, w), threshold=keypoint_threshold, width=line_width
             )
             return drawn, r.to_list()
 
-        out = each(image.shape[0], one)
+        if batch_size <= 1:
+            out = each(n, lambda i: finish(m(convert.frame(image, i, m.device), boxes=boxes(i))))
+        else:
+            starts = range(0, n, batch_size)
+
+            def chunk(j: int) -> list[tuple[torch.Tensor, list[dict[str, Any]]]]:
+                idx = range(starts[j], min(n, starts[j] + batch_size))
+                per = [boxes(i) for i in idx]
+                rs = m(convert.frames(image, idx.start, idx.stop, m.device), boxes=None if per[0] is None else per)
+                return [finish(r) for r in rs]
+
+            out = [o for c in each(len(starts), chunk) for o in c]
         return convert.to_image([o[0] for o in out], _out_device()), convert.to_json([o[1] for o in out])
 
 
@@ -892,17 +947,26 @@ class Interpolate(_Node):
                 "frames": ("IMAGE",),
                 **common(cls),
                 "multiplier": ("INT", {"default": 2, "min": 2, "max": 16}),
-            }
+            },
+            "optional": BATCH,
         }
 
-    def run(
-        self, *, frames: torch.Tensor, model: str, backend: str, dtype: str, multiplier: int
+    def run(  # noqa: PLR0913 - the node's inputs
+        self, *, frames: torch.Tensor, model: str, backend: str, dtype: str, multiplier: int, batch_size: int = 1
     ) -> tuple[torch.Tensor]:
-        """Interpolate between every pair of consecutive frames."""
+        """Interpolate between every pair of consecutive frames (`batch_size` pairs per model call)."""
         m = load(model, backend, dtype)
         n = frames.shape[0]
         if n < 2:  # noqa: PLR2004 - a pair
             return (frames,)
+        if batch_size > 1:
+
+            def pairs_of(a: torch.Tensor, b: torch.Tensor) -> list[list[torch.Tensor]]:
+                mids = [m(a, b, timestep=k / multiplier).frame for k in range(1, multiplier)]
+                return [[a[i]] + [t[i] for t in mids] for i in range(len(a))]
+
+            out = [f for pair in each_pairs(frames, m, batch_size, pairs_of) for f in pair]
+            return (convert.to_image([*out, convert.frame(frames, n - 1, m.device)], _out_device()),)
 
         last: list[torch.Tensor] = []  # the previous pair's second frame: each frame is uploaded once
 
@@ -1166,18 +1230,23 @@ class Flow(_Node):
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        return {"required": {"frames": ("IMAGE",), **common(cls)}}
+        return {"required": {"frames": ("IMAGE",), **common(cls)}, "optional": BATCH}
 
-    def run(self, *, frames: torch.Tensor, model: str, backend: str, dtype: str) -> tuple[torch.Tensor, torch.Tensor]:
-        """Flow of every pair of consecutive frames."""
+    def run(
+        self, *, frames: torch.Tensor, model: str, backend: str, dtype: str, batch_size: int = 1
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Flow of every pair of consecutive frames (`batch_size` pairs per model call)."""
         if frames.shape[0] < 2:  # noqa: PLR2004 - a pair
             msg = "Flow needs a batch of at least 2 frames"
             raise ValueError(msg)
         m = load(model, backend, dtype)
-        flows = each(
-            frames.shape[0] - 1,
-            lambda i: m(convert.frame(frames, i, m.device), convert.frame(frames, i + 1, m.device)).flow,
-        )
+        if batch_size > 1:
+            flows = each_pairs(frames, m, batch_size, lambda a, b: list(m(a, b).flow))
+        else:
+            flows = each(
+                frames.shape[0] - 1,
+                lambda i: m(convert.frame(frames, i, m.device), convert.frame(frames, i + 1, m.device)).flow,
+            )
         raw = torch.stack([f.detach().float().permute(1, 2, 0) for f in flows]).to(_out_device()).contiguous()
         return convert.to_image([convert.flow_image(f) for f in flows], _out_device()), raw
 

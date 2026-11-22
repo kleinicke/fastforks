@@ -16,7 +16,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.upload import device_tensor
 from fastforks.detection._convs import FusedConvs
 from fastforks.detection._rtdetr import ConvBn, RepVgg
-from fastforks.detection._runner import Forward, Runner
+from fastforks.detection._runner import Forward, Runner, split_kept
 from fastforks.shared.pil_resize import pil_bilinear
 
 if TYPE_CHECKING:
@@ -29,7 +29,7 @@ _SEEN = 64  # fixed: shapes counted towards a capture (GraphCache's default boun
 
 
 def prepare(image: torch.Tensor, size: int) -> torch.Tensor:
-    """`[1, 3, H, W]` RGB in `[0, 1]` -> `[1, 3, size, size]` (PIL bilinear on the uint8 image)."""
+    """`[B, 3, H, W]` RGB in `[0, 1]` -> `[B, 3, size, size]` (PIL bilinear on the uint8 image)."""
     x = image.mul(255).round_()
     if tuple(image.shape[-2:]) != (size, size):
         x = pil_bilinear(x, (size, size))
@@ -40,6 +40,8 @@ class Portable(Runner):
     """Plain PyTorch; float16 backbone, encoder and decoder layers on CUDA (a family sets the hooks above)."""
 
     dtypes = ("float32", "float16")
+    batch = None  # `detect_batch`: a batch of images in one network call
+    compiled_methods = ("__call__", "detect_batch")
     label: str  # the family, in messages
 
     def __init__(self, ctx: Context) -> None:
@@ -73,18 +75,21 @@ class Portable(Runner):
 
     def __call__(self, image: torch.Tensor, score_threshold: float) -> dict[str, torch.Tensor]:
         """Official postprocessor on one image."""
+        return self.detect_batch(image, score_threshold)[0]
+
+    def detect_batch(self, images: torch.Tensor, score_threshold: float) -> list[dict[str, torch.Tensor]]:
+        """Official postprocessor on every image of `images` `[B, 3, H, W]`, one network call."""
         p: Any = self.ctx.params
-        h, w = image.shape[-2:]
-        x = prepare(image, p.size).to(self.dt).contiguous(memory_format=self.mf)
+        h, w = images.shape[-2:]
+        x = prepare(images, p.size).to(self.dt).contiguous(memory_format=self.mf)
         logits, boxes = self._forward(x)
-        scores, idx = logits.float().sigmoid()[0].flatten().topk(p.num_queries)
+        scores, idx = logits.float().sigmoid().flatten(1).topk(p.num_queries)  # [B, num_queries]
         labels, query = idx % p.num_classes, idx // p.num_classes
-        cx, cy, bw, bh = boxes[0].float()[query].unbind(-1)
+        cx, cy, bw, bh = boxes.float().gather(1, query[..., None].expand(-1, -1, 4)).unbind(-1)
         out = torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1) * device_tensor(
             [w, h, w, h], device=boxes.device, dtype=boxes.dtype
         )
-        keep = (scores >= score_threshold).nonzero()[:, 0][: p.max_detections]  # one host sync for all three outputs
-        return {"boxes": out[keep], "scores": scores[keep], "labels": labels[keep]}
+        return split_kept(scores >= score_threshold, p.max_detections, boxes=out, scores=scores, labels=labels)
 
     def _forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         return self.net(x)

@@ -151,6 +151,9 @@ class Runner(abc.ABC):  # noqa: B024 - abstract `__call__` is declared by each t
     Class attributes:
         dtypes: Compute dtypes the portable code implements on CUDA (the card's `cuda_dtype` must be one of them).
         batch: Inputs per call (`None`: any number); the core splits larger batches.
+        batch_pixels: With `batch = None`, as many inputs per call as fit in this many pixels (inputs x H x W of the
+            task API's input; at least one); `None`: no limit. For families whose eager call is launch bound at small
+            sizes but gains nothing from a large batch.
         Params: Frozen dataclass of the family's parameters.
         deterministic_cudnn: Run each CUDA call with `torch.backends.cudnn.deterministic = True` (restored after).
             Set on the portable runners where cuDNN's default algorithms (atomics in transposed convs) made repeated
@@ -168,6 +171,7 @@ class Runner(abc.ABC):  # noqa: B024 - abstract `__call__` is declared by each t
 
     dtypes: ClassVar[tuple[Dtype, ...]] = ("float32",)
     batch: ClassVar[int | None] = 1
+    batch_pixels: ClassVar[int | None] = None
     Params: ClassVar[type[Any]] = NoParams
     deterministic_cudnn: ClassVar[bool] = False
     sdpa_auto: ClassVar[str | None] = None

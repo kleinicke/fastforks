@@ -12,6 +12,7 @@ import os
 import sys
 import types
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -195,6 +196,128 @@ def test_batch_size_gives_the_per_image_outputs(pack: Any, monkeypatch: pytest.M
     assert torch.equal(outs[0], outs[1])
     assert torch.equal(outs[0], outs[2])
     assert "batch_size" in nodes.Depth.INPUT_TYPES()["optional"]
+
+
+def test_detect_batch_size_passes_the_call_options(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Detect with `batch_size` > 1: chunks of the batch with the node's threshold, outputs as one at a time."""
+    nodes = pack.nodes
+    calls: list[tuple[tuple[int, ...], float]] = []
+
+    class Result:
+        masks = None
+        boxes = torch.tensor([[1.0, 1.0, 3.0, 2.0]])
+
+        def to_list(self) -> list[dict[str, Any]]:
+            return [{"box": [1.0, 1.0, 3.0, 2.0], "score": 0.9, "class_name": "cat"}]
+
+    class Model:
+        device = torch.device("cpu")
+        open_vocabulary = False
+
+        def __call__(self, x: torch.Tensor, *, score_threshold: float, text: Any) -> Any:
+            calls.append((tuple(x.shape), score_threshold))
+            assert text is None  # closed vocabulary
+            return Result() if x.ndim == 3 else [Result() for _ in range(x.shape[0])]
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: Model())
+    monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])
+    img = torch.rand(3, 4, 6, 3)
+    kw = {"image": img, "model": "m", "backend": "auto", "dtype": "auto", "score_threshold": 0.4, "classes": ""}
+    outs = [nodes.Detect().run(**kw, batch_size=b) for b in (1, 2)]
+    assert calls == [((3, 4, 6), 0.4)] * 3 + [((2, 3, 4, 6), 0.4), ((1, 3, 4, 6), 0.4)]
+    assert torch.equal(outs[0][0], outs[1][0])
+    assert outs[0][1] == outs[1][1]
+    assert "batch_size" in nodes.Detect.INPUT_TYPES()["optional"]
+
+
+def test_pose_batch_size_passes_each_images_boxes(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pose with `batch_size` > 1: chunks of the batch with one box list per image, outputs as one at a time."""
+    nodes = pack.nodes
+    calls: list[tuple[tuple[int, ...], Any]] = []
+
+    class Result:
+        keypoints = torch.tensor([[[1.0, 1.0], [2.0, 2.0]]])
+        keypoint_scores = torch.tensor([[0.9, 0.8]])
+        skeleton = ((0, 1),)
+
+        def to_list(self) -> list[dict[str, Any]]:
+            return [{"box": [0.0, 0.0, 6.0, 4.0], "score": 0.9, "keypoints": {}}]
+
+    class Model:
+        device = torch.device("cpu")
+        needs_boxes = True
+        variant = SimpleNamespace(output_info={"label_set": "coco_keypoints"})
+
+        def __call__(self, x: torch.Tensor, *, boxes: Any) -> Any:
+            calls.append((tuple(x.shape), boxes))
+            return Result() if x.ndim == 3 else [Result() for _ in range(x.shape[0])]
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: Model())
+    monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])
+    img = torch.rand(3, 4, 6, 3)
+    kw = {"image": img, "model": "m", "backend": "auto", "dtype": "auto", "keypoint_threshold": 0.3, "line_width": 1}
+    outs = [nodes.Pose().run(**kw, batch_size=b) for b in (1, 2)]
+    whole = [[0.0, 0.0, 6.0, 4.0]]
+    assert calls == [((3, 4, 6), whole)] * 3 + [((2, 3, 4, 6), [whole, whole]), ((1, 3, 4, 6), [whole])]
+    assert torch.equal(outs[0][0], outs[1][0])
+    assert outs[0][1] == outs[1][1]
+    assert "batch_size" in nodes.Pose.INPUT_TYPES()["optional"]
+
+
+def test_pair_nodes_batch_size_matches_one_pair_at_a_time(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Interpolate and Flow with `batch_size` > 1: chunks of consecutive pairs per call, the same outputs as 1."""
+    nodes = pack.nodes
+    calls: list[tuple[int, ...]] = []
+
+    class Model:
+        device = torch.device("cpu")
+
+        def __call__(self, a: torch.Tensor, b: torch.Tensor, timestep: float = 0.0) -> Any:
+            calls.append(tuple(a.shape))
+            return SimpleNamespace(frame=a * (1 - timestep) + b * timestep, flow=(b - a)[..., :2, :, :])
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: Model())
+    monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])
+    frames = torch.rand(5, 4, 6, 3)
+    kw = {"frames": frames, "model": "m", "backend": "auto", "dtype": "auto"}
+    one, three = (nodes.Interpolate().run(**kw, multiplier=3, batch_size=b)[0] for b in (1, 3))
+    assert one.shape == (13, 4, 6, 3)
+    torch.testing.assert_close(three, one)
+    assert calls[-4:] == [(3, 3, 4, 6), (3, 3, 4, 6), (1, 3, 4, 6), (1, 3, 4, 6)]  # 2 timesteps x 2 chunks
+    calls.clear()
+    one_f, three_f = (nodes.Flow().run(**kw, batch_size=b) for b in (1, 3))
+    assert calls == [(3, 4, 6)] * 4 + [(3, 3, 4, 6), (1, 3, 4, 6)]
+    torch.testing.assert_close(three_f[1], one_f[1])
+    torch.testing.assert_close(three_f[0], one_f[0])
+    assert "batch_size" in nodes.Interpolate.INPUT_TYPES()["optional"]
+    assert "batch_size" in nodes.Flow.INPUT_TYPES()["optional"]
+
+
+def test_remove_background_batch_size(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """RemoveBackground with `batch_size` > 1 batches the images; with a trimap it stays one image per call."""
+    nodes = pack.nodes
+    calls: list[tuple[int, ...]] = []
+
+    class Model:
+        device = torch.device("cpu")
+
+        def __call__(self, x: torch.Tensor, *, trimap: Any = None) -> Any:
+            calls.append(tuple(x.shape))
+            alpha = x[..., 0, :, :] if trimap is None else trimap
+            return SimpleNamespace(alpha=alpha)
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: Model())
+    monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])
+    img = torch.rand(3, 4, 6, 3)
+    kw = {"image": img, "model": "m", "backend": "auto", "dtype": "auto"}
+    one, two = (nodes.RemoveBackground().run(**kw, batch_size=b) for b in (1, 2))
+    assert calls == [(3, 4, 6)] * 3 + [(2, 3, 4, 6), (1, 3, 4, 6)]
+    torch.testing.assert_close(two[1], one[1])
+    torch.testing.assert_close(two[0], one[0])
+    calls.clear()
+    nodes.RemoveBackground().run(**kw, trimap=torch.rand(3, 4, 6), batch_size=2)
+    assert calls == [(3, 4, 6)] * 3
+    assert "batch_size" in nodes.RemoveBackground.INPUT_TYPES()["optional"]
 
 
 def test_errors_name_the_backend_input(pack: Any) -> None:

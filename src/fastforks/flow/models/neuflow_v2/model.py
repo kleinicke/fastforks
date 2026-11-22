@@ -36,6 +36,10 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16")
     Params = Params
+    batch = None
+    # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti, Windows,
+    # fp16, 8 pairs 480 x 640: 22.1 -> 7.9 ms per pair), not at 720p (30.2 vs 29.7 ms, and 4 GB for 8 pairs)
+    batch_pixels = 1_300_000
 
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
@@ -104,6 +108,8 @@ class Kernels(Portable):
     pass is launch-bound there.
     """
 
+    batch_pixels = _GRAPH_PIXELS  # each chunk of a batch replays a graph
+
     def __init__(self, ctx: Context) -> None:
         """Build the network and bind the lookup kernel."""
         super().__init__(ctx)
@@ -128,8 +134,14 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
+class _OnePair(Portable):
+    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, cache_mb=512),
+    "portable_mlx": mlx_wrap.port(_OnePair, cache_mb=512),
 }

@@ -12,7 +12,11 @@ result.keypoint_names, result.skeleton  # COCO names and the limbs (pairs of key
 ```
 
 Top-down models (ViTPose) estimate one person per box: pass the boxes from a detector (or ground truth). A batch
-(BHWC numpy / BCHW torch) takes a list of box arrays, one per image, and gives a list of results.
+(BHWC numpy / BCHW torch) takes a list of box arrays, one per image, and gives a list of results. RTMPose, DWPose,
+RTMW, ViTPose and HRNet run the people of a batch (up to 32 boxes per call) through one network call: 8 frames with
+one person each, 640x480, RTX 5060 Ti under Windows, rtmpose-m 9.9 -> 3.2 ms per frame portable and 1.6 -> 0.6 kernels;
+hrnet-w32 31.1 -> 5.9 portable. A person's keypoints can differ from a call with fewer people in it by the network's
+float16 batch-size differences (as with several people in one image).
 """
 
 from fastforks._core.arguments import renamed_attributes

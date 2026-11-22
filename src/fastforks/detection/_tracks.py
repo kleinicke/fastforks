@@ -25,7 +25,7 @@ frame costs well under a millisecond on the CPU, so the tracker runs there (a GP
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import torch
@@ -34,7 +34,7 @@ from fastforks._core.errors import InputError
 from fastforks.shared import box_kalman
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable, Sequence
+    from collections.abc import Callable, Iterable, Iterator, Sequence
 
 __all__ = ["ByteTracker", "ObjectTracks", "linear_assignment", "track_objects"]
 
@@ -392,6 +392,7 @@ def track_objects(
     detector: Callable[..., Any] | None = None,
     *,
     classes: Sequence[int | str] | None = None,
+    batch_size: int = 1,
     **tracker: float,
 ) -> list[ObjectTracks]:
     """Track the objects of a whole video (ByteTrack); `ByteTracker` is the online version.
@@ -402,6 +403,8 @@ def track_objects(
         detector: A `fastforks.detection` model (load it with a low `score_threshold` option, e.g. 0.1: the second
             association uses detections down to 0.1), called once per frame.
         classes: Track only detections of these classes, by name (`["person"]`) or id (`[0]`); default all.
+        batch_size: Frames per `detector` call when `video` is one array / tensor of frames (`BHWC` numpy, `BCHW`
+            torch): the detectors that run a batch as one network call are several times faster per frame with 8.
         **tracker: `ByteTracker` settings (`track_thresh`, `match_thresh`, `track_buffer`, `frame_rate`).
 
     Returns:
@@ -413,8 +416,8 @@ def track_objects(
     """
     bt = ByteTracker(**tracker)
     out = []
-    for item in video:
-        det = item if detector is None else detector(item)
+    for found in _per_frame(video, detector, batch_size):
+        det = found
         if classes is not None:
             if getattr(det, "labels", None) is None:
                 msg = "classes: these detections have no classes ([N, 5] arrays); filter them before"
@@ -422,6 +425,19 @@ def track_objects(
             det = det[torch.isin(det.labels, _class_ids(classes, det).to(det.labels.device))]
         out.append(bt.update(det))
     return out
+
+
+def _per_frame(video: Iterable[Any], detector: Callable[..., Any] | None, batch_size: int) -> Iterator[Any]:
+    """The detections of every frame: `video` itself, one `detector` call per frame, or per `batch_size` frames."""
+    if detector is None:
+        yield from video
+    elif batch_size > 1 and getattr(video, "ndim", 0) == 4:  # noqa: PLR2004 - a BHWC / BCHW array of frames
+        frames = cast("Any", video)
+        for start in range(0, len(frames), batch_size):
+            yield from detector(frames[start : start + batch_size])
+    else:
+        for item in video:
+            yield detector(item)
 
 
 def _class_ids(classes: Sequence[int | str], det: Any) -> torch.Tensor:  # noqa: ANN401 - a DetectionResult

@@ -4,7 +4,7 @@ summary = "GMFlow (Xu, Zhang, Cai, Rezatofighi & Tao 2022) in its UniMatch relea
 tier = "experimental"
 outputs = ["flow"]
 limitations = ["TensorRT builds at 1080x1920 fail for scale2 variants with a Myelin CHECK(is_const()) error on RTX 5060 Ti; scale1 variants build."]
-uses = []  # fastforks.shared modules this family imports
+uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/autonomousvision/unimatch"
@@ -34,6 +34,9 @@ std = [0.229, 0.224, 0.225]
 min_size = 64  # the shifted windows at 1/4 resolution (8 splits per axis) need at least 2 cells each
 pad = { multiple = 32, mode = "centre", fill = "replicate" }  # upstream InputPadder ('sintel' mode), padding_factor 32 of the scale2 commands in scripts/gmflow_evaluate.sh
 
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for small repeated shapes (false: eager, no extra memory)
+
 [params]
 scales = 1  # upstream num_scales: 1 = global matching at 1/8; 2 = then local matching at 1/4 (attn_splits 2 8, corr_radius -1 4, prop_radius -1 1)
 refine = 0  # upstream num_reg_refine with reg_refine; 0 = no refinement block in the checkpoint
@@ -45,6 +48,10 @@ mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["flow_upsample"]
+# CUDA graphs (kernels): the pass is launch-bound on small inputs; batch x padded H x W <= 262144 replays a CUDA
+# graph, captured on a shape's 2nd call, at most 2 shapes per model (Windows RTX 5060 Ti, scale2-regrefine6 ms per pair:
+# 384x384 65.1 -> 51.9, 384x512 81.5 -> 71.6; 544x960 gains under 2 %). The graph pool stays reserved until
+# `model.release_graphs()`; `cuda_graphs=False` turns it off. Larger inputs run eagerly.
 
 [[papers]]
 title = "GMFlow: Learning Optical Flow via Global Matching"

@@ -276,3 +276,29 @@ def test_kernels_graph_replays_new_images_like_the_eager_network(ref: str) -> No
         assert torch.equal(got.scores, want.scores)
         assert torch.equal(got.boxes, want.boxes)
     assert len(runner.graphs.graphs) == 1  # one size x size graph for every image size
+
+
+@pytest.mark.slow
+@pytest.mark.model
+@pytest.mark.parametrize(("device", "mode"), RUNS)
+@pytest.mark.parametrize("ref", REFS)
+def test_a_batch_matches_per_image_calls(ref: str, device: str, mode: Mode) -> None:
+    """One network call on a batch: the same detections as one call per image (candidates and NMS per image).
+
+    float16 (CUDA) reorders the near-tied scores of a synthetic image: there the best 10 scores are compared, and
+    each of their boxes must be among the best 20 of the batch call (same label).
+    """
+    model = _load(ref, device, mode, score_threshold=0.01)
+    imgs = np.stack([image(240, 320, seed=s) for s in range(3)])
+    n = None if device == "cpu" else 10
+    for img, got in zip(imgs, model(imgs), strict=True):
+        want = model(img)
+        assert len(want.scores) > 0
+        torch.testing.assert_close(got.scores[:n], want.scores[:n], atol=2e-3, rtol=0)  # sorted: order-free
+        if n is None:
+            assert torch.equal(got.labels, want.labels)
+            torch.testing.assert_close(got.boxes, want.boxes, atol=0.5, rtol=0)
+            continue
+        dist = (got.boxes[None, : 2 * n] - want.boxes[:n, None]).abs().amax(-1)  # [n, 2n] largest side difference
+        same = got.labels[None, : 2 * n] == want.labels[:n, None]
+        assert bool((dist.masked_fill(~same, float("inf")).amin(1) <= 0.5).all())

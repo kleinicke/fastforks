@@ -233,6 +233,10 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16")
     Params = Params
+    batch = None
+    # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti, Windows,
+    # fp16, 8 pairs 480 x 640: 9.6 -> 3.8 ms per pair, 4 a call), not from 720p on (11.8 ms either way, 2.2 GB)
+    batch_pixels = 1_300_000
     channels_last = False  # the blocks' input layout
     # cuDNN's default transposed convs accumulate with atomics, and the warps amplify the last bits: two calls on the
     # same 720 x 1280 pair differed by up to 0.009 (smooth frames; 0.95 on noise). Deterministic costs ~3 % there.
@@ -306,6 +310,7 @@ class Kernels(Portable):
     """float16, channels-last, fp16-accumulate convs and transposed convs (`cudnn_hacc`), one CUDA graph per shape."""
 
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
+    batch = 1  # one pair per graph replay: batched pairs are not faster (480 x 640: 3.3 vs 3.1 ms, 720p 8.6 vs 10.4)
     channels_last = True
     deterministic_cudnn = False  # its convolutions are `cudnn_hacc` plans, not cuDNN's algorithm choice
 
@@ -341,9 +346,15 @@ class Kernels(Portable):
             self.graphs.release()
 
 
+class _OnePair(Portable):
+    """Portable for the MLX ports: one pair per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_forward",)),
-    "kernels_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_forward",)),
+    "portable_mlx": mlx_wrap.port(_OnePair, attrs=(), methods=("_forward",)),
+    "kernels_mlx": mlx_wrap.port(_OnePair, attrs=(), methods=("_forward",)),
 }

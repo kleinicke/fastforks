@@ -704,6 +704,13 @@ The same wheels and backends run on Windows (tested: RTX 5060 Ti, Windows 11). W
   slower than on Linux; large ones run at the same speed. fastforks avoids host syncs inside a call (constants are
   uploaded through pinned memory, checks of the inputs are combined into one), and `mode="auto"` picks the backend
   from measurements made on Windows where they exist.
+- The host time per operation sets the floor for small inputs. On an RTX 5060 Ti under Windows 11 (torch 2.14), one
+  call costs about 12 µs for an elementwise kernel, 26 µs for a half-precision matrix product and 58 µs for a cuDNN
+  convolution, whatever its size. A DETR-style detector at 640x640 needs about 500 of them: 14 ms on the host
+  against 3-4 ms on the GPU. Kernels mode replays a CUDA graph for small repeated input shapes in the families whose
+  card lists the `cuda_graphs` option, which removes that cost. The graph's memory pool stays reserved until
+  `model.release_graphs()`, and `cuda_graphs=False` turns graphs off. Portable mode runs eagerly, so on Windows it
+  trails Linux by 20-30 % on such models.
 - PyTorch's Windows wheels have no flash attention; `FASTFORKS_SDPA` (above) sets the order of the other backends.
 - Models that stream their transformer blocks from the host (for example SeedVR2, Marigold v2, SAM 3, VGGT and
   MapAnything, when streaming) page-lock that memory.

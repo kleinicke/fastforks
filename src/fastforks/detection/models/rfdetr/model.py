@@ -14,7 +14,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import Inert
 from fastforks._core.upload import device_tensor
-from fastforks.detection._runner import Forward, Runner
+from fastforks.detection._runner import Forward, Runner, split_kept
 from fastforks.kernels import rfdetr_input
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
@@ -50,6 +50,8 @@ class Portable(Runner):
     """The pinned upstream network; float16 on CUDA, PostProcess in float32."""
 
     dtypes = ("float32", "float16")
+    batch = None  # `detect_batch`: a batch of images in one network call (box models; Seg pastes masks per image)
+    compiled_methods = ("__call__", "detect_batch")
     Params = Params
 
     def __init__(self, ctx: Context) -> None:
@@ -90,6 +92,8 @@ class Portable(Runner):
 
     def __call__(self, image: torch.Tensor, score_threshold: float) -> dict[str, torch.Tensor]:
         """Every detection above the threshold (best first, at most `max_detections`), in input pixels."""
+        if not self.ctx.params.segmentation_head:
+            return self.detect_batch(image, score_threshold)[0]
         raw = {k: v.float() for k, v in self._raw(image).items()}
         size = device_tensor([image.shape[-2:]], device=image.device)
         r = self.postprocess(raw, target_sizes=size, score_threshold=score_threshold)[0]
@@ -99,6 +103,18 @@ class Portable(Runner):
         if "masks" in r:
             out["masks"] = r["masks"][keep, 0]
         return out
+
+    def detect_batch(self, images: torch.Tensor, score_threshold: float) -> list[dict[str, torch.Tensor]]:
+        """`__call__` for every image of `images` `[B, 3, H, W]`; box models in one network call."""
+        if self.ctx.params.segmentation_head:
+            return super().detect_batch(images, score_threshold)
+        raw = {k: v.float() for k, v in self._raw(images).items()}
+        size = device_tensor([list(images.shape[-2:])] * images.shape[0], device=images.device)
+        rs = self.postprocess(raw, target_sizes=size, score_threshold=score_threshold)  # num_select rows per image
+        scores, boxes = torch.stack([r["scores"] for r in rs]), torch.stack([r["boxes"] for r in rs])
+        labels = self.ids[torch.stack([r["labels"] for r in rs])]
+        keep = (labels >= 0) & (scores > score_threshold)
+        return split_kept(keep, self.ctx.params.max_detections, boxes=boxes, scores=scores, labels=labels)
 
     def module(self) -> torch.nn.Module:
         """The network with its input handling: RGB `[B, 3, H, W]` in [0, 1] -> raw outputs.

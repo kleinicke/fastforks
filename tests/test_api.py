@@ -128,6 +128,29 @@ def test_batch_of_one_keeps_batch_dim(fake_runner):
     assert m(one[0], one[0]).disparity.shape == (4, 5)
 
 
+class PixelBudget(Dummy):
+    batch = None
+    batch_pixels = 45  # two 4 x 5 inputs per call
+    sizes: list[int] = []  # noqa: RUF012 - test log
+
+    def __call__(self, left, right):
+        PixelBudget.sizes.append(left.shape[0])
+        return super().__call__(left, right)
+
+
+def test_batch_pixels_chunk_a_batch(fake_runner):
+    fake_runner["portable"] = PixelBudget
+    PixelBudget.sizes = []
+    m = stereo.load("s2m2-s", device="cpu")
+    left = np.full((5, 4, 5, 3), 200, np.uint8)
+    assert m(left, left // 2).disparity.shape == (5, 4, 5)
+    assert PixelBudget.sizes == [2, 2, 1]
+    big = np.full((3, 8, 10, 3), 200, np.uint8)  # 80 px: more than the budget, still one per call
+    PixelBudget.sizes = []
+    m(big, big)
+    assert PixelBudget.sizes == [1, 1, 1]
+
+
 class Mobile(Dummy):
     """A MobileNet-like block (depthwise + pointwise conv, ReLU6) on the left image; records the autocast state."""
 
