@@ -725,7 +725,7 @@ Commercial use: yes.
 - Weights licence: BSD-3-Clause
 - Licence evidence: <https://github.com/ShiqiYu/libfacedetection.train/blob/dca340aa082c71081a68d17db8e58b33a58a914b/LICENSE>
 - Training data: WIDER FACE (32k images, 394k labelled faces) (WIDER FACE train with the SCRFD five-landmark annotations (labelv2), from scratch)
-- Options: `score_threshold` = 0.6 (0.0 to 1.0)
+- Options: `score_threshold` = 0.6 (0.0 to 1.0), `cuda_graphs` = True (speed only)
 - Kernel libraries: `box_nms`, `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `yunet-n`, `yunet-s`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `face-5`
