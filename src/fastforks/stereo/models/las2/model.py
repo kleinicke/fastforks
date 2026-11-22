@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
+from fastforks._core.half import pure_half
 from fastforks._core.volume_ops import gwc_volume
 from fastforks.kernels import cudnn_hacc, stereo_ops
 from fastforks.shared import mlx_wrap
@@ -193,12 +194,13 @@ def fold_batchnorms(net: torch.nn.Module) -> int:
 
 
 class Portable(Runner):
-    """Plain PyTorch: float32, or fp16 autocast (norms and softmax stay float32).
+    """Plain PyTorch: float32, or fp16 autocast (norms and softmax stay float32); pure fp16 on MPS.
 
     BatchNorms are folded into the convolutions and the correlation volumes are one batched product
     (`corr_volume_einsum`, `gwc_volume_einsum`): upstream's broadcast product + channel mean was a quarter of the
     fp16 pass. Layout per network (measured): channels-last for the H network, NCHW for s / m / l, where channels-last
-    ran the depthwise convolutions and the norms slower.
+    ran the depthwise convolutions and the norms slower. On MPS NCHW for all and the whole network in fp16
+    (`pure_half`): autocast there ran slower than fp32 (H 926 ms against 702 ms at 994x1482, pure fp16 636 ms).
     """
 
     deterministic_cudnn = True
@@ -211,17 +213,22 @@ class Portable(Runner):
         super().__init__(ctx)
         self.net = _net(ctx)
         self.half = ctx.dtype == "float16"
-        self.channels_last = self.half and isinstance(self.net, LiteAnyStereoH)
+        self.channels_last = self.half and isinstance(self.net, LiteAnyStereoH) and ctx.device.type != "mps"
         fold_batchnorms(self.net)
         if self.channels_last:
             self.net.to(memory_format=torch.channels_last)
         object.__setattr__(self.net, "correlation_volume", corr_volume_einsum)  # plain attributes, read by the forward
         object.__setattr__(self.net, "gwc_volume", gwc_volume_einsum)
+        self.pure = self.half and ctx.device.type == "mps"
+        if self.pure:
+            pure_half(self.net, channels_last=False)
 
     def _run(self, net: LiteAnyStereoV2 | LiteAnyStereoH, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
         max_disp = self.ctx.params.max_disp
         if not self.half:
             return _forward(net, left, right, max_disp)
+        if self.pure:
+            return _forward(net, left, right, max_disp).float()
         with torch.autocast(left.device.type, dtype=torch.float16):
             return _forward(net, left, right, max_disp)
 
