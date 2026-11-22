@@ -388,6 +388,7 @@ Commercial use: yes.
 - Licence evidence: https://github.com/FangjinhuaWang/PatchmatchNet/blob/8dc6cb4/LICENSE and README.md (the checkpoint ships in the repository)
 - Training data: DTU Robot Image Data Sets (MVS 2014) (The released checkpoint (checkpoints/params_000007.ckpt) is trained on DTU (README); the paper evaluates it zero-shot on Tanks and Temples and ETH3D)
 - Licence note: The code is MIT; the checkpoint ships in the repository without a licence of its own (MIT assumed) and is trained on DTU, whose terms of use are not stated.
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `patchmatchnet`
 - Variants: `patchmatchnet`
 - Outputs: depth, confidence; kind: `metric`
@@ -415,6 +416,10 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 | variant | kernels error vs original, mean / p99 | GPU, torch | kernels used |
 |---|---|---|---|
 | `patchmatchnet` | 6e-05 / 0.00021 | RTX 5060 Ti, torch 2.14.1+cu130 | `patchmatchnet@e73cbaa02d34:sm_120` |
+
+### Limitations
+
+- Kernels keep a CUDA graph per input size and depth range: its private pool and static outputs stay reserved, ~120 MiB at the 1536 x 1024 survey input (894 vs 772 MiB peak reserved, peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
 
