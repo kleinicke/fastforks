@@ -69,6 +69,10 @@ class Portable(Runner):
         net = RTMPose(a)
         net.load_state_dict(fold_bn(ctx.state_dict(key="state_dict", strip="", extra=extra())))
         self.net = net.eval().to(ctx.device, ctx.torch_dtype)
+        if ctx.device.type == "cuda" and ctx.dtype == "float16":
+            # channels-last weights: cuDNN's fp16 kernels skip the NCHW<->NHWC conversion around each conv
+            # (dwpose-l, 15 people at 1080p 14.9 -> 13.8 ms, 374 -> 215 MB, RTX 5060 Ti, Windows); fp32 stays NCHW
+            self.net.to(memory_format=torch.channels_last)
         self.mean = torch.tensor(MEAN, device=ctx.device).view(1, 3, 1, 1)
         self.std = torch.tensor(STD, device=ctx.device).view(1, 3, 1, 1)
         self.flip = torch.tensor(FLIP[ctx.variant.output_info["label_set"]], device=ctx.device)
