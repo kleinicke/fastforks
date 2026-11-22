@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.mlx_cast import to_float32
 from fastforks._core.patch import override
 from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
 from fastforks.kernels import image_normalize
@@ -60,7 +61,9 @@ def _sica(m: SICA, x: torch.Tensor, smap: torch.Tensor, lmap: torch.Tensor | Non
     if not at_size:
         pr = F.interpolate(pr, size=shape, mode="bilinear", align_corners=False)
     # Keep the upstream channel layout for the context projection.
-    context = torch.bmm(pr.reshape(b, m.ctx, n).float(), f.view(b, n, -1).float()).permute(0, 2, 1).unsqueeze(3)
+    context = torch.bmm(to_float32(pr.reshape(b, m.ctx, n)), to_float32(f.view(b, n, -1))).permute(0, 2, 1).unsqueeze(3)
+    if CTX_SCALE_ATTR in m.__dict__:  # a float16 MLX replay: its key / value convs read float16 (see `_scale_context`)
+        context = context * (1 / m.__dict__[CTX_SCALE_ATTR])
     del f, pr, prob
     query = m.conv_query(x).view(b, m.depth, -1).permute(0, 2, 1)
     key = m.conv_key(context).to(x.dtype).view(b, m.depth, -1)
@@ -75,12 +78,31 @@ def _sica(m: SICA, x: torch.Tensor, smap: torch.Tensor, lmap: torch.Tensor | Non
     return x, m.conv_out4(x)
 
 
+CTX_SCALE_ATTR = "_ff_ctx_scale"
+CTX_SCALE = 4096.0  # base checkpoint: context sums reach 1.6e5, the first key / value batch-norm variances 5.4e10
+
+
+@torch.no_grad()
+def _scale_context(m: SICA) -> None:
+    """Divide `m`'s context vector by `CTX_SCALE` and its first key / value batch-norm statistics to match.
+
+    A float16 MLX replay runs the key / value convs in float16: the context vector and those running statistics
+    overflow it. Bias-free 1x1 convs are linear, so the batch norm output is unchanged (up to its eps).
+    """
+    m.__dict__[CTX_SCALE_ATTR] = CTX_SCALE
+    for seq in (m.conv_key, m.conv_value):
+        bn = seq[0].bn
+        bn.running_mean.div_(CTX_SCALE)
+        bn.running_var.div_(CTX_SCALE**2)
+
+
 def _net(ctx: Context, dtype: torch.dtype) -> torch.nn.Module:
     s = ctx.params.size
     net = InSPyReNet_SwinB(depth=64, pretrained=False, base_size=[s, s], threshold=None)
     net.load_state_dict(ctx.state_dict())
     torch.nn.Module.to(net, ctx.device)  # upstream's `to(device)` takes no dtype
-    sica = [m for m in net.modules() if isinstance(m, SICA)] if dtype == torch.float16 else []
+    half = dtype == torch.float16 or mlx_wrap.twin_dtype() == "float16"  # also the float32 twin of a float16 replay
+    sica = [m for m in net.modules() if isinstance(m, SICA)] if half else []
     keep = [(m, m.conv_key, m.conv_value) for m in sica]
     for m in sica:  # their batch-norm running stats overflow float16 (|mean| > 65504): converted, they turn NaN
         del m.conv_key, m.conv_value
@@ -88,6 +110,8 @@ def _net(ctx: Context, dtype: torch.dtype) -> torch.nn.Module:
     for m, key, value in keep:
         m.conv_key, m.conv_value = key, value
         override(m, _sica)
+        if mlx_wrap.twin_dtype() == "float16":
+            _scale_context(m)
     net.image_pyramid.kernel = net.image_pyramid.kernel.to(ctx.device, dtype)  # a plain tensor, not a buffer
     return net.eval()
 
