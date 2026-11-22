@@ -25,9 +25,10 @@ from typing import TYPE_CHECKING, Any
 import torch
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator
+    from collections.abc import Callable, Generator, Iterable, Sequence
+    from types import ModuleType
 
-__all__ = ["deferred_init", "float32_default", "trunc_normal_"]
+__all__ = ["deferred_init", "deferred_library_inits", "float32_default", "trunc_normal_"]
 
 # The random in-place initialisers of `torch.nn.init` (each takes the tensor first and returns it). The deterministic
 # ones (`constant_`, `ones_`, `zeros_`, `eye_`, `dirac_`) cost about as much as the memset that replaces a deferred
@@ -53,6 +54,7 @@ _local = threading.local()  # .pending: the calling thread's recorded calls, or 
 _lock = threading.Lock()
 _users = 0  # threads inside `deferred_init`; the patch is installed while > 0
 _originals: dict[str, Callable[..., Any]] = {}
+_library_wrappers: weakref.WeakSet[Callable[..., Any]] = weakref.WeakSet()  # installed by `deferred_library_inits`
 
 
 def _deferring(name: str, fn: Callable[..., Any]) -> Callable[..., Any]:
@@ -129,6 +131,36 @@ def deferred_init() -> Generator[None]:
 _dt_lock = threading.Lock()
 _dt_users = 0  # threads inside `float32_default`
 _dt_saved = torch.float32  # the default dtype before the first one entered
+
+
+@contextlib.contextmanager
+def deferred_library_inits(modules: Iterable[ModuleType], names: Sequence[str]) -> Generator[None]:
+    """Inside `deferred_init`: also defer the random initialisers `names` that `modules` bind by name.
+
+    For a library's own initialisers, which bypass `torch.nn.init` (timm's `trunc_normal_`, imported by name into each
+    model module). Each wraps the whole public function, so a tensor it scales or shifts after its random fill is
+    recorded once, after all of it. Outside a `deferred_init` block, or for a module already patched by another
+    thread's block, nothing changes (that build only initialises at once).
+    """
+    if getattr(_local, "pending", None) is None:
+        yield
+        return
+    saved: list[tuple[ModuleType, str, Callable[..., Any]]] = []
+    with _lock:
+        for module in modules:
+            for name in names:
+                fn = getattr(module, name, None)
+                if callable(fn) and fn not in _library_wrappers:
+                    wrapper = _deferring(name, fn)
+                    _library_wrappers.add(wrapper)
+                    setattr(module, name, wrapper)
+                    saved.append((module, name, fn))
+    try:
+        yield
+    finally:
+        with _lock:
+            for module, name, fn in reversed(saved):
+                setattr(module, name, fn)
 
 
 @contextlib.contextmanager

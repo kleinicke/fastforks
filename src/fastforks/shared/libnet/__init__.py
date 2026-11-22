@@ -11,12 +11,14 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import torch
 
 from fastforks._core.checkpoint import load_strict, mismatch_details, torch_mismatch
+from fastforks._core.deferred_init import deferred_library_inits
 from fastforks._core.errors import (
     CardError,
     CheckpointMismatchError,
@@ -36,6 +38,7 @@ if TYPE_CHECKING:
 __all__ = ["Kernels", "Mlx", "Params", "Portable", "build", "timm", "torchvision"]
 
 # torchvision's DenseNet checkpoints predate its module names (`norm.1` -> `norm1`); torchvision renames on load too.
+_TIMM_INITS = ("trunc_normal_", "trunc_normal_tf_", "lecun_normal_", "variance_scaling_")  # timm.layers
 _DENSENET_KEY = re.compile(
     r"^(.*denselayer\d+\.(?:norm|relu|conv))\.((?:[12])\.(?:weight|bias|running_mean|running_var))$"
 )
@@ -102,8 +105,14 @@ def build(ctx: Context, index: int = 0, **kwargs: Any) -> torch.nn.Module:  # no
         overlay = {"state_dict": ctx.state_dict(index, strip="")}  # read (and hash-checked) by the core, loaded by timm
         if "num_classes" in kwargs:  # else timm drops a head whose size differs from its config's and loads non-strict
             overlay["num_classes"] = kwargs["num_classes"]
+        lib = timm()
+        # timm's ViT-style initialisers bypass torch.nn.init: deferred as well, every tensor the checkpoint loads skips
+        # its random fill (wd-vit-tagger-v3, a ViT-B, on the CPU: about 0.55 s per load)
+        timm_modules = [m for n, m in tuple(sys.modules.items()) if n == "timm" or n.startswith("timm.")]
         try:
-            return timm().create_model(p.arch, pretrained=True, pretrained_cfg_overlay=overlay, **kwargs).eval()
+            with deferred_library_inits(timm_modules, _TIMM_INITS):
+                net = lib.create_model(p.arch, pretrained=True, pretrained_cfg_overlay=overlay, **kwargs)
+            return net.eval()
         except RuntimeError as e:  # timm's strict load of the state dict
             if (keys := torch_mismatch(e)) is None:
                 raise

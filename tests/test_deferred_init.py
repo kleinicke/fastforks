@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import threading
+import types
 
 import pytest
 import torch
 
-from fastforks._core.deferred_init import deferred_init
+from fastforks._core.deferred_init import deferred_init, deferred_library_inits
 
 
 class _Net(torch.nn.Module):
@@ -176,3 +177,37 @@ def test_deterministic_inits_survive_a_cast() -> None:
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="needs a CUDA GPU")
 def test_deterministic_inits_survive_a_move_to_the_gpu() -> None:
     _cast_keeps_deterministic_inits("cuda", torch.half)
+
+
+def _library() -> types.ModuleType:
+    """A stand-in for a library module that imported its own initialiser by name (timm's `trunc_normal_`)."""
+    lib = types.ModuleType("lib")
+
+    def shifted_normal_(t: torch.Tensor, mean: float = 0.0) -> torch.Tensor:
+        with torch.no_grad():
+            return t.normal_().add_(mean)  # a random fill, then an in-place shift (timm's trunc_normal_tf_)
+
+    lib.shifted_normal_ = shifted_normal_
+    return lib
+
+
+def test_library_inits_are_deferred_and_restored() -> None:
+    lib = _library()
+    original = lib.shifted_normal_
+    loaded, unloaded = torch.empty(64), torch.empty(64)
+    with deferred_init():
+        with deferred_library_inits([lib], ("shifted_normal_", "absent_")):
+            assert lib.shifted_normal_ is not original
+            lib.shifted_normal_(loaded, mean=5.0)
+            lib.shifted_normal_(unloaded, mean=5.0)
+        assert lib.shifted_normal_ is original
+        loaded.copy_(torch.arange(64.0))  # what a checkpoint load does
+    assert torch.equal(loaded, torch.arange(64.0))
+    assert 3 < float(unloaded.mean()) < 7  # the whole initialiser ran at the end, its shift included
+
+
+def test_library_inits_outside_a_block_run_at_once() -> None:
+    lib = _library()
+    original = lib.shifted_normal_
+    with deferred_library_inits([lib], ("shifted_normal_",)):
+        assert lib.shifted_normal_ is original
