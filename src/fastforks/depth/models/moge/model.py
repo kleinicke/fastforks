@@ -323,16 +323,18 @@ class Portable(Runner):
         if self.half:
             # fp16 Linear / Conv weights (outputs bit-identical under the autocast below); the output convs stay fp32
             net = self.net
+            # MPS: channels-last fp16 convs and the concatenating replicate pad are each about 2x slower there
+            mps = ctx.device.type == "mps"
             half_weights(net.encoder, channels_last=False)
             for m in (net.neck, net.points_head, net.mask_head, net.normal_head):
-                half_weights(m)
+                half_weights(m, channels_last=not mps)
                 override(m.resamplers[-1], _upsample_rep_conv)
             net.points_head.output_blocks.float()
             net.normal_head.output_blocks.float()
             if net.refiner is not None and ctx.device.type == "cuda":
                 net.refiner.half()
             for m in net.modules():
-                if isinstance(m, nn.Conv2d) and m.padding_mode == "replicate" and m.padding == (1, 1):
+                if not mps and isinstance(m, nn.Conv2d) and m.padding_mode == "replicate" and m.padding == (1, 1):
                     override(m, _rep_conv)
 
     def _forward(self, image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor]:
