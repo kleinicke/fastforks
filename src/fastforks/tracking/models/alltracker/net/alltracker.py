@@ -32,6 +32,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 from torch.nn import functional as F
+from fastforks._core.upload import device_tensor  # fastforks
 
 DIM = 128  # flow / context feature channels (upstream dim = hdim)
 CORR_LEVELS, CORR_RADIUS = 5, 4
@@ -266,7 +267,7 @@ class CorrPyramid:
         for i, corr in enumerate(self.levels):
             h2, w2 = corr.shape[-2:]
             xy = centre / 2**i + self.delta
-            scale = torch.tensor((2 / max(w2 - 1, 1), 2 / max(h2 - 1, 1)), device=xy.device)
+            scale = device_tensor((2 / max(w2 - 1, 1), 2 / max(h2 - 1, 1)), device=xy.device)  # fastforks: no host sync (a pageable upload syncs the host)
             g = F.grid_sample(corr, (xy * scale - 1).to(corr.dtype), align_corners=True, padding_mode="border")
             out.append(g.view(s, h, w, -1))
         return torch.cat(out, -1).permute(0, 3, 1, 2).float()
@@ -292,8 +293,8 @@ class AllTracker(nn.Module):
 
     def encode(self, images: torch.Tensor) -> torch.Tensor:
         """`[N, C, H/8, W/8]` features of `[N, 3, H, W]` images in `[0, 1]` (H, W multiples of 8)."""
-        mean = images.new_tensor(MEAN).view(1, 3, 1, 1)
-        std = images.new_tensor(STD).view(1, 3, 1, 1)
+        mean = device_tensor(MEAN, device=images.device, dtype=images.dtype).view(1, 3, 1, 1)  # fastforks: no host sync (a pageable upload syncs the host)
+        std = device_tensor(STD, device=images.device, dtype=images.dtype).view(1, 3, 1, 1)  # fastforks: no host sync (a pageable upload syncs the host)
         x = (images - mean) / std
         return self.fnet(x) if self.tiny else self.dot_conv(self.cnn(x))
 

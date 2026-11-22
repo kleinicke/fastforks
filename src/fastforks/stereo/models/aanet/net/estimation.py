@@ -19,7 +19,7 @@ class DisparityEstimation(nn.Module):
         prob_volume = F.softmax(cost_volume, dim=1)  # [B, D, H, W]
 
         if cost_volume.size(1) == self.max_disp:
-            disp_candidates = torch.arange(0, self.max_disp).type_as(prob_volume)
+            disp_candidates = torch.arange(0, self.max_disp, device=prob_volume.device).type_as(prob_volume)  # fastforks: made on the device (was made on the CPU, then uploaded: a host sync)
         else:
             max_disp = prob_volume.size(1)  # current max disparity
             disp_candidates = torch.arange(0, max_disp).type_as(prob_volume)

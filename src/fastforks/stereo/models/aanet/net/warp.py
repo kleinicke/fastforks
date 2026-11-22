@@ -25,8 +25,8 @@ def meshgrid(img, homogeneous=False):
     """
     b, _, h, w = img.size()
 
-    x_range = torch.arange(0, w).view(1, 1, w).expand(1, h, w).type_as(img)  # [1, H, W]
-    y_range = torch.arange(0, h).view(1, h, 1).expand(1, h, w).type_as(img)
+    x_range = torch.arange(0, w, device=img.device).view(1, 1, w).expand(1, h, w).type_as(img)  # [1, H, W]; fastforks: made on the device (was made on the CPU, then uploaded: a host sync)
+    y_range = torch.arange(0, h, device=img.device).view(1, h, 1).expand(1, h, w).type_as(img)  # fastforks: made on the device (was made on the CPU, then uploaded: a host sync)
 
     grid = torch.cat((x_range, y_range), dim=0)  # [2, H, W], grid[:, i, j] = [j, i]
     grid = grid.unsqueeze(0).expand(b, 2, h, w)  # [B, 2, H, W]

@@ -26,6 +26,7 @@ from typing import NamedTuple
 import torch
 from torch import nn
 from torch.nn import functional as F
+from fastforks._core.upload import device_tensor  # fastforks
 
 SIZE = 256  # training resolution; the network runs at it
 PIPS_ITERS = 4
@@ -185,7 +186,7 @@ def map_coordinates_3d(feats: torch.Tensor, coords: torch.Tensor) -> torch.Tenso
     x = feats.permute(0, 4, 1, 2, 3)
     y = coords[:, :, None, None, :].float().clone()
     y[..., 0] += 0.5
-    y = 2 * (y / torch.tensor(x.shape[2:], device=y.device)) - 1
+    y = 2 * (y / device_tensor(x.shape[2:], device=y.device)) - 1  # fastforks: no host sync (a pageable upload syncs the host)
     out = F.grid_sample(x, y.flip(-1), mode="bilinear", align_corners=False, padding_mode="border")
     return out.squeeze(4).squeeze(3).permute(0, 2, 1)
 
@@ -267,7 +268,7 @@ class TAPIR(nn.Module):
         pos = mods["hid2"](hidden).reshape(t, b, n, h, w).permute(1, 2, 0, 3, 4).reshape(b, n, t, -1)
         heat = F.softmax(pos.mul_(SOFTMAX_TEMPERATURE), -1).view(b, n, t, h, w)
         del pos
-        points = soft_argmax(heat) * torch.tensor([SIZE / w, SIZE / h], device=queries.device)
+        points = soft_argmax(heat) * device_tensor([SIZE / w, SIZE / h], device=queries.device)  # fastforks: no host sync (a pageable upload syncs the host)
         del heat
         is_query = torch.round(queries[..., :1]) == torch.arange(t, device=queries.device)  # [B, N, T]
         points = torch.where(is_query[..., None], queries[:, :, None, 1:].flip(-1), points)
@@ -289,11 +290,11 @@ class TAPIR(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """One PIPs step: local correlations around `points` and the mixer's update of points, logits and features."""
         ctx = torch.stack(
-            torch.meshgrid(torch.arange(-3, 4), torch.arange(-3, 4), indexing="ij"), -1
-        ).reshape(-1, 2).to(points.device)
+            torch.meshgrid(torch.arange(-3, 4, device=points.device), torch.arange(-3, 4, device=points.device), indexing="ij"), -1
+        ).reshape(-1, 2)  # fastforks: made on the device (was made on the CPU, then uploaded: a host sync)
         corrs = []
         for i, (query, grid) in enumerate(zip(queries, pyramid, strict=True)):
-            yx = (points * torch.tensor([grid.shape[3] / SIZE, grid.shape[2] / SIZE], device=points.device)).flip(-1)
+            yx = (points * device_tensor([grid.shape[3] / SIZE, grid.shape[2] / SIZE], device=points.device)).flip(-1)  # fastforks: no host sync (a pageable upload syncs the host)
             neighborhood = map_coordinates_2d(grid, yx[:, :, :, None] + ctx)
             if last is None:
                 corrs.append(torch.einsum("bnfsc,bnc->bnfs", neighborhood, query))
