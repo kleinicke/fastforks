@@ -2735,3 +2735,38 @@ Investigated, not changed:
 Goldens pass: test_mlx for tapnext, tapnext-pp, locotrack-b/s, mvsplat-re10k, plus nafnet-gopro, wd-vit-tagger-v3 and
 c-fast-foundationstereo (shared mlx_graph change); MPS/CPU goldens for tapnext, locotrack and mvsplat (`--slow`);
 test_auto_mode, test_mlx, test_mlx_plan_cache, test_mlx_shape_caches (67 passed).
+
+## 2026-11-22: lingbot-map MPS memory, cotracker3-online steps, nnU-Net glue (M1 Pro 16 GB)
+
+Second survey run each, `--modes portable`; ms / MB peak footprint / first call s.
+
+### lingbot-map (MPS)
+
+| dtype | MPS before | MPS after | MLX (unchanged) |
+| --- | --- | --- | --- |
+| fp32 | 8840 / 13055, golden skip (survey: OOM in the golden reload) | 9234 (min 9021) / 9658, golden pass | 9970 / 8930 / 18.7 |
+| fp16 | 7124 / 7956 | 7609 (min 7603) / 5962 | 7261 / 5438 / 14.0 |
+
+Profile (MPS fp32, 8 views 480x640, one call about 9.2 s): global attention 24 x 112 ms = 2.7 s, depth head about
+0.9 s, camera head 0.06 s. Weights 4.4 GB, PyTorch-allocated peak about 6.6 GB (KV cache 1.6 GB). The MPS driver
+memory grew to 11.7 GB in the DPT depth head: its 8-view maps at 1/1 resolution (output_conv2 / refinenet, about
+0.8 GB each in fp32) each took a heap of their own.
+
+Changes:
+
+- **lingbot-map depth head on MPS one view at a time** (`frames_chunk_size=1`, as AnySplat). The views are
+  independent, so the output is the same. Footprint peak 13.1 -> 9.7 GB (fp32), 8.0 -> 6.0 GB (fp16). The eager
+  profile showed no slowdown (8.5 s warm either way); the survey's second run is 4-7% slower than the old rows, the
+  first run was not (fp32 8502, fp16 7367). CUDA and the MLX export (traced on the CPU) keep the 8-view chunk.
+- **speed_survey / merge_check**: a golden with load options (lingbot-map: `scale_frames`, `window`) reloads the
+  model. The timed copy is now dropped and the cache emptied before that reload; two fp32 copies (2 x 4.4 GB weights)
+  ran the 16 GB Mac out of memory, which is why the fp32 golden was "skip".
+
+Investigated, not changed:
+
+- **Chunked global-attention queries**: no gain. MPS SDPA at head dim 64 is fused (8336 tokens fp32, no driver
+  growth, 112 ms per layer); it is not the memory cause.
+- **Per-view depth head on MLX**: not tried in this time box. The MLX rows already peak below MPS (8.9 / 5.4 GB).
+
+No route change (gen_auto_mode: no diff). Goldens: test_cpu_portable and test_mps for lingbot-map pass; the survey's
+fp32 and fp16 goldens pass.

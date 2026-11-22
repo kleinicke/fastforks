@@ -325,7 +325,10 @@ class _Fast(vggt._Fast):  # noqa: SLF001 - the VGGT fast path is this family's b
                 pend[j].clear()
             xi = torch.cat(pend_img)[None]
             pend_img.clear()
-            d, cf = self.net.depth_head(toks, images=xi, patch_start_idx=SPECIAL)
+            # MPS: the DPT head one view at a time (as AnySplat). 8 views at once make 0.8 GB fp32 maps at 1/1 that
+            # each take a heap of their own; the views are independent, so the output is the same.
+            per = 1 if xi.device.type == "mps" else CHUNK
+            d, cf = self.net.depth_head(toks, images=xi, patch_start_idx=SPECIAL, frames_chunk_size=per)
             depth.append(d[0, ..., 0].float())
             conf.append(cf[0].float())
 

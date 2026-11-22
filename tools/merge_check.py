@@ -159,6 +159,12 @@ def golden_step(model: Any, spec: dict[str, Any], common: dict[str, Any], calls:
         want = tg.golden(ref)
         opts = tg.options(ref, want)
         if opts:
+            m = model = None  # free the timed model before the reload (no two copies of the weights at once)
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            elif torch.backends.mps.is_available():
+                torch.mps.empty_cache()
             m = tg.API[tg.TASK[ref]].load(
                 ref, mode=spec["mode"], device=spec.get("device", "cuda"), dtype=spec.get("dtype"), **(opts or {})
             )

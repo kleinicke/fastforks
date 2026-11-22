@@ -313,7 +313,12 @@ def worker_local(spec: dict[str, Any]) -> int:
         row = {**common, "error": " ".join(f"{type(e).__name__}: {e}".split())[:600]}
     merge_check.speed_check()._append(out, row)  # noqa: SLF001 - the row writer of the floor's worker
     if m is not None and "ms" in row:
-        merge_check.golden_step(m, spec, common, [], out)
+        # Only the golden step may hold the model: a golden with load options reloads it, and the timed copy must be
+        # freed first (lingbot-map fp32 on MPS: two copies of 4.4 GB of weights ran out of memory).
+        held = [m]
+        m = model = None
+        args = kw = None
+        merge_check.golden_step(held.pop(), spec, common, [], out)
     m = None  # the golden step dropped its own reference
     gc.collect()
     return 0
