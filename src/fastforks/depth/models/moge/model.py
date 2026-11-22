@@ -31,6 +31,7 @@ from fastforks._core.errors import InputError
 from fastforks._core.half import half_weights
 from fastforks._core.model import eager_in_compile
 from fastforks._core.patch import base_type, override
+from fastforks._core.upload import to_device
 from fastforks.depth._runner import Forward, Runner
 from fastforks.kernels import sparse_conv
 from fastforks.shared import mlx_wrap
@@ -153,7 +154,11 @@ def focal_shift(
     u, v = u[_nearest_index(w, _FIT[1], points.device)], v[_nearest_index(h, _FIT[0], points.device)]
     ul = torch.stack(torch.meshgrid(u, v, indexing="xy"), -1).reshape(1, -1, 2)
     ml = near(mask[:, None].float())[:, 0].reshape(b, -1) > 0
-    pl, ul, wl = pl.cpu().double(), ul.cpu().double(), ml.cpu().double()  # cast on the CPU: MPS has no float64
+    # one copy to the CPU for all three (each .cpu() is a host sync); cast there: MPS has no float64
+    host = torch.cat((pl.flatten(), ul.flatten(), ml.float().flatten())).cpu().double()
+    pl, ul, wl = (
+        t.view_as(r) for t, r in zip(host.split((pl.numel(), ul.numel(), ml.numel())), (pl, ul, ml), strict=True)
+    )
     fd = focal.cpu().double() if focal is not None else None
     shift = _solve_shift(ul, pl, wl, fd)
     few = wl.sum(1) < 2  # noqa: PLR2004 - upstream: fewer than 2 points -> focal 1, shift 0
@@ -165,7 +170,8 @@ def focal_shift(
         f = torch.where(few, 1, f)
     else:
         f = fd.float()
-    return f.to(points.device), shift.to(points.device)
+    f, shift = to_device(torch.stack((f, shift)), points.device)  # one asynchronous upload
+    return f, shift
 
 
 # MoGe accepts relative |fy - fx| / fx (and skew) and |c - size / 2| / size up to these (NYU: cy is 2.9 % off)
