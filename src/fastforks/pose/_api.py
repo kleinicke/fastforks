@@ -159,8 +159,10 @@ class PoseModel(core.Model):
         """
         x = to_rgb_batch(image, self.device)
         per_image = self._boxes(boxes, x.shape[0], batch=is_batch(image))
-        if self._runner.batch == 1 or not self.needs_boxes or x.shape[0] == 1:
+        if self._runner.batch == 1 or x.shape[0] == 1:
             outs = [self._raw(x[i : i + 1], b) for i, b in enumerate(per_image)]
+        elif not self.needs_boxes:
+            outs = self._raw_images(x)
         else:
             outs = self._raw_batch(x, per_image)
         results = [self._result(out, b) for out, b in zip(outs, per_image, strict=True)]
@@ -198,6 +200,16 @@ class PoseModel(core.Model):
         _check_fractions(x, boxes)
         with self._session():
             return self._runner(x, boxes)
+
+    def _raw_images(self, x: torch.Tensor) -> list[dict[str, torch.Tensor]]:
+        """A one-stage runner on a batch: `batch` images per `estimate_batch` call (`None`: all of them)."""
+        step = self._runner.batch or x.shape[0]
+        outs: list[dict[str, torch.Tensor]] = []
+        for s in range(0, x.shape[0], step):
+            chunk = x[s : s + step]
+            with self._session():
+                outs += self._runner.estimate_batch(chunk, cast("list[torch.Tensor]", [None] * chunk.shape[0]))
+        return outs
 
     def _raw_batch(self, x: torch.Tensor, boxes: list[torch.Tensor | None]) -> list[dict[str, torch.Tensor]]:
         """A `TopDown` runner on a batch: the images with people in groups of up to `PEOPLE` boxes, one call each."""

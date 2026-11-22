@@ -130,6 +130,10 @@ class Portable(Runner):
     dtypes = ("float32", "float16")
     Params = Params
     needs_boxes: ClassVar[bool] = False
+    # images per network call (`estimate_batch`): launch bound (RTX 5060 Ti, Windows, fp16, 8 frames 480 x 640, ms per
+    # frame: rtmo-t 12.7 -> 4.8, rtmo-s 12.8 -> 5.6, rtmo-m 14.4 -> 7.2, rtmo-l 18.3 -> 9.5); the network input is
+    # the fixed letterbox size, so memory does not grow with the image
+    batch = 8
     resize = staticmethod(letterbox)
     suppress = staticmethod(nms)
 
@@ -183,6 +187,15 @@ class Portable(Runner):
         x, r = self.resize(image, self.ctx.params.size)
         return self.people(self.dense(x), r, *image.shape[-2:])
 
+    def estimate_batch(self, images: torch.Tensor, boxes: list[torch.Tensor]) -> list[dict[str, torch.Tensor]]:
+        """The people of each image of `[B, 3, H, W]`: letterboxed one by one, one network call, decoded per image."""
+        assert all(b is None for b in boxes)  # noqa: S101 - one-stage: the task API passes no boxes
+        size = self.ctx.params.size
+        boxed = [self.resize(images[i : i + 1], size) for i in range(images.shape[0])]
+        dense = self.dense(torch.cat([x for x, _ in boxed]))
+        h, w = images.shape[-2:]
+        return [self.people(tuple(t[i : i + 1] for t in dense), r, h, w) for i, (_, r) in enumerate(boxed)]
+
     def module(self) -> torch.nn.Module:
         """The network: images `[B, 3, S, S]` RGB in [0, 1] at the network size -> `net.Head.forward` per cell."""
 
@@ -198,6 +211,7 @@ class Kernels(Portable):
     The neck and the head stay the portable float16 modules; decoding as in `Portable`.
     """
 
+    batch = 1  # the network graph is captured for one image
     resize = staticmethod(_cuda_letterbox)
 
     @staticmethod
@@ -239,8 +253,14 @@ def extra() -> dict[tuple[str, str], object]:
     return {**NUMPY_ARRAYS, ("_codecs", "encode"): latin1_encode}
 
 
+class _OneImage(Portable):
+    """Portable for the MLX port: one image per call, as before batching (not measured on Apple GPUs)."""
+
+    batch = 1
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": mlx_wrap.port(_OneImage),
 }
