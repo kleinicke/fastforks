@@ -128,6 +128,7 @@ class SparseParams:
     max_keypoints: int
     detection_threshold: float
     long_side: int
+    cuda_graphs: bool
 
 
 class SparseDummy(Runner):

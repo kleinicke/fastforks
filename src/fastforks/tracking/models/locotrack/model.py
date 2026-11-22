@@ -16,7 +16,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
-from fastforks._core.half import fp16_accumulate
+from fastforks._core.half import fp16_accumulate, half_weights
 from fastforks._core.patch import override
 from fastforks._core.tracing import EXPORTING_FOR_MLX
 from fastforks._core.upload import device_tensor
@@ -234,6 +234,11 @@ class Kernels(Portable):
         override(self.net, _refine, "refine")
         mixer = self.net.torch_pips_mixer
         mixer.forward = _mixer(mixer)  # ty: ignore[invalid-assignment]  # per-instance override
+        if self.amp == torch.float16:
+            # requires_grad=False weights miss autocast's weight cache: every conv cast its fp32 weight to fp16 per
+            # frame chunk and per refinement; stored in fp16 the outputs are bit-identical (480 x 854: 118 -> 116 ms,
+            # 80 MiB less reserved)
+            half_weights(self.net, channels_last=False)
 
     def __call__(
         self, frames: Callable[[int], torch.Tensor], n: int, size: tuple[int, int], queries: torch.Tensor

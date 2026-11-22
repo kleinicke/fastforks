@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from fastforks._core.checkpoint import check_fits
-from fastforks._core.half import fp16_accumulate
+from fastforks._core.half import fp16_accumulate, half_weights
 from fastforks._core.runner import host
 from fastforks._core.upload import device_tensor
 from fastforks.shared import mlx_wrap
@@ -213,6 +213,9 @@ class Kernels(Portable):
         from .kernels import install  # noqa: PLC0415 - loads the fastbb / dpt_fused kernels (kernels mode only)
 
         install(self.net)
+        # the rest of the network kept fp32 weights (requires_grad=False: no autocast weight cache), cast to fp16 by
+        # every conv / Linear of every frame; stored in fp16 the outputs are bit-identical (480 x 854: 1128 -> 1101 ms)
+        half_weights(self.net, channels_last=False)
 
     def __call__(
         self, frames: Callable[[int], torch.Tensor], n: int, size: tuple[int, int], queries: torch.Tensor

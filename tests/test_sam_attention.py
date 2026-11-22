@@ -37,9 +37,13 @@ def _upstream(qkv: torch.Tensor, nh: int, rel: sam_attention.Rel, hw: tuple[int,
     return attn.softmax(-1) @ v
 
 
-@pytest.mark.parametrize("mask_bytes", [1 << 30, 3 * 64 * 64 * 8, 5 * 64 * 8])  # all heads, 3 heads, 5 query rows
-def test_biased_matches_upstream(monkeypatch: pytest.MonkeyPatch, mask_bytes: int) -> None:
+@pytest.mark.parametrize(
+    ("mask_bytes", "group_bytes"),
+    [(1 << 30, 1 << 30), (1 << 30, 3 * 64 * 64 * 8), (1 << 30, 1), (5 * 64 * 8, 1)],  # all / 3 / 1 head, 5 rows
+)
+def test_biased_matches_upstream(monkeypatch: pytest.MonkeyPatch, mask_bytes: int, group_bytes: int) -> None:
     monkeypatch.setattr(sam_attention, "MASK_BYTES", mask_bytes)
+    monkeypatch.setattr(sam_attention, "HEAD_GROUP_BYTES", group_bytes)
     qkv, rel = _case(2, 4, 16, 8, 8)
     want = _upstream(qkv, 4, rel, (8, 8))
     torch.testing.assert_close(sam_attention.biased(qkv, 4, rel, (8, 8)), want)
