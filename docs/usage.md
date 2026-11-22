@@ -695,6 +695,22 @@ than the original code. Set `torch.set_num_threads(n)` before the first call to 
 container, `os.cpu_count()` shows the host's). Going from 1 to 8 threads gives about 4x on large networks and 2x on
 small ones. Kernels need CUDA. Tested on x86-64 only; on a Mac, use the GPU (next section).
 
+## Windows
+
+The same wheels and backends run on Windows (tested: RTX 5060 Ti, Windows 11). What differs:
+
+- Each kernel launch costs more under the Windows display driver (WDDM), and every host synchronisation empties the
+  launch queue, so the CPU's launches stop overlapping the GPU's work. Models that launch many small kernels run
+  slower than on Linux; large ones run at the same speed. fastforks avoids host syncs inside a call (constants are
+  uploaded through pinned memory, checks of the inputs are combined into one), and `mode="auto"` picks the backend
+  from measurements made on Windows where they exist.
+- PyTorch's Windows wheels have no flash attention; `FASTFORKS_SDPA` (above) sets the order of the other backends.
+- Models that stream their transformer blocks from the host (for example SeedVR2, Marigold v2, SAM 3, VGGT and
+  MapAnything, when streaming) page-lock that memory.
+  Windows page-locks at most about half of the RAM (15.1 GiB of 32 GB); the blocks past that upload from pageable
+  memory without overlapping the computation, which is slower, and the load logs a warning saying how much was
+  page-locked.
+
 ## Apple silicon (MPS)
 
 On a Mac without CUDA, `load` puts a model on the Apple GPU (`mps`) when its family is validated there, else on the
