@@ -22,7 +22,7 @@ from torch.nn.utils.fusion import fuse_conv_bn_eval
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks._core.upload import device_tensor
-from fastforks.detection._runner import Forward, Runner
+from fastforks.detection._runner import Forward, Runner, split_kept
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
@@ -147,6 +147,8 @@ class Portable(Runner):
     """transformers' network in the compute dtype; PostProcess in float32."""
 
     dtypes = ("float32", "float16")
+    batch = None  # `detect_batch`: a batch of images in one network call
+    compiled_methods = ("__call__", "detect_batch")
     Params = Params
 
     def __init__(self, ctx: Context) -> None:
@@ -171,18 +173,22 @@ class Portable(Runner):
 
     def __call__(self, image: torch.Tensor, score_threshold: float) -> dict[str, torch.Tensor]:
         """Every detection above the threshold (best first, at most `max_detections`), in input pixels."""
+        return self.detect_batch(image, score_threshold)[0]
+
+    def detect_batch(self, images: torch.Tensor, score_threshold: float) -> list[dict[str, torch.Tensor]]:
+        """`__call__` for every image of `images` `[B, 3, H, W]`, one network call."""
         p: Any = self.ctx.params
-        h, w = image.shape[-2:]
-        logits, boxes = self._forward(self.normalise(square(image, p.size)))
-        scores, idx = logits[0].sigmoid().flatten().topk(p.num_select)
+        h, w = images.shape[-2:]
+        logits, boxes = self._forward(self.normalise(square(images, p.size)))
+        scores, idx = logits.sigmoid().flatten(1).topk(p.num_select)  # [B, num_select]
         classes = logits.shape[-1]
         labels, query = self.ids[idx % classes], idx // classes
-        cx, cy, bw, bh = boxes[0][query].unbind(-1)
+        cx, cy, bw, bh = boxes.gather(1, query[..., None].expand(-1, -1, 4)).unbind(-1)
         out = torch.stack((cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), -1) * device_tensor(
             [w, h, w, h], device=boxes.device, dtype=boxes.dtype
         )
-        keep = ((labels >= 0) & (scores >= score_threshold)).nonzero()[:, 0][: p.max_detections]
-        return {"boxes": out[keep], "scores": scores[keep], "labels": labels[keep]}
+        keep = (labels >= 0) & (scores >= score_threshold)
+        return split_kept(keep, p.max_detections, boxes=out, scores=scores, labels=labels)
 
     def module(self) -> torch.nn.Module:
         """The network: RGB `[B, 3, H, W]` in `[0, 1]` (no resize; the model call takes `size` x `size`, default 640).
