@@ -164,7 +164,8 @@ class Portable(Runner):
             sel = torch.cat(parts)
             cell, label, score = cell[sel], label[sel], score[sel]
         out = boxes[cell].clamp_(0, p.size) / device_tensor([sx, sy, sx, sy], device=boxes.device, dtype=boxes.dtype)
-        ok = (out[:, 2] > out[:, 0]) & (out[:, 3] > out[:, 1])  # the reference's `min_bbox_size = 0`
+        # the reference's `min_bbox_size = 0`, as indices: one host sync for the three outputs and the size check
+        ok = ((out[:, 2] > out[:, 0]) & (out[:, 3] > out[:, 1])).nonzero()[:, 0]
         out, label, score = out[ok], label[ok], score[ok]
         if out.numel():
             keep = classwise_nms(out, label, score, p.nms_iou)[: p.max_detections]
