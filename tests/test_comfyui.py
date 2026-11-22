@@ -751,7 +751,7 @@ def test_flow_image_and_warp(pack: Any) -> None:
     assert img.shape == (3, 2, 3)
     assert img[:, 1, 1].tolist() == [1, 1, 1]
     assert img[0, 0, 0] == 1
-    assert img[1, 0, 0] == 0
+    assert img[1, 0, 0] == pytest.approx(0, abs=1e-6)  # atan2 on Apple arm64 lands 1 ulp off the wheel stop
     assert c.flow_image(torch.full((2, 1, 1), float("nan"))).tolist() == [[[1.0]], [[1.0]], [[1.0]]]
     image = torch.arange(6.0).reshape(1, 2, 3, 1)
     shift = torch.zeros(1, 2, 3, 2)
