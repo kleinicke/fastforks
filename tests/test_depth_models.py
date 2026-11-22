@@ -504,8 +504,12 @@ def test_zoedepth_sizes_are_python_ints(h, w):
 
 
 @pytest.mark.parametrize("given_focal", [False, True])
-def test_moge_shift_solver_numpy_equals_torch(*, given_focal: bool) -> None:
-    """The eager numpy Levenberg-Marquardt of `focal_shift` runs the traced torch one's float64 operations exactly."""
+def test_moge_shift_solver_eager_matches_traced(*, given_focal: bool) -> None:
+    """The eager per-item Levenberg-Marquardt of `focal_shift` (valid points) finds the traced batched one's shift.
+
+    The sums run in another order and the two stop on `|step| <= 1e-13 |s|` at different iterates of a flat minimum:
+    they agree to about 1e-10, far below the float32 the shift is returned in.
+    """
     gen = torch.Generator().manual_seed(0)
     uv = torch.rand(2, 4096, 2, generator=gen, dtype=torch.float64) * 2 - 1
     z = torch.rand(2, 4096, 1, generator=gen, dtype=torch.float64) + 0.5
@@ -514,7 +518,11 @@ def test_moge_shift_solver_numpy_equals_torch(*, given_focal: bool) -> None:
     w[1, :4000] = 0  # a sparse item: the masked points divide 0 / 0
     focal = torch.tensor([1.7, 2.0], dtype=torch.float64) if given_focal else None
     want = moge_model._solve_shift(uv, xyz, w, focal)
-    with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
-        got = moge_model._solve_shift(uv.numpy(), xyz.numpy(), w.numpy(), None if focal is None else focal.numpy())
-    assert isinstance(got, np.ndarray)
-    assert torch.equal(torch.from_numpy(got), want), (got, want)
+    keep = w.numpy() > 0
+    got = [
+        moge_model._solve_shift_item(
+            uv[i].numpy()[keep[i]], xyz[i].numpy()[keep[i]], None if focal is None else float(focal[i])
+        )
+        for i in range(2)
+    ]
+    torch.testing.assert_close(torch.tensor(got, dtype=torch.float64), want, rtol=1e-9, atol=1e-12)
