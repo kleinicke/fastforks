@@ -27,7 +27,7 @@ import torch
 from fastforks._core.checkpoint import NUMPY_ARRAYS, Inert, latin1_encode, numeric_scalar
 from fastforks._optimize import optimize
 from fastforks.kernels import pose_warp
-from fastforks.pose._runner import Forward, Runner
+from fastforks.pose._runner import Forward, TopDown
 from fastforks.shared import mlx_wrap
 from fastforks.shared.topdown import FLIP, MEAN, STD, crop, crop_boxes
 
@@ -64,7 +64,7 @@ def decode(hm: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     return (torch.cat([x + dx * REFINE, y + dy * REFINE], -1)) * STRIDE, score[..., 0]
 
 
-class Portable(Runner):
+class Portable(TopDown):
     """Plain PyTorch: crops on the device, float16 network on CUDA, float32 decode."""
 
     dtypes = ("float32", "float16")
@@ -103,12 +103,17 @@ class Portable(Runner):
         back = torch.cat([back[..., :1], back[..., :-1]], -1)  # one column to the right, the first one kept
         return (hm[:p] + back) * 0.5
 
-    def __call__(self, image: torch.Tensor, boxes: torch.Tensor | None) -> dict[str, torch.Tensor]:
-        """Keypoints of the people in `boxes`."""
-        assert boxes is not None  # noqa: S101 - the task API checks top-down calls
-        a: Params = self.ctx.params
-        centre, size = crop_boxes(boxes.float(), a.height, a.width)
-        coords, score = decode(self.heatmaps(self.crop(image, centre, size, a.height, a.width)))
+    def regions(self, boxes: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Crop centres and sizes of the person boxes."""
+        return crop_boxes(boxes, self.ctx.params.height, self.ctx.params.width)
+
+    def crops(self, image: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> torch.Tensor:
+        """Crops in 0..255 at the network size (`crop`: the runner's crop operator)."""
+        return self.crop(image, centre, size, self.ctx.params.height, self.ctx.params.width)
+
+    def people(self, crops: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Heatmap decoding, mapped back to the input."""
+        coords, score = decode(self.heatmaps(crops))
         kp = coords * (size / self.net_size)[:, None] + (centre - size * 0.5)[:, None]
         return {"keypoints": kp, "keypoint_scores": score, "scores": score.mean(1)}
 

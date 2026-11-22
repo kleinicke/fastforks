@@ -29,7 +29,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks._optimize import conv_ops, ops, optimize
 from fastforks.kernels import pose_warp
-from fastforks.pose._runner import BUCKETS, Forward, Runner, in_buckets
+from fastforks.pose._runner import BUCKETS, Forward, Runner, TopDown, in_buckets
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cspnext import Attention, fold_bn
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
@@ -56,7 +56,7 @@ def decode(sx: torch.Tensor, sy: torch.Tensor) -> tuple[torch.Tensor, torch.Tens
     return torch.stack([ix, iy], -1).float() / SPLIT, torch.minimum(vx, vy)
 
 
-class Portable(Runner):
+class Portable(TopDown):
     """Plain PyTorch: crops on the device, float16 network on CUDA, float32 decode."""
 
     dtypes = ("float32", "float16")
@@ -94,12 +94,17 @@ class Portable(Runner):
         fy = sy[p:].index_select(1, self.flip)
         return (sx[:p] + fx) * 0.5, (sy[:p] + fy) * 0.5
 
-    def __call__(self, image: torch.Tensor, boxes: torch.Tensor | None) -> dict[str, torch.Tensor]:
-        """Keypoints of the people in `boxes`."""
-        assert boxes is not None  # noqa: S101 - the task API checks top-down calls
-        a: Params = self.ctx.params
-        centre, size = crop_boxes(boxes.float(), a.height, a.width)
-        coords, score = decode(*self.logits(crop(image, centre, size, a.height, a.width)))
+    def regions(self, boxes: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Crop centres and sizes of the person boxes."""
+        return crop_boxes(boxes, self.ctx.params.height, self.ctx.params.width)
+
+    def crops(self, image: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> torch.Tensor:
+        """Crops in 0..255 at the network size."""
+        return crop(image, centre, size, self.ctx.params.height, self.ctx.params.width)
+
+    def people(self, crops: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> dict[str, torch.Tensor]:
+        """SimCC decoding, mapped back to the input."""
+        coords, score = decode(*self.logits(crops))
         kp = coords * (size / self.net_size)[:, None] + (centre - size * 0.5)[:, None]
         return {"keypoints": kp, "keypoint_scores": score, "scores": score.mean(1)}
 
@@ -153,12 +158,12 @@ class Kernels(Portable):
         """Free the CUDA graphs and their memory pool on the device."""
         self.graphs.release()
 
-    def __call__(self, image: torch.Tensor, boxes: torch.Tensor | None) -> dict[str, torch.Tensor]:
-        """Keypoints of the people in `boxes`."""
-        assert boxes is not None  # noqa: S101 - the task API checks top-down calls
-        a: Params = self.ctx.params
-        centre, size = crop_boxes(boxes.float(), a.height, a.width)
-        crops = pose_warp.crop(image, centre, size, a.height, a.width)
+    def crops(self, image: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> torch.Tensor:
+        """Crops in 0..255 at the network size (one CUDA kernel)."""
+        return pose_warp.crop(image, centre, size, self.ctx.params.height, self.ctx.params.width)
+
+    def people(self, crops: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The graphed network and decoding per person bucket, mapped back to the input."""
         out = in_buckets(self.graphs, crops)
         kp = out[..., :2] * (size / self.net_size)[:, None] + (centre - size * 0.5)[:, None]
         score = out[..., 2]
@@ -192,19 +197,15 @@ class MetalKernels(Portable):
 
         self.lib = pose_metal.load(ctx.device)
 
-    def __call__(self, image: torch.Tensor, boxes: torch.Tensor | None) -> dict[str, torch.Tensor]:
-        """Keypoints of the people in `boxes`."""
+    def crops(self, image: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> torch.Tensor:
+        """Crops in 0..255 at the network size (one Metal kernel)."""
         from fastforks.kernels import pose_metal  # noqa: PLC0415 - loaded in __init__
 
-        assert boxes is not None  # noqa: S101 - the task API checks top-down calls
         a: Params = self.ctx.params
-        centre, size = crop_boxes(boxes.float(), a.height, a.width)
         s = size[:, 0] / a.width  # as `crop`
         x = fixed(centre[:, 0] - s * (a.width / 2), s, a.width)
         y = fixed(centre[:, 1] - s * (a.height / 2), s, a.height)
-        coords, score = decode(*self.logits(pose_metal.warp_crop(self.lib, image, x, y)))
-        kp = coords * (size / self.net_size)[:, None] + (centre - size * 0.5)[:, None]
-        return {"keypoints": kp, "keypoint_scores": score, "scores": score.mean(1)}
+        return pose_metal.warp_crop(self.lib, image, x, y)
 
 
 def _precise_conv(  # noqa: PLR0913, PLR0917 - fused kernel signature

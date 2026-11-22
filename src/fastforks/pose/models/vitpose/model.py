@@ -28,7 +28,7 @@ from fastforks._core.half import cublas_gemms, fp16_accumulate
 from fastforks._core.patch import override
 from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
 from fastforks._core.sampling import grid_sample
-from fastforks.pose._runner import BUCKETS, Forward, Runner, in_buckets
+from fastforks.pose._runner import BUCKETS, Forward, Runner, TopDown, in_buckets
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.host_blocks import StreamedModuleList
@@ -126,7 +126,7 @@ def decode(hm: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     return coords, score
 
 
-class Portable(Runner):
+class Portable(TopDown):
     """Plain PyTorch: crops on the device, float16 network on CUDA, float32 decode."""
 
     dtypes = ("float32", "float16")
@@ -156,12 +156,17 @@ class Portable(Runner):
         x = ((crops - self.mean) / self.std).to(self.ctx.torch_dtype)
         return self.net(x).float()
 
-    def __call__(self, image: torch.Tensor, boxes: torch.Tensor | None) -> dict[str, torch.Tensor]:
-        """Keypoints of the people in `boxes`."""
-        assert boxes is not None  # noqa: S101 - the task API checks top-down calls
-        a: Params = self.ctx.params
-        centre, size = crop_boxes(boxes.float(), a.height, a.width)
-        hm = self.heatmaps(crop(image, centre, size, a.height, a.width))
+    def regions(self, boxes: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Crop centres and sizes of the person boxes."""
+        return crop_boxes(boxes, self.ctx.params.height, self.ctx.params.width)
+
+    def crops(self, image: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> torch.Tensor:
+        """Crops in [0, 1] at the network size."""
+        return crop(image, centre, size, self.ctx.params.height, self.ctx.params.width)
+
+    def people(self, crops: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> dict[str, torch.Tensor]:
+        """DARK heatmap decoding, mapped back to the input."""
+        hm = self.heatmaps(crops)
         coords, score = decode(hm)
         h, w = hm.shape[-2:]
         scale = torch.stack([size[:, 0] / (w - 1), size[:, 1] / (h - 1)], 1)  # no host copy
@@ -247,12 +252,9 @@ class Kernels(Portable):
         """Free the CUDA graphs and their memory pool on the device."""
         self.graphs.release()
 
-    def __call__(self, image: torch.Tensor, boxes: torch.Tensor | None) -> dict[str, torch.Tensor]:
-        """Keypoints of the people in `boxes`."""
-        assert boxes is not None  # noqa: S101 - the task API checks top-down calls
+    def people(self, crops: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The graphed network and decoding per person bucket, mapped back to the input."""
         a: Params = self.ctx.params
-        centre, size = crop_boxes(boxes.float(), a.height, a.width)
-        crops = crop(image, centre, size, a.height, a.width)
         out = in_buckets(self.graphs, crops)
         h, w = a.height // UPSAMPLE_OUT, a.width // UPSAMPLE_OUT
         scale = torch.stack([size[:, 0] / (w - 1), size[:, 1] / (h - 1)], 1)  # no host copy
@@ -317,12 +319,10 @@ class MetalKernels(Portable):
         hm = F.linear(t, *self.final).float().view(-1, h, w, k)
         return pose_metal.dark_decode(self.lib, hm, k, channels_last=True, sigma=SIGMA, radius=RADIUS, clip=CLIP)
 
-    def __call__(self, image: torch.Tensor, boxes: torch.Tensor | None) -> dict[str, torch.Tensor]:
-        """Keypoints of the people in `boxes`."""
-        assert boxes is not None  # noqa: S101 - the task API checks top-down calls
+    def people(self, crops: torch.Tensor, centre: torch.Tensor, size: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The network and DARK decoding with the Metal kernels, mapped back to the input."""
         a: Params = self.ctx.params
-        centre, size = crop_boxes(boxes.float(), a.height, a.width)
-        out = self._decoded(crop(image, centre, size, a.height, a.width))
+        out = self._decoded(crops)
         h, w = a.height // UPSAMPLE_OUT, a.width // UPSAMPLE_OUT
         scale = torch.stack([size[:, 0] / (w - 1), size[:, 1] / (h - 1)], 1)  # no host copy
         kp = out[..., :2] * scale[:, None] + (centre - size * 0.5)[:, None]
