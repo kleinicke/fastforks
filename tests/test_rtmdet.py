@@ -262,13 +262,17 @@ def test_per_call_score_threshold_equals_the_load_option(ref: str) -> None:
 @pytest.mark.gpu
 @pytest.mark.parametrize("ref", REFS)
 def test_kernels_graph_replays_new_images_like_the_eager_network(ref: str) -> None:
-    """The graph is captured on the first call; later images of other sizes replay it and match `cuda_graphs=False`."""
+    """The network graph is captured on the first call; later images of other sizes replay it.
+
+    Every output matches `cuda_graphs=False`. The resize to the canvas has a graph per input shape, captured when a
+    shape comes again (240 x 320).
+    """
     graph = _load(ref, "cuda", "kernels", score_threshold=0.01)
     eager = _load(ref, "cuda", "kernels", score_threshold=0.01, cuda_graphs=False)
     runner = graph._runner
     assert runner.graphs is not None
     assert eager._runner.graphs is None
-    for seed, (h, w) in enumerate([(240, 320), (480, 300), (96, 640), (240, 320)]):
+    for seed, (h, w) in enumerate([(240, 320), (480, 300), (96, 640), (240, 320), (240, 320)]):
         img = image(h, w, seed=seed)
         got, want = graph(img), eager(img)
         assert len(want.scores) > 0
@@ -276,6 +280,10 @@ def test_kernels_graph_replays_new_images_like_the_eager_network(ref: str) -> No
         assert torch.equal(got.scores, want.scores)
         assert torch.equal(got.boxes, want.boxes)
     assert len(runner.graphs.graphs) == 1  # one size x size graph for every image size
+    assert len(runner.canvases.graphs) == 1  # the repeated 240 x 320 input
+    runner.release_graphs()
+    assert not runner.graphs.graphs
+    assert not runner.canvases.graphs
 
 
 @pytest.mark.slow
