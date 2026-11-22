@@ -2,7 +2,7 @@ schema = 2
 name = "HRNet"
 summary = "HRNet (Sun et al. 2019): top-down 2D human pose with a high-resolution CNN that keeps a 1/4-scale branch through the whole network and repeatedly exchanges features with three coarser parallel branches; a 1 x 1 conv on the finest branch gives one heatmap per keypoint, decoded as its maximum moved a quarter heatmap pixel towards the larger neighbour. The mmpose COCO checkpoints (w32 / w48, 256 x 192 and 384 x 288) return the 17 COCO keypoints. Takes person boxes (e.g. from `fastforks.detection`) and crops each at the network size; vendored from mmpose (no mmpose / mmcv dependency). The portable `module()` maps crops to heatmaps."
 tier = "stable"
-uses = ["topdown", "mlx_wrap"]  # shared modules imported directly by this family
+uses = ["cuda_graphs", "topdown", "mlx_wrap"]  # shared modules imported directly by this family
 outputs = ["keypoints", "keypoint_scores", "boxes", "scores"]
 
 [upstream]
@@ -27,6 +27,7 @@ input = "imagenet"  # the runner crops each box at the network size and normalis
 
 [options]
 flip_test = { default = false }  # true: average with the mirrored crop's shifted heatmaps (mmpose's COCO AP protocol; two network passes)
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph per person bucket (false: eager, no extra memory)
 
 [params]
 channels = 32

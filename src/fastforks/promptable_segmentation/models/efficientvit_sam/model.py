@@ -23,7 +23,7 @@ from fastforks._core.upload import device_tensor
 from fastforks._optimize import optimize
 from fastforks.promptable_segmentation._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
-from fastforks.shared.cuda_graphs import GraphCache
+from fastforks.shared.cuda_graphs import GraphCache, SmallShapeGraphs
 
 from .fast import Trunk, decode, prepare, preprocess_shape, tensor_eps, wide_points
 from .net.backbone import EfficientViTLargeBackbone
@@ -44,6 +44,9 @@ TOKENS = 64  # fixed: SAM's image embedding side
 # 24.7 -> 24.2 ms (GPU-bound from there on, where a graph only holds memory)
 GRAPH_PROMPTS = 4  # fixed: measured, see above
 GRAPHS = 4  # fixed: prompt layouts with a graph at a time (points, a box, both, with a mask)
+# RTX 5060 Ti, Windows, l0 (512 px encoder input) at 1024 x 1024 with one point: 6.03 -> 4.75 ms with the encoder in a
+# CUDA graph, bit-identical; the xl variants (1024 px input) are not measured and stay eager
+ENCODER_GRAPH_PIXELS = 512 * 512  # fixed: graph cache policy (encoder inputs up to this size), not architecture
 NORM_EPS = 1e-6  # fixed: upstream `sam_model_zoo.create_efficientvit_sam_model` (`set_norm_eps(model, 1e-6)`)
 
 # upstream `efficientvit_sam_*` (models/efficientvit/sam.py) and `efficientvit_backbone_l*`: backbone and neck arguments
@@ -72,6 +75,7 @@ class Params:
     image_size: int  # SAM's prompt frame (longest image side for prompt coordinates and mask upsampling)
     arch: str  # key of `ARCHS`
     input_size: int  # encoder input side (longest image side, padded to a square)
+    cuda_graphs: bool  # kernels: replay CUDA graphs of the image encoder and the prompt decode (option)
 
 
 class Sam(torch.nn.Module):
@@ -238,7 +242,12 @@ class Kernels(_Sam):
             msg = "the kernels image encoder is not a traced graph"
             raise TypeError(msg)
         self.trunk.report["points"] = wide_points(net)
-        self.cache = GraphCache(self._graph_forward, graphs=GRAPHS)
+        self.cache = GraphCache(self._graph_forward, graphs=GRAPHS) if ctx.params.cuda_graphs else None
+        self.encoder = SmallShapeGraphs(super()._enc, pixels=ENCODER_GRAPH_PIXELS, enabled=ctx.params.cuda_graphs)
+
+    def _enc(self, x: torch.Tensor) -> torch.Tensor:
+        """`_Sam._enc` from a CUDA graph up to `ENCODER_GRAPH_PIXELS` (one input size per variant: one graph)."""
+        return self.encoder(x)
 
     def _decode(
         self,
@@ -252,7 +261,7 @@ class Kernels(_Sam):
         if not given or len(given[0]) > GRAPH_PROMPTS:
             return super()._decode(embedding, points, boxes, masks)
         key = (len(given[0]), points[0].shape[1] if points else 0, boxes is not None, masks is not None)
-        out = self.cache.run(key, embedding, *given)
+        out = None if self.cache is None else self.cache.run(key, embedding, *given)
         return super()._decode(embedding, points, boxes, masks) if out is None else out
 
     def _graph_forward(self, embedding: torch.Tensor, *given: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -263,8 +272,10 @@ class Kernels(_Sam):
         return decode(pe, dec, embedding, points=points, labels=labels, boxes=boxes, masks=masks)
 
     def release_graphs(self) -> None:
-        """Free the prompt-decode CUDA graphs and their memory pool (they are captured again when needed)."""
-        self.cache.release()
+        """Free the encoder and prompt-decode CUDA graphs and their memory pools (captured again when needed)."""
+        self.encoder.release()
+        if self.cache is not None:
+            self.cache.release()
 
 
 RUNNERS = {

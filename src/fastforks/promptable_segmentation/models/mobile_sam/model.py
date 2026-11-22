@@ -23,7 +23,7 @@ from fastforks._core.upload import device_tensor
 from fastforks._optimize import optimize
 from fastforks.promptable_segmentation._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
-from fastforks.shared.cuda_graphs import GraphCache
+from fastforks.shared.cuda_graphs import GraphCache, SmallShapeGraphs
 from fastforks.shared.sam_prompt import decode, prepare, preprocess_shape
 from fastforks.shared.sam_prompt.net.mask_decoder import MaskDecoder
 from fastforks.shared.sam_prompt.net.prompt_encoder import PromptEncoder
@@ -40,6 +40,8 @@ PROMPT_DIM = 256  # fixed: SAM's prompt / mask-decoder embedding width
 TOKENS = 64  # fixed: SAM's image embedding side
 GRAPH_PROMPTS = 4  # fixed: as EfficientViT-SAM (same prompt side: a graph pays off up to 4 prompts)
 GRAPHS = 4  # fixed: prompt layouts with a graph at a time (points, a box, both, with a mask)
+# The image encoder (TinyViT, launch-bound) replays a CUDA graph too: RTX 5060 Ti, Windows, 1024 x 1024 with one
+# point 9.17 -> 7.23 ms, bit-identical, +126 MiB peak reserved
 
 
 @dataclass(frozen=True)
@@ -47,6 +49,7 @@ class Params:
     """Card `[params]`."""
 
     image_size: int  # encoder input side and the prompt frame (longest image side, padded to a square)
+    cuda_graphs: bool  # kernels: replay CUDA graphs of the image encoder and the prompt decode (option)
 
 
 class Sam(torch.nn.Module):
@@ -197,7 +200,13 @@ class Kernels(_Sam):
     def __init__(self, ctx: Context) -> None:
         """As `_Sam`, plus the prompt-decode graph cache."""
         super().__init__(ctx)
-        self.cache = GraphCache(self._graph_forward, graphs=GRAPHS)
+        self.cache = GraphCache(self._graph_forward, graphs=GRAPHS) if ctx.params.cuda_graphs else None
+        side = ctx.params.image_size
+        self.encoder = SmallShapeGraphs(super()._enc, pixels=side * side, enabled=ctx.params.cuda_graphs)
+
+    def _enc(self, x: torch.Tensor) -> torch.Tensor:
+        """`_Sam._enc` from a CUDA graph (the encoder input has one fixed size, so one graph serves every image)."""
+        return self.encoder(x)
 
     def _decode(
         self,
@@ -211,7 +220,7 @@ class Kernels(_Sam):
         if not given or len(given[0]) > GRAPH_PROMPTS:
             return super()._decode(embedding, points, boxes, masks)
         key = (len(given[0]), points[0].shape[1] if points else 0, boxes is not None, masks is not None)
-        out = self.cache.run(key, embedding, *given)
+        out = None if self.cache is None else self.cache.run(key, embedding, *given)
         return super()._decode(embedding, points, boxes, masks) if out is None else out
 
     def _graph_forward(self, embedding: torch.Tensor, *given: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -222,8 +231,10 @@ class Kernels(_Sam):
         return decode(pe, dec, embedding, points=points, labels=labels, boxes=boxes, masks=masks)
 
     def release_graphs(self) -> None:
-        """Free the prompt-decode CUDA graphs and their memory pool (they are captured again when needed)."""
-        self.cache.release()
+        """Free the encoder and prompt-decode CUDA graphs and their memory pools (captured again when needed)."""
+        self.encoder.release()
+        if self.cache is not None:
+            self.cache.release()
 
 
 RUNNERS = {

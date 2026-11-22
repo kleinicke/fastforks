@@ -347,7 +347,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: <https://github.com/open-mmlab/mmpose/blob/5408bc76f5b848cf925a0d1857899011d8c5b497/README.md#license>
 - Training data: COCO 2017 (train, instance annotations), ImageNet-1k (ILSVRC 2012 classification) (COCO 2017 keypoints; the HRNet backbone was initialised from ImageNet-1k classification weights)
-- Options: `flip_test` = False
+- Options: `flip_test` = False, `cuda_graphs` = True (speed only)
 - Kernel libraries: `pose_warp`, `cudnn_hacc`, `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `hrnet-w32`, `hrnet-w32-384`, `hrnet-w48`, `hrnet-w48-384`
 - Outputs: keypoints, keypoint_scores, boxes, scores; label_set: `coco-keypoints-17`

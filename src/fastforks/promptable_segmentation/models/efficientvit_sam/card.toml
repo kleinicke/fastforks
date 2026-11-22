@@ -7,7 +7,7 @@ uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family impor
 
 limitations = [
   "On the RTX 5060 Ti at 3840 × 2160 with 12 point prompts and 36 output masks, EfficientViT-SAM L0 used 621 MiB portable and 626 MiB kernels, down from 1,546 and 1,552 MiB. Masks, scores and logits matched bit for bit. Paired latency was 37.0 to 38.6 ms portable and 35.3 to 36.9 ms kernels.",
-  "Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~85 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
+  "Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~90 MiB above portable at 1024 x 1024 (280 vs 190 MiB, RTX 5060 Ti, Windows; peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
 ]
 
 [upstream]
@@ -35,6 +35,9 @@ mlx_dtypes = ["float32"]
 
 [modes.kernels]
 kernels = ["fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3"]  # fused fp16 image encoder; the prompt decode of up to 4 prompts replays a CUDA graph (float32, bit-identical; `release_graphs()` frees them)
+
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay CUDA graphs of the image encoder (512 px inputs: the l variants) and of the decode of up to 4 prompts (false: eager, no extra memory)
 
 [[papers]]
 title = "EfficientViT-SAM: Accelerated Segment Anything Model Without Accuracy Loss"
