@@ -955,6 +955,7 @@ option matching.dedode.size
 option matching.flexglue.long_side
 option matching.flexglue.max_keypoints
 option matching.flexglue.size
+option matching.lightglue.cuda_graphs
 option matching.lightglue.long_side
 option matching.lightglue.max_keypoints
 option matching.loftr.long_side

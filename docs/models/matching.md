@@ -111,7 +111,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0 AND BSD-3-Clause
 - Licence evidence: https://github.com/cvg/LightGlue/blob/5a650c444718caffc2669dc0094cde908f42dd73/README.md#license ; https://github.com/Shiaoming/ALIKED/blob/683d7c65197395c0b3f01ebe76e1084a27e73a65/LICENSE ; https://github.com/cvlab-epfl/disk/blob/8dc6d4d65b47210f629e21ad1fbfb56944b11696/LICENSE.txt
 - Training data: MegaDepth (Internet photo collections with SfM / MVS depth) (LightGlue: pretrained on synthetic homographies of the Oxford-Paris 1M distractor images (Flickr; no dataset entry here), fine-tuned on MegaDepth. ALIKED and DISK: trained on MegaDepth.)
-- Options: `max_keypoints` = 2048 (>= 1), `long_side` = 1024 (>= 0)
+- Options: `max_keypoints` = 2048 (>= 1), `long_side` = 1024 (>= 0), `cuda_graphs` = True (speed only)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `aliked-lightglue`, `disk-lightglue`
 - Public ONNX / TensorRT export is unavailable for `aliked-lightglue` (torch.export stops at a data-dependent branch (masks.sum() == 0)).
@@ -156,6 +156,7 @@ CPU, float32: max |diff| <= 3e-05 vs the original. GPU, portable float32 and ker
 
 - Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.
 - One image pair per call internally (batches run pair by pair); the keypoint counts differ per image.
+- Kernels (ALIKED) keep a CUDA graph of the dense maps per detection size: its private pool stays reserved, ~130 MiB at 768 x 1024 (1494 vs 1360 MiB reserved after the first call, peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 - No exportable module: the keypoint counts are data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).
 - ALIKED-LightGlue has a fixed 768 x 1024 standalone FP32 TensorRT encoder measurement with TF32 disabled. Keypoint selection and LightGlue run in PyTorch. On 300 MegaDepth pairs, AUC@5 was 51.32 versus 49.75 portable FP32, with a worst paired pose error increase of 21.25 degrees.
 - Computing DISK descriptors only at selected keypoints also changed pose outcomes. On a 100-pair MegaDepth check, both the PyTorch and TensorRT sparse projections changed a previously solved pair from 25.78 degrees to the 90-degree failure value, despite identical detected keypoints.
