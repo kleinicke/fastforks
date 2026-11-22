@@ -1205,22 +1205,29 @@ class Stereo(_Node):
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        return {"required": {"left": ("IMAGE",), "right": ("IMAGE",), **common(cls)}}
+        return {"required": {"left": ("IMAGE",), "right": ("IMAGE",), **common(cls)}, "optional": BATCH}
 
-    def run(
-        self, *, left: torch.Tensor, right: torch.Tensor, model: str, backend: str, dtype: str
+    def run(  # noqa: PLR0913 - the node's inputs
+        self, *, left: torch.Tensor, right: torch.Tensor, model: str, backend: str, dtype: str, batch_size: int = 1
     ) -> tuple[torch.Tensor]:
-        """Match every left / right pair."""
+        """Match every left / right pair, `batch_size` pairs per model call."""
         if left.shape != right.shape:
             msg = f"left and right must be batches of one size, got {tuple(left.shape)} and {tuple(right.shape)}"
             raise ValueError(msg)
         m = load(model, backend, dtype)
+        n, step = left.shape[0], max(1, batch_size)
+        starts = range(0, n, step)
 
-        def one(i: int) -> torch.Tensor:
-            r = m(convert.frame(left, i, m.device), convert.frame(right, i, m.device))
-            return convert.depth_image(None, r.disparity, clip=_STEREO_CLIP)  # disparity is an inverse depth
+        def chunk(j: int) -> list[torch.Tensor]:
+            a, b = starts[j], min(n, starts[j] + step)
+            if step == 1:
+                r = m(convert.frame(left, a, m.device), convert.frame(right, a, m.device))
+                return [convert.depth_image(None, r.disparity, clip=_STEREO_CLIP)]  # disparity is an inverse depth
+            r = m(convert.frames(left, a, b, m.device), convert.frames(right, a, b, m.device))
+            return [convert.depth_image(None, d, clip=_STEREO_CLIP) for d in r.disparity]
 
-        return (convert.to_image(each(left.shape[0], one), _out_device()),)
+        maps = [o for c in each(len(starts), chunk) for o in c]
+        return (convert.to_image(maps, _out_device()),)
 
 
 class Flow(_Node):

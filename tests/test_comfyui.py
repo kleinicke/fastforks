@@ -320,6 +320,27 @@ def test_remove_background_batch_size(pack: Any, monkeypatch: pytest.MonkeyPatch
     assert "batch_size" in nodes.RemoveBackground.INPUT_TYPES()["optional"]
 
 
+def test_stereo_batch_size(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stereo with `batch_size` > 1 matches `batch_size` pairs per call, each map as with one pair per call."""
+    nodes = pack.nodes
+    calls: list[tuple[int, ...]] = []
+
+    class Model:
+        device = torch.device("cpu")
+
+        def __call__(self, left: torch.Tensor, right: torch.Tensor) -> Any:
+            calls.append(tuple(left.shape))
+            return SimpleNamespace(disparity=(left - right)[..., 0, :, :] * 10 + 20)
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: Model())
+    monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])
+    left, right = torch.rand(3, 4, 6, 3), torch.rand(3, 4, 6, 3)
+    kw = {"left": left, "right": right, "model": "m", "backend": "auto", "dtype": "auto"}
+    (one,), (two,) = (nodes.Stereo().run(**kw, batch_size=b) for b in (1, 2))
+    assert calls == [(3, 4, 6)] * 3 + [(2, 3, 4, 6), (1, 3, 4, 6)]
+    torch.testing.assert_close(two, one)
+
+
 def test_errors_name_the_backend_input(pack: Any) -> None:
     """The library's `mode=` is the node's `backend` input: errors say so, keeping their type and other words."""
     import fastforks  # noqa: PLC0415
