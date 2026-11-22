@@ -216,6 +216,8 @@ def fold_bn_hooks(model: nn.Module, size: int = 64) -> int:  # noqa: C901, PLR09
     input-dependent paths. The BN module is replaced by its activation (timm BatchNormAct2d: drop + act) or
     nn.Identity. A fold that changes the probe output is undone (an extra check). Returns the number folded.
     """
+    if not any(isinstance(m, nn.BatchNorm2d) for m in model.modules()):
+        return 0  # nothing to fold: no probe forward (a load-time cost, e.g. a network whose BN the card folded)
     convs: dict[int, tuple[nn.Module, torch.Tensor]] = {}
     pairs: list[tuple[nn.Conv2d, nn.BatchNorm2d]] = []
     hooks = []
@@ -297,6 +299,8 @@ def fold_bn_hooks(model: nn.Module, size: int = 64) -> int:  # noqa: C901, PLR09
             y = model(x0)
         return bool(((y - ref).abs().max() <= 1e-3 * (ref.abs().max() + 1e-6)).item())
 
+    if not cand:
+        return 0
     undos = [apply(c, bn) for c, bn in cand]
     if ok():
         return len(cand)

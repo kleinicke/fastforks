@@ -285,6 +285,11 @@ def resolve(task: str, model: str) -> tuple[ModelCard, Variant]:
     return entry
 
 
+def known(task: str, model: object) -> bool:
+    """Whether `task` has the id of `model` (`"id"` or `"id@revision"`), without building `resolve`'s error."""
+    return isinstance(model, str) and _lookup(task, model.partition("@")[0]) is not None
+
+
 def _split(model: object) -> tuple[str, str, str]:
     """`(id, "@", revision)` of an id string (`model.partition("@")`); a non-string is a `ModelNotFoundError`."""
     if not isinstance(model, str):

@@ -199,11 +199,7 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load`, plus classifi
 
 
 def _has(task: str, model: str) -> bool:
-    try:
-        registry.resolve(task, model)
-    except FastforksError:
-        return False
-    return True
+    return registry.known(task, model)  # the revision is checked by `resolve_any`; a miss builds no error (load time)
 
 
 def describe_models(models: Sequence[str] | None = None, **filters: Any) -> str:  # noqa: ANN401 - `list_models` filters
