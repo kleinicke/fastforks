@@ -321,8 +321,10 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, pad, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
 
 
-# a graph saves 15 % at 256 x 448 and nothing from 480p on (GPU-bound), where its pool would only cost memory
-_GRAPH_PIXELS = 256 * 512
+# a graph replaces the eager launches while the host is slower than the GPU; RTX 5060 Ti, Windows, ms per frame
+# eager -> graph: 256 x 448 26.4 -> 16.9, 384 x 384 28.8 -> 20.6, 384 x 640 39.8 -> 35.3, 512 x 512 41.8 -> 38.2,
+# 448 x 768 54.1 -> 50.6, 480p 71.9 -> 68.5 (+114 MiB reserved for 5 %); larger inputs keep no graph pool
+_GRAPH_PIXELS = 512 * 512
 
 
 class Kernels(Portable):
