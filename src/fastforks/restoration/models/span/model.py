@@ -66,6 +66,10 @@ class Portable(Runner):
         del self.net.mean
         self.net.register_buffer("mean", mean, persistent=False)
         self.net.eval().to(ctx.device, getattr(torch, ctx.dtype))
+        if ctx.device.type == "cuda" and ctx.dtype == "float16":
+            # channels-last weights: cuDNN's fp16 kernels skip the NCHW<->NHWC conversion around each conv
+            # (512x512 x2 23.6 -> 17.2 ms, peak 606 -> 498 MB, RTX 5060 Ti, Windows); float32 stays NCHW
+            self.net.to(memory_format=torch.channels_last)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The upscaled batch."""
