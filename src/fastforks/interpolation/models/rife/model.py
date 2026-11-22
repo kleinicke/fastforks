@@ -246,6 +246,12 @@ class Portable(Runner):
         check_fits(self.net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
         self.net.load_state_dict(sd)
         self.net.eval().to(ctx.device, getattr(torch, ctx.dtype))
+        if ctx.device.type == "cuda" and ctx.dtype == "float16":
+            # channels-last blocks and weights: cuDNN otherwise converts NCHW <-> NHWC around each fp16 conv (~120
+            # extra kernels per call). RTX 5060 Ti 384 x 384 11.0 -> 10.0 ms, 720p 14.1 -> 12.2, 1080p 27.4 -> 25.1
+            # (82 dB from NCHW, less memory); float32 is slower and larger channels-last, so it stays NCHW
+            self.channels_last = True
+            self.net.to(memory_format=torch.channels_last)
         self._grids: dict | None = {}  # shape -> `_grids` (portable: eager, 2 shapes)
 
     def _forward(self, x: torch.Tensor, timestep: float | torch.Tensor) -> torch.Tensor:
