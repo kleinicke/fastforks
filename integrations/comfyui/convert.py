@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import torch
 
+from fastforks._core import upload
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -41,7 +43,8 @@ _COLOURS = [  # OpenPose-like limb colours
 
 def frame(image: torch.Tensor, i: int, device: torch.device) -> torch.Tensor:
     """Image `i` of a ComfyUI IMAGE batch as a fastforks input `[3, H, W]` on `device` (alpha dropped, gray to RGB)."""
-    x = image[i].to(device=device, dtype=torch.float32)
+    # pinned and asynchronous: a pageable upload waits for the copy, which empties the GPU's launch queue per image
+    x = upload.to_device(image[i], device).to(dtype=torch.float32)
     if x.shape[-1] == 1:
         x = x.expand(-1, -1, _RGB)
     return x[..., :_RGB].permute(2, 0, 1)

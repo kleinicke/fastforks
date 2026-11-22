@@ -869,11 +869,16 @@ class Interpolate(_Node):
         if n < 2:  # noqa: PLR2004 - a pair
             return (frames,)
 
+        last: list[torch.Tensor] = []  # the previous pair's second frame: each frame is uploaded once
+
         def one(i: int) -> list[torch.Tensor]:
-            a, b = convert.frame(frames, i, m.device), convert.frame(frames, i + 1, m.device)
+            a = last.pop() if last else convert.frame(frames, i, m.device)
+            b = convert.frame(frames, i + 1, m.device)
+            last.append(b)
             return [a] + [m(a, b, timestep=k / multiplier).frame for k in range(1, multiplier)]
 
-        out = [f for pair in each(n - 1, one) for f in pair] + [convert.frame(frames, n - 1, m.device)]
+        pairs = each(n - 1, one)
+        out = [f for pair in pairs for f in pair] + last
         return (convert.to_image(out, _out_device()),)
 
 
