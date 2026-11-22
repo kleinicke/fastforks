@@ -56,7 +56,7 @@ def anchors(h: int, w: int, device: torch.device) -> torch.Tensor:
     for step, sizes in zip(STEPS, MIN_SIZES, strict=True):
         ys = (torch.arange(math.ceil(h / step), device=device, dtype=torch.float32) + 0.5) * step
         xs = (torch.arange(math.ceil(w / step), device=device, dtype=torch.float32) + 0.5) * step
-        s = device_tensor(sizes, device=device, dtype=torch.float32)
+        s = torch.cat([torch.full((1,), float(v), device=device) for v in sizes])  # no host copy: graph capturable
         cy, cx, side = torch.meshgrid(ys, xs, s, indexing="ij")
         out.append(torch.stack([cx, cy, side, side], -1).reshape(-1, 4))
     return torch.cat(out)
@@ -83,10 +83,53 @@ def nms(boxes: torch.Tensor, iou: float) -> torch.Tensor:
 
 def split(maps: tuple[torch.Tensor, ...]) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Head maps of one image -> (face logits `[N, 2]`, box offsets `[N, 4]`, landmark offsets `[N, 10]`)."""
-    rows = torch.cat([m[0].permute(1, 2, 0).reshape(-1, HEAD) for m in maps])
-    n = rows.shape[0] * ANCHORS
+    logits, box, lms = split_batch(maps)
+    return logits[0], box[0], lms[0]
+
+
+def split_batch(maps: tuple[torch.Tensor, ...]) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Head maps `[B, HEAD, h, w]` -> (face logits `[B, N, 2]`, box offsets `[B, N, 4]`, landmarks `[B, N, 10]`)."""
+    rows = torch.cat([m.permute(0, 2, 3, 1).reshape(m.shape[0], -1, HEAD) for m in maps], 1)
+    bn, n = rows.shape[0], rows.shape[1] * ANCHORS
     c, b = 2 * ANCHORS, 6 * ANCHORS
-    return rows[:, :c].reshape(n, 2), rows[:, c:b].reshape(n, 4), rows[:, b:].reshape(n, 2 * LANDMARKS)
+    return rows[..., :c].reshape(bn, n, 2), rows[..., c:b].reshape(bn, n, 4), rows[..., b:].reshape(bn, n, 10)
+
+
+def decode(maps: tuple[torch.Tensor, ...], h: int, w: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Every anchor of float32 head maps `[B, HEAD, h, w]` of `h` x `w` images decoded (module docstring).
+
+    Scores `[B, N]`, boxes `[B, N, 4]` and landmarks `[B, N, LANDMARKS, 2]`; elementwise per anchor, so selecting
+    anchors afterwards gives the same values as decoding only the selected ones.
+    """
+    logits, box, lms = split_batch(maps)
+    score = (logits[..., 1] - logits[..., 0]).sigmoid()  # = softmax(logits)[..., 1]
+    prior = anchors(h, w, score.device)
+    centre, side = prior[:, :2], prior[:, 2:]
+    xy = centre + box[..., :2] * VARIANCE[0] * side
+    wh = side * torch.exp(box[..., 2:] * VARIANCE[1])
+    boxes = torch.cat([xy - wh / 2, xy + wh / 2], -1)
+    kp = centre[:, None] + lms.unflatten(-1, (LANDMARKS, 2)) * VARIANCE[0] * side[:, None]
+    return score, boxes, kp
+
+
+def select(
+    cells: tuple[torch.Tensor, torch.Tensor, torch.Tensor],
+    threshold: float,
+    iou: float,
+    suppress: Callable[[torch.Tensor, float], torch.Tensor] = nms,
+) -> dict[str, torch.Tensor]:
+    """The faces of one image from its decoded anchors (`decode`, one image): threshold, best first, suppression."""
+    score, boxes, kp = cells
+    idx = (score > threshold).nonzero()[:, 0]
+    idx = idx[score[idx].argsort(descending=True, stable=True)]
+    keep = idx[suppress(boxes[idx], iou)]
+    sc = score[keep]
+    return {
+        "keypoints": kp[keep],
+        "keypoint_scores": sc[:, None].expand(-1, LANDMARKS).contiguous(),
+        "scores": sc,
+        "boxes": boxes[keep],
+    }
 
 
 def faces(  # noqa: PLR0913 - image dimensions, thresholds and suppression rule
@@ -99,24 +142,8 @@ def faces(  # noqa: PLR0913 - image dimensions, thresholds and suppression rule
     suppress: Callable[[torch.Tensor, float], torch.Tensor] = nms,
 ) -> dict[str, torch.Tensor]:
     """The faces of one image from its float32 head maps (module docstring)."""
-    logits, box, lms = split(maps)
-    score = (logits[:, 1] - logits[:, 0]).sigmoid()  # = softmax(logits)[:, 1]
-    idx = (score > threshold).nonzero()[:, 0]
-    idx = idx[score[idx].argsort(descending=True, stable=True)]
-    prior = anchors(h, w, score.device)[idx]
-    centre, side = prior[:, :2], prior[:, 2:]
-    xy = centre + box[idx, :2] * VARIANCE[0] * side
-    wh = side * torch.exp(box[idx, 2:] * VARIANCE[1])
-    boxes = torch.cat([xy - wh / 2, xy + wh / 2], 1)
-    keep = suppress(boxes, iou)
-    idx, boxes, centre, side = idx[keep], boxes[keep], centre[keep], side[keep]
-    kp = centre[:, None] + lms[idx].view(-1, LANDMARKS, 2) * VARIANCE[0] * side[:, None]
-    return {
-        "keypoints": kp,
-        "keypoint_scores": score[idx, None].expand(-1, LANDMARKS).contiguous(),
-        "scores": score[idx],
-        "boxes": boxes,
-    }
+    score, boxes, kp = decode(maps, h, w)
+    return select((score[0], boxes[0], kp[0]), threshold, iou, suppress)
 
 
 class Portable(Runner):
@@ -130,7 +157,8 @@ class Portable(Runner):
     batch = None
     # images x H x W per network call (`estimate_batch`): launch bound (RTX 5060 Ti, Windows, fp16,
     # 8 frames 480 x 640, ms per frame:
-    # mobilenet0.25 7.0 -> 3.2 (kernels 2.4 -> 2.1), resnet50 9.3 -> 5.6 (4.3 -> 3.5)); 1080p runs one image per call
+    # mobilenet0.25 6.9 -> 2.3 (kernels with CUDA graphs 1.4 -> 0.92), resnet50 9.3 -> 5.6 (3.5 -> 2.3)); 1080p runs
+    # one image per call
     batch_pixels = 2_100_000
 
     def __init__(self, ctx: Context) -> None:
@@ -147,19 +175,25 @@ class Portable(Runner):
         """float32 head maps of `image` `[B, 3, H, W]` RGB in [0, 1]."""
         return tuple(self.net(image.flip(1) * 255 - self.mean))
 
+    def decoded(self, image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Every anchor of `image` `[B, 3, H, W]` decoded (`decode`): scores, boxes, landmarks."""
+        return decode(self.dense(image), *image.shape[-2:])
+
     def __call__(self, image: torch.Tensor, boxes: torch.Tensor | None) -> dict[str, torch.Tensor]:
         """The faces in the image with their landmarks."""
         assert boxes is None  # noqa: S101 - the task API rejects boxes for one-stage families
-        a: Params = self.ctx.params
-        return faces(self.dense(image), *image.shape[-2:], a.score_threshold, a.nms_iou, suppress=self.suppress)
+        return self._faces(image)[0]
 
     def estimate_batch(self, images: torch.Tensor, boxes: list[torch.Tensor]) -> list[dict[str, torch.Tensor]]:
-        """The faces of each image of `[B, 3, H, W]`: one network call, decoded per image."""
+        """The faces of each image of `[B, 3, H, W]`: one network call and decoding, selected per image."""
         assert all(b is None for b in boxes)  # noqa: S101 - one-stage: the task API passes no boxes
+        return self._faces(images)
+
+    def _faces(self, images: torch.Tensor) -> list[dict[str, torch.Tensor]]:
         a: Params = self.ctx.params
-        dense, (h, w) = self.dense(images), images.shape[-2:]
+        score, box, kp = self.decoded(images)
         return [
-            faces(tuple(t[i : i + 1] for t in dense), h, w, a.score_threshold, a.nms_iou, suppress=self.suppress)
+            select((score[i], box[i], kp[i]), a.score_threshold, a.nms_iou, self.suppress)
             for i in range(images.shape[0])
         ]
 
@@ -172,15 +206,17 @@ class Portable(Runner):
         return Forward(self.net, fn, output_names=("head_s8", "head_s16", "head_s32"))
 
 
-_GRAPH_PIXELS = 2_100_000  # fixed: batch x H x W; the MobileNet-0.25 network is launch-bound up to 1080p, measured
+# Network + every anchor's decoding: launch bound (RTX 5060 Ti, Windows, fp16, mobilenet0.25, ms per image, eager ->
+# graph: 480 x 640 5.0 -> 1.4, 8 x 480 x 640 1.7 -> 0.92, 1080p 5.3 -> 3.1; +190 MB reserved at 480 x 640)
+_GRAPH_PIXELS = 2_100_000  # fixed: batch x H x W, a speed threshold (not the architecture)
 _GRAPHS = 2  # fixed: graph cache policy
 
 
 class Kernels(Portable):
     """Run greedy suppression on the device with a bounded overlap buffer.
 
-    A repeated input shape up to `_GRAPH_PIXELS` replays the network from a CUDA graph
-    (`fastforks.shared.cuda_graphs`); the decoding (a data-dependent number of faces) stays eager.
+    A repeated input shape up to `_GRAPH_PIXELS` replays the network and the decoding of every anchor from a CUDA
+    graph (`fastforks.shared.cuda_graphs`); selecting the faces (a data-dependent number) stays eager.
     """
 
     suppress = staticmethod(box_nms.indices)
@@ -189,15 +225,15 @@ class Kernels(Portable):
         """Build the network as portable does, with a CUDA graph cache for it."""
         super().__init__(ctx)
         self.graphs = SmallShapeGraphs(
-            super().dense,
+            super().decoded,
             pixels=_GRAPH_PIXELS,
             graphs=_GRAPHS,
             enabled=ctx.params.cuda_graphs,
             capture_after=cudnn_hacc.capture_after(),
         )
 
-    def dense(self, image: torch.Tensor) -> tuple[torch.Tensor, ...]:
-        """float32 head maps of `image` `[B, 3, H, W]` RGB in [0, 1], from a graph for a small repeated shape."""
+    def decoded(self, image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Every anchor of `image` decoded, network and decoding from a graph for a small repeated shape."""
         return self.graphs(image)
 
     def release_graphs(self) -> None:

@@ -29,6 +29,7 @@ from fastforks.detection._convs import Convs, FusedConvs
 from fastforks.detection._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.pil_resize import pil_bilinear
 
 from .net import Arch, Detr, fold_frozen_bn
@@ -48,6 +49,7 @@ class Params(Arch):
     max_size: int  # longest edge cap
     score_threshold: float  # option: minimum class score
     max_detections: int  # option: detections per image
+    cuda_graphs: bool  # option: kernels replays the network from a CUDA graph for repeated shapes
 
 
 def class_map(num_ids: int) -> torch.Tensor:
@@ -150,17 +152,40 @@ def features(net: Detr, x: torch.Tensor, cv: Convs) -> torch.Tensor:
     return cv.conv(net.input_proj, x)
 
 
+# ~430 kernels per image, launch bound at the network sizes (shortest edge 800, at most 1333 x 800 = 1.07 MP; RTX 5060
+# Ti, Windows, fp16, ms per image, eager -> graph: 480 x 640 photo r50 13.0 -> 8.7, r101 15.0 -> 11.7, 1080p r50
+# 13.6 -> 11.0; up to +250 MB reserved)
+_GRAPH_PIXELS = 1_100_000  # fixed: batch x H x W, a speed threshold (not the architecture)
+
+
 class Kernels(Portable):
-    """cuDNN fused conv + ReLU (+ residual), fp16-accumulate convs (`cudnn_hacc`) and GEMMs."""
+    """cuDNN fused conv + ReLU (+ residual), fp16-accumulate convs (`cudnn_hacc`) and GEMMs.
+
+    A repeated network input shape up to `_GRAPH_PIXELS` replays the network from a CUDA graph
+    (`fastforks.shared.cuda_graphs`); resizing and the post-processing stay eager.
+    """
 
     def __init__(self, ctx: Context) -> None:
-        """Build the network, load `cudnn_hacc`."""
+        """Build the network, load `cudnn_hacc`, with a CUDA graph cache for the network."""
         super().__init__(ctx)
         self.cv = FusedConvs(cudnn_hacc.load(ctx.device))
+        self.graphs = SmallShapeGraphs(
+            self._network,
+            pixels=_GRAPH_PIXELS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+        )
 
-    def _logits(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def _network(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         with fp16_accumulate():
             return self.net.head(features(self.net, x.to(self.dt).contiguous(memory_format=self.mf), self.cv))
+
+    def _logits(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        return self.graphs(x)
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool on the device."""
+        self.graphs.release()
 
 
 RUNNERS = {

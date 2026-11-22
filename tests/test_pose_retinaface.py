@@ -96,8 +96,8 @@ def test_bounded_nms_preserves_order(count: int) -> None:
 
 @pytest.mark.gpu
 @pytest.mark.model
-def test_kernels_graph_replays_the_network(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Kernels replays the head maps of a repeated shape from a CUDA graph: the eager maps, fresh outputs, opt-out."""
+def test_kernels_graph_replays_network_and_decoding(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Kernels replays the decoded anchors of a repeated shape from a CUDA graph: eager values, new outputs, opt-out."""
     if not torch.cuda.is_available():
         pytest.skip("no CUDA")
     monkeypatch.setattr(cudnn_hacc, "BUILD_AFTER", 0)  # plans on the first call, the graph on the second
@@ -112,12 +112,12 @@ def test_kernels_graph_replays_the_network(monkeypatch: pytest.MonkeyPatch) -> N
     g = torch.Generator().manual_seed(0)
     a, b = (torch.rand(1, 3, 96, 160, generator=g).cuda() for _ in range(2))
     with torch.inference_mode():
-        want_a, want_b = rf.Portable.dense(r, a), rf.Portable.dense(r, b)
-        r.dense(a)  # first call: eager
+        want_a, want_b = rf.Portable.decoded(r, a), rf.Portable.decoded(r, b)
+        r.decoded(a)  # first call: eager
         assert not cache.graphs
-        first = r.dense(a)  # captures
+        first = r.decoded(a)  # captures
         assert len(cache.graphs) == 1
-        second = r.dense(b)  # replay with new data; `first` must not change
+        second = r.decoded(b)  # replay with new data; `first` must not change
     for got, want in ((first, want_a), (second, want_b)):
         for x, y in zip(got, want, strict=True):
             torch.testing.assert_close(x, y, rtol=0, atol=0)

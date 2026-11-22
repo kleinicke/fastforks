@@ -871,6 +871,7 @@ option depth.unik3d.resolution_level
 option depth.video_depth_anything.short_side aliases input_size
 option depth.zoedepth.flip
 option depth.zoedepth.pad_input
+option detection.detr.cuda_graphs
 option detection.detr.max_detections
 option detection.detr.score_threshold
 option detection.dfine.cuda_graphs
@@ -1002,6 +1003,7 @@ option pose.rtmo.score_threshold
 option pose.rtmpose.flip_test
 option pose.vitpose.fp32_accumulate
 option pose.vitpose.stream
+option pose.yunet.cuda_graphs
 option pose.yunet.score_threshold
 option promptable_segmentation.clipseg.cuda_graphs
 option promptable_segmentation.sam2.cuda_graphs

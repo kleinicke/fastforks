@@ -2,7 +2,7 @@ schema = 2
 name = "DETR (ResNet-50 / ResNet-101)"
 summary = "DETR (Carion et al. 2020, Facebook): end-to-end detection with a ResNet backbone and a 6+6 layer transformer encoder-decoder over 100 object queries, no NMS; boxes, scores and COCO classes at the input size. The portable `module()` is the whole network (class logits and normalised boxes)."
 tier = "stable"
-uses = ["pil_resize", "mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "pil_resize", "mlx_wrap"]  # fastforks.shared modules this family imports
 outputs = ["boxes", "scores", "labels"]
 
 [upstream]
@@ -36,6 +36,7 @@ max_size = 1333
 [options]
 score_threshold = { default = 0.05, min = 0.0, max = 1.0 }  # official DETR keeps all 100 queries; 0.05 drops the "no object"-like ones
 max_detections = { default = 100, min = 1 }
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the network from a CUDA graph for repeated shapes (false: eager, no graph pool)
 
 [modes.portable]
 cuda_dtype = "float16"  # backbone and transformer; heads, softmax and box decoding stay float32
