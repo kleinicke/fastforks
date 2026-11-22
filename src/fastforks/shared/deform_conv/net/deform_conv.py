@@ -89,6 +89,9 @@ def modulated_deform_conv(  # noqa: PLR0913, PLR0917 - the mmdet / torchvision s
                 continue
             if m is None:
                 cols = cols.to(x.dtype)
+            elif dev.type == "mps" and m.dtype != cols.dtype:
+                # MPS: the mixed-dtype product on the strided fp16 mask view ran 3x slower than on its fp32 copy
+                cols = (cols * m.float()).to(x.dtype)
             else:  # mask and cast in one pass
                 cols = torch.mul(cols, m, out=torch.empty(cols.shape, device=dev, dtype=x.dtype))
             torch.matmul(cols.view(c * k, n * wo).t(), wt, out=out[i, r0 : r0 + n].view(n * wo, o))
