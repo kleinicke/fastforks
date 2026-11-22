@@ -445,6 +445,12 @@ _BATCH_TIP = (
     " memory; 1 runs one image at a time. Models that cannot batch raise an error."
 )
 BATCH = {"batch_size": ("INT", {"default": 1, "min": 1, "max": 64, "tooltip": _BATCH_TIP})}
+_PAIRS_TIP = (
+    "Frame pairs per model call: the library still runs a large frame one pair at a time and models that gain nothing"
+    " from a batch pair by pair, so this only speeds up small frames (rife-4.26 at 384 x 384: 9.1 -> 1.6 ms per"
+    " pair); 1 runs one pair at a time, so a cancel stops after the current pair."
+)
+PAIR_BATCH = {"batch_size": ("INT", {"default": 8, "min": 1, "max": 64, "tooltip": _PAIRS_TIP})}
 
 
 def at(t: Any, k: int | None) -> Any:  # noqa: ANN401 - a result field: tensor or None
@@ -948,11 +954,11 @@ class Interpolate(_Node):
                 **common(cls),
                 "multiplier": ("INT", {"default": 2, "min": 2, "max": 16}),
             },
-            "optional": BATCH,
+            "optional": PAIR_BATCH,
         }
 
     def run(  # noqa: PLR0913 - the node's inputs
-        self, *, frames: torch.Tensor, model: str, backend: str, dtype: str, multiplier: int, batch_size: int = 1
+        self, *, frames: torch.Tensor, model: str, backend: str, dtype: str, multiplier: int, batch_size: int = 8
     ) -> tuple[torch.Tensor]:
         """Interpolate between every pair of consecutive frames (`batch_size` pairs per model call)."""
         m = load(model, backend, dtype)
@@ -1230,10 +1236,10 @@ class Flow(_Node):
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        return {"required": {"frames": ("IMAGE",), **common(cls)}, "optional": BATCH}
+        return {"required": {"frames": ("IMAGE",), **common(cls)}, "optional": PAIR_BATCH}
 
     def run(
-        self, *, frames: torch.Tensor, model: str, backend: str, dtype: str, batch_size: int = 1
+        self, *, frames: torch.Tensor, model: str, backend: str, dtype: str, batch_size: int = 8
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Flow of every pair of consecutive frames (`batch_size` pairs per model call)."""
         if frames.shape[0] < 2:  # noqa: PLR2004 - a pair

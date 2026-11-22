@@ -116,8 +116,9 @@ current image. Depth, Normals, Remove background (without a trimap), Detect, Pos
 segment, Parse and Face restore have an optional `batch_size` input: several images per model call, which is several
 times faster for small models at 224-512 px (convnext-tiny 8.6x, depth-anything-v2-s 1.8x, rf-detr-s 5.9x on an RTX 5060
 Ti under Windows) and uses more memory; models that cannot batch raise an error. Interpolate and Flow take `batch_size`
-consecutive pairs per call (480 x 640: rife-4.26 2.6x, raft-small 3.2x, neuflow-v2 2.7x); models that gain nothing from
-it (sea-raft, gmflow, film, larger frames) still run them one pair at a time.
+consecutive pairs per call, 8 by default (384 x 384: rife-4.26 5.6x; 480 x 640: rife-4.26 2.6x, raft-small 3.2x,
+neuflow-v2 2.7x); models that gain nothing from it (sea-raft, gmflow, film, larger frames) still run them one pair at a
+time. A cancel stops after the current `batch_size` pairs.
 
 ## Speed
 
@@ -128,6 +129,11 @@ A node's time is the model's time plus what ComfyUI does around every node, whic
 - Dynamic VRAM (the default) synchronises after each node: 1-5 ms per node. `--disable-dynamic-vram` removes it
   (SPAN x4 on 512 x 512: 28.2 -> 24.4 ms per run, GFPGAN: 31.7 -> 26.8 ms).
 - The executor adds ~8 ms per run.
+- When the GPU is mostly idle between short node calls (small images, a few frames, a run every few hundred ms), the
+  NVIDIA driver drops the memory clock to its lowest state (P5, 810 MHz) after a few seconds, even mid-run, and GPU work
+  then takes about three times as long (rife-4.26 x2 on 4 frames of 384 x 384: 12 -> 35 ms per node). Calls back to back
+  (the library's benchmarks) stay at full clock. The driver setting that keeps the clock up is NVIDIA Control Panel >
+  Manage 3D settings > Power management mode > Prefer maximum performance (not measured here).
 
 Models that take a few milliseconds (SPAN, Compact, the WD tagger, SegFormer) therefore take about twice their library
 time in a workflow (SPAN x4: 13 ms model, 28 ms node); for slow ones (HAT, DAT, SwinIR) the overhead does not matter. The portable ComfyUI build and a
