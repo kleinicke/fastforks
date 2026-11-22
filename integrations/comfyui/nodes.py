@@ -89,7 +89,18 @@ def commercial(mid: str) -> bool:
 
 
 def model_input(node: type[_Node]) -> tuple[list[str], dict[str, Any]]:
-    """The `model` dropdown of a node: the ids its pack runs (`node.ids()`), its default and a licence tooltip."""
+    """The `model` dropdown of a node: the ids its pack runs (`node.ids()`), its default and a licence tooltip.
+
+    Computed once per node class (`_model_input`), copies returned: ComfyUI calls `INPUT_TYPES` several times per node
+    and run (validation, input fetch, caching), and listing the models takes ~11 ms (every card's licence status). The
+    entries change only with the installed packages, which ComfyUI reads at start.
+    """
+    entries, opts = _model_input(node)
+    return list(entries), dict(opts)
+
+
+@functools.cache
+def _model_input(node: type[_Node]) -> tuple[tuple[str, ...], dict[str, Any]]:
     ids = node.ids()
     entries = labels(ids)
     pick = next((e for e in entries if model_id(e) == node.DEFAULT), entries[0] if entries else "")
@@ -107,7 +118,7 @@ def model_input(node: type[_Node]) -> tuple[list[str], dict[str, Any]]:
                 f" Not installed: {len(missing)} more {task} models with non-commercial or GPL code (e.g."
                 f" {', '.join(missing[:3])}); they need {NC_DIST} in ComfyUI's Python (this pack's requirements.txt)."
             )
-    return entries, {"default": pick, "tooltip": "fastforks model id." + tip}
+    return tuple(entries), {"default": pick, "tooltip": "fastforks model id." + tip}
 
 
 def common(node: type[_Node]) -> dict[str, Any]:
