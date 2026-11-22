@@ -1776,6 +1776,8 @@ ALIGN_OFF = bool(os.environ.get("FF_MLX_NO_ALIGN"))  # `mx.conv2d` with ragged c
 WIDE_OUT_OFF = bool(os.environ.get("FF_MLX_NO_WIDE_OUT"))  # 32 / 48-output 3x3 convs on MLX's narrow tile
 SPLIT_IN_OFF = bool(os.environ.get("FF_MLX_NO_SPLIT_IN"))  # very wide-input 3x3 convs as one `mx.conv2d`
 OUT64_OFF = bool(os.environ.get("FF_MLX_NO_OUT64"))  # output counts as they are, not padded to a multiple of 64
+WINO_CHUNK_BYTES = int(os.environ.get("FF_MLX_WINO_CHUNK_MB", "128")) << 20  # see `_conv2d`
+WINO32_OFF = bool(os.environ.get("FF_MLX_NO_WINO32"))  # float32 odd multiples of 16 not padded into MLX's Winograd
 
 
 def _mlx_winograd(
@@ -1885,6 +1887,18 @@ def _conv2d(
         cin_p = cin + pad_in
         if not any(_mlx_winograd((c, *wl.shape[1:3], cin_p), c, stride, dilation, groups, hw) for c in (o, o64)):
             pad_out = o64 - cout
+        elif (
+            not WINO32_OFF
+            and (xl.dtype == mx.float32 or _KERNELS)
+            and o % 32 == 16
+            and _mlx_winograd((o + 16, *wl.shape[1:3], cin_p), o + 16, stride, dilation, groups, hw)
+        ):
+            # an odd multiple of 16 (MLX's implicit GEMM is erratic there, 2-8x off): 16 more outputs put the conv
+            # into MLX's Winograd, always faster in the shapes measured (M1 Pro 3x3, float32: mvsplat's 8 x 160x256
+            # 192 -> 176 275 -> 70 ms, 8 x 96x128 256 -> 112 17.9 -> 9.9, 256x376 256 -> 208 122.9 -> 14.8; float16
+            # 192 -> 176 107 -> 34 ms). Float32 (error ~4e-6) and kernels mode only: portable half precision stays
+            # out of MLX's Winograd (below). Not for multiples of 32 (256 -> 96 into 128 was slower).
+            pad_out = o + 16 - cout
     if (pad_out or pad_in) and not _KERNELS and xl.dtype in (mx.float16, mx.bfloat16):
         # Half precision: padding must not move the conv into MLX's Winograd, whose float16 error is ~17x the direct
         # conv's (relative mean 6e-3 against 3.5e-4, bfloat16 4.8e-2; float32 4e-6). Its speed-up was all the input
@@ -1901,6 +1915,22 @@ def _conv2d(
         wl = mx.pad(wl, [(0, pad_out), (0, 0), (0, 0), (0, pad_in)])
     if pad_in:
         xl = mx.pad(xl, [(0, 0), (0, 0), (0, 0), (0, pad_in)])
+    n, hw = xl.shape[0], xl.shape[1] * xl.shape[2]
+    if n > 1 and _mlx_winograd(wl.shape, wl.shape[0], stride, dilation, groups, n * hw):
+        # MLX's Winograd holds the transformed input and product of the whole batch (about 4 x the input plus output
+        # per sample): above `WINO_CHUNK_BYTES` the samples run one chunk after the other (`mx.depends`), the same
+        # result with a bounded transient (mvsplat's 8 x 160x256 192 -> 192, float32: peak 3902 -> 3054 MB, faster)
+        per = 4 * hw * (wl.shape[3] + wl.shape[0]) * xl.dtype.size
+        step = max(1, WINO_CHUNK_BYTES // per)
+        if step < n and n * per > 2 * WINO_CHUNK_BYTES:
+            outs: list[mx.array] = []
+            for i in range(0, n, step):
+                xi = xl[i : i + step]
+                if outs:
+                    xi = mx.depends(xi, outs[-1])
+                outs.append(mx.conv2d(xi, wl, stride=stride, padding=padding, dilation=dilation, groups=groups))
+            y = mx.concatenate(outs, axis=0)
+            return y[..., :cout] if pad_out else y
     y = mx.conv2d(xl, wl, stride=stride, padding=padding, dilation=dilation, groups=groups)
     return y[..., :cout] if pad_out else y
 

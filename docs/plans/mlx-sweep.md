@@ -3196,3 +3196,46 @@ Goldens pass (test_mlx): cotracker3-online/offline, nafnet-gopro, wd-vit-tagger-
 memfof, depthsplat-small-re10k, zoedepth, eomt-l-dinov2-ade20k, raft / sea-raft, locotrack, tapir, track-on, flowformer,
 mvsplat, monster, nninteractive, nnunet refs (51 cases); test_mps cotracker3-online/offline (FASTFORKS_MPS_FULL=1).
 New test: `test_channels_last_instance_norm_and_bilinear_match_torch`.
+
+## 2026-11-22 (night): MVSplat on MLX, conv padding into Winograd and a kernels mode (M1 Pro 16 GB)
+
+Profile (fp32 portable, 8 views 336x518, 1512 ms / 3463 MB): the to_gaussians 3x3 conv 163 -> 168 at 8 x 160x256
+was 238 ms. `_conv2d` padded it to 192 -> 176, and MLX's implicit GEMM is pathological at output counts that are an
+odd multiple of 16 (in-graph 275 ms against 70 ms for 192 -> 192). The OUT64 rule refused 192 because it lands in
+MLX's Winograd.
+
+- **`_conv2d`: odd multiples of 16 pad 16 more into MLX's Winograd** (float32 or kernels mode, `FF_MLX_NO_WINO32=1`
+  switches it off). Micro-benchmarks (fp32 3x3): 8 x 96x128 256 -> 112 17.9 -> 9.9 ms, 256x376 256 -> 208
+  122.9 -> 14.8, mvsplat 192 -> 176 85-275 -> 43-70; fp16 192 -> 176 107 -> 34. Multiples of 32 stay excluded
+  (256 -> 96 into 128 was slower, see the OUT64 notes). Portable half precision still never enters MLX's Winograd.
+- **`_conv2d`: batched MLX Winograd convs run in chunks** when their transforms (about 4 x (Cin + Cout) per pixel)
+  exceed 256 MB: chunks of `FF_MLX_WINO_CHUNK_MB` (128) sequenced with `mx.depends`. The result is the same, per
+  sample. The Winograd conv alone added about 500 MB of peak at batch 8; chunked, fp32 peak 3902 -> 3054 MB and
+  1433 -> 1385 ms.
+- **mvsplat `kernels` on MLX** (`mlx_kernels = ["conv_mlx"]`, `kernels_fp16_only`): F(4,3) Winograd for the
+  even-channel 3x3s in float16; float32 kernels runs as portable.
+
+Survey (second run, ms / peak MB / first call s):
+
+| ref | mode | before | after | MPS |
+| --- | --- | --- | --- | --- |
+| mvsplat-re10k | portable fp32 | 1573 / 3456 / 6.3 | 1362.8 / 3098 / 6.5 | kernels fp32 896 / 4293 |
+| mvsplat-re10k | portable fp16 | 1258 / 2541 / 5.8 | 1144.6 / 2342 / 5.0 | |
+| mvsplat-re10k | kernels fp16 (new) | | 972.6 / 2848 / 4.7 | |
+
+Route: `mlx_default` and `mlx.float16` -> kernels. MLX is still 1.09x slower than MPS kernels fp32 (at 34 % less
+memory), so no auto route.
+
+Rejected:
+
+- **MLX sdpa as matmul + softmax in float32**: 21.5 -> 16 ms for mvsplat's (8, 4, 640, 4480, 128). It is slower on
+  most other shapes (ViT 577 / 4096 tokens, 1024 x 8192: up to 1.5x), so not a general rule, and not worth a
+  model-specific switch.
+- **Bigger buffer cache** (1-2 GB): 1394-1442 ms fp32 but +900-1900 MB peak.
+- **fp32 kernels**: 1430-1621 ms, no faster than portable, so it runs portable.
+- **168 -> 84 conv** (about 70 ms): every padding variant is within 10 %.
+
+Goldens pass: test_mlx[mvsplat-re10k@1] (portable fp32 / fp16, kernels fp32 / fp16), plus 51 test_mlx cases for
+nafnet-gopro, wd-vit-tagger-v3, tapnext*, cotracker3-online, alltracker*, loma-b, memfof, depthsplat-small-re10k,
+zoedepth, eomt-l-dinov2-ade20k, raft-stereo*, hat*, monster*, igev*, flowformer* (shared conv change). New test:
+`test_conv_padded_into_winograd_matches_torch` (whole and per-sample chunks).

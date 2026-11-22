@@ -2568,11 +2568,11 @@
   },
   "mvsplat-re10k@1": {
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
+    "float16": "kernels",
     "float32": "portable"
    },
    "mps_auto": [

@@ -44,6 +44,8 @@ mlx_dtypes = ["float32", "float16"]
 kernels = ["cudnn_hacc", "mvsplat_corr"]
 mps_kernels = ["mvsplat_metal"]  # the plane sweep (bilinear warp + channel dot) in one Metal kernel, no warped chunks
 mps_dtype = "float32"  # MPS portable float32 is faster than float16 here; the kernel costs the same in both
+mlx_kernels = ["conv_mlx"]  # Winograd F(4,3) 3x3 convolutions (float16; float32 runs as portable)
+mlx_dtypes = ["float32", "float16"]
 
 [[papers]]
 title = "MVSplat: Efficient 3D Gaussian Splatting from Sparse Multi-View Images"

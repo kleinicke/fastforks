@@ -301,6 +301,19 @@ def test_conv_transpose_kernel_equals_stride_matches_torch(kernel, bias):
     torch.testing.assert_close(MlxModule(m, "float32")(x), m(x), atol=1e-5, rtol=1e-5)
 
 
+@pytest.mark.parametrize("chunk_mb", [128, 4])
+def test_conv_padded_into_winograd_matches_torch(monkeypatch, chunk_mb):
+    """A float32 3x3 with 163 -> 168 channels (padded to 192 -> 192: MLX's Winograd), whole and per-sample chunked."""
+    pytest.importorskip("mlx.core")
+    from fastforks.shared import mlx_graph  # noqa: PLC0415 - optional (the mlx extra)
+
+    monkeypatch.setattr(mlx_graph, "WINO_CHUNK_BYTES", chunk_mb << 20)
+    torch.manual_seed(0)
+    m = torch.nn.Conv2d(163, 168, 3, padding=1)
+    x = torch.randn(3, 163, 40, 40)
+    torch.testing.assert_close(mlx_graph.MlxModule(m, "float32")(x), m(x), atol=1e-4, rtol=1e-4)
+
+
 @pytest.mark.parametrize("align", [True, False])
 def test_channels_last_instance_norm_and_bilinear_match_torch(align):
     """Instance norm (N > 1, affine) and bilinear resize of conv outputs (the channels-last lowerings) against torch."""

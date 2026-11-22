@@ -554,9 +554,11 @@ class MetalKernels(Portable):
         return Runner.module(self)
 
 
+_Mlx = mlx_wrap.port(Portable, kernels_fp16_only=True)
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": _Mlx,
+    "kernels_mlx": _Mlx,
 }
