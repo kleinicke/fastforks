@@ -35,6 +35,7 @@
  "windows": {
   "measured_on": "rtx-5060-ti-windows-16gb",
   "portable": [
+   "aliked-lightglue",
    "cotracker3-offline",
    "cotracker3-online",
    "dat-light-x4",
