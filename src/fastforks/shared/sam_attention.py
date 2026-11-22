@@ -5,10 +5,12 @@ Two exact forms of upstream's `attn = (q * scale) @ k^T + rel_h + rel_w`:
 - `augmented` (default): the bias folded into a dot product of head dim `d + h + w` (padded to a multiple of 8), so
   flash never materialises the N x N matrix (SAM global attention: 64 + 64 + 64 = 192).
 - `biased`: SDPA at head dim `d` with the bias as a dense float mask, built in query-row / head chunks of at most
-  `MASK_BYTES`. Used on CUDA when the SDPA policy has no flash (`shared.sdpa`: PyTorch's Windows wheels) and the
-  augmented head dim exceeds cuDNN's 128: there `augmented` runs the memory-efficient backend (fp16 `[1, 12, 4096,
-  192]` on an RTX 5060 Ti: 10.8 ms) while the masked call runs cuDNN (3.1 ms; Linux flash on the augmented form:
-  3.4 ms). The mask is `rel_h + rel_w` in the activation dtype, as upstream adds it.
+  `MASK_BYTES`; heads are grouped only up to `HEAD_GROUP_BYTES` (SAM's 64 x 64 grid: one 32 MiB head per call, as
+  fast as four and 190 MiB less peak memory). Used on CUDA when the SDPA policy has no flash (`shared.sdpa`:
+  PyTorch's Windows wheels) and the augmented head dim exceeds cuDNN's 128: there `augmented` runs the
+  memory-efficient backend (fp16 `[1, 12, 4096, 192]` on an RTX 5060 Ti: 10.8 ms) while the masked call runs cuDNN
+  (3.1 ms; Linux flash on the augmented form: 3.4 ms). The mask is `rel_h + rel_w` in the activation dtype, as
+  upstream adds it.
 
 `use_biased` makes the choice (logged once per process); `attend` applies it.
 """
@@ -26,6 +28,7 @@ from fastforks.shared import sdpa
 
 CUDNN_MAX_HEAD_DIM = 128  # fixed: PyTorch's cuDNN SDPA head-dim limit
 MASK_BYTES = 128 * 1024**2  # memory bound of one dense-mask chunk; the result does not depend on it
+HEAD_GROUP_BYTES = 32 * 1024**2  # bound of a chunk that spans several heads (smaller row chunks cost time)
 
 Rel = tuple[torch.Tensor, torch.Tensor, torch.Tensor]
 
@@ -75,7 +78,7 @@ def biased(qkv: torch.Tensor, nh: int, rel: Rel, hw: tuple[int, int]) -> torch.T
     qt, kt, vt = q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)
     out = qt.new_empty(b, nh, n, d)
     per_head = n * n * qkv.element_size()
-    heads = max(1, min(nh, MASK_BYTES // per_head))
+    heads = max(1, min(nh, HEAD_GROUP_BYTES // per_head))
     rows = n if heads > 1 else max(1, min(n, MASK_BYTES // (n * qkv.element_size())))
     for i in range(b):
         bs = slice(i, i + 1)
