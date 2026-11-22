@@ -46,6 +46,10 @@ class Portable(Runner):
         self.net.load_state_dict(sd)
         self.net.fp16 = ctx.dtype == "float16"
         self.net.eval().to(ctx.device)
+        if ctx.device.type == "cuda" and self.net.fp16:
+            # channels-last weights: cuDNN's fp16 kernels skip the NCHW<->NHWC conversion around each conv
+            # (1080p portable 84.8 -> 82.1 ms, kernels 71.7 -> 68.8 ms and 652 -> 517 MB; RTX 5060 Ti, Windows)
+            self.net.to(memory_format=torch.channels_last)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a padded batch."""

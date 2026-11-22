@@ -84,6 +84,10 @@ class Portable(_Matting):
         super().__init__(ctx)
         self.dtype = getattr(torch, ctx.dtype)
         self.net = _cpu_net(ctx).to(ctx.device, self.dtype)
+        if ctx.device.type == "cuda" and self.dtype == torch.float16:
+            # channels-last weights: cuDNN's fp16 kernels skip the NCHW<->NHWC conversion around each conv
+            # (1080p 1.03x faster, RTX 5060 Ti, Windows; `Kernels` already runs channels-last)
+            self.net.to(memory_format=torch.channels_last)
 
 
 def _prepare_aspp(m: Patched) -> None:
