@@ -293,6 +293,33 @@ def test_pair_nodes_batch_size_matches_one_pair_at_a_time(pack: Any, monkeypatch
     assert "batch_size" in nodes.Flow.INPUT_TYPES()["optional"]
 
 
+def test_remove_background_batch_size(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """RemoveBackground with `batch_size` > 1 batches the images; with a trimap it stays one image per call."""
+    nodes = pack.nodes
+    calls: list[tuple[int, ...]] = []
+
+    class Model:
+        device = torch.device("cpu")
+
+        def __call__(self, x: torch.Tensor, *, trimap: Any = None) -> Any:
+            calls.append(tuple(x.shape))
+            alpha = x[..., 0, :, :] if trimap is None else trimap
+            return SimpleNamespace(alpha=alpha)
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: Model())
+    monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])
+    img = torch.rand(3, 4, 6, 3)
+    kw = {"image": img, "model": "m", "backend": "auto", "dtype": "auto"}
+    one, two = (nodes.RemoveBackground().run(**kw, batch_size=b) for b in (1, 2))
+    assert calls == [(3, 4, 6)] * 3 + [(2, 3, 4, 6), (1, 3, 4, 6)]
+    torch.testing.assert_close(two[1], one[1])
+    torch.testing.assert_close(two[0], one[0])
+    calls.clear()
+    nodes.RemoveBackground().run(**kw, trimap=torch.rand(3, 4, 6), batch_size=2)
+    assert calls == [(3, 4, 6)] * 3
+    assert "batch_size" in nodes.RemoveBackground.INPUT_TYPES()["optional"]
+
+
 def test_errors_name_the_backend_input(pack: Any) -> None:
     """The library's `mode=` is the node's `backend` input: errors say so, keeping their type and other words."""
     import fastforks  # noqa: PLC0415

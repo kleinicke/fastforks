@@ -708,20 +708,31 @@ class RemoveBackground(_Node):
         tip = "Only for trimap models (ViTMatte): 0 = background, 1 = foreground, 0.5 = unknown."
         return {
             "required": {"image": ("IMAGE",), **common(cls)},
-            "optional": {"trimap": ("MASK", {"tooltip": tip})},
+            "optional": {"trimap": ("MASK", {"tooltip": tip}), **BATCH},
         }
 
-    def run(
-        self, image: torch.Tensor, model: str, backend: str, dtype: str, trimap: torch.Tensor | None = None
+    def run(  # noqa: PLR0913 - the node's inputs
+        self,
+        *,
+        image: torch.Tensor,
+        model: str,
+        backend: str,
+        dtype: str,
+        trimap: torch.Tensor | None = None,
+        batch_size: int = 1,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Run the model on every image."""
+        """Run the model on every image (`batch_size` per model call; with a trimap one at a time)."""
         m = load(model, backend, dtype)
 
         def one(i: int) -> torch.Tensor:
             tri = None if trimap is None else convert.from_mask(trimap, i, m.device)
             return m(convert.frame(image, i, m.device), trimap=tri).alpha
 
-        alpha = convert.to_mask(each(image.shape[0], one), _out_device())
+        if trimap is None and batch_size > 1:
+            maps = each_result(image, m, batch_size, lambda r, k: at(r.alpha, k))
+        else:
+            maps = each(image.shape[0], one)
+        alpha = convert.to_mask(maps, _out_device())
         return convert.with_alpha(image.to(alpha.device), alpha), alpha
 
 
