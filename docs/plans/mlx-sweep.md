@@ -3350,3 +3350,14 @@ eager path.
 
 Goldens pass: test_mps for alltracker-tiny, locotrack-b and track-on-r, plus the survey goldens for alltracker,
 locotrack-b and track-on2. tests/test_mps*.py pass.
+
+MonSter MPS memory, investigated only. kernels fp16 measures 9642 ms / 6299 MB on MPS, against 2941 MB on MLX. A
+per-stage trace (MPS allocator, empty_cache before each stage) gives:
+
+- weights / live: about 0.9-1.5 GB allocated.
+- Driver high-water: about 3.3 GB, reached both in `infer_mono` (DepthAnything ViT) and in the first
+  `update_block` (1.8 GB of transients above the live 1.5 GB).
+- Stages from the gwc volume to the classifier stay at 2.25 GB.
+
+The rest of the 6.3 GB footprint is outside the PyTorch allocator (MPSGraph / Metal caches). There is no cheap
+chunking target, so nothing changed.
