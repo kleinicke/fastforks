@@ -264,6 +264,35 @@ def test_pose_batch_size_passes_each_images_boxes(pack: Any, monkeypatch: pytest
     assert "batch_size" in nodes.Pose.INPUT_TYPES()["optional"]
 
 
+def test_pair_nodes_batch_size_matches_one_pair_at_a_time(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Interpolate and Flow with `batch_size` > 1: chunks of consecutive pairs per call, the same outputs as 1."""
+    nodes = pack.nodes
+    calls: list[tuple[int, ...]] = []
+
+    class Model:
+        device = torch.device("cpu")
+
+        def __call__(self, a: torch.Tensor, b: torch.Tensor, timestep: float = 0.0) -> Any:
+            calls.append(tuple(a.shape))
+            return SimpleNamespace(frame=a * (1 - timestep) + b * timestep, flow=(b - a)[..., :2, :, :])
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: Model())
+    monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])
+    frames = torch.rand(5, 4, 6, 3)
+    kw = {"frames": frames, "model": "m", "backend": "auto", "dtype": "auto"}
+    one, three = (nodes.Interpolate().run(**kw, multiplier=3, batch_size=b)[0] for b in (1, 3))
+    assert one.shape == (13, 4, 6, 3)
+    torch.testing.assert_close(three, one)
+    assert calls[-4:] == [(3, 3, 4, 6), (3, 3, 4, 6), (1, 3, 4, 6), (1, 3, 4, 6)]  # 2 timesteps x 2 chunks
+    calls.clear()
+    one_f, three_f = (nodes.Flow().run(**kw, batch_size=b) for b in (1, 3))
+    assert calls == [(3, 4, 6)] * 4 + [(3, 3, 4, 6), (1, 3, 4, 6)]
+    torch.testing.assert_close(three_f[1], one_f[1])
+    torch.testing.assert_close(three_f[0], one_f[0])
+    assert "batch_size" in nodes.Interpolate.INPUT_TYPES()["optional"]
+    assert "batch_size" in nodes.Flow.INPUT_TYPES()["optional"]
+
+
 def test_errors_name_the_backend_input(pack: Any) -> None:
     """The library's `mode=` is the node's `backend` input: errors say so, keeping their type and other words."""
     import fastforks  # noqa: PLC0415
