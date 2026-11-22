@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+from fastforks._core.upload import to_device  # fastforks
 from .position import PositionEmbeddingSine
 
 
@@ -86,7 +87,7 @@ def generate_shift_window_attn_mask(input_resolution, window_size_h, window_size
     # ref: https://github.com/microsoft/Swin-Transformer/blob/main/models/swin_transformer.py
     # calculate attention mask for SW-MSA
     h, w = input_resolution
-    img_mask = torch.zeros((1, h, w, 1)).to(device)  # 1 H W 1
+    img_mask = torch.zeros((1, h, w, 1))  # 1 H W 1  # fastforks: filled on the CPU, uploaded once below
     h_slices = (slice(0, -window_size_h),
                 slice(-window_size_h, -shift_size_h),
                 slice(-shift_size_h, None))
@@ -98,6 +99,7 @@ def generate_shift_window_attn_mask(input_resolution, window_size_h, window_size
         for w in w_slices:
             img_mask[:, h, w, :] = cnt
             cnt += 1
+    img_mask = to_device(img_mask, device)  # fastforks: one upload without a sync
 
     mask_windows = split_feature(img_mask, num_splits=input_resolution[-1] // window_size_w, channel_last=True)
 
@@ -198,7 +200,7 @@ def window_partition_1d(x, window_size_w):
 def generate_shift_window_attn_mask_1d(input_w, window_size_w,
                                        shift_size_w, device=torch.device('cuda')):
     # calculate attention mask for SW-MSA
-    img_mask = torch.zeros((1, input_w, 1)).to(device)  # 1 W 1
+    img_mask = torch.zeros((1, input_w, 1))  # 1 W 1  # fastforks: filled on the CPU, uploaded once below
     w_slices = (slice(0, -window_size_w),
                 slice(-window_size_w, -shift_size_w),
                 slice(-shift_size_w, None))
@@ -206,6 +208,7 @@ def generate_shift_window_attn_mask_1d(input_w, window_size_w,
     for w in w_slices:
         img_mask[:, w, :] = cnt
         cnt += 1
+    img_mask = to_device(img_mask, device)  # fastforks: one upload without a sync
 
     mask_windows = window_partition_1d(img_mask, window_size_w)  # nW, window_size, 1
     mask_windows = mask_windows.view(-1, window_size_w)

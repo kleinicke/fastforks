@@ -26,6 +26,7 @@ from typing import cast
 import torch
 import torch.nn.functional as F  # noqa: N812
 from fastforks._core.patch import base_type  # vendoring: preserve module override semantics
+from fastforks._core.upload import to_device  # fastforks
 
 from torch import Tensor, nn
 
@@ -991,9 +992,8 @@ class Transformer(nn.Module):
                 ]
             )
         else:
-            spatial_shapes = torch.stack([torch._shape_as_tensor(src)[2:4] for src in srcs]).to(
-                device=srcs[0].device, dtype=torch.long
-            )
+            # fastforks: to_device (a pageable upload syncs the host)
+            spatial_shapes = to_device(torch.stack([torch._shape_as_tensor(src)[2:4] for src in srcs]).long(), srcs[0].device)
         level_start_index = torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
 
         # Flatten optional dual-projector features for keypoint-specific cross-attention.

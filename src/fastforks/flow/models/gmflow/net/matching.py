@@ -16,7 +16,7 @@ def global_correlation_softmax(feature0, feature1,
     correlation = torch.matmul(feature0, feature1).view(b, h, w, h, w) / (c ** 0.5)  # [B, H, W, H, W]
 
     # flow from softmax
-    init_grid = coords_grid(b, h, w).to(correlation.device)  # [B, 2, H, W]
+    init_grid = coords_grid(b, h, w, device=correlation.device)  # [B, 2, H, W]  # fastforks: uploaded without a sync
     grid = init_grid.view(b, 2, -1).permute(0, 2, 1)  # [B, H*W, 2]
 
     correlation = correlation.view(b, h * w, h * w)  # [B, H*W, H*W]
@@ -67,7 +67,7 @@ def local_correlation_softmax(feature0, feature1, local_radius,
                               padding_mode='zeros',
                               ):
     b, c, h, w = feature0.size()
-    coords_init = coords_grid(b, h, w).to(feature0.device)  # [B, 2, H, W]
+    coords_init = coords_grid(b, h, w, device=feature0.device)  # [B, 2, H, W]  # fastforks: uploaded without a sync
     coords = coords_init.view(b, 2, -1).permute(0, 2, 1)  # [B, H*W, 2]
 
     local_h = 2 * local_radius + 1
@@ -112,7 +112,7 @@ def local_correlation_with_flow(feature0, feature1,
                                 dilation=1,
                                 ):
     b, c, h, w = feature0.size()
-    coords_init = coords_grid(b, h, w).to(feature0.device)  # [B, 2, H, W]
+    coords_init = coords_grid(b, h, w, device=feature0.device)  # [B, 2, H, W]  # fastforks: uploaded without a sync
     coords = coords_init.view(b, 2, -1).permute(0, 2, 1)  # [B, H*W, 2]
 
     local_h = 2 * local_radius + 1
@@ -171,7 +171,7 @@ def global_correlation_softmax_stereo(feature0, feature1,
 def local_correlation_softmax_stereo(feature0, feature1, local_radius,
                                      ):
     b, c, h, w = feature0.size()
-    coords_init = coords_grid(b, h, w).to(feature0.device)  # [B, 2, H, W]
+    coords_init = coords_grid(b, h, w, device=feature0.device)  # [B, 2, H, W]  # fastforks: uploaded without a sync
     coords = coords_init.view(b, 2, -1).permute(0, 2, 1).contiguous()  # [B, H*W, 2]
 
     local_h = 1
