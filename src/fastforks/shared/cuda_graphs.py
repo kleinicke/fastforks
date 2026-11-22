@@ -8,10 +8,10 @@ unsupported op) is logged as a warning, marks the shape eager for good and frees
 capture ends (required by the `cudaMallocAsync` allocator, see `free_captured`); a capture (failed or not) empties the
 allocator cache once, after the lock is released; calls hold a per-cache lock and wait for the
 previous call's stream, so threads / streams never read each other's static buffers; `release()` frees the pool on the
-device. The only allocator-cache emptying under the lock is the one between a capture's warm-up and the capture itself
-(under `CAPTURE_LOCK`, so no capture is open): the warm-up's blocks, cached on the capture stream, and the caller's
-cached blocks would otherwise stay reserved beside the new graph's pool (aliked-lightglue's first call: 3874 -> 2612 MiB
-peak reserved).
+device. The only allocator-cache emptyings under the lock are the two around a capture's warm-up (under
+`CAPTURE_LOCK`, so no capture is open): before it, the caller's cached blocks, which the warm-up on the capture stream
+cannot reuse; after it, the warm-up's blocks, which the capture's pool cannot reuse. Either set would otherwise stay
+reserved beside the next allocations (aliked-lightglue's capture call: 3874 -> 2612 -> 1494 MiB peak reserved).
 
 Every warm-up + capture runs on one shared stream per device (`capture_stream`, under `CAPTURE_LOCK`), and kernels
 that overlap work on side streams take them from `side_stream`: cuBLAS keeps a 32 MB workspace per stream for the
@@ -237,6 +237,10 @@ class GraphCache:
         graph = _Graph()
         with CAPTURE_LOCK, torch.cuda.stream(side):
             side.wait_stream(cur)
+            # the blocks the eager calls cached on the caller's stream: the warm-up on the capture stream cannot reuse
+            # them, so it allocated a second set next to them (peak reserved: aliked-lightglue 2612 -> 1494 MiB,
+            # patchmatchnet 2432 -> 1434 MiB)
+            torch.cuda.empty_cache()
             try:
                 checked(self._forward, *static)  # warm-up: lazy inits, workspaces, overflow checks
             finally:
