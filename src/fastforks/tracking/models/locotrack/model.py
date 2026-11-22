@@ -229,7 +229,8 @@ class Kernels(Portable):
         mixer.forward = _mixer(mixer)  # ty: ignore[invalid-assignment]  # per-instance override
         if self.amp == torch.float16:
             # requires_grad=False weights miss autocast's weight cache: every conv cast its fp32 weight to fp16 per
-            # frame chunk and per refinement; stored in fp16 the outputs are bit-identical (480 x 854: 154 -> 141 ms)
+            # frame chunk and per refinement; stored in fp16 the outputs are bit-identical (480 x 854: 118 -> 116 ms,
+            # 80 MiB less reserved)
             half_weights(self.net, channels_last=False)
 
     def __call__(
