@@ -233,6 +233,10 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16")
     Params = Params
+    batch = None  # the runner chunks a batch itself (`chunk_pixels`)
+    # pixels (pairs x H x W) per network call: the eager call is launch bound at small sizes (RTX 5060 Ti, Windows,
+    # fp16, 8 pairs 480 x 640: 9.6 -> 3.7 ms per pair at 8 a call), not from 720p on (11.8 ms either way, 2.2 GB)
+    chunk_pixels = 1_300_000
     channels_last = False  # the blocks' input layout
     # cuDNN's default transposed convs accumulate with atomics, and the warps amplify the last bits: two calls on the
     # same 720 x 1280 pair differed by up to 0.009 (smooth frames; 0.95 on noise). Deterministic costs ~3 % there.
@@ -266,9 +270,14 @@ class Portable(Runner):
         )
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> dict[str, torch.Tensor]:
-        """The frame at `timestep` of a padded batch."""
+        """The frame at `timestep` of a padded batch, `chunk_pixels` at a time."""
+        step = max(1, self.chunk_pixels // (image1.shape[-2] * image1.shape[-1]))
+        out = [self._call(image1[i : i + step], image2[i : i + step], timestep) for i in range(0, len(image1), step)]
+        return {"frame": out[0] if len(out) == 1 else torch.cat(out)}
+
+    def _call(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> torch.Tensor:
         dtype = getattr(torch, self.ctx.dtype)
-        return {"frame": self._forward(torch.cat((image1, image2), 1).to(dtype), timestep)}
+        return self._forward(torch.cat((image1, image2), 1).to(dtype), timestep)
 
     def module(self) -> torch.nn.Module:
         """The network; returns the middle frame (time 0.5)."""
@@ -306,6 +315,9 @@ class Kernels(Portable):
     """float16, channels-last, fp16-accumulate convs and transposed convs (`cudnn_hacc`), one CUDA graph per shape."""
 
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
+    chunk_pixels = (
+        0  # one pair per graph replay: batched pairs are not faster (480 x 640: 3.3 vs 3.1 ms, 720p 8.6 vs 10.4)
+    )
     channels_last = True
     deterministic_cudnn = False  # its convolutions are `cudnn_hacc` plans, not cuDNN's algorithm choice
 
@@ -328,12 +340,12 @@ class Kernels(Portable):
         with fp16_accumulate():
             return self._forward(x, timestep)
 
-    def __call__(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> dict[str, torch.Tensor]:
+    def _call(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> torch.Tensor:
         """The frame at `timestep` of a padded batch (the time is a graph input: one graph for every time)."""
         x = torch.cat((image1, image2), 1).to(torch.float16).contiguous(memory_format=torch.channels_last)
         t = torch.full((x.shape[0], 1, 1, 1), timestep, dtype=x.dtype, device=x.device)
         out = None if self.graphs is None else self.graphs.run((x.device, tuple(x.shape)), x, t)
-        return {"frame": self._eager(x, t) if out is None else out}
+        return self._eager(x, t) if out is None else out
 
     def release_graphs(self) -> None:
         """Free the CUDA graph and its memory pool."""
@@ -341,9 +353,15 @@ class Kernels(Portable):
             self.graphs.release()
 
 
+class _OnePair(Portable):
+    """Portable for the MLX ports: one pair per call, as before batching (not measured on Apple GPUs)."""
+
+    chunk_pixels = 0
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_forward",)),
-    "kernels_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_forward",)),
+    "portable_mlx": mlx_wrap.port(_OnePair, attrs=(), methods=("_forward",)),
+    "kernels_mlx": mlx_wrap.port(_OnePair, attrs=(), methods=("_forward",)),
 }
