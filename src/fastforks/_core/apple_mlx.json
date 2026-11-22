@@ -1930,11 +1930,6 @@
     "float32": "kernels"
    }
   },
-  "las2-h@1": {
-   "mps_auto": [
-    "float16"
-   ]
-  },
   "las2-s@1": {
    "mlx_default": [
     "portable",
