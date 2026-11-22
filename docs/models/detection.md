@@ -848,7 +848,7 @@ CPU, float32: max |diff| <= 0.0037 vs the original. GPU, float16 (the default), 
 - The image is resized like OpenCV 4's 8-bit INTER_LINEAR (what mmdetection calls); OpenCV 5 resizes differently by up to two grey levels, so a reference run on OpenCV 5 differs slightly.
 - Boxes are not clamped to the image, as upstream: at the right or bottom border they can reach a few pixels into the padding.
 - The person detectors' released config names COCO only; the training config stored in the checkpoints (and the file name) also lists Objects365.
-- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~65 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
+- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~80 MiB above portable at 640 x 480 and ~125 MiB at 1920 x 1080 (136 vs 56, 238 vs 114 MiB; peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
 
@@ -929,7 +929,7 @@ CPU, float32: max |diff| <= 0.00037 vs the original. GPU, float16 (the default),
 - The image is resized like OpenCV 4's 8-bit INTER_LINEAR (what the reference calls); OpenCV 5 resizes differently by up to two grey levels, so a reference run on OpenCV 5 differs slightly.
 - Boxes are not clamped to the image, as upstream: at the right or bottom border they can reach a few pixels into the padding.
 - One label per box (the cell's best class), as upstream: a cell does not report a second class.
-- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~45 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
+- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~60 MiB above portable at 640 x 480 and ~100 MiB at 1920 x 1080 (116 vs 56, 196 vs 94 MiB; peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
 

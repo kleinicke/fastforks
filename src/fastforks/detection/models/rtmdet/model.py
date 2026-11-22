@@ -21,7 +21,8 @@ object at the right or bottom border can reach into the padding.
 Portable runs the network in float16 on CUDA (channels-last), scores and boxes in float32. Kernels runs the whole
 network through `fastforks._optimize` (fused conv + SiLU / residual / concat kernels, fp16, channels-last) and replays
 normalisation, network and box decoding from one CUDA graph per batch size (the input is always `size x size`; one
-image and one batch size are kept).
+image and one batch size are kept). The resize to the canvas replays from a graph of its own per input shape (two
+kept), captured when a shape comes a second time.
 """
 
 from __future__ import annotations
@@ -158,9 +159,13 @@ class Portable(Runner):
 
     def detect_batch(self, images: torch.Tensor, score_threshold: float) -> list[dict[str, torch.Tensor]]:
         """`__call__` on each image of `[B, 3, H, W]`, the network run once on the batch."""
-        x, factors = canvas(images, self.ctx.params.size)
+        x, factors = self.fit_canvas(images)
         logits, boxes = self._forward(x)
         return [self._finish(logits[i], boxes[i], factors, score_threshold) for i in range(len(boxes))]
+
+    def fit_canvas(self, images: torch.Tensor) -> tuple[torch.Tensor, tuple[float, float]]:
+        """The padded canvases of `[B, 3, H, W]` images and the (x, y) resize factors (see `canvas`)."""
+        return canvas(images, self.ctx.params.size)
 
     def _finish(
         self, logits: torch.Tensor, boxes: torch.Tensor, factors: tuple[float, float], score_threshold: float
@@ -214,10 +219,26 @@ class Kernels(Portable):
         super().__init__(ctx)
         self.net = optimize(copy.deepcopy(self.net.float()), mode="kernels", device=ctx.device, family="cnn")
         self.graphs = GraphCache(self._eager, graphs=2) if ctx.params.cuda_graphs else None  # one image + one batch
+        # the resize to the canvas, a graph of its own per input shape: about 40 small launches; images of varying
+        # sizes still replay the network graph, which only depends on the batch size
+        self.canvases = GraphCache(self._canvas, graphs=2) if ctx.params.cuda_graphs else None
 
     def run(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """The head maps of a normalised float32 input (the optimized network converts dtype and layout itself)."""
         return self.net(x)
+
+    def _canvas(self, images: torch.Tensor) -> torch.Tensor:
+        return canvas(images, self.ctx.params.size)[0]
+
+    def fit_canvas(self, images: torch.Tensor) -> tuple[torch.Tensor, tuple[float, float]]:
+        """The canvases from the input shape's graph once it is captured, else eagerly (and the factors)."""
+        key = (images.device, images.dtype, tuple(images.shape))
+        x = self.canvases.run(key, images) if self.canvases is not None else None
+        if x is None:
+            return canvas(images, self.ctx.params.size)
+        (h, w), size = images.shape[-2:], self.ctx.params.size
+        nh, nw = fit(h, w, size)
+        return x, (nw / w, nh / h)
 
     def _eager(self, x: torch.Tensor) -> torch.Tensor:
         """Logits and boxes of the canvases as one float32 `[B, N, classes + 4]` tensor (one graph output)."""
@@ -231,9 +252,10 @@ class Kernels(Portable):
         return out[..., :-4], out[..., -4:]
 
     def release_graphs(self) -> None:
-        """Free the CUDA graph and its memory pool."""
-        if self.graphs is not None:
-            self.graphs.release()
+        """Free the CUDA graphs and their memory pools."""
+        for cache in (self.graphs, self.canvases):
+            if cache is not None:
+                cache.release()
 
 
 def _attention_mps(self: Attention, x: torch.Tensor) -> torch.Tensor:
