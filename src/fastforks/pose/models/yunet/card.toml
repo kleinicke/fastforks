@@ -4,7 +4,7 @@ summary = "YuNet (Wu et al., Machine Intelligence Research 2023): a 75k-paramete
 tier = "stable"
 limitations = ["module() exports the raw per-level head maps; decoding and NMS remain outside the exported graph.", "No per-landmark confidence: keypoint_scores repeats the face score.", "The image is not resized: faces much smaller than about 10 px are missed; large photos cost time in proportion to their pixels."]
 outputs = ["keypoints", "keypoint_scores", "boxes", "scores"]
-uses = ["mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/ShiqiYu/libfacedetection.train"
@@ -28,6 +28,7 @@ input = "0-1"  # the runner turns the RGB image into BGR 0..255 itself and pads 
 
 [options]
 score_threshold = { default = 0.6, min = 0.0, max = 1.0 }  # minimum face score (class x objectness; clear faces score ~0.85-0.9, so the OpenCV Zoo demo's 0.9 misses some; WIDER FACE evaluation: 0.02)
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the network from a CUDA graph for small repeated shapes (false: eager, no extra memory)
 
 [params]
 stage1 = 64
