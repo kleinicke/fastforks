@@ -69,6 +69,7 @@ _CHUNK = 1 << 22
 _INSECURE_OK = False  # tests only: allow http:// and file:// URLs without `FASTFORKS_HF_ENDPOINT`
 _UNSIZED_CAP = 4 << 30  # fetch limit when a spec has no size (cards and manifests always have one)
 _STALE_DOWNLOAD_S = 24 * 3600
+_REPLACE_TRIES = 8  # Windows: tries to rename a verified download onto a blob a concurrent rename is placing (~1.4 s)
 HF_ENDPOINT_ENV = "FASTFORKS_HF_ENDPOINT"
 OFFLINE_ENV = "FASTFORKS_OFFLINE"
 READ_CACHES_ENV = "FASTFORKS_READ_CACHES"
@@ -623,16 +624,23 @@ def _place(part: Path, digest: str, spec: FileSpec, dest: Path, url: str) -> Non
         )
         raise WeightsHashError(msg)
     _mkdir_private(dest.parent)
-    try:
-        part.replace(dest)
-    except PermissionError:
-        # Windows refuses to replace a file another thread or process has open (it is reading the same blob, which a
-        # concurrent download placed first). Only a verified copy of the same bytes there makes this a success.
-        if not dest.is_file() or _corrupt(dest, spec) is not None:
-            raise
-        log.debug("%s was placed by a concurrent download", dest)
-        return
-    _remember(dest, spec.sha256)
+    for attempt in range(_REPLACE_TRIES):
+        try:
+            part.replace(dest)
+        except PermissionError:
+            # Windows refuses to replace a file another thread or process has open (it is reading the same blob, which
+            # a concurrent download placed first), and also while a concurrent rename onto `dest` is still in flight
+            # (`dest` not visible yet). Only a verified copy of the same bytes there makes this a success; otherwise
+            # the other rename gets a moment to land before the next try.
+            if dest.is_file() and _corrupt(dest, spec) is None:
+                log.debug("%s was placed by a concurrent download", dest)
+                return
+            if attempt == _REPLACE_TRIES - 1:
+                raise
+            time.sleep(0.05 * (attempt + 1))
+        else:
+            _remember(dest, spec.sha256)
+            return
 
 
 def _extract(src: IO[bytes], declared: int, spec: FileSpec, tmp: Path, url: str) -> tuple[Path, str]:

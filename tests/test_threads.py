@@ -9,6 +9,7 @@ import os
 import subprocess
 import sys
 import threading
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -356,3 +357,49 @@ def test_cuda_threads_on_two_streams_match_single_thread():
     for r, w, outs in zip(refs, want, got, strict=True):
         for out in outs:
             assert torch.equal(out, w), f"{r}: {(out - w).abs().max()}"
+
+
+def _refusing_replace(monkeypatch, refusals: int) -> list[int]:
+    """Renaming the download `part` is refused `refusals` times (Windows, while a concurrent rename lands)."""
+    calls = [0]
+    real = Path.replace
+
+    def replace(self, target):
+        if self.name != "part":  # the verification stamp is written by a rename too
+            return real(self, target)
+        calls[0] += 1
+        if calls[0] <= refusals:
+            raise PermissionError(5, "Access is denied", str(self))
+        return real(self, target)
+
+    monkeypatch.setattr(Path, "replace", replace)
+    monkeypatch.setattr(files.time, "sleep", lambda _s: None)
+    return calls
+
+
+def test_place_retries_a_replace_refused_while_the_target_is_not_there(tmp_path, monkeypatch):
+    """A refused rename with no verified blob at the target yet is retried, then placed and remembered."""
+    data = b"payload"
+    s = _spec(data, None)
+    part = tmp_path / "part"
+    part.write_bytes(data)
+    dest = tmp_path / "blobs" / s.sha256
+    calls = _refusing_replace(monkeypatch, 2)
+    files._place(part, s.sha256, s, dest, "file:///x")
+    assert calls[0] == 3
+    assert dest.read_bytes() == data
+    assert not part.exists()
+
+
+def test_place_raises_a_replace_refused_on_every_try(tmp_path, monkeypatch):
+    """A rename that stays refused with no verified blob at the target is an error, not a silent success."""
+    data = b"payload"
+    s = _spec(data, None)
+    part = tmp_path / "part"
+    part.write_bytes(data)
+    dest = tmp_path / "blobs" / s.sha256
+    calls = _refusing_replace(monkeypatch, 99)
+    with pytest.raises(PermissionError):
+        files._place(part, s.sha256, s, dest, "file:///x")
+    assert calls[0] == files._REPLACE_TRIES
+    assert not dest.exists()
