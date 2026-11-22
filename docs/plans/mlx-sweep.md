@@ -2353,6 +2353,7 @@ Ms are warm medians (second of two survey runs), MB the process-footprint peak. 
 | swinir-m-x4-real | fp32 | 6622 / 8388 | 5045 / 8383 |
 | swinir-l-x4-real | fp16 | 9874 / 4561 | 7252 / 5594 |
 | swinir-l-x4-real | fp32 | 12063 / 9130 | 10185 / 9135 |
+| unik3d-vitl | fp16 | 1294 / 4038 | 1129 / 4036 |
 
 - **restormer (MPS)**: fp16 was no faster than fp32 because of the layout, not the dtype. It now runs channels-last
   on every non-CPU device; it was CUDA only before. The MPS q / k L2 norms are `square().sum().sqrt()`: the norm kernel
@@ -2403,10 +2404,23 @@ Ms are warm medians (second of two survey runs), MB the process-footprint peak. 
   | sam-hq-vit-b | fp32 | 680 / 1953 | 648 / 1946 |
   | mask2former-swinl-ade20k | fp16 | 878 / 3657 | 850 / 3614 |
 
-- **By design**: lingbot-depth keeps an fp32 residual stream for NYUv2 AbsRel accuracy, so its fp16 peak stays near
-  fp32.
-- **Not done (time box)**: tapnext / tapnext-pp and locotrack run autocast with an fp32 scan and have identical peaks.
-  unik3d, metric3d, mvsplat and omni-dc were flagged by the scan but not profiled.
+- **unik3d-vitl (MPS fp16)**: the decoder's one-pixel reflection pads were two `torch.cat` calls each (13 calls, 218 ms
+  on the channels-last fp16 activations). On MPS they are now `F.pad(mode="reflect")`, which is 2-5x faster (pad plus
+  conv at 64x736x1088 channels-last: 99 ms -> 32 ms). fp16 is now faster than fp32 (1129 against 1217 ms). In a
+  same-commit opprof A/B the synced total went from 1564 to 1379 ms.
+  - Negative: an NCHW decoder on MPS was not better (synced 1378 ms). NCHW pad plus conv is faster in isolation, but the
+    `permute` into the MLP linears adds strided copies.
+- **By design**:
+  - lingbot-depth keeps an fp32 residual stream for NYUv2 AbsRel accuracy, so its fp16 peak stays near fp32.
+  - omni-dc keeps the RGB-D backbone in fp32 because its PVT features reach ~1e6. Its full-resolution fp32 convs
+    (1008x1488, 0.33 s) are that backbone.
+- **Launch-bound, left**:
+  - metric3d-vit-large: synced op sum 2.3 s against 1.8 s warm; 167 `cat` calls in the GRU refinement. Its convs cost
+    the same in every layout combination (microbench: 262->128 at 154x266, 4.4-4.7 ms).
+  - tapnext: 1280-token tensors, thousands of small ops; synced sum 12.0 s against 5.8 s warm. The fp32 residual
+    stream and fp32 biases (`add f16 + f32`, `to` 1.06 s) are the card's design around the fp32 scan. A pure-fp16
+    port would need new golden evidence.
+- **Not done (time box)**: tapnext-pp and locotrack (same autocast-around-fp32-scan pattern as tapnext), mvsplat.
 
 
 ## Later idea: fp16 checkpoints from the start (2026-11-22, not started)
