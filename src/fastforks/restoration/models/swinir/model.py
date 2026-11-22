@@ -37,6 +37,7 @@ from fastforks.shared.swin_sr import (
     checkpoint_upsampler,
     pad_heads,
     patch_embed,
+    patch_unembed,
     relative_bias,
     shift_mask,
     shifted_window_regions,
@@ -44,7 +45,7 @@ from fastforks.shared.swin_sr import (
 )
 
 from .net import SwinIR
-from .net.network_swinir import RSTB, PatchEmbed, SwinTransformerBlock, WindowAttention
+from .net.network_swinir import RSTB, PatchEmbed, PatchUnEmbed, SwinTransformerBlock, WindowAttention
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -158,6 +159,8 @@ class Portable(Runner):
                 override(m, _mask, "calculate_mask")
             elif isinstance(m, PatchEmbed):
                 override(m, patch_embed)
+            elif isinstance(m, PatchUnEmbed):
+                override(m, patch_unembed)
         mean = self.net.mean
         del self.net.mean
         self.net.register_buffer("mean", mean, persistent=False)
