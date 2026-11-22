@@ -3,7 +3,7 @@ name = "CLIPSeg (text-prompted segmentation, CLIP B/16)"
 summary = "CLIPSeg (Lüddecke and Ecker 2022): a frozen CLIP ViT-B/16 with a small transformer decoder that segments whatever a free-text prompt names; the text embedding conditions the decoder by FiLM. Semantic: one mask per prompt (all pixels of the concept), at 352 x 352, resized to the image. Pass `text=` at call time. The portable `module()` is the network on the normalised 352 x 352 image plus a projected text embedding."
 tier = "experimental"
 outputs = ["boxes", "scores", "masks"]  # the `ConceptSegmentationResult` fields
-uses = ["seginfer", "cuda_graphs", "clip_tokenizer"]  # fastforks.shared modules this family imports
+uses = ["seginfer", "cuda_graphs", "clip_tokenizer", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "Accuracy uses 500 COCO validation images. Each annotated class supplies a text prompt and its target combines that class's instance masks.",
   "Requires the optional transformers library (the network is its `CLIPSegForImageSegmentation`).",

@@ -3,6 +3,7 @@ name = "nnInteractive"
 summary = "nnInteractive (Isensee et al. 2025): DKFZ's promptable 3D segmentation for CT, MRI, PET and 3D microscopy. Point, box (2D or 3D) and scribble prompts, positive or negative, refine one object mask in a session; a ResEnc-L U-Net on 192³ patches with AutoZoom (zooms out up to 4x while the mask grows past the patch, then refines the changed region at full resolution). Lasso prompts and initial masks are not ported."
 tier = "experimental"
 outputs = ["mask"]
+uses = ["mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "On the RTX 5060 Ti, preparing a 192³ network patch at 2.25× AutoZoom took 43.2 ms and 2,575 MiB peak allocation, down from 50.9 ms and 5,081 MiB on the same synthetic session state. Tested zoomed patches and prompted CT masks matched bit for bit in the paired runs.",
 ]

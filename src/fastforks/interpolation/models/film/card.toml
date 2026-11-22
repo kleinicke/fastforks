@@ -3,7 +3,7 @@ name = "FILM"
 summary = "FILM (Reda et al., ECCV 2022): frame interpolation for large motion, the authors' film_net with the Style weights (the published default) as dajes/frame-interpolation-pytorch ports it. A 7-level image pyramid of both frames, cascaded features (one convolutional sub-tree extractor shared by all levels, so the coarse levels learn from fine training samples), a residual flow pyramid in both directions with one predictor shared by the coarse levels, both frames' images and features warped to the time on the 5 finest levels, and a U-Net-like decoder. Trained for the middle frame; other times run as upstream allows."
 tier = "experimental"
 outputs = ["frame"]
-uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/dajes/frame-interpolation-pytorch"

@@ -3,7 +3,7 @@ name = "SegFormer"
 summary = "SegFormer (Xie et al. 2021): hierarchical Mix Transformer encoder (overlapping patch embeddings, reduced-key attention, Mix-FFN) and an all-MLP decoder."
 tier = "stable"
 outputs = ["logits"]
-uses = ["cuda_graphs", "seginfer"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "seginfer", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/huggingface/transformers"

@@ -2,7 +2,7 @@ schema = 2
 name = "MapAnything"
 summary = "MapAnything (Keetha et al. 2025): metric multi-view reconstruction from unposed images in one forward pass. DINOv2 ViT-g/14 features per view, 16 alternating global / per-view attention blocks with a metric-scale token, a DPT head (ray directions, depth along the ray, confidence, non-ambiguity) and pose / scale heads. Images only (the original code's optional geometric inputs are not supported). Apache-2.0 code and weights (the map-anything-apache checkpoint)."
 tier = "stable"
-uses = ["host_blocks"]
+uses = ["host_blocks", "mlx_wrap"]
 limitations = ["CUDA stream=True keeps the encoder and info-sharing transformer weights in pinned host RAM. The dense, pose and scale heads and activations remain on the GPU. Export requires resident weights."]
 outputs = ["depth", "confidence", "mask", "world_points", "intrinsics", "cam_to_world", "metric_scale"]  # metric_scale: [V] (one value per scene, repeated)
 

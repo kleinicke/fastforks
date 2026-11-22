@@ -6,7 +6,7 @@ licence_notes = [
   "The upstream README says 'for further commercial inquiries, please contact' the authors; no weights licence is stated, so the BSD-2-Clause code licence is assumed.",
 ]
 outputs = ["depth", "normals", "confidence"]
-uses = ["depth_anything_v2"]  # fastforks.shared modules this family imports (the fast ViT)
+uses = ["depth_anything_v2", "mlx_wrap"]  # fastforks.shared modules this family imports (the fast ViT)
 limitations = [
   "metric3d-vit-large: the kernels runner prepares its buffers at load, so the model right after load holds more than portable; the run peak is within 2 % of portable's.",
 ]

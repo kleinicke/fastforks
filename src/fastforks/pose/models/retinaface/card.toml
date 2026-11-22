@@ -4,7 +4,7 @@ summary = "RetinaFace (Deng et al., CVPR 2020) in the facexlib / Pytorch_Retinaf
 tier = "stable"
 limitations = ["module() exports the raw per-level head maps; anchor decoding and NMS remain outside the exported graph.", "No per-landmark confidence: keypoint_scores repeats the face score.", "The image is not resized: large photos cost time and memory in proportion to their pixels; downscale them first for big faces."]
 outputs = ["keypoints", "keypoint_scores", "boxes", "scores"]
-uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/xinntao/facexlib"

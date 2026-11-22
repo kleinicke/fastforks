@@ -3,7 +3,7 @@ name = "CoTracker3"
 summary = "CoTracker3 (Karaev et al., Meta AI 2024): tracking any point with a transformer that tracks all points jointly. A CNN encodes every frame at 384 x 512 into 128-channel features at 1/4 resolution (a 4-level pyramid); each track correlates the 7 x 7 neighbourhood of its current position with the 7 x 7 support of its query on every level (an MLP encodes the 4D correlation), and a transformer with attention over time and, through 64 virtual tracks, across tracks updates positions, visibility and confidence in 6 iterations. Offline: the whole video at once; online: sliding windows of 16 frames, 8 new frames per step."
 tier = "experimental"
 outputs = ["tracks", "visibility"]
-uses = []  # fastforks.shared modules this family imports
+uses = ["mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "Frames are resized to 384 x 512 (the training size and that of upstream's predictor), whatever their size and aspect ratio.",
   "cotracker3-offline holds the features of every frame (about 4 MB per frame in float16); cotracker3-online processes 16-frame windows and only keeps the tracks.",

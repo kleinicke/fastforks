@@ -3,7 +3,7 @@ name = "Selective-IGEV"
 summary = "Selective-IGEV (Wang et al. 2024, Selective-Stereo): IGEV-Stereo with selective recurrent units, attention-blended small (1x1) and large (3x3) ConvGRUs on a channel- and spatially re-weighted context, 32 iterations."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels", "igev_blocks", "mobilenetv2"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "igev_blocks", "mobilenetv2", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "ONNX export needs torch >= 2.14 (older exporters fail on this network).",
 ]

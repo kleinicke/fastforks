@@ -3,7 +3,7 @@ name = "LightGlue"
 summary = "LightGlue (Lindenberger, Sarlin and Pollefeys 2023): sparse feature matching. A keypoint detector-descriptor (ALIKED or DISK) finds up to 2048 keypoints per image at a 1024-pixel long side, and a transformer with self- and cross-attention, adaptive depth and point pruning matches them. Returns both keypoint sets, the index pairs of the matches and their confidence."
 tier = "experimental"
 outputs = ["keypoints1", "keypoints2", "pairs", "scores"]
-uses = ["aliked", "cnn_kernels", "deform_conv", "lightglue"]  # fastforks.shared modules this family imports (ALIKED + its deformable conv op; the matcher)
+uses = ["aliked", "cnn_kernels", "deform_conv", "lightglue", "mlx_wrap"]  # fastforks.shared modules this family imports (ALIKED + its deformable conv op; the matcher)
 limitations = [
   "Sparse output: no dense warp. `result.matches()` gives the matched points for `estimate_pose`; `pairs` are the index pairs pycolmap / COLMAP databases take.",
   "One image pair per call internally (batches run pair by pair); the keypoint counts differ per image.",

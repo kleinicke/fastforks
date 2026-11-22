@@ -3,7 +3,7 @@ name = "Depth Pro"
 summary = "Depth Pro (Bochkovskii et al. 2024, Apple): sharp monocular metric depth from three DINOv2 ViT-L/16 encoders (35 overlapping windows of a 3-level image pyramid, the whole image, the field of view) and a multi-resolution conv decoder at 1536x1536; also estimates the focal length."
 tier = "stable"
 outputs = ["depth", "intrinsics"]  # intrinsics: only when none are given (then fx replaces the field-of-view estimate)
-uses = ["cuda_graphs", "depth_anything_v2"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "depth_anything_v2", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 licence_notes = [
   "The Apple sample-code licence and the model licence allow research use only.",

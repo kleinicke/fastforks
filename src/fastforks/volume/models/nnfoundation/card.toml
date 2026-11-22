@@ -2,7 +2,7 @@ schema = 2
 name = "nnFoundation"
 summary = "nnFoundation (Harsy et al. 2026): DKFZ's self-supervised 3D radiology foundation encoders, pre-trained with nnssl on 2.1 M CT, MRI and PET volumes. `nnfoundation-cnn` is the ResEnc-L U-Net encoder (6 stages, 32-320 channels, strides 1-32), `nnfoundation-vit` the Primus ViT (40 layers, width 1056, 8³ patch tokens, fixed 192³ input). Gives the encoder feature maps of a z-score normalised volume for fine-tuning or frozen-feature use; the MAE decoder is not included."
 tier = "experimental"
-uses = ["host_blocks"]
+uses = ["host_blocks", "mlx_wrap"]
 outputs = ["features"]
 
 limitations = [

@@ -3,7 +3,7 @@ name = "Marigold V2"
 summary = "Marigold V2 (Pavlovic, Wandel, Obukhov et al. 2026): affine-invariant log depth by one rectified-flow step of Qwen-Image-Edit-2509's 20 B transformer (NF4 4-bit, as the authors run it) with a rank-128 depth LoRA and a fine-tuned Qwen VAE decoder (depth/Log-stage2)."
 tier = "experimental"
 outputs = ["depth"]
-uses = ["host_blocks", "nf4"]  # fastforks.shared modules this family imports (NF4 weights, host-streamed blocks)
+uses = ["host_blocks", "nf4", "mlx_weights"]  # fastforks.shared modules this family imports (NF4 weights, host-streamed blocks)
 limitations = [
   "20 B transformer in 4 bit: 8.4 GB of weights; by default (`stream=True`, CUDA) it runs in ~1-4 GB of device memory from 8.4 GB of page-locked host RAM (load fails with an error when less is free); `stream=False` keeps it resident (about 9-11 GB of device memory, 16 GB cards: up to ~1024 px).",
   "Diffusion model: the portable VAE draws its posterior noise with a CPU generator seeded with `seed`. The authors' default path draws from the device generator.",

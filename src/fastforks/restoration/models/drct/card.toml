@@ -2,7 +2,7 @@ schema = 2
 name = "DRCT"
 summary = "DRCT (Hsu et al., CVPRW 2024): image super-resolution with residual dense groups of Swin Transformer layers (16 x 16 window attention, shifted every second layer) whose inputs grow by 32 channels per layer (dense connections). `drct-x4` is the classical x4 model (6 groups), `drct-l-x4` the large one (12 groups); both bicubic, PSNR-trained."
 tier = "experimental"
-uses = ["swin_sr"]  # fastforks.shared modules this family imports
+uses = ["swin_sr", "mlx_wrap"]  # fastforks.shared modules this family imports
 outputs = ["image"]
 
 [upstream]

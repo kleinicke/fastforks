@@ -3,7 +3,7 @@ name = "MEMFOF"
 summary = "MEMFOF (Bargatin et al. 2025): memory-efficient multi-frame optical flow. A RAFT-style network at 1/16 resolution on three frames: a ResNet34 context encoder on all three, a GMA attention over the context, 1024-channel features with an all-pairs correlation pyramid toward the previous and the next frame, a ConvNeXt update block and convex 16x upsampling; it predicts the backward and the forward flow of the middle frame at once. The authors' released weights; the network is ported from msu-video-group/memfof. A pair (image1, image2) runs as upstream's first frame of a clip, the frames (image1, image1, image2), and returns its forward flow. Paper (three frames per prediction, the fine-tuned checkpoints): Spring test 1px 3.289 %, Sintel test EPE 0.963 (clean), KITTI 2015 test Fl-all 2.94 %."
 tier = "experimental"
 outputs = ["flow"]
-uses = []  # fastforks.shared modules this family imports
+uses = ["cuda_softmax", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "Pairs only: the multi-frame input (a previous frame and the feature cache of upstream's video demo) is not exposed; each pair runs as the first frame of a clip.",
   "Full-frame 1080x1920 runs out of memory on the RTX 5060 Ti 16 GB in the upstream original and in portable; only kernels fit (7.2 GB).",

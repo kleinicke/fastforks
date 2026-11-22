@@ -3,7 +3,7 @@ name = "PARSeq (scene text recognition)"
 summary = "PARSeq (Bautista and Atienza, ECCV 2022): a ViT encoder over the word crop (32 x 128) and one two-stream Transformer decoder layer trained with permuted autoregressive sequence modelling; reads one cropped word or short line (94 characters: Latin letters, digits, ASCII punctuation; no space). Greedy autoregressive decoding plus one refinement pass, as upstream `read.py`. A recogniser only: the whole input is one line (one quad over the image); pair it with a detector (e.g. `ppocrv5-mobile` boxes) for full pages."
 tier = "experimental"
 outputs = ["boxes", "texts", "scores"]
-uses = ["cuda_graphs", "pil_resize"]
+uses = ["cuda_graphs", "pil_resize", "mlx_wrap"]
 
 [upstream]
 repo = "https://github.com/baudm/parseq"

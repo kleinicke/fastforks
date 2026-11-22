@@ -3,7 +3,7 @@ name = "HED soft edges (ControlNet 1.1)"
 summary = "Soft edge preprocessor of ControlNet 1.1 (controlnet_aux `HEDdetector`, ComfyUI's \"HED Soft-Edge Lines\"): lllyasviel's Apache-2.0 re-implementation of holistically-nested edge detection, a VGG-style network whose five side outputs are averaged into a soft edge map (RGB input, smoother edges than the original HED)."
 tier = "experimental"
 outputs = ["edges"]
-uses = ["cnn_kernels"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/huggingface/controlnet_aux"

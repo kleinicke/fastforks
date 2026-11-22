@@ -3,7 +3,7 @@ name = "Grounding DINO and MM-Grounding-DINO (open-vocabulary, Swin-T and Swin-B
 summary = "Grounding DINO (Liu et al. 2023, IDEA Research): open-set detection that fuses a Swin image backbone with a BERT text encoder in a DINO-style deformable transformer; each of 900 queries scores every caption token. MM-Grounding-DINO (Zhao et al. 2024, OpenMMLab) is the same network with a scaled, biased contrastive class head and unshared decoder heads, retrained on Objects365, GoldG and V3Det. Pass `text=[...]` at call time (default: the 80 COCO class names), joined into one caption; a class score is the mean token score of its name. Images are resized to 800 px on the short side (at most 1333 on the long side). The portable `module()` is the image side with the COCO caption's text features as constants."
 tier = "experimental"
 outputs = ["boxes", "scores", "labels"]
-uses = ["seginfer", "bert_tokenizer"]  # fastforks.shared modules this family imports
+uses = ["seginfer", "bert_tokenizer", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "Requires the optional transformers library (the network is its `GroundingDinoForObjectDetection`).",
   "The original in the benchmarks and goldens is the Hugging Face transformers 5.19.0 port with the authors' weights (IDEA-Research/grounding-dino-*, openmmlab-community/mm_grounding_dino_*); the official GroundingDINO and mmdetection code (their CUDA deformable-attention ops) was not run.",

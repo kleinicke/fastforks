@@ -3,7 +3,7 @@ name = "NeuFlow v2"
 summary = "NeuFlow v2 (Zhang, Gupta, Singh & Jiang 2024): a light optical-flow network for robots and edge devices. A plain convolutional backbone on the image averaged down by 2, 4 and 8, cross-attention and global matching at 1/16 resolution for the initial flow (large motions), then one refinement at 1/16 and 8 at 1/8 with a 9 x 9 correlation lookup and plain 3 x 3 convs (no GRU), convex upsampling. The authors' released weights; the network is ported from neufieldrobotics/NeuFlow_v2. `neuflow-v2` is the authors' mixed-dataset checkpoint (their default), `-things` the FlyingThings3D one (zero-shot elsewhere), `-sintel` the Sintel fine-tune stage."
 tier = "experimental"
 outputs = ["flow"]
-uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 limitations = [
   "Portable at 375 x 1242 runs 15.1 ms vs 12.2 ms for the authors' fp16 lookup (24 % slower, launch-bound; at 1080 x 1920 it is faster, 71.4 vs 75.8 ms): lookup, matching and upsampling stay float32 on purpose (lower KITTI EPE); fp16 lookup or channels_last did not help.",

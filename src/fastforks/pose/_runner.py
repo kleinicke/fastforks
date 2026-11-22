@@ -16,8 +16,9 @@ class Portable(Runner):
 Top-down families (`needs_boxes = True`) crop each person box themselves (each family has its own crop rule, e.g.
 ViTPose's 1.25x padded box at 256x192) and map the keypoints back to the input. A `TopDown` runner states that as
 three methods (`regions`, `crops`, `people`); it then runs the people of a whole batch of images as one network call
-(`estimate_batch`). The core converts images, checks the boxes, runs a batch (one image at a time for other runners),
-checks shapes, locks the model and guards the device.
+(`estimate_batch`). A one-stage runner with `batch` other than 1 gets `batch` images per `estimate_batch` call. The
+core converts images, checks the boxes, runs a batch (one image at a time for other runners), checks shapes, locks
+the model and guards the device.
 
 Portable runners also implement `module()`: the network on person crops (`[B, 3, h, w]` RGB in `[0, 1]` at the
 network size) -> heatmaps; cropping and decoding stay outside.
@@ -79,7 +80,7 @@ class Runner(core.Runner):
         """
 
     def estimate_batch(self, images: torch.Tensor, boxes: list[torch.Tensor]) -> list[dict[str, torch.Tensor]]:
-        """`__call__` on each image of `[B, 3, H, W]` with its boxes (a `TopDown` runner: one network call)."""
+        """`__call__` on each image of `[B, 3, H, W]` with its boxes (`TopDown` or batching one-stage: one call)."""
         return [self(images[i : i + 1], b) for i, b in enumerate(boxes)]
 
 

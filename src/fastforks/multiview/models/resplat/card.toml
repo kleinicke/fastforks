@@ -2,7 +2,7 @@ schema = 2
 name = "ReSplat"
 summary = "ReSplat (Xu et al. 2025): feed-forward 3D Gaussian splatting from posed, calibrated images with recurrent refinement. DepthSplat's multi-view depth network (cost volume + DINOv2) and a kNN point transformer predict latent Gaussians (SH degree 3); refinement steps render the input views, compare them with the images (ResNet-18 features + colour) and update every Gaussian with a second point transformer. Returns every view's depth and the Gaussians in the given world frame (`result.gaussians`, `.save(\"scene.ply\")`)."
 tier = "experimental"
-uses = ["depth_anything_v2"]  # shared modules imported directly by this family (DINOv2, its attention block)
+uses = ["depth_anything_v2", "mlx_graph", "mlx_wrap"]  # shared modules imported directly by this family (DINOv2, its attention block)
 outputs = ["depth", "confidence", "gaussians"]  # confidence: largest match probability over the depth candidates; gaussians: MultiViewResult.gaussians (not a map)
 
 limitations = [
