@@ -2922,3 +2922,56 @@ Not done or rejected:
 - defom MPS portable float16: not tried. `kernels_mps` already runs the float16 recipe.
 - romav1 / romav2, alltracker, loma-b: not reached in the time box. romav2's card notes float16 overflows in
   upstream's bfloat16 regions. Given dedode, try `half_wino_f32=True` first for the conv-heavy ones.
+
+## 2026-11-22: float16 on MLX for romav1, alltracker, loma (M1 Pro 16 GB)
+
+Continued from the section above, same rules (goldens and tolerances unchanged; survey second run, median of 5;
+romav1 / loma 768x1024 matching, alltracker 480x854).
+
+| ref (portable MLX) | before fp32 ms / MB | after fp16 ms / MB | fp32 now | golden fp16 (tol) | MPS best | route |
+| --- | --- | --- | --- | --- | --- | --- |
+| romav1 | 4440 / 4499 | 3135 / 2460 | 3733 / 4487 | warp mean 0.00049 (0.00079) | fp32 3050 / 7979 | mlx_default fp16 |
+| alltracker | 5397 / 2597 | 2288 / 2232 | 3151 / 2864 | tracks mean 0.00076 (0.0019) | fp16 3200 / 3806 | **auto -> MLX fp16** |
+| alltracker-tiny | (no row) | 2174 / 2245 | 2909 / 2861 | pass (vis p99 0.00126 / 0.0014) | fp16 2743 / 3640 | **auto -> MLX fp16** |
+| loma-b | 3860 / 6150 | 2760 / 4561 | 3617 / 6334 | recall 0.9956 (0.96), agree 0.9907 (0.93) | fp32 3041 / 8137 | **auto -> MLX fp16** |
+
+The fp32 "now" column also moved (romav1 4440 -> 3733, alltracker 5397 -> 3151). The old rows predate the conv
+output-padding change and other replay work on this branch; that was not attributed further.
+
+What each needed:
+
+- romav1 (`70492635`): nothing but the card's dtype list.
+- alltracker (`1698403a`): `to_float32` islands for the flow / visibility state and its accumulation, the window's
+  zero state, the queries and the convex upsampling. Those islands brought tracks from 0.0158 to 0.0078, still
+  4x the tolerance. The rest came from float constants: the `device_tensor` scale factors (grid normalisation,
+  query / track pixel mapping) are graph constants, so the replay casts them to float16 (up to 0.25 px off at 512 px).
+  `scale_xy` multiplies by Python floats instead, which stay exact in the replay: tracks 0.00087. alltracker-tiny
+  also needed `half_wino_f32=True` (visibility p99 0.0023 -> 0.00126).
+- loma (`153f9c95`): only `half_wino_f32=True` (its detector / descriptor are dedode's). All six goldens pass
+  (b, b64, b128, g, l, r); only loma-b is surveyed. The MPS loma-b row had golden "skip", so it gave no route
+  baseline. It was re-surveyed with the golden path (3041 / 8137, pass), and auto then takes MLX.
+
+Ruled out on alltracker (each still about 0.0075-0.0079 before the constant fix):
+
+- a float32 residual stream in `CNBlock2d`, also with `half_wino_f32`: no margin gain on tiny;
+- `FF_MLX_KEEP_F32_CONV` (the whole update block in float32);
+- the correlation matmul in float32;
+- `FF_MLX_NO_DW_KERNEL`.
+
+An encoder bisect showed MLX's float16 feature error is only about 1.45x CPU autocast's, so the encoder was not the
+cause.
+
+Not done:
+
+- romav2: the `kernels_mlx` Engine already runs the selective FP16 recipe (`half=kernels` projections and convs)
+  under the float32 label, and the card notes plain float16 overflows upstream's bfloat16 regions. A portable fp16
+  dtype would duplicate that, so it was skipped.
+- depthsplat-small-re10k: `half_wino_f32=True` alone still fails (depth mean 0.00351 > 0.0035, confidence 0.016 >
+  0.014). The net's inputs include the normalised intrinsics, the scaled cam-to-world poses and near / far, and the
+  replay casts all of them to float16 at graph entry. The projections in the cost volume then see float16 cameras
+  (the alltracker lesson again). A `to_float32` island cannot undo that, because the values are rounded before it.
+  The likely fix is a way to keep chosen graph inputs float32 (an `mlx_graph` change, which needs its own
+  regression runs), so it was not done in this time box.
+- Other float32-only MLX families (unidepth_v2, zoedepth, insid3, inspyrenet NaN / golden failures; sam2, grounding
+  dino) were not reached. Before adding islands, check for float constants and float inputs that carry geometry
+  (`device_tensor`, camera inputs): they are the cheapest failure to miss.
