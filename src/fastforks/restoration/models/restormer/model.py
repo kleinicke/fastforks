@@ -6,8 +6,8 @@ the same call). Each transformer block's LayerNorm runs over the channel dimensi
 into the 1 x 1 conv after it (`qkv`, `project_in`; WithBias: `F.layer_norm` over a channels-last view, BiasFree: the
 input divided by its channel standard deviation, no mean subtraction, as upstream). The transposed (channel) attention
 normalises q and k in float32 (upstream: `F.normalize` in the input dtype, which can overflow in float16 on large
-images), multiplies q by the head's temperature and runs the `[c, c]` softmax in float32. On CUDA the network runs
-channels-last.
+images), multiplies q by the head's temperature and runs the `[c, c]` softmax in float32. On CUDA and MPS the network
+runs channels-last.
 """
 
 from __future__ import annotations
@@ -73,17 +73,23 @@ def _attention(m: Attention, x: torch.Tensor) -> torch.Tensor:
     `project_out` weight is multiplied in, so the output is one GEMM `v (W A)^T` straight into channels-last tokens.
     """
     b, c, h, w = x.shape
-    t = m.qkv_dwconv(m.qkv(x)).permute(0, 2, 3, 1).reshape(b, h * w, 3 * c)
-    q, k, v = t.split(c, -1)
-    f32 = torch.float32
-    nq = torch.linalg.vector_norm(q, dim=1, dtype=f32).clamp_min(1e-12)
-    nk = torch.linalg.vector_norm(k, dim=1, dtype=f32).clamp_min(1e-12)
+    t = m.qkv_dwconv(m.qkv(x)).permute(0, 2, 3, 1).reshape(b, h * w, 3 * c)  # a view in either memory format
+    ch = t.mT  # [B, 3 C, H W]
+    qk = ch[:, : 2 * c]
+    if qk.device.type == "mps" and qk.dtype != torch.float32:  # no float32-output half GEMM: one float32 copy, cast
+        qk = t[..., : 2 * c].float().mT if t.is_contiguous() else qk.float()  # in the stored order
+    if qk.device.type == "mps":  # its norm kernel over the pixel axis of the channels-last tokens is 3x slower
+        n = qk.square().sum(-1).sqrt()
+    else:
+        n = torch.linalg.vector_norm(qk, dim=-1, dtype=torch.float32)
+    nq, nk = n.clamp_min(1e-12).split(c, -1)
+    q, k = qk.mT.split(c, -1)
     scale: torch.Tensor = m.scale  # ty: ignore[invalid-assignment]
     block: torch.Tensor = m.block  # ty: ignore[invalid-assignment]
     proj: torch.Tensor = m.proj  # ty: ignore[invalid-assignment]
     g = _gram(q, k, wide=m.wide) * (scale / nq)[:, :, None] / nk[:, None, :] + block  # ty: ignore[invalid-argument-type]
-    mat = to_run_dtype(proj @ g.softmax(-1), v.dtype)  # [B, C out, C in]; .to: a no-op in the float32 MLX twin
-    return (v @ mat.mT).view(b, h, w, c).permute(0, 3, 1, 2)
+    mat = to_run_dtype(proj @ g.softmax(-1), t.dtype)  # [B, C out, C in]; .to: a no-op in the float32 MLX twin
+    return (t[..., 2 * c :] @ mat.mT).view(b, h, w, c).permute(0, 3, 1, 2)
 
 
 def _fold_attention(m: Attention, device: torch.device | str) -> None:
@@ -136,7 +142,7 @@ def _fold_head_attention(m: Attention, device: torch.device | str) -> None:
 
 def _block(m: TransformerBlock, x: torch.Tensor) -> torch.Tensor:
     """`TransformerBlock.forward` with the norms' affine folded into `qkv` / `project_in`."""
-    if x.is_cuda:  # PixelShuffle gives NCHW strides; a mixed-stride add is 8x slower
+    if not x.is_cpu:  # PixelShuffle gives NCHW strides; a mixed-stride add is 8x slower
         x = x.contiguous(memory_format=torch.channels_last)
     x = x + m.attn(m.norm1(x))
     return x + m.ffn(m.norm2(x))
@@ -294,7 +300,12 @@ def _restore(net: Restormer, image: torch.Tensor) -> torch.Tensor:
 
 
 class Portable(Runner):
-    """Plain PyTorch in the card's dtype, channels-last on CUDA."""
+    """Plain PyTorch in the card's dtype, channels-last on CUDA and MPS.
+
+    MPS: channels-last with the stream kept channels-last after each PixelShuffle (`_block`); restormer-deblur
+    float16 1.48 -> 0.99 s (survey). NCHW with the WithBias norm output made contiguous gave 1.36 s, and 1.95 s in
+    float32.
+    """
 
     dtypes = ("float32", "float16", "bfloat16")
     Params = Params
@@ -319,7 +330,7 @@ class Portable(Runner):
                 m.attn.wide = mlx_wrap.run_dtype(ctx) == "float16" and ctx.dtype == "float32"  # ty: ignore[invalid-assignment]
                 _pad_ffn(m.ffn)
                 self._prepare_ffn(m.ffn, ctx.device)
-        self.fmt = torch.channels_last if torch.device(ctx.device).type == "cuda" else torch.contiguous_format
+        self.fmt = torch.contiguous_format if torch.device(ctx.device).type == "cpu" else torch.channels_last
         self.net.eval().to(ctx.device, getattr(torch, ctx.dtype)).to(memory_format=self.fmt)
 
     def pad(self, x: torch.Tensor) -> tuple[torch.Tensor, Crop]:
