@@ -212,9 +212,9 @@ class Portable(Runner):
         return Forward(self.net, fn, output_names=("class_logits", "box_offsets", "visibility_logits", "pose_vectors"))
 
 
-# people per DCC call in kernels mode: every call pads its people to this many and replays one CUDA graph (the
-# decoding is ~60 tiny kernels; eager they cost rtmo-s ~0.7 ms of host launches per image on Windows); more run eagerly
-DCC_ROWS = 64
+# kernels: every call pads its people to DCC_ROWS and replays one CUDA graph (the decoding is ~60 tiny kernels; eager
+# they cost rtmo-s ~0.7 ms of host launches per image on Windows); more people run eagerly
+DCC_ROWS = 64  # fixed: graph rows, a speed choice (not the architecture): any count gives the same keypoints
 
 
 class _GraphedDCC:
