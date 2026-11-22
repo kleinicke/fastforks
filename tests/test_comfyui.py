@@ -462,8 +462,15 @@ def test_prompt_parsing(pack: Any) -> None:
     with pytest.raises(ValueError, match="box"):
         c.box("1,2,3")
     dets = json.dumps([[{"box": [0, 0, 5, 5], "class_name": "dog"}, {"box": [1, 1, 2, 2], "class_name": "person"}]])
-    assert c.person_boxes(dets, 3) == [[1.0, 1.0, 2.0, 2.0]]
-    assert c.person_boxes("", 0) is None
+    assert c.subject_boxes(dets, 3, "coco-keypoints-17") == [[1.0, 1.0, 2.0, 2.0]]
+    assert c.subject_boxes(dets, 0, "ap10k-17") == [[0.0, 0.0, 5.0, 5.0]]  # the animal, not the person
+    assert c.subject_boxes(dets, 0, "lapa-106") == [[0.0, 0.0, 5.0, 5.0], [1.0, 1.0, 2.0, 2.0]]  # face boxes: all
+    cars = json.dumps([[{"box": [0, 0, 5, 5], "class_name": "car"}]])
+    assert c.subject_boxes(cars, 0, "ap10k-17") == [[0.0, 0.0, 5.0, 5.0]]  # no animal: every box
+    assert c.subject_boxes("", 0, "halpe-26") is None
+    from fastforks.pose._api import SKELETONS  # noqa: PLC0415 - only this check needs the pose task
+
+    assert set(c.SUBJECTS) <= set(SKELETONS)  # every named label set exists
     assert json.loads(c.to_json([{"a": torch.tensor([1.5])}])) == [{"a": [1.5]}]
 
 

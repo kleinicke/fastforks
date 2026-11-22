@@ -770,9 +770,12 @@ class Detect(_Node):
 
 
 class Pose(_Node):
-    """Human keypoints, drawn as skeletons on black (pose ControlNet input) and as JSON."""
+    """Human (or animal) keypoints, drawn as skeletons on black (pose ControlNet input) and as JSON."""
 
-    DESCRIPTION = "Keypoints as a skeleton image and as JSON. Top-down models use the person boxes of a Detect node."
+    DESCRIPTION = (
+        "Keypoints as a skeleton image and as JSON. Top-down models use the boxes of a Detect node (people; animals for"
+        " AP-10K models)."
+    )
     RETURN_TYPES = ("IMAGE", "STRING")
     RETURN_NAMES = ("pose_image", "keypoints")
     TASK = "pose"
@@ -781,7 +784,10 @@ class Pose(_Node):
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        tip = "Top-down models: the 'detections' output of a Detect node (person boxes); empty: the whole image."
+        tip = (
+            "Top-down models: the 'detections' output of a Detect node (person boxes; animal boxes for AP-10K models;"
+            " any boxes if none is one); empty: the whole image."
+        )
         return {
             "required": {
                 "image": ("IMAGE",),
@@ -811,7 +817,7 @@ class Pose(_Node):
             h, w = x.shape[-2:]
             boxes = None
             if cast("PoseModel", m).needs_boxes:
-                found = convert.person_boxes(detections, i)
+                found = convert.subject_boxes(detections, i, m.variant.output_info["label_set"])
                 boxes = [[0.0, 0.0, float(w), float(h)]] if found is None else found
             r = m(x, boxes=boxes)
             drawn = convert.draw_pose(
