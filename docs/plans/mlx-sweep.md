@@ -3507,3 +3507,15 @@ on 11-19. Routes: unchanged (`gen_auto_mode --check` clean). Goldens: the mandat
 vitmatte-b, birefnet, pointdit-b-512, midas-dpt-beit-large-512 and dinov3-convnext-tiny all pass (17 tests), as do
 tests/test_mlx*.py and test_auto_mode.py. dinov3-convnext-tiny's golden is present and passes on MLX, so nothing is
 pending there.
+
+Three slower first calls (fp16, after the change; none used the two-pass export):
+
+| ref | first call s | export | translate | largest other phase |
+|---|---|---|---|---|
+| film 1080x1920 | 14.7 | 1.5 | 0.08 | eager x77 +1.8 s, tuned-compiled +2.9 s, tuned-eager x2 (172 ops) +2.9 s against 0.05 s warm |
+| s2m2-s 994x1482 | 12.7 | 3.8 | 0.26 | tuned-compiled x81 +6.8 s (compiling plus the tuning trial) |
+| pi3 336x518 | 16.0 | 6.8 | 1.1 | the run itself (8.0 s; fifth call 7.6 s) |
+
+On these nets the time after export goes to MLX compiles and first-use Metal kernels, not to redundant passes.
+Trimming the tuning trial would change routes and speed, so it is left for a separate pass. A plain eager first
+segment would also need first-call kernel builds, so there is no cheap win.
