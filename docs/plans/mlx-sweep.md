@@ -2474,3 +2474,16 @@ rtmdet / rtmo, hrnet, mmseg, rfdetr, any2full, bridgedepth, foundationstereo, c-
 mvsanywhere, depthfm, lama and others), the non-torch formats (sapiens `.pt2` 6 GB, tapnext `.npz`, ppocrv5, crestereo
 `.mge`, hitnet `.pb`), and 12 files not present locally (7.5 GB by card size: dinov3-convnext, the dinov3 ViT files of
 pointdit / insid3, four loma variants).
+
+## Full MLX golden sweep (2026-11-22)
+
+All 578 `test_mlx[...]` tests: 575 pass (matanyone has no MLX port and skips). `pe-core-g14-448` and `pe-spatial-g14-448`
+do not fit the 16 GB Mac (swap above 15 GB even alone); `siglip2-g16-384` passes alone but is killed inside a full run.
+`tests/test_mlx*.py` and `tests/test_auto_mode.py`: 71 passed, 1 skipped (CUDA). The eight failures of the first pass were
+local setup, not MLX: DINOv3 checkpoints sat in `dinov3/` while the dinov3_convnext, insid3 and pointdit families look in
+their own folder or at the top level; the grounding-dino and loma goldens were stale or missing
+(`tools/fetch_goldens.py --all <dir>` refreshes them); the five new loma `.pth` files were not downloaded.
+
+Weights layout: a file is found as `<FASTFORKS_WEIGHTS_PATH>/<family>/<name>` or `<...>/<name>`. A checkpoint shared by
+several families (the DINOv3 ones) needs a top-level entry (a symlink is enough); family folders hold only their own files.
+Run the sweep in chunks, not as one process: the giant models spike swap and kill a long run.
