@@ -130,6 +130,7 @@ class Portable(Runner):
     dtypes = ("float32", "float16")
     Params = Params
     needs_boxes: ClassVar[bool] = False
+    compiled_methods = ("__call__", "estimate_batch")
     # images per network call (`estimate_batch`): launch bound (RTX 5060 Ti, Windows, fp16, 8 frames 480 x 640, ms per
     # frame: rtmo-t 12.7 -> 4.8, rtmo-s 12.8 -> 5.6, rtmo-m 14.4 -> 7.2, rtmo-l 18.3 -> 9.5); the network input is
     # the fixed letterbox size, so memory does not grow with the image
