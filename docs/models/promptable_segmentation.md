@@ -113,6 +113,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://huggingface.co/mit-han-lab/efficientvit-sam/blob/a2f0c5929196a13ef1ffc9338d3f9e482e1e0e68/README.md (license: apache-2.0, with LICENSE.txt); code: https://github.com/mit-han-lab/efficientvit/blob/de7d7733cc0329f391b33f1f459271562ec27bd5/LICENSE
 - Training data: distilled from SAM ViT-H, then trained on SA-1B (11M licensed images, 1.1B automatically generated masks) per the paper; the dataset itself is under the SA-1B research licence
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `efficientvit-sam-l0`, `efficientvit-sam-l1`, `efficientvit-sam-l2`, `efficientvit-sam-xl0`, `efficientvit-sam-xl1`
 - Outputs: pred_masks, iou_scores
@@ -169,7 +170,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 ### Limitations
 
 - On the RTX 5060 Ti at 3840 × 2160 with 12 point prompts and 36 output masks, EfficientViT-SAM L0 used 621 MiB portable and 626 MiB kernels, down from 1,546 and 1,552 MiB. Masks, scores and logits matched bit for bit. Paired latency was 37.0 to 38.6 ms portable and 35.3 to 36.9 ms kernels.
-- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~85 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
+- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~90 MiB above portable at 1024 x 1024 (280 vs 190 MiB, RTX 5060 Ti, Windows; peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
 
@@ -243,6 +244,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/ChaoningZhang/MobileSAM/blob/f706ad9c4eb7f219c00d9050e46328518ffb65d2/LICENSE (Apache-2.0; weights/mobile_sam.pt is in the same tree and the README names no other terms); the same file from a co-author: https://huggingface.co/dhkim2810/MobileSAM/blob/4e2e5245fe9dc63096d575d36e70eb39b03b3aba/README.md (license: mit); TinyViT: https://github.com/microsoft/Cream/blob/4a13c4091e78f9abd2160e7e01c02e48c1cf8fb9/LICENSE
 - Training data: image encoder distilled from SAM ViT-H on 1 % of SA-1B (about 100k images) per the README and paper; prompt encoder and mask decoder are SAM's (trained on SA-1B: 11M licensed images, 1.1B automatically generated masks); the dataset itself is under the SA-1B research licence
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `fvm_conv`, `fvm_extra`, `fvm_mb`, `fvm_r3`
 - Variants: `mobile-sam`
 - Outputs: pred_masks, iou_scores
@@ -276,7 +278,7 @@ CPU, float32: max |diff| <= 0.0013 vs the original. GPU, float16 (the default), 
 ### Limitations
 
 - On the RTX 5060 Ti at 3840 × 2160 with 12 point prompts and 36 output masks, MobileSAM used 583 MiB portable and 584 MiB kernels, down from 1,509 and 1,510 MiB. Masks, scores and logits matched bit for bit. Paired latency was 39.6 to 41.2 ms portable and 38.2 to 39.7 ms kernels.
-- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~85 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
+- Kernels keep CUDA graphs: their private pool and static outputs stay reserved, so peak reserved is ~110 MiB above portable at 1024 x 1024 (318 vs 210 MiB, RTX 5060 Ti, Windows; peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
 

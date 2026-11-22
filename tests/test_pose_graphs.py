@@ -1,8 +1,8 @@
-"""Kernels CUDA runners of the top-down pose families (ViTPose, RTMPose) away from the golden's single call.
+"""Kernels CUDA runners of the top-down pose families (ViTPose, RTMPose, HRNet) away from the golden's single call.
 
 A graph capture that fails marks its shape eager without a word (`GraphCache._failed`), and the goldens make one call
 with two people and the default options, so they cannot see: whether the graph is really captured and replayed with
-new crops, the zero crops padding a bucket, more people than the largest bucket, and RTMPose's `flip_test`.
+new crops, the zero crops padding a bucket, more people than the largest bucket, and `flip_test`.
 
 Keypoint comparisons run on the golden's photo and person boxes (noise crops have no keypoints: their argmax jumps
 between equal peaks) and, as the goldens, on the keypoints the fp32 portable runner scores at least `gpu_min_score`,
@@ -25,7 +25,7 @@ from fastforks._core.errors import WeightsError
 from fastforks._core.half import graph_sized
 from fastforks.pose._runner import BUCKETS
 
-REFS = ["vitpose-base-simple@1", "vitpose-plus-small@1", "rtmpose-t@1"]  # both ViTPose decoders, ViTPose++, SimCC
+REFS = ["vitpose-base-simple@1", "vitpose-plus-small@1", "rtmpose-t@1", "hrnet-w32@1"]  # ViTPose x 2, ++, SimCC, MSRA
 BOXES = torch.tensor([[10.0, 5.0, 200.0, 300.0], [150.0, 40.0, 330.0, 290.0], [0.0, 0.0, 320.0, 320.0]])
 
 pytestmark = [pytest.mark.model, pytest.mark.gpu]
@@ -130,7 +130,7 @@ def test_zero_crops_of_a_bucket_leave_the_people_alone(ref: str) -> None:
     model.release_graphs()
 
 
-@pytest.mark.parametrize("ref", ["vitpose-base-simple@1", "rtmpose-t@1"])
+@pytest.mark.parametrize("ref", ["vitpose-base-simple@1", "rtmpose-t@1", "hrnet-w32@1"])
 def test_more_people_than_the_largest_bucket(ref: str) -> None:
     """70 people: 32 + 32 + 6 (in the 8 bucket), each chunk through its graph, against the fp32 portable runner."""
     people = 2 * BUCKETS[-1] + 6
@@ -153,9 +153,9 @@ def test_more_people_than_the_largest_bucket(ref: str) -> None:
     model.release_graphs()
 
 
-@pytest.mark.parametrize("ref", ["rtmpose-t@1", "dwpose-l-384@1", "rtmw-m@1"])
+@pytest.mark.parametrize("ref", ["rtmpose-t@1", "dwpose-l-384@1", "rtmw-m@1", "hrnet-w32@1"])
 def test_flip_test_matches_portable(ref: str) -> None:
-    """RTMPose `flip_test=True` (off in the goldens): the Kernels runner against the fp32 portable one."""
+    """`flip_test=True` (off in the goldens): the Kernels runner against the fp32 portable one."""
     img, boxes = _photo(ref)
     flip = {"flip_test": True}
     want = _load(ref, "portable", dtype="float32", **(flip or {}))(img, boxes=boxes)
