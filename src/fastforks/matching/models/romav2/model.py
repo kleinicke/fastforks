@@ -311,7 +311,7 @@ class Mlx(Runner):
         net.refiner_features.float()
         cast("torch.nn.ModuleDict", net.refiners).float()
         fold_batch_norms(net)
-        self.engine = Engine(net, ctx.params, kernels=ctx.mode == "kernels")
+        self.engine = Engine(net, ctx.params, kernels=ctx.mode == "kernels", float16=ctx.dtype == "float16")
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Return pixel coordinates and overlap for the first image."""

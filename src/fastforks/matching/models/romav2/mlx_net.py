@@ -4,8 +4,9 @@ The two-view transformer rounds its rotary products to bfloat16 just as its upst
 including in float32 inference. Only overlap (the first confidence channel) feeds the public result. The
 three precision-matrix channels do not enter any subsequent warp or overlap computation.
 
-Kernels mode uses FP16 for transformer projections, VGG convolutions and the refiner's inner blocks.
-The transformer residual stream, norms, attention, DPT head, warp and confidence updates stay in FP32.
+Kernels mode, and float16, use FP16 for transformer projections, VGG convolutions and the refiner's inner blocks.
+Float16 also runs the DPT head's convolutions in FP16 and keeps the VGG feature maps in FP16. The transformer
+residual stream, norms, attention, the global matching, local correlation, warp and confidence updates stay in FP32.
 """
 # ruff: noqa: ANN001, ANN202 - array functions mirror the upstream stages; module arguments are their torch layers
 
@@ -154,7 +155,7 @@ def _matcher(matcher, side, *, half: bool):
     return run
 
 
-def _resize_layer(layer):
+def _resize_layer(layer, *, half: bool):
     if isinstance(layer, nn.ConvTranspose2d):
         # Nonoverlapping transposed convolution: project each pixel into a tile of output pixels.
         w = _array(layer.weight.permute(0, 2, 3, 1).flatten(1))
@@ -168,15 +169,15 @@ def _resize_layer(layer):
 
         return run
     if isinstance(layer, nn.Conv2d):
-        return _conv(layer)
+        return _conv(layer, half=half)
     if isinstance(layer, nn.Identity):
         return lambda x: x
     msg = f"unsupported RoMa DPT resize layer {type(layer).__name__}"
     raise TypeError(msg)
 
 
-def _unit(layer):
-    first, last = _conv(layer.conv1), _conv(layer.conv2)
+def _unit(layer, *, half: bool):
+    first, last = _conv(layer.conv1, half=half), _conv(layer.conv2, half=half)
 
     def run(x):
         # Upstream's first ReLU is in-place: the skip carries the rectified input.
@@ -186,9 +187,9 @@ def _unit(layer):
     return run
 
 
-def _fuse(layer, up):
-    skip = _unit(layer.resConfUnit1) if layer.has_residual else None
-    block, proj = _unit(layer.resConfUnit2), _conv(layer.out_conv)
+def _fuse(layer, up, *, half: bool):
+    skip = _unit(layer.resConfUnit1, half=half) if layer.has_residual else None
+    block, proj = _unit(layer.resConfUnit2, half=half), _conv(layer.out_conv, half=half)
 
     def run(x, other, size):
         if skip is not None:
@@ -198,14 +199,16 @@ def _fuse(layer, up):
     return run
 
 
-def _dpt(head, up):
+def _dpt(head, up, *, half: bool):
+    """`half`: the convolutions in FP16 (the output projection, which makes the warp and overlap, stays FP32)."""
     norm = _norm(head.norm)
     projects = [_linear(x) for x in head.projects]
-    resizes = [_resize_layer(x) for x in head.resize_layers]
+    resizes = [_resize_layer(x, half=half) for x in head.resize_layers]
     s = head.scratch
-    convs = [_conv(getattr(s, f"layer{i}_rn")) for i in range(1, 5)]
-    fuses = [_fuse(getattr(s, f"refinenet{i}"), up) for i in range(1, 5)]
-    reduce, hidden, out = _conv(s.output_conv1), _conv(s.output_conv2[0]), _linear(s.output_conv2[2])
+    convs = [_conv(getattr(s, f"layer{i}_rn"), half=half) for i in range(1, 5)]
+    fuses = [_fuse(getattr(s, f"refinenet{i}"), up, half=half) for i in range(1, 5)]
+    reduce, hidden = _conv(s.output_conv1, half=half), _conv(s.output_conv2[0], half=half)
+    out = _linear(s.output_conv2[2])
     ratio = head.patch_size // head.down_ratio
 
     def run(feats):
@@ -220,7 +223,7 @@ def _dpt(head, up):
             size = maps[i - 1].shape[1:3] if i else (maps[0].shape[1] * 2, maps[0].shape[2] * 2)
             y = fuses[i](y, maps[i], size)
         y = up(reduce(y), h * ratio, w * ratio)
-        pred = out(mx.maximum(hidden(y), 0))
+        pred = out(mx.maximum(hidden(y), 0).astype(mx.float32))
         return pred[..., :2], pred[..., 2:3]
 
     return run
@@ -297,7 +300,8 @@ def _refine(layer, correlate, sample, *, half: bool):
     return run
 
 
-def _vgg(net, *, half: bool):
+def _vgg(net, *, half: bool, keep_half: bool):
+    """`keep_half`: the feature maps stay FP16 (the refiners' input projections read them in FP32)."""
     stages = []
     stage = []
     for layer in net.layers:
@@ -316,7 +320,7 @@ def _vgg(net, *, half: bool):
             for conv in convs:
                 x = mx.maximum(conv(x), 0)
                 mx.eval(x)
-            maps[2**i] = x.astype(mx.float32)
+            maps[2**i] = x if keep_half else x.astype(mx.float32)
         return maps
 
     return run
@@ -325,21 +329,21 @@ def _vgg(net, *, half: bool):
 class Engine:
     """MLX descriptor, global matcher and coarse/fine refiners for one verified checkpoint."""
 
-    def __init__(self, net: RoMaV2, params: Params, *, kernels: bool) -> None:
-        """Convert the network and build RoPE tables at the selected coarse size."""
+    def __init__(self, net: RoMaV2, params: Params, *, kernels: bool, float16: bool = False) -> None:
+        """Convert the network and build RoPE tables at the selected coarse size (`float16`: see the module)."""
         self.params = params
-        self.describe = _descriptor(net.f, params.coarse_size // net.f.patch_size, half=kernels)
-        self.match = _matcher(net.matcher, params.coarse_size // net.f.patch_size, half=kernels)
+        half = kernels or float16
+        self.describe = _descriptor(net.f, params.coarse_size // net.f.patch_size, half=half)
+        self.match = _matcher(net.matcher, params.coarse_size // net.f.patch_size, half=half)
         up, correlate, sample = resize_aligned, _correlation, _sample
         if kernels:
             from fastforks.kernels.dpt_mlx.ops import resize as up  # noqa: PLC0415 - runtime Metal kernels
             from fastforks.kernels.roma_mlx.ops import correlation as correlate  # noqa: PLC0415
             from fastforks.kernels.roma_mlx.ops import sample  # noqa: PLC0415
-        self.dpt = _dpt(net.matcher.head, up)
-        self.features = _vgg(net.refiner_features, half=kernels)
+        self.dpt = _dpt(net.matcher.head, up, half=float16)
+        self.features = _vgg(net.refiner_features, half=half, keep_half=float16)
         self.refiners = [
-            (int(k), _refine(v, correlate, sample, half=kernels))
-            for k, v in cast("nn.ModuleDict", net.refiners).items()
+            (int(k), _refine(v, correlate, sample, half=half)) for k, v in cast("nn.ModuleDict", net.refiners).items()
         ]
         self.anchor = net.anchor_width
         self.kept: list[tuple[torch.Tensor, list[mx.array]]] = []

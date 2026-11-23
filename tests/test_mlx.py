@@ -83,9 +83,9 @@ def test_ports_declare_both_dtypes(task, ref, libs):
     assert (card.mlx_kernel_libs, card.mlx_dtypes("kernels")) == (libs, both if libs else ())
 
 
-def test_romav2_declares_float32_mlx_matching():
+def test_romav2_declares_both_mlx_dtypes():
     card = registry.resolve("matching", "romav2")[0]
-    assert card.portable_mlx_dtypes == card.mlx_dtypes("kernels") == ("float32",)
+    assert card.portable_mlx_dtypes == card.mlx_dtypes("kernels") == ("float32", "float16")
     assert card.mlx_kernel_libs == ("roma_mlx", "dpt_mlx")
 
 
