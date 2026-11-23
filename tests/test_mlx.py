@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import dataclasses
 import sys
+import threading
 import tomllib
 from pathlib import Path
 
@@ -452,3 +453,82 @@ def test_released_twin_exports_a_second_shape_after_inference_mode_calls():
             want = ref(x)
         torch.testing.assert_close(got, want, atol=1e-5, rtol=1e-5)
     assert not any(t.is_inference() for t in (*net.parameters(), *net.buffers()))
+
+
+class TestLazyTwin:
+    """`mlx_wrap._lazy_twin` patches `torch.nn.init` and `load_state_dict` for its own thread only, refcounted."""
+
+    @staticmethod
+    def _originals():
+        return (torch.nn.init.uniform_, torch.nn.init.kaiming_uniform_, torch.nn.Module.load_state_dict)
+
+    def test_assigns_the_checkpoint_and_rejects_an_unloaded_parameter(self):
+        from fastforks.shared.mlx_wrap import LazyTwinError, _lazy_twin  # noqa: PLC0415 - private helper under test
+
+        sd = torch.nn.Linear(4, 3).state_dict()
+        before = self._originals()
+        with _lazy_twin():
+            net = torch.nn.Linear(4, 3)
+            net.load_state_dict(sd)
+        assert net.weight.data_ptr() == sd["weight"].data_ptr()  # assigned, not copied
+        with pytest.raises(LazyTwinError), _lazy_twin():
+            kept = torch.nn.Linear(4, 3)  # never loaded: its parameters hold whatever the allocator returned
+        del kept
+        assert self._originals() == before
+
+    def test_overlapping_twins_restore_the_real_functions(self):
+        from fastforks.shared.mlx_wrap import _lazy_twin  # noqa: PLC0415 - private helper under test
+
+        before = self._originals()
+        a_in, b_in, a_out = threading.Event(), threading.Event(), threading.Event()
+
+        def first():
+            with _lazy_twin():
+                a_in.set()
+                assert b_in.wait(10)
+            a_out.set()
+
+        def second():
+            assert a_in.wait(10)
+            with _lazy_twin():  # entered while the first is open, left after the first has left
+                b_in.set()
+                assert a_out.wait(10)
+
+        threads = [threading.Thread(target=first), threading.Thread(target=second)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(20)
+        assert self._originals() == before
+        torch.manual_seed(0)
+        ref = torch.nn.Linear(4, 3).weight.clone()
+        torch.manual_seed(0)
+        assert torch.equal(torch.nn.Linear(4, 3).weight, ref)
+        assert ref.abs().sum() > 0
+
+    def test_other_threads_build_and_load_as_usual(self):
+        from fastforks.shared.mlx_wrap import _lazy_twin  # noqa: PLC0415 - private helper under test
+
+        torch.manual_seed(0)
+        ref = torch.nn.Linear(64, 64)
+        sd = {k: v.clone() for k, v in ref.state_dict().items()}
+        opened, done = threading.Event(), threading.Event()
+
+        def twin():
+            with _lazy_twin():
+                opened.set()
+                assert done.wait(10)
+
+        t = threading.Thread(target=twin)
+        t.start()
+        try:
+            assert opened.wait(10)
+            torch.manual_seed(0)
+            other = torch.nn.Linear(64, 64)  # built on this thread while the twin's patch is installed
+            assert torch.equal(other.weight, ref.weight)
+            assert torch.equal(other.bias, ref.bias)
+            other.load_state_dict(sd)
+            assert other.weight.data_ptr() != sd["weight"].data_ptr()  # copied in place: no `assign=True` here
+        finally:
+            done.set()
+            t.join(20)

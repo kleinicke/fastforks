@@ -2823,6 +2823,31 @@ def _profiled(
     rec[1] += 1
 
 
+_regions_local = threading.local()  # .on: whether the calling thread is inside `_no_op_regions`
+_regions_lock = threading.Lock()
+_regions_users = 0  # `_no_op_regions` blocks that are open, over all threads; the patch is installed while > 0
+_regions_originals: list[tuple[Any, Any, Any]] = []  # autocast's enter / exit and `_set_grad_enabled` (0 or 1 entry)
+
+
+def _lean_enter(self: Any) -> Any:
+    enter = _regions_originals[0][0]
+    if not getattr(_regions_local, "on", False):
+        return enter(self)  # another thread's region: as usual
+    skip = not getattr(self, "_enabled", True) and not torch.is_autocast_enabled(self.device)
+    self.__dict__.setdefault("_ff_skipped", []).append(skip)
+    return self if skip else enter(self)
+
+
+def _lean_exit(self: Any, *exc: object) -> Any:
+    skipped = self.__dict__.get("_ff_skipped")  # only regions an exporting thread entered carry it
+    return False if skipped and skipped.pop() else _regions_originals[0][1](self, *exc)
+
+
+def _lean_set_grad(mode: bool) -> None:
+    if not getattr(_regions_local, "on", False) or bool(mode) != torch.is_grad_enabled():
+        _regions_originals[0][2](mode)
+
+
 @contextlib.contextmanager
 def _no_op_regions() -> Iterator[None]:
     """While exporting: autocast and grad-mode regions that change nothing are not recorded.
@@ -2832,31 +2857,33 @@ def _no_op_regions() -> Iterator[None]:
     nodes are 10 to 20 s of a 29 s export). A region that leaves the state as it was (an autocast that is or turns off,
     for a device whose autocast is already off, such as a CUDA autocast on a Mac; `no_grad` under `no_grad`) has no
     effect on the traced ops, so it is skipped. A region that changes the state is recorded as before.
+
+    The patched functions are process-wide attributes: they are counted under a lock (overlapping exports restore the
+    real ones when the last is done) and act for the exporting thread only, so another thread's autocast and grad-mode
+    regions run unchanged meanwhile.
     """
+    global _regions_users
+    if getattr(_regions_local, "on", False):  # an export inside an export shares the outer block
+        yield
+        return
     autocast = torch.amp.autocast_mode.autocast
-    enter, exit_ = autocast.__enter__, autocast.__exit__
-    set_grad = torch._C._set_grad_enabled
-
-    def lean_enter(self: Any) -> Any:
-        skip = not getattr(self, "_enabled", True) and not torch.is_autocast_enabled(self.device)
-        self.__dict__.setdefault("_ff_skipped", []).append(skip)
-        return self if skip else enter(self)
-
-    def lean_exit(self: Any, *exc: object) -> Any:
-        skipped = self.__dict__.get("_ff_skipped")
-        return False if skipped and skipped.pop() else exit_(self, *exc)
-
-    def lean_set_grad(mode: bool) -> None:
-        if bool(mode) != torch.is_grad_enabled():
-            set_grad(mode)
-
-    autocast.__enter__, autocast.__exit__ = lean_enter, lean_exit  # type: ignore[method-assign]
-    torch._C._set_grad_enabled = lean_set_grad
+    with _regions_lock:
+        if _regions_users == 0:
+            _regions_originals.append((autocast.__enter__, autocast.__exit__, torch._C._set_grad_enabled))
+            autocast.__enter__, autocast.__exit__ = _lean_enter, _lean_exit  # type: ignore[method-assign]
+            torch._C._set_grad_enabled = _lean_set_grad
+        _regions_users += 1
+    _regions_local.on = True
     try:
         yield
     finally:
-        autocast.__enter__, autocast.__exit__ = enter, exit_  # type: ignore[method-assign]
-        torch._C._set_grad_enabled = set_grad
+        _regions_local.on = False
+        with _regions_lock:
+            _regions_users -= 1
+            if _regions_users == 0:
+                enter, exit_, set_grad = _regions_originals.pop()
+                autocast.__enter__, autocast.__exit__ = enter, exit_  # type: ignore[method-assign]
+                torch._C._set_grad_enabled = set_grad
 
 
 TWO_PASS_EXPORT = bool(os.environ.get("FF_MLX_TWO_PASS_EXPORT"))

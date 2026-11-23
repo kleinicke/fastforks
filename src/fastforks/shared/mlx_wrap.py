@@ -14,10 +14,12 @@ import contextvars
 import dataclasses
 import gc
 import os
-import weakref
+import threading
 from typing import TYPE_CHECKING, Any
 
 import torch
+
+from fastforks._core.deferred_init import skipped_init
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Mapping
@@ -53,16 +55,35 @@ class LazyTwinError(RuntimeError):
     """A parameter of the lazily built PyTorch twin was never given a value (the twin is rebuilt the eager way)."""
 
 
-_INITS = (
-    "uniform_",
-    "normal_",
-    "trunc_normal_",
-    "xavier_uniform_",
-    "xavier_normal_",
-    "kaiming_uniform_",
-    "kaiming_normal_",
-    "orthogonal_",
-)
+_local = threading.local()  # .lazy: whether the calling thread is inside `_lazy_twin`
+_load_lock = threading.Lock()
+_load_users = 0  # `_lazy_twin` blocks that are open, over all threads; `load_state_dict` is patched while > 0
+_load_original: list[Callable[..., Any]] = []  # `nn.Module.load_state_dict` from before the first block (0 or 1 entry)
+
+
+def _assigning_load(self: torch.nn.Module, state_dict: Any, strict: bool = True, assign: bool = False) -> Any:  # noqa: ANN401, FBT001, FBT002
+    """`load_state_dict` while a `_lazy_twin` block is open: `assign=True` on its thread, unchanged on the others."""
+    original = _load_original[0]
+    if assign or not getattr(_local, "lazy", False):
+        return original(self, state_dict, strict, assign)
+    own = self.state_dict()
+    fixed = {}
+    for k, v in state_dict.items():
+        t = own.get(k)
+        fixed[k] = v.to(t.dtype) if isinstance(v, torch.Tensor) and t is not None and v.dtype != t.dtype else v
+    return original(self, fixed, strict, True)
+
+
+def _patch_load(delta: int) -> None:
+    """Open (+1) or close (-1) one user of the `load_state_dict` patch: installed by the first, removed by the last."""
+    global _load_users  # noqa: PLW0603 - process-wide patch refcount
+    with _load_lock:
+        if delta > 0 and _load_users == 0:
+            _load_original.append(torch.nn.Module.load_state_dict)
+            torch.nn.Module.load_state_dict = _assigning_load
+        _load_users += delta
+        if delta < 0 and _load_users == 0:
+            torch.nn.Module.load_state_dict = _load_original.pop()  # ty: ignore[invalid-assignment]
 
 
 @contextlib.contextmanager
@@ -74,34 +95,19 @@ def _lazy_twin() -> Iterator[None]:
     stays an ordinary copy), and the random initialisers of `torch.nn.init` do nothing (the parameter keeps untouched
     pages). The values are exactly those of the eager build. A parameter that keeps its skipped initialisation (never
     loaded, never written) would be garbage: that raises `LazyTwinError` and the caller builds the eager way.
+
+    Both patches are process-wide attributes, so they are counted under a lock and act for the calling thread only:
+    a module another thread builds meanwhile (another load, user code) is initialised and loaded as usual, and
+    overlapping twins restore the real functions when the last one is done.
     """
-    skipped: dict[int, tuple[weakref.ref[torch.Tensor], int]] = {}
-    orig_load = torch.nn.Module.load_state_dict
-    orig_inits = {name: getattr(torch.nn.init, name) for name in _INITS}
-
-    def load(self: torch.nn.Module, state_dict: Any, strict: bool = True, assign: bool = False) -> Any:  # noqa: ANN401, FBT001, FBT002
-        if assign:
-            return orig_load(self, state_dict, strict, assign)
-        own = self.state_dict()
-        fixed = {}
-        for k, v in state_dict.items():
-            t = own.get(k)
-            fixed[k] = v.to(t.dtype) if isinstance(v, torch.Tensor) and t is not None and v.dtype != t.dtype else v
-        return orig_load(self, fixed, strict, True)
-
-    def skip(name: str) -> Callable[..., Any]:
-        def init(tensor: torch.Tensor, *args: Any, **kwargs: Any) -> torch.Tensor:  # noqa: ANN401, ARG001
-            skipped[id(tensor)] = (weakref.ref(tensor), tensor._version)  # noqa: SLF001
-            return tensor
-
-        init.__name__ = name
-        return init
-
-    torch.nn.Module.load_state_dict = load  # ty: ignore[invalid-assignment]
-    for name in _INITS:
-        setattr(torch.nn.init, name, skip(name))
+    if getattr(_local, "lazy", False):  # a twin built inside a twin shares the outer block
+        yield
+        return
+    _patch_load(+1)
+    _local.lazy = True
     try:
-        with torch.inference_mode(mode=False):  # hosts such as ComfyUI build under inference mode: no version counters
+        # hosts such as ComfyUI build under inference mode: no version counters
+        with skipped_init() as skipped, torch.inference_mode(mode=False):
             yield
         for ref, version in skipped.values():
             t = ref()
@@ -109,9 +115,8 @@ def _lazy_twin() -> Iterator[None]:
                 msg = "a parameter keeps its skipped initialisation"
                 raise LazyTwinError(msg)
     finally:
-        torch.nn.Module.load_state_dict = orig_load  # ty: ignore[invalid-assignment]
-        for name, fn in orig_inits.items():
-            setattr(torch.nn.init, name, fn)
+        _local.lazy = False
+        _patch_load(-1)
 
 
 class _Method(torch.nn.Module):
