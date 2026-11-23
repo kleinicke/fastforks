@@ -428,6 +428,44 @@ def patch_norms(model: Patched) -> None:
             override(m, _instance_norm_forward)  # torch's returns NCHW for an NHWC input
 
 
+# ------------------------------------------------------------------------------------------------ padding
+REFLECT_MIN_CHANNELS = 8  # fixed: measured (RTX 5060 Ti): below it torch's kernel wins (3 channels: 0.03 / 0.23 ms)
+
+
+def reflect_pad(x: torch.Tensor, pad: tuple[int, int, int, int]) -> torch.Tensor:
+    """`F.pad(x, pad, mode="reflect")` of a 4-D `x` as a channels-last tensor (the same values).
+
+    torch's reflection pad returns NCHW for a channels-last input, so a channels-last conv after it converts back: two
+    full copies (64 x 512 x 512 fp16, pad 3: 1.83 ms) where this writes the interior once (0.21 ms).
+    """
+    left, right, top, bottom = pad
+    n, c, h, w = x.shape
+    out = torch.empty((n, c, h + top + bottom, w + left + right), device=x.device, dtype=x.dtype, memory_format=CL)
+    out[:, :, top : top + h, left : left + w] = x
+    if left:
+        out[:, :, top : top + h, :left] = x[..., 1 : left + 1].flip(3)
+    if right:
+        out[:, :, top : top + h, left + w :] = x[..., w - right - 1 : w - 1].flip(3)
+    if top:
+        out[:, :, :top] = out[:, :, top + 1 : 2 * top + 1].flip(2)
+    if bottom:
+        out[:, :, top + h :] = out[:, :, top + h - bottom - 1 : top + h - 1].flip(2)
+    return out
+
+
+def _reflect_forward(self: Patched, x: torch.Tensor) -> torch.Tensor:
+    if x.dim() == 4 and x.shape[1] >= REFLECT_MIN_CHANNELS and x.is_contiguous(memory_format=CL):  # noqa: PLR2004 - NCHW
+        return reflect_pad(x, self.padding)
+    return F.pad(x, self.padding, mode="reflect")
+
+
+def patch_reflection_pads(model: Patched) -> None:
+    """Every `ReflectionPad2d` keeps a channels-last input channels-last (`reflect_pad`)."""
+    for m in model.modules():
+        if is_base(m, nn.ReflectionPad2d):
+            override(m, _reflect_forward)
+
+
 # ------------------------------------------------------------------------------------------------ convs
 def _conv_forward(self: Patched, x: torch.Tensor) -> torch.Tensor:
     return conv_ep(self, x)
@@ -577,14 +615,20 @@ def fuse_sequentials(model: Patched) -> int:
     """Replace `conv -> BatchNorm [-> activation]` runs inside every `nn.Sequential` by `FusedConvBN`.
 
     The BN and activation slots become `nn.Identity` (indices and state-dict keys of the conv are unchanged). Only
-    plain BatchNorm modules fuse (BatchNormAct has its own activation). Returns the number of fused runs.
+    plain BatchNorm modules fuse (BatchNormAct has its own activation). Inner Sequentials go first, so a ReLU / ReLU6
+    right after a nested `Sequential(conv, BN)` (upstream's `Sequential(convbn_3d(...), nn.ReLU())`) joins its
+    epilogue too: exact, both commute with the fp16 rounding. Returns the number of fused runs.
     """
     n = 0
-    for seq in [m for m in model.modules() if isinstance(m, nn.Sequential)]:
+    for seq in reversed([m for m in model.modules() if isinstance(m, nn.Sequential)]):
         children = list(seq._modules.items())  # noqa: SLF001 - in-place slot replacement
         i = 0
         while i < len(children):
             name, m = children[i]
+            if _join_act(m, children[i + 1][1] if i + 1 < len(children) else None):
+                seq._modules[children[i + 1][0]] = nn.Identity()  # noqa: SLF001
+                i += 2
+                continue
             if not (
                 isinstance(m, CONVS)
                 and m.padding_mode == "zeros"
@@ -602,6 +646,54 @@ def fuse_sequentials(model: Patched) -> int:
             n += 1
             i = j
     return n
+
+
+def _join_act(m: nn.Module, nxt: nn.Module | None) -> bool:
+    """Make a ReLU / ReLU6 `nxt` the activation of `m`, a nested Sequential whose output is a plain `FusedConvBN`."""
+    last: nn.Module | None = m
+    while isinstance(last, nn.Sequential):
+        last = next((c for c in reversed(last) if not isinstance(c, nn.Identity)), None)
+    code = None if nxt is None else act_code(nxt)
+    if m is last or not isinstance(last, FusedConvBN) or last.act or code not in {ACT["relu"], ACT["relu6"]}:
+        return False
+    last.act = code
+    return True
+
+
+def _leaves(m: nn.Module) -> list[nn.Module]:
+    if isinstance(m, nn.Sequential):
+        return [leaf for c in m for leaf in _leaves(c)]
+    return [] if isinstance(m, nn.Identity) else [m]
+
+
+def conv_residual(seq: nn.Module, x: torch.Tensor, r: torch.Tensor | None, act: int = 0) -> torch.Tensor:
+    """`act(seq(x) + r)` with the residual add and the activation in the epilogue of `seq`'s last conv run.
+
+    `r` None: no residual. `seq`: a (nested) Sequential after `fuse_sequentials` that ends in a `FusedConvBN` without
+    activation. One rounding to fp16 instead of two (`seq`'s output, then the sum), and no separate add / activation
+    pass.
+
+    Raises:
+        TypeError: `seq` does not end in such a `FusedConvBN`.
+    """
+    *head, last = _leaves(seq) or [seq]
+    if not isinstance(last, FusedConvBN) or last.act:
+        msg = f"conv_residual: needs a Sequential ending in a FusedConvBN without activation, got {seq}"
+        raise TypeError(msg)
+    for m in head:
+        x = m(x)
+    return conv_ep(last.conv, x, last.s, last.t, act, r=r)
+
+
+def stereo_hourglass(hg: Patched, x: torch.Tensor) -> torch.Tensor:
+    """GwcNet's 3D `hourglass` forward (`conv1`..`conv6`, `redir1`, `redir2`) with both skips in the conv epilogues.
+
+    Upstream: `relu(conv5(bottom) + redir2(low))`, then `relu(conv6(up) + redir1(x))`.
+    """
+    low = hg.conv2(hg.conv1(x))
+    up = conv_residual(hg.conv5, hg.conv4(hg.conv3(low)), hg.redir2(low), ACT["relu"])
+    del low
+    return conv_residual(hg.conv6, up, hg.redir1(x), ACT["relu"])
 
 
 def fuse_selective(model: Patched, ratio: int = 4) -> int:

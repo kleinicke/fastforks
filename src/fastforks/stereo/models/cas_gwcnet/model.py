@@ -186,10 +186,11 @@ def _next_hypotheses(
     return full, low
 
 
-def forward(net: GwcNet | PSMNet, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+def forward(net: GwcNet | PSMNet, left: torch.Tensor, right: torch.Tensor, *, fused: bool = False) -> torch.Tensor:
     """Upstream's eval forward (`outputs["stage2"]["pred"]`); disparity `[B, H, W]` float32.
 
     Inputs are cast to the network's dtype (channels-last on CUDA); hypotheses, warps and regression run in float32.
+    `fused` (kernels): the residual adds and their ReLUs run in the conv epilogues (`cnn_kernels.conv_residual`).
     """
     p = next(net.parameters())
     fmt = torch.channels_last if p.is_cuda else torch.contiguous_format
@@ -209,9 +210,16 @@ def forward(net: GwcNet | PSMNet, left: torch.Tensor, right: torch.Tensor) -> to
         del low
         cost = agg.dres0(volume)
         del volume
-        cost = agg.dres1(cost) + cost
-        for hourglass in (agg.dres2, agg.dres3, agg.dres4):  # rebinding frees each input volume before the next stage
-            cost = hourglass(cost)
+        if fused:
+            from fastforks.shared.cnn_kernels import conv_residual, stereo_hourglass  # noqa: PLC0415 - kernels only
+
+            cost = conv_residual(agg.dres1, cost, cost)
+            for hourglass in (agg.dres2, agg.dres3, agg.dres4):
+                cost = stereo_hourglass(hourglass, cost)
+        else:
+            cost = agg.dres1(cost) + cost
+            for hourglass in (agg.dres2, agg.dres3, agg.dres4):  # rebinding frees each input volume before the next
+                cost = hourglass(cost)
         logits = agg.classif3(cost)
         del cost
         pred = upsample_softmax_regress(logits, full, h, w)
@@ -260,7 +268,7 @@ class Kernels(Runner):
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity of a padded pair."""
-        return {"disparity": forward(self.net, left, right)}
+        return {"disparity": forward(self.net, left, right, fused=True)}
 
 
 RUNNERS = {

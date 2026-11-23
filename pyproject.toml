@@ -185,6 +185,7 @@ runtime-evaluated-base-classes = []
   "S603",    # subprocess runs sys.executable with a literal script
 ]
 "src/fastforks/_core/cli.py" = ["T201"]  # the command line prints its output
+"integrations/comfyui/workflows/*.py" = ["T201", "INP001"]  # the example generator: a script that prints
 "tools/**" = [
   "T201",   # command-line tools print
   "INP001", # scripts, not a package

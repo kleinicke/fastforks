@@ -61,7 +61,7 @@ class Portable(Runner):
 
 
 class Kernels(Portable):
-    """Channels-last convolutions with fused instance normalization."""
+    """Channels-last convolutions with fused instance normalization and channels-last reflection padding."""
 
     module = Runner.module
 
@@ -71,6 +71,7 @@ class Kernels(Portable):
         prepare_image_norms(self.net, ctx.device)
         cnn_kernels.load(ctx.device)
         cnn_kernels.prepare_convs(self.net)
+        cnn_kernels.patch_reflection_pads(self.net)
 
 
 RUNNERS = {

@@ -294,6 +294,8 @@ class Portable(_Video):
         self.half = ctx.dtype == "float16"
         if self.half:
             pure_half(self.net, fp32=[self.net.head.scratch.output_conv2], channels_last=ctx.device.type != "mps")
+            if ctx.device.type != "mps":
+                self.net.head.fastforks_layout = torch.channels_last  # token maps as the convs store them
 
     def _encode(self, x: torch.Tensor) -> list[torch.Tensor]:
         return super()._encode(x.half() if self.half else x)
@@ -322,7 +324,7 @@ def _partial_head(head: DPTHeadTemporal, feats: list[torch.Tensor], h: int, w: i
         if head.use_clstoken:
             readout = feats[2 * i + 1].unsqueeze(1).expand_as(x)
             x = head.readout_projects[i](torch.cat((x, readout), -1))
-        x = x.transpose(1, 2).reshape(INFER_LEN, x.shape[-1], ph, pw).contiguous()
+        x = x.transpose(1, 2).reshape(INFER_LEN, x.shape[-1], ph, pw).contiguous(memory_format=head.fastforks_layout)
         maps.append(head.resize_layers[i](head.projects[i](x)))
 
     low, mid, high, coarse = maps
@@ -364,6 +366,7 @@ class Kernels(_Video):
         self.net = _cpu_net(ctx).to(ctx.device)
         use_fast_vit(self.net.pretrained)
         pure_half(self.net.head, fp32=[self.net.head.scratch.output_conv2])
+        self.net.head.fastforks_layout = torch.channels_last  # token maps as the convs store them
 
     def _window(self, feats: list[torch.Tensor], h: int, w: int, valid: int) -> torch.Tensor:
         """Use the shortened per-frame decoder for the last, possibly padded window."""

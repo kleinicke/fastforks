@@ -19,6 +19,8 @@ from .motion_module.motion_module import TemporalModule
 
 
 class DPTHeadTemporal(DPTHead):
+    fastforks_layout = torch.contiguous_format  # fastforks: the memory format of the token maps (the runner sets it)
+
     def __init__(self, 
         in_channels, 
         features=256, 
@@ -62,7 +64,8 @@ class DPTHeadTemporal(DPTHead):
             else:
                 x = x[0]
 
-            x = x.permute(0, 2, 1).reshape((x.shape[0], x.shape[-1], patch_h, patch_w)).contiguous()
+            # fastforks: the runner's layout (channels-last tokens already are NHWC: no transpose copy)
+            x = x.permute(0, 2, 1).reshape((x.shape[0], x.shape[-1], patch_h, patch_w)).contiguous(memory_format=self.fastforks_layout)
 
             B, T = x.shape[0] // frame_length, frame_length
             x = self.projects[i](x)

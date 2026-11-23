@@ -34,8 +34,13 @@ from fastforks._core.patch import override
 from fastforks._core.runner import Forward
 from fastforks._core.upload import device_tensor
 from fastforks.shared import mlx_wrap
-from fastforks.volume._nnunet import Norm, Plan, UNet, _network, configuration_of, nonzero_extent
-from fastforks.volume._nnunet_runner import CHECKPOINT_GLOBALS, fused_norm_act
+from fastforks.volume._nnunet import Norm, Plan, UNet, _ConvNormAct, _network, configuration_of, nonzero_extent
+from fastforks.volume._nnunet_runner import (
+    CHECKPOINT_GLOBALS,
+    _biased_conv_norm,
+    _biased_conv_norm_,
+    fused_norm_act,
+)
 from fastforks.volume._runner import InteractiveRunner
 
 if TYPE_CHECKING:
@@ -480,7 +485,7 @@ class Portable(InteractiveRunner):
 
 
 class Kernels(Portable):
-    """Portable + InstanceNorm + LeakyReLU as one in-place kernel (`vol_norm`) on the float16 feature maps."""
+    """Portable + conv bias, InstanceNorm and LeakyReLU as one in-place kernel (`vol_norm`) on the fp16 feature maps."""
 
     def __init__(self, ctx: Context) -> None:
         """Load `vol_norm` first, then the network."""
@@ -491,8 +496,11 @@ class Kernels(Portable):
 
     def _build(self, net: UNet) -> UNet:
         for m in net.modules():
-            if hasattr(m, "norm_act"):
+            if isinstance(m, _ConvNormAct):
                 override(m, fused_norm_act, "norm_act")
+                if m.conv.bias is not None:  # the bias joins the norm kernel (no separate pass over the map)
+                    override(m, _biased_conv_norm)
+                    override(m, _biased_conv_norm_, "forward_")
         return net
 
 
