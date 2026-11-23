@@ -8,7 +8,7 @@ flow propagation) is one fused `scaled_dot_product_attention`, so the `[H*W, H*W
 is never written (the kernels runner computes global matching and propagation as GEMMs over chunks of query rows,
 `_chunked`). On CUDA in fp16 the CNN, the Transformer, the upsampling head and the refinement block run
 under autocast; positions, matching, propagation, warping, correlation lookup and the flow stay float32 (the kernels
-runner's refinement correlation reads the CNN's fp16 features and accumulates in float32, `_FlowCorrelation`).
+runner's refinement correlation reads the CNN's fp16 features and sums in float32, `_kernel_lookup`).
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from __future__ import annotations
 import contextlib
 import functools
 import itertools
+import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -38,6 +39,9 @@ from .net.unimatch import UniMatch
 from .net.utils import feature_add_position, upsample_flow_with_mask
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from fastforks._core.kernels import CubinModule
     from fastforks.flow._runner import Context
 
     from .net.reg_refine import BasicUpdateBlock
@@ -96,60 +100,42 @@ def _chunked(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> tor
     return out
 
 
-_CORR_GATHER = 24 << 20  # fixed: bytes of gathered feature rows per chunk, L2-resident (25.9 vs 28.2 ms at 256 MiB)
-
-
-class _FlowCorrelation:
-    """`local_correlation_with_flow` (zeros padding) as dot products at integer positions (CUDA refinement, NHWC).
+def _kernel_lookup(k: CubinModule, f0: torch.Tensor, f1: torch.Tensor) -> Callable[[torch.Tensor], torch.Tensor]:
+    """`local_correlation_with_flow` (radius 4, zeros padding) by `raft_flow`'s lookup kernel (CUDA refinement).
 
     The window offsets are integers and the flow is shared by a pixel's window, so all its samples have the same
-    bilinear fraction: each correlation is the bilinear blend of the dot products at the `(2R + 2)^2` integer positions
-    around the flow target. Those are gathered rows of the second feature map in its own dtype (the fp16 features of
-    the autocast CNN, exact) with float32 accumulation; upstream's `grid_sample` writes `(2R + 1)^2` float32 samples per
-    pixel instead. 1080p, one refinement: 26 vs 36 ms; max difference 2e-4 on correlations up to 5.
+    bilinear fraction: one warp per pixel takes the dot products of the `(2R + 2)^2` integer positions around the flow
+    target in place (the CNN's fp16 features, float32 sums) and blends them; upstream's `grid_sample` writes
+    `(2R + 1)^2` float32 samples per pixel instead. The window comes in fp16 (the autocast refinement casts it anyway)
+    in the kernel's x-offset-major order, which Kernels' transposed `convc1` input channels absorb. 1080p, one
+    refinement: 2 vs 21 ms (a gather of the window's feature rows and a batched GEMV).
     """
+    a, o = (f.half().permute(0, 2, 3, 1).contiguous() for f in (f0, f1))
+    b, h, w, c = a.shape
+    side = (2 * REFINE_RADIUS + 1) ** 2
 
-    def __init__(self, feature0: torch.Tensor, feature1: torch.Tensor, radius: int) -> None:
-        b, c, h, w = feature0.shape
-        self.shape, self.radius = (b, c, h, w), radius
-        rows = feature1.flatten(2).transpose(1, 2)
-        self.table = torch.cat([rows, rows.new_zeros((b, 1, c))], dim=1).flatten(0, 1)  # [B * (HW + 1), C]; 0 row
-        self.query = feature0.flatten(2).transpose(1, 2).reshape(b * h * w, 1, c)
-        self.offsets = torch.arange(-radius, radius + 2, device=feature0.device)
-        self.base = torch.arange(b, device=feature0.device)[:, None, None] * (h * w + 1)  # each image's first row
-        self.y = torch.arange(h, device=feature0.device, dtype=torch.float32)[:, None]
-        self.x = torch.arange(w, device=feature0.device, dtype=torch.float32)[None]
+    def lookup(flow: torch.Tensor) -> torch.Tensor:
+        coords = (coords_grid(b, h, w, device=flow.device) + flow).permute(0, 2, 3, 1).contiguous()
+        out = torch.empty(b, h, w, side, dtype=torch.float16, device=flow.device)
+        for i in range(b):  # one warp per pixel, 8 warps per block
+            k.launch(
+                "corr_lookup_c128_r4_l1", (-(-h * w // 8), 1, 1), (256, 1, 1),
+                a[i], o[i], h, w, coords[i], out[i], side, 1 / math.sqrt(c),
+            )  # fmt: skip
+        return out.permute(0, 3, 1, 2)  # channels-last, as the refinement block runs
 
-    def __call__(self, flow: torch.Tensor) -> torch.Tensor:
-        """`[B, (2R+1)^2, H, W]` float32 correlation at the flow `[B, 2, H, W]`."""
-        b, c, h, w = self.shape
-        k = 2 * self.radius + 2
-        x, y = (self.x + flow[:, 0]).reshape(b, -1), (self.y + flow[:, 1]).reshape(b, -1)
-        x0, y0 = x.floor(), y.floor()
-        wx, wy = (x - x0)[..., None, None], (y - y0)[..., None, None]
-        gx = x0.long()[..., None, None] + self.offsets  # [B, N, 1, k]
-        gy = y0.long()[..., None, None] + self.offsets[:, None]  # [B, N, k, 1]
-        inside = (gx >= 0) & (gx < w) & (gy >= 0) & (gy < h)
-        index = (torch.where(inside, gy * w + gx, h * w) + self.base).reshape(b * h * w, k * k)
-        dots = torch.empty((b * h * w, 1, k * k), device=flow.device, dtype=torch.float32)
-        step = max(1, _CORR_GATHER // (k * k * c * self.table.element_size()))
-        for start in range(0, b * h * w, step):
-            rows = self.table.index_select(0, index[start : start + step].reshape(-1)).view(-1, k * k, c)
-            torch.bmm(
-                self.query[start : start + step],
-                rows.transpose(1, 2),
-                out_dtype=torch.float32,
-                out=dots[start : start + step],
-            )
-        dots = dots.view(b, h * w, k, k)
-        corr = (1 - wy) * ((1 - wx) * dots[:, :, :-1, :-1] + wx * dots[:, :, :-1, 1:]) + wy * (
-            (1 - wx) * dots[:, :, 1:, :-1] + wx * dots[:, :, 1:, 1:]
-        )
-        return (corr.reshape(b, h, w, -1) / c**0.5).permute(0, 3, 1, 2)  # channels-last, as the refinement block runs
+    return lookup
 
 
 def forward(  # noqa: PLR0913 - network, image pair and inference options
-    net: UniMatch, image1: torch.Tensor, image2: torch.Tensor, params: Params, *, fp16: bool, fused: bool = False
+    net: UniMatch,
+    image1: torch.Tensor,
+    image2: torch.Tensor,
+    params: Params,
+    *,
+    fp16: bool,
+    fused: bool = False,
+    lookup: CubinModule | None = None,
 ) -> torch.Tensor:
     """Flow `[B, 2, H, W]` of an ImageNet-normalised pair (H, W multiples of the card's padding)."""
     attention = _chunked if fused else attend
@@ -195,9 +181,9 @@ def forward(  # noqa: PLR0913 - network, image pair and inference options
         hidden, context = torch.chunk(net.refine_proj(feature1), chunks=2, dim=1)
         hidden, context = torch.tanh(hidden), torch.relu(context)
     mask = flow
-    if fused:  # the CNN's own features (fp16 under autocast), not the float32 copies; a channels-last refinement block
+    if lookup is not None:  # the CNN's own features (fp16 under autocast), not float32 copies; a channels-last block
         last = len(SCALES[params.scales]) - 1
-        correlate = _FlowCorrelation(features1[last], features2[last], REFINE_RADIUS)
+        correlate = _kernel_lookup(lookup, features1[last], features2[last])
         hidden, context = (x.contiguous(memory_format=torch.channels_last) for x in (hidden, context))
     else:
         correlate = lambda f: local_correlation_with_flow(  # noqa: E731
@@ -224,6 +210,7 @@ class Portable(Runner):
 
     dtypes = ("float32", "float16")
     fused_upsample = False
+    lookup: CubinModule | None = None  # Kernels: `raft_flow`, the refinement's correlation lookup
     Params = Params
 
     def __init__(self, ctx: Context) -> None:
@@ -241,7 +228,9 @@ class Portable(Runner):
         self.fp16 = ctx.dtype == "float16"
 
     def _flow(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
-        return forward(self.net, image1, image2, self.ctx.params, fp16=self.fp16, fused=self.fused_upsample)
+        return forward(
+            self.net, image1, image2, self.ctx.params, fp16=self.fp16, fused=self.fused_upsample, lookup=self.lookup
+        )
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a padded batch."""
@@ -397,6 +386,8 @@ def _refine_forward(self: BasicUpdateBlock, net, inp, corr, flow, *, upsample=Tr
 class Kernels(Portable):
     """Use explicit attention heads for fused SDPA, chunked GEMMs for global matching and fuse the convex upsampling.
 
+    The refinement's correlation windows come from `raft_flow`'s lookup kernel (`_kernel_lookup`).
+
     A repeated input shape up to `_GRAPH_PIXELS` replays a CUDA graph (`fastforks.shared.cuda_graphs`): the eager
     pass is launch-bound there.
     """
@@ -412,6 +403,12 @@ class Kernels(Portable):
                 layer.window_options = {"attention": _headed}
         override(self.net.transformer, _window_transformer)
         if ctx.params.refine:
+            from fastforks.kernels import raft_flow  # noqa: PLC0415 - needs the kernel library
+
+            self.lookup = raft_flow.load(ctx.device)
+            c1 = self.net.refine.encoder.convc1  # the lookup's window is x-offset major: transpose the input channels
+            side = 2 * REFINE_RADIUS + 1
+            c1.weight.data = c1.weight.data.view(-1, side, side, 1, 1).transpose(1, 2).reshape(c1.weight.shape)
             self.net.refine.to(memory_format=torch.channels_last)
             override(self.net.refine, _refine_forward)
         self._graphs = SmallShapeGraphs(
