@@ -191,6 +191,8 @@ def _raft(
     cnet, feats = raft.cnet(image1, return_feature=True)
     net, inp = torch.split(cnet, [raft.hidden_dim, raft.context_dim], dim=1)
     net, inp = torch.tanh(net), torch.relu(inp)
+    if getattr(raft.update_block, "_nhwc", False):  # kernels: a channels-last update block
+        net, inp = (x.contiguous(memory_format=torch.channels_last) for x in (net, inp))
     coords0, coords1 = raft.initialize_flow(image1)
     up_mask = None
     for step in range(iters):
@@ -224,12 +226,17 @@ def _update(  # noqa: PLR0913, PLR0917 - upstream's signature
     same input values (each cast rounds once either way): bit-identical, without the six float32 copies and casts.
     """
     e, g = m.encoder, m.gru
+    nhwc = getattr(m, "_nhwc", False)
+    mf = torch.channels_last if nhwc else torch.contiguous_format
+    if nhwc:
+        flow = flow.contiguous(memory_format=mf)
     cor = F.relu(e.convc2(F.relu(e.convc1(corr))))
     flo = F.relu(e.convf2(F.relu(e.convf1(flow))))
     out = F.relu(e.conv(torch.cat([cor, flo], dim=1)))
     del cor, flo
     hd, ci, co = net.shape[1], inp.shape[1], out.shape[1]
-    buf = net.new_empty((net.shape[0], hd + ci + co + flow.shape[1], *net.shape[2:]), dtype=_compute_dtype(net))
+    shape = (net.shape[0], hd + ci + co + flow.shape[1], *net.shape[2:])
+    buf = torch.empty(shape, dtype=_compute_dtype(net), device=net.device, memory_format=mf)
     buf[:, hd : hd + ci] = inp
     buf[:, hd + ci : hd + ci + co] = out
     buf[:, hd + ci + co :] = flow
@@ -244,7 +251,7 @@ def _update(  # noqa: PLR0913, PLR0917 - upstream's signature
         h = (1 - z) * h + z * q
     del buf
     delta_flow = m.flow_head(h)
-    mask = 0.25 * m.mask(h) if upsample else None
+    mask = 0.25 * m.mask(h).contiguous() if upsample else None  # upsample_flow views it
     return h, mask, delta_flow
 
 
@@ -559,6 +566,9 @@ class Kernels(Portable):
                 m.b16 = m.bias.detach().half()  # ty: ignore[unresolved-attribute]  # every decoder conv has a bias
                 override(m, _hacc_conv)
         override(self.net.amt_final_decoder, _kernels_decoder)
+        update = self.net.flow_estimator.update_block
+        update.to(memory_format=torch.channels_last)  # its 2 x 20 steps at 1/8 then skip cuDNN's layout transposes
+        update._nhwc = True  # noqa: SLF001 - read by `_raft` and `_update`
         # thousands of small launches (RAFT's 2 x 20 lookups and updates at 1/8): one graph replay for small inputs;
         # captured after the `cudnn_hacc` plans are built, so the graph records the half-compute ones
         self.graphs = SmallShapeGraphs(

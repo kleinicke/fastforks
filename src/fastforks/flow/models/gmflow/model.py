@@ -276,15 +276,19 @@ def _window_orders(h: int, w: int, splits: int, device: torch.device) -> tuple[t
 def _window_layer(
     layer: Any,  # noqa: ANN401 - a vendored TransformerLayer
     source: torch.Tensor,
-    target: torch.Tensor,
+    inputs: tuple[torch.Tensor, torch.Tensor],
     windows: int,
     mask: torch.Tensor | None,
 ) -> torch.Tensor:
-    """Upstream `TransformerLayer.forward` (swin, one head) on tokens already in its window order."""
+    """Upstream `TransformerLayer.forward` (swin, one head) on tokens already in its window order.
+
+    `inputs` are the source and target already in the projections' autocast dtype: autocast would cast the float32
+    tokens again for each of the three projections.
+    """
     b, n, c = source.shape
     q, k, v = (
         proj(x).view(b * windows, n // windows, c)
-        for proj, x in ((layer.q_proj, source), (layer.k_proj, target), (layer.v_proj, target))
+        for proj, x in ((layer.q_proj, inputs[0]), (layer.k_proj, inputs[1]), (layer.v_proj, inputs[1]))
     )
     if mask is None:
         message = _headed(q, k, v)
@@ -326,6 +330,8 @@ def _window_transformer(
     to_plain, plain_to_shifted, shifted_to_plain, shifted_back, plain_back = _window_orders(
         h, w, attn_num_splits, feature0.device
     )
+    autocast = torch.is_autocast_enabled(feature0.device.type)
+    dtype = torch.get_autocast_dtype(feature0.device.type) if autocast else feature0.dtype
     mask = generate_shift_window_attn_mask(
         input_resolution=(h, w),
         window_size_h=h // attn_num_splits,
@@ -333,9 +339,7 @@ def _window_transformer(
         shift_size_h=h // attn_num_splits // 2,
         shift_size_w=w // attn_num_splits // 2,
         device=feature0.device,
-        dtype=torch.get_autocast_dtype(feature0.device.type)
-        if torch.is_autocast_enabled(feature0.device.type)
-        else feature0.dtype,
+        dtype=dtype,
     )
     tokens = torch.cat((feature0, feature1)).flatten(-2).transpose(1, 2).index_select(1, to_plain)  # [2B, HW, C]
     shifted = False
@@ -344,9 +348,10 @@ def _window_transformer(
             tokens = tokens.index_select(1, shifted_to_plain if shifted else plain_to_shifted)
             shifted = not shifted
         layer_mask = mask if shifted else None
-        other = torch.cat(tokens.chunk(2)[::-1])  # the cross-attention target: the other image before this block
-        tokens = _window_layer(layer.self_attn, tokens, tokens, windows, layer_mask)
-        tokens = _window_layer(layer.cross_attn_ffn, tokens, other, windows, layer_mask)
+        low = tokens.to(dtype)
+        other = torch.cat(low.chunk(2)[::-1])  # the cross-attention target: the other image before this block
+        tokens = _window_layer(layer.self_attn, tokens, (low, low), windows, layer_mask)
+        tokens = _window_layer(layer.cross_attn_ffn, tokens, (tokens.to(dtype), other), windows, layer_mask)
     tokens = tokens.index_select(1, shifted_back if shifted else plain_back)
     feature0, feature1 = tokens.view(2 * b, h, w, c).permute(0, 3, 1, 2).contiguous().chunk(2)
     return feature0, feature1

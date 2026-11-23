@@ -165,7 +165,7 @@ def _prepare(net: HAT) -> None:
             del m.relative_position_bias_table
             override(m, _attention)
         elif isinstance(m, OCAB):
-            t = m.get_parameter("relative_position_bias_table")[oca.reshape(-1)].view(*oca.shape, -1)
+            t = m.get_parameter("relative_position_bias_table").detach()[oca.reshape(-1)].view(*oca.shape, -1)
             m.register_buffer("bias", t.permute(2, 0, 1).contiguous())
             del m.relative_position_bias_table
             override(m, _ocab)

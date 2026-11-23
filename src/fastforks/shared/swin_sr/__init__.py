@@ -124,9 +124,13 @@ def _border_windows(regions: torch.Tensor) -> torch.Tensor:
 
 
 def relative_bias(table: torch.Tensor, index: torch.Tensor) -> torch.Tensor:
-    """`[nH, N, N]` relative position bias of one block (`table[index]`, as the attention gathers it per call)."""
+    """`[nH, N, N]` relative position bias of one block (`table[index]`, as the attention gathers it per call).
+
+    Detached from the table: SDPA's cuDNN backend rejects a mask that requires grad, so a gathered parameter would
+    send every window attention to the memory-efficient kernel (DRCT 512 x 512 on Windows: 4.0 -> 3.4 ms a call).
+    """
     n = index.shape[0]
-    return table[index.reshape(-1)].view(n, n, -1).permute(2, 0, 1).contiguous()
+    return table.detach()[index.reshape(-1)].view(n, n, -1).permute(2, 0, 1).contiguous()
 
 
 def pad_heads(qkv: nn.Linear, proj: nn.Linear, heads: int, multiple: int = 8) -> None:
