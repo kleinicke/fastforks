@@ -471,7 +471,9 @@ class Model:
         variant: The loaded variant.
         backend: The backend every call runs on.
         options: Load options that differ from the validated defaults.
-        device: The device the model runs on.
+        device: The device results come back on: the one of `load(device=...)`. An MLX model (`backend.device ==
+            "mlx"`) keeps its inputs on the CPU: `device` is `cpu` for `device="mlx"` and `mps` where a load on Apple
+            MPS took the MLX port.
         weights: The user's files of `load(weights=...)` (not hash-checked; the golden parity does not apply), or
             `None` for the variant's recorded weights.
     """
@@ -505,6 +507,11 @@ class Model:
         self._result_device: torch.device | None = None  # set when an MLX port stands in for Apple MPS
         if backend.mode == "kernels" and backend.device != MLX:  # MLX runners hold no PyTorch graph to break
             _kernels_entry_points(runner)
+
+    @property
+    def _device(self) -> torch.device:
+        """Where the runner takes its inputs: `device`, or the CPU when an MLX port stands in for Apple MPS."""
+        return self.device if getattr(self, "_result_device", None) is None else torch.device("cpu")
 
     def __repr__(self) -> str:
         """Model ref, backend and the user's weight files, if any."""
@@ -678,9 +685,9 @@ class Model:
 
         names = spec(self.card.task).inputs
         if names in {("left", "right"), ("image1", "image2")}:  # image pairs: a textured, shifted pair
-            views = synthetic_pair(height, width, self.device)
+            views = synthetic_pair(height, width, self._device)
         else:
-            views = (synthetic_image(height, width, self.device),) * len(names)
+            views = (synthetic_image(height, width, self._device),) * len(names)
         return tuple(v.expand(batch, -1, -1, -1).contiguous() for v in views)
 
     def export_onnx(
@@ -766,20 +773,20 @@ class Model:
         """
         if _FORKED:
             self._warn_if_forked()
-        cuda = self.device.type == "cuda"
-        on_device = torch.cuda.device(self.device) if cuda else contextlib.nullcontext()
+        cuda = self._device.type == "cuda"
+        on_device = torch.cuda.device(self._device) if cuda else contextlib.nullcontext()
         if cuda:
-            warmup.wait(self.device)
+            warmup.wait(self._device)
         det = _deterministic_cudnn() if cuda and self._runner.deterministic_cudnn else contextlib.nullcontext()
-        gpu = cuda or self.device.type == "mps" or self.backend.device == MLX  # MLX: one Metal stream per process
+        gpu = cuda or self._device.type == "mps" or self.backend.device == MLX  # MLX: one Metal stream per process
         with (
             _GPU_CALLS if gpu else contextlib.nullcontext(),
             self._lock,
             on_device,
             det,
-            sdpa.policy(self.device, self._runner.sdpa_auto),  # SDPA backends without flash (`fastforks.shared.sdpa`)
+            sdpa.policy(self._device, self._runner.sdpa_auto),  # SDPA backends without flash (`fastforks.shared.sdpa`)
             torch.inference_mode(),
-            _no_autocast(self.device),
+            _no_autocast(self._device),
         ):
             begin_call()
             yield
@@ -796,7 +803,7 @@ class Model:
                 "call torch.set_num_threads(1) first",
                 self.variant.ref,
             )
-        elif self.device.type != "cpu":
+        elif self._device.type != "cpu":
             logging.getLogger(f"fastforks.{self.card.task}").warning(
                 "%s was loaded before this process was forked: a CUDA / MPS context cannot be used in a forked child. "
                 "Load the model inside each worker and start workers with 'spawn'",
@@ -1181,7 +1188,7 @@ def _mps_via_mlx(  # noqa: PLR0913 - the resolved arguments of `load_model`
         return None
     log.info("%s: using the MLX port (%s, %s) for Apple MPS", variant.ref, *route)
     m.backend = dataclasses.replace(m.backend, mode="kernels")
-    m._result_device = dev  # noqa: SLF001 - set by the loader, like the backend
+    m._result_device = m.device = dev  # noqa: SLF001 - set by the loader, like the backend; inputs stay on the CPU
     return m
 
 

@@ -203,7 +203,7 @@ class FeaturesModel(core.Model):
         Raises:
             InputError: Unsupported or too small image, bad `size`, `layers` out of range or not supported.
         """
-        x = to_rgb_batch(image, self.device)
+        x = to_rgb_batch(image, self._device)
         self._check_size(x)
         hw = network_size(*x.shape[-2:], size, self.stride)
         idx = self._layers(layers)
@@ -274,7 +274,7 @@ class FeaturesModel(core.Model):
 
 def bench_inputs(model: FeaturesModel, size: BenchSize) -> BenchInputs:
     """`fastforks bench` call: one synthetic image `[1, 3, H, W]` (each side rounded to a multiple of the stride)."""
-    return (synthetic_image(size.height, size.width, model.device),), {}
+    return (synthetic_image(size.height, size.width, model._device),), {}  # noqa: SLF001
 
 
 list_models, model_card, load = task_api(TASK, FeaturesModel)

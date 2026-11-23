@@ -109,7 +109,7 @@ class InterpolationModel(core.Model):
         if not (isinstance(timestep, (int, float)) and math.isfinite(timestep) and 0 <= timestep <= 1):
             msg = f"timestep must be a number in [0, 1], got {timestep!r}"
             raise InputError(msg)
-        t1, t2 = to_rgb_pair(image1, image2, self.device, ("image1", "image2"))
+        t1, t2 = to_rgb_pair(image1, image2, self._device, ("image1", "image2"))
         self._check_size(t1)
         maps = unbatch(self._batched(functools.partial(self._run, timestep=float(timestep)), t1, t2), image1)
         return InterpolationResult(maps["frame"], self.variant.ref, self.backend, self.options)
@@ -143,7 +143,7 @@ class _PortableModule(torch.nn.Module):
 
 def bench_inputs(model: InterpolationModel, size: BenchSize) -> BenchInputs:
     """`fastforks bench` call: a synthetic textured pair `[1, 3, H, W]` (the second image shifted by 8 px)."""
-    return synthetic_pair(size.height, size.width, model.device), {}
+    return synthetic_pair(size.height, size.width, model._device), {}  # noqa: SLF001
 
 
 list_models, model_card, load = task_api(TASK, InterpolationModel)

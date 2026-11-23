@@ -753,3 +753,22 @@ class TestAutoFallback:
         m = load(mode="auto")
         assert m._mps_fallback() == "torch"  # the PyTorch MPS load, not the MLX route again
         assert seen
+
+
+def test_a_model_routed_from_mps_reports_the_device_of_its_results(monkeypatch):
+    """`model.device` is where results land (MPS), so `x.to(model.device)` combines with them; inputs stay on CPU."""
+    port = core_model.Model.__new__(core_model.Model)
+    port.device, port._result_device = torch.device("cpu"), None
+    port.backend = core_model.Backend("portable", "mlx", "float16")
+    assert port._device == port.device == torch.device("cpu")  # device="mlx": inputs and results on the CPU
+    monkeypatch.setattr(core_model, "_mlx_for_mps", lambda *_a: ("portable", "float16"))
+    monkeypatch.setattr(core_model, "_load_mlx", lambda *_a, **_k: port)
+    card, variant = registry.resolve("stereo", "crestereo-eth3d")
+    mps = torch.device("mps")
+    log = core_model.logging.getLogger("test")
+    m = core_model._mps_via_mlx(
+        object, card, variant, mode="auto", dtype=None, dev=mps, opts={}, files=None, state=None, log=log
+    )
+    assert m is port
+    assert (m.device, m._device, m._result_device) == (mps, torch.device("cpu"), mps)
+    assert m.backend.device == "mlx"

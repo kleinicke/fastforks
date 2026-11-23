@@ -701,7 +701,8 @@ def build_result(
     result = StereoResult(
         model.variant.ref, model.backend, model.options, views, geometry, calibrated=geometry is not None
     )
-    by_view = {v: make_view(v, m, geometry, image=images[side_of(v)], device=model.device) for v, m in maps.items()}
+    device = model._device  # noqa: SLF001 - where the model's maps are
+    by_view = {v: make_view(v, m, geometry, image=images[side_of(v)], device=device) for v, m in maps.items()}
     object.__setattr__(result, "_by_view", by_view)
     return result
 

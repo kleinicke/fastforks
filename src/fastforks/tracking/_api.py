@@ -101,7 +101,7 @@ class TrackingModel(core.Model):
         from fastforks._core.export import resolve_size  # noqa: PLC0415 - not needed for inference
 
         height, width = resolve_size(self, height, width)
-        return synthetic_video(8 * batch, height, width, self.device), grid_queries(height, width, 4, self.device)
+        return synthetic_video(8 * batch, height, width, self._device), grid_queries(height, width, 4, self._device)
 
     def __call__(self, video: Sequence[ImageLike] | np.ndarray | torch.Tensor, queries: Any) -> TrackingResult:  # noqa: ANN401 - array-like
         """Track query points through a video from each query's frame on.
@@ -148,7 +148,7 @@ class TrackingModel(core.Model):
         q, single = _queries(queries, n)
         _check_in_image(q, size)
         with self._session(), deferred_ranges():  # one range check for all frames, not one sync per frame
-            out = self._runner(frame, n, size, q.to(self.device))
+            out = self._runner(frame, n, size, q.to(self._device))
         maps = self._check_outputs(out, {"tracks": (n, q.shape[0], 2), "visibility": (n, q.shape[0])})
         if single:
             maps = {k: v[:, 0] for k, v in maps.items()}
@@ -156,7 +156,7 @@ class TrackingModel(core.Model):
 
     def _frame(self, video: Sequence[ImageLike] | np.ndarray | torch.Tensor, t: int) -> torch.Tensor:
         """Frame `t` as a checked `[1, 3, H, W]` batch on the device."""
-        x = to_rgb_batch(cast("ImageLike", video[t]), self.device)
+        x = to_rgb_batch(cast("ImageLike", video[t]), self._device)
         if x.shape[0] != 1:
             msg = f"video frame {t} is a batch of {x.shape[0]} images; pass one image per frame"
             raise InputError(msg)
@@ -228,8 +228,8 @@ def bench_inputs(model: TrackingModel, size: BenchSize) -> BenchInputs:
 
     The texture moves 2 px per frame.
     """
-    video = synthetic_video(BENCH_FRAMES, size.height, size.width, model.device)
-    return (video, grid_queries(size.height, size.width, BENCH_GRID, model.device)), {}
+    video = synthetic_video(BENCH_FRAMES, size.height, size.width, model._device)  # noqa: SLF001
+    return (video, grid_queries(size.height, size.width, BENCH_GRID, model._device)), {}  # noqa: SLF001
 
 
 list_models, model_card, load = task_api(TASK, TrackingModel)

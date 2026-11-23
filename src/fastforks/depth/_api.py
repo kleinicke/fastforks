@@ -194,7 +194,7 @@ class DepthModel(core.Model):
                 that does not use them, or missing for one that needs them; the same for `prompt_depth`, or a
                 dense `prompt_depth` that is not a finite, positive map.
         """
-        x = to_rgb_batch(image, self.device)
+        x = to_rgb_batch(image, self._device)
         self._check_size(x)
         if self._runner.video and x.shape[0] > 1:
             warnings.warn(
@@ -228,12 +228,12 @@ class DepthModel(core.Model):
             )
             raise InputError(msg)
         if isinstance(frames, np.ndarray | torch.Tensor):
-            x = to_rgb_batch(frames, self.device)
+            x = to_rgb_batch(frames, self._device)
         elif isinstance(frames, str | bytes) or not hasattr(frames, "__len__"):
             msg = f"frames must be a sequence of frames or a [T, ...] frame batch, got {type(frames).__name__}"
             raise InputError(msg)
         else:
-            parts = [to_rgb_batch(f, self.device) for f in frames]
+            parts = [to_rgb_batch(f, self._device) for f in frames]
             if not parts:
                 msg = "video has no frames"
                 raise InputError(msg)
@@ -285,7 +285,7 @@ class DepthModel(core.Model):
         (image,) = super().example_inputs(height, width, batch=batch)[:1]
         if self._runner.prompt_depth != "required":
             return (image,)
-        prompt = synthetic_prompt(*image.shape[-2:], self.device)
+        prompt = synthetic_prompt(*image.shape[-2:], self._device)
         return image, prompt.expand(batch, 1, -1, -1).contiguous()
 
     def _prompt(self, p: ArrayLike | None, batch: int) -> torch.Tensor | None:
@@ -308,7 +308,7 @@ class DepthModel(core.Model):
         if p.ndim != _MAP_DIMS + 1 or p.shape[0] not in {1, batch} or min(p.shape[-2:]) < 1:
             msg = f"prompt_depth must be [h, w] or [{batch}, h, w], got shape {tuple(p.shape)}"
             raise InputError(msg)
-        p = p.to(self.device)
+        p = p.to(self._device)
         if not self._runner.prompt_sparse and not bool(
             torch.isfinite(p).all() & (p.amin() > 0)
         ):  # one sync, as the other input checks
@@ -349,14 +349,14 @@ class DepthModel(core.Model):
         if not bool(cameras.valid(k, "intrinsics")):
             msg = f"intrinsics: {cameras.problem(k, 'intrinsics')}"
             raise InputError(msg)
-        k = k.to(self.device).contiguous()
+        k = k.to(self._device).contiguous()
         return k.clone() if k.data_ptr() == given.data_ptr() else k  # the result owns its matrices (9 floats each)
 
 
 def bench_inputs(model: DepthModel, size: BenchSize) -> BenchInputs:
     """`fastforks bench` call: one synthetic image `[1, 3, H, W]`, plus the intrinsics / prompt the model needs."""
     h, w = size.height, size.width
-    image = synthetic_image(h, w, model.device)
+    image = synthetic_image(h, w, model._device)  # noqa: SLF001
     r = model._runner  # noqa: SLF001 - the task's own runner contract
     kwargs: dict[str, Any] = {}
     if r.intrinsics == "required":
@@ -364,7 +364,7 @@ def bench_inputs(model: DepthModel, size: BenchSize) -> BenchInputs:
             [[0.9 * w, 0.0, (w - 1) / 2], [0.0, 0.9 * w, (h - 1) / 2], [0.0, 0.0, 1.0]]
         )  # OpenCV pixels
     if r.prompt_depth == "required":
-        kwargs["prompt_depth"] = synthetic_prompt(h, w, model.device)
+        kwargs["prompt_depth"] = synthetic_prompt(h, w, model._device)  # noqa: SLF001
     return (image,), kwargs
 
 

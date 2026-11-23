@@ -229,7 +229,7 @@ class VolumeModel(core.Model):
             msg = f"spacing must be three positive voxel sizes in mm (D, H, W), got {spacing!r}"
             raise InputError(msg)
         with self._session():
-            x = x.to(self.device, torch.float32, non_blocking=True)
+            x = x.to(self._device, torch.float32, non_blocking=True)
             _check_intensities(x, self.variant.ref)
             out = self._runner(x, sp)
             labels = self._check_outputs(out, {"labels": tuple(x.shape[1:])}, cast=False)["labels"]
@@ -290,7 +290,7 @@ class VolumeEncoder(core.Model):
         generator = torch.Generator().manual_seed(0)
         x = torch.randn(batch, self.channels, original_height, original_width, original_width, generator=generator)
         padding = (0, width - original_width, 0, width - original_width, 0, height - original_height)
-        return (torch.nn.functional.pad(x, padding).to(self.device),)
+        return (torch.nn.functional.pad(x, padding).to(self._device),)
 
     def __call__(self, volume: np.ndarray | torch.Tensor) -> VolumeFeatures:
         """Encode a volume (no resampling: pass it at the spacing the model card names).
@@ -310,7 +310,7 @@ class VolumeEncoder(core.Model):
             msg = f"{self.variant.ref} takes sides up to {self.max_size} voxels, got {tuple(x.shape[1:])}"
             raise InputError(msg)
         with self._session():
-            x = x.to(self.device, torch.float32, non_blocking=True)
+            x = x.to(self._device, torch.float32, non_blocking=True)
             maps = self._runner(x)["features"]
             if len(maps) != len(self.strides):
                 msg = f"{self.variant.ref}: runner returned {len(maps)} feature maps for strides {self.strides}"
@@ -333,7 +333,7 @@ class VolumeSession:
         self._model = model
         self.shape = tuple(int(n) for n in volume.shape[1:])
         with model._session():  # noqa: SLF001 - the model's locks and device guard
-            self._state = model._runner.start(volume.to(model.device, torch.float32))  # noqa: SLF001
+            self._state = model._runner.start(volume.to(model._device, torch.float32))  # noqa: SLF001
 
     def _run(self, prompt: str, *args: Any) -> VolumeMask:  # noqa: ANN401
         m = self._model
@@ -392,7 +392,7 @@ class VolumeSession:
         if tuple(s.shape) != self.shape or s.is_complex():
             msg = f"scribble must be a [D, H, W] mask of the volume's shape {self.shape}, got {tuple(s.shape)}"
             raise InputError(msg)
-        s = s.to(self._model.device) != 0
+        s = s.to(self._model._device) != 0  # noqa: SLF001
         if not s.any():
             msg = "scribble has no voxels set"
             raise InputError(msg)
@@ -433,8 +433,8 @@ class VolumeInteractive(core.Model):
             msg = "nnInteractive exports its fixed 192x192x192 network patch; use size 192x192"
             raise InputError(msg)
         runner = cast("Any", self._runner)
-        x = torch.zeros((batch, 8, 192, 192, 192), device=self.device, dtype=runner._dtype)  # noqa: SLF001
-        x[:, 0] = torch.linspace(-1, 1, 192, device=self.device, dtype=x.dtype).view(1, 1, 1, 192)
+        x = torch.zeros((batch, 8, 192, 192, 192), device=self._device, dtype=runner._dtype)  # noqa: SLF001
+        x[:, 0] = torch.linspace(-1, 1, 192, device=self._device, dtype=x.dtype).view(1, 1, 1, 192)
         x[:, 4, 96, 96, 96] = 1
         return (x,)
 
@@ -490,10 +490,10 @@ def bench_inputs(model: VolumeModel | VolumeEncoder | VolumeInteractive, size: B
     g = torch.Generator().manual_seed(0)
     vol = torch.randn((model.channels, size.height, size.width, size.width), generator=g) * 300.0
     if isinstance(model, VolumeEncoder):
-        return (vol.to(model.device),), {}
+        return (vol.to(model._device),), {}  # noqa: SLF001
     if isinstance(model, VolumeInteractive):
-        return (vol.to(model.device),), {"point": tuple(n // 2 for n in vol.shape[1:])}
-    return (vol.to(model.device),), {"spacing": (1.5, 1.5, 1.5)}
+        return (vol.to(model._device),), {"point": tuple(n // 2 for n in vol.shape[1:])}  # noqa: SLF001
+    return (vol.to(model._device),), {"spacing": (1.5, 1.5, 1.5)}  # noqa: SLF001
 
 
 def load(  # noqa: PLR0913 - the arguments of every task's `load` + the nnU-Net options

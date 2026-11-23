@@ -78,7 +78,7 @@ class OCRModel(core.Model):
         Raises:
             InputError: Unsupported or too small image.
         """
-        x = to_rgb_batch(image, self.device, keep_uint8=self._runner.uint8_input)
+        x = to_rgb_batch(image, self._device, keep_uint8=self._runner.uint8_input)
         self._check_size(x)
         results = [self._read(x[i : i + 1]) for i in range(x.shape[0])]
         return results if is_batch(image) else results[0]
@@ -156,7 +156,7 @@ def text_page(height: int, width: int) -> np.ndarray:
 
 def bench_inputs(model: OCRModel, size: BenchSize) -> BenchInputs:
     """`fastforks bench` call: one synthetic text page `[3, H, W]` uint8 (`text_page`)."""
-    return (torch.from_numpy(text_page(size.height, size.width)).permute(2, 0, 1).to(model.device),), {}
+    return (torch.from_numpy(text_page(size.height, size.width)).permute(2, 0, 1).to(model._device),), {}  # noqa: SLF001
 
 
 list_models, model_card, load = task_api(

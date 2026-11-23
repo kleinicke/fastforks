@@ -87,7 +87,7 @@ class SegmentationModel(core.Model):
         Raises:
             InputError: Unsupported or too small image.
         """
-        x = to_rgb_batch(image, self.device)
+        x = to_rgb_batch(image, self._device)
         self._check_size(x)
         (h, w), c = x.shape[-2:], len(self.class_names)
         log_space = self._runner.probabilities
@@ -122,7 +122,7 @@ class SegmentationModel(core.Model):
 
 def bench_inputs(model: SegmentationModel, size: BenchSize) -> BenchInputs:
     """`fastforks bench` call: one synthetic image `[1, 3, H, W]`, labels only (the default call)."""
-    return (synthetic_image(size.height, size.width, model.device),), {}
+    return (synthetic_image(size.height, size.width, model._device),), {}  # noqa: SLF001
 
 
 list_models, model_card, load = task_api(TASK, SegmentationModel)

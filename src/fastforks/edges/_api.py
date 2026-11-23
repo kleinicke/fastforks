@@ -72,7 +72,7 @@ class EdgesModel(core.Model):
         Raises:
             InputError: Unsupported or too small image.
         """
-        x = to_rgb_batch(image, self.device)
+        x = to_rgb_batch(image, self._device)
         self._check_size(x)
         segments: list[torch.Tensor] = []
 
@@ -90,7 +90,7 @@ class EdgesModel(core.Model):
 
 def bench_inputs(model: EdgesModel, size: BenchSize) -> BenchInputs:
     """`fastforks bench` call: one synthetic image `[1, 3, H, W]`."""
-    return (synthetic_image(size.height, size.width, model.device),), {}
+    return (synthetic_image(size.height, size.width, model._device),), {}  # noqa: SLF001
 
 
 list_models, model_card, load = task_api(TASK, EdgesModel)

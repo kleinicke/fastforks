@@ -114,15 +114,15 @@ class StereoModel(core.Model):
             if size is not None or focal is not None:
                 msg = "size= and focal= need a calibration: pass rig="
                 raise InputError(msg)
-            lt, rt = to_rgb_pair(left, right, self.device)
+            lt, rt = to_rgb_pair(left, right, self._device)
             self._check_size(lt)
             maps = unbatch(self._batched(self._run, lt, rt), left)
             disparity, confidence = maps.pop("disparity"), maps.pop("confidence", None)
             return plain_result(
-                disparity, confidence, maps, self.variant.ref, self.backend, self.options, device=self.device
+                disparity, confidence, maps, self.variant.ref, self.backend, self.options, device=self._device
             )
         view_names(views)
-        lt, rt = _as_tensor(left).to(self.device), _as_tensor(right).to(self.device)
+        lt, rt = _as_tensor(left).to(self._device), _as_tensor(right).to(self._device)
         if lt.shape != rt.shape:
             msg = f"left and right images differ: {tuple(lt.shape)} vs {tuple(rt.shape)}"
             raise InputError(msg)
@@ -254,7 +254,7 @@ class StereoModel(core.Model):
 
 def bench_inputs(model: StereoModel, size: BenchSize) -> BenchInputs:
     """`fastforks bench` call: a synthetic textured pair `[1, 3, H, W]` (the right view shifted by 8 px)."""
-    return synthetic_pair(size.height, size.width, model.device), {}
+    return synthetic_pair(size.height, size.width, model._device), {}  # noqa: SLF001
 
 
 list_models, model_card, load = task_api(TASK, StereoModel)

@@ -365,7 +365,7 @@ def run_many(  # noqa: C901, PLR0913, PLR0915 - the options of the method and it
     if prefetch < 1:
         msg = f"prefetch must be at least 1, got {prefetch}"
         raise InputError(msg)
-    device = model.device
+    device = model._device  # noqa: SLF001 - where the runner takes its inputs
 
     def result(**fields: Any) -> StereoResult:  # noqa: ANN401 - the run_many fields of StereoResult
         calibrated = loaded is not None

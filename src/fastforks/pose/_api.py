@@ -157,7 +157,7 @@ class PoseModel(core.Model):
             InputError: Unsupported image, missing, malformed or flipped boxes, or boxes for a model that finds the
                 people itself.
         """
-        x = to_rgb_batch(image, self.device)
+        x = to_rgb_batch(image, self._device)
         per_image = self._boxes(boxes, x.shape[0], batch=is_batch(image))
         if self._runner.batch == 1 or x.shape[0] == 1:
             outs = [self._raw(x[i : i + 1], b) for i, b in enumerate(per_image)]
@@ -181,14 +181,14 @@ class PoseModel(core.Model):
             )
             raise InputError(msg)
         if not batch:
-            return [_boxes_tensor(boxes, self.device)]
+            return [_boxes_tensor(boxes, self._device)]
         if isinstance(boxes, Instances | torch.Tensor | np.ndarray) or not isinstance(boxes, Sequence):
             msg = f"a batch of {n} images takes a list of {n} box arrays (one per image), got {type(boxes).__name__}"
             raise InputError(msg)
         if len(boxes) != n:
             msg = f"a batch of {n} images takes {n} box arrays, got {len(boxes)}"
             raise InputError(msg)
-        return [_boxes_tensor(b, self.device) for b in boxes]
+        return [_boxes_tensor(b, self._device) for b in boxes]
 
     def _empty(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
         k = len(self.keypoint_names)
@@ -292,11 +292,11 @@ def bench_inputs(model: PoseModel, size: BenchSize) -> BenchInputs:
     """`fastforks bench` call: one synthetic image `[3, H, W]` and (top-down) one person box per 128 px of width."""
     h, w = size.height, size.width
     if not model.needs_boxes:
-        return (synthetic_image(h, w, model.device)[0],), {}
+        return (synthetic_image(h, w, model._device)[0],), {}  # noqa: SLF001
     n = max(1, w // 128)
     x0 = torch.arange(n, dtype=torch.float32) * (w / n)
     boxes = torch.stack((x0, torch.full_like(x0, h * 0.1), x0 + w / n * 0.9, torch.full_like(x0, h * 0.95)), -1)
-    return (synthetic_image(h, w, model.device)[0],), {"boxes": boxes.to(model.device)}
+    return (synthetic_image(h, w, model._device)[0],), {"boxes": boxes.to(model._device)}  # noqa: SLF001
 
 
 list_models, model_card, load = task_api(TASK, PoseModel)

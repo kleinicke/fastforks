@@ -315,10 +315,10 @@ class MultiViewModel(core.Model):
             self._check_principal_point(k, x.shape[-2], x.shape[-1])
         c2w = self._camera("cam_to_world", r.cam_to_world, cam_to_world, n, (4, 4))
         run_c2w = c2w
-        if c2w is not None and c2w.device.type != self.device.type:  # float64 on MPS (kept on the CPU): float32
+        if c2w is not None and c2w.device.type != self._device.type:  # float64 on MPS (kept on the CPU): float32
             run_c2w = c2w.clone()  # relative to the first camera, so float32 keeps the precision
             run_c2w[:, :3, 3] -= c2w[0, :3, 3]
-            run_c2w = run_c2w.to(self.device, torch.float32)
+            run_c2w = run_c2w.to(self._device, torch.float32)
         rng = self._depth_range(depth_range)
         refs = self._references(reference, n)
         with self._session():
@@ -370,7 +370,7 @@ class MultiViewModel(core.Model):
 
         height, width = resolve_size(self, height, width)
         r = self._runner
-        rig = _rig(height, width, max(batch, r.min_views), self.device)
+        rig = _rig(height, width, max(batch, r.min_views), self._device)
         need = [getattr(r, name) == "required" for name in _CAMERAS]
         if need != sorted(need, reverse=True):
             msg = f"{self.variant.ref}: required inputs {_CAMERAS} are not a prefix of module()'s arguments"
@@ -382,7 +382,7 @@ class MultiViewModel(core.Model):
             if images.ndim != _BATCH_DIMS:
                 msg = f"a scene is a sequence of images or a [N, H, W, 3] / [N, 3, H, W] batch, got {images.ndim} dims"
                 raise InputError(msg)
-            x = to_rgb_batch(images, self.device)
+            x = to_rgb_batch(images, self._device)
         elif isinstance(images, (str, os.PathLike, bytes, bytearray)) or not isinstance(images, Sequence):
             msg = f"a scene is a sequence of images or one batch, got {type(images).__name__}"
             raise InputError(msg)
@@ -390,7 +390,7 @@ class MultiViewModel(core.Model):
             if not images:
                 msg = "a scene needs at least one image"
                 raise InputError(msg)
-            views = to_rgb_batches(images, self.device)  # one host sync for all range checks
+            views = to_rgb_batches(images, self._device)  # one host sync for all range checks
             sizes = {tuple(v.shape[1:]) for v in views}
             if any(v.shape[0] != 1 for v in views) or len(sizes) != 1:
                 msg = f"the views of a scene must be single images of one size, got {[tuple(v.shape) for v in views]}"
@@ -429,9 +429,9 @@ class MultiViewModel(core.Model):
         if not bool(cameras.valid(t, name)):
             msg = f"{name}: {cameras.problem(t, name)}"
             raise InputError(msg)
-        if t.dtype == torch.float64 and self.device.type == "mps":  # no float64 on MPS: kept on the CPU
+        if t.dtype == torch.float64 and self._device.type == "mps":  # no float64 on MPS: kept on the CPU
             return t.cpu().contiguous()
-        return to_device(t, self.device).contiguous()  # a pageable upload would sync the host
+        return to_device(t, self._device).contiguous()  # a pageable upload would sync the host
 
     def _check_principal_point(self, k: torch.Tensor, h: int, w: int) -> None:
         """Normalised or identity matrices (principal point near the corner) are not pixel intrinsics: refuse them.
@@ -465,7 +465,7 @@ class MultiViewModel(core.Model):
         if t.numel() != 2 or not torch.isfinite(t).all() or not 0 < t[0] < t[1]:  # noqa: PLR2004
             msg = f"depth_range must be finite (near, far) with 0 < near < far, got {value}"
             raise InputError(msg)
-        return to_device(t, self.device)
+        return to_device(t, self._device)
 
     def _references(self, reference: int | Sequence[int], n: int) -> tuple[int, ...]:
         if isinstance(reference, (int, np.integer)) and not isinstance(reference, bool):
@@ -526,7 +526,7 @@ def bench_inputs(model: MultiViewModel, size: BenchSize) -> BenchInputs:
 
     Cameras of a sideways rig (0.05 units apart) and a depth range of 1-10, passed only where the runner requires them.
     """
-    rig = _rig(size.height, size.width, size.views, model.device)
+    rig = _rig(size.height, size.width, size.views, model._device)  # noqa: SLF001
     runner = model._runner  # noqa: SLF001 - the task's own runner contract
     given: dict[str, Any] = {name: rig[name] for name in _CAMERAS if getattr(runner, name) == "required"}
     if "depth_range" in given:

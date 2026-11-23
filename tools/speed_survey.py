@@ -215,7 +215,7 @@ def _inputs(model: Any, job: dict[str, Any]) -> tuple[tuple[Any, ...], dict[str,
     if scene is None or not scene.exists():
         return args, kw, "synthetic"
     right = Path(str(scene).replace("image_2", "image_3").replace("im0", "im1"))
-    host = str(model.device)  # mps or cpu; on MLX the images stay on the CPU
+    host = str(model._device)  # noqa: SLF001 - mps or cpu; on MLX the images stay on the CPU
     images = (_image(scene, host), _image(right, host)) if job["task"] == "stereo" else (_image(scene, host),)
     return images, kw, job["scene"]
 

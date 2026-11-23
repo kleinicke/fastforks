@@ -559,13 +559,13 @@ def _bench_mode(
             round(torch.cuda.max_memory_allocated(model.device) / 2**20),
             round(torch.cuda.max_memory_reserved(model.device) / 2**20),
         )
-    elif model.device.type == "mps":
-        mem = (None, round(torch.mps.driver_allocated_memory() / 2**20))
-    elif mlx is not None:
+    elif mlx is not None:  # before MPS: an MLX port loaded for `device="mps"` reports `mps`, its memory is MLX's
         mem = (
             round(mlx.get_peak_memory() / 2**20),
             round((mlx.get_active_memory() + mlx.get_cache_memory()) / 2**20),
         )
+    elif model.device.type == "mps":
+        mem = (None, round(torch.mps.driver_allocated_memory() / 2**20))
     return model.variant.ref, model.backend, ms, mem
 
 

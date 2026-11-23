@@ -11,7 +11,7 @@ No model family is new in this release; the changes are backends, platforms and 
   raises `BackendUnavailableError`, a missing `mlx` package `MissingDependencyError`; nothing falls back.
 - `device="mps"` now takes the MLX port where it was measured faster or leaner and its first call is cheap
   (`mode="auto"`, logged at INFO), and for `mode="kernels"` where the family has no faster native Metal kernels. Such a
-  model reports `backend.device == "mlx"`; results come back as MPS tensors. `FASTFORKS_MLX=0` keeps every load on
+  model reports `backend.device == "mlx"`; results of a call come back as MPS tensors and `model.device` is `mps`. `FASTFORKS_MLX=0` keeps every load on
   PyTorch MPS. See "MPS takes the faster port" in `docs/usage.md`.
 
 ### Windows

@@ -137,7 +137,7 @@ class RestorationModel(core.Model):
                 model's smallest input; a mask missing for a model that needs one, given to one that does not use
                 it, or of another size or batch.
         """
-        x = to_rgb_batch(image, self.device)
+        x = to_rgb_batch(image, self._device)
         self._check_size(x)
         if tile is not None:
             self._check_tile(tile)
@@ -168,7 +168,7 @@ class RestorationModel(core.Model):
         if not need:
             msg = f"{self.variant.ref} does not use a mask; call it without one"
             raise InputError(msg)
-        m = to_rgb_batch(mask, self.device)[:, :1]
+        m = to_rgb_batch(mask, self._device)[:, :1]
         if m.shape[-2:] != x.shape[-2:] or m.shape[0] not in {1, x.shape[0]}:
             msg = (
                 f"mask: {m.shape[0]} map(s) of {tuple(m.shape[-2:])} px do not match the image(s): {x.shape[0]} of "
@@ -187,7 +187,7 @@ class RestorationModel(core.Model):
         (image,) = super().example_inputs(height, width, batch=batch)[:1]
         if self._runner.mask != "required":
             return (image,)
-        return image, synthetic_mask(*image.shape[-2:], self.device).expand(image.shape[0], -1, -1, -1).contiguous()
+        return image, synthetic_mask(*image.shape[-2:], self._device).expand(image.shape[0], -1, -1, -1).contiguous()
 
     def _check_tile(self, tile: object) -> None:
         low = max(OVERLAP + 1, self.size_range().reject_below or self.size_range().min_size)
@@ -274,10 +274,10 @@ class _PortableModule(torch.nn.Module):
 
 def bench_inputs(model: RestorationModel, size: BenchSize) -> BenchInputs:
     """`fastforks bench` call: one synthetic image `[1, 3, H, W]` in one pass (+ inpainting: a synthetic mask)."""
-    image = synthetic_image(size.height, size.width, model.device)
+    image = synthetic_image(size.height, size.width, model._device)  # noqa: SLF001
     if model._runner.mask != "required":  # noqa: SLF001 - the task's own runner contract
         return (image,), {}
-    return (image,), {"mask": synthetic_mask(size.height, size.width, model.device)}
+    return (image,), {"mask": synthetic_mask(size.height, size.width, model._device)}  # noqa: SLF001
 
 
 list_models, model_card, _load = task_api(TASK, RestorationModel)

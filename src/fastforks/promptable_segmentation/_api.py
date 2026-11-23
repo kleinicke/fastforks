@@ -268,7 +268,7 @@ class PromptableSegmentationModel(core.Model):
 
     def _to_batch(self, image: ImageLike) -> torch.Tensor:
         """`image` as a checked `[B, 3, H, W]` batch on the device."""
-        x = to_rgb_batch(image, self.device, keep_uint8=self._runner.uint8_input)
+        x = to_rgb_batch(image, self._device, keep_uint8=self._runner.uint8_input)
         self._check_size(x)
         return x
 
@@ -466,7 +466,7 @@ class PromptableSegmentationModel(core.Model):
             if m.ndim not in {2, 3} or tuple(m.shape[-2:]) != size:
                 msg = f"input_masks must be [P, H, W] (or [H, W]) at the frame size {size}, got {tuple(m.shape)}"
                 raise InputError(msg)
-            prompts = {"input_masks": (m if batched else m[None]).ne(0).float().to(self.device)}
+            prompts = {"input_masks": (m if batched else m[None]).ne(0).float().to(self._device)}
         else:
             given = {"input_points": input_points, "input_labels": input_labels, "input_boxes": input_boxes}
             kinds = self._runner.video_prompts or self.prompts
@@ -536,11 +536,11 @@ class PromptableSegmentationModel(core.Model):
         h, w = emb.image_size
         with self._session():
             out = self._runner.selected_concepts(dict(emb.features), text, ex_boxes, ex_labels, threshold=threshold)
-            boxes = out["boxes"] * device_tensor([w, h, w, h], device=self.device, dtype=torch.float32)
+            boxes = out["boxes"] * device_tensor([w, h, w, h], device=self._device, dtype=torch.float32)
             if len(boxes):
                 masks = self._runner.binary_masks(out["pred_masks"][:, None], (h, w))[:, 0]
             else:  # nothing found: no zero-batch interpolation
-                masks = torch.zeros((0, h, w), dtype=torch.bool, device=self.device)
+                masks = torch.zeros((0, h, w), dtype=torch.bool, device=self._device)
         return ConceptSegmentationResult(boxes, out["scores"], None, masks, (), self.variant.ref, self.backend, options)
 
     def _check_exemplars(
@@ -606,9 +606,9 @@ class PromptableSegmentationModel(core.Model):
         """The result of an empty prompt batch (`P = 0`): `[0, M, H, W]` masks, `[0, M]` scores."""
         m, (h, w), (mh, mw) = _MULTIMASK if multimask else 1, emb.image_size, self._runner.mask_size
         return PromptableSegmentationResult(
-            torch.zeros((0, m, h, w), dtype=torch.bool, device=self.device),
-            torch.zeros((0, m), device=self.device),
-            torch.zeros((0, m, mh, mw), device=self.device),
+            torch.zeros((0, m, h, w), dtype=torch.bool, device=self._device),
+            torch.zeros((0, m), device=self._device),
+            torch.zeros((0, m, mh, mw), device=self._device),
             self.variant.ref,
             self.backend,
             self.options,
@@ -647,7 +647,7 @@ class PromptableSegmentationModel(core.Model):
                 msg = f"{name} must have {dims} (or {dims - 1}, without P) dims, got shape {tuple(t.shape)}"
                 raise InputError(msg)
             batched.add(t.ndim == dims)
-            out[name] = _upload(t if t.ndim == dims else t[None], self.device)
+            out[name] = _upload(t if t.ndim == dims else t[None], self._device)
         self._check_prompt_shapes(out, caller)
         points = out.get("input_points")
         if points is not None and points.shape[0] and not points.shape[1]:  # P prompts with no point each
@@ -774,7 +774,7 @@ class InContextSegmentationModel(PromptableSegmentationModel):
         """
         emb = self._embedding(image)
         refs, sizes = self._references(reference_images)
-        masks = _reference_masks(reference_masks, sizes, self.device)
+        masks = _reference_masks(reference_masks, sizes, self._device)
         with self._session():
             out = self._runner.segment_reference(emb.features["features"], refs, masks)
             h, w = out["similarity"].shape
@@ -957,7 +957,7 @@ def bench_inputs(model: PromptableSegmentationModel, size: BenchSize) -> BenchIn
     three candidate masks); `get_image_embeddings` alone is the encoder.
     """
     h, w = size.height, size.width
-    image = synthetic_image(h, w, model.device)[0]
+    image = synthetic_image(h, w, model._device)[0]  # noqa: SLF001
     if "text" in model.prompts:
         return (image,), {"text": "object"}
     if "reference" in model.prompts:

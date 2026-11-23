@@ -768,7 +768,9 @@ On Apple silicon, use `device="mps"` for both public modes.
   call is quick (Depth Pro, with a 26 s compile against a 5 s MPS call, stays on MPS). For models left on MPS, ask for MLX
   with `device="mlx"` (below) if you can afford the first call, for example after [`warmup`](#apple-silicon-mlx).
 
-Results are MPS tensors. An MLX implementation reports `backend.mode == "kernels"` and `backend.device == "mlx"`.
+Results of a call are MPS tensors and `model.device` is `mps`, so tensors built on `model.device` combine with them;
+other methods (`video()`, sessions) of an MLX implementation return CPU tensors. An MLX implementation reports
+`backend.mode == "kernels"` and `backend.device == "mlx"`.
 Set `FASTFORKS_MLX=0` to run only PyTorch MPS implementations. On RoMa v2 this gives access to the float32
 Metal correlation kernel with `mode="kernels"`.
 

@@ -99,7 +99,7 @@ class MattingModel(core.Model):
             InputError: Unsupported or too small image; a trimap / mask missing for a model that needs one, given to
                 one that does not use it, or of another size or batch.
         """
-        x = to_rgb_batch(image, self.device)
+        x = to_rgb_batch(image, self._device)
         self._check_size(x)
         t = self._guide(trimap, mask, x)
 
@@ -156,7 +156,7 @@ class MattingModel(core.Model):
 
     def _frame(self, video: Sequence[ImageLike] | np.ndarray | torch.Tensor, t: int) -> torch.Tensor:
         """Frame `t` as a checked `[1, 3, H, W]` batch on the device."""
-        x = to_rgb_batch(cast("ImageLike", video[t]), self.device)
+        x = to_rgb_batch(cast("ImageLike", video[t]), self._device)
         if x.shape[0] != 1:
             msg = f"video frame {t} is a batch of {x.shape[0]} images; pass one image per frame"
             raise InputError(msg)
@@ -177,7 +177,7 @@ class MattingModel(core.Model):
         if given is None:
             return None
         name = "trimap" if trimap is not None else "mask"
-        t = to_rgb_batch(given, self.device)[:, :1]
+        t = to_rgb_batch(given, self._device)[:, :1]
         if t.shape[-2:] != x.shape[-2:] or t.shape[0] not in {1, x.shape[0]}:
             msg = (
                 f"{name}: {t.shape[0]} map(s) of {tuple(t.shape[-2:])} px do not match the image(s): {x.shape[0]} of "
@@ -197,7 +197,7 @@ class MattingModel(core.Model):
         and the border as background (0); the mask is its nonzero part.
         """
         (image,) = super().example_inputs(height, width, batch=batch)[:1]
-        guide = _synthetic_guide(self._runner, *image.shape[-2:], self.device)
+        guide = _synthetic_guide(self._runner, *image.shape[-2:], self._device)
         if guide is None:
             return (image,)
         return image, guide.expand(image.shape[0], -1, -1, -1).contiguous()
@@ -222,9 +222,9 @@ def _synthetic_guide(runner: Runner, height: int, width: int, device: torch.devi
 
 def bench_inputs(model: MattingModel, size: BenchSize) -> BenchInputs:
     """`fastforks bench` call: one synthetic image `[1, 3, H, W]`, plus a synthetic trimap or mask if required."""
-    image = synthetic_image(size.height, size.width, model.device)
+    image = synthetic_image(size.height, size.width, model._device)  # noqa: SLF001
     runner = model._runner  # noqa: SLF001 - the task's own runner contract
-    guide = _synthetic_guide(runner, size.height, size.width, model.device)
+    guide = _synthetic_guide(runner, size.height, size.width, model._device)  # noqa: SLF001
     if guide is None:
         return (image,), {}
     return (image,), {"trimap" if runner.trimap == "required" else "mask": guide}

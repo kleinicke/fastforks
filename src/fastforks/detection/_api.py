@@ -83,7 +83,7 @@ class DetectionModel(core.Model):
         """
         threshold = self._threshold(score_threshold)
         names = self._queries(text)
-        x = to_rgb_batch(image, self.device, keep_uint8=self._runner.uint8_input)
+        x = to_rgb_batch(image, self._device, keep_uint8=self._runner.uint8_input)
         self._check_size(x)
         changed = score_threshold is not None
         options = core.ReadOnlyDict(self.options, score_threshold=threshold) if changed else self.options
@@ -158,7 +158,7 @@ class DetectionModel(core.Model):
 
 def bench_inputs(model: DetectionModel, size: BenchSize) -> BenchInputs:
     """`fastforks bench` call: one synthetic uint8 image `[3, H, W]` (a photo's type; resized by the model as usual)."""
-    return ((synthetic_image(size.height, size.width, model.device)[0] * 255).round().to(torch.uint8),), {}
+    return ((synthetic_image(size.height, size.width, model._device)[0] * 255).round().to(torch.uint8),), {}  # noqa: SLF001
 
 
 list_models, model_card, load = task_api(
