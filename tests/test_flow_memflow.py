@@ -15,10 +15,11 @@ from fastforks.flow.models.memflow.model import (
     _fft_fits,
     _fft_size,
     _kernel_lookup,
+    _pcblock,
     _pointwise,
     _pointwise_fits,
 )
-from fastforks.flow.models.memflow.net import CorrBlock, MemFlowNet
+from fastforks.flow.models.memflow.net import CorrBlock, MemFlowNet, PCBlock
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -111,6 +112,15 @@ def test_pointwise_is_the_conv() -> None:
     assert not _pointwise_fits(torch.nn.Conv2d(4, 4, 1, stride=2))
     assert not _pointwise_fits(torch.nn.Conv2d(4, 4, 1, groups=4))
     assert not _pointwise_fits(torch.nn.Conv2d(4, 4, 3, padding=1))
+
+
+@pytest.mark.parametrize("kernels", [(1, 7), (1, 15)])
+def test_pcblock_fused_is_the_block(kernels: tuple[int, ...]) -> None:
+    torch.manual_seed(0)
+    block = PCBlock(6, 5, kernels).double()
+    x = torch.randn(2, 6, 9, 11, dtype=torch.float64)
+    with torch.no_grad():
+        torch.testing.assert_close(_pcblock(block, x), block(x), rtol=0, atol=1e-12)
 
 
 def test_fft_size_has_only_small_factors() -> None:
