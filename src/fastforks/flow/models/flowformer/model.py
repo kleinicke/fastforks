@@ -26,7 +26,6 @@ if TYPE_CHECKING:
     from .net.FlowFormer.LatentCostFormer.gru import BasicMotionEncoder, SepConvGRU
 
 RADIUS = 4  # fixed: upstream's `encode_flow_token` window: (2 r + 1)^2 = 81 costs per pixel
-LOOKUP_PIXELS = 8192  # fixed: the window lookup gathers 100 feature vectors per pixel for this many pixels at a time
 # fixed: GMA's attention matrix (1/8 pixels squared, float16) is kept up to this size and multiplied once per iteration;
 # larger inputs recompute softmax(q k) v with fused attention instead (1080 x 1920: 12.6 ms per iteration instead of
 # 5.9 ms, without the 2 GiB matrix)
@@ -163,7 +162,7 @@ class _Volume:
     def __init__(self, fmap1: torch.Tensor, fmap2: torch.Tensor) -> None:
         self.f1 = fmap1.flatten(2).transpose(1, 2)
         self.f2 = fmap2
-        self.windows: tuple[torch.Tensor, torch.Tensor] | None = None  # the lookup's float16 copies, made once
+        self.windows: tuple[torch.Tensor, ...] | None = None  # the lookup's float16 copies, made once
 
 
 def _corr(enc: MemoryEncoder, fmap1: torch.Tensor, fmap2: torch.Tensor) -> _Volume:
@@ -279,37 +278,38 @@ def _prepare_patch_embed(pe: PatchEmbed) -> None:
     override(pe, _patch_embed, "_embed")
 
 
-def _windows(_decoder: MemoryDecoder, vol: _Volume, coords: torch.Tensor) -> torch.Tensor:
+LOOKUP_C = 128  # fixed: channels of raft_flow's one-level radius-4 window lookup (`corr_lookup_c128_r4_l1`)
+
+
+def _kernel_windows(decoder: MemoryDecoder, vol: _Volume, coords: torch.Tensor) -> torch.Tensor:
     """Upstream `encode_flow_token`: the (2 r + 1)^2 bilinear costs around each pixel's `coords` (zero outside).
 
-    The 2 r + 2 integer neighbours' costs are gathered dot products of `f1` with `f2` (float16 on CUDA), then
-    interpolated; the window index is x offset major, as upstream's grid.
+    raft_flow's window lookup, one warp per pixel, reads the neighbours' features in place: the (2 r + 2)^2 dot
+    products of `f1` with `f2` (float32 sums of the float16 features), interpolated, the window index x offset major
+    as upstream's grid. It takes `LOOKUP_C` channels; the 256 channels run as two halves (float16 costs, added in
+    float32). A gather of every pixel's 100 neighbour vectors and a batched GEMV took 10.8 ms per iteration at
+    1080 x 1920, the kernel 1.3 ms.
     """
     b, c, h, w = vol.f2.shape
     if vol.windows is None:
-        dt = torch.float16 if vol.f2.is_cuda else vol.f2.dtype
-        vol.windows = vol.f1.to(dt).contiguous(), vol.f2.to(dt).permute(0, 2, 3, 1).reshape(b, h * w, c).contiguous()
-    f1, f2 = vol.windows
-    side = 2 * RADIUS + 2
-    xy = coords.float().flatten(2)
-    out = torch.empty(b, h * w, (side - 1) ** 2, device=coords.device)
-    steps = torch.arange(side, device=coords.device)
-    for i in range(b):
-        for s in range(0, h * w, LOOKUP_PIXELS):
-            cx, cy = xy[i, 0, s : s + LOOKUP_PIXELS], xy[i, 1, s : s + LOOKUP_PIXELS]
-            fx, fy = cx.floor(), cy.floor()
-            wx, wy = (cx - fx)[:, None, None], (cy - fy)[:, None, None]
-            gx, gy = fx.long()[:, None] - RADIUS + steps, fy.long()[:, None] - RADIUS + steps
-            inside = ((gy >= 0) & (gy < h))[:, :, None] & ((gx >= 0) & (gx < w))[:, None, :]
-            idx = gy.clamp(0, h - 1)[:, :, None] * w + gx.clamp(0, w - 1)[:, None, :]
-            p = cx.shape[0]
-            near = f2[i].index_select(0, idx.view(-1)).view(p, side * side, c)
-            d = torch.bmm(near, f1[i, s : s + p, :, None]).view(p, side, side).float() * inside  # [pixel, y, x]
-            v = (1 - wy) * ((1 - wx) * d[:, :-1, :-1] + wx * d[:, :-1, 1:]) + wy * (
-                (1 - wx) * d[:, 1:, :-1] + wx * d[:, 1:, 1:]
-            )
-            out[i, s : s + p] = v.transpose(1, 2).reshape(p, -1)
-    return out.view(b, h, w, -1).permute(0, 3, 1, 2)
+        f1, f2 = vol.f1.half(), vol.f2.half().permute(0, 2, 3, 1)
+        vol.windows = tuple(t[..., i : i + LOOKUP_C].contiguous() for i in range(0, c, LOOKUP_C) for t in (f1, f2))
+    k = decoder.__dict__["_raft_flow"]
+    side = (2 * RADIUS + 1) ** 2
+    xy = coords.float().permute(0, 2, 3, 1).contiguous()
+    parts = vol.windows
+    out = torch.empty(len(parts) // 2, b, h, w, side, dtype=torch.float16, device=coords.device)
+    for j in range(len(parts) // 2):
+        f1, f2 = parts[2 * j], parts[2 * j + 1]
+        for i in range(b):  # one warp per pixel, 8 warps per block
+            k.launch(
+                "corr_lookup_c128_r4_l1", (-(-h * w // 8), 1, 1), (256, 1, 1),
+                f1[i], f2[i], h, w, xy[i], out[j, i], side, 1.0,
+            )  # fmt: skip
+    total = out[0].float()
+    for part in out[1:]:
+        total += part
+    return total.permute(0, 3, 1, 2)
 
 
 def _gma_attention(att: Attention, fmap: torch.Tensor) -> tuple[torch.Tensor, ...]:
@@ -345,8 +345,8 @@ class Kernels(Portable):
     """Fused convex upsampling, and no all-pairs volume or GMA matrix in float32.
 
     The cost volume is never stored (`_Volume`): its maps are made per chunk for the encoder, which embeds them in
-    float16, and the decoder gathers its windows. GMA's attention runs in float16 (`_gma_attention`). 1080 x 1920: peak
-    8699 -> 1800 MiB, 3937 -> 3145 ms.
+    float16, and the decoder's windows are computed on the fly (`_kernel_windows`, raft_flow). GMA's attention runs in
+    float16 (`_gma_attention`). 1080 x 1920: peak 8699 -> 1800 MiB, 3937 -> 1870 ms.
     """
 
     module = Runner.module
@@ -368,7 +368,11 @@ class Kernels(Portable):
         override(self.net.memory_encoder, _corr, "corr")
         override(self.net.memory_encoder.cost_perceiver_encoder, _encode)
         _prepare_patch_embed(self.net.memory_encoder.cost_perceiver_encoder.patch_embed)
-        override(self.net.memory_decoder, _windows, "encode_flow_token")
+        from fastforks.kernels import raft_flow  # noqa: PLC0415 - needs the kernel library
+
+        assert self.net.memory_encoder.channel_convertor.out_channels % LOOKUP_C == 0  # noqa: S101 - the Small's 256
+        self.net.memory_decoder.__dict__["_raft_flow"] = raft_flow.load(ctx.device)
+        override(self.net.memory_decoder, _kernel_windows, "encode_flow_token")
         override(self.net.memory_decoder.att, _gma_attention)
         override(self.net.get_submodule("memory_decoder.update_block.aggregator"), _gma_aggregate)
 

@@ -74,20 +74,26 @@ def test_batched_network_is_independent() -> None:
     torch.testing.assert_close(batch[1:], single, rtol=0, atol=1e-3)
 
 
+@pytest.mark.gpu
 def test_kernels_windows_match_the_volume_lookup() -> None:
-    """Kernels' gathered windows are upstream's bilinear lookup of the stored volume, also off the map's edges."""
+    """Kernels' windows (raft_flow) are upstream's bilinear lookup of the stored volume, also off the map's edges."""
+    from types import SimpleNamespace  # noqa: PLC0415
+
     from fastforks.flow.models.flowformer import model  # noqa: PLC0415
     from fastforks.flow.models.flowformer.net.FlowFormer.LatentCostFormer.decoder import MemoryDecoder  # noqa: PLC0415
+    from fastforks.kernels import raft_flow  # noqa: PLC0415
 
     torch.manual_seed(0)
-    b, c, h, w = 2, 16, 7, 11
-    f1, f2 = torch.randn(b, c, h, w, dtype=torch.float64), torch.randn(b, c, h, w, dtype=torch.float64)
-    cost_maps = torch.einsum("bci,bcj->bij", f1.flatten(2), f2.flatten(2)).reshape(b * h * w, 1, h, w)
+    b, c, h, w = 2, 256, 7, 11
+    f1, f2 = (0.1 * torch.randn(b, c, h, w, dtype=torch.float64)).half(), (0.1 * torch.randn(b, c, h, w)).half()
+    cost_maps = torch.einsum("bci,bcj->bij", f1.double().flatten(2), f2.double().flatten(2)).reshape(b * h * w, 1, h, w)
     grid = torch.stack(torch.meshgrid(torch.arange(w), torch.arange(h), indexing="xy"), 0).to(torch.float64)
     coords = grid + torch.randn(b, 2, h, w, dtype=torch.float64) * 4  # many windows reach past the borders
     want = MemoryDecoder.encode_flow_token(None, cost_maps, coords)  # ty: ignore[invalid-argument-type]  # no self use
-    got = model._windows(None, model._Volume(f1, f2), coords)  # ty: ignore[invalid-argument-type]
-    torch.testing.assert_close(got, want.float(), rtol=0, atol=1e-4)
+    decoder = SimpleNamespace(_raft_flow=raft_flow.load(torch.device("cuda")))
+    vol = model._Volume(f1.cuda().float(), f2.cuda().float())
+    got = model._kernel_windows(decoder, vol, coords.cuda().float())  # ty: ignore[invalid-argument-type]
+    torch.testing.assert_close(got.cpu(), want.float(), rtol=0, atol=2e-3)
 
 
 def test_kernels_chunked_encoder_matches_upstream(monkeypatch: pytest.MonkeyPatch) -> None:

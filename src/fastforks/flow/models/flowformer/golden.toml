@@ -34,13 +34,13 @@ mean_px = 0.00039
 p99_px = 0.00146
 
 [validated."flowformer-small-chairs@1".windows]
-kernels = ["flow_upsample@5eca8c1a6d3b:sm_120"]
-symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}}
+kernels = ["flow_upsample@5eca8c1a6d3b:sm_120", "raft_flow@a101a33607b6:sm_120"]
+symbols = {"flow_upsample" = {"convex" = "5b88fdc76d913071"}, "raft_flow" = {"corr_lookup_c128_r4_l1" = "0b6fc81cf76c9772"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-20"
-mean_px = 0.00081
-p99_px = 0.00403
+date = "2026-11-23"
+mean_px = 0.0005
+p99_px = 0.00208
 
 [validated."flowformer-small-sintel@1"]
 kernels = ["flow_upsample@5eca8c1a6d3b:sm_120"]
