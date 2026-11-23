@@ -18,7 +18,7 @@ from fastforks._core import volume_ops  # noqa: F401 - registers `fastforks::ups
 
 
 def upsample_softmax_regress(
-    cost: torch.Tensor, max_disp: int, height: int, width: int, rows: int = 64
+    cost: torch.Tensor, max_disp: int, height: int, width: int, rows: int = 128
 ) -> torch.Tensor:
     """Disparity `[B, H, W]` float32 from a cost volume `[B, 1, d, h, w]` (any float dtype).
 
@@ -48,6 +48,6 @@ def upsample_softmax_regress(
             recompute_scale_factor=False,
         ).squeeze(1)  # output rows i0 * sh .. i1 * sh
         a = y0 - i0 * sh
-        p = F.softmax(up[:, :, a : a + (y1 - y0)], dim=1)
+        p = F.softmax(up, dim=1)[:, :, a : a + (y1 - y0)]  # the margin rows too: no contiguous copy of the block
         out[:, y0:y1] = torch.sum(p * values, 1)
     return out
