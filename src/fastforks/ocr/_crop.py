@@ -217,14 +217,16 @@ def crop_quads(image: torch.Tensor, src: np.ndarray, sizes: list[tuple[int, int]
     mats = [perspective(p, *s) for p, s in zip(src, sizes, strict=True)]
     sx, sy, alpha = (t.to(image.device) for t in _coords(mats, sizes, dev))
     hgt, wid = image.shape[-2:]
-    table = torch.from_numpy(_cubic_table()).to(image.device, torch.int32)[alpha]  # [P, 16]
+    # [16, P]: tap k's weights contiguous (a `[P, 16]` column is a stride-16 read the vectorized kernels skip)
+    table = torch.from_numpy(_cubic_table().T.copy()).to(image.device, torch.int32)[:, alpha]
     flat = image.reshape(image.shape[0], -1)
     acc = torch.zeros(image.shape[0], sx.shape[0], dtype=torch.int32, device=image.device)
+    cols = [(sx + (k2 - 1)).clamp_(0, wid - 1) for k2 in range(4)]  # BORDER_REPLICATE
     for k1 in range(4):
-        row = (sy + (k1 - 1)).clamp_(0, hgt - 1) * wid  # BORDER_REPLICATE
+        row = (sy + (k1 - 1)).clamp_(0, hgt - 1) * wid
         for k2 in range(4):
-            idx = row + (sx + (k2 - 1)).clamp_(0, wid - 1)
-            acc += flat[:, idx].to(torch.int32) * table[:, k1 * 4 + k2]
+            idx = row + cols[k2]
+            acc += flat[:, idx].to(torch.int32) * table[k1 * 4 + k2]
     out = ((acc + SCALE // 2) >> 15).clamp_(0, 255).to(torch.uint8)
     crops = out.split([h * w for h, w in sizes], 1)
     return [c.view(-1, h, w) for c, (h, w) in zip(crops, sizes, strict=True)]
