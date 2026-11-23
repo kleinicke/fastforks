@@ -47,6 +47,7 @@ from fastforks.shared.swin_sr import (
 
 from .net import HAT
 from .net.hat_arch import (
+    CAB,
     HAB,
     OCAB,
     RHAG,
@@ -258,14 +259,51 @@ def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
 
 
+_CHANNEL_ALIGN = 8  # fixed: cuDNN pads NHWC fp16 convolutions to multiples of 8 channels with an extra copy
+
+
+def _pad_conv(conv: torch.nn.Conv2d, *, cin: int, cout: int) -> None:
+    """Zero-pad `conv`'s weights to `cin` inputs and `cout` outputs (the extra outputs are exact zeros)."""
+    w, b = conv.weight.detach(), conv.get_parameter("bias").detach()
+    o, i = w.shape[:2]
+    conv.weight = torch.nn.Parameter(
+        F.pad(w, (0, 0, 0, 0, 0, cin - i, 0, cout - o)).contiguous(memory_format=torch.channels_last),
+        requires_grad=False,
+    )
+    conv.bias = torch.nn.Parameter(F.pad(b, (0, cout - o)), requires_grad=False)
+    conv.in_channels, conv.out_channels = cin, cout
+
+
+def _pad_cab(m: CAB) -> None:
+    """Pad the CAB's convolutions to multiples of `_CHANNEL_ALIGN` channels, except its input (the block's norm).
+
+    The padded channels stay exactly zero (zero weights and biases, GELU(0) = 0, a zero map times any attention),
+    so `_cab` slices them off as a view. 512x512 on an RTX 5060 Ti: 180->60 + 60->180 convolutions 4.6 -> 3.5 ms.
+    """
+    up, down, squeeze, expand = (c for c in m.modules() if isinstance(c, torch.nn.Conv2d))  # in forward order
+    c, mid, s = up.in_channels, up.out_channels, squeeze.out_channels
+    pc, pmid = -(-c // _CHANNEL_ALIGN) * _CHANNEL_ALIGN, -(-mid // _CHANNEL_ALIGN) * _CHANNEL_ALIGN
+    _pad_conv(up, cin=c, cout=pmid)
+    _pad_conv(down, cin=pmid, cout=pc)
+    _pad_conv(squeeze, cin=pc, cout=s)
+    _pad_conv(expand, cin=s, cout=pc)
+    m.channels = c  # ty: ignore[invalid-assignment] - the real channel count for `_cab`
+    override(m, _cab)
+
+
+def _cab(m: CAB, x: torch.Tensor) -> torch.Tensor:
+    """`CAB.forward` on the padded convolutions of `_pad_cab`: the real channels as a view."""
+    return m.cab(x)[:, : m.channels]
+
+
 def _shifted_block(
     m: HAB, x: torch.Tensor, x_size: tuple[int, int], rpi_sa: torch.Tensor, attn_mask: torch.Tensor
 ) -> torch.Tensor:
-    """Hybrid attention with shifted windows produced and consumed in one pass per direction."""
+    """Hybrid attention with (shifted) windows produced and consumed in one pass per direction."""
     h, w = x_size
     normalized = m.norm1(x)
     windows = rearrange(normalized, x_size, m.window_size, m.shift_size)
-    att = m.attn(windows, rpi=rpi_sa, mask=attn_mask)
+    att = m.attn(windows, rpi=rpi_sa, mask=attn_mask if m.shift_size else None)
     att = rearrange(att, x_size, m.window_size, m.shift_size, reverse=True)
     conv = m.conv_block(normalized.unflatten(1, (h, w)).permute(0, 3, 1, 2)).flatten(2).transpose(1, 2)
     x = x + m.drop_path(att) + conv * m.conv_scale
@@ -273,7 +311,7 @@ def _shifted_block(
 
 
 class Kernels(Portable):
-    """float16, fp16-accumulate GEMMs and convolutions (`cudnn_hacc`)."""
+    """float16, fp16-accumulate GEMMs and convolutions (`cudnn_hacc`), channel-aligned CABs (`_pad_cab`)."""
 
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
 
@@ -281,9 +319,11 @@ class Kernels(Portable):
         """Build the network and route its convolutions through `cudnn_hacc`."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
-        for m in self.net.modules():
-            if isinstance(m, HAB) and m.shift_size:
+        for m in list(self.net.modules()):
+            if isinstance(m, HAB):
                 override(m, _shifted_block)
+            if isinstance(m, CAB):
+                _pad_cab(m)
             if is_base(m, torch.nn.Conv2d):
                 override(m, _hacc_conv)
 
