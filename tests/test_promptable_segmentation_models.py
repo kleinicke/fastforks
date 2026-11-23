@@ -224,9 +224,9 @@ def test_streamed_sam3_reuses_frame_for_subsequent_prompts(mode: Mode, monkeypat
     uploaded: list[int] = []
     original = HostBlocks._upload
 
-    def count(bank: HostBlocks, i: int) -> None:
+    def count(bank: HostBlocks, i: int, j: int) -> None:
         uploaded.append(bank.sizes[i])
-        original(bank, i)
+        original(bank, i, j)
 
     monkeypatch.setattr(HostBlocks, "_upload", count)
     emb = m.get_image_embeddings(IMAGE)

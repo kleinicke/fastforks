@@ -135,16 +135,16 @@ def cost_volume(
             parts = (corr, xc * valid, warped[:, cg:])
         else:
             parts = (xc, warped)
-        if exporting:
+        if volume is None:
             planes.append(torch.cat([t * VOL_SCALE for t in parts], 1).to(dtype))
         elif gc:
             volume[:, :groups, j] = parts[0] * VOL_SCALE
             volume[:, groups : groups + cc, j] = parts[1] * VOL_SCALE
-            volume[:, groups + cc :, j] = parts[2] * VOL_SCALE
+            volume[:, groups + cc :, j] = parts[-1] * VOL_SCALE
         else:
             volume[:, :cc, j] = parts[0] * VOL_SCALE
             volume[:, cc:, j] = parts[1] * VOL_SCALE
-    return torch.stack(planes, 2) if exporting else volume
+    return torch.stack(planes, 2) if volume is None else volume
 
 
 def _first_hypotheses(net: GwcNet | PSMNet, nd: int, scale: int, device: torch.device) -> tuple[torch.Tensor, ...]:
