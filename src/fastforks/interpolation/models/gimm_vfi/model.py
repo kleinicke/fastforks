@@ -52,6 +52,10 @@ _REVERSE_MIN_TOKENS = 16_384  # fixed: feature size from which reusing the forwa
 _REVERSE_TILE_BYTES = 128 * 1024 * 1024
 HALO = 17  # fixed: rows `convblock` reads beyond a band (17 3 x 3 convs in a chain: 1 + 3 x 5 + 1)
 BAND_PIXELS = 1 << 20  # larger full-size inputs run `convblock` in row bands of about this many pixels
+# fixed: kernels' bands (float16 activations, 256 channels: 512 MiB per full band). Halving them cuts 1080 x 1920's
+# peak 4442 -> 3602 MiB and reserved 7110 -> 5474 MiB (each full band left a segment the next sizes do not fit), the
+# frame bit-identical, for 1524 -> 1555 ms; portable's peak is elsewhere, so it keeps the larger bands (2614 ms)
+KERNELS_BAND_PIXELS = 1 << 19
 _FUSION_MIN_PIXELS = 500_000  # fixed: latent size from which the fused float16 path pays off on CUDA
 HYPO_PIXELS = 1 << 19  # the hyponet MLP runs over pixel chunks of this size (its activations never exist at once)
 # fixed: kernels inputs up to this many pixels (batch x H x W) replay a CUDA graph. They are launch-bound (Windows
@@ -354,6 +358,8 @@ def _decoder(  # noqa: PLR0913, PLR0917 - upstream's signature
     mask: torch.Tensor,
     img0: torch.Tensor,
     img1: torch.Tensor,
+    *,
+    band_pixels: int = BAND_PIXELS,
 ) -> tuple[torch.Tensor, ...]:
     """Upstream `NewMultiFlowDecoder.forward` with its full-size input assembled part by part in the conv dtype.
 
@@ -386,12 +392,17 @@ def _decoder(  # noqa: PLR0913, PLR0917 - upstream's signature
     put(warp(img0, flow0))
     put(warp(img1, flow1))
     assert c == buf.shape[1]  # noqa: S101 - the parts fill the conv input
-    out = _banded(m.convblock, buf)
+    out = _banded(m.convblock, buf, band_pixels)
     delta_flow0, delta_flow1, delta_mask, img_res = torch.split(out, [2 * n, 2 * n, n, 3 * n], 1)
     mask = torch.sigmoid(delta_mask + mask.repeat(1, n, 1, 1))
     flow0 = delta_flow0 + flow0.repeat(1, n, 1, 1)
     flow1 = delta_flow1 + flow1.repeat(1, n, 1, 1)
     return flow0, flow1, mask, img_res
+
+
+def _kernels_decoder(m: NewMultiFlowDecoder, *args: torch.Tensor, **kwargs: torch.Tensor) -> tuple[torch.Tensor, ...]:
+    """`_decoder` in kernels' smaller row bands (`KERNELS_BAND_PIXELS`)."""
+    return _decoder(m, *args, **kwargs, band_pixels=KERNELS_BAND_PIXELS)
 
 
 def _net(ctx: Context) -> GIMMVFI_R:
@@ -504,6 +515,7 @@ class Kernels(Portable):
                 m.w16 = m.weight.detach().half().contiguous(memory_format=torch.channels_last)
                 m.b16 = m.bias.detach().half()  # ty: ignore[unresolved-attribute]  # every decoder conv has a bias
                 override(m, _hacc_conv)
+        override(self.net.amt_final_decoder, _kernels_decoder)
         # thousands of small launches (RAFT's 2 x 20 lookups and updates at 1/8): one graph replay for small inputs;
         # captured after the `cudnn_hacc` plans are built, so the graph records the half-compute ones
         self.graphs = SmallShapeGraphs(
