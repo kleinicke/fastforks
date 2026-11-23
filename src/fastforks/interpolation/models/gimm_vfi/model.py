@@ -532,8 +532,9 @@ def _kernel_corr(k: CubinModule, f1: torch.Tensor, f2: torch.Tensor) -> Callable
 
 
 def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
-    """The conv in float16 with float16 accumulation (`cudnn_hacc`), on the float16 channels-last weight copies."""
-    return cudnn_hacc.conv_half_acc(x.half(), conv.w16, conv.b16, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
+    """The conv in float16 with float16 accumulation (`cudnn_hacc`, the bias in its plan), on float16 copies."""
+    geometry = (conv.padding, conv.stride, conv.dilation)
+    return cudnn_hacc.conv_half_acc(x.half(), conv.w16, conv.b16, *geometry, fuse_bias=True)  # ty: ignore[invalid-argument-type]
 
 
 class Kernels(Portable):
