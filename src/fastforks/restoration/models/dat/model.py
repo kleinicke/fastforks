@@ -17,7 +17,6 @@ it, its `eps` divided by the square (exact).
 
 from __future__ import annotations
 
-import contextlib
 import functools
 import math
 import re
@@ -329,6 +328,37 @@ def _spatial_block(  # noqa: PLR0913 - separate CUDA gate and attention mask spe
     return m.proj(mix(att, conv.flatten(2).transpose(1, 2), channel_map, spatial_map.flatten(2).transpose(1, 2)))
 
 
+_SPLIT_K = 4096  # fixed: measured (RTX 5060 Ti), 2048-16384 tokens per partial product within 10 %
+
+
+def _split_k_scores(q: torch.Tensor, k: torch.Tensor) -> torch.Tensor:
+    """Per-head `q @ k^T` of `[B, heads, d, N]` over all `N` tokens as split-K float32-output GEMMs.
+
+    cuBLAS runs the `d x d` products with K = N (262144 at 512 x 512) on one slow kernel (1.6 ms for d = 10, 6 heads);
+    here the all-heads `[heads d, N]` rows (a unit-stride view of the token layout) multiply in `N / 4096` chunks with
+    float32 outputs, are summed in float32 and the per-head diagonal blocks are kept (0.2 ms). The scores stay
+    float32-accumulated, as `fp32_accumulate` gave, and round to the input dtype once.
+    """
+    b, heads, d, n = q.shape
+    c = heads * d
+    qm, km = q.reshape(b, c, n), k.reshape(b, c, n)
+    full = n // _SPLIT_K * _SPLIT_K
+    out = []
+    for i in range(b):
+        qa, ka = qm[i], km[i]
+        s = None
+        with fp32_accumulate():  # float32 GEMM outputs need it under `fp16_accumulate`
+            if full:
+                qs = qa[:, :full].unflatten(1, (-1, _SPLIT_K)).transpose(0, 1)  # [chunks, heads d, 4096]
+                ks = ka[:, :full].unflatten(1, (-1, _SPLIT_K)).permute(1, 2, 0)  # [chunks, 4096, heads d]
+                s = torch.bmm(qs, ks, out_dtype=torch.float32).sum(0)
+            if n > full:
+                r = torch.mm(qa[:, full:], ka[:, full:].T, out_dtype=torch.float32)
+                s = r if s is None else s + r
+        out.append(cast("torch.Tensor", s).view(heads, d, heads, d).diagonal(dim1=0, dim2=2).permute(2, 0, 1))
+    return torch.stack(out).to(q.dtype)
+
+
 def _channel_block(  # noqa: PLR0913 - a CUDA gate and the fp32 scores, like `_spatial_block`
     m: Adaptive_Channel_Attention,
     x: torch.Tensor,
@@ -340,16 +370,14 @@ def _channel_block(  # noqa: PLR0913 - a CUDA gate and the fp32 scores, like `_s
 ) -> torch.Tensor:
     """`Adaptive_Channel_Attention.forward` with its convolutions on channels-last views (no transposed copies).
 
-    `fp32_scores`: q k^T (a sum over all h * w tokens) accumulates in fp32 also under `fp16_accumulate`. An fp16
-    accumulator cannot add the many small products of the normalized q and k (a 512 x 512 tile: 262144 terms, sum at
-    most 1): DAT x4 kernels then differed from portable by up to 112 / 255 on a photo. Same speed: the d x d GEMM is
-    bound by reading q and k, not by the accumulation rate.
+    `fp32_scores`: q k^T (a sum over all h * w tokens) accumulates in fp32 also under `fp16_accumulate`
+    (`_split_k_scores`). An fp16 accumulator cannot add the many small products of the normalized q and k (a 512 x 512
+    tile: 262144 terms, sum at most 1): DAT x4 kernels then differed from portable by up to 112 / 255 on a photo.
     """
     b, n, c = x.shape
     qkv = m.qkv(x).reshape(b, n, 3, m.num_heads, c // m.num_heads).permute(2, 0, 3, 4, 1)  # 3, b, heads, d, n
     q, k, v = F.normalize(qkv[0], dim=-1), F.normalize(qkv[1], dim=-1), qkv[2]
-    with fp32_accumulate() if fp32_scores else contextlib.nullcontext():
-        scores = q @ k.transpose(-2, -1)
+    scores = _split_k_scores(q, k) if fp32_scores else q @ k.transpose(-2, -1)
     attn = (scores * m.temperature).softmax(dim=-1)
     del q, k
     att = (attn @ v).permute(0, 3, 1, 2).reshape(b, n, c)
