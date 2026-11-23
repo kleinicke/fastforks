@@ -263,15 +263,21 @@
    }
   },
   "ben2@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
+    "float16": "portable",
     "float32": "portable"
    },
    "passed": {
     "portable": [
+     "float16",
      "float32"
     ]
    }

@@ -370,10 +370,12 @@ no `auto` route follows (the policy gap above). memfof / memfof-spring (scale 0)
   (`half_wino_f32`): l0 0.217, xl1 0.089. GELU in float32 (`mlx_graph`, now everywhere) is in all numbers. Not
   found: which stage drives the point-prompt error (the box masks within limits suggest the embedding is close;
   the point decode is far more sensitive). MPS float16 is not declared either. The experiment was not committed.
-- **ben2**: MLX float32 itself fails its golden on this branch (`test_mlx[ben2@1]`: alpha mean |diff| 0.1009, limit
-  well below; MPS `test_mps[ben2@1]` passes). The 2026-11-19 MLX row says pass with golden_mean 0.0, so the port
-  broke since or that check was not real. Float16 (0.080 with Winograd in float32) cannot be judged until float32
-  passes. Not declared.
+- **ben2**: fixed and declared (2026-11-24). MLX float32 failed its golden (`test_mlx[ben2@1]`: alpha mean |diff|
+  0.1009; MPS passed) since the instance norm became a channels-last op (6ba44738): `mlx_band.band_tail` takes every
+  such op for row-local, so the last block (nearest 2x, conv, InstanceNorm, GELU, output conv at 1024x1024, 512 MB a
+  map) ran per row band with each band's own statistics. The 2026-11-19 row was a real pass (older code; its
+  golden_mean 0.0 is rounding). An instance norm now ends the banded chain. Survey at 1080x1920: float32 1524 ms /
+  4658 MB (golden 0.0), float16 850 ms / 2863 MB (golden mean 1e-05, limit 2.4e-05); float16 is the MLX default.
 
 ## MLX float16 for the geometry families (2026-11-23)
 
