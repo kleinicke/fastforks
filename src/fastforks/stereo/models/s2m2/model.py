@@ -80,8 +80,9 @@ class Portable(_S2M2Runner):
         """Build the network."""
         super().__init__(ctx)
         self.net = _net(ctx)
-        # CUDA: no 1x1-conv-before-upsample commute (3 % slower, 4 % larger there)
-        rewrites.prepare(self.net, upconv=ctx.device.type == "cpu")
+        # CUDA: no 1x1-conv-before-upsample commute (3 % slower, 4 % larger there). Fused optimal-transport
+        # log-sum-exps on the CPU (so the MLX port) and MPS only: CUDA and its exports keep upstream's form.
+        rewrites.prepare(self.net, upconv=ctx.device.type == "cpu", lse=ctx.device.type in ("cpu", "mps"))
         # channels-last (S2M2 has no 3-D convs): oneDNN runs it faster; on CUDA fp16 cuDNN skips the NCHW<->NHWC
         # conversions (375x1242 l 315 -> 290 ms, peak 2066 -> 1630 MB RTX 5060 Ti, Windows)
         if ctx.device.type == "cpu" or (ctx.device.type == "cuda" and ctx.dtype == "float16"):

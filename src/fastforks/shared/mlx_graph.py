@@ -611,6 +611,8 @@ def _wide(x: mx.array, f: Callable[[mx.array], mx.array]) -> mx.array:
 
 
 OPS[aten.mean.dim] = _mean
+# one fused reduction (the decomposition is max, sub, exp, sum, log, add: full-size temporaries)
+OPS[aten.logsumexp.default] = lambda x, d, keep=False: _wide(x, lambda y: mx.logsumexp(y, axis=tuple(d), keepdims=keep))
 OPS[aten.sum.dim_IntList] = lambda x, d=None, keep=False, **_: _wide(
     x, lambda y: mx.sum(y, axis=tuple(d) if d else None, keepdims=keep)
 )
@@ -2870,6 +2872,7 @@ def _decomp_table() -> dict[Any, Any]:
         aten.upsample_bilinear2d.vec,
         aten.upsample_trilinear3d.vec,
         aten.linalg_vector_norm.default,
+        aten.logsumexp.default,
         aten.roll.default,  # `mx.roll`: the decomposition is an index gather (several times slower)
         *_EDGE_PADS,
         *(() if INORM_OFF else (aten.instance_norm.default,)),

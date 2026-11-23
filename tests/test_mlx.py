@@ -301,6 +301,21 @@ def test_conv_transpose_kernel_equals_stride_matches_torch(kernel, bias):
     torch.testing.assert_close(MlxModule(m, "float32")(x), m(x), atol=1e-5, rtol=1e-5)
 
 
+@pytest.mark.parametrize("keep", [False, True])
+def test_logsumexp_runs_natively_and_matches_torch(keep):
+    """`torch.logsumexp` (kept out of the decomposition, `mx.logsumexp`) over one and two dims against eager."""
+    pytest.importorskip("mlx.core")
+    from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - optional (the mlx extra)
+
+    class Lse(torch.nn.Module):
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            return torch.logsumexp(x, dim=2, keepdim=keep) + torch.logsumexp(x, dim=(1, 3), keepdim=True).sum()
+
+    torch.manual_seed(0)
+    x = torch.randn(2, 5, 7, 9) * 20
+    torch.testing.assert_close(MlxModule(Lse(), "float32")(x), Lse()(x), atol=1e-4, rtol=1e-5)
+
+
 @pytest.mark.parametrize("chunk_mb", [128, 4])
 def test_conv_padded_into_winograd_matches_torch(monkeypatch, chunk_mb):
     """A float32 3x3 with 163 -> 168 channels (padded to 192 -> 192: MLX's Winograd), whole and per-sample chunked."""
