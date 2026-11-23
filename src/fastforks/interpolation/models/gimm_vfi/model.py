@@ -416,11 +416,13 @@ def _decoder(  # noqa: PLR0913, PLR0917 - upstream's signature
     the memory: the parts are made one at a time and dropped. `convblock` runs in row bands (`_banded`).
     """
     n = m.num_flows
+    mf = torch.channels_last if ft_.is_cuda else torch.contiguous_format
     flow0, flow1 = 4.0 * resize(flow0, scale_factor=4.0), 4.0 * resize(flow1, scale_factor=4.0)
-    ft_, mask = resize(ft_, scale_factor=4.0), resize(mask, scale_factor=4.0)
+    # resized in the buffer's layout: the same values, and `put` copies it without a transpose (128 x 1088 x 1920 fp16:
+    # 16.6 -> 10.9 ms for both)
+    ft_, mask = resize(ft_.contiguous(memory_format=mf), scale_factor=4.0), resize(mask, scale_factor=4.0)
     b, _, h, w = ft_.shape
     dt = _compute_dtype(ft_)
-    mf = torch.channels_last if ft_.is_cuda else torch.contiguous_format
     ch = m.convblock[0][0].in_channels  # ty: ignore[not-subscriptable]  # the first conv of the Sequential
     buf = torch.empty(b, ch, h, w, dtype=dt, device=ft_.device, memory_format=mf)
     c = 0
