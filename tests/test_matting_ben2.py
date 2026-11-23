@@ -9,8 +9,8 @@ from torch import nn
 
 from fastforks import matting
 from fastforks._core import registry
-from fastforks.matting.models.ben2.model import up_deconv
 from fastforks.matting.models.ben2.net import ben2
+from fastforks.shared.cnn_kernels import up_deconv
 
 
 def test_card() -> None:

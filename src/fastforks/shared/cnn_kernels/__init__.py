@@ -622,6 +622,51 @@ def fuse_selective(model: Patched, ratio: int = 4) -> int:
     return n
 
 
+# ------------------------------------------------------------------------------------------------ upsampling
+# nearest 2x upsampling then a 3x3 conv (padding 1) along one axis: output row 2m reads input rows m - 1 (w0) and m
+# (w1 + w2), row 2m + 1 reads m (w0 + w1) and m + 1 (w2): a stride-2 4-tap transposed conv with these summed taps
+_UP_TAPS = ((0, 0, 1), (0, 1, 1), (1, 1, 0), (1, 0, 0))  # fixed: deconv tap k = sum of the conv taps marked 1
+
+
+def up_deconv_weight(w: torch.Tensor) -> torch.Tensor:
+    """The `[C, K, 4, 4]` stride-2 padding-1 transposed-conv weight of `conv(nearest_2x(x))` for a 3x3 conv weight `w`.
+
+    The taps are summed in float64 and rounded once to `w`'s dtype.
+    """
+    a = torch.tensor(_UP_TAPS, dtype=torch.float64, device=w.device)
+    return torch.einsum("ya,xb,oiab->ioyx", a, a, w.double()).to(w.dtype)
+
+
+def up_deconv(conv: nn.Conv2d) -> nn.ConvTranspose2d:
+    """`conv(nearest_2x(x))` (3x3, padding 1, stride 1) as one transposed conv of `x` (exact up to rounding).
+
+    4 instead of 9 multiply-adds per output pixel and input channel, and no upsampled input map.
+
+    Raises:
+        ValueError: `conv` is not a plain 3x3 stride-1 padding-1 convolution.
+    """
+    plain = conv.padding_mode == "zeros" and conv.groups == 1 and conv.dilation == (1, 1)
+    if conv.kernel_size != (3, 3) or conv.stride != (1, 1) or conv.padding != (1, 1) or not plain:
+        msg = f"up_deconv: needs a 3x3 stride-1 padding-1 conv, got {conv}"
+        raise ValueError(msg)
+    w = conv.weight.detach()
+    d = nn.ConvTranspose2d(
+        conv.in_channels,
+        conv.out_channels,
+        4,
+        stride=2,
+        padding=1,
+        bias=conv.bias is not None,
+        device=w.device,
+        dtype=w.dtype,
+    )
+    with torch.no_grad():
+        d.weight.copy_(up_deconv_weight(w))
+        if conv.bias is not None and d.bias is not None:
+            d.bias.copy_(conv.bias.detach())
+    return d
+
+
 def prepare_generic(model: Patched, device: torch.device, *, fuse: bool = True) -> int:
     """Kernels path for a plain CNN on `device` (fp32, eval): fused conv-BN-act runs, norm kernels, fp16 convs.
 
