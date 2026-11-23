@@ -140,3 +140,13 @@ A node's time is the model's time plus what ComfyUI does around every node, whic
 Models that take a few milliseconds (SPAN, Compact, the WD tagger, SegFormer) therefore take about twice their library
 time in a workflow (SPAN x4: 13 ms model, 28 ms node); for slow ones (HAT, DAT, SwinIR) the overhead does not matter. The portable ComfyUI build and a
 ComfyUI from git run the nodes at the same speed.
+
+## Memory
+
+ComfyUI runs PyTorch on the `cudaMallocAsync` allocator (unless started with `--disable-cuda-malloc`). The 70 kernels
+models that fit the test machine's local weights, run that way at the [benchmarks](benchmarks.md)' inputs (RTX 5060
+Ti, Windows), gave the same outputs at the same speed as under PyTorch's default allocator, with less memory reserved
+in total (131 against 138 GiB summed over the models); the benchmarks' memory columns use the default allocator.
+PyTorch's `torch.cuda.max_memory_allocated` reports about twice the peak under `cudaMallocAsync` for models that
+capture CUDA graphs, but the device memory in use (`cudaMemGetInfo`) is not higher: ema-vfi at 1080 x 1920 peaks at
+2350 MiB against 3376 MiB under the default allocator, aliked-lightglue at 768 x 1024 at 1456 against 1520 MiB.

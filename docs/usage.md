@@ -712,6 +712,13 @@ The same wheels and backends run on Windows (tested: RTX 5060 Ti, Windows 11). W
   `model.release_graphs()`, and `cuda_graphs=False` turns graphs off. Portable mode runs eagerly, so on Windows it
   trails Linux by 20-30 % on such models.
 - PyTorch's Windows wheels have no flash attention; `FASTFORKS_SDPA` (above) sets the order of the other backends.
+- PyTorch's default CUDA allocator keeps freed blocks cached in fixed segments, which the next, differently sized
+  tensors often cannot reuse: many models reserve 1.5-2x their peak allocation. Setting
+  `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` before PyTorch initialises CUDA (it applies to the whole process,
+  so fastforks does not set it) lowered the memory reserved by 70 kernels models by 19 % in total on Windows (torch
+  2.14), up to 2.2 GiB for one model (gimm-vfi-r at 1080 x 1920: 7110 -> 5222 MiB, dat-x4: 3072 -> 1686 MiB), with
+  the same outputs and speed (median +0.2 %). ComfyUI uses the `cudaMallocAsync` allocator instead (see
+  [ComfyUI](comfyui.md#memory)).
 - Models that stream their transformer blocks from the host (for example SeedVR2, Marigold v2, SAM 3, VGGT and
   MapAnything, when streaming) page-lock that memory.
   Windows page-locks at most about half of the RAM (15.1 GiB of 32 GB); the blocks past that upload from pageable
