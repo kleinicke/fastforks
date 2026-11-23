@@ -151,3 +151,13 @@ the UI); they use the images `example.png`, `scene.png`, `scene_b.png`, `small.p
 folder. `make_workflows.py` regenerates them from a running server's `/object_info`.
 
 On a Mac with the `mlx` package the `backend` dropdown also lists `mlx` (Apple's MLX instead of MPS, with our Metal kernels where the family's port has them) and `mlx portable` (MLX without the kernels). A model without an MLX port fails with a message. Every new input size compiles once on MLX, so its first call is slow; `auto` already picks MLX where it wins.
+
+## Memory
+
+ComfyUI runs PyTorch on the `cudaMallocAsync` allocator (unless started with `--disable-cuda-malloc`). The 70 kernels
+models that fit the test machine's local weights, run that way at the [benchmarks](benchmarks.md)' inputs (RTX 5060
+Ti, Windows), gave the same outputs at the same speed as under PyTorch's default allocator, with less memory reserved
+in total (131 against 138 GiB summed over the models); the benchmarks' memory columns use the default allocator.
+PyTorch's `torch.cuda.max_memory_allocated` reports about twice the peak under `cudaMallocAsync` for models that
+capture CUDA graphs, but the device memory in use (`cudaMemGetInfo`) is not higher: ema-vfi at 1080 x 1920 peaks at
+2350 MiB against 3376 MiB under the default allocator, aliked-lightglue at 768 x 1024 at 1456 against 1520 MiB.
