@@ -69,9 +69,18 @@ def fold_bn(module: nn.Module) -> int:
 
 
 # ------------------------------------------------------------------------------------------------ instance norm
-def _instance_norm(self: nn.Module, x: torch.Tensor, mode: int = 0, res: torch.Tensor | None = None) -> torch.Tensor:
+def _instance_norm(
+    self: nn.Module,
+    x: torch.Tensor,
+    mode: int = 0,
+    res: torch.Tensor | None = None,
+    *,
+    inplace: bool = False,
+    out: torch.Tensor | None = None,
+) -> torch.Tensor:
     """InstanceNorm2d (no affine, no running stats) of an NHWC fp16 / bf16 activation with the fastbb kernels.
-    mode 0: norm, 1: relu(norm), 2: relu(res + relu(norm)) (the tail of a ResidualBlock)."""
+    mode 0: norm, 1: relu(norm), 2: relu(res + relu(norm)) (the tail of a ResidualBlock). `inplace`: the result
+    overwrites `x`; `out`: it is written there (`res` itself may be `out`: the apply pass is elementwise)."""
     n, c, h, w = x.shape
     ok = (
         x.is_cuda
@@ -110,7 +119,7 @@ def _instance_norm(self: nn.Module, x: torch.Tensor, mode: int = 0, res: torch.T
         None,
         None,
     )
-    y = torch.empty_like(x)
+    y = x if inplace else torch.empty_like(x) if out is None else out
     k.launch(
         f"in_apply_{sfx}", *linear(n * hw * c // 8), x, y, st, None, None, res, n, hw, c, float(self.eps), mode
     )  # fmt: skip
@@ -118,10 +127,18 @@ def _instance_norm(self: nn.Module, x: torch.Tensor, mode: int = 0, res: torch.T
 
 
 def _resblock_forward(self: nn.Module, x: torch.Tensor) -> torch.Tensor:
-    """ResidualBlock with instance norms: the ReLUs and the residual add run inside the norm passes."""
-    y = self.conv2(_instance_norm(self.norm1, self.conv1(x), _RELU))
-    r = x if self.downsample is None else _instance_norm(self.norm3, self.downsample[0](x), 0)
-    return _instance_norm(self.norm2, y, _RELU_RES, r.contiguous(memory_format=CL))
+    """ResidualBlock with instance norms: the ReLUs and the residual add run inside the norm passes, in place.
+
+    The norms overwrite their conv's output, and the block's result overwrites its residual: the downsample's output,
+    or the block input `x` itself. That is safe in DEFOM's fnet, where no block input is used again (the stem output
+    and each block's result are only the next block's input), and it frees the activation the caller still holds
+    during the next block: 994 x 1482 peak 2771 -> 2437 MiB, reserved 4212 -> 3836.
+    """
+    y = self.conv2(_instance_norm(self.norm1, self.conv1(x), _RELU, inplace=True))
+    r = x if self.downsample is None else _instance_norm(self.norm3, self.downsample[0](x), 0, inplace=True)
+    r = r.contiguous(memory_format=CL)
+    _instance_norm(self.norm2, y, _RELU_RES, r, out=r)
+    return r
 
 
 def _is_in_resblock(m: nn.Module) -> bool:
