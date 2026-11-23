@@ -19,6 +19,8 @@ import torch.nn.functional as F
 from fastforks._core.tracing import in_onnx_export
 
 _GRID_Y_MAX = 65535
+MPS_INPUT_BYTES = 512 << 20
+"""Input bytes from which an eager MPS `grid_sample` runs in batch blocks of this size (the rows are independent)."""
 _NCHW = 4
 
 
@@ -53,4 +55,16 @@ def grid_sample(
         return torch.grid_sampler_2d(
             input, grid.to(input.dtype), interpolation_mode=0, padding_mode=0, align_corners=True
         )  # bilinear, zeros
+    if (
+        input.device.type == "mps"
+        and input.shape[0] == grid.shape[0] > 1
+        and input.numel() * input.element_size() > MPS_INPUT_BYTES
+        and not torch.is_grad_enabled()
+        and not (torch.compiler.is_compiling() or torch.compiler.is_exporting() or torch.jit.is_tracing())
+    ):
+        # One MPS call over an all-pairs correlation volume (RAFT at 1080p: 4 GiB) ran out of memory; blocks do not
+        step = max(1, MPS_INPUT_BYTES // (input[0].numel() * input.element_size()))
+        kw = {"mode": mode, "padding_mode": padding_mode, "align_corners": align_corners}
+        blocks = zip(input.split(step), grid.split(step), strict=True)
+        return torch.cat([F.grid_sample(x, g, **kw) for x, g in blocks])
     return F.grid_sample(input, grid, mode=mode, padding_mode=padding_mode, align_corners=align_corners)

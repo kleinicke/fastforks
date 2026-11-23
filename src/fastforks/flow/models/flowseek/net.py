@@ -33,6 +33,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.mps import release
 from fastforks._core.sampling import grid_sample
 from fastforks._core.upload import device_tensor
 from fastforks.shared.depth_anything_v2 import DepthAnythingV2
@@ -360,7 +361,7 @@ class FlowSeek(nn.Module):
             path, depth = self._mono(small / mean - std)
             if (
                 self.fp16
-                and path.is_cuda
+                and path.device.type in ("cuda", "mps")
                 and h * w >= _MONO_SPLIT_MIN_PIXELS
                 and not torch.is_grad_enabled()
                 and not (torch.compiler.is_compiling() or torch.jit.is_tracing())
@@ -394,6 +395,7 @@ class FlowSeek(nn.Module):
             fmaps = torch.cat([self.fnet(both), mono], dim=1)  # batch norm in eval mode: per-image as upstream
         fmap1, fmap2 = (fmaps.float() if corr_fn is None else fmaps).chunk(2, dim=0)
         del fmaps, mono, both, mean, std
+        release(fmap1)  # MPS: the encoders' cached buffers (5 GiB at 1080p) are of no use to the correlation volume
         pyramid = _pyramid(fmap1, fmap2, cfg.levels) if corr_fn is None else []
         lookup = corr_fn(fmap1, fmap2) if corr_fn is not None else None
         grid = _coords(b, fmap1.shape[-2], fmap1.shape[-1], device)
