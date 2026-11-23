@@ -24,6 +24,7 @@ from torch import nn
 
 from fastforks._core.checkpoint import check_foldable_batchnorm
 from fastforks._core.mlx_cast import to_float32
+from fastforks._core.tracing import EXPORTING_FOR_MLX
 
 STAGES = ((64, 128, 3), (128, 256, 9), (256, 512, 9), (512, 1024, 3))  # fixed: CSPDarknet P5 (in, out, blocks)
 SPP_KERNELS = (5, 9, 13)  # fixed: reference SPP max-pool sizes
@@ -264,9 +265,13 @@ class Head(nn.Module):
         for i, f in enumerate(feats):
             cls, reg = f.chunk(2, 1)
             pose = self.conv_pose[i](reg)
-            # the person score logit in float32 (one channel): a float16 logit near 3 rounds by 2e-3, ~1e-4 of score
-            o = self.out_cls[i]
-            logit = F.conv2d(to_float32(self.conv_cls[i](cls)), to_float32(o.weight), to_float32(o.bias))
+            o, logit = self.out_cls[i], self.conv_cls[i](cls)
+            if EXPORTING_FOR_MLX.get() or logit.device.type == "mps":
+                # the person score logit in float32 (one channel): a float16 logit near 3 rounds by 2e-3, ~1e-4 of
+                # score. MLX and MPS only: their float16 runs need it for the limits; CUDA keeps the module's conv
+                logit = F.conv2d(to_float32(logit), to_float32(o.weight), to_float32(o.bias))
+            else:
+                logit = o(logit)
             maps = (logit, self.out_bbox[i](pose))
             for out, m in zip(outs, (*maps, self.out_kpt_vis[i](pose), self.out_pose[i](pose)), strict=True):
                 out.append(m.flatten(2).transpose(1, 2))
