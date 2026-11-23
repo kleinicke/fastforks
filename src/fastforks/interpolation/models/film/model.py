@@ -111,6 +111,17 @@ def _with_zeros(w: torch.Tensor, at: int, n: int) -> torch.Tensor:
     return torch.cat((w[:, :at], w.new_zeros(w.shape[0], n, *w.shape[2:]), w[:, at:]), 1)
 
 
+def _wide_first(w: torch.Tensor, width: int) -> torch.Tensor:
+    """A merge conv's `w` with its inputs as `_Fusion.forward` writes them.
+
+    Upstream's: image 1 (3), features 1 (`f`), image 2, features 2, the two flows (2 each) of a level `width` wide, the
+    zero padding, the upsampled map; reordered: features 1, features 2, upsampled map, images, flows, padding.
+    """
+    f, end = (width - 10) // 2, width + -width % 8  # `end`: where the upsampled map starts
+    ranges = ((3, 3 + f), (6 + f, 6 + 2 * f), (end, w.shape[1]), (0, 3), (3 + f, 6 + f), (6 + 2 * f, end))
+    return torch.cat([w[:, a:b] for a, b in ranges], 1)
+
+
 def _conv(weight: torch.Tensor, bias: torch.Tensor | None, padding: int | str) -> torch.nn.Conv2d:
     o, i, kh, kw = weight.shape
     conv = torch.nn.Conv2d(i, o, (kh, kw), padding=padding, bias=bias is not None)
@@ -138,9 +149,11 @@ class _Fusion(torch.nn.Module):
     """`Fusion` on levels padded to a multiple of 8 channels, the resize convolutions folded into the coarse map.
 
     The `nearest 2x -> zero pad -> 2 x 2 conv` of each level is one 2 x 2 conv of the coarse map with 4 phases of
-    outputs and a `pixel_shuffle` (no upsampled copy); each level's `cat` takes the warped pieces and the upsampled map
-    at once, and the zero channels that pad it to a multiple of 8 (cuDNN pads other widths on every call) meet zero
-    weights.
+    outputs and a `pixel_shuffle` (no upsampled copy); each level's input is built once from the warped pieces and the
+    upsampled map, and the zero channels that pad it to a multiple of 8 (cuDNN pads other widths on every call) meet
+    zero weights. Its channels are reordered (the merge convs' weights with them): both warped features and the
+    upsampled map first, at offsets that are multiples of 8, then the 3- and 2-channel pieces in one block (upstream's
+    order puts the features at offset 3, a copy about 3x slower).
     """
 
     def __init__(self, fuse: Fusion) -> None:
@@ -152,7 +165,11 @@ class _Fusion(torch.nn.Module):
         first = _conv(_with_zeros(convs[0][0].weight, coarse, self.pads[-1]), convs[0][0].bias, 0)
         self.up = torch.nn.ModuleList(_phases(c[0] if k else first) for k, c in enumerate(convs))
         self.merge = torch.nn.ModuleList(
-            _conv(_with_zeros(c[1].weight, widths[-2 - k], self.pads[-2 - k]), c[1].bias, "same")
+            _conv(
+                _wide_first(_with_zeros(c[1].weight, widths[-2 - k], self.pads[-2 - k]), widths[-2 - k]),
+                c[1].bias,
+                "same",
+            )
             for k, c in enumerate(convs)
         )
         self.refine = torch.nn.ModuleList(c[2] for c in convs)
@@ -164,9 +181,18 @@ class _Fusion(torch.nn.Module):
         pyramid[-1].clear()
         for up, merge, refine, pieces in zip(self.up, self.merge, self.refine, pyramid[-2::-1], strict=True):
             upsampled = F.pixel_shuffle(up(F.pad(net, (0, 1, 0, 1))), 2).permute(0, 2, 3, 1)
-            net = _nchw(torch.cat((*pieces, upsampled), -1))
-            del upsampled
-            pieces.clear()  # the warped level is in the cat now
+            image1, feat1, image2, feat2, *narrow = pieces
+            f, u = feat1.shape[-1], upsampled.shape[-1]
+            rest = torch.cat((image1, image2, *narrow), -1)
+            out = feat1.new_empty((*feat1.shape[:-1], 2 * f + u + rest.shape[-1]))
+            out[..., :f] = feat1
+            out[..., f : 2 * f] = feat2
+            out[..., 2 * f : 2 * f + u] = upsampled
+            out[..., 2 * f + u :] = rest
+            del upsampled, rest, image1, feat1, image2, feat2, narrow
+            pieces.clear()  # the warped level is in `out` now
+            net = _nchw(out)
+            del out
             net = F.leaky_relu(merge(net), 0.2, inplace=True)
             net = F.leaky_relu(refine(net), 0.2, inplace=True)
         return self.output_conv(net)
