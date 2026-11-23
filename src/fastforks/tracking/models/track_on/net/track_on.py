@@ -487,23 +487,27 @@ class TrackOn2(nn.Module):
             and torch.is_inference_mode_enabled()
             and not (torch.jit.is_tracing() or in_onnx_export())
         )
+        conv = self.ms_corr_proj
+        weight, bias = conv.weight.float().view(-1, 1, 1, 1), cast("torch.Tensor", conv.bias).float()
         maps = []
-        packed = None
+        mixed = None
         for i, (u, (h, w)) in enumerate(zip(frame.unit, self.shapes, strict=True)):
             c = (qn @ u.T).view(n, 1, h, w)
             if i:
                 c = F.interpolate(c, size=(self.hf, self.wf), mode="bilinear", align_corners=False)
             if pack:
-                # Keep just one upsampled level live alongside the convolution input.
-                if packed is None:
-                    packed = c.new_empty(n, len(self.shapes), self.hf, self.wf)
-                packed[:, i : i + 1].copy_(c)
+                # fastforks: the 1 x 1 conv as a running weighted sum of the levels (one level live, no packed
+                # [N, 4, H, W] input; cuDNN's float32 4 -> 1 conv was 0.9 ms per call at 96 x 128, 656 queries)
+                if mixed is None:
+                    mixed = torch.addcmul(bias, c, weight[i])
+                else:
+                    mixed.addcmul_(c, weight[i])
             else:
                 maps.append(c)
             del c
-        conv = self.ms_corr_proj
-        correlations = torch.cat(maps, 1) if packed is None else packed
-        return F.conv2d(correlations, conv.weight.float(), cast("torch.Tensor", conv.bias).float()).view(n, -1)
+        if mixed is not None:
+            return mixed.view(n, -1)
+        return F.conv2d(torch.cat(maps, 1), conv.weight.float(), bias).view(n, -1)
 
     def coords(self, idx: torch.Tensor) -> torch.Tensor:
         """`indices_to_coords`: cell centres `(x, y)` in network pixels of flat 1/4 indices."""
