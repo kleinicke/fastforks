@@ -49,7 +49,7 @@ MEM_SLACK = 1.02  # an MLX route may use at most 2 % more peak memory than the M
 TRADE_SLOWDOWN = 1.01  # ... or be up to 1 % slower than that path ...
 TRADE_MEMORY = 0.90  # ... if it needs at most 90 % of its peak memory (a saving of more than 10 %)
 COLD_MPS_COLD = 1.0  # `auto` takes MLX only if its first call is at most this many first calls of the MPS path ...
-COLD_MPS_WARM = 1.0  # ... plus this many warm MPS runs
+COLD_MPS_WARM = 2.0  # ... plus this many warm MPS runs
 KERNEL_MODES = ("kernels",)  # the mode column of the data files
 
 

@@ -756,8 +756,8 @@ On Apple silicon, use `device="mps"` for both public modes.
 - `auto` uses the benchmark table to compare optimized paths against portable MPS. The table uses comparable runs
   whose golden reference check passed. A promotion requires at least a 5% speed advantage (or 10% less memory at
   equal speed). Pass `dtype` to constrain the choice. **MLX compiles per input shape, so it is
-  promoted only where that first call is cheap**: its first call must take at most one first call plus one warm
-  run of the MPS path it replaces. That keeps MLX for the models where it also wins speed or memory and whose first
+  promoted only where that first call is cheap**: its first call must take at most one first call plus two warm
+  runs of the MPS path it replaces. That keeps MLX for the models where it also wins speed or memory and whose first
   call is quick (Depth Pro, with a 26 s compile against a 5 s MPS call, stays on MPS). For models left on MPS, ask for MLX
   with `device="mlx"` (below) if you can afford the first call, for example after [`warmup`](#apple-silicon-mlx).
 
