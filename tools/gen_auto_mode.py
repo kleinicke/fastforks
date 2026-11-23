@@ -13,8 +13,8 @@ declares for its MLX port). Per model revision:
 - `auto` and `dtypes` select MLX if it beats the fastest MPS path by `MIN_GAIN` and does not use more memory
   (peak footprint, within `MEM_SLACK`) than that path. It is also selected when at most `TRADE_SLOWDOWN` slower if it
   needs at most `TRADE_MEMORY` of that path's peak memory on every workload. MLX compiles per input shape, so
-  its first call is slow: the route also needs the compile (first call minus one warm call) to be under `COLD_FACTOR`
-  times the MPS runtime on every workload (`device="mlx"` always runs MLX).
+  its first call is slow: the route also needs its first call to take at most `COLD_MPS_COLD` first calls plus
+  `COLD_MPS_WARM` warm runs of the MPS path it replaces, on every workload (`device="mlx"` always runs MLX).
 - `kernels` and `kernels_default` select MLX if it beats the native MPS kernel by `MIN_GAIN`, likewise in memory.
 - `mlx` and `mlx_default` select the fastest passing MLX path where it is the only optimized backend.
 - `mps_auto` records which native MPS kernel requests beat portable MPS by `MIN_GAIN`.
@@ -48,7 +48,8 @@ MIN_GAIN = 1.05  # kernels must be at least 5 % faster, else the lighter portabl
 MEM_SLACK = 1.02  # an MLX route may use at most 2 % more peak memory than the MPS path it replaces (measurement noise)
 TRADE_SLOWDOWN = 1.01  # ... or be up to 1 % slower than that path ...
 TRADE_MEMORY = 0.90  # ... if it needs at most 90 % of its peak memory (a saving of more than 10 %)
-COLD_FACTOR = 3.0  # `auto` takes MLX only if its compile (first call - warm call) is under this many MPS runtimes
+COLD_MPS_COLD = 1.0  # `auto` takes MLX only if its first call is at most this many first calls of the MPS path ...
+COLD_MPS_WARM = 1.0  # ... plus this many warm MPS runs
 KERNEL_MODES = ("kernels",)  # the mode column of the data files
 
 
@@ -108,7 +109,7 @@ def render() -> str:
 
 Option = tuple[str, str]  # (mode, dtype)
 Workload = tuple[str, str, str]  # (input, scene, protocol)
-Run = tuple[float, float | None, float]  # (ms, peak footprint MB; None: not recorded, compile s of the first call)
+Run = tuple[float, float | None, float]  # (ms, peak footprint MB; None: not recorded, first call s)
 
 
 @functools.cache
@@ -139,7 +140,7 @@ def _apple_options(device: str) -> dict[str, dict[Option, dict[Workload, Run]]]:
         models.setdefault(ref, {}).setdefault((row["mode"], dtype), {})[workload] = (
             row["ms"],
             row.get("peak_footprint_mb"),
-            max((row.get("first_call_s") or 0) - row["ms"] / 1000, 0),
+            max(row.get("first_call_s") or 0, row["ms"] / 1000),
         )
     return models
 
@@ -169,8 +170,8 @@ def _winners(  # noqa: C901 - one loop over dtype, option and workload
     """Winning implementation for each requested dtype, plus the unconstrained request under the empty key.
 
     `memory`: a candidate must also stay within `MEM_SLACK` of the fastest alternative's peak footprint on every
-    workload. `cold`: and its compile must stay under `COLD_FACTOR` times the fastest alternative's runtime on every
-    workload.
+    workload. `cold`: and its first call must take at most `COLD_MPS_COLD` first calls plus `COLD_MPS_WARM` warm runs of
+    the fastest alternative on every workload.
     """
     selected = {}
     for dtype in ("", *sorted({d for _, d in candidates})):
@@ -182,19 +183,19 @@ def _winners(  # noqa: C901 - one loop over dtype, option and workload
                 score = statistics.median(run[0] for run in rows.values())
             else:
                 ratios, savings = [], []
-                for key, (ms, mem, compile_s) in rows.items():
+                for key, (ms, mem, first_s) in rows.items():
                     baseline = [
                         other[key]
                         for (_, d), other in alternatives.items()
                         if (not dtype or d == dtype) and key in other
                     ]
                     if baseline:
-                        fastest_ms, fastest_mem, _ = min(baseline)  # the path the MLX route would replace
+                        fastest_ms, fastest_mem, fastest_first = min(baseline)  # the path the MLX route would replace
                         if memory and (mem is None or fastest_mem is None or mem > fastest_mem * MEM_SLACK):
                             ratios = []  # more memory (or unknown) on one workload: no route
                             break
                         ratios.append(ms / fastest_ms)
-                        if cold and compile_s > COLD_FACTOR * fastest_ms / 1000:
+                        if cold and first_s > COLD_MPS_COLD * fastest_first + COLD_MPS_WARM * fastest_ms / 1000:
                             ratios = []  # the first call costs too many MPS runs
                             break
                         savings.append(mem / fastest_mem if mem is not None and fastest_mem else None)
