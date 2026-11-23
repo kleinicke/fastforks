@@ -282,8 +282,9 @@ class TestMpsRouting:
     def test_table_lists_ports_only(self):
         for model_id, entry in core_model._apple_mlx().items():
             card, _ = registry.resolve_any(model_id)
-            if set(entry) == {"mps_auto"}:
-                assert card.mps_kernel_libs, model_id
+            assert "mps_dtype" not in entry or entry["mps_dtype"] in card.portable_mps_dtypes, model_id
+            assert card.mps_kernel_libs or "mps_auto" not in entry, model_id
+            if set(entry) <= {"mps_auto", "mps_dtype"}:  # PyTorch MPS choices only: no MLX port needed
                 continue
             assert card.portable_mlx_dtypes, model_id
             modes = {m for m, _ in [entry.get("auto", ("portable", "float32"))]} | set(entry.get("dtypes", {}).values())

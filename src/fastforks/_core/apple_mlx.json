@@ -18,6 +18,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -38,6 +39,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -61,6 +63,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -115,6 +118,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -139,6 +143,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -219,6 +224,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -246,6 +252,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -276,6 +283,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -308,6 +316,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -324,6 +333,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -354,6 +364,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -381,6 +392,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -397,6 +409,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -413,6 +426,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -437,6 +451,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -461,6 +476,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -469,6 +485,10 @@
    }
   },
   "c-radio-v3-g@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "mlx_default": [
     "portable",
     "float16"
@@ -485,6 +505,10 @@
    }
   },
   "c-radio-v3-h@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "mlx_default": [
     "portable",
     "float16"
@@ -506,7 +530,8 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "portable"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
     "portable",
@@ -516,6 +541,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -524,6 +550,13 @@
    }
   },
   "c-radio-v4-h@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -548,6 +581,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -564,6 +598,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -580,6 +615,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -645,6 +681,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -661,6 +698,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -677,6 +715,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -693,6 +732,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -709,6 +749,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -725,6 +766,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -741,6 +783,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -757,6 +800,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -773,6 +817,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -809,6 +854,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -829,6 +875,7 @@
     "float16": "kernels",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -869,6 +916,7 @@
     "float16": "portable",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -909,6 +957,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -929,6 +978,7 @@
     "float16": "kernels",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -949,6 +999,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -969,6 +1020,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -989,6 +1041,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1009,6 +1062,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -1033,6 +1087,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1061,6 +1116,7 @@
     "float16": "portable",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1089,6 +1145,7 @@
     "float16": "kernels",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1117,6 +1174,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1145,6 +1203,7 @@
     "float16": "kernels",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1173,6 +1232,7 @@
     "float16": "kernels",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1201,6 +1261,7 @@
     "float16": "portable",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1229,6 +1290,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1257,6 +1319,7 @@
     "float16": "kernels",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1285,6 +1348,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1313,6 +1377,7 @@
     "float16": "kernels",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1341,6 +1406,7 @@
     "float16": "kernels",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1369,6 +1435,7 @@
     "float16": "portable",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1397,6 +1464,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1425,6 +1493,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1453,6 +1522,7 @@
     "float16": "portable",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1555,6 +1625,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1591,6 +1662,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -1655,6 +1727,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -1679,6 +1752,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -1702,6 +1776,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -1718,6 +1793,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -1805,6 +1881,7 @@
     "float16": "kernels",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1825,6 +1902,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -1864,6 +1942,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -1880,6 +1959,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -1896,6 +1976,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -1912,6 +1993,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -1928,6 +2010,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -1992,6 +2075,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -2020,6 +2104,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -2048,6 +2133,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -2076,6 +2162,7 @@
     "float16": "portable",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -2104,6 +2191,7 @@
     "float16": "kernels",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -2132,6 +2220,7 @@
     "float16": "portable",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -2160,6 +2249,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -2188,6 +2278,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -2216,6 +2307,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -2236,6 +2328,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2288,6 +2381,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2304,6 +2398,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2320,6 +2415,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2336,6 +2432,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2352,6 +2449,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2368,6 +2466,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2384,6 +2483,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2400,6 +2500,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2416,6 +2517,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2432,6 +2534,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2456,6 +2559,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2480,6 +2584,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2504,6 +2609,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2528,6 +2634,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2552,6 +2659,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2576,6 +2684,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2584,7 +2693,12 @@
    }
   },
   "dinov2-vits14-reg@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -2595,6 +2709,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2603,7 +2718,12 @@
    }
   },
   "dinov2-vits14@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -2614,6 +2734,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2627,7 +2748,8 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "portable"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
     "portable",
@@ -2637,6 +2759,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2661,6 +2784,7 @@
     "float16": "kernels",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -2689,6 +2813,7 @@
     "float16": "portable",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -2717,6 +2842,7 @@
     "float16": "portable",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -2745,6 +2871,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -2773,6 +2900,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2797,6 +2925,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2821,6 +2950,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2831,9 +2961,10 @@
   "dinov3-vits16@1": {
    "auto": [
     "portable",
-    "float32"
+    "float16"
    ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -2889,6 +3020,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -2917,6 +3049,7 @@
     "float16": "portable",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -2945,6 +3078,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -2965,6 +3099,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -2981,6 +3116,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -3037,9 +3173,7 @@
     "float16": "portable",
     "float32": "portable"
    },
-   "mps_auto": [
-    "float32"
-   ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -3048,6 +3182,10 @@
    }
   },
   "dwpose-l@1": {
+   "kernels_default": [
+    "portable",
+    "float16"
+   ],
    "mlx_default": [
     "portable",
     "float16"
@@ -3056,9 +3194,7 @@
     "float16": "portable",
     "float32": "portable"
    },
-   "mps_auto": [
-    "float32"
-   ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -3078,6 +3214,7 @@
    "mps_auto": [
     "float32"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -3095,9 +3232,9 @@
     "float32": "portable"
    },
    "mps_auto": [
-    "",
     "float32"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -3282,6 +3419,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -3416,6 +3554,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -3432,6 +3571,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -3456,6 +3596,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -3475,6 +3616,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -3491,6 +3633,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -3507,6 +3650,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -3523,6 +3667,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -3554,6 +3699,7 @@
    "mlx": {
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float32"
@@ -3568,6 +3714,7 @@
    "mlx": {
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float32"
@@ -3582,6 +3729,7 @@
    "mlx": {
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float32"
@@ -3596,6 +3744,7 @@
    "mlx": {
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float32"
@@ -3610,6 +3759,7 @@
    "mlx": {
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float32"
@@ -3624,6 +3774,7 @@
    "mlx": {
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float32"
@@ -3638,6 +3789,7 @@
    "mlx": {
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float32"
@@ -3652,6 +3804,7 @@
    "mlx": {
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float32"
@@ -3667,6 +3820,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -3683,6 +3837,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -3719,6 +3874,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -3739,6 +3895,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -3759,6 +3916,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -3867,6 +4025,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4018,6 +4177,7 @@
    "mlx": {
     "float16": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16"
@@ -4040,6 +4200,7 @@
     "float16": "kernels",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16"
@@ -4059,6 +4220,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4075,6 +4237,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4130,6 +4293,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4146,6 +4310,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4318,6 +4483,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4353,6 +4519,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4384,10 +4551,7 @@
     "float16": "portable",
     "float32": "portable"
    },
-   "mps_auto": [
-    "",
-    "float16"
-   ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4418,6 +4582,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4458,7 +4623,12 @@
    }
   },
   "gwcnet-g-sceneflow@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -4469,6 +4639,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4485,6 +4656,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4541,6 +4713,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4573,6 +4746,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4605,6 +4779,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4637,6 +4812,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4653,6 +4829,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4673,6 +4850,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4709,6 +4887,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4725,6 +4904,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4741,6 +4921,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4757,6 +4938,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4773,6 +4955,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -4808,6 +4991,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -4847,6 +5031,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -4886,6 +5071,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -4925,6 +5111,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -4963,6 +5150,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -5002,6 +5190,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5037,6 +5226,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5072,6 +5262,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5107,6 +5298,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5142,6 +5334,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5197,6 +5390,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5205,6 +5399,9 @@
    }
   },
   "inspyrenet@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -5213,6 +5410,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5229,6 +5427,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -5249,6 +5448,7 @@
     "float16": "kernels",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -5276,6 +5476,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5299,6 +5500,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5322,6 +5524,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5338,6 +5541,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5354,6 +5558,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5370,6 +5575,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5386,6 +5592,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5434,6 +5641,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5484,6 +5692,7 @@
    "mlx": {
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float32"
@@ -5498,6 +5707,7 @@
    "mlx": {
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float32"
@@ -5625,6 +5835,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5641,6 +5852,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5657,6 +5869,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5673,6 +5886,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5689,6 +5903,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5705,6 +5920,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5721,6 +5937,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5744,6 +5961,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5760,6 +5978,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5776,6 +5995,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5806,6 +6026,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -5829,6 +6050,9 @@
     ]
    }
   },
+  "matanyone@1": {
+   "mps_dtype": "float16"
+  },
   "megaflow@1": {
    "auto": [
     "portable",
@@ -5846,6 +6070,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6017,6 +6242,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6033,6 +6259,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6049,6 +6276,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6097,6 +6325,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6227,6 +6456,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6261,6 +6491,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6277,6 +6508,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6293,6 +6525,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6309,6 +6542,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6332,6 +6566,7 @@
     "",
     "float32"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6340,8 +6575,20 @@
    }
   },
   "monster-mix-all@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
+   },
+   "kernels_default": [
+    "portable",
+    "float16"
+   ],
+   "kernels": {
+    "float16": "portable"
    },
    "mlx_default": [
     "portable",
@@ -6355,6 +6602,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6363,8 +6611,20 @@
    }
   },
   "monster-plusplus-mix-all@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
+   },
+   "kernels_default": [
+    "portable",
+    "float16"
+   ],
+   "kernels": {
+    "float16": "portable"
    },
    "mlx_default": [
     "portable",
@@ -6378,6 +6638,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6386,6 +6647,21 @@
    }
   },
   "monster-sceneflow@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "kernels_default": [
+    "portable",
+    "float16"
+   ],
+   "kernels": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -6398,6 +6674,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6406,6 +6683,10 @@
    }
   },
   "mvsanywhere@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "dtypes": {
     "float32": "portable"
    },
@@ -6457,6 +6738,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -6477,6 +6759,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6539,6 +6822,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6555,6 +6839,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6579,6 +6864,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6627,6 +6913,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6689,6 +6976,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6705,6 +6993,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6761,6 +7050,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6789,6 +7079,10 @@
    }
   },
   "pe-core-s16-384@1": {
+   "kernels_default": [
+    "portable",
+    "float32"
+   ],
    "mlx_default": [
     "portable",
     "float32"
@@ -6798,7 +7092,6 @@
     "float32": "portable"
    },
    "mps_auto": [
-    "",
     "float16"
    ],
    "passed": {
@@ -6809,6 +7102,13 @@
    }
   },
   "pe-core-t16-384@1": {
+   "kernels_default": [
+    "portable",
+    "float32"
+   ],
+   "kernels": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float32"
@@ -6860,6 +7160,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6908,6 +7209,13 @@
    }
   },
   "pe-spatial-t16-512@1": {
+   "kernels_default": [
+    "portable",
+    "float32"
+   ],
+   "kernels": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float32"
@@ -6943,6 +7251,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -6959,6 +7268,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -6995,6 +7305,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -7011,6 +7322,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -7027,6 +7339,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -7050,6 +7363,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -7066,6 +7380,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -7082,6 +7397,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -7095,7 +7411,8 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels"
+    "float16": "kernels",
+    "float32": "portable"
    },
    "mlx_default": [
     "kernels",
@@ -7105,6 +7422,7 @@
     "float16": "kernels",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -7132,6 +7450,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -7155,6 +7474,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -7198,6 +7518,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -7256,6 +7577,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -7290,6 +7612,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -7330,6 +7653,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -7350,6 +7674,7 @@
     "float16": "kernels",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -7370,6 +7695,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -7390,6 +7716,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -7410,6 +7737,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -7425,6 +7753,7 @@
    "mlx": {
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float32"
@@ -7439,6 +7768,7 @@
    "mlx": {
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float32"
@@ -7453,6 +7783,7 @@
    "mlx": {
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float32"
@@ -7476,6 +7807,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -7799,6 +8131,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -7851,6 +8184,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -7867,6 +8201,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -7883,6 +8218,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -7899,6 +8235,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -7915,6 +8252,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -7947,6 +8285,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -7963,6 +8302,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -7995,6 +8335,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8011,6 +8352,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8043,6 +8385,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8059,6 +8402,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8075,6 +8419,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8091,6 +8436,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8107,6 +8453,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8123,6 +8470,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -8143,6 +8491,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -8187,6 +8536,20 @@
    }
   },
   "romav2@1": {
+   "auto": [
+    "kernels",
+    "float32"
+   ],
+   "dtypes": {
+    "float32": "kernels"
+   },
+   "kernels_default": [
+    "kernels",
+    "float32"
+   ],
+   "kernels": {
+    "float32": "kernels"
+   },
    "mlx_default": [
     "kernels",
     "float32"
@@ -8236,6 +8599,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8268,6 +8632,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8323,6 +8688,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8346,6 +8712,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8362,6 +8729,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8386,6 +8754,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8399,7 +8768,8 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "portable"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
     "portable",
@@ -8409,6 +8779,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8425,6 +8796,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8441,6 +8813,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8457,6 +8830,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8473,6 +8847,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8505,6 +8880,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8521,9 +8897,7 @@
     "float16": "portable",
     "float32": "portable"
    },
-   "mps_auto": [
-    "float32"
-   ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8544,9 +8918,7 @@
     "float16": "portable",
     "float32": "portable"
    },
-   "mps_auto": [
-    "float32"
-   ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8570,6 +8942,7 @@
    "mps_auto": [
     "float32"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8578,6 +8951,10 @@
    }
   },
   "rtmpose-l@1": {
+   "kernels_default": [
+    "portable",
+    "float16"
+   ],
    "mlx_default": [
     "portable",
     "float16"
@@ -8586,9 +8963,7 @@
     "float16": "portable",
     "float32": "portable"
    },
-   "mps_auto": [
-    "float32"
-   ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8608,6 +8983,7 @@
    "mps_auto": [
     "float32"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8628,6 +9004,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8649,9 +9026,9 @@
     "float32": "portable"
    },
    "mps_auto": [
-    "",
     "float32"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8671,6 +9048,7 @@
    "mps_auto": [
     "float32"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8694,6 +9072,7 @@
    "mps_auto": [
     "float32"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8731,9 +9110,9 @@
     "float32": "portable"
    },
    "mps_auto": [
-    "",
     "float32"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8774,6 +9153,7 @@
     "",
     "float32"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8794,6 +9174,7 @@
     "",
     "float32"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8873,6 +9254,7 @@
    "mps_auto": [
     "float32"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8881,6 +9263,10 @@
    }
   },
   "rtmw-l-384@1": {
+   "kernels_default": [
+    "portable",
+    "float16"
+   ],
    "mlx_default": [
     "portable",
     "float16"
@@ -8889,6 +9275,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8909,6 +9296,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8929,6 +9317,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8945,6 +9334,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8961,6 +9351,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -8985,6 +9376,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9001,6 +9393,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9017,6 +9410,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9041,6 +9435,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9073,6 +9468,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9092,6 +9488,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9108,6 +9505,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9132,6 +9530,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9155,6 +9554,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9171,6 +9571,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9187,6 +9588,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9203,6 +9605,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9219,6 +9622,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9243,6 +9647,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9259,6 +9664,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9275,6 +9681,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9311,6 +9718,11 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_auto": [
+    "",
+    "float16"
+   ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9351,6 +9763,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9374,6 +9787,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9390,6 +9804,11 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_auto": [
+    "",
+    "float16"
+   ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9478,6 +9897,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -9498,6 +9918,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9514,6 +9935,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9530,6 +9952,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9546,6 +9969,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9562,6 +9986,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -9582,6 +10007,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -9620,6 +10046,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -9658,6 +10085,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -9696,6 +10124,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -9734,6 +10163,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -9772,6 +10202,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -9810,6 +10241,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -9834,6 +10266,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -9974,6 +10407,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -9990,6 +10424,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10006,6 +10441,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10022,6 +10458,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10038,6 +10475,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10054,6 +10492,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10070,6 +10509,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10086,6 +10526,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10102,6 +10543,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -10122,6 +10564,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -10166,6 +10609,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10214,6 +10658,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10246,6 +10691,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10262,6 +10708,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10270,6 +10717,13 @@
    }
   },
   "swin2sr-x4@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -10278,6 +10732,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10310,6 +10765,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10326,6 +10782,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10342,6 +10799,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10358,6 +10816,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10430,6 +10889,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -10538,6 +10998,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10557,6 +11018,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10573,6 +11035,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10589,6 +11052,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10645,6 +11109,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10677,6 +11142,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10716,6 +11182,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10732,6 +11199,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10759,6 +11227,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10791,6 +11260,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10807,6 +11277,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10839,6 +11310,7 @@
     "float16": "kernels",
     "float32": "kernels"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -10867,6 +11339,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10875,7 +11348,12 @@
    }
   },
   "vitmatte-s@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -10886,6 +11364,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10906,6 +11385,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10933,6 +11413,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10960,6 +11441,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -10991,6 +11473,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -11018,6 +11501,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -11038,6 +11522,7 @@
     "",
     "float16"
    ],
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -11062,6 +11547,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -11086,6 +11572,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -11099,7 +11586,8 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "portable"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
     "portable",
@@ -11109,6 +11597,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -11165,6 +11654,7 @@
     "float16": "kernels",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -11185,6 +11675,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -11205,6 +11696,7 @@
     "float16": "kernels",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -11225,6 +11717,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "kernels": [
      "float16",
@@ -11270,7 +11763,8 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "portable"
+    "float16": "portable",
+    "float32": "portable"
    },
    "mlx_default": [
     "portable",
@@ -11280,6 +11774,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -11296,6 +11791,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -11370,6 +11866,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -11386,6 +11883,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",
@@ -11402,6 +11900,7 @@
     "float16": "portable",
     "float32": "portable"
    },
+   "mps_dtype": "float16",
    "passed": {
     "portable": [
      "float16",

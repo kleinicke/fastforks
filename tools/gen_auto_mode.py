@@ -7,17 +7,24 @@ file. An explicit `mode="kernels"` is never affected. On Windows `auto` reads th
 over the rows of `WINDOWS_DEVICE` (the reference card under WDDM, where every launch costs more) for the models that
 survey measured, over the reference rows for the others.
 
-The Apple table selects among passing, comparable MPS and MLX survey runs (MLX runs only in a dtype the card still
-declares for its MLX port). Per model revision:
+The Apple table selects among passing, comparable MPS and MLX survey runs (only in a dtype the card still declares:
+`mps_dtypes` for portable MPS, the MLX dtypes for its MLX port). A run whose golden passed is as good as any other, so
+float16 is taken like on CUDA wherever it is validated and pays. One rule decides every step (`_route_score`): a
+candidate replaces the path chosen so far if it is at least `MIN_GAIN` faster, or about as fast (at most
+`TRADE_SLOWDOWN` slower) while needing at most `TRADE_MEMORY` of its peak memory (peak footprint) on every workload. A
+faster candidate may use up to `MEM_SLACK` more memory; beyond that the speed must repay the memory (time ratio times
+memory ratio still `MIN_GAIN` better). Without a `dtype`, `auto` goes through three steps per model revision:
 
-- `auto` and `dtypes` select MLX if it beats the fastest MPS path by `MIN_GAIN` and does not use more memory
-  (peak footprint, within `MEM_SLACK`) than that path. It is also selected when at most `TRADE_SLOWDOWN` slower if it
-  needs at most `TRADE_MEMORY` of that path's peak memory on every workload. MLX compiles per input shape, so
-  its first call is slow: the route also needs its first call to take at most `COLD_MPS_COLD` first calls plus
-  `COLD_MPS_WARM` warm runs of the MPS path it replaces, on every workload (`device="mlx"` always runs MLX).
-- `kernels` and `kernels_default` select MLX if it beats the native MPS kernel by `MIN_GAIN`, likewise in memory.
+- `mps_dtype`: portable MPS computes in float16 if that run beats the float32 run by the rule, or if float32 runs out
+  of memory on every workload float16 was measured on.
+- `mps_auto`: the native Metal kernels replace the portable path chosen above (the `""` request). With a `dtype`,
+  they must beat portable MPS in that dtype.
+- `auto`: the MLX port replaces the MPS path chosen above. MLX compiles per input shape, so its first call is slow: the
+  route also needs its first call to take at most `COLD_MPS_COLD` first calls plus `COLD_MPS_WARM` warm runs of the
+  MPS path it replaces, on every workload (`device="mlx"` always runs MLX). `dtypes`: the same for a requested
+  `dtype`, against the fastest MPS path in that dtype.
+- `kernels` and `kernels_default` select MLX if it beats the native MPS kernel by the rule (explicit `mode="kernels"`).
 - `mlx` and `mlx_default` select the fastest passing MLX path where it is the only optimized backend.
-- `mps_auto` records which native MPS kernel requests beat portable MPS by `MIN_GAIN`.
 - `passed` lists, per MLX mode, the dtypes with a passing MLX run (golden checked): what `contract()` reports as
   validated on MLX, and what tests/test_mlx_validated.py holds the card declarations against.
 
@@ -47,9 +54,9 @@ APPLE_DEVICE = "apple-m1-pro-16gb"  # the Mac whose MPS and MLX survey rows deci
 APPLE_MLX_DEVICE = "apple-m1-pro-mlx-16gb"
 WINDOWS_DEVICE = "rtx-5060-ti-windows-16gb"  # the reference card under Windows: its rows decide `auto` there
 MIN_GAIN = 1.05  # kernels must be at least 5 % faster, else the lighter portable backend is chosen
-MEM_SLACK = 1.02  # an MLX route may use at most 2 % more peak memory than the MPS path it replaces (measurement noise)
-TRADE_SLOWDOWN = 1.01  # ... or be up to 1 % slower than that path ...
-TRADE_MEMORY = 0.90  # ... if it needs at most 90 % of its peak memory (a saving of more than 10 %)
+MEM_SLACK = 1.02  # a faster Apple route may use 2 % more peak memory than the path it replaces (measurement noise)
+TRADE_SLOWDOWN = 1.05  # a route may be up to 5 % slower than that path (the same speed, within noise) ...
+TRADE_MEMORY = 0.90  # ... if it needs at most 90 % of its peak memory (a saving of at least 10 %)
 COLD_MPS_COLD = 1.0  # `auto` takes MLX only if its first call is at most this many first calls of the MPS path ...
 COLD_MPS_WARM = 2.0  # ... plus this many warm MPS runs
 KERNEL_MODES = ("kernels",)  # the mode column of the data files
@@ -115,13 +122,18 @@ Run = tuple[float, float | None, float]  # (ms, peak footprint MB; None: not rec
 
 
 @functools.cache
-def _mlx_dtypes(ref: str, mode: str) -> tuple[str, ...] | None:
-    """The dtypes the card of `ref` declares for its MLX port in `mode`; None for a model without a card."""
+def _declared_dtypes(ref: str, mode: str, device: str) -> tuple[str, ...] | None:
+    """The dtypes the card of `ref` declares for `mode` on the survey `device`; None: no card, or no such list.
+
+    The MLX port's dtypes of the mode, and the portable `mps_dtypes` (the Metal kernels have one dtype, not a list).
+    """
     try:
         card, _ = registry.resolve_any(ref.split("@", maxsplit=1)[0])
     except ModelNotFoundError:
         return None
-    return card.mlx_dtypes(mode)
+    if device == APPLE_MLX_DEVICE:
+        return card.mlx_dtypes(mode)
+    return card.portable_mps_dtypes or None if mode == "portable" else None  # a family not validated on MPS: no list
 
 
 def _apple_options(device: str) -> dict[str, dict[Option, dict[Workload, Run]]]:
@@ -135,9 +147,9 @@ def _apple_options(device: str) -> dict[str, dict[Option, dict[Workload, Run]]]:
         ref = row["ref"]
         if "@" not in ref:
             ref += "@1"  # historical unversioned rows predate checkpoint revisions
-        declared = _mlx_dtypes(ref, row["mode"]) if device == APPLE_MLX_DEVICE else None
+        declared = _declared_dtypes(ref, row["mode"], device)
         if declared is not None and dtype not in declared:
-            continue  # a dtype the card no longer declares for MLX (its golden misses since the row was measured)
+            continue  # a dtype the card does not (or no longer) declare here: not validated, whatever the row says
         workload = (row["input"], row.get("scene", ""), row.get("protocol_id", ""))
         models.setdefault(ref, {}).setdefault((row["mode"], dtype), {})[workload] = (
             row["ms"],
@@ -179,22 +191,31 @@ def _oom_routes(
     return routes
 
 
-def _route_score(ratios: list[float], savings: list[float | None], *, memory: bool) -> float | None:
+def _route_score(ratios: list[float], costs: list[float | None], *, memory: bool) -> float | None:
     """Median `ms / baseline ms` when the route qualifies, else None.
 
-    It qualifies when at least `MIN_GAIN` faster, or (with the memory rule) at most `TRADE_SLOWDOWN` slower while
-    needing at most `TRADE_MEMORY` of the baseline's peak memory on every workload.
+    `costs`: `peak memory / baseline peak memory` per workload (None: not recorded). Without the memory rule the route
+    qualifies when at least `MIN_GAIN` faster. With it, it also needs a known memory on every workload, and then:
+
+    - at most `MEM_SLACK` of the baseline's memory: at least `MIN_GAIN` faster, or at most `TRADE_SLOWDOWN` slower
+      while needing at most `TRADE_MEMORY` of the baseline's memory on every workload;
+    - more memory: the speed repays it, i.e. time ratio times the largest memory ratio is still `MIN_GAIN` better.
     """
     if not ratios:
         return None
     score = statistics.median(ratios)
-    if score * MIN_GAIN <= 1:
-        return score
-    lean = memory and score <= TRADE_SLOWDOWN and all(r is not None and r <= TRADE_MEMORY for r in savings)
-    return score if lean else None
+    if not memory:
+        return score if score * MIN_GAIN <= 1 else None
+    known = [c for c in costs if c is not None]
+    if len(known) < len(costs):
+        return None
+    cost = max(known)
+    if cost > MEM_SLACK:
+        return score if score * cost * MIN_GAIN <= 1 else None
+    return score if score * MIN_GAIN <= 1 or (score <= TRADE_SLOWDOWN and cost <= TRADE_MEMORY) else None
 
 
-def _winners(  # noqa: C901 - one loop over dtype, option and workload
+def _winners(
     candidates: dict[Option, dict[Workload, Run]],
     alternatives: dict[Option, dict[Workload, Run]],
     *,
@@ -203,9 +224,9 @@ def _winners(  # noqa: C901 - one loop over dtype, option and workload
 ) -> dict[str, Option]:
     """Winning implementation for each requested dtype, plus the unconstrained request under the empty key.
 
-    `memory`: a candidate must also stay within `MEM_SLACK` of the fastest alternative's peak footprint on every
-    workload. `cold`: and its first call must take at most `COLD_MPS_COLD` first calls plus `COLD_MPS_WARM` warm runs of
-    the fastest alternative on every workload.
+    A candidate is compared per workload with the fastest alternative (of the requested dtype) and must qualify by
+    `_route_score`; `memory` turns its memory rule on. `cold`: and its first call must take at most `COLD_MPS_COLD`
+    first calls plus `COLD_MPS_WARM` warm runs of that alternative on every workload.
     """
     selected = {}
     for dtype in ("", *sorted({d for _, d in candidates})):
@@ -216,24 +237,22 @@ def _winners(  # noqa: C901 - one loop over dtype, option and workload
             if not alternatives:
                 score = statistics.median(run[0] for run in rows.values())
             else:
-                ratios, savings = [], []
+                ratios, costs = [], []
                 for key, (ms, mem, first_s) in rows.items():
                     baseline = [
                         other[key]
                         for (_, d), other in alternatives.items()
                         if (not dtype or d == dtype) and key in other
                     ]
-                    if baseline:
-                        fastest_ms, fastest_mem, fastest_first = min(baseline)  # the path the MLX route would replace
-                        if memory and (mem is None or fastest_mem is None or mem > fastest_mem * MEM_SLACK):
-                            ratios = []  # more memory (or unknown) on one workload: no route
-                            break
-                        ratios.append(ms / fastest_ms)
-                        if cold and first_s > COLD_MPS_COLD * fastest_first + COLD_MPS_WARM * fastest_ms / 1000:
-                            ratios = []  # the first call costs too many MPS runs
-                            break
-                        savings.append(mem / fastest_mem if mem is not None and fastest_mem else None)
-                score = _route_score(ratios, savings, memory=memory)
+                    if not baseline:
+                        continue
+                    fastest_ms, fastest_mem, fastest_first = min(baseline)  # the path the route would replace
+                    if cold and first_s > COLD_MPS_COLD * fastest_first + COLD_MPS_WARM * fastest_ms / 1000:
+                        ratios = []  # the first call costs too many MPS runs
+                        break
+                    ratios.append(ms / fastest_ms)
+                    costs.append(mem / fastest_mem if mem is not None and fastest_mem else None)
+                score = _route_score(ratios, costs, memory=memory)
                 if score is None:
                     continue
             timings.append((score, option))
@@ -242,19 +261,57 @@ def _winners(  # noqa: C901 - one loop over dtype, option and workload
     return selected
 
 
+def _mps_choice(
+    native: dict[Option, dict[Workload, Run]], oom: dict[str, set[Workload]]
+) -> tuple[Option | None, dict[str, Option]]:
+    """What `auto` runs on PyTorch MPS: the portable path without a `dtype`, and the Metal requests that beat portable.
+
+    Returns the portable `(mode, dtype)` (None without a passing portable run) and `{request: kernels option}` with
+    the empty key for the request without a dtype (the Metal kernels against that portable path) and one key per
+    dtype (against portable in that dtype).
+    """
+    kernels = {option: rows for option, rows in native.items() if option[0] == "kernels"}
+    portable = {option: rows for option, rows in native.items() if option[0] == "portable"}
+    full = {o: rows for o, rows in portable.items() if o[1] == "float32"}
+    half = {o: rows for o, rows in portable.items() if o[1] == "float16"}
+    chosen = full
+    if half and full and "" in _winners(half, full, memory=True):
+        chosen = half
+    elif half and not full and all(rows.keys() <= oom.get("float32", set()) for rows in half.values()):
+        chosen = half  # float32 runs out of memory wherever float16 was measured
+    metal = {d: o for d, o in _winners(kernels, portable, memory=True).items() if d} if portable else {}
+    if chosen and (best := _winners(kernels, chosen, memory=True).get("")):
+        metal[""] = best
+    return next(iter(chosen), None), metal
+
+
+def _mlx_auto(
+    accelerated: dict[Option, dict[Workload, Run]],
+    native: dict[Option, dict[Workload, Run]],
+    chosen: Option | None,
+    oom: dict[str, set[Workload]],
+) -> dict[str, Option]:
+    """The MLX routes of `auto`: per requested dtype, and under the empty key against the MPS path `chosen`.
+
+    A route needs a comparable MPS run, except where MPS runs out of memory (`_oom_routes`).
+    """
+    auto = {d: o for d, o in _winners(accelerated, native, memory=True, cold=True).items() if d} if native else {}
+    if chosen and (best := _winners(accelerated, {chosen: native[chosen]}, memory=True, cold=True).get("")):
+        auto[""] = best
+    return auto | {d: o for d, o in _oom_routes(accelerated, native, oom).items() if d not in auto}
+
+
 def render_apple() -> str:
     mps, mlx, oom = _apple_options(APPLE_DEVICE), _apple_options(APPLE_MLX_DEVICE), _mps_oom()
     models: dict[str, object] = {}
     for ref in sorted(mps.keys() | mlx.keys()):
         native, accelerated = mps.get(ref, {}), mlx.get(ref, {})
         kernels = {option: rows for option, rows in native.items() if option[0] == "kernels"}
-        baseline = {option: rows for option, rows in native.items() if option[0] == "portable"}
-        # Require a comparable MPS run when automatically promoting an MLX route.
-        auto = _winners(accelerated, native, memory=True, cold=True) if native else {}
-        auto |= {d: o for d, o in _oom_routes(accelerated, native, oom.get(ref, {})).items() if d not in auto}
+        portable, metal = _mps_choice(native, oom.get(ref, {}))
+        chosen = metal.get("") or portable or next(iter(kernels), None)  # what `auto` runs on MPS without a dtype
+        auto = _mlx_auto(accelerated, native, chosen, oom.get(ref, {}))
         optimized = _winners(accelerated, kernels, memory=True) if kernels else {}
         only_mlx = _winners(accelerated, {})
-        metal = _winners(kernels, baseline) if baseline else {}
         entry: dict[str, object] = {}
         if "" in auto:
             entry["auto"] = list(auto.pop(""))
@@ -266,7 +323,9 @@ def render_apple() -> str:
             if winners:
                 entry[key] = {dtype: option[0] for dtype, option in winners.items()}
         if metal:
-            entry["mps_auto"] = list(metal)
+            entry["mps_auto"] = sorted(metal)
+        if portable and portable[1] != "float32":
+            entry["mps_dtype"] = portable[1]  # also where Metal or MLX is taken: what runs if that cannot load
         if accelerated:
             entry["passed"] = {
                 mode: sorted(d for m, d in accelerated if m == mode) for mode in sorted({m for m, _ in accelerated})

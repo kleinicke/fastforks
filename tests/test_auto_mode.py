@@ -93,7 +93,7 @@ def test_apple_routing_uses_passing_comparable_rows(tmp_path, monkeypatch):
             row | {"ms": 2, "input": "96x96"},
             row | {"ms": 5, "ref": "example@1"},
             row | {"ms": 8},
-            row | {"ms": 5, "ref": "example@3", "peak_footprint_mb": 150},  # faster, but more memory than MPS
+            row | {"ms": 8, "ref": "example@3", "peak_footprint_mb": 150},  # faster, but more memory than MPS
             row | {"ms": 5, "ref": "example@4"},
         ],
     }
@@ -104,7 +104,7 @@ def test_apple_routing_uses_passing_comparable_rows(tmp_path, monkeypatch):
     assert measured["example@2"]["mps_auto"] == ["", "float32"]
     assert "kernels_default" not in measured["example@2"]
     assert "auto" not in measured["example@1"]
-    assert "auto" not in measured["example@3"]  # faster than MPS but 50 % more memory
+    assert "auto" not in measured["example@3"]  # 1.25x faster than MPS does not repay 50 % more memory
 
 
 def test_mlx_route_where_mps_runs_out_of_memory():
@@ -119,3 +119,40 @@ def test_mlx_route_where_mps_runs_out_of_memory():
     assert gen_auto_mode._oom_routes(mlx, mps, {"float16": {w}}) == {}
     # MLX measured on a workload MPS never failed: no OOM route
     assert gen_auto_mode._oom_routes(mlx, {}, {"float32": {("1x1", "", "")}}) == {}
+
+
+def test_apple_route_rule_weighs_speed_against_memory():
+    sys.path.insert(0, str(ROOT / "tools"))
+    import gen_auto_mode  # noqa: PLC0415
+
+    score = gen_auto_mode._route_score
+    assert score([0.94], [1.0], memory=True) == 0.94  # at least 5 % faster, no more memory
+    assert score([0.97], [1.0], memory=True) is None  # within noise, the same memory
+    assert score([1.04], [0.9], memory=True) == 1.04  # the same speed within noise, 10 % less memory
+    assert score([1.04], [0.95], memory=True) is None
+    assert score([1.06], [0.5], memory=True) is None  # slower than noise: memory alone does not decide
+    assert score([0.94], [1.1], memory=True) is None  # 6 % faster does not repay 10 % more memory
+    assert score([0.5], [1.1], memory=True) == 0.5  # twice as fast does
+    assert score([0.5], [None], memory=True) is None  # unknown memory
+    assert score([0.5], [None], memory=False) == 0.5
+
+
+def test_apple_auto_takes_validated_float16_on_mps():
+    sys.path.insert(0, str(ROOT / "tools"))
+    import gen_auto_mode  # noqa: PLC0415
+
+    w = ("224x224", "synthetic", "warm-median")
+    full, half, metal = ("portable", "float32"), ("portable", "float16"), ("kernels", "float16")
+    choice = gen_auto_mode._mps_choice
+    assert choice({full: {w: (10.0, 100.0, 0.1)}, half: {w: (9.0, 100.0, 0.1)}}, {}) == (half, {})
+    assert choice({full: {w: (10.0, 100.0, 0.1)}, half: {w: (9.8, 100.0, 0.1)}}, {}) == (full, {})
+    assert choice({full: {w: (10.0, 100.0, 0.1)}, half: {w: (10.2, 80.0, 0.1)}}, {}) == (half, {})  # leaner
+    assert choice({full: {w: (10.0, 100.0, 0.1)}, half: {w: (9.0, 120.0, 0.1)}}, {}) == (full, {})  # more memory
+    # float32 ran out of memory there: float16 is the only portable path that runs
+    assert choice({half: {w: (9.0, 100.0, 0.1)}}, {"float32": {w}}) == (half, {})
+    assert choice({half: {w: (9.0, 100.0, 0.1)}}, {}) == (None, {})
+    # the Metal kernels must beat the portable dtype `auto` would take, not only float32
+    native = {full: {w: (10.0, 100.0, 0.1)}, half: {w: (8.0, 100.0, 0.1)}, metal: {w: (7.9, 100.0, 0.1)}}
+    assert choice(native, {}) == (half, {})
+    native[metal] = {w: (7.0, 100.0, 0.1)}
+    assert choice(native, {}) == (half, {"": metal, "float16": metal})
