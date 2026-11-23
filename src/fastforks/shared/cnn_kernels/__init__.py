@@ -615,14 +615,20 @@ def fuse_sequentials(model: Patched) -> int:
     """Replace `conv -> BatchNorm [-> activation]` runs inside every `nn.Sequential` by `FusedConvBN`.
 
     The BN and activation slots become `nn.Identity` (indices and state-dict keys of the conv are unchanged). Only
-    plain BatchNorm modules fuse (BatchNormAct has its own activation). Returns the number of fused runs.
+    plain BatchNorm modules fuse (BatchNormAct has its own activation). Inner Sequentials go first, so a ReLU / ReLU6
+    right after a nested `Sequential(conv, BN)` (upstream's `Sequential(convbn_3d(...), nn.ReLU())`) joins its
+    epilogue too: exact, both commute with the fp16 rounding. Returns the number of fused runs.
     """
     n = 0
-    for seq in [m for m in model.modules() if isinstance(m, nn.Sequential)]:
+    for seq in reversed([m for m in model.modules() if isinstance(m, nn.Sequential)]):
         children = list(seq._modules.items())  # noqa: SLF001 - in-place slot replacement
         i = 0
         while i < len(children):
             name, m = children[i]
+            if _join_act(m, children[i + 1][1] if i + 1 < len(children) else None):
+                seq._modules[children[i + 1][0]] = nn.Identity()  # noqa: SLF001
+                i += 2
+                continue
             if not (
                 isinstance(m, CONVS)
                 and m.padding_mode == "zeros"
@@ -640,6 +646,18 @@ def fuse_sequentials(model: Patched) -> int:
             n += 1
             i = j
     return n
+
+
+def _join_act(m: nn.Module, nxt: nn.Module | None) -> bool:
+    """Make a ReLU / ReLU6 `nxt` the activation of `m`, a nested Sequential whose output is a plain `FusedConvBN`."""
+    last: nn.Module | None = m
+    while isinstance(last, nn.Sequential):
+        last = next((c for c in reversed(last) if not isinstance(c, nn.Identity)), None)
+    code = None if nxt is None else act_code(nxt)
+    if m is last or not isinstance(last, FusedConvBN) or last.act or code not in {ACT["relu"], ACT["relu6"]}:
+        return False
+    last.act = code
+    return True
 
 
 def fuse_selective(model: Patched, ratio: int = 4) -> int:
