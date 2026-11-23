@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as cp
 from torch import Tensor
+from fastforks._core.mps import release  # fastforks: MPS drops its cached buffers between the blocks
 
 
 class SelfAttn(nn.Module):
@@ -381,8 +382,14 @@ class BasicAttnBlock(nn.Module):
     def forward(self, z: torch.Tensor, pe: torch.Tensor=None):
         # z: [B, C, H, W]
         z = z.permute(0, 2, 3, 1)
+        # fastforks: 994 x 1482 float32 ran out of MPS memory on the cache of other levels and calls. float16 fits
+        # without the releases, which cost it 6 %.
+        if z.dtype == torch.float32:
+            release(z)
         z = self.cross_attn(z)
         z = self.ffn_c(z)
+        if z.dtype == torch.float32:
+            release(z)  # fastforks
         z = self.self_attn(z, pe)
         z = self.ffn(z)
         z = z.permute(0, 3, 1, 2)
