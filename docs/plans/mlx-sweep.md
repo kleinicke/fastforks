@@ -3598,3 +3598,31 @@ Routes: unchanged after both items (`gen_auto_mode --check` clean). Disk 29 GB f
 start, 5.8 GB at the end. Goldens after the merge change: the mandated `test_mlx` list plus waft-a1,
 raft-stereo-sceneflow, dedode-v2-b and dedode-v2-g (16 pass); tests/test_mlx*.py, test_auto_mode.py and test_policy.py
 pass.
+
+## 2026-11-23: S2M2 speed on Apple silicon (MLX and MPS, M1 Pro 16 GB, 994 x 1482): no change shipped
+
+Baseline at 1c5d7c9a (survey, portable, ms / peak MB; all goldens pass):
+
+| ref | MLX fp32 | MLX fp16 | MPS fp32 | MPS fp16 |
+|---|---|---|---|---|
+| s2m2-s | 2677 / 3571 | 1614 / 2536 | 1705 / 8050 | 1603 / 4967 |
+| s2m2-m | 5068 / 5799 | 3186 / 3852 | 4359 / 10572 | 3627 / 7938 |
+| s2m2-l | 8437 / 7834 | 5336 / 5503 | 24532 / 11654 (swaps) | 6578 / 8635 |
+| s2m2-xl | 13211 / 11789 | 10595 / 8339 | OOM | 15998 / 12593 |
+
+MLX profile (`FF_MLX_PROFILE=1`): convs are ~50 % (s fp16 1183 of 2347 ms; xl fp16 6.6 of 12.4 s), then matmul /
+addmm / sdpa / gelu. Convs and matmuls run at ~3-4 TFLOPS, Winograd 3x3 above 7 TFLOPS direct-equivalent: near
+roofline. MPS module profile (s fp16, 1633 ms): refiner x3 564 ms, transformer 376, cnn_backbone 172, feat_pyramid 160.
+
+Tried, all null or worse (s, bench of 5 warm calls; outputs bit-identical unless noted):
+
+- MPS: merging sibling convs (ConvGRU z/r, FeatureFusion gate/fusion first convs) 1593 vs ~1590 ms; one shared
+  unfold/softmax for the three upsampled maps 1589 ms but +1 GB peak; `upconv` commute 1570 ms, +1 GB, not identical;
+  channels_last 1863 ms (worse); `torch.mps.empty_cache()` per call 1815 vs 1706 ms fp32, peak unchanged.
+- MLX: shared upsampling 1630 vs 1593 ms; `upconv=0` 1647 ms; `FF_MLX_SEG_MB=800` 1628 ms; `FF_MLX_COMPILE=1` 1613 ms
+  vs 1603 ms (noise is ~2 %).
+
+MPS memory: live tensors peak at 2.5 GB (s fp32) / 3.9 GB (l fp32), the driver at 4.5 / 7.6 GB after the first call
+and 8 / 11.4 GB over repeated calls. The gap is the MPS caching allocator plus graph temporaries (1 GB jumps at
+cnn_backbone conv1_down, feat_pyramid concat_conv0 and the first transformer up_concat0), not the network's tensors, so
+l fp32 swapping and xl fp32 OOM are not fixable with module rewrites. Left as is; fp16 is the Apple route anyway.
