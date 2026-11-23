@@ -376,9 +376,13 @@ class BEN_Base(nn.Module):
             final_output = self.insmask_head(output1_cat)  # (1,128,256,256)
             # shallow feature merge
             final_output = final_output + shallow_low[i:i+1]
-            final_output = self.upsample1(rescale_to(final_output))
+            up1 = getattr(self, "up_deconv1", None)  # fastforks: the kernels runner's nearest 2x + conv as one deconv
+            final_output = self.upsample1(rescale_to(final_output)) if up1 is None else self.upsample1[1:](up1(final_output))
             final_output = final_output + shallow_mid[i:i+1]
-            if (
+            up2 = getattr(self, "up_deconv2", None)  # fastforks: as up_deconv1
+            if up2 is not None:
+                final_output = self.upsample2[1:](up2(final_output))
+            elif (
                 final_output.is_cuda
                 and final_output.shape[-2] * final_output.shape[-1] >= _UPSAMPLE_STRIP_MIN_PIXELS
                 and not torch.is_grad_enabled()
