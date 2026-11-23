@@ -58,21 +58,22 @@ Every changed message has a test in `tests/test_comfyui.py` that needs no model 
   user on the default path.
 - Mixed-size frames in a batch cannot reach a node (ComfyUI's batch nodes resize), so there is nothing to message.
 
-## Needs a decision
+## Decided (2026-11-23)
 
-1. **Keep loaded / unload control.** Models stay cached (two most recently used) and ComfyUI's global "Unload models"
-   frees them; there is no per-node `keep_loaded`. Adding a BOOLEAN to 19 nodes changes every widget layout, so all ten
-   workflows would be regenerated. Probably not worth it until someone asks.
-2. **Device input.** Nodes use ComfyUI's device (`--cpu`, `--cuda-device`). A per-node CPU choice would be useful on
-   small Macs but is also one more widget per node; ComfyUI's own flag already covers it.
-3. **Seed.** There is no seed widget. Nearly all models are deterministic; the Marigold models (listed by Depth and
-   Normals) are diffusion models with a `seed` load option (default 2026), so their output is fixed but cannot be
-   varied from ComfyUI. A `seed` input would need to be shown only for those models, which ComfyUI's static widgets
-   cannot do without a new widget on every Depth / Normals node.
-4. **Gated models in the dropdown.** Only the licence is tagged (`[non-commercial]`). Tagging gated ones (`[gated]`)
-   would warn before the run, but the gated state is not in the cards: it is only known from the download error. A
-   `gated` flag on the card would give the tag for free.
-5. **Download progress.** Large first-run downloads show progress only in the console; ComfyUI's progress bar would need
-   the library to report bytes to a callback.
-6. **Mac benchmarks in the tooltips.** `backend=mlx` is described qualitatively ("often leaner, first call slow").
-   Per-model numbers live in `docs/plans/mlx-sweep.md` and the speed data, which this audit did not touch.
+The open questions of the first audit, settled during the Mac run:
+
+1. **Keep loaded / unload control: no switch.** The node cache keeps up to eight models and evicts by memory first
+   (`make_room`), so a workflow cycling a few nodes reloads nothing, and ComfyUI's "Unload models" empties it. A
+   BOOLEAN on 19 nodes would change every widget layout and regenerate all workflows for no measured gain.
+2. **Device input: no.** ComfyUI's own `--cpu` / `--cuda-device` flags cover it; on a Mac `backend=mlx` is the
+   memory-saving choice, which a CPU switch would not beat.
+3. **Seed: no.** The Marigold seed is fixed by default (2026), so outputs are reproducible; a per-model widget cannot be
+   shown only for the diffusion models.
+4. **`[gated]` tag: no.** The word "gated" appears in 16 cards in different senses (mostly "not gated"), so it is no
+   flag, and only SAM 3 and DINOv3 need a Hugging Face login. Their failure already says which licence page to accept
+   and how to log in (`hf auth login` or `HF_TOKEN`), and the `model` tooltip names SAM 3 as gated. Revisit if
+   a card gains a real `gated` field.
+5. **Download progress: later.** It needs a byte callback in `fastforks._core.files`; the console shows progress today.
+6. **Mac numbers in tooltips: no.** A dropdown has one tooltip for all its models, so per-model numbers cannot fit; the
+   speed pages and `docs/plans/mlx-sweep.md` carry them, and `backend=auto` already takes MLX where it was measured
+   better.

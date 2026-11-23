@@ -3653,7 +3653,39 @@
     "float32": "portable"
    }
   },
+  "loma-g@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
   "loma-l@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "loma-r@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "mlx_default": [
     "portable",
     "float16"
@@ -3879,6 +3911,9 @@
    }
   },
   "memfof-kitti@1": {
+   "dtypes": {
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
