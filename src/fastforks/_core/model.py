@@ -931,6 +931,11 @@ def _apple_mlx() -> Mapping[str, Mapping[str, Any]]:
     return json.loads(Path(__file__).with_name("apple_mlx.json").read_text(encoding="utf-8"))["models"]
 
 
+def apple_mlx_passed(ref: str, mode: Mode) -> tuple[Dtype, ...]:
+    """The dtypes in which `mode` of the MLX port of `ref` passed its golden check on the reference Mac."""
+    return tuple(_apple_mlx().get(ref, {}).get("passed", {}).get(mode, ()))
+
+
 def _mlx_for_mps(card: ModelCard, variant: Variant, mode: ModeArg, dtype: Dtype | None) -> tuple[Mode, Dtype] | None:
     """The MLX port's `(mode, dtype)` that stands in for a load on Apple MPS, or None to stay on PyTorch MPS.
 

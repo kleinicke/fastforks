@@ -18,6 +18,8 @@ declares for its MLX port). Per model revision:
 - `kernels` and `kernels_default` select MLX if it beats the native MPS kernel by `MIN_GAIN`, likewise in memory.
 - `mlx` and `mlx_default` select the fastest passing MLX path where it is the only optimized backend.
 - `mps_auto` records which native MPS kernel requests beat portable MPS by `MIN_GAIN`.
+- `passed` lists, per MLX mode, the dtypes with a passing MLX run (golden checked): what `contract()` reports as
+  validated on MLX, and what tests/test_mlx_validated.py holds the card declarations against.
 
     uv run python tools/gen_auto_mode.py          # write
     uv run python tools/gen_auto_mode.py --check  # exit 1 if a file is out of date
@@ -265,6 +267,10 @@ def render_apple() -> str:
                 entry[key] = {dtype: option[0] for dtype, option in winners.items()}
         if metal:
             entry["mps_auto"] = list(metal)
+        if accelerated:
+            entry["passed"] = {
+                mode: sorted(d for m, d in accelerated if m == mode) for mode in sorted({m for m, _ in accelerated})
+            }
         if entry:
             models[ref] = entry
     data = {"min_gain": MIN_GAIN, "measured_on": [APPLE_DEVICE, APPLE_MLX_DEVICE], "models": models}
