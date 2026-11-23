@@ -163,11 +163,41 @@ def _fft_depthwise(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return out
 
 
+def _pointwise_fits(m: torch.nn.Conv2d) -> bool:
+    """A plain 1 x 1 conv (stride 1, no padding, one group) with a bias."""
+    return (
+        m.kernel_size == (1, 1)
+        and m.groups == 1
+        and m.stride == (1, 1)
+        and m.padding == (0, 0)
+        and m.dilation == (1, 1)
+        and m.bias is not None
+    )
+
+
+def _pointwise(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
+    """The 1 x 1 conv as one GEMM per image on the NCHW layout: `bias + W @ x[C, H * W]` in the weights' dtype.
+
+    cuDNN runs a fp16 NCHW conv in NHWC: it transposes the input and the output of each of the ~35 pointwise convs of
+    every update (1080p: 92 of 744 ms). cuBLAS takes the `[C, H * W]` view as it is, with the same fp32 accumulation
+    and one rounding of `W @ x + b` (the bias is the GEMM's accumulator input).
+    """
+    b, c, h, w = x.shape
+    weight = conv.weight.detach().view(conv.out_channels, c)
+    out = torch.empty((b, conv.out_channels, h, w), dtype=weight.dtype, device=x.device)
+    with torch.autocast(x.device.type, enabled=False):  # the weights are already in the autocast dtype
+        for i in range(b):
+            x2d = x[i].reshape(c, h * w).to(weight.dtype)
+            torch.addmm(cast("torch.Tensor", conv.bias).detach()[:, None], weight, x2d, out=out[i].view(-1, h * w))
+    return out
+
+
 class Kernels(Portable):
     """The portable fp16 pass with the correlation windows computed on the fly (`raft_flow`): no all-pairs volume.
 
     The conv weights are stored in fp16 (the values autocast casts them to on each call); the 15 x 15 depthwise convs
-    run as FFTs (`_fft_depthwise`; 1080p, RTX 5060 Ti: 856 -> 740 ms).
+    run as FFTs (`_fft_depthwise`; 1080p, RTX 5060 Ti: 856 -> 740 ms) and the 1 x 1 convs as GEMMs on the NCHW maps
+    (`_pointwise`; 744 -> 644 ms).
     """
 
     def __init__(self, ctx: Context) -> None:
@@ -183,6 +213,8 @@ class Kernels(Portable):
                 m.half()
                 if _fft_fits(m):
                     override(m, _fft_depthwise)
+                elif _pointwise_fits(m):
+                    override(m, _pointwise)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a padded batch."""
