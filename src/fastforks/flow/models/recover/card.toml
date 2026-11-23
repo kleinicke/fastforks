@@ -3,7 +3,7 @@ name = "ReCoVEr"
 summary = "ReCoVEr (Kiefhaber, Roth & Schaub-Meyer, ICCV 2025): optical flow without a cost volume. SEA-RAFT's update block refines a flow regressed from a context encoder on both frames (6 channels, stride 8); the authors' training removes the correlation input, so no feature encoder and no correlation pyramid run at inference. 4 iterations, convex upsampling. The authors' released weights; the network is ported from visinf/ReCoVEr. Three context encoders: `recover-cx` (ConvNeXt-T stages, most accurate), `recover-rn` (ResNet34 stages), `recover-mn` (MobileNetV3-Large, fastest). Paper: CX reaches state-of-the-art accuracy at 1.2x the speed and 1/6 the memory of comparable models; MN runs Full HD at 20 FPS in 500 MB."
 tier = "experimental"
 outputs = ["flow"]
-uses = ["mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/visinf/ReCoVEr"
@@ -26,6 +26,7 @@ pad = { multiple = 8, mode = "centre", fill = "replicate" }  # upstream InputPad
 
 [options]
 iters = { default = 4, min = 1 }  # flow updates after the initial regression (upstream's default args: 4)
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph for small repeated shapes (false: eager, no extra memory)
 
 [params]
 arch = "cx"
@@ -37,6 +38,10 @@ mlx_dtypes = ["float32"]
 
 [modes.kernels]
 kernels = ["recover_motion", "flow_upsample", "cudnn_hacc"]  # fp16-accumulate convolutions (+ fp16-accumulate cuBLAS GEMMs)
+# CUDA graphs (kernels): a call (pairs x padded H x W) up to 1.1M pixels replays a CUDA graph, captured on a shape's
+# 4th call, at most 2 shapes per model (Windows RTX 5060 Ti, ms per pair: recover-mn 544x960 11.8 -> 7.5, 720x1280
+# 16.2 -> 13.7; recover-rn 9.9 -> 9.3, recover-cx 19.8 -> 19.1 at 544x960). The graph pool stays reserved (recover-cx
+# 720x1280: +44 MiB) until `model.release_graphs()`; `cuda_graphs=False` turns it off.
 
 [[papers]]
 title = "Removing Cost Volumes from Optical Flow Estimators"

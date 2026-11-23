@@ -20,8 +20,9 @@ from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import is_base, override
 from fastforks.flow._runner import Forward, Runner
-from fastforks.kernels import flow_upsample, recover_motion
+from fastforks.kernels import cudnn_hacc, flow_upsample, recover_motion
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import BasicBlock, CNBlock, ConvNextBlock, ReCoVEr, ResNetFPN
 
@@ -35,6 +36,7 @@ class Params:
 
     arch: Literal["rn", "mn", "cx"]  # context encoder: ResNet34, MobileNetV3-Large, ConvNeXt-T stages
     iters: int  # flow updates after the initial regression (upstream `iters`, 4)
+    cuda_graphs: bool  # option: kernels replays CUDA graphs for small repeated shapes
 
 
 @torch.no_grad()
@@ -177,8 +179,16 @@ def _motion(self: Any, flow: torch.Tensor, tile: torch.Tensor) -> torch.Tensor: 
     return recover_motion.pack(motion, tile, flow)
 
 
+_GRAPH_PIXELS = 1_100_000  # fixed: pairs x padded H x W; the pass's few hundred launches bound smaller calls
+_GRAPHS = 2  # fixed: graph cache policy
+
+
 class Kernels(Portable):
-    """Portable's fp16 network with fp16-accumulate GEMMs and cuDNN fp16-accumulate convolutions."""
+    """Portable's fp16 network with fp16-accumulate GEMMs and cuDNN fp16-accumulate convolutions.
+
+    A repeated call shape up to `_GRAPH_PIXELS` replays a CUDA graph (`fastforks.shared.cuda_graphs`): the eager pass
+    is launch-bound there.
+    """
 
     gacc = True
 
@@ -200,6 +210,25 @@ class Kernels(Portable):
         override(encoder, _motion)
         override(self.net, _kernel_pair, "pair")
         self.net.upsample = flow_upsample.convex
+        self._graphs = SmallShapeGraphs(
+            self._eager,
+            pixels=_GRAPH_PIXELS,
+            graphs=_GRAPHS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+        )
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Flow of a padded batch."""
+        return {"flow": self._graphs(image1, image2)}
+
+    def _eager(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
+        with torch.autocast(image1.device.type, enabled=False), self.accumulate():
+            return self.net(image1, image2, self.ctx.params.iters)
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool on the device."""
+        self._graphs.release()
 
     def module(self) -> torch.nn.Module:
         """No exportable module: kernel launches."""
