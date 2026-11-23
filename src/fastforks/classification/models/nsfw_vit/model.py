@@ -54,7 +54,10 @@ def network(ctx: Context) -> torch.nn.Module:
     """The timm ViT with the checkpoint's weights (CPU, eval)."""
     classes = len(label_set(ctx.variant.output_info["label_set"]))
     norm = functools.partial(torch.nn.LayerNorm, eps=1e-12)
-    net = libnet.timm().create_model(ctx.params.arch, pretrained=False, num_classes=classes, norm_layer=norm)
+    # weight_init="skip": no random fill of tensors `load_strict` overwrites (ViT-B on the CPU: 0.32 s of a 1.9 s load)
+    net = libnet.timm().create_model(
+        ctx.params.arch, pretrained=False, num_classes=classes, norm_layer=norm, weight_init="skip"
+    )
     load_strict(net, timm_state_dict(ctx.state_dict(strip="")), f"{ctx.variant.ref} checkpoint")
     return net.eval()
 
