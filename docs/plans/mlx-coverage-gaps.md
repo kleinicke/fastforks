@@ -358,3 +358,19 @@ memfof-sintel 16.0 s / 3643 MB, 19.9 s / 3959 MB; flowformer-small-sintel / -thi
 1.9 GB, fp32 19.8 s / about 1.9 GB. All goldens pass. MPS has no `ok` row for these at 1080x1920 (out of memory), so
 no `auto` route follows (the policy gap above). memfof / memfof-spring (scale 0) use the windows kernel too: peak
 2380 -> 1986 MB fp16 and 2980 -> 2293 MB fp32, time +1 % fp16 and +4-6 % fp32, goldens pass.
+
+## Float16 MLX: families that stay float32 (2026-11-23)
+
+- **efficientvit-sam (l0 .. xl1)**: the float16 replay gave NaN embeddings. Two causes, both fixed in an experiment:
+  the LiteMLA linear attention's sums over H * W overflow float16 (made a `to_float32` island), and the `Portable`
+  runner's `fast.tensor_eps` turns each 1e-15 epsilon into a tensor constant, which GraphNet casts to float16 = 0,
+  so 0 / 0 wherever a ReLU'd query is all zero (an MLX runner without `tensor_eps` keeps a Python float). With both,
+  the outputs are finite and the box prompts pass, but the point prompts do not: pred_masks mean |diff| l0 0.172
+  (limit 0.015), xl1 0.107 (0.0052); float32 MLX l0 0.00012. Also tried: Winograd 3x3 convs in float32
+  (`half_wino_f32`): l0 0.217, xl1 0.089. GELU in float32 (`mlx_graph`, now everywhere) is in all numbers. Not
+  found: which stage drives the point-prompt error (the box masks within limits suggest the embedding is close;
+  the point decode is far more sensitive). MPS float16 is not declared either. The experiment was not committed.
+- **ben2**: MLX float32 itself fails its golden on this branch (`test_mlx[ben2@1]`: alpha mean |diff| 0.1009, limit
+  well below; MPS `test_mps[ben2@1]` passes). The 2026-11-19 MLX row says pass with golden_mean 0.0, so the port
+  broke since or that check was not real. Float16 (0.080 with Winograd in float32) cannot be judged until float32
+  passes. Not declared.
