@@ -43,6 +43,7 @@ from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from . import convert
 from .net import build
+from .net.layers import freeze_affine
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -100,6 +101,9 @@ class Portable(Runner):
         self.det = det.to(ctx.device, self.dtype)
         rec = _net("rec", rec_program, rec_params, server=server, classes=len(self.chars))
         self.rec = rec.to(ctx.device, self.dtype)
+        if ctx.device.type == "cuda":  # vectorised scalar elementwise kernels, same bits
+            freeze_affine(self.det)
+            freeze_affine(self.rec)
 
     @host
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor | list[str]]:

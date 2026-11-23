@@ -18,7 +18,14 @@ class LegacyBatchNorm(nn.BatchNorm2d):
 
 
 class LearnableAffineBlock(nn.Module):
-    """`scale * x + bias` with scalar parameters (PP-LCNetV3)."""
+    """`scale * x + bias` with scalar parameters (PP-LCNetV3).
+
+    `freeze_affine` stores the parameters as Python numbers (`consts`): a one-element CUDA tensor broadcasts through
+    PyTorch's strided elementwise kernel, a number through its vectorised one, with the same result bits (both compute
+    in float from the same values; 6 x 240 x 12 x 665 float16: 0.25 -> 0.19 ms).
+    """
+
+    consts: tuple[float, float] | None = None
 
     def __init__(self) -> None:
         super().__init__()
@@ -26,7 +33,17 @@ class LearnableAffineBlock(nn.Module):
         self.bias = nn.Parameter(torch.zeros(1))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self.consts is not None:
+            scale, bias = self.consts
+            return x * scale + bias
         return x * self.scale + self.bias
+
+
+def freeze_affine(net: nn.Module) -> None:
+    """Store every `LearnableAffineBlock`'s parameters, as they are now (device dtype), as Python numbers."""
+    for m in net.modules():
+        if isinstance(m, LearnableAffineBlock):
+            m.consts = (m.scale.item(), m.bias.item())
 
 
 class ConvBN(nn.Module):
