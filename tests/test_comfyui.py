@@ -1219,6 +1219,8 @@ def test_face_restore_detects_aligns_and_pastes_back(pack: Any, monkeypatch: pyt
 
         def __call__(self, x: torch.Tensor) -> types.SimpleNamespace:
             s = x.shape[-1] / 200  # the node scales a small image up for detection
+            if not len(found):
+                return types.SimpleNamespace(keypoints=torch.zeros(0, 5, 2))
             return types.SimpleNamespace(keypoints=torch.stack([found * s, found[:1].expand(5, 2) * s]))
 
     class Restorer:
@@ -1241,3 +1243,8 @@ def test_face_restore_detects_aligns_and_pastes_back(pack: Any, monkeypatch: pyt
     nodes.FaceRestore().run(image=torch.zeros(1, 512, 512, 3), model="codeformer", backend="auto", dtype="auto")
     assert crops == [(3, 512, 512)]  # auto: a 512 x 512 image is an aligned crop, restored whole
     assert "faces" in nodes.FaceRestore.INPUT_TYPES()["optional"]
+    found = found[:0]  # no face: the image comes back unchanged
+    gray = torch.rand(1, 150, 200, 1)
+    (out,) = nodes.FaceRestore().run(image=gray, model="codeformer", backend="auto", dtype="auto")
+    assert out.shape == (1, 150, 200, 3)
+    torch.testing.assert_close(out, gray.expand(-1, -1, -1, 3))
