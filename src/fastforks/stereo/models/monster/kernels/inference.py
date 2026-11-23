@@ -16,7 +16,7 @@ of 32):
   - fp32 disparity states, convex upsampling only where the result is used
 
 Explicit PyTorch ops (not fallbacks; the kernel libraries have no such kernel): the group-wise correlation volume
-(`build_gwc_volume_fast`, the fork used an `igev` kernel this build does not ship) and REMP's LeakyReLU(0.2) after
+(`gwc_volume_blocks` GEMMs, the fork used an `igev` kernel this build does not ship) and REMP's LeakyReLU(0.2) after
 the conv epilogue (the fork fused it as epilogue activation `leaky02`). Dilated convs run as PyTorch fp16 convs
 (cuDNN's fp16-accumulate graphs do not support dilation), as in the fork.
 """
@@ -45,11 +45,12 @@ from fastforks.shared.cnn_kernels import (
     fused_cfg,
 )
 from fastforks.shared.depth_anything_v2 import use_fast_vit
+from fastforks.stereo._volume import gwc_volume_blocks
 
 from ..net import submodule
 from ..net.inference import warp
 from ..net.monster import compute_scale_shift
-from ..net.submodule import build_gwc_volume_fast, context_upsample, disparity_regression
+from ..net.submodule import context_upsample, disparity_regression
 
 
 def _h16(x: torch.Tensor) -> torch.Tensor:
@@ -345,7 +346,7 @@ def forward_kernels(self: nn.Module, image1: torch.Tensor, image2: torch.Tensor,
     features_left[0] = torch.cat((features_left[0], stem_4x), 1)
     match_left = self.desc(self.conv(features_left[0]))
 
-    gwc_volume = build_gwc_volume_fast(match_left, match_right, D, 8, True)
+    gwc_volume = gwc_volume_blocks(match_left, match_right, D, 8)
     gwc_volume = self.corr_stem(gwc_volume)
     gwc_volume = self.corr_feature_att(gwc_volume, features_left[0])
     geo_encoding_volume = self.cost_agg(gwc_volume, features_left)
