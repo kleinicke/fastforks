@@ -47,6 +47,7 @@ variant = "3b"
 seed = 666  # seed of the CPU generator of both noises (upstream's default); the output depends on it
 stream = true  # CUDA: transformer blocks in pinned host memory, uploaded one at a time (3B: ~6.6 GB, 7B: ~16.5 GB of free host RAM needed, load fails with a clear error otherwise). MLX: blocks beyond a quarter of unified memory are read from the weight file per call. Switch off with stream=false when host RAM is short or for tiny inputs where it costs more
 quant = { default = "none", choices = ["none", "nf4"] }  # "nf4": the transformer blocks' linear weights in 4 bit, quantised at load (printed when on; changes the generated detail, see limitations)
+keep = 0.0  # CUDA with stream=true: GiB of transformer blocks held on the device instead of uploaded per call (once, spread over the sequence). 7B at 512 x 512 on an RTX 5060 Ti: 4 -> -5 %, 8 -> -7 % per call; the device memory stays held. 0: stream every block
 
 [modes.portable]
 cuda_dtype = "bfloat16"  # as upstream under autocast: bf16 GEMMs, attention and convolutions, float32 norms and RoPE

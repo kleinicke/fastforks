@@ -83,6 +83,37 @@ def test_stream_and_resident_ram_check(monkeypatch: pytest.MonkeyPatch) -> None:
     host_blocks.require_host_ram(8 * 2**30, "seedvr2-3b")
 
 
+def test_choose_kept_takes_unpinned_blocks_then_spreads_the_rest() -> None:
+    sizes = [10] * 8
+    starts = [10 * i for i in range(8)]
+    assert host_blocks.choose_kept(sizes, starts, 80, 0) == []
+    assert host_blocks.choose_kept(sizes, starts, 80, 9) == []
+    assert host_blocks.choose_kept(sizes, starts, 80, 40) == [1, 3, 5, 7]  # every other block
+    assert host_blocks.choose_kept(sizes, starts, 80, 25) == [3, 7]
+    assert host_blocks.choose_kept(sizes, starts, 80, 1000) == list(range(8))
+    assert host_blocks.choose_kept(sizes, starts, 60, 20) == [6, 7]  # the pageable tail first
+    assert host_blocks.choose_kept(sizes, starts, 60, 50) == [1, 3, 5, 6, 7]
+
+
+@pytest.mark.gpu
+def test_kept_blocks_match_the_streamed_ones() -> None:
+    torch.manual_seed(0)
+    specs = [
+        {f"{i}.w": (torch.bfloat16, torch.Size((64, 32))), f"{i}.b": (torch.float32, torch.Size((7,)))}
+        for i in range(5)
+    ]
+    data = {k: torch.randn(shape).to(dt) for spec in specs for k, (dt, shape) in spec.items()}
+    hb = host_blocks.HostBlocks(specs, lambda k, dst: dst.copy_(data[k]))
+    device = torch.device("cuda")
+    for budget in (0, hb.sizes[0] * 2, hb.sizes[0] * 5, 0):
+        kept = hb.keep(budget)
+        assert kept == sum(hb.sizes[i] for i in hb.kept) <= budget
+        for _ in range(2):  # the kept blocks are uploaded once, then reused
+            got = {k: v.cpu() for block in hb.run(device) for k, v in block.items()}
+            assert got.keys() == data.keys()
+            assert all(torch.equal(got[k], data[k]) for k in data)
+
+
 def test_register_prefix_pins_what_the_os_allows(monkeypatch: pytest.MonkeyPatch) -> None:
     """The OS page-locks at most `limit` bytes (Windows: about half of the RAM): the longest block prefix is pinned."""
 

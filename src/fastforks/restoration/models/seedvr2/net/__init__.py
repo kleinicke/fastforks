@@ -129,18 +129,26 @@ def read_vae(path: Path, device: torch.device) -> dict[str, torch.Tensor]:
         return {k: f.get_tensor(k) for k in f.keys()}  # noqa: SIM118 - safe_open has no iteration
 
 
-def load(dit: Path, vae: Path, device: torch.device, variant: str, *, stream: bool, quant: str = "none") -> Net:
+def load(
+    dit: Path, vae: Path, device: torch.device, variant: str, *, stream: bool, quant: str = "none", keep: int = 0
+) -> Net:
     """The network on `device`, in eval mode.
 
     `stream` keeps the transformer blocks on the host (page-locked); `quant = "nf4"` stores the blocks' linear weights
     in NF4 and expands each per call with the plain-PyTorch table gather (`fastforks.shared.nf4.dequant_lut`).
+    `keep` (bytes, streaming only): blocks held on the device instead, uploaded once (`HostBlocks.keep`).
     """
     stream = stream and device.type == "cuda"  # page-locked streaming is CUDA only; other devices stay resident
     cfg = CONFIGS[variant]
     if quant not in ("none", "nf4"):
         msg = f"quant must be 'none' or 'nf4', got {quant!r}"
         raise ValueError(msg)
+    if keep < 0 or (keep and not stream):
+        msg = f"keep must be 0, or positive with stream=True on CUDA (blocks streamed from the host), got {keep} bytes"
+        raise ValueError(msg)
     t, host = read_dit(dit, device, cfg, stream=stream, quant=quant == "nf4")
+    if host is not None and keep:
+        host.keep(keep)
     net = Net(t, read_vae(vae, device), cfg, host=host)
     del t
     if quant == "nf4":
