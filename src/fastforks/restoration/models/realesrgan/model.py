@@ -21,7 +21,7 @@ from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, sr_ops
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
-from fastforks.shared.cnn_kernels import up_deconv_weight
+from fastforks.shared.up_deconv import up_deconv_weight
 
 from .net import RRDBNet
 from .net.rrdbnet_arch import RRDB, ResidualDenseBlock
@@ -59,7 +59,7 @@ def _upsample(m: RRDBNet, feature: torch.Tensor, ups: _Ups | None = None) -> tor
     return m.conv_last(m.lrelu(m.conv_hr(y)))
 
 
-def _upsample_stripes(m: RRDBNet, feature: torch.Tensor, ups: _Ups | None) -> torch.Tensor:
+def _upsample_stripes(m: RRDBNet, feature: torch.Tensor, ups: _Ups | None = None) -> torch.Tensor:
     """The two 2x upconvolutions and two output convolutions need just two input halo rows on either side."""
     b, c, h, w = feature.shape
     rows = max(1, _TAIL_TILE_BYTES // (b * c * 16 * w * feature.element_size()))

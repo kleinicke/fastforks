@@ -30,6 +30,7 @@ from fastforks.kernels import cudnn_hacc, cutlass_conv
 from fastforks.kernels import igev as igev_kernels
 from fastforks.kernels.cudnn_hacc import conv_half_acc, deconv_half_acc
 from fastforks.kernels.cutlass_conv import ConvEpiArgs, narrow_cfg
+from fastforks.shared.up_deconv import up_deconv_weight
 
 if TYPE_CHECKING:
     from fastforks._core.kernels import CubinModule
@@ -623,20 +624,6 @@ def fuse_selective(model: Patched, ratio: int = 4) -> int:
 
 
 # ------------------------------------------------------------------------------------------------ upsampling
-# nearest 2x upsampling then a 3x3 conv (padding 1) along one axis: output row 2m reads input rows m - 1 (w0) and m
-# (w1 + w2), row 2m + 1 reads m (w0 + w1) and m + 1 (w2): a stride-2 4-tap transposed conv with these summed taps
-_UP_TAPS = ((0, 0, 1), (0, 1, 1), (1, 1, 0), (1, 0, 0))  # fixed: deconv tap k = sum of the conv taps marked 1
-
-
-def up_deconv_weight(w: torch.Tensor) -> torch.Tensor:
-    """The `[C, K, 4, 4]` stride-2 padding-1 transposed-conv weight of `conv(nearest_2x(x))` for a 3x3 conv weight `w`.
-
-    The taps are summed in float64 and rounded once to `w`'s dtype.
-    """
-    a = torch.tensor(_UP_TAPS, dtype=torch.float64, device=w.device)
-    return torch.einsum("ya,xb,oiab->ioyx", a, a, w.double()).to(w.dtype)
-
-
 def up_deconv(conv: nn.Conv2d) -> nn.ConvTranspose2d:
     """`conv(nearest_2x(x))` (3x3, padding 1, stride 1) as one transposed conv of `x` (exact up to rounding).
 

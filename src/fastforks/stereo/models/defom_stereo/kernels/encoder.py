@@ -3,8 +3,9 @@
 What changes in `BasicEncoder` / `MultiBasicEncoder`:
   - eval BatchNorm folded into the conv in front of it (the cnet; `conv1/norm1`, `conv2/norm2`, `conv/norm1` pairs and
     the `Sequential(conv, norm)` shortcut of a ResidualBlock)
-  - InstanceNorm2d (the fnet): the fastbb kernels, fp32 statistics in one read and one apply pass on the NHWC
-    activation (no layout copies); in a ResidualBlock the ReLUs and the residual add are fused into the apply passes
+  - InstanceNorm2d (the fnet): the biases of the convs in front of them dropped (the norm cancels them), the fastbb
+    kernels, fp32 statistics in one read and one apply pass on the NHWC activation (no layout copies); in a
+    ResidualBlock the ReLUs and the residual add are fused into the apply passes
   - weights fp16 channels-last, dense convs with at least `HACC_MIN_MACS` multiply-adds as fp16-accumulate cuDNN graphs
     (`cudnn_hacc`); the encoder casts its image input to fp16 channels-last and returns fp16 channels-last
   - the convs on the depth features (`convd` of the fnet, `conv08 / conv16 / conv32` of the cnet) stay bf16: the DPT
@@ -194,6 +195,25 @@ def _fp16_encoder_forward(self: nn.Module, x: torch.Tensor, *a: object, **kw: ob
         return base_type(self).forward(self, _cast(x, torch.float16), *a, **kw)
 
 
+def drop_normalized_biases(module: nn.Module) -> int:
+    """Remove the bias of each conv whose output goes straight into an InstanceNorm2d; returns how many.
+
+    The norm subtracts each channel's mean over the image, so a per-channel constant added before it cancels: the
+    conv's separate bias pass (`add_` over the largest activations of the fnet) does nothing but round. The pairs are
+    those `fold_bn` folds (`conv1/norm1`, `conv2/norm2`, `conv/norm1`) and a ResidualBlock's `Sequential(conv, norm)`.
+    """
+    n = 0
+    for m in module.modules():
+        pairs = [(getattr(m, c, None), getattr(m, b, None)) for c, b in _PAIRS]
+        if isinstance(m, nn.Sequential) and len(m) == 2:  # the downsample shortcut
+            pairs.append((m[0], m[1]))
+        for conv, norm in pairs:
+            if is_base(conv, nn.Conv2d) and conv.bias is not None and is_base(norm, nn.InstanceNorm2d):
+                conv.bias = None
+                n += 1
+    return n
+
+
 def optimize_encoder(enc: nn.Module, keep_bf16: Sequence[str] = ()) -> dict[str, int]:
     """Convert a DEFOM fnet / cnet in place (see the module docstring); `keep_bf16`: direct submodules that stay bf16.
     The first positional argument (the image, or a list of them) is cast to fp16 channels-last; others pass through.
@@ -203,6 +223,7 @@ def optimize_encoder(enc: nn.Module, keep_bf16: Sequence[str] = ()) -> dict[str,
     kept = [getattr(enc, n) for n in keep_bf16]
     kept_ids = {id(m) for k in kept for m in k.modules()}
     info = {"folded_bn": fold_bn(enc), "instance_norm": 0, "fused_blocks": 0, "hacc_convs": 0}
+    info["dropped_biases"] = drop_normalized_biases(enc)
     for m in mods:
         if is_base(m, nn.InstanceNorm2d):
             if m.affine or m.track_running_stats:
@@ -245,4 +266,4 @@ def prepare_encoders(model: nn.Module) -> None:
     optimize_encoder(model.cnet, keep_bf16=("conv08", "conv16", "conv32"))
 
 
-__all__ = ["optimize_encoder", "prepare_encoders"]
+__all__ = ["drop_normalized_biases", "optimize_encoder", "prepare_encoders"]
