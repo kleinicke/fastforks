@@ -6,8 +6,8 @@ to the image size (bilinear) and min-max normalised per image (upstream then rou
 
 `portable`: upstream's modules in plain PyTorch, fp32 or fp16 weights and activations (the authors run fp16 autocast
 on CUDA), SDPA attention (Swin windows and the decoder's cross-attention). `kernels`: fp16 channels-last; every conv
-runs as a cuDNN fp16-accumulate graph (`cudnn_hacc`) with an fp32 bias epilogue and the InstanceNorms as one pass
-each (`shared.cnn_kernels`).
+runs as a cuDNN fp16-accumulate graph (`cudnn_hacc`) with an fp32 bias epilogue, the GEMMs accumulate in fp16 and the
+InstanceNorms run as one pass each (`shared.cnn_kernels`).
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.half import fp16_accumulate
 from fastforks.matting._runner import Forward, Runner, scale
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cnn_kernels import CL, prepare_generic
@@ -85,7 +86,7 @@ class Portable(_Matting):
 
 
 class Kernels(_Matting):
-    """fp16 channels-last network, cuDNN fp16-accumulate convs, InstanceNorm kernels."""
+    """fp16 channels-last network, cuDNN fp16-accumulate convs and GEMMs, InstanceNorm kernels."""
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and convert its convs and norms."""
@@ -96,7 +97,8 @@ class Kernels(_Matting):
         self.net = net
 
     def _net(self, x: torch.Tensor) -> torch.Tensor:
-        return self.net(x.contiguous(memory_format=CL))
+        with fp16_accumulate():  # the Swin and decoder GEMMs (1080p 102 -> 96 ms, golden error unchanged)
+            return self.net(x.contiguous(memory_format=CL))
 
 
 RUNNERS = {
