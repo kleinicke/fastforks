@@ -912,3 +912,70 @@ def test_every_node_matches_the_library(pack: Any, monkeypatch: pytest.MonkeyPat
                 mid = nodes.model_id(label)
                 fastforks.model_card(mid)
                 assert node.runs(mid), f"{name} lists {mid}, which needs inputs the node does not pass"
+
+
+def test_apple_backends_map_to_the_library(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`mps`: the library's auto on PyTorch MPS without MLX routing; `mlx`: `device="mlx"`; elsewhere both raise."""
+    import fastforks  # noqa: PLC0415
+
+    nodes = pack.nodes
+    assert {"mps", "mlx"} <= set(nodes.BACKENDS)
+    kw: dict[str, Any] = {"mode": "auto", "device": torch.device("cuda")}
+    assert nodes.apple_backend("kernels", torch.device("cuda"), kw) is False
+    assert kw == {"mode": "auto", "device": torch.device("cuda")}
+    for backend in ("mps", "mlx"):
+        with pytest.raises(fastforks.BackendUnavailableError, match="Apple silicon only"):
+            nodes.apple_backend(backend, torch.device("cuda"), {})
+    mps = torch.device("mps")
+    kw = {"mode": "mps", "device": mps}
+    assert nodes.apple_backend("mps", mps, kw) is True
+    assert kw == {"mode": "auto", "device": mps}
+    monkeypatch.setattr(nodes.importlib.util, "find_spec", lambda name: None if name == "mlx" else object())
+    with pytest.raises(fastforks.MissingDependencyError, match="needs the mlx package"):
+        nodes.apple_backend("mlx", mps, {"mode": "mlx", "device": mps})
+    monkeypatch.setattr(nodes.importlib.util, "find_spec", lambda _name: object())
+    kw = {"mode": "mlx", "device": mps}
+    assert nodes.apple_backend("mlx", mps, kw) is False
+    assert kw == {"mode": "auto", "device": "mlx"}
+
+
+def test_mlx_routing_is_off_for_one_load_only(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`mlx_routing(enabled=False)` sets the library's switch for its block and restores the variable after."""
+    nodes = pack.nodes
+    monkeypatch.delenv("FASTFORKS_MLX", raising=False)
+    with nodes.mlx_routing(enabled=False):
+        assert os.environ["FASTFORKS_MLX"] == "0"
+    assert "FASTFORKS_MLX" not in os.environ
+    monkeypatch.setenv("FASTFORKS_MLX", "1")
+    with nodes.mlx_routing(enabled=False):
+        assert os.environ["FASTFORKS_MLX"] == "0"
+    assert os.environ["FASTFORKS_MLX"] == "1"
+    with nodes.mlx_routing(enabled=True):
+        assert os.environ["FASTFORKS_MLX"] == "1"
+
+
+def test_out_of_memory_on_mps_suggests_mlx(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An MPS out-of-memory error of a model with an MLX port names `backend=mlx`; other errors stay as they are."""
+    nodes = pack.nodes
+    mps, cuda = torch.device("mps"), torch.device("cuda")
+    assert "backend=mlx" in nodes.mlx_hint("depth-anything-v2-s", "auto", mps)
+    assert nodes.mlx_hint("depth-anything-v2-s", "mlx", mps) == ""
+    assert nodes.mlx_hint("depth-anything-v2-s", "auto", cuda) == ""
+    assert nodes.mlx_hint("file: x.pth", "auto", mps) == ""
+
+    def oom(**_: Any) -> tuple[Any, ...]:
+        msg = "MPS backend out of memory (MPS allocated: 17.00 GiB)."
+        raise RuntimeError(msg)
+
+    node = nodes.Depth()
+    monkeypatch.setattr(node, "run", oom)
+    monkeypatch.setattr(pack.mm, "get_torch_device", lambda: mps, raising=False)
+    with pytest.raises(RuntimeError, match=r"out of memory .*backend=mlx runs this model's MLX port"):
+        node.execute(model="depth-anything-v2-s", backend="auto")
+    with pytest.raises(RuntimeError) as info:
+        node.execute(model="depth-anything-v2-s", backend="mlx")
+    assert "backend=mlx" not in str(info.value)
+    monkeypatch.setattr(pack.mm, "get_torch_device", lambda: cuda, raising=False)
+    with pytest.raises(RuntimeError) as info:
+        node.execute(model="depth-anything-v2-s", backend="auto")
+    assert str(info.value) == "MPS backend out of memory (MPS allocated: 17.00 GiB)."

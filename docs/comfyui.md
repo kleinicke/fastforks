@@ -72,8 +72,18 @@ so a ComfyUI folder below ~140 characters needs no long-path setting.
 | Upscale / restore | IMAGE, tile (input px, 32 px overlap; 0 = one pass; keep it on for HAT / DAT) | IMAGE |
 | Restore aligned faces (GFPGAN, CodeFormer) | IMAGE: aligned 512 x 512 face crops only (no detection / alignment / paste-back in this pack) | IMAGE |
 
-Every node has `model`, `backend` (`auto`: our CUDA kernels where they are faster, else portable PyTorch;
-`portable`; `kernels`) and `dtype` (`auto`: the validated one). Both packs name a node `Fastforks<Name>` (shown as
+Every node has `model`, `backend` and `dtype` (`auto`: the validated one). `backend`:
+
+- `auto`: the fastest measured path. On NVIDIA that is our CUDA kernels where they are faster, else portable PyTorch.
+  On a Mac it is PyTorch MPS or the model's MLX port, chosen per model from measurements.
+- `portable`: plain PyTorch.
+- `kernels`: our kernels.
+- `mps` (Apple only): PyTorch on the Metal GPU, never the MLX port. Its first run is quick.
+- `mlx` (Apple only, fastforks >= 0.2.1 and the `mlx` package): the model's MLX port. It often needs less memory, but
+  its first run of each image size compiles and is slower. When `mps` runs out of memory on a model with an MLX port,
+  the error suggests `mlx`.
+
+`mps` and `mlx` on another device raise an error rather than switching backends. Both packs name a node `Fastforks<Name>` (shown as
 "Depth (fastforks)" or "Depth (fastforks, commercial)"), so a workflow saved with one pack loads in the other. With both
 installed in `custom_nodes`, fastforks-commercial registers nothing and logs that the fastforks pack's nodes are used
 (two packs cannot register one class name; remove or disable one to choose). A pack has a node only if it lists a

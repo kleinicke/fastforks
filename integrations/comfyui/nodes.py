@@ -18,6 +18,7 @@ import contextlib
 import contextvars
 import functools
 import gc
+import importlib.util
 import logging
 import os
 import re
@@ -41,7 +42,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("fastforks.comfyui")
 
-BACKENDS = ["auto", "portable", "kernels"]
+BACKENDS = ["auto", "portable", "kernels", "mps", "mlx"]  # mps / mlx: the two Apple paths, chosen by hand
 DTYPES = ["auto", "float32", "float16", "bfloat16"]
 _TAGS = {"no": " [non-commercial]", "unclear": " [licence unclear]"}
 _MAX_CACHED = 8  # memory decides first (`make_room`): a workflow cycling a few nodes reloads none
@@ -65,8 +66,11 @@ _COMMERCIAL_TIP = (
     " licences."
 )
 _BACKEND_TIP = (
-    "auto: our CUDA kernels where they are faster, else portable PyTorch. portable: plain PyTorch (any device)."
-    " kernels: our CUDA kernels (NVIDIA on Linux or Windows x86-64; fails elsewhere)."
+    "auto: the fastest measured path (NVIDIA: our CUDA kernels where faster; Apple: PyTorch MPS or MLX per model)."
+    " portable: plain PyTorch (any device). kernels: our kernels (NVIDIA on Linux or Windows x86-64, Apple Metal)."
+    " Apple only: mps runs PyTorch on the Metal GPU (quick first run); mlx runs the model's MLX port, which often needs"
+    " less memory but compiles on the first run of each image size (slower first run). Try mlx when mps runs out of"
+    " memory."
 )
 _DTYPE_TIP = "auto: the validated dtype of the backend. Others are checked against the model card at load."
 
@@ -279,6 +283,72 @@ def _file(mid: str) -> Path | None:
     return Path(folder_paths.get_full_path_or_raise("upscale_models", mid.removeprefix(_FILE)))
 
 
+_APPLE = ("mps", "mlx")
+_MLX_ENV = "FASTFORKS_MLX"  # "0": a load on MPS stays on PyTorch (the library's switch, read at load)
+_MLX_TIP = (
+    " On Apple silicon, backend=mlx runs this model's MLX port, which often needs less memory (its first run of each"
+    " image size compiles and is slower)."
+)
+
+
+def apple_backend(backend: str, device: torch.device, kw: dict[str, Any]) -> bool:
+    """`kw` (the `fastforks.load` arguments) for the node's `mps` / `mlx` backend; whether MLX routing must be off.
+
+    `mps`: the library's `auto` on PyTorch MPS, never the MLX port. `mlx`: `device="mlx"` (fastforks >= 0.2.1 and the
+    `mlx` package). Either one on a device other than Apple's GPU raises: no silent switch to another backend.
+
+    Raises:
+        BackendUnavailableError: Not on Apple MPS, or the installed fastforks has no MLX backend.
+        MissingDependencyError: `mlx` asked for and the `mlx` package is not installed.
+    """
+    if backend not in _APPLE:
+        return False
+    if device.type != "mps":
+        msg = f"backend={backend} runs on Apple silicon only (ComfyUI runs on {device}); use auto, portable or kernels"
+        raise fastforks.BackendUnavailableError(msg)
+    kw["mode"] = "auto"
+    if backend == "mps":
+        return True
+    from fastforks._core import model as core_model  # noqa: PLC0415 - in 0.2.0 too; `MLX` only from 0.2.1
+
+    if getattr(core_model, "MLX", None) is None:
+        msg = "backend=mlx needs fastforks 0.2.1 or newer: " + pip_words('"fastforks>=0.2.1"', upgrade=True)
+        raise fastforks.BackendUnavailableError(msg)
+    if importlib.util.find_spec("mlx") is None:
+        msg = f"backend=mlx needs the mlx package: {pip_words('mlx')}"
+        raise fastforks.MissingDependencyError(msg)
+    kw["device"] = "mlx"
+    return False
+
+
+@contextlib.contextmanager
+def mlx_routing(*, enabled: bool) -> Generator[None]:
+    """Turn the library's MPS -> MLX routing off for one load (`enabled=False`); ComfyUI runs one node at a time."""
+    if enabled:
+        yield
+        return
+    before = os.environ.get(_MLX_ENV)
+    os.environ[_MLX_ENV] = "0"
+    try:
+        yield
+    finally:
+        if before is None:
+            os.environ.pop(_MLX_ENV, None)
+        else:
+            os.environ[_MLX_ENV] = before
+
+
+def mlx_hint(mid: str | None, backend: str | None, device: torch.device) -> str:
+    """The `backend=mlx` suggestion for an out-of-memory error on MPS, or "" (other device, already MLX, no port)."""
+    if device.type != "mps" or backend == "mlx" or not mid or mid.startswith(_FILE):
+        return ""
+    try:
+        card = fastforks.model_card(mid)
+    except fastforks.FastforksError:
+        return ""
+    return _MLX_TIP if getattr(card, "portable_mlx_dtypes", ()) else ""  # cards of 0.2.0 have no MLX ports
+
+
 def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = None) -> fastforks.Model:
     """The cached model, or load it on ComfyUI's device after asking ComfyUI to free room for it."""
     mm = _mm()
@@ -296,13 +366,15 @@ def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = 
         mm.soft_empty_cache()
     kw: dict[str, Any] = {"mode": backend, "device": device, "dtype": None if dtype == "auto" else dtype}
     with node_errors():  # `_weights_bytes` already raises for an id that is not installed
+        no_mlx = apple_backend(backend, device, kw)
         if not file and _COMMERCIAL_RUN.get() and _only_full(mid):  # e.g. a linked `model` input: not validated
             msg = f"{mid} {ONLY_FULL}."
             raise fastforks.LicenceError(msg)
         # weights + activations: ComfyUI unloads its own models, then `make_room` our least recently used ones, until
         # this much is free (no-op if it already is)
         mm.free_memory(2 * (file.stat().st_size if file else _weights_bytes(mid)) + 2**30, device)
-        model = restoration.load(file, **kw) if file else fastforks.load(mid, **(options or {}), **kw)
+        with mlx_routing(enabled=not no_mlx):
+            model = restoration.load(file, **kw) if file else fastforks.load(mid, **(options or {}), **kw)
     log.info("fastforks: loaded %s (%s)", mid, model.backend)
     _cache[key] = model
     return model
@@ -583,12 +655,20 @@ class _Node:
 
         In the fastforks pack inside `registry.allow_noncommercial()`: this call (no other code, not the environment)
         may download non-commercial weights, as installing the pack asks for. In fastforks-commercial `load` refuses
-        any model not cleared for commercial use, and no such weights download.
+        any model not cleared for commercial use, and no such weights download. Out of memory on Apple MPS adds the
+        `backend=mlx` suggestion when the model has an MLX port (`mlx_hint`).
         """
         token = _COMMERCIAL_RUN.set(self.COMMERCIAL_ONLY)
         try:
             with contextlib.nullcontext() if self.COMMERCIAL_ONLY else registry.allow_noncommercial():
                 return self.run(**inputs)
+        except RuntimeError as e:  # torch.OutOfMemoryError, or MPS's "MPS backend out of memory" RuntimeError
+            text = e.args[0] if e.args and isinstance(e.args[0], str) else ""
+            if "out of memory" in text.lower() and self.TASK:
+                device = _mm().get_torch_device()
+                if hint := mlx_hint(model_id(str(inputs.get("model", ""))), inputs.get("backend"), device):
+                    e.args = (text.rstrip() + hint, *e.args[1:])
+            raise
         finally:
             _COMMERCIAL_RUN.reset(token)
 
