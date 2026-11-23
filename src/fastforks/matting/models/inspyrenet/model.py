@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.half import fp16_accumulate
 from fastforks._core.mlx_cast import to_float32
 from fastforks._core.patch import override
 from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
@@ -158,7 +159,7 @@ class Portable(Runner):
 
 
 class Kernels(Portable):
-    """Fuse input normalization and capture the fixed-size Swin network."""
+    """Fuse input normalization, fp16-accumulate GEMMs, capture the fixed-size Swin network."""
 
     module = Runner.module
 
@@ -173,7 +174,8 @@ class Kernels(Portable):
         return image_normalize.normalize(x, self.mean, self.std)
 
     def _net(self, x: torch.Tensor) -> torch.Tensor:
-        return self.graphs(x)
+        with fp16_accumulate():  # also while a graph captures: its GEMMs keep the fp16-accumulate kernels
+            return self.graphs(x)
 
     def release_graphs(self) -> None:
         """Release captured activation buffers."""
