@@ -70,10 +70,12 @@ def fold_bn(module: nn.Module) -> int:
 
 # ------------------------------------------------------------------------------------------------ convs
 def _conv_forward(self: nn.Module, x: torch.Tensor) -> torch.Tensor:
+    # the bias inside cuDNN's conv + bias plan (`fuse_bias`): defom-vitl 994 x 1482 628 -> 620 ms, the disparity vs
+    # fp32 unchanged (mean 0.00176 px both)
     n, _, h, w = x.shape
     if self._macs_per_px * n * h * w >= HACC_MIN_MACS:
         return cudnn_hacc.conv_half_acc(
-            x, self.weight, self.bias, list(self.padding), list(self.stride), list(self.dilation)
+            x, self.weight, self.bias, list(self.padding), list(self.stride), list(self.dilation), fuse_bias=True
         )
     return F.conv2d(x, self.weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
 
