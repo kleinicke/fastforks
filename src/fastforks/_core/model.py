@@ -1109,8 +1109,10 @@ def _load_mlx(  # noqa: PLR0913 - the resolved arguments of `load_model`
 ) -> M:
     """`load_model` on the Apple MLX backend (`device="mlx"`): the family's MLX port, as its card declares it.
 
-    `mode` and `dtype` mean what they mean elsewhere; the dtypes are the card's `mlx_dtypes` of the mode (float32
-    first: the default). `auto` uses kernels if the port has them at the dtype, and says so in the log.
+    `mode` and `dtype` mean what they mean elsewhere; the dtypes are the card's `mlx_dtypes` of the mode. Without a
+    `dtype`, the fastest passing (mode, dtype) of the Mac survey (`mlx_default` of apple_mlx.json) is taken where it
+    fits `mode`; otherwise the card's first dtype (float32). `auto` uses kernels if the port has them at the dtype, and
+    says so in the log.
 
     Raises:
         BackendUnavailableError: The family has no MLX port, or none of `mode`.
@@ -1121,15 +1123,32 @@ def _load_mlx(  # noqa: PLR0913 - the resolved arguments of `load_model`
         msg = f"{variant.ref} has no Apple MLX port (device='mlx'); use device='mps' or 'cpu'"
         raise BackendUnavailableError(msg)
 
-    def build(mode: Mode) -> M:
+    def build(mode: Mode, chosen: Dtype | None = None) -> M:
         have = card.mlx_dtypes(mode)
         if dtype is not None and dtype not in have:
             msg = f"{card.family} {mode} on mlx cannot compute in {dtype}; dtype must be one of {list(have)}"
             raise OptionsError(msg)
         return _build_mlx(
-            cls, card, variant, mode=mode, dtype=dtype or have[0], options=options, weights=weights, state=state
+            cls,
+            card,
+            variant,
+            mode=mode,
+            dtype=chosen or dtype or have[0],
+            options=options,
+            weights=weights,
+            state=state,
         )
 
+    best = _apple_mlx().get(variant.ref, {}).get("mlx_default")
+    if (
+        dtype is None
+        and best
+        and mode in {"auto", best[0]}
+        and (best[0] == "portable" or card.mlx_kernel_libs)
+        and best[1] in card.mlx_dtypes(best[0])
+    ):  # the fastest passing MLX run of the survey (goldens checked)
+        log.info("%s: using %s %s on mlx (fastest measured)", variant.ref, best[0], best[1])
+        return build(best[0], best[1])
     if mode == "auto":  # MLX kernels are Metal sources MLX compiles itself: declared means available
         if card.mlx_kernel_libs and (dtype is None or dtype in card.kernels_mlx_dtypes):
             mode = "kernels"

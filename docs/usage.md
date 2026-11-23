@@ -804,7 +804,9 @@ print(model.backend.mode, model.backend.device, model.backend.kernels)  # kernel
 - `mode`: `portable` is the network in plain MLX operations, `kernels` adds Metal kernels that MLX runs
   (`mx.fast.metal_kernel`; compiled on the device on first use, nothing to download). `auto` takes `kernels` where
   the port has them at the dtype (logged at INFO).
-- `dtype`: float32 (default) or float16, as the card lists them; other dtypes raise `OptionsError`. Both are checked
+- `dtype`: float32 or float16, as the card lists them; other dtypes raise `OptionsError`. Without a `dtype` (and
+  with `mode="auto"`, or the mode it measured fastest in), a model measured on the M1 Pro runs in its fastest passing
+  mode and dtype (often float16, logged at INFO); an unmeasured one in float32. Both are checked
   against the same goldens and tolerances as the PyTorch GPU backends. In float16 the steps that need it stay in
   float32 (the flow and the correlation sums, CREStereo's attention, normalisation statistics, position tables, the Winograd
   transforms).

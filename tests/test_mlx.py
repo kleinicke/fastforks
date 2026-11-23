@@ -260,6 +260,31 @@ class TestMpsRouting:
             assert modes <= ({"portable", "kernels"} if card.mlx_kernel_libs else {"portable"}), model_id
 
 
+class TestMlxDevice:
+    """`device="mlx"` without a dtype takes the fastest passing survey run (`mlx_default`), where it fits `mode`."""
+
+    @staticmethod
+    def built(monkeypatch, ref, task, mode="auto", dtype=None):
+        card, variant = registry.resolve(task, ref)
+        monkeypatch.setattr(core_model, "_build_mlx", lambda *_a, mode, dtype, **_k: (mode, dtype))
+        log = core_model.logging.getLogger("test")
+        return core_model._load_mlx(
+            object, card, variant, mode=mode, dtype=dtype, options={}, weights=None, state=None, log=log
+        )
+
+    def test_default_is_the_fastest_measured(self, monkeypatch):
+        assert self.built(monkeypatch, "sam3", "promptable_segmentation") == ("portable", "float16")
+        assert self.built(monkeypatch, "depth-anything-v2-s", "depth") == ("kernels", "float16")
+
+    def test_explicit_dtype_or_other_mode_keeps_the_card_order(self, monkeypatch):
+        assert self.built(monkeypatch, "sam3", "promptable_segmentation", dtype="float32") == ("portable", "float32")
+        assert self.built(monkeypatch, "depth-anything-v2-s", "depth", mode="portable") == ("portable", "float32")
+
+    def test_without_measurements(self, monkeypatch):
+        monkeypatch.setattr(core_model, "_apple_mlx", dict)
+        assert self.built(monkeypatch, "sam3", "promptable_segmentation") == ("portable", "float32")
+
+
 def test_results_move_to_the_requested_device():
     @dataclasses.dataclass(frozen=True)
     class R(NumpyOutputs):
