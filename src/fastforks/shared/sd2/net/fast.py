@@ -15,7 +15,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks.kernels import cudnn_hacc
-from fastforks.shared.cnn_kernels import up_deconv_weight
+from fastforks.shared.up_deconv import up_deconv_weight
 
 from .unet import (
     BasicTransformerBlock,
@@ -89,7 +89,7 @@ class Fast:
         return cudnn_hacc.conv_half_acc(x, c.weight, c.bias, list(c.padding), list(c.stride), list(c.dilation))
 
     def upconv(self, x: torch.Tensor, c: torch.nn.Conv2d) -> torch.Tensor:
-        """`c(nearest_2x(x))` as one fp16-accumulate transposed conv (`cnn_kernels.up_deconv_weight`).
+        """`c(nearest_2x(x))` as one fp16-accumulate transposed conv (`shared.up_deconv`).
 
         4 instead of 9 multiply-adds per output pixel and no upsampled input map.
         """
