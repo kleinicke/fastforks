@@ -305,5 +305,5 @@ class _OneImage(Portable):
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(_OneImage),
+    "portable_mlx": mlx_wrap.port(_OneImage, half_wino_f32=True),  # rtmo-l keypoints p99 0.98 -> 0.31 in fp16
 }
