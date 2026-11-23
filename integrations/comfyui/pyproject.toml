@@ -6,7 +6,10 @@ description = "Fast vision nodes: the same models up to 29x faster than the popu
 version = "0.2.1"
 license = { text = "Apache-2.0" }  # the pack's code, as the repository's LICENSE; each model has its own licences
 requires-python = ">=3.11"
-dependencies = ["fastforks>=0.2.1"]  # fastforks-core[nc,libs]: every model family; 0.2.1: allow_noncommercial()
+dependencies = [
+  "fastforks>=0.2.1",  # fastforks-core[nc,libs]: every model family; 0.2.1: allow_noncommercial()
+  "mlx>=0.30; sys_platform == 'darwin' and platform_machine == 'arm64'",  # the `mlx` backends on Apple silicon
+]
 classifiers = ["Operating System :: OS Independent", "Environment :: GPU :: NVIDIA CUDA"]
 
 [project.urls]

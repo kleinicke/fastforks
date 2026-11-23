@@ -590,13 +590,16 @@ def test_pack_metadata() -> None:
         assert {"PublisherId", "DisplayName", "Icon"} <= set(comfy), d
         assert comfy["DisplayName"].startswith("fastforks \N{EN DASH} fast vision models"), d
         assert m["project"]["license"] == {"text": "Apache-2.0"}, d
-        requirements = (PACK.parent / d / "requirements.txt").read_text(encoding="utf-8").split()
+        requirements = (PACK.parent / d / "requirements.txt").read_text(encoding="utf-8").splitlines()
         assert requirements == m["project"]["dependencies"], d
         assert m["project"]["description"].startswith("Fast vision nodes: "), d
-    core = tomllib.loads((PACK.parents[1] / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
-    # the packs call API of this version (`registry.allow_noncommercial`, `device="mlx"`): no older core satisfies
-    assert meta["comfyui"]["project"]["dependencies"] == [f"fastforks>={core}"]
-    assert meta["comfyui-commercial"]["project"]["dependencies"] == [f"fastforks-core[timm,transformers]>={core}"]
+    project = tomllib.loads((PACK.parents[1] / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    core, (mlx,) = project["version"], project["optional-dependencies"]["mlx"]
+    assert "sys_platform == 'darwin'" in mlx  # Apple silicon only: the line installs nothing elsewhere
+    # the packs call API of this version (`registry.allow_noncommercial`, `device="mlx"`): no older core satisfies;
+    # MLX (the `mlx` backends, and what `auto` picks on a Mac) as fastforks-core's `mlx` extra asks for it
+    assert meta["comfyui"]["project"]["dependencies"] == [f"fastforks>={core}", mlx]
+    assert meta["comfyui-commercial"]["project"]["dependencies"] == [f"fastforks-core[timm,transformers]>={core}", mlx]
     assert {m["project"]["version"] for m in meta.values()} == {core}
     assert meta["comfyui-commercial"]["tool"]["comfy"]["DisplayName"].endswith("(commercial use)")
     assert meta["comfyui-commercial"]["tool"]["comfy"]["includes"] == ["fastforks_comfyui"]

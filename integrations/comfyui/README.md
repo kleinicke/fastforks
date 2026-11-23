@@ -17,7 +17,8 @@ parsing, stereo disparity, optical flow and warping, point tracking, upscaling /
 > [fastforks-commercial](../comfyui-commercial) instead: the same nodes with only the models cleared for commercial use.
 
 Install with ComfyUI-Manager or `comfy node install fastforks`; from a fastforks clone see
-[docs/comfyui.md](../../docs/comfyui.md#install). The node reference (inputs, outputs, backends) is
+[docs/comfyui.md](../../docs/comfyui.md#install). On Apple silicon the requirements include Apple's `mlx`, which
+`auto`, `kernels` and the `mlx` backends use. The node reference (inputs, outputs, backends) is
 [docs/comfyui.md](../../docs/comfyui.md).
 
 ## Nodes and models

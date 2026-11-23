@@ -42,6 +42,11 @@ python_embeded\python.exe -m pip install -r ComfyUI\custom_nodes\comfyui-fastfor
 `requirements.txt` installs `fastforks-core[timm,transformers]>=0.2.1`. Installing the repository URL with
 ComfyUI-Manager's "Install via Git URL" clones the root, which is not a node pack.
 
+Apple silicon: both packs' requirements also install Apple's `mlx` there (an environment marker; nothing on other
+platforms). With it `auto` runs a model through its MLX port where that is faster than PyTorch MPS, `kernels` has
+the Metal kernels of the ports, and the `mlx` backends are listed. A source install has it with
+`pip install -e "./fastforks[libs,mlx]"`. Without `mlx` every model still runs on MPS with `auto` and `portable`.
+
 Windows: the `kernels` backend works like on Linux (the DLLs download once, like the weights, and need no C++ toolchain). A
 library without a Windows build makes `kernels` fail for that model and `auto` run portable, with one warning per model load. Paths stay short: the cache adds at most ~110 characters
 to the ComfyUI folder (`models\fastforks\blobs\sha256\ab\<sha256>`, downloads in a `.download.*` folder next to it),
@@ -77,7 +82,7 @@ Every node has `model`, `backend` and `dtype` (`auto`: the validated one). `back
 - `auto`: our CUDA / Metal kernels where they are faster, else portable PyTorch.
 - `portable`: plain PyTorch.
 - `kernels`: only our kernels, CUDA on NVIDIA or Metal on Apple silicon for the models that have them, else an error.
-- `mlx` / `mlx portable` (listed on a Mac with the `mlx` package): the model's MLX port instead of PyTorch MPS, with or
+- `mlx` / `mlx portable` (listed on a Mac with the `mlx` package, which the pack's requirements install): the model's MLX port instead of PyTorch MPS, with or
   without our Metal kernels. It often needs less memory, but its first run of each image size compiles and is slower.
   Measured on an M1 Pro over 277 models: about a third less memory (median), similar warm speed, first run 4.1 s
   against 0.7 s (median). On macOS the pack keeps that first-run work in `models/fastforks/mlx-plans`, so it is not
