@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import copy
 import json
+import math
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -240,6 +241,49 @@ def _biased_conv_norm(self: Any, x: torch.Tensor) -> torch.Tensor:  # noqa: ANN4
 def _biased_conv_norm_(self: Any, y: torch.Tensor, depth: int) -> torch.Tensor:  # noqa: ANN401 - nnU-Net conv block
     """`_biased_conv_norm` written over `y` (`_ConvNormAct.forward_`)."""
     return _bias_norm_act(self, _conv_slabs_(self.conv, y, None, depth))
+
+
+_TORCH_VOXELS = 150**3  # `hacc_conv3d`: torch's convolution for channel-reducing convs on maps of this size and up
+
+
+def hacc_conv3d(
+    x: torch.Tensor,
+    w: torch.Tensor,
+    b: torch.Tensor | None,
+    stride: int | Sequence[int],
+    padding: int | Sequence[int],
+) -> torch.Tensor:
+    """`F.conv3d(x, w, b, stride, padding)` (groups and dilation 1) of fp16 maps with fp16 accumulation (`cudnn_hacc`).
+
+    Convolutions with more input than output channels on maps of `_TORCH_VOXELS` and up run as torch's (fp32
+    accumulation): on an RTX 5060 Ti a 64 -> 32 3x3x3 conv at 192³ took 36 ms against torch's 21 (128 -> 64 at 96³:
+    5.2 against 8.8 ms, 32 -> 32 at 192³: 9.3 against 11.9 ms).
+    """
+    if w.shape[1] > w.shape[0] and math.prod(x.shape[2:]) >= _TORCH_VOXELS:
+        return F.conv3d(x, w, b, stride, padding)
+    from fastforks.kernels import cudnn_hacc  # noqa: PLC0415 - kernels only
+
+    return cudnn_hacc.conv_half_acc(x, w, b, _three(padding), _three(stride))
+
+
+def _three(v: int | Sequence[int]) -> list[int]:
+    return [v] * 3 if isinstance(v, int) else list(v)
+
+
+def hacc_conv_forward(self: torch.nn.Conv3d, x: torch.Tensor) -> torch.Tensor:
+    """`nn.Conv3d.forward` through `hacc_conv3d` (groups and dilation 1, zero padding)."""
+    return hacc_conv3d(x, self.weight, self.bias, self.stride, self.padding)  # ty: ignore[invalid-argument-type]
+
+
+def hacc_biased_conv_norm(self: Any, x: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - nnU-Net conv block
+    """`_biased_conv_norm` with `hacc_conv3d`."""
+    conv = self.conv
+    return _bias_norm_act(self, hacc_conv3d(x, conv.weight, None, conv.stride, conv.padding))
+
+
+def hacc_biased_conv_norm_(self: Any, y: torch.Tensor, depth: int) -> torch.Tensor:  # noqa: ANN401 - nnU-Net conv block
+    """`_biased_conv_norm_` with `hacc_conv3d`."""
+    return _bias_norm_act(self, _conv_slabs_(self.conv, y, None, depth, hacc_conv3d))
 
 
 def _bias_norm_act(self: Any, y: torch.Tensor) -> torch.Tensor:  # noqa: ANN401 - nnU-Net conv block

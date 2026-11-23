@@ -334,11 +334,18 @@ def slab_depth(conv: nn.Conv3d, y: torch.Tensor) -> int:
     return depth if depth * 4 <= y.shape[2] else 0
 
 
-def _conv_slabs_(conv: nn.Conv3d, y: torch.Tensor, bias: torch.Tensor | None, depth: int) -> torch.Tensor:
+def _conv_slabs_(
+    conv: nn.Conv3d,
+    y: torch.Tensor,
+    bias: torch.Tensor | None,
+    depth: int,
+    conv3d: Callable[..., torch.Tensor] = F.conv3d,
+) -> torch.Tensor:
     """`F.conv3d(y, conv.weight, bias)` (`conv`'s padding) written over `y`, `depth` (`slab_depth`) slices at a time.
 
-    A slab reads one slice beyond either end. Its output overwrites the slices no later slab reads; its last slice,
-    which the next slab still reads, is written once that slab has run. Peak: `y` and about two slabs, not two maps.
+    `conv3d(slab, weight, bias, stride, padding)` runs each slab. A slab reads one slice beyond either end. Its output
+    overwrites the slices no later slab reads; its last slice, which the next slab still reads, is written once that
+    slab has run. Peak: `y` and about two slabs, not two maps.
     """
     d, w, pad = y.shape[2], conv.weight, tuple(int(p) for p in conv.padding)  # `slab_depth`: no string padding
     inner = (0, *pad[1:])
@@ -346,11 +353,11 @@ def _conv_slabs_(conv: nn.Conv3d, y: torch.Tensor, bias: torch.Tensor | None, de
     for a in range(0, d, depth):
         b = min(a + depth, d)
         if a == 0:  # the volume's ends: zero padding, the slice past the slab dropped
-            out = F.conv3d(y[:, :, : b + 1], w, bias, 1, pad)[:, :, :b]
+            out = conv3d(y[:, :, : b + 1], w, bias, 1, pad)[:, :, :b]
         elif b == d:
-            out = F.conv3d(y[:, :, a - 1 :], w, bias, 1, pad)[:, :, 1:]
+            out = conv3d(y[:, :, a - 1 :], w, bias, 1, pad)[:, :, 1:]
         else:
-            out = F.conv3d(y[:, :, a - 1 : b + 1], w, bias, 1, inner)
+            out = conv3d(y[:, :, a - 1 : b + 1], w, bias, 1, inner)
         if held is not None:
             y[:, :, a - 1].copy_(held)
         y[:, :, a : b - 1].copy_(out[:, :, :-1])

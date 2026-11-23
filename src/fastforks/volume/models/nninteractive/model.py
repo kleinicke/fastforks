@@ -37,9 +37,10 @@ from fastforks.shared import mlx_wrap
 from fastforks.volume._nnunet import Norm, Plan, UNet, _ConvNormAct, _network, configuration_of, nonzero_extent
 from fastforks.volume._nnunet_runner import (
     CHECKPOINT_GLOBALS,
-    _biased_conv_norm,
-    _biased_conv_norm_,
     fused_norm_act,
+    hacc_biased_conv_norm,
+    hacc_biased_conv_norm_,
+    hacc_conv_forward,
 )
 from fastforks.volume._runner import InteractiveRunner
 
@@ -485,13 +486,18 @@ class Portable(InteractiveRunner):
 
 
 class Kernels(Portable):
-    """Portable + conv bias, InstanceNorm and LeakyReLU as one in-place kernel (`vol_norm`) on the fp16 feature maps."""
+    """Portable + conv bias, InstanceNorm and LeakyReLU as one in-place kernel (`vol_norm`) on the fp16 feature maps.
+
+    The convolutions accumulate in fp16 (`cudnn_hacc`); `hacc_conv3d` keeps torch's for the geometries where that is
+    slower.
+    """
 
     def __init__(self, ctx: Context) -> None:
-        """Load `vol_norm` first, then the network."""
-        from fastforks.kernels import vol_norm  # noqa: PLC0415 - kernels only
+        """Load `vol_norm` and `cudnn_hacc` first, then the network."""
+        from fastforks.kernels import cudnn_hacc, vol_norm  # noqa: PLC0415 - kernels only
 
         vol_norm.load(ctx.device)
+        cudnn_hacc.load(ctx.device)
         super().__init__(ctx)
 
     def _build(self, net: UNet) -> UNet:
@@ -499,8 +505,10 @@ class Kernels(Portable):
             if isinstance(m, _ConvNormAct):
                 override(m, fused_norm_act, "norm_act")
                 if m.conv.bias is not None:  # the bias joins the norm kernel (no separate pass over the map)
-                    override(m, _biased_conv_norm)
-                    override(m, _biased_conv_norm_, "forward_")
+                    override(m, hacc_biased_conv_norm)
+                    override(m, hacc_biased_conv_norm_, "forward_")
+            if isinstance(m, torch.nn.Conv3d) and m.groups == 1 and m.padding_mode == "zeros":
+                override(m, hacc_conv_forward)
         return net
 
 
