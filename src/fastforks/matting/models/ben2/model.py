@@ -7,7 +7,8 @@ to the image size (bilinear) and min-max normalised per image (upstream then rou
 `portable`: upstream's modules in plain PyTorch, fp32 or fp16 weights and activations (the authors run fp16 autocast
 on CUDA), SDPA attention (Swin windows and the decoder's cross-attention). `kernels`: fp16 channels-last; every conv
 runs as a cuDNN fp16-accumulate graph (`cudnn_hacc`) with an fp32 bias epilogue, the GEMMs accumulate in fp16 and the
-InstanceNorms run as one pass each (`shared.cnn_kernels`).
+InstanceNorms run as one pass each (`shared.cnn_kernels`); the two nearest 2x upsamplings and the convs after them
+run as stride-2 transposed convs (`up_deconv`).
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ import torch.nn.functional as F
 from fastforks._core.half import fp16_accumulate
 from fastforks.matting._runner import Forward, Runner, scale
 from fastforks.shared import mlx_wrap, swin_v1
-from fastforks.shared.cnn_kernels import CL, prepare_generic
+from fastforks.shared.cnn_kernels import CL, prepare_generic, up_deconv
 
 from .net.ben2 import BEN_Base
 
@@ -95,6 +96,8 @@ class Kernels(_Matting):
         """Build the network and convert its convs and norms."""
         super().__init__(ctx)
         net = _cpu_net(ctx).to(ctx.device)
+        # the two nearest 2x + conv stages as transposed convs (1024 input, RTX 5060 Ti: 88.2 -> 81.7 ms)
+        net.up_deconv1, net.up_deconv2 = up_deconv(net.upsample1[0]), up_deconv(net.upsample2[0])
         prepare_generic(net, ctx.device)  # no BatchNorm to fuse: convs + InstanceNorms
         swin_v1.fast(net.backbone, sdpa_auto=_SWIN_SDPA)
         self.dtype = torch.float16

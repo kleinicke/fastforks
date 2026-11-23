@@ -1,4 +1,4 @@
-"""Sample the last DeDoDe descriptor stage at the LoMa keypoints."""
+"""Sample the last DeDoDe descriptor stage at keypoints without its full-resolution projection (LoMa, DeDoDe)."""
 
 from collections.abc import Callable
 
@@ -6,7 +6,8 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.upload import device_tensor
-from fastforks.shared.dedode import ConvRefiner, Descriptor
+
+from .net.dedode import ConvRefiner, Descriptor
 
 
 def _project(
@@ -58,7 +59,7 @@ def sample(
             prior = F.interpolate(prior, size=size, mode="bilinear", align_corners=False)
     layer = network.decoder.layers[scales[-1]]
     if prior is None or context is None or not isinstance(layer, ConvRefiner):
-        msg = "LoMa sparse descriptors require a multi-scale DeDoDe decoder"
+        msg = "sparse DeDoDe descriptors require a multi-scale decoder"
         raise ValueError(msg)
     h, w = features[0].shape[-2:]
     x, y = (

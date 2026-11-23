@@ -24,7 +24,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import base_type, override
 from fastforks._core.upload import device_tensor
 from fastforks.interpolation._runner import Forward, Runner
-from fastforks.kernels import cudnn_hacc
+from fastforks.kernels import cudnn_hacc, ema_warp
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
@@ -32,6 +32,8 @@ from .net import Interpolator
 from .net.util import build_image_pyramid, flow_pyramid_synthesis
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from fastforks.interpolation._runner import Context
 
     from .net.feature_extractor import FeatureExtractor
@@ -99,6 +101,28 @@ def _warp(x: torch.Tensor, taps: tuple[torch.Tensor, torch.Tensor]) -> torch.Ten
     else:
         out = (rows[index] * weights[..., None]).sum(1)
     return out.view(-1, h, w, c)
+
+
+def _warper(
+    flow: torch.Tensor, dtype: torch.dtype, *, other: bool, fused: bool
+) -> Callable[[torch.Tensor], torch.Tensor]:
+    """`_warp(x, _taps(flow, dtype, other=other))` as a function of `x`.
+
+    `fused` (kernels): one `ema_warp` kernel per map instead (the same bilinear border warp with float32 weights and
+    accumulation, positions from the align-corners grid: equal up to float32 rounding of the position), without the
+    tap tables. Sample `n` of the batch `[2B, ...]` reads sample `n` (`other`: `(n + B) % 2B`) at the flow of row `n`.
+    """
+    if not fused:
+        taps = _taps(flow, dtype, other=other)
+        return lambda x: _warp(x, taps)
+    b = flow.shape[0] // 2
+    pairs = torch.cat((flow[:b], flow[b:]), 1)  # rows [:b] warp the kernel's first frames, [b:] its second ones
+
+    def warp(x: torch.Tensor) -> torch.Tensor:
+        first, second = (x[b:], x[:b]) if other else (x[:b], x[b:])
+        return ema_warp.batch(first, second, pairs).permute(0, 2, 3, 1)
+
+    return warp
 
 
 def _nchw(x: torch.Tensor) -> torch.Tensor:
@@ -221,15 +245,15 @@ class _Flows(torch.nn.Module):
 
 
 def _predict(
-    head: _Head, f: torch.Tensor, other: torch.Tensor, taps: tuple[torch.Tensor, torch.Tensor] | None
+    head: _Head, f: torch.Tensor, other: torch.Tensor, warp: Callable[[torch.Tensor], torch.Tensor] | None
 ) -> torch.Tensor:
-    """`FlowEstimator.forward(f, warp(other))` (float32) without the `cat`; `taps=None`: `other` is already aligned.
+    """`FlowEstimator.forward(f, warp(other))` (float32) without the `cat`; `warp=None`: `other` is already aligned.
 
     The warped features live only until their half of the first conv is done (the largest buffer of the stage).
     """
-    warped = other if taps is None else _warp(other, taps)
+    warped = other if warp is None else warp(other)
     del other
-    net = head.other(_nchw(warped) if taps is not None else warped)
+    net = head.other(_nchw(warped) if warp is not None else warped)
     del warped
     net = F.leaky_relu(head.own(f).add_(net), 0.2, inplace=True)
     for conv in head.rest:
@@ -237,7 +261,7 @@ def _predict(
     return net.float()
 
 
-def _residual_flows(flows: _Flows, feats: list[torch.Tensor]) -> list[torch.Tensor]:
+def _residual_flows(flows: _Flows, feats: list[torch.Tensor], *, fused: bool = False) -> list[torch.Tensor]:
     """`PyramidFlowEstimator.forward` of both directions at once: the residual flow pyramid (float32), fine to coarse.
 
     `feats`: both frames' features `[2B, C, H, W]`; rows `[:B]` give the flow of frame 1 to 2, `[B:]` of 2 to 1. The
@@ -251,7 +275,7 @@ def _residual_flows(flows: _Flows, feats: list[torch.Tensor]) -> list[torch.Tens
     steps += [(len(heads) - 1 - k, h) for k, h in enumerate(heads)]
     for i, head in steps:
         v = F.interpolate(2 * v, size=feats[i].shape[2:4], mode="bilinear")
-        r = _predict(head, feats[i], feats[i], _taps(v, feats[i].dtype, other=True))
+        r = _predict(head, feats[i], feats[i], _warper(v, feats[i].dtype, other=True, fused=fused))
         residuals.insert(0, r)
         v = r + v
     return residuals
@@ -275,8 +299,13 @@ def _cascade(extract: FeatureExtractor, images: list[torch.Tensor]) -> list[torc
     return feats
 
 
-def _interpolate(net: Interpolator, image1: torch.Tensor, image2: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
-    """`Interpolator.forward` of padded RGB `[B, 3, H, W]` frames at time `t` `[B, 1, 1, 1]` (the frame unclamped)."""
+def _interpolate(
+    net: Interpolator, image1: torch.Tensor, image2: torch.Tensor, t: torch.Tensor, *, fused: bool = False
+) -> torch.Tensor:
+    """`Interpolator.forward` of padded RGB `[B, 3, H, W]` frames at time `t` `[B, 1, 1, 1]` (the frame unclamped).
+
+    `fused`: the warps as `ema_warp` kernels (see `_warper`).
+    """
     b = image1.shape[0]
     fuse = net.fuse if isinstance(net.fuse, _Fusion) else _Fusion(net.fuse)
     predict = net.predict_flow if isinstance(net.predict_flow, _Flows) else _Flows(net.predict_flow)
@@ -284,7 +313,7 @@ def _interpolate(net: Interpolator, image1: torch.Tensor, image2: torch.Tensor, 
     fmt = torch.channels_last if image1.is_cuda else torch.contiguous_format
     images = build_image_pyramid(torch.cat((image1, image2)).to(dtype, memory_format=fmt), net.pyramid_levels)
     feats = _cascade(net.extract, images)
-    flows = flow_pyramid_synthesis(_residual_flows(predict, feats))[: net.fusion_pyramid_levels]
+    flows = flow_pyramid_synthesis(_residual_flows(predict, feats, fused=fused))[: net.fusion_pyramid_levels]
     # rows [:b]: frame 1 -> 2 (upstream's forward flow, scaled by 1 - t), [b:]: 2 -> 1 (backward, by t); frame 1 is
     # read with the backward flow and frame 2 with the forward one: sample n reads with the flow of row (n + b) % 2b
     scale = torch.cat((1 - t, t)).float()
@@ -295,19 +324,21 @@ def _interpolate(net: Interpolator, image1: torch.Tensor, image2: torch.Tensor, 
     for flow, pad in zip(flows, fuse.pads, strict=False):
         f = flow * scale
         f = torch.cat((f[b:], f[:b]))
-        taps = _taps(f, dtype, other=False)
-        wi, wf = _warp(images.pop(), taps), _warp(feats.pop(), taps)
+        warp = _warper(f, dtype, other=False, fused=fused)
+        wi, wf = warp(images.pop()), warp(feats.pop())
         fl = f.to(dtype).permute(0, 2, 3, 1)
         zeros = fl.new_zeros(()).expand(b, *fl.shape[1:3], pad)
         pyramid.append([wi[:b], wf[:b], wi[b:], wf[b:], fl[:b], fl[b:], zeros])  # warped 1, warped 2, flows
-        del wi, wf, fl, zeros, taps, f
+        del wi, wf, fl, zeros, warp, f
     del images, feats, flows
     return fuse(pyramid).float()
 
 
-def _frame(net: Interpolator, image1: torch.Tensor, image2: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+def _frame(
+    net: Interpolator, image1: torch.Tensor, image2: torch.Tensor, t: torch.Tensor, *, fused: bool = False
+) -> torch.Tensor:
     """The frame as `inference.py` keeps it: clamped to `[0, 1]`."""
-    return _interpolate(net, image1, image2, t).clamp(0, 1)
+    return _interpolate(net, image1, image2, t, fused=fused).clamp(0, 1)
 
 
 def _net(ctx: Context) -> Interpolator:
@@ -373,7 +404,10 @@ _GRAPH_PIXELS = 512 * 512
 
 
 class Kernels(Portable):
-    """float16, channels-last, fp16-accumulate convs (`cudnn_hacc`), a CUDA graph for small inputs."""
+    """float16, channels-last, fp16-accumulate convs (`cudnn_hacc`), warp kernels (`ema_warp`), CUDA graphs when small.
+
+    The warp kernels replace 4-row `embedding_bag`s with tap tables (1080p, RTX 5060 Ti: 285 -> 237 ms per frame).
+    """
 
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
 
@@ -381,6 +415,7 @@ class Kernels(Portable):
         """Build the network, route its convolutions through `cudnn_hacc`."""
         super().__init__(ctx)
         cudnn_hacc.load(ctx.device)
+        ema_warp.load(ctx.device)
         for m in self.net.modules():
             if isinstance(m, torch.nn.Conv2d) and base_type(m) is torch.nn.Conv2d and m.groups == 1:
                 override(m, _hacc_conv)
@@ -394,7 +429,7 @@ class Kernels(Portable):
 
     def _eager(self, image1: torch.Tensor, image2: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         with fp16_accumulate():
-            return _frame(self.net, image1, image2, t)
+            return _frame(self.net, image1, image2, t, fused=True)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> dict[str, torch.Tensor]:
         """The frame at `timestep` of a padded batch (the time is a graph input: one graph for every time)."""

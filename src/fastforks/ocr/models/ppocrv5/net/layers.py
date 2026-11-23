@@ -35,7 +35,7 @@ class LearnableAffineBlock(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.consts is not None:
             scale, bias = self.consts
-            return x * scale + bias
+            return x if (scale, bias) == (1.0, 0.0) else x * scale + bias  # identity: folded into a conv
         return x * self.scale + self.bias
 
 

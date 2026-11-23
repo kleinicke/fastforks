@@ -5,12 +5,13 @@ from __future__ import annotations
 import functools
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
+from fastforks._core.patch import override
 from fastforks.flow._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
 
@@ -101,10 +102,72 @@ def _kernel_lookup(k: CubinModule, f1: torch.Tensor, f2: torch.Tensor) -> Callab
     return lookup
 
 
+_FFT_MIN_KERNEL = 15  # fixed: the motion encoder's and flow head's depthwise kernels (the 7 x 7 ones gain nothing)
+_FFT_CHANNELS = 64  # fixed: channels per cuFFT batch (1080p, 256 x 15 x 15: 0.96 ms vs 1.16 at 128, 1.87 at 32)
+
+
+def _fft_size(n: int) -> int:
+    """The smallest size >= `n` with no prime factor above 5 (cuFFT's fast sizes: 149 -> 150 halves the time)."""
+    while True:
+        m = n
+        for f in (2, 3, 5):
+            while m % f == 0:
+                m //= f
+        if m == 1:
+            return n
+        n += 1
+
+
+def _fft_fits(m: torch.nn.Conv2d) -> bool:
+    """A square depthwise conv of at least `_FFT_MIN_KERNEL` taps, stride 1, zeros padding `k // 2`, with a bias."""
+    k = m.kernel_size[0]
+    return (
+        m.groups == m.in_channels == m.out_channels
+        and m.kernel_size == (k, k)
+        and k >= _FFT_MIN_KERNEL
+        and m.padding == (k // 2, k // 2)
+        and m.stride == m.dilation == (1, 1)
+        and m.padding_mode == "zeros"
+        and m.bias is not None
+    )
+
+
+def _fft_depthwise(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
+    """The `k x k` depthwise conv (zeros padding `k // 2`) as float32 FFT products, `_FFT_CHANNELS` maps at a time.
+
+    PyTorch runs a fp16 NCHW depthwise conv this large with its own direct kernel (cuDNN's channels-last one is 5-7x
+    slower still): 2.8 ms for 256 x 15 x 15 at 135 x 240 (1080p at 1/8), 0.96 ms as FFTs. The spectra of the kernels
+    are kept for the last size. The output is rounded once to the conv dtype, as the fp32-accumulating conv's.
+    """
+    b, c, h, w = x.shape
+    k, p = conv.kernel_size[0], conv.kernel_size[0] // 2
+    size = (_fft_size(h + k - 1), _fft_size(w + k - 1))  # the full linear correlation: no wrap-around
+    real = torch.promote_types(x.dtype, torch.float32)  # float64 (tests) stays float64
+    cached = conv.__dict__.get("_fft")
+    if cached is None or cached[0] != (size, real):
+        taps = torch.zeros((c, *size), dtype=real, device=x.device)
+        # a correlation is the convolution with the flipped kernel
+        taps[:, :k, :k] = conv.weight.detach()[:, 0].to(real).flip(-1, -2)
+        cached = ((size, real), torch.fft.rfft2(taps))
+        conv.__dict__["_fft"] = cached
+    spectra = cached[1]
+    dev = x.device.type
+    dtype = torch.get_autocast_dtype(dev) if torch.is_autocast_enabled(dev) else x.dtype
+    out = torch.empty((b, c, h, w), dtype=dtype, device=x.device)
+    bias = cast("torch.Tensor", conv.bias).detach().to(real)[:, None, None]
+    for i in range(b):
+        for s in range(0, c, _FFT_CHANNELS):
+            e = s + _FFT_CHANNELS
+            y = torch.fft.irfft2(torch.fft.rfft2(x[i, s:e].to(real), s=size).mul_(spectra[s:e]), s=size)
+            torch.add(y[:, p : p + h, p : p + w], bias[s:e], out=out[i, s:e])
+    return out
+
+
 class Kernels(Portable):
     """The portable fp16 pass with the correlation windows computed on the fly (`raft_flow`): no all-pairs volume.
 
-    The conv weights are stored in fp16 (the values autocast casts them to on each call).
+    The conv weights are stored in fp16 (the values autocast casts them to on each call); the 15 x 15 depthwise convs
+    run as FFTs (`_fft_depthwise`; 1080p, RTX 5060 Ti: 856 -> 740 ms).
     """
 
     def __init__(self, ctx: Context) -> None:
@@ -118,6 +181,8 @@ class Kernels(Portable):
         for m in self.net.modules():
             if isinstance(m, torch.nn.Conv2d):
                 m.half()
+                if _fft_fits(m):
+                    override(m, _fft_depthwise)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a padded batch."""

@@ -2,6 +2,7 @@ from __future__ import print_function
 import torch
 from fastforks.stereo._volume import concat_fn, stacked_volume
 from fastforks._core.volume_ops import gwc_volume, normalized_groups
+from fastforks._core.tracing import in_onnx_export  # fastforks
 import torch.nn as nn
 import torch.utils.data
 from torch.autograd import Variable
@@ -105,7 +106,7 @@ class Mish(nn.Module):
 
     def forward(self, x):
         #save 1 second per epoch with no x= x*() and then return x...just inline it.
-        return x *( torch.tanh(F.softplus(x)))
+        return FMish(x)  # fastforks: one fused kernel on CUDA (see FMish)
 
 
 def convbn(in_channels, out_channels, kernel_size, stride, pad, dilation):
@@ -198,6 +199,10 @@ def FMish(x):
 
     '''
 
+    # fastforks: PyTorch's fused mish on CUDA, one kernel instead of three with the intermediates in the input dtype
+    # (cfnet-sceneflow 994 x 1482 kernels: 227 -> 186 ms); the composition elsewhere (MLX / ONNX exports, CPU)
+    if x.is_cuda and not in_onnx_export():
+        return F.mish(x)
     return x * torch.tanh(F.softplus(x))
 
 class BasicBlock(nn.Module):

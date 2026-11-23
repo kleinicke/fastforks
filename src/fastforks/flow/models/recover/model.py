@@ -1,8 +1,9 @@
 """ReCoVEr runners: weights -> network and the portable / kernels forward passes.
 
-Both fold the encoders' batch norms into their convolutions. Portable on CUDA in float16 runs the whole network in
-fp16 channels-last (the flow state, the softmax of the upsampling weights and the convex upsampling in float32);
-kernels adds fp16-accumulate GEMMs (the ConvNeXt MLPs) and cuDNN fp16-accumulate convolutions.
+Both fold the encoders' batch norms into their convolutions and the ConvNeXt layer scales into the Linear before.
+Portable on CUDA in float16 runs the whole network in fp16 channels-last (the flow state, the softmax of the
+upsampling weights and the convex upsampling in float32); kernels adds fp16-accumulate GEMMs (the ConvNeXt MLPs)
+and cuDNN fp16-accumulate convolutions.
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ from fastforks.flow._runner import Forward, Runner
 from fastforks.kernels import flow_upsample, recover_motion
 from fastforks.shared import mlx_wrap
 
-from .net import BasicBlock, ReCoVEr, ResNetFPN
+from .net import BasicBlock, CNBlock, ConvNextBlock, ReCoVEr, ResNetFPN
 
 if TYPE_CHECKING:
     from fastforks.flow._runner import Context
@@ -65,6 +66,32 @@ def fold_batchnorms(net: nn.Module) -> int:
                 n += 1
             if isinstance(m, BasicBlock) and m.downsample is not None:
                 m.bn3 = nn.Identity()  # ty: ignore[invalid-assignment]  # folded with downsample.0 by the Sequential pass
+    return n
+
+
+def _cn_block(self: CNBlock, x: torch.Tensor) -> torch.Tensor:
+    return x + self.block(x)  # layer scale folded into block[5] (`fold_layer_scales`)
+
+
+def _convnext_block(self: ConvNextBlock, x: torch.Tensor) -> torch.Tensor:
+    y = self.dwconv(x).permute(0, 2, 3, 1)
+    y = self.pwconv2(self.act(self.pwconv1(self.norm(y))))  # gamma folded into pwconv2 (`fold_layer_scales`)
+    return self.final(x + y.permute(0, 3, 1, 2))
+
+
+@torch.no_grad()
+def fold_layer_scales(net: nn.Module) -> int:
+    """`gamma * linear(x)` -> `linear'(x)` in the ConvNeXt blocks (one multiply kernel less each); returns how many."""
+    n = 0
+    for m in net.modules():
+        if isinstance(m, (CNBlock, ConvNextBlock)):
+            scale, linear = (m.layer_scale, m.block[5]) if isinstance(m, CNBlock) else (m.gamma, m.pwconv2)
+            linear = cast("nn.Linear", linear)
+            g = scale.reshape(-1, 1)
+            linear.weight.copy_(linear.weight * g)
+            cast("torch.Tensor", linear.bias).copy_(cast("torch.Tensor", linear.bias) * g[:, 0])
+            override(m, _cn_block if isinstance(m, CNBlock) else _convnext_block)
+            n += 1
     return n
 
 
@@ -112,6 +139,7 @@ class Portable(Runner):
         self.net.load_state_dict(sd)
         self.net.eval()
         fold_batchnorms(self.net)
+        fold_layer_scales(self.net)
         dt = torch.float16 if ctx.dtype == "float16" else torch.float32
         self.layout = torch.channels_last if ctx.device.type == "cuda" else torch.contiguous_format
         self.net.to(ctx.device, dt).to(memory_format=self.layout)

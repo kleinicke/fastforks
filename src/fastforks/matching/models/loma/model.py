@@ -48,9 +48,9 @@ from fastforks.shared.dedode import (
     VGGDINOv2,
     describe_keypoints,
 )
+from fastforks.shared.dedode import sparse as dedode_sparse
 from fastforks.shared.depth_anything_v2 import DINOv2, fold_layer_scale, sdpa_attention
 
-from . import _sparse
 from .net.dad import sample_keypoints
 from .net.loma import LoMaNet, filter_matches
 
@@ -330,7 +330,7 @@ def _detector_logits(detector: Detector, image: torch.Tensor) -> torch.Tensor:
 
 
 def _sample_descriptor(net: Matcher, image: torch.Tensor, keypoints: torch.Tensor) -> torch.Tensor:
-    return _sparse.sample(net.descriptor, image, keypoints, blend=loma_descriptor.blend)
+    return dedode_sparse.sample(net.descriptor, image, keypoints, blend=loma_descriptor.blend)
 
 
 RUNNERS = {

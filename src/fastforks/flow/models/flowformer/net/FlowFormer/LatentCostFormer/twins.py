@@ -513,7 +513,9 @@ class GlobalSubSampleAttnRPE(nn.Module):
         v = self.v(x).reshape(B, (padded_size[0] // self.sr_ratio)*(padded_size[1] // self.sr_ratio), self.num_heads, C // self.num_heads).permute(0, 2, 1, 3)
 
         matrix_bytes = padded_N * k.shape[-2] * q.element_size()
-        if (
+        if getattr(self, "_sdpa", False):  # fastforks (kernels): fused attention, no score matrices
+            attended = F.scaled_dot_product_attention(q, k, v, scale=self.scale)
+        elif (
             q.is_cuda
             and B * self.num_heads * matrix_bytes >= 128 * 1024**2
             and not self.training

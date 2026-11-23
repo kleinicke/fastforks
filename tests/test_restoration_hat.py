@@ -38,8 +38,9 @@ def test_card_variants() -> None:
 
 @pytest.mark.slow
 @pytest.mark.filterwarnings("ignore:torch.meshgrid")  # upstream network, built here directly
-def test_matches_vendored_upstream(tmp_path: Path) -> None:
-    card, variant = _cards()["hat-s-x4"]
+@pytest.mark.parametrize("ref", ["hat-s-x4", "hat-x4"])  # head size 24; 30, padded to 32 at load
+def test_matches_vendored_upstream(tmp_path: Path, ref: str) -> None:
+    card, variant = _cards()[ref]
     p = {**card.params, **variant.params}
     torch.manual_seed(0)
     net = _net(p)
@@ -47,7 +48,7 @@ def test_matches_vendored_upstream(tmp_path: Path) -> None:
         if hasattr(m, "relative_position_bias_table"):
             torch.nn.init.normal_(m.relative_position_bias_table, std=1.0)
     torch.save({p["key"]: net.state_dict()}, tmp_path / "w.pth")
-    m = restoration.load("hat-s-x4", weights=tmp_path / "w.pth", device="cpu", dtype="float32")
+    m = restoration.load(ref, weights=tmp_path / "w.pth", device="cpu", dtype="float32")
     h, w, s = 21, 37, p["scale"]
     img = synthetic_image(h, w, torch.device("cpu"))
     x = F.pad(img, (0, 48 - w, 0, 32 - h), "reflect")  # hat_model.py pre_process: to a multiple of 16

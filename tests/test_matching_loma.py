@@ -7,11 +7,11 @@ import torch
 
 from fastforks import matching
 from fastforks._core import registry
-from fastforks.matching.models.loma import _sparse
 from fastforks.matching.models.loma.model import PREFIXES, split_checkpoint
 from fastforks.matching.models.loma.net.dad import sample_keypoints
 from fastforks.matching.models.loma.net.loma import LoMaNet, filter_matches
 from fastforks.shared.dedode import Descriptor, describe_keypoints
+from fastforks.shared.dedode import sparse as _sparse
 
 
 def test_card() -> None:

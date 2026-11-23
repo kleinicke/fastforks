@@ -2,7 +2,7 @@
 """Max-mode forward passes of the SD2 UNet and VAE (fp16, channels-last).
 
 Same modules and weights as `unet.py` / `vae.py`, run functionally: convolutions as cuDNN fp16-accumulate graphs
-(`cudnn_hacc`), GroupNorm (+ SiLU) on the channels-last map (`group_norm`), no layout copies around the
+(`cudnn_hacc`; nearest 2x + conv as one transposed conv), GroupNorm (+ SiLU) on the channels-last map (`group_norm`), no layout copies around the
 transformers, the time-embedding projections of every resnet and
 the cross-attention keys / values of the (constant) empty prompt computed once at load.
 """
@@ -15,6 +15,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks.kernels import cudnn_hacc
+from fastforks.shared.cnn_kernels import up_deconv_weight
 
 from .unet import (
     BasicTransformerBlock,
@@ -54,13 +55,18 @@ class Fast:
     """The fp16 channels-last network plus the per-timestep and per-prompt constants."""
 
     def __init__(
-        self, unet: UNet2DConditionModel, text: torch.Tensor, timesteps: Sequence[float], labels: torch.Tensor | None = None
+        self,
+        unet: UNet2DConditionModel,
+        text: torch.Tensor,
+        timesteps: Sequence[float],
+        labels: torch.Tensor | None = None,
     ) -> None:
         """`timesteps`: the UNet's timesteps (diffusion steps, or flow-matching times in [0, 1]).
 
         `labels`: the `[1, class_embed]` class labels of a UNet with a class embedding (constant).
         """
         self.unet = unet
+        self.up_weights: dict[torch.nn.Conv2d, torch.Tensor] = {}
         self.kv: dict[BasicTransformerBlock, tuple[torch.Tensor, torch.Tensor]] = {}
         for m in unet.modules():
             if isinstance(m, BasicTransformerBlock):
@@ -81,6 +87,17 @@ class Fast:
     def conv(self, x: torch.Tensor, c: torch.nn.Conv2d) -> torch.Tensor:
         """A 2-D conv as a cuDNN fp16-accumulate graph, channels-last out."""
         return cudnn_hacc.conv_half_acc(x, c.weight, c.bias, list(c.padding), list(c.stride), list(c.dilation))
+
+    def upconv(self, x: torch.Tensor, c: torch.nn.Conv2d) -> torch.Tensor:
+        """`c(nearest_2x(x))` as one fp16-accumulate transposed conv (`cnn_kernels.up_deconv_weight`).
+
+        4 instead of 9 multiply-adds per output pixel and no upsampled input map.
+        """
+        w = self.up_weights.get(c)
+        if w is None:
+            w = self.up_weights[c] = up_deconv_weight(c.weight).contiguous(memory_format=torch.channels_last)
+        y = cudnn_hacc.deconv_half_acc(x, w, (1, 1), (2, 2))
+        return y if c.bias is None else y.add_(c.bias.view(1, -1, 1, 1))
 
     def resnet(self, r: ResnetBlock2D, x: torch.Tensor, proj: torch.Tensor | None) -> torch.Tensor:
         """`ResnetBlock2D.forward`."""
@@ -131,10 +148,9 @@ class Fast:
                 x = self.transformer(blk.attentions[i], x)
         if blk.upsamplers is not None:
             if size is None:
-                x = F.interpolate(x, scale_factor=2.0, mode="nearest")
+                x = self.upconv(x, blk.upsamplers[0].conv)
             else:
-                x = F.interpolate(x, size=size, mode="nearest")
-            x = self.conv(x, blk.upsamplers[0].conv)
+                x = self.conv(F.interpolate(x, size=size, mode="nearest"), blk.upsamplers[0].conv)
         return x
 
     def mid(self, blk: MidBlock, x: torch.Tensor, temb: dict) -> torch.Tensor:
@@ -215,5 +231,5 @@ class Fast:
             for r in blk.resnets:  # ty: ignore[not-iterable] - ModuleList
                 x = self.resnet(r, x, None)
             if blk.upsamplers is not None:
-                x = self.conv(F.interpolate(x, scale_factor=2.0, mode="nearest"), blk.upsamplers[0].conv)
+                x = self.upconv(x, blk.upsamplers[0].conv)
         return self.conv(group_norm(x, d.conv_norm_out, silu=True), d.conv_out)

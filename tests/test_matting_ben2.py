@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import pytest
 import torch
+import torch.nn.functional as F
+from torch import nn
 
 from fastforks import matting
 from fastforks._core import registry
 from fastforks.matting.models.ben2.net import ben2
+from fastforks.shared.cnn_kernels import up_deconv
 
 
 def test_card() -> None:
@@ -40,3 +43,14 @@ def test_attention_without_weights() -> None:
         want = m(*args)
         assert len(calls) == len(m.attention)
         torch.testing.assert_close(got, want, atol=1e-5, rtol=1e-5)
+
+
+def test_up_deconv_is_nearest_2x_then_the_conv() -> None:
+    torch.manual_seed(0)
+    conv = nn.Conv2d(6, 5, 3, padding=1).double()
+    x = torch.randn(2, 6, 7, 9, dtype=torch.float64)
+    d = up_deconv(conv)
+    want = conv(F.interpolate(x, scale_factor=2, mode="nearest"))
+    torch.testing.assert_close(d(x), want, rtol=1e-12, atol=1e-12)
+    with pytest.raises(ValueError, match="3x3 stride-1"):
+        up_deconv(nn.Conv2d(6, 5, 3, padding=1, stride=2))

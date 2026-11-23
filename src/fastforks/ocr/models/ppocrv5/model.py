@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import torch
@@ -43,7 +43,8 @@ from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from . import convert
 from .net import build
-from .net.layers import freeze_affine
+from .net.backbones import _LCBlock, _RepLayer
+from .net.layers import LearnableAffineBlock, freeze_affine
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -155,8 +156,47 @@ class Portable(Runner):
         return Forward(self.det, forward)
 
 
+def _affine(lab: LearnableAffineBlock) -> tuple[float, float]:
+    return lab.consts if lab.consts is not None else (lab.scale.item(), lab.bias.item())
+
+
+@torch.no_grad()
+def fold_affine(net: torch.nn.Module) -> None:
+    """Fold PP-LCNetV3's learnable affine blocks into the convolutions next to them, in place (float32 maths).
+
+    Each `_RepLayer`'s `lab` (`s * conv(x) + b`) goes into its conv's weight and bias; a depthwise layer's `act_lab`
+    goes into the pointwise conv after it where no SE sits between (a 1 x 1 conv has no zero padding, so
+    `W (a x + c) = a W x + c W 1` everywhere). The other `act_lab`s precede a padded conv or the SE and stay. Each
+    fold removes two elementwise passes over the activations. In float16 the outputs stay as close to the float32
+    network as the unfolded ones (four rendered 1080p pages: boxes within 3 px both, 2 vs 1 of 144 lines read
+    differently; the detector map moves more, its boxes less).
+    """
+
+    def bias(conv: torch.nn.Conv2d) -> torch.Tensor:
+        return cast("torch.Tensor", conv.bias)  # every `_RepLayer` conv has one (Paddle's re-parameterised export)
+
+    for block in net.modules():
+        if isinstance(block, _RepLayer):
+            s, b = _affine(block.lab)
+            conv = block.conv
+            bias(conv).copy_(bias(conv).float() * s + b)
+            conv.weight.copy_(conv.weight.float() * s)
+            block.lab.consts = (1.0, 0.0)
+        if (
+            isinstance(block, _LCBlock)
+            and isinstance(block.se, torch.nn.Identity)
+            and block.dw_conv.act_lab is not None
+        ):
+            a, c = _affine(block.dw_conv.act_lab)
+            pw = block.pw_conv.conv
+            w = pw.weight.float()
+            bias(pw).copy_(bias(pw).float() + c * w.sum((1, 2, 3)))
+            pw.weight.copy_(w * a)
+            block.dw_conv.act_lab.consts = (1.0, 0.0)
+
+
 class Kernels(Portable):
-    """Run the convolution blocks with fused CUDA kernels."""
+    """Run the convolution blocks with fused CUDA kernels; the mobile networks' affine blocks folded (`fold_affine`)."""
 
     module = Runner.module
 
@@ -166,6 +206,9 @@ class Kernels(Portable):
         if ctx.params.server:
             prepare_generic(self.det, ctx.device)
             prepare_generic(self.rec, ctx.device)
+        else:
+            fold_affine(self.det)
+            fold_affine(self.rec)
         self.det_graphs = SmallShapeGraphs(super()._detect, pixels=_DETECTOR_GRAPH_PIXELS)
         self.rec_graphs = SmallShapeGraphs(super()._recognise, pixels=2**22)
 

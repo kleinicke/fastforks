@@ -9,6 +9,11 @@ device as two separable tap gathers with OpenCV's weights:
 Horizontal pass first, rounded once at the end; cubic in float64 (float32 on MPS), area in float32 as OpenCV. Matches
 OpenCV 5.0 up to a few rounding ties (one level); OpenCV 4 computes uint8 cubic in 11-bit fixed point, which differs by
 one level on a few percent of the pixels.
+
+Eager cubic off MPS is PyTorch's bicubic `interpolate` in float64: the same kernel (Keys, a = -0.75), source
+coordinates and clamped borders in one pass instead of two gathers of `[..., n_out, 4]` float64 products
+(1024 x 1024 -> 1280 x 1280 on an RTX 5060 Ti: 4.4 -> 1.6 ms). Its sums differ from the taps' by float64 rounding:
+the same levels on every pixel of the tested sizes, float images within a float32 ulp.
 """
 
 from __future__ import annotations
@@ -18,6 +23,7 @@ import math
 from typing import Literal
 
 import torch
+import torch.nn.functional as F
 
 _CUBIC_A = -0.75  # fixed: OpenCV's bicubic kernel parameter
 _AREA_EPS = 1e-3  # fixed: OpenCV computeResizeAreaTab's threshold for partial source cells
@@ -82,6 +88,13 @@ def _gather(x: torch.Tensor, idx: torch.Tensor, wts: torch.Tensor) -> torch.Tens
     return (x[..., idx.to(x.device)] * wts.to(x.device, x.dtype)).sum(-1)
 
 
+def _separable(
+    x: torch.Tensor, horizontal: tuple[torch.Tensor, ...], vertical: tuple[torch.Tensor, ...]
+) -> torch.Tensor:
+    """The horizontal taps, then the vertical ones."""
+    return _gather(_gather(x, *horizontal).transpose(-1, -2), *vertical).transpose(-1, -2)
+
+
 def cv2_resize(x: torch.Tensor, h: int, w: int, kind: Kind, *, levels: bool = True) -> torch.Tensor:
     """`cv2.resize` of `[B, C, H, W]` to `h x w`; float32.
 
@@ -93,10 +106,12 @@ def cv2_resize(x: torch.Tensor, h: int, w: int, kind: Kind, *, levels: bool = Tr
         dtype = torch.float32
     if torch.compiler.is_compiling():  # dynamo cannot trace through lru_cache; the graph holds the tables anyway
         taps = (_cubic if kind == "cubic" else _area).__wrapped__
-        (ix, wx), (iy, wy) = taps(x.shape[-1], w), taps(x.shape[-2], h)
+        v = _separable(x.to(dtype), taps(x.shape[-1], w), taps(x.shape[-2], h))
+    elif kind == "cubic" and dtype == torch.float64:
+        v = F.interpolate(x.to(dtype), size=(h, w), mode="bicubic", align_corners=False)
     else:
-        (ix, wx), (iy, wy) = (_on_device(kind, n, m, x.device, dtype) for n, m in ((x.shape[-1], w), (x.shape[-2], h)))
-    v = _gather(_gather(x.to(dtype), ix, wx).transpose(-1, -2), iy, wy).transpose(-1, -2)
+        tables = (_on_device(kind, n, m, x.device, dtype) for n, m in ((x.shape[-1], w), (x.shape[-2], h)))
+        v = _separable(x.to(dtype), *tables)
     if not levels:
         return v.float()
     if kind == "area" and x.shape[-1] % w == 0 and x.shape[-2] % h == 0:  # OpenCV's integer-factor path: ties round up
