@@ -302,7 +302,7 @@ def _hyponet_addmm(
     bias into its `b`. The same products, summed and scaled in another order.
     """
     b = coord.shape[0]
-    siren = type(hn.activation) is Sine
+    siren = base_type(hn.activation) is Sine
     w0 = hn.activation.w0 if siren else 1.0
     layers = []
     for i, p in enumerate(params):
