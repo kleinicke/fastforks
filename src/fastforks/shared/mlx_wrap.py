@@ -101,7 +101,8 @@ def _lazy_twin() -> Iterator[None]:
     for name in _INITS:
         setattr(torch.nn.init, name, skip(name))
     try:
-        yield
+        with torch.inference_mode(mode=False):  # hosts such as ComfyUI build under inference mode: no version counters
+            yield
         for ref, version in skipped.values():
             t = ref()
             if t is not None and t._version == version:  # noqa: SLF001

@@ -140,3 +140,12 @@ A node's time is the model's time plus what ComfyUI does around every node, whic
 Models that take a few milliseconds (SPAN, Compact, the WD tagger, SegFormer) therefore take about twice their library
 time in a workflow (SPAN x4: 13 ms model, 28 ms node); for slow ones (HAT, DAT, SwinIR) the overhead does not matter. The portable ComfyUI build and a
 ComfyUI from git run the nodes at the same speed.
+
+## Example workflows
+
+`integrations/comfyui/workflows/` holds ten workflows that put competing models (and, in the second one, backends)
+side by side on one input, so you can swap the `model` / `backend` dropdown or bypass a branch and compare: depth,
+backend comparison, background removal, prompted segmentation, detection, pose, 4x upscaling, frame interpolation,
+stereo and optical flow. Copy the `fastforks-w*.json` files into `ComfyUI/user/default/workflows/` (or drag one into
+the UI); they use the images `example.png`, `scene.png`, `scene_b.png`, `small.png` and `clip0..3.png` from the input
+folder. `make_workflows.py` regenerates them from a running server's `/object_info`.
