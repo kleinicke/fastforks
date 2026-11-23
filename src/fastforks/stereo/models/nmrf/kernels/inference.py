@@ -18,7 +18,7 @@ from torch import nn
 from fastforks._core.errors import BackendUnavailableError
 from fastforks.kernels import fastbb
 
-from ..net.inference import forward, prepare
+from ..net.inference import LN16, forward, prepare
 from ..net.nmp import Mlp, WindowAttention
 
 if TYPE_CHECKING:
@@ -91,6 +91,14 @@ def prepare_kernels(model: nn.Module, device: torch.device) -> nn.Module:
     for layer in model.modules():
         if isinstance(layer, Mlp) and isinstance(layer.act, nn.GELU):
             layer.bounded_activation = True
+    # fp16 weights: autocast would cast every fp32 conv / linear weight (and LN16 its affine) on each call. A stripe
+    # attention's `get_v` weight also scales a tensor outside its conv (fp32 product there) and stays fp32.
+    keep = {id(m.get_v) for m in model.modules() if isinstance(getattr(m, "get_v", None), nn.Conv2d)}
+    for m in model.modules():
+        if isinstance(m, LN16):
+            m.weight.data, m.bias.data = m.weight.data.half(), m.bias.data.half()
+        elif isinstance(m, (nn.Linear, nn.Conv1d, nn.Conv2d, nn.ConvTranspose2d)) and id(m) not in keep:
+            m.half()
     return model.to(device)
 
 

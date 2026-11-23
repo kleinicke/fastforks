@@ -69,8 +69,7 @@ class Mlp(nn.Module):
             and x.numel() >= 1 << 22
             and x.is_contiguous()
         ):
-            for rows in x.view(-1, x.shape[-1]).split(4096):
-                rows.copy_(self.act(rows))
+            torch.ops.aten.gelu_(x, approximate=self.act.approximate)  # fastforks: in place, no temporary
         else:
             x = self.act(x)
         x = self.drop(x)

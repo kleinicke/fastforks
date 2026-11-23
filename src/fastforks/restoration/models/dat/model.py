@@ -102,7 +102,8 @@ def _windows(m: Spatial_Attention, x: torch.Tensor, h: int, w: int) -> torch.Ten
     pad = -d % 8 if x.is_cuda else 0
     if not pad:
         return win.reshape(-1, heads, hs * ws, d)
-    out = x.new_zeros((*win.shape[:-1], d + pad))
+    out = x.new_empty((*win.shape[:-1], d + pad))
+    out[..., d:].zero_()
     out[..., :d] = win
     return out.view(-1, heads, hs * ws, d + pad)
 
@@ -153,34 +154,87 @@ def _attend(attn: nn.Module, qkv: torch.Tensor, h: int, w: int, into: torch.Tens
         into.copy_(attn(qkv, h, w))
 
 
-def _shifted_window(m: Spatial_Attention, qkv: torch.Tensor, h: int, w: int, shift: tuple[int, int]) -> torch.Tensor:
-    """Share the attention mask within the interior, final row, final column and corner of the shifted grid."""
+def _pieces(n: int, s: int, sh: int, lo: int, hi: int) -> list[tuple[int, int, int, int, int]]:
+    """Windows `lo .. hi` of a grid of `n` windows of size `s` along a dim rolled by `-sh` (0 <= sh < s), as blocks.
+
+    Window `r` offset `i` holds image index `(r * s + i + sh) % (n * s)`. A block `(r0, nr, i0, ni, y0)`: windows
+    `r0 .. r0 + nr`, offsets `i0 .. i0 + ni`, image `y0 .. y0 + nr * ni` (`ni == s` when `nr > 1`).
+    """
+    if not sh:
+        return [(lo, hi - lo, 0, s, lo * s)]
+    out = [(lo, min(hi, n - 1) - lo, 0, s, lo * s + sh)] if lo < n - 1 else []
+    if hi == n:
+        out += [(n - 1, 1, 0, s - sh, (n - 1) * s + sh), (n - 1, 1, s - sh, sh, 0)]
+    return out
+
+
+def _rolled_blocks(  # noqa: PLR0913 - the window grid and its shift
+    win: torch.Tensor,
+    img: torch.Tensor,
+    *,
+    grid: tuple[int, int],
+    rows: tuple[int, int],
+    cols: tuple[int, int],
+    shift: tuple[int, int],
+    to_image: bool,
+) -> None:
+    """Copy between windows and the image whose `roll(-shift)` they partition (`to_image`: windows into the image).
+
+    `win` `[b, nr, nc, heads, hs, ws, d]`: the windows of grid rows `rows` and cols `cols`; `img` `[b, h, w, heads * d]`
+    (any view).
+    """
+    hs, ws, heads, d = win.shape[4], win.shape[5], win.shape[3], win.shape[6]
+    for r0, nr, i0, ni, y0 in _pieces(grid[0], hs, shift[0], *rows):
+        for c0, nc, j0, nj, x0 in _pieces(grid[1], ws, shift[1], *cols):
+            a = img[:, y0 : y0 + nr * ni, x0 : x0 + nc * nj].unflatten(1, (nr, ni)).unflatten(3, (nc, nj))
+            a = a.unflatten(-1, (heads, d)).permute(0, 1, 3, 5, 2, 4, 6)
+            r, c = r0 - rows[0], c0 - cols[0]
+            b = win[:, r : r + nr, c : c + nc, :, i0 : i0 + ni, j0 : j0 + nj]
+            (a if to_image else b).copy_(b if to_image else a)
+
+
+def _shifted_window(  # noqa: PLR0913 - upstream's arguments and the output
+    m: Spatial_Attention, qkv: torch.Tensor, h: int, w: int, shift: tuple[int, int], *, into: torch.Tensor
+) -> torch.Tensor:
+    """The attention of `roll(qkv, -shift)` rolled back by `shift` into `into`, without either roll's copy.
+
+    `qkv` `[3, b, h, w, c]` (any view), `into` `[b, h, w, c]` (any view). The windows are copied straight from the
+    unrolled image and the outputs straight into `into` (`_rolled_blocks`), and the attention mask is shared within the
+    interior, final row, final column and corner of the shifted grid.
+    """
     hs, ws = m.H_sp, m.W_sp
-    rows, cols = h // hs, w // ws
-    q, k, v = (_windows(m, t, h, w).unflatten(0, (-1, rows, cols)) for t in qkv.unbind(0))
-    out = qkv.new_empty((qkv.shape[1], h, w, qkv.shape[-1]))
-    bias = m.get_buffer("bias").to(q.dtype)
-    token = torch.arange(hs * ws, device=q.device)
+    grid = (h // hs, w // ws)
+    heads, b = m.num_heads, qkv.shape[1]
+    d = qkv.shape[-1] // heads
+    pad = -d % 8 if qkv.is_cuda else 0
+    bias = m.get_buffer("bias").to(qkv.dtype)
+    token = torch.arange(hs * ws, device=qkv.device)
     row_zone = (token // ws >= hs - shift[0]).int() * 2
     col_zone = (token % ws >= ws - shift[1]).int()
-    for r, band in ((False, slice(0, -1)), (True, slice(-1, None))):
-        if rows == 1 and not r:
-            continue
-        for c, stripe in ((False, slice(0, -1)), (True, slice(-1, None))):
-            if cols == 1 and not c:
+    for r in (False, True):
+        rows = (grid[0] - 1, grid[0]) if r else (0, grid[0] - 1)
+        for c in (False, True):
+            cols = (grid[1] - 1, grid[1]) if c else (0, grid[1] - 1)
+            nr, nc = rows[1] - rows[0], cols[1] - cols[0]
+            if not nr or not nc:
                 continue
             pos = bias
             if r or c:
                 # Tokens straddling either wrapped edge receive the upstream additive bias.
                 zones = row_zone + col_zone if r and c else row_zone if r else col_zone
-                pos = bias + (zones[:, None] != zones[None, :]).to(q.dtype) * -100.0
-            section = (slice(None), band, stripe)
-            q1, k1, v1 = (t[section].flatten(0, 2) for t in (q, k, v))
-            y = attention(q1, k1, v1, pos.expand(q1.shape[0], -1, -1, -1), m.scale)
-            ys, xs = (slice(i.start * n, None if i.stop is None else i.stop * n) for i, n in ((band, hs), (stripe, ws)))
-            _to_image(y, hs, ws, out[:, ys, xs])
-            del q1, k1, v1, y
-    return out
+                pos = bias + (zones[:, None] != zones[None, :]).to(qkv.dtype) * -100.0
+            win = qkv.new_empty((3, b, nr, nc, heads, hs, ws, d + pad))  # this section's q, k, v windows
+            if pad:
+                win[..., d:].zero_()
+            for t, wt in zip(qkv.unbind(0), win.unbind(0), strict=True):
+                _rolled_blocks(wt[..., :d], t, grid=grid, rows=rows, cols=cols, shift=shift, to_image=False)
+            q, k, v = win.view(3, b * nr * nc, heads, hs * ws, d + pad).unbind(0)
+            y = attention(q, k, v, pos.expand(q.shape[0], -1, -1, -1), m.scale)
+            del win, q, k, v
+            y7 = y[..., :d].unflatten(2, (hs, ws)).unflatten(0, (b, nr, nc))
+            _rolled_blocks(y7, into, grid=grid, rows=rows, cols=cols, shift=shift, to_image=True)
+            del y, y7
+    return into
 
 
 def _image(x: torch.Tensor, h: int, w: int) -> torch.Tensor:
@@ -255,11 +309,11 @@ def _spatial_block(  # noqa: PLR0913 - separate CUDA gate and attention mask spe
         for i, (channels, sh, sw) in enumerate(((slice(None, half), s0, s1), (slice(half, None), s1, s0))):
             attn = m.attns[i]
             part = qkv[..., channels].view(3, b, hp, wp, -1)
-            rolled = roll(part, (-sh, -sw), (2, 3)).view(3, b, -1, half)
             if masks is None:
-                out = _shifted_window(cast("Spatial_Attention", attn), rolled, hp, wp, (sh, sw))
-            else:
-                out = attn(rolled, hp, wp, mask=masks[i])
+                _shifted_window(cast("Spatial_Attention", attn), part, hp, wp, (sh, sw), into=heads[..., channels])
+                continue
+            rolled = roll(part, (-sh, -sw), (2, 3)).view(3, b, -1, half)
+            out = attn(rolled, hp, wp, mask=masks[i])
             del part, rolled
             roll(out, (sh, sw), (1, 2), out=heads[..., channels])
             del out
