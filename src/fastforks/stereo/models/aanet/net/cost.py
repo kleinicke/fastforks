@@ -1,5 +1,6 @@
 import torch
 from fastforks.stereo._volume import concat_fn, correlation_band, stacked_volume  # fastforks: correlation_band
+from fastforks._core.tracing import EXPORTING_FOR_MLX  # fastforks
 import torch.nn as nn
 
 
@@ -20,7 +21,7 @@ class CostVolume(nn.Module):
     def forward(self, left_feature, right_feature):
         b, c, h, w = left_feature.size()
 
-        if torch.compiler.is_exporting():
+        if EXPORTING_FOR_MLX.get():
             fns = {
                 "difference": lambda a, r: a - r,
                 "concat": concat_fn,

@@ -12,6 +12,7 @@ from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks._core.layout import nchw
 from fastforks._core.sampling import grid_sample
+from fastforks._core.tracing import EXPORTING_FOR_MLX
 from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
 
@@ -119,7 +120,7 @@ def cost_volume(
         dtype = fl.dtype
     b, cc, h, w = xc.shape
     d = disps.shape[1]
-    exporting = torch.compiler.is_exporting()  # MLX replay: planes stacked, no `slice_scatter` copy per write
+    exporting = EXPORTING_FOR_MLX.get()  # MLX replay: planes stacked, no `slice_scatter` copy per write
     planes: list[torch.Tensor] = []
     volume = xc.new_empty((b, channels, d, h, w), dtype=dtype) if not exporting else None
     xs = torch.arange(w, device=xc.device, dtype=torch.float32).view(1, 1, w)

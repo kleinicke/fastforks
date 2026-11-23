@@ -23,6 +23,7 @@ from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import base_type, override
 from fastforks._core.sampling import grid_sample
+from fastforks._core.tracing import EXPORTING_FOR_MLX
 from fastforks.interpolation._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared import mlx_wrap
@@ -173,8 +174,8 @@ def _interpolate(  # noqa: PLR0913, PLR0915 - upstream's forward, one loop over 
     b, _, h, w = x.shape
     feat = torch.cat((net.encode(x[:, :3]), net.encode(x[:, 3:6])), 0)  # per image, as upstream (faster than batched)
     nf = feat.shape[1]
-    exporting = torch.compiler.is_exporting()  # a graph (MLX): concatenations, not in-place writes (each a full copy)
-    if exporting:
+    exporting = EXPORTING_FOR_MLX.get()  # the MLX graph: concatenations, not in-place writes (each a full copy)
+    if exporting or torch.compiler.is_exporting():  # any export: no fake tensors in the cache
         cache = None
     src = _sources(x, feat, exporting=exporting)  # both sides' image + features, side-major, float32
     del feat

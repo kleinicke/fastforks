@@ -1,6 +1,7 @@
 from __future__ import print_function
 import torch
 from fastforks.stereo._volume import concat_fn, stacked_volume
+from fastforks._core.tracing import EXPORTING_FOR_MLX  # fastforks
 import torch.nn as nn
 import torch.utils.data
 import torch.nn.functional as F
@@ -27,7 +28,7 @@ def disparity_regression(x, disp_values):
 
 
 def build_concat_volume(refimg_fea, targetimg_fea, maxdisp):
-    if torch.compiler.is_exporting():
+    if EXPORTING_FOR_MLX.get():
         return stacked_volume(refimg_fea, targetimg_fea, maxdisp, concat_fn)
     B, C, H, W = refimg_fea.shape
     volume = refimg_fea.new_zeros([B, 2 * C, maxdisp, H, W])
@@ -52,7 +53,7 @@ def groupwise_correlation(fea1, fea2, num_groups):
 
 
 def build_gwc_volume(refimg_fea, targetimg_fea, maxdisp, num_groups):
-    if torch.compiler.is_exporting():
+    if EXPORTING_FOR_MLX.get():
         return stacked_volume(
             refimg_fea, targetimg_fea, maxdisp, lambda a, b: groupwise_correlation(a, b, num_groups)
         )
