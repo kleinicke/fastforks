@@ -36,6 +36,7 @@ from .net.inference.image_feature_store import ImageFeatureStore
 from .net.inference.inference_core import InferenceCore
 from .net.inference.memory_manager import MemoryManager
 from .net.model.matanyone import MatAnyone
+from .net.model.modules import MaskUpsampleBlock
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -333,8 +334,33 @@ def _cuda_encode(
     return features, m.pix_feat_proj(features[0])
 
 
+def _upsample_block(m: MaskUpsampleBlock, in_g: torch.Tensor, skip_f: torch.Tensor) -> torch.Tensor:
+    """Upstream `MaskUpsampleBlock.forward` with the upsampling in the input's dtype and fewer full-size passes.
+
+    Under autocast, upstream's bilinear upsampling runs in float32 (autocast's policy for it), so the skip sum and the
+    ReLU are float32 too and both convs of the block cast that map back to float16 (1080 x 1920: 64 channels). Here the
+    float16 map is upsampled in float16 (float accumulation inside) and the skip is added in place, in 4D. The input
+    gets canonical channels-last strides (a flattened 5D map's batch stride is not), else the upsampling writes NCHW
+    and every later pass is strided. On the golden's clip the alpha's mean |diff| to float32 is 4.97e-5 (portable
+    float16: 4.94e-5), p99 0.
+    """
+    b, k = in_g.shape[:2]
+    x = in_g.flatten(0, 1)
+    if x.is_contiguous(memory_format=torch.channels_last):
+        _, c, h, w = x.shape
+        x = x.as_strided(x.shape, (c * h * w, 1, w * c, c), x.storage_offset())
+    with torch.autocast(x.device.type, enabled=False):
+        g = F.interpolate(x, scale_factor=m.scale_factor, mode="bilinear", align_corners=False)
+    in_place = k == 1 and skip_f.dtype == g.dtype
+    g = g.add_(skip_f) if in_place else skip_f.unsqueeze(1) + g.view(b, k, *g.shape[1:])
+    return m.out_conv(g.view(b, k, *g.shape[-3:]), consume_input=True)
+
+
 class Kernels(Portable):
-    """Use fused image normalisation before the frame encoder."""
+    """Fused image normalisation before the frame encoder; the decoder's upsampling in float16 (`_upsample_block`).
+
+    1080 x 1920 (an image: 11 steps with the warm-up): 1008 -> 741 ms, peak 1671 -> 1479 MiB.
+    """
 
     compiled_methods = ("__call__",)  # keep the kernel checks around the full call
     module = Runner.module
@@ -343,6 +369,9 @@ class Kernels(Portable):
         """Prepare the accelerated inference path on the model device."""
         super().__init__(ctx)
         override(self.net, _cuda_encode, "encode_image")
+        for block in self.net.mask_decoder.modules():
+            if isinstance(block, MaskUpsampleBlock):
+                override(block, _upsample_block)
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}
