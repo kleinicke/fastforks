@@ -18,6 +18,11 @@ it has completed, so a long queue of stages keeps every stage's temporaries aliv
 of 10-512 MB with 1 GB heaps (counted whole in the process footprint): a synchronize between big stages lets the next
 stage reuse the last one's memory (vitmatte-s at 1080p: 3.7 -> 2.6 GB, same speed).
 
+`release` is `fence` plus `torch.mps.empty_cache()`: the allocator's cached buffers count against the MPS limit, and
+a stage with different shapes cannot reuse them (DepthFM at 1024x1472: 5 GiB cached after the VAE encoder).
+
+`attention` is `scaled_dot_product_attention` in query blocks: MPS materialises the whole score matrix.
+
 `quiet_nd_padding` silences MPS's note that it pads tensors of more than 3 dimensions as view ops (slower, not wrong).
 """
 
@@ -27,6 +32,7 @@ import atexit
 import contextlib
 import functools
 import itertools
+import math
 import warnings
 from typing import TYPE_CHECKING, cast
 
@@ -293,6 +299,41 @@ def fence(t: torch.Tensor) -> torch.Tensor:
     if t.device.type == "mps" and not (torch.compiler.is_compiling() or torch.jit.is_tracing()):
         torch.mps.synchronize()
     return t
+
+
+def release(t: torch.Tensor) -> torch.Tensor:
+    """`fence`, then hand the buffers MPS keeps cached back to the system when `t` is on MPS (eager, no grad); `t`.
+
+    The cache is counted against the MPS memory limit and is only reused by requests of a matching size: a stage
+    with other shapes than the last one (an encoder, then attention blocks or a correlation volume) allocates on top
+    of it and runs out of memory with gigabytes cached. A call costs about a millisecond plus the reallocation: use
+    it between the big stages of a call, not inside loops.
+    """
+    if t.device.type == "mps" and not (
+        torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled()
+    ):
+        torch.mps.synchronize()
+        torch.mps.empty_cache()
+    return t
+
+
+ATTENTION_SCORE_BYTES = 512 << 20
+"""Score bytes per query block of `attention`."""
+
+
+def attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, scale: float | None = None) -> torch.Tensor:
+    """`F.scaled_dot_product_attention`; on MPS (eager) in query blocks of `ATTENTION_SCORE_BYTES` of scores.
+
+    MPS materialises the scores and their softmax outside PyTorch's allocator ("other allocations"): one head of
+    32400 tokens (1080 x 1920 at 1/8) is 2 x 4 GiB in float32. Captured graphs keep the single op.
+    """
+    row = math.prod(q.shape[:-2]) * k.shape[-2] * q.element_size()  # bytes of one query's scores
+    capture = torch.compiler.is_compiling() or torch.jit.is_tracing()
+    if q.device.type != "mps" or capture or q.shape[-2] * row <= ATTENTION_SCORE_BYTES:
+        return F.scaled_dot_product_attention(q, k, v, scale=scale)
+    block = max(1, ATTENTION_SCORE_BYTES // row)
+    parts = [F.scaled_dot_product_attention(part, k, v, scale=scale) for part in q.split(block, dim=-2)]
+    return torch.cat(parts, dim=-2)
 
 
 @functools.cache
