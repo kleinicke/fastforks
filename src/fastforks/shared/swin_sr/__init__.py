@@ -212,6 +212,13 @@ def window_attention(  # noqa: PLR0913 - the block's projections, head count, sc
         out = _border_attention(q, k, v, add, mask, scale=scale)
         del q, k, v
     else:
+        step = _mps_step(q, k) if mask is not None and mask.shape[0] == b_ else 0
+        if step:  # the summed bias + mask is as large as the scores: made per block of windows too
+            parts = [
+                attention(q[i : i + step], k[i : i + step], v[i : i + step], add + mask[i : i + step, None], scale)
+                for i in range(0, b_, step)
+            ]
+            return proj(torch.cat(parts).transpose(1, 2).reshape(b_, n, heads * d))
         if mask is not None:
             nw = mask.shape[0]
             add = add + mask.to(q.dtype)[:, None]
@@ -221,8 +228,33 @@ def window_attention(  # noqa: PLR0913 - the block's projections, head count, sc
     return proj(out.transpose(1, 2).reshape(b_, n, heads * d))
 
 
+MPS_SCORE_BYTES = 512 << 20
+"""Score bytes per window block of an MPS attention: its SDPA materialises the scores, the masked scores and the
+softmax (HAT 512 x 512 float32: 1.5 GiB each in the window attention, 3.4 GiB in the overlapping one)."""
+
+
+def _eager() -> bool:
+    return not (
+        torch.compiler.is_compiling()
+        or torch.jit.is_tracing()
+        or torch.compiler.is_exporting()
+        or torch.is_grad_enabled()
+    )
+
+
+def _mps_step(q: torch.Tensor, k: torch.Tensor) -> int:
+    """Windows per block of an eager MPS attention over `MPS_SCORE_BYTES` of scores, else 0 (one call)."""
+    if q.device.type != "mps" or not _eager():
+        return 0
+    window = q[0].numel() // q.shape[-1] * k.shape[-2] * q.element_size()  # bytes of one window's scores
+    return max(1, MPS_SCORE_BYTES // window) if q.shape[0] * window > MPS_SCORE_BYTES else 0
+
+
 def attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor, scale: float) -> torch.Tensor:
     """`scaled_dot_product_attention(q, k, v, attn_mask=mask, scale=scale)`, head size padded to a multiple of 8 (CUDA).
+
+    On MPS an eager call whose scores exceed `MPS_SCORE_BYTES` runs in blocks of windows (traced graphs, the MLX port
+    among them, keep the single op).
 
     Zero q / k columns add nothing to the scores, the zero v columns are cut off. Inputs whose head dimension is
     strided are copied: the fused kernels need it contiguous, else SDPA falls back to the unfused math path (HAT-S
@@ -234,6 +266,18 @@ def attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Ten
         q, k, v = (F.pad(t, (0, pad)) for t in (q, k, v))
     else:
         q, k, v = (t if t.stride(-1) == 1 else t.contiguous() for t in (q, k, v))
+    n = q.shape[0]
+    step = _mps_step(q, k)
+    if step:
+        each = mask.shape[0] == n  # else one mask for every window
+        parts = [
+            F.scaled_dot_product_attention(
+                q[i : i + step], k[i : i + step], v[i : i + step], attn_mask=mask[i : i + step] if each else mask,
+                scale=scale,
+            )
+            for i in range(0, n, step)
+        ]  # fmt: skip
+        return torch.cat(parts)
     out = F.scaled_dot_product_attention(q, k, v, attn_mask=mask, scale=scale)
     return out[..., :d] if pad else out
 

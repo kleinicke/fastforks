@@ -27,6 +27,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.mps import release
 from fastforks._core.patch import is_base, override
 from fastforks._core.tracing import in_onnx_export
 from fastforks.kernels import cudnn_hacc
@@ -138,6 +139,7 @@ def _overlap_attention(m: OCAB, q: torch.Tensor, padded: torch.Tensor, size: tup
 def _ocab(m: OCAB, x: torch.Tensor, x_size: tuple[int, int], rpi: torch.Tensor) -> torch.Tensor:
     """`OCAB.forward` (overlapping cross-attention) with the bias gathered at load and one SDPA call."""
     del rpi
+    release(x)  # MPS, once per group: the window attention's cached score blocks do not fit this one's
     h, w = x_size
     b, _, dim = x.shape
     c = m.qkv.out_features // 3  # dim, or heads x the padded head size (`pad_heads`)
