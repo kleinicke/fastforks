@@ -105,6 +105,10 @@ def deferred_init() -> Generator[None]:
     """Build and load a network inside this block: initialisers run only for tensors still unwritten at its end.
 
     Nested blocks on one thread share the outer block's record. If the block raises, nothing is initialised.
+
+    Inference mode is off inside the block (as in a plain script): a tensor made in it is an inference tensor, which
+    has no version counter to check, so its initialiser would run at once. ComfyUI runs its nodes, and so their model
+    loads, in inference mode.
     """
     if getattr(_local, "pending", None) is not None:
         yield
@@ -113,7 +117,8 @@ def deferred_init() -> Generator[None]:
     _install()
     _local.pending = pending
     try:
-        yield
+        with torch.inference_mode(mode=False):
+            yield
     finally:
         del _local.pending
         _uninstall()

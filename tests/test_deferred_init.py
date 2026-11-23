@@ -43,6 +43,23 @@ def test_loaded_tensors_skip_the_fill(monkeypatch: pytest.MonkeyPatch) -> None:
     assert torch.nn.init.kaiming_uniform_ is original
 
 
+def test_a_block_inside_inference_mode_still_defers(monkeypatch: pytest.MonkeyPatch) -> None:
+    """ComfyUI loads models inside `torch.inference_mode()`: the build still skips the fill of loaded tensors."""
+    calls = []
+    original = torch.nn.init.kaiming_uniform_
+    monkeypatch.setattr(torch.nn.init, "kaiming_uniform_", lambda t, *a, **k: calls.append(t) or original(t, *a, **k))
+    sd = _reference().state_dict()
+    calls.clear()
+    with torch.inference_mode(), deferred_init():
+        net = _Net()
+        net.load_state_dict(sd)
+    assert not calls
+    for k, v in net.state_dict().items():
+        assert torch.equal(v, sd[k]), k
+    with torch.inference_mode():
+        assert net.lin(torch.rand(2, 8)).shape == (2, 4)
+
+
 def test_unloaded_tensors_are_initialised() -> None:
     sd = {k: v for k, v in _reference().state_dict().items() if k not in {"extra", "lin.bias"}}
     with deferred_init():
