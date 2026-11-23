@@ -1,10 +1,10 @@
 """ComfyUI nodes over the public fastforks API: `fastforks.load(id)` once, then call the model per image.
 
-Every node takes a model id, a backend (`auto` / `portable` / `kernels`, plus `mlx` / `mlx portable` on a Mac with MLX)
-and a dtype. Loaded models stay cached across
-runs on ComfyUI's device. When ComfyUI (or a node loading another model) needs memory, the least recently used
-ones go first (`make_room`); `_MAX_CACHED` only bounds how many are kept. ComfyUI's "Unload models" also empties the
-cache. ComfyUI is imported lazily so the module imports without it (unit tests).
+Every node takes a model id, a backend (`auto` / `portable` / `kernels` / `mlx`, the same list on every platform) and a
+dtype. Loaded models stay cached across runs on ComfyUI's device. When ComfyUI (or a node loading another model)
+needs memory, the least recently used ones go first (`make_room`); `_MAX_CACHED` only bounds how many are kept.
+ComfyUI's "Unload models" also empties the cache. ComfyUI is imported lazily so the module imports without it (unit
+tests).
 
 Two packs share this module (one copy, `fastforks_comfyui.nodes`): the default pack `fastforks` (this folder,
 `mappings()`) lists every model, non-commercial ones tagged, and runs its nodes inside `registry.allow_noncommercial()`
@@ -21,7 +21,6 @@ import difflib
 import functools
 import gc
 import hashlib
-import importlib.util
 import json
 import logging
 import os
@@ -52,14 +51,10 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("fastforks.comfyui")
 
-MLX_BACKENDS = ["mlx", "mlx portable"]  # Apple silicon with the `mlx` package: the same net through MLX instead of MPS
-
-
-def _has_mlx() -> bool:
-    return sys.platform == "darwin" and importlib.util.find_spec("mlx") is not None
-
-
-BACKENDS = ["auto", "portable", "kernels", *(MLX_BACKENDS if _has_mlx() else [])]
+# The same four entries on every platform, so a saved workflow validates everywhere; `kernels` and `mlx` fail with a
+# message where the model or the machine cannot run them. `mlx`: the model's Apple MLX port (`device="mlx"`).
+BACKENDS = ["auto", "portable", "kernels", "mlx"]
+_OLD_BACKENDS = {"mlx portable": "mlx"}  # entries of earlier versions: workflows saved with them still load
 DTYPES = ["auto", "float32", "float16", "bfloat16"]
 _TAGS = {"no": " [non-commercial]", "unclear": " [licence unclear]"}
 _MAX_CACHED = 8  # memory decides first (`make_room`): a workflow cycling a few nodes reloads none
@@ -88,17 +83,19 @@ _COMMERCIAL_TIP = (
     " licences."
 )
 _BACKEND_TIP = (
-    "auto: our CUDA / Metal kernels where they are faster, else portable PyTorch (on a Mac it picks MPS or MLX per"
-    " model, as measured). portable: plain PyTorch (any device; MPS on a Mac, which starts quickly)."
-    " kernels: our hand-written kernels only (CUDA on NVIDIA under Linux or Windows x86-64; Metal on Apple silicon"
-    " for the models that have them); a model without them fails with a message."
-    " mlx (Apple silicon): Apple's MLX instead of MPS, with our Metal kernels where the port has them. It often needs"
-    " less memory (try it when MPS runs out of memory), but each new input size compiles once, so its first call is"
-    " slow (kept on disk for the next start). mlx portable: MLX without the kernels."
-    " Models without an MLX port fail with a message."
+    "auto: what measured fastest on this machine. Our CUDA kernels where they are faster, else portable PyTorch; on a"
+    " Mac plain PyTorch MPS, our Metal kernels or the model's MLX port, per model. portable: plain PyTorch (any"
+    " device; MPS on a Mac, which starts quickly). kernels: our hand-written kernels only (CUDA on NVIDIA under Linux"
+    " or Windows x86-64; Metal on Apple silicon for the models that have them); a model without them fails with a"
+    " message. mlx (Apple silicon only): Apple's MLX instead of PyTorch MPS, with our Metal kernels where the port"
+    " has them and they are faster. It often needs less memory (try it when MPS runs out of memory), but each new"
+    " input size compiles once, so its first call is slow (kept on disk for the next start). Models without an MLX"
+    " port, and other machines, fail with a message."
 )
 _DTYPE_TIP = (
-    "auto: the validated dtype of the backend (on mlx: the fastest one measured on a Mac, often float16)."
+    "auto: the dtype fastforks picks for the backend. portable: float32. kernels: the kernels' own (often float16)."
+    " On a Mac, backend auto and mlx take the fastest validated one measured there, often float16; pick float32"
+    " here for full precision."
     " Others are checked against the model card at load."
 )
 
@@ -345,13 +342,13 @@ def _file(mid: str) -> Path | None:
 
 
 def describe_backend(b: Any) -> str:  # noqa: ANN401 - fastforks.Backend
-    """What ran, in a node's words: e.g. "mlx, float16, kernels dpt_mlx" or "mps, float32, portable"."""
+    """What ran, in a node's words: e.g. "mlx, float16, kernels dpt_mlx" or "mps, float16, portable"."""
     if not hasattr(b, "kernels"):  # a stand-in model (tests) or an older fastforks
         return str(b)
     names = ", ".join(k.split("@", 1)[0] for k in b.kernels)
     if names:
         return f"{b.device}, {b.dtype}, kernels {names}"
-    return f"{b.device}, {b.dtype}, {'MLX graph' if b.mode != 'portable' and b.device == 'mlx' else b.mode}"
+    return f"{b.device}, {b.dtype}, {b.mode}"
 
 
 def _locked(fn: Callable[_P, _R]) -> Callable[_P, _R]:
@@ -370,6 +367,7 @@ def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = 
     """The cached model, or load it on ComfyUI's device after asking ComfyUI to free room for it."""
     mm = _mm()
     device = mm.get_torch_device()
+    backend = _OLD_BACKENDS.get(backend, backend)
     mid = model_id(label)
     file = _file(mid)
     version = file.stat().st_mtime if file else None  # a replaced file loads again
@@ -382,8 +380,8 @@ def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = 
         gc.collect()
         mm.soft_empty_cache()
     kw: dict[str, Any] = {"mode": backend, "device": device, "dtype": None if dtype == "auto" else dtype}
-    if backend in MLX_BACKENDS:
-        kw.update(mode="portable" if backend.endswith("portable") else "auto", device="mlx")
+    if backend == "mlx":  # the port's fastest measured mode and dtype
+        kw.update(mode="auto", device="mlx")
     with node_errors():  # `_weights_bytes` already raises for an id that is not installed
         if not file and _COMMERCIAL_RUN.get() and _only_full(mid):  # e.g. a linked `model` input: not validated
             msg = f"{mid} {ONLY_FULL}."
@@ -724,7 +722,7 @@ def memory_error(error: RuntimeError, backend: str = "auto") -> torch.OutOfMemor
     elif not any(k in text.lower() for k in _OOM_MARKERS):
         return None
     advice = "use smaller images or fewer frames, a smaller batch_size or tile where the node has one"
-    if backend not in MLX_BACKENDS and "metal::malloc" not in text:
+    if _OLD_BACKENDS.get(backend, backend) != "mlx" and "metal::malloc" not in text:
         advice += ", or try backend=mlx (Apple silicon: it often needs less memory than MPS)"
     return torch.OutOfMemoryError(
         f"out of memory ({text.splitlines()[0][:120]}): {advice}; closing other apps frees memory too"
@@ -786,14 +784,16 @@ class _Node:
         return (m for m in ids if cls.lists(m) and (not only or commercial(m)))
 
     @classmethod
-    def VALIDATE_INPUTS(cls, model: str | None = None) -> bool | str:  # noqa: N802 - ComfyUI's name
-        """ComfyUI's check of the `model` widget, in place of its "Value not in list".
+    def VALIDATE_INPUTS(cls, model: str | None = None, backend: str | None = None) -> bool | str:  # noqa: N802
+        """ComfyUI's check of the `model` and `backend` widgets, in place of its "Value not in list".
 
         Accepts a listed entry, or the same id with another licence tag (workflows saved before a tag changed). For
         any other value (a workflow from another install) returns why: in fastforks-commercial a model only the
         fastforks pack offers, else an id that is not installed or unknown. `None`: linked or absent, checked when the
-        node runs (`load`).
+        node runs (`load`). `backend`: a listed entry, or one of an earlier version (`_OLD_BACKENDS`; `load` maps it).
         """
+        if backend is not None and backend not in BACKENDS and backend not in _OLD_BACKENDS:
+            return f"backend must be one of {', '.join(BACKENDS)}, got {backend!r}"
         spec = cls.INPUT_TYPES()["required"].get("model")
         if model is None or spec is None:
             return True

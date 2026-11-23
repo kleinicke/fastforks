@@ -341,11 +341,13 @@ reference code is recorded (the "Parity" rows of the model pages).
 |---|---|---|
 | `"portable"` | CPU, CUDA, Apple silicon ([MPS](#apple-silicon-mps)), other PyTorch devices where the network's ops exist | the original network in plain PyTorch, checked against the reference |
 | `"kernels"` (CUDA) | NVIDIA GPU, compute capability >= 8.0, driver >= 570 | our CUDA kernels, faster than portable ([benchmarks](benchmarks.md) per model); memory is similar, sometimes higher. Raises `BackendUnavailableError` (its subclass `KernelUnavailableError` for a missing GPU or binary) with the reason if it cannot run here; never falls back silently |
-| `"kernels"` (Metal) | Apple silicon, macOS, the families listed under [Apple silicon](#apple-silicon-mps) | Metal kernels, compiled on the device on first use; same error behaviour |
+| `"kernels"` (Metal) | Apple silicon, macOS, the families listed under [Apple silicon](#apple-silicon-mps) | Metal kernels, compiled on the device on first use; same error behaviour: a family without them raises `BackendUnavailableError` on `device="mps"`, it is never replaced by MLX |
 | either, with `device="mlx"` | Apple silicon, the `mlx` extra, the families with an [MLX port](#apple-silicon-mlx) | the same network through Apple's MLX instead of PyTorch MPS; `kernels` adds Metal kernels run by MLX. A family without a port raises `BackendUnavailableError` |
-| `"auto"` (default) | anywhere | `kernels` if it can run and the recorded measurements prefer it for this model, else `portable` (a few plain ViT classifiers gain nothing from kernels); the choice is logged once per load (WARNING if kernels fails on a CUDA device, else INFO) and recorded in `result.backend` |
+| `"auto"` (default) | anywhere | `kernels` if it can run and the recorded measurements prefer it for this model, else `portable` (a few plain ViT classifiers gain nothing from kernels); on `device="mps"` it may also take the model's MLX port ([what auto picks on a Mac](#what-auto-picks-on-a-mac)). The choice is logged once per load (WARNING if kernels fails on a CUDA device, else INFO) and recorded in `result.backend` |
 
-`mode` selects the backend; the result's `result.backend` (and `.mode`) reports which one ran.
+`mode` selects the backend; the result's `result.backend` (and `.mode`) reports which one ran. An explicit
+`"portable"` or `"kernels"` is strict: it runs exactly that on the device you named, or raises. Only `"auto"`
+chooses.
 
 `fastforks bench MODEL` times all of this on your machine (see below).
 
@@ -758,11 +760,15 @@ Time and memory per model on an M1 Pro: [Apple M1 Pro](devices/apple-m1-pro-16gb
 
 ### What auto picks on a Mac
 
-On Apple silicon, use `device="mps"` for both public modes.
+`device` and `mode` are independent, and an explicit mode never changes the engine:
 
-- `portable` runs the PyTorch MPS model.
-- `kernels` uses the family's native MPS Metal runner where it has one for the request, else its MLX port.
-  Explicitly requesting an unavailable implementation raises an error.
+| Request | What runs |
+|---|---|
+| `device="mps", mode="portable"` | the PyTorch MPS model, in float32 unless you pass a `dtype` |
+| `device="mps", mode="kernels"` | the family's Metal kernels through PyTorch MPS; `BackendUnavailableError` if it has none (the message names `mode="auto"` and, where a port exists, `device="mlx"`) |
+| `device="mlx"` | the family's [MLX port](#apple-silicon-mlx), with `mode` and `dtype` as elsewhere |
+| `device="mps", mode="auto"` (the default) | whichever of these measured best for the model |
+
 - `auto` takes the fastest and leanest measured path of the model: portable MPS in float32 or float16, the Metal
   kernels, or the MLX port. The table (M1 Pro survey) only holds runs whose golden reference check passed, in a dtype
   the card validates, so float16 is taken as on CUDA: wherever it is validated and pays. Each step up (float32 ->
@@ -777,16 +783,19 @@ On Apple silicon, use `device="mps"` for both public modes.
   Without the `mlx` package, `auto` takes the best PyTorch MPS path the same way.
 
 Results of a call are MPS tensors and `model.device` is `mps`, so tensors built on `model.device` combine with them;
-other methods (`video()`, sessions) of an MLX implementation return CPU tensors. An MLX implementation reports
-`backend.mode == "kernels"` and `backend.device == "mlx"`.
-Set `FASTFORKS_MLX=0` to run only PyTorch MPS implementations. On RoMa v2 this gives access to the float32
-Metal correlation kernel with `mode="kernels"`.
+other methods (`video()`, sessions) of an MLX implementation return CPU tensors. `backend` reports what runs: an
+MLX port that `auto` took has `backend.device == "mlx"`, and `backend.mode` is `"portable"` (plain MLX operations,
+`backend.kernels` empty) or `"kernels"` (with the names of the Metal kernels MLX runs in `backend.kernels`). If that
+port fails at a call (an operation it lacks, or out of memory), the model falls back to PyTorch MPS once, with a
+warning, and `backend` changes with it.
+Set `FASTFORKS_MLX=0` to keep `auto` on PyTorch MPS.
 
 ## Apple silicon (MLX)
 
 **Choosing MLX.** `device="mps"` picks MLX for you only where it is measured faster or leaner *and* its first call
 is cheap (see [What auto picks on a Mac](#what-auto-picks-on-a-mac)). To use MLX anywhere else, pass
-`device="mlx"` (any family with a port, `mode="portable"` or `"kernels"`): it is often leaner, but the first call
+`device="mlx"` (any family with a port; `mode="portable"`, or `"kernels"` where the port has kernels): it is often
+leaner, but the first call
 at each input size compiles the network (seconds for large inputs, see "First call" below). Loading with
 `device="mps"` logs at INFO when an MLX port exists. `fastforks info MODEL` lists it as `apple mlx`.
 
@@ -809,11 +818,13 @@ print(model.backend.mode, model.backend.device, model.backend.kernels)  # kernel
   The DINOv2 and DINOv3 ViTs, DINOv2 ImageNet classification and ADE20K segmentation heads, TIPSv2 and C-RADIOv3
   support portable MLX. RoMa v2 dense matching supports portable and kernels modes in float32. Any other family raises
   `BackendUnavailableError`; nothing falls back to MPS. Without the `mlx` package `load` raises
-  `MissingDependencyError` with the pip command. With `device="mps"`, `load` also takes a port on its own where it
-  was measured faster (see [What auto picks on a Mac](#what-auto-picks-on-a-mac)).
+  `MissingDependencyError` with the pip command. With `device="mps"`, `mode="auto"` also takes a port on its own
+  where it was measured faster (see [What auto picks on a Mac](#what-auto-picks-on-a-mac)); `mode="portable"` and
+  `mode="kernels"` never do.
 - `mode`: `portable` is the network in plain MLX operations, `kernels` adds Metal kernels that MLX runs
-  (`mx.fast.metal_kernel`; compiled on the device on first use, nothing to download). `auto` takes `kernels` where
-  the port has them at the dtype (logged at INFO).
+  (`mx.fast.metal_kernel`; compiled on the device on first use, nothing to download) and raises
+  `BackendUnavailableError` for a port without kernels. `auto` takes `kernels` where the port has them at the dtype
+  (logged at INFO).
 - `dtype`: float32 or float16, as the card lists them; other dtypes raise `OptionsError`. Without a `dtype` (and
   with `mode="auto"`, or the mode it measured fastest in), a model measured on the M1 Pro runs in its fastest passing
   mode and dtype (often float16, logged at INFO); an unmeasured one in float32. Both are checked

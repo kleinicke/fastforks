@@ -23,7 +23,7 @@ the fastforks pack's nodes (every model) are used: remove or disable one of them
 
 - ComfyUI-Manager or the Comfy registry: `comfy node install fastforks-commercial`, then restart ComfyUI.
 - On Apple silicon the requirements include Apple's `mlx` (an environment marker; nothing on other platforms),
-  which `auto`, `kernels` and the `mlx` backends use.
+  which the `auto` and `mlx` backends use.
 - From a fastforks clone (see [docs/comfyui.md](../../docs/comfyui.md#install)): link this folder into
   `ComfyUI/custom_nodes` (it finds the nodes in `integrations/comfyui` next to it) and install its requirements with
   ComfyUI's Python:

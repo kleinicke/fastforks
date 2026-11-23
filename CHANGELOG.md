@@ -9,10 +9,14 @@ No model family is new in this release; the changes are backends, platforms and 
 - MLX backend: `load(..., device="mlx")` runs the families that have a port through Apple's MLX
   (`pip install "fastforks-core[mlx]"`; `mode="portable"` or `"kernels"`, float32 or float16). A family without a port
   raises `BackendUnavailableError`, a missing `mlx` package `MissingDependencyError`; nothing falls back.
-- `device="mps"` now takes the MLX port where it was measured faster or leaner and its first call is cheap
-  (`mode="auto"`, logged at INFO), and for `mode="kernels"` where the family has no faster native Metal kernels. Such a
-  model reports `backend.device == "mlx"`; results of a call come back as MPS tensors and `model.device` is `mps`.
-  `FASTFORKS_MLX=0` keeps every load on PyTorch MPS. See "MPS takes the faster port" in `docs/usage.md`.
+- `device="mps"` with `mode="auto"` now takes the MLX port where it was measured faster or leaner and its first call
+  is cheap (logged at INFO). Such a model reports what runs: `backend.device == "mlx"`, and `backend.mode` is
+  `"portable"` or `"kernels"` with the kernel names in `backend.kernels`; results of a call come back as MPS tensors and
+  `model.device` is `mps`. `FASTFORKS_MLX=0` keeps `auto` on PyTorch MPS. See "What auto picks on a Mac" in
+  `docs/usage.md`.
+- Explicit modes are strict, as in 0.2.0: `mode="portable"` and `mode="kernels"` on `device="mps"` never run MLX.
+  `mode="kernels"` runs the family's Metal kernels or raises `BackendUnavailableError`, naming `mode="auto"` and
+  `device="mlx"`. `device="mlx"` is the explicit choice of MLX.
 
 ### Windows
 
@@ -24,6 +28,9 @@ No model family is new in this release; the changes are backends, platforms and 
 - Two node packs in `integrations/`: `comfyui` (every model) and `comfyui-commercial` (only models cleared for
   commercial use, no Parse node): 20 nodes, one per task, with a model dropdown and automatic weight download (`docs/comfyui.md`).
   Both require fastforks 0.2.1; on Apple silicon their requirements also install `mlx`.
+- The `backend` dropdown has the same four entries on every platform: `auto`, `portable`, `kernels`, `mlx` (the model's
+  MLX port, Apple silicon only), so a saved workflow validates everywhere. An entry the machine or the model cannot run
+  fails with a message. A workflow saved with the earlier `mlx portable` entry loads as `mlx`.
 
 ### API changes
 

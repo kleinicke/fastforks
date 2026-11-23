@@ -43,9 +43,9 @@ python_embeded\python.exe -m pip install -r ComfyUI\custom_nodes\comfyui-fastfor
 ComfyUI-Manager's "Install via Git URL" clones the root, which is not a node pack.
 
 Apple silicon: both packs' requirements also install Apple's `mlx` there (an environment marker; nothing on other
-platforms). With it `auto` runs a model through its MLX port where that is faster than PyTorch MPS, `kernels` has
-the Metal kernels of the ports, and the `mlx` backends are listed. A source install has it with
-`pip install -e "./fastforks[libs,mlx]"`. Without `mlx` every model still runs on MPS with `auto` and `portable`.
+platforms). With it `auto` runs a model through its MLX port where that is faster than PyTorch MPS, and the `mlx`
+backend works. A source install has it with `pip install -e "./fastforks[libs,mlx]"`. Without `mlx` every model
+still runs on MPS with `auto` and `portable`, and `mlx` fails with the pip line.
 
 Windows: the `kernels` backend works like on Linux (the DLLs download once, like the weights, and need no C++ toolchain). A
 library without a Windows build makes `kernels` fail for that model and `auto` run portable, with one warning per model load. Paths stay short: the cache adds at most ~110 characters
@@ -77,13 +77,21 @@ so a ComfyUI folder below ~140 characters needs no long-path setting.
 | Upscale / restore | IMAGE, tile (input px, 32 px overlap; 0 = one pass; keep it on for HAT / DAT) | IMAGE |
 | Restore faces (GFPGAN, CodeFormer) | IMAGE; optional `faces`: `detect and paste back` (each face RetinaFace finds is aligned to facexlib's 512 x 512 template, restored and blended back with facexlib's soft mask), `aligned crops` (512 x 512 FFHQ-aligned crops), `auto` (crops for 512 x 512 images, else detect); optional `fidelity` (CodeFormer's `w`, 0.5) | IMAGE |
 
-Every node has `model`, `backend` and `dtype` (`auto`: the validated one). `backend`:
+Every node has `model`, `backend` and `dtype`. `dtype` `auto` is what fastforks picks for the backend: float32 for
+`portable`, the kernels' own dtype for `kernels` (often float16), and on a Mac the fastest validated one measured for
+`auto` and `mlx` (often float16, on plain MPS too); pick `float32` for full precision. `backend` has the same four
+entries on every platform, so a workflow saved on one machine validates on another:
 
-- `auto`: our CUDA / Metal kernels where they are faster, else portable PyTorch.
-- `portable`: plain PyTorch.
-- `kernels`: only our kernels, CUDA on NVIDIA or Metal on Apple silicon for the models that have them, else an error.
-- `mlx` / `mlx portable` (listed on a Mac with the `mlx` package, which the pack's requirements install): the model's MLX port instead of PyTorch MPS, with or
-  without our Metal kernels. It often needs less memory, but its first run of each image size compiles and is slower.
+| `backend` | Windows / Linux | Mac |
+|---|---|---|
+| `auto` | our CUDA kernels where they measured faster, else plain PyTorch | plain PyTorch MPS, our Metal kernels or the model's MLX port, as measured per model |
+| `portable` | plain PyTorch | plain PyTorch MPS |
+| `kernels` | our CUDA kernels; an error if the model has none | our Metal kernels; an error if the model has none (it never runs MLX) |
+| `mlx` | an error: it needs Apple silicon | the model's MLX port; an error with the pip line if the `mlx` package is missing, or if the model has no port |
+
+- `mlx` is the model's MLX port instead of PyTorch MPS, in its fastest measured configuration (with our Metal
+  kernels where the port has them and they are faster). It often needs less memory, but its first run of each image
+  size compiles and is slower.
   Measured on an M1 Pro over 277 models: about a third less memory (median), similar warm speed, first run 4.1 s
   against 0.7 s (median). On macOS the pack keeps that first-run work in `models/fastforks/mlx-plans`, so it is not
   repeated after a ComfyUI restart (set `FASTFORKS_MLX_PLAN_CACHE` to an empty value to turn this off). An
@@ -202,7 +210,7 @@ pack. The upscaling one compares with ComfyUI's own upscale-model node, which ne
 `models/upscale_models`. The backend comparison uses the three backends every platform lists and a model both packs
 have, so it loads everywhere. `make_workflows.py` regenerates them from a running server's `/object_info`.
 
-On a Mac with the `mlx` package the `backend` dropdown also lists `mlx` (Apple's MLX instead of MPS, with our Metal kernels where the family's port has them) and `mlx portable` (MLX without the kernels). A model without an MLX port fails with a message (none of the nodes' models lacks one today). Every new input size compiles once on MLX, so its first call is slow; `auto` already picks MLX where it wins. With `dtype` on `auto`, `mlx` runs in the fastest mode and dtype measured on the Mac (often float16, goldens checked).
+The fourth entry of the `backend` dropdown, `mlx`, is Apple's MLX instead of MPS (Apple silicon only; with our Metal kernels where the family's port has them and they are faster). A model without an MLX port fails with a message (none of the nodes' models lacks one today). Every new input size compiles once on MLX, so its first call is slow; `auto` already picks MLX where it wins. With `dtype` on `auto`, `mlx` runs in the fastest mode and dtype measured on the Mac (often float16, goldens checked).
 
 ### Comparison branches from other ComfyUI packs
 

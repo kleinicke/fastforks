@@ -219,7 +219,7 @@ class TestTuning:
 
 
 class TestMpsRouting:
-    """`load(device="mps")` takes the MLX port where `apple_mlx.json` says it is faster (`_mlx_for_mps`)."""
+    """`load(device="mps", mode="auto")` takes the MLX port where `apple_mlx.json` says so (`_mlx_for_mps`)."""
 
     @pytest.fixture(autouse=True)
     def mlx_on(self, monkeypatch):
@@ -248,29 +248,38 @@ class TestMpsRouting:
     def test_portable_stays_on_pytorch(self):
         assert self.route("crestereo-eth3d", mode="portable") is None
 
-    def test_kernels_takes_mlx_kernels(self):
-        assert self.route("crestereo-eth3d", mode="kernels") is None  # its Metal runner: only auto goes to MLX
-        assert self.route("crestereo-eth3d", mode="kernels", dtype="float32") == ("kernels", "float32")  # no fp32 Metal
-        assert self.route("depth-anything-v2-b", mode="kernels", task="depth") == ("kernels", "float16")  # dpt_mlx
-        assert self.route("dinov2-vits14", mode="kernels", task="features") == (
-            "portable",
-            "float16",
-        )  # kernels: more memory
-
-    def test_explicit_kernels_prefers_native_metal_without_timing_data(self, monkeypatch):
-        monkeypatch.setattr(core_model, "_apple_mlx", dict)
-        assert self.route("crestereo-eth3d", mode="kernels") is None
-        assert self.route("crestereo-eth3d", mode="kernels", dtype="float32") == ("kernels", "float32")
-
-    def test_measured_kernel_and_explicit_dtype(self, monkeypatch):
-        monkeypatch.setattr(core_model, "_apple_mlx", lambda: {"romav2@1": {"kernels": {"float32": "portable"}}})
-        assert self.route("romav2", mode="kernels", dtype="float32", task="matching") == ("portable", "float32")
-        monkeypatch.setattr(core_model.importlib.util, "find_spec", lambda _name: None)
+    def test_explicit_kernels_never_crosses_to_mlx(self, monkeypatch):
+        """Metal or an error: with or without a Metal runner, an MLX port, MLX kernels or a dtype Metal lacks."""
+        assert self.route("crestereo-eth3d", mode="kernels") is None  # Metal runner
+        assert self.route("crestereo-eth3d", mode="kernels", dtype="float32") is None  # no fp32 Metal: an error
+        assert self.route("depth-anything-v2-b", mode="kernels", task="depth") is None  # MLX kernels (dpt_mlx) only
+        assert self.route("dinov2-vits14", mode="kernels", task="features") is None  # a port without kernels
+        # a table that still lists explicit-kernels routes (older generator) is not read
+        monkeypatch.setattr(
+            core_model,
+            "_apple_mlx",
+            lambda: {"romav2@1": {"kernels": {"float32": "portable"}, "kernels_default": ["portable", "float32"]}},
+        )
+        assert self.route("romav2", mode="kernels", task="matching") is None
         assert self.route("romav2", mode="kernels", dtype="float32", task="matching") is None
 
-    def test_port_without_kernels_and_family_without_port(self):
-        assert self.route("dinov2-vits14", mode="kernels", task="features") == ("portable", "float16")
+    def test_family_without_port(self):
         assert self.route("matanyone", task="matting") is None
+
+    def test_kernels_on_mps_without_metal_raises_and_names_the_alternatives(self, monkeypatch):
+        if not torch.backends.mps.is_available():
+            pytest.skip("needs Apple MPS")
+        loaded = []
+        monkeypatch.setattr(core_model, "_load_mlx", lambda *_a, **_k: loaded.append(1))
+        for ref, task in (("dinov2-vits14", "features"), ("depth-anything-v2-b", "depth")):
+            card, variant = registry.resolve(task, ref)
+            assert card.portable_mlx_dtypes
+            assert not card.mps_kernel_libs
+            with pytest.raises(BackendUnavailableError, match="mode='auto' or 'portable' or device='mlx'"):
+                core_model.load_variant(task, card, variant, object, mode="kernels", device="mps")
+        assert not loaded
+        card, _ = registry.resolve("matting", "matanyone")  # no port: `device='mlx'` is not offered
+        assert core_model._mps_alternatives(card) == "mode='auto' or 'portable'"
 
     def test_off_by_env_and_without_mlx(self, monkeypatch):
         monkeypatch.setenv("FASTFORKS_MLX", "0")
@@ -778,7 +787,7 @@ class TestAutoFallback:
     def test_explicit_routes_and_other_errors_raise(self):
         calls = []
         with pytest.raises(RuntimeError, match="metal::malloc"):
-            self.model(calls)(1)  # `device="mlx"` / `mode="kernels"`: no fallback attached
+            self.model(calls)(1)  # `device="mlx"`: no fallback attached
         m = self.model(calls, fallback=True)
         m.error = ValueError("bad input")
         with pytest.raises(ValueError, match="bad input"):
@@ -800,26 +809,33 @@ class TestAutoFallback:
         with pytest.raises(RuntimeError, match="metal::malloc"):  # one attempt
             m(1)
 
-    def test_only_auto_loads_carry_the_fallback(self, monkeypatch):
+    def test_only_auto_loads_take_the_port_and_carry_the_fallback(self, monkeypatch):
         if not torch.backends.mps.is_available():
             pytest.skip("needs Apple MPS")
         card, variant = registry.resolve("stereo", "crestereo-eth3d")
         seen = []
 
-        def via_mlx(*_a, **_k):
-            return types.SimpleNamespace()
+        def load_mlx(*_a, **_k):
+            port = core_model.Model.__new__(core_model.Model)
+            port.device, port._result_device = torch.device("cpu"), None
+            port.backend = core_model.Backend("portable", "mlx", "float16")
+            return port
 
         def build(*_a, **k):
             seen.append(k["mode"])
             return "torch"
 
-        monkeypatch.setattr(core_model, "_mps_via_mlx", via_mlx)
+        monkeypatch.setenv("FASTFORKS_MLX", "1")
+        monkeypatch.setattr(core_model.importlib.util, "find_spec", lambda name: object() if name == "mlx" else None)
+        monkeypatch.setattr(core_model, "_load_mlx", load_mlx)
         monkeypatch.setattr(core_model, "_build", build)
         load = functools.partial(core_model.load_variant, "stereo", card, variant, object, device="mps")
-        assert not hasattr(load(mode="kernels"), "_mps_fallback")
+        assert load(mode="kernels") == "torch"  # explicit: PyTorch MPS, no port
+        assert load(mode="portable") == "torch"
+        assert seen == ["kernels", "portable"]
         m = load(mode="auto")
+        assert m.backend.device == "mlx"
         assert m._mps_fallback() == "torch"  # the PyTorch MPS load, not the MLX route again
-        assert seen
 
 
 def test_a_model_routed_from_mps_reports_the_device_of_its_results(monkeypatch):
@@ -838,4 +854,5 @@ def test_a_model_routed_from_mps_reports_the_device_of_its_results(monkeypatch):
     )
     assert m is port
     assert (m.device, m._device, m._result_device) == (mps, torch.device("cpu"), mps)
-    assert m.backend.device == "mlx"
+    # what runs, not a relabel: the port's own mode and kernels
+    assert (m.backend.device, m.backend.mode, m.backend.kernels) == ("mlx", "portable", ())

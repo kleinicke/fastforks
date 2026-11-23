@@ -214,8 +214,8 @@ def w02_backend_compare() -> WF:
     note(
         g,
         "Same model, three backends: auto (what fastforks picks on this machine), portable (plain PyTorch) and "
-        "kernels (our CUDA or Metal kernels where there are any). On a Mac with the mlx package the backend dropdown "
-        "also has mlx and mlx portable (Apple MLX): pick them in a copy of a branch. "
+        "kernels (our CUDA or Metal kernels where there are any). The fourth entry of the backend dropdown, mlx, is "
+        "the model's Apple MLX port (Apple silicon only): pick it in a copy of a branch on a Mac. "
         "Results should match; time and memory differ. "
         "Run the queue twice: the first run includes loading and compilation.",
     )

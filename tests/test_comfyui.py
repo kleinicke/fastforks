@@ -788,6 +788,43 @@ def test_load_keeps_models_while_memory_lasts(pack: Any, monkeypatch: pytest.Mon
     assert [k[0] for k in nodes._cache] == ["realesr-general-x4v3", "rtdetrv2-r18"]  # oldest dropped first
 
 
+def test_backend_dropdown_is_the_same_four_entries_everywhere(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`auto` / `portable` / `kernels` / `mlx` on every platform; `mlx` is `device="mlx"`, old entries still load."""
+    nodes, mm = pack.nodes, pack.mm
+    assert nodes.BACKENDS == ["auto", "portable", "kernels", "mlx"]
+    depth = nodes.Depth
+    assert depth.INPUT_TYPES()["required"]["backend"][0] == nodes.BACKENDS
+    for entry in (*nodes.BACKENDS, "mlx portable", None):  # "mlx portable": a workflow saved by an earlier version
+        assert depth.VALIDATE_INPUTS(backend=entry) is True, entry
+    assert depth.VALIDATE_INPUTS(backend="tensorrt") == (
+        "backend must be one of auto, portable, kernels, mlx, got 'tensorrt'"
+    )
+    tips = depth.INPUT_TYPES()["required"]
+    assert "mlx portable" not in tips["backend"][1]["tooltip"]
+    assert "On a Mac, backend auto and mlx take the fastest validated one" in tips["dtype"][1]["tooltip"]
+
+    asked: list[dict[str, Any]] = []
+
+    def fake_load(_mid: str, **kw: Any) -> Any:
+        asked.append(kw)
+        return types.SimpleNamespace(device=kw["device"], backend="portable", release_graphs=lambda: None)
+
+    mps = torch.device("mps")
+    monkeypatch.setattr(nodes, "_cache", nodes.OrderedDict())
+    monkeypatch.setattr(nodes.fastforks, "load", fake_load)
+    monkeypatch.setattr(nodes, "_weights_bytes", lambda _: 2**20)
+    monkeypatch.setattr(mm, "get_torch_device", lambda: mps, raising=False)
+    monkeypatch.setattr(mm, "free_memory", lambda *_, **__: [], raising=False)
+    for entry in ("auto", "portable", "kernels", "mlx", "mlx portable"):
+        nodes.load("depth-anything-v2-s", entry, "auto")
+    assert asked == [
+        {"mode": "auto", "device": mps, "dtype": None},
+        {"mode": "portable", "device": mps, "dtype": None},
+        {"mode": "kernels", "device": mps, "dtype": None},  # strict: the library never runs MLX for it
+        {"mode": "auto", "device": "mlx", "dtype": None},
+    ]  # "mlx portable" is the cached "mlx" model
+
+
 def test_cache_setup(pack: Any, tmp_path: Path) -> None:
     """Downloads go to models/fastforks; the normal cache and extra model folders are read in place."""
     first, extra, normal = tmp_path / "first", tmp_path / "extra", tmp_path / "normal"
@@ -1150,7 +1187,8 @@ def test_memory_errors_become_out_of_memory(pack: Any, monkeypatch: pytest.Monke
     assert mps is not None
     assert "try backend=mlx" in str(mps)
     assert "backend=mlx" not in str(nodes.memory_error(RuntimeError("[metal::malloc] 9 GB")))
-    assert "backend=mlx" not in str(nodes.memory_error(RuntimeError("Insufficient Memory"), "mlx portable"))
+    assert "backend=mlx" not in str(nodes.memory_error(RuntimeError("Insufficient Memory"), "mlx"))
+    assert "backend=mlx" not in str(nodes.memory_error(RuntimeError("Insufficient Memory"), "mlx portable"))  # old
 
     def fail(message: str) -> Any:
         def raiser(*_a: Any, **_k: Any) -> None:
@@ -1205,9 +1243,10 @@ def test_describe_backend(pack: Any) -> None:
     describe = pack.nodes.describe_backend
     b = SimpleNamespace(mode="kernels", device="mlx", dtype="float16", kernels=("dpt_mlx@e240761ea20e:mlx",))
     assert describe(b) == "mlx, float16, kernels dpt_mlx"
+    # an MLX port without kernels reports `portable` (also when `auto` on MPS took it): no "MLX graph" stand-in
     assert (
-        describe(SimpleNamespace(mode="kernels", device="mlx", dtype="float16", kernels=()))
-        == "mlx, float16, MLX graph"
+        describe(SimpleNamespace(mode="portable", device="mlx", dtype="float16", kernels=()))
+        == "mlx, float16, portable"
     )
     assert (
         describe(SimpleNamespace(mode="portable", device="mps", dtype="float32", kernels=()))
