@@ -16,6 +16,7 @@ import io
 import json
 import pickle
 import re
+import threading
 import types
 import zipfile
 from collections import OrderedDict, defaultdict
@@ -278,6 +279,10 @@ class SafetensorsReader:
             self._f.close()
             raise
         self.path = path
+        self._owner = threading.get_ident()
+        self._local = threading.local()  # `read_into` from other threads: a handle per thread (a seek is per handle)
+        self._handles: list[io.RawIOBase] = []
+        self._handles_lock = threading.Lock()
 
     def __enter__(self) -> Self:
         return self
@@ -286,8 +291,23 @@ class SafetensorsReader:
         self.close()
 
     def close(self) -> None:
-        """Close the file."""
+        """Close the file (and the handles of other threads)."""
         self._f.close()
+        with self._handles_lock:
+            for f in self._handles:
+                f.close()
+            self._handles.clear()
+
+    def _handle(self) -> io.RawIOBase:
+        """The calling thread's handle: the main one for the thread that opened the file, else its own."""
+        if threading.get_ident() == self._owner:
+            return self._f
+        f = getattr(self._local, "f", None)
+        if f is None:
+            f = self._local.f = self.path.open("rb", buffering=0)
+            with self._handles_lock:
+                self._handles.append(f)
+        return f
 
     def keys(self) -> list[str]:
         """The tensor names, in header order."""
@@ -304,6 +324,8 @@ class SafetensorsReader:
     def read_into(self, key: str, dst: torch.Tensor) -> torch.Tensor:
         """Read tensor `key` into `dst` (contiguous, on the CPU, of its dtype and shape) and return `dst`.
 
+        Thread-safe: each thread reads through its own handle.
+
         Raises:
             ValueError: `dst` does not match the tensor.
             WeightsError: The file ended early.
@@ -315,10 +337,11 @@ class SafetensorsReader:
         if end == start:
             return dst
         view = memoryview(dst.reshape(-1).view(torch.uint8).numpy())
-        self._f.seek(self._base + start)
+        f = self._handle()
+        f.seek(self._base + start)
         pos = 0
         while pos < end - start:
-            got = self._f.readinto(view[pos : min(end - start, pos + _READ_CHUNK)])
+            got = f.readinto(view[pos : min(end - start, pos + _READ_CHUNK)])
             if not got:
                 msg = f"{self.path.name}: file ended inside tensor {key!r}"
                 raise WeightsError(msg)

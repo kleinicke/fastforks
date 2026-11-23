@@ -240,6 +240,23 @@ def test_safetensors_reader_reads_every_dtype_into_buffers(tmp_path):
             f.read_into("f32", torch.empty(14)[::2])  # not contiguous
 
 
+def test_safetensors_reader_reads_from_threads(tmp_path):
+    """`read_into` from several threads at once (`HostBlocks(workers=)`): each thread seeks its own handle."""
+    import concurrent.futures  # noqa: PLC0415
+
+    from safetensors.torch import save_file  # noqa: PLC0415 - only these tests write safetensors
+
+    sd = {f"t{i}": torch.randn(1000 + i) for i in range(64)}
+    path = tmp_path / "w"
+    save_file(sd, path)
+    with SafetensorsReader(path) as f:
+        out = {k: torch.empty_like(v) for k, v in sd.items()}
+        with concurrent.futures.ThreadPoolExecutor(8) as pool:
+            list(pool.map(lambda k: f.read_into(k, out[k]), list(sd) * 3))
+        assert all(torch.equal(out[k], v) for k, v in sd.items())
+        assert torch.equal(f.get_tensor("t5"), sd["t5"])  # the opening thread's handle still works
+
+
 def test_safetensors_reader_refuses_truncated_and_foreign_files(tmp_path):
     from safetensors.torch import save_file  # noqa: PLC0415 - only this test writes safetensors
 

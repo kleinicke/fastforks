@@ -16,7 +16,7 @@ from torch import nn
 from .dit import Block, Transformer, block_keys
 from .nf4 import BF, NF4Linear, pair_lut
 from fastforks._core.checkpoint import SafetensorsReader
-from fastforks.shared.host_blocks import HostBlocks
+from fastforks.shared.host_blocks import READERS, HostBlocks
 from .vae import VAE2D
 
 if TYPE_CHECKING:
@@ -86,11 +86,12 @@ def _block_index(k: str) -> int | None:
 
 
 def _host_blocks(
-    keys: list[str], meta: dict[str, tuple[torch.dtype, torch.Size]], fill: Callable[[str, torch.Tensor], object]
+    keys: list[str], meta: dict[str, tuple[torch.dtype, torch.Size]], fill: Callable[[str, torch.Tensor], object],
+    *, workers: int = 1,
 ) -> HostBlocks:
     n = 1 + max(i for k in keys if (i := _block_index(k)) is not None)
     specs = [{k: meta[k] for k in block_keys(keys, i)} for i in range(n)]
-    return HostBlocks(specs, fill)
+    return HostBlocks(specs, fill, workers=workers)
 
 
 def _read(ctx: Context, device: torch.device, *, stream: bool) -> tuple[dict[str, torch.Tensor], HostBlocks | None]:
@@ -109,7 +110,7 @@ def _read(ctx: Context, device: torch.device, *, stream: bool) -> tuple[dict[str
         if not stream:
             return t, None
         meta = {k: (f.dtype(k), f.shape(k)) for k in keys if _block_index(k) is not None}
-        return t, _host_blocks(keys, meta, f.read_into)  # straight into the host block buffer
+        return t, _host_blocks(keys, meta, f.read_into, workers=READERS)  # straight into the host block buffer
 
 
 

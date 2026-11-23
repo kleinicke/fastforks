@@ -15,7 +15,7 @@ from safetensors import safe_open
 from torch import nn
 
 from fastforks._core.checkpoint import SafetensorsReader
-from fastforks.shared.host_blocks import HostBlocks
+from fastforks.shared.host_blocks import READERS, HostBlocks
 from fastforks.shared.nf4 import BLOCK, dequant_lut, pair_lut, quantize
 from fastforks.shared.nf4 import code as nf4_code
 
@@ -120,7 +120,8 @@ def read_dit(
             dst.copy_(last[base][part == "absmax"])
 
         specs = [{k: meta[k] for k in block_keys(meta, i)} for i in range(cfg.layers)]
-        return t, HostBlocks(specs, fill)
+        # NF4: `fill` keeps the last quantised weight (not thread-safe); bf16: plain `read_into`, read in parallel
+        return t, HostBlocks(specs, fill, workers=1 if quant else READERS)
 
 
 def read_vae(path: Path, device: torch.device) -> dict[str, torch.Tensor]:

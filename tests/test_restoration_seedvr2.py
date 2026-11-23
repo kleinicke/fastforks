@@ -103,7 +103,7 @@ def test_kept_blocks_match_the_streamed_ones() -> None:
         for i in range(5)
     ]
     data = {k: torch.randn(shape).to(dt) for spec in specs for k, (dt, shape) in spec.items()}
-    hb = host_blocks.HostBlocks(specs, lambda k, dst: dst.copy_(data[k]))
+    hb = host_blocks.HostBlocks(specs, lambda k, dst: dst.copy_(data[k]), workers=3)  # filled from 3 threads
     device = torch.device("cuda")
     for budget in (0, hb.sizes[0] * 2, hb.sizes[0] * 5, 0):
         kept = hb.keep(budget)

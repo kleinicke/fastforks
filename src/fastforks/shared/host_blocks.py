@@ -12,6 +12,7 @@ memory stays at the first call's.
 
 from __future__ import annotations
 
+import concurrent.futures
 import ctypes
 import functools
 import itertools
@@ -159,13 +160,26 @@ def choose_kept(sizes: list[int], starts: list[int], pinned: int, budget: int) -
     return sorted(chosen)
 
 
+READERS = (
+    4  # fixed: `HostBlocks(workers=)` for checkpoint reads; marigold-v2-depth (9 GB) load 3.15 -> 2.0 s (8: 2.0 s)
+)
+"""Parallel reads that fill the host blocks from one safetensors file (Windows NVMe, warm file cache)."""
+
+
 class HostBlocks:
     """The blocks' tensors, packed per block in one registered host buffer; `run` streams them to the device."""
 
     def __init__(
-        self, blocks: list[dict[str, tuple[torch.dtype, torch.Size]]], fill: Callable[[str, torch.Tensor], None]
+        self,
+        blocks: list[dict[str, tuple[torch.dtype, torch.Size]]],
+        fill: Callable[[str, torch.Tensor], None],
+        *,
+        workers: int = 1,
     ) -> None:
-        """`blocks`: per block the checkpoint key -> (dtype, shape); `fill(key, dst)` copies that tensor into `dst`."""
+        """`blocks`: per block the checkpoint key -> (dtype, shape); `fill(key, dst)` copies that tensor into `dst`.
+
+        `workers` > 1 fills that many blocks at once; `fill` must then be thread-safe (`SafetensorsReader.read_into`).
+        """
         self._lock = threading.Lock()
         self.layout: list[list[tuple[str, torch.dtype, torch.Size, int, int]]] = []
         self.starts: list[int] = []
@@ -182,10 +196,18 @@ class HostBlocks:
         self.sizes = [s - a for a, s in zip(self.starts, [*self.starts[1:], pos], strict=True)]
         require_host_ram(pos, "this model")
         self.buf = torch.empty(pos, dtype=torch.uint8)
-        for i, rows in enumerate(self.layout):
-            for k, dt, shape, off, n in rows:
+
+        def fill_block(i: int) -> None:
+            for k, dt, shape, off, n in self.layout[i]:
                 a = self.starts[i] + off
                 fill(k, self.buf[a : a + n].view(dt).view(shape))
+
+        if workers > 1:
+            with concurrent.futures.ThreadPoolExecutor(workers) as pool:
+                list(pool.map(fill_block, range(len(self.layout))))  # re-raises the first error
+        else:
+            for i in range(len(self.layout)):
+                fill_block(i)
         ptr = self.buf.data_ptr()
         self.pinned = _register_prefix(ptr, [*self.starts[1:], pos])
         if self.pinned == 0:
