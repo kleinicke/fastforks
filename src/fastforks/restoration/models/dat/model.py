@@ -42,6 +42,7 @@ from fastforks.shared.swin_sr import attention, checkpoint_upsampler
 
 from .net import DAT
 from .net.dat_arch import (
+    SGFN,
     Adaptive_Channel_Attention,
     Adaptive_Spatial_Attention,
     ResidualGroup,
@@ -158,6 +159,18 @@ def _gate(m: SpatialGate, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
     """`SpatialGate.forward` with the depthwise conv on a channels-last view."""
     x1, x2 = x.chunk(2, dim=-1)
     return x1 * _tokens(m.conv(_image(m.norm(x2), h, w)))
+
+
+def _ffn(m: SGFN, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
+    """`SGFN.forward` with `fc1` as two GEMMs, one per gate half: the gate's LayerNorm reads a contiguous half.
+
+    Upstream's `x.chunk(2, -1)` of the fc1 output made the norm copy its strided half first (DAT x4 512 x 512: 36 copies
+    of 189 MB).
+    """
+    half, fc1, sg = m.fc2.in_features, m.fc1, m.sg
+    x1 = m.act(F.linear(x, fc1.weight[:half], None if fc1.bias is None else fc1.bias[:half]))
+    x2 = m.act(F.linear(x, fc1.weight[half:], None if fc1.bias is None else fc1.bias[half:]))
+    return m.fc2(x1 * _tokens(sg.conv(_image(sg.norm(x2), h, w))))
 
 
 def _interact(
@@ -280,6 +293,8 @@ def _prepare(net: DAT) -> None:
                 override(m, _mask, "calculate_mask")
         elif isinstance(m, SpatialGate):
             override(m, _gate)
+        elif isinstance(m, SGFN):
+            override(m, _ffn)
         elif isinstance(m, ResidualGroup):
             override(m, _group)
         elif isinstance(m, _Tokens):
