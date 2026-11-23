@@ -209,27 +209,19 @@ def w01_depth_shootout() -> WF:
 
 @wf
 def w02_backend_compare() -> WF:
-    """Example 02: backend compare."""
+    """Example 02: backend compare (the backends every platform lists, a model both packs have)."""
     g = WF()
     note(
         g,
-        "Same model, five backends: auto (what fastforks picks on this Mac), portable "
-        "(plain PyTorch on MPS), kernels (Metal kernels where there are any), mlx and mlx portable (Apple MLX). "
+        "Same model, three backends: auto (what fastforks picks on this machine), portable (plain PyTorch) and "
+        "kernels (our CUDA or Metal kernels where there are any). On a Mac with the mlx package the backend dropdown "
+        "also has mlx and mlx portable (Apple MLX): pick them in a copy of a branch. "
         "Results should match; time and memory differ. "
         "Run the queue twice: the first run includes loading and compilation.",
     )
     img = load(g, "example.png", 0, 0)
-    shootout(
-        g,
-        "FastforksDepth",
-        "image",
-        [
-            {"model": "depth-anything-v2-l [non-commercial]", "backend": b}
-            for b in ("auto", "portable", "kernels", "mlx", "mlx portable")
-        ],
-        img=img,
-        dtype="float16",
-    )
+    branches = [{"model": "depth-anything-v2-s", "backend": b} for b in ("auto", "portable", "kernels")]
+    shootout(g, "FastforksDepth", "image", branches, img=img)
     return g
 
 
@@ -430,8 +422,8 @@ def w09_stereo() -> WF:
     g = WF()
     note(
         g,
-        "Stereo depth from a left/right pair: classic cost-volume (IGEV, ACVNet) vs recurrent (RAFT-Stereo) "
-        "vs transformer (S2M2). Output is a disparity visualisation.",
+        "Stereo depth from a left/right pair (rectified): recurrent (RAFT-Stereo, IGEV), cost-volume "
+        "(Fast-ACVNet+) and warping transformer (WAFT-Stereo). Output is a disparity visualisation.",
     )
     left = load(g, "stereo_left.png", 0, 0)
     right = load(g, "stereo_right.png", 0, 400)

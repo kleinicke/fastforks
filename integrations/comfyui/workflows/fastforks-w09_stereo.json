@@ -20,7 +20,7 @@
    "outputs": [],
    "properties": {},
    "widgets_values": [
-    "Stereo depth from a left/right pair: classic cost-volume (IGEV, ACVNet) vs recurrent (RAFT-Stereo) vs transformer (S2M2). Output is a disparity visualisation."
+    "Stereo depth from a left/right pair (rectified): recurrent (RAFT-Stereo, IGEV), cost-volume (Fast-ACVNet+) and warping transformer (WAFT-Stereo). Output is a disparity visualisation."
    ]
   },
   {
