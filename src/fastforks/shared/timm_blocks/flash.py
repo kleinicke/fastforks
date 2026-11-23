@@ -7,7 +7,6 @@ from torch import nn
 
 from fastforks._core.patch import override
 from fastforks.kernels.fastbb import Flash64
-from fastforks.shared.depth_anything_v2 import flash_attention
 
 from .net.vit import Attention
 
@@ -18,7 +17,7 @@ def _attention_forward(self: Attention, x: torch.Tensor) -> torch.Tensor:
     flash: Flash64 = self.flash  # ty: ignore[invalid-assignment]  # set by `use_flash_attention`
     d = c // self.num_heads
     q, k, v = self.qkv(x).view(b, n, 3, self.num_heads, d).unbind(2)
-    return self.proj(flash_attention(q, k, v, d**-0.5, flash).view(b, n, c))
+    return self.proj(flash(q, k, v, d**-0.5).view(b, n, c))  # [B, N, H, 64] views, head dim checked at setup
 
 
 def use_flash_attention(model: nn.Module, variant: str = "hh") -> int:
