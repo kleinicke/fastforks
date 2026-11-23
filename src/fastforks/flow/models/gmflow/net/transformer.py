@@ -67,7 +67,7 @@ class TransformerLayer(nn.Module):
         query, key, value = source, target, target
 
         # for stereo: 2d attn in self-attn, 1d attn in cross-attn
-        is_self_attn = (query - key).abs().max() < 1e-6
+        is_self_attn = attn_type != 'swin' and (query - key).abs().max() < 1e-6  # fastforks: swin never reads it (a pass over both inputs)
 
         # single-head attention
         query = self.q_proj(query)  # [B, L, C]
