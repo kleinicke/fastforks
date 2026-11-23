@@ -785,6 +785,10 @@ class _Scale:
         e = FsEpiArgs(mode=2, b=self.b0.data_ptr(), o=self.inp0.data_ptr(), os=self.c0)
         _fs_conv(lib, self.cfg, (self.hw_h, self.hw_w), x, self.w0_inp, e)
 
+    def finish(self) -> None:
+        """Drop the buffers of the forward (`start` makes new ones)."""
+        self.xin = self.qin = self.hx = self.hx2 = self.z = self.g = self.h = self.inp0 = self.att = None
+
     def nchw(self) -> torch.Tensor:
         """The state as a channels-last `[1, 128, H, W]` view."""
         return self.h.view(1, self.hw_h, self.hw_w, HID).permute(0, 3, 1, 2)
@@ -907,6 +911,16 @@ class _UpdateBlock:
         self.corr_nchw = self.corr.view(1, s0.hw_h, s0.hw_w, self.c1_in).permute(0, 3, 1, 2)
         self.cd = new((p, self.cc2 + self.cd2))
         self.t0, self.t1, self.u = new((pp, HID)), new((pp, HID)), new((pp, HID))
+
+    def finish(self) -> None:
+        """Drop the buffers of the forward.
+
+        Held between calls they keep ~0.9 GB allocated at Midd-H and pin the caching allocator's segments they were
+        carved from among the forward's temporaries, so each later call reserves more (3.6 -> 4.9 GB in four calls).
+        """
+        for s in self.scales:
+            s.finish()
+        self.corr = self.corr_nchw = self.cd = self.t0 = self.t1 = self.u = None
 
     def _pool_into(self, src: _Scale, dst: _Scale, c0: int) -> None:
         hd, wd = dst.hw_h, dst.hw_w
@@ -1083,9 +1097,12 @@ class KernelsForward:
         if self.update is not None and b == 1:
             upd = self.update
             upd.start(hidden, inp, att)
-            for _ in range(iters):
-                disp = disp + upd(geo, disp.contiguous()).float()
-            mask = upd.mask()
+            try:
+                for _ in range(iters):
+                    disp = disp + upd(geo, disp.contiguous()).float()
+                mask = upd.mask()
+            finally:
+                upd.finish()
         else:
             for _ in range(iters):
                 hidden, mask, delta = net.update_block(hidden, inp, geo(disp), disp.half(), att)
