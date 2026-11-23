@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from .net.FlowFormer.LatentCostFormer.decoder import MemoryDecoder
     from .net.FlowFormer.LatentCostFormer.encoder import CostPerceiverEncoder, MemoryEncoder, PatchEmbed
     from .net.FlowFormer.LatentCostFormer.gma import Aggregate, Attention
-    from .net.FlowFormer.LatentCostFormer.gru import SepConvGRU
+    from .net.FlowFormer.LatentCostFormer.gru import BasicMotionEncoder, SepConvGRU
 
 RADIUS = 4  # fixed: upstream's `encode_flow_token` window: (2 r + 1)^2 = 81 costs per pixel
 LOOKUP_PIXELS = 8192  # fixed: the window lookup gathers 100 feature vectors per pixel for this many pixels at a time
@@ -132,6 +132,21 @@ def _gru_fp32_state(gru: SepConvGRU, h: torch.Tensor, x: torch.Tensor) -> torch.
         torch.mul(r, h, out=hx[:, :hd])
         h = torch.lerp(h, candidate(hx).float().tanh_(), z)
     return h
+
+
+def _half_cl(x: torch.Tensor) -> torch.Tensor:
+    return x.to(torch.float16, memory_format=torch.channels_last)
+
+
+def _motion_encoder(enc: BasicMotionEncoder, flow: torch.Tensor, corr: torch.Tensor) -> torch.Tensor:
+    """Upstream `BasicMotionEncoder.forward` with fp16 channels-last convs; the features out in float32.
+
+    `convf1` stays float32: the flow it reads reaches hundreds of pixels at 1080p, where float16 steps are 1/8 px.
+    """
+    cor = torch.relu_(enc.convc2(torch.relu_(enc.convc1(_half_cl(corr)))))
+    flo = torch.relu_(enc.convf2(_half_cl(torch.relu_(enc.convf1(flow)))))
+    out = torch.relu_(enc.conv(torch.cat([cor, flo], dim=1)))
+    return torch.cat([out.float(), flow], dim=1)
 
 
 def _upsample(_decoder: torch.nn.Module, flow: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
@@ -309,18 +324,21 @@ def _gma_attention(att: Attention, fmap: torch.Tensor) -> tuple[torch.Tensor, ..
 
 
 def _gma_aggregate(agg: Aggregate, attention: tuple[torch.Tensor, ...], fmap: torch.Tensor) -> torch.Tensor:
-    """Upstream GMA `Aggregate.forward` with `_gma_attention`'s matrix or fused attention, in float16."""
+    """Upstream GMA `Aggregate.forward` with `_gma_attention`'s matrix or fused attention, in float16.
+
+    `to_v` is an fp16 channels-last conv: its `[B, H W, C]` tokens are a view, and so is the result as an image.
+    """
     b, _, h, w = fmap.shape
-    v = agg.to_v(fmap).flatten(2).transpose(1, 2).half()
+    v = agg.to_v(_half_cl(fmap)).flatten(2).transpose(1, 2)  # contiguous: channels last
     if len(attention) == 1:
         out = torch.bmm(attention[0], v)
     else:
         q, k = attention
-        out = F.scaled_dot_product_attention(q, k, v[:, None].contiguous(), scale=1.0)[:, 0]
-    out = out.float().transpose(1, 2).reshape(b, -1, h, w)
+        out = F.scaled_dot_product_attention(q, k, v[:, None], scale=1.0)[:, 0]
+    out = out.view(b, h, w, -1).permute(0, 3, 1, 2)
     if agg.project is not None:
-        out = agg.project(out)
-    return fmap + agg.gamma * out
+        out = agg.project(out.float())
+    return torch.addcmul(fmap, agg.gamma, out)
 
 
 class Kernels(Portable):
@@ -334,12 +352,18 @@ class Kernels(Portable):
     module = Runner.module
 
     def __init__(self, ctx: Context) -> None:
-        """Keep the original FP32 aggregation and fuse the last prediction's upsampling."""
+        """Run the motion encoder and GMA values in float16 and fuse the last prediction's upsampling."""
         super().__init__(ctx)
         gru = self.net.get_submodule("memory_decoder.update_block.gru")
         for name in ("convzr1", "convq1", "convzr2", "convq2"):
             gru.get_submodule(name).half().to(memory_format=torch.channels_last)
         override(gru, _gru_fp32_state)
+        block = self.net.memory_decoder.update_block
+        # The flow head stays float32: its updates accumulate over the iterations (1080p: mean 0.00072 -> 0.00062 px).
+        block.encoder.half().to(memory_format=torch.channels_last)
+        block.encoder.convf1.float()
+        override(block.encoder, _motion_encoder)
+        block.get_submodule("aggregator.to_v").half().to(memory_format=torch.channels_last)
         override(self.net.memory_decoder, _upsample, "upsample_flow")
         override(self.net.memory_encoder, _corr, "corr")
         override(self.net.memory_encoder.cost_perceiver_encoder, _encode)
