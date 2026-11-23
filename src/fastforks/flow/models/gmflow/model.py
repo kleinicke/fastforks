@@ -97,7 +97,7 @@ _CORR_GATHER = 24 << 20  # fixed: bytes of gathered feature rows per chunk, L2-r
 
 
 class _FlowCorrelation:
-    """`local_correlation_with_flow` (zeros padding) as dot products at integer positions (CUDA refinement).
+    """`local_correlation_with_flow` (zeros padding) as dot products at integer positions (CUDA refinement, NHWC).
 
     The window offsets are integers and the flow is shared by a pixel's window, so all its samples have the same
     bilinear fraction: each correlation is the bilinear blend of the dot products at the `(2R + 2)^2` integer positions
@@ -142,7 +142,7 @@ class _FlowCorrelation:
         corr = (1 - wy) * ((1 - wx) * dots[:, :, :-1, :-1] + wx * dots[:, :, :-1, 1:]) + wy * (
             (1 - wx) * dots[:, :, 1:, :-1] + wx * dots[:, :, 1:, 1:]
         )
-        return (corr.reshape(b, h, w, -1) / c**0.5).permute(0, 3, 1, 2).contiguous()
+        return (corr.reshape(b, h, w, -1) / c**0.5).permute(0, 3, 1, 2)  # channels-last, as the refinement block runs
 
 
 def forward(  # noqa: PLR0913 - network, image pair and inference options
@@ -192,9 +192,10 @@ def forward(  # noqa: PLR0913 - network, image pair and inference options
         hidden, context = torch.chunk(net.refine_proj(feature1), chunks=2, dim=1)
         hidden, context = torch.tanh(hidden), torch.relu(context)
     mask = flow
-    if fused:  # the CNN's own features (fp16 under autocast), not the float32 copies
+    if fused:  # the CNN's own features (fp16 under autocast), not the float32 copies; a channels-last refinement block
         last = len(SCALES[params.scales]) - 1
         correlate = _FlowCorrelation(features1[last], features2[last], REFINE_RADIUS)
+        hidden, context = (x.contiguous(memory_format=torch.channels_last) for x in (hidden, context))
     else:
         correlate = lambda f: local_correlation_with_flow(raw1, raw2, flow=f, local_radius=REFINE_RADIUS)  # noqa: E731
     for step in range(params.refine):
@@ -252,12 +253,16 @@ _GRAPHS = 2  # fixed: graph cache policy
 
 
 def _refine_forward(self: BasicUpdateBlock, net, inp, corr, flow, *, upsample=True):  # noqa: ANN001, ANN202, PLR0913 - upstream's names
-    """Upstream `BasicUpdateBlock.forward` with the GRU input cast to the autocast dtype once.
+    """Upstream `BasicUpdateBlock.forward`, channels-last, with the GRU input cast to the autocast dtype once.
 
     The motion features end in the float32 flow, so upstream's `[context, motion]` concatenation is float32 and each of
     the GRU's six convolutions (and its concatenations with the fp16 hidden state) re-casts all 256 channels. Every
     consumer casts it to the autocast dtype, so casting it once gives the same values.
+
+    The block's convolutions run channels-last (Kernels moves its weights; the hidden state, context and correlation
+    come channels-last): cuDNN's fp16 kernels are NHWC, so NCHW tensors were converted on every convolution.
     """
+    flow = flow.contiguous(memory_format=torch.channels_last)
     inp = torch.cat([inp, self.encoder(flow, corr)], dim=1)
     if torch.is_autocast_enabled(inp.device.type):
         inp = inp.to(torch.get_autocast_dtype(inp.device.type))
@@ -284,6 +289,7 @@ class Kernels(Portable):
             if isinstance(layer, TransformerLayer):
                 layer.window_options = {"attention": _headed}
         if ctx.params.refine:
+            self.net.refine.to(memory_format=torch.channels_last)
             override(self.net.refine, _refine_forward)
         self._graphs = SmallShapeGraphs(
             super()._flow, pixels=_GRAPH_PIXELS, graphs=_GRAPHS, enabled=ctx.params.cuda_graphs
