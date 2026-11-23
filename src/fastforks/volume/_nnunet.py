@@ -24,7 +24,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.errors import InputError, WeightsError
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import EXPORTING_FOR_MLX, in_onnx_export
 from fastforks._core.upload import to_device
 from fastforks.volume import _resample
 
@@ -34,6 +34,9 @@ if TYPE_CHECKING:
 __all__ = ["Encoder", "Norm", "Plan", "Predictor", "UNet", "gaussian", "read_plan", "sliding_steps"]
 
 _MAX_RESAMPLED_VOXELS = 10**9  # 4 GB as float32: above it a wrong spacing is far likelier than a real scan
+# fixed: `_ConvNormAct.forward_` convolves depth slabs of about this size, for maps of at least four slabs (224^3, 32
+# channels: 20 slices; nnFoundation-CNN at 200^3: 2 % slower, peak 2325 -> 2092 MiB)
+_SLAB_BYTES = 64 << 20
 _DNA = "dynamic_network_architectures.architectures.unet."
 _ARCHS = {_DNA + "PlainConvUNet": "plain", _DNA + "ResidualEncoderUNet": "resenc"}
 _NORMS = (
@@ -301,6 +304,62 @@ class _ConvNormAct(nn.Module):
             y = torch.addcmul(shift, y, scale)
         return y if self.slope == 1.0 else F.leaky_relu_(y, self.slope)
 
+    def forward_(self, y: torch.Tensor, depth: int) -> torch.Tensor:
+        """`forward(y)` written over `y`, the convolution `depth` slices at a time (`slab_depth`)."""
+        return self.norm_act(_conv_slabs_(self.conv, y, self.conv.bias, depth))
+
+
+def slab_depth(conv: nn.Conv3d, y: torch.Tensor) -> int:
+    """Depth slices per slab for `_ConvNormAct.forward_(y)`; 0 where it does not apply or `y` is under four slabs.
+
+    It applies to an inference-mode CUDA map and a same-width, stride-1 convolution with a depth kernel of 3.
+    """
+    if (
+        y.dim() != len(conv.kernel_size) + 2
+        or not y.is_cuda
+        or torch.is_grad_enabled()
+        or torch.compiler.is_compiling()
+    ):
+        return 0
+    if torch.jit.is_tracing() or in_onnx_export() or EXPORTING_FOR_MLX.get():
+        return 0
+    same = conv.in_channels == conv.out_channels and conv.groups == 1 and conv.padding_mode == "zeros"
+    if (
+        not same
+        or any(s != 1 for s in (*conv.stride, *conv.dilation))
+        or (conv.kernel_size[0], conv.padding[0]) != (3, 1)
+    ):
+        return 0
+    depth = max(2, _SLAB_BYTES // (y[:, :, 0].numel() * y.element_size()))
+    return depth if depth * 4 <= y.shape[2] else 0
+
+
+def _conv_slabs_(conv: nn.Conv3d, y: torch.Tensor, bias: torch.Tensor | None, depth: int) -> torch.Tensor:
+    """`F.conv3d(y, conv.weight, bias)` (`conv`'s padding) written over `y`, `depth` (`slab_depth`) slices at a time.
+
+    A slab reads one slice beyond either end. Its output overwrites the slices no later slab reads; its last slice,
+    which the next slab still reads, is written once that slab has run. Peak: `y` and about two slabs, not two maps.
+    """
+    d, w, pad = y.shape[2], conv.weight, tuple(int(p) for p in conv.padding)  # `slab_depth`: no string padding
+    inner = (0, *pad[1:])
+    held: torch.Tensor | None = None
+    for a in range(0, d, depth):
+        b = min(a + depth, d)
+        if a == 0:  # the volume's ends: zero padding, the slice past the slab dropped
+            out = F.conv3d(y[:, :, : b + 1], w, bias, 1, pad)[:, :, :b]
+        elif b == d:
+            out = F.conv3d(y[:, :, a - 1 :], w, bias, 1, pad)[:, :, 1:]
+        else:
+            out = F.conv3d(y[:, :, a - 1 : b + 1], w, bias, 1, inner)
+        if held is not None:
+            y[:, :, a - 1].copy_(held)
+        y[:, :, a : b - 1].copy_(out[:, :, :-1])
+        held = out[:, :, -1].clone()
+        del out
+    if held is not None:
+        y[:, :, d - 1].copy_(held)
+    return y
+
 
 class _Stacked(nn.Module):
     """`StackedConvBlocks`: `n` conv blocks, the first with the stride."""
@@ -358,7 +417,10 @@ class _BasicBlock(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         res = x if self.skip is None else self.skip(x)
-        return F.leaky_relu_(self.conv2(self.conv1(x)).add_(res), self.slope)
+        y = self.conv1(x)
+        depth = slab_depth(self.conv2.conv, y)  # conv2 over conv1's map: one map less at the peak
+        y = self.conv2.forward_(y, depth) if depth else self.conv2(y)
+        return F.leaky_relu_(y.add_(res), self.slope)
 
 
 class _ResStage(nn.Module):
@@ -437,8 +499,25 @@ class _Decoder(nn.Module):
         pending = skips if consume and isinstance(skips, list) else list(skips)
         x = pending.pop()
         for up, stage in zip(self.transpconvs, self.stages, strict=True):
-            x = stage(torch.cat((up(x), pending.pop()), 1))
+            x = stage(_cat_consuming(up, x, pending.pop()))
         return self.seg_layers[-1](x)
+
+
+def _cat_consuming(up: nn.Module, x: torch.Tensor, skip: torch.Tensor) -> torch.Tensor:
+    """`torch.cat((up(x), skip), 1)`, the skip copied in (and, when consumed, freed) before `up(x)` is made.
+
+    The skip, the upsampled map and their concatenation are never alive together: at the full-resolution stage of
+    nnInteractive (192^3 patch, 32 + 32 channels, float16) peak 2429 -> 1997 MiB.
+    """
+    c = skip.shape[1]
+    fmt = (
+        torch.channels_last_3d if skip.is_contiguous(memory_format=torch.channels_last_3d) else torch.contiguous_format
+    )
+    out = torch.empty((skip.shape[0], 2 * c, *skip.shape[2:]), dtype=skip.dtype, device=skip.device, memory_format=fmt)
+    out[:, c:].copy_(skip)
+    del skip
+    out[:, :c].copy_(up(x))  # the transposed conv makes the skip's channel count
+    return out
 
 
 class UNet(nn.Module):

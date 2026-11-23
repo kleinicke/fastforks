@@ -28,6 +28,7 @@ from fastforks.interpolation._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc, ema_warp
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
+from fastforks.shared.swin_sr import roll
 
 from .net import MotionFormer, MultiScaleFlow
 from .net.feature_extractor import window_partition, window_reverse
@@ -120,7 +121,7 @@ def _depadded(x: torch.Tensor, h: int, w: int, window: tuple[int, int]) -> torch
 
 
 def _rolled(x: torch.Tensor, shift: tuple[int, int], sign: int) -> torch.Tensor:
-    return torch.roll(x, shifts=(sign * shift[0], sign * shift[1]), dims=(1, 2)) if shift[0] or shift[1] else x
+    return roll(x, (sign * shift[0], sign * shift[1]), (1, 2)) if shift[0] or shift[1] else x
 
 
 def _eager_cuda(x: torch.Tensor) -> bool:
