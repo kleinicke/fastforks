@@ -196,7 +196,8 @@ def conv_ep_into(  # noqa: PLR0913 - conv module, input, destination and the epi
     if t is None and s is None:
         t = m._bias32  # noqa: SLF001 - set by prepare_convs
     k = m.weight.shape[0]
-    if _fusable(m, x, act, None) and conv_fused(m, x, s, t, _CUTLASS_ACT[act], out=(dest, c0)) is not None:
+    aligned = c0 % 8 == 0 and k % 8 == 0 and dest.data_ptr() % 16 == 0
+    if aligned and _fusable(m, x, act, None) and conv_fused(m, x, s, t, _CUTLASS_ACT[act], out=(dest, c0)) is not None:
         return
     y = dest[:, c0 : c0 + k]
     pad, st, dil = m.padding, m.stride, m.dilation
@@ -210,9 +211,7 @@ def conv_ep_into(  # noqa: PLR0913 - conv module, input, destination and the epi
         and dest.is_contiguous(memory_format=CL)
         and dest.shape[0] == 1
         and dest.dtype == torch.float16
-        and c0 % 8 == 0
-        and k % 8 == 0
-        and dest.data_ptr() % 16 == 0
+        and aligned
     )
     if not plain:
         y.copy_(conv_ep(m, x, s, t, act, keep_pad=True))
