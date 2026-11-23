@@ -21,6 +21,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.mps import release
 from fastforks._core.patch import base_type, override
 from fastforks._core.upload import device_tensor
 from fastforks.interpolation._runner import Forward, Runner
@@ -99,7 +100,12 @@ def _warp(x: torch.Tensor, taps: tuple[torch.Tensor, torch.Tensor]) -> torch.Ten
     elif x.device.type in ("cuda", "cpu"):
         out = F.embedding_bag(index, rows, per_sample_weights=weights, mode="sum")
     else:
-        out = (rows[index] * weights[..., None]).sum(1)
+        # one neighbour at a time: the 4-row gather `rows[index]` and its weighted copy are 4x the output each
+        # (2 x 4.2 GiB for the 64 float32 channels of two 1088x1920 frames, which does not fit the 11.8 GiB of a
+        # 16 GB Mac next to the feature pyramid)
+        out = rows[index[:, 0]] * weights[:, :1]
+        for k in range(1, 4):
+            out.addcmul_(rows[index[:, k]], weights[:, k : k + 1])
     return out.view(-1, h, w, c)
 
 
@@ -321,7 +327,9 @@ def _interpolate(
     fmt = torch.channels_last if image1.is_cuda else torch.contiguous_format
     images = build_image_pyramid(torch.cat((image1, image2)).to(dtype, memory_format=fmt), net.pyramid_levels)
     feats = _cascade(net.extract, images)
+    release(feats[0])  # MPS: each stage has its own buffer sizes, and the cache of the last one counts (see `release`)
     flows = flow_pyramid_synthesis(_residual_flows(predict, feats, fused=fused))[: net.fusion_pyramid_levels]
+    release(feats[0])
     # rows [:b]: frame 1 -> 2 (upstream's forward flow, scaled by 1 - t), [b:]: 2 -> 1 (backward, by t); frame 1 is
     # read with the backward flow and frame 2 with the forward one: sample n reads with the flow of row (n + b) % 2b
     scale = torch.cat((1 - t, t)).float()
@@ -339,6 +347,7 @@ def _interpolate(
         pyramid.append([wi[:b], wf[:b], wi[b:], wf[b:], fl[:b], fl[b:], zeros])  # warped 1, warped 2, flows
         del wi, wf, fl, zeros, warp, f
     del images, feats, flows
+    release(image1)
     return fuse(pyramid).float()
 
 
