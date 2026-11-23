@@ -7,6 +7,7 @@ Same recipe as WAFT-Stereo's: `prepare_kernels(net, device)`, then `forward_kern
     qkv; SDPA's cuDNN kernel took 2.7 ms per block at 1080p)
   - pure fp16 weights and NHWC activations; every conv through `cnn_kernels.conv_ep` (fp16-accumulate cuDNN graphs, or
     CUTLASS with the epilogue fused for >= 128 output channels)
+  - the two DPT heads' bilinear resizes through `dpt_fused`'s NHWC kernel (bit-identical, 4x PyTorch's NHWC one)
   - the pre-activation `resconv` blocks as GELU + (conv + bias + GELU) + (conv + bias + residual)
   - flow state, warp coordinates, grid sampling and the softmax upsampling in fp32; only the last iteration is
     upsampled (the earlier ones are training outputs)
@@ -24,7 +25,7 @@ from fastforks._core.patch import override
 from fastforks.kernels import dpt_fused
 from fastforks.shared import cnn_kernels
 from fastforks.shared.cnn_kernels import ACT, CL, conv_ep
-from fastforks.shared.depth_anything_v2 import use_fast_vit
+from fastforks.shared.depth_anything_v2 import use_fast_vit, use_fused_bilinear
 from fastforks.shared.timm_blocks.flash import use_flash_attention
 
 from ..net.utils import Padder, bilinear_sampler, coords_grid
@@ -49,7 +50,9 @@ def prepare_kernels(net: ViTWarpV8, device: torch.device) -> None:
         KernelUnavailableError: A kernel library is unusable on `device`.
     """
     net.eval()
-    use_fast_vit(net.da_feature.depth_anything.pretrained, fused=dpt_fused.load(device))
+    fused = dpt_fused.load(device)
+    use_fast_vit(net.da_feature.depth_anything.pretrained, fused=fused)
+    use_fused_bilinear(net, fused)  # both DPT heads' channels-last resizes (PyTorch's NHWC bilinear is 4x slower)
     for m in net.modules():
         if isinstance(m, resconv):
             override(m, _resconv_forward)

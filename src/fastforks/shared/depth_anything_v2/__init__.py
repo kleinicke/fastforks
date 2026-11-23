@@ -9,6 +9,8 @@ The weights are not shared: DAv2-Small is Apache-2.0, DAv2-Base/Large are CC-BY-
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -25,6 +27,9 @@ from .net.dinov2_layers.swiglu_ffn import SwiGLUFFN
 from .net.dpt import DepthAnythingV2, DPTHead
 from .net.util.blocks import FeatureFusionBlock, _make_scratch
 
+if TYPE_CHECKING:
+    from fastforks.kernels.dpt_fused import DptFused
+
 __all__ = [
     "Attention",
     "DINOv2",
@@ -39,6 +44,7 @@ __all__ = [
     "fp16_accumulate",
     "sdpa_attention",
     "use_fast_vit",
+    "use_fused_bilinear",
     "use_sdpa_attention",
     "vit_base",
     "vit_giant2",
@@ -117,5 +123,85 @@ def use_sdpa_attention(module: nn.Module) -> int:
     for m in module.modules():
         if isinstance(m, Attention):
             override(m, _sdpa_forward)
+            n += 1
+    return n
+
+
+def fused_bilinear(fused: DptFused, x: torch.Tensor, size: tuple[int, int], *, align_corners: bool) -> torch.Tensor:
+    """`F.interpolate(x, size, mode="bilinear")` of an fp16 `[B, C, H, W]` by `dpt_fused`'s NHWC kernel.
+
+    Bit-identical to PyTorch's result; returns a channels-last tensor. PyTorch's own channels-last bilinear kernel is
+    2.3x slower than its NCHW one and 4x slower than this (fp16 `[1, 64, 280, 504]` -> 2x: 1.03 / 0.45 / 0.25 ms on an
+    RTX 5060 Ti).
+    """
+    y = fused.bilinear(
+        x.contiguous(memory_format=torch.channels_last).permute(0, 2, 3, 1), size, align_corners=align_corners
+    )
+    return y.permute(0, 3, 1, 2)
+
+
+def _fusion_forward(self: FeatureFusionBlock, *xs: torch.Tensor, size: tuple[int, int] | None = None) -> torch.Tensor:
+    """`FeatureFusionBlock.forward` with the resize through `fused_bilinear`."""
+    output = xs[0]
+    if len(xs) == 2:  # noqa: PLR2004 - the path and the skip input
+        output = output + self.resConfUnit1(xs[1])
+    output = self.resConfUnit2(output)
+    if size is None:
+        size = self.size or (2 * output.shape[2], 2 * output.shape[3])  # upstream: scale_factor 2
+    output = fused_bilinear(self.__dict__["_dpt_fused"], output, tuple(size), align_corners=self.align_corners)
+    return self.out_conv(output)
+
+
+def _head_forward(  # noqa: PLR0913, PLR0917 - upstream signature
+    self: DPTHead,
+    out_features: list,
+    patch_h: int,
+    patch_w: int,
+    normalize_output: bool = False,  # noqa: FBT001, FBT002 - upstream signature
+    return_intermediate: bool = False,  # noqa: FBT001, FBT002 - upstream signature
+) -> torch.Tensor | tuple[torch.Tensor, ...]:
+    """`DPTHead.forward` with the final resize through `fused_bilinear`."""
+    out = []
+    for i, feature in enumerate(out_features):
+        if self.use_clstoken:
+            x, cls_token = feature[0], feature[1]
+            readout = cls_token.unsqueeze(1).expand_as(x)
+            x = self.readout_projects[i](torch.cat((x, readout), -1))
+        else:
+            x = feature[0]
+        x = x.permute(0, 2, 1).reshape((x.shape[0], x.shape[-1], patch_h, patch_w))
+        out.append(self.resize_layers[i](self.projects[i](x)))
+    scratch = self.scratch
+    layer_1_rn, layer_2_rn, layer_3_rn, layer_4_rn = (
+        getattr(scratch, f"layer{i}_rn")(layer) for i, layer in enumerate(out, 1)
+    )
+    path_4 = scratch.refinenet4(layer_4_rn, size=layer_3_rn.shape[2:])
+    path_3 = scratch.refinenet3(path_4, layer_3_rn, size=layer_2_rn.shape[2:])
+    path_2 = scratch.refinenet2(path_3, layer_2_rn, size=layer_1_rn.shape[2:])
+    path_1 = scratch.refinenet1(path_2, layer_1_rn)
+    size = (int(patch_h * 14), int(patch_w * 14))
+    out = fused_bilinear(self.__dict__["_dpt_fused"], scratch.output_conv1(path_1), size, align_corners=True)
+    if return_intermediate:
+        return out, path_1, path_2, path_3, path_4
+    if normalize_output:
+        depth = F.relu(scratch.output_conv2(out))
+        disp = 1 / depth
+        disp[depth == 0] = 0
+        disp = disp / disp.max()
+        return out, path_1, path_2, path_3, path_4, disp
+    return scratch.output_conv2(out)
+
+
+def use_fused_bilinear(module: nn.Module, fused: DptFused) -> int:
+    """Route the bilinear resizes of every vendored `DPTHead` / `FeatureFusionBlock` under `module` through `fused`.
+
+    For fp16 kernels paths (the kernel takes fp16 only and raises otherwise). Returns the number of patched modules.
+    """
+    n = 0
+    for m in module.modules():
+        fn = {DPTHead: _head_forward, FeatureFusionBlock: _fusion_forward}.get(base_type(m))
+        if fn is not None:
+            m.__dict__["_dpt_fused"] = fused
+            override(m, fn)
             n += 1
     return n
