@@ -5,21 +5,25 @@ upstream's `scripts/gmflow_evaluate.sh` (per scale: window splits of the Transfo
 radius; -1 = global). Differences that do not change the maths: the projection for the refinement is computed once
 (upstream recomputes the same tensor in every refinement), and every attention (Transformer windows, global matching,
 flow propagation) is one fused `scaled_dot_product_attention`, so the `[H*W, H*W]` score matrix (several GB at 1080p)
-is never written. On CUDA in fp16 the CNN, the Transformer, the upsampling head and the refinement block run
-under autocast; positions, matching, propagation, warping, correlation lookup and the flow stay float32.
+is never written (the kernels runner computes global matching and propagation as GEMMs over chunks of query rows,
+`_chunked`). On CUDA in fp16 the CNN, the Transformer, the upsampling head and the refinement block run
+under autocast; positions, matching, propagation, warping, correlation lookup and the flow stay float32 (the kernels
+runner's refinement correlation reads the CNN's fp16 features and accumulates in float32, `_FlowCorrelation`).
 """
 
 from __future__ import annotations
 
 import contextlib
+import functools
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.mlx_cast import to_float32, to_run_dtype
+from fastforks._core.patch import override
 from fastforks.flow._runner import Forward, Runner
 from fastforks.kernels import flow_upsample
 from fastforks.shared import mlx_wrap
@@ -28,12 +32,14 @@ from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from .net.attention import sdpa
 from .net.geometry import coords_grid, flow_warp
 from .net.matching import local_correlation_softmax, local_correlation_with_flow
-from .net.transformer import TransformerLayer
+from .net.transformer import FeatureTransformer, TransformerLayer
 from .net.unimatch import UniMatch
-from .net.utils import feature_add_position, upsample_flow_with_mask
+from .net.utils import feature_add_position, generate_shift_window_attn_mask, upsample_flow_with_mask
 
 if TYPE_CHECKING:
     from fastforks.flow._runner import Context
+
+    from .net.reg_refine import BasicUpdateBlock
 
 SCALES = {  # card `scales` -> per scale (attn_splits, corr_radius, prop_radius), upstream scripts/gmflow_evaluate.sh
     1: ((2, -1, -1),),
@@ -64,11 +70,88 @@ def _headed(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tenso
     return F.scaled_dot_product_attention(q, k, v, attn_mask=bias).squeeze(1)[..., :channels]
 
 
+_MATCH_SCORES = 128 << 20  # fixed: bytes of one chunk of float32 matching scores (61 vs 80 ms fused at 1080p)
+
+
+def _chunked(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
+    """`attend` as float32 GEMMs and a softmax over chunks of query rows (CUDA global matching and propagation).
+
+    The fused float32 SDPA kernel is slow for the 2-channel values of the match and the flow; a chunk of the scores
+    (`_MATCH_SCORES`, not the whole `[N, M]` matrix) costs less and sums the softmax exactly (max error 5e-5 vs
+    3.5e-4 px against float64 at 1080p).
+    """
+    b, n, m = query.shape[0], query.shape[1], key.shape[1]
+    step = max(256, _MATCH_SCORES // (4 * b * m) // 256 * 256)
+    key_t = (key * key.shape[-1] ** -0.5).transpose(1, 2)
+    out = value.new_empty((b, n, value.shape[-1]))
+    scores = None
+    for start in range(0, n, step):
+        rows = query[:, start : start + step]
+        if scores is None or scores.shape[1] != rows.shape[1]:
+            scores = torch.bmm(rows, key_t)
+        else:
+            torch.bmm(rows, key_t, out=scores)
+        torch.bmm(scores.softmax(-1), value, out=out[:, start : start + step])
+    return out
+
+
+_CORR_GATHER = 24 << 20  # fixed: bytes of gathered feature rows per chunk, L2-resident (25.9 vs 28.2 ms at 256 MiB)
+
+
+class _FlowCorrelation:
+    """`local_correlation_with_flow` (zeros padding) as dot products at integer positions (CUDA refinement, NHWC).
+
+    The window offsets are integers and the flow is shared by a pixel's window, so all its samples have the same
+    bilinear fraction: each correlation is the bilinear blend of the dot products at the `(2R + 2)^2` integer positions
+    around the flow target. Those are gathered rows of the second feature map in its own dtype (the fp16 features of
+    the autocast CNN, exact) with float32 accumulation; upstream's `grid_sample` writes `(2R + 1)^2` float32 samples per
+    pixel instead. 1080p, one refinement: 26 vs 36 ms; max difference 2e-4 on correlations up to 5.
+    """
+
+    def __init__(self, feature0: torch.Tensor, feature1: torch.Tensor, radius: int) -> None:
+        b, c, h, w = feature0.shape
+        self.shape, self.radius = (b, c, h, w), radius
+        rows = feature1.flatten(2).transpose(1, 2)
+        self.table = torch.cat([rows, rows.new_zeros((b, 1, c))], dim=1).flatten(0, 1)  # [B * (HW + 1), C]; 0 row
+        self.query = feature0.flatten(2).transpose(1, 2).reshape(b * h * w, 1, c)
+        self.offsets = torch.arange(-radius, radius + 2, device=feature0.device)
+        self.base = torch.arange(b, device=feature0.device)[:, None, None] * (h * w + 1)  # each image's first row
+        self.y = torch.arange(h, device=feature0.device, dtype=torch.float32)[:, None]
+        self.x = torch.arange(w, device=feature0.device, dtype=torch.float32)[None]
+
+    def __call__(self, flow: torch.Tensor) -> torch.Tensor:
+        """`[B, (2R+1)^2, H, W]` float32 correlation at the flow `[B, 2, H, W]`."""
+        b, c, h, w = self.shape
+        k = 2 * self.radius + 2
+        x, y = (self.x + flow[:, 0]).reshape(b, -1), (self.y + flow[:, 1]).reshape(b, -1)
+        x0, y0 = x.floor(), y.floor()
+        wx, wy = (x - x0)[..., None, None], (y - y0)[..., None, None]
+        gx = x0.long()[..., None, None] + self.offsets  # [B, N, 1, k]
+        gy = y0.long()[..., None, None] + self.offsets[:, None]  # [B, N, k, 1]
+        inside = (gx >= 0) & (gx < w) & (gy >= 0) & (gy < h)
+        index = (torch.where(inside, gy * w + gx, h * w) + self.base).reshape(b * h * w, k * k)
+        dots = torch.empty((b * h * w, 1, k * k), device=flow.device, dtype=torch.float32)
+        step = max(1, _CORR_GATHER // (k * k * c * self.table.element_size()))
+        for start in range(0, b * h * w, step):
+            rows = self.table.index_select(0, index[start : start + step].reshape(-1)).view(-1, k * k, c)
+            torch.bmm(
+                self.query[start : start + step],
+                rows.transpose(1, 2),
+                out_dtype=torch.float32,
+                out=dots[start : start + step],
+            )
+        dots = dots.view(b, h * w, k, k)
+        corr = (1 - wy) * ((1 - wx) * dots[:, :, :-1, :-1] + wx * dots[:, :, :-1, 1:]) + wy * (
+            (1 - wx) * dots[:, :, 1:, :-1] + wx * dots[:, :, 1:, 1:]
+        )
+        return (corr.reshape(b, h, w, -1) / c**0.5).permute(0, 3, 1, 2)  # channels-last, as the refinement block runs
+
+
 def forward(  # noqa: PLR0913 - network, image pair and inference options
     net: UniMatch, image1: torch.Tensor, image2: torch.Tensor, params: Params, *, fp16: bool, fused: bool = False
 ) -> torch.Tensor:
     """Flow `[B, 2, H, W]` of an ImageNet-normalised pair (H, W multiples of the card's padding)."""
-    attention = _headed if fused else attend
+    attention = _chunked if fused else attend
     upsample = flow_upsample.convex if fused else upsample_flow_with_mask
     amp = torch.autocast(image1.device.type, torch.float16) if fp16 else contextlib.nullcontext()
     with amp:
@@ -111,10 +194,16 @@ def forward(  # noqa: PLR0913 - network, image pair and inference options
         hidden, context = torch.chunk(net.refine_proj(feature1), chunks=2, dim=1)
         hidden, context = torch.tanh(hidden), torch.relu(context)
     mask = flow
-    for step in range(params.refine):
-        correlation = local_correlation_with_flow(
-            to_float32(raw1), to_float32(raw2), flow=flow, local_radius=REFINE_RADIUS
+    if fused:  # the CNN's own features (fp16 under autocast), not the float32 copies; a channels-last refinement block
+        last = len(SCALES[params.scales]) - 1
+        correlate = _FlowCorrelation(features1[last], features2[last], REFINE_RADIUS)
+        hidden, context = (x.contiguous(memory_format=torch.channels_last) for x in (hidden, context))
+    else:
+        correlate = lambda f: local_correlation_with_flow(  # noqa: E731
+            to_float32(raw1), to_float32(raw2), flow=f, local_radius=REFINE_RADIUS
         )
+    for step in range(params.refine):
+        correlation = correlate(flow)
         with amp:
             _, up_mask, residual = net.refine(
                 hidden,
@@ -167,8 +256,124 @@ _GRAPH_PIXELS = 262_144  # fixed: batch x padded H x W; launch-bound up to 384x5
 _GRAPHS = 2  # fixed: graph cache policy
 
 
+@functools.lru_cache(maxsize=8)
+def _window_orders(h: int, w: int, splits: int, device: torch.device) -> tuple[torch.Tensor, ...]:
+    """Token gathers between image order and the two window orders of a `splits` x `splits` Swin layer.
+
+    Returns (image -> unshifted, unshifted -> shifted, shifted -> unshifted, shifted -> image, unshifted -> image).
+    The shifted order is upstream's: rolled by minus half a window, then split into windows.
+    """
+    wh, ww = h // splits, w // splits
+    image = torch.arange(h * w, device=device).view(h, w)
+    split = lambda t: t.view(splits, wh, splits, ww).permute(0, 2, 1, 3).reshape(-1)  # noqa: E731
+    plain = split(image)
+    shifted = split(torch.roll(image, shifts=(-(wh // 2), -(ww // 2)), dims=(0, 1)))
+    to_image = lambda order: torch.empty_like(order).scatter_(0, order, torch.arange(order.numel(), device=device))  # noqa: E731
+    plain_back, shifted_back = to_image(plain), to_image(shifted)
+    return plain, plain_back[shifted], shifted_back[plain], shifted_back, plain_back
+
+
+def _window_layer(
+    layer: Any,  # noqa: ANN401 - a vendored TransformerLayer
+    source: torch.Tensor,
+    target: torch.Tensor,
+    windows: int,
+    mask: torch.Tensor | None,
+) -> torch.Tensor:
+    """Upstream `TransformerLayer.forward` (swin, one head) on tokens already in its window order."""
+    b, n, c = source.shape
+    q, k, v = (
+        proj(x).view(b * windows, n // windows, c)
+        for proj, x in ((layer.q_proj, source), (layer.k_proj, target), (layer.v_proj, target))
+    )
+    if mask is None:
+        message = _headed(q, k, v)
+    else:  # one image's windows at a time against the [K*K, N, N] mask, as upstream for large masks
+        message = torch.cat(
+            [
+                _headed(qa, ka, va, mask)
+                for qa, ka, va in zip(q.split(windows), k.split(windows), v.split(windows), strict=True)
+            ]
+        )
+    del q, k, v
+    message = layer.norm1(layer.merge(message.view(b, n, c)))
+    if layer.no_ffn:
+        return source + message
+    return layer._add_feed_forward(source, message)  # noqa: SLF001 - upstream's CUDA float32 inference branch
+
+
+def _window_transformer(
+    self: FeatureTransformer,
+    feature0: torch.Tensor,
+    feature1: torch.Tensor,
+    attn_type: str = "swin",
+    attn_num_splits: int | None = None,
+    **kwargs: object,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Upstream `FeatureTransformer.forward` for 2-D Swin attention with the tokens kept in window order.
+
+    Upstream rolls q, k and v of every shifted layer, splits all three into windows and merges and rolls the output
+    back (eight copies per shifted layer). Every other op of a layer is per token, so here the tokens of both images
+    are gathered into the next layer's window order once per layer; the attention sees the same windows in the same
+    order, with upstream's mask.
+    """
+    if attn_type != "swin" or attn_num_splits is None or attn_num_splits <= 1 or torch.is_grad_enabled():
+        msg = "the window-order GMFlow transformer is inference-only 2-D swin with splits > 1"
+        raise RuntimeError(msg)
+    del kwargs
+    b, c, h, w = feature0.shape
+    windows = attn_num_splits**2
+    to_plain, plain_to_shifted, shifted_to_plain, shifted_back, plain_back = _window_orders(
+        h, w, attn_num_splits, feature0.device
+    )
+    mask = generate_shift_window_attn_mask(
+        input_resolution=(h, w),
+        window_size_h=h // attn_num_splits,
+        window_size_w=w // attn_num_splits,
+        shift_size_h=h // attn_num_splits // 2,
+        shift_size_w=w // attn_num_splits // 2,
+        device=feature0.device,
+        dtype=torch.get_autocast_dtype(feature0.device.type)
+        if torch.is_autocast_enabled(feature0.device.type)
+        else feature0.dtype,
+    )
+    tokens = torch.cat((feature0, feature1)).flatten(-2).transpose(1, 2).index_select(1, to_plain)  # [2B, HW, C]
+    shifted = False
+    for i, layer in enumerate(self.layers):
+        if (i % 2 == 1) != shifted:
+            tokens = tokens.index_select(1, shifted_to_plain if shifted else plain_to_shifted)
+            shifted = not shifted
+        layer_mask = mask if shifted else None
+        other = torch.cat(tokens.chunk(2)[::-1])  # the cross-attention target: the other image before this block
+        tokens = _window_layer(layer.self_attn, tokens, tokens, windows, layer_mask)
+        tokens = _window_layer(layer.cross_attn_ffn, tokens, other, windows, layer_mask)
+    tokens = tokens.index_select(1, shifted_back if shifted else plain_back)
+    feature0, feature1 = tokens.view(2 * b, h, w, c).permute(0, 3, 1, 2).contiguous().chunk(2)
+    return feature0, feature1
+
+
+def _refine_forward(self: BasicUpdateBlock, net, inp, corr, flow, *, upsample=True):  # noqa: ANN001, ANN202, PLR0913 - upstream's names
+    """Upstream `BasicUpdateBlock.forward`, channels-last, with the GRU input cast to the autocast dtype once.
+
+    The motion features end in the float32 flow, so upstream's `[context, motion]` concatenation is float32 and each of
+    the GRU's six convolutions (and its concatenations with the fp16 hidden state) re-casts all 256 channels. Every
+    consumer casts it to the autocast dtype, so casting it once gives the same values.
+
+    The block's convolutions run channels-last (Kernels moves its weights; the hidden state, context and correlation
+    come channels-last): cuDNN's fp16 kernels are NHWC, so NCHW tensors were converted on every convolution.
+    """
+    flow = flow.contiguous(memory_format=torch.channels_last)
+    inp = torch.cat([inp, self.encoder(flow, corr)], dim=1)
+    if torch.is_autocast_enabled(inp.device.type):
+        inp = inp.to(torch.get_autocast_dtype(inp.device.type))
+    net = self.gru(net, inp)
+    delta_flow = self.flow_head(net)
+    mask = self.mask(net) if self.mask is not None and upsample else None
+    return net, mask, delta_flow
+
+
 class Kernels(Portable):
-    """Use explicit attention heads for fused SDPA and fuse the final convex upsampling.
+    """Use explicit attention heads for fused SDPA, chunked GEMMs for global matching and fuse the convex upsampling.
 
     A repeated input shape up to `_GRAPH_PIXELS` replays a CUDA graph (`fastforks.shared.cuda_graphs`): the eager
     pass is launch-bound there.
@@ -183,6 +388,10 @@ class Kernels(Portable):
         for layer in self.net.transformer.modules():
             if isinstance(layer, TransformerLayer):
                 layer.window_options = {"attention": _headed}
+        override(self.net.transformer, _window_transformer)
+        if ctx.params.refine:
+            self.net.refine.to(memory_format=torch.channels_last)
+            override(self.net.refine, _refine_forward)
         self._graphs = SmallShapeGraphs(
             super()._flow, pixels=_GRAPH_PIXELS, graphs=_GRAPHS, enabled=ctx.params.cuda_graphs
         )

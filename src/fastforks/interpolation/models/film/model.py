@@ -363,7 +363,7 @@ class Portable(Runner):
 
 def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     pad = tuple(k // 2 for k in conv.kernel_size) if conv.padding == "same" else conv.padding  # odd kernels only
-    return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, pad, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
+    return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, pad, conv.stride, conv.dilation, fuse_bias=True)  # ty: ignore[invalid-argument-type]
 
 
 # a graph replaces the eager launches while the host is slower than the GPU; RTX 5060 Ti, Windows, ms per frame

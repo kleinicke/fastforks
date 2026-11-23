@@ -22,7 +22,7 @@ from fastforks._core.errors import BackendUnavailableError
 from fastforks._core.patch import override
 from fastforks.kernels import deform_conv as deform_kernels
 from fastforks.matting._runner import Forward, Runner, scale
-from fastforks.shared import mlx_wrap
+from fastforks.shared import mlx_wrap, swin_v1
 from fastforks.shared.cnn_kernels import CL, Patched, bn_affine
 
 from .net.birefnet import BiRefNet
@@ -121,7 +121,7 @@ def _aspp_forward(self: Patched, x: torch.Tensor) -> torch.Tensor:
 
 
 class Kernels(_Matting):
-    """fp16 channels-last network; the deformable ASPP branches run the fused `deform_conv` kernel."""
+    """fp16 channels-last network, gather-based Swin blocks, the fused `deform_conv` kernel in the deformable ASPP."""
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and convert the deformable branches."""
@@ -133,6 +133,7 @@ class Kernels(_Matting):
                 _prepare_aspp(m)
         self.dtype = torch.float16
         self.net = net.to(ctx.device, torch.float16).to(memory_format=CL)
+        swin_v1.fast(self.net.bb)
         for m in self.net.modules():
             if isinstance(m, _ASPPModuleDeformable):
                 m._w, m._s, m._t = (v.to(ctx.device) for v in (m._w, m._s, m._t))  # noqa: SLF001
