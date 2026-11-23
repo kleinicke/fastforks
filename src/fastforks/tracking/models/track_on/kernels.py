@@ -14,6 +14,7 @@ import torch.nn.functional as F
 
 from fastforks._core import kernels
 from fastforks._core.errors import BackendUnavailableError, InputError
+from fastforks._core.patch import override
 from fastforks._core.upload import device_tensor
 from fastforks.kernels.dpt_fused import DEEP_K, DptFused
 from fastforks.kernels.fastbb import Flash64
@@ -21,7 +22,7 @@ from fastforks.kernels.fastbb import load as load_kernels
 from fastforks.shared.depth_anything_v2.fast_vit import HEAD_DIM, _flash
 
 from .net.dinov3 import rope_table
-from .net.track_on import MSDA, DMSMHABlock, MHABlock
+from .net.track_on import MSDA, D, DMSMHABlock, Frame, MHABlock
 
 if TYPE_CHECKING:
     from .net.track_on import Shapes, TrackOn2
@@ -88,13 +89,34 @@ def _install_mlps(net: TrackOn2) -> None:
     """Every decoder / fusion block's MLP on `_mlp`."""
     for mod in net.modules():
         if isinstance(mod, MHABlock):
-            mod.forward = _mha_forward.__get__(mod)  # ty: ignore[invalid-assignment]  # per-instance override
+            override(mod, _mha_forward)
         elif isinstance(mod, DMSMHABlock):
-            mod.forward = _dmsmha_forward.__get__(mod)  # ty: ignore[invalid-assignment]  # per-instance override
+            override(mod, _dmsmha_forward)
         elif isinstance(mod, MSDA):
-            mod.forward = _msda_forward.__get__(mod)  # ty: ignore[invalid-assignment]  # per-instance override
+            override(mod, _msda_forward)
+    override(net, _correlation, "correlation")
     last = net.memory_attention[-1]
-    last.forward = _newest_row_forward.__get__(last)  # ty: ignore[invalid-assignment]  # per-instance override
+    override(last, _newest_row_forward)
+
+
+@torch.autocast("cuda", enabled=False)
+def _correlation(self: TrackOn2, q: torch.Tensor, frame: Frame) -> torch.Tensor:
+    """`TrackOn2.correlation` as one float32 GEMM against the mixed, upsampled features.
+
+    Bilinear upsampling and the 1 x 1 `ms_corr_proj` conv are linear, so upsampling each level's `qn @ u.T` maps and
+    mixing them equals `qn @ U + bias` with `U = sum_l w_l up(u_l)`: the four `[D, h_l, w_l]` feature levels are
+    upsampled once per call instead of `N` correlation maps per level (and nothing is rounded to fp16 on the way).
+    """
+    conv = self.ms_corr_proj
+    weight = conv.weight.float().view(-1)
+    mixed = None
+    for i, (u, (h, w)) in enumerate(zip(frame.unit, self.shapes, strict=True)):
+        m = u.float().T.reshape(1, D, h, w)
+        if (h, w) != (self.hf, self.wf):
+            m = F.interpolate(m, size=(self.hf, self.wf), mode="bilinear", align_corners=False)
+        mixed = m * weight[i] if mixed is None else mixed.add_(m * weight[i])
+    qn = F.normalize(q.float(), dim=-1)
+    return torch.addmm(cast("torch.Tensor", conv.bias).float(), qn, cast("torch.Tensor", mixed).view(D, -1))
 
 
 def _mlp(blk: MHABlock | DMSMHABlock, q: torch.Tensor) -> torch.Tensor:
