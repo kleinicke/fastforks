@@ -7,7 +7,12 @@ Accumulation is float32, the result is rounded once to the activation dtype.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from fastforks._core.mlx import metal_kernel, mx
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _DW = metal_kernel(
     name="graph_dwconv",
@@ -778,4 +783,91 @@ def row_layer_norm(x: mx.array, w: mx.array | None, b: mx.array | None, eps: flo
                   ("HAS_W", w is not None), ("HAS_B", b is not None)],
         grid=(-(-rows // sg) * 32 * sg, 1, 1), threadgroup=(32 * sg, 1, 1),
         output_shapes=[x.shape], output_dtypes=[x.dtype],
+    )[0]  # fmt: skip
+
+
+def _corr_windows_kernel(levels: int) -> Callable[..., list[mx.array]]:
+    """The `corr_windows` kernel of a pyramid of `levels` levels (one input array per level, no concatenated copy)."""
+    if levels not in _CORR_WINDOWS:
+        pick = "\n".join(f"if (l == {i}) {{ f2 = f2_{i}; hl = H{i}; wl = W{i}; }}" for i in range(levels))
+        _CORR_WINDOWS[levels] = metal_kernel(
+            name=f"graph_corr_windows_l{levels}",
+            input_names=["f1", *(f"f2_{i}" for i in range(levels)), "coords", "sc"],
+            output_names=["out"],
+            source=_CORR_WINDOWS_SRC.replace("PICK_LEVEL", pick),
+        )
+    return _CORR_WINDOWS[levels]
+
+
+_CORR_WINDOWS: dict[int, Callable[..., list[mx.array]]] = {}
+_CORR_WINDOWS_SRC = """
+        // RAFT's correlation windows without a volume (`flow_metal`'s corr_window, the MPS kernel, for MLX). One SIMD
+        // group per (pixel, level): the (2r + 2)^2 integer neighbours' dot products, LANES lanes per neighbour (f1's
+        // C / LANES channels of the lane kept in registers), G = 32 / LANES neighbours at a time; then the bilinear
+        // (2r + 1)^2 window (align_corners, zeros outside). fp32 dot products and output.
+        constexpr uint G = 32 / LANES, S = 2 * R + 2, K = 2 * R + 1, NV = C / (4 * LANES);
+        threadgroup float dots[4][S * S + G];
+        uint gid = thread_position_in_grid.x;
+        uint lane = thread_index_in_simdgroup, sg = simdgroup_index_in_threadgroup;
+        uint item = gid / 32;  // (b * P + n) * L + l
+        if (item >= NB * P * L) return;  // whole SIMD groups only
+        uint l = item % L, bn = item / L, b = bn / P, n = bn - b * P;
+        uint sub = lane / LANES, s = lane % LANES;
+        float4 a[NV];
+        const device T* p1 = f1 + size_t(bn) * C + s * 4;
+        for (uint v = 0; v < NV; ++v) a[v] = float4(*(const device vec<T, 4>*)(p1 + v * 4 * LANES));
+        float lsc = 1.0f / float(1u << l);
+        float cx = float(coords[size_t(b) * 2 * P + n]) * lsc, cy = float(coords[size_t(b) * 2 * P + P + n]) * lsc;
+        bool ok = isfinite(cx) && isfinite(cy) && fabs(cx) < 1.0e6f && fabs(cy) < 1.0e6f;
+        if (!ok) cx = cy = -1.0e7f;  // every tap outside: zeros
+        float x0 = floor(cx), y0 = floor(cy), ax = cx - x0, ay = cy - y0;
+        const device T* f2 = f2_0;
+        int hl = H0, wl = W0;
+        PICK_LEVEL
+        int ix = int(clamp(x0, -2.0e6f, 2.0e6f)) - R, iy = int(clamp(y0, -2.0e6f, 2.0e6f)) - R;
+        const device T* base = f2 + size_t(b) * hl * wl * C + s * 4;
+        float scale = sc[0];
+        for (uint pos = sub; pos < S * S + sub; pos += G) {  // the same pass count on every lane (the shuffles)
+            int x = ix + int(pos / S), y = iy + int(pos % S);
+            bool in = pos < S * S && x >= 0 && x < wl && y >= 0 && y < hl;
+            const device T* p2 = base + (size_t(clamp(y, 0, hl - 1)) * wl + clamp(x, 0, wl - 1)) * C;
+            float t = 0.0f;
+            for (uint v = 0; v < NV; ++v) t += dot(a[v], float4(*(const device vec<T, 4>*)(p2 + v * 4 * LANES)));
+            for (uint m = LANES / 2; m > 0; m /= 2) t += simd_shuffle_xor(t, m);
+            if (s == 0 && pos < S * S) dots[sg][pos] = in ? t * scale : 0.0f;
+        }
+        simdgroup_barrier(mem_flags::mem_threadgroup);
+        float w00 = (1.0f - ax) * (1.0f - ay), w10 = ax * (1.0f - ay), w01 = (1.0f - ax) * ay, w11 = ax * ay;
+        device float* o = out + (size_t(b) * L + l) * K * K * P + n;
+        for (uint k = lane; k < K * K; k += 32) {
+            uint i = k / K, j = k - i * K, d = i * S + j;
+            o[size_t(k) * P] = w00 * dots[sg][d] + w10 * dots[sg][d + S] + w01 * dots[sg][d + 1]
+                + w11 * dots[sg][d + S + 1];
+        }
+"""
+
+
+def corr_windows(f1: mx.array, levels: list[mx.array], coords: mx.array, radius: int, scale: float) -> mx.array:
+    """`fastforks::corr_windows` of NHWC `f1` `[B, H, W, C]`, NHWC `levels`, `coords` `[B, 2, H, W]`: fp32 windows.
+
+    Returns `[B, L * (2r + 1)^2, H, W]` (see `fastforks._core.volume_ops.corr_windows`).
+    """
+    t = f1.dtype
+    for f in levels:
+        t = mx.result_type(t, f.dtype)
+    b, h, w, c = f1.shape
+    lanes = 8 if c <= 512 else 32  # f1 in registers: C / LANES floats per lane
+    if c % (4 * lanes):
+        msg = f"corr_windows: {c} channels (a multiple of {4 * lanes})"
+        raise ValueError(msg)
+    nl, p = len(levels), h * w
+    tmpl = [("T", t), ("C", c), ("R", radius), ("L", nl), ("P", p), ("NB", b), ("LANES", lanes)]
+    for i, f in enumerate(levels):
+        tmpl += [(f"H{i}", f.shape[1]), (f"W{i}", f.shape[2])]
+    return _corr_windows_kernel(nl)(
+        inputs=[mx.contiguous(f1.astype(t)), *(mx.contiguous(f.astype(t)) for f in levels),
+                mx.contiguous(coords.astype(mx.float32)), mx.array([scale, 0.0], mx.float32)],
+        template=tmpl,
+        grid=(b * p * nl * 32, 1, 1), threadgroup=(128, 1, 1),
+        output_shapes=[(b, nl * (2 * radius + 1) ** 2, h, w)], output_dtypes=[mx.float32],
     )[0]  # fmt: skip

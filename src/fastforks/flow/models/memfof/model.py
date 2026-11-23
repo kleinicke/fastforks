@@ -13,10 +13,12 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import half_weights
 from fastforks._core.patch import override
+from fastforks._core.volume_ops import corr_windows
 from fastforks.flow._runner import Forward, Runner
 from fastforks.kernels.flow_upsample import convex
 from fastforks.shared import mlx_wrap
 
+from .net.gma import Aggregate, Attention, rearrange
 from .net.layer import ConvNextBlock
 from .net.model import MEMFOF
 
@@ -203,8 +205,64 @@ class Kernels(Portable):
         return Runner.module(self)
 
 
+_GMA_MATRIX_BYTES = 1 << 30  # fixed: float32 attention matrix from which the MLX pass recomputes it (memory bound)
+
+
+def _windows(net: MEMFOF, f1: torch.Tensor, f2: torch.Tensor) -> Callable[[torch.Tensor], torch.Tensor]:
+    """`CorrBlock`'s windows without its all-pairs volumes: the pooled f2 pyramid and `corr_windows` (one kernel).
+
+    Upstream halves f2 bilinearly (align_corners=False, scale 0.5), which is 2 x 2 average pooling, and pooling commutes
+    with the dot product. At `scale = 1` (2160 x 3840 frames) each direction's volume alone is 4.2 GB in float32.
+    """
+    levels = [f2]
+    for _ in range(net.corr_levels - 1):
+        levels.append(F.avg_pool2d(levels[-1], 2))
+    radius, scale = net.corr_radius, f1.shape[1] ** -0.5
+    return lambda coords: corr_windows(f1, levels, coords, radius, scale)
+
+
+def _attention_qk(att: Attention, fmap: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+    """Upstream's attention matrix, or (scaled queries, keys) when it is large: `_aggregate_sdpa` recomputes it."""
+    b, _, h, w = fmap.shape
+    if b * att.heads * (h * w) ** 2 * 4 <= _GMA_MATRIX_BYTES:
+        return Attention.forward(att, fmap)
+    q, k = att.to_qk(fmap).chunk(2, dim=1)
+    q, k = (rearrange(t, "b (h d) x y -> b h (x y) d", h=att.heads) for t in (q, k))
+    return q * (att.scale * math.log(h * w, 3)), k
+
+
+def _aggregate_sdpa(
+    agg: Aggregate, attn: torch.Tensor | tuple[torch.Tensor, torch.Tensor], fmap: torch.Tensor
+) -> torch.Tensor:
+    """Upstream's aggregation; with (queries, keys) one attention op (MLX runs it in query blocks: no N^2 matrix)."""
+    if not isinstance(attn, tuple):
+        return Aggregate.forward(agg, attn, fmap)
+    _, _, h, w = fmap.shape
+    v = rearrange(agg.to_v(fmap), "b (h d) x y -> b h (x y) d", h=agg.heads)
+    q, k = attn
+    out = F.scaled_dot_product_attention(q, k, v.to(q.dtype), scale=1.0)
+    out = rearrange(out, "b h (x y) d -> b (h d) x y", x=h, y=w)
+    if agg.project is not None:
+        out = agg.project(out)
+    return fmap + agg.gamma * out
+
+
+class _Mlx(Portable):
+    """The portable pass for the MLX replay: correlation windows without volumes, the large GMA matrix recomputed."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network and swap the volume and the attention matrix for their memory-bound forms."""
+        super().__init__(ctx)
+        override(self.net.att, _attention_qk)
+        override(self.net.update_block.aggregator, _aggregate_sdpa)
+
+    def _flow(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
+        corr_fn = functools.partial(_windows, self.net)
+        return self.net.forward_pair(image1, image2, self.ctx.params.iters, corr_fn=corr_fn, fp16=self.fp16)
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_flow",), half_wino_f32=True),
+    "portable_mlx": mlx_wrap.port(_Mlx, attrs=(), methods=("_flow",), half_wino_f32=True),
 }

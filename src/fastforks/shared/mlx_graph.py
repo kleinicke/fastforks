@@ -438,6 +438,14 @@ def _gwc_warp(left: mx.array, right: mx.array, disp: mx.array, groups: int) -> m
     return ops.gwc_warp(_nhwc(left), _nhwc(right), disp, groups)
 
 
+@_reg(torch.ops.fastforks.corr_windows.default)
+def _corr_windows(f1: mx.array, levels: list[mx.array], coords: mx.array, radius: int, scale: float) -> mx.array:
+    """RAFT-style correlation windows (`fastforks._core.volume_ops.corr_windows`): one Metal kernel, no volume."""
+    from fastforks.kernels.graph_mlx import ops
+
+    return ops.corr_windows(_nhwc(f1), [_nhwc(f) for f in levels], coords, radius, scale)
+
+
 @_reg(torch.ops.fastforks.linear_sample.default)
 def _linear_sample(vol: mx.array, x: mx.array) -> mx.array:
     """The IGEV-family 1-D lookup op (`fastforks._core.volume_ops.linear_sample`): one Metal kernel."""

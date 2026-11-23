@@ -151,9 +151,9 @@ yields an `auto` entry where an MPS `ok` row exists to compare against.
 | features | SigLIP 2 | `siglip2-so400m14-224` | size-sibling | float32/float16 | 1632 | 3 | open: 1632 MB weights, skipped (download and memory cost on the shared Mac) |
 | features | SigLIP 2 | `siglip2-so400m16-256` | size-sibling | float32/float16 | 1632 | 3 | open: 1632 MB weights, skipped (download and memory cost on the shared Mac) |
 | features | SigLIP 2 | `siglip2-so400m16-512` | size-sibling | float32/float16 | 1636 | 3 | open: 1636 MB weights, skipped (download and memory cost on the shared Mac) |
-| flow | FlowFormer Small | `flowformer-small-chairs` | no-family-row | float32/float16 | 24 | 0 | fp16 failed, fp32 failed; open: earlier MLX rows fail, Metal out of memory (MPS OOM too) |
-| flow | FlowFormer Small | `flowformer-small-sintel` | no-family-row | float32/float16 | 24 | 0 | open: same model as `flowformer-small-chairs`, which runs out of memory |
-| flow | FlowFormer Small | `flowformer-small-things` | no-family-row | float32/float16 | 24 | 0 | open: same model as `flowformer-small-chairs`, which runs out of memory |
+| flow | FlowFormer Small | `flowformer-small-chairs` | no-family-row | float32/float16 | 24 | 0 | fp16 13.0 s, fp32 19.8 s (re-run 2026-11-23 after the memory-lean MLX port, peak about 1.9 GB, goldens pass) |
+| flow | FlowFormer Small | `flowformer-small-sintel` | no-family-row | float32/float16 | 24 | 0 | fp16 13.0 s, fp32 19.8 s (memory-lean MLX port, peak about 1.9 GB, goldens pass) |
+| flow | FlowFormer Small | `flowformer-small-things` | no-family-row | float32/float16 | 24 | 0 | fp16 13.0 s, fp32 19.9 s (memory-lean MLX port, peak about 1.9 GB, goldens pass) |
 | flow | FlowSeek | `flowseek-t-things` | checkpoint-sibling | float32/float16 | 163 | 0 | skip: checkpoint of `flowseek-t` |
 | flow | FlowSeek | `flowseek-t-things-notartan` | checkpoint-sibling | float32/float16 | 163 | 1 | skip: checkpoint of `flowseek-t` |
 | flow | GMFlow | `gmflow-scale1-mixdata` | checkpoint-sibling | float32/float16 | 18 | 3 | skip: checkpoint of `gmflow-scale1-things` |
@@ -164,8 +164,8 @@ yields an `auto` entry where an MPS `ok` row exists to compare against.
 | flow | GMFlow | `gmflow-scale2-regrefine6-things` | size-sibling | float32/float16 | 28 | 0 | fp16 11121 ms; fp32 re-run 2026-11-23: ~16.7 s, golden pass (MPS runs out of memory in both dtypes, so auto takes MLX) |
 | flow | GMFlow | `gmflow-scale2-sintel` | size-sibling | float32/float16 | 18 | 0 | fp16 8283 ms, fp32 13073 ms |
 | flow | GMFlow | `gmflow-scale2-things` | size-sibling | float32/float16 | 18 | 0 | fp16 8261 ms, fp32 13356 ms |
-| flow | MEMFOF | `memfof-kitti` | size-sibling | float32/float16 | 289 | 2 | open: re-run 2026-11-23 on a quiet Mac with a 900 s cap still timed out in both dtypes; `scale = 1` doubles the frames to 2160x3840, which swaps on 16 GB (MPS sintel runs out of memory) |
-| flow | MEMFOF | `memfof-sintel` | size-sibling | float32/float16 | 289 | 0 | open: re-run 2026-11-23 on a quiet Mac with a 900 s cap still timed out in both dtypes; `scale = 1` doubles the frames to 2160x3840, which swaps on 16 GB (MPS sintel runs out of memory) |
+| flow | MEMFOF | `memfof-kitti` | size-sibling | float32/float16 | 289 | 2 | fp16 16.1 s, fp32 19.7 s (memory-lean MLX port, peak 3.7 / 4.1 GB, goldens pass) |
+| flow | MEMFOF | `memfof-sintel` | size-sibling | float32/float16 | 289 | 0 | fp16 16.0 s, fp32 19.9 s (memory-lean MLX port, peak 3.6 / 4.0 GB, goldens pass) |
 | flow | MEMFOF | `memfof-spring` | checkpoint-sibling | float32/float16 | 289 | 1 | skip: checkpoint of `memfof` |
 | flow | MemFlow | `memflow-kitti` | size-sibling | float32/float16 | 24 | 1 | fp16 6988 ms, fp32 9851 ms |
 | flow | MemFlow | `memflow-sintel` | size-sibling | float32/float16 | 24 | 1 | fp16 6990 ms, fp32 9860 ms |
@@ -332,9 +332,29 @@ no `ok` row" would fix this and the same case for other models.
 66 MLX-capable refs had no MLX row (mostly sibling checkpoints and larger sizes). All surveyed, portable + kernels:
 151 runs ok, 147 golden pass. Open:
 
-- flowformer-small-sintel / -things: MLX out of memory at 1080x1920 (fp32 and fp16); MPS also OOM. Candidate for a
-  chunked, memory-lean MLX port, together with memfof-kitti / -sintel.
+- flowformer-small-sintel / -things: MLX out of memory at 1080x1920 (fp32 and fp16); MPS also OOM. Fixed since: see
+  the next section.
 - loma-g / loma-r: run fine on MLX, but no golden and no MPS row yet.
 
 24 refs gained an `auto` MLX route, all siblings of nets already routed (igev-stereo, igev-plusplus, selective-igev,
 great-igev, raft-stereo, waft-a1) plus sam-vit-h, vitpose-plus-huge, owlv2-l14, track-on-r, flowseek-t-notartan.
+
+## Memory-lean MLX ports of MEMFOF scale 1 and FlowFormer Small (2026-11-23)
+
+memfof-kitti / -sintel (frames doubled to 2160x3840, 32400 tokens at 1/16) and flowformer-small-* (32400 tokens at
+1/8) built O(N^2) tensors: the all-pairs volumes (4.2 GB float32 each), GMA's attention matrix (4.2 GB), FlowFormer's
+patch embeddings of all cost maps (8.5 GB) and its sub-sampled cost-encoder attention scores (8 GB). The MLX runners
+(`_Mlx` in each `model.py`) now avoid all of them:
+
+- `fastforks::corr_windows` (`_core/volume_ops.py`, Metal kernel in `kernels/graph_mlx/ops.py`): RAFT's windows from
+  the pooled f2 pyramid, one SIMD group per (pixel, level), fp32 accumulation; no volume.
+- GMA: above 1 GiB of float32 matrix, (q, k) instead of the matrix; the aggregation is one SDPA (MEMFOF's head size
+  512 runs in query blocks, FlowFormer's 128 fused). MEMFOF fp16 at 2160x3840: keeping the fp16 matrix was 15 s and
+  4.6 GB peak, against 17 s and 2.9 GB recomputed.
+- FlowFormer: deferred volume, cost maps made, embedded and projected 512 at a time; fused cost-encoder attention.
+
+Survey at 1080x1920 (warm median, peak footprint): memfof-kitti fp16 16.1 s / 3652 MB, fp32 19.7 s / 4087 MB;
+memfof-sintel 16.0 s / 3643 MB, 19.9 s / 3959 MB; flowformer-small-sintel / -things / -chairs fp16 13.0 s / about
+1.9 GB, fp32 19.8 s / about 1.9 GB. All goldens pass. MPS has no `ok` row for these at 1080x1920 (out of memory), so
+no `auto` route follows (the policy gap above). memfof / memfof-spring (scale 0) use the windows kernel too: peak
+2380 -> 1986 MB fp16 and 2980 -> 2293 MB fp32, time +1 % fp16 and +4-6 % fp32, goldens pass.
