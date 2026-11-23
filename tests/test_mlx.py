@@ -640,3 +640,20 @@ def test_float_attention_mask_stays_finite_in_float16(fused):
     assert clamped.dtype == mx.float16
     assert to_torch(clamped)[0, 0, 4, 0] == -torch.inf
     assert torch.isfinite(to_torch(clamped)[0, 0, :4]).all()
+
+
+def test_signature_caches_keep_the_most_recent_shapes(caplog):
+    """`MlxModule` holds one exported graph per input signature, at most `SIGNATURES`; an evicted one exports again."""
+    pytest.importorskip("mlx.core")
+    from fastforks.shared import mlx_graph  # noqa: PLC0415 - optional (the mlx extra)
+
+    torch.manual_seed(0)
+    net = torch.nn.Conv2d(3, 4, 3, padding=1).eval()
+    module = mlx_graph.MlxModule(net, "float32")
+    sizes = range(4, 4 + mlx_graph.SIGNATURES + 2)
+    with caplog.at_level("WARNING", logger="fastforks.mlx"):
+        for n in (*sizes, sizes[0]):
+            x = torch.randn(1, 3, n, 5)
+            torch.testing.assert_close(module(x), net(x), atol=1e-5, rtol=1e-5)
+    assert len(module._nets) == mlx_graph.SIGNATURES
+    assert sum("signature" in r.getMessage() for r in caplog.records) == 1  # said once, not per eviction

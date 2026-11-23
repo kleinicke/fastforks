@@ -20,19 +20,21 @@ An op without a mapping raises `UnsupportedOp` naming it (never a silent fallbac
 from __future__ import annotations
 
 import bisect
+import collections
 import contextlib
 import ctypes
 import functools
 import gc
 import inspect
 import itertools
+import logging
 import math
 import mmap
 import operator
 import os
 import threading
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 import numpy as np
 import torch
@@ -3045,6 +3047,50 @@ def _unused_hidden(module: torch.nn.Module, used: set[int]) -> Iterator[dict[str
             host._parameters, host._buffers = params, buffers
 
 
+_V = TypeVar("_V")
+
+SIGNATURES = 8
+"""Exported graphs kept per `GraphNet` / `MlxModule`: one per input signature, the least recently used dropped."""
+
+
+class _Signatures(Generic[_V]):
+    """The per-signature cache of a `GraphNet` / `MlxModule`: at most `SIGNATURES` entries, least recently used out.
+
+    Every input signature (shapes, dtypes, the `repr` of a Python argument) holds an exported graph, its compiled
+    function and its constants; a server that runs arbitrary image sizes, or an argument whose value changes per call,
+    would otherwise grow without bound. A dropped signature is exported again when it comes back: the first drop is
+    logged, since a caller that cycles through more signatures than fit pays an export per call.
+    """
+
+    def __init__(self, owner: str) -> None:
+        self.owner = owner
+        self.entries: collections.OrderedDict[Any, _V] = collections.OrderedDict()
+        self.warned = False
+
+    def __len__(self) -> int:
+        return len(self.entries)
+
+    def get(self, key: Any) -> _V | None:
+        if key not in self.entries:
+            return None
+        self.entries.move_to_end(key)
+        return self.entries[key]
+
+    def put(self, key: Any, value: _V) -> _V:
+        self.entries[key] = value
+        while len(self.entries) > SIGNATURES:
+            self.entries.popitem(last=False)
+            if not self.warned:
+                self.warned = True
+                logging.getLogger("fastforks.mlx").warning(
+                    "%s ran with more than %d input signatures on MLX; the least recently used graph is dropped and"
+                    " exported again if its signature returns (each new shape, dtype or Python argument value is one)",
+                    self.owner,
+                    SIGNATURES,
+                )
+        return value
+
+
 class GraphNet:
     """An eval-mode `torch.nn.Module` run on MLX: `net(*tensors) -> tuple of float32 CPU tensors`.
 
@@ -3097,7 +3143,7 @@ class GraphNet:
         self.fp32_inputs = fp32_inputs
         self.chunk_mb = chunk_mb
         self.pipeline = pipeline
-        self._runs: dict[tuple[Any, ...], Callable[..., Any]] = {}
+        self._runs: _Signatures[Callable[..., Any]] = _Signatures(type(module).__name__)
         self.on_built: Callable[[], None] | None = None  # called after each export, before its first run
         self._wino: dict[
             Any, tuple[mx.array, mx.array]
@@ -3874,11 +3920,12 @@ class GraphNet:
         _HALF_WINO_F32 = self.half_wino_f32
         _WINO = self._wino
         key = tuple((s, str(d)) for s, d in map(_sig, tensors))
-        if key not in self._runs:
-            self._runs[key] = self._build(tuple(tensors))
+        run = self._runs.get(key)
+        if run is None:
+            run = self._runs.put(key, self._build(tuple(tensors)))
             if self.on_built is not None:
                 self.on_built()
-        outs = self._runs[key](*[t if isinstance(t, mx.array) else to_mx(t) for t in tensors])
+        outs = run(*[t if isinstance(t, mx.array) else to_mx(t) for t in tensors])
         return outs if raw else tuple(to_torch(o) for o in outs)
 
 
@@ -3957,7 +4004,7 @@ class MlxModule:
         self.pipeline = pipeline
         self.half_wino_f32 = half_wino_f32
         self.fp32_inputs = fp32_inputs
-        self._nets: dict[Any, tuple[GraphNet, _Flat]] = {}
+        self._nets: _Signatures[tuple[GraphNet, _Flat]] = _Signatures(type(module).__name__)
         self._plan_scope = mlx_plan_cache.next_scope()  # this module's key in the on-disk plan cache (a model load's)
         if release:
             for _, t in _tensors(self.module):
@@ -3979,32 +4026,30 @@ class MlxModule:
         leaves, spec = pytree.tree_flatten((args, kwargs))
         array = (torch.Tensor, mx.array)
         key = (spec, tuple(_sig(x) if isinstance(x, array) else repr(x) for x in leaves))
-        if key not in self._nets:
+        entry = self._nets.get(key)
+        if entry is None:
             keep = self._fp32_positions(args, kwargs, [x for x in leaves if isinstance(x, array)])
             leaves = [to_torch(x).to(_sig(x)[1]) if isinstance(x, mx.array) else x for x in leaves]
             flat = _Flat(self.module, spec, leaves)
-            self._nets[key] = (
-                GraphNet(
-                    flat,
-                    self.dtype,
-                    compile=self.compile,
-                    kernels=self.kernels,
-                    shared=self._consts(),
-                    chunk_mb=self.chunk_mb,
-                    pipeline=self.pipeline,
-                    half_wino_f32=self.half_wino_f32,
-                    fp32_inputs=keep,
-                ),
+            net = GraphNet(
                 flat,
+                self.dtype,
+                compile=self.compile,
+                kernels=self.kernels,
+                shared=self._consts(),
+                chunk_mb=self.chunk_mb,
+                pipeline=self.pipeline,
+                half_wino_f32=self.half_wino_f32,
+                fp32_inputs=keep,
             )
-            net = self._nets[key][0]
+            entry = self._nets.put(key, (net, flat))
             sig = (repr(key), self.dtype, self.kernels, self.compile, self.chunk_mb, self.half_wino_f32)
             if self.fp32_inputs:
                 sig = (*sig, self.fp32_inputs)
             net.plan = mlx_plan_cache.Entry.make(self._plan_scope, flat, sig)
             net.plan_extra = lambda flat=flat: flat.out.value
             net.plan_restore = lambda extra, flat=flat: setattr(flat.out, "value", extra)
-        net, flat = self._nets[key]
+        net, flat = entry
         net.on_built = (lambda: self._release(flat)) if self.release else None
         outs = iter(net(*[x for x in leaves if isinstance(x, array)], raw=raw))
         assert flat.out.value is not None  # noqa: S101 - narrows the Optional; set while exporting

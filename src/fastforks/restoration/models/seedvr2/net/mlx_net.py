@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 
 F32 = mx.float32
 BF = mx.bfloat16
+_PLANS = 8  # sizes whose index plans are kept (the least recently used one is dropped)
 
 
 def _mx(t: torch.Tensor) -> mx.array:
@@ -170,6 +171,10 @@ class Transformer:
                 Plan(dit.make_plan(size, shifted=False, txt_len=n, device=cpu)),
                 Plan(dit.make_plan(size, shifted=True, txt_len=n, device=cpu)),
             )
+            while len(self.plans) > _PLANS:  # a video of every size would otherwise keep each size's index tables
+                del self.plans[next(iter(self.plans))]
+        else:
+            self.plans[size] = self.plans.pop(size)  # most recently used last
         return self.plans[size]
 
     def _block_weights(self, i: int) -> dict[str, mx.array | Nf4]:
