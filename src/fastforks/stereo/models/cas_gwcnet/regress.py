@@ -49,6 +49,6 @@ def upsample_softmax_regress(
             recompute_scale_factor=False,
         ).squeeze(1)  # output rows i0 * sh .. i1 * sh
         a = y0 - i0 * sh
-        p = F.softmax(up[:, :, a : a + (y1 - y0)], dim=1)
+        p = F.softmax(up, dim=1)[:, :, a : a + (y1 - y0)]  # the margin rows too: no contiguous copy of the block
         out[:, y0:y1] = torch.sum(p * (values[:, :, y0:y1] if per_pixel else values), 1)
     return out
