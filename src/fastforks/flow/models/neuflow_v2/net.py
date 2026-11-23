@@ -31,6 +31,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.mlx_cast import float32_call, to_float32
 from fastforks._core.sampling import grid_sample
 from fastforks._core.tracing import in_onnx_export
 
@@ -190,7 +191,7 @@ class UpSample(nn.Module):
         mask = self.conv3(F.relu(self.conv2(F.relu(self.conv1(torch.cat([flow, feature], dim=1))))))
         b, _, h, w = flow.shape
         k = self.factor
-        mask = torch.softmax(mask.float().view(b, 1, 9, k, k, h, w), dim=2)
+        mask = torch.softmax(to_float32(mask).view(b, 1, 9, k, k, h, w), dim=2)
         up = F.unfold(flow, (3, 3), padding=1).view(b, 2, 9, 1, 1, h, w)
         up = torch.sum(mask * up, dim=2).permute(0, 1, 4, 2, 5, 3)
         return up.reshape(b, 2, k * h, k * w)
@@ -307,7 +308,7 @@ def volume_lookup(features: torch.Tensor) -> Callable[[torch.Tensor], torch.Tens
     the largest tensor, with the scale applied to the first operand so the stored values stay small.
     """
     if features.dtype != torch.float16:
-        return functools.partial(_lookup, _correlation(*features.float().chunk(2, dim=0)))
+        return functools.partial(_lookup, _correlation(*to_float32(features).chunk(2, dim=0)))
     feature0, feature1 = features.chunk(2, dim=0)
     b, c, h, w = feature0.shape
     f0 = (feature0.float() / math.sqrt(c)).half().view(b, c, h * w).transpose(1, 2)
@@ -346,25 +347,26 @@ class NeuFlow(nn.Module):
             corrs = lookup(flow)
             with self._amp(flow.device):
                 iter_context, delta = refine(corrs, context, iter_context, flow)
-            flow = flow + delta.float()
+            flow = flow + to_float32(delta)
         return flow
 
     def forward(self, image1: torch.Tensor, image2: torch.Tensor, iters: int) -> torch.Tensor:
         """Flow from `image1` to `image2` (`[B, 3, H, W]` in [0, 1], H and W multiples of 16)."""
         device = image1.device
         with self._amp(device):
-            features_s16, features_s8 = self.backbone(torch.cat([image1, image2], dim=0))
+            # The backbone and the s8 merges in fp32 under MLX float16: in half the s8 features drift past the golden.
+            features_s16, features_s8 = float32_call(self.backbone, torch.cat([image1, image2], dim=0))
             features_s16, context_s16 = _split(self.cross_attn_s16(features_s16))
             features_s8, context_s8 = _split(features_s8)
-        flow = _match(*features_s16.float().chunk(2, dim=0))
+        flow = _match(*to_float32(features_s16).chunk(2, dim=0))
         flow = self._refine(self.refine_s16, features_s16, context_s16, flow, ITERS_S16)
         flow = F.interpolate(flow, scale_factor=2, mode="nearest") * 2
         with self._amp(device):
             features_s16 = F.interpolate(features_s16, scale_factor=2, mode="nearest")
-            features_s8 = self.merge_s8(torch.cat([features_s8, features_s16], dim=1))
+            features_s8 = float32_call(self.merge_s8, torch.cat([features_s8, features_s16], dim=1))
             del features_s16
             context_s16 = F.interpolate(context_s16, scale_factor=2, mode="nearest")
-            context_s8 = self.context_merge_s8(torch.cat([context_s8, context_s16], dim=1))
+            context_s8 = float32_call(self.context_merge_s8, torch.cat([context_s8, context_s16], dim=1))
             del context_s16
         flow = self._refine(self.refine_s8, features_s8, context_s8, flow, iters)
         del features_s8, context_s8
