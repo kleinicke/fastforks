@@ -51,28 +51,29 @@ class _Geometry:
     """Window order of an `h` x `w` map: gather indices both ways, padding rows and the shifted-window mask."""
 
     def __init__(self, h: int, w: int, window: int, shift: int, device: torch.device, dtype: torch.dtype) -> None:  # noqa: PLR0913, PLR0917
+        # integer bookkeeping on the CPU, then one copy each: on the GPU its tiny kernels and the syncs of
+        # `torch.where(cond)` cost ~15 ms per geometry at each new image size (birefnet: 10 geometries per size)
+        cpu = torch.device("cpu")
         hp, wp = -(-h // window) * window, -(-w // window) * window
-        y = torch.arange(hp, device=device)[:, None].expand(hp, wp)
-        x = torch.arange(wp, device=device)[None, :].expand(hp, wp)
+        y = torch.arange(hp, device=cpu)[:, None].expand(hp, wp)
+        x = torch.arange(wp, device=cpu)[None, :].expand(hp, wp)
         if shift:  # the token at rolled position (y, x) came from (y + shift, x + shift)
             y, x = (y + shift) % hp, (x + shift) % wp
         part = lambda t: t.reshape(hp // window, window, wp // window, window).permute(0, 2, 1, 3).reshape(-1)  # noqa: E731
         y, x = part(y), part(x)
         real = (y < h) & (x < w)
-        self.to_windows = torch.where(real, y * w + x, 0)  # [nW * N] -> source token (0 for padding)
-        self.padding = torch.where(~real)[0]  # window rows that upstream pads with zeros
-        self.to_image = torch.empty(h * w, dtype=torch.long, device=device)
-        self.to_image[self.to_windows[real]] = torch.where(real)[0]
+        to_windows = torch.where(real, y * w + x, 0)  # [nW * N] -> source token (0 for padding)
+        to_image = torch.empty(h * w, dtype=torch.long, device=cpu)
+        to_image[to_windows[real]] = torch.where(real)[0]
+        self.to_windows = to_windows.to(device)
+        self.padding = torch.where(~real)[0].to(device)  # window rows that upstream pads with zeros
+        self.to_image = to_image.to(device)
         self.windows = (hp // window) * (wp // window)
         self.mask = None
         if shift:  # upstream's -inf mask of BasicLayer.forward, by region label
-            ry = (torch.arange(hp, device=device) >= hp - window).long() + (
-                torch.arange(hp, device=device) >= hp - shift
-            )
-            rx = (torch.arange(wp, device=device) >= wp - window).long() + (
-                torch.arange(wp, device=device) >= wp - shift
-            )
-            label = part(3 * ry[:, None].expand(hp, wp) + rx[None, :].expand(hp, wp)).view(self.windows, -1)
+            ry = (torch.arange(hp, device=cpu) >= hp - window).long() + (torch.arange(hp, device=cpu) >= hp - shift)
+            rx = (torch.arange(wp, device=cpu) >= wp - window).long() + (torch.arange(wp, device=cpu) >= wp - shift)
+            label = part(3 * ry[:, None].expand(hp, wp) + rx[None, :].expand(hp, wp)).view(self.windows, -1).to(device)
             self.mask = torch.zeros(label.shape + label.shape[-1:], device=device, dtype=dtype).masked_fill_(
                 label[:, None, :] != label[:, :, None], float("-inf")
             )[:, None]  # [nW, 1, N, N]
