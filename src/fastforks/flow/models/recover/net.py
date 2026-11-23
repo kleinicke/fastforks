@@ -27,6 +27,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from fastforks._core.mlx_cast import to_float32, to_run_dtype
 from fastforks._core.upload import device_tensor
 
 FACTOR = 8  # fixed: the context encoders downsample by 8
@@ -371,10 +372,10 @@ class ReCoVEr(nn.Module):
         dt = self.init_conv.weight.dtype
         x = self.pair(image1, image2, dt)
         net, context = self.init_conv(self.cnet(x)).split(DIM, dim=1)
-        flow = self.delta(net).float()
+        flow = to_float32(self.delta(net))
         corr_term = self.update_block.encoder.corr_term(*net.shape[-2:])
         for _ in range(iters):
-            net = self.update_block(net, context, corr_term, flow.to(dt))
-            flow = flow + self.delta(net).float()
+            net = self.update_block(net, context, corr_term, to_run_dtype(flow, dt))
+            flow = flow + to_float32(self.delta(net))
         mask = 0.25 * self.upsample_weight(net)
-        return self.upsample(flow, mask.float())
+        return self.upsample(flow, to_float32(mask))
