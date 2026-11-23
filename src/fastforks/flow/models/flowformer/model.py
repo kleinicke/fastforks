@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
     from fastforks.flow._runner import Context
 
+    from .net.FlowFormer.LatentCostFormer.attention import BroadMultiHeadAttention
     from .net.FlowFormer.LatentCostFormer.decoder import MemoryDecoder
     from .net.FlowFormer.LatentCostFormer.encoder import CostPerceiverEncoder, MemoryEncoder, PatchEmbed
     from .net.FlowFormer.LatentCostFormer.gma import Aggregate, Attention
@@ -279,6 +280,21 @@ def _prepare_patch_embed(pe: PatchEmbed) -> None:
     override(pe, _patch_embed, "_embed")
 
 
+def _broad_attention(att: BroadMultiHeadAttention, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
+    """Upstream `BroadMultiHeadAttention.forward`: the latent tokens `q` `[1, I, C]` attending to each map's patches.
+
+    The scores of every head and token are one GEMM of the keys `[B J, C]` with the block-diagonal `[C, heads I]`
+    matrix of the scaled per-head queries (the Small model's heads are 4 wide: the batched per-head einsum and SDPA,
+    which pads them to 8, were slower). 1080p, float16 chunk of 1024 maps: 3.2 -> 1.9 ms.
+    """
+    heads, n, j = att.heads, k.shape[0], k.shape[1]
+    tokens, d = q.shape[1], q.shape[-1] // heads
+    w = torch.block_diag(*(q[0].view(tokens, heads, d).permute(1, 2, 0) * att.scale))  # [heads d, heads I]
+    scores = torch.matmul(k.reshape(n * j, -1), w).view(n, j, heads, tokens)
+    out = torch.einsum("njhi,njhd->nihd", scores.softmax(1), v.view(n, j, heads, d))
+    return out.reshape(n, tokens, heads * d)
+
+
 def _windows(_decoder: MemoryDecoder, vol: _Volume, coords: torch.Tensor) -> torch.Tensor:
     """Upstream `encode_flow_token`: the (2 r + 1)^2 bilinear costs around each pixel's `coords` (zero outside).
 
@@ -373,6 +389,7 @@ class Kernels(Portable):
         override(self.net.get_submodule("memory_decoder.update_block.aggregator"), _gma_aggregate)
         from .net.FlowFormer.LatentCostFormer.twins import GlobalSubSampleAttnRPE  # noqa: PLC0415 - needs timm
 
+        override(self.net.memory_encoder.cost_perceiver_encoder.input_layer.multi_head_attn, _broad_attention)
         for m in self.net.modules():
             if isinstance(m, GlobalSubSampleAttnRPE):
                 m.__dict__["_sdpa"] = True  # read by its forward
