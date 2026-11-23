@@ -796,7 +796,7 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 
 ## Volume
 
-5 models; size 200x200.
+11 models; size 200x200.
 
 - Fastest: [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) (71.8 ms).
 - Fastest commercially usable: [`totalsegmentator-total-3mm`](models/volume.md#totalsegmentator) (71.8 ms).
@@ -808,3 +808,9 @@ The error is AbsRel after a per-image scale and shift alignment for every model:
 | [`nnfoundation-cnn`](models/volume.md#nnfoundation) | yes | 273.6 (200x200) | 247.6 | 231.9 | 1.2x vs original (200x200) | 2325 |
 | [`totalsegmentator-total`](models/volume.md#totalsegmentator) | yes | 45629.8 (200x200) | 1976.9 | 1647.4 | 27.7x vs original (200x200) | 1219 |
 | [`nnfoundation-vit`](models/volume.md#nnfoundation) | yes | – | 1816.2 | 1699.4 (192x192) | 1.1x vs portable | 1510 |
+| [`totalsegmentator-total-6mm`](models/volume.md#totalsegmentator) | yes | – | – | – | – | – |
+| [`totalsegmentator-v3-total`](models/volume.md#totalsegmentator) | yes | – | – | – | – | – |
+| [`totalsegmentator-v3-total-3mm`](models/volume.md#totalsegmentator) | yes | – | – | – | – | – |
+| [`totalsegmentator-v3-total-6mm`](models/volume.md#totalsegmentator) | yes | – | – | – | – | – |
+| [`totalsegmentator-v3-total-small`](models/volume.md#totalsegmentator) | yes | – | – | – | – | – |
+| [`totalsegmentator-v3-total-small-3mm`](models/volume.md#totalsegmentator) | yes | – | – | – | – | – |
