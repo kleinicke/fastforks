@@ -662,12 +662,14 @@ def _gate(fa: Patched, cv: torch.Tensor, feat: torch.Tensor) -> torch.Tensor:
 
 
 def _cost_volume(
-    fl: torch.Tensor, fr: torch.Tensor, proj: Patched, d: int, groups: int, *, normalize: bool, gemm: bool = False
+    fl: torch.Tensor, fr: torch.Tensor, proj: Patched, d: int, groups: int, *, normalize: bool
 ) -> torch.Tensor:
     """TAO's `cat([build_gwc_volume, build_concat_volume(proj(fl), proj(fr))])`, channels-last 3-D fp16.
 
-    `gemm`: the group-wise correlation of all disparities as one batched matmul per row block (fp32, the diagonal of
-    the left-by-right product), instead of one multiply-and-sum per disparity.
+    The group-wise correlation of all disparities is one batched matmul per row block (fp32, the diagonal of the
+    left-by-right product), not TAO's multiply-and-sum per disparity: C-FS-S at 994 x 1482 1393 -> 1348 ms, the same
+    peak; the fp32 sums differ in order, which moves 2e-5 of the fp16 volume by one ulp (disparity: mean 0.0009 px,
+    p99 0.003 px against the loop).
     """
     b, c, h, w = fl.shape
     lp, rp = proj(fl), proj(fr)
@@ -680,14 +682,8 @@ def _cost_volume(
     lpn, rpn = lp.permute(0, 2, 3, 1), rp.permute(0, 2, 3, 1)
     vol[..., groups : groups + cc] = lpn[:, None]
     n = min(d, w)  # shifts >= W stay zero, as TAO's slices
-    if gemm:
-        _gwc_gemm(vol, a, z, n)
-        for i in range(n):
-            vol[:, i, :, i:, groups + cc :] = rpn[:, :, : w - i]
-        return vol.permute(0, 4, 1, 2, 3)
-    a, z = a.permute(0, 3, 4, 1, 2).contiguous(), z.permute(0, 3, 4, 1, 2).contiguous()  # [B, H, W, G, c/G]
+    _gwc_gemm(vol, a, z, n)
     for i in range(n):
-        vol[:, i, :, i:, :groups] = (a[:, :, i:] * z[:, :, : w - i]).sum(-1)
         vol[:, i, :, i:, groups + cc :] = rpn[:, :, : w - i]
     return vol.permute(0, 4, 1, 2, 3)
 
@@ -1064,7 +1060,6 @@ class KernelsForward:
             d4,
             net.cv_group,
             normalize=a.get("gwc_feature_normalize", True),
-            gemm=not self.fs,
         )
         if self.fs:
             box = [vol]
