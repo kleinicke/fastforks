@@ -227,13 +227,18 @@ OPS[aten.fmod.Scalar] = OPS[aten.fmod.Tensor] = _fmod
 OPS[aten.floor_divide.default] = lambda a, b: mx.floor_divide(a, b)
 
 
+# GELU computes in float32 inside its one fused kernel: `1 + tanh` / `1 + erf` of a negative input cancels, and a
+# float16 tanh near -1 (ulp 4.9e-4) leaves ~10 % error on GELU(-3) (wd-convnext-tagger-v3 float16 logits mean |diff|
+# 0.049 -> 0.0034, limit 0.015). Same memory traffic; float32 inputs compute exactly as before.
 def _gelu_tanh(x: mx.array) -> mx.array:
     c = math.sqrt(2 / math.pi)
-    return 0.5 * x * (1 + mx.tanh(c * (x + 0.044715 * x * x * x)))
+    y = x.astype(mx.float32)
+    return (0.5 * y * (1 + mx.tanh(c * (y + 0.044715 * y * y * y)))).astype(x.dtype)
 
 
 def _gelu_erf(x: mx.array) -> mx.array:
-    return 0.5 * x * (1 + mx.erf(x * (1 / math.sqrt(2))))
+    y = x.astype(mx.float32)
+    return (0.5 * y * (1 + mx.erf(y * (1 / math.sqrt(2))))).astype(x.dtype)
 
 
 if not os.environ.get("FF_MLX_NO_GELU_COMPILE"):  # one fused kernel even in an eager segment (5 passes otherwise)
