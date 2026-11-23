@@ -923,7 +923,7 @@ class Segment(_Node):
         def one(i: int) -> torch.Tensor:
             x = convert.frame(image, i, m.device)
             r = m(x, **kwargs)
-            if "text" in kwargs:
+            if "text" in kwargs or not hasattr(r, "iou_scores"):  # SAM 3 box exemplars: every match, as with text
                 return convert.union_mask(r.masks, r.boxes, (x.shape[-2], x.shape[-1]))
             return r.masks[r.iou_scores.argmax()]
 

@@ -1045,6 +1045,36 @@ def test_segment_prompt_kinds(pack: Any, monkeypatch: pytest.MonkeyPatch) -> Non
         nodes.VideoSegment().run(**video, positive_points="", negative_points="x", box="")
 
 
+def test_segment_box_exemplar_concept_result(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A box sent to a concept model (SAM 3) returns every matching instance: the node outputs their union."""
+    nodes = pack.nodes
+
+    class Concept:  # the fields of a ConceptSegmentationResult; no `iou_scores`
+        masks = torch.zeros(2, 6, 6, dtype=torch.bool)
+        boxes = torch.zeros(2, 4)
+
+    Concept.masks[0, :2, :2] = True
+    Concept.masks[1, 4:, 4:] = True
+
+    class Model:
+        device = torch.device("cpu")
+        prompts = frozenset({"text", "boxes"})
+
+        def __call__(self, _x: torch.Tensor, **kw: Any) -> Concept:
+            assert "input_boxes" in kw
+            return Concept()
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: Model())
+    monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])  # no comfy.utils progress bar
+    monkeypatch.setattr(nodes, "_out_device", lambda: torch.device("cpu"))
+    (mask,) = nodes.Segment().run(
+        image=torch.rand(1, 6, 6, 3), model="sam3", backend="auto", dtype="auto", text="",
+        positive_points="", negative_points="", box="0,0,3,3",
+    )  # fmt: skip
+    assert mask.shape == (1, 6, 6)
+    assert mask.sum() == 8
+
+
 def test_stereo_size_mismatch(pack: Any) -> None:
     """A left / right pair of two sizes (or batches) says which, in pixels and counts."""
     stereo = pack.nodes.Stereo()
