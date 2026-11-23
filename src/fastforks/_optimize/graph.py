@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import operator
 from typing import TYPE_CHECKING
 
@@ -14,7 +15,7 @@ from fastforks._core.patch import base_type, is_base
 from . import ops
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
 
 # activation code of the fused ops: 1 relu, 2 relu6, 3 silu, 4 hardswish, 5 gelu, 6 gelu (tanh)
 ACTS: dict[object, int] = {
@@ -69,6 +70,30 @@ def finish(gm: fx.GraphModule) -> None:
     """Dce + lint + recompile."""
     dce(gm.graph)
     gm.graph.lint()
+    recompile(gm)
+
+
+_deferred: set[int] = set()
+"""`id`s of the GraphModules inside `deferred_recompile`."""
+
+
+def recompile(gm: fx.GraphModule) -> None:
+    """`gm.recompile()`, or nothing inside `deferred_recompile(gm)`, which recompiles once at its end."""
+    if id(gm) not in _deferred:
+        gm.recompile()
+
+
+@contextlib.contextmanager
+def deferred_recompile(gm: fx.GraphModule) -> Generator[None]:
+    """Rewrite passes in the block recompile `gm` once, at its end (each recompile costs ~6 ms; none runs `gm`)."""
+    if id(gm) in _deferred:
+        yield
+        return
+    _deferred.add(id(gm))
+    try:
+        yield
+    finally:
+        _deferred.discard(id(gm))
     gm.recompile()
 
 

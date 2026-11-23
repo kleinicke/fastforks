@@ -550,19 +550,20 @@ def _optimize(  # noqa: C901, PLR0912, PLR0913, PLR0915, PLR0917 - one pass pipe
 
 
 def _fuse_cnn(gm: fx.GraphModule, names: set[str], report: dict[str, Any]) -> int:
-    from . import blocks, cnn  # noqa: PLC0415
+    from . import blocks, cnn, graph  # noqa: PLC0415
 
-    n = cnn.fuse_all(gm)
-    for k in ("npad", "raw_input", "pad8", "nbnact", "ninto", "nmergecat", "ncatinto", "npool", "nstempool"):
-        report[k] = int(getattr(gm, k, 0))
-    report["xdw"] = cnn.fuse_xdw(gm)
-    if "LiteMLA" in names:
-        report["litemla"] = blocks.patch_litemla(gm)
-    report["gconv"] = cnn.fuse_gconv(gm)
-    report["dwmult"] = cnn.fuse_dwmult(gm)
-    # half2 depthwise not for FastViT: re-parameterized RepMixer activations are too large for fp16 accumulation
-    report["dw2"] = 0 if "RepMixer" in names else cnn.to_dw2(gm)
-    report["gconv2"], report["se_scale"] = cnn.fuse_regnet(gm)
-    report["conv_tc"] = cnn.to_conv_tc(gm)
-    report["pw"] = cnn.to_pw(gm)
-    return n
+    with graph.deferred_recompile(gm):  # the passes recompile once, at the end
+        n = cnn.fuse_all(gm)
+        for k in ("npad", "raw_input", "pad8", "nbnact", "ninto", "nmergecat", "ncatinto", "npool", "nstempool"):
+            report[k] = int(getattr(gm, k, 0))
+        report["xdw"] = cnn.fuse_xdw(gm)
+        if "LiteMLA" in names:
+            report["litemla"] = blocks.patch_litemla(gm)
+        report["gconv"] = cnn.fuse_gconv(gm)
+        report["dwmult"] = cnn.fuse_dwmult(gm)
+        # half2 depthwise not for FastViT: re-parameterized RepMixer activations are too large for fp16 accumulation
+        report["dw2"] = 0 if "RepMixer" in names else cnn.to_dw2(gm)
+        report["gconv2"], report["se_scale"] = cnn.fuse_regnet(gm)
+        report["conv_tc"] = cnn.to_conv_tc(gm)
+        report["pw"] = cnn.to_pw(gm)
+        return n
