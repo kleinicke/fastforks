@@ -12,6 +12,7 @@ from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks._core.half import pure_half
+from fastforks._core.tracing import EXPORTING_FOR_MLX
 from fastforks._core.volume_ops import gwc_volume
 from fastforks.kernels import cudnn_hacc, stereo_ops
 from fastforks.shared import mlx_wrap
@@ -157,7 +158,7 @@ def gwc_volume_einsum(left: torch.Tensor, right: torch.Tensor, depth: int, group
 
     `[B, G, D, H, W]`; plain PyTorch (pad / unfold / einsum), exportable.
     """
-    if torch.compiler.is_exporting():
+    if EXPORTING_FOR_MLX.get():
         return gwc_volume(left, right, depth, groups)
     b, c, h, w = left.shape
     right = F.pad(right, (depth - 1, 0, 0, 0)).unfold(3, w, 1).flip(3)  # [B, C, H, D, W]

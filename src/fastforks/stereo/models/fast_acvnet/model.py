@@ -63,7 +63,7 @@ def norm_correlation_volume(fl: torch.Tensor, fr: torch.Tensor, d: int, groups: 
     """
     xl, xr = _normalized(fl, groups), _normalized(fr, groups)
     b, g, _, h, w = xl.shape
-    if torch.compiler.is_exporting():
+    if EXPORTING_FOR_MLX.get():
         return gwc_volume(xl.flatten(1, 2), xr.flatten(1, 2), d, g)
     volume = xl.new_zeros((b, g, d, h, w))
     for i in range(min(d, w)):  # disparities >= width: no overlap, stays zero
