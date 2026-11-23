@@ -79,12 +79,25 @@ def forward_kernels(net: ViTWarpV8, image1: torch.Tensor, image2: torch.Tensor, 
     fmap2_f32 = fmap2.float()
     flow = torch.zeros(n, 2, h // 2, w // 2, device=image1.device)
     coords0 = coords_grid(n, h // 2, w // 2, device=image1.device)
+    # The two 1 x 1 convs' channels-last inputs are written part by part (upstream: two cats, each copied again to
+    # channels last). warp_in keeps fmap1 across iterations; refine_in is rebuilt each time so it is not held during
+    # refine_net (kept, the peak grew 135 MiB at 1080p; as is, 31 MiB).
+    c = fmap1.shape[1]
+    warp_in = torch.empty((n, 3 * c + 2, h // 2, w // 2), dtype=fmap1.dtype, device=fmap1.device, memory_format=CL)
+    warp_in[:, :c] = fmap1
     for _ in range(iters):
-        warp = bilinear_sampler(fmap2_f32, (coords0 + flow).permute(0, 2, 3, 1)).half()
-        inp = net.warp_linear(torch.cat([fmap1, warp, hidden, flow.half()], dim=1).contiguous(memory_format=CL))
-        hidden = net.refine_transform(
-            torch.cat([net.refine_net(inp)["out"], hidden], dim=1).contiguous(memory_format=CL)
+        warp_in[:, c : 2 * c] = bilinear_sampler(fmap2_f32, (coords0 + flow).permute(0, 2, 3, 1))
+        warp_in[:, 2 * c : 3 * c] = hidden
+        warp_in[:, 3 * c :] = flow
+        out = net.refine_net(net.warp_linear(warp_in))["out"]
+        refine_in = torch.empty(
+            (n, out.shape[1] + c, *out.shape[2:]), dtype=out.dtype, device=out.device, memory_format=CL
         )
+        refine_in[:, : out.shape[1]] = out
+        refine_in[:, out.shape[1] :] = hidden
+        del out
+        hidden = net.refine_transform(refine_in)
+        del refine_in
         flow = flow + net.flow_head(hidden)[:, :2].float()
     mask = 0.25 * net.upsample_weight(hidden).float()
     return padder.unpad(_upsample(net, flow, mask))

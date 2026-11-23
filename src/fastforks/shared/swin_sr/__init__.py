@@ -48,15 +48,18 @@ def to_2tuple(x: int | tuple[int, int]) -> tuple[int, int]:
     return x if isinstance(x, tuple) else (x, x)
 
 
-def roll(x: torch.Tensor, shifts: tuple[int, int], dims: tuple[int, int]) -> torch.Tensor:
-    """`torch.roll(x, shifts, dims)` over two dims as four block copies into one contiguous output.
+def roll(
+    x: torch.Tensor, shifts: tuple[int, int], dims: tuple[int, int], out: torch.Tensor | None = None
+) -> torch.Tensor:
+    """`torch.roll(x, shifts, dims)` over two dims as four block copies into `out` (any view; default contiguous).
 
     torch rolls one dim at a time, two passes (a strided `[3, 1, 512, 512, 90]` float16 qkv slice, RTX 5060 Ti: 3.1 ms,
     here 0.85 ms). Traced and compiled graphs keep `torch.roll`.
     """
     if torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled():
-        return torch.roll(x, shifts, dims)
-    out = torch.empty(x.shape, dtype=x.dtype, device=x.device)
+        return torch.roll(x, shifts, dims) if out is None else out.copy_(torch.roll(x, shifts, dims))
+    if out is None:
+        out = torch.empty(x.shape, dtype=x.dtype, device=x.device)
     (d0, d1), (n0, n1) = dims, (x.shape[dims[0]], x.shape[dims[1]])
     s0, s1 = shifts[0] % n0, shifts[1] % n1
     for o0, i0, l0 in ((s0, 0, n0 - s0), (0, n0 - s0, s0)):
