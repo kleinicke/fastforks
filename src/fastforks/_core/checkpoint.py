@@ -13,13 +13,14 @@ from __future__ import annotations
 import builtins
 import contextlib
 import io
+import json
 import pickle
 import re
 import types
 import zipfile
 from collections import OrderedDict, defaultdict
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
 import numpy as np
 import torch
@@ -41,6 +42,7 @@ __all__ = [
     "NUMPY_ARRAYS",
     "CheckpointMismatchError",
     "Inert",
+    "SafetensorsReader",
     "empty_bytes",
     "latin1_encode",
     "load_state_dict",
@@ -217,6 +219,116 @@ def _is_safetensors(path: Path) -> bool:
     with path.open("rb") as f:  # an 8-byte little-endian header length, then the JSON header
         size, brace = f.read(8), f.read(1)
     return brace == b"{" and int.from_bytes(size, "little") < path.stat().st_size
+
+
+_SAFETENSORS_DTYPES = {
+    "F64": torch.float64,
+    "F32": torch.float32,
+    "F16": torch.float16,
+    "BF16": torch.bfloat16,
+    "I64": torch.int64,
+    "I32": torch.int32,
+    "I16": torch.int16,
+    "I8": torch.int8,
+    "U8": torch.uint8,
+    "BOOL": torch.bool,
+}
+_READ_CHUNK = 1 << 30  # fixed: below Windows' 2 GiB limit of one read() call
+
+
+def _safetensors_header(f: io.RawIOBase, path: Path) -> tuple[int, dict[str, tuple[torch.dtype, torch.Size, int, int]]]:
+    """The data offset of an open safetensors file and per tensor its dtype, shape and byte range (from the data)."""
+    size = path.stat().st_size
+    n = int.from_bytes(f.read(8) or b"", "little")
+    if not 0 < n <= size - 8:
+        msg = f"{path.name}: not a safetensors file (header length {n}, file size {size})"
+        raise WeightsError(msg)
+    header = json.loads(f.read(n) or b"")
+    header.pop("__metadata__", None)
+    entries = {}
+    for k, e in header.items():
+        start, end = e["data_offsets"]
+        if e["dtype"] not in _SAFETENSORS_DTYPES or not 0 <= start <= end <= size - 8 - n:
+            msg = f"{path.name}: tensor {k!r} has dtype {e['dtype']} or offsets {start}..{end} out of range"
+            raise WeightsError(msg)
+        entries[k] = (_SAFETENSORS_DTYPES[e["dtype"]], torch.Size(e["shape"]), start, end)
+    return 8 + n, entries
+
+
+class SafetensorsReader:
+    """A safetensors file read with plain file reads, one tensor at a time, into a new or the caller's buffer.
+
+    `safetensors.safe_open` maps the whole file copy-on-write. On Windows that charges the file's full size against
+    the commit limit (RAM + page file) as soon as it opens: seedvr2-7b's 16.5 GB transformer file next to its 16.5 GB
+    host copy of the streamed blocks exceeded it, torch's mapping came back without memory and the first read crashed
+    the process (access violation, 2026-11-23, RTX 5060 Ti, 32 GB RAM, 6.5 GB page file). Only the tensors being read
+    are in memory here, and `read_into` writes straight into the destination (no intermediate copy).
+    """
+
+    def __init__(self, path: Path) -> None:
+        """Open `path` and read its header.
+
+        Raises:
+            WeightsError: Not a safetensors file, an unknown dtype, or a tensor outside the file.
+        """
+        self._f = path.open("rb", buffering=0)
+        try:
+            self._base, self._entries = _safetensors_header(self._f, path)
+        except BaseException:
+            self._f.close()
+            raise
+        self.path = path
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
+
+    def close(self) -> None:
+        """Close the file."""
+        self._f.close()
+
+    def keys(self) -> list[str]:
+        """The tensor names, in header order."""
+        return list(self._entries)
+
+    def dtype(self, key: str) -> torch.dtype:
+        """The dtype of tensor `key`."""
+        return self._entries[key][0]
+
+    def shape(self, key: str) -> torch.Size:
+        """The shape of tensor `key`."""
+        return self._entries[key][1]
+
+    def read_into(self, key: str, dst: torch.Tensor) -> torch.Tensor:
+        """Read tensor `key` into `dst` (contiguous, on the CPU, of its dtype and shape) and return `dst`.
+
+        Raises:
+            ValueError: `dst` does not match the tensor.
+            WeightsError: The file ended early.
+        """
+        dtype, shape, start, end = self._entries[key]
+        if dst.device.type != "cpu" or not dst.is_contiguous() or dst.dtype != dtype or dst.shape != shape:
+            msg = f"{key}: cannot read {dtype} {tuple(shape)} into a {dst.dtype} {tuple(dst.shape)} on {dst.device}"
+            raise ValueError(msg)
+        if end == start:
+            return dst
+        view = memoryview(dst.reshape(-1).view(torch.uint8).numpy())
+        self._f.seek(self._base + start)
+        pos = 0
+        while pos < end - start:
+            got = self._f.readinto(view[pos : min(end - start, pos + _READ_CHUNK)])
+            if not got:
+                msg = f"{self.path.name}: file ended inside tensor {key!r}"
+                raise WeightsError(msg)
+            pos += got
+        return dst
+
+    def get_tensor(self, key: str) -> torch.Tensor:
+        """Tensor `key`, read into new CPU memory."""
+        dtype, shape, _, _ = self._entries[key]
+        return self.read_into(key, torch.empty(shape, dtype=dtype))
 
 
 def _is_npz(path: Path) -> bool:

@@ -14,6 +14,7 @@ import torch
 from safetensors import safe_open
 from torch import nn
 
+from fastforks._core.checkpoint import SafetensorsReader
 from fastforks.shared.host_blocks import HostBlocks
 from fastforks.shared.nf4 import BLOCK, dequant_lut, pair_lut, quantize
 from fastforks.shared.nf4 import code as nf4_code
@@ -60,8 +61,6 @@ class Net(nn.Module):
         return self.decode(self.denoise(self.encode(x, eps), noise))
 
 
-_DTYPES = {"BF16": torch.bfloat16, "F32": torch.float32, "U8": torch.uint8}
-
 
 def _is_block(k: str) -> bool:
     return k.startswith("blocks.") and ".ada." not in k
@@ -85,9 +84,9 @@ def read_dit(
     `quant`: the blocks' linear weights quantised to NF4 (`fastforks.shared.nf4.quantize`) one tensor at a time on
     `device`, so the bf16 transformer is never resident as a whole.
     """
-    with safe_open(path, "pt", device="cpu" if stream else str(device)) as f:
-        keys = list(f.keys())
-        shapes = {k: torch.Size(f.get_slice(k).get_shape()) for k in keys}
+    with SafetensorsReader(path) as f:  # plain reads: no copy-on-write mapping of the whole file (Windows commit)
+        keys = f.keys()
+        shapes = {k: f.shape(k) for k in keys}
         t: dict[str, torch.Tensor] = {}
         for k in keys:
             if stream and _is_block(k):
@@ -107,13 +106,13 @@ def read_dit(
                 if quant and _quantised(k, shapes[k]):
                     meta |= _nf4_meta(k, shapes[k])
                 else:
-                    meta[k] = (_DTYPES[f.get_slice(k).get_dtype()], shapes[k])
+                    meta[k] = (f.dtype(k), shapes[k])
         last: dict[str, tuple[torch.Tensor, torch.Tensor]] = {}
 
         def fill(k: str, dst: torch.Tensor) -> None:
             base, part = k.rsplit(".", 1)
             if part not in ("q", "absmax") or k in shapes:
-                dst.copy_(f.get_tensor(k))
+                f.read_into(k, dst)  # straight into the host block buffer
                 return
             if base not in last:  # `.q` and `.absmax` of one weight are filled one after the other
                 last.clear()
