@@ -41,7 +41,7 @@ mps_dtypes = ["float32", "float16"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc", "ema_warp"]  # fp16-accumulate convolutions, paired border warps with float32 interpolation
+kernels = ["cudnn_hacc", "ema_warp", "fvm_conv"]  # fp16-accumulate convolutions, paired border warps with float32 interpolation, the MLPs' depthwise conv + bias + GELU
 
 [[papers]]
 title = "Extracting Motion and Appearance via Inter-Frame Attention for Efficient Video Frame Interpolation"

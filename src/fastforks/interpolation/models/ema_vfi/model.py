@@ -31,7 +31,7 @@ from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.swin_sr import roll
 
 from .net import MotionFormer, MultiScaleFlow
-from .net.feature_extractor import window_partition, window_reverse
+from .net.feature_extractor import Mlp, window_partition, window_reverse
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -428,6 +428,26 @@ def _hacc_deconv(deconv: torch.nn.ConvTranspose2d, x: torch.Tensor) -> torch.Ten
     return y.add_(deconv.bias.view(1, -1, 1, 1))  # ty: ignore[unresolved-attribute]
 
 
+_GELU = 5  # fixed: the erf GELU epilogue code of `fastforks._optimize.conv_ops`
+
+
+def _mlp(m: Mlp) -> Callable[[torch.Tensor, int, int], torch.Tensor]:
+    """`Mlp.forward` with the depthwise conv, its bias and the GELU as one `fvm_conv` kernel (fp32 accumulation)."""
+    from fastforks._optimize.conv_ops import dwconv  # noqa: PLC0415 - loads the fvm_conv kernels (kernels mode only)
+
+    conv = m.dwconv.dwconv
+    w = conv.weight.detach()[:, 0].permute(1, 2, 0).half().contiguous()  # [C, 1, 3, 3] -> [3, 3, C]
+    b = cast("torch.Tensor", conv.bias).detach().half()
+
+    def forward(x: torch.Tensor, h: int, w_: int) -> torch.Tensor:
+        y = m.fc1(x)
+        n, _, c = y.shape
+        y = dwconv(y.view(n, h, w_, c).permute(0, 3, 1, 2), w, b, [1, 1], [1, 1], _GELU)
+        return m.fc2(y.permute(0, 2, 3, 1).reshape(n, h * w_, c))
+
+    return forward
+
+
 class Kernels(Portable):
     """float16, channels-last, fp16-accumulate convs and transposed convs (`cudnn_hacc`), one CUDA graph per shape."""
 
@@ -443,6 +463,8 @@ class Kernels(Portable):
                 override(m, _hacc_conv)
             elif isinstance(m, torch.nn.ConvTranspose2d) and base_type(m) is torch.nn.ConvTranspose2d:
                 override(m, _hacc_deconv)  # Unet's up blocks: kernel 4, stride 2, padding 1, groups 1
+            elif isinstance(m, Mlp):
+                m.forward = _mlp(m)  # ty: ignore[invalid-assignment]  # per-instance override
         after = cudnn_hacc.capture_after()
         self.graphs = GraphCache(self._eager, graphs=1, capture_after=after) if ctx.params.cuda_graphs else None
 
