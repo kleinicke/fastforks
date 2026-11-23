@@ -1,7 +1,8 @@
 """Streamed transformer blocks: one page-locked host buffer, uploaded one block ahead into two device buffers.
 
 All blocks live in the host buffer; each is uploaded into one of two fixed device buffers (ping-pong) on a side stream
-while the current block computes.
+while the current block computes. `keep` holds some blocks on the device instead (uploaded once), where the transfers
+outlast the computation.
 
 Each block's tensors are packed contiguously (one copy per block). The host buffer is ordinary memory registered with
 `cudaHostRegister`: torch's pinned allocator rounds each allocation up to a power of two (8.4 GB of blocks would pin
@@ -136,6 +137,28 @@ def _clear_last_error() -> None:
     lib.cudaGetLastError()
 
 
+def choose_kept(sizes: list[int], starts: list[int], pinned: int, budget: int) -> list[int]:
+    """The blocks to keep on the device within `budget` bytes, in order.
+
+    The blocks not page-locked (past `pinned`) come first: their uploads do not overlap the computation. The rest are
+    spread evenly over the sequence, so each streamed block uploads while the blocks around it compute.
+    """
+    chosen: list[int] = []
+    left = budget
+    for i in range(len(sizes)):
+        if starts[i] + sizes[i] > pinned and sizes[i] <= left:
+            chosen.append(i)
+            left -= sizes[i]
+    rest = [i for i in range(len(sizes)) if i not in chosen]
+    fit = itertools.accumulate(sorted(sizes[i] for i in rest))
+    k = sum(1 for _ in itertools.takewhile(lambda c: c <= left, fit))
+    for a, i in enumerate(rest):  # where `(a + 1) k / n` passes an integer: k blocks evenly spread
+        if (a + 1) * k // len(rest) > a * k // len(rest) and sizes[i] <= left:
+            chosen.append(i)
+            left -= sizes[i]
+    return sorted(chosen)
+
+
 class HostBlocks:
     """The blocks' tensors, packed per block in one registered host buffer; `run` streams them to the device."""
 
@@ -179,6 +202,7 @@ class HostBlocks:
         weakref.finalize(self, _unregister, ptr)  # before the buffer is freed (the finalizer runs first)
         self.dev: list[torch.Tensor] = []
         self.side: torch.cuda.Stream | None = None
+        self.kept: dict[int, torch.Tensor | None] = {}  # `keep`: block -> its device copy (None until the first run)
         self.uploaded = [torch.cuda.Event(), torch.cuda.Event()]
         self.free = [torch.cuda.Event(), torch.cuda.Event()]
 
@@ -186,11 +210,20 @@ class HostBlocks:
         """Number of blocks."""
         return len(self.layout)
 
+    def keep(self, budget: int) -> int:
+        """Keep blocks on the device (uploaded once, at the next `run`) within `budget` bytes; the bytes kept.
+
+        See `choose_kept`. A new budget replaces the old one (0: stream every block again).
+        """
+        with self._lock:
+            chosen = choose_kept(self.sizes, self.starts, self.pinned, budget)
+            self.kept = {i: self.kept.get(i) for i in chosen}
+            return sum(self.sizes[i] for i in chosen)
+
     def _views(self, i: int, dev: torch.Tensor) -> dict[str, torch.Tensor]:
         return {k: dev[off : off + n].view(dt).view(shape) for k, dt, shape, off, n in self.layout[i]}
 
-    def _upload(self, i: int) -> None:
-        j = i % 2
+    def _upload(self, i: int, j: int) -> None:
         assert self.side is not None  # noqa: S101 - set by run
         with torch.cuda.stream(self.side):
             self.side.wait_event(self.free[j])  # the block that used this buffer has finished
@@ -205,22 +238,42 @@ class HostBlocks:
         with self._lock:
             yield from self._run(device)
 
-    def _run(self, device: torch.device) -> Iterable[dict[str, torch.Tensor]]:
-        main = torch.cuda.current_stream(device)
-        if not self.dev or self.dev[0].device != device:
-            self.dev = [torch.empty(max(self.sizes), dtype=torch.uint8, device=device) for _ in range(2)]
+    def _prepare(self, device: torch.device, main: torch.cuda.Stream, streamed: list[int]) -> None:
+        """Upload the kept blocks not yet on `device`; the two upload buffers for the streamed ones."""
+        for i, kept in self.kept.items():
+            if kept is None or kept.device != device:
+                a, n = self.starts[i], self.sizes[i]
+                self.kept[i] = self.buf[a : a + n].to(device)
+        if not streamed:
+            self.dev = []
+            return
+        size = max(self.sizes[i] for i in streamed)
+        if not self.dev or self.dev[0].device != device or self.dev[0].numel() < size:
+            self.dev = [torch.empty(size, dtype=torch.uint8, device=device) for _ in range(2)]
             self.side = torch.cuda.Stream(device)
             self.side.wait_stream(main)
             for buf in self.dev:
                 buf.record_stream(self.side)
         for buf in self.dev:
             buf.record_stream(main)
-        self._upload(0)
+
+    def _run(self, device: torch.device) -> Iterable[dict[str, torch.Tensor]]:
+        main = torch.cuda.current_stream(device)
+        streamed = [i for i in range(len(self)) if i not in self.kept]
+        self._prepare(device, main, streamed)
+        if streamed:
+            self._upload(streamed[0], 0)
+        s = 0  # streamed blocks so far; streamed block s uses device buffer s % 2
         for i in range(len(self)):
-            j = i % 2
+            kept = self.kept.get(i)
+            if kept is not None:
+                yield self._views(i, kept)
+                continue
+            j = s % 2
             main.wait_event(self.uploaded[j])
-            if i + 1 < len(self):
-                self._upload(i + 1)
+            if s + 1 < len(streamed):
+                self._upload(streamed[s + 1], (s + 1) % 2)
+            s += 1
             try:
                 yield self._views(i, self.dev[j])
             finally:

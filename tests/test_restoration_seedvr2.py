@@ -83,6 +83,37 @@ def test_stream_and_resident_ram_check(monkeypatch: pytest.MonkeyPatch) -> None:
     host_blocks.require_host_ram(8 * 2**30, "seedvr2-3b")
 
 
+def test_choose_kept_takes_unpinned_blocks_then_spreads_the_rest() -> None:
+    sizes = [10] * 8
+    starts = [10 * i for i in range(8)]
+    assert host_blocks.choose_kept(sizes, starts, 80, 0) == []
+    assert host_blocks.choose_kept(sizes, starts, 80, 9) == []
+    assert host_blocks.choose_kept(sizes, starts, 80, 40) == [1, 3, 5, 7]  # every other block
+    assert host_blocks.choose_kept(sizes, starts, 80, 25) == [3, 7]
+    assert host_blocks.choose_kept(sizes, starts, 80, 1000) == list(range(8))
+    assert host_blocks.choose_kept(sizes, starts, 60, 20) == [6, 7]  # the pageable tail first
+    assert host_blocks.choose_kept(sizes, starts, 60, 50) == [1, 3, 5, 6, 7]
+
+
+@pytest.mark.gpu
+def test_kept_blocks_match_the_streamed_ones() -> None:
+    torch.manual_seed(0)
+    specs = [
+        {f"{i}.w": (torch.bfloat16, torch.Size((64, 32))), f"{i}.b": (torch.float32, torch.Size((7,)))}
+        for i in range(5)
+    ]
+    data = {k: torch.randn(shape).to(dt) for spec in specs for k, (dt, shape) in spec.items()}
+    hb = host_blocks.HostBlocks(specs, lambda k, dst: dst.copy_(data[k]))
+    device = torch.device("cuda")
+    for budget in (0, hb.sizes[0] * 2, hb.sizes[0] * 5, 0):
+        kept = hb.keep(budget)
+        assert kept == sum(hb.sizes[i] for i in hb.kept) <= budget
+        for _ in range(2):  # the kept blocks are uploaded once, then reused
+            got = {k: v.cpu() for block in hb.run(device) for k, v in block.items()}
+            assert got.keys() == data.keys()
+            assert all(torch.equal(got[k], data[k]) for k in data)
+
+
 def test_register_prefix_pins_what_the_os_allows(monkeypatch: pytest.MonkeyPatch) -> None:
     """The OS page-locks at most `limit` bytes (Windows: about half of the RAM): the longest block prefix is pinned."""
 
@@ -135,15 +166,18 @@ def test_nf4_portable_tiles_preserve_scale_boundaries(monkeypatch: pytest.Monkey
 
 
 @pytest.mark.gpu
-def test_group_norm_split_preserves_affine_and_partial_groups(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("frames", [1, 3])
+def test_group_norm_in_bf16_matches_the_float32_norm_rounded(frames: int) -> None:
     torch.manual_seed(2)
-    x = torch.randn(2, 28, 3, 19, 17, device="cuda", dtype=torch.bfloat16)
+    x = torch.randn(2, 28, frames, 19, 17, device="cuda", dtype=torch.bfloat16) * 3 + 1
     norm = torch.nn.GroupNorm(7, 28, device="cuda", dtype=torch.bfloat16)
     with torch.inference_mode():
         norm.weight.copy_(torch.randn_like(norm.weight))
         norm.bias.copy_(torch.randn_like(norm.bias))
-        expected = vae.group_norm(norm, x, upcast=True, silu=True)
-        monkeypatch.setattr(vae, "_GROUP_NORM_MIN_BYTES", 1)
-        monkeypatch.setattr(vae, "_GROUP_NORM_CHUNK_BYTES", 23_000)
         actual = vae.group_norm(norm, x, upcast=True, silu=True)
-    torch.testing.assert_close(actual, expected, atol=0, rtol=0)
+        frame = [
+            F.group_norm(x[:, :, i].float(), 7, norm.weight.float(), norm.bias.float(), norm.eps).bfloat16()
+            for i in range(frames)
+        ]
+        expected = F.silu(torch.stack(frame, 2))
+    torch.testing.assert_close(actual, expected, atol=1e-6, rtol=2**-7)  # one bf16 rounding

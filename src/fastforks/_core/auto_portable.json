@@ -37,7 +37,6 @@
   "portable": [
    "cotracker3-offline",
    "cotracker3-online",
-   "dat-light-x4",
    "flowformer-small-sintel",
    "flowformer-small-things",
    "gmflow-scale1-things",
@@ -49,8 +48,8 @@
    "gmflow-scale2-things",
    "parseq",
    "parseq-tiny",
+   "pidinet",
    "seedvr2-3b",
-   "seedvr2-7b",
    "segformer-b0-ade20k",
    "vit_so400m_patch14_siglip_378.webli_ft_in1k",
    "xfeat",

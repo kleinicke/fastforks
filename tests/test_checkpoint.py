@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 import torch
 
-from fastforks._core.checkpoint import NUMPY_ARRAYS, Inert, load_state_dict, restricted_load
+from fastforks._core.checkpoint import NUMPY_ARRAYS, Inert, SafetensorsReader, load_state_dict, restricted_load
 from fastforks._core.errors import WeightsError
 
 
@@ -205,3 +205,51 @@ def test_torchscript_archive_with_foreign_globals_is_refused(tmp_path):
         z.writestr("bad/code/__torch__/m.py", "")
     with pytest.raises(WeightsError, match="allow-list"):
         load_state_dict(path)
+
+
+def test_safetensors_reader_reads_every_dtype_into_buffers(tmp_path):
+    from safetensors.torch import save_file  # noqa: PLC0415 - only this test writes safetensors
+
+    torch.manual_seed(0)
+    sd = {
+        "bf16": torch.randn(3, 5).bfloat16(),
+        "f32": torch.randn(7),
+        "f16": torch.randn(2, 2, 2).half(),
+        "i64": torch.arange(4),
+        "u8": torch.arange(6, dtype=torch.uint8),
+        "bool": torch.tensor([True, False, True]),
+        "empty": torch.zeros(0, 3),
+    }
+    path = tmp_path / "w"
+    save_file(sd, path, metadata={"source": "test"})
+    with SafetensorsReader(path) as f:
+        assert sorted(f.keys()) == sorted(sd)
+        for k, v in sd.items():
+            assert f.dtype(k) == v.dtype
+            assert f.shape(k) == v.shape
+            assert torch.equal(f.get_tensor(k), v)
+        buf = torch.full((40,), 255, dtype=torch.uint8)
+        dst = buf[8 : 8 + 30].view(torch.bfloat16).view(3, 5)  # a view into a larger buffer, as `HostBlocks` passes
+        assert f.read_into("bf16", dst) is dst
+        assert torch.equal(dst, sd["bf16"])
+        assert (buf[:8] == 255).all()
+        assert (buf[38:] == 255).all()
+        with pytest.raises(ValueError, match="cannot read"):
+            f.read_into("bf16", torch.empty(3, 5))  # wrong dtype
+        with pytest.raises(ValueError, match="cannot read"):
+            f.read_into("f32", torch.empty(14)[::2])  # not contiguous
+
+
+def test_safetensors_reader_refuses_truncated_and_foreign_files(tmp_path):
+    from safetensors.torch import save_file  # noqa: PLC0415 - only this test writes safetensors
+
+    path = tmp_path / "w"
+    save_file({"a": torch.ones(1000)}, path)
+    cut = tmp_path / "cut"
+    cut.write_bytes(path.read_bytes()[:-100])
+    with pytest.raises(WeightsError, match="out of range"):
+        SafetensorsReader(cut)
+    other = tmp_path / "other"
+    other.write_bytes(b"\xff" * 64)
+    with pytest.raises(WeightsError, match="not a safetensors file"):
+        SafetensorsReader(other)

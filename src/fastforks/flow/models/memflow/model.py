@@ -15,7 +15,7 @@ from fastforks._core.patch import override
 from fastforks.flow._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
 
-from .net import LEVELS, MemFlowNet, convert
+from .net import LEVELS, MemFlowNet, PCBlock, convert
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -163,11 +163,76 @@ def _fft_depthwise(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     return out
 
 
+def _pointwise_fits(m: torch.nn.Conv2d) -> bool:
+    """A plain 1 x 1 conv (stride 1, no padding, one group) with a bias."""
+    return (
+        m.kernel_size == (1, 1)
+        and m.groups == 1
+        and m.stride == (1, 1)
+        and m.padding == (0, 0)
+        and m.dilation == (1, 1)
+        and m.bias is not None
+    )
+
+
+def _pointwise(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
+    """The 1 x 1 conv as one GEMM per image on the NCHW layout: `bias + W @ x[C, H * W]` in the weights' dtype.
+
+    cuDNN runs a fp16 NCHW conv in NHWC: it transposes the input and the output of each of the ~35 pointwise convs of
+    every update (1080p: 92 of 744 ms). cuBLAS takes the `[C, H * W]` view as it is, with the same fp32 accumulation
+    and one rounding of `W @ x + b` (the bias is the GEMM's accumulator input).
+    """
+    b, c, h, w = x.shape
+    weight = conv.weight.detach().view(conv.out_channels, c)
+    out = torch.empty((b, conv.out_channels, h, w), dtype=weight.dtype, device=x.device)
+    with torch.autocast(x.device.type, enabled=False):  # the weights are already in the autocast dtype
+        for i in range(b):
+            x2d = x[i].reshape(c, h * w).to(weight.dtype)
+            torch.addmm(cast("torch.Tensor", conv.bias).detach()[:, None], weight, x2d, out=out[i].view(-1, h * w))
+    return out
+
+
+def _gelu_residual(conv: torch.nn.Conv2d, x: torch.Tensor, h: torch.Tensor) -> torch.Tensor:
+    """`gelu(x + conv(h))` for a 1 x 1 conv: `x + bias` is the GEMMs' accumulator input, the GELU runs in place."""
+    b, c, hh, ww = h.shape
+    weight = conv.weight.detach().view(conv.out_channels, c)
+    out = torch.add(x, cast("torch.Tensor", conv.bias).detach()[:, None, None]).to(weight.dtype)
+    with torch.autocast(x.device.type, enabled=False):  # the weights are already in the autocast dtype
+        for i in range(b):
+            out[i].view(-1, hh * ww).addmm_(weight, h[i].reshape(c, hh * ww).to(weight.dtype))
+    return torch.ops.aten.gelu_(out)
+
+
+def _pcblock(m: PCBlock, x: torch.Tensor) -> torch.Tensor:
+    """`PCBlock.forward` with its residual GELUs fused into fewer passes over the maps (kernels, fp16 weights).
+
+    The residual 1 x 1 convs (`ffn1`'s second, `pw`) add `x + bias` as their GEMMs' accumulator input; the 1 x 1
+    depthwise conv and its residual are one `bias + x * (1 + w)`; every GELU after a sum runs in place. Upstream's
+    sums round the conv output to fp16 before adding `x`; here `x + bias` is rounded instead (the same error size).
+    """
+    conv1, conv2, conv3, conv4 = (cast("torch.nn.Conv2d", c) for c in (m.ffn1[0], m.ffn1[2], m.ffn2[0], m.ffn2[2]))
+    x = x.to(m.pw.weight.dtype)
+    x = _gelu_residual(conv2, x, torch.ops.aten.gelu_(conv1(x)))
+    for module in m.conv_list:
+        conv = cast("torch.nn.Conv2d", module)
+        if conv.kernel_size == (1, 1):  # depthwise: a per-channel scale
+            scale = conv.__dict__.get("_scale")
+            if scale is None:
+                scale = conv.__dict__["_scale"] = (1 + conv.weight.detach().view(-1, 1, 1).float()).to(x.dtype)
+            x = torch.addcmul(cast("torch.Tensor", conv.bias).detach()[:, None, None], x, scale)
+        else:
+            x = conv(x).add_(x)
+        x = torch.ops.aten.gelu_(x)
+    x = _gelu_residual(m.pw, x, x)
+    return conv4(torch.ops.aten.gelu_(conv3(x)))
+
+
 class Kernels(Portable):
     """The portable fp16 pass with the correlation windows computed on the fly (`raft_flow`): no all-pairs volume.
 
     The conv weights are stored in fp16 (the values autocast casts them to on each call); the 15 x 15 depthwise convs
-    run as FFTs (`_fft_depthwise`; 1080p, RTX 5060 Ti: 856 -> 740 ms).
+    run as FFTs (`_fft_depthwise`; 1080p, RTX 5060 Ti: 856 -> 740 ms) and the 1 x 1 convs as GEMMs on the NCHW maps
+    (`_pointwise`; 744 -> 644 ms).
     """
 
     def __init__(self, ctx: Context) -> None:
@@ -183,6 +248,10 @@ class Kernels(Portable):
                 m.half()
                 if _fft_fits(m):
                     override(m, _fft_depthwise)
+                elif _pointwise_fits(m):
+                    override(m, _pointwise)
+            elif isinstance(m, PCBlock):
+                override(m, _pcblock)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a padded batch."""

@@ -11,11 +11,16 @@ shapes), so a seed and size give the same noise on every device and in every mod
 
 `stream` (default on) keeps the transformer blocks in page-locked host memory and uploads one at a time on CUDA
 (`fastforks.shared.host_blocks`); on MLX it keeps the blocks that fit in `MLX_RESIDENT_SHARE` of unified memory and
-reads the others from the weight file per call (`net.mlx_net.Transformer`); `quant = "nf4"` quantises the blocks'
+reads the others from the weight file per call (`net.mlx_net.Transformer`). `keep` (GiB, CUDA streaming) holds that
+much of the blocks on the device instead, uploaded once and spread over the sequence: the uploads (7B: 15.2 GiB per
+call at ~14 GB/s) outlast the computation, so 7B at 512 x 512 x2 takes 1866 -> 1774 ms with 4 GiB kept, 1737 ms with
+8 (RTX 5060 Ti, kernels; the device memory stays held). `quant = "nf4"` quantises the blocks'
 linear weights to NF4 at load (bitsandbytes' format, `fastforks.shared.nf4`) and expands each to bf16 per call: ~3.5x
 smaller transformer, a small quality cost (measured 2026-11-14). Both are explicit options, printed when used,
-never silent fallbacks. The kernels backend expands NF4 weights with one fused kernel (`fastforks.kernels.nf4`);
-without `quant` it is the portable path.
+never silent fallbacks. The kernels backend expands NF4 weights with one fused kernel (`fastforks.kernels.nf4`) and
+runs the VAE's causal 3-D convolutions as 2-D ones with the kernel summed over time (`CausalConv3d.fold_time`): one
+frame per call, so every 3-D window reads copies of the same frame (512 x 512 x2, 7B: 2868 -> 2036 ms, peak 3732 ->
+3538 MiB, RTX 5060 Ti; closer to the golden than portable).
 """
 
 from __future__ import annotations
@@ -33,6 +38,7 @@ from fastforks.shared.nf4 import code as nf4_code
 
 from .net import BF, CONFIGS, LATENT, SPATIAL, Net
 from .net import load as build_net
+from .net.vae import CausalConv3d
 
 if TYPE_CHECKING:
     from fastforks.restoration._runner import Context
@@ -47,6 +53,7 @@ class Params:
     seed: int  # seed of the CPU generator of both noises (upstream's default 666)
     stream: bool  # transformer blocks on the host, uploaded one at a time (small device memory)
     quant: str  # "none" (bf16, as upstream) or "nf4" (the blocks' linear weights in 4 bit)
+    keep: float  # GiB of streamed transformer blocks held on the device instead (CUDA, stream=True)
 
 
 class Noise:
@@ -93,7 +100,7 @@ def _announce(ctx: Context) -> None:
 def _build(ctx: Context) -> Net:
     dit, vae = ctx.weights()
     p = ctx.params
-    return build_net(dit, vae, ctx.device, p.variant, stream=p.stream, quant=p.quant)
+    return build_net(dit, vae, ctx.device, p.variant, stream=p.stream, quant=p.quant, keep=int(p.keep * 2**30))
 
 
 class Portable(Runner):
@@ -126,7 +133,7 @@ class Portable(Runner):
 
 
 class Kernels(Runner):
-    """Portable with the NF4 expansion (`quant = "nf4"`) as one fused kernel (`nf4`): one read of the packed bytes."""
+    """Portable with the VAE's time kernels folded (one frame per call) and the NF4 expansion as one fused kernel."""
 
     batch = 1
     Params = Params
@@ -136,6 +143,9 @@ class Kernels(Runner):
         super().__init__(ctx)
         _announce(ctx)
         self.net = _build(ctx)
+        for m in self.net.vae.modules():
+            if isinstance(m, CausalConv3d):
+                m.fold_time()  # `infer` restores one frame per call
         if ctx.params.quant == "nf4":
             nf4.load(ctx.device)
             self.net.dit.dequant = _Dequant(ctx.device)
@@ -169,8 +179,11 @@ class MlxPortable(Runner):
 
         from .net import mlx_net  # noqa: PLC0415
 
-        dit, vae = ctx.weights()
         p = ctx.params
+        if p.keep:
+            msg = f"keep={p.keep} applies to CUDA streaming only; on MLX `stream` keeps what fits in unified memory"
+            raise ValueError(msg)
+        dit, vae = ctx.weights()
         resident = int(MLX_RESIDENT_SHARE * mx.device_info()["memory_size"])
         if p.quant == "none" and p.stream:
             print(  # noqa: T201

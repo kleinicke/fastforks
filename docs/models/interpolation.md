@@ -116,7 +116,7 @@ Commercial use: yes.
 - Licence evidence: https://github.com/dajes/frame-interpolation-pytorch/blob/33bf477ea2c65a2ed1b5f2280ee1f02be06910e8/LICENSE ; https://github.com/dajes/frame-interpolation-pytorch/releases/tag/v1.0.2 ; https://github.com/google-research/frame-interpolation/blob/69f8708f08e62c2edf46a27616a4bfcf083e2076/README.md
 - Training data: Vimeo-90K (septuplets / triplets for frame interpolation) (google-research/frame-interpolation README "Datasets": Vimeo-90K triplets are the training set (film_net-Style.gin).)
 - Options: `cuda_graphs` = True (speed only)
-- Kernel libraries: `cudnn_hacc`
+- Kernel libraries: `cudnn_hacc`, `ema_warp`
 - Variants: `film`
 - Outputs: frame
 - Input size: any H x W >= 64, padded to a multiple of 64

@@ -754,7 +754,7 @@ class _BranchModule(nn.Module):
         object.__setattr__(self, "host", host)  # not a submodule: the module's tensors are this branch's alone
 
     def forward(self, x: torch.Tensor) -> dict:
-        return Portable._branch(self.host, self.br, x)  # noqa: SLF001 - the sibling runner's own helper  # ty: ignore[invalid-argument-type, unresolved-attribute]
+        return Portable._branch(self.host, self.br, x)  # noqa: SLF001 - the sibling runner's own helper  # ty: ignore[invalid-argument-type]
 
 
 def _mlx(portable: type[Portable]) -> type[Portable]:

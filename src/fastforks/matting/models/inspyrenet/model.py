@@ -26,10 +26,12 @@ from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
 from fastforks.kernels import image_normalize
 from fastforks.matting._runner import Forward, Runner, scale
 from fastforks.shared import mlx_wrap, swin_v1
+from fastforks.shared.cnn_kernels import fold_bn
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import InSPyReNet_SwinB
 from .net.modules.attention_module import SICA
+from .net.modules.layers import Conv2d
 
 if TYPE_CHECKING:
     from fastforks.matting._runner import Context
@@ -46,8 +48,15 @@ class Params:
     size: int
 
 
-def _sica(m: SICA, x: torch.Tensor, smap: torch.Tensor, lmap: torch.Tensor | None = None) -> tuple[torch.Tensor, ...]:
-    """`SICA.forward` with the context vector and the key / value convs in float32."""
+def _sica(
+    m: SICA, x: torch.Tensor, smap: torch.Tensor, lmap: torch.Tensor | None = None, *, nhwc: bool = False
+) -> tuple[torch.Tensor, ...]:
+    """`SICA.forward` with the context vector and the key / value convs in float32.
+
+    `nhwc` (kernels): the query and output convs run channels-last (their weights moved by `Kernels`). cuDNN runs a
+    fp16 conv in NHWC, so in NCHW each of the six converted its input and output; channels-last, the query tokens and
+    the refined context are views of the conv / GEMM outputs, and only `x` and the outputs change layout.
+    """
     b, _, h, w = x.shape
     p = torch.sigmoid(F.interpolate(smap, size=x.shape[-2:], mode="bilinear", align_corners=False)) - m.threshold
     prob = [torch.clip(p, 0, 1), torch.clip(-p, 0, 1), m.threshold - torch.abs(p)]
@@ -66,17 +75,25 @@ def _sica(m: SICA, x: torch.Tensor, smap: torch.Tensor, lmap: torch.Tensor | Non
     if CTX_SCALE_ATTR in m.__dict__:  # a float16 MLX replay: its key / value convs read float16 (see `_scale_context`)
         context = context * (1 / m.__dict__[CTX_SCALE_ATTR])
     del f, pr, prob
-    query = m.conv_query(x).view(b, m.depth, -1).permute(0, 2, 1)
+    if nhwc:
+        x = x.contiguous(memory_format=torch.channels_last)
+        query = m.conv_query(x).permute(0, 2, 3, 1).reshape(b, h * w, m.depth)  # a view of the NHWC output
+    else:
+        query = m.conv_query(x).view(b, m.depth, -1).permute(0, 2, 1)
     key = m.conv_key(context).to(x.dtype).view(b, m.depth, -1)
     value = m.conv_value(context).to(x.dtype).view(b, m.depth, -1).permute(0, 2, 1)
     sim = F.softmax((m.depth**-0.5) * torch.bmm(query, key), dim=-1)
     del query, key
-    context = torch.bmm(sim, value).permute(0, 2, 1).contiguous().view(b, -1, h, w)
+    if nhwc:
+        context = torch.bmm(sim, value).view(b, h, w, -1).permute(0, 3, 1, 2)  # channels-last [B, C, H, W]
+    else:
+        context = torch.bmm(sim, value).permute(0, 2, 1).contiguous().view(b, -1, h, w)
     del sim, value
     x = torch.cat([x, m.conv_out1(context)], dim=1)
     del context
     x = m.conv_out3(m.conv_out2(x))
-    return x, m.conv_out4(x)
+    out = m.conv_out4(x)
+    return (x.contiguous(), out.contiguous()) if nhwc else (x, out)
 
 
 CTX_SCALE_ATTR = "_ff_ctx_scale"
@@ -97,11 +114,32 @@ def _scale_context(m: SICA) -> None:
         bn.running_var.div_(CTX_SCALE**2)
 
 
-def _net(ctx: Context, dtype: torch.dtype) -> torch.nn.Module:
+def _sica_nhwc(
+    m: SICA, x: torch.Tensor, smap: torch.Tensor, lmap: torch.Tensor | None = None
+) -> tuple[torch.Tensor, ...]:
+    """`_sica` with its query and output convs channels-last (kernels)."""
+    return _sica(m, x, smap, lmap, nhwc=True)
+
+
+def _fold_batchnorms(net: torch.nn.Module) -> int:
+    """Fold each decoder `Conv2d` block's eval BatchNorm into its conv (float32, before any fp16 cast); how many."""
+    n = 0
+    for m in net.modules():
+        if isinstance(m, Conv2d) and m.bn is not None:
+            fold_bn(m.conv, m.bn)
+            m.bn = None
+            n += 1
+    return n
+
+
+def _net(ctx: Context, dtype: torch.dtype, *, fold: bool = False) -> torch.nn.Module:
     s = ctx.params.size
     net = InSPyReNet_SwinB(depth=64, pretrained=False, base_size=[s, s], threshold=None)
     net.load_state_dict(ctx.state_dict())
     torch.nn.Module.to(net, ctx.device)  # upstream's `to(device)` takes no dtype
+    if fold and not _fold_batchnorms(net):
+        msg = "InSPyReNet kernels: no Conv2d BatchNorm to fold (the module tree changed)"
+        raise RuntimeError(msg)
     half = dtype == torch.float16 or mlx_wrap.twin_dtype() == "float16"  # also the float32 twin of a float16 replay
     sica = [m for m in net.modules() if isinstance(m, SICA)] if half else []
     keep = [(m, m.conv_key, m.conv_value) for m in sica]
@@ -124,6 +162,7 @@ class Portable(Runner):
     sdpa_auto = "efficient,cudnn,math"  # Swin window attention: cuDNN rebuilds per shape (`fastforks.shared.sdpa`)
     dtypes = ("float32", "float16")
     batch = None
+    fold = False  # kernels: the decoder's BatchNorms folded into their convs
     # network pixels (images x size^2) per call: the eager call is launch bound at 384 (RTX 5060 Ti, Windows, fp16,
     # 8 images: inspyrenet-fast 57.4 -> 13.9 ms per image), not at 1024 (115 vs 107 ms, 7.5 GB): one image there
     net_pixels = 1_300_000
@@ -132,7 +171,7 @@ class Portable(Runner):
         """Build the network."""
         super().__init__(ctx)
         self.dtype = getattr(torch, ctx.dtype)
-        self.net = _net(ctx, self.dtype)
+        self.net = _net(ctx, self.dtype, fold=self.fold)
 
     def _normalize(self, x: torch.Tensor) -> torch.Tensor:
         return scale(x, self.ctx.io)
@@ -162,11 +201,20 @@ class Kernels(Portable):
     """Fuse input normalization, gather-based Swin blocks, fp16-accumulate GEMMs, capture the fixed-size network."""
 
     module = Runner.module
+    # the eval BatchNorms after the decoder convs (SICA, the context branches) were a pass each: 5 ms of 86 in the SICA
+    # modules alone (1024 x 1024, RTX 5060 Ti)
+    fold = True
 
     def __init__(self, ctx: Context) -> None:
         """Prepare the accelerated inference path on the model device."""
         super().__init__(ctx)
         swin_v1.fast(self.net.backbone)
+        if self.dtype == torch.float16:
+            for m in self.net.modules():
+                if isinstance(m, SICA):
+                    for conv in (m.conv_query, m.conv_out1, m.conv_out2, m.conv_out3, m.conv_out4):
+                        conv.to(memory_format=torch.channels_last)
+                    override(m, _sica_nhwc)
         self.mean = torch.tensor(IMAGENET_MEAN, device=ctx.device)
         self.std = torch.tensor(IMAGENET_STD, device=ctx.device)
         self.graphs = SmallShapeGraphs(super()._net, pixels=2**21)

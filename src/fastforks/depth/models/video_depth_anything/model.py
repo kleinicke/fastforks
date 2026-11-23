@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import torch
 import torch.nn.functional as F
@@ -132,7 +132,7 @@ class _ChunkedFeedForward(FeedForward):
         rows = max(1, (64 << 20) // (8 * x.shape[-1] * x.element_size()))
         if x.shape[0] <= rows or not (x.device.type == "mps" and _eager_gpu(x)):
             return super().forward(hidden_states)
-        out = x.new_empty(x.shape[0], self.net[-1].out_features)
+        out = x.new_empty(x.shape[0], cast("nn.Linear", self.net[-1]).out_features)
         for i in range(0, x.shape[0], rows):
             out[i : i + rows] = super().forward(x[i : i + rows])
         return out.view(*hidden_states.shape[:-1], -1)

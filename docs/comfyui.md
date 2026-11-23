@@ -72,9 +72,19 @@ so a ComfyUI folder below ~140 characters needs no long-path setting.
 | Upscale / restore | IMAGE, tile (input px, 32 px overlap; 0 = one pass; keep it on for HAT / DAT) | IMAGE |
 | Restore aligned faces (GFPGAN, CodeFormer) | IMAGE: aligned 512 x 512 face crops only (no detection / alignment / paste-back in this pack) | IMAGE |
 
-Every node has `model`, `backend` (`auto`: our CUDA / Metal kernels where they are faster, else portable PyTorch;
-`portable`; `kernels`: only our kernels, CUDA on NVIDIA or Metal on Apple silicon for the models that have them, else
-an error) and `dtype` (`auto`: the validated one). Both packs name a node `Fastforks<Name>` (shown as
+Every node has `model`, `backend` and `dtype` (`auto`: the validated one). `backend`:
+
+- `auto`: our CUDA / Metal kernels where they are faster, else portable PyTorch.
+- `portable`: plain PyTorch.
+- `kernels`: only our kernels, CUDA on NVIDIA or Metal on Apple silicon for the models that have them, else an error.
+- `mlx` / `mlx portable` (listed on a Mac with the `mlx` package): the model's MLX port instead of PyTorch MPS, with or
+  without our Metal kernels. It often needs less memory, but its first run of each image size compiles and is slower.
+  Measured on an M1 Pro over 277 models: about a third less memory (median), similar warm speed, first run 4.1 s
+  against 0.7 s (median). On macOS the pack keeps that first-run work in `models/fastforks/mlx-plans`, so it is not
+  repeated after a ComfyUI restart (set `FASTFORKS_MLX_PLAN_CACHE` to an empty value to turn this off). An
+  out-of-memory error on MPS suggests `mlx`.
+
+Both packs name a node `Fastforks<Name>` (shown as
 "Depth (fastforks)" or "Depth (fastforks, commercial)"), so a workflow saved with one pack loads in the other. With both
 installed in `custom_nodes`, fastforks-commercial registers nothing and logs that the fastforks pack's nodes are used
 (two packs cannot register one class name; remove or disable one to choose). A pack has a node only if it lists a

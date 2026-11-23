@@ -747,10 +747,25 @@ def test_cache_setup(pack: Any, tmp_path: Path) -> None:
     pack.fp.paths["fastforks"] = [str(first), str(extra), str(tmp_path / "missing")]
     again = str(tmp_path / "extra" / ".." / "normal")  # the same folder spelled another way is read once
     environ = {"FASTFORKS_CACHE": str(normal), "FASTFORKS_READ_CACHES": os.pathsep.join([again, str(first)])}
-    pack.nodes.setup_cache(environ)
+    pack.nodes.setup_cache(environ, platform="linux")
     assert environ["FASTFORKS_CACHE"] == str(first)
     assert environ["FASTFORKS_READ_CACHES"].split(os.pathsep) == [str(extra), str(normal)]
     assert pack.fp.paths["fastforks"][-1] == str(Path(pack.fp.models_dir) / "fastforks")
+    assert "FASTFORKS_MLX_PLAN_CACHE" not in environ  # macOS only
+
+
+def test_mlx_plans_kept_on_macos(pack: Any, tmp_path: Path) -> None:
+    """On macOS the MLX first-run plans go under models/fastforks unless the user set the variable (even to "")."""
+    pack.fp.paths["fastforks"] = [str(tmp_path)]
+    environ: dict[str, str] = {}
+    pack.nodes.setup_cache(environ, platform="darwin")
+    assert environ["FASTFORKS_MLX_PLAN_CACHE"] == str(tmp_path / "mlx-plans")
+    off = {"FASTFORKS_MLX_PLAN_CACHE": ""}
+    pack.nodes.setup_cache(off, platform="darwin")
+    assert off["FASTFORKS_MLX_PLAN_CACHE"] == ""
+    environ = {}
+    pack.nodes.setup_cache(environ, platform="linux")
+    assert "FASTFORKS_MLX_PLAN_CACHE" not in environ
 
 
 def test_semantic_maps(pack: Any) -> None:

@@ -38,6 +38,7 @@ from fastforks.shared.swin_sr import (
     checkpoint_upsampler,
     pad_heads,
     patch_embed,
+    patch_unembed,
     relative_bias,
     shift_mask,
     shifted_window_regions,
@@ -45,7 +46,16 @@ from fastforks.shared.swin_sr import (
 )
 
 from .net import HAT
-from .net.hat_arch import HAB, OCAB, RHAG, PatchEmbed, WindowAttention, window_partition, window_reverse
+from .net.hat_arch import (
+    HAB,
+    OCAB,
+    RHAG,
+    PatchEmbed,
+    PatchUnEmbed,
+    WindowAttention,
+    window_partition,
+    window_reverse,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -159,7 +169,10 @@ def _ocab(m: OCAB, x: torch.Tensor, x_size: tuple[int, int], rpi: torch.Tensor) 
 
 
 def _prepare(net: HAT) -> None:
-    """Gather every block's relative position bias once (upstream: per call), contiguous `PatchEmbed` tokens."""
+    """Gather every block's relative position bias once (upstream: per call); contiguous `PatchEmbed` tokens.
+
+    `PatchUnEmbed` becomes a channels-last view of the tokens (`patch_unembed`).
+    """
     sa, oca = net.get_buffer("relative_position_index_SA"), net.get_buffer("relative_position_index_OCA")
     for m in net.modules():
         if isinstance(m, WindowAttention):
@@ -175,6 +188,8 @@ def _prepare(net: HAT) -> None:
             override(m, _ocab)
         elif isinstance(m, PatchEmbed):
             override(m, patch_embed)
+        elif isinstance(m, PatchUnEmbed):
+            override(m, patch_unembed)
 
 
 _LAST_SCALE = 64.0  # fixed: float16 headroom of the last group's residual sum, not an upstream parameter
