@@ -1231,7 +1231,13 @@ def test_face_restore_detects_aligns_and_pastes_back(pack: Any, monkeypatch: pyt
             return types.SimpleNamespace(image=torch.ones_like(x))
 
     models = {faces.DETECTOR: Detector()}
-    monkeypatch.setattr(nodes, "load", lambda mid, *_a, **_k: models.get(mid, Restorer()))
+    options: list[Any] = []
+
+    def fake_load(mid: str, _backend: str, _dtype: str, opts: Any = None) -> Any:
+        options.append((mid, opts))
+        return models.get(mid, Restorer())
+
+    monkeypatch.setattr(nodes, "load", fake_load)
     monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])
     img = torch.zeros(2, 150, 200, 3)
     (out,) = nodes.FaceRestore().run(image=img, model="codeformer", backend="auto", dtype="auto")
@@ -1242,6 +1248,11 @@ def test_face_restore_detects_aligns_and_pastes_back(pack: Any, monkeypatch: pyt
     crops.clear()
     nodes.FaceRestore().run(image=torch.zeros(1, 512, 512, 3), model="codeformer", backend="auto", dtype="auto")
     assert crops == [(3, 512, 512)]  # auto: a 512 x 512 image is an aligned crop, restored whole
+    options.clear()
+    one = torch.zeros(1, 512, 512, 3)
+    nodes.FaceRestore().run(image=one, model="codeformer", backend="auto", dtype="auto", fidelity=0.8)
+    nodes.FaceRestore().run(image=one, model="gfpgan-v1.4", backend="auto", dtype="auto", fidelity=0.8)
+    assert options == [("codeformer", {"fidelity": 0.8}), ("gfpgan-v1.4", None)]  # GFPGAN has no fidelity
     assert "faces" in nodes.FaceRestore.INPUT_TYPES()["optional"]
     found = found[:0]  # no face: the image comes back unchanged
     gray = torch.rand(1, 150, 200, 1)

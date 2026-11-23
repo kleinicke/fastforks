@@ -1667,6 +1667,10 @@ _FACES_TIP = (
     " aligned crops: the image is already one aligned 512 x 512 face crop (FFHQ alignment)."
     " auto: aligned crops for 512 x 512 images, else detect."
 )
+_FIDELITY_TIP = (
+    "CodeFormer only (GFPGAN ignores it): 0 = the cleanest face from CodeFormer's codebook, 1 = closest to the input"
+    " face (fewer invented details); 0.5 is CodeFormer's default. Changing it reloads the model."
+)
 
 
 class FaceRestore(_Node):
@@ -1691,14 +1695,27 @@ class FaceRestore(_Node):
         """ComfyUI inputs."""
         return {
             "required": {"image": ("IMAGE",), **common(cls)},
-            "optional": {**BATCH, "faces": (_FACES, {"default": "auto", "tooltip": _FACES_TIP})},
+            "optional": {
+                **BATCH,
+                "faces": (_FACES, {"default": "auto", "tooltip": _FACES_TIP}),
+                "fidelity": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.05, "tooltip": _FIDELITY_TIP}),
+            },
         }
 
     def run(  # noqa: PLR0913 - one argument per input
-        self, *, image: torch.Tensor, model: str, backend: str, dtype: str, batch_size: int = 1, faces: str = "auto"
+        self,
+        *,
+        image: torch.Tensor,
+        model: str,
+        backend: str,
+        dtype: str,
+        batch_size: int = 1,
+        faces: str = "auto",
+        fidelity: float = 0.5,
     ) -> tuple[torch.Tensor]:
         """Restore every face crop, or the faces of every image."""
-        m = load(model, backend, dtype)
+        takes_fidelity = "fidelity" in fastforks.model_card(model_id(model)).options
+        m = load(model, backend, dtype, {"fidelity": float(fidelity)} if takes_fidelity else None)
         if faces == "aligned crops" or (faces == "auto" and tuple(image.shape[1:3]) == (_faces.FACE_SIZE,) * 2):
             return (convert.to_image(each_result(image, m, batch_size, lambda r, k: at(r.image, k)), _out_device()),)
         detector = load(_faces.DETECTOR, backend, "auto")
