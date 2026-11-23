@@ -37,7 +37,6 @@
   "portable": [
    "cotracker3-offline",
    "cotracker3-online",
-   "dat-light-x4",
    "flowformer-small-sintel",
    "flowformer-small-things",
    "gmflow-scale1-things",

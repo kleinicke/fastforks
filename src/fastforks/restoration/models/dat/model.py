@@ -474,11 +474,28 @@ def _cuda_channel(m: Adaptive_Channel_Attention, x: torch.Tensor, h: int, w: int
     return _channel_block(m, x, h, w, mix=dat_interaction.interaction, fp32_scores=True)
 
 
+_GN_MAX_C = 96  # fixed: measured (RTX 5060 Ti), group_norm beats F.layer_norm up to 96 channels, not at 144 / 180
+_GN_MIN_ROWS = 65536  # fixed: measured, below this F.layer_norm is faster (4096 rows: 0.02 vs 0.06 ms)
+
+
+def _narrow_layer_norm(m: nn.LayerNorm, x: torch.Tensor) -> torch.Tensor:
+    """`LayerNorm` over a narrow last dim as a one-group `group_norm` of `[rows, C, 1]` (the same statistics + affine).
+
+    PyTorch's CUDA LayerNorm runs about 6x below the memory bound on short rows: DAT-light's 60 channels at 512 x 512
+    (262 144 rows) take 1.02 ms against 0.62 ms here.
+    """
+    c = m.normalized_shape[0]
+    if x.numel() // c < _GN_MIN_ROWS:
+        return F.layer_norm(x, m.normalized_shape, m.weight, m.bias, m.eps)
+    return F.group_norm(x.reshape(-1, c, 1), 1, m.weight, m.bias, m.eps).view(x.shape)
+
+
 class Kernels(Portable):
     """float16, fp16-accumulate GEMMs and dense convolutions of at least 64 channels in and out (`cudnn_hacc`).
 
     The narrower ones (DAT-light's 60-channel convolutions, the 1 x 1 convolutions of the channel interactions) were
     slower through `cudnn_hacc` (DAT-light 512 x 512: 300 ms and 2.9 GB vs 268 ms and 1.5 GB; DAT unchanged).
+    LayerNorms of at most `_GN_MAX_C` channels run as group norms (`_narrow_layer_norm`).
     """
 
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
@@ -498,6 +515,8 @@ class Kernels(Portable):
                 and min(m.in_channels, m.out_channels) >= _HACC_MIN_CHANNELS
             ):
                 override(m, _hacc_conv)
+            elif is_base(m, nn.LayerNorm) and len(m.normalized_shape) == 1 and m.normalized_shape[0] <= _GN_MAX_C:
+                override(m, _narrow_layer_norm)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The upscaled batch."""
