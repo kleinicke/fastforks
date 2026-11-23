@@ -222,6 +222,9 @@ class DISK(nn.Module):
 
     def heatmap_and_dense_descriptors(self, images: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         unet_output = self.unet(images)
+        if not isinstance(unet_output, torch.Tensor):  # fastforks: (heatmaps, descriptors) of a split head (MLX)
+            heatmaps, descriptors = unet_output
+            return heatmaps, descriptors
 
         if unet_output.shape[1] != self.desc_dim + 1:
             raise ValueError(

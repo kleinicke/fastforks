@@ -37,7 +37,7 @@ cuda_graphs = { default = true, effect = "speed" }  # kernels, ALIKED: replay th
 [modes.portable]
 cuda_dtype = "float32"  # as upstream: LightGlue's attention casts q, k, v to float16 on CUDA, the rest is float32; dtype="float16" (opt-in) also runs the extractor's dense network under float16 autocast, detection and descriptors float32
 mps_dtypes = ["float32"]
-mlx_dtypes = ["float32"]
+mlx_dtypes = ["float32", "float16"]  # float16: the extractor's dense network stays float32 up to the detection scores (in half, keypoints move: recall 0.992 DISK, 0.996 ALIKED); only DISK's 128 descriptor channels of the last conv (most of its arithmetic) run in half, ALIKED's convs all stay float32
 
 [modes.kernels]
 dtype = "float16"  # DISK: the U-Net on fp16 NHWC convolutions; ALIKED: the dense network under float16 autocast with the score head in float32 (fp16 score head costs 1.3 AUC@5); detection, descriptors and the matcher float32

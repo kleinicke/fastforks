@@ -39,8 +39,14 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from torch.nn.modules.utils import _pair
+from fastforks._core.mlx_cast import float32_call  # fastforks
 from fastforks._core.sampling import grid_sample
+from fastforks._core.tracing import EXPORTING_FOR_MLX  # fastforks
 from fastforks._core.upload import device_tensor  # fastforks
+
+
+def _call(module: nn.Module, x: torch.Tensor) -> torch.Tensor:  # fastforks: `float32_call`'s plain twin
+    return module(x)
 
 
 # fastforks: torchvision.models.resnet.conv1x1 / conv3x3 (bias-free), without the torchvision dependency
@@ -649,19 +655,22 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
         padder = InputPadder(image.shape[-2], image.shape[-1], div_by)
         image = padder.pad(image)
 
+        # fastforks: in an MLX float16 replay the convolutions are float32 islands (float16 feature maps move keypoints
+        # across the detection threshold: recall 0.9963 on the golden pair, 1.0 with the islands)
+        call = float32_call if EXPORTING_FOR_MLX.get() else _call
         # ================================== feature encoder
-        x1 = self.block1(image)  # B x c1 x H x W
+        x1 = call(self.block1, image)  # B x c1 x H x W
         x2 = self.pool2(x1)
-        x2 = self.block2(x2)  # B x c2 x H/2 x W/2
+        x2 = call(self.block2, x2)  # B x c2 x H/2 x W/2
         x3 = self.pool4(x2)
-        x3 = self.block3(x3)  # B x c3 x H/8 x W/8
+        x3 = call(self.block3, x3)  # B x c3 x H/8 x W/8
         x4 = self.pool4(x3)
-        x4 = self.block4(x4)  # B x dim x H/32 x W/32
+        x4 = call(self.block4, x4)  # B x dim x H/32 x W/32
         # ================================== feature aggregation
-        x1 = self.gate(self.conv1(x1))  # B x dim//4 x H x W
-        x2 = self.gate(self.conv2(x2))  # B x dim//4 x H//2 x W//2
-        x3 = self.gate(self.conv3(x3))  # B x dim//4 x H//8 x W//8
-        x4 = self.gate(self.conv4(x4))  # B x dim//4 x H//32 x W//32
+        x1 = self.gate(call(self.conv1, x1))  # B x dim//4 x H x W
+        x2 = self.gate(call(self.conv2, x2))  # B x dim//4 x H//2 x W//2
+        x3 = self.gate(call(self.conv3, x3))  # B x dim//4 x H//8 x W//8
+        x4 = self.gate(call(self.conv4, x4))  # B x dim//4 x H//32 x W//32
         x2_up = self.upsample2(x2)  # B x dim//4 x H x W
         x3_up = self.upsample8(x3)  # B x dim//4 x H x W
         x4_up = self.upsample32(x4)  # B x dim//4 x H x W
@@ -670,7 +679,7 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
         with torch.autocast(
             image.device.type, enabled=False
         ):  # fastforks: the score head in float32 (AUC@5 -1.3 in fp16)
-            score_map = torch.sigmoid(self.score_head(x1234.float()))
+            score_map = torch.sigmoid(call(self.score_head, x1234.float()))
         feature_map = torch.nn.functional.normalize(x1234, p=2, dim=1)
 
         # Unpads images

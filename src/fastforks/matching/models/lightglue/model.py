@@ -20,9 +20,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.mlx_cast import float32_call, to_float32, to_run_dtype
 from fastforks._core.patch import base_type, override
 from fastforks._core.runner import host
 from fastforks._core.upload import device_tensor
@@ -233,9 +235,53 @@ def _static(out: tuple[torch.Tensor, ...]) -> tuple[torch.Tensor, ...]:
     return out
 
 
+class _SplitHead(nn.Module):
+    """DISK's U-Net for the MLX graph: `(heatmap, descriptors)` from a last conv split in two.
+
+    The last 5 x 5 conv (80 -> 128 descriptors + 1 heatmap at full resolution) is four fifths of the U-Net's
+    arithmetic, and 129 outputs run on MLX's GEMM padded to 192. Split, the descriptors are an unpadded 128-output
+    conv in the run dtype and the heatmap a 1-output conv in float32. Everything before (the heatmap's inputs) stays
+    float32 in a float16 replay: a float16 U-Net moves 0.8 % of the heatmap's maxima (recall 0.9917 on the golden
+    pair), float16-rounded weights alone 0.07 %.
+    """
+
+    def __init__(self, unet: nn.Module) -> None:
+        """Wrap `unet` (`net.disk.Unet`)."""
+        super().__init__()
+        self.unet = unet
+
+    def forward(self, image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Float32 heatmap `[B, 1, H, W]` and run-dtype dense descriptors `[B, 128, H, W]`."""
+        unet = self.unet
+        feats = [image]
+        for layer in unet.path_down:
+            feats.append(float32_call(layer, feats[-1]))
+        bottom, skips = feats[-1], feats[-2::-1]
+        for layer, skip in zip(unet.path_up[:-1], skips, strict=False):
+            bottom = float32_call(layer, bottom, skip)
+        last = unet.path_up[-1]
+        norm, gate, _, conv = last.conv
+        x = float32_call(gate, norm(torch.cat([last.upsample(bottom), skips[len(unet.path_up) - 1]], 1)))
+        n = conv.out_channels - 1
+        heat = F.conv2d(to_float32(x), to_float32(conv.weight)[n:], to_float32(conv.bias)[n:], padding="same")
+        desc = F.conv2d(to_run_dtype(x, conv.weight.dtype), conv.weight[:n], conv.bias[:n], padding="same")
+        return heat, desc
+
+
+class _MlxDisk(Portable):
+    """`Portable` with DISK's U-Net behind `_SplitHead`."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the networks and wrap the U-Net."""
+        super().__init__(ctx)
+        self.net.extractor.unet = _SplitHead(self.net.extractor.unet)
+
+
 _MLX = {
-    "disk": mlx_wrap.port(Portable, attrs=("net.extractor.unet",)),
-    "aliked": mlx_wrap.port(Portable, attrs=(), methods=("net.extractor.detection_maps",), release=True),
+    "disk": mlx_wrap.port(_MlxDisk, attrs=("net.extractor.unet",), fp32_inputs=("image",)),
+    "aliked": mlx_wrap.port(
+        Portable, attrs=(), methods=("net.extractor.detection_maps",), release=True, fp32_inputs=("image",)
+    ),
 }
 
 
