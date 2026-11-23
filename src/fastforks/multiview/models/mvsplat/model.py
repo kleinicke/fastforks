@@ -408,14 +408,14 @@ def gaussians(
     mask = torch.tensor([1.0] + [0.1 * 0.25**deg for deg in range(1, SH_DEGREE + 1) for _ in range(2 * deg + 1)])
     sh = sh.reshape(v, h * w, 3, SH).float() * to_device(mask, dev)
     c2w = c2w.float()
-    r = c2w[:, None, :3, :3]
-    rays = (k_inv[:, None] @ torch.cat((xy, torch.ones_like(xy[..., :1])), -1).expand(v, -1, -1)[..., None])[..., 0]
+    # the per-pixel 3 x 3 (9 x 9) products as one GEMM per view (a bmm over pixels runs gemv-like cuBLAS kernels)
+    rays = torch.cat((xy, torch.ones_like(xy[..., :1])), -1).expand(v, -1, -1) @ k_inv.mT
     rays = rays / rays.norm(dim=-1, keepdim=True)  # upstream get_world_rays: unit directions
-    means = c2w[:, None, :3, 3] + (r @ rays[..., None])[..., 0] * d
+    means = c2w[:, None, :3, 3] + (rays @ c2w[:, :3, :3].mT) * d
     c2w64 = f64(c2w)[:, :3, :3]
     q = quaternion_product(matrix_quaternion(c2w64)[:, None], f64(rot[..., [3, 0, 1, 2]]))
     q = (q * torch.where(q[..., :1] < 0, -1.0, 1.0)).float()
-    harmonics = sh @ sh_rotation(c2w64).float()[:, None].transpose(-1, -2)
+    harmonics = sh.reshape(v, h * w * 3, SH) @ sh_rotation(c2w64).float().mT
     return {
         "gaussians/means": means.reshape(-1, 3),
         "gaussians/scales": scales.reshape(-1, 3),

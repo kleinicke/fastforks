@@ -241,16 +241,14 @@ def gaussians(
     rgb = images.float().permute(0, 2, 3, 1).reshape(v, h * w, 3)
     sh = torch.cat((sh[..., :1] + ((rgb - 0.5) / C0)[..., None], sh[..., 1:]), -1)
     c2w = c2w.float()
-    r = c2w[:, None, :3, :3]
-    rays = (
-        invert(k_norm.float())[:, None] @ torch.cat((xy, torch.ones_like(xy[..., :1])), -1).expand(v, -1, -1)[..., None]
-    )
-    rays = rays[..., 0] / rays[..., 2:, 0]
-    means = c2w[:, None, :3, 3] + (r @ rays[..., None])[..., 0] * depth.float().reshape(v, h * w, 1)
+    # the per-pixel 3 x 3 (9 x 9) products as one GEMM per view (a bmm over pixels runs gemv-like cuBLAS kernels)
+    rays = torch.cat((xy, torch.ones_like(xy[..., :1])), -1).expand(v, -1, -1) @ invert(k_norm.float()).mT
+    rays = rays / rays[..., 2:]
+    means = c2w[:, None, :3, 3] + (rays @ c2w[:, :3, :3].mT) * depth.float().reshape(v, h * w, 1)
     c2w64 = f64(c2w)[:, :3, :3]
     q = quaternion_product(matrix_quaternion(c2w64)[:, None], f64(rot.roll(1, -1)))
     q = (q * torch.where(q[..., :1] < 0, -1.0, 1.0)).float()
-    harmonics = sh @ sh_rotation(c2w64).float()[:, None].transpose(-1, -2)
+    harmonics = sh.reshape(v, h * w * 3, SH) @ sh_rotation(c2w64).float().mT
     return {
         "gaussians/means": means.reshape(-1, 3),
         "gaussians/scales": F.softplus(scales - 4.0).clamp(1e-10, 3.0).reshape(-1, 3),
