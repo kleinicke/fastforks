@@ -20,7 +20,9 @@ import contextvars
 import difflib
 import functools
 import gc
+import hashlib
 import importlib.util
+import json
 import logging
 import os
 import re
@@ -591,10 +593,77 @@ def takes(mid: str, given: frozenset[str] = _IMAGE, prompts: frozenset[str] = fr
     promptable model takes at least one of `prompts`. E.g. a depth model that needs a depth prompt, a matting model that
     needs a first-frame mask or an inpainting model that needs a mask cannot run in a node without that input.
     """
-    inputs = fastforks.model_card(mid).contract().inputs
+    inputs = _inputs.of(mid)
     if any(use == "required" and name not in given for name, use in inputs.items() if name != "prompts"):
         return False
     return "prompts" not in inputs or bool(set(inputs["prompts"]) & prompts)
+
+
+class _Inputs:
+    """`contract().inputs` per model id, kept in `<FASTFORKS_CACHE>/comfyui-inputs.json` across ComfyUI starts.
+
+    A contract imports the model's code (~8 ms per model, about 0.7 s of the pack's start for every listed model);
+    the file is valid while the installed fastforks sources are unchanged (`_source_stamp`). Without
+    `FASTFORKS_CACHE` (outside ComfyUI) nothing is kept on disk.
+    """
+
+    NAME = "comfyui-inputs.json"
+
+    def __init__(self) -> None:
+        self.data: dict[str, dict[str, Any]] | None = None
+        self.stamp, self.path, self.new = "", None, False
+
+    def of(self, mid: str) -> dict[str, Any]:
+        """The inputs of `mid` (`contract().to_dict()["inputs"]`)."""
+        if self.data is None:
+            self._read()
+        data = cast("dict[str, dict[str, Any]]", self.data)
+        if mid not in data:
+            data[mid] = fastforks.model_card(mid).contract().to_dict()["inputs"]
+            self.new = True
+        return data[mid]
+
+    def save(self) -> None:
+        """Write the inputs worked out since the file was read (an unwritable folder is logged, not raised)."""
+        if not (self.new and self.path):
+            return
+        tmp = self.path.with_suffix(f".{os.getpid()}.tmp")
+        try:
+            tmp.write_text(json.dumps({"stamp": self.stamp, "inputs": self.data}), encoding="utf-8")
+            tmp.replace(self.path)
+            self.new = False
+        except OSError as e:
+            log.warning("fastforks: could not write %s (%s); the next start works the model inputs out again", tmp, e)
+
+    def _read(self) -> None:
+        self.data = {}
+        cache = os.environ.get("FASTFORKS_CACHE")
+        if not cache:
+            return
+        self.path, self.stamp = Path(cache) / self.NAME, _source_stamp()
+        with contextlib.suppress(OSError, ValueError):  # missing or unreadable: worked out again and rewritten
+            kept = json.loads(self.path.read_text(encoding="utf-8"))
+            if kept.get("stamp") == self.stamp:
+                self.data = kept["inputs"]
+
+
+_inputs = _Inputs()
+
+
+def _source_stamp() -> str:
+    """The installed fastforks version and the paths, sizes and times of its `.py` / `.toml` files (~40 ms)."""
+    h = hashlib.blake2b(digest_size=16)
+    stack = [str(Path(fastforks.__file__).parent)]
+    while stack:
+        with os.scandir(stack.pop()) as entries:
+            for e in entries:
+                if e.is_dir(follow_symlinks=False):
+                    if e.name != "__pycache__":
+                        stack.append(e.path)
+                elif e.name.endswith((".py", ".toml")):
+                    st = e.stat()
+                    h.update(f"{e.path}\0{st.st_size}\0{st.st_mtime_ns}\0".encode())
+    return f"{fastforks.__version__}-{h.hexdigest()}"
 
 
 _OOM_MARKERS = ("invalid buffer size", "metal::malloc", "insufficient memory", "out of memory")
@@ -1670,6 +1739,7 @@ def mappings(*, commercial_only: bool = False) -> tuple[dict[str, type[_Node]], 
             continue
         classes[f"Fastforks{key}"] = _pack_class(node, commercial_only=commercial_only)
         names[f"Fastforks{key}"] = title.format(pack="fastforks, commercial" if commercial_only else "fastforks")
+    _inputs.save()
     return classes, names
 
 

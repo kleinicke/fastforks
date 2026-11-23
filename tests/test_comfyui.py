@@ -1158,3 +1158,23 @@ def test_describe_backend(pack: Any) -> None:
         describe(SimpleNamespace(mode="portable", device="mps", dtype="float32", kernels=()))
         == "mps, float32, portable"
     )
+
+
+def test_model_inputs_are_kept_across_starts(pack: Any, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    nodes = pack.nodes
+    monkeypatch.setenv("FASTFORKS_CACHE", str(tmp_path))
+    first = nodes._Inputs()
+    inputs = first.of("sam2.1-hiera-small")
+    assert inputs["image"] == "required"
+    first.save()
+    saved = json.loads((tmp_path / nodes._Inputs.NAME).read_text(encoding="utf-8"))
+    assert saved == {"stamp": nodes._source_stamp(), "inputs": {"sam2.1-hiera-small": inputs}}
+
+    def no_contract(mid: str) -> Any:
+        raise AssertionError(mid)
+
+    monkeypatch.setattr(nodes.fastforks, "model_card", no_contract)
+    assert nodes._Inputs().of("sam2.1-hiera-small") == inputs  # read from the file, not worked out
+    monkeypatch.setattr(nodes, "_source_stamp", lambda: "changed sources")
+    with pytest.raises(AssertionError, match=r"sam2\.1-hiera-small"):  # a stale file is not used
+        nodes._Inputs().of("sam2.1-hiera-small")

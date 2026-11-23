@@ -40,9 +40,8 @@ def implementation(folder: Path) -> types.ModuleType:
 
 nodes = implementation(Path(__file__).resolve().parent)
 convert = nodes.convert
+nodes.start()  # first: the cache folder, where `mappings` keeps the models' inputs
 NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS = nodes.mappings()
-
-nodes.start()
 nodes.log.info(nodes.licence_state())
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]

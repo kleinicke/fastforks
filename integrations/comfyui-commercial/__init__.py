@@ -116,8 +116,8 @@ if _full is not None:
     )
 else:
     nodes = implementation(_here)
+    nodes.start()  # first: the cache folder, where `mappings` keeps the models' inputs
     NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS = nodes.mappings(commercial_only=True)
-    nodes.start()
     nodes.log.info(nodes.licence_state(commercial_only=True))
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
