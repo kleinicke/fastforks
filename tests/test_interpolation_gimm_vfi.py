@@ -16,6 +16,7 @@ from fastforks.interpolation.models.gimm_vfi.model import (
     Params,
     _banded,
     _config,
+    _hyponet,
     _interpolate,
     _sample,
     _VolumeCorr,
@@ -72,6 +73,20 @@ def test_forward_matches_upstream(net: GIMMVFI_R) -> None:
             net, a, b, torch.full((1,), 0.3), Params(iters=20, ds_factor=1.0, cuda_graphs=False), make=_VolumeCorr
         )
     assert torch.isfinite(want).all()
+    torch.testing.assert_close(got, want, rtol=0, atol=1e-5)
+
+
+@pytest.mark.parametrize("b", [1, 2])
+def test_hyponet_bias_epilogue_is_the_ones_column(net: GIMMVFI_R, b: int) -> None:
+    """The kernels hyponet (`addmm` bias, `w0` and the output bias folded in) is upstream's `[hidden, 1] @ [W; b]`."""
+    g = torch.Generator().manual_seed(0)
+    channels = net.hyponet.params_dict["linear_wb0"].shape[0] - 4  # the first [W; b] rows: latent, (t, y, x), 1
+    lat = torch.randn(b, channels, 12, 20, generator=g)
+    coord = torch.rand(b, 24, 40, 3, generator=g) * 2 - 1
+    with torch.inference_mode():
+        want = _hyponet(net.hyponet, coord, lat, chunk=256)
+        got = _hyponet(net.hyponet, coord, lat, chunk=256, bias_epilogue=True)
+    assert got.shape == want.shape == (b, 24, 40, 2)
     torch.testing.assert_close(got, want, rtol=0, atol=1e-5)
 
 
