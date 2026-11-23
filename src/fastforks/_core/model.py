@@ -20,6 +20,7 @@ import json
 import logging
 import math
 import os
+import re
 import sys
 import threading
 from collections.abc import Mapping
@@ -223,10 +224,65 @@ def _typo_checked(fn: Callable[..., Any]) -> Callable[..., Any]:
             if err is None:
                 raise
             raise err from e
+        except Exception as e:
+            if getattr(self, "_mps_fallback", None) is None or not _mlx_call_failed(e):
+                raise
+            _fall_back_to_mps(cast("Model", self), e)
+            out = fn(self, *args, **kwargs)
         device = getattr(self, "_result_device", None)  # an MLX port loaded for Apple MPS: results on MPS
         return out if device is None else _results_to(out, device)
 
     return call
+
+
+_METAL_OOM = re.compile(r"metal::malloc|insufficient memory|out ?of ?memory", re.IGNORECASE)
+
+
+def _mlx_call_failed(error: BaseException) -> bool:
+    """Whether a call failed where PyTorch MPS may not: an op the MLX translation lacks, or Metal out of memory."""
+    graph = sys.modules.get("fastforks.shared.mlx_graph")
+    seen: set[int] = set()
+    e: BaseException | None = error
+    while e is not None and id(e) not in seen:
+        seen.add(id(e))
+        if graph is not None and isinstance(e, graph.UnsupportedOp):
+            return True
+        if isinstance(e, MemoryError) or (isinstance(e, RuntimeError) and _METAL_OOM.search(str(e))):
+            return True
+        e = e.__cause__
+    return False
+
+
+def _fall_back_to_mps(model: Model, error: Exception) -> None:
+    """Turn `model`, an MLX port that `mode="auto"` chose for Apple MPS, into its PyTorch MPS load after `error`.
+
+    The MLX port exports per input signature at the first call, so an op without a translation or a size that does
+    not fit shows up there, not in `load`, for a caller who never asked for MLX. `auto` is the mode that chooses and
+    logs: one warning, then this and later calls run on PyTorch MPS (`backend` says so). Explicit MLX loads
+    (`device="mlx"`, `mode="kernels"`) carry no fallback and raise.
+
+    Raises:
+        Exception: `error`, if PyTorch MPS cannot load the model either (its error is the cause).
+    """
+    with _GPU_CALLS:
+        build = model.__dict__.get("_mps_fallback")
+        if build is None:  # another thread fell back while this one waited
+            return
+        logging.getLogger(f"fastforks.{model.card.task}").warning(
+            "%s: the MLX port that mode='auto' chose failed on this input (%s: %s); using PyTorch MPS for this and "
+            "later calls (mode='portable' or FASTFORKS_MLX=0 loads PyTorch MPS from the start)",
+            model.variant.ref,
+            type(error).__name__,
+            str(error).strip().split("\n", 1)[0][:200],
+        )
+        model.__dict__["_mps_fallback"] = None  # one attempt; a second failure raises as it is
+        importlib.import_module("fastforks._core.mlx").mx.clear_cache()  # hand MLX's free buffers back to Metal
+        try:
+            torch_model = build()
+        except Exception as e:
+            raise error from e
+        model.__dict__.clear()
+        model.__dict__.update(torch_model.__dict__)
 
 
 def _results_to(out: object, device: torch.device) -> object:
@@ -1001,8 +1057,11 @@ def load_variant(  # noqa: C901, PLR0912, PLR0913 - the arguments of `load_model
     options: Mapping[str, Any] | None = None,
     weights: str | os.PathLike[str] | None = None,
     state: Mapping[str, torch.Tensor] | None = None,
+    via_mlx: bool = True,
 ) -> M:
     """`load_model` of a resolved (possibly derived) `variant`; `state`: the state dict of `weights`, already read.
+
+    `via_mlx=False` keeps a load on Apple MPS on PyTorch (the fallback of an MLX port that `auto` chose).
 
     A task that reads a user's checkpoint itself (e.g. to detect its architecture and map its keys) passes the
     derived variant (its `params`) and the mapped state dict; the runners get it from `Context.state_dict`.
@@ -1024,6 +1083,7 @@ def load_variant(  # noqa: C901, PLR0912, PLR0913 - the arguments of `load_model
         return _load_mlx(cls, card, variant, mode=mode, dtype=asked, options=opts, weights=files, state=state, log=log)
     if (
         dev.type == "mps"
+        and via_mlx
         and (
             m := _mps_via_mlx(
                 cls, card, variant, mode=mode, dtype=asked, dev=dev, opts=opts, files=files, state=state, log=log
@@ -1031,6 +1091,21 @@ def load_variant(  # noqa: C901, PLR0912, PLR0913 - the arguments of `load_model
         )
         is not None
     ):
+        if mode == "auto" and state is None:  # a caller's state dict is not kept alive for a fallback
+            # set by the loader, like `_result_device`
+            m.__dict__["_mps_fallback"] = functools.partial(
+                load_variant,
+                task,
+                card,
+                variant,
+                cls,
+                mode=mode,
+                device=dev,
+                dtype=dtype,
+                options=options,
+                weights=weights,
+                via_mlx=False,
+            )
         return m
     if fp32 and mode == "kernels" and card.kernels_dtype_on(dev) != "float32":
         msg = "kernels runs reduced-precision kernels here; use mode='portable' with dtype='float32'"

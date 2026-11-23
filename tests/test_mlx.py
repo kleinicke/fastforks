@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import functools
 import gc
 import sys
 import threading
 import tomllib
+import types
 from pathlib import Path
 
 import numpy as np
@@ -657,3 +659,97 @@ def test_signature_caches_keep_the_most_recent_shapes(caplog):
             torch.testing.assert_close(module(x), net(x), atol=1e-5, rtol=1e-5)
     assert len(module._nets) == mlx_graph.SIGNATURES
     assert sum("signature" in r.getMessage() for r in caplog.records) == 1  # said once, not per eviction
+
+
+class TestAutoFallback:
+    """An MLX port that `mode="auto"` chose for Apple MPS falls back to PyTorch MPS when a call fails (`auto` only)."""
+
+    @staticmethod
+    def model(calls, fallback=None):
+        class Fake:
+            card = types.SimpleNamespace(task="stereo")
+            variant = types.SimpleNamespace(ref="fake@1")
+
+            def __init__(self, name, error=None):
+                self.name, self.error = name, error
+
+            @core_model._typo_checked
+            def __call__(self, x):
+                calls.append(self.name)
+                if self.error is not None:
+                    raise self.error
+                return x + 1
+
+        m = Fake("mlx", RuntimeError("[metal::malloc] Attempting to allocate 99 bytes which is greater than ..."))
+        if fallback:
+            m._mps_fallback = lambda: Fake("mps")
+        return m
+
+    def test_auto_route_falls_back_once_and_says_so(self, caplog):
+        pytest.importorskip("mlx.core")
+        calls = []
+        m = self.model(calls, fallback=True)
+        with caplog.at_level("WARNING", logger="fastforks.stereo"):
+            assert m(1) == 2
+            assert m(2) == 3
+        assert calls == ["mlx", "mps", "mps"]
+        assert m.name == "mps"
+        assert m.error is None
+        assert [r.getMessage().split(":")[0] for r in caplog.records] == ["fake@1"]
+        assert "PyTorch MPS" in caplog.records[0].getMessage()
+
+    def test_unsupported_op_falls_back_too(self):
+        pytest.importorskip("mlx.core")
+        from fastforks.shared.mlx_graph import UnsupportedOp  # noqa: PLC0415 - optional (the mlx extra)
+
+        calls = []
+        m = self.model(calls, fallback=True)
+        m.error = UnsupportedOp("aten::nope")
+        assert m(1) == 2
+        assert calls == ["mlx", "mps"]
+
+    def test_explicit_routes_and_other_errors_raise(self):
+        calls = []
+        with pytest.raises(RuntimeError, match="metal::malloc"):
+            self.model(calls)(1)  # `device="mlx"` / `mode="kernels"`: no fallback attached
+        m = self.model(calls, fallback=True)
+        m.error = ValueError("bad input")
+        with pytest.raises(ValueError, match="bad input"):
+            m(1)
+        assert calls == ["mlx", "mlx"]
+
+    def test_a_failing_fallback_raises_the_first_error(self):
+        pytest.importorskip("mlx.core")
+        m = self.model([], fallback=True)
+
+        def broken():
+            msg = "no PyTorch MPS either"
+            raise OSError(msg)
+
+        m._mps_fallback = broken
+        with pytest.raises(RuntimeError, match="metal::malloc") as e:
+            m(1)
+        assert isinstance(e.value.__cause__, OSError)
+        with pytest.raises(RuntimeError, match="metal::malloc"):  # one attempt
+            m(1)
+
+    def test_only_auto_loads_carry_the_fallback(self, monkeypatch):
+        if not torch.backends.mps.is_available():
+            pytest.skip("needs Apple MPS")
+        card, variant = registry.resolve("stereo", "crestereo-eth3d")
+        seen = []
+
+        def via_mlx(*_a, **_k):
+            return types.SimpleNamespace()
+
+        def build(*_a, **k):
+            seen.append(k["mode"])
+            return "torch"
+
+        monkeypatch.setattr(core_model, "_mps_via_mlx", via_mlx)
+        monkeypatch.setattr(core_model, "_build", build)
+        load = functools.partial(core_model.load_variant, "stereo", card, variant, object, device="mps")
+        assert not hasattr(load(mode="kernels"), "_mps_fallback")
+        m = load(mode="auto")
+        assert m._mps_fallback() == "torch"  # the PyTorch MPS load, not the MLX route again
+        assert seen
