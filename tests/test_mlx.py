@@ -385,6 +385,49 @@ def test_conv_padded_into_winograd_matches_torch(monkeypatch, chunk_mb):
     torch.testing.assert_close(mlx_graph.MlxModule(m, "float32")(x), m(x), atol=1e-4, rtol=1e-4)
 
 
+@pytest.mark.parametrize("wino", [False, True])
+def test_half_ragged_conv_matches_torch(wino):
+    """A float16 3x3 with 196 -> 196 channels: output-only padding by default, MLX's Winograd with `half_wino_pad`."""
+    pytest.importorskip("mlx.core")
+    from fastforks.shared import mlx_graph  # noqa: PLC0415 - optional (the mlx extra)
+
+    torch.manual_seed(0)
+    m = torch.nn.Conv2d(196, 196, 3, padding=1)
+    x = torch.randn(2, 196, 64, 72)
+    want = m(x)
+    got = mlx_graph.MlxModule(m, "float16", half_wino_pad=wino)(x).float()
+    assert got.shape == want.shape
+    err = ((got - want).abs().mean() / want.abs().mean()).item()
+    assert err < (2e-2 if wino else 2e-3)  # measured 5e-3 (half Winograd) and 2e-4 (direct)
+
+
+@pytest.mark.parametrize("dtype", ["float32", "float16"])
+def test_float32_call_keeps_float32_weights(dtype):
+    """`float32_call`: the stage's weights stay float32 in a half replay (batch norms folded in float32)."""
+    pytest.importorskip("mlx.core")
+    from fastforks._core.mlx_cast import float32_call  # noqa: PLC0415
+    from fastforks.shared import mlx_graph  # noqa: PLC0415 - optional (the mlx extra)
+
+    class Net(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            conv, bn = torch.nn.Conv2d(8, 16, 3, padding=1, bias=False), torch.nn.BatchNorm2d(16)
+            self.stage = torch.nn.Sequential(conv, bn, torch.nn.ReLU(), torch.nn.Conv2d(16, 4, 1))
+
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            return float32_call(self.stage, x)
+
+    torch.manual_seed(0)
+    net = Net().eval()
+    net.stage[1].running_mean.normal_()
+    net.stage[1].running_var.uniform_(0.5, 2.0)
+    x = torch.randn(1, 8, 20, 24).half().float()  # exact in half: the input is cast to the run dtype at entry
+    want = net(x)
+    got = mlx_graph.MlxModule(net, dtype)(x)
+    assert got.dtype == torch.float32
+    torch.testing.assert_close(got, want, atol=2e-5, rtol=2e-5)  # half-rounded weights: 1e-3
+
+
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float16])
 def test_linear_sample_kernel_matches_torch(dtype):
     """The IGEV-family geometry / correlation lookup (`fastforks::linear_sample`, one Metal kernel) against eager."""

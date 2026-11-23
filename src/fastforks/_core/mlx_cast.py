@@ -12,6 +12,8 @@ summed over the iterations, softmax weights of an upsampling) runs in the replay
 
 from __future__ import annotations
 
+from typing import Any
+
 import torch
 
 from fastforks._core.tracing import EXPORTING_FOR_MLX
@@ -53,13 +55,18 @@ def to_float32(x: torch.Tensor) -> torch.Tensor:
     return x.float()
 
 
-def float32_call(module: torch.nn.Module, *args: torch.Tensor) -> torch.Tensor:
+def _float32_arg(a: Any) -> Any:  # noqa: ANN401 - a tensor or nested lists of tensors
+    return [_float32_arg(v) for v in a] if isinstance(a, (list, tuple)) else to_float32(a)
+
+
+def float32_call(module: torch.nn.Module, *args: Any) -> Any:  # noqa: ANN401 - the module's own arguments and result
     """`module(*args)` with float32 inputs (`to_float32`); a float16 MLX replay also keeps its weights float32.
 
-    Outside an MLX export this is `module(*(a.float() for a in args))`: the module's own weights are used as they are
-    (a float32 stage of a half-precision PyTorch network is `.float()`-ed by its runner).
+    The arguments are tensors or (nested) lists of tensors. Outside an MLX export this is
+    `module(*(a.float() for a in args))`: the module's own weights are used as they are (a float32 stage of a
+    half-precision PyTorch network is `.float()`-ed by its runner).
     """
-    args = tuple(to_float32(a) for a in args)
+    args = tuple(_float32_arg(a) for a in args)
     if not EXPORTING_FOR_MLX.get():
         return module(*args)
     state = {k: to_float32(v) if v.is_floating_point() else v for k, v in module.state_dict(keep_vars=True).items()}

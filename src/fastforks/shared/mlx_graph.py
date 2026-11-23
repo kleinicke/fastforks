@@ -43,6 +43,7 @@ import torch.utils._pytree as pytree
 from fastforks._core import mlx_cast as _mlx_cast  # noqa: F401 - registers `fastforks::run_dtype` / `float32`
 from fastforks._core import volume_ops as _volume_ops  # noqa: F401 - registers `fastforks::gwc_volume`
 from fastforks._core.mlx import mx, to_mx, to_torch
+from fastforks._core.runner import Forward
 from fastforks._core.tracing import EXPORTING_FOR_MLX
 from fastforks.shared import mlx_dtype_report, mlx_plan_cache
 
@@ -605,6 +606,8 @@ _KERNELS = (
     False  # kernels mode: our Metal kernels (`fastforks.kernels.graph_mlx`) for depthwise convolution and pooling
 )
 _HALF_WINO_F32: bool | tuple[tuple[int, int], ...] = False  # `GraphNet` option: half Winograd 3x3 convs run in float32
+# `GraphNet` option: half-precision convs are padded into MLX's Winograd as float32 ones are
+_HALF_WINO_PAD: bool | tuple[tuple[int, int], ...] = False
 # The depthwise kernel in portable mode too: `mx.conv2d(groups=C)` falls off its fast path at some channel counts
 # (DAT's 180-channel 3x3 at 512^2: 75 ms against 2.6 ms, 72 per call, 5.7 of 16.4 s) and is never faster.
 DW_KERNEL = not os.environ.get("FF_MLX_NO_DW_KERNEL")
@@ -1915,6 +1918,8 @@ def _conv2d(
     pad_out = (-cout) % 16 if groups == 1 and cout >= 16 else 0
     spatial = wl.shape[1] * wl.shape[2] > 1
     pad_in = (-cin) % 32 if groups == 1 and cin >= 64 and stride == (1, 1) and spatial else 0
+    wino_pad = _KERNELS or _HALF_WINO_PAD is True or (_HALF_WINO_PAD and (cin, cout) in _HALF_WINO_PAD)
+    half = not wino_pad and xl.dtype in (mx.float16, mx.bfloat16)  # half precision that stays out of MLX's Winograd
     o = cout + pad_out
     per_sample = xl.shape[1] * xl.shape[2]
     if (
@@ -1958,7 +1963,7 @@ def _conv2d(
             pad_out = o64 - cout
         elif (
             not WINO32_OFF
-            and (xl.dtype == mx.float32 or _KERNELS)
+            and not half
             and o % 32 == 16
             and _mlx_winograd((o + 16, *wl.shape[1:3], cin_p), o + 16, stride, dilation, groups, hw)
         ):
@@ -1977,12 +1982,13 @@ def _conv2d(
                 # too big for Winograd: a multiple of 64 outputs on the unpadded (so not Winograd) input instead, the
                 # GEMM's fast tile (2 x 312x420 196 -> 196: 208 outputs on 224 inputs 101-163 ms, 256 on 196 97 ms)
                 pad_out, pad_in = o64 - cout, 0
-    if (pad_out or pad_in) and not _KERNELS and xl.dtype in (mx.float16, mx.bfloat16):
+    if (pad_out or pad_in) and half:
         # Half precision: padding must not move the conv into MLX's Winograd, whose float16 error is ~17x the direct
         # conv's (relative mean 6e-3 against 3.5e-4, bfloat16 4.8e-2; float32 4e-6). Its speed-up was all the input
         # padding gave: without Winograd a padded input is no faster or much slower (512^2, 144 -> 160 inputs: 4x).
         # HAT's 180-channel convs padded to 192 put hat-x4 float16 over its golden (mean 0.00058 -> 0.00092).
-        # Kernels mode runs its own Winograd (F(4,3), 2.9e-3) anyway and keeps the padding.
+        # Kernels mode runs its own Winograd (F(4,3), 2.9e-3) anyway and keeps the padding; so does a net that opts in
+        # (`half_wino_pad`: LoFTR's 196-channel FPN convs, 2 x 192x256 196 -> 196 26 -> 12 ms, 256 -> 196 33 -> 13 ms).
         pad_in = 0
         hw = xl.shape[0] * xl.shape[1] * xl.shape[2]
         if _mlx_winograd(wl.shape, cout + pad_out, stride, dilation, groups, hw) and not _mlx_winograd(
@@ -3115,11 +3121,16 @@ class GraphNet:
         pipeline: bool = False,
         half_wino_f32: bool | tuple[tuple[int, int], ...] = False,
         fp32_inputs: frozenset[int] = frozenset(),
+        half_wino_pad: bool | tuple[tuple[int, int], ...] = False,
     ) -> None:
         """Keep the module until its first export; parameters convert then (`chunk_mb`: see `_runner`, 0 = `CHUNK_MB`).
 
         `half_wino_f32=True`: in float16 / bfloat16, the 3x3 convs MLX would run as Winograd run in float32 instead;
         a tuple of `(cin, cout)` pairs limits that to those convs.
+
+        `half_wino_pad=True`: in float16 / bfloat16, ragged 3x3 convs are padded into MLX's Winograd as in float32
+        (see `_conv2d`): for a net whose result has the margin for the half Winograd's error. A tuple of `(cin, cout)`
+        pairs limits that to those convs.
 
         `fp32_inputs`: positions of floating inputs that enter a float16 / bfloat16 replay as float32 instead of being
         cast to the run dtype (cameras and other geometry: rounded at entry, a `to_float32` island comes too late).
@@ -3140,6 +3151,7 @@ class GraphNet:
         self.weight_bytes = 0
         self.kernels = kernels
         self.half_wino_f32 = half_wino_f32
+        self.half_wino_pad = half_wino_pad
         self.fp32_inputs = fp32_inputs
         self.chunk_mb = chunk_mb
         self.pipeline = pipeline
@@ -3160,15 +3172,20 @@ class GraphNet:
         self._prefetched = False  # `_prefetch` ran once (a later signature's build finds the weights read)
         self._prefetching: list[threading.Thread] = []
 
-    def _const(self, name: str, t: torch.Tensor, *, share: bool = True, transpose: bool = False) -> mx.array:
-        """`t` on MLX in the run dtype (`transpose`: a 2-D tensor stored as its contiguous transpose)."""
-        key = f"{name}\0T" if transpose else name
+    def _const(
+        self, name: str, t: torch.Tensor, *, share: bool = True, transpose: bool = False, f32: bool = False
+    ) -> mx.array:
+        """`t` on MLX in the run dtype (`transpose`: a 2-D tensor stored as its contiguous transpose).
+
+        `f32`: in float32 whatever the run dtype (a parameter read through `to_float32`).
+        """
+        key = f"{name}\0T" if transpose else f"{name}\0F" if f32 else name
         if share and key in self._consts:
             self._consumed.add(name)
             return self._consts[key]
         a = to_mx(t)
         if t.is_floating_point():
-            a = a.astype(self.dtype)
+            a = a.astype(mx.float32 if f32 else self.dtype)
         if transpose:  # on the GPU (a CPU transpose of a ViT-L's weights adds 0.3 s to the first call)
             a = mx.contiguous(a.T)
         mx.eval(a)
@@ -3278,10 +3295,22 @@ class GraphNet:
             self._prefetching.pop().join()
         names = {s.arg.name: s.target for s in sig.input_specs if s.target is not None}
         nodes = list(graph.nodes)
+        # `to_float32` of a parameter (`float32_call`): the parameter itself, stored in float32. A float32 replay
+        # sees a plain parameter (folded, fused and merged like any other); a half replay folds its batch norms in
+        # float32 and keeps no half copy of the weight
+        f32 = {
+            n.name: names[n.args[0].name]
+            for n in nodes
+            if n.op == "call_function"
+            and n.target is torch.ops.fastforks.float32.default
+            and names.get(getattr(n.args[0], "name", None)) is not None
+        }
+        if self.dtype == mx.float32:
+            names.update(f32)
         plan: list[tuple[Any, ...]] = []
         values: dict[str, Any] = {}  # constants (parameters, buffers) by node name
         params: dict[str, str] = {}  # parameter / buffer placeholders: node name -> target
-        folds = self._fold_batch_norms(nodes, names, lifted)
+        folds = self._fold_batch_norms(nodes, names, lifted, {} if self.dtype == mx.float32 else f32)
         fused = (
             self._fuse_activations(nodes, names, lifted, values)
             if self.kernels
@@ -3306,6 +3335,8 @@ class GraphNet:
                 else:
                     plan.append(("input", node.name))
             elif node.op == "call_function":
+                if node.name in f32:
+                    continue
                 if node.name in folds.skip:
                     plan.append(("alias", node.name, folds.skip[node.name]))
                     continue
@@ -3350,8 +3381,17 @@ class GraphNet:
                 plan.append(("output", _plain(node.args[0])))
         # activation sizes in the run dtype (bytes): the largest decides whether compiling pays, the rest pace the
         # lazy replay's checkpoints
+        wide: set[str] = set()  # a half replay's float32 values downstream of a `float32_call` stage: 4 bytes each
+        if f32 and self.dtype != mx.float32:
+            for node in nodes:
+                if node.op != "call_function" or node.target is torch.ops.fastforks.run_dtype.default:
+                    continue
+                if node.target is torch.ops.fastforks.float32.default or any(
+                    i.name in wide for i in node.all_input_nodes
+                ):
+                    wide.add(node.name)
         self._sizes = {
-            node.name: math.prod(int(d) for d in v.shape) * self._itemsize
+            node.name: math.prod(int(d) for d in v.shape) * (4 if node.name in wide else self._itemsize)
             for node in nodes
             if node.op == "call_function" and isinstance(v := node.meta.get("val"), torch.Tensor)
         }
@@ -3365,6 +3405,9 @@ class GraphNet:
         for node_name, tgt in params.items():  # only what a node reads: a folded convolution's own weight is not
             if node_name in used:
                 values[node_name] = self._const(tgt, lifted[tgt], share=tgt in state)
+        for node_name, tgt in f32.items():
+            if node_name in used and node_name not in transposed:
+                values[node_name] = self._const(tgt, lifted[tgt], share=tgt in state, f32=self.dtype != mx.float32)
         for node_name, tgt in transposed.items():
             if node_name in used:
                 values[node_name] = self._const(tgt, lifted[tgt], share=tgt in state, transpose=True)
@@ -3562,10 +3605,17 @@ class GraphNet:
         res.skip[add.name] = conv.name
         return True
 
-    def _fold_batch_norms(self, nodes: list[Any], names: dict[str, Any], lifted: dict[str, torch.Tensor]) -> Any:
-        """Fold eval BatchNorm nodes that follow a convolution with constant weights into that convolution."""
+    def _fold_batch_norms(
+        self, nodes: list[Any], names: dict[str, Any], lifted: dict[str, torch.Tensor], f32: dict[str, Any]
+    ) -> Any:
+        """Fold eval BatchNorm nodes that follow a convolution with constant weights into that convolution.
+
+        `f32`: `to_float32` of a parameter by node name (a half replay's float32 island): a convolution and batch norm
+        that read only those fold into float32 constants.
+        """
         res = type("Folds", (), {"skip": {}, "values": {}, "args": {}})()
         bn_targets = (aten._native_batch_norm_legit_no_training.default,)
+        both = {**names, **f32}
         for bn in nodes:
             if bn.op != "call_function" or bn.target not in bn_targets:
                 continue
@@ -3580,27 +3630,34 @@ class GraphNet:
                 or conv.args[6]  # transposed
             ):
                 continue
-            wname = names.get(conv.args[1].name)
-            params = [names.get(a.name) if a is not None else None for a in bn.args[1:5]]
+            consts = [conv.args[1], conv.args[2], *bn.args[1:5]]
+            island = any(a is not None and a.name in f32 for a in consts)
+            if island and not all(a is None or a.name in f32 for a in consts):
+                continue
+            look = both if island else names
+            dtype = mx.float32 if island else self.dtype
+            wname = look.get(conv.args[1].name)
+            params = [look.get(a.name) if a is not None else None for a in bn.args[1:5]]
             if wname is None or params[2] is None or params[3] is None:
                 continue
+            if conv.args[2] is not None and look.get(conv.args[2].name) is None:
+                continue
             wk, bk = f"{conv.name}__w", f"{conv.name}__b"
-            key = (
-                f"{wname}\0{params[2]}\0fold"  # by parameter names: another input shape reuses it, the twin may be gone
-            )
+            # by parameter names: another input shape reuses it, the twin may be gone
+            key = f"{wname}\0{params[2]}\0fold{'32' if island else ''}"
             if key not in self._consts:
                 eps = bn.args[-1]
                 w = lifted[wname].double()
                 gamma = lifted[params[0]].double() if params[0] else torch.ones(w.shape[0], dtype=torch.double)
                 beta = lifted[params[1]].double() if params[1] else torch.zeros(w.shape[0], dtype=torch.double)
                 scale = gamma / torch.sqrt(lifted[params[3]].double() + eps)
-                bias0 = lifted[names[conv.args[2].name]].double() if conv.args[2] is not None else 0
+                bias0 = lifted[look[conv.args[2].name]].double() if conv.args[2] is not None else 0
                 w2 = (w * scale.view(-1, *[1] * (w.ndim - 1))).float()
                 b2 = ((bias0 - lifted[params[2]].double()) * scale + beta).float()
-                self._consts[key] = (to_mx(w2).astype(self.dtype), to_mx(b2).astype(self.dtype))
+                self._consts[key] = (to_mx(w2).astype(dtype), to_mx(b2).astype(dtype))
                 mx.eval(*self._consts[key])
             res.values[wk], res.values[bk] = self._consts[key]
-            self._consumed.update(t for t in (wname, *params, names[conv.args[2].name] if conv.args[2] else None) if t)
+            self._consumed.update(t for t in (wname, *params, look[conv.args[2].name] if conv.args[2] else None) if t)
             # the convolution reads the folded constants; the bn node and its getitem alias the convolution's output
             res.args[conv.name] = (conv.args[0], _Name(wk), _Name(bk), *conv.args[3:])
             res.skip[bn.name] = conv.name
@@ -3915,9 +3972,10 @@ class GraphNet:
         `raw=True`: `mx.array` inputs are taken as they are and the outputs stay float32 `mx.array`s (no copies). The
         first call at an input signature exports the network, so it needs CPU tensors.
         """
-        global _KERNELS, _WINO, _HALF_WINO_F32
+        global _KERNELS, _WINO, _HALF_WINO_F32, _HALF_WINO_PAD
         _KERNELS = self.kernels
         _HALF_WINO_F32 = self.half_wino_f32
+        _HALF_WINO_PAD = self.half_wino_pad
         _WINO = self._wino
         key = tuple((s, str(d)) for s, d in map(_sig, tensors))
         run = self._runs.get(key)
@@ -3982,12 +4040,13 @@ class MlxModule:
         pipeline: bool = False,
         half_wino_f32: bool | tuple[tuple[int, int], ...] = False,
         fp32_inputs: tuple[str, ...] = (),
+        half_wino_pad: bool | tuple[tuple[int, int], ...] = False,
     ) -> None:
-        """Wrap `module` (eval mode, CPU). `chunk_mb`, `pipeline`, `half_wino_f32`: see `GraphNet`.
+        """Wrap `module` (eval mode, CPU). `chunk_mb`, `pipeline`, `half_wino_f32`, `half_wino_pad`: see `GraphNet`.
 
-        `fp32_inputs`: names of the module's (or a `_Method`'s function's) arguments whose floating tensors stay float32
-        in a float16 replay (`GraphNet`'s `fp32_inputs`); matched by identity, so a tensor passed as another argument
-        too stays float32 there as well.
+        `fp32_inputs`: names of the module's (or a `_Method`'s / `Forward`'s function's) arguments whose floating
+        tensors stay float32 in a float16 replay (`GraphNet`'s `fp32_inputs`); matched by identity, so a tensor passed
+        as another argument too stays float32 there as well.
 
         `release=True`: once the first export has moved a parameter or buffer to MLX, the module's own tensor is
         replaced by a one-element stand-in of the same shape (a float32 twin of a 340M-parameter network is 1.4 GB).
@@ -4003,6 +4062,7 @@ class MlxModule:
         self.chunk_mb = chunk_mb
         self.pipeline = pipeline
         self.half_wino_f32 = half_wino_f32
+        self.half_wino_pad = half_wino_pad
         self.fp32_inputs = fp32_inputs
         self._nets: _Signatures[tuple[GraphNet, _Flat]] = _Signatures(type(module).__name__)
         self._plan_scope = mlx_plan_cache.next_scope()  # this module's key in the on-disk plan cache (a model load's)
@@ -4041,11 +4101,14 @@ class MlxModule:
                 pipeline=self.pipeline,
                 half_wino_f32=self.half_wino_f32,
                 fp32_inputs=keep,
+                half_wino_pad=self.half_wino_pad,
             )
             entry = self._nets.put(key, (net, flat))
             sig = (repr(key), self.dtype, self.kernels, self.compile, self.chunk_mb, self.half_wino_f32)
             if self.fp32_inputs:
                 sig = (*sig, self.fp32_inputs)
+            if self.half_wino_pad:
+                sig = (*sig, "half_wino_pad", self.half_wino_pad)
             net.plan = mlx_plan_cache.Entry.make(self._plan_scope, flat, sig)
             net.plan_extra = lambda flat=flat: flat.out.value
             net.plan_restore = lambda extra, flat=flat: setattr(flat.out, "value", extra)
@@ -4065,6 +4128,8 @@ class MlxModule:
         if not self.fp32_inputs:
             return frozenset()
         fn = getattr(self.module, "fn", self.module.forward)  # `_Method`: the runner method it wraps
+        if isinstance(self.module, Forward):  # a runner's `module()`: `fn(net, *inputs)`
+            args = (self.module.net, *args)
         bound = inspect.signature(fn).bind(*args, **kwargs).arguments
         unknown = set(self.fp32_inputs) - set(inspect.signature(fn).parameters)
         if unknown:
