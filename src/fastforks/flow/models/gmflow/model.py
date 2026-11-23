@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import itertools
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -34,7 +35,7 @@ from .net.geometry import coords_grid, flow_warp
 from .net.matching import local_correlation_softmax, local_correlation_with_flow
 from .net.transformer import FeatureTransformer, TransformerLayer
 from .net.unimatch import UniMatch
-from .net.utils import feature_add_position, generate_shift_window_attn_mask, upsample_flow_with_mask
+from .net.utils import feature_add_position, upsample_flow_with_mask
 
 if TYPE_CHECKING:
     from fastforks.flow._runner import Context
@@ -256,21 +257,42 @@ _GRAPH_PIXELS = 262_144  # fixed: batch x padded H x W; launch-bound up to 384x5
 _GRAPHS = 2  # fixed: graph cache policy
 
 
-@functools.lru_cache(maxsize=8)
-def _window_orders(h: int, w: int, splits: int, device: torch.device) -> tuple[torch.Tensor, ...]:
-    """Token gathers between image order and the two window orders of a `splits` x `splits` Swin layer.
+def _bands(size: int, window: int) -> list[tuple[int, int]]:
+    """Image rows (or columns) of upstream's shifted-window regions: half a window, whole windows, the rest."""
+    shift = window // 2
+    edges = [0, *range(shift, size, window), size]
+    return [(a, z) for a, z in itertools.pairwise(edges) if z > a]
 
-    Returns (image -> unshifted, unshifted -> shifted, shifted -> unshifted, shifted -> image, unshifted -> image).
-    The shifted order is upstream's: rolled by minus half a window, then split into windows.
+
+@functools.lru_cache(maxsize=8)
+def _window_orders(
+    h: int, w: int, splits: int, device: torch.device
+) -> tuple[tuple[torch.Tensor, ...], tuple[tuple[int, int, int], ...]]:
+    """Token gathers between image order, the window order of a `splits` x `splits` Swin layer and its region order.
+
+    Upstream's shifted layer rolls by minus half a window, splits into windows and masks the pairs of tokens that the
+    roll brought together from opposite image edges (-100 before the softmax). Its attention is that of the regions
+    the mask leaves: the image cut half a window off each edge and then every window. The region order lists them by
+    size, so each size is one batch of unmasked attention (`groups`: start, regions, tokens per region).
+
+    Returns (image -> windows, windows -> regions, regions -> windows, regions -> image, windows -> image) and `groups`.
     """
     wh, ww = h // splits, w // splits
-    image = torch.arange(h * w, device=device).view(h, w)
-    split = lambda t: t.view(splits, wh, splits, ww).permute(0, 2, 1, 3).reshape(-1)  # noqa: E731
-    plain = split(image)
-    shifted = split(torch.roll(image, shifts=(-(wh // 2), -(ww // 2)), dims=(0, 1)))
-    to_image = lambda order: torch.empty_like(order).scatter_(0, order, torch.arange(order.numel(), device=device))  # noqa: E731
-    plain_back, shifted_back = to_image(plain), to_image(shifted)
-    return plain, plain_back[shifted], shifted_back[plain], shifted_back, plain_back
+    image = torch.arange(h * w).view(h, w)
+    plain = image.view(splits, wh, splits, ww).permute(0, 2, 1, 3).reshape(-1)
+    by_size: dict[int, list[torch.Tensor]] = {}
+    for r0, r1 in _bands(h, wh):
+        for c0, c1 in _bands(w, ww):
+            by_size.setdefault((r1 - r0) * (c1 - c0), []).append(image[r0:r1, c0:c1].reshape(-1))
+    groups, start = [], 0
+    for size, regions in sorted(by_size.items(), reverse=True):
+        groups.append((start, len(regions), size))
+        start += len(regions) * size
+    region = torch.cat([t for _, regions in sorted(by_size.items(), reverse=True) for t in regions])
+    to_image = lambda order: torch.empty_like(order).scatter_(0, order, torch.arange(order.numel()))  # noqa: E731
+    plain_back, region_back = to_image(plain), to_image(region)
+    orders = plain, plain_back[region], region_back[plain], region_back, plain_back
+    return tuple(t.to(device) for t in orders), tuple(groups)
 
 
 def _window_layer(
@@ -278,27 +300,31 @@ def _window_layer(
     source: torch.Tensor,
     inputs: tuple[torch.Tensor, torch.Tensor],
     windows: int,
-    mask: torch.Tensor | None,
+    groups: tuple[tuple[int, int, int], ...] | None,
 ) -> torch.Tensor:
-    """Upstream `TransformerLayer.forward` (swin, one head) on tokens already in its window order.
+    """Upstream `TransformerLayer.forward` (swin, one head) on tokens already in its window or region order.
 
     `inputs` are the source and target already in the projections' autocast dtype: autocast would cast the float32
-    tokens again for each of the three projections.
+    tokens again for each of the three projections. With `groups` (a shifted layer, `_window_orders`) each group of
+    equal regions is one attention batch.
     """
     b, n, c = source.shape
-    q, k, v = (
-        proj(x).view(b * windows, n // windows, c)
-        for proj, x in ((layer.q_proj, inputs[0]), (layer.k_proj, inputs[1]), (layer.v_proj, inputs[1]))
-    )
-    if mask is None:
-        message = _headed(q, k, v)
-    else:  # one image's windows at a time against the [K*K, N, N] mask, as upstream for large masks
-        message = torch.cat(
-            [
-                _headed(qa, ka, va, mask)
-                for qa, ka, va in zip(q.split(windows), k.split(windows), v.split(windows), strict=True)
-            ]
+    if groups is None:
+        q, k, v = (
+            proj(x).view(b * windows, n // windows, c)
+            for proj, x in ((layer.q_proj, inputs[0]), (layer.k_proj, inputs[1]), (layer.v_proj, inputs[1]))
         )
+        message = _headed(q, k, v)
+    else:
+        q, k, v = (
+            proj(x) for proj, x in ((layer.q_proj, inputs[0]), (layer.k_proj, inputs[1]), (layer.v_proj, inputs[1]))
+        )
+        v = F.pad(v, (0, -c % 8))
+        message = q.new_empty((b, n, c))
+        for start, count, size in groups:
+            part = slice(start, start + count * size)
+            qa, ka, va = (x[:, part].unflatten(1, (count, size)) for x in (q, k, v))
+            message[:, part].unflatten(1, (count, size)).copy_(F.scaled_dot_product_attention(qa, ka, va)[..., :c])
     del q, k, v
     message = layer.norm1(layer.merge(message.view(b, n, c)))
     if layer.no_ffn:
@@ -318,8 +344,8 @@ def _window_transformer(
 
     Upstream rolls q, k and v of every shifted layer, splits all three into windows and merges and rolls the output
     back (eight copies per shifted layer). Every other op of a layer is per token, so here the tokens of both images
-    are gathered into the next layer's window order once per layer; the attention sees the same windows in the same
-    order, with upstream's mask.
+    are gathered into the next layer's window order once per layer. A shifted layer's windows are cut into the
+    regions upstream's mask leaves (`_window_orders`), each attending without a mask.
     """
     if attn_type != "swin" or attn_num_splits is None or attn_num_splits <= 1 or torch.is_grad_enabled():
         msg = "the window-order GMFlow transformer is inference-only 2-D swin with splits > 1"
@@ -327,31 +353,22 @@ def _window_transformer(
     del kwargs
     b, c, h, w = feature0.shape
     windows = attn_num_splits**2
-    to_plain, plain_to_shifted, shifted_to_plain, shifted_back, plain_back = _window_orders(
+    (to_plain, plain_to_shifted, shifted_to_plain, shifted_back, plain_back), groups = _window_orders(
         h, w, attn_num_splits, feature0.device
     )
     autocast = torch.is_autocast_enabled(feature0.device.type)
     dtype = torch.get_autocast_dtype(feature0.device.type) if autocast else feature0.dtype
-    mask = generate_shift_window_attn_mask(
-        input_resolution=(h, w),
-        window_size_h=h // attn_num_splits,
-        window_size_w=w // attn_num_splits,
-        shift_size_h=h // attn_num_splits // 2,
-        shift_size_w=w // attn_num_splits // 2,
-        device=feature0.device,
-        dtype=dtype,
-    )
     tokens = torch.cat((feature0, feature1)).flatten(-2).transpose(1, 2).index_select(1, to_plain)  # [2B, HW, C]
     shifted = False
     for i, layer in enumerate(self.layers):
         if (i % 2 == 1) != shifted:
             tokens = tokens.index_select(1, shifted_to_plain if shifted else plain_to_shifted)
             shifted = not shifted
-        layer_mask = mask if shifted else None
+        layer_groups = groups if shifted else None
         low = tokens.to(dtype)
         other = torch.cat(low.chunk(2)[::-1])  # the cross-attention target: the other image before this block
-        tokens = _window_layer(layer.self_attn, tokens, (low, low), windows, layer_mask)
-        tokens = _window_layer(layer.cross_attn_ffn, tokens, (tokens.to(dtype), other), windows, layer_mask)
+        tokens = _window_layer(layer.self_attn, tokens, (low, low), windows, layer_groups)
+        tokens = _window_layer(layer.cross_attn_ffn, tokens, (tokens.to(dtype), other), windows, layer_groups)
     tokens = tokens.index_select(1, shifted_back if shifted else plain_back)
     feature0, feature1 = tokens.view(2 * b, h, w, c).permute(0, 3, 1, 2).contiguous().chunk(2)
     return feature0, feature1

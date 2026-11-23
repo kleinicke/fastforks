@@ -201,3 +201,19 @@ def test_cuda_single_head_attention_onnx(tmp_path: Path) -> None:
         None, {i.name: x.cpu().numpy() for i, x in zip(session.get_inputs(), (q, k, v, mask), strict=True)}
     )
     torch.testing.assert_close(torch.from_numpy(got[0]), want.cpu(), rtol=3e-3, atol=3e-3)
+
+
+@pytest.mark.parametrize(("splits", "size"), [(2, (16, 24)), (2, (18, 30)), (4, (16, 24))])
+def test_window_order_transformer_is_upstreams(splits: int, size: tuple[int, int]) -> None:
+    """Kernels' transformer (window order, shifted windows as unmasked regions) against upstream's (rolls, -100 mask).
+
+    Odd windows (18 x 30 in 2 x 2: 9 x 15) give regions of four different sizes.
+    """
+    transformer = _net(1, 0).transformer
+    gen = torch.Generator().manual_seed(4)
+    f0, f1 = (torch.randn(2, 128, *size, generator=gen) for _ in range(2))
+    with torch.inference_mode():
+        want = transformer(f0, f1, attn_type="swin", attn_num_splits=splits)
+        got = family._window_transformer(transformer, f0, f1, attn_type="swin", attn_num_splits=splits)
+    for g, w in zip(got, want, strict=True):  # features up to ~17: float32 rounding over 6 layers, as with the mask
+        torch.testing.assert_close(g, w, rtol=0, atol=1e-3)
