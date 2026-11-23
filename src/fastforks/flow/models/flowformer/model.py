@@ -25,8 +25,8 @@ if TYPE_CHECKING:
     from .net.FlowFormer.LatentCostFormer.gma import Aggregate, Attention
     from .net.FlowFormer.LatentCostFormer.gru import SepConvGRU
 
-RADIUS = 4  # upstream's `encode_flow_token` window: (2 r + 1)^2 = 81 costs per pixel
-LOOKUP_PIXELS = 8192  # the window lookup gathers 100 feature vectors per pixel for this many pixels at a time
+RADIUS = 4  # fixed: upstream's `encode_flow_token` window: (2 r + 1)^2 = 81 costs per pixel
+LOOKUP_PIXELS = 8192  # fixed: the window lookup gathers 100 feature vectors per pixel for this many pixels at a time
 # fixed: GMA's attention matrix (1/8 pixels squared, float16) is kept up to this size and multiplied once per iteration;
 # larger inputs recompute softmax(q k) v with fused attention instead (1080 x 1920: 12.6 ms per iteration instead of
 # 5.9 ms, without the 2 GiB matrix)
