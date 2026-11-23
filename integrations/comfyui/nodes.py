@@ -82,11 +82,13 @@ _COMMERCIAL_TIP = (
     " licences."
 )
 _BACKEND_TIP = (
-    "auto: our CUDA / Metal kernels where they are faster, else portable PyTorch. portable: plain PyTorch (any device)."
+    "auto: our CUDA / Metal kernels where they are faster, else portable PyTorch (on a Mac it picks MPS or MLX per"
+    " model, as measured). portable: plain PyTorch (any device; MPS on a Mac, which starts quickly)."
     " kernels: our hand-written kernels only (CUDA on NVIDIA under Linux or Windows x86-64; Metal on Apple silicon"
     " for the models that have them); a model without them fails with a message."
-    " mlx (Apple silicon): Apple's MLX instead of MPS, with our Metal kernels where the port has them; often leaner,"
-    " but every new input size compiles once, so its first call is slow. mlx portable: MLX without the kernels."
+    " mlx (Apple silicon): Apple's MLX instead of MPS, with our Metal kernels where the port has them. It often needs"
+    " less memory (try it when MPS runs out of memory), but each new input size compiles once, so its first call is"
+    " slow (kept on disk for the next start). mlx portable: MLX without the kernels."
     " Models without an MLX port fail with a message."
 )
 _DTYPE_TIP = (
