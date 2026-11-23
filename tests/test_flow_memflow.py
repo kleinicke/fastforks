@@ -10,7 +10,7 @@ import torch
 from fastforks import flow
 from fastforks._core import registry
 from fastforks._core.bench import synthetic_pair
-from fastforks.flow.models.memflow.model import _kernel_lookup
+from fastforks.flow.models.memflow.model import _fft_depthwise, _fft_fits, _fft_size, _kernel_lookup
 from fastforks.flow.models.memflow.net import CorrBlock, MemFlowNet
 
 if TYPE_CHECKING:
@@ -79,3 +79,20 @@ def test_kernel_lookup_matches_portable(height: int, width: int, batch: int) -> 
     got = _kernel_lookup(raft_flow.load(torch.device("cuda")), f1, f2)(coords)
     assert got.shape == want.shape
     torch.testing.assert_close(got.float(), want, rtol=0, atol=4e-3)  # fp16 pooling and output of |corr| < 8
+
+
+@pytest.mark.parametrize(("channels", "size"), [(3, (7, 9)), (70, (12, 5))])  # 70: two channel chunks
+def test_fft_depthwise_is_the_conv(channels: int, size: tuple[int, int]) -> None:
+    torch.manual_seed(0)
+    conv = torch.nn.Conv2d(channels, channels, 15, padding=7, groups=channels).double()
+    x = torch.randn(2, channels, *size, dtype=torch.float64)
+    assert _fft_fits(conv)
+    got = _fft_depthwise(conv, x)
+    torch.testing.assert_close(got, conv(x), rtol=0, atol=1e-12)
+    assert _fft_depthwise(conv, x[:, :, 1:]).shape == x[:, :, 1:].shape  # another size: new spectra
+    assert not _fft_fits(torch.nn.Conv2d(4, 4, 15, padding=7))  # dense
+    assert not _fft_fits(torch.nn.Conv2d(4, 4, 7, padding=3, groups=4))  # small
+
+
+def test_fft_size_has_only_small_factors() -> None:
+    assert [_fft_size(n) for n in (149, 254, 256, 7)] == [150, 256, 256, 8]
