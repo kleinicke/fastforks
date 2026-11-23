@@ -119,7 +119,9 @@ the reason.
 
 Weights and kernels already in the fastforks cache, the Hugging Face or torch hub cache are used in place; missing
 ones download on first use into `models/fastforks` (another location: a `fastforks:` entry in
-`extra_model_paths.yaml`). Models run on ComfyUI's device and
+`extra_model_paths.yaml`). The pack also keeps there (`comfyui-inputs.json`) which models each node can run, so a
+ComfyUI start does not import every model's code (0.6 s instead of 1.5-3 s on Windows); it is worked out again after a
+fastforks update. Models run on ComfyUI's device and
 stay loaded between runs (the two most recently used); ComfyUI's "Unload models" frees them, and ComfyUI unloads its
 own models first when a fastforks model needs the room. When ComfyUI needs room for one of its models and unloading its
 own was not enough, the fastforks models on that device free their CUDA graphs, then unload, least recently used first. By default batches run one image at a time, so a cancel stops after the
