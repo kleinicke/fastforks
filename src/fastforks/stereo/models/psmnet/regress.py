@@ -49,5 +49,6 @@ def upsample_softmax_regress(
         ).squeeze(1)  # output rows i0 * sh .. i1 * sh
         a = y0 - i0 * sh
         p = F.softmax(up, dim=1)[:, :, a : a + (y1 - y0)]  # the margin rows too: no contiguous copy of the block
-        out[:, y0:y1] = torch.sum(p * values, 1)
+        # `sum(p * values, 1)` as one GEMV over the strided block (no product map): [1, D] @ [B, D, rows * W]
+        out[:, y0:y1] = torch.matmul(values.view(1, max_disp), p.flatten(2)).view(b, y1 - y0, width)
     return out
