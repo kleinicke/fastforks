@@ -30,7 +30,7 @@ edge = 32  # the resized image is centre-cropped to multiples of this
 camera_model = "pinhole"
 
 [options]
-cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the network from a CUDA graph (false: eager, no graph pool)
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the network and each LM step from CUDA graphs (false: eager)
 
 [modes.portable]
 cuda_dtype = "float16"  # the network; the NMF and the LM fit run in float32
