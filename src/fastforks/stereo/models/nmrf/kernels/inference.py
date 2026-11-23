@@ -22,7 +22,7 @@ from fastforks._core.errors import BackendUnavailableError
 from fastforks._core.patch import base_type, is_base, override
 from fastforks.kernels import fastbb
 from fastforks.shared.cnn_kernels import CL
-from fastforks.shared.instance_norm import RELU, instance_norm, is_in_resblock, resblock_forward
+from fastforks.shared.instance_norm import RELU, instance_norm, is_in_resblock, norm_relu, resblock_forward
 
 from ..net.inference import LN16, forward, prepare
 from ..net.nmp import Mlp, WindowAttention
@@ -79,10 +79,6 @@ def _backbone_forward(self: nn.Module, x: torch.Tensor) -> list[torch.Tensor]:
     return [x, F.avg_pool2d(x, kernel_size=2, stride=2)]  # high to low res
 
 
-def _norm_relu(self: nn.Module, x: torch.Tensor) -> torch.Tensor:
-    return instance_norm(self, x, RELU, inplace=True)
-
-
 def fuse_instance_norms(encoder: nn.Module) -> int:
     """Run an NMRF encoder's instance norms on `fastbb` (fp16 weights, in place); returns how many modules changed.
 
@@ -108,7 +104,7 @@ def fuse_instance_norms(encoder: nn.Module) -> int:
         if not (len(seq) == 4 and is_base(seq[1], nn.InstanceNorm2d) and isinstance(seq[2], nn.ReLU)):
             msg = "NMRF kernels: unexpected concatconv / gw layout"
             raise RuntimeError(msg)
-        override(seq[1], _norm_relu)
+        override(seq[1], norm_relu)
         seq[2] = nn.Identity()
         seq.to(memory_format=CL)
         count += 1

@@ -14,6 +14,7 @@ from fastforks._core.checkpoint import check_fits
 from fastforks._core.patch import override
 from fastforks.flow._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
+from fastforks.shared.instance_norm import fuse_encoder
 
 from .net import LEVELS, MemFlowNet, PCBlock, convert
 
@@ -232,13 +233,13 @@ class Kernels(Portable):
 
     The conv weights are stored in fp16 (the values autocast casts them to on each call); the 15 x 15 depthwise convs
     run as FFTs (`_fft_depthwise`; 1080p, RTX 5060 Ti: 856 -> 740 ms) and the 1 x 1 convs as GEMMs on the NCHW maps
-    (`_pointwise`; 744 -> 644 ms).
+    (`_pointwise`; 744 -> 644 ms). The feature encoder's instance norms run on `fastbb` (`fuse_encoder`).
     """
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and bind the lookup kernel."""
         super().__init__(ctx)
-        from fastforks.kernels import raft_flow  # noqa: PLC0415 - needs the kernel library
+        from fastforks.kernels import fastbb, raft_flow  # noqa: PLC0415 - needs the kernel libraries
 
         self.lookup = functools.partial(_kernel_lookup, raft_flow.load(ctx.device))
         # fp16 conv weights: autocast would cast each one on every call (15 updates x ~90 convs); the norms and
@@ -252,6 +253,10 @@ class Kernels(Portable):
                     override(m, _pointwise)
             elif isinstance(m, PCBlock):
                 override(m, _pcblock)
+        # the feature encoder's instance norms on fastbb: fp16 channels-last, the ReLUs and residual adds in the apply
+        # pass (1080p: 11 ms of PyTorch norms plus the ReLU passes); its last 1 x 1 conv stays `_pointwise` (NCHW out)
+        fastbb.load(ctx.device)
+        fuse_encoder(self.net.fnet)
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a padded batch."""

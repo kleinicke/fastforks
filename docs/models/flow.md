@@ -451,7 +451,7 @@ Commercial use: yes.
   - `memflow-sintel`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (as memflow, then fine-tuned on a mix of FlyingThings3D, Sintel, KITTI 2015 and HD1K (upstream stage 'sintel'))
   - `memflow-kitti`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), MPI Sintel optical flow, KITTI stereo / optical flow 2012 / 2015, HCI HD1K optical flow benchmark (as memflow-sintel, then fine-tuned on KITTI 2015)
 - Options: `iters` = 15 (>= 1)
-- Kernel libraries: `raft_flow`
+- Kernel libraries: `fastbb`, `raft_flow`
 - Variants: `memflow`, `memflow-sintel`, `memflow-kitti`
 - Outputs: flow
 - Input size: any H x W >= 128, padded to a multiple of 8

@@ -42,7 +42,7 @@ mps_dtypes = ["float32"]
 mlx_dtypes = ["float32"]
 
 [modes.kernels]
-kernels = ["raft_flow"]  # the correlation windows on the fly (four levels, 256 channels, radius 4) instead of the all-pairs volume; the network stays the portable fp16 one
+kernels = ["fastbb", "raft_flow"]  # raft_flow: the correlation windows on the fly (four levels, 256 channels, radius 4) instead of the all-pairs volume; fastbb: the feature encoder's instance norms
 
 [[papers]]
 title = "MemFlow: Optical Flow Estimation and Prediction with Memory"
