@@ -106,10 +106,8 @@ def components(mask: torch.Tensor) -> list[_db.Rows]:
     runs = int(max(h_run.max().item(), v_run.max().item())) + 1 if len(ys) else 0
     while True:
         pad = torch.nn.functional.pad(label, (1, 1, 1, 1), value=big)
-        low = label
-        for dy in range(3):
-            for dx in range(3):
-                low = torch.minimum(low, pad[dy : dy + h, dx : dx + w])
+        low = torch.minimum(torch.minimum(pad[:, :-2], pad[:, 1:-1]), pad[:, 2:])  # 3 x 3 min, separably
+        low = torch.minimum(torch.minimum(low[:-2], low[1:-1]), low[2:])
         lab = low[ys, xs]
         for run in (h_run, v_run):
             lab = lab.new_full((runs,), big).scatter_reduce_(0, run, lab, "amin")[run]
