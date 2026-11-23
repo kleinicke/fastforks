@@ -115,13 +115,22 @@ class Portable(Runner):
 
 
 def _gru_fp32_state(gru: SepConvGRU, h: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
-    """Compute convolution gates in fp16, and update recurrent state in float32."""
+    """Compute convolution gates in fp16, and update recurrent state in float32.
+
+    Both passes read one channels-last fp16 `[h | x]` buffer: `x` is cast into it once, then `h` and `r h` are
+    written over its first channels (upstream concatenates and casts four times). `(1 - z) h + z q` as `lerp`.
+    """
+    b, hd, height, width = h.shape
+    hx = torch.empty(
+        (b, hd + x.shape[1], height, width), dtype=torch.float16, device=h.device, memory_format=torch.channels_last
+    )
+    hx[:, hd:] = x
     for gate_name, candidate in (("convzr1", gru.convq1), ("convzr2", gru.convq2)):
         gate = cast("torch.nn.Conv2d", getattr(gru, gate_name))
-        gates = gate(torch.cat((h, x), 1).half()).float()
-        z, r = gates.sigmoid().chunk(2, dim=1)
-        q = candidate(torch.cat((r * h, x), 1).half()).float().tanh()
-        h = (1 - z) * h + z * q
+        hx[:, :hd] = h
+        z, r = gate(hx).float().sigmoid_().chunk(2, dim=1)
+        torch.mul(r, h, out=hx[:, :hd])
+        h = torch.lerp(h, candidate(hx).float().tanh_(), z)
     return h
 
 
