@@ -3,6 +3,8 @@
 Upstream fills a preallocated volume slice by slice (`volume[:, :, i, :, i:] = ...`); exported, that is a chain of
 `slice_scatter` ops, each copying the whole volume. Here every disparity is one padded slab and the volume a single
 `stack`, which an exported graph replays without the copies. Eager runs keep the in-place builders.
+
+`correlation_band` is the eager CUDA correlation volume as batched GEMMs (one per image row).
 """
 
 from __future__ import annotations
@@ -42,3 +44,39 @@ def stacked_volume(
 def concat_fn(left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
     """Channel concatenation of the overlapping parts."""
     return torch.cat((left, right), dim=1)
+
+
+_BAND_BYTES = 1 << 25  # float32 row products of one `correlation_band` GEMM: 32 MiB
+
+
+def correlation_band(left: torch.Tensor, right: torch.Tensor, disparities: int, groups: int = 1) -> torch.Tensor:
+    """`[B, groups, D, H, W]`: the channel mean, per group, of `left[..., x] * right[..., x - d]`, zero where `x < d`.
+
+    Upstream's slab loop (`(left[..., i:] * right[..., :-i]).mean(1)` per disparity) is one strided elementwise pass
+    and one reduction per disparity over the whole feature map. Here each image row is one GEMM of the right row
+    (`disparities` zero pixels in front) with the left row, `[D + W, C] @ [C, W]`, whose band `x - d` is the volume:
+    products accumulated in float32 and rounded once (the loop rounds every product to the feature dtype). Rows go
+    in chunks of at most `_BAND_BYTES` of float32 products.
+    """
+    b, c, h, w = left.shape
+    cg, d = c // groups, disparities
+    # rows (b, g, y) of [W, C / G] features, the right rows with D zero pixels in front
+    lr = left.view(b, groups, cg, h, w).permute(0, 1, 3, 4, 2).reshape(b * groups * h, w, cg)
+    rr = F.pad(right.view(b, groups, cg, h, w).permute(0, 1, 3, 4, 2), (0, 0, d, 0)).reshape(b * groups * h, d + w, cg)
+    out = left.new_empty(b, groups, d, h, w)
+    step = max(1, _BAND_BYTES // ((d + w) * w * 4))
+    for bg in range(b * groups):
+        dst = out.view(b * groups, d, h, w)[bg]
+        for y in range(0, h, step):
+            n = min(step, h - y)
+            rows = slice(bg * h + y, bg * h + y + n)
+            with torch.autocast(left.device.type, enabled=False):  # the features' own dtype, like the loop
+                # [n, D + W, W]: prod[r, D + x - i, x]
+                if left.dtype == torch.float32:
+                    prod = torch.bmm(rr[rows], lr[rows].transpose(1, 2))
+                else:
+                    prod = torch.bmm(rr[rows], lr[rows].transpose(1, 2), out_dtype=torch.float32)
+            # disparity i at (D + x - i) * W + x = W + (D - 1 - i) * W + x * (W + 1): flipped, a strided view
+            band = prod.as_strided((n, d, w), ((d + w) * w, w, w + 1), w).flip(1)
+            torch.mul(band.transpose(0, 1), 1.0 / cg, out=dst[:, y : y + n])
+    return out
