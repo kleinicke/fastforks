@@ -90,6 +90,8 @@ def _install_mlps(net: TrackOn2) -> None:
             mod.forward = _mha_forward.__get__(mod)  # ty: ignore[invalid-assignment]  # per-instance override
         elif isinstance(mod, DMSMHABlock):
             mod.forward = _dmsmha_forward.__get__(mod)  # ty: ignore[invalid-assignment]  # per-instance override
+    last = net.memory_attention[-1]
+    last.forward = _newest_row_forward.__get__(last)  # ty: ignore[invalid-assignment]  # per-instance override
 
 
 def _mlp(blk: MHABlock | DMSMHABlock, q: torch.Tensor) -> torch.Tensor:
@@ -109,6 +111,18 @@ def _mlp(blk: MHABlock | DMSMHABlock, q: torch.Tensor) -> torch.Tensor:
 def _mha_forward(
     self: MHABlock, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor | None = None
 ) -> torch.Tensor:
+    return _mlp(self, self.norm1(q + self.mha(q, k, v, mask)))
+
+
+def _newest_row_forward(
+    self: MHABlock, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor | None = None
+) -> torch.Tensor:
+    """The last memory-attention layer for the newest row only, `[N, 1, D]`.
+
+    `TrackOn2.step` reads just `qkv[:, -1]` of it, and attention, MLP and norms are per row: 72 of the 73 rows of one of
+    the three layers are skipped.
+    """
+    q = q[:, -1:]
     return _mlp(self, self.norm1(q + self.mha(q, k, v, mask)))
 
 
