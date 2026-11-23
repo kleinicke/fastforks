@@ -9,9 +9,10 @@ import torch
 from fastforks._core import registry
 from fastforks.ocr import _crop, _db, _runner
 from fastforks.ocr._api import text_page
-from fastforks.ocr.models.ppocrv5.net import Detector
+from fastforks.ocr.models.ppocrv5.model import fold_affine
+from fastforks.ocr.models.ppocrv5.net import Detector, Recognizer
 from fastforks.ocr.models.ppocrv5.net.heads import DBHead
-from fastforks.ocr.models.ppocrv5.net.layers import up
+from fastforks.ocr.models.ppocrv5.net.layers import LearnableAffineBlock, up
 
 
 def test_card() -> None:
@@ -105,6 +106,29 @@ def test_scale_neck_keeps_the_map() -> None:
         net.scale_neck(256.0)
         got = net(x)
     torch.testing.assert_close(got, want, rtol=0, atol=1e-5)
+
+
+@pytest.mark.parametrize("kind", ["det", "rec"])
+def test_fold_affine_keeps_the_output(kind: str) -> None:
+    """The mobile networks with their affine blocks folded into the convs: the same function (float32)."""
+    torch.manual_seed(0)
+    net = (Detector(server=False) if kind == "det" else Recognizer(server=False, classes=11)).eval()
+    with torch.no_grad():
+        for m in net.modules():
+            if isinstance(m, torch.nn.BatchNorm2d):
+                m.running_mean.uniform_(-0.5, 0.5)
+                m.running_var.uniform_(0.5, 2)
+            for name in ("scale", "bias"):  # the learnable affine blocks: 1 and 0 at init
+                t = getattr(m, name, None)
+                if isinstance(t, torch.nn.Parameter) and t.numel() == 1:
+                    t.uniform_(0.5, 1.5) if name == "scale" else t.uniform_(-0.5, 0.5)
+        x = torch.randn(2, 3, 48, 96) if kind == "rec" else torch.randn(1, 3, 64, 96)
+        want = net(x)
+        fold_affine(net)
+        got = net(x)
+    folded = [m.consts == (1.0, 0.0) for m in net.modules() if isinstance(m, LearnableAffineBlock)]
+    assert sum(folded) > len(folded) / 2  # every `lab`, and the depthwise `act_lab`s before a 1 x 1 conv
+    torch.testing.assert_close(got, want, rtol=1e-4, atol=1e-4)
 
 
 def test_bench_page_has_text_lines() -> None:
