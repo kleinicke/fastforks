@@ -45,8 +45,15 @@ class Params:
     size: int
 
 
-def _sica(m: SICA, x: torch.Tensor, smap: torch.Tensor, lmap: torch.Tensor | None = None) -> tuple[torch.Tensor, ...]:
-    """`SICA.forward` with the context vector and the key / value convs in float32."""
+def _sica(
+    m: SICA, x: torch.Tensor, smap: torch.Tensor, lmap: torch.Tensor | None = None, *, nhwc: bool = False
+) -> tuple[torch.Tensor, ...]:
+    """`SICA.forward` with the context vector and the key / value convs in float32.
+
+    `nhwc` (kernels): the query and output convs run channels-last (their weights moved by `Kernels`). cuDNN runs a
+    fp16 conv in NHWC, so in NCHW each of the six converted its input and output; channels-last, the query tokens and
+    the refined context are views of the conv / GEMM outputs, and only `x` and the outputs change layout.
+    """
     b, _, h, w = x.shape
     p = torch.sigmoid(F.interpolate(smap, size=x.shape[-2:], mode="bilinear", align_corners=False)) - m.threshold
     prob = [torch.clip(p, 0, 1), torch.clip(-p, 0, 1), m.threshold - torch.abs(p)]
@@ -63,17 +70,32 @@ def _sica(m: SICA, x: torch.Tensor, smap: torch.Tensor, lmap: torch.Tensor | Non
     # Keep the upstream channel layout for the context projection.
     context = torch.bmm(pr.reshape(b, m.ctx, n).float(), f.view(b, n, -1).float()).permute(0, 2, 1).unsqueeze(3)
     del f, pr, prob
-    query = m.conv_query(x).view(b, m.depth, -1).permute(0, 2, 1)
+    if nhwc:
+        x = x.contiguous(memory_format=torch.channels_last)
+        query = m.conv_query(x).permute(0, 2, 3, 1).reshape(b, h * w, m.depth)  # a view of the NHWC output
+    else:
+        query = m.conv_query(x).view(b, m.depth, -1).permute(0, 2, 1)
     key = m.conv_key(context).to(x.dtype).view(b, m.depth, -1)
     value = m.conv_value(context).to(x.dtype).view(b, m.depth, -1).permute(0, 2, 1)
     sim = F.softmax((m.depth**-0.5) * torch.bmm(query, key), dim=-1)
     del query, key
-    context = torch.bmm(sim, value).permute(0, 2, 1).contiguous().view(b, -1, h, w)
+    if nhwc:
+        context = torch.bmm(sim, value).view(b, h, w, -1).permute(0, 3, 1, 2)  # channels-last [B, C, H, W]
+    else:
+        context = torch.bmm(sim, value).permute(0, 2, 1).contiguous().view(b, -1, h, w)
     del sim, value
     x = torch.cat([x, m.conv_out1(context)], dim=1)
     del context
     x = m.conv_out3(m.conv_out2(x))
-    return x, m.conv_out4(x)
+    out = m.conv_out4(x)
+    return (x.contiguous(), out.contiguous()) if nhwc else (x, out)
+
+
+def _sica_nhwc(
+    m: SICA, x: torch.Tensor, smap: torch.Tensor, lmap: torch.Tensor | None = None
+) -> tuple[torch.Tensor, ...]:
+    """`_sica` with its query and output convs channels-last (kernels)."""
+    return _sica(m, x, smap, lmap, nhwc=True)
 
 
 def _net(ctx: Context, dtype: torch.dtype) -> torch.nn.Module:
@@ -143,6 +165,12 @@ class Kernels(Portable):
         """Prepare the accelerated inference path on the model device."""
         super().__init__(ctx)
         swin_v1.fast(self.net.backbone)
+        if self.dtype == torch.float16:
+            for m in self.net.modules():
+                if isinstance(m, SICA):
+                    for conv in (m.conv_query, m.conv_out1, m.conv_out2, m.conv_out3, m.conv_out4):
+                        conv.to(memory_format=torch.channels_last)
+                    override(m, _sica_nhwc)
         self.mean = torch.tensor(IMAGENET_MEAN, device=ctx.device)
         self.std = torch.tensor(IMAGENET_STD, device=ctx.device)
         self.graphs = SmallShapeGraphs(super()._net, pixels=2**21)
