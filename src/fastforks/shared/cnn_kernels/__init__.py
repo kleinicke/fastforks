@@ -48,6 +48,7 @@ _ACT_MODULES = {nn.ReLU: ACT["relu"], nn.ReLU6: ACT["relu6"], nn.Sigmoid: ACT["s
 _LEAKY_SLOPE = 0.01  # the only LeakyReLU slope the kernels implement
 _KERNELS: dict[int | None, CubinModule] = {}  # device index -> igev kernels (filled by load)
 _CUTLASS: dict[int | None, cutlass_conv.FusedConvs] = {}  # device index -> cutlass_conv library
+_HACC: dict[int | None, cudnn_hacc.CudnnHalfConv] = {}  # device index -> cudnn_hacc instance
 
 
 def load(device: torch.device) -> None:
@@ -58,7 +59,7 @@ def load(device: torch.device) -> None:
             fallback to PyTorch convs.
     """
     k, fc = igev_kernels.load(device), cutlass_conv.load(device)
-    cudnn_hacc.load(device)
+    _HACC[k.device.index] = cudnn_hacc.load(device)
     _KERNELS[k.device.index], _CUTLASS[k.device.index] = k, fc
 
 
@@ -173,6 +174,53 @@ def conv_ep(  # noqa: PLR0913 - conv module, input and the epilogue terms
     if y.shape[1] != m.out_channels and not keep_pad:
         y = y[:, : m.out_channels]
     return y
+
+
+def conv_ep_into(  # noqa: PLR0913 - conv module, input, destination and the epilogue terms
+    m: Patched,
+    x: torch.Tensor,
+    dest: torch.Tensor,
+    c0: int,
+    *,
+    s: torch.Tensor | None = None,
+    t: torch.Tensor | None = None,
+    act: int = 0,
+) -> None:
+    """`conv_ep(m, x, s, t, act, keep_pad=True)` written into `dest[:, c0 : c0 + K]` (K: the padded output channels).
+
+    The same conv plan and epilogue as `conv_ep`, without its output tensor and the copy into `dest`: the CUTLASS
+    kernel stores into the slice (`conv_fused`'s `out`), a cuDNN conv writes it (`cudnn_hacc` `conv_into`) and the
+    epilogue runs on it at `dest`'s row stride. `dest`: a channels-last fp16 `[1, C, H, W]` buffer, `c0` a multiple
+    of 8. Other convs (dilated, transposed, 3-D) run `conv_ep` and copy.
+    """
+    if t is None and s is None:
+        t = m._bias32  # noqa: SLF001 - set by prepare_convs
+    k = m.weight.shape[0]
+    aligned = c0 % 8 == 0 and k % 8 == 0 and dest.data_ptr() % 16 == 0
+    if aligned and _fusable(m, x, act, None) and conv_fused(m, x, s, t, _CUTLASS_ACT[act], out=(dest, c0)) is not None:
+        return
+    y = dest[:, c0 : c0 + k]
+    pad, st, dil = m.padding, m.stride, m.dilation
+    plain = (
+        getattr(m, "_hacc", False)
+        and x.dim() == 4  # noqa: PLR2004 - 2-D convs
+        and x.is_contiguous(memory_format=CL)
+        and len(set(pad)) == 1
+        and len(set(st)) == 1
+        and set(dil) == {1}
+        and dest.is_contiguous(memory_format=CL)
+        and dest.shape[0] == 1
+        and dest.dtype == torch.float16
+        and aligned
+    )
+    if not plain:
+        y.copy_(conv_ep(m, x, s, t, act, keep_pad=True))
+        return
+    _HACC[x.device.index].conv_into(x, m.weight, y, pad[0], st[0])
+    if s is not None or t is not None or act:
+        p, c = y.shape[2] * y.shape[3], dest.shape[1]
+        name = "affine_act8" + ("x" if act > ACT["relu6"] else "")
+        kernels(y.device).launch(name, *linear(p * (k // 8)), y, c, s, t, None, 0, p, k, act)
 
 
 def conv_raw(m: Patched, x: torch.Tensor) -> torch.Tensor:
