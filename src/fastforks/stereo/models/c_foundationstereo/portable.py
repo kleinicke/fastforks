@@ -184,7 +184,7 @@ def _taps_conv3d(conv: nn.Conv3d, x: torch.Tensor) -> torch.Tensor:
     planes = x.permute(0, 2, 1, 3, 4).reshape(n * d, c, *x.shape[3:])
     y = F.conv2d(planes, w.permute(2, 0, 1, 3, 4).reshape(kd * o, c, *w.shape[3:]), None, 1, conv.padding[1:])
     y = y.view(n, d, kd, o, *y.shape[2:])
-    out = y.new_zeros(n, d, o, *y.shape[3:]) if conv.bias is None else None
+    out = y.new_zeros(n, d, o, *y.shape[4:]) if conv.bias is None else None
     if out is None:
         out = conv.bias.to(y.dtype).view(1, 1, o, 1, 1).expand(n, d, o, *y.shape[4:]).clone()
     for k in range(kd):
