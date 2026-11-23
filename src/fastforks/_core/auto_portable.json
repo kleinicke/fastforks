@@ -49,6 +49,8 @@
    "gmflow-scale2-things",
    "parseq",
    "parseq-tiny",
+   "pidinet",
+   "rtmw-x-384",
    "seedvr2-3b",
    "segformer-b0-ade20k",
    "vit_so400m_patch14_siglip_378.webli_ft_in1k",
