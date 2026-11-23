@@ -612,6 +612,10 @@ Decided by the maintainer on 2026-11-21 (see [Windows-only numerical differences
    16.0 ms. BEN2 keeps cuDNN first: 0.82 -> 0.34 s on the first call but 102.5 -> 114 ms per later call (3 runs), a
    loss for video. The outputs differ by fp16 rounding (birefnet max 2.3e-7); the birefnet-lite and inspyrenet-fast
    GPU goldens pass in both modes.
+   OneFormer (`shared.maskformer`, Swin-L windows with a bias mask) takes the same list: 1024 x 2048, cuDNN first ->
+   efficient first, kernels first call 0.95 -> 0.45 s, steady 112.4 -> 111.0 ms; portable 0.95 -> 0.47 s, 152.1 ->
+   150.6 ms (2 runs each). Labels identical; class probabilities differ by mean 3e-5, p99 9e-4 (tolerance 1e-3 /
+   1e-2). Mask2Former shares the backbone but its weights were not available to measure, so it keeps cuDNN first.
 10. **SAM relative-position attention formulation follows the SDPA policy** (`shared.sam_attention.use_biased`, see
     [Attention speed on Windows](#attention-speed-on-windows-workattn-speed)). Without flash in the policy, global
     blocks run SDPA with a dense bias mask instead of the augmented dot product: the same maths, a different SDPA
