@@ -26,6 +26,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.mps import release
 from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, shift_windows
 from fastforks.restoration._runner import Crop, Forward, Runner
@@ -103,7 +104,7 @@ def _mask(m: SwinTransformerBlock, x_size: tuple[int, int]) -> torch.Tensor | _N
 
 
 def _bounded_mask(m: SwinTransformerBlock, x_size: tuple[int, int]) -> torch.Tensor | _NoMask | _BoundaryMask:
-    """Describe the shifted mask on large FP16 CUDA inputs."""
+    """Describe the shifted mask on large FP16 CUDA and MPS inputs."""
     if m.shift_size and x_size[0] * x_size[1] >= _LARGE_IMAGE_PIXELS and _eager_inference():
         return _BoundaryMask(x_size, m.window_size, m.shift_size)
     return _mask(m, x_size)
@@ -151,7 +152,7 @@ def _strip_reconstruction(m: DRCT, x: torch.Tensor, rows: int) -> torch.Tensor:
 
 
 def _forward(m: DRCT, image: torch.Tensor) -> torch.Tensor:
-    """Bound the 4x reconstruction workspace on large FP16 CUDA inputs."""
+    """Bound the 4x reconstruction workspace on large FP16 CUDA and MPS inputs."""
     if not _eager_inference():
         return DRCT.forward(m, image)
     batch, _, h, w = image.shape
@@ -175,10 +176,14 @@ def _rdg(m: RDG, x: torch.Tensor, xsize: tuple[int, int]) -> torch.Tensor:
 
 
 def _adjust(m: RDG, k: int, x: torch.Tensor, xsize: tuple[int, int]) -> torch.Tensor:
-    """`adjust<k>(swin<k>(x))` of a group, the 1 x 1 conv on the tokens."""
+    """`adjust<k>(swin<k>(x))` of a group, the 1 x 1 conv on the tokens.
+
+    On MPS the buffers the previous layer left cached are released first: every layer of a group has its own width, so
+    none of them is reused and they pile up to the memory limit (512 x 512 float32: 11.2 GiB allocated, 1 GiB live).
+    """
     conv = m.get_submodule(f"adjust{k}")
     weight = conv.get_parameter("weight").flatten(1)
-    return F.linear(m.get_submodule(f"swin{k}")(x, xsize), weight, conv.get_parameter("bias"))
+    return F.linear(m.get_submodule(f"swin{k}")(release(x), xsize), weight, conv.get_parameter("bias"))
 
 
 class Portable(Runner):
@@ -191,7 +196,9 @@ class Portable(Runner):
         """Build the network, gather the relative position biases, pad the heads, cache the masks per size."""
         super().__init__(ctx)
         p = ctx.params
-        bound_workspace = p.scale == 4 and ctx.dtype == "float16" and torch.device(ctx.device).type == "cuda"  # noqa: PLR2004
+        kind = torch.device(ctx.device).type
+        # MPS, any dtype: a 512x512 input's shifted masks, score blocks and 4x reconstruction pass its 11.8 GiB limit
+        bound_workspace = p.scale == 4 and (kind == "mps" or (ctx.dtype == "float16" and kind == "cuda"))  # noqa: PLR2004
         with warnings.catch_warnings():  # upstream's torch.meshgrid without `indexing` ("ij", the default) warns
             warnings.filterwarnings("ignore", "torch.meshgrid", UserWarning)
             self.net = DRCT(
