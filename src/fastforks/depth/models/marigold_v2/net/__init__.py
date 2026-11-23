@@ -11,11 +11,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import torch
-from safetensors import safe_open
 from torch import nn
 
 from .dit import Block, Transformer, block_keys
 from .nf4 import BF, NF4Linear, pair_lut
+from fastforks._core.checkpoint import SafetensorsReader
 from fastforks.shared.host_blocks import HostBlocks
 from .vae import VAE2D
 
@@ -86,11 +86,11 @@ def _block_index(k: str) -> int | None:
 
 
 def _host_blocks(
-    keys: list[str], meta: dict[str, tuple[torch.dtype, torch.Size]], get: Callable[[str], torch.Tensor]
+    keys: list[str], meta: dict[str, tuple[torch.dtype, torch.Size]], fill: Callable[[str, torch.Tensor], object]
 ) -> HostBlocks:
     n = 1 + max(i for k in keys if (i := _block_index(k)) is not None)
     specs = [{k: meta[k] for k in block_keys(keys, i)} for i in range(n)]
-    return HostBlocks(specs, lambda k, dst: dst.copy_(get(k)))
+    return HostBlocks(specs, fill)
 
 
 def _read(ctx: Context, device: torch.device, *, stream: bool) -> tuple[dict[str, torch.Tensor], HostBlocks | None]:
@@ -99,24 +99,18 @@ def _read(ctx: Context, device: torch.device, *, stream: bool) -> tuple[dict[str
         host = None
         if stream:
             keys = list(t)
-            host = _host_blocks(keys, {k: (v.dtype, v.shape) for k, v in t.items()}, t.__getitem__)
+            host = _host_blocks(keys, {k: (v.dtype, v.shape) for k, v in t.items()}, lambda k, dst: dst.copy_(t[k]))
         rest = {k: v.to(device) for k, v in t.items() if not (stream and _block_index(k) is not None)}
         return rest, host
     path = ctx.weights()[0]
-    with safe_open(path, "pt", device="cpu" if stream else str(device)) as f:
-        keys = list(f.keys())
+    with SafetensorsReader(path) as f:  # plain reads: no copy-on-write mapping of the whole file (Windows commit)
+        keys = f.keys()
         t = {k: f.get_tensor(k).to(device) for k in keys if not (stream and _block_index(k) is not None)}
         if not stream:
             return t, None
-        meta = {}
-        for k in keys:
-            if _block_index(k) is not None:
-                sl = f.get_slice(k)
-                meta[k] = (_DTYPES[sl.get_dtype()], torch.Size(sl.get_shape()))
-        return t, _host_blocks(keys, meta, f.get_tensor)
+        meta = {k: (f.dtype(k), f.shape(k)) for k in keys if _block_index(k) is not None}
+        return t, _host_blocks(keys, meta, f.read_into)  # straight into the host block buffer
 
-
-_DTYPES = {"U8": torch.uint8, "BF16": torch.bfloat16, "F32": torch.float32, "F16": torch.float16}
 
 
 def load(ctx: Context, *, stream: bool, fused: bool = False, exact_mask: bool = False) -> Net:
