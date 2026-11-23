@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
 import torch
@@ -21,9 +21,9 @@ if TYPE_CHECKING:
     from fastforks.flow._runner import Context
 
     from .net.FlowFormer.LatentCostFormer.decoder import MemoryDecoder
-    from .net.FlowFormer.LatentCostFormer.encoder import CostPerceiverEncoder, MemoryEncoder
+    from .net.FlowFormer.LatentCostFormer.encoder import CostPerceiverEncoder, MemoryEncoder, PatchEmbed
     from .net.FlowFormer.LatentCostFormer.gma import Aggregate, Attention
-    from .net.FlowFormer.LatentCostFormer.gru import SepConvGRU
+    from .net.FlowFormer.LatentCostFormer.gru import BasicMotionEncoder, SepConvGRU
 
 RADIUS = 4  # fixed: upstream's `encode_flow_token` window: (2 r + 1)^2 = 81 costs per pixel
 LOOKUP_PIXELS = 8192  # fixed: the window lookup gathers 100 feature vectors per pixel for this many pixels at a time
@@ -115,14 +115,38 @@ class Portable(Runner):
 
 
 def _gru_fp32_state(gru: SepConvGRU, h: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
-    """Compute convolution gates in fp16, and update recurrent state in float32."""
+    """Compute convolution gates in fp16, and update recurrent state in float32.
+
+    Both passes read one channels-last fp16 `[h | x]` buffer: `x` is cast into it once, then `h` and `r h` are
+    written over its first channels (upstream concatenates and casts four times). `(1 - z) h + z q` as `lerp`.
+    """
+    b, hd, height, width = h.shape
+    hx = torch.empty(
+        (b, hd + x.shape[1], height, width), dtype=torch.float16, device=h.device, memory_format=torch.channels_last
+    )
+    hx[:, hd:] = x
     for gate_name, candidate in (("convzr1", gru.convq1), ("convzr2", gru.convq2)):
         gate = cast("torch.nn.Conv2d", getattr(gru, gate_name))
-        gates = gate(torch.cat((h, x), 1).half()).float()
-        z, r = gates.sigmoid().chunk(2, dim=1)
-        q = candidate(torch.cat((r * h, x), 1).half()).float().tanh()
-        h = (1 - z) * h + z * q
+        hx[:, :hd] = h
+        z, r = gate(hx).float().sigmoid_().chunk(2, dim=1)
+        torch.mul(r, h, out=hx[:, :hd])
+        h = torch.lerp(h, candidate(hx).float().tanh_(), z)
     return h
+
+
+def _half_cl(x: torch.Tensor) -> torch.Tensor:
+    return x.to(torch.float16, memory_format=torch.channels_last)
+
+
+def _motion_encoder(enc: BasicMotionEncoder, flow: torch.Tensor, corr: torch.Tensor) -> torch.Tensor:
+    """Upstream `BasicMotionEncoder.forward` with fp16 channels-last convs; the features out in float32.
+
+    `convf1` stays float32: the flow it reads reaches hundreds of pixels at 1080p, where float16 steps are 1/8 px.
+    """
+    cor = torch.relu_(enc.convc2(torch.relu_(enc.convc1(_half_cl(corr)))))
+    flo = torch.relu_(enc.convf2(_half_cl(torch.relu_(enc.convf1(flow)))))
+    out = torch.relu_(enc.conv(torch.cat([cor, flo], dim=1)))
+    return torch.cat([out.float(), flow], dim=1)
 
 
 def _upsample(_decoder: torch.nn.Module, flow: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
@@ -182,6 +206,79 @@ def _encode(m: CostPerceiverEncoder, vol: _Volume, data: dict, context: torch.Te
     return x + short_cut if m.cfg.cost_encoder_res is True else x
 
 
+@dataclass
+class _Embed:
+    """What `_patch_embed` reads, made once by `_prepare_patch_embed`."""
+
+    convs: tuple[torch.nn.Conv2d, torch.nn.Conv2d, torch.nn.Conv2d]  # `proj`, fp16 channels last
+    ffn0: torch.Tensor  # `ffn_with_coord.0`, fp32 `[2 C, 2 C]`: columns `:C` the tokens', `C:` the position's
+    ffn0_x: torch.Tensor  # its token half, fp16 `[C, 2 C]` (transposed)
+    ffn0_bias: torch.Tensor  # fp32
+    ffn2: tuple[torch.Tensor, torch.Tensor]  # `ffn_with_coord.2` as a linear, fp16
+    norm: tuple[torch.Tensor, torch.Tensor]  # the LayerNorm's weight and bias, fp16
+    position: dict[tuple[int, int], torch.Tensor] = field(default_factory=dict)  # `_patch_position`, per grid
+
+
+def _patch_position(pe: PatchEmbed, e: _Embed, h: int, w: int, device: torch.device) -> torch.Tensor:
+    """`ffn_with_coord.0`'s position half for an `h` x `w` patch grid: `W_pos pe + b`, `[h * w, 2 C]` float16."""
+    if (h, w) not in e.position:
+        from .net.FlowFormer.LatentCostFormer.attention import (  # noqa: PLC0415 - needs timm (libnet)
+            ExpPositionEmbeddingSine,
+            LinearPositionEmbeddingSine,
+        )
+        from .net.utils import coords_grid  # noqa: PLC0415 - next to the import above
+
+        coord = coords_grid(1, h, w, device=device) * pe.patch_size + pe.patch_size / 2
+        coord = coord.view(1, 2, -1).permute(0, 2, 1)
+        enc = (LinearPositionEmbeddingSine if pe.pe == "linear" else ExpPositionEmbeddingSine)(coord, dim=pe.dim)[0]
+        e.position[h, w] = torch.addmm(e.ffn0_bias, enc.float(), e.ffn0[:, pe.dim :].t()).half()
+    return e.position[h, w]
+
+
+def _patch_embed(pe: PatchEmbed, x: torch.Tensor, *, share_position: bool = False) -> tuple[torch.Tensor, tuple]:
+    """Upstream `PatchEmbed._embed` (`share_position`) on fp16 channels-last activations; tokens `[B, N, 2 C]` fp16.
+
+    The convs run channels last (cuDNN converted every NCHW map to NHWC and back) with in-place ReLUs. The first 1 x 1
+    conv of `ffn_with_coord` is split at its concatenation: its position half is the same for every map
+    (`_patch_position`, the bias of a GEMM over the maps' tokens), and both 1 x 1 convs are GEMMs over the tokens,
+    which channels last already are. The LayerNorm reads fp16 with fp16 weights (autocast ran it on an fp32 copy).
+    """
+    assert share_position  # noqa: S101 - the kernels encoder's only call
+    e: _Embed = pe.__dict__["_kernels"]
+    conv0, conv1, conv2 = e.convs
+    y = torch.relu_(F.conv2d(x.half(), conv0.weight, conv0.bias, conv0.stride, conv0.padding))
+    y = torch.relu_(F.conv2d(y, conv1.weight, conv1.bias, conv1.stride, conv1.padding))
+    y = F.conv2d(y, conv2.weight, conv2.bias, conv2.stride, conv2.padding)
+    b, c, h, w = y.shape
+    tokens = y.permute(0, 2, 3, 1).reshape(b, h * w, c)  # a view: `y` is channels last
+    position = _patch_position(pe, e, h, w, y.device)
+    y = torch.baddbmm(position.expand(b, -1, -1), tokens, e.ffn0_x.expand(b, -1, -1)).relu_()
+    y = F.linear(y, *e.ffn2)
+    with torch.autocast(y.device.type, enabled=False):
+        return F.layer_norm(y, (y.shape[-1],), *e.norm, pe.norm.eps), (h, w)
+
+
+def _prepare_patch_embed(pe: PatchEmbed) -> None:
+    """fp16 channels-last conv weights and the split `ffn_with_coord.0` for `_patch_embed`."""
+    convs = tuple(m for m in pe.proj if isinstance(m, torch.nn.Conv2d))
+    for m in convs:
+        m.half().to(memory_format=torch.channels_last)
+    ffn0, ffn2 = (cast("torch.nn.Conv2d", pe.ffn_with_coord[i]) for i in (0, 2))
+    norm = pe.norm
+    w0 = ffn0.weight.detach().float().flatten(1)
+    conv0, conv1, conv2 = convs  # patch size 8
+    assert ffn0.bias is not None and ffn2.bias is not None  # noqa: S101, PT018 - upstream's convs have biases
+    pe.__dict__["_kernels"] = _Embed(
+        convs=(conv0, conv1, conv2),
+        ffn0=w0,
+        ffn0_x=w0[:, : cast("int", pe.dim)].t().half().contiguous(),
+        ffn0_bias=ffn0.bias.detach().float(),
+        ffn2=(ffn2.weight.detach().flatten(1).half(), ffn2.bias.detach().half()),
+        norm=(norm.weight.detach().half(), norm.bias.detach().half()),
+    )
+    override(pe, _patch_embed, "_embed")
+
+
 def _windows(_decoder: MemoryDecoder, vol: _Volume, coords: torch.Tensor) -> torch.Tensor:
     """Upstream `encode_flow_token`: the (2 r + 1)^2 bilinear costs around each pixel's `coords` (zero outside).
 
@@ -227,18 +324,21 @@ def _gma_attention(att: Attention, fmap: torch.Tensor) -> tuple[torch.Tensor, ..
 
 
 def _gma_aggregate(agg: Aggregate, attention: tuple[torch.Tensor, ...], fmap: torch.Tensor) -> torch.Tensor:
-    """Upstream GMA `Aggregate.forward` with `_gma_attention`'s matrix or fused attention, in float16."""
+    """Upstream GMA `Aggregate.forward` with `_gma_attention`'s matrix or fused attention, in float16.
+
+    `to_v` is an fp16 channels-last conv: its `[B, H W, C]` tokens are a view, and so is the result as an image.
+    """
     b, _, h, w = fmap.shape
-    v = agg.to_v(fmap).flatten(2).transpose(1, 2).half()
+    v = agg.to_v(_half_cl(fmap)).flatten(2).transpose(1, 2)  # contiguous: channels last
     if len(attention) == 1:
         out = torch.bmm(attention[0], v)
     else:
         q, k = attention
-        out = F.scaled_dot_product_attention(q, k, v[:, None].contiguous(), scale=1.0)[:, 0]
-    out = out.float().transpose(1, 2).reshape(b, -1, h, w)
+        out = F.scaled_dot_product_attention(q, k, v[:, None], scale=1.0)[:, 0]
+    out = out.view(b, h, w, -1).permute(0, 3, 1, 2)
     if agg.project is not None:
-        out = agg.project(out)
-    return fmap + agg.gamma * out
+        out = agg.project(out.float())
+    return torch.addcmul(fmap, agg.gamma, out)
 
 
 class Kernels(Portable):
@@ -252,15 +352,22 @@ class Kernels(Portable):
     module = Runner.module
 
     def __init__(self, ctx: Context) -> None:
-        """Keep the original FP32 aggregation and fuse the last prediction's upsampling."""
+        """Run the motion encoder and GMA values in float16 and fuse the last prediction's upsampling."""
         super().__init__(ctx)
         gru = self.net.get_submodule("memory_decoder.update_block.gru")
         for name in ("convzr1", "convq1", "convzr2", "convq2"):
             gru.get_submodule(name).half().to(memory_format=torch.channels_last)
         override(gru, _gru_fp32_state)
+        block = self.net.memory_decoder.update_block
+        # The flow head stays float32: its updates accumulate over the iterations (1080p: mean 0.00072 -> 0.00062 px).
+        block.encoder.half().to(memory_format=torch.channels_last)
+        block.encoder.convf1.float()
+        override(block.encoder, _motion_encoder)
+        block.get_submodule("aggregator.to_v").half().to(memory_format=torch.channels_last)
         override(self.net.memory_decoder, _upsample, "upsample_flow")
         override(self.net.memory_encoder, _corr, "corr")
         override(self.net.memory_encoder.cost_perceiver_encoder, _encode)
+        _prepare_patch_embed(self.net.memory_encoder.cost_perceiver_encoder.patch_embed)
         override(self.net.memory_decoder, _windows, "encode_flow_token")
         override(self.net.memory_decoder.att, _gma_attention)
         override(self.net.get_submodule("memory_decoder.update_block.aggregator"), _gma_aggregate)

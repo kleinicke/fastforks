@@ -60,7 +60,7 @@ def _hacc(x: torch.Tensor, w: torch.Tensor, b: torch.Tensor | None, padding: int
         msg = "cudnn_hacc convolutions have groups 1"
         raise ValueError(msg)
     w = w.contiguous(memory_format=torch.channels_last)
-    return cudnn_hacc.conv_half_acc(x, w, b, (padding, padding), (1, 1))
+    return cudnn_hacc.conv_half_acc(x, w, b, (padding, padding), (1, 1), fuse_bias=True)
 
 
 def _weights(m: ModulatedConv2d, style: torch.Tensor, gain: float) -> torch.Tensor:
@@ -220,7 +220,7 @@ class Portable(Runner):
 
 
 def _hacc_module(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
-    return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
+    return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation, fuse_bias=True)  # ty: ignore[invalid-argument-type]
 
 
 class Kernels(Portable):
