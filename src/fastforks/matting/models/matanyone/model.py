@@ -26,10 +26,11 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.kernels import note_fallback
 from fastforks._core.patch import override
 from fastforks._core.runner import host
 from fastforks._core.upload import to_device
-from fastforks.kernels import image_normalize
+from fastforks.kernels import image_normalize, seg_up
 from fastforks.matting._runner import Runner
 
 from .net.inference.image_feature_store import ImageFeatureStore
@@ -371,6 +372,32 @@ def _sensory_update(m: SensoryUpdater_fullscale, g: list[torch.Tensor], h: torch
         return _recurrent_update(h, values)
 
 
+def _up_add(x: torch.Tensor, skip: torch.Tensor, factor: int) -> torch.Tensor | None:
+    """`interpolate(x, factor, bilinear) + skip` in one pass (`seg_up.up_add`: the fp16 resize rounded, then the add).
+
+    None (counted by `note_fallback`) unless both are fp16 on CUDA, the skip dense channels-last and exactly `factor`
+    x the size of `x`.
+    """
+    n, c, h, w = x.shape
+    cl = torch.channels_last
+    if (
+        not x.is_cuda
+        or x.dtype != torch.float16
+        or skip.dtype != torch.float16
+        or skip.shape != (n, c, h * factor, w * factor)
+        or c % 2
+        or not skip.is_contiguous(memory_format=cl)
+    ):
+        note_fallback("seg_up", "a MatAnyone upsampling that is not a dense fp16 channels-last 2x step")
+        return None
+    x = x.contiguous(memory_format=cl)  # the 1/16 map arrives NCHW (a small copy)
+    out = torch.empty_like(skip, memory_format=cl)
+    hh, ww = skip.shape[-2:]
+    nhwc = (t.permute(0, 2, 3, 1) for t in (x, skip, out))
+    seg_up.up_add(*nhwc, (hh, ww), relu=False)
+    return out
+
+
 def _upsample_block(m: MaskUpsampleBlock, in_g: torch.Tensor, skip_f: torch.Tensor) -> torch.Tensor:
     """Upstream `MaskUpsampleBlock.forward` with the upsampling in the input's dtype and fewer full-size passes.
 
@@ -383,6 +410,9 @@ def _upsample_block(m: MaskUpsampleBlock, in_g: torch.Tensor, skip_f: torch.Tens
     """
     b, k = in_g.shape[:2]
     x = _canonical(in_g.flatten(0, 1))
+    fused = _up_add(x, skip_f, m.scale_factor) if k == 1 else None
+    if fused is not None:
+        return m.out_conv(fused.view(b, k, *fused.shape[-3:]), consume_input=True)
     with torch.autocast(x.device.type, enabled=False):
         g = F.interpolate(x, scale_factor=m.scale_factor, mode="bilinear", align_corners=False)
     in_place = k == 1 and skip_f.dtype == g.dtype
@@ -393,7 +423,8 @@ def _upsample_block(m: MaskUpsampleBlock, in_g: torch.Tensor, skip_f: torch.Tens
 class Kernels(Portable):
     """Fused image normalisation before the frame encoder; the decoder's upsampling in float16 (`_upsample_block`).
 
-    1080 x 1920 (an image: 11 steps with the warm-up): 1008 -> 741 ms, peak 1671 -> 1479 MiB.
+    1080 x 1920 (an image: 11 steps with the warm-up): 1008 -> 741 ms, peak 1671 -> 1479 MiB; the upsampling and skip
+    sum as one `seg_up` pass (`_up_add`, same values): 701 -> 618 ms (RTX 5060 Ti, Windows).
     """
 
     compiled_methods = ("__call__",)  # keep the kernel checks around the full call
@@ -402,6 +433,7 @@ class Kernels(Portable):
     def __init__(self, ctx: Context) -> None:
         """Prepare the accelerated inference path on the model device."""
         super().__init__(ctx)
+        seg_up.load(ctx.device)
         override(self.net, _cuda_encode, "encode_image")
         for block in self.net.mask_decoder.modules():
             if isinstance(block, MaskUpsampleBlock):

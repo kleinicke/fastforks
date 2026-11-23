@@ -33,7 +33,7 @@ cuda_dtype = "float16"  # CUDA fp16 autocast over fp32 weights, as upstream
 mps_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["image_normalize"]
+kernels = ["image_normalize", "seg_up"]
 
 [[papers]]
 title = "MatAnyone: Stable Video Matting with Consistent Memory Propagation"
