@@ -38,7 +38,7 @@ from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, dat_interaction
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
-from fastforks.shared.swin_sr import attention, checkpoint_upsampler
+from fastforks.shared.swin_sr import attention, checkpoint_upsampler, roll
 
 from .net import DAT
 from .net.dat_arch import (
@@ -213,13 +213,13 @@ def _spatial_block(  # noqa: PLR0913 - separate CUDA gate and attention mask spe
         for i, (channels, sh, sw) in enumerate(((slice(None, half), s0, s1), (slice(half, None), s1, s0))):
             attn = m.attns[i]
             part = qkv[..., channels].view(3, b, hp, wp, -1)
-            rolled = torch.roll(part, shifts=(-sh, -sw), dims=(2, 3)).view(3, b, -1, half)
+            rolled = roll(part, (-sh, -sw), (2, 3)).view(3, b, -1, half)
             if masks is None:
                 out = _shifted_window(cast("Spatial_Attention", attn), rolled, hp, wp, (sh, sw))
             else:
                 out = attn(rolled, hp, wp, mask=masks[i])
             del part, rolled
-            parts.append(torch.roll(out, shifts=(sh, sw), dims=(1, 2)))
+            parts.append(roll(out, (sh, sw), (1, 2)))
             del out
         x1, x2 = parts
         del parts

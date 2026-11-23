@@ -10,7 +10,7 @@ zero-pads a block's head dimension to a multiple of 8 in its `qkv` / `proj` weig
 rows of q and k), the extra output channels meet zero columns of `proj`. `attention` is the SDPA call itself, padding
 the head size at run time where the weights are not padded (HAT, DAT) and copying strided inputs. `patch_embed` is
 `PatchEmbed.forward` with contiguous tokens. `checkpoint_upsampler` reads a checkpoint's reconstruction layers
-(`load(path)`).
+(`load(path)`). `roll` is `torch.roll` over two dims in one pass.
 """
 
 from __future__ import annotations
@@ -33,6 +33,7 @@ __all__ = [
     "pad_heads",
     "patch_embed",
     "relative_bias",
+    "roll",
     "shift_mask",
     "to_2tuple",
     "trunc_normal_",
@@ -45,6 +46,24 @@ trunc_normal_ = nn.init.trunc_normal_
 def to_2tuple(x: int | tuple[int, int]) -> tuple[int, int]:
     """`to_2tuple` of timm, for ints and pairs."""
     return x if isinstance(x, tuple) else (x, x)
+
+
+def roll(x: torch.Tensor, shifts: tuple[int, int], dims: tuple[int, int]) -> torch.Tensor:
+    """`torch.roll(x, shifts, dims)` over two dims as four block copies into one contiguous output.
+
+    torch rolls one dim at a time, two passes (a strided `[3, 1, 512, 512, 90]` float16 qkv slice, RTX 5060 Ti: 3.1 ms,
+    here 0.85 ms). Traced and compiled graphs keep `torch.roll`.
+    """
+    if torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled():
+        return torch.roll(x, shifts, dims)
+    out = torch.empty(x.shape, dtype=x.dtype, device=x.device)
+    (d0, d1), (n0, n1) = dims, (x.shape[dims[0]], x.shape[dims[1]])
+    s0, s1 = shifts[0] % n0, shifts[1] % n1
+    for o0, i0, l0 in ((s0, 0, n0 - s0), (0, n0 - s0, s0)):
+        for o1, i1, l1 in ((s1, 0, n1 - s1), (0, n1 - s1, s1)):
+            if l0 and l1:
+                out.narrow(d0, o0, l0).narrow(d1, o1, l1).copy_(x.narrow(d0, i0, l0).narrow(d1, i1, l1))
+    return out
 
 
 def DropPath(drop_prob: float) -> nn.Module:  # noqa: N802 - the timm class name the vendored nets call
