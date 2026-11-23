@@ -60,6 +60,7 @@ import gc
 import importlib
 import importlib.resources
 import importlib.util
+import io
 import json
 import os
 import re
@@ -1164,7 +1165,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     return _run(ap.parse_args(argv))
 
 
+def _replace_unencodable() -> None:
+    """Print characters the output's encoding lacks as `?`, not a crash (a Windows pipe or file is cp1252: `pi`)."""
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper) and stream.errors == "strict":
+            stream.reconfigure(errors="replace")
+
+
 def _run(args: argparse.Namespace) -> int:
+    _replace_unencodable()
     try:
         status = args.run(args) or 0
         sys.stdout.flush()  # a closed pipe (`fastforks list | head`) surfaces here, not as exit 120 at shutdown

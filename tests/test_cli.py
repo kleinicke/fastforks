@@ -1,5 +1,6 @@
 import argparse
 import importlib.util
+import io
 import os
 import subprocess
 import sys
@@ -56,6 +57,17 @@ def test_closed_stdout_exits_1_quietly():
     finally:
         os.close(w)
     assert (p.returncode, p.stderr) == (1, b"")
+
+
+def test_list_into_a_cp1252_pipe(monkeypatch):
+    """Windows writes a pipe or file in cp1252: a summary's character it lacks prints as `?`, not a crash."""
+    raw = io.BytesIO()
+    out = io.TextIOWrapper(raw, encoding="cp1252", errors="strict")
+    monkeypatch.setattr(sys, "stdout", out)
+    assert any("π" in card.summary for card, _ in registry.cards("multiview").values())  # pi3
+    assert cli.main(["list", "--task", "multiview"]) == 0
+    out.flush()
+    assert b"?" in raw.getvalue()
 
 
 @pytest.mark.gpu
