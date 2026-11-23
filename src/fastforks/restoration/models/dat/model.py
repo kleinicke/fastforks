@@ -49,7 +49,6 @@ from .net.dat_arch import (
     Spatial_Attention,
     SpatialGate,
     _Tokens,
-    windows2img,
 )
 
 if TYPE_CHECKING:
@@ -108,8 +107,30 @@ def _windows(m: Spatial_Attention, x: torch.Tensor, h: int, w: int) -> torch.Ten
     return out.view(-1, heads, hs * ws, d + pad)
 
 
-def _spatial(m: Spatial_Attention, qkv: torch.Tensor, h: int, w: int, mask: torch.Tensor | None = None) -> torch.Tensor:
-    """`Spatial_Attention.forward` with the position bias made at load and one SDPA call."""
+def _to_image(win: torch.Tensor, hs: int, ws: int, into: torch.Tensor) -> torch.Tensor:
+    """`windows2img` of an attention output `[b * rows * cols, heads, hs * ws, >= d]` in one copy.
+
+    `into` is the image `[b, rows * hs, cols * ws, heads * d]`, any view (a region, a channel half); upstream copies
+    twice (heads to channels, windows to rows).
+    """
+    b, h, w, c = into.shape
+    heads = win.shape[1]
+    d = c // heads
+    src = win[..., :d].view(b, h // hs, w // ws, heads, hs, ws, d).permute(0, 1, 4, 2, 5, 3, 6)
+    into.view(b, h // hs, hs, w // ws, ws, heads, d).copy_(src)
+    return into
+
+
+def _spatial(  # noqa: PLR0913 - upstream's arguments and the output
+    m: Spatial_Attention,
+    qkv: torch.Tensor,
+    h: int,
+    w: int,
+    mask: torch.Tensor | None = None,
+    *,
+    into: torch.Tensor | None = None,
+) -> torch.Tensor:
+    """`Spatial_Attention.forward` with the position bias made at load and one SDPA call, written into `into`."""
     q, k, v = (_windows(m, t, h, w) for t in qkv.unbind(0))
     bw = q.shape[0]
     add = m.get_buffer("bias").to(q.dtype)[None]
@@ -118,8 +139,18 @@ def _spatial(m: Spatial_Attention, qkv: torch.Tensor, h: int, w: int, mask: torc
         add = add + mask.to(q.dtype)[:, None]
         if bw != nw:
             add = add.repeat(bw // nw, 1, 1, 1)
-    out = attention(q, k, v, add.expand(bw, -1, -1, -1), m.scale)[..., : qkv.shape[-1] // m.num_heads]
-    return windows2img(out.transpose(1, 2).reshape(bw, m.H_sp * m.W_sp, -1), m.H_sp, m.W_sp, h, w)
+    out = attention(q, k, v, add.expand(bw, -1, -1, -1), m.scale)
+    if into is None:
+        into = qkv.new_empty((qkv.shape[1], h, w, qkv.shape[-1]))
+    return _to_image(out, m.H_sp, m.W_sp, into)
+
+
+def _attend(attn: nn.Module, qkv: torch.Tensor, h: int, w: int, into: torch.Tensor) -> None:
+    """`attn(qkv, h, w)` written into `into` (`_spatial` itself writes there; an upstream module is copied)."""
+    if dict(getattr(type(attn), "_fastforks_methods", ())).get("forward") is _spatial:
+        attn(qkv, h, w, into=into)
+    else:
+        into.copy_(attn(qkv, h, w))
 
 
 def _shifted_window(m: Spatial_Attention, qkv: torch.Tensor, h: int, w: int, shift: tuple[int, int]) -> torch.Tensor:
@@ -127,7 +158,7 @@ def _shifted_window(m: Spatial_Attention, qkv: torch.Tensor, h: int, w: int, shi
     hs, ws = m.H_sp, m.W_sp
     rows, cols = h // hs, w // ws
     q, k, v = (_windows(m, t, h, w).unflatten(0, (-1, rows, cols)) for t in qkv.unbind(0))
-    out = torch.empty_like(q)
+    out = qkv.new_empty((qkv.shape[1], h, w, qkv.shape[-1]))
     bias = m.get_buffer("bias").to(q.dtype)
     token = torch.arange(hs * ws, device=q.device)
     row_zone = (token // ws >= hs - shift[0]).int() * 2
@@ -146,10 +177,10 @@ def _shifted_window(m: Spatial_Attention, qkv: torch.Tensor, h: int, w: int, shi
             section = (slice(None), band, stripe)
             q1, k1, v1 = (t[section].flatten(0, 2) for t in (q, k, v))
             y = attention(q1, k1, v1, pos.expand(q1.shape[0], -1, -1, -1), m.scale)
-            out[section] = y.reshape_as(out[section])
+            ys, xs = (slice(i.start * n, None if i.stop is None else i.stop * n) for i, n in ((band, hs), (stripe, ws)))
+            _to_image(y, hs, ws, out[:, ys, xs])
             del q1, k1, v1, y
-    result = out.flatten(0, 2)[..., : qkv.shape[-1] // m.num_heads]
-    return windows2img(result.transpose(1, 2).reshape(result.shape[0], hs * ws, -1), hs, ws, h, w)
+    return out
 
 
 def _image(x: torch.Tensor, h: int, w: int) -> torch.Tensor:
@@ -212,6 +243,7 @@ def _spatial_block(  # noqa: PLR0913 - separate CUDA gate and attention mask spe
         qkv = F.pad(qkv.reshape(3 * b, h, w, c), (0, 0, 0, pad_r, 0, pad_b)).reshape(3, b, -1, c)
     hp, wp = h + pad_b, w + pad_r
     half = c // 2
+    heads = qkv.new_empty((b, hp, wp, c))  # both branches' outputs, written in place (upstream: a cat)
     if (m.rg_idx % 2 == 0 and m.b_idx > 0 and (m.b_idx - 2) % 4 == 0) or (m.rg_idx % 2 != 0 and m.b_idx % 4 == 0):
         s0, s1 = m.shift_size
         use_compact = compact_mask or (
@@ -220,7 +252,6 @@ def _spatial_block(  # noqa: PLR0913 - separate CUDA gate and attention mask spe
             and hp * wp >= _COMPACT_MASK_PIXELS
         )
         masks = None if use_compact else m.calculate_mask(hp, wp)
-        parts = []
         for i, (channels, sh, sw) in enumerate(((slice(None, half), s0, s1), (slice(half, None), s1, s0))):
             attn = m.attns[i]
             part = qkv[..., channels].view(3, b, hp, wp, -1)
@@ -230,15 +261,13 @@ def _spatial_block(  # noqa: PLR0913 - separate CUDA gate and attention mask spe
             else:
                 out = attn(rolled, hp, wp, mask=masks[i])
             del part, rolled
-            parts.append(roll(out, (sh, sw), (1, 2)))
+            roll(out, (sh, sw), (1, 2), out=heads[..., channels])
             del out
-        x1, x2 = parts
-        del parts
     else:
-        x1 = m.attns[0](qkv[..., :half], hp, wp)
-        x2 = m.attns[1](qkv[..., half:], hp, wp)
-    att = torch.cat([x1[:, :h, :w], x2[:, :h, :w]], dim=3).reshape(b, n, c)
-    del x1, x2, qkv
+        _attend(m.attns[0], qkv[..., :half], hp, wp, heads[..., :half])
+        _attend(m.attns[1], qkv[..., half:], hp, wp, heads[..., half:])
+    att = heads[:, :h, :w].reshape(b, n, c)  # a copy only for a padded size
+    del heads, qkv
     conv = m.dwconv(v)
     del v
     channel_map = m.channel_interaction(conv).view(b, 1, c)
