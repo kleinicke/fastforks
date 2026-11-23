@@ -129,6 +129,20 @@ def test_sliding_steps() -> None:
     assert _nnunet.sliding_steps((300,), (128,), 0.8) == [[0, 86, 172]]
 
 
+@pytest.mark.parametrize("depth", [2, 3, 5])
+def test_conv_slabs_match_one_convolution(depth: int) -> None:
+    """`_conv_slabs_`: the same-width convolution written over its input, slab by slab (any last-slab size)."""
+    torch.manual_seed(0)
+    conv = torch.nn.Conv3d(4, 4, 3, padding=1)
+    y = torch.randn(2, 4, 11, 6, 7)
+    expected = F.conv3d(y, conv.weight, conv.bias, 1, 1)
+    with torch.no_grad():
+        out = _nnunet._conv_slabs_(conv, y, conv.bias, depth)
+    assert out is y
+    torch.testing.assert_close(out, expected, rtol=1e-5, atol=1e-5)
+    assert _nnunet.slab_depth(conv, y) == 0  # CPU: one call
+
+
 def test_norm_act_matches_instance_norm() -> None:
     """The per-channel scale / shift block = `leaky_relu(InstanceNorm3d(conv(x)))`, in both memory formats."""
     block = _net().encoder.stages[0][0].convs[0]
