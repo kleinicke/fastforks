@@ -7,8 +7,8 @@ cropped back to the image (no resize).
 `portable`: the backbone runs channels-last (`[B, H, W, C]` throughout, as upstream's blocks do inside) with the
 attention's decomposed relative-position bias folded into an augmented dot product (`q' = [q * scale, rel_h, rel_w]`,
 `k' = [k, onehot(kh), onehot(kw)]`, padded to a multiple of 8; `v` zero-padded to the same head dim) so SDPA (flash)
-never materialises the N x N matrix (8160 tokens at 1080p); without flash (Windows) a global block whose augmented
-head dim exceeds cuDNN's 128 runs SDPA with a chunked dense bias mask instead (`shared.sam_attention`); the residual
+never materialises the N x N matrix (8160 tokens at 1080p); without flash (Windows) the blocks run SDPA with a
+chunked dense bias mask instead (`shared.sam_attention`: faster than cuDNN or the efficient backend there); the residual
 blocks' channel LayerNorms through `F.layer_norm` (float32 statistics in float16). Interpolated position embeddings
 and relative tables are cached per token grid. The decoder is upstream's modules. fp32 or fp16 weights and activations.
 

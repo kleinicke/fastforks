@@ -6,11 +6,13 @@ Two exact forms of upstream's `attn = (q * scale) @ k^T + rel_h + rel_w`:
   flash never materialises the N x N matrix (SAM global attention: 64 + 64 + 64 = 192).
 - `biased`: SDPA at head dim `d` with the bias as a dense float mask, built in query-row / head chunks of at most
   `MASK_BYTES`; heads are grouped only up to `HEAD_GROUP_BYTES` (SAM's 64 x 64 grid: one 32 MiB head per call, as
-  fast as four and 190 MiB less peak memory). Used on CUDA when the SDPA policy has no flash (`shared.sdpa`:
-  PyTorch's Windows wheels) and the augmented head dim exceeds cuDNN's 128: there `augmented` runs the
-  memory-efficient backend (fp16 `[1, 12, 4096, 192]` on an RTX 5060 Ti: 10.8 ms) while the masked call runs cuDNN
-  (3.1 ms; Linux flash on the augmented form: 3.4 ms). The mask is `rel_h + rel_w` in the activation dtype, as
-  upstream adds it.
+  fast as four and 190 MiB less peak memory), and windows (all heads of one fit) batched up to the same bound. Used on
+  CUDA when the SDPA policy has no flash (`shared.sdpa`: PyTorch's Windows wheels). Global attention: an augmented head
+  dim above cuDNN's 128 leaves `augmented` the memory-efficient backend (fp16 `[1, 12, 4096, 192]` on an RTX 5060 Ti:
+  10.8 ms) while the masked call runs cuDNN (3.1 ms; Linux flash on the augmented form: 3.4 ms). 14 x 14 windows
+  (augmented dim 96, which cuDNN takes) are faster masked too: SAM-B's 25 windows x 12 heads 0.60 -> 0.48 ms in fp16,
+  2.27 -> 1.49 ms in fp32 (efficient backend), ViTMatte-B's 60 windows 1.68 -> 1.22 ms. The mask is `rel_h + rel_w`
+  in the activation dtype, as upstream adds it.
 
 `use_biased` makes the choice (logged once per process); `attend` applies it.
 """
@@ -47,9 +49,9 @@ def use_biased(qkv: torch.Tensor, d: int, hw: tuple[int, int]) -> bool:
 
 
 def needs_bias(d: int, hw: tuple[int, int]) -> bool:
-    """The rule of `use_biased` for a CUDA call: the SDPA policy excludes flash and the augmented head dim > 128."""
+    """The rule of `use_biased` for a CUDA call: the SDPA policy excludes flash."""
     chosen = sdpa.backends()
-    if chosen is None or SDPBackend.FLASH_ATTENTION in chosen or augmented_dim(d, hw) <= CUDNN_MAX_HEAD_DIM:
+    if chosen is None or SDPBackend.FLASH_ATTENTION in chosen:
         return False
     _log_biased(augmented_dim(d, hw))
     return True
@@ -58,8 +60,8 @@ def needs_bias(d: int, hw: tuple[int, int]) -> bool:
 @functools.cache
 def _log_biased(dim: int) -> None:
     logging.getLogger("fastforks").info(
-        "SAM relative-position attention: the SDPA policy has no flash and the augmented head dim %d exceeds cuDNN's "
-        "%d, so it runs as SDPA with a dense bias mask",
+        "SAM relative-position attention: the SDPA policy has no flash, so it runs as SDPA with a dense bias mask "
+        "(augmented head dim %d; cuDNN takes at most %d)",
         dim,
         CUDNN_MAX_HEAD_DIM,
     )
@@ -79,9 +81,10 @@ def biased(qkv: torch.Tensor, nh: int, rel: Rel, hw: tuple[int, int]) -> torch.T
     out = qt.new_empty(b, nh, n, d)
     per_head = n * n * qkv.element_size()
     heads = max(1, min(nh, HEAD_GROUP_BYTES // per_head))
+    batch = max(1, HEAD_GROUP_BYTES // (nh * per_head)) if heads == nh else 1  # windows: many per call
     rows = n if heads > 1 else max(1, min(n, MASK_BYTES // (n * qkv.element_size())))
-    for i in range(b):
-        bs = slice(i, i + 1)
+    for i in range(0, b, batch):
+        bs = slice(i, i + batch)
         for j in range(0, nh, heads):
             hs = slice(j, j + heads)
             for r in range(0, n, rows):

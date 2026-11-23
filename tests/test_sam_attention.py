@@ -39,7 +39,8 @@ def _upstream(qkv: torch.Tensor, nh: int, rel: sam_attention.Rel, hw: tuple[int,
 
 @pytest.mark.parametrize(
     ("mask_bytes", "group_bytes"),
-    [(1 << 30, 1 << 30), (1 << 30, 3 * 64 * 64 * 8), (1 << 30, 1), (5 * 64 * 8, 1)],  # all / 3 / 1 head, 5 rows
+    # all batches / 3 heads / 1 head, 5 rows / all heads of 1 batch
+    [(1 << 30, 1 << 30), (1 << 30, 3 * 64 * 64 * 8), (1 << 30, 1), (5 * 64 * 8, 1), (1 << 30, 4 * 64 * 64 * 8)],
 )
 def test_biased_matches_upstream(monkeypatch: pytest.MonkeyPatch, mask_bytes: int, group_bytes: int) -> None:
     monkeypatch.setattr(sam_attention, "MASK_BYTES", mask_bytes)
@@ -56,7 +57,7 @@ def test_biased_matches_upstream(monkeypatch: pytest.MonkeyPatch, mask_bytes: in
     [
         ("auto", True, 64, (64, 64), False),  # flash: the augmented form, PyTorch's order
         ("auto", False, 64, (64, 64), True),  # Windows wheel, SAM global attention (192 > 128)
-        ("auto", False, 64, (14, 14), False),  # Windows wheel, SAM windowed attention (96: cuDNN takes it)
+        ("auto", False, 64, (14, 14), True),  # Windows wheel, SAM windowed attention (masked beats cuDNN at 96)
         ("torch", False, 64, (64, 64), False),  # PyTorch's own choice: fastforks changes nothing
         ("cudnn,efficient", True, 64, (64, 64), True),
         ("flash,cudnn", True, 64, (64, 64), False),

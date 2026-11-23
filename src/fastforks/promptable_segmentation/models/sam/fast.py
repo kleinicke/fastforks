@@ -7,9 +7,9 @@
   `rel_h[q, kh] + rel_w[q, kw]` runs through SDPA by folding the bias into an augmented dot product
   (`q' = [q * scale, rel_h, rel_w]`, `k' = [k, onehot(kh), onehot(kw)]`, padded to a multiple of 8; `v` zero-padded to
   the same head dim so the flash kernel takes it), never materialising the N x N attention matrix; without flash
-  (Windows) the global blocks (augmented head dim 192 > cuDNN's 128) run SDPA with a chunked dense bias mask instead
-  (`shared.sam_attention`). The neck's `LayerNorm2d`s run channels-last through `F.layer_norm` (float32 statistics
-  for float16 activations).
+  (Windows) the blocks run SDPA with a chunked dense bias mask instead (`shared.sam_attention`: faster than cuDNN or
+  the efficient backend on the augmented form). The neck's `LayerNorm2d`s run channels-last through `F.layer_norm`
+  (float32 statistics for float16 activations).
 """
 
 from __future__ import annotations
