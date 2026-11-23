@@ -33,7 +33,17 @@ from fastforks._core.patch import base_type, override
 from fastforks.kernels import dpt_fused
 from fastforks.kernels.cutlass_conv import ConvEpiArgs
 from fastforks.shared import cnn_kernels
-from fastforks.shared.cnn_kernels import ACT, CL, bn_affine, conv_ep, conv_fused, cutlass, epilogue, fused_cfg
+from fastforks.shared.cnn_kernels import (
+    ACT,
+    CL,
+    bn_affine,
+    conv_ep,
+    conv_ep_into,
+    conv_fused,
+    cutlass,
+    epilogue,
+    fused_cfg,
+)
 from fastforks.shared.depth_anything_v2 import use_fast_vit
 
 from ..net import submodule
@@ -153,7 +163,7 @@ def _motion_fill_fused(enc: nn.Module, disp: torch.Tensor, corr: torch.Tensor) -
     d = conv_ep(enc.convd1, disp, act=ACT["relu"])
     cd = torch.empty((1, 128, hh, ww), device=cor.device, dtype=cor.dtype, memory_format=CL)
     for m, x, c0 in ((enc.convc2, cor, 0), (enc.convd2, d, 64)):
-        cd[:, c0 : c0 + 64].copy_(conv_ep(m, x, act=ACT["relu"]))
+        conv_ep_into(m, x, cd, c0, act=ACT["relu"])
     del cor, d
 
     def fill(bufs: list[torch.Tensor], c0: int) -> None:
@@ -168,25 +178,26 @@ def _motion_fill_fused(enc: nn.Module, disp: torch.Tensor, corr: torch.Tensor) -
 def _mix_fill(
     enc: nn.Module, d_own: torch.Tensor, c_own: torch.Tensor, d_oth: torch.Tensor, c_oth: torch.Tensor
 ) -> tuple[str, torch.Tensor, int]:
-    """BasicMotionEncoder_mix2 on the [corr | flaw | 0] buffers; the conv / conv_mono outputs and both disparities
-    written straight into the GRU's [h | x] / [r*h | x] buffers (no cats)."""
+    """BasicMotionEncoder_mix2 on the [corr | flaw | 0] buffers; the conv / conv_mono outputs (63 channels + the zero
+    pad) and both disparities written straight into the GRU's [h | x] / [r*h | x] buffers (no cats)."""
     R = ACT["relu"]
     _, _, hh, ww = d_own.shape
-    outs = []
+    ins = []
     for c1, c2, dd1, dd2, cv, corr, d in (
         (enc.convc1, enc.convc2, enc.convd1, enc.convd2, enc.conv, c_own, d_own),
         (enc.convc1_mono, enc.convc2_mono, enc.convd1_mono, enc.convd2_mono, enc.conv_mono, c_oth, d_oth),
     ):
         cd = torch.empty((1, 128, hh, ww), device=d.device, dtype=d.dtype, memory_format=CL)
-        cd[:, :64].copy_(conv_ep(c2, conv_ep(c1, corr, act=R), act=R))
-        cd[:, 64:].copy_(conv_ep(dd2, conv_ep(dd1, d, act=R), act=R))
-        outs.append((conv_ep(cv, cd, act=R, keep_pad=True), d))
+        conv_ep_into(c2, conv_ep(c1, corr, act=R), cd, 0, act=R)
+        conv_ep_into(dd2, conv_ep(dd1, d, act=R), cd, 64, act=R)
+        ins.append((cv, cd, d))
 
     def fill(bufs: list[torch.Tensor], c0: int) -> None:
-        for b in bufs:
-            for j, (o, d) in enumerate(outs):
-                b[:, c0 + 64 * j : c0 + 64 * j + 63].copy_(o[:, :63])
-                b[:, c0 + 64 * j + 63 : c0 + 64 * j + 64].copy_(d)
+        for j, (cv, cd, d) in enumerate(ins):
+            o = slice(c0 + 64 * j, c0 + 64 * j + 64)
+            conv_ep_into(cv, cd, bufs[0], o.start, act=R)
+            bufs[0][:, o.stop - 1 : o.stop].copy_(d)
+            bufs[1][:, o].copy_(bufs[0][:, o])
 
     return ("fill", fill, 128)
 
@@ -236,7 +247,7 @@ def _corr_flaw(
             memory_format=CL
         )
     buf[:, :g].copy_(geo)
-    buf[:, g : g + fl0f.shape[1]].copy_(warp(fr0f, disp) - fl0f)
+    torch.sub(warp(fr0f, disp), fl0f, out=buf[:, g : g + fl0f.shape[1]])
     return buf
 
 
