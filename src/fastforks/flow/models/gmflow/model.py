@@ -19,6 +19,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
+from fastforks._core.patch import override
 from fastforks.flow._runner import Forward, Runner
 from fastforks.kernels import flow_upsample
 from fastforks.shared import mlx_wrap
@@ -33,6 +34,8 @@ from .net.utils import feature_add_position, upsample_flow_with_mask
 
 if TYPE_CHECKING:
     from fastforks.flow._runner import Context
+
+    from .net.reg_refine import BasicUpdateBlock
 
 SCALES = {  # card `scales` -> per scale (attn_splits, corr_radius, prop_radius), upstream scripts/gmflow_evaluate.sh
     1: ((2, -1, -1),),
@@ -164,6 +167,22 @@ _GRAPH_PIXELS = 262_144  # fixed: batch x padded H x W; launch-bound up to 384x5
 _GRAPHS = 2  # fixed: graph cache policy
 
 
+def _refine_forward(self: BasicUpdateBlock, net, inp, corr, flow, *, upsample=True):  # noqa: ANN001, ANN202, PLR0913 - upstream's names
+    """Upstream `BasicUpdateBlock.forward` with the GRU input cast to the autocast dtype once.
+
+    The motion features end in the float32 flow, so upstream's `[context, motion]` concatenation is float32 and each of
+    the GRU's six convolutions (and its concatenations with the fp16 hidden state) re-casts all 256 channels. Every
+    consumer casts it to the autocast dtype, so casting it once gives the same values.
+    """
+    inp = torch.cat([inp, self.encoder(flow, corr)], dim=1)
+    if torch.is_autocast_enabled(inp.device.type):
+        inp = inp.to(torch.get_autocast_dtype(inp.device.type))
+    net = self.gru(net, inp)
+    delta_flow = self.flow_head(net)
+    mask = self.mask(net) if self.mask is not None and upsample else None
+    return net, mask, delta_flow
+
+
 class Kernels(Portable):
     """Use explicit attention heads for fused SDPA and fuse the final convex upsampling.
 
@@ -180,6 +199,8 @@ class Kernels(Portable):
         for layer in self.net.transformer.modules():
             if isinstance(layer, TransformerLayer):
                 layer.window_options = {"attention": _headed}
+        if ctx.params.refine:
+            override(self.net.refine, _refine_forward)
         self._graphs = SmallShapeGraphs(
             super()._flow, pixels=_GRAPH_PIXELS, graphs=_GRAPHS, enabled=ctx.params.cuda_graphs
         )
