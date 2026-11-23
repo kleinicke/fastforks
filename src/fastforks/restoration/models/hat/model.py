@@ -4,10 +4,9 @@
 Upstream builds the shifted-window mask on the CPU on every call and gathers both relative position biases (the
 window attention's and the overlapping cross-attention's) on every call; here the mask is made on the device once per
 size, the biases once at load, and both attentions are one `scaled_dot_product_attention` each
-(`fastforks.shared.swin_sr`, the head size padded from 30 to 32: the window attention's in its weights at load, the
-overlapping attention's on CUDA per call). `PatchEmbed` returns contiguous tokens
-(upstream: a transposed view, which made every residual add strided). The input mean is a buffer (upstream: a plain
-attribute, `type_as` per call).
+(`fastforks.shared.swin_sr`, the head size padded from 30 to 32 in their weights at load: `pad_heads`). `PatchEmbed`
+returns contiguous tokens (upstream: a transposed view, which made every residual add strided). The input mean is a
+buffer (upstream: a plain attribute, `type_as` per call).
 
 float16: the last residual group's output exceeds the float16 range (820 239 on the golden image, Real-HAT-GAN; its
 blocks stay below 25 000), so its final conv and its skip input are divided by `_LAST_SCALE`; only the LayerNorm
@@ -129,10 +128,11 @@ def _ocab(m: OCAB, x: torch.Tensor, x_size: tuple[int, int], rpi: torch.Tensor) 
     """`OCAB.forward` (overlapping cross-attention) with the bias gathered at load and one SDPA call."""
     del rpi
     h, w = x_size
-    b, _, c = x.shape
+    b, _, dim = x.shape
+    c = m.qkv.out_features // 3  # dim, or heads x the padded head size (`pad_heads`)
     ws, ow, heads = m.window_size, m.overlap_win_size, m.num_heads
     shortcut = x
-    qkv = m.qkv(m.norm1(x).view(b, h, w, c))
+    qkv = m.qkv(m.norm1(x).view(b, h, w, dim))
     q = window_partition(qkv[..., :c], ws).reshape(-1, ws * ws, heads, c // heads).transpose(1, 2)
     kv_image = qkv[..., c:].permute(0, 3, 1, 2)
     if (
@@ -171,6 +171,7 @@ def _prepare(net: HAT) -> None:
             t = m.get_parameter("relative_position_bias_table").detach()[oca.reshape(-1)].view(*oca.shape, -1)
             m.register_buffer("bias", t.permute(2, 0, 1).contiguous())
             del m.relative_position_bias_table
+            pad_heads(m.qkv, m.proj, m.num_heads)
             override(m, _ocab)
         elif isinstance(m, PatchEmbed):
             override(m, patch_embed)
