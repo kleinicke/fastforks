@@ -18,6 +18,7 @@ from .net.stackhourglass import PSMNet
 from .regress import upsample_softmax_regress
 
 if TYPE_CHECKING:
+    from fastforks.shared.cnn_kernels import Patched
     from fastforks.stereo._runner import Context
 
 
@@ -66,10 +67,40 @@ def cost_volume(net: PSMNet, ref: torch.Tensor, tgt: torch.Tensor) -> torch.Tens
     return volume
 
 
-def forward(net: PSMNet, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+def _hourglass_kernels(
+    hg: Patched, x: torch.Tensor, presqu: torch.Tensor | None, postsqu: torch.Tensor | None, skip: torch.Tensor
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Upstream's `hourglass(x, presqu, postsqu)` plus `skip` on its output, every add / ReLU in a conv epilogue."""
+    from fastforks.shared.cnn_kernels import ACT, conv_residual  # noqa: PLC0415 - kernels only
+
+    relu = ACT["relu"]
+    pre = conv_residual(hg.conv2, hg.conv1(x), postsqu, relu)
+    post = conv_residual(hg.conv5, hg.conv4(hg.conv3(pre)), pre if presqu is None else presqu, relu)
+    return conv_residual(hg.conv6, post, skip), pre, post
+
+
+def _forward_kernels(net: PSMNet, cost0: torch.Tensor) -> torch.Tensor:
+    """`forward`'s 3D stack from `dres1` on, the residual adds and ReLUs in the conv epilogues."""
+    from fastforks.shared.cnn_kernels import conv_residual  # noqa: PLC0415 - kernels only
+
+    cost0 = conv_residual(net.dres1, cost0, cost0)
+    out1, pre1, post1 = _hourglass_kernels(net.dres2, cost0, None, None, cost0)
+    out2, _, post2 = _hourglass_kernels(net.dres3, out1, pre1, post1, cost0)
+    del post1
+    cost1 = net.classif1(out1)
+    del out1
+    out3 = _hourglass_kernels(net.dres4, out2, pre1, post2, cost0)[0]
+    del pre1, post2, cost0
+    cost2 = net.classif2(out2)
+    del out2
+    return net.classif3(out3) + (cost2 + cost1)  # upstream's summation order
+
+
+def forward(net: PSMNet, left: torch.Tensor, right: torch.Tensor, *, fused: bool = False) -> torch.Tensor:
     """Upstream's test forward (`pred3`) with the row-chunked regression tail; disparity `[B, H, W]` float32.
 
-    Inputs are cast to the network's dtype (channels-last on CUDA); the regression runs in float32.
+    Inputs are cast to the network's dtype (channels-last on CUDA); the regression runs in float32. `fused` (kernels):
+    the residual adds and their ReLUs run in the conv epilogues (`cnn_kernels.conv_residual`).
     """
     p = next(net.parameters())
     fmt = torch.channels_last if p.is_cuda else torch.contiguous_format
@@ -77,6 +108,8 @@ def forward(net: PSMNet, left: torch.Tensor, right: torch.Tensor) -> torch.Tenso
     volume = cost_volume(net, net.feature_extraction(left), net.feature_extraction(right))
     cost0 = net.dres0(volume)
     del volume
+    if fused:
+        return upsample_softmax_regress(_forward_kernels(net, cost0), net.maxdisp, left.shape[2], left.shape[3])
     cost0 = fence(net.dres1(cost0) + cost0)  # fastforks (MPS): the freed volume is reusable only once the GPU is done
     out1, pre1, post1 = net.dres2(cost0, None, None)
     out1 = out1 + cost0
@@ -140,7 +173,7 @@ class Kernels(Runner):
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity of a padded pair."""
-        return {"disparity": forward(self.net, left, right)}
+        return {"disparity": forward(self.net, left, right, fused=True)}
 
 
 RUNNERS = {

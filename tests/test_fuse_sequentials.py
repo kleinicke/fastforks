@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+import torch
 from torch import nn
 
 from fastforks.shared import cnn_kernels
@@ -32,3 +34,13 @@ def test_flat_run_keeps_its_activation() -> None:
     assert isinstance(net[0], FusedConvBN)
     assert net[0].act == ACT["relu6"]
     assert isinstance(net[3], nn.ReLU)  # a second activation is not a nested run's
+
+
+def test_conv_residual_needs_a_plain_fused_run() -> None:
+    net = nn.Sequential(_convbn(), nn.ReLU())
+    cnn_kernels.fuse_sequentials(net)  # the ReLU joins: the run now has an activation
+    x = torch.zeros(1, 4, 2, 2, 2)
+    with pytest.raises(TypeError, match="without activation"):
+        cnn_kernels.conv_residual(net, x, x)
+    with pytest.raises(TypeError, match="FusedConvBN"):
+        cnn_kernels.conv_residual(nn.Sequential(nn.ReLU()), x, x)

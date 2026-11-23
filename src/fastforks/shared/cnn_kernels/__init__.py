@@ -660,6 +660,42 @@ def _join_act(m: nn.Module, nxt: nn.Module | None) -> bool:
     return True
 
 
+def _leaves(m: nn.Module) -> list[nn.Module]:
+    if isinstance(m, nn.Sequential):
+        return [leaf for c in m for leaf in _leaves(c)]
+    return [] if isinstance(m, nn.Identity) else [m]
+
+
+def conv_residual(seq: nn.Module, x: torch.Tensor, r: torch.Tensor | None, act: int = 0) -> torch.Tensor:
+    """`act(seq(x) + r)` with the residual add and the activation in the epilogue of `seq`'s last conv run.
+
+    `r` None: no residual. `seq`: a (nested) Sequential after `fuse_sequentials` that ends in a `FusedConvBN` without
+    activation. One rounding to fp16 instead of two (`seq`'s output, then the sum), and no separate add / activation
+    pass.
+
+    Raises:
+        TypeError: `seq` does not end in such a `FusedConvBN`.
+    """
+    *head, last = _leaves(seq) or [seq]
+    if not isinstance(last, FusedConvBN) or last.act:
+        msg = f"conv_residual: needs a Sequential ending in a FusedConvBN without activation, got {seq}"
+        raise TypeError(msg)
+    for m in head:
+        x = m(x)
+    return conv_ep(last.conv, x, last.s, last.t, act, r=r)
+
+
+def stereo_hourglass(hg: Patched, x: torch.Tensor) -> torch.Tensor:
+    """GwcNet's 3D `hourglass` forward (`conv1`..`conv6`, `redir1`, `redir2`) with both skips in the conv epilogues.
+
+    Upstream: `relu(conv5(bottom) + redir2(low))`, then `relu(conv6(up) + redir1(x))`.
+    """
+    low = hg.conv2(hg.conv1(x))
+    up = conv_residual(hg.conv5, hg.conv4(hg.conv3(low)), hg.redir2(low), ACT["relu"])
+    del low
+    return conv_residual(hg.conv6, up, hg.redir1(x), ACT["relu"])
+
+
 def fuse_selective(model: Patched, ratio: int = 4) -> int:
     """Keep the CUTLASS conv + epilogue only for stride > 1 convs and 1x1 expansions (out >= `ratio` x in channels).
 

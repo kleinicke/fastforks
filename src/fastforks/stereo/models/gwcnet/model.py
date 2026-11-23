@@ -64,10 +64,11 @@ def cost_volume(net: GwcNet, fl: dict[str, torch.Tensor], fr: dict[str, torch.Te
     return volume
 
 
-def forward(net: GwcNet, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+def forward(net: GwcNet, left: torch.Tensor, right: torch.Tensor, *, fused: bool = False) -> torch.Tensor:
     """Upstream's test forward with the row-chunked regression tail; disparity `[B, H, W]` float32.
 
-    Inputs are cast to the network's dtype (channels-last on CUDA); the regression runs in float32.
+    Inputs are cast to the network's dtype (channels-last on CUDA); the regression runs in float32. `fused` (kernels):
+    the residual adds and their ReLUs run in the conv epilogues (`cnn_kernels.conv_residual`).
     """
     p = next(net.parameters())
     fmt = torch.channels_last if p.is_cuda else torch.contiguous_format
@@ -77,9 +78,16 @@ def forward(net: GwcNet, left: torch.Tensor, right: torch.Tensor) -> torch.Tenso
     del fl, fr
     cost0 = net.dres0(volume)
     del volume
-    cost0 = net.dres1(cost0) + cost0
-    for hourglass in (net.dres2, net.dres3, net.dres4):
-        cost0 = hourglass(cost0)
+    if fused:
+        from fastforks.shared.cnn_kernels import conv_residual, stereo_hourglass  # noqa: PLC0415 - kernels only
+
+        cost0 = conv_residual(net.dres1, cost0, cost0)
+        for hourglass in (net.dres2, net.dres3, net.dres4):
+            cost0 = stereo_hourglass(hourglass, cost0)
+    else:
+        cost0 = net.dres1(cost0) + cost0
+        for hourglass in (net.dres2, net.dres3, net.dres4):
+            cost0 = hourglass(cost0)
     logits = net.classif3(cost0)
     del cost0
     return upsample_softmax_regress(logits, net.maxdisp, left.shape[2], left.shape[3])
@@ -122,7 +130,7 @@ class Kernels(Runner):
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity of a padded pair."""
-        return {"disparity": forward(self.net, left, right)}
+        return {"disparity": forward(self.net, left, right, fused=True)}
 
 
 RUNNERS = {
