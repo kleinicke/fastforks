@@ -24,6 +24,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import NUMPY_ARRAYS, config_globals
+from fastforks._core.mps import release
 from fastforks._core.upload import device_tensor
 from fastforks.depth._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
@@ -105,8 +106,12 @@ def build(ctx: Context) -> tuple[SD2Net, float]:
     """The checkpoint's UNet and empty-prompt embedding (file 0) and the VAE (file 1); also sqrt(alpha_bar)."""
     ckpt = cast("dict[str, object]", ctx.state_dict(0, strip="", extra={**NUMPY_ARRAYS, **config_globals()}))
     text = cast("torch.Tensor", ckpt["empty_text_embedding"])
-    with torch.device(ctx.device):
-        net = SD2Net(text.shape[1], heads=_HEADS)
+    # Allocate the checkpoint destination directly in inference precision. A float32 skeleton converted to float16
+    # on the device left 3.1 GiB in the MPS driver pool for good (5.3 instead of 2.2 GiB after loading).
+    dtype = torch.float16 if ctx.mode == "kernels" else ctx.torch_dtype
+    with torch.device("meta"):
+        net = SD2Net(text.shape[1], heads=_HEADS).to(dtype=dtype)
+    net.to_empty(device=ctx.device)
     unet = cast("dict[str, torch.Tensor]", ckpt["state_dict"])
     net.unet.load_state_dict(ldm_unet_keys(unet))
     net.vae.load_state_dict({old_attention_names(k): v for k, v in ctx.state_dict(1, strip="").items()})
@@ -180,6 +185,7 @@ class Portable(Runner):
         p, net, dt = self.ctx.params, self.net, self.dtype
         x = prepare(image, p.long_side).to(dt)
         z = net.vae.encode_mean(x).float() * LATENT_SCALE
+        release(z)  # MPS: the next stage cannot reuse this one's cached buffers (5 GiB after the encoder)
         (noise,) = self.noise(torch.Size((p.ensemble, *z.shape[1:])), z.device, torch.float32)
         y = math.sqrt(self.alpha_bar) * z + math.sqrt(1 - self.alpha_bar) * noise
         cond = z.to(dt).expand(p.ensemble, -1, -1, -1)
@@ -188,6 +194,7 @@ class Portable(Runner):
         for t, t1 in itertools.pairwise(grid):
             v = net.unet(torch.cat([y.to(dt), cond], dim=1), device_tensor(t, device=z.device), text)
             y = y + (t1 - t) * v.float()
+        release(z)
         decoded = _decode_ensemble(net.vae.decode, (y / LATENT_SCALE).to(dt))
         return finish(decoded, image.shape[-2:])
 
