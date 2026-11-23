@@ -14,15 +14,18 @@ import torch.nn.functional as F
 
 from fastforks._core import kernels
 from fastforks._core.errors import BackendUnavailableError, InputError
+from fastforks._core.patch import override
+from fastforks._core.upload import device_tensor
 from fastforks.kernels.dpt_fused import DEEP_K, DptFused
 from fastforks.kernels.fastbb import Flash64
 from fastforks.kernels.fastbb import load as load_kernels
 from fastforks.shared.depth_anything_v2.fast_vit import HEAD_DIM, _flash
 
 from .net.dinov3 import rope_table
+from .net.track_on import MSDA, D, DMSMHABlock, Frame, MHABlock
 
 if TYPE_CHECKING:
-    from .net.track_on import TrackOn2
+    from .net.track_on import Shapes, TrackOn2
 
 _INT32 = 2**31 - 1  # fixed: `rope_qk_h` indexes in int32
 
@@ -79,3 +82,111 @@ def install(net: TrackOn2) -> None:
 
     enc.vit_block = vit_block  # per-instance override
     enc.vit_rope = vit_rope  # ty: ignore[invalid-assignment]  # per-instance override
+    _install_mlps(net)
+
+
+def _install_mlps(net: TrackOn2) -> None:
+    """Every decoder / fusion block's MLP on `_mlp`."""
+    for mod in net.modules():
+        if isinstance(mod, MHABlock):
+            override(mod, _mha_forward)
+        elif isinstance(mod, DMSMHABlock):
+            override(mod, _dmsmha_forward)
+        elif isinstance(mod, MSDA):
+            override(mod, _msda_forward)
+    override(net, _correlation, "correlation")
+    last = net.memory_attention[-1]
+    override(last, _newest_row_forward)
+
+
+@torch.autocast("cuda", enabled=False)
+def _correlation(self: TrackOn2, q: torch.Tensor, frame: Frame) -> torch.Tensor:
+    """`TrackOn2.correlation` as one float32 GEMM against the mixed, upsampled features.
+
+    Bilinear upsampling and the 1 x 1 `ms_corr_proj` conv are linear, so upsampling each level's `qn @ u.T` maps and
+    mixing them equals `qn @ U + bias` with `U = sum_l w_l up(u_l)`: the four `[D, h_l, w_l]` feature levels are
+    upsampled once per call instead of `N` correlation maps per level (and nothing is rounded to fp16 on the way).
+    """
+    conv = self.ms_corr_proj
+    weight = conv.weight.float().view(-1)
+    mixed = None
+    for i, (u, (h, w)) in enumerate(zip(frame.unit, self.shapes, strict=True)):
+        m = u.float().T.reshape(1, D, h, w)
+        if (h, w) != (self.hf, self.wf):
+            m = F.interpolate(m, size=(self.hf, self.wf), mode="bilinear", align_corners=False)
+        mixed = m * weight[i] if mixed is None else mixed.add_(m * weight[i])
+    qn = F.normalize(q.float(), dim=-1)
+    return torch.addmm(cast("torch.Tensor", conv.bias).float(), qn, cast("torch.Tensor", mixed).view(D, -1))
+
+
+def _mlp(blk: MHABlock | DMSMHABlock, q: torch.Tensor) -> torch.Tensor:
+    """`norm2(q + linear2(relu(linear1(q))))` with the bias and ReLU of `linear1` in the GEMM epilogue.
+
+    `torch._addmm_activation` rounds `acc + bias` once and clamps, as autocast's fp16 `linear1` followed by `relu`
+    (`round(max(0, y)) == max(0, round(y))`), so the output is bit-identical while the ReLU pass over the
+    `[tokens, 4C]` activation goes (track-on-r 480 x 854: 144 such passes per clip).
+    """
+    w, b = blk.linear1.weight, blk.linear1.bias
+    rows = q.reshape(-1, q.shape[-1]).to(w.dtype)  # autocast's cast of the LayerNorm's float32 output
+    hid = torch._addmm_activation(b, rows, w.t())  # noqa: SLF001 - the cuBLASLt bias + ReLU epilogue
+    hid = hid.view(*q.shape[:-1], w.shape[0])
+    return blk.norm2(q + blk.linear2(hid))
+
+
+def _mha_forward(
+    self: MHABlock, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor | None = None
+) -> torch.Tensor:
+    return _mlp(self, self.norm1(q + self.mha(q, k, v, mask)))
+
+
+def _msda_forward(
+    self: MSDA, query: torch.Tensor, value: torch.Tensor, ref: torch.Tensor, shapes: Shapes
+) -> torch.Tensor:
+    """`MSDA.forward` on `_msda_sample`."""
+    b, q, _ = query.shape
+    h, nl, p = self.heads, self.levels, self.points
+    v = self.value_proj(value).view(b, value.shape[1], h, -1)
+    off = self.sampling_offsets(query).view(b, q, h, nl, p, 2).float()
+    w = self.attention_weights(query).view(b, q, h, nl * p).float().softmax(-1).view(b, q, h, nl, p)
+    norm = device_tensor([(wl, hl) for hl, wl in shapes], dtype=torch.float32, device=off.device)
+    loc = ref.float()[:, :, None, :, None, :] + off / norm[:, None, :]
+    return self.output_proj(_msda_sample(v, shapes, loc, w))
+
+
+def _msda_sample(value: torch.Tensor, shapes: Shapes, loc: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
+    """`net.track_on.msda_sample` with the points ahead of the queries: `grid_sample` writes `[B h, dh, P, Q]`.
+
+    The weighted sum over the points then reduces a middle axis with the queries contiguous, coalesced, where the
+    upstream `[B h, dh, Q, P]` order reduces 4-element rows; each sample is the same `grid_sample` value.
+    """
+    b, _, h, dh = value.shape
+    q, p = loc.shape[1], loc.shape[4]
+    grids = 2 * loc - 1
+    out = None
+    start = 0
+    for lvl, (hl, wl) in enumerate(shapes):
+        v = value[:, start : start + hl * wl].permute(0, 2, 3, 1).reshape(b * h, dh, hl, wl)
+        start += hl * wl
+        g = grids[:, :, :, lvl].permute(0, 2, 3, 1, 4).reshape(b * h, p, q, 2).to(v.dtype)
+        s = F.grid_sample(v, g, mode="bilinear", padding_mode="zeros", align_corners=False)  # [B h, dh, P, Q]
+        t = (s * weights[:, :, :, lvl].permute(0, 2, 3, 1).reshape(b * h, 1, p, q).to(s.dtype)).sum(2)
+        out = t if out is None else out + t
+    return cast("torch.Tensor", out).view(b, h * dh, q).transpose(1, 2)
+
+
+def _newest_row_forward(
+    self: MHABlock, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor | None = None
+) -> torch.Tensor:
+    """The last memory-attention layer for the newest row only, `[N, 1, D]`.
+
+    `TrackOn2.step` reads just `qkv[:, -1]` of it, and attention, MLP and norms are per row: 72 of the 73 rows of one of
+    the three layers are skipped.
+    """
+    q = q[:, -1:]
+    return _mlp(self, self.norm1(q + self.mha(q, k, v, mask)))
+
+
+def _dmsmha_forward(
+    self: DMSMHABlock, q: torch.Tensor, value: torch.Tensor, ref: torch.Tensor, shapes: Shapes
+) -> torch.Tensor:
+    return _mlp(self, self.norm1(q + q + self.mha(q, value, ref, shapes)))

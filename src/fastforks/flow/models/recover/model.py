@@ -98,7 +98,7 @@ def fold_layer_scales(net: nn.Module) -> int:
 def _hacc_forward(self: nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     from fastforks.kernels.cudnn_hacc import conv_half_acc  # noqa: PLC0415 - kernels only
 
-    return conv_half_acc(x.half(), self.weight, self.bias, list(self.padding), list(self.stride))  # ty: ignore
+    return conv_half_acc(x.half(), self.weight, self.bias, list(self.padding), list(self.stride), fuse_bias=True)  # ty: ignore
 
 
 def _hacc_convs(module: nn.Module) -> int:

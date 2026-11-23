@@ -100,11 +100,13 @@ class Portable(Runner):
             )
             for index, queries in enumerate(masks.split(query_step, dim=1)):
                 up = F.interpolate(queries, (hp, wp), mode="bilinear", align_corners=False)[..., :rh, :rw]
-                activated = resize(up, (h, w)).sigmoid_()
+                logits = resize(up, (h, w))
                 q0 = index * query_step
-                for start, stripe in strips:
-                    stripe[:, q0 : q0 + queries.shape[1]].copy_(activated[..., start : start + stripe.shape[2], :])
-                del up, activated
+                for start, stripe in strips:  # the sigmoid writes the stripe: no separate copy pass
+                    torch.sigmoid(
+                        logits[..., start : start + stripe.shape[2], :], out=stripe[:, q0 : q0 + queries.shape[1]]
+                    )
+                del up, logits
             del masks
         else:
             masks = F.interpolate(masks, (hp, wp), mode="bilinear", align_corners=False)[..., :rh, :rw]

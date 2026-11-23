@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
+from fastforks._core.layout import nchw
 from fastforks._core.sampling import grid_sample
 from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
@@ -105,7 +106,7 @@ def cost_volume(
     """
     gc = isinstance(fl, dict)
     if isinstance(fl, dict) and isinstance(fr, dict):
-        xg, xc = fl["gwc_feature"].float().contiguous(), fl["concat_feature"].float().contiguous()
+        xg, xc = nchw(fl["gwc_feature"]).float(), fl["concat_feature"].float().contiguous()
         y = torch.cat((fr["gwc_feature"], fr["concat_feature"]), 1).float()
         cg, channels = xg.shape[1], groups + 2 * xc.shape[1]
         dtype = fl["gwc_feature"].dtype

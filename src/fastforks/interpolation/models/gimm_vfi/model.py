@@ -35,6 +35,7 @@ from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from .net import GIMMVFI_R
 from .net.modules.fi_components import ResBlock
 from .net.modules.fi_utils import normalize_flow, resize, unnormalize_flow, warp
+from .net.modules.layers import Sine
 from .net.modules.softsplat import softsplat
 
 if TYPE_CHECKING:
@@ -255,7 +256,9 @@ def _update(  # noqa: PLR0913, PLR0917 - upstream's signature
     return h, mask, delta_flow
 
 
-def _hyponet(hn: HypoNet, coord: torch.Tensor, lat: torch.Tensor, chunk: int = HYPO_PIXELS) -> torch.Tensor:
+def _hyponet(
+    hn: HypoNet, coord: torch.Tensor, lat: torch.Tensor, chunk: int = HYPO_PIXELS, *, bias_epilogue: bool = False
+) -> torch.Tensor:
     """Upstream `HypoNet.forward(coord, None, pixel_latent=lat.permute(0, 2, 3, 1))` in pixel chunks: `[B, h, w, 2]`.
 
     The same ops per pixel (the latent resized to the coordinate grid, the SIREN layers as `bmm` on `[hidden, 1]`
@@ -263,6 +266,8 @@ def _hyponet(hn: HypoNet, coord: torch.Tensor, lat: torch.Tensor, chunk: int = H
     activations of the whole image (1 GB at 1080p) never exist. The parameters are prepared once, not per layer
     call (upstream multiplies them by a modulation of ones), and the resize is skipped when the sizes match
     (bilinear at scale 1 is the identity).
+
+    `bias_epilogue` (kernels) runs the layers as `_hyponet_addmm`.
     """
     b, h, w, _ = coord.shape
     if lat.shape[-2:] != (h, w):
@@ -274,6 +279,8 @@ def _hyponet(hn: HypoNet, coord: torch.Tensor, lat: torch.Tensor, chunk: int = H
         p = hn.params_dict[f"linear_wb{i}"]  # ty: ignore[not-subscriptable]  # set in __init__
         wgt = F.normalize(p[:-1], dim=0) if hn.normalize_weight else p[:-1]
         params.append(torch.cat([wgt, p[-1:]], 0).unsqueeze(0).expand(b, -1, -1))
+    if bias_epilogue:
+        return _hyponet_addmm(hn, coord, lat, params, chunk).view(b, h, w, -1)
     outs = []
     for s in range(0, h * w, chunk):
         hidden = torch.cat([lat[:, s : s + chunk], coord[:, s : s + chunk]], -1)
@@ -283,6 +290,38 @@ def _hyponet(hn: HypoNet, coord: torch.Tensor, lat: torch.Tensor, chunk: int = H
                 hidden = hn.activation(hidden)
         outs.append(hidden + hn.output_bias)
     return torch.cat(outs, 1).view(b, h, w, -1)
+
+
+def _hyponet_addmm(
+    hn: HypoNet, coord: torch.Tensor, lat: torch.Tensor, params: list[torch.Tensor], chunk: int
+) -> torch.Tensor:
+    """`_hyponet`'s layers as `addmm(b, hidden, W)` over the `[B h w, C]` pixels: `[B, h w, 2]`.
+
+    The GEMM adds the bias row in its epilogue instead of a ones column appended to every activation (a full copy of
+    it per layer); a SIREN `sin(w0 x)` takes `w0` into its layer's `W` and `b`, and the last layer takes the output
+    bias into its `b`. The same products, summed and scaled in another order.
+    """
+    b = coord.shape[0]
+    siren = base_type(hn.activation) is Sine
+    w0 = hn.activation.w0 if siren else 1.0
+    layers = []
+    for i, p in enumerate(params):
+        wgt, bias = p[0, :-1], p[0, -1]
+        if i < len(params) - 1:
+            wgt, bias = (wgt * w0, bias * w0) if siren else (wgt, bias)
+        else:
+            bias = bias + hn.output_bias  # a float or an `[out]` tensor
+        layers.append((wgt, bias))
+    lat, coord = lat.flatten(0, 1), coord.flatten(0, 1)
+    outs = []
+    for s in range(0, lat.shape[0], chunk):
+        hidden = torch.cat([lat[s : s + chunk], coord[s : s + chunk]], -1)
+        for i, (wgt, bias) in enumerate(layers):
+            hidden = torch.addmm(bias, hidden, wgt)
+            if i < len(layers) - 1:
+                hidden = hidden.sin_() if siren else hn.activation(hidden)
+        outs.append(hidden)
+    return torch.cat(outs, 0).view(b, -1, outs[0].shape[-1])
 
 
 def _predict_flow(  # noqa: PLR0913 - the network, flow and coordinate inputs, and portable fusion policy
@@ -320,7 +359,7 @@ def _predict_flow(  # noqa: PLR0913 - the network, flow and coordinate inputs, a
         del lat0, lat1
     lat = lat + res
     del res
-    return _hyponet(net.hyponet, coord[:, 0], lat).unsqueeze(1).permute(0, 4, 1, 2, 3)
+    return _hyponet(net.hyponet, coord[:, 0], lat, bias_epilogue=not portable).unsqueeze(1).permute(0, 4, 1, 2, 3)
 
 
 def _coords(b: int, h: int, w: int, t: torch.Tensor) -> torch.Tensor:
@@ -416,11 +455,13 @@ def _decoder(  # noqa: PLR0913, PLR0917 - upstream's signature
     the memory: the parts are made one at a time and dropped. `convblock` runs in row bands (`_banded`).
     """
     n = m.num_flows
+    mf = torch.channels_last if ft_.is_cuda else torch.contiguous_format
     flow0, flow1 = 4.0 * resize(flow0, scale_factor=4.0), 4.0 * resize(flow1, scale_factor=4.0)
-    ft_, mask = resize(ft_, scale_factor=4.0), resize(mask, scale_factor=4.0)
+    # resized in the buffer's layout: the same values, and `put` copies it without a transpose (128 x 1088 x 1920 fp16:
+    # 16.6 -> 10.9 ms for both)
+    ft_, mask = resize(ft_.contiguous(memory_format=mf), scale_factor=4.0), resize(mask, scale_factor=4.0)
     b, _, h, w = ft_.shape
     dt = _compute_dtype(ft_)
-    mf = torch.channels_last if ft_.is_cuda else torch.contiguous_format
     ch = m.convblock[0][0].in_channels  # ty: ignore[not-subscriptable]  # the first conv of the Sequential
     buf = torch.empty(b, ch, h, w, dtype=dt, device=ft_.device, memory_format=mf)
     c = 0

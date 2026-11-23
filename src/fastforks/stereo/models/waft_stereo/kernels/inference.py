@@ -89,6 +89,14 @@ def prepare_kernels(model: WAFT, device: torch.device) -> None:
             override(m, _resconv_forward)
         elif isinstance(m, Mlp) and isinstance(m.fc1, nn.Conv2d):
             override(m, _mlp_conv_forward)
+    # The update's 2 E + D + 1 channel input (145) gets zero-weight channels up to a multiple of 8: 16-byte pixels, so
+    # `forward_kernels` writes its parts straight into one channels-last buffer with vectorized copies.
+    fc1 = model.delta_proj.fc1
+    if pad := -fc1.in_channels % 8:
+        wide = nn.Conv2d(fc1.in_channels + pad, fc1.out_channels, 1, device=fc1.weight.device)
+        wide.weight.data = F.pad(fc1.weight.data, (0, 0, 0, 0, 0, pad))
+        wide.bias.data = fc1.bias.data.clone()
+        model.delta_proj.fc1 = wide
     cnn_kernels.prepare_generic(model, device)
     use_flash_attention(model)  # the iterative ViT (DINOv2's blocks are not timm `Attention`s)
     # `WAFT.normalize_image`'s constants, on the device once: its `new_tensor` is a host copy per call
@@ -135,9 +143,17 @@ def forward_kernels(model: WAFT, left: torch.Tensor, right: torch.Tensor) -> tor
     del prob, prop
     fmap2_f32 = fmap2.float()
     grid = _pixel_grid(fmap2_f32)
+    # the update's input `[fmap1, warped fmap2, hidden, disp]`, written part by part (and the zero channels once)
+    b, e, h, w = fmap1.shape
+    shape = (b, model.delta_proj.fc1.in_channels, h, w)
+    x = torch.empty(shape, dtype=fmap1.dtype, device=fmap1.device, memory_format=CL)
+    x[:, :e] = fmap1
+    d = hidden.shape[1]
+    x[:, 2 * e + d + 1 :] = 0
     for _ in range(model.iters):
-        warped = _disp_warp(fmap2_f32, disp, grid).half()
-        x = torch.cat([fmap1, warped, hidden, disp.half()], dim=1).contiguous(memory_format=CL)
+        x[:, e : 2 * e] = _disp_warp(fmap2_f32, disp, grid)
+        x[:, 2 * e : 2 * e + d] = hidden
+        x[:, 2 * e + d : 2 * e + d + 1] = disp
         hidden = model.delta_decoder(model.delta_proj(x))
         disp = disp + model.delta_disp_head(hidden).float()
     mask = 0.25 * model.delta_mask_head(hidden).float()

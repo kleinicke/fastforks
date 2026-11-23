@@ -110,3 +110,25 @@ def test_kernels_chunked_encoder_matches_upstream(monkeypatch: pytest.MonkeyPatc
         got = enc(a, b, mine := {})
     assert mine["H3W3"] == data["H3W3"]
     torch.testing.assert_close(got, want, rtol=1e-4, atol=1e-4)
+
+
+def test_kernels_gma_matrix_rows_and_fused_attention(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Beyond `GMA_MATRIX_BYTES` the matrix keeps its first rows and fused attention adds the rest: the same output."""
+    from fastforks.flow.models.flowformer import model  # noqa: PLC0415
+    from fastforks.flow.models.flowformer.net.FlowFormer.LatentCostFormer import gma  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    att = gma.Attention(args=None, dim=16, max_pos_size=7, heads=1, dim_head=16).eval()
+    agg = gma.Aggregate(args=None, dim=16, heads=1, dim_head=16).eval()
+    agg.gamma.data.fill_(1.0)
+    agg.to_v.half()
+    fmap = torch.randn(2, 16, 5, 6)
+    with torch.inference_mode():
+        whole = model._gma_attention(att, fmap)
+        monkeypatch.setattr(model, "GMA_MATRIX_BYTES", 2 * 30 * 2 * 7)  # 7 of 30 rows per image
+        split = model._gma_attention(att, fmap)
+        assert len(whole) == 1
+        assert len(split) == 3
+        assert split[0].shape[1] == 7
+        want, got = model._gma_aggregate(agg, whole, fmap), model._gma_aggregate(agg, split, fmap)
+    torch.testing.assert_close(got, want, rtol=0, atol=2e-3)

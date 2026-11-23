@@ -80,3 +80,32 @@ def correlation_band(left: torch.Tensor, right: torch.Tensor, disparities: int, 
             band = prod.as_strided((n, d, w), ((d + w) * w, w, w + 1), w).flip(1)
             torch.mul(band.transpose(0, 1), 1.0 / cg, out=dst[:, y : y + n])
     return out
+
+
+def gwc_volume_blocks(
+    left: torch.Tensor, right: torch.Tensor, depth: int, groups: int, block: int = 32
+) -> torch.Tensor:
+    """`correlation_band` for a small `depth` (kernels paths): channels-last-3d `[B, groups, depth, H, W]`.
+
+    Each row is cut into `block`-pixel windows, and one `baddbmm` computes every window's dot products with the
+    `block + depth - 1` `right` pixels it can pair with (`right` zero-padded by `depth - 1` in front), the mean's
+    `1 / C_g` in the GEMM epilogue: about `(block + depth) / depth` times the needed products instead of
+    `(W + depth) / depth`. Products are summed in float32 and rounded once to the features' dtype, as in
+    `correlation_band` (994 x 1482 stereo, 96 channels, 8 groups, depth 48: slab loop 13.9 -> 5.6 ms).
+    """
+    b, c, h, w = left.shape
+    cg = c // groups
+    nb = -(-w // block)
+    wp, span = nb * block, block + depth - 1
+
+    def rows(x: torch.Tensor) -> torch.Tensor:  # [B, H, groups, W, C_g]
+        return x.permute(0, 2, 3, 1).reshape(b, h, w, groups, cg).transpose(2, 3)
+
+    lb = F.pad(rows(left), (0, 0, 0, wp - w)).reshape(-1, block, cg)
+    rb = F.pad(rows(right), (0, 0, depth - 1, wp - w)).unfold(3, span, block).reshape(-1, cg, span)
+    m = torch.baddbmm(lb.new_empty(()).expand(lb.shape[0], block, span), lb, rb, beta=0, alpha=1.0 / cg)
+    band = m.as_strided((m.shape[0], block, depth), (block * span, span + 1, 1))  # [..., e]: disparity depth - 1 - e
+    band = band.view(b, h, groups, nb, block, depth).flip(-1).view(b, h, groups, wp, depth)[:, :, :, :w]
+    shape = (b, groups, depth, h, w)
+    out = torch.empty(shape, dtype=left.dtype, device=left.device, memory_format=torch.channels_last_3d)
+    return out.copy_(band.permute(0, 2, 4, 1, 3))

@@ -5,6 +5,7 @@ from pathlib import Path
 import torch
 
 from fastforks._core.kernels import cubin_library, linear
+from fastforks._core.layout import nchw
 
 SIGNATURES = dict.fromkeys(("coarse_half", "coarse_float", "refinement"), "ppppppiiiiiil")
 load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
@@ -43,7 +44,7 @@ def volume(
     load(gl.device).launch(
         name,
         *linear(out.numel()),
-        *(v.contiguous() for v in features),
+        *(nchw(v) for v in features),
         samples,
         out,
         groups,

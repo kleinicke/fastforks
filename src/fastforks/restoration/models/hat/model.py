@@ -256,7 +256,9 @@ class Portable(Runner):
 
 
 def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
-    return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
+    # the bias inside cuDNN's conv + bias plan: hat-s-x4 512^2 691 -> 671 ms, vs fp32 mean 4.06e-4 -> 4.13e-4
+    # (DAT's convs gained nothing: 1045 -> 1047 ms)
+    return cudnn_hacc.conv_half_acc(x, conv.weight, conv.bias, conv.padding, conv.stride, conv.dilation, fuse_bias=True)  # ty: ignore[invalid-argument-type]
 
 
 _CHANNEL_ALIGN = 8  # fixed: cuDNN pads NHWC fp16 convolutions to multiples of 8 channels with an extra copy

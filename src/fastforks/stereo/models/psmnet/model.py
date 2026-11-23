@@ -55,12 +55,19 @@ def _fold_batchnorms(module: nn.Module) -> None:
                 seq[i + 1] = nn.Identity()
 
 
-def cost_volume(net: PSMNet, ref: torch.Tensor, tgt: torch.Tensor) -> torch.Tensor:
-    """Upstream's concatenation volume `[B, 2C, D, H, W]` in the features' dtype (upstream: float32)."""
+def cost_volume(
+    net: PSMNet, ref: torch.Tensor, tgt: torch.Tensor, memory_format: torch.memory_format = torch.contiguous_format
+) -> torch.Tensor:
+    """Upstream's concatenation volume `[B, 2C, D, H, W]` in the features' dtype (upstream: float32).
+
+    `memory_format=torch.channels_last_3d` (kernels: the layout the `cudnn_hacc` convs take) writes the channels-last
+    features without a transpose and spares the first conv its conversion.
+    """
     if torch.compiler.is_exporting():
         return stacked_volume(ref, tgt, net.maxdisp // 4, concat_fn)
     b, c, h, w = ref.shape
-    volume = ref.new_zeros((b, 2 * c, net.maxdisp // 4, h, w))
+    shape = (b, 2 * c, net.maxdisp // 4, h, w)
+    volume = torch.empty(shape, dtype=ref.dtype, device=ref.device, memory_format=memory_format).zero_()
     for i in range(min(net.maxdisp // 4, w)):  # disparities >= width: no overlap, stays zero
         volume[:, :c, i, :, i:] = ref[..., i:]
         volume[:, c:, i, :, i:] = tgt[..., : w - i]
@@ -105,7 +112,8 @@ def forward(net: PSMNet, left: torch.Tensor, right: torch.Tensor, *, fused: bool
     p = next(net.parameters())
     fmt = torch.channels_last if p.is_cuda else torch.contiguous_format
     left, right = (x.to(p.dtype).contiguous(memory_format=fmt) for x in (left, right))
-    volume = cost_volume(net, net.feature_extraction(left), net.feature_extraction(right))
+    vf = torch.channels_last_3d if fused else torch.contiguous_format
+    volume = cost_volume(net, net.feature_extraction(left), net.feature_extraction(right), vf)
     cost0 = net.dres0(volume)
     del volume
     if fused:
