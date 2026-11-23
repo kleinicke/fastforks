@@ -50,7 +50,6 @@
    "parseq",
    "parseq-tiny",
    "seedvr2-3b",
-   "seedvr2-7b",
    "segformer-b0-ade20k",
    "vit_so400m_patch14_siglip_378.webli_ft_in1k",
    "xfeat",

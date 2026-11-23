@@ -39,7 +39,13 @@ class State(Enum):
 
 
 class CausalConv3d(nn.Conv3d):
-    """`InflatedCausalConv3d`: spatial padding in the convolution, temporal padding by repetition or memory."""
+    """`InflatedCausalConv3d`: spatial padding in the convolution, temporal padding by repetition or memory.
+
+    `fold_time()` (kernels, one-frame clips): every output frame then reads `k_t` copies of the one input frame (the
+    first frame repeated as padding), which is a 2-D convolution with the kernel summed over time (in float32, rounded
+    once to the weight dtype): a third of the arithmetic and no stacked copy of the frames. Only the summed kernel is
+    kept; a clip of several frames then raises.
+    """
 
     def __init__(
         self,
@@ -58,21 +64,30 @@ class CausalConv3d(nn.Conv3d):
         self.head = 2 * p[0]
         self.keep = k[0] - s[0]
         self.memory: torch.Tensor | None = None
+        self.time_sum: torch.Tensor | None
+        self.register_buffer("time_sum", None)  # `fold_time`
 
     def forward(self, x: torch.Tensor, state: State) -> torch.Tensor:
         kt, st = self.kernel_size[0], self.stride[0]
         if kt == 1:
             return super().forward(x[:, :, ::st])
+        repeats = False  # every input frame is the one frame of `x`
         if state is State.ACTIVE and self.memory is not None:
             frames = list(self.memory.unbind(2)) + list(x.unbind(2))
         else:
             frames = [x[:, :, 0]] * self.head + list(x.unbind(2))
+            repeats = x.shape[2] == 1
         if self.keep and state is not State.DISABLED:
             self.memory = torch.stack(frames[len(frames) - self.keep :], 2)  # a copy, not a view of the clip
         else:
             self.memory = None
         # one output frame at a time from its kt input frames: no padded copy of the whole clip
         n = (len(frames) - kt) // st + 1
+        if self.time_sum is not None:
+            if not (repeats and n == 1):
+                msg = "the convolution's time kernel is folded (fold_time): one-frame clips only"
+                raise RuntimeError(msg)
+            return F.conv2d(frames[0], self.time_sum, self.bias, self.stride[1:], self.padding[1:]).unsqueeze(2)
         if (
             not (torch.compiler.is_compiling() or torch.jit.is_tracing())
             and torch.is_inference_mode_enabled()
@@ -92,6 +107,15 @@ class CausalConv3d(nn.Conv3d):
                 out = y.new_empty((*y.shape[:2], n, *y.shape[3:]))
             out[:, :, j : j + 1] = y
         return out
+
+    def fold_time(self) -> None:
+        """Replace the 3-D kernel by its sum over time (one-frame clips only, see the class docstring)."""
+        if self.kernel_size[0] == 1:  # already 2-D in effect: `forward` reads every `stride`-th frame
+            return
+        with torch.no_grad():
+            w = self.weight.float().sum(2).to(self.weight.dtype)
+        del self.weight
+        self.time_sum = w
 
     def _spatial_strips(self, frames: list[torch.Tensor]) -> torch.Tensor:
         """Apply a stride-one 3x3 convolution to rows with one input halo on either side."""

@@ -14,8 +14,10 @@ shapes), so a seed and size give the same noise on every device and in every mod
 reads the others from the weight file per call (`net.mlx_net.Transformer`); `quant = "nf4"` quantises the blocks'
 linear weights to NF4 at load (bitsandbytes' format, `fastforks.shared.nf4`) and expands each to bf16 per call: ~3.5x
 smaller transformer, a small quality cost (measured 2026-11-14). Both are explicit options, printed when used,
-never silent fallbacks. The kernels backend expands NF4 weights with one fused kernel (`fastforks.kernels.nf4`);
-without `quant` it is the portable path.
+never silent fallbacks. The kernels backend expands NF4 weights with one fused kernel (`fastforks.kernels.nf4`) and
+runs the VAE's causal 3-D convolutions as 2-D ones with the kernel summed over time (`CausalConv3d.fold_time`): one
+frame per call, so every 3-D window reads copies of the same frame (512 x 512 x2, 7B: 2868 -> 2036 ms, peak 3732 ->
+3538 MiB, RTX 5060 Ti; closer to the golden than portable).
 """
 
 from __future__ import annotations
@@ -33,6 +35,7 @@ from fastforks.shared.nf4 import code as nf4_code
 
 from .net import BF, CONFIGS, LATENT, SPATIAL, Net
 from .net import load as build_net
+from .net.vae import CausalConv3d
 
 if TYPE_CHECKING:
     from fastforks.restoration._runner import Context
@@ -126,7 +129,7 @@ class Portable(Runner):
 
 
 class Kernels(Runner):
-    """Portable with the NF4 expansion (`quant = "nf4"`) as one fused kernel (`nf4`): one read of the packed bytes."""
+    """Portable with the VAE's time kernels folded (one frame per call) and the NF4 expansion as one fused kernel."""
 
     batch = 1
     Params = Params
@@ -136,6 +139,9 @@ class Kernels(Runner):
         super().__init__(ctx)
         _announce(ctx)
         self.net = _build(ctx)
+        for m in self.net.vae.modules():
+            if isinstance(m, CausalConv3d):
+                m.fold_time()  # `infer` restores one frame per call
         if ctx.params.quant == "nf4":
             nf4.load(ctx.device)
             self.net.dit.dequant = _Dequant(ctx.device)

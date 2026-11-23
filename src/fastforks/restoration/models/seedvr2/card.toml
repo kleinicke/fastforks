@@ -54,7 +54,7 @@ mlx_dtypes = ["bfloat16", "float16"]  # MLX port (net/mlx_net.py): no float32, i
 
 [modes.kernels]
 dtype = "bfloat16"
-kernels = ["nf4"]  # the NF4 expansion of `quant = "nf4"` as one fused kernel; without quant the portable path
+kernels = ["nf4"]  # the NF4 expansion of `quant = "nf4"` as one fused kernel; the VAE's 3-D convolutions as 2-D ones with the time-summed kernel (one frame per call)
 
 [[papers]]
 title = "SeedVR2: One-Step Video Restoration via Diffusion Adversarial Post-Training"
