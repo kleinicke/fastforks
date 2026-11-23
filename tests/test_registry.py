@@ -279,3 +279,10 @@ def test_features_export_at_a_fixed_size():
 
     for card, v in registry.cards("features").values():
         assert fixed_size_reason(card, size_range(v, card)), v.id
+
+
+def test_listing_models_does_not_import_torch() -> None:
+    """Cards are read as files: importing the task packages would import torch (~1.5 s for `fastforks list`)."""
+    code = "import sys, fastforks; assert fastforks.list_models(); print('torch' in sys.modules)"
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
+    assert out.stdout.strip() == "False"

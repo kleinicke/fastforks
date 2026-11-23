@@ -35,6 +35,7 @@ from fastforks._core.tasks import TASK_SPECS
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Mapping, Sequence
+    from importlib.resources.abc import Traversable
     from types import ModuleType
 
 
@@ -49,7 +50,7 @@ def cards(task: str) -> Mapping[str, tuple[ModelCard, Variant]]:
     Raises:
         CardError: Two cards declare the same model id.
     """
-    root = importlib.resources.files(f"fastforks.{task}.models")
+    root = _models_dir(task)
     found: dict[str, tuple[ModelCard, Variant]] = {}
     for entry in sorted(root.iterdir(), key=lambda e: e.name):
         card_file = entry / "card.toml"
@@ -62,6 +63,15 @@ def cards(task: str) -> Mapping[str, tuple[ModelCard, Variant]]:
                 raise CardError(msg)
             found[v.id] = (card, v)
     return MappingProxyType(dict(sorted(found.items())))  # cached: read-only for callers
+
+
+def _models_dir(task: str) -> Traversable:
+    """`fastforks/<task>/models`, as files when the package is installed as files.
+
+    `importlib.resources` would import the task package, and with it torch (~1.5 s for a listing that reads only cards).
+    """
+    root = Path(__file__).resolve().parents[1] / task / "models"
+    return root if root.is_dir() else importlib.resources.files(f"fastforks.{task}.models")
 
 
 @functools.cache
