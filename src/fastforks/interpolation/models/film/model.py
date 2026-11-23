@@ -34,6 +34,7 @@ from .net.util import build_image_pyramid, flow_pyramid_synthesis
 if TYPE_CHECKING:
     from fastforks.interpolation._runner import Context
 
+    from .net.feature_extractor import FeatureExtractor
     from .net.fusion import Fusion
     from .net.pyramid_flow_estimator import FlowEstimator, PyramidFlowEstimator
 
@@ -256,6 +257,24 @@ def _residual_flows(flows: _Flows, feats: list[torch.Tensor]) -> list[torch.Tens
     return residuals
 
 
+def _cascade(extract: FeatureExtractor, images: list[torch.Tensor]) -> list[torch.Tensor]:
+    """`FeatureExtractor.forward` with each level's features built by one `cat`.
+
+    Upstream concatenates one sub-level at a time (each copy of the growing map) after every sub-pyramid is extracted;
+    here a level is built as soon as its sub-pyramid is, and its sub-levels are dropped then.
+    """
+    subs: dict[tuple[int, int], torch.Tensor] = {}  # (image level, sub-level) -> features
+    feats = []
+    for i, image in enumerate(images):
+        pyramid = extract.extract_sublevels(image, min(len(images) - i, extract.sub_levels))
+        subs.update({(i, j): f for j, f in enumerate(pyramid)})
+        del pyramid
+        parts = [subs.pop((i - j, j)) for j in range(min(i + 1, extract.sub_levels))]
+        feats.append(parts[0] if len(parts) == 1 else torch.cat(parts, 1))
+        del parts
+    return feats
+
+
 def _interpolate(net: Interpolator, image1: torch.Tensor, image2: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
     """`Interpolator.forward` of padded RGB `[B, 3, H, W]` frames at time `t` `[B, 1, 1, 1]` (the frame unclamped)."""
     b = image1.shape[0]
@@ -264,7 +283,7 @@ def _interpolate(net: Interpolator, image1: torch.Tensor, image2: torch.Tensor, 
     dtype = fuse.output_conv.weight.dtype
     fmt = torch.channels_last if image1.is_cuda else torch.contiguous_format
     images = build_image_pyramid(torch.cat((image1, image2)).to(dtype, memory_format=fmt), net.pyramid_levels)
-    feats = net.extract(images)
+    feats = _cascade(net.extract, images)
     flows = flow_pyramid_synthesis(_residual_flows(predict, feats))[: net.fusion_pyramid_levels]
     # rows [:b]: frame 1 -> 2 (upstream's forward flow, scaled by 1 - t), [b:]: 2 -> 1 (backward, by t); frame 1 is
     # read with the backward flow and frame 2 with the forward one: sample n reads with the flow of row (n + b) % 2b
