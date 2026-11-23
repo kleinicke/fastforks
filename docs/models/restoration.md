@@ -721,7 +721,7 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - Licence evidence: https://github.com/ByteDance-Seed/SeedVR/blob/e4de8c24441a67e1b7df56abea10645059bb1185/LICENSE ; https://huggingface.co/ByteDance-Seed/SeedVR2-3B (license: apache-2.0)
 - Training data: Paper (arXiv 2506.05301): adversarial post-training of SeedVR on large-scale image and video data with synthetic degradations; the data sources and terms are not stated.
 - Licence note: The converted weight files (bf16 transformer with the fixed prompt embedding, bf16 VAE) are hosted by fastforks under the originals' Apache-2.0 licence; NOTICE keeps the attribution and lists the changes.
-- Options: `seed` = 666, `stream` = True, `quant` = none (one of 'none', 'nf4')
+- Options: `seed` = 666, `stream` = True, `quant` = none (one of 'none', 'nf4'), `keep` = 0.0
 - Kernel libraries: `nf4`
 - Variants: `seedvr2-3b`, `seedvr2-7b`
 - Outputs: image
