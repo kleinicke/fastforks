@@ -2316,19 +2316,24 @@ def _cubic(t: np.ndarray) -> np.ndarray:
 
 
 def _aa_matrix(inp: int, out: int, align: bool, scale: float | None, *, cubic: bool = False) -> np.ndarray:
-    """`[out, inp]` weights of PyTorch's antialiased bilinear / bicubic resize along one axis (normalised)."""
-    s = (inp - 1) / (out - 1) if align and out > 1 else (1.0 / scale if scale else inp / out)
+    """`[out, inp]` weights of PyTorch's antialiased bilinear / bicubic resize along one axis (normalised).
+
+    `align_corners` changes the step only (`(inp - 1) / (out - 1)`, 0 for one output sample): PyTorch keeps the
+    half-pixel centre `step * (i + 0.5)` and the same window for it (`_compute_indices_min_size_weights_aa`).
+    """
+    aligned = (inp - 1) / (out - 1) if out > 1 else 0.0
+    s = aligned if align else (1.0 / scale if scale and scale > 0 else inp / out)
     support = max(s, 1.0) * (2.0 if cubic else 1.0)
     inv = 1.0 / s if s >= 1.0 else 1.0
-    m = np.zeros((out, inp), dtype=np.float32)
+    m = np.zeros((out, inp), dtype=np.float64)
     for i in range(out):
-        c = s * i if align else s * (i + 0.5)
+        c = s * (i + 0.5)
         lo = max(int(c - support + 0.5), 0)
         hi = min(int(c + support + 0.5), inp)
-        t = (np.arange(lo, hi) - c + (0.0 if align else 0.5)) * inv
+        t = (np.arange(lo, hi) - c + 0.5) * inv
         w = _cubic(t) if cubic else np.maximum(0.0, 1.0 - np.abs(t))
         m[i, lo:hi] = w / w.sum() if w.sum() > 0 else 0.0
-    return m
+    return m.astype(np.float32)
 
 
 @_reg(aten._upsample_bilinear2d_aa.default, aten._upsample_bilinear2d_aa.vec)
@@ -2367,18 +2372,37 @@ def _resize_aa(
     return out
 
 
+def _nearest_plan(hw: Sequence[int], size: Sequence[int] | None, scales: tuple[Any, ...]) -> list[np.ndarray]:
+    """Per spatial axis, the source index of each output sample of PyTorch's `nearest` (`floor(i * step)`, clamped).
+
+    The step is `1 / scale_factor` when a scale reaches the op (`F.interpolate(scale_factor=...)` without
+    `recompute_scale_factor`) and `input / output` only for a plain size: the two differ whenever `input * scale` is
+    no integer (width 5 at 1.3: `[0, 0, 1, 2, 3, 3]`, not `[0, 0, 1, 2, 3, 4]`). Computed in float32, as PyTorch does,
+    and with its two shortcuts, which ignore the scale (width 3 at 1.3 stays `[0, 1, 2]`).
+    """
+    fac: Sequence[float | None] = (None,) * len(hw)
+    if size is None:
+        first = scales[0]
+        fac = tuple(first) if isinstance(first, (list, tuple)) else tuple(scales[: len(hw)])
+        size = [int(i * f) for i, f in zip(hw, fac, strict=True)]  # type: ignore[operator]
+    elif len(scales) >= len(hw) and not isinstance(scales[0], (list, tuple)):
+        fac = tuple(scales[: len(hw)])  # `.default`: a size together with the scales it came from
+    elif scales and isinstance(scales[0], (list, tuple)):
+        fac = tuple(scales[0])
+    plan = []
+    for i, o, f in zip(hw, size, fac, strict=True):
+        if o in (i, 2 * i):  # ATen's `nearest_idx` shortcuts: the same size is the identity, twice it `i >> 1`
+            plan.append(np.arange(o, dtype=np.int32) // (o // i))
+            continue
+        step = np.float32(1.0 / f if f is not None and f > 0 else i / o)
+        plan.append(np.minimum(np.floor(np.arange(o, dtype=np.float32) * step).astype(np.int32), i - 1))
+    return plan
+
+
 @_reg(aten.upsample_nearest2d.default, aten.upsample_nearest2d.vec)
 def _nearest(x: mx.array, size: Sequence[int] | None, *scales: Any) -> mx.array:
-    h, w = x.shape[2:]
-    if size is None:
-        fac = scales[0]
-        sh, sw = (fac[0], fac[1]) if isinstance(fac, (list, tuple)) else (scales[0], scales[1])
-        oh, ow = int(h * sh), int(w * sw)
-    else:
-        oh, ow = size
-    ys = mx.minimum(mx.floor(mx.arange(oh, dtype=mx.float32) * (h / oh)).astype(mx.int32), h - 1)
-    xs = mx.minimum(mx.floor(mx.arange(ow, dtype=mx.float32) * (w / ow)).astype(mx.int32), w - 1)
-    return mx.take(mx.take(x, ys, axis=2), xs, axis=3)
+    ys, xs = _nearest_plan(x.shape[2:], size, scales)
+    return mx.take(mx.take(x, mx.array(ys), axis=2), mx.array(xs), axis=3)
 
 
 # ---- channels-last execution of layout-insensitive ops --------------------------------------------------------------
@@ -2484,18 +2508,13 @@ def _nearest_cl(x: mx.array, size: Sequence[int] | None, *scales: Any) -> mx.arr
     if x.ndim != 4:
         return _nearest(x, size, *scales)
     h, w = x.shape[2:]
-    if size is None:
-        fac = scales[0]
-        sh, sw = (fac[0], fac[1]) if isinstance(fac, (list, tuple)) else (scales[0], scales[1])
-        oh, ow = int(h * sh), int(w * sw)
-    else:
-        oh, ow = size
+    ys, xs = _nearest_plan((h, w), size, scales)
+    oh, ow = len(ys), len(xs)
     xl = _cl(x)
-    if oh % h or ow % w:
-        ys = mx.minimum(mx.floor(mx.arange(oh, dtype=mx.float32) * (h / oh)).astype(mx.int32), h - 1)
-        xs = mx.minimum(mx.floor(mx.arange(ow, dtype=mx.float32) * (w / ow)).astype(mx.int32), w - 1)
-        return _uncl(mx.take(mx.take(xl, ys, axis=1), xs, axis=2))
     fh, fw = oh // h, ow // w
+    repeat = oh == h * fh and ow == w * fw and oh > 0 and ow > 0  # a whole-number repeat, if the plan says so too
+    if not (repeat and np.array_equal(ys, np.arange(oh) // fh) and np.array_equal(xs, np.arange(ow) // fw)):
+        return _uncl(mx.take(mx.take(xl, mx.array(ys), axis=1), mx.array(xs), axis=2))
     n, _, _, c = xl.shape
     y = mx.broadcast_to(xl[:, :, None, :, None, :], (n, h, fh, w, fw, c))
     return _uncl(y.reshape(n, oh, ow, c))

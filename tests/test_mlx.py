@@ -446,6 +446,55 @@ def test_channels_last_instance_norm_and_bilinear_match_torch(align):
     torch.testing.assert_close(MlxModule(m, "float32")(x), m(x), atol=1e-4, rtol=1e-4)
 
 
+@pytest.mark.parametrize(
+    "resize",
+    [
+        {"scale_factor": 1.3},
+        {"scale_factor": 2.4},
+        {"scale_factor": (2.0, 0.6)},
+        {"scale_factor": 3},
+        {"scale_factor": 1.3, "recompute_scale_factor": True},
+        {"size": (13, 4)},
+    ],
+)
+@pytest.mark.parametrize("after_conv", [False, True])
+def test_nearest_resize_picks_torchs_source_pixels(resize, after_conv):
+    """Nearest resize steps by `1 / scale_factor` when a scale is given (not by input / output), plain and NHWC."""
+    pytest.importorskip("mlx.core")
+    from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - optional (the mlx extra)
+
+    class Net(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.conv = torch.nn.Conv2d(2, 2, 1) if after_conv else torch.nn.Identity()
+
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            return torch.nn.functional.interpolate(self.conv(x), mode="nearest", **resize) * 1.0
+
+    torch.manual_seed(0)
+    m = Net().eval()
+    for hw in ((5, 5), (2, 7), (10, 3)):
+        x = torch.randn(1, 2, *hw)
+        torch.testing.assert_close(MlxModule(m, "float32")(x), m(x), atol=1e-6, rtol=1e-6)
+
+
+@pytest.mark.parametrize("mode", ["bilinear", "bicubic"])
+@pytest.mark.parametrize("align", [False, True])
+@pytest.mark.parametrize("size", [(7, 9), (1, 16), (20, 5)])
+def test_antialiased_resize_matches_torch(mode, align, size):
+    pytest.importorskip("mlx.core")
+    from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - optional (the mlx extra)
+
+    class Net(torch.nn.Module):
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            return torch.nn.functional.interpolate(x, size=size, mode=mode, align_corners=align, antialias=True)
+
+    torch.manual_seed(0)
+    x = torch.randn(1, 2, 16, 12)
+    m = Net().eval()
+    torch.testing.assert_close(MlxModule(m, "float32")(x), m(x), atol=1e-5, rtol=1e-5)
+
+
 def test_fp32_inputs_keep_float32_in_a_float16_replay():
     """`MlxModule(fp32_inputs=...)`: the named argument enters a float16 replay unrounded, the others are cast."""
     pytest.importorskip("mlx.core")
