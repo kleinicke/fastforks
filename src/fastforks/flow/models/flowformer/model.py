@@ -30,8 +30,8 @@ if TYPE_CHECKING:
 RADIUS = 4  # fixed: upstream's `encode_flow_token` window: (2 r + 1)^2 = 81 costs per pixel
 LOOKUP_PIXELS = 8192  # fixed: the window lookup gathers 100 feature vectors per pixel for this many pixels at a time
 # fixed: GMA's attention matrix (1/8 pixels squared, float16) is kept up to this size and multiplied once per iteration;
-# larger inputs recompute softmax(q k) v with fused attention instead (1080 x 1920: 12.6 ms per iteration instead of
-# 5.9 ms, without the 2 GiB matrix)
+# the rows beyond it are recomputed as softmax(q k) v with fused attention in each iteration (1080 x 1920: all rows
+# fused 12.6 ms per iteration, the whole 2 GiB matrix 5.9 ms, its first half kept 9.8 ms)
 GMA_MATRIX_BYTES = 1 << 30
 
 
@@ -350,18 +350,24 @@ def _windows(_decoder: MemoryDecoder, vol: _Volume, coords: torch.Tensor) -> tor
 
 
 def _gma_attention(att: Attention, fmap: torch.Tensor) -> tuple[torch.Tensor, ...]:
-    """Upstream GMA `Attention.forward` (one head) in float16: the softmax matrix, or for large inputs `(q, k)`."""
+    """Upstream GMA `Attention.forward` (one head) in float16: the softmax matrix.
+
+    Beyond `GMA_MATRIX_BYTES` only its first rows: then also `(q, k)` of the remaining queries, for fused attention.
+    """
     assert att.heads == 1  # noqa: S101 - FlowFormer's GMA
     q, k = att.to_qk(fmap).chunk(2, dim=1)
     q = (att.scale * q).flatten(2).transpose(1, 2).half()
     k = k.flatten(2).transpose(1, 2).half()
-    if q.shape[1] ** 2 * q.element_size() <= GMA_MATRIX_BYTES:
-        return (softmax_rows_(torch.bmm(q, k.transpose(1, 2)), 32 << 20),)
-    return q[:, None].contiguous(), k[:, None].contiguous()
+    b, n = q.shape[:2]
+    rows = min(n, GMA_MATRIX_BYTES // (b * n * q.element_size()))
+    matrix = softmax_rows_(torch.bmm(q[:, :rows], k.transpose(1, 2)), 32 << 20)
+    if rows == n:
+        return (matrix,)
+    return matrix, q[:, None, rows:].contiguous(), k[:, None].contiguous()
 
 
 def _gma_aggregate(agg: Aggregate, attention: tuple[torch.Tensor, ...], fmap: torch.Tensor) -> torch.Tensor:
-    """Upstream GMA `Aggregate.forward` with `_gma_attention`'s matrix or fused attention, in float16.
+    """Upstream GMA `Aggregate.forward` with `_gma_attention`'s matrix rows and fused attention, in float16.
 
     `to_v` is an fp16 channels-last conv: its `[B, H W, C]` tokens are a view, and so is the result as an image.
     """
@@ -370,8 +376,11 @@ def _gma_aggregate(agg: Aggregate, attention: tuple[torch.Tensor, ...], fmap: to
     if len(attention) == 1:
         out = torch.bmm(attention[0], v)
     else:
-        q, k = attention
-        out = F.scaled_dot_product_attention(q, k, v[:, None], scale=1.0)[:, 0]
+        matrix, q, k = attention
+        rows = matrix.shape[1]
+        out = v.new_empty(v.shape)
+        torch.bmm(matrix, v, out=out[:, :rows])
+        out[:, rows:] = F.scaled_dot_product_attention(q, k, v[:, None], scale=1.0)[:, 0]
     out = out.view(b, h, w, -1).permute(0, 3, 1, 2)
     if agg.project is not None:
         out = agg.project(out.float())
