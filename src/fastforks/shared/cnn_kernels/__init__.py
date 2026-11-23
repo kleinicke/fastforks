@@ -428,6 +428,44 @@ def patch_norms(model: Patched) -> None:
             override(m, _instance_norm_forward)  # torch's returns NCHW for an NHWC input
 
 
+# ------------------------------------------------------------------------------------------------ padding
+REFLECT_MIN_CHANNELS = 8  # fixed: measured (RTX 5060 Ti): below it torch's kernel wins (3 channels: 0.03 / 0.23 ms)
+
+
+def reflect_pad(x: torch.Tensor, pad: tuple[int, int, int, int]) -> torch.Tensor:
+    """`F.pad(x, pad, mode="reflect")` of a 4-D `x` as a channels-last tensor (the same values).
+
+    torch's reflection pad returns NCHW for a channels-last input, so a channels-last conv after it converts back: two
+    full copies (64 x 512 x 512 fp16, pad 3: 1.83 ms) where this writes the interior once (0.21 ms).
+    """
+    left, right, top, bottom = pad
+    n, c, h, w = x.shape
+    out = torch.empty((n, c, h + top + bottom, w + left + right), device=x.device, dtype=x.dtype, memory_format=CL)
+    out[:, :, top : top + h, left : left + w] = x
+    if left:
+        out[:, :, top : top + h, :left] = x[..., 1 : left + 1].flip(3)
+    if right:
+        out[:, :, top : top + h, left + w :] = x[..., w - right - 1 : w - 1].flip(3)
+    if top:
+        out[:, :, :top] = out[:, :, top + 1 : 2 * top + 1].flip(2)
+    if bottom:
+        out[:, :, top + h :] = out[:, :, top + h - bottom - 1 : top + h - 1].flip(2)
+    return out
+
+
+def _reflect_forward(self: Patched, x: torch.Tensor) -> torch.Tensor:
+    if x.dim() == 4 and x.shape[1] >= REFLECT_MIN_CHANNELS and x.is_contiguous(memory_format=CL):  # noqa: PLR2004 - NCHW
+        return reflect_pad(x, self.padding)
+    return F.pad(x, self.padding, mode="reflect")
+
+
+def patch_reflection_pads(model: Patched) -> None:
+    """Every `ReflectionPad2d` keeps a channels-last input channels-last (`reflect_pad`)."""
+    for m in model.modules():
+        if is_base(m, nn.ReflectionPad2d):
+            override(m, _reflect_forward)
+
+
 # ------------------------------------------------------------------------------------------------ convs
 def _conv_forward(self: Patched, x: torch.Tensor) -> torch.Tensor:
     return conv_ep(self, x)
