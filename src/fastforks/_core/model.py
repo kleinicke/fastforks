@@ -1039,6 +1039,16 @@ def _no_auto_kernels(  # noqa: PLR0911 - one return per reason
     return None
 
 
+def _auto_mps_dtype(card: ModelCard, variant: Variant) -> Dtype | None:
+    """The reduced dtype `mode="auto"` takes for portable on Apple MPS without a `dtype`; None: float32.
+
+    float16 where the card validates it on MPS and the survey measured it faster, or as fast with less memory, than
+    float32 (`mps_dtype` of apple_mlx.json): the precision `auto` already takes with the Metal kernels and on CUDA.
+    """
+    dtype = _apple_mlx().get(variant.ref, {}).get("mps_dtype")
+    return dtype if dtype in card.portable_mps_dtypes else None
+
+
 def load_model(  # noqa: PLR0913 - the arguments of every task's `load`
     task: str,
     model: str,
@@ -1140,6 +1150,8 @@ def load_variant(  # noqa: C901, PLR0912, PLR0913 - the arguments of `load_model
         level = logging.WARNING if failed else logging.INFO
         log.log(level, "%s: %s; using portable", variant.ref, reason)
         mode = "portable"
+        if dev.type == "mps" and want is None and not fp32 and (want := _auto_mps_dtype(card, variant)):
+            log.info("%s: computing in %s on Apple MPS (validated, measured faster or leaner)", variant.ref, want)
     if mode == "kernels" and "kernels" in card.modes:
         require_available(variant, "kernels")
     if mode not in card.modes:

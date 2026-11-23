@@ -218,8 +218,8 @@ def _apple_text(card: ModelCard) -> str:
     dt = ", ".join(card.portable_mps_dtypes)
     if card.mps_kernel_libs:
         kd = card.mps_kernels_dtype or card.kernels_dtype
-        return f"auto: kernels (Metal, {kd}); portable: {dt} (float32 is the default)"
-    return f"auto: portable; dtypes {dt} (float32 is the default)"
+        return f"auto: kernels (Metal, {kd}); portable: {dt} (float32; auto: float16 where measured better)"
+    return f"auto: portable; dtypes {dt} (float32; auto: float16 where measured better)"
 
 
 def _mlx_text(card: ModelCard) -> str:

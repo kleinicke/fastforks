@@ -156,3 +156,14 @@ def test_apple_auto_takes_validated_float16_on_mps():
     assert choice(native, {}) == (half, {})
     native[metal] = {w: (7.0, 100.0, 0.1)}
     assert choice(native, {}) == (half, {"": metal, "float16": metal})
+
+
+def test_auto_mps_dtype_needs_the_card_and_the_table(monkeypatch):
+    card, variant = registry.resolve("interpolation", "ema-vfi")
+    assert "float16" in card.portable_mps_dtypes
+    assert core_model._auto_mps_dtype(card, variant) == "float16"  # 1981 ms against 19632 ms in float32 (M1 Pro)
+    monkeypatch.setattr(core_model, "_apple_mlx", dict)
+    assert core_model._auto_mps_dtype(card, variant) is None
+    monkeypatch.setattr(core_model, "_apple_mlx", lambda: {variant.ref: {"mps_dtype": "float16"}})
+    unvalidated = core_model.dataclasses.replace(card, portable_mps_dtypes=("float32",))
+    assert core_model._auto_mps_dtype(unvalidated, variant) is None
