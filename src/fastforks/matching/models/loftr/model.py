@@ -188,5 +188,8 @@ class Kernels(Portable):
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.loftr.backbone", "net.loftr.loftr_coarse")),
+    # float16: the backbone's ragged 3x3 convs (196 channels) padded into MLX's Winograd, as in float32; unpadded
+    # they run on the GEMM path and the backbone is slower than in float32 (854 vs 509 ms at 768 x 1024). The
+    # golden error is the same either way (outdoor mean 0.0023).
+    "portable_mlx": mlx_wrap.port(Portable, attrs=("net.loftr.backbone", "net.loftr.loftr_coarse"), half_wino_pad=True),
 }

@@ -38,7 +38,7 @@ threshold = 0.2  # coarse dual-softmax confidence (upstream MATCH_COARSE.THR)
 [modes.portable]
 cuda_dtype = "float16"  # fastforks (upstream float32): backbone and transformers in float16; coarse and fine similarities, dual-softmax and outputs float32
 mps_dtypes = ["float32", "float16"]
-mlx_dtypes = ["float32"]
+mlx_dtypes = ["float32", "float16"]  # float16: backbone and coarse transformer; its ragged 196-channel 3x3 convs padded into MLX's Winograd (`half_wino_pad`), without that the float16 backbone is slower than float32; fine matching runs in PyTorch on the CPU
 
 [modes.kernels]
 dtype = "float16"  # the backbone's convs as fp16 channels-last cuDNN / CUTLASS kernels with the BatchNorm, ReLU and residual in the epilogue; the transformers as portable; peak memory equals portable (the peak is in the transformer, not the backbone): 905 MB allocated, 18 % faster, AUC@5 +0.3 on 1500 pairs
