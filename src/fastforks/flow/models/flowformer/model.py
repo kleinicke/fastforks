@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
     from fastforks.flow._runner import Context
 
-    from .net.FlowFormer.LatentCostFormer.attention import BroadMultiHeadAttention
+    from .net.FlowFormer.LatentCostFormer.attention import BroadMultiHeadAttention, MultiHeadAttention
     from .net.FlowFormer.LatentCostFormer.decoder import MemoryDecoder
     from .net.FlowFormer.LatentCostFormer.encoder import CostPerceiverEncoder, MemoryEncoder, PatchEmbed
     from .net.FlowFormer.LatentCostFormer.gma import Aggregate, Attention
@@ -300,6 +300,21 @@ def _broad_attention(att: BroadMultiHeadAttention, q: torch.Tensor, k: torch.Ten
     return out.reshape(n, tokens, heads * d)
 
 
+def _token_attention(att: MultiHeadAttention, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
+    """Upstream `MultiHeadAttention.forward` for the decoder's single query per pixel (`q` `[N, 1, C]`).
+
+    Each pixel's query meets only its own few cost tokens: the scores and the weighted sum are broadcast products
+    reduced over the head width and the tokens, not `N * heads` 1-row bmms with their permuted copies (1080p, float32,
+    8 tokens: 1.6 -> 0.7 ms per iteration).
+    """
+    n, j = k.shape[:2]
+    heads = att.heads
+    d = k.shape[-1] // heads
+    scores = torch.mul(k.view(n, j, heads, d), q.view(n, 1, heads, d)).sum(-1).mul_(att.scale)  # [N, J, heads]
+    weights = scores.softmax(1)
+    return torch.mul(weights[..., None], v.view(n, j, heads, d)).sum(1).view(n, 1, heads * d)
+
+
 def _windows(_decoder: MemoryDecoder, vol: _Volume, coords: torch.Tensor) -> torch.Tensor:
     """Upstream `encode_flow_token`: the (2 r + 1)^2 bilinear costs around each pixel's `coords` (zero outside).
 
@@ -395,6 +410,7 @@ class Kernels(Portable):
         from .net.FlowFormer.LatentCostFormer.twins import GlobalSubSampleAttnRPE  # noqa: PLC0415 - needs timm
 
         override(self.net.memory_encoder.cost_perceiver_encoder.input_layer.multi_head_attn, _broad_attention)
+        override(self.net.memory_decoder.decoder_layer.cross_attend.multi_head_attn, _token_attention)
         for m in self.net.modules():
             if isinstance(m, GlobalSubSampleAttnRPE):
                 m.__dict__["_sdpa"] = True  # read by its forward
