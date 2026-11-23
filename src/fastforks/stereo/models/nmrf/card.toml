@@ -43,11 +43,11 @@ mps_kernels = ["stereo_metal"]
 # (fastbb win_rpe_attn: relative-position embeddings, mask, online softmax; reads the packed qkv projection with the
 # Swin shift folded into the indexing). Middlebury-H 196 vs 217 ms (our earlier fork 205), peak 1.0 vs 1.5 GB; KITTI
 # 51.8 vs 58.5 ms.
-# CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x padded H x W <= 500k (up to KITTI
-# 375x1242) replays a CUDA graph, captured on a shape's second call, at most 2 shapes per model (Windows KITTI
-# 56-61 -> 52 ms). The graph pool stays reserved (KITTI 818 vs 474 MiB eager) until `model.release_graphs()`;
-# `cuda_graphs=False` turns it off. Larger inputs are GPU-bound and run eagerly (Middlebury-H 200 vs 197 ms with a
-# graph, for 2.6 vs 1.1 GB reserved)
+# CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x padded H x W <= 600k (up to KITTI
+# 375x1242 and 544x960) replays a CUDA graph, captured on a shape's second call, at most 2 shapes per model (Windows
+# KITTI 56-61 -> 52 ms, 544x960 53.1 -> 51.0 ms). The graph pool stays reserved (KITTI 818 vs 474 MiB eager) until
+# `model.release_graphs()`; `cuda_graphs=False` turns it off. Larger inputs are GPU-bound and run eagerly (Middlebury-H
+# 200 vs 197 ms with a graph, for 2.6 vs 1.1 GB reserved)
 
 # Upstream also publishes a KITTI fine-tune and Swin-T models (need MSDeformAttn; not added).
 
