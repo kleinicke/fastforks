@@ -149,3 +149,5 @@ backend comparison, background removal, prompted segmentation, detection, pose, 
 stereo and optical flow. Copy the `fastforks-w*.json` files into `ComfyUI/user/default/workflows/` (or drag one into
 the UI); they use the images `example.png`, `scene.png`, `scene_b.png`, `small.png` and `clip0..3.png` from the input
 folder. `make_workflows.py` regenerates them from a running server's `/object_info`.
+
+On a Mac with the `mlx` package the `backend` dropdown also lists `mlx` (Apple's MLX instead of MPS, with our Metal kernels where the family's port has them) and `mlx portable` (MLX without the kernels). A model without an MLX port fails with a message. Every new input size compiles once on MLX, so its first call is slow; `auto` already picks MLX where it wins.

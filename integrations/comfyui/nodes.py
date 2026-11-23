@@ -1,6 +1,7 @@
 """ComfyUI nodes over the public fastforks API: `fastforks.load(id)` once, then call the model per image.
 
-Every node takes a model id, a backend (`auto` / `portable` / `kernels`) and a dtype. Loaded models stay cached across
+Every node takes a model id, a backend (`auto` / `portable` / `kernels`, plus `mlx` / `mlx portable` on a Mac with MLX)
+and a dtype. Loaded models stay cached across
 runs on ComfyUI's device. When ComfyUI (or a node loading another model) needs memory, the least recently used
 ones go first (`make_room`); `_MAX_CACHED` only bounds how many are kept. ComfyUI's "Unload models" also empties the
 cache. ComfyUI is imported lazily so the module imports without it (unit tests).
@@ -18,9 +19,11 @@ import contextlib
 import contextvars
 import functools
 import gc
+import importlib.util
 import logging
 import os
 import re
+import sys
 from collections import OrderedDict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, cast
@@ -41,7 +44,14 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("fastforks.comfyui")
 
-BACKENDS = ["auto", "portable", "kernels"]
+MLX_BACKENDS = ["mlx", "mlx portable"]  # Apple silicon with the `mlx` package: the same net through MLX instead of MPS
+
+
+def _has_mlx() -> bool:
+    return sys.platform == "darwin" and importlib.util.find_spec("mlx") is not None
+
+
+BACKENDS = ["auto", "portable", "kernels", *(MLX_BACKENDS if _has_mlx() else [])]
 DTYPES = ["auto", "float32", "float16", "bfloat16"]
 _TAGS = {"no": " [non-commercial]", "unclear": " [licence unclear]"}
 _MAX_CACHED = 8  # memory decides first (`make_room`): a workflow cycling a few nodes reloads none
@@ -67,6 +77,9 @@ _COMMERCIAL_TIP = (
 _BACKEND_TIP = (
     "auto: our CUDA kernels where they are faster, else portable PyTorch. portable: plain PyTorch (any device)."
     " kernels: our CUDA kernels (NVIDIA on Linux or Windows x86-64; fails elsewhere)."
+    " mlx (Apple silicon): Apple's MLX instead of MPS, with our Metal kernels where the port has them; often leaner,"
+    " but every new input size compiles once, so its first call is slow. mlx portable: MLX without the kernels."
+    " Models without an MLX port fail with a message."
 )
 _DTYPE_TIP = "auto: the validated dtype of the backend. Others are checked against the model card at load."
 
@@ -295,6 +308,8 @@ def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = 
         gc.collect()
         mm.soft_empty_cache()
     kw: dict[str, Any] = {"mode": backend, "device": device, "dtype": None if dtype == "auto" else dtype}
+    if backend in MLX_BACKENDS:
+        kw.update(mode="portable" if backend.endswith("portable") else "auto", device="mlx")
     with node_errors():  # `_weights_bytes` already raises for an id that is not installed
         if not file and _COMMERCIAL_RUN.get() and _only_full(mid):  # e.g. a linked `model` input: not validated
             msg = f"{mid} {ONLY_FULL}."

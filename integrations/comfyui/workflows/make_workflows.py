@@ -113,12 +113,12 @@ def w01_depth_shootout():
 @wf
 def w02_backend_compare():
     g = WF()
-    note(g, "Same model, three backends: auto (what fastforks picks on this Mac), portable "
-            "(plain PyTorch on MPS) and kernels (fused ops). Results should match; time and memory differ. "
+    note(g, "Same model, five backends: auto (what fastforks picks on this Mac), portable "
+            "(plain PyTorch on MPS), kernels (Metal kernels where there are any), mlx and mlx portable (Apple MLX). Results should match; time and memory differ. "
             "Run the queue twice: the first run includes loading and compilation.")
     img = load(g, "example.png", 0, 0)
     shootout(g, "FastforksDepth", "image", [
-        {"model": "depth-anything-v2-l [non-commercial]", "backend": b} for b in ("auto", "portable", "kernels")],
+        {"model": "depth-anything-v2-l [non-commercial]", "backend": b} for b in ("auto", "portable", "kernels", "mlx", "mlx portable")],
         img=img, dtype="float16")
     return g
 
