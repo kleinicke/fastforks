@@ -342,9 +342,22 @@ def variant_card(card: ModelCard, variant: Variant) -> ModelCard:
     )
 
 
+_TASK_HINT: dict[str, str] = {}
+"""Model id -> the task `task_of` found it in, asked first next time (ids are unique across tasks; still checked)."""
+
+
 def task_of(model: str) -> str | None:
     """The task whose installed models include `model` (`"id"` or `"id@revision"`); `None` if none (or not a str)."""
-    return next((t for t in TASKS if known(t, model)), None)
+    if not isinstance(model, str):
+        return None
+    model_id = model.partition("@")[0]
+    hint = _TASK_HINT.get(model_id)
+    if hint is not None and known(hint, model):  # one task's card text instead of every task's before it
+        return hint
+    task = next((t for t in TASKS if known(t, model)), None)
+    if task is not None:
+        _TASK_HINT[model_id] = task
+    return task
 
 
 def _lookup(task: str, model_id: str) -> tuple[ModelCard, Variant] | None:
