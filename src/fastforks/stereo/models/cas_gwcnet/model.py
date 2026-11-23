@@ -90,6 +90,26 @@ def fold_batchnorms(module: nn.Module) -> int:
     return n
 
 
+def _nchw_float(x: torch.Tensor) -> torch.Tensor:
+    """`x.float().contiguous()`; a channels-last fp16 CUDA map transposes as an identity GEMM, ~7x faster.
+
+    Each output is one fp16 product with 1 plus zeros, so finite values come out the same (a non-finite one would turn
+    the channels of its pixel into NaN).
+    """
+    if not (
+        x.is_cuda
+        and x.dtype == torch.float16
+        and x.dim() == 4  # noqa: PLR2004 - BCHW
+        and not x.is_contiguous()
+        and x.is_contiguous(memory_format=torch.channels_last)
+        and not torch.compiler.is_exporting()
+    ):
+        return x.float().contiguous()
+    b, c, h, w = x.shape
+    eye = torch.eye(c, device=x.device, dtype=x.dtype)
+    return torch.matmul(eye, x.permute(0, 2, 3, 1).reshape(b, h * w, c).transpose(1, 2)).view(b, c, h, w).float()
+
+
 def cost_volume(
     fl: torch.Tensor | dict[str, torch.Tensor],
     fr: torch.Tensor | dict[str, torch.Tensor],
@@ -105,7 +125,7 @@ def cost_volume(
     """
     gc = isinstance(fl, dict)
     if isinstance(fl, dict) and isinstance(fr, dict):
-        xg, xc = fl["gwc_feature"].float().contiguous(), fl["concat_feature"].float().contiguous()
+        xg, xc = _nchw_float(fl["gwc_feature"]), fl["concat_feature"].float().contiguous()
         y = torch.cat((fr["gwc_feature"], fr["concat_feature"]), 1).float()
         cg, channels = xg.shape[1], groups + 2 * xc.shape[1]
         dtype = fl["gwc_feature"].dtype
