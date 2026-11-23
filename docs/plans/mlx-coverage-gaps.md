@@ -326,3 +326,15 @@ to compare against, or because MPS is faster.
 **Policy gap**: s2m2-xl fp32 runs on MLX (13.0 s warm) but runs out of memory on MPS. With no MPS row to compare against,
 gen_auto_mode emits no route, so `auto` never picks MLX for it, even though MLX works. A rule of "MLX when MPS has
 no `ok` row" would fix this and the same case for other models.
+
+## Unmeasured refs surveyed (2026-11-23)
+
+66 MLX-capable refs had no MLX row (mostly sibling checkpoints and larger sizes). All surveyed, portable + kernels:
+151 runs ok, 147 golden pass. Open:
+
+- flowformer-small-sintel / -things: MLX out of memory at 1080x1920 (fp32 and fp16); MPS also OOM. Candidate for a
+  chunked, memory-lean MLX port, together with memfof-kitti / -sintel.
+- loma-g / loma-r: run fine on MLX, but no golden and no MPS row yet.
+
+24 refs gained an `auto` MLX route, all siblings of nets already routed (igev-stereo, igev-plusplus, selective-igev,
+great-igev, raft-stereo, waft-a1) plus sam-vit-h, vitpose-plus-huge, owlv2-l14, track-on-r, flowseek-t-notartan.
