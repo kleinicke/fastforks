@@ -50,12 +50,22 @@ def _sample(
     )
 
 
-def pair(first: torch.Tensor, second: torch.Tensor, flow: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-    """Warp both frames, accumulating in float32 and storing in their native dtype in channels-last order."""
+def batch(first: torch.Tensor, second: torch.Tensor, flow: torch.Tensor) -> torch.Tensor:
+    """Both warps as one channels-last batch `[2N, C, H, W]`: `first` at flow channels 0-1, then `second` at 2-3.
+
+    Bilinear, border, align-corners grid: pixel `(x, y)` reads `(x + flow_x, y + flow_y)` clipped to the image,
+    accumulated in float32 and stored in the frames' dtype.
+    """
     n, c, h, w = first.shape
     out = torch.empty((n * 2, c, h, w), dtype=first.dtype, device=first.device, memory_format=torch.channels_last)
     _sample(first, second, flow, out, first.numel())
-    return out[:n], out[n:]
+    return out
+
+
+def pair(first: torch.Tensor, second: torch.Tensor, flow: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """Warp both frames, accumulating in float32 and storing in their native dtype in channels-last order."""
+    out = batch(first, second, flow)
+    return out[: first.shape[0]], out[first.shape[0] :]
 
 
 def stack(inputs: tuple[torch.Tensor, ...], features: torch.Tensor, flow: torch.Tensor) -> torch.Tensor:

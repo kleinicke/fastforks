@@ -41,7 +41,7 @@ mps_dtypes = ["float32", "float16"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["cudnn_hacc"]  # fp16-accumulate convs, one CUDA graph per input shape; otherwise the portable float16 network
+kernels = ["cudnn_hacc", "ema_warp"]  # fp16-accumulate convs, warp kernels, one CUDA graph per input shape; otherwise the portable float16 network
 
 [[papers]]
 title = "FILM: Frame Interpolation for Large Motion"
