@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import torch
 
+from fastforks._core.layout import nchw
 from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
 from fastforks.stereo._volume import stacked_volume
@@ -40,8 +41,6 @@ def cost_volume(net: GwcNet, fl: dict[str, torch.Tensor], fr: dict[str, torch.Te
     alive next to the concatenated one.
     """
     # NCHW features: the group mean over a channels-last product is a strided reduction, 8x slower than contiguous
-    from fastforks.shared.cnn_kernels import nchw  # noqa: PLC0415 - imports the kernel modules
-
     gl, gr = nchw(fl["gwc_feature"]), nchw(fr["gwc_feature"])
     cl, cr = (fl["concat_feature"], fr["concat_feature"]) if net.use_concat_volume else (gl[:, :0], gr[:, :0])
     b, _, h, w = gl.shape
