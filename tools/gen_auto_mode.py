@@ -145,6 +145,38 @@ def _apple_options(device: str) -> dict[str, dict[Option, dict[Workload, Run]]]:
     return models
 
 
+def _mps_oom() -> dict[str, dict[str, set[Workload]]]:
+    """Workloads per ref and dtype where the portable MPS path ran out of memory (and so has no row to beat)."""
+    oom: dict[str, dict[str, set[Workload]]] = {}
+    for line in (ROOT / "docs" / "data" / "speed" / f"{APPLE_DEVICE}.jsonl").read_text(encoding="utf-8").splitlines():
+        row = json.loads(line)
+        if row.get("status") != "oom" or row["mode"] != "portable":
+            continue
+        ref = row["ref"] if "@" in row["ref"] else row["ref"] + "@1"
+        workload = (row["input"], row.get("scene", ""), row.get("protocol_id", ""))
+        oom.setdefault(ref, {}).setdefault(row["dtype"], set()).add(workload)
+    return oom
+
+
+def _oom_routes(
+    candidates: dict[Option, dict[Workload, Run]],
+    native: dict[Option, dict[Workload, Run]],
+    oom: dict[str, set[Workload]],
+) -> dict[str, Option]:
+    """MLX routes for the dtypes MPS cannot run: every MLX workload of that dtype is an MPS out-of-memory one.
+
+    MPS has no row there to compare against (so `_winners` finds none), but MLX running at all beats an OOM error.
+    """
+    routes = {}
+    for dtype, failed in oom.items():
+        options = [(o, rows) for o, rows in candidates.items() if o[1] == dtype and rows]
+        if not options or any(o[1] == dtype and rows.keys() & failed for o, rows in native.items()):
+            continue
+        if all(rows.keys() <= failed for _, rows in options):
+            routes[dtype] = min(options, key=lambda item: statistics.median(r[0] for r in item[1].values()))[0]
+    return routes
+
+
 def _route_score(ratios: list[float], savings: list[float | None], *, memory: bool) -> float | None:
     """Median `ms / baseline ms` when the route qualifies, else None.
 
@@ -209,7 +241,7 @@ def _winners(  # noqa: C901 - one loop over dtype, option and workload
 
 
 def render_apple() -> str:
-    mps, mlx = _apple_options(APPLE_DEVICE), _apple_options(APPLE_MLX_DEVICE)
+    mps, mlx, oom = _apple_options(APPLE_DEVICE), _apple_options(APPLE_MLX_DEVICE), _mps_oom()
     models: dict[str, object] = {}
     for ref in sorted(mps.keys() | mlx.keys()):
         native, accelerated = mps.get(ref, {}), mlx.get(ref, {})
@@ -217,6 +249,7 @@ def render_apple() -> str:
         baseline = {option: rows for option, rows in native.items() if option[0] == "portable"}
         # Require a comparable MPS run when automatically promoting an MLX route.
         auto = _winners(accelerated, native, memory=True, cold=True) if native else {}
+        auto |= {d: o for d, o in _oom_routes(accelerated, native, oom.get(ref, {})).items() if d not in auto}
         optimized = _winners(accelerated, kernels, memory=True) if kernels else {}
         only_mlx = _winners(accelerated, {})
         metal = _winners(kernels, baseline) if baseline else {}

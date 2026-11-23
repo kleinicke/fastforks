@@ -105,3 +105,17 @@ def test_apple_routing_uses_passing_comparable_rows(tmp_path, monkeypatch):
     assert "kernels_default" not in measured["example@2"]
     assert "auto" not in measured["example@1"]
     assert "auto" not in measured["example@3"]  # faster than MPS but 50 % more memory
+
+
+def test_mlx_route_where_mps_runs_out_of_memory():
+    sys.path.insert(0, str(ROOT / "tools"))
+    import gen_auto_mode  # noqa: PLC0415
+
+    w = ("994x1482", "synthetic", "warm-median")
+    mlx = {("portable", "float32"): {w: (13000.0, 9000.0, 40.0)}, ("portable", "float16"): {w: (10000.0, 6000.0, 30.0)}}
+    mps = {("portable", "float16"): {w: (13000.0, 9000.0, 20.0)}}
+    assert gen_auto_mode._oom_routes(mlx, mps, {"float32": {w}}) == {"float32": ("portable", "float32")}
+    # MPS ran this dtype fine on the workload too: the usual comparison decides, not the OOM row
+    assert gen_auto_mode._oom_routes(mlx, mps, {"float16": {w}}) == {}
+    # MLX measured on a workload MPS never failed: no OOM route
+    assert gen_auto_mode._oom_routes(mlx, {}, {"float32": {("1x1", "", "")}}) == {}
