@@ -29,8 +29,9 @@ def sdpa(q, k, v, attn_mask=None):
         return torch.cat(out, dim=-2)
     if q.device.type == "mps" and not torch.compiler.is_compiling() and not torch.jit.is_tracing():
         # fastforks: MPS SDPA writes the [B, L, M] scores (4 GB for the global matching at 1080p), so chunk the
-        # queries to at most 2^27 scores per call: rows are independent, the maths is unchanged
-        rows = max(1, (1 << 27) // (q.numel() // (q.size(-2) * q.size(-1)) * k.size(-2)))
+        # queries to at most 256 MiB of scores per call (it holds five copies): rows are independent, the maths
+        # is unchanged
+        rows = max(1, (1 << 28) // (q.numel() // (q.size(-2) * q.size(-1)) * k.size(-2) * q.element_size()))
         if rows < q.size(-2):
             return torch.cat([
                 sdpa(q[..., start:start + rows, :], k, v,

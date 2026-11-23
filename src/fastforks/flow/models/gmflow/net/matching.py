@@ -37,7 +37,7 @@ def global_correlation_softmax(feature0, feature1,
     return flow, prob
 
 
-# fastforks: limit the CUDA grid_sample workspace. At 1080p the unchunked
+# fastforks: limit the CUDA / MPS grid_sample workspace. At 1080p the unchunked
 # scale-2 lookup allocates more than 5 GiB for the sampled candidate features alone.
 _LOCAL_SAMPLE_BYTES = 256 * 1024 * 1024
 
@@ -51,7 +51,7 @@ def _local_correlation(feature0, feature1, coords, padding_mode):
         return torch.matmul(query, sampled.permute(0, 2, 1, 3)).squeeze(-2)
 
     capture = torch.compiler.is_compiling() or torch.jit.is_tracing()
-    if feature0.is_cuda and not capture and not torch.is_grad_enabled():
+    if feature0.device.type in ("cuda", "mps") and not capture and not torch.is_grad_enabled():
         step = max(1, _LOCAL_SAMPLE_BYTES // (b * c * coords.shape[2] * feature1.element_size()))
         if h * w > step:
             chunks = [

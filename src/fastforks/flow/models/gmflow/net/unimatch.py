@@ -11,6 +11,7 @@ from .attention import SelfAttnPropagation
 from .geometry import flow_warp, compute_flow_with_depth_pose
 from .reg_refine import BasicUpdateBlock
 from .utils import normalize_img, feature_add_position, upsample_flow_with_mask
+from fastforks._core.mps import release  # fastforks: MPS hands its cached buffers back between stages
 
 
 class UniMatch(nn.Module):
@@ -141,6 +142,7 @@ class UniMatch(nn.Module):
                 feature0, feature1 = torch.cat((feature0, feature1), dim=0), torch.cat((feature1, feature0), dim=0)
 
             feature0_ori, feature1_ori = feature0, feature1
+            release(feature0)  # fastforks: the last stage's cached buffers do not fit this one's shapes (MPS)
 
             upsample_factor = self.upsample_factor * (2 ** (self.num_scales - 1 - scale_idx))
 
@@ -184,6 +186,7 @@ class UniMatch(nn.Module):
                                                   )
 
             # correlation and softmax
+            release(feature0)  # fastforks
             if task == 'depth':
                 # first generate depth candidates
                 b, _, h, w = feature0.size()
@@ -228,6 +231,7 @@ class UniMatch(nn.Module):
                 flow_preds.append(flow_bilinear)
 
             # flow propagation with self-attn
+            release(feature0)  # fastforks
             if (pred_bidir_flow or pred_bidir_depth) and scale_idx == 0:
                 feature0 = torch.cat((feature0, feature1), dim=0)  # [2*B, C, H, W] for propagation
 
@@ -270,6 +274,7 @@ class UniMatch(nn.Module):
                         flow_preds.append(flow_up)
 
                     assert num_reg_refine > 0
+                    release(feature0)  # fastforks
                     for refine_iter_idx in range(num_reg_refine):
                         flow = flow.detach()
 
