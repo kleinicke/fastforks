@@ -374,3 +374,56 @@ no `auto` route follows (the policy gap above). memfof / memfof-spring (scale 0)
   well below; MPS `test_mps[ben2@1]` passes). The 2026-11-19 MLX row says pass with golden_mean 0.0, so the port
   broke since or that check was not real. Float16 (0.080 with Winograd in float32) cannot be judged until float32
   passes. Not declared.
+
+## MLX float16 for the geometry families (2026-11-23)
+
+MLX float16 added (golden pass, no slower than MLX float32, peak footprint no higher beyond run-to-run noise), warm
+median ms / peak MB on M1 Pro from the survey rows, fp16 vs fp32:
+
+- recover-cx / -mn / -rn: 758 / 1297 vs 1064 / 1713, 316 / 1181 vs 471 / 1240, 429 / 1224 vs 624 / 1430. The delta
+  flow, the accumulated flow and the upsampling mask stay float32.
+- cfnet-sceneflow: 3178 / 3669 vs 4485 / 4664. The cost volumes and the disparity regression stay float32
+  (`_core/mlx_cast.float32_call`: float32 inputs and weights in the MLX export).
+- romav2, portable: 6078 / 2849 vs 6727 / 4449. Kernels: 3633 / 3120 vs 3669 / 3170. The DPT convs run in float16;
+  the matcher and the refiners stay float32. This is an MLX-engine-only fix, so MPS stays float32.
+- neuflow-v2 / -sintel / -things: 949 / 9200 vs 951 / 9257, 952 / 9201 vs 1021 / 9268, 946 / 9170 vs 975 / 9255.
+  The backbone and the two s8 merge convs stay float32 (`float32_call`). With everything else in half, the golden
+  failed at mean 0.0024 vs the 0.0014 tolerance. No single float32 island passed (backbone 0.0018, merges 0.0018,
+  cross-attention / refinement / upsampling 0.0023-0.0024). Backbone plus merges together: mean 0.0007. The gain is
+  small since the float32 backbone is most of the time.
+- loftr-indoor / -outdoor: 1549 / 3675 vs 1806 / 4296, 1526 / 3703 vs 1788 / 4095. Plain float16 passed the golden
+  but was slower (2354 vs 1792 ms): portable float16 keeps ragged 3x3 convs out of MLX's Winograd, so the ResNet-FPN's
+  196-channel convs ran on the GEMM path (backbone 854 vs 509 ms). `half_wino_pad=True` (new `mlx_wrap.port` option)
+  pads them into Winograd as float32 does. The golden error is the same either way (outdoor mean 0.0023 vs the
+  0.0025 tolerance, indoor 0.0018). Fine matching runs in PyTorch on the CPU (about 1 s of the call).
+- disk-lightglue: 786 / 2058 vs 886 / 2182 (float32 was 1178 / 2333 before the split head). The U-Net stays float32
+  up to the heatmap; the last 5x5 conv (80 -> 129 at full resolution, most of the arithmetic) is split into a
+  float32 1-channel heatmap conv and a 128-channel descriptor conv in the run dtype, which also drops the GEMM's
+  padding of 129 outputs to 192 in float32. The whole U-Net in half failed (recall 0.9917, agree 0.9879, mean
+  0.0092 vs 0.9971 / 0.9913 / 0.0052): it shifts integer-grid keypoint maxima, as CUDA's fp16 kernels path does.
+- aliked-lightglue: 455 / 2407 vs 448 / 2407, the same arithmetic: all of ALIKED's convs are float32 islands (in
+  half: recall 0.9963, agree 0.9903, also with only the score head in float32), so float16 is float32 here within
+  run-to-run noise. Declared because the card's dtype list is per family and DISK gains.
+- fast-acvnet (base, sceneflow / kitti12 / kitti15 / generalization): 459 / 1934 vs 523 / 1931, 457 / 1808 vs
+  521 / 1939, 455 / 1831 vs 506 / 1933, 475 / 1918 vs 505 / 1935. Plus: 540 / 1813 vs 584 / 1928, 564 / 1814 vs
+  582 / 1955, 562 / 1810 vs 580 / 1928, 541 / 1812 vs 587 / 1928. Everything before the top-k (features,
+  correlation, attention hourglass) is a float32 island, the stages after it run in half. With those in half,
+  fast-acvnet-plus-sceneflow failed (mean 0.0753, p99 0.155 vs 0.02 / 0.25: a quarter-resolution top-k flip) and
+  float16 was slower (549 vs 487 ms).
+
+Engine changes behind these (MLX only):
+
+- `to_float32` of a parameter (`float32_call`) is the parameter itself, stored in float32: a float32 replay sees a
+  plain parameter again (batch norms fold into their convs, siblings merge), a half replay folds the batch norms in
+  float32 and keeps no half-rounded copy. Before, `float32_call` stages lost the batch-norm fold in both dtypes:
+  float32 cfnet-sceneflow 4683 -> 4485 ms, neuflow-v2 1072 -> 951 ms, fast-acvnet with the islands 600-750 ->
+  505-590 ms.
+- A half replay with `float32_call` stages counts the activations downstream of them at 4 bytes when it paces its
+  checkpoints. Counted at 2, the segments were twice as long: aliked-lightglue float16 393 ms / 2722 MB (float32
+  446 / 2407), disk-lightglue 776 / 2492 (884 / 2188), fast-acvnet about 130 MB above float32.
+
+No MLX float16, because the golden fails (tolerances unchanged):
+
+- xfeat / xfeat-lighterglue: recall 0.9983 vs 0.999. It was also no faster (158 vs 164 ms, 521 vs 524 ms): the
+  network is about a third of the call (64 of 190 ms profiled), the rest is CPU-side, and the float32 islands a fix
+  needs would take the small gain away.
