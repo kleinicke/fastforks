@@ -201,7 +201,7 @@ Install with ComfyUI-Manager or `comfy node install fastforks`; from a fastforks
   - SPAN: `span-x2`, `span-x4`
   - Swin2SR: `swin2sr-x2`, `swin2sr-x4`, `swin2sr-x4-real`
   - SwinIR: `swinir-l-x4-real`, `swinir-m-x2`, `swinir-m-x4`, `swinir-m-x4-real`
-- **Restore aligned faces (GFPGAN / CodeFormer)**:
+- **Restore faces (GFPGAN / CodeFormer)**:
   - CodeFormer: `codeformer [non-commercial]`
   - GFPGAN: `gfpgan-v1.4`
 

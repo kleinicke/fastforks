@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import math
 import os
 import re
 import sys
@@ -1183,3 +1184,60 @@ def test_model_inputs_are_kept_across_starts(pack: Any, monkeypatch: pytest.Monk
     monkeypatch.setattr(nodes, "_source_stamp", lambda: "changed sources")
     with pytest.raises(AssertionError, match=r"sam2\.1-hiera-small"):  # a stale file is not used
         nodes._Inputs().of("sam2.1-hiera-small")
+
+
+def test_face_alignment_maths(pack: Any) -> None:
+    """The similarity fit recovers a transform; warp and its inverse round-trip; an unchanged face pastes back as is."""
+    faces = pack.nodes._faces
+    template = torch.tensor(faces.TEMPLATE)
+    angle, scale = 0.3, 2.5  # a face of a fifth of the crop's size, inside the image
+    rot = scale * torch.tensor([[math.cos(angle), -math.sin(angle)], [math.sin(angle), math.cos(angle)]])
+    points = (template - 256) @ torch.linalg.inv(rot).T + torch.tensor([200.0, 160.0])  # the crop inside the image
+    m = faces.similarity(points, template)
+    torch.testing.assert_close((points.double() @ m[:, :2].T + m[:, 2]).float(), template, atol=1e-3, rtol=0)
+    ys, xs = torch.meshgrid(torch.linspace(0, 1, 320), torch.linspace(0, 1, 400), indexing="ij")
+    image = torch.stack([xs, ys, (xs + ys) / 2])  # smooth: resampling it twice keeps it
+    crop, t = faces.align(image, points)
+    assert crop.shape == (3, 512, 512)
+    back = faces.paste(image, crop, t)
+    assert back.shape == image.shape
+    assert (back - image).abs().max() < 0.01  # the crop is the image resampled
+    shifted = faces.warp(image, torch.tensor([[1.0, 0, 2], [0, 1, 0]]), (320, 400), None)
+    torch.testing.assert_close(shifted[:, :, 2:], image[:, :, :-2])
+
+
+def test_face_restore_detects_aligns_and_pastes_back(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Whole images: each detected face is restored as a 512 x 512 crop; `auto` keeps 512 x 512 images as crops."""
+    nodes = pack.nodes
+    faces = nodes._faces
+    crops: list[tuple[int, ...]] = []
+    template = torch.tensor(faces.TEMPLATE)
+    found = (template - 256) * 0.2 + torch.tensor([90.0, 70.0])
+
+    class Detector:
+        device = torch.device("cpu")
+
+        def __call__(self, x: torch.Tensor) -> types.SimpleNamespace:
+            s = x.shape[-1] / 200  # the node scales a small image up for detection
+            return types.SimpleNamespace(keypoints=torch.stack([found * s, found[:1].expand(5, 2) * s]))
+
+    class Restorer:
+        device = torch.device("cpu")
+
+        def __call__(self, x: torch.Tensor) -> types.SimpleNamespace:
+            crops.append(tuple(x.shape))
+            return types.SimpleNamespace(image=torch.ones_like(x))
+
+    models = {faces.DETECTOR: Detector()}
+    monkeypatch.setattr(nodes, "load", lambda mid, *_a, **_k: models.get(mid, Restorer()))
+    monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])
+    img = torch.zeros(2, 150, 200, 3)
+    (out,) = nodes.FaceRestore().run(image=img, model="codeformer", backend="auto", dtype="auto")
+    assert crops == [(3, 512, 512)] * 2  # one face per image: the second detection has no eye distance
+    assert out.shape == img.shape
+    assert out[:, 70, 90].min() > 0.9  # the restored (white) face is pasted at the landmarks
+    assert out[:, 5, 5].max() < 0.01  # the rest of the image is unchanged
+    crops.clear()
+    nodes.FaceRestore().run(image=torch.zeros(1, 512, 512, 3), model="codeformer", backend="auto", dtype="auto")
+    assert crops == [(3, 512, 512)]  # auto: a 512 x 512 image is an aligned crop, restored whole
+    assert "faces" in nodes.FaceRestore.INPUT_TYPES()["optional"]

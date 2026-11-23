@@ -26,7 +26,7 @@ except ModuleNotFoundError as e:  # ComfyUI shows this message under the pack's 
     )
     raise ImportError(msg) from e
 
-IMPL = "fastforks_comfyui"  # the one copy of nodes.py / convert.py both packs use (fastforks-commercial too)
+IMPL = "fastforks_comfyui"  # the one copy of nodes.py / convert.py / faces.py both packs use (fastforks-commercial too)
 
 
 def implementation(folder: Path) -> types.ModuleType:

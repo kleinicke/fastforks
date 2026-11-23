@@ -38,6 +38,7 @@ from fastforks import restoration
 from fastforks._core import registry  # the licence gate's variable and the published ids (no public API yet)
 
 from . import convert
+from . import faces as _faces
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
@@ -1659,13 +1660,22 @@ class Upscale(_Node):
         return (convert.to_image(maps, _out_device()),)
 
 
+_FACES = ["auto", "detect and paste back", "aligned crops"]
+_FACES_TIP = (
+    "detect and paste back: find the faces of a whole image (RetinaFace, the detector of the GFPGAN / CodeFormer"
+    " scripts), restore each one as an aligned 512 x 512 crop and blend it back into the image."
+    " aligned crops: the image is already one aligned 512 x 512 face crop (FFHQ alignment)."
+    " auto: aligned crops for 512 x 512 images, else detect."
+)
+
+
 class FaceRestore(_Node):
-    """Face restoration (GFPGAN, CodeFormer) of aligned face crops."""
+    """Face restoration (GFPGAN, CodeFormer): the faces of whole images (detected, aligned, pasted back) or crops."""
 
     DESCRIPTION = (
         "Face restoration: GFPGAN v1.4, or CodeFormer (fidelity 0.5; [non-commercial], not in"
-        " fastforks-commercial). Input: aligned 512 x 512 face crops (FFHQ alignment) only; this pack does not detect,"
-        " align or paste faces back."
+        " fastforks-commercial). Whole images: each face RetinaFace finds is aligned, restored and blended back."
+        " 512 x 512 images are taken as aligned face crops (FFHQ alignment) unless faces says otherwise."
     )
     RETURN_TYPES = ("IMAGE",)
     TASK = "restoration"
@@ -1679,14 +1689,29 @@ class FaceRestore(_Node):
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
         """ComfyUI inputs."""
-        return {"required": {"image": ("IMAGE",), **common(cls)}, "optional": BATCH}
+        return {
+            "required": {"image": ("IMAGE",), **common(cls)},
+            "optional": {**BATCH, "faces": (_FACES, {"default": "auto", "tooltip": _FACES_TIP})},
+        }
 
-    def run(
-        self, *, image: torch.Tensor, model: str, backend: str, dtype: str, batch_size: int = 1
+    def run(  # noqa: PLR0913 - one argument per input
+        self, *, image: torch.Tensor, model: str, backend: str, dtype: str, batch_size: int = 1, faces: str = "auto"
     ) -> tuple[torch.Tensor]:
-        """Restore every face crop."""
+        """Restore every face crop, or the faces of every image."""
         m = load(model, backend, dtype)
-        return (convert.to_image(each_result(image, m, batch_size, lambda r, k: at(r.image, k)), _out_device()),)
+        if faces == "aligned crops" or (faces == "auto" and tuple(image.shape[1:3]) == (_faces.FACE_SIZE,) * 2):
+            return (convert.to_image(each_result(image, m, batch_size, lambda r, k: at(r.image, k)), _out_device()),)
+        detector = load(_faces.DETECTOR, backend, "auto")
+
+        def restore(i: int) -> torch.Tensor:
+            x = convert.frame(image, i, m.device)
+            out = x.float()
+            for points in _faces.landmarks(detector, x.to(detector.device)):
+                crop, t = _faces.align(x, points.to(x.device))
+                out = _faces.paste(out, m(crop.clamp(0, 1)).image.float(), t)
+            return out
+
+        return (convert.to_image(each(image.shape[0], restore), _out_device()),)
 
 
 # (key, node, display name): ComfyUI's class name is `Fastforks<key>` in both packs (a workflow loads in either; with
@@ -1712,7 +1737,7 @@ _NODES: tuple[tuple[str, type[_Node], str], ...] = (
     ("VideoSegment", VideoSegment, "Video segment (SAM 2 / SAMURAI, {pack})"),
     ("PointTrack", PointTrack, "Track points ({pack})"),
     ("Upscale", Upscale, "Upscale / restore ({pack})"),
-    ("FaceRestore", FaceRestore, "Restore aligned faces (GFPGAN / CodeFormer, {pack})"),
+    ("FaceRestore", FaceRestore, "Restore faces (GFPGAN / CodeFormer, {pack})"),
 )
 
 

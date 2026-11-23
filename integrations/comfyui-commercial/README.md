@@ -194,7 +194,7 @@ the fastforks pack's nodes (every model) are used: remove or disable one of them
   - SPAN: `span-x2`, `span-x4`
   - Swin2SR: `swin2sr-x2`, `swin2sr-x4`, `swin2sr-x4-real`
   - SwinIR: `swinir-l-x4-real`, `swinir-m-x2`, `swinir-m-x4`, `swinir-m-x4-real`
-- **Restore aligned faces (GFPGAN / CodeFormer)**:
+- **Restore faces (GFPGAN / CodeFormer)**:
   - GFPGAN: `gfpgan-v1.4`
 
 <!-- end of models -->
@@ -205,7 +205,7 @@ The registry archive has only this folder, so copy the implementation in first (
 listed in `[tool.comfy] includes`):
 
 ```bash
-mkdir -p fastforks_comfyui && cp ../comfyui/nodes.py ../comfyui/convert.py fastforks_comfyui/
+mkdir -p fastforks_comfyui && cp ../comfyui/nodes.py ../comfyui/convert.py ../comfyui/faces.py fastforks_comfyui/
 comfy node publish
 ```
 

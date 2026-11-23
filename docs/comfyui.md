@@ -70,7 +70,7 @@ so a ComfyUI folder below ~140 characters needs no long-path setting.
 | Video segment (SAM 2 / SAMURAI) | IMAGE batch, points / box on frame 0, samurai | MASK batch |
 | Track points | IMAGE batch, grid size or points on frame 0 | IMAGE (tracks drawn on the frames), STRING (JSON tracks) |
 | Upscale / restore | IMAGE, tile (input px, 32 px overlap; 0 = one pass; keep it on for HAT / DAT) | IMAGE |
-| Restore aligned faces (GFPGAN, CodeFormer) | IMAGE: aligned 512 x 512 face crops only (no detection / alignment / paste-back in this pack) | IMAGE |
+| Restore faces (GFPGAN, CodeFormer) | IMAGE; optional `faces`: `detect and paste back` (each face RetinaFace finds is aligned to facexlib's 512 x 512 template, restored and blended back with facexlib's soft mask), `aligned crops` (512 x 512 FFHQ-aligned crops), `auto` (crops for 512 x 512 images, else detect) | IMAGE |
 
 Every node has `model`, `backend` and `dtype` (`auto`: the validated one). `backend`:
 
