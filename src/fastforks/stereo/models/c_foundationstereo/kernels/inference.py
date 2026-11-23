@@ -67,6 +67,7 @@ C3_MIN_K = (
     32  # 3-D convs with this many (padded) output channels run on the 128 x 32 CUTLASS tile, wider ones on 128 x 64
 )
 C3_MAX_K = 192
+PATCH_PLANES = 8  # input disparities per channels-first slab of the patch conv (`_patch_conv`): 43 MB at Midd-H
 C3_MAX_T = 3  # longer filters along the leading volume dim (the 17-tap disparity convs) run in slice-major tile order
 _TC = 28  # the cfs kernels' d_model
 HID = 128  # C-FS-S GRU hidden size
@@ -259,7 +260,9 @@ class _Convs:
         y = self._conv3d(m, x, s, t, act, r)
         if y is not None:
             return y
-        y = cnn_kernels.conv_raw(m, x)
+        y = _patch_conv(m, x)
+        if y is None:
+            y = cnn_kernels.conv_raw(m, x)
         c = m.out_channels
         if y.shape[1] != c:
             if r is None and act in {0, 1, 2} and (s is not None or t is not None):  # all padded channels: vector path
@@ -421,6 +424,53 @@ class _Convs:
                         m._bias32 = torch.cat([m._bias32, m._bias32.new_zeros(pad.shape[1])]).contiguous()
                 override(m, _conv_forward)
                 m._ff = self
+
+
+def _patch_conv(m: Patched, x: torch.Tensor) -> torch.Tensor | None:
+    """A depthwise 3-D conv with kernel = stride (TAO's `conv_patch`) of a channels-last fp16 volume, without bias,
+    as `conv_raw` gives it; None if the conv or the layout does not qualify.
+
+    cuDNN has no fast channels-last kernel for it (C-FS-S at 994 x 1482: 26.8 ms) and PyTorch's channels-last to
+    channels-first copy is as slow (22.6 ms). A matmul by the identity transposes `PATCH_PLANES` disparities at a time
+    exactly (2.9 ms for the volume; only an inf in it would differ, as a NaN in the voxel's other channels) and cuDNN's
+    channels-first conv of each slab takes 1.4 ms in all.
+    """
+    if x.dim() != _DIM3D or not isinstance(m, nn.Conv3d):
+        return None
+    n, c, d, h, w = x.shape
+    k = m.kernel_size[0]
+    if not (
+        tuple(m.kernel_size) == tuple(m.stride) == (k, k, k)
+        and tuple(m.dilation) == (1, 1, 1)
+        and m.groups == c == m.out_channels
+        and tuple(m.weight.shape) == (c, 1, k, k, k)
+        and x.dtype == m.weight.dtype == torch.float16
+        and x.stride(1) == 1  # channels innermost, every voxel at one stride (C-FS-S: 28 of a 32-channel buffer)
+        and x.stride(2) == h * x.stride(3)
+        and x.stride(3) == w * x.stride(4)
+    ):
+        return None
+    pd, ph, pw = m.padding
+    do = (d + 2 * pd - k) // k + 1
+    y = torch.empty(
+        (n, c, do, (h + 2 * ph - k) // k + 1, (w + 2 * pw - k) // k + 1),
+        device=x.device,
+        dtype=x.dtype,
+        memory_format=CL3,
+    )
+    eye = torch.eye(c, device=x.device, dtype=x.dtype)
+    rows = x.permute(0, 2, 3, 4, 1).view(n, d, h * w, c)
+    step = max(PATCH_PLANES // k, 1)
+    for i in range(n):
+        for o in range(0, do, step):
+            oe = min(o + step, do)
+            lo, hi = k * o - pd, k * oe - pd  # the input disparities of output slices [o, oe), padding included
+            a, b = max(lo, 0), min(hi, d)
+            slab = torch.mm(eye, rows[i, a:b].reshape(-1, c).t()).view(1, c, b - a, h, w)
+            if a > lo or b < hi:
+                slab = F.pad(slab, (0, 0, 0, 0, a - lo, hi - b))
+            y[i : i + 1, :, o:oe] = F.conv3d(slab, m.weight, None, k, (0, ph, pw), 1, c)
+    return y
 
 
 def _fuse_sequential(seq: nn.Sequential, consumed: set[int]) -> None:
