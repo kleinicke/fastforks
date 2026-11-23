@@ -14,8 +14,9 @@ runner's refinement correlation reads the CNN's fp16 features and accumulates in
 from __future__ import annotations
 
 import contextlib
+import functools
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.nn.functional as F
@@ -30,9 +31,9 @@ from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from .net.attention import sdpa
 from .net.geometry import coords_grid, flow_warp
 from .net.matching import local_correlation_softmax, local_correlation_with_flow
-from .net.transformer import TransformerLayer
+from .net.transformer import FeatureTransformer, TransformerLayer
 from .net.unimatch import UniMatch
-from .net.utils import feature_add_position, upsample_flow_with_mask
+from .net.utils import feature_add_position, generate_shift_window_attn_mask, upsample_flow_with_mask
 
 if TYPE_CHECKING:
     from fastforks.flow._runner import Context
@@ -252,6 +253,102 @@ _GRAPH_PIXELS = 262_144  # fixed: batch x padded H x W; launch-bound up to 384x5
 _GRAPHS = 2  # fixed: graph cache policy
 
 
+@functools.lru_cache(maxsize=8)
+def _window_orders(h: int, w: int, splits: int, device: torch.device) -> tuple[torch.Tensor, ...]:
+    """Token gathers between image order and the two window orders of a `splits` x `splits` Swin layer.
+
+    Returns (image -> unshifted, unshifted -> shifted, shifted -> unshifted, shifted -> image, unshifted -> image).
+    The shifted order is upstream's: rolled by minus half a window, then split into windows.
+    """
+    wh, ww = h // splits, w // splits
+    image = torch.arange(h * w, device=device).view(h, w)
+    split = lambda t: t.view(splits, wh, splits, ww).permute(0, 2, 1, 3).reshape(-1)  # noqa: E731
+    plain = split(image)
+    shifted = split(torch.roll(image, shifts=(-(wh // 2), -(ww // 2)), dims=(0, 1)))
+    to_image = lambda order: torch.empty_like(order).scatter_(0, order, torch.arange(order.numel(), device=device))  # noqa: E731
+    plain_back, shifted_back = to_image(plain), to_image(shifted)
+    return plain, plain_back[shifted], shifted_back[plain], shifted_back, plain_back
+
+
+def _window_layer(
+    layer: Any,  # noqa: ANN401 - a vendored TransformerLayer
+    source: torch.Tensor,
+    target: torch.Tensor,
+    windows: int,
+    mask: torch.Tensor | None,
+) -> torch.Tensor:
+    """Upstream `TransformerLayer.forward` (swin, one head) on tokens already in its window order."""
+    b, n, c = source.shape
+    q, k, v = (
+        proj(x).view(b * windows, n // windows, c)
+        for proj, x in ((layer.q_proj, source), (layer.k_proj, target), (layer.v_proj, target))
+    )
+    if mask is None:
+        message = _headed(q, k, v)
+    else:  # one image's windows at a time against the [K*K, N, N] mask, as upstream for large masks
+        message = torch.cat(
+            [
+                _headed(qa, ka, va, mask)
+                for qa, ka, va in zip(q.split(windows), k.split(windows), v.split(windows), strict=True)
+            ]
+        )
+    del q, k, v
+    message = layer.norm1(layer.merge(message.view(b, n, c)))
+    if layer.no_ffn:
+        return source + message
+    return layer._add_feed_forward(source, message)  # noqa: SLF001 - upstream's CUDA float32 inference branch
+
+
+def _window_transformer(
+    self: FeatureTransformer,
+    feature0: torch.Tensor,
+    feature1: torch.Tensor,
+    attn_type: str = "swin",
+    attn_num_splits: int | None = None,
+    **kwargs: object,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Upstream `FeatureTransformer.forward` for 2-D Swin attention with the tokens kept in window order.
+
+    Upstream rolls q, k and v of every shifted layer, splits all three into windows and merges and rolls the output
+    back (eight copies per shifted layer). Every other op of a layer is per token, so here the tokens of both images
+    are gathered into the next layer's window order once per layer; the attention sees the same windows in the same
+    order, with upstream's mask.
+    """
+    if attn_type != "swin" or attn_num_splits is None or attn_num_splits <= 1 or torch.is_grad_enabled():
+        msg = "the window-order GMFlow transformer is inference-only 2-D swin with splits > 1"
+        raise RuntimeError(msg)
+    del kwargs
+    b, c, h, w = feature0.shape
+    windows = attn_num_splits**2
+    to_plain, plain_to_shifted, shifted_to_plain, shifted_back, plain_back = _window_orders(
+        h, w, attn_num_splits, feature0.device
+    )
+    mask = generate_shift_window_attn_mask(
+        input_resolution=(h, w),
+        window_size_h=h // attn_num_splits,
+        window_size_w=w // attn_num_splits,
+        shift_size_h=h // attn_num_splits // 2,
+        shift_size_w=w // attn_num_splits // 2,
+        device=feature0.device,
+        dtype=torch.get_autocast_dtype(feature0.device.type)
+        if torch.is_autocast_enabled(feature0.device.type)
+        else feature0.dtype,
+    )
+    tokens = torch.cat((feature0, feature1)).flatten(-2).transpose(1, 2).index_select(1, to_plain)  # [2B, HW, C]
+    shifted = False
+    for i, layer in enumerate(self.layers):
+        if (i % 2 == 1) != shifted:
+            tokens = tokens.index_select(1, shifted_to_plain if shifted else plain_to_shifted)
+            shifted = not shifted
+        layer_mask = mask if shifted else None
+        other = torch.cat(tokens.chunk(2)[::-1])  # the cross-attention target: the other image before this block
+        tokens = _window_layer(layer.self_attn, tokens, tokens, windows, layer_mask)
+        tokens = _window_layer(layer.cross_attn_ffn, tokens, other, windows, layer_mask)
+    tokens = tokens.index_select(1, shifted_back if shifted else plain_back)
+    feature0, feature1 = tokens.view(2 * b, h, w, c).permute(0, 3, 1, 2).contiguous().chunk(2)
+    return feature0, feature1
+
+
 def _refine_forward(self: BasicUpdateBlock, net, inp, corr, flow, *, upsample=True):  # noqa: ANN001, ANN202, PLR0913 - upstream's names
     """Upstream `BasicUpdateBlock.forward`, channels-last, with the GRU input cast to the autocast dtype once.
 
@@ -288,6 +385,7 @@ class Kernels(Portable):
         for layer in self.net.transformer.modules():
             if isinstance(layer, TransformerLayer):
                 layer.window_options = {"attention": _headed}
+        override(self.net.transformer, _window_transformer)
         if ctx.params.refine:
             self.net.refine.to(memory_format=torch.channels_last)
             override(self.net.refine, _refine_forward)
