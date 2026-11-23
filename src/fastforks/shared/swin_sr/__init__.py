@@ -32,6 +32,7 @@ __all__ = [
     "checkpoint_upsampler",
     "pad_heads",
     "patch_embed",
+    "patch_unembed",
     "relative_bias",
     "roll",
     "shift_mask",
@@ -242,6 +243,17 @@ def patch_embed(m: nn.Module, x: torch.Tensor) -> torch.Tensor:
     """
     x = x.flatten(2).transpose(1, 2).contiguous()
     return x if m.norm is None else m.norm(x)  # ty: ignore[call-non-callable]
+
+
+def patch_unembed(m: nn.Module, x: torch.Tensor, x_size: tuple[int, int]) -> torch.Tensor:  # noqa: ARG001 - the module's call
+    """`PatchUnEmbed.forward` without a copy: contiguous `[B, H * W, C]` tokens as a channels-last `[B, C, H, W]` map.
+
+    Upstream copies the tokens transposed into an NCHW map, which the convolution after it then reads (cuDNN's fp16
+    convolutions convert it back to NHWC); the view feeds them in place and `patch_embed` of the channels-last result
+    is a view too (HAT 512 x 512: a 7 ms copy per residual group, each way).
+    """
+    b, _, c = x.shape
+    return x.reshape(b, *x_size, c).permute(0, 3, 1, 2)
 
 
 def checkpoint_upsampler(sd: Mapping[str, torch.Tensor]) -> tuple[str, int] | None:
