@@ -148,6 +148,7 @@ class GraphCache:
         self._failed: OrderedDict[Hashable, None] = OrderedDict()
         self._calls = 0
         self._pool: Any = None
+        self._captured = False  # a graph pool was made since the last `release` (its memory needs an empty_cache)
         self._stream: torch.cuda.Stream | None = None
         self._lock = threading.Lock()
 
@@ -261,6 +262,7 @@ class GraphCache:
                 graph.capture_end()
         cur.wait_stream(side)
         self._pool = graph.pool()
+        self._captured = True
         return graph, static, out
 
     def _much_larger(self, x: torch.Tensor) -> bool:
@@ -298,7 +300,12 @@ class GraphCache:
             self._used.clear()
             self._seen.clear()
             self._pool = None
-        torch.cuda.empty_cache()  # a dropped graph pool is only freed by the next empty_cache
+            captured, self._captured = self._captured, False
+        # a dropped graph pool is only freed by the next empty_cache; without a capture since the last release there is
+        # none, and an empty_cache would only make the next eager call allocate again (PP-OCRv5 mobile 1080 x 1920,
+        # releasing its recogniser graphs on every large page: 176 -> 163 ms, paired in one process)
+        if captured:
+            torch.cuda.empty_cache()
 
 
 _Output = TypeVar("_Output")
