@@ -20,9 +20,10 @@ from fastforks.kernels.fastbb import load as load_kernels
 from fastforks.shared.depth_anything_v2.fast_vit import HEAD_DIM, _flash
 
 from .net.dinov3 import rope_table
+from .net.track_on import DMSMHABlock, MHABlock
 
 if TYPE_CHECKING:
-    from .net.track_on import TrackOn2
+    from .net.track_on import Shapes, TrackOn2
 
 _INT32 = 2**31 - 1  # fixed: `rope_qk_h` indexes in int32
 
@@ -79,3 +80,39 @@ def install(net: TrackOn2) -> None:
 
     enc.vit_block = vit_block  # per-instance override
     enc.vit_rope = vit_rope  # ty: ignore[invalid-assignment]  # per-instance override
+    _install_mlps(net)
+
+
+def _install_mlps(net: TrackOn2) -> None:
+    """Every decoder / fusion block's MLP on `_mlp`."""
+    for mod in net.modules():
+        if isinstance(mod, MHABlock):
+            mod.forward = _mha_forward.__get__(mod)  # ty: ignore[invalid-assignment]  # per-instance override
+        elif isinstance(mod, DMSMHABlock):
+            mod.forward = _dmsmha_forward.__get__(mod)  # ty: ignore[invalid-assignment]  # per-instance override
+
+
+def _mlp(blk: MHABlock | DMSMHABlock, q: torch.Tensor) -> torch.Tensor:
+    """`norm2(q + linear2(relu(linear1(q))))` with the bias and ReLU of `linear1` in the GEMM epilogue.
+
+    `torch._addmm_activation` rounds `acc + bias` once and clamps, as autocast's fp16 `linear1` followed by `relu`
+    (`round(max(0, y)) == max(0, round(y))`), so the output is bit-identical while the ReLU pass over the
+    `[tokens, 4C]` activation goes (track-on-r 480 x 854: 144 such passes per clip).
+    """
+    w, b = blk.linear1.weight, blk.linear1.bias
+    rows = q.reshape(-1, q.shape[-1]).to(w.dtype)  # autocast's cast of the LayerNorm's float32 output
+    hid = torch._addmm_activation(b, rows, w.t())  # noqa: SLF001 - the cuBLASLt bias + ReLU epilogue
+    hid = hid.view(*q.shape[:-1], w.shape[0])
+    return blk.norm2(q + blk.linear2(hid))
+
+
+def _mha_forward(
+    self: MHABlock, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor | None = None
+) -> torch.Tensor:
+    return _mlp(self, self.norm1(q + self.mha(q, k, v, mask)))
+
+
+def _dmsmha_forward(
+    self: DMSMHABlock, q: torch.Tensor, value: torch.Tensor, ref: torch.Tensor, shapes: Shapes
+) -> torch.Tensor:
+    return _mlp(self, self.norm1(q + q + self.mha(q, value, ref, shapes)))
