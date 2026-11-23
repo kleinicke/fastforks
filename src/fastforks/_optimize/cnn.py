@@ -19,7 +19,7 @@ from fastforks._core.patch import is_base, on_load
 
 from . import ops
 from .fold import module_uses
-from .graph import ADDS, act_of, attr, dce, finish, ok_conv, pair
+from .graph import ADDS, act_of, attr, dce, finish, ok_conv, pair, recompile
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -166,7 +166,7 @@ def fold_layer_scale(gm: fx.GraphModule) -> int:
     dce(g)
     # Dropout removal and dead-code elimination can change the graph even when
     # no LayerScale was folded; Dynamo needs code and line metadata in sync.
-    gm.recompile()
+    recompile(gm)
     return n
 
 
@@ -564,7 +564,7 @@ def fuse_stem_pool(gm: fx.GraphModule) -> int:
         g.erase_node(u)
         g.erase_node(node)
         g.lint()
-        gm.recompile()
+        recompile(gm)
         return 1
     return 0
 
@@ -580,7 +580,7 @@ def fuse_all(gm: fx.GraphModule) -> int:
     _flag(gm, "npool", replace_maxpool(gm) + replace_avgpool(gm))
     _flag(gm, "nstempool", fuse_stem_pool(gm))
     gm.graph.lint()
-    gm.recompile()
+    recompile(gm)
     return n
 
 
@@ -784,7 +784,7 @@ def to_conv_tc(gm: fx.GraphModule) -> int:
         g.erase_node(node)
         n += 1
     g.lint()
-    gm.recompile()
+    recompile(gm)
     return n
 
 
@@ -820,7 +820,7 @@ def to_pw(gm: fx.GraphModule) -> int:
         g.erase_node(node)
         n += 1
     g.lint()
-    gm.recompile()
+    recompile(gm)
     return n
 
 
@@ -836,5 +836,5 @@ def to_dw2(gm: fx.GraphModule) -> int:
                 continue
             node.target = ops.dwconv2
             n += 1
-    gm.recompile()
+    recompile(gm)
     return n
