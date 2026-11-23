@@ -161,3 +161,13 @@ preprocessor, and ComfyUI's built-in upscaler (`RealESRGAN_x4plus.pth` in `model
 need the pack installed (they show as red nodes otherwise) and download their weights on first run; the fastforks
 branches work without them. The stereo example uses a Middlebury left/right pair, the other examples a crop of a
 single photo (the video examples use synthetic pan crops).
+
+## Memory
+
+ComfyUI runs PyTorch on the `cudaMallocAsync` allocator (unless started with `--disable-cuda-malloc`). The 70 kernels
+models that fit the test machine's local weights, run that way at the [benchmarks](benchmarks.md)' inputs (RTX 5060
+Ti, Windows), gave the same outputs at the same speed as under PyTorch's default allocator, with less memory reserved
+in total (131 against 138 GiB summed over the models); the benchmarks' memory columns use the default allocator.
+PyTorch's `torch.cuda.max_memory_allocated` reports about twice the peak under `cudaMallocAsync` for models that
+capture CUDA graphs, but the device memory in use (`cudaMemGetInfo`) is not higher: ema-vfi at 1080 x 1920 peaks at
+2350 MiB against 3376 MiB under the default allocator, aliked-lightglue at 768 x 1024 at 1456 against 1520 MiB.
