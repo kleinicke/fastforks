@@ -577,7 +577,8 @@ def _self_test(device: torch.device) -> None:
         if (
             e is not None
             and y is not None
-            and not torch.allclose(y.float(), F.conv2d(x.float(), w.float(), padding=1), atol=0.25)
+            # the reference on the CPU: a first fp32 cuDNN conv would load kernels the model may never use (~30 ms)
+            and not torch.allclose(y.cpu().float(), F.conv2d(x.cpu().float(), w.cpu().float(), padding=1), atol=0.25)
         ):
             e, reason = None, "a 3x3 fp16 conv gave a wrong result"
         if e is None:

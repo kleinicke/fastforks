@@ -43,6 +43,10 @@ TASKS = tuple(TASK_SPECS)
 """Every task (subpackage of `fastforks`) that has model cards, in listing order (from `fastforks._core.tasks`)."""
 
 
+_parsed: set[str] = set()
+"""Tasks whose cards `cards` has parsed : `known` asks them instead of reading the card texts."""
+
+
 @functools.cache
 def cards(task: str) -> Mapping[str, tuple[ModelCard, Variant]]:
     """Return `{model id: (card, variant)}` of all installed models of `task`, sorted by id.
@@ -62,6 +66,7 @@ def cards(task: str) -> Mapping[str, tuple[ModelCard, Variant]]:
                 msg = f"model id {v.id!r} declared by {found[v.id][0].family} and {card.family}"
                 raise CardError(msg)
             found[v.id] = (card, v)
+    _parsed.add(task)
     return MappingProxyType(dict(sorted(found.items())))  # cached: read-only for callers
 
 
@@ -302,7 +307,7 @@ def known(task: str, model: object) -> bool:
     model_id = model.partition("@")[0]
     # a card declares its ids as literal strings: a task none of whose card texts holds the id cannot know it, and
     # is answered without parsing its cards or importing its models package (top-level load asks every task)
-    text = _card_text(task)
+    text = None if task in _parsed else _card_text(task)  # parsed cards (e.g. a UI's model list) answer at once
     return (text is None or model_id.lower() in text) and _lookup(task, model_id) is not None
 
 

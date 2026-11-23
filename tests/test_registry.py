@@ -286,3 +286,12 @@ def test_listing_models_does_not_import_torch() -> None:
     code = "import sys, fastforks; assert fastforks.list_models(); print('torch' in sys.modules)"
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
     assert out.stdout.strip() == "False"
+
+
+def test_known_asks_parsed_cards_without_reading_their_texts(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Once a task's cards are parsed (a UI's model list), `known` answers from them, not from the card files."""
+    registry.cards("stereo")
+    monkeypatch.setattr(registry, "_card_text", lambda _task: pytest.fail("read the card texts again"))
+    assert registry.known("stereo", "monster-sceneflow")
+    assert registry.known("stereo", "monster-sceneflow@1")
+    assert not registry.known("stereo", "depth-anything-v2-s")
