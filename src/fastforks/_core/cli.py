@@ -79,14 +79,6 @@ from fastforks._core.errors import (
     install_hint,
 )
 from fastforks._core.files import OFFLINE_ENV, _human_size, cache_root, env_flag, link_view, locate, offline, present
-from fastforks._core.kernels import (
-    KERNEL_PATH_ENV,
-    for_driver,
-    platform_manifest,
-    platform_reason,
-    read_manifest,
-    select_target,
-)
 from fastforks._core.sizes import EXAMPLE_SIZE, size_range
 
 if TYPE_CHECKING:
@@ -299,6 +291,14 @@ def _kernel_files(lib: str, *, archs: Sequence[str], all_archs: bool) -> list[tu
     For this GPU only the build its driver loads; with `--arch` / `--all-archs` (for other machines) the older-driver
     `compat` build too. Shared libraries: the build of this OS (`platform_manifest`).
     """
+    from fastforks._core.kernels import (  # noqa: PLC0415 - imports torch
+        for_driver,
+        platform_manifest,
+        platform_reason,
+        read_manifest,
+        select_target,
+    )
+
     path = Path(str(importlib.resources.files("fastforks.kernels") / lib / "manifest.toml"))
     if not path.is_file():
         return []
@@ -476,6 +476,8 @@ def _weights(args: argparse.Namespace, entries: Sequence[tuple[ModelCard, Varian
 
 def _kernel(args: argparse.Namespace, lib: str, tag: str, spec: FileSpec) -> list[str]:
     """Fetch (or `--dry-run`: size, `--check`: look for) one kernel binary; returns what is missing."""
+    from fastforks._core.kernels import KERNEL_PATH_ENV  # noqa: PLC0415 - imports torch
+
     if args.dry_run:
         print(f"{tag}: {_size_text(spec.size or 0)}")
     elif args.check:
@@ -807,6 +809,15 @@ def _kernel_status(lib: str, arch: tuple[int, int] | None, driver: tuple[int, in
 
 
 def _binary_status(lib: str, path: Path, arch: tuple[int, int] | None, driver: tuple[int, int] | None) -> str:
+    from fastforks._core.kernels import (  # noqa: PLC0415 - imports torch
+        KERNEL_PATH_ENV,
+        for_driver,
+        platform_manifest,
+        platform_reason,
+        read_manifest,
+        select_target,
+    )
+
     full = read_manifest(platform_manifest(path))
     manifest = full if driver is None else for_driver(full, driver)
     if reason := platform_reason(manifest):
