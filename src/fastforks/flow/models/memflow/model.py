@@ -102,7 +102,10 @@ def _kernel_lookup(k: CubinModule, f1: torch.Tensor, f2: torch.Tensor) -> Callab
 
 
 class Kernels(Portable):
-    """The portable fp16 pass with the correlation windows computed on the fly (`raft_flow`): no all-pairs volume."""
+    """The portable fp16 pass with the correlation windows computed on the fly (`raft_flow`): no all-pairs volume.
+
+    The conv weights are stored in fp16 (the values autocast casts them to on each call).
+    """
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and bind the lookup kernel."""
@@ -110,6 +113,11 @@ class Kernels(Portable):
         from fastforks.kernels import raft_flow  # noqa: PLC0415 - needs the kernel library
 
         self.lookup = functools.partial(_kernel_lookup, raft_flow.load(ctx.device))
+        # fp16 conv weights: autocast would cast each one on every call (15 updates x ~90 convs); the norms and
+        # the aggregator's gain (a product outside a conv) keep fp32 parameters, as under autocast.
+        for m in self.net.modules():
+            if isinstance(m, torch.nn.Conv2d):
+                m.half()
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a padded batch."""

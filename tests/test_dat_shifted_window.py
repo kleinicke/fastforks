@@ -12,7 +12,7 @@ from fastforks.restoration.models.dat.net.dat_arch import Spatial_Attention
 @pytest.mark.parametrize(("h", "w"), [(4, 4), (4, 12), (12, 4), (12, 12)])
 @pytest.mark.parametrize("branch", [0, 1])
 def test_dat_shared_mask_matches_full_grid(h: int, w: int, branch: int) -> None:
-    """Each window attends only over the same tokens as the original dense mask."""
+    """Each window attends only over the same tokens as the original dense mask; the rolls are folded in."""
     generator = torch.Generator().manual_seed(0)
     split = (2, 4)
     shift = (1, 2)
@@ -22,5 +22,7 @@ def test_dat_shared_mask_matches_full_grid(h: int, w: int, branch: int) -> None:
     qkv = torch.randn(3, 2, h * w, 16, generator=generator)
     masks = _masks(split, shift, h, w, torch.device("cpu"))
     want = _spatial(attn, qkv, h, w, masks[branch])
-    got = _shifted_window(attn, qkv, h, w, shift if branch == 0 else (shift[1], shift[0]))
-    torch.testing.assert_close(got, want)
+    sh = shift if branch == 0 else (shift[1], shift[0])
+    image = torch.roll(qkv.view(3, 2, h, w, 16), sh, (2, 3))  # the unrolled input: its roll by -sh is qkv
+    got = _shifted_window(attn, image, h, w, sh, into=torch.empty(2, h, w, 16))
+    torch.testing.assert_close(got, torch.roll(want, sh, (1, 2)))

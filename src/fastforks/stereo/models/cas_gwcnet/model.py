@@ -130,7 +130,8 @@ def cost_volume(
         warped = grid_sample(y, torch.stack((gx, gy), 3), mode="bilinear", padding_mode="zeros", align_corners=True)
         if gc:
             valid = (xs >= dj).unsqueeze(1).float()  # upstream: x_warped[:, mw < d] = 0
-            corr = (xg * valid * warped[:, :cg]).view(b, groups, cg // groups, h, w).mean(2)
+            # the 0 / 1 mask after the group mean (20 channels, not 160): the same values, the samples being finite
+            corr = (xg * warped[:, :cg]).view(b, groups, cg // groups, h, w).mean(2).mul_(valid)
             parts = (corr, xc * valid, warped[:, cg:])
         else:
             parts = (xc, warped)

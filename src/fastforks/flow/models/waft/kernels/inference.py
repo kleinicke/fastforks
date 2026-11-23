@@ -3,6 +3,8 @@
 Same recipe as WAFT-Stereo's: `prepare_kernels(net, device)`, then `forward_kernels(net, image1, image2, iters)`
 (images `[B, 3, H, W]`, 0..255):
   - Depth Anything's DINOv2 as the fp16 `fastbb` ViT (flash kernel, fp16-accumulate GEMMs, `use_fast_vit`)
+  - the refinement ViT's attention through the same `fastbb` flash kernel (q, k, v read as views of the packed
+    qkv; SDPA's cuDNN kernel took 2.7 ms per block at 1080p)
   - pure fp16 weights and NHWC activations; every conv through `cnn_kernels.conv_ep` (fp16-accumulate cuDNN graphs, or
     CUTLASS with the epilogue fused for >= 128 output channels)
   - the pre-activation `resconv` blocks as GELU + (conv + bias + GELU) + (conv + bias + residual)
@@ -20,9 +22,11 @@ from torch import nn
 
 from fastforks._core.patch import override
 from fastforks.kernels import dpt_fused
+from fastforks.kernels.fastbb import Flash64
 from fastforks.shared import cnn_kernels
 from fastforks.shared.cnn_kernels import ACT, CL, conv_ep
-from fastforks.shared.depth_anything_v2 import use_fast_vit
+from fastforks.shared.depth_anything_v2 import flash_attention, use_fast_vit
+from fastforks.shared.timm_blocks.net.vit import Attention
 
 from ..net.utils import Padder, bilinear_sampler, coords_grid
 from ..net.waft_a1 import resconv
@@ -39,6 +43,14 @@ def _resconv_forward(self: nn.Module, x: torch.Tensor) -> torch.Tensor:
     return conv_ep(c1, y, r=skip.contiguous(memory_format=CL))
 
 
+def _attention_forward(self: nn.Module, x: torch.Tensor) -> torch.Tensor:
+    """timm `Attention` (eval, no q / k norm) with the `fastbb` flash kernel; the same math as SDPA."""
+    b, n, c = x.shape
+    d = c // self.num_heads
+    q, k, v = self.qkv(x).view(b, n, 3, self.num_heads, d).unbind(2)
+    return self.proj(flash_attention(q, k, v, d**-0.5, self.flash).view(b, n, c))
+
+
 def prepare_kernels(net: ViTWarpV8, device: torch.device) -> None:
     """Switch `net` (fp32, eval, on `device`) to the kernels path in place.
 
@@ -47,9 +59,13 @@ def prepare_kernels(net: ViTWarpV8, device: torch.device) -> None:
     """
     net.eval()
     use_fast_vit(net.da_feature.depth_anything.pretrained, fused=dpt_fused.load(device))
+    flash = Flash64("hh")  # one probe window for the 5 x 12 refinement blocks
     for m in net.modules():
         if isinstance(m, resconv):
             override(m, _resconv_forward)
+        elif isinstance(m, Attention):
+            m.flash = flash
+            override(m, _attention_forward)
     cnn_kernels.prepare_generic(net, device)
 
 
@@ -79,12 +95,25 @@ def forward_kernels(net: ViTWarpV8, image1: torch.Tensor, image2: torch.Tensor, 
     fmap2_f32 = fmap2.float()
     flow = torch.zeros(n, 2, h // 2, w // 2, device=image1.device)
     coords0 = coords_grid(n, h // 2, w // 2, device=image1.device)
+    # The two 1 x 1 convs' channels-last inputs are written part by part (upstream: two cats, each copied again to
+    # channels last). warp_in keeps fmap1 across iterations; refine_in is rebuilt each time so it is not held during
+    # refine_net (kept, the peak grew 135 MiB at 1080p; as is, 31 MiB).
+    c = fmap1.shape[1]
+    warp_in = torch.empty((n, 3 * c + 2, h // 2, w // 2), dtype=fmap1.dtype, device=fmap1.device, memory_format=CL)
+    warp_in[:, :c] = fmap1
     for _ in range(iters):
-        warp = bilinear_sampler(fmap2_f32, (coords0 + flow).permute(0, 2, 3, 1)).half()
-        inp = net.warp_linear(torch.cat([fmap1, warp, hidden, flow.half()], dim=1).contiguous(memory_format=CL))
-        hidden = net.refine_transform(
-            torch.cat([net.refine_net(inp)["out"], hidden], dim=1).contiguous(memory_format=CL)
+        warp_in[:, c : 2 * c] = bilinear_sampler(fmap2_f32, (coords0 + flow).permute(0, 2, 3, 1))
+        warp_in[:, 2 * c : 3 * c] = hidden
+        warp_in[:, 3 * c :] = flow
+        out = net.refine_net(net.warp_linear(warp_in))["out"]
+        refine_in = torch.empty(
+            (n, out.shape[1] + c, *out.shape[2:]), dtype=out.dtype, device=out.device, memory_format=CL
         )
+        refine_in[:, : out.shape[1]] = out
+        refine_in[:, out.shape[1] :] = hidden
+        del out
+        hidden = net.refine_transform(refine_in)
+        del refine_in
         flow = flow + net.flow_head(hidden)[:, :2].float()
     mask = 0.25 * net.upsample_weight(hidden).float()
     return padder.unpad(_upsample(net, flow, mask))

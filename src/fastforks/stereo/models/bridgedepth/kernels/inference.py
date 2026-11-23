@@ -21,7 +21,7 @@ from fastforks.kernels import fastbb
 from fastforks.shared.depth_anything_v2 import use_fast_vit
 
 from ..net.bridgedepth import BridgeDepth
-from ..net.inference import forward, prepare
+from ..net.inference import LN16, forward, prepare
 from ..net.nmp import WindowAttention
 
 if TYPE_CHECKING:
@@ -93,6 +93,15 @@ def prepare_kernels(model: BridgeDepth, device: torch.device) -> BridgeDepth:
         raise RuntimeError(msg)
     model.to(device)
     use_fast_vit(model.mono.pretrained)
+    # fp16 weights: autocast cast every conv / linear weight and `LN16` every LayerNorm weight to fp16 on each call
+    # (about 1100 copies); the casts are the same values, so the disparity is bit-identical. `get_v` stays fp32:
+    # `get_rpe` also multiplies by its weight outside the conv, in fp32 by promotion.
+    keep = {id(m.get_v) for m in model.modules() if isinstance(getattr(m, "get_v", None), nn.Conv2d)}
+    for m in model.modules():
+        if isinstance(m, LN16):
+            m.weight.data, m.bias.data = m.weight.data.half(), m.bias.data.half()
+        elif isinstance(m, (nn.Linear, nn.Conv1d, nn.Conv2d, nn.ConvTranspose2d)) and id(m) not in keep:
+            m.half()
     return model
 
 
