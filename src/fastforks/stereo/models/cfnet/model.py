@@ -16,6 +16,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
+from fastforks._core.mlx_cast import float32_call, to_float32, to_run_dtype
 from fastforks._core.tracing import in_onnx_export
 from fastforks.kernels import cfnet_volume
 from fastforks.shared import mlx_wrap
@@ -81,7 +82,7 @@ def _volume(
     fl: dict[str, torch.Tensor], fr: dict[str, torch.Tensor], level: int, disps: int, groups: int
 ) -> torch.Tensor:
     """Upstream's group-wise correlation + concatenation volume of feature level `level`, from float32 features."""
-    gl, gr, cl, cr = (f[k].float() for k in (f"gw{level}", f"concat_feature{level}") for f in (fl, fr))
+    gl, gr, cl, cr = (to_float32(f[k]) for k in (f"gw{level}", f"concat_feature{level}") for f in (fl, fr))
     return torch.cat((build_gwc_volume(gl, gr, disps, groups), build_concat_volume(cl, cr, disps)), 1)
 
 
@@ -89,7 +90,7 @@ def _search_range(
     net: cfnet, pred: torch.Tensor, std: torch.Tensor, stage: str, size: tuple[int, int]
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Upstream: `pred -/+ ((gamma + 1) * std + beta)`, x2 and bilinearly upsampled to the next stage."""
-    g, b = getattr(net, f"gamma_{stage}").float() + 1, getattr(net, f"beta_{stage}").float()
+    g, b = to_float32(getattr(net, f"gamma_{stage}")) + 1, to_float32(getattr(net, f"beta_{stage}"))
     lo, hi = (pred - g * std - b) * 2, (pred + g * std + b) * 2
     return (
         F.interpolate(lo, size, mode="bilinear", align_corners=True),
@@ -163,7 +164,7 @@ def stage_volume(  # noqa: PLR0913 - the stage's inputs
     vc, _ = net.cost_volume_generator(flc, frc, ds, "concat")
     vg, ds = net.cost_volume_generator(flg, frg, ds, "gwc", groups)
     # the warp's float32 mask promotes the volumes (as upstream: the correlation runs in float32)
-    return torch.cat((vg, vc, ds), dim=1).to(flg.dtype)
+    return to_run_dtype(torch.cat((vg, vc, ds), dim=1), flg.dtype)
 
 
 def _stage(  # noqa: PLR0913 - one refinement stage of upstream's forward
@@ -204,11 +205,11 @@ def _stage(  # noqa: PLR0913 - one refinement stage of upstream's forward
     for r0 in range(0, rows, STRIP):
         r1 = min(rows, r0 + STRIP)
         a, b = max(0, r0 - halo), min(rows, r1 + halo)
-        ds = net.generate_disparity_samples(lo[:, :, a:b], hi[:, :, a:b], count).float()
+        ds = to_float32(net.generate_disparity_samples(lo[:, :, a:b], hi[:, :, a:b], count))
         cost = c0(volume(net, feats, ds, level=level, a=a, groups=groups))
         cost = c1(cost) + cost
         cost = classif(c3(c2(cost)))
-        p = F.softmax(cost.squeeze(1).float(), dim=1)
+        p = F.softmax(to_float32(cost.squeeze(1)), dim=1)
         pred = torch.sum(p * ds, dim=1, keepdim=True)
         out[:, :, r0:r1] = pred[:, :, r0 - a : r1 - a]
         if with_std:
@@ -234,15 +235,15 @@ def forward(
     left, right = (x.to(dt).contiguous(memory_format=fmt) for x in (left, right))
     fl, fr = net.feature_extraction(left), net.feature_extraction(right)
     md, g = net.maxdisp, net.num_groups
-    c4 = net.dres0(coarse(fl, fr, 4, md // 8, g).to(dt))
+    c4 = net.dres0(to_run_dtype(coarse(fl, fr, 4, md // 8, g), dt))
     c4 = net.dres1(c4) + c4
-    c5 = net.dres0_5(coarse(fl, fr, 5, md // 16, g))
-    c5 = net.dres1_5(c5) + c5
-    c6 = net.dres0_6(coarse(fl, fr, 6, md // 32, g))
-    c6 = net.dres1_6(c6) + c6
-    cost = net.classif2(net.dres3(net.combine1(c4, c5.to(dt), c6.to(dt))))
+    c5 = float32_call(net.dres0_5, coarse(fl, fr, 5, md // 16, g))
+    c5 = float32_call(net.dres1_5, c5) + c5
+    c6 = float32_call(net.dres0_6, coarse(fl, fr, 6, md // 32, g))
+    c6 = float32_call(net.dres1_6, c6) + c6
+    cost = net.classif2(net.dres3(net.combine1(c4, to_run_dtype(c5, dt), to_run_dtype(c6, dt))))
     del c4, c5, c6
-    prob = F.softmax(cost.squeeze(1).float(), dim=1)
+    prob = F.softmax(to_float32(cost.squeeze(1)), dim=1)
     pred = disparity_regression(prob, md // 8).unsqueeze(1)
     std = disparity_variance(prob, md // 8, pred).sqrt()
     del prob, cost

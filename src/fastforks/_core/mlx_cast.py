@@ -51,3 +51,16 @@ def to_float32(x: torch.Tensor) -> torch.Tensor:
     if EXPORTING_FOR_MLX.get():
         return float32(x)
     return x.float()
+
+
+def float32_call(module: torch.nn.Module, *args: torch.Tensor) -> torch.Tensor:
+    """`module(*args)` with float32 inputs (`to_float32`); a float16 MLX replay also keeps its weights float32.
+
+    Outside an MLX export this is `module(*(a.float() for a in args))`: the module's own weights are used as they are
+    (a float32 stage of a half-precision PyTorch network is `.float()`-ed by its runner).
+    """
+    args = tuple(to_float32(a) for a in args)
+    if not EXPORTING_FOR_MLX.get():
+        return module(*args)
+    state = {k: to_float32(v) if v.is_floating_point() else v for k, v in module.state_dict(keep_vars=True).items()}
+    return torch.func.functional_call(module, state, args)
