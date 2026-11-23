@@ -761,9 +761,8 @@ Time and memory per model on an M1 Pro: [Apple M1 Pro](devices/apple-m1-pro-16gb
 On Apple silicon, use `device="mps"` for both public modes.
 
 - `portable` runs the PyTorch MPS model.
-- `kernels` uses the family's native MPS Metal runner or MLX port. A measured MLX path must beat the native
-  Metal path by at least 5% to take precedence when both support the request. Explicitly requesting an unavailable
-  implementation raises an error.
+- `kernels` uses the family's native MPS Metal runner where it has one for the request, else its MLX port.
+  Explicitly requesting an unavailable implementation raises an error.
 - `auto` takes the fastest and leanest measured path of the model: portable MPS in float32 or float16, the Metal
   kernels, or the MLX port. The table (M1 Pro survey) only holds runs whose golden reference check passed, in a dtype
   the card validates, so float16 is taken as on CUDA: wherever it is validated and pays. Each step up (float32 ->

@@ -23,10 +23,12 @@ memory ratio still `MIN_GAIN` better). Without a `dtype`, `auto` goes through th
   route also needs its first call to take at most `COLD_MPS_COLD` first calls plus `COLD_MPS_WARM` warm runs of the
   MPS path it replaces, on every workload (`device="mlx"` always runs MLX). `dtypes`: the same for a requested
   `dtype`, against the fastest MPS path in that dtype.
-- `kernels` and `kernels_default` select MLX if it beats the native MPS kernel by the rule (explicit `mode="kernels"`).
-- `mlx` and `mlx_default` select the fastest passing MLX path where it is the only optimized backend.
+- `mlx` and `mlx_default` select the fastest passing MLX path (`device="mlx"` without a `dtype`, and a `dtype` MPS
+  has no implementation for).
 - `passed` lists, per MLX mode, the dtypes with a passing MLX run (golden checked): what `contract()` reports as
   validated on MLX, and what tests/test_mlx_validated.py holds the card declarations against.
+
+Only `auto` crosses from PyTorch MPS to MLX, so the table holds no route for an explicit `mode="kernels"`.
 
     uv run python tools/gen_auto_mode.py          # write
     uv run python tools/gen_auto_mode.py --check  # exit 1 if a file is out of date
@@ -310,18 +312,16 @@ def render_apple() -> str:
         portable, metal = _mps_choice(native, oom.get(ref, {}))
         chosen = metal.get("") or portable or next(iter(kernels), None)  # what `auto` runs on MPS without a dtype
         auto = _mlx_auto(accelerated, native, chosen, oom.get(ref, {}))
-        optimized = _winners(accelerated, kernels, memory=True) if kernels else {}
         only_mlx = _winners(accelerated, {})
         entry: dict[str, object] = {}
         if "" in auto:
             entry["auto"] = list(auto.pop(""))
         if auto:
             entry["dtypes"] = {dtype: option[0] for dtype, option in auto.items()}
-        for key, winners in (("kernels", optimized), ("mlx", only_mlx)):
-            if "" in winners:
-                entry[f"{key}_default"] = list(winners.pop(""))
-            if winners:
-                entry[key] = {dtype: option[0] for dtype, option in winners.items()}
+        if "" in only_mlx:
+            entry["mlx_default"] = list(only_mlx.pop(""))
+        if only_mlx:
+            entry["mlx"] = {dtype: option[0] for dtype, option in only_mlx.items()}
         if metal:
             entry["mps_auto"] = sorted(metal)
         if portable and portable[1] != "float32":

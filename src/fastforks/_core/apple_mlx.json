@@ -373,13 +373,6 @@
    }
   },
   "bridgedepth-rvc-pretrain@1": {
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
@@ -1605,13 +1598,6 @@
    "dtypes": {
     "float16": "kernels",
     "float32": "kernels"
-   },
-   "kernels_default": [
-    "kernels",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "kernels"
    },
    "mlx_default": [
     "kernels",
@@ -3182,10 +3168,6 @@
    }
   },
   "dwpose-l@1": {
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
    "mlx_default": [
     "portable",
     "float16"
@@ -4185,13 +4167,6 @@
    }
   },
   "foundationstereo-vit-s@1": {
-   "kernels_default": [
-    "kernels",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "kernels"
-   },
    "mlx_default": [
     "kernels",
     "float16"
@@ -4464,13 +4439,6 @@
     "float16": "portable",
     "float32": "portable"
    },
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
@@ -4499,13 +4467,6 @@
    "dtypes": {
     "float16": "portable",
     "float32": "portable"
-   },
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
    },
    "mlx_default": [
     "portable",
@@ -4536,13 +4497,6 @@
     "float16": "portable",
     "float32": "portable"
    },
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
@@ -4565,13 +4519,6 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "portable"
-   },
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
     "float16": "portable"
    },
    "mlx_default": [
@@ -4972,13 +4919,6 @@
     "float16": "kernels",
     "float32": "kernels"
    },
-   "kernels_default": [
-    "kernels",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "kernels"
-   },
    "mlx_default": [
     "kernels",
     "float16"
@@ -5011,13 +4951,6 @@
    "dtypes": {
     "float16": "kernels",
     "float32": "kernels"
-   },
-   "kernels_default": [
-    "kernels",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "kernels"
    },
    "mlx_default": [
     "kernels",
@@ -5052,13 +4985,6 @@
     "float16": "kernels",
     "float32": "kernels"
    },
-   "kernels_default": [
-    "kernels",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "kernels"
-   },
    "mlx_default": [
     "kernels",
     "float16"
@@ -5092,13 +5018,6 @@
     "float16": "kernels",
     "float32": "kernels"
    },
-   "kernels_default": [
-    "kernels",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "kernels"
-   },
    "mlx_default": [
     "kernels",
     "float16"
@@ -5129,13 +5048,6 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels"
-   },
-   "kernels_default": [
-    "kernels",
-    "float16"
-   ],
-   "kernels": {
     "float16": "kernels"
    },
    "mlx_default": [
@@ -5171,13 +5083,6 @@
     "float16": "portable",
     "float32": "portable"
    },
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
@@ -5206,13 +5111,6 @@
    "dtypes": {
     "float16": "portable",
     "float32": "portable"
-   },
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
    },
    "mlx_default": [
     "portable",
@@ -5243,13 +5141,6 @@
     "float16": "portable",
     "float32": "portable"
    },
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
@@ -5279,13 +5170,6 @@
     "float16": "portable",
     "float32": "portable"
    },
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
@@ -5314,13 +5198,6 @@
    "dtypes": {
     "float16": "portable",
     "float32": "portable"
-   },
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
    },
    "mlx_default": [
     "portable",
@@ -5461,13 +5338,6 @@
    }
   },
   "las2-h@1": {
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
@@ -5485,13 +5355,6 @@
    }
   },
   "las2-l@1": {
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
@@ -5509,13 +5372,6 @@
    }
   },
   "las2-m@1": {
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
@@ -6437,13 +6293,6 @@
    "dtypes": {
     "float16": "portable"
    },
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
@@ -6470,13 +6319,6 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "portable"
-   },
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
     "float16": "portable"
    },
    "mlx_default": [
@@ -6583,13 +6425,6 @@
     "float16": "portable",
     "float32": "portable"
    },
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
@@ -6619,13 +6454,6 @@
     "float16": "portable",
     "float32": "portable"
    },
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
@@ -6654,13 +6482,6 @@
    "dtypes": {
     "float16": "portable",
     "float32": "portable"
-   },
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
    },
    "mlx_default": [
     "portable",
@@ -7079,10 +6900,6 @@
    }
   },
   "pe-core-s16-384@1": {
-   "kernels_default": [
-    "portable",
-    "float32"
-   ],
    "mlx_default": [
     "portable",
     "float32"
@@ -7102,13 +6919,6 @@
    }
   },
   "pe-core-t16-384@1": {
-   "kernels_default": [
-    "portable",
-    "float32"
-   ],
-   "kernels": {
-    "float16": "portable"
-   },
    "mlx_default": [
     "portable",
     "float32"
@@ -7209,13 +7019,6 @@
    }
   },
   "pe-spatial-t16-512@1": {
-   "kernels_default": [
-    "portable",
-    "float32"
-   ],
-   "kernels": {
-    "float16": "portable"
-   },
    "mlx_default": [
     "portable",
     "float32"
@@ -7534,13 +7337,6 @@
    "dtypes": {
     "float16": "kernels"
    },
-   "kernels_default": [
-    "kernels",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "kernels"
-   },
    "mlx_default": [
     "kernels",
     "float16"
@@ -7591,13 +7387,6 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels"
-   },
-   "kernels_default": [
-    "kernels",
-    "float16"
-   ],
-   "kernels": {
     "float16": "kernels"
    },
    "mlx_default": [
@@ -8543,13 +8332,6 @@
    "dtypes": {
     "float32": "kernels"
    },
-   "kernels_default": [
-    "kernels",
-    "float32"
-   ],
-   "kernels": {
-    "float32": "kernels"
-   },
    "mlx_default": [
     "kernels",
     "float32"
@@ -8906,10 +8688,6 @@
    }
   },
   "rtmpose-l-halpe26-384@1": {
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
    "mlx_default": [
     "portable",
     "float16"
@@ -8927,10 +8705,6 @@
    }
   },
   "rtmpose-l-halpe26@1": {
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
    "mlx_default": [
     "portable",
     "float16"
@@ -8951,10 +8725,6 @@
    }
   },
   "rtmpose-l@1": {
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
    "mlx_default": [
     "portable",
     "float16"
@@ -8992,10 +8762,6 @@
    }
   },
   "rtmpose-m-ap10k@1": {
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
    "mlx_default": [
     "portable",
     "float16"
@@ -9013,10 +8779,6 @@
    }
   },
   "rtmpose-m-face6@1": {
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
    "mlx_default": [
     "portable",
     "float16"
@@ -9057,10 +8819,6 @@
    }
   },
   "rtmpose-m-halpe26@1": {
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
    "mlx_default": [
     "portable",
     "float16"
@@ -9263,10 +9021,6 @@
    }
   },
   "rtmw-l-384@1": {
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
    "mlx_default": [
     "portable",
     "float16"
@@ -9284,10 +9038,6 @@
    }
   },
   "rtmw-l@1": {
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
    "mlx_default": [
     "portable",
     "float16"
@@ -9305,10 +9055,6 @@
    }
   },
   "rtmw-m@1": {
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
    "mlx_default": [
     "portable",
     "float16"
@@ -10027,13 +9773,6 @@
    "dtypes": {
     "float16": "kernels"
    },
-   "kernels_default": [
-    "kernels",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "kernels"
-   },
    "mlx_default": [
     "kernels",
     "float16"
@@ -10064,13 +9803,6 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels"
-   },
-   "kernels_default": [
-    "kernels",
-    "float16"
-   ],
-   "kernels": {
     "float16": "kernels"
    },
    "mlx_default": [
@@ -10105,13 +9837,6 @@
    "dtypes": {
     "float16": "kernels"
    },
-   "kernels_default": [
-    "kernels",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "kernels"
-   },
    "mlx_default": [
     "kernels",
     "float16"
@@ -10142,13 +9867,6 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels"
-   },
-   "kernels_default": [
-    "kernels",
-    "float16"
-   ],
-   "kernels": {
     "float16": "kernels"
    },
    "mlx_default": [
@@ -10183,13 +9901,6 @@
    "dtypes": {
     "float16": "kernels"
    },
-   "kernels_default": [
-    "kernels",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "kernels"
-   },
    "mlx_default": [
     "kernels",
     "float16"
@@ -10220,13 +9931,6 @@
     "float16"
    ],
    "dtypes": {
-    "float16": "kernels"
-   },
-   "kernels_default": [
-    "kernels",
-    "float16"
-   ],
-   "kernels": {
     "float16": "kernels"
    },
    "mlx_default": [
@@ -11215,10 +10919,6 @@
    "dtypes": {
     "float16": "portable"
    },
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
    "mlx_default": [
     "portable",
     "float16"
@@ -11394,13 +11094,6 @@
    }
   },
   "vitpose-base@1": {
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
@@ -11422,13 +11115,6 @@
    }
   },
   "vitpose-plus-base@1": {
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
@@ -11458,13 +11144,6 @@
     "float16": "portable",
     "float32": "portable"
    },
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
@@ -11482,13 +11161,6 @@
    }
   },
   "vitpose-plus-large@1": {
-   "kernels_default": [
-    "portable",
-    "float16"
-   ],
-   "kernels": {
-    "float16": "portable"
-   },
    "mlx_default": [
     "portable",
     "float16"
