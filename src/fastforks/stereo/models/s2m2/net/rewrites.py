@@ -1,10 +1,28 @@
-"""Inference/export rewrites: commute pointwise convolutions before upsampling and
-replace supported transposed convolutions with ordinary convolutions. Plain PyTorch.
+"""Inference/export rewrites: commute pointwise convolutions before upsampling,
+replace supported transposed convolutions with ordinary convolutions and run the
+optimal-transport log-sum-exps as one op. Plain PyTorch.
 """
 
+import torch
 import torch.nn as nn
 
-from fastforks._core.patch import base_type
+from fastforks._core.patch import base_type, override
+
+from .submodules import DispInit
+
+
+def _sinkhorn_lse(self, attn, log_mu, log_nu):
+    """`DispInit._sinkhorn` with `torch.logsumexp` (upstream's commented-out form) for `logsumexp_stable`.
+
+    Equal: the max term makes the clamped sum >= 1, so the 1e-30 clamp never acts. The fused reduction keeps no
+    `exp(x - max)` temporary the size of the cost volume (s2m2-s 994x1482 MPS fp16: driver peak 5501 -> 4477 MB).
+    """
+    v = log_nu - torch.logsumexp(attn, dim=2)
+    u = log_mu - torch.logsumexp(attn + v.unsqueeze(2), dim=3)
+    for _ in range(self.ot_iter - 1):
+        v = log_nu - torch.logsumexp(attn + u.unsqueeze(3), dim=2)
+        u = log_mu - torch.logsumexp(attn + v.unsqueeze(2), dim=3)
+    return attn + u.unsqueeze(3) + v.unsqueeze(2)
 
 
 class PSConv(nn.Module):
@@ -44,9 +62,13 @@ def tconv_as_conv(t):
     return c
 
 
-def prepare(model, upconv=True, tconv=True):
+def prepare(model, upconv=True, tconv=True, lse=False):
     """Apply supported algebraic rewrites after loading weights; return replacement counts."""
-    n = dict(upconv=0, tconv=0)
+    n = dict(upconv=0, tconv=0, lse=0)
+    for m in model.modules():
+        if lse and base_type(m) is DispInit:
+            override(m, _sinkhorn_lse, "_sinkhorn")
+            n["lse"] += 1
     for parent in list(model.modules()):
         for name, c in list(parent.named_children()):
             if (
