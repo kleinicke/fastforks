@@ -1067,7 +1067,7 @@ def load_model(  # noqa: PLR0913 - the arguments of every task's `load`
     )
 
 
-def load_variant(  # noqa: C901, PLR0912, PLR0913 - the arguments of `load_model`
+def load_variant(  # noqa: C901, PLR0912, PLR0913, PLR0915 - the arguments of `load_model`
     task: str,
     card: ModelCard,
     variant: Variant,
