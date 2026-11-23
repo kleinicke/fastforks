@@ -91,10 +91,21 @@ def _mask(m: Adaptive_Spatial_Attention, h: int, w: int) -> tuple[torch.Tensor, 
 
 
 def _windows(m: Spatial_Attention, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
-    """`Spatial_Attention.im2win` straight from the tokens, one copy (upstream: through a transposed image, three)."""
+    """`Spatial_Attention.im2win` straight from the tokens, one copy (upstream: through a transposed image, three).
+
+    On CUDA the head size is zero-padded to a multiple of 8 in the same copy (`attention` would copy q, k and v again
+    to pad them); the attention output's extra columns are sliced off by the callers.
+    """
     hs, ws, heads = m.H_sp, m.W_sp, m.num_heads
     x = x.unflatten(1, (h // hs, hs, w // ws, ws)).unflatten(-1, (heads, -1))  # b, h/hs, hs, w/ws, ws, heads, d
-    return x.permute(0, 1, 3, 5, 2, 4, 6).reshape(-1, heads, hs * ws, x.shape[-1])
+    win = x.permute(0, 1, 3, 5, 2, 4, 6)
+    d = x.shape[-1]
+    pad = -d % 8 if x.is_cuda else 0
+    if not pad:
+        return win.reshape(-1, heads, hs * ws, d)
+    out = x.new_zeros((*win.shape[:-1], d + pad))
+    out[..., :d] = win
+    return out.view(-1, heads, hs * ws, d + pad)
 
 
 def _spatial(m: Spatial_Attention, qkv: torch.Tensor, h: int, w: int, mask: torch.Tensor | None = None) -> torch.Tensor:
@@ -107,7 +118,7 @@ def _spatial(m: Spatial_Attention, qkv: torch.Tensor, h: int, w: int, mask: torc
         add = add + mask.to(q.dtype)[:, None]
         if bw != nw:
             add = add.repeat(bw // nw, 1, 1, 1)
-    out = attention(q, k, v, add.expand(bw, -1, -1, -1), m.scale)
+    out = attention(q, k, v, add.expand(bw, -1, -1, -1), m.scale)[..., : qkv.shape[-1] // m.num_heads]
     return windows2img(out.transpose(1, 2).reshape(bw, m.H_sp * m.W_sp, -1), m.H_sp, m.W_sp, h, w)
 
 
@@ -137,7 +148,7 @@ def _shifted_window(m: Spatial_Attention, qkv: torch.Tensor, h: int, w: int, shi
             y = attention(q1, k1, v1, pos.expand(q1.shape[0], -1, -1, -1), m.scale)
             out[section] = y.reshape_as(out[section])
             del q1, k1, v1, y
-    result = out.flatten(0, 2)
+    result = out.flatten(0, 2)[..., : qkv.shape[-1] // m.num_heads]
     return windows2img(result.transpose(1, 2).reshape(result.shape[0], hs * ws, -1), hs, ws, h, w)
 
 
