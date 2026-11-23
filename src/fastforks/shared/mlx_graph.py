@@ -823,6 +823,23 @@ SDPA_BLOCK_BYTES = 128 << 20
 """Float32 scores per query block of an unfused attention whose whole score matrix would exceed twice this."""
 
 
+_MASK_FLOOR = {mx.float16: -32752.0, mx.bfloat16: -1.6947656946257677e38}  # half the dtype's finite minimum
+
+
+def _additive_mask(mask: mx.array, dtype: mx.Dtype) -> mx.array:
+    """A float attention mask in the narrower `dtype` of the scores, its finite values kept finite.
+
+    A mask built with `torch.finfo(torch.float32).min` or `-1e9` would round to `-inf` in float16, and a row that is
+    masked everywhere then gives NaN where float32 gives a uniform row. Finite values are clamped to half the dtype's
+    finite range (the score added to it cannot overflow either); a mask's own `-inf` stays `-inf`, as in PyTorch.
+    The fully masked row is finite then, a softmax over its scores at float16 resolution rather than exactly uniform.
+    """
+    floor = _MASK_FLOOR.get(dtype)
+    if floor is None or mask.dtype not in {mx.float32, mx.bfloat16}:
+        return mask.astype(dtype)
+    return mx.where(mx.isinf(mask), mask, mx.clip(mask, floor, -floor)).astype(dtype)
+
+
 @_reg(aten.scaled_dot_product_attention.default)
 def _sdpa(
     q: mx.array,
@@ -839,7 +856,7 @@ def _sdpa(
     if causal:
         mask = "causal"
     elif mask is not None and mask.dtype not in {mx.bool_, q.dtype}:
-        mask = mask.astype(q.dtype)
+        mask = _additive_mask(mask, q.dtype)
     d = q.shape[-1]
     if d in SDPA_FUSED_DIMS or q.ndim != 4 or isinstance(mask, str):
         return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask=mask)

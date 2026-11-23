@@ -608,3 +608,35 @@ class TestLazyTwin:
         finally:
             done.set()
             t.join(20)
+
+
+@pytest.mark.parametrize("fused", [False, True])
+def test_float_attention_mask_stays_finite_in_float16(fused):
+    """A float32 additive mask of `finfo.min` must not turn into -inf under float16 scores: a fully masked row is NaN.
+
+    This is the mask a float32 island or an explicit `dtype=torch.float32` hands a float16 attention; a mask that is
+    float16 already (a cast input or buffer) is -inf in PyTorch too and stays so.
+    """
+    pytest.importorskip("mlx.core")
+    import mlx.core as mx  # noqa: PLC0415 - optional (the mlx extra)
+
+    from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415
+    from fastforks.shared import mlx_graph  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    d = mlx_graph.SDPA_FUSED_DIMS[0] if fused else 8
+    mask = torch.zeros(1, 1, 5, 5)
+    mask[..., 1, :] = torch.finfo(torch.float32).min  # one query sees nothing
+    mask[..., 3, :2] = -1e9
+    mask[..., 4, 0] = -torch.inf  # a mask's own -inf stays
+    x = torch.randn(1, 2, 5, d)
+    want = torch.nn.functional.scaled_dot_product_attention(x, x, x, attn_mask=mask)
+    q = to_mx(x).astype(mx.float16)
+    got = to_torch(mlx_graph._sdpa(q, q, q, to_mx(mask)))
+    assert torch.isfinite(got).all()  # the fully masked row too (a weighting of the values, not always the uniform one)
+    rows = [0, 2, 3, 4]
+    torch.testing.assert_close(got[..., rows, :], want[..., rows, :], atol=2e-2, rtol=2e-2)
+    clamped = mlx_graph._additive_mask(to_mx(mask), mx.float16)
+    assert clamped.dtype == mx.float16
+    assert to_torch(clamped)[0, 0, 4, 0] == -torch.inf
+    assert torch.isfinite(to_torch(clamped)[0, 0, :4]).all()
