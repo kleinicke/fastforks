@@ -471,19 +471,30 @@ def _conv_forward(self: Patched, x: torch.Tensor) -> torch.Tensor:
     return conv_ep(self, x)
 
 
-def mark_hacc_deconv(m: nn.Module) -> None:
-    """Run a prepared `ConvTranspose2d` / `3d` with output padding (groups and dilation 1) through `cudnn_hacc` too.
+HACC_DECONV_CHANNELS = 64  # `hacc_padded_deconvs`: at most this many input channels
 
-    `prepare_convs` leaves those on torch's convolution; a model opts in per module where it measured faster.
 
-    Raises:
-        ValueError: Not such a module.
+def hacc_padded_deconvs(model: nn.Module, max_in_channels: int = HACC_DECONV_CHANNELS) -> int:
+    """Run a prepared model's output-padded `ConvTranspose3d`s (groups and dilation 1) through `cudnn_hacc` too.
+
+    `prepare_convs` leaves them on torch's fp32-accumulate data gradient; a model opts in where its goldens validate it.
+    Only those with at most `max_in_channels` input channels: the stride-2 3x3x3 stereo-hourglass upsampling on an RTX
+    5060 Ti, 64 -> 32 at 24 x 68 x 120: 3.61 -> 1.35 ms, but 128 -> 64 at 12 x 34 x 60: 0.37 -> 1.01 ms (cuDNN's first
+    half-compute plan). Returns the number of convs marked.
     """
-    if base_type(m) not in {nn.ConvTranspose2d, nn.ConvTranspose3d} or m.groups != 1 or any(d != 1 for d in m.dilation):
-        msg = f"mark_hacc_deconv: needs a ConvTranspose with groups and dilation 1, got {m}"
-        raise ValueError(msg)
-    m.weight.data = m.weight.data.contiguous(memory_format=memory_format(m.weight.dim()))
-    m._hacc_t = True  # noqa: SLF001
+    n = 0
+    for m in model.modules():
+        if (
+            base_type(m) is nn.ConvTranspose3d
+            and any(m.output_padding)
+            and m.groups == 1
+            and all(d == 1 for d in m.dilation)
+            and m.in_channels <= max_in_channels
+        ):
+            m.weight.data = m.weight.data.contiguous(memory_format=memory_format(m.weight.dim()))
+            m._hacc_t = True  # noqa: SLF001
+            n += 1
+    return n
 
 
 def _mark_hacc(model: Patched) -> None:
