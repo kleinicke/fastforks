@@ -22,6 +22,7 @@ import importlib.util
 import logging
 import os
 import re
+import sys
 from collections import OrderedDict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, cast
@@ -380,11 +381,15 @@ def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = 
     return model
 
 
-def setup_cache(environ: os._Environ[str] | dict[str, str] = os.environ) -> None:
+_PLAN_ENV = "FASTFORKS_MLX_PLAN_CACHE"  # the library's on-disk MLX plan cache (fastforks >= 0.2.1; ignored before)
+
+
+def setup_cache(environ: os._Environ[str] | dict[str, str] = os.environ, platform: str = sys.platform) -> None:
     """Download weights and kernels into ComfyUI's `models/fastforks` (the first `fastforks` model folder).
 
     Files already in the HF hub or torch hub cache, the normal fastforks cache or other `fastforks` folders of
-    `extra_model_paths.yaml` are used in place (`FASTFORKS_READ_CACHES`); only missing files are downloaded.
+    `extra_model_paths.yaml` are used in place (`FASTFORKS_READ_CACHES`); only missing files are downloaded. On macOS
+    the MLX ports' first-run plans go to `models/fastforks/mlx-plans` unless `FASTFORKS_MLX_PLAN_CACHE` is set.
     """
     import folder_paths  # noqa: PLC0415 - ComfyUI only
 
@@ -400,6 +405,11 @@ def setup_cache(environ: os._Environ[str] | dict[str, str] = os.environ) -> None
             keep.append(d)
     environ["FASTFORKS_READ_CACHES"] = os.pathsep.join(keep)
     log.info("fastforks: downloads go to %s; also reading %s", dirs[0], keep)
+    if platform == "darwin" and _PLAN_ENV not in environ:
+        # an MLX port's first run of an image size exports and tunes the network (seconds to minutes); kept on disk,
+        # the next ComfyUI start reuses it. Set FASTFORKS_MLX_PLAN_CACHE to "" to turn it off.
+        environ[_PLAN_ENV] = str(Path(dirs[0]) / "mlx-plans")
+        log.info("fastforks: MLX first-run plans are kept in %s", environ[_PLAN_ENV])
 
 
 def fastforks_cache_default() -> str:

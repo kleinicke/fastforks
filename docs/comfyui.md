@@ -80,8 +80,11 @@ Every node has `model`, `backend` and `dtype` (`auto`: the validated one). `back
 - `kernels`: our kernels.
 - `mps` (Apple only): PyTorch on the Metal GPU, never the MLX port. Its first run is quick.
 - `mlx` (Apple only, fastforks >= 0.2.1 and the `mlx` package): the model's MLX port. It often needs less memory, but
-  its first run of each image size compiles and is slower. When `mps` runs out of memory on a model with an MLX port,
-  the error suggests `mlx`.
+  its first run of each image size compiles and is slower. Measured on an M1 Pro over 277 models: about a third less
+  memory (median), similar warm speed, first run 4.1 s against 0.7 s (median). On macOS the pack keeps that
+  first-run work in `models/fastforks/mlx-plans`, so it is not repeated after a ComfyUI restart (set
+  `FASTFORKS_MLX_PLAN_CACHE` to an empty value to turn this off). When `mps` runs out of memory on a model with an
+  MLX port, the error suggests `mlx`.
 
 `mps` and `mlx` on another device raise an error rather than switching backends. Both packs name a node `Fastforks<Name>` (shown as
 "Depth (fastforks)" or "Depth (fastforks, commercial)"), so a workflow saved with one pack loads in the other. With both
