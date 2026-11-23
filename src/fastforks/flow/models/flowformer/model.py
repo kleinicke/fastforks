@@ -239,7 +239,8 @@ def _patch_position(pe: PatchEmbed, e: _Embed, h: int, w: int, device: torch.dev
 def _patch_embed(pe: PatchEmbed, x: torch.Tensor, *, share_position: bool = False) -> tuple[torch.Tensor, tuple]:
     """Upstream `PatchEmbed._embed` (`share_position`) on fp16 channels-last activations; tokens `[B, N, 2 C]` fp16.
 
-    The convs run channels last (cuDNN converted every NCHW map to NHWC and back) with in-place ReLUs. The first 1 x 1
+    The convs run channels last (cuDNN converted every NCHW map to NHWC and back), the first two with their bias and
+    ReLU fused (`cudnn_convolution_relu`: 1080p, 1024 maps, 12.4 -> 7.5 ms, the bias added in float32). The first 1 x 1
     conv of `ffn_with_coord` is split at its concatenation: its position half is the same for every map
     (`_patch_position`, the bias of a GEMM over the maps' tokens), and both 1 x 1 convs are GEMMs over the tokens,
     which channels last already are. The LayerNorm reads fp16 with fp16 weights (autocast ran it on an fp32 copy).
@@ -247,8 +248,12 @@ def _patch_embed(pe: PatchEmbed, x: torch.Tensor, *, share_position: bool = Fals
     assert share_position  # noqa: S101 - the kernels encoder's only call
     e: _Embed = pe.__dict__["_kernels"]
     conv0, conv1, conv2 = e.convs
-    y = torch.relu_(F.conv2d(x.half(), conv0.weight, conv0.bias, conv0.stride, conv0.padding))
-    y = torch.relu_(F.conv2d(y, conv1.weight, conv1.bias, conv1.stride, conv1.padding))
+    y = torch.cudnn_convolution_relu(
+        x.half(), conv0.weight, conv0.bias, conv0.stride, cast("tuple[int, int]", conv0.padding), (1, 1), 1
+    )
+    y = torch.cudnn_convolution_relu(
+        y, conv1.weight, conv1.bias, conv1.stride, cast("tuple[int, int]", conv1.padding), (1, 1), 1
+    )
     y = F.conv2d(y, conv2.weight, conv2.bias, conv2.stride, conv2.padding)
     b, c, h, w = y.shape
     tokens = y.permute(0, 2, 3, 1).reshape(b, h * w, c)  # a view: `y` is channels last
