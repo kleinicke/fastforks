@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from .net.modules.fi_components import NewMultiFlowDecoder
     from .net.modules.hyponet import HypoNet
     from .net.raft.raft import RAFT
+    from .net.raft.update import BasicUpdateBlock
 
 LEVELS, RADIUS = 4, 4  # the correlation pyramids of RAFT and of the bidirectional lookup
 _REVERSE_MIN_TOKENS = 16_384  # fixed: feature size from which reusing the forward volume pays off on CUDA
@@ -205,6 +206,46 @@ def _compute_dtype(x: torch.Tensor) -> torch.dtype:
     """The dtype a conv would run `x` in: the autocast dtype when autocast is on for its device, else its own."""
     dev = x.device.type
     return torch.get_autocast_dtype(dev) if torch.is_autocast_enabled(dev) else x.dtype
+
+
+def _update(  # noqa: PLR0913, PLR0917 - upstream's signature
+    m: BasicUpdateBlock,
+    net: torch.Tensor,
+    inp: torch.Tensor,
+    corr: torch.Tensor,
+    flow: torch.Tensor,
+    upsample: bool = True,  # noqa: FBT001, FBT002 - upstream's signature
+) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor]:
+    """Upstream `BasicUpdateBlock.forward`, the GRU input `[h | inp | motion | flow]` in one buffer of the conv dtype.
+
+    Upstream concatenates `inp`, the motion features and the float32 flow into a float32 `x`, then `[h, x]` and
+    `[r * h, x]` twice per GRU (float32, 384 channels), which autocast casts to float16 for every one of the six
+    convs. Writing the parts into one buffer of the conv dtype and only replacing its `h` slice gives the convs the
+    same input values (each cast rounds once either way): bit-identical, without the six float32 copies and casts.
+    """
+    e, g = m.encoder, m.gru
+    cor = F.relu(e.convc2(F.relu(e.convc1(corr))))
+    flo = F.relu(e.convf2(F.relu(e.convf1(flow))))
+    out = F.relu(e.conv(torch.cat([cor, flo], dim=1)))
+    del cor, flo
+    hd, ci, co = net.shape[1], inp.shape[1], out.shape[1]
+    buf = net.new_empty((net.shape[0], hd + ci + co + flow.shape[1], *net.shape[2:]), dtype=_compute_dtype(net))
+    buf[:, hd : hd + ci] = inp
+    buf[:, hd + ci : hd + ci + co] = out
+    buf[:, hd + ci + co :] = flow
+    del out
+    h = net
+    for cz, cr, cq in ((g.convz1, g.convr1, g.convq1), (g.convz2, g.convr2, g.convq2)):
+        buf[:, :hd] = h
+        z = torch.sigmoid(cz(buf))
+        r = torch.sigmoid(cr(buf))
+        buf[:, :hd] = r * h
+        q = torch.tanh(cq(buf))
+        h = (1 - z) * h + z * q
+    del buf
+    delta_flow = m.flow_head(h)
+    mask = 0.25 * m.mask(h) if upsample else None
+    return h, mask, delta_flow
 
 
 def _hyponet(hn: HypoNet, coord: torch.Tensor, lat: torch.Tensor, chunk: int = HYPO_PIXELS) -> torch.Tensor:
@@ -411,6 +452,7 @@ def _net(ctx: Context) -> GIMMVFI_R:
     check_fits(net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
     net.load_state_dict(sd)
     override(net.amt_final_decoder, _decoder)
+    override(net.flow_estimator.update_block, _update)
     for m in net.amt_final_decoder.convblock:
         if isinstance(m, ResBlock):
             override(m, _resblock)
@@ -490,8 +532,9 @@ def _kernel_corr(k: CubinModule, f1: torch.Tensor, f2: torch.Tensor) -> Callable
 
 
 def _hacc_conv(conv: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
-    """The conv in float16 with float16 accumulation (`cudnn_hacc`), on the float16 channels-last weight copies."""
-    return cudnn_hacc.conv_half_acc(x.half(), conv.w16, conv.b16, conv.padding, conv.stride, conv.dilation)  # ty: ignore[invalid-argument-type]
+    """The conv in float16 with float16 accumulation (`cudnn_hacc`, the bias in its plan), on float16 copies."""
+    geometry = (conv.padding, conv.stride, conv.dilation)
+    return cudnn_hacc.conv_half_acc(x.half(), conv.w16, conv.b16, *geometry, fuse_bias=True)  # ty: ignore[invalid-argument-type]
 
 
 class Kernels(Portable):

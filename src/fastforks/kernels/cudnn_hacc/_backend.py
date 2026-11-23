@@ -18,12 +18,15 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 # descriptor types
+_POINTWISE, _OP_POINTWISE = 0, 13
 _CONVOLUTION, _ENGINE, _ENGINECFG, _ENGINEHEUR, _EXECUTION_PLAN, _KNOB_CHOICE = 1, 2, 3, 4, 5, 7
 _OP_CONV_FWD, _OP_CONV_BWD_DATA, _OPERATIONGRAPH, _VARIANT_PACK, _TENSOR = 10, 12, 15, 16, 17
 # attribute value types
 _T_HANDLE, _T_DATA_TYPE, _T_BOOLEAN, _T_INT64, _T_FLOAT, _T_VOID_PTR = 0, 1, 2, 3, 4, 6
-_T_CONVOLUTION_MODE, _T_HEUR_MODE, _T_KNOB_TYPE, _T_BACKEND_DESCRIPTOR, _T_BEHAVIOR_NOTE = 7, 8, 9, 15, 19
+_T_CONVOLUTION_MODE, _T_HEUR_MODE, _T_KNOB_TYPE, _T_POINTWISE_MODE, _T_BACKEND_DESCRIPTOR = 7, 8, 9, 14, 15
+_T_BEHAVIOR_NOTE = 19
 # attributes
+_PW_MODE, _PW_MATH_PREC = 0, 1
 _CONV_COMP_TYPE, _CONV_MODE, _CONV_DILATIONS, _CONV_STRIDES, _CONV_POST_PAD, _CONV_PRE_PAD, _CONV_DIMS = range(100, 107)
 _HEUR_MODE, _HEUR_GRAPH, _HEUR_RESULTS = 200, 201, 202
 _CFG_ENGINE, _CFG_KNOB_CHOICES = 300, 302
@@ -31,13 +34,15 @@ _PLAN_HANDLE, _PLAN_CONFIG, _PLAN_WORKSPACE = 400, 401, 402
 _KNOB_TYPE, _KNOB_VALUE = 600, 601
 _FWD_ALPHA, _FWD_BETA, _FWD_DESC, _FWD_W, _FWD_X, _FWD_Y = range(700, 706)
 _BWD_ALPHA, _BWD_BETA, _BWD_DESC, _BWD_W, _BWD_DX, _BWD_DY = range(706, 712)
+_OPPW_DESC, _OPPW_X, _OPPW_B, _OPPW_Y = range(750, 754)
 _GRAPH_HANDLE, _GRAPH_OPS = 800, 801
 _TENSOR_ALIGNMENT, _TENSOR_DATA_TYPE, _TENSOR_DIMS, _TENSOR_STRIDES = 900, 901, 902, 903
 _TENSOR_UID, _TENSOR_VIRTUAL = 906, 907
 _PACK_UIDS, _PACK_POINTERS, _PACK_WORKSPACE = 1000, 1001, 1003
 _ENGINE_GRAPH, _ENGINE_INDEX, _ENGINE_BEHAVIOR = 1300, 1301, 1305
 # values
-_HALF = 2
+_FLOAT, _HALF = 0, 2
+_PW_ADD = 0
 _CROSS_CORRELATION = 1
 HEUR_A, HEUR_FALLBACK = 3, 2
 RUNTIME_COMPILATION = 0
@@ -231,10 +236,10 @@ def set_stream(handle: Handle, stream: int) -> None:
     _check(_lib().set_stream(handle.ptr, stream), "cudnnSetStream")
 
 
-def _tensor(uid: int, dims: Sequence[int], strides: Sequence[int]) -> Desc:
+def _tensor(uid: int, dims: Sequence[int], strides: Sequence[int], *, virtual: bool = False) -> Desc:
     t = Desc(_TENSOR).ints(_TENSOR_UID, [uid]).enum(_TENSOR_DATA_TYPE, _T_DATA_TYPE, _HALF)
     t.ints(_TENSOR_ALIGNMENT, [16]).ints(_TENSOR_DIMS, dims).ints(_TENSOR_STRIDES, strides)
-    t.set(_TENSOR_VIRTUAL, _T_BOOLEAN, ctypes.c_bool())
+    t.set(_TENSOR_VIRTUAL, _T_BOOLEAN, ctypes.c_bool(virtual))
     return t.finalize()
 
 
@@ -265,7 +270,7 @@ def conv_descs(  # noqa: PLR0913 - the weight and conv geometry
     return wt, cd
 
 
-def op_graph(  # noqa: PLR0913 - one conv: three tensors, padding, stride, dilation, kind
+def op_graph(  # noqa: PLR0913 - one conv: three tensors, padding, stride, dilation, kind, bias
     handle: Handle,
     *,
     x: tuple[Sequence[int], Sequence[int]],
@@ -277,13 +282,31 @@ def op_graph(  # noqa: PLR0913 - one conv: three tensors, padding, stride, dilat
     uids: tuple[int, int, int],
     dgrad: bool,
     cache: dict[tuple[object, ...], Desc] | None = None,
+    bias: tuple[int, int] | None = None,
 ) -> Desc:
     """The finalized operation graph of one half-compute conv (`dgrad`: the transposed conv `x -> y`), groups 1.
 
     `cache` (the caller's, bounded by it) keeps the weight tensor and conv descriptors, which do not change with the
     input size: a finalized descriptor may be referenced by any number of graphs.
+
+    `bias = (uid, virtual uid)` (forward convs): `y = conv + b`, `b` a `[1, K, 1, ...]` fp16 tensor, added in fp32 to
+    the conv's fp16 result (a virtual fp16 tensor) and rounded once to fp16: the values of the conv followed by an
+    fp16 `add_` of `b`, without writing and reading `y` twice.
     """
     xt, yt = _tensor(uids[0], *x), _tensor(uids[2], *y)
+    add_op = None
+    if bias is not None:  # the conv writes the virtual tensor, the bias add writes y
+        k, nd = y[0][1], len(y[0])
+        bt = _tensor(bias[0], [1, k] + [1] * (nd - 2), [k, 1] + [k] * (nd - 2))
+        out, yt = yt, _tensor(bias[1], *y, virtual=True)
+        add = cache.get(("pw", _PW_ADD)) if cache is not None else None
+        if add is None:
+            add = Desc(_POINTWISE).enum(_PW_MODE, _T_POINTWISE_MODE, _PW_ADD)
+            add.enum(_PW_MATH_PREC, _T_DATA_TYPE, _FLOAT).finalize()
+            if cache is not None:
+                cache["pw", _PW_ADD] = add
+        add_op = Desc(_OP_POINTWISE).desc(_OPPW_DESC, add).desc(_OPPW_X, yt).desc(_OPPW_B, bt).desc(_OPPW_Y, out)
+        add_op.finalize()
     wt, cd = conv_descs(w=w, padding=padding, stride=stride, dilation=dilation, uid=uids[1], cache=cache)
     one, zero = ctypes.c_float(1.0), ctypes.c_float(0.0)
     if dgrad:  # the data gradient: dy = the transposed conv's input, dx = its output
@@ -292,9 +315,12 @@ def op_graph(  # noqa: PLR0913 - one conv: three tensors, padding, stride, dilat
     else:
         op = Desc(_OP_CONV_FWD).desc(_FWD_DESC, cd).desc(_FWD_X, xt).desc(_FWD_W, wt).desc(_FWD_Y, yt)
         op.set(_FWD_ALPHA, _T_FLOAT, one).set(_FWD_BETA, _T_FLOAT, zero)
-    op.finalize()
-    g = Desc(_OPERATIONGRAPH).set(_GRAPH_HANDLE, _T_HANDLE, handle.ptr).desc(_GRAPH_OPS, op)
-    g.keep.append(handle)
+    ops = [op.finalize()] if add_op is None else [op.finalize(), add_op]
+    g = Desc(_OPERATIONGRAPH).set(_GRAPH_HANDLE, _T_HANDLE, handle.ptr)
+    _check(
+        _lib().set(g.ptr, _GRAPH_OPS, _T_BACKEND_DESCRIPTOR, len(ops), (_VP * len(ops))(*(o.ptr for o in ops))), "ops"
+    )
+    g.keep += [handle, *ops]
     return g.finalize()
 
 
@@ -411,16 +437,16 @@ class Builder:
         return Desc.adopt(keep[6], cfg, handle), ws.value, cfg, engine.value
 
 
-_UIDS = (_I64 * 3)(1, 2, 3)
+_UIDS = (_I64 * 4)(1, 2, 3, 4)
 
 
-def pack(pointers: tuple[int, int, int, int]) -> Desc:
-    """The variant pack of data pointers `(x, w, y)` (uids 1, 2, 3) and the workspace pointer."""
+def pack(pointers: tuple[int, ...]) -> Desc:
+    """The variant pack of data pointers `(x, w, y)` or `(x, w, y, b)` (uids 1, 2, 3, 4), then the workspace pointer."""
     vp = Desc(_VARIANT_PACK)
-    lib = _lib()
-    _check(lib.set(vp.ptr, _PACK_UIDS, _T_INT64, 3, _UIDS), "uids")
-    _check(lib.set(vp.ptr, _PACK_POINTERS, _T_VOID_PTR, 3, (_VP * 3)(*pointers[:3])), "pointers")
-    _check(lib.set(vp.ptr, _PACK_WORKSPACE, _T_VOID_PTR, 1, ctypes.byref(_VP(pointers[3]))), "workspace")
+    lib, n = _lib(), len(pointers) - 1
+    _check(lib.set(vp.ptr, _PACK_UIDS, _T_INT64, n, _UIDS), "uids")
+    _check(lib.set(vp.ptr, _PACK_POINTERS, _T_VOID_PTR, n, (_VP * n)(*pointers[:n])), "pointers")
+    _check(lib.set(vp.ptr, _PACK_WORKSPACE, _T_VOID_PTR, 1, ctypes.byref(_VP(pointers[n]))), "workspace")
     return vp.finalize()
 
 

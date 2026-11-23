@@ -364,3 +364,42 @@ def test_no_workspace_stays_resident() -> None:
     gc.collect()
     torch.cuda.empty_cache()
     assert torch.cuda.memory_allocated() - base < 8 * 2**20
+
+
+@pytest.mark.parametrize(
+    ("x", "k", "r", "pad", "stride"),
+    [
+        ((1, 256, 37, 240), 256, 3, (1, 1), (1, 1)),
+        ((1, 32, 136, 240), 32, 3, (1, 1), (1, 1)),
+        ((1, 64, 50, 70), 128, 1, (0, 0), (1, 1)),
+        ((2, 48, 33, 45), 96, 3, (1, 1), (2, 2)),
+        ((1, 16, 9, 21, 23), 16, 3, (1, 1, 1), (1, 1, 1)),
+    ],
+)
+def test_bias_in_the_plan_matches_conv_then_add(  # noqa: PLR0913, PLR0917 - one geometry per case
+    conv: cudnn_hacc.CudnnHalfConv,
+    x: tuple[int, ...],
+    k: int,
+    r: int,
+    pad: tuple[int, ...],
+    stride: tuple[int, ...],
+) -> None:
+    """`fuse_bias`: an fp16 bias added in a conv + bias plan ~ the conv plan followed by an fp16 `add_`."""
+    nd = len(x) - 2
+    mf = CL if nd == 2 else torch.channels_last_3d
+    g = torch.Generator("cuda").manual_seed(2)
+    xt = torch.randn(x, device="cuda", generator=g).half().contiguous(memory_format=mf)
+    wt = (0.1 * torch.randn((k, x[1], *[r] * nd), device="cuda", generator=g)).half().contiguous(memory_format=mf)
+    b = torch.randn(k, device="cuda", generator=g).half()
+    kernels.begin_call()
+    y = conv.conv(xt, wt, b, pad, stride, fuse_bias=True)
+    fused = [e for key, e in conv._plans.items() if key[0] == "conv_bias"]
+    assert len(fused) == 1
+    assert isinstance(fused[0], cudnn_hacc._Plan)
+    if nd == 2:  # cuDNN has precompiled conv + bias plans for 2-D convs
+        assert fused[0].bias
+    want = conv.conv(xt, wt, b, pad, stride)  # the conv plan, then `add_`
+    assert [key[0] for key in conv._plans] == ["conv_bias", "conv"]
+    torch.testing.assert_close(y.float(), want.float(), rtol=0, atol=0.01 * float(want.abs().max()))
+    kernels.begin_call()  # an fp32 bias is not fused: the conv plan, then `add_`
+    torch.testing.assert_close(conv.conv(xt, wt, b.float(), pad, stride, fuse_bias=True), want, rtol=0, atol=0.01)
