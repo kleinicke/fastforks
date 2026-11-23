@@ -45,7 +45,7 @@ def upload(x: torch.Tensor, device: torch.device) -> torch.Tensor:
     """`x` on `device` as float32; CPU -> CUDA through pinned memory, asynchronously.
 
     A pageable upload waits for the copy, which empties the GPU's launch queue per image (costly under Windows'
-    WDDM). Plain torch, not `fastforks._core.upload`: the pack also runs with an older fastforks.
+    WDDM). Plain torch, not `fastforks._core.upload`: the pack uses fastforks' public API only.
     """
     if x.device.type == "cpu" and torch.device(device).type == "cuda":
         x = x.pin_memory().to(device, non_blocking=True)

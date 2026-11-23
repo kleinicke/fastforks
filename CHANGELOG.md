@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased (0.2.1)
+
+No model family is new in this release; the changes are backends, platforms and the ComfyUI packs.
+
+### Apple silicon
+
+- MLX backend: `load(..., device="mlx")` runs the families that have a port through Apple's MLX
+  (`pip install "fastforks-core[mlx]"`; `mode="portable"` or `"kernels"`, float32 or float16). A family without a port
+  raises `BackendUnavailableError`, a missing `mlx` package `MissingDependencyError`; nothing falls back.
+- `device="mps"` now takes the MLX port where it was measured faster or leaner and its first call is cheap
+  (`mode="auto"`, logged at INFO), and for `mode="kernels"` where the family has no faster native Metal kernels. Such a
+  model reports `backend.device == "mlx"`; results come back as MPS tensors. `FASTFORKS_MLX=0` keeps every load on
+  PyTorch MPS. See "MPS takes the faster port" in `docs/usage.md`.
+
+### Windows
+
+- The `kernels` backend runs on Windows x86-64 with an NVIDIA GPU: the kernel DLLs download like the weights and need
+  no C++ toolchain. A library without a Windows build makes `kernels` raise and `auto` run portable, with a warning.
+
+### ComfyUI
+
+- Two node packs in `integrations/`: `comfyui` (every model) and `comfyui-commercial` (only models cleared for
+  commercial use, no Parse node): 20 nodes, one per task, with a model dropdown and automatic weight download (`docs/comfyui.md`).
+  Both require fastforks 0.2.1.
+
+### API changes
+
+- `Model.warmup(sizes)` runs the first call of each input size ahead of time (compiles, MLX graphs).
+- `registry.allow_noncommercial()` lets a front end with its own opt-in allow non-commercial weights.
+- `detection.track_objects(batch_size=)`; `example_inputs()` on concept segmentation and the volume models.
+- New options `cuda_graphs` and `stream` on the families that list them; `FASTFORKS_SDPA` selects the attention
+  backend of CUDA calls.
+- Six more whole-body CT checkpoints for TotalSegmentator.
+
 ## 0.2.0
 
 ### API changes

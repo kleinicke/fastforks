@@ -1,1 +1,1 @@
-fastforks-core[timm,transformers]>=0.2
+fastforks-core[timm,transformers]>=0.2.1

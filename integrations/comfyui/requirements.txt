@@ -1,1 +1,1 @@
-fastforks>=0.2
+fastforks>=0.2.1

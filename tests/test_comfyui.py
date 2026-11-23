@@ -589,8 +589,11 @@ def test_pack_metadata() -> None:
         requirements = (PACK.parent / d / "requirements.txt").read_text(encoding="utf-8").split()
         assert requirements == m["project"]["dependencies"], d
         assert m["project"]["description"].startswith("Fast vision nodes: "), d
-    assert meta["comfyui"]["project"]["dependencies"] == ["fastforks>=0.2"]
-    assert meta["comfyui-commercial"]["project"]["dependencies"] == ["fastforks-core[timm,transformers]>=0.2"]
+    core = tomllib.loads((PACK.parents[1] / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+    # the packs call API of this version (`registry.allow_noncommercial`, `device="mlx"`): an older core must not satisfy
+    assert meta["comfyui"]["project"]["dependencies"] == [f"fastforks>={core}"]
+    assert meta["comfyui-commercial"]["project"]["dependencies"] == [f"fastforks-core[timm,transformers]>={core}"]
+    assert {m["project"]["version"] for m in meta.values()} == {core}
     assert meta["comfyui-commercial"]["tool"]["comfy"]["DisplayName"].endswith("(commercial use)")
     assert meta["comfyui-commercial"]["tool"]["comfy"]["includes"] == ["fastforks_comfyui"]
     assert "your responsibility" in meta["comfyui"]["project"]["description"]

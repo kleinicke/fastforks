@@ -36,10 +36,10 @@ mklink /J ComfyUI\custom_nodes\comfyui-fastforks C:\path\to\fastforks\integratio
 python_embeded\python.exe -m pip install -r ComfyUI\custom_nodes\comfyui-fastforks\requirements.txt
 ```
 
-`requirements.txt` installs `fastforks>=0.2` from PyPI and keeps ComfyUI's torch (it needs torch >= 2.8); use
+`requirements.txt` installs `fastforks>=0.2.1` from PyPI and keeps ComfyUI's torch (it needs torch >= 2.8); use
 `pip install -e "./fastforks[libs]"` instead to run the cloned source (it has every model family). For the commercial-only pack link
 `integrations/comfyui-commercial` instead (it finds the nodes in `integrations/comfyui` next to it); its
-`requirements.txt` installs `fastforks-core[timm,transformers]>=0.2`. Installing the repository URL with
+`requirements.txt` installs `fastforks-core[timm,transformers]>=0.2.1`. Installing the repository URL with
 ComfyUI-Manager's "Install via Git URL" clones the root, which is not a node pack.
 
 Windows: the `kernels` backend works like on Linux (the DLLs download once, like the weights, and need no C++ toolchain). A
