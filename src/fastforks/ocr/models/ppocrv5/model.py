@@ -40,6 +40,7 @@ from fastforks.ocr._runner import (
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cnn_kernels import prepare_generic
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
+from fastforks.shared.native_depthwise import native_depthwise
 
 from . import convert
 from .net import build
@@ -196,7 +197,12 @@ def fold_affine(net: torch.nn.Module) -> None:
 
 
 class Kernels(Portable):
-    """Run the convolution blocks with fused CUDA kernels; the mobile networks' affine blocks folded (`fold_affine`)."""
+    """Run the convolution blocks with fused CUDA kernels; the mobile networks' affine blocks folded (`fold_affine`).
+
+    The mobile detector's depthwise convolutions run on PyTorch's own kernel (`native_depthwise`): its first page
+    takes 1.2 instead of 2.2 s at 1080p, warm pages as fast, and its boxes as close to float32 or closer (bench
+    page: mean 0.011 vs 0.068 px, same texts).
+    """
 
     module = Runner.module
 
@@ -209,6 +215,10 @@ class Kernels(Portable):
         else:
             fold_affine(self.det)
             fold_affine(self.rec)
+            # cuDNN's first float16 call of each depthwise layer costs ~0.1 s (2.2 -> 1.2 s first page). Only the
+            # detector: in the recogniser's thin 48-pixel crops PyTorch's kernel is ~10 ms per page slower.
+            if self.dtype == torch.float16:
+                native_depthwise(self.det)
         self.det_graphs = SmallShapeGraphs(super()._detect, pixels=_DETECTOR_GRAPH_PIXELS)
         self.rec_graphs = SmallShapeGraphs(super()._recognise, pixels=2**22)
 
