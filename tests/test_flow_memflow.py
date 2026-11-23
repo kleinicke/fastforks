@@ -125,3 +125,15 @@ def test_pcblock_fused_is_the_block(kernels: tuple[int, ...]) -> None:
 
 def test_fft_size_has_only_small_factors() -> None:
     assert [_fft_size(n) for n in (149, 254, 256, 7)] == [150, 256, 256, 8]
+
+
+@pytest.mark.parametrize("rows", [100, 320])
+def test_readout_matrix_rows_match_fused_attention(rows: int) -> None:
+    """The kept softmax matrix rows (some, all) and fused attention for the rest give the fused readout."""
+    torch.manual_seed(0)
+    net = MemFlowNet(6750.0).eval()
+    a, b = (2 * x - 1 for x in _pair(128, 160, batch=2))  # 16 x 20 = 320 queries per image
+    with torch.no_grad():
+        want = net.forward_pair(a, b, 2)
+        got = net.forward_pair(a, b, 2, matrix_bytes=2 * 320 * 4 * rows)
+    torch.testing.assert_close(got, want, rtol=0, atol=1e-4)

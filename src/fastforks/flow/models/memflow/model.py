@@ -104,6 +104,8 @@ def _kernel_lookup(k: CubinModule, f1: torch.Tensor, f2: torch.Tensor) -> Callab
 
 _FFT_MIN_KERNEL = 15  # fixed: the motion encoder's and flow head's depthwise kernels (the 7 x 7 ones gain nothing)
 _FFT_CHANNELS = 64  # fixed: channels per cuFFT batch (1080p, 256 x 15 x 15: 0.96 ms vs 1.16 at 128, 1.87 at 32)
+# fixed: float16 readout softmax matrix rows kept across the iterations (the rest are fused attention in each one)
+ATTENTION_MATRIX_BYTES = 1 << 30
 
 
 def _fft_size(n: int) -> int:
@@ -256,7 +258,11 @@ class Kernels(Portable):
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a padded batch."""
         iters = self.ctx.params.iters
-        return {"flow": self.net.forward_pair(image1, image2, iters, corr_fn=self.lookup, fp16=True)}
+        return {
+            "flow": self.net.forward_pair(
+                image1, image2, iters, corr_fn=self.lookup, fp16=True, matrix_bytes=ATTENTION_MATRIX_BYTES
+            )
+        }
 
     def module(self) -> torch.nn.Module:
         """No exportable module: the lookup is a kernel launch."""
