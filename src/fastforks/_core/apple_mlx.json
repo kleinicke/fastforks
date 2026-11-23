@@ -1421,6 +1421,20 @@
     "float32": "portable"
    }
   },
+  "depthfm-v1@1": {
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
   "depthsplat-small-re10k@1": {
    "mlx_default": [
     "portable",

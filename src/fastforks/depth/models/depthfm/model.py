@@ -149,9 +149,11 @@ def finish(d: torch.Tensor, size: tuple[int, ...]) -> torch.Tensor:
 
 
 def _decode_ensemble(decode: Callable[[torch.Tensor], torch.Tensor], latent: torch.Tensor) -> torch.Tensor:
-    # The VAE decodes ensemble members independently. Bound the full-resolution activation size in eager CUDA.
-    capture = torch.compiler.is_compiling() or torch.jit.is_tracing()
-    if latent.is_cuda and not capture and not torch.is_grad_enabled():
+    # The VAE decodes ensemble members independently. Bound the full-resolution activation size in eager runs (CUDA,
+    # MPS, and the MLX port, whose latent sits on the CPU): at 1024x1472 four members at once need ~12 GiB of decoder
+    # activations. Traced graphs keep one batch.
+    capture = torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.compiler.is_exporting()
+    if not capture and not torch.is_grad_enabled():
         pixels = 64 * latent.shape[-2] * latent.shape[-1]  # VAE upscales each spatial axis by eight
         batch = max(1, _DECODE_PIXELS // pixels)
         if latent.shape[0] > batch:

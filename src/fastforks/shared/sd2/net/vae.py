@@ -10,7 +10,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from .unet import Downsample2D, ResnetBlock2D, Upsample2D
+from .unet import Downsample2D, ResnetBlock2D, Upsample2D, attention
 
 EPS = 1e-6
 _UPSAMPLE_TILE_MIN_PIXELS = 256 * 256  # below this the temporary is small enough to use one convolution
@@ -50,7 +50,7 @@ class AttentionBlock(nn.Module):
         b, c, h, w = x.shape
         t = self.group_norm(x.view(b, c, h * w)).transpose(1, 2)
         q, k, v = (m(t)[:, None] for m in (self.query, self.key, self.value))
-        o = F.scaled_dot_product_attention(q, k, v)[:, 0]
+        o = attention(q, k, v)[:, 0]
         return self.proj_attn(o).transpose(1, 2).reshape(b, c, h, w) + x
 
 

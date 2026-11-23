@@ -14,6 +14,11 @@ import torch.nn.functional as F
 from torch import nn
 
 
+def _tracing() -> bool:
+    """A graph capture (torch.compile, TorchScript, export: the ONNX / TensorRT / MLX paths) is running."""
+    return torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.compiler.is_exporting()
+
+
 class ResnetBlock2D(nn.Module):
     """diffusers `ResnetBlock2D` (time_embedding_norm "default", output_scale_factor 1, 1x1 shortcut)."""
 
@@ -65,6 +70,23 @@ class Upsample2D(nn.Module):
         return self.conv(x)
 
 
+MPS_SCORE_BYTES = 512 << 20
+"""Score bytes per query block of an MPS attention: its SDPA materialises the scores (DepthFM at 1024x1472: 66 GiB)."""
+
+
+def attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
+    """`scaled_dot_product_attention`; on MPS in query blocks when the whole score matrix exceeds `MPS_SCORE_BYTES`.
+
+    Traced graphs (export, the MLX port) keep the single op: their backends block or fuse it themselves.
+    """
+    tracing = _tracing()
+    row = q.shape[0] * q.shape[1] * k.shape[-2] * q.element_size()  # bytes of one query's scores
+    if q.device.type != "mps" or tracing or q.shape[-2] * row <= MPS_SCORE_BYTES:
+        return F.scaled_dot_product_attention(q, k, v)
+    blk = max(1, MPS_SCORE_BYTES // row)
+    return torch.cat([F.scaled_dot_product_attention(qi, k, v) for qi in q.split(blk, dim=-2)], dim=-2)
+
+
 class Attention(nn.Module):
     """diffusers `Attention` (no q/k/v bias, output bias) with `AttnProcessor2_0`; `ctx` = cross-attention states."""
 
@@ -82,7 +104,7 @@ class Attention(nn.Module):
         q = self.to_q(x).view(b, n, self.heads, -1).transpose(1, 2)
         k = self.to_k(ctx).view(b, ctx.shape[1], self.heads, -1).transpose(1, 2)
         v = self.to_v(ctx).view(b, ctx.shape[1], self.heads, -1).transpose(1, 2)
-        o = F.scaled_dot_product_attention(q, k, v)
+        o = attention(q, k, v)
         return self.to_out[0](o.transpose(1, 2).reshape(b, n, c))
 
 
@@ -155,7 +177,9 @@ class DownBlock(nn.Module):
             self.attentions = nn.ModuleList([Transformer2DModel(cout, heads, cross) for _ in range(2)])
         self.downsamplers = nn.ModuleList([Downsample2D(cout, 1)]) if down else None
 
-    def forward(self, x: torch.Tensor, temb: torch.Tensor, ctx: torch.Tensor) -> tuple[torch.Tensor, list[torch.Tensor]]:
+    def forward(
+        self, x: torch.Tensor, temb: torch.Tensor, ctx: torch.Tensor
+    ) -> tuple[torch.Tensor, list[torch.Tensor]]:
         skips = []
         for i, r in enumerate(self.resnets):
             x = r(x, temb)
@@ -171,15 +195,10 @@ class DownBlock(nn.Module):
 class UpBlock(nn.Module):
     """`CrossAttnUpBlock2D` (`heads` set) or `UpBlock2D`: three resnets on the concatenated skip states."""
 
-    def __init__(
-        self, cin: int, cprev: int, cout: int, temb: int, heads: int | None, cross: int, *, up: bool
-    ) -> None:
+    def __init__(self, cin: int, cprev: int, cout: int, temb: int, heads: int | None, cross: int, *, up: bool) -> None:
         super().__init__()
         self.resnets = nn.ModuleList(
-            [
-                ResnetBlock2D((cprev if i == 0 else cout) + (cin if i == 2 else cout), cout, temb, 1e-5)
-                for i in range(3)
-            ]
+            [ResnetBlock2D((cprev if i == 0 else cout) + (cin if i == 2 else cout), cout, temb, 1e-5) for i in range(3)]
         )
         if heads:
             self.attentions = nn.ModuleList([Transformer2DModel(cout, heads, cross) for _ in range(3)])
@@ -258,9 +277,7 @@ class UNet2DConditionModel(nn.Module):
         last = len(channels) - 1
         self.down_blocks = nn.ModuleList(
             [
-                DownBlock(
-                    channels[max(i - 1, 0)], c, temb, heads[i] if i < last else None, cross, down=i < last
-                )
+                DownBlock(channels[max(i - 1, 0)], c, temb, heads[i] if i < last else None, cross, down=i < last)
                 for i, c in enumerate(channels)
             ]
         )
@@ -268,9 +285,7 @@ class UNet2DConditionModel(nn.Module):
         rc, rh = channels[::-1], heads[::-1]
         self.up_blocks = nn.ModuleList(
             [
-                UpBlock(
-                    rc[min(i + 1, last)], rc[max(i - 1, 0)], c, temb, rh[i] if i > 0 else None, cross, up=i < last
-                )
+                UpBlock(rc[min(i + 1, last)], rc[max(i - 1, 0)], c, temb, rh[i] if i > 0 else None, cross, up=i < last)
                 for i, c in enumerate(rc)
             ]
         )
