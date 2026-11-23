@@ -29,8 +29,8 @@ from fastforks._core.runner import Forward
 from fastforks._core.tracing import in_onnx_export
 from fastforks.shared import mlx_wrap
 from fastforks.shared.host_blocks import StreamedModuleList
-from fastforks.volume._nnunet import Encoder, Norm, Plan, UNet
-from fastforks.volume._nnunet_runner import fused_norm_act
+from fastforks.volume._nnunet import Encoder, Norm, Plan, UNet, _ConvNormAct
+from fastforks.volume._nnunet_runner import _biased_conv_norm, fused_norm_act
 from fastforks.volume._runner import EncoderRunner
 
 if TYPE_CHECKING:
@@ -303,8 +303,10 @@ class Portable(EncoderRunner):
         """Install inference methods before the host packer moves stage shells to meta."""
         if self.fused and isinstance(net, Encoder):
             for module in net.modules():
-                if hasattr(module, "norm_act"):
+                if isinstance(module, _ConvNormAct):
                     override(module, fused_norm_act, "norm_act")
+                    if module.conv.bias is not None:
+                        override(module, _biased_conv_norm)
         if self.ctx.params.stream:
             if isinstance(net, Encoder):
                 net.stages = StreamedModuleList(net.stages, self.ctx.device)  # ty: ignore[invalid-assignment]
