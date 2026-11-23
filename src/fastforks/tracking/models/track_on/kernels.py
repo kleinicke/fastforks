@@ -14,13 +14,14 @@ import torch.nn.functional as F
 
 from fastforks._core import kernels
 from fastforks._core.errors import BackendUnavailableError, InputError
+from fastforks._core.upload import device_tensor
 from fastforks.kernels.dpt_fused import DEEP_K, DptFused
 from fastforks.kernels.fastbb import Flash64
 from fastforks.kernels.fastbb import load as load_kernels
 from fastforks.shared.depth_anything_v2.fast_vit import HEAD_DIM, _flash
 
 from .net.dinov3 import rope_table
-from .net.track_on import DMSMHABlock, MHABlock
+from .net.track_on import MSDA, DMSMHABlock, MHABlock
 
 if TYPE_CHECKING:
     from .net.track_on import Shapes, TrackOn2
@@ -90,6 +91,8 @@ def _install_mlps(net: TrackOn2) -> None:
             mod.forward = _mha_forward.__get__(mod)  # ty: ignore[invalid-assignment]  # per-instance override
         elif isinstance(mod, DMSMHABlock):
             mod.forward = _dmsmha_forward.__get__(mod)  # ty: ignore[invalid-assignment]  # per-instance override
+        elif isinstance(mod, MSDA):
+            mod.forward = _msda_forward.__get__(mod)  # ty: ignore[invalid-assignment]  # per-instance override
     last = net.memory_attention[-1]
     last.forward = _newest_row_forward.__get__(last)  # ty: ignore[invalid-assignment]  # per-instance override
 
@@ -112,6 +115,41 @@ def _mha_forward(
     self: MHABlock, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor | None = None
 ) -> torch.Tensor:
     return _mlp(self, self.norm1(q + self.mha(q, k, v, mask)))
+
+
+def _msda_forward(
+    self: MSDA, query: torch.Tensor, value: torch.Tensor, ref: torch.Tensor, shapes: Shapes
+) -> torch.Tensor:
+    """`MSDA.forward` on `_msda_sample`."""
+    b, q, _ = query.shape
+    h, nl, p = self.heads, self.levels, self.points
+    v = self.value_proj(value).view(b, value.shape[1], h, -1)
+    off = self.sampling_offsets(query).view(b, q, h, nl, p, 2).float()
+    w = self.attention_weights(query).view(b, q, h, nl * p).float().softmax(-1).view(b, q, h, nl, p)
+    norm = device_tensor([(wl, hl) for hl, wl in shapes], dtype=torch.float32, device=off.device)
+    loc = ref.float()[:, :, None, :, None, :] + off / norm[:, None, :]
+    return self.output_proj(_msda_sample(v, shapes, loc, w))
+
+
+def _msda_sample(value: torch.Tensor, shapes: Shapes, loc: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
+    """`net.track_on.msda_sample` with the points ahead of the queries: `grid_sample` writes `[B h, dh, P, Q]`.
+
+    The weighted sum over the points then reduces a middle axis with the queries contiguous, coalesced, where the
+    upstream `[B h, dh, Q, P]` order reduces 4-element rows; each sample is the same `grid_sample` value.
+    """
+    b, _, h, dh = value.shape
+    q, p = loc.shape[1], loc.shape[4]
+    grids = 2 * loc - 1
+    out = None
+    start = 0
+    for lvl, (hl, wl) in enumerate(shapes):
+        v = value[:, start : start + hl * wl].permute(0, 2, 3, 1).reshape(b * h, dh, hl, wl)
+        start += hl * wl
+        g = grids[:, :, :, lvl].permute(0, 2, 3, 1, 4).reshape(b * h, p, q, 2).to(v.dtype)
+        s = F.grid_sample(v, g, mode="bilinear", padding_mode="zeros", align_corners=False)  # [B h, dh, P, Q]
+        t = (s * weights[:, :, :, lvl].permute(0, 2, 3, 1).reshape(b * h, 1, p, q).to(s.dtype)).sum(2)
+        out = t if out is None else out + t
+    return cast("torch.Tensor", out).view(b, h * dh, q).transpose(1, 2)
 
 
 def _newest_row_forward(
