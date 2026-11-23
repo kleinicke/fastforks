@@ -371,6 +371,11 @@ class Kernels(Portable):
         override(self.net.memory_decoder, _windows, "encode_flow_token")
         override(self.net.memory_decoder.att, _gma_attention)
         override(self.net.get_submodule("memory_decoder.update_block.aggregator"), _gma_aggregate)
+        from .net.FlowFormer.LatentCostFormer.twins import GlobalSubSampleAttnRPE  # noqa: PLC0415 - needs timm
+
+        for m in self.net.modules():
+            if isinstance(m, GlobalSubSampleAttnRPE):
+                m.__dict__["_sdpa"] = True  # read by its forward
 
 
 RUNNERS = {
