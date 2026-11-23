@@ -1,0 +1,4 @@
+# LF in every checkout: the kernel manifests hash build.toml and the kernel sources, and a Windows checkout with
+# core.autocrlf=true would otherwise hash CRLF copies (tests/test_kernels.py::test_manifest_is_current).
+# Files committed with CRLF (a few vendored sources) are left as they are.
+* text=auto eol=lf

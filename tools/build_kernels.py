@@ -318,21 +318,26 @@ def win_shims(lib_dir: Path, cfg: dict) -> list[Path]:
     return [p for p in sorted(WIN_INCLUDE.glob("*.h")) if re.search(rf"#include\s*<{re.escape(p.name)}>", text)]
 
 
+def lf_bytes(path: Path) -> bytes:
+    """The file with LF line ends: a Windows checkout with `core.autocrlf` hashes like a Linux one."""
+    return path.read_bytes().replace(b"\r\n", b"\n")
+
+
 def build_hashes(
     lib_dir: Path, cfg: dict, tk: str, toolchain: dict[str, str], cutlass: Path | None
 ) -> tuple[str, hashlib._Hash]:
     """(build id, sources hash) of a library; adds the CUTLASS version to `toolchain` when it needs CUTLASS."""
-    h = hashlib.sha256((lib_dir / "build.toml").read_bytes() + tk.encode() + RECIPE.encode())
+    h = hashlib.sha256(lf_bytes(lib_dir / "build.toml") + tk.encode() + RECIPE.encode())
     if "cutlass" in cfg.get("needs", []) and cutlass is not None:
         toolchain["cutlass"], header = cutlass_version(cutlass)
         h.update(header)
     h.update(repr(sorted(toolchain.items())).encode())  # same id <=> same sources, settings and toolchain
     # Windows header shims, only for the libraries that include one (b"" for the others: their id is unchanged)
-    h.update(b"".join(p.read_bytes() for p in (win_shims(lib_dir, cfg) if WINDOWS else [])))
-    src = hashlib.sha256((lib_dir / "build.toml").read_bytes())
+    h.update(b"".join(lf_bytes(p) for p in (win_shims(lib_dir, cfg) if WINDOWS else [])))
+    src = hashlib.sha256(lf_bytes(lib_dir / "build.toml"))
     for s in cfg["sources"]:
-        h.update((lib_dir / s).read_bytes())
-        src.update((lib_dir / s).read_bytes())
+        h.update(lf_bytes(lib_dir / s))
+        src.update(lf_bytes(lib_dir / s))
     return h.hexdigest()[:12], src
 
 

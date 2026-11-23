@@ -154,9 +154,10 @@ def test_manifest_is_current(path):
     lib = path.parent
     m = read_manifest(path)
     cfg = tomllib.loads((lib / "build.toml").read_text(encoding="utf-8"))
-    h = hashlib.sha256((lib / "build.toml").read_bytes())
+    # LF line ends, as tools/build_kernels.py hashes them: a Windows checkout (core.autocrlf) matches the Linux build
+    h = hashlib.sha256((lib / "build.toml").read_bytes().replace(b"\r\n", b"\n"))
     for s in cfg["sources"]:
-        h.update((lib / s).read_bytes())
+        h.update((lib / s).read_bytes().replace(b"\r\n", b"\n"))
     raw = tomllib.loads(path.read_text(encoding="utf-8"))
     assert raw["sources_sha256"] == h.hexdigest(), "sources changed: run tools/build_kernels.py " + lib.name
     assert m.name == lib.name
