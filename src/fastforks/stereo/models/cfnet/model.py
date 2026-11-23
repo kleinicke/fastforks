@@ -300,6 +300,9 @@ def _cuda_stage(  # noqa: PLR0913 - matches StageVolume
     return cfnet_volume.volume(planes, groups, ds.shape[1], torch.float16, ds)
 
 
+_HACC_DECONV_CHANNELS = 64  # `Kernels`: transposed convs with at most this many input channels run on `cudnn_hacc`
+
+
 class Kernels(Runner):
     """Our kernels: fp16-accumulate convs, conv + BatchNorm fused into one epilogue, fp16 (`FP32_MODULES`: fp32)."""
 
@@ -309,7 +312,7 @@ class Kernels(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the network and the kernel state."""
         super().__init__(ctx)
-        from fastforks.shared.cnn_kernels import prepare_generic  # noqa: PLC0415 - needs the kernel libraries
+        from fastforks.shared.cnn_kernels import mark_hacc_deconv, prepare_generic  # noqa: PLC0415 - kernel libraries
 
         self.net = _net(ctx)
         keep = {name: getattr(self.net, name) for name in FP32_MODULES}
@@ -318,6 +321,11 @@ class Kernels(Runner):
         if not prepare_generic(self.net, ctx.device):
             msg = "kernels: no conv + BatchNorm run was fused (the module tree changed)"
             raise RuntimeError(msg)
+        for m in self.net.modules():
+            # The hourglasses' output-padded upsampling convs: fp16 accumulation where it measured faster (RTX 5060
+            # Ti, 544 x 960: 64 -> 32 at 8 x 72 x 120 1.27 -> 0.45 ms; 128 -> 64 at 4 x 36 x 60 0.16 -> 0.37 ms).
+            if isinstance(m, nn.ConvTranspose3d) and m.in_channels <= _HACC_DECONV_CHANNELS:
+                mark_hacc_deconv(m)
         for name, m in keep.items():
             setattr(self.net, name, m)
 

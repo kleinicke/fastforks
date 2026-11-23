@@ -229,7 +229,7 @@ def conv_raw(m: Patched, x: torch.Tensor) -> torch.Tensor:
     if getattr(m, "_hacc", False):
         return conv_half_acc(x, m.weight, None, list(m.padding), list(m.stride), list(m.dilation))
     if getattr(m, "_hacc_t", False):
-        return deconv_half_acc(x, m.weight, list(m.padding), list(m.stride))
+        return deconv_half_acc(x, m.weight, list(m.padding), list(m.stride), list(m.output_padding))
     mf = memory_format(x.dim())
     if isinstance(m, (nn.ConvTranspose2d, nn.ConvTranspose3d)):
         f = F.conv_transpose2d if x.dim() == 4 else F.conv_transpose3d  # noqa: PLR2004
@@ -469,6 +469,21 @@ def patch_reflection_pads(model: Patched) -> None:
 # ------------------------------------------------------------------------------------------------ convs
 def _conv_forward(self: Patched, x: torch.Tensor) -> torch.Tensor:
     return conv_ep(self, x)
+
+
+def mark_hacc_deconv(m: nn.Module) -> None:
+    """Run a prepared `ConvTranspose2d` / `3d` with output padding (groups and dilation 1) through `cudnn_hacc` too.
+
+    `prepare_convs` leaves those on torch's convolution; a model opts in per module where it measured faster.
+
+    Raises:
+        ValueError: Not such a module.
+    """
+    if base_type(m) not in {nn.ConvTranspose2d, nn.ConvTranspose3d} or m.groups != 1 or any(d != 1 for d in m.dilation):
+        msg = f"mark_hacc_deconv: needs a ConvTranspose with groups and dilation 1, got {m}"
+        raise ValueError(msg)
+    m.weight.data = m.weight.data.contiguous(memory_format=memory_format(m.weight.dim()))
+    m._hacc_t = True  # noqa: SLF001
 
 
 def _mark_hacc(model: Patched) -> None:
