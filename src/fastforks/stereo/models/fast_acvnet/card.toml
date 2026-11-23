@@ -36,11 +36,12 @@ cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA gra
 [modes.portable]
 cuda_dtype = "float16"
 mps_dtypes = ["float32", "float16"]
-# No MLX float16: fast-acvnet-plus-sceneflow's golden flips one quarter-resolution top-k cell in MLX fp16 (disparity
-# 4.9 -> 57 there; mean 0.075 vs tol 0.02 with the attention, softmax and regression in float32), deterministically.
-# The cell sits on a decision boundary: the MLX float32 replay with 4x fp16-epsilon relative noise on every conv
-# output flips it in 3 of 6 seeds (1x: none); MPS fp16 passes (0.003-0.006 with 2-ulp noise).
-mlx_dtypes = ["float32"]
+# MLX float16: everything up to the top-k (features, correlation, attention hourglass) stays float32, the stages after
+# it run in half. With the features or the hourglass in half, fast-acvnet-plus-sceneflow's golden flips one
+# quarter-resolution top-k cell (disparity 4.9 -> 57 there; mean 0.075 vs tol 0.02), deterministically: the cell sits
+# on a decision boundary (the MLX float32 replay with 4x fp16-epsilon relative noise on every conv output flips it in
+# 3 of 6 seeds; 1x: none). MPS fp16 passes (0.003-0.006 with 2-ulp noise).
+mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["igev", "cutlass_conv", "cudnn_hacc", "acv_volume"]
