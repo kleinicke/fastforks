@@ -277,6 +277,10 @@ class FeatureTransformer(nn.Module):
                 shift_size_h=window_size_h // 2,
                 shift_size_w=window_size_w // 2,
                 device=feature0.device,
+                # fastforks: in the attention's dtype, not float32 cast again in every shifted layer (1080p: two
+                # 1 GB float32 masks, each cast to float16 six times)
+                dtype=(torch.get_autocast_dtype(feature0.device.type)
+                       if torch.is_autocast_enabled(feature0.device.type) else feature0.dtype),
             )  # [K*K, H/K*W/K, H/K*W/K]
             shifted_window_attn_mask = to_run_dtype(shifted_window_attn_mask, feature0.dtype)  # fastforks: MLX twin's f32
         else:

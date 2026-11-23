@@ -5,7 +5,8 @@ upstream's `scripts/gmflow_evaluate.sh` (per scale: window splits of the Transfo
 radius; -1 = global). Differences that do not change the maths: the projection for the refinement is computed once
 (upstream recomputes the same tensor in every refinement), and every attention (Transformer windows, global matching,
 flow propagation) is one fused `scaled_dot_product_attention`, so the `[H*W, H*W]` score matrix (several GB at 1080p)
-is never written. On CUDA in fp16 the CNN, the Transformer, the upsampling head and the refinement block run
+is never written (the kernels runner computes global matching and propagation as GEMMs over chunks of query rows,
+`_chunked`). On CUDA in fp16 the CNN, the Transformer, the upsampling head and the refinement block run
 under autocast; positions, matching, propagation, warping, correlation lookup and the flow stay float32.
 """
 
@@ -20,6 +21,7 @@ import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.mlx_cast import to_float32, to_run_dtype
+from fastforks._core.patch import override
 from fastforks.flow._runner import Forward, Runner
 from fastforks.kernels import flow_upsample
 from fastforks.shared import mlx_wrap
@@ -34,6 +36,8 @@ from .net.utils import feature_add_position, upsample_flow_with_mask
 
 if TYPE_CHECKING:
     from fastforks.flow._runner import Context
+
+    from .net.reg_refine import BasicUpdateBlock
 
 SCALES = {  # card `scales` -> per scale (attn_splits, corr_radius, prop_radius), upstream scripts/gmflow_evaluate.sh
     1: ((2, -1, -1),),
@@ -64,11 +68,36 @@ def _headed(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tenso
     return F.scaled_dot_product_attention(q, k, v, attn_mask=bias).squeeze(1)[..., :channels]
 
 
+_MATCH_SCORES = 128 << 20  # fixed: bytes of one chunk of float32 matching scores (61 vs 80 ms fused at 1080p)
+
+
+def _chunked(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
+    """`attend` as float32 GEMMs and a softmax over chunks of query rows (CUDA global matching and propagation).
+
+    The fused float32 SDPA kernel is slow for the 2-channel values of the match and the flow; a chunk of the scores
+    (`_MATCH_SCORES`, not the whole `[N, M]` matrix) costs less and sums the softmax exactly (max error 5e-5 vs
+    3.5e-4 px against float64 at 1080p).
+    """
+    b, n, m = query.shape[0], query.shape[1], key.shape[1]
+    step = max(256, _MATCH_SCORES // (4 * b * m) // 256 * 256)
+    key_t = (key * key.shape[-1] ** -0.5).transpose(1, 2)
+    out = value.new_empty((b, n, value.shape[-1]))
+    scores = None
+    for start in range(0, n, step):
+        rows = query[:, start : start + step]
+        if scores is None or scores.shape[1] != rows.shape[1]:
+            scores = torch.bmm(rows, key_t)
+        else:
+            torch.bmm(rows, key_t, out=scores)
+        torch.bmm(scores.softmax(-1), value, out=out[:, start : start + step])
+    return out
+
+
 def forward(  # noqa: PLR0913 - network, image pair and inference options
     net: UniMatch, image1: torch.Tensor, image2: torch.Tensor, params: Params, *, fp16: bool, fused: bool = False
 ) -> torch.Tensor:
     """Flow `[B, 2, H, W]` of an ImageNet-normalised pair (H, W multiples of the card's padding)."""
-    attention = _headed if fused else attend
+    attention = _chunked if fused else attend
     upsample = flow_upsample.convex if fused else upsample_flow_with_mask
     amp = torch.autocast(image1.device.type, torch.float16) if fp16 else contextlib.nullcontext()
     with amp:
@@ -167,8 +196,24 @@ _GRAPH_PIXELS = 262_144  # fixed: batch x padded H x W; launch-bound up to 384x5
 _GRAPHS = 2  # fixed: graph cache policy
 
 
+def _refine_forward(self: BasicUpdateBlock, net, inp, corr, flow, *, upsample=True):  # noqa: ANN001, ANN202, PLR0913 - upstream's names
+    """Upstream `BasicUpdateBlock.forward` with the GRU input cast to the autocast dtype once.
+
+    The motion features end in the float32 flow, so upstream's `[context, motion]` concatenation is float32 and each of
+    the GRU's six convolutions (and its concatenations with the fp16 hidden state) re-casts all 256 channels. Every
+    consumer casts it to the autocast dtype, so casting it once gives the same values.
+    """
+    inp = torch.cat([inp, self.encoder(flow, corr)], dim=1)
+    if torch.is_autocast_enabled(inp.device.type):
+        inp = inp.to(torch.get_autocast_dtype(inp.device.type))
+    net = self.gru(net, inp)
+    delta_flow = self.flow_head(net)
+    mask = self.mask(net) if self.mask is not None and upsample else None
+    return net, mask, delta_flow
+
+
 class Kernels(Portable):
-    """Use explicit attention heads for fused SDPA and fuse the final convex upsampling.
+    """Use explicit attention heads for fused SDPA, chunked GEMMs for global matching and fuse the convex upsampling.
 
     A repeated input shape up to `_GRAPH_PIXELS` replays a CUDA graph (`fastforks.shared.cuda_graphs`): the eager
     pass is launch-bound there.
@@ -183,6 +228,8 @@ class Kernels(Portable):
         for layer in self.net.transformer.modules():
             if isinstance(layer, TransformerLayer):
                 layer.window_options = {"attention": _headed}
+        if ctx.params.refine:
+            override(self.net.refine, _refine_forward)
         self._graphs = SmallShapeGraphs(
             super()._flow, pixels=_GRAPH_PIXELS, graphs=_GRAPHS, enabled=ctx.params.cuda_graphs
         )

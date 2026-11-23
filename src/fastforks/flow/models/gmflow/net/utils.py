@@ -83,7 +83,8 @@ def merge_splits(splits,
 
 
 def generate_shift_window_attn_mask(input_resolution, window_size_h, window_size_w,
-                                    shift_size_h, shift_size_w, device=torch.device('cuda')):
+                                    shift_size_h, shift_size_w, device=torch.device('cuda'),
+                                    dtype=torch.float32):  # fastforks: made in the attention dtype (0 / -100 exact)
     # ref: https://github.com/microsoft/Swin-Transformer/blob/main/models/swin_transformer.py
     # calculate attention mask for SW-MSA
     h, w = input_resolution
@@ -106,7 +107,7 @@ def generate_shift_window_attn_mask(input_resolution, window_size_h, window_size
     mask_windows = mask_windows.view(-1, window_size_h * window_size_w)
     # fastforks: construct the binary predicate directly, then fill one additive mask.
     blocked = mask_windows.unsqueeze(1) != mask_windows.unsqueeze(2)
-    return mask_windows.new_zeros(blocked.shape).masked_fill_(blocked, -100.0)
+    return mask_windows.new_zeros(blocked.shape, dtype=dtype).masked_fill_(blocked, -100.0)
 
 
 def feature_add_position(feature0, feature1, attn_splits, feature_channels):
