@@ -175,7 +175,7 @@ stereo and optical flow. Copy the `fastforks-w*.json` files into `ComfyUI/user/d
 the UI); they use the images `example.png`, `scene.png`, `scene_b.png`, `small.png` and `clip0..3.png` from the input
 folder. `make_workflows.py` regenerates them from a running server's `/object_info`.
 
-On a Mac with the `mlx` package the `backend` dropdown also lists `mlx` (Apple's MLX instead of MPS, with our Metal kernels where the family's port has them) and `mlx portable` (MLX without the kernels). A model without an MLX port fails with a message (none of the nodes' models lacks one today). Every new input size compiles once on MLX, so its first call is slow; `auto` already picks MLX where it wins.
+On a Mac with the `mlx` package the `backend` dropdown also lists `mlx` (Apple's MLX instead of MPS, with our Metal kernels where the family's port has them) and `mlx portable` (MLX without the kernels). A model without an MLX port fails with a message (none of the nodes' models lacks one today). Every new input size compiles once on MLX, so its first call is slow; `auto` already picks MLX where it wins. With `dtype` on `auto`, `mlx` runs in the fastest mode and dtype measured on the Mac (often float16, goldens checked).
 
 ### Comparison branches from other ComfyUI packs
 

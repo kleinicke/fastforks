@@ -87,7 +87,10 @@ _BACKEND_TIP = (
     " but every new input size compiles once, so its first call is slow. mlx portable: MLX without the kernels."
     " Models without an MLX port fail with a message."
 )
-_DTYPE_TIP = "auto: the validated dtype of the backend. Others are checked against the model card at load."
+_DTYPE_TIP = (
+    "auto: the validated dtype of the backend (on mlx: the fastest one measured on a Mac, often float16)."
+    " Others are checked against the model card at load."
+)
 
 
 def labels(ids: list[str]) -> list[str]:
