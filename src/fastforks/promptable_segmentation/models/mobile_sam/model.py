@@ -13,12 +13,13 @@ in `kernels`. Its neck's `LayerNorm2d`s run in float32.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.mlx_cast import to_float32
 from fastforks._core.upload import device_tensor
 from fastforks._optimize import optimize
 from fastforks.promptable_segmentation._runner import Forward, Runner
@@ -100,13 +101,15 @@ class _Sam(Runner):
 
     batch = 1
     Params = Params
+    float32_neck: ClassVar[bool] = False  # the trunk's neck in float32 (`fast.Trunk`)
 
     def __init__(self, ctx: Context) -> None:
         """Build on the CPU, optimise the encoder trunk for the mode, move the float32 rest to the device."""
         super().__init__(ctx)
         sam = _sam(ctx)
+        trunk = Trunk(sam.image_encoder, float32_neck=self.float32_neck)
         self.trunk: FastModel = optimize(
-            Trunk(sam.image_encoder), mode=ctx.mode, device=ctx.device, fp16=ctx.dtype == "float16", family="cnn"
+            trunk, mode=ctx.mode, device=ctx.device, fp16=ctx.dtype == "float16", family="cnn"
         )
         self.norm = sam.image_encoder.neck[3].to(ctx.device)
         del sam.image_encoder
@@ -119,7 +122,7 @@ class _Sam(Runner):
         return self.norm(trunk(x).float())
 
     def _enc(self, x: torch.Tensor) -> torch.Tensor:
-        return self.norm(self.trunk(x).float())
+        return self.norm(to_float32(self.trunk(x)))
 
     def embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Image embedding `[1, 256, 64, 64]` float32."""
@@ -237,8 +240,14 @@ class Kernels(_Sam):
             self.cache.release()
 
 
+class _MlxPortable(Portable):
+    """Portable for the MLX port: the neck in float32, as the float16 replay's mask error needs."""
+
+    float32_neck = True
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_enc",), net_attr="trunk"),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=(), methods=("_enc",), net_attr="trunk"),
 }
