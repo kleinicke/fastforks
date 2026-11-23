@@ -59,7 +59,7 @@ so a ComfyUI folder below ~140 characters needs no long-path setting.
 | Detect objects | IMAGE, score threshold, classes (open-vocabulary query or class filter) | MASK, STRING (JSON boxes) |
 | Pose | IMAGE, detections (JSON of a Detect node; top-down models) | IMAGE (skeletons on black), STRING (JSON keypoints) |
 | Interpolate frames | IMAGE batch, multiplier | IMAGE batch with `multiplier - 1` new frames per pair |
-| Classify | IMAGE, top k | STRING |
+| Classify | IMAGE, top k | STRING (`classes`) |
 | Tag (WD tagger) | IMAGE, general / character thresholds (0.35 / 0.75) | STRING: Danbooru tags, most likely first |
 | NSFW check | IMAGE | STRING (normal / nsfw per image), FLOAT (highest nsfw probability of the batch) |
 | Semantic segmentation | IMAGE, classes for the mask | IMAGE (class colours), MASK (listed classes), STRING (classes found), MASK (one per listed class) |
@@ -72,8 +72,9 @@ so a ComfyUI folder below ~140 characters needs no long-path setting.
 | Upscale / restore | IMAGE, tile (input px, 32 px overlap; 0 = one pass; keep it on for HAT / DAT) | IMAGE |
 | Restore aligned faces (GFPGAN, CodeFormer) | IMAGE: aligned 512 x 512 face crops only (no detection / alignment / paste-back in this pack) | IMAGE |
 
-Every node has `model`, `backend` (`auto`: our CUDA kernels where they are faster, else portable PyTorch;
-`portable`; `kernels`) and `dtype` (`auto`: the validated one). Both packs name a node `Fastforks<Name>` (shown as
+Every node has `model`, `backend` (`auto`: our CUDA / Metal kernels where they are faster, else portable PyTorch;
+`portable`; `kernels`: only our kernels, CUDA on NVIDIA or Metal on Apple silicon for the models that have them, else
+an error) and `dtype` (`auto`: the validated one). Both packs name a node `Fastforks<Name>` (shown as
 "Depth (fastforks)" or "Depth (fastforks, commercial)"), so a workflow saved with one pack loads in the other. With both
 installed in `custom_nodes`, fastforks-commercial registers nothing and logs that the fastforks pack's nodes are used
 (two packs cannot register one class name; remove or disable one to choose). A pack has a node only if it lists a
@@ -122,6 +123,30 @@ consecutive pairs per call, 8 by default (384 x 384: rife-4.26 5.6x; 480 x 640: 
 neuflow-v2 2.7x); models that gain nothing from it (sea-raft, gmflow, film, larger frames) still run them one pair at a
 time. A cancel stops after the current `batch_size` pairs.
 
+## Mistakes and their messages
+
+A node that cannot do what you set says what to change, in the node's words (`backend=` for the library's `mode=`):
+
+- **Prompts.** A malformed `positive_points`, `negative_points`, `points` (Track points), `box` or Pose `detections`
+  names the input and shows the form to write (`positive_points: write points as 'x,y; x,y' in pixels ...`). Points
+  or a box sent to a text-only model (CLIPSeg), and text sent to a points / box model, are refused the same way.
+- **Classes.** Detect with a closed model (RF-DETR, ...) and Semantic segmentation raise for a class the model does
+  not have, with the close matches (names are case-insensitive) or its first classes, not a silent empty mask. Detect
+  with an open-vocabulary model (Grounding DINO) and an empty `classes` uses the card's label set.
+- **A model of another node** (a saved workflow, a linked `model` input) fails validation naming the node that lists
+  it; an unknown id suggests this node's ids only.
+- **Sizes.** Stereo needs left and right of one size and one batch length (the message gives both). Optical flow and
+  its video nodes need at least 2 frames where a pair is needed; Interpolate, Video depth, Video segment and Track
+  points run a single frame without error (Interpolate returns it unchanged).
+- **Memory.** An allocation failure on MPS or MLX (`Invalid buffer size`, `[metal::malloc]`, `Insufficient Memory`) is
+  reported as ComfyUI's out-of-memory error with the advice to use a smaller image or `batch_size` / `tile`, or the
+  `mlx` backend; ComfyUI then unloads its models, so the run can be repeated. Upscale / restore also says which
+  `tile` fits.
+- **Weights.** The first run downloads missing weights (progress is in ComfyUI's console only). Offline mode
+  (`FASTFORKS_OFFLINE` / `HF_HUB_OFFLINE`) fails with where to put the files (`models/fastforks`) or how to allow the
+  download. A gated Hugging Face repo (SAM 3, DINOv3-based models) needs its licence accepted on Hugging Face and a
+  login in ComfyUI's Python (`hf auth login`, or `HF_TOKEN` set before starting ComfyUI); the error says so.
+
 ## Speed
 
 A node's time is the model's time plus what ComfyUI does around every node, which any pack pays. On ComfyUI 0.46
@@ -150,7 +175,7 @@ stereo and optical flow. Copy the `fastforks-w*.json` files into `ComfyUI/user/d
 the UI); they use the images `example.png`, `scene.png`, `scene_b.png`, `small.png` and `clip0..3.png` from the input
 folder. `make_workflows.py` regenerates them from a running server's `/object_info`.
 
-On a Mac with the `mlx` package the `backend` dropdown also lists `mlx` (Apple's MLX instead of MPS, with our Metal kernels where the family's port has them) and `mlx portable` (MLX without the kernels). A model without an MLX port fails with a message. Every new input size compiles once on MLX, so its first call is slow; `auto` already picks MLX where it wins.
+On a Mac with the `mlx` package the `backend` dropdown also lists `mlx` (Apple's MLX instead of MPS, with our Metal kernels where the family's port has them) and `mlx portable` (MLX without the kernels). A model without an MLX port fails with a message (none of the nodes' models lacks one today). Every new input size compiles once on MLX, so its first call is slow; `auto` already picks MLX where it wins.
 
 ### Comparison branches from other ComfyUI packs
 
