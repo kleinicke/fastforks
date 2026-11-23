@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, cast
 import torch
 import torch.nn.functional as F
 
+from fastforks._core import mps
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.patch import base_type, override
 from fastforks._core.volume_ops import corr_windows
@@ -87,7 +88,7 @@ def _forward(net: torch.nn.Module, image1: torch.Tensor, image2: torch.Tensor, *
 
 
 class Portable(Runner):
-    """Float32 upstream inference with torch-only reshape helpers."""
+    """Upstream inference with torch-only reshape helpers; on MPS without the all-pairs volume (`_defer_volume`)."""
 
     dtypes = ("float32", "float16")
     Params = Params
@@ -105,6 +106,10 @@ class Portable(Runner):
         self.net.eval().to(ctx.device)
         self.net.memory_decoder.update_block.gru.fuse()
         self.fp16 = ctx.dtype == "float16"
+        if ctx.device.type == "mps":
+            # 1080 x 1920 on a 16 GB Mac: upstream's volume and its patch embeddings are single 8 and 16 GiB buffers
+            _defer_volume(self.net)
+            override(self.net.memory_decoder, _windows, "encode_flow_token")  # the gather in pixel blocks
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Return the full-resolution flow, excluding upstream's low-resolution auxiliary flow."""
@@ -483,33 +488,40 @@ def _gma_aggregate_mlx(
     b, _, h, w = fmap.shape
     v = agg.to_v(fmap).view(b, agg.heads, -1, h * w).transpose(2, 3)
     q, k = attn
-    out = F.scaled_dot_product_attention(q, k, v, scale=1.0).transpose(2, 3).reshape(b, -1, h, w)
+    out = mps.attention(q, k, v, scale=1.0).transpose(2, 3).reshape(b, -1, h, w)  # MPS: in query blocks
     if agg.project is not None:
         out = agg.project(out)
     return fmap + agg.gamma * out
 
 
-class _Mlx(Portable):
-    """The portable pass for the MLX replay without the all-pairs volume or a large GMA matrix.
+def _defer_volume(net: torch.nn.Module) -> None:
+    """Swap the all-pairs volume and the GMA matrix of `net` for their memory-bound forms (MLX replay, MPS).
 
     As `Kernels`: the volume is deferred (`_Volume`), its maps made and embedded per chunk (`_encode_mlx`), the
-    decoder's windows one `corr_windows` kernel, GMA's matrix recomputed by fused attention when it is large, and the
-    cost encoder's sub-sampled attention fused.
+    decoder's windows `corr_windows`, GMA's matrix recomputed by fused attention when it is large, and the cost
+    encoder's sub-sampled attention fused.
     """
+    override(net.memory_encoder, _corr, "corr")
+    override(net.memory_encoder.cost_perceiver_encoder, _encode_mlx)
+    override(net.memory_decoder, _windows_mlx, "encode_flow_token")
+    override(net.memory_decoder.att, _gma_attention_mlx)
+    override(net.get_submodule("memory_decoder.update_block.aggregator"), _gma_aggregate_mlx)
+    from .net.FlowFormer.LatentCostFormer.twins import GlobalSubSampleAttnRPE  # noqa: PLC0415 - needs timm
+
+    if next(net.parameters()).device.type == "mps":
+        return  # MPS materialises a fused attention's scores too: upstream's grouped matrices there
+    for m in net.modules():
+        if isinstance(m, GlobalSubSampleAttnRPE):
+            m.__dict__["_sdpa"] = True  # fused attention: 1080 x 1920 materialised 8 GB of float32 scores
+
+
+class _Mlx(Portable):
+    """The portable pass for the MLX replay without the all-pairs volume or a large GMA matrix (`_defer_volume`)."""
 
     def __init__(self, ctx: Context) -> None:
         """Load the network and swap the volume and the GMA matrix for their memory-bound forms."""
         super().__init__(ctx)
-        override(self.net.memory_encoder, _corr, "corr")
-        override(self.net.memory_encoder.cost_perceiver_encoder, _encode_mlx)
-        override(self.net.memory_decoder, _windows_mlx, "encode_flow_token")
-        override(self.net.memory_decoder.att, _gma_attention_mlx)
-        override(self.net.get_submodule("memory_decoder.update_block.aggregator"), _gma_aggregate_mlx)
-        from .net.FlowFormer.LatentCostFormer.twins import GlobalSubSampleAttnRPE  # noqa: PLC0415 - needs timm
-
-        for m in self.net.modules():
-            if isinstance(m, GlobalSubSampleAttnRPE):
-                m.__dict__["_sdpa"] = True  # fused attention: 1080 x 1920 materialised 8 GB of float32 scores
+        _defer_volume(self.net)
 
 
 RUNNERS = {

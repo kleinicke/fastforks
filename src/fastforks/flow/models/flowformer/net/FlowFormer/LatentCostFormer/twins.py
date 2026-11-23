@@ -516,7 +516,7 @@ class GlobalSubSampleAttnRPE(nn.Module):
         if getattr(self, "_sdpa", False):  # fastforks (kernels): fused attention, no score matrices
             attended = F.scaled_dot_product_attention(q, k, v, scale=self.scale)
         elif (
-            q.is_cuda
+            q.device.type in ("cuda", "mps")  # fastforks: MPS as CUDA (1080 x 1920: 8 GiB of scores)
             and B * self.num_heads * matrix_bytes >= 128 * 1024**2
             and not self.training
             and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled())
