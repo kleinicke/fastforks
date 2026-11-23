@@ -47,8 +47,14 @@ upstream = "https://github.com/huggingface/transformers@v5.19.0"
 settings = "CPU float32, transformers LwDetrForObjectDetection + DeformableDetrImageProcessor 640x640, the authors' PostProcess (num_select 100), skimage coffee.png, score threshold 0.78, torch 2.14.1+cu130"
 gpu_mean = 0.23
 gpu_p99 = 0.33
-gpu_extra = [["labels", 0.001, 0.001], ["scores", 0.023, 0.023]]
+# maintainer decision 2026-11-21: bounds cover flash (Linux), memory-efficient, cuDNN and math SDPA:
+# kernels boxes mean / p99: flash 0.041 / 0.069, efficient 0.11 / 0.21, cudnn 0.15 / 0.36, math 0.22 / 0.50;
+# scores (both modes): efficient 0.013, cudnn 0.025, math 0.021; 1.25 x the max (RTX 5060 Ti, torch 2.14.1+cu130,
+# Windows 11 + Linux); portable boxes (max: math 0.13 / 0.26) stay within the bounds above
+gpu_extra = [["labels", 0.001, 0.001], ["scores", 0.032, 0.032]]
 options = [["score_threshold", 0.78]]
+gpu_mean_kernels = 0.28
+gpu_p99_kernels = 0.63
 
 [refs."lw-detr-xlarge-coco@1"]
 gpu_mean = 0.14
