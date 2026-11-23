@@ -33,9 +33,9 @@ kernels = ["image_normalize@592f5511307a:sm_120"]
 symbols = {"image_normalize" = {"normalize" = "2cc4987178cb44b2"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-20"
+date = "2026-11-23"
 mean_px = 1e-05
-p99_px = 0.00032
+p99_px = 0.00038
 
 [validated."inspyrenet@1"]
 kernels = ["image_normalize@592f5511307a:sm_120"]
@@ -51,6 +51,6 @@ kernels = ["image_normalize@592f5511307a:sm_120"]
 symbols = {"image_normalize" = {"normalize" = "2cc4987178cb44b2"}}
 gpu = "NVIDIA GeForce RTX 5060 Ti"
 torch = "2.14.1+cu130"
-date = "2026-11-20"
-mean_px = 3e-05
-p99_px = 0.00066
+date = "2026-11-23"
+mean_px = 2e-05
+p99_px = 0.00049

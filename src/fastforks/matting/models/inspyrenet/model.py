@@ -25,10 +25,12 @@ from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
 from fastforks.kernels import image_normalize
 from fastforks.matting._runner import Forward, Runner, scale
 from fastforks.shared import mlx_wrap, swin_v1
+from fastforks.shared.cnn_kernels import fold_bn
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import InSPyReNet_SwinB
 from .net.modules.attention_module import SICA
+from .net.modules.layers import Conv2d
 
 if TYPE_CHECKING:
     from fastforks.matting._runner import Context
@@ -98,11 +100,25 @@ def _sica_nhwc(
     return _sica(m, x, smap, lmap, nhwc=True)
 
 
-def _net(ctx: Context, dtype: torch.dtype) -> torch.nn.Module:
+def _fold_batchnorms(net: torch.nn.Module) -> int:
+    """Fold each decoder `Conv2d` block's eval BatchNorm into its conv (float32, before any fp16 cast); how many."""
+    n = 0
+    for m in net.modules():
+        if isinstance(m, Conv2d) and m.bn is not None:
+            fold_bn(m.conv, m.bn)
+            m.bn = None
+            n += 1
+    return n
+
+
+def _net(ctx: Context, dtype: torch.dtype, *, fold: bool = False) -> torch.nn.Module:
     s = ctx.params.size
     net = InSPyReNet_SwinB(depth=64, pretrained=False, base_size=[s, s], threshold=None)
     net.load_state_dict(ctx.state_dict())
     torch.nn.Module.to(net, ctx.device)  # upstream's `to(device)` takes no dtype
+    if fold and not _fold_batchnorms(net):
+        msg = "InSPyReNet kernels: no Conv2d BatchNorm to fold (the module tree changed)"
+        raise RuntimeError(msg)
     sica = [m for m in net.modules() if isinstance(m, SICA)] if dtype == torch.float16 else []
     keep = [(m, m.conv_key, m.conv_value) for m in sica]
     for m in sica:  # their batch-norm running stats overflow float16 (|mean| > 65504): converted, they turn NaN
@@ -122,6 +138,7 @@ class Portable(Runner):
     sdpa_auto = "efficient,cudnn,math"  # Swin window attention: cuDNN rebuilds per shape (`fastforks.shared.sdpa`)
     dtypes = ("float32", "float16")
     batch = None
+    fold = False  # kernels: the decoder's BatchNorms folded into their convs
     # network pixels (images x size^2) per call: the eager call is launch bound at 384 (RTX 5060 Ti, Windows, fp16,
     # 8 images: inspyrenet-fast 57.4 -> 13.9 ms per image), not at 1024 (115 vs 107 ms, 7.5 GB): one image there
     net_pixels = 1_300_000
@@ -130,7 +147,7 @@ class Portable(Runner):
         """Build the network."""
         super().__init__(ctx)
         self.dtype = getattr(torch, ctx.dtype)
-        self.net = _net(ctx, self.dtype)
+        self.net = _net(ctx, self.dtype, fold=self.fold)
 
     def _normalize(self, x: torch.Tensor) -> torch.Tensor:
         return scale(x, self.ctx.io)
@@ -160,6 +177,9 @@ class Kernels(Portable):
     """Fuse input normalization, gather-based Swin blocks, fp16-accumulate GEMMs, capture the fixed-size network."""
 
     module = Runner.module
+    # the eval BatchNorms after the decoder convs (SICA, the context branches) were a pass each: 5 ms of 86 in the SICA
+    # modules alone (1024 x 1024, RTX 5060 Ti)
+    fold = True
 
     def __init__(self, ctx: Context) -> None:
         """Prepare the accelerated inference path on the model device."""
