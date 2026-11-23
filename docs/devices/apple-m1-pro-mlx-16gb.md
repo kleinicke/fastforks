@@ -10,8 +10,8 @@
 | hardware | 16-core GPU; the families with an MLX port (device="mlx") |
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
-| measured | 2026-11-19 to 2026-11-23 |
-| rows | 1464 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| measured | 2026-11-19 to 2026-11-24 |
+| rows | 1495 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -31,20 +31,20 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`c-foundationstereo-s`](../models/stereo.md#c_foundationstereo) | 29962 | 18737 | – | – | – | 4010 | – |
 | [`cas-gwcnet-c-sceneflow`](../models/stereo.md#cas_gwcnet) | 6066 | 2934 | – | – | – | 3733 | – |
 | [`cas-gwcnet-gc-sceneflow`](../models/stereo.md#cas_gwcnet) | 4595 | 3841 | unsupported | – | – | 4754 | – |
-| [`cfnet-sceneflow`](../models/stereo.md#cfnet) | 5355 | – | unsupported | – | – | 4405 | – |
+| [`cfnet-sceneflow`](../models/stereo.md#cfnet) | 4485 | 3178 | unsupported | – | – | 3669 | – |
 | [`coex-sceneflow`](../models/stereo.md#coex) | 765 | 608 | – | – | – | 3187 | – |
 | [`crestereo-eth3d`](../models/stereo.md#crestereo) | 6118 | 4297 | 5212 | 3558 | 1.2x | 1557 | 1863 |
 | [`defom-stereo-vitl-sceneflow`](../models/stereo.md#defom_stereo) | 13339 | 10693 | – | – | – | 5189 | – |
 | [`dlnr-middlebury`](../models/stereo.md#dlnr) | 3213 | 2052 | unsupported | – | – | 2609 | – |
 | [`dlnr-sceneflow`](../models/stereo.md#dlnr) | 4221 | 3762 | unsupported | – | – | 3937 | – |
-| [`fast-acvnet-generalization`](../models/stereo.md#fast_acvnet) | 487 | 549 | unsupported | – | – | 1877 | – |
-| [`fast-acvnet-kitti12`](../models/stereo.md#fast_acvnet) | 522 | – | unsupported | – | – | 1976 | – |
-| [`fast-acvnet-kitti15`](../models/stereo.md#fast_acvnet) | 524 | – | unsupported | – | – | 1981 | – |
-| [`fast-acvnet-plus-generalization`](../models/stereo.md#fast_acvnet) | 601 | – | – | – | – | 1953 | – |
-| [`fast-acvnet-plus-kitti12`](../models/stereo.md#fast_acvnet) | 580 | – | – | – | – | 1870 | – |
-| [`fast-acvnet-plus-kitti15`](../models/stereo.md#fast_acvnet) | 583 | – | – | – | – | 1867 | – |
-| [`fast-acvnet-plus-sceneflow`](../models/stereo.md#fast_acvnet) | 583 | – | – | – | – | 1867 | – |
-| [`fast-acvnet-sceneflow`](../models/stereo.md#fast_acvnet) | 521 | – | unsupported | – | – | 1906 | – |
+| [`fast-acvnet-generalization`](../models/stereo.md#fast_acvnet) | 505 | 475 | unsupported | – | – | 1918 | – |
+| [`fast-acvnet-kitti12`](../models/stereo.md#fast_acvnet) | 521 | 457 | unsupported | – | – | 1808 | – |
+| [`fast-acvnet-kitti15`](../models/stereo.md#fast_acvnet) | 506 | 455 | unsupported | – | – | 1831 | – |
+| [`fast-acvnet-plus-generalization`](../models/stereo.md#fast_acvnet) | 587 | 541 | unsupported | – | – | 1812 | – |
+| [`fast-acvnet-plus-kitti12`](../models/stereo.md#fast_acvnet) | 582 | 564 | unsupported | – | – | 1814 | – |
+| [`fast-acvnet-plus-kitti15`](../models/stereo.md#fast_acvnet) | 580 | 562 | unsupported | – | – | 1810 | – |
+| [`fast-acvnet-plus-sceneflow`](../models/stereo.md#fast_acvnet) | 584 | 540 | unsupported | – | – | 1813 | – |
+| [`fast-acvnet-sceneflow`](../models/stereo.md#fast_acvnet) | 523 | 459 | unsupported | – | – | 1934 | – |
 | [`fast-foundationstereo`](../models/stereo.md#c_foundationstereo) | 4326 | 2875 | unsupported | – | – | 2829 | – |
 | [`foundationstereo-vit-l`](../models/stereo.md#foundationstereo) | – | 25847 | – | – | – | 4941 | – |
 | [`foundationstereo-vit-s`](../models/stereo.md#foundationstereo) | 40293 | 20504 | – | 17814 | 1.2x | 4943 | 4613 |
@@ -687,16 +687,16 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`memfof-kitti`](../models/flow.md#memfof) | 19707 | 16074 | – | 3652 |
 | [`memfof-sintel`](../models/flow.md#memfof) | 19915 | 16049 | – | 3643 |
 | [`memfof-spring`](../models/flow.md#memfof) | 3774 | 3319 | unsupported | 1986 |
-| [`neuflow-v2`](../models/flow.md#neuflow_v2) | 1087 | – | unsupported | 9252 |
-| [`neuflow-v2-sintel`](../models/flow.md#neuflow_v2) | 1039 | – | unsupported | 9238 |
-| [`neuflow-v2-things`](../models/flow.md#neuflow_v2) | 887 | – | unsupported | 9152 |
+| [`neuflow-v2`](../models/flow.md#neuflow_v2) | 951 | 949 | unsupported | 9200 |
+| [`neuflow-v2-sintel`](../models/flow.md#neuflow_v2) | 1021 | 952 | unsupported | 9201 |
+| [`neuflow-v2-things`](../models/flow.md#neuflow_v2) | 975 | 946 | unsupported | 9170 |
 | [`raft-large`](../models/flow.md#raft) | 2724 | 2134 | unsupported | 8987 |
 | [`raft-large-kitti`](../models/flow.md#raft) | 2001 | 1700 | unsupported | 8113 |
 | [`raft-large-things`](../models/flow.md#raft) | 1993 | 1693 | unsupported | 8101 |
 | [`raft-small`](../models/flow.md#raft) | 1020 | 927 | – | 8069 |
-| [`recover-cx`](../models/flow.md#recover) | 1755 | – | unsupported | 1933 |
-| [`recover-mn`](../models/flow.md#recover) | 467 | – | – | 1264 |
-| [`recover-rn`](../models/flow.md#recover) | 637 | – | – | 1393 |
+| [`recover-cx`](../models/flow.md#recover) | 1064 | 758 | unsupported | 1297 |
+| [`recover-mn`](../models/flow.md#recover) | 471 | 316 | unsupported | 1181 |
+| [`recover-rn`](../models/flow.md#recover) | 624 | 429 | unsupported | 1224 |
 | [`sea-raft-m`](../models/flow.md#sea_raft) | 2003 | 1387 | unsupported | 5600 |
 | [`sea-raft-m-kitti`](../models/flow.md#sea_raft) | 1958 | 1410 | unsupported | 5622 |
 | [`sea-raft-m-spring`](../models/flow.md#sea_raft) | 369 | 298 | – | 2051 |
@@ -714,25 +714,25 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 ### Matching, synthetic, 768x1024
 
-| model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
-|---|---|---|---|---|---|---|
-| [`aliked-flexglue`](../models/matching.md#flexglue) | 1224 | 1100 | – | – | 1387 | – |
-| [`aliked-lightglue`](../models/matching.md#lightglue) | 461 | – | – | – | 2416 | – |
-| [`dedode-v2-b`](../models/matching.md#dedode) | 2389 | 1814 | unsupported | – | 3622 | – |
-| [`dedode-v2-g`](../models/matching.md#dedode) | 4240 | 3222 | – | – | 4226 | – |
-| [`disk-lightglue`](../models/matching.md#lightglue) | 1178 | – | – | – | 2333 | – |
-| [`loftr-indoor`](../models/matching.md#loftr) | 1792 | – | – | – | 4301 | – |
-| [`loftr-outdoor`](../models/matching.md#loftr) | 1782 | – | – | – | 4110 | – |
-| [`loma-b`](../models/matching.md#loma) | 3617 | 2760 | – | – | 4561 | – |
-| [`loma-b128`](../models/matching.md#loma) | 1546 | 1085 | – | – | 1902 | – |
-| [`loma-b64`](../models/matching.md#loma) | 1228 | 828 | – | – | 1630 | – |
-| [`loma-g`](../models/matching.md#loma) | 4152 | 3230 | unsupported | – | 5159 | – |
-| [`loma-l`](../models/matching.md#loma) | 3706 | 2810 | – | – | 4929 | – |
-| [`loma-r`](../models/matching.md#loma) | 3622 | 2708 | unsupported | – | 4549 | – |
-| [`romav1`](../models/matching.md#romav1) | 3733 | 3135 | – | – | 2460 | – |
-| [`romav2`](../models/matching.md#romav2) | 6426 | – | 4043 | 1.6x | 4489 | 3150 |
-| [`xfeat`](../models/matching.md#xfeat) | 164 | – | – | – | 538 | – |
-| [`xfeat-lighterglue`](../models/matching.md#xfeat) | 524 | – | – | – | 1002 | – |
+| model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
+|---|---|---|---|---|---|---|---|
+| [`aliked-flexglue`](../models/matching.md#flexglue) | 1224 | 1100 | – | – | – | 1387 | – |
+| [`aliked-lightglue`](../models/matching.md#lightglue) | 448 | 455 | unsupported | – | – | 2407 | – |
+| [`dedode-v2-b`](../models/matching.md#dedode) | 2389 | 1814 | unsupported | – | – | 3622 | – |
+| [`dedode-v2-g`](../models/matching.md#dedode) | 4240 | 3222 | – | – | – | 4226 | – |
+| [`disk-lightglue`](../models/matching.md#lightglue) | 886 | 786 | unsupported | – | – | 2058 | – |
+| [`loftr-indoor`](../models/matching.md#loftr) | 1806 | 1549 | unsupported | – | – | 3675 | – |
+| [`loftr-outdoor`](../models/matching.md#loftr) | 1788 | 1526 | unsupported | – | – | 3703 | – |
+| [`loma-b`](../models/matching.md#loma) | 3617 | 2760 | – | – | – | 4561 | – |
+| [`loma-b128`](../models/matching.md#loma) | 1546 | 1085 | – | – | – | 1902 | – |
+| [`loma-b64`](../models/matching.md#loma) | 1228 | 828 | – | – | – | 1630 | – |
+| [`loma-g`](../models/matching.md#loma) | 4152 | 3230 | unsupported | – | – | 5159 | – |
+| [`loma-l`](../models/matching.md#loma) | 3706 | 2810 | – | – | – | 4929 | – |
+| [`loma-r`](../models/matching.md#loma) | 3622 | 2708 | unsupported | – | – | 4549 | – |
+| [`romav1`](../models/matching.md#romav1) | 3733 | 3135 | – | – | – | 2460 | – |
+| [`romav2`](../models/matching.md#romav2) | 6727 | 6078 | 3669 | 3633 | 1.7x | 2849 | 3120 |
+| [`xfeat`](../models/matching.md#xfeat) | 164 | – | – | – | – | 538 | – |
+| [`xfeat-lighterglue`](../models/matching.md#xfeat) | 524 | – | – | – | – | 1002 | – |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 
@@ -752,8 +752,8 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`tapir`](../models/tracking.md#tapir) | 1592 | – | – | 1717 |
 | [`tapnext`](../models/tracking.md#tapnext) | 4034 | – | – | 2443 |
 | [`tapnext-pp`](../models/tracking.md#tapnext) | 4036 | – | – | 2025 |
-| [`track-on-r`](../models/tracking.md#track_on) | 10883 | 8177 | unsupported | 3259 |
-| [`track-on2`](../models/tracking.md#track_on) | 9798 | 7718 | – | 3207 |
+| [`track-on-r`](../models/tracking.md#track_on) | 11174 | 8822 | unsupported | 3089 |
+| [`track-on2`](../models/tracking.md#track_on) | 10543 | 8827 | unsupported | 3090 |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 
