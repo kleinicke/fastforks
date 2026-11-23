@@ -157,7 +157,7 @@ def w04_segment_prompted():
     note(g, "Promptable segmentation: a click at the image centre (positive_points = 384,384). "
             "Edit the point in pixels, add a box 'x0,y0,x1,y1' or negative points. "
             "The click lands on the dress only because the image centre happens to be there: move it to pick another object. "
-            "The two bottom nodes (SAM 3, CLIPSeg) take a text prompt instead: edit `text` ('pink dress', 'hair', 'grass'). "
+            "Only the two bottom nodes (SAM 3, CLIPSeg) take a text prompt: edit `text` there ('pink dress', 'grass'); the point-based SAM nodes error on text, leave it empty. "
             "Compare SAM 2.1, MobileSAM and EfficientViT-SAM.")
     img = load(g, "example.png", 0, 0)
     shootout(g, "FastforksSegment", "image", [
