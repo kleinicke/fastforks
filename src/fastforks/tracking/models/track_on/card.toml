@@ -50,7 +50,7 @@ mps_dtypes = ["float32"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["fastbb", "dpt_fused"]  # ViT-S+ blocks: packed q/k/v and gate/up fp16-accumulate GEMMs with fused epilogues, fused RoPE, flash attention; the rest fp16 autocast with fp16 accumulation
+kernels = ["fastbb", "dpt_fused", "msda"]  # ViT-S+ blocks: packed q/k/v and gate/up fp16-accumulate GEMMs with fused epilogues, fused RoPE, flash attention; deformable attention in one msda launch; the rest fp16 autocast with fp16 accumulation
 
 [[papers]]
 title = "Track-On2: Enhancing Online Point Tracking with Memory"

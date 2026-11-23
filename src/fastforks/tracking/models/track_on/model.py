@@ -22,12 +22,13 @@ import torch
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate, half_weights
+from fastforks._core.patch import override
 from fastforks._core.runner import host
 from fastforks._core.upload import device_tensor
 from fastforks.shared import mlx_wrap
 from fastforks.tracking._runner import Forward, Runner
 
-from .net.track_on import D, Frame, TrackOn2
+from .net.track_on import MSDA, D, Frame, Shapes, TrackOn2
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -199,6 +200,44 @@ class Portable(Runner):
         return Forward(self.net, fn)
 
 
+def _msda_levels(shapes: Shapes, device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
+    """`[L, 2]` (h, w) and `[L]` first-token tensors of the levels, made once per level list."""
+    key = (tuple(shapes), device)
+    if key not in _LEVELS:
+        sizes = [h * w for h, w in shapes]
+        starts = [sum(sizes[:i]) for i in range(len(sizes))]
+        _LEVELS[key] = (
+            device_tensor(shapes, dtype=torch.int64, device=device),
+            device_tensor(starts, dtype=torch.int64, device=device),
+        )
+    return _LEVELS[key]
+
+
+_LEVELS: dict[tuple, tuple[torch.Tensor, torch.Tensor]] = {}
+
+
+def _kernel_msda(
+    self: MSDA, query: torch.Tensor, value: torch.Tensor, ref: torch.Tensor, shapes: Shapes
+) -> torch.Tensor:
+    """`MSDA.forward` with the sampling and weighted sum in one `msda` kernel launch (fp16 values, locations, weights).
+
+    The PyTorch path samples each level with `grid_sample` (fp16 under autocast, the grid cast to fp16), multiplies by
+    the fp16 weights and sums the points, then adds the levels: three passes over `[B h, dh, Q, P]` per level. The
+    kernel does the same per channel lane (fp16 sample and product, float sum of the points, fp16 sum of the levels).
+    """
+    from fastforks.kernels import msda  # noqa: PLC0415 - loaded by `Kernels`
+
+    b, q, _ = query.shape
+    h, nl, p = self.heads, self.levels, self.points
+    v = self.value_proj(value).view(b, value.shape[1], h, -1).half()
+    off = self.sampling_offsets(query).view(b, q, h, nl, p, 2).float()
+    w = self.attention_weights(query).view(b, q, h, nl * p).float().softmax(-1).view(b, q, h, nl, p)
+    norm = device_tensor([(wl, hl) for hl, wl in shapes], dtype=torch.float32, device=off.device)
+    loc = ref.float()[:, :, None, :, None, :] + off / norm[:, None, :]
+    sizes, starts = _msda_levels(shapes, v.device)
+    return self.output_proj(msda.sample(v, sizes, shapes, starts, loc.half(), w.half(), None))
+
+
 class Kernels(Portable):
     """The fp16 pass with fp16 accumulation; the ViT blocks on the fastbb / dpt_fused kernels."""
 
@@ -211,6 +250,12 @@ class Kernels(Portable):
         from .kernels import install  # noqa: PLC0415 - loads the fastbb / dpt_fused kernels (kernels mode only)
 
         install(self.net)
+        from fastforks.kernels import msda  # noqa: PLC0415 - kernels mode only
+
+        msda.load(ctx.device)
+        for m in self.net.modules():
+            if isinstance(m, MSDA):
+                override(m, _kernel_msda)
         # the rest of the network kept fp32 weights (requires_grad=False: no autocast weight cache), cast to fp16 by
         # every conv / Linear of every frame; stored in fp16 the outputs are bit-identical (480 x 854: 1128 -> 1101 ms)
         half_weights(self.net, channels_last=False)
