@@ -225,13 +225,10 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                 _RUN_DTYPE.reset(token)
             cache = _per_variant(cache_mb, ctx.variant.id)
             chunk = _per_variant(chunk_mb, ctx.variant.id)
-            if cache or os.environ.get("FASTFORKS_MLX_CACHE_MB"):
-                from fastforks._core.mlx import mx  # noqa: PLC0415 - MLX only
+            if cache:  # held while this runner lives; the limit is the largest request of the live models
+                from fastforks._core.mlx import request_cache  # noqa: PLC0415 - MLX only
 
-                if forced := os.environ.get("FASTFORKS_MLX_CACHE_MB"):  # sweeps: this exact limit, declared or not
-                    mx.set_cache_limit(int(forced) << 20)
-                else:
-                    mx.set_cache_limit(max(cache << 20, mx.set_cache_limit(0)))  # returns the previous limit
+                request_cache(self, cache)
             from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - MLX only (imports mlx)
 
             kernels = ctx.mode == "kernels" and (ctx.dtype == "float16" or not kernels_fp16_only)

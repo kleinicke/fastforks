@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import gc
 import sys
 import threading
 import tomllib
@@ -187,6 +188,32 @@ class TestTuning:
     def test_cache_limit_scales_with_memory_between_its_bounds(self, rt):
         t, gb = rt.Tuning(), 1 << 30
         assert [t.cache_limit(n * gb) >> 20 for n in (8, 16, 48, 64, 128)] == [128, 128, 384, 512, 1024]
+
+    def test_cache_request_is_capped_by_the_memory(self, rt):
+        gb = 1 << 30
+        assert [rt.cache_request_limit(2048, n * gb) >> 20 for n in (8, 16, 64)] == [1024, 2048, 2048]
+        assert rt.cache_request_limit(256, 8 * gb) >> 20 == 256
+
+    def test_cache_limit_is_the_largest_request_of_the_live_models(self, rt, monkeypatch):
+        monkeypatch.delenv("FASTFORKS_MLX_CACHE_MB", raising=False)
+
+        class Runner:
+            pass
+
+        memory = rt.gpu().memory
+        base = rt.request_cache(None, 0)
+        want = {mb: max(base, rt.cache_request_limit(mb, memory)) for mb in (256, 512)}
+        big, small = Runner(), Runner()
+        assert rt.request_cache(big, 512) == want[512]
+        assert rt.request_cache(small, 256) == want[512]  # a later, smaller request does not lower it
+        rt.setup()  # nor does the next MLX load
+        assert rt.mx.set_cache_limit(want[512]) == want[512]  # returns the limit that was in effect
+        del big
+        gc.collect()
+        assert rt.request_cache(None, 0) == want[256]  # dropped back when its model was freed
+        del small
+        gc.collect()
+        assert rt.mx.set_cache_limit(base) == base
 
 
 class TestMpsRouting:

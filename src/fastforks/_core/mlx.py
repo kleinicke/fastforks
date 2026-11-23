@@ -22,9 +22,12 @@ from __future__ import annotations
 import contextlib
 import dataclasses
 import hashlib
+import itertools
 import os
 import platform
 import re
+import threading
+import weakref
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
@@ -55,11 +58,13 @@ __all__ = [
     "TUNING",
     "Gpu",
     "Tuning",
+    "cache_request_limit",
     "converted",
     "gpu",
     "has_neural_accelerators",
     "metal_kernel",
     "mx",
+    "request_cache",
     "setup",
     "source_tag",
     "to_mx",
@@ -233,9 +238,69 @@ def tuned(**fields: object) -> Generator[None]:
         _OVERRIDE.update(before)
 
 
+_CACHE_ENV = "FASTFORKS_MLX_CACHE_MB"  # sweeps: this exact buffer cache limit, whatever the models ask for
+_CACHE_SHARE = 8  # a model's `cache_mb` request is honoured up to 1/8 of the unified memory (2 GB at 16 GB)
+_cache_lock = threading.RLock()  # re-entrant: a finalizer can run (garbage collection) while a load holds it
+_cache_requests: dict[int, int] = {}  # live models' requests in bytes, by token
+_cache_tokens = itertools.count()
+
+
+def _base_cache_limit() -> int:
+    return tuning().cache_limit(gpu().memory)
+
+
+def cache_request_limit(mb: int, memory: int) -> int:
+    """The bytes a model's request for `mb` MB of buffer cache gets on a machine with `memory` bytes.
+
+    Capped at 1/8 of the unified memory, so that a port tuned on a 16 GB Mac (RAFT-Stereo: 2 GB) does not keep 2 GB of
+    freed buffers resident on an 8 GB one (1 GB there); 0 if the memory size cannot be read (the base limit stays).
+    """
+    return min(mb * _MB, memory // _CACHE_SHARE)
+
+
+def _apply_cache_limit() -> int:
+    """Set MLX's buffer cache limit: the tuning's base limit, or the largest request of a live model if larger."""
+    with _cache_lock:
+        if forced := os.environ.get(_CACHE_ENV):
+            limit = int(forced) * _MB
+            mx.set_cache_limit(limit)
+            return limit
+        base = _base_cache_limit()
+        while True:
+            requests = list(_cache_requests.values())
+            limit = max([base, *requests])
+            mx.set_cache_limit(limit)
+            if requests == list(_cache_requests.values()):  # no owner was collected (on this thread) meanwhile
+                return limit
+
+
+def _release_cache(token: int) -> None:
+    with _cache_lock:
+        if _cache_requests.pop(token, None) is not None:
+            _apply_cache_limit()
+
+
+def request_cache(owner: object, mb: int) -> int:
+    """Raise MLX's buffer cache limit to at least `mb` MB (see `cache_request_limit`) for as long as `owner` lives.
+
+    The limit is process-wide: it is the largest request over the live owners (never below the tuning's base limit),
+    so a later load that asks for less does not lower it, and it drops back when the owner is collected. Returns the
+    limit in effect, in bytes.
+    """
+    with _cache_lock:
+        if mb > 0:
+            token = next(_cache_tokens)
+            _cache_requests[token] = cache_request_limit(mb, gpu().memory)
+            weakref.finalize(owner, _release_cache, token).atexit = False  # nothing to restore at exit
+        return _apply_cache_limit()
+
+
 def setup() -> None:
-    """Cap MLX's buffer cache for this process (idempotent; every MLX load calls it)."""
-    mx.set_cache_limit(tuning().cache_limit(gpu().memory))
+    """Cap MLX's buffer cache for this process (idempotent; every MLX load calls it).
+
+    Never below what a live model asked for with `request_cache`: a second load keeps the first one's larger cache.
+    """
+    _apply_cache_limit()
 
 
 def source_tag(name: str, *files: Path) -> str:
