@@ -9,7 +9,7 @@ import json
 import sys
 from pathlib import Path
 
-PRIMS = {"STRING", "INT", "FLOAT", "BOOLEAN"}
+PRIMS = {"STRING", "INT", "FLOAT", "BOOLEAN", "COLORCODE", "COMBO"}
 OI = json.load(open(sys.argv[1]))
 
 
@@ -35,6 +35,8 @@ class WF:
                     default = t[1].get("default") if len(t) > 1 else None
                     if isinstance(kind, list) and default is None:
                         default = kind[0]
+                    if kind == "COMBO" and default is None:
+                        default = (t[1].get("options") or [None])[0]
                     widgets.append(vals.pop(name, default))
                 else:
                     node["inputs"].append({"name": name, "type": kind, "link": None})
@@ -93,6 +95,14 @@ def shootout(g, node_type, img_input, branches, extra=None, img=None, mask_out=N
 WORKFLOWS = {}
 
 
+def other(g, typ, x, y, title, src, link="image", out=0, mask=False, extra=None, **vals):
+    """A node of another ComfyUI pack (installed separately) as one more competing branch, with its preview."""
+    n = g.add(typ, x, y, size=(330, 260), title=title, **{link: src}, **vals)
+    for name, s in (extra or {}).items():
+        g.link(s, n, name)
+    return preview(g, n, x + 360, y, slot=out, mask=mask)
+
+
 def wf(fn):
     WORKFLOWS[fn.__name__] = fn
     return fn
@@ -101,12 +111,16 @@ def wf(fn):
 @wf
 def w01_depth_shootout():
     g = WF()
-    note(g, "Depth: four models on one image. Change `model` in any node (32 depth models) or "
+    note(g, "Depth: four fastforks models on one image, plus two from the comfyui_controlnet_aux pack (right column). Change `model` in any node (32 depth models) or "
             "right-click > Bypass a branch. Mute branches you do not want to run.")
     img = load(g, "example.png", 0, 0)
     shootout(g, "FastforksDepth", "image", [
         {"model": "depth-anything-v2-s"}, {"model": "distill-any-depth-s"},
         {"model": "da3mono-large"}, {"model": "zoedepth-nk"}], img=img)
+    # the same task in other packs (comfyui_controlnet_aux)
+    other(g, "DepthAnythingV2Preprocessor", 1160, 0, "controlnet_aux: Depth Anything V2 vits", (img, 0),
+          ckpt_name="depth_anything_v2_vits.pth", resolution=518)
+    other(g, "MiDaS-DepthMapPreprocessor", 1160, 420, "controlnet_aux: MiDaS", (img, 0), resolution=512)
     return g
 
 
@@ -131,6 +145,9 @@ def w03_background_removal():
     shootout(g, "FastforksRemoveBackground", "image", [
         {"model": m} for m in ("birefnet-lite", "isnet-general-use", "inspyrenet-fast", "u2net", "ben2")],
         img=img, step=380)
+    # the same task in the ComfyUI-RMBG pack
+    other(g, "RMBG", 1160, 0, "ComfyUI-RMBG: INSPYRENET", (img, 0), model="INSPYRENET")
+    other(g, "RMBG", 1160, 380, "ComfyUI-RMBG: BEN2", (img, 0), model="BEN2")
     return g
 
 
@@ -144,6 +161,13 @@ def w04_segment_prompted():
     shootout(g, "FastforksSegment", "image", [
         {"model": m} for m in ("sam2.1-hiera-small", "mobile-sam", "efficientvit-sam-l0", "sam-vit-b")],
         img=img, mask_out=True, positive_points="384,384")
+    # SAM 2.1 small in ComfyUI-segment-anything-2 (kijai)
+    sam = g.add("DownloadAndLoadSAM2Model", 1160, 0, size=(300, 160), model="sam2.1_hiera_small.safetensors",
+                segmentor="single_image", device="mps", precision="fp32")
+    pt = g.add("PrimitiveString", 1160, 700, size=(300, 80), title="click point (JSON)",
+               value='[{"x": 384, "y": 384}]')
+    other(g, "Sam2Segmentation", 1160, 220, "segment-anything-2: SAM 2.1 small", (img, 0), mask=True,
+          extra={"sam2_model": (sam, 0), "coordinates_positive": (pt, 0)}, keep_model_loaded=False)
     return g
 
 
@@ -177,6 +201,8 @@ def w06_pose():
             vals["detections"] = (det, 1)
         n = g.add("FastforksPose", 380, y, size=(330, 260), title=m, **vals)
         preview(g, n, 740, y)
+    other(g, "DWPreprocessor", 1160, 0, "controlnet_aux: DWPose", (img, 0))
+    other(g, "OpenposePreprocessor", 1160, 420, "controlnet_aux: OpenPose", (img, 0))
     return g
 
 
@@ -189,6 +215,10 @@ def w07_upscale():
     shootout(g, "FastforksUpscale", "image", [
         {"model": m} for m in ("realesrgan-x4plus", "realesr-general-x4v3", "span-x4", "swinir-m-x4-real")],
         img=img, step=480)
+    # ComfyUI's own upscale-model nodes with the same Real-ESRGAN checkpoint (models/upscale_models)
+    up = g.add("UpscaleModelLoader", 1160, 0, size=(300, 60), model_name="RealESRGAN_x4plus.pth")
+    other(g, "ImageUpscaleWithModel", 1160, 120, "ComfyUI built-in: RealESRGAN_x4plus", (img, 0),
+          extra={"upscale_model": (up, 0)})
     return g
 
 
@@ -207,6 +237,8 @@ def w08_interpolation():
         y = k * 520
         n = g.add("FastforksInterpolate", 600, y, size=(330, 260), title=m, model=m, frames=(b, 0))
         preview(g, n, 960, y)
+    other(g, "RIFE VFI", 1330, 0, "Frame-Interpolation: RIFE 4.9", (b, 0), link="frames", ckpt_name="rife49.pth")
+    other(g, "FILM VFI", 1330, 520, "Frame-Interpolation: FILM", (b, 0), link="frames", ckpt_name="film_net_fp32.pt")
     return g
 
 
@@ -215,8 +247,8 @@ def w09_stereo():
     g = WF()
     note(g, "Stereo depth from a left/right pair: classic cost-volume (IGEV, ACVNet) vs recurrent (RAFT-Stereo) "
             "vs transformer (S2M2). Output is a disparity visualisation.")
-    left = load(g, "scene.png", 0, 0)
-    right = load(g, "scene_b.png", 0, 400)
+    left = load(g, "stereo_left.png", 0, 0)
+    right = load(g, "stereo_right.png", 0, 400)
     for k, m in enumerate(["raft-stereo-middlebury", "igev-stereo-middlebury",
                            "fast-acvnet-plus-generalization", "waft-stereo-s"]):
         y = k * 420
@@ -241,6 +273,8 @@ def w10_optical_flow():
         if k == 0:
             w = g.add("FastforksWarp", 1300, y, size=(200, 50), image=(b, 0), flow=(n, 1))
             preview(g, w, 1540, y)
+    other(g, "Unimatch_OptFlowPreprocessor", 1330, 720, "controlnet_aux: GMFlow", (b, 0), out=1,
+          ckpt_name="gmflow-scale1-mixdata.pth")
     return g
 
 

@@ -1,6 +1,6 @@
 {
- "last_node_id": 11,
- "last_link_id": 12,
+ "last_node_id": 15,
+ "last_link_id": 16,
  "nodes": [
   {
    "id": 1,
@@ -47,7 +47,9 @@
       2,
       4,
       7,
-      10
+      10,
+      13,
+      15
      ],
      "slot_index": 0
     },
@@ -453,6 +455,166 @@
    ],
    "properties": {},
    "widgets_values": []
+  },
+  {
+   "id": 12,
+   "type": "DWPreprocessor",
+   "pos": [
+    1160,
+    0
+   ],
+   "size": [
+    330,
+    260
+   ],
+   "flags": {},
+   "order": 12,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 13
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      14
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "POSE_KEYPOINT",
+     "type": "POSE_KEYPOINT",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {},
+   "title": "controlnet_aux: DWPose",
+   "widgets_values": [
+    "enable",
+    "enable",
+    "enable",
+    512,
+    "yolox_l.onnx",
+    "dw-ll_ucoco_384_bs5.torchscript.pt",
+    "disable"
+   ]
+  },
+  {
+   "id": 13,
+   "type": "PreviewImage",
+   "pos": [
+    1520,
+    0
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 13,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 14
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  },
+  {
+   "id": 14,
+   "type": "OpenposePreprocessor",
+   "pos": [
+    1160,
+    420
+   ],
+   "size": [
+    330,
+    260
+   ],
+   "flags": {},
+   "order": 14,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 15
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      16
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "POSE_KEYPOINT",
+     "type": "POSE_KEYPOINT",
+     "links": [],
+     "slot_index": 1
+    }
+   ],
+   "properties": {},
+   "title": "controlnet_aux: OpenPose",
+   "widgets_values": [
+    "enable",
+    "enable",
+    "enable",
+    512,
+    "disable"
+   ]
+  },
+  {
+   "id": 15,
+   "type": "PreviewImage",
+   "pos": [
+    1520,
+    420
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 15,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 16
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
   }
  ],
  "links": [
@@ -549,6 +711,38 @@
    10,
    0,
    11,
+   0,
+   "IMAGE"
+  ],
+  [
+   13,
+   2,
+   0,
+   12,
+   0,
+   "IMAGE"
+  ],
+  [
+   14,
+   12,
+   0,
+   13,
+   0,
+   "IMAGE"
+  ],
+  [
+   15,
+   2,
+   0,
+   14,
+   0,
+   "IMAGE"
+  ],
+  [
+   16,
+   14,
+   0,
+   15,
    0,
    "IMAGE"
   ]

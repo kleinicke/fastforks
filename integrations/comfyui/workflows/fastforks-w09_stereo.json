@@ -59,7 +59,7 @@
    ],
    "properties": {},
    "widgets_values": [
-    "scene.png",
+    "stereo_left.png",
     "image"
    ]
   },
@@ -99,7 +99,7 @@
    ],
    "properties": {},
    "widgets_values": [
-    "scene_b.png",
+    "stereo_right.png",
     "image"
    ]
   },

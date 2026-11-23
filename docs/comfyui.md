@@ -151,3 +151,13 @@ the UI); they use the images `example.png`, `scene.png`, `scene_b.png`, `small.p
 folder. `make_workflows.py` regenerates them from a running server's `/object_info`.
 
 On a Mac with the `mlx` package the `backend` dropdown also lists `mlx` (Apple's MLX instead of MPS, with our Metal kernels where the family's port has them) and `mlx portable` (MLX without the kernels). A model without an MLX port fails with a message. Every new input size compiles once on MLX, so its first call is slow; `auto` already picks MLX where it wins.
+
+### Comparison branches from other ComfyUI packs
+
+Most example workflows also carry a branch from a popular third-party pack, so you can compare against what ComfyUI
+users already have: `comfyui_controlnet_aux` (depth, DWPose/OpenPose), `ComfyUI-RMBG` (INSPYRENET, BEN2),
+`ComfyUI-segment-anything-2` (SAM 2), `ComfyUI-Frame-Interpolation` (RIFE 4.9, FILM), `ComfyUI-Unimatch` flow
+preprocessor, and ComfyUI's built-in upscaler (`RealESRGAN_x4plus.pth` in `models/upscale_models`). Those branches
+need the pack installed (they show as red nodes otherwise) and download their weights on first run; the fastforks
+branches work without them. The stereo example uses a Middlebury left/right pair, the other examples a crop of a
+single photo (the video examples use synthetic pan crops).

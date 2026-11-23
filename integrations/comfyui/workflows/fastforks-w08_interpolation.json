@@ -1,6 +1,6 @@
 {
- "last_node_id": 16,
- "last_link_id": 14,
+ "last_node_id": 20,
+ "last_link_id": 18,
  "nodes": [
   {
    "id": 1,
@@ -283,7 +283,9 @@
       7,
       9,
       11,
-      13
+      13,
+      15,
+      17
      ],
      "slot_index": 0
     }
@@ -582,6 +584,164 @@
    ],
    "properties": {},
    "widgets_values": []
+  },
+  {
+   "id": 17,
+   "type": "RIFE VFI",
+   "pos": [
+    1330,
+    0
+   ],
+   "size": [
+    330,
+    260
+   ],
+   "flags": {},
+   "order": 17,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "frames",
+     "type": "IMAGE",
+     "link": 15
+    },
+    {
+     "name": "optional_interpolation_states",
+     "type": "INTERPOLATION_STATES",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      16
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "title": "Frame-Interpolation: RIFE 4.9",
+   "widgets_values": [
+    "rife49.pth",
+    10,
+    2,
+    true,
+    true,
+    1.0,
+    "float32",
+    false,
+    1
+   ]
+  },
+  {
+   "id": 18,
+   "type": "PreviewImage",
+   "pos": [
+    1690,
+    0
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 18,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 16
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  },
+  {
+   "id": 19,
+   "type": "FILM VFI",
+   "pos": [
+    1330,
+    520
+   ],
+   "size": [
+    330,
+    260
+   ],
+   "flags": {},
+   "order": 19,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "frames",
+     "type": "IMAGE",
+     "link": 17
+    },
+    {
+     "name": "optional_interpolation_states",
+     "type": "INTERPOLATION_STATES",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      18
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "title": "Frame-Interpolation: FILM",
+   "widgets_values": [
+    "film_net_fp32.pt",
+    10,
+    2
+   ]
+  },
+  {
+   "id": 20,
+   "type": "PreviewImage",
+   "pos": [
+    1690,
+    520
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 20,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 18
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
   }
  ],
  "links": [
@@ -694,6 +854,38 @@
    15,
    0,
    16,
+   0,
+   "IMAGE"
+  ],
+  [
+   15,
+   8,
+   0,
+   17,
+   0,
+   "IMAGE"
+  ],
+  [
+   16,
+   17,
+   0,
+   18,
+   0,
+   "IMAGE"
+  ],
+  [
+   17,
+   8,
+   0,
+   19,
+   0,
+   "IMAGE"
+  ],
+  [
+   18,
+   19,
+   0,
+   20,
    0,
    "IMAGE"
   ]

@@ -1,6 +1,6 @@
 {
- "last_node_id": 14,
- "last_link_id": 12,
+ "last_node_id": 19,
+ "last_link_id": 17,
  "nodes": [
   {
    "id": 1,
@@ -46,7 +46,8 @@
       1,
       4,
       7,
-      10
+      10,
+      13
      ],
      "slot_index": 0
     },
@@ -498,6 +499,199 @@
    ],
    "properties": {},
    "widgets_values": []
+  },
+  {
+   "id": 15,
+   "type": "DownloadAndLoadSAM2Model",
+   "pos": [
+    1160,
+    0
+   ],
+   "size": [
+    300,
+    160
+   ],
+   "flags": {},
+   "order": 15,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "sam2_model",
+     "type": "SAM2MODEL",
+     "links": [
+      14
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": [
+    "sam2.1_hiera_small.safetensors",
+    "single_image",
+    "mps",
+    "fp32"
+   ]
+  },
+  {
+   "id": 16,
+   "type": "PrimitiveString",
+   "pos": [
+    1160,
+    700
+   ],
+   "size": [
+    300,
+    80
+   ],
+   "flags": {},
+   "order": 16,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "STRING",
+     "type": "STRING",
+     "links": [
+      15
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "title": "click point (JSON)",
+   "widgets_values": [
+    "[{\"x\": 384, \"y\": 384}]"
+   ]
+  },
+  {
+   "id": 17,
+   "type": "Sam2Segmentation",
+   "pos": [
+    1160,
+    220
+   ],
+   "size": [
+    330,
+    260
+   ],
+   "flags": {},
+   "order": 17,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "sam2_model",
+     "type": "SAM2MODEL",
+     "link": 14
+    },
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 13
+    },
+    {
+     "name": "coordinates_positive",
+     "type": "STRING",
+     "link": 15
+    },
+    {
+     "name": "coordinates_negative",
+     "type": "STRING",
+     "link": null
+    },
+    {
+     "name": "bboxes",
+     "type": "BBOX",
+     "link": null
+    },
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": null
+    }
+   ],
+   "outputs": [
+    {
+     "name": "mask",
+     "type": "MASK",
+     "links": [
+      16
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "title": "segment-anything-2: SAM 2.1 small",
+   "widgets_values": [
+    false,
+    false
+   ]
+  },
+  {
+   "id": 18,
+   "type": "MaskToImage",
+   "pos": [
+    1520,
+    220
+   ],
+   "size": [
+    200,
+    30
+   ],
+   "flags": {},
+   "order": 18,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "mask",
+     "type": "MASK",
+     "link": 16
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      17
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  },
+  {
+   "id": 19,
+   "type": "PreviewImage",
+   "pos": [
+    1750,
+    220
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 19,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 17
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
   }
  ],
  "links": [
@@ -594,6 +788,46 @@
    13,
    0,
    14,
+   0,
+   "IMAGE"
+  ],
+  [
+   13,
+   2,
+   0,
+   17,
+   1,
+   "IMAGE"
+  ],
+  [
+   14,
+   15,
+   0,
+   17,
+   0,
+   "SAM2MODEL"
+  ],
+  [
+   15,
+   16,
+   0,
+   17,
+   2,
+   "STRING"
+  ],
+  [
+   16,
+   17,
+   0,
+   18,
+   0,
+   "MASK"
+  ],
+  [
+   17,
+   18,
+   0,
+   19,
    0,
    "IMAGE"
   ]

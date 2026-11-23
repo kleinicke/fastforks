@@ -1,6 +1,6 @@
 {
- "last_node_id": 12,
- "last_link_id": 10,
+ "last_node_id": 16,
+ "last_link_id": 14,
  "nodes": [
   {
    "id": 1,
@@ -47,7 +47,9 @@
       3,
       5,
       7,
-      9
+      9,
+      11,
+      13
      ],
      "slot_index": 0
     },
@@ -478,6 +480,186 @@
    ],
    "properties": {},
    "widgets_values": []
+  },
+  {
+   "id": 13,
+   "type": "RMBG",
+   "pos": [
+    1160,
+    0
+   ],
+   "size": [
+    330,
+    260
+   ],
+   "flags": {},
+   "order": 13,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 11
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      12
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 1
+    },
+    {
+     "name": "MASK_IMAGE",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 2
+    }
+   ],
+   "properties": {},
+   "title": "ComfyUI-RMBG: INSPYRENET",
+   "widgets_values": [
+    "INSPYRENET",
+    1.0,
+    1024,
+    0,
+    0,
+    false,
+    false,
+    false,
+    "Alpha",
+    "#222222"
+   ]
+  },
+  {
+   "id": 14,
+   "type": "PreviewImage",
+   "pos": [
+    1520,
+    0
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 14,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 12
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
+  },
+  {
+   "id": 15,
+   "type": "RMBG",
+   "pos": [
+    1160,
+    380
+   ],
+   "size": [
+    330,
+    260
+   ],
+   "flags": {},
+   "order": 15,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 13
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      14
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": [],
+     "slot_index": 1
+    },
+    {
+     "name": "MASK_IMAGE",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 2
+    }
+   ],
+   "properties": {},
+   "title": "ComfyUI-RMBG: BEN2",
+   "widgets_values": [
+    "BEN2",
+    1.0,
+    1024,
+    0,
+    0,
+    false,
+    false,
+    false,
+    "Alpha",
+    "#222222"
+   ]
+  },
+  {
+   "id": 16,
+   "type": "PreviewImage",
+   "pos": [
+    1520,
+    380
+   ],
+   "size": [
+    300,
+    300
+   ],
+   "flags": {},
+   "order": 16,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 14
+    }
+   ],
+   "outputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "links": [],
+     "slot_index": 0
+    }
+   ],
+   "properties": {},
+   "widgets_values": []
   }
  ],
  "links": [
@@ -558,6 +740,38 @@
    11,
    0,
    12,
+   0,
+   "IMAGE"
+  ],
+  [
+   11,
+   2,
+   0,
+   13,
+   0,
+   "IMAGE"
+  ],
+  [
+   12,
+   13,
+   0,
+   14,
+   0,
+   "IMAGE"
+  ],
+  [
+   13,
+   2,
+   0,
+   15,
+   0,
+   "IMAGE"
+  ],
+  [
+   14,
+   15,
+   0,
+   16,
    0,
    "IMAGE"
   ]
