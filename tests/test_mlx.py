@@ -541,6 +541,25 @@ def test_antialiased_resize_matches_torch(mode, align, size):
     torch.testing.assert_close(MlxModule(m, "float32")(x), m(x), atol=1e-5, rtol=1e-5)
 
 
+def test_instance_norm_is_not_banded_with_the_tail(monkeypatch):
+    """A banded output tail stops at an instance norm: its statistics are over the whole map, not a band of rows."""
+    pytest.importorskip("mlx.core")
+    from fastforks.shared import mlx_band  # noqa: PLC0415 - optional (the mlx extra)
+    from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415
+
+    monkeypatch.setattr(mlx_band, "BAND_MIN_MB", 0)  # band a small map: one band is a few rows
+    monkeypatch.setattr(mlx_band, "BAND_MB", 0)
+    m = torch.nn.Sequential(
+        torch.nn.Conv2d(3, 8, 3, padding=1),
+        torch.nn.InstanceNorm2d(8),
+        torch.nn.GELU(),
+        torch.nn.Conv2d(8, 1, 3, padding=1),
+    ).eval()
+    torch.manual_seed(0)
+    x = torch.randn(1, 3, 32, 40) * torch.linspace(0.2, 3, 32)[:, None]  # rows of different scale
+    torch.testing.assert_close(MlxModule(m, "float32")(x), m(x), atol=1e-4, rtol=1e-4)
+
+
 def test_fp32_inputs_keep_float32_in_a_float16_replay():
     """`MlxModule(fp32_inputs=...)`: the named argument enters a float16 replay unrounded, the others are cast."""
     pytest.importorskip("mlx.core")

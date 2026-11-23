@@ -24,6 +24,9 @@ aten = torch.ops.aten
 BAND_MB = int(os.environ.get("FF_MLX_BAND_MB", "48"))  # the largest slab (one value's rows of a band) of a band
 BAND_MIN_MB = 128  # a tail whose largest value is smaller than this runs whole
 _UP = (aten.upsample_nearest2d.default, aten.upsample_nearest2d.vec)
+# channels-last ops whose output rows are not a function of the same input rows: the statistics of an instance norm are
+# over the whole map (per band they made BEN2's last 1024x1024 block wrong by 0.1 of the alpha range)
+_WHOLE_MAP = (aten.instance_norm.default,)
 
 
 def band_tail(  # noqa: C901, PLR0911, PLR0912, PLR0915
@@ -92,6 +95,8 @@ def band_tail(  # noqa: C901, PLR0911, PLR0912, PLR0915
                 and shp[2:] == sshp[2:]
             ):
                 kind = "conv"
+        elif node.target in _WHOLE_MAP:
+            break
         elif node.target in g.CL_OPS and node.target is not aten.constant_pad_nd.default and node.target not in _UP:
             ok = shp == sshp
             for r in tensor_refs - {src}:
