@@ -155,7 +155,9 @@ A node that cannot do what you set says what to change, in the node's words (`ba
   MPS (also torch's own `MPS backend out of memory`) to try the `mlx` backend, which often needs less memory; ComfyUI
   then unloads its models, so the run can be repeated. Upscale / restore also says which
   `tile` fits.
-- **Weights.** The first run downloads missing weights (progress is in ComfyUI's console only). Offline mode
+- **Weights.** The first run downloads missing weights (progress is in ComfyUI's console only). A few upstreams
+  publish a model only inside a larger archive, which is downloaded once and not kept: SPAN's 18 MB file comes from a
+  1.3 GB archive (about a minute on a fast line), so the console names the file with the archive's size. Offline mode
   (`FASTFORKS_OFFLINE` / `HF_HUB_OFFLINE`) fails with where to put the files (`models/fastforks`) or how to allow the
   download. A gated Hugging Face repo (SAM 3, DINOv3-based models) needs its licence accepted on Hugging Face and a
   login in ComfyUI's Python (`hf auth login`, or `HF_TOKEN` set before starting ComfyUI); the error says so.
@@ -209,3 +211,6 @@ in total (131 against 138 GiB summed over the models); the benchmarks' memory co
 PyTorch's `torch.cuda.max_memory_allocated` reports about twice the peak under `cudaMallocAsync` for models that
 capture CUDA graphs, but the device memory in use (`cudaMemGetInfo`) is not higher: ema-vfi at 1080 x 1920 peaks at
 2350 MiB against 3376 MiB under the default allocator, aliked-lightglue at 768 x 1024 at 1456 against 1520 MiB.
+Models that replay CUDA graphs make PyTorch print `Attempting uncaptured free of a captured allocation` under
+this allocator when the next graph is captured or the model is unloaded. PyTorch calls it "technically allowed", and
+the outputs are unchanged: the GPU goldens of these models pass under `cudaMallocAsync`.
