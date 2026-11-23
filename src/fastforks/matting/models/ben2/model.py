@@ -46,6 +46,9 @@ def _cpu_net(ctx: Context) -> BEN_Base:
     return net.eval()
 
 
+# the Swin windows (144 tokens, a bias mask) on the memory-efficient kernel, the decoder's attention on the runner's
+# cuDNN-first order (1080p, RTX 5060 Ti, Windows: windows 9.3 -> 7.6 ms; the decoder on memory-efficient 8.9 -> 22 ms)
+_SWIN_SDPA = "efficient,cudnn,math"
 _TINY = 1e-8  # fixed: our floor of the normalisation divisors (constant image / map: not 0 / 0)
 
 
@@ -93,7 +96,7 @@ class Kernels(_Matting):
         super().__init__(ctx)
         net = _cpu_net(ctx).to(ctx.device)
         prepare_generic(net, ctx.device)  # no BatchNorm to fuse: convs + InstanceNorms
-        swin_v1.fast(net.backbone)
+        swin_v1.fast(net.backbone, sdpa_auto=_SWIN_SDPA)
         self.dtype = torch.float16
         self.net = net
 

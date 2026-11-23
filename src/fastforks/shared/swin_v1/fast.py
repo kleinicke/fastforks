@@ -16,6 +16,7 @@ The values are upstream's up to the order of the floating-point sums (the same S
 
 from __future__ import annotations
 
+import contextlib
 import functools
 from typing import Any
 
@@ -23,18 +24,26 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.patch import override
+from fastforks.shared import sdpa
 
 __all__ = ["fast"]
 
 _INFERENCE_ONLY = "swin_v1.fast is inference only (run it under torch.inference_mode or torch.no_grad)"
 
 
-def fast(backbone: Any) -> None:  # noqa: ANN401 - the vendored, untyped SwinTransformer
-    """Swap the layer and block forwards of `backbone` (in place) for the gather-based ones."""
+def fast(backbone: Any, *, sdpa_auto: str | None = None) -> None:  # noqa: ANN401 - the vendored SwinTransformer
+    """Swap the layer and block forwards of `backbone` (in place) for the gather-based ones.
+
+    Args:
+        backbone: A `SwinTransformer`.
+        sdpa_auto: The window attention's own `fastforks.shared.sdpa` priority list under `FASTFORKS_SDPA=auto`
+            (`Runner.sdpa_auto`, for a model whose other attention keeps the runner's order); None: the runner's.
+    """
     for layer in backbone.layers:
         override(layer, _layer_forward)
         for blk in layer.blocks:
             override(blk, _block_forward)
+            blk._fast_sdpa = sdpa_auto  # noqa: SLF001
             blk.attn._fast_bias = None  # noqa: SLF001 - its cached [nH, N, N] bias
 
 
@@ -107,17 +116,27 @@ def _block_forward(self: Any, x: torch.Tensor, mask_matrix: object = None) -> to
     q, k, v = attn.qkv(t).view(b, g.windows, n, 3, heads, c // heads).permute(3, 0, 1, 4, 2, 5).unbind(0)
     del t
     bias = _bias(attn, q.dtype)[None]  # [1, nH, N, N]
-    if g.mask is None or b == 1:  # one call: the bias (+ one image's mask) broadcast over the windows
-        add = bias if g.mask is None else bias + g.mask
-        q, k, v = q.flatten(0, 1), k.flatten(0, 1), v.flatten(0, 1)
-        o = F.scaled_dot_product_attention(q, k, v, attn_mask=add.expand(q.shape[0], -1, -1, -1)).transpose(1, 2)
-    else:  # one call per image against one image's [nW, nH, N, N] mask
-        add = bias + g.mask
-        o = q.new_empty(b, g.windows, n, heads, c // heads)
-        for i in range(b):
-            o[i] = F.scaled_dot_product_attention(q[i], k[i], v[i], attn_mask=add).transpose(1, 2)
+    with contextlib.nullcontext() if self._fast_sdpa is None else sdpa.policy(x.device, self._fast_sdpa):
+        o = _attention(q, k, v, bias, g.mask)
     del q, k, v
     o = attn.proj(o.reshape(b, g.windows * n, c))  # o: [.., N, nH, Dh], the fused kernels' output layout
     x = x + o.index_select(1, g.to_image)
     del o
     return x + self.mlp(self.norm2(x))
+
+
+def _attention(
+    q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, bias: torch.Tensor, mask: torch.Tensor | None
+) -> torch.Tensor:
+    """`[B, nW, N, nH, Dh]` (a view) of the window attention of `[B, nW, nH, N, Dh]` q, k, v."""
+    b = q.shape[0]
+    if mask is None or b == 1:  # one call: the bias (+ one image's mask) broadcast over the windows
+        add = bias if mask is None else bias + mask
+        q, k, v = q.flatten(0, 1), k.flatten(0, 1), v.flatten(0, 1)
+        o = F.scaled_dot_product_attention(q, k, v, attn_mask=add.expand(q.shape[0], -1, -1, -1))
+        return o.transpose(1, 2).unflatten(0, (b, -1))
+    add = bias + mask  # one call per image against one image's [nW, nH, N, N] mask
+    o = q.new_empty((*q.shape[:2], q.shape[3], q.shape[2], q.shape[4]))
+    for i in range(b):
+        o[i] = F.scaled_dot_product_attention(q[i], k[i], v[i], attn_mask=add).transpose(1, 2)
+    return o
