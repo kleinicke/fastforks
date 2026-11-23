@@ -67,9 +67,9 @@ def solve_2dweighted_lstsq(
     """
     WAs = As if Ws is None else fast_small_matmul(Ws, As)
     WAs = WAs if mask is None else WAs * mask[..., None, None]
-    AtW = WAs.flatten(-3, -2).transpose(-1, -2)  # (..., D, 2*N)
-    AtWA = AtW @ As.flatten(-3, -2)  # (..., D, D)
-    AtWb = AtW @ bs.flatten(-2, -1)[..., None]  # (..., D, 1)
+    # fastforks: sums of the per-observation products in one reduction each (a GEMM over every pixel is split-K cuBLAS)
+    AtWA = (WAs[..., None] * As[..., None, :]).sum((-4, -3))  # (..., D, D)
+    AtWb = (WAs * bs[..., None]).sum((-3, -2))[..., None]  # (..., D, 1)
     sol, info = (solve_small_export if torch.compiler.is_exporting() else torch.linalg.solve_ex)(AtWA, AtWb.squeeze(-1))
     sol = sol.nan_to_num(1, 1, 1)
     return sol, info
