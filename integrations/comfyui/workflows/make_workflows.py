@@ -156,11 +156,19 @@ def w04_segment_prompted():
     g = WF()
     note(g, "Promptable segmentation: a click at the image centre (positive_points = 384,384). "
             "Edit the point in pixels, add a box 'x0,y0,x1,y1' or negative points. "
+            "The click lands on the dress only because the image centre happens to be there: move it to pick another object. "
+            "The two bottom nodes (SAM 3, CLIPSeg) take a text prompt instead: edit `text` ('pink dress', 'hair', 'grass'). "
             "Compare SAM 2.1, MobileSAM and EfficientViT-SAM.")
     img = load(g, "example.png", 0, 0)
     shootout(g, "FastforksSegment", "image", [
         {"model": m} for m in ("sam2.1-hiera-small", "mobile-sam", "efficientvit-sam-l0", "sam-vit-b")],
         img=img, mask_out=True, positive_points="384,384")
+    # text prompt: no points, the `text` field says what to segment (SAM 3 and CLIPSeg understand it)
+    for k, m in enumerate(("sam3", "clipseg")):
+        y = 1700 + k * 420
+        n = g.add("FastforksSegment", 380, y, size=(330, 230), title=f"{m}: text prompt", model=m,
+                  image=(img, 0), text="pink dress")
+        preview(g, n, 740, y, mask=True)
     # SAM 2.1 small in ComfyUI-segment-anything-2 (kijai)
     sam = g.add("DownloadAndLoadSAM2Model", 1160, 0, size=(300, 160), model="sam2.1_hiera_small.safetensors",
                 segmentor="single_image", device="mps", precision="fp32")
