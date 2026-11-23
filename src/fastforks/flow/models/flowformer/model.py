@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
 import torch
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from fastforks.flow._runner import Context
 
     from .net.FlowFormer.LatentCostFormer.decoder import MemoryDecoder
-    from .net.FlowFormer.LatentCostFormer.encoder import CostPerceiverEncoder, MemoryEncoder
+    from .net.FlowFormer.LatentCostFormer.encoder import CostPerceiverEncoder, MemoryEncoder, PatchEmbed
     from .net.FlowFormer.LatentCostFormer.gma import Aggregate, Attention
     from .net.FlowFormer.LatentCostFormer.gru import SepConvGRU
 
@@ -182,6 +182,79 @@ def _encode(m: CostPerceiverEncoder, vol: _Volume, data: dict, context: torch.Te
     return x + short_cut if m.cfg.cost_encoder_res is True else x
 
 
+@dataclass
+class _Embed:
+    """What `_patch_embed` reads, made once by `_prepare_patch_embed`."""
+
+    convs: tuple[torch.nn.Conv2d, torch.nn.Conv2d, torch.nn.Conv2d]  # `proj`, fp16 channels last
+    ffn0: torch.Tensor  # `ffn_with_coord.0`, fp32 `[2 C, 2 C]`: columns `:C` the tokens', `C:` the position's
+    ffn0_x: torch.Tensor  # its token half, fp16 `[C, 2 C]` (transposed)
+    ffn0_bias: torch.Tensor  # fp32
+    ffn2: tuple[torch.Tensor, torch.Tensor]  # `ffn_with_coord.2` as a linear, fp16
+    norm: tuple[torch.Tensor, torch.Tensor]  # the LayerNorm's weight and bias, fp16
+    position: dict[tuple[int, int], torch.Tensor] = field(default_factory=dict)  # `_patch_position`, per grid
+
+
+def _patch_position(pe: PatchEmbed, e: _Embed, h: int, w: int, device: torch.device) -> torch.Tensor:
+    """`ffn_with_coord.0`'s position half for an `h` x `w` patch grid: `W_pos pe + b`, `[h * w, 2 C]` float16."""
+    if (h, w) not in e.position:
+        from .net.FlowFormer.LatentCostFormer.attention import (  # noqa: PLC0415 - needs timm (libnet)
+            ExpPositionEmbeddingSine,
+            LinearPositionEmbeddingSine,
+        )
+        from .net.utils import coords_grid  # noqa: PLC0415 - next to the import above
+
+        coord = coords_grid(1, h, w, device=device) * pe.patch_size + pe.patch_size / 2
+        coord = coord.view(1, 2, -1).permute(0, 2, 1)
+        enc = (LinearPositionEmbeddingSine if pe.pe == "linear" else ExpPositionEmbeddingSine)(coord, dim=pe.dim)[0]
+        e.position[h, w] = torch.addmm(e.ffn0_bias, enc.float(), e.ffn0[:, pe.dim :].t()).half()
+    return e.position[h, w]
+
+
+def _patch_embed(pe: PatchEmbed, x: torch.Tensor, *, share_position: bool = False) -> tuple[torch.Tensor, tuple]:
+    """Upstream `PatchEmbed._embed` (`share_position`) on fp16 channels-last activations; tokens `[B, N, 2 C]` fp16.
+
+    The convs run channels last (cuDNN converted every NCHW map to NHWC and back) with in-place ReLUs. The first 1 x 1
+    conv of `ffn_with_coord` is split at its concatenation: its position half is the same for every map
+    (`_patch_position`, the bias of a GEMM over the maps' tokens), and both 1 x 1 convs are GEMMs over the tokens,
+    which channels last already are. The LayerNorm reads fp16 with fp16 weights (autocast ran it on an fp32 copy).
+    """
+    assert share_position  # noqa: S101 - the kernels encoder's only call
+    e: _Embed = pe.__dict__["_kernels"]
+    conv0, conv1, conv2 = e.convs
+    y = torch.relu_(F.conv2d(x.half(), conv0.weight, conv0.bias, conv0.stride, conv0.padding))
+    y = torch.relu_(F.conv2d(y, conv1.weight, conv1.bias, conv1.stride, conv1.padding))
+    y = F.conv2d(y, conv2.weight, conv2.bias, conv2.stride, conv2.padding)
+    b, c, h, w = y.shape
+    tokens = y.permute(0, 2, 3, 1).reshape(b, h * w, c)  # a view: `y` is channels last
+    position = _patch_position(pe, e, h, w, y.device)
+    y = torch.baddbmm(position.expand(b, -1, -1), tokens, e.ffn0_x.expand(b, -1, -1)).relu_()
+    y = F.linear(y, *e.ffn2)
+    with torch.autocast(y.device.type, enabled=False):
+        return F.layer_norm(y, (y.shape[-1],), *e.norm, pe.norm.eps), (h, w)
+
+
+def _prepare_patch_embed(pe: PatchEmbed) -> None:
+    """fp16 channels-last conv weights and the split `ffn_with_coord.0` for `_patch_embed`."""
+    convs = tuple(m for m in pe.proj if isinstance(m, torch.nn.Conv2d))
+    for m in convs:
+        m.half().to(memory_format=torch.channels_last)
+    ffn0, ffn2 = (cast("torch.nn.Conv2d", pe.ffn_with_coord[i]) for i in (0, 2))
+    norm = pe.norm
+    w0 = ffn0.weight.detach().float().flatten(1)
+    conv0, conv1, conv2 = convs  # patch size 8
+    assert ffn0.bias is not None and ffn2.bias is not None  # noqa: S101, PT018 - upstream's convs have biases
+    pe.__dict__["_kernels"] = _Embed(
+        convs=(conv0, conv1, conv2),
+        ffn0=w0,
+        ffn0_x=w0[:, : cast("int", pe.dim)].t().half().contiguous(),
+        ffn0_bias=ffn0.bias.detach().float(),
+        ffn2=(ffn2.weight.detach().flatten(1).half(), ffn2.bias.detach().half()),
+        norm=(norm.weight.detach().half(), norm.bias.detach().half()),
+    )
+    override(pe, _patch_embed, "_embed")
+
+
 def _windows(_decoder: MemoryDecoder, vol: _Volume, coords: torch.Tensor) -> torch.Tensor:
     """Upstream `encode_flow_token`: the (2 r + 1)^2 bilinear costs around each pixel's `coords` (zero outside).
 
@@ -261,6 +334,7 @@ class Kernels(Portable):
         override(self.net.memory_decoder, _upsample, "upsample_flow")
         override(self.net.memory_encoder, _corr, "corr")
         override(self.net.memory_encoder.cost_perceiver_encoder, _encode)
+        _prepare_patch_embed(self.net.memory_encoder.cost_perceiver_encoder.patch_embed)
         override(self.net.memory_decoder, _windows, "encode_flow_token")
         override(self.net.memory_decoder.att, _gma_attention)
         override(self.net.get_submodule("memory_decoder.update_block.aggregator"), _gma_aggregate)
