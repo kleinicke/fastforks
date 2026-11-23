@@ -24,9 +24,10 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.patch import override
 from fastforks.flow._runner import Forward, Runner
-from fastforks.kernels import flow_upsample
+from fastforks.kernels import fastbb, flow_upsample
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
+from fastforks.shared.instance_norm import fuse_encoder
 
 from .net.attention import sdpa
 from .net.geometry import coords_grid, flow_warp
@@ -391,6 +392,9 @@ class Kernels(Portable):
             if isinstance(layer, TransformerLayer):
                 layer.window_options = {"attention": _headed}
         override(self.net.transformer, _window_transformer)
+        if self.fp16:  # the CNN's instance norms on fastbb (autocast fp16, channels-last; float32 stays PyTorch)
+            fastbb.load(ctx.device)
+            fuse_encoder(self.net.backbone)
         if ctx.params.refine:
             self.net.refine.to(memory_format=torch.channels_last)
             override(self.net.refine, _refine_forward)

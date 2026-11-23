@@ -47,7 +47,8 @@ mps_dtypes = ["float32", "float16"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
-kernels = ["flow_upsample"]
+kernels = ["fastbb", "flow_upsample"]
+# fastbb: the CNN encoder's instance norms (fp16 channels-last, ReLUs and residual adds in the apply pass)
 # CUDA graphs (kernels): the pass is launch-bound on small inputs; batch x padded H x W <= 262144 replays a CUDA
 # graph, captured on a shape's 2nd call, at most 2 shapes per model (Windows RTX 5060 Ti, scale2-regrefine6 ms per pair:
 # 384x384 65.1 -> 51.9, 384x512 81.5 -> 71.6; 544x960 gains under 2 %). The graph pool stays reserved until

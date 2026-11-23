@@ -253,7 +253,7 @@ Commercial use: yes.
   - `gmflow-scale2-regrefine6-kitti`: FlyingChairs (Freiburg), Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa), KITTI stereo / optical flow 2012 / 2015, not stated by the authors (FlyingChairs, FlyingThings3D, Virtual KITTI 2 (no dataset entry here yet, hence 'unstated'), then KITTI 2012 + 2015 (upstream scripts/gmflow_scale2_regrefine6_train.sh, stages vkitti2 and kitti_mix))
   - `gmflow-scale2-regrefine6-mixdata`: MODEL_ZOO.md: "trained on several mixed public datasets" (not listed)
 - Options: `cuda_graphs` = True (speed only)
-- Kernel libraries: `flow_upsample`
+- Kernel libraries: `fastbb`, `flow_upsample`
 - Variants: `gmflow-scale1-things`, `gmflow-scale1-mixdata`, `gmflow-scale2-things`, `gmflow-scale2-sintel`, `gmflow-scale2-mixdata`, `gmflow-scale2-regrefine6-things`, `gmflow-scale2-regrefine6-sintelft`, `gmflow-scale2-regrefine6-kitti`, `gmflow-scale2-regrefine6-mixdata`
 - Public TensorRT export is unavailable for `gmflow-scale2-things`, `gmflow-scale2-sintel`, `gmflow-scale2-mixdata`, `gmflow-scale2-regrefine6-things`, `gmflow-scale2-regrefine6-sintelft`, `gmflow-scale2-regrefine6-kitti`, `gmflow-scale2-regrefine6-mixdata` (the TensorRT 10 engine build fails (Myelin error on the attention graph)).
 - Outputs: flow

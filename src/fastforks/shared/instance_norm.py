@@ -2,8 +2,8 @@
 
 fp32 statistics in one read pass and one apply pass over the channels-last activation (no layout copies); the apply
 pass can add a ReLU (`RELU`) or a ResidualBlock's tail `relu(res + relu(norm))` (`RELU_RES`). Used by the kernels
-encoders of DEFOM-Stereo (fnet) and NMRF / BridgeDepth (ResNet backbone and feature heads). There is no PyTorch
-fallback: an activation the kernels do not take raises.
+encoders of DEFOM-Stereo (fnet), NMRF / BridgeDepth (ResNet backbone and feature heads) and GMFlow (`fuse_encoder`).
+There is no PyTorch fallback: an activation the kernels do not take raises.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import torch
 from torch import nn
 
 from fastforks._core.kernels import linear
-from fastforks._core.patch import base_type, is_base
+from fastforks._core.patch import base_type, is_base, override
 from fastforks.kernels import fastbb
 from fastforks.shared.cnn_kernels import CL
 
@@ -120,3 +120,30 @@ def is_in_resblock(m: nn.Module) -> bool:
         and d[1] is getattr(m, "norm3", None)
         and is_base(d[1], nn.InstanceNorm2d)
     )
+
+
+def norm_relu(self: nn.Module, x: torch.Tensor) -> torch.Tensor:
+    """`relu(norm(x))` in place: an InstanceNorm2d's forward when the ReLU after it is removed."""
+    return instance_norm(self, x, RELU, inplace=True)
+
+
+def fuse_encoder(enc: nn.Module) -> int:
+    """A RAFT-style instance-norm encoder (`conv1 / norm1 / relu1` stem, ResidualBlocks) on the fused norms, in place.
+
+    The stem's ReLU moves into its norm's apply pass, every ResidualBlock runs `resblock_forward`, and the convs are
+    channels-last, so their fp16 outputs (autocast or fp16 weights) are what the kernels take. Returns the block count.
+
+    Raises:
+        RuntimeError: The stem or a block does not have that layout.
+    """
+    blocks = [m for m in enc.modules() if base_type(m).__name__ == "ResidualBlock"]
+    stem = is_base(getattr(enc, "norm1", None), nn.InstanceNorm2d) and isinstance(getattr(enc, "relu1", None), nn.ReLU)
+    if not (stem and blocks and all(is_in_resblock(b) for b in blocks)):
+        msg = f"{type(enc).__name__}: not a conv1 / norm1 / relu1 + instance-norm ResidualBlock encoder"
+        raise RuntimeError(msg)
+    for b in blocks:
+        override(b, resblock_forward)
+    override(cast("nn.Module", enc.norm1), norm_relu)
+    enc.relu1 = nn.Identity()
+    enc.to(memory_format=CL)
+    return len(blocks)
