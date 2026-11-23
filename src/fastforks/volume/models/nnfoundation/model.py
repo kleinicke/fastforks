@@ -30,7 +30,7 @@ from fastforks._core.tracing import in_onnx_export
 from fastforks.shared import mlx_wrap
 from fastforks.shared.host_blocks import StreamedModuleList
 from fastforks.volume._nnunet import Encoder, Norm, Plan, UNet, _ConvNormAct
-from fastforks.volume._nnunet_runner import _biased_conv_norm, fused_norm_act
+from fastforks.volume._nnunet_runner import _biased_conv_norm, _biased_conv_norm_, fused_norm_act
 from fastforks.volume._runner import EncoderRunner
 
 if TYPE_CHECKING:
@@ -307,6 +307,7 @@ class Portable(EncoderRunner):
                     override(module, fused_norm_act, "norm_act")
                     if module.conv.bias is not None:
                         override(module, _biased_conv_norm)
+                        override(module, _biased_conv_norm_, "forward_")
         if self.ctx.params.stream:
             if isinstance(net, Encoder):
                 net.stages = StreamedModuleList(net.stages, self.ctx.device)  # ty: ignore[invalid-assignment]

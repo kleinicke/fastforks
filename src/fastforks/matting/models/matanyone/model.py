@@ -36,7 +36,7 @@ from .net.inference.image_feature_store import ImageFeatureStore
 from .net.inference.inference_core import InferenceCore
 from .net.inference.memory_manager import MemoryManager
 from .net.model.matanyone import MatAnyone
-from .net.model.modules import MaskUpsampleBlock
+from .net.model.modules import MaskUpsampleBlock, SensoryUpdater_fullscale, _recurrent_update
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -334,6 +334,43 @@ def _cuda_encode(
     return features, m.pix_feat_proj(features[0])
 
 
+def _canonical(x: torch.Tensor) -> torch.Tensor:
+    """`x` (4D) with canonical channels-last strides if channels-last (a flattened 5D map's batch stride is not)."""
+    if x.is_contiguous(memory_format=torch.channels_last):
+        _, c, h, w = x.shape
+        x = x.as_strided(x.shape, (c * h * w, 1, w * c, c), x.storage_offset())
+    return x
+
+
+def _area(g: torch.Tensor, factor: int) -> torch.Tensor:
+    """Upstream `downsample_groups(g, 1 / factor)` ('area'), as an average pool when `factor` divides the size.
+
+    adaptive_avg_pool2d copies a channels-last input to NCHW first (1080 x 1920 step: 3.7 ms of copies).
+    """
+    b, k = g.shape[:2]
+    x = _canonical(g.flatten(0, 1))
+    if x.shape[-2] % factor == 0 and x.shape[-1] % factor == 0:
+        x = F.avg_pool2d(x, factor)
+    else:
+        x = F.interpolate(x, scale_factor=1 / factor, mode="area")
+    return x.view(b, k, *x.shape[1:])
+
+
+def _sensory_update(m: SensoryUpdater_fullscale, g: list[torch.Tensor], h: torch.Tensor) -> torch.Tensor:
+    """Upstream `SensoryUpdater_fullscale.forward` with `_area` for the downsampling."""
+    g = (
+        m.g16_conv(g[0])
+        + m.g8_conv(_area(g[1], 2))
+        + m.g4_conv(_area(g[2], 4))
+        + m.g2_conv(_area(g[3], 8))
+        + m.g1_conv(_area(g[4], 16))
+    )
+    with torch.autocast(h.device.type, enabled=False):
+        g, h = g.float(), h.float()
+        values = m.transform(torch.cat([g, h], dim=2))
+        return _recurrent_update(h, values)
+
+
 def _upsample_block(m: MaskUpsampleBlock, in_g: torch.Tensor, skip_f: torch.Tensor) -> torch.Tensor:
     """Upstream `MaskUpsampleBlock.forward` with the upsampling in the input's dtype and fewer full-size passes.
 
@@ -345,10 +382,7 @@ def _upsample_block(m: MaskUpsampleBlock, in_g: torch.Tensor, skip_f: torch.Tens
     float16: 4.94e-5), p99 0.
     """
     b, k = in_g.shape[:2]
-    x = in_g.flatten(0, 1)
-    if x.is_contiguous(memory_format=torch.channels_last):
-        _, c, h, w = x.shape
-        x = x.as_strided(x.shape, (c * h * w, 1, w * c, c), x.storage_offset())
+    x = _canonical(in_g.flatten(0, 1))
     with torch.autocast(x.device.type, enabled=False):
         g = F.interpolate(x, scale_factor=m.scale_factor, mode="bilinear", align_corners=False)
     in_place = k == 1 and skip_f.dtype == g.dtype
@@ -372,6 +406,7 @@ class Kernels(Portable):
         for block in self.net.mask_decoder.modules():
             if isinstance(block, MaskUpsampleBlock):
                 override(block, _upsample_block)
+        override(self.net.mask_decoder.sensory_update, _sensory_update)
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels}
