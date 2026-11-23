@@ -737,7 +737,7 @@ geometry lookups, cost volumes, HITNet's warp costs, AANet's deformable sampling
 sparse convolutions) and VGGT (the aggregator's q / k LayerNorm and RoPE) in float32. Flow, pose and features have
 them too: RAFT and SEA-RAFT (the correlation lookup without the all-pairs volume, float16), RTMPose (the person crops,
 float32), ViTPose / ViTPose++ (patch embedding, decoder and keypoint decoding, float16) and Perception Encoder (the
-blocks' RoPE, float16). RoMa v2 uses fused local correlation in float32. These kernels compile on the device in under a second on first use;
+blocks' RoPE, float16). RoMa v2 uses fused local correlation in float32, and MVSplat its plane sweep (warp and channel dot in one kernel) in float32. These kernels compile on the device in under a second on first use;
 `mode="auto"` picks it. Every other family runs `portable`.
 
 - dtype: float32 by default. `dtype="float16"` works where the card lists it (`fastforks info MODEL`, row
