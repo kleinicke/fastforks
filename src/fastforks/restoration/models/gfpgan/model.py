@@ -24,6 +24,7 @@ import torch.nn.functional as F
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import InputError, WeightsError
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.mlx_cast import to_float32, to_run_dtype
 from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, style_weights
 from fastforks.restoration._runner import Crop, Forward, Runner
@@ -65,11 +66,11 @@ def _hacc(x: torch.Tensor, w: torch.Tensor, b: torch.Tensor | None, padding: int
 
 def _weights(m: ModulatedConv2d, style: torch.Tensor, gain: float) -> torch.Tensor:
     b, c = style.shape
-    s = style.float().view(b, 1, c, 1, 1)
-    w = m.weight.float() * s
+    s = to_float32(style).view(b, 1, c, 1, 1)  # float32 on MLX too: the squared sums overflow float16
+    w = to_float32(m.weight) * s
     if m.demodulate:
         w = w * torch.rsqrt(w.pow(2).sum([2, 3, 4]) + m.eps).view(b, -1, 1, 1, 1)
-    return (w * gain).to(style.dtype).view(b * m.out_channels, c, m.kernel_size, m.kernel_size)
+    return to_run_dtype(w * gain, style.dtype).view(b * m.out_channels, c, m.kernel_size, m.kernel_size)
 
 
 def _cuda_weights(m: ModulatedConv2d, style: torch.Tensor, gain: float) -> torch.Tensor:
