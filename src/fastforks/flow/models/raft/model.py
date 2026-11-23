@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Literal
 from fastforks._core.checkpoint import check_fits
 from fastforks.flow._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import LARGE, RAFT, SMALL
 
@@ -23,6 +24,7 @@ class Params:
 
     size: Literal["large", "small"]  # torchvision raft_large / raft_small
     iters: int  # flow updates (torchvision's `num_flow_updates`)
+    cuda_graphs: bool  # option: kernels replays CUDA graphs for small repeated shapes
 
 
 class Portable(Runner):
@@ -56,11 +58,16 @@ class Portable(Runner):
         return Forward(self.net, lambda net, image1, image2: net(image1, image2, iters))
 
 
+_GRAPH_PIXELS = 1_000_000  # fixed: batch x padded H x W; the engine's ~1000 launches per pass bound small inputs
+_GRAPHS = 2  # fixed: graph cache policy
+
+
 class Kernels(Runner):
     """Our CUDA engine (`kernels/engine.py`): no correlation volume, fused GRU and conv epilogues.
 
     The lookup computes the correlation on the fly from a pooled fmap2 pyramid (O(HW) memory); fp16 activations with
-    fp16-accumulate convolutions, fp32 correlation sums and flow state.
+    fp16-accumulate convolutions, fp32 correlation sums and flow state. A repeated input shape up to `_GRAPH_PIXELS`
+    replays a CUDA graph (`fastforks.shared.cuda_graphs`): the eager pass is launch-bound there.
     """
 
     Params = Params
@@ -81,10 +88,21 @@ class Kernels(Runner):
             sd, d, raft_flow.load(d), cutlass_conv.load(d), cudnn_hacc.load(d), ctx.params.iters,
             large=ctx.params.size == "large",
         )  # fmt: skip
+        self._graphs = SmallShapeGraphs(
+            self.engine,
+            pixels=_GRAPH_PIXELS,
+            graphs=_GRAPHS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+        )
 
     def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
         """Flow of a padded batch, pair by pair."""
-        return {"flow": self.engine(image1, image2)}
+        return {"flow": self._graphs(image1, image2)}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool on the device."""
+        self._graphs.release()
 
 
 class MetalKernels(Portable):
