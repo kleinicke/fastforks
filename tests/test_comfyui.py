@@ -1096,6 +1096,11 @@ def test_memory_errors_become_out_of_memory(pack: Any, monkeypatch: pytest.Monke
         assert text in str(out)
     assert nodes.memory_error(RuntimeError("shape mismatch")) is None
     assert nodes.memory_error(torch.OutOfMemoryError("CUDA out of memory")) is None
+    mps = nodes.memory_error(torch.OutOfMemoryError("MPS backend out of memory (MPS allocated: 17 GB)"))
+    assert mps is not None
+    assert "try backend=mlx" in str(mps)
+    assert "backend=mlx" not in str(nodes.memory_error(RuntimeError("[metal::malloc] 9 GB")))
+    assert "backend=mlx" not in str(nodes.memory_error(RuntimeError("Insufficient Memory"), "mlx portable"))
 
     def fail(message: str) -> Any:
         def raiser(*_a: Any, **_k: Any) -> None:

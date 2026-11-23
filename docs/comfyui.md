@@ -151,8 +151,9 @@ A node that cannot do what you set says what to change, in the node's words (`ba
   its video nodes need at least 2 frames where a pair is needed; Interpolate, Video depth, Video segment and Track
   points run a single frame without error (Interpolate returns it unchanged).
 - **Memory.** An allocation failure on MPS or MLX (`Invalid buffer size`, `[metal::malloc]`, `Insufficient Memory`) is
-  reported as ComfyUI's out-of-memory error with the advice to use a smaller image or `batch_size` / `tile`, or the
-  `mlx` backend; ComfyUI then unloads its models, so the run can be repeated. Upscale / restore also says which
+  reported as ComfyUI's out-of-memory error with the advice to use a smaller image or `batch_size` / `tile`, and on
+  MPS (also torch's own `MPS backend out of memory`) to try the `mlx` backend, which often needs less memory; ComfyUI
+  then unloads its models, so the run can be repeated. Upscale / restore also says which
   `tile` fits.
 - **Weights.** The first run downloads missing weights (progress is in ComfyUI's console only). Offline mode
   (`FASTFORKS_OFFLINE` / `HF_HUB_OFFLINE`) fails with where to put the files (`models/fastforks`) or how to allow the

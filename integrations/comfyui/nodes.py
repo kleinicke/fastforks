@@ -671,18 +671,25 @@ def _source_stamp() -> str:
 _OOM_MARKERS = ("invalid buffer size", "metal::malloc", "insufficient memory", "out of memory")
 
 
-def memory_error(error: RuntimeError) -> torch.OutOfMemoryError | None:
-    """An out-of-memory error with what to do, for the allocation failures of MPS / MLX (plain `RuntimeError`s).
+def memory_error(error: RuntimeError, backend: str = "auto") -> torch.OutOfMemoryError | None:
+    """An out-of-memory error with what to do, for the allocation failures of MPS / MLX.
 
-    `None` for any other error and for CUDA's own `torch.OutOfMemoryError` (it is named already). ComfyUI treats
-    `torch.OutOfMemoryError` specially: it unloads its models, so the run can be repeated with less.
+    MLX's and older MPS failures are plain `RuntimeError`s; torch's own MPS `torch.OutOfMemoryError` gets the same
+    advice. `None` for any other error and for CUDA's `torch.OutOfMemoryError` (it is named already). ComfyUI treats
+    `torch.OutOfMemoryError` specially: it unloads its models, so the run can be repeated with less. On MPS the advice
+    names backend=mlx, which often needs less memory; on mlx it does not.
     """
     text = str(error)
-    if isinstance(error, torch.OutOfMemoryError) or not any(k in text.lower() for k in _OOM_MARKERS):
+    if isinstance(error, torch.OutOfMemoryError):
+        if "mps" not in text.lower():
+            return None
+    elif not any(k in text.lower() for k in _OOM_MARKERS):
         return None
+    advice = "use smaller images or fewer frames, a smaller batch_size or tile where the node has one"
+    if backend not in MLX_BACKENDS and "metal::malloc" not in text:
+        advice += ", or try backend=mlx (Apple silicon: it often needs less memory than MPS)"
     return torch.OutOfMemoryError(
-        f"out of memory ({text.splitlines()[0][:120]}): use smaller images or fewer frames, a smaller batch_size or"
-        " tile where the node has one, or try backend=mlx (Apple silicon); closing other apps frees memory too"
+        f"out of memory ({text.splitlines()[0][:120]}): {advice}; closing other apps frees memory too"
     )
 
 
@@ -769,7 +776,7 @@ class _Node:
             with contextlib.nullcontext() if self.COMMERCIAL_ONLY else registry.allow_noncommercial():
                 return self.run(**inputs)
         except RuntimeError as e:
-            if (oom := memory_error(e)) is not None:
+            if (oom := memory_error(e, str(inputs.get("backend", "auto")))) is not None:
                 raise oom from e
             raise
         finally:
