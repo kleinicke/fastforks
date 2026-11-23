@@ -161,24 +161,32 @@ def _phases(up: torch.nn.Conv2d) -> torch.nn.Conv2d:
     """`up` (2 x 2, zero padded right and bottom) applied to a nearest 2x upsampling, as a conv of the coarse map.
 
     Output pixel `(2p + i, 2q + j)` reads coarse rows `p, p + 1` with the kernel rows `M_i @ W` (`M_0` sums both taps
-    into row 0, `M_1` keeps them), and the same for the columns; output channel `c * 4 + i * 2 + j`, as
-    `pixel_shuffle(2)` wants. Its input is the coarse map zero padded right and bottom.
+    into row 0, `M_1` keeps them), and the same for the columns; output channel `(i * 2 + j) * C + c` (phase-major:
+    each phase's channels are one contiguous run of the channels-last output). Its input is the coarse map zero padded
+    right and bottom.
     """
     w = up.weight.float()
     m = device_tensor([[[1.0, 1.0], [0.0, 0.0]], [[1.0, 0.0], [0.0, 1.0]]], device=w.device)  # [phase, kernel row, tap]
-    k = torch.einsum("ira,jsb,ocab->oijcrs", m, m, w).reshape(-1, w.shape[1], 2, 2)
-    return _conv(k, None if up.bias is None else up.bias.float().repeat_interleave(4), 0)
+    k = torch.einsum("ira,jsb,ocab->ijocrs", m, m, w).reshape(-1, w.shape[1], 2, 2)
+    return _conv(k, None if up.bias is None else up.bias.float().repeat(4), 0)
+
+
+def _shuffle_into(dest: torch.Tensor, y: torch.Tensor) -> None:
+    """`dest` `[N, 2H, 2W, C]` (a channel slice) = `pixel_shuffle` of the phase-major `y` `[N, 4C, H, W]`, one copy."""
+    _, c4, h, w = y.shape
+    src = y.permute(0, 2, 3, 1).unflatten(3, (2, 2, c4 // 4)).permute(0, 1, 3, 2, 4, 5)  # [N, H, i, W, j, C]
+    dest.unflatten(1, (h, 2)).unflatten(3, (w, 2)).copy_(src)
 
 
 class _Fusion(torch.nn.Module):
     """`Fusion` on levels padded to a multiple of 8 channels, the resize convolutions folded into the coarse map.
 
     The `nearest 2x -> zero pad -> 2 x 2 conv` of each level is one 2 x 2 conv of the coarse map with 4 phases of
-    outputs and a `pixel_shuffle` (no upsampled copy); each level's input is built once from the warped pieces and the
-    upsampled map, and the zero channels that pad it to a multiple of 8 (cuDNN pads other widths on every call) meet
-    zero weights. Its channels are reordered (the merge convs' weights with them): both warped features and the
-    upsampled map first, at offsets that are multiples of 8, then the 3- and 2-channel pieces in one block (upstream's
-    order puts the features at offset 3, a copy about 3x slower).
+    outputs, shuffled straight into the next level's input (no upsampled copy); each level's input is built once from
+    the warped pieces and the upsampled map, and the zero channels that pad it to a multiple of 8 (cuDNN pads other
+    widths on every call) meet zero weights. Its channels are reordered (the merge convs' weights with them): both
+    warped features and the upsampled map first, at offsets that are multiples of 8, then the 3- and 2-channel pieces
+    in one block (upstream's order puts the features at offset 3, a copy about 3x slower).
     """
 
     def __init__(self, fuse: Fusion) -> None:
@@ -205,14 +213,14 @@ class _Fusion(torch.nn.Module):
         net = _nchw(torch.cat(pyramid[-1], -1))
         pyramid[-1].clear()
         for up, merge, refine, pieces in zip(self.up, self.merge, self.refine, pyramid[-2::-1], strict=True):
-            upsampled = F.pixel_shuffle(up(F.pad(net, (0, 1, 0, 1))), 2).permute(0, 2, 3, 1)
+            upsampled = up(F.pad(net, (0, 1, 0, 1)))  # the 4 phases, `pixel_shuffle`d into `out` below
             image1, feat1, image2, feat2, *narrow = pieces
-            f, u = feat1.shape[-1], upsampled.shape[-1]
+            f, u = feat1.shape[-1], upsampled.shape[1] // 4
             rest = torch.cat((image1, image2, *narrow), -1)
             out = feat1.new_empty((*feat1.shape[:-1], 2 * f + u + rest.shape[-1]))
             out[..., :f] = feat1
             out[..., f : 2 * f] = feat2
-            out[..., 2 * f : 2 * f + u] = upsampled
+            _shuffle_into(out[..., 2 * f : 2 * f + u], upsampled)
             out[..., 2 * f + u :] = rest
             del upsampled, rest, image1, feat1, image2, feat2, narrow
             pieces.clear()  # the warped level is in `out` now
