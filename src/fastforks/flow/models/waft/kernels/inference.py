@@ -57,6 +57,14 @@ def prepare_kernels(net: ViTWarpV8, device: torch.device) -> None:
         if isinstance(m, resconv):
             override(m, _resconv_forward)
     use_flash_attention(net.refine_net)
+    # The 3 C + 2 channel input of the warp's 1 x 1 conv gets zero channels up to a multiple of 8: 16-byte pixels, so
+    # each iteration's writes into it are vectorized copies (1080p: 194 channels, 3.6 ms of copies per iteration).
+    lin = net.warp_linear
+    if pad := -lin.in_channels % 8:
+        wide = nn.Conv2d(lin.in_channels + pad, lin.out_channels, 1, device=lin.weight.device)
+        wide.weight.data = F.pad(lin.weight.data, (0, 0, 0, 0, 0, pad))
+        wide.bias.data = lin.bias.data.clone()
+        net.warp_linear = wide
     cnn_kernels.prepare_generic(net, device)
 
 
@@ -90,12 +98,14 @@ def forward_kernels(net: ViTWarpV8, image1: torch.Tensor, image2: torch.Tensor, 
     # channels last). warp_in keeps fmap1 across iterations; refine_in is rebuilt each time so it is not held during
     # refine_net (kept, the peak grew 135 MiB at 1080p; as is, 31 MiB).
     c = fmap1.shape[1]
-    warp_in = torch.empty((n, 3 * c + 2, h // 2, w // 2), dtype=fmap1.dtype, device=fmap1.device, memory_format=CL)
+    shape = (n, net.warp_linear.in_channels, h // 2, w // 2)
+    warp_in = torch.empty(shape, dtype=fmap1.dtype, device=fmap1.device, memory_format=CL)
     warp_in[:, :c] = fmap1
+    warp_in[:, 3 * c + 2 :] = 0  # `prepare_kernels`' zero-weight channels
     for _ in range(iters):
         warp_in[:, c : 2 * c] = bilinear_sampler(fmap2_f32, (coords0 + flow).permute(0, 2, 3, 1))
         warp_in[:, 2 * c : 3 * c] = hidden
-        warp_in[:, 3 * c :] = flow
+        warp_in[:, 3 * c : 3 * c + 2] = flow
         out = net.refine_net(net.warp_linear(warp_in))["out"]
         refine_in = torch.empty(
             (n, out.shape[1] + c, *out.shape[2:]), dtype=out.dtype, device=out.device, memory_format=CL
