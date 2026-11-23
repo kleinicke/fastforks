@@ -45,12 +45,13 @@ mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["igev", "cutlass_conv", "cudnn_hacc", "fastbb", "dpt_fused"]
-# CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x H x W <= 500k (up to KITTI
-# 375x1242) replays a CUDA graph, captured on a shape's 4th call (after its `cudnn_hacc` plans), at most 2 shapes per
-# model (Windows WAFT-Stereo-S KITTI 114 -> 64 ms). The graph pool stays reserved (KITTI 1.7 vs 0.7 GB eager) until
-# `model.release_graphs()`; `cuda_graphs=False` turns it off. Larger inputs are GPU-bound and run eagerly (720x1280
-# 153 vs 146 ms with a graph, for 3.0 vs 1.1 GB reserved). The kernels path normalises and warps with tensors made on
-# the device (upstream's `normalize_image` / `meshgrid` copy CPU tensors, which no graph can capture): the same numbers
+# CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x H x W <= 600k (up to KITTI
+# 375x1242 and 544x960) replays a CUDA graph, captured on a shape's 4th call (after its `cudnn_hacc` plans), at most 2
+# shapes per model (Windows WAFT-Stereo-S KITTI 114 -> 64 ms, 544x960 76 -> 66 ms). The graph pool stays reserved (KITTI
+# 1.7 vs 0.7 GB eager) until `model.release_graphs()`; `cuda_graphs=False` turns it off. Larger inputs are GPU-bound and
+# run eagerly (720x1280 153 vs 146 ms with a graph, for 3.0 vs 1.1 GB reserved). The kernels path normalises and warps
+# with tensors made on the device (upstream's `normalize_image` / `meshgrid` copy CPU tensors, which no graph can
+# capture): the same numbers
 
 # Upstream also publishes DAv2L-5 (SynLarge) and the Real/ KITTI and Middlebury fine-tunes; only the two SynLarge
 # checkpoints below are available locally and added so far.
