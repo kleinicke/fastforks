@@ -425,6 +425,7 @@ def unload_all() -> None:
     _cache.clear()
     gc.collect()
     _mm().soft_empty_cache()
+    _empty_mlx_cache()
 
 
 @functools.cache
@@ -466,6 +467,21 @@ def _device_free(device: torch.device) -> int:
     return torch.cuda.mem_get_info(device)[0] if device.type == "cuda" else _mm().get_free_memory(device)
 
 
+def _empty_mlx_cache() -> None:
+    """Return the buffers MLX keeps for reuse to the system (MLX and MPS share Apple's unified memory)."""
+    mx = sys.modules.get("mlx.core")  # imported by fastforks with the first MLX model; never by the pack
+    if mx is not None:
+        mx.clear_cache()
+
+
+def _held_on(m: fastforks.Model, device: torch.device) -> bool:
+    """Whether the model's memory is on `device`; an MLX model's (any `device`) is the Apple GPU's, shared with MPS."""
+    device = torch.device(device)
+    if getattr(getattr(m, "backend", None), "device", None) == "mlx":
+        return device.type == "mps"
+    return m.device.type == device.type and (m.device.index or 0) == (device.index or 0)  # `cuda` is `cuda:0`
+
+
 def make_room(memory_required: float, device: torch.device | None) -> None:
     """Free our cached models' memory on `device` while there is less than `memory_required` free there.
 
@@ -480,7 +496,7 @@ def make_room(memory_required: float, device: torch.device | None) -> None:
 
     if device is None:  # ComfyUI frees every device: nothing to measure
         return
-    held = [m for m in _cache.values() if m.device == torch.device(device)]
+    held = [m for m in _cache.values() if _held_on(m, device)]
     if not held or _device_free(device) >= memory_required:
         return
     for m in held:
@@ -492,11 +508,12 @@ def make_room(memory_required: float, device: torch.device | None) -> None:
         return
     # ComfyUI's "free everything" (`/free`, `unload_all_models`) asks for 1e30 bytes
     need = "all memory" if memory_required >= 2**60 else f"{memory_required / 2**20:.0f} MiB"
-    for key in [k for k, m in _cache.items() if m.device == torch.device(device)]:
+    for key in [k for k, m in _cache.items() if _held_on(m, device)]:
         log.info("fastforks: unloading %s for ComfyUI (%s needed)", key[0], need)
         del _cache[key]
         gc.collect()
         mm.soft_empty_cache()
+        _empty_mlx_cache()
         if not short():
             return
 
@@ -632,6 +649,7 @@ class _Inputs:
             return
         tmp = self.path.with_suffix(f".{os.getpid()}.tmp")
         try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)  # `models/fastforks` appears with the first download
             tmp.write_text(json.dumps({"stamp": self.stamp, "inputs": self.data}), encoding="utf-8")
             tmp.replace(self.path)
             self.new = False
@@ -1168,10 +1186,11 @@ class Interpolate(_Node):
         self, *, frames: torch.Tensor, model: str, backend: str, dtype: str, multiplier: int, batch_size: int = 8
     ) -> tuple[torch.Tensor]:
         """Interpolate between every pair of consecutive frames (`batch_size` pairs per model call)."""
-        m = load(model, backend, dtype)
         n = frames.shape[0]
-        if n < 2:  # noqa: PLR2004 - a pair
-            return (frames,)
+        if n < 2:  # noqa: PLR2004 - a pair: nothing to interpolate (and no model to load); RGB as every other path
+            rgb = convert.frames(frames, 0, n, torch.device("cpu")).permute(0, 2, 3, 1)
+            return (rgb.clamp(0, 1).to(_out_device()).contiguous(),)
+        m = load(model, backend, dtype)
         if batch_size > 1:
 
             def pairs_of(a: torch.Tensor, b: torch.Tensor) -> list[list[torch.Tensor]]:
@@ -1725,7 +1744,7 @@ class FaceRestore(_Node):
             out = x.float()
             for points in _faces.landmarks(detector, x.to(detector.device)):
                 crop, t = _faces.align(x, points.to(x.device))
-                out = _faces.paste(out, m(crop.clamp(0, 1)).image.float(), t)
+                out = _faces.paste(out, m(crop.clamp(0, 1)).image.float().to(out.device), t)
             return out
 
         return (convert.to_image(each(image.shape[0], restore), _out_device()),)

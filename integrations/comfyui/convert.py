@@ -68,14 +68,20 @@ def frames(image: torch.Tensor, start: int, stop: int, device: torch.device) -> 
     return x[..., :_RGB].permute(0, 3, 1, 2)
 
 
+def _together(maps: Sequence[torch.Tensor]) -> list[torch.Tensor]:
+    """`maps` on the device of the first: a node may mix its inputs with results that came back on another device."""
+    return [m.to(maps[0].device) for m in maps]
+
+
 def to_image(maps: Sequence[torch.Tensor], device: torch.device | str = "cpu") -> torch.Tensor:
     """RGB maps of fastforks `[3, H, W]` in `[0, 1]` (one per image) -> IMAGE `[B, H, W, 3]` float32."""
-    return torch.stack([m.detach().float().permute(1, 2, 0) for m in maps]).clamp(0, 1).to(device).contiguous()
+    hwc = [m.detach().float().permute(1, 2, 0) for m in _together(maps)]
+    return torch.stack(hwc).clamp(0, 1).to(device).contiguous()
 
 
 def to_mask(maps: Sequence[torch.Tensor], device: torch.device | str = "cpu") -> torch.Tensor:
     """Masks or alpha maps `[H, W]` (bool or float in `[0, 1]`, one per image) -> MASK `[B, H, W]` float32."""
-    return torch.stack([m.detach().float() for m in maps]).clamp(0, 1).to(device).contiguous()
+    return torch.stack([m.detach().float() for m in _together(maps)]).clamp(0, 1).to(device).contiguous()
 
 
 def with_alpha(image: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:

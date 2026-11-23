@@ -291,6 +291,10 @@ def test_pair_nodes_batch_size_matches_one_pair_at_a_time(pack: Any, monkeypatch
     assert calls == [(3, 4, 6)] * 4 + [(3, 3, 4, 6), (1, 3, 4, 6)]
     torch.testing.assert_close(three_f[1], one_f[1])
     torch.testing.assert_close(three_f[0], one_f[0])
+    calls.clear()
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: pytest.fail("a single frame needs no model"))
+    (single,) = nodes.Interpolate().run(**(kw | {"frames": torch.rand(1, 4, 6, 4)}), multiplier=2)
+    assert single.shape == (1, 4, 6, 3)
     assert "batch_size" in nodes.Interpolate.INPUT_TYPES()["optional"]
     assert "batch_size" in nodes.Flow.INPUT_TYPES()["optional"]
 
@@ -590,7 +594,7 @@ def test_pack_metadata() -> None:
         assert requirements == m["project"]["dependencies"], d
         assert m["project"]["description"].startswith("Fast vision nodes: "), d
     core = tomllib.loads((PACK.parents[1] / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
-    # the packs call API of this version (`registry.allow_noncommercial`, `device="mlx"`): an older core must not satisfy
+    # the packs call API of this version (`registry.allow_noncommercial`, `device="mlx"`): no older core satisfies
     assert meta["comfyui"]["project"]["dependencies"] == [f"fastforks>={core}"]
     assert meta["comfyui-commercial"]["project"]["dependencies"] == [f"fastforks-core[timm,transformers]>={core}"]
     assert {m["project"]["version"] for m in meta.values()} == {core}
@@ -717,6 +721,44 @@ def test_comfyui_making_room_frees_our_models(pack: Any, monkeypatch: pytest.Mon
     assert list(nodes._cache) == [("elsewhere",)]
 
 
+def test_making_room_on_mps_frees_mlx_models(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An MLX model's memory is the Apple GPU's: making room on MPS unloads it, whatever its `device`, and hands
+    MLX's buffer cache back; `cuda` and `cuda:0` are one device."""
+    nodes, mm = pack.nodes, pack.mm
+    cleared: list[str] = []
+    monkeypatch.setitem(sys.modules, "mlx.core", SimpleNamespace(clear_cache=lambda: cleared.append("mlx")))
+
+    class Held:
+        def __init__(self, device: str, backend: str) -> None:
+            self.device, self.backend = torch.device(device), SimpleNamespace(device=backend)
+
+        def release_graphs(self) -> None:
+            pass
+
+    routed, explicit, torch_mps = Held("mps", "mlx"), Held("cpu", "mlx"), Held("mps", "mps")
+    on_cpu, on_cuda = Held("cpu", "cpu"), Held("cuda:0", "cuda")
+    mps = torch.device("mps")
+    assert [nodes._held_on(m, mps) for m in (routed, explicit, torch_mps, on_cpu, on_cuda)] == [True] * 3 + [False] * 2
+    assert not nodes._held_on(explicit, torch.device("cpu"))
+    assert nodes._held_on(on_cuda, torch.device("cuda"))
+    assert not nodes._held_on(on_cuda, torch.device("cuda", 1))
+
+    monkeypatch.setattr(nodes, "_cache", nodes.OrderedDict())
+    nodes._cache |= {("routed",): routed, ("explicit",): explicit, ("cpu",): on_cpu}
+    monkeypatch.setattr(mm, "get_free_memory", lambda *_, **__: 0)
+    monkeypatch.setattr(nodes, "_device_free", lambda _dev: 0)
+    monkeypatch.setattr(mm, "free_memory", lambda *_, **__: [])
+    nodes.install_unload_hook()
+    mm.free_memory(1e30, mps)
+    assert list(nodes._cache) == [("cpu",)]
+    assert cleared == ["mlx", "mlx"]
+    nodes.unload_all()
+    assert cleared == ["mlx"] * 3
+    monkeypatch.delitem(sys.modules, "mlx.core")
+    nodes.unload_all()  # without MLX loaded there is nothing to clear, and the pack does not import it
+    assert "mlx.core" not in sys.modules
+
+
 def test_load_keeps_models_while_memory_lasts(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     """A workflow cycling several nodes reloads none of them; only memory (or `_MAX_CACHED`) drops the oldest."""
     nodes, mm = pack.nodes, pack.mm
@@ -753,8 +795,9 @@ def test_cache_setup(pack: Any, tmp_path: Path) -> None:
     environ = {"FASTFORKS_CACHE": str(normal), "FASTFORKS_READ_CACHES": os.pathsep.join([again, str(first)])}
     pack.nodes.setup_cache(environ, platform="linux")
     assert environ["FASTFORKS_CACHE"] == str(first)
-    assert environ["FASTFORKS_READ_CACHES"].split(os.pathsep) == [str(extra), str(normal)]
-    assert pack.fp.paths["fastforks"][-1] == str(Path(pack.fp.models_dir) / "fastforks")
+    ours = str(Path(pack.fp.models_dir) / "fastforks")  # there once the pack kept its model inputs: read as well
+    assert [d for d in environ["FASTFORKS_READ_CACHES"].split(os.pathsep) if d != ours] == [str(extra), str(normal)]
+    assert pack.fp.paths["fastforks"][-1] == ours
     assert "FASTFORKS_MLX_PLAN_CACHE" not in environ  # macOS only
 
 
