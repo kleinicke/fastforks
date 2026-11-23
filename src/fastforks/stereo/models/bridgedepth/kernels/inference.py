@@ -7,6 +7,8 @@ The portable path (`net/inference.py`: float16 autocast, float16 LayerNorms) on 
     the packed qkv projection and writing the [windows, T, C] input of the output projection (no permute copies)
   - the Depth Anything V2 ViT of the mono branch as the fp16 DINOv2 of `fastforks.shared.depth_anything_v2`
     (`use_fast_vit`: fp16-accumulate GEMMs, `fastbb` flash attention)
+  - the stereo encoder's instance norms on the `fastbb` norm kernels, fp16 channels-last with the ReLUs and residual
+    adds fused (NMRF's `fuse_instance_norms`; Scene Flow 994 x 1482 352 -> 335 ms)
 """
 
 from collections.abc import Callable
@@ -19,6 +21,7 @@ from torch import nn
 from fastforks._core.errors import BackendUnavailableError
 from fastforks.kernels import fastbb
 from fastforks.shared.depth_anything_v2 import use_fast_vit
+from fastforks.stereo.models.nmrf.kernels.inference import fuse_instance_norms
 
 from ..net.bridgedepth import BridgeDepth
 from ..net.inference import LN16, forward, prepare
@@ -102,6 +105,7 @@ def prepare_kernels(model: BridgeDepth, device: torch.device) -> BridgeDepth:
             m.weight.data, m.bias.data = m.weight.data.half(), m.bias.data.half()
         elif isinstance(m, (nn.Linear, nn.Conv1d, nn.Conv2d, nn.ConvTranspose2d)) and id(m) not in keep:
             m.half()
+    fuse_instance_norms(model.stereo_encoder)
     return model
 
 

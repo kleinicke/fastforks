@@ -23,17 +23,16 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from fastforks._core.kernels import linear
 from fastforks._core.patch import base_type, is_base, override
 from fastforks.kernels import cudnn_hacc, fastbb
 from fastforks.shared.cnn_kernels import CL
+from fastforks.shared.instance_norm import instance_norm, is_in_resblock, resblock_forward
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
 HACC_MIN_MACS = 2e8  # per conv, batch x pixels x MACs per pixel: smaller convs stay on PyTorch (memory bound)
 _PAIRS = (("conv1", "norm1"), ("conv2", "norm2"), ("conv", "norm1"))
-_RELU, _RELU_RES = 1, 2  # in_apply modes (0: plain norm)
 
 
 def _fold(conv: nn.Module, bn: nn.Module) -> None:
@@ -67,98 +66,6 @@ def fold_bn(module: nn.Module) -> int:
                     m[i + 1] = nn.Identity()
                     n += 1
     return n
-
-
-# ------------------------------------------------------------------------------------------------ instance norm
-def _instance_norm(
-    self: nn.Module,
-    x: torch.Tensor,
-    mode: int = 0,
-    res: torch.Tensor | None = None,
-    *,
-    inplace: bool = False,
-    out: torch.Tensor | None = None,
-) -> torch.Tensor:
-    """InstanceNorm2d (no affine, no running stats) of an NHWC fp16 / bf16 activation with the fastbb kernels.
-    mode 0: norm, 1: relu(norm), 2: relu(res + relu(norm)) (the tail of a ResidualBlock). `inplace`: the result
-    overwrites `x`; `out`: it is written there (`res` itself may be `out`: the apply pass is elementwise)."""
-    n, c, h, w = x.shape
-    ok = (
-        x.is_cuda
-        and x.dtype in (torch.float16, torch.bfloat16)
-        and c % 8 == 0
-        and c <= 2048
-        and x.is_contiguous(memory_format=CL)
-        and x.data_ptr() % 16 == 0
-        and not self.affine
-        and (res is None or (res.dtype == x.dtype and res.shape == x.shape and res.is_contiguous(memory_format=CL)))
-    )
-    if not ok:
-        msg = f"fastbb instance norm needs NHWC fp16/bf16, C % 8 == 0, C <= 2048, no affine (got {tuple(x.shape)} {x.dtype})"
-        raise RuntimeError(msg)
-    k = fastbb.load(x.device)
-    sfx = "h" if x.dtype == torch.float16 else "b"
-    hw = h * w
-    rows = max(1, 256 // (c // 8))
-    nbx = max(1, min((hw + rows - 1) // rows, max(1, 288 // n)))  # blocks per image
-    rpb = (hw + nbx - 1) // nbx
-    buf = torch.empty(2 * n * c * (nbx + 1), device=x.device, dtype=torch.float32)
-    partial, st = buf[: 2 * n * c * nbx], buf[2 * n * c * nbx :]  # per block (mean, M2); result (mean, rstd)
-    k.launch(f"in_stats_{sfx}", (nbx, n, 1), (256, 1, 1), x, partial, hw, c, rpb, smem=fastbb.IN_STATS_SMEM)
-    k.launch(
-        "in_stats_final",
-        ((n * c + 7) // 8, 1, 1),
-        (256, 1, 1),
-        partial,
-        st,
-        n,
-        nbx,
-        hw,
-        c,
-        rpb,
-        float(self.eps),
-        None,
-        None,
-    )
-    y = x if inplace else torch.empty_like(x) if out is None else out
-    k.launch(
-        f"in_apply_{sfx}", *linear(n * hw * c // 8), x, y, st, None, None, res, n, hw, c, float(self.eps), mode
-    )  # fmt: skip
-    return y
-
-
-def _resblock_forward(self: nn.Module, x: torch.Tensor) -> torch.Tensor:
-    """ResidualBlock with instance norms: the ReLUs and the residual add run inside the norm passes, in place.
-
-    The norms overwrite their conv's output, and the block's result overwrites its residual: the downsample's output,
-    or the block input `x` itself. That is safe in DEFOM's fnet, where no block input is used again (the stem output
-    and each block's result are only the next block's input), and it frees the activation the caller still holds
-    during the next block: 994 x 1482 peak 2771 -> 2437 MiB, reserved 4212 -> 3836.
-    """
-    y = self.conv2(_instance_norm(self.norm1, self.conv1(x), _RELU, inplace=True))
-    r = x if self.downsample is None else _instance_norm(self.norm3, self.downsample[0](x), 0, inplace=True)
-    r = r.contiguous(memory_format=CL)
-    _instance_norm(self.norm2, y, _RELU_RES, r, out=r)
-    return r
-
-
-def _is_in_resblock(m: nn.Module) -> bool:
-    """A RAFT ResidualBlock with instance norms (the layout `_resblock_forward` fuses)."""
-    if base_type(m).__name__ != "ResidualBlock":
-        return False
-    norms = ("norm1", "norm2")
-    if not all(base_type(getattr(m, n, None)) is nn.InstanceNorm2d for n in norms):
-        return False
-    d = getattr(m, "downsample", "missing")
-    if d is None:
-        return True
-    return (
-        isinstance(d, nn.Sequential)
-        and len(d) == 2
-        and is_base(d[0], nn.Conv2d)
-        and d[1] is getattr(m, "norm3", None)
-        and is_base(d[1], nn.InstanceNorm2d)
-    )
 
 
 # ------------------------------------------------------------------------------------------------ convs
@@ -229,14 +136,14 @@ def optimize_encoder(enc: nn.Module, keep_bf16: Sequence[str] = ()) -> dict[str,
             if m.affine or m.track_running_stats:
                 msg = "DEFOM kernels encoder: instance norms without affine / running statistics only"
                 raise NotImplementedError(msg)
-            override(m, _instance_norm)
+            override(m, instance_norm)
             info["instance_norm"] += 1
         elif isinstance(m, nn.GroupNorm):
             msg = "DEFOM kernels encoder: GroupNorm encoders are not supported (norm_fn must be batch or instance)"
             raise NotImplementedError(msg)
     for m in mods:
-        if _is_in_resblock(m) and id(m) not in kept_ids:
-            override(m, _resblock_forward)
+        if is_in_resblock(m) and id(m) not in kept_ids:
+            override(m, resblock_forward)
             info["fused_blocks"] += 1
     enc.to(torch.float16)
     for k in kept:
