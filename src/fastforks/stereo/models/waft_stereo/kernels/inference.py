@@ -4,6 +4,8 @@ Port of our WAFT-Stereo fork's `cuda-kernels` branch (model/waft_fast.py @ 8dec3
 
 `prepare_kernels(model, device)`, then `forward_kernels(model, left, right)` (images `[B, 3, H, W]`, 0..255, any size):
   - LoRA adapters merged into the base weights (W + B A alpha / r, exact up to rounding), DINOv2 as the fastbb fp16 ViT (flash kernel, fp16-accumulate GEMMs)
+  - the iterative ViT's attention through the same fastbb flash kernel (`timm_blocks.flash`; SDPA's cuDNN kernel
+    before)
   - pure fp16 weights and NHWC activations; every conv through `cnn_kernels.conv_ep` (fp16-accumulate cuDNN graphs, or CUTLASS
     with the epilogue fused for >= 128 output channels)
   - the pre-activation `resconv` blocks as InstanceNorm + SiLU in one epilogue each and conv + bias + residual in
@@ -27,6 +29,7 @@ from fastforks.shared import cnn_kernels
 from fastforks.shared.cnn_kernels import ACT, CL, conv_ep
 from fastforks.shared.depth_anything_v2 import use_fast_vit
 from fastforks.shared.timm_blocks import Mlp
+from fastforks.shared.timm_blocks.flash import use_flash_attention
 
 from ..net._lora import PeftModel
 from ..net.block import resconv
@@ -78,9 +81,7 @@ def prepare_kernels(model: WAFT, device: torch.device) -> None:
     """
     model.eval()
     _merge_lora(model)
-    use_fast_vit(
-        model.encoder.encoder, fused=dpt_fused.load(device)
-    )  # fp16 DINOv2 with the fastbb flash kernel; the iterative modules use SDPA
+    use_fast_vit(model.encoder.encoder, fused=dpt_fused.load(device))  # fp16 DINOv2 with the fastbb flash kernel
     for m in model.modules():
         if isinstance(m, resconv):
             if not (isinstance(m.conv[1], nn.SiLU) and is_base(m.conv[0], nn.InstanceNorm2d) and not m.conv[0].affine):
@@ -89,6 +90,7 @@ def prepare_kernels(model: WAFT, device: torch.device) -> None:
         elif isinstance(m, Mlp) and isinstance(m.fc1, nn.Conv2d):
             override(m, _mlp_conv_forward)
     cnn_kernels.prepare_generic(model, device)
+    use_flash_attention(model)  # the iterative ViT (DINOv2's blocks are not timm `Attention`s)
     # `WAFT.normalize_image`'s constants, on the device once: its `new_tensor` is a host copy per call
     model._image_mean = torch.tensor([0.485, 0.456, 0.406], device=device).view(1, 3, 1, 1)
     model._image_std = torch.tensor([0.229, 0.224, 0.225], device=device).view(1, 3, 1, 1)
