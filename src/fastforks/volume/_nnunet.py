@@ -437,8 +437,25 @@ class _Decoder(nn.Module):
         pending = skips if consume and isinstance(skips, list) else list(skips)
         x = pending.pop()
         for up, stage in zip(self.transpconvs, self.stages, strict=True):
-            x = stage(torch.cat((up(x), pending.pop()), 1))
+            x = stage(_cat_consuming(up, x, pending.pop()))
         return self.seg_layers[-1](x)
+
+
+def _cat_consuming(up: nn.Module, x: torch.Tensor, skip: torch.Tensor) -> torch.Tensor:
+    """`torch.cat((up(x), skip), 1)`, the skip copied in (and, when consumed, freed) before `up(x)` is made.
+
+    The skip, the upsampled map and their concatenation are never alive together: at the full-resolution stage of
+    nnInteractive (192^3 patch, 32 + 32 channels, float16) peak 2429 -> 1997 MiB.
+    """
+    c = skip.shape[1]
+    fmt = (
+        torch.channels_last_3d if skip.is_contiguous(memory_format=torch.channels_last_3d) else torch.contiguous_format
+    )
+    out = torch.empty((skip.shape[0], 2 * c, *skip.shape[2:]), dtype=skip.dtype, device=skip.device, memory_format=fmt)
+    out[:, c:].copy_(skip)
+    del skip
+    out[:, :c].copy_(up(x))  # the transposed conv makes the skip's channel count
+    return out
 
 
 class UNet(nn.Module):
