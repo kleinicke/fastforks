@@ -38,10 +38,11 @@ from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, dat_interaction
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
-from fastforks.shared.swin_sr import attention, checkpoint_upsampler
+from fastforks.shared.swin_sr import attention, checkpoint_upsampler, roll
 
 from .net import DAT
 from .net.dat_arch import (
+    SGFN,
     Adaptive_Channel_Attention,
     Adaptive_Spatial_Attention,
     ResidualGroup,
@@ -160,6 +161,18 @@ def _gate(m: SpatialGate, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
     return x1 * _tokens(m.conv(_image(m.norm(x2), h, w)))
 
 
+def _ffn(m: SGFN, x: torch.Tensor, h: int, w: int) -> torch.Tensor:
+    """`SGFN.forward` with `fc1` as two GEMMs, one per gate half: the gate's LayerNorm reads a contiguous half.
+
+    Upstream's `x.chunk(2, -1)` of the fc1 output made the norm copy its strided half first (DAT x4 512 x 512: 36 copies
+    of 189 MB).
+    """
+    half, fc1, sg = m.fc2.in_features, m.fc1, m.sg
+    x1 = m.act(F.linear(x, fc1.weight[:half], None if fc1.bias is None else fc1.bias[:half]))
+    x2 = m.act(F.linear(x, fc1.weight[half:], None if fc1.bias is None else fc1.bias[half:]))
+    return m.fc2(x1 * _tokens(sg.conv(_image(sg.norm(x2), h, w))))
+
+
 def _interact(
     channel: torch.Tensor, spatial: torch.Tensor, channel_map: torch.Tensor, spatial_map: torch.Tensor
 ) -> torch.Tensor:
@@ -200,13 +213,13 @@ def _spatial_block(  # noqa: PLR0913 - separate CUDA gate and attention mask spe
         for i, (channels, sh, sw) in enumerate(((slice(None, half), s0, s1), (slice(half, None), s1, s0))):
             attn = m.attns[i]
             part = qkv[..., channels].view(3, b, hp, wp, -1)
-            rolled = torch.roll(part, shifts=(-sh, -sw), dims=(2, 3)).view(3, b, -1, half)
+            rolled = roll(part, (-sh, -sw), (2, 3)).view(3, b, -1, half)
             if masks is None:
                 out = _shifted_window(cast("Spatial_Attention", attn), rolled, hp, wp, (sh, sw))
             else:
                 out = attn(rolled, hp, wp, mask=masks[i])
             del part, rolled
-            parts.append(torch.roll(out, shifts=(sh, sw), dims=(1, 2)))
+            parts.append(roll(out, (sh, sw), (1, 2)))
             del out
         x1, x2 = parts
         del parts
@@ -280,6 +293,8 @@ def _prepare(net: DAT) -> None:
                 override(m, _mask, "calculate_mask")
         elif isinstance(m, SpatialGate):
             override(m, _gate)
+        elif isinstance(m, SGFN):
+            override(m, _ffn)
         elif isinstance(m, ResidualGroup):
             override(m, _group)
         elif isinstance(m, _Tokens):
