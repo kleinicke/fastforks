@@ -9,6 +9,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import sys
 import types
 from pathlib import Path
@@ -425,7 +426,12 @@ def test_unlisted_models_say_why(pack: Any, monkeypatch: pytest.MonkeyPatch) -> 
     assert why.startswith("stereo model 'fake-nc-stereo' is in the package fastforks-nc, which is not installed")
     assert "python_embeded" in why
     assert "did you mean" in str(cstereo.VALIDATE_INPUTS("raft-stereo-middlebur"))
-    assert "inputs the node does not pass" in str(cstereo.VALIDATE_INPUTS("depth-anything-v2-s"))
+    other_task = str(cstereo.VALIDATE_INPUTS("depth-anything-v2-s"))  # a model of another node: say which one
+    assert other_task == "'depth-anything-v2-s' is not a model of Stereo disparity: it is listed by Depth"
+    assert "no node of this pack runs it" in str(cstereo.VALIDATE_INPUTS("insid3-vitl16"))
+    unknown = str(cstereo.VALIDATE_INPUTS("raft-stereo-nothing"))  # only this node's ids are suggested
+    assert unknown.startswith("unknown model 'raft-stereo-nothing' for Stereo disparity; did you mean raft-stereo")
+    assert "tasks:" not in unknown
     assert nodes.Warp.VALIDATE_INPUTS() is True
 
     tip = cstereo.INPUT_TYPES()["required"]["model"][1]["tooltip"]
@@ -912,3 +918,184 @@ def test_every_node_matches_the_library(pack: Any, monkeypatch: pytest.MonkeyPat
                 mid = nodes.model_id(label)
                 fastforks.model_card(mid)
                 assert node.runs(mid), f"{name} lists {mid}, which needs inputs the node does not pass"
+
+
+def test_prompt_errors_name_the_input(pack: Any) -> None:
+    """A mistyped points / box / detections value says which input is wrong and how to write it."""
+    c = pack.convert
+    for bad in ("abc", "1,x", "[[1, 2], [3]]", "[1, 2]", "[[1, 2],", '{"x": 1}', "nan,1", "1,inf"):
+        with pytest.raises(ValueError, match=r"positive_points: write points as 'x,y; x,y'") as info:
+            c.points(bad, "positive_points")
+        assert "could not convert" not in str(info.value)
+    assert c.points("1,2;") == [[1.0, 2.0]]  # a trailing separator is fine
+    for bad in ("a,b,c,d", "1,2,3", "1,2,3,4,5", "[1,2,3,x]", "1,2,3,nan"):
+        with pytest.raises(ValueError, match=r"box: write a box as 'x0,y0,x1,y1'"):
+            c.box(bad)
+    wrong = ("not json", "{}", "[]", "[[5]]", '[[{"class_name": "dog"}]]', '[["box"]]', '[[{"box": ["a", 1, 2, 3]}]]')
+    for bad in wrong:
+        with pytest.raises(ValueError, match="detections: connect the 'detections' output of a Detect node"):
+            c.subject_boxes(bad, 0, "halpe-26")
+
+
+def test_class_names_are_matched_helpfully(pack: Any) -> None:
+    """Unknown class names: close matches, else the first few classes of the model (not all 150 of ADE20K)."""
+    c = pack.convert
+    names = [f"class{i}" for i in range(150)] + ["person", "dog"]
+    with pytest.raises(ValueError, match=r"classes: unknown classes \['persn'\] .*did you mean person\?") as info:
+        c.class_ids("Dog, persn", names)
+    assert "class100" not in str(info.value)
+    with pytest.raises(ValueError, match=r"e\.g\. class0, class1") as info:
+        c.class_ids("zzzz", names)
+    assert "class20" not in str(info.value)
+    assert c.class_ids("DOG, person", names) == [151, 150]
+
+
+def test_detect_classes(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Empty classes: the card's label set (open vocabulary); a closed model filters, ignoring case."""
+    nodes = pack.nodes
+    seen: list[Any] = []
+
+    class Result:
+        masks = None
+        boxes = torch.tensor([[0.0, 0.0, 2.0, 2.0], [1.0, 1.0, 3.0, 3.0]])
+        names = ("cat", "dog")
+
+        def __getitem__(self, keep: torch.Tensor) -> Result:
+            out = Result()
+            out.boxes = self.boxes[keep]
+            out.names = tuple(n for n, k in zip(self.names, keep.tolist(), strict=True) if k)
+            return out
+
+        def to_list(self) -> list[dict[str, Any]]:
+            return [{"box": b, "class_name": n} for b, n in zip(self.boxes.tolist(), self.names, strict=True)]
+
+    class Model:
+        device = torch.device("cpu")
+        class_names = ("cat", "dog")
+
+        def __init__(self, *, open_vocabulary: bool) -> None:
+            self.open_vocabulary = open_vocabulary
+
+        def __call__(self, _x: torch.Tensor, **kwargs: Any) -> Result:
+            seen.append(kwargs["text"])
+            return Result()
+
+    img = torch.rand(1, 6, 6, 3)
+
+    def run(model: Model, classes: str) -> tuple[torch.Tensor, str]:
+        monkeypatch.setattr(nodes, "load", lambda *_a, **_k: model)
+        monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])
+        return nodes.Detect().run(
+            image=img, model="m", backend="auto", dtype="auto", score_threshold=0.3, classes=classes
+        )
+
+    run(Model(open_vocabulary=True), "")
+    run(Model(open_vocabulary=True), "face, hand")
+    assert seen == [None, ["face", "hand"]]  # not [] (the library rejects an empty list)
+    _, dets = run(Model(open_vocabulary=False), "DOG")
+    assert [d["class_name"] for d in json.loads(dets)[0]] == ["dog"]
+    with pytest.raises(ValueError, match=r"classes: unknown classes \['unicorn'\] .*e\.g\. cat, dog"):
+        run(Model(open_vocabulary=False), "unicorn")
+
+
+def test_segment_prompt_kinds(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Points or a box sent to a text-only model (CLIPSeg) are refused in the node's words."""
+    nodes = pack.nodes
+    kinds = {"clipseg": {"text"}, "sam2": {"points", "boxes"}}
+
+    class Model:
+        device = torch.device("cpu")
+
+        def __init__(self, prompts: set[str]) -> None:
+            self.prompts = prompts
+
+    base: dict[str, Any] = {
+        "image": torch.rand(1, 6, 6, 3), "backend": "auto", "dtype": "auto", "text": "",
+        "positive_points": "", "negative_points": "", "box": "",
+    }  # fmt: skip
+    cases = (
+        ("clipseg", {"positive_points": "1,1"}, "clipseg does not take points prompts (it takes text): clear"),
+        ("clipseg", {"box": "0,0,4,4"}, "clipseg does not take box prompts (it takes text): clear box and write"),
+        ("sam2", {"text": "a cat"}, "sam2 takes points / boxes, not text"),
+        ("sam2", {}, "give positive_points, negative_points, box or"),
+    )  # fmt: skip
+    for mid, given, want in cases:
+        monkeypatch.setattr(nodes, "load", lambda *_a, mid=mid, **_k: Model(kinds[mid]))
+        with pytest.raises(ValueError, match=re.escape(want)):
+            nodes.Segment().run(model=mid, **{**base, **given})
+    with pytest.raises(ValueError, match="positive_points: write points as"):
+        nodes.Segment().run(model="sam2", **{**base, "positive_points": "abc"})
+    video = {"frames": base["image"], "model": "sam2", "backend": "auto", "dtype": "auto", "samurai": False}
+    with pytest.raises(ValueError, match="negative_points: write points as"):
+        nodes.VideoSegment().run(**video, positive_points="", negative_points="x", box="")
+
+
+def test_stereo_size_mismatch(pack: Any) -> None:
+    """A left / right pair of two sizes (or batches) says which, in pixels and counts."""
+    stereo = pack.nodes.Stereo()
+    kw: dict[str, Any] = {"model": "m", "backend": "auto", "dtype": "auto"}
+    with pytest.raises(ValueError, match=r"left is 8x6 but right is 4x6 pixels: a rectified pair has one size"):
+        stereo.run(left=torch.rand(1, 6, 8, 3), right=torch.rand(1, 6, 4, 3), **kw)
+    with pytest.raises(ValueError, match="left has 2 images but right has 1"):
+        stereo.run(left=torch.rand(2, 6, 8, 3), right=torch.rand(1, 6, 8, 3), **kw)
+
+
+def test_memory_errors_become_out_of_memory(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """MPS / MLX allocation failures are plain RuntimeErrors: say what to do, as ComfyUI's OOM handling expects."""
+    nodes = pack.nodes
+    messages = ("Invalid buffer size: 21.00 GiB", "[metal::malloc] Attempting to allocate 9 GB", "MPS out of memory")
+    for text in messages:
+        out = nodes.memory_error(RuntimeError(text))
+        assert isinstance(out, torch.OutOfMemoryError)
+        assert "smaller batch_size" in str(out)
+        assert text in str(out)
+    assert nodes.memory_error(RuntimeError("shape mismatch")) is None
+    assert nodes.memory_error(torch.OutOfMemoryError("CUDA out of memory")) is None
+
+    def fail(message: str) -> Any:
+        def raiser(*_a: Any, **_k: Any) -> None:
+            raise RuntimeError(message)
+
+        return raiser
+
+    inputs: dict[str, Any] = {"image": torch.rand(1, 4, 4, 3), "model": "m", "backend": "auto", "dtype": "auto"}
+    monkeypatch.setattr(nodes, "load", fail("Invalid buffer size: 99.00 GiB"))
+    with pytest.raises(torch.OutOfMemoryError, match="use smaller images") as info:
+        nodes.Depth().execute(**inputs, batch_size=1)
+    assert isinstance(info.value.__cause__, RuntimeError)
+    monkeypatch.setattr(nodes, "load", fail("other"))
+    with pytest.raises(RuntimeError, match=r"^other$"):
+        nodes.Depth().execute(**inputs, batch_size=1)
+
+
+def test_weights_errors_say_what_to_do_in_comfyui(pack: Any) -> None:
+    """Offline and gated-repo errors keep the library's text and add what to do in ComfyUI."""
+    import fastforks  # noqa: PLC0415
+
+    nodes = pack.nodes
+    offline = fastforks.WeightsDownloadError(
+        "m@1: w.safetensors not found, and offline mode (FASTFORKS_OFFLINE / HF_HUB_OFFLINE) forbids downloads."
+    )
+    with pytest.raises(fastforks.WeightsDownloadError) as info, nodes.node_errors():
+        raise offline
+    assert "models/fastforks" in str(info.value)
+    assert "unset FASTFORKS_OFFLINE / HF_HUB_OFFLINE and restart ComfyUI" in str(info.value)
+    assert str(info.value).startswith("m@1: w.safetensors not found")
+    gated = fastforks.WeightsDownloadError("sam3@1: x is in the gated or private Hugging Face repo a/b (HTTP 403).")
+    with (
+        pytest.raises(fastforks.WeightsDownloadError, match=r"hf auth login` with ComfyUI's Python.*HF_TOKEN"),
+        nodes.node_errors(),
+    ):
+        raise gated
+
+
+def test_classify_names_its_output(pack: Any) -> None:
+    """The text output is called `classes`, not STRING."""
+    assert pack.nodes.Classify.RETURN_NAMES == ("classes",)
+
+
+def test_model_tooltip_mentions_downloads_and_gating(pack: Any) -> None:
+    """The model widget says weights download on first use and that some models are gated."""
+    tip = pack.nodes.Segment.INPUT_TYPES()["required"]["model"][1]["tooltip"]
+    assert "downloads the weights" in tip
+    assert "gated on Hugging Face" in tip

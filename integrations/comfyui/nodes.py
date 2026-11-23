@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import contextlib
 import contextvars
+import difflib
 import functools
 import gc
 import importlib.util
@@ -69,14 +70,19 @@ NC_NOTICE = (
     " [licence unclear] ones are not cleared for commercial use; using each within its licence is your"
     " responsibility (`fastforks info MODEL`)."
 )
+_DOWNLOAD_TIP = (
+    " The first run downloads the weights (some are large; progress shows in ComfyUI's console). A few models (e.g."
+    " SAM 3) are gated on Hugging Face: accept their licence and log in once, the error says how."
+)
 _LICENCE_TIP = " " + NC_NOTICE
 _COMMERCIAL_TIP = (
     " Only models cleared for commercial use (code and weights licence) are listed. `fastforks info MODEL` shows the"
     " licences."
 )
 _BACKEND_TIP = (
-    "auto: our CUDA kernels where they are faster, else portable PyTorch. portable: plain PyTorch (any device)."
-    " kernels: our CUDA kernels (NVIDIA on Linux or Windows x86-64; fails elsewhere)."
+    "auto: our CUDA / Metal kernels where they are faster, else portable PyTorch. portable: plain PyTorch (any device)."
+    " kernels: our hand-written kernels only (CUDA on NVIDIA under Linux or Windows x86-64; Metal on Apple silicon"
+    " for the models that have them); a model without them fails with a message."
     " mlx (Apple silicon): Apple's MLX instead of MPS, with our Metal kernels where the port has them; often leaner,"
     " but every new input size compiles once, so its first call is slow. mlx portable: MLX without the kernels."
     " Models without an MLX port fail with a message."
@@ -131,7 +137,7 @@ def _model_input(node: type[_Node]) -> tuple[tuple[str, ...], dict[str, Any]]:
                 f" Not installed: {len(missing)} more {task} models with non-commercial or GPL code (e.g."
                 f" {', '.join(missing[:3])}); they need {NC_DIST} in ComfyUI's Python (this pack's requirements.txt)."
             )
-    return tuple(entries), {"default": pick, "tooltip": "fastforks model id." + tip}
+    return tuple(entries), {"default": pick, "tooltip": "fastforks model id." + _DOWNLOAD_TIP + tip}
 
 
 def common(node: type[_Node]) -> dict[str, Any]:
@@ -182,6 +188,17 @@ def comfy_hint(error: fastforks.FastforksError, text: str, *, commercial_only: b
     if specs:
         quoted = " ".join(f'"{s}"' for s in specs)
         return f"In ComfyUI: {pip_words(quoted, upgrade='pip install -U' in text)}."
+    if "gated or private Hugging Face repo" in text:
+        return (
+            "In ComfyUI: accept the licence on that Hugging Face page, then run `hf auth login` with ComfyUI's Python"
+            " environment active (or set HF_TOKEN before starting ComfyUI), restart ComfyUI and run the node again."
+        )
+    if "offline mode (" in text:
+        return (
+            "In ComfyUI: put the weights in ComfyUI/models/fastforks (or a `fastforks` folder of"
+            " extra_model_paths.yaml), or unset FASTFORKS_OFFLINE / HF_HUB_OFFLINE and restart ComfyUI to let it"
+            " download them."
+        )
     return ""
 
 
@@ -252,8 +269,30 @@ def unlisted(label: str, node: type[_Node]) -> str:
     try:
         fastforks.model_card(mid)
     except fastforks.FastforksError as e:  # not installed (names the package), or unknown (with suggestions)
+        if isinstance(e, fastforks.ModelNotFoundError) and "no task has it" in str(e):
+            own = node.ids()
+            close = difflib.get_close_matches(mid.lower(), own, n=3)
+            hint = f"; did you mean {', '.join(close)}?" if close else f" (the node lists {len(own)} models)"
+            return f"unknown model {mid!r} for {plain_title(node)}{hint}"
         return node_words(e, str(e), commercial_only=node.COMMERCIAL_ONLY)
-    return f"{mid!r} is not one of this node's {len(node.ids())} models (it needs inputs the node does not pass)"
+    elsewhere = [
+        plain_title(n)
+        for _, n, _ in _NODES
+        if n.TASK and not issubclass(node, n) and mid in n.ids(commercial_only=node.COMMERCIAL_ONLY)
+    ]
+    if elsewhere:
+        return f"{mid!r} is not a model of {plain_title(node)}: it is listed by {' and '.join(elsewhere)}"
+    return (
+        f"{mid!r} is not one of {plain_title(node)}'s models, and no node of this pack runs it (it needs inputs the"
+        " nodes do not pass)"
+    )
+
+
+def plain_title(node: type[_Node] | str) -> str:
+    """The display name of a node (class, or a `_NODES` title) without its pack: `Segment (SAM)`."""
+    if not isinstance(node, str):
+        node = next((t for _, n, t in _NODES if issubclass(node, n)), node.__name__)
+    return node.replace(", {pack})", ")").replace(" ({pack})", "")
 
 
 def _mm() -> Any:  # noqa: ANN401 - comfy.model_management (untyped)
@@ -536,6 +575,38 @@ def takes(mid: str, given: frozenset[str] = _IMAGE, prompts: frozenset[str] = fr
     return "prompts" not in inputs or bool(set(inputs["prompts"]) & prompts)
 
 
+_OOM_MARKERS = ("invalid buffer size", "metal::malloc", "insufficient memory", "out of memory")
+
+
+def memory_error(error: RuntimeError) -> torch.OutOfMemoryError | None:
+    """An out-of-memory error with what to do, for the allocation failures of MPS / MLX (plain `RuntimeError`s).
+
+    `None` for any other error and for CUDA's own `torch.OutOfMemoryError` (it is named already). ComfyUI treats
+    `torch.OutOfMemoryError` specially: it unloads its models, so the run can be repeated with less.
+    """
+    text = str(error)
+    if isinstance(error, torch.OutOfMemoryError) or not any(k in text.lower() for k in _OOM_MARKERS):
+        return None
+    return torch.OutOfMemoryError(
+        f"out of memory ({text.splitlines()[0][:120]}): use smaller images or fewer frames, a smaller batch_size or"
+        " tile where the node has one, or try backend=mlx (Apple silicon); closing other apps frees memory too"
+    )
+
+
+def check_prompts(m: Any, label: str, *, points: bool, box: bool) -> None:  # noqa: ANN401 - a promptable model
+    """Raise a `ValueError` if the prompts given (points, box) are not ones the model takes (CLIPSeg: text only)."""
+    taken = set(m.prompts)
+    for given, kind, name in ((points, "points", "points"), (box, "boxes", "box")):
+        if given and kind not in taken:
+            msg = (
+                f"{label} does not take {name} prompts (it takes {' / '.join(sorted(taken)) or 'none'}): clear"
+                f" {'positive_points and negative_points' if name == 'points' else 'box'}"
+            )
+            if "text" in taken:
+                msg += " and write a text prompt"
+            raise ValueError(msg)
+
+
 class _Node:
     """A node over one task: its pack (`COMMERCIAL_ONLY` or not), the ids it lists and ComfyUI's entry `execute`."""
 
@@ -604,6 +675,10 @@ class _Node:
         try:
             with contextlib.nullcontext() if self.COMMERCIAL_ONLY else registry.allow_noncommercial():
                 return self.run(**inputs)
+        except RuntimeError as e:
+            if (oom := memory_error(e)) is not None:
+                raise oom from e
+            raise
         finally:
             _COMMERCIAL_RUN.reset(token)
 
@@ -782,7 +857,7 @@ class Segment(_Node):
                 "positive_points": ("STRING", {"default": "", "tooltip": f"'x,y; x,y' foreground points {px}"}),
                 "negative_points": ("STRING", {"default": "", "tooltip": f"'x,y; x,y' background points {px}"}),
                 "box": ("STRING", {"default": "", "tooltip": f"'x0,y0,x1,y1' {px}"}),
-                "text": ("STRING", {"default": "", "tooltip": "Concept models (SAM 3) only: what to segment"}),
+                "text": ("STRING", {"default": "", "tooltip": "Text models only (SAM 3, CLIPSeg): what to segment"}),
             }
         }
 
@@ -800,7 +875,9 @@ class Segment(_Node):
     ) -> tuple[torch.Tensor]:
         """Segment every image with the same prompts."""
         m = load(model, backend, dtype)
-        pos, neg, bx = convert.points(positive_points), convert.points(negative_points), convert.box(box)
+        pos = convert.points(positive_points, "positive_points")
+        neg = convert.points(negative_points, "negative_points")
+        bx = convert.box(box)
         kwargs: dict[str, Any] = {}
         if text.strip() and "text" not in m.prompts:
             msg = (
@@ -808,6 +885,7 @@ class Segment(_Node):
                 "or pick a text model (sam3, clipseg)"
             )
             raise ValueError(msg)
+        check_prompts(m, model, points=bool(pos or neg), box=bx is not None)
         if text.strip():
             kwargs["text"] = text.strip()
         if pos or neg:
@@ -870,12 +948,19 @@ class Detect(_Node):
         """Detect in every image."""
         m = load(model, backend, dtype)
         names = [c.strip() for c in classes.split(",") if c.strip()]
-        text = names if cast("DetectionModel", m).open_vocabulary else None
+        open_vocabulary = cast("DetectionModel", m).open_vocabulary
+        text = names if open_vocabulary and names else None  # empty: the card's label set
+        keep = {n.lower() for n in names} if names and not open_vocabulary else set()
+        if keep:
+            have = cast("tuple[str, ...]", m.class_names)  # ty: ignore[unresolved-attribute]
+            if unknown := [n for n in names if n.lower() not in {c.lower() for c in have}]:
+                msg = "classes: " + convert.unknown_classes(unknown, have)
+                raise ValueError(msg)
         size = (image.shape[1], image.shape[2])  # BHWC
 
         def finish(r: Any) -> tuple[torch.Tensor, list[dict[str, Any]]]:  # noqa: ANN401 - a detection result
-            if names and text is None:
-                r = r[torch.tensor([d.get("class_name") in names for d in r.to_list()], dtype=torch.bool)]
+            if keep:
+                r = r[torch.tensor([str(d.get("class_name")).lower() in keep for d in r.to_list()], dtype=torch.bool)]
             dets = [{k: v for k, v in d.items() if k != "mask"} for d in r.to_list()]
             return convert.union_mask(r.masks, r.boxes, size), dets
 
@@ -1013,6 +1098,7 @@ class Classify(_Node):
 
     DESCRIPTION = "Top-k classes per image as 'name: probability' lines (images separated by a blank line)."
     RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("classes",)
     TASK = "classification"
     DEFAULT = "convnext_tiny.fb_in22k_ft_in1k"
 
@@ -1232,8 +1318,14 @@ class Stereo(_Node):
         self, *, left: torch.Tensor, right: torch.Tensor, model: str, backend: str, dtype: str, batch_size: int = 1
     ) -> tuple[torch.Tensor]:
         """Match every left / right pair, `batch_size` pairs per model call."""
-        if left.shape != right.shape:
-            msg = f"left and right must be batches of one size, got {tuple(left.shape)} and {tuple(right.shape)}"
+        if left.shape[0] != right.shape[0]:
+            msg = f"left has {left.shape[0]} images but right has {right.shape[0]}: a stereo pair needs one of each"
+            raise ValueError(msg)
+        if left.shape[1:3] != right.shape[1:3]:
+            msg = (
+                f"left is {left.shape[2]}x{left.shape[1]} but right is {right.shape[2]}x{right.shape[1]} pixels: "
+                "a rectified pair has one size (resize or crop one with an Upscale Image / Image Crop node)"
+            )
             raise ValueError(msg)
         m = load(model, backend, dtype)
         n, step = left.shape[0], max(1, batch_size)
@@ -1345,7 +1437,9 @@ class VideoSegment(_Node):
         samurai: bool,
     ) -> tuple[torch.Tensor]:
         """Track the prompted object through the frames."""
-        pos, neg, bx = convert.points(positive_points), convert.points(negative_points), convert.box(box)
+        pos = convert.points(positive_points, "positive_points")
+        neg = convert.points(negative_points, "negative_points")
+        bx = convert.box(box)
         kwargs: dict[str, Any] = {}
         if pos or neg:
             kwargs |= {"input_points": pos + neg, "input_labels": [1] * len(pos) + [0] * len(neg)}
@@ -1355,6 +1449,7 @@ class VideoSegment(_Node):
             msg = "give positive_points, negative_points or box (on the first frame)"
             raise ValueError(msg)
         m = load(model, backend, dtype, {"samurai": True} if samurai else None)
+        check_prompts(m, model, points=bool(pos or neg), box=bx is not None)
         _mm().throw_exception_if_processing_interrupted()
         video = frames[..., :3].to(m.device, torch.float32).permute(0, 3, 1, 2)
         with node_errors():
@@ -1400,7 +1495,7 @@ class PointTrack(_Node):
     ) -> tuple[torch.Tensor, str]:
         """Track the points through the frames."""
         m = load(model, backend, dtype)
-        pts = convert.points(points) or convert.grid_points(grid_size, (frames.shape[1], frames.shape[2]))
+        pts = convert.points(points, "points") or convert.grid_points(grid_size, (frames.shape[1], frames.shape[2]))
         queries = torch.tensor([[0.0, x, y] for x, y in pts])
         _mm().throw_exception_if_processing_interrupted()
         video = frames[..., :3].to(m.device, torch.float32).permute(0, 3, 1, 2)
@@ -1570,7 +1665,7 @@ def readme_models(*, commercial_only: bool = False) -> str:
     for key, node, title in _NODES:
         if f"Fastforks{key}" not in classes:
             continue
-        name = title.replace(", {pack})", ")").replace(" ({pack})", "")
+        name = plain_title(title)
         ids = classes[f"Fastforks{key}"].ids()
         if not ids:
             lines.append(f"- **{name}**: no model (it applies a flow field)")

@@ -6,8 +6,10 @@ fastforks takes channel-first images `[3, H, W]` in `[0, 1]` and returns maps on
 
 from __future__ import annotations
 
+import difflib
 import functools
 import json
+import math
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -142,31 +144,48 @@ def union_mask(masks: torch.Tensor | None, boxes: torch.Tensor, size: tuple[int,
     return out
 
 
-def points(text: str) -> list[list[float]]:
-    """`"x,y; x,y"` (or a JSON list of `[x, y]`) -> `[[x, y], ...]` in pixels; empty text gives `[]`."""
+def _floats(values: Sequence[Any], form: str) -> list[float]:
+    """`values` as finite floats; else a `ValueError` with the message `form` (it names the node input)."""
+    try:
+        out = [float(v) for v in values]
+    except (TypeError, ValueError):
+        out = []
+    if not out or not all(math.isfinite(v) for v in out):
+        raise ValueError(form)
+    return out
+
+
+def points(text: str, name: str = "points") -> list[list[float]]:
+    """`"x,y; x,y"` (or a JSON list of `[x, y]`) -> `[[x, y], ...]` in pixels; empty text gives `[]`.
+
+    A malformed `text` raises a `ValueError` that names the node input `name` and shows the expected form.
+    """
     text = text.strip()
     if not text:
         return []
-    if text.startswith("["):
-        pts = json.loads(text)
-    else:
-        pts = [[float(v) for v in p.split(",")] for p in text.replace("\n", ";").split(";") if p.strip()]
-    if any(len(p) != 2 for p in pts):  # noqa: PLR2004 - (x, y)
-        msg = f"points must be 'x,y; x,y; ...' in pixels, got {text!r}"
-        raise ValueError(msg)
-    return [[float(x), float(y)] for x, y in pts]
+    form = f"{name}: write points as 'x,y; x,y' in pixels (e.g. '120,80; 300,210'), got {text!r}"
+    try:
+        rows = json.loads(text) if text.startswith("[") else [p.split(",") for p in text.replace("\n", ";").split(";")]
+    except json.JSONDecodeError as e:
+        raise ValueError(form) from e
+    if not isinstance(rows, list):
+        raise ValueError(form)  # noqa: TRY004 - one message for every malformed value
+    rows = [p for p in rows if not (isinstance(p, list) and all(str(v).strip() == "" for v in p))]  # "1,2;" -> 1,2
+    if any(not isinstance(p, list) or len(p) != 2 for p in rows):  # noqa: PLR2004 - (x, y)
+        raise ValueError(form)
+    return [_floats(p, form) for p in rows]
 
 
-def box(text: str) -> list[float] | None:
+def box(text: str, name: str = "box") -> list[float] | None:
     """`"x0,y0,x1,y1"` in pixels (or a JSON list) -> `[x0, y0, x1, y1]`; empty text gives `None`."""
-    text = text.strip().strip("[]")
+    text = text.strip().strip("[]").strip()
     if not text:
         return None
-    values = [float(v) for v in text.split(",")]
+    form = f"{name}: write a box as 'x0,y0,x1,y1' in pixels (left, top, right, bottom), got {text!r}"
+    values = text.split(",")
     if len(values) != 4:  # noqa: PLR2004 - x0, y0, x1, y1
-        msg = f"box must be 'x0,y0,x1,y1' in pixels, got {text!r}"
-        raise ValueError(msg)
-    return values
+        raise ValueError(form)
+    return _floats(values, form)
 
 
 # COCO classes of the bodies a pose label set describes; hand and face models take every box (a hand / face detector's)
@@ -189,11 +208,20 @@ def subject_boxes(detections: str, i: int, label_set: str) -> list[list[float]] 
     """
     if not detections.strip():
         return None
-    per_image: list[list[dict[str, Any]]] = json.loads(detections)
-    dets = per_image[min(i, len(per_image) - 1)]
-    subject = SUBJECTS.get(label_set)
-    picked = [d for d in dets if d.get("class_name") in subject] if subject else []
-    return [list(map(float, d["box"])) for d in picked or dets]
+    form = (
+        "detections: connect the 'detections' output of a Detect node (a JSON list with one list of"
+        f" {{box, class_name}} entries per image), got {detections.strip()[:80]!r}"
+    )
+    try:
+        per_image: list[list[dict[str, Any]]] = json.loads(detections)
+        if not isinstance(per_image, list) or not per_image:
+            raise TypeError  # noqa: TRY301 - one message for every malformed shape
+        dets = per_image[min(i, len(per_image) - 1)]
+        subject = SUBJECTS.get(label_set)
+        picked = [d for d in dets if d.get("class_name") in subject] if subject else []
+        return [_floats(d["box"], form) for d in picked or dets]
+    except (json.JSONDecodeError, TypeError, KeyError, AttributeError) as e:
+        raise ValueError(form) from e
 
 
 def draw_pose(  # noqa: PLR0913 - the fields of one image's pose result
@@ -261,9 +289,23 @@ def class_ids(names: str, class_names: Sequence[str]) -> list[int]:
     index = {n.lower(): i for i, n in enumerate(class_names)}
     wanted = [n.strip().lower() for n in names.split(",") if n.strip()]
     if unknown := [n for n in wanted if n not in index]:
-        msg = f"unknown classes {unknown}; the model's classes: {', '.join(class_names)}"
+        msg = "classes: " + unknown_classes(unknown, class_names)
         raise ValueError(msg)
     return [index[n] for n in wanted]
+
+
+_SHOWN_CLASSES = 12
+
+
+def unknown_classes(unknown: Sequence[str], class_names: Sequence[str]) -> str:
+    """The message for class names a model does not have: the close matches, else the first of its classes."""
+    lower = {n.lower(): n for n in class_names}
+    close = [m for u in unknown for m in difflib.get_close_matches(u.lower(), lower, n=2)]
+    msg = f"unknown classes {list(unknown)} (this model has {len(class_names)} classes)"
+    if close:
+        return f"{msg}; did you mean {', '.join(dict.fromkeys(lower[m] for m in close))}?"
+    shown = ", ".join(class_names[:_SHOWN_CLASSES])
+    return f"{msg}, e.g. {shown}{', ...' if len(class_names) > _SHOWN_CLASSES else ''}; names are case-insensitive"
 
 
 def labels_image(labels: torch.Tensor, colours: torch.Tensor) -> torch.Tensor:
