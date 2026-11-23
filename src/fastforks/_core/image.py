@@ -442,18 +442,19 @@ def _to_rgb(
     if c == _RGBA:
         t = t[:, :_RGB]
     bounds = None
+    lazy = t.device.type != "mps"  # an unawaited copy off MPS reads the host tensor before its values arrive
     if t.is_floating_point():
-        t = t.to(device, torch.float32, non_blocking=True)
+        t = t.to(device, torch.float32, non_blocking=lazy)
         if not _CHECKED.get():
             bounds = t.aminmax()
     elif keep_uint8 and t.dtype == torch.uint8:
-        t = t.to(device, non_blocking=True)
+        t = t.to(device, non_blocking=lazy)
     else:
         scale = _INT_MAX.get(t.dtype)
         if scale is None:
             msg = f"unsupported image dtype {t.dtype} (use uint8, uint16 or float in [0, 1])"
             raise InputError(msg)
-        t = t.to(device, non_blocking=True).to(torch.float32).div_(scale)
+        t = t.to(device, non_blocking=lazy).to(torch.float32).div_(scale)
     if t.shape[1] == 1:
         t = t.expand(-1, _RGB, -1, -1)
     return t.contiguous(), c, bounds

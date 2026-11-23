@@ -229,7 +229,7 @@ class VolumeModel(core.Model):
             msg = f"spacing must be three positive voxel sizes in mm (D, H, W), got {spacing!r}"
             raise InputError(msg)
         with self._session():
-            x = x.to(self._device, torch.float32, non_blocking=True)
+            x = x.to(self._device, torch.float32, non_blocking=x.device.type != "mps")  # off MPS: awaited
             _check_intensities(x, self.variant.ref)
             out = self._runner(x, sp)
             labels = self._check_outputs(out, {"labels": tuple(x.shape[1:])}, cast=False)["labels"]
@@ -310,7 +310,7 @@ class VolumeEncoder(core.Model):
             msg = f"{self.variant.ref} takes sides up to {self.max_size} voxels, got {tuple(x.shape[1:])}"
             raise InputError(msg)
         with self._session():
-            x = x.to(self._device, torch.float32, non_blocking=True)
+            x = x.to(self._device, torch.float32, non_blocking=x.device.type != "mps")  # off MPS: awaited
             maps = self._runner(x)["features"]
             if len(maps) != len(self.strides):
                 msg = f"{self.variant.ref}: runner returned {len(maps)} feature maps for strides {self.strides}"
