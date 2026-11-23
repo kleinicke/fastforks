@@ -158,14 +158,14 @@ yields an `auto` entry where an MPS `ok` row exists to compare against.
 | flow | FlowSeek | `flowseek-t-things-notartan` | checkpoint-sibling | float32/float16 | 163 | 1 | skip: checkpoint of `flowseek-t` |
 | flow | GMFlow | `gmflow-scale1-mixdata` | checkpoint-sibling | float32/float16 | 18 | 3 | skip: checkpoint of `gmflow-scale1-things` |
 | flow | GMFlow | `gmflow-scale2-mixdata` | size-sibling | float32/float16 | 18 | 0 | fp16 8276 ms, fp32 12373 ms |
-| flow | GMFlow | `gmflow-scale2-regrefine6-kitti` | size-sibling | float32/float16 | 28 | 0 | fp16 11260 ms; fp32 open: hit the 150 s survey cap |
-| flow | GMFlow | `gmflow-scale2-regrefine6-mixdata` | size-sibling | float32/float16 | 28 | 0 | fp16 11199 ms; fp32 open: hit the 150 s survey cap |
-| flow | GMFlow | `gmflow-scale2-regrefine6-sintelft` | size-sibling | float32/float16 | 28 | 0 | fp16 11340 ms; fp32 open: hit the 150 s survey cap |
-| flow | GMFlow | `gmflow-scale2-regrefine6-things` | size-sibling | float32/float16 | 28 | 0 | fp16 11121 ms; fp32 open: hit the 150 s survey cap |
+| flow | GMFlow | `gmflow-scale2-regrefine6-kitti` | size-sibling | float32/float16 | 28 | 0 | fp16 11260 ms; fp32 re-run 2026-11-23: ~16.7 s, golden pass (MPS runs out of memory in both dtypes, so auto takes MLX) |
+| flow | GMFlow | `gmflow-scale2-regrefine6-mixdata` | size-sibling | float32/float16 | 28 | 0 | fp16 11199 ms; fp32 re-run 2026-11-23: ~16.7 s, golden pass (MPS runs out of memory in both dtypes, so auto takes MLX) |
+| flow | GMFlow | `gmflow-scale2-regrefine6-sintelft` | size-sibling | float32/float16 | 28 | 0 | fp16 11340 ms; fp32 re-run 2026-11-23: ~16.7 s, golden pass (MPS runs out of memory in both dtypes, so auto takes MLX) |
+| flow | GMFlow | `gmflow-scale2-regrefine6-things` | size-sibling | float32/float16 | 28 | 0 | fp16 11121 ms; fp32 re-run 2026-11-23: ~16.7 s, golden pass (MPS runs out of memory in both dtypes, so auto takes MLX) |
 | flow | GMFlow | `gmflow-scale2-sintel` | size-sibling | float32/float16 | 18 | 0 | fp16 8283 ms, fp32 13073 ms |
 | flow | GMFlow | `gmflow-scale2-things` | size-sibling | float32/float16 | 18 | 0 | fp16 8261 ms, fp32 13356 ms |
-| flow | MEMFOF | `memfof-kitti` | size-sibling | float32/float16 | 289 | 2 | open: fp32 and fp16 hit the 150 s survey cap on the swapping Mac; re-run with the default timeout |
-| flow | MEMFOF | `memfof-sintel` | size-sibling | float32/float16 | 289 | 0 | open: fp32 and fp16 hit the 150 s survey cap on the swapping Mac; re-run with the default timeout |
+| flow | MEMFOF | `memfof-kitti` | size-sibling | float32/float16 | 289 | 2 | open: re-run 2026-11-23 on a quiet Mac with a 900 s cap still timed out in both dtypes; `scale = 1` doubles the frames to 2160x3840, which swaps on 16 GB (MPS sintel runs out of memory) |
+| flow | MEMFOF | `memfof-sintel` | size-sibling | float32/float16 | 289 | 0 | open: re-run 2026-11-23 on a quiet Mac with a 900 s cap still timed out in both dtypes; `scale = 1` doubles the frames to 2160x3840, which swaps on 16 GB (MPS sintel runs out of memory) |
 | flow | MEMFOF | `memfof-spring` | checkpoint-sibling | float32/float16 | 289 | 1 | skip: checkpoint of `memfof` |
 | flow | MemFlow | `memflow-kitti` | size-sibling | float32/float16 | 24 | 1 | fp16 6988 ms, fp32 9851 ms |
 | flow | MemFlow | `memflow-sintel` | size-sibling | float32/float16 | 24 | 1 | fp16 6990 ms, fp32 9860 ms |
@@ -268,7 +268,7 @@ yields an `auto` entry where an MPS `ok` row exists to compare against.
 | stereo | Fast-ACVNet | `fast-acvnet-sceneflow` | checkpoint-sibling | float32 | 12 | 3 | skip: checkpoint of `fast-acvnet-generalization` |
 | stereo | GREAT-IGEV | `great-igev-eth3d` | checkpoint-sibling | float32/float16 | 56 | 2 | skip: checkpoint of `great-igev-sceneflow` |
 | stereo | GREAT-IGEV | `great-igev-kitti` | checkpoint-sibling | float32/float16 | 56 | 3 | skip: checkpoint of `great-igev-sceneflow` |
-| stereo | GREAT-IGEV | `great-igev-middlebury` | size-sibling | float32/float16 | 56 | 2 | open: fp32 and fp16 hit the 150 s survey cap on the swapping Mac; re-run with the default timeout |
+| stereo | GREAT-IGEV | `great-igev-middlebury` | size-sibling | float32/float16 | 56 | 2 | re-run 2026-11-23: fp32 23063 ms, fp16 14680 ms, golden pass (MPS fp16 26930 ms, fp32 out of memory) |
 | stereo | GwcNet | `gwcnet-g-sceneflow` | size-sibling | float32/float16 | 75 | 3 | fp16 2450 ms, fp32 3676 ms |
 | stereo | HITNet | `hitnet-middlebury-d400` | size-sibling | float32/float16 | 7 | 3 | fp16 1367 ms, fp32 2094 ms |
 | stereo | IGEV++ | `igev-plusplus-eth3d` | checkpoint-sibling | float32/float16 | 56 | 4 | skip: checkpoint of `igev-plusplus-sceneflow` |
@@ -312,7 +312,8 @@ All measured rows have status `ok`, and every golden checked passed. 356 rows we
 - **Out of memory on both backends at the survey size** (4 refs): depthfm-v1 (asks for a 71 GB buffer) and the three
   flowformer-small checkpoints (Metal out of memory).
 - **Hit the 150 s cap of this pass** (3 refs and 4 fp32 rows): memfof-kitti, memfof-sintel and great-igev-middlebury in
-  both dtypes, and gmflow-scale2-regrefine6-* in fp32. The Mac was swapping 4 GB of 5 GB, so the timeouts were dropped
+  both dtypes, and gmflow-scale2-regrefine6-* in fp32. Re-run 2026-11-23 on a quiet Mac: great-igev-middlebury and the
+  gmflow fp32 rows now pass (goldens checked); memfof-kitti / -sintel still time out at 900 s (2x upsampled frames). The Mac was swapping 4 GB of 5 GB, so the timeouts were dropped
   from the survey file. They need a re-run with the default timeout on a quiet machine.
 
 ## Auto routes from this pass
