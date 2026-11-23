@@ -11,8 +11,8 @@ No model family is new in this release; the changes are backends, platforms and 
   raises `BackendUnavailableError`, a missing `mlx` package `MissingDependencyError`; nothing falls back.
 - `device="mps"` now takes the MLX port where it was measured faster or leaner and its first call is cheap
   (`mode="auto"`, logged at INFO), and for `mode="kernels"` where the family has no faster native Metal kernels. Such a
-  model reports `backend.device == "mlx"`; results of a call come back as MPS tensors and `model.device` is `mps`. `FASTFORKS_MLX=0` keeps every load on
-  PyTorch MPS. See "MPS takes the faster port" in `docs/usage.md`.
+  model reports `backend.device == "mlx"`; results of a call come back as MPS tensors and `model.device` is `mps`.
+  `FASTFORKS_MLX=0` keeps every load on PyTorch MPS. See "MPS takes the faster port" in `docs/usage.md`.
 
 ### Windows
 
@@ -23,7 +23,7 @@ No model family is new in this release; the changes are backends, platforms and 
 
 - Two node packs in `integrations/`: `comfyui` (every model) and `comfyui-commercial` (only models cleared for
   commercial use, no Parse node): 20 nodes, one per task, with a model dropdown and automatic weight download (`docs/comfyui.md`).
-  Both require fastforks 0.2.1.
+  Both require fastforks 0.2.1; on Apple silicon their requirements also install `mlx`.
 
 ### API changes
 
