@@ -802,6 +802,12 @@ class Segment(_Node):
         m = load(model, backend, dtype)
         pos, neg, bx = convert.points(positive_points), convert.points(negative_points), convert.box(box)
         kwargs: dict[str, Any] = {}
+        if text.strip() and "text" not in m.prompts:
+            msg = (
+                f"{model} takes points / boxes, not text: clear `text` and set positive_points or box, "
+                "or pick a text model (sam3, clipseg)"
+            )
+            raise ValueError(msg)
         if text.strip():
             kwargs["text"] = text.strip()
         if pos or neg:
