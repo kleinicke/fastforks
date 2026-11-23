@@ -29,7 +29,7 @@ RAFT-small 4513 -> 386 ms, SEA-RAFT-M 1820 -> 1220 ms, SEA-RAFT-S 2115 -> 833 ms
 is the update block (about 62 ms per iteration) and the encoders, SEA-RAFT's mostly its encoders (fp16 gains nothing
 there on MPS). The spring variants are faster by design: they halve the input first.
 
-<!-- device:begin (tools/gen_docs.py, from docs/data/devices.toml and docs\data\speed\apple-m1-pro-16gb.jsonl) -->
+<!-- device:begin (tools/gen_docs.py, from docs/data/devices.toml and docs/data/speed/apple-m1-pro-16gb.jsonl) -->
 
 | | |
 |---|---|
@@ -39,8 +39,8 @@ there on MPS). The spring variants are faster by design: they halve the input fi
 | hardware | 16-core GPU |
 | software | macOS 27, torch 2.14 |
 | torch (rows) | 2.14.1 |
-| measured | 2026-11-06 to 2026-11-21 |
-| rows | 2240 in `docs\data\speed\apple-m1-pro-16gb.jsonl` |
+| measured | 2026-11-06 to 2026-11-23 |
+| rows | 2250 in `docs/data/speed/apple-m1-pro-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -52,12 +52,12 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | kernels speed-up: vs original | vs portable | peak memory (MiB, process footprint, fastest dtype): original | portable | kernels |
 |---|---|---|---|---|---|---|---|---|---|
-| [`aanet-plus-sceneflow`](../models/stereo.md#aanet) | 870 | 990 | 1285 | 818 | 1.1x | 1.2x | 6805 | 5012 | 3754 |
-| [`aanet-sceneflow`](../models/stereo.md#aanet) | 813 | 940 | 1163 | 631 | 1.3x | 1.5x | 3710 | 3633 | 2606 |
+| [`aanet-plus-sceneflow`](../models/stereo.md#aanet) | 870 | 992 | 936 | 818 | 1.1x | 1.1x | 6805 | 3836 | 3754 |
+| [`aanet-sceneflow`](../models/stereo.md#aanet) | 813 | 880 | 723 | 631 | 1.3x | 1.1x | 3710 | 2594 | 2606 |
 | [`bridgedepth-rvc-pretrain`](../models/stereo.md#bridgedepth) | 4416 | 4375 | 4232 | 3756 | 1.2x | 1.1x | 7028 | 6115 | 5100 |
 | [`bridgedepth-sf`](../models/stereo.md#bridgedepth) | 4279 | 4280 | 3782 | 3693 | 1.2x | 1.0x | 7464 | 6271 | 6270 |
-| [`c-fast-foundationstereo`](../models/stereo.md#c_foundationstereo) | 7562 | 4881 | 18200 | unsupported | – | – | 13037 | 12882 | – |
-| [`c-foundationstereo-s`](../models/stereo.md#c_foundationstereo) | OOM | OOM | OOM | unsupported | – | – | – | – | – |
+| [`c-fast-foundationstereo`](../models/stereo.md#c_foundationstereo) | 7562 | 3326 | 2472 | unsupported | – | – | 13037 | 8460 | – |
+| [`c-foundationstereo-s`](../models/stereo.md#c_foundationstereo) | OOM | OOM | 23526 | unsupported | – | – | – | 12489 | – |
 | [`cas-gwcnet-c-sceneflow`](../models/stereo.md#cas_gwcnet) | 7909 | 4747 | 2489 | unsupported | – | – | 9174 | 5132 | – |
 | [`cas-gwcnet-gc-sceneflow`](../models/stereo.md#cas_gwcnet) | OOM | 3361 | 2731 | unsupported | – | – | – | 8420 | – |
 | [`cfnet-sceneflow`](../models/stereo.md#cfnet) | OOM | OOM | OOM | 2206 | – | – | – | – | 5416 |
@@ -74,9 +74,9 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`fast-acvnet-plus-kitti15`](../models/stereo.md#fast_acvnet) | 1762 | 512 | 402 | unsupported | – | – | 4991 | 2814 | – |
 | [`fast-acvnet-plus-sceneflow`](../models/stereo.md#fast_acvnet) | 1762 | 513 | 402 | unsupported | – | – | 3962 | 3844 | – |
 | [`fast-acvnet-sceneflow`](../models/stereo.md#fast_acvnet) | 1333 | 537 | 396 | unsupported | – | – | 4980 | 3819 | – |
-| [`fast-foundationstereo`](../models/stereo.md#c_foundationstereo) | 9528 | 3209 | 3047 | unsupported | – | – | 12528 | 13515 | – |
+| [`fast-foundationstereo`](../models/stereo.md#c_foundationstereo) | 9528 | 3471 | 2477 | unsupported | – | – | 12528 | 8462 | – |
 | [`foundationstereo-vit-l`](../models/stereo.md#foundationstereo) | OOM | OOM | 25647 | 24480 | – | 1.0x | – | 13761 | 13277 |
-| [`foundationstereo-vit-s`](../models/stereo.md#foundationstereo) | OOM | OOM | 19700 | 19496 | – | 1.0x | – | 13239 | 12980 |
+| [`foundationstereo-vit-s`](../models/stereo.md#foundationstereo) | OOM | 22956 | 19059 | 19496 | – | 1.0x | – | 13094 | 12980 |
 | [`great-igev-eth3d`](../models/stereo.md#great_igev) | OOM | OOM | 11459 | 9636 | – | 1.2x | – | 10531 | 10133 |
 | [`great-igev-kitti`](../models/stereo.md#great_igev) | OOM | 31916 | 11076 | 9634 | – | 1.1x | – | 10538 | 10130 |
 | [`great-igev-middlebury`](../models/stereo.md#great_igev) | OOM | OOM | 26930 | 25368 | – | 1.1x | – | 11544 | 12420 |
@@ -95,14 +95,14 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`igev-stereo-kitti15`](../models/stereo.md#igev_stereo) | 6841 | 5849 | 5221 | 4008 | 1.7x | 1.3x | 5985 | 3862 | 3791 |
 | [`igev-stereo-middlebury`](../models/stereo.md#igev_stereo) | 5660 | 5848 | 5210 | 4007 | 1.4x | 1.3x | 7012 | 3861 | 3792 |
 | [`igev-stereo-sceneflow`](../models/stereo.md#igev_stereo) | 5949 | 6375 | 5347 | 4001 | 1.5x | 1.3x | 5984 | 3867 | 3793 |
-| [`las2-h`](../models/stereo.md#las2) | 1306 | 661 | 821 | 734 | 1.8x | 0.9x | 5643 | 4806 | 3771 |
-| [`las2-l`](../models/stereo.md#las2) | 604 | 486 | 401 | 519 | 1.2x | 0.8x | 4740 | 3496 | 2818 |
-| [`las2-m`](../models/stereo.md#las2) | 327 | 229 | 237 | 281 | 1.2x | 0.8x | 4615 | 3051 | 2666 |
-| [`las2-s`](../models/stereo.md#las2) | 273 | 186 | 193 | 198 | 1.4x | 0.9x | 4556 | 3001 | 2620 |
+| [`las2-h`](../models/stereo.md#las2) | 1306 | 664 | 588 | 734 | 1.8x | 0.8x | 5643 | 3674 | 3771 |
+| [`las2-l`](../models/stereo.md#las2) | 604 | 500 | 426 | 519 | 1.2x | 0.8x | 4740 | 2818 | 2818 |
+| [`las2-m`](../models/stereo.md#las2) | 327 | 241 | 232 | 281 | 1.2x | 0.8x | 4615 | 2684 | 2666 |
+| [`las2-s`](../models/stereo.md#las2) | 273 | 182 | 167 | 198 | 1.4x | 0.8x | 4556 | 2564 | 2620 |
 | [`mocha-v1-sceneflow`](../models/stereo.md#mocha_stereo) | 8561 | 8362 | 7564 | 6693 | 1.3x | 1.1x | 8058 | 5829 | 5695 |
 | [`mocha-v2-sceneflow`](../models/stereo.md#mocha_stereo) | 7685 | 8323 | 7560 | 6501 | 1.2x | 1.2x | 9037 | 5807 | 4643 |
 | [`monster-mix-all`](../models/stereo.md#monster) | 20936 | 13423 | 11377 | 9646 | 2.2x | 1.2x | 12856 | 6320 | 6330 |
-| [`monster-plusplus-mix-all`](../models/stereo.md#monster_plusplus) | 17464 | 16071 | 11368 | 10202 | 1.7x | 1.1x | 12920 | 7467 | 7347 |
+| [`monster-plusplus-mix-all`](../models/stereo.md#monster_plusplus) | 17464 | 15001 | 11361 | 10202 | 1.7x | 1.1x | 12920 | 7425 | 7347 |
 | [`monster-sceneflow`](../models/stereo.md#monster) | 18672 | 12916 | 11133 | 9642 | 1.9x | 1.2x | 13435 | 6364 | 6299 |
 | [`nmrf-sceneflow`](../models/stereo.md#nmrf) | 1736 | 1560 | 1469 | 1204 | 1.4x | 1.2x | 7232 | 4747 | 3806 |
 | [`psmnet-sceneflow`](../models/stereo.md#psmnet) | 6066 | 2631 | 2022 | unsupported | – | – | 10870 | 5537 | – |
@@ -129,16 +129,6 @@ Note: the authors' original is a TensorFlow graph (google-research/hitnet, relea
 Note: the original's adaptive pooling needs input sizes divisible by the output size on MPS.
 
 ## Depth
-
-### Depth, synthetic, 480x640
-
-| model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
-|---|---|---|---|---|---|
-| [`video-depth-anything-metric-s`](../models/depth.md#video_depth_anything) | – | 769 | 933 | unsupported | 7546 |
-| [`video-depth-anything-s`](../models/depth.md#video_depth_anything) | unsupported | 823 | 926 | unsupported | 7546 |
-
-Note: no Metal kernels for this family (card mps_kernels).
-Note: not measured: the original has no speed adapter (tools/_original.py LOCAL / bench_upstream), only the accuracy-eval tier of tools/eval_video_depth.py; its CUDA-only paths were not ported for this device.
 
 ### Depth, synthetic, 756x1008
 
@@ -176,24 +166,26 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`distill-any-depth-s`](../models/depth.md#depth_anything_v2) | 109 | 101 | 79.3 | – | unsupported | – | – | – | 1868 | 1570 | – |
 | [`lingbot-depth`](../models/depth.md#lingbot_depth) | – | 3363 | 3376 | – | unsupported | – | – | – | – | 4011 | – |
 | [`lingbot-depth-dc`](../models/depth.md#lingbot_depth) | – | 3363 | 3374 | – | unsupported | – | – | – | – | 4012 | – |
-| [`lotus-normal-d-v1-1`](../models/depth.md#lotus) | 42030 | 1788 | 1459 | – | unsupported | – | – | – | 12351 | 6628 | – |
-| [`lotus-normal-g-v1-1`](../models/depth.md#lotus) | 39522 | 2886 | 1553 | – | unsupported | – | – | – | 12354 | 6632 | – |
-| [`marigold-depth-v1-1`](../models/depth.md#marigold) | 3237 | 2970 | 2498 | – | unsupported | – | – | – | 10462 | 6640 | – |
-| [`marigold-normals-lcm-v0-1`](../models/depth.md#marigold_normals) | 2639 | 2075 | 1655 | – | unsupported | – | – | – | 10318 | 6671 | – |
+| [`lotus-normal-d-v1-1`](../models/depth.md#lotus) | 42030 | 2019 | 1459 | – | unsupported | – | – | – | 12351 | 5628 | – |
+| [`lotus-normal-g-v1-1`](../models/depth.md#lotus) | 39522 | 1855 | 1461 | – | unsupported | – | – | – | 12354 | 5628 | – |
+| [`marigold-depth-v1-1`](../models/depth.md#marigold) | 3237 | 2982 | 2492 | – | unsupported | – | – | – | 10462 | 5590 | – |
+| [`marigold-normals-lcm-v0-1`](../models/depth.md#marigold_normals) | 2639 | 1798 | 1514 | – | unsupported | – | – | – | 10318 | 5602 | – |
 | [`marigold-v2-depth`](../models/depth.md#marigold_v2) | – | unsupported | – | – | – | unsupported | – | – | – | – | – |
 | [`metric3d-vit-large`](../models/depth.md#metric3d) | 1946 | 1822 | 1861 | – | unsupported | – | – | – | 4973 | 4523 | – |
 | [`midas-dpt-beit-large-512`](../models/depth.md#midas) | 1107 | 679 | 635 | – | unsupported | – | – | – | 4976 | 2407 | – |
-| [`moge-2-vitb-normal`](../models/depth.md#moge) | 915 | 610 | 1108 | 586 | – | – | 1.6x | 1.0x | 3223 | 3111 | 3160 |
-| [`moge-2-vitl-normal`](../models/depth.md#moge) | 1553 | 1406 | 1790 | 1344 | – | – | 1.2x | 1.0x | 4036 | 3937 | 3994 |
-| [`moge-2-vits-normal`](../models/depth.md#moge) | 516 | 375 | 869 | 362 | – | – | 1.4x | 1.0x | 2849 | 2661 | 2704 |
-| [`moge-3-vitl`](../models/depth.md#moge) | unsupported | 3469 | 3913 | 2415 | – | – | – | 1.4x | – | 6239 | 6121 |
+| [`moge-2-vitb-normal`](../models/depth.md#moge) | 915 | 585 | 494 | 586 | – | – | 1.6x | 0.8x | 3223 | 2263 | 3160 |
+| [`moge-2-vitl-normal`](../models/depth.md#moge) | 1553 | 1350 | 1176 | 1344 | – | – | 1.2x | 0.9x | 4036 | 3258 | 3994 |
+| [`moge-2-vits-normal`](../models/depth.md#moge) | 516 | 362 | 303 | 362 | – | – | 1.4x | 0.8x | 2849 | 1679 | 2704 |
+| [`moge-3-vitl`](../models/depth.md#moge) | unsupported | 3692 | 3333 | 2415 | – | – | – | 1.4x | – | 6299 | 6121 |
 | [`omni-dc`](../models/depth.md#omni_dc) | – | 2349 | 2408 | – | unsupported | – | – | – | – | 12317 | – |
 | [`pointdit-b-512`](../models/depth.md#pointdit) | 468 | 367 | 337 | – | unsupported | – | – | – | 3167 | 1912 | – |
 | [`pointdit-l-512`](../models/depth.md#pointdit) | 1356 | 1086 | 1013 | – | unsupported | – | – | – | 6994 | 4548 | – |
 | [`prompt-depth-anything-l`](../models/depth.md#prompt_depth_anything) | – | 1278 | 1143 | – | unsupported | – | – | – | – | 3303 | – |
-| [`stablenormal-turbo`](../models/depth.md#stablenormal) | 51987 | 2718 | 1690 | – | unsupported | – | – | – | 11428 | 8985 | – |
+| [`stablenormal-turbo`](../models/depth.md#stablenormal) | 51987 | 1979 | 1652 | – | unsupported | – | – | – | 11428 | 6615 | – |
 | [`unidepth-v2-vitl14`](../models/depth.md#unidepth_v2) | 1356 | 1252 | – | – | unsupported | – | – | – | 5260 | 6077 | – |
-| [`unik3d-vitl`](../models/depth.md#unik3d) | 1333 | 1217 | 1294 | – | unsupported | – | – | – | 5316 | 4001 | – |
+| [`unik3d-vitl`](../models/depth.md#unik3d) | 1333 | 1217 | 1129 | – | unsupported | – | – | – | 5316 | 4036 | – |
+| [`video-depth-anything-metric-s`](../models/depth.md#video_depth_anything) | – | 836 | 780 | – | unsupported | – | – | – | – | 4581 | – |
+| [`video-depth-anything-s`](../models/depth.md#video_depth_anything) | – | 839 | 779 | – | unsupported | – | – | – | – | 4578 | – |
 | [`zoedepth-nk`](../models/depth.md#zoedepth) | 1268 | 778 | 785 | – | unsupported | – | – | – | 4223 | 3558 | – |
 
 Note: no Metal kernels for this family (card mps_kernels).
@@ -471,7 +463,7 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`dfine-s-coco`](../models/detection.md#dfine) | 74.1 | 66.5 | 41.0 | – | unsupported | 1674 | 1545 |
 | [`dfine-x-coco`](../models/detection.md#dfine) | 185 | 183 | 101 | – | unsupported | 1978 | 2211 |
 | [`faster-rcnn-r50-fpn-3x-coco`](../models/detection.md#rcnn) | 240 | 214 | 192 | – | unsupported | 1938 | 1932 |
-| [`grounding-dino-base`](../models/detection.md#grounding_dino) | 1132 | 1087 | – | unsupported | – | 5081 | 6001 |
+| [`grounding-dino-base`](../models/detection.md#grounding_dino) | 1132 | 1075 | – | unsupported | unsupported | 5081 | 3952 |
 | [`grounding-dino-tiny`](../models/detection.md#grounding_dino) | 912 | 846 | – | unsupported | – | 4899 | 4787 |
 | [`lw-detr-large-coco`](../models/detection.md#lwdetr) | 88.2 | 88.5 | 72.7 | – | unsupported | 1765 | 1622 |
 | [`lw-detr-medium-coco`](../models/detection.md#lwdetr) | 56.8 | 158 | 47.2 | – | unsupported | 1660 | 1525 |
@@ -690,9 +682,9 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`anysplat`](../models/multiview.md#anysplat) | unsupported | 5566 | 5164 | – | unsupported | – | – | – | 8809 | – |
 | [`depthsplat-small-re10k`](../models/multiview.md#depthsplat) | unsupported | 697 | 749 | – | unsupported | – | – | – | 3779 | – |
 | [`mapanything-apache`](../models/multiview.md#mapanything) | 8492 | 7357 | 6369 | – | unsupported | – | – | 11136 | 7218 | – |
-| [`mvsplat-re10k`](../models/multiview.md#mvsplat) | unsupported | 1040 | 1123 | – | unsupported | – | – | – | 4540 | – |
+| [`mvsplat-re10k`](../models/multiview.md#mvsplat) | unsupported | 1040 | 1110 | 896 | unsupported | – | 1.2x | – | 4532 | 4293 |
 | [`pi3`](../models/multiview.md#pi3) | 10379 | 10298 | 8341 | – | unsupported | – | – | 6238 | 6510 | – |
-| [`vggt-1b`](../models/multiview.md#vggt) | 7987 | 7209 | 6638 | 7016 | – | 1.1x | 0.9x | 10337 | 8423 | 10692 |
+| [`vggt-1b`](../models/multiview.md#vggt) | 7987 | 7223 | 6193 | 7016 | – | 1.1x | 0.9x | 10337 | 8700 | 10692 |
 | [`vggt-omega-1b-512`](../models/multiview.md#vggt_omega) | 7828 | 7938 | 7242 | – | unsupported | – | – | 9079 | 8602 | – |
 
 Note: the authors' code builds its DPT position embedding in float64 (src/model/encoder/vggt/heads/utils.py:48, torch.arange(dtype=torch.double)), which MPS does not support; its vendored VGGT predates VGGT's own MPS fix.
@@ -713,7 +705,7 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 | model | time (ms): portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): portable |
 |---|---|---|---|---|
-| [`lingbot-map`](../models/multiview.md#lingbot_map) | 8840 | 7125 | unsupported | 8834 |
+| [`lingbot-map`](../models/multiview.md#lingbot_map) | 9234 | 7609 | unsupported | 5962 |
 | [`resplat-base-re10k`](../models/multiview.md#resplat) | OOM | – | unsupported | – |
 | [`resplat-small-dl3dv`](../models/multiview.md#resplat) | 14422 | – | unsupported | 12080 |
 
@@ -729,14 +721,6 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 ## Flow
 
-### Flow, synthetic, 375x1242
-
-| model | time (ms): original fp32 | portable fp32 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
-|---|---|---|---|---|---|
-| [`memfof-kitti`](../models/flow.md#memfof) | 3242 | 2468 | unsupported | 5176 | 4958 |
-
-Note: no Metal kernels for this family (card mps_kernels).
-
 ### Flow, synthetic, 1080x1920
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs original | vs portable | peak memory (MiB, process footprint, fastest dtype): original | portable | kernels |
@@ -747,8 +731,8 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`flowseek-t`](../models/flow.md#flowseek) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
 | [`flowseek-t-things`](../models/flow.md#flowseek) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
 | [`flowseek-t-things-notartan`](../models/flow.md#flowseek) | OOM | OOM | 3268 | unsupported | – | – | – | – | 12736 | – |
-| [`gmflow-scale1-mixdata`](../models/flow.md#gmflow) | 4893 | 3269 | 9282 | unsupported | – | – | – | 12995 | 12049 | – |
-| [`gmflow-scale1-things`](../models/flow.md#gmflow) | 5143 | 3269 | 10676 | unsupported | – | – | – | 13106 | 11902 | – |
+| [`gmflow-scale1-mixdata`](../models/flow.md#gmflow) | 4893 | 3845 | 2904 | unsupported | – | – | – | 12995 | 7113 | – |
+| [`gmflow-scale1-things`](../models/flow.md#gmflow) | 5143 | 3780 | 2756 | unsupported | – | – | – | 13106 | 7112 | – |
 | [`gmflow-scale2-mixdata`](../models/flow.md#gmflow) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
 | [`gmflow-scale2-regrefine6-kitti`](../models/flow.md#gmflow) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
 | [`gmflow-scale2-regrefine6-mixdata`](../models/flow.md#gmflow) | OOM | OOM | OOM | unsupported | – | – | – | – | – | – |
@@ -761,11 +745,12 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`memflow-kitti`](../models/flow.md#memflow) | OOM | 9826 | – | – | unsupported | – | – | – | 12656 | – |
 | [`memflow-sintel`](../models/flow.md#memflow) | OOM | 10075 | – | – | unsupported | – | – | – | 12787 | – |
 | [`memfof`](../models/flow.md#memfof) | 3625 | 3054 | – | – | unsupported | – | – | 5212 | 5038 | – |
+| [`memfof-kitti`](../models/flow.md#memfof) | – | OOM | – | – | unsupported | – | – | – | – | – |
 | [`memfof-sintel`](../models/flow.md#memfof) | – | OOM | – | – | unsupported | – | – | – | – | – |
 | [`memfof-spring`](../models/flow.md#memfof) | – | 3060 | – | – | unsupported | – | – | – | 5037 | – |
-| [`neuflow-v2`](../models/flow.md#neuflow_v2) | OOM | 1039 | 4552 | – | unsupported | – | – | – | 13354 | – |
-| [`neuflow-v2-sintel`](../models/flow.md#neuflow_v2) | OOM | 1076 | 2757 | – | unsupported | – | – | – | 13226 | – |
-| [`neuflow-v2-things`](../models/flow.md#neuflow_v2) | OOM | 945 | 4313 | – | unsupported | – | – | – | 13049 | – |
+| [`neuflow-v2`](../models/flow.md#neuflow_v2) | OOM | 761 | 702 | – | unsupported | – | – | – | 11081 | – |
+| [`neuflow-v2-sintel`](../models/flow.md#neuflow_v2) | OOM | 739 | 721 | – | unsupported | – | – | – | 11374 | – |
+| [`neuflow-v2-things`](../models/flow.md#neuflow_v2) | OOM | 762 | 739 | – | unsupported | – | – | – | 11717 | – |
 | [`raft-large`](../models/flow.md#raft) | OOM | 2522 | 2710 | – | 1351 | – | 1.9x | – | 12889 | 3647 |
 | [`raft-large-kitti`](../models/flow.md#raft) | OOM | 10206 | 2270 | – | 1349 | – | 1.7x | – | 12391 | 4671 |
 | [`raft-large-things`](../models/flow.md#raft) | OOM | 3992 | 1641 | – | 1348 | – | 1.2x | – | 9662 | 4670 |
@@ -774,10 +759,10 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`recover-mn`](../models/flow.md#recover) | 626 | 463 | 347 | – | unsupported | – | – | 4972 | 2562 | – |
 | [`recover-rn`](../models/flow.md#recover) | 667 | 497 | 405 | – | unsupported | – | – | 3891 | 1519 | – |
 | [`sea-raft-m`](../models/flow.md#sea_raft) | 2637 | 1820 | 1635 | – | 1220 | 2.2x | 1.3x | 12444 | 9732 | 4752 |
-| [`sea-raft-m-kitti`](../models/flow.md#sea_raft) | OOM | 5026 | 1507 | – | 1222 | – | 1.2x | – | 9686 | 4754 |
+| [`sea-raft-m-kitti`](../models/flow.md#sea_raft) | OOM | 1423 | 1507 | – | 1222 | – | 1.2x | – | 9778 | 4754 |
 | [`sea-raft-m-spring`](../models/flow.md#sea_raft) | 354 | 390 | 350 | – | 340 | 1.0x | 1.0x | 2923 | 2632 | 1621 |
-| [`sea-raft-m-things`](../models/flow.md#sea_raft) | 2005 | 4162 | 1491 | – | 1221 | 1.6x | 1.2x | 13022 | 9754 | 4753 |
-| [`sea-raft-s`](../models/flow.md#sea_raft) | 1531 | 2115 | 1098 | – | 833 | 1.8x | 1.3x | 13174 | 9668 | 4667 |
+| [`sea-raft-m-things`](../models/flow.md#sea_raft) | 2005 | 1425 | 1491 | – | 1221 | 1.6x | 1.2x | 13022 | 9778 | 4753 |
+| [`sea-raft-s`](../models/flow.md#sea_raft) | 1531 | 1049 | 1098 | – | 833 | 1.8x | 1.3x | 13174 | 9653 | 4667 |
 | [`sea-raft-s-kitti`](../models/flow.md#sea_raft) | 1503 | 2000 | 1098 | – | 831 | 1.8x | 1.3x | 13130 | 9671 | 4664 |
 | [`sea-raft-s-spring`](../models/flow.md#sea_raft) | 255 | 268 | 244 | – | 233 | 1.1x | 1.0x | 2757 | 2547 | 1527 |
 | [`waft-a1`](../models/flow.md#waft) | 22117 | 8225 | 7168 | unsupported | unsupported | – | – | 12159 | 7185 | – |
@@ -800,7 +785,12 @@ Note: no Metal kernels for this family (card mps_kernels).
 | [`disk-lightglue`](../models/matching.md#lightglue) | 1780 | 1994 | – | unsupported | unsupported | – | – | 3679 | 3531 | – |
 | [`loftr-indoor`](../models/matching.md#loftr) | 994 | 877 | 701 | unsupported | unsupported | – | – | 5973 | 3613 | – |
 | [`loftr-outdoor`](../models/matching.md#loftr) | 997 | 875 | 723 | unsupported | unsupported | – | – | 6998 | 3614 | – |
-| [`loma-b`](../models/matching.md#loma) | – | 3037 | – | unsupported | – | – | – | – | 8147 | – |
+| [`loma-b`](../models/matching.md#loma) | – | 3041 | – | unsupported | – | – | – | – | 8137 | – |
+| [`loma-b128`](../models/matching.md#loma) | – | 1065 | – | – | unsupported | – | – | – | 4740 | – |
+| [`loma-b64`](../models/matching.md#loma) | – | 917 | – | – | unsupported | – | – | – | 4674 | – |
+| [`loma-g`](../models/matching.md#loma) | – | 3628 | – | – | unsupported | – | – | – | 8495 | – |
+| [`loma-l`](../models/matching.md#loma) | – | 3178 | – | – | unsupported | – | – | – | 7941 | – |
+| [`loma-r`](../models/matching.md#loma) | – | 3076 | – | – | unsupported | – | – | – | 8124 | – |
 | [`romav1`](../models/matching.md#romav1) | 12208 | 3050 | – | – | unsupported | – | – | 12492 | 7979 | – |
 | [`romav2`](../models/matching.md#romav2) | OOM | 5130 | – | 3981 | – | unsupported | 1.3x | – | 7278 | 6725 |
 | [`xfeat`](../models/matching.md#xfeat) | 45.2 | 41.7 | – | unsupported | – | – | – | 1549 | 1471 | – |
@@ -815,18 +805,18 @@ Note: no Metal kernels for this family (card mps_kernels).
 
 | model | time (ms): original fp32 | portable fp32 | portable fp16 | kernels fp16 | peak memory (MiB, process footprint, fastest dtype): original | portable |
 |---|---|---|---|---|---|---|
-| [`alltracker`](../models/tracking.md#alltracker) | 3628 | 3508 | 3200 | unsupported | 6081 | 3806 |
+| [`alltracker`](../models/tracking.md#alltracker) | 3628 | 3218 | 3067 | unsupported | 6081 | 3782 |
 | [`alltracker-tiny`](../models/tracking.md#alltracker) | 3057 | 3144 | 2743 | unsupported | 5785 | 3640 |
-| [`bootstapir`](../models/tracking.md#tapir) | 1930 | 1721 | 2059 | unsupported | 2931 | 2769 |
-| [`cotracker3-offline`](../models/tracking.md#cotracker) | – | 1430 | – | unsupported | – | 4725 |
-| [`cotracker3-online`](../models/tracking.md#cotracker) | – | 1707 | – | unsupported | – | 4689 |
-| [`locotrack-b`](../models/tracking.md#locotrack) | 1973 | 2104 | 2231 | unsupported | 2491 | 2474 |
+| [`bootstapir`](../models/tracking.md#tapir) | 1930 | 1704 | 1719 | unsupported | 2931 | 1743 |
+| [`cotracker3-offline`](../models/tracking.md#cotracker) | – | 1428 | – | unsupported | – | 2751 |
+| [`cotracker3-online`](../models/tracking.md#cotracker) | – | 1704 | – | unsupported | – | 2748 |
+| [`locotrack-b`](../models/tracking.md#locotrack) | 1973 | 1786 | 2084 | unsupported | 2491 | 1470 |
 | [`locotrack-s`](../models/tracking.md#locotrack) | 1821 | 1781 | 1951 | unsupported | 2433 | 2427 |
-| [`tapir`](../models/tracking.md#tapir) | 1548 | 1382 | 1809 | unsupported | 2759 | 2630 |
+| [`tapir`](../models/tracking.md#tapir) | 1548 | 1356 | 1393 | unsupported | 2759 | 1604 |
 | [`tapnext`](../models/tracking.md#tapnext) | 6104 | 5855 | 5998 | unsupported | 3210 | 3754 |
-| [`tapnext-pp`](../models/tracking.md#tapnext) | – | 5680 | 5785 | unsupported | – | 3308 |
+| [`tapnext-pp`](../models/tracking.md#tapnext) | – | 5610 | 5654 | unsupported | – | 3657 |
 | [`track-on-r`](../models/tracking.md#track_on) | 11219 | 8274 | – | unsupported | 3052 | 6102 |
-| [`track-on2`](../models/tracking.md#track_on) | 11323 | 8354 | – | unsupported | 3052 | 6102 |
+| [`track-on2`](../models/tracking.md#track_on) | 11323 | 8370 | – | unsupported | 3052 | 3823 |
 
 Note: no Metal kernels for this family (card mps_kernels).
 
@@ -874,20 +864,20 @@ Note: original needs cupy (CUDA softsplat kernels), no CUDA on the Mac.
 | [`realesrgan-x4plus`](../models/restoration.md#realesrgan) | 2991 | 3022 | 2066 | – | unsupported | – | 4713 | 2466 |
 | [`realesrgan-x4plus-anime-6b`](../models/restoration.md#realesrgan) | 938 | 973 | 664 | – | unsupported | – | 4517 | 2351 |
 | [`realplksr-nomoswebphoto-x4`](../models/restoration.md#realplksr) | 1555 | 1527 | 1092 | – | unsupported | – | 1407 | 1368 |
-| [`restormer-deblur`](../models/restoration.md#restormer) | 2395 | 1376 | 1476 | – | unsupported | – | 6858 | 4735 |
-| [`restormer-derain`](../models/restoration.md#restormer) | 2382 | 1678 | 1814 | – | unsupported | – | 5863 | 5778 |
-| [`restormer-sidd`](../models/restoration.md#restormer) | 2183 | 2218 | 2330 | – | unsupported | – | 5863 | 4761 |
+| [`restormer-deblur`](../models/restoration.md#restormer) | 2395 | 989 | 990 | – | unsupported | – | 6858 | 4726 |
+| [`restormer-derain`](../models/restoration.md#restormer) | 2382 | 995 | 988 | – | unsupported | – | 5863 | 3653 |
+| [`restormer-sidd`](../models/restoration.md#restormer) | 2183 | 1112 | 1132 | – | unsupported | – | 5863 | 5777 |
 | [`seedvr2-3b`](../models/restoration.md#seedvr2) | unsupported | unsupported | – | – | – | unsupported | – | – |
 | [`seedvr2-7b`](../models/restoration.md#seedvr2) | unsupported | unsupported | – | – | – | unsupported | – | – |
 | [`span-x2`](../models/restoration.md#span) | 115 | 100 | 74.0 | – | unsupported | – | 2391 | 1296 |
 | [`span-x4`](../models/restoration.md#span) | 117 | 103 | 89.0 | – | unsupported | – | 2388 | 1296 |
-| [`swin2sr-x2`](../models/restoration.md#swin2sr) | 14608 | 11075 | 9258 | – | unsupported | – | 5529 | 3501 |
-| [`swin2sr-x4`](../models/restoration.md#swin2sr) | 12965 | 9608 | 9410 | – | unsupported | – | 7727 | 4580 |
-| [`swin2sr-x4-real`](../models/restoration.md#swin2sr) | 13527 | 11350 | 9531 | – | unsupported | – | 7724 | 4579 |
-| [`swinir-l-x4-real`](../models/restoration.md#swinir) | 16883 | 12063 | 9874 | – | unsupported | – | 10504 | 4561 |
-| [`swinir-m-x2`](../models/restoration.md#swinir) | 8690 | 6260 | 5797 | – | unsupported | – | 5520 | 3500 |
-| [`swinir-m-x4`](../models/restoration.md#swinir) | 8782 | 6506 | 5893 | – | unsupported | – | 7699 | 5060 |
-| [`swinir-m-x4-real`](../models/restoration.md#swinir) | 8901 | 6622 | 5851 | – | unsupported | – | 7694 | 5060 |
+| [`swin2sr-x2`](../models/restoration.md#swin2sr) | 14608 | 5731 | 4607 | – | unsupported | – | 5529 | 3495 |
+| [`swin2sr-x4`](../models/restoration.md#swin2sr) | 12965 | 5793 | 4690 | – | unsupported | – | 7727 | 4581 |
+| [`swin2sr-x4-real`](../models/restoration.md#swin2sr) | 13527 | 5894 | 4751 | – | unsupported | – | 7724 | 4576 |
+| [`swinir-l-x4-real`](../models/restoration.md#swinir) | 16883 | 10185 | 7252 | – | unsupported | – | 10504 | 5594 |
+| [`swinir-m-x2`](../models/restoration.md#swinir) | 8690 | 4760 | 3674 | – | unsupported | – | 5520 | 3492 |
+| [`swinir-m-x4`](../models/restoration.md#swinir) | 8782 | 4824 | 3750 | – | unsupported | – | 7699 | 5064 |
+| [`swinir-m-x4-real`](../models/restoration.md#swinir) | 8901 | 5045 | 3829 | – | unsupported | – | 7694 | 5059 |
 
 Note: no Metal kernels for this family (card mps_kernels).
 Note: the card has no kernels mode.
