@@ -39,7 +39,7 @@ directory.
 | `FASTFORKS_OFFLINE` | `1` = never touch the network (also `HF_HUB_OFFLINE=1`); missing files raise `WeightsDownloadError` |
 | `FASTFORKS_NONCOMMERCIAL` | `1` = also download weights with non-commercial licences (off in every install, also `fastforks`) |
 | `FASTFORKS_COMMERCIAL_ONLY` | `1` = refuse (and hide from `list`, `download`) every model not cleared for commercial use |
-| `FASTFORKS_MLX` | `0` = `device="mps"` always runs PyTorch MPS, never an [MLX port](#mps-takes-the-faster-port) |
+| `FASTFORKS_MLX` | `0` = `device="mps"` always runs PyTorch MPS, never an [MLX port](#what-auto-picks-on-a-mac) |
 | `FASTFORKS_MLX_PLAN_CACHE` | a directory: [MLX](#apple-silicon-mlx) graph ports keep the exported graph and the tuning decisions of each input size there, so the first call of a size in a new process skips them (off by default; see "First call" there) |
 | `FASTFORKS_MLX_TUNING` | overrides single tunables of the [MLX](#apple-silicon-mlx) backend, e.g. `winograd=0,threadgroup=128` (for measuring; `tools/mlx_tune.py`) |
 | `FASTFORKS_SDPA` | which `scaled_dot_product_attention` backends CUDA calls may use, in priority order: `auto` (default: PyTorch's order where the build has flash, as the Linux wheels do; without flash, as in the Windows wheels, cuDNN, then memory-efficient, then math; logged), `torch` (PyTorch's order everywhere), or a priority list of `flash`, `cudnn`, `efficient`, `math`: `efficient,math,cudnn` is PyTorch's own order without flash (see `fastforks.shared.sdpa`); a call none of the listed backends supports raises. A policy without flash also runs the SAM / HQ-SAM / ViTMatte global attention as SDPA with a dense bias mask (`fastforks.shared.sam_attention`, logged) |
@@ -352,7 +352,9 @@ reference code is recorded (the "Parity" rows of the model pages).
 ## Compute dtype: `dtype`
 
 - `None` (default): the model's tested precision (`fastforks info MODEL`): float16 / bfloat16 on CUDA where the model supports it,
-  float32 on the CPU and on Apple MPS, always reduced precision for `kernels`.
+  float32 on the CPU, always reduced precision for `kernels`. On Apple MPS `mode="auto"` takes float16 where the
+  model is validated in it and it was measured faster or leaner ([below](#what-auto-picks-on-a-mac)); an explicit
+  `mode="portable"` computes in float32.
 - `"float32"`: float32 everywhere, portable only (`kernels` raises `OptionsError`). This is the reference-accurate path:
   the closest to the original implementation, slower and with more memory. CUDA convolutions then use PyTorch's
   default TF32; `torch.backends.cudnn.allow_tf32 = False` makes them full float32 and the output CPU-identical
@@ -740,9 +742,11 @@ float32), ViTPose / ViTPose++ (patch embedding, decoder and keypoint decoding, f
 blocks' RoPE, float16). RoMa v2 uses fused local correlation in float32, and MVSplat its plane sweep (warp and channel dot in one kernel) in float32. These kernels compile on the device in under a second on first use;
 `mode="auto"` picks it. Every other family runs `portable`.
 
-- dtype: float32 by default. `dtype="float16"` works where the card lists it (`fastforks info MODEL`, row
-  `apple gpu`). It saves memory (up to half) and on an M1 Pro is also faster: median 1.15x over 60 models, up to
-  2.9x on memory-bound stereo cost volumes (GREAT-IGEV, CoEx, CAS-GwcNet), rarely slower (HITNet, Mask2Former 0.94x).
+- dtype: `mode="portable"` computes in float32 by default. `dtype="float16"` works where the card lists it
+  (`fastforks info MODEL`, row `apple gpu`). It saves memory (up to half) and on an M1 Pro is usually also faster
+  (at least 5 % for 367 of 491 models measured in both, 2.9x on memory-bound stereo cost volumes such as GREAT-IGEV,
+  CoEx and CAS-GwcNet, 9.9x for EMA-VFI), sometimes slower (HITNet, Mask2Former 0.94x). `mode="auto"` takes it
+  where it pays ([below](#what-auto-picks-on-a-mac)); `dtype="float32"` keeps the reference precision.
 - A few small steps run on the CPU or in float32 by design: float64 maths in MoGe and SAM, one adaptive pooling in
   S2M2, Depth Anything 3's bicubic resize.
 - The first call at a new input size takes 0.5-4 s longer (PyTorch compiles the Metal kernels for that shape).
@@ -752,7 +756,7 @@ blocks' RoPE, float16). RoMa v2 uses fused local correlation in float32, and MVS
 
 Time and memory per model on an M1 Pro: [Apple M1 Pro](devices/apple-m1-pro-16gb.md).
 
-### MPS takes the faster port
+### What auto picks on a Mac
 
 On Apple silicon, use `device="mps"` for both public modes.
 
@@ -760,13 +764,18 @@ On Apple silicon, use `device="mps"` for both public modes.
 - `kernels` uses the family's native MPS Metal runner or MLX port. A measured MLX path must beat the native
   Metal path by at least 5% to take precedence when both support the request. Explicitly requesting an unavailable
   implementation raises an error.
-- `auto` uses the benchmark table to compare optimized paths against portable MPS. The table uses comparable runs
-  whose golden reference check passed. A promotion requires at least a 5% speed advantage (or 10% less memory at
-  equal speed). Pass `dtype` to constrain the choice. **MLX compiles per input shape, so it is
+- `auto` takes the fastest and leanest measured path of the model: portable MPS in float32 or float16, the Metal
+  kernels, or the MLX port. The table (M1 Pro survey) only holds runs whose golden reference check passed, in a dtype
+  the card validates, so float16 is taken as on CUDA: wherever it is validated and pays. Each step up (float32 ->
+  float16 -> Metal kernels -> MLX) needs at least a 5 % speed advantage, or the same speed (within 5 %) at 10 % or
+  more less peak memory; a faster path that needs over 2 % more memory must repay it in speed (time ratio times
+  memory ratio still 5 % better). The load logs the choice at INFO and `result.backend` reports it; pass `dtype` to
+  constrain it (`dtype="float32"` for the reference precision). **MLX compiles per input shape, so it is
   promoted only where that first call is cheap**: its first call must take at most one first call plus two warm
   runs of the MPS path it replaces. That keeps MLX for the models where it also wins speed or memory and whose first
   call is quick (Depth Pro, with a 26 s compile against a 5 s MPS call, stays on MPS). For models left on MPS, ask for MLX
   with `device="mlx"` (below) if you can afford the first call, for example after [`warmup`](#apple-silicon-mlx).
+  Without the `mlx` package, `auto` takes the best PyTorch MPS path the same way.
 
 Results of a call are MPS tensors and `model.device` is `mps`, so tensors built on `model.device` combine with them;
 other methods (`video()`, sessions) of an MLX implementation return CPU tensors. An MLX implementation reports
@@ -777,7 +786,7 @@ Metal correlation kernel with `mode="kernels"`.
 ## Apple silicon (MLX)
 
 **Choosing MLX.** `device="mps"` picks MLX for you only where it is measured faster or leaner *and* its first call
-is cheap (see [MPS takes the faster port](#mps-takes-the-faster-port)). To use MLX anywhere else, pass
+is cheap (see [What auto picks on a Mac](#what-auto-picks-on-a-mac)). To use MLX anywhere else, pass
 `device="mlx"` (any family with a port, `mode="portable"` or `"kernels"`): it is often leaner, but the first call
 at each input size compiles the network (seconds for large inputs, see "First call" below). Loading with
 `device="mps"` logs at INFO when an MLX port exists. `fastforks info MODEL` lists it as `apple mlx`.
@@ -802,7 +811,7 @@ print(model.backend.mode, model.backend.device, model.backend.kernels)  # kernel
   support portable MLX. RoMa v2 dense matching supports portable and kernels modes in float32. Any other family raises
   `BackendUnavailableError`; nothing falls back to MPS. Without the `mlx` package `load` raises
   `MissingDependencyError` with the pip command. With `device="mps"`, `load` also takes a port on its own where it
-  was measured faster (see [MPS takes the faster port](#mps-takes-the-faster-port)).
+  was measured faster (see [What auto picks on a Mac](#what-auto-picks-on-a-mac)).
 - `mode`: `portable` is the network in plain MLX operations, `kernels` adds Metal kernels that MLX runs
   (`mx.fast.metal_kernel`; compiled on the device on first use, nothing to download). `auto` takes `kernels` where
   the port has them at the dtype (logged at INFO).
