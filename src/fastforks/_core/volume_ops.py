@@ -158,3 +158,62 @@ def upsample_soft_argmax(cost: torch.Tensor, max_disp: int, height: int, width: 
 @upsample_soft_argmax.register_fake
 def _(cost: torch.Tensor, max_disp: int, height: int, width: int) -> torch.Tensor:  # noqa: ARG001 - same schema
     return cost.new_empty((cost.shape[0], height, width), dtype=torch.float32)
+
+
+def _corr_windows(
+    f1: torch.Tensor, levels: list[torch.Tensor], coords: torch.Tensor, radius: int, scale: float
+) -> torch.Tensor:
+    b, c, h, w = f1.shape
+    side, k = 2 * radius + 2, 2 * radius + 1
+    a = f1.flatten(2).transpose(1, 2)  # [B, P, C]
+    steps = torch.arange(side, device=f1.device)
+    out = []
+    for lvl, f2 in enumerate(levels):
+        hl, wl = f2.shape[-2:]
+        flat = f2.flatten(2).transpose(1, 2)  # [B, hl * wl, C]
+        xy = coords.float().flatten(2) / 2**lvl
+        rows = []
+        for i in range(b):
+            cx, cy = xy[i, 0], xy[i, 1]
+            fx, fy = cx.floor(), cy.floor()
+            wx, wy = (cx - fx)[:, None, None], (cy - fy)[:, None, None]
+            gx, gy = fx.long()[:, None] - radius + steps, fy.long()[:, None] - radius + steps
+            inside = ((gy >= 0) & (gy < hl))[:, :, None] & ((gx >= 0) & (gx < wl))[:, None, :]
+            idx = gy.clamp(0, hl - 1)[:, :, None] * wl + gx.clamp(0, wl - 1)[:, None, :]
+            near = flat[i].index_select(0, idx.view(-1)).view(h * w, side * side, c)
+            d = torch.bmm(near.float(), a[i, :, :, None].float()).view(h * w, side, side) * inside * scale  # [P, y, x]
+            v = (1 - wy) * ((1 - wx) * d[:, :-1, :-1] + wx * d[:, :-1, 1:]) + wy * (
+                (1 - wx) * d[:, 1:, :-1] + wx * d[:, 1:, 1:]
+            )
+            rows.append(v.transpose(1, 2).reshape(h * w, k * k).t())  # x offset major
+        out.append(torch.stack(rows))
+    return torch.cat(out, 1).view(b, len(levels) * k * k, h, w)
+
+
+@torch.library.custom_op("fastforks::corr_windows", mutates_args=())
+def _corr_windows_op(
+    f1: torch.Tensor, levels: list[torch.Tensor], coords: torch.Tensor, radius: int, scale: float
+) -> torch.Tensor:
+    return _corr_windows(f1, levels, coords, radius, scale)
+
+
+@_corr_windows_op.register_fake
+def _(f1: torch.Tensor, levels: list[torch.Tensor], coords: torch.Tensor, radius: int, scale: float) -> torch.Tensor:  # noqa: ARG001
+    b, _, h, w = f1.shape
+    return f1.new_empty((b, len(levels) * (2 * radius + 1) ** 2, h, w), dtype=torch.float32)
+
+
+def corr_windows(
+    f1: torch.Tensor, levels: list[torch.Tensor], coords: torch.Tensor, radius: int, scale: float
+) -> torch.Tensor:
+    """RAFT-style correlation windows without the all-pairs volume (`[B, L * (2r + 1)^2, H, W]` float32).
+
+    `f1` `[B, C, H, W]`; `levels`: the second feature map and its pooled levels `[B, C, h_l, w_l]` (level `l` of the
+    volume is `scale * f1 . levels[l]`); `coords` `[B, 2, H, W]` (x, y at level 0). Channel `l K^2 + i K + j` is level
+    `l` bilinearly sampled (align_corners, zeros outside) at `(x / 2^l + i - r, y / 2^l + j - r)`: x offset major, as
+    RAFT's `CorrBlock`. Eagerly a gather of each pixel's (2r + 2)^2 neighbours; while exporting for the MLX replay the
+    `fastforks::corr_windows` op, one Metal kernel there (memory O(HW), not O((HW)^2)).
+    """
+    if EXPORTING_FOR_MLX.get():
+        return _corr_windows_op(f1, levels, coords, radius, scale)
+    return _corr_windows(f1, levels, coords, radius, scale)

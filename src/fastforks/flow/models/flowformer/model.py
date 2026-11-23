@@ -9,7 +9,8 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
-from fastforks._core.patch import override
+from fastforks._core.patch import base_type, override
+from fastforks._core.volume_ops import corr_windows
 from fastforks.flow._runner import Forward, Runner
 from fastforks.kernels import flow_upsample
 from fastforks.shared import libnet, mlx_wrap
@@ -416,8 +417,94 @@ class Kernels(Portable):
                 m.__dict__["_sdpa"] = True  # read by its forward
 
 
+MLX_EMBED_MAPS = 512  # fixed: cost maps embedded at a time in the MLX pass (float32 convs: 280 MB per map chunk)
+
+
+def _encode_mlx(m: CostPerceiverEncoder, vol: _Volume, data: dict, context: torch.Tensor | None = None) -> torch.Tensor:
+    """`_encode` for the MLX export: the cost maps made, embedded and projected per chunk, the latents concatenated.
+
+    Upstream's patch embedding (`PatchEmbed._embed`) in the run dtype; no volume (4 GiB at 1080 x 1920) and none of the
+    `[H W, patches, 2 C]` embeddings (8 GiB) is held whole.
+    """
+    f1, f2 = vol.f1, vol.f2
+    b, _, h, w = f2.shape
+    n, k = h * w, m.cfg.cost_latent_token_num
+    data["cost_maps"] = vol
+    pe = m.patch_embed
+    pad = (0, -w % pe.patch_size, 0, -h % pe.patch_size)
+    parts, size = [], None
+    for i in range(b):
+        for s in range(0, n, MLX_EMBED_MAPS):
+            maps = F.pad(torch.matmul(f1[i, s : s + MLX_EMBED_MAPS], f2[i].flatten(1)).view(-1, 1, h, w), pad)
+            emb, size = pe._embed(maps, share_position=True)  # noqa: SLF001 - upstream's per-chunk embedding
+            parts.append(m.input_layer(m.latent_tokens, emb))
+    data["H3W3"] = size
+    x = short_cut = torch.cat(parts)
+    for idx, layer in enumerate(m.encoder_layers):
+        x = layer(x)
+        x = x.view(b, n, k, -1).permute(0, 2, 1, 3).reshape(b * k, n, -1)
+        x = m.vertical_encoder_layers[idx](x, (h, w), context)
+        x = x.view(b, k, n, -1).permute(0, 2, 1, 3).reshape(b * n, k, -1)
+    return x + short_cut if m.cfg.cost_encoder_res is True else x
+
+
+def _windows_mlx(_decoder: MemoryDecoder, vol: _Volume, coords: torch.Tensor) -> torch.Tensor:
+    """Upstream `encode_flow_token` as one `corr_windows` op (unscaled dot products, one level, radius 4)."""
+    b, c, h, w = vol.f2.shape
+    f1 = vol.f1.transpose(1, 2).reshape(b, c, h, w)
+    return corr_windows(f1, [vol.f2], coords, RADIUS, 1.0)
+
+
+def _gma_attention_mlx(att: Attention, fmap: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+    """Upstream GMA `Attention.forward`, or for a matrix beyond `GMA_MATRIX_BYTES` (float32) `(q, k)`."""
+    b, _, h, w = fmap.shape
+    if b * att.heads * (h * w) ** 2 * 4 <= GMA_MATRIX_BYTES:
+        return base_type(att).forward(att, fmap)
+    q, k = att.to_qk(fmap).chunk(2, dim=1)
+    q, k = (t.view(b, att.heads, -1, h * w).transpose(2, 3) for t in (q, k))
+    return q * att.scale, k
+
+
+def _gma_aggregate_mlx(
+    agg: Aggregate, attn: torch.Tensor | tuple[torch.Tensor, ...], fmap: torch.Tensor
+) -> torch.Tensor:
+    """Upstream GMA `Aggregate.forward`; with `(q, k)` fused attention (head size 128: no score matrix in MLX)."""
+    if not isinstance(attn, tuple):
+        return base_type(agg).forward(agg, attn, fmap)
+    b, _, h, w = fmap.shape
+    v = agg.to_v(fmap).view(b, agg.heads, -1, h * w).transpose(2, 3)
+    q, k = attn
+    out = F.scaled_dot_product_attention(q, k, v, scale=1.0).transpose(2, 3).reshape(b, -1, h, w)
+    if agg.project is not None:
+        out = agg.project(out)
+    return fmap + agg.gamma * out
+
+
+class _Mlx(Portable):
+    """The portable pass for the MLX replay without the all-pairs volume or a large GMA matrix.
+
+    As `Kernels`: the volume is deferred (`_Volume`), its maps made and embedded per chunk (`_encode_mlx`), the
+    decoder's windows one `corr_windows` kernel, GMA's matrix recomputed by fused attention when it is large, and the
+    cost encoder's sub-sampled attention fused.
+    """
+
+    def __init__(self, ctx: Context) -> None:
+        """Load the network and swap the volume and the GMA matrix for their memory-bound forms."""
+        super().__init__(ctx)
+        override(self.net.memory_encoder, _corr, "corr")
+        override(self.net.memory_encoder.cost_perceiver_encoder, _encode_mlx)
+        override(self.net.memory_decoder, _windows_mlx, "encode_flow_token")
+        override(self.net.memory_decoder.att, _gma_attention_mlx)
+        override(self.net.get_submodule("memory_decoder.update_block.aggregator"), _gma_aggregate_mlx)
+        from .net.FlowFormer.LatentCostFormer.twins import GlobalSubSampleAttnRPE  # noqa: PLC0415 - needs timm
+
+        for m in self.net.modules():
+            if isinstance(m, GlobalSubSampleAttnRPE):
+                m.__dict__["_sdpa"] = True  # fused attention: 1080 x 1920 materialised 8 GB of float32 scores
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": mlx_wrap.port(_Mlx),
 }

@@ -2423,6 +2423,48 @@
     "float32": "portable"
    }
   },
+  "flowformer-small-chairs@1": {
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "flowformer-small-sintel@1": {
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "flowformer-small-things@1": {
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
   "flowseek-t-things-notartan@1": {
    "auto": [
     "portable",
@@ -3824,6 +3866,29 @@
     "portable",
     "float16"
    ],
+   "dtypes": {
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "memfof-kitti@1": {
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   }
+  },
+  "memfof-sintel@1": {
    "dtypes": {
     "float32": "portable"
    },
