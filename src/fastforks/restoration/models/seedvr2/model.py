@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.model import eager_in_compile
 from fastforks.kernels import nf4
 from fastforks.restoration._runner import Forward, Runner
 from fastforks.shared.nf4 import code as nf4_code
@@ -69,7 +70,7 @@ class Noise:
         self.key: tuple[tuple[int, int, int], torch.device] | None = None
         self.eps = self.z = torch.empty(0)
 
-    @torch.compiler.disable
+    @eager_in_compile
     def __call__(self, size: tuple[int, int, int], device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
         """The two noises of latent size `(t, h, w)` on `device`."""
         if (size, device) != self.key:

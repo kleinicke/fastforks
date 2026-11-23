@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, cast
 import torch
 import torch.nn.functional as F
 
+from fastforks._core.model import eager_in_compile
 from fastforks._core.runner import host
 from fastforks.depth._runner import Forward, Runner
 from fastforks.kernels import nf4
@@ -82,7 +83,7 @@ class Noise:
         self.key: tuple[tuple[int, ...], torch.device] | None = None
         self.z = torch.empty(0)
 
-    @torch.compiler.disable
+    @eager_in_compile
     def __call__(self, shape: tuple[int, ...], device: torch.device) -> torch.Tensor:
         """The noise of `shape` on `device`."""
         if (shape, device) != self.key:

@@ -316,6 +316,16 @@ def eager_in_compile(fn: _Fn) -> _Fn:
     return cast("_Fn", call)
 
 
+def constant_in_compile(fn: _Fn) -> _Fn:
+    """`fn`, marked for `torch.compile` / `torch.export` as returning a constant (`assume_constant_result`).
+
+    The mark is an attribute set on `fn` itself, so it is set once `torch._dynamo` is imported (by any tracing caller),
+    not at the import of the caller's module.
+    """
+    _after_dynamo(lambda: torch.compiler.assume_constant_result(fn))
+    return fn
+
+
 def _kernels_entry_points(runner: Runner) -> None:
     """Wrap the kernels runner's entry points: deferred output checks, and a clean graph break in `torch.compile`.
 

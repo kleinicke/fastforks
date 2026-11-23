@@ -26,6 +26,7 @@ from torch import nn
 
 from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
+from fastforks._core.model import eager_in_compile
 from fastforks._core.upload import device_tensor
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
@@ -88,7 +89,7 @@ class Params:
     cuda_graphs: bool  # kernels: replay every frame after the first from a CUDA graph (option)
 
 
-@torch.compiler.disable
+@eager_in_compile
 def _read_frame(frames: Callable[[int], torch.Tensor], index: int) -> torch.Tensor:
     """Read and validate a public video frame outside Dynamo's tensor-only network graph."""
     return frames(index)

@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING, Any
 
 import torch
 
+from fastforks._core.model import eager_in_compile
+
 from .net.clip_text import CLIPTextTransformer
 from .net.unet import UNet2DConditionModel
 from .net.vae import AutoencoderKL
@@ -92,7 +94,7 @@ class Noise:
             self.key = key
         return self.z
 
-    @torch.compiler.disable
+    @eager_in_compile
     def _draw(self, shape: torch.Size, device: torch.device, dtype: torch.dtype) -> tuple[torch.Tensor, ...]:
         with torch.inference_mode(mode=False):
             g = torch.Generator().manual_seed(self.seed)

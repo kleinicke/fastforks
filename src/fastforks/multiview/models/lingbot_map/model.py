@@ -30,6 +30,7 @@ from torch import nn
 from fastforks._core.errors import OptionsError
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.mlx_cast import to_run_dtype
+from fastforks._core.model import constant_in_compile
 from fastforks._core.patch import override
 from fastforks._core.tracing import in_onnx_export
 from fastforks._core.upload import device_tensor
@@ -77,7 +78,7 @@ def _rope3d_tables(
     return torch.cat([cos, cos], -1)[:, None, None], torch.cat([-sin, sin], -1)[:, None, None]
 
 
-@torch.compiler.assume_constant_result
+@constant_in_compile
 def _export_rope3d(
     start: int, stop: int, rows: int, cols: int, dtype: torch.dtype
 ) -> tuple[torch.Tensor, torch.Tensor]:

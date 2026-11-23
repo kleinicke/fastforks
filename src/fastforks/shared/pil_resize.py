@@ -7,6 +7,7 @@ import math
 
 import torch
 
+from fastforks._core.model import eager_in_compile
 from fastforks.kernels import pil_resample
 
 PIL_BITS = 22  # fixed: Pillow `PRECISION_BITS` of the 8-bit resampling (32 - 8 - 2)
@@ -45,7 +46,7 @@ def _pil_taps(n_in: int, n_out: int, device: torch.device, *, cubic: bool = Fals
 
 
 # data-dependent tap tables (lru_cache, int(max)): one clean graph break instead of dynamo tracing the loop
-@torch.compiler.disable
+@eager_in_compile
 def pil_bilinear(x: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
     """Pillow `Image.resize(BILINEAR)` of a uint8-valued `[B, C, H, W]` tensor, bit-exact on any device.
 
@@ -55,7 +56,7 @@ def pil_bilinear(x: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
     return _pil_resize(x, size, cubic=False)
 
 
-@torch.compiler.disable
+@eager_in_compile
 def pil_bicubic(x: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
     """Pillow `Image.resize(BICUBIC)` (torchvision's PIL `Resize` default for bicubic), as `pil_bilinear`."""
     return _pil_resize(x, size, cubic=True)
