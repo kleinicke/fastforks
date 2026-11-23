@@ -24,7 +24,7 @@ from fastforks._core.patch import override
 from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
 from fastforks.kernels import image_normalize
 from fastforks.matting._runner import Forward, Runner, scale
-from fastforks.shared import mlx_wrap
+from fastforks.shared import mlx_wrap, swin_v1
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import InSPyReNet_SwinB
@@ -135,13 +135,14 @@ class Portable(Runner):
 
 
 class Kernels(Portable):
-    """Fuse input normalization, fp16-accumulate GEMMs, capture the fixed-size Swin network."""
+    """Fuse input normalization, gather-based Swin blocks, fp16-accumulate GEMMs, capture the fixed-size network."""
 
     module = Runner.module
 
     def __init__(self, ctx: Context) -> None:
         """Prepare the accelerated inference path on the model device."""
         super().__init__(ctx)
+        swin_v1.fast(self.net.backbone)
         self.mean = torch.tensor(IMAGENET_MEAN, device=ctx.device)
         self.std = torch.tensor(IMAGENET_STD, device=ctx.device)
         self.graphs = SmallShapeGraphs(super()._net, pixels=2**21)

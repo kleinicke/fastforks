@@ -20,7 +20,7 @@ import torch.nn.functional as F
 
 from fastforks._core.half import fp16_accumulate
 from fastforks.matting._runner import Forward, Runner, scale
-from fastforks.shared import mlx_wrap
+from fastforks.shared import mlx_wrap, swin_v1
 from fastforks.shared.cnn_kernels import CL, prepare_generic
 
 from .net.ben2 import BEN_Base
@@ -93,6 +93,7 @@ class Kernels(_Matting):
         super().__init__(ctx)
         net = _cpu_net(ctx).to(ctx.device)
         prepare_generic(net, ctx.device)  # no BatchNorm to fuse: convs + InstanceNorms
+        swin_v1.fast(net.backbone)
         self.dtype = torch.float16
         self.net = net
 
