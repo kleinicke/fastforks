@@ -81,7 +81,7 @@ def stack(inputs: tuple[torch.Tensor, ...], features: torch.Tensor, flow: torch.
     )
     if len(inputs) == 1:
         out[:, :prefix].copy_(inputs[0])
-    else:
-        torch.cat(inputs, 1, out=out[:, :prefix])
+    else:  # cat then one strided copy: `cat(..., out=out[:, :prefix])` is 2.5x slower into the channel slice
+        out[:, :prefix].copy_(torch.cat([x.to(out.dtype) for x in inputs], 1))
     _sample(features[:batch], features[batch:], flow, out[:, prefix:], c)
     return out

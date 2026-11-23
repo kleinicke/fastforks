@@ -240,18 +240,22 @@ def _warp_pair(x0: torch.Tensor, x1: torch.Tensor, flow: torch.Tensor) -> tuple[
 
 
 def _head(
-    hd: Head, motion: torch.Tensor, x: torch.Tensor, flow: torch.Tensor | None, fmt: torch.memory_format
+    hd: Head, motion: torch.Tensor, xs: tuple[torch.Tensor, ...], flow: torch.Tensor | None, fmt: torch.memory_format
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """`Head.forward`: the flow and mask update at full size in float32 (its convs in the features' dtype)."""
+    """`Head.forward(motion, cat(xs), flow)`: the flow and mask update at full size in float32.
+
+    Its convs run in the features' dtype. Bilinear resizing works per channel, so the pieces are resized one by one
+    and concatenated at the head's size instead of concatenating them at full size first (the same values).
+    """
     s = hd.scale
     motion = hd.upsample(motion)
     if s != 4:  # noqa: PLR2004 - upstream's 1/4 head
-        x = F.interpolate(x, scale_factor=4.0 / s, mode="bilinear", align_corners=False)
+        xs = tuple(F.interpolate(x, scale_factor=4.0 / s, mode="bilinear", align_corners=False) for x in xs)
     if flow is not None:
         if s != 4:  # noqa: PLR2004
             flow = F.interpolate(flow, scale_factor=4.0 / s, mode="bilinear", align_corners=False) * 4.0 / s
-        x = torch.cat((x, flow), 1)
-    y = hd.conv(torch.cat((motion, x.to(motion.dtype, memory_format=fmt)), 1)).float()
+        xs = (*xs, flow)
+    y = hd.conv(torch.cat((motion, *(x.to(motion.dtype, memory_format=fmt) for x in xs)), 1)).float()
     if s != 4:  # noqa: PLR2004
         y = F.interpolate(y, scale_factor=s // 4, mode="bilinear", align_corners=False)
         return y[:, :4] * (s // 4), y[:, 4:5]
@@ -313,9 +317,9 @@ def _interpolate(  # noqa: PLR0913
         feat = torch.cat((tt * m[:b], (1 - tt) * m[b:], af[-1 - i][:b], af[-1 - i][b:]), 1)
         hd = cast("Head", net.block[i])
         if flow is None or mask is None or warped0 is None or warped1 is None:
-            flow, mask = _head(hd, feat, torch.cat((img0, img1), 1), None, fmt)
+            flow, mask = _head(hd, feat, (img0, img1), None, fmt)
         else:
-            flow_, mask_ = _head(hd, feat, torch.cat((img0, img1, warped0, warped1, mask), 1), flow, fmt)
+            flow_, mask_ = _head(hd, feat, (img0, img1, warped0, warped1, mask), flow, fmt)
             flow, mask = flow + flow_, mask + mask_
             del flow_, mask_
         del m, feat
