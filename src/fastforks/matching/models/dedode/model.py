@@ -13,6 +13,8 @@ On CUDA the validated dtype is float16 as upstream: the VGG encoders and the ref
 DINOv2 of -G with float16 weights and input; logits, keypoint sampling and matching stay float32. On CUDA the eval
 BatchNorms are folded into their convs and the convolutions run channels-last (cuDNN's depthwise 5 x 5); the DINOv2
 of -G runs fused `scaled_dot_product_attention` (upstream: xFormers) with its LayerScales folded into the linears.
+Kernels mode projects the descriptor's finest refiner (to 257 channels) and resizes the coarser description only at
+the four pixels around each keypoint (`fastforks.shared.dedode.sparse`, as LoMa), not over the whole grid.
 """
 
 from __future__ import annotations
@@ -40,6 +42,7 @@ from fastforks.shared.dedode import (
     dual_softmax_match,
     sample_keypoints,
 )
+from fastforks.shared.dedode import sparse as dedode_sparse
 from fastforks.shared.depth_anything_v2 import DINOv2, fold_layer_scale, sdpa_attention
 
 if TYPE_CHECKING:
@@ -77,6 +80,7 @@ class Matcher(nn.Module):
 
     mean: torch.Tensor
     std: torch.Tensor
+    sparse = False  # kernels: the descriptor's last projection at the keypoints only (`dedode_sparse`)
 
     def __init__(self, params: Params) -> None:
         """Build the networks (no weights)."""
@@ -109,6 +113,8 @@ class Matcher(nn.Module):
         """Keypoints (normalised coordinates) and their descriptions of one image."""
         x = self.prepare(image)
         keypoints, _ = sample_keypoints(self.detector(x), self.params.max_keypoints)
+        if self.sparse:
+            return keypoints, dedode_sparse.sample(self.descriptor, x, keypoints)
         return keypoints, describe_keypoints(self.descriptor(x), keypoints)
 
     @staticmethod
@@ -150,6 +156,7 @@ def load_matcher(ctx: Context, *, kernels: bool = False) -> Matcher:
             fold_layer_scale(net.dinov2)
         if kernels:  # fastforks: conv + BN + ReLU fused in the epilogue of fp16 cuDNN / CUTLASS convs, no BN fold
             net.match_descriptors = dual_softmax.matches
+            net.sparse = True
             cnn_kernels.load(ctx.device)
             prepare(net.detector, ctx.device)
             prepare(net.descriptor, ctx.device)
