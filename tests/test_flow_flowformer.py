@@ -72,3 +72,41 @@ def test_batched_network_is_independent() -> None:
     assert batch.shape == (2, 2, 64, 96)
     assert bool(torch.isfinite(batch).all())
     torch.testing.assert_close(batch[1:], single, rtol=0, atol=1e-3)
+
+
+def test_kernels_windows_match_the_volume_lookup() -> None:
+    """Kernels' gathered windows are upstream's bilinear lookup of the stored volume, also off the map's edges."""
+    from fastforks.flow.models.flowformer import model  # noqa: PLC0415
+    from fastforks.flow.models.flowformer.net.FlowFormer.LatentCostFormer.decoder import MemoryDecoder  # noqa: PLC0415
+
+    torch.manual_seed(0)
+    b, c, h, w = 2, 16, 7, 11
+    f1, f2 = torch.randn(b, c, h, w, dtype=torch.float64), torch.randn(b, c, h, w, dtype=torch.float64)
+    cost_maps = torch.einsum("bci,bcj->bij", f1.flatten(2), f2.flatten(2)).reshape(b * h * w, 1, h, w)
+    grid = torch.stack(torch.meshgrid(torch.arange(w), torch.arange(h), indexing="xy"), 0).to(torch.float64)
+    coords = grid + torch.randn(b, 2, h, w, dtype=torch.float64) * 4  # many windows reach past the borders
+    want = MemoryDecoder.encode_flow_token(None, cost_maps, coords)  # ty: ignore[invalid-argument-type]  # no self use
+    got = model._windows(None, model._Volume(f1, f2), coords)  # ty: ignore[invalid-argument-type]
+    torch.testing.assert_close(got, want.float(), rtol=0, atol=1e-4)
+
+
+def test_kernels_chunked_encoder_matches_upstream(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Kernels' encoder (cost maps per chunk of query pixels, never the volume) gives upstream's cost memory."""
+    pytest.importorskip("timm")
+    from fastforks._core.patch import override  # noqa: PLC0415
+    from fastforks.flow.models.flowformer import model  # noqa: PLC0415
+    from fastforks.flow.models.flowformer.net.FlowFormer.LatentCostFormer.transformer import FlowFormer  # noqa: PLC0415
+
+    card = flow.model_card("flowformer-small-things")
+    torch.manual_seed(0)
+    net = FlowFormer(Params(**card.params, iters=2)).eval()
+    a, b = torch.rand(1, 3, 64, 96) * 255, torch.rand(1, 3, 64, 96) * 255
+    enc = net.memory_encoder
+    with torch.inference_mode():
+        want = enc(a, b, data := {})
+        override(enc, model._corr, "corr")
+        override(enc.cost_perceiver_encoder, model._encode)
+        monkeypatch.setattr(enc.cost_perceiver_encoder.patch_embed, "chunk", 7)  # several chunks, a ragged last one
+        got = enc(a, b, mine := {})
+    assert mine["H3W3"] == data["H3W3"]
+    torch.testing.assert_close(got, want, rtol=1e-4, atol=1e-4)
