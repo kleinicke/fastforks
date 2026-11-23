@@ -16,8 +16,8 @@ def test_only_depthwise_layers_are_swapped() -> None:
         torch.nn.Conv2d(16, 16, 3, padding=1, groups=4),
     )
     assert native_depthwise(net) == 1
-    assert "forward" in vars(net[0])
-    assert all("forward" not in vars(m) for m in net[1:])
+    assert type(net[0]) is not torch.nn.Conv2d  # exact type: overridden
+    assert all(type(m) is torch.nn.Conv2d for m in net[1:])  # exact type: untouched
 
 
 @pytest.mark.gpu

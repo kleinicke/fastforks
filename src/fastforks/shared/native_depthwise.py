@@ -9,9 +9,9 @@ such set-up and accumulates in float32.
 
 from __future__ import annotations
 
-import functools
-
 import torch
+
+from fastforks._core.patch import base_type, override
 
 __all__ = ["native_depthwise"]
 
@@ -27,12 +27,13 @@ def native_depthwise(net: torch.nn.Module) -> int:
     n = 0
     for m in net.modules():
         if (
-            type(m) is torch.nn.Conv2d
+            isinstance(m, torch.nn.Conv2d)
+            and base_type(m) is torch.nn.Conv2d  # subclasses may change forward
             and m.groups > 1
             and m.groups == m.in_channels == m.out_channels
             and m.padding_mode == "zeros"
             and not isinstance(m.padding, str)
         ):
-            m.forward = functools.partial(_depthwise, m)  # ty: ignore[invalid-assignment] - an instance attribute
+            override(m, _depthwise)
             n += 1
     return n
