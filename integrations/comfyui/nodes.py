@@ -331,6 +331,16 @@ def _file(mid: str) -> Path | None:
     return Path(folder_paths.get_full_path_or_raise("upscale_models", mid.removeprefix(_FILE)))
 
 
+def describe_backend(b: Any) -> str:  # noqa: ANN401 - fastforks.Backend
+    """What ran, in a node's words: e.g. "mlx, float16, kernels dpt_mlx" or "mps, float32, portable"."""
+    if not hasattr(b, "kernels"):  # a stand-in model (tests) or an older fastforks
+        return str(b)
+    names = ", ".join(k.split("@", 1)[0] for k in b.kernels)
+    if names:
+        return f"{b.device}, {b.dtype}, kernels {names}"
+    return f"{b.device}, {b.dtype}, {'MLX graph' if b.mode != 'portable' and b.device == 'mlx' else b.mode}"
+
+
 def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = None) -> fastforks.Model:
     """The cached model, or load it on ComfyUI's device after asking ComfyUI to free room for it."""
     mm = _mm()
@@ -357,7 +367,7 @@ def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = 
         # this much is free (no-op if it already is)
         mm.free_memory(2 * (file.stat().st_size if file else _weights_bytes(mid)) + 2**30, device)
         model = restoration.load(file, **kw) if file else fastforks.load(mid, **(options or {}), **kw)
-    log.info("fastforks: loaded %s (%s)", mid, model.backend)
+    log.info("fastforks: loaded %s (%s)", mid, describe_backend(model.backend))
     _cache[key] = model
     return model
 

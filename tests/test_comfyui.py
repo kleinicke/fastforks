@@ -1099,3 +1099,17 @@ def test_model_tooltip_mentions_downloads_and_gating(pack: Any) -> None:
     tip = pack.nodes.Segment.INPUT_TYPES()["required"]["model"][1]["tooltip"]
     assert "downloads the weights" in tip
     assert "gated on Hugging Face" in tip
+
+
+def test_describe_backend(pack: Any) -> None:
+    describe = pack.nodes.describe_backend
+    b = SimpleNamespace(mode="kernels", device="mlx", dtype="float16", kernels=("dpt_mlx@e240761ea20e:mlx",))
+    assert describe(b) == "mlx, float16, kernels dpt_mlx"
+    assert (
+        describe(SimpleNamespace(mode="kernels", device="mlx", dtype="float16", kernels=()))
+        == "mlx, float16, MLX graph"
+    )
+    assert (
+        describe(SimpleNamespace(mode="portable", device="mps", dtype="float32", kernels=()))
+        == "mps, float32, portable"
+    )
