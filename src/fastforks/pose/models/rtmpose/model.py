@@ -220,13 +220,17 @@ def _precise_conv(  # noqa: PLR0913, PLR0917 - fused kernel signature
     *,
     channels: int,
 ) -> torch.Tensor:
-    """Wide half-input convolutions with cuDNN accumulation and float32 residual/activation."""
+    """Wide half-input convolutions with cuDNN (float32) accumulation, then the half residual add and activation.
+
+    The half activations equal float32 ones rounded to half for every half input; the earlier float32 round trip
+    cost 24 ms of 86 per 30-crop backbone pass (Windows, RTX 5060 Ti) for the same golden error.
+    """
     if w.shape[1] < channels:
         return conv_ops.conv_fused(x, w, b, residual, padding, stride, act, cfg)
-    y = F.conv2d(x, w, b, stride, padding).float()
+    y = F.conv2d(x, w, b, stride, padding)
     if residual is not None:
-        y = y + residual.float()
-    return conv_ops._ACTS[act](y).half().contiguous(memory_format=torch.channels_last)  # noqa: SLF001 - shared fused-op activation codes
+        y = y.add_(residual)
+    return conv_ops._ACTS[act](y).contiguous(memory_format=torch.channels_last)  # noqa: SLF001 - shared fused-op activation codes
 
 
 def _precise_backbone(backbone: torch.nn.Module, channels: int) -> None:
