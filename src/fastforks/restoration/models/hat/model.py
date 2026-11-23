@@ -4,7 +4,8 @@
 Upstream builds the shifted-window mask on the CPU on every call and gathers both relative position biases (the
 window attention's and the overlapping cross-attention's) on every call; here the mask is made on the device once per
 size, the biases once at load, and both attentions are one `scaled_dot_product_attention` each
-(`fastforks.shared.swin_sr`, the head size padded from 30 to 32 on CUDA). `PatchEmbed` returns contiguous tokens
+(`fastforks.shared.swin_sr`, the head size padded from 30 to 32: the window attention's in its weights at load, the
+overlapping attention's on CUDA per call). `PatchEmbed` returns contiguous tokens
 (upstream: a transposed view, which made every residual add strided). The input mean is a buffer (upstream: a plain
 attribute, `type_as` per call).
 
@@ -36,6 +37,7 @@ from fastforks.shared import mlx_wrap
 from fastforks.shared.swin_sr import (
     attention,
     checkpoint_upsampler,
+    pad_heads,
     patch_embed,
     relative_bias,
     shift_mask,
@@ -163,6 +165,7 @@ def _prepare(net: HAT) -> None:
         if isinstance(m, WindowAttention):
             m.register_buffer("bias", relative_bias(m.get_parameter("relative_position_bias_table"), sa))
             del m.relative_position_bias_table
+            pad_heads(m.qkv, m.proj, m.num_heads)
             override(m, _attention)
         elif isinstance(m, OCAB):
             t = m.get_parameter("relative_position_bias_table").detach()[oca.reshape(-1)].view(*oca.shape, -1)
