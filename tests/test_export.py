@@ -58,17 +58,12 @@ _NOT_TRACEABLE = {  # module() runs, but neither dynamo nor torch.export capture
     "xfeat@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
     "aliked-flexglue@1": "sparse matching: the keypoint and match counts are data-dependent (card limitation)",
     "loma-b@1": "sparse matching: the match count is data-dependent (nonzero; card limitation)",
-    "alltracker-tiny@1": "point tracking: the track set is data-dependent (unique; card limitation)",
     "track-on-r@1": "point tracking: a data-dependent scalar read per step (card limitation)",
     "geocalib-pinhole@1": (
         "the Levenberg-Marquardt loop branches and logs on its convergence: 35 graph breaks (card limitation)"
     ),
     "resplat-small-dl3dv@1": (
         "the portable kNN pooling calls torch ops that return non-Tensors: 38 graph breaks (card limitation)"
-    ),
-    "cotracker3-online@1": (
-        "point tracking: the online window loop is data-dependent "
-        "(6 graph breaks; export guards on data; card limitation)"
     ),
     "omni-dc@1": "the conjugate-gradient solve runs until convergence: a data-dependent step count (card limitation)",
 }
@@ -82,6 +77,10 @@ _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.
     "grounding-dino-tiny@1": (
         "transformers' torch_compilable_check calls Tensor.item() (15 graph breaks); torch.export captures"
     ),
+    "alltracker-tiny@1": "point tracking: the query start frames group the tracks (unique().tolist()); torch.export"
+    " captures the graph for queries on frame 0 (the exported contract)",
+    "cotracker3-online@1": "point tracking: the online window loop branches on the query start frames (6 graph"
+    " breaks); the export always takes the masked support update",
     "zoedepth-nk@1": "the NK model routes each image to the NYU or KITTI head by the argmax of its domain logits"
     " (.item(); the export runs both heads and selects)",
 }

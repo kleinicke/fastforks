@@ -50,7 +50,7 @@ Commercial use: yes.
 - Options: `iters` = 4 (>= 1)
 - Kernel libraries: `fvm_conv`
 - Variants: `alltracker`, `alltracker-tiny`
-- Public ONNX / TensorRT export is unavailable for `alltracker`, `alltracker-tiny` (torch.export fails (TorchExportError, step 1/3 of the ONNX export)).
+- Public TensorRT export is unavailable for `alltracker`, `alltracker-tiny` (the engine build and its check have not run (ONNX Runtime matches eager on random weights for queries on frame 0; the ONNX gate is dropped)).
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `alltracker` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved); `alltracker-tiny` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved)
@@ -99,7 +99,7 @@ CPU, float32: max |diff| <= 2.3e-05 vs the original. GPU, float16 (the default),
 - Tracks are sampled bilinearly at the query position; upstream's evaluation rounds the query to the nearest pixel.
 - One video per call; all queries of a call share the video.
 - Kernels hold packed conv weights next to the originals the call reads (+31 MiB) and fragment the allocator: peak reserved is ~70 MiB above portable.
-- No exportable module: the track set is data-dependent (`torch.compile` runs with graph breaks; ONNX / TensorRT export fails).
+- An exported graph takes queries on frame 0 only and has the export's frame and query counts: `torch.export` programs raise on a later query, an ONNX file returns NaN for it. Model calls take any query frame (the start frames group the tracks; `torch.compile` runs with graph breaks).
 
 </details>
 
@@ -190,7 +190,7 @@ Commercial use: **no** (code: CC-BY-NC-4.0 (noncommercial); weights: CC-BY-NC-4.
 - Training data: Upstream paper: trained on synthetic Kubric MOVi-F sequences, then fine-tuned by pseudo-labelling about 15k real internet videos with other trackers (not released). No dataset entry here yet.
 - Kernel libraries: `fvm_conv`, `cotracker_corr`
 - Variants: `cotracker3-offline`, `cotracker3-online`
-- Public ONNX / TensorRT export is unavailable for `cotracker3-online` (torch.export fails (TorchExportError, step 1/3 of the ONNX export)).
+- Public TensorRT export is unavailable for `cotracker3-online` (the engine build and its check have not run (ONNX Runtime matches eager on random weights; the ONNX gate is dropped)).
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `cotracker3-offline` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved); `cotracker3-online` 3000x4000 (5.5 GiB peak allocated, 5.9 reserved)
@@ -233,7 +233,7 @@ CPU, float32: max |diff| <= 6e-05 vs the original. GPU, float16 (the default), p
 - cotracker3-offline holds the features of every frame (about 4 MB per frame in float16); cotracker3-online processes 16-frame windows and only keeps the tracks.
 - Visibility is upstream's score, rescaled so that 0.5 is upstream's threshold: the offline predictor's visibility > 0.9, the online predictor's visibility x confidence > 0.6.
 - One video per call; all queries of a call share the video.
-- cotracker3-online: the online window loop is data-dependent (6 graph breaks; `torch.export` guards on data), so no ONNX / TensorRT export; cotracker3-offline exports.
+- cotracker3-online: the online window loop branches on the query frames (6 `torch.compile` graph breaks). An exported graph has the export's frame and query counts and updates the support features in every window.
 
 </details>
 

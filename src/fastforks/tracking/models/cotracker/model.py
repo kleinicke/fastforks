@@ -316,7 +316,8 @@ def track_online(
             levels = [torch.cat([f, f[-1:].expand(pad, *f.shape[1:])]) for f in levels]
         # upstream: a query's support features come from the first window that contains its frame
         enter = (qf >= (ind + step if ind else 0)) & (qf < ind + win)
-        if enter.any() or not sup:
+        # An export cannot branch on `enter`: it always takes the update, which keeps `sup` where no query enters.
+        if torch.compiler.is_exporting() or enter.any() or not sup:
             new = core.support(levels, (qf - ind).clamp(0, win - 1), qxy)
             old = sup or [torch.zeros_like(s) for s in new]
             sup = [torch.where(enter[:, None, None], s, a) for s, a in zip(new, old, strict=True)]

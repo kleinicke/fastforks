@@ -157,7 +157,8 @@ def _direction(  # noqa: PLR0913 - feature window, point coordinates, and traver
             # Keep the overlap and seed only the incoming frames from the last visited frame.
             for state, updated in ((flows8, f8), (visconfs8, v8)):
                 state[:-STRIDE].copy_(updated[STRIDE:])
-                state[-STRIDE:].copy_(updated[-1:])
+                # Expanded here: the ONNX conversion of a broadcasting slice copy gives an invalid ScatterND.
+                state[-STRIDE:].copy_(updated[-1:].expand(STRIDE, -1, -1, -1))
         del f8, v8, m, window
     return tracks, vis
 
@@ -178,6 +179,14 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
     """
     h, w = size
     queries = to_float32(queries)  # the point coordinates stay float32 in a float16 MLX replay
+    exporting = group is None and torch.compiler.is_exporting()
+    if exporting:
+        # The exported graph covers queries that all start on frame 0 (`example_inputs`): the start frames are the only
+        # data the loop below branches on (`unique().tolist()`). Later starts are a runtime check of the exported
+        # program; eager calls take any start frame.
+        need = "the exported AllTracker graph needs every query on frame 0"
+        torch._check(queries[:, 0].max().item() == 0, lambda: need)  # noqa: SLF001 - torch's documented export assertion
+        group = 0
     nh, nw = params.height, params.width
     left, right, top, bottom = _pad(nh, nw)
     offset = device_tensor((left, top), device=queries.device, dtype=torch.float32)
@@ -207,6 +216,9 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
             if t0 > 0:
                 tr, vi = _direction(net, fmaps[: t0 + 1], pts[sel], offset, params.iters, reverse=True)
                 tracks[:t0, sel], vis[:t0, sel] = tr[1:].flip(0), vi[1:].flip(0)
+    if exporting:  # an ONNX file drops the check above: there a later query gives NaN, not a frame-0 track
+        late = queries[:, 0] != 0
+        tracks, vis = tracks.masked_fill(late[None, :, None], math.nan), vis.masked_fill(late[None], math.nan)
     return {"tracks": scale_xy(tracks + 0.5, w / nw, h / nh) - 0.5, "visibility": vis.clamp(0, 1) ** VIS_POWER}
 
 
