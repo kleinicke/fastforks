@@ -20,9 +20,13 @@ fast-acvnet, las2, rtmo (t/s/m/l), rife-4.25 / 4.25-lite / 4.26, gimm-vfi-r and 
   great_igev. AANet passed fixed and dynamic FP16 TensorRT. Dynamic FP16 ONNX and TensorRT used opt 336 × 384
   and a profile from 288 × 288 to 384 × 432. The engine's mean absolute difference from eager stayed below
   0.0018 pixels at min, opt and max. The 0.2.0 dynamic ONNX export failed on `aten.cudnn_grid_sampler`.
-- [ ] **Linux CUDA, GMFlow:** fp16 TensorRT engine speed and memory against v0.2.0 (no fp32 residual in
-  non-MLX exports).
-- [ ] **Linux CUDA, GIMM-VFI and RIFE:** fp16 export as in v0.2.0; RIFE's export graph uses in-place writes again.
+  CPU ONNX checks passed for CAS-GwcNet-C, CoEx and GREAT-IGEV. BridgeDepth hit the expected top-k tie in ONNX Runtime.
+- [x] GMFlow-scale1-mixdata exported from CUDA in FP16 at 256 × 384. ONNX Runtime differed from CUDA eager by
+  0.00053 flow pixels on average on the textured pair. The TensorRT card gate still applies, so engine speed and
+  memory remain open.
+- [x] GIMM-VFI-R exported from CUDA in FP16 at 128 × 128. ONNX Runtime differed from CUDA eager by an average
+  of 0.000054 on the normalized pixels. RIFE 4.26 passed its fixed FP16 TensorRT smoke. The GIMM-VFI-R TensorRT
+  quality gate still applies.
 - [x] **Linux CUDA, RTMO:** all four variants passed portable and kernels goldens with the restored FP16
   `out_cls` convolution. The RTMO-T FP16 public TensorRT engine built and returned finite matching-shape outputs.
 - [x] **Linux CUDA, PSMNet/GwcNet kernels mode:** portable and kernels goldens passed, including both GwcNet variants.
@@ -38,6 +42,8 @@ fast-acvnet, las2, rtmo (t/s/m/l), rife-4.25 / 4.25-lite / 4.26, gimm-vfi-r and 
 - [x] **Windows, ComfyUI:** load two models from parallel queue workers (the model cache is now behind a lock).
   (2026-11-24, RTX 5060 Ti: four threads started together, two Depth and two Classify runs on depth-anything-v2-s /
   convnext_tiny: no error, one cached model each, outputs equal to each other and to a serial run.)
+- [x] Calibrated CUDA stereo point clouds and NumPy uploads inside a CUDA graph passed on Ubuntu. Dropping a
+  Depth Anything V2 kernels model now releases its allocations immediately, including with cyclic GC disabled.
 
 ## Follow-up to the two 57e09e83 reviews
 
