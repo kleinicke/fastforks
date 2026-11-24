@@ -413,7 +413,7 @@ def gaussians(
     rays = rays / rays.norm(dim=-1, keepdim=True)  # upstream get_world_rays: unit directions
     means = c2w[:, None, :3, 3] + (rays @ c2w[:, :3, :3].mT) * d
     c2w64 = f64(c2w)[:, :3, :3]
-    q = quaternion_product(matrix_quaternion(c2w64)[:, None], f64(rot[..., [3, 0, 1, 2]]))
+    q = quaternion_product(matrix_quaternion(c2w64)[:, None], f64(rot.roll(1, -1)))
     q = (q * torch.where(q[..., :1] < 0, -1.0, 1.0)).float()
     harmonics = sh.reshape(v, h * w * 3, SH) @ sh_rotation(c2w64).float().mT
     return {

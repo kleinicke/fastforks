@@ -231,7 +231,7 @@ def gaussians(raw: torch.Tensor, pts: torch.Tensor, voxel_size: float) -> dict[s
     return {
         "gaussians/means": pts,
         "gaussians/scales": (0.001 * F.softplus(scales)).clamp_max(0.3),
-        "gaussians/rotations": rot[:, [3, 0, 1, 2]],
+        "gaussians/rotations": rot.roll(1, -1),
         "gaussians/harmonics": sh.reshape(-1, 3, SH) * _sh_mask(sh.device),
         "gaussians/opacities": feats[:, 0].sigmoid(),
     }
