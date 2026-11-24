@@ -4,7 +4,8 @@ Status 2026-11-20: all steps run on Windows 11 (ComfyUI 4806189de in a venv with
 through the ComfyUI API; results, timings and fixes in [comfyui-windows-results.md](comfyui-windows-results.md).
 ComfyUI portable (`python_embeded`, 2026-11-23): fresh wheels installed as `docs/comfyui.md` says, with an empty
 weights cache. All 19 nodes ran one model each, and weights and kernel DLLs downloaded on the first run. Not yet run:
-bfloat16 on an RTX 20xx.
+bfloat16 on an RTX 20xx (unit-tested with a faked sm_75: `auto` computes in float32 and logs it; an explicit
+`bfloat16` runs, emulated by torch, with one warning that names the dtype).
 
 ## What the code already handles
 - The pack (`integrations/comfyui/`) uses torch, numpy and PIL only: no paths, no POSIX calls, no subprocesses.
