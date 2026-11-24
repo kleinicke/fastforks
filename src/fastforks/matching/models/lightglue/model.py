@@ -19,6 +19,7 @@ import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -40,6 +41,7 @@ if TYPE_CHECKING:
     from fastforks.shared.cuda_graphs import GraphCache
 
 _DISK_NMS = 5  # fixed: upstream DISK extractor `nms_window_size`
+_DISK_PAD = 16  # fixed: the U-Net's stride (`DISK.forward`'s `pad_if_not_divisible`)
 _ALIKED_NMS = 2  # fixed: upstream ALIKED `nms_radius`
 
 
@@ -256,28 +258,156 @@ class _SplitHead(nn.Module):
         return heat, desc
 
 
-class _MlxDisk(Portable):
-    """`Portable` with DISK's U-Net behind `_SplitHead`."""
+class _MlxMatcher(Portable):
+    """`Portable` for MLX: keypoint selection, descriptors and LightGlue in MLX operations.
+
+    A subclass queues an image's dense maps (`_maps`) and selects its features from them (`_detect`: one host read
+    per image; the descriptors stay on MLX). `__call__` and `match` run the shared `MlxLightGlue`; `describe` hands
+    the features out as CPU tensors (the cached per-image stage); `match_many` is `Portable`'s packed forward on the
+    CPU. The results equal `Portable`'s up to float32 rounding.
+    """
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the PyTorch networks and copy the matcher's weights to MLX."""
+        super().__init__(ctx)
+        from fastforks.shared.lightglue.mlx import MlxLightGlue  # noqa: PLC0415 - imports mlx
+
+        self._glue = MlxLightGlue(self.net.matcher)
+
+    def _maps(self, x: torch.Tensor) -> Any:  # noqa: ANN401 - MLX arrays
+        """Queue the dense maps of the float32 detection image `x` on MLX."""
+        raise NotImplementedError
+
+    def _detect(self, maps: Any) -> tuple[np.ndarray, Any]:  # noqa: ANN401 - MLX arrays
+        """Keypoints `[N, 2]` (`(x, y)` pixels of the detection image) and their MLX descriptors `[N, D]`."""
+        raise NotImplementedError
+
+    def _queue(self, image: torch.Tensor) -> tuple[Any, tuple[int, ...]]:
+        """An image's queued maps, with the `(width, height)` of the input and of the detection image."""
+        p = self.net.params
+        x = resize_long(image.float(), p.long_side) if p.long_side > 0 else image.float()
+        return self._maps(x), (image.shape[-1], image.shape[-2], x.shape[-1], x.shape[-2])
+
+    def _features(self, maps: Any, sizes: tuple[int, ...]) -> tuple[np.ndarray, Any, np.ndarray]:  # noqa: ANN401 - MLX
+        """Keypoints in input pixels (`Matcher.extract`'s), their MLX descriptors and the input's `(width, height)`."""
+        kpts, desc = self._detect(maps)
+        w, h, dw, dh = sizes
+        scale = np.array([dw / w, dh / h], np.float32)
+        kpts = (kpts.astype(np.float32) + np.float32(0.5)) / scale - np.float32(0.5)
+        return kpts, desc, np.array([w, h], np.float32)
+
+    def _result(self, f1: Any, f2: Any) -> dict[str, torch.Tensor]:  # noqa: ANN401 - `_features` results
+        pairs, scores = self._glue(f1, f2)
+        return {
+            "keypoints1": torch.from_numpy(f1[0]),
+            "keypoints2": torch.from_numpy(f2[0]),
+            "pairs": torch.from_numpy(pairs),
+            "scores": torch.from_numpy(scores),
+        }
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Keypoints of both images, the index pairs of their matches and the match scores (CPU tensors)."""
+        # both networks are queued first: the second runs while the host selects the first image's keypoints
+        q1, q2 = self._queue(image1), self._queue(image2)
+        return self._result(self._features(*q1), self._features(*q2))
+
+    def describe(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        """The image's keypoints and descriptors as CPU tensors (`Matcher.extract`'s dictionary)."""
+        from fastforks._core.mlx import to_torch  # noqa: PLC0415 - imports mlx
+
+        kpts, desc, size = self._features(*self._queue(image))
+        return {
+            "keypoints": torch.from_numpy(kpts)[None],
+            "descriptors": to_torch(desc)[None],
+            "image_size": torch.from_numpy(size)[None],
+        }
+
+    def match(self, image1: torch.Tensor, image2: torch.Tensor, described: tuple[Any, Any]) -> dict[str, torch.Tensor]:
+        """`__call__` with the two images' `describe` results (the images are not read again)."""
+        from fastforks._core.mlx import to_mx  # noqa: PLC0415 - imports mlx
+
+        del image1, image2
+        f1, f2 = (
+            (f["keypoints"][0].numpy(), to_mx(f["descriptors"][0]), f["image_size"][0].numpy()) for f in described
+        )
+        return self._result(f1, f2)
+
+
+class _MlxDisk(_MlxMatcher):
+    """DISK: the U-Net behind `_SplitHead` as an exported graph; NMS, top-n and the descriptor lookup in `mlx_post`.
+
+    The U-Net's two maps stay on MLX (`MlxModule.raw`): the heatmap's candidates are one host read, the dense
+    descriptors (400 MB at 768 x 1024 in float32) are never copied to the host.
+    """
 
     def __init__(self, ctx: Context) -> None:
         """Build the networks and wrap the U-Net."""
         super().__init__(ctx)
         self.net.extractor.unet = _SplitHead(self.net.extractor.unet)
 
+    def _maps(self, x: torch.Tensor) -> Any:  # noqa: ANN401 - MLX arrays
+        from fastforks._core.mlx import mx  # noqa: PLC0415 - imports mlx
+
+        from . import mlx_post  # noqa: PLC0415 - imports mlx
+
+        h, w = x.shape[-2:]
+        heat, desc = self.net.extractor.unet.raw(F.pad(x, (0, -w % _DISK_PAD, 0, -h % _DISK_PAD)))
+        peak = mlx_post.peaks(heat[0, 0, :h, :w], _DISK_NMS, self.net.params.detection_threshold)
+        mx.async_eval(peak)
+        return peak, desc[0]
+
+    def _detect(self, maps: Any) -> tuple[np.ndarray, Any]:  # noqa: ANN401 - MLX arrays
+        from . import mlx_post  # noqa: PLC0415 - imports mlx
+
+        return mlx_post.detect(*maps, self.net.params.max_keypoints)
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+        """`_MlxMatcher.__call__`, one image after the other.
+
+        The U-Net is all of an image's time, so queueing both gains nothing and holds two sets of dense maps: the
+        first image's descriptors are gathered, and its maps released, before the second U-Net runs.
+        """
+        from fastforks._core.mlx import mx  # noqa: PLC0415 - imports mlx
+
+        f1 = self._features(*self._queue(image1))
+        mx.eval(f1[1])
+        return self._result(f1, self._features(*self._queue(image2)))
+
+
+class _MlxAliked(_MlxMatcher):
+    """ALIKED wholly on MLX (`fastforks.shared.aliked.mlx`), float32 in either dtype.
+
+    Dense maps without the full-resolution descriptor map, keypoints from one host read per image, SDDH on MLX.
+    """
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the PyTorch networks and copy their weights to MLX."""
+        super().__init__(ctx)
+        from fastforks.shared.aliked.mlx import MlxAliked  # noqa: PLC0415 - imports mlx
+
+        extractor = self.net.extractor
+        assert isinstance(extractor, ALIKED)  # noqa: S101 - narrows the union for the type checker
+        self._aliked = MlxAliked(extractor)
+
+    def _maps(self, x: torch.Tensor) -> Any:  # noqa: ANN401 - MLX arrays
+        from fastforks._core.mlx import to_mx  # noqa: PLC0415 - imports mlx
+
+        return self._aliked.maps(to_mx(x))
+
+    def _detect(self, maps: Any) -> tuple[np.ndarray, Any]:  # noqa: ANN401 - MLX arrays
+        return self._aliked(maps)
+
 
 _MLX = {
     "disk": mlx_wrap.port(_MlxDisk, attrs=("net.extractor.unet",), fp32_inputs=("image",)),
-    "aliked": mlx_wrap.port(
-        Portable, attrs=(), methods=("net.extractor.detection_maps",), release=True, fp32_inputs=("image",)
-    ),
+    "aliked": mlx_wrap.port(_MlxAliked, attrs=()),
 }
 
 
 class MlxRunner(Portable):
-    """Apple MLX: the extractor's fixed-shape dense part as an exported graph, the rest eager on the CPU.
+    """Apple MLX: DISK's U-Net as an exported graph (`_MlxDisk`) or ALIKED in MLX operations (`_MlxAliked`).
 
-    The graph is DISK's U-Net, or ALIKED's dense maps and score NMS; keypoint selection, descriptors and LightGlue
-    (data-dependent counts) stay eager.
+    Keypoint selection reads one map per image on the host; descriptors and LightGlue run on MLX (`_MlxMatcher`).
     """
 
     def __new__(cls, ctx: Context) -> Runner:  # noqa: D102

@@ -466,7 +466,7 @@ family `mlx.py`, re-survey the family's refs, regenerate `apple_mlx.json`.
 | 2.5 | coex-sceneflow | cost volume build and the guided aggregation |
 | 2.5, 1.7 | rife-4.25-lite, rife-4.25 | `grid_sample` warps per IFBlock; small convs (launch bound) |
 | 2.2 | loftr-indoor/outdoor | fine matching runs on the CPU (geometry agent) |
-| 2.2 | aliked-lightglue | ALIKED's normalisation (geometry agent) |
+| 0.49 (was 2.2) | aliked-lightglue | done, auto-routed to MLX: ALIKED in MLX operations without the full-resolution descriptor map, `MlxLightGlue` ("Done: the LightGlue family" below) |
 | 2.2, 1.8, 1.7 | efficientvit-sam-l0/xl1/xl0 | the ben2/EfficientViT-SAM agent is on it |
 | 2.0, 1.9 | mask-rcnn, faster-rcnn r50-fpn | RoIAlign and the per-level proposal ops |
 | 0.94 (was 1.8) | realplksr-nomoswebphoto-x4 | kernels fp16 1029 ms vs MPS 1092, but 1919 MB against 1368 MB; portable fp16 is the lean mode (1529 ms, 1198 MB). Left: the 862 MB active peak of the Winograd convs, group norm (3 ms x 28) |
@@ -816,11 +816,65 @@ a LightGlue layer (18.0 against 18.8 ms), descriptors padded from 96 to 128 for 
 
 Left:
 
-- `MlxLightGlue` is not used by the `lightglue` family (aliked / disk / superpoint, 2.2x behind MPS for
-  aliked-lightglue): it takes any LightGlue without scale / orientation inputs, their extractors are the open part.
+- ~~`MlxLightGlue` is not used by the `lightglue` family~~ It is since "Done: the LightGlue family" below.
 - float16: the attention is 2.0 against 2.8 ms in fp16 and the card is float32 only on MLX (the old port's fp16
   failed the golden at recall 0.9983 against 0.999; not re-tried, the network is no longer the larger part).
 - xfeat's peak is 100 MB above the old port's (two 4096 x 4096 products for the nearest neighbours, both networks
   queued at once); still less than half of MPS.
 - MPS portable was not looked at (41.7 / 179 ms); the score map as fixed gathers and the pruned LightGlue are
   plain tensor code and could be tried there.
+
+### Done: the LightGlue family (2026-11-24)
+
+M1 Pro, 768x1024, all goldens pass (`tools/speed_survey.py`; MPS rows of 2026-11-13 / 17):
+
+| ref | | warm ms | first call s | peak MB | auto |
+|---|---|---|---|---|---|
+| aliked-lightglue | MLX before (fp32) | 448 | 1.91 | 2407 | – |
+| | MLX now (fp32) | 101 | 0.13 | 1105 | MLX |
+| | MPS portable fp32 (best MPS row) | 206 | 0.73 | 2586 | |
+| disk-lightglue | MLX before (fp16 / fp32) | 786 / 886 | 1.84 / 2.02 | 2058 / 2182 | MLX fp16 |
+| | MLX now (fp16 / fp32) | 697 / 775 | 1.72 / 1.80 | 1729 / 1949 | MLX fp16 |
+| | MPS portable fp32 (best MPS row) | 1994 | 2.22 | 3531 | |
+| aliked-flexglue | MLX before (fp16 / fp32) | 1100 / 1224 | 8.50 / 8.79 | 1387 / 2054 | – |
+| | MLX now (fp16 / fp32) | 992 / 938 | 4.22 / 4.23 | 1387 / 1644 | – |
+| | MPS portable fp16 (best MPS row) | 1069 | 1.38 | 3088 | |
+
+The card has no other refs: no superpoint / sift / doghardnet LightGlue and no standalone aliked / disk /
+superpoint feature refs exist, so nothing was done for them (`MlxLightGlue` would also refuse the scale /
+orientation inputs of sift and doghardnet).
+
+The old port exported each extractor's dense network and ran the rest in PyTorch on the CPU. For ALIKED that
+network ended in the full-resolution 128-channel descriptor map (four upsamplings, the concatenation, an L2 norm:
+most of the 2 x 150 ms), which was then copied to the host for SDDH. Now:
+
+- `shared/aliked/mlx.py` (`MlxAliked`): the encoder, the score head and DKD's threshold mode in `mlx.core`, batch
+  norm folded, channels last, one compiled function, no export (first call 1.91 -> 0.13 s). The descriptor map is
+  never formed, as in `shared/aliked/lazy.py`: the score head's first 1x1 conv is split per pyramid level and
+  applied before the upsampling (8 channels instead of 128), and SDDH reads the four levels only at the pixels
+  its sample points touch. The deformable convs are `graph_mlx.ops.grid_sample` plus a matmul, a few ms: no Metal
+  kernel was needed. 28 ms per image for the maps, 1.2 ms for the keypoints (one host read), 9 ms for SDDH.
+  Against PyTorch on the CPU at 768 x 1024 and 700 x 1001: the same keypoints (within 6e-5 px), descriptors
+  within 4e-6. Top-k mode, a masked DCN and SDDH variants other than the released ones raise.
+- `lightglue/mlx_post.py`: DISK's NMS (strict window maxima) on MLX, one host read of the candidates, upstream's
+  top-n rule, the descriptors gathered from the dense map on MLX. The keypoints are the CPU's exactly.
+- Both extractors feed `MlxLightGlue`; `describe` / `match` (the lazy stages) hand CPU tensors across, `match_many`
+  stays `Portable`'s packed forward. aliked-lightglue on the survey pair: the CPU runner's 958 pairs, scores
+  within 9e-6; disk-lightglue fp16: the same 1793 pairs, scores within 5e-4.
+- ALIKED queues both images' networks (`mx.async_eval`) before the host selects the first one's keypoints. DISK
+  does not: its U-Net is all of an image's time, and both sets of dense maps at once cost 2725 MB against 1729
+  (fp16; 689 against 697 ms).
+- aliked-flexglue: the keypoints come from `MlxAliked` (the old port exported ALIKED's maps for them): fp32
+  1224 -> 938 ms, first call 8.8 -> 4.2 s, and float32 is now its faster MLX dtype.
+
+Left:
+
+- disk-lightglue is the U-Net: ~320 ms per image of 3x3 / 5x5 convs at full resolution (conv bound), and its
+  export is the first call (1.7 s, already below MPS's 2.2 s). A hand-written U-Net would move the first call
+  only; not built.
+- aliked-flexglue is not routed to MLX: the first call (4.2 s, the export of FlexGlue's descriptor network and
+  decoder) is above the budget of 1.38 + 2 x 1.07 = 3.5 s. Warm it is the descriptor network (not profiled here);
+  a hand-written port of it would decide the routing.
+- aliked-lightglue float16 equals float32 (ALIKED and `MlxLightGlue` are float32 in either dtype): 102 ms.
+- The remaining 100 ms of aliked-lightglue is the two encoders (56 ms), SDDH (18 ms) and LightGlue (the rest,
+  ~25 ms); MPS portable was not looked at.

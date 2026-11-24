@@ -238,12 +238,35 @@ class Kernels(Portable):
         self.graphs.release()
 
 
+class _MlxKeypoints(nn.Module):
+    """ALIKED's keypoints from `fastforks.shared.aliked.mlx` (in MLX operations, no descriptors), as the extractor."""
+
+    def __init__(self, extractor: ALIKED) -> None:
+        """Copy `extractor`'s weights to MLX."""
+        super().__init__()
+        from fastforks.shared.aliked.mlx import MlxAliked  # noqa: PLC0415 - imports mlx
+
+        self._aliked = MlxAliked(extractor)
+
+    def forward(self, data: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+        """`ALIKED.forward`'s keypoints `[1, N, 2]` (pixels) of `data["image"]`, a CPU tensor."""
+        from fastforks._core.mlx import to_mx  # noqa: PLC0415 - imports mlx
+
+        kpts, _ = self._aliked(self._aliked.maps(to_mx(data["image"].float())))
+        return {"keypoints": torch.from_numpy(kpts)[None]}
+
+
+class _MlxPortable(Portable):
+    """`Portable` for MLX: ALIKED's keypoints in MLX operations (float32 in every dtype)."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the networks and hand the extractor to MLX."""
+        super().__init__(ctx)
+        self.net.extractor = _MlxKeypoints(self.net.extractor)
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(
-        Portable,
-        attrs=("net.descriptor",),
-        methods=("net.matcher.decode", "net.extractor.detection_maps"),
-    ),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=("net.descriptor",), methods=("net.matcher.decode",)),
 }

@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-24 |
-| rows | 1513 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1514 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -717,11 +717,11 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 | model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
 |---|---|---|---|---|---|---|---|
-| [`aliked-flexglue`](../models/matching.md#flexglue) | 1224 | 1100 | – | – | – | 1387 | – |
-| [`aliked-lightglue`](../models/matching.md#lightglue) | 448 | 455 | unsupported | – | – | 2407 | – |
+| [`aliked-flexglue`](../models/matching.md#flexglue) | 938 | 992 | unsupported | – | – | 1644 | – |
+| [`aliked-lightglue`](../models/matching.md#lightglue) | 101 | 102 | unsupported | – | – | 1105 | – |
 | [`dedode-v2-b`](../models/matching.md#dedode) | 2389 | 1814 | unsupported | – | – | 3622 | – |
 | [`dedode-v2-g`](../models/matching.md#dedode) | 4240 | 3222 | – | – | – | 4226 | – |
-| [`disk-lightglue`](../models/matching.md#lightglue) | 886 | 786 | unsupported | – | – | 2058 | – |
+| [`disk-lightglue`](../models/matching.md#lightglue) | 775 | 697 | unsupported | – | – | 1729 | – |
 | [`loftr-indoor`](../models/matching.md#loftr) | 1806 | 1549 | unsupported | – | – | 3675 | – |
 | [`loftr-outdoor`](../models/matching.md#loftr) | 1788 | 1526 | unsupported | – | – | 3703 | – |
 | [`loma-b`](../models/matching.md#loma) | 3617 | 2760 | – | – | – | 4561 | – |
