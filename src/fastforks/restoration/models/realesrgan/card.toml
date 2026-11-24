@@ -3,7 +3,7 @@ name = "Real-ESRGAN"
 summary = "Real-ESRGAN (Wang et al., ICCVW 2021): practical blind super-resolution. ESRGAN's RRDBNet (23 residual-in-residual dense blocks of 3 x 3 convs, then two nearest x2 upsamplings with convs) trained with a GAN on synthetic real-world degradations (blur, noise, JPEG, two-stage). `realesrgan-x4plus` is the general x4 model, `realesrgan-x2plus` the x2 one (the input pixel-unshuffled first), `realesrgan-x4plus-anime-6b` a 6-block x4 model for anime images."
 tier = "experimental"
 outputs = ["image"]
-uses = ["mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["mlx_wrap", "up_deconv"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/xinntao/Real-ESRGAN"

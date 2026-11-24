@@ -423,7 +423,11 @@ def test_card_kernels_match_imports(task):
         cuda = used - metal - mlx
         _kernel_import_bounds(card.family, set(card.kernel_libs), direct & cuda, cuda | via)
         _kernel_import_bounds(card.family, set(card.mps_kernel_libs), direct & metal, metal)
-        _kernel_import_bounds(card.family, set(card.mlx_kernel_libs), direct & mlx, mlx)
+        # A hand-written MLX network (AANet, CoEx, DLNR, HITNet) calls the `graph_mlx` ops from its portable runner
+        # too: without an MLX kernels mode there is no kernels list for them to go in.
+        _kernel_import_bounds(
+            card.family, set(card.mlx_kernel_libs), direct & mlx if card.kernels_mlx_dtypes else set(), mlx
+        )
 
 
 _SHARED = "fastforks.shared."

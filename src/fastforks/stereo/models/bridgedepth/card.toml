@@ -3,7 +3,7 @@ name = "BridgeDepth"
 summary = "BridgeDepth (Guan et al. 2025): Depth Anything V2 (ViT-L) features combined with NMRF stereo hypotheses; window-attention message passing between mono and stereo embeddings, inference at 1/8 resolution plus a 1/4 refinement."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cuda_graphs", "depth_anything_v2", "mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "depth_anything_v2", "instance_norm", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "ONNX Runtime resolves top-k ties differently from PyTorch on noise pairs: bridgedepth-sf differs by up to 0.010 px (mean 0.001) on a synthetic textured pair.",
   "At fixed 375 x 1242, the FP32 standalone monocular TensorRT branch took 284 ms on both checkpoints versus 324 to 325 ms for paired portable FP32. The stereo branch stayed in PyTorch. The largest individual NOC endpoint-error change was 0.0023 px across the two 15-pair Middlebury checks.",

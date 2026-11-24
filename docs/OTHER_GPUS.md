@@ -65,8 +65,8 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 | rtmpose | fp16 | fp16 | fp32/fp16 | pose_metal fp32 | fp32/fp16 | - |
 | aanet, bridgedepth, cfnet, great_igev, hitnet, igev_stereo, las2, mocha_stereo, monster, monster_plusplus, nmrf | fp16 | fp16 | fp32/fp16 | stereo_metal fp16 | fp32/fp16 | - |
 | anycalib, ben2, dedode, grounding_dino, memflow, memfof, nninteractive, owlv2, resplat, romav1, track_on, unidepth_v2 | fp16 | fp16 | fp32 | - | fp32/fp16 | - |
-| anyline, codeformer, compact, isnet, mmseg, pidinet, realesrgan, realplksr, rt_monster_plusplus, span, teed, yolox | fp16 | fp16 | fp32/fp16 | - | fp32/fp16 | conv_mlx fp32/fp16 |
-| foundationstereo, igev_plusplus, raft_stereo, selective_igev | fp16 | fp16 | fp32/fp16 | stereo_metal fp16 | fp32/fp16 | conv_mlx fp32/fp16 |
+| anyline, codeformer, compact, isnet, mmseg, pidinet, realesrgan, rt_monster_plusplus, span, teed, yolox | fp16 | fp16 | fp32/fp16 | - | fp32/fp16 | conv_mlx fp32/fp16 |
+| foundationstereo, igev_plusplus, selective_igev | fp16 | fp16 | fp32/fp16 | stereo_metal fp16 | fp32/fp16 | conv_mlx fp32/fp16 |
 | depth_anything_v2 | fp16 | fp16 | fp32/fp16 | - | fp32/fp16 | dpt_mlx fp32/fp16 |
 | raft, sea_raft | fp16 | fp16 | fp32/fp16 | flow_metal fp16 | fp32/fp16 | - |
 | perception_encoder | fp16 | fp16 | fp32/fp16 | vit_metal fp16 | fp32/fp16 | - |
@@ -74,6 +74,7 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 | vitpose | fp16 | fp16 | fp32/fp16 | pose_metal fp16 | fp32/fp16 | - |
 | efficientvit_sam | fp16 | fp16 | fp32 | - | fp32 | - |
 | moge | fp16 | fp16 | fp32/fp16 | sparse_metal fp32 | fp32/fp16 | - |
+| raft_stereo | fp16 | fp16 | fp32/fp16 | stereo_metal fp16 | fp32/fp16 | conv_mlx, graph_mlx fp32/fp16 |
 | flowformer | fp32 | fp32 | fp32/fp16 | - | fp32/fp16 | - |
 | seedvr2 | bf16 | bf16 | - | - | bf16/fp16 | - |
 | tapir | fp16 | fp16 | fp32/fp16 | - | fp32 | - |
@@ -82,6 +83,7 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 | marigold_v2 | bf16 | bf16 | - | - | bf16 | - |
 | romav2 | bf16 | bf16 | fp32 | roma_metal fp32 | fp32/fp16 | roma_mlx, dpt_mlx fp32/fp16 |
 | defom_stereo | bf16 | fp16 | fp32 | stereo_metal fp16 | fp32/fp16 | - |
+| realplksr | fp16 | fp16 | fp32/fp16 | - | fp32/fp16 | conv_mlx, graph_mlx fp32/fp16 |
 | mvsplat | fp16 | fp16 | fp32/fp16 | mvsplat_metal fp32 | fp32/fp16 | conv_mlx fp32/fp16 |
 | crestereo | fp16 | fp16 | fp32/fp16 | stereo_metal fp16 | fp32/fp16 | crestereo_mlx fp32/fp16 |
 | vggt | fp16 | fp16 | fp32/fp16 | vggt_metal fp32 | fp32/fp16 | - |

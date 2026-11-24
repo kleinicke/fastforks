@@ -3,7 +3,7 @@ name = "RoMa v2"
 summary = "RoMa v2 (Edstedt, Nordström, Wadenbäck, Felsberg et al. 2025): dense feature matching between two images of any viewpoint. A frozen DINOv3 ViT-L/16 describes both images at a coarse square size, a multi-view ViT with alternating attention and a DPT head turn the global cosine matches into a coarse warp and an overlap logit, and convolutional refiners on VGG19-BN features (local correlation at strides 4, 2, 1) sharpen it, at the coarse size and again at a fine size. Returns, for every pixel of the first image, its position in the second (pixels) and the probability that it is visible there."
 tier = "experimental"
 outputs = ["warp", "certainty"]
-uses = ["depth_anything_v2", "mlx_vit"]  # fastforks.shared modules this family imports
+uses = ["depth_anything_v2", "mlx_graph", "mlx_vit"]  # fastforks.shared modules this family imports
 limitations = [
   "On Apple MPS, use float32. On the RoMa reference pair, FP16 autocast in the upstream mixed-precision regions produced non-finite warp and certainty. BF16 there exceeded the warp-error tolerance on the M1 Pro.",
   "The precision matrices of the warp (upstream `precision_AB`) and upstream's sampling / keypoint helpers are not returned; tools/eval_matching.py has the MegaDepth-1500 sampling.",

@@ -2,8 +2,8 @@
 
 fp32 statistics in one read pass and one apply pass over the channels-last activation (no layout copies); the apply
 pass can add a ReLU (`RELU`) or a ResidualBlock's tail `relu(res + relu(norm))` (`RELU_RES`). Used by the kernels
-encoders of DEFOM-Stereo (fnet) and NMRF / BridgeDepth (ResNet backbone and feature heads). There is no PyTorch
-fallback: an activation the kernels do not take raises.
+encoders of DEFOM-Stereo (fnet) and NMRF / BridgeDepth (ResNet backbone and feature heads: `fuse_nmrf_encoder`).
+There is no PyTorch fallback: an activation the kernels do not take raises.
 """
 
 from __future__ import annotations
@@ -11,16 +11,18 @@ from __future__ import annotations
 from typing import Any, cast
 
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.kernels import linear
-from fastforks._core.patch import base_type, is_base
+from fastforks._core.patch import base_type, is_base, override
 from fastforks.kernels import fastbb
 from fastforks.shared.cnn_kernels import CL
 
 RELU, RELU_RES = 1, 2  # in_apply modes (0: plain norm)
 _MAX_C = 2048  # channels the stats kernel holds
 _V8 = 8
+_HEAD_LEN = 4  # NMRF `concatconv` / `gw`: Sequential(conv, InstanceNorm2d, ReLU, conv)
 
 
 def instance_norm(  # noqa: PLR0913 - an nn.Module method (override) with the fused-pass options
@@ -120,3 +122,47 @@ def is_in_resblock(m: nn.Module) -> bool:
         and d[1] is getattr(m, "norm3", None)
         and is_base(d[1], nn.InstanceNorm2d)
     )
+
+
+def _backbone_forward(self: nn.Module, x: torch.Tensor) -> list[torch.Tensor]:
+    """`Backbone.forward` in fp16 channels-last from the scaled input on, the stem ReLU inside its norm pass."""
+    x = (2 * (x / 255.0) - 1.0).half().contiguous(memory_format=CL)
+    x = instance_norm(self.norm1, self.conv1(x), RELU, inplace=True)
+    x = self.conv2(self.layer3(self.layer2(self.layer1(x))))
+    return [x, F.avg_pool2d(x, kernel_size=2, stride=2)]  # high to low res
+
+
+def _norm_relu(self: nn.Module, x: torch.Tensor) -> torch.Tensor:
+    return instance_norm(self, x, RELU, inplace=True)
+
+
+def fuse_nmrf_encoder(encoder: nn.Module) -> int:
+    """Run an NMRF / BridgeDepth encoder's instance norms on `fastbb` (fp16, in place); the modules changed.
+
+    The ResNet `Backbone` (if it is one: BridgeDepth's ConvNeXt variant has none) and the `concatconv` / `gw` heads,
+    `Sequential(conv, InstanceNorm2d, ReLU, conv)`, whose ReLU moves into the norm's apply pass.
+
+    Raises:
+        RuntimeError: A block or head does not have the layout the fused forwards assume.
+    """
+    count = 0
+    bb = encoder.backbone
+    if base_type(bb).__name__ == "Backbone" and is_base(getattr(bb, "norm1", None), nn.InstanceNorm2d):
+        blocks = [m for m in bb.modules() if base_type(m).__name__ == "ResidualBlock"]
+        if not blocks or not all(is_in_resblock(b) for b in blocks):
+            msg = "NMRF kernels: unexpected ResidualBlock layout in the backbone"
+            raise RuntimeError(msg)
+        for b in blocks:
+            override(b, resblock_forward)
+        override(bb, _backbone_forward)
+        bb.to(memory_format=CL)
+        count += len(blocks) + 1
+    for seq in (encoder.concatconv, encoder.gw):
+        if not (len(seq) == _HEAD_LEN and is_base(seq[1], nn.InstanceNorm2d) and isinstance(seq[2], nn.ReLU)):
+            msg = "NMRF kernels: unexpected concatconv / gw layout"
+            raise RuntimeError(msg)
+        override(seq[1], _norm_relu)
+        seq[2] = nn.Identity()
+        seq.to(memory_format=CL)
+        count += 1
+    return count
