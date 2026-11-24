@@ -19,6 +19,7 @@ import torch.nn.functional as F
 from torch import fx
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.mlx_cast import to_float32
 from fastforks._core.upload import device_tensor
 from fastforks._optimize import optimize
 from fastforks.promptable_segmentation._runner import Forward, Runner
@@ -150,7 +151,9 @@ class _Sam(Runner):
         return self.norm(trunk(x))
 
     def _enc(self, x: torch.Tensor) -> torch.Tensor:
-        return self.norm(self.trunk(x))
+        # the MLX runners export this: the norm's mean and variance over 256 channels stay float32 in a float16 replay
+        # (in float16: xl0 pred_masks mean |diff| 0.022 of the golden's median against 0.0045, limit 0.0081)
+        return self.norm(to_float32(self.trunk(x)))
 
     def embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Image embedding `[1, 256, 64, 64]` float32."""
@@ -210,9 +213,14 @@ class Portable(_Sam):
     dtypes = ("float32", "float16")
 
     def __init__(self, ctx: Context) -> None:
-        """As `_Sam`; the attention epsilons as tensors, which the ONNX export keeps (`fast.tensor_eps`)."""
+        """As `_Sam`; the attention epsilons as tensors, which the ONNX export keeps (`fast.tensor_eps`).
+
+        Not on the twin of an MLX runner: a float16 replay stores a tensor constant in float16, where 1e-15 is 0
+        (0 / 0 wherever a ReLU'd query is all zero); the Python float stays a float32 scalar there.
+        """
         super().__init__(ctx)
-        tensor_eps(self.trunk.net, ctx.device)
+        if mlx_wrap.twin_dtype() is None:
+            tensor_eps(self.trunk.net, ctx.device)
 
     def module(self) -> torch.nn.Module:
         """The image encoder only (no prompt side): `[1, 3, H, W]` in `[0, 1]` -> `image_embeddings` `[1, 256, 64, 64]`.

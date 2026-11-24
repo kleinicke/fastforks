@@ -361,15 +361,31 @@ no `auto` route follows (the policy gap above). memfof / memfof-spring (scale 0)
 
 ## Float16 MLX: families that stay float32 (2026-11-23)
 
-- **efficientvit-sam (l0 .. xl1)**: the float16 replay gave NaN embeddings. Two causes, both fixed in an experiment:
-  the LiteMLA linear attention's sums over H * W overflow float16 (made a `to_float32` island), and the `Portable`
-  runner's `fast.tensor_eps` turns each 1e-15 epsilon into a tensor constant, which GraphNet casts to float16 = 0,
-  so 0 / 0 wherever a ReLU'd query is all zero (an MLX runner without `tensor_eps` keeps a Python float). With both,
-  the outputs are finite and the box prompts pass, but the point prompts do not: pred_masks mean |diff| l0 0.172
-  (limit 0.015), xl1 0.107 (0.0052); float32 MLX l0 0.00012. Also tried: Winograd 3x3 convs in float32
-  (`half_wino_f32`): l0 0.217, xl1 0.089. GELU in float32 (`mlx_graph`, now everywhere) is in all numbers. Not
-  found: which stage drives the point-prompt error (the box masks within limits suggest the embedding is close;
-  the point decode is far more sensitive). MPS float16 is not declared either. The experiment was not committed.
+- **efficientvit-sam (l0 .. xl1)**: not declared; no single op found that brings all five within limits (2026-11-24). Three causes of the
+  gross float16 errors are fixed in the code: the LiteMLA linear attention's sums over H * W overflow float16 (now a
+  `to_float32` island, back to the run dtype after it); `fast.tensor_eps` turns each 1e-15 epsilon into a tensor
+  constant, which GraphNet casts to float16 = 0, so 0 / 0 wherever a ReLU'd query is all zero (the twin of an MLX
+  runner keeps the Python float); and the final `LayerNorm2d` (mean and variance over 256 channels) ran in float16
+  on the replay, where PyTorch runs it in float32 (xl0 pred_masks mean |diff| 0.022 of the golden's median, 0.0044
+  with the norm in float32, limit 0.0081; xl1 0.037 -> 0.0051, limit 0.0052). With these, every output of every
+  variant is within about 0.5-1.4x of its limit, and which single-scalar score crosses it changes with each further
+  float32 island (worst error / limit per variant, `ok` = golden passes):
+
+  | float16 replay plus | l0 | l1 | l2 | xl0 | xl1 |
+  |---|---|---|---|---|---|
+  | nothing | 1.04 iou | ok (0.99) | ok | ok | 1.38 iou |
+  | 1x1 convs from >= 1024 channels in float32 (as `fast.wide_points` on CUDA) | ok | 1.13 box iou | ok | ok | 1.14 iou |
+  | 1x1 convs from >= 256 channels in float32 | ok | 1.10 box iou | ok | ok | 1.03 iou |
+  | all ungrouped 1x1 convs in float32 | ok | 1.00 box iou (over) | ok | ok | 1.03 iou |
+  | Winograd 3x3 convs in float32 (`half_wino_f32`) | 1.27 iou p99 | 1.05 box iou | - | - | 1.15 iou |
+  | Winograd 3x3 + 1x1 from >= 256 in float32 | ok | 1.20 box iou | - | - | 1.06 iou |
+
+  No row passes all five, and the family has one card. The limits were set on CUDA float16 (float32 accumulation in
+  cuDNN) with little headroom; what is left on MLX looks like the rounding of float16 activations through the whole
+  trunk rather than one operation. Also without effect: the neck's bicubic upsampling in float32. Not isolated: the depthwise and the
+  non-Winograd 3x3 convs (the switch tried for them did not reach them). Float16 would need either wider
+  limits for this family or a float32 last stage, which gives up the speed. MLX float32 is unchanged (l0 pred_masks
+  6e-06 of the median). MPS float16 is not declared either.
 - **ben2**: fixed and declared (2026-11-24). MLX float32 failed its golden (`test_mlx[ben2@1]`: alpha mean |diff|
   0.1009; MPS passed) since the instance norm became a channels-last op (6ba44738): `mlx_band.band_tail` takes every
   such op for row-local, so the last block (nearest 2x, conv, InstanceNorm, GELU, output conv at 1024x1024, 512 MB a
