@@ -18,15 +18,19 @@ eager path as in v0.2.0. Mac coverage: 8 CPU ONNX exports and 16 MLX goldens.
 - [ ] **Linux CUDA, RTMO:** fp16 goldens and `[validated]` with the restored fp16 `out_cls` conv, plus its engine.
 - [ ] **Linux CUDA, PSMNet/GwcNet kernels mode:** quick golden sanity (channels-last cost volume and `nchw` under
   the new gate).
-- [ ] **Windows:** `tests/test_kernels.py -k manifest_is_current` on a `core.autocrlf=true` checkout, and a fresh
-  clone shows no modified files after the `.gitattributes` change.
+- [x] **Windows:** `tests/test_kernels.py -k manifest_is_current` on a `core.autocrlf=true` checkout, and a fresh
+  clone shows no modified files after the `.gitattributes` change. (2026-11-24, Windows 11, git autocrlf=true clone
+  of dev/v0.2.1 85a7859b: `git status` clean, 88 passed; the only CRLF work-tree files are the 12 vendored `-text`
+  ones.)
 
 ## Backlog fixes (maint/backlog)
 
 - [ ] **Linux CUDA:** `tests/test_cudnn_hacc.py`, plus a streaming model that uses `shared/host_blocks.py` (for
   example `tests/test_vitpose_stream.py`), from a checkout whose path has a space. Both now split
   `/proc/self/maps` lines on at most five fields.
-- [ ] **Windows, ComfyUI:** load two models from parallel queue workers (the model cache is now behind a lock).
+- [x] **Windows, ComfyUI:** load two models from parallel queue workers (the model cache is now behind a lock).
+  (2026-11-24, RTX 5060 Ti: four threads started together, two Depth and two Classify runs on depth-anything-v2-s /
+  convnext_tiny: no error, one cached model each, outputs equal to each other and to a serial run.)
 
 ## Test environment: OpenCV 5 (2026-11-24)
 
