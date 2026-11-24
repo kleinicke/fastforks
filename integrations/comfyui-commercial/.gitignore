@@ -1,2 +1,3 @@
-# the fastforks pack's nodes.py / convert.py, copied in only to publish this pack (README.md)
+# the fastforks pack's nodes.py / convert.py and its example workflows, copied in only to publish this pack (README.md)
 /fastforks_comfyui/
+/example_workflows/

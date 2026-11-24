@@ -214,11 +214,13 @@ the fastforks pack's nodes (every model) are used: remove or disable one of them
 
 ## Publish
 
-The registry archive has only this folder, so copy the implementation in first (`fastforks_comfyui/` is gitignored and
-listed in `[tool.comfy] includes`):
+The registry archive has only this folder, so copy the implementation and the example workflows in first
+(`fastforks_comfyui/` and `example_workflows/` are gitignored and listed in `[tool.comfy] includes`; ComfyUI lists
+`example_workflows/` as the pack's templates). Video matting is left out: MatAnyone is non-commercial.
 
 ```bash
-mkdir -p fastforks_comfyui && cp ../comfyui/nodes.py ../comfyui/convert.py ../comfyui/faces.py fastforks_comfyui/
+mkdir -p fastforks_comfyui example_workflows && cp ../comfyui/nodes.py ../comfyui/convert.py ../comfyui/faces.py fastforks_comfyui/
+cp ../comfyui/workflows/fastforks-w*.json example_workflows/ && rm example_workflows/fastforks-w14_video_matte.json
 comfy node publish
 ```
 

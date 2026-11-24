@@ -21,4 +21,4 @@ Documentation = "https://github.com/kleinicke/fastforks/blob/main/docs/comfyui.m
 PublisherId = "kleinicke"  # PLACEHOLDER: the GitHub user; replace with the publisher id registered at registry.comfy.org
 DisplayName = "fastforks – fast vision models (commercial use)"
 Icon = ""  # PLACEHOLDER: a square image URL (<= 400 x 400 px, SVG / PNG / JPG / GIF), none yet
-includes = ["fastforks_comfyui"]  # the bundled implementation: gitignored, so the publish would leave it out
+includes = ["fastforks_comfyui", "example_workflows"]  # copied in (README.md), gitignored: listed so they publish

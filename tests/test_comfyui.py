@@ -600,6 +600,24 @@ def test_example_workflows_match_the_nodes(pack: Any, monkeypatch: pytest.Monkey
             assert {i["name"] for i in n["inputs"]} <= set(ins) - set(widgets), (f.name, n["type"])
 
 
+def test_commercial_example_workflows_list_only_commercial_models(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The publish step copies every example workflow but the ones it removes into fastforks-commercial: their models
+    are all in that pack's dropdowns, and the removed ones are exactly those with a model it does not have."""
+    monkeypatch.setattr(pack.nodes, "upscale_files", list)
+    readme = (PACK.parent / "comfyui-commercial" / "README.md").read_text(encoding="utf-8")
+    removed = set(re.findall(r"rm example_workflows/(\S+\.json)", readme))
+    rejected = set()
+    for f in sorted((PACK / "workflows").glob("fastforks-w*.json")):
+        for n in json.loads(f.read_text(encoding="utf-8"))["nodes"]:
+            if not n["type"].startswith("Fastforks"):
+                continue
+            node = pack.commercial.NODE_CLASS_MAPPINGS.get(n["type"])
+            model = node.INPUT_TYPES()["required"].get("model") if node else None
+            if node is None or (model and n["widgets_values"][0] not in model[0]):
+                rejected.add(f.name)
+    assert removed == rejected == {"fastforks-w14_video_matte.json"}
+
+
 def test_pack_split(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     """The fastforks pack lists every model (nc ones tagged), fastforks-commercial commercial ones; same classes."""
     nodes = pack.nodes
@@ -711,7 +729,7 @@ def test_pack_metadata() -> None:
     assert meta["comfyui-commercial"]["project"]["dependencies"] == [f"fastforks-core[timm,transformers]>={core}", mlx]
     assert {m["project"]["version"] for m in meta.values()} == {core}
     assert meta["comfyui-commercial"]["tool"]["comfy"]["DisplayName"].endswith("(commercial use)")
-    assert meta["comfyui-commercial"]["tool"]["comfy"]["includes"] == ["fastforks_comfyui"]
+    assert meta["comfyui-commercial"]["tool"]["comfy"]["includes"] == ["fastforks_comfyui", "example_workflows"]
     assert "your responsibility" in meta["comfyui"]["project"]["description"]
     assert "[non-commercial]" in meta["comfyui"]["project"]["description"]
     docs = Path(__file__).resolve().parents[1] / "docs" / "comfyui.md"
