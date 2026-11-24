@@ -602,15 +602,43 @@ class CGState:
         self.rr_old.copy_(self.rr)
         self.rr.copy_((self.r * self.r).flatten(1).sum(1))
         res = (self.ax - self.b).flatten(1).norm(dim=1)
-        imp = ((self.last - res) / self.last).amax()
+        imp = ((self.last - res) / self.last).amax(0)  # `[n]`; the ONNX converter needs the dim
         self.last.copy_(res)
         self.stall.copy_(torch.where(imp < STALL_TOL, self.stall + 1, 0))
         stop = ((self.k > STALL_STEPS) & (self.stall >= STALL_STEPS)) | (res <= self.stop).all() | (self.k >= MAXITER)
         self.done |= stop
 
 
+_CARRIED = ("x", "ax", "r", "p", "rr", "rr_old", "last", "k", "stall", "done")  # what a `CGState.step` changes
+
+
+def _solve_exported(d: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+    """`solve` as one `torch.while_loop` over `CGState.step` (an ONNX `Loop`): the step count stays data-dependent.
+
+    `torch.export` cannot branch on `bool(st.done)`. The loop stops at the step that sets `done` instead of at the end
+    of its chunk; `x` no longer changes after that step, so it is the iterate `solve` returns.
+    """
+    st = CGState(d, b)
+    stop = st.stop
+
+    def cond(*carried: torch.Tensor) -> torch.Tensor:
+        return ~carried[-1]
+
+    def body(*carried: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        it = object.__new__(CGState)  # no `reset`: the state is the carried one
+        it.d, it.b, it.stop = d, b, stop
+        for name, t in zip(_CARRIED, carried, strict=True):
+            setattr(it, name, t.clone())  # `step` works in place; a loop body must not mutate its inputs
+        it.step()
+        return tuple(getattr(it, name) for name in _CARRIED)
+
+    return torch.while_loop(cond, body, tuple(getattr(st, name) for name in _CARRIED))[0]
+
+
 def solve(d: torch.Tensor, b: torch.Tensor, chunk: int = 32) -> torch.Tensor:
     """Run `CGState` steps in chunks with one host sync per chunk; the same iterate as upstream's loop."""
+    if torch.compiler.is_exporting():
+        return _solve_exported(d, b)
     st = CGState(d, b)
     while True:
         for _ in range(chunk):

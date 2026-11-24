@@ -70,9 +70,10 @@ _NOT_TRACEABLE = {  # module() runs, but neither dynamo nor torch.export capture
         "point tracking: the online window loop is data-dependent "
         "(6 graph breaks; export guards on data; card limitation)"
     ),
-    "omni-dc@1": "the conjugate-gradient solve runs until convergence: a data-dependent step count (card limitation)",
 }
 _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.export captures the graph
+    "omni-dc@1": "the conjugate-gradient solve reads its convergence flag per chunk of steps; torch.export captures"
+    " the solve as one torch.while_loop",
     "dedode-v2-b@1": "sparse match counts use nonzero; non-strict torch.export captures the dynamic output",
     "loftr-outdoor@1": "sparse match counts use nonzero; non-strict torch.export captures the dynamic output",
     "rf-detr-keypoint-preview@1": "pinned upstream disables Dynamo for positional interpolation to preserve"

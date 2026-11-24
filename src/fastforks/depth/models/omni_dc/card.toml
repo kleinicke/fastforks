@@ -7,7 +7,7 @@ uses = ["depth_anything_v2", "cuda_graphs", "mlx_wrap"]  # fastforks.shared modu
 limitations = [
   "The depth map is required: call the model with `prompt_depth=` a metric map in metres at the image size (another size is resized nearest; missing points as 0 / NaN / inf).",
   "The weights include the frozen Depth Anything V2 Large (CC-BY-NC-4.0), so they are labelled non-commercial although the code and the Hugging Face card are BSD-3-Clause.",
-  "The integration is an iterative solve with a data-dependent step count: no ONNX / TensorRT export.",
+  "The integration is an iterative solve with a data-dependent step count: the ONNX graph holds it as a `Loop`, and a TensorRT engine of it has not been checked.",
 ]
 
 [output]
@@ -45,6 +45,6 @@ venue = "ICCV 2025"
 
 [[variants]]
 id = "omni-dc"
-planned = { onnx = "torch.export fails (TorchExportError, step 1/3 of the ONNX export)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { tensorrt = "the ONNX graph holds the solve as a `Loop`; no TensorRT engine of it has been built and checked yet" }  # docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "model.safetensors", size = 1683089580, sha256 = "8d43f6ac7b372cf0cb84a0ebfebab4bbacf295cab4c2700d87d10ae1749ce5c0", url = "https://huggingface.co/zuoym15/OMNI-DC/resolve/9ec01f0a9c3060579d26dd9327abd4e07e4abcf0/model.safetensors" }]
