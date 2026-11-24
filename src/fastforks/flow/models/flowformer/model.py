@@ -501,10 +501,11 @@ def _defer_volume(net: torch.nn.Module) -> None:
     decoder's windows `corr_windows`, GMA's matrix recomputed by fused attention when it is large, and the cost
     encoder's sub-sampled attention fused.
     """
-    override(net.memory_encoder, _corr, "corr")
-    override(net.memory_encoder.cost_perceiver_encoder, _encode_mlx)
-    override(net.memory_decoder, _windows_mlx, "encode_flow_token")
-    override(net.memory_decoder.att, _gma_attention_mlx)
+    encoder, decoder = cast("torch.nn.Module", net.memory_encoder), cast("torch.nn.Module", net.memory_decoder)
+    override(encoder, _corr, "corr")
+    override(cast("torch.nn.Module", encoder.cost_perceiver_encoder), _encode_mlx)
+    override(decoder, _windows_mlx, "encode_flow_token")
+    override(cast("torch.nn.Module", decoder.att), _gma_attention_mlx)
     override(net.get_submodule("memory_decoder.update_block.aggregator"), _gma_aggregate_mlx)
     from .net.FlowFormer.LatentCostFormer.twins import GlobalSubSampleAttnRPE  # noqa: PLC0415 - needs timm
 

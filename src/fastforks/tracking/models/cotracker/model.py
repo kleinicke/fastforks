@@ -616,7 +616,7 @@ class MlxRunner(Portable):
     """Apple MLX: the whole pass of cotracker3-offline as one graph; cotracker3-online with its window loop eager."""
 
     def __new__(cls, ctx: Context) -> Runner:  # noqa: D102
-        return (_MlxOnline if cast("Params", ctx.params).online else _MlxOffline)(ctx)
+        return cast("Runner", (_MlxOnline if cast("Params", ctx.params).online else _MlxOffline)(ctx))
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxRunner}

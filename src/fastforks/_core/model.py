@@ -299,7 +299,8 @@ def _results_to(out: object, device: torch.device) -> object:
         return {k: _results_to(v, device) for k, v in out.items()}
     if isinstance(out, list | tuple):
         moved = [_results_to(o, device) for o in out]
-        return type(out)(*moved) if hasattr(out, "_fields") else type(out)(moved)  # a named tuple takes fields
+        kind = cast("Any", type(out))  # list, tuple or a named tuple class
+        return kind(*moved) if hasattr(out, "_fields") else kind(moved)  # a named tuple takes fields
     return out
 
 

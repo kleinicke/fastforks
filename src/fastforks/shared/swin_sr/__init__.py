@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import functools
 import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import torch
 import torch.nn.functional as F
@@ -214,8 +214,9 @@ def window_attention(  # noqa: PLR0913 - the block's projections, head count, sc
     else:
         step = _mps_step(q, k) if mask is not None and mask.shape[0] == b_ else 0
         if step:  # the summed bias + mask is as large as the scores: made per block of windows too
+            full = cast("torch.Tensor", mask)  # a nonzero step needs a mask
             parts = [
-                attention(q[i : i + step], k[i : i + step], v[i : i + step], add + mask[i : i + step, None], scale)
+                attention(q[i : i + step], k[i : i + step], v[i : i + step], add + full[i : i + step, None], scale)
                 for i in range(0, b_, step)
             ]
             return proj(torch.cat(parts).transpose(1, 2).reshape(b_, n, heads * d))

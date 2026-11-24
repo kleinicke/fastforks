@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 from fastforks._core.checkpoint import check_fits
 from fastforks.flow._runner import Forward, Runner
@@ -139,7 +139,7 @@ class _Mlx(Portable):
     def __init__(self, ctx: Context) -> None:
         """Build the network; regroup it for MLX."""
         super().__init__(ctx)
-        self.net = MlxRAFT(self.net)
+        self.net = MlxRAFT(cast("RAFT", self.net))  # `Portable`'s network
 
 
 RUNNERS = {

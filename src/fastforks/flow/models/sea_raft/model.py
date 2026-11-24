@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 import torch
 import torch.nn.functional as F
@@ -144,7 +144,7 @@ class _Mlx(Portable):
     def __init__(self, ctx: Context) -> None:
         """Build the network; regroup it for MLX."""
         super().__init__(ctx)
-        self.net = MlxSEARAFT(self.net)
+        self.net = MlxSEARAFT(cast("SEARAFT", self.net))  # `Portable`'s network
 
 
 RUNNERS = {

@@ -6,6 +6,8 @@ upsampled volume right after merging it and applies LeakyReLU in place.
 
 from __future__ import annotations
 
+from typing import cast
+
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -180,13 +182,13 @@ def _taps_conv3d(conv: nn.Conv3d, x: torch.Tensor) -> torch.Tensor:
         return conv(x)
     n, c, d = x.shape[:3]
     w = conv.weight.to(x.dtype)
-    o, kd, pd = w.shape[0], w.shape[2], conv.padding[0]
+    o, kd, pd = w.shape[0], w.shape[2], cast("int", conv.padding[0])  # `_taps`: not a string padding
     planes = x.permute(0, 2, 1, 3, 4).reshape(n * d, c, *x.shape[3:])
     y = F.conv2d(planes, w.permute(2, 0, 1, 3, 4).reshape(kd * o, c, *w.shape[3:]), None, 1, conv.padding[1:])
     y = y.view(n, d, kd, o, *y.shape[2:])
     out = y.new_zeros(n, d, o, *y.shape[4:]) if conv.bias is None else None
     if out is None:
-        out = conv.bias.to(y.dtype).view(1, 1, o, 1, 1).expand(n, d, o, *y.shape[4:]).clone()
+        out = cast("torch.Tensor", conv.bias).to(y.dtype).view(1, 1, o, 1, 1).expand(n, d, o, *y.shape[4:]).clone()
     for k in range(kd):
         lo, hi = max(0, pd - k), min(d, d + pd - k)
         out[:, lo:hi] += y[:, lo + k - pd : hi + k - pd, k]
@@ -209,7 +211,7 @@ def _classifier(self: nn.Sequential, volume: torch.Tensor) -> torch.Tensor:
     """TAO's classifier with its last `Conv3d` through `_taps_conv3d`."""
     for layer in self[:-1]:
         volume = layer(volume)
-    return _taps_conv3d(self[-1], volume)
+    return _taps_conv3d(cast("nn.Conv3d", self[-1]), volume)  # `classifier_taps` checked it
 
 
 def classifier_taps(net: nn.Module) -> None:
@@ -274,4 +276,4 @@ def mps_half(net: nn.Module) -> None:
     """
     pure_half(net, channels_last=False)
     for m in (net.update_block, net.spx_2_gru, net.spx_gru):
-        pure_half(m, channels_last=False)
+        pure_half(cast("nn.Module", m), channels_last=False)

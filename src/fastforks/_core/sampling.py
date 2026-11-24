@@ -64,7 +64,8 @@ def grid_sample(
     ):
         # One MPS call over an all-pairs correlation volume (RAFT at 1080p: 4 GiB) ran out of memory; blocks do not
         step = max(1, MPS_INPUT_BYTES // (input[0].numel() * input.element_size()))
-        kw = {"mode": mode, "padding_mode": padding_mode, "align_corners": align_corners}
         blocks = zip(input.split(step), grid.split(step), strict=True)
-        return torch.cat([F.grid_sample(x, g, **kw) for x, g in blocks])
+        return torch.cat(
+            [F.grid_sample(x, g, mode=mode, padding_mode=padding_mode, align_corners=align_corners) for x, g in blocks]
+        )
     return F.grid_sample(input, grid, mode=mode, padding_mode=padding_mode, align_corners=align_corners)

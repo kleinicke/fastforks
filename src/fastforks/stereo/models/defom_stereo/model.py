@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import types
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import torch
 import torch.nn.functional as F
@@ -19,6 +19,8 @@ from .net.defom_stereo import DEFOMStereo
 from .net.utils import get_danv2_io_size
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from fastforks.stereo._runner import Context
 
 
@@ -145,7 +147,7 @@ class _Split(Portable):
         """The normalised pair, the depth head's inverse depth and the ViT's tokens (4 levels, then 4 class tokens)."""
         net = self.net
         ih, iw, oh, ow = get_danv2_io_size(*left.shape[2:], net.args.n_downsample)
-        x = (torch.cat([left, right]) - net.mean) / net.std
+        x = (torch.cat([left, right]) - cast("torch.Tensor", net.mean)) / cast("torch.Tensor", net.std)  # buffers
         da = net.defomencoder.depth_anything
         feats = da.pretrained.get_intermediate_layers(
             F.interpolate(x, (ih, iw), mode="bilinear", align_corners=True),
@@ -177,7 +179,7 @@ class _Split(Portable):
         hidden = [torch.tanh(c[0]) for c in cnet_list]
         ctx = [
             list(conv(torch.relu(c[1])).split(conv.out_channels // 3, dim=1))
-            for c, conv in zip(cnet_list, net.context_zqr_convs, strict=True)
+            for c, conv in zip(cnet_list, cast("Iterable[torch.nn.Conv2d]", net.context_zqr_convs), strict=True)
         ]
         coords = net.initialize_coords(hidden[0])
         corr_fn = CorrBlock1D(
@@ -205,7 +207,7 @@ class _Split(Portable):
             )
             out = to_float32(out)
             disp = out * disp if scaling else disp + out.clamp(-limit, limit)
-        return net.upsample_flow(disp, to_float32(up_mask))
+        return net.upsample_flow(disp, to_float32(cast("torch.Tensor", up_mask)))  # set by the last iteration
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity of a padded pair."""

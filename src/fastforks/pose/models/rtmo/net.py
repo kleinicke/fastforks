@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import cast
 
 import torch
 import torch.nn.functional as F
@@ -265,11 +266,11 @@ class Head(nn.Module):
         for i, f in enumerate(feats):
             cls, reg = f.chunk(2, 1)
             pose = self.conv_pose[i](reg)
-            o, logit = self.out_cls[i], self.conv_cls[i](cls)
+            o, logit = cast("nn.Conv2d", self.out_cls[i]), self.conv_cls[i](cls)
             if EXPORTING_FOR_MLX.get() or logit.device.type == "mps":
                 # the person score logit in float32 (one channel): a float16 logit near 3 rounds by 2e-3, ~1e-4 of
                 # score. MLX and MPS only: their float16 runs need it for the limits; CUDA keeps the module's conv
-                logit = F.conv2d(to_float32(logit), to_float32(o.weight), to_float32(o.bias))
+                logit = F.conv2d(to_float32(logit), to_float32(o.weight), to_float32(cast("torch.Tensor", o.bias)))
             else:
                 logit = o(logit)
             maps = (logit, self.out_bbox[i](pose))

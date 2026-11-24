@@ -14,7 +14,7 @@ on them in float32; those convs are never cast to float16 (their batch-norm runn
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import torch
 import torch.nn.functional as F
@@ -117,9 +117,9 @@ def _scale_context(m: SICA) -> None:
     """
     m.__dict__[CTX_SCALE_ATTR] = CTX_SCALE
     for seq in (m.conv_key, m.conv_value):
-        bn = seq[0].bn
-        bn.running_mean.div_(CTX_SCALE)
-        bn.running_var.div_(CTX_SCALE**2)
+        bn = cast("torch.nn.BatchNorm2d", seq[0].bn)
+        cast("torch.Tensor", bn.running_mean).div_(CTX_SCALE)  # tracked statistics: never None here
+        cast("torch.Tensor", bn.running_var).div_(CTX_SCALE**2)
 
 
 def _sica_nhwc(

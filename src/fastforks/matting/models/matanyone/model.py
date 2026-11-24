@@ -21,7 +21,7 @@ import contextlib
 import itertools
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import torch
 import torch.nn.functional as F
@@ -246,6 +246,7 @@ class _Memory(MemoryManager):
     """`MemoryManager` with the chunked readout."""
 
     read = _read  # ty: ignore[invalid-method-override] - keyword-only where upstream is untyped
+    affinity_readout: Callable[..., torch.Tensor]  # set per instance by the runner, read by `_read`
 
 
 _FrameFeatures = tuple[list[torch.Tensor], torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
@@ -342,7 +343,8 @@ class Portable(Runner):
             segment=self._segment,
         )
         core.memory.__class__ = _Memory  # the chunked readout (a bound method stored on it would be a reference cycle)
-        core.memory.affinity_readout = self._affinity_readout  # the runner holds no reference to the memory
+        memory = cast("_Memory", core.memory)
+        memory.affinity_readout = self._affinity_readout  # the runner holds no reference to the memory
         first = frames(0)[0]
         # First-frame predictions reset the feature-store index to zero throughout warm-up.
         with self._autocast():
@@ -495,9 +497,10 @@ def _mlx_image_block(m: MaskUpsampleBlock, x: torch.Tensor, image: torch.Tensor,
     full size each) is ever a buffer.
     """
     block = m.out_conv
-    w, b = to_float32(proj.weight.flatten(1)), to_float32(proj.bias)
-    dw = to_float32(block.downsample.weight.flatten(1))
-    residual = up2_proj(_conv(block.downsample, x), image, dw @ w, dw @ b)
+    down = cast("torch.nn.Conv2d", block.downsample)  # a 1x1 conv in this block (see above)
+    w, b = to_float32(proj.weight.flatten(1)), to_float32(cast("torch.Tensor", proj.bias))
+    dw = to_float32(down.weight.flatten(1))
+    residual = up2_proj(_conv(down, x), image, dw @ w, dw @ b)
     return _conv(block.conv2, F.relu(_conv(block.conv1, up2_proj(x, image, w, b, relu=True)))) + residual
 
 

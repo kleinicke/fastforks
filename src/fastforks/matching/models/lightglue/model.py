@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import torch
@@ -242,16 +242,16 @@ class _SplitHead(nn.Module):
 
     def forward(self, image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Float32 heatmap `[B, 1, H, W]` and run-dtype dense descriptors `[B, 128, H, W]`."""
-        unet = self.unet
+        path_down, path_up = cast("nn.ModuleList", self.unet.path_down), cast("nn.ModuleList", self.unet.path_up)
         feats = [image]
-        for layer in unet.path_down:
+        for layer in path_down:
             feats.append(float32_call(layer, feats[-1]))
         bottom, skips = feats[-1], feats[-2::-1]
-        for layer, skip in zip(unet.path_up[:-1], skips, strict=False):
+        for layer, skip in zip(path_up[:-1], skips, strict=False):
             bottom = float32_call(layer, bottom, skip)
-        last = unet.path_up[-1]
+        last: Any = path_up[-1]  # net.disk's last up block: `conv` (a 4-module sequence) and `upsample`
         norm, gate, _, conv = last.conv
-        x = float32_call(gate, norm(torch.cat([last.upsample(bottom), skips[len(unet.path_up) - 1]], 1)))
+        x = float32_call(gate, norm(torch.cat([last.upsample(bottom), skips[len(path_up) - 1]], 1)))
         n = conv.out_channels - 1
         heat = F.conv2d(to_float32(x), to_float32(conv.weight)[n:], to_float32(conv.bias)[n:], padding="same")
         desc = F.conv2d(to_run_dtype(x, conv.weight.dtype), conv.weight[:n], conv.bias[:n], padding="same")
@@ -343,7 +343,7 @@ class _MlxDisk(_MlxMatcher):
     def __init__(self, ctx: Context) -> None:
         """Build the networks and wrap the U-Net."""
         super().__init__(ctx)
-        self.net.extractor.unet = _SplitHead(self.net.extractor.unet)
+        self.net.extractor.unet = _SplitHead(cast("nn.Module", self.net.extractor.unet))
 
     def _maps(self, x: torch.Tensor) -> Any:  # noqa: ANN401 - MLX arrays
         from fastforks._core.mlx import mx  # noqa: PLC0415 - imports mlx
@@ -351,7 +351,8 @@ class _MlxDisk(_MlxMatcher):
         from . import mlx_post  # noqa: PLC0415 - imports mlx
 
         h, w = x.shape[-2:]
-        heat, desc = self.net.extractor.unet.raw(F.pad(x, (0, -w % _DISK_PAD, 0, -h % _DISK_PAD)))
+        unet: Any = self.net.extractor.unet  # the `mlx_wrap` graph of the `_SplitHead`
+        heat, desc = unet.raw(F.pad(x, (0, -w % _DISK_PAD, 0, -h % _DISK_PAD)))
         peak = mlx_post.peaks(heat[0, 0, :h, :w], _DISK_NMS, self.net.params.detection_threshold)
         mx.async_eval(peak)
         return peak, desc[0]
@@ -411,7 +412,7 @@ class MlxRunner(Portable):
     """
 
     def __new__(cls, ctx: Context) -> Runner:  # noqa: D102
-        return _MLX[ctx.params.extractor](ctx)
+        return cast("Runner", _MLX[ctx.params.extractor](ctx))
 
 
 RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxRunner}

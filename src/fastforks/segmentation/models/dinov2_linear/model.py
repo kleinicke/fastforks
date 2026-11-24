@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import torch
 import torch.nn.functional as F
@@ -228,7 +228,7 @@ class Mlx(Portable):
         p = self.ctx.params
         h, w = image.shape[-2:]
         x = scale(resize(image, target_size(h, w, p.resize)), self.ctx.io)
-        return mlx_seg.slide_scores(self.net.low, x, (p.crop, p.crop), (p.stride, p.stride))
+        return mlx_seg.slide_scores(cast("_MlxNet", self.net).low, x, (p.crop, p.crop), (p.stride, p.stride))
 
     def _scores(self, image: torch.Tensor) -> torch.Tensor:
         from fastforks._core.mlx import to_torch  # noqa: PLC0415 - optional MLX dependency

@@ -93,7 +93,8 @@ class Trunk(torch.nn.Module):
                 x = merge(layer.downsample, x.permute(0, 3, 1, 2))
         x = x.permute(0, 3, 1, 2)
         if self.float32_neck:  # the embedding's last 2304-term sums: MLX float16 pred_masks mean 0.0081 -> 0.0057
-            return _conv32(self.conv2, self.norm(_conv32(self.conv1, x)))
+            conv1, conv2 = cast("torch.nn.Conv2d", self.conv1), cast("torch.nn.Conv2d", self.conv2)
+            return _conv32(conv2, self.norm(_conv32(conv1, x)))
         return self.conv2(self.norm(self.conv1(x)))
 
 

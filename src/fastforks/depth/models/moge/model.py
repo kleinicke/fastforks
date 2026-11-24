@@ -799,7 +799,8 @@ class _FoldedTop(nn.Module):
     def __init__(self, neck: ConvStack, head: ConvStack) -> None:
         """Fold the last level of `neck` and `head`."""
         super().__init__()
-        kn, kh = cast("nn.Conv2d", neck.resamplers[-1][1]), cast("nn.Conv2d", head.resamplers[-1][1])
+        kn = cast("nn.Conv2d", cast("nn.Sequential", neck.resamplers[-1])[1])
+        kh = cast("nn.Conv2d", cast("nn.Sequential", head.resamplers[-1])[1])
         uv, mid, out = neck.input_blocks[-1], head.input_blocks[-1], head.output_blocks[-1]
 
         def mat(m: nn.Module) -> torch.Tensor:

@@ -262,7 +262,7 @@ class _MlxPortable(Portable):
     def __init__(self, ctx: Context) -> None:
         """Build the networks and hand the extractor to MLX."""
         super().__init__(ctx)
-        self.net.extractor = _MlxKeypoints(self.net.extractor)
+        self.net.extractor = _MlxKeypoints(self.net.extractor)  # ty: ignore[invalid-assignment] - ALIKED's MLX stand-in
 
 
 RUNNERS = {
