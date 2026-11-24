@@ -549,6 +549,29 @@ def test_gwc_warp_kernel_matches_torch():
     torch.testing.assert_close(MlxModule(Volume(), "float32")(left, right, disp), want, atol=1e-5, rtol=1e-5)
 
 
+@pytest.mark.parametrize("count", [300, 1])
+@pytest.mark.parametrize("side", [7, 14])
+def test_rcnn_roi_align_kernel_matches_torchvision(side, count):
+    """Mask / Faster R-CNN's ROIAlign over the FPN levels (one Metal kernel) against torchvision's, level by level."""
+    mx = pytest.importorskip("mlx.core")
+    tv = pytest.importorskip("torchvision.ops")
+    from fastforks.detection.models.rcnn import mlx_net  # noqa: PLC0415
+    from fastforks.detection.models.rcnn.model import box_levels, pool  # noqa: PLC0415
+
+    g = torch.Generator().manual_seed(0)
+    feats = [torch.randn(1, 16, 96 >> i, 160 >> i, generator=g) for i in range(4)]
+    centre = torch.rand(count, 2, generator=g) * torch.tensor([640.0, 384.0])
+    extent = torch.rand(count, 2, generator=g) ** 3 * torch.tensor([600.0, 360.0]) + 0.5  # most small, some huge
+    boxes = torch.cat([centre - extent / 2, centre + extent / 2], 1)  # some reach outside the image
+    if count > 1:
+        boxes[0] = torch.tensor([-20.0, 10.0, 640.0, 384.0])  # the whole image: the coarsest level
+    lvl = box_levels(boxes, len(feats))
+    assert count == 1 or set(lvl.tolist()) == {0, 1, 2, 3}
+    want = pool(feats, boxes, side, tv).permute(0, 2, 3, 1)
+    got = mlx_net.roi_align([mx.array(f.permute(0, 2, 3, 1).numpy()) for f in feats], boxes, lvl, side)
+    torch.testing.assert_close(torch.from_numpy(np.array(got)), want, atol=1e-5, rtol=1e-5)
+
+
 @pytest.mark.parametrize("align", [True, False])
 def test_channels_last_instance_norm_and_bilinear_match_torch(align):
     """Instance norm (N > 1, affine) and bilinear resize of conv outputs (the channels-last lowerings) against torch."""

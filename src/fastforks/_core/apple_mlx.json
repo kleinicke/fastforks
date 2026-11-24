@@ -3974,6 +3974,14 @@
    }
   },
   "faster-rcnn-r50-fpn-3x-coco@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -6053,6 +6061,14 @@
    }
   },
   "mask-rcnn-r50-fpn-3x-coco@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"

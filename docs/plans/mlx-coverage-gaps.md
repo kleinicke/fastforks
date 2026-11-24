@@ -123,7 +123,7 @@ yields an `auto` entry where an MPS `ok` row exists to compare against.
 | detection | YOLOX (tiny / S / M / L / X) | `yolox-m` | size-sibling | float32/float16 | 194 | 3 | fp16 45 ms, fp32 52 ms |
 | detection | YOLOX (tiny / S / M / L / X) | `yolox-s` | size-sibling | float32/float16 | 69 | 3 | fp16 23 ms, fp32 29 ms |
 | detection | YOLOX (tiny / S / M / L / X) | `yolox-x` | size-sibling | float32/float16 | 757 | 3 | fp16 121 ms, fp32 152 ms |
-| detection | detectron2 Mask / Faster R-CNN (R50-FPN) | `faster-rcnn-r50-fpn-3x-coco` | size-sibling | float32/float16 | 160 | 3 | fp16 367 ms, fp32 410 ms |
+| detection | detectron2 Mask / Faster R-CNN (R50-FPN) | `faster-rcnn-r50-fpn-3x-coco` | size-sibling | float32/float16 | 160 | 3 | fp16 367 ms, fp32 410 ms (hand-written since: 126 / 156 ms, "Done: Mask / Faster R-CNN" below) |
 | edges | Line art (informative-drawings) | `lineart-coarse` | checkpoint-sibling | float32/float16 | 16 | 3 | skip: checkpoint of `lineart` |
 | features | C-RADIOv3 / v4 | `c-radio-v4-h` | size-sibling | float32/float16 | 2486 | 3 | open: 2486 MB weights, skipped (download and memory cost on the shared Mac) |
 | features | C-RADIOv3 / v4 | `c-radio-v4-so400m` | size-sibling | float32/float16 | 1645 | 3 | open: 1645 MB weights, skipped (download and memory cost on the shared Mac) |
@@ -468,7 +468,7 @@ family `mlx.py`, re-survey the family's refs, regenerate `apple_mlx.json`.
 | 2.2 | loftr-indoor/outdoor | fine matching runs on the CPU (geometry agent) |
 | 0.49 (was 2.2) | aliked-lightglue | done, auto-routed to MLX: ALIKED in MLX operations without the full-resolution descriptor map, `MlxLightGlue` ("Done: the LightGlue family" below) |
 | 2.2, 1.8, 1.7 | efficientvit-sam-l0/xl1/xl0 | the ben2/EfficientViT-SAM agent is on it |
-| 2.0, 1.9 | mask-rcnn, faster-rcnn r50-fpn | RoIAlign and the per-level proposal ops |
+| 0.71, 0.66 (were 2.0, 1.9) | mask-rcnn, faster-rcnn r50-fpn | done, both auto-routed to MLX: hand-written network, RoIAlign as one Metal kernel over all levels ("Done: Mask / Faster R-CNN" below) |
 | 0.94 (was 1.8) | realplksr-nomoswebphoto-x4 | kernels fp16 1029 ms vs MPS 1092, but 1919 MB against 1368 MB; portable fp16 is the lean mode (1529 ms, 1198 MB). Left: the 862 MB active peak of the Winograd convs, group norm (3 ms x 28) |
 | 0.76, 0.65 (were 1.7) | dlnr-sceneflow, raft-stereo-middlebury | done, all five refs of the two families auto-routed to MLX: hand-written networks, first calls 1.7 / 2.7 s ("Done: DLNR and RAFT-Stereo" below) |
 | 0.83 (was 1.7) | ema-vfi-small-t | done, all four EMA-VFI refs auto-routed to MLX: hand-written network, 0.47 s first call ("Done: RIFE 4.25 and EMA-VFI" below) |
@@ -1114,6 +1114,57 @@ Left:
 - The MPS runners were not touched. The 2x2 phase form of the transposed convolutions and the zero-padded widths
   are plain tensor code and could be tried there; ema-vfi / ema-vfi-t fp32 on MPS (19.6 / 28.8 s, 11 GB) swap on
   16 GB.
+
+### Done: Mask / Faster R-CNN (2026-11-24)
+
+M1 Pro, 800x1344, float16 / float32, both goldens pass in both dtypes (`tools/speed_survey.py`, synthetic input; MPS
+rows are the portable ones). `detection/rcnn` is the family this covers:
+
+| ref | | warm ms | first call s | peak MB | auto |
+|---|---|---|---|---|---|
+| faster-rcnn-r50-fpn-3x-coco | MLX before | 367 / 410 | 0.94 / 0.96 | 1694 / 1919 | – |
+| | MLX now | 126 / 156 | 0.14 / 0.19 | 1156 / 1576 | MLX fp16 |
+| | MPS | 192 / 214 | 0.44 / 0.42 | 1932 / 1930 | |
+| mask-rcnn-r50-fpn-3x-coco | MLX before | 411 / 462 | 1.50 / 1.83 | 1533 / 2012 | – |
+| | MLX now | 144 / 181 | 0.16 / 0.20 | 1174 / 1600 | MLX fp16 |
+| | MPS | 203 / 222 | 0.53 / 0.54 | 1931 / 1930 | |
+
+The MLX runner replayed an exported graph of the dense half (`mlx_wrap`) and ran the proposals, both RoIAligns and
+the heads in torch. It is hand-written now (`rcnn/mlx_net.py`, `MlxPortable` in `rcnn/model.py`): no export, the
+weights converted once into the conversion cache, one compiled function per shape for backbone, FPN and RPN.
+
+- RoIAlign (`roi_align`) is one Metal kernel over all four levels: a thread writes four channels of one bin of one
+  box and reads the box's level in place (grid: channels / 4, bins, boxes), so there is no per-level gather,
+  scatter or sort. torchvision's `aligned=True`, adaptive sampling ratio; the sum is accumulated in float32.
+  Against `torchvision.ops.roi_align` on 500 boxes over the four levels: 2.4e-7 max in float32, 2e-3 in float16.
+  The 1000 x 7 x 7 x 256 box pooling with both linear layers takes 11 ms, the mask pooling and head 6 ms.
+- The dense half is MLX operations: 1x1 convolutions as `mx.addmm`, the max pool as a strided view, the mask
+  head's 2x2 stride-2 transposed convolution as a GEMM to four phases; `fc1`'s columns are reordered at conversion
+  so the pooled `[R, 7, 7, C]` is flattened as it is. The mask predictor runs for the predicted class only.
+- Top-k per level, the box decoding and both NMS stay on the CPU with torchvision (`_Select`, shared with the torch
+  runners so the selection is the same code): 9 ms. The compiled function returns the objectness and deltas of all
+  levels as two float32 arrays, so that is two reads.
+- Kernel inputs of fewer than 8 elements are bound in Metal's `constant` address space; the per-level size table
+  is padded.
+
+Against the CPU portable runner on the golden image (400x600, 4 detections): mask-rcnn float32 boxes 1e-4 px,
+scores 2e-6, no mask pixel differs; float16 boxes 0.5 px, scores 4e-3, 95 of 284658 mask pixels; faster-rcnn
+float16 boxes 3.0 px, scores 0.024; labels equal everywhere.
+
+Where mask-rcnn's time goes (fp16, 800x1344, 16 detections, 149 ms in all): the dense function 90, top-k and RPN
+NMS 6, box pooling and head 11, the class NMS 3, mask pooling and head 6, pasting the masks into the image on the
+CPU 22. float32: 182 ms, 118 of them dense.
+
+Left:
+
+- The network is convolution bound (60% is ResNet-50 + FPN + RPN); `conv_mlx` and a `kernels` mode were not tried,
+  the card declares portable only.
+- Pasting the masks (`_output`, 22 ms for 16 detections, on the CPU) is the next piece; a Metal kernel that writes
+  all masks would take it. It grows with the detection count.
+- Top-k and NMS on the CPU cost 9 ms and two syncs; not ported.
+- The channels per RoIAlign thread (4) and the thread group (8 x 8 x 1) were not tuned.
+- The MPS runner was not touched.
+- RoIAlign inside other families (sam3) was not examined.
 
 ## 1x1 convs as a GEMM (2026-11-24)
 

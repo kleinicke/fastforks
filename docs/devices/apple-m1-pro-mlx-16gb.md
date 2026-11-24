@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-24 |
-| rows | 1538 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1539 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -415,7 +415,7 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`dfine-n-coco`](../models/detection.md#dfine) | 25.7 | 22.3 | unsupported | – | – | 624 | – |
 | [`dfine-s-coco`](../models/detection.md#dfine) | 34.6 | 29.5 | unsupported | – | – | 652 | – |
 | [`dfine-x-coco`](../models/detection.md#dfine) | 120 | 94.6 | – | – | – | 1133 | – |
-| [`faster-rcnn-r50-fpn-3x-coco`](../models/detection.md#rcnn) | 410 | 367 | – | – | – | 1694 | – |
+| [`faster-rcnn-r50-fpn-3x-coco`](../models/detection.md#rcnn) | 156 | 126 | unsupported | – | – | 1156 | – |
 | [`grounding-dino-base`](../models/detection.md#grounding_dino) | 1189 | 889 | unsupported | – | – | 1687 | – |
 | [`grounding-dino-tiny`](../models/detection.md#grounding_dino) | 933 | 753 | unsupported | – | – | 1499 | – |
 | [`lw-detr-large-coco`](../models/detection.md#lwdetr) | 70.8 | 64.6 | – | – | – | 891 | – |
@@ -423,7 +423,7 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`lw-detr-small-coco`](../models/detection.md#lwdetr) | 33.3 | 33.6 | – | – | – | 736 | – |
 | [`lw-detr-tiny-coco`](../models/detection.md#lwdetr) | 37.7 | 34.9 | unsupported | – | – | 935 | – |
 | [`lw-detr-xlarge-coco`](../models/detection.md#lwdetr) | 123 | 117 | – | – | – | 1077 | – |
-| [`mask-rcnn-r50-fpn-3x-coco`](../models/detection.md#rcnn) | 462 | 411 | unsupported | – | – | 1533 | – |
+| [`mask-rcnn-r50-fpn-3x-coco`](../models/detection.md#rcnn) | 181 | 144 | unsupported | – | – | 1174 | – |
 | [`mm-grounding-dino-base`](../models/detection.md#grounding_dino) | 1254 | 916 | – | – | – | 1719 | – |
 | [`mm-grounding-dino-tiny`](../models/detection.md#grounding_dino) | 935 | 766 | – | – | – | 1507 | – |
 | [`owlv2-b16`](../models/detection.md#owlv2) | 390 | 294 | unsupported | – | – | 991 | – |
