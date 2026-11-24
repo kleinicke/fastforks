@@ -65,5 +65,7 @@ On a fresh install with empty caches, the pack wrote its input schema cache at s
 public checkpoint download produced a ComfyUI interrupt event and emptied the download directory. Queueing again
 verified and cached the checkpoint and rendered a 768 × 768 depth preview.
 
-Publishing the wheels and the Comfy Registry packs are release steps. See the [Windows results](comfyui-windows-results.md) and
+Publishing the wheels and the Comfy Registry packs are release steps. The public Registry lookup returned
+`Publisher not found` for the configured `kleinicke` ID on 2026-11-24. Confirm the publisher account and its
+ID before publishing either pack. See the [Windows results](comfyui-windows-results.md) and
 [macOS results](comfyui-mac-results.md) for the other platform runs.
