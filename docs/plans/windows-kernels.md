@@ -201,8 +201,8 @@ files as on Linux, hash-checked) came from the same cache. The optional extras `
 - The offline cache lacked the weights of 36 references, so they were handled separately. For 32 of them, the
   weights were downloaded from their recorded URLs into a temporary cache, recorded, and deleted afterwards. Those
   are the timm / torchvision classifiers, dinov2_vitl14_lc, eva02, siglip, omni-dc, segformer and sapiens-seg; all
-  passed. mvsanywhere was recorded after its fix (below). dfine-n-coco, rtmo-t and sam-hq-vit-b fail in kernels
-  mode (see below).
+  passed. mvsanywhere was recorded after its fix (below). dfine-n-coco, rtmo-t and sam-hq-vit-b failed in
+  kernels mode at the sweep; they pass since decision 6 (below; rerun 2026-11-24, both modes).
 - On another Windows machine without these weights, `test_kernels_validated` skips a reference that has no Windows
   record and no local weights, worded like the repo's other weight-missing skips. It fails as before once the
   weights are present, or when a Windows record is stale. Linux checks exactly as before.
@@ -216,7 +216,8 @@ loaded. Check: a process with `PATH=C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\Sy
 `nvidia-cuda-nvcc`, no `CUDA_PATH`) ran the kernels-mode goldens of aanet-plus, c-fast-foundationstereo,
 defom-stereo, hitnet-eth3d and s2m2-l, and they passed. All 11 DLLs were loaded from the per-process temp
 directory, and no module from Visual Studio or the nvcc package was loaded (only PyTorch's own `torch\lib`
-nvrtc). dfine-n-coco and rtmo-t, run in the same process, fail as they do with the tools present.
+nvrtc). dfine-n-coco and rtmo-t, run in the same process, failed as they did with the tools present (both pass
+since decision 6).
 
 Fixed after the sweep, each with a Windows record:
 
@@ -360,7 +361,7 @@ the speed-table harness: uint8 CUDA input, other warm-up and medians), so they c
 | coex-sceneflow | 375x1242 | 6.9 (6.9) | 7.3 (7.0) | 19.3 (18.7) | 18.2 (17.6) | 6.7 / 14.7 |
 | igev-stereo-sceneflow | 375x1242 | 104.5 (103.9) | 105.3 (103.7) | 285.0 (250.0) | 246.2 (243.7) | 96.4 / 213.2 |
 | raft-stereo-sceneflow | 375x1242 | 89.5 (89.4) | 90.8 (90.6) | 238.1 (237.2) | 240.4 (239.2) | 88.0 / 214.7 |
-| psmnet-sceneflow | 375x1242 | fails | fails | 102.2 (101.9) | 102.1 (101.9) | 73.5 / 107.0 |
+| psmnet-sceneflow | 375x1242 | failed then (works since, below) | failed then | 102.2 (101.9) | 102.1 (101.9) | 73.5 / 107.0 |
 | nmrf-sceneflow | 375x1242 | 56.0 (55.8) | 56.3 (56.0) | 62.3 (62.0) | 70.8 (62.3) | 51.5 / 58.1 |
 | bridgedepth-sf | 375x1242 | 141.1 (138.9) | 100.9 (100.7) | 183.1 (180.9) | 120.5 (120.2) | 92.1 / 111.0 |
 | sam2.1-hiera-tiny | 1024x1024 | 22.4 (22.2) | 16.8 (16.5) | 25.6 (25.0) | 19.4 (19.2) | 13.9 / 16.6 |
@@ -386,8 +387,30 @@ the speed-table harness: uint8 CUDA input, other warm-up and medians), so they c
   metal. The harnesses differ, so these are estimates.
 - **No drift on Windows.** It reproduces the table above (coex 6.9, raft 89.5, igev 104.5, nmrf 56.0, sam2 22.4,
   bridgedepth 141 vs 139). One exception: psmnet portable is now 102 ms, against 110 ms before BatchNorm folding
-  at load (`bd881ef5`). That merge also breaks psmnet kernels mode on both OSes: `RuntimeError: kernels: no conv
-  + BatchNorm run was fused (the module tree changed)`.
+  at load (`bd881ef5`). That merge also broke psmnet kernels mode on both OSes (`RuntimeError: kernels: no conv
+  + BatchNorm run was fused (the module tree changed)`); fixed since: on 2026-11-24 psmnet kernels passes its golden
+  on Windows and benches 64.5 ms (`fastforks bench --runs 5`).
+
+### The attention rows again (2026-11-24, cuDNN attention default)
+
+`fastforks bench --runs 30`, one process per cell, 3 rounds with modes alternated; median of the rounds (range).
+Same machine, driver and torch as above.
+
+| model | size | kernels Win now | before | portable Win now | before | Linux kernels / portable |
+| --- | --- | --- | --- | --- | --- | --- |
+| bridgedepth-sf | 375x1242 | 84.9 (84.9-84.9) | 141.1 | 167.3 (166.0-169.3) | 183.1 | 92.1 / 111.0 |
+| sam2.1-hiera-tiny | 1024x1024 | 14.0 (13.9-14.0) | 22.4 | 17.8 (17.8-17.9) | 25.6 | 13.9 / 16.6 |
+| depth-anything-v2-s | 518x770 | 4.6 (4.6-4.6) | 5.2 | 9.4 (9.0-9.4) | 11.1 | 4.45 / 7.7 |
+| rf-detr-s-coco | 800x1344 | 3.6 (3.6-3.7) | 4.0 | 16.4 or 36 (bimodal) | 23.4 (16.3) | 3.3 / 10.0 |
+
+- Kernels mode now matches bare-metal Linux for sam2.1-hiera-tiny, and is within 4-9 % for the others
+  (bridgedepth 84.9 is faster than the Linux row, which predates later kernel work).
+- rf-detr-s portable is bimodal between processes: 16.0-16.4 ms or 35.7-37.2 ms (11 bench processes: 3 fast, 8 slow;
+  a probe process also hit 23.9), with either SDPA order (`FASTFORKS_SDPA=auto` and `efficient,math,cudnn` alike). Its GPU work is
+  about 4 ms per call. The host is the limit: about 500 kernel launches per call, and in a slow process
+  `cudaLaunchKernel` takes about 20 us of CPU each (torch profiler). The SM / memory clocks are the same in both modes
+  (2730-2752 / 13801 MHz, P1). That makes it the WDDM launch path, per process, not fastforks code. Kernels mode
+  replays a CUDA graph and is stable at 3.6 ms.
 
 ## Attention speed on Windows (work/attn-speed)
 
