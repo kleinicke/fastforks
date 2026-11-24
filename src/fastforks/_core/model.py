@@ -1395,6 +1395,12 @@ def compute_dtype(  # noqa: PLR0913 - the resolved arguments of `_build`
             logging.getLogger("fastforks").warning(
                 "%s: portable %s is not the validated dtype (%s)", card.family, want, card.portable_cuda_dtype
             )
+        if device.type == "cuda" and want == "bfloat16" and torch.cuda.get_device_capability(device)[0] < _AMPERE:
+            logging.getLogger("fastforks").warning(
+                "%s: %s has no bfloat16 hardware; torch emulates it, slowly (float16 or float32 run at full speed)",
+                card.family,
+                torch.cuda.get_device_name(device),
+            )
         return want
     if mode == "kernels":
         return card.kernels_dtype_on(device)

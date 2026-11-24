@@ -80,3 +80,14 @@ def test_float16_models_keep_float16_on_turing(monkeypatch):
     card, _ = registry.resolve("stereo", "s2m2-s")
     assert card.portable_cuda_dtype == "float16"
     assert core_model.compute_dtype(card, Dummy, "portable", torch.device("cuda", 0)) == "float16"
+
+
+@pytest.mark.parametrize(("capability", "warns"), [((7, 5), True), ((8, 6), False)])
+def test_asked_for_bfloat16_warns_without_bf16_hardware(monkeypatch, caplog, capability, warns):
+    """`dtype="bfloat16"` (the ComfyUI dtype list) on an RTX 20 runs, emulated; the log says so and names the dtype."""
+    _gpu(monkeypatch, capability)
+    card, _ = registry.resolve("stereo", "defom-stereo-vitl-sceneflow")
+    with caplog.at_level(logging.WARNING, logger="fastforks"):
+        got = core_model.compute_dtype(card, Dummy, "portable", torch.device("cuda", 0), want="bfloat16")
+    assert got == "bfloat16"
+    assert any("no bfloat16 hardware" in r.getMessage() for r in caplog.records) == warns
