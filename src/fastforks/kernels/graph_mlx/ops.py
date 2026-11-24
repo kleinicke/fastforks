@@ -961,3 +961,164 @@ def corr_windows(f1: mx.array, levels: list[mx.array], coords: mx.array, radius:
         grid=(b * p * nl * 32, 1, 1), threadgroup=(128, 1, 1),
         output_shapes=[(b, nl * (2 * radius + 1) ** 2, h, w)], output_dtypes=[mx.float32],
     )[0]  # fmt: skip
+
+
+def _hit_vec(c: int) -> int:
+    """Channels per vector load of the HITNet cost kernels (the features have 16 .. 72 channels, all multiples of 4)."""
+    if c % 2:
+        msg = f"HITNet cost kernels need an even channel count, got {c}"
+        raise ValueError(msg)
+    return 4 if c % 4 == 0 else 2
+
+
+_HIT_INIT = metal_kernel(
+    name="graph_hitnet_init_cost",
+    input_names=["lt", "rt"],
+    output_names=["disp", "cost"],
+    source="""
+        // one thread per tile: cost(d) = sum_c |lt(x) - rt(max(0, 4x + 1 - d))| over d < D, each difference rounded to
+        // T (as the half-precision subtraction of the graph), fp32 sums; the first minimizing d and its cost. NHWC.
+        uint x = thread_position_in_grid.x, y = thread_position_in_grid.y, n = thread_position_in_grid.z;
+        if (x >= W || y >= H) return;
+        const device vec<T, VEC>* lp = (const device vec<T, VEC>*)lt + ((size_t(n) * H + y) * W + x) * (C / VEC);
+        const device vec<T, VEC>* rrow = (const device vec<T, VEC>*)rt + (size_t(n) * H + y) * WR * (C / VEC);
+        float best = 3.0e38f;
+        uint bd = 0;
+        for (uint d = 0; d < D; ++d) {
+            uint col = uint(max(0, int(4 * x + 1) - int(d)));
+            const device vec<T, VEC>* rp = rrow + col * (C / VEC);
+            vec<float, VEC> acc = vec<float, VEC>(0.0f);
+            for (uint c = 0; c < C / VEC; ++c) acc += vec<float, VEC>(abs(lp[c] - rp[c]));
+            float s = 0.0f;
+            for (int k = 0; k < VEC; ++k) s += acc[k];
+            if (s < best) { best = s; bd = d; }
+        }
+        size_t o = (size_t(n) * H + y) * W + x;
+        disp[o] = float(bd);
+        cost[o] = best;
+    """,
+)
+
+
+def hitnet_init_cost(lt: mx.array, rt: mx.array, max_disp: int) -> tuple[mx.array, mx.array]:
+    """HITNet's level-init cost of NHWC tile embeddings `lt` `[N, h, w, C]`, `rt` `[N, h, Wr, C]`.
+
+    Returns the first minimizing disparity below `max_disp` and its cost, fp32 `[N, 1, h, w]` each.
+    """
+    t = mx.result_type(lt.dtype, rt.dtype)  # the kernel reads both as one type
+    n, h, w, c = lt.shape
+    vec = _hit_vec(c)
+    d, cost = _HIT_INIT(
+        inputs=[mx.contiguous(lt.astype(t)), mx.contiguous(rt.astype(t))],
+        template=[("T", t), ("C", c), ("H", h), ("W", w), ("WR", rt.shape[2]), ("D", max_disp), ("VEC", vec)],
+        grid=(w, h, n), threadgroup=(16, 16, 1),
+        output_shapes=[(n, 1, h, w), (n, 1, h, w)], output_dtypes=[mx.float32, mx.float32],
+    )  # fmt: skip
+    return d, cost
+
+
+_HIT_WARP_SAD = """
+    // sum_c |fl(pixel) - fr(row, x)|, fr read at column x by clamped linear interpolation (grid_sample, border
+    // padding);
+    // V / F: the features' and the float vector type, cv vectors per pixel, wr columns in the row
+    template <typename V, typename F>
+    inline float hit_warp_sad(const device V* lp, const device V* rrow, float x, uint wr, uint cv, int lanes) {
+        x = clamp(x, 0.0f, float(wr - 1));
+        float x0 = floor(x), a = x - x0;
+        uint i0 = min(uint(x0), wr - 1), i1 = min(i0 + 1, wr - 1);  // in bounds for a NaN x too
+        const device V* r0 = rrow + size_t(i0) * cv;
+        const device V* r1 = rrow + size_t(i1) * cv;
+        F acc = F(0.0f);
+        for (uint c = 0; c < cv; ++c) acc += abs(F(lp[c]) - (F(r0[c]) * (1.0f - a) + F(r1[c]) * a));
+        float s = 0.0f;
+        for (int k = 0; k < lanes; ++k) s += acc[k];
+        return s;
+    }
+"""
+
+_HIT_TILE = metal_kernel(
+    name="graph_hitnet_tile_sad",
+    input_names=["hyp", "fl", "fr"],
+    output_names=["out"],
+    header=_HIT_WARP_SAD,
+    source="""
+        // one thread per pixel (Y, X) = (4y + by, 4x + bx) of tile (y, x): at the plane disparity
+        // e = d + (bx - 1.5) dx + (by - 1.5) dy, [sum_c |fl|, SAD at X - e + 1, X - e, X - e - 1] into channels
+        // (4 by + bx) * 4 + k of the NHWC output. hyp: fp32 [N, 16, h, w]; fl / fr: NHWC.
+        #define WSAD hit_warp_sad<vec<T, VEC>, vec<float, VEC>>
+        uint X = thread_position_in_grid.x, Y = thread_position_in_grid.y, n = thread_position_in_grid.z;
+        if (X >= 4 * TW || Y >= 4 * TH) return;
+        uint x = X / 4, y = Y / 4, bx = X % 4, by = Y % 4;
+        size_t P = size_t(TH) * TW, p = size_t(y) * TW + x;
+        const device float* hp = hyp + size_t(n) * HC * P + p;
+        float e = hp[0] + (float(bx) - 1.5f) * hp[P] + (float(by) - 1.5f) * hp[2 * P];
+        float base = float(X) - e;
+        size_t row = size_t(n) * 4 * TH + Y;
+        const device vec<T, VEC>* lp = (const device vec<T, VEC>*)fl + (row * 4 * TW + X) * (C / VEC);
+        const device vec<T, VEC>* rrow = (const device vec<T, VEC>*)fr + row * WR * (C / VEC);
+        vec<float, VEC> acc = vec<float, VEC>(0.0f);
+        for (uint c = 0; c < C / VEC; ++c) acc += abs(vec<float, VEC>(lp[c]));
+        float a = 0.0f;
+        for (int k = 0; k < VEC; ++k) a += acc[k];
+        device float* o = out + (size_t(n) * P + p) * 64 + (by * 4 + bx) * 4;
+        o[0] = a;
+        o[1] = WSAD(lp, rrow, base + 1.0f, WR, C / VEC, VEC);
+        o[2] = WSAD(lp, rrow, base, WR, C / VEC, VEC);
+        o[3] = WSAD(lp, rrow, base - 1.0f, WR, C / VEC, VEC);
+    """,
+)
+
+
+def hitnet_tile_sad(hyp: mx.array, fl: mx.array, fr: mx.array) -> mx.array:
+    """HITNet's tile cost of hypotheses `hyp` `[N, >= 3, h, w]` (d, dx, dy first): fp32 NHWC `[N, h, w, 64]`.
+
+    `fl` `[N, 4h, 4w, C]`, `fr` `[N, 4h, Wr, C]`: the NHWC features at 4x the tile resolution.
+    """
+    t = mx.result_type(fl.dtype, fr.dtype)  # the kernel reads both as one type
+    n, hc, h, w = hyp.shape
+    c = fl.shape[3]
+    vec = _hit_vec(c)
+    return _HIT_TILE(
+        inputs=[mx.contiguous(hyp.astype(mx.float32)), mx.contiguous(fl.astype(t)), mx.contiguous(fr.astype(t))],
+        template=[("T", t), ("C", c), ("TH", h), ("TW", w), ("WR", fr.shape[2]), ("HC", hc), ("VEC", vec)],
+        grid=(4 * w, 4 * h, n), threadgroup=(16, 16, 1),
+        output_shapes=[(n, h, w, 64)], output_dtypes=[mx.float32],
+    )[0]  # fmt: skip
+
+
+_HIT_REFINE = metal_kernel(
+    name="graph_hitnet_refine_sad",
+    input_names=["disp", "fl", "fr"],
+    output_names=["out"],
+    header=_HIT_WARP_SAD,
+    source="""
+        // one thread per pixel: the SADs at X - d, X - (d + 1), X - (d - 1). disp: fp32 [N, 1, H, W]; fl / fr: NHWC;
+        // out: NHWC [N, H, W, 3] in O.
+        #define WSAD hit_warp_sad<vec<T, VEC>, vec<float, VEC>>
+        uint X = thread_position_in_grid.x, Y = thread_position_in_grid.y, n = thread_position_in_grid.z;
+        if (X >= W || Y >= H) return;
+        size_t p = (size_t(n) * H + Y) * W + X;
+        float d = disp[p];
+        const device vec<T, VEC>* lp = (const device vec<T, VEC>*)fl + p * (C / VEC);
+        const device vec<T, VEC>* rrow = (const device vec<T, VEC>*)fr + (size_t(n) * H + Y) * WR * (C / VEC);
+        out[p * 3] = O(WSAD(lp, rrow, float(X) - d, WR, C / VEC, VEC));
+        out[p * 3 + 1] = O(WSAD(lp, rrow, float(X) - (d + 1.0f), WR, C / VEC, VEC));
+        out[p * 3 + 2] = O(WSAD(lp, rrow, float(X) - (d - 1.0f), WR, C / VEC, VEC));
+    """,
+)
+
+
+def hitnet_refine_sad(d: mx.array, fl: mx.array, fr: mx.array, out: mx.Dtype = mx.float32) -> mx.array:
+    """HITNet's refinement SADs at disparity `d` `[N, 1, H, W]`: NHWC `[N, H, W, 3]` (at `d`, `d + 1`, `d - 1`).
+
+    `fl` `[N, H, W, C]`, `fr` `[N, H, Wr, C]`: the NHWC features; fp32 sums rounded to `out`.
+    """
+    t = mx.result_type(fl.dtype, fr.dtype)  # the kernel reads both as one type
+    n, h, w, c = fl.shape
+    vec = _hit_vec(c)
+    return _HIT_REFINE(
+        inputs=[mx.contiguous(d.astype(mx.float32)), mx.contiguous(fl.astype(t)), mx.contiguous(fr.astype(t))],
+        template=[("T", t), ("O", out), ("C", c), ("H", h), ("W", w), ("WR", fr.shape[2]), ("VEC", vec)],
+        grid=(w, h, n), threadgroup=(16, 16, 1),
+        output_shapes=[(n, h, w, 3)], output_dtypes=[out],
+    )[0]  # fmt: skip

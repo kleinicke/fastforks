@@ -52,6 +52,8 @@ mlx_dtypes = ["float32", "float16"]
 [modes.kernels]
 kernels = ["hitnet", "hitnet_conv"]
 mps_kernels = ["stereo_metal"]
+mlx_kernels = ["conv_mlx"]
+mlx_dtypes = ["float32", "float16"]
 # CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x padded H x W <= 500k (up to KITTI
 # 375x1242) replays a CUDA graph, captured on a shape's second call, at most 2 shapes per model 
 # The graph pool stays reserved (up to ~2x eager reserved memory) until

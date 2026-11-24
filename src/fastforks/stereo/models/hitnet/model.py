@@ -177,10 +177,16 @@ class _OnePair(Portable):
 
     batch = 1
 
+    def __init__(self, ctx: Context) -> None:
+        """Build the network; its costs export as single ops that `mlx_costs` lowers to Metal kernels."""
+        super().__init__(ctx)
+        from . import mlx_costs  # noqa: F401, PLC0415 - needs MLX; registers the lowerings
+
 
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
     "portable_mlx": mlx_wrap.port(_OnePair, whole="disparity"),
+    "kernels_mlx": mlx_wrap.port(_OnePair, whole="disparity"),
 }
