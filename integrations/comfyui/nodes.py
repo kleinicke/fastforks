@@ -407,7 +407,7 @@ def setup_cache(environ: os._Environ[str] | dict[str, str] = os.environ, platfor
     `extra_model_paths.yaml` are used in place (`FASTFORKS_READ_CACHES`); only missing files are downloaded. Weights
     put into a `fastforks` folder by hand, as `<file>` or `<family>/<file>`, are found too (`FASTFORKS_WEIGHTS_PATH`,
     after the user's own entries), and so are upstream checkpoints in `upscale_models` / `facerestore_models`
-    (`shared_folders`), all hash-checked. On macOS
+    / `facedetection` (`shared_folders`), all hash-checked. On macOS
     the MLX ports' first-run plans go to `models/fastforks/mlx-plans` unless `FASTFORKS_MLX_PLAN_CACHE` is set.
     """
     import folder_paths  # noqa: PLC0415 - ComfyUI only
@@ -435,15 +435,19 @@ def setup_cache(environ: os._Environ[str] | dict[str, str] = os.environ, platfor
         log.info("fastforks: MLX first-run plans are kept in %s", environ[_PLAN_ENV])
 
 
-_SHARED = ("upscale_models", "facerestore_models")  # fixed: ComfyUI folders holding upstream checkpoints of our cards
+_SHARED = (
+    "upscale_models",
+    "facerestore_models",
+    "facedetection",
+)  # fixed: folders with upstream checkpoints of our cards
 
 
 def shared_folders(folder_paths: Any) -> list[str]:  # noqa: ANN401 - ComfyUI's folder_paths module
-    """ComfyUI's `upscale_models` and `facerestore_models` folders, read in place.
+    """ComfyUI's `upscale_models`, `facerestore_models` and `facedetection` folders, read in place.
 
-    Other nodes keep the upstream files of our upscalers and face restorers there (RealESRGAN_x4plus.pth,
-    GFPGANv1.4.pth, codeformer.pth, ...).
-    A folder another pack registers later (`facerestore_models`) is its default `models/<name>` if that exists.
+    Other nodes keep the upstream files of our upscalers, face restorers and RetinaFace there (RealESRGAN_x4plus.pth,
+    GFPGANv1.4.pth, codeformer.pth, detection_Resnet50_Final.pth, ...).
+    A folder another pack registers later (the face ones) is its default `models/<name>` if that exists.
     """
     out = []
     for name in _SHARED:

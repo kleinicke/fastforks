@@ -33,7 +33,7 @@ No model family is new in this release; the changes are backends, platforms and 
   MLX port, Apple silicon only), so a saved workflow validates everywhere. An entry the machine or the model cannot run
   fails with a message. A workflow saved with the earlier `mlx portable` entry loads as `mlx`.
 - Weight and kernel downloads show a progress bar on the node; Cancel stops a download (nothing is cached).
-- Upscaler and face-restore checkpoints already in `models/upscale_models` / `models/facerestore_models` (e.g.
+- Upscaler and face-restore checkpoints already in `models/upscale_models`, `facerestore_models` or `facedetection` (e.g.
   `RealESRGAN_x4plus.pth`) are used in place when their SHA-256 matches, instead of being downloaded again.
 - Fourteen example workflows, listed under the pack's templates in ComfyUI's workflow browser (fastforks-commercial:
   thirteen, without video matting).
