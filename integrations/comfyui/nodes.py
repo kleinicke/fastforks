@@ -1378,14 +1378,14 @@ class SemanticSegment(_Node):
         wanted = torch.tensor(convert.class_ids(classes, names), dtype=torch.long)
         colours = convert.palette(len(names))
 
-        def one(r: Any, k: int | None) -> tuple[torch.Tensor, torch.Tensor, list[str], list[torch.Tensor]]:  # noqa: ANN401
+        def one(r: Any, k: int | None) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, list[torch.Tensor]]:  # noqa: ANN401
             lab = at(r.labels, k)
-            present = [names[c] for c in lab.unique().tolist()]
+            present = convert.class_presence(lab, len(names))  # read once for the batch: no host sync per image
             mask = torch.isin(lab, wanted.to(lab.device))
             return convert.labels_image(lab, colours), mask, present, [lab == c for c in wanted.tolist()] or [mask]
 
         out = each_result(image, m, batch_size, one)
-        found = "\n".join(", ".join(o[2]) for o in out)
+        found = "\n".join(convert.present_names(torch.stack([o[2] for o in out]).cpu(), names))
         return (
             convert.to_image([o[0] for o in out], _out_device()),
             convert.to_mask([o[1] for o in out], _out_device()),

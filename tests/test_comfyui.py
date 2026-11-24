@@ -816,6 +816,12 @@ def test_semantic_maps(pack: Any) -> None:
     img = c.labels_image(torch.tensor([[0, 2]]), pal)
     assert img.shape == (3, 1, 2)
     assert img[:, 0, 1].tolist() == pal[2].tolist()
+    seen = torch.stack(
+        [c.class_presence(torch.tensor([[2, 0], [2, 2]]), 3), c.class_presence(torch.ones(2, 2, dtype=torch.long), 3)]
+    )
+    assert c.present_names(seen, ("wall", "sky", "tree")) == ["wall, tree", "sky"]
+    with pytest.raises(ValueError, match="outside its 3 classes"):
+        c.present_names(c.class_presence(torch.tensor([[1, 3]]), 3)[None], ("wall", "sky", "tree"))
 
 
 def test_flow_image_and_warp(pack: Any) -> None:

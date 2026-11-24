@@ -141,12 +141,12 @@ def drop_ahead() -> None:
 
 def to_image(maps: Sequence[torch.Tensor], device: torch.device | str = "cpu") -> torch.Tensor:
     """RGB maps of fastforks `[3, H, W]` in `[0, 1]` (one per image) -> IMAGE `[B, H, W, 3]` float32."""
-    return torch.stack([m.detach().float().permute(1, 2, 0) for m in maps]).clamp(0, 1).to(device).contiguous()
+    return torch.stack([m.detach().float().permute(1, 2, 0) for m in maps]).clamp_(0, 1).to(device).contiguous()
 
 
 def to_mask(maps: Sequence[torch.Tensor], device: torch.device | str = "cpu") -> torch.Tensor:
     """Masks or alpha maps `[H, W]` (bool or float in `[0, 1]`, one per image) -> MASK `[B, H, W]` float32."""
-    return torch.stack([m.detach().float() for m in maps]).clamp(0, 1).to(device).contiguous()
+    return torch.stack([m.detach().float() for m in maps]).clamp_(0, 1).to(device).contiguous()
 
 
 def with_alpha(image: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
@@ -329,7 +329,7 @@ def draw_pose(  # noqa: PLR0913 - the fields of one image's pose result
         for (x, y), s in zip(kp, sc, strict=True):
             if s >= threshold:
                 draw.ellipse([x - width, y - width, x + width, y + width], fill=(255, 255, 255))
-    return torch.from_numpy(np.asarray(canvas).copy()).permute(2, 0, 1).float() / 255
+    return torch.from_numpy(np.array(canvas)).permute(2, 0, 1).float().div_(255)
 
 
 def to_json(obj: object) -> str:
@@ -380,6 +380,25 @@ def unknown_classes(unknown: Sequence[str], class_names: Sequence[str]) -> str:
         return f"{msg}; did you mean {', '.join(dict.fromkeys(lower[m] for m in close))}?"
     shown = ", ".join(class_names[:_SHOWN_CLASSES])
     return f"{msg}, e.g. {shown}{', ...' if len(class_names) > _SHOWN_CLASSES else ''}; names are case-insensitive"
+
+
+def class_presence(labels: torch.Tensor, n: int) -> torch.Tensor:
+    """Which of `n` classes appear in a label map: `[n + 1]` bool on its device, read without a host sync.
+
+    The last entry flags indices outside `[0, n)`; `present_names` raises for it once the batch is read.
+    """
+    seen = torch.zeros(n + 1, dtype=torch.bool, device=labels.device)
+    flat = labels.flatten()
+    seen[torch.where((flat >= 0) & (flat < n), flat, n)] = True
+    return seen
+
+
+def present_names(seen: torch.Tensor, class_names: Sequence[str]) -> list[str]:
+    """`class_presence` rows `[B, n + 1]` -> per image, its classes' names (comma-separated, in class order)."""
+    if seen[:, len(class_names)].any():
+        msg = f"the model returned class indices outside its {len(class_names)} classes"
+        raise ValueError(msg)
+    return [", ".join(class_names[c] for c in row.nonzero().flatten().tolist()) for row in seen[:, :-1]]
 
 
 def labels_image(labels: torch.Tensor, colours: torch.Tensor) -> torch.Tensor:
@@ -472,4 +491,4 @@ def draw_tracks(  # noqa: PLR0913 - one video's tracks
         if vis[-1][q]:
             x, y = pts[-1][q]
             draw.ellipse([x - width - 1, y - width - 1, x + width + 1, y + width + 1], fill=colour)
-    return torch.from_numpy(np.asarray(canvas).copy()).permute(2, 0, 1).float() / 255
+    return torch.from_numpy(np.array(canvas)).permute(2, 0, 1).float().div_(255)
