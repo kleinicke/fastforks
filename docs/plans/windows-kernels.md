@@ -391,6 +391,27 @@ the speed-table harness: uint8 CUDA input, other warm-up and medians), so they c
   + BatchNorm run was fused (the module tree changed)`); fixed since: on 2026-11-24 psmnet kernels passes its golden
   on Windows and benches 64.5 ms (`fastforks bench --runs 5`).
 
+### The attention rows again (2026-11-24, cuDNN attention default)
+
+`fastforks bench --runs 30`, one process per cell, 3 rounds with modes alternated; median of the rounds (range).
+Same machine, driver and torch as above.
+
+| model | size | kernels Win now | before | portable Win now | before | Linux kernels / portable |
+| --- | --- | --- | --- | --- | --- | --- |
+| bridgedepth-sf | 375x1242 | 84.9 (84.9-84.9) | 141.1 | 167.3 (166.0-169.3) | 183.1 | 92.1 / 111.0 |
+| sam2.1-hiera-tiny | 1024x1024 | 14.0 (13.9-14.0) | 22.4 | 17.8 (17.8-17.9) | 25.6 | 13.9 / 16.6 |
+| depth-anything-v2-s | 518x770 | 4.6 (4.6-4.6) | 5.2 | 9.4 (9.0-9.4) | 11.1 | 4.45 / 7.7 |
+| rf-detr-s-coco | 800x1344 | 3.6 (3.6-3.7) | 4.0 | 16.4 or 36 (bimodal) | 23.4 (16.3) | 3.3 / 10.0 |
+
+- Kernels mode now matches bare-metal Linux for sam2.1-hiera-tiny, and is within 4-9 % for the others
+  (bridgedepth 84.9 is faster than the Linux row, which predates later kernel work).
+- rf-detr-s portable is bimodal between processes: 16.0-16.4 ms or 35.7-37.2 ms (11 processes: 3 fast, 1 at
+  23.9, 7 slow), with either SDPA order (`FASTFORKS_SDPA=auto` and `efficient,math,cudnn` alike). Its GPU work is
+  about 4 ms per call. The host is the limit: about 500 kernel launches per call, and in a slow process
+  `cudaLaunchKernel` takes about 20 us of CPU each (torch profiler). The SM / memory clocks are the same in both modes
+  (2730-2752 / 13801 MHz, P1). That makes it the WDDM launch path, per process, not fastforks code. Kernels mode
+  replays a CUDA graph and is stable at 3.6 ms.
+
 ## Attention speed on Windows (work/attn-speed)
 
 The remaining gap after decision 9 (cuDNN first without flash) was profiled with `torch.profiler` over one call
