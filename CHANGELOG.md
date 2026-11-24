@@ -44,6 +44,8 @@ No model family is new in this release; the changes are backends, platforms and 
 - `registry.allow_noncommercial()` lets a front end with its own opt-in allow non-commercial weights.
 - `files.download_progress(callback)` reports the bytes of each download in a block to a front end; downloads
   without one log their progress every 10 s (INFO).
+- ReSplat's option `refine` is renamed `iters`, as in the other models with refinement steps; `refine=` keeps
+  working with a `FutureWarning` until 2026-12-15. `VolumeSession.add_point(point)`: `zyx=` likewise.
 - A result's `repr` leaves out fields that are None (`StereoResult` now prints tensor shapes like the others).
 - `fastforks download` shows each file's progress: one rewritten line on a terminal, a line every 10 s in a log.
 - `detection.track_objects(batch_size=)`; `example_inputs()` on concept segmentation and the volume models.

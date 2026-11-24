@@ -20,7 +20,7 @@ def _params(**kw: object) -> model.Params:
     base = {
         "vit": "vits", "channels": 256, "latent": 4, "fixed_latent": True, "gaussians_per_point": 1,
         "same_points": False, "lowest": 8, "size_multiple": 32, "train_size": (256, 448), "near": 0.01, "far": 200.0,
-        "long_side": 0, "refine": 2,
+        "long_side": 0, "iters": 2,
     }  # fmt: skip
     return model.Params(**(base | kw))  # type: ignore[arg-type]
 

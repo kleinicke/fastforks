@@ -271,6 +271,8 @@ class ModelCard:
         option_choices: Allowed values of options with a fixed set (card `choices = [...]`); checked at load.
         option_aliases: Accepted alternative names of options (card `aliases = [...]`, e.g. the upstream name), mapped
             to the canonical name; giving both is an error.
+        option_renamed: The aliases that are old names (card `renamed = [...]`): they still work, with a
+            `FutureWarning` until the removal date of renamed names.
         option_effect: What an option changes if not the results (card `effect`): `"speed"` (the same
             computation; results equal up to floating-point rounding) or `"precision"` (lower-precision arithmetic:
             faster, larger rounding error); options not listed change the outputs.
@@ -350,6 +352,7 @@ class ModelCard:
     official: tuple[Official, ...] = ()
     no_original_reason: str = ""
     option_aliases: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
+    option_renamed: frozenset[str] = frozenset()
     variant_ref: str | None = None
 
     def option_bounds(self, name: str) -> str:
@@ -817,6 +820,7 @@ def parse_card(data: dict[str, Any], *, family: str, task: str, where: str) -> M
         option_choices=_freeze({k: v.choices for k, v in options.items() if v.choices}),
         option_effect=_freeze({k: v.effect for k, v in options.items() if v.effect != "output"}),
         option_aliases=_aliases(options, where),
+        option_renamed=frozenset(a for o in options.values() for a in o.renamed),
         uses=_str_tuple(data.get("uses", []), f"{where} uses"),
         modes=modes,
         portable_cuda_dtype=cuda_dtype,
@@ -994,6 +998,7 @@ class _Opt(NamedTuple):
     choices: tuple[Any, ...] = ()
     effect: str = "output"
     aliases: tuple[str, ...] = ()
+    renamed: tuple[str, ...] = ()
 
 
 def _number(x: object) -> bool:
@@ -1013,10 +1018,10 @@ def _aliases(options: Mapping[str, _Opt], where: str) -> Mapping[str, str]:
     """`alias -> option` of all options; an alias must not be an option name or belong to two options."""
     out: dict[str, str] = {}
     for name, opt in options.items():
-        if clash := {name, *opt.aliases} & LOAD_ARGUMENTS:
+        if clash := {name, *opt.aliases, *opt.renamed} & LOAD_ARGUMENTS:
             msg = f"{where} [options] {name}: {sorted(clash)} is a load() argument (options are load keywords)"
             raise CardError(msg)
-        for a in opt.aliases:
+        for a in (*opt.aliases, *opt.renamed):
             if a in options or a in out:
                 msg = f"{where} [options] {name}: alias {a!r} is already an option name or alias"
                 raise CardError(msg)
@@ -1027,11 +1032,12 @@ def _aliases(options: Mapping[str, _Opt], where: str) -> Mapping[str, str]:
 def _option(value: object, where: str) -> _Opt:
     """An option as a plain value or `{ default = ..., min = ..., max = ..., choices = [...], effect = ... }`.
 
-    `aliases = ["old_name"]` lists accepted alternative names.
+    `aliases = ["upstream_name"]` lists accepted alternative names; `renamed = ["old_name"]` names this option had in
+    an earlier release (accepted with a `FutureWarning`).
     """
     if not isinstance(value, dict):
         return _Opt(value)
-    _unknown_keys(value, {"default", "min", "max", "choices", "effect", "aliases"}, where)
+    _unknown_keys(value, {"default", "min", "max", "choices", "effect", "aliases", "renamed"}, where)
     if "default" not in value:
         msg = f"{where}: needs a `default`"
         raise CardError(msg)
@@ -1058,7 +1064,8 @@ def _option(value: object, where: str) -> _Opt:
         msg = f"{where}: `effect` must be output (the default), speed or precision, got {effect!r}"
         raise CardError(msg)
     aliases = _str_tuple(value.get("aliases", []), f"{where} aliases")
-    return _Opt(default, low, high, tuple(choices), effect, aliases)
+    renamed = _str_tuple(value.get("renamed", []), f"{where} renamed")
+    return _Opt(default, low, high, tuple(choices), effect, aliases, renamed)
 
 
 def read_card(path: Path, *, task: str) -> ModelCard:

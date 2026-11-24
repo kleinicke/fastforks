@@ -41,7 +41,7 @@ size_multiple = 32
 
 [options]
 long_side = { default = 0, min = 0 }  # network long side; 0: the checkpoint's training size (256 x 256 / 256 x 448)
-refine = { default = 2, min = 0 }  # recurrent refinement steps (upstream evaluation: 2)
+iters = { default = 2, min = 0, renamed = ["refine"] }  # recurrent refinement steps (upstream evaluation: 2); `refine` until 0.2.0
 
 [modes.portable]
 cuda_dtype = "float16"

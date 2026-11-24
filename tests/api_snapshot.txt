@@ -393,6 +393,7 @@ field fastforks._core.cards.ModelCard.option_choices: Mapping[str, tuple[Any, ..
 field fastforks._core.cards.ModelCard.option_effect: Mapping[str, OptionEffect]
 field fastforks._core.cards.ModelCard.option_max: Mapping[str, float]
 field fastforks._core.cards.ModelCard.option_min: Mapping[str, float]
+field fastforks._core.cards.ModelCard.option_renamed: frozenset[str]
 field fastforks._core.cards.ModelCard.options: Mapping[str, Any]
 field fastforks._core.cards.ModelCard.output_info: Mapping[str, Any]
 field fastforks._core.cards.ModelCard.outputs: tuple[str, ...]
@@ -992,8 +993,8 @@ option multiview.mvsplat.long_side
 option multiview.patchmatchnet.cuda_graphs
 option multiview.pi3.pixel_limit
 option multiview.pi3.stream
+option multiview.resplat.iters aliases refine
 option multiview.resplat.long_side
-option multiview.resplat.refine
 option multiview.vggt.long_side
 option multiview.vggt.stream
 option multiview.vggt_omega.area_side aliases resolution

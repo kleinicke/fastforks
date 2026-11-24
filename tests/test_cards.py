@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import dataclasses
 import tomllib
+import warnings
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -279,6 +280,24 @@ def test_option_aliases_parse_and_must_be_unique(data):
         d["options"]["b"] = {"default": 2, "aliases": [clash]}
         with pytest.raises(CardError, match="alias"):
             parse(d)
+
+
+def test_renamed_options_work_with_a_future_warning(data):
+    from fastforks._core.model import check_options  # noqa: PLC0415 - next to its test
+
+    d = copy.deepcopy(data)
+    d["options"] = {"iters": {"default": 2, "min": 0, "renamed": ["refine"], "aliases": ["num_refine"]}}
+    card = parse(d)
+    assert dict(card.option_aliases) == {"num_refine": "iters", "refine": "iters"}
+    assert card.option_renamed == {"refine"}
+    with pytest.warns(FutureWarning, match=r"option refine= of .* is renamed to iters="):
+        assert check_options(card, {"refine": 3}) == {"iters": 3}
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert check_options(card, {"num_refine": 3}) == {"iters": 3}  # a plain alias stays silent
+    d["options"]["other"] = {"default": 1, "renamed": ["refine"]}
+    with pytest.raises(CardError, match="alias"):
+        parse(d)
 
 
 def test_papers_and_official(data):

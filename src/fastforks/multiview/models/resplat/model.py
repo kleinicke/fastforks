@@ -5,7 +5,7 @@ Upstream `EncoderReSplat.forward` + `forward_update` at eval (b = 1, all views a
 DepthSplat, with log-depth candidates) predicts every view's depth; DINOv2, CNN and cost-volume features at the latent
 resolution (`latent` x downsampled) feed a CNN regressor and a kNN point transformer with multi-view attention over
 the unprojected latent points, whose head predicts `gaussians_per_point` Gaussians per latent pixel (SH degree 3).
-`refine` recurrent steps then render the input views (`render.py`, upstream's gsplat call), compare ResNet-18
+`iters` recurrent steps then render the input views (`render.py`, upstream's gsplat call), compare ResNet-18
 features and colours of render and input, and a second kNN point transformer updates every Gaussian.
 
 Images are resized to the network size (long side `long_side`, default the training size, both sides multiples of
@@ -88,7 +88,7 @@ class Params:
     near: float  # training depth bounds (used without depth_range)
     far: float
     long_side: int  # network long side (0: the training size's)
-    refine: int  # recurrent refinement steps (upstream num_refine)
+    iters: int  # recurrent refinement steps (upstream num_refine; the option was `refine` until 0.2.0)
 
 
 def network_size(h: int, w: int, p: Params) -> tuple[int, int]:
@@ -477,7 +477,7 @@ class _Base(Runner):
         net_c2w = (invert(mid)[None] @ c2w).float()  # upstream pose_align_middle_view
         near, far = (p.near, p.far) if depth_range is None else (float(depth_range[0]), float(depth_range[1]))
         with self._amp():
-            depth, prob, g = self.net(x, k, net_c2w, near, far, p.refine)
+            depth, prob, g = self.net(x, k, net_c2w, near, far, p.iters)
 
         def up(t: torch.Tensor) -> torch.Tensor:
             return F.interpolate(t.float(), (h0, w0), mode="bilinear", align_corners=False)[:, 0]

@@ -1390,6 +1390,19 @@ def claim_kernels_device(device: torch.device) -> None:
             raise BackendUnavailableError(msg)
 
 
+def _canonical_names(card: ModelCard, options: Mapping[str, Any], model: str | None) -> dict[str, Any]:
+    """`options` under their card names: aliases mapped, an old (renamed) name with a `FutureWarning`."""
+    for k in options:
+        if k in card.option_renamed:
+            warn_renamed(f"option {k}= of {model or card.family}", f"{card.option_aliases[k]}=", stacklevel=5)
+    renamed = {card.option_aliases.get(k, k): v for k, v in options.items()}
+    if len(renamed) < len(options):
+        both = sorted(k for k in options if k in card.option_aliases and card.option_aliases[k] in options)
+        msg = f"option(s) {both} given twice: each is an alias of another given option ({model or card.family})"
+        raise OptionsError(msg)
+    return renamed
+
+
 def check_options(card: ModelCard, options: Mapping[str, Any], model: str | None = None) -> dict[str, Any]:
     """The options that differ from the card defaults; raises on unknown keys, wrong types and bad values."""
     if not isinstance(options, Mapping):
@@ -1406,12 +1419,7 @@ def check_options(card: ModelCard, options: Mapping[str, Any], model: str | None
             f"valid options: {', '.join(card.options) or 'none'} (defaults {dict(card.options)})"
         )
         raise UnknownOptionError(msg)
-    renamed = {card.option_aliases.get(k, k): v for k, v in options.items()}
-    if len(renamed) < len(options):
-        both = sorted(k for k in options if k in card.option_aliases and card.option_aliases[k] in options)
-        msg = f"option(s) {both} given twice: each is an alias of another given option ({model or card.family})"
-        raise OptionsError(msg)
-    options = renamed
+    options = _canonical_names(card, options, model)
     for k, v in options.items():
         default = card.options[k]
         int_for_float = isinstance(default, float) and type(v) is int  # exact type: not a module (no bool)

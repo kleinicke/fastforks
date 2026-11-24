@@ -522,7 +522,7 @@ Commercial use: `resplat-small-dl3dv`: yes; `resplat-base-re10k`: **no** (weight
 - Training data: DL3DV-10K (multi-view real-world scenes for 3D vision) (DL3DV-10K (non-commercial research licence), from DepthSplat / Depth Anything V2 Small depth initialisations.)
   - `resplat-base-re10k`: RealEstate10K (camera trajectories of YouTube real-estate videos) (RealEstate10K (YouTube videos, camera poses from ORB-SLAM; research use per its release), from a DepthSplat / Depth Anything V2 Base (CC-BY-NC-4.0) depth initialisation.)
 - Licence note: Code and checkpoints are MIT. The Base RealEstate10K checkpoint's monocular branch is initialised from Depth Anything V2 Base (CC-BY-NC-4.0) and is labelled non-commercial; the Small DL3DV checkpoint builds on Depth Anything V2 Small (Apache-2.0).
-- Options: `long_side` = 0 (>= 0), `refine` = 2 (>= 0)
+- Options: `long_side` = 0 (>= 0), `iters` = 2 (>= 0; was `refine`)
 - Kernel libraries: `fastbb`, `cudnn_hacc`, `gsraster`, `depthsplat_corr`, `knn_attention`
 - Variants: `resplat-small-dl3dv`, `resplat-base-re10k`
 - Public ONNX / TensorRT export is unavailable for `resplat-small-dl3dv` (torch.export cannot capture data-dependent Gaussian renderer shapes).

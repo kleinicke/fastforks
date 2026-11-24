@@ -96,7 +96,6 @@ They are not advertised in the docs. The model pages carry a "Not in this releas
 
 | item | symptom | cause | fix idea | where |
 |---|---|---|---|---|
-| resplat `refine` vs `iters` | one option name differs from the other refinement models | card aliases are silent and permanent; a warned rename needs a deprecated-alias kind | add `deprecated_aliases` (FutureWarning, removal date) to the card option parser, then rename | `multiview/models/resplat/card.toml` |
 | `@overload` return types | `fastforks.load()` returns a generic `Model` to type checkers | it takes a model id, not a task, so an overload would need a `Literal` of every id (hundreds, changing with each card) | decided (2026-11-24): no; `fastforks.<task>.load` already returns the precise class and the `load` docstring says so | `__init__.py` |
 | `save()` keywords | resolved (checked 2026-11-24 against tests/api_snapshot.txt) | every map result (depth, stereo views and pairs, `MapOutputs`, multiview) takes `save(path, key, bits, *, max_depth, axes)`, multiview adds `view=`; flow, interpolation, restoration, volume, instances and Gaussians take `save(path)` alone | none | result classes |
 | verb table | the task verbs (`predict` / `segment` / `match` ...) are documented per page | no single table | one generated table in `docs/api.md` | `tools/gen_docs.py` |

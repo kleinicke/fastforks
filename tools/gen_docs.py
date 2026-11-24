@@ -1431,7 +1431,9 @@ def _option(card: ModelCard, name: str) -> str:
     """`name` = default with its bounds and what it changes if not the outputs (`ModelCard.option_bounds`)."""
     notes = [b for b in (card.option_bounds(name), card.option_effect.get(name, "")) if b]
     notes = [f"{n} only" if n in {"speed", "precision"} else n for n in notes]
-    notes += [f"also `{a}`" for a, n in card.option_aliases.items() if n == name]
+    notes += [
+        f"{'was' if a in card.option_renamed else 'also'} `{a}`" for a, n in card.option_aliases.items() if n == name
+    ]
     return f"`{name}` = {card.options[name]}" + (f" ({'; '.join(notes)})" if notes else "")
 
 
