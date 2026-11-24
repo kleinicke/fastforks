@@ -26,12 +26,15 @@ No model family is new in this release; the changes are backends, platforms and 
 ### ComfyUI
 
 - Two node packs in `integrations/`: `comfyui` (every model) and `comfyui-commercial` (only models cleared for
-  commercial use, no Parse node): 20 nodes, one per task, with a model dropdown and automatic weight download (`docs/comfyui.md`).
+  commercial use): 24 nodes, one per task, with a model dropdown and automatic weight download
+  (`docs/comfyui.md`); fastforks-commercial has 22 (no Parse or Video matte, whose models are non-commercial).
   Both require fastforks 0.2.1; on Apple silicon their requirements also install `mlx`.
 - The `backend` dropdown has the same four entries on every platform: `auto`, `portable`, `kernels`, `mlx` (the model's
   MLX port, Apple silicon only), so a saved workflow validates everywhere. An entry the machine or the model cannot run
   fails with a message. A workflow saved with the earlier `mlx portable` entry loads as `mlx`.
 - Weight and kernel downloads show a progress bar on the node; Cancel stops a download (nothing is cached).
+- Fourteen example workflows, listed under the pack's templates in ComfyUI's workflow browser (fastforks-commercial:
+  thirteen, without video matting).
 
 ### API changes
 
