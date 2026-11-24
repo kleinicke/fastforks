@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
 import numpy as np
 import torch
@@ -14,12 +14,13 @@ from fastforks._core import model as core
 from fastforks._core.api import task_api
 from fastforks._core.bench import BenchInputs, BenchSize, synthetic_image
 from fastforks._core.errors import InputError
-from fastforks._core.image import ImageLike, is_batch, to_rgb_batch
+from fastforks._core.image import ImageLike, is_batch, to_rgb_batch, to_rgb_batches
 from fastforks._core.io import MAP_SUFFIXES, check_suffix, write_png_x256
 from fastforks._core.model import Backend
 from fastforks._core.outputs import MapOutputs
 from fastforks._core.save import CLOUD_SUFFIXES
 from fastforks._core.tasks import DepthKind, spec
+from fastforks._core.upload import to_device
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -33,7 +34,45 @@ TASK = "depth"
 _STANDARD = spec(TASK).standard
 _VECTOR_MAPS = ("points", "normals")
 _MAP_DIMS = 2
+_CLIP_DIMS = 4  # a `[T, H, W, C]` / `[T, C, H, W]` frame batch (a sequence of frames has no `ndim`)
 ArrayLike: TypeAlias = "torch.Tensor | np.ndarray | Sequence[Sequence[float]] | Sequence[Sequence[Sequence[float]]]"
+
+
+class Clip:
+    """The frames of one video, each converted to float32 RGB on the device when a `clip_frames` runner asks for it.
+
+    `clip[ids]` is `[len(ids), 3, H, W]` (a list of frame indices); `shape` is `(T, 3, H, W)`, from frame 0.
+    """
+
+    def __init__(self, frames: Sequence[ImageLike] | np.ndarray | torch.Tensor, device: torch.device) -> None:
+        """`frames` as `DepthModel.video` takes them (not empty)."""
+        self.frames, self.device = frames, device
+        self.batch = isinstance(frames, np.ndarray | torch.Tensor)
+        self.first = self._convert([0])
+        self.shape = (len(frames), *self.first.shape[1:])
+
+    def __getitem__(self, ids: list[int]) -> torch.Tensor:
+        """Frames `ids`, `[len(ids), 3, H, W]` on the device.
+
+        Raises:
+            InputError: A frame is not a single image of frame 0's size, or not a valid image.
+        """
+        return self.first if ids == [0] else self._convert(ids)
+
+    def _convert(self, ids: list[int]) -> torch.Tensor:
+        if self.batch:
+            frames = cast("np.ndarray | torch.Tensor", self.frames)
+            run = ids == list(range(ids[0], ids[0] + len(ids)))  # a window's new frames: a view, no gather copy
+            x = frames[ids[0] : ids[0] + len(ids)] if run else frames[ids]
+            if isinstance(x, torch.Tensor):  # pinned and async: the GPU keeps working on the previous window
+                x = to_device(x, self.device)
+            return to_rgb_batch(x, self.device)
+        parts = to_rgb_batches([self.frames[i] for i in ids], self.device)
+        for t, f in zip(ids, parts, strict=True):
+            if f.shape[0] != 1 or (t and f.shape[-2:] != self.first.shape[-2:]):
+                msg = f"video frame {t} has shape {tuple(f.shape)}; frames must be single images of one size"
+                raise InputError(msg)
+        return torch.cat(parts) if len(parts) > 1 else parts[0]
 
 
 @dataclass(frozen=True)
@@ -227,6 +266,8 @@ class DepthModel(core.Model):
                 f"{self.variant.ref} is an image model: call it with an image or a batch (`video` is for video models)"
             )
             raise InputError(msg)
+        if self._runner.clip_frames and getattr(frames, "ndim", _CLIP_DIMS) == _CLIP_DIMS:
+            return self._clip_video(frames)
         if isinstance(frames, np.ndarray | torch.Tensor):
             x = to_rgb_batch(frames, self.device)
         elif isinstance(frames, str | bytes) or not hasattr(frames, "__len__"):
@@ -247,8 +288,22 @@ class DepthModel(core.Model):
             maps = self._runner(x, None)
         return self._result(maps, x, None, batched=True)
 
+    def _clip_video(self, frames: Sequence[ImageLike] | np.ndarray | torch.Tensor) -> DepthResult:
+        """`video` of a `clip_frames` runner: the frames are converted and moved to the device as it asks for them."""
+        if isinstance(frames, str | bytes) or not hasattr(frames, "__len__") or not hasattr(frames, "__getitem__"):
+            msg = f"frames must be a sequence of frames or a [T, ...] frame batch, got {type(frames).__name__}"
+            raise InputError(msg)
+        if len(frames) == 0:
+            msg = "video has no frames"
+            raise InputError(msg)
+        clip = Clip(frames, self.device)
+        self._check_size(clip.first)
+        with self._session():
+            maps = self._runner(cast("torch.Tensor", clip), None)  # a `clip_frames` runner reads a Clip
+        return self._result(maps, clip.first if clip.shape[0] == 1 else clip, None, batched=True)
+
     def _result(
-        self, maps: dict[str, torch.Tensor], x: torch.Tensor, k: torch.Tensor | None, *, batched: bool
+        self, maps: dict[str, torch.Tensor], x: torch.Tensor | Clip, k: torch.Tensor | None, *, batched: bool
     ) -> DepthResult:
         """The checked maps of `x` `[B, 3, h, w]` as a result (without the batch dim unless `batched`)."""
         b, (h, w) = x.shape[0], x.shape[-2:]
@@ -275,7 +330,8 @@ class DepthModel(core.Model):
             backend=self.backend,
             options=self.options,
         )
-        object.__setattr__(result, "_image", x if batched else x[0])  # not a field: colours of `save`
+        if isinstance(x, torch.Tensor):  # not a field: colours of `save` (a cloud is of one image)
+            object.__setattr__(result, "_image", x if batched else x[0])
         return result
 
     def example_inputs(
