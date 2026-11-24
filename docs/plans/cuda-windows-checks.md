@@ -8,6 +8,11 @@ Apple hardware and CPU. Tick an item once it has run on the named platform.
 MLX-only graph changes are now gated on `EXPORTING_FOR_MLX` instead of any export, so ONNX/TensorRT trace the
 eager path as in v0.2.0. Mac coverage: 8 CPU ONNX exports and 16 MLX goldens.
 
+Windows pre-check (2026-11-24, RTX 5060 Ti, dev/v0.2.1 b1ab72da; eager paths only, no ONNX/TensorRT there): the
+GPU goldens, portable and kernels, pass for psmnet, gwcnet, cas-gwcnet, aanet, bridgedepth, great-igev, cfnet,
+fast-acvnet, las2, rtmo (t/s/m/l), rife-4.25 / 4.25-lite / 4.26, gimm-vfi-r and the GMFlow refs with local weights
+(76 tests). gimm-vfi-r-p and most GMFlow refs were not run: no weights on that machine.
+
 - [ ] **Linux CUDA, A1 stereo families:** `export_onnx` and TensorRT engines for psmnet, gwcnet, cfnet,
   fast_acvnet and las2, including `--size-range`. The PSMNet/GwcNet regression block is the v0.2.0 one again.
 - [ ] **Linux CUDA, other regated stereo:** ONNX/TRT build and parity for cas_gwcnet, aanet, bridgedepth and
