@@ -1146,6 +1146,31 @@ def test_segment_prompt_kinds(pack: Any, monkeypatch: pytest.MonkeyPatch) -> Non
         nodes.VideoSegment().run(**video, positive_points="", negative_points="x", box="")
 
 
+def test_segment_keeps_the_best_scored_candidate(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """One ambiguous point: the candidate mask with the highest predicted IoU, per image."""
+    nodes = pack.nodes
+    masks = torch.zeros(3, 4, 5, dtype=torch.bool)
+    masks[1, :2] = True
+    masks[2, 3] = True
+
+    class Model:
+        device = torch.device("cpu")
+        prompts = frozenset({"points", "boxes"})
+
+        def __call__(self, _x: torch.Tensor, **kwargs: Any) -> Any:
+            assert kwargs["multimask_output"] is True
+            return types.SimpleNamespace(masks=masks, iou_scores=torch.tensor([0.2, 0.9, 0.5]))
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: Model())
+    monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])  # no comfy.utils progress bar
+    (out,) = nodes.Segment().run(
+        image=torch.rand(2, 4, 5, 3), model="sam2", backend="auto", dtype="auto", text="",
+        positive_points="1,1", negative_points="", box="",
+    )  # fmt: skip
+    assert out.shape == (2, 4, 5)
+    assert torch.equal(out, masks[1].float().expand(2, 4, 5))
+
+
 def test_segment_box_exemplar_concept_result(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     """A box sent to a concept model (SAM 3) returns every matching instance: the node outputs their union."""
     nodes = pack.nodes
