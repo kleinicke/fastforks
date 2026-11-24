@@ -167,8 +167,8 @@ def load(  # noqa: PLR0913 - the arguments of every task's `load`, plus classifi
         mode: `"auto"` (default), `"portable"` or `"kernels"`, as in the task loaders.
         device: Default: `"cuda"` if available, else `"mps"` for a family validated on it, else `"cpu"`. `"mlx"`
             (Apple silicon, the `mlx` extra) runs the family's MLX port instead of PyTorch MPS; results are CPU
-            tensors. On `"mps"`, `mode="auto"` and `"kernels"` use that port by themselves where it is the faster or
-            the only kernels path, and the results (and `model.device`) stay on MPS.
+            tensors. On `"mps"`, `mode="auto"` uses that port by itself where it is the faster validated option,
+            and the results (and `model.device`) stay on MPS; an explicit `mode` runs PyTorch MPS only.
         dtype: Compute dtype (`None`: the validated one; a string or the torch dtype).
         weights: Your own weights file or directory instead of the downloaded ones.
         class_names: Classification only: class names for your own weights (see `fastforks.classification.load`).

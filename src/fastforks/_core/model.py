@@ -1068,7 +1068,7 @@ def load_variant(  # noqa: C901, PLR0912, PLR0913, PLR0915 - the arguments of `l
     registry.require(card, variant.ref)
     require_available(variant, "load")
     fp32, want = _check_args(mode, dtype)  # every argument is checked before `weights` logs its warning
-    on_mlx = isinstance(device, str) and device == MLX
+    on_mlx = isinstance(device, str) and device.strip().lower() == MLX  # "MLX" too
     dev = torch.device("cpu") if on_mlx else resolve_device(device, card)
     opts = check_options(card, {} if options is None else options, variant.ref)
     files = None if weights is None else user_weights(variant, weights, log)
