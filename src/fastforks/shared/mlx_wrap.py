@@ -13,6 +13,7 @@ import contextlib
 import contextvars
 import dataclasses
 import gc
+import inspect
 import os
 import threading
 from typing import TYPE_CHECKING, Any
@@ -144,6 +145,14 @@ def _per_variant(value: int | Mapping[str, int], variant_id: str) -> int:
     return value if isinstance(value, int) else value.get(variant_id, value.get("", 0))
 
 
+def _own_args(fn: Callable[..., Any], names: tuple[str, ...], used: set[str]) -> tuple[str, ...]:
+    """The `names` that are arguments of `fn` (added to `used`)."""
+    params = inspect.signature(fn).parameters
+    own = tuple(n for n in names if n in params)
+    used.update(own)
+    return own
+
+
 def port(  # noqa: C901 - one builder for the four wrapping styles
     portable: type[Runner],
     *,
@@ -209,7 +218,8 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
     tuple of `(cin, cout)` pairs limits that to those convs.
 
     `fp32_inputs`: argument names of the wrapped modules / methods whose floating tensors enter a float16 replay as
-    float32 (camera intrinsics and poses, depth bounds: the replay would round them before any float32 island).
+    float32 (camera intrinsics and poses, depth bounds: the replay would round them before any float32 island). Each of
+    the `methods` takes the names among its own arguments; every name must be an argument of one of them.
     """
     out_key = "image" if whole is True else whole
 
@@ -240,42 +250,25 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
             compiled = (
                 compile and os.environ.get("FASTFORKS_MLX_COMPILE") != "0"
             )  # sweeps: replay lazily for every port
+            used: set[str] = set()
             for name in methods:
                 owner, _, leaf = name.rpartition(".")
                 host = _resolve(self, owner) if owner else self
                 dtype = "float32" if name in fp32_methods else ctx.dtype
-                if isinstance(host, torch.nn.Module):  # a method of a submodule: it owns the weights it computes with
-                    mod = MlxModule(
-                        _Method(getattr(host, leaf), host, prune=prune),
-                        dtype,
-                        kernels=kernels,
-                        compile=compiled,
-                        chunk_mb=chunk,
-                        release=release,
-                        pipeline=pipeline,
-                        half_wino_f32=half_wino_f32,
-                        fp32_inputs=fp32_inputs,
-                        half_wino_pad=half_wino_pad,
-                    )
-                    object.__setattr__(host, leaf, mod)  # the instance entry beats the class's function
-                else:
-                    net = getattr(self, net_attr)
-                    setattr(
-                        host,
-                        leaf,
-                        MlxModule(
-                            _Method(getattr(host, leaf), net, prune=prune),
-                            dtype,
-                            kernels=kernels,
-                            compile=compiled,
-                            chunk_mb=chunk,
-                            release=release,
-                            pipeline=pipeline,
-                            half_wino_f32=half_wino_f32,
-                            fp32_inputs=fp32_inputs,
-                            half_wino_pad=half_wino_pad,
-                        ),
-                    )
+                submodule = isinstance(host, torch.nn.Module)  # its method: it owns the weights it computes with
+                mod = MlxModule(
+                    _Method(getattr(host, leaf), host if submodule else getattr(self, net_attr), prune=prune),
+                    dtype,
+                    kernels=kernels,
+                    compile=compiled,
+                    chunk_mb=chunk,
+                    release=release,
+                    pipeline=pipeline,
+                    half_wino_f32=half_wino_f32,
+                    fp32_inputs=_own_args(getattr(host, leaf), fp32_inputs, used),
+                    half_wino_pad=half_wino_pad,
+                )
+                (object.__setattr__ if submodule else setattr)(host, leaf, mod)  # the instance entry beats the class's
             if whole:
                 self._whole = MlxModule(
                     self.module(),
@@ -293,6 +286,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
             for name in attrs:
                 owner, _, leaf = name.rpartition(".")
                 host = _resolve(self, owner) if owner else self
+                fp32 = _own_args(getattr(host, leaf).forward, fp32_inputs, used)
                 mod = MlxModule(
                     getattr(host, leaf),
                     ctx.dtype,
@@ -302,7 +296,7 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                     chunk_mb=chunk,
                     pipeline=pipeline,
                     half_wino_f32=half_wino_f32,
-                    fp32_inputs=fp32_inputs,
+                    fp32_inputs=fp32,
                     half_wino_pad=half_wino_pad,
                 )
                 if isinstance(host, torch.nn.Module):  # the MLX callable is no child module
@@ -310,6 +304,9 @@ def port(  # noqa: C901 - one builder for the four wrapping styles
                     object.__setattr__(host, leaf, mod)
                 else:
                     setattr(host, leaf, mod)
+            if unknown := set(fp32_inputs) - used:
+                msg = f"fp32_inputs: no ported method or module has the argument(s) {sorted(unknown)}"
+                raise TypeError(msg)
 
         if hasattr(portable, "labels"):  # segmentation: the logits' resize and argmax run on MLX too
 

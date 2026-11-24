@@ -1,4 +1,8 @@
-"""The MLX runner of a tracking model: the whole offline pass (`module()`) as one exported graph."""
+"""The MLX runner of a tracking model: the whole offline pass (`module()`) as one exported graph.
+
+The queries enter a float16 replay as float32 (the point coordinates stay float32: `scale_xy` keeps their pixel
+factors exact, `fastforks._core.mlx_cast.to_float32` marks the coordinate / logit state the networks carry).
+"""
 
 from __future__ import annotations
 
@@ -39,4 +43,14 @@ def port(portable: type[Runner], *, cache_mb: int = 0) -> type[Runner]:
             return self._run(torch.cat([frames(t) for t in range(n)]), queries)
 
     Graph.__name__ = Graph.__qualname__ = f"Graph{portable.__name__}"
-    return mlx_wrap.port(Graph, attrs=(), methods=("_run",), net_attr="_fwd", cache_mb=cache_mb)
+    return mlx_wrap.port(
+        Graph, attrs=(), methods=("_run",), net_attr="_fwd", cache_mb=cache_mb, fp32_inputs=("queries",)
+    )
+
+
+def scale_xy(xy: torch.Tensor, sx: float, sy: float) -> torch.Tensor:
+    """`xy * (sx, sy)` over the last axis with Python-float factors: a float16 MLX replay keeps them exact.
+
+    A factor tensor would be a float16 constant there: `256 / 150` is 4e-4 off, 0.1 px at 256 px.
+    """
+    return torch.cat((xy[..., :1] * sx, xy[..., 1:] * sy), -1)
