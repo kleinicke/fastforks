@@ -282,6 +282,96 @@ def bilinear_nhwc(x: mx.array, size: tuple[int, int], ratios: tuple[float, float
     )[0]  # fmt: skip
 
 
+_UP2 = metal_kernel(
+    name="graph_up2_skip",
+    input_names=["x", "s", "w", "b"],
+    output_names=["out"],
+    source="""
+        // `graph_bilinear_nhwc` at scale 2 (half-pixel centres) plus the skip, optionally a ReLU: fp32, one rounding.
+        // PROJ: the skip is `s` (K channels at the output size) through a 1x1 convolution (`w` [C, K], `b` [C]).
+        uint ch = thread_position_in_grid.x, ox = thread_position_in_grid.y, z = thread_position_in_grid.z;
+        if (ch >= C || ox >= OW) return;
+        uint n = z / OH, oy = z % OH;
+        float ys = max((float(oy) + 0.5f) * 0.5f - 0.5f, 0.0f);
+        float xs = max((float(ox) + 0.5f) * 0.5f - 0.5f, 0.0f);
+        int y0 = min(int(ys), H - 1), x0 = min(int(xs), W - 1);
+        int y1 = min(y0 + 1, H - 1), x1 = min(x0 + 1, W - 1);
+        float wy = ys - float(y0), wx = xs - float(x0);
+        const device T* p = x + size_t(n) * H * W * C + ch;
+        float top = float(p[(y0 * W + x0) * C]) * (1.0f - wx) + float(p[(y0 * W + x1) * C]) * wx;
+        float bot = float(p[(y1 * W + x0) * C]) * (1.0f - wx) + float(p[(y1 * W + x1) * C]) * wx;
+        size_t px = (size_t(n) * OH + oy) * OW + ox;
+        float acc = top * (1.0f - wy) + bot * wy;
+        if (PROJ) {  // `s` is NCHW: K planes
+            acc += float(b[ch]);
+            size_t at = size_t(oy) * OW + ox, plane = size_t(OH) * OW;
+            for (int k = 0; k < K; ++k) acc += float(s[(size_t(n) * K + k) * plane + at]) * float(w[ch * K + k]);
+        } else {
+            acc += float(s[px * C + ch]);
+        }
+        out[px * C + ch] = T(RELU ? max(acc, 0.0f) : acc);
+    """,
+)
+
+
+def up2_skip(
+    x: mx.array, skip: mx.array, weight: mx.array | None = None, bias: mx.array | None = None, *, relu: bool
+) -> mx.array:
+    """`fastforks::up2_skip` / `up2_proj` on NHWC maps: `[N, H, W, C]` doubled plus `skip`, a ReLU if `relu`.
+
+    `skip` is `[N, 2H, 2W, C]`, or with `weight` `[C, K]` and `bias` `[C]` an NCHW `[N, K, 2H, 2W]` map projected by
+    them (an image: its planes are read where they are).
+    """
+    n, h, w, c = x.shape
+    proj = weight is not None
+    unused = mx.zeros((1,), mx.float32)
+    tg = min(c, 32)
+    return _UP2(
+        inputs=[x, skip, weight if proj else unused, bias if proj else unused],
+        template=[("T", x.dtype), ("C", c), ("H", h), ("W", w), ("OH", 2 * h), ("OW", 2 * w),
+                  ("K", skip.shape[1] if proj else c),
+                  ("PROJ", proj), ("RELU", relu)],
+        grid=(-(-c // tg) * tg, 2 * w, n * 2 * h),
+        threadgroup=(tg, max(1, 256 // tg), 1),
+        output_shapes=[(n, 2 * h, 2 * w, c)],
+        output_dtypes=[x.dtype],
+    )[0]  # fmt: skip
+
+
+_AREA = metal_kernel(
+    name="graph_area_pool",
+    input_names=["x"],
+    output_names=["out"],
+    source="""
+        // one thread per output value: the mean of an F x F block of an NHWC map, fp32 sum, one rounding
+        uint ch = thread_position_in_grid.x, ox = thread_position_in_grid.y, z = thread_position_in_grid.z;
+        if (ch >= C || ox >= OW) return;
+        uint n = z / OH, oy = z % OH;
+        const device T* p = x + ((size_t(n) * H + oy * F) * W + ox * F) * C + ch;
+        float acc = 0.0f;
+        for (int dy = 0; dy < F; ++dy) {
+            for (int dx = 0; dx < F; ++dx) acc += float(p[(size_t(dy) * W + dx) * C]);
+        }
+        out[((size_t(n) * OH + oy) * OW + ox) * C + ch] = T(acc / float(F * F));
+    """,
+)
+
+
+def area_pool(x: mx.array, factor: int) -> mx.array:
+    """`fastforks::area_pool` on an NHWC map: the mean of each `factor` x `factor` block."""
+    n, h, w, c = x.shape
+    oh, ow = h // factor, w // factor
+    tg = min(c, 32)
+    return _AREA(
+        inputs=[x],
+        template=[("T", x.dtype), ("C", c), ("H", h), ("W", w), ("OH", oh), ("OW", ow), ("F", factor)],
+        grid=(-(-c // tg) * tg, ow, n * oh),
+        threadgroup=(tg, max(1, 256 // tg), 1),
+        output_shapes=[(n, oh, ow, c)],
+        output_dtypes=[x.dtype],
+    )[0]  # fmt: skip
+
+
 _TRILINEAR = metal_kernel(
     name="graph_trilinear",
     input_names=["x", "r"],

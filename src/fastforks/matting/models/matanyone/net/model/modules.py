@@ -7,6 +7,7 @@ import torch.nn.functional as F
 
 from fastforks.matting.models.matanyone.net.model.group_modules import MainToGroupDistributor, GroupResBlock, upsample_groups, GConv2d, downsample_groups
 from fastforks.matting.models.matanyone.net.utils.device import safe_autocast
+from fastforks._core.mlx_cast import to_float32  # fastforks: `.float()` that stays float32 in a float16 MLX replay
 
 
 class UpsampleBlock(nn.Module):
@@ -81,8 +82,8 @@ class SensoryUpdater_fullscale(nn.Module):
             self.g1_conv(downsample_groups(g[4], ratio=1/16))
 
         with safe_autocast(enabled=False):
-            g = g.float()
-            h = h.float()
+            g = to_float32(g)  # fastforks: to_float32 for .float()
+            h = to_float32(h)  # fastforks: to_float32 for .float()
             values = self.transform(torch.cat([g, h], dim=2))
             new_h = _recurrent_update(h, values)
 
@@ -105,8 +106,8 @@ class SensoryUpdater(nn.Module):
             self.g4_conv(downsample_groups(g[2], ratio=1/4))
 
         with safe_autocast(enabled=False):
-            g = g.float()
-            h = h.float()
+            g = to_float32(g)  # fastforks: to_float32 for .float()
+            h = to_float32(h)  # fastforks: to_float32 for .float()
             values = self.transform(torch.cat([g, h], dim=2))
             new_h = _recurrent_update(h, values)
 
@@ -122,8 +123,8 @@ class SensoryDeepUpdater(nn.Module):
 
     def forward(self, g: torch.Tensor, h: torch.Tensor) -> torch.Tensor:
         with safe_autocast(enabled=False):
-            g = g.float()
-            h = h.float()
+            g = to_float32(g)  # fastforks: to_float32 for .float()
+            h = to_float32(h)  # fastforks: to_float32 for .float()
             values = self.transform(torch.cat([g, h], dim=2))
             new_h = _recurrent_update(h, values)
 

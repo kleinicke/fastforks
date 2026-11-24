@@ -43,14 +43,32 @@ def parse(d):
     return parse_card(d, family="crestereo", task="stereo", where="card.toml")
 
 
+@pytest.fixture
+def portless(monkeypatch):
+    """MatAnyone as a family without an MLX port (every family has one)."""
+    lookup = registry._lookup
+
+    def without(task, model_id):
+        found = lookup(task, model_id)
+        if found is None or found[0].family != "matanyone":
+            return found
+        return dataclasses.replace(found[0], portable_mlx_dtypes=()), found[1]
+
+    monkeypatch.setattr(registry, "_lookup", without)
+
+
 def test_card_declares_the_port_per_mode(cre):
     card = parse(cre)
     assert card.portable_mlx_dtypes == ("float32", "float16")
     assert card.mlx_kernel_libs == ("crestereo_mlx",)
     assert card.mlx_dtypes("kernels") == ("float32", "float16")
     assert "  mlx       portable (float32, float16), kernels (float32, float16; crestereo_mlx)" in str(card)
-    none = registry.resolve("matting", "matanyone")[0]
+    for mode in cre["modes"].values():
+        mode.pop("mlx_dtypes", None)
+        mode.pop("mlx_kernels", None)
+    none = parse(cre)
     assert (none.portable_mlx_dtypes, none.mlx_kernel_libs, none.mlx_dtypes("kernels")) == ((), (), ())
+    assert "  mlx " not in str(none)
 
 
 @pytest.mark.parametrize(
@@ -114,6 +132,7 @@ def test_card_rejects_inconsistent_mlx_fields(cre, edit, match):
         parse(d)
 
 
+@pytest.mark.usefixtures("portless")
 def test_family_without_a_port_raises():
     with pytest.raises(BackendUnavailableError, match="no Apple MLX port"):
         matting.load("matanyone", device="mlx")
@@ -263,9 +282,11 @@ class TestMpsRouting:
         assert self.route("romav2", mode="kernels", task="matching") is None
         assert self.route("romav2", mode="kernels", dtype="float32", task="matching") is None
 
+    @pytest.mark.usefixtures("portless")
     def test_family_without_port(self):
         assert self.route("matanyone", task="matting") is None
 
+    @pytest.mark.usefixtures("portless")
     def test_kernels_on_mps_without_metal_raises_and_names_the_alternatives(self, monkeypatch):
         if not torch.backends.mps.is_available():
             pytest.skip("needs Apple MPS")
@@ -607,6 +628,8 @@ def test_released_twin_exports_a_second_shape_after_inference_mode_calls():
             want = ref(x)
         torch.testing.assert_close(got, want, atol=1e-5, rtol=1e-5)
     assert not any(t.is_inference() for t in (*net.parameters(), *net.buffers()))
+    # the biases stay real: a stride-0 bias turns the next export's `addmm` into `mm` + `add` (tapnext float16)
+    assert all(torch.equal(a, b) for a, b in zip(net.parameters(), ref.parameters(), strict=True) if a.ndim == 1)
 
 
 class TestLazyTwin:
@@ -856,6 +879,3 @@ def test_a_model_routed_from_mps_reports_the_device_of_its_results(monkeypatch):
     assert (m.device, m._device, m._result_device) == (mps, torch.device("cpu"), mps)
     # what runs, not a relabel: the port's own mode and kernels
     assert (m.backend.device, m.backend.mode, m.backend.kernels) == ("mlx", "portable", ())
-
-    # the biases stay real: a stride-0 bias turns the next export's `addmm` into `mm` + `add` (tapnext float16)
-    assert all(torch.equal(a, b) for a, b in zip(net.parameters(), ref.parameters(), strict=True) if a.ndim == 1)

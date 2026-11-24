@@ -40,6 +40,7 @@ import numpy as np
 import torch
 import torch.utils._pytree as pytree
 
+from fastforks._core import decoder_ops as _decoder_ops  # noqa: F401 - registers `fastforks::up2_skip`
 from fastforks._core import mlx_cast as _mlx_cast  # noqa: F401 - registers `fastforks::run_dtype` / `float32`
 from fastforks._core import volume_ops as _volume_ops  # noqa: F401 - registers `fastforks::gwc_volume`
 from fastforks._core.mlx import mx, to_mx, to_torch
@@ -2541,6 +2542,34 @@ def _cat_cl(xs: Sequence[mx.array], d: int = 0) -> mx.array:
     if nd not in _CL_ND or d % nd == 0 or any(x.ndim != nd for x in xs):
         return mx.concatenate(xs, axis=d)
     return _uncl(mx.concatenate([_cl(x) for x in xs], axis=_cl_axis(nd, d)))
+
+
+@_reg(torch.ops.fastforks.up2_skip.default)
+@_reg_cl(torch.ops.fastforks.up2_skip.default)
+def _up2_skip(x: mx.array, skip: mx.array, relu: bool) -> mx.array:
+    """`fastforks._core.decoder_ops.up2_skip`: one Metal kernel on the channels-last views."""
+    from fastforks.kernels.graph_mlx import ops
+
+    return _uncl(ops.up2_skip(mx.contiguous(_cl(x)), mx.contiguous(_cl(skip.astype(x.dtype))), relu=relu))
+
+
+@_reg(torch.ops.fastforks.up2_proj.default)
+@_reg_cl(torch.ops.fastforks.up2_proj.default)
+def _up2_proj(x: mx.array, src: mx.array, weight: mx.array, bias: mx.array, relu: bool) -> mx.array:
+    """`fastforks._core.decoder_ops.up2_proj`: one Metal kernel (`src` read as it is, NCHW)."""
+    from fastforks.kernels.graph_mlx import ops
+
+    args = (mx.contiguous(_cl(x)), *map(mx.contiguous, (src, weight, bias)))
+    return _uncl(ops.up2_skip(*args, relu=relu))
+
+
+@_reg(torch.ops.fastforks.area_pool.default)
+@_reg_cl(torch.ops.fastforks.area_pool.default)
+def _area_pool(x: mx.array, factor: int) -> mx.array:
+    """`fastforks._core.decoder_ops.area_pool`: one Metal kernel on the channels-last view."""
+    from fastforks.kernels.graph_mlx import ops
+
+    return _uncl(ops.area_pool(mx.contiguous(_cl(x)), factor))
 
 
 @_reg_cl(aten.upsample_bilinear2d.default, aten.upsample_bilinear2d.vec)

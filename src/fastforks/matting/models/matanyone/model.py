@@ -18,6 +18,7 @@ here it uses the buffers where the network is (`_encode_image`). The network is 
 from __future__ import annotations
 
 import contextlib
+import itertools
 import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -26,17 +27,22 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
+from fastforks._core.decoder_ops import area_pool, up2_proj, up2_skip
+from fastforks._core.mlx_cast import to_float32, to_run_dtype
 from fastforks._core.patch import override
 from fastforks._core.runner import host
 from fastforks._core.upload import to_device
 from fastforks.kernels import image_normalize
 from fastforks.matting._runner import Runner
+from fastforks.shared import mlx_wrap
 
 from .net.inference.image_feature_store import ImageFeatureStore
 from .net.inference.inference_core import InferenceCore
 from .net.inference.memory_manager import MemoryManager
+from .net.model.big_modules import MaskDecoder
 from .net.model.matanyone import MatAnyone
 from .net.model.modules import MaskUpsampleBlock, SensoryUpdater_fullscale, _recurrent_update
+from .net.model.transformer.positional_encoding import PositionalEncoding
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -147,6 +153,45 @@ READ_TOKENS = (
 )  # query pixels per memory-readout chunk (1080p: 8160 queries x 6 memory frames = 0.8 GB per full map)
 
 
+def affinity_readout(  # noqa: PLR0913, PLR0917 - the memory's tensors
+    query_key: torch.Tensor,
+    selection: torch.Tensor,
+    mk: torch.Tensor,
+    ms: torch.Tensor,
+    v: torch.Tensor,
+    top_k: int,
+) -> torch.Tensor:
+    """`MemoryManager`'s similarity, top-k softmax and value readout over `READ_TOKENS` query columns at a time.
+
+    `query_key` / `selection` `[B, CK, H, W]`, memory keys `mk` `[B, CK, N]` and shrinkage `ms` `[B, 1, N]`, values
+    `v` `[B, objects C, N]` -> the readout `[B, objects C, H * W]`. A float32 key (float32, or the float32 twin an MLX
+    runner exports) keeps the similarity and its softmax float32 in a float16 MLX replay too, and the weights meet the
+    values in the values' (run) dtype; under float16 autocast all of it stays float16, as upstream.
+    """
+    query_key, selection = query_key.flatten(2), selection.flatten(2)
+    if query_key.dtype == torch.float32:
+        query_key, selection, mk, ms = map(to_float32, (query_key, selection, mk, ms))
+    ck, ms_t, vt, mk_sq = mk.shape[1], ms.flatten(1)[:, None], v.transpose(1, 2), mk.pow(2)
+    reads = []
+    for s in range(0, query_key.shape[2], READ_TOKENS):  # similarity [B, chunk, N]: top-k over the last dim is faster
+        qk, qe = query_key[:, :, s : s + READ_TOKENS], selection[:, :, s : s + READ_TOKENS]
+        sim = (
+            (
+                (2 * ((qk * qe).transpose(1, 2) @ mk))
+                - (qe.transpose(1, 2) @ mk_sq)
+                - (qe * qk.pow(2)).sum(1).unsqueeze(2)
+            )
+            * ms_t
+            / math.sqrt(ck)
+        )
+        val, idx = torch.topk(sim, k=top_k, dim=2)
+        val = val.exp_()
+        val /= val.sum(2, keepdim=True)
+        weights = to_run_dtype(sim.zero_().scatter_(2, idx, val), v.dtype)
+        reads.append(weights @ vt)  # [B, chunk, objects C]
+    return torch.cat(reads, 1).transpose(1, 2)
+
+
 def _read(  # noqa: PLR0913, PLR0917 - upstream's signature
     mem: MemoryManager,
     pix_feat: torch.Tensor,
@@ -172,29 +217,13 @@ def _read(  # noqa: PLR0913, PLR0917 - upstream's signature
     assert mem.chunk_size < 1  # noqa: S101 - no object chunks
     h, w = pix_feat.shape[-2:]
     bs = pix_feat.shape[0]
-    query_key, selection = query_key.flatten(2), selection.flatten(2)
+    readout = mem.__dict__.get("affinity_readout", affinity_readout)  # the runner's (an MLX graph on MLX)
     out = {}
     for bucket_id, bucket in mem.work_mem.buckets.items():
         mk, ms = mem.work_mem.key[bucket_id], mem.work_mem.shrinkage[bucket_id]
         v = mem._get_visual_values_by_ids(bucket).flatten(1, 2)  # noqa: SLF001 - upstream's helpers  # bs x (objects C) x N
-        ck, ms_t, vt, mk_sq = mk.shape[1], ms.flatten(1)[:, None], v.transpose(1, 2), mk.pow(2)
-        reads = []
-        for s in range(0, h * w, READ_TOKENS):  # similarity as [B, chunk, N]: top-k over the last dim is faster
-            qk, qe = query_key[:, :, s : s + READ_TOKENS], selection[:, :, s : s + READ_TOKENS]
-            sim = (
-                (
-                    (2 * ((qk * qe).transpose(1, 2) @ mk))
-                    - (qe.transpose(1, 2) @ mk_sq)
-                    - (qe * qk.pow(2)).sum(1).unsqueeze(2)
-                )
-                * ms_t
-                / math.sqrt(ck)
-            )
-            val, idx = torch.topk(sim, k=mem.top_k, dim=2)
-            val = val.exp_()
-            val /= val.sum(2, keepdim=True)
-            reads.append(sim.zero_().scatter_(2, idx, val) @ vt)  # [B, chunk, objects C]
-        visual_readout = torch.cat(reads, 1).transpose(1, 2).reshape(bs, len(bucket), v.shape[1] // len(bucket), h, w)
+        visual_readout = readout(query_key, selection, mk, ms, v, mem.top_k)
+        visual_readout = visual_readout.reshape(bs, len(bucket), v.shape[1] // len(bucket), h, w)
         uncert_output = network.pred_uncertainty(
             last_pix_feat, pix_feat, last_pred_mask, visual_readout[:, 0] - last_msk_value[:, 0]
         )
@@ -269,11 +298,35 @@ class Portable(Runner):
         key, shrinkage, selection = self.net.transform_key(features[0])
         return features, pixels, key, shrinkage, selection
 
-    def _encode_mask(self, *args: Any, **kwargs: Any) -> tuple[torch.Tensor, ...]:  # noqa: ANN401 - upstream
-        return self.net.encode_mask(*args, **kwargs)
+    def _encode_mask(
+        self,
+        image: torch.Tensor,
+        ms_features: list[torch.Tensor],
+        sensory: torch.Tensor,
+        masks: torch.Tensor,
+        **kwargs: Any,  # noqa: ANN401 - upstream
+    ) -> tuple[torch.Tensor, ...]:
+        return self.net.encode_mask(image, ms_features, sensory, masks, **kwargs)
 
-    def _segment(self, *args: Any, **kwargs: Any) -> tuple[torch.Tensor, ...]:  # noqa: ANN401 - upstream
-        return self.net.segment(*args, **kwargs)
+    def _segment(
+        self,
+        ms_image_feat: list[torch.Tensor],
+        memory_readout: torch.Tensor,
+        sensory: torch.Tensor,
+        **kwargs: Any,  # noqa: ANN401 - upstream
+    ) -> tuple[torch.Tensor, ...]:
+        return self.net.segment(ms_image_feat, memory_readout, sensory, **kwargs)
+
+    def _affinity_readout(  # noqa: PLR0913, PLR0917 - the memory's tensors
+        self,
+        query_key: torch.Tensor,
+        selection: torch.Tensor,
+        mk: torch.Tensor,
+        ms: torch.Tensor,
+        v: torch.Tensor,
+        top_k: int,
+    ) -> torch.Tensor:
+        return affinity_readout(query_key, selection, mk, ms, v, top_k)
 
     def _alphas(self, frames: Callable[[int], torch.Tensor], n: int, mask: torch.Tensor) -> Iterator[torch.Tensor]:
         """`process_video`'s loop: the alpha `[H, W]` float32 of each frame, in order."""
@@ -289,6 +342,7 @@ class Portable(Runner):
             segment=self._segment,
         )
         core.memory.__class__ = _Memory  # the chunked readout (a bound method stored on it would be a reference cycle)
+        core.memory.affinity_readout = self._affinity_readout  # the runner holds no reference to the memory
         first = frames(0)[0]
         # First-frame predictions reset the feature-store index to zero throughout warm-up.
         with self._autocast():
@@ -409,4 +463,156 @@ class Kernels(Portable):
         override(self.net.mask_decoder.sensory_update, _sensory_update)
 
 
-RUNNERS = {"portable": Portable, "kernels": Kernels}
+def _uncached_encoding(m: PositionalEncoding, tensor: torch.Tensor) -> torch.Tensor:
+    """`PositionalEncoding.forward` without its cache (an exported graph computes the encoding itself)."""
+    m.cached_penc = None
+    try:
+        return PositionalEncoding.forward(m, tensor)
+    finally:
+        m.cached_penc = None
+
+
+def _conv(m: torch.nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
+    """A `GConv2d` on a 4-D map."""
+    return torch.nn.Conv2d.forward(m, x)
+
+
+def _mlx_block(m: MaskUpsampleBlock, x: torch.Tensor, skip: torch.Tensor) -> torch.Tensor:
+    """`MaskUpsampleBlock.forward` for one object in 4-D: upsampling and skip sum as one op (`up2_skip`)."""
+    block = m.out_conv
+    g = up2_skip(x, skip)
+    residual = g if isinstance(block.downsample, torch.nn.Identity) else _conv(block.downsample, g)
+    return _conv(block.conv2, F.relu(_conv(block.conv1, F.relu(g)))) + residual
+
+
+def _mlx_image_block(m: MaskUpsampleBlock, x: torch.Tensor, image: torch.Tensor, proj: torch.nn.Conv2d) -> torch.Tensor:
+    """The full-size `MaskUpsampleBlock` (its skip is a 1x1 convolution of the image) without the 64-channel sums.
+
+    Upstream: `g = up(x) + proj(image)`, `conv2(relu(conv1(relu(g)))) + down(g)` with `down` a 1x1 convolution. The
+    ReLU input is one `up2_proj` (upsampling, projection and ReLU in one pass). `down` is linear and the bilinear
+    weights sum to one, so `down(g) = up(down(x)) + (down . proj)(image)`: `down` runs at half size and its sum is a
+    second `up2_proj` with the composed weights. Neither `proj(image)` nor the pre-ReLU `g` (1080p: 64 channels at
+    full size each) is ever a buffer.
+    """
+    block = m.out_conv
+    w, b = to_float32(proj.weight.flatten(1)), to_float32(proj.bias)
+    dw = to_float32(block.downsample.weight.flatten(1))
+    residual = up2_proj(_conv(block.downsample, x), image, dw @ w, dw @ b)
+    return _conv(block.conv2, F.relu(_conv(block.conv1, up2_proj(x, image, w, b, relu=True)))) + residual
+
+
+def _mlx_decode(  # noqa: PLR0913 - upstream's signature
+    m: MaskDecoder,
+    ms_image_feat: list[torch.Tensor],
+    memory_readout: torch.Tensor,
+    sensory: torch.Tensor,
+    *,
+    chunk_size: int = -1,
+    update_sensory: bool = True,
+    seg_pass: bool = False,
+    last_mask: torch.Tensor | None = None,
+    sigmoid_residual: bool = False,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """`MaskDecoder.forward` for one object, for the MLX replay: 4-D maps and fused full-size passes.
+
+    The same arithmetic as upstream up to rounding (see `_mlx_image_block`); the sensory update pools the decoder map
+    and the logits separately (the area mean of a concatenation is the concatenation of the means), so the 17-channel
+    full-size concatenation does not exist. Several objects take upstream's path.
+    """
+    b, k = memory_readout.shape[:2]
+    sizes = [x.shape[-2:] for x in ms_image_feat]
+    doubling = all(2 * s[0] == t[0] and 2 * s[1] == t[1] for s, t in itertools.pairwise(sizes))
+    if k != 1 or not doubling or sizes[-1][0] % 16 or sizes[-1][1] % 16:
+        return MaskDecoder.forward(
+            m, ms_image_feat, memory_readout, sensory, chunk_size=chunk_size, update_sensory=update_sensory,
+            seg_pass=seg_pass, last_mask=last_mask, sigmoid_residual=sigmoid_residual,
+        )  # fmt: skip
+    t8, t4, t2, t1 = m.decoder_feat_proc.transforms
+    p16 = memory_readout.flatten(0, 1)
+    p8 = _mlx_block(m.up_16_8, p16, t8(ms_image_feat[1]))
+    p4 = _mlx_block(m.up_8_4, p8, t4(ms_image_feat[2]))
+    p2 = _mlx_block(m.up_4_2, p4, t2(ms_image_feat[3]))
+    p1 = _mlx_image_block(m.up_2_1, p2, ms_image_feat[4], t1)
+    logits = (m.pred_seg if seg_pass else m.pred_mat)(F.relu(to_float32(p1)))
+    if last_mask is not None:
+        logits = last_mask + ((torch.sigmoid(logits) - 0.5) * 2 if sigmoid_residual else logits)
+    if update_sensory:
+        u = m.sensory_update
+        g = (
+            _conv(u.g16_conv, p16)
+            + _conv(u.g8_conv, area_pool(p8, 2))
+            + _conv(u.g4_conv, area_pool(p4, 4))
+            + _conv(u.g2_conv, area_pool(p2, 8))
+            + _conv(u.g1_conv, torch.cat([area_pool(p1, 16), area_pool(logits, 16).to(p1.dtype)], 1))
+        )
+        h = to_float32(sensory)
+        values = _conv(u.transform, torch.cat([to_float32(g), h.flatten(0, 1)], 1))
+        sensory = _recurrent_update(h, values.view(b, k, *values.shape[1:]))
+    return sensory, logits.view(b, k, *logits.shape[-2:])
+
+
+class _MlxPortable(Portable):
+    """`Portable` for the MLX runner, which exports its stages as graphs.
+
+    The positional encodings keep no cache (an export's tensor must not outlive it) and the decoder is `_mlx_decode`.
+    """
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network, then install the two."""
+        super().__init__(ctx)
+        for m in self.net.modules():
+            if isinstance(m, PositionalEncoding):
+                override(m, _uncached_encoding)
+        override(self.net.mask_decoder, _mlx_decode)
+
+
+def _mlx_runner() -> type[Runner]:
+    """The MLX runner: the tensor stages as MLX graphs, the frame's multi-scale features kept on MLX between them.
+
+    The stages (frame and mask encoders, readout, fusion, object transformer, decoder) are MLX graphs; the memory bank
+    and the loop stay PyTorch on the CPU. The sensory memory enters a float16 replay as float32 (it is updated in
+    float32, as upstream under autocast). The loop only hands the encoder's multi-scale features to the decoder, so
+    they stay `mx.array`s (1080 x 1920: 0.4 GB per frame, copied to the host and back otherwise).
+    """
+    ported = mlx_wrap.port(
+        _MlxPortable,
+        attrs=(),
+        methods=(
+            "_frame_features",
+            "_encode_mask",
+            "_segment",
+            "_affinity_readout",
+            "net.pred_uncertainty",
+            "net.pixel_fusion",
+            "net.readout_query",
+        ),
+        prune=True,
+        fp32_inputs=("sensory",),
+    )
+
+    class Mlx(ported):  # ty: ignore[unsupported-base]
+        """The ported runner with the multi-scale features passed from the encoder to the decoder on MLX."""
+
+        def __init__(self, ctx: Context) -> None:
+            """Port the stages, then route the features around the host."""
+            super().__init__(ctx)
+            from fastforks._core.mlx import mx, to_torch  # noqa: PLC0415 - MLX only
+
+            features, segment = self._frame_features, self._segment
+
+            def frame_features(image: torch.Tensor, last_feats: Any) -> Any:  # noqa: ANN401 - upstream
+                ms, *rest = features.raw(image, last_feats)
+                mx.eval(ms, rest)
+                return (ms, *(to_torch(x) for x in rest))
+
+            def decode(ms: Any, memory_readout: torch.Tensor, sensory: torch.Tensor, **kwargs: Any) -> Any:  # noqa: ANN401
+                out = segment.raw(ms, memory_readout, sensory, **kwargs)
+                return tuple(to_torch(x) if isinstance(x, mx.array) else x for x in out)
+
+            self._frame_features = frame_features
+            self._segment = decode
+
+    return Mlx
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": _mlx_runner()}
