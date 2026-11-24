@@ -1,0 +1,29 @@
+# Checks for the CUDA and Windows machines
+
+Mac-side changes that touch code shared with CUDA, ONNX/TensorRT or Windows, and that could only be checked on
+Apple hardware and CPU. Tick an item once it has run on the named platform.
+
+## Export gating (dev/v0.2.1, 2026-11-24)
+
+MLX-only graph changes are now gated on `EXPORTING_FOR_MLX` instead of any export, so ONNX/TensorRT trace the
+eager path as in v0.2.0. Mac coverage: 8 CPU ONNX exports and 16 MLX goldens.
+
+- [ ] **Linux CUDA, A1 stereo families:** `export_onnx` and TensorRT engines for psmnet, gwcnet, cfnet,
+  fast_acvnet and las2, including `--size-range`. The PSMNet/GwcNet regression block is the v0.2.0 one again.
+- [ ] **Linux CUDA, other regated stereo:** ONNX/TRT build and parity for cas_gwcnet, aanet, bridgedepth and
+  great_igev (they trace the in-place eager path now).
+- [ ] **Linux CUDA, GMFlow:** fp16 TensorRT engine speed and memory against v0.2.0 (no fp32 residual in
+  non-MLX exports).
+- [ ] **Linux CUDA, GIMM-VFI and RIFE:** fp16 export as in v0.2.0; RIFE's export graph uses in-place writes again.
+- [ ] **Linux CUDA, RTMO:** fp16 goldens and `[validated]` with the restored fp16 `out_cls` conv, plus its engine.
+- [ ] **Linux CUDA, PSMNet/GwcNet kernels mode:** quick golden sanity (channels-last cost volume and `nchw` under
+  the new gate).
+- [ ] **Windows:** `tests/test_kernels.py -k manifest_is_current` on a `core.autocrlf=true` checkout, and a fresh
+  clone shows no modified files after the `.gitattributes` change.
+
+## Backlog fixes (maint/backlog)
+
+- [ ] **Linux CUDA:** `tests/test_cudnn_hacc.py`, plus a streaming model that uses `shared/host_blocks.py` (for
+  example `tests/test_vitpose_stream.py`), from a checkout whose path has a space. Both now split
+  `/proc/self/maps` lines on at most five fields.
+- [ ] **Windows, ComfyUI:** load two models from parallel queue workers (the model cache is now behind a lock).
