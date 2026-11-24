@@ -219,8 +219,9 @@ class Kernels(Portable):
         super().__init__(ctx)
         descriptor = self.net.descriptor
         if self.net.amp == torch.float16:
-            # runs only under float16 autocast, which recast its requires_grad=False fp32 weights on every call
+            # run only under float16 autocast, which recast their requires_grad=False fp32 weights on every call
             half_weights(descriptor, channels_last=False)
+            half_weights(self.net.matcher.transformers, channels_last=False)
         override(descriptor, _descriptor_forward)
         dense = CapturedModule(self.net.descriptor, pixels=2**21)
         self.net.set_submodule("descriptor", dense)
