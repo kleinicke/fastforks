@@ -1723,6 +1723,40 @@ class Upscale(_Node):
         return (convert.to_image(maps, _out_device()),)
 
 
+class Inpaint(_Node):
+    """Inpainting (LaMa): the masked region of each image filled from its surroundings."""
+
+    DESCRIPTION = (
+        "The image with the masked region filled in (object removal). Every nonzero mask pixel is filled: grow or"
+        " threshold a soft mask first. One mask applies to every image, else mask i to image i."
+    )
+    RETURN_TYPES = ("IMAGE",)
+    TAKES = _IMAGE | {"mask"}
+    TASK = "restoration"
+    DEFAULT = "big-lama"
+
+    @classmethod
+    def lists(cls, mid: str) -> bool:
+        """The restoration models that require a mask."""
+        return _inputs.of(mid).get("mask") == "required" and cls.runs(mid)
+
+    @classmethod
+    def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
+        """ComfyUI inputs."""
+        return {"required": {"image": ("IMAGE",), "mask": ("MASK",), **common(cls)}}
+
+    def run(
+        self, *, image: torch.Tensor, mask: torch.Tensor, model: str, backend: str, dtype: str
+    ) -> tuple[torch.Tensor]:
+        """Run the model on every image with its mask."""
+        m = cast("restoration.RestorationModel", load(model, backend, dtype))
+
+        def fill(i: int) -> torch.Tensor:
+            return m(convert.frame(image, i, m.device), mask=convert.from_mask(mask, i, m.device)).image
+
+        return (convert.to_image(each(image.shape[0], fill), _out_device()),)
+
+
 _FACES = ["auto", "detect and paste back", "aligned crops"]
 _FACES_TIP = (
     "detect and paste back: find the faces of a whole image (RetinaFace, the detector of the GFPGAN / CodeFormer"
@@ -1818,6 +1852,7 @@ _NODES: tuple[tuple[str, type[_Node], str], ...] = (
     ("VideoSegment", VideoSegment, "Video segment (SAM 2 / SAMURAI, {pack})"),
     ("PointTrack", PointTrack, "Track points ({pack})"),
     ("Upscale", Upscale, "Upscale / restore ({pack})"),
+    ("Inpaint", Inpaint, "Inpaint / remove objects (LaMa, {pack})"),
     ("FaceRestore", FaceRestore, "Restore faces (GFPGAN / CodeFormer, {pack})"),
 )
 
