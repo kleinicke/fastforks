@@ -17,7 +17,10 @@ def neighborhood(grid: torch.Tensor, points: torch.Tensor) -> torch.Tensor:
     if points.shape != (b, n, t, 2) or points.dtype != torch.float32 or grid.device != points.device:
         msg = "Expected float32 (B, N, T, 2) coordinates on the feature grid device"
         raise ValueError(msg)
-    name = {torch.float32: "sample_float", torch.float16: "sample_half"}[grid.dtype]
+    name = {torch.float32: "sample_float", torch.float16: "sample_half"}.get(grid.dtype)
+    if name is None:
+        msg = "Expected a float32 or float16 feature grid"
+        raise ValueError(msg)
     out = grid.new_empty((b, n, t, 49, c), dtype=torch.float16)
     if out.numel():
         load(grid.device).launch(

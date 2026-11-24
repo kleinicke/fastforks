@@ -216,10 +216,18 @@ def _kernel_correlate(
     from fastforks.kernels import romav2 as lib  # noqa: PLC0415 - needs the kernel library
 
     b, h, w, c = f_a.shape
+    name = lib.LOCAL_CORR.get((c, radius))
+    if name is None:
+        msg = f"RoMa v2 CUDA correlation does not support {c} channels with radius {radius}"
+        raise ValueError(msg)
+    if f_b.shape != f_a.shape or warp.shape != (b, h, w, 2) or f_b.device != f_a.device or warp.device != f_a.device:
+        msg = "RoMa v2 CUDA correlation needs matching feature and warp dimensions on one device"
+        raise ValueError(msg)
     f_a, f_b, warp = (x.float().contiguous() for x in (f_a, f_b, warp))
     out = torch.empty(b, h, w, (2 * radius + 1) ** 2, dtype=torch.float32, device=f_a.device)
-    grid = (-(-b * h * w // lib.PIXELS_PER_BLOCK), 1, 1)
-    k.launch(lib.LOCAL_CORR[c, radius], grid, (256, 1, 1), f_a, f_b, warp, out, b, h, w, 1 / c**0.5)
+    if out.numel():
+        grid = (-(-b * h * w // lib.PIXELS_PER_BLOCK), 1, 1)
+        k.launch(name, grid, (256, 1, 1), f_a, f_b, warp, out, b, h, w, 1 / c**0.5)
     return out.permute(0, 3, 1, 2)
 
 

@@ -36,13 +36,27 @@ def correlate_roma1(
     """RoMa v1 window correlations with the reference fp16 rounding of the normalized left feature."""
     left, right, radius = feature0, feature1, local_radius
     b, c, h, w = left.shape
+    name = ROMA_CORR.get((c, radius))
+    if name is None:
+        msg = f"RoMa v1 CUDA correlation does not support {c} channels with radius {radius}"
+        raise ValueError(msg)
+    if (
+        right.shape != left.shape
+        or warp.shape != (b, h, w, 2)
+        or right.device != left.device
+        or warp.device != left.device
+    ):
+        msg = "RoMa v1 CUDA correlation needs matching feature and warp dimensions on one device"
+        raise ValueError(msg)
     # grid_sample promotes to float32 with the float32 warp. The left scaling
     # occurs before this promotion and rounds once in the original feature dtype.
     left = (left / c**0.5).permute(0, 2, 3, 1).float().contiguous()
     right = right.permute(0, 2, 3, 1).float().contiguous()
     out = left.new_empty(b, h, w, (2 * radius + 1) ** 2)
+    if not out.numel():
+        return out.permute(0, 3, 1, 2)
     load(left.device).launch(
-        ROMA_CORR[c, radius],
+        name,
         (-(-b * h * w // PIXELS_PER_BLOCK), 1, 1),
         (256, 1, 1),
         left,

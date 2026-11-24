@@ -28,7 +28,10 @@ def volume(
     if any(t.dtype != torch.float16 or t.device != gl.device for t in features):
         msg = "CFNet CUDA cost volumes require fp16 feature planes on a common device"
         raise ValueError(msg)
-    name = {torch.float16: "coarse_half", torch.float32: "coarse_float"}[dtype]
+    name = {torch.float16: "coarse_half", torch.float32: "coarse_float"}.get(dtype)
+    if name is None:
+        msg = "CFNet CUDA cost volumes require a float16 or float32 output"
+        raise ValueError(msg)
     if samples is not None:
         if (
             samples.shape != (b, depth, h, w)

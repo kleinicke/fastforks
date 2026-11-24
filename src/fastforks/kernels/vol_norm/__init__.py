@@ -23,11 +23,12 @@ load = cubin_library(Path(__file__).with_name("manifest.toml"), SIGNATURES)
 
 
 def supported(x: torch.Tensor) -> bool:
-    """Whether `norm_act_` takes `x`: CUDA fp16 `[N, C, D, H, W]`, dense channels-last, C % 8 == 0, aligned."""
+    """Whether `norm_act_` takes `x`: nonempty CUDA fp16 `[N, C, D, H, W]`, channels-last, C % 8 == 0, aligned."""
     return (
         x.is_cuda
         and x.dtype == torch.float16
         and x.ndim == 5  # noqa: PLR2004
+        and x.numel() > 0
         and x.shape[1] % _V8 == 0
         and x.is_contiguous(memory_format=torch.channels_last_3d)
         and x.data_ptr() % 16 == 0
@@ -44,14 +45,22 @@ def norm_act_(  # noqa: PLR0913 - two distinct bias vectors in the convolution a
     conv_bias: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Normalize and activate in place, optionally adding the convolution bias with fp16 rounding first."""
+    if not supported(x):
+        msg = "Volume norm needs a nonempty, aligned CUDA fp16 channels-last volume with channels divisible by 8"
+        raise ValueError(msg)
+    n, c = x.shape[:2]
+    if any(
+        t.dtype != x.dtype or t.device != x.device or t.shape != (c,) or not t.is_contiguous() for t in (weight, bias)
+    ):
+        msg = "Volume norm needs contiguous fp16 scale and bias vectors with one element per channel"
+        raise ValueError(msg)
     if conv_bias is not None:
-        if conv_bias.dtype != x.dtype or conv_bias.device != x.device or conv_bias.shape != (x.shape[1],):
+        if conv_bias.dtype != x.dtype or conv_bias.device != x.device or conv_bias.shape != (c,):
             msg = "Expected one convolution bias per channel on the activation device and dtype"
             raise ValueError(msg)
         conv_bias = conv_bias.contiguous()
         if conv_bias.data_ptr() % _VECTOR_BYTES:
             conv_bias = conv_bias.clone()
-    n, c = x.shape[:2]
     s = x[0, 0].numel()
     lib = load(x.device)
     stats = torch.empty((n, c, 2), dtype=torch.float32, device=x.device)
