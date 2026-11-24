@@ -1514,17 +1514,17 @@ class Warp(_Node):
 
 
 class _Frames:
-    """The frames of an IMAGE batch, each `[3, H, W]` on `device` when the model asks for it.
+    """The frames of an IMAGE batch, each a `[3, H, W]` view when the model asks for it (it moves it to its device).
 
     `m.video` reads them one at a time (in a prefetch thread): one frame on the GPU instead of the whole clip, and
     ComfyUI's progress bar and cancel between frames.
     """
 
-    def __init__(self, frames: torch.Tensor, device: torch.device) -> None:
+    def __init__(self, frames: torch.Tensor) -> None:
         """`frames` `[T, H, W, C]` (ComfyUI IMAGE)."""
         import comfy.utils  # noqa: PLC0415 - ComfyUI only
 
-        self.frames, self.device = frames, device
+        self.frames = frames
         self.bar = comfy.utils.ProgressBar(frames.shape[0])
 
     def __len__(self) -> int:
@@ -1534,7 +1534,7 @@ class _Frames:
     def __getitem__(self, t: int) -> torch.Tensor:
         """Frame `t`; raises ComfyUI's interrupt once the user cancels."""
         _mm().throw_exception_if_processing_interrupted()
-        x = self.frames[t, ..., :3].to(self.device, torch.float32).permute(2, 0, 1)
+        x = self.frames[t, ..., :3].permute(2, 0, 1)
         self.bar.update(1)
         return x
 
@@ -1593,7 +1593,7 @@ class VideoSegment(_Node):
         m = load(model, backend, dtype, {"samurai": True} if samurai else None)
         check_prompts(m, model, points=bool(pos or neg), box=bx is not None)
         with node_errors():
-            masks = m.video(_Frames(frames, m.device), **kwargs).masks  # ty: ignore[unresolved-attribute]
+            masks = m.video(_Frames(frames), **kwargs).masks  # ty: ignore[unresolved-attribute]
         return (convert.to_mask(list(masks), _out_device()),)
 
 
