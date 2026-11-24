@@ -5,6 +5,10 @@ mistakes; the message a user sees in the red node was recorded for each. Scope: 
 convert.py, workflows), `docs/comfyui.md`, `tests/test_comfyui.py`. Nothing under `src/fastforks/stereo` or the speed
 data was touched. The Windows / CUDA behaviour was not re-measured here.
 
+2026-11-24, Windows 11, RTX 5060 Ti, ComfyUI 0.46 venv, dev/v0.2.1 pack, offline: rows 3, 5 (and case-insensitive
+`Person`), 8, 9, 11 and the one-frame Flow message were re-run through the API and read exactly as below; the offline
+message (row 11) lists the Windows paths searched before the ComfyUI hint.
+
 ## Fine as it was
 
 - **Names, categories, widget order, defaults.** One category (`fastforks`), display names say the task and the pack,
