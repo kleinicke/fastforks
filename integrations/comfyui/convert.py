@@ -7,6 +7,7 @@ fastforks takes channel-first images `[3, H, W]` in `[0, 1]` and returns maps on
 from __future__ import annotations
 
 import difflib
+import fractions
 import functools
 import json
 import math
@@ -201,23 +202,29 @@ def depth_image(depth: torch.Tensor | None, inverse_depth: torch.Tensor | None, 
         msg = "the model returned neither depth nor inverse_depth"
         raise ValueError(msg)
     valid = torch.isfinite(inv)
+    # the valid pixels' range without a host sync (none valid: every pixel is black below)
     if clip:
-        if not valid.any():
-            return torch.zeros(_RGB, *inv.shape, device=inv.device)
-        lo, hi = _range(inv[valid], clip)
-    else:  # min / max of the valid pixels without a host sync (none valid: every pixel is black below)
+        lo, hi = _quantiles(inv, valid, clip)
+    else:
         lo, hi = torch.where(valid, inv, math.inf).amin(), torch.where(valid, inv, -math.inf).amax()
     scaled = ((inv - lo) / (hi - lo).clamp_min(torch.finfo(torch.float32).tiny)).clamp(0, 1)
     return torch.where(valid, scaled, 0).unsqueeze(0).expand(_RGB, *inv.shape)
 
 
-def _range(values: torch.Tensor, clip: float) -> tuple[torch.Tensor, torch.Tensor]:
-    """The `clip` and `1 - clip` quantiles of a non-empty 1-D tensor (its minimum and maximum for `clip` 0)."""
-    k = int(clip * values.numel())
-    if k == 0:
-        return values.min(), values.max()
-    ordered = values.sort().values  # sort runs on every device (torch.quantile is capped at 16M elements)
-    return ordered[k], ordered[-1 - k]
+def _quantiles(values: torch.Tensor, valid: torch.Tensor, clip: float) -> tuple[torch.Tensor, torch.Tensor]:
+    """The `clip` and `1 - clip` quantiles of the valid values: the `k`-th smallest and largest, `k = floor(clip n)`.
+
+    Read on the device: the invalid values sort last as +inf and `k` is integer arithmetic on the device's count of
+    valid ones (`clip` as a fraction: MPS has no float64), so nothing waits for the GPU. With none valid both are inf.
+    `sort` runs on every device (`torch.quantile` is capped at 16M elements).
+    """
+    ordered = torch.where(valid, values, math.inf).flatten().sort().values
+    n = valid.sum()
+    q = fractions.Fraction(clip).limit_denominator(10**6)
+    k = n * q.numerator // q.denominator
+    lo = ordered.index_select(0, k.clamp(max=ordered.numel() - 1).view(1))  # a tensor index would read it on the host
+    hi = ordered.index_select(0, (n - 1 - k).clamp(min=0).view(1))
+    return lo, hi
 
 
 def normals_image(normals: torch.Tensor) -> torch.Tensor:

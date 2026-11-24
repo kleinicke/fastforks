@@ -119,6 +119,7 @@ def test_per_image_maps_queue_without_a_host_sync(pack: Any) -> None:
         maps = [
             c.depth_image(depth, None),
             c.depth_image(None, 1 / depth),
+            c.depth_image(None, 1 / depth, clip=0.05),  # the Stereo node's quantiles
             c.normals_image(normals),
             c.flow_image(flow),
             c.labels_image(labels, colours),
@@ -127,8 +128,9 @@ def test_per_image_maps_queue_without_a_host_sync(pack: Any) -> None:
     finally:
         torch.cuda.set_sync_debug_mode("default")
     assert all(m.device.type == "cuda" for m in maps)
-    assert torch.equal(maps[2].cpu(), c.normals_image(normals.cpu()))
-    assert torch.equal(maps[5][:5].cpu(), torch.bincount(labels.flatten().cpu(), minlength=5) > 0)
+    assert torch.equal(maps[2].cpu(), c.depth_image(None, 1 / depth.cpu(), clip=0.05))
+    assert torch.equal(maps[3].cpu(), c.normals_image(normals.cpu()))
+    assert torch.equal(maps[6][:5].cpu(), torch.bincount(labels.flatten().cpu(), minlength=5) > 0)
 
 
 @pytest.mark.gpu
