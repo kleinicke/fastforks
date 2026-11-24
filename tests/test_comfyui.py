@@ -134,6 +134,25 @@ def test_per_image_maps_queue_without_a_host_sync(pack: Any) -> None:
 
 
 @pytest.mark.gpu
+def test_large_uploads_go_through_pinned_chunks(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Above `_PIN_MAX` an upload is copied in pinned chunks (also ahead, and from float16); the values are exact."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    c, cuda = pack.convert, torch.device("cuda")
+    monkeypatch.setattr(c, "_PIN_MAX", 256)
+    monkeypatch.setattr(c, "_CHUNK", 100)  # not a multiple of 4 bytes: the chunks hold 25 floats
+    image = torch.rand(4, 5, 7, 3)
+    for x in (image, image.half(), image[1:3]):
+        got = c.upload(x, cuda)
+        assert got.dtype == torch.float32
+        assert torch.equal(got.cpu(), x.float())
+    got = [c.frames(image, i, i + 2, cuda) for i in (0, 2)]  # the second pair is uploaded ahead, in chunks
+    c.drop_ahead()
+    for i, g in zip((0, 2), got, strict=True):
+        assert torch.equal(g.cpu(), image[i : i + 2].permute(0, 3, 1, 2))
+
+
+@pytest.mark.gpu
 def test_uploads_ahead_match_direct_uploads(pack: Any) -> None:
     """On CUDA the next slice is uploaded ahead; every read equals a direct copy, in any access order."""
     if not torch.cuda.is_available():
