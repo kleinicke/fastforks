@@ -45,7 +45,7 @@ These terms apply to every device:
 ## Other devices
 
 - [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 578 models, 2250 rows, measured 2026-11-06 to 2026-11-23.
-- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 577 models, 1495 rows, measured 2026-11-19 to 2026-11-24.
+- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 577 models, 1496 rows, measured 2026-11-19 to 2026-11-24.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -307,7 +307,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) |
 |---|---|---|
-| [`ben2`](models/matting.md#ben2) | 1148 ms · portable fp32 | 1706 ms · portable fp32 |
+| [`ben2`](models/matting.md#ben2) | 1148 ms · portable fp32 | 850 ms · portable fp16 |
 | [`birefnet`](models/matting.md#birefnet) | 1152 ms · portable fp16 | 1048 ms · portable fp16 |
 | [`birefnet-lite`](models/matting.md#birefnet) | 474 ms · portable fp32 | 392 ms · portable fp16 |
 | [`inspyrenet`](models/matting.md#inspyrenet) | 702 ms · portable fp16 | 679 ms · portable fp16 |

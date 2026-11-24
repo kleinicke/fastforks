@@ -65,12 +65,12 @@ there (`device="mps"` still tries, and an op MPS lacks raises).
 | rtmpose | fp16 | fp16 | fp32/fp16 | pose_metal fp32 | fp32/fp16 | - |
 | anyline, codeformer, compact, isnet, mmseg, pidinet, realesrgan, rife, rt_monster_plusplus, span, teed, yolox | fp16 | fp16 | fp32/fp16 | - | fp32/fp16 | conv_mlx fp32/fp16 |
 | aanet, bridgedepth, cfnet, great_igev, hitnet, igev_stereo, las2, mocha_stereo, monster, monster_plusplus, nmrf | fp16 | fp16 | fp32/fp16 | stereo_metal fp16 | fp32/fp16 | - |
-| anycalib, dedode, grounding_dino, memflow, memfof, nninteractive, owlv2, resplat, romav1, track_on, unidepth_v2 | fp16 | fp16 | fp32 | - | fp32/fp16 | - |
+| anycalib, ben2, dedode, grounding_dino, memflow, memfof, nninteractive, owlv2, resplat, romav1, track_on, unidepth_v2 | fp16 | fp16 | fp32 | - | fp32/fp16 | - |
 | foundationstereo, igev_plusplus, raft_stereo, selective_igev | fp16 | fp16 | fp32/fp16 | stereo_metal fp16 | fp32/fp16 | conv_mlx fp32/fp16 |
 | depth_anything_v2 | fp16 | fp16 | fp32/fp16 | - | fp32/fp16 | dpt_mlx fp32/fp16 |
 | raft, sea_raft | fp16 | fp16 | fp32/fp16 | flow_metal fp16 | fp32/fp16 | - |
 | perception_encoder | fp16 | fp16 | fp32/fp16 | vit_metal fp16 | fp32/fp16 | - |
-| ben2, cotracker, efficientvit_sam | fp16 | fp16 | fp32 | - | fp32 | - |
+| cotracker, efficientvit_sam | fp16 | fp16 | fp32 | - | fp32 | - |
 | loma | bf16 | fp16 | fp32 | - | fp32/fp16 | - |
 | locotrack, tapir, tapnext | fp16 | fp16 | fp32/fp16 | - | fp32 | - |
 | vitpose | fp16 | fp16 | fp32/fp16 | pose_metal fp16 | fp32/fp16 | - |

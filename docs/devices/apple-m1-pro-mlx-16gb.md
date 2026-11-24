@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-24 |
-| rows | 1495 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1496 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -335,7 +335,7 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 | model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
 |---|---|---|---|---|---|---|---|
-| [`ben2`](../models/matting.md#ben2) | 1706 | – | unsupported | – | – | 5012 | – |
+| [`ben2`](../models/matting.md#ben2) | 1524 | 850 | unsupported | – | – | 2863 | – |
 | [`birefnet`](../models/matting.md#birefnet) | 1625 | 1048 | unsupported | – | – | 2364 | – |
 | [`birefnet-lite`](../models/matting.md#birefnet) | 640 | 392 | – | – | – | 1824 | – |
 | [`inspyrenet`](../models/matting.md#inspyrenet) | 1121 | 679 | unsupported | – | – | 1741 | – |
