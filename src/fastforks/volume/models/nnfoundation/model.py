@@ -59,6 +59,10 @@ def normalise(x: torch.Tensor) -> torch.Tensor:
     """`ZScoreNormalization` of nnssl without a mask: `(x - mean) / max(std, 1e-8)` per channel (float64 stats)."""
     out = torch.empty_like(x, dtype=torch.float32)
     for c in range(x.shape[0]):
+        if x.device.type == "cuda":  # the stats on the device: no host copy of the volume, no sync
+            d = x[c].double()
+            out[c] = (x[c].float() - d.mean().float()) / d.std(correction=0).clamp_min(1e-8).float()
+            continue
         d = x[c].cpu().double()  # MPS has no float64
         out[c] = (x[c].float() - d.mean().float().to(x.device)) / max(float(d.std(correction=0)), 1e-8)
     return out
