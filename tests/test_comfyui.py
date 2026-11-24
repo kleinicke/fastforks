@@ -94,6 +94,27 @@ def test_image_round_trip(pack: Any) -> None:
     assert torch.equal(c.frame(gray, 0, torch.device("cpu"))[2], gray[0, ..., 0])
 
 
+@pytest.mark.gpu
+def test_uploads_ahead_match_direct_uploads(pack: Any) -> None:
+    """On CUDA the next slice is uploaded ahead; every read equals a direct copy, in any access order."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    c, cuda = pack.convert, torch.device("cuda")
+    left, right, gray = torch.rand(5, 6, 7, 3), torch.rand(5, 6, 7, 4), torch.rand(5, 6, 7, 1)
+    want = {id(left): left.cuda(), id(right): right[..., :3].cuda(), id(gray): gray.expand(-1, -1, -1, 3).cuda()}
+    order = [(left, 0), (right, 0), (left, 1), (right, 1), (left, 3), (gray, 0), (gray, 1), (left, 4), (left, 2)]
+    for img, i in order:  # in turn (stereo), skipping, going back
+        got = c.frame(img, i, cuda)
+        assert torch.equal(got, want[id(img)][i].permute(2, 0, 1)), (img.shape, i)
+    assert len(c._AHEAD._held) <= c._Ahead._HELD
+    for start in (0, 2, 4):  # batches: the next chunk of the same length is uploaded ahead
+        assert torch.equal(
+            c.frames(left, start, min(start + 2, 5), cuda), want[id(left)][start : start + 2].permute(0, 3, 1, 2)
+        )
+    c.drop_ahead()
+    assert not c._AHEAD._held
+
+
 def test_masks(pack: Any) -> None:
     """Masks: bool and float maps stack to MASK; RGBA carries the mask; one unbatched trimap serves every image."""
     c = pack.convert
