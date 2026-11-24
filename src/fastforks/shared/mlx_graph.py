@@ -4179,7 +4179,9 @@ class MlxModule:
                 continue
             done = t.__dict__.setdefault("_mlx_done", set())
             done.add(id(self))
-            if not t.__dict__.get("_mlx_owners", set()) <= done or t.numel() <= 1:
+            if not t.__dict__.get("_mlx_owners", set()) <= done or t.numel() <= 1 or t.ndim < 2:
+                # 1-D tensors stay: the next shape's export turns a linear with a stride-0 bias into `mm` + `add`
+                # instead of `addmm` (tapnext: 101 of 102, so no fused bias; a float16 golden moved by 57 px)
                 continue
             # a normal tensor even in an inference-mode call: the next shape's export (out of it) lifts the stand-in
             with torch.inference_mode(mode=False):

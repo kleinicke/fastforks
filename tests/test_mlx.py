@@ -856,3 +856,6 @@ def test_a_model_routed_from_mps_reports_the_device_of_its_results(monkeypatch):
     assert (m.device, m._device, m._result_device) == (mps, torch.device("cpu"), mps)
     # what runs, not a relabel: the port's own mode and kernels
     assert (m.backend.device, m.backend.mode, m.backend.kernels) == ("mlx", "portable", ())
+
+    # the biases stay real: a stride-0 bias turns the next export's `addmm` into `mm` + `add` (tapnext float16)
+    assert all(torch.equal(a, b) for a, b in zip(net.parameters(), ref.parameters(), strict=True) if a.ndim == 1)
