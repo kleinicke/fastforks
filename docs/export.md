@@ -72,7 +72,8 @@ Rules for every task:
 
 - Only the portable backend exports. `kernels` raises `BackendUnavailableError` from `export_onnx` / `export_tensorrt`
   (ONNX cannot hold our kernels); load with `mode="portable"`. There is no silent fallback.
-- An export has one fixed size and batch (`batch=` argument). A size below the model's minimum raises `InputError` (e.g. CoEx with `--size 4x4`: below 32).
+- An export has a fixed batch size (`batch=` argument). It uses one image size by default. Supported models can
+  vary image height and width within a size range. An image size below the model's minimum raises `InputError`.
 - The graph keeps the model's compute dtype: `dtype="float32"` exports float32 (closest to the original reference); the
   default keeps the model's tested fp16 casts, and TensorRT builds it strongly typed, in exactly that precision.
   The CLI exports float32 unless `--fp16` is given.
@@ -87,9 +88,9 @@ Rules for every task:
 
 ## What works
 
-Compile and TensorRT per family (one variant each, at the task's standard size, with the failure reasons):
-[benchmarks](benchmarks.md#torchcompile-and-tensorrt). In short: `torch.compile` works for every family, the fp16
-TensorRT engine for all but these four (each a TensorRT bug; run their ONNX file with onnxruntime instead):
+Use `fastforks info MODEL` or the model card for current compile, ONNX and TensorRT availability. The benchmark
+tables record the measured result for one variant per family at the task's standard size. The following TensorRT
+failures were observed at those sizes. [Compile and TensorRT benchmarks](benchmarks.md#torchcompile-and-tensorrt)
 
 | model | TensorRT error | fp32 engine (`load(..., dtype="float32")`) |
 |---|---|---|
@@ -101,8 +102,8 @@ TensorRT engine for all but these four (each a TensorRT bug; run their ONNX file
 - Stereo `kernels` is one opaque custom op (`fastforks::stereo_disparity`): it
   compiles and `torch.export`s for this process, but ONNX and TensorRT raise `BackendUnavailableError`. The other tasks'
   `kernels` have no exportable module.
-- Stereo: ONNX is checked against onnxruntime on the CPU for every family; FoundationStereo, C-FS and Selective-IGEV
-  need torch >= 2.14.
+- Stereo: the CPU ONNX Runtime checks compare exported outputs with eager. FoundationStereo, C-FS and Selective-IGEV
+  need torch >= 2.14 for those checks.
 - Depth: ZoeDepth NK does not compile or export (graph break in the vendored MiDaS core, its NYU / KITTI head is picked
   per image). Marigold is not in the CPU export suite (Stable Diffusion UNet + VAE, > 2 GB graph). The exported
   graphs take only the image, no camera intrinsics: Metric3D's exported metric depth assumes its canonical camera
@@ -113,8 +114,8 @@ TensorRT engine for all but these four (each a TensorRT bug; run their ONNX file
   threshold: on 200 LaMAR images resized to this fixed size its mean vertical field-of-view difference from portable
   was 0.030 degrees, with a maximum of 0.467 degrees. This resized protocol differs from the standard site evaluation.
 
-The CPU suite (`tests/test_export.py`) runs compile (`fullgraph`, zero graph breaks), export and ONNX + onnxruntime
-for the smallest variant of every family and compares each with eager.
+The CPU suite (`tests/test_export.py`) checks compile and export on the smallest variants, with comparisons against
+eager for the supported paths.
 
 Notes:
 
@@ -171,5 +172,5 @@ reproduces with fastforks 0.2.0.
 [Benchmarks](benchmarks.md#torchcompile-and-tensorrt) has the fp16 engine next to `kernels` (speed and memory, one
 variant per family at its standard size, same run). At 994x1482 the engine is faster for LAS2-S (10.3 vs 14.3 ms),
 the same for Depth Anything V2 S (4.5 ms) and slower for HITNet, CREStereo, IGEV, RAFT and S2M2 (`kernels` 1.2-1.3x
-faster). `kernels` needs no build step, takes any input size (an engine has one fixed shape) and runs the same weights
-on every supported GPU; an engine must be rebuilt per GPU model, TensorRT version and input size.
+faster). `kernels` uses the same weights and accepts any supported input size without a build step.
+A TensorRT engine is tied to its GPU model, TensorRT version and fixed size or optimization profile.

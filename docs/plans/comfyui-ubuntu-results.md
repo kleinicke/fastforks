@@ -65,6 +65,11 @@ On a fresh install with empty caches, the pack wrote its input schema cache at s
 public checkpoint download produced a ComfyUI interrupt event and emptied the download directory. Queueing again
 verified and cached the checkpoint and rendered a 768 × 768 depth preview.
 
+Both rebuilt archives recovered from a malformed on-disk input cache at startup and completed their smoke
+workflows. In a separate test, six cycles of w02, w09 and `/free` reproduced all previews exactly under both
+CUDA allocators. Warmed process memory after unloading was stable at 660 MiB with `cudaMallocAsync` and
+722 MiB with the native allocator, measured with `nvidia-smi`.
+
 Publishing the wheels and the Comfy Registry packs are release steps. The public Registry lookup returned
 `Publisher not found` for the configured `kleinicke` ID on 2026-11-24. Confirm the publisher account and its
 ID before publishing either pack. See the [Windows results](comfyui-windows-results.md) and

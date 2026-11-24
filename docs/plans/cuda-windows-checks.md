@@ -101,6 +101,9 @@ and all 101 portable classifier module comparisons. The CUDA 13.0 wheel environm
 - RTMO-T at 1080p measured 6.43 ms portable and 2.32 ms kernels. GMFlow-scale1-mixdata
   at 1080p measured 442.4 and 271.9 ms, with 2102 and 1040 MiB peak reserved. DepthFM at 994 × 1482 measured
   4.88 and 3.38 s, with 5850 and 4092 MiB peak reserved. These are warmed inference times.
+- **GREAT-IGEV compile** on a textured 256 × 256 pair in FP16 ran in 115.2 ms eager and 50.5 ms compiled on
+  PyTorch 2.14.1 with Triton 3.8. PyTorch 2.15.0 with Triton 3.9 took 115.4 and 50.9 ms. The first compiled
+  call took 448 and 479 seconds, respectively. Mean disparity error against eager stayed below 0.00066 pixels.
 
 ## TotalSegmentator reference outputs
 
