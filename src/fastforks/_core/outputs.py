@@ -42,10 +42,9 @@ def _short(v: object) -> str:  # noqa: PLR0911 - one return per kind of value
 
 
 def short_repr(self: object) -> str:
-    """`__repr__` of the results: the shapes of the tensors instead of their values."""
-    fields = ", ".join(
-        f"{f.name}={_short(getattr(self, f.name))}" for f in dataclasses.fields(cast("Any", self)) if f.repr
-    )
+    """`__repr__` of the results: the shapes of the tensors instead of their values; None fields are left out."""
+    values = ((f.name, getattr(self, f.name)) for f in dataclasses.fields(cast("Any", self)) if f.repr)
+    fields = ", ".join(f"{name}={_short(v)}" for name, v in values if v is not None)
     return f"{type(self).__name__}({fields})"
 
 

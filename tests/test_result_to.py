@@ -151,3 +151,15 @@ def test_read_only_options():
         o["iters"] = 8  # type: ignore[index]
     with pytest.raises(AttributeError):
         o.x = 1  # type: ignore[attr-defined]
+
+
+def test_repr_leaves_out_none_fields():
+    t = torch.zeros(2, 3)
+    depth = DepthResult(
+        t, None, None, None, None, None, None, {}, "metric", "x@1", Backend("portable", "cpu", "float32", ())
+    )
+    stereo = plain_result(t, None, {}, "x@1", Backend("portable", "cpu", "float32", ()))
+    for r in (depth, stereo):
+        assert "None" not in repr(r)
+    assert repr(depth).startswith("DepthResult(depth=Tensor[2, 3; float32; cpu], extras={}, kind='metric'")
+    assert repr(stereo).startswith("StereoResult(model='x@1', backend=")
