@@ -45,7 +45,7 @@ These terms apply to every device:
 ## Other devices
 
 - [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 578 models, 2252 rows, measured 2026-11-06 to 2026-11-24.
-- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1542 rows, measured 2026-11-19 to 2026-11-24.
+- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1548 rows, measured 2026-11-19 to 2026-11-24.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -298,10 +298,10 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`sapiens-seg-1b-goliath`](models/segmentation.md#sapiens) | 3113 ms · portable fp16 | 4110 ms · portable fp16 | 305 ms · kernels fp16 | 81.4 ms · kernels fp16 | 200 ms · kernels fp16 | 67.8 ms · kernels fp16 | 45.5 ms · portable fp16 |
 | [`segformer-b0-ade20k`](models/segmentation.md#segformer) | 106 ms · portable fp32 | 57.1 ms · kernels fp16 | 3.91 ms · kernels fp16 | 1.76 ms · kernels fp16 | 3.79 ms · kernels fp16 | 3.43 ms · kernels fp16 | 1.24 ms · kernels fp16 |
 | [`segformer-b5-ade20k`](models/segmentation.md#segformer) | 375 ms · portable fp16 | 270 ms · portable fp16 | 34.5 ms · kernels fp16 | 9.82 ms · kernels fp16 | 28.5 ms · kernels fp16 | 18.3 ms · kernels fp16 | 8.22 ms · kernels fp16 |
-| [`segnext-mscan-b-ade20k`](models/segmentation.md#segnext) | 184 ms · portable fp16 | 264 ms · portable fp16 | – | – | – | – | – |
-| [`segnext-mscan-l-ade20k`](models/segmentation.md#segnext) | 268 ms · portable fp16 | 424 ms · portable fp16 | – | – | – | – | – |
-| [`segnext-mscan-s-ade20k`](models/segmentation.md#segnext) | 134 ms · portable fp16 | 74.9 ms · kernels fp16 | – | – | – | – | – |
-| [`segnext-mscan-t-ade20k`](models/segmentation.md#segnext) | 118 ms · portable fp16 | 67.7 ms · kernels fp16 | – | – | – | – | – |
+| [`segnext-mscan-b-ade20k`](models/segmentation.md#segnext) | 184 ms · portable fp16 | 119 ms · kernels fp16 | – | – | – | – | – |
+| [`segnext-mscan-l-ade20k`](models/segmentation.md#segnext) | 268 ms · portable fp16 | 181 ms · portable fp16 | – | – | – | – | – |
+| [`segnext-mscan-s-ade20k`](models/segmentation.md#segnext) | 134 ms · portable fp16 | 81.4 ms · portable fp16 | – | – | – | – | – |
+| [`segnext-mscan-t-ade20k`](models/segmentation.md#segnext) | 118 ms · portable fp16 | 69.7 ms · portable fp16 | – | – | – | – | – |
 
 #### Matting, 1080x1920
 

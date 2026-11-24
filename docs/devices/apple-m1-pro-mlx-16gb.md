@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-24 |
-| rows | 1542 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1548 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -322,10 +322,10 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`sapiens-seg-1b-goliath`](../models/segmentation.md#sapiens) | 5247 | 4110 | – | – | – | 6692 | – |
 | [`segformer-b0-ade20k`](../models/segmentation.md#segformer) | 68.3 | 57.6 | 67.6 | 57.1 | 1.0x | 734 | 725 |
 | [`segformer-b5-ade20k`](../models/segmentation.md#segformer) | 351 | 270 | 351 | 270 | 1.0x | 1283 | 1282 |
-| [`segnext-mscan-b-ade20k`](../models/segmentation.md#segnext) | 301 | 264 | – | – | – | 894 | – |
-| [`segnext-mscan-l-ade20k`](../models/segmentation.md#segnext) | 489 | 424 | – | – | – | 974 | – |
-| [`segnext-mscan-s-ade20k`](../models/segmentation.md#segnext) | 90.5 | 75.0 | 89.9 | 74.9 | 1.0x | 793 | 786 |
-| [`segnext-mscan-t-ade20k`](../models/segmentation.md#segnext) | 133 | 117 | 85.1 | 67.7 | 1.7x | 769 | 754 |
+| [`segnext-mscan-b-ade20k`](../models/segmentation.md#segnext) | 126 | 119 | 126 | 119 | 1.0x | 947 | 940 |
+| [`segnext-mscan-l-ade20k`](../models/segmentation.md#segnext) | 197 | 181 | 196 | 186 | 1.0x | 1140 | 1145 |
+| [`segnext-mscan-s-ade20k`](../models/segmentation.md#segnext) | 87.1 | 81.4 | 87.1 | 81.6 | 1.0x | 828 | 830 |
+| [`segnext-mscan-t-ade20k`](../models/segmentation.md#segnext) | 73.5 | 69.7 | 73.6 | 69.9 | 1.0x | 745 | 746 |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 
@@ -358,11 +358,11 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 | model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
 |---|---|---|---|---|---|---|---|
-| [`anyline`](../models/edges.md#anyline) | 223 | 197 | 219 | 181 | 1.1x | 1776 | 1604 |
+| [`anyline`](../models/edges.md#anyline) | 55.4 | 43.8 | 55.4 | 39.8 | 1.1x | 729 | 731 |
 | [`hed`](../models/edges.md#hed) | 74.9 | 65.2 | unsupported | – | – | 1174 | – |
-| [`lineart`](../models/edges.md#lineart) | 134 | 108 | unsupported | – | – | 1099 | – |
+| [`lineart`](../models/edges.md#lineart) | 78.6 | 51.6 | 77.5 | 51.5 | 1.0x | 882 | 883 |
 | [`lineart-anime`](../models/edges.md#lineart_anime) | 51.8 | 44.5 | unsupported | – | – | 982 | – |
-| [`lineart-coarse`](../models/edges.md#lineart) | 98.1 | 78.9 | unsupported | – | – | 933 | – |
+| [`lineart-coarse`](../models/edges.md#lineart) | 80.0 | 51.8 | 81.0 | 52.4 | 1.0x | 867 | 842 |
 | [`mlsd`](../models/edges.md#mlsd) | 46.3 | 35.8 | unsupported | – | – | 676 | – |
 | [`pidinet`](../models/edges.md#pidinet) | 196 | 173 | 107 | 75.1 | 2.3x | 728 | 732 |
 | [`teed`](../models/edges.md#teed) | 19.6 | 19.2 | 17.5 | 14.1 | 1.4x | 492 | 523 |

@@ -3,7 +3,7 @@ name = "SegNeXt"
 summary = "SegNeXt (Guo et al. 2022): the mmsegmentation ADE20K checkpoints of the MSCAN convolutional-attention backbones (tiny to large) with the light Hamburger head; network vendored from mmsegmentation (no mmseg / mmcv dependency)."
 tier = "stable"
 outputs = ["logits"]
-uses = ["cuda_graphs", "seginfer", "mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "seginfer", "mlx_wrap", "mlx_graph", "mlx_seg"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/open-mmlab/mmsegmentation"
@@ -40,7 +40,7 @@ kernels = ["seg_conv", "fvm_conv", "fvm_extra", "fvm_mb", "fvm_r3", "seg_up"]  #
 # slower than PyTorch's NCHW one, which the portable runner uses), the 1x1 convs as fp16-accumulate cuBLAS GEMMs with
 # the bias fused, the two logits resizes as one `seg_up` pass, a CUDA graph per repeated network input shape (every
 # size the 2048 x 512 resize gives: up to 512x2048; the graph pool adds ~15-35 MiB reserved at 1024x2048).
-mlx_kernels = ["graph_mlx"]
+mlx_kernels = ["graph_mlx"]  # the erf of the float32 GELU; the depthwise and strip convs are `mlx_net`'s own kernels
 mlx_dtypes = ["float32", "float16"]
 
 [output]

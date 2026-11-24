@@ -141,14 +141,6 @@ UNVALIDATED: dict[str, tuple[str, ...]] = {
         "kernels float16",
         "kernels float32",
     ),
-    "segnext-mscan-b-ade20k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "segnext-mscan-l-ade20k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
     "shvit_s1.in1k@1": (
         "kernels float16",
         "kernels float32",

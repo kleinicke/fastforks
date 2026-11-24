@@ -8,7 +8,8 @@ Test-time protocol of the configs (mmseg `test_pipeline`, `SegDataPreProcessor` 
 `portable` runs the folded network (`net.fold`) as plain PyTorch, fp16 channels-last on CUDA with the depthwise strip
 convs in NCHW (PyTorch's native kernel). `kernels` runs every depthwise conv as one direct NHWC kernel (`seg_conv`;
 the MLP's 3x3 with its GELU in `fvm_conv`), the 1x1 convs as fp16-accumulate cuBLAS GEMMs with the bias fused, the
-logits resize as one `seg_up` pass, and replays a CUDA graph per repeated network input shape.
+logits resize as one `seg_up` pass, and replays a CUDA graph per repeated network input shape. On Apple MLX both
+modes are `mlx_net`: the folded network written in `mlx.core` operations, its depthwise convs as Metal kernels.
 
 One deviation from upstream: the head's matrix factorisation starts from fixed bases (`net.Hamburger`), so the same
 image always gives the same logits; upstream draws random ones on every call.
@@ -100,11 +101,14 @@ class Portable(Runner):
         x = F.pad(x, (0, -size[1] % _DIVISOR, 0, -size[0] % _DIVISOR))
         if x.is_cuda:
             x = x.contiguous(memory_format=_CL)
-        s = self._forward(x.to(next(self.net.parameters()).dtype)).contiguous()  # NCHW: PyTorch's bilinear resize
+        s = self._forward(x.to(self._input_dtype())).contiguous()  # NCHW: PyTorch's bilinear resize
         padded = (x.shape[-2], x.shape[-1])  # runs 2-3x faster than channels-last on 150 classes
         if padded == size:
             return s, (padded, (image.shape[-2], image.shape[-1]))
         return resize(s, padded)[..., : size[0], : size[1]], ((image.shape[-2], image.shape[-1]),)
+
+    def _input_dtype(self) -> torch.dtype:
+        return next(self.net.parameters()).dtype
 
     def _forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
@@ -212,9 +216,27 @@ class Kernels(Portable):
     module = Runner.module
 
 
-RUNNERS = {
-    "portable": Portable,
-    "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
-    "kernels_mlx": mlx_wrap.port(Portable),
-}
+class _MlxPortable(Portable):
+    """Apple MLX: the folded network written in `mlx.core` operations (`mlx_net`), the image handling as `Portable`."""
+
+    net: Any  # mlx_net.MlxSegNeXt
+
+    def __init__(self, ctx: Context) -> None:
+        Runner.__init__(self, ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.net = mlx_net.MlxSegNeXt(network(ctx), mlx_wrap.run_dtype(ctx))  # the PyTorch network is not kept
+
+    def _input_dtype(self) -> torch.dtype:
+        return torch.float32
+
+    def _forward(self, x: torch.Tensor) -> torch.Tensor:
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return to_torch(self.net(to_mx(x)))
+
+    module = Runner.module
+
+
+_Mlx = mlx_wrap.port(_MlxPortable, attrs=())  # both modes: the port's Metal kernels are the network
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": _Mlx, "kernels_mlx": _Mlx}

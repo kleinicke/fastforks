@@ -4,13 +4,14 @@ Inference as controlnet_aux's `LineartDetector` (ComfyUI's "Realistic Lineart"):
 (`edges._runner.to_detect`), divided by 255, the generator's sigmoid map, inverted (upstream: `255 - map` of the
 8-bit map; here float, 1 = line) and resized to the input size (bilinear). `lineart-coarse` is the coarse model.
 
-`portable`: upstream's modules in plain PyTorch, fp32 or fp16.
+`portable`: upstream's modules in plain PyTorch, fp32 or fp16. On Apple MLX both modes are `mlx_net`: the generator
+written out in `mlx.core` operations.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import torch
 
@@ -74,8 +75,27 @@ class Kernels(Portable):
         cnn_kernels.patch_reflection_pads(self.net)
 
 
-RUNNERS = {
-    "portable": Portable,
-    "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
-}
+class _MlxPortable(Portable):
+    """Apple MLX: the generator written in `mlx.core` operations (`mlx_net`), the resizes as `Portable`."""
+
+    net: Any  # mlx_net.MlxGenerator
+
+    def __init__(self, ctx: Context) -> None:
+        Runner.__init__(self, ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        net = Generator(3, 1, 3)
+        net.load_state_dict(ctx.state_dict())
+        self.net = mlx_net.MlxGenerator(net, mlx_wrap.run_dtype(ctx))  # the PyTorch network is not kept
+
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        x = to_detect(image, self.ctx.params.short_side).float().permute(0, 2, 3, 1) / 255
+        return {"edges": to_input(to_torch(self.net(to_mx(x.contiguous()))), image)}
+
+    module = Runner.module
+
+
+_Mlx = mlx_wrap.port(_MlxPortable, attrs=())
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": _Mlx, "kernels_mlx": _Mlx}

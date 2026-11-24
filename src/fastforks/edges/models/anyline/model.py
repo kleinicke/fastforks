@@ -9,14 +9,15 @@ size (`edges._runner.to_detect`, 0..255 floats), then resized to the input size 
   than 12 pixels removed (upstream: `remove_small_objects(min_size=36, connectivity=1)` on the 3-channel copy);
 - out: `1 - (1 - top) * (1 - base)` where the line art `top` is drawn, else `base`.
 
-`portable`: upstream's modules in plain PyTorch, fp32 or fp16; the line art in float32.
+`portable`: upstream's modules in plain PyTorch, fp32 or fp16; the line art in float32. On Apple MLX both modes are
+`mlx_net`: MTEED written in `mlx.core` operations, the line art in Metal kernels.
 """
 
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.nn.functional as F
@@ -195,9 +196,27 @@ class Kernels(Portable):
     module = Runner.module
 
 
-RUNNERS = {
-    "portable": Portable,
-    "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
-    "kernels_mlx": mlx_wrap.port(Portable),
-}
+class _MlxPortable(Portable):
+    """Apple MLX: MTEED and the line art in `mlx.core` operations and Metal kernels (`mlx_net`)."""
+
+    net: Any  # mlx_net.MlxAnyline
+
+    def __init__(self, ctx: Context) -> None:
+        Runner.__init__(self, ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        net = TED()
+        net.load_state_dict(ctx.state_dict())
+        self.net = mlx_net.MlxAnyline(net, mlx_wrap.run_dtype(ctx))  # the PyTorch network is not kept
+
+    def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        x = to_detect(image, self.ctx.params.short_side).float().permute(0, 2, 3, 1)
+        return {"edges": to_input(to_torch(self.net(to_mx(x.contiguous()))), image)}
+
+    module = Runner.module
+
+
+_Mlx = mlx_wrap.port(_MlxPortable, attrs=())
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": _Mlx, "kernels_mlx": _Mlx}

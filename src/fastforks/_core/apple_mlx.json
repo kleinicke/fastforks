@@ -241,6 +241,14 @@
    }
   },
   "anyline@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   },
    "mlx_default": [
     "kernels",
     "float16"
@@ -5593,6 +5601,14 @@
    }
   },
   "lineart-coarse@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -5603,6 +5619,10 @@
    },
    "mps_dtype": "float16",
    "passed": {
+    "kernels": [
+     "float16",
+     "float32"
+    ],
     "portable": [
      "float16",
      "float32"
@@ -5610,16 +5630,28 @@
    }
   },
   "lineart@1": {
+   "auto": [
+    "kernels",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
+   },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    },
    "mps_dtype": "float16",
    "passed": {
+    "kernels": [
+     "float16",
+     "float32"
+    ],
     "portable": [
      "float16",
      "float32"
@@ -10037,40 +10069,14 @@
    }
   },
   "segnext-mscan-b-ade20k@1": {
-   "mlx_default": [
-    "portable",
+   "auto": [
+    "kernels",
     "float16"
    ],
-   "mlx": {
-    "float16": "portable",
-    "float32": "portable"
+   "dtypes": {
+    "float16": "kernels",
+    "float32": "kernels"
    },
-   "mps_dtype": "float16",
-   "passed": {
-    "portable": [
-     "float16",
-     "float32"
-    ]
-   }
-  },
-  "segnext-mscan-l-ade20k@1": {
-   "mlx_default": [
-    "portable",
-    "float16"
-   ],
-   "mlx": {
-    "float16": "portable",
-    "float32": "portable"
-   },
-   "mps_dtype": "float16",
-   "passed": {
-    "portable": [
-     "float16",
-     "float32"
-    ]
-   }
-  },
-  "segnext-mscan-s-ade20k@1": {
    "mlx_default": [
     "kernels",
     "float16"
@@ -10091,14 +10097,80 @@
     ]
    }
   },
-  "segnext-mscan-t-ade20k@1": {
+  "segnext-mscan-l-ade20k@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "kernels"
+   },
    "mlx_default": [
-    "kernels",
+    "portable",
     "float16"
    ],
    "mlx": {
-    "float16": "kernels",
+    "float16": "portable",
     "float32": "kernels"
+   },
+   "mps_dtype": "float16",
+   "passed": {
+    "kernels": [
+     "float16",
+     "float32"
+    ],
+    "portable": [
+     "float16",
+     "float32"
+    ]
+   }
+  },
+  "segnext-mscan-s-ade20k@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mps_dtype": "float16",
+   "passed": {
+    "kernels": [
+     "float16",
+     "float32"
+    ],
+    "portable": [
+     "float16",
+     "float32"
+    ]
+   }
+  },
+  "segnext-mscan-t-ade20k@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
+   "mlx_default": [
+    "portable",
+    "float16"
+   ],
+   "mlx": {
+    "float16": "portable",
+    "float32": "portable"
    },
    "mps_dtype": "float16",
    "passed": {

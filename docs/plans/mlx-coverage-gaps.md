@@ -472,7 +472,8 @@ family `mlx.py`, re-survey the family's refs, regenerate `apple_mlx.json`.
 | 0.94 (was 1.8) | realplksr-nomoswebphoto-x4 | kernels fp16 1029 ms vs MPS 1092, but 1919 MB against 1368 MB; portable fp16 is the lean mode (1529 ms, 1198 MB). Left: the 862 MB active peak of the Winograd convs, group norm (3 ms x 28) |
 | 0.76, 0.65 (were 1.7) | dlnr-sceneflow, raft-stereo-middlebury | done, all five refs of the two families auto-routed to MLX: hand-written networks, first calls 1.7 / 2.7 s ("Done: DLNR and RAFT-Stereo" below) |
 | 0.83 (was 1.7) | ema-vfi-small-t | done, all four EMA-VFI refs auto-routed to MLX: hand-written network, 0.47 s first call ("Done: RIFE 4.25 and EMA-VFI" below) |
-| 1.5-1.6 | lineart, anyline, segnext-mscan-l/b, sapiens-seg-0.3b, oneformer-swinl, gmflow-scale1 | not looked at yet |
+| 0.78, 0.34, 0.65, 0.67 (were 1.6, 1.6, 1.4, 1.6) | lineart, anyline, segnext-mscan-b/l | done, all seven refs of the three families auto-routed to MLX: hand-written networks, 0.07-0.22 s first calls ("Done: line art, AnyLine and SegNeXt" below) |
+| 1.5-1.6 | sapiens-seg-0.3b, oneformer-swinl, gmflow-scale1 | not looked at yet |
 
 Also: survey the six TotalSegmentator
 refs on MLX (the 1.5 mm `total` runs 34 s warm vs 23 s on MPS; 3mm is 1.4x slower).
@@ -1165,6 +1166,82 @@ Left:
 - The channels per RoIAlign thread (4) and the thread group (8 x 8 x 1) were not tuned.
 - The MPS runner was not touched.
 - RoIAlign inside other families (sam3) was not examined.
+
+### Done: line art, AnyLine and SegNeXt (2026-11-24)
+
+M1 Pro, float16, 1024x1024 (edges) and 1024x2048 (SegNeXt), all 28 goldens pass (`tools/speed_survey.py`, 7 refs x
+2 modes x 2 dtypes; "MLX now" is the routed row):
+
+| ref | | warm ms | first call s | peak MB | auto |
+|---|---|---|---|---|---|
+| lineart | MLX before | 108.2 | 2.27 | 1099 | – |
+| | MLX now | 51.5 | 0.11 | 883 | MLX |
+| | MPS portable (best MPS row) | 66.5 | 0.24 | 1362 | |
+| lineart-coarse | MLX before | 78.9 | 1.93 | 933 | – |
+| | MLX now | 51.8 | 0.07 | 867 | MLX |
+| | MPS portable (best MPS row) | 68.2 | 0.30 | 1364 | |
+| anyline | MLX before | 181.2 | 2.16 | 1604 | – |
+| | MLX now | 39.8 | 0.07 | 731 | MLX |
+| | MPS portable (best MPS row) | 116.8 | 0.34 | 1319 | |
+| segnext-mscan-b-ade20k | MLX before | 263.7 | 3.95 | 894 | – |
+| | MLX now | 118.9 | 0.15 | 940 | MLX |
+| | MPS portable (best MPS row) | 184.1 | 0.42 | 1659 | |
+| segnext-mscan-l-ade20k | MLX before | 424.1 | 5.05 | 974 | – |
+| | MLX now | 180.8 | 0.22 | 1140 | MLX |
+| | MPS portable (best MPS row) | 268.2 | 0.48 | 1840 | |
+| segnext-mscan-s-ade20k | MLX before | 74.9 | 1.66 | 786 | – |
+| | MLX now | 81.4 | 0.11 | 828 | MLX |
+| | MPS portable (best MPS row) | 134.4 | 0.34 | 1556 | |
+| segnext-mscan-t-ade20k | MLX before | 67.7 | 2.35 | 754 | – |
+| | MLX now | 69.7 | 0.10 | 745 | MLX |
+| | MPS portable (best MPS row) | 117.5 | 0.88 | 1445 | |
+
+float32 now: lineart 77.5 ms / 952 MB (was 134.0 / 1244; MPS 95.8 / 1361), anyline 55.4 / 888 (was 218.5 / 1997;
+MPS 129.7 / 2346), segnext-b 126.1 / 1087 (was 300.6 / 1048; MPS 206.5 / 1733), segnext-l 196.2 / 1248 (was
+488.9 / 1203; MPS 298.9 / 1943), first calls 0.08 to 0.26 s.
+
+The "before" rows of lineart and SegNeXt b / l were stale: re-surveyed at the start of this pass, the exported
+graphs already ran at 71.7 (lineart), 174.8 (anyline), 111.5 (segnext-b) and 169.6 ms (segnext-l) with 836 to
+1396 MB, and all that kept them off MLX was the first call (1.0 to 3.0 s against budgets of 0.38 to 1.0 s). So the
+three families got hand-written networks: no export, and the first call is the Metal shader builds only.
+
+- `segnext/mlx_net.py`: the folded network in `mlx.core`. Every depthwise convolution is a Metal kernel (the 5x5
+  and the MLP's 3x3 with its GELU fused, the 1x7 / 7x1 to 1x21 / 21x1 strips as row and column passes), the 1x1
+  convolutions GEMMs with the bias (`mlx_graph.conv1x1`), GELU, layer norm and the head's matrix factorisation in
+  float32. float32 is 8 to 13% faster than the re-surveyed exported graph on b / l (126.1 against 136.5 ms, 196.2
+  against 220.8); float16 is 3% behind it on t (69.7 against 67.7 ms) and 7 to 9% on s, b and l (see "Left").
+- `lineart/mlx_net.py`: the two stride-2 transposed convolutions as four phase convolutions (1x1, 1x2, 2x1, 2x2)
+  interleaved; instance norm statistics in one float32 pass (`graph_mlx.channel_stats`) with the normalisation, ReLU
+  and cast in one expression; the biases in front of a norm dropped; the 7x7 head (64 -> 1 channel) as a 1x7
+  convolution to seven channels plus the sum of seven shifted rows (8.2 -> 1.6 ms, the call 59.8 -> 51.5 ms).
+- `shared/teed/mlx_net.py` + `anyline/mlx_net.py`: MTEED is 58 K weights and almost all element-wise work at
+  1280 px. Smish is one exponential per element in a kernel; `DoubleFusion` (24 channels at full size) is two
+  kernels that never store the 24-channel maps. The line art, which was 85 of 165 ms on the CPU twin, is three
+  kernels: the separable blur, `min_c(blur - x)`, and threshold + speck removal + blend in one pass (every drawn
+  pixel walks its component until it has 12 pixels), with the median as `np.partition` on the host. The network and
+  line art take 25 ms of the 40; the rest is the cubic resize to the detect size on the CPU (9 ms) and transfers.
+  The float32 result equals the CPU portable runner's map.
+- lineart gained a kernels mode on MLX (the same runner; it uses `graph_mlx`), SegNeXt b / l lost their
+  `kernels float16/float32` waivers: both modes of all seven refs have passing rows.
+
+First calls depend on the system's Metal shader cache: the very first run of a new kernel source on a machine costs
+about 1 s per family and dtype (anyline 1.1 s, lineart float32 1.1 s, segnext-b float16 2.5 s); every later
+process, as surveyed above, starts in 0.07 to 0.26 s. The survey was run twice and the second run recorded.
+
+Tried, no gain: an own Winograd F(4,3) kernel for the 64- to 256-channel 3x3s of lineart (within 0.4 ms per
+convolution of `mx.conv2d`); a transposed convolution as one 2x2 convolution to 4x the channels plus depth-to-space
+(slower than the four phase convolutions); the lineart head with its output zero-padded to 4 or 8 channels (8.3
+against 8.2 ms; 16: 16.2 ms) or in float32 (9.2 ms).
+
+Left:
+
+- SegNeXt float16 on s / b / l is 7 to 9% slower and 40 to 230 MB higher than the exported graph was (81.4
+  against 75.0 ms, 118.9 against 111.5, 180.8 against 169.6). The export paid 1.6 to 3.0 s of first call for it,
+  which the auto budget does not allow; where the hand-written float16 path loses the time was not profiled.
+- lineart: the eleven instance norms and the 256-channel 3x3s of the residual blocks are what is left in the
+  network; `to_detect` is 5.5 ms on the CPU.
+- anyline: the cubic resize to the detect size on the CPU (9 ms) is the largest single step now.
+- sapiens-seg-0.3b, oneformer-swinl and gmflow-scale1 of the same queue row were not looked at.
 
 ## 1x1 convs as a GEMM (2026-11-24)
 
