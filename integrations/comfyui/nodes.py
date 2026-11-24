@@ -1048,7 +1048,7 @@ class Segment(_Node):
             r = m(x, **kwargs)
             if "text" in kwargs or not hasattr(r, "iou_scores"):  # SAM 3 box exemplars: every match, as with text
                 return convert.union_mask(r.masks, r.boxes, (x.shape[-2], x.shape[-1]))
-            return r.masks[r.iou_scores.argmax()]
+            return r.masks.index_select(0, r.iou_scores.argmax().view(1))[0]  # a tensor index would sync
 
         return (convert.to_mask(each(image.shape[0], one), _out_device()),)
 
