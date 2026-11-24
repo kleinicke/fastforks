@@ -237,9 +237,8 @@ None of these is Windows-specific; the Windows run surfaced them.
    now prints the device, dtype and kernels in plain words (`describe_backend`).
 2. ~~Stereo output scaling~~: fixed (f0a61f0e). Depth keeps min / max on purpose.
 3. ~~Version mismatch on this branch~~: fixed (8ad74d59).
-   - `docs/comfyui.md` and the `backend` tooltip still say kernels are Linux x86-64 only. That is true of the released
-     fastforks-core 0.2.0, which the pack requires.
-   - Update both when a release ships the Windows kernel builds.
+   - `docs/comfyui.md` and the `backend` tooltip now say the kernels run on Windows x86-64 too (true from the
+     release that ships the Windows kernel builds; the pack's `fastforks>=0.2` floor moves with it).
 4. **transformers pin.** The `[transformers]` extra needs transformers >= 5.19, which can conflict with other node
    packs that pin 4.x.
 5. **Publishing.**
