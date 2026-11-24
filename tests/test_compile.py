@@ -357,15 +357,20 @@ def test_marigold_scheduler_steps_trace_without_cpu_selects(scheduler):
 
 @pytest.mark.gpu
 @pytest.mark.slow
-def test_triton_scaled_softmax_rows_bitcast_bug_still_present(tmp_path):
+def test_triton_scaled_softmax_rows_bitcast(tmp_path):
     """Sentinel for the GREAT-IGEV outlook workaround: Inductor's `softmax(x * scale)` lowering (a masked boolean
     any-reduction beside two max-reductions and an exp; `_partial_softmax_pattern`) aborts Triton 3.8's LLVM on
     49-wide rows with XBLOCK=8 / 2 warps ("Cannot BITCAST between types of different sizes!"). The kernel runs in a
-    subprocess (the assertion aborts the process). When it compiles, Triton fixed it: drop the `is_compiling` branch
-    of `OutlookAttentionLayer.forward` and this test."""
+    subprocess because the LLVM assertion aborts the process. Triton 3.9 compiles it. The workaround remains
+    for the release toolchain, which uses Triton 3.8."""
     import subprocess  # noqa: PLC0415
     import sys  # noqa: PLC0415
     import textwrap  # noqa: PLC0415
+
+    triton = pytest.importorskip("triton")
+    release = tuple(int(part) for part in triton.__version__.split(".")[:2])
+    if release not in {(3, 8), (3, 9)}:
+        pytest.skip(f"scaled-softmax behavior verified on Triton 3.8 and 3.9, got {triton.__version__}")
 
     src = textwrap.dedent(
         """
@@ -408,6 +413,9 @@ def test_triton_scaled_softmax_rows_bitcast_bug_still_present(tmp_path):
     r = subprocess.run(
         [sys.executable, str(script)], cwd=tmp_path, capture_output=True, text=True, timeout=600, check=False
     )
-    if r.returncode == 0:
-        pytest.fail("Triton compiles the softmax(x * scale) kernel: remove the GREAT-IGEV outlook workaround")
-    assert "BITCAST" in r.stderr, r.stderr[-2000:]
+    if release == (3, 8):
+        assert r.returncode != 0, r.stdout[-2000:]
+        assert "BITCAST" in r.stderr, r.stderr[-2000:]
+    else:
+        assert r.returncode == 0, r.stderr[-2000:]
+        assert "compiled" in r.stdout, r.stdout[-2000:]

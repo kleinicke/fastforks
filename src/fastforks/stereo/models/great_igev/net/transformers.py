@@ -203,8 +203,8 @@ class OutlookAttentionLayer(nn.Module):
                 # fastforks: Inductor rewrites softmax(x * scale) to scale * (x - max x) guarded by a per-row
                 # any(non-finite) check (_partial_softmax_pattern); that kernel (masked bool reduce + two max
                 # reductions + exp) aborts Triton 3.8's LLVM on these 49-wide rows at XBLOCK=8 / 2 warps ("Cannot
-                # BITCAST between types of different sizes"; review/issues_2026-11-14/triton_bitcast.md, sentinel
-                # test_compile.test_triton_scaled_softmax_rows_bitcast_bug_still_present). exp(scale * (x - max x))
+                # BITCAST between types of different sizes"; test_compile.test_triton_scaled_softmax_rows_bitcast).
+                # Triton 3.9 compiles these rows. exp(scale * (x - max x))
                 # is the same softmax (scale > 0) without that pattern
                 p = ((lg - lg.amax(-1, keepdim=True)) * self.scale).exp_()
                 p = p.div_(p.sum(-1, keepdim=True)).add_(self.eps)
