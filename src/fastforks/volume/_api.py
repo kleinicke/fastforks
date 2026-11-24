@@ -16,7 +16,7 @@ import torch
 from fastforks._core import model as core
 from fastforks._core import registry
 from fastforks._core.api import is_path, task_api
-from fastforks._core.arguments import typo_checked_load
+from fastforks._core.arguments import typo_checked_load, warn_renamed
 from fastforks._core.errors import CardError, InputError, ModelNotFoundError, OptionsError, WeightsError
 from fastforks._core.files import FileSpec
 from fastforks._core.io import atomic_write, check_suffix
@@ -352,18 +352,32 @@ class VolumeSession:
         with self._model._session():  # noqa: SLF001
             return self._mask()
 
-    def add_point(self, zyx: Sequence[float], *, positive: bool = True) -> VolumeMask:
-        """Click a voxel `(z, y, x)` (fractions are rounded) inside the volume; returns the updated mask.
+    def add_point(
+        self, point: Sequence[float] | None = None, *, positive: bool = True, zyx: Sequence[float] | None = None
+    ) -> VolumeMask:
+        """Click a voxel `point` `(z, y, x)` (fractions are rounded) inside the volume; returns the updated mask.
+
+        `point` is the keyword of `VolumeInteractive(point=)` too; the 0.2.0 name `zyx=` still works with a
+        `FutureWarning`.
 
         Raises:
             InputError: Not three finite coordinates inside the volume.
         """
-        p = tuple(float(c) for c in zyx)
+        if zyx is not None:
+            if point is not None:
+                msg = "pass point=, not also its old name zyx="
+                raise InputError(msg)
+            warn_renamed("add_point(zyx=)", "add_point(point=)")
+            point = zyx
+        if point is None:
+            msg = "add_point needs point=(z, y, x)"
+            raise InputError(msg)
+        p = tuple(float(c) for c in point)
         n_ax = len(self.shape)
         if len(p) != n_ax or not all(
             math.isfinite(c) and 0 <= round(c) < n for c, n in zip(p, self.shape, strict=True)
         ):
-            msg = f"point must be (z, y, x) inside the volume {self.shape}, got {zyx!r}"
+            msg = f"point must be (z, y, x) inside the volume {self.shape}, got {point!r}"
             raise InputError(msg)
         return self._run("point", p, positive)
 

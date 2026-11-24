@@ -520,3 +520,22 @@ def _write_nifti(tmp_path: Path, ct: np.ndarray) -> Path:
 
     nib.save(nib.Nifti1Image(ct.transpose(2, 1, 0), np.eye(4)), tmp_path / "w.nii.gz")
     return tmp_path / "w.nii.gz"
+
+
+def test_session_add_point_keyword_and_its_old_name(monkeypatch) -> None:
+    from fastforks.volume._api import VolumeSession  # noqa: PLC0415 - next to its test
+
+    s = object.__new__(VolumeSession)
+    s.shape = (4, 5, 6)
+    calls = []
+    monkeypatch.setattr(s, "_run", lambda *a: calls.append(a), raising=False)
+    s.add_point((1, 2, 3))
+    s.add_point(point=(1, 2, 3), positive=False)
+    with pytest.warns(FutureWarning, match=r"add_point\(zyx=\) is renamed to add_point\(point=\)"):
+        s.add_point(zyx=(1, 2, 3))
+    p = (1.0, 2.0, 3.0)
+    assert calls == [("point", p, True), ("point", p, False), ("point", p, True)]
+    with pytest.raises(InputError, match="not also its old name"):
+        s.add_point((1, 2, 3), zyx=(1, 2, 3))
+    with pytest.raises(InputError, match="needs point="):
+        s.add_point()

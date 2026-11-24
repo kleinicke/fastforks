@@ -98,7 +98,7 @@ They are not advertised in the docs. The model pages carry a "Not in this releas
 |---|---|---|---|---|
 | resplat `refine` vs `iters` | one option name differs from the other refinement models | card aliases are silent and permanent; a warned rename needs a deprecated-alias kind | add `deprecated_aliases` (FutureWarning, removal date) to the card option parser, then rename | `multiview/models/resplat/card.toml` |
 | `@overload` return types | `load()` returns a generic `Model` to type checkers | no per-task overloads yet | `typing.overload` per task literal in `fastforks/__init__.py` | `__init__.py` |
-| `StereoResult` properties | properties are typed as non-Optional, but some are `None` for some models; the repr shows `None` fields | the shared dataclass across models | type them `Optional`, and drop `None` fields from the repr | `stereo/_api.py` |
+| `StereoResult` repr | the repr lists every field, `None` ones too (the maps themselves are typed `Map | None` since the views rework) | dataclass repr, as every other result (`DepthResult` too) | drop `None` fields from all result reprs at once, not per family | result dataclasses |
 | `save()` keywords | `save(path)` is shared, but the extra keywords still differ per result type | grew per family | one keyword set for all results, with old names warning | result classes |
 | verb table | the task verbs (`predict` / `segment` / `match` ...) are documented per page | no single table | one generated table in `docs/api.md` | `tools/gen_docs.py` |
 | `labels=` (0.1.1 name of `class_names=`) | still accepted with a FutureWarning | migration rule | remove after 2026-12-15 (with the other renamed names) | `_core/arguments.py` `legacy_labels` |
