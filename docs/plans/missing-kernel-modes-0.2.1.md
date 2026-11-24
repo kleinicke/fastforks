@@ -25,8 +25,10 @@ Both probed URLs returned 404 for each of the following 41 libraries, declared b
 `resize_cat`, `rfdetr_input`, `romav2`, `sam3_fpn`, `sam3_resize`, `sam3_tracker`, `shift_windows`, `smish`,
 `sr_ops`, `style_weights`, `swiglu`, `vggt_rotary`, `vol_norm`.
 
-The 287 local binaries for these libraries match their manifest sizes and SHA-256 digests. Publication and the
-fresh-cache checks are still open. See the
+The 287 local binaries for these libraries match their manifest sizes and SHA-256 digests. Since then all of them
+are published: on 2026-11-24 `tools/check_urls.py --kernels` found every kernel binary of every `manifest.toml` and
+`manifest.windows.toml` at its recorded size (the Windows ComfyUI clean install of 2026-11-23 downloaded its DLLs
+from there). See the
 [CFNet artifact commit](https://huggingface.co/fastforks/kernels/commit/ac9f2c75492a2feebdf2c5233a208cbee4774456).
 
 ## RTX 5060 Ti follow-up
