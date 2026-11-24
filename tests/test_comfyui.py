@@ -896,12 +896,14 @@ def test_load_keeps_models_while_memory_lasts(pack: Any, monkeypatch: pytest.Mon
     nodes, mm = pack.nodes, pack.mm
     loads: list[str] = []
     asked: list[float] = []
+    cleared: list[str] = []
 
     def fake_load(mid: str, **kw: Any) -> Any:
         loads.append(mid)
         return types.SimpleNamespace(device=kw["device"], backend="portable", release_graphs=lambda: None)
 
     monkeypatch.setattr(nodes, "_cache", nodes.OrderedDict())
+    monkeypatch.setitem(sys.modules, "mlx.core", SimpleNamespace(clear_cache=lambda: cleared.append("mlx")))
     monkeypatch.setattr(nodes.fastforks, "load", fake_load)
     monkeypatch.setattr(nodes, "_weights_bytes", lambda _: 2**20)
     monkeypatch.setattr(mm, "get_torch_device", lambda: torch.device("cpu"), raising=False)
@@ -912,9 +914,11 @@ def test_load_keeps_models_while_memory_lasts(pack: Any, monkeypatch: pytest.Mon
             nodes.load(mid, "auto", "auto")
     assert loads == ids  # each loaded once
     assert asked == [2 * 2**20 + 2**30] * len(ids)  # room asked before each load, never on a cache hit
+    assert not cleared
     monkeypatch.setattr(nodes, "_MAX_CACHED", 2)
     nodes.load("rtdetrv2-r18", "auto", "auto")
     assert [k[0] for k in nodes._cache] == ["realesr-general-x4v3", "rtdetrv2-r18"]  # oldest dropped first
+    assert cleared == ["mlx"] * (len(ids) - 1)
 
 
 def test_backend_dropdown_is_the_same_four_entries_everywhere(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:

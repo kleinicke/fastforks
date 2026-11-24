@@ -381,6 +381,7 @@ def load(label: str, backend: str, dtype: str, options: dict[str, Any] | None = 
         _cache.popitem(last=False)
         gc.collect()
         mm.soft_empty_cache()
+        _empty_mlx_cache()
     kw: dict[str, Any] = {"mode": backend, "device": device, "dtype": None if dtype == "auto" else dtype}
     if backend == "mlx":  # the port's fastest measured mode and dtype
         kw.update(mode="auto", device="mlx")
