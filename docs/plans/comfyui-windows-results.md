@@ -169,6 +169,28 @@ picked the Windows kernels.
   - WDDM pages memory between processes instead of failing, so neither ComfyUI nor the pack can see another app's
     usage. Both only manage their own process.
 
+## CPU mode (`--cpu`, portable ComfyUI, 2026-11-24)
+
+The portable ComfyUI (the 0.2.0 wheel, offline, local weights only) started with `--cpu`, every one of the 24 nodes
+with its default model (or, where that was not local, every model of its dropdown), each run twice through the API.
+No node failed. Weights that are not local are the only skips. On CPU, `backend=auto` logs that the kernels need a
+CUDA device and loads the portable backend. Warm seconds per 768 x 768 image (Ryzen 7 5800X, float32):
+
+| node (model) | warm s | node (model) | warm s |
+|---|---|---|---|
+| Depth (depth-anything-v2-s) | 0.50 | Remove background (birefnet-lite) | 5.6 |
+| Detect (rf-detr-s-coco) | 0.29 | Segment (sam2.1-hiera-small) | 1.4 |
+| Edges (lineart) | 0.68 | Segment like (insid3-vitl16) | 17.9 |
+| Restore faces (codeformer) | 0.47 | Semantic segmentation (segnext-mscan-t-ade20k) | 0.57 |
+| Flow (sea-raft-s, 4 frames) | 7.7 | Stereo (raft-stereo-middlebury) | 20.3 |
+| Inpaint (big-lama) | 3.8 | Tag (wd-vit-tagger-v3) | 0.46 |
+| Interpolate (rife-4.26, 4 frames) | 1.4 | Upscale (dat-light-x4) | 27.6 |
+| Normals (moge-2-vits-normal / metric3d-vit-large) | 5.4 / 16.0 | Video depth (video-depth-anything-s, 4 frames) | 7.6 |
+| NSFW check (falconsai-nsfw-vit) | 0.13 | Video matte (matanyone, 4 frames) | 17.4 |
+| Parse (segformer-b2-clothes) | 0.43 | Video segment (sam2.1-hiera-small, 4 frames) | 7.8 |
+| Track points (tapir, 4 frames) | 0.98 | Pose (vitpose-plus-small) | 0.10 |
+| Classify (the 10 local models) | 0.04-0.39 | Warp | (in Flow) |
+
 ## Bugs fixed (branch `work/comfyui-windows`, not pushed)
 
 None of these is Windows-specific; the Windows run surfaced them.

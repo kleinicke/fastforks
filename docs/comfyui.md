@@ -184,10 +184,11 @@ ComfyUI from git run the nodes at the same speed.
 
 ## Example workflows
 
-`integrations/comfyui/workflows/` holds ten workflows that put competing models (and, in the second one, backends)
-side by side on one input, so you can swap the `model` / `backend` dropdown or bypass a branch and compare: depth,
-backend comparison, background removal, prompted segmentation, detection, pose, 4x upscaling, frame interpolation,
-stereo and optical flow. Copy the `fastforks-w*.json` files into `ComfyUI/user/default/workflows/` (or drag one into
+`integrations/comfyui/workflows/` holds fourteen workflows. The first ten put competing models (and, in the second
+one, backends) side by side on one input, so you can swap the `model` / `backend` dropdown or bypass a branch and
+compare: depth, backend comparison, background removal, prompted segmentation, detection, pose, 4x upscaling, frame
+interpolation, stereo and optical flow. The last four show line art / edges, inpainting (object removal from a
+click, and a fixed square), segmenting like a reference, and video matting from a first-frame mask. Copy the `fastforks-w*.json` files into `ComfyUI/user/default/workflows/` (or drag one into
 the UI); they use the images `example.png`, `scene.png`, `scene_b.png`, `small.png` and `clip0..3.png` from the input
 folder. `make_workflows.py` regenerates them from a running server's `/object_info`.
 
