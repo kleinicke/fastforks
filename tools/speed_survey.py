@@ -317,7 +317,7 @@ def worker_local(spec: dict[str, Any]) -> int:
         # freed first (lingbot-map fp32 on MPS: two copies of 4.4 GB of weights ran out of memory).
         held = [m]
         m = model = None
-        args = kw = None
+        del args, kw
         merge_check.golden_step(held.pop(), spec, common, [], out)
     m = None  # the golden step dropped its own reference
     gc.collect()

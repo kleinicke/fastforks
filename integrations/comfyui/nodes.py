@@ -975,7 +975,7 @@ class Segment(_Node):
         text: str,
     ) -> tuple[torch.Tensor]:
         """Segment every image with the same prompts."""
-        m = load(model, backend, dtype)
+        m: Any = load(model, backend, dtype)  # a promptable model: its `prompts`
         pos = convert.points(positive_points, "positive_points")
         neg = convert.points(negative_points, "negative_points")
         bx = convert.box(box)
