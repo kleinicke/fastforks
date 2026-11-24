@@ -146,6 +146,16 @@ class Portable(Runner):
 
 def _precise_conv(layer: nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
     # XFeat's score threshold changes keypoint membership at TF32 convolution precision.
+    # cuDNN's FP32 heuristic runs the 3 x 3 stride-1 convolutions with 64+ channels as non-fused Winograd: 1.17 ms at
+    # 64 x 96 x 128 on an RTX 5060 Ti, 6e-6 relative error against float64. ATen's im2col + FP32 GEMM (cudnn off):
+    # 0.16 ms, 7e-7. It is FP32 only while cuBLAS may not use TF32 (`torch.backends.cuda.matmul.allow_tf32`, off by
+    # default); with it on, these layers stay on cuDNN.
+    native = (
+        layer.in_channels >= _NATIVE_CHANNELS
+        and layer.kernel_size == (3, 3)
+        and layer.stride == (1, 1)
+        and not torch.backends.cuda.matmul.allow_tf32
+    )
     return torch.ops.aten._convolution.default(  # noqa: SLF001 - per-call precision control
         x,
         layer.weight,
@@ -158,9 +168,12 @@ def _precise_conv(layer: nn.Conv2d, x: torch.Tensor) -> torch.Tensor:
         groups=layer.groups,
         benchmark=False,
         deterministic=False,
-        cudnn_enabled=True,
+        cudnn_enabled=not native,
         allow_tf32=False,
     )
+
+
+_NATIVE_CHANNELS = 64  # below it cuDNN's FP32 choice is the faster one (24 x 192 x 256: 89 vs 225 us)
 
 
 def _maxima(_extractor: XFeat, x: torch.Tensor, threshold: float = 0.05, kernel_size: int = 5) -> torch.Tensor:
@@ -181,8 +194,8 @@ class Kernels(Portable):
         for layer in extractor.net.modules():
             if isinstance(layer, nn.Conv2d):
                 override(layer, _precise_conv)
-        # The FP32 convolutions are device-bound at 768 x 1024, where a graph largely adds a private memory pool.
-        dense = CapturedModule(extractor.net, pixels=2**19)
+        # Up to 768 x 1024 (1 Mpx) the dense network replays from a CUDA graph: 11.5 -> 7.6 ms per pair at that size.
+        dense = CapturedModule(extractor.net, pixels=2**20)
         extractor.set_submodule("net", dense)
         self.graphs = dense.graphs
         override(extractor, _maxima, name="NMS")
