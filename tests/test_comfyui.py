@@ -1345,3 +1345,38 @@ def test_pack_ships_the_repository_licence(pack_dir: Path) -> None:
     """Each pack folder is published on its own (`comfy node publish`), so it carries a copy of the LICENSE."""
     assert (pack_dir / "LICENSE").read_bytes() == (PACK.parents[1] / "LICENSE").read_bytes()
     assert 'license = { file = "LICENSE" }' in (pack_dir / "pyproject.toml").read_text(encoding="utf-8")
+
+
+def test_classifier_nodes_read_results_after_the_loop(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Classify, Tag and NsfwCheck give the same text with `batch_size` 1 and 2 (results read after the loop)."""
+    nodes = pack.nodes
+    names = ("normal", "nsfw", "cat")
+
+    class Result(SimpleNamespace):
+        def top(self, k: int) -> Any:
+            p, i = self.probs.topk(k, dim=-1)
+            pairs = zip(i.reshape(-1, k).tolist(), p.reshape(-1, k).tolist(), strict=True)
+            rows = [[(names[c], v) for c, v in zip(ci, pi, strict=True)] for ci, pi in pairs]
+            return rows if self.probs.ndim > 1 else rows[0]
+
+    class Model:
+        device = torch.device("cpu")
+        class_names = names
+
+        def __call__(self, x: torch.Tensor) -> Any:
+            mean = x.mean(dim=(-3, -2, -1), keepdim=False)
+            return Result(probs=torch.stack([1 - mean, mean, mean / 2], dim=-1))
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: Model())
+    monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])
+    monkeypatch.setattr(nodes, "_WD_GENERAL", 1)
+    monkeypatch.setattr(nodes, "_WD_CHARACTERS", 2)
+    image = torch.stack([torch.full((2, 2, 3), v) for v in (0.2, 0.9, 0.6)])
+    kw = {"image": image, "model": "m", "backend": "auto", "dtype": "auto"}
+    for b in (1, 2):
+        assert nodes.Classify().run(**kw, top_k=1, batch_size=b) == ("normal: 0.8000\n\nnsfw: 0.9000\n\nnsfw: 0.6000",)
+        tags = nodes.Tag().run(**kw, general_threshold=0.5, character_threshold=0.4, batch_size=b)
+        assert tags == ("\nnsfw, cat\nnsfw",)
+        label, score = nodes.NsfwCheck().run(**kw, batch_size=b)
+        assert label == "normal\nnsfw\nnsfw"
+        assert score == pytest.approx(0.9)

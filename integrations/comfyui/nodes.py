@@ -1233,7 +1233,8 @@ class Classify(_Node):
         def one(r: Any, k: int | None) -> str:  # noqa: ANN401 - a classification result
             return "\n".join(f"{name}: {p:.4f}" for name, p in at(r.top(top_k), k))
 
-        return ("\n\n".join(each_result(image, m, batch_size, one)),)
+        # read on the host after the loop: a read per image would wait for it before the next one is queued
+        return ("\n\n".join(one(r, k) for r, k in each_result(image, m, batch_size, lambda r, k: (r, k))),)
 
 
 _WD_GENERAL, _WD_CHARACTERS = 4, 8110  # WD v3 label set: ratings, then general tags, then characters (card)
@@ -1293,10 +1294,8 @@ class Tag(_Node):
         m = load(model, backend, dtype)
         names = cast("tuple[str, ...]", m.class_names)  # ty: ignore[unresolved-attribute]
 
-        def one(r: Any, k: int | None) -> str:  # noqa: ANN401 - a classification result
-            return wd_tags(at(r.probs, k).float().cpu(), names, general_threshold, character_threshold)
-
-        return ("\n".join(each_result(image, m, batch_size, one)),)
+        probs = torch.stack(each_result(image, m, batch_size, lambda r, k: at(r.probs, k))).float().cpu()  # read once
+        return ("\n".join(wd_tags(p, names, general_threshold, character_threshold) for p in probs),)
 
 
 class NsfwCheck(_Node):
@@ -1324,7 +1323,7 @@ class NsfwCheck(_Node):
         """Classify every image."""
         m = load(model, backend, dtype)
         names = cast("tuple[str, ...]", m.class_names)  # ty: ignore[unresolved-attribute]
-        probs = each_result(image, m, batch_size, lambda r, k: at(r.probs, k).float().cpu())
+        probs = torch.stack(each_result(image, m, batch_size, lambda r, k: at(r.probs, k))).float().cpu()  # read once
         labels = "\n".join(names[int(p.argmax())] for p in probs)
         return labels, max(float(p[names.index("nsfw")]) for p in probs)
 
