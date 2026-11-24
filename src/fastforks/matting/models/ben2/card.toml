@@ -31,6 +31,9 @@ mlx_dtypes = ["float32", "float16"]
 [modes.kernels]
 kernels = ["cudnn_hacc", "igev", "cutlass_conv"]
 
+[options]
+cuda_graphs = { default = false, effect = "speed" }  # opt in to replay for repeated inputs when GPU memory allows
+
 [[papers]]
 title = "BEN: Using Confidence-Guided Matting for Dichotomous Image Segmentation"
 url = "https://arxiv.org/abs/2501.06230"

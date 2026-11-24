@@ -206,7 +206,9 @@ class Kernels(_Sam):
         self.encoder = FusedEncoder(sam.image_encoder, ctx.device, load_dpt_fused(ctx.device))
         del sam.image_encoder
         self.sam = sam.to(ctx.device)
-        self.cache = GraphCache(self._graph_forward, graphs=GRAPHS) if ctx.params.cuda_graphs else None
+        self.cache = (
+            GraphCache(self._graph_forward, graphs=GRAPHS, share_inputs=(0,)) if ctx.params.cuda_graphs else None
+        )
 
     def embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Image embedding `[1, 256, 64, 64]` float32."""

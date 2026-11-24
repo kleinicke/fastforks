@@ -97,8 +97,6 @@ def test_tapnext_kernels_frame_graphs_match_eager() -> None:
         torch.testing.assert_close(got.visibility, want.visibility, rtol=0, atol=0)
     steps = graphed._runner.steps
     assert steps is not None
-    assert len(steps.graphs) == 4, (
-        f"want first-frame and later-frame graphs per query count (failed: {list(steps._failed)})"
-    )
+    assert len(steps.graphs) == 2, f"want one recurrent graph per query count (failed: {list(steps._failed)})"
     graphed.release_graphs()
     assert not steps.graphs

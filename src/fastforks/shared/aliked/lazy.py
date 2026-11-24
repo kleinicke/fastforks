@@ -12,8 +12,8 @@ image. `install(aliked)` keeps the four levels as they are and:
   bilinearly sampled at the pixel (`align_corners`, as their upsampling), normalized by their norm, then the patches
   and the samples' bilinear interpolation (zero padding) of those pixels as upstream's `grid_sample`.
 
-`detection_maps` then returns `(*levels, score_map, nms_scores)`; `forward` reads it. `graph_maps(aliked)` replays
-it from a CUDA graph per input size (about 260 fixed-shape launches, host-bound on Windows).
+`detection_maps` returns `(*levels, score_map, nms_scores)`; `forward` reads it. `graph_maps(aliked)` replays the
+feature levels from a CUDA graph per input size. Scoring and NMS use ordinary allocator buffers.
 """
 
 from __future__ import annotations
@@ -31,6 +31,8 @@ from fastforks.shared.cuda_graphs import GraphCache
 from .net.aliked import InputPadder, simple_nms
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from .net.aliked import ALIKED, SDDH
 
 _EPS = 1e-12  # fixed: F.normalize's default eps (upstream's call)
@@ -48,22 +50,17 @@ def install(aliked: ALIKED) -> None:
 
 
 def graph_maps(aliked: ALIKED, graphs: int = 2) -> GraphCache:
-    """Replay the installed `detection_maps` of `aliked` from a CUDA graph per input size; returns the cache.
+    """Replay ALIKED's feature levels from a CUDA graph per input size; returns the cache.
 
     The graph's static outputs are handed to the keypoint selection and descriptors without a copy: the caller runs one
     extraction at a time, and none of the extraction's outputs is a view of them.
     """
-    # the cache holds the bound method weakly: no reference cycle keeps the graph pool after the model goes
-    cache = vars(aliked)["maps_graphs"] = GraphCache(aliked.detection_maps, graphs=graphs)
-    override(aliked, _graphed_detection_maps, "detection_maps")
+    # The cache holds the bound method weakly, so it releases the pool when the model goes away.
+    override(aliked, _feature_levels, "feature_levels")
+    forward = cast("Callable[[torch.Tensor], tuple[torch.Tensor, ...]]", aliked.feature_levels)
+    cache = GraphCache(forward, graphs=graphs)
+    vars(aliked)["maps_graphs"] = cache
     return cache
-
-
-def _graphed_detection_maps(self: ALIKED, image: torch.Tensor) -> tuple[torch.Tensor, ...]:
-    """The lazy `detection_maps` replayed from the image size's CUDA graph once captured: static outputs, no copy."""
-    graphs: GraphCache = vars(self)["maps_graphs"]
-    out = graphs.run((image.device, image.dtype, tuple(image.shape)), image, post=_static)
-    return detection_maps(self, image) if out is None else out
 
 
 def _static(out: tuple[torch.Tensor, ...]) -> tuple[torch.Tensor, ...]:
@@ -71,20 +68,28 @@ def _static(out: tuple[torch.Tensor, ...]) -> tuple[torch.Tensor, ...]:
     return out
 
 
-def detection_maps(self: ALIKED, image: torch.Tensor) -> tuple[torch.Tensor, ...]:
-    """The four feature levels (of the image padded to a multiple of 32), the score map and its NMS."""
+def _feature_levels(self: ALIKED, image: torch.Tensor) -> tuple[torch.Tensor, ...]:
+    """The four feature levels of the padded image."""
     with torch.autocast(image.device.type, dtype=torch.float16, enabled=self.fp16):
         padder = InputPadder(image.shape[-2], image.shape[-1], _DIV_BY)
         x1 = self.block1(padder.pad(image))
         x2 = self.block2(self.pool2(x1))
         x3 = self.block3(self.pool4(x2))
         x4 = self.block4(self.pool4(x3))
-        levels = (
+        return (
             self.gate(self.conv1(x1)),
             self.gate(self.conv2(x2)),
             self.gate(self.conv3(x3)),
             self.gate(self.conv4(x4)),
         )
+
+
+def detection_maps(self: ALIKED, image: torch.Tensor) -> tuple[torch.Tensor, ...]:
+    """The feature levels, score map and NMS, with the score workspace outside the graph's pool."""
+    cache: GraphCache | None = vars(self).get("maps_graphs")
+    levels = None if cache is None else cache.run((image.device, image.dtype, tuple(image.shape)), image, post=_static)
+    levels = _feature_levels(self, image) if levels is None else levels
+    padder = InputPadder(image.shape[-2], image.shape[-1], _DIV_BY)
     with torch.autocast(image.device.type, enabled=False):  # upstream's float32 score head
         first, rest = cast("torch.nn.Conv2d", self.score_head[0]), self.score_head[1:]
         weights = first.weight.split([x.shape[1] for x in levels], dim=1)

@@ -18,7 +18,7 @@ from __future__ import annotations
 import contextlib
 import threading
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import torch
 import torch.nn.functional as F
@@ -182,6 +182,37 @@ def _t(x: object) -> torch.Tensor:
     return cast("torch.Tensor", x)
 
 
+class _RingState(NamedTuple):
+    """A block's hidden state and convolution history in the graph's fixed buffers."""
+
+    hidden: torch.Tensor
+    history: torch.Tensor
+    order: torch.Tensor
+    first: torch.Tensor
+
+
+def _temporal_graph(m: RecurrentBlock, x: torch.Tensor, y: torch.Tensor, state: _RingState) -> torch.Tensor:
+    """Advance the fixed-address state for one captured recurrent frame."""
+    h, history, order, first = state
+    previous = history.index_select(0, order)
+    history.index_copy_(0, order[:1], x)
+    w, b = _t(m.conv_1d.w), _t(m.conv_1d.b)
+    # Match the eager convolution's addition order and keep the state and gate arithmetic in float32.
+    conv = b + (sum(w[i] * previous[i : i + 1] for i in range(CONV_WIDTH - 1)) + w[-1] * x)
+    cell = m.rg_lru
+    gate = torch.sigmoid(cell.input_gate(conv))
+    log_a = -8.0 * torch.sigmoid(cell.a_gate(conv)) * F.softplus(cell.a_param.float())
+    a = log_a.exp()
+    gain = torch.where(first, 1.0, torch.sqrt(1 - (2 * log_a).exp()))
+    h.mul_(a[0]).add_((conv * gate * gain)[0])
+    return (h[None] * y).to(y.dtype)
+
+
+def _reset_state(inputs: tuple[torch.Tensor, ...]) -> None:
+    """Reset cached recurrent state in place when starting a new clip."""
+    torch._foreach_zero_(inputs[5:])  # batched GPU fill of the recurrent buffers
+
+
 def _recurrent(m: RecurrentBlock) -> Callable[..., Any]:
     """`RecurrentBlock.forward` with fused GEMMs (GELU-tanh epilogue on the gate branch)."""
     from fastforks._optimize.conv_ops import lin  # noqa: PLC0415 - loads the fvm_conv kernels (kernels mode only)
@@ -189,10 +220,15 @@ def _recurrent(m: RecurrentBlock) -> Callable[..., Any]:
     wy, by, wx, bx = _w4(m.linear_y.weight), _t(m.linear_y.bias), _w4(m.linear_x.weight), _t(m.linear_x.bias)
     wo, bo = _w4(m.linear_out.weight), _t(m.linear_out.bias)
 
-    def forward(x: torch.Tensor, cache: tuple[torch.Tensor, torch.Tensor] | None, first: Any = None) -> Any:  # noqa: ANN401 - upstream's
+    def forward(
+        x: torch.Tensor, cache: tuple[torch.Tensor, torch.Tensor] | _RingState | None, first: torch.Tensor | None = None
+    ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor] | _RingState]:
         x16 = x.half()
         y = lin(x16, wy, by, act=GELU_TANH)
-        return m.temporal(lin(x16, wx, bx).float(), cache, y, lambda v: lin(v.half(), wo, bo), first)
+        x = lin(x16, wx, bx).float()
+        if isinstance(cache, _RingState):
+            return lin(_temporal_graph(m, x, y, cache).half(), wo, bo), cache
+        return m.temporal(x, cache, y, lambda v: lin(v.half(), wo, bo), first)
 
     return forward
 
@@ -245,27 +281,25 @@ class Kernels(Portable):
                 m.forward = _mlp(m)  # ty: ignore[invalid-assignment]  # per-instance override
             elif isinstance(m, EncoderBlock):
                 m.forward = _encoder(m)  # ty: ignore[invalid-assignment]  # per-instance override
-        # a frame as a CUDA graph per query count, one for the first frame (no state) and one for the others (online
-        # tracking is ~900 launches a frame, launch-bound on Windows; both share one pool). The second writes the new
-        # state into its static state inputs, which the next frame passes back (no copy): one model tracks one video
-        # at a time (`_lock`)
-        self.steps = GraphCache(self._graph_step, graphs=4) if ctx.params.cuda_graphs else None
+        # One graph per query count updates the state in place. When it exists, the first frame resets those same
+        # buffers, skipping the eager first frame's separate state allocation. `_lock` isolates each clip.
+        self.steps = GraphCache(self._graph_step, graphs=2) if ctx.params.cuda_graphs else None
         self._lock = threading.Lock()
+        self._ring_origin = 0  # the first replayed frame in the current clip
 
     def _graph_step(
-        self, video: torch.Tensor, qt: torch.Tensor, point: torch.Tensor, t0: torch.Tensor, *state: torch.Tensor
+        self,
+        video: torch.Tensor,
+        qt: torch.Tensor,
+        point: torch.Tensor,
+        t0: torch.Tensor,
+        order: torch.Tensor,
+        *state: torch.Tensor,
     ) -> tuple[torch.Tensor, ...]:
-        """One frame from the flat state `(h, conv) x blocks`, which it overwrites with the new state.
-
-        Without a state (the first frame): `(yx, logit, *new state)`.
-        """
-        if not state:
-            yx, logit, _, new = self.net(video, qt, point, t0, None)
-            return (yx, logit, *(v for c in new for v in c))
-        cache = [(state[i], state[i + 1]) for i in range(0, len(state), 2)]
-        yx, logit, _, new = self.net(video, qt, point, t0, cache)
-        for old, v in zip(state, (v for c in new for v in c), strict=True):
-            old.copy_(v)
+        """One frame, with the same ring order and first-frame flag for every block."""
+        first = t0 == 0
+        cache = [_RingState(h, history, order, first) for h, history in zip(state[::2], state[1::2], strict=True)]
+        yx, logit, _, _ = self.net(video, qt, point, t0, cache)
         return yx, logit
 
     def _step(
@@ -274,16 +308,26 @@ class Kernels(Portable):
         """`track`'s frame step: from the frame's graph once it is captured, else eager."""
         if self.steps is not None:
             key = (video.device, tuple(video.shape), tuple(qt.shape), torch.is_autocast_enabled(video.device.type))
-            t0 = torch.full((), t, dtype=qt.dtype, device=qt.device)
-            if state is None:
-                out = self.steps.run((*key, "first"), video, qt, point, t0)
-                if out is not None:
-                    return out[0], out[1], [(out[i], out[i + 1]) for i in range(2, len(out), 2)]
-            else:
-                out = self.steps.run(key, video, qt, point, t0, *(v for c in state for v in c))
+            static = self.steps.static_inputs(key)
+            if static is not None or (state is not None and not self.steps.defer_first_request(key)):
+                if state is None or static is None or state[0][0] is not static[5]:
+                    # Start rotating when entering a graph from eager state, or on a fresh clip.
+                    self._ring_origin = t
+                history = CONV_WIDTH - 1
+                phase = t - self._ring_origin
+                order = device_tensor(tuple((phase + i) % history for i in range(history)), device=video.device)
+                t0 = torch.full((), t, dtype=qt.dtype, device=qt.device)
+                if state is None:
+                    assert static is not None  # noqa: S101 - the first frame can only replay an existing graph
+                    inputs = static[5:]
+                else:
+                    inputs = tuple(v for pair in state for v in pair)
+                out = self.steps.run(
+                    key, video, qt, point, t0, order, *inputs, before_replay=_reset_state if state is None else None
+                )
                 static = self.steps.static_inputs(key)
                 if out is not None and static is not None:
-                    return out[0], out[1], [(static[i], static[i + 1]) for i in range(4, len(static), 2)]
+                    return out[0], out[1], list(zip(static[5::2], static[6::2], strict=True))
         yx, logit, _, state = self.net(video, qt, point, t, state)
         return yx, logit, state
 

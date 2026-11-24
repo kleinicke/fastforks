@@ -9,7 +9,8 @@ on CUDA), SDPA attention (Swin windows and the decoder's cross-attention). `kern
 runs as a cuDNN fp16-accumulate graph (`cudnn_hacc`) with an fp32 bias epilogue, the GEMMs accumulate in fp16 and the
 InstanceNorms run as one pass each (`shared.cnn_kernels`); the two nearest 2x upsamplings and the convs after them
 run as stride-2 transposed convs (`up_deconv`); the fixed-size network replays a CUDA graph (one or two images per
-call: at 1024, RTX 5060 Ti, Windows, 81.6 -> 78.4 ms, 266 MB more reserved).
+call) when `cuda_graphs` is enabled. It is opt-in because the modest replay benefit at 1024x1024 comes with a
+larger reserved memory footprint.
 """
 
 from __future__ import annotations
@@ -38,9 +39,11 @@ class Params:
 
     Attributes:
         size: Network input side (square).
+        cuda_graphs: Replay the fixed-size network in CUDA kernels mode.
     """
 
     size: int
+    cuda_graphs: bool
 
 
 def _cpu_net(ctx: Context) -> BEN_Base:
@@ -104,7 +107,7 @@ class Kernels(_Matting):
         swin_v1.fast(net.backbone, sdpa_auto=_SWIN_SDPA)
         self.dtype = torch.float16
         self.net = net
-        self.graphs = SmallShapeGraphs(self._eager, pixels=2**21)
+        self.graphs = SmallShapeGraphs(self._eager, pixels=2**21, enabled=ctx.params.cuda_graphs)
 
     def _eager(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x.contiguous(memory_format=CL))

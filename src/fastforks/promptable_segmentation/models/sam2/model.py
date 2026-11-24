@@ -62,7 +62,8 @@ class Params:
     pos_embed_size: list[int]  # background position-embedding grid (upstream window_pos_embed_bkg_spatial_size)
     kf_score_weight: float  # SAMURAI motion weight
     samurai: bool  # option: `video` as SAMURAI
-    cuda_graphs: bool  # option: kernels replays the image encoder and the prompt decode from CUDA graphs
+    cuda_graphs: bool  # replay the prompt decoder on CUDA
+    cuda_graphs_encoder: bool  # also replay the image encoder when CUDA graphs are enabled
 
 
 class Sam2Image(torch.nn.Module):
@@ -301,9 +302,8 @@ class Portable(_Sam2):
 class Kernels(_Sam2):
     """dpt_fused kernels: fused-epilogue CUTLASS GEMMs (fp16 accumulation); SDPA flash attention.
 
-    Launch-bound on the host (Windows: ~340 launches per call), so with `cuda_graphs` (default) the image encoder
-    replays one CUDA graph (its input is always `image_size` square) and the prompt decode of up to `GRAPH_PROMPTS`
-    prompts one graph per prompt layout (`fastforks.shared.cuda_graphs`; `release_graphs()` frees their pools).
+    With `cuda_graphs` the decoder replays one CUDA graph per prompt layout up to `GRAPH_PROMPTS` prompts.
+    `cuda_graphs_encoder` also enables an encoder graph, for workloads that benefit from keeping its workspace.
     """
 
     def __init__(self, ctx: Context) -> None:
@@ -317,8 +317,8 @@ class Kernels(_Sam2):
         del net.image_encoder
         self.net = net.to(ctx.device)
         on = ctx.params.cuda_graphs
-        self.encoder_graph = GraphCache(self._encode, graphs=1) if on else None
-        self.decode_graphs = GraphCache(self._graph_decode, graphs=GRAPHS) if on else None
+        self.encoder_graph = GraphCache(self._encode, graphs=1) if on and ctx.params.cuda_graphs_encoder else None
+        self.decode_graphs = GraphCache(self._graph_decode, graphs=GRAPHS, share_inputs=(0, 1, 2)) if on else None
 
     def embed(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """Image embedding `[1, 256, 64, 64]` and the projected high-resolution maps, float32."""

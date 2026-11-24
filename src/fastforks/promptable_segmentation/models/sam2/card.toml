@@ -6,7 +6,7 @@ uses = ["box_kalman", "cuda_graphs", "mlx_wrap"]  # fastforks.shared modules thi
 outputs = ["pred_masks", "iou_scores"]
 limitations = [
   "On the RTX 5060 Ti, SAM 2.1 Hiera Base Plus returned 36 masks from 12 point prompts on a 3840 × 2160 COCO image. Both CUDA modes used 696 MiB peak allocation, down from 1,646 MiB. Masks, scores and logits matched bit for bit. Paired latency was 60.6 to 62.0 ms portable and 54.0 to 55.5 ms kernels.",
-  "Kernels keep CUDA graphs of the image encoder and the prompt decode: their private pools and static buffers stay reserved, so peak reserved is ~125 MiB above portable (peak allocated is not); `cuda_graphs=false` or `release_graphs()` frees it.",
+  "Kernels cache CUDA graphs for repeated prompt layouts. `cuda_graphs_encoder=true` also captures the image encoder and keeps its workspace reserved. `cuda_graphs=false` disables both graphs, and `release_graphs()` frees the cached graphs.",
   "SAM 2.1 Hiera Tiny video took 2.217 s portable and 2.180 s kernels on the RTX 5060 Ti for 14 DAVIS frames at 480 x 854 and eight synthetic mask prompts. Both modes peaked at 1,419 MiB allocated and 1,522 MiB reserved.",
 ]
 
@@ -31,7 +31,8 @@ kf_score_weight = 0.25  # SAMURAI: weight of the Kalman box IoU against the pred
 
 [options]
 samurai = { default = false }  # `video` as SAMURAI (yangchris11/samurai 76ba1959, configs/samurai): motion-aware mask selection and memory
-cuda_graphs = { default = true, effect = "speed" }  # kernels: replay the image encoder and the prompt decode (up to 4 prompts) from CUDA graphs (false: eager, no graph pools)
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay prompt decoding (up to 4 prompts)
+cuda_graphs_encoder = { default = false, effect = "speed" }  # also capture the encoder when cuda_graphs is enabled
 
 [modes.portable]
 cuda_dtype = "float16"  # image encoder; prompt encoder / mask decoder stay float32

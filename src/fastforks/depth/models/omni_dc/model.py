@@ -10,6 +10,7 @@ returns the same iterate as upstream's loop.
 from __future__ import annotations
 
 import threading
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import torch
@@ -48,10 +49,17 @@ _CBAM_BAND_ROWS = 192  # fixed: CBAM convolution band height for large CUDA inpu
 _CBAM_MIN_ROWS, _CBAM_MIN_PIXELS = 800, 900_000
 
 
+@dataclass(frozen=True)
+class Params:
+    """Options for the depth completion runner."""
+
+    cuda_graphs: bool
+
+
 def _graph_solve(cg: GraphCG, d: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     cg.d.copy_(d)
     cg.b.copy_(b)
-    return cg.run()
+    return cg.run().clone()
 
 
 def _decoder_cbam(block: CBAMBlock, x: torch.Tensor) -> torch.Tensor:
@@ -136,6 +144,7 @@ class Portable(Runner):
     """
 
     dtypes = ("float32", "float16")
+    Params = Params
     batch = None
     prompt_depth = "required"
     prompt_sparse = True
@@ -206,15 +215,31 @@ class Portable(Runner):
         return Forward(self.net, lambda _net, image, prompt: self._run(image, prompt))
 
 
-class GraphCG(CGState):
-    """`CGState` whose chunk of steps is a CUDA graph (captured per shape on first use)."""
+class _KernelCG(CGState):
+    """The kernel-based CG solver, with one host check per chunk."""
 
     @staticmethod
     def normal(p: torch.Tensor, d: torch.Tensor) -> torch.Tensor:
-        """Apply the same three-scale FP32 operator within graph capture."""
+        """Apply the same three-scale FP32 operator in eager execution and graph replay."""
         return omni_cg.apply(p, d)
 
     CHUNK = 32  # fixed: steps per graph replay (one host sync each)
+
+    def _advance(self) -> None:
+        for _ in range(self.CHUNK):
+            self.step()
+
+    def run(self) -> torch.Tensor:
+        """Solve for the current `d` and `b`, returning the state buffer."""
+        self.reset()
+        while True:
+            self._advance()
+            if bool(self.done):
+                return self.x
+
+
+class GraphCG(_KernelCG):
+    """Replay CG chunks from a CUDA graph of the repeated solve shape."""
 
     def __init__(self, d: torch.Tensor, b: torch.Tensor) -> None:
         """Allocate the state for `b`'s shape and capture the graph."""
@@ -229,20 +254,14 @@ class GraphCG(CGState):
                 self.graph = torch.cuda.CUDAGraph()
                 with torch.cuda.graph(self.graph, stream=side):
                     try:
-                        for _ in range(self.CHUNK):
-                            self.step()
+                        super()._advance()
                     except BaseException as e:
                         free_captured(e)  # before the capture ends (cudaMallocAsync would abort later)
                         raise
             main.wait_stream(side)
 
-    def run(self) -> torch.Tensor:
-        """Solve for the current `d` / `b`."""
-        self.reset()
-        while True:
-            self.graph.replay()
-            if bool(self.done):
-                return self.x.clone()
+    def _advance(self) -> None:
+        self.graph.replay()
 
 
 class Kernels(Runner):
@@ -254,6 +273,7 @@ class Kernels(Runner):
     """
 
     batch = None
+    Params = Params
     prompt_depth = "required"
     prompt_sparse = True
 
@@ -271,11 +291,14 @@ class Kernels(Runner):
         pure_half(net.update_block)  # the RGB-D backbone stays fp32: its PVT features reach ~1e6
         self.net = net
         self.cg: GraphCG | None = None
+        self._cg_seen: torch.Size | None = None
         self._cg_lock = threading.Lock()
         self._cg_done = torch.cuda.Event()
 
     def _solve(self, d: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         """Keep one shape's graph and order its static buffers across CUDA streams."""
+        if not self.ctx.params.cuda_graphs:
+            return _KernelCG(d, b).run()
         with self._cg_lock:
             if self.cg is not None:
                 if self.cg.b.shape == b.shape:
@@ -284,6 +307,9 @@ class Kernels(Runner):
                     self._cg_done.synchronize()
                     self.cg = None
             if self.cg is None:
+                if self._cg_seen != b.shape:
+                    self._cg_seen = b.shape
+                    return _KernelCG(d, b).run()
                 self.cg = GraphCG(d, b)
             try:
                 return _graph_solve(self.cg, d, b)
@@ -293,6 +319,7 @@ class Kernels(Runner):
     def release_graphs(self) -> None:
         """Release the captured solver and its static tensors."""
         with self._cg_lock:
+            self._cg_seen = None
             if self.cg is not None:
                 self._cg_done.synchronize()
                 self.cg = None

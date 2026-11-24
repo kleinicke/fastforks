@@ -250,7 +250,9 @@ class Kernels(_Sam):
             msg = "the kernels image encoder is not a traced graph"
             raise TypeError(msg)
         self.trunk.report["points"] = wide_points(net)
-        self.cache = GraphCache(self._graph_forward, graphs=GRAPHS) if ctx.params.cuda_graphs else None
+        self.cache = (
+            GraphCache(self._graph_forward, graphs=GRAPHS, share_inputs=(0,)) if ctx.params.cuda_graphs else None
+        )
         self.encoder = SmallShapeGraphs(super()._enc, pixels=ENCODER_GRAPH_PIXELS, enabled=ctx.params.cuda_graphs)
 
     def _enc(self, x: torch.Tensor) -> torch.Tensor:

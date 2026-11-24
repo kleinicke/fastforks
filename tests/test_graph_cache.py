@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 import torch
 
-from fastforks.shared.cuda_graphs import GraphCache
+from fastforks.shared.cuda_graphs import GraphCache, graph_request
 
 pytestmark = pytest.mark.gpu
 
@@ -19,6 +19,8 @@ pytestmark = pytest.mark.gpu
 # and released: under cudaMallocAsync, a captured allocation freed after a failed capture aborted the process.
 _ASYNC_SCRIPT = textwrap.dedent(
     """
+    import warnings
+
     import torch
     from fastforks.shared.cuda_graphs import GraphCache
 
@@ -45,6 +47,20 @@ _ASYNC_SCRIPT = textwrap.dedent(
             assert bool(cache.graphs) == captures
         cache.release()
         torch.cuda.synchronize()
+
+    # A second live shape can free a prior graph's cuBLAS workspace during capture warm-up. Both replays still work.
+    cache = GraphCache(fine, graphs=2)
+    x = torch.randn(64, 256, device="cuda")
+    want = fine(x)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("error", message="Attempting uncaptured free of a captured allocation")
+        for key in ("a", "a", "b", "b", "a"):
+            out = cache.run(key, x)
+            if out is not None:
+                torch.testing.assert_close(out, want)
+        assert len(cache.graphs) == 2
+    cache.release()
+    torch.cuda.synchronize()
     print("survived")
     """
 )
@@ -97,6 +113,24 @@ def test_structured_outputs_replay_fresh_copies():
     assert torch.equal(second["a"], (x + 10) * 2)
     assert torch.equal(second["b"][1], x + 9)
     assert first["a"].data_ptr() != second["a"].data_ptr()  # fresh tensors, not the static buffers
+
+
+def test_repeated_steps_wait_until_the_next_request():
+    cache = GraphCache(lambda x: x * 2)
+    x = torch.ones(4, device="cuda")
+    with graph_request():
+        for _ in range(4):
+            assert cache.run("k", x) is None
+        with graph_request():
+            assert cache.run("k", x) is None
+        assert cache.defer_first_request("lazy")
+    with graph_request():
+        torch.testing.assert_close(cache.run("k", x), x * 2)
+        assert not cache.defer_first_request("lazy")
+        torch.testing.assert_close(cache.run("lazy", x), x * 2)
+        for _ in range(2):
+            assert cache.run("new size", x) is None
+    cache.release()
 
 
 def test_capture_failure_falls_back_to_eager():

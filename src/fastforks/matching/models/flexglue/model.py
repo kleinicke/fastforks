@@ -58,6 +58,7 @@ class Params:
     max_keypoints: int  # ALIKED keypoints per image (upstream README 2048)
     long_side: int  # ALIKED's image: long side (LightGlue extractor resize 1024), aspect kept; 0 = input size
     size: int  # the descriptor's image: side of the square (upstream 512)
+    cuda_graphs: bool  # replay the descriptor on repeated sizes in kernels mode
 
 
 Described = tuple[torch.Tensor, torch.Tensor]  # keypoints [N, 2] in input pixels, upstream corner origin; features
@@ -229,13 +230,16 @@ class Kernels(Portable):
             half_weights(self.net.matcher.transformers, channels_last=False)
         override(descriptor, _descriptor_forward)
         lazy.install(self.net.extractor)
-        dense = CapturedModule(self.net.descriptor, pixels=2**21)
-        self.net.set_submodule("descriptor", dense)
-        self.graphs = dense.graphs
+        self.graphs = None
+        if ctx.params.cuda_graphs:
+            dense = CapturedModule(self.net.descriptor, pixels=2**21)
+            self.net.set_submodule("descriptor", dense)
+            self.graphs = dense.graphs
 
     def release_graphs(self) -> None:
         """Release captured activation buffers."""
-        self.graphs.release()
+        if self.graphs is not None:
+            self.graphs.release()
 
 
 class _MlxKeypoints(nn.Module):

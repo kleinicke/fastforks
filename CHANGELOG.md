@@ -30,6 +30,12 @@ No model family is new in this release; the changes are backends, platforms and 
 - NeuFlow v2 uses less CUDA memory for dense flow upsampling while preserving portable and kernels parity.
 - CUDA calibrated stereo accepts NumPy calibration data when building point clouds. Dropping a Depth Anything V2
   or Any2Full kernels model releases its CUDA graph allocations when the last reference goes away.
+- CUDA graph caches run a new shape's first inference request eagerly, even when a request repeats an internal
+  stage. OMNI-DC also defers solver capture until the same solve shape recurs.
+- TAPNext resets and updates its recurrent state in one graph per query count. ALIKED-LightGlue captures the
+  feature extractor and leaves the score workspace available to the eager allocator.
+- SAM prompt graphs share compatible embedding buffers. SAM 2.1 captures the prompt decoder by default and
+  supports opt-in encoder capture with `cuda_graphs_encoder=True`. BEN2 and FlexGlue opt in with `cuda_graphs=True`.
 
 ### ComfyUI
 

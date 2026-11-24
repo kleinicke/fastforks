@@ -37,6 +37,9 @@ mlx_dtypes = ["float32", "float16"]
 [modes.kernels]
 kernels = ["fastbb", "dpt_fused", "omni_cg"]
 
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # replay repeated CG solve shapes
+
 [[papers]]
 title = "OMNI-DC: Highly Robust Depth Completion with Multiresolution Depth Integration"
 url = "https://arxiv.org/abs/2411.19278"

@@ -1,8 +1,9 @@
 """A small per-model cache of CUDA graphs for launch-bound forwards (one graph per input-shape key).
 
 Conventions (as the DINOv3 backbone): a shape is captured after `capture_after` eager calls (at least 1, so one-off
-shapes never capture; default 1: on its second call; models on `cudnn_hacc` plans pass `cudnn_hacc.capture_after()`:
-on the 4th call, so a stream of new sizes seen 1-3 times captures nothing); when the cache is full a
+shapes never capture; default 1: on its second call. All calls for a key within its first inference request run
+eagerly, even when one request repeats the same shape internally. Models on `cudnn_hacc` plans capture on the 4th
+call, so a stream of new sizes seen 1-3 times captures nothing. When the cache is full a
 graph unused for `stale` graph-sized calls makes room, else the new shape runs eagerly; a capture failure (OOM,
 unsupported op) is logged as a warning, marks the shape eager for good and frees what the capture allocated before the
 capture ends (required by the `cudaMallocAsync` allocator, see `free_captured`); a capture (failed or not) empties the
@@ -20,12 +21,15 @@ life of the process, so a new stream per capture or per loaded model grew the me
 
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import functools
 import gc
 import inspect
 import logging
 import threading
 import traceback
+import warnings
 import weakref
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
@@ -36,7 +40,7 @@ from fastforks._core.kernels import checked
 from fastforks._core.upload import capture_uploads
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Hashable
+    from collections.abc import Callable, Generator, Hashable
 
 log = logging.getLogger("fastforks")
 _FAILED = 256  # fixed: shapes remembered as not capturable
@@ -44,6 +48,20 @@ _LARGER = 2  # fixed: a new shape this many times larger than every held graph's
 
 # serialises the warm-ups + captures on the shared capture stream (reentrant: a captured forward may hold it again)
 CAPTURE_LOCK = threading.RLock()
+_REQUEST: contextvars.ContextVar[object | None] = contextvars.ContextVar("cuda_graph_request", default=None)
+
+
+@contextlib.contextmanager
+def graph_request() -> Generator[None]:
+    """Group the graph-cache calls made by a single inference request."""
+    if _REQUEST.get() is not None:
+        yield
+        return
+    token = _REQUEST.set(object())
+    try:
+        yield
+    finally:
+        _REQUEST.reset(token)
 
 
 class _Graph(torch.cuda.CUDAGraph):
@@ -144,7 +162,7 @@ class GraphCache:
         # key -> (graph, static inputs, static output)
         self.graphs: dict[Hashable, tuple[torch.cuda.CUDAGraph, tuple[torch.Tensor, ...], Any]] = {}
         self._used: dict[Hashable, int] = {}
-        self._seen: OrderedDict[Hashable, int] = OrderedDict()  # key -> eager calls
+        self._seen: OrderedDict[Hashable, tuple[int, object | None]] = OrderedDict()  # eager calls, first request
         self._failed: OrderedDict[Hashable, None] = OrderedDict()
         self._calls = 0
         self._pool: Any = None
@@ -152,10 +170,17 @@ class GraphCache:
         self._stream: torch.cuda.Stream | None = None
         self._lock = threading.Lock()
 
-    def run(self, key: Hashable, *inputs: torch.Tensor, post: Callable[[Any], Any] | None = None) -> Any:  # noqa: ANN401 - as `forward`
+    def run(
+        self,
+        key: Hashable,
+        *inputs: torch.Tensor,
+        post: Callable[[Any], Any] | None = None,
+        before_replay: Callable[[tuple[torch.Tensor, ...]], None] | None = None,
+    ) -> Any:  # noqa: ANN401 - the output structure is chosen by the captured forward
         """The output (fresh tensors) from the graph of `key`, or None: the caller runs eagerly.
 
         `post(static output)` replaces the copy when it returns new tensors anyway (e.g. a dtype conversion).
+        `before_replay(static inputs)` can reset persistent state after the preceding replay is ordered.
         """
         failed = captured = released = False
         result = None
@@ -175,7 +200,10 @@ class GraphCache:
                 self._used[key] = self._calls
                 graph, static, out = entry
                 for s, x in zip(static, inputs, strict=True):
-                    s.copy_(x)
+                    if s is not x:
+                        s.copy_(x)
+                if before_replay is not None:
+                    before_replay(static)
                 graph.replay()
                 result = _copy(out) if post is None else post(out)
         if failed or captured or released:
@@ -194,16 +222,34 @@ class GraphCache:
         entry = self.graphs.get(key)
         return None if entry is None else entry[1]
 
+    def defer_first_request(self, key: Hashable) -> bool:
+        """Record a first-request eager call before the caller prepares graph-only inputs."""
+        request = _REQUEST.get()
+        if request is None:
+            return False
+        with self._lock:
+            n, first = self._seen.get(key, (0, request))
+            if key in self.graphs or first is not request:
+                return False
+            self._calls += 1
+            self._remember(key, n + 1, first)
+            return True
+
+    def _remember(self, key: Hashable, calls: int, first: object | None) -> None:
+        self._seen[key] = (calls, first)
+        self._seen.move_to_end(key)
+        if len(self._seen) > self._seen_max:
+            self._seen.popitem(last=False)
+
     def _add(self, key: Hashable, inputs: tuple[torch.Tensor, ...]) -> tuple[Any, bool]:
         """Capture `key` after `capture_after` eager calls: `(entry or None, capture failed)`."""
-        n = self._seen.pop(key, 0)
-        if n < self._capture_after:  # eager, so one-off shapes never capture
-            self._seen[key] = n + 1
-            if len(self._seen) > self._seen_max:
-                self._seen.popitem(last=False)
+        request = _REQUEST.get()
+        n, first = self._seen.pop(key, (0, request))
+        if n < self._capture_after or (request is not None and request is first):
+            self._remember(key, n + 1, first)
             return None, False
         if len(self.graphs) >= self._max and not self._evict():
-            self._seen[key] = n
+            self._seen[key] = (n, first)
             return None, False
         try:
             entry = self._capture(inputs)
@@ -247,9 +293,15 @@ class GraphCache:
             finally:
                 # A failing warm-up can still have enqueued reads of inputs shared with another graph.
                 side.synchronize()
-            # PyTorch frees every cuBLAS workspace when any CUDA graph is destroyed. Release the warm-up workspace
-            # so capture allocates one in the graph pool, which outlives the graph.
-            torch._C._cuda_clearCublasWorkspaces()  # noqa: SLF001 - no public API
+            # Give each capture its own cuBLAS workspace. The async allocator warns when the workspace from an
+            # earlier capture is freed here. Its allocation node restores it on the next replay.
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message="Attempting uncaptured free of a captured allocation with address",
+                    category=UserWarning,
+                )
+                torch._C._cuda_clearCublasWorkspaces()  # noqa: SLF001 - no public API
             torch.cuda.empty_cache()  # the warm-up's cached blocks: the capture's pool cannot reuse them
             graph.capture_begin(self._pool, capture_error_mode="thread_local")
             try:

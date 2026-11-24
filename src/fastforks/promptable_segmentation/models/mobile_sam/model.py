@@ -203,7 +203,9 @@ class Kernels(_Sam):
     def __init__(self, ctx: Context) -> None:
         """As `_Sam`, plus the prompt-decode graph cache."""
         super().__init__(ctx)
-        self.cache = GraphCache(self._graph_forward, graphs=GRAPHS) if ctx.params.cuda_graphs else None
+        self.cache = (
+            GraphCache(self._graph_forward, graphs=GRAPHS, share_inputs=(0,)) if ctx.params.cuda_graphs else None
+        )
         side = ctx.params.image_size
         self.encoder = SmallShapeGraphs(super()._enc, pixels=side * side, enabled=ctx.params.cuda_graphs)
 

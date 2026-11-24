@@ -57,6 +57,7 @@ from fastforks._core.sizes import SizeRange, size_range
 from fastforks._core.tasks import spec
 from fastforks.shared import sdpa
 from fastforks.shared.arena import compact_runner
+from fastforks.shared.cuda_graphs import graph_request
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterator, Sequence
@@ -804,6 +805,7 @@ class Model:
             sdpa.policy(self._device, self._runner.sdpa_auto),  # SDPA backends without flash (`fastforks.shared.sdpa`)
             torch.inference_mode(),
             _no_autocast(self._device),
+            graph_request() if cuda else contextlib.nullcontext(),
         ):
             begin_call()
             yield

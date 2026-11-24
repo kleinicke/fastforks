@@ -53,7 +53,7 @@ class Params:
     detection_threshold: float  # upstream extractor default (ALIKED 0.2, DISK 0.0)
     max_keypoints: int  # per image
     long_side: int  # longest side the features are detected at; 0 = the input size
-    cuda_graphs: bool  # kernels, ALIKED: replay the dense maps from a CUDA graph per input size
+    cuda_graphs: bool  # kernels, ALIKED: replay the feature extractor from a CUDA graph per input size
 
 
 class Matcher(nn.Module):
@@ -178,8 +178,8 @@ class Portable(Runner):
 class Kernels(Portable):
     """Portable with DISK's U-Net on fp16 NHWC `conv_ep` convolutions; ALIKED's dense network in fp16.
 
-    ALIKED's dense maps (`detection_maps`, fixed shape: about 260 launches) replay from a CUDA graph per input size
-    (`cuda_graphs`): 16.8 -> 12.6 ms per 768 x 1024 image on an RTX 5060 Ti under Windows, bit-equal. The full-size
+    ALIKED's feature extractor replays from a CUDA graph per input size (`cuda_graphs`). Scoring and NMS run
+    outside the graph to reduce the memory its pool retains. The full-size
     descriptor map is not formed (`fastforks.shared.aliked.lazy`: the score head per feature level, the descriptors
     from the pixels SDDH reads). The graph's static outputs are handed to the keypoint selection and descriptors
     without a copy, so one extraction runs at a time (`_extract_lock`) and none of its outputs is a view of them.
