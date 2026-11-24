@@ -11,7 +11,7 @@ import pytest
 import torch
 
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
-from synth import clip, image, pair, track_queries
+from synth import clip, image, pair, sparse_prompt, track_queries
 from test_golden import API, GOLDEN, TASK
 from test_kernels_structure import held_modules
 
@@ -46,6 +46,7 @@ def _weight_bytes(model) -> int:
 
 REFS = [
     "aanet-sceneflow@1",
+    "any2full-s@1",
     "bridgedepth-sf@1",
     "c-fast-foundationstereo@1",
     "coex-sceneflow@1",
@@ -91,6 +92,11 @@ def test_del_frees_cuda_memory_without_gc(ref, mode):
         m = API[task].load(ref, mode=mode, device="cuda")
         if task == "tracking":
             r = m(clip(), track_queries())
+        elif ref == "any2full-s@1":
+            x = image(300, 400)
+            prompt = sparse_prompt(*x.shape[:2])
+            m(x, prompt_depth=prompt)
+            r = m(x, prompt_depth=prompt)
         else:
             r = m(*pair()) if task in {"stereo", "flow", "matching", "interpolation"} else m(image())
         loaded = torch.cuda.memory_allocated() - base
