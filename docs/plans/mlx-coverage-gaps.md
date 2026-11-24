@@ -467,7 +467,6 @@ family `mlx.py`, re-survey the family's refs, regenerate `apple_mlx.json`.
 | 2.7, 1.7 | aanet-sceneflow, aanet-plus | deformable conv: the MLX port gathers per sample point |
 | 2.5 | coex-sceneflow | cost volume build and the guided aggregation |
 | 2.5, 1.7 | rife-4.25-lite, rife-4.25 | `grid_sample` warps per IFBlock; small convs (launch bound) |
-| 2.4, 1.6 | raft-small, raft-large | 8 GB peak on MLX vs 2.5 GB: the all-pairs correlation is materialised; reuse the memory-lean MEMFOF path |
 | 2.2 | loftr-indoor/outdoor | fine matching runs on the CPU (geometry agent) |
 | 2.2 | aliked-lightglue | ALIKED's normalisation (geometry agent) |
 | 2.2, 1.8, 1.7 | efficientvit-sam-l0/xl1/xl0 | the ben2/EfficientViT-SAM agent is on it |

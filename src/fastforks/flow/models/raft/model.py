@@ -10,6 +10,7 @@ from fastforks.flow._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
+from .mlx import MlxRAFT
 from .net import LARGE, RAFT, SMALL
 
 if TYPE_CHECKING:
@@ -130,15 +131,20 @@ class MetalKernels(Portable):
         return {"flow": forward(self.net, self.lib, image1, image2, self.ctx.params.iters)}
 
 
-class _OnePair(Portable):
-    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+class _Mlx(Portable):
+    """The network the MLX port exports: `MlxRAFT` (`mlx.py`), without the correlation volume; one pair per call."""
 
     batch = 1
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network; regroup it for MLX."""
+        super().__init__(ctx)
+        self.net = MlxRAFT(self.net)
 
 
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": mlx_wrap.port(_OnePair, cache_mb=1024),
+    "portable_mlx": mlx_wrap.port(_Mlx, cache_mb=1024),
 }
