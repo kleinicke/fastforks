@@ -76,6 +76,7 @@ so a ComfyUI folder below ~140 characters needs no long-path setting.
 | Video segment (SAM 2 / SAMURAI) | IMAGE batch, points / box on frame 0, samurai | MASK batch |
 | Track points | IMAGE batch, grid size or points on frame 0 | IMAGE (tracks drawn on the frames), STRING (JSON tracks) |
 | Upscale / restore | IMAGE, tile (input px, 32 px overlap; 0 = one pass; keep it on for HAT / DAT) | IMAGE |
+| Inpaint / remove objects (LaMa) | IMAGE, MASK (every nonzero pixel is filled; one mask for all images, or one per image) | IMAGE: the masked region filled, the rest unchanged |
 | Restore faces (GFPGAN, CodeFormer) | IMAGE; optional `faces`: `detect and paste back` (each face RetinaFace finds is aligned to facexlib's 512 x 512 template, restored and blended back with facexlib's soft mask), `aligned crops` (512 x 512 FFHQ-aligned crops), `auto` (crops for 512 x 512 images, else detect); optional `fidelity` (CodeFormer's `w`, 0.5) | IMAGE |
 
 Every node has `model`, `backend` and `dtype`. `dtype` `auto` is what fastforks picks for the backend: float32 for
@@ -123,8 +124,8 @@ every model not cleared for commercial use, in both packs.
 
 A node lists only the ids it can run: those whose required inputs it passes (`model_card(id).contract().inputs`).
 Depth-prompted and depth-completion models (Prompt Depth Anything, LingBot-Depth, OMNI-DC, Any2Full), video matting
-from a first-frame mask (MatAnyone), in-context segmentation (INSID3) and inpainting (LaMa) need an input no node has
-yet, so no node lists them.
+from a first-frame mask (MatAnyone) and in-context segmentation (INSID3) need an input no node has yet, so no node
+lists them; Inpaint is the only node that lists the inpainting models (they need a mask).
 
 Upscale also lists the files in `models/upscale_models` (`file: <name>`) whose architecture fastforks reads, detected
 from the weights (`fastforks.restoration.load(path)`): ESRGAN / Real-ESRGAN (old or new key names), Compact (SRVGG),
