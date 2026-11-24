@@ -35,9 +35,10 @@ def test_cubic_levels_match_opencv(src: tuple[int, int], dst: tuple[int, int]) -
     img = rng.integers(0, 256, (*src, 3), dtype=np.uint8)
     want = cv2.resize(img, dst[::-1], interpolation=cv2.INTER_CUBIC).astype(np.float32)
     got = cv2_resize(torch.from_numpy(img).permute(2, 0, 1)[None], *dst, "cubic")[0].permute(1, 2, 0).numpy()
-    np.testing.assert_allclose(got, want, atol=1.0)
-    if cv2.__version__.startswith("5"):  # OpenCV 4 rounds uint8 cubic in 11-bit fixed point
-        assert np.mean(got != want) < 0.01  # a few rounding ties only
+    np.testing.assert_allclose(got, want, atol=1.0, rtol=0)
+    # The uint8 oracle can use fixed-point coefficients depending on the OpenCV build.
+    rounded = cv2.resize(img.astype(np.float64), dst[::-1], interpolation=cv2.INTER_CUBIC).round().clip(0, 255)
+    assert np.mean(got != rounded) < 0.01  # a few rounding ties only
 
 
 @pytest.mark.parametrize(("src", "dst"), CUBIC_SIZES)

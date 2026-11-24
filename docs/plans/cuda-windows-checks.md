@@ -101,8 +101,7 @@ PyTorch 2.14.1+cu130 on RTX 5060 Ti 16 GB with NVIDIA driver 595.99.02. Each mea
 
 ## Test environment: OpenCV 5 (2026-11-24)
 
-`tests/test_cv2_resize.py::test_cubic_levels_match_opencv` fails on the Mac venv, which has opencv-python-headless
-5.0.0: 4.5-5.1 % of the uint8 pixels differ from `cv2.resize(INTER_CUBIC)` (limit 1 %, all within 1 level), on
-origin as well. The test deps ask for `>=4.10`, so CI may pick up 5.x too. Check on Linux whether OpenCV 5 changed
-its cubic rounding; if so, either pin `<5` for the oracle or match both (the models' preprocessing was written
-against 4.x).
+OpenCV 5.0's uint8 cubic result depends on whether its optimized IPP path is available. On Ubuntu, disabling IPP
+reproduced the macOS comparison failure, with 4.5–5.9% of pixels one level apart. The test now checks every uint8
+pixel within one level and checks agreement within the original 1% limit against OpenCV's rounded float64 output.
+The Fastforks resize computation is unchanged.

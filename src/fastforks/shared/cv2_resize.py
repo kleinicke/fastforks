@@ -6,9 +6,9 @@ device as two separable tap gathers with OpenCV's weights:
 - `INTER_CUBIC`: Keys kernel a = -0.75, replicated borders
 - `INTER_AREA` (shrinking): OpenCV's `computeResizeAreaTab` box-overlap weights
 
-Horizontal pass first, rounded once at the end; cubic in float64 (float32 on MPS), area in float32 as OpenCV. Matches
-OpenCV 5.0 up to a few rounding ties (one level); OpenCV 4 computes uint8 cubic in 11-bit fixed point, which differs by
-one level on a few percent of the pixels.
+Horizontal pass first, rounded once at the end; cubic in float64 (float32 on MPS), area in float32 as OpenCV.
+The floating-point cubic path matches OpenCV up to rounding ties. OpenCV builds that use 11-bit fixed point for
+uint8 cubic can differ from the floating-point result by one level on several percent of the pixels.
 
 Eager cubic off MPS is PyTorch's bicubic `interpolate` in float64: the same kernel (Keys, a = -0.75), source
 coordinates and clamped borders in one pass instead of two gathers of `[..., n_out, 4]` float64 products
