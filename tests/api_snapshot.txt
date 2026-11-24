@@ -1015,6 +1015,7 @@ option pose.yunet.score_threshold
 option promptable_segmentation.clipseg.cuda_graphs
 option promptable_segmentation.efficientvit_sam.cuda_graphs
 option promptable_segmentation.mobile_sam.cuda_graphs
+option promptable_segmentation.sam.cuda_graphs
 option promptable_segmentation.sam2.cuda_graphs
 option promptable_segmentation.sam2.samurai
 option promptable_segmentation.sam3.cuda_graphs
