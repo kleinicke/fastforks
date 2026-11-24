@@ -715,7 +715,7 @@ def test_pack_metadata() -> None:
     }
     for d, m in meta.items():
         comfy = m["tool"]["comfy"]
-        assert {"PublisherId", "DisplayName", "Icon"} <= set(comfy), d
+        assert {"PublisherId", "DisplayName"} <= set(comfy), d
         assert comfy["DisplayName"].startswith("fastforks \N{EN DASH} fast vision models"), d
         assert m["project"]["license"] == {"file": "LICENSE"}, d  # Apache-2.0, a copy of the repository's LICENSE
         requirements = (PACK.parent / d / "requirements.txt").read_text(encoding="utf-8").splitlines()

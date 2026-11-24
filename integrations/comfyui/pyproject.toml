@@ -18,6 +18,5 @@ Documentation = "https://github.com/kleinicke/fastforks/blob/main/docs/comfyui.m
 "Bug Tracker" = "https://github.com/kleinicke/fastforks/issues"
 
 [tool.comfy]
-PublisherId = "kleinicke"  # PLACEHOLDER: the GitHub user; replace with the publisher id registered at registry.comfy.org
+PublisherId = "kleinicke"  # Confirm this ID in the Comfy Registry publisher account before publishing.
 DisplayName = "fastforks – fast vision models"
-Icon = ""  # PLACEHOLDER: a square image URL (<= 400 x 400 px, SVG / PNG / JPG / GIF), none yet

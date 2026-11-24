@@ -37,6 +37,7 @@ w02 workflow ran in both installations. In the full pack, w02, w03 and w09 were 
 request with both `unload_models` and `free_memory`. The log recorded model eviction and reloading, and the
 decoded previews matched byte for byte. The commercial pack's w02 reload also matched.
 
-This run used the source packs and local weights. The clean installation of the published packages and the Comfy
-Registry publication are separate release steps. See the [Windows results](comfyui-windows-results.md) and
+The source packs used local weights. A separate virtual environment installed the three local 0.2.1 wheels and
+ComfyUI, with the library checkout off the import path. Its w02, w03, w08 and w14 runs passed. Publishing the wheels
+and the Comfy Registry packs are release steps. See the [Windows results](comfyui-windows-results.md) and
 [macOS results](comfyui-mac-results.md) for the other platform runs.

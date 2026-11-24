@@ -148,7 +148,7 @@ Dynamic shapes are optional and not recommended: `export_onnx(..., size_range=((
 `fastforks export --size-range MINxMIN:MAXxMAX` mark height and width as dynamic axes (sizes must be multiples of the
 model's padding, and max must exceed min), and `export_tensorrt` adds an optimization profile (opt = the given size).
 Only families whose dynamic file was checked against eager `module()` across a range accept a size range: AANet,
-CAS-GwcNet, CoEx, DETR, IGEV-Stereo, PSMNet, RAFT-Stereo, R-CNN (Faster / Mask), S2M2, Sapiens and SegFormer
+CAS-GwcNet, CoEx, DETR, GwcNet, IGEV-Stereo, PSMNet, RAFT-Stereo, R-CNN (Faster / Mask), S2M2, Sapiens and SegFormer
 (`fastforks._core.export.DYNAMIC_VERIFIED`). Every other model is refused up front with the reason (`InputError`):
 fixed-input models (classification, features, promptable segmentation), families whose traced graph fixes the size,
 fails or gives wrong values inside the range (Depth Anything V2, HITNet, MoGe, LAS2, RT-DETRv2, Fast-ACVNet,
@@ -161,7 +161,10 @@ A dynamic engine run at a size inside its profile that is not a multiple of `mod
 build 84 s vs 116 s, and the dynamic engine failed at another size inside its range (TensorRT: a shape-dependent node
 of the traced graph is not consistent), so the fixed engine stays the default. HITNet's height is fixed by the
 exporter even when requested dynamic, and Depth Anything V2 cannot be exported dynamically (its resize target is
-computed with Python `round`). The measurement is one model (LAS2-S).
+computed with Python `round`). The measurement is one model (LAS2-S). On an RTX 5060 Ti with TensorRT 11.4.0.106,
+PSMNet's tested 256 × 256 to 320 × 384 FP16 dynamic profile also fails during engine optimization. The fixed
+256 × 256 FP16 engine and the FP32 dynamic ONNX file passed parity on the same machine. This TensorRT failure
+reproduces with fastforks 0.2.0.
 
 ## TensorRT or kernels?
 

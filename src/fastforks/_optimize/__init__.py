@@ -327,6 +327,12 @@ def patch(
     if mode == "kernels" and want is not None:
         msg = "patch(mode='kernels') runs its own mixed precision: dtype must be None"
         raise OptionsError(msg)
+    if isinstance(device, str) and device.lower() == "mlx":
+        msg = (
+            "patch uses a PyTorch device. Use device='mps' for Apple Metal, "
+            "or fastforks.load(..., device='mlx') for MLX."
+        )
+        raise OptionsError(msg)
     if isinstance(model, FastModel):  # wrapping it again would convert inputs and outputs twice
         return _repatch(model, mode, device, want)
     fp16 = want is None and _device(model, device).type != "mps"  # MPS: float32 by default, as for `load`

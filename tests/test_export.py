@@ -1090,7 +1090,8 @@ torch.testing.assert_close(actual, torch.zeros_like(x).scatter_add(1, i, x), rto
     subprocess.run([sys.executable, "-c", code, str(engine)], check=True, timeout=60)
 
 
-def test_failed_tensorrt_build_is_one_clear_error(monkeypatch, tmp_path):
+@pytest.mark.parametrize("dynamic", [False, True])
+def test_failed_tensorrt_build_is_one_clear_error(monkeypatch, tmp_path, dynamic):
     """A failing engine build raises BackendUnavailableError naming TensorRT's first error and a way out."""
     from types import SimpleNamespace  # noqa: PLC0415
 
@@ -1105,7 +1106,10 @@ def test_failed_tensorrt_build_is_one_clear_error(monkeypatch, tmp_path):
     network = SimpleNamespace(num_inputs=0)
     builder = SimpleNamespace(
         create_network=lambda _: network,
-        create_builder_config=lambda: SimpleNamespace(set_memory_pool_limit=lambda *_: None),
+        create_builder_config=lambda: SimpleNamespace(
+            set_memory_pool_limit=lambda *_: None, add_optimization_profile=lambda *_: None
+        ),
+        create_optimization_profile=object,
         build_serialized_network=build,
     )
     trt = SimpleNamespace(
@@ -1116,10 +1120,12 @@ def test_failed_tensorrt_build_is_one_clear_error(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(export, "_tensorrt", lambda: trt)
     monkeypatch.setattr(export, "_trt_logger", lambda: logger)
+    profile = (((256, 256), (320, 384)), (288, 320), 1) if dynamic else None
     with pytest.raises(
         BackendUnavailableError, match=r"build failed: Inconsistent strides In compileGraph\. Try float32"
-    ):
-        export.build_tensorrt(tmp_path / "m.onnx", tmp_path / "m.engine")
+    ) as error:
+        export.build_tensorrt(tmp_path / "m.onnx", tmp_path / "m.engine", profile=profile)
+    assert ("omit --size-range" in str(error.value)) == dynamic
 
 
 def test_failed_tensorrt_context_reports_allocator_error(monkeypatch, tmp_path):

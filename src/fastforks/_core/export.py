@@ -643,9 +643,10 @@ def build_tensorrt(
     plan = builder.build_serialized_network(network, config)
     if plan is None:
         first = logger.errors[0] if logger.errors else "see the TensorRT log above"
+        fixed = ", a fixed input size (omit --size-range)," if profile is not None else ","
         msg = (
-            f"TensorRT engine build failed: {first.splitlines()[0][:200]}. Try float32 (no --fp16), or export the "
-            "ONNX file (--format onnx) and build it with another TensorRT version"
+            f"TensorRT engine build failed: {first.splitlines()[0][:200]}. Try float32 (no --fp16){fixed} "
+            "or export the ONNX file (--format onnx) and build it with another TensorRT version"
         )
         raise BackendUnavailableError(msg)
     engine_path = Path(engine_path)

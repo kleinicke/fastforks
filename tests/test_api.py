@@ -301,6 +301,12 @@ def test_device_errors(monkeypatch, device, match):
     assert core_model.resolve_device(None) == torch.device("cpu")
 
 
+def test_load_device_error_names_mlx():
+    card, _ = registry.resolve("stereo", "psmnet-sceneflow")
+    with pytest.raises(OptionsError, match=r"invalid device 'mlx:0'.*'mlx'"):
+        core_model.resolve_device("mlx:0", card)
+
+
 def test_device_index_out_of_range(monkeypatch):
     monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
     monkeypatch.setattr(torch.cuda, "device_count", lambda: 1)

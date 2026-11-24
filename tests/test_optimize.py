@@ -321,6 +321,8 @@ def test_patch_device_resolved_like_load(monkeypatch: pytest.MonkeyPatch):
         patch(_tiny(), device="cuda")
     with pytest.raises(OptionsError, match="invalid device"):
         patch(_tiny(), device="gpu0")
+    with pytest.raises(OptionsError, match=r"patch uses a PyTorch device.*fastforks\.load.*device='mlx'"):
+        patch(_tiny(), device="MLX")
 
 
 # --- MIRA-R3-01: no fold into a conv that has a second use --------------------------------------------------------

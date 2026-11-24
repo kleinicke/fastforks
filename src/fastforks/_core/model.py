@@ -1367,7 +1367,8 @@ def resolve_device(device: str | torch.device | None, card: ModelCard | None = N
     try:
         dev = torch.device(device)
     except (RuntimeError, TypeError) as e:
-        msg = f"invalid device {device!r} (e.g. 'cpu', 'cuda', 'cuda:1', 'mps'): {e}"
+        examples = "'cpu', 'cuda', 'cuda:1', 'mps'" + (", 'mlx'" if card is not None else "")
+        msg = f"invalid device {device!r} (e.g. {examples}): {e}"
         raise OptionsError(msg) from e
     if dev.type == "cuda":
         count = torch.cuda.device_count() if torch.cuda.is_available() else 0
