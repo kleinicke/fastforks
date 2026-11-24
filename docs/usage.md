@@ -1089,7 +1089,7 @@ allocation (GPU buffers only); on the CPU no memory.
 
 | | portable | kernels (CUDA) |
 |---|---|---|
-| OS | Linux, macOS (Apple silicon, [MPS](#apple-silicon-mps)), any PyTorch platform | Linux x86-64, glibc >= 2.34, driver >= 570 |
+| OS | Linux, macOS (Apple silicon, [MPS](#apple-silicon-mps)), any PyTorch platform | Linux x86-64 (glibc >= 2.34), [Windows](#windows) x64; driver >= 570 |
 | GPU | CPU, CUDA, MPS (validated); other PyTorch devices untested | NVIDIA sm_80 or newer: RTX 30, 40, 50 series, A100, H100, B200 |
 | RTX 20 / GTX 16 (sm_75) | works | no binary: `auto` uses portable, `mode="kernels"` raises |
 | Python / PyTorch | 3.11-3.14, torch >= 2.8 | same |
