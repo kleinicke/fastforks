@@ -634,3 +634,20 @@ def test_stereo_run_size_reads_calibration_without_image_size(monkeypatch, capsy
     assert seen["focal"] == 650
     assert cli.main(["stereo", "run", left, right, "--model", "x", "--out", "o", "--size", "720x1280"]) == 1
     assert "pass --rig" in capsys.readouterr().err
+
+
+def test_download_progress_printer(monkeypatch, capsys):
+    clock = iter([100.0, 100.1, 111.0, 112.0])
+    monkeypatch.setattr(cli.time, "monotonic", lambda: next(clock))
+    report = cli._progress_printer(tty=False)
+    report("https://h/a/w.bin", 4 << 20, 16 << 20)  # printed
+    report("https://h/a/w.bin", 8 << 20, 16 << 20)  # throttled
+    report("https://h/a/w.bin", 12 << 20, 16 << 20)  # printed after 10 s
+    report("https://h/a/w.bin", 16 << 20, 16 << 20)  # done: no line in a log
+    assert capsys.readouterr().err.splitlines() == ["  w.bin: 25 % of 16 MB", "  w.bin: 75 % of 16 MB"]
+    clock = iter([100.0, 100.1, 100.2])
+    tty = cli._progress_printer(tty=True)
+    tty("https://h/k.so", 1 << 20, None)
+    tty("https://h/k.so", 2 << 20, None)  # throttled
+    tty("https://h/k.so", 3 << 20, 3 << 20)  # done always prints and ends the line
+    assert capsys.readouterr().err == "\r  k.so: 1 MB\r  k.so: 100 % of 3 MB\n"

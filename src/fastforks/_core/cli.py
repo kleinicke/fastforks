@@ -65,6 +65,7 @@ import json
 import os
 import re
 import sys
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, get_args
 
@@ -78,7 +79,17 @@ from fastforks._core.errors import (
     OptionsError,
     install_hint,
 )
-from fastforks._core.files import OFFLINE_ENV, _human_size, cache_root, env_flag, link_view, locate, offline, present
+from fastforks._core.files import (
+    OFFLINE_ENV,
+    _human_size,
+    cache_root,
+    download_progress,
+    env_flag,
+    link_view,
+    locate,
+    offline,
+    present,
+)
 from fastforks._core.sizes import EXAMPLE_SIZE, size_range
 
 if TYPE_CHECKING:
@@ -414,12 +425,35 @@ def _download(args: argparse.Namespace) -> int:
         if kernels and not apple_gpu
         else []
     )
-    missing = [] if args.kernels_only else _weights(args, entries)
-    for lib, tag, spec in plan:
-        missing += _kernel(args, lib, tag, spec)
+    with download_progress(_progress_printer(tty=sys.stderr.isatty())):
+        missing = [] if args.kernels_only else _weights(args, entries)
+        for lib, tag, spec in plan:
+            missing += _kernel(args, lib, tag, spec)
     for line in missing:
         print(f"MISSING {line}", file=sys.stderr)
     return 1 if missing else 0
+
+
+_PROGRESS_TTY_S = 0.5  # fixed: a terminal's progress line is rewritten this often
+_PROGRESS_LINE_S = 10.0  # fixed: else (a log file) a progress line is printed this often
+
+
+def _progress_printer(*, tty: bool) -> Callable[[str, int, int | None], None]:
+    """Print each download's progress to stderr: one rewritten line on a terminal, else a line every 10 s."""
+    last = [0.0]
+
+    def report(url: str, n: int, total: int | None) -> None:
+        now, done = time.monotonic(), total is not None and n >= total
+        if not done and now - last[0] < (_PROGRESS_TTY_S if tty else _PROGRESS_LINE_S):
+            return
+        if done and not tty:
+            return  # the size is in the start line; no line per finished file in a log
+        last[0] = now
+        share = f"{100 * n // total} % of {_human_size(total)}" if total else _human_size(n)
+        line = f"  {url.rsplit('/', 1)[-1]}: {share}"
+        print(f"\r{line}" if tty else line, end="\n" if done or not tty else "", file=sys.stderr, flush=True)
+
+    return report
 
 
 def _cache_link(_args: argparse.Namespace) -> int:
