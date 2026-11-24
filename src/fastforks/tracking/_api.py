@@ -16,6 +16,7 @@ from fastforks._core.errors import InputError
 from fastforks._core.image import ImageLike, deferred_ranges, to_rgb_batch
 from fastforks._core.model import Backend
 from fastforks._core.outputs import NumpyOutputs
+from fastforks._core.upload import to_device
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -156,7 +157,10 @@ class TrackingModel(core.Model):
 
     def _frame(self, video: Sequence[ImageLike] | np.ndarray | torch.Tensor, t: int) -> torch.Tensor:
         """Frame `t` as a checked `[1, 3, H, W]` batch on the device."""
-        x = to_rgb_batch(cast("ImageLike", video[t]), self.device)
+        v = video[t]
+        if isinstance(v, torch.Tensor):  # a host frame: pinned and async, not a copy that waits for the GPU
+            v = to_device(v, self.device)
+        x = to_rgb_batch(cast("ImageLike", v), self.device)
         if x.shape[0] != 1:
             msg = f"video frame {t} is a batch of {x.shape[0]} images; pass one image per frame"
             raise InputError(msg)
