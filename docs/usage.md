@@ -706,7 +706,8 @@ The same wheels and backends run on Windows (tested: RTX 5060 Ti, Windows 11). W
 - Each kernel launch costs more under the Windows display driver (WDDM), and every host synchronisation empties the
   launch queue, so the CPU's launches stop overlapping the GPU's work. Models that launch many small kernels run
   slower than on Linux; large ones run at the same speed. fastforks avoids host syncs inside a call (constants are
-  uploaded through pinned memory, checks of the inputs are combined into one), and `mode="auto"` picks the backend
+  uploaded through pinned memory, and the value-range check of float images on the GPU is read only when the call
+  ends, so a float image out of `[0, 1]` raises after the call's work was queued), and `mode="auto"` picks the backend
   from measurements made on Windows where they exist.
 - The host time per operation sets the floor for small inputs. On an RTX 5060 Ti under Windows 11 (torch 2.14), one
   call costs about 12 µs for an elementwise kernel, 26 µs for a half-precision matrix product and 58 µs for a cuDNN
@@ -716,6 +717,9 @@ The same wheels and backends run on Windows (tested: RTX 5060 Ti, Windows 11). W
   `model.release_graphs()`, and `cuda_graphs=False` turns graphs off. Portable mode runs eagerly, so on Windows it
   trails Linux by 20-30 % on such models.
 - PyTorch's Windows wheels have no flash attention; `FASTFORKS_SDPA` (above) sets the order of the other backends.
+- `model.compile()` on CUDA needs Triton, which PyTorch does not install on Windows. Without it the first call raises
+  `TritonMissing` (torch.compile's error), with a note that the model runs eager again; the next calls run eager.
+  The kernels backend needs no compiler.
 - PyTorch's default CUDA allocator keeps freed blocks cached in fixed segments, which the next, differently sized
   tensors often cannot reuse: many models reserve 1.5-2x their peak allocation. Setting
   `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` before PyTorch initialises CUDA (it applies to the whole process,

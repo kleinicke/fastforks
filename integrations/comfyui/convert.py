@@ -53,8 +53,11 @@ def upload(x: torch.Tensor, device: torch.device) -> torch.Tensor:
 
 
 def frame(image: torch.Tensor, i: int, device: torch.device) -> torch.Tensor:
-    """Image `i` of a ComfyUI IMAGE batch as a fastforks input `[3, H, W]` on `device` (alpha dropped, gray to RGB)."""
-    x = upload(image[i], device)
+    """Image `i` of a ComfyUI IMAGE batch as a fastforks input `[3, H, W]` on `device` (alpha dropped, gray to RGB).
+
+    On CUDA the next image is uploaded meanwhile (`_Ahead`), so a loop over a batch does not wait for each upload.
+    """
+    x = _AHEAD.take(image, i, i + 1, device)[0]
     if x.shape[-1] == 1:
         x = x.expand(-1, -1, _RGB)
     return x[..., :_RGB].permute(2, 0, 1)
@@ -62,7 +65,7 @@ def frame(image: torch.Tensor, i: int, device: torch.device) -> torch.Tensor:
 
 def frames(image: torch.Tensor, start: int, stop: int, device: torch.device) -> torch.Tensor:
     """Images `start:stop` of a ComfyUI IMAGE batch as one fastforks batch `[B, 3, H, W]` on `device` (as `frame`)."""
-    x = upload(image[start:stop], device)
+    x = _AHEAD.take(image, start, stop, device)
     if x.shape[-1] == 1:
         x = x.expand(-1, -1, -1, _RGB)
     return x[..., :_RGB].permute(0, 3, 1, 2)
@@ -71,6 +74,74 @@ def frames(image: torch.Tensor, start: int, stop: int, device: torch.device) -> 
 def _together(maps: Sequence[torch.Tensor]) -> list[torch.Tensor]:
     """`maps` on the device of the first: a node may mix its inputs with results that came back on another device."""
     return [m.to(maps[0].device) for m in maps]
+
+
+class _Ahead:
+    """Uploads of CPU IMAGE batches to CUDA: the next slice (same length) is prepared while the caller runs this one.
+
+    A worker thread copies the slice to pinned memory and starts its upload on a side stream; the caller's stream waits
+    for that copy only when it takes the slice. A frame of 1080p float32 is 25 MB: pinning and uploading it took
+    3.4 ms on an RTX 5060 Ti under Windows, in line with the model's work. One slice is held ahead per IMAGE (a stereo
+    node reads two), for at most `_HELD` IMAGEs; `drop` frees them (the end of a node's loop).
+    """
+
+    _HELD = 4
+
+    def __init__(self) -> None:
+        self._pool: Any = None
+        self._held: dict[int, tuple[torch.Tensor, int, int, torch.device, Any]] = {}  # by id(IMAGE), which it holds
+
+    def take(self, image: torch.Tensor, start: int, stop: int, device: torch.device) -> torch.Tensor:
+        """`image[start:stop]` as float32 on `device`; starts the upload of `image[stop:2 * stop - start]`."""
+        device = torch.device(device)
+        if image.device.type != "cpu" or device.type != "cuda":
+            return upload(image[start:stop], device)
+        held = self._held.pop(id(image), None)
+        if held is not None and held[0] is image and held[1:4] == (start, stop, device):
+            x, event = held[4].result()
+            stream = torch.cuda.current_stream(device)
+            stream.wait_event(event)
+            x.record_stream(stream)  # made on the side stream, used (and freed) on the caller's
+        else:
+            x = upload(image[start:stop], device)
+        nxt = min(stop + (stop - start), image.shape[0])
+        if nxt > stop:
+            if self._pool is None:
+                from concurrent.futures import ThreadPoolExecutor  # noqa: PLC0415 - only for CUDA uploads
+
+                self._pool = ThreadPoolExecutor(1, thread_name_prefix="fastforks-upload")
+            while len(self._held) >= self._HELD:
+                del self._held[next(iter(self._held))]
+            job = self._pool.submit(_side_upload, image[stop:nxt], device)
+            self._held[id(image)] = (image, stop, nxt, device, job)
+        return x
+
+    def drop(self) -> None:
+        """Forget the slices held ahead (each upload finishes on the side stream; then its memory is freed)."""
+        self._held.clear()
+
+
+def _side_upload(x: torch.Tensor, device: torch.device) -> tuple[torch.Tensor, torch.cuda.Event]:
+    """`x` (CPU) uploaded to `device` on a side stream through pinned memory, and the event that marks the copy done."""
+    stream = _side_stream(device)
+    with torch.cuda.stream(stream):
+        y = x.pin_memory().to(device, torch.float32, non_blocking=True)
+        event = torch.cuda.Event()
+        event.record(stream)
+    return y, event
+
+
+@functools.cache
+def _side_stream(device: torch.device) -> torch.cuda.Stream:
+    return torch.cuda.Stream(device)
+
+
+_AHEAD = _Ahead()
+
+
+def drop_ahead() -> None:
+    """Free the upload `frame` / `frames` prepared for a next slice that will not be asked for."""
+    _AHEAD.drop()
 
 
 def to_image(maps: Sequence[torch.Tensor], device: torch.device | str = "cpu") -> torch.Tensor:
@@ -113,9 +184,12 @@ def depth_image(depth: torch.Tensor | None, inverse_depth: torch.Tensor | None, 
         msg = "the model returned neither depth nor inverse_depth"
         raise ValueError(msg)
     valid = torch.isfinite(inv)
-    if not valid.any():
-        return torch.zeros(_RGB, *inv.shape, device=inv.device)
-    lo, hi = _range(inv[valid], clip)
+    if clip:
+        if not valid.any():
+            return torch.zeros(_RGB, *inv.shape, device=inv.device)
+        lo, hi = _range(inv[valid], clip)
+    else:  # min / max of the valid pixels without a host sync (none valid: every pixel is black below)
+        lo, hi = torch.where(valid, inv, math.inf).amin(), torch.where(valid, inv, -math.inf).amax()
     scaled = ((inv - lo) / (hi - lo).clamp_min(torch.finfo(torch.float32).tiny)).clamp(0, 1)
     return torch.where(valid, scaled, 0).unsqueeze(0).expand(_RGB, *inv.shape)
 

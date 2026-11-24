@@ -557,6 +557,8 @@ def each(n: int, fn: Callable[[int], Any]) -> list[Any]:
         out.clear()
         mm.soft_empty_cache()  # the model stays cached; only this run's tensors are freed
         raise
+    finally:
+        convert.drop_ahead()  # an upload started for an image past the loop's end
     return out
 
 
@@ -1515,10 +1517,15 @@ class Flow(_Node):
         if batch_size > 1:
             flows = each_pairs(frames, m, batch_size, lambda a, b: list(m(a, b).flow))
         else:
-            flows = each(
-                frames.shape[0] - 1,
-                lambda i: m(convert.frame(frames, i, m.device), convert.frame(frames, i + 1, m.device)).flow,
-            )
+            last: list[torch.Tensor] = []  # frame i + 1 of the previous pair: each frame is uploaded once
+
+            def pair(i: int) -> torch.Tensor:
+                a = last.pop() if last else convert.frame(frames, i, m.device)
+                b = convert.frame(frames, i + 1, m.device)
+                last.append(b)
+                return m(a, b).flow
+
+            flows = each(frames.shape[0] - 1, pair)
         raw = torch.stack([f.detach().float().permute(1, 2, 0) for f in flows]).to(_out_device()).contiguous()
         return convert.to_image([convert.flow_image(f) for f in flows], _out_device()), raw
 

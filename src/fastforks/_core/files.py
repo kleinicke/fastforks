@@ -797,16 +797,19 @@ def _not_local(
 
     `who` is the requested model id (or the family / kernel library); the searched `env_var` entries are listed.
     """
-    if mismatched:
-        return WeightsHashError(f"{spec.name}: no local copy verifies: " + "; ".join(mismatched))
+    fetch = (
+        f"offline mode ({OFFLINE_ENV} / HF_HUB_OFFLINE) forbids downloads. On a machine with network access run"
+        f" `{hint}` with the same FASTFORKS_CACHE, then copy that cache here"
+    )
+    offline_fetch = hint is not None and spec.url is not None
+    if mismatched:  # a same-named file of another model (generic names such as model.safetensors) or a broken copy
+        why = "; ".join(mismatched) + (f"; {fetch}" if offline_fetch else "")
+        return WeightsHashError(f"{who}: {spec.name}: no local copy verifies: {why}")
     searched = search_path(env_var)
     listed = f" (searched {env_var}: {os.pathsep.join(map(str, searched))})" if searched else f" ({env_var} is not set)"
     where = f"{spec.name} not found in {env_var} or the cache ({cache_root()}){listed}"
-    if hint is not None and spec.url is not None:
-        return WeightsDownloadError(
-            f"{who}: {where}, and offline mode ({OFFLINE_ENV} / HF_HUB_OFFLINE) forbids downloads. On a machine"
-            f" with network access run `{hint}` with the same FASTFORKS_CACHE, then copy that cache here"
-        )
+    if offline_fetch:
+        return WeightsDownloadError(f"{who}: {where}, and {fetch}")
     why = "it has no download URL" if spec.url is None else "downloads are disabled"
     return WeightsDownloadError(f"{where}, and {why}")
 
