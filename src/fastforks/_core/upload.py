@@ -16,6 +16,7 @@ import contextlib
 import threading
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import torch
 
 if TYPE_CHECKING:
@@ -61,6 +62,9 @@ def device_tensor(data: Any, *, device: torch.device | str, dtype: torch.dtype |
         return data.to(device, dtype).clone()
     if device.type != "cuda" or torch.compiler.is_compiling() or torch.jit.is_tracing():  # traced: a constant
         return torch.tensor(data, dtype=dtype, device=device)
+    if isinstance(data, np.ndarray):
+        # PyTorch cannot create a pinned tensor directly from an ndarray.
+        return to_device(torch.tensor(data, dtype=dtype, device="cpu"), device)
     return _staged(torch.tensor(data, dtype=dtype, pin_memory=True)).to(device, non_blocking=True)
 
 

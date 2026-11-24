@@ -7,6 +7,7 @@ import subprocess
 import sys
 import textwrap
 
+import numpy as np
 import pytest
 import torch
 
@@ -191,12 +192,13 @@ def test_shared_input_requires_matching_layout_and_survives_eviction():
     assert not cache.graphs
 
 
-def test_uploads_in_a_capture_outlive_the_staging_allocator():
+@pytest.mark.parametrize("data", [[1.0, -1.0], np.array([1.0, -1.0])], ids=["list", "numpy"])
+def test_uploads_in_a_capture_outlive_the_staging_allocator(data):
     from fastforks._core.upload import device_tensor, to_device  # noqa: PLC0415
 
     def forward(x):
         scale = to_device(torch.tensor([2.0, 3.0]), x.device)
-        shift = device_tensor([1.0, -1.0], device=x.device)
+        shift = device_tensor(data, device=x.device, dtype=x.dtype)
         return x * scale + shift
 
     cache = GraphCache(forward)
