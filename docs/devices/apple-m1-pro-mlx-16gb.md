@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-24 |
-| rows | 1520 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1516 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -762,18 +762,18 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 
 ### Interpolation, synthetic, 1080x1920
 
-| model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
-|---|---|---|---|---|---|---|---|
-| [`ema-vfi`](../models/interpolation.md#ema_vfi) | 3362 | 2255 | – | – | – | 2770 | – |
-| [`ema-vfi-small`](../models/interpolation.md#ema_vfi) | 980 | 666 | unsupported | – | – | 1587 | – |
-| [`ema-vfi-small-t`](../models/interpolation.md#ema_vfi) | 1019 | 876 | – | – | – | 2460 | – |
-| [`ema-vfi-t`](../models/interpolation.md#ema_vfi) | 3305 | 2222 | – | – | – | 2700 | – |
-| [`film`](../models/interpolation.md#film) | 9227 | 6590 | – | – | – | 9495 | – |
-| [`gimm-vfi-r`](../models/interpolation.md#gimm_vfi) | 58742 | 30451 | – | – | – | 12185 | – |
-| [`gimm-vfi-r-p`](../models/interpolation.md#gimm_vfi) | 39847 | 16157 | unsupported | – | – | 10310 | – |
-| [`rife-4.25`](../models/interpolation.md#rife) | 256 | 211 | 223 | 180 | 1.2x | 1680 | 1655 |
-| [`rife-4.25-lite`](../models/interpolation.md#rife) | 200 | 202 | – | – | – | 1590 | – |
-| [`rife-4.26`](../models/interpolation.md#rife) | 235 | 160 | 226 | 137 | 1.2x | 1265 | 1379 |
+| model | time (ms): portable fp32 | portable fp16 | kernels fp32 | peak memory (MiB, process footprint, fastest dtype): portable |
+|---|---|---|---|---|
+| [`ema-vfi`](../models/interpolation.md#ema_vfi) | 1741 | 1320 | – | 3386 |
+| [`ema-vfi-small`](../models/interpolation.md#ema_vfi) | 538 | 426 | unsupported | 1930 |
+| [`ema-vfi-small-t`](../models/interpolation.md#ema_vfi) | 539 | 427 | – | 1932 |
+| [`ema-vfi-t`](../models/interpolation.md#ema_vfi) | 1713 | 1325 | – | 3463 |
+| [`film`](../models/interpolation.md#film) | 9227 | 6590 | – | 9495 |
+| [`gimm-vfi-r`](../models/interpolation.md#gimm_vfi) | 58742 | 30451 | – | 12185 |
+| [`gimm-vfi-r-p`](../models/interpolation.md#gimm_vfi) | 39847 | 16157 | unsupported | 10310 |
+| [`rife-4.25`](../models/interpolation.md#rife) | 91.8 | 78.5 | – | 921 |
+| [`rife-4.25-lite`](../models/interpolation.md#rife) | 73.3 | 63.3 | – | 935 |
+| [`rife-4.26`](../models/interpolation.md#rife) | 92.2 | 78.3 | – | 923 |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 

@@ -149,10 +149,6 @@ UNVALIDATED: dict[str, tuple[str, ...]] = {
         "kernels float16",
         "kernels float32",
     ),
-    "rife-4.25-lite@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
     "segformer-b5-ade20k@1": (
         "kernels float16",
         "kernels float32",

@@ -3,7 +3,7 @@ name = "RIFE"
 summary = "RIFE (Huang et al., ECCV 2022), the Practical-RIFE 4.25 / 4.26 releases: real-time video frame interpolation. A small conv encoder gives 4-channel features of both frames; five IFBlocks (two stride-2 convs, 8 residual convs, a transposed conv) estimate the flow from the intermediate frame to both inputs and a fusion mask, coarse to fine from 1/16 of the image to full size; the frame is both inputs warped to the time and blended by the mask. Any time in [0, 1]. `rife-4.25` is the authors' recommended default, `rife-4.26` the next release, `rife-4.25-lite` a narrower last block for lower cost."
 tier = "experimental"
 outputs = ["frame"]
-uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/hzwer/Practical-RIFE"
@@ -36,8 +36,6 @@ mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["cudnn_hacc"]  # fp16-accumulate convs and transposed convs, the residual scales folded, one CUDA graph per input shape
-mlx_kernels = ["conv_mlx"]  # the direct few-channel conv, Winograd 3x3s
-mlx_dtypes = ["float32", "float16"]
 
 [[papers]]
 title = "Real-Time Intermediate Flow Estimation for Video Frame Interpolation"

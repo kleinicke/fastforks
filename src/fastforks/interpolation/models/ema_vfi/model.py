@@ -26,7 +26,6 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import base_type, override
 from fastforks.interpolation._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc, ema_warp
-from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.swin_sr import roll
 
@@ -35,6 +34,8 @@ from .net.feature_extractor import window_partition, window_reverse
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    import numpy as np
 
     from fastforks.interpolation._runner import Context
 
@@ -374,7 +375,8 @@ def _frame(  # noqa: PLR0913
     return ((pred[:b] + pred[b:].flip(2, 3)) / 2).flip(1)
 
 
-def _net(ctx: Context) -> MultiScaleFlow:
+def _loaded(ctx: Context) -> MultiScaleFlow:
+    """Upstream's network with the variant's checkpoint (float32, CPU)."""
     backbone, flow = _config(ctx.params)
     net = MultiScaleFlow(MotionFormer(**backbone), **flow)
     sd = {  # Trainer.Model.load_model's convert: DDP prefixes, no cached shift masks
@@ -382,7 +384,11 @@ def _net(ctx: Context) -> MultiScaleFlow:
     }
     check_fits(net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
     net.load_state_dict(sd)
-    net = net.eval().to(ctx.device, getattr(torch, ctx.dtype))
+    return net.eval()
+
+
+def _net(ctx: Context) -> MultiScaleFlow:
+    net = _loaded(ctx).to(ctx.device, getattr(torch, ctx.dtype))
     return net.to(memory_format=torch.channels_last) if net.unet.conv.weight.is_cuda else net
 
 
@@ -463,8 +469,41 @@ class Kernels(Portable):
             self.graphs.release()
 
 
-RUNNERS = {
-    "portable": Portable,
-    "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable, attrs=(), methods=("_run",)),
-}
+def _window_constants(window: int, h: int, w: int, shift: int) -> tuple[np.ndarray, np.ndarray | None]:
+    """`_constants` of one frame for `mlx_net`: the position windows `[nW, N, 2]` and the mask `[nW, N, N]` or None."""
+    win, sh = (window, window), (shift, shift)
+    gx = torch.linspace(-1.0, 1.0, w).view(1, 1, w).expand(1, h, w)
+    gy = torch.linspace(-1.0, 1.0, h).view(1, h, 1).expand(1, h, w)
+    cor = window_partition(_rolled(_padded(torch.stack((gx, gy), -1), win), sh, -1), win)
+    mask = _mask(h, w, win, sh)
+    return cor.numpy(), None if mask is None else mask.numpy()
+
+
+class MlxPortable(Runner):
+    """Apple MLX (`device="mlx"`): the network in `mlx.core` operations and two Metal kernels (`mlx_net`).
+
+    float32, or float16 features and convolutions with the flow, the mask and the warps in float32 (as `Portable`).
+    `tta` runs its two passes one after the other.
+    """
+
+    Params = Params
+    batch = 1
+
+    def __init__(self, ctx: Context) -> None:
+        """Convert or read the cached weights and build the MLX network."""
+        super().__init__(ctx)
+        from fastforks._core.mlx import converted  # noqa: PLC0415 - needs the mlx extra
+
+        from . import mlx_net  # noqa: PLC0415
+
+        p = converted(ctx, mlx_net.LAYOUT, lambda: mlx_net.prepare(_loaded(ctx)))
+        params = ctx.params
+        constants = partial(_window_constants, params.window)
+        self.net = mlx_net.Net(p, params.depths, params.window, ctx.dtype, constants, tta=params.tta)
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> dict[str, torch.Tensor]:
+        """The frame at `timestep` of one padded pair."""
+        return {"frame": self.net(image1, image2, timestep)}
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxPortable}

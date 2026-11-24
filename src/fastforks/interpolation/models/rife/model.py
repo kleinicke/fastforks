@@ -23,10 +23,8 @@ from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import base_type, override
 from fastforks._core.sampling import grid_sample
-from fastforks._core.tracing import EXPORTING_FOR_MLX
 from fastforks.interpolation._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
-from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 
 from .net import IFNet
@@ -111,35 +109,13 @@ def _upsampled(x: torch.Tensor, s: int, grid: torch.Tensor | None, size: tuple[i
     )  # border = the resize's edge clamp
 
 
-def _sources(x: torch.Tensor, feat: torch.Tensor, *, exporting: bool) -> torch.Tensor:
-    """Both sides' image + features, side-major, float32 (graph export: one concatenation, not in-place writes)."""
+def _sources(x: torch.Tensor, feat: torch.Tensor) -> torch.Tensor:
+    """Both sides' image + features, side-major, float32."""
     images = torch.cat((x[:, :3], x[:, 3:6]), 0)
-    if exporting:
-        return torch.cat((images.float(), feat.float()), 1)
     src = torch.empty(images.shape[0], 3 + feat.shape[1], *x.shape[2:], device=x.device)
     src[:, :3].copy_(images)
     src[:, 3:].copy_(feat)
     return src
-
-
-def _graph_input(
-    side: torch.Tensor,
-    timestep: float | torch.Tensor,
-    last: tuple[torch.Tensor, torch.Tensor, torch.Tensor | None] | None,
-    s: int,
-    size: tuple[int, int],
-) -> torch.Tensor:
-    """A block's input as one concatenation (graph export, MLX): images, features, time, last mask/features and flow."""
-    b, _, nf, hs, ws = side.shape
-    nf -= 3
-    t_plane = (
-        timestep.expand(b, 1, hs, ws) if isinstance(timestep, torch.Tensor) else side.new_full((b, 1, hs, ws), timestep)
-    )
-    parts = [side[:, :, :3].reshape(b, 6, hs, ws), side[:, :, 3:].reshape(b, 2 * nf, hs, ws), t_plane.to(side.dtype)]
-    if last is not None:
-        tmp, flow, up = last
-        parts += [_pool(_upsampled(tmp[:, 4:], s, up, size), s), _pool(_at_points(flow, s), s) / s]
-    return torch.cat(parts, 1)
 
 
 Grids = tuple[torch.Tensor, torch.Tensor | None, torch.Tensor]  # warp grid, upsample grid (s > 2), pixel units
@@ -157,7 +133,7 @@ def _grids(h: int, w: int, s: int, device: torch.device, cache: dict | None) -> 
     return out
 
 
-def _interpolate(  # noqa: PLR0913, PLR0915 - upstream's forward, one loop over the blocks
+def _interpolate(  # noqa: PLR0913 - upstream's forward, one loop over the blocks
     net: IFNet,
     x: torch.Tensor,
     timestep: float | torch.Tensor,
@@ -174,10 +150,9 @@ def _interpolate(  # noqa: PLR0913, PLR0915 - upstream's forward, one loop over 
     b, _, h, w = x.shape
     feat = torch.cat((net.encode(x[:, :3]), net.encode(x[:, 3:6])), 0)  # per image, as upstream (faster than batched)
     nf = feat.shape[1]
-    exporting = EXPORTING_FOR_MLX.get()  # the MLX graph: concatenations, not in-place writes (each a full copy)
-    if exporting or torch.compiler.is_exporting():  # any export: no fake tensors in the cache
+    if torch.compiler.is_exporting():  # no fake tensors in the cache
         cache = None
-    src = _sources(x, feat, exporting=exporting)  # both sides' image + features, side-major, float32
+    src = _sources(x, feat)  # both sides' image + features, side-major, float32
     del feat
     flow = tmp = None
     prev = 1
@@ -188,24 +163,18 @@ def _interpolate(  # noqa: PLR0913, PLR0915 - upstream's forward, one loop over 
         warped = src if flow is None else _warp(src, _at_points(flow, s), grid, units)
         side = _pool(_at_points(warped, s) if flow is None else warped, s).view(2, b, 3 + nf, hs, ws).transpose(0, 1)
         extra = 0 if tmp is None else tmp.shape[1]  # mask + features (9), flow (4)
-        if exporting:
-            last = None if tmp is None or flow is None else (tmp, flow, up_grid)
-            inp = _graph_input(side, timestep, last, s, (h, w)).to(dtype)
+        inp = torch.empty(b, 7 + 2 * nf + extra, hs, ws, device=dev, dtype=dtype)  # the block input, cast once
+        inp[:, :6].view(b, 2, 3, hs, ws).copy_(side[:, :, :3])  # image 1, image 2
+        inp[:, 6 : 6 + 2 * nf].view(b, 2, nf, hs, ws).copy_(side[:, :, 3:])  # features 1, features 2
+        del side, warped
+        c = 6 + 2 * nf
+        if isinstance(timestep, torch.Tensor):
+            inp[:, c : c + 1].copy_(timestep.expand(b, 1, hs, ws))
         else:
-            inp = torch.empty(b, 7 + 2 * nf + extra, hs, ws, device=dev, dtype=dtype)  # the block input, cast once
-            inp[:, :6].view(b, 2, 3, hs, ws).copy_(side[:, :, :3])  # image 1, image 2
-            inp[:, 6 : 6 + 2 * nf].view(b, 2, nf, hs, ws).copy_(side[:, :, 3:])  # features 1, features 2
-            del side, warped
-            c = 6 + 2 * nf
-            if isinstance(timestep, torch.Tensor):
-                inp[:, c : c + 1].copy_(timestep.expand(b, 1, hs, ws))
-            else:
-                inp[:, c : c + 1].fill_(timestep)
-            if (
-                tmp is not None and flow is not None
-            ):  # mask and features of the last block, its flow (block scale units)
-                inp[:, c + 1 : c + extra - 3].copy_(_pool(_upsampled(tmp[:, 4:], s, up_grid, (h, w)), s))
-                inp[:, c + extra - 3 :].copy_(_pool(_at_points(flow, s), s).div_(s))
+            inp[:, c : c + 1].fill_(timestep)
+        if tmp is not None and flow is not None:  # mask and features of the last block, its flow (block scale units)
+            inp[:, c + 1 : c + extra - 3].copy_(_pool(_upsampled(tmp[:, 4:], s, up_grid, (h, w)), s))
+            inp[:, c + extra - 3 :].copy_(_pool(_at_points(flow, s), s).div_(s))
         # Release the full-resolution inputs once the strided stem has consumed them.
         block_input = block.conv0(inp.contiguous(memory_format=torch.channels_last) if channels_last else inp)
         del inp
@@ -215,7 +184,7 @@ def _interpolate(  # noqa: PLR0913, PLR0915 - upstream's forward, one loop over 
         up = tmp[:, :4].float()
         if s > 1:
             up = F.interpolate(up, scale_factor=s, mode="bilinear", align_corners=False)
-        flow = (up * s).contiguous() if flow is None else (flow + up * s if exporting else flow.add_(up, alpha=s))
+        flow = (up * s).contiguous() if flow is None else flow.add_(up, alpha=s)
         del up
         prev = s
     if tmp is None or flow is None:
@@ -227,6 +196,15 @@ def _interpolate(  # noqa: PLR0913, PLR0915 - upstream's forward, one loop over 
     grid, _, units = _grids(h, w, 1, dev, cache)
     warped = _warp(src[:, :3], flow, grid, units)
     return torch.lerp(warped[b:], warped[:b], torch.sigmoid(mask)).to(dtype)
+
+
+def _net(ctx: Context) -> IFNet:
+    """Upstream's network with the variant's checkpoint (float32, CPU)."""
+    net = IFNet(c4=ctx.params.c4)
+    sd = {k: v for k, v in ctx.state_dict().items() if not k.startswith(_TRAINING_ONLY)}
+    check_fits(net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
+    net.load_state_dict(sd)
+    return net
 
 
 class Portable(Runner):
@@ -246,10 +224,7 @@ class Portable(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the network."""
         super().__init__(ctx)
-        self.net = IFNet(c4=ctx.params.c4)
-        sd = {k: v for k, v in ctx.state_dict().items() if not k.startswith(_TRAINING_ONLY)}
-        check_fits(self.net.state_dict(), sd, f"{ctx.variant.ref} checkpoint")
-        self.net.load_state_dict(sd)
+        self.net = _net(ctx)
         if ctx.device.type == "cuda":
             # residual scales folded into their convs (in float32, before the cast): one launch fewer per ResConv,
             # 40 per frame; the eager call is launch bound (RTX 5060 Ti, Windows, fp16 384 x 384: 10.0 -> 9.3 ms)
@@ -347,15 +322,28 @@ class Kernels(Portable):
             self.graphs.release()
 
 
-class _OnePair(Portable):
-    """Portable for the MLX ports: one pair per call, as before batching (not measured on Apple GPUs)."""
+class MlxPortable(Runner):
+    """Apple MLX (`device="mlx"`): the convolutions in MLX, the warps and resizes between them as Metal kernels.
 
+    `mlx_net`: float32, or float16 convolutions with the flow, the warps and the blend in float32 (as `Portable`).
+    """
+
+    Params = Params
     batch = 1
 
+    def __init__(self, ctx: Context) -> None:
+        """Convert or read the cached weights and build the MLX network."""
+        super().__init__(ctx)
+        from fastforks._core.mlx import converted  # noqa: PLC0415 - needs the mlx extra
 
-RUNNERS = {
-    "portable": Portable,
-    "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(_OnePair, attrs=(), methods=("_forward",)),
-    "kernels_mlx": mlx_wrap.port(_OnePair, attrs=(), methods=("_forward",)),
-}
+        from . import mlx_net  # noqa: PLC0415
+
+        p = converted(ctx, mlx_net.LAYOUT, lambda: mlx_net.prepare(_net(ctx).eval()))
+        self.net = mlx_net.Net(p, ctx.params.scales, ctx.dtype)
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor, timestep: float) -> dict[str, torch.Tensor]:
+        """The frame at `timestep` of one padded pair."""
+        return {"frame": self.net(image1, image2, timestep)}
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxPortable}

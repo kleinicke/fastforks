@@ -464,13 +464,14 @@ family `mlx.py`, re-survey the family's refs, regenerate `apple_mlx.json`.
 | 0.75, 0.71, 0.75 (were 2.9, 2.2, 1.5) | restormer-derain/sidd/deblur | done, see "Restormer and RealPLKSR on MLX" below: 737 / 794 / 737 ms fp16, 3.7-4.0 s first call, peak below MPS |
 | 0.78, 0.84 (were 2.7, 1.7) | aanet-sceneflow, aanet-plus | done, both auto-routed to MLX: hand-written network, grouped offset convolutions split per group ("Done: AANet and CoEx" below) |
 | 0.89 (was 2.5) | coex-sceneflow | done, auto-routed to MLX: hand-written network, a quarter of the MPS peak ("Done: AANet and CoEx" below) |
-| 2.5, 1.7 | rife-4.25-lite, rife-4.25 | `grid_sample` warps per IFBlock; small convs (launch bound) |
+| 0.79, 0.74 (were 2.5, 1.7) | rife-4.25-lite, rife-4.25 | done, all three RIFE refs auto-routed to MLX: hand-written network, the warps and resizes as Metal kernels ("Done: RIFE 4.25 and EMA-VFI" below) |
 | 2.2 | loftr-indoor/outdoor | fine matching runs on the CPU (geometry agent) |
 | 0.49 (was 2.2) | aliked-lightglue | done, auto-routed to MLX: ALIKED in MLX operations without the full-resolution descriptor map, `MlxLightGlue` ("Done: the LightGlue family" below) |
 | 2.2, 1.8, 1.7 | efficientvit-sam-l0/xl1/xl0 | the ben2/EfficientViT-SAM agent is on it |
 | 2.0, 1.9 | mask-rcnn, faster-rcnn r50-fpn | RoIAlign and the per-level proposal ops |
 | 0.94 (was 1.8) | realplksr-nomoswebphoto-x4 | kernels fp16 1029 ms vs MPS 1092, but 1919 MB against 1368 MB; portable fp16 is the lean mode (1529 ms, 1198 MB). Left: the 862 MB active peak of the Winograd convs, group norm (3 ms x 28) |
-| 1.7 | dlnr-sceneflow, ema-vfi-small-t, raft-stereo-middlebury | 29-37 s first calls: compile time first |
+| 1.7 | dlnr-sceneflow, raft-stereo-middlebury | 29-37 s first calls: compile time first |
+| 0.83 (was 1.7) | ema-vfi-small-t | done, all four EMA-VFI refs auto-routed to MLX: hand-written network, 0.47 s first call ("Done: RIFE 4.25 and EMA-VFI" below) |
 | 1.5-1.6 | lineart, anyline, segnext-mscan-l/b, sapiens-seg-0.3b, oneformer-swinl, gmflow-scale1 | not looked at yet |
 
 Also: survey the six TotalSegmentator
@@ -973,3 +974,85 @@ Left:
 - aliked-lightglue float16 equals float32 (ALIKED and `MlxLightGlue` are float32 in either dtype): 102 ms.
 - The remaining 100 ms of aliked-lightglue is the two encoders (56 ms), SDDH (18 ms) and LightGlue (the rest,
   ~25 ms); MPS portable was not looked at.
+
+### Done: RIFE 4.25 and EMA-VFI (2026-11-24)
+
+M1 Pro, 1080x1920, float16 / float32, all 14 goldens pass (`tools/speed_survey.py`; MPS rows are the portable ones,
+the best MPS row of every ref):
+
+| ref | | warm ms | first call s | peak MB | auto |
+|---|---|---|---|---|---|
+| rife-4.25 | MLX before (kernels) | 180 / 223 | 3.45 / 4.54 | 1655 / 1743 | – |
+| | MLX now | 78.5 / 91.8 | 0.09 / 0.11 | 921 / 1336 | MLX fp16 |
+| | MPS | 106 / 119 | 0.61 / 0.39 | 2482 / 2481 | |
+| rife-4.26 | MLX before (kernels) | 137 / 226 | 3.08 / 3.13 | 1379 / 1794 | – |
+| | MLX now | 78.3 / 92.2 | 0.09 / 0.11 | 923 / 1337 | MLX fp16 |
+| | MPS | 103 / 118 | 0.31 / 0.31 | 2479 / 2478 | |
+| rife-4.25-lite | MLX before | 202 / 200 | 3.27 / 4.33 | 1636 / 1590 | – |
+| | MLX now | 63.3 / 73.3 | 0.08 / 0.10 | 935 / 1294 | MLX fp16 |
+| | MPS | 80.0 / 91.0 | 0.46 / 0.29 | 2447 / 2477 | |
+| ema-vfi | MLX before | 2255 / 3362 | 7.74 / 9.28 | 2770 / 4128 | MLX for fp32 only |
+| | MLX now | 1320 / 1741 | 4.24 / 1.86 | 3386 / 4648 | MLX fp16 |
+| | MPS | 1981 / 19632 | 2.47 / 3.99 | 6883 / 11607 | |
+| ema-vfi-t | MLX before | 2222 / 3305 | 5.48 / 8.61 | 2700 / 4129 | MLX fp16 |
+| | MLX now | 1325 / 1713 | 1.37 / 1.83 | 3463 / 4922 | MLX fp16 |
+| | MPS | 2272 / 28800 | 2.38 / 5.09 | 6882 / 10777 | |
+| ema-vfi-small | MLX before | 666 / 980 | 8.32 / 6.36 | 1587 / 2034 | – |
+| | MLX now | 426 / 538 | 0.47 / 0.57 | 1930 / 2881 | MLX fp16 |
+| | MPS | 556 / 736 | 1.57 / 2.31 | 3587 / 6667 | |
+| ema-vfi-small-t | MLX before | 876 / 1019 | 10.3 / 12.7 | 2460 / 2396 | – |
+| | MLX now | 427 / 539 | 0.47 / 0.57 | 1932 / 3007 | MLX fp16 |
+| | MPS | 513 / 792 | 1.02 / 2.03 | 3583 / 6499 | |
+
+ema-vfi's 4.24 s is the first row of the survey run (it converted the weights into the cache); ema-vfi-t, the same
+network, shows the first call with the cache filled.
+
+Both families replayed an exported graph (`mlx_wrap`); RIFE also had a `kernels` mode on MLX (`conv_mlx`
+convolutions in that graph). Both are hand-written now (`rife/mlx_net.py`, `ema_vfi/mlx_net.py`): no export, the
+weights converted once into the conversion cache, one compiled function per shape. RIFE's MLX `kernels` mode is gone
+(the card declares portable only, its four survey rows are dropped); the export-only branches of `rife/model.py`
+(`EXPORTING_FOR_MLX`, the `cat` instead of in-place writes) went with it.
+
+- A transposed convolution (4x4, stride 2, padding 1) is one 2x2 convolution with four times the outputs: phase `a`
+  of the output is the 2x2 convolution's result at `j + a`. `mx.conv_transpose2d` is 3-4x slower (EMA-VFI's U-Net
+  at 1088 x 1920 fp16: 76 against 106 to 156 ms each). The result is never interleaved by MLX operations: a Metal
+  kernel reads the phase layout.
+- RIFE (`_block_input`, `_blend`): one kernel writes an IFBlock's whole input at the block's resolution (both
+  warped images and feature maps as the 2x2 means a bilinear 1/s downscale reads, the last block's mask and
+  features, the flow). The flow at a pixel is the sum of the earlier blocks' low-resolution outputs, upsampled in
+  the kernel in float32: no full-resolution flow field, warped frame or resized copy is stored between the blocks,
+  which is where the memory went (921 MB against 1655). Ragged widths are zero-padded (15 / 28 input channels to
+  16 / 32: a stride-2 convolution of 28 channels at 1152 x 1920 takes 7.8 ms, of 32 4.2 ms).
+- EMA-VFI (`_stack`, `_up`): `_stack` writes a U-Net block's whole input (both frames' backbone features warped by
+  the block mean of the flow, the block before it, zeros up to a width MLX's convolution is fast at: 81 -> 96
+  channels 50 -> 31 ms for the first one) and warps the two images; `_up` interleaves the phases of a transposed
+  convolution, adds the bias, applies the PReLU and appends the skip connection. The window attention is plain
+  matmuls on `[windows, heads, 49, .]`, mask and position windows constants of the compiled function. `tta` runs
+  its two passes one after the other.
+- A Metal kernel thread per pixel that loops over the channels is 3-10x slower than a thread per four channels
+  writing one `packed_vec<T, 4>` (grid z = channels / 4, thread group 8 x 8 x 4). The `_up` interleave of
+  1088 x 1920 x 32 fp16: 30.7 ms with the scalar loop, 8.9 ms with a `vec4` loop per pixel, 2.8 ms with a thread
+  per four channels. ema-vfi-small fp16: 666 ms exported, 554 ms hand-written with per-pixel kernels, 426 ms with
+  these (ema-vfi 2255 -> 1578 -> 1320).
+- Kernel inputs of fewer than 8 elements are bound in Metal's `constant` address space, so the size vector and the
+  placeholders for absent inputs have at least 8.
+
+Against the CPU portable runner at 1080x1920: float32 within 3e-5 to 9e-5 (max), float16 mean 2e-5 to 9e-5; `t`
+other than 0.5 on the `-t` refs and rife-4.26, odd sizes (270x500) and `tta` (480x640) were compared too.
+
+Where ema-vfi-small's time goes (fp16, the pieces timed one by one, 414 ms in all): the backbone's first
+convolutions 48, its blocks 77, the first flow head 43, the U-Net's stride-2 convolutions ~86, its four 2x2 phase
+convolutions 4 x 18.5, the `_stack` kernels ~31, the `_up` kernels ~8 (were 81), the last convolution 8.
+
+Left:
+
+- EMA-VFI's peak is above the exported graph's (ema-vfi fp16 3386 against 2770 MB, small 1930 against 1587; half
+  of MPS). The phase layout of the transposed convolutions (four times the channels until `_up` reads it) and the
+  padded `_stack` outputs are the candidates; not profiled.
+- EMA-VFI is convolution bound now. The 2x2 phase convolutions and the stride-2 ones are not
+  MLX's Winograd path; `conv_mlx` was not tried on them.
+- RIFE's two kernels are still a thread per pixel (the work there is the flow accumulation, not the channel
+  writes); the thread-per-four-channels layout was not tried on them.
+- The MPS runners were not touched. The 2x2 phase form of the transposed convolutions and the zero-padded widths
+  are plain tensor code and could be tried there; ema-vfi / ema-vfi-t fp32 on MPS (19.6 / 28.8 s, 11 GB) swap on
+  16 GB.
