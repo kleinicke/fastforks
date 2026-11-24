@@ -1183,22 +1183,24 @@ class Interpolate(_Node):
 
             def pairs_of(a: torch.Tensor, b: torch.Tensor) -> list[list[torch.Tensor]]:
                 mids = [m(a, b, timestep=k / multiplier).frame for k in range(1, multiplier)]
-                return [[a[i]] + [t[i] for t in mids] for i in range(len(a))]
+                return [[t[i] for t in mids] for i in range(len(a))]
 
-            out = [f for pair in each_pairs(frames, m, batch_size, pairs_of) for f in pair]
-            return (convert.to_image([*out, convert.frame(frames, n - 1, m.device)], _out_device()),)
+            between = each_pairs(frames, m, batch_size, pairs_of)
+        else:
+            last: list[torch.Tensor] = []  # the previous pair's second frame: each frame is uploaded once
 
-        last: list[torch.Tensor] = []  # the previous pair's second frame: each frame is uploaded once
+            def one(i: int) -> list[torch.Tensor]:
+                a = last.pop() if last else convert.frame(frames, i, m.device)
+                b = convert.frame(frames, i + 1, m.device)
+                last.append(b)
+                return [m(a, b, timestep=k / multiplier).frame for k in range(1, multiplier)]
 
-        def one(i: int) -> list[torch.Tensor]:
-            a = last.pop() if last else convert.frame(frames, i, m.device)
-            b = convert.frame(frames, i + 1, m.device)
-            last.append(b)
-            return [a] + [m(a, b, timestep=k / multiplier).frame for k in range(1, multiplier)]
-
-        pairs = each(n - 1, one)
-        out = [f for pair in pairs for f in pair] + last
-        return (convert.to_image(out, _out_device()),)
+            between = each(n - 1, one)
+        # the input frames are taken from the input where the output goes, not downloaded back from the model's device
+        out_device = _out_device()
+        given = [convert.frame(frames, i, out_device) for i in range(n)]
+        out = [f for i, mids in enumerate(between) for f in (given[i], *mids)] + [given[-1]]
+        return (convert.to_image(out, out_device),)
 
 
 class Classify(_Node):

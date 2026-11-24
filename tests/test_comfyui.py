@@ -89,6 +89,12 @@ def test_image_round_trip(pack: Any) -> None:
     frames = [c.frame(img, i, torch.device("cpu")) for i in range(2)]
     assert frames[0].shape == (3, 5, 7)
     assert torch.equal(c.to_image(frames), img)
+    assert torch.equal(c.to_image([frames[0] * 2 - 0.5]), (img[:1] * 2 - 0.5).clamp(0, 1))
+    assert torch.equal(c.to_mask([torch.ones(5, 7, dtype=torch.bool)]), torch.ones(1, 5, 7))
+    with pytest.raises(ValueError, match="differ in size"):
+        c.to_image([frames[0], frames[0][:, :4]])
+    with pytest.raises(ValueError, match="no images"):
+        c.to_mask([])
     rgba = torch.rand(1, 5, 7, 4)
     assert torch.equal(c.frame(rgba, 0, torch.device("cpu")), rgba[0, ..., :3].permute(2, 0, 1))
     gray = torch.rand(1, 5, 7, 1)
@@ -342,6 +348,8 @@ def test_pair_nodes_batch_size_matches_one_pair_at_a_time(pack: Any, monkeypatch
     kw = {"frames": frames, "model": "m", "backend": "auto", "dtype": "auto"}
     one, three = (nodes.Interpolate().run(**kw, multiplier=3, batch_size=b)[0] for b in (1, 3))
     assert one.shape == (13, 4, 6, 3)
+    assert torch.equal(one[::3], frames)  # the input frames themselves, between them the model's
+    torch.testing.assert_close(one[1], frames[0] * 2 / 3 + frames[1] / 3)
     torch.testing.assert_close(three, one)
     assert calls[-4:] == [(3, 3, 4, 6), (3, 3, 4, 6), (1, 3, 4, 6), (1, 3, 4, 6)]  # 2 timesteps x 2 chunks
     calls.clear()

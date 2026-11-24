@@ -140,13 +140,31 @@ def drop_ahead() -> None:
 
 
 def to_image(maps: Sequence[torch.Tensor], device: torch.device | str = "cpu") -> torch.Tensor:
-    """RGB maps of fastforks `[3, H, W]` in `[0, 1]` (one per image) -> IMAGE `[B, H, W, 3]` float32."""
-    return torch.stack([m.detach().float().permute(1, 2, 0) for m in maps]).clamp_(0, 1).to(device).contiguous()
+    """RGB maps of fastforks `[3, H, W]` in `[0, 1]` (one per image, on any device) -> IMAGE `[B, H, W, 3]` float32."""
+    return _batch([m.detach().float().permute(1, 2, 0) for m in maps], device)
 
 
 def to_mask(maps: Sequence[torch.Tensor], device: torch.device | str = "cpu") -> torch.Tensor:
     """Masks or alpha maps `[H, W]` (bool or float in `[0, 1]`, one per image) -> MASK `[B, H, W]` float32."""
-    return torch.stack([m.detach().float() for m in maps]).clamp_(0, 1).to(device).contiguous()
+    return _batch([m.detach().float() for m in maps], device)
+
+
+def _batch(maps: Sequence[torch.Tensor], device: torch.device | str) -> torch.Tensor:
+    """`torch.stack(maps).clamp(0, 1)` on `device`, each map clamped where it is and copied into its slot.
+
+    Stacking on the GPU first held a second copy of every output there (+760 MiB at 32 x 1080p) for the same
+    download time; a map already on `device` (e.g. an input frame) is not moved.
+    """
+    if not maps:
+        msg = "no images to return"
+        raise ValueError(msg)
+    if any(m.shape != maps[0].shape for m in maps):
+        msg = f"the images differ in size: {sorted({tuple(m.shape) for m in maps})}"
+        raise ValueError(msg)
+    out = torch.empty(len(maps), *maps[0].shape, device=device)
+    for o, m in zip(out, maps, strict=True):
+        o.copy_(m.clamp(0, 1))
+    return out
 
 
 def with_alpha(image: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
