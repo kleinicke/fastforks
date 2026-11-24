@@ -59,6 +59,7 @@ so a ComfyUI folder below ~140 characters needs no long-path setting.
 | Depth | IMAGE | IMAGE: inverse depth scaled to 0-1 per image (near = white); image models only |
 | Video depth | IMAGE batch (frames of one clip) | IMAGE batch: Video Depth Anything run as one clip, one 0-1 scale for all frames (no flicker) |
 | Normals | IMAGE | IMAGE: normal map (red = right, green = up, blue = towards the camera) |
+| Line art / edges | IMAGE | IMAGE: line or edge map, white lines on black (line art, anime line art, AnyLine, HED / PiDiNet soft edges, TEED, M-LSD line segments): the ControlNet hints |
 | Remove background | IMAGE, trimap MASK (ViTMatte only) | IMAGE (RGBA), MASK (alpha) |
 | Segment (SAM) | IMAGE, points `x,y; x,y`, box `x0,y0,x1,y1`, text (SAM 3) | MASK |
 | Detect objects | IMAGE, score threshold, classes (open-vocabulary query or class filter) | MASK, STRING (JSON boxes) |
@@ -138,7 +139,7 @@ fastforks update. Models run on ComfyUI's device and
 stay loaded between runs (the two most recently used); ComfyUI's "Unload models" frees them, and ComfyUI unloads its
 own models first when a fastforks model needs the room. When ComfyUI needs room for one of its models and unloading its
 own was not enough, the fastforks models on that device free their CUDA graphs, then unload, least recently used first. By default batches run one image at a time, so a cancel stops after the
-current image. Depth, Normals, Remove background (without a trimap), Detect, Pose, Classify, Tag, NSFW check, Semantic
+current image. Depth, Normals, Line art / edges, Remove background (without a trimap), Detect, Pose, Classify, Tag, NSFW check, Semantic
 segment, Parse, Face restore and Stereo have an optional `batch_size` input: several images (pairs) per model call,
 which is several times faster for small models at 224-512 px (convnext-tiny 8.6x, depth-anything-v2-s 1.8x, rf-detr-s
 5.9x; 480 x 640: rtmo-s pose 2.3x, yunet-n faces 2.7x, stereo coex 1.8x, aanet 2.1x, on an RTX 5060 Ti under
