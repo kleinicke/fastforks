@@ -201,8 +201,8 @@ files as on Linux, hash-checked) came from the same cache. The optional extras `
 - The offline cache lacked the weights of 36 references, so they were handled separately. For 32 of them, the
   weights were downloaded from their recorded URLs into a temporary cache, recorded, and deleted afterwards. Those
   are the timm / torchvision classifiers, dinov2_vitl14_lc, eva02, siglip, omni-dc, segformer and sapiens-seg; all
-  passed. mvsanywhere was recorded after its fix (below). dfine-n-coco, rtmo-t and sam-hq-vit-b fail in kernels
-  mode (see below).
+  passed. mvsanywhere was recorded after its fix (below). dfine-n-coco, rtmo-t and sam-hq-vit-b failed in
+  kernels mode at the sweep; they pass since decision 6 (below; rerun 2026-11-24, both modes).
 - On another Windows machine without these weights, `test_kernels_validated` skips a reference that has no Windows
   record and no local weights, worded like the repo's other weight-missing skips. It fails as before once the
   weights are present, or when a Windows record is stale. Linux checks exactly as before.
@@ -216,7 +216,8 @@ loaded. Check: a process with `PATH=C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\Sy
 `nvidia-cuda-nvcc`, no `CUDA_PATH`) ran the kernels-mode goldens of aanet-plus, c-fast-foundationstereo,
 defom-stereo, hitnet-eth3d and s2m2-l, and they passed. All 11 DLLs were loaded from the per-process temp
 directory, and no module from Visual Studio or the nvcc package was loaded (only PyTorch's own `torch\lib`
-nvrtc). dfine-n-coco and rtmo-t, run in the same process, fail as they do with the tools present.
+nvrtc). dfine-n-coco and rtmo-t, run in the same process, failed as they did with the tools present (both pass
+since decision 6).
 
 Fixed after the sweep, each with a Windows record:
 
