@@ -3,7 +3,7 @@ name = "Cas-GwcNet"
 summary = "Cas-GwcNet (cascade stereo, Gu et al. 2020): two-stage cascade cost volume (48 then 24 disparity hypotheses, the second narrowed around the first result) on GwcNet-style 3-D hourglasses; group-wise correlation + concatenation (gc) or concatenation (c) volumes."
 tier = "stable"
 outputs = ["disparity"]
-uses = ["cnn_kernels", "mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["cnn_kernels", "cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 
 [upstream]
 repo = "https://github.com/alibaba/cascade-stereo"
@@ -26,6 +26,9 @@ ndisps = [48, 24]  # hypotheses per stage at full resolution (README eval: --ndi
 disp_interval = [4.0, 1.0]  # px between hypotheses (README eval: --disp_inter_r "4,1")
 base_channels = [32, 32, 16]  # cost-aggregation channels per stage (main.py default --cr_base_chs)
 ns_size = 3  # neighbour-search window of the stage-2 range (scripts/sceneflow.sh --using_ns --ns_size 3)
+
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: reuse one CUDA graph for small repeated shapes
 
 [modes.portable]
 cuda_dtype = "float16"

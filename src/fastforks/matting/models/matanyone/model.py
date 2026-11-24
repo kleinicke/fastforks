@@ -35,6 +35,7 @@ from fastforks._core.upload import to_device
 from fastforks.kernels import image_normalize
 from fastforks.matting._runner import Runner
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net.inference.image_feature_store import ImageFeatureStore
 from .net.inference.inference_core import InferenceCore
@@ -58,11 +59,13 @@ class Params:
         warmup: Copies of frame 0 run first (`n_warmup`).
         dilate: Mask dilation kernel side in pixels (`r_dilate`).
         erode: Mask erosion kernel side in pixels after the dilation (`r_erode`).
+        cuda_graphs: Replay repeated one-image CUDA kernels forwards.
     """
 
     warmup: int
     dilate: int
     erode: int
+    cuda_graphs: bool
 
 
 _PE3 = {"add_pe_to_qkv": [True, True, False]}
@@ -454,6 +457,7 @@ class Kernels(Portable):
 
     compiled_methods = ("__call__",)  # keep the kernel checks around the full call
     module = Runner.module
+    _GRAPH_PIXELS = 512 * 768  # fixed: cap the one-image inference graph at launch-bound sizes
 
     def __init__(self, ctx: Context) -> None:
         """Prepare the accelerated inference path on the model device."""
@@ -463,6 +467,31 @@ class Kernels(Portable):
             if isinstance(block, MaskUpsampleBlock):
                 override(block, _upsample_block)
         override(self.net.mask_decoder.sensory_update, _sensory_update)
+        self._graphs = SmallShapeGraphs(
+            self._matte, pixels=self._GRAPH_PIXELS, enabled=ctx.params.cuda_graphs, capture_after=2, one_shape=True
+        )
+
+    def _matte(self, image: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        return super().__call__(image, mask)["alpha"]
+
+    @host
+    def __call__(self, image: torch.Tensor, trimap: torch.Tensor | None) -> dict[str, torch.Tensor]:
+        """Alpha of each image as a one-frame video."""
+        assert trimap is not None  # noqa: S101 - mask = "required": the core passes it
+        return {"alpha": self._graphs(image, trimap)}
+
+    @host
+    def track(
+        self, frames: Callable[[int], torch.Tensor], n_frames: int, size: tuple[int, int], mask: torch.Tensor
+    ) -> dict[str, torch.Tensor]:
+        """Compute the video alpha through the stateful inference loop."""
+        # A video can replace positional tables read by the one-image graph.
+        self.release_graphs()
+        return super().track(frames, n_frames, size, mask)
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graph and its memory pool."""
+        self._graphs.release()
 
 
 def _uncached_encoding(m: PositionalEncoding, tensor: torch.Tensor) -> torch.Tensor:

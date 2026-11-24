@@ -21,6 +21,7 @@ from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, sr_ops
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.up_deconv import up_deconv_weight
 
 from .net import RRDBNet
@@ -40,6 +41,7 @@ class Params:
     num_block: int  # RRDB blocks: 23, 6 in the anime model
     num_feat: int  # trunk channels (64 in the release models)
     num_grow: int  # dense-block growth channels (32 in the release models)
+    cuda_graphs: bool
 
 
 _TAIL_TILE_BYTES = 64 * 1024**2  # upper target per high-resolution 64-channel feature map
@@ -152,6 +154,8 @@ class Kernels(Portable):
     """float16, channels-last, fp16-accumulate convolutions (`cudnn_hacc`)."""
 
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
+    _GRAPH_PIXELS = 192 * 256  # fixed: launch-bound x2 patches before pixel unshuffle
+    _GRAPH_SCALE = 2  # fixed: the x4 forwards are already GPU-bound at this size
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and route its convolutions through `cudnn_hacc`."""
@@ -171,12 +175,26 @@ class Kernels(Portable):
                 override(m, _rrdb)
             if is_base(m, torch.nn.Conv2d):
                 override(m, _hacc_conv)
+        self._graphs = SmallShapeGraphs(
+            self._upscale,
+            pixels=self._GRAPH_PIXELS,
+            enabled=ctx.params.cuda_graphs and ctx.params.scale == self._GRAPH_SCALE,
+            capture_after=cudnn_hacc.capture_after(),
+            one_shape=True,
+        )
+
+    def _upscale(self, image: torch.Tensor) -> torch.Tensor:
+        with fp16_accumulate():
+            return _stripe_forward(self.net, image, self.ups)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The upscaled batch."""
         x = image.to(torch.float16).contiguous(memory_format=self.fmt)
-        with fp16_accumulate():
-            return {"image": _stripe_forward(self.net, x, self.ups)}
+        return {"image": self._graphs(x)}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graph and its memory pool."""
+        self._graphs.release()
 
 
 RUNNERS = {

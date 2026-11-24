@@ -14,6 +14,7 @@ from fastforks._core.checkpoint import check_fits
 from fastforks._core.patch import override
 from fastforks.flow._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import LEVELS, MemFlowNet, PCBlock, convert
 
@@ -30,6 +31,7 @@ class Params:
 
     iters: int  # flow updates (upstream `val_decoder_depth`)
     train_avg_length: float  # upstream config value of the attention scale (tokens of its training crop at 1/8, x1.5)
+    cuda_graphs: bool
 
 
 def _net(ctx: Context) -> MemFlowNet:
@@ -237,6 +239,8 @@ class Kernels(Portable):
     (`_pointwise`; 744 -> 644 ms).
     """
 
+    _GRAPH_PIXELS = 384 * 640  # fixed: graph work limit (batch x padded image pixels)
+
     def __init__(self, ctx: Context) -> None:
         """Build the network and bind the lookup kernel."""
         super().__init__(ctx)
@@ -254,15 +258,23 @@ class Kernels(Portable):
                     override(m, _pointwise)
             elif isinstance(m, PCBlock):
                 override(m, _pcblock)
+        # The depthwise convs replace their cached FFT spectra when their geometry changes.
+        self._graphs = SmallShapeGraphs(
+            self._eager, pixels=self._GRAPH_PIXELS, enabled=ctx.params.cuda_graphs, capture_after=2, one_shape=True
+        )
 
-    def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
-        """Flow of a padded batch."""
+    def _eager(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
         iters = self.ctx.params.iters
-        return {
-            "flow": self.net.forward_pair(
-                image1, image2, iters, corr_fn=self.lookup, fp16=True, matrix_bytes=ATTENTION_MATRIX_BYTES
-            )
-        }
+        return self.net.forward_pair(
+            image1, image2, iters, corr_fn=self.lookup, fp16=True, matrix_bytes=ATTENTION_MATRIX_BYTES
+        )
+
+    def _flow(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
+        return self._graphs(image1, image2)
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graph and its memory pool."""
+        self._graphs.release()
 
     def module(self) -> torch.nn.Module:
         """No exportable module: the lookup is a kernel launch."""

@@ -865,6 +865,7 @@ option depth.omni_dc.cuda_graphs
 option depth.pointdit.steps
 option depth.pointdit.stream
 option depth.pointdit.tokens
+option depth.prompt_depth_anything.cuda_graphs
 option depth.prompt_depth_anything.max_size
 option depth.stablenormal.long_side aliases processing_res
 option depth.stablenormal.seed
@@ -935,10 +936,12 @@ option features.siglip2.fp32_accumulate
 option features.siglip2.stream
 option features.tipsv2.fp16_accumulate
 option features.tipsv2.stream
+option flow.flowformer.cuda_graphs
 option flow.flowformer.iters
 option flow.flowseek.iters
 option flow.gmflow.cuda_graphs
 option flow.megaflow.iters
+option flow.memflow.cuda_graphs
 option flow.memflow.iters
 option flow.memfof.iters
 option flow.neuflow_v2.cuda_graphs
@@ -948,6 +951,7 @@ option flow.raft.iters
 option flow.recover.cuda_graphs
 option flow.recover.iters
 option flow.sea_raft.iters
+option flow.waft.cuda_graphs
 option flow.waft.iters
 option interpolation.ema_vfi.cuda_graphs
 option interpolation.ema_vfi.tta
@@ -975,10 +979,12 @@ option matching.romav2.keep_descriptors
 option matching.xfeat.long_side
 option matching.xfeat.max_keypoints
 option matting.ben2.cuda_graphs
+option matting.matanyone.cuda_graphs
 option matting.matanyone.dilate aliases r_dilate
 option matting.matanyone.erode aliases r_erode
 option matting.matanyone.warmup aliases n_warmup
 option matting.u2net.cuda_graphs
+option matting.vitmatte.cuda_graphs
 option multiview.anysplat.long_side
 option multiview.anysplat.voxel_size
 option multiview.depthsplat.cuda_graphs
@@ -1030,6 +1036,9 @@ option restoration.codeformer.cuda_graphs
 option restoration.codeformer.fidelity aliases fidelity_weight
 option restoration.gfpgan.cuda_graphs
 option restoration.lama.cuda_graphs
+option restoration.nafnet.cuda_graphs
+option restoration.realesrgan.cuda_graphs
+option restoration.restormer.cuda_graphs
 option restoration.seedvr2.keep
 option restoration.seedvr2.quant
 option restoration.seedvr2.seed
@@ -1040,6 +1049,8 @@ option segmentation.sapiens.stream
 option stereo.aanet.cuda_graphs
 option stereo.bridgedepth.cuda_graphs
 option stereo.c_foundationstereo.iters
+option stereo.cas_gwcnet.cuda_graphs
+option stereo.cfnet.cuda_graphs
 option stereo.coex.cuda_graphs
 option stereo.crestereo.cuda_graphs
 option stereo.crestereo.iters
@@ -1050,9 +1061,11 @@ option stereo.fast_acvnet.cuda_graphs
 option stereo.foundationstereo.iters
 option stereo.great_igev.cuda_graphs
 option stereo.great_igev.iters
+option stereo.gwcnet.cuda_graphs
 option stereo.hitnet.cuda_graphs
 option stereo.igev_plusplus.cuda_graphs
 option stereo.igev_plusplus.iters
+option stereo.igev_stereo.cuda_graphs
 option stereo.igev_stereo.iters
 option stereo.las2.cuda_graphs
 option stereo.mocha_stereo.cuda_graphs
@@ -1060,9 +1073,11 @@ option stereo.mocha_stereo.iters
 option stereo.monster.iters
 option stereo.monster_plusplus.iters
 option stereo.nmrf.cuda_graphs
+option stereo.psmnet.cuda_graphs
 option stereo.raft_stereo.iters
 option stereo.rt_monster_plusplus.cuda_graphs
 option stereo.s2m2.cuda_graphs
+option stereo.selective_igev.cuda_graphs
 option stereo.selective_igev.iters
 option stereo.waft_stereo.cuda_graphs
 option tracking.alltracker.iters

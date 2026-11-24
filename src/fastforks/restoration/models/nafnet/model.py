@@ -27,6 +27,7 @@ from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, dpt_fused, nafnet_gate
 from fastforks.restoration._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import NAFNet
 from .net.NAFNet_arch import NAFBlock
@@ -48,6 +49,7 @@ class Params:
     dec_blocks: tuple[int, ...]  # NAFBlocks per decoder level (deepest first)
     key: str  # checkpoint key ("params")
     tlc: int  # training patch size of `NAFNetLocal` (local channel attention, window 1.5 x); 0: `NAFNet` (global)
+    cuda_graphs: bool
 
 
 class _LocalMean(torch.nn.Module):
@@ -308,6 +310,7 @@ class Kernels(Portable):
     """Channels-last fp16 convolutions with a fused depthwise convolution and SimpleGate."""
 
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
+    _GRAPH_PIXELS = 256 * 384  # fixed: small restoration patches where replay reduces launch overhead
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and route its dense convolutions through `cudnn_hacc`."""
@@ -330,12 +333,26 @@ class Kernels(Portable):
             for i, stage in enumerate(self.net.ups):
                 self.net.ups[i] = _Shuffle(stage[0])  # ty: ignore[not-subscriptable] - NAFNet builds Sequential upsamplers
             override(self.net, _restore)
+        self._graphs = SmallShapeGraphs(
+            self._restore_image,
+            pixels=self._GRAPH_PIXELS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+            one_shape=True,
+        )
+
+    def _restore_image(self, image: torch.Tensor) -> torch.Tensor:
+        with fp16_accumulate():
+            return self.net(image)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The restored batch."""
         x = image.to(torch.float16).contiguous(memory_format=self.fmt)
-        with fp16_accumulate():
-            return {"image": self.net(x)}
+        return {"image": self._graphs(x)}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graph and its memory pool."""
+        self._graphs.release()
 
 
 RUNNERS = {

@@ -27,12 +27,14 @@ import torch.nn.functional as F
 
 from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.mps import fence
+from fastforks.kernels import cudnn_hacc
 from fastforks.kernels.dpt_fused import ACT_GELU
 from fastforks.kernels.dpt_fused import load as load_dpt_fused
 from fastforks.matting._runner import Forward, Runner, scale
 from fastforks.shared import mlx_wrap, sam_attention
 from fastforks.shared.cnn_kernels import ACT, CL, bn_affine, conv_ep, prepare_convs
 from fastforks.shared.cnn_kernels import load as load_cnn
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net.vitmatte import Config, VitMatteForImageMatting, get_rel_pos, matte_in_strips
 
@@ -52,10 +54,12 @@ class Params:
     Attributes:
         hidden_size: Backbone width (S: 384, B: 768).
         num_heads: Attention heads (head dim 64).
+        cuda_graphs: Replay small, repeated CUDA kernels forwards.
     """
 
     hidden_size: int
     num_heads: int
+    cuda_graphs: bool
 
 
 def _cpu_net(ctx: Context) -> VitMatteForImageMatting:
@@ -145,18 +149,21 @@ class _Geometry:
             with torch.inference_mode(mode=False), torch.no_grad():
                 emb = self.net.backbone.embeddings
                 pos = emb.get_absolute_positions(emb.position_embeddings.float(), True, h, w)  # noqa: FBT003
-                rel = [self._rel(layer, h, w) for layer in self.net.backbone.encoder.layer]
+                onehot: dict[tuple[int, int], torch.Tensor] = {}
+                rel = [self._rel(layer, h, w, onehot) for layer in self.net.backbone.encoder.layer]
                 found = to_run_dtype(pos.to(self.device), self.dtype).contiguous(), rel  # float32 in the MLX twin
             if type(found[0]) is torch.Tensor:  # not a traced one (an MLX export's fake tensor)
                 self.cache[h, w] = found
         return found
 
-    def _rel(self, layer: Any, h: int, w: int) -> Rel:  # noqa: ANN401 - upstream VitDetLayer
+    def _rel(self, layer: Any, h: int, w: int, onehot: dict[tuple[int, int], torch.Tensor]) -> Rel:  # noqa: ANN401 - upstream VitDetLayer
         a, ws = layer.attention, int(layer.window_size)
         sh, sw = (ws, ws) if ws else (h, w)
         rh = to_run_dtype(get_rel_pos(sh, sh, a.rel_pos_h.float()).to(self.device), self.dtype)
         rw = to_run_dtype(get_rel_pos(sw, sw, a.rel_pos_w.float()).to(self.device), self.dtype)
-        return rh, rw, to_run_dtype(_onehot_keys(sh, sw, self.device, self.dtype), self.dtype)
+        if (sh, sw) not in onehot:
+            onehot[sh, sw] = to_run_dtype(_onehot_keys(sh, sw, self.device, self.dtype), self.dtype)
+        return rh, rw, onehot[sh, sw]
 
 
 # ------------------------------------------------------------------------------------------------ runners
@@ -268,6 +275,10 @@ class _FusedLayer:
 class Kernels(_Matting):
     """fp16: backbone on `dpt_fused` GEMMs / convs with SDPA (flash) attention, decoder on fused cuDNN convs."""
 
+    _SMALL_WIDTH = 384  # fixed: ViTMatte-S backbone width
+    _GRAPH_PIXELS_SMALL = 512 * 768  # fixed: padded work limit where the smaller backbone benefits
+    _GRAPH_PIXELS_BASE = 320 * 480  # fixed: the larger backbone saturates the GPU sooner
+
     def __init__(self, ctx: Context) -> None:
         """Convert the backbone (on the CPU) and the decoder (on the device)."""
         super().__init__(ctx)
@@ -289,6 +300,28 @@ class Kernels(_Matting):
         head = dec.matting_head.matting_convs
         self.head_affine = bn_affine(head[1], head[0])
         prepare_convs(dec)  # fp16, channels-last; the >= 128-channel convs on the CUTLASS fused kernel
+        cap = self._GRAPH_PIXELS_SMALL if ctx.params.hidden_size == self._SMALL_WIDTH else self._GRAPH_PIXELS_BASE
+        self._graphs = SmallShapeGraphs(
+            self._matte,
+            pixels=cap,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+            size=self._graph_pixels,
+            one_shape=True,
+        )
+
+    def _graph_pixels(self, image: torch.Tensor, _trimap: torch.Tensor) -> int:
+        b, _, h, w = image.shape
+        return b * (h + (-h % _PAD)) * (w + (-w % _PAD))
+
+    def _matte(self, image: torch.Tensor, trimap: torch.Tensor) -> torch.Tensor:
+        return super().__call__(image, trimap)["alpha"]
+
+    def __call__(self, image: torch.Tensor, trimap: torch.Tensor | None) -> dict[str, torch.Tensor]:
+        """Alpha of the image and its trimap."""
+        if trimap is None or torch.compiler.is_compiling() or torch.jit.is_tracing():
+            return super().__call__(image, trimap)
+        return {"alpha": self._graphs(image, trimap)}
 
     def _attention(self, b: _FusedLayer, x: torch.Tensor, rel: Rel) -> torch.Tensor:
         """`[B, h, w, C]` (normed, partitioned) -> attention output before proj, rows `[B * h * w, C]`."""
@@ -358,6 +391,10 @@ class Kernels(_Matting):
         for layer, r in zip(self.layers, rel, strict=True):
             h = self._layer(layer, h, r)
         return self._decoder(h.permute(0, 3, 1, 2), x.contiguous(memory_format=CL))
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graph and its memory pool."""
+        self._graphs.release()
 
 
 RUNNERS = {

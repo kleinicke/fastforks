@@ -3,7 +3,7 @@ name = "FlowFormer Small"
 summary = "FlowFormer Small (ECCV 2022): convolutional features, a latent cost-memory transformer and recurrent flow decoding. The authors' Small checkpoints, with plain float32 inference."
 tier = "experimental"
 outputs = ["flow"]
-uses = ["libnet", "cuda_softmax", "mlx_wrap"]
+uses = ["cuda_graphs", "libnet", "cuda_softmax", "mlx_wrap"]
 limitations = [
   "Only the Small architecture is included.",
   "Default CUDA inference uses the validated float32 precision. The optional float16 portable path requires separate accuracy validation.",
@@ -61,6 +61,7 @@ use_mlp = false
 vertical_conv = false
 
 [options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: reuse one CUDA graph for small repeated shapes
 iters = { default = 32, min = 1 }
 
 [modes.portable]

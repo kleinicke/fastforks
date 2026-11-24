@@ -3,7 +3,7 @@ name = "MemFlow"
 summary = "MemFlow (Dong & Fu, CVPR 2024): optical flow with a memory of past motion. A RAFT-style network at 1/8 resolution: BasicEncoder feature and context networks, an all-pairs correlation pyramid, a motion encoder and update block of depthwise-separable large-kernel blocks (SKFlow) instead of a GRU, and an attention readout of the motion features of memory frames; convex 8x upsampling. The authors' released weights; the network is ported from DQiaole/MemFlow. A pair (image1, image2) runs as upstream's first frame of a video (empty memory: the readout attends over the pair's own motion features). Paper (video with memory, val_decoder_depth 15): Sintel test EPE 1.05 (clean) / 1.91 (final), KITTI 2015 test Fl-all 4.10 %."
 tier = "experimental"
 outputs = ["flow"]
-uses = ["cuda_softmax", "mlx_wrap"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "cuda_softmax", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
   "Pairs only: the video memory (the keys and values of earlier frames that upstream's inference keeps) is not exposed; each pair runs as the first frame of a video.",
   "The MemFlow-T checkpoints (Twins-SVT encoders) and MemFlow-P (flow prediction) are not ported.",
@@ -31,6 +31,7 @@ min_size = 128  # 1/8 features with a 4-level pyramid: the coarsest level needs 
 pad = { multiple = 8, mode = "centre", fill = "replicate" }  # upstream InputPadder ('sintel' mode)
 
 [options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: reuse one CUDA graph for small repeated shapes
 iters = { default = 15, min = 1 }  # flow updates (upstream val_decoder_depth 15 in every config; fewer trade accuracy for speed, its Fig. 1)
 
 [params]

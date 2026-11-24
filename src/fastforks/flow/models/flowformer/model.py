@@ -15,6 +15,7 @@ from fastforks._core.volume_ops import corr_windows
 from fastforks.flow._runner import Forward, Runner
 from fastforks.kernels import flow_upsample
 from fastforks.shared import libnet, mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.shared.cuda_softmax import softmax_rows_
 
 if TYPE_CHECKING:
@@ -70,6 +71,7 @@ class Params:
     use_mlp: bool
     vertical_conv: bool
     iters: int
+    cuda_graphs: bool = True
 
     @property
     def decoder_depth(self) -> int:
@@ -401,6 +403,7 @@ class Kernels(Portable):
     """
 
     module = Runner.module
+    _GRAPH_PIXELS = 256 * 384  # fixed: larger pairs are GPU-bound
 
     def __init__(self, ctx: Context) -> None:
         """Run the motion encoder and GMA values in float16 and fuse the last prediction's upsampling."""
@@ -429,6 +432,20 @@ class Kernels(Portable):
         for m in self.net.modules():
             if isinstance(m, GlobalSubSampleAttnRPE):
                 m.__dict__["_sdpa"] = True  # read by its forward
+        self._graphs = SmallShapeGraphs(
+            self._eager, pixels=self._GRAPH_PIXELS, enabled=ctx.params.cuda_graphs, capture_after=2, one_shape=True
+        )
+
+    def _eager(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
+        return _forward(self.net, image1, image2, fp16=self.fp16)
+
+    def __call__(self, image1: torch.Tensor, image2: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Flow of a padded batch."""
+        return {"flow": self._graphs(image1, image2)}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graph and its memory pool."""
+        self._graphs.release()
 
 
 MLX_EMBED_MAPS = 512  # fixed: cost maps embedded at a time in the MLX pass (float32 convs: 280 MB per map chunk)

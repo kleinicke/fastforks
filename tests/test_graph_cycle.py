@@ -16,8 +16,8 @@ from fastforks.shared.cuda_graphs import SmallShapeGraphs, capture_stream, side_
 
 
 class _Owner:
-    def __init__(self, pixels: int = 10) -> None:
-        self._graphs = SmallShapeGraphs(self._forward, pixels=pixels)
+    def __init__(self, pixels: int = 10, *, one_shape: bool = False) -> None:
+        self._graphs = SmallShapeGraphs(self._forward, pixels=pixels, one_shape=one_shape)
 
     def _forward(self, x: torch.Tensor) -> torch.Tensor:
         return x @ x + 1
@@ -63,3 +63,25 @@ def test_captures_leave_no_memory_behind():
         del owner
         left.append(_allocated_mb())
     assert left[1:] == left[:-1], f"MB left after each model: {left}"
+
+
+@pytest.mark.gpu
+def test_one_shape_drops_the_graph_before_a_smaller_input():
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA device")
+    graph = _Owner(pixels=64 * 64, one_shape=True)
+    x = torch.randn(1, 1, 64, 64, device="cuda")
+    y = torch.randn(1, 1, 32, 32, device="cuda")
+    cache = graph._graphs.cache
+    assert cache is not None
+    for _ in range(4):
+        graph._graphs(x)
+        graph._graphs(y)
+        assert not cache.graphs
+    graph._graphs(x)
+    captured = graph._graphs(x)
+    assert len(cache.graphs) == 1
+    torch.testing.assert_close(graph._graphs(y), y @ y + 1)
+    assert not cache.graphs
+    torch.testing.assert_close(captured, graph._graphs(x))
+    assert not cache.graphs

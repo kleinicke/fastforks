@@ -9,7 +9,9 @@ import torch
 
 from fastforks._core.layout import nchw
 from fastforks._core.tracing import exporting_for_mlx
+from fastforks.kernels import cudnn_hacc
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Forward, Runner
 from fastforks.stereo._volume import stacked_volume
 
@@ -27,6 +29,7 @@ class Params:
 
     concat_volume: bool
     max_disp: int
+    cuda_graphs: bool
 
 
 def _net(ctx: Context) -> GwcNet:
@@ -121,6 +124,7 @@ class Kernels(Runner):
     """Our kernels: fp16-accumulate convolutions, conv + BatchNorm + activation fused into one epilogue, fp16."""
 
     Params = Params
+    _GRAPH_PIXELS = 384 * 640  # fixed: cap the pool at the measured launch-bound sizes
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and the kernel state."""
@@ -130,10 +134,24 @@ class Kernels(Runner):
         self.net = _net(ctx)
         prepare_generic(self.net, ctx.device)
         hacc_padded_deconvs(self.net)  # the hourglasses' upsampling convs
+        self._graphs = SmallShapeGraphs(
+            self._disparity,
+            pixels=self._GRAPH_PIXELS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+            one_shape=True,
+        )
+
+    def _disparity(self, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+        return forward(self.net, left, right, fused=True)
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity of a padded pair."""
-        return {"disparity": forward(self.net, left, right, fused=True)}
+        return {"disparity": self._graphs(left, right)}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graph and its memory pool."""
+        self._graphs.release()
 
 
 RUNNERS = {

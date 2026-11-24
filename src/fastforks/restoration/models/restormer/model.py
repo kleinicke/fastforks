@@ -25,6 +25,7 @@ from fastforks._core.patch import is_base, override
 from fastforks.kernels import cudnn_hacc, fastbb
 from fastforks.restoration._runner import Crop, Forward, Runner
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net import Restormer
 from .net.restormer_arch import Attention, FeedForward, TransformerBlock, WithBias_LayerNorm
@@ -50,6 +51,7 @@ class Params:
     norm: str  # "WithBias" or "BiasFree" (real denoising)
     key: str  # checkpoint key ("params")
     multiple: int  # 8: the test scripts' reflect padding
+    cuda_graphs: bool
 
 
 def _gram(q: torch.Tensor, k: torch.Tensor) -> torch.Tensor:
@@ -422,6 +424,7 @@ class Kernels(Portable):
     _prepare_attention = staticmethod(_fold_head_attention)
     _prepare_ffn = staticmethod(_gate_ffn)
     module = Runner.module  # fp16-accumulate convolutions are cuDNN plans, not exportable operators
+    _GRAPH_PIXELS = 192 * 256  # fixed: cap the graph pool at launch-bound patch sizes
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and route its dense convolutions through `cudnn_hacc`."""
@@ -440,11 +443,25 @@ class Kernels(Portable):
                     unit_weights[channels] = torch.ones(channels, device=ctx.device, dtype=torch.float32)
                 for name in ("norm1", "norm2"):
                     m.register_module(name, _CudaNorm(getattr(m, name), unit_weights[channels]))
+        self._graphs = SmallShapeGraphs(
+            self._restore_image,
+            pixels=self._GRAPH_PIXELS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+            one_shape=True,
+        )
+
+    def _restore_image(self, image: torch.Tensor) -> torch.Tensor:
+        return _restore(self.net, image)
 
     def __call__(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
         """The restored batch."""
         x = image.to(torch.float16).contiguous(memory_format=self.fmt)
-        return {"image": _restore(self.net, x)}
+        return {"image": self._graphs(x)}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graph and its memory pool."""
+        self._graphs.release()
 
 
 class _Mlx(Portable):

@@ -18,8 +18,9 @@ from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks._core.mlx_cast import float32_call, to_float32, to_run_dtype
 from fastforks._core.tracing import in_onnx_export
-from fastforks.kernels import cfnet_volume
+from fastforks.kernels import cfnet_volume, cudnn_hacc
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from fastforks.stereo._runner import Forward, Runner
 
 from .net.cfnet import cfnet
@@ -50,6 +51,7 @@ class Params:
     """Architecture of a variant (card `[params]` + variant `params`)."""
 
     max_disp: int
+    cuda_graphs: bool
 
 
 def _net(ctx: Context) -> cfnet:
@@ -306,6 +308,7 @@ class Kernels(Runner):
 
     deterministic_cudnn = True  # as Portable: the default transposed 3D convs fall back to a slow atomic fp32 engine
     Params = Params
+    _GRAPH_PIXELS = 256 * 384  # fixed: cap the pool where replay pays off
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and the kernel state."""
@@ -322,10 +325,24 @@ class Kernels(Runner):
         hacc_padded_deconvs(self.net)  # the hourglasses' upsampling convs
         for name, m in keep.items():
             setattr(self.net, name, m)
+        self._graphs = SmallShapeGraphs(
+            self._disparity,
+            pixels=self._GRAPH_PIXELS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=cudnn_hacc.capture_after(),
+            one_shape=True,
+        )
+
+    def _disparity(self, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+        return forward(self.net, left, right, _cuda_stage, _cuda_coarse)
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity of a padded pair."""
-        return {"disparity": forward(self.net, left, right, _cuda_stage, _cuda_coarse)}
+        return {"disparity": self._graphs(left, right)}
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graph and its memory pool."""
+        self._graphs.release()
 
 
 class MetalKernels(Portable):

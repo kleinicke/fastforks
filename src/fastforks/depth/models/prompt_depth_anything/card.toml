@@ -3,7 +3,7 @@ name = "Prompt Depth Anything"
 summary = "Prompt Depth Anything (Lin et al., CVPR 2025): metric depth from an image and a low-resolution metric depth prompt (e.g. a LiDAR map), a DINOv2 ViT with a DPT head that fuses the prompt at every refinement stage."
 tier = "experimental"
 outputs = ["depth"]
-uses = ["cv2_resize", "depth_anything_v2", "mlx_wrap"]  # fastforks.shared modules this family imports (the ViT and the DPT blocks)
+uses = ["cuda_graphs", "cv2_resize", "depth_anything_v2", "mlx_wrap"]  # fastforks.shared modules this family imports (the ViT and the DPT blocks)
 limitations = [
   "The depth prompt is required: call the model with `prompt_depth=` a finite, positive map in metres (zero or missing LiDAR pixels must be filled first). Export is at a fixed size only.",
 ]
@@ -28,6 +28,7 @@ input = "imagenet"  # the runner shrinks the image to max_size (area), floors bo
 pad = "none"
 
 [options]
+cuda_graphs = { default = true, effect = "speed" }  # CUDA kernels, ViT-S: reuse one graph for small repeated shapes
 max_size = { default = 1008, min = 14 }  # longest network side (upstream load_image's max_size), rounded down to a multiple of 14
 
 [modes.portable]

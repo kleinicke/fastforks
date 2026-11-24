@@ -346,7 +346,7 @@ class GraphCache:
     def release(self) -> None:
         """Drop every graph and free the pool on the device (`torch.cuda.empty_cache`)."""
         with self._lock:
-            if self._stream is not None:
+            if self.graphs and self._stream is not None:
                 self._stream.synchronize()
             self.graphs.clear()
             self._used.clear()
@@ -381,30 +381,48 @@ class SmallShapeGraphs(Generic[_Output]):
         enabled: bool = True,
         capture_after: int = 1,
         size: Callable[..., int] | None = None,
+        one_shape: bool = False,
     ) -> None:
         """`forward(*tensors) -> Tensor`; at most `graphs` shapes keep a graph (see `GraphCache`).
 
         `size(*inputs)` replaces `batch x H x W` of the first input as the size compared with `pixels` (a forward
         that resizes its input inside: the network size).
+        `one_shape` captures only consecutive requests of one signature and releases it before running another.
+        Use it when the forward replaces size-dependent buffers a graph may read or to limit overlapping allocations.
         """
         self.forward = _weak(forward)
         self.pixels = pixels
         self.size = _weak(size) if size is not None else None
-        self.cache = GraphCache(forward, graphs=graphs, capture_after=capture_after) if enabled else None
+        self.one_shape = one_shape
+        self._last_key: Hashable | None = None
+        self.cache = (
+            GraphCache(forward, graphs=1 if one_shape else graphs, capture_after=capture_after) if enabled else None
+        )
 
     def __call__(self, *inputs: torch.Tensor) -> _Output:
         """`forward(*inputs)`, from a graph when the input is small, CUDA and its shape repeats."""
         x = inputs[0]
+        cache = self.cache
+        if cache is None or not x.is_cuda:
+            return self.forward(*inputs)
         small = (self.size(*inputs) if self.size else x.shape[0] * x.shape[-2] * x.shape[-1]) <= self.pixels
-        if self.cache is not None and x.is_cuda and small:
-            key = (x.device, tuple((t.dtype, tuple(t.shape)) for t in inputs))
-            out = self.cache.run(key, *inputs)
+        key = None
+        if small:
+            if self.one_shape:
+                key = (x.device, tuple((t.dtype, t.shape, t.stride()) for t in inputs))
+            else:
+                key = (x.device, tuple((t.dtype, tuple(t.shape)) for t in inputs))
+        if self.one_shape and self._last_key != key:
+            if self._last_key is not None:
+                cache.release()
+            self._last_key = key
+        elif key is None and cache.graphs:
+            # A large eager forward can reuse memory freed from a held small graph.
+            cache.release()
+        if key is not None:
+            out = cache.run(key, *inputs)
             if out is not None:
                 return out
-        elif self.cache is not None and self.cache.graphs and x.is_cuda:
-            # a GPU-bound input: the small shapes' graph pool would stay reserved next to its activations (fast-acvnet
-            # 994x1482 after 375x1242: 962 vs 736 MiB); a small shape that returns captures again on its 2nd call
-            self.cache.release()
         return self.forward(*inputs)
 
     def release(self) -> None:
