@@ -45,7 +45,7 @@ These terms apply to every device:
 ## Other devices
 
 - [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 578 models, 2252 rows, measured 2026-11-06 to 2026-11-24.
-- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1514 rows, measured 2026-11-19 to 2026-11-24.
+- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1520 rows, measured 2026-11-19 to 2026-11-24.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -139,11 +139,11 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`any2full-b`](models/depth.md#any2full) | – | 268 ms · portable fp16 | 379 ms · portable fp16 | – | – | – | – | – |
 | [`any2full-l`](models/depth.md#any2full) | – | 684 ms · portable fp16 | 864 ms · portable fp32 | – | – | – | – | – |
 | [`any2full-s`](models/depth.md#any2full) | – | 118 ms · portable fp16 | 160 ms · portable fp16 | – | – | – | – | – |
-| [`da3-giant-1.1`](models/depth.md#depth_anything_3) | 44.2 ms · kernels fp16 | 759 ms · portable fp16 | 647 ms · portable fp16 | 63.2 ms · kernels fp16 | 22.5 ms · kernels fp16 | 60.1 ms · kernels fp16 | 25.0 ms · kernels fp16 | 14.2 ms · kernels fp16 |
-| [`da3-large-1.1`](models/depth.md#depth_anything_3) | 17.1 ms · kernels fp16 | 318 ms · portable fp16 | 268 ms · portable fp16 | 22.4 ms · kernels fp16 | 8.49 ms · kernels fp16 | 21.1 ms · kernels fp16 | – | 6.59 ms · kernels fp16 |
-| [`da3metric-large`](models/depth.md#depth_anything_3) | 14.7 ms · kernels fp16 | 280 ms · portable fp16 | 231 ms · portable fp16 | 19.5 ms · kernels fp16 | 7.78 ms · kernels fp16 | 18.6 ms · kernels fp16 | – | 6.04 ms · kernels fp16 |
-| [`da3mono-large`](models/depth.md#depth_anything_3) | 14.6 ms · kernels fp16 | 280 ms · portable fp16 | 231 ms · portable fp16 | 19.2 ms · kernels fp16 | 7.66 ms · kernels fp16 | 18.5 ms · kernels fp16 | 12.8 ms · kernels fp16 | 5.81 ms · kernels fp16 |
-| [`da3nested-giant-large-1.1`](models/depth.md#depth_anything_3) | 58.2 ms · kernels fp16 | 1184 ms · portable fp16 | 878 ms · portable fp16 | 81.9 ms · kernels fp16 | 30.0 ms · kernels fp16 | 78.1 ms · kernels fp16 | – | 19.7 ms · kernels fp16 |
+| [`da3-giant-1.1`](models/depth.md#depth_anything_3) | 44.2 ms · kernels fp16 | 759 ms · portable fp16 | 606 ms · portable fp16 | 63.2 ms · kernels fp16 | 22.5 ms · kernels fp16 | 60.1 ms · kernels fp16 | 25.0 ms · kernels fp16 | 14.2 ms · kernels fp16 |
+| [`da3-large-1.1`](models/depth.md#depth_anything_3) | 17.1 ms · kernels fp16 | 318 ms · portable fp16 | 226 ms · portable fp16 | 22.4 ms · kernels fp16 | 8.49 ms · kernels fp16 | 21.1 ms · kernels fp16 | – | 6.59 ms · kernels fp16 |
+| [`da3metric-large`](models/depth.md#depth_anything_3) | 14.7 ms · kernels fp16 | 280 ms · portable fp16 | 227 ms · portable fp16 | 19.5 ms · kernels fp16 | 7.78 ms · kernels fp16 | 18.6 ms · kernels fp16 | – | 6.04 ms · kernels fp16 |
+| [`da3mono-large`](models/depth.md#depth_anything_3) | 14.6 ms · kernels fp16 | 280 ms · portable fp16 | 227 ms · portable fp16 | 19.2 ms · kernels fp16 | 7.66 ms · kernels fp16 | 18.5 ms · kernels fp16 | 12.8 ms · kernels fp16 | 5.81 ms · kernels fp16 |
+| [`da3nested-giant-large-1.1`](models/depth.md#depth_anything_3) | 58.2 ms · kernels fp16 | 1184 ms · portable fp16 | 840 ms · portable fp16 | 81.9 ms · kernels fp16 | 30.0 ms · kernels fp16 | 78.1 ms · kernels fp16 | – | 19.7 ms · kernels fp16 |
 | [`depth-anything-v2-b`](models/depth.md#depth_anything_v2) | 10.5 ms · kernels fp16 | 199 ms · portable fp16 | 169 ms · kernels fp16 | 14.6 ms · kernels fp16 | 4.67 ms · kernels fp16 | 13.7 ms · kernels fp16 | – | 4.00 ms · kernels fp16 |
 | [`depth-anything-v2-l`](models/depth.md#depth_anything_v2) | 31.1 ms · kernels fp16 | 579 ms · portable fp16 | 498 ms · kernels fp16 | 42.7 ms · kernels fp16 | 13.6 ms · kernels fp16 | 40.1 ms · kernels fp16 | 16.1 ms · kernels fp16 | 8.61 ms · kernels fp16 |
 | [`depth-anything-v2-metric-hypersim-b`](models/depth.md#depth_anything_v2) | – | 199 ms · portable fp16 | 170 ms · kernels fp16 | – | – | – | – | – |
@@ -153,7 +153,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`depth-anything-v2-metric-vkitti-l`](models/depth.md#depth_anything_v2) | – | 580 ms · portable fp16 | 527 ms · portable fp16 | – | – | – | – | – |
 | [`depth-anything-v2-metric-vkitti-s`](models/depth.md#depth_anything_v2) | – | 79.5 ms · portable fp16 | 67.4 ms · kernels fp16 | – | – | – | – | – |
 | [`depth-anything-v2-s`](models/depth.md#depth_anything_v2) | 4.51 ms · kernels fp16 | 80.7 ms · portable fp16 | 66.5 ms · kernels fp16 | 5.92 ms · kernels fp16 | 2.24 ms · kernels fp16 | 5.43 ms · kernels fp16 | 4.63 ms · kernels fp16 | 2.02 ms · kernels fp16 |
-| [`depth-pro`](models/depth.md#depth_pro) | – | 5011 ms · portable fp16 | 4653 ms · portable fp16 | 472 ms · kernels fp16 | 133 ms · kernels fp16 | 359 ms · kernels fp16 | 119 ms · kernels fp16 | 68.9 ms · kernels fp16 |
+| [`depth-pro`](models/depth.md#depth_pro) | – | 5011 ms · portable fp16 | 4271 ms · portable fp16 | 472 ms · kernels fp16 | 133 ms · kernels fp16 | 359 ms · kernels fp16 | 119 ms · kernels fp16 | 68.9 ms · kernels fp16 |
 | [`depthfm-v1`](models/depth.md#depthfm) | – | OOM | 39312 ms · portable fp16 | – | – | – | – | – |
 | [`distill-any-depth-b`](models/depth.md#depth_anything_v2) | – | 199 ms · portable fp16 | 170 ms · kernels fp16 | – | – | – | – | – |
 | [`distill-any-depth-l`](models/depth.md#depth_anything_v2) | – | 580 ms · portable fp16 | 529 ms · portable fp16 | – | – | – | – | – |

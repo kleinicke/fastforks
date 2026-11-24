@@ -253,8 +253,8 @@ class TestMpsRouting:
     def test_auto_takes_the_fastest_measured_option(self):
         assert self.route("sam3", task="promptable_segmentation") == ("portable", "float16")
         assert self.route("crestereo-eth3d") == ("kernels", "float16")
-        # faster, but the first call (compile 26 s) costs more than 3 MPS runs (5 s): `auto` keeps MPS
-        assert self.route("depth-pro", task="depth") is None
+        # hand-written, so nothing is exported: the first call (4.3 s) is within MPS's first and two warm ones
+        assert self.route("depth-pro", task="depth") == ("portable", "float16")
         assert self.route("realesr-general-x4v3", task="restoration") is None
 
     def test_auto_with_a_dtype_takes_mlx_only_where_it_measured_faster(self):

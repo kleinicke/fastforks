@@ -90,12 +90,25 @@ def rotate(x: mx.array, cos: mx.array, sin: mx.array) -> mx.array:
     return x * cos + mx.concatenate([-b, a], axis=-1) * sin
 
 
-def attention(qkv: mx.array, heads: int, rope=None) -> mx.array:
-    """Packed `[B, N, 3 C]` -> `[B, N, C]`; `rope`: `(cos, sin)` `[N, C / heads]` applied to q and k."""
+def attention(qkv: mx.array, heads: int, rope=None, norm=None) -> mx.array:
+    """Packed `[B, N, 3 C]` -> `[B, N, C]`; `rope`: `(cos, sin)` `[N, C / heads]` applied to q and k.
+
+    `norm`: `(weight, bias)` `[2, C / heads]` of the LayerNorms (torch's default eps) over each head's channels of
+    q and of k, before the rotation (Depth Anything 3's any-view blocks). Written out, with float32 statistics:
+    `mx.fast.layer_norm` takes its time per row, and these are `2 * heads * N` rows of one head's channels (ViT-g,
+    865 tokens, float16: 2.5 ms of a 16 ms block, 0.7 ms like this).
+    """
     b, n, c3 = qkv.shape
     d = c3 // (3 * heads)
     qkv = qkv.reshape(b, n, 3, heads, d).transpose(2, 0, 3, 1, 4)
     q, k = qkv[0], qkv[1]
+    if norm is not None:
+        y = qkv[:2].astype(mx.float32)
+        y = y - mx.mean(y, axis=-1, keepdims=True)
+        y = y * mx.rsqrt(mx.mean(y * y, axis=-1, keepdims=True) + 1e-5)
+        w, bias = (a.astype(mx.float32).reshape(2, 1, 1, 1, d) for a in norm)
+        y = (y * w + bias).astype(qkv.dtype)
+        q, k = y[0], y[1]
     if rope is not None:
         q, k = rotate(q, *rope), rotate(k, *rope)
     out = mx.fast.scaled_dot_product_attention(q, k, qkv[2], scale=d**-0.5)
@@ -103,10 +116,11 @@ def attention(qkv: mx.array, heads: int, rope=None) -> mx.array:
 
 
 def block(p: dict[str, mx.array], i: int, x: mx.array, heads: int, eps: float, rope=None) -> mx.array:
-    """Pre-norm block `i` on tokens `[B, N, C]`."""
+    """Pre-norm block `i` on tokens `[B, N, C]` (with `blocks.<i>.qk_norm.weight` / `.bias`: `attention`'s `norm`)."""
     b = f"blocks.{i}."
+    norm = (p[b + "qk_norm.weight"], p[b + "qk_norm.bias"]) if b + "qk_norm.weight" in p else None
     h = mx.fast.layer_norm(x, p[b + "norm1.weight"], p[b + "norm1.bias"], eps)
-    h = attention(mx.addmm(p[b + "qkv.bias"], h, p[b + "qkv.weight"]), heads, rope)
+    h = attention(mx.addmm(p[b + "qkv.bias"], h, p[b + "qkv.weight"]), heads, rope, norm)
     x = x + mx.addmm(p[b + "proj.bias"], h, p[b + "proj.weight"])
     h = mx.fast.layer_norm(x, p[b + "norm2.weight"], p[b + "norm2.bias"], eps)
     if b + "w12.weight" in p:
@@ -256,16 +270,17 @@ def _embed(p: dict[str, mx.array], x: mx.array, table: mx.array) -> mx.array:
 
 
 def dinov2_layers(
-    p: dict[str, mx.array], heads: int, x: mx.array, table: mx.array, layers: tuple[int, ...]
+    p: dict[str, mx.array], heads: int, x: mx.array, table: mx.array, layers: tuple[int, ...], norm_eps: float = 1e-6
 ) -> list[mx.array]:
     """Normalised `[B, 3, H, W]` -> the tokens `[B, 1 + R + N, C]` after the blocks `layers`, each through the norm.
 
     DINOv2's `get_intermediate_layers(norm=True)` with 1-based, ascending `layers` (the blocks after the last one do
-    not run); `table`: `dinov2_table` in the weights' dtype. Lazy, in that dtype: for a port that writes its head in
+    not run); `table`: `dinov2_table` in the weights' dtype; `norm_eps`: the final norm's (`EPS`, DINOv2's;
+    Depth Anything 3 builds that one with torch's default). Lazy, in that dtype: for a port that writes its head in
     MLX operations too (Depth Anything V2, MoGe).
     """
     _, hs = blocks(p, max(layers), heads, EPS, _embed(p, x, table), layers)
-    return [mx.fast.layer_norm(h, p["norm.weight"], p["norm.bias"], EPS) for h in hs]
+    return [mx.fast.layer_norm(h, p["norm.weight"], p["norm.bias"], norm_eps) for h in hs]
 
 
 def dinov2_table(

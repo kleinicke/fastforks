@@ -25,7 +25,6 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks.depth._runner import Forward, Runner, scale
-from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import side_stream
 
 from .net import DEC, HOOKS, SIZE, DepthProNet, tables
@@ -249,11 +248,7 @@ class Portable(Runner):
         self.half = ctx.dtype == "float16"
         self.in_dtype = torch.float16 if self.half else torch.float32
         net = _net(ctx)
-        if (
-            mlx_wrap.twin_dtype() == "float16"
-        ):  # the MLX float16 graph from the checkpoint's float16 weights as they are
-            self.in_dtype = torch.float16
-        elif not self.half:
+        if not self.half:
             net = net.float()
         self.fast = _Fast(net).eval().to(ctx.device)  # a new Module starts in training mode
         if self.half:  # everything after the ViTs on NHWC maps
@@ -521,13 +516,29 @@ from fastforks.depth.models.depth_anything_v2.fused import (  # noqa: E402 - sha
 from fastforks.kernels.dpt_fused import ACT_GELU, ACT_RELU, DptFused  # noqa: E402
 from fastforks.kernels.dpt_fused import load as load_dpt_fused  # noqa: E402
 
-RUNNERS = {
-    "portable": Portable,
-    "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(
-        Portable, attrs=(), methods=("_graph",), net_attr="fast", release=True, chunk_mb=256, pipeline=True
-    ),
-    "kernels_mlx": mlx_wrap.port(
-        Portable, attrs=(), methods=("_graph",), net_attr="fast", release=True, chunk_mb=256, pipeline=True
-    ),
-}
+
+class MlxPortable(Runner):
+    """Apple MLX (`device="mlx"`): the ViTs, the decoder and the heads in MLX array operations (`mlx_net`).
+
+    float32, or float16 with the head's last convolution and the field-of-view head in float32.
+    """
+
+    intrinsics = "optional"  # given intrinsics replace the FOV estimate (fx)
+
+    def __init__(self, ctx: Context) -> None:
+        """Convert or read the cached weights and build the MLX network."""
+        super().__init__(ctx)
+        from fastforks._core.mlx import converted  # noqa: PLC0415 - needs the mlx extra
+
+        from . import mlx_net  # noqa: PLC0415
+
+        self.net = mlx_net.Net(converted(ctx, mlx_net.LAYOUT, lambda: mlx_net.prepare(_net(ctx))), ctx.dtype)
+
+    def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:
+        """Depth (and intrinsics when none are given) of one image."""
+        h, w = image.shape[-2:]
+        cid, fov = self.net(_prepare(self.ctx, image, torch.float32), with_fov=intrinsics is None)
+        return _finish(cid, fov, intrinsics, h, w)
+
+
+RUNNERS = {"portable": Portable, "kernels": Kernels, "portable_mlx": MlxPortable, "kernels_mlx": MlxPortable}

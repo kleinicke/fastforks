@@ -687,11 +687,58 @@ What was tried on that gap, vits fp16:
 
 Still open:
 
-- The same no-export trunk would cut the first call of the other DINOv2-backbone ports that still export
-  (`da3-large-1.1`, `da3metric-large`, `da3mono-large`, `da3-giant`, `depth-pro`): `dinov2_layers` is the encoder,
-  each needs its decoder written by hand.
+- The other DINOv2-backbone ports that exported: done, see "Depth Anything 3 and Depth Pro without an export"
+  below.
 - vits fp16's 4% warm gap against the replayed graph: cause not found (none of the single ops above).
 - `moge-3-vitl` stays on MPS kernels float32 (2543 against 2415 ms warm).
+
+### Depth Anything 3 and Depth Pro without an export (2026-11-24)
+
+Both families are hand-written on MLX now (`depth_anything_3/mlx_net.py`, `depth_pro/mlx_net.py`), on the shared ViT
+blocks of `mlx_vit`; nothing is exported, the weights convert once into the conversion cache. MLX fp16 portable,
+994x1482, survey rows (warm ms / first call s / peak MB), MPS = its fp16 portable row:
+
+| ref | MPS | MLX before | MLX now | first-call budget | auto |
+|---|---|---|---|---|---|
+| da3mono-large | 280 / 0.45 / 2499 | 231 / 2.09 / 1557 | 227 / 0.26 / 1563 | 1.01 | MLX (was MPS) |
+| da3metric-large | 280 / 0.44 / 2499 | 231 / 2.02 / 1555 | 227 / 0.26 / 1561 | 1.00 | MLX (was MPS) |
+| da3-large-1.1 | 318 / 0.58 / 2520 | 268 / 3.44 / 1763 | 226 / 0.26 / 1594 | 1.22 | MLX (was MPS) |
+| da3-giant-1.1 | 759 / 0.91 / 7243 | 647 / 31.7 / 3454 | 606 / 0.68 / 3231 | 2.43 | MLX (was MPS) |
+| da3nested-giant-large-1.1 | 1184 / 2.03 / 8136 | 878 / 43.7 / 4123 | 840 / 0.91 / 3895 | 4.40 | MLX (was MPS) |
+| depth-pro | 5011 / 5.16 / 7169 | 4653 / 30.9 / 5490 | 4271 / 4.31 / 4905 | 15.2 | MLX (was MPS) |
+
+Float32 rows: mono 288 -> 275 ms (first 2.09 -> 0.31 s, peak 2730 -> 2425 MB), metric 286 -> 275 (2.02 -> 0.32,
+2729 -> 2416), large 317 -> 273 (3.42 -> 0.33, 2720 -> 2503), giant 827 -> 751 (34.0 -> 0.95, 5876 -> 5770), nested
+1138 -> 1037 (40.6 -> 1.52, 7272 -> 7076), depth-pro 7541 -> 5310 (22.3 -> 5.97, 10529 -> 8712). A second input
+shape costs one warm call. Load time rises by the conversion's read (giant fp16 ~4 s, nested ~8 s, depth-pro ~5 s
+from the cache on the external disk; the first load of a checkpoint converts and writes the float32 cache file:
+nested peaked at 6.7 GB there, depth-pro at 6.9 GB).
+
+Depth Anything 3 (one module for the mono, metric, any-view and nested variants):
+
+- The DPT head is Depth Anything V2's (`_conv`, `_fuse`, `resize` of its `mlx_net`); the any-view backbone adds the
+  camera token, the local / global alternation, RoPE and the q/k norm to `mlx_vit.attention` / `block`.
+- LayerNorm eps: the blocks' norms are 1e-6, the final, q/k and head norms 1e-5 (`dinov2_layers(norm_eps=)`).
+- The q/k norm (64 wide, on every token of every head) through `mx.fast.layer_norm` was the slowest op of the giant:
+  written out in float32 (mean, variance, rsqrt) it is faster and the giant's warm time drops below the export's.
+- Load peak of the giant: casting the float32 cache to float16 left the originals in MLX's buffer cache; emptying it
+  every 64 MB of cast weights keeps the load under the run's peak (2555 MB against 3231 MB).
+
+Depth Pro:
+
+- The 35 windows of the patch encoder are one batch gathered from the three pyramid levels' patch embeddings
+  (`net.tables`), the two other ViTs single images; every 1x1 convolution + 2x2 transposed convolution chain is one
+  matmul and a depth-to-space. Encoders 3.3 s of the 4.3 s call (ViT-L on 35 x 577 tokens), decoder levels 4-1
+  0.2 s, level 0 and head 0.75 s.
+- Memory decides the structure of the last stage (768x768 maps, 300 MB each in float16). As one compiled function
+  nothing is freed before the end: 7.5 GB over the weights, 7.5 GB footprint. Evaluated map by map with one queued
+  ahead (`mx.async_eval`): 6.6 GB MLX peak, because MLX's Winograd holds ~2.4 GB while a 256 -> 256 conv runs and
+  two are in flight. One at a time: 5.0 GB, but 4.6 s instead of 4.35 s. The 3x3 convs in bands of rows, two bands
+  in flight (fp16, warm ms / footprint MB): 1 band 4340 / 7348, 2: 4250 / 6066, 3: 4200 / 5438, 4: 4240 / 5228,
+  6: 4230 / 4994, 8: 4230 / 4940. Six taken (fp32: 4 bands 5310 ms / 9528 MB, 8 bands noisier at 8912 MB).
+- The composed head has 136 channels between its two 3x3 convs (128, a constant one, 7 of zeros). At 768x768 fp16
+  a 256 -> 136 conv takes 199 ms (144 outputs, what the translator padded to: 143 ms), 256 -> 160 73 ms (Winograd),
+  136 -> 128 54 ms, 160 -> 128 44 ms: the weights are zero-padded to 160 at conversion. Goldens pass in both dtypes.
 
 ## Ragged 3x3 convs and MLX's fast path: what the translator pads (2026-11-24)
 

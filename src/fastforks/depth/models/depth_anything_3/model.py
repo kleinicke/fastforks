@@ -35,7 +35,6 @@ from fastforks._core.errors import OptionsError
 from fastforks._core.patch import override
 from fastforks._core.upload import device_tensor
 from fastforks.depth._runner import Forward, Runner, scale
-from fastforks.shared import mlx_wrap
 from fastforks.shared.cv2_resize import cv2_resize
 from fastforks.shared.host_blocks import StreamedModuleList
 from fastforks.shared.quantile import kth_smallest
@@ -745,45 +744,67 @@ from fastforks.kernels.fastbb import Flash64  # noqa: E402
 from fastforks.shared.depth_anything_v2 import flash_attention, fp16_accumulate  # noqa: E402
 
 
-class _BranchModule(nn.Module):
-    """One branch's forward (backbone, head, activation) as a module: what the MLX graph exports."""
+class MlxPortable(Runner):
+    """Apple MLX (`device="mlx"`): encoder, head and camera decoder in MLX array operations (`mlx_net`).
 
-    def __init__(self, host: Portable, br: _Branch) -> None:
-        super().__init__()
-        self.br = br
-        object.__setattr__(self, "host", host)  # not a submodule: the module's tensors are this branch's alone
+    float32, or float16 with the 1x1 output convolutions, the activations and the camera decoder in float32.
+    """
 
-    def forward(self, x: torch.Tensor) -> dict:
-        return Portable._branch(self.host, self.br, x)  # noqa: SLF001 - the sibling runner's own helper  # ty: ignore[invalid-argument-type]
+    batch = None
+    Params = Params
+    intrinsics = "optional"  # Metric; set per variant in __init__
 
+    @classmethod
+    def input_use(cls, params: Params) -> dict[str, Any]:
+        """Intrinsics: `"optional"` for the metric variants, else `"unused"`.
 
-def _mlx(portable: type[Portable]) -> type[Portable]:
-    base = mlx_wrap.port(portable, attrs=())
+        Args:
+            params: The variant's `Params`.
+        """
+        return _input_use(params)
 
-    class Mlx(base):  # ty: ignore[unsupported-base]
-        """Apple MLX: each branch runs through the exported-graph translation."""
+    def __init__(self, ctx: Context) -> None:
+        """Convert or read the cached weights and build the MLX branches."""
+        super().__init__(ctx)
+        from fastforks._core.mlx import converted  # noqa: PLC0415 - needs the mlx extra
 
-        def __init__(self, ctx: Context) -> None:
-            """Wrap the branches."""
-            from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - MLX only (imports mlx)
+        from . import mlx_net  # noqa: PLC0415
 
-            super().__init__(ctx)
-            kernels = ctx.mode == "kernels"
-            self._fns = {
-                id(br): MlxModule(_BranchModule(self, br), ctx.dtype, kernels=kernels, release=True)
-                for br in self._branches()
-            }
+        self.arch: Arch = ctx.params.arch
+        self.intrinsics = self.input_use(ctx.params)["intrinsics"]  # ty: ignore[invalid-attribute-access] - per variant
+        self.assumed_camera = "a 300 px focal length" if self.intrinsics == "optional" else ""  # ty: ignore[invalid-attribute-access]
+        if ctx.params.stream:
+            msg = "stream=True requires CUDA for host-to-device block transfers"
+            raise OptionsError(msg)
+        cfgs = dict(zip(("main", "metric"), _CONFIGS[self.arch], strict=False))
 
-        def _branch(self, br: _Branch, x: torch.Tensor) -> dict:
-            return self._fns[id(br)](x)
+        def build() -> dict:
+            state = ctx.state_dict(strip="model.")
+            sd = {}
+            for k in list(state):
+                name = _rename(k, self.arch == "nested")
+                v = state.pop(k)
+                if name is not None:
+                    sd[name] = v
+            return mlx_net.prepare(sd, cfgs)
 
-    Mlx.__name__ = Mlx.__qualname__ = f"Mlx{portable.__name__}"
-    return Mlx
+        p32 = converted(ctx, mlx_net.LAYOUT, build)
+        self.branches = []
+        for name, cfg in cfgs.items():
+            part = {k.removeprefix(name + "."): p32.pop(k) for k in list(p32) if k.startswith(name + ".")}
+            self.branches.append(mlx_net.Branch(part, cfg, ctx.dtype))
+        self._outputs = mlx_net.outputs
+
+    def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:
+        """Depth (and mask / confidence / intrinsics) of a batch."""
+        x = _prepare(self.ctx, image)
+        outs = [self._outputs(br, x) for br in self.branches]
+        return _finish(self.arch, outs, intrinsics, image.shape[-2:], x.shape[-2:])
 
 
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": _mlx(Portable),
-    "kernels_mlx": _mlx(Portable),
+    "portable_mlx": MlxPortable,
+    "kernels_mlx": MlxPortable,
 }

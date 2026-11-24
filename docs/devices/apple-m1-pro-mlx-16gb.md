@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-24 |
-| rows | 1514 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1520 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -119,11 +119,11 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`any2full-b`](../models/depth.md#any2full) | 379 | 379 | – | – | – | – | 1583 | – |
 | [`any2full-l`](../models/depth.md#any2full) | 864 | 909 | – | – | – | – | 3827 | – |
 | [`any2full-s`](../models/depth.md#any2full) | 169 | 160 | – | – | – | – | 1012 | – |
-| [`da3-giant-1.1`](../models/depth.md#depth_anything_3) | 827 | 647 | – | – | – | – | 3454 | – |
-| [`da3-large-1.1`](../models/depth.md#depth_anything_3) | 317 | 268 | – | – | – | – | 1763 | – |
-| [`da3metric-large`](../models/depth.md#depth_anything_3) | 286 | 231 | – | – | – | – | 1555 | – |
-| [`da3mono-large`](../models/depth.md#depth_anything_3) | 288 | 231 | – | – | – | – | 1557 | – |
-| [`da3nested-giant-large-1.1`](../models/depth.md#depth_anything_3) | 1138 | 878 | – | – | – | – | 4123 | – |
+| [`da3-giant-1.1`](../models/depth.md#depth_anything_3) | 751 | 606 | – | unsupported | – | – | 3231 | – |
+| [`da3-large-1.1`](../models/depth.md#depth_anything_3) | 273 | 226 | – | unsupported | – | – | 1594 | – |
+| [`da3metric-large`](../models/depth.md#depth_anything_3) | 275 | 227 | – | unsupported | – | – | 1561 | – |
+| [`da3mono-large`](../models/depth.md#depth_anything_3) | 275 | 227 | – | unsupported | – | – | 1563 | – |
+| [`da3nested-giant-large-1.1`](../models/depth.md#depth_anything_3) | 1037 | 840 | – | unsupported | – | – | 3895 | – |
 | [`depth-anything-v2-b`](../models/depth.md#depth_anything_v2) | 228 | 184 | – | 214 | 169 | 1.1x | 1026 | 1026 |
 | [`depth-anything-v2-l`](../models/depth.md#depth_anything_v2) | 671 | 518 | – | 630 | 498 | 1.0x | 1893 | 1759 |
 | [`depth-anything-v2-metric-hypersim-b`](../models/depth.md#depth_anything_v2) | 237 | 184 | – | 216 | 170 | 1.1x | 1017 | 1027 |
@@ -133,7 +133,7 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`depth-anything-v2-metric-vkitti-l`](../models/depth.md#depth_anything_v2) | 661 | 527 | – | 720 | 587 | 0.9x | 1924 | 1684 |
 | [`depth-anything-v2-metric-vkitti-s`](../models/depth.md#depth_anything_v2) | 117 | 78.5 | – | 87.1 | 67.4 | 1.2x | 735 | 707 |
 | [`depth-anything-v2-s`](../models/depth.md#depth_anything_v2) | 92.3 | 73.8 | – | 84.9 | 66.5 | 1.1x | 725 | 696 |
-| [`depth-pro`](../models/depth.md#depth_pro) | 7541 | 4653 | – | – | – | – | 5490 | – |
+| [`depth-pro`](../models/depth.md#depth_pro) | 5310 | 4271 | – | unsupported | – | – | 4905 | – |
 | [`depthfm-v1`](../models/depth.md#depthfm) | 75642 | 39312 | – | – | – | – | 8118 | – |
 | [`distill-any-depth-b`](../models/depth.md#depth_anything_v2) | 231 | 184 | – | 216 | 170 | 1.1x | 1027 | 1020 |
 | [`distill-any-depth-l`](../models/depth.md#depth_anything_v2) | 685 | 529 | – | 640 | 544 | 1.0x | 1847 | 1769 |
