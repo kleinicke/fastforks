@@ -98,6 +98,4 @@ They are not advertised in the docs. The model pages carry a "Not in this releas
 |---|---|---|---|---|
 | `@overload` return types | `fastforks.load()` returns a generic `Model` to type checkers | it takes a model id, not a task, so an overload would need a `Literal` of every id (hundreds, changing with each card) | decided (2026-11-24): no; `fastforks.<task>.load` already returns the precise class and the `load` docstring says so | `__init__.py` |
 | `save()` keywords | resolved (checked 2026-11-24 against tests/api_snapshot.txt) | every map result (depth, stereo views and pairs, `MapOutputs`, multiview) takes `save(path, key, bits, *, max_depth, axes)`, multiview adds `view=`; flow, interpolation, restoration, volume, instances and Gaussians take `save(path)` alone | none | result classes |
-| verb table | the task verbs (`predict` / `segment` / `match` ...) are documented per page | no single table | one generated table in `docs/api.md` | `tools/gen_docs.py` |
 | `labels=` (0.1.1 name of `class_names=`) | still accepted with a FutureWarning | migration rule | remove after 2026-12-15 (with the other renamed names) | `_core/arguments.py` `legacy_labels` |
-| `VolumeSession.add_point(zyx)` vs `VolumeInteractive(point=)` | the same point has two keyword names | added in separate steps | one name (`point`), the other a warned alias | `volume/_api.py` |

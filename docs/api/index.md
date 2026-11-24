@@ -42,6 +42,37 @@ Every task package (`fastforks.stereo`, `fastforks.depth`, ...) has `list_models
 
 ::: fastforks._core.api.LoadFn
 
+## Calling a model
+
+Every model is called directly; there are no per-task verbs such as `predict` or `segment`. The table lists the call
+and the task's extra methods; the options after `*` and the result classes are on each task's page.
+
+| task | `model(...)` | returns | other methods |
+|---|---|---|---|
+| calibration | `image` | `CalibrationResult` | |
+| classification | `image` | `ClassificationResult` | |
+| depth | `image, *, intrinsics, prompt_depth` | `DepthResult` | `video(frames)` |
+| detection | `image, *, score_threshold, text` | `DetectionResult` (a list for a batch) | |
+| edges | `image` | `EdgesResult` | |
+| features | `image, *, size, layers` | `FeaturesResult` | |
+| flow | `image1, image2` | `FlowResult` | |
+| interpolation | `image1, image2, *, timestep` | `InterpolationResult` | |
+| matching | `image1, image2` | `MatchingResult` (dense) or `SparseMatchingResult` | `match_pairs(images, pairs)` |
+| matting | `image, *, trimap, mask` | `MattingResult` | `video(frames, *, mask)` -> `VideoMattingResult` |
+| multi-view | `images, *, intrinsics, cam_to_world, reference, ...` | `MultiViewResult` | |
+| OCR | `image` | `OCRResult` (a list for a batch) | |
+| pose | `image, *, boxes` | `PoseResult` (a list for a batch) | |
+| promptable segmentation | `image, *, input_points, input_labels, input_boxes, ...` | `PromptableSegmentationResult`; concept models `ConceptSegmentationResult`, in-context models `InContextSegmentationResult` | `get_image_embeddings(image)`, `video(frames, ...)` |
+| restoration | `image, *, mask, tile` | `RestorationResult` | |
+| retrieval | `image` | `RetrievalResult` | |
+| segmentation | `image, *, logits` | `SegmentationResult` | |
+| stereo | `left, right, *, rig, views, size, focal` | `StereoResult` | `run_many(lefts, rights, ...)` |
+| tracking | `video, queries` | `TrackingResult` | |
+| volume | `volume, *, spacing, meta` | `VolumeResult` | `networks()` |
+
+All models also have `module()`, `example_inputs()`, `compile()`, `export_onnx()`, `export_tensorrt()`, `warmup()`,
+`size_range()`, `export_size()` and `release_graphs()` (see `fastforks.Model` above).
+
 ## What `model.module()` covers
 
 `module()` is the part of `model(...)` that `torch.compile`, `torch.export` and ONNX see; the rest of the call stays in
