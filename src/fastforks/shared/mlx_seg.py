@@ -17,9 +17,9 @@ import torch
 from fastforks._core.mlx import metal_kernel, mx, to_mx
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
-__all__ = ["upsample_argmax"]
+__all__ = ["resize_argmax", "slide_scores", "upsample_argmax"]
 
 _CHUNK_ELEMENTS = 1 << 26  # float32 elements of one class chunk's resized scores (256 MB)
 
@@ -141,8 +141,13 @@ def upsample_argmax(scores: torch.Tensor, sizes: Sequence[Sequence[int]]) -> tor
         return _fused2(x, sizes)
     for size in sizes[:-1]:
         x = _resize(x, size)
+    return resize_argmax(x, sizes[-1])
+
+
+def resize_argmax(x: mx.array, size: Sequence[int]) -> torch.Tensor:
+    """Per-pixel argmax `[B, H, W]` (int64) of the float32 scores `[B, h, w, C]` resized to `size`, in one kernel."""
     b, h, w, c = x.shape
-    oh, ow = sizes[-1]
+    oh, ow = size
     y0, y1, wy = _taps(h, oh)
     x0, x1, wx = _taps(w, ow)
     (out,) = _ARGMAX(
@@ -155,6 +160,71 @@ def upsample_argmax(scores: torch.Tensor, sizes: Sequence[Sequence[int]]) -> tor
     )
     mx.eval(out)
     return torch.from_numpy(np.array(out)).to(torch.int64)
+
+
+_SLIDE = metal_kernel(
+    name="seg_slide_resize",
+    input_names=["x", "oy", "ox", "y0", "y1", "wy", "x0", "x1", "wx"],
+    output_names=["out"],
+    source="""
+        // one thread per pixel of the sliding-window scores: each window that covers it resized there, then the mean
+        uint px = thread_position_in_grid.x, py = thread_position_in_grid.y, n = thread_position_in_grid.z;
+        if (px >= OW || py >= OH) return;
+        int H = x_shape[1], W = x_shape[2];
+        device float* o = out + ((size_t(n) * OH + py) * OW + px) * C;
+        for (int c = 0; c < C; ++c) o[c] = 0.0f;
+        float count = 0.0f;
+        for (int k = 0; k < K; ++k) {
+            int cy = int(py) - oy[k], cx = int(px) - ox[k];
+            if (cy < 0 || cy >= CH || cx < 0 || cx >= CW) continue;
+            const device float* base = x + (size_t(k) * B + n) * H * W * C;
+            const device float* p00 = base + (size_t(y0[cy]) * W + x0[cx]) * C;
+            const device float* p01 = base + (size_t(y0[cy]) * W + x1[cx]) * C;
+            const device float* p10 = base + (size_t(y1[cy]) * W + x0[cx]) * C;
+            const device float* p11 = base + (size_t(y1[cy]) * W + x1[cx]) * C;
+            float fx = wx[cx], fy = wy[cy];
+            for (int c = 0; c < C; ++c) {
+                float top = p00[c] + (p01[c] - p00[c]) * fx;
+                float bot = p10[c] + (p11[c] - p10[c]) * fx;
+                o[c] += top + (bot - top) * fy;
+            }
+            count += 1.0f;
+        }
+        for (int c = 0; c < C; ++c) o[c] /= count;
+    """,
+)
+
+
+def slide_scores(
+    logits: Callable[[torch.Tensor], mx.array], x: torch.Tensor, crop: Sequence[int], stride: Sequence[int]
+) -> mx.array | None:
+    """The mmseg `slide_inference` (`seginfer.slide`) of a network with low-resolution logits, on MLX.
+
+    `logits` maps crops `[n, 3, ch, cw]` to their logits `[n, gh, gw, C]` on MLX, which the network would resize to
+    the crop (bilinear, `align_corners=False`). That resize and the windows' average are one kernel in float32, so
+    neither the windows' crop-size logits nor their sum exist: `[B, h, w, C]` float32 scores at `x`'s size (lazy).
+    Windows are batched per row, as `slide`. None if `x` is smaller than the crop (clipped windows: use `slide`).
+    """
+    (ch, cw), (sh, sw) = crop, stride
+    b, _, h, w = x.shape
+    if h < ch or w < cw:
+        return None
+    ys = [min(i * sh, h - ch) for i in range((h - ch + sh - 1) // sh + 1)]
+    xs = [min(j * sw, w - cw) for j in range((w - cw + sw - 1) // sw + 1)]
+    low = [logits(torch.cat([x[:, :, y : y + ch, x1 : x1 + cw] for x1 in xs])).astype(mx.float32) for y in ys]
+    lows = mx.concatenate(low) if len(low) > 1 else low[0]
+    _, gh, gw, c = lows.shape
+    oy = mx.array(np.repeat(np.array(ys, np.int32), len(xs)))
+    ox = mx.array(np.tile(np.array(xs, np.int32), len(ys)))
+    (out,) = _SLIDE(
+        inputs=[lows, oy, ox, *_taps(gh, ch), *_taps(gw, cw)],
+        template=[("C", c), ("OH", h), ("OW", w), ("CH", ch), ("CW", cw), ("K", len(ys) * len(xs)), ("B", b)],
+        grid=(w, h, b),
+        threadgroup=(32, 8, 1),
+        output_shapes=[(b, h, w, c)],
+        output_dtypes=[mx.float32],
+    )
+    return out
 
 
 def _fused2(x: mx.array, sizes: Sequence[Sequence[int]]) -> torch.Tensor:

@@ -214,6 +214,10 @@ class DinoLinearProbe:
 
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
         """Normalised, patch-aligned NCHW image to logits over images or patch tokens."""
+        return to_torch(self.logits(image))
+
+    def logits(self, image: torch.Tensor) -> mx.array:
+        """`__call__`, the logits left on MLX (lazy, in the run dtype)."""
         h, w = image.shape[-2] // self.patch, image.shape[-1] // self.patch
         side = math.isqrt(self.pos.shape[1])
         table = self.pos
@@ -228,7 +232,7 @@ class DinoLinearProbe:
                 .permute(0, 2, 3, 1)
                 .reshape(1, h * w, -1)
             )
-        return to_torch(self.forward(to_mx(image), to_mx(table).astype(self.dtype)))
+        return self.forward(to_mx(image), to_mx(table).astype(self.dtype))
 
 
 EPS = 1e-6  # LayerNorm

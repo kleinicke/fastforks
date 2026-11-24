@@ -28,6 +28,8 @@ from fastforks.shared.depth_anything_v2 import DINOv2, use_fast_vit, use_sdpa_at
 from fastforks.shared.seginfer import resize, slide, target_size, upsample, upsample_argmax
 
 if TYPE_CHECKING:
+    import mlx.core as mx
+
     from fastforks.segmentation._runner import Context
 
 
@@ -200,14 +202,55 @@ class _MlxNet(_Net):
     def _patch_logits(self, y: torch.Tensor) -> torch.Tensor:
         return self.probe(y).to(self.dtype)
 
+    def low(self, x: torch.Tensor) -> mx.array:
+        """Normalised crops `[B, 3, h, w]` -> patch logits `[B, gh, gw, 150]` on MLX (`forward` before its resize)."""
+        h, w = x.shape[-2:]
+        p = self.patch_size
+        ph, pw = math.ceil(h / p) * p - h, math.ceil(w / p) * p - w
+        y = F.pad(x, (pw // 2, pw - pw // 2, ph // 2, ph - ph // 2))
+        return self.probe.logits(y).reshape(x.shape[0], (h + ph) // p, (w + pw) // p, -1)
+
 
 class Mlx(Portable):
-    """MLX patch logits with the common sliding-window and image-size restoration."""
+    """MLX patch logits; the windows' resize and average and the image-size argmax are Metal kernels (`mlx_seg`).
+
+    In PyTorch on the CPU that post-processing took 4/5 of a call (dinov2-s, 1024x2048: 660 ms, the ViT 90 ms).
+    """
 
     def __init__(self, ctx: Context) -> None:
         """Convert the verified DINOv2 backbone and ADE20K head."""
         Runner.__init__(self, ctx)
         self.net = _MlxNet(ctx)
+
+    def _slide(self, image: torch.Tensor) -> mx.array | None:
+        """Scores `[B, h, w, 150]` (float32, MLX) at the network input size; None for an image below the crop."""
+        from fastforks.shared import mlx_seg  # noqa: PLC0415 - optional MLX dependency
+
+        p = self.ctx.params
+        h, w = image.shape[-2:]
+        x = scale(resize(image, target_size(h, w, p.resize)), self.ctx.io)
+        return mlx_seg.slide_scores(self.net.low, x, (p.crop, p.crop), (p.stride, p.stride))
+
+    def _scores(self, image: torch.Tensor) -> torch.Tensor:
+        from fastforks._core.mlx import to_torch  # noqa: PLC0415 - optional MLX dependency
+
+        scores = self._slide(image)
+        if scores is None:
+            return super()._scores(image)
+        return to_torch(scores.transpose(0, 3, 1, 2)).to(self.net.dtype)
+
+    def labels(self, image: torch.Tensor) -> torch.Tensor:
+        """Labels `[B, H, W]` of a batch: the scores stay on MLX up to the argmax."""
+        from fastforks.shared import mlx_seg, mlx_wrap  # noqa: PLC0415 - optional MLX dependency
+
+        scores = self._slide(image)
+        if scores is not None:
+            return mlx_seg.resize_argmax(scores, image.shape[-2:])
+        token = mlx_wrap.POST_ON_MLX.set(True)
+        try:
+            return super().labels(image)
+        finally:
+            mlx_wrap.POST_ON_MLX.reset(token)
 
     module = Runner.module
 
