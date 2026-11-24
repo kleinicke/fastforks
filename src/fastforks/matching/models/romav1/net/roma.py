@@ -10,7 +10,7 @@ import math
 import torch
 import torch.nn.functional as F
 from torch import nn
-from fastforks._core.tracing import EXPORTING_FOR_MLX  # fastforks
+from fastforks._core.tracing import exporting_for_mlx  # fastforks
 from fastforks._core.upload import device_tensor  # fastforks
 
 from fastforks.shared.depth_anything_v2 import Block, SdpaAttention
@@ -156,7 +156,7 @@ class GP(nn.Module):
         k_xy = self.kernel(x, y)
         sigma_noise = self.sigma_noise * torch.eye(h2 * w2, device=x.device)[None, :, :]
         covariance = k_yy + sigma_noise
-        if EXPORTING_FOR_MLX.get():  # fastforks: keep the unchecked op for the MLX translator
+        if exporting_for_mlx():  # fastforks: keep the unchecked op for the MLX translator
             lower = torch.linalg.cholesky_ex(covariance, check_errors=False).L
         else:
             lower = torch.linalg.cholesky(covariance)

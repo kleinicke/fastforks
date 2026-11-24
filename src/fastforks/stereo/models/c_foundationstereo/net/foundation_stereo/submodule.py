@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from fastforks._core.mlx_cast import to_run_dtype
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 import numpy as np
 
 from ..foundation_stereo.convolution_helper import (Conv, Conv3dNormActReduced)
@@ -585,7 +585,7 @@ class DualAttentionMlp(nn.Module):
             src_iea, _ = self.iea(
                 src.float(), src.float(), value=src.float(), attn_mask=mask_self
             )
-        if EXPORTING_FOR_MLX.get():  # the fp32 attention island ends here on MLX
+        if exporting_for_mlx():  # the fp32 attention island ends here on MLX
             src_iea = to_run_dtype(src_iea, src.dtype)
         out = self.norm1(src + self.linear1(src_iea))
 
@@ -593,7 +593,7 @@ class DualAttentionMlp(nn.Module):
             ref_iea, _ = self.iea_r(
                 ref.float(), ref.float(), value=ref.float(), attn_mask=mask_self
             )
-        if EXPORTING_FOR_MLX.get():  # the fp32 attention island ends here on MLX
+        if exporting_for_mlx():  # the fp32 attention island ends here on MLX
             ref_iea = to_run_dtype(ref_iea, ref.dtype)
         out_ref = self.norm1r(ref + self.linear1r(ref_iea))
 
@@ -602,7 +602,7 @@ class DualAttentionMlp(nn.Module):
             src_cea, _ = self.cea(
                 out.float(), out_ref.float(), value=out_ref.float(), attn_mask=mask_cross
             )
-        if EXPORTING_FOR_MLX.get():  # the fp32 attention island ends here on MLX
+        if exporting_for_mlx():  # the fp32 attention island ends here on MLX
             src_cea = to_run_dtype(src_cea, out.dtype)
         out = self.norm2(out + self.linear2(src_cea))
 

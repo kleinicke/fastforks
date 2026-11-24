@@ -13,7 +13,7 @@ import math
 
 import torch
 
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 
 STEPS = 64
 
@@ -28,7 +28,7 @@ def kth_smallest(
     computed in float32 (counts are exact up to 2^24 entries per row), returned in `v`'s dtype.
     """
     x = v.float()
-    if EXPORTING_FOR_MLX.get():  # MLX sorts any length: one sort instead of the 64 bisection passes (500 graph nodes)
+    if exporting_for_mlx():  # MLX sorts any length: one sort instead of the 64 bisection passes (500 graph nodes)
         s = (x if valid is None else torch.where(valid, x, torch.inf)).sort(-1).values
         kth = s[..., k] if isinstance(k, int) else s.gather(-1, k.long()[..., None])[..., 0]
         return kth.to(v.dtype)

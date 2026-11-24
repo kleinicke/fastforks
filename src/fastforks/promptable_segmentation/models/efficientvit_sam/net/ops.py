@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from fastforks._core.mlx_cast import to_float32, to_run_dtype
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 
 from .act import build_act
 from .norm import build_norm
@@ -300,7 +300,7 @@ class LiteMLA(nn.Module):
 
         if qkv.dtype == torch.float16:
             qkv = qkv.float()
-        elif EXPORTING_FOR_MLX.get():
+        elif exporting_for_mlx():
             # fastforks: `.float()` records nothing on the float32 twin an MLX runner exports; its float16 replay
             # would sum over H * W in float16 and overflow
             qkv = to_float32(qkv)

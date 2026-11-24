@@ -40,7 +40,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.patch import is_base, override
 from fastforks._core.sampling import grid_sample
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 from fastforks._core.upload import device_tensor, to_device
 from fastforks._core.volume_ops import warp_dot
 from fastforks.kernels import mvsplat_corr
@@ -207,7 +207,7 @@ def correlation(  # noqa: PLR0913 - camera geometry and execution precision
         if fused is not None:
             fused(feat, g, out, i)
             continue
-        if EXPORTING_FOR_MLX.get():  # one Metal kernel in the replay: no [V, C, D, h, w] warped volume
+        if exporting_for_mlx():  # one Metal kernel in the replay: no [V, C, D, h, w] warped volume
             out = out + warp_dot(feat, feat.roll(-i, 0), g)
             continue
         other = feat.roll(-i, 0)  # view j against view (j + i) % V

@@ -346,6 +346,26 @@ class TestMlxDevice:
         assert self.built(monkeypatch, "sam3", "promptable_segmentation") == ("portable", "float32")
 
 
+@pytest.mark.slow
+def test_mlx_export_context_is_only_read_outside_dynamo():
+    from fastforks._core.tracing import EXPORTING_FOR_MLX, exporting_for_mlx  # noqa: PLC0415 - compile test only
+
+    class Probe(torch.nn.Module):
+        def forward(self, x):
+            return x + 2 if exporting_for_mlx() else x - 1
+
+    module = Probe()
+    value = torch.tensor(4)
+    assert torch.compile(module, backend="eager", fullgraph=True)(value).item() == 3
+    assert torch.export.export(module, (value,), strict=True).module()(value).item() == 3
+    token = EXPORTING_FOR_MLX.set(True)
+    try:
+        assert torch.export.export(module, (value,), strict=False).module()(value).item() == 6
+    finally:
+        EXPORTING_FOR_MLX.reset(token)
+    assert torch.export.export(module, (value,), strict=False).module()(value).item() == 3
+
+
 def test_results_move_to_the_requested_device():
     @dataclasses.dataclass(frozen=True)
     class R(NumpyOutputs):

@@ -11,7 +11,7 @@ from __future__ import annotations
 import torch
 import torch.nn.functional as F
 
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 
 
 def _up2(x: torch.Tensor) -> torch.Tensor:
@@ -39,7 +39,7 @@ def up2_skip(x: torch.Tensor, skip: torch.Tensor, *, relu: bool = False) -> torc
     While exporting for the MLX replay the `fastforks::up2_skip` op: one Metal kernel there (the taps and the sum in
     float32, one rounding to the run dtype).
     """
-    if EXPORTING_FOR_MLX.get():
+    if exporting_for_mlx():
         return _up2_skip_op(x, skip, relu)
     return _up2_skip(x, skip, relu=relu)
 
@@ -76,7 +76,7 @@ def up2_proj(
     exporting for the MLX replay the `fastforks::up2_proj` op: one Metal kernel there, so the projected skip (`C`
     channels at the output size) is never a buffer.
     """
-    if EXPORTING_FOR_MLX.get():
+    if exporting_for_mlx():
         return _up2_proj_op(x, src, weight, bias, relu)
     return _up2_proj(x, src, weight, bias, relu=relu)
 
@@ -101,6 +101,6 @@ def area_pool(x: torch.Tensor, factor: int) -> torch.Tensor:
     `F.interpolate(x, scale_factor=1 / factor, mode="area")` for such sizes. While exporting for the MLX replay the
     `fastforks::area_pool` op: one Metal kernel there (no float32 copy of the input).
     """
-    if EXPORTING_FOR_MLX.get():
+    if exporting_for_mlx():
         return _area_pool_op(x, factor)
     return _area_pool(x, factor)

@@ -10,7 +10,7 @@ import torch.nn.functional as F
 
 from fastforks._core.mlx_cast import float32_call, to_float32, to_run_dtype
 from fastforks._core.sampling import grid_sample
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 from fastforks._core.volume_ops import gwc_volume
 from fastforks.kernels import acv_volume, cudnn_hacc
 from fastforks.shared import mlx_wrap
@@ -63,7 +63,7 @@ def norm_correlation_volume(fl: torch.Tensor, fr: torch.Tensor, d: int, groups: 
     """
     xl, xr = _normalized(fl, groups), _normalized(fr, groups)
     b, g, _, h, w = xl.shape
-    if EXPORTING_FOR_MLX.get():
+    if exporting_for_mlx():
         return gwc_volume(xl.flatten(1, 2), xr.flatten(1, 2), d, g)
     volume = xl.new_zeros((b, g, d, h, w))
     for i in range(min(d, w)):  # disparities >= width: no overlap, stays zero
@@ -97,7 +97,7 @@ def _pre(module: torch.nn.Module, *args: Any) -> Any:  # noqa: ANN401 - the modu
     The top-k selection sits on decision boundaries: with the features or the attention hourglass in float16 one
     quarter-resolution cell of fast-acvnet-plus-sceneflow's golden picks other disparities (4.9 -> 57 px there).
     """
-    return float32_call(module, *args) if EXPORTING_FOR_MLX.get() else module(*args)
+    return float32_call(module, *args) if exporting_for_mlx() else module(*args)
 
 
 def _features(net: Net, left: torch.Tensor, right: torch.Tensor) -> tuple[list[torch.Tensor], torch.Tensor]:
@@ -181,7 +181,7 @@ def forward(net: Net, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
     att_topk = torch.gather(att_prob, 2, ind)
     del att_prob
     samples = ind.squeeze(1).float()
-    if EXPORTING_FOR_MLX.get():  # the float32 features enter the stages after the top-k in the run dtype
+    if exporting_for_mlx():  # the float32 features enter the stages after the top-k in the run dtype
         feats, fl = ([to_run_dtype(t, p.dtype) for t in ts] for ts in (feats, fl))
         stem_2x = to_run_dtype(stem_2x, p.dtype)
     concat = net.concat_feature(feats[0])

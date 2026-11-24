@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 from fastforks.shared.depth_anything_v2 import Block, SdpaAttention  # fastforks: upstream's dinov2 Block (SDPA)
 
 
@@ -60,7 +60,7 @@ def knn_query(k, p, rows=128, pool=4096, margin=16, budget=1 << 25, mlx_op=True)
     matter (the attention sums over them).
     """
     n = p.shape[0]
-    if mlx_op and EXPORTING_FOR_MLX.get():  # fastforks: one op, lowered to the Metal kNN of `mlx_refine`
+    if mlx_op and exporting_for_mlx():  # fastforks: one op, lowered to the Metal kNN of `mlx_refine`
         return knn_op(p.float(), k)
     if torch.compiler.is_exporting():
         # fastforks: fixed-size export uses exact, bounded query chunks. The

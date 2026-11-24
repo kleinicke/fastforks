@@ -24,7 +24,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import EXPORTING_FOR_MLX, exporting_for_mlx
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -144,7 +144,7 @@ def init_cost(lt: torch.Tensor, rt: torch.Tensor, max_disp: int, budget: int = 2
 
     Replicate padding plus an `unfold` view instead of index gathers.
     """
-    if EXPORTING_FOR_MLX.get():  # one op of the exported graph: the MLX replay runs it as one Metal kernel
+    if exporting_for_mlx():  # one op of the exported graph: the MLX replay runs it as one Metal kernel
         return init_cost_op(lt, rt, max_disp)
     n, c, h, w = lt.shape
     rp = F.pad(rt, (max_disp - 1, 0, 0, 0), mode="replicate")  # index 4x + 1 - d -> 4x + D - d in rp
@@ -182,7 +182,7 @@ def x_positions(like: torch.Tensor) -> torch.Tensor:
 def tile_sad(hyp: torch.Tensor, fl: torch.Tensor, fr: torch.Tensor) -> torch.Tensor:
     """64-channel tile cost of a hypothesis `[n, 16, h, w]` on the features at 4x its resolution: per pixel
     `[sum |fl|, SAD(+1), SAD(0), SAD(-1)]`, packed (by, bx, k)."""
-    if EXPORTING_FOR_MLX.get():  # one op of the exported graph: the MLX replay runs it as one Metal kernel
+    if exporting_for_mlx():  # one op of the exported graph: the MLX replay runs it as one Metal kernel
         return tile_sad_op(hyp, fl, fr)
     n, _, h, w = hyp.shape
     base = x_positions(fl) - expand_tiles(hyp[:, 0:1], hyp[:, 1:2], hyp[:, 2:3])
@@ -193,7 +193,7 @@ def tile_sad(hyp: torch.Tensor, fl: torch.Tensor, fr: torch.Tensor) -> torch.Ten
 
 def refine_sad(d: torch.Tensor, fl: torch.Tensor, fr: torch.Tensor) -> torch.Tensor:
     """SAD of `fl` against `fr` warped by `d`, `d + 1` and `d - 1` (`d` already scaled): `[n, 3, H, W]`."""
-    if EXPORTING_FOR_MLX.get():  # one op of the exported graph: the MLX replay runs it as one Metal kernel
+    if exporting_for_mlx():  # one op of the exported graph: the MLX replay runs it as one Metal kernel
         return refine_sad_op(d, fl, fr)
     xs = x_positions(fl)
     pos = torch.cat((xs - d, xs - (d + 1), xs - (d - 1)), 1)

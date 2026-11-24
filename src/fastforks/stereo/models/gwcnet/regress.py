@@ -14,7 +14,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core import volume_ops  # noqa: F401 - registers `fastforks::upsample_soft_argmax`
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 
 
 def upsample_softmax_regress(
@@ -33,7 +33,7 @@ def upsample_softmax_regress(
         msg = f"output {max_disp}x{height}x{width} is not an integer multiple of the volume {d}x{h}x{w}"
         raise ValueError(msg)
     values = torch.arange(max_disp, device=cost.device, dtype=torch.float32).view(1, max_disp, 1, 1)
-    if EXPORTING_FOR_MLX.get():  # one op: the MLX replay fuses upsample + softmax + regression
+    if exporting_for_mlx():  # one op: the MLX replay fuses upsample + softmax + regression
         return torch.ops.fastforks.upsample_soft_argmax(cost, max_disp, height, width)
     if torch.compiler.is_exporting():  # one block: a traced loop would keep the traced height's blocks
         up = F.interpolate(cost.float(), size=(max_disp, height, width), mode="trilinear", align_corners=False)

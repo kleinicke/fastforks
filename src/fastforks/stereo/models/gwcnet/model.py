@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from fastforks._core.layout import nchw
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
 from fastforks.stereo._volume import stacked_volume
@@ -46,7 +46,7 @@ def cost_volume(net: GwcNet, fl: dict[str, torch.Tensor], fr: dict[str, torch.Te
     cl, cr = (fl["concat_feature"], fr["concat_feature"]) if net.use_concat_volume else (gl[:, :0], gr[:, :0])
     b, _, h, w = gl.shape
     g, c = net.num_groups, cl.shape[1]
-    if EXPORTING_FOR_MLX.get():
+    if exporting_for_mlx():
         nc = gl.shape[1]
 
         def fn(a: torch.Tensor, bb: torch.Tensor) -> torch.Tensor:

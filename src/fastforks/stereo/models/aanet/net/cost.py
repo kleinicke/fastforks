@@ -1,6 +1,6 @@
 import torch
 from fastforks.stereo._volume import concat_fn, correlation_band, stacked_volume  # fastforks: correlation_band
-from fastforks._core.tracing import EXPORTING_FOR_MLX  # fastforks
+from fastforks._core.tracing import exporting_for_mlx, in_onnx_export  # fastforks
 import torch.nn as nn
 
 
@@ -21,7 +21,7 @@ class CostVolume(nn.Module):
     def forward(self, left_feature, right_feature):
         b, c, h, w = left_feature.size()
 
-        if EXPORTING_FOR_MLX.get():
+        if exporting_for_mlx():
             fns = {
                 "difference": lambda a, r: a - r,
                 "concat": concat_fn,
@@ -50,8 +50,9 @@ class CostVolume(nn.Module):
                 else:
                     cost_volume[:, :, i, :, :] = torch.cat((left_feature, right_feature), dim=1)
 
-        elif self.feature_similarity == 'correlation' and left_feature.is_cuda:
-            # fastforks: one GEMM per row instead of a strided product and a mean per disparity (994 x 1482: 25 -> 3 ms)
+        elif (self.feature_similarity == 'correlation' and left_feature.is_cuda
+              and not (torch.compiler.is_exporting() or in_onnx_export())):
+            # fastforks: eager CUDA only. ONNX cannot lower the float32-output half GEMM.
             cost_volume = correlation_band(left_feature, right_feature, self.max_disp)[:, 0]
 
         elif self.feature_similarity == 'correlation':

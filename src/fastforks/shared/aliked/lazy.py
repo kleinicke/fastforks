@@ -24,6 +24,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.patch import override
+from fastforks._core.sampling import grid_sample
 from fastforks._core.upload import device_tensor
 from fastforks.shared.cuda_graphs import GraphCache
 
@@ -161,7 +162,7 @@ def _pixels(image: _Image, ys: torch.Tensor, xs: torch.Tensor) -> torch.Tensor:
     grid = torch.stack((2.0 * cols / (wp - 1) - 1, 2.0 * rows / (hp - 1) - 1), dim=-1)[None, None]  # [1, 1, P, 2]
     parts = [fine[:, rows, cols].float()]
     parts += [  # the upsampling's (align_corners) value at the pixel
-        F.grid_sample(x, grid, mode="bilinear", align_corners=True)[0, :, 0] for x in coarse
+        grid_sample(x, grid, mode="bilinear", align_corners=True)[0, :, 0] for x in coarse
     ]
     x = torch.cat(parts)
     return x / x.norm(2, 0, keepdim=True).clamp_min(_EPS)

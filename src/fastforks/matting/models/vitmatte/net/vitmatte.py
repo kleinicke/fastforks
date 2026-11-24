@@ -28,7 +28,7 @@ import torch
 from torch import nn
 
 from fastforks._core.mps import fence
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 
 
 @dataclass(frozen=True)
@@ -478,7 +478,7 @@ def matte_in_strips(features, pixels, matte):
     On MLX the strips are static slices of the exported graph; its checkpoints evaluate them one after the other.
     """
     height, width = pixels.shape[-2:]
-    mlx = EXPORTING_FOR_MLX.get()
+    mlx = exporting_for_mlx()
     if height * width < 1024 * 1024 or (
         not mlx
         and (

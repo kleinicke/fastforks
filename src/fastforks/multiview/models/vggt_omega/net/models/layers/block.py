@@ -15,7 +15,7 @@ import torch
 from torch import Tensor, nn
 
 from fastforks._core.mlx_cast import to_float32, to_run_dtype  # fastforks: run-dtype casts on MLX
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 
 from .attention import CausalSelfAttention, SelfAttention
 from .ffn_layers import Mlp
@@ -198,7 +198,7 @@ class SelfAttentionBlock(nn.Module):
         else:
             x_out = []
             for x, rope in zip(x_list, rope_list):
-                if EXPORTING_FOR_MLX.get():  # fastforks: a float16 MLX replay keeps the residual stream in float32
+                if exporting_for_mlx():  # fastforks: a float16 MLX replay keeps the residual stream in float32
                     x_out.append(self._mlx_forward(x, rope))
                     continue
                 x_attn = x + self.ls1(self.attn(self.norm1(x), rope=rope))

@@ -29,7 +29,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from fastforks._core.mlx_cast import to_float32, to_run_dtype  # fastforks: float16 MLX replay (`Transformer`)
-from fastforks._core.tracing import EXPORTING_FOR_MLX  # fastforks: float32 features in a float16 MLX replay (`_unit`)
+from fastforks._core.tracing import exporting_for_mlx  # fastforks: float32 features in a float16 MLX replay (`_unit`)
 from fastforks._core.upload import device_tensor  # fastforks
 
 SIZE = 256  # training resolution; the network runs at it
@@ -226,7 +226,7 @@ class Features(NamedTuple):
 
 
 def _unit(x: torch.Tensor) -> torch.Tensor:
-    if EXPORTING_FOR_MLX.get():  # fastforks: float32 unit features in a float16 MLX replay, as under autocast (its
+    if exporting_for_mlx():  # fastforks: float32 unit features in a float16 MLX replay, as under autocast (its
         x = to_float32(x)  # float32 `sum` promotes the quotient): the float16 sum of squares overflows
     return x / torch.sqrt(torch.clamp(torch.sum(torch.square(x), -1, keepdim=True), min=1e-12))
 

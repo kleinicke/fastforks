@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-from fastforks._core.tracing import EXPORTING_FOR_MLX, in_onnx_export  # fastforks
+from fastforks._core.tracing import exporting_for_mlx, in_onnx_export  # fastforks
 from fastforks._core.volume_ops import gwc_warp  # fastforks: one Metal kernel on MLX
 
 
@@ -236,7 +236,7 @@ def build_gwc_volume_selective(refimg_fea, targetimg_fea, disp_range_samples, nd
             out[:, :, start:end] = raw.view(bs, num_groups, cpg, end - start, height, width).mean(dim=2)
             del raw, invalid
         return out
-    elif EXPORTING_FOR_MLX.get():  # fastforks (MLX): sample, mask and reduce in one kernel (no [B, C, D, H, W])
+    elif exporting_for_mlx():  # fastforks (MLX): sample, mask and reduce in one kernel (no [B, C, D, H, W])
         return gwc_warp(refimg_fea, targetimg_fea, disp_range_samples, num_groups)
     else:
         x_warped, y_warped = get_warped_feats(refimg_fea, targetimg_fea, disp_range_samples, ndisps)

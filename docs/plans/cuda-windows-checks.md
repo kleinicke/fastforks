@@ -13,16 +13,17 @@ GPU goldens, portable and kernels, pass for psmnet, gwcnet, cas-gwcnet, aanet, b
 fast-acvnet, las2, rtmo (t/s/m/l), rife-4.25 / 4.25-lite / 4.26, gimm-vfi-r and the GMFlow refs with local weights
 (76 tests). gimm-vfi-r-p and most GMFlow refs were not run: no weights on that machine.
 
-- [ ] **Linux CUDA, A1 stereo families:** `export_onnx` and TensorRT engines for psmnet, gwcnet, cfnet,
-  fast_acvnet and las2, including `--size-range`. The PSMNet/GwcNet regression block is the v0.2.0 one again.
+- [x] **Linux CUDA, A1 stereo families:** fixed ONNX parity for PSMNet, GwcNet, CFNet, Fast-ACVNet and LAS2.
+  The fixed FP16 engines passed. Dynamic GwcNet FP16 passed at min, opt and max, and dynamic PSMNet FP32 ONNX
+  passed. TensorRT 11.4.0.106 fails to build the tested PSMNet FP16 profile on both 0.2.0 and 0.2.1.
 - [ ] **Linux CUDA, other regated stereo:** ONNX/TRT build and parity for cas_gwcnet, aanet, bridgedepth and
   great_igev (they trace the in-place eager path now).
 - [ ] **Linux CUDA, GMFlow:** fp16 TensorRT engine speed and memory against v0.2.0 (no fp32 residual in
   non-MLX exports).
 - [ ] **Linux CUDA, GIMM-VFI and RIFE:** fp16 export as in v0.2.0; RIFE's export graph uses in-place writes again.
-- [ ] **Linux CUDA, RTMO:** fp16 goldens and `[validated]` with the restored fp16 `out_cls` conv, plus its engine.
-- [ ] **Linux CUDA, PSMNet/GwcNet kernels mode:** quick golden sanity (channels-last cost volume and `nchw` under
-  the new gate).
+- [x] **Linux CUDA, RTMO:** all four variants passed portable and kernels goldens with the restored FP16
+  `out_cls` convolution. The RTMO-T FP16 public TensorRT engine built and returned finite matching-shape outputs.
+- [x] **Linux CUDA, PSMNet/GwcNet kernels mode:** portable and kernels goldens passed, including both GwcNet variants.
 - [x] **Windows:** `tests/test_kernels.py -k manifest_is_current` on a `core.autocrlf=true` checkout, and a fresh
   clone shows no modified files after the `.gitattributes` change. (2026-11-24, Windows 11, git autocrlf=true clone
   of dev/v0.2.1 85a7859b: `git status` clean, 88 passed; the only CRLF work-tree files are the 12 vendored `-text`
@@ -30,9 +31,8 @@ fast-acvnet, las2, rtmo (t/s/m/l), rife-4.25 / 4.25-lite / 4.26, gimm-vfi-r and 
 
 ## Backlog fixes (maint/backlog)
 
-- [ ] **Linux CUDA:** `tests/test_cudnn_hacc.py`, plus a streaming model that uses `shared/host_blocks.py` (for
-  example `tests/test_vitpose_stream.py`), from a checkout whose path has a space. Both now split
-  `/proc/self/maps` lines on at most five fields.
+- [x] **Linux CUDA:** 41 cuDNN and streamed ViTPose checks passed from a checkout with spaces in its path. PyTorch's
+  CUDA runtime was mapped from a separate environment whose path also contained spaces.
 - [x] **Windows, ComfyUI:** load two models from parallel queue workers (the model cache is now behind a lock).
   (2026-11-24, RTX 5060 Ti: four threads started together, two Depth and two Classify runs on depth-anything-v2-s /
   convnext_tiny: no error, one cached model each, outputs equal to each other and to a serial run.)
@@ -43,7 +43,7 @@ Status against `d8099bff` and the release follow-up. The tables distinguish code
 
 | CUDA / Windows findings | What remains |
 | --- | --- |
-| A1-A3, MLX export gates and RTMO | Fixed in `0117df42`, `bf7e78b9` and `1509d3e0`. The Windows eager pre-check above passed. Use Ubuntu for fixed and dynamic ONNX, TensorRT, and the selected RTMO parity and speed checks. The GMFlow TensorRT card gate still applies. |
+| A1-A3, MLX export gates and RTMO | Fixed in `0117df42`, `bf7e78b9` and `1509d3e0`. Ubuntu export and golden evidence is above. AANet FP16 export also excludes its eager-only correlation GEMM, and the shared MLX gate stays out of Dynamo traces for PyTorch 2.8. The GMFlow and GIMM-VFI TensorRT card gates still apply. |
 | A4, CRLF and CI | LF attributes and source hashing landed in `7a59fc43`. The Windows autocrlf clone passed 88 manifest checks. A focused Windows CPU job now covers kernel, cache, security and ComfyUI files. Its first hosted run is pending. |
 | A5, driver floor | Windows DLLs and the MVSAnywhere Windows cubin require a driver supporting CUDA 13.0. The error and hardware guide now say this. Verify CUDA 12 compatibility on the relevant older driver and hardware if that support is needed. |
 | A6, CUDA device | The public model call already guards its CUDA device and binds one kernels device per process. Cubin function lookup now stays inside that device context and direct launches reject a different current device. A real `cuda:1` run needs a two-GPU host. |
@@ -75,6 +75,10 @@ PyTorch 2.14.1+cu130 on RTX 5060 Ti 16 GB with NVIDIA driver 595.99.02. Each mea
 - **OpenCV-style bicubic:** on a 1024 × 1024 uint8 input resized to 1280 × 1280, the one-pass PyTorch float64 path
   produced the same pixels as the float64 tap gathers. Median latency was 4.45 → 1.57 ms. Peak allocation above the
   pre-call live tensors was 373 → 81 MiB.
+- **TensorRT comparison with 0.2.0:** on the textured synthetic pair at 256 × 256, CAS-GwcNet-GC's fixed FP16 engine
+  differed from eager by a mean of 1.724 pixels on both release revisions. The AANet fixed FP16 engine passed after
+  the export change, with a 0.0020 pixel mean difference at the same size. RIFE 4.26 also passed a 256 × 384 FP16
+  fixed-engine smoke check.
 
 ## Test environment: OpenCV 5 (2026-11-24)
 

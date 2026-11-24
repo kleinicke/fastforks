@@ -10,7 +10,7 @@ from torch import nn
 from torch.nn.utils.fusion import fuse_conv_bn_eval
 
 from fastforks._core.mps import fence
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 from fastforks.shared import mlx_wrap
 from fastforks.stereo._runner import Forward, Runner
 from fastforks.stereo._volume import concat_fn, stacked_volume
@@ -64,7 +64,7 @@ def cost_volume(
     `memory_format=torch.channels_last_3d` (kernels: the layout the `cudnn_hacc` convs take) writes the channels-last
     features without a transpose and spares the first conv its conversion.
     """
-    if EXPORTING_FOR_MLX.get():
+    if exporting_for_mlx():
         return stacked_volume(ref, tgt, net.maxdisp // 4, concat_fn)
     b, c, h, w = ref.shape
     shape = (b, 2 * c, net.maxdisp // 4, h, w)

@@ -16,7 +16,7 @@ import torch
 from torch import nn, Tensor
 
 from fastforks._core.mlx_cast import to_float32, to_run_dtype  # fastforks: run-dtype casts on MLX
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 
 from .attention import Attention
 from .drop_path import DropPath
@@ -95,7 +95,7 @@ class Block(nn.Module):
         elif self.training and self.sample_drop_ratio > 0.0:
             x = x + self.drop_path1(attn_residual_func(x, pos=pos))
             x = x + self.drop_path1(ffn_residual_func(x))  # FIXME: drop_path2
-        elif EXPORTING_FOR_MLX.get():  # fastforks: a float16 MLX replay keeps the residual stream in float32
+        elif exporting_for_mlx():  # fastforks: a float16 MLX replay keeps the residual stream in float32
             x = to_float32(x)
             x = x + self.ls1(to_float32(self.attn(to_run_dtype(self.norm1(x), x.dtype), pos=pos)))
             x = x + self.ls2(to_float32(self.mlp(to_run_dtype(self.norm2(x), x.dtype))))

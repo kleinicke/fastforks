@@ -1154,3 +1154,19 @@ def test_failed_tensorrt_context_reports_allocator_error(monkeypatch, tmp_path):
 
     with pytest.raises(RuntimeError, match=r"cannot create a TensorRT execution context.*CUDA allocation failed"):
         export.TensorRTEngine(plan)
+
+
+@pytest.mark.gpu
+@pytest.mark.slow
+def test_aanet_export_skips_cuda_only_correlation():
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    from fastforks.stereo.models.aanet.net.cost import CostVolume  # noqa: PLC0415 - this family only
+
+    module = CostVolume(4)
+    rng = torch.Generator().manual_seed(0)
+    pair = tuple(torch.rand((1, 8, 6, 12), generator=rng, dtype=torch.float16) for _ in range(2))
+    cuda_pair = tuple(x.cuda() for x in pair)
+    exported = torch.export.export(module, cuda_pair, strict=False)
+    assert all(node.target != torch.ops.aten.bmm.dtype for node in exported.graph.nodes)
+    torch.testing.assert_close(exported.module()(*cuda_pair).cpu(), module(*pair))

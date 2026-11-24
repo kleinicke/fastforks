@@ -8,7 +8,7 @@ import math
 from .submodule import (Align_Corners, Align_Corners_Range, BasicBlock, convbn, convbn_3d, disparity_regression,
                         get_disp_range_samples)
 from fastforks._core.sampling import grid_sample
-from fastforks._core.tracing import EXPORTING_FOR_MLX  # fastforks
+from fastforks._core.tracing import exporting_for_mlx  # fastforks
 
 class hourglass(nn.Module):
     def __init__(self, in_channels):
@@ -273,7 +273,7 @@ class GetCostVolume(nn.Module):
                                padding_mode='zeros', align_corners=True).view(bs, channels, ndisp, height, width)  #(B, C, D, H, W)
 
 
-        if EXPORTING_FOR_MLX.get():  # functional: one multiply, no in-place write into a transposed copy
+        if exporting_for_mlx():  # functional: one multiply, no in-place write into a transposed copy
             keep = (mw >= disp_range_samples)[:, None]  # (B, 1, D, H, W)
             return x.unsqueeze(2) * keep.to(x.dtype), y_warped
 
@@ -291,7 +291,7 @@ class GetCostVolume(nn.Module):
         bs, channels, height, width = x.size()
 
         x_warped, y_warped = self.get_warped_feats(x, y, disp_range_samples, ndisp)
-        if EXPORTING_FOR_MLX.get():
+        if exporting_for_mlx():
             return torch.cat((x_warped, y_warped), 1)
         concat_cost = x.new().resize_(bs, channels * 2, ndisp, height, width).zero_()  # (B, 2C, D, H, W)
         concat_cost[:, x.size()[1]:, :, :, :] = y_warped

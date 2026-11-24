@@ -11,7 +11,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.sampling import grid_sample
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 
 
 @torch.library.custom_op("fastforks::gwc_volume", mutates_args=())
@@ -102,7 +102,7 @@ def linear_sample(vol: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
     `out[p, c * K + k] = lerp(vol[p, c], x[p, k])`. Eagerly two gathers; while exporting for the MLX replay it is the
     `fastforks::linear_sample` op, one Metal kernel there (a compiled gather chain costs ~8x more per lookup).
     """
-    if EXPORTING_FOR_MLX.get():
+    if exporting_for_mlx():
         return _linear_sample_op(vol, x)
     return _linear_sample(vol, x)
 
@@ -139,7 +139,7 @@ def gwc_warp(left: torch.Tensor, right: torch.Tensor, disp: torch.Tensor, groups
     normalized by `W - 1`, `align_corners=False`, zeros padding), zero where `x < disp`. Eagerly the warped volume;
     while exporting for the MLX replay the `fastforks::gwc_warp` op, one Metal kernel there (no `[B, C, D, H, W]`).
     """
-    if EXPORTING_FOR_MLX.get():
+    if exporting_for_mlx():
         return _gwc_warp_op(left, right, disp, groups)
     return _gwc_warp(left, right, disp, groups)
 
@@ -214,6 +214,6 @@ def corr_windows(
     RAFT's `CorrBlock`. Eagerly a gather of each pixel's (2r + 2)^2 neighbours; while exporting for the MLX replay the
     `fastforks::corr_windows` op, one Metal kernel there (memory O(HW), not O((HW)^2)).
     """
-    if EXPORTING_FOR_MLX.get():
+    if exporting_for_mlx():
         return _corr_windows_op(f1, levels, coords, radius, scale)
     return _corr_windows(f1, levels, coords, radius, scale)

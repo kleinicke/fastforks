@@ -41,7 +41,7 @@ from torch import nn
 from torch.nn.modules.utils import _pair
 from fastforks._core.mlx_cast import float32_call  # fastforks
 from fastforks._core.sampling import grid_sample
-from fastforks._core.tracing import EXPORTING_FOR_MLX  # fastforks
+from fastforks._core.tracing import exporting_for_mlx  # fastforks
 from fastforks._core.upload import device_tensor  # fastforks
 
 
@@ -657,7 +657,7 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
 
         # fastforks: in an MLX float16 replay the convolutions are float32 islands (float16 feature maps move keypoints
         # across the detection threshold: recall 0.9963 on the golden pair, 1.0 with the islands)
-        call = float32_call if EXPORTING_FOR_MLX.get() else _call
+        call = float32_call if exporting_for_mlx() else _call
         # ================================== feature encoder
         x1 = call(self.block1, image)  # B x c1 x H x W
         x2 = self.pool2(x1)

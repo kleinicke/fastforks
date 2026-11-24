@@ -1,6 +1,6 @@
 import torch
 from fastforks._core.mlx_cast import to_float32, to_run_dtype  # fastforks: run-dtype casts on MLX
-from fastforks._core.tracing import EXPORTING_FOR_MLX  # fastforks
+from fastforks._core.tracing import exporting_for_mlx  # fastforks
 import torch.nn as nn
 
 from .attention import (single_head_full_attention, single_head_split_window_attention,
@@ -67,7 +67,7 @@ class TransformerLayer(nn.Module):
                 ):
         # source, target: [B, L, C]
         residual = source
-        if EXPORTING_FOR_MLX.get():  # fastforks: MLX twin: float32 residual, run-dtype branches (as autocast)
+        if exporting_for_mlx():  # fastforks: MLX twin: float32 residual, run-dtype branches (as autocast)
             residual = to_float32(source)
             source, target = to_run_dtype(source, source.dtype), to_run_dtype(target, target.dtype)
         query, key, value = source, target, target

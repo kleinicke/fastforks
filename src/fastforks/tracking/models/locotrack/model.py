@@ -19,7 +19,7 @@ from fastforks._core.checkpoint import check_fits
 from fastforks._core.half import fp16_accumulate, half_weights
 from fastforks._core.mlx_cast import to_float32
 from fastforks._core.patch import override
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 from fastforks.kernels.locotrack_sample import neighborhood
 from fastforks.tracking._mlx import port as mlx_port
 from fastforks.tracking._mlx import scale_xy
@@ -95,7 +95,7 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus the auto
         q = torch.cat([queries[:, :1], scale_xy(queries[:, 1:] + 0.5, sx, sy).flip(-1)], 1)[None]  # (t, y, x)
         f = net.features(tuple(_join(g) for g in grids), q)
         points, vis = [], []
-        chunk = MLX_QUERY_CHUNK if EXPORTING_FOR_MLX.get() else QUERY_CHUNK
+        chunk = MLX_QUERY_CHUNK if exporting_for_mlx() else QUERY_CHUNK
         for s in range(0, q.shape[1], chunk):
             p, occ, expd = net.track(f, q, slice(s, s + chunk))
             points.append(p[0])

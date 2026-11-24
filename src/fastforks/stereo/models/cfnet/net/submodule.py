@@ -2,7 +2,7 @@ from __future__ import print_function
 import torch
 from fastforks.stereo._volume import concat_fn, stacked_volume
 from fastforks._core.volume_ops import gwc_volume, normalized_groups
-from fastforks._core.tracing import EXPORTING_FOR_MLX, in_onnx_export  # fastforks
+from fastforks._core.tracing import exporting_for_mlx, in_onnx_export  # fastforks
 import torch.nn as nn
 import torch.utils.data
 from torch.autograd import Variable
@@ -142,7 +142,7 @@ def disparity_variance_confidence(x, disparity_samples, disparity):
     return torch.sum(x * disp_values, 1, keepdim=True)
 
 def build_concat_volume(refimg_fea, targetimg_fea, maxdisp):
-    if EXPORTING_FOR_MLX.get():
+    if exporting_for_mlx():
         return stacked_volume(refimg_fea, targetimg_fea, maxdisp, concat_fn)
     B, C, H, W = refimg_fea.shape
     volume = refimg_fea.new_zeros([B, 2 * C, maxdisp, H, W])
@@ -174,7 +174,7 @@ def groupwise_correlation_4D(fea1, fea2, num_groups):
 
 
 def build_gwc_volume(refimg_fea, targetimg_fea, maxdisp, num_groups):
-    if EXPORTING_FOR_MLX.get():
+    if exporting_for_mlx():
         return gwc_volume(refimg_fea, targetimg_fea, maxdisp, num_groups)
     B, C, H, W = refimg_fea.shape
     volume = refimg_fea.new_zeros([B, num_groups, maxdisp, H, W])

@@ -20,7 +20,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from fastforks._core.mlx_cast import to_float32, to_run_dtype
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 from fastforks._core.patch import base_type, override
 from fastforks.shared.depth_anything_v2 import use_sdpa_attention
 from fastforks.shared.monster_fit import fit
@@ -46,7 +46,7 @@ def _in_forward(self, x):
     # InstanceNorm2d(affine=False): fp32 statistics, applied in place for fp32 (keeps NHWC)
     xf = to_float32(x)
     var, mean = torch.var_mean(xf, dim=tuple(range(2, x.dim())), keepdim=True, unbiased=False)
-    if x.dtype == torch.float32 and not EXPORTING_FOR_MLX.get():
+    if x.dtype == torch.float32 and not exporting_for_mlx():
         return x.sub_(mean).mul_(torch.rsqrt(var + self.eps))
     # fp16: fp32 per element, as F.instance_norm; an fp16 MLX replay too (normalising the feature transfers' conv
     # outputs in fp16 took the golden mean error from 0.025 to 0.037)

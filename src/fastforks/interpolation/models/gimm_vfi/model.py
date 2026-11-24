@@ -27,7 +27,7 @@ from fastforks._core.checkpoint import check_fits
 from fastforks._core.mps import release
 from fastforks._core.patch import base_type, override
 from fastforks._core.sampling import grid_sample
-from fastforks._core.tracing import EXPORTING_FOR_MLX, in_onnx_export
+from fastforks._core.tracing import exporting_for_mlx, in_onnx_export
 from fastforks.interpolation._runner import Forward, Runner
 from fastforks.kernels import cudnn_hacc
 from fastforks.shared import mlx_wrap
@@ -525,7 +525,7 @@ class Portable(Runner):
         self.graphs: SmallShapeGraphs | None = None  # kernels only: portable stays the eager reference network
 
     def _forward(self, image1: torch.Tensor, image2: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
-        fp16 = self.ctx.dtype == "float16" and not EXPORTING_FOR_MLX.get()  # MLX casts the graph itself
+        fp16 = self.ctx.dtype == "float16" and not exporting_for_mlx()  # MLX casts the graph itself
         with (
             torch.autocast(image1.device.type, torch.float16) if fp16 else contextlib.nullcontext()
         ):  # not `enabled=False`: export wraps it

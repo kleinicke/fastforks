@@ -10,7 +10,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from fastforks._core.mlx_cast import to_run_dtype
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 
 from ..foundation_stereo.convolution_helper import Conv, Conv2xDownScale
 from ..foundation_stereo import utils
@@ -792,7 +792,7 @@ class Feature(nn.Module):
             h_resize, w_resize = utils.get_resize_keep_aspect_ratio(
                 height, width, divider=divider, max_h=1344, max_w=1344)
             x_in_ = F.interpolate(x, size=(h_resize, w_resize), mode='bicubic', align_corners=False)
-            if EXPORTING_FOR_MLX.get():  # the exported bicubic weights are fp32 constants: back to the run dtype
+            if exporting_for_mlx():  # the exported bicubic weights are fp32 constants: back to the run dtype
                 x_in_ = to_run_dtype(x_in_, x.dtype)
 
             # Extract features from DepthAnythingV2 (in evaluation mode with no_grad)
@@ -804,7 +804,7 @@ class Feature(nn.Module):
             # Resize ViT features to match the 4x downsampling level
             vit_feat = F.interpolate(
                 vit_feat, size=(height // 4, width // 4), mode='bilinear', align_corners=True)
-            if EXPORTING_FOR_MLX.get():
+            if exporting_for_mlx():
                 vit_feat = to_run_dtype(vit_feat, x.dtype)
         else:
             vit_feat = None

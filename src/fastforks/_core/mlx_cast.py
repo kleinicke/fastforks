@@ -16,7 +16,7 @@ from typing import Any
 
 import torch
 
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 
 
 @torch.library.custom_op("fastforks::run_dtype", mutates_args=())
@@ -32,7 +32,7 @@ def _(x: torch.Tensor) -> torch.Tensor:
 
 def to_run_dtype(x: torch.Tensor, dtype: torch.dtype) -> torch.Tensor:
     """`x.to(dtype)`, where `dtype` is the network's activation dtype; the MLX replay's run dtype on MLX."""
-    if EXPORTING_FOR_MLX.get():
+    if exporting_for_mlx():
         return run_dtype(x if x.dtype == dtype else x.to(dtype))
     return x.to(dtype)
 
@@ -50,7 +50,7 @@ def _(x: torch.Tensor) -> torch.Tensor:
 
 def to_float32(x: torch.Tensor) -> torch.Tensor:
     """`x.float()` that stays a float32 cast in a float16 MLX replay."""
-    if EXPORTING_FOR_MLX.get():
+    if exporting_for_mlx():
         return float32(x)
     return x.float()
 
@@ -67,7 +67,7 @@ def float32_call(module: torch.nn.Module, *args: Any) -> Any:  # noqa: ANN401 - 
     half-precision PyTorch network is `.float()`-ed by its runner).
     """
     args = tuple(_float32_arg(a) for a in args)
-    if not EXPORTING_FOR_MLX.get():
+    if not exporting_for_mlx():
         return module(*args)
     state = {k: to_float32(v) if v.is_floating_point() else v for k, v in module.state_dict(keep_vars=True).items()}
     return torch.func.functional_call(module, state, args)

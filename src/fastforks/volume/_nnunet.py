@@ -24,7 +24,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from fastforks._core.errors import InputError, WeightsError
-from fastforks._core.tracing import EXPORTING_FOR_MLX, in_onnx_export
+from fastforks._core.tracing import exporting_for_mlx, in_onnx_export
 from fastforks._core.upload import to_device
 from fastforks.volume import _resample
 
@@ -285,7 +285,7 @@ class _ConvNormAct(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         conv = self.conv
-        if conv.bias is not None and EXPORTING_FOR_MLX.get():
+        if conv.bias is not None and exporting_for_mlx():
             # The instance norm removes any per-channel constant: on MLX the bias is one more pass over the map.
             return self.norm_act(F.conv3d(x, conv.weight, None, conv.stride, conv.padding, conv.dilation, conv.groups))
         return self.norm_act(conv(x))
@@ -321,7 +321,7 @@ def slab_depth(conv: nn.Conv3d, y: torch.Tensor) -> int:
         or torch.compiler.is_compiling()
     ):
         return 0
-    if torch.jit.is_tracing() or in_onnx_export() or EXPORTING_FOR_MLX.get():
+    if torch.jit.is_tracing() or in_onnx_export() or exporting_for_mlx():
         return 0
     same = conv.in_channels == conv.out_channels and conv.groups == 1 and conv.padding_mode == "zeros"
     if (

@@ -8,7 +8,7 @@ import itertools
 import numpy as np
 import torch
 import torch.nn.functional as F
-from fastforks._core.tracing import EXPORTING_FOR_MLX, in_onnx_export
+from fastforks._core.tracing import exporting_for_mlx, in_onnx_export
 from fastforks._core.mlx_cast import to_run_dtype
 from fastforks._core.volume_ops import gwc_volume
 from fastforks._core.sampling import grid_sample
@@ -602,7 +602,7 @@ def build_concat_volume(refimg_feature, targetimg_feature, maxdisp):
     """
     B, C, H, W = refimg_feature.shape
 
-    if torch.jit.is_tracing() or in_onnx_export() or EXPORTING_FOR_MLX.get():
+    if torch.jit.is_tracing() or in_onnx_export() or exporting_for_mlx():
         return _concat_volume_traced(refimg_feature, targetimg_feature, maxdisp)
 
     # Initialize an empty volume to store the concatenated features.
@@ -762,7 +762,7 @@ def _concat_volume_traced(ref, target, max_disp):
     w = torch.arange(W, device=ref.device).view(1, -1)
     shifted = target.index_select(3, (w - d).clamp(min=0).flatten()).view(B, C, H, max_disp, W)
     # the MLX replay keeps the volume in its run dtype (a literal 0.0 is exported as a float32 tensor)
-    zero = to_run_dtype(ref.new_zeros(()), ref.dtype) if EXPORTING_FOR_MLX.get() else 0.0
+    zero = to_run_dtype(ref.new_zeros(()), ref.dtype) if exporting_for_mlx() else 0.0
     shifted = torch.where(w >= d, shifted, zero).permute(0, 1, 3, 2, 4)
     return torch.cat([ref.unsqueeze(2).expand(B, C, max_disp, H, W), shifted], dim=1).contiguous()
 
@@ -820,7 +820,7 @@ def build_gwc_volume(refimg_feature, targetimg_feature, maxdisp, num_groups, str
     # Calculate the number of disparity levels in the volume based on maxdisp and stride.
     num_disparity_levels = maxdisp // stride
 
-    if EXPORTING_FOR_MLX.get() and stride == 1 and normalize:
+    if exporting_for_mlx() and stride == 1 and normalize:
         return _gwc_volume_mlx(refimg_feature, targetimg_feature, num_disparity_levels, num_groups)
     traced = torch.jit.is_tracing() or in_onnx_export()
     if not traced and stride == 1 and num_disparity_levels <= W:

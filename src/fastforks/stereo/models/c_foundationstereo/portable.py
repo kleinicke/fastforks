@@ -14,7 +14,7 @@ from torch import nn
 
 from fastforks._core.half import pure_half
 from fastforks._core.patch import is_base, override
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 
 from .net.fast_foundation_stereo.fast_foundation_stereo import _FFSPostForwardHelper
 from .net.foundation_stereo.convolution_helper import Conv
@@ -39,7 +39,7 @@ def _chunked(
     b, c, d, h, w = cv.shape
     x = cv.permute(0, 3, 4, 2, 1).reshape(b * h * w, d, c)
     # on MLX the chunks are joined by `cat`: an exported `empty_like` buffer would be float32 on MLX
-    out = None if EXPORTING_FOR_MLX.get() else torch.empty_like(x)
+    out = None if exporting_for_mlx() else torch.empty_like(x)
     chunks = []
     for i in range(0, x.shape[0], CHUNK):
         y = self.pos_embed0(x[i : i + CHUNK], resize_embed=self.resize_embed)
@@ -68,7 +68,7 @@ def _padded_attention(  # noqa: PLR0913, PLR0917 - upstream `FlashMultiheadAtten
     so without flash (Windows) the call fell to the math backend (C-FS-S 375x1242: 1706 ms vs 1170 ms on Linux).
     """
     d = self.head_dim
-    if query.device.type == "mps" or EXPORTING_FOR_MLX.get():
+    if query.device.type == "mps" or exporting_for_mlx():
         return _bmm_attention(self, query, key, value)
     if not -d % 8 or not query.is_cuda:
         return FlashMultiheadAttention.forward(self, query, key, value, attn_mask, window_size)
@@ -119,10 +119,7 @@ def _use_volume_strips(volume: torch.Tensor) -> bool:
     return (
         volume.device.type in {"cuda", "mps"}
         and not (
-            torch.compiler.is_compiling()
-            or torch.jit.is_tracing()
-            or torch.is_grad_enabled()
-            or EXPORTING_FOR_MLX.get()
+            torch.compiler.is_compiling() or torch.jit.is_tracing() or torch.is_grad_enabled() or exporting_for_mlx()
         )
         and volume.numel() * volume.element_size() >= LARGE_VOLUME_BYTES
     )
@@ -178,7 +175,7 @@ def _taps_conv3d(conv: nn.Conv3d, x: torch.Tensor) -> torch.Tensor:
     `j`, and output plane `d` sums tap `k` of plane `d + k - pad`. C-FS-S 994x1482 fp16 on MPS: 409 ms vs 1504 ms for
     `mps.conv3d` (one `conv2d` per tap).
     """
-    if x.device.type != "mps" and not EXPORTING_FOR_MLX.get():
+    if x.device.type != "mps" and not exporting_for_mlx():
         return conv(x)
     n, c, d = x.shape[:3]
     w = conv.weight.to(x.dtype)

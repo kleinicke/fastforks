@@ -20,7 +20,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.mlx_cast import float32_call, to_float32, to_run_dtype
-from fastforks._core.tracing import EXPORTING_FOR_MLX
+from fastforks._core.tracing import exporting_for_mlx
 from fastforks.promptable_segmentation._runner import scale
 
 from .net.backbone_utils import window_partition, window_unpartition
@@ -143,7 +143,7 @@ def _block_f32_stream(blk: Any, x: torch.Tensor) -> torch.Tensor:  # noqa: ANN40
 def trunk(t: Any, x: torch.Tensor, pos: torch.Tensor) -> list[torch.Tensor]:  # noqa: ANN401 - upstream Hiera
     """Upstream `Hiera.forward` with a precomputed position embedding: the channels-last output of every stage."""
     x = t.patch_embed(x.to(pos.dtype)) + pos
-    f32_stream = EXPORTING_FOR_MLX.get()  # the float32 twin of an MLX replay: no-op casts in a float32 one
+    f32_stream = exporting_for_mlx()  # the float32 twin of an MLX replay: no-op casts in a float32 one
     if f32_stream:
         x = to_float32(x)
     out = []

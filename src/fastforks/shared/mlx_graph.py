@@ -360,11 +360,10 @@ def _grid_sample(
     n, c, h, w = x.shape
     ho, wo = grid.shape[1:3]
     if x.dtype in (mx.float16, mx.bfloat16, mx.float32) and not os.environ.get("FF_MLX_NO_FUSED_GRID"):
-        from fastforks.kernels.graph_mlx import ops
+        from fastforks.kernels.graph_mlx.ops import grid_sample
 
-        return _nchw(
-            ops.grid_sample(_nhwc(x), grid.astype(mx.float32), align_corners=align_corners, border=padding_mode == 1)
-        )
+        sampled = grid_sample(_nhwc(x), grid.astype(mx.float32), align_corners=align_corners, border=padding_mode == 1)
+        return _nchw(sampled)
     g = grid.astype(mx.float32)
 
     def unnormalize(v: mx.array, size: int) -> mx.array:
