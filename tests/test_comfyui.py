@@ -1052,6 +1052,8 @@ def test_node_model_lists(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     assert {"hat-x4", "hat-s-x4", "real-hat-gan-x4", "dat-x4", "dat-2-x4", "dat-light-x4"} <= ids(nodes.Upscale)
     assert not {"codeformer", "gfpgan-v1.4", "big-lama"} & ids(nodes.Upscale)  # aligned faces; inpainting (mask)
     assert ids(nodes.FaceRestore) == {"codeformer", "gfpgan-v1.4"}  # CodeFormer: not in fastforks-commercial
+    assert "big-lama" in ids(nodes.Inpaint)
+    assert not {"realesrgan-x4plus", "codeformer"} & ids(nodes.Inpaint)  # no mask
     # inputs the nodes do not have: a depth prompt, a first-frame mask (video matting), a reference (in-context)
     assert not {"prompt-depth-anything-s", "lingbot-depth", "omni-dc"} & ids(nodes.Depth)
     assert "matanyone" not in ids(nodes.RemoveBackground)
@@ -1088,6 +1090,30 @@ def test_video_depth_scales_the_clip(pack: Any, monkeypatch: pytest.MonkeyPatch)
     assert seen == [(3, 3, 4, 6)]
     assert out.shape == (3, 4, 6, 3)
     assert [out[t].mean().item() for t in range(3)] == pytest.approx([0.0, 0.5, 1.0])
+
+
+def test_inpaint_passes_each_image_its_mask(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Image i gets mask i as `[H, W]` on the model's device; one mask applies to every image."""
+    nodes = pack.nodes
+    seen: list[tuple[tuple[int, ...], float]] = []
+
+    class Lama:
+        device = torch.device("cpu")
+
+        def __call__(self, image: torch.Tensor, *, mask: torch.Tensor) -> types.SimpleNamespace:
+            seen.append((tuple(mask.shape), mask.sum().item()))
+            return types.SimpleNamespace(image=image * (1 - mask))
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: Lama())
+    monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])  # no comfy.utils progress bar
+    image, mask = torch.rand(2, 4, 6, 3), torch.zeros(2, 4, 6)
+    mask[0, :2], mask[1, :, :3] = 1, 1
+    (out,) = nodes.Inpaint().run(image=image, mask=mask, model="m", backend="auto", dtype="auto")
+    assert seen == [((4, 6), 12.0), ((4, 6), 12.0)]
+    torch.testing.assert_close(out, image * (1 - mask[..., None]), rtol=0, atol=0)
+    seen.clear()
+    nodes.Inpaint().run(image=image, mask=mask[:1], model="m", backend="auto", dtype="auto")
+    assert seen == [((4, 6), 12.0), ((4, 6), 12.0)]
 
 
 def test_wd_tags(pack: Any) -> None:

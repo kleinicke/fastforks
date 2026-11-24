@@ -210,6 +210,8 @@ the `auto` and `mlx` backends use. The node reference (inputs, outputs, backends
   - SPAN: `span-x2`, `span-x4`
   - Swin2SR: `swin2sr-x2`, `swin2sr-x4`, `swin2sr-x4-real`
   - SwinIR: `swinir-l-x4-real`, `swinir-m-x2`, `swinir-m-x4`, `swinir-m-x4-real`
+- **Inpaint / remove objects (LaMa)**:
+  - LaMa (big-lama inpainting): `big-lama`
 - **Restore faces (GFPGAN / CodeFormer)**:
   - CodeFormer: `codeformer [non-commercial]`
   - GFPGAN: `gfpgan-v1.4`
