@@ -15,6 +15,9 @@ def normalize(x: torch.Tensor, mean: torch.Tensor, std: torch.Tensor) -> torch.T
     if x.ndim != len("BCHW") or mean.numel() != x.shape[1] or std.numel() != x.shape[1]:
         msg = "Expected BCHW input with one mean and standard deviation per channel"
         raise ValueError(msg)
+    if mean.device != x.device or std.device != x.device:
+        msg = "Image normalization statistics must be on the same device as the input"
+        raise ValueError(msg)
     x = x.float().contiguous()
     out = torch.empty_like(x)
     load(x.device).launch(

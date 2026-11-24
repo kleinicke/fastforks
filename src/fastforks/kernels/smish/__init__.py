@@ -23,6 +23,9 @@ class Activation(torch.nn.Module):
         if x.dtype != torch.float16:
             msg = "The fused Smish kernel expects fp16 input"
             raise ValueError(msg)
+        if x.device != self.lib.device:
+            msg = f"The fused Smish kernel is bound to {self.lib.device}, got input on {x.device}"
+            raise ValueError(msg)
         x = x.contiguous()
         out = torch.empty_like(x)
         self.lib.launch("smish", *linear(x.numel()), x, out, x.numel())

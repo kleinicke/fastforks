@@ -3,12 +3,24 @@ fallback, fs_cutlass return codes, and the attn_d384 fp16 QK range."""
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 import torch
 from torch import nn
 
 from fastforks._core import kernels
-from fastforks.kernels import cfnet_volume, cudnn_hacc, fs_cutlass, locotrack_sample, msda, romav2, vol_norm
+from fastforks.kernels import (
+    cfnet_volume,
+    cudnn_hacc,
+    fs_cutlass,
+    image_normalize,
+    locotrack_sample,
+    msda,
+    romav2,
+    smish,
+    vol_norm,
+)
 from fastforks.kernels import s2m2 as s2m2_kernels
 from fastforks.shared import cnn_kernels
 from fastforks.stereo.models.s2m2.kernels import inference as s2m2
@@ -69,6 +81,17 @@ def test_romav1_kernel_rejects_unsupported_radius_and_skips_empty_batches():
     with pytest.raises(ValueError, match="256 channels with radius 7"):
         romav2.correlate_roma1(feature, feature, 7, warp)
     assert romav2.correlate_roma1(feature, feature, 2, warp).shape == (0, 25, 2, 3)
+
+
+def test_image_kernels_check_the_tensor_device_before_dispatch(monkeypatch):
+    x = torch.empty((1, 3, 4, 4), dtype=torch.float16)
+    with pytest.raises(ValueError, match="statistics must be on the same device"):
+        image_normalize.normalize(x, torch.zeros(3), torch.ones(3, device="meta"))
+
+    device = torch.device("cuda:0")
+    monkeypatch.setattr(smish, "load", lambda dev: SimpleNamespace(device=dev))
+    with pytest.raises(ValueError, match="bound to cuda:0, got input on cpu"):
+        smish.Activation(device)(x)
 
 
 @pytest.fixture

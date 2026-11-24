@@ -465,7 +465,9 @@ class CubinModule:
         """Largest block size `kernel` launches with on this device (its register use can keep it below 1024)."""
         v = ctypes.c_int()
         # CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK
-        _check(_libcuda().cuFuncGetAttribute(ctypes.byref(v), 0, self._funcs[kernel]), f"cuFuncGetAttribute {kernel}")
+        with torch.cuda.device(self.device):
+            status = _libcuda().cuFuncGetAttribute(ctypes.byref(v), 0, self._funcs[kernel])
+        _check(status, f"cuFuncGetAttribute {kernel}")
         return v.value
 
     def launch(
