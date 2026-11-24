@@ -48,5 +48,10 @@ install folders, the template API served all 14 full-pack templates and all 13 c
 The extracted full pack passed w02, w06 and whole-photo face restoration. The extracted commercial pack passed the
 Fastforks branches of all thirteen templates. Both packs reproduced w02 after eviction.
 
+Rebuilt 0.2.1 wheels at `9a85ce60` also passed dependency checks and archive workflows without an editable library
+install. The full pack served all 14 templates and passed w02, w03, w08 and w09 on PyTorch 2.15.0+cu132.
+The commercial pack served all 13 templates and passed w02, w06 and w09 on PyTorch 2.14.1+cu130, with only
+`fastforks-core` installed. Both installations reproduced w02 after `/free`.
+
 Publishing the wheels and the Comfy Registry packs are release steps. See the [Windows results](comfyui-windows-results.md) and
 [macOS results](comfyui-mac-results.md) for the other platform runs.
