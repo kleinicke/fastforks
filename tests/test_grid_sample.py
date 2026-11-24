@@ -100,6 +100,28 @@ def test_over_the_limit_compiles(cuda):
     torch.testing.assert_close(f(img, grid), _native(img, grid), rtol=0, atol=1e-6)
 
 
+@pytest.mark.gpu
+@pytest.mark.slow
+def test_cuda_dynamic_onnx_uses_native_sampler(cuda):
+    pytest.importorskip("onnx")
+    pytest.importorskip("onnxscript")
+
+    class Sample(torch.nn.Module):
+        def forward(self, image, grid):
+            return grid_sample(image, grid, align_corners=True)
+
+    image = torch.ones(2, 8, 12, 16, device="cuda")
+    grid = torch.zeros(2, 6, 8, 2, device="cuda")
+    rows = torch.export.Dim("rows", min=4, max=10)
+    program = torch.onnx.export(
+        Sample().eval(), (image, grid), dynamic_shapes=({}, {1: rows}), dynamo=True, verbose=False
+    )
+    assert program is not None
+    graph = program.model_proto.graph
+    assert graph.input[1].type.tensor_type.shape.dim[1].dim_param
+    assert any(node.op_type == "GridSample" for node in graph.node)
+
+
 _UNKNOWN = object()
 
 

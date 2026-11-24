@@ -7,8 +7,8 @@ exact at N_max and N_max + 1 for six shapes, fp32 and fp16, cuDNN 9.24; 65535 is
 lookup has ~500k rows. `grid_sample` runs those calls on PyTorch's native kernel (as fast as cuDNN at these sizes)
 and every other call through `F.grid_sample` unchanged, so the result at sizes cuDNN takes is bit-identical.
 `torch.compile` needs the switch too (its fake-tensor trace of `F.grid_sample` fails on the same batches; the size
-check is a shape guard); exported graphs keep `F.grid_sample` (ONNX / TensorRT GridSample has no such limit, and a
-check on a dynamic dimension would constrain it).
+check is a shape guard). CUDA exports always use the native operator: cuDNN's sampler cannot be decomposed for
+ONNX with dynamic shapes, and a check on a dynamic dimension would constrain it.
 """
 
 from __future__ import annotations
@@ -39,15 +39,21 @@ def grid_sample(
     padding_mode: str = "zeros",
     align_corners: bool | None = None,
 ) -> torch.Tensor:
-    """`F.grid_sample` (options by keyword), on the native kernel where cuDNN would refuse the batch size."""
+    """`F.grid_sample` (options by keyword), using the native operator for CUDA exports and oversized batches."""
     if (
         align_corners
         and mode == "bilinear"
         and padding_mode == "zeros"
         and input.is_cuda
         and input.dim() == _NCHW
-        and not (torch.compiler.is_exporting() or torch.jit.is_tracing() or in_onnx_export())
-        and input.shape[0] > cudnn_max_rows(input.shape[1], grid.shape[1], grid.shape[2])
+        and (
+            torch.compiler.is_exporting()
+            or in_onnx_export()
+            or (
+                not torch.jit.is_tracing()
+                and input.shape[0] > cudnn_max_rows(input.shape[1], grid.shape[1], grid.shape[2])
+            )
+        )
     ):
         # the direct call skips autocast's fp32 cast of grid_sample; do it here
         if torch.is_autocast_enabled(input.device.type):
