@@ -23,13 +23,11 @@ import torch
 from torch import nn
 
 from fastforks._core.checkpoint import load_strict
-from fastforks._core.patch import override
 from fastforks._core.runner import host
 from fastforks._core.upload import device_tensor
 from fastforks.matching._runner import Forward, Runner
 from fastforks.shared import mlx_wrap
 from fastforks.shared.aliked import ALIKED, lazy
-from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.deform_conv import modulated_deform_conv
 from fastforks.shared.lightglue import LightGlue, match_many, resize_long
 
@@ -37,6 +35,7 @@ from .net.disk import DISK
 
 if TYPE_CHECKING:
     from fastforks.matching._runner import Context
+    from fastforks.shared.cuda_graphs import GraphCache
 
 _DISK_NMS = 5  # fixed: upstream DISK extractor `nms_window_size`
 _ALIKED_NMS = 2  # fixed: upstream ALIKED `nms_radius`
@@ -198,9 +197,7 @@ class Kernels(Portable):
             assert isinstance(aliked, ALIKED)  # noqa: S101 - narrows the union for the type checker
             lazy.install(aliked)
             if ctx.params.cuda_graphs:
-                # the cache holds the bound method weakly: no reference cycle keeps the graph pool after the model goes
-                self.graphs = vars(aliked)["maps_graphs"] = GraphCache(aliked.detection_maps, graphs=2)
-                override(aliked, _graphed_detection_maps, "detection_maps")
+                self.graphs = lazy.graph_maps(aliked)
                 self._extract_lock = threading.Lock()
 
     def describe(self, image: torch.Tensor) -> dict[str, torch.Tensor]:
@@ -222,18 +219,6 @@ class Kernels(Portable):
     def module(self) -> torch.nn.Module:
         """No exportable module: the extractor runs kernel launches."""
         return Runner.module(self)
-
-
-def _graphed_detection_maps(self: ALIKED, image: torch.Tensor) -> tuple[torch.Tensor, ...]:
-    """The lazy `detection_maps` replayed from the image size's CUDA graph once captured: static outputs, no copy."""
-    graphs: GraphCache = vars(self)["maps_graphs"]
-    out = graphs.run((image.device, image.dtype, tuple(image.shape)), image, post=_static)
-    return lazy.detection_maps(self, image) if out is None else out
-
-
-def _static(out: tuple[torch.Tensor, ...]) -> tuple[torch.Tensor, ...]:
-    """A graph's static outputs as they are: read before the next replay (`Kernels._extract_lock`)."""
-    return out
 
 
 _MLX = {
