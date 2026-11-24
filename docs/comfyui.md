@@ -225,3 +225,9 @@ capture CUDA graphs, but the device memory in use (`cudaMemGetInfo`) is not high
 Models that replay CUDA graphs make PyTorch print `Attempting uncaptured free of a captured allocation` under
 this allocator when the next graph is captured or the model is unloaded. PyTorch calls it "technically allowed", and
 the outputs are unchanged: the GPU goldens of these models pass under `cudaMallocAsync`.
+
+`--lowvram` and `--novram` change how ComfyUI splits its own (diffusion) models between GPU and CPU. The fastforks
+models are small, so they load whole on ComfyUI's device either way. Before each load the pack asks ComfyUI to free
+room, and ComfyUI unloads our models like its own when it needs memory. Under `--novram` every node ran its default
+model (Windows, RTX 5060 Ti; four whose weights were not local skipped), INSID3 at the top with 1.6 GiB of PyTorch
+memory. `--cpu` runs every node on the CPU, in float32 and the portable backend.
