@@ -58,6 +58,8 @@ Semantic Segment and Parse returned images and their auxiliary outputs. Classify
 or scores. Video Depth, Video Segment and Point Track returned four outputs for four input frames. The tracking
 JSON contained four finite point positions per frame. Together with the workflows and face restoration, this
 covered all 24 node types.
+In whole-photo face restoration, CodeFormer fidelity 0.2 and 0.9 produced different 512 × 512 outputs. Sending one
+frame to Interpolate preserved the source preview byte for byte.
 
 On a fresh install with empty caches, the pack wrote its input schema cache at startup. Cancelling Depth during the
 public checkpoint download produced a ComfyUI interrupt event and emptied the download directory. Queueing again
