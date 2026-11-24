@@ -361,7 +361,7 @@ the speed-table harness: uint8 CUDA input, other warm-up and medians), so they c
 | coex-sceneflow | 375x1242 | 6.9 (6.9) | 7.3 (7.0) | 19.3 (18.7) | 18.2 (17.6) | 6.7 / 14.7 |
 | igev-stereo-sceneflow | 375x1242 | 104.5 (103.9) | 105.3 (103.7) | 285.0 (250.0) | 246.2 (243.7) | 96.4 / 213.2 |
 | raft-stereo-sceneflow | 375x1242 | 89.5 (89.4) | 90.8 (90.6) | 238.1 (237.2) | 240.4 (239.2) | 88.0 / 214.7 |
-| psmnet-sceneflow | 375x1242 | fails | fails | 102.2 (101.9) | 102.1 (101.9) | 73.5 / 107.0 |
+| psmnet-sceneflow | 375x1242 | failed then (works since, below) | failed then | 102.2 (101.9) | 102.1 (101.9) | 73.5 / 107.0 |
 | nmrf-sceneflow | 375x1242 | 56.0 (55.8) | 56.3 (56.0) | 62.3 (62.0) | 70.8 (62.3) | 51.5 / 58.1 |
 | bridgedepth-sf | 375x1242 | 141.1 (138.9) | 100.9 (100.7) | 183.1 (180.9) | 120.5 (120.2) | 92.1 / 111.0 |
 | sam2.1-hiera-tiny | 1024x1024 | 22.4 (22.2) | 16.8 (16.5) | 25.6 (25.0) | 19.4 (19.2) | 13.9 / 16.6 |
@@ -387,8 +387,9 @@ the speed-table harness: uint8 CUDA input, other warm-up and medians), so they c
   metal. The harnesses differ, so these are estimates.
 - **No drift on Windows.** It reproduces the table above (coex 6.9, raft 89.5, igev 104.5, nmrf 56.0, sam2 22.4,
   bridgedepth 141 vs 139). One exception: psmnet portable is now 102 ms, against 110 ms before BatchNorm folding
-  at load (`bd881ef5`). That merge also breaks psmnet kernels mode on both OSes: `RuntimeError: kernels: no conv
-  + BatchNorm run was fused (the module tree changed)`.
+  at load (`bd881ef5`). That merge also broke psmnet kernels mode on both OSes (`RuntimeError: kernels: no conv
+  + BatchNorm run was fused (the module tree changed)`); fixed since: on 2026-11-24 psmnet kernels passes its golden
+  on Windows and benches 64.5 ms (`fastforks bench --runs 5`).
 
 ## Attention speed on Windows (work/attn-speed)
 
