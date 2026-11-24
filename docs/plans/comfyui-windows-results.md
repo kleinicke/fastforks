@@ -233,8 +233,8 @@ None of these is Windows-specific; the Windows run surfaced them.
 
 ## Open issues
 
-1. ~~The kernels error names `mode=`~~: fixed in the pack (e20c52b3).
-   - The info log `fastforks: loaded X (Backend(mode=...))` still prints the library's repr.
+1. ~~The kernels error names `mode=`~~: fixed in the pack (e20c52b3). The info log `fastforks: loaded X (...)`
+   now prints the device, dtype and kernels in plain words (`describe_backend`).
 2. ~~Stereo output scaling~~: fixed (f0a61f0e). Depth keeps min / max on purpose.
 3. ~~Version mismatch on this branch~~: fixed (8ad74d59).
    - `docs/comfyui.md` and the `backend` tooltip still say kernels are Linux x86-64 only. That is true of the released
@@ -249,7 +249,8 @@ None of these is Windows-specific; the Windows run surfaced them.
 6. **Old weights layout.** Weights stored in a directory laid out as `<family>/<file>` are found only through
    `FASTFORKS_WEIGHTS_PATH`. The pack's read cache reads only `blobs/`.
 7. **Not run:**
-   - ComfyUI portable with `python_embeded`.
-   - bfloat16 on an RTX 20xx.
-   - Restore faces end to end. It needs a 350 MB GFPGAN download and aligned crops; only the list is checked.
+   - bfloat16 on an RTX 20xx (no such card here).
    - A comparison against Linux output PNGs.
+   - Done since (2026-11-23): ComfyUI portable with `python_embeded` (a clean install of fresh wheels, all 19 nodes ran
+     one model each, weights and kernel DLLs downloaded on the first run), and Restore faces end to end on whole
+     photos (codeformer and gfpgan, RetinaFace detection and paste-back, 27343c97).
