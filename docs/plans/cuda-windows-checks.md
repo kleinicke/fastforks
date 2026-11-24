@@ -17,9 +17,9 @@ fast-acvnet, las2, rtmo (t/s/m/l), rife-4.25 / 4.25-lite / 4.26, gimm-vfi-r and 
   The fixed FP16 engines passed. Dynamic GwcNet FP16 passed at min, opt and max, and dynamic PSMNet FP32 ONNX
   passed. TensorRT 11.4.0.106 fails to build the tested PSMNet FP16 profile on both 0.2.0 and 0.2.1.
 - [ ] **Linux CUDA, other regated stereo:** ONNX/TRT build and parity for cas_gwcnet, aanet, bridgedepth and
-  great_igev. AANet fixed FP16 TensorRT passed. Dynamic FP16 ONNX passed at opt 336 × 384 and across the
-  profile from 288 × 288 to 384 × 432 after exporting the native grid sampler. The same profile on 0.2.0
-  failed on `aten.cudnn_grid_sampler`.
+  great_igev. AANet passed fixed and dynamic FP16 TensorRT. Dynamic FP16 ONNX and TensorRT used opt 336 × 384
+  and a profile from 288 × 288 to 384 × 432. The engine's mean absolute difference from eager stayed below
+  0.0018 pixels at min, opt and max. The 0.2.0 dynamic ONNX export failed on `aten.cudnn_grid_sampler`.
 - [ ] **Linux CUDA, GMFlow:** fp16 TensorRT engine speed and memory against v0.2.0 (no fp32 residual in
   non-MLX exports).
 - [ ] **Linux CUDA, GIMM-VFI and RIFE:** fp16 export as in v0.2.0; RIFE's export graph uses in-place writes again.
@@ -52,7 +52,7 @@ Status against `d8099bff` and the release follow-up. The tables distinguish code
 | A7, RoMa v1 | Restored checked Cholesky outside MLX export. Both RoMa v1 CUDA golden modes passed on Ubuntu. |
 | A8, DLL temp sweep | The loader retries once if its verified private copy disappears before Windows locks it. An ordinary load failure still raises. The native Windows run is pending. |
 | A9, streamed blocks | Linux parsed a loaded CUDA runtime under a path with spaces. The relocated environment passed 41 cuDNN and streamed ViTPose tests. Windows wheel streaming has run. The Windows loader now reuses the loaded runtime even outside `torch/lib`, covered by a mocked module lookup. A native conda test remains open. |
-| A10-A12, remaining hardening | cuDNN's `conv_into` checks destination shape, dtype and device before dispatch. Other launcher and layout checks remain targeted work. The MSVC setup reads Unicode paths and environment values, covered by a Windows-only test. The CUDA bicubic check is recorded below. |
+| A10-A12, launcher and layout hardening | cuDNN's `conv_into` checks its destination. The MSDA, volume norm, RoMa, LocoTrack and CFNet launchers check their tensor contracts before dispatch. Existing CUDA binaries were used for the kernel checks. The MSVC setup reads Unicode paths and environment values, covered by a Windows-only test. The CUDA bicubic check is recorded below. |
 
 | ComfyUI / API findings | What remains |
 | --- | --- |
@@ -84,12 +84,12 @@ PyTorch 2.14.1+cu130 on RTX 5060 Ti 16 GB with NVIDIA driver 595.99.02. Each mea
 - **Build reproducibility:** `group_silu` and `raft_flow` were each built twice with `nvcc` 13.0.88, GCC 15.2,
   glibc 2.43 and the local `rsqrt` header patch. Every binary and both generated manifests matched byte for byte.
   These checks use the Ubuntu workstation toolchain. The published binaries use their recorded toolchains.
-- **RTMW:** the channels-last change in `47915f2e` raised keypoint error past the CUDA golden limits for
+- The RTMW channels-last change in `47915f2e` raised keypoint error past the CUDA golden limits for
   RTMW-L-384 portable and RTMW-L kernels. Keeping RTMW's initial weight layout contiguous restored all ten
   goldens. On a 1080p frame with 15 synthetic person boxes, portable RTMW-L went from 11.6 to 15.3 ms and
   RTMW-L-384 from 25.2 to 32.0 ms compared with the faster, out-of-tolerance layout. Kernels measured 9.3
   and 18.4 ms, respectively. DWPose and RTMPose retain their channels-last path.
-- **Shared-code speed checks:** RTMO-T at 1080p measured 6.43 ms portable and 2.32 ms kernels. GMFlow-scale1-mixdata
+- RTMO-T at 1080p measured 6.43 ms portable and 2.32 ms kernels. GMFlow-scale1-mixdata
   at 1080p measured 442.4 and 271.9 ms, with 2102 and 1040 MiB peak reserved. DepthFM at 994 × 1482 measured
   4.88 and 3.38 s, with 5850 and 4092 MiB peak reserved. These are warmed inference times.
 

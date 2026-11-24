@@ -40,5 +40,13 @@ decoded previews matched byte for byte. The commercial pack's w02 reload also ma
 The source packs used local weights. A separate virtual environment installed the three local 0.2.1 wheels and
 ComfyUI, with the library checkout off the import path. Its w02, w03, w08 and w14 runs passed. The standalone
 commercial pack also passed w02 and reproduced the output after eviction with only `fastforks-core` installed.
+
+## Registry archives
+
+Comfy CLI `c1abf5a` validated and packed both integration folders at Fastforks `5b09289e`. In fresh ComfyUI
+install folders, the template API served all 14 full-pack templates and all 13 commercial templates byte for byte.
+The extracted full pack passed w02, w06 and whole-photo face restoration. The extracted commercial pack passed the
+Fastforks branches of all thirteen templates. Both packs reproduced w02 after eviction.
+
 Publishing the wheels and the Comfy Registry packs are release steps. See the [Windows results](comfyui-windows-results.md) and
 [macOS results](comfyui-mac-results.md) for the other platform runs.
