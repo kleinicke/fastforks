@@ -84,13 +84,12 @@ class Kernels(Runner):
     """Our kernels: fp16 NHWC convs with fused epilogues, Depth Anything's fast ViT; the flow state in fp32."""
 
     Params = Params
-    _PAD = 112  # fixed: the network pads each side to a multiple of 112
     _GRAPH_PIXELS = 336 * 448  # fixed: cap padded work where replay pays off
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and prepare it for the kernels."""
         super().__init__(ctx)
-        from .kernels.inference import forward_kernels, prepare_kernels  # noqa: PLC0415 - needs the kernel libraries
+        from .kernels.inference import forward_kernels, graph_pixels, prepare_kernels  # noqa: PLC0415 - needs the kernel libraries
 
         self.net = _net()
         sd = ctx.state_dict()
@@ -104,13 +103,9 @@ class Kernels(Runner):
             pixels=self._GRAPH_PIXELS,
             enabled=ctx.params.cuda_graphs,
             capture_after=cudnn_hacc.capture_after(),
-            size=self._graph_pixels,
+            size=graph_pixels,
             one_shape=True,
         )
-
-    def _graph_pixels(self, image: torch.Tensor, _other: torch.Tensor) -> int:
-        b, _, h, w = image.shape
-        return b * (h + (-h % self._PAD)) * (w + (-w % self._PAD))
 
     def _flow(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:
         return self._forward(self.net, image1, image2, self.ctx.params.iters)

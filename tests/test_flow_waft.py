@@ -10,6 +10,7 @@ import torch
 from fastforks import flow
 from fastforks._core import registry
 from fastforks._core.bench import synthetic_pair
+from fastforks.flow.models.waft.kernels.inference import graph_pixels
 from fastforks.flow.models.waft.model import _net
 from fastforks.shared.timm_blocks import resnet_layers
 
@@ -35,6 +36,12 @@ def test_card_variants() -> None:
         assert card.options["iters"] == 5, vid
         assert card.io.pad_mode == "none", vid  # the network pads itself
     assert set(flow.list_models()) >= set(VARIANTS)
+
+
+@pytest.mark.parametrize(("size", "padded"), [(327, 336), (328, 448), (336, 448)])
+def test_graph_size_counts_waft_padding(size: int, padded: int) -> None:
+    pair = torch.empty((2, 3, size, size), device="meta")
+    assert graph_pixels(pair, pair) == 2 * padded**2
 
 
 @pytest.mark.slow

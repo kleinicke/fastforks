@@ -9,14 +9,16 @@ unsupported op) is logged as a warning, marks the shape eager for good and frees
 capture ends (required by the `cudaMallocAsync` allocator, see `free_captured`); a capture (failed or not) empties the
 allocator cache once, after the lock is released; calls hold a per-cache lock and wait for the
 previous call's stream, so threads / streams never read each other's static buffers; `release()` frees the pool on the
-device. The only allocator-cache emptyings under the lock are the two around a capture's warm-up (under
-`CAPTURE_LOCK`, so no capture is open): before it, the caller's cached blocks, which the warm-up on the capture stream
-cannot reuse; after it, the warm-up's blocks, which the capture's pool cannot reuse. Either set would otherwise stay
-reserved beside the next allocations (aliked-lightglue's capture call: 3874 -> 2612 -> 1494 MiB peak reserved).
+device. Under `CAPTURE_LOCK`, the cache is emptied before a separate warm-up, when the capture stream cannot reuse
+the caller's cached blocks, and before capture, when the private pool cannot reuse those blocks or the warm-up's.
+Either set would otherwise stay reserved beside the next allocations (aliked-lightglue's capture call:
+3874 -> 2612 -> 1494 MiB peak reserved).
 
-Every warm-up + capture runs on one shared stream per device (`capture_stream`, under `CAPTURE_LOCK`), and kernels
-that overlap work on side streams take them from `side_stream`: cuBLAS keeps a 32 MB workspace per stream for the
-life of the process, so a new stream per capture or per loaded model grew the memory by 32 MB each time.
+With the native allocator, runners without capture-time probes can use their preceding eager requests to warm
+the shape. They try capturing directly and retry with a checked warm-up if the device or library needs it.
+Every warm-up and capture runs on one shared stream per device (`capture_stream`, under `CAPTURE_LOCK`), and
+kernels that overlap work on side streams take them from `side_stream`: cuBLAS keeps a 32 MB workspace per stream
+for the life of the process, so a new stream per capture or per loaded model grew the memory by 32 MB each time.
 """
 
 from __future__ import annotations
@@ -149,15 +151,19 @@ class GraphCache:
         seen: int = 64,
         capture_after: int = 1,
         share_inputs: tuple[int, ...] = (),
+        capture_warmup: bool = True,
     ) -> None:
         """Capture after `capture_after` eager calls and retain at most `graphs` graphs.
 
         Input positions in `share_inputs` reuse matching static buffers across keys. All warm-ups, replays and
         output copies on this cache are ordered, including when successive calls use different CUDA streams.
+        Disable `capture_warmup` only if the preceding eager calls prepare the runner for capture and replay does
+        not depend on checks of the capture input. The async allocator always uses a warm-up.
         """
         self._share_inputs = share_inputs
         self._forward = _weak(forward)
         self._capture_after = max(1, capture_after)  # one-off shapes never capture
+        self._capture_warmup = capture_warmup
         self._max, self._stale, self._seen_max = graphs, stale, seen
         # key -> (graph, static inputs, static output)
         self.graphs: dict[Hashable, tuple[torch.cuda.CUDAGraph, tuple[torch.Tensor, ...], Any]] = {}
@@ -277,6 +283,17 @@ class GraphCache:
         return x.clone()
 
     def _capture(self, inputs: tuple[torch.Tensor, ...]) -> tuple[torch.cuda.CUDAGraph, tuple[torch.Tensor, ...], Any]:
+        # With cudaMallocAsync, freeing live allocations after an invalidated capture can abort the process.
+        if not self._capture_warmup and torch.cuda.get_allocator_backend() == "native":
+            try:
+                return self._capture_once(inputs, warmup=False)
+            except Exception as e:  # noqa: BLE001 - a library may still need a forward on the capture stream
+                log.debug("Retrying CUDA graph capture with a warm-up: %s: %s", type(e).__name__, e)
+        return self._capture_once(inputs, warmup=True)
+
+    def _capture_once(
+        self, inputs: tuple[torch.Tensor, ...], *, warmup: bool
+    ) -> tuple[torch.cuda.CUDAGraph, tuple[torch.Tensor, ...], Any]:
         device = inputs[0].device
         static = tuple(self._static_input(i, x) for i, x in enumerate(inputs))
         cur = torch.cuda.current_stream(device)
@@ -284,14 +301,13 @@ class GraphCache:
         graph = _Graph()
         with CAPTURE_LOCK, torch.cuda.stream(side):
             side.wait_stream(cur)
-            # the blocks the eager calls cached on the caller's stream: the warm-up on the capture stream cannot reuse
-            # them, so it allocated a second set next to them (peak reserved: aliked-lightglue 2612 -> 1494 MiB,
-            # patchmatchnet 2432 -> 1434 MiB)
-            torch.cuda.empty_cache()
             try:
-                checked(self._forward, *static)  # warm-up: lazy inits, workspaces, overflow checks
+                if warmup:
+                    # The warm-up cannot reuse the blocks cached by earlier requests on the caller's stream.
+                    torch.cuda.empty_cache()
+                    checked(self._forward, *static)  # lazy inits, workspaces, overflow checks
             finally:
-                # A failing warm-up can still have enqueued reads of inputs shared with another graph.
+                # Order workspace release after the caller's work, including any partially completed warm-up.
                 side.synchronize()
             # Give each capture its own cuBLAS workspace. The async allocator warns when the workspace from an
             # earlier capture is freed here. Its allocation node restores it on the next replay.
@@ -382,6 +398,7 @@ class SmallShapeGraphs(Generic[_Output]):
         capture_after: int = 1,
         size: Callable[..., int] | None = None,
         one_shape: bool = False,
+        capture_warmup: bool = True,
     ) -> None:
         """`forward(*tensors) -> Tensor`; at most `graphs` shapes keep a graph (see `GraphCache`).
 
@@ -389,6 +406,7 @@ class SmallShapeGraphs(Generic[_Output]):
         that resizes its input inside: the network size).
         `one_shape` captures only consecutive requests of one signature and releases it before running another.
         Use it when the forward replaces size-dependent buffers a graph may read or to limit overlapping allocations.
+        `capture_warmup` controls whether the native allocator runs a separate forward before the first capture attempt.
         """
         self.forward = _weak(forward)
         self.pixels = pixels
@@ -396,7 +414,11 @@ class SmallShapeGraphs(Generic[_Output]):
         self.one_shape = one_shape
         self._last_key: Hashable | None = None
         self.cache = (
-            GraphCache(forward, graphs=1 if one_shape else graphs, capture_after=capture_after) if enabled else None
+            GraphCache(
+                forward, graphs=1 if one_shape else graphs, capture_after=capture_after, capture_warmup=capture_warmup
+            )
+            if enabled
+            else None
         )
 
     def __call__(self, *inputs: torch.Tensor) -> _Output:

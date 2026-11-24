@@ -189,6 +189,7 @@ class Kernels(Runner):
             enabled=ctx.params.cuda_graphs,
             capture_after=cudnn_hacc.capture_after(),
             one_shape=True,
+            capture_warmup=cudnn_hacc.BUILD_AFTER > 0,
         )
 
     def _disparity(self, left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:

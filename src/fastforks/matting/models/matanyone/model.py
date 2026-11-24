@@ -468,7 +468,12 @@ class Kernels(Portable):
                 override(block, _upsample_block)
         override(self.net.mask_decoder.sensory_update, _sensory_update)
         self._graphs = SmallShapeGraphs(
-            self._matte, pixels=self._GRAPH_PIXELS, enabled=ctx.params.cuda_graphs, capture_after=2, one_shape=True
+            self._matte,
+            pixels=self._GRAPH_PIXELS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=2,
+            one_shape=True,
+            capture_warmup=False,
         )
 
     def _matte(self, image: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:

@@ -433,7 +433,12 @@ class Kernels(Portable):
             if isinstance(m, GlobalSubSampleAttnRPE):
                 m.__dict__["_sdpa"] = True  # read by its forward
         self._graphs = SmallShapeGraphs(
-            self._eager, pixels=self._GRAPH_PIXELS, enabled=ctx.params.cuda_graphs, capture_after=2, one_shape=True
+            self._eager,
+            pixels=self._GRAPH_PIXELS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=2,
+            one_shape=True,
+            capture_warmup=False,
         )
 
     def _eager(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:

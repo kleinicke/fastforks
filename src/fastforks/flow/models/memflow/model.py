@@ -260,7 +260,12 @@ class Kernels(Portable):
                 override(m, _pcblock)
         # The depthwise convs replace their cached FFT spectra when their geometry changes.
         self._graphs = SmallShapeGraphs(
-            self._eager, pixels=self._GRAPH_PIXELS, enabled=ctx.params.cuda_graphs, capture_after=2, one_shape=True
+            self._eager,
+            pixels=self._GRAPH_PIXELS,
+            enabled=ctx.params.cuda_graphs,
+            capture_after=2,
+            one_shape=True,
+            capture_warmup=False,
         )
 
     def _eager(self, image1: torch.Tensor, image2: torch.Tensor) -> torch.Tensor:

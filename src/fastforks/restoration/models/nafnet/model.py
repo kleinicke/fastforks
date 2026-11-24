@@ -339,6 +339,7 @@ class Kernels(Portable):
             enabled=ctx.params.cuda_graphs,
             capture_after=cudnn_hacc.capture_after(),
             one_shape=True,
+            capture_warmup=cudnn_hacc.BUILD_AFTER > 0,
         )
 
     def _restore_image(self, image: torch.Tensor) -> torch.Tensor:
