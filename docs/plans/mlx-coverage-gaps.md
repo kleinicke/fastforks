@@ -445,3 +445,36 @@ No MLX float16, because the golden fails (tolerances unchanged):
 - xfeat / xfeat-lighterglue: recall 0.9983 vs 0.999. It was also no faster (158 vs 164 ms, 521 vs 524 ms): the
   network is about a third of the call (64 of 190 ms profiled), the rest is CPU-side, and the float32 islands a fix
   needs would take the small gain away.
+
+## Where MLX trails MPS: the next optimization queue (2026-11-24)
+
+From the two M1 Pro survey files (best passing row per ref and backend, warm ms): 541 refs have both, geomean MLX/MPS
+0.895, and 176 run more than 5% slower on MLX. Only `matting/matanyone` has no MLX port; the six TotalSegmentator
+refs have a port but no MLX row yet. Rows the running agents are re-measuring (ben2, EfficientViT-SAM, the Conv3d and
+fp16 re-surveys) may already be better than below.
+
+Work them one family at a time, at most two or three GPU agents at once (they share `gpu.sh`). Each: profile the
+MLX graph (`FF_MLX_PROFILE=1`, the per-op timing of `mlx_graph`), fix the slowest ops in the translator or a
+family `mlx.py`, re-survey the family's refs, regenerate `apple_mlx.json`.
+
+| MLX/MPS | refs | lead |
+|---|---|---|
+| 4.2, 3.1 | hitnet-eth3d, hitnet-middlebury-d400 | tile propagation: many small convs and warps per level; check for host syncs and per-tile `gather` |
+| 3.9, 2.9 | xfeat, xfeat-lighterglue | host-side keypoint selection (CPU overhead found by the geometry agent); NMS and top-k on device |
+| 3.1, 2.1 | dinov2-s/b-linear-ade20k | MLX is 3x slower at 0.8 s first call: the bilinear upsample of the linear head or the patch-embed conv |
+| 2.9, 2.3, 1.8 | moge-2-vits/vitb/vitl-normal | the normal head only (the depth refs are fine): look at its normalisation and upsampling |
+| 2.9, 2.2, 1.5 | restormer-derain/sidd/deblur | transposed attention over channels and the depthwise 3x3 convs; 17 s first call |
+| 2.7, 1.7 | aanet-sceneflow, aanet-plus | deformable conv: the MLX port gathers per sample point |
+| 2.5 | coex-sceneflow | cost volume build and the guided aggregation |
+| 2.5, 1.7 | rife-4.25-lite, rife-4.25 | `grid_sample` warps per IFBlock; small convs (launch bound) |
+| 2.4, 1.6 | raft-small, raft-large | 8 GB peak on MLX vs 2.5 GB: the all-pairs correlation is materialised; reuse the memory-lean MEMFOF path |
+| 2.2 | loftr-indoor/outdoor | fine matching runs on the CPU (geometry agent) |
+| 2.2 | aliked-lightglue | ALIKED's normalisation (geometry agent) |
+| 2.2, 1.8, 1.7 | efficientvit-sam-l0/xl1/xl0 | the ben2/EfficientViT-SAM agent is on it |
+| 2.0, 1.9 | mask-rcnn, faster-rcnn r50-fpn | RoIAlign and the per-level proposal ops |
+| 1.8 | realplksr-nomoswebphoto-x4 | the 17x17 depthwise convs (partial large kernel) |
+| 1.7 | dlnr-sceneflow, ema-vfi-small-t, raft-stereo-middlebury | 29-37 s first calls: compile time first |
+| 1.5-1.6 | lineart, anyline, segnext-mscan-l/b, sapiens-seg-0.3b, oneformer-swinl, gmflow-scale1 | not looked at yet |
+
+Also: port MatAnyone (memory-propagation matting, the last family without MLX), and survey the six TotalSegmentator
+refs on MLX (the 1.5 mm `total` runs 34 s warm vs 23 s on MPS; 3mm is 1.4x slower).
