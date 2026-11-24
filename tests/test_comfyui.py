@@ -1259,3 +1259,10 @@ def test_face_restore_detects_aligns_and_pastes_back(pack: Any, monkeypatch: pyt
     (out,) = nodes.FaceRestore().run(image=gray, model="codeformer", backend="auto", dtype="auto")
     assert out.shape == (1, 150, 200, 3)
     torch.testing.assert_close(out, gray.expand(-1, -1, -1, 3))
+
+
+@pytest.mark.parametrize("pack_dir", [PACK, COMMERCIAL_PACK], ids=lambda p: p.name)
+def test_pack_ships_the_repository_licence(pack_dir: Path) -> None:
+    """Each pack folder is published on its own (`comfy node publish`), so it carries a copy of the LICENSE."""
+    assert (pack_dir / "LICENSE").read_bytes() == (PACK.parents[1] / "LICENSE").read_bytes()
+    assert 'license = { file = "LICENSE" }' in (pack_dir / "pyproject.toml").read_text(encoding="utf-8")

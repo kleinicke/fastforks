@@ -4,7 +4,7 @@
 name = "fastforks"
 description = "Fast vision nodes: the same models up to 29x faster than the popular nodes with less VRAM (RTX 5060 Ti: Metric3D normals 29x, Depth Anything V2 6x vs kijai, BiRefNet 3.6x, Real-ESRGAN 3.6x). One node per task with a model dropdown, automatic weight download, Windows / Linux / macOS. Tasks: depth, video depth, normals, background removal, SAM / SAM 2.1 / SAM 3 segmentation, video segmentation, detection, pose, frame interpolation (RIFE), classification, WD tagger, NSFW check, semantic segmentation, clothes / face parsing, stereo, optical flow, point tracking, upscaling (Real-ESRGAN, SwinIR, HAT), face restoration (GFPGAN, CodeFormer). Every fastforks model: some are non-commercial only (tagged [non-commercial]); installing this pack lets them download, and using each within its licence is your responsibility. fastforks-commercial has only commercial-use models."
 version = "0.2.0"
-license = { text = "Apache-2.0" }  # the pack's code, as the repository's LICENSE; each model has its own licences
+license = { file = "LICENSE" }  # Apache-2.0: the pack's code, a copy of the repository's LICENSE; each model has its own licences
 requires-python = ">=3.11"
 dependencies = ["fastforks>=0.2"]  # fastforks-core[nc,libs]: every model family; 0.2: restoration.load(path), video()
 classifiers = ["Operating System :: OS Independent", "Environment :: GPU :: NVIDIA CUDA"]

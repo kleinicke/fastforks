@@ -242,7 +242,7 @@ None of these is Windows-specific; the Windows run surfaced them.
 4. **transformers pin.** The `[transformers]` extra needs transformers >= 5.19, which can conflict with other node
    packs that pin 4.x.
 5. **Publishing.**
-   - The pack folder has no LICENSE file, and the `[tool.comfy]` Icon is empty.
+   - ~~The pack folder has no LICENSE file~~: both pack folders carry a copy (tested). The `[tool.comfy]` Icon is empty.
    - ComfyUI-Manager's "Install via Git URL" clones the repository root, which is not a pack.
    - Publishing to the Comfy registry from `integrations/comfyui` is still to be done.
 6. **Old weights layout.** Weights stored in a directory laid out as `<family>/<file>` are found only through
