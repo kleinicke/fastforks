@@ -1268,3 +1268,49 @@ fp16 masks mean 0.0028), the last two failing the same way with `FF_MLX_NO_MM1X1
 **Left:** the 1232-wide-and-up GEMMs if the cache growth can be avoided (RegNetY-160 -11%); stride-2 1x1 convs as a
 strided slice plus GEMM (equal in isolation); 1-D and 3-D convs with kernel 1; hand-written ports that call
 `mx.conv2d` themselves (only `libnet/mlx_cnn.py` and RoMa v2 were switched).
+
+## OWLv2 and SAM 2.1 float16 goldens: float32 stages that ran in float16 (2026-11-24)
+
+`test_mlx[owlv2-b16@1]` (boxes mean |diff| 0.191 px, limit 0.15) and `test_mlx[sam2.1-hiera-base-plus@1]`
+(pred_masks mean 0.0028 of the median, limit 0.0026) failed in portable float16, with and without
+`FF_MLX_NO_MM1X1=1`. Float32 passed (2e-04 px, 1e-05).
+
+**Since when**: 921afaa7 (GELU computed in float32 inside a float16 replay), found by bisect on owlv2-b16; at HEAD
+with the old GELU sam2.1-hiera-base-plus is back at 0.0018. That GELU is not wrong: against a float64 reference it
+is the correctly rounded float16 value (mean error 3.5e-05 at sigma 0.5, the old all-float16 one 5.4e-05, neither
+biased). Both refs were inside their limits by luck before it (owlv2-b16 0.143 of 0.15, the survey row of
+2026-11-23); a different rounding pattern moved them over.
+
+**Cause**: stages PyTorch keeps in float32 ran in float16 on MLX.
+
+- **OWLv2**: `Portable.heads` (post layer norm, the class-token merge, layer norm, box and class heads) is the
+  float32 part after the float16 encoder, written as `t.float()`. An MLX replay is exported from a float32 twin, on
+  which `.float()` records nothing, so the heads were replayed in float16: the box MLP's rounding goes straight into
+  boxes (one float16 step of the sigmoid is 0.47 px at 960 px). They are `float32_call`s now (float32 inputs and
+  weights in the replay; the same `module(x.float())` everywhere else). OWLv2 is routed to MLX float16 on `auto`, so
+  this was a user-visible accuracy loss on `owlv2-b16`, not only a test failure.
+- **SAM 2.1**: the float16 Hiera replay keeps a float32 residual stream (`fast._block_f32_stream`), but at the three
+  stage transitions the shortcut is `pool(proj(norm1(x)))`, and `proj` ran in float16 on a float16 copy of the norm:
+  the stream itself was rounded once per stage. `proj` is a `float32_call` on the float32 norm output now. Tried on
+  base-plus and not needed (mean / p99, limits 0.0026 / 0.009): neck linears in float32 0.00257 / 0.0104, patch embed
+  and position embedding in float32 0.00205 / 0.0098, the projection alone 0.00124 / 0.0056.
+
+MLX portable float16 golden, mean / p99 before -> after (limits), M1 Pro; float32 is unchanged and passes everywhere:
+
+| ref | before | after | limit |
+|---|---|---|---|
+| owlv2-b16 (boxes, px) | 0.1914 / 0.456 fail | 0.0871 / 0.288 | 0.15 / 0.39 |
+| owlv2-l14 | 0.1334 / 0.356 | 0.0585 / 0.160 | 0.15 / 0.39 |
+| sam2.1-hiera-tiny (pred_masks, relative) | 0.00111 | 0.00151 / 0.0067 | 0.0037 / 0.015 |
+| sam2.1-hiera-small | 0.00580 | 0.00550 / 0.0167 | 0.017 / 0.051 |
+| sam2.1-hiera-base-plus | 0.00280 / 0.0110 fail | 0.00124 / 0.0056 | 0.0026 / 0.009 |
+| sam2.1-hiera-large | 0.00326 | 0.00362 / 0.0098 | 0.023 / 0.1 |
+
+Cost (`tools/speed_survey.py`, float16, warm ms / peak MB, before -> after; the time differences are run-to-run
+noise, the peak grows by the float32 head and projection weights and activations): owlv2-b16 294 / 991 -> 291 /
+1043, owlv2-l14 1423 / 1755 -> 1427 / 1792, sam2.1 tiny 141 / 933 -> 145 / 949, small 164 / 951 -> 169 / 969,
+base-plus 282 / 1099 -> 282 / 1099, large 597 / 1460 -> 598 / 1498. Routing is unchanged (OWLv2 `auto` on MLX
+float16; SAM 2.1 `auto` stays on MPS, MLX float16 is the default of `device="mlx"`).
+
+The same trap is possible wherever a portable runner marks its float32 part with `.float()` and has an MLX port
+through `mlx_wrap.port`: on the float32 twin the cast vanishes. Not audited across the other families here.

@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 import torch.nn.functional as F
 
-from fastforks._core.mlx_cast import to_float32, to_run_dtype
+from fastforks._core.mlx_cast import float32_call, to_float32, to_run_dtype
 from fastforks._core.tracing import EXPORTING_FOR_MLX
 from fastforks.promptable_segmentation._runner import scale
 
@@ -116,11 +116,14 @@ def _block_f32_stream(blk: Any, x: torch.Tensor) -> torch.Tensor:  # noqa: ANN40
     """`MultiScaleBlock.forward` with a float32 residual stream in a float16 MLX replay (autocast's layout).
 
     The norms read the float32 stream; attention and MLP run in the replay's dtype; the residual adds are float32.
+    A stage transition's projection *is* the stream there (its pooled output is the shortcut), so it stays float32
+    with float32 weights: rounded to float16 it put base-plus over its mask limit (mean 0.0028 -> 0.0012).
     """
     shortcut = x
-    h = to_run_dtype(blk.norm1(x), torch.float32)
+    h = blk.norm1(x)
     if blk.dim != blk.dim_out:
-        shortcut = to_float32(do_pool(blk.proj(h), blk.pool))
+        shortcut = do_pool(float32_call(blk.proj, h), blk.pool)
+    h = to_run_dtype(h, torch.float32)
     size = h.shape[1:3]
     pad_hw = size
     if blk.window_size > 0:

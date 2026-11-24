@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-24 |
-| rows | 1539 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1542 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -389,10 +389,10 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`sam-vit-b`](../models/promptable_segmentation.md#sam) | 600 | 441 | – | 1150 |
 | [`sam-vit-h`](../models/promptable_segmentation.md#sam) | 2413 | 1884 | unsupported | 2387 |
 | [`sam-vit-l`](../models/promptable_segmentation.md#sam) | 1282 | 1010 | – | 1644 |
-| [`sam2.1-hiera-base-plus`](../models/promptable_segmentation.md#sam2) | 352 | 282 | – | 1099 |
-| [`sam2.1-hiera-large`](../models/promptable_segmentation.md#sam2) | 713 | 597 | – | 1460 |
-| [`sam2.1-hiera-small`](../models/promptable_segmentation.md#sam2) | 204 | 164 | – | 951 |
-| [`sam2.1-hiera-tiny`](../models/promptable_segmentation.md#sam2) | 176 | 141 | unsupported | 934 |
+| [`sam2.1-hiera-base-plus`](../models/promptable_segmentation.md#sam2) | 352 | 281 | unsupported | 1119 |
+| [`sam2.1-hiera-large`](../models/promptable_segmentation.md#sam2) | 699 | 598 | unsupported | 1495 |
+| [`sam2.1-hiera-small`](../models/promptable_segmentation.md#sam2) | 201 | 167 | unsupported | 982 |
+| [`sam2.1-hiera-tiny`](../models/promptable_segmentation.md#sam2) | 174 | 147 | unsupported | 973 |
 | [`sam3`](../models/promptable_segmentation.md#sam3) | 2062 | 1657 | unsupported | 2768 |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
@@ -426,8 +426,8 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`mask-rcnn-r50-fpn-3x-coco`](../models/detection.md#rcnn) | 181 | 144 | unsupported | – | – | 1174 | – |
 | [`mm-grounding-dino-base`](../models/detection.md#grounding_dino) | 1254 | 916 | – | – | – | 1719 | – |
 | [`mm-grounding-dino-tiny`](../models/detection.md#grounding_dino) | 935 | 766 | – | – | – | 1507 | – |
-| [`owlv2-b16`](../models/detection.md#owlv2) | 390 | 294 | unsupported | – | – | 991 | – |
-| [`owlv2-l14`](../models/detection.md#owlv2) | 1885 | 1423 | unsupported | – | – | 1755 | – |
+| [`owlv2-b16`](../models/detection.md#owlv2) | 383 | 290 | unsupported | – | – | 1046 | – |
+| [`owlv2-l14`](../models/detection.md#owlv2) | 1890 | 1426 | unsupported | – | – | 1793 | – |
 | [`rf-detr-l-coco`](../models/detection.md#rfdetr) | 56.4 | 46.9 | unsupported | – | – | 731 | – |
 | [`rf-detr-m-coco`](../models/detection.md#rfdetr) | 39.8 | 33.3 | unsupported | – | – | 740 | – |
 | [`rf-detr-n-coco`](../models/detection.md#rfdetr) | 21.0 | 19.0 | unsupported | – | – | 657 | – |

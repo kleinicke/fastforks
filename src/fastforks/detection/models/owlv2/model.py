@@ -27,6 +27,7 @@ import torch.nn.functional as F
 
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.labels import label_set
+from fastforks._core.mlx_cast import float32_call, to_float32
 from fastforks._core.runner import host
 from fastforks._core.tracing import in_onnx_export
 from fastforks.detection._runner import Forward, Runner
@@ -185,15 +186,19 @@ class Portable(Runner):
         return self.heads(t)
 
     def heads(self, t: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """The float32 part after the encoder (see `image`)."""
+        """The float32 part after the encoder (see `image`).
+
+        `float32_call`, not `.float()`: an MLX replay is exported from a float32 twin, where `.float()` records
+        nothing and these heads would run in the replay's float16 (b16 boxes 0.19 px off, limit 0.15).
+        """
         net = self.net
-        t = net.owlv2.vision_model.post_layernorm(t.float())
-        f = net.layer_norm(t[:, 1:] * t[:, :1])
+        t = float32_call(net.owlv2.vision_model.post_layernorm, t)
+        f = float32_call(net.layer_norm, t[:, 1:] * t[:, :1])
         ch = net.class_head
-        emb = ch.dense0(f)
+        emb = float32_call(ch.dense0, f)
         emb = emb / (torch.linalg.norm(emb, dim=-1, keepdim=True) + 1e-6)
-        boxes = torch.sigmoid(net.box_head(f) + net.box_bias)
-        return emb, ch.logit_shift(f), F.elu(ch.logit_scale(f)) + 1, boxes
+        boxes = torch.sigmoid(float32_call(net.box_head, f) + to_float32(net.box_bias))
+        return emb, float32_call(ch.logit_shift, f), F.elu(float32_call(ch.logit_scale, f)) + 1, boxes
 
     def _image(self, x: torch.Tensor) -> tuple[torch.Tensor, ...]:
         return self.image(x)
