@@ -98,7 +98,7 @@ Commercial use: yes.
 - Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `cudnn_hacc`
 - Variants: `geocalib-pinhole`
-- Public ONNX / TensorRT export is unavailable for `geocalib-pinhole` (the ONNX conversion and the ONNX Runtime check have not run (torch.export captures the fit: all 30 steps with the early-stopped result kept, the 3 x 3 Cholesky solve unrolled)).
+- Public ONNX / TensorRT export is unavailable for `geocalib-pinhole` (the ONNX graph converts (845 s on CPU) but ONNX Runtime's focal length differs from eager by 0.3-2.7 % on four images (CPU, CUDA and exported program agree exactly); it diverges first at vector normalisations on ~0.3 % of pixels).
 - Outputs: intrinsics, gravity, roll, pitch, vfov
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `geocalib-pinhole` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved)
