@@ -357,7 +357,7 @@ def test_marigold_scheduler_steps_trace_without_cpu_selects(scheduler):
 
 @pytest.mark.gpu
 @pytest.mark.slow
-def test_triton_scaled_softmax_rows_bitcast_bug_still_present():
+def test_triton_scaled_softmax_rows_bitcast_bug_still_present(tmp_path):
     """Sentinel for the GREAT-IGEV outlook workaround: Inductor's `softmax(x * scale)` lowering (a masked boolean
     any-reduction beside two max-reductions and an exp; `_partial_softmax_pattern`) aborts Triton 3.8's LLVM on
     49-wide rows with XBLOCK=8 / 2 warps ("Cannot BITCAST between types of different sizes!"). The kernel runs in a
@@ -403,7 +403,11 @@ def test_triton_scaled_softmax_rows_bitcast_bug_still_present():
         print("compiled")
         """
     )
-    r = subprocess.run([sys.executable, "-c", src], capture_output=True, text=True, timeout=600, check=False)
+    script = tmp_path / "scaled_softmax.py"
+    script.write_text(src, encoding="utf-8")
+    r = subprocess.run(
+        [sys.executable, str(script)], cwd=tmp_path, capture_output=True, text=True, timeout=600, check=False
+    )
     if r.returncode == 0:
         pytest.fail("Triton compiles the softmax(x * scale) kernel: remove the GREAT-IGEV outlook workaround")
     assert "BITCAST" in r.stderr, r.stderr[-2000:]
