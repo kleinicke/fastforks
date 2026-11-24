@@ -855,7 +855,7 @@ class VideoDepth(_Node):
         """Run the model on the frames as one video."""
         m = load(model, backend, dtype)
         _mm().throw_exception_if_processing_interrupted()
-        video = frames[..., :3].to(m.device, torch.float32).permute(0, 3, 1, 2)
+        video = frames[..., :3].permute(0, 3, 1, 2)  # on the host: the library moves one window at a time
         with node_errors():
             r = m.video(video)  # ty: ignore[unresolved-attribute]
         maps = convert.depth_image(r.depth, r.inverse_depth)  # [3, T, H, W]: scaled by the clip's min and max
