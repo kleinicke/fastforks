@@ -7,6 +7,7 @@ from typing import Callable, List
 
 import numpy as np
 import torch
+from ..small_einsum import einsum  # fastforks: broadcast products, not per-pixel bmm
 
 logger = logging.getLogger(__name__)
 
@@ -222,13 +223,13 @@ class SphericalManifold:
         Returns:
             torch.Tensor: Transformed vector of shape [..., n].
         """
-        return y - v * (beta * torch.einsum("...i,...i->...", v, y))[..., None]
+        return y - v * (beta * einsum("...i,...i->...", v, y))[..., None]
 
     @classmethod
     def J_plus(cls, x: torch.Tensor) -> torch.Tensor:
         """Plus operator Jacobian."""
         v, beta = cls.householder_vector(x)
-        H = -torch.einsum("..., ...k, ...l->...kl", beta, v, v)
+        H = -einsum("..., ...k, ...l->...kl", beta, v, v)
         H = H + torch.eye(H.shape[-1], dtype=H.dtype, device=H.device)  # fastforks: made on the device, no upload
         return H[..., :-1]  # J
 
@@ -276,7 +277,7 @@ def J_vecnorm(vec: torch.Tensor) -> torch.Tensor:
 
     norm_x = torch.where((norm_x == 0).any(), norm_x + 1e-6, norm_x)
 
-    xxT = torch.einsum("...i,...j->...ij", vec, vec)  # (..., D, D)
+    xxT = einsum("...i,...j->...ij", vec, vec)  # (..., D, D)
     identity = torch.eye(D, device=vec.device, dtype=vec.dtype)  # (D, D)
 
     return identity / norm_x - (xxT / norm_x**3)  # (..., D, D)

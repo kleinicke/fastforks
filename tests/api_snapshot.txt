@@ -941,7 +941,9 @@ option flow.memflow.iters
 option flow.memfof.iters
 option flow.neuflow_v2.cuda_graphs
 option flow.neuflow_v2.iters
+option flow.raft.cuda_graphs
 option flow.raft.iters
+option flow.recover.cuda_graphs
 option flow.recover.iters
 option flow.sea_raft.iters
 option flow.waft.iters

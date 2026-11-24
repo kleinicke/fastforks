@@ -2,7 +2,7 @@
 
 PyTorch always asks cuDNN for fp32 accumulation; on GeForce cards that runs the tensor cores at half rate
 (RTX 5060 Ti: ~47 vs ~80 TFLOPS). Here fp16 Conv2d/Conv3d (groups 1, any dilation) run as a cuDNN conv-forward graph
-with HALF compute, channels-last in and out; fp16 ConvTranspose2d/3d (output padding 0, dilation 1) as its data
+with HALF compute, channels-last in and out; fp16 ConvTranspose2d/3d (dilation 1, any output padding) as its data
 gradient; other geometries raise ValueError when their plan is built. The graphs go through cuDNN's backend API by
 ctypes (`_backend`), on the `libcudnn.so.9` PyTorch loaded: no extra package.
 
@@ -167,6 +167,7 @@ class CudnnHalfConv:
         dilation: Sequence[int] | None = None,
         y_shape: Sequence[int] | None = None,
         bias: bool = False,
+        output_padding: Sequence[int] | None = None,
     ) -> _Plan | None:
         """The half-compute plan of one geometry, None if cuDNN has none.
 
@@ -176,8 +177,8 @@ class CudnnHalfConv:
             base = self._build(x, w, y_stride, padding, stride, dgrad=dgrad, dilation=dilation, y_shape=y_shape)
             return None if base is None else self._with_bias(base, x, w, padding, stride, dilation)
         dil = list(dilation or [1] * (w.dim() - 2))
-        _check_geometry(x, w, padding, stride, dil, dgrad=dgrad)  # once per geometry (the plan key holds all of it)
-        yshape = _out_shape(x, w, padding, stride, dgrad=dgrad, dilation=dil)
+        _check_geometry(x, w, padding, stride, dil, dgrad=dgrad, output_padding=output_padding)  # once per geometry
+        yshape = _out_shape(x, w, padding, stride, dgrad=dgrad, dilation=dil, output_padding=output_padding)
         if y_shape is not None and list(y_shape) != yshape:
             msg = f"cudnn_hacc conv_into: y is {list(y_shape)}, the conv gives {yshape}"
             raise ValueError(msg)
@@ -376,8 +377,18 @@ class CudnnHalfConv:
             y.add_(b.view(1, -1, *([1] * (x.dim() - 2))))
         return y
 
-    def deconv(self, x: torch.Tensor, w: torch.Tensor, padding: Sequence[int], stride: Sequence[int]) -> torch.Tensor:
-        """fp16 transposed conv (no bias, groups 1, dilation 1, output padding 0), fp16 accumulation, `w` `[C, K, ...]`.
+    def deconv(
+        self,
+        x: torch.Tensor,
+        w: torch.Tensor,
+        padding: Sequence[int],
+        stride: Sequence[int],
+        output_padding: Sequence[int] | None = None,
+    ) -> torch.Tensor:
+        """fp16 transposed conv (no bias, groups 1, dilation 1), fp16 accumulation, `w` `[C, K, ...]`.
+
+        `output_padding` (each below its stride, default 0) adds output rows at the far end, as in `ConvTranspose`:
+        the data gradient of the convolution that maps the larger output to `x`.
 
         Returns:
             The channels-last output.
@@ -385,11 +396,12 @@ class CudnnHalfConv:
         mf = _memory_format(x.dim())
         x = x.contiguous(memory_format=mf)
         _check_inputs(x, w)
-        key = ("dgrad", x.shape, w.shape, w.stride(), tuple(padding), tuple(stride), x.device.index)
-        e = self._plan(key, lambda: self._build(x, w, None, padding, stride, dgrad=True))
+        op = tuple(output_padding or (0,) * (w.dim() - 2))
+        key = ("dgrad", x.shape, w.shape, w.stride(), tuple(padding), tuple(stride), op, x.device.index)
+        e = self._plan(key, lambda: self._build(x, w, None, padding, stride, dgrad=True, output_padding=op))
         if not isinstance(e, _Plan):
             deconv = F.conv_transpose2d if x.dim() == 4 else F.conv_transpose3d  # noqa: PLR2004 - NCHW
-            return deconv(x, w, None, stride, padding).contiguous(memory_format=mf)
+            return deconv(x, w, None, stride, padding, op).contiguous(memory_format=mf)
         y = torch.empty(e.out_shape, device=x.device, dtype=x.dtype, memory_format=mf)
         self._execute(e, x, w, y)
         return y
@@ -462,15 +474,17 @@ def _out_shape(  # noqa: PLR0913 - the conv geometry
     *,
     dgrad: bool,
     dilation: Sequence[int] | None = None,
+    output_padding: Sequence[int] | None = None,
 ) -> list[int]:
     """`[N, C_out, *spatial]` of a conv (`w` = `[K, C, ...]`) or a transposed conv (`dgrad`, `w` = `[C, K, ...]`)."""
     sp = range(w.dim() - 2)
     d = dilation or [1] * len(sp)
     if dgrad:
+        op = output_padding or [0] * len(sp)
         return [
             x.shape[0],
             w.shape[1],
-            *[(x.shape[2 + i] - 1) * stride[i] - 2 * padding[i] + w.shape[2 + i] for i in sp],
+            *[(x.shape[2 + i] - 1) * stride[i] - 2 * padding[i] + w.shape[2 + i] + op[i] for i in sp],
         ]
     return [
         x.shape[0],
@@ -487,6 +501,7 @@ def _check_geometry(  # noqa: PLR0913 - the conv geometry
     dilation: Sequence[int],
     *,
     dgrad: bool,
+    output_padding: Sequence[int] | None = None,
 ) -> None:
     """Raise for a geometry the graphs do not describe (groups != 1, wrong ranks, an empty output).
 
@@ -501,12 +516,14 @@ def _check_geometry(  # noqa: PLR0913 - the conv geometry
         or any(p < 0 for p in padding)
         or any(s < 1 for s in stride)
         or any(d < 1 for d in dilation)
-        or min(_out_shape(x, w, padding, stride, dgrad=dgrad, dilation=dilation)) < 1
+        or min(_out_shape(x, w, padding, stride, dgrad=dgrad, dilation=dilation, output_padding=output_padding)) < 1
+        or any(not 0 <= o < s for o, s in zip(output_padding or [0] * nd, stride, strict=True))
     )
     if bad:
         msg = (
             f"cudnn_hacc {'deconv' if dgrad else 'conv'}: unsupported geometry x {list(x.shape)} * w {list(w.shape)},"
-            f" padding {list(padding)}, stride {list(stride)}, dilation {list(dilation)} (groups 1 only:"
+            f" padding {list(padding)}, stride {list(stride)}, dilation {list(dilation)},"
+            f" output padding {list(output_padding or [0] * nd)} (groups 1 only:"
             f" x needs {c_in} channels)"
         )
         raise ValueError(msg)
@@ -599,9 +616,15 @@ def load(device: torch.device) -> CudnnHalfConv:
     return _instance()
 
 
-def deconv_half_acc(x: torch.Tensor, w: torch.Tensor, padding: Sequence[int], stride: Sequence[int]) -> torch.Tensor:
+def deconv_half_acc(
+    x: torch.Tensor,
+    w: torch.Tensor,
+    padding: Sequence[int],
+    stride: Sequence[int],
+    output_padding: Sequence[int] | None = None,
+) -> torch.Tensor:
     """`CudnnHalfConv.deconv` of the process-wide instance."""
-    return _instance().deconv(x, w, padding, stride)
+    return _instance().deconv(x, w, padding, stride, output_padding)
 
 
 def conv_half_acc(  # noqa: PLR0913, PLR0917 - the conv geometry

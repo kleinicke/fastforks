@@ -82,7 +82,7 @@ class Portable(Runner):
         return Forward(self.net, self._run)
 
 
-_GRAPH_PIXELS = 500_000  # fixed: batch x padded H x W; launch-bound up to KITTI 375x1242, measured
+_GRAPH_PIXELS = 600_000  # fixed: batch x padded H x W; launch-bound up to KITTI 375x1242 and 544x960, measured
 _GRAPHS = 2  # fixed: graph cache policy
 
 

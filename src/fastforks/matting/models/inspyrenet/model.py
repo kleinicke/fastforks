@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 import torch
 import torch.nn.functional as F
 
-from fastforks._core.half import fp16_accumulate
+from fastforks._core.half import fp16_accumulate, fp32_accumulate
 from fastforks._core.mlx_cast import to_float32
 from fastforks._core.patch import override
 from fastforks._core.preprocess import IMAGENET_MEAN, IMAGENET_STD
@@ -55,7 +55,8 @@ def _sica(
 
     `nhwc` (kernels): the query and output convs run channels-last (their weights moved by `Kernels`). cuDNN runs a
     fp16 conv in NHWC, so in NCHW each of the six converted its input and output; channels-last, the query tokens and
-    the refined context are views of the conv / GEMM outputs, and only `x` and the outputs change layout.
+    the refined context are views of the conv / GEMM outputs, and only `x` and the outputs change layout. It also
+    sums the context vector from the float16 inputs in a float32-accumulate GEMM.
     """
     b, _, h, w = x.shape
     p = torch.sigmoid(F.interpolate(smap, size=x.shape[-2:], mode="bilinear", align_corners=False)) - m.threshold
@@ -71,7 +72,14 @@ def _sica(
     if not at_size:
         pr = F.interpolate(pr, size=shape, mode="bilinear", align_corners=False)
     # Keep the upstream channel layout for the context projection.
-    context = torch.bmm(to_float32(pr.reshape(b, m.ctx, n)), to_float32(f.view(b, n, -1))).permute(0, 2, 1).unsqueeze(3)
+    if nhwc and pr.dtype == f.dtype == torch.float16:
+        # kernels: the float16 operands into a float32-accumulate, float32-output GEMM (1024 x 1024, RTX 5060 Ti:
+        # 4.4 -> 0.18 ms for the [5, 262144] x [262144, 128] one), not upcast copies into a float32 GEMM
+        with fp32_accumulate():
+            context = torch.bmm(pr.reshape(b, m.ctx, n), f.view(b, n, -1), out_dtype=torch.float32)
+    else:
+        context = torch.bmm(to_float32(pr.reshape(b, m.ctx, n)), to_float32(f.view(b, n, -1)))
+    context = context.permute(0, 2, 1).unsqueeze(3)
     if CTX_SCALE_ATTR in m.__dict__:  # a float16 MLX replay: its key / value convs read float16 (see `_scale_context`)
         context = context * (1 / m.__dict__[CTX_SCALE_ATTR])
     del f, pr, prob

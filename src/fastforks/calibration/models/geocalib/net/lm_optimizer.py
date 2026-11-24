@@ -438,10 +438,11 @@ class LMOptimizer(nn.Module):
 
         J = _take(J, dims)  # fastforks: no index upload
 
-        # fastforks: one weighted GEMM per image instead of per-pixel outer products summed afterwards
-        Jw = (weights[..., None, None] * J).flatten(-3, -2)  # (B, N * j, k)
-        Grad = (Jw.transpose(-1, -2) @ residuals.flatten(-2, -1)[..., None])[..., 0]  # (B, N_params)
-        Hess = Jw.transpose(-1, -2) @ J.flatten(-3, -2)
+        # fastforks: the weighted products summed over pixels in one reduction each (a GEMM over every pixel is a
+        # split-K cuBLAS kernel, a few hundred microseconds for a 3 x 3 result)
+        Jw = weights[..., None, None] * J  # (B, N, j, k)
+        Grad = (Jw * residuals[..., None]).sum((-3, -2))  # (B, N_params)
+        Hess = (Jw[..., None] * J[..., None, :]).sum((-4, -3))  # (B, N_params, N_params)
 
         if camera_R_rig is not None:
             if shared_intrinsics:

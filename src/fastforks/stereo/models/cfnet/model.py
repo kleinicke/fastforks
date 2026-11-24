@@ -310,7 +310,7 @@ class Kernels(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the network and the kernel state."""
         super().__init__(ctx)
-        from fastforks.shared.cnn_kernels import prepare_generic  # noqa: PLC0415 - needs the kernel libraries
+        from fastforks.shared.cnn_kernels import hacc_padded_deconvs, prepare_generic  # noqa: PLC0415 - kernel libraries
 
         self.net = _net(ctx)
         keep = {name: getattr(self.net, name) for name in FP32_MODULES}
@@ -319,6 +319,7 @@ class Kernels(Runner):
         if not prepare_generic(self.net, ctx.device):
             msg = "kernels: no conv + BatchNorm run was fused (the module tree changed)"
             raise RuntimeError(msg)
+        hacc_padded_deconvs(self.net)  # the hourglasses' upsampling convs
         for name, m in keep.items():
             setattr(self.net, name, m)
 

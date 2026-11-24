@@ -286,6 +286,38 @@ def test_dilated_conv_matches_torch(  # noqa: PLR0913, PLR0917 - one geometry pe
 
 
 @pytest.mark.parametrize(
+    ("x", "k", "pad", "stride", "out_pad"),
+    [
+        ((1, 64, 6, 18, 30), 32, (1, 1, 1), (2, 2, 2), (1, 1, 1)),  # CFNet's hourglass upsampling
+        ((1, 32, 13, 17), 16, (1, 1), (2, 2), (1, 0)),
+        ((1, 16, 9, 11), 16, (1, 1), (3, 3), (2, 1)),
+    ],
+)
+def test_output_padded_deconv_matches_torch(  # noqa: PLR0913, PLR0917 - one geometry per case
+    conv: cudnn_hacc.CudnnHalfConv,
+    x: tuple[int, ...],
+    k: int,
+    pad: tuple[int, ...],
+    stride: tuple[int, ...],
+    out_pad: tuple[int, ...],
+) -> None:
+    """Transposed convs with output padding ~ torch's, on a cuDNN plan (the far-end rows included)."""
+    nd = len(x) - 2
+    mf = CL if nd == 2 else torch.channels_last_3d
+    g = torch.Generator("cuda").manual_seed(2)
+    xt = torch.randn(x, device="cuda", generator=g).half().contiguous(memory_format=mf)
+    wt = (0.1 * torch.randn((x[1], k, *[3] * nd), device="cuda", generator=g)).half().contiguous(memory_format=mf)
+    ref = F.conv_transpose2d if nd == 2 else F.conv_transpose3d
+    want = ref(xt.float(), wt.float(), None, stride, pad, out_pad)
+    y = conv.deconv(xt, wt, pad, stride, out_pad)
+    assert y.shape == want.shape
+    torch.testing.assert_close(y.float(), want, rtol=0, atol=0.02 * float(want.abs().max()))
+    assert isinstance(next(iter(conv._plans.values())), cudnn_hacc._Plan)  # cuDNN ran it, not the torch fallback
+    with pytest.raises(ValueError, match="unsupported geometry"):  # output padding must stay below the stride
+        conv._build(xt, wt, None, pad, stride, dgrad=True, output_padding=stride)
+
+
+@pytest.mark.parametrize(
     ("x", "w", "pad", "stride", "dil"),
     [
         ((1, 32, 20, 20), (32, 16, 3, 3), (1, 1), (1, 1), (1, 1)),  # groups 2

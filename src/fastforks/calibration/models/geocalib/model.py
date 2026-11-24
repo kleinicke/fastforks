@@ -12,13 +12,15 @@ a batch); the LM linear solve runs on the device (upstream copies each step's 3x
 estimate (covariance) is not computed.
 
 `portable`: plain PyTorch, the network in float32 or float16, the LM fit always in float32. `kernels`: the network in
-float16 with fp16-accumulate convolutions (`cudnn_hacc`) and GEMMs, replayed from a CUDA graph per input shape.
+float16 with fp16-accumulate convolutions (`cudnn_hacc`) and GEMMs, replayed from a CUDA graph per input shape, and
+each LM step replayed from a CUDA graph per field shape (the host still checks the early stop after every step).
 """
 
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 import torch
 import torch.nn.functional as F
@@ -34,10 +36,23 @@ from fastforks.shared import mlx_wrap
 from fastforks.shared.cuda_graphs import GraphCache
 
 from .net.geocalib import GeoCalib
+from .net.gravity import Gravity
+from .net.lm_optimizer import get_trivial_estimation, optimizer_step, update_lambda
 from .net.modules import NMF2D
+from .net.perspective_fields import ImageGrid
 
 if TYPE_CHECKING:
     from fastforks.calibration._runner import Context
+
+    from .net.camera import BaseCamera
+
+
+_FIELDS = ("up_field", "up_confidence", "latitude_field", "latitude_confidence")  # the LM fit's inputs
+
+
+def _total(costs: dict[str, torch.Tensor]) -> torch.Tensor:
+    """Upstream's total cost `sum(c.mean(-1) for c in costs.values())` (the same values: 0 + x is exact)."""
+    return functools.reduce(torch.add, (c.mean(-1) for c in costs.values()))
 
 
 @dataclass(frozen=True)
@@ -48,7 +63,7 @@ class Params:
         resize: Shorter side of the network input.
         edge: The network input is cropped to multiples of this.
         camera_model: The LM fit's camera model (`pinhole`, `simple_radial`).
-        cuda_graphs: Option: kernels replays the network from a CUDA graph.
+        cuda_graphs: Option: kernels replays the network and each LM step from CUDA graphs.
     """
 
     resize: int
@@ -148,7 +163,7 @@ class _GeoCalib(Runner):
         x, scales, crop = preprocess(image, p.resize, p.edge)
         data = {k: v.float() for k, v in self._fields(x).items()} | {"scales": scales}
         with torch.autocast(image.device.type, enabled=False):
-            out = self.net.optimizer(data)
+            out = self._fit(data)
         camera = out["camera"].undo_scale_crop({"scales": scales, "crop_pad": crop})
         gravity = out["gravity"]
         result = {
@@ -161,6 +176,10 @@ class _GeoCalib(Runner):
         if "k1" in self.ctx.variant.outputs:
             result["k1"] = camera.k1
         return result
+
+    def _fit(self, data: dict[str, torch.Tensor]) -> dict[str, Any]:
+        """The LM fit of the fields in `data`: `{"camera": ..., "gravity": ...}` (upstream `LMOptimizer.forward`)."""
+        return self.net.optimizer(data)
 
     def module(self) -> torch.nn.Module:
         """The network with its pre-processing and fit: `[B, 3, H, W]` in `[0, 1]` -> intrinsics `[B, 3, 3]`."""
@@ -220,6 +239,8 @@ class Kernels(Portable):
                 override(m, _hacc_conv)
         after = cudnn_hacc.capture_after()
         self.graphs = GraphCache(self._eager, graphs=1, capture_after=after) if ctx.params.cuda_graphs else None
+        self.step_graphs = GraphCache(self._step, graphs=2) if ctx.params.cuda_graphs else None
+        self._step_shape: tuple[int, int, type[BaseCamera]] | None = None  # the step being run: grid h, w, camera class
 
     def _eager(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
         with fp16_accumulate():
@@ -229,10 +250,70 @@ class Kernels(Portable):
         out = None if self.graphs is None else self.graphs.run((x.device, x.dtype, tuple(x.shape)), x)
         return self._eager(x) if out is None else out
 
+    def _fit(self, data: dict[str, torch.Tensor]) -> dict[str, Any]:
+        """Upstream's LM loop with each step replayed from a CUDA graph per field shape (`_step`).
+
+        The host reads the step's convergence flag after every step and stops at the first converged one, as upstream
+        (`early_stop`: `torch.allclose` of the new and previous costs, a sync per step).
+        """
+        if self.step_graphs is None:
+            return super()._fit(data)
+        opt: Any = self.net.optimizer  # upstream's annotations do not match its values (camera tuples, dicts)
+        camera, gravity = cast("Any", get_trivial_estimation)(data, opt.camera_model)
+        opt.setup_optimization_and_priors(data, shared_intrinsics=opt.shared_intrinsics)
+        if opt.shared_intrinsics or opt.conf.fix_lambda or not opt.conf.early_stop or "camera_R_rig" in data:
+            msg = "the graphed LM fit implements per-image intrinsics with adaptive damping and early stop only"
+            raise NotImplementedError(msg)
+        grid = ImageGrid.from_camera(camera)
+        errors = opt.calculate_residuals(camera, gravity, data, grid=grid)
+        costs, weights = opt.calculate_costs(errors, data)
+        cost = _total(costs)
+        lamb = data[next(iter(data))].new_ones(camera.shape[0]) * opt.conf.lambda_
+        state = (camera._data, gravity._data, lamb, cost, *errors.values(), *weights.values())  # noqa: SLF001
+        fixed = (grid.pixels, *(data[k] for k in _FIELDS))
+        key = (grid.height, grid.width, type(camera), tuple(t.shape for t in state + fixed))
+        self._step_shape = (grid.height, grid.width, type(camera))
+        for _ in range(opt.num_steps):
+            out = self.step_graphs.run(key, *state, *fixed)
+            out = self._step(*state, *fixed) if out is None else out
+            state, converged = out[:-1], out[-1]
+            static = self.step_graphs.static_inputs(key)
+            if static is not None:  # the next replays read the fields from the graph's buffers (no copies)
+                fixed = static[len(state) :]
+            if converged:
+                break
+        return {"camera": type(camera)(state[0]), "gravity": Gravity(state[1])}
+
+    def _step(self, *tensors: torch.Tensor) -> tuple[torch.Tensor, ...]:
+        """One step of upstream `LMOptimizer.optimize` on tensors: state in, new state and convergence flag out.
+
+        `(camera, gravity, damping, cost, up / latitude residuals, up / latitude weights, pixels, fields...)` ->
+        `(camera, gravity, damping, cost, residuals, weights, converged)`; `converged` is upstream's early stop.
+        """
+        if self._step_shape is None:
+            msg = "_step runs inside _fit"
+            raise RuntimeError(msg)
+        h, w, camera_type = self._step_shape
+        opt: Any = self.net.optimizer  # upstream's annotations do not match its values (camera tuples, dicts)
+        cam, grav, lamb, prev_cost, up_res, lat_res, up_w, lat_w, pixels, *fields = tensors
+        camera, gravity, grid = camera_type(cam), Gravity(grav), ImageGrid(h, w, pixels)
+        data = dict(zip(_FIELDS, fields, strict=True))
+        errors = {"up_residual": up_res, "latitude_residual": lat_res}
+        weights = {"up_weights": up_w, "latitude_weights": lat_w}
+        grad, hess = opt.setup_system(camera, gravity, errors, weights, grid=grid)
+        camera, gravity = opt.update_estimate(camera, gravity, optimizer_step(grad, hess, lamb))
+        errors = opt.calculate_residuals(camera, gravity, data, grid=grid)
+        costs, weights = opt.calculate_costs(errors, data)
+        cost = _total(costs)
+        lamb = update_lambda(lamb, prev_cost, cost)
+        converged = torch.isclose(cost, prev_cost, rtol=opt.conf.rtol, atol=opt.conf.atol).all()  # torch.allclose
+        return (camera._data, gravity._data, lamb, cost, *errors.values(), *weights.values(), converged)  # noqa: SLF001
+
     def release_graphs(self) -> None:
-        """Free the CUDA graphs and their memory pool."""
-        if self.graphs is not None:
-            self.graphs.release()
+        """Free the CUDA graphs and their memory pools."""
+        for graphs in (self.graphs, self.step_graphs):
+            if graphs is not None:
+                graphs.release()
 
 
 RUNNERS = {

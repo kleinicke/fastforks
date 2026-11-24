@@ -124,10 +124,11 @@ class Kernels(Runner):
     def __init__(self, ctx: Context) -> None:
         """Build the network and the kernel state."""
         super().__init__(ctx)
-        from fastforks.shared.cnn_kernels import prepare_generic  # noqa: PLC0415 - needs the kernel libraries
+        from fastforks.shared.cnn_kernels import hacc_padded_deconvs, prepare_generic  # noqa: PLC0415 - kernel libraries
 
         self.net = _net(ctx)
         prepare_generic(self.net, ctx.device)
+        hacc_padded_deconvs(self.net)  # the hourglasses' upsampling convs
 
     def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
         """Disparity of a padded pair."""

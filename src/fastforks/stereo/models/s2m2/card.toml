@@ -38,11 +38,11 @@ mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["s2m2", "s2m2_cutlass", "cudnn_hacc"]
-# CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x padded H x W <= 500k (up to KITTI
-# 375x1242) replays a CUDA graph, captured on a shape's 4th call (after its `cudnn_hacc` plans), at most 2 shapes per
-# model (Windows S2M2-S KITTI 50-53 -> 36 ms). The graph pool stays reserved (KITTI 1.0 vs 0.4 GB eager) until
-# `model.release_graphs()`; `cuda_graphs=False` turns it off. Larger inputs are GPU-bound and run eagerly (720x1280
-# 74.0 vs 69.6 ms with a graph, for 1.8 vs 0.7 GB reserved)
+# CUDA graphs (kernels): the kernels forward is launch-bound on small inputs; batch x padded H x W <= 600k (up to KITTI
+# 375x1242 and 544x960) replays a CUDA graph, captured on a shape's 4th call (after its `cudnn_hacc` plans), at most 2
+# shapes per model (Windows S2M2-S KITTI 50-53 -> 36 ms, 544x960 49 -> 38 ms). The graph pool stays reserved (KITTI 1.0
+# vs 0.4 GB eager) until `model.release_graphs()`; `cuda_graphs=False` turns it off. Larger inputs are GPU-bound and run
+# eagerly (720x1280 74.0 vs 69.6 ms with a graph, for 1.8 vs 0.7 GB reserved)
 
 [[papers]]
 title = "S2M2: Scalable Stereo Matching Model for Reliable Depth Estimation"

@@ -8,7 +8,8 @@ to the image size (bilinear) and min-max normalised per image (upstream then rou
 on CUDA), SDPA attention (Swin windows and the decoder's cross-attention). `kernels`: fp16 channels-last; every conv
 runs as a cuDNN fp16-accumulate graph (`cudnn_hacc`) with an fp32 bias epilogue, the GEMMs accumulate in fp16 and the
 InstanceNorms run as one pass each (`shared.cnn_kernels`); the two nearest 2x upsamplings and the convs after them
-run as stride-2 transposed convs (`up_deconv`).
+run as stride-2 transposed convs (`up_deconv`); the fixed-size network replays a CUDA graph (one or two images per
+call: at 1024, RTX 5060 Ti, Windows, 81.6 -> 78.4 ms, 266 MB more reserved).
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from fastforks._core.half import fp16_accumulate
 from fastforks.matting._runner import Forward, Runner, scale
 from fastforks.shared import mlx_wrap, swin_v1
 from fastforks.shared.cnn_kernels import CL, prepare_generic, up_deconv
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 
 from .net.ben2 import BEN_Base
 
@@ -90,7 +92,7 @@ class Portable(_Matting):
 
 
 class Kernels(_Matting):
-    """fp16 channels-last network, cuDNN fp16-accumulate convs and GEMMs, InstanceNorm kernels."""
+    """fp16 channels-last network, cuDNN fp16-accumulate convs and GEMMs, InstanceNorm kernels, a CUDA graph."""
 
     def __init__(self, ctx: Context) -> None:
         """Build the network and convert its convs and norms."""
@@ -102,10 +104,18 @@ class Kernels(_Matting):
         swin_v1.fast(net.backbone, sdpa_auto=_SWIN_SDPA)
         self.dtype = torch.float16
         self.net = net
+        self.graphs = SmallShapeGraphs(self._eager, pixels=2**21)
+
+    def _eager(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x.contiguous(memory_format=CL))
 
     def _net(self, x: torch.Tensor) -> torch.Tensor:
         with fp16_accumulate():  # the Swin and decoder GEMMs (1080p 102 -> 96 ms, golden error unchanged)
-            return self.net(x.contiguous(memory_format=CL))
+            return self.graphs(x)
+
+    def release_graphs(self) -> None:
+        """Release captured activation buffers."""
+        self.graphs.release()
 
 
 RUNNERS = {
