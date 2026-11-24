@@ -137,10 +137,6 @@ UNVALIDATED: dict[str, tuple[str, ...]] = {
         "kernels float16",
         "kernels float32",
     ),
-    "raft-stereo-middlebury@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
     "segformer-b5-face-parsing@1": (
         "kernels float16",
         "kernels float32",
@@ -268,9 +264,9 @@ def test_the_waiver_list_holds_no_validated_combination():
 
 
 def test_contract_reports_only_passing_mlx_runs_as_validated():
-    card = registry.variant_card(*registry.resolve("stereo", "raft-stereo-middlebury"))
+    card = registry.variant_card(*registry.resolve("segmentation", "segformer-b5-face-parsing"))
     modes = card.contract().modes
     assert modes["kernels"]["mlx"]["implemented"] == card.kernels_mlx_dtypes  # declared: `load` accepts them
     assert modes["kernels"]["mlx"]["validated"] == ()  # ... no passing kernels run on the reference Mac
     assert modes["portable"]["mlx"]["validated"] == card.portable_mlx_dtypes
-    assert set(UNVALIDATED["raft-stereo-middlebury@1"]) == {f"kernels {d}" for d in card.kernels_mlx_dtypes}
+    assert set(UNVALIDATED["segformer-b5-face-parsing@1"]) == {f"kernels {d}" for d in card.kernels_mlx_dtypes}

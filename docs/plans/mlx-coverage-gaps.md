@@ -470,7 +470,7 @@ family `mlx.py`, re-survey the family's refs, regenerate `apple_mlx.json`.
 | 2.2, 1.8, 1.7 | efficientvit-sam-l0/xl1/xl0 | the ben2/EfficientViT-SAM agent is on it |
 | 2.0, 1.9 | mask-rcnn, faster-rcnn r50-fpn | RoIAlign and the per-level proposal ops |
 | 0.94 (was 1.8) | realplksr-nomoswebphoto-x4 | kernels fp16 1029 ms vs MPS 1092, but 1919 MB against 1368 MB; portable fp16 is the lean mode (1529 ms, 1198 MB). Left: the 862 MB active peak of the Winograd convs, group norm (3 ms x 28) |
-| 1.7 | dlnr-sceneflow, raft-stereo-middlebury | 29-37 s first calls: compile time first |
+| 0.76, 0.65 (were 1.7) | dlnr-sceneflow, raft-stereo-middlebury | done, all five refs of the two families auto-routed to MLX: hand-written networks, first calls 1.7 / 2.7 s ("Done: DLNR and RAFT-Stereo" below) |
 | 0.83 (was 1.7) | ema-vfi-small-t | done, all four EMA-VFI refs auto-routed to MLX: hand-written network, 0.47 s first call ("Done: RIFE 4.25 and EMA-VFI" below) |
 | 1.5-1.6 | lineart, anyline, segnext-mscan-l/b, sapiens-seg-0.3b, oneformer-swinl, gmflow-scale1 | not looked at yet |
 
@@ -869,6 +869,63 @@ measurable on the first call once the grouped convolutions are gone).
 
 Left: both AANets are bound by plain 3 x 3 convolutions at full resolution (MLX's are at MPSGraph's speed there);
 no kernels mode on MLX for either family.
+
+### Done: DLNR and RAFT-Stereo (2026-11-24)
+
+M1 Pro, 994x1482, all five MLX goldens pass in every mode and dtype (`tools/speed_survey.py`; "before" is the exported
+graph, re-measured the same day):
+
+| ref | | warm ms | first call s | peak MB | auto |
+|---|---|---|---|---|---|
+| dlnr-sceneflow | MLX before, fp16 / fp32 | 2039 / 3341 | 18.7 / 25.1 | 2613 / 3752 | – |
+| | MLX now, fp16 / fp32 | 1662 / 2276 | 1.75 / 2.33 | 2844 / 3849 | MLX fp16 |
+| | MPS portable, fp16 (best MPS row) / fp32 | 2195 / 2751 | 2.65 / 2.88 | 4146 / 5170 | |
+| dlnr-middlebury | MLX before, fp16 / fp32 | 2052 / 3213 | 16.8 / 21.2 | 2609 / 3766 | – |
+| | MLX now, fp16 / fp32 | 1711 / 2234 | 1.74 / 2.31 | 2841 / 3856 | MLX fp16 |
+| | MPS portable, fp16 (best MPS row) / fp32 | 2143 / 2693 | 2.55 / 2.87 | 4149 / 5169 | |
+| raft-stereo-middlebury | MLX before, portable fp16 / fp32 | 4076 / 5040 | 8.59 / 9.71 | 3724 / 4269 | – |
+| | MLX before, kernels fp16 / fp32 | 2579 / 4367 | 7.33 / 8.97 | 4242 / 5224 | |
+| | MLX now, portable fp16 / fp32 | 3249 / 4944 | 3.28 / 4.96 | 3286 / 4165 | |
+| | MLX now, kernels fp16 / fp32 | 2370 / 4193 | 2.72 / 4.65 | 3898 / 5361 | MLX kernels fp16 |
+| | MPS portable, fp16 / fp32 | 3940 / 4396 | 3.98 / 4.43 | 4695 / 4712 | |
+| | MPS kernels fp16 (best MPS row) | 3634 | 3.73 | 4720 | |
+| raft-stereo-sceneflow | MLX before, kernels fp16 / fp32 | 2798 / 4662 | 8.01 / 11.7 | 4613 / 5837 | MLX kernels fp16 |
+| | MLX now, portable fp16 / fp32 | 3250 / 4958 | 3.27 / 4.97 | 3284 / 4168 | |
+| | MLX now, kernels fp16 / fp32 | 2361 / 4162 | 2.73 / 4.62 | 3874 / 5357 | MLX kernels fp16 |
+| raft-stereo-eth3d | MLX before, kernels fp16 / fp32 | 2772 / 4521 | 8.94 / 9.74 | 4233 / 5318 | MLX kernels fp16 |
+| | MLX now, portable fp16 / fp32 | 3239 / 4966 | 3.30 / 5.00 | 3296 / 4163 | |
+| | MLX now, kernels fp16 / fp32 | 2361 / 4194 | 2.77 / 4.74 | 3875 / 5358 | MLX kernels fp16 |
+
+The MPS rows of the two RAFT-Stereo siblings equal middlebury's (kernels fp16 3637 / 3638 ms). Both families replayed
+an exported graph before; the export was most of the first call. Now each is written out in `mlx.core`, channels
+last (`dlnr/mlx_net.py`, `raft_stereo/mlx_net.py`), built from the shared `graph_mlx` kernels, and the update step
+is one compiled function:
+
+- the 1-D correlation volume is one float32 matrix product per row, its pyramid lookup the `linear_sample` kernel.
+- the gates of a recurrent cell are one convolution (DLNR's LSTM as `prepare` merges them; RAFT-Stereo's z and r),
+  and the gate biases are added into the context once, before the loop. The motion encoder's last convolution has
+  128 outputs instead of 126 (two zero filters, the flow added into their place), the flow head only its x output,
+  and the upsampling mask is computed once, after the last step.
+- DLNR's Restormer blocks: `row_layer_norm`, the 1x1 convolutions as matrix products, `depthwise`, `token_gram`
+  for the channel attention, `dw_gate` for the feed-forward. The normalization refinement stays float32.
+- RAFT-Stereo's feature encoder runs one image at a time with `channel_stats` instance norms (convolution biases
+  before a norm dropped); the context encoder's batch norms are folded. In kernels mode the stride-1 3x3
+  convolutions are `conv_mlx` with bias and ReLU fused.
+- RAFT-Stereo memory: evaluating after every residual block and a 1.5 GB buffer cache instead of 2 GB took kernels
+  fp16 from 4516 to 3873 MB at 2278 -> 2371 ms; a 1 GB cache gave 3483 MB but 2499 ms (portable fp32 5409 ms).
+
+Where DLNR's 1679 ms go (fp16, staged): the extractor 486 (both images), the volume features 71, the ten update
+steps 708, the upsampling 27, the refinement 333 (float32, full resolution). fp32: 665 / 111 / 1069 / 35 / 385.
+
+Left:
+
+- RAFT-Stereo kernels fp32 peaks at 5360 MB, above MPS (4712 MB); the Winograd buffers of the full-resolution
+  64-channel layers. fp32 warm is behind MPS portable fp32 in portable mode (4944 against 4396 ms).
+- DLNR has no kernels mode on MLX; its refinement could be tried in float16.
+- RAFT-Stereo's stages were not profiled; padding the 96-channel layers to 128 for MLX's own Winograd in portable
+  mode was not tried.
+- `tests/test_policy.py --slow` (`test_card_kernels_match_imports[stereo]`) already fails on AANet's undeclared
+  `graph_mlx` import; both new modules import `graph_mlx` the same way.
 
 ### Done: XFeat (2026-11-24)
 

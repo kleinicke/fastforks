@@ -124,10 +124,38 @@ class MetalKernels(Portable):
         patch(self.net, stereo_metal.load(ctx.device))
 
 
+class _Mlx(Runner):
+    """Apple MLX: the network written in MLX operations (`mlx_net`), one pair per call.
+
+    In kernels mode its stride-1 3x3 convolutions are the `conv_mlx` Winograd kernel.
+    """
+
+    batch = 1  # not measured on Apple GPUs
+    dtypes = ("float32", "float16")
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the PyTorch network and copy its weights to MLX."""
+        super().__init__(ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        net = RAFTStereo(_args())
+        net.load_state_dict(ctx.state_dict())
+        net.eval().fold_batchnorm()
+        kernels = ctx.mode == "kernels"
+        self.net = mlx_net.MlxRAFTStereo(net, mlx_wrap.run_dtype(ctx), ctx.params.iters, kernels=kernels)
+
+    def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Disparity of a padded pair."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return {"disparity": to_torch(self.net(to_mx(left.float()), to_mx(right.float())))}
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": mlx_wrap.port(Portable, whole="disparity", cache_mb=2048),
-    "kernels_mlx": mlx_wrap.port(Portable, whole="disparity", cache_mb=2048),
+    "portable_mlx": mlx_wrap.port(_Mlx, attrs=(), cache_mb=1536),
+    "kernels_mlx": mlx_wrap.port(_Mlx, attrs=(), cache_mb=1536),
 }
