@@ -147,10 +147,10 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`marigold-v2-depth`](../models/depth.md#marigold_v2) | – | – | 51319 | – | – | – | 2251 | – |
 | [`metric3d-vit-large`](../models/depth.md#metric3d) | 2586 | 2337 | – | – | – | – | 2943 | – |
 | [`midas-dpt-beit-large-512`](../models/depth.md#midas) | 861 | 668 | – | – | – | – | 1994 | – |
-| [`moge-2-vitb-normal`](../models/depth.md#moge) | 1214 | 1144 | – | unsupported | – | – | 2183 | – |
-| [`moge-2-vitl-normal`](../models/depth.md#moge) | 2515 | 2081 | – | – | – | – | 3009 | – |
-| [`moge-2-vits-normal`](../models/depth.md#moge) | 956 | 886 | – | unsupported | – | – | 2024 | – |
-| [`moge-3-vitl`](../models/depth.md#moge) | 3508 | 3257 | – | – | – | – | 3170 | – |
+| [`moge-2-vitb-normal`](../models/depth.md#moge) | 595 | 449 | – | unsupported | – | – | 1731 | – |
+| [`moge-2-vitl-normal`](../models/depth.md#moge) | 1350 | 1027 | – | – | – | – | 2482 | – |
+| [`moge-2-vits-normal`](../models/depth.md#moge) | 372 | 271 | – | unsupported | – | – | 1449 | – |
+| [`moge-3-vitl`](../models/depth.md#moge) | 2867 | 2573 | – | – | – | – | 3084 | – |
 | [`omni-dc`](../models/depth.md#omni_dc) | 4033 | 3873 | – | – | – | – | 5387 | – |
 | [`pointdit-b-512`](../models/depth.md#pointdit) | 343 | 356 | – | – | – | – | 1695 | – |
 | [`pointdit-l-512`](../models/depth.md#pointdit) | 1047 | 1231 | – | – | – | – | 4003 | – |
@@ -308,9 +308,9 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 |---|---|---|---|---|---|---|---|
 | [`deeplabv3-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 668 | 442 | 675 | 441 | 1.0x | 1404 | 1426 |
 | [`deeplabv3plus-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 613 | 444 | 505 | 370 | 1.2x | 1618 | 1358 |
-| [`dinov2-b-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 796 | 761 | unsupported | – | – | 1611 | – |
-| [`dinov2-l-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 1459 | 1278 | unsupported | – | – | 2388 | – |
-| [`dinov2-s-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 607 | 600 | unsupported | – | – | 1232 | – |
+| [`dinov2-b-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 312 | 256 | unsupported | – | – | 1372 | – |
+| [`dinov2-l-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 937 | 761 | unsupported | – | – | 2223 | – |
+| [`dinov2-s-linear-ade20k`](../models/segmentation.md#dinov2_linear) | 132 | 112 | unsupported | – | – | 1002 | – |
 | [`eomt-l-dinov2-ade20k`](../models/segmentation.md#eomt) | 667 | 574 | – | – | – | 3661 | – |
 | [`eomt-l-dinov3-ade20k`](../models/segmentation.md#eomt) | 765 | 599 | – | – | – | 3724 | – |
 | [`fcn-r101-d8-ade20k`](../models/segmentation.md#mmseg) | 490 | 353 | 490 | 358 | 1.0x | 1357 | 1373 |

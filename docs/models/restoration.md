@@ -120,7 +120,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial (noncommercial); weights:
 - Weights licence: LicenseRef-noncommercial
 - Licence evidence: https://github.com/sczhou/CodeFormer/blob/b33cc7d639d6545bfcccc7e0bc6ae51f24e79c2b/LICENSE ; https://github.com/sczhou/CodeFormer/blob/b33cc7d639d6545bfcccc7e0bc6ae51f24e79c2b/README.md (weights: https://github.com/sczhou/CodeFormer/releases/tag/v0.1.0)
 - Training data: Flickr-Faces-HQ (FFHQ, 70k face images) (Paper Sec. 4.1: FFHQ (70 000 faces, resized to 512 x 512) with synthetic degradations (blur, downsampling, noise, JPEG).)
-- Options: `fidelity` = 0.5 (0.0 to 1.0; also `fidelity_weight`)
+- Options: `fidelity` = 0.5 (0.0 to 1.0; also `fidelity_weight`), `cuda_graphs` = True (speed only)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`, `group_silu`
 - Variants: `codeformer`
 - Outputs: image
@@ -297,6 +297,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/TencentARC/GFPGAN/blob/7552a7791caad982045a7bbe5634bbf1cd5c8679/LICENSE ; https://github.com/TencentARC/GFPGAN/blob/7552a7791caad982045a7bbe5634bbf1cd5c8679/README.md (weights: https://github.com/TencentARC/GFPGAN/releases/tag/v1.3.0)
 - Training data: Flickr-Faces-HQ (FFHQ, 70k face images) (Paper Sec. 4.1: FFHQ (70 000 faces, resized to 512 x 512) with synthetic degradations (blur, downsampling, noise, JPEG); the StyleGAN2 prior is also trained on FFHQ.)
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `cudnn_hacc`, `style_weights`
 - Variants: `gfpgan-v1.4`
 - Outputs: image

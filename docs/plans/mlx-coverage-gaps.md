@@ -461,8 +461,6 @@ family `mlx.py`, re-survey the family's refs, regenerate `apple_mlx.json`.
 |---|---|---|
 | 2.1, 1.6 (were 4.2, 3.1) | hitnet-eth3d, hitnet-middlebury-d400 | cost volumes and warp SADs are Metal kernels now (289 / 686 ms fp16, faster than MPS portable, behind MPS kernels 136 / 440 ms). Left: 32-channel 3x3 convs are 1.4x slower than MPSGraph, and activations after the 1x1, 4x4 stride-2 and residual convs are not fused; `conv_mlx` gave no steady gain, so no kernels mode |
 | 3.9, 2.9 | xfeat, xfeat-lighterglue | host-side keypoint selection (CPU overhead found by the geometry agent); NMS and top-k on device |
-| 3.1, 2.1 | dinov2-s/b-linear-ade20k | MLX is 3x slower at 0.8 s first call: the bilinear upsample of the linear head or the patch-embed conv |
-| 2.9, 2.3, 1.8 | moge-2-vits/vitb/vitl-normal | the normal head only (the depth refs are fine): look at its normalisation and upsampling |
 | 2.9, 2.2, 1.5 | restormer-derain/sidd/deblur | transposed attention over channels and the depthwise 3x3 convs; 17 s first call |
 | 2.7, 1.7 | aanet-sceneflow, aanet-plus | deformable conv: the MLX port gathers per sample point |
 | 2.5 | coex-sceneflow | cost volume build and the guided aggregation |
@@ -552,3 +550,52 @@ case is the V, W row's speed with stage 1 in fp32: about 1160-1200 ms against 12
 MB above fp32. Not built: the gain is small, the memory gate would likely fail, and it would be a mechanism for one
 variant of one card. tapir stays fp32 on MLX. MPS fp16 (autocast, which also rounds the conv weights) passes with
 tracks 0.0043 / 0.018: its arithmetic noise happens to land on the passing side of the same narrow margin.
+
+### Done: DINOv2 linear segmentation and MoGe (2026-11-24)
+
+Best passing row per backend, M1 Pro 16 GB, warm ms / first call s / peak MB (MPS best is fp16 portable, except
+`moge-3-vitl`: kernels float32; MLX is fp16 portable):
+
+| ref | MPS | MLX before | MLX now | MLX/MPS | auto |
+|---|---|---|---|---|---|
+| dinov2-s-linear-ade20k | 195 / 0.26 / 1532 | 600 / 0.76 / 1232 | 112 / 0.13 / 1002 | 0.57 | MLX |
+| dinov2-b-linear-ade20k | 361 / 0.45 / 2174 | 761 / 0.80 / 1611 | 256 / 0.28 / 1372 | 0.71 | MLX |
+| dinov2-l-linear-ade20k | 927 / 1.00 / 3167 | 1278 / 1.38 / 2388 | 761 / 0.78 / 2223 | 0.82 | MLX |
+| moge-2-vits-normal | 303 / 0.40 / 1679 | 886 / 3.76 / 2024 | 271 / 1.96 / 1449 | 0.89 | MPS (first call) |
+| moge-2-vitb-normal | 494 / 0.62 / 2263 | 1144 / 4.02 / 2183 | 449 / 2.14 / 1731 | 0.91 | MPS (first call) |
+| moge-2-vitl-normal | 1176 / 1.25 / 3258 | 2081 / 6.36 / 3009 | 1027 / 3.21 / 2482 | 0.87 | MLX |
+| moge-3-vitl | 2415 / 2.61 / 6121 | 3257 / 9.71 / 3170 | 2573 / 4.85 / 3084 | 1.07 | MPS |
+
+**DINOv2 linear.** The leads in the queue were wrong: the ViT took 90 of dinov2-s's 660 ms. The hand-built `Mlx`
+runner never set `mlx_wrap.POST_ON_MLX`, so the per-window bilinear resize, the window average (~40 ms) and the
+image-size `upsample_argmax` (~525 ms) ran in PyTorch on the CPU. Now the patch logits stay on MLX
+(`DinoLinearProbe.logits`), one Metal kernel resizes and averages the windows at the network size
+(`mlx_seg.slide_scores`) and the existing argmax kernel takes that array (`mlx_seg.resize_argmax`). Labels agree
+with MPS fp16 on 99.2% of the pixels of a smooth 1024x2048 test image (both pass the golden). What is left is the
+ViT itself.
+
+**MoGe.** The survey call computes no normals (`normals` is off by default), so the normal head was not the cause:
+the cost was the full-resolution last level of the neck and of every head (bilinear 2x resize, replicate-padded
+3x3 convs at 784x1168, the uv concat), and replicate pads that were gathered out of the channels-last layout.
+Three changes, 886 -> 271 ms for vits fp16 (the first step is measured from this branch's base, ~420 ms: the fp16
+work of 2026-11-23 had already landed after the 886 ms row):
+
+- The last ConvStack level is linear from the level below to the output (resampler + uv 1x1 in the neck; resampler,
+  1x1 in, sum, 1x1 out in the head). `_FoldedTop` folds it into two 3x3 convs to 4 x C_out phase channels at half
+  resolution plus a pixel shuffle and a separable uv term, in float32 (weights folded in float64; equal to the
+  plain stack to ~5e-7, `test_moge_folded_top_level_matches_the_conv_stack`). ~420 -> 331 ms. The same fold would
+  help the MPS and CUDA portable runners (not done here: it needs their fp16 golden margins checked).
+- Replicate and reflect padding run on the channels-last view (`mlx_graph` `CL_OPS`), so the conv after a pad no
+  longer copies its input back: 331 -> 303 ms (the 64-channel convs 9.2 -> 5.3 ms each).
+- `pipeline=True` on the port (the graph replays lazily in 256 MB checkpoints): 303 -> 272 ms.
+
+Still open for MoGe:
+
+- First call. The export of `_trunk` is ~1.6 s of the ~2 s first call (translate 0.26 s), so vits and vitb miss the
+  auto budget (MPS first + 2 x MPS warm: 1.0 s and 1.6 s) although they are 10% faster warm. A hand-written
+  `mlx_vit` encoder with only the decoder exported is the way in.
+- Warm, vits fp16 per call (eager per-op times): ViT ~135 ms (SDPA 64, linears 46), decoder 3x3 convs ~120,
+  replicate pads ~47, relu/add ~29, antialiased input resize 14. A replicate pad (2.4 ms at 64 x 392 x 584) costs
+  half its conv.
+- `moge-3-vitl` (2573 ms vs 2415 ms for MPS kernels float32; MPS portable fp16 is 3333): the ViT-L encoder at 3578
+  tokens dominates.
