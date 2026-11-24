@@ -98,6 +98,7 @@ def stage(name: str, spec: dict, version: str, out: Path, extras: dict[str, list
 name = "{name}"
 version = "{version}"
 description = "{spec["summary"]}"
+readme = "README.md"
 requires-python = ">=3.11"
 license = "{_expression(licences)}"
 license-files = {files!r}

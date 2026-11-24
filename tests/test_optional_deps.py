@@ -372,8 +372,10 @@ def test_model_dists_declare_their_libraries(build_dists, tmp_path):
         out = tmp_path / name
         out.mkdir()
         build_dists.stage(name, spec, version, out, extras)
-        deps = tomllib.loads((out / "pyproject.toml").read_text(encoding="utf-8"))["project"]["dependencies"]
-        assert deps == [f"fastforks-core=={version}", *build_dists.library_requirements(spec, extras)]
+        project = tomllib.loads((out / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+        library_reqs = build_dists.library_requirements(spec, extras)
+        assert project["dependencies"] == [f"fastforks-core=={version}", *library_reqs]
+        assert spec["summary"] in (out / project["readme"]).read_text(encoding="utf-8")
 
     def needs(task):
         return set(build_dists.library_requirements({"code_classes": ["permissive"], "tasks": [task]}, extras))
