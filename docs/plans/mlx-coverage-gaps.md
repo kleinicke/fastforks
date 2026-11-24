@@ -460,7 +460,7 @@ family `mlx.py`, re-survey the family's refs, regenerate `apple_mlx.json`.
 | MLX/MPS | refs | lead |
 |---|---|---|
 | 2.1, 1.6 (were 4.2, 3.1) | hitnet-eth3d, hitnet-middlebury-d400 | cost volumes and warp SADs are Metal kernels now (289 / 686 ms fp16, faster than MPS portable, behind MPS kernels 136 / 440 ms). Left: 32-channel 3x3 convs are 1.4x slower than MPSGraph, and activations after the 1x1, 4x4 stride-2 and residual convs are not fused; `conv_mlx` gave no steady gain, so no kernels mode |
-| 3.9, 2.9 | xfeat, xfeat-lighterglue | host-side keypoint selection (CPU overhead found by the geometry agent); NMS and top-k on device |
+| 0.72, 0.76 (were 3.9, 2.9) | xfeat, xfeat-lighterglue | done, both auto-routed to MLX: hand-written network, keypoint selection and matchers in MLX operations ("Done: XFeat" below) |
 | 0.75, 0.71, 0.75 (were 2.9, 2.2, 1.5) | restormer-derain/sidd/deblur | done, see "Restormer and RealPLKSR on MLX" below: 737 / 794 / 737 ms fp16, 3.7-4.0 s first call, peak below MPS |
 | 2.7, 1.7 | aanet-sceneflow, aanet-plus | deformable conv: the MLX port gathers per sample point |
 | 2.5 | coex-sceneflow | cost volume build and the guided aggregation |
@@ -772,3 +772,55 @@ padding, SEA-RAFT's 256 -> 126.
 against 5.3 ms; float32 53 against 6.2; padding the input to 16 channels: 17 ms). SEA-RAFT's port splits it into
 two 3-channel convs by hand. A translator rule (split a few-channel conv by input halves) would catch other
 stacked-pair stems, but no other family was profiled for it.
+
+### Done: XFeat (2026-11-24)
+
+M1 Pro, 768x1024, float32, both goldens pass (`tools/speed_survey.py`):
+
+| ref | | warm ms | first call s | peak MB | auto |
+|---|---|---|---|---|---|
+| xfeat | MLX before | 164 | 2.35 | 538 | – |
+| | MLX now | 29.9 | 0.07 | 642 | MLX |
+| | MPS portable (best MPS row) | 41.7 | 0.81 | 1471 | |
+| xfeat-lighterglue | MLX before | 524 | 2.47 | 1002 | – |
+| | MLX now | 135 | 0.16 | 816 | MLX |
+| | MPS portable (best MPS row) | 179 | 1.08 | 1499 | |
+
+The old port replayed only the CNN from an exported graph and ran everything after it in PyTorch on the CPU (NMS,
+top-k, two `grid_sample`s, the 4096 x 4096 nearest neighbours, all of LighterGlue): the network was a third of a
+call, and the export ~1 s of the first one. Now nothing but index decisions runs on the host:
+
+- `xfeat/mlx_net.py`: the network written out in `mlx.core` (26 convolutions, batch norm folded, channels last) with
+  the resize, normalisation, heatmap and score map in one compiled function. No export, so the first call is the
+  Metal shader builds only. 8.4 ms per image (conv1 at full resolution 1.4, block 1 to 3 3.7, fusion 1.5, keypoint
+  head and heatmap 1.1, score map 1.0).
+- `xfeat/mlx_post.py`: upstream's NMS, threshold and the two `grid_sample` reads at integer pixels are fixed gathers,
+  so the score of every pixel is one map and the keypoints are its positive entries. One host read per image
+  (`np.partition` + a stable sort of the candidates), bicubic descriptor sampling as a 16-tap gather on MLX: 3.9 ms
+  per image. Both images' networks are queued (`mx.async_eval`) before the host ranks the first one.
+- `shared/lightglue/mlx.py` (`MlxLightGlue`): LightGlue's forward, eager, with the CPU branch's point pruning; one
+  host read per layer (the pruning masks) and one for the assignment. 6 layers at 4096 points: ~19 ms each before
+  pruning shrinks them (self attention 4.0, cross attention 12.6, measured before the next point's change).
+- MLX reduces along the last axis several times faster than along any other (4096 x 4096: softmax 0.95 against
+  5.3 ms, argmax likewise). Every "other direction" (the cross attention's second softmax, the assignment's column
+  normalisation and argmax, the mutual nearest neighbour) recomputes the transposed product instead:
+  `softmax(b @ a.T, -1) @ v` 2.9 ms against `softmax(a @ b.T, -2).T @ v` 6.4 ms. xfeat-lighterglue 153 -> 135 ms,
+  the nearest neighbours 6.8 -> 4.3 ms.
+
+The results equal the CPU portable runner's on the survey pair (the same 4096 keypoints per image, the same 3715 /
+3710 matches, scores within 7e-7 / 1.2e-5); keypoints of equal score can be ranked differently.
+
+Tried, no gain: zero-padding the 24-channel layers to 32 (9.1 against 9.5 ms, kept at 16-aligned), `mx.compile` of
+a LightGlue layer (18.0 against 18.8 ms), descriptors padded from 96 to 128 for `scaled_dot_product_attention`
+(3.8 against 2.8 ms), one exp shared by both softmax directions (8.3 ms), both images as one batch of two.
+
+Left:
+
+- `MlxLightGlue` is not used by the `lightglue` family (aliked / disk / superpoint, 2.2x behind MPS for
+  aliked-lightglue): it takes any LightGlue without scale / orientation inputs, their extractors are the open part.
+- float16: the attention is 2.0 against 2.8 ms in fp16 and the card is float32 only on MLX (the old port's fp16
+  failed the golden at recall 0.9983 against 0.999; not re-tried, the network is no longer the larger part).
+- xfeat's peak is 100 MB above the old port's (two 4096 x 4096 products for the nearest neighbours, both networks
+  queued at once); still less than half of MPS.
+- MPS portable was not looked at (41.7 / 179 ms); the score map as fixed gathers and the pruned LightGlue are
+  plain tensor code and could be tried there.

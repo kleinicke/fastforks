@@ -45,7 +45,7 @@ These terms apply to every device:
 ## Other devices
 
 - [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 578 models, 2252 rows, measured 2026-11-06 to 2026-11-24.
-- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1511 rows, measured 2026-11-19 to 2026-11-24.
+- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1513 rows, measured 2026-11-19 to 2026-11-24.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -606,8 +606,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`loma-r`](models/matching.md#loma) | 3076 ms · portable fp32 | 2708 ms · portable fp16 |
 | [`romav1`](models/matching.md#romav1) | 3050 ms · portable fp32 | 3135 ms · portable fp16 |
 | [`romav2`](models/matching.md#romav2) | 3981 ms · kernels fp32 | 3633 ms · kernels fp16 |
-| [`xfeat`](models/matching.md#xfeat) | 41.7 ms · portable fp32 | 164 ms · portable fp32 |
-| [`xfeat-lighterglue`](models/matching.md#xfeat) | 179 ms · portable fp32 | 524 ms · portable fp32 |
+| [`xfeat`](models/matching.md#xfeat) | 41.7 ms · portable fp32 | 29.9 ms · portable fp32 |
+| [`xfeat-lighterglue`](models/matching.md#xfeat) | 179 ms · portable fp32 | 135 ms · portable fp32 |
 
 #### Tracking, 480x854
 

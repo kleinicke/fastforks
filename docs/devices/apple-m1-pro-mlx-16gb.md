@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-24 |
-| rows | 1511 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1513 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -732,8 +732,8 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`loma-r`](../models/matching.md#loma) | 3622 | 2708 | unsupported | – | – | 4549 | – |
 | [`romav1`](../models/matching.md#romav1) | 3733 | 3135 | – | – | – | 2460 | – |
 | [`romav2`](../models/matching.md#romav2) | 6727 | 6078 | 3669 | 3633 | 1.7x | 2849 | 3120 |
-| [`xfeat`](../models/matching.md#xfeat) | 164 | – | – | – | – | 538 | – |
-| [`xfeat-lighterglue`](../models/matching.md#xfeat) | 524 | – | – | – | – | 1002 | – |
+| [`xfeat`](../models/matching.md#xfeat) | 29.9 | – | unsupported | – | – | 642 | – |
+| [`xfeat-lighterglue`](../models/matching.md#xfeat) | 135 | – | unsupported | – | – | 816 | – |
 
 Note: the MLX port has no kernels mode (card mlx_dtypes).
 
