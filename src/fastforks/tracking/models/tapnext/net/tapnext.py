@@ -28,6 +28,7 @@ from torch.nn import functional as F
 
 from fastforks._core.checkpoint import mismatch_details
 from fastforks._core.errors import CheckpointMismatchError
+from fastforks._core.mlx_cast import to_float32, to_run_dtype  # fastforks: autocast's split in a float16 MLX replay
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -52,7 +53,7 @@ class RMSNorm(nn.Module):
         self.scale = nn.Parameter(torch.zeros(width))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        xf = x.float()
+        xf = to_float32(x)
         return (xf * torch.rsqrt(xf.square().mean(-1, keepdim=True) + 1e-6) * (self.scale.float() + 1)).to(x.dtype)
 
 
@@ -92,7 +93,7 @@ class RGLRU(nn.Module):
             h = torch.zeros_like(x[0], dtype=torch.float32)
         elif first is not None:
             mult = torch.cat([torch.where(first, torch.ones_like(mult[:1]), mult[:1]), mult[1:]])
-        xs = (x * gate_x * mult).float()
+        xs = to_float32(x * gate_x * mult)
         ys = []
         for t in range(x.shape[0]):
             h = a[t] * h + xs[t]
@@ -112,8 +113,9 @@ class RecurrentBlock(nn.Module):
         self.rg_lru = RGLRU(width, heads)
 
     def forward(self, x: torch.Tensor, cache: tuple[torch.Tensor, torch.Tensor] | None, first=None):
+        x = to_run_dtype(x, x.dtype)  # fastforks: the GEMMs in the run dtype, as autocast (identity in PyTorch)
         y = F.gelu(self.linear_y(x), approximate="tanh")
-        return self.temporal(self.linear_x(x).float(), cache, y, self.linear_out, first)
+        return self.temporal(to_float32(self.linear_x(x)), cache, y, self.linear_out, first)
 
     def temporal(self, x: torch.Tensor, cache, y: torch.Tensor, out: Callable[[torch.Tensor], torch.Tensor], first=None):
         """The temporal conv and the RG-LRU scan of the float32 `x` branch, gated by `y`, through `out` (`first`: see
@@ -121,10 +123,10 @@ class RecurrentBlock(nn.Module):
         conv_state = x.new_zeros(CONV_WIDTH - 1, *x.shape[1:]) if cache is None else cache[1]
         xp = torch.cat([conv_state, x])  # [T + 3, N, C]
         t = x.shape[0]
-        w = self.conv_1d.w.float()
-        x = self.conv_1d.b.float() + sum(w[k] * xp[k : k + t] for k in range(CONV_WIDTH))
+        w = to_float32(self.conv_1d.w)
+        x = to_float32(self.conv_1d.b) + sum(w[k] * xp[k : k + t] for k in range(CONV_WIDTH))
         x, h = self.rg_lru(x, None if cache is None else cache[0], first)
-        x = out((x * y).to(y.dtype))
+        x = out(to_run_dtype(x * y, y.dtype))
         return x, (h, xp[-(CONV_WIDTH - 1) :])
 
 
@@ -138,6 +140,7 @@ class MLPBlock(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         w, b = self.ffw_up.w, self.ffw_up.b
+        x = to_run_dtype(x, x.dtype)  # fastforks: the float32 norm's output into the run-dtype GEMMs
         gate = F.gelu(x @ w[0] + b[0, 0], approximate="tanh")
         return self.ffw_down(gate * (x @ w[1] + b[1, 0]))
 
@@ -183,8 +186,11 @@ class EncoderBlock(nn.Module):
         self.mlp = nn.Sequential(nn.Linear(width, 4 * width), nn.GELU(), nn.Identity(), nn.Linear(4 * width, width))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x + self.self_attention(self.ln_1(x))
-        return x + self.mlp(self.ln_2(x))
+        # fastforks: the float32 residual stream and norms, the attention and the MLP in the run dtype (as autocast)
+        y = self.ln_1(x)
+        x = x + self.self_attention(to_run_dtype(y, y.dtype))
+        y = self.ln_2(x)
+        return x + self.mlp(to_run_dtype(y, y.dtype))
 
 
 class TRecViTBlock(nn.Module):
@@ -283,7 +289,9 @@ class TAPNext(nn.Module):
         """`video [T, 3, 256, 256]` in [-1, 1], frames `t0 ..`; returns `(y, x)` tracks `[T, Q, 2]`, visible logits
         `[T, Q]`, track logits `[T, Q, 512]` and the new state (`first`: see `RGLRU.forward`)."""
         t = video.shape[0]
-        x = self.lin_proj(video).flatten(2).transpose(1, 2) + self.image_pos_emb  # [T, 1024, C]
+        x = to_float32(self.lin_proj(video).flatten(2).transpose(1, 2) + self.image_pos_emb)  # [T, 1024, C], fastforks:
+        # the residual stream, the norms, the temporal conv, the RG-LRU scan and the heads stay float32 in a float16
+        # MLX replay (upstream's autocast evaluation)
         n = x.shape[1]
         x = torch.cat([x, self.query_tokens(t0, t, qt, point).to(x.dtype)], 1)
         new = []

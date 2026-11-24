@@ -352,5 +352,7 @@ class Steps(Portable):
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Steps, attrs=(), methods=("_step",), release=True, pipeline=True),
+    "portable_mlx": mlx_wrap.port(
+        Steps, attrs=(), methods=("_step",), release=True, pipeline=True, fp32_inputs=("point", "state")
+    ),
 }
