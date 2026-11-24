@@ -48,6 +48,7 @@ from fastforks._core.errors import (
     WeightsError,
 )
 from fastforks._core.files import stamped
+from fastforks._core.image import late_ranges
 from fastforks._core.kernels import begin_call, checked, cuda_device
 from fastforks._core.outputs import NumpyOutputs
 from fastforks._core.runner import Context, Runner
@@ -210,12 +211,17 @@ def _call_error(
 
 
 def _typo_checked(fn: Callable[..., Any]) -> Callable[..., Any]:
-    """`fn` (a model's `__call__`) with a keyword typo reported as `ArgumentError`; nothing runs on the success path."""
+    """`fn` (a model's `__call__`) with a keyword typo reported as `ArgumentError`; nothing runs on the success path.
+
+    The call runs inside `late_ranges`: the value-range check of float CUDA images does not stop the host before the
+    network is queued.
+    """
 
     @functools.wraps(fn)
     def call(self: object, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401 - the signature of `fn`
         try:
-            out = fn(self, *args, **kwargs)
+            with late_ranges():
+                out = fn(self, *args, **kwargs)
         except TypeError as e:
             if isinstance(e, ArgumentError):
                 raise

@@ -58,6 +58,7 @@ _EXIF_ORIENTATION = 0x0112
 _TIFF_BITS, _TIFF_SAMPLES = 258, 277  # BitsPerSample, SamplesPerPixel
 _CHECKED: ContextVar[bool] = ContextVar("fastforks_images_checked", default=False)  # see `checked_ranges`
 _DEFERRED: ContextVar[list | None] = ContextVar("fastforks_images_deferred", default=None)  # `deferred_ranges`
+_LATE: ContextVar[list | None] = ContextVar("fastforks_images_late", default=None)  # `late_ranges`
 _LOSSLESS_FIX = (
     "load it with tifffile or cv2.imread(path, cv2.IMREAD_UNCHANGED) (then BGR->RGB) and pass the numpy array"
     " (HWC, uint16 or float in [0, 1])"
@@ -407,6 +408,51 @@ def deferred_ranges() -> Generator[None]:
     _check_ranges(pending)
 
 
+@contextlib.contextmanager
+def late_ranges() -> Generator[None]:
+    """Internal: inside, the float value-range checks of CUDA images are read once on leaving, without a host sync.
+
+    Every model `__call__` runs inside (`Model.__init_subclass__`). The check's `[min, max]` goes to pinned host memory
+    behind a CUDA event, so the host launches the network without waiting for the device; on leaving it waits only for
+    that event (stream-ordered before the network, so usually done). An out-of-range image then raises after the
+    call's work was queued; when the call itself fails, an out-of-range image is reported instead (chained), as the
+    likelier cause.
+    """
+    pending: list[tuple[torch.cuda.Event, torch.Tensor]] = []
+    token = _LATE.set(pending)
+    try:
+        yield
+    except Exception as e:
+        err = None
+        with contextlib.suppress(Exception):  # the original error stands if the check cannot be read (a CUDA fault)
+            err = _late_error(pending)
+        if err is not None:
+            raise err from e
+        raise
+    finally:
+        _LATE.reset(token)
+    err = _late_error(pending)
+    if err is not None:
+        raise err
+
+
+def _late_error(pending: Sequence[tuple[torch.cuda.Event, torch.Tensor]]) -> InputError | None:
+    """The error of the first out-of-range image among the queued checks of `late_ranges`, or `None`."""
+    for event, host in pending:
+        event.synchronize()
+        for lo, hi in host.tolist():
+            if not (lo >= 0 and hi <= 1):  # also NaN (every comparison with NaN is False)
+                return _range_error(lo, hi)
+    return None
+
+
+def _range_error(lo: float, hi: float) -> InputError:
+    return InputError(
+        f"float images must be finite and in [0, 1], got [{lo:.9g}, {hi:.9g}]"
+        " (divide 0..255 images by 255; clamp(0, 1) values that overshoot, e.g. after bicubic resizing)"
+    )
+
+
 def _check_ranges(bounds: Sequence[tuple[torch.Tensor, torch.Tensor] | None]) -> None:
     """Raise `InputError` for the first float image whose `[min, max]` (`bounds`) is not finite and in `[0, 1]`."""
     given = [b for b in bounds if b is not None]
@@ -416,15 +462,26 @@ def _check_ranges(bounds: Sequence[tuple[torch.Tensor, torch.Tensor] | None]) ->
     if pending is not None:
         pending.extend(given)
         return
+    late = _LATE.get()
+    device = given[0][0].device
+    if (
+        late is not None
+        and device.type == "cuda"
+        and all(lo.device == device for lo, _ in given)
+        and not torch.compiler.is_compiling()
+    ):
+        stats = torch.stack([torch.stack(b) for b in given])  # [n, 2]: min, max
+        host = torch.empty(stats.shape, dtype=stats.dtype, pin_memory=True)
+        host.copy_(stats, non_blocking=True)
+        event = torch.cuda.Event()
+        event.record(torch.cuda.current_stream(device))
+        late.append((event, host))
+        return
     ok = [(lo >= 0) & (hi <= 1) for lo, hi in given]  # also rejects NaN (every comparison with NaN is False)
     if bool(ok[0] if len(ok) == 1 else torch.stack(ok).all()):  # one host sync
         return
     lo, hi = next(b for b, good in zip(given, ok, strict=True) if not bool(good))
-    msg = (
-        f"float images must be finite and in [0, 1], got [{lo.item():.9g}, {hi.item():.9g}]"
-        " (divide 0..255 images by 255; clamp(0, 1) values that overshoot, e.g. after bicubic resizing)"
-    )
-    raise InputError(msg)
+    raise _range_error(lo.item(), hi.item())
 
 
 def _to_rgb(

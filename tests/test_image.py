@@ -4,6 +4,7 @@ import functools
 import http.server
 import struct
 import threading
+import warnings
 import zlib
 
 import numpy as np
@@ -306,6 +307,47 @@ def test_deferred_ranges_checks_once_on_leaving():
         fail_inside()
     with image_mod.deferred_ranges():
         to_rgb_batch(good, cpu)
+
+
+@pytest.mark.gpu
+@pytest.mark.parametrize("value", [1.5, -0.25, float("nan"), float("inf")])
+def test_late_ranges_check_cuda_images_without_a_host_sync(value: float) -> None:
+    """Inside `late_ranges` (every model call) a CUDA image's range is read at the end, with no host sync before it."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    cuda = torch.device("cuda")
+    good, bad = torch.full((3, 8, 8), 0.5, device=cuda), torch.full((3, 8, 8), 0.5, device=cuda)
+    bad[0, 1, 2] = value
+    seen = []
+
+    def queue_all() -> None:
+        with image_mod.late_ranges():
+            with warnings.catch_warnings():  # "a prototype feature": it does see the syncs of these ops
+                warnings.simplefilter("ignore", UserWarning)
+                torch.cuda.set_sync_debug_mode("error")  # a host sync inside the block raises
+            try:
+                to_rgb_batch(good, cuda)
+                image_mod.to_rgb_pair(good, bad, cuda)
+            finally:
+                torch.cuda.set_sync_debug_mode("default")
+            seen.append("queued")
+
+    with pytest.raises(InputError, match=r"finite and in \[0, 1\], got \[") as e:
+        queue_all()
+    assert seen == ["queued"]
+    assert f"{value:.9g}" in str(e.value)
+    with image_mod.late_ranges():  # in range: nothing raised
+        to_rgb_batch(good, cuda)
+
+    def fail_inside() -> None:
+        with image_mod.late_ranges():
+            to_rgb_batch(bad, cuda)
+            msg = "inner"
+            raise ValueError(msg)
+
+    with pytest.raises(InputError) as e:  # the likelier cause is reported, chained to the call's own error
+        fail_inside()
+    assert isinstance(e.value.__cause__, ValueError)
 
 
 def test_device_tensor_matches_torch_tensor() -> None:
