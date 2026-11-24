@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+from unittest.mock import Mock, call
+
 import pytest
 import torch
 import torch.nn.functional as F
@@ -81,6 +84,20 @@ def test_stream_and_resident_ram_check(monkeypatch: pytest.MonkeyPatch) -> None:
     host_blocks.require_host_ram(8 * 2**30, "seedvr2-3b")
     monkeypatch.setattr(host_blocks, "available_host_bytes", lambda: None)  # unreadable: no check
     host_blocks.require_host_ram(8 * 2**30, "seedvr2-3b")
+
+
+def test_windows_cudart_uses_a_loaded_handle_outside_torch(monkeypatch: pytest.MonkeyPatch) -> None:
+    handle = Mock(side_effect=[None, 42])
+    runtime = Mock()
+    monkeypatch.setattr(torch.version, "cuda", "13.0")
+    monkeypatch.setattr(
+        host_blocks.ctypes, "windll", SimpleNamespace(kernel32=SimpleNamespace(GetModuleHandleW=handle)), raising=False
+    )
+    monkeypatch.setattr(host_blocks.ctypes, "CDLL", runtime)
+    assert host_blocks._windows_runtime() is runtime.return_value
+    dll_name = "cudart64_13.dll"
+    assert handle.call_args_list[-1] == call(dll_name)
+    runtime.assert_called_once_with(dll_name, handle=42)
 
 
 def test_choose_kept_takes_unpinned_blocks_then_spreads_the_rest() -> None:

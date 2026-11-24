@@ -119,15 +119,30 @@ def _register_prefix(ptr: int, ends: list[int]) -> int:
 def _runtime() -> ctypes.CDLL | None:
     """The CUDA runtime library torch loaded (the same instance, hence the same error state); None if not found."""
     if sys.platform == "win32":
-        found = sorted(str(p) for p in Path(torch.__file__).parent.glob("lib/cudart64_*.dll"))
-    else:
-        try:
-            maps = Path("/proc/self/maps").read_text(encoding="utf-8")
-        except OSError:
-            maps = ""
-        # the path is the sixth field and may hold spaces
-        found = sorted({line.split(None, 5)[5] for line in maps.splitlines() if "/libcudart.so" in line})
-    return ctypes.CDLL(found[0]) if len(found) == 1 else None
+        return _windows_runtime()
+    try:
+        maps = Path("/proc/self/maps").read_text(encoding="utf-8")
+        # The path is the sixth field and may hold spaces.
+        found = {line.split(None, 5)[5] for line in maps.splitlines() if "/libcudart.so" in line}
+        if len(found) == 1:
+            return ctypes.CDLL(found.pop())
+    except OSError:
+        pass
+    return None
+
+
+def _windows_runtime() -> ctypes.CDLL | None:
+    """Find an already loaded CUDA runtime, including in a conda environment outside `torch/lib`."""
+    if torch.version.cuda is None:
+        return None
+    major = torch.version.cuda.split(".", 1)[0]
+    name = f"cudart64_{'110' if major == '11' else major}.dll"
+    get_handle = getattr(ctypes, "windll").kernel32.GetModuleHandleW  # noqa: B009 - Windows only
+    get_handle.argtypes, get_handle.restype = [ctypes.c_wchar_p], ctypes.c_void_p
+    wheel_path = str(Path(torch.__file__).parent / "lib" / name)
+    handle = get_handle(wheel_path) or get_handle(name)
+    # Torch holds the DLL loaded. Wrapping its handle avoids a DLL search or loading another copy.
+    return ctypes.CDLL(name, handle=handle) if handle else None
 
 
 def _clear_last_error() -> None:
