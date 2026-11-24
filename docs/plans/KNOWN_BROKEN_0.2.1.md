@@ -97,7 +97,7 @@ They are not advertised in the docs. The model pages carry a "Not in this releas
 | item | symptom | cause | fix idea | where |
 |---|---|---|---|---|
 | resplat `refine` vs `iters` | one option name differs from the other refinement models | card aliases are silent and permanent; a warned rename needs a deprecated-alias kind | add `deprecated_aliases` (FutureWarning, removal date) to the card option parser, then rename | `multiview/models/resplat/card.toml` |
-| `@overload` return types | `load()` returns a generic `Model` to type checkers | no per-task overloads yet | `typing.overload` per task literal in `fastforks/__init__.py` | `__init__.py` |
+| `@overload` return types | `fastforks.load()` returns a generic `Model` to type checkers | it takes a model id, not a task, so an overload would need a `Literal` of every id (hundreds, changing with each card) | decided (2026-11-24): no; `fastforks.<task>.load` already returns the precise class and the `load` docstring says so | `__init__.py` |
 | `StereoResult` repr | the repr lists every field, `None` ones too (the maps themselves are typed `Map | None` since the views rework) | dataclass repr, as every other result (`DepthResult` too) | drop `None` fields from all result reprs at once, not per family | result dataclasses |
 | `save()` keywords | `save(path)` is shared, but the extra keywords still differ per result type | grew per family | one keyword set for all results, with old names warning | result classes |
 | verb table | the task verbs (`predict` / `segment` / `match` ...) are documented per page | no single table | one generated table in `docs/api.md` | `tools/gen_docs.py` |
