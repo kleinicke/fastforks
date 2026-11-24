@@ -23,6 +23,13 @@ No model family is new in this release; the changes are backends, platforms and 
 - The `kernels` backend runs on Windows x86-64 with an NVIDIA GPU: the kernel DLLs download like the weights and need
   no C++ toolchain. A library without a Windows build makes `kernels` raise and `auto` run portable, with a warning.
 
+### CUDA and export
+
+- CUDA AANet supports dynamic FP16 ONNX export and TensorRT profiles. Eager CUDA keeps the optimized correlation.
+- NeuFlow v2 uses less CUDA memory for dense flow upsampling while preserving portable and kernels parity.
+- CUDA calibrated stereo accepts NumPy calibration data when building point clouds. Dropping a Depth Anything V2
+  or Any2Full kernels model releases its CUDA graph allocations when the last reference goes away.
+
 ### ComfyUI
 
 - Two node packs in `integrations/`: `comfyui` (every model) and `comfyui-commercial` (only models cleared for

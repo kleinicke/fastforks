@@ -53,5 +53,15 @@ install. The full pack served all 14 templates and passed w02, w03, w08 and w09 
 The commercial pack served all 13 templates and passed w02, w06 and w09 on PyTorch 2.14.1+cu130, with only
 `fastforks-core` installed. Both installations reproduced w02 after `/free`.
 
+Separate prompts exercised the nine node types outside the shipped workflows on PyTorch 2.15.0+cu132. Normals,
+Semantic Segment and Parse returned images and their auxiliary outputs. Classify, Tag and NSFW Check produced text
+or scores. Video Depth, Video Segment and Point Track returned four outputs for four input frames. The tracking
+JSON contained four finite point positions per frame. Together with the workflows and face restoration, this
+covered all 24 node types.
+
+On a fresh install with empty caches, the pack wrote its input schema cache at startup. Cancelling Depth during the
+public checkpoint download produced a ComfyUI interrupt event and emptied the download directory. Queueing again
+verified and cached the checkpoint and rendered a 768 × 768 depth preview.
+
 Publishing the wheels and the Comfy Registry packs are release steps. See the [Windows results](comfyui-windows-results.md) and
 [macOS results](comfyui-mac-results.md) for the other platform runs.

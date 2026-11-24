@@ -58,7 +58,7 @@ Status against `d8099bff` and the release follow-up. The tables distinguish code
 | A7, RoMa v1 | Restored checked Cholesky outside MLX export. Both RoMa v1 CUDA golden modes passed on Ubuntu. |
 | A8, DLL temp sweep | The loader retries once if its verified private copy disappears before Windows locks it. An ordinary load failure still raises. The native Windows run is pending. |
 | A9, streamed blocks | Linux parsed a loaded CUDA runtime under a path with spaces. The relocated environment passed 41 cuDNN and streamed ViTPose tests. Windows wheel streaming has run. The Windows loader now reuses the loaded runtime even outside `torch/lib`, covered by a mocked module lookup. A native conda test remains open. |
-| A10-A12, launcher and layout hardening | cuDNN's `conv_into` checks its destination. The MSDA, volume norm, RoMa, LocoTrack and CFNet launchers check their tensor contracts before dispatch. Existing CUDA binaries were used for the kernel checks. The MSVC setup reads Unicode paths and environment values, covered by a Windows-only test. The CUDA bicubic check is recorded below. |
+| A10-A12, launcher and layout hardening | cuDNN's `conv_into` checks its destination. The MSDA, volume norm, RoMa, LocoTrack, CFNet, image normalization and Smish launchers check their tensor contracts before dispatch. Existing CUDA binaries were used for the kernel checks. The MSVC setup reads Unicode paths and environment values, covered by a Windows-only test. The CUDA bicubic check is recorded below. |
 
 | ComfyUI / API findings | What remains |
 | --- | --- |
@@ -74,6 +74,9 @@ only on Windows. Turing, Windows conda and multi-GPU coverage need the correspon
 ## Ubuntu CUDA measurements (2026-11-24)
 
 PyTorch 2.14.1+cu130 on RTX 5060 Ti 16 GB with NVIDIA driver 595.99.02. Each measurement ran alone on the GPU.
+
+An isolated PyTorch 2.15.0+cu132 environment passed 16 representative CUDA parity, export and stereo checks,
+and all 101 portable classifier module comparisons. The CUDA 13.0 wheel environment remains the release default.
 
 - **NeuFlow v2:** all six CUDA goldens passed in portable and kernels mode. With the same FP16 weights and textured
   synthetic pair at 1920 × 1080, 15 timed calls after six warmups had median latency of 69.7 → 67.6 ms in portable
@@ -104,4 +107,3 @@ PyTorch 2.14.1+cu130 on RTX 5060 Ti 16 GB with NVIDIA driver 595.99.02. Each mea
 OpenCV 5.0's uint8 cubic result depends on whether its optimized IPP path is available. On Ubuntu, disabling IPP
 reproduced the macOS comparison failure, with 4.5–5.9% of pixels one level apart. The test now checks every uint8
 pixel within one level and checks agreement within the original 1% limit against OpenCV's rounded float64 output.
-The Fastforks resize computation is unchanged.
