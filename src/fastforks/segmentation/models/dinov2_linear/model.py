@@ -28,8 +28,7 @@ from fastforks.shared.depth_anything_v2 import DINOv2, use_fast_vit, use_sdpa_at
 from fastforks.shared.seginfer import resize, slide, target_size, upsample, upsample_argmax
 
 if TYPE_CHECKING:
-    import mlx.core as mx
-
+    from fastforks._core.mlx import mx
     from fastforks.segmentation._runner import Context
 
 
