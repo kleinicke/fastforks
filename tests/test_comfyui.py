@@ -521,7 +521,7 @@ def test_unlisted_models_say_why(pack: Any, monkeypatch: pytest.MonkeyPatch) -> 
     assert "did you mean" in str(cstereo.VALIDATE_INPUTS("raft-stereo-middlebur"))
     other_task = str(cstereo.VALIDATE_INPUTS("depth-anything-v2-s"))  # a model of another node: say which one
     assert other_task == "'depth-anything-v2-s' is not a model of Stereo disparity: it is listed by Depth"
-    assert "no node of this pack runs it" in str(cstereo.VALIDATE_INPUTS("insid3-vitl16"))
+    assert "no node of this pack runs it" in str(cstereo.VALIDATE_INPUTS("prompt-depth-anything-s"))
     unknown = str(cstereo.VALIDATE_INPUTS("raft-stereo-nothing"))  # only this node's ids are suggested
     assert unknown.startswith("unknown model 'raft-stereo-nothing' for Stereo disparity; did you mean raft-stereo")
     assert "tasks:" not in unknown
@@ -584,7 +584,7 @@ def test_pack_split(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     nodes = pack.nodes
     monkeypatch.setattr(nodes, "upscale_files", list)
     full, commercial = pack.NODE_CLASS_MAPPINGS, pack.commercial.NODE_CLASS_MAPPINGS
-    assert set(commercial) == set(full) - {"FastforksParse"}  # Parse: both of its models are non-commercial
+    assert set(commercial) == set(full) - {"FastforksParse", "FastforksVideoMatte"}  # only non-commercial models
     assert all(k.startswith("Fastforks") for k in full)
     assert set(pack.NODE_DISPLAY_NAME_MAPPINGS) == set(full)
     assert set(pack.commercial.NODE_DISPLAY_NAME_MAPPINGS) == set(commercial)
@@ -1057,8 +1057,10 @@ def test_node_model_lists(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     # inputs the nodes do not have: a depth prompt, a first-frame mask (video matting), a reference (in-context)
     assert not {"prompt-depth-anything-s", "lingbot-depth", "omni-dc"} & ids(nodes.Depth)
     assert "matanyone" not in ids(nodes.RemoveBackground)
+    assert ids(nodes.VideoMatte) == {"matanyone"}  # not in fastforks-commercial
     assert "vitmatte-s" in ids(nodes.RemoveBackground)  # trimap: an optional input of the node
     assert "insid3-vitl16" not in ids(nodes.Segment)
+    assert ids(nodes.SegmentLike) == {"insid3-vitl16"}
     assert {"sam2.1-hiera-small", "clipseg", "sam3"} <= ids(nodes.Segment)  # points / boxes; text
     tagger = {"wd-vit-tagger-v3", "wd-convnext-tagger-v3", "wd-vit-large-tagger-v3", "wd-eva02-large-tagger-v3"}
     assert ids(nodes.Tag) == tagger
@@ -1114,6 +1116,68 @@ def test_inpaint_passes_each_image_its_mask(pack: Any, monkeypatch: pytest.Monke
     seen.clear()
     nodes.Inpaint().run(image=image, mask=mask[:1], model="m", backend="auto", dtype="auto")
     assert seen == [((4, 6), 12.0), ((4, 6), 12.0)]
+
+
+def test_video_matte_reads_frames_one_at_a_time(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The model gets frame 0's mask and reads `[3, H, W]` host frames one by one; RGBA = frames + alpha."""
+    nodes = pack.nodes
+    seen: list[Any] = []
+    utils = types.SimpleNamespace(
+        ProgressBar=lambda _n: types.SimpleNamespace(update=lambda k: seen.append(("bar", k)))
+    )
+    monkeypatch.setitem(sys.modules, "comfy.utils", utils)
+    monkeypatch.setattr(sys.modules["comfy"], "utils", utils, raising=False)
+
+    class Matte:
+        device = torch.device("cpu")
+
+        def video(self, frames: Any, *, mask: torch.Tensor) -> types.SimpleNamespace:
+            seen.append(("mask", tuple(mask.shape), mask.sum().item()))
+            got = [frames[t] for t in range(len(frames))]
+            seen.append(("frame", tuple(got[0].shape)))
+            return types.SimpleNamespace(alpha=torch.stack([f.mean(0) for f in got]))
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: Matte())
+    frames, mask = torch.rand(3, 4, 6, 3), torch.zeros(2, 4, 6)
+    mask[0, :2], mask[1] = 1, 1
+    rgba, alpha = nodes.VideoMatte().run(frames=frames, mask=mask, model="m", backend="auto", dtype="auto")
+    assert seen[0] == ("mask", (4, 6), 12.0)  # the first mask of a batch
+    assert ("frame", (3, 4, 6)) in seen
+    assert seen.count(("bar", 1)) == 3
+    torch.testing.assert_close(alpha, frames.mean(-1), rtol=0, atol=0)
+    torch.testing.assert_close(rgba, torch.cat([frames, alpha[..., None]], -1), rtol=0, atol=0)
+
+
+def test_segment_like_embeds_the_references_once(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The references are embedded once (a `[S, 3, H, W]` batch) and passed with `[S, H, W]` masks to every image."""
+    nodes = pack.nodes
+    calls: list[Any] = []
+
+    class InContext:
+        device = torch.device("cpu")
+
+        def get_image_embeddings(self, x: torch.Tensor) -> str:
+            calls.append(("embed", tuple(x.shape)))
+            return "refs"
+
+        def __call__(self, image: torch.Tensor, *, reference_images: str, reference_masks: torch.Tensor) -> Any:
+            calls.append(("call", tuple(image.shape), reference_images, tuple(reference_masks.shape)))
+            return types.SimpleNamespace(masks=image[0] > 0.5)
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: InContext())
+    monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])  # no comfy.utils progress bar
+    image = torch.rand(3, 4, 6, 3)
+    kw = {"model": "m", "backend": "auto", "dtype": "auto"}
+    (out,) = nodes.SegmentLike().run(
+        image=image, reference_image=torch.rand(2, 5, 7, 3), reference_mask=torch.ones(2, 5, 7), **kw
+    )
+    assert calls == [("embed", (2, 3, 5, 7))] + [("call", (3, 4, 6), "refs", (2, 5, 7))] * 3
+    torch.testing.assert_close(out, (image[..., 0] > 0.5).float(), rtol=0, atol=0)
+    calls.clear()  # one mask for a batch of references: every reference uses it
+    nodes.SegmentLike().run(
+        image=image[:1], reference_image=torch.rand(2, 5, 7, 3), reference_mask=torch.ones(5, 7), **kw
+    )
+    assert calls[1][3] == (2, 5, 7)
 
 
 def test_wd_tags(pack: Any) -> None:

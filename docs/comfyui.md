@@ -62,6 +62,7 @@ so a ComfyUI folder below ~140 characters needs no long-path setting.
 | Line art / edges | IMAGE | IMAGE: line or edge map, white lines on black (line art, anime line art, AnyLine, HED / PiDiNet soft edges, TEED, M-LSD line segments): the ControlNet hints |
 | Remove background | IMAGE, trimap MASK (ViTMatte only) | IMAGE (RGBA), MASK (alpha) |
 | Segment (SAM) | IMAGE, points `x,y; x,y`, box `x0,y0,x1,y1`, text (SAM 3) | MASK |
+| Segment like a reference (INSID3) | IMAGE, reference IMAGE batch, one reference MASK per reference (nonzero = the concept) | MASK: what the references mark, found in each image (references embedded once) |
 | Detect objects | IMAGE, score threshold, classes (open-vocabulary query or class filter) | MASK, STRING (JSON boxes) |
 | Pose | IMAGE, detections (JSON of a Detect node; top-down models) | IMAGE (skeletons on black), STRING (JSON keypoints) |
 | Interpolate frames | IMAGE batch, multiplier | IMAGE batch with `multiplier - 1` new frames per pair |
@@ -74,6 +75,7 @@ so a ComfyUI folder below ~140 characters needs no long-path setting.
 | Optical flow | IMAGE batch (frames) | IMAGE (colour wheel, one per pair), FASTFORKS_FLOW (pixels, for Warp) |
 | Warp by flow | IMAGE, FASTFORKS_FLOW | IMAGE: image i sampled along flow i (`frames[1:]` -> `frames[:-1]`) |
 | Video segment (SAM 2 / SAMURAI) | IMAGE batch, points / box on frame 0, samurai | MASK batch |
+| Video matte (MatAnyone; not in fastforks-commercial) | IMAGE batch (frames), MASK of the object on frame 0 | IMAGE batch (RGBA), MASK batch (alpha) |
 | Track points | IMAGE batch, grid size or points on frame 0 | IMAGE (tracks drawn on the frames), STRING (JSON tracks) |
 | Upscale / restore | IMAGE, tile (input px, 32 px overlap; 0 = one pass; keep it on for HAT / DAT) | IMAGE |
 | Inpaint / remove objects (LaMa) | IMAGE, MASK (every nonzero pixel is filled; one mask for all images, or one per image) | IMAGE: the masked region filled, the rest unchanged |
@@ -103,7 +105,7 @@ Both packs name a node `Fastforks<Name>` (shown as
 "Depth (fastforks)" or "Depth (fastforks, commercial)"), so a workflow saved with one pack loads in the other. With both
 installed in `custom_nodes`, fastforks-commercial registers nothing and logs that the fastforks pack's nodes are used
 (two packs cannot register one class name; remove or disable one to choose). A pack has a node only if it lists a
-model there: fastforks-commercial has no Parse (both of its models are non-commercial); Warp takes no model.
+model there: fastforks-commercial has no Parse and no Video matte (their models are non-commercial); Warp takes no model.
 
 ## Licences
 
@@ -123,9 +125,9 @@ licences (`fastforks info MODEL` shows them, with the evidence). `FASTFORKS_COMM
 every model not cleared for commercial use, in both packs.
 
 A node lists only the ids it can run: those whose required inputs it passes (`model_card(id).contract().inputs`).
-Depth-prompted and depth-completion models (Prompt Depth Anything, LingBot-Depth, OMNI-DC, Any2Full), video matting
-from a first-frame mask (MatAnyone) and in-context segmentation (INSID3) need an input no node has yet, so no node
-lists them; Inpaint is the only node that lists the inpainting models (they need a mask).
+Depth-prompted and depth-completion models (Prompt Depth Anything, LingBot-Depth, OMNI-DC, Any2Full) need a depth
+input no node has yet, so no node lists them. The models that need a mask or references have their own nodes:
+Inpaint (LaMa), Video matte (MatAnyone) and Segment like a reference (INSID3).
 
 Upscale also lists the files in `models/upscale_models` (`file: <name>`) whose architecture fastforks reads, detected
 from the weights (`fastforks.restoration.load(path)`): ESRGAN / Real-ESRGAN (old or new key names), Compact (SRVGG),
