@@ -21,6 +21,7 @@ fast-acvnet, las2, rtmo (t/s/m/l), rife-4.25 / 4.25-lite / 4.26, gimm-vfi-r and 
   and a profile from 288 × 288 to 384 × 432. The engine's mean absolute difference from eager stayed below
   0.0018 pixels at min, opt and max. The 0.2.0 dynamic ONNX export failed on `aten.cudnn_grid_sampler`.
   CPU ONNX checks passed for CAS-GwcNet-C, CoEx and GREAT-IGEV. BridgeDepth hit the expected top-k tie in ONNX Runtime.
+  Both CAS-GwcNet variants have a TensorRT gate because the fixed engines diverged on rectified KITTI inputs.
 - [x] GMFlow-scale1-mixdata exported from CUDA in FP16 at 256 × 384. ONNX Runtime differed from CUDA eager by
   0.00053 flow pixels on average on the textured pair. The TensorRT card gate still applies, so engine speed and
   memory remain open.
@@ -86,10 +87,12 @@ and all 101 portable classifier module comparisons. The CUDA 13.0 wheel environm
 - **OpenCV-style bicubic:** on a 1024 × 1024 uint8 input resized to 1280 × 1280, the one-pass PyTorch float64 path
   produced the same pixels as the float64 tap gathers. Median latency was 4.45 → 1.57 ms. Peak allocation above the
   pre-call live tensors was 373 → 81 MiB.
-- **TensorRT comparison with 0.2.0:** on the textured synthetic pair at 256 × 256, CAS-GwcNet-GC's fixed FP16 engine
-  differed from eager by a mean of 1.724 pixels on both release revisions. The AANet fixed FP16 engine passed after
-  the export change, with a 0.0020 pixel mean difference at the same size. RIFE 4.26 also passed a 256 × 384 FP16
-  fixed-engine smoke check.
+- **TensorRT comparison with 0.2.0** found the same CAS-GwcNet-GC discrepancy in both releases. On a 384 × 1248 KITTI
+  pair, the candidate's fixed FP16 engines differed from eager by a mean of 1.88 pixels for GC and 2.14 for C. On
+  the 256 × 256 crop used to compare runtimes, the FP32 TensorRT engines also differed by more than two pixels on
+  average. ONNX Runtime stayed within 0.006 pixels on average for both variants at that size. The AANet fixed FP16
+  engine passed after the export change, with a 0.0020 pixel mean difference at 256 × 256. RIFE 4.26 passed a
+  256 × 384 FP16 fixed-engine smoke check.
 - **Build reproducibility:** `group_silu` and `raft_flow` were each built twice with `nvcc` 13.0.88, GCC 15.2,
   glibc 2.43 and the local `rsqrt` header patch. Every binary and both generated manifests matched byte for byte.
   These checks use the Ubuntu workstation toolchain. The published binaries use their recorded toolchains.

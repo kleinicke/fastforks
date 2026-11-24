@@ -2178,8 +2178,8 @@ scene; "only" marks engines of part of the call) and its memory is the engine's 
 | bridgedepth-sf | 375x1242 | 111 ms | – | 284 ms, fp32 engine (DINOv2 and DPT monocular branch with eager stereo inference) | 92.1 ms | – | 54.1 s | 1859 / 1954 | – | 1272 / 1394 | 2358 / 2508 |
 | c-fast-foundationstereo | 994x1482 | 330 ms | 339 ms | 451 ms | 135 ms | 75.4 s | 240 s | 2109 / 2336 | 1649 / 1792 | 1120 / 1236 | 1425 / 1462 |
 | c-foundationstereo-s | 994x1482 | 3628 ms | 2773 ms | 2229 ms | 1366 ms | 626 s | 444 s | 3857 / 4152 | 7298 / 7624 | 3058 / 4408 | 10027 / 10108 |
-| cas-gwcnet-c-sceneflow | 994x1482 | 327 ms | 295 ms | 220 ms | 225 ms | 61.7 s | 131 s | 2006 / 2474 | 2098 / 2448 | 1725 / 1930 | 1533 / 1548 |
-| cas-gwcnet-gc-sceneflow | 994x1482 | 473 ms | 383 ms | 307 ms | 359 ms | 63.7 s | 98.6 s | 2032 / 2228 | 6592 / 6670 | 2035 / 2230 | 4142 / 4194 |
+| cas-gwcnet-c-sceneflow | 994x1482 | 327 ms | 295 ms | public API unavailable | 225 ms | 61.7 s | – | 2006 / 2474 | 2098 / 2448 | 1725 / 1930 | – |
+| cas-gwcnet-gc-sceneflow | 994x1482 | 473 ms | 383 ms | public API unavailable | 359 ms | 63.7 s | – | 2032 / 2228 | 6592 / 6670 | 2035 / 2230 | – |
 | cfnet-sceneflow | 994x1482 | 409 ms | 249 ms | 171 ms | 225 ms | 53.0 s | 139 s | 1822 / 2578 | 1026 / 1398 | 1073 / 1604 | 1357 / 1410 |
 | coex-sceneflow | 994x1482 | 49.9 ms | 29.4 ms | 20.6 ms | 23.5 ms | 22.4 s | 56.6 s | 1093 / 1174 | 351 / 452 | 368 / 514 | 438 / 452 |
 | crestereo-eth3d | 994x1482 | 724 ms | 398 ms | 298 ms | 229 ms | 120 s | 224 s | 810 / 946 | 695 / 748 | 644 / 732 | 703 / 740 |

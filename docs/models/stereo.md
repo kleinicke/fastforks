@@ -319,8 +319,8 @@ Commercial use: yes.
 
 | variant | input | backend | time (ms) | peak memory (MiB, allocated / reserved) |
 |---|---|---|---|---|
-| `cas-gwcnet-gc-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 862<br>567<br>473<br>359<br>383<br>307 | 10079 / 10652<br>8317 / 8730<br>2032 / 2228<br>2035 / 2230<br>6592 / 6670<br>4142 / 4194 |
-| `cas-gwcnet-c-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 656<br>389<br>327<br>225<br>295<br>220 | 4816 / 5534<br>2791 / 2970<br>2006 / 2474<br>1725 / 1930<br>2098 / 2448<br>1533 / 1548 |
+| `cas-gwcnet-gc-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 862<br>567<br>473<br>359<br>383<br>public API unavailable | 10079 / 10652<br>8317 / 8730<br>2032 / 2228<br>2035 / 2230<br>6592 / 6670<br>– |
+| `cas-gwcnet-c-sceneflow` | Middlebury 2014 half (994x1482) | original (fp32)<br>original<br>portable<br>kernels<br>portable + torch.compile<br>TensorRT fp16 | 656<br>389<br>327<br>225<br>295<br>public API unavailable | 4816 / 5534<br>2791 / 2970<br>2006 / 2474<br>1725 / 1930<br>2098 / 2448<br>– |
 
 <details><summary>Details</summary>
 
@@ -331,13 +331,14 @@ Commercial use: yes.
 - Training data: Freiburg SceneFlow (FlyingThings3D, Driving, Monkaa)
 - Kernel libraries: `igev`, `cutlass_conv`, `cudnn_hacc`
 - Variants: `cas-gwcnet-gc-sceneflow`, `cas-gwcnet-c-sceneflow`
+- Public TensorRT export is unavailable for `cas-gwcnet-gc-sceneflow`, `cas-gwcnet-c-sceneflow` (TensorRT 11.4 engines diverge from portable on rectified KITTI pairs. Use ONNX Runtime).
 - Outputs: disparity
 - Input size:
   - `cas-gwcnet-gc-sceneflow`: any H x W >= 32, padded to a multiple of 32
   - `cas-gwcnet-c-sceneflow`: any H x W >= 225, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `cas-gwcnet-gc-sceneflow` 1988x2880 (9.4 GiB peak allocated, 14.1 reserved); `cas-gwcnet-c-sceneflow` 1988x2880 (8.2 GiB peak allocated, 9.2 reserved)
-- `cas-gwcnet-gc-sceneflow` 994x1482, first call: portable + torch.compile 64 s (cold Inductor cache), TensorRT fp16 99 s (ONNX + engine).
-- `cas-gwcnet-c-sceneflow` 994x1482, first call: portable + torch.compile 62 s (cold Inductor cache), TensorRT fp16 131 s (ONNX + engine).
+- `cas-gwcnet-gc-sceneflow` 994x1482, first call: portable + torch.compile 64 s (cold Inductor cache).
+- `cas-gwcnet-c-sceneflow` 994x1482, first call: portable + torch.compile 62 s (cold Inductor cache).
 - `cas-gwcnet-gc-sceneflow` original 994x1482: torch.autocast(float16) around the call
 - `cas-gwcnet-gc-sceneflow` portable 994x1482, kernels 994x1482: Releases each pyramid's consumed 3D buffers and feature maps. Exact disparities on synthetic and three Middlebury pairs.
 - `cas-gwcnet-c-sceneflow` original 994x1482: torch.autocast(fp16) around the forward

@@ -95,6 +95,7 @@ failures were observed at those sizes. [Compile and TensorRT benchmarks](benchma
 | model | TensorRT error | fp32 engine (`load(..., dtype="float32")`) |
 |---|---|---|
 | BridgeDepth | Myelin "Inconsistent strides" | builds |
+| CAS-GwcNet-C / GC | Disparity differs from portable on KITTI | same discrepancy, use ONNX Runtime |
 | DEFOM | Myelin "Must have costs" | fails the same way |
 | LAS2-H (994x1482; LAS2-S / M / L build) | Myelin "Must have costs" | fails the same way |
 | MVSAnywhere | builds, but outputs NaN (`export_tensorrt` removes the engine and raises `BackendUnavailableError`) | NaN too |

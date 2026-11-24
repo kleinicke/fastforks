@@ -49,6 +49,7 @@ venue = "CVPR 2020"
 [[variants]]
 id = "cas-gwcnet-gc-sceneflow"
 revision = 1
+planned = { tensorrt = "TensorRT 11.4 engines diverge from portable on rectified KITTI pairs. Use ONNX Runtime." }
 # Cas-GwcNet-gc (`--model gwcnet`), Scene Flow
 params = { arch = "gc" }
 weights = [{ name = "casgwcnet.ckpt", size = 131672430, sha256 = "8a3638501cd5d4cb31d6ec523757134db967db8139715443d83f08913bffa8ab", url = "https://virutalbuy-public.oss-cn-hangzhou.aliyuncs.com/share/cascade-stereo/CasStereoNet/gwcnet/casgwcnet.ckpt" }]
@@ -56,6 +57,7 @@ weights = [{ name = "casgwcnet.ckpt", size = 131672430, sha256 = "8a3638501cd5d4
 [[variants]]
 id = "cas-gwcnet-c-sceneflow"
 revision = 1
+planned = { tensorrt = "TensorRT 11.4 engines diverge from portable on rectified KITTI pairs. Use ONNX Runtime." }
 # Cas-GwcNet-c (`--model gwcnet-c`, concatenation volume only, PSMNet-style features), Scene Flow
 params = { arch = "c" }
 io = { min_size = 225 }  # the 64 x 64 pyramid pooling at 1/4 resolution needs padded sizes >= 256

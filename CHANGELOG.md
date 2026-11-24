@@ -26,6 +26,7 @@ No model family is new in this release; the changes are backends, platforms and 
 ### CUDA and export
 
 - CUDA AANet supports dynamic FP16 ONNX export and TensorRT profiles. Eager CUDA keeps the optimized correlation.
+- CAS-GwcNet TensorRT export is gated after accuracy checks on rectified KITTI pairs. ONNX export remains available.
 - NeuFlow v2 uses less CUDA memory for dense flow upsampling while preserving portable and kernels parity.
 - CUDA calibrated stereo accepts NumPy calibration data when building point clouds. Dropping a Depth Anything V2
   or Any2Full kernels model releases its CUDA graph allocations when the last reference goes away.
