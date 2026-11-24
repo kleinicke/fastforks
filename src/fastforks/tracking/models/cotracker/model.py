@@ -601,7 +601,14 @@ class _OfflineChunks(Portable):
         _chunk_encode(self.core)
 
 
-_MlxOnline = mlx_wrap.port(_OnlineSteps, attrs=("core.net.fnet",), methods=("_iteration",), prune=True, cache_mb=1024)
+_MlxOnline = mlx_wrap.port(
+    _OnlineSteps,
+    attrs=("core.net.fnet",),
+    methods=("_iteration",),
+    prune=True,
+    cache_mb=1024,
+    fp32_inputs=("coords", "vis", "conf"),  # the track state stays float32 in a float16 replay
+)
 _MlxOffline = mlx_port(_OfflineChunks, cache_mb=1536)
 
 
