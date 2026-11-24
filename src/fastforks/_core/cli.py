@@ -82,6 +82,7 @@ from fastforks._core.errors import (
 from fastforks._core.files import (
     OFFLINE_ENV,
     _human_size,
+    blob_path,
     cache_root,
     download_progress,
     env_flag,
@@ -462,10 +463,26 @@ def _cache_link(_args: argparse.Namespace) -> int:
     for lib in sorted({lib for card, _ in _all_cards().values() for lib in card.kernel_libs}):
         specs += [(lib, f) for _, f in _kernel_files(lib, archs=[], all_archs=True)]
     shas: dict[tuple[str, str], set[str]] = {}
+    unlinked = 0
     for g, w in specs:
         if link_view(w, g):
             shas.setdefault((g, w.name), set()).add(w.sha256)
+        elif blob_path(w.sha256).is_file():
+            unlinked += 1
     print(f"{len(shas)} files linked under {cache_root()} ({len(specs)} listed by the cards, the rest not cached)")
+    files = f"{unlinked} cached file{'s' if unlinked > 1 else ''}"
+    if unlinked and not shas and sys.platform == "win32":
+        print(
+            f"note: {files} could not be linked: symbolic links on Windows need Developer Mode "
+            "(Settings > System > For developers) or an administrator shell; the cache works without the view",
+            file=sys.stderr,
+        )
+    elif unlinked:
+        print(
+            f"note: {files} not linked (a file of that name is in the way, or the cache is read-only); "
+            "the cache works without the view",
+            file=sys.stderr,
+        )
     for (g, name), found in sorted(shas.items()):
         if len(found) > 1:
             print(f"note: {g}/{name} is used by files with different contents; the view shows one", file=sys.stderr)

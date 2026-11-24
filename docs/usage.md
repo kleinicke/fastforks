@@ -500,7 +500,7 @@ model = stereo.load("igev-stereo-sceneflow", weights="runs/igev_finetuned.pth") 
   `<family>/<file name as on the card>` (kernels: `<lib>/<lib>-<hash>-<arch>.fatbin`) are relative symlinks to the blobs,
   so the folder is browsable and has the `FASTFORKS_WEIGHTS_PATH` / `FASTFORKS_KERNEL_PATH` layout (the cache folder
   itself works as either); they are made whenever a file is resolved or downloaded, `fastforks cache link` rebuilds them
-  for everything already cached, and they are skipped where symlinks are not allowed. Copy a cache with a tool that follows
+  for everything already cached, and they are skipped where symlinks are not allowed (Windows without Developer Mode: `cache link` says so). Copy a cache with a tool that follows
   or keeps links (`cp -a`, `rsync -a`), or only `blobs`; a copy of `blobs` alone is not a
   `FASTFORKS_KERNEL_PATH`: that wants the manifest's file names, `<dir>/<lib>/<lib>-<hash>-<arch>.fatbin` (or `.so`;
   `<dir>/<name>` also works), e.g. `kernels/fs/fs-f6f8de2cca1e-sm_80.fatbin` (names: `fastforks/kernels/<lib>/manifest.toml`).

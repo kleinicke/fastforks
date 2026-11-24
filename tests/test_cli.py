@@ -651,3 +651,18 @@ def test_download_progress_printer(monkeypatch, capsys):
     tty("https://h/k.so", 2 << 20, None)  # throttled
     tty("https://h/k.so", 3 << 20, 3 << 20)  # done always prints and ends the line
     assert capsys.readouterr().err == "\r  k.so: 1 MB\r  k.so: 100 % of 3 MB\n"
+
+
+@pytest.mark.parametrize("platform", ["win32", "linux"])
+def test_cache_link_says_why_cached_files_were_not_linked(monkeypatch, capsys, tmp_path, platform):
+    blob = tmp_path / "blob"
+    blob.write_bytes(b"x")
+    monkeypatch.setattr(cli, "link_view", lambda *_a: False)  # every link fails (no symlink permission)
+    monkeypatch.setattr(cli, "blob_path", lambda _sha: blob)  # and every listed file is cached
+    monkeypatch.setattr(cli.sys, "platform", platform)
+    assert cli.main(["cache", "link"]) == 0
+    out = capsys.readouterr()
+    assert out.out.startswith("0 files linked")
+    assert ("Developer Mode" in out.err) == (platform == "win32")
+    assert "cached files" in out.err
+    assert "the cache works without the view" in out.err
