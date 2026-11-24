@@ -526,6 +526,29 @@ def test_channels_last_instance_norm_and_bilinear_match_torch(align):
     torch.testing.assert_close(MlxModule(m, "float32")(x), m(x), atol=1e-4, rtol=1e-4)
 
 
+@pytest.mark.parametrize("mode", ["replicate", "reflect"])
+@pytest.mark.parametrize("pad", [(1, 1, 1, 1), (2, 0, 1, 3), (0, 2, 0, 0)])
+def test_channels_last_edge_pads_match_torch(mode, pad):
+    """Replicate and reflect padding of a conv output (padded on the channels-last view) and of a plain tensor."""
+    pytest.importorskip("mlx.core")
+    from fastforks.shared.mlx_graph import MlxModule  # noqa: PLC0415 - optional (the mlx extra)
+
+    class Net(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.a = torch.nn.Conv2d(3, 8, 3)
+            self.b = torch.nn.Conv2d(8, 4, 3)
+
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            y = self.b(torch.nn.functional.pad(self.a(torch.nn.functional.pad(x, pad, mode=mode)), pad, mode=mode))
+            return torch.nn.functional.pad(y, pad, mode=mode).flatten(1)
+
+    torch.manual_seed(0)
+    m = Net().eval()
+    x = torch.randn(2, 3, 11, 14)
+    torch.testing.assert_close(MlxModule(m, "float32")(x), m(x), atol=1e-5, rtol=1e-5)
+
+
 @pytest.mark.parametrize(
     "resize",
     [

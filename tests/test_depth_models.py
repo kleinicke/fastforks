@@ -526,3 +526,33 @@ def test_moge_shift_solver_eager_matches_traced(*, given_focal: bool) -> None:
         for i in range(2)
     ]
     torch.testing.assert_close(torch.tensor(got, dtype=torch.float64), want, rtol=1e-9, atol=1e-12)
+
+
+@pytest.mark.parametrize("name", ["points", "mask", "normal"])
+def test_moge_folded_top_level_matches_the_conv_stack(name: str) -> None:
+    """The MLX port's half-resolution fold of a head's last level (`_FoldedTop`) equals the plain neck + head."""
+    from fastforks.depth.models.moge.net import MoGeNet  # noqa: PLC0415 - only this test builds the bare network
+
+    torch.manual_seed(0)
+    net = MoGeNet("vits", 2).eval().double()
+    for p in net.parameters():
+        if p.ndim == 1:
+            torch.nn.init.normal_(p, std=0.3)  # zero-initialised biases would hide the folded bias
+    rows, cols, aspect = 5, 7, 7 / 5
+    with torch.no_grad():
+        enc = torch.randn(2, 386, rows, cols, dtype=torch.float64)
+        uv = [
+            moge_model.view_plane_uv(cols << i, rows << i, aspect, "cpu").permute(2, 0, 1)[None].expand(2, -1, -1, -1)
+            for i in range(5)
+        ]
+        uv = [u.double() for u in uv]
+        head = getattr(net, f"{name}_head")
+        want = head(net.neck([enc, *uv[1:]]))[-1]
+        levels, _ = moge_model._below_top(net.neck, [enc, *uv[1:4]])
+        got = moge_model._FoldedTop(net.neck, head)(
+            moge_model._rep_pad32(moge_model._below_top(head, levels)[1].float()),
+            moge_model._rep_pad32(levels[-1].float()),
+            *moge_model._plane_axes(cols << 4, rows << 4, aspect, "cpu"),
+        )
+    assert got.shape == want.shape
+    torch.testing.assert_close(got.double(), want, rtol=0, atol=2e-5 * float(want.abs().max()))

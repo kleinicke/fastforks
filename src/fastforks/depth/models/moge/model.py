@@ -31,6 +31,7 @@ from torch import nn
 
 from fastforks._core.errors import InputError
 from fastforks._core.half import half_weights
+from fastforks._core.mlx_cast import to_float32
 from fastforks._core.model import eager_in_compile
 from fastforks._core.patch import base_type, override
 from fastforks._core.upload import to_device
@@ -764,14 +765,129 @@ class MetalKernels(Portable):
             override(m, _metal_subm_conv)
 
 
+# ------------------------------------------------------------------------------------------------ MLX
+# Rows `[dy, t]` of the 2x bilinear resize (align_corners=False) seen through a 3x3 replicate-padded conv: output row
+# `2 i + a` reads resized rows `2 i + a + dy - 1`, each a mix of the input rows `i + t - 1` (index clamped, which is
+# both the resize's own border rule and the conv's replicate padding).
+_PHASE = torch.tensor(
+    [
+        [[0.75, 0.25, 0.0], [0.25, 0.75, 0.0], [0.0, 0.75, 0.25]],
+        [[0.25, 0.75, 0.0], [0.0, 0.75, 0.25], [0.0, 0.25, 0.75]],
+    ],
+    dtype=torch.float64,
+)
+
+
+def _phase_weight(k: torch.Tensor) -> torch.Tensor:
+    """The 3x3 conv `[4 O, C, 3, 3]` on the input that equals the 3x3 replicate-padded conv `k` on its 2x resize.
+
+    Its output is the result's four phases per channel (`pixel_shuffle` order); the input is replicate-padded by one.
+    """
+    p = torch.einsum("ocyx,ayt,bxs->oabcts", k.double(), _PHASE, _PHASE)
+    return p.reshape(-1, *p.shape[3:])
+
+
+class _FoldedTop(nn.Module):
+    """A head's full-resolution level, computed at half resolution.
+
+    That level is linear: the neck's and the head's bilinear resamplers (2x resize, 3x3 conv), the 1x1 convs of the
+    view-plane uv and of the neck's level, the sum and the 1x1 output conv. Folded, it is one 3x3 conv on the head's
+    half-resolution features and one on the neck's (`_phase_weight`, 4 x the output channels), a `pixel_shuffle` and
+    the uv plane; no 32-channel map at full resolution is left (four resamplers and seven 1x1 convs of the three
+    heads). The weights are folded in float64 and the level runs in float32 (upstream's `fp32_output_projection`).
+    """
+
+    def __init__(self, neck: ConvStack, head: ConvStack) -> None:
+        """Fold the last level of `neck` and `head`."""
+        super().__init__()
+        kn, kh = cast("nn.Conv2d", neck.resamplers[-1][1]), cast("nn.Conv2d", head.resamplers[-1][1])
+        uv, mid, out = neck.input_blocks[-1], head.input_blocks[-1], head.output_blocks[-1]
+
+        def mat(m: nn.Module) -> torch.Tensor:
+            return cast("nn.Conv2d", m).weight.detach()[:, :, 0, 0].double()
+
+        def vec(m: nn.Module) -> torch.Tensor:
+            return cast("torch.Tensor", cast("nn.Conv2d", m).bias).detach().double()
+
+        through = mat(out) @ mat(mid)
+        bias = mat(out) @ (vec(kh) + vec(mid) + mat(mid) @ (vec(kn) + vec(uv))) + vec(out)
+        fold = lambda m, k: _phase_weight(torch.einsum("po,ocyx->pcyx", m, k.weight.detach().double())).float()  # noqa: E731
+        self.register_buffer("head", fold(mat(out), kh))
+        self.register_buffer("neck", fold(through, kn))
+        self.register_buffer("plane", (through @ mat(uv)).float())
+        self.register_buffer("bias", bias.float())
+
+    def forward(self, head: torch.Tensor, neck: torch.Tensor, u: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
+        """`head`, `neck`: `[B, 64, h + 2, w + 2]` (float32, replicate-padded); `u`, `v`: the axes of the uv plane."""
+        y = F.conv2d(head, to_float32(self.get_buffer("head"))) + F.conv2d(neck, to_float32(self.get_buffer("neck")))
+        b, c, h, w = y.shape
+        y = y.view(b, c // 4, 2, 2, h, w).permute(0, 1, 4, 2, 5, 3).reshape(b, c // 4, 2 * h, 2 * w)
+        plane = to_float32(self.get_buffer("plane"))
+        rows = plane[:, 1].view(1, -1, 1, 1) * v.view(1, 1, -1, 1) + to_float32(self.get_buffer("bias")).view(
+            1, -1, 1, 1
+        )
+        return y + plane[:, 0].view(1, -1, 1, 1) * u.view(1, 1, 1, -1) + rows
+
+
+def _below_top(cs: ConvStack, feats: Sequence[torch.Tensor]) -> tuple[list[torch.Tensor], torch.Tensor]:
+    """`ConvStack.forward` without its last level: the other levels' outputs and the last resampler's input."""
+    outs = []
+    x = feats[0]
+    n = len(cs.res_blocks) - 1
+    for i in range(n):
+        f = cs.input_blocks[i](feats[i])
+        x = cs.res_blocks[i](f if i == 0 else x + f)
+        outs.append(cs.output_blocks[i](x))
+        if i < n - 1:
+            x = cs.resamplers[i](x)
+    return outs, x
+
+
+def _rep_pad32(x: torch.Tensor) -> torch.Tensor:
+    return F.pad(to_float32(x), (1, 1, 1, 1), mode="replicate")
+
+
 class _MlxPortable(Portable):
     """`Portable` for the MLX runners.
 
-    The trunk runs as an MLX graph (`mlx_wrap.port`), the MoGe-3 refiner as hand-written MLX operations and Metal
-    kernels (`mlx_refine`, float32; on the CPU it took 3.8 s and ~4 GB at 994x1482).
+    The trunk runs as an MLX graph (`mlx_wrap.port`) with the heads' full-resolution level folded to half resolution
+    (`_FoldedTop`), the MoGe-3 refiner as hand-written MLX operations and Metal kernels (`mlx_refine`, float32; on
+    the CPU it took 3.8 s and ~4 GB at 994x1482).
     """
 
     _mlx_refiner: Any = None
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network and fold the heads' last level."""
+        super().__init__(ctx)
+        net = self.net
+        heads = {"points": net.points_head, "mask": net.mask_head}
+        if ctx.params.normals:
+            heads["normal"] = net.normal_head
+        net.folded = nn.ModuleDict({k: _FoldedTop(net.neck, m) for k, m in heads.items()})
+
+    def _trunk(
+        self, image: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor, torch.Tensor]:
+        net, p = self.net, self.ctx.params
+        b, _, h, w = image.shape
+        rows, cols = grid(h, w, p.resolution_level)
+        a = w / h
+        feat, cls = net.encoder(image, rows, cols)
+        uv = [
+            view_plane_uv(cols << i, rows << i, a, image.device).permute(2, 0, 1)[None].expand(b, -1, -1, -1)
+            for i in range(4)
+        ]
+        enc = torch.cat([feat, uv[0].to(feat.dtype)], 1)
+        levels, _ = _below_top(net.neck, [enc, *uv[1:]])
+        low = _rep_pad32(levels[-1])
+        axes = _plane_axes(cols << 4, rows << 4, a, image.device)
+        folded = cast("nn.ModuleDict", net.folded)
+        top = {
+            k: m(_rep_pad32(_below_top(getattr(net, f"{k}_head"), levels)[1]), low, *axes) for k, m in folded.items()
+        }
+        scale = net.scale_head(cls)[:, 0].exp()
+        return top["points"], top["mask"], top.get("normal"), scale, enc
 
     def _forward(self, image: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor]:
         coords, mask, normal, scale, enc = self._trunk(image)
@@ -789,7 +905,7 @@ class _MlxPortable(Portable):
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=(), methods=("_trunk",), compile=False),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=(), methods=("_trunk",), compile=False, pipeline=True),
     "kernels_mlx": mlx_wrap.port(_MlxPortable, attrs=(), methods=("_trunk",), compile=False),
     "kernels_mps": MetalKernels,
 }

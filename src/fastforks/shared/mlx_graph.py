@@ -2252,10 +2252,13 @@ _EDGE_PADS = (
 [1, 64, 646, 952] float32: ~20 ms a gather, slices and a concatenation are memory-bound)."""
 
 
-def _edge_pad(x: mx.array, pad: Sequence[int], *, reflect: bool) -> mx.array:
-    """Reflection / replication padding of the trailing dims (`pad` in `F.pad` order) by slices and concatenations."""
+def _edge_pad(x: mx.array, pad: Sequence[int], *, reflect: bool, last: int = 0) -> mx.array:
+    """Reflection / replication padding of the trailing dims (`pad` in `F.pad` order) by slices and concatenations.
+
+    `last`: trailing axes that come after the padded ones (1: `x` is a channels-last view).
+    """
     for i in range(len(pad) // 2):
-        ax, lo, hi = x.ndim - 1 - i, pad[2 * i], pad[2 * i + 1]
+        ax, lo, hi = x.ndim - 1 - last - i, pad[2 * i], pad[2 * i + 1]
         n = x.shape[ax]
         parts = []
         if lo > 0:
@@ -2609,6 +2612,30 @@ def _pad_cl(x: mx.array, pad: Sequence[int], value: float = 0.0) -> mx.array:
     if nd not in _CL_ND or len(pad) // 2 >= nd - 1:
         return _pad(x, pad, value)
     return _uncl(_pad(_cl(x), (0, 0, *pad), value))
+
+
+def _reflect_pad_cl(x: mx.array, pad: Sequence[int]) -> mx.array:
+    """`_reflect_pad` on the channels-last view (spatial axes only): contiguous copies, and the result stays one."""
+    nd = x.ndim
+    if nd not in _CL_ND or len(pad) // 2 > nd - 2:
+        return _edge_pad(x, pad, reflect=True)
+    return _uncl(_edge_pad(_cl(x), pad, reflect=True, last=1))
+
+
+def _replicate_pad_cl(x: mx.array, pad: Sequence[int]) -> mx.array:
+    """`_replicate_pad` on the channels-last view.
+
+    MoGe's decoder convs, [1, 64, 392, 584] float16: the pad 3.0 -> 2.4 ms, and the conv after it, which no longer
+    copies its input back to channels-last, 9.2 -> 5.3 ms.
+    """
+    nd = x.ndim
+    if nd not in _CL_ND or len(pad) // 2 > nd - 2:
+        return _edge_pad(x, pad, reflect=False)
+    return _uncl(_edge_pad(_cl(x), pad, reflect=False, last=1))
+
+
+for _op in _EDGE_PADS:
+    CL_OPS[_op] = _reflect_pad_cl if "reflection" in str(_op) else _replicate_pad_cl
 
 
 @_reg_cl(aten.var_mean.correction)
