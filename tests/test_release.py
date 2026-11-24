@@ -5,15 +5,35 @@ override module methods, both modes."""
 from __future__ import annotations
 
 import gc
+import weakref
 
 import pytest
 import torch
 
+from fastforks.shared.cuda_graphs import SmallShapeGraphs
 from synth import clip, image, pair, track_queries
 from test_golden import API, GOLDEN, TASK
 from test_kernels_structure import held_modules
 
 MIB = 2**20
+
+
+def test_graph_size_method_does_not_keep_its_runner_alive():
+    class Runner:
+        def __init__(self):
+            self.graphs = SmallShapeGraphs(self.forward, pixels=10, size=self.size)
+
+        def forward(self, x):
+            return x + 1
+
+        def size(self, x):
+            return x.numel()
+
+    runner = Runner()
+    torch.testing.assert_close(runner.graphs(torch.zeros(4)), torch.ones(4))
+    ref = weakref.ref(runner)
+    del runner
+    assert ref() is None
 
 
 def _weight_bytes(model) -> int:

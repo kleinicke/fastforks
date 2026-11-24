@@ -337,7 +337,7 @@ class SmallShapeGraphs(Generic[_Output]):
         """
         self.forward = _weak(forward)
         self.pixels = pixels
-        self.size = size
+        self.size = _weak(size) if size is not None else None
         self.cache = GraphCache(forward, graphs=graphs, capture_after=capture_after) if enabled else None
 
     def __call__(self, *inputs: torch.Tensor) -> _Output:
