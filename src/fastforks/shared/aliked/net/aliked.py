@@ -680,7 +680,8 @@ class ALIKED(nn.Module):  # fastforks: a plain module (upstream: lightglue.utils
             image.device.type, enabled=False
         ):  # fastforks: the score head in float32 (AUC@5 -1.3 in fp16)
             score_map = torch.sigmoid(call(self.score_head, x1234.float()))
-        feature_map = torch.nn.functional.normalize(x1234, p=2, dim=1)
+        # fastforks: without `describe` (FlexGlue) the normalized map is not read: not computed (2 ms at 768 x 1024)
+        feature_map = torch.nn.functional.normalize(x1234, p=2, dim=1) if self.describe else x1234
 
         # Unpads images
         feature_map = padder.unpad(feature_map)
