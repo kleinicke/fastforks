@@ -38,6 +38,7 @@ request with both `unload_models` and `free_memory`. The log recorded model evic
 decoded previews matched byte for byte. The commercial pack's w02 reload also matched.
 
 The source packs used local weights. A separate virtual environment installed the three local 0.2.1 wheels and
-ComfyUI, with the library checkout off the import path. Its w02, w03, w08 and w14 runs passed. Publishing the wheels
-and the Comfy Registry packs are release steps. See the [Windows results](comfyui-windows-results.md) and
+ComfyUI, with the library checkout off the import path. Its w02, w03, w08 and w14 runs passed. The standalone
+commercial pack also passed w02 and reproduced the output after eviction with only `fastforks-core` installed.
+Publishing the wheels and the Comfy Registry packs are release steps. See the [Windows results](comfyui-windows-results.md) and
 [macOS results](comfyui-mac-results.md) for the other platform runs.

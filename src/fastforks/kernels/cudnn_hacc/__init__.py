@@ -414,6 +414,13 @@ class CudnnHalfConv:
         """
         _check_inputs(x, w)
         pad, st = (padding, padding), (stride, stride)
+        shape = tuple(_out_shape(x, w, pad, st, dgrad=False))
+        if (y.shape, y.dtype, y.device) != (shape, x.dtype, x.device):
+            msg = (
+                f"cudnn_hacc conv_into destination must be {shape} {x.dtype} on {x.device}, "
+                f"got {tuple(y.shape)} {y.dtype} on {y.device}"
+            )
+            raise ValueError(msg)
         key = ("conv_into", x.shape, w.shape, x.stride(), w.stride(), y.stride(), padding, stride, x.device.index)
         e = self._plan(key, lambda: self._build(x, w, y.stride(), pad, st, y_shape=y.shape))
         if not isinstance(e, _Plan):

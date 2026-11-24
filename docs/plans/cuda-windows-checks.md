@@ -50,7 +50,7 @@ Status against `d8099bff` and the release follow-up. The tables distinguish code
 | A7, RoMa v1 | Restored checked Cholesky outside MLX export. The next RoMa v1 parity check can run on Ubuntu. |
 | A8, DLL temp sweep | The loader retries once if its verified private copy disappears before Windows locks it. An ordinary load failure still raises. The native Windows run is pending. |
 | A9, streamed blocks | Linux parsed a loaded CUDA runtime under a path with spaces. The relocated environment passed 41 cuDNN and streamed ViTPose tests. Windows wheel streaming has run. A CUDA runtime outside `torch/lib` needs a Windows conda environment to reproduce. |
-| A10-A12, remaining hardening | Launcher guards and unchecked call-site layouts remain targeted work. The MSVC setup reads Unicode output for tool and environment paths, covered by a Windows-only test. The ComfyUI cache lock landed and was checked on Windows. The CUDA bicubic check is recorded below. |
+| A10-A12, remaining hardening | cuDNN's `conv_into` checks destination shape, dtype and device before dispatch. Other launcher and layout checks remain targeted work. The MSVC setup reads Unicode paths and environment values, covered by a Windows-only test. The CUDA bicubic check is recorded below. |
 
 | ComfyUI / API findings | What remains |
 | --- | --- |
@@ -79,6 +79,9 @@ PyTorch 2.14.1+cu130 on RTX 5060 Ti 16 GB with NVIDIA driver 595.99.02. Each mea
   differed from eager by a mean of 1.724 pixels on both release revisions. The AANet fixed FP16 engine passed after
   the export change, with a 0.0020 pixel mean difference at the same size. RIFE 4.26 also passed a 256 × 384 FP16
   fixed-engine smoke check.
+- **Build reproducibility:** `group_silu` and `raft_flow` were each built twice with `nvcc` 13.0.88, GCC 15.2,
+  glibc 2.43 and the local `rsqrt` header patch. Every binary and both generated manifests matched byte for byte.
+  These checks use the Ubuntu workstation toolchain. The published binaries use their recorded toolchains.
 
 ## Test environment: OpenCV 5 (2026-11-24)
 

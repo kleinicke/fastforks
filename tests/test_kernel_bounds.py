@@ -8,7 +8,7 @@ import torch
 from torch import nn
 
 from fastforks._core import kernels
-from fastforks.kernels import fs_cutlass
+from fastforks.kernels import cudnn_hacc, fs_cutlass
 from fastforks.kernels import s2m2 as s2m2_kernels
 from fastforks.shared import cnn_kernels
 from fastforks.stereo.models.s2m2.kernels import inference as s2m2
@@ -24,6 +24,19 @@ def _conv(k=128, c=16):
 
 def _x(h=8, w=8, c=16):
     return torch.zeros((1, c, h, w), dtype=torch.half).contiguous(memory_format=CL)
+
+
+@pytest.mark.parametrize(
+    ("shape", "dtype", "device"),
+    [((1, 2, 4, 4), torch.float16, "cpu"), ((1, 4, 4, 4), torch.float32, "cpu"), ((1, 4, 4, 4), torch.float16, "meta")],
+)
+def test_cudnn_conv_into_validates_destination(shape, dtype, device):
+    conv = cudnn_hacc.CudnnHalfConv.__new__(cudnn_hacc.CudnnHalfConv)
+    x = torch.empty((1, 3, 4, 4), dtype=torch.float16)
+    w = torch.empty((4, 3, 3, 3), dtype=torch.float16)
+    y = torch.empty(shape, dtype=dtype, device=device)
+    with pytest.raises(ValueError, match=r"conv_into destination must be \(1, 4, 4, 4\) torch\.float16 on cpu"):
+        conv.conv_into(x, w, y, padding=1, stride=1)
 
 
 @pytest.fixture
