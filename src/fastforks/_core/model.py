@@ -219,7 +219,7 @@ def _typo_checked(fn: Callable[..., Any]) -> Callable[..., Any]:
     """
 
     @functools.wraps(fn)
-    def call(self: object, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401 - the signature of `fn`
+    def call(self: Model, *args: Any, **kwargs: Any) -> Any:  # noqa: ANN401 - the signature of `fn`
         try:
             with late_ranges():
                 out = fn(self, *args, **kwargs)
@@ -233,10 +233,9 @@ def _typo_checked(fn: Callable[..., Any]) -> Callable[..., Any]:
         except Exception as e:
             if getattr(self, "_mps_fallback", None) is None or not _mlx_call_failed(e):
                 raise
-            _fall_back_to_mps(cast("Model", self), e)
+            _fall_back_to_mps(self, e)
             out = fn(self, *args, **kwargs)
-        device = getattr(self, "_result_device", None)  # an MLX port loaded for Apple MPS: results on MPS
-        return out if device is None else _results_to(out, device)
+        return self._move_result(out)
 
     return call
 
@@ -301,7 +300,9 @@ def _results_to(out: object, device: torch.device) -> object:
         moved = [_results_to(o, device) for o in out]
         kind = cast("Any", type(out))  # list, tuple or a named tuple class
         return kind(*moved) if hasattr(out, "_fields") else kind(moved)  # a named tuple takes fields
-    return out
+    from fastforks.stereo.calibrated import StereoResult  # noqa: PLC0415 - keep stereo off the shared import path
+
+    return out.to(device) if isinstance(out, StereoResult) else out
 
 
 def _import_dynamo() -> None:
@@ -351,6 +352,7 @@ _AFTER_DYNAMO: list[Callable[[], None]] = []  # `torch.compiler.disable` wrapper
 if "torch._dynamo" not in sys.modules:
     sys.meta_path.insert(0, _DynamoImported())
 _Fn = TypeVar("_Fn", bound="Callable[..., Any]")
+_Result = TypeVar("_Result")
 
 
 def _after_dynamo(arm: Callable[[], None]) -> None:
@@ -522,6 +524,11 @@ class Model:
     def _device(self) -> torch.device:
         """Where the runner takes its inputs: `device`, or the CPU when an MLX port stands in for Apple MPS."""
         return self.device if getattr(self, "_result_device", None) is None else torch.device("cpu")
+
+    def _move_result(self, result: _Result) -> _Result:
+        """Move a result from an MLX runner to the MPS device requested at load time."""
+        device = getattr(self, "_result_device", None)
+        return result if device is None else cast("_Result", _results_to(result, device))
 
     def __repr__(self) -> str:
         """Model ref, backend and the user's weight files, if any."""

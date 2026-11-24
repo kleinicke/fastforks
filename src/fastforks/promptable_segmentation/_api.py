@@ -113,8 +113,8 @@ class ImageEmbeddings:
     embedding of image `i`. A prompt call takes a single-image embedding.
 
     Attributes:
-        features: The backend's feature tensors, image batch first, on the model's device (opaque; layout differs per
-            family).
+        features: The backend's opaque feature tensors, image batch first. MLX keeps these on the CPU for the next
+            prompt call. The layout differs per family.
         image_size: `(H, W)` of the embedded image(s).
         model: Versioned model id that computed them.
         backend: The backend that computed them.
@@ -486,8 +486,15 @@ class PromptableSegmentationModel(core.Model):
             )
         if not batched:
             out = {k: v[:, 0] for k, v in out.items()}
-        return VideoSegmentationResult(
-            out["masks"], out["pred_masks"], out["object_score_logits"], self.variant.ref, self.backend, self.options
+        return self._move_result(
+            VideoSegmentationResult(
+                out["masks"],
+                out["pred_masks"],
+                out["object_score_logits"],
+                self.variant.ref,
+                self.backend,
+                self.options,
+            )
         )
 
     def _frame(self, video: Sequence[ImageLike] | np.ndarray | torch.Tensor, t: int) -> torch.Tensor:

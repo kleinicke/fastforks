@@ -9,12 +9,15 @@ other hardware, how to check your setup, and how to measure your GPU and send us
 `portable` is plain PyTorch and runs wherever PyTorch runs (CPU, any CUDA GPU, MPS). `kernels` adds our CUDA kernels.
 It needs all of the following:
 
-- Linux on x86-64 with glibc 2.34 or newer. aarch64 hosts (Jetson, Grace, DGX Spark) run `portable` only.
+- Linux on x86-64 with glibc 2.34 or newer, or Windows x64. aarch64 hosts (Jetson, Grace, DGX Spark) run `portable` only.
 - An NVIDIA GPU with compute capability 8.0 or newer.
-- An NVIDIA driver for CUDA 12.8 or newer (driver 570 or newer). The kernels are built with CUDA 12.8, those of
+- On Linux, an NVIDIA driver for CUDA 12.8 or newer (driver 570 or newer). The kernels are built with CUDA 12.8, those of
   GREAT-IGEV, IGEV++, MoCha-Stereo, S2M2 and `fvm_conv` (all classification families, DINOv3-ConvNeXt, SegFormer)
   with CUDA 13.0 (driver 580 or newer). These libraries (`fvm_conv`, `igevpp`, `mocha`, `s2m2_cutlass`) also ship
   their CUDA 12.8 build, which drivers 570-579 load automatically (`fvm_conv`'s is slower: ResNet-50 core 0.76 instead of 0.64 ms).
+- On Windows, a driver that supports CUDA 13.0 for the Windows-specific builds (the DLLs and the MVSAnywhere cubin).
+  These builds have no Windows CUDA 12.8 variants. OS-independent cubins use the driver floor of their own manifest.
+  See [CUDA kernels on Windows](plans/windows-kernels.md).
 - cuDNN 9 (the copy torch ships): most stereo families build fp16-accumulate cuDNN plans through its backend API.
 - One CUDA device per process for `kernels`.
 

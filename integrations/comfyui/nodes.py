@@ -543,11 +543,11 @@ def make_room(memory_required: float, device: torch.device | None) -> None:
 
     if device is None:  # ComfyUI frees every device: nothing to measure
         return
-    held = [m for m in _cache.values() if _held_on(m, device)]
+    held = [key for key, m in _cache.items() if _held_on(m, device)]
     if not held or _device_free(device) >= memory_required:
         return
-    for m in held:
-        m.release_graphs()
+    for key in held:
+        _cache[key].release_graphs()
     gc.collect()
     mm.soft_empty_cache()
     if not short():  # with the graphs gone, PyTorch's cached blocks are free for anyone
@@ -555,7 +555,7 @@ def make_room(memory_required: float, device: torch.device | None) -> None:
         return
     # ComfyUI's "free everything" (`/free`, `unload_all_models`) asks for 1e30 bytes
     need = "all memory" if memory_required >= 2**60 else f"{memory_required / 2**20:.0f} MiB"
-    for key in [k for k, m in _cache.items() if _held_on(m, device)]:
+    for key in held:
         log.info("fastforks: unloading %s for ComfyUI (%s needed)", key[0], need)
         del _cache[key]
         gc.collect()

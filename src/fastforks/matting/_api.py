@@ -153,7 +153,7 @@ class MattingModel(core.Model):
             raise InputError(msg)
         with self._session(), deferred_ranges():  # one range check for all frames, not one sync per frame
             out = self._runner.track(frame, n, size, m[0, 0])
-        return VideoMattingResult(out["alpha"], self.variant.ref, self.backend, self.options)
+        return self._move_result(VideoMattingResult(out["alpha"], self.variant.ref, self.backend, self.options))
 
     def _frame(self, video: Sequence[ImageLike] | np.ndarray | torch.Tensor, t: int) -> torch.Tensor:
         """Frame `t` as a checked `[1, 3, H, W]` batch on the device."""

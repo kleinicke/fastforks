@@ -166,6 +166,18 @@ class _ClipFrames(DepthRunner):
 
 
 @pytest.mark.usefixtures("card_min_size")
+@pytest.mark.parametrize("runner", [_Frames, _ClipFrames])
+def test_video_returns_on_the_routed_models_device(runner: type[DepthRunner], monkeypatch: pytest.MonkeyPatch) -> None:
+    """A routed MLX runner reads CPU frames, while `video` returns to the caller's device."""
+    monkeypatch.setattr(registry, "import_model", lambda _card: types.SimpleNamespace(RUNNERS={"portable": runner}))
+    m = depth.load("video-depth-anything-s", device="cpu")
+    m.device = m._result_device = torch.device("meta")  # a second device available on all of CI
+    v = m.video(np.zeros((4, 16, 20, 3), dtype=np.uint8))
+    assert v.inverse_depth.shape == (4, 16, 20)
+    assert v.inverse_depth.device == m.device
+
+
+@pytest.mark.usefixtures("card_min_size")
 def test_clip_video_inputs_and_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     """A `clip_frames` runner gets the frames of a list or a batch; a frame of another size fails when it is read."""
     monkeypatch.setattr(

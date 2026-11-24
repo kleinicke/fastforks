@@ -793,8 +793,9 @@ Time and memory per model on an M1 Pro: [Apple M1 Pro](devices/apple-m1-pro-16gb
   with `device="mlx"` (below) if you can afford the first call, for example after [`warmup`](#apple-silicon-mlx).
   Without the `mlx` package, `auto` takes the best PyTorch MPS path the same way.
 
-Results of a call are MPS tensors and `model.device` is `mps`, so tensors built on `model.device` combine with them;
-other methods (`video()`, sessions) of an MLX implementation return CPU tensors. `backend` reports what runs: an
+Inference results, including `video()` and `match_pairs()`, are MPS tensors and `model.device` is `mps`, so tensors
+built on `model.device` combine with them. Reusable image embeddings stay on the runner's device. Stereo `run_many()`
+keeps returning NumPy arrays for path and array inputs. `backend` reports what runs: an
 MLX port that `auto` took has `backend.device == "mlx"`, and `backend.mode` is `"portable"` (plain MLX operations,
 `backend.kernels` empty) or `"kernels"` (with the names of the Metal kernels MLX runs in `backend.kernels`). If that
 port fails at a call (an operation it lacks, or out of memory), the model falls back to PyTorch MPS once, with a
@@ -1089,7 +1090,7 @@ allocation (GPU buffers only); on the CPU no memory.
 
 | | portable | kernels (CUDA) |
 |---|---|---|
-| OS | Linux, macOS (Apple silicon, [MPS](#apple-silicon-mps)), any PyTorch platform | Linux x86-64 (glibc >= 2.34), [Windows](#windows) x64; driver >= 570 |
+| OS | Linux, macOS (Apple silicon, [MPS](#apple-silicon-mps)), any PyTorch platform | Linux x86-64 (glibc >= 2.34), [Windows](#windows) x64; driver must support the [kernel's CUDA toolkit](OTHER_GPUS.md#what-runs-where) |
 | GPU | CPU, CUDA, MPS (validated); other PyTorch devices untested | NVIDIA sm_80 or newer: RTX 30, 40, 50 series, A100, H100, B200 |
 | RTX 20 / GTX 16 (sm_75) | works | no binary: `auto` uses portable, `mode="kernels"` raises |
 | Python / PyTorch | 3.11-3.14, torch >= 2.8 | same |

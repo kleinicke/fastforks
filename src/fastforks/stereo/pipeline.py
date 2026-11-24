@@ -430,7 +430,7 @@ def run_many(  # noqa: C901, PLR0913, PLR0915 - the options of the method and it
                 by_view[v] = make_view(v, m, geometry, device=device, depth=m.pop("depth", None))
             kept = result(rectification=geometry, index=pair.index, left_path=left, right_path=right)
             object.__setattr__(kept, "_by_view", by_view)
-            return kept
+            return kept.to(model.device) if isinstance(pair.left, torch.Tensor) and device != model.device else kept
         paths = targets(pair)
         if (bad := next((p for p in paths if p.is_dir()), None)) is not None:
             for out in outs:

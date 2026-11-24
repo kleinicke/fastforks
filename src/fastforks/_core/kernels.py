@@ -248,7 +248,7 @@ def for_driver(manifest: KernelManifest, driver: tuple[int, int] | None = None) 
             return manifest  # `binary` reports it
     if not c.toolkit <= driver < manifest.toolkit:
         return manifest
-    need = _MIN_DRIVER.get(manifest.toolkit)
+    need = _MIN_DRIVER.get(manifest.toolkit) if sys.platform == "linux" else None
     faster = f" (driver >= {need} runs the faster CUDA {'.'.join(map(str, manifest.toolkit))} build)" if need else ""
     log.info("%s: driver supports CUDA %d.%d, using the CUDA %d.%d build%s", c.name, *driver, *c.toolkit, faster)
     return c
@@ -323,8 +323,9 @@ def binary(manifest: KernelManifest, device: torch.device) -> tuple[Path, str]:
         raise KernelUnavailableError(name, f"cannot load the NVIDIA driver library {DRIVER_LIB} ({e})") from e
     if drv < manifest.toolkit:
         need = ".".join(map(str, manifest.toolkit))
-        driver = _MIN_DRIVER.get(manifest.toolkit)
-        remedy = f"; update the NVIDIA driver to >= {driver}" if driver else ""
+        driver = _MIN_DRIVER.get(manifest.toolkit) if sys.platform == "linux" else None
+        minimum = f">= {driver}" if driver else f"a version that supports CUDA {need}"
+        remedy = f"; update the NVIDIA driver to {minimum}"
         msg = f"driver supports CUDA {drv[0]}.{drv[1]}, kernels need >= {need}{remedy}"
         raise KernelUnavailableError(name, msg)
     arch = torch.cuda.get_device_capability(device)
@@ -437,6 +438,7 @@ class CubinModule:
             KernelUnavailableError: See `binary`.
         """
         manifest = for_driver(manifest)
+        device = cuda_device(device)
         image, path, target = verified_binary(manifest, device)
         self.tag = f"{manifest.tag}:{target}"
         self.device = device
@@ -452,12 +454,12 @@ class CubinModule:
             module = ctypes.c_void_p()
             res = lib.cuModuleLoadData(ctypes.byref(module), self._image)
             _check_load(res, f"cuModuleLoadData {manifest.files[target].name}", manifest.name, device)
-        self._funcs = {}
-        for k in signatures:
-            f = ctypes.c_void_p()
-            res = lib.cuModuleGetFunction(ctypes.byref(f), module, k.encode())
-            _check_load(res, f"cuModuleGetFunction {k}", manifest.name, device)
-            self._funcs[k] = f
+            self._funcs = {}
+            for k in signatures:
+                f = ctypes.c_void_p()
+                res = lib.cuModuleGetFunction(ctypes.byref(f), module, k.encode())
+                _check_load(res, f"cuModuleGetFunction {k}", manifest.name, device)
+                self._funcs[k] = f
 
     def max_threads(self, kernel: str) -> int:
         """Largest block size `kernel` launches with on this device (its register use can keep it below 1024)."""
@@ -479,6 +481,10 @@ class CubinModule:
         Straight to the driver (~3 us). Under `torch.compile` / `torch.export` the whole kernels model is one opaque op
         (`fastforks.stereo._module`), so launches always run eagerly.
         """
+        current = torch._C._cuda_getDevice()  # noqa: SLF001 - raw device lookup on the launch path
+        if current != self.device.index:
+            msg = f"{self.tag}: cannot launch {kernel} on cuda:{current}; the module is bound to {self.device}"
+            raise RuntimeError(msg)
         vals = [
             (a.data_ptr() if isinstance(a, torch.Tensor) else int(a or 0)) if c == "p" else a
             for c, a in zip(self.signatures[kernel], args, strict=True)
@@ -495,7 +501,8 @@ class CubinModule:
         extra = (ctypes.c_void_p * 5)(
             1, ctypes.cast(ctypes.c_char_p(buf), ctypes.c_void_p).value, 2, ctypes.addressof(size), 0
         )
-        _check(lib.cuLaunchKernel(func, *grid, *block, smem, current_stream(), None, extra), f"launch {kernel}")
+        stream = torch._C._cuda_getCurrentRawStream(current)  # noqa: SLF001 - raw handle for the verified device
+        _check(lib.cuLaunchKernel(func, *grid, *block, smem, stream, None, extra), f"launch {kernel}")
 
 
 def current_stream() -> int:
@@ -591,19 +598,29 @@ def _load_dll_image(image: bytes, name: str) -> ctypes.CDLL:
     stem, suffix = os.path.splitext(name)  # noqa: PTH122 - a bare file name, not a path
     if suffix.lower() != ".dll":
         stem, suffix = name, ".dll"
-    for n in itertools.count():
-        path = _dll_dir() / (f"{stem}{suffix}" if n == 0 else f"{stem}.{n}{suffix}")
+    directory = _dll_dir()
+    n = 0
+    retried = False
+    while True:
+        path = directory / (f"{stem}{suffix}" if n == 0 else f"{stem}.{n}{suffix}")
         try:
             with path.open("xb") as f:
                 f.write(image)
         except FileExistsError:
+            n += 1
             continue
-        except FileNotFoundError:  # another process's sweep removed the directory: none of its copies were loaded
-            path.parent.mkdir(exist_ok=True)
-            with path.open("xb") as f:
-                f.write(image)
-        return ctypes.CDLL(str(path), winmode=_LOAD_LIBRARY_SEARCH_SYSTEM32)
-    raise AssertionError  # unreachable: itertools.count() never ends
+        except FileNotFoundError:
+            if retried:
+                raise
+        else:
+            try:
+                return ctypes.CDLL(str(path), winmode=_LOAD_LIBRARY_SEARCH_SYSTEM32)
+            except OSError:
+                if retried or path.exists():
+                    raise
+        # Another fastforks process can sweep the directory before the write or the copy before Windows locks it.
+        directory.mkdir(exist_ok=True)
+        retried = True
 
 
 def shared_library(manifest: Path, device: torch.device) -> tuple[ctypes.CDLL, str]:

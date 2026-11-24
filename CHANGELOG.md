@@ -11,8 +11,8 @@ No model family is new in this release; the changes are backends, platforms and 
   raises `BackendUnavailableError`, a missing `mlx` package `MissingDependencyError`; nothing falls back.
 - `device="mps"` with `mode="auto"` now takes the MLX port where it was measured faster or leaner and its first call
   is cheap (logged at INFO). Such a model reports what runs: `backend.device == "mlx"`, and `backend.mode` is
-  `"portable"` or `"kernels"` with the kernel names in `backend.kernels`; results of a call come back as MPS tensors and
-  `model.device` is `mps`. `FASTFORKS_MLX=0` keeps `auto` on PyTorch MPS. See "What auto picks on a Mac" in
+  `"portable"` or `"kernels"` with the kernel names in `backend.kernels`. Inference results, including `video()` and
+  `match_pairs()`, come back on `model.device` (`mps`). `FASTFORKS_MLX=0` keeps `auto` on PyTorch MPS. See "What auto picks on a Mac" in
   `docs/usage.md`.
 - Explicit modes are strict, as in 0.2.0: `mode="portable"` and `mode="kernels"` on `device="mps"` never run MLX.
   `mode="kernels"` runs the family's Metal kernels or raises `BackendUnavailableError`, naming `mode="auto"` and

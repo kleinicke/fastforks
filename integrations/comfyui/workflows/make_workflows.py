@@ -94,7 +94,7 @@ class WF:
             "extra": {},
             "version": 0.4,
         }
-        Path(path).write_text(json.dumps(data, indent=1), newline="\n")  # LF on Windows too
+        Path(path).write_text(json.dumps(data, indent=1), encoding="utf-8", newline="\n")  # LF on Windows too
 
 
 def note(g: WF, text: str, x: int = 0, y: int = -260) -> None:

@@ -364,6 +364,22 @@ def test_results_move_to_the_requested_device():
     assert nested["b"][1] == 2
 
 
+def test_stereo_results_move_all_views_to_the_requested_device():
+    from fastforks.stereo.calibrated import StereoResult, make_view  # noqa: PLC0415 - this result type only
+
+    meta = torch.device("meta")
+    maps = {"disparity": torch.zeros(2, 3)}
+    result = StereoResult(
+        "test@1",
+        core_model.Backend("portable", "mlx", "float16"),
+        views="both",
+        _by_view={view: make_view(view, maps, None) for view in ("left", "right")},
+    )
+    moved = core_model._results_to(result, meta)
+    assert moved.left.disparity.device == moved.right.disparity.device == meta
+    assert result.left.disparity.device == torch.device("cpu")
+
+
 @pytest.mark.parametrize("size", [(37, 53), (74, 106), (1, 9)])
 def test_dpt_resize_matches_torch(size):
     """The DPT head's bilinear resize, portable and Metal kernel, against `F.interpolate(align_corners=True)`."""

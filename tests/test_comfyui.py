@@ -14,6 +14,7 @@ import re
 import sys
 import types
 import warnings
+import weakref
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -830,9 +831,10 @@ def test_comfyui_making_room_frees_our_models(pack: Any, monkeypatch: pytest.Mon
     nodes._cache[("new",)] = Held(cuda, 3, 2)
     nodes._cache[("elsewhere",)] = Held(other, 3, 2)
     total = 20
+    live = [weakref.ref(m) for m in nodes._cache.values()]
 
     def used(dev: torch.device, *, graphs: bool) -> int:
-        return sum(m.weights + graphs * m.graphs for m in nodes._cache.values() if m.device == dev)
+        return sum(m.weights + graphs * m.graphs for ref in live if (m := ref()) is not None and m.device == dev)
 
     # as ComfyUI: a graph's pool is PyTorch's cached memory, counted as free; the device itself does not have it
     monkeypatch.setattr(mm, "get_free_memory", lambda dev, **_: total - used(dev, graphs=False))

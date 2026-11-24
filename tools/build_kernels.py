@@ -105,12 +105,15 @@ def msvc_env() -> dict[str, str]:
     vc_tools = "Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
     found = ""
     if vswhere.is_file():
-        found = subprocess.run(
-            [vswhere, "-latest", "-products", "*", "-requires", vc_tools, "-property", "installationPath"],
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
+        found = (
+            subprocess.run(
+                [vswhere, "-latest", "-products", "*", "-requires", vc_tools, "-property", "installationPath", "-utf8"],
+                check=True,
+                capture_output=True,
+            )
+            .stdout.decode("utf-8")
+            .strip()
+        )
     if not found:
         sys.exit(
             "no MSVC found: install the Visual Studio 2022 Build Tools with the C++ workload, e.g. winget install"
@@ -118,8 +121,19 @@ def msvc_env() -> dict[str, str]:
             ' Microsoft.VisualStudio.Workload.VCTools --includeRecommended"'
         )
     bat = Path(found) / "VC" / "Auxiliary" / "Build" / "vcvars64.bat"
-    out = subprocess.run(f'"{bat}" >nul && set', shell=True, check=True, capture_output=True, text=True).stdout  # noqa: S602
-    return dict(line.split("=", 1) for line in out.splitlines() if "=" in line)
+    # `cmd /u` writes the built-in `set` output as UTF-16LE, preserving paths outside the console code page.
+    # Expand the batch path once, inside quotes, and disable delayed expansion for paths that contain `!`.
+    key = "FASTFORKS_VCVARS64"
+    out = subprocess.run(
+        f'cmd.exe /d /v:off /u /s /c ""%{key}%" >nul && set"',
+        executable=os.environ.get("COMSPEC", "cmd.exe"),
+        env={**os.environ, key: str(bat)},
+        check=True,
+        capture_output=True,
+    ).stdout.decode("utf-16-le")
+    environment = dict(line.split("=", 1) for line in out.splitlines() if "=" in line and not line.startswith("="))
+    environment.pop(key, None)
+    return environment
 
 
 def manifest_name() -> str:
@@ -154,7 +168,7 @@ def host_compiler(ccbin: str, env: dict[str, str] | None = None) -> str:
         cl = shutil.which("cl", path=(env or {}).get("Path") or (env or {}).get("PATH"))
         if cl is None:
             sys.exit("cl.exe is not on the MSVC environment's PATH")
-        out = subprocess.run([cl], check=False, capture_output=True, text=True, env=env).stderr
+        out = subprocess.run([cl], check=False, capture_output=True, text=True, errors="replace", env=env).stderr
         # the banner is localized (its language is part of the build id otherwise): keep the version only
         m = re.search(r"\b(\d+\.\d+\.\d+(?:\.\d+)?)\b.*\b(x64|x86|ARM64)\b", out)
         if m is None:

@@ -109,7 +109,7 @@ def main() -> int:
             res.append({"ref": d["ref"], **row, **t})
         print(f"   total ms: port {tot['port']:.1f} kern {tot['kern']:.1f} mps {tot['mps']:.1f}")
     if a.out:
-        Path(a.out).write_text(json.dumps(res, indent=1))
+        Path(a.out).write_text(json.dumps(res, indent=1), encoding="utf-8")
     return 0
 
 

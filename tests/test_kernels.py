@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 import torch
 
+import build_kernels
 from fastforks import KernelUnavailableError
 from fastforks._core import kernels
 from fastforks._core.kernels import read_manifest, select_target
@@ -456,15 +457,80 @@ def test_dll_dirs_older_than_an_hour_are_swept_and_a_swept_live_dir_comes_back(t
     assert (mine / "ff_test_version.dll").is_file()
 
 
-def test_binary_names_the_driver_remedy(monkeypatch):
+def test_dll_copy_lost_before_load_is_retried(tmp_path, monkeypatch):
+    directory = tmp_path / "dlls"
+    directory.mkdir()
+    monkeypatch.setattr(kernels, "_dll_dir", lambda: directory)
+    image = b"verified image"
+    loaded = object()
+    paths = []
+
+    def load(path, *, winmode):
+        assert winmode == kernels._LOAD_LIBRARY_SEARCH_SYSTEM32
+        copy = Path(path)
+        assert copy.read_bytes() == image
+        paths.append(copy)
+        if len(paths) == 1:
+            copy.unlink()
+            directory.rmdir()
+            msg = "copy disappeared before loading"
+            raise OSError(msg)
+        return loaded
+
+    monkeypatch.setattr(kernels.ctypes, "CDLL", load)
+    assert kernels._load_dll_image(image, "kernel.dll") is loaded
+    assert paths == [directory / "kernel.dll"] * 2
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows cmd environment")
+def test_msvc_env_preserves_unicode_paths(tmp_path, monkeypatch):
+    vswhere = tmp_path / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
+    vswhere.parent.mkdir(parents=True)
+    vswhere.touch()
+    install = tmp_path / "Visual Studio 測定!"
+    bat = install / "VC" / "Auxiliary" / "Build" / "vcvars64.bat"
+    bat.parent.mkdir(parents=True)
+    bat.write_text('@echo off\nset "INCLUDE=%FF_TEST_UNICODE_PATH%"\n', encoding="ascii")
+    monkeypatch.setenv("PROGRAMFILES(X86)", str(tmp_path))
+    monkeypatch.setenv("FF_TEST_UNICODE_PATH", str(install))
+    run = build_kernels.subprocess.run
+
+    def fake_vswhere(args, **kwargs):
+        if isinstance(args, list) and args[0] == vswhere:
+            assert "-utf8" in args
+            return build_kernels.subprocess.CompletedProcess(args, 0, stdout=str(install).encode("utf-8"))
+        return run(args, **kwargs)
+
+    monkeypatch.setattr(build_kernels.subprocess, "run", fake_vswhere)
+    assert build_kernels.msvc_env()["INCLUDE"] == str(install)
+
+
+@pytest.mark.parametrize(
+    ("system", "machine", "manifest_name", "remedy"),
+    [
+        ("linux", "x86_64", "manifest.toml", "update the NVIDIA driver to >= 580"),
+        ("win32", "AMD64", "manifest.windows.toml", "update the NVIDIA driver to a version that supports CUDA 13.0"),
+    ],
+)
+def test_binary_names_the_driver_remedy(monkeypatch, system, machine, manifest_name, remedy):
     monkeypatch.setattr(torch.version, "hip", None)
-    monkeypatch.setattr(kernels.sys, "platform", "linux")
-    monkeypatch.setattr(kernels.platform, "machine", lambda: "x86_64")
+    monkeypatch.setattr(kernels.sys, "platform", system)
+    monkeypatch.setattr(kernels.platform, "machine", lambda: machine)
     monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
     monkeypatch.setattr(kernels, "driver_version", lambda: (12, 4))
-    m = read_manifest(BUILT[0] / "manifest.toml")
-    with pytest.raises(KernelUnavailableError, match=r"driver supports CUDA 12.4, kernels need >= .*update the NVIDIA"):
-        kernels.binary(m, torch.device("cuda", 0))
+    manifest = read_manifest(LIBS / "fvm_conv" / manifest_name)
+    message = f"driver supports CUDA 12.4, kernels need >= 13.0; {remedy}"
+    with pytest.raises(KernelUnavailableError, match=re.escape(message)):
+        kernels.binary(manifest, torch.device("cuda", 0))
+
+
+def test_cubin_launch_checks_the_current_device(monkeypatch):
+    module = object.__new__(kernels.CubinModule)
+    module.device = torch.device("cuda", 1)
+    module.tag = "test"
+    monkeypatch.setattr(torch._C, "_cuda_getDevice", lambda: 0, raising=False)
+    with pytest.raises(RuntimeError, match=r"cannot launch example on cuda:0; the module is bound to cuda:1"):
+        module.launch("example", (1, 1, 1), (1, 1, 1))
 
 
 def _h(*shape: int) -> torch.Tensor:

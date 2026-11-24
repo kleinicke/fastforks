@@ -59,7 +59,7 @@ def main() -> int:
         model(*args, **kw)
     keys = ("x", "w", "stride", "padding", "dilation", "transposed", "groups", "output_padding", "dtype", "bias")
     rows = [{**dict(zip(keys, k, strict=True)), "count": n} for k, n in seen.items()]
-    Path(a.out).write_text(json.dumps({"ref": a.ref, "input": job["input"], "convs": rows}, indent=1))
+    Path(a.out).write_text(json.dumps({"ref": a.ref, "input": job["input"], "convs": rows}, indent=1), encoding="utf-8")
     print(f"{a.ref}: {len(rows)} shapes, {sum(seen.values())} calls")
     return 0
 

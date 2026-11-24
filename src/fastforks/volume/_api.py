@@ -344,7 +344,7 @@ class VolumeSession:
     def _mask(self) -> VolumeMask:
         m = self._model
         out = m._check_outputs({"mask": m._runner.mask(self._state)}, {"mask": self.shape}, cast=False)  # noqa: SLF001
-        return VolumeMask(out["mask"], m.variant.ref, m.backend, m.options)
+        return m._move_result(VolumeMask(out["mask"], m.variant.ref, m.backend, m.options))  # noqa: SLF001
 
     @property
     def mask(self) -> VolumeMask:

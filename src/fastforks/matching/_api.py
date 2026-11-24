@@ -398,7 +398,8 @@ class MatchingModel(core.Model):
         cache = PairCache(pairs, int(cache_mb * 2**20))
         lazy = self.sparse and not self._runner.match_reads_images
         with DecodedImages(images, pairs, int(DECODED_MB * 2**20), lambda i: lazy and i in cache.kept) as decoded:
-            yield from self._match_pairs(images, pairs, cache, decoded, lazy=lazy)
+            for result in self._match_pairs(images, pairs, cache, decoded, lazy=lazy):
+                yield self._move_result(result)
 
     def _match_pairs(
         self,

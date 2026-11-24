@@ -267,7 +267,7 @@ class DepthModel(core.Model):
             )
             raise InputError(msg)
         if self._runner.clip_frames and getattr(frames, "ndim", _CLIP_DIMS) == _CLIP_DIMS:
-            return self._clip_video(frames)
+            return self._move_result(self._clip_video(frames))
         if isinstance(frames, np.ndarray | torch.Tensor):
             x = to_rgb_batch(frames, self._device)
         elif isinstance(frames, str | bytes) or not hasattr(frames, "__len__"):
@@ -286,7 +286,7 @@ class DepthModel(core.Model):
         self._check_size(x)
         with self._session():
             maps = self._runner(x, None)
-        return self._result(maps, x, None, batched=True)
+        return self._move_result(self._result(maps, x, None, batched=True))
 
     def _clip_video(self, frames: Sequence[ImageLike] | np.ndarray | torch.Tensor) -> DepthResult:
         """`video` of a `clip_frames` runner: the frames are converted and moved to the device as it asks for them."""

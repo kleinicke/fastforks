@@ -37,6 +37,34 @@ fast-acvnet, las2, rtmo (t/s/m/l), rife-4.25 / 4.25-lite / 4.26, gimm-vfi-r and 
   (2026-11-24, RTX 5060 Ti: four threads started together, two Depth and two Classify runs on depth-anything-v2-s /
   convnext_tiny: no error, one cached model each, outputs equal to each other and to a serial run.)
 
+## Follow-up to the two 57e09e83 reviews
+
+Status against `d8099bff` and the local follow-up. The tables distinguish code changes from recorded runs.
+
+| CUDA / Windows findings | What remains |
+| --- | --- |
+| A1-A3, MLX export gates and RTMO | Fixed in `0117df42`, `bf7e78b9` and `1509d3e0`. The Windows eager pre-check above passed. Use Ubuntu for fixed and dynamic ONNX, TensorRT, and the selected RTMO parity and speed checks. The GMFlow TensorRT card gate still applies. |
+| A4, CRLF and CI | LF attributes and source hashing landed in `7a59fc43`. The Windows autocrlf clone passed 88 manifest checks. A focused Windows CPU job now covers kernel, cache, security and ComfyUI files. Its first hosted run is pending. |
+| A5, driver floor | Windows DLLs and the MVSAnywhere Windows cubin require a driver supporting CUDA 13.0. The error and hardware guide now say this. Verify CUDA 12 compatibility on the relevant older driver and hardware if that support is needed. |
+| A6, CUDA device | The public model call already guards its CUDA device and binds one kernels device per process. Cubin function lookup now stays inside that device context and direct launches reject a different current device. A real `cuda:1` run needs a two-GPU host. |
+| A7, RoMa v1 | Restored checked Cholesky outside MLX export. The next RoMa v1 parity check can run on Ubuntu. |
+| A8, DLL temp sweep | The deleted-directory retry is present. The race before DLL load remains a Windows-only hardening item. `park/dll-in-place-load` (`b783e6d7`) has prior native Windows evidence and still needs a loader design decision. |
+| A9, streamed blocks | Linux parses mapped paths with spaces. Verify a streamed model in a spaced path on Ubuntu. Windows wheel streaming has run. A CUDA runtime outside `torch/lib` needs a Windows conda environment to reproduce. |
+| A10-A12, remaining hardening | Launcher guards, unchecked call-site layouts, MSVC environment decoding and the unchecked areas in the review remain targeted work. Several text reads already specify UTF-8. The ComfyUI cache lock landed and was checked on Windows. The CUDA bicubic check belongs with the focused resize work below. |
+
+| ComfyUI / API findings | What remains |
+| --- | --- |
+| 1, 4, package floor and release | Both packs and core are at 0.2.1, both pack licenses are present, and the changelog and planned-feature messages were updated. Registry PublisherId and Icon and a published-package install are release work. |
+| 2, 3, 5-7, Apple routing and memory | Routed `Model.device`, output conversion, strict explicit modes, MLX cache handling and the Apple-only dependency are in code. Whole-photo face restoration ran on Windows. Confirm MLX interpolation, face paste-back, and eviction under pressure on macOS. The local follow-up fixes a cache reference that delayed reclaiming evicted models on every platform. |
+| 8-10, example workflows and first start | w02 uses three universal backend choices and a commercial model. Input files and new workflows are documented, and the cache parent is created. Windows ran ten of fourteen workflows offline with third-party comparison nodes removed. Optional third-party branches and the four missing checkpoints still affect broader workflow coverage. |
+| 11, smaller points | The MLX load docstring, one-frame interpolation and duplicate detection conversion were addressed. Detector backend and cache sharing still follow the restorer selection. The transformers conflict depends on the installed packs. |
+
+**Before switching from this Windows machine:** the existing kernel and ComfyUI runs cover the main native paths.
+Keep any Windows-specific sign-off scoped to a release wheel or portable install, or to an issue that reproduces
+only on Windows. The review's full suites, exhaustive survey, cache deletion, driver swaps and kernel rebuilds
+are unnecessary for this handoff. Use Ubuntu for the remaining CUDA exports and TensorRT engines, parity and build
+reproducibility. Leave Turing, Windows conda and multi-GPU coverage with the corresponding hardware or environment.
+
 ## Test environment: OpenCV 5 (2026-11-24)
 
 `tests/test_cv2_resize.py::test_cubic_levels_match_opencv` fails on the Mac venv, which has opencv-python-headless

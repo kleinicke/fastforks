@@ -880,7 +880,7 @@ def _tiny_vit_stub(side: int) -> Any:
         variant=SimpleNamespace(
             ref="tiny-vit", outputs=("logits",), io=SimpleNamespace(crop=side, resize=side, input="imagenet")
         ),
-        card=SimpleNamespace(task="classification"),
+        card=SimpleNamespace(task="classification", family="vit"),
         weights=None,
         device="cpu",
         module=lambda: net,
