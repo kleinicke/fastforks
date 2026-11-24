@@ -45,7 +45,7 @@ These terms apply to every device:
 ## Other devices
 
 - [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 578 models, 2252 rows, measured 2026-11-06 to 2026-11-24.
-- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1516 rows, measured 2026-11-19 to 2026-11-24.
+- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1536 rows, measured 2026-11-19 to 2026-11-24.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -102,7 +102,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`igev-stereo-kitti12`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4006 ms · kernels fp16 | 3654 ms · portable fp16 | – | – | – | – | 72.2 ms · kernels fp16 |
 | [`igev-stereo-kitti15`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4008 ms · kernels fp16 | 3674 ms · portable fp16 | – | – | – | – | 72.3 ms · kernels fp16 |
 | [`igev-stereo-middlebury`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4007 ms · kernels fp16 | 3649 ms · portable fp16 | – | – | – | – | 72.6 ms · kernels fp16 |
-| [`igev-stereo-sceneflow`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4001 ms · kernels fp16 | 3641 ms · portable fp16 | 430 ms · kernels fp16 | 134 ms · kernels fp16 | 349 ms · kernels fp16 | 137 ms · kernels fp16 | 72.6 ms · kernels fp16 |
+| [`igev-stereo-sceneflow`](models/stereo.md#igev_stereo) | 288 ms · kernels fp16 | 4001 ms · kernels fp16 | 3598 ms · portable fp16 | 430 ms · kernels fp16 | 134 ms · kernels fp16 | 349 ms · kernels fp16 | 137 ms · kernels fp16 | 72.6 ms · kernels fp16 |
 | [`las2-h`](models/stereo.md#las2) | – | 588 ms · portable fp16 | 537 ms · portable fp16 | 77.0 ms · kernels fp16 | 36.3 ms · kernels fp16 | 65.1 ms · kernels fp16 | 38.3 ms · kernels fp16 | 15.5 ms · kernels fp16 |
 | [`las2-l`](models/stereo.md#las2) | 29.9 ms · kernels fp16 | 426 ms · portable fp16 | 355 ms · portable fp16 | – | – | – | – | 8.96 ms · kernels fp16 |
 | [`las2-m`](models/stereo.md#las2) | 18.3 ms · kernels fp16 | 232 ms · portable fp16 | 190 ms · portable fp16 | – | – | – | – | 6.91 ms · kernels fp16 |
@@ -152,7 +152,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`depth-anything-v2-metric-vkitti-b`](models/depth.md#depth_anything_v2) | – | 199 ms · portable fp16 | 188 ms · portable fp16 | – | – | – | – | – |
 | [`depth-anything-v2-metric-vkitti-l`](models/depth.md#depth_anything_v2) | – | 580 ms · portable fp16 | 527 ms · portable fp16 | – | – | – | – | – |
 | [`depth-anything-v2-metric-vkitti-s`](models/depth.md#depth_anything_v2) | – | 79.5 ms · portable fp16 | 67.4 ms · kernels fp16 | – | – | – | – | – |
-| [`depth-anything-v2-s`](models/depth.md#depth_anything_v2) | 4.51 ms · kernels fp16 | 80.7 ms · portable fp16 | 66.5 ms · kernels fp16 | 5.92 ms · kernels fp16 | 2.24 ms · kernels fp16 | 5.43 ms · kernels fp16 | 4.63 ms · kernels fp16 | 2.02 ms · kernels fp16 |
+| [`depth-anything-v2-s`](models/depth.md#depth_anything_v2) | 4.51 ms · kernels fp16 | 80.7 ms · portable fp16 | 66.2 ms · kernels fp16 | 5.92 ms · kernels fp16 | 2.24 ms · kernels fp16 | 5.43 ms · kernels fp16 | 4.63 ms · kernels fp16 | 2.02 ms · kernels fp16 |
 | [`depth-pro`](models/depth.md#depth_pro) | – | 5011 ms · portable fp16 | 4271 ms · portable fp16 | 472 ms · kernels fp16 | 133 ms · kernels fp16 | 359 ms · kernels fp16 | 119 ms · kernels fp16 | 68.9 ms · kernels fp16 |
 | [`depthfm-v1`](models/depth.md#depthfm) | – | OOM | 39312 ms · portable fp16 | – | – | – | – | – |
 | [`distill-any-depth-b`](models/depth.md#depth_anything_v2) | – | 199 ms · portable fp16 | 170 ms · kernels fp16 | – | – | – | – | – |
@@ -166,9 +166,9 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`marigold-normals-lcm-v0-1`](models/depth.md#marigold_normals) | – | 1514 ms · portable fp16 | 1772 ms · portable fp16 | – | – | – | – | – |
 | [`marigold-v2-depth`](models/depth.md#marigold_v2) | – | unsupported | 51319 ms · portable bf16 | – | – | – | – | – |
 | [`metric3d-vit-large`](models/depth.md#metric3d) | – | 1822 ms · portable fp32 | 2337 ms · portable fp16 | 193 ms · kernels fp16 | 56.9 ms · kernels fp16 | 166 ms · kernels fp16 | 61.5 ms · kernels fp16 | 38.9 ms · kernels fp16 |
-| [`midas-dpt-beit-large-512`](models/depth.md#midas) | 63.9 ms · kernels fp16 | 635 ms · portable fp16 | 668 ms · portable fp16 | 91.5 ms · kernels fp16 | 26.8 ms · kernels fp16 | 73.1 ms · portable fp16 | 28.5 ms · kernels fp16 | 17.8 ms · portable fp16 |
+| [`midas-dpt-beit-large-512`](models/depth.md#midas) | 63.9 ms · kernels fp16 | 635 ms · portable fp16 | 785 ms · portable fp16 | 91.5 ms · kernels fp16 | 26.8 ms · kernels fp16 | 73.1 ms · portable fp16 | 28.5 ms · kernels fp16 | 17.8 ms · portable fp16 |
 | [`moge-2-vitb-normal`](models/depth.md#moge) | – | 494 ms · portable fp16 | 443 ms · portable fp16 | – | – | – | – | – |
-| [`moge-2-vitl-normal`](models/depth.md#moge) | 73.4 ms · kernels fp16 | 1176 ms · portable fp16 | 1033 ms · portable fp16 | 103 ms · kernels fp16 | 35.2 ms · kernels fp16 | 95.2 ms · kernels fp16 | – | 24.1 ms · kernels fp16 |
+| [`moge-2-vitl-normal`](models/depth.md#moge) | 73.4 ms · kernels fp16 | 1176 ms · portable fp16 | 1036 ms · portable fp16 | 103 ms · kernels fp16 | 35.2 ms · kernels fp16 | 95.2 ms · kernels fp16 | – | 24.1 ms · kernels fp16 |
 | [`moge-2-vits-normal`](models/depth.md#moge) | – | 303 ms · portable fp16 | 282 ms · portable fp16 | 44.0 ms · kernels fp16 | 18.0 ms · kernels fp16 | 35.6 ms · kernels fp16 | 22.1 ms · kernels fp16 | 11.0 ms · kernels fp16 |
 | [`moge-3-vitl`](models/depth.md#moge) | – | 2415 ms · kernels fp32 | 2543 ms · portable fp16 | 284 ms · kernels fp16 | 93.5 ms · kernels fp16 | 276 ms · kernels fp16 | 114 ms · kernels fp16 | 61.5 ms · kernels fp16 |
 | [`omni-dc`](models/depth.md#omni_dc) | – | 2349 ms · portable fp32 | 3873 ms · portable fp16 | – | – | – | – | – |
@@ -180,7 +180,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`unik3d-vitl`](models/depth.md#unik3d) | 62.9 ms · kernels fp16 | 1129 ms · portable fp16 | 947 ms · portable fp16 | 88.9 ms · kernels fp16 | 27.7 ms · kernels fp16 | 78.4 ms · kernels fp16 | 29.8 ms · kernels fp16 | 19.1 ms · kernels fp16 |
 | [`video-depth-anything-metric-s`](models/depth.md#video_depth_anything) | – | 780 ms · portable fp16 | – | – | – | – | – | – |
 | [`video-depth-anything-s`](models/depth.md#video_depth_anything) | – | 779 ms · portable fp16 | – | – | – | – | – | – |
-| [`zoedepth-nk`](models/depth.md#zoedepth) | 88.9 ms · kernels fp16 | 778 ms · portable fp32 | 759 ms · portable fp16 | 116 ms · kernels fp16 | 32.1 ms · kernels fp16 | 92.9 ms · kernels fp16 | 41.2 ms · kernels fp16 | 19.2 ms · kernels fp16 |
+| [`zoedepth-nk`](models/depth.md#zoedepth) | 88.9 ms · kernels fp16 | 778 ms · portable fp32 | 837 ms · portable fp16 | 116 ms · kernels fp16 | 32.1 ms · kernels fp16 | 92.9 ms · kernels fp16 | 41.2 ms · kernels fp16 | 19.2 ms · kernels fp16 |
 
 #### Classification, 224x224
 
@@ -205,7 +205,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`convnext_small.fb_in1k`](models/classification.md#convnext) | – | 18.2 ms · portable fp16 | 12.3 ms · kernels fp16 | – | – | – | – | – |
 | [`convnext_small.fb_in22k_ft_in1k`](models/classification.md#convnext) | – | 18.7 ms · portable fp16 | 12.2 ms · kernels fp16 | – | – | – | – | – |
 | [`convnext_small.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | – | 31.0 ms · portable fp16 | 25.0 ms · kernels fp16 | – | – | – | – | – |
-| [`convnext_tiny.fb_in1k`](models/classification.md#convnext) | – | 10.2 ms · portable fp16 | 7.26 ms · portable fp16 | – | – | – | – | – |
+| [`convnext_tiny.fb_in1k`](models/classification.md#convnext) | – | 10.2 ms · portable fp16 | 7.33 ms · kernels fp16 | – | – | – | – | – |
 | [`convnext_tiny.fb_in22k_ft_in1k`](models/classification.md#convnext) | – | 10.8 ms · portable fp16 | 7.51 ms · portable fp16 | – | – | – | – | – |
 | [`convnext_tiny.fb_in22k_ft_in1k_384`](models/classification.md#convnext) | – | 18.1 ms · portable fp16 | 15.2 ms · portable fp16 | – | – | – | – | – |
 | [`convnextv2_base.fcmae_ft_in22k_in1k`](models/classification.md#convnextv2) | 3.07 ms · kernels fp16 | 35.8 ms · portable fp16 | 19.7 ms · kernels fp16 | 3.68 ms · kernels fp16 | 2.64 ms · kernels fp16 | 3.79 ms · kernels fp16 | 5.03 ms · kernels fp16 | 2.83 ms · kernels fp16 |
@@ -222,7 +222,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`efficientformerv2_s0.snap_dist_in1k`](models/classification.md#efficientformerv2) | – | 13.9 ms · portable fp32 | 4.22 ms · portable fp16 | – | – | – | – | – |
 | [`efficientformerv2_s1.snap_dist_in1k`](models/classification.md#efficientformerv2) | – | 17.4 ms · portable fp32 | 5.66 ms · portable fp16 | – | – | – | – | – |
 | [`efficientformerv2_s2.snap_dist_in1k`](models/classification.md#efficientformerv2) | – | 25.4 ms · portable fp32 | 8.50 ms · portable fp16 | – | – | – | – | – |
-| [`efficientnet_b0.tv_in1k`](models/classification.md#efficientnet) | 0.870 ms · kernels fp16 | 13.0 ms · portable fp32 | 4.39 ms · portable fp16 | 1.14 ms · kernels fp16 | 0.844 ms · kernels fp16 | 1.09 ms · kernels fp16 | 1.51 ms · kernels fp16 | 0.736 ms · kernels fp16 |
+| [`efficientnet_b0.tv_in1k`](models/classification.md#efficientnet) | 0.870 ms · kernels fp16 | 13.0 ms · portable fp32 | 3.64 ms · kernels fp16 | 1.14 ms · kernels fp16 | 0.844 ms · kernels fp16 | 1.09 ms · kernels fp16 | 1.51 ms · kernels fp16 | 0.736 ms · kernels fp16 |
 | [`efficientnet_b4.tv_in1k`](models/classification.md#efficientnet) | – | 38.3 ms · portable fp32 | 16.0 ms · kernels fp16 | 2.45 ms · kernels fp16 | 1.70 ms · kernels fp16 | 2.55 ms · kernels fp16 | 3.30 ms · kernels fp16 | 1.61 ms · kernels fp16 |
 | [`efficientnet_v2_s.tv_in1k`](models/classification.md#efficientnetv2) | – | 34.0 ms · portable fp32 | 16.7 ms · kernels fp16 | 2.43 ms · kernels fp16 | 1.74 ms · kernels fp16 | 2.47 ms · kernels fp16 | 3.29 ms · kernels fp16 | 1.62 ms · kernels fp16 |
 | [`efficientvit_b2.r288_in1k`](models/classification.md#efficientvit) | – | 18.6 ms · portable fp32 | 10.2 ms · portable fp16 | 1.55 ms · kernels fp16 | 1.01 ms · kernels fp16 | 1.40 ms · kernels fp16 | 1.89 ms · kernels fp16 | 0.926 ms · kernels fp16 |
@@ -237,20 +237,20 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`focalnet_tiny_srf.ms_in1k`](models/classification.md#focalnet) | – | 18.0 ms · portable fp32 | 9.53 ms · portable fp16 | – | – | – | – | – |
 | [`hgnetv2_b0.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 6.34 ms · portable fp32 | 2.96 ms · portable fp16 | – | – | – | – | – |
 | [`hgnetv2_b1.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 6.58 ms · portable fp16 | 3.45 ms · portable fp16 | – | – | – | – | – |
-| [`hgnetv2_b2.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 9.18 ms · portable fp16 | 5.44 ms · portable fp32 | – | – | – | – | – |
+| [`hgnetv2_b2.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 9.18 ms · portable fp16 | 4.23 ms · kernels fp16 | – | – | – | – | – |
 | [`hgnetv2_b3.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 10.7 ms · portable fp16 | 6.64 ms · portable fp32 | – | – | – | – | – |
 | [`hgnetv2_b4.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 11.8 ms · portable fp16 | 6.27 ms · portable fp16 | – | – | – | – | – |
 | [`hgnetv2_b5.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 18.3 ms · portable fp16 | 11.1 ms · portable fp16 | – | – | – | – | – |
 | [`hgnetv2_b6.ssld_stage2_ft_in1k`](models/classification.md#hgnetv2) | – | 31.0 ms · portable fp16 | 21.8 ms · portable fp16 | – | – | – | – | – |
 | [`inception_v3.tv_in1k`](models/classification.md#inception_v3) | – | 17.4 ms · portable fp32 | 11.2 ms · portable fp16 | 1.76 ms · kernels fp16 | 1.31 ms · kernels fp16 | 1.74 ms · kernels fp16 | 2.40 ms · kernels fp16 | 1.26 ms · kernels fp16 |
-| [`mobilenet_v2.tv2_in1k`](models/classification.md#mobilenetv2) | 0.520 ms · kernels fp16 | 6.48 ms · portable fp32 | 2.78 ms · portable fp16 | 0.695 ms · kernels fp16 | 0.506 ms · kernels fp16 | 0.580 ms · kernels fp16 | 0.768 ms · kernels fp16 | 0.346 ms · kernels fp16 |
-| [`mobilenet_v3_large.tv2_in1k`](models/classification.md#mobilenetv3) | 0.630 ms · kernels fp16 | 8.54 ms · portable fp32 | 3.20 ms · portable fp32 | 0.853 ms · kernels fp16 | 0.632 ms · kernels fp16 | 0.777 ms · kernels fp16 | 1.05 ms · kernels fp16 | 0.489 ms · kernels fp16 |
+| [`mobilenet_v2.tv2_in1k`](models/classification.md#mobilenetv2) | 0.520 ms · kernels fp16 | 6.48 ms · portable fp32 | 2.48 ms · kernels fp16 | 0.695 ms · kernels fp16 | 0.506 ms · kernels fp16 | 0.580 ms · kernels fp16 | 0.768 ms · kernels fp16 | 0.346 ms · kernels fp16 |
+| [`mobilenet_v3_large.tv2_in1k`](models/classification.md#mobilenetv3) | 0.630 ms · kernels fp16 | 8.54 ms · portable fp32 | 2.65 ms · kernels fp16 | 0.853 ms · kernels fp16 | 0.632 ms · kernels fp16 | 0.777 ms · kernels fp16 | 1.05 ms · kernels fp16 | 0.489 ms · kernels fp16 |
 | [`mobilenetv1_100.ra4_e3600_r224_in1k`](models/classification.md#mobilenetv1) | – | 4.29 ms · portable fp32 | 2.29 ms · portable fp16 | 0.593 ms · kernels fp16 | 0.413 ms · kernels fp16 | 0.448 ms · kernels fp16 | 0.574 ms · kernels fp16 | 0.253 ms · kernels fp16 |
 | [`mobilenetv4_conv_medium.e500_r256_in1k`](models/classification.md#mobilenetv4) | 0.750 ms · kernels fp16 | 9.58 ms · portable fp32 | 4.65 ms · portable fp16 | 0.955 ms · kernels fp16 | 0.722 ms · kernels fp16 | 0.900 ms · kernels fp16 | 1.19 ms · kernels fp16 | 0.592 ms · kernels fp16 |
-| [`regnety_160.tv2_in1k`](models/classification.md#regnet) | – | 33.1 ms · portable fp16 | 18.9 ms · portable fp16 | 2.37 ms · kernels fp16 | 1.58 ms · kernels fp16 | 2.27 ms · kernels fp16 | 2.70 ms · kernels fp16 | 1.46 ms · kernels fp16 |
+| [`regnety_160.tv2_in1k`](models/classification.md#regnet) | – | 33.1 ms · portable fp16 | 17.9 ms · kernels fp16 | 2.37 ms · kernels fp16 | 1.58 ms · kernels fp16 | 2.27 ms · kernels fp16 | 2.70 ms · kernels fp16 | 1.46 ms · kernels fp16 |
 | [`repvit_m0_9.dist_300e_in1k`](models/classification.md#repvit) | – | 11.6 ms · portable fp32 | 4.31 ms · portable fp16 | – | – | – | – | – |
 | [`repvit_m0_9.dist_450e_in1k`](models/classification.md#repvit) | – | 11.5 ms · portable fp32 | 4.30 ms · portable fp16 | – | – | – | – | – |
-| [`repvit_m1_0.dist_300e_in1k`](models/classification.md#repvit) | – | 12.0 ms · portable fp32 | 5.20 ms · portable fp16 | – | – | – | – | – |
+| [`repvit_m1_0.dist_300e_in1k`](models/classification.md#repvit) | – | 12.0 ms · portable fp32 | 4.44 ms · portable fp16 | – | – | – | – | – |
 | [`repvit_m1_0.dist_450e_in1k`](models/classification.md#repvit) | – | 12.0 ms · portable fp32 | 5.29 ms · portable fp16 | – | – | – | – | – |
 | [`repvit_m1_1.dist_300e_in1k`](models/classification.md#repvit) | – | 11.5 ms · portable fp32 | 4.38 ms · portable fp16 | – | – | – | – | – |
 | [`repvit_m1_1.dist_450e_in1k`](models/classification.md#repvit) | – | 11.6 ms · portable fp32 | 4.41 ms · portable fp16 | – | – | – | – | – |
@@ -260,7 +260,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`repvit_m2_3.dist_450e_in1k`](models/classification.md#repvit) | – | 27.2 ms · portable fp32 | 10.7 ms · portable fp16 | – | – | – | – | – |
 | [`resnet152.tv2_in1k`](models/classification.md#resnet) | – | 24.3 ms · portable fp16 | 17.0 ms · kernels fp16 | 2.32 ms · kernels fp16 | 1.84 ms · kernels fp16 | 2.48 ms · kernels fp16 | 3.42 ms · kernels fp16 | 1.82 ms · kernels fp16 |
 | [`resnet18.tv_in1k`](models/classification.md#resnet) | – | 4.67 ms · portable fp32 | 3.75 ms · kernels fp16 | 0.718 ms · kernels fp16 | 0.519 ms · kernels fp16 | 0.609 ms · kernels fp16 | 0.797 ms · kernels fp16 | 0.370 ms · kernels fp16 |
-| [`resnet50.tv2_in1k`](models/classification.md#resnet) | 0.990 ms · kernels fp16 | 10.2 ms · portable fp16 | 6.76 ms · kernels fp16 | – | – | – | – | 0.666 ms · kernels fp16 |
+| [`resnet50.tv2_in1k`](models/classification.md#resnet) | 0.990 ms · kernels fp16 | 10.2 ms · portable fp16 | 6.49 ms · kernels fp16 | – | – | – | – | 0.666 ms · kernels fp16 |
 | [`shufflenet_v2_x1_0.tv_in1k`](models/classification.md#shufflenetv2) | – | 6.33 ms · portable fp32 | 3.27 ms · portable fp16 | 1.13 ms · kernels fp16 | 0.874 ms · kernels fp16 | 1.22 ms · kernels fp16 | 1.63 ms · kernels fp16 | 0.811 ms · kernels fp16 |
 | [`shvit_s1.in1k`](models/classification.md#shvit) | – | 10.3 ms · portable fp32 | 4.43 ms · portable fp16 | – | – | – | – | – |
 | [`shvit_s2.in1k`](models/classification.md#shvit) | – | 10.9 ms · portable fp32 | 5.11 ms · portable fp16 | – | – | – | – | – |
@@ -275,7 +275,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`tiny_vit_21m_224.dist_in22k_ft_in1k`](models/classification.md#tinyvit) | – | 11.6 ms · portable fp32 | 7.44 ms · portable fp16 | – | – | – | – | – |
 | [`tiny_vit_5m_224.dist_in22k_ft_in1k`](models/classification.md#tinyvit) | – | 8.61 ms · portable fp32 | 4.64 ms · portable fp16 | – | – | – | – | – |
 | [`vgg16.tv_in1k`](models/classification.md#vgg) | 1.56 ms · kernels fp16 | 11.7 ms · portable fp16 | 13.8 ms · portable fp16 | 2.10 ms · kernels fp16 | 1.03 ms · kernels fp16 | 1.47 ms · kernels fp16 | 1.15 ms · kernels fp16 | 0.622 ms · kernels fp16 |
-| [`vit_base_patch16_224.augreg2_in21k_ft_in1k`](models/classification.md#vit) | 1.78 ms · kernels fp16 | 16.9 ms · portable fp32 | 14.3 ms · portable fp16 | 1.92 ms · kernels fp16 | 1.22 ms · kernels fp16 | 1.77 ms · kernels fp16 | 2.21 ms · kernels fp16 | 1.02 ms · kernels fp16 |
+| [`vit_base_patch16_224.augreg2_in21k_ft_in1k`](models/classification.md#vit) | 1.78 ms · kernels fp16 | 16.9 ms · portable fp32 | 14.2 ms · portable fp16 | 1.92 ms · kernels fp16 | 1.22 ms · kernels fp16 | 1.77 ms · kernels fp16 | 2.21 ms · kernels fp16 | 1.02 ms · kernels fp16 |
 | [`vit_so400m_patch14_siglip_378.webli_ft_in1k`](models/classification.md#siglip) | 12.9 ms · kernels fp16 | 197 ms · portable fp16 | 179 ms · kernels fp16 | 15.8 ms · kernels fp16 | 6.99 ms · kernels fp16 | 16.0 ms · kernels fp16 | 7.96 ms · portable fp16 | 4.80 ms · portable fp16 |
 
 #### Segmentation, 1024x2048
@@ -283,7 +283,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | model | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 | NVIDIA A100-SXM4-40GB | NVIDIA RTX PRO 6000 |
 |---|---|---|---|---|---|---|---|
 | [`deeplabv3-r101-d8-ade20k`](models/segmentation.md#mmseg) | 528 ms · portable fp16 | 441 ms · kernels fp16 | – | – | – | – | 6.03 ms · kernels fp16 |
-| [`deeplabv3plus-r101-d8-ade20k`](models/segmentation.md#mmseg) | 430 ms · portable fp16 | 370 ms · kernels fp16 | 24.9 ms · kernels fp16 | 7.55 ms · kernels fp16 | 20.8 ms · kernels fp16 | 13.0 ms · kernels fp16 | 5.21 ms · kernels fp16 |
+| [`deeplabv3plus-r101-d8-ade20k`](models/segmentation.md#mmseg) | 430 ms · portable fp16 | 333 ms · kernels fp16 | 24.9 ms · kernels fp16 | 7.55 ms · kernels fp16 | 20.8 ms · kernels fp16 | 13.0 ms · kernels fp16 | 5.21 ms · kernels fp16 |
 | [`dinov2-b-linear-ade20k`](models/segmentation.md#dinov2_linear) | 361 ms · portable fp16 | 256 ms · portable fp16 | – | – | – | – | 6.86 ms · kernels fp16 |
 | [`dinov2-l-linear-ade20k`](models/segmentation.md#dinov2_linear) | 927 ms · portable fp16 | 761 ms · portable fp16 | 81.8 ms · kernels fp16 | 22.8 ms · kernels fp16 | 67.1 ms · kernels fp16 | 22.3 ms · kernels fp16 | 13.8 ms · kernels fp16 |
 | [`dinov2-s-linear-ade20k`](models/segmentation.md#dinov2_linear) | 195 ms · portable fp16 | 112 ms · portable fp16 | 16.6 ms · kernels fp16 | 6.60 ms · kernels fp16 | 13.1 ms · kernels fp16 | 7.64 ms · kernels fp16 | 3.90 ms · kernels fp16 |
@@ -292,15 +292,15 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`fcn-r101-d8-ade20k`](models/segmentation.md#mmseg) | 405 ms · portable fp16 | 353 ms · portable fp16 | 21.8 ms · kernels fp16 | 6.92 ms · kernels fp16 | 19.5 ms · kernels fp16 | 11.8 ms · kernels fp16 | 5.21 ms · kernels fp16 |
 | [`hrnet-w48-fcn-ade20k`](models/segmentation.md#mmseg) | 228 ms · portable fp16 | 220 ms · portable fp16 | – | – | – | – | 4.64 ms · kernels fp16 |
 | [`mask2former-swinl-ade20k`](models/segmentation.md#mask2former) | 909 ms · portable fp32 | 850 ms · portable fp16 | 77.8 ms · kernels fp16 | 32.8 ms · kernels fp16 | 67.4 ms · kernels fp16 | 35.3 ms · kernels fp16 | 16.9 ms · kernels fp16 |
-| [`oneformer-swinl-ade20k`](models/segmentation.md#oneformer) | 1127 ms · portable fp32 | 1741 ms · portable fp32 | 134 ms · kernels fp16 | 47.2 ms · kernels fp16 | 109 ms · kernels fp16 | 58.9 ms · kernels fp16 | 31.4 ms · kernels fp16 |
+| [`oneformer-swinl-ade20k`](models/segmentation.md#oneformer) | 1127 ms · portable fp32 | 1441 ms · portable fp16 | 134 ms · kernels fp16 | 47.2 ms · kernels fp16 | 109 ms · kernels fp16 | 58.9 ms · kernels fp16 | 31.4 ms · kernels fp16 |
 | [`pspnet-r101-d8-ade20k`](models/segmentation.md#mmseg) | 411 ms · portable fp16 | 375 ms · kernels fp16 | – | – | – | – | 10.3 ms · kernels fp16 |
 | [`sapiens-seg-0.3b-goliath`](models/segmentation.md#sapiens) | 1517 ms · portable fp16 | 2392 ms · portable fp16 | 135 ms · kernels fp16 | 39.7 ms · kernels fp16 | 97.7 ms · kernels fp16 | 34.4 ms · kernels fp16 | 24.4 ms · portable fp16 |
 | [`sapiens-seg-1b-goliath`](models/segmentation.md#sapiens) | 3113 ms · portable fp16 | 4110 ms · portable fp16 | 305 ms · kernels fp16 | 81.4 ms · kernels fp16 | 200 ms · kernels fp16 | 67.8 ms · kernels fp16 | 45.5 ms · portable fp16 |
-| [`segformer-b0-ade20k`](models/segmentation.md#segformer) | 106 ms · portable fp32 | 77.5 ms · kernels fp16 | 3.91 ms · kernels fp16 | 1.76 ms · kernels fp16 | 3.79 ms · kernels fp16 | 3.43 ms · kernels fp16 | 1.24 ms · kernels fp16 |
-| [`segformer-b5-ade20k`](models/segmentation.md#segformer) | 375 ms · portable fp16 | 357 ms · portable fp16 | 34.5 ms · kernels fp16 | 9.82 ms · kernels fp16 | 28.5 ms · kernels fp16 | 18.3 ms · kernels fp16 | 8.22 ms · kernels fp16 |
+| [`segformer-b0-ade20k`](models/segmentation.md#segformer) | 106 ms · portable fp32 | 57.1 ms · kernels fp16 | 3.91 ms · kernels fp16 | 1.76 ms · kernels fp16 | 3.79 ms · kernels fp16 | 3.43 ms · kernels fp16 | 1.24 ms · kernels fp16 |
+| [`segformer-b5-ade20k`](models/segmentation.md#segformer) | 375 ms · portable fp16 | 270 ms · portable fp16 | 34.5 ms · kernels fp16 | 9.82 ms · kernels fp16 | 28.5 ms · kernels fp16 | 18.3 ms · kernels fp16 | 8.22 ms · kernels fp16 |
 | [`segnext-mscan-b-ade20k`](models/segmentation.md#segnext) | 184 ms · portable fp16 | 264 ms · portable fp16 | – | – | – | – | – |
 | [`segnext-mscan-l-ade20k`](models/segmentation.md#segnext) | 268 ms · portable fp16 | 424 ms · portable fp16 | – | – | – | – | – |
-| [`segnext-mscan-s-ade20k`](models/segmentation.md#segnext) | 134 ms · portable fp16 | 84.9 ms · kernels fp16 | – | – | – | – | – |
+| [`segnext-mscan-s-ade20k`](models/segmentation.md#segnext) | 134 ms · portable fp16 | 74.9 ms · kernels fp16 | – | – | – | – | – |
 | [`segnext-mscan-t-ade20k`](models/segmentation.md#segnext) | 118 ms · portable fp16 | 67.7 ms · kernels fp16 | – | – | – | – | – |
 
 #### Matting, 1080x1920
@@ -309,14 +309,14 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 |---|---|---|
 | [`ben2`](models/matting.md#ben2) | 1148 ms · portable fp32 | 850 ms · portable fp16 |
 | [`birefnet`](models/matting.md#birefnet) | 1152 ms · portable fp16 | 1048 ms · portable fp16 |
-| [`birefnet-lite`](models/matting.md#birefnet) | 474 ms · portable fp32 | 392 ms · portable fp16 |
+| [`birefnet-lite`](models/matting.md#birefnet) | 474 ms · portable fp32 | 382 ms · portable fp16 |
 | [`inspyrenet`](models/matting.md#inspyrenet) | 702 ms · portable fp16 | 679 ms · portable fp16 |
 | [`inspyrenet-fast`](models/matting.md#inspyrenet) | 145 ms · portable fp16 | 95.6 ms · portable fp16 |
 | [`isnet`](models/matting.md#isnet) | 129 ms · portable fp16 | 121 ms · kernels fp16 |
 | [`isnet-general-use`](models/matting.md#isnet) | 130 ms · portable fp16 | 122 ms · kernels fp16 |
-| [`matanyone`](models/matting.md#matanyone) | 3091 ms · portable fp16 | 3495 ms · portable fp16 |
+| [`matanyone`](models/matting.md#matanyone) | 3091 ms · portable fp16 | 3513 ms · portable fp16 |
 | [`rmbg-2.0`](models/matting.md#birefnet) | 1008 ms · portable fp16 | 1050 ms · portable fp16 |
-| [`u2net`](models/matting.md#u2net) | 79.4 ms · portable fp16 | 62.9 ms · portable fp16 |
+| [`u2net`](models/matting.md#u2net) | 79.4 ms · portable fp16 | 62.3 ms · portable fp16 |
 | [`u2net-human-seg`](models/matting.md#u2net) | 75.1 ms · portable fp16 | 62.7 ms · portable fp16 |
 | [`u2netp`](models/matting.md#u2net) | 50.2 ms · portable fp16 | 28.3 ms · portable fp16 |
 | [`vitmatte-b`](models/matting.md#vitmatte) | 2740 ms · portable fp16 | 1652 ms · portable fp16 |
@@ -360,7 +360,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`dfine-l-coco`](models/detection.md#dfine) | – | 71.0 ms · portable fp16 | 59.9 ms · portable fp16 | 9.47 ms · kernels fp16 | 5.16 ms · kernels fp16 | 9.48 ms · kernels fp16 | 9.36 ms · kernels fp16 | 4.23 ms · kernels fp16 |
 | [`dfine-m-coco`](models/detection.md#dfine) | – | 56.6 ms · portable fp16 | 46.6 ms · portable fp16 | – | – | – | – | 3.30 ms · kernels fp16 |
 | [`dfine-n-coco`](models/detection.md#dfine) | – | 25.2 ms · portable fp16 | 22.3 ms · portable fp16 | 3.45 ms · kernels fp16 | 2.41 ms · kernels fp16 | 3.68 ms · kernels fp16 | 4.06 ms · kernels fp16 | 1.89 ms · kernels fp16 |
-| [`dfine-s-coco`](models/detection.md#dfine) | – | 41.0 ms · portable fp16 | 30.1 ms · portable fp16 | – | – | – | – | 2.37 ms · kernels fp16 |
+| [`dfine-s-coco`](models/detection.md#dfine) | – | 41.0 ms · portable fp16 | 29.5 ms · portable fp16 | – | – | – | – | 2.37 ms · kernels fp16 |
 | [`dfine-x-coco`](models/detection.md#dfine) | – | 101 ms · portable fp16 | 94.6 ms · portable fp16 | 14.8 ms · kernels fp16 | 6.81 ms · kernels fp16 | 14.4 ms · kernels fp16 | 13.1 ms · kernels fp16 | 6.05 ms · kernels fp16 |
 | [`faster-rcnn-r50-fpn-3x-coco`](models/detection.md#rcnn) | 19.5 ms · kernels fp16 | 192 ms · portable fp16 | 367 ms · portable fp16 | 19.6 ms · kernels fp16 | 10.6 ms · kernels fp16 | 18.1 ms · kernels fp16 | 13.0 ms · kernels fp16 | 5.86 ms · kernels fp16 |
 | [`grounding-dino-base`](models/detection.md#grounding_dino) | – | 1075 ms · portable fp32 | 889 ms · portable fp16 | – | – | – | – | – |
@@ -388,18 +388,18 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`rtdetrv2-l-coco`](models/detection.md#rtdetrv2) | – | 77.3 ms · portable fp16 | 67.8 ms · portable fp16 | 7.20 ms · kernels fp16 | 3.82 ms · kernels fp16 | 7.63 ms · kernels fp16 | 6.65 ms · kernels fp16 | 3.31 ms · kernels fp16 |
 | [`rtdetrv2-m-coco`](models/detection.md#rtdetrv2) | – | 55.0 ms · portable fp16 | 50.0 ms · portable fp16 | – | – | – | – | 2.68 ms · kernels fp16 |
 | [`rtdetrv2-ms-coco`](models/detection.md#rtdetrv2) | – | 62.7 ms · portable fp16 | 57.4 ms · portable fp16 | – | – | – | – | 2.57 ms · kernels fp16 |
-| [`rtdetrv2-s-coco`](models/detection.md#rtdetrv2) | – | 44.0 ms · portable fp32 | 39.5 ms · portable fp16 | 4.56 ms · kernels fp16 | 2.76 ms · kernels fp16 | 4.88 ms · kernels fp16 | 4.74 ms · kernels fp16 | 2.21 ms · kernels fp16 |
+| [`rtdetrv2-s-coco`](models/detection.md#rtdetrv2) | – | 44.0 ms · portable fp32 | 37.1 ms · portable fp16 | 4.56 ms · kernels fp16 | 2.76 ms · kernels fp16 | 4.88 ms · kernels fp16 | 4.74 ms · kernels fp16 | 2.21 ms · kernels fp16 |
 | [`rtdetrv2-x-coco`](models/detection.md#rtdetrv2) | – | 109 ms · portable fp16 | 118 ms · portable fp16 | 10.1 ms · kernels fp16 | 4.89 ms · kernels fp16 | 10.4 ms · kernels fp16 | 8.11 ms · kernels fp16 | 4.07 ms · kernels fp16 |
 | [`rtmdet-l-coco`](models/detection.md#rtmdet) | – | 75.8 ms · portable fp16 | 74.9 ms · portable fp16 | – | – | – | – | – |
 | [`rtmdet-m-coco`](models/detection.md#rtmdet) | – | 51.4 ms · portable fp16 | 50.1 ms · portable fp16 | – | – | – | – | – |
 | [`rtmdet-m-person`](models/detection.md#rtmdet) | – | 48.8 ms · portable fp16 | 47.7 ms · portable fp16 | – | – | – | – | – |
 | [`rtmdet-nano-person`](models/detection.md#rtmdet) | – | 17.8 ms · portable fp16 | 8.87 ms · portable fp16 | – | – | – | – | – |
-| [`rtmdet-s-coco`](models/detection.md#rtmdet) | – | 31.0 ms · portable fp16 | 26.1 ms · portable fp16 | – | – | – | – | – |
+| [`rtmdet-s-coco`](models/detection.md#rtmdet) | – | 31.0 ms · portable fp16 | 25.9 ms · portable fp16 | – | – | – | – | – |
 | [`rtmdet-tiny-coco`](models/detection.md#rtmdet) | – | 27.0 ms · portable fp16 | 24.4 ms · portable fp16 | – | – | – | – | – |
 | [`rtmdet-x-coco`](models/detection.md#rtmdet) | – | 116 ms · portable fp16 | 126 ms · portable fp16 | – | – | – | – | – |
 | [`yolox-l`](models/detection.md#yolox) | – | 79.4 ms · portable fp16 | 69.6 ms · portable fp16 | – | – | – | – | – |
 | [`yolox-m`](models/detection.md#yolox) | – | 50.0 ms · portable fp16 | 44.6 ms · portable fp16 | – | – | – | – | – |
-| [`yolox-s`](models/detection.md#yolox) | – | 33.4 ms · portable fp32 | 23.0 ms · portable fp16 | – | – | – | – | – |
+| [`yolox-s`](models/detection.md#yolox) | – | 33.4 ms · portable fp32 | 20.8 ms · kernels fp16 | – | – | – | – | – |
 | [`yolox-tiny`](models/detection.md#yolox) | – | 20.1 ms · portable fp16 | 12.6 ms · kernels fp16 | – | – | – | – | – |
 | [`yolox-x`](models/detection.md#yolox) | – | 123 ms · portable fp16 | 121 ms · portable fp16 | – | – | – | – | – |
 
@@ -419,7 +419,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`dwpose-m`](models/pose.md#rtmpose) | 50.9 ms · kernels fp32 | 54.5 ms · portable fp16 |
 | [`dwpose-s`](models/pose.md#rtmpose) | 29.8 ms · kernels fp32 | 34.4 ms · portable fp16 |
 | [`dwpose-t`](models/pose.md#rtmpose) | 23.7 ms · kernels fp32 | 28.6 ms · portable fp16 |
-| [`hrnet-w32`](models/pose.md#hrnet) | 122 ms · portable fp16 | 117 ms · portable fp16 |
+| [`hrnet-w32`](models/pose.md#hrnet) | 122 ms · portable fp16 | 109 ms · portable fp16 |
 | [`hrnet-w32-384`](models/pose.md#hrnet) | 217 ms · portable fp16 | 237 ms · portable fp16 |
 | [`hrnet-w48`](models/pose.md#hrnet) | 198 ms · portable fp16 | 222 ms · portable fp16 |
 | [`hrnet-w48-384`](models/pose.md#hrnet) | 369 ms · portable fp16 | 449 ms · portable fp16 |
@@ -566,17 +566,17 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`memfof-kitti`](models/flow.md#memfof) | OOM | 16074 ms · portable fp16 |
 | [`memfof-sintel`](models/flow.md#memfof) | OOM | 16049 ms · portable fp16 |
 | [`memfof-spring`](models/flow.md#memfof) | 3060 ms · portable fp32 | 3319 ms · portable fp16 |
-| [`neuflow-v2`](models/flow.md#neuflow_v2) | 702 ms · portable fp16 | 960 ms · portable fp16 |
+| [`neuflow-v2`](models/flow.md#neuflow_v2) | 702 ms · portable fp16 | 781 ms · portable fp32 |
 | [`neuflow-v2-sintel`](models/flow.md#neuflow_v2) | 721 ms · portable fp16 | 960 ms · portable fp16 |
 | [`neuflow-v2-things`](models/flow.md#neuflow_v2) | 739 ms · portable fp16 | 941 ms · portable fp32 |
-| [`raft-large`](models/flow.md#raft) | 1351 ms · kernels fp16 | 1028 ms · portable fp16 |
+| [`raft-large`](models/flow.md#raft) | 1351 ms · kernels fp16 | 996 ms · portable fp16 |
 | [`raft-large-kitti`](models/flow.md#raft) | 1349 ms · kernels fp16 | 1094 ms · portable fp16 |
 | [`raft-large-things`](models/flow.md#raft) | 1348 ms · kernels fp16 | 1127 ms · portable fp16 |
 | [`raft-small`](models/flow.md#raft) | 386 ms · kernels fp16 | 332 ms · portable fp16 |
 | [`recover-cx`](models/flow.md#recover) | 853 ms · portable fp16 | 758 ms · portable fp16 |
 | [`recover-mn`](models/flow.md#recover) | 347 ms · portable fp16 | 316 ms · portable fp16 |
 | [`recover-rn`](models/flow.md#recover) | 405 ms · portable fp16 | 429 ms · portable fp16 |
-| [`sea-raft-m`](models/flow.md#sea_raft) | 1220 ms · kernels fp16 | 1038 ms · portable fp16 |
+| [`sea-raft-m`](models/flow.md#sea_raft) | 1220 ms · kernels fp16 | 1011 ms · portable fp16 |
 | [`sea-raft-m-kitti`](models/flow.md#sea_raft) | 1222 ms · kernels fp16 | 1043 ms · portable fp16 |
 | [`sea-raft-m-spring`](models/flow.md#sea_raft) | 340 ms · kernels fp16 | 281 ms · portable fp16 |
 | [`sea-raft-m-things`](models/flow.md#sea_raft) | 1221 ms · kernels fp16 | 1041 ms · portable fp16 |
@@ -605,7 +605,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`loma-l`](models/matching.md#loma) | 3178 ms · portable fp32 | 2810 ms · portable fp16 |
 | [`loma-r`](models/matching.md#loma) | 3076 ms · portable fp32 | 2708 ms · portable fp16 |
 | [`romav1`](models/matching.md#romav1) | 3050 ms · portable fp32 | 3135 ms · portable fp16 |
-| [`romav2`](models/matching.md#romav2) | 3981 ms · kernels fp32 | 3633 ms · kernels fp16 |
+| [`romav2`](models/matching.md#romav2) | 3981 ms · kernels fp32 | 3368 ms · kernels fp16 |
 | [`xfeat`](models/matching.md#xfeat) | 41.7 ms · portable fp32 | 29.9 ms · portable fp32 |
 | [`xfeat-lighterglue`](models/matching.md#xfeat) | 179 ms · portable fp32 | 135 ms · portable fp32 |
 
@@ -655,17 +655,17 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`gfpgan-v1.4`](models/restoration.md#gfpgan) | 138 ms · portable fp16 | 159 ms · portable fp16 |
 | [`hat-s-x4`](models/restoration.md#hat) | 13687 ms · portable fp16 | 10010 ms · portable fp16 |
 | [`hat-x4`](models/restoration.md#hat) | 8044 ms · portable fp16 | 11318 ms · portable fp16 |
-| [`nafnet-gopro`](models/restoration.md#nafnet) | 368 ms · portable fp16 | 358 ms · kernels fp16 |
-| [`nafnet-sidd`](models/restoration.md#nafnet) | 423 ms · portable fp32 | 277 ms · portable fp16 |
+| [`nafnet-gopro`](models/restoration.md#nafnet) | 368 ms · portable fp16 | 293 ms · kernels fp16 |
+| [`nafnet-sidd`](models/restoration.md#nafnet) | 423 ms · portable fp32 | 228 ms · kernels fp16 |
 | [`real-hat-gan-x4`](models/restoration.md#hat) | 7775 ms · portable fp16 | 15831 ms · portable fp16 |
 | [`realesr-general-x4v3`](models/restoration.md#compact) | 132 ms · portable fp16 | 104 ms · kernels fp16 |
 | [`realesrgan-x2plus`](models/restoration.md#realesrgan) | 549 ms · portable fp16 | 567 ms · kernels fp16 |
 | [`realesrgan-x4plus`](models/restoration.md#realesrgan) | 2066 ms · portable fp16 | 2184 ms · kernels fp16 |
 | [`realesrgan-x4plus-anime-6b`](models/restoration.md#realesrgan) | 664 ms · portable fp16 | 849 ms · kernels fp16 |
-| [`realplksr-nomoswebphoto-x4`](models/restoration.md#realplksr) | 1092 ms · portable fp16 | 1029 ms · kernels fp16 |
-| [`restormer-deblur`](models/restoration.md#restormer) | 989 ms · portable fp32 | 737 ms · portable fp16 |
+| [`realplksr-nomoswebphoto-x4`](models/restoration.md#realplksr) | 1092 ms · portable fp16 | 1020 ms · kernels fp16 |
+| [`restormer-deblur`](models/restoration.md#restormer) | 989 ms · portable fp32 | 601 ms · portable fp16 |
 | [`restormer-derain`](models/restoration.md#restormer) | 988 ms · portable fp16 | 737 ms · portable fp16 |
-| [`restormer-sidd`](models/restoration.md#restormer) | 1112 ms · portable fp32 | 794 ms · portable fp16 |
+| [`restormer-sidd`](models/restoration.md#restormer) | 1112 ms · portable fp32 | 665 ms · portable fp16 |
 | [`seedvr2-3b`](models/restoration.md#seedvr2) | unsupported | 14023 ms · portable fp16 |
 | [`seedvr2-7b`](models/restoration.md#seedvr2) | unsupported | 25365 ms · portable bf16 |
 | [`span-x2`](models/restoration.md#span) | 74.0 ms · portable fp16 | 76.5 ms · kernels fp16 |
@@ -675,7 +675,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`swin2sr-x4-real`](models/restoration.md#swin2sr) | 4751 ms · portable fp16 | 5522 ms · portable fp16 |
 | [`swinir-l-x4-real`](models/restoration.md#swinir) | 7252 ms · portable fp16 | 8691 ms · portable fp16 |
 | [`swinir-m-x2`](models/restoration.md#swinir) | 3674 ms · portable fp16 | 4312 ms · portable fp16 |
-| [`swinir-m-x4`](models/restoration.md#swinir) | 3750 ms · portable fp16 | 4339 ms · portable fp16 |
+| [`swinir-m-x4`](models/restoration.md#swinir) | 3750 ms · portable fp16 | 4217 ms · portable fp16 |
 | [`swinir-m-x4-real`](models/restoration.md#swinir) | 3829 ms · portable fp16 | 4668 ms · portable fp16 |
 
 #### Volume, 200x200

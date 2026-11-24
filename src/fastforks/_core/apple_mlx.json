@@ -1454,19 +1454,19 @@
   },
   "convnext_tiny.fb_in1k@1": {
    "auto": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "dtypes": {
-    "float16": "portable",
+    "float16": "kernels",
     "float32": "kernels"
    },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
+    "float16": "kernels",
     "float32": "kernels"
    },
    "mps_dtype": "float16",
@@ -3468,19 +3468,19 @@
   },
   "efficientnet_b0.tv_in1k@1": {
    "auto": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "dtypes": {
-    "float16": "portable",
+    "float16": "kernels",
     "float32": "kernels"
    },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
+    "float16": "kernels",
     "float32": "kernels"
    },
    "passed": {
@@ -4845,14 +4845,18 @@
   },
   "hgnetv2_b2.ssld_stage2_ft_in1k@1": {
    "mlx_default": [
-    "portable",
-    "float32"
+    "kernels",
+    "float16"
    ],
    "mlx": {
-    "float16": "portable",
+    "float16": "kernels",
     "float32": "portable"
    },
    "passed": {
+    "kernels": [
+     "float16",
+     "float32"
+    ],
     "portable": [
      "float16",
      "float32"
@@ -6364,20 +6368,20 @@
   },
   "mobilenet_v2.tv2_in1k@1": {
    "auto": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "dtypes": {
-    "float16": "portable",
-    "float32": "kernels"
+    "float16": "kernels",
+    "float32": "portable"
    },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
-    "float32": "kernels"
+    "float16": "kernels",
+    "float32": "portable"
    },
    "passed": {
     "kernels": [
@@ -6392,19 +6396,19 @@
   },
   "mobilenet_v3_large.tv2_in1k@1": {
    "auto": [
-    "portable",
-    "float32"
+    "kernels",
+    "float16"
    ],
    "dtypes": {
-    "float16": "portable",
+    "float16": "kernels",
     "float32": "portable"
    },
    "mlx_default": [
-    "portable",
-    "float32"
+    "kernels",
+    "float16"
    ],
    "mlx": {
-    "float16": "portable",
+    "float16": "kernels",
     "float32": "portable"
    },
    "passed": {
@@ -6754,7 +6758,7 @@
    ],
    "mlx": {
     "float16": "kernels",
-    "float32": "kernels"
+    "float32": "portable"
    },
    "mps_dtype": "float16",
    "passed": {
@@ -6770,15 +6774,19 @@
   },
   "nafnet-sidd@1": {
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
-    "float32": "portable"
+    "float16": "kernels",
+    "float32": "kernels"
    },
    "mps_dtype": "float16",
    "passed": {
+    "kernels": [
+     "float16",
+     "float32"
+    ],
     "portable": [
      "float16",
      "float32"
@@ -6820,7 +6828,7 @@
   "neuflow-v2@1": {
    "mlx_default": [
     "portable",
-    "float16"
+    "float32"
    ],
    "mlx": {
     "float16": "portable",
@@ -6931,7 +6939,7 @@
   "oneformer-swinl-ade20k@1": {
    "mlx_default": [
     "portable",
-    "float32"
+    "float16"
    ],
    "mlx": {
     "float16": "portable",
@@ -7817,19 +7825,19 @@
   },
   "regnety_160.tv2_in1k@1": {
    "auto": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "dtypes": {
-    "float16": "portable",
+    "float16": "kernels",
     "float32": "portable"
    },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
+    "float16": "kernels",
     "float32": "portable"
    },
    "mps_dtype": "float16",
@@ -8146,7 +8154,7 @@
    ],
    "dtypes": {
     "float16": "kernels",
-    "float32": "kernels"
+    "float32": "portable"
    },
    "mlx_default": [
     "kernels",
@@ -8154,7 +8162,7 @@
    ],
    "mlx": {
     "float16": "kernels",
-    "float32": "kernels"
+    "float32": "portable"
    },
    "mps_dtype": "float16",
    "passed": {
@@ -9954,10 +9962,14 @@
    ],
    "mlx": {
     "float16": "portable",
-    "float32": "portable"
+    "float32": "kernels"
    },
    "mps_dtype": "float16",
    "passed": {
+    "kernels": [
+     "float16",
+     "float32"
+    ],
     "portable": [
      "float16",
      "float32"
@@ -11285,6 +11297,10 @@
     "float32": "portable"
    },
    "passed": {
+    "kernels": [
+     "float16",
+     "float32"
+    ],
     "portable": [
      "float16",
      "float32"
@@ -11777,21 +11793,25 @@
   },
   "yolox-s@1": {
    "auto": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "dtypes": {
     "float32": "portable"
    },
    "mlx_default": [
-    "portable",
+    "kernels",
     "float16"
    ],
    "mlx": {
-    "float16": "portable",
+    "float16": "kernels",
     "float32": "portable"
    },
    "passed": {
+    "kernels": [
+     "float16",
+     "float32"
+    ],
     "portable": [
      "float16",
      "float32"

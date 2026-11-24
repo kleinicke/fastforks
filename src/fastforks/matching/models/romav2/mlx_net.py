@@ -19,6 +19,7 @@ from torch import nn
 
 from fastforks._core.mlx import mx, to_mx, to_torch
 from fastforks.shared.depth_anything_v2.mlx_net import resize as resize_aligned
+from fastforks.shared.mlx_graph import conv1x1, conv1x1_ok
 from fastforks.shared.mlx_vit import gelu, rope_tables, rotate
 
 from .net.geometry import get_normalized_grid
@@ -51,6 +52,9 @@ def _conv(layer, *, half=False):
     if half:
         w = w.astype(mx.float16)
         b = b.astype(mx.float16) if b is not None else None
+    if tuple(pad) == (0, 0) and conv1x1_ok(w.shape[3], w.shape[0], 0, layer.kernel_size, stride, pad, groups):
+        wm = mx.transpose(w.reshape(w.shape[0], -1))  # a view: the pointwise conv as one GEMM
+        return lambda x: conv1x1(x.astype(w.dtype), wm, b)
 
     def run(x):
         y = mx.conv2d(x.astype(w.dtype), w, stride=stride, padding=pad, groups=groups)

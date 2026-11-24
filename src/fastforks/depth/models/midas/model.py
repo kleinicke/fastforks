@@ -128,6 +128,8 @@ class Kernels(Runner):
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
-    "kernels_mlx": mlx_wrap.port(Portable),
+    # `gemm1x1=False`: the 1x1 GEMMs gave no time here, and two of six float32 runs of
+    # midas-dpt-beit-large-512 peaked about 150 MB higher with them.
+    "portable_mlx": mlx_wrap.port(Portable, gemm1x1=False),
+    "kernels_mlx": mlx_wrap.port(Portable, gemm1x1=False),
 }

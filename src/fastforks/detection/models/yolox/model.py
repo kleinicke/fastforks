@@ -203,6 +203,8 @@ class Kernels(Portable):
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
-    "kernels_mlx": mlx_wrap.port(Portable),
+    # `gemm1x1=False`: the 1x1 GEMMs gave ~3 % on yolox-s, and the yolox-x kernels float16 golden drifted past its
+    # limit with them (boxes mean |diff| 0.80 of 0.2).
+    "portable_mlx": mlx_wrap.port(Portable, gemm1x1=False),
+    "kernels_mlx": mlx_wrap.port(Portable, gemm1x1=False),
 }

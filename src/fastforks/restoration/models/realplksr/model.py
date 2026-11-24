@@ -159,7 +159,9 @@ RUNNERS = {
     "portable_mlx": mlx_wrap.port(_Mlx),
     # the Winograd transients (75-151 MB each at 512 x 512) need the buffer cache: M1 Pro float16, 1582 ms at the
     # default 128 MB, 1162 at 512 MB, 1023 at 1024 MB (944 at 2048 MB); the cache is resident memory (1.9 GB footprint)
-    "kernels_mlx": mlx_wrap.port(_Mlx, cache_mb=1024, kernels_fp16_only=True),
+    # `gemm1x1=False`: the float16 golden sits on its limit (p99 0.00180 of 0.0018); the 64 -> 64 refine convs as a GEMM
+    # with the bias fused round differently (0.00181, 991 against 1034 ms), so they stay `mx.conv2d` here
+    "kernels_mlx": mlx_wrap.port(_Mlx, cache_mb=1024, kernels_fp16_only=True, gemm1x1=False),
 }
 
 _BLOCK = re.compile(r"feats\.(\d+)\.lk\.conv\.weight")

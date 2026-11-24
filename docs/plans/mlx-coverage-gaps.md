@@ -502,8 +502,8 @@ Restormer (`restoration/models/restormer/mlx_ops.py`):
 - First call 3.7-4.0 s, of which `torch.export` is 2.56 s and the translation 0.26 s: nothing cheap is left there.
 - Left: the 1x1 convs are about 435 of 1001 ms in the eager profile. A 1x1 conv as `mx.matmul` on the channels-last
   data is 20-25% faster than `mx.conv2d` (96 to 512 channels at 512 x 512: 6.44 vs 8.43 ms; 96 to 288: 4.17 vs 5.32;
-  256 to 96: 4.29 vs 5.11). Not done here: the regular conv path of the translator's `_conv2d` belongs to the
-  ragged-padding work; it would help every 1x1-heavy family.
+  256 to 96: 4.29 vs 5.11). Done since as a translator rule: see "1x1 convs as a GEMM" below (deblur fp16 726 to
+  599 ms).
 
 RealPLKSR (`restoration/models/realplksr/mlx_ops.py`):
 
@@ -521,8 +521,9 @@ RealPLKSR (`restoration/models/realplksr/mlx_ops.py`):
   32 / 384: 1307, 1577; 32 / 256: 1397, 1486; 16 / 256: 1591, 1356; 32 / 384 / 128: 1355, 1559;
   32 / 256 / 128: 1484, 1496; 32 / 512 / 512: 1235, 1751. The warm active MLX peak is 862 MB (789 MB with
   `FF_BAND_MB=48` and a 64 MB chunk, at 1078 ms), so the footprint is the base, that peak and the cache.
-- Left: lower the active peak of the Winograd convs at 4x-upsampled width, group norm (about 3 ms x 28), and the
-  1x1-as-matmul lead above.
+- Left: lower the active peak of the Winograd convs at 4x-upsampled width, group norm (about 3 ms x 28). The
+  1x1-as-GEMM rule is off for the kernels port (`gemm1x1=False`): its float16 golden sits on its limit (p99 0.00180
+  of 0.0018) and the GEMM's differently rounded result lands at 0.00181, for 1034 to 991 ms.
 
 ## TAPIR / BootsTAPIR float16 on MLX (2026-11-23): not declared
 
@@ -1056,3 +1057,106 @@ Left:
 - The MPS runners were not touched. The 2x2 phase form of the transposed convolutions and the zero-padded widths
   are plain tensor code and could be tried there; ema-vfi / ema-vfi-t fp32 on MPS (19.6 / 28.8 s, 11 GB) swap on
   16 GB.
+
+## 1x1 convs as a GEMM (2026-11-24)
+
+The Restormer lead as a translator rule: a dense 1x1 stride-1 unpadded conv on the channels-last data is
+`mx.addmm(bias, x.reshape(-1, C), W)` (`conv1x1` / `conv1x1_ok` in `shared/mlx_graph.py`, also used by
+`libnet/mlx_cnn.py` and RoMa v2's `mlx_net.py`). Off with `FF_MLX_NO_MM1X1=1`, per port with
+`mlx_wrap.port(..., gemm1x1=False)`; `FF_MLX_MM1X1_ALL=1` takes every width, `FF_MLX_MM1X1_NO_ADDMM=1` adds the bias
+separately.
+
+Microbenchmark, M1 Pro, MLX 0.32.4, one conv with bias, ms (`mx.conv2d` + bias through `_conv2d`'s padding / GEMM
+with fused bias):
+
+| in -> out | fp16 64x64 | fp16 128x128 | fp16 512x512 | fp32 64x64 | fp32 128x128 | fp32 512x512 |
+|---|---|---|---|---|---|---|
+| 24 -> 96 | 0.27 / 0.22 | 0.37 / 0.26 | 2.66 / 1.03 | 0.28 / 0.22 | 0.43 / 0.29 | 4.09 / 1.24 |
+| 96 -> 288 | 0.42 / 0.36 | 0.60 / 0.47 | 6.94 / 4.36 | 0.45 / 0.34 | 0.83 / 0.51 | 9.92 / 5.16 |
+| 96 -> 512 | 0.68 / 0.51 | 0.87 / 0.59 | 11.26 / 6.41 | 0.84 / 0.43 | 1.18 / 0.63 | 16.08 / 7.22 |
+| 180 -> 180 | 0.46 / 0.31 | 1.06 / 0.51 | 10.25 / 5.18 | 0.47 / 0.30 | 1.05 / 0.58 | 12.66 / 6.22 |
+| 256 -> 64 | 0.26 / 0.23 | 0.39 / 0.35 | 2.99 / 2.14 | 0.25 / 0.23 | 0.44 / 0.34 | 4.19 / 2.45 |
+| 256 -> 96 | 0.37 / 0.29 | 0.57 / 0.46 | 5.66 / 4.45 | 0.33 / 0.28 | 0.67 / 0.52 | 7.54 / 5.30 |
+| 256 -> 256 | 0.42 / 0.35 | 0.85 / 0.67 | 11.29 / 7.76 | 0.40 / 0.32 | 1.11 / 0.73 | 15.02 / 8.60 |
+| 512 -> 512 | 0.88 / 0.67 | 2.69 / 2.05 | 39.97 / 29.48 | 0.95 / 0.71 | 3.37 / 2.23 | 50.56 / 32.09 |
+| 256 -> 1 | 0.23 / 0.19 | 0.27 / 0.22 | 1.05 / 0.94 | 0.22 / 0.18 | 0.28 / 0.24 | 1.71 / 1.66 |
+| 144 -> 24 | 0.26 / 0.25 | 0.61 / 0.51 | 1.91 / 1.64 | 0.24 / 0.23 | 0.36 / 0.31 | 2.49 / 1.95 |
+| 128 -> 2 | 0.23 / 0.25 | 0.25 / 0.30 | 0.69 / 1.39 | 0.22 / 0.22 | 0.26 / 0.31 | 1.02 / 1.75 |
+| 16 -> 16 | 0.23 / 0.22 | 0.27 / 0.23 | 0.62 / 0.51 | 0.24 / 0.15 | 0.24 / 0.26 | 0.70 / 0.60 |
+
+The rule that came out of the full grid (8x8 to 512x512, 27 width pairs, with and without bias):
+
+- 33 outputs and more, and 1 output: GEMM. Below 32x32 both are launch-bound and equal.
+- 2 to 16 outputs: `mx.conv2d` has a narrow-output path, 1.1 to 2.2x faster than the GEMM from 16 inputs on (256 -> 8
+  at 256x256: 1.70x fp16, 1.37x fp32). They stay convs.
+- 17 to 32 outputs: GEMM only from 64 inputs and 128x128 positions on (0.46 to 0.93 there; 0.9 to 1.1 otherwise,
+  48 -> 32 at 512x512 1.08).
+- Stride 2: no gain (the conv reads a quarter of the positions). Grouped, padded: conv.
+- A weight of 2^20 elements or more stays a conv. RegNetY-160's 1232 -> 1232 layers at 14x14 are 25% faster as GEMMs
+  (the net 18.4 -> 16.3 ms fp16) but its peak footprint rose 40 MB each time (1060 -> 1104, 1160 -> 1213 MB): MLX's
+  buffer cache holds about 40 MB more after a stack of such GEMMs (22 layers: cache 52 against 13 MB), with the fused
+  bias or a separate add, from a contiguous matrix or a transposed view. At 448 channels there is no difference. With
+  the limit: 18.0 ms, 1063 MB.
+- The fused bias is worth keeping: with a separate add Restormer deblur is 655 / 1324 ms (fp16 / fp32) instead of
+  599 / 1153, NAFNet GoPro 304 / 473 instead of 290 / 451. It is also the more accurate form: float16 against a
+  float32 reference, `conv2d + b` and `matmul + b` have the same error to the digit (relative 2.0e-4 to 2.5e-4),
+  `addmm` 1.76e-4 with about half the maximum error.
+
+Survey, MLX, warm ms and peak footprint MB, without (`FF_MLX_NO_MM1X1=1`) and with the rule, same session. All
+goldens pass on both sides.
+
+| ref (input) | row | ms before | ms now | | peak before | peak now |
+|---|---|---|---|---|---|---|
+| restormer-deblur (512x512) | fp16 | 726.2 | 599.0 | -17.5% | 2067 | 2081 |
+| | fp32 | 1539.5 | 1121.1 | -27.2% | 2666 | 2737 |
+| restormer-sidd | fp16 | 794.7 | 665.2 | -16.3% | 2136 | 2136 |
+| | fp32 | 1577.2 | 1235.5 | -21.7% | 2644 | 2570 |
+| nafnet-gopro | portable fp16 | 359.6 | 289.7 | -19.4% | 1354 | 1424 |
+| | portable fp32 | 527.8 | 423.0 | -19.9% | 1641 | 1577 |
+| | kernels fp16 | 357.8 | 292.3 | -18.3% | 1355 | 1359 |
+| | kernels fp32 | 533.4 | 427.3 | -19.9% | 1641 | 1578 |
+| nafnet-sidd | portable fp16 | 279.3 | 231.8 | -17.0% | 1395 | 1395 |
+| | portable fp32 | 445.9 | 383.0 | -14.1% | 1775 | 1710 |
+| | kernels fp16 | 278.0 | 228.4 | -17.8% | 1395 | 1395 |
+| | kernels fp32 | 446.2 | 380.4 | -14.7% | 1775 | 1712 |
+| efficientnet_b0.tv_in1k | fp16 / fp32 | 4.4 / 4.7 | 3.8 / 4.8 | -14% / +2% | 356 / 364 | 360 / 367 |
+| | kernels | 4.3 / 4.7 | 3.6 / 4.1 | -15% / -13% | 356 / 365 | 358 / 367 |
+| mobilenet_v2.tv2_in1k | kernels | 3.1 / 3.1 | 2.5 / 2.7 | -20% / -14% | 327 / 337 | 330 / 341 |
+| mobilenet_v3_large.tv2_in1k | kernels | 3.2 / 3.7 | 2.7 / 3.6 | -16% / -3% | 348 / 355 | 348 / 355 |
+| repvit_m1_0.dist_300e_in1k | fp16 / fp32 | 5.1 / 6.1 | 4.4 / 4.6 | -13% / -24% | 423 / 440 | 424 / 444 |
+| hgnetv2_b2.ssld_stage2_ft_in1k | fp16 / fp32 | 4.7 / 5.3 | 4.3 / 4.8 | -9% / -9% | 553 / 593 | 553 / 593 |
+| resnet50.tv2_in1k | fp16 / fp32 | 6.9 / 7.9 | 6.5 / 7.4 | -6% / -6% | 518 / 549 | 518 / 554 |
+| regnety_160.tv2_in1k | fp16 / fp32 | 18.4 / 19.2 | 18.0 / 18.8 | -2% / -2% | 1060 / 1160 | 1063 / 1165 |
+| segnext-mscan-s-ade20k | kernels | 80.5 / 99.9 | 74.9 / 89.9 | -7% / -10% | 784 / 910 | 786 / 916 |
+| deeplabv3plus-r101-d8-ade20k | fp16 / fp32 | 359.6 / 502.9 | 337.9 / 466.8 | -6% / -7% | 1392 / 1903 | 1395 / 1863 |
+| dfine-s-coco | fp16 / fp32 | 32.3 / 36.0 | 29.5 / 34.6 | -9% / -4% | 668 / 703 | 652 / 699 |
+| rtdetrv2-s-coco | fp16 / fp32 | 39.0 / 50.0 | 37.1 / 46.4 | -5% / -7% | 760 / 855 | 751 / 839 |
+| rtmdet-s-coco | fp16 / fp32 | 25.9 / 35.3 | 25.9 / 33.0 | 0% / -7% | 719 / 797 | 721 / 800 |
+| yolox-s | fp16 / fp32 | 22.9 / 28.6 | 22.3 / 26.9 | -3% / -6% | 605 / 663 | 616 / 666 |
+| matanyone | fp16 / fp32 | 3691 / 5137 | 3513 / 4891 | -5% / -5% | 3563 / 4172 | 3562 / 4175 |
+| raft-large | fp16 / fp32 | 1020 / 1385 | 996 / 1350 | -2% / -3% | 2004 / 2216 | 2004 / 2211 |
+| sea-raft-m | fp16 / fp32 | 1037 / 1354 | 1011 / 1330 | -3% / -2% | 2608 / 2783 | 2583 / 2719 |
+| hrnet-w32 | fp16 / fp32 | 111.3 / 149.4 | 109.0 / 144.9 | -2% / -3% | 867 / 1060 | 860 / 1072 |
+| birefnet-lite | fp16 / fp32 | 389.7 / 637.9 | 382.1 / 617.6 | -2% / -3% | 1813 / 2703 | 1810 / 2695 |
+
+Within +-2.6% in time (noise) and the same peak: segformer-b0 / b5, oneformer-swinl, zoedepth-nk, moge-2-vitl-normal,
+romav2, realplksr (portable; kernels opted out), sam2.1-hiera-tiny, igev-stereo-sceneflow, neuflow-v2, rife-4.25,
+u2net, swinir-m-x4, vit_base_patch16_224, convnext_tiny, depth-anything-v2-s, midas-dpt-beit-large-512 in time.
+
+Peak footprint is the one open point. Repeats of the same row differ by up to about 70 MB on this machine, and on
+three rows the higher value shows only with the rule: nafnet-gopro portable fp16 (1354 to 1357 MB in 3 runs without;
+1359, 1360, 1424, 1424 with), restormer-deblur fp32 (2656, 2666 without; 2704, 2706, 2737 with), and
+midas-dpt-beit-large-512 fp32 (3039 to 3085 in 5 runs without; 3071 to 3079 in 4 runs and 3221, 3231 in 2 with).
+The other dtype of each, and the sibling refs (nafnet-sidd, restormer-sidd, zoedepth-nk), show none or a lower peak.
+Not chased further: it is 1.5 to 5% for a 17 to 27% faster call on the first two. Midas gains nothing in time, so
+its ports opt out (`gemm1x1=False` in `midas/model.py`). YOLOX opts out too: about 3% on yolox-s, and the yolox-x
+kernels float16 golden drifted past its limit with the GEMMs (boxes mean |diff| 0.80 of 0.2; 0 failures without).
+
+Goldens with the rule: 293 MLX goldens (every family above and every second ref of the rest) in seven batches, 289
+pass. The four: realplksr kernels fp16 (p99 0.00181 of 0.0018, 0.00180 without the rule: opted out, passes),
+rmbg-2.0 (gated weights, HTTP 401), owlv2-b16 (portable fp16 boxes mean 0.19) and sam2.1-hiera-base-plus (portable
+fp16 masks mean 0.0028), the last two failing the same way with `FF_MLX_NO_MM1X1=1`.
+
+**Left:** the 1232-wide-and-up GEMMs if the cache growth can be avoided (RegNetY-160 -11%); stride-2 1x1 convs as a
+strided slice plus GEMM (equal in isolation); 1-D and 3-D convs with kernel 1; hand-written ports that call
+`mx.conv2d` themselves (only `libnet/mlx_cnn.py` and RoMa v2 were switched).

@@ -11,6 +11,7 @@ from torch import nn
 
 from fastforks._core.mlx import mx, to_mx, to_torch
 from fastforks.shared.libnet import build
+from fastforks.shared.mlx_graph import conv1x1, conv1x1_ok
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -20,11 +21,16 @@ if TYPE_CHECKING:
 
 def _conv(conv: nn.Conv2d, bn: nn.BatchNorm2d | None, dtype: mx.Dtype) -> Callable:
     folded = torch.nn.utils.fuse_conv_bn_eval(conv, bn) if bn is not None else conv
-    weight = to_mx(folded.weight.permute(0, 2, 3, 1)).astype(dtype)
     bias = to_mx(folded.bias).astype(dtype) if folded.bias is not None else mx.zeros((conv.out_channels,), dtype)
     stride = (conv.stride[0], conv.stride[1])
     padding = (int(conv.padding[0]), int(conv.padding[1]))
     groups = conv.groups
+    if conv1x1_ok(conv.in_channels, conv.out_channels, 0, conv.kernel_size, stride, padding, groups):
+        # the pointwise conv as one GEMM, its weights stored `[in, out]` (a transposed view is copied on every call)
+        matrix = to_mx(folded.weight[:, :, 0, 0].t().contiguous()).astype(dtype)
+        mx.eval(matrix, bias)
+        return lambda x: conv1x1(x, matrix, bias)
+    weight = to_mx(folded.weight.permute(0, 2, 3, 1)).astype(dtype)
     mx.eval(weight, bias)
 
     def apply(x: mx.array) -> mx.array:

@@ -609,6 +609,7 @@ _KERNELS = (
 _HALF_WINO_F32: bool | tuple[tuple[int, int], ...] = False  # `GraphNet` option: half Winograd 3x3 convs run in float32
 # `GraphNet` option: half-precision convs are padded into MLX's Winograd as float32 ones are
 _HALF_WINO_PAD: bool | tuple[tuple[int, int], ...] = False
+_GEMM1X1 = True  # `GraphNet` option: 1x1 convolutions as a GEMM (`conv1x1`)
 # The depthwise kernel in portable mode too: `mx.conv2d(groups=C)` falls off its fast path at some channel counts
 # (DAT's 180-channel 3x3 at 512^2: 75 ms against 2.6 ms, 72 per call, 5.7 of 16.4 s) and is never faster.
 DW_KERNEL = not os.environ.get("FF_MLX_NO_DW_KERNEL")
@@ -1847,6 +1848,8 @@ def _conv_core(
             return _nchw(conv_ops.conv3x3(xl, _wino_weights(w, wl, xl.dtype, m), b, m=m, act=act, slope=slope))
         if act:
             return None
+        if _mm1x1_ok(xl, w, b, stride, padding, groups):
+            return _nchw(conv1x1(xl, mx.transpose(w.reshape(w.shape[0], w.shape[1])), b))
         y = _conv2d(xl, wl, tuple(stride), tuple(padding), tuple(dilation), groups)
     if b is not None:
         y = y + b
@@ -1866,6 +1869,82 @@ WINO_CHUNK_BYTES = int(os.environ.get("FF_MLX_WINO_CHUNK_MB", "128")) << 20  # s
 WINO32_OFF = bool(os.environ.get("FF_MLX_NO_WINO32"))  # float32 odd multiples of 16 not padded into MLX's Winograd
 WINO64_OFF = bool(os.environ.get("FF_MLX_NO_WINO64"))  # ... nor narrow multiples of 16 up to the next multiple of 64
 WINO_PAD_SAMPLE_BYTES = int(os.environ.get("FF_MLX_WINO_PAD_MB", "512")) << 20  # see `_conv2d`
+
+
+MM1X1_OFF = bool(os.environ.get("FF_MLX_NO_MM1X1"))  # 1x1 convolutions through `mx.conv2d`, not as a GEMM
+MM1X1_ALL = bool(os.environ.get("FF_MLX_MM1X1_ALL"))  # ... or every one of them as a GEMM, whatever its widths
+MM1X1_NO_ADDMM = bool(os.environ.get("FF_MLX_MM1X1_NO_ADDMM"))  # the GEMM's bias as a separate add, not fused
+MM1X1_MAX_WEIGHT = 1 << 20  # a weight of this many elements or more stays a convolution (`conv1x1_ok`: peak memory)
+MM1X1_MID_HW = 128 * 128  # 17-32 outputs: a GEMM only from this many positions and 64 inputs on (`conv1x1_ok`)
+
+
+def conv1x1_ok(
+    cin: int,
+    cout: int,
+    positions: int,
+    kernel: Sequence[int],
+    stride: Sequence[int],
+    padding: Sequence[int],
+    groups: int,
+) -> bool:
+    """Whether a dense 2-D convolution is faster as `conv1x1`'s GEMM: 1x1, stride 1, unpadded, enough outputs.
+
+    `positions` is `N * H * W` (0 when a hand-written port does not know it while building). M1 Pro, MLX 0.32.4,
+    bias included, GEMM time / `mx.conv2d` time (through `_conv2d`'s channel padding), float16 and float32 alike:
+
+    - 33 outputs and more: 0.4-0.9 at every input width and map size from 32x32 on (512x512: 96 -> 288 0.63 / 0.52,
+      256 -> 256 0.69 / 0.57, 180 -> 180 0.51 / 0.49, 24 -> 96 0.39 / 0.30; 64x64: 256 -> 256 0.84 / 0.81);
+      launch-bound and equal below.
+    - 2-16 outputs: `mx.conv2d` has a narrow-output path there, 1.1-2.2x faster than the GEMM from 16 inputs on
+      (256x256 256 -> 8: 1.70 / 1.37), so these stay.
+    - 17-32 outputs (which `_conv2d` pads to 32): 0.46-0.93 from 64 inputs and 128x128 on; 0.9-1.1 on smaller maps
+      or narrower inputs (48 -> 32 at 512x512: 1.08), so only the first.
+    - 1 output (a matrix-vector product): 0.4-0.95.
+
+    Stride 2 is as fast either way (the conv reads a quarter of the positions), so it stays a conv. So does a
+    weight of `MM1X1_MAX_WEIGHT` elements or more: RegNetY-160's 1232 -> 1232 layers at 14x14 are 25% faster as
+    GEMMs (the net 18.4 -> 16.3 ms) but leave 40 MB more in MLX's buffer cache (peak footprint 1060 -> 1104 MB),
+    with the fused bias or without, from a contiguous matrix or a transposed view; 448 wide there is no difference.
+    The fused bias is not less accurate than the convolution's (float16 against float32, 256 -> 256: relative
+    error 1.8e-4 against 2.0-2.5e-4) and 9-13% of a Restormer or NAFNet (`FF_MLX_MM1X1_NO_ADDMM`).
+    """
+    if MM1X1_OFF or groups != 1 or tuple(kernel) != (1, 1) or tuple(stride) != (1, 1) or any(padding):
+        return False
+    if MM1X1_ALL:
+        return True
+    if cin * cout >= MM1X1_MAX_WEIGHT:
+        return False
+    return cout > 32 or cout == 1 or (cout > 16 and cin >= 64 and positions >= MM1X1_MID_HW)
+
+
+def _mm1x1_ok(
+    xl: mx.array, w: mx.array, b: mx.array | None, stride: Sequence[int], padding: Sequence[int], groups: int
+) -> bool:
+    """Whether `conv1x1` takes this convolution of the translator (NHWC input, OIHW weights)."""
+    positions = xl.shape[0] * xl.shape[1] * xl.shape[2]
+    return (
+        _GEMM1X1
+        and conv1x1_ok(xl.shape[3], w.shape[0], positions, w.shape[2:], stride, padding, groups)
+        and xl.dtype == w.dtype
+        and w.dtype in (mx.float16, mx.bfloat16, mx.float32)
+        and (b is None or b.ndim == 1)
+    )
+
+
+def conv1x1(xl: mx.array, wm: mx.array, b: mx.array | None) -> mx.array:
+    """A 1x1 stride-1 convolution of NHWC `xl` as one GEMM over its `[N * H * W, C]` view; `wm` is `[in, out]`.
+
+    The bias is fused (`mx.addmm`) when it has the data's dtype.
+    """
+    n, h, wd, cin = xl.shape
+    x2 = xl.reshape(-1, cin)
+    if b is None:
+        y = x2 @ wm
+    elif b.dtype == xl.dtype == wm.dtype and not MM1X1_NO_ADDMM:
+        y = mx.addmm(b, x2, wm)
+    else:
+        y = x2 @ wm + b
+    return y.reshape(n, h, wd, wm.shape[1])
 
 
 def _mlx_winograd(
@@ -3222,6 +3301,7 @@ class GraphNet:
         half_wino_f32: bool | tuple[tuple[int, int], ...] = False,
         fp32_inputs: frozenset[int] = frozenset(),
         half_wino_pad: bool | tuple[tuple[int, int], ...] = False,
+        gemm1x1: bool = True,
     ) -> None:
         """Keep the module until its first export; parameters convert then (`chunk_mb`: see `_runner`, 0 = `CHUNK_MB`).
 
@@ -3231,6 +3311,9 @@ class GraphNet:
         `half_wino_pad=True`: in float16 / bfloat16, ragged 3x3 convs are padded into MLX's Winograd as in float32
         (see `_conv2d`): for a net whose result has the margin for the half Winograd's error. A tuple of `(cin, cout)`
         pairs limits that to those convs.
+
+        `gemm1x1=False`: 1x1 convs stay `mx.conv2d` (see `conv1x1_ok`), for a net whose golden limit has no room for
+        the other rounding of the GEMM's fused bias.
 
         `fp32_inputs`: positions of floating inputs that enter a float16 / bfloat16 replay as float32 instead of being
         cast to the run dtype (cameras and other geometry: rounded at entry, a `to_float32` island comes too late).
@@ -3252,6 +3335,7 @@ class GraphNet:
         self.kernels = kernels
         self.half_wino_f32 = half_wino_f32
         self.half_wino_pad = half_wino_pad
+        self.gemm1x1 = gemm1x1
         self.fp32_inputs = fp32_inputs
         self.chunk_mb = chunk_mb
         self.pipeline = pipeline
@@ -4077,8 +4161,9 @@ class GraphNet:
         `raw=True`: `mx.array` inputs are taken as they are and the outputs stay float32 `mx.array`s (no copies). The
         first call at an input signature exports the network, so it needs CPU tensors.
         """
-        global _KERNELS, _WINO, _HALF_WINO_F32, _HALF_WINO_PAD
+        global _KERNELS, _WINO, _HALF_WINO_F32, _HALF_WINO_PAD, _GEMM1X1
         _KERNELS = self.kernels
+        _GEMM1X1 = self.gemm1x1
         _HALF_WINO_F32 = self.half_wino_f32
         _HALF_WINO_PAD = self.half_wino_pad
         _WINO = self._wino
@@ -4146,8 +4231,9 @@ class MlxModule:
         half_wino_f32: bool | tuple[tuple[int, int], ...] = False,
         fp32_inputs: tuple[str, ...] = (),
         half_wino_pad: bool | tuple[tuple[int, int], ...] = False,
+        gemm1x1: bool = True,
     ) -> None:
-        """Wrap `module` (eval mode, CPU). `chunk_mb`, `pipeline`, `half_wino_f32`, `half_wino_pad`: see `GraphNet`.
+        """Wrap `module` (eval mode, CPU). `chunk_mb`, `pipeline`, `half_wino_*`, `gemm1x1`: see `GraphNet`.
 
         `fp32_inputs`: names of the module's (or a `_Method`'s / `Forward`'s function's) arguments whose floating
         tensors stay float32 in a float16 replay (`GraphNet`'s `fp32_inputs`); matched by identity, so a tensor passed
@@ -4168,6 +4254,7 @@ class MlxModule:
         self.pipeline = pipeline
         self.half_wino_f32 = half_wino_f32
         self.half_wino_pad = half_wino_pad
+        self.gemm1x1 = gemm1x1
         self.fp32_inputs = fp32_inputs
         self._nets: _Signatures[tuple[GraphNet, _Flat]] = _Signatures(type(module).__name__)
         self._plan_scope = mlx_plan_cache.next_scope()  # this module's key in the on-disk plan cache (a model load's)
@@ -4207,6 +4294,7 @@ class MlxModule:
                 half_wino_f32=self.half_wino_f32,
                 fp32_inputs=keep,
                 half_wino_pad=self.half_wino_pad,
+                gemm1x1=self.gemm1x1,
             )
             entry = self._nets.put(key, (net, flat))
             sig = (repr(key), self.dtype, self.kernels, self.compile, self.chunk_mb, self.half_wino_f32)
@@ -4214,6 +4302,8 @@ class MlxModule:
                 sig = (*sig, self.fp32_inputs)
             if self.half_wino_pad:
                 sig = (*sig, "half_wino_pad", self.half_wino_pad)
+            if not self.gemm1x1:
+                sig = (*sig, "no_gemm1x1")
             net.plan = mlx_plan_cache.Entry.make(self._plan_scope, flat, sig)
             net.plan_extra = lambda flat=flat: flat.out.value
             net.plan_restore = lambda extra, flat=flat: setattr(flat.out, "value", extra)

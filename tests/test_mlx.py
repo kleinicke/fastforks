@@ -431,6 +431,46 @@ def test_narrow_conv_padded_into_winograd_matches_torch(cout):
     torch.testing.assert_close(mlx_graph.MlxModule(m, "float32")(x), m(x), atol=1e-4, rtol=1e-4)
 
 
+@pytest.mark.parametrize(
+    ("cout", "bias", "gemm1x1", "taken"),
+    [
+        (48, True, True, True),
+        (48, False, True, True),
+        (1, True, True, True),
+        (8, True, True, False),
+        (48, True, False, False),
+    ],
+)
+def test_conv1x1_as_gemm_matches_torch(monkeypatch, cout, bias, gemm1x1, taken):
+    """A 1x1 stride-1 conv is one GEMM from 33 outputs on (and for 1), `mx.conv2d` for 2-16 or with `gemm1x1=False`."""
+    pytest.importorskip("mlx.core")
+    from fastforks.shared import mlx_graph  # noqa: PLC0415 - optional (the mlx extra)
+
+    calls = []
+    real = mlx_graph.conv1x1
+    monkeypatch.setattr(mlx_graph, "conv1x1", lambda *a: calls.append(1) or real(*a))
+    torch.manual_seed(0)
+    m = torch.nn.Sequential(torch.nn.Conv2d(96, cout, 1, bias=bias), torch.nn.ReLU())
+    x = torch.randn(2, 96, 20, 24)
+    torch.testing.assert_close(mlx_graph.MlxModule(m, "float32", gemm1x1=gemm1x1)(x), m(x), atol=1e-4, rtol=1e-4)
+    assert bool(calls) == taken
+
+
+def test_conv1x1_rule_keeps_other_convs():
+    """Strided, padded, grouped, larger or very wide (a million weight elements) convolutions stay convolutions."""
+    pytest.importorskip("mlx.core")
+    from fastforks.shared.mlx_graph import conv1x1_ok  # noqa: PLC0415 - optional (the mlx extra)
+
+    assert conv1x1_ok(96, 288, 0, (1, 1), (1, 1), (0, 0), 1)
+    assert not conv1x1_ok(96, 288, 0, (1, 1), (2, 2), (0, 0), 1)
+    assert not conv1x1_ok(96, 288, 0, (1, 1), (1, 1), (1, 1), 1)
+    assert not conv1x1_ok(96, 288, 0, (1, 1), (1, 1), (0, 0), 2)
+    assert not conv1x1_ok(96, 288, 0, (3, 3), (1, 1), (0, 0), 1)
+    assert not conv1x1_ok(1232, 1232, 196, (1, 1), (1, 1), (0, 0), 1)
+    assert not conv1x1_ok(64, 24, 64 * 64, (1, 1), (1, 1), (0, 0), 1)
+    assert conv1x1_ok(64, 24, 128 * 128, (1, 1), (1, 1), (0, 0), 1)
+
+
 @pytest.mark.parametrize("wino", [False, True])
 def test_half_ragged_conv_matches_torch(wino):
     """A float16 3x3 with 196 -> 196 channels: output-only padding by default, MLX's Winograd with `half_wino_pad`."""

@@ -109,10 +109,6 @@ UNVALIDATED: dict[str, tuple[str, ...]] = {
         "kernels float16",
         "kernels float32",
     ),
-    "hgnetv2_b2.ssld_stage2_ft_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
     "hgnetv2_b3.ssld_stage2_ft_in1k@1": (
         "kernels float16",
         "kernels float32",
@@ -141,15 +137,7 @@ UNVALIDATED: dict[str, tuple[str, ...]] = {
         "kernels float16",
         "kernels float32",
     ),
-    "nafnet-sidd@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
     "raft-stereo-middlebury@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "segformer-b5-ade20k@1": (
         "kernels float16",
         "kernels float32",
     ),
@@ -229,19 +217,11 @@ UNVALIDATED: dict[str, tuple[str, ...]] = {
         "portable float16",
         "portable float32",
     ),
-    "vit_base_patch16_224.augreg2_in21k_ft_in1k@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
     "yolox-l@1": (
         "kernels float16",
         "kernels float32",
     ),
     "yolox-m@1": (
-        "kernels float16",
-        "kernels float32",
-    ),
-    "yolox-s@1": (
         "kernels float16",
         "kernels float32",
     ),
