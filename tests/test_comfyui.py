@@ -974,6 +974,24 @@ def test_cache_setup(pack: Any, tmp_path: Path) -> None:
     assert "FASTFORKS_MLX_PLAN_CACHE" not in environ  # macOS only
 
 
+def test_cache_setup_reads_other_nodes_checkpoints(pack: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Upstream checkpoints in models/upscale_models and models/facerestore_models (registered, or its default folder
+    before a face-restore pack registers it) are on the weights search path, after the fastforks folders."""
+    up = tmp_path / "up"
+    monkeypatch.setitem(pack.fp.paths, "fastforks", [str(tmp_path / "ff")])
+    monkeypatch.setitem(pack.fp.paths, "upscale_models", [str(up)])
+    monkeypatch.delitem(pack.fp.paths, "facerestore_models", raising=False)
+    monkeypatch.setattr(pack.fp, "models_dir", str(tmp_path / "models"))
+    environ: dict[str, str] = {}
+    pack.nodes.setup_cache(environ, platform="linux")
+    assert environ["FASTFORKS_WEIGHTS_PATH"].split(os.pathsep) == [*pack.fp.paths["fastforks"], str(up)]
+    (tmp_path / "models" / "facerestore_models").mkdir(parents=True)
+    environ = {}
+    pack.nodes.setup_cache(environ, platform="linux")
+    face = str(tmp_path / "models" / "facerestore_models")
+    assert environ["FASTFORKS_WEIGHTS_PATH"].split(os.pathsep)[-2:] == [str(up), face]
+
+
 def test_mlx_plans_kept_on_macos(pack: Any, tmp_path: Path) -> None:
     """On macOS the MLX first-run plans go under models/fastforks unless the user set the variable (even to "")."""
     pack.fp.paths["fastforks"] = [str(tmp_path)]

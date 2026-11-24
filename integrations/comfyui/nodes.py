@@ -406,7 +406,8 @@ def setup_cache(environ: os._Environ[str] | dict[str, str] = os.environ, platfor
     Files already in the HF hub or torch hub cache, the normal fastforks cache or other `fastforks` folders of
     `extra_model_paths.yaml` are used in place (`FASTFORKS_READ_CACHES`); only missing files are downloaded. Weights
     put into a `fastforks` folder by hand, as `<file>` or `<family>/<file>`, are found too (`FASTFORKS_WEIGHTS_PATH`,
-    after the user's own entries). On macOS
+    after the user's own entries), and so are upstream checkpoints in `upscale_models` / `facerestore_models`
+    (`shared_folders`), all hash-checked. On macOS
     the MLX ports' first-run plans go to `models/fastforks/mlx-plans` unless `FASTFORKS_MLX_PLAN_CACHE` is set.
     """
     import folder_paths  # noqa: PLC0415 - ComfyUI only
@@ -422,8 +423,9 @@ def setup_cache(environ: os._Environ[str] | dict[str, str] = os.environ, platfor
             seen.add(p)
             keep.append(d)
     environ["FASTFORKS_READ_CACHES"] = os.pathsep.join(keep)
-    # weights put there by hand (`<file>` or `<family>/<file>`, hash-checked; a file that does not verify is skipped)
-    hand = [*environ.get("FASTFORKS_WEIGHTS_PATH", "").split(os.pathsep), *dirs]
+    # weights put there by hand (`<file>` or `<family>/<file>`, hash-checked; a file that does not verify is skipped),
+    # then the checkpoints other nodes already downloaded under their upstream names (RealESRGAN_x4plus.pth, ...)
+    hand = [*environ.get("FASTFORKS_WEIGHTS_PATH", "").split(os.pathsep), *dirs, *shared_folders(folder_paths)]
     environ["FASTFORKS_WEIGHTS_PATH"] = os.pathsep.join(dict.fromkeys(filter(None, hand)))
     log.info("fastforks: downloads go to %s; also reading %s", dirs[0], keep)
     if platform == "darwin" and _PLAN_ENV not in environ:
@@ -431,6 +433,26 @@ def setup_cache(environ: os._Environ[str] | dict[str, str] = os.environ, platfor
         # the next ComfyUI start reuses it. Set FASTFORKS_MLX_PLAN_CACHE to "" to turn it off.
         environ[_PLAN_ENV] = str(Path(dirs[0]) / "mlx-plans")
         log.info("fastforks: MLX first-run plans are kept in %s", environ[_PLAN_ENV])
+
+
+_SHARED = ("upscale_models", "facerestore_models")  # fixed: ComfyUI folders holding upstream checkpoints of our cards
+
+
+def shared_folders(folder_paths: Any) -> list[str]:  # noqa: ANN401 - ComfyUI's folder_paths module
+    """ComfyUI's `upscale_models` and `facerestore_models` folders, read in place.
+
+    Other nodes keep the upstream files of our upscalers and face restorers there (RealESRGAN_x4plus.pth,
+    GFPGANv1.4.pth, codeformer.pth, ...).
+    A folder another pack registers later (`facerestore_models`) is its default `models/<name>` if that exists.
+    """
+    out = []
+    for name in _SHARED:
+        try:
+            out += folder_paths.get_folder_paths(name)
+        except KeyError:  # not registered (yet): the face-restore packs register theirs on import
+            default = Path(folder_paths.models_dir) / name
+            out += [str(default)] if default.is_dir() else []
+    return out
 
 
 def fastforks_cache_default() -> str:

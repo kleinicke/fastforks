@@ -178,7 +178,10 @@ A node that cannot do what you set says what to change, in the node's words (`ba
   1.3 GB archive (about a minute on a fast line), so the console names the file with the archive's size. Offline mode
   (`FASTFORKS_OFFLINE` / `HF_HUB_OFFLINE`) fails with where to put the files (`models/fastforks`) or how to allow the
   download. A file put there by hand, under its original name (`models/fastforks/<file>` or
-  `models/fastforks/<family>/<file>`), is found and hash-checked; one that does not verify is skipped. A gated Hugging Face repo (SAM 3, DINOv3-based models) needs its licence accepted on Hugging Face and a
+  `models/fastforks/<family>/<file>`), is found and hash-checked; one that does not verify is skipped. Checkpoints
+  other nodes already keep in `models/upscale_models` or `models/facerestore_models` under their upstream names
+  (`RealESRGAN_x4plus.pth`, `GFPGANv1.4.pth`, `codeformer.pth`, ...) are used in place the same way, not downloaded
+  again. A gated Hugging Face repo (SAM 3, DINOv3-based models) needs its licence accepted on Hugging Face and a
   login in ComfyUI's Python (`hf auth login`, or `HF_TOKEN` set before starting ComfyUI); the error says so.
 
 ## Speed
