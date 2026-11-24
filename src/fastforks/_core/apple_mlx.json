@@ -9555,6 +9555,14 @@
    }
   },
   "sea-raft-m-kitti@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -9596,6 +9604,14 @@
    }
   },
   "sea-raft-m-things@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -9616,6 +9632,14 @@
    }
   },
   "sea-raft-m@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
@@ -9637,7 +9661,12 @@
    }
   },
   "sea-raft-s-kitti@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -9682,6 +9711,14 @@
    }
   },
   "sea-raft-s@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"
