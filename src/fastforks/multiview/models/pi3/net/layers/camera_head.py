@@ -82,6 +82,9 @@ class CameraHead(nn.Module):
         """
         if m.dim() < 3:
             m = m.reshape((-1, 3, 3))
+        if torch.compiler.is_exporting():  # fastforks: ONNX has no SVD; the same rotation via Horn's quaternion matrix
+            from fastforks._core.export_linalg import nearest_rotation
+            return nearest_rotation(torch.nn.functional.normalize(m, p=2, dim=-1))
         m_transpose = torch.transpose(torch.nn.functional.normalize(m, p=2, dim=-1), dim0=-1, dim1=-2)
         u, s, v = torch.svd(m_transpose)
         det = torch.det(torch.matmul(v, u.transpose(-2, -1)))

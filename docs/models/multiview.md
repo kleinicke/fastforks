@@ -457,7 +457,7 @@ Warm inference time and peak reserved GPU memory for the same input with both se
 - Options: `stream` = False (speed only), `pixel_limit` = 255000 (>= 196)
 - Kernel libraries: `fastbb`
 - Variants: `pi3`
-- Public ONNX / TensorRT export is unavailable for `pi3` (the ONNX converter fails on the exported program (ConversionError, step 3/3)).
+- Public TensorRT export is unavailable for `pi3` (the ONNX graph converts with the camera SVD replaced while exporting (ONNX Runtime vs eager <= 3.7e-5 on a random-init, trimmed model); the real-weights ONNX check and a TensorRT engine (an earlier build did not finish in 228 s) have not run).
 - Outputs: depth, confidence, world_points, cam_to_world; kind: `scale_invariant`
 - Input size: any H x W >= 1, resized or padded inside the model
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `pi3` 3000x4000 (4.8 GiB peak allocated, 6.5 reserved)
