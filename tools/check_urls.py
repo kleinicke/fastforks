@@ -58,7 +58,8 @@ def files(*, kernels_only: bool = False) -> Iterator[tuple[str, FileSpec]]:
                 for spec in variant.weights
                 if spec.mirror is not None
             )
-    for path in sorted(KERNELS.glob("*/manifest.toml")):
+    # the Windows builds too (`manifest.windows.toml`): a release must not name a DLL that was never uploaded
+    for path in sorted([*KERNELS.glob("*/manifest.toml"), *KERNELS.glob("*/manifest.windows.toml")]):
         main = read_manifest(path)
         for m in filter(None, (main, main.compat)):
             yield from ((f"{m.tag}:{target}", spec) for target, spec in m.files.items() if spec.url is not None)
