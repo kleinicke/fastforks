@@ -52,11 +52,9 @@ class Params:
     multiple: int  # 8: the test scripts' reflect padding
 
 
-def _gram(q: torch.Tensor, k: torch.Tensor, *, wide: bool = False) -> torch.Tensor:
+def _gram(q: torch.Tensor, k: torch.Tensor) -> torch.Tensor:
     """`q^T k` of `[B, N, C]` token views as `[B, C, C]` float32 (half inputs: float32 GEMM output, no overflow)."""
     if q.dtype == torch.float32:
-        if wide:  # the MLX twin of a float16 run: float64 is MLX's float32 (float32 GEMM output on half operands)
-            return torch.bmm(q.mT.double(), k.double()).float()
         return torch.bmm(q.mT, k)
     if torch.compiler.is_exporting() or q.device.type == "mps":  # ONNX and MPS have no float32-output half GEMM
         return torch.bmm(q.mT.float(), k.float())
@@ -87,9 +85,60 @@ def _attention(m: Attention, x: torch.Tensor) -> torch.Tensor:
     scale: torch.Tensor = m.scale  # ty: ignore[invalid-assignment]
     block: torch.Tensor = m.block  # ty: ignore[invalid-assignment]
     proj: torch.Tensor = m.proj  # ty: ignore[invalid-assignment]
-    g = _gram(q, k, wide=m.wide) * (scale / nq)[:, :, None] / nk[:, None, :] + block  # ty: ignore[invalid-argument-type]
-    mat = to_run_dtype(proj @ g.softmax(-1), t.dtype)  # [B, C out, C in]; .to: a no-op in the float32 MLX twin
+    g = _gram(q, k) * (scale / nq)[:, :, None] / nk[:, None, :] + block
+    mat = to_run_dtype(proj @ g.softmax(-1), t.dtype)  # [B, C out, C in]
     return (t[..., 2 * c :] @ mat.mT).view(b, h, w, c).permute(0, 3, 1, 2)
+
+
+# The attention statistics and the GDFN gate as single ops of the MLX export (`.mlx_ops` lowers them to Metal kernels
+# of `fastforks.kernels.graph_mlx`). A custom op's body only runs when the exported program is executed in PyTorch.
+@torch.library.custom_op("fastforks::restormer_token_gram", mutates_args=())
+def token_gram_op(t: torch.Tensor, c: int) -> tuple[torch.Tensor, torch.Tensor]:
+    """Of `[B, N, 3 C]` tokens (q | k | v): float32 `q^T k` `[B, C, C]` and the squared q / k norms `[B, 2 C]`."""
+    qk = t[..., : 2 * c].float()
+    return torch.bmm(qk[..., :c].mT, qk[..., c:]), qk.square().sum(1)
+
+
+@token_gram_op.register_fake
+def _(t: torch.Tensor, c: int) -> tuple[torch.Tensor, torch.Tensor]:
+    b = t.shape[0]
+    return t.new_empty((b, c, c), dtype=torch.float32), t.new_empty((b, 2 * c), dtype=torch.float32)
+
+
+@torch.library.custom_op("fastforks::restormer_dw_gate", mutates_args=())
+def dw_gate_op(x: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
+    """`gelu(d1) * d2` of the halves of the bias-free 3 x 3 depthwise conv of `x` `[B, 2 C, H, W]`: `[B, C, H, W]`."""
+    d1, d2 = F.conv2d(x, weight.to(x.dtype), padding=1, groups=x.shape[1]).chunk(2, 1)
+    return F.gelu(d1) * d2
+
+
+@dw_gate_op.register_fake
+def _(x: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:  # noqa: ARG001 - same schema
+    b, c2, h, w = x.shape
+    return x.new_empty((b, c2 // 2, h, w))
+
+
+def _mlx_attention(m: Attention, x: torch.Tensor) -> torch.Tensor:
+    """`_attention` for the MLX export: `q^T k` and the norms are one op on the stored tokens.
+
+    The graph form (float32 copies of q and k, a GEMM, a norm over the pixel axis of the transposed view) took 37 of
+    the 125 ms of a 96-channel block at 512 x 512 on an M1 Pro.
+    """
+    b, c, h, w = x.shape
+    t = m.qkv_dwconv(m.qkv(x)).permute(0, 2, 3, 1).reshape(b, h * w, 3 * c)
+    gram, sq = token_gram_op(t, c)
+    nq, nk = sq.sqrt().clamp_min(1e-12).split(c, -1)
+    scale: torch.Tensor = m.scale  # ty: ignore[invalid-assignment]
+    block: torch.Tensor = m.block  # ty: ignore[invalid-assignment]
+    proj: torch.Tensor = m.proj  # ty: ignore[invalid-assignment]
+    g = gram * (scale / nq)[:, :, None] / nk[:, None, :] + block
+    mat = to_run_dtype(proj @ g.softmax(-1), t.dtype)  # [B, C out, C in]; .to: a no-op in the float32 twin
+    return (t[..., 2 * c :] @ mat.mT).view(b, h, w, c).permute(0, 3, 1, 2)
+
+
+def _fold_mlx_attention(m: Attention, device: torch.device | str) -> None:
+    _fold_attention(m, device)
+    override(m, _mlx_attention)
 
 
 def _fold_attention(m: Attention, device: torch.device | str) -> None:
@@ -105,7 +154,6 @@ def _fold_attention(m: Attention, device: torch.device | str) -> None:
     m.block = torch.zeros(c, c).masked_fill_(ids[:, None] != ids[None, :], float("-inf")).to(device)
     m.proj = m.project_out.weight.detach()[:, :, 0, 0].float().to(device)
     del m.temperature, m.project_out
-    m.wide = False  # ty: ignore[invalid-assignment] - the runner sets it for the MLX twin of a float16 run
     override(m, _attention)
 
 
@@ -124,7 +172,7 @@ def _head_attention(m: Attention, x: torch.Tensor) -> torch.Tensor:
     for values, norm in zip(tokens.unbind(), norms.unbind(), strict=True):
         q, k, _ = values.view(h * w, 3, heads, width).permute(1, 2, 0, 3).unbind()
         nq, nk = norm.view(2, heads, width).unbind()
-        gram = _gram(q, k, wide=m.wide) * (temperature / nq).unsqueeze(-1) / nk.unsqueeze(-2)  # ty: ignore[invalid-argument-type]
+        gram = _gram(q, k) * (temperature / nq).unsqueeze(-1) / nk.unsqueeze(-2)
         matrices.append(torch.bmm(gram.softmax(-1).mT, proj).reshape(c, c))
     mat = to_run_dtype(matrices[0].unsqueeze(0) if b == 1 else torch.stack(matrices), tokens.dtype)
     return torch.bmm(tokens[..., 2 * c :], mat).view(b, h, w, c).permute(0, 3, 1, 2)
@@ -136,7 +184,6 @@ def _fold_head_attention(m: Attention, device: torch.device | str) -> None:
     m.scale = m.temperature.detach().view(heads, 1).float().to(device)
     m.proj = m.project_out.weight.detach()[:, :, 0, 0].T.reshape(heads, c // heads, c).float().contiguous().to(device)
     del m.temperature, m.project_out
-    m.wide = False  # ty: ignore[invalid-assignment] - the runner sets it for the MLX twin of a float16 run
     override(m, _head_attention)
 
 
@@ -214,6 +261,18 @@ def _ffn(m: FeedForward, x: torch.Tensor) -> torch.Tensor:
     """
     g = F.gelu(m.dw1(m.in1(x)))  # ty: ignore[call-non-callable]
     return m.project_out(g.mul_(m.dw2(m.in2(x))))  # ty: ignore[call-non-callable]
+
+
+def _mlx_ffn(m: FeedForward, x: torch.Tensor) -> torch.Tensor:
+    """`FeedForward.forward` for the MLX export: the depthwise conv, the gelu and the product are one op."""
+    return m.project_out(dw_gate_op(m.project_in(x), m.dwconv.weight))
+
+
+def _mlx_gate_ffn(m: FeedForward, _device: torch.device | str) -> None:
+    if m.dwconv.bias is not None:
+        msg = "the MLX gate kernel has no depthwise bias (upstream's models are bias-free)"
+        raise NotImplementedError(msg)
+    override(m, _mlx_ffn)
 
 
 def _gate_ffn(m: FeedForward, _device: torch.device | str) -> None:
@@ -327,7 +386,6 @@ class Portable(Runner):
                 m.norm2 = _fold_norm(m.norm2, m.ffn.project_in)  # ty: ignore[invalid-assignment]
                 override(m, _block)
                 self._prepare_attention(m.attn, ctx.device)
-                m.attn.wide = mlx_wrap.run_dtype(ctx) == "float16" and ctx.dtype == "float32"  # ty: ignore[invalid-assignment]
                 _pad_ffn(m.ffn)
                 self._prepare_ffn(m.ffn, ctx.device)
         self.fmt = torch.contiguous_format if torch.device(ctx.device).type == "cpu" else torch.channels_last
@@ -389,10 +447,24 @@ class Kernels(Portable):
         return {"image": _restore(self.net, x)}
 
 
+class _Mlx(Portable):
+    """Portable for the MLX port: the attention statistics and the GDFN gate export as single ops (`mlx_ops`)."""
+
+    _prepare_attention = staticmethod(_fold_mlx_attention)
+    _prepare_ffn = staticmethod(_mlx_gate_ffn)
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network; `mlx_ops` lowers its two ops to Metal kernels."""
+        super().__init__(ctx)
+        from . import mlx_ops  # noqa: F401, PLC0415 - needs MLX; registers the lowerings
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    # 134-268 MB activations at 512 x 512: at the default 128 MB buffer cache every one is a fresh zero-filled
+    # allocation (M1 Pro, deblur fp16 warm: 1062 ms; 512 MB 858, 1024 MB 732, 2048 MB 699)
+    "portable_mlx": mlx_wrap.port(_Mlx, cache_mb=1024),
 }
 
 

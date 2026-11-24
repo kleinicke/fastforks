@@ -461,7 +461,7 @@ family `mlx.py`, re-survey the family's refs, regenerate `apple_mlx.json`.
 |---|---|---|
 | 2.1, 1.6 (were 4.2, 3.1) | hitnet-eth3d, hitnet-middlebury-d400 | cost volumes and warp SADs are Metal kernels now (289 / 686 ms fp16, faster than MPS portable, behind MPS kernels 136 / 440 ms). Left: 32-channel 3x3 convs are 1.4x slower than MPSGraph, and activations after the 1x1, 4x4 stride-2 and residual convs are not fused; `conv_mlx` gave no steady gain, so no kernels mode |
 | 3.9, 2.9 | xfeat, xfeat-lighterglue | host-side keypoint selection (CPU overhead found by the geometry agent); NMS and top-k on device |
-| 2.9, 2.2, 1.5 | restormer-derain/sidd/deblur | transposed attention over channels and the depthwise 3x3 convs; 17 s first call |
+| 0.75, 0.71, 0.75 (were 2.9, 2.2, 1.5) | restormer-derain/sidd/deblur | done, see "Restormer and RealPLKSR on MLX" below: 737 / 794 / 737 ms fp16, 3.7-4.0 s first call, peak below MPS |
 | 2.7, 1.7 | aanet-sceneflow, aanet-plus | deformable conv: the MLX port gathers per sample point |
 | 2.5 | coex-sceneflow | cost volume build and the guided aggregation |
 | 2.5, 1.7 | rife-4.25-lite, rife-4.25 | `grid_sample` warps per IFBlock; small convs (launch bound) |
@@ -469,12 +469,59 @@ family `mlx.py`, re-survey the family's refs, regenerate `apple_mlx.json`.
 | 2.2 | aliked-lightglue | ALIKED's normalisation (geometry agent) |
 | 2.2, 1.8, 1.7 | efficientvit-sam-l0/xl1/xl0 | the ben2/EfficientViT-SAM agent is on it |
 | 2.0, 1.9 | mask-rcnn, faster-rcnn r50-fpn | RoIAlign and the per-level proposal ops |
-| 1.8 | realplksr-nomoswebphoto-x4 | the 17x17 depthwise convs (partial large kernel) |
+| 0.94 (was 1.8) | realplksr-nomoswebphoto-x4 | kernels fp16 1029 ms vs MPS 1092, but 1919 MB against 1368 MB; portable fp16 is the lean mode (1529 ms, 1198 MB). Left: the 862 MB active peak of the Winograd convs, group norm (3 ms x 28) |
 | 1.7 | dlnr-sceneflow, ema-vfi-small-t, raft-stereo-middlebury | 29-37 s first calls: compile time first |
 | 1.5-1.6 | lineart, anyline, segnext-mscan-l/b, sapiens-seg-0.3b, oneformer-swinl, gmflow-scale1 | not looked at yet |
 
 Also: survey the six TotalSegmentator
 refs on MLX (the 1.5 mm `total` runs 34 s warm vs 23 s on MPS; 3mm is 1.4x slower).
+
+## Restormer and RealPLKSR on MLX (2026-11-24)
+
+M1 Pro, 512 x 512, warm median, first call, peak process footprint; best row per backend. All MLX goldens pass.
+
+| ref | MPS best | MLX before | MLX now | MLX/MPS |
+|---|---|---|---|---|
+| restormer-deblur | 989 ms, 1.10 s, 3651 MB | 1467 ms, 4.9 s, 1317 MB | fp16 737 ms, 3.66 s, 2046 MB | 0.75 |
+| restormer-derain | 988 ms, 1.10 s, 3653 MB | 2815 ms, 17.1 s, 2668 MB | fp16 737 ms, 4.03 s, 2048 MB | 0.75 |
+| restormer-sidd | 1112 ms, 1.24 s, 3675 MB | 2427 ms, 17.8 s, 2672 MB | fp16 794 ms, 3.66 s, 2137 MB | 0.71 |
+| realplksr-nomoswebphoto-x4 | 1092 ms, 1.30 s, 1368 MB | portable fp16 1991 ms, 9.7 s, 953 MB | kernels fp16 1029 ms, 2.85 s, 1919 MB | 0.94 |
+
+Other rows now: Restormer float32 1545 / 1548 / 1567 ms (2654 / 2658 / 2632 MB); RealPLKSR portable fp16 1529 ms,
+3.00 s, 1198 MB; portable fp32 2230 ms, 1850 MB; kernels fp32 (runs as portable) 2131 ms, 2070 MB.
+
+Restormer (`restoration/models/restormer/mlx_ops.py`):
+
+- The transposed attention's `q @ k^T` over `H * W` tokens is one Metal kernel (`graph_mlx.ops.token_gram`), and the
+  gated depthwise feed-forward (depthwise 3x3, chunk, GELU, multiply) another (`dw_gate`): both read the
+  channels-last data, so nothing is copied.
+- The MLX buffer cache limit is 1024 MB: the transients are larger than the default 128 MB, so every one was a fresh
+  zero-filled allocation. Deblur fp16: 1062 ms at the default, 858 at 512 MB, 732 at 1024 MB, 699 at 2048 MB. The
+  cache is resident memory, which is why the footprint went up (1317 to 2046 MB for deblur) while staying below MPS.
+- First call 3.7-4.0 s, of which `torch.export` is 2.56 s and the translation 0.26 s: nothing cheap is left there.
+- Left: the 1x1 convs are about 435 of 1001 ms in the eager profile. A 1x1 conv as `mx.matmul` on the channels-last
+  data is 20-25% faster than `mx.conv2d` (96 to 512 channels at 512 x 512: 6.44 vs 8.43 ms; 96 to 288: 4.17 vs 5.32;
+  256 to 96: 4.29 vs 5.11). Not done here: the regular conv path of the translator's `_conv2d` belongs to the
+  ragged-padding work; it would help every 1x1-heavy family.
+
+RealPLKSR (`restoration/models/realplksr/mlx_ops.py`):
+
+- The 17 x 17 conv of 16 channels as row GEMMs: 15.2 ms against `mx.conv2d`'s 26.3 ms in float16 (20.5 vs 31.2 ms
+  float32), 16.8 ms inside the network; 28 of them. Computed in bands of output rows (64 MB of row products, 3 bands
+  at 512 x 512): same speed, 220 MB less peak.
+- Not adopted: `conv_mlx.direct` on the 17 x 17 kernel, 26.5 ms at its best block size, no faster than `mx.conv2d`.
+- Mish as one Metal kernel (`graph_mlx.ops.mish`, `tanh(log1p(e)) = (e^2 + 2e) / (e^2 + 2e + 2)`): 1.2 ms against
+  3.1 ms for the compiled chain on float16 [1, 512, 512, 128], 28 times.
+- A kernels mode on MLX (`conv_mlx`, the Winograd 3x3 convs, float16 only), with a 1024 MB buffer cache: 1582 ms at
+  the default 128 MB, 1162 at 512 MB, 1126 at 768 MB, 1023 at 1024 MB, 945 at 2048 MB. Portable keeps the default
+  cache (1526 ms, 1192 MB; 1395 ms and 1390 MB at 1024 MB).
+- MPS's time and MPS's peak are not both reachable. Kernels fp16, PLK band MB / cache MB (/ chunk MB) to warm ms and
+  footprint MB: 0 / 1024: 1022, 1896; 64 / 1024: 1030, 1917; 64 / 512: 1162, 1790; 32 / 512: 1317, 1711;
+  32 / 384: 1307, 1577; 32 / 256: 1397, 1486; 16 / 256: 1591, 1356; 32 / 384 / 128: 1355, 1559;
+  32 / 256 / 128: 1484, 1496; 32 / 512 / 512: 1235, 1751. The warm active MLX peak is 862 MB (789 MB with
+  `FF_BAND_MB=48` and a 64 MB chunk, at 1078 ms), so the footprint is the base, that peak and the cache.
+- Left: lower the active peak of the Winograd convs at 4x-upsampled width, group norm (about 3 ms x 28), and the
+  1x1-as-matmul lead above.
 
 ## TAPIR / BootsTAPIR float16 on MLX (2026-11-23): not declared
 

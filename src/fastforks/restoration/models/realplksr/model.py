@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import torch
+import torch.nn.functional as F
 
 from fastforks._core.checkpoint import load_strict
 from fastforks._core.errors import WeightsError
@@ -26,6 +27,7 @@ from fastforks.shared import mlx_wrap
 from fastforks.shared.group_norm import fast_group_norms
 
 from .net import realplksr
+from .net.realplksr_arch import PLKConv2d
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -102,10 +104,62 @@ class Kernels(Portable):
             return {"image": self.net(x)}
 
 
+# The partial large-kernel conv and Mish as single ops of the MLX export (`.mlx_ops` lowers them). A custom op's body
+# only runs when the exported program is executed in PyTorch.
+@torch.library.custom_op("fastforks::realplksr_plk", mutates_args=())
+def plk_op(x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor | None) -> torch.Tensor:
+    """`PLKConv2d.forward` out of place: the first `weight.shape[0]` channels of `x` convolved, the rest as they are."""
+    c, k = weight.shape[0], weight.shape[-1]
+    y = F.conv2d(x[:, :c], weight.to(x.dtype), None if bias is None else bias.to(x.dtype), padding=k // 2)
+    return torch.cat([y, x[:, c:]], 1)
+
+
+@plk_op.register_fake
+def _(x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor | None) -> torch.Tensor:  # noqa: ARG001 - same schema
+    return x.new_empty(x.shape)
+
+
+def _mlx_plk(m: PLKConv2d, x: torch.Tensor) -> torch.Tensor:
+    return plk_op(x, m.conv.weight, m.conv.bias)
+
+
+@torch.library.custom_op("fastforks::realplksr_mish", mutates_args=())
+def mish_op(x: torch.Tensor) -> torch.Tensor:
+    """`nn.Mish` as one op (exported, it is five)."""
+    return F.mish(x)
+
+
+@mish_op.register_fake
+def _(x: torch.Tensor) -> torch.Tensor:
+    return x.new_empty(x.shape)
+
+
+def _mlx_mish(m: torch.nn.Mish, x: torch.Tensor) -> torch.Tensor:  # noqa: ARG001 - the module has no state
+    return mish_op(x)
+
+
+class _Mlx(Portable):
+    """Portable for the MLX port: the large-kernel conv and Mish export as one op each (`mlx_ops` lowers them)."""
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the network; `mlx_ops` lowers the two ops."""
+        super().__init__(ctx)
+        from . import mlx_ops  # noqa: F401, PLC0415 - needs MLX; registers the lowerings
+
+        for m in self.net.modules():
+            if is_base(m, PLKConv2d):
+                override(m, _mlx_plk)
+            elif is_base(m, torch.nn.Mish):
+                override(m, _mlx_mish)
+
+
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(Portable),
+    "portable_mlx": mlx_wrap.port(_Mlx),
+    # the Winograd transients (75-151 MB each at 512 x 512) need the buffer cache: M1 Pro float16, 1582 ms at the
+    # default 128 MB, 1162 at 512 MB, 1023 at 1024 MB (944 at 2048 MB); the cache is resident memory (1.9 GB footprint)
+    "kernels_mlx": mlx_wrap.port(_Mlx, cache_mb=1024, kernels_fp16_only=True),
 }
 
 _BLOCK = re.compile(r"feats\.(\d+)\.lk\.conv\.weight")

@@ -1122,3 +1122,190 @@ def hitnet_refine_sad(d: mx.array, fl: mx.array, fr: mx.array, out: mx.Dtype = m
         grid=(w, h, n), threadgroup=(16, 16, 1),
         output_shapes=[(n, h, w, 3)], output_dtypes=[out],
     )[0]  # fmt: skip
+
+
+_TOKEN_GRAM = metal_kernel(
+    name="graph_token_gram",
+    input_names=["t"],
+    output_names=["gram", "sq"],
+    header='#define UR _Pragma("clang loop unroll(full)")\n',
+    source="""
+        // one thread: QB q channels x KB k channels over the PIX pixels of one chunk of `t` [B, N, 3 C] (q | k | v);
+        // fp32 sums of the products (a half sum over the pixels overflows), and of the squares of q and k
+        constexpr int QV = QB / 4, KV = KB / 4, CV = C / 4;
+        uint qb = thread_position_in_grid.x, kb = thread_position_in_grid.y, cz = thread_position_in_grid.z;
+        if (qb >= C / QB || kb >= C / KB) return;
+        uint bi = cz / CH, chunk = cz % CH;
+        size_t p0 = size_t(chunk) * PIX, p1 = min(p0 + size_t(PIX), size_t(N));
+        const device vec<T, 4>* px = (const device vec<T, 4>*)t + (size_t(bi) * N + p0) * (3 * CV);
+        float4 acc[QB][KV], nk[KV], nq[QV];
+        UR for (int j = 0; j < KV; ++j) {
+            nk[j] = float4(0.0f);
+            UR for (int i = 0; i < QB; ++i) acc[i][j] = float4(0.0f);
+        }
+        UR for (int a = 0; a < QV; ++a) nq[a] = float4(0.0f);
+        for (size_t p = p0; p < p1; ++p, px += 3 * CV) {
+            float4 q[QV];
+            UR for (int a = 0; a < QV; ++a) {
+                q[a] = float4(px[qb * QV + a]);
+                nq[a] += q[a] * q[a];
+            }
+            UR for (int j = 0; j < KV; ++j) {
+                float4 k = float4(px[CV + kb * KV + j]);
+                UR for (int a = 0; a < QV; ++a) UR for (int l = 0; l < 4; ++l) acc[a * 4 + l][j] += q[a][l] * k;
+                nk[j] += k * k;
+            }
+        }
+        size_t o = size_t(bi) * CH + chunk;
+        device float4* g = (device float4*)gram;
+        UR for (int i = 0; i < QB; ++i)
+            UR for (int j = 0; j < KV; ++j) g[((o * C + qb * QB + i) * C + kb * KB) / 4 + j] = acc[i][j];
+        device float4* s = (device float4*)sq + o * (2 * CV);
+        if (kb == 0)
+            UR for (int a = 0; a < QV; ++a) s[qb * QV + a] = nq[a];
+        if (qb == 0)
+            UR for (int j = 0; j < KV; ++j) s[CV + kb * KV + j] = nk[j];
+    """,
+)
+
+
+def token_gram(t: mx.array, c: int) -> tuple[mx.array, mx.array]:
+    """Restormer's attention statistics of the `[B, N, 3 C]` tokens `t` (q | k | v channels, C a multiple of 4).
+
+    Returns float32 `q^T k` `[B, C, C]` and the squared norms of the q and k channels over the pixels `[B, 2 C]`.
+    One pass over the stored tokens instead of float32 copies of q and k, a GEMM and a strided norm; float32
+    accumulation in chunks of pixels, the chunks summed afterwards.
+
+    M1 Pro, float16, C = 96 at 512 x 512: 5.0 ms against 10.8 ms for the casts, the GEMM and a norm (37 ms with the
+    norm over the transposed view, as the graph had it). 4 x 16 channels per thread: 16 float4 accumulators; 8 x 16 or
+    4 x 32 spill the registers (28-31 ms). One threadgroup per row of q blocks: 4.95 ms, single threads 8.7 ms.
+    """
+    b, n, _ = t.shape
+    qb = 4
+    kb = 16 if c % 16 == 0 else 4
+    per = (c // qb) * (c // kb)  # threads per chunk
+    ch = max(1, min(-(-32768 // per), n // 64))
+    pix = -(-n // ch)
+    ch = -(-n // pix)
+    gram, sq = _TOKEN_GRAM(
+        inputs=[mx.contiguous(t)],
+        template=[("T", t.dtype), ("C", c), ("N", n), ("QB", qb), ("KB", kb), ("PIX", pix), ("CH", ch)],
+        grid=(c // qb, c // kb, b * ch), threadgroup=(min(c // qb, 256), 1, 1),
+        output_shapes=[(b, ch, c, c), (b, ch, 2 * c)], output_dtypes=[mx.float32, mx.float32],
+    )  # fmt: skip
+    return mx.sum(gram, axis=1), mx.sum(sq, axis=1)
+
+
+_ERF4 = """
+    // MLX's erf (kernels/erf.h), on four lanes
+    inline float4 erf4(float4 a) {
+        float4 t = abs(a), s = a * a;
+        float4 r = fma(float4(-1.72853470e-5f), t, float4(3.83197126e-4f));
+        float4 u = fma(float4(-3.88396438e-3f), t, float4(2.42546219e-2f));
+        r = fma(r, s, u);
+        r = fma(r, t, float4(-1.06777877e-1f));
+        r = fma(r, t, float4(-6.34846687e-1f));
+        r = fma(r, t, float4(-1.28717512e-1f));
+        r = fma(r, t, -t);
+        float4 big = copysign(1.0f - exp(r), a);
+        float4 v = float4(-5.96761703e-4f);
+        v = fma(v, s, float4(4.99119423e-3f));
+        v = fma(v, s, float4(-2.67681349e-2f));
+        v = fma(v, s, float4(1.12819925e-1f));
+        v = fma(v, s, float4(-3.76125336e-1f));
+        v = fma(v, s, float4(1.28379166e-1f));
+        v = fma(v, a, a);
+        return select(v, big, t > 0.927734375f);
+    }
+"""
+
+_DW_GATE = metal_kernel(
+    name="graph_dw_gate",
+    input_names=["x", "w"],
+    output_names=["out"],
+    header=_ERF4,
+    source="""
+        // one thread: 4 adjacent channels c of R neighbouring output pixels of one row, from the 3x3 depthwise
+        // convolutions of channels c and C + c of `x` [N, H, W, 2 C]: gelu(dw(x)[c]) * dw(x)[C + c]; fp32
+        // accumulation, each factor rounded to T as the separate layers round
+        uint c4 = thread_position_in_grid.x, tile = thread_position_in_grid.y, n = thread_position_in_grid.z;
+        if (c4 >= C / 4) return;
+        int tiles_w = (W + R - 1) / R;
+        int oh = tile / tiles_w, ow0 = (tile % tiles_w) * R;
+        const device vec<T, 4>* x4 = (const device vec<T, 4>*)x;
+        const device vec<T, 4>* w4 = (const device vec<T, 4>*)w;
+        float4 a1[R], a2[R];
+        for (int r = 0; r < R; ++r) a1[r] = a2[r] = float4(0.0f);
+        for (int i = 0; i < 3; ++i) {
+            int ih = oh - 1 + i;
+            if (ih < 0 || ih >= H) continue;
+            size_t row = (size_t(n) * H + ih) * W;
+            float4 w1[3], w2[3];
+            for (int j = 0; j < 3; ++j) {
+                w1[j] = float4(w4[(i * 3 + j) * (C / 2) + c4]);
+                w2[j] = float4(w4[(i * 3 + j) * (C / 2) + C / 4 + c4]);
+            }
+            for (int t = 0; t < R + 2; ++t) {
+                int iw = ow0 - 1 + t;
+                if (iw < 0 || iw >= W) continue;
+                float4 x1 = float4(x4[(row + iw) * (C / 2) + c4]);
+                float4 x2 = float4(x4[(row + iw) * (C / 2) + C / 4 + c4]);
+                for (int r = 0; r < R; ++r) {
+                    int j = t - r;
+                    if (j >= 0 && j < 3) { a1[r] += x1 * w1[j]; a2[r] += x2 * w2[j]; }
+                }
+            }
+        }
+        for (int r = 0; r < R; ++r) {
+            if (ow0 + r >= W) break;
+            vec<T, 4> g = vec<T, 4>(0.5f * a1[r] * (1.0f + erf4(a1[r] * 0.70710678f)));
+            ((device vec<T, 4>*)out)[((size_t(n) * H + oh) * W + ow0 + r) * (C / 4) + c4] = g * vec<T, 4>(a2[r]);
+        }
+    """,
+)
+
+
+def dw_gate(x: mx.array, w: mx.array) -> mx.array:
+    """Restormer's GDFN gate: `gelu(d[..., :C]) * d[..., C:]` of the 3x3 depthwise conv `d` of `x`.
+
+    `x` is NHWC `[N, H, W, 2 C]`, `w` `[3, 3, 2 C]` (no bias; C a multiple of 4). One pass: neither `d` nor the gelu
+    is stored. M1 Pro, float16, C = 256 at 512 x 512: 4.5 ms against 29.4 ms for two depthwise kernels, an erf gelu
+    in float32 and the product.
+    """
+    n, h, wd, c2 = x.shape
+    c = c2 // 2
+    r = 4 if h * wd >= 16 else 1
+    c4 = c // 4
+    tg = min(c4, 32)
+    return _DW_GATE(
+        inputs=[mx.contiguous(x), w.astype(x.dtype)],
+        template=[("T", x.dtype), ("C", c), ("H", h), ("W", wd), ("R", r)],
+        grid=(-(-c4 // tg) * tg, h * -(-wd // r), n), threadgroup=(tg, 1, 1),
+        output_shapes=[(n, h, wd, c)], output_dtypes=[x.dtype],
+    )[0]  # fmt: skip
+
+
+_MISH = metal_kernel(
+    name="graph_mish",
+    input_names=["x"],
+    output_names=["out"],
+    source="""
+        // tanh(log1p(e)) = (e^2 + 2 e) / (e^2 + 2 e + 2) with e = exp(x), in float32; 1 from x = 20 on (as the
+        // thresholded softplus)
+        float v = float(x[thread_position_in_grid.x]);
+        float e = exp(min(v, 20.0f));
+        float n = e * (e + 2.0f);
+        out[thread_position_in_grid.x] = T(v * (n / (n + 2.0f)));
+    """,
+)
+
+
+def mish(x: mx.array) -> mx.array:
+    """`x * tanh(softplus(x))`, one exponential per element computed in float32.
+
+    M1 Pro, float16 `[1, 512, 512, 128]`: 1.2 ms against 3.1 ms for the compiled exp, log1p, where, tanh, mul chain.
+    """
+    return _MISH(
+        inputs=[mx.contiguous(x)], template=[("T", x.dtype)], grid=(x.size, 1, 1), threadgroup=(256, 1, 1),
+        output_shapes=[x.shape], output_dtypes=[x.dtype],
+    )[0]  # fmt: skip

@@ -36,6 +36,8 @@ mps_dtypes = ["float32", "float16"]
 mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
+mlx_kernels = ["conv_mlx"]  # Winograd F(4,3) 3x3 convolutions (float16; float32 runs as portable)
+mlx_dtypes = ["float32", "float16"]
 kernels = ["cudnn_hacc"]  # fp16-accumulate convolutions, channels-last
 
 [[papers]]
