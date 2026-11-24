@@ -213,13 +213,13 @@ def tuning() -> Tuning:
 
     Read when a model is built (and when a compiled step is traced), not per call.
     """
-    return _tuning(os.environ.get(_ENV, ""), tuple(_OVERRIDE.items()))
+    return _tuning(TUNING[tuning_row()], os.environ.get(_ENV, ""), tuple(_OVERRIDE.items()))
 
 
 @functools.lru_cache(maxsize=8)
-def _tuning(env: str, override: tuple[tuple[str, object], ...]) -> Tuning:
-    """`tuning()` for one environment value and override set: the kernel launchers call it per op."""
-    return dataclasses.replace(TUNING[tuning_row()], **(_parse(env) | dict(override)))
+def _tuning(row: Tuning, env: str, override: tuple[tuple[str, object], ...]) -> Tuning:
+    """`tuning()` for one table row, environment value and override set: kernel launchers call it per op."""
+    return dataclasses.replace(row, **(_parse(env) | dict(override)))
 
 
 def version() -> str:
