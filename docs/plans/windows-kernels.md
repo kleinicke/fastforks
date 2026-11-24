@@ -126,12 +126,17 @@ One build per library and target, like Linux:
    reason). `[validated]` entries in `golden.toml` then name the Windows build ids, recorded by
    `pytest -m gpu --record` on Windows. The HF layout `{lib}/{file}` needs no change (`tools/stage_hf.py` globs
    `manifest*.toml`, so it stages the DLLs too).
-4. Loader (committed): Windows has no `memfd_create`, and `_private` is never true there, so `shared_library` writes
-   the hash-verified bytes to a new file (exclusive create) in a per-process `fastforks-dll-*` directory under the
-   user's temp directory and loads that copy with `LoadLibraryExW(..., LOAD_LIBRARY_SEARCH_SYSTEM32)` (the DLLs
-   import only `nvcuda.dll` and system DLLs). A loaded DLL is locked by Windows, so the copy cannot be swapped while
-   in use. Each load gets its own file. Directories older than a day are swept. Tested with all six DLL libraries
-   in the GPU sweep.
+4. Loader (committed): Windows has no `memfd_create`, and `_private` is never true there. On a local fixed drive
+   `shared_library` opens the cache file with read sharing only (while that handle is open no process can write,
+   rename or delete it through any hard link, and NTFS refuses to rename a directory above it), hashes the bytes
+   read through that handle, and loads the handle's final path (`\\?\` form, reparse points resolved) with
+   `LoadLibraryExW(..., LOAD_LIBRARY_SEARCH_SYSTEM32)` while holding it (the DLLs import only `nvcuda.dll` and
+   system DLLs); the mapped file's name must then equal the handle's. Once mapped, Windows keeps the file
+   write-locked. No new file is written, so Defender does not scan a fresh copy in every process (11 DLL libraries:
+   340 -> 38 ms a process, RTX 5060 Ti). Off a local fixed drive (a network share, a removable drive, where other
+   machines need not honour the share modes) it writes the verified bytes to a new file (exclusive create) in a
+   per-process `fastforks-dll-*` directory under the user's temp directory and loads that copy; directories older
+   than an hour are swept. Tested with all DLL libraries in the GPU sweep.
 5. Sources: grep found no `long` in the ctypes C APIs (LLP64 would make it 32-bit on Windows) and no POSIX headers
    besides `fvm_r3`'s `<dlfcn.h>` (`dlopen` of cuBLASLt). That one is served by an include shim instead of a source
    change (see [Decisions to review](#decisions-to-review)), so the `.cu` and its Linux build id stay as they are.

@@ -425,6 +425,61 @@ def test_dll_image_loads_from_a_private_copy():
     assert copy.read_bytes() == (kernels._dll_dir() / "ff_test_version.1.dll").read_bytes()
 
 
+def _system_dll(tmp_path: Path, name: str) -> tuple[Path, bytes]:
+    data = (Path(os.environ.get("SYSTEMROOT", r"C:\Windows")) / "System32" / "version.dll").read_bytes()
+    path = tmp_path / name
+    path.write_bytes(data)
+    return path, data
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows DLL loader")
+@pytest.mark.parametrize("name", ["ff_version.dll", "cd" * 32])  # a FASTFORKS_KERNEL_PATH file, a cache blob
+def test_dll_loads_in_place_held_against_change_until_loaded(tmp_path, monkeypatch, name):
+    """On a local drive the cache file itself is loaded (no copy for Defender to scan in every process): from the
+    hash check to the load no one can write, rename or delete it or rename its directory."""
+    path, data = _system_dll(tmp_path, name)
+    tried = {}
+    load = kernels.ctypes.CDLL
+
+    def checked_load(p, *args, **kw):
+        for what, change in {
+            "write": lambda: path.write_bytes(b"MZ evil"),
+            "rename": lambda: path.rename(tmp_path / "other.dll"),
+            "delete": path.unlink,
+            "rename dir": lambda: tmp_path.rename(tmp_path.with_name(tmp_path.name + "-moved")),
+        }.items():
+            with pytest.raises(PermissionError):  # a sharing violation / access denied
+                change()
+            tried[what] = True
+        assert p.endswith(path.name if path.suffix else f"{path.name}.")  # no ".dll" appended to a blob name
+        return load(p, *args, **kw)
+
+    monkeypatch.setattr(kernels.ctypes, "CDLL", checked_load)
+    lib = kernels._load_dll_in_place(path, len(data), hashlib.sha256(data).hexdigest())
+    assert lib is not None
+    assert lib.GetFileVersionInfoSizeW
+    assert len(tried) == 4
+    assert path.read_bytes() == data
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows DLL loader")
+def test_dll_in_place_refuses_bytes_that_do_not_match(tmp_path):
+    path, data = _system_dll(tmp_path, "ff_version.dll")
+    with pytest.raises(KernelUnavailableError, match="does not match its manifest"):
+        kernels._load_dll_in_place(path, len(data), "0" * 64)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows DLL loader")
+def test_dll_off_a_local_fixed_drive_loads_from_a_private_copy(tmp_path, monkeypatch, caplog):
+    """A network share or removable drive may not honour the share modes for other machines: copy route, logged."""
+    path, data = _system_dll(tmp_path, "ff_version.dll")
+    monkeypatch.setattr(kernels, "_DRIVE_FIXED", -1)  # this drive is not "fixed"
+    monkeypatch.setattr(kernels, "_COPY_NOTED", set())
+    with caplog.at_level("INFO", logger=kernels.log.name):
+        assert kernels._load_dll_in_place(path, len(data), hashlib.sha256(data).hexdigest()) is None
+    assert "load from private copies" in caplog.text
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows DLL loader")
 def test_dll_image_loads_under_a_suffixless_cache_blob_name():
     """A downloaded library is a content-addressed cache blob named by its SHA-256, with no suffix; LoadLibrary

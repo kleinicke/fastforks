@@ -606,6 +606,92 @@ def _load_dll_image(image: bytes, name: str) -> ctypes.CDLL:
     raise AssertionError  # unreachable: itertools.count() never ends
 
 
+_GENERIC_READ = 0x80000000
+_FILE_SHARE_READ = 0x1  # alone: no one may write, rename or delete the file while the handle is open
+_OPEN_EXISTING = 3
+_VOLUME_NAME_DOS, _VOLUME_NAME_NT = 0x0, 0x2
+_DRIVE_FIXED = 3
+_DOS_PREFIX = "\\\\?\\"  # GetFinalPathNameByHandleW's extended-length prefix
+_UNC_PREFIX = _DOS_PREFIX + "UNC\\"
+_COPY_NOTED: set[str] = set()
+
+
+def _win32() -> tuple[ctypes.WinDLL, ctypes.WinDLL]:
+    """kernel32 and psapi with the signatures `_load_dll_in_place` calls (64-bit handles and pointers)."""
+    from ctypes import wintypes  # noqa: PLC0415 - Windows only
+
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    psapi = ctypes.WinDLL("psapi", use_last_error=True)
+    k32.CreateFileW.restype = wintypes.HANDLE
+    k32.CreateFileW.argtypes = [
+        wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD,
+        wintypes.HANDLE,
+    ]  # fmt: skip
+    k32.GetFinalPathNameByHandleW.argtypes = [wintypes.HANDLE, wintypes.LPWSTR, wintypes.DWORD, wintypes.DWORD]
+    k32.GetDriveTypeW.argtypes = [wintypes.LPCWSTR]
+    k32.GetCurrentProcess.restype = wintypes.HANDLE
+    k32.FreeLibrary.argtypes = [wintypes.HMODULE]
+    psapi.GetMappedFileNameW.argtypes = [wintypes.HANDLE, ctypes.c_void_p, wintypes.LPWSTR, wintypes.DWORD]
+    return k32, psapi
+
+
+def _final_path(k32: ctypes.WinDLL, handle: int, kind: int) -> str:
+    """`GetFinalPathNameByHandleW`: the open file's path, reparse points resolved (`kind`: DOS or NT volume name)."""
+    buf = ctypes.create_unicode_buffer(32768)
+    n = k32.GetFinalPathNameByHandleW(handle, buf, len(buf), kind)
+    if not 0 < n < len(buf):
+        raise ctypes.WinError(ctypes.get_last_error())
+    return buf.value
+
+
+def _load_dll_in_place(path: Path, size: int, sha256: str) -> ctypes.CDLL | None:
+    r"""Windows: load the library file `path` itself, held unchanged from its hash check to the load.
+
+    The file is opened with read sharing only, so while the handle is open no process can write, rename or delete
+    it (through any hard link), and NTFS refuses to rename a directory above it. Its bytes are hashed through that
+    handle, and LoadLibrary gets the handle's final path (`\\?\`, reparse points resolved, so no junction on the way
+    can be retargeted) while the handle is held. Once mapped as an image the file stays write-locked by Windows. After
+    the load the mapped file must be the checked one (it cannot be otherwise unless the above fails). Unlike a copy,
+    no new file is written, so Windows Defender does not scan a fresh copy in every process (11 DLL libraries,
+    RTX 5060 Ti: 340 -> 37 ms a process).
+
+    Returns `None` off a local fixed drive (a network share, a removable drive: whether another machine honours the
+    share modes is not known); the caller then loads a private copy of the verified bytes (`_load_dll_image`).
+
+    Raises:
+        KernelUnavailableError: The bytes do not match the manifest, or the mapped file is not the one checked.
+        OSError: The file cannot be opened or loaded.
+    """
+    import msvcrt  # noqa: PLC0415 - Windows only
+
+    k32, psapi = _win32()
+    handle = k32.CreateFileW(str(path), _GENERIC_READ, _FILE_SHARE_READ, None, _OPEN_EXISTING, 0, None)
+    if handle in (None, ctypes.c_void_p(-1).value):
+        raise ctypes.WinError(ctypes.get_last_error())
+    fd = msvcrt.open_osfhandle(handle, os.O_RDONLY | os.O_BINARY)  # the file object below closes the handle
+    with os.fdopen(fd, "rb") as f:
+        final = _final_path(k32, handle, _VOLUME_NAME_DOS)  # the extended form of C:\... or of \\server\share\...
+        if final.upper().startswith(_UNC_PREFIX) or k32.GetDriveTypeW(final[len(_DOS_PREFIX) :][:3]) != _DRIVE_FIXED:
+            if str(path.parent) not in _COPY_NOTED:
+                _COPY_NOTED.add(str(path.parent))
+                log.info("kernel DLLs in %s load from private copies (not a local fixed drive)", path.parent)
+            return None
+        data = f.read()
+        if len(data) != size or hashlib.sha256(data).hexdigest() != sha256:
+            raise KernelUnavailableError(path.name, f"{path} does not match its manifest (size or SHA-256)")
+        del data
+        # LoadLibrary appends ".dll" to a name without a suffix (a cache blob is named by its SHA-256); a trailing
+        # dot stops that
+        lib = ctypes.CDLL(final if path.suffix else f"{final}.", winmode=_LOAD_LIBRARY_SEARCH_SYSTEM32)
+        mapped = ctypes.create_unicode_buffer(32768)
+        n = psapi.GetMappedFileNameW(k32.GetCurrentProcess(), lib._handle, mapped, len(mapped))  # noqa: SLF001
+        if not n or mapped.value.lower() != _final_path(k32, handle, _VOLUME_NAME_NT).lower():
+            k32.FreeLibrary(lib._handle)  # noqa: SLF001
+            msg = f"{path}: the loaded image is not the file whose hash was checked ({mapped.value!r})"
+            raise KernelUnavailableError(path.name, msg)
+    return lib
+
+
 def shared_library(manifest: Path, device: torch.device) -> tuple[ctypes.CDLL, str]:
     """Load the `.so` (Windows: `.dll`) of a shared kernel library for `device`; returns it and its tag.
 
@@ -615,6 +701,15 @@ def shared_library(manifest: Path, device: torch.device) -> tuple[ctypes.CDLL, s
         KernelUnavailableError: No usable binary for this GPU / driver / OS, or the library does not load.
     """
     m = for_driver(read_manifest(platform_manifest(manifest)))
+    if sys.platform == "win32":  # the cache file itself, held unchanged from the hash check to the load
+        path, target = binary(m, device)
+        spec = m.files[target]
+        try:
+            lib = _load_dll_in_place(path, spec.size, spec.sha256)
+        except OSError as e:
+            raise KernelUnavailableError(m.name, f"cannot load {path.name}: {e}") from e
+        if lib is not None:
+            return lib, f"{m.tag}:{target}"
     image, path, target = verified_binary(m, device)
     try:
         # a shared or writable location loads the verified bytes, not the file name (no check-to-load race)
