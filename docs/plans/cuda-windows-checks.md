@@ -102,6 +102,12 @@ and all 101 portable classifier module comparisons. The CUDA 13.0 wheel environm
   at 1080p measured 442.4 and 271.9 ms, with 2102 and 1040 MiB peak reserved. DepthFM at 994 × 1482 measured
   4.88 and 3.38 s, with 5850 and 4092 MiB peak reserved. These are warmed inference times.
 
+## TotalSegmentator reference outputs
+
+The six new CT reference files were absent from the public reference dataset. The pinned upstream generator used
+the registered checkpoints, and each output matched its committed SHA-256. All six passed the portable golden
+test on Ubuntu CPU and CUDA. These cards still gate kernels mode. The six files are ready for the dataset upload.
+
 ## Test environment: OpenCV 5 (2026-11-24)
 
 OpenCV 5.0's uint8 cubic result depends on whether its optimized IPP path is available. On Ubuntu, disabling IPP
