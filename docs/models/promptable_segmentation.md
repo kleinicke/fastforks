@@ -374,6 +374,7 @@ Commercial use: yes.
 - Weights licence: Apache-2.0
 - Licence evidence: https://github.com/facebookresearch/segment-anything/blob/main/README.md (License section: model checkpoints and code under Apache 2.0)
 - Training data: SA-1B (11M licensed images, 1.1B automatically generated masks) per the paper; the dataset itself is under the SA-1B research licence
+- Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `dpt_fused`
 - Variants: `sam-vit-b`, `sam-vit-l`, `sam-vit-h`
 - Outputs: pred_masks, iou_scores
@@ -418,6 +419,7 @@ CPU, float32: max |diff| <= 0.002 vs the original. GPU, float16 (the default), p
 ### Limitations
 
 - On the RTX 5060 Ti at 3840 × 2160 with 12 point prompts and 36 output masks, SAM ViT-B used 742 MiB portable and 741 MiB kernels, down from 1,667 MiB in both modes. Masks, scores and logits matched bit for bit. Paired latency was 75.3 to 77.0 ms portable and 64.1 to 65.8 ms kernels.
+- Kernels keep CUDA graphs of the prompt decode: their private pool and static outputs stay reserved, so reserved is ~100 MiB above `cuda_graphs=false` at 1024 x 1024 (540 vs 440 MiB, RTX 5060 Ti, Windows; peak allocated +37 MiB); `cuda_graphs=false` or `release_graphs()` frees it.
 
 </details>
 

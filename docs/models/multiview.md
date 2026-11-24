@@ -274,7 +274,7 @@ Commercial use: **no** (code: LicenseRef-noncommercial AND CC-BY-NC-SA-4.0 (nonc
 - Licence evidence: https://github.com/nianticlabs/mvsanywhere/blob/5bd49bb/LICENSE and README.md (the checkpoint is published under the repository's licence)
 - Training data: Synthetic data per the paper (arXiv 2411.14390): Hypersim, TartanAir, BlendedMVG, MatrixCity, VKITTI2, Dynamic Replica, MVS-Synth, SAIL-VOS 3D; DINOv2 / Depth Anything V2 initialisation
 - Licence note: Niantic's non-commercial licence covers the code and the checkpoint; the BlurPool stem comes from Adobe's antialiased-cnns (CC-BY-NC-SA-4.0).
-- Options: `long_side` = 640 (>= 64), `refinement_steps` = 1 (>= 0)
+- Options: `long_side` = 640 (>= 64), `refinement_steps` = 1 (>= 0), `cuda_graphs` = True (speed only)
 - Kernel libraries: `fastbb`, `igev`, `cutlass_conv`, `cudnn_hacc`, `mvsanywhere`, `dpt_fused`
 - Variants: `mvsanywhere`
 - Outputs: depth, mask, sky (in `extras`), depth_range (in `extras`); kind: `metric`
