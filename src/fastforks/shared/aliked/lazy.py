@@ -101,6 +101,7 @@ def describe(
     steps = torch.arange(ps, device=levels[0].device)
     descriptors = []
     for ib, kptsi in enumerate(keypoints):
+        image = (levels[0][ib], [x[ib : ib + 1].float() for x in levels[1:]], offset)  # the coarse levels cast once
         kptsi_wh = (kptsi / 2 + 0.5) * wh
         n_kpts = len(kptsi)
         # get_patches' pixels: patch[n, :, a, b] = map[:, cy + a, cx + b], the corner clamped into the map
@@ -109,13 +110,13 @@ def describe(
         cy = corner[:, 1].clamp(min=0, max=h - 1 - ps)
         py = (cy[:, None, None] + steps[None, :, None]).expand(-1, ps, ps)
         px = (cx[:, None, None] + steps[None, None, :]).expand(-1, ps, ps)
-        patch = _pixels(levels, ib, offset, py.reshape(-1), px.reshape(-1))  # [C, N * ps * ps]
+        patch = _pixels(image, py.reshape(-1), px.reshape(-1))  # [C, N * ps * ps]
         patch = patch.reshape(-1, n_kpts, ps, ps).permute(1, 0, 2, 3)  # [N_kpts, C, ps, ps]
         off = head.offset_conv(patch).clamp(-max_offset, max_offset)  # [N_kpts, 2*n_pos, 1, 1]
         off = off[:, :, 0, 0].view(n_kpts, 2, n_pos).permute(0, 2, 1)  # [N_kpts, n_pos, 2]
         pos = kptsi_wh.unsqueeze(1) + off
         pos = 2.0 * pos / wh[None] - 1
-        features = _bilinear(levels, ib, offset, size, pos.reshape(-1, 2))  # [C, N_kpts * n_pos]
+        features = _bilinear(image, size, pos.reshape(-1, 2))  # [C, N_kpts * n_pos]
         features = features.reshape(-1, n_kpts, n_pos, 1).permute(1, 0, 2, 3)  # [N_kpts, C, n_pos, 1]
         features = torch.selu_(head.sf_conv(features)).squeeze(-1)  # [N_kpts, C, n_pos]
         descs = torch.einsum("ncp,pcd->nd", features, head.agg_weights)  # [N_kpts, C]
@@ -123,41 +124,37 @@ def describe(
     return descriptors
 
 
-def _pixels(
-    levels: list[torch.Tensor], ib: int, offset: tuple[int, int], ys: torch.Tensor, xs: torch.Tensor
-) -> torch.Tensor:
-    """The normalized descriptor map of image `ib` at the integer pixels `(ys, xs)`: `[C, P]` float32."""
-    fine = levels[0][ib]
+_Image = tuple[torch.Tensor, list[torch.Tensor], tuple[int, int]]  # first level, float32 coarse levels, map origin
+
+
+def _pixels(image: _Image, ys: torch.Tensor, xs: torch.Tensor) -> torch.Tensor:
+    """The normalized descriptor map of one image at the integer pixels `(ys, xs)`: `[C, P]` float32."""
+    fine, coarse, offset = image
     hp, wp = fine.shape[-2:]
     rows, cols = ys + offset[0], xs + offset[1]
     grid = torch.stack((2.0 * cols / (wp - 1) - 1, 2.0 * rows / (hp - 1) - 1), dim=-1)[None, None]  # [1, 1, P, 2]
     parts = [fine[:, rows, cols].float()]
     parts += [  # the upsampling's (align_corners) value at the pixel
-        F.grid_sample(x[ib : ib + 1].float(), grid, mode="bilinear", align_corners=True)[0, :, 0] for x in levels[1:]
+        F.grid_sample(x, grid, mode="bilinear", align_corners=True)[0, :, 0] for x in coarse
     ]
     x = torch.cat(parts)
     return x / x.norm(2, 0, keepdim=True).clamp_min(_EPS)
 
 
-def _bilinear(
-    levels: list[torch.Tensor], ib: int, offset: tuple[int, int], size: tuple[int, int], grid: torch.Tensor
-) -> torch.Tensor:
+def _bilinear(image: _Image, size: tuple[int, int], grid: torch.Tensor) -> torch.Tensor:
     """`grid_sample` of the normalized map (align_corners, zero padding) at `[P, 2]` points: `[C, P]` float32."""
     h, w = size
     gx, gy = grid.unbind(-1)
     ix, iy = (gx + 1) / 2 * (w - 1), (gy + 1) / 2 * (h - 1)
     x0, y0 = ix.floor(), iy.floor()
     x1, y1 = x0 + 1, y0 + 1
-    corners = (  # grid_sampler_2d's corners and weights
-        (x0, y0, (x1 - ix) * (y1 - iy)),
-        (x1, y0, (ix - x0) * (y1 - iy)),
-        (x0, y1, (x1 - ix) * (iy - y0)),
-        (x1, y1, (ix - x0) * (iy - y0)),
-    )
-    ys = torch.cat([cy.clamp(0, h - 1) for _, cy, _ in corners]).long()
-    xs = torch.cat([cx.clamp(0, w - 1) for cx, _, _ in corners]).long()
-    weights = torch.cat(
-        [torch.where((cx >= 0) & (cx <= w - 1) & (cy >= 0) & (cy <= h - 1), wt, 0) for cx, cy, wt in corners]
-    )
-    values = _pixels(levels, ib, offset, ys, xs) * weights  # [C, 4 P]
+    # grid_sampler_2d's corners (nw, ne, sw, se) and weights, stacked: [4, P]
+    cx, cy = torch.stack((x0, x1, x0, x1)), torch.stack((y0, y0, y1, y1))
+    wx0, wx1, wy0, wy1 = x1 - ix, ix - x0, y1 - iy, iy - y0
+    weights = torch.stack((wx0, wx1, wx0, wx1)) * torch.stack((wy0, wy0, wy1, wy1))
+    inside = (cx >= 0) & (cx <= w - 1) & (cy >= 0) & (cy <= h - 1)
+    weights = torch.where(inside, weights, 0).reshape(-1)
+    ys = cy.clamp(0, h - 1).long().reshape(-1)
+    xs = cx.clamp(0, w - 1).long().reshape(-1)
+    values = _pixels(image, ys, xs) * weights  # [C, 4 P]
     return values.unflatten(1, (4, -1)).sum(1)
