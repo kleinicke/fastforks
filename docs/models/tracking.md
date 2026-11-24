@@ -397,8 +397,8 @@ Commercial use: yes.
 - Options: `memory` = 72 (>= 1), `support_grid` = 20 (>= 0)
 - Kernel libraries: `fastbb`, `dpt_fused`
 - Variants: `track-on2`, `track-on-r`
-- Public ONNX / TensorRT export is unavailable for `track-on2` (torch.export stops at a data-dependent branch (the query start frames, model.py:117)).
-- Public ONNX / TensorRT export is unavailable for `track-on-r` (torch.export stops at a data-dependent branch (the query start frames, model.py:117)).
+- Public ONNX / TensorRT export is unavailable for `track-on2` (the ONNX conversion and the ONNX Runtime check have not run (torch.export captures it for queries on frame 0)).
+- Public ONNX / TensorRT export is unavailable for `track-on-r` (the ONNX conversion and the ONNX Runtime check have not run (torch.export captures it for queries on frame 0)).
 - Outputs: tracks, visibility
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `track-on2` 3000x4000 (5.0 GiB peak allocated, 6.0 reserved); `track-on-r` 3000x4000 (5.0 GiB peak allocated, 6.0 reserved)

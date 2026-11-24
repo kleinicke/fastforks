@@ -99,8 +99,17 @@ def track(  # noqa: PLR0913, PLR0917 - the runner call's arguments plus params a
         g = grid(params.support_grid, h, w, dev)
         qt = torch.cat([qt, qt.new_zeros(g.shape[0])])
         xy = torch.cat([xy, g])
-    order = torch.sort(qt, stable=True).indices
-    qt_sorted = qt[order].tolist()
+    if torch.compiler.is_exporting():
+        # The exported graph covers queries that all start on frame 0 (`example_inputs`): their start frames are the
+        # only data the loop below branches on, so this makes it static. Later starts are a runtime check of the
+        # exported program; eager calls take any start frame.
+        need = "the exported Track-On graph needs every query on frame 0"
+        torch._check(qt.max().item() == 0, lambda: need)  # noqa: SLF001 - torch's documented export assertion
+        order = torch.arange(qt.shape[0], device=dev)
+        qt_sorted = [0] * qt.shape[0]
+    else:
+        order = torch.sort(qt, stable=True).indices
+        qt_sorted = qt[order].tolist()
     xy_sorted = xy[order] / device_tensor((w, h), device=xy.device, dtype=xy.dtype)
     total = len(qt_sorted)
     scale = device_tensor((w / params.width, h / params.height), device=xy.device, dtype=xy.dtype)
