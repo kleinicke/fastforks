@@ -7293,7 +7293,12 @@
    }
   },
   "raft-large-kitti@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -7317,7 +7322,12 @@
    }
   },
   "raft-large-things@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
    "dtypes": {
+    "float16": "portable",
     "float32": "portable"
    },
    "mlx_default": [
@@ -7341,6 +7351,14 @@
    }
   },
   "raft-large@1": {
+   "auto": [
+    "portable",
+    "float16"
+   ],
+   "dtypes": {
+    "float16": "portable",
+    "float32": "portable"
+   },
    "mlx_default": [
     "portable",
     "float16"

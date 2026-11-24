@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-24 |
-| rows | 1504 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1505 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -691,10 +691,10 @@ Note: the MLX port has no kernels mode (card mlx_dtypes).
 | [`neuflow-v2`](../models/flow.md#neuflow_v2) | 951 | 949 | unsupported | 9200 |
 | [`neuflow-v2-sintel`](../models/flow.md#neuflow_v2) | 1021 | 952 | unsupported | 9201 |
 | [`neuflow-v2-things`](../models/flow.md#neuflow_v2) | 975 | 946 | unsupported | 9170 |
-| [`raft-large`](../models/flow.md#raft) | 2724 | 2134 | unsupported | 8987 |
-| [`raft-large-kitti`](../models/flow.md#raft) | 2001 | 1700 | unsupported | 8113 |
-| [`raft-large-things`](../models/flow.md#raft) | 1993 | 1693 | unsupported | 8101 |
-| [`raft-small`](../models/flow.md#raft) | 1020 | 927 | – | 8069 |
+| [`raft-large`](../models/flow.md#raft) | 1552 | 1028 | unsupported | 2069 |
+| [`raft-large-kitti`](../models/flow.md#raft) | 1443 | 1094 | unsupported | 2056 |
+| [`raft-large-things`](../models/flow.md#raft) | 1635 | 1127 | unsupported | 2036 |
+| [`raft-small`](../models/flow.md#raft) | 450 | 332 | unsupported | 1645 |
 | [`recover-cx`](../models/flow.md#recover) | 1064 | 758 | unsupported | 1297 |
 | [`recover-mn`](../models/flow.md#recover) | 471 | 316 | unsupported | 1181 |
 | [`recover-rn`](../models/flow.md#recover) | 624 | 429 | unsupported | 1224 |

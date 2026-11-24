@@ -45,7 +45,7 @@ These terms apply to every device:
 ## Other devices
 
 - [Apple M1 Pro 16 GB](devices/apple-m1-pro-16gb.md) (mps): 578 models, 2252 rows, measured 2026-11-06 to 2026-11-24.
-- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1504 rows, measured 2026-11-19 to 2026-11-24.
+- [Apple M1 Pro 16 GB (MLX)](devices/apple-m1-pro-mlx-16gb.md) (mlx): 578 models, 1505 rows, measured 2026-11-19 to 2026-11-24.
 - [NVIDIA L4](devices/l4-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA L40S](devices/l40s-44gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
 - [NVIDIA A10](devices/a10-22gb.md) (cuda): 119 models, 238 rows, measured 2026-11-07 to 2026-11-08.
@@ -569,10 +569,10 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`neuflow-v2`](models/flow.md#neuflow_v2) | 702 ms · portable fp16 | 949 ms · portable fp16 |
 | [`neuflow-v2-sintel`](models/flow.md#neuflow_v2) | 721 ms · portable fp16 | 952 ms · portable fp16 |
 | [`neuflow-v2-things`](models/flow.md#neuflow_v2) | 739 ms · portable fp16 | 946 ms · portable fp16 |
-| [`raft-large`](models/flow.md#raft) | 1351 ms · kernels fp16 | 2134 ms · portable fp16 |
-| [`raft-large-kitti`](models/flow.md#raft) | 1349 ms · kernels fp16 | 1700 ms · portable fp16 |
-| [`raft-large-things`](models/flow.md#raft) | 1348 ms · kernels fp16 | 1693 ms · portable fp16 |
-| [`raft-small`](models/flow.md#raft) | 386 ms · kernels fp16 | 927 ms · portable fp16 |
+| [`raft-large`](models/flow.md#raft) | 1351 ms · kernels fp16 | 1028 ms · portable fp16 |
+| [`raft-large-kitti`](models/flow.md#raft) | 1349 ms · kernels fp16 | 1094 ms · portable fp16 |
+| [`raft-large-things`](models/flow.md#raft) | 1348 ms · kernels fp16 | 1127 ms · portable fp16 |
+| [`raft-small`](models/flow.md#raft) | 386 ms · kernels fp16 | 332 ms · portable fp16 |
 | [`recover-cx`](models/flow.md#recover) | 853 ms · portable fp16 | 758 ms · portable fp16 |
 | [`recover-mn`](models/flow.md#recover) | 347 ms · portable fp16 | 316 ms · portable fp16 |
 | [`recover-rn`](models/flow.md#recover) | 405 ms · portable fp16 | 429 ms · portable fp16 |
