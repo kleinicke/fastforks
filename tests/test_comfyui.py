@@ -142,6 +142,12 @@ def test_depth_and_normals(pack: Any) -> None:
     assert img[0, 1, 1] == 0
     inv = c.depth_image(None, torch.tensor([[0.0, 10.0]]))
     assert inv[:, 0, 1].tolist() == [1, 1, 1]
+    assert not c.depth_image(None, torch.full((2, 3), float("nan"))).any()  # nothing valid: black
+    noisy = torch.rand(5, 7) * 4 - 1
+    noisy[0, :3] = torch.tensor([float("nan"), float("inf"), -float("inf")])
+    valid = noisy[noisy.isfinite()]  # scaled by the min / max of the finite pixels (read without a host sync)
+    want = torch.where(noisy.isfinite(), ((noisy - valid.min()) / (valid.max() - valid.min())).clamp(0, 1), 0)
+    assert torch.equal(c.depth_image(None, noisy)[1], want)
     facing = torch.tensor([0.0, 0.0, -1.0]).expand(2, 3, 3)
     assert torch.allclose(c.normals_image(facing)[:, 0, 0], torch.tensor([0.5, 0.5, 1.0]))
     up = torch.tensor([0.0, -1.0, 0.0]).expand(1, 1, 3)  # y down: -y is up -> green

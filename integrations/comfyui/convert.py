@@ -178,9 +178,12 @@ def depth_image(depth: torch.Tensor | None, inverse_depth: torch.Tensor | None, 
         msg = "the model returned neither depth nor inverse_depth"
         raise ValueError(msg)
     valid = torch.isfinite(inv)
-    if not valid.any():
-        return torch.zeros(_RGB, *inv.shape, device=inv.device)
-    lo, hi = _range(inv[valid], clip)
+    if clip:
+        if not valid.any():
+            return torch.zeros(_RGB, *inv.shape, device=inv.device)
+        lo, hi = _range(inv[valid], clip)
+    else:  # min / max of the valid pixels without a host sync (none valid: every pixel is black below)
+        lo, hi = torch.where(valid, inv, math.inf).amin(), torch.where(valid, inv, -math.inf).amax()
     scaled = ((inv - lo) / (hi - lo).clamp_min(torch.finfo(torch.float32).tiny)).clamp(0, 1)
     return torch.where(valid, scaled, 0).unsqueeze(0).expand(_RGB, *inv.shape)
 
