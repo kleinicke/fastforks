@@ -187,10 +187,19 @@ ComfyUI from git run the nodes at the same speed.
 `integrations/comfyui/workflows/` holds fourteen workflows. The first ten put competing models (and, in the second
 one, backends) side by side on one input, so you can swap the `model` / `backend` dropdown or bypass a branch and
 compare: depth, backend comparison, background removal, prompted segmentation, detection, pose, 4x upscaling, frame
-interpolation, stereo and optical flow. The last four show line art / edges, inpainting (object removal from a
-click, and a fixed square), segmenting like a reference, and video matting from a first-frame mask. Copy the `fastforks-w*.json` files into `ComfyUI/user/default/workflows/` (or drag one into
-the UI); they use the images `example.png`, `scene.png`, `scene_b.png`, `small.png` and `clip0..3.png` from the input
-folder. `make_workflows.py` regenerates them from a running server's `/object_info`.
+interpolation, stereo and optical flow. The last four show line art / edges, inpainting (object removal from a click,
+and a fixed square), segmenting like a reference, and video matting from a first-frame click; they use only fastforks
+and ComfyUI's own nodes. Copy the `fastforks-w*.json` files into `ComfyUI/user/default/workflows/` (or drag one into
+the UI; ComfyUI also lists them under the pack's templates). They load these images from ComfyUI's `input` folder;
+only `example.png` ships with ComfyUI, put your own files there under the other names: `scene.png` (a photo with
+people and objects: detection, pose), `small.png` (a small image to upscale), `clip0.png` .. `clip3.png` (consecutive
+frames of a video: interpolation, optical flow, segmenting like a reference, video matting) and `stereo_left.png` /
+`stereo_right.png` (a rectified stereo pair). Six of the ten also carry branches with another
+pack's nodes for comparison (comfyui_controlnet_aux, ComfyUI-RMBG, ComfyUI-segment-anything-2,
+ComfyUI-Frame-Interpolation); without that pack ComfyUI marks those nodes as missing: delete them or install the
+pack. The upscaling one compares with ComfyUI's own upscale-model node, which needs a file in
+`models/upscale_models`. The backend comparison uses the three backends every platform lists and a model both packs
+have, so it loads everywhere. `make_workflows.py` regenerates them from a running server's `/object_info`.
 
 On a Mac with the `mlx` package the `backend` dropdown also lists `mlx` (Apple's MLX instead of MPS, with our Metal kernels where the family's port has them) and `mlx portable` (MLX without the kernels). A model without an MLX port fails with a message (none of the nodes' models lacks one today). Every new input size compiles once on MLX, so its first call is slow; `auto` already picks MLX where it wins. With `dtype` on `auto`, `mlx` runs in the fastest mode and dtype measured on the Mac (often float16, goldens checked).
 
