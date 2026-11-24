@@ -1020,6 +1020,7 @@ option promptable_segmentation.sam2.samurai
 option promptable_segmentation.sam3.cuda_graphs
 option promptable_segmentation.sam3.stream
 option restoration.codeformer.fidelity aliases fidelity_weight
+option restoration.gfpgan.cuda_graphs
 option restoration.lama.cuda_graphs
 option restoration.seedvr2.keep
 option restoration.seedvr2.quant
