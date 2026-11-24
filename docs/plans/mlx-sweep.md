@@ -615,7 +615,8 @@ Shipped (commit 933b4913 and follow-up):
 
 Survey and goldens: compact, realplksr, span, realesrgan, nafnet-gopro, wd-vit-tagger-v3 and the stereo goldens pass.
 Declaring a kernels mode for hitnet-eth3d (994x1482): portable 800 / 592 ms (fp32 / fp16), kernels 1004 / 746 ms, so it
-is slower and was not declared. aanet, s2m2, dlnr and the SR nets were not declared either: earlier runs showed memory
+is slower and was not declared (after the cost-volume kernels of 512215ef it is a tie within noise, 289 / 297 ms
+fp16, so still not declared). aanet, s2m2, dlnr and the SR nets were not declared either: earlier runs showed memory
 roughly doubling for the stereo group, and the portable path is already the faster one.
 
 ## Net-level graph runner pass (commit 9373e1d2)

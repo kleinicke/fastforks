@@ -11,7 +11,7 @@
 | software | macOS 27, mlx 0.32.4, torch 2.14 |
 | torch (rows) | 2.14.1 |
 | measured | 2026-11-19 to 2026-11-24 |
-| rows | 1505 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
+| rows | 1506 in `docs/data/speed/apple-m1-pro-mlx-16gb.jsonl` |
 
 Speed survey: the models and dtypes measured here, as recorded. Cells are median ms; every column names its dtype. `unsupported` = the card does not offer that mode or dtype on this backend, `failed` = it ran and raised, `OOM` = out of memory, – = not tested; `(golden fail)` = it ran but its result failed the golden check on this device (never counted as fastest). Speed-up = kernels against the fastest original and the fastest `portable` row of the same model (any dtype); memory = the peak of that mode's fastest row, measured the way the column says (not comparable with another device's). One input per model, the task's standard one. Each model links to its model page; [benchmarks](../benchmarks.md) has the method and the reference device.
 
@@ -54,8 +54,8 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`great-igev-sceneflow`](../models/stereo.md#great_igev) | 12477 | 8028 | – | – | – | 5560 | – |
 | [`gwcnet-g-sceneflow`](../models/stereo.md#gwcnet) | 3676 | 2450 | – | – | – | 2169 | – |
 | [`gwcnet-gc-sceneflow`](../models/stereo.md#gwcnet) | 4102 | 2933 | unsupported | – | – | 2876 | – |
-| [`hitnet-eth3d`](../models/stereo.md#hitnet) | 723 | 572 | unsupported | – | – | 1697 | – |
-| [`hitnet-middlebury-d400`](../models/stereo.md#hitnet) | 2094 | 1367 | – | – | – | 2860 | – |
+| [`hitnet-eth3d`](../models/stereo.md#hitnet) | 419 | 289 | unsupported | – | – | 1157 | – |
+| [`hitnet-middlebury-d400`](../models/stereo.md#hitnet) | 1616 | 686 | unsupported | – | – | 1891 | – |
 | [`igev-plusplus-eth3d`](../models/stereo.md#igev_plusplus) | 14411 | 9128 | 10129 | 5478 | 1.7x | 2749 | 2863 |
 | [`igev-plusplus-kitti12`](../models/stereo.md#igev_plusplus) | 15055 | 8568 | 10166 | 5297 | 1.6x | 2754 | 2873 |
 | [`igev-plusplus-kitti15`](../models/stereo.md#igev_plusplus) | 15502 | 8456 | 10077 | 5268 | 1.6x | 2749 | 2894 |

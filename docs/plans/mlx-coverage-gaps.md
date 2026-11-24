@@ -270,7 +270,7 @@ yields an `auto` entry where an MPS `ok` row exists to compare against.
 | stereo | GREAT-IGEV | `great-igev-kitti` | checkpoint-sibling | float32/float16 | 56 | 3 | skip: checkpoint of `great-igev-sceneflow` |
 | stereo | GREAT-IGEV | `great-igev-middlebury` | size-sibling | float32/float16 | 56 | 2 | re-run 2026-11-23: fp32 23063 ms, fp16 14680 ms, golden pass (MPS fp16 26930 ms, fp32 out of memory) |
 | stereo | GwcNet | `gwcnet-g-sceneflow` | size-sibling | float32/float16 | 75 | 3 | fp16 2450 ms, fp32 3676 ms |
-| stereo | HITNet | `hitnet-middlebury-d400` | size-sibling | float32/float16 | 7 | 3 | fp16 1367 ms, fp32 2094 ms |
+| stereo | HITNet | `hitnet-middlebury-d400` | size-sibling | float32/float16 | 7 | 3 | fp16 686 ms, fp32 1616 ms (cost volumes as Metal kernels) |
 | stereo | IGEV++ | `igev-plusplus-eth3d` | checkpoint-sibling | float32/float16 | 56 | 4 | skip: checkpoint of `igev-plusplus-sceneflow` |
 | stereo | IGEV++ | `igev-plusplus-kitti12` | checkpoint-sibling | float32/float16 | 56 | 4 | skip: checkpoint of `igev-plusplus-sceneflow` |
 | stereo | IGEV++ | `igev-plusplus-kitti15` | checkpoint-sibling | float32/float16 | 56 | 4 | skip: checkpoint of `igev-plusplus-sceneflow` |
@@ -459,7 +459,7 @@ family `mlx.py`, re-survey the family's refs, regenerate `apple_mlx.json`.
 
 | MLX/MPS | refs | lead |
 |---|---|---|
-| 4.2, 3.1 | hitnet-eth3d, hitnet-middlebury-d400 | tile propagation: many small convs and warps per level; check for host syncs and per-tile `gather` |
+| 2.1, 1.6 (were 4.2, 3.1) | hitnet-eth3d, hitnet-middlebury-d400 | cost volumes and warp SADs are Metal kernels now (289 / 686 ms fp16, faster than MPS portable, behind MPS kernels 136 / 440 ms). Left: 32-channel 3x3 convs are 1.4x slower than MPSGraph, and activations after the 1x1, 4x4 stride-2 and residual convs are not fused; `conv_mlx` gave no steady gain, so no kernels mode |
 | 3.9, 2.9 | xfeat, xfeat-lighterglue | host-side keypoint selection (CPU overhead found by the geometry agent); NMS and top-k on device |
 | 3.1, 2.1 | dinov2-s/b-linear-ade20k | MLX is 3x slower at 0.8 s first call: the bilinear upsample of the linear head or the patch-embed conv |
 | 2.9, 2.3, 1.8 | moge-2-vits/vitb/vitl-normal | the normal head only (the depth refs are fine): look at its normalisation and upsampling |
