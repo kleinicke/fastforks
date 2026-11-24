@@ -14,6 +14,9 @@ estimate (covariance) is not computed.
 `portable`: plain PyTorch, the network in float32 or float16, the LM fit always in float32. `kernels`: the network in
 float16 with fp16-accumulate convolutions (`cudnn_hacc`) and GEMMs, replayed from a CUDA graph per input shape, and
 each LM step replayed from a CUDA graph per field shape (the host still checks the early stop after every step).
+
+`torch.export` of `module()` (`_fit_export`): every LM step with the result of the early-stopped loop kept, and the
+solve of each step unrolled (`net/lm_optimizer.py`); eager calls keep upstream's loop.
 """
 
 from __future__ import annotations
@@ -45,6 +48,7 @@ if TYPE_CHECKING:
     from fastforks.calibration._runner import Context
 
     from .net.camera import BaseCamera
+    from .net.lm_optimizer import LMOptimizer
 
 
 _FIELDS = ("up_field", "up_confidence", "latitude_field", "latitude_confidence")  # the LM fit's inputs
@@ -178,12 +182,51 @@ class _GeoCalib(Runner):
         return result
 
     def _fit(self, data: dict[str, torch.Tensor]) -> dict[str, Any]:
-        """The LM fit of the fields in `data`: `{"camera": ..., "gravity": ...}` (upstream `LMOptimizer.forward`)."""
+        """The LM fit of the fields in `data`: `{"camera": ..., "gravity": ...}` (upstream `LMOptimizer.forward`).
+
+        Under `torch.export` the fixed-length loop of `_fit_export`: the same result without a read of the convergence.
+        """
+        if torch.compiler.is_exporting():
+            return _fit_export(self.net.optimizer, data)
         return self.net.optimizer(data)
 
     def module(self) -> torch.nn.Module:
         """The network with its pre-processing and fit: `[B, 3, H, W]` in `[0, 1]` -> intrinsics `[B, 3, 3]`."""
         return Forward(self.net, lambda _net, image: self(image)["intrinsics"])
+
+
+def _fit_export(optimizer: LMOptimizer, data: dict[str, torch.Tensor]) -> dict[str, Any]:
+    """Upstream's LM loop for an exported graph: all `num_steps` steps, the result of the early-stopped loop.
+
+    Upstream leaves the loop at the first step whose cost is close to the previous one in every image of the batch
+    (`early_stop`: `torch.allclose`, a host read). Here every step runs and the camera and gravity of that first
+    converged step are kept (`torch.where` on the batch-wide flag): the steps after it do not change the result.
+    """
+    opt: Any = optimizer  # upstream's annotations do not match its values (camera tuples, dicts)
+    camera, gravity = cast("Any", get_trivial_estimation)(data, opt.camera_model)
+    opt.setup_optimization_and_priors(data, shared_intrinsics=opt.shared_intrinsics)
+    if opt.shared_intrinsics or opt.conf.fix_lambda or not opt.conf.early_stop or "camera_R_rig" in data:
+        msg = "the exported LM fit implements per-image intrinsics with adaptive damping and early stop only"
+        raise NotImplementedError(msg)
+    grid = ImageGrid.from_camera(camera)
+    errors = opt.calculate_residuals(camera, gravity, data, grid=grid)
+    costs, weights = opt.calculate_costs(errors, data)
+    prev_cost = _total(costs)
+    lamb = data[next(iter(data))].new_ones(camera.shape[0]) * opt.conf.lambda_
+    final_camera, final_gravity = camera._data, gravity._data  # noqa: SLF001
+    stopped = torch.zeros((), dtype=torch.bool, device=lamb.device)  # an earlier step ended upstream's loop
+    for _ in range(opt.num_steps):
+        grad, hess = opt.setup_system(camera, gravity, errors, weights, grid=grid)
+        camera, gravity = opt.update_estimate(camera, gravity, optimizer_step(grad, hess, lamb))
+        errors = opt.calculate_residuals(camera, gravity, data, grid=grid)
+        costs, weights = opt.calculate_costs(errors, data)
+        cost = _total(costs)
+        lamb = update_lambda(lamb, prev_cost, cost)
+        final_camera = torch.where(stopped, final_camera, camera._data)  # noqa: SLF001
+        final_gravity = torch.where(stopped, final_gravity, gravity._data)  # noqa: SLF001
+        stopped = stopped | torch.isclose(cost, prev_cost, rtol=opt.conf.rtol, atol=opt.conf.atol).all()
+        prev_cost = cost
+    return {"camera": type(camera)(final_camera), "gravity": Gravity(final_gravity)}
 
 
 def _features(net: GeoCalib, x: torch.Tensor) -> dict[str, torch.Tensor]:

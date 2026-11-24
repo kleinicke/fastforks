@@ -1,14 +1,23 @@
-"""GeoCalib: the card, the pre-processing (resize / crop) and the device LM step."""
+"""GeoCalib: the card, the pre-processing (resize / crop), the device LM step and the exported LM fit."""
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+from typing import Any
+
+import pytest
 import torch
 
 from fastforks import calibration
 from fastforks._core import registry
-from fastforks.calibration.models.geocalib.model import preprocess
-from fastforks.calibration.models.geocalib.net.lm_optimizer import optimizer_step
+from fastforks._core.patch import override
+from fastforks.calibration.models.geocalib.model import _FIELDS, _GeoCalib, _no_uncertainty, preprocess
+from fastforks.calibration.models.geocalib.net import lm_optimizer
+from fastforks.calibration.models.geocalib.net.camera import camera_models
+from fastforks.calibration.models.geocalib.net.gravity import Gravity
+from fastforks.calibration.models.geocalib.net.lm_optimizer import LMOptimizer, _cholesky_solve_export, optimizer_step
 from fastforks.calibration.models.geocalib.net.misc import J_vecnorm, SphericalManifold
+from fastforks.calibration.models.geocalib.net.perspective_fields import get_perspective_field
 
 
 def test_card() -> None:
@@ -80,3 +89,65 @@ def test_optimizer_step_solves_and_fails_to_zero() -> None:
     bad = h.clone()
     bad[1] = -torch.eye(3)  # not positive definite: the whole batch takes a zero step (as upstream)
     assert not optimizer_step(g, bad, lamb).any()
+
+
+def test_exported_optimizer_step_has_no_cholesky_and_fails_to_zero() -> None:
+    """The exported step solves without a Cholesky operator (ONNX has none) and keeps the batch-wide zero step."""
+
+    class Step(torch.nn.Module):
+        def forward(self, g: torch.Tensor, h: torch.Tensor, lamb: torch.Tensor) -> torch.Tensor:
+            return optimizer_step(g, h, lamb)
+
+    torch.manual_seed(0)
+    a = torch.randn(4, 3, 3)
+    h = a @ a.transpose(1, 2) + 0.1 * torch.eye(3)
+    g = torch.randn(4, 3)
+    lamb = torch.tensor([0.0, 0.1, 1.0, 100.0])
+    program = torch.export.export(Step(), (g, h, lamb), strict=False)
+    targets = {str(node.target) for node in program.graph.nodes if node.op == "call_function"}
+    assert not [t for t in targets if "cholesky" in t or "linalg" in t], targets
+    exported = program.module()
+    torch.testing.assert_close(exported(g, h, lamb), optimizer_step(g, h, lamb), atol=1e-5, rtol=1e-5)
+    for bad_system in (-torch.eye(3), torch.full((3, 3), float("nan"))):
+        bad = h.clone()
+        bad[2] = bad_system
+        assert not optimizer_step(g, bad, torch.zeros(4)).any()  # eager: LAPACK reports the failed pivot
+        assert not exported(g, bad, torch.zeros(4)).any()
+    h[2] = 0  # a zero system is damped to eps on the diagonal: solvable, a large step in both
+    torch.testing.assert_close(exported(g, h, lamb), optimizer_step(g, h, lamb), atol=1e-5, rtol=1e-5)
+    # a 4 x 4 system (simple_radial): the unrolled solve follows the system's size
+    a = torch.randn(2, 4, 4)
+    h, g = a @ a.transpose(1, 2) + 0.1 * torch.eye(4), torch.randn(2, 4)
+    solution, failed = _cholesky_solve_export(g, h)
+    assert not failed.any()
+    expected = torch.cholesky_solve(g[..., None], torch.linalg.cholesky(h))[..., 0]
+    torch.testing.assert_close(solution, expected, atol=1e-4, rtol=1e-4)
+
+
+@pytest.mark.parametrize(("num_steps", "stops_early"), [(30, True), (2, False)])
+def test_exported_fit_equals_the_early_stopped_fit(monkeypatch, num_steps, stops_early) -> None:
+    """The exported fixed-length LM loop gives the eager result, whether upstream's loop stops early or runs out."""
+    opt: Any = LMOptimizer({"camera_model": "pinhole", "num_steps": num_steps}).eval()
+    override(opt, _no_uncertainty, "estimate_uncertainty")
+    runner: Any = SimpleNamespace(net=SimpleNamespace(optimizer=opt))
+
+    class Fit(torch.nn.Module):
+        def forward(self, up: torch.Tensor, latitude: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+            confidence = torch.ones_like(latitude[:, 0])
+            data = dict(zip(_FIELDS, (up, confidence, latitude, confidence), strict=True))
+            out = _GeoCalib._fit(runner, data)  # the eager / export switch under test
+            return out["camera"]._data, out["gravity"]._data
+
+    size = {"height": torch.full((2,), 48.0), "width": torch.full((2,), 64.0)}
+    camera = camera_models["pinhole"].from_dict(size | {"vfov": torch.tensor([0.9, 1.3])}).float()
+    gravity = Gravity.from_rp(torch.tensor([0.2, -0.1]), torch.tensor([0.3, 0.15])).float()
+    fields = get_perspective_field(camera, gravity)
+    steps = []
+    monkeypatch.setattr(lm_optimizer, "optimizer_step", lambda *a: steps.append(1) or optimizer_step(*a))
+    want = Fit()(*fields)
+    assert (len(steps) < num_steps) == stops_early, len(steps)
+    got = torch.export.export(Fit(), fields, strict=False).module()(*fields)
+    for g, w in zip(got, want, strict=True):
+        torch.testing.assert_close(g, w, atol=1e-4, rtol=1e-5)
+    if stops_early:  # the fit recovered the camera the fields were rendered from
+        torch.testing.assert_close(want[0], camera._data, atol=1e-2, rtol=1e-4)

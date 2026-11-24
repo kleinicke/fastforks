@@ -5,7 +5,8 @@ tier = "experimental"
 outputs = ["intrinsics", "gravity", "roll", "pitch", "vfov"]
 uses = ["cuda_graphs", "mlx_wrap"]  # fastforks.shared modules this family imports
 limitations = [
-  "The Levenberg-Marquardt loop branches and logs on its convergence (35 graph breaks: `torch.compile` runs with breaks, no `torch.export`); its damping, singularity check and early stop are batch-wide, as upstream, so a batch is one problem and an image's result can depend on its batch mates.",
+  "The Levenberg-Marquardt loop branches and logs on its convergence (35 graph breaks: `torch.compile` runs with breaks); `torch.export` captures a loop of all 30 steps that keeps the early-stopped result and does not log.",
+  "The damping, singularity check and early stop of the Levenberg-Marquardt fit are batch-wide, as upstream, so a batch is one problem and an image's result can depend on its batch mates.",
   "The standalone FP32 TensorRT benchmark accelerates the 416 x 320 field predictor and uses the usual PyTorch camera optimizer. On 97 portrait LaMAR images the largest angle difference was 0.000048 degrees.",
 ]
 
@@ -48,6 +49,6 @@ venue = "ECCV 2024"
 
 [[variants]]
 id = "geocalib-pinhole"
-planned = { onnx = "dynamic optimizer convergence and unsupported ONNX Cholesky decomposition" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
+planned = { onnx = "the ONNX conversion and the ONNX Runtime check have not run (torch.export captures the fit: all 30 steps with the early-stopped result kept, the 3 x 3 Cholesky solve unrolled)" }  # known broken in 0.2.0: docs/plans/KNOWN_BROKEN_0.2.1.md
 revision = 1
 weights = [{ name = "geocalib-pinhole.tar", size = 116074121, sha256 = "86d6aeacd8bbd974c59ce39f61854e00d36911c732ad89be471476fd708722ac", url = "https://github.com/cvg/GeoCalib/releases/download/v1.0/geocalib-pinhole.tar" }]

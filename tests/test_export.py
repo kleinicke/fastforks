@@ -60,9 +60,6 @@ _NOT_TRACEABLE = {  # module() runs, but neither dynamo nor torch.export capture
     "loma-b@1": "sparse matching: the match count is data-dependent (nonzero; card limitation)",
     "alltracker-tiny@1": "point tracking: the track set is data-dependent (unique; card limitation)",
     "track-on-r@1": "point tracking: a data-dependent scalar read per step (card limitation)",
-    "geocalib-pinhole@1": (
-        "the Levenberg-Marquardt loop branches and logs on its convergence: 35 graph breaks (card limitation)"
-    ),
     "resplat-small-dl3dv@1": (
         "the portable kNN pooling calls torch ops that return non-Tensors: 38 graph breaks (card limitation)"
     ),
@@ -82,6 +79,8 @@ _GRAPH_BREAKS = {  # torch.compile graph-breaks (fine without fullgraph); torch.
     "grounding-dino-tiny@1": (
         "transformers' torch_compilable_check calls Tensor.item() (15 graph breaks); torch.export captures"
     ),
+    "geocalib-pinhole@1": "the Levenberg-Marquardt loop branches and logs on its convergence (graph breaks);"
+    " torch.export captures all its steps and keeps the early-stopped result",
     "zoedepth-nk@1": "the NK model routes each image to the NYU or KITTI head by the argmax of its domain logits"
     " (.item(); the export runs both heads and selects)",
 }

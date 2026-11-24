@@ -98,7 +98,7 @@ Commercial use: yes.
 - Options: `cuda_graphs` = True (speed only)
 - Kernel libraries: `cudnn_hacc`
 - Variants: `geocalib-pinhole`
-- Public ONNX / TensorRT export is unavailable for `geocalib-pinhole` (dynamic optimizer convergence and unsupported ONNX Cholesky decomposition).
+- Public ONNX / TensorRT export is unavailable for `geocalib-pinhole` (the ONNX conversion and the ONNX Runtime check have not run (torch.export captures the fit: all 30 steps with the early-stopped result kept, the 3 x 3 Cholesky solve unrolled)).
 - Outputs: intrinsics, gravity, roll, pitch, vfov
 - Input size: any H x W >= 32, padded to a multiple of 32
 - Tested up to (portable, fp16, RTX 5060 Ti 16 GB): `geocalib-pinhole` 3000x4000 (0.5 GiB peak allocated, 0.6 reserved)
@@ -132,7 +132,8 @@ CPU, float32: max |diff| <= 0.0032 vs the original. GPU, float16 (the default), 
 
 ### Limitations
 
-- The Levenberg-Marquardt loop branches and logs on its convergence (35 graph breaks: `torch.compile` runs with breaks, no `torch.export`); its damping, singularity check and early stop are batch-wide, as upstream, so a batch is one problem and an image's result can depend on its batch mates.
+- The Levenberg-Marquardt loop branches and logs on its convergence (35 graph breaks: `torch.compile` runs with breaks); `torch.export` captures a loop of all 30 steps that keeps the early-stopped result and does not log.
+- The damping, singularity check and early stop of the Levenberg-Marquardt fit are batch-wide, as upstream, so a batch is one problem and an image's result can depend on its batch mates.
 - The standalone FP32 TensorRT benchmark accelerates the 416 x 320 field predictor and uses the usual PyTorch camera optimizer. On 97 portrait LaMAR images the largest angle difference was 0.000048 degrees.
 
 </details>

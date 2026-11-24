@@ -114,6 +114,42 @@ def update_lambda(
     return lamb
 
 
+def _cholesky_solve_export(G: torch.Tensor, H: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    """fastforks: `cholesky_ex` + `cholesky_solve` of the (..., N, N) systems unrolled over the fixed small N.
+
+    ONNX has no Cholesky operator; this is the same factorisation (lower triangle of H, column by column) and the two
+    triangular solves in elementwise operations. Returns the solution (..., N) and `failed` (...): a pivot that is
+    not positive (or NaN), LAPACK potrf's `info != 0`.
+    """
+    n = H.shape[-1]
+    L = [[H[..., i, j] for j in range(n)] for i in range(n)]
+    failed = torch.zeros_like(L[0][0], dtype=torch.bool)
+    for j in range(n):
+        d = L[j][j]
+        for k in range(j):
+            d = d - L[j][k] * L[j][k]
+        failed = failed | ~(d > 0)
+        L[j][j] = torch.sqrt(d)
+        for i in range(j + 1, n):
+            s = L[i][j]
+            for k in range(j):
+                s = s - L[i][k] * L[j][k]
+            L[i][j] = s / L[j][j]
+    y = []
+    for i in range(n):  # L y = G
+        s = G[..., i]
+        for k in range(i):
+            s = s - L[i][k] * y[k]
+        y.append(s / L[i][i])
+    x = list(y)
+    for i in reversed(range(n)):  # L^T x = y
+        s = y[i]
+        for k in range(i + 1, n):
+            s = s - L[k][i] * x[k]
+        x[i] = s / L[i][i]
+    return torch.stack(x, dim=-1), failed
+
+
 def optimizer_step(
     G: torch.Tensor, H: torch.Tensor, lambda_: torch.Tensor, eps: float = 1e-6
 ) -> torch.Tensor:
@@ -135,6 +171,9 @@ def optimizer_step(
 
     # fastforks: factorise and solve on H's device (no host round trip per step); a failed factorisation of any
     # system gives a zero step for the whole batch, as upstream's except branch
+    if torch.compiler.is_exporting():  # fastforks: ONNX has no Cholesky: the same solve unrolled, the same zero step
+        delta, failed = _cholesky_solve_export(G, H)
+        return torch.where(failed.any(), torch.zeros_like(delta), delta)
     U, info = torch.linalg.cholesky_ex(H)
     delta = torch.cholesky_solve(G[..., None], U)[..., 0]
     return torch.where((info != 0).any(), torch.zeros_like(delta), delta)
