@@ -1638,7 +1638,7 @@ class PointTrack(_Node):
         pts = convert.points(points, "points") or convert.grid_points(grid_size, (frames.shape[1], frames.shape[2]))
         queries = torch.tensor([[0.0, x, y] for x, y in pts])
         _mm().throw_exception_if_processing_interrupted()
-        video = frames[..., :3].to(m.device, torch.float32).permute(0, 3, 1, 2)
+        video = frames[..., :3].permute(0, 3, 1, 2)  # on the host: the library moves each frame as the model reads it
         with node_errors():
             r = m(video, queries)
         tracks = r.tracks.float().cpu()
