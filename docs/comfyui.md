@@ -215,7 +215,7 @@ the UI; ComfyUI also lists them under the pack's templates). They load these ima
 only `example.png` ships with ComfyUI, put your own files there under the other names: `scene.png` (a photo with
 people and objects: detection, pose), `small.png` (a small image to upscale), `clip0.png` .. `clip3.png` (consecutive
 frames of a video: interpolation, optical flow, segmenting like a reference, video matting) and `stereo_left.png` /
-`stereo_right.png` (a rectified stereo pair). Six of the ten also carry branches with another
+`stereo_right.png` (a rectified stereo pair). Six of the fourteen also carry branches with another
 pack's nodes for comparison (comfyui_controlnet_aux, ComfyUI-RMBG, ComfyUI-segment-anything-2,
 ComfyUI-Frame-Interpolation); without that pack ComfyUI marks those nodes as missing: delete them or install the
 pack. The upscaling one compares with ComfyUI's own upscale-model node, which needs a file in

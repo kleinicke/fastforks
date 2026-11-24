@@ -191,8 +191,25 @@ class UpSample(nn.Module):
         mask = self.conv3(F.relu(self.conv2(F.relu(self.conv1(torch.cat([flow, feature], dim=1))))))
         b, _, h, w = flow.shape
         k = self.factor
+        neighbors = F.unfold(flow, (3, 3), padding=1)
+        if (
+            mask.is_cuda
+            and flow.dtype == torch.float32
+            and mask.is_contiguous(memory_format=torch.channels_last)
+            and torch.is_inference_mode_enabled()
+            and not (torch.compiler.is_compiling() or torch.jit.is_tracing() or in_onnx_export())
+            and torch.get_float32_matmul_precision() == "highest"
+        ):
+            # Each cell combines nine neighbors for every subpixel and both flow channels. Multiplying per cell
+            # avoids writing the full [B, 2, 9, k, k, H, W] product. Keep the softmax and the product in FP32.
+            cells = b * h * w
+            weights = mask.permute(0, 2, 3, 1).reshape(cells, 9, k * k).softmax(dim=1, dtype=torch.float32)
+            patches = neighbors.transpose(1, 2).reshape(cells, 2, 9)
+            with torch.autocast("cuda", enabled=False):
+                up = torch.bmm(patches, weights)
+            return up.view(b, h, w, 2, k, k).permute(0, 3, 1, 4, 2, 5).reshape(b, 2, k * h, k * w)
         mask = torch.softmax(to_float32(mask).view(b, 1, 9, k, k, h, w), dim=2)
-        up = F.unfold(flow, (3, 3), padding=1).view(b, 2, 9, 1, 1, h, w)
+        up = neighbors.view(b, 2, 9, 1, 1, h, w)
         up = torch.sum(mask * up, dim=2).permute(0, 1, 4, 2, 5, 3)
         return up.reshape(b, 2, k * h, k * w)
 

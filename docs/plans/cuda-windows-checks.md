@@ -39,7 +39,7 @@ fast-acvnet, las2, rtmo (t/s/m/l), rife-4.25 / 4.25-lite / 4.26, gimm-vfi-r and 
 
 ## Follow-up to the two 57e09e83 reviews
 
-Status against `d8099bff` and the local follow-up. The tables distinguish code changes from recorded runs.
+Status against `d8099bff` and the release follow-up. The tables distinguish code changes from recorded runs.
 
 | CUDA / Windows findings | What remains |
 | --- | --- |
@@ -48,22 +48,33 @@ Status against `d8099bff` and the local follow-up. The tables distinguish code c
 | A5, driver floor | Windows DLLs and the MVSAnywhere Windows cubin require a driver supporting CUDA 13.0. The error and hardware guide now say this. Verify CUDA 12 compatibility on the relevant older driver and hardware if that support is needed. |
 | A6, CUDA device | The public model call already guards its CUDA device and binds one kernels device per process. Cubin function lookup now stays inside that device context and direct launches reject a different current device. A real `cuda:1` run needs a two-GPU host. |
 | A7, RoMa v1 | Restored checked Cholesky outside MLX export. The next RoMa v1 parity check can run on Ubuntu. |
-| A8, DLL temp sweep | The deleted-directory retry is present. The race before DLL load remains a Windows-only hardening item. `park/dll-in-place-load` (`b783e6d7`) has prior native Windows evidence and still needs a loader design decision. |
+| A8, DLL temp sweep | The loader retries once if its verified private copy disappears before Windows locks it. An ordinary load failure still raises. The native Windows run is pending. |
 | A9, streamed blocks | Linux parses mapped paths with spaces. Verify a streamed model in a spaced path on Ubuntu. Windows wheel streaming has run. A CUDA runtime outside `torch/lib` needs a Windows conda environment to reproduce. |
-| A10-A12, remaining hardening | Launcher guards, unchecked call-site layouts, MSVC environment decoding and the unchecked areas in the review remain targeted work. Several text reads already specify UTF-8. The ComfyUI cache lock landed and was checked on Windows. The CUDA bicubic check belongs with the focused resize work below. |
+| A10-A12, remaining hardening | Launcher guards and unchecked call-site layouts remain targeted work. The MSVC setup reads Unicode output for tool and environment paths, covered by a Windows-only test. The ComfyUI cache lock landed and was checked on Windows. The CUDA bicubic check is recorded below. |
 
 | ComfyUI / API findings | What remains |
 | --- | --- |
 | 1, 4, package floor and release | Both packs and core are at 0.2.1, both pack licenses are present, and the changelog and planned-feature messages were updated. Registry PublisherId and Icon and a published-package install are release work. |
-| 2, 3, 5-7, Apple routing and memory | Routed `Model.device`, output conversion, strict explicit modes, MLX cache handling and the Apple-only dependency are in code. Whole-photo face restoration ran on Windows. Confirm MLX interpolation, face paste-back, and eviction under pressure on macOS. The local follow-up fixes a cache reference that delayed reclaiming evicted models on every platform. |
-| 8-10, example workflows and first start | w02 uses three universal backend choices and a commercial model. Input files and new workflows are documented, and the cache parent is created. Windows ran ten of fourteen workflows offline with third-party comparison nodes removed. Optional third-party branches and the four missing checkpoints still affect broader workflow coverage. |
+| 2, 3, 5-7, Apple routing and memory | Routed `Model.device`, output conversion (including video, matches and stereo views), strict explicit modes, MLX cache handling and the Apple-only dependency are in code. Whole-photo face restoration ran on Windows and Ubuntu. Confirm MLX interpolation, face paste-back, and eviction under pressure on macOS. The cache follow-up drops references that delayed reclaiming evicted models. |
+| 8-10, example workflows and first start | w02 uses three universal backend choices and a commercial model. Input files and new workflows are documented, and the cache parent is created. Windows ran ten of fourteen workflows offline. Ubuntu ran all fourteen with their Fastforks branches, including all four checkpoints missing on Windows. See [Ubuntu ComfyUI results](comfyui-ubuntu-results.md). |
 | 11, smaller points | The MLX load docstring, one-frame interpolation and duplicate detection conversion were addressed. Detector backend and cache sharing still follow the restorer selection. The transformers conflict depends on the installed packs. |
 
 **Before switching from this Windows machine:** the existing kernel and ComfyUI runs cover the main native paths.
 Keep any Windows-specific sign-off scoped to a release wheel or portable install, or to an issue that reproduces
-only on Windows. The review's full suites, exhaustive survey, cache deletion, driver swaps and kernel rebuilds
-are unnecessary for this handoff. Use Ubuntu for the remaining CUDA exports and TensorRT engines, parity and build
-reproducibility. Leave Turing, Windows conda and multi-GPU coverage with the corresponding hardware or environment.
+only on Windows. Turing, Windows conda and multi-GPU coverage need the corresponding hardware or environment.
+
+## Ubuntu CUDA measurements (2026-11-24)
+
+PyTorch 2.14.1+cu130 on RTX 5060 Ti 16 GB with NVIDIA driver 595.99.02. Each measurement ran alone on the GPU.
+
+- **NeuFlow v2:** all six CUDA goldens passed in portable and kernels mode. With the same FP16 weights and textured
+  synthetic pair at 1920 × 1080, 15 timed calls after six warmups had median latency of 69.7 → 67.6 ms in portable
+  and 57.2 → 55.1 ms in kernels. Kernels peak reserved memory was 824 → 680 MiB. Peak allocated memory was 507 MiB
+  in each kernels run. The maximum difference was 0.00019 flow pixels. At 384 × 256, the CUDA graph replayed on the
+  candidate with a maximum difference of 0.000002 pixels.
+- **OpenCV-style bicubic:** on a 1024 × 1024 uint8 input resized to 1280 × 1280, the one-pass PyTorch float64 path
+  produced the same pixels as the float64 tap gathers. Median latency was 4.45 → 1.57 ms. Peak allocation above the
+  pre-call live tensors was 373 → 81 MiB.
 
 ## Test environment: OpenCV 5 (2026-11-24)
 
