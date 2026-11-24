@@ -24,6 +24,7 @@ import torch
 import torch.nn.functional as F
 
 from fastforks._core.checkpoint import check_fits
+from fastforks._core.mps import release
 from fastforks._core.patch import base_type, override
 from fastforks._core.sampling import grid_sample
 from fastforks._core.tracing import EXPORTING_FOR_MLX, in_onnx_export
@@ -166,7 +167,7 @@ def _bidir(make: Callable[[torch.Tensor, torch.Tensor], Callable[[torch.Tensor],
         capture = torch.compiler.is_compiling() or torch.jit.is_tracing()
         if (
             isinstance(fwd, _VolumeCorr)
-            and f0.is_cuda
+            and f0.device.type in ("cuda", "mps")  # MPS: two 1080 x 1920 pyramids do not fit beside the decoder
             and not capture
             and not torch.is_grad_enabled()
             and f0.shape[0] == 1
@@ -342,6 +343,7 @@ def _predict_flow(  # noqa: PLR0913 - the network, flow and coordinate inputs, a
     del weights1, weights2
     lat = torch.cat([s0, s1], dim=1)
     del s0, s1
+    release(lat)
     dt = _compute_dtype(lat)
     res = torch.cat([lat0.to(dt), lat1.to(dt), lat.to(dt)], dim=1)
     if (
@@ -388,6 +390,7 @@ def _interpolate(  # noqa: PLR0913 - the network, the pair, the time, the params
     f01, feats0 = _raft(raft, raft_inputs[0], (fnet0, fnet1), p.iters, make)
     f10, feats1 = _raft(raft, raft_inputs[1], (fnet1, fnet0), p.iters, make)
     del raft_inputs
+    release(fnet0)  # MPS: return RAFT's cached volumes before the bidirectional pair is built
     corr_fn = _bidir(make)(net.amt_fproj(fnet0), net.amt_fproj(fnet1))
     del fnet0, fnet1
     features0 = [net.amt_second_last_cproj(feats0[0]), net.amt_last_cproj(feats0[1])]
@@ -396,6 +399,7 @@ def _interpolate(  # noqa: PLR0913 - the network, the pair, the time, the params
     normal, scalers = normalize_flow(torch.stack([f01, -f10], dim=2))
     flows = torch.stack([f01, f10], dim=2)
     del f01, f10
+    release(flows)  # MPS: the full-resolution decoder needs the room the encoders' cache holds
     if full is not None:
         h, w = int(full.shape[-2] * p.ds_factor), int(full.shape[-1] * p.ds_factor)  # upstream's upsample_ratio
     flow_t = _predict_flow(net, normal, _coords(b, h, w, t), t, flows, portable=make is _VolumeCorr)
