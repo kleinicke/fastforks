@@ -3,10 +3,11 @@ name = "Segment Anything (SAM)"
 summary = "Segment Anything (Kirillov et al. 2023): promptable segmentation with a ViT image encoder (windowed + global attention, relative positions) and a light prompt encoder / mask decoder; masks from points, boxes and mask logits. The portable `module()` is the image encoder only."
 tier = "stable"
 outputs = ["pred_masks", "iou_scores"]
-uses = ["mlx_wrap", "sam_attention"]  # fastforks.shared modules this family imports
+uses = ["cuda_graphs", "mlx_wrap", "sam_attention", "sam_prompt"]  # fastforks.shared modules this family imports
 
 limitations = [
   "On the RTX 5060 Ti at 3840 × 2160 with 12 point prompts and 36 output masks, SAM ViT-B used 742 MiB portable and 741 MiB kernels, down from 1,667 MiB in both modes. Masks, scores and logits matched bit for bit. Paired latency was 75.3 to 77.0 ms portable and 64.1 to 65.8 ms kernels.",
+  "Kernels keep CUDA graphs of the prompt decode: their private pool and static outputs stay reserved, so reserved is ~100 MiB above `cuda_graphs=false` at 1024 x 1024 (540 vs 440 MiB, RTX 5060 Ti, Windows; peak allocated +37 MiB); `cuda_graphs=false` or `release_graphs()` frees it.",
 ]
 
 [upstream]
@@ -36,6 +37,9 @@ mlx_dtypes = ["float32", "float16"]
 
 [modes.kernels]
 kernels = ["dpt_fused"]
+
+[options]
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay CUDA graphs of the decode of up to 4 prompts (false: eager, no extra memory)
 
 [[papers]]
 title = "Segment Anything"

@@ -485,7 +485,7 @@ class _Base(Runner):
         rm, tm = mid[:3, :3], mid[:3, 3]
         means = (f64(g["means"]) @ rm.T + tm).float()
         rot = g["rotations"] / (g["rotations"].norm(dim=-1, keepdim=True) + 1e-8)  # x y z w, camera frame
-        q = quaternion_product(matrix_quaternion(c2w[:, :3, :3])[:, None], f64(rot[..., [3, 0, 1, 2]]))
+        q = quaternion_product(matrix_quaternion(c2w[:, :3, :3])[:, None], f64(rot.roll(1, -1)))
         q = (q * torch.where(q[..., :1] < 0, -1.0, 1.0)).float()
         harmonics = g["harmonics"] @ sh_rotation(rm).float()
         return {

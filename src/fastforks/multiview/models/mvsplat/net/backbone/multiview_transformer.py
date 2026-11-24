@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from fastforks._core.mlx_cast import to_run_dtype  # fastforks: run-dtype casts on MLX
+from fastforks._core.upload import to_device  # fastforks
 
 from .unimatch.utils import split_feature, merge_splits
 
@@ -28,7 +29,7 @@ def generate_shift_window_attn_mask(
     # Ref: https://github.com/microsoft/Swin-Transformer/blob/main/models/swin_transformer.py
     # calculate attention mask for SW-MSA
     h, w = input_resolution
-    img_mask = torch.zeros((1, h, w, 1)).to(device)  # 1 H W 1
+    img_mask = torch.zeros((1, h, w, 1))  # 1 H W 1  # fastforks: filled on the CPU, uploaded once below
     h_slices = (
         slice(0, -window_size_h),
         slice(-window_size_h, -shift_size_h),
@@ -45,6 +46,7 @@ def generate_shift_window_attn_mask(
             img_mask[:, h, w, :] = cnt
             cnt += 1
 
+    img_mask = to_device(img_mask, device)  # fastforks: to_device (a pageable upload syncs the host)
     mask_windows = split_feature(
         img_mask, num_splits=input_resolution[-1] // window_size_w, channel_last=True
     )

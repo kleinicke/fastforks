@@ -3,7 +3,7 @@ name = "MVSAnywhere"
 summary = "MVSAnywhere (Izquierdo et al. 2025): zero-shot multi-view stereo, the depth of a reference view from posed, calibrated source views. A view-agnostic MLP cost volume (warped matching features + camera metadata, softmax over the views) is encoded by a DINOv2 ViT-B fused with a second DINOv2's image features and decoded by a DPT head; the depth range comes from the camera baselines and is refined once."
 tier = "stable"
 outputs = ["depth", "mask", "sky", "depth_range"]  # mask: not sky; extras: sky probability [1, H, W], depth range used [1, 2]
-uses = ["depth_anything_v2", "cnn_kernels", "quantile", "mlx_wrap"]  # fastforks.shared modules this family imports (DINOv2, DPT fusion blocks)
+uses = ["depth_anything_v2", "cnn_kernels", "cuda_graphs", "quantile", "mlx_wrap"]  # fastforks.shared modules this family imports (DINOv2, DPT fusion blocks)
 limitations = [
   "At eight views and 448 x 672, FP16 TensorRT took 75.91 ms on a calibrated DTU input versus 94.10 ms portable. Across five scans, mean depth MAE was 7.68 mm TensorRT and 7.69 mm portable. The FP32 engine remains available through a separate ONNX export and build.",
 ]
@@ -34,6 +34,7 @@ pad = "none"
 [options]
 long_side = { default = 640, min = 64 }  # network long side; the short side follows the aspect ratio (multiples of 16)
 refinement_steps = { default = 1, min = 0 }  # depth-range refinement passes (original num_refinement_steps)
+cuda_graphs = { default = true, effect = "speed" }  # kernels: replay a CUDA graph of a repeated scene layout (false: eager, no graph pool)
 
 [modes.portable]
 cuda_dtype = "float16"
