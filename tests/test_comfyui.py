@@ -13,6 +13,7 @@ import os
 import re
 import sys
 import types
+import warnings
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -88,10 +89,48 @@ def test_image_round_trip(pack: Any) -> None:
     frames = [c.frame(img, i, torch.device("cpu")) for i in range(2)]
     assert frames[0].shape == (3, 5, 7)
     assert torch.equal(c.to_image(frames), img)
+    assert torch.equal(c.to_image([frames[0] * 2 - 0.5]), (img[:1] * 2 - 0.5).clamp(0, 1))
+    assert torch.equal(c.to_mask([torch.ones(5, 7, dtype=torch.bool)]), torch.ones(1, 5, 7))
+    with pytest.raises(ValueError, match="differ in size"):
+        c.to_image([frames[0], frames[0][:, :4]])
+    with pytest.raises(ValueError, match="no images"):
+        c.to_mask([])
     rgba = torch.rand(1, 5, 7, 4)
     assert torch.equal(c.frame(rgba, 0, torch.device("cpu")), rgba[0, ..., :3].permute(2, 0, 1))
     gray = torch.rand(1, 5, 7, 1)
     assert torch.equal(c.frame(gray, 0, torch.device("cpu"))[2], gray[0, ..., 0])
+
+
+@pytest.mark.gpu
+def test_per_image_maps_queue_without_a_host_sync(pack: Any) -> None:
+    """The maps the nodes make per image only queue work on CUDA: a host sync would stall the next model call."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    c, cuda = pack.convert, torch.device("cuda")
+    depth, normals = torch.rand(6, 7, device=cuda) + 0.5, torch.randn(6, 7, 3, device=cuda)
+    flow, labels = torch.randn(2, 6, 7, device=cuda), torch.randint(0, 5, (6, 7), device=cuda)
+    colours = c.palette(5).to(cuda)
+    c.flow_image(flow)  # the colour wheel is uploaded once per device
+    torch.cuda.synchronize()
+    with warnings.catch_warnings():  # "a prototype feature"
+        warnings.simplefilter("ignore", UserWarning)
+        torch.cuda.set_sync_debug_mode("error")  # a host sync raises
+    try:
+        maps = [
+            c.depth_image(depth, None),
+            c.depth_image(None, 1 / depth),
+            c.depth_image(None, 1 / depth, clip=0.05),  # the Stereo node's quantiles
+            c.normals_image(normals),
+            c.flow_image(flow),
+            c.labels_image(labels, colours),
+            c.class_presence(labels, 5),
+        ]
+    finally:
+        torch.cuda.set_sync_debug_mode("default")
+    assert all(m.device.type == "cuda" for m in maps)
+    assert torch.equal(maps[2].cpu(), c.depth_image(None, 1 / depth.cpu(), clip=0.05))
+    assert torch.equal(maps[3].cpu(), c.normals_image(normals.cpu()))
+    assert torch.equal(maps[6][:5].cpu(), torch.bincount(labels.flatten().cpu(), minlength=5) > 0)
 
 
 @pytest.mark.gpu
@@ -311,12 +350,15 @@ def test_pair_nodes_batch_size_matches_one_pair_at_a_time(pack: Any, monkeypatch
     kw = {"frames": frames, "model": "m", "backend": "auto", "dtype": "auto"}
     one, three = (nodes.Interpolate().run(**kw, multiplier=3, batch_size=b)[0] for b in (1, 3))
     assert one.shape == (13, 4, 6, 3)
+    assert torch.equal(one[::3], frames)  # the input frames themselves, between them the model's
+    torch.testing.assert_close(one[1], frames[0] * 2 / 3 + frames[1] / 3)
     torch.testing.assert_close(three, one)
     assert calls[-4:] == [(3, 3, 4, 6), (3, 3, 4, 6), (1, 3, 4, 6), (1, 3, 4, 6)]  # 2 timesteps x 2 chunks
     calls.clear()
     one_f, three_f = (nodes.Flow().run(**kw, batch_size=b) for b in (1, 3))
     assert calls == [(3, 4, 6)] * 4 + [(3, 3, 4, 6), (1, 3, 4, 6)]
     torch.testing.assert_close(three_f[1], one_f[1])
+    assert torch.equal(one_f[1][0], (frames[1] - frames[0])[..., :2])  # raw flow: pixels, not clamped
     torch.testing.assert_close(three_f[0], one_f[0])
     calls.clear()
     monkeypatch.setattr(nodes, "load", lambda *_a, **_k: pytest.fail("a single frame needs no model"))
@@ -902,6 +944,12 @@ def test_semantic_maps(pack: Any) -> None:
     img = c.labels_image(torch.tensor([[0, 2]]), pal)
     assert img.shape == (3, 1, 2)
     assert img[:, 0, 1].tolist() == pal[2].tolist()
+    seen = torch.stack(
+        [c.class_presence(torch.tensor([[2, 0], [2, 2]]), 3), c.class_presence(torch.ones(2, 2, dtype=torch.long), 3)]
+    )
+    assert c.present_names(seen, ("wall", "sky", "tree")) == ["wall, tree", "sky"]
+    with pytest.raises(ValueError, match="outside its 3 classes"):
+        c.present_names(c.class_presence(torch.tensor([[1, 3]]), 3)[None], ("wall", "sky", "tree"))
 
 
 def test_flow_image_and_warp(pack: Any) -> None:
@@ -1387,3 +1435,38 @@ def test_pack_ships_the_repository_licence(pack_dir: Path) -> None:
     """Each pack folder is published on its own (`comfy node publish`), so it carries a copy of the LICENSE."""
     assert (pack_dir / "LICENSE").read_bytes() == (PACK.parents[1] / "LICENSE").read_bytes()
     assert 'license = { file = "LICENSE" }' in (pack_dir / "pyproject.toml").read_text(encoding="utf-8")
+
+
+def test_classifier_nodes_read_results_after_the_loop(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Classify, Tag and NsfwCheck give the same text with `batch_size` 1 and 2 (results read after the loop)."""
+    nodes = pack.nodes
+    names = ("normal", "nsfw", "cat")
+
+    class Result(SimpleNamespace):
+        def top(self, k: int) -> Any:
+            p, i = self.probs.topk(k, dim=-1)
+            pairs = zip(i.reshape(-1, k).tolist(), p.reshape(-1, k).tolist(), strict=True)
+            rows = [[(names[c], v) for c, v in zip(ci, pi, strict=True)] for ci, pi in pairs]
+            return rows if self.probs.ndim > 1 else rows[0]
+
+    class Model:
+        device = torch.device("cpu")
+        class_names = names
+
+        def __call__(self, x: torch.Tensor) -> Any:
+            mean = x.mean(dim=(-3, -2, -1), keepdim=False)
+            return Result(probs=torch.stack([1 - mean, mean, mean / 2], dim=-1))
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: Model())
+    monkeypatch.setattr(nodes, "each", lambda n, fn: [fn(i) for i in range(n)])
+    monkeypatch.setattr(nodes, "_WD_GENERAL", 1)
+    monkeypatch.setattr(nodes, "_WD_CHARACTERS", 2)
+    image = torch.stack([torch.full((2, 2, 3), v) for v in (0.2, 0.9, 0.6)])
+    kw = {"image": image, "model": "m", "backend": "auto", "dtype": "auto"}
+    for b in (1, 2):
+        assert nodes.Classify().run(**kw, top_k=1, batch_size=b) == ("normal: 0.8000\n\nnsfw: 0.9000\n\nnsfw: 0.6000",)
+        tags = nodes.Tag().run(**kw, general_threshold=0.5, character_threshold=0.4, batch_size=b)
+        assert tags == ("\nnsfw, cat\nnsfw",)
+        label, score = nodes.NsfwCheck().run(**kw, batch_size=b)
+        assert label == "normal\nnsfw\nnsfw"
+        assert score == pytest.approx(0.9)

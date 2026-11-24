@@ -1223,22 +1223,24 @@ class Interpolate(_Node):
 
             def pairs_of(a: torch.Tensor, b: torch.Tensor) -> list[list[torch.Tensor]]:
                 mids = [m(a, b, timestep=k / multiplier).frame for k in range(1, multiplier)]
-                return [[a[i]] + [t[i] for t in mids] for i in range(len(a))]
+                return [[t[i] for t in mids] for i in range(len(a))]
 
-            out = [f for pair in each_pairs(frames, m, batch_size, pairs_of) for f in pair]
-            return (convert.to_image([*out, convert.frame(frames, n - 1, m.device)], _out_device()),)
+            between = each_pairs(frames, m, batch_size, pairs_of)
+        else:
+            last: list[torch.Tensor] = []  # the previous pair's second frame: each frame is uploaded once
 
-        last: list[torch.Tensor] = []  # the previous pair's second frame: each frame is uploaded once
+            def one(i: int) -> list[torch.Tensor]:
+                a = last.pop() if last else convert.frame(frames, i, m.device)
+                b = convert.frame(frames, i + 1, m.device)
+                last.append(b)
+                return [m(a, b, timestep=k / multiplier).frame for k in range(1, multiplier)]
 
-        def one(i: int) -> list[torch.Tensor]:
-            a = last.pop() if last else convert.frame(frames, i, m.device)
-            b = convert.frame(frames, i + 1, m.device)
-            last.append(b)
-            return [a] + [m(a, b, timestep=k / multiplier).frame for k in range(1, multiplier)]
-
-        pairs = each(n - 1, one)
-        out = [f for pair in pairs for f in pair] + last
-        return (convert.to_image(out, _out_device()),)
+            between = each(n - 1, one)
+        # the input frames are taken from the input where the output goes, not downloaded back from the model's device
+        out_device = _out_device()
+        given = [convert.frame(frames, i, out_device) for i in range(n)]
+        out = [f for i, mids in enumerate(between) for f in (given[i], *mids)] + [given[-1]]
+        return (convert.to_image(out, out_device),)
 
 
 class Classify(_Node):
@@ -1271,7 +1273,8 @@ class Classify(_Node):
         def one(r: Any, k: int | None) -> str:  # noqa: ANN401 - a classification result
             return "\n".join(f"{name}: {p:.4f}" for name, p in at(r.top(top_k), k))
 
-        return ("\n\n".join(each_result(image, m, batch_size, one)),)
+        # read on the host after the loop: a read per image would wait for it before the next one is queued
+        return ("\n\n".join(one(r, k) for r, k in each_result(image, m, batch_size, lambda r, k: (r, k))),)
 
 
 _WD_GENERAL, _WD_CHARACTERS = 4, 8110  # WD v3 label set: ratings, then general tags, then characters (card)
@@ -1331,10 +1334,8 @@ class Tag(_Node):
         m = load(model, backend, dtype)
         names = cast("tuple[str, ...]", m.class_names)  # ty: ignore[unresolved-attribute]
 
-        def one(r: Any, k: int | None) -> str:  # noqa: ANN401 - a classification result
-            return wd_tags(at(r.probs, k).float().cpu(), names, general_threshold, character_threshold)
-
-        return ("\n".join(each_result(image, m, batch_size, one)),)
+        probs = torch.stack(each_result(image, m, batch_size, lambda r, k: at(r.probs, k))).float().cpu()  # read once
+        return ("\n".join(wd_tags(p, names, general_threshold, character_threshold) for p in probs),)
 
 
 class NsfwCheck(_Node):
@@ -1362,7 +1363,7 @@ class NsfwCheck(_Node):
         """Classify every image."""
         m = load(model, backend, dtype)
         names = cast("tuple[str, ...]", m.class_names)  # ty: ignore[unresolved-attribute]
-        probs = each_result(image, m, batch_size, lambda r, k: at(r.probs, k).float().cpu())
+        probs = torch.stack(each_result(image, m, batch_size, lambda r, k: at(r.probs, k))).float().cpu()  # read once
         labels = "\n".join(names[int(p.argmax())] for p in probs)
         return labels, max(float(p[names.index("nsfw")]) for p in probs)
 
@@ -1415,17 +1416,18 @@ class SemanticSegment(_Node):
         """Segment every image."""
         m = load(model, backend, dtype)
         names = cast("tuple[str, ...]", m.class_names)  # ty: ignore[unresolved-attribute]
-        wanted = torch.tensor(convert.class_ids(classes, names), dtype=torch.long)
-        colours = convert.palette(len(names))
+        ids = convert.class_ids(classes, names)
+        wanted = torch.tensor(ids, dtype=torch.long, device=m.device)  # on the device once, not uploaded per image
+        colours = convert.palette(len(names)).to(m.device)
 
-        def one(r: Any, k: int | None) -> tuple[torch.Tensor, torch.Tensor, list[str], list[torch.Tensor]]:  # noqa: ANN401
+        def one(r: Any, k: int | None) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, list[torch.Tensor]]:  # noqa: ANN401
             lab = at(r.labels, k)
-            present = [names[c] for c in lab.unique().tolist()]
+            present = convert.class_presence(lab, len(names))  # read once for the batch: no host sync per image
             mask = torch.isin(lab, wanted.to(lab.device))
-            return convert.labels_image(lab, colours), mask, present, [lab == c for c in wanted.tolist()] or [mask]
+            return convert.labels_image(lab, colours), mask, present, [lab == c for c in ids] or [mask]
 
         out = each_result(image, m, batch_size, one)
-        found = "\n".join(", ".join(o[2]) for o in out)
+        found = "\n".join(convert.present_names(torch.stack([o[2] for o in out]).cpu(), names))
         return (
             convert.to_image([o[0] for o in out], _out_device()),
             convert.to_mask([o[1] for o in out], _out_device()),
@@ -1526,8 +1528,9 @@ class Flow(_Node):
                 return m(a, b).flow
 
             flows = each(frames.shape[0] - 1, pair)
-        raw = torch.stack([f.detach().float().permute(1, 2, 0) for f in flows]).to(_out_device()).contiguous()
-        return convert.to_image([convert.flow_image(f) for f in flows], _out_device()), raw
+        return convert.to_image([convert.flow_image(f) for f in flows], _out_device()), convert.to_flow(
+            flows, _out_device()
+        )
 
 
 class Warp(_Node):

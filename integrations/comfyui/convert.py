@@ -7,6 +7,7 @@ fastforks takes channel-first images `[3, H, W]` in `[0, 1]` and returns maps on
 from __future__ import annotations
 
 import difflib
+import fractions
 import functools
 import json
 import math
@@ -69,11 +70,6 @@ def frames(image: torch.Tensor, start: int, stop: int, device: torch.device) -> 
     if x.shape[-1] == 1:
         x = x.expand(-1, -1, -1, _RGB)
     return x[..., :_RGB].permute(0, 3, 1, 2)
-
-
-def _together(maps: Sequence[torch.Tensor]) -> list[torch.Tensor]:
-    """`maps` on the device of the first: a node may mix its inputs with results that came back on another device."""
-    return [m.to(maps[0].device) for m in maps]
 
 
 class _Ahead:
@@ -145,14 +141,36 @@ def drop_ahead() -> None:
 
 
 def to_image(maps: Sequence[torch.Tensor], device: torch.device | str = "cpu") -> torch.Tensor:
-    """RGB maps of fastforks `[3, H, W]` in `[0, 1]` (one per image) -> IMAGE `[B, H, W, 3]` float32."""
-    hwc = [m.detach().float().permute(1, 2, 0) for m in _together(maps)]
-    return torch.stack(hwc).clamp(0, 1).to(device).contiguous()
+    """RGB maps of fastforks `[3, H, W]` in `[0, 1]` (one per image, on any device) -> IMAGE `[B, H, W, 3]` float32."""
+    return _batch([m.detach().float().permute(1, 2, 0) for m in maps], device)
 
 
 def to_mask(maps: Sequence[torch.Tensor], device: torch.device | str = "cpu") -> torch.Tensor:
     """Masks or alpha maps `[H, W]` (bool or float in `[0, 1]`, one per image) -> MASK `[B, H, W]` float32."""
-    return torch.stack([m.detach().float() for m in _together(maps)]).clamp(0, 1).to(device).contiguous()
+    return _batch([m.detach().float() for m in maps], device)
+
+
+def to_flow(flows: Sequence[torch.Tensor], device: torch.device | str = "cpu") -> torch.Tensor:
+    """Optical flows `[2, H, W]` (pixels, one per pair) -> `[B, H, W, 2]` float32, unclamped."""
+    return _batch([f.detach().float().permute(1, 2, 0) for f in flows], device, clamp=False)
+
+
+def _batch(maps: Sequence[torch.Tensor], device: torch.device | str, *, clamp: bool = True) -> torch.Tensor:
+    """`torch.stack(maps).clamp(0, 1)` on `device`, each map clamped where it is and copied into its slot.
+
+    Stacking on the GPU first held a second copy of every output there (+760 MiB at 32 x 1080p) for the same
+    download time; a map already on `device` (e.g. an input frame) is not moved.
+    """
+    if not maps:
+        msg = "no images to return"
+        raise ValueError(msg)
+    if any(m.shape != maps[0].shape for m in maps):
+        msg = f"the images differ in size: {sorted({tuple(m.shape) for m in maps})}"
+        raise ValueError(msg)
+    out = torch.empty(len(maps), *maps[0].shape, device=device)
+    for o, m in zip(out, maps, strict=True):
+        o.copy_(m.clamp(0, 1) if clamp else m)
+    return out
 
 
 def with_alpha(image: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
@@ -184,23 +202,29 @@ def depth_image(depth: torch.Tensor | None, inverse_depth: torch.Tensor | None, 
         msg = "the model returned neither depth nor inverse_depth"
         raise ValueError(msg)
     valid = torch.isfinite(inv)
+    # the valid pixels' range without a host sync (none valid: every pixel is black below)
     if clip:
-        if not valid.any():
-            return torch.zeros(_RGB, *inv.shape, device=inv.device)
-        lo, hi = _range(inv[valid], clip)
-    else:  # min / max of the valid pixels without a host sync (none valid: every pixel is black below)
+        lo, hi = _quantiles(inv, valid, clip)
+    else:
         lo, hi = torch.where(valid, inv, math.inf).amin(), torch.where(valid, inv, -math.inf).amax()
     scaled = ((inv - lo) / (hi - lo).clamp_min(torch.finfo(torch.float32).tiny)).clamp(0, 1)
     return torch.where(valid, scaled, 0).unsqueeze(0).expand(_RGB, *inv.shape)
 
 
-def _range(values: torch.Tensor, clip: float) -> tuple[torch.Tensor, torch.Tensor]:
-    """The `clip` and `1 - clip` quantiles of a non-empty 1-D tensor (its minimum and maximum for `clip` 0)."""
-    k = int(clip * values.numel())
-    if k == 0:
-        return values.min(), values.max()
-    ordered = values.sort().values  # sort runs on every device (torch.quantile is capped at 16M elements)
-    return ordered[k], ordered[-1 - k]
+def _quantiles(values: torch.Tensor, valid: torch.Tensor, clip: float) -> tuple[torch.Tensor, torch.Tensor]:
+    """The `clip` and `1 - clip` quantiles of the valid values: the `k`-th smallest and largest, `k = floor(clip n)`.
+
+    Read on the device: the invalid values sort last as +inf and `k` is integer arithmetic on the device's count of
+    valid ones (`clip` as a fraction: MPS has no float64), so nothing waits for the GPU. With none valid both are inf.
+    `sort` runs on every device (`torch.quantile` is capped at 16M elements).
+    """
+    ordered = torch.where(valid, values, math.inf).flatten().sort().values
+    n = valid.sum()
+    q = fractions.Fraction(clip).limit_denominator(10**6)
+    k = n * q.numerator // q.denominator
+    lo = ordered.index_select(0, k.clamp(max=ordered.numel() - 1).view(1))  # a tensor index would read it on the host
+    hi = ordered.index_select(0, (n - 1 - k).clamp(min=0).view(1))
+    return lo, hi
 
 
 def normals_image(normals: torch.Tensor) -> torch.Tensor:
@@ -209,7 +233,8 @@ def normals_image(normals: torch.Tensor) -> torch.Tensor:
     The usual normal-map convention: red = right, green = up, blue = towards the camera, each `0.5 + 0.5 * n`;
     a surface facing the camera is light blue.
     """
-    n = torch.nan_to_num(normals.float()) * normals.new_tensor([1.0, -1.0, -1.0])
+    n = torch.nan_to_num(normals.float())
+    n = torch.cat([n[..., :1], -n[..., 1:]], dim=-1)  # y up, z towards the camera (no host-to-device sign tensor)
     return (0.5 + 0.5 * n).clamp(0, 1).permute(2, 0, 1)
 
 
@@ -335,7 +360,7 @@ def draw_pose(  # noqa: PLR0913 - the fields of one image's pose result
         for (x, y), s in zip(kp, sc, strict=True):
             if s >= threshold:
                 draw.ellipse([x - width, y - width, x + width, y + width], fill=(255, 255, 255))
-    return torch.from_numpy(np.asarray(canvas).copy()).permute(2, 0, 1).float() / 255
+    return torch.from_numpy(np.array(canvas)).permute(2, 0, 1).float().div_(255)
 
 
 def to_json(obj: object) -> str:
@@ -388,8 +413,29 @@ def unknown_classes(unknown: Sequence[str], class_names: Sequence[str]) -> str:
     return f"{msg}, e.g. {shown}{', ...' if len(class_names) > _SHOWN_CLASSES else ''}; names are case-insensitive"
 
 
+def class_presence(labels: torch.Tensor, n: int) -> torch.Tensor:
+    """Which of `n` classes appear in a label map: `[n + 1]` bool on its device, read without a host sync.
+
+    The last entry flags indices outside `[0, n)`; `present_names` raises for it once the batch is read.
+    """
+    seen = torch.zeros(n + 1, dtype=torch.bool, device=labels.device)
+    flat = labels.flatten()
+    return seen.index_fill_(0, torch.where((flat >= 0) & (flat < n), flat, n), value=True)  # `[i] = True` syncs
+
+
+def present_names(seen: torch.Tensor, class_names: Sequence[str]) -> list[str]:
+    """`class_presence` rows `[B, n + 1]` -> per image, its classes' names (comma-separated, in class order)."""
+    if seen[:, len(class_names)].any():
+        msg = f"the model returned class indices outside its {len(class_names)} classes"
+        raise ValueError(msg)
+    return [", ".join(class_names[c] for c in row.nonzero().flatten().tolist()) for row in seen[:, :-1]]
+
+
 def labels_image(labels: torch.Tensor, colours: torch.Tensor) -> torch.Tensor:
-    """Class indices `[H, W]` -> colour map `[3, H, W]` (`colours[c]` per class)."""
+    """Class indices `[H, W]` -> colour map `[3, H, W]` (`colours[c]` per class).
+
+    Pass `colours` on the labels' device: an upload per image waits for the device's queued work.
+    """
     return colours.to(labels.device)[labels].permute(2, 0, 1)
 
 
@@ -399,7 +445,7 @@ def flow_image(flow: torch.Tensor) -> torch.Tensor:
     Hue = direction, saturation = speed scaled by the largest finite speed of the image (white = no motion).
     """
     dx, dy = torch.nan_to_num(flow.float(), nan=0.0, posinf=0.0, neginf=0.0)
-    wheel = _colour_wheel().to(flow.device)
+    wheel = _colour_wheel(flow.device)
     n = wheel.shape[0]
     rad = torch.sqrt(dx**2 + dy**2)
     rad = rad / rad.max().clamp_min(torch.finfo(torch.float32).eps)
@@ -412,15 +458,19 @@ def flow_image(flow: torch.Tensor) -> torch.Tensor:
     return col.clamp(0, 1).permute(2, 0, 1)
 
 
-def _colour_wheel() -> torch.Tensor:
-    """The Baker et al. colour wheel `[55, 3]` in `[0, 1]`: red, yellow, green, cyan, blue, magenta, back to red."""
+@functools.cache
+def _colour_wheel(device: torch.device) -> torch.Tensor:
+    """The Baker et al. colour wheel `[55, 3]` in `[0, 1]` on `device`: red, yellow, green, cyan, blue, magenta, red.
+
+    Cached: an upload per call would wait for the device's queued work. Read-only.
+    """
     stops = [(1, 0, 0), (1, 1, 0), (0, 1, 0), (0, 1, 1), (0, 0, 1), (1, 0, 1), (1, 0, 0)]
     counts = [15, 6, 4, 11, 13, 6]
     rows = []
     for a, b, n in zip(stops, stops[1:], counts, strict=False):
         start, end = torch.tensor(a, dtype=torch.float32), torch.tensor(b, dtype=torch.float32)
         rows.append(start + (end - start) * (torch.arange(n, dtype=torch.float32).unsqueeze(-1) / n))
-    return torch.cat(rows)
+    return torch.cat(rows).to(device)
 
 
 def warp(image: torch.Tensor, flow: torch.Tensor) -> torch.Tensor:
@@ -478,4 +528,4 @@ def draw_tracks(  # noqa: PLR0913 - one video's tracks
         if vis[-1][q]:
             x, y = pts[-1][q]
             draw.ellipse([x - width - 1, y - width - 1, x + width + 1, y + width + 1], fill=colour)
-    return torch.from_numpy(np.asarray(canvas).copy()).permute(2, 0, 1).float() / 255
+    return torch.from_numpy(np.array(canvas)).permute(2, 0, 1).float().div_(255)
