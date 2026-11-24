@@ -738,8 +738,10 @@ class _Inputs:
         self.path, self.stamp = Path(cache) / self.NAME, _source_stamp()
         with contextlib.suppress(OSError, ValueError):  # missing or unreadable: worked out again and rewritten
             kept = json.loads(self.path.read_text(encoding="utf-8"))
-            if kept.get("stamp") == self.stamp:
-                self.data = kept["inputs"]
+            if isinstance(kept, dict) and kept.get("stamp") == self.stamp:
+                inputs = kept.get("inputs")
+                if isinstance(inputs, dict):
+                    self.data = {mid: spec for mid, spec in inputs.items() if isinstance(spec, dict)}
 
 
 _inputs = _Inputs()

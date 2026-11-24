@@ -1595,6 +1595,27 @@ def test_model_inputs_are_kept_across_starts(pack: Any, monkeypatch: pytest.Monk
         nodes._Inputs().of("sam2.1-hiera-small")
 
 
+@pytest.mark.parametrize(
+    "record", [[], {"stamp": "test", "inputs": None}, {"stamp": "test", "inputs": {"sam2.1-hiera-small": []}}]
+)
+def test_invalid_model_input_cache_is_rebuilt(
+    pack: Any, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, record: object
+) -> None:
+    nodes = pack.nodes
+    monkeypatch.setenv("FASTFORKS_CACHE", str(tmp_path))
+    monkeypatch.setattr(nodes, "_source_stamp", lambda: "test")
+    path = tmp_path / nodes._Inputs.NAME
+    path.write_text(json.dumps(record), encoding="utf-8")
+    inputs = nodes._Inputs()
+    spec = inputs.of("sam2.1-hiera-small")
+    assert spec["image"] == "required"
+    inputs.save()
+    assert json.loads(path.read_text(encoding="utf-8")) == {
+        "stamp": "test",
+        "inputs": {"sam2.1-hiera-small": spec},
+    }
+
+
 def test_face_alignment_maths(pack: Any) -> None:
     """The similarity fit recovers a transform; warp and its inverse round-trip; an unchanged face pastes back as is."""
     faces = pack.nodes._faces
