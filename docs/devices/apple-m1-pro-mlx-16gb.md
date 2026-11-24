@@ -23,8 +23,8 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 
 | model | time (ms): portable fp32 | portable fp16 | kernels fp32 | kernels fp16 | kernels speed-up: vs portable | peak memory (MiB, process footprint, fastest dtype): portable | kernels |
 |---|---|---|---|---|---|---|---|
-| [`aanet-plus-sceneflow`](../models/stereo.md#aanet) | 1898 | 1367 | – | – | – | 2989 | – |
-| [`aanet-sceneflow`](../models/stereo.md#aanet) | 1724 | 1695 | – | – | – | 2131 | – |
+| [`aanet-plus-sceneflow`](../models/stereo.md#aanet) | 925 | 687 | – | – | – | 2259 | – |
+| [`aanet-sceneflow`](../models/stereo.md#aanet) | 692 | 492 | – | – | – | 1362 | – |
 | [`bridgedepth-rvc-pretrain`](../models/stereo.md#bridgedepth) | 4192 | 3179 | unsupported | – | – | 2555 | – |
 | [`bridgedepth-sf`](../models/stereo.md#bridgedepth) | 4973 | 3977 | – | – | – | 2650 | – |
 | [`c-fast-foundationstereo`](../models/stereo.md#c_foundationstereo) | 4565 | 2737 | – | – | – | 2858 | – |
@@ -32,7 +32,7 @@ Protocol: first call, 4 warm-up, median of 5 synchronised calls (tools/speed_sur
 | [`cas-gwcnet-c-sceneflow`](../models/stereo.md#cas_gwcnet) | 6066 | 2934 | – | – | – | 3733 | – |
 | [`cas-gwcnet-gc-sceneflow`](../models/stereo.md#cas_gwcnet) | 4595 | 3841 | unsupported | – | – | 4754 | – |
 | [`cfnet-sceneflow`](../models/stereo.md#cfnet) | 4485 | 3178 | unsupported | – | – | 3669 | – |
-| [`coex-sceneflow`](../models/stereo.md#coex) | 765 | 608 | – | – | – | 3187 | – |
+| [`coex-sceneflow`](../models/stereo.md#coex) | 282 | 215 | – | – | – | 947 | – |
 | [`crestereo-eth3d`](../models/stereo.md#crestereo) | 6118 | 4297 | 5212 | 3558 | 1.2x | 1557 | 1863 |
 | [`defom-stereo-vitl-sceneflow`](../models/stereo.md#defom_stereo) | 13339 | 10693 | – | – | – | 5189 | – |
 | [`dlnr-middlebury`](../models/stereo.md#dlnr) | 3213 | 2052 | unsupported | – | – | 2609 | – |

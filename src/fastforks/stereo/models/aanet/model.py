@@ -188,15 +188,30 @@ class MetalKernels(Portable):
         return forward(self.net, left.half(), right.half()).float()  # a float32 disparity
 
 
-class _OnePair(Portable):
-    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+class _MlxPortable(Runner):
+    """Apple MLX: the network written in MLX operations (`mlx_net`), one pair per call."""
 
-    batch = 1
+    batch = 1  # not measured on Apple GPUs
+    dtypes = ("float32", "float16")
+    Params = Params
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the PyTorch network and copy its weights to MLX."""
+        super().__init__(ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.net = mlx_net.MlxAANet(_net(ctx), mlx_wrap.run_dtype(ctx))
+
+    def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Disparity of a padded pair."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return {"disparity": to_torch(self.net(to_mx(left.float()), to_mx(right.float())))}
 
 
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
     "kernels_mps": MetalKernels,
-    "portable_mlx": mlx_wrap.port(_OnePair, whole="disparity"),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }

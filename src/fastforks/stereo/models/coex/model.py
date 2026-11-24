@@ -177,14 +177,28 @@ class Kernels(_CoExRunner):
         return crop(disp, Crop(pads[2], pads[0], h, w))
 
 
-class _OnePair(Portable):
-    """Portable for the MLX port: one pair per call, as before batching (not measured on Apple GPUs)."""
+class _MlxPortable(_CoExRunner):
+    """The network in MLX operations (`mlx_net`: no exported graph, so no trace on a first call), one pair per call."""
 
     batch = 1
+    dtypes = ("float32", "float16")
+
+    def __init__(self, ctx: Context) -> None:
+        """Build the PyTorch network on the CPU and copy its weights to MLX."""
+        super().__init__(ctx)
+        from . import mlx_net  # noqa: PLC0415 - imports mlx
+
+        self.net = mlx_net.MlxCoEx(_net(ctx), mlx_wrap.run_dtype(ctx))
+
+    def __call__(self, left: torch.Tensor, right: torch.Tensor) -> dict[str, torch.Tensor]:
+        """Disparity of a padded pair."""
+        from fastforks._core.mlx import to_mx, to_torch  # noqa: PLC0415 - imports mlx
+
+        return {"disparity": to_torch(self.net(to_mx(left.float()), to_mx(right.float())))}
 
 
 RUNNERS = {
     "portable": Portable,
     "kernels": Kernels,
-    "portable_mlx": mlx_wrap.port(_OnePair, whole="disparity"),
+    "portable_mlx": mlx_wrap.port(_MlxPortable, attrs=()),
 }

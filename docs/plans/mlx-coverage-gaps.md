@@ -462,8 +462,8 @@ family `mlx.py`, re-survey the family's refs, regenerate `apple_mlx.json`.
 | 2.1, 1.6 (were 4.2, 3.1) | hitnet-eth3d, hitnet-middlebury-d400 | cost volumes and warp SADs are Metal kernels now (289 / 686 ms fp16, faster than MPS portable, behind MPS kernels 136 / 440 ms). Left: 32-channel 3x3 convs are 1.4x slower than MPSGraph, and activations after the 1x1, 4x4 stride-2 and residual convs are not fused; `conv_mlx` gave no steady gain, so no kernels mode |
 | 0.72, 0.76 (were 3.9, 2.9) | xfeat, xfeat-lighterglue | done, both auto-routed to MLX: hand-written network, keypoint selection and matchers in MLX operations ("Done: XFeat" below) |
 | 0.75, 0.71, 0.75 (were 2.9, 2.2, 1.5) | restormer-derain/sidd/deblur | done, see "Restormer and RealPLKSR on MLX" below: 737 / 794 / 737 ms fp16, 3.7-4.0 s first call, peak below MPS |
-| 2.7, 1.7 | aanet-sceneflow, aanet-plus | deformable conv: the MLX port gathers per sample point |
-| 2.5 | coex-sceneflow | cost volume build and the guided aggregation |
+| 0.78, 0.84 (were 2.7, 1.7) | aanet-sceneflow, aanet-plus | done, both auto-routed to MLX: hand-written network, grouped offset convolutions split per group ("Done: AANet and CoEx" below) |
+| 0.89 (was 2.5) | coex-sceneflow | done, auto-routed to MLX: hand-written network, a quarter of the MPS peak ("Done: AANet and CoEx" below) |
 | 2.5, 1.7 | rife-4.25-lite, rife-4.25 | `grid_sample` warps per IFBlock; small convs (launch bound) |
 | 2.2 | loftr-indoor/outdoor | fine matching runs on the CPU (geometry agent) |
 | 0.49 (was 2.2) | aliked-lightglue | done, auto-routed to MLX: ALIKED in MLX operations without the full-resolution descriptor map, `MlxLightGlue` ("Done: the LightGlue family" below) |
@@ -819,6 +819,54 @@ padding, SEA-RAFT's 256 -> 126.
 against 5.3 ms; float32 53 against 6.2; padding the input to 16 channels: 17 ms). SEA-RAFT's port splits it into
 two 3-channel convs by hand. A translator rule (split a few-channel conv by input halves) would catch other
 stacked-pair stems, but no other family was profiled for it.
+
+### Done: AANet and CoEx (2026-11-24)
+
+M1 Pro, 994x1482, all six MLX goldens pass (`tools/speed_survey.py`; MLX/MPS above is against the best MPS row):
+
+| ref | | warm ms | first call s | peak MB | auto |
+|---|---|---|---|---|---|
+| aanet-sceneflow | MLX before, fp16 / fp32 | 1695 / 1724 | 19.8 / 18.3 | 2131 / 1777 | – |
+| | MLX now, fp16 / fp32 | 492 / 692 | 0.51 / 0.71 | 1362 / 2140 | MLX |
+| | MPS portable, fp16 / fp32 | 723 / 880 | 1.09 / 1.25 | 2594 / 3622 | |
+| | MPS kernels fp16 (best MPS row) | 631 | 1.23 | 2606 | |
+| aanet-plus-sceneflow | MLX before, fp16 / fp32 | 1367 / 1898 | 10.4 / 13.4 | 2989 / 5038 | – |
+| | MLX now, fp16 / fp32 | 687 / 925 | 0.72 / 0.96 | 2259 / 3104 | MLX |
+| | MPS portable, fp16 / fp32 | 936 / 992 | 1.47 / 1.50 | 3836 / 5109 | |
+| | MPS kernels fp16 (best MPS row) | 818 | 1.64 | 3754 | |
+| coex-sceneflow | MLX before, fp16 / fp32 | 608 / 765 | 5.69 / 5.87 | 3187 / 2682 | – |
+| | MLX now, fp16 / fp32 | 215 / 282 | 0.25 / 0.30 | 947 / 1351 | MLX |
+| | MPS portable, fp16 / fp32 (best MPS row) | 241 / 323 | 0.78 / 1.49 | 3631 / 6428 | |
+
+Both families replayed an exported graph before: the export was 5-20 s of the first call, and the graph kept
+upstream's layouts. Now each network is written out in `mlx.core`, channels last, batch norms folded, one compiled
+function (`aanet/mlx_net.py`, `coex/mlx_net.py`), built from the shared kernels (`gwc_volume`, `grid_sample`,
+`bilinear_nhwc`, `depthwise`, `mlx_graph`'s phased transposed 3-D convolution):
+
+- both images go through the feature extractor as one batch of two; the correlation is `gwc_volume` with one group.
+- AANet's disparities are the channels of the aggregation, so nothing is transposed between its 2-D convolutions. A
+  modulated deformable convolution is `grid_sample` on a `[pixels, 9 taps]` grid per offset group, the mask, and one
+  matrix product per group (no concatenated column matrix: at full resolution in AANet+'s refinement that copy was
+  0.9 GB; 758 -> 687 ms, AANet 520 -> 492 ms).
+- MLX's grouped convolution is several times slower than one convolution per group, and its first call costs
+  seconds. The offset convolutions of the deformable layers have 2 groups (64 -> 54 channels at 336x496: 23 ms
+  grouped, 2 x 4 ms split; 32 -> 54 at 1056x1536 in AANet+'s refinement: 115 ms against 2 x 15 ms). Splitting them
+  took AANet from 576 to 520 ms and AANet+ from 930 to 758 ms, and the first calls from 3.5 / 5.4 s to 0.5 / 0.8 s.
+- CoEx: the 3-D stem (1 -> 8 channels) is one 2-D convolution with its depth taps as channels, the top-2
+  regression two arg-max passes over the last axis, the superpixel upsampling a broadcast over the 4 x 4 cells.
+  MobileNetV2's depthwise layers as the `depthwise` kernel or as `mx.conv2d(groups=C)` measured the same (214
+  against 218 ms).
+
+Where AANet's 492 ms go (staged, uncompiled 680 ms): features 180, correlation 35, the six aggregation modules 205
+(the three with deformable convolutions 55 each), the 1/2 refinement 54, the full-resolution refinement 204 (twelve
+32 -> 32 3 x 3 convolutions at 1008x1488, 11 ms each). AANet+: features 135, aggregation 225, refinements 125 and
+420 (the hourglass at full resolution).
+
+Tried, no gain: without `mx.compile` (AANet 676 ms, AANet+ 986 ms, CoEx 249 ms; the compile itself costs nothing
+measurable on the first call once the grouped convolutions are gone).
+
+Left: both AANets are bound by plain 3 x 3 convolutions at full resolution (MLX's are at MPSGraph's speed there);
+no kernels mode on MLX for either family.
 
 ### Done: XFeat (2026-11-24)
 

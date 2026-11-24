@@ -60,8 +60,8 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 
 | model | RTX 5060 Ti 16 GB | Apple M1 Pro 16 GB | Apple M1 Pro 16 GB (MLX) | NVIDIA L4 | NVIDIA L40S | NVIDIA A10 | NVIDIA A100-SXM4-40GB | NVIDIA RTX PRO 6000 |
 |---|---|---|---|---|---|---|---|---|
-| [`aanet-plus-sceneflow`](models/stereo.md#aanet) | 88.9 ms · kernels fp16 | 818 ms · kernels fp16 | 1367 ms · portable fp16 | 111 ms · kernels fp16 | 46.0 ms · kernels fp16 | 97.6 ms · kernels fp16 | 50.8 ms · kernels fp16 | 22.1 ms · kernels fp16 |
-| [`aanet-sceneflow`](models/stereo.md#aanet) | 101 ms · kernels fp16 | 631 ms · kernels fp16 | 1695 ms · portable fp16 | 140 ms · kernels fp16 | 44.7 ms · kernels fp16 | 105 ms · kernels fp16 | 49.6 ms · kernels fp16 | 20.9 ms · kernels fp16 |
+| [`aanet-plus-sceneflow`](models/stereo.md#aanet) | 88.9 ms · kernels fp16 | 818 ms · kernels fp16 | 687 ms · portable fp16 | 111 ms · kernels fp16 | 46.0 ms · kernels fp16 | 97.6 ms · kernels fp16 | 50.8 ms · kernels fp16 | 22.1 ms · kernels fp16 |
+| [`aanet-sceneflow`](models/stereo.md#aanet) | 101 ms · kernels fp16 | 631 ms · kernels fp16 | 492 ms · portable fp16 | 140 ms · kernels fp16 | 44.7 ms · kernels fp16 | 105 ms · kernels fp16 | 49.6 ms · kernels fp16 | 20.9 ms · kernels fp16 |
 | [`bridgedepth-rvc-pretrain`](models/stereo.md#bridgedepth) | 354 ms · kernels fp16 | 3756 ms · kernels fp16 | 3179 ms · portable fp16 | – | – | – | 143 ms · kernels fp16 | 68.8 ms · kernels fp16 |
 | [`bridgedepth-sf`](models/stereo.md#bridgedepth) | 348 ms · kernels fp16 | 3693 ms · kernels fp16 | 3977 ms · portable fp16 | 430 ms · kernels fp16 | 122 ms · kernels fp16 | 333 ms · kernels fp16 | 141 ms · kernels fp16 | 68.8 ms · kernels fp16 |
 | [`c-fast-foundationstereo`](models/stereo.md#c_foundationstereo) | 135 ms · kernels fp16 | 2472 ms · portable fp16 | 2737 ms · portable fp16 | – | – | – | 85.1 ms · kernels fp16 | 37.3 ms · kernels fp16 |
@@ -69,7 +69,7 @@ Each task at its standard input (the overview's). A cell is the fastest validate
 | [`cas-gwcnet-c-sceneflow`](models/stereo.md#cas_gwcnet) | 225 ms · kernels fp16 | 2489 ms · portable fp16 | 2934 ms · portable fp16 | – | – | – | 87.9 ms · kernels fp16 | 46.7 ms · kernels fp16 |
 | [`cas-gwcnet-gc-sceneflow`](models/stereo.md#cas_gwcnet) | 358 ms · kernels fp16 | 2731 ms · portable fp16 | 3841 ms · portable fp16 | 500 ms · kernels fp16 | 159 ms · kernels fp16 | 345 ms · kernels fp16 | 136 ms · kernels fp16 | 78.8 ms · kernels fp16 |
 | [`cfnet-sceneflow`](models/stereo.md#cfnet) | – | 2206 ms · kernels fp16 | 3178 ms · portable fp16 | 484 ms · kernels fp16 | 152 ms · kernels fp16 | 432 ms · kernels fp16 | 145 ms · kernels fp16 | 76.4 ms · kernels fp16 |
-| [`coex-sceneflow`](models/stereo.md#coex) | – | 241 ms · portable fp16 | 608 ms · portable fp16 | 32.4 ms · kernels fp16 | 11.9 ms · kernels fp16 | 27.3 ms · kernels fp16 | 16.3 ms · kernels fp16 | 6.43 ms · kernels fp16 |
+| [`coex-sceneflow`](models/stereo.md#coex) | – | 241 ms · portable fp16 | 215 ms · portable fp16 | 32.4 ms · kernels fp16 | 11.9 ms · kernels fp16 | 27.3 ms · kernels fp16 | 16.3 ms · kernels fp16 | 6.43 ms · kernels fp16 |
 | [`crestereo-eth3d`](models/stereo.md#crestereo) | 229 ms · kernels fp16 | 4127 ms · kernels fp16 | 3558 ms · kernels fp16 | 318 ms · kernels fp16 | 102 ms · kernels fp16 | 255 ms · kernels fp16 | 108 ms · kernels fp16 | 60.9 ms · kernels fp16 |
 | [`defom-stereo-vitl-sceneflow`](models/stereo.md#defom_stereo) | 659 ms · kernels fp16 | 8224 ms · kernels fp16 | 10693 ms · portable fp16 | 921 ms · kernels fp16 | 271 ms · kernels fp16 | 689 ms · kernels fp16 | 248 ms · kernels fp16 | 146 ms · kernels fp16 |
 | [`dlnr-middlebury`](models/stereo.md#dlnr) | 214 ms · kernels fp16 | 2143 ms · portable fp16 | 2052 ms · portable fp16 | – | – | – | – | 48.6 ms · kernels fp16 |
