@@ -833,7 +833,7 @@ def test_gpu_module(ref):
     if not torch.cuda.is_available():
         pytest.skip("no CUDA")
     want = golden(ref)["logits"]
-    m = classification.load(ref, device="cuda")
+    m = classification.load(ref, mode="portable", device="cuda")
     try:
         module = m.module()
     except BackendUnavailableError as e:
