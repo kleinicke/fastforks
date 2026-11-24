@@ -713,6 +713,9 @@ The same wheels and backends run on Windows (tested: RTX 5060 Ti, Windows 11). W
   `model.release_graphs()`, and `cuda_graphs=False` turns graphs off. Portable mode runs eagerly, so on Windows it
   trails Linux by 20-30 % on such models.
 - PyTorch's Windows wheels have no flash attention; `FASTFORKS_SDPA` (above) sets the order of the other backends.
+- `model.compile()` on CUDA needs Triton, which PyTorch does not install on Windows. Without it the first call raises
+  `TritonMissing` (torch.compile's error), with a note that the model runs eager again; the next calls run eager.
+  The kernels backend needs no compiler.
 - PyTorch's default CUDA allocator keeps freed blocks cached in fixed segments, which the next, differently sized
   tensors often cannot reuse: many models reserve 1.5-2x their peak allocation. Setting
   `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` before PyTorch initialises CUDA (it applies to the whole process,
