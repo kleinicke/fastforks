@@ -76,6 +76,8 @@ the fastforks pack's nodes (every model) are used: remove or disable one of them
   - Segment Anything (SAM): `sam-vit-b`, `sam-vit-h`, `sam-vit-l`
   - Segment Anything 2.1 (SAM 2.1): `sam2.1-hiera-base-plus`, `sam2.1-hiera-large`, `sam2.1-hiera-small`, `sam2.1-hiera-tiny`
   - Segment Anything 3 (SAM 3), image + video tracker: `sam3`
+- **Segment like a reference (INSID3)**:
+  - INSID3: `insid3-vitl16`
 - **Detect objects**:
   - D-FINE (HGNetV2, N / S / M / L / X): `deim-l-coco`, `deim-m-coco`, `deim-n-coco`, `deim-s-coco`, `deim-x-coco`, `dfine-l-coco`, `dfine-m-coco`, `dfine-n-coco`, `dfine-s-coco`, `dfine-x-coco`
   - DETR (ResNet-50 / ResNet-101): `detr-r101-coco`, `detr-r50-coco`

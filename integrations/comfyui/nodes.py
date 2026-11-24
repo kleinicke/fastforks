@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from fastforks.detection import DetectionModel
     from fastforks.matting import MattingModel
     from fastforks.pose import PoseModel
+    from fastforks.promptable_segmentation import InContextSegmentationModel
 
 log = logging.getLogger("fastforks.comfyui")
 
@@ -1041,6 +1042,59 @@ class Segment(_Node):
         return (convert.to_mask(each(image.shape[0], one), _out_device()),)
 
 
+class SegmentLike(_Node):
+    """In-context segmentation (INSID3): segment in each image what the reference masks mark in the references."""
+
+    DESCRIPTION = (
+        "Mask of what the reference masks mark in the reference images (one or more examples of a concept), found in"
+        " each image, no training. Reference mask i belongs to reference image i, at its size; nonzero = the concept."
+    )
+    RETURN_TYPES = ("MASK",)
+    PROMPTS = frozenset({"reference"})
+    TASK = "promptable_segmentation"
+    DEFAULT = "insid3-vitl16"
+
+    @classmethod
+    def lists(cls, mid: str) -> bool:
+        """The reference-prompted (in-context) models."""
+        return cls.runs(mid)
+
+    @classmethod
+    def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
+        """ComfyUI inputs."""
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "reference_image": ("IMAGE", {"tooltip": "One or more examples (a batch of one size)."}),
+                "reference_mask": ("MASK", {"tooltip": "One mask per reference image (nonzero = the concept)."}),
+                **common(cls),
+            }
+        }
+
+    def run(  # noqa: PLR0913 - the node's inputs
+        self,
+        *,
+        image: torch.Tensor,
+        reference_image: torch.Tensor,
+        reference_mask: torch.Tensor,
+        model: str,
+        backend: str,
+        dtype: str,
+    ) -> tuple[torch.Tensor]:
+        """Embed the references once, then segment every image."""
+        m = cast("InContextSegmentationModel", load(model, backend, dtype))
+        n = reference_image.shape[0]
+        refs = m.get_image_embeddings(reference_image[..., :3].permute(0, 3, 1, 2).to(m.device))
+        masks = reference_mask.reshape(-1, *reference_mask.shape[-2:]).to(m.device, torch.float32)
+        if masks.shape[0] == 1 and n > 1:
+            masks = masks.expand(n, -1, -1)
+        maps = each(
+            image.shape[0],
+            lambda i: m(convert.frame(image, i, m.device), reference_images=refs, reference_masks=masks).masks,
+        )
+        return (convert.to_mask(maps, _out_device()),)
+
+
 class Detect(_Node):
     """Object detection: a mask of the detections and their boxes as JSON."""
 
@@ -1876,6 +1930,7 @@ _NODES: tuple[tuple[str, type[_Node], str], ...] = (
     ("Edges", Edges, "Line art / edges ({pack})"),
     ("RemoveBackground", RemoveBackground, "Remove background ({pack})"),
     ("Segment", Segment, "Segment (SAM, {pack})"),
+    ("SegmentLike", SegmentLike, "Segment like a reference (INSID3, {pack})"),
     ("Detect", Detect, "Detect objects ({pack})"),
     ("Pose", Pose, "Pose ({pack})"),
     ("Interpolate", Interpolate, "Interpolate frames ({pack})"),
