@@ -580,7 +580,7 @@ def test_pack_split(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     nodes = pack.nodes
     monkeypatch.setattr(nodes, "upscale_files", list)
     full, commercial = pack.NODE_CLASS_MAPPINGS, pack.commercial.NODE_CLASS_MAPPINGS
-    assert set(commercial) == set(full) - {"FastforksParse"}  # Parse: both of its models are non-commercial
+    assert set(commercial) == set(full) - {"FastforksParse", "FastforksVideoMatte"}  # only non-commercial models
     assert all(k.startswith("Fastforks") for k in full)
     assert set(pack.NODE_DISPLAY_NAME_MAPPINGS) == set(full)
     assert set(pack.commercial.NODE_DISPLAY_NAME_MAPPINGS) == set(commercial)
@@ -971,6 +971,7 @@ def test_node_model_lists(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     # inputs the nodes do not have: a depth prompt, a first-frame mask (video matting), a reference (in-context)
     assert not {"prompt-depth-anything-s", "lingbot-depth", "omni-dc"} & ids(nodes.Depth)
     assert "matanyone" not in ids(nodes.RemoveBackground)
+    assert ids(nodes.VideoMatte) == {"matanyone"}  # not in fastforks-commercial
     assert "vitmatte-s" in ids(nodes.RemoveBackground)  # trimap: an optional input of the node
     assert "insid3-vitl16" not in ids(nodes.Segment)
     assert {"sam2.1-hiera-small", "clipseg", "sam3"} <= ids(nodes.Segment)  # points / boxes; text
@@ -1028,6 +1029,36 @@ def test_inpaint_passes_each_image_its_mask(pack: Any, monkeypatch: pytest.Monke
     seen.clear()
     nodes.Inpaint().run(image=image, mask=mask[:1], model="m", backend="auto", dtype="auto")
     assert seen == [((4, 6), 12.0), ((4, 6), 12.0)]
+
+
+def test_video_matte_reads_frames_one_at_a_time(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The model gets frame 0's mask and reads `[3, H, W]` host frames one by one; RGBA = frames + alpha."""
+    nodes = pack.nodes
+    seen: list[Any] = []
+    utils = types.SimpleNamespace(
+        ProgressBar=lambda _n: types.SimpleNamespace(update=lambda k: seen.append(("bar", k)))
+    )
+    monkeypatch.setitem(sys.modules, "comfy.utils", utils)
+    monkeypatch.setattr(sys.modules["comfy"], "utils", utils, raising=False)
+
+    class Matte:
+        device = torch.device("cpu")
+
+        def video(self, frames: Any, *, mask: torch.Tensor) -> types.SimpleNamespace:
+            seen.append(("mask", tuple(mask.shape), mask.sum().item()))
+            got = [frames[t] for t in range(len(frames))]
+            seen.append(("frame", tuple(got[0].shape)))
+            return types.SimpleNamespace(alpha=torch.stack([f.mean(0) for f in got]))
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: Matte())
+    frames, mask = torch.rand(3, 4, 6, 3), torch.zeros(2, 4, 6)
+    mask[0, :2], mask[1] = 1, 1
+    rgba, alpha = nodes.VideoMatte().run(frames=frames, mask=mask, model="m", backend="auto", dtype="auto")
+    assert seen[0] == ("mask", (4, 6), 12.0)  # the first mask of a batch
+    assert ("frame", (3, 4, 6)) in seen
+    assert seen.count(("bar", 1)) == 3
+    torch.testing.assert_close(alpha, frames.mean(-1), rtol=0, atol=0)
+    torch.testing.assert_close(rgba, torch.cat([frames, alpha[..., None]], -1), rtol=0, atol=0)
 
 
 def test_wd_tags(pack: Any) -> None:

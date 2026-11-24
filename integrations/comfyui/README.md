@@ -189,6 +189,8 @@ Install with ComfyUI-Manager or `comfy node install fastforks`; from a fastforks
 - **Warp by flow**: no model (it applies a flow field)
 - **Video segment (SAM 2 / SAMURAI)**:
   - Segment Anything 2.1 (SAM 2.1): `sam2.1-hiera-base-plus`, `sam2.1-hiera-large`, `sam2.1-hiera-small`, `sam2.1-hiera-tiny`
+- **Video matte (MatAnyone)**:
+  - MatAnyone: `matanyone [non-commercial]`
 - **Track points**:
   - AllTracker: `alltracker`, `alltracker-tiny`
   - TAPIR: `bootstapir`, `tapir`

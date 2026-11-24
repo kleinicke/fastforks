@@ -41,9 +41,10 @@ from . import convert
 from . import faces as _faces
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator
+    from collections.abc import Callable, Generator, Sequence
 
     from fastforks.detection import DetectionModel
+    from fastforks.matting import MattingModel
     from fastforks.pose import PoseModel
 
 log = logging.getLogger("fastforks.comfyui")
@@ -1563,6 +1564,43 @@ class _Frames:
         return x
 
 
+class VideoMatte(_Node):
+    """Video matting (MatAnyone): the object masked on the first frame, as alpha through the clip."""
+
+    DESCRIPTION = (
+        "Alpha of one object over a frame batch, from its mask on the first frame (e.g. from Segment or Remove"
+        " background): the frames with alpha (RGBA) and the alpha as a mask batch. Every nonzero mask pixel is the"
+        " object; a mask batch uses its first mask."
+    )
+    RETURN_TYPES = ("IMAGE", "MASK")
+    RETURN_NAMES = ("rgba", "alpha")
+    TAKES = _IMAGE | {"mask"}
+    TASK = "matting"
+    DEFAULT = "matanyone"
+
+    @classmethod
+    def lists(cls, mid: str) -> bool:
+        """The matting models that require a mask (video matting from a first-frame mask)."""
+        return _inputs.of(mid).get("mask") == "required" and cls.runs(mid)
+
+    @classmethod
+    def INPUT_TYPES(cls) -> dict[str, Any]:  # noqa: N802 - ComfyUI's name
+        """ComfyUI inputs."""
+        tip = "The object on the first frame (nonzero = the object)."
+        return {"required": {"frames": ("IMAGE",), "mask": ("MASK", {"tooltip": tip}), **common(cls)}}
+
+    def run(
+        self, *, frames: torch.Tensor, mask: torch.Tensor, model: str, backend: str, dtype: str
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Run the model through the frames as one video."""
+        m = cast("MattingModel", load(model, backend, dtype))
+        alpha = m.video(
+            cast("Sequence[torch.Tensor]", _Frames(frames)), mask=convert.from_mask(mask, 0, m.device)
+        ).alpha
+        alpha = alpha.to(_out_device(), torch.float32).clamp(0, 1)
+        return convert.with_alpha(frames.to(alpha.device), alpha), alpha
+
+
 class VideoSegment(_Node):
     """Video object segmentation (SAM 2 video / SAMURAI): one object prompted on the first frame, tracked."""
 
@@ -1850,6 +1888,7 @@ _NODES: tuple[tuple[str, type[_Node], str], ...] = (
     ("Flow", Flow, "Optical flow ({pack})"),
     ("Warp", Warp, "Warp by flow ({pack})"),
     ("VideoSegment", VideoSegment, "Video segment (SAM 2 / SAMURAI, {pack})"),
+    ("VideoMatte", VideoMatte, "Video matte (MatAnyone, {pack})"),
     ("PointTrack", PointTrack, "Track points ({pack})"),
     ("Upscale", Upscale, "Upscale / restore ({pack})"),
     ("Inpaint", Inpaint, "Inpaint / remove objects (LaMa, {pack})"),
