@@ -27,9 +27,10 @@ from fastforks._core.checkpoint import Inert, load_strict
 from fastforks._core.half import fp16_accumulate
 from fastforks._core.patch import override
 from fastforks._core.upload import device_tensor
-from fastforks.kernels import dpt_fused
+from fastforks.kernels import cudnn_hacc, dpt_fused
 from fastforks.multiview._runner import Forward, Runner, f64, invert, scale, take
 from fastforks.shared import mlx_wrap
+from fastforks.shared.cuda_graphs import GraphCache
 from fastforks.shared.depth_anything_v2 import DINOv2, FastViT, use_sdpa_attention
 from fastforks.shared.quantile import quantile
 
@@ -83,6 +84,7 @@ class Params:
 
     long_side: int  # network long side (both sides rounded to multiples of 16)
     refinement_steps: int  # depth-range refinement passes (upstream num_refinement_steps)
+    cuda_graphs: bool  # kernels: replay a CUDA graph of the forward per input shapes (option)
 
 
 def network_size(h: int, w: int, long_side: int) -> tuple[int, int]:
@@ -544,6 +546,10 @@ class Kernels(_Base):
     cuDNN / CUTLASS convs, fused BatchNorm and instance-norm kernels). The `mvsanywhere` kernels compute the whole
     cost volume per pixel and plane (warp, MLP, softmax over the views, at most 16 sources) and the matching encoder's
     stem pooling.
+
+    About 950 launches a call left Windows (WDDM) host-bound, so a scene layout seen again (view count, image size,
+    camera dtypes, with or without a depth range) replays `forward` from a CUDA graph (`release_graphs()` frees it);
+    `scene`'s per-reference predictions stay eager.
     """
 
     max_views = MAX_SOURCES + 1
@@ -589,6 +595,40 @@ class Kernels(_Base):
             msg = "MVSAnywhere matching stem does not have the layout of the stem-pool kernel"
             raise ValueError(msg)
         seq[3] = _StemPool(self.kern)
+        self.graphs = (
+            GraphCache(self._graphed, graphs=2, capture_after=cudnn_hacc.capture_after())
+            if ctx.params.cuda_graphs
+            else None
+        )
+
+    def _graphed(
+        self,
+        images: torch.Tensor,
+        intrinsics: torch.Tensor,
+        cam_to_world: torch.Tensor,
+        depth_range: torch.Tensor | None = None,
+    ) -> dict[str, torch.Tensor]:
+        return super().forward(images, intrinsics, cam_to_world, depth_range)
+
+    def forward(
+        self,
+        images: torch.Tensor,
+        intrinsics: torch.Tensor,
+        cam_to_world: torch.Tensor,
+        depth_range: torch.Tensor | None = None,
+    ) -> dict[str, torch.Tensor]:
+        """`_Base.forward`, replayed from the input shapes' CUDA graph once captured."""
+        inputs = tuple(t for t in (images, intrinsics, cam_to_world, depth_range) if t is not None)
+        if self.graphs is None or torch.compiler.is_compiling() or any(t.device.type != "cuda" for t in inputs):
+            return self._graphed(images, intrinsics, cam_to_world, depth_range)
+        key = tuple((t.device, t.dtype, tuple(t.shape)) for t in inputs)  # a depth range: one input more
+        out = self.graphs.run(key, *inputs)
+        return self._graphed(images, intrinsics, cam_to_world, depth_range) if out is None else out
+
+    def release_graphs(self) -> None:
+        """Free the CUDA graphs and their memory pool (captured again when needed)."""
+        if self.graphs is not None:
+            self.graphs.release()
 
     def encode_image(self, x: torch.Tensor) -> Sequence[tuple[torch.Tensor, torch.Tensor]]:
         """Upstream `DINOv2.forward` on the fast ViT."""
