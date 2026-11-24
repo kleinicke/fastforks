@@ -461,6 +461,20 @@ def test_huggingface_hub_not_called_offline(tmp_path, monkeypatch, var):
     assert urls == []
 
 
+def test_offline_with_only_another_models_file_says_how_to_fetch(tmp_path, monkeypatch):
+    """A same-named file of another model (model.safetensors) does not hide the offline hint."""
+    other = tmp_path / "w.bin"
+    other.write_bytes(b"another model")
+    monkeypatch.setenv(ENV, str(tmp_path))
+    monkeypatch.setenv("FASTFORKS_OFFLINE", "1")
+    with pytest.raises(WeightsHashError) as e:
+        locate(spec_for(b"w", "https://example.com/w.bin"), group="fam", env_var=ENV, hint="fastforks download m")
+    text = str(e.value)
+    assert str(other) in text
+    assert "offline mode" in text
+    assert "`fastforks download m`" in text
+
+
 def test_huggingface_hub_copy_is_hash_checked(tmp_path, monkeypatch):
     _stub_hub(monkeypatch, tmp_path, content=b"tampered")
     _plain(monkeypatch, code=401)
