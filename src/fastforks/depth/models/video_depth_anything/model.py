@@ -40,6 +40,7 @@ from .net.motion_module.attention import GEGLU, FeedForward
 from .net.motion_module.motion_module import TemporalAttention
 
 if TYPE_CHECKING:
+    from fastforks.depth._api import Clip
     from fastforks.depth._runner import Context
 
 PATCH = 14  # fixed: the DINOv2 ViT-S/14 patch size of the checkpoints
@@ -204,6 +205,7 @@ class _Video(Runner):
 
     batch = 1  # a batch is independent images; `DepthModel.video` passes the whole video
     video = True
+    clip_frames = True  # `video` passes a `Clip`: one window of frames on the device, not the whole video
     Params = Params
     compiled_methods = ("_encode", "_window")  # the networks; the windowing loop stays eager
     net: Net
@@ -219,8 +221,11 @@ class _Video(Runner):
         d = self.net.head(pairs, h // PATCH, w // PATCH, INFER_LEN, return_hidden_states=False)[0]
         return F.relu(d[:valid, 0]).float()  # upstream resizes to (h, w) first: the same size, an exact copy
 
-    def _video(self, image: torch.Tensor) -> torch.Tensor:
-        """`[L, 3, H, W]` RGB in `[0, 1]` (one video in time order) -> aligned float32 depth `[L, H, W]`."""
+    def _video(self, image: torch.Tensor | Clip) -> torch.Tensor:
+        """`[L, 3, H, W]` RGB in `[0, 1]` (one video in time order) -> aligned float32 depth `[L, H, W]`.
+
+        `image[ids]` is all the loop reads of the frames: a `Clip` converts and moves only those to the device.
+        """
         n, _, hh, ww = image.shape
         h, w = network_size(hh, ww, self.ctx.params.short_side)
         out = torch.empty((n, hh, ww), device=image.device, dtype=torch.float32)
@@ -271,7 +276,7 @@ class _Video(Runner):
         return out
 
     @host
-    def __call__(self, image: torch.Tensor, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
+    def __call__(self, image: torch.Tensor | Clip, intrinsics: torch.Tensor | None) -> dict[str, torch.Tensor]:  # noqa: ARG002 - unused
         """Relative inverse depth (metric depth for metric checkpoints) of one video (the batch, in time order)."""
         return {_key(self.ctx): self._video(image)}
 

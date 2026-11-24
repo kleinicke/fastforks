@@ -19,7 +19,7 @@ from fastforks._core.image import ImageLike, is_batch, to_rgb_batch
 from fastforks._core.instances import Instances
 from fastforks._core.model import Backend, Dtype, ModeArg
 from fastforks._core.outputs import MapOutputs, NumpyOutputs
-from fastforks._core.upload import device_tensor
+from fastforks._core.upload import device_tensor, to_device
 
 if TYPE_CHECKING:
     import os
@@ -492,7 +492,10 @@ class PromptableSegmentationModel(core.Model):
 
     def _frame(self, video: Sequence[ImageLike] | np.ndarray | torch.Tensor, t: int) -> torch.Tensor:
         """Frame `t` as a checked `[1, 3, H, W]` batch on the device."""
-        x = self._to_batch(cast("ImageLike", video[t]))
+        v = video[t]
+        if isinstance(v, torch.Tensor):  # a host frame: pinned and async, not a copy that waits for the GPU
+            v = to_device(v, self._device)
+        x = self._to_batch(cast("ImageLike", v))
         if x.shape[0] != 1:
             msg = f"video frame {t} is a batch of {x.shape[0]} images; pass one image per frame"
             raise InputError(msg)

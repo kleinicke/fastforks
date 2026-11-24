@@ -1177,9 +1177,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def _replace_unencodable() -> None:
-    """Print characters the output's encoding lacks as `?`, not a crash (a Windows pipe or file is cp1252: `pi`)."""
+    """Print characters the output's encoding lacks as `?`, not a crash (a Windows pipe or file is cp1252: `pi`).
+
+    `surrogateescape` (what Python picks under a C / POSIX locale) fails on them as `strict` does.
+    """
     for stream in (sys.stdout, sys.stderr):
-        if isinstance(stream, io.TextIOWrapper) and stream.errors == "strict":
+        if isinstance(stream, io.TextIOWrapper) and stream.errors in {"strict", "surrogateescape"}:
             stream.reconfigure(errors="replace")
 
 

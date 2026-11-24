@@ -1232,6 +1232,47 @@ def test_segment_prompt_kinds(pack: Any, monkeypatch: pytest.MonkeyPatch) -> Non
         nodes.VideoSegment().run(**video, positive_points="", negative_points="x", box="")
 
 
+def test_video_segment_reads_frames_one_at_a_time(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The model gets one `[3, H, W]` frame per read (not the clip on the GPU), with a progress step and a cancel check
+    per frame."""
+    nodes = pack.nodes
+    steps: list[int] = []
+    utils = types.SimpleNamespace(ProgressBar=lambda _n: types.SimpleNamespace(update=steps.append))
+    monkeypatch.setitem(sys.modules, "comfy.utils", utils)
+    monkeypatch.setattr(sys.modules["comfy"], "utils", utils, raising=False)
+    interrupt = type("Interrupt", (Exception,), {})
+    mm = sys.modules["comfy.model_management"]
+    monkeypatch.setattr(mm, "InterruptProcessingException", interrupt, raising=False)
+    seen: list[tuple[int, ...]] = []
+
+    class Model:
+        device = torch.device("cpu")
+        prompts = frozenset({"points", "boxes"})
+
+        def video(self, frames: Any, **_kw: Any) -> Any:
+            seen.extend(tuple(frames[t].shape) for t in range(len(frames)))  # stops at a cancel, as the prefetch
+            return types.SimpleNamespace(masks=torch.zeros(len(frames), 4, 6, dtype=torch.bool))
+
+    monkeypatch.setattr(nodes, "load", lambda *_a, **_k: Model())
+    run = {"model": "sam2", "backend": "auto", "dtype": "auto", "samurai": False, "negative_points": "", "box": ""}
+    (out,) = nodes.VideoSegment().run(frames=torch.rand(5, 4, 6, 4), positive_points="1,1", **run)
+    assert seen == [(3, 4, 6)] * 5
+    assert steps == [1] * 5
+    assert out.shape == (5, 4, 6)
+
+    reads = iter(range(10))
+
+    def cancel_on_third() -> None:
+        if next(reads) == 2:
+            raise interrupt
+
+    monkeypatch.setattr(mm, "throw_exception_if_processing_interrupted", cancel_on_third)
+    seen.clear()
+    with pytest.raises(interrupt):
+        nodes.VideoSegment().run(frames=torch.rand(5, 4, 6, 3), positive_points="1,1", **run)
+    assert len(seen) == 2
+
+
 def test_segment_keeps_the_best_scored_candidate(pack: Any, monkeypatch: pytest.MonkeyPatch) -> None:
     """One ambiguous point: the candidate mask with the highest predicted IoU, per image."""
     nodes = pack.nodes

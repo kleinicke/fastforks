@@ -892,7 +892,7 @@ class VideoDepth(_Node):
         """Run the model on the frames as one video."""
         m = load(model, backend, dtype)
         _mm().throw_exception_if_processing_interrupted()
-        video = frames[..., :3].to(m.device, torch.float32).permute(0, 3, 1, 2)
+        video = frames[..., :3].permute(0, 3, 1, 2)  # on the host: the library moves one window at a time
         with node_errors():
             r = m.video(video)  # ty: ignore[unresolved-attribute]
         maps = convert.depth_image(r.depth, r.inverse_depth)  # [3, T, H, W]: scaled by the clip's min and max
@@ -1553,6 +1553,32 @@ class Warp(_Node):
         return (convert.warp(image[:n], flow).to(_out_device()),)
 
 
+class _Frames:
+    """The frames of an IMAGE batch, each a `[3, H, W]` view when the model asks for it (it moves it to its device).
+
+    `m.video` reads them one at a time (in a prefetch thread): one frame on the GPU instead of the whole clip, and
+    ComfyUI's progress bar and cancel between frames.
+    """
+
+    def __init__(self, frames: torch.Tensor) -> None:
+        """`frames` `[T, H, W, C]` (ComfyUI IMAGE)."""
+        import comfy.utils  # noqa: PLC0415 - ComfyUI only
+
+        self.frames = frames
+        self.bar = comfy.utils.ProgressBar(frames.shape[0])
+
+    def __len__(self) -> int:
+        """The frame count."""
+        return self.frames.shape[0]
+
+    def __getitem__(self, t: int) -> torch.Tensor:
+        """Frame `t`; raises ComfyUI's interrupt once the user cancels."""
+        _mm().throw_exception_if_processing_interrupted()
+        x = self.frames[t, ..., :3].permute(2, 0, 1)
+        self.bar.update(1)
+        return x
+
+
 class VideoSegment(_Node):
     """Video object segmentation (SAM 2 video / SAMURAI): one object prompted on the first frame, tracked."""
 
@@ -1606,10 +1632,8 @@ class VideoSegment(_Node):
             raise ValueError(msg)
         m = load(model, backend, dtype, {"samurai": True} if samurai else None)
         check_prompts(m, model, points=bool(pos or neg), box=bx is not None)
-        _mm().throw_exception_if_processing_interrupted()
-        video = frames[..., :3].to(m.device, torch.float32).permute(0, 3, 1, 2)
         with node_errors():
-            masks = m.video(video, **kwargs).masks  # ty: ignore[unresolved-attribute]
+            masks = m.video(_Frames(frames), **kwargs).masks  # ty: ignore[unresolved-attribute]
         return (convert.to_mask(list(masks), _out_device()),)
 
 
@@ -1654,7 +1678,7 @@ class PointTrack(_Node):
         pts = convert.points(points, "points") or convert.grid_points(grid_size, (frames.shape[1], frames.shape[2]))
         queries = torch.tensor([[0.0, x, y] for x, y in pts])
         _mm().throw_exception_if_processing_interrupted()
-        video = frames[..., :3].to(m.device, torch.float32).permute(0, 3, 1, 2)
+        video = frames[..., :3].permute(0, 3, 1, 2)  # on the host: the library moves each frame as the model reads it
         with node_errors():
             r = m(video, queries)
         tracks = r.tracks.float().cpu()

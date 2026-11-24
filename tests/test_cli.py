@@ -59,10 +59,11 @@ def test_closed_stdout_exits_1_quietly():
     assert (p.returncode, p.stderr) == (1, b"")
 
 
-def test_list_into_a_cp1252_pipe(monkeypatch):
+@pytest.mark.parametrize("errors", ["strict", "surrogateescape"])
+def test_list_into_a_cp1252_pipe(monkeypatch, errors):
     """Windows writes a pipe or file in cp1252: a summary's character it lacks prints as `?`, not a crash."""
     raw = io.BytesIO()
-    out = io.TextIOWrapper(raw, encoding="cp1252", errors="strict")
+    out = io.TextIOWrapper(raw, encoding="cp1252", errors=errors)
     monkeypatch.setattr(sys, "stdout", out)
     assert any("π" in card.summary for card, _ in registry.cards("multiview").values())  # pi3
     assert cli.main(["list", "--task", "multiview"]) == 0
