@@ -13,6 +13,7 @@ import os
 import re
 import sys
 import types
+import warnings
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -92,6 +93,36 @@ def test_image_round_trip(pack: Any) -> None:
     assert torch.equal(c.frame(rgba, 0, torch.device("cpu")), rgba[0, ..., :3].permute(2, 0, 1))
     gray = torch.rand(1, 5, 7, 1)
     assert torch.equal(c.frame(gray, 0, torch.device("cpu"))[2], gray[0, ..., 0])
+
+
+@pytest.mark.gpu
+def test_per_image_maps_queue_without_a_host_sync(pack: Any) -> None:
+    """The maps the nodes make per image only queue work on CUDA: a host sync would stall the next model call."""
+    if not torch.cuda.is_available():
+        pytest.skip("no CUDA")
+    c, cuda = pack.convert, torch.device("cuda")
+    depth, normals = torch.rand(6, 7, device=cuda) + 0.5, torch.randn(6, 7, 3, device=cuda)
+    flow, labels = torch.randn(2, 6, 7, device=cuda), torch.randint(0, 5, (6, 7), device=cuda)
+    colours = c.palette(5).to(cuda)
+    c.flow_image(flow)  # the colour wheel is uploaded once per device
+    torch.cuda.synchronize()
+    with warnings.catch_warnings():  # "a prototype feature"
+        warnings.simplefilter("ignore", UserWarning)
+        torch.cuda.set_sync_debug_mode("error")  # a host sync raises
+    try:
+        maps = [
+            c.depth_image(depth, None),
+            c.depth_image(None, 1 / depth),
+            c.normals_image(normals),
+            c.flow_image(flow),
+            c.labels_image(labels, colours),
+            c.class_presence(labels, 5),
+        ]
+    finally:
+        torch.cuda.set_sync_debug_mode("default")
+    assert all(m.device.type == "cuda" for m in maps)
+    assert torch.equal(maps[2].cpu(), c.normals_image(normals.cpu()))
+    assert torch.equal(maps[5][:5].cpu(), torch.bincount(labels.flatten().cpu(), minlength=5) > 0)
 
 
 @pytest.mark.gpu

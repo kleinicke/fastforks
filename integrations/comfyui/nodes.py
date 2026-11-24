@@ -1375,14 +1375,15 @@ class SemanticSegment(_Node):
         """Segment every image."""
         m = load(model, backend, dtype)
         names = cast("tuple[str, ...]", m.class_names)  # ty: ignore[unresolved-attribute]
-        wanted = torch.tensor(convert.class_ids(classes, names), dtype=torch.long)
-        colours = convert.palette(len(names))
+        ids = convert.class_ids(classes, names)
+        wanted = torch.tensor(ids, dtype=torch.long, device=m.device)  # on the device once, not uploaded per image
+        colours = convert.palette(len(names)).to(m.device)
 
         def one(r: Any, k: int | None) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, list[torch.Tensor]]:  # noqa: ANN401
             lab = at(r.labels, k)
             present = convert.class_presence(lab, len(names))  # read once for the batch: no host sync per image
             mask = torch.isin(lab, wanted.to(lab.device))
-            return convert.labels_image(lab, colours), mask, present, [lab == c for c in wanted.tolist()] or [mask]
+            return convert.labels_image(lab, colours), mask, present, [lab == c for c in ids] or [mask]
 
         out = each_result(image, m, batch_size, one)
         found = "\n".join(convert.present_names(torch.stack([o[2] for o in out]).cpu(), names))

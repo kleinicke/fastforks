@@ -203,7 +203,8 @@ def normals_image(normals: torch.Tensor) -> torch.Tensor:
     The usual normal-map convention: red = right, green = up, blue = towards the camera, each `0.5 + 0.5 * n`;
     a surface facing the camera is light blue.
     """
-    n = torch.nan_to_num(normals.float()) * normals.new_tensor([1.0, -1.0, -1.0])
+    n = torch.nan_to_num(normals.float())
+    n = torch.cat([n[..., :1], -n[..., 1:]], dim=-1)  # y up, z towards the camera (no host-to-device sign tensor)
     return (0.5 + 0.5 * n).clamp(0, 1).permute(2, 0, 1)
 
 
@@ -389,8 +390,7 @@ def class_presence(labels: torch.Tensor, n: int) -> torch.Tensor:
     """
     seen = torch.zeros(n + 1, dtype=torch.bool, device=labels.device)
     flat = labels.flatten()
-    seen[torch.where((flat >= 0) & (flat < n), flat, n)] = True
-    return seen
+    return seen.index_fill_(0, torch.where((flat >= 0) & (flat < n), flat, n), value=True)  # `[i] = True` syncs
 
 
 def present_names(seen: torch.Tensor, class_names: Sequence[str]) -> list[str]:
@@ -402,7 +402,10 @@ def present_names(seen: torch.Tensor, class_names: Sequence[str]) -> list[str]:
 
 
 def labels_image(labels: torch.Tensor, colours: torch.Tensor) -> torch.Tensor:
-    """Class indices `[H, W]` -> colour map `[3, H, W]` (`colours[c]` per class)."""
+    """Class indices `[H, W]` -> colour map `[3, H, W]` (`colours[c]` per class).
+
+    Pass `colours` on the labels' device: an upload per image waits for the device's queued work.
+    """
     return colours.to(labels.device)[labels].permute(2, 0, 1)
 
 
@@ -412,7 +415,7 @@ def flow_image(flow: torch.Tensor) -> torch.Tensor:
     Hue = direction, saturation = speed scaled by the largest finite speed of the image (white = no motion).
     """
     dx, dy = torch.nan_to_num(flow.float(), nan=0.0, posinf=0.0, neginf=0.0)
-    wheel = _colour_wheel().to(flow.device)
+    wheel = _colour_wheel(flow.device)
     n = wheel.shape[0]
     rad = torch.sqrt(dx**2 + dy**2)
     rad = rad / rad.max().clamp_min(torch.finfo(torch.float32).eps)
@@ -425,15 +428,19 @@ def flow_image(flow: torch.Tensor) -> torch.Tensor:
     return col.clamp(0, 1).permute(2, 0, 1)
 
 
-def _colour_wheel() -> torch.Tensor:
-    """The Baker et al. colour wheel `[55, 3]` in `[0, 1]`: red, yellow, green, cyan, blue, magenta, back to red."""
+@functools.cache
+def _colour_wheel(device: torch.device) -> torch.Tensor:
+    """The Baker et al. colour wheel `[55, 3]` in `[0, 1]` on `device`: red, yellow, green, cyan, blue, magenta, red.
+
+    Cached: an upload per call would wait for the device's queued work. Read-only.
+    """
     stops = [(1, 0, 0), (1, 1, 0), (0, 1, 0), (0, 1, 1), (0, 0, 1), (1, 0, 1), (1, 0, 0)]
     counts = [15, 6, 4, 11, 13, 6]
     rows = []
     for a, b, n in zip(stops, stops[1:], counts, strict=False):
         start, end = torch.tensor(a, dtype=torch.float32), torch.tensor(b, dtype=torch.float32)
         rows.append(start + (end - start) * (torch.arange(n, dtype=torch.float32).unsqueeze(-1) / n))
-    return torch.cat(rows)
+    return torch.cat(rows).to(device)
 
 
 def warp(image: torch.Tensor, flow: torch.Tensor) -> torch.Tensor:
