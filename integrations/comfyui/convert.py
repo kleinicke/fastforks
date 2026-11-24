@@ -149,7 +149,12 @@ def to_mask(maps: Sequence[torch.Tensor], device: torch.device | str = "cpu") ->
     return _batch([m.detach().float() for m in maps], device)
 
 
-def _batch(maps: Sequence[torch.Tensor], device: torch.device | str) -> torch.Tensor:
+def to_flow(flows: Sequence[torch.Tensor], device: torch.device | str = "cpu") -> torch.Tensor:
+    """Optical flows `[2, H, W]` (pixels, one per pair) -> `[B, H, W, 2]` float32, unclamped."""
+    return _batch([f.detach().float().permute(1, 2, 0) for f in flows], device, clamp=False)
+
+
+def _batch(maps: Sequence[torch.Tensor], device: torch.device | str, *, clamp: bool = True) -> torch.Tensor:
     """`torch.stack(maps).clamp(0, 1)` on `device`, each map clamped where it is and copied into its slot.
 
     Stacking on the GPU first held a second copy of every output there (+760 MiB at 32 x 1080p) for the same
@@ -163,7 +168,7 @@ def _batch(maps: Sequence[torch.Tensor], device: torch.device | str) -> torch.Te
         raise ValueError(msg)
     out = torch.empty(len(maps), *maps[0].shape, device=device)
     for o, m in zip(out, maps, strict=True):
-        o.copy_(m.clamp(0, 1))
+        o.copy_(m.clamp(0, 1) if clamp else m)
     return out
 
 

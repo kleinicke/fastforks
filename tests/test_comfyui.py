@@ -356,6 +356,7 @@ def test_pair_nodes_batch_size_matches_one_pair_at_a_time(pack: Any, monkeypatch
     one_f, three_f = (nodes.Flow().run(**kw, batch_size=b) for b in (1, 3))
     assert calls == [(3, 4, 6)] * 4 + [(3, 3, 4, 6), (1, 3, 4, 6)]
     torch.testing.assert_close(three_f[1], one_f[1])
+    assert torch.equal(one_f[1][0], (frames[1] - frames[0])[..., :2])  # raw flow: pixels, not clamped
     torch.testing.assert_close(three_f[0], one_f[0])
     assert "batch_size" in nodes.Interpolate.INPUT_TYPES()["optional"]
     assert "batch_size" in nodes.Flow.INPUT_TYPES()["optional"]

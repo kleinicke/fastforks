@@ -1489,8 +1489,9 @@ class Flow(_Node):
                 return m(a, b).flow
 
             flows = each(frames.shape[0] - 1, pair)
-        raw = torch.stack([f.detach().float().permute(1, 2, 0) for f in flows]).to(_out_device()).contiguous()
-        return convert.to_image([convert.flow_image(f) for f in flows], _out_device()), raw
+        return convert.to_image([convert.flow_image(f) for f in flows], _out_device()), convert.to_flow(
+            flows, _out_device()
+        )
 
 
 class Warp(_Node):
