@@ -54,7 +54,10 @@ def test_export_attention_matches_upstream(coordinates: int, family: str) -> Non
         override(att, _attention_forward)
         eager = att(*inputs)
         compiled = torch.compile(att, backend="eager")(*inputs)
-        exported = torch.export.export(att, inputs, strict=False).module()(*inputs)
+        program = torch.export.export(att, inputs, strict=False)
+        exported = program.module()(*inputs)
+    # upstream's spatial-length check traces to aten._is_all_true, which the ONNX converter cannot translate
+    assert not [n for n in program.graph.nodes if "_is_all_true" in str(n.target)]
     for got in (eager, compiled, exported):
         for a, b in zip(got, expected, strict=True):
             torch.testing.assert_close(a, b, rtol=0, atol=0)
