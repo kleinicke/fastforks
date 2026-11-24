@@ -17,7 +17,7 @@ data was touched. The Windows / CUDA behaviour was not re-measured here.
 - **Prompts.** No prompt at all, text sent to a points / box model (already reworded earlier), a box with x1 < x0 and
   points outside the image give clear library messages; so do PointTrack points outside the frame.
 - **Frames.** Flow with one frame: "Flow needs a batch of at least 2 frames".
-- **Faces.** FaceRestore on a non-aligned image: "GFPGAN restores an aligned 512 x 512 face crop ...".
+- **Faces.** FaceRestore on a non-aligned image: "GFPGAN restores an aligned 512 x 512 face crop ...". (Since 27343c97 the node detects, aligns and pastes back the faces of a whole photo, so this message no longer reaches a user.)
 - **Memory in Upscale.** The library's "out of GPU memory for a 1600x1600 input in one pass: ... tile=512" is exact.
 - **Weights.** Missing weights offline and gated repos: the library text already names the file, the licence page and
   `hf auth login`.
