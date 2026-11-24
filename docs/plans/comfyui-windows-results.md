@@ -29,7 +29,7 @@ Timings are the `execution_start` to `execution_success` span from `/history`, i
 
 | # | Step | Result |
 |---|---|---|
-| 1 | Install keeps ComfyUI's torch | pass. `uv pip install --dry-run "fastforks-core[timm,transformers]>=0.2"` into the ComfyUI venv keeps torch 2.14.1+cu130 (fastforks-core needs torch >= 2.8). ComfyUI portable was not run. |
+| 1 | Install keeps ComfyUI's torch | pass. `uv pip install --dry-run "fastforks-core[timm,transformers]>=0.2"` into the ComfyUI venv keeps torch 2.14.1+cu130 (fastforks-core needs torch >= 2.8). ComfyUI portable: see Model cache and section 7 below. |
 | 2 | Start, 20 nodes, no import error | pass. All 20 `Fastforks*` nodes are in `/object_info`. The pack imports in 0.1 s. The log says `fastforks: downloads go to ...\models\fastforks; also reading [...]`. |
 | 3 | Depth `depth-anything-v2-s`, `auto` | pass. There is one warning per model load: `kernels unavailable (... built for Linux x86-64, not win32 AMD64 ...); using portable`. Against a direct `fastforks` call on CPU in float32, the mean abs diff is 0.0017 and p99 is 0.004 on the 0-1 output. There was no Linux PNG to compare against. |
 | 4 | Remove background, Segment, Interpolate; unload | pass. Outputs and the VRAM numbers are below. |

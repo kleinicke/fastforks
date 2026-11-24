@@ -2,7 +2,8 @@
 
 Status 2026-11-20: all steps run on Windows 11 (ComfyUI 4806189de in a venv with torch 2.14.1+cu130, RTX 5060 Ti)
 through the ComfyUI API; results, timings and fixes in [comfyui-windows-results.md](comfyui-windows-results.md).
-Not yet run: ComfyUI portable (`python_embeded`), bfloat16 on an RTX 20xx.
+ComfyUI portable (`python_embeded`) ran since (2026-11-23, then `--cpu` and `--novram` on 2026-11-24). Not yet run:
+bfloat16 on an RTX 20xx.
 
 ## What the code already handles
 - The pack (`integrations/comfyui/`) uses torch, numpy and PIL only: no paths, no POSIX calls, no subprocesses.
