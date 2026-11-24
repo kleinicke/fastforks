@@ -191,6 +191,10 @@ CUDA device and loads the portable backend. Warm seconds per 768 x 768 image (Ry
 | Track points (tapir, 4 frames) | 0.98 | Pose (vitpose-plus-small) | 0.10 |
 | Classify (the 10 local models) | 0.04-0.39 | Warp | (in Flow) |
 
+The same 24 nodes under `--novram` (GPU, default models): all ran (the four whose default weights are not local
+skipped). The pack loads its models whole on the GPU in that mode too; PyTorch memory peaked at 1632 MiB (INSID3),
+the warm runs took 0.04-0.62 s.
+
 ## Bugs fixed (branch `work/comfyui-windows`, not pushed)
 
 None of these is Windows-specific; the Windows run surfaced them.
