@@ -73,7 +73,9 @@ The open questions of the first audit, settled during the Mac run:
    flag, and only SAM 3 and DINOv3 need a Hugging Face login. Their failure already says which licence page to accept
    and how to log in (`hf auth login` or `HF_TOKEN`), and the `model` tooltip names SAM 3 as gated. Revisit if
    a card gains a real `gated` field.
-5. **Download progress: later.** It needs a byte callback in `fastforks._core.files`; the console shows progress today.
+5. **Download progress: done (2026-11-24).** "Later" came with the release push: `files.download_progress` reports
+   each download's bytes (the console had none, only the start line), the nodes show one ComfyUI progress bar per
+   file, and Cancel stops a download; without a callback the library logs progress every 10 s.
 6. **Mac numbers in tooltips: no.** A dropdown has one tooltip for all its models, so per-model numbers cannot fit; the
    speed pages and `docs/plans/mlx-sweep.md` carry them, and `backend=auto` already takes MLX where it was measured
    better.

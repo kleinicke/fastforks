@@ -172,7 +172,8 @@ A node that cannot do what you set says what to change, in the node's words (`ba
   MPS (also torch's own `MPS backend out of memory`) to try the `mlx` backend, which often needs less memory; ComfyUI
   then unloads its models, so the run can be repeated. Upscale / restore also says which
   `tile` fits.
-- **Weights.** The first run downloads missing weights (progress is in ComfyUI's console only). A few upstreams
+- **Weights.** The first run downloads missing weights and kernel files, with a progress bar on the node for each
+  file (and a console line every 10 s); Cancel stops a download, and nothing partial is kept. A few upstreams
   publish a model only inside a larger archive, which is downloaded once and not kept: SPAN's 18 MB file comes from a
   1.3 GB archive (about a minute on a fast line), so the console names the file with the archive's size. Offline mode
   (`FASTFORKS_OFFLINE` / `HF_HUB_OFFLINE`) fails with where to put the files (`models/fastforks`) or how to allow the

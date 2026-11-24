@@ -31,11 +31,14 @@ No model family is new in this release; the changes are backends, platforms and 
 - The `backend` dropdown has the same four entries on every platform: `auto`, `portable`, `kernels`, `mlx` (the model's
   MLX port, Apple silicon only), so a saved workflow validates everywhere. An entry the machine or the model cannot run
   fails with a message. A workflow saved with the earlier `mlx portable` entry loads as `mlx`.
+- Weight and kernel downloads show a progress bar on the node; Cancel stops a download (nothing is cached).
 
 ### API changes
 
 - `Model.warmup(sizes)` runs the first call of each input size ahead of time (compiles, MLX graphs).
 - `registry.allow_noncommercial()` lets a front end with its own opt-in allow non-commercial weights.
+- `files.download_progress(callback)` reports the bytes of each download in a block to a front end; downloads
+  without one log their progress every 10 s (INFO).
 - `detection.track_objects(batch_size=)`; `example_inputs()` on concept segmentation and the volume models.
 - New options `cuda_graphs` and `stream` on the families that list them; `FASTFORKS_SDPA` selects the attention
   backend of CUDA calls.

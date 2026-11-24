@@ -35,7 +35,7 @@ import torch
 
 import fastforks
 from fastforks import restoration
-from fastforks._core import registry  # the licence gate's variable and the published ids (no public API yet)
+from fastforks._core import files, registry  # the licence gate, download progress, ids (no public API yet)
 
 from . import convert
 from . import faces as _faces
@@ -542,6 +542,30 @@ def make_room(memory_required: float, device: torch.device | None) -> None:
             return
 
 
+_MB = 1 << 20
+
+
+@contextlib.contextmanager
+def download_bars() -> Generator[None]:
+    """ComfyUI's progress bar on the node for each weights / kernel file it downloads (MB; a cancel stops the download).
+
+    ComfyUI's progress hook raises when the run was cancelled; the library then stops the fetch and caches nothing.
+    """
+    bars: dict[str, Any] = {}
+
+    def report(url: str, n: int, total: int | None) -> None:
+        _mm().throw_exception_if_processing_interrupted()  # the bar's hook checks too, but only when it sends
+        if total:  # every card and manifest records a size
+            if url not in bars:
+                import comfy.utils  # noqa: PLC0415 - ComfyUI only
+
+                bars[url] = comfy.utils.ProgressBar(max(1, total // _MB))
+            bars[url].update_absolute(n // _MB)
+
+    with files.download_progress(report):
+        yield
+
+
 def each(n: int, fn: Callable[[int], Any]) -> list[Any]:
     """`fn(i)` for every image of a batch, with ComfyUI's progress bar and interrupt check between images."""
     import comfy.utils  # noqa: PLC0415 - ComfyUI only
@@ -820,7 +844,7 @@ class _Node:
         """
         token = _COMMERCIAL_RUN.set(self.COMMERCIAL_ONLY)
         try:
-            with contextlib.nullcontext() if self.COMMERCIAL_ONLY else registry.allow_noncommercial():
+            with download_bars(), contextlib.nullcontext() if self.COMMERCIAL_ONLY else registry.allow_noncommercial():
                 return self.run(**inputs)
         except RuntimeError as e:
             if (oom := memory_error(e, str(inputs.get("backend", "auto")))) is not None:

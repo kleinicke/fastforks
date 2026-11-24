@@ -37,6 +37,7 @@ Face cache; the file is checked there and used in place.
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import hashlib
 import http
 import json
@@ -60,7 +61,7 @@ import platformdirs
 from fastforks._core.errors import OptionsError, WeightsDownloadError, WeightsHashError
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Callable, Generator, Iterator, Sequence
     from http.client import HTTPMessage
 
 log = logging.getLogger(__name__)
@@ -69,6 +70,8 @@ _CHUNK = 1 << 22
 _INSECURE_OK = False  # tests only: allow http:// and file:// URLs without `FASTFORKS_HF_ENDPOINT`
 _UNSIZED_CAP = 4 << 30  # fetch limit when a spec has no size (cards and manifests always have one)
 _STALE_DOWNLOAD_S = 24 * 3600
+_PROGRESS_LOG_S = 10.0  # fixed: a download in progress logs its progress this often
+_PROGRESS_REPORT_S = 0.25  # fixed: and calls the `download_progress` callback at most this often
 _REPLACE_TRIES = 8  # Windows: tries to rename a verified download onto a blob a concurrent rename is placing (~1.4 s)
 HF_ENDPOINT_ENV = "FASTFORKS_HF_ENDPOINT"
 OFFLINE_ENV = "FASTFORKS_OFFLINE"
@@ -513,7 +516,7 @@ def download(
         log.debug("downloading %s%s (part of the kernel download above)", url, size)
     try:
         if spec.member is None:
-            _place(tmp / "file", _fetch(url, tmp / "file", _limit(spec.size)), spec, dest, url)
+            _place(tmp / "file", _fetch(url, tmp / "file", _limit(spec.size), spec.size), spec, dest, url)
             return
         _from_archive(url, tmp, spec, dest, also)
     except (OSError, zipfile.BadZipFile, tarfile.TarError) as e:  # URLError and HTTPError are OSErrors
@@ -525,7 +528,7 @@ def download(
 
 def _from_archive(url: str, tmp: Path, spec: FileSpec, dest: Path, also: Sequence[tuple[FileSpec, Path]]) -> None:
     """Fetch the archive at `url` into `tmp` and extract `spec` (required) and the `also` members (best effort)."""
-    digest = _fetch(url, tmp / "archive", _limit(spec.archive_size))
+    digest = _fetch(url, tmp / "archive", _limit(spec.archive_size), spec.archive_size)
     if spec.archive_sha256 is not None and digest != spec.archive_sha256:
         msg = f"{url}: archive SHA-256 {digest} != expected {spec.archive_sha256}"
         raise WeightsHashError(msg)
@@ -572,7 +575,46 @@ def _members(path: Path, url: str, names: set[str]) -> Iterator[tuple[str, int, 
                 yield name, info.file_size, z.open(info)
 
 
-def _copy(src: IO[bytes], out: Path, limit: int | None, what: str) -> str:
+_PROGRESS: contextvars.ContextVar[Callable[[str, int, int | None], None] | None] = contextvars.ContextVar(
+    "fastforks_download_progress", default=None
+)
+
+
+@contextlib.contextmanager
+def download_progress(report: Callable[[str, int, int | None], None]) -> Generator[None]:
+    """Call `report(url, bytes so far, total or None)` while a download inside the block runs (this thread / task).
+
+    At most every 0.25 s and once when a file's bytes are all in. For a front end with its own progress display (the
+    ComfyUI packs); an exception from `report` (e.g. the user cancelled) stops the download, nothing is cached.
+    Without it, a download still logs its progress every 10 s (`logging.INFO`).
+    """
+    token = _PROGRESS.set(report)
+    try:
+        yield
+    finally:
+        _PROGRESS.reset(token)
+
+
+class _Progress:
+    """The progress of one fetch: a log line every `_PROGRESS_LOG_S`, the `download_progress` callback if any."""
+
+    def __init__(self, what: str, total: int | None) -> None:
+        self.what, self.total = what, total
+        self.report = _PROGRESS.get()
+        self.logged = self.sent = time.monotonic()
+
+    def __call__(self, n: int, *, done: bool = False) -> None:
+        now = time.monotonic()
+        if self.report is not None and (done or now - self.sent >= _PROGRESS_REPORT_S):
+            self.sent = now
+            self.report(self.what, n, self.total)
+        if not done and now - self.logged >= _PROGRESS_LOG_S:
+            self.logged = now
+            of = f" of {_human_size(self.total)} ({100 * n // self.total} %)" if self.total else ""
+            log.info("downloading %s: %s%s", self.what, _human_size(n), of)
+
+
+def _copy(src: IO[bytes], out: Path, limit: int | None, what: str, progress: _Progress | None = None) -> str:
     """Stream `src` into `out`, at most `limit` bytes; returns the SHA-256 of the bytes."""
     h, n = hashlib.sha256(), 0
     with out.open("wb") as f:
@@ -583,6 +625,10 @@ def _copy(src: IO[bytes], out: Path, limit: int | None, what: str) -> str:
                 raise WeightsHashError(msg)
             f.write(chunk)
             h.update(chunk)
+            if progress is not None:
+                progress(n)
+    if progress is not None:
+        progress(n, done=True)
     return h.hexdigest()
 
 
@@ -600,8 +646,8 @@ def _request(url: str) -> urllib.request.Request:
     return req
 
 
-def _fetch(url: str, out: Path, limit: int | None) -> str:
-    """Stream `url` into `out`, at most `limit` bytes; returns the SHA-256 of the bytes."""
+def _fetch(url: str, out: Path, limit: int | None, total: int | None) -> str:
+    """Stream `url` into `out`, at most `limit` bytes (`total`: the recorded size); returns the SHA-256 of the bytes."""
     try:
         resp = _OPENER.open(_request(url), timeout=60)
     except urllib.error.HTTPError as e:
@@ -611,7 +657,13 @@ def _fetch(url: str, out: Path, limit: int | None) -> str:
         e.close()
         raise
     with resp:
-        return _copy(resp, out, limit, url)
+        return _copy(resp, out, limit, url, _Progress(url, total or _content_length(resp)))
+
+
+def _content_length(resp: IO[bytes]) -> int | None:
+    """The response's `Content-Length` (for the progress of a file without a recorded size), None if not sent."""
+    value = getattr(resp, "headers", {}).get("Content-Length")
+    return int(value) if value and value.isdigit() else None
 
 
 def _place(part: Path, digest: str, spec: FileSpec, dest: Path, url: str) -> None:

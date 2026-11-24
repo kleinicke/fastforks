@@ -103,6 +103,46 @@ def test_download_then_cached(tmp_path, monkeypatch):
     assert locate(spec, group="fam", env_var=ENV) == p
 
 
+def test_download_progress_reports_to_the_callback_and_the_log(tmp_path, monkeypatch, caplog):
+    """`download_progress` gets (url, bytes so far, recorded size), the last call with all bytes; the log line names
+    the share; outside the block nothing is called."""
+    payload = bytes(range(256)) * 40  # 10 KiB in 1 KiB chunks
+    src = tmp_path / "remote.bin"
+    src.write_bytes(payload)
+    monkeypatch.setattr(files, "_CHUNK", 1024)
+    monkeypatch.setattr(files, "_PROGRESS_REPORT_S", 0.0)
+    monkeypatch.setattr(files, "_PROGRESS_LOG_S", 0.0)
+    calls = []
+    with caplog.at_level(logging.INFO, logger=files.log.name), files.download_progress(lambda *a: calls.append(a)):
+        locate(spec_for(payload, src.as_uri()), group="fam", env_var=ENV)
+    assert [n for _, n, _ in calls] == [*range(1024, 10241, 1024), 10240]  # every chunk, then the end once more
+    assert {(u, t) for u, _, t in calls} == {(src.as_uri(), 10240)}
+    assert "of 10 KB (50 %)" in caplog.text
+    src2 = tmp_path / "other.bin"
+    src2.write_bytes(b"other")
+    calls.clear()
+    locate(spec_for(b"other", src2.as_uri()), group="fam", env_var=ENV)
+    assert not calls
+
+
+def test_download_progress_callback_can_cancel(tmp_path, monkeypatch):
+    """An exception from the callback (ComfyUI's cancel) ends the download: it propagates and nothing is cached."""
+    src = tmp_path / "remote.bin"
+    src.write_bytes(b"x" * 4096)
+    monkeypatch.setattr(files, "_CHUNK", 1024)
+    monkeypatch.setattr(files, "_PROGRESS_REPORT_S", 0.0)
+
+    class CancelledError(Exception):
+        pass
+
+    def cancel(*_a):
+        raise CancelledError
+
+    with pytest.raises(CancelledError), files.download_progress(cancel):
+        locate(spec_for(b"x" * 4096, src.as_uri()), group="fam", env_var=ENV)
+    assert not cache_files()
+
+
 def test_corrupt_cache_is_redownloaded(tmp_path, caplog):
     src = tmp_path / "remote.bin"
     src.write_bytes(b"good")
@@ -216,7 +256,7 @@ def test_zip_siblings_share_one_fetch(tmp_path, monkeypatch):
     bad = FileSpec("d.pth", "1" * 64, None, url, member="c.pth")  # wrong hash: skipped, not fatal
     fetches = []
     fetch = files._fetch
-    monkeypatch.setattr(files, "_fetch", lambda u, out, limit: fetches.append(u) or fetch(u, out, limit))
+    monkeypatch.setattr(files, "_fetch", lambda u, out, limit, total: fetches.append(u) or fetch(u, out, limit, total))
     first = locate(specs[0], group="fam", env_var=ENV, siblings=[*specs, bad])
     assert first.read_bytes() == b"aaa"
     for s, (_, data) in zip(specs, members.items(), strict=True):
@@ -404,7 +444,7 @@ def _plain(monkeypatch, *, code=None, content=b"w"):
     """Stub the plain download: refused with HTTP `code`, else serving `content`. Returns the requested URLs."""
     urls = []
 
-    def fetch(u, out, _limit):
+    def fetch(u, out, _limit, _total):
         urls.append(u)
         if code is not None:
             raise _http_error(u, code, "refused")
@@ -711,7 +751,7 @@ def test_unreadable_hub_caches_are_skipped(tmp_path, monkeypatch):
 def test_http_status_decides_whether_to_retry(monkeypatch, code, text):
     """Auth / missing-file errors do not say "Retry later"; transient ones do; all name the by-hand route."""
 
-    def fail(u, _out, _limit):
+    def fail(u, _out, _limit, _total):
         raise _http_error(u, code, "x")
 
     monkeypatch.setattr(files, "_fetch", fail)

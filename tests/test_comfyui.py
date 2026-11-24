@@ -1684,3 +1684,47 @@ def test_classifier_nodes_read_results_after_the_loop(pack: Any, monkeypatch: py
         label, score = nodes.NsfwCheck().run(**kw, batch_size=b)
         assert label == "normal\nnsfw\nnsfw"
         assert score == pytest.approx(0.9)
+
+
+def test_downloads_show_a_progress_bar_and_stop_on_cancel(
+    pack: Any, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A file a node downloads gets a ComfyUI progress bar in MB, ending full; a cancel stops the download and caches
+    nothing."""
+    import hashlib  # noqa: PLC0415 - this test only
+
+    from fastforks._core import files  # noqa: PLC0415 - the pack's own import
+
+    nodes = pack.nodes
+    bars: list[Any] = []
+
+    class Bar:
+        def __init__(self, total: int) -> None:
+            self.total, self.values = total, []
+            bars.append(self)
+
+        def update_absolute(self, value: int) -> None:
+            self.values.append(value)
+
+    utils = types.SimpleNamespace(ProgressBar=Bar)
+    monkeypatch.setitem(sys.modules, "comfy.utils", utils)
+    monkeypatch.setattr(sys.modules["comfy"], "utils", utils, raising=False)
+    monkeypatch.setattr(files, "_CHUNK", 1 << 20)
+    monkeypatch.setattr(files, "_PROGRESS_REPORT_S", 0.0)
+    payload = b"w" * (3 << 20)
+    src = tmp_path / "w.bin"
+    src.write_bytes(payload)
+    spec = files.FileSpec("w.bin", hashlib.sha256(payload).hexdigest(), len(payload), src.as_uri())
+    with nodes.download_bars():
+        files.locate(spec, group="fam", env_var="FF_TEST_PATH")
+    assert [(b.total, b.values) for b in bars] == [(3, [1, 2, 3, 3])]
+
+    interrupt = type("Interrupt", (Exception,), {})
+    mm = sys.modules["comfy.model_management"]
+    monkeypatch.setattr(mm, "throw_exception_if_processing_interrupted", lambda: (_ for _ in ()).throw(interrupt()))
+    other = payload + b"!"
+    src.write_bytes(other)
+    spec = files.FileSpec("w.bin", hashlib.sha256(other).hexdigest(), len(other), src.as_uri())
+    with pytest.raises(interrupt), nodes.download_bars():
+        files.locate(spec, group="fam", env_var="FF_TEST_PATH")
+    assert not files.blob_path(spec.sha256).exists()
